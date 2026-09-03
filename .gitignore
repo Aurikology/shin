@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+.claude/settings.local.json
+.claude/briefs/
+node_modules/
+__pycache__/
+*.log
+# Machine-local session rules. Describes one box, not the project.
+CLAUDE.local.md

@@ -1,0 +1,184 @@
+{
+  "recordedAt": "2026-09-03",
+  "provenance": "The seven-item hand pricing pilot of 2026-09-03, plus four direct retailer page fetches. Every number here was read off a public Canadian source by a person on that date. Nothing is interpolated, nothing is converted between currencies, and the failures are recorded as failures rather than dropped. The four direct fetches produced no prices at all — Loblaws, Best Buy Canada and Metro answered 403, IKEA served its nav menu — which is why no scraping adapter exists.",
+  "products": [
+    {
+      "id": "kd-original-225g",
+      "label": "Kraft Dinner Original Macaroni & Cheese 225g",
+      "category": "grocery",
+      "brand": "Kraft",
+      "size": { "value": 225, "unit": "g" },
+      "identityConfidence": 0.97,
+      "matchTerms": ["kraft dinner", "kd", "macaroni cheese", "225g"],
+      "points": [
+        {
+          "seller": "Walmart",
+          "amountCents": 147,
+          "currency": "CAD",
+          "kind": "regular",
+          "observedAt": "2026-09-03",
+          "sourceId": "pilot-2026-09-03"
+        },
+        {
+          "seller": "Metro",
+          "amountCents": 200,
+          "currency": "CAD",
+          "kind": "regular",
+          "observedAt": "2026-09-03",
+          "sourceId": "pilot-2026-09-03",
+          "note": "recorded as approximately $2.00"
+        },
+        {
+          "seller": "Loblaw banners",
+          "amountCents": 55,
+          "currency": "CAD",
+          "kind": "promotional",
+          "observedAt": "2026-09-03",
+          "sourceId": "pilot-2026-09-03",
+          "limit": "limit 8"
+        },
+        {
+          "seller": "Sobeys",
+          "amountCents": 125,
+          "currency": "CAD",
+          "kind": "promotional",
+          "observedAt": "2026-09-03",
+          "sourceId": "pilot-2026-09-03",
+          "note": "advertised 4 for $5.00; recorded here per unit"
+        }
+      ]
+    },
+    {
+      "id": "poang-used",
+      "label": "IKEA POÄNG armchair, used",
+      "category": "used",
+      "brand": "IKEA",
+      "identityConfidence": 0.93,
+      "matchTerms": ["poang", "poäng", "armchair", "used poang", "second hand poang"],
+      "points": [
+        {
+          "seller": "Kijiji",
+          "amountCents": 3500,
+          "currency": "CAD",
+          "kind": "asking",
+          "observedAt": "2026-09-03",
+          "sourceId": "pilot-2026-09-03",
+          "note": "low end of the observed GTA range; a range endpoint, not one listing"
+        },
+        {
+          "seller": "Kijiji",
+          "amountCents": 15900,
+          "currency": "CAD",
+          "kind": "asking",
+          "observedAt": "2026-09-03",
+          "sourceId": "pilot-2026-09-03",
+          "note": "high end of the observed GTA range; a range endpoint, not one listing"
+        },
+        {
+          "seller": "Facebook Marketplace",
+          "amountCents": 6000,
+          "currency": "CAD",
+          "kind": "asking",
+          "observedAt": "2026-09-03",
+          "sourceId": "pilot-2026-09-03",
+          "note": "low end of the observed range; a range endpoint, not one listing"
+        },
+        {
+          "seller": "Facebook Marketplace",
+          "amountCents": 12000,
+          "currency": "CAD",
+          "kind": "asking",
+          "observedAt": "2026-09-03",
+          "sourceId": "pilot-2026-09-03",
+          "note": "high end of the observed range; a range endpoint, not one listing"
+        }
+      ]
+    },
+    {
+      "id": "tide-simply-2720ml",
+      "label": "Tide Simply Clean & Fresh liquid detergent 2.72L",
+      "category": "grocery",
+      "brand": "Tide",
+      "size": { "value": 2.72, "unit": "l" },
+      "identityConfidence": 0.95,
+      "matchTerms": ["tide simply", "tide 2.72", "laundry detergent"],
+      "points": [
+        {
+          "seller": "Walmart",
+          "amountCents": 1197,
+          "currency": "CAD",
+          "kind": "regular",
+          "observedAt": "2026-09-03",
+          "sourceId": "pilot-2026-09-03",
+          "note": "the only price found; Loblaws and Metro returned nothing"
+        }
+      ]
+    },
+    {
+      "id": "navel-oranges-3lb",
+      "label": "Navel oranges, 3 lb bag",
+      "category": "produce",
+      "identityConfidence": 0.9,
+      "matchTerms": ["navel oranges", "oranges 3lb", "orange bag"],
+      "points": [
+        {
+          "seller": "Metro",
+          "amountCents": 699,
+          "currency": "CAD",
+          "kind": "regular",
+          "observedAt": "2026-09-03",
+          "sourceId": "pilot-2026-09-03"
+        },
+        {
+          "seller": "Food Basics",
+          "amountCents": 599,
+          "currency": "CAD",
+          "kind": "regular",
+          "observedAt": "2026-09-03",
+          "sourceId": "pilot-2026-09-03"
+        }
+      ]
+    },
+    {
+      "id": "canon-eos-r6-used",
+      "label": "Canon EOS R6, used body",
+      "category": "used",
+      "brand": "Canon",
+      "model": "EOS R6",
+      "identityConfidence": 0.55,
+      "matchTerms": ["canon eos r6", "eos r6", "r6 body", "used canon"],
+      "identityNote": "free search answered with a Canon EOS R6 Mark II bundled with lenses at about $4,800 — a different camera at nearly triple. Every price attached to it was accurate. Separately observed and not usable as points: eBay sold listings under US$2,000, which is a bound in another currency, and new Canadian retail of $2,352 to $3,099, which is not a used comparable.",
+      "points": []
+    },
+    {
+      "id": "sony-wh1000xm5",
+      "label": "Sony WH-1000XM5 wireless headphones",
+      "category": "tech",
+      "brand": "Sony",
+      "model": "WH-1000XM5",
+      "identityConfidence": 0.96,
+      "matchTerms": ["sony wh-1000xm5", "wh1000xm5", "xm5", "sony headphones"],
+      "points": [
+        {
+          "seller": "Sony (manufacturer list)",
+          "amountCents": 42999,
+          "currency": "CAD",
+          "kind": "list",
+          "observedAt": "2026-09-03",
+          "sourceId": "pilot-2026-09-03",
+          "note": "list price only; zero live retailer prices were found"
+        }
+      ]
+    },
+    {
+      "id": "poang-new",
+      "label": "IKEA POÄNG armchair, new",
+      "category": "furniture",
+      "brand": "IKEA",
+      "identityConfidence": 0.95,
+      "matchTerms": ["new poang", "poang armchair new", "ikea poang"],
+      "identityNote": "five IKEA variant pages were opened and none carried a price in the fetched HTML",
+      "points": []
+    }
+  ]
+}

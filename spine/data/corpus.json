@@ -1,0 +1,59 @@
+{
+  "target": 100,
+  "asOf": "2026-09-03T18:00:00Z",
+  "baseline": {
+    "name": "hand pilot, 2026-09-03",
+    "verdicts": 2,
+    "items": 7,
+    "note": "The master plan records the pilot as producing a usable range for 2 of 7 items. The session notes summarise the same run as 1 of 7 while their own table shows two RANGE rows (Kraft Dinner and the used POÄNG). 2 of 7 is used here, and the discrepancy is logged as defect D-001 rather than quietly resolved."
+  },
+  "note": "The gate is 100 items and this corpus holds 7. Every one of them is a real item priced by hand on 2026-09-03, which is the whole reason it is only 7. Running this measures whether the spine reproduces the hand pilot; it does not and cannot run band 1's kill gate. Filling the corpus to 100 is queue item 1.2 and it is hand work.",
+  "items": [
+    {
+      "id": "kd-original-225g",
+      "query": { "text": "kraft dinner original 225g", "category": "grocery" },
+      "askingCents": 200,
+      "askingSeller": "Metro",
+      "askingProvenance": "observed"
+    },
+    {
+      "id": "poang-used",
+      "query": { "text": "used poang armchair", "category": "used" },
+      "askingCents": 8000,
+      "askingProvenance": "stated stand-in: the top of the observed $55-$80 cluster. Not an individual listing."
+    },
+    {
+      "id": "tide-simply-2720ml",
+      "query": { "text": "tide simply 2.72", "category": "grocery" },
+      "askingCents": 1197,
+      "askingSeller": "Walmart",
+      "askingProvenance": "observed"
+    },
+    {
+      "id": "navel-oranges-3lb",
+      "query": { "text": "navel oranges 3lb", "category": "produce" },
+      "askingCents": 699,
+      "askingSeller": "Metro",
+      "askingProvenance": "observed"
+    },
+    {
+      "id": "canon-eos-r6-used",
+      "query": { "text": "used canon eos r6", "category": "used" },
+      "askingCents": 200000,
+      "askingProvenance": "stated stand-in: no asking price was observed for the right camera."
+    },
+    {
+      "id": "sony-wh1000xm5",
+      "query": { "text": "sony wh-1000xm5", "category": "tech" },
+      "askingCents": 42999,
+      "askingSeller": "Sony (manufacturer list)",
+      "askingProvenance": "observed: the list price, which is the only number the pilot found."
+    },
+    {
+      "id": "poang-new",
+      "query": { "text": "new poang armchair", "category": "furniture" },
+      "askingCents": 12900,
+      "askingProvenance": "stated stand-in: five IKEA variant pages carried no price at all."
+    }
+  ]
+}
