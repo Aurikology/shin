@@ -1,0 +1,96 @@
+/*
+ * Design tokens, lifted from the walkthrough document so the app and the plan
+ * look like the same product. Do not restyle these on a whim: the accent is the
+ * one colour a share card is recognised by in someone else's screenshot.
+ *
+ * Three theme states, the same as the walkthrough: an explicit light or dark
+ * choice wins, and with no choice the system decides.
+ */
+
+:root {
+  --paper: #FBFAF7;
+  --surface: #FFFFFF;
+  --surface-sunk: #F3F1EC;
+  --ink: #16130F;
+  --ink-muted: #6E6660;
+  --ink-faint: #98908A;
+  --rule: #E4DFD8;
+  --rule-strong: #CDC6BC;
+  --accent: #E5165E;
+  --accent-ink: #A70E42;
+  --accent-soft: #FDE8EF;
+  --good: #1C7C4A;
+  --good-soft: #E4F2E9;
+  --mid: #8A6E1E;
+  --mid-soft: #F6EEDA;
+  --bad: #BE3218;
+  --bad-soft: #FBE7E2;
+  --shadow: 0 1px 2px rgba(22, 19, 15, .05), 0 8px 24px -12px rgba(22, 19, 15, .14);
+  --shadow-lift: 0 2px 6px rgba(22, 19, 15, .07), 0 18px 40px -20px rgba(22, 19, 15, .28);
+
+  --f-display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Newsreader", Georgia, "Times New Roman", serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --r-sm: 6px;
+  --r-md: 12px;
+  --r-lg: 20px;
+  --gap: 14px;
+  --pad: 18px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #131113;
+    --surface: #1C191B;
+    --surface-sunk: #100E10;
+    --ink: #F2EEE9;
+    --ink-muted: #A79E98;
+    --ink-faint: #7C736E;
+    --rule: #2E2A2C;
+    --rule-strong: #433D40;
+    --accent: #FF4C82;
+    --accent-ink: #FF7CA1;
+    --accent-soft: #331420;
+    --good: #56C288;
+    --good-soft: #14261C;
+    --mid: #D6B45C;
+    --mid-soft: #2A2314;
+    --bad: #F0745A;
+    --bad-soft: #2E1712;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 28px -14px rgba(0, 0, 0, .7);
+    --shadow-lift: 0 2px 8px rgba(0, 0, 0, .5), 0 20px 44px -22px rgba(0, 0, 0, .85);
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #131113;
+  --surface: #1C191B;
+  --surface-sunk: #100E10;
+  --ink: #F2EEE9;
+  --ink-muted: #A79E98;
+  --ink-faint: #7C736E;
+  --rule: #2E2A2C;
+  --rule-strong: #433D40;
+  --accent: #FF4C82;
+  --accent-ink: #FF7CA1;
+  --accent-soft: #331420;
+  --good: #56C288;
+  --good-soft: #14261C;
+  --mid: #D6B45C;
+  --mid-soft: #2A2314;
+  --bad: #F0745A;
+  --bad-soft: #2E1712;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 28px -14px rgba(0, 0, 0, .7);
+  --shadow-lift: 0 2px 8px rgba(0, 0, 0, .5), 0 20px 44px -22px rgba(0, 0, 0, .85);
+}
+
+/* The three faces. One per verdict tier, and the only tiering the user sees. */
+:root {
+  --tier-good-ink: var(--good);
+  --tier-good-bg: var(--good-soft);
+  --tier-fair-ink: var(--mid);
+  --tier-fair-bg: var(--mid-soft);
+  --tier-walk-ink: var(--bad);
+  --tier-walk-bg: var(--bad-soft);
+}

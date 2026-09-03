@@ -1,0 +1,105 @@
+/* Stage 07: What you can do. Owned by this screen alone. */
+
+.act-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px var(--pad);
+}
+.act-face { flex: 0 0 auto; }
+.act-title { font-size: 19px; margin: 0 0 6px; }
+.act-verdict { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; }
+
+.act-tier {
+  background: var(--surface-sunk);
+  color: var(--ink-muted);
+}
+.act-tier-good { background: var(--good-soft); color: var(--good); }
+.act-tier-fair { background: var(--mid-soft); color: var(--mid); }
+.act-tier-walk { background: var(--bad-soft); color: var(--bad); }
+
+.act-asking { color: var(--ink-muted); font-size: 13px; }
+
+.act-lede {
+  font-size: 20px;
+  margin: 20px 0 12px;
+}
+
+.act-watch { margin-bottom: 8px; }
+.act-watch[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.act-watch[disabled] { opacity: .55; cursor: not-allowed; }
+
+.act-buys {
+  color: var(--ink-muted);
+  font-size: 14.5px;
+  margin: 0 0 22px;
+}
+.act-buys .num { color: var(--ink); font-weight: 600; }
+
+.act-or {
+  margin: 0 0 8px;
+  text-align: center;
+}
+
+.act-secondary .btn { line-height: 1.25; }
+.act-secondary .btn[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.act-panel { margin-top: 10px; }
+.act-panel[hidden] { display: none; }
+.act-panel-card { margin-bottom: var(--gap); }
+
+.act-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.act-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.act-list li:last-child { border-bottom: 0; }
+.act-seller { font-weight: 600; }
+.act-price { text-align: right; font-weight: 600; }
+.act-meta { grid-column: 1 / -1; }
+
+.act-script {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  background: var(--surface-sunk);
+  border-radius: var(--r-md);
+  border-left: 3px solid var(--accent);
+  font-size: 15.5px;
+}
+.act-copy { margin-bottom: 4px; }
+
+.act-counted { margin-top: 24px; }
+.act-counts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+  margin: 4px 0 14px;
+}
+.act-counts div {
+  background: var(--surface-sunk);
+  border-radius: var(--r-sm);
+  padding: 9px 11px;
+}
+.act-counts dt {
+  font-family: var(--f-mono);
+  font-size: 9.5px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.act-counts dd {
+  margin: 2px 0 0;
+  font-size: 24px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

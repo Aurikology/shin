@@ -1,0 +1,186 @@
+/* Stage 00 and 01. A preview of two things that are not app screens, so it reads
+   as a document inside the phone rather than as product UI. */
+
+.pl-stage {
+  border-top: 2px solid var(--ink);
+  padding-top: 14px;
+  margin-bottom: 30px;
+}
+
+.pl-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+
+.pl-num {
+  font-family: var(--f-mono);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.pl-head h2 { margin: 0 0 3px; font-size: 21px; }
+.pl-sub { margin: 0; font-size: 12px; color: var(--ink-faint); }
+
+.pl-risk {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 14px;
+}
+
+.pl-hook {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: var(--accent-soft);
+  border-radius: var(--r-md);
+}
+.pl-hook .tag { background: transparent; color: var(--accent); padding: 0; }
+.pl-hook p {
+  margin: 6px 0 0;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.pl-beats {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  border-left: 2px solid var(--rule-strong);
+}
+.pl-beats li {
+  display: grid;
+  grid-template-columns: 62px 1fr;
+  gap: 10px;
+  padding: 0 0 12px 12px;
+  font-size: 15px;
+}
+.pl-beat-t { font-size: 12px; color: var(--accent); padding-top: 3px; }
+
+.pl-cap {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.pl-fmt { list-style: none; margin: 0 0 20px; padding: 0; }
+.pl-fmt li { padding: 11px 0; border-bottom: 1px solid var(--rule); }
+.pl-fmt-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+.pl-fmt p { margin: 0; font-size: 15px; }
+
+.pl-why { display: block; color: var(--ink-faint); font-size: 13.5px; margin-top: 2px; }
+
+.tag.t-now { background: var(--good-soft); color: var(--good); }
+.tag.t-next { background: var(--mid-soft); color: var(--mid); }
+.tag.t-later { background: var(--surface-sunk); color: var(--ink-faint); }
+
+.pl-flag {
+  border: 1px solid var(--accent);
+  border-left-width: 4px;
+  border-radius: var(--r-md);
+  padding: 14px;
+  margin: 0 0 16px;
+  background: var(--surface);
+}
+.pl-flag h3 { font-size: 15px; color: var(--accent); margin-bottom: 8px; }
+.pl-flag p { font-size: 14.5px; }
+.pl-flag p:last-child { margin-bottom: 0; }
+
+.pl-listing {
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-md);
+  padding: 14px;
+  margin-bottom: 20px;
+  background: var(--surface);
+}
+.pl-listing-top { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+.pl-icon {
+  background: var(--surface-sunk);
+  border-radius: 12px;
+  padding: 6px;
+  line-height: 0;
+}
+.pl-app-name {
+  margin: 0;
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 19px;
+}
+.pl-app-sub { margin: 0; font-size: 14px; color: var(--ink-muted); }
+
+.pl-shots { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.pl-shot {
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+  padding: 10px 8px;
+  min-height: 128px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.pl-shot-1 { border-color: var(--accent); }
+.pl-shot p {
+  margin: auto 0 0;
+  font-size: 10.5px;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--ink-faint);
+}
+.pl-shot-bar {
+  width: 100%;
+  height: 7px;
+  border-radius: 3px;
+  background: var(--surface-sunk);
+}
+.pl-shot-bar.short { width: 55%; }
+.pl-shot-split { display: flex; gap: 5px; width: 100%; }
+.pl-shot-split i {
+  flex: 1;
+  height: 46px;
+  border-radius: 4px;
+  background: var(--surface-sunk);
+}
+.pl-shot-note { margin: 10px 0 0; }
+
+.pl-rows { margin: 0 0 18px; }
+.pl-rows > div {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.pl-rows dt {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  padding-top: 3px;
+}
+.pl-rows dd { margin: 0; font-size: 15px; }

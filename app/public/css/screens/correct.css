@@ -1,0 +1,109 @@
+/*
+ * Stage 06b: Shin is wrong. Owned by this screen alone.
+ *
+ * Styled as a branch off the verdict rather than a form: four taps sit side by
+ * side, the one that is open shows a single field, and nothing on the screen
+ * looks like paperwork. A correction that feels like an ordeal is a correction
+ * that never arrives.
+ */
+
+.c-head { font-size: 25px; margin-bottom: 12px; }
+
+.c-subject {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--surface-sunk);
+  margin-bottom: 16px;
+}
+.c-subject-name { font-size: 14.5px; line-height: 1.25; }
+.c-subject-price { flex: 0 0 auto; font-size: 15px; color: var(--ink-muted); }
+
+.c-paths { margin-bottom: 16px; }
+
+.c-path {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.c-path.is-open { border-color: var(--accent); box-shadow: var(--shadow); }
+
+.c-path-head {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 13px 14px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink);
+}
+.c-path-title {
+  display: block;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 16.5px;
+  letter-spacing: -.02em;
+  line-height: 1.2;
+}
+.c-path-sub {
+  display: block;
+  font-size: 13.5px;
+  color: var(--ink-muted);
+  margin-top: 3px;
+  line-height: 1.35;
+}
+.c-path.is-open .c-path-title { color: var(--accent); }
+
+.c-path-body {
+  padding: 2px 14px 14px;
+  border-top: 1px solid var(--rule);
+  margin-top: 2px;
+  padding-top: 12px;
+}
+.c-path-body .btn { margin-bottom: 0; }
+
+.c-error {
+  font-size: 14px;
+  color: var(--bad);
+  margin: -2px 0 10px;
+}
+
+/* --- Shin concedes, and conceding is the charming part --- */
+
+.c-thanks {
+  text-align: center;
+  padding: 14px 0 4px;
+}
+.c-thanks-face { display: flex; justify-content: center; margin-bottom: 10px; }
+.c-thanks-head {
+  font-size: 30px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.c-thanks-said {
+  font-size: 17px;
+  line-height: 1.4;
+  color: var(--ink-muted);
+  margin: 0 auto 18px;
+  max-width: 30ch;
+  text-wrap: pretty;
+}
+
+.c-count {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: .06em;
+  color: var(--ink-faint);
+  margin-bottom: 18px;
+}
+
+.c-acts { margin-top: 4px; }
+.c-acts .btn:last-child { margin-bottom: 0; }
+.c-acts .btn-link { display: block; margin: 0 auto; }

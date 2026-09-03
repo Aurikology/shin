@@ -1,0 +1,19 @@
+/*
+ * Screen stylesheets, one per screen, imported here so index.html never has to
+ * change when a screen is added. Each file is owned by its screen and by nothing
+ * else, which is what lets several screens be built at the same time.
+ */
+@import url('/css/screens/prelaunch.css');
+@import url('/css/screens/intro.css');
+@import url('/css/screens/setup.css');
+@import url('/css/screens/scan.css');
+@import url('/css/screens/identify.css');
+@import url('/css/screens/verdict.css');
+@import url('/css/screens/correct.css');
+@import url('/css/screens/actions.css');
+@import url('/css/screens/share.css');
+@import url('/css/screens/paywall.css');
+@import url('/css/screens/home.css');
+@import url('/css/screens/notify.css');
+@import url('/css/screens/weektwo.css');
+@import url('/css/screens/stagemap.css');

@@ -1,0 +1,52 @@
+/* Stage 08: Share. Owned by this screen alone. */
+
+.shr-title { margin-bottom: 8px; }
+.shr-intro { margin-bottom: 16px; }
+
+/*
+ * The frame around the card is the app's, not the card's. Nothing painted here
+ * ends up in the exported PNG, which is why the download affordance can live
+ * out here and never inside the image.
+ */
+.shr-frame {
+  background: var(--surface-sunk);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  padding: 12px;
+  margin-bottom: var(--gap);
+}
+
+.shr-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 9 / 16;
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.shr-canvas[hidden] { display: none; }
+
+.shr-fallback {
+  white-space: pre-wrap;
+  font-family: var(--f-mono);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: var(--r-md);
+}
+.shr-fallback[hidden] { display: none; }
+
+.shr-status {
+  min-height: 20px;
+  margin: 2px 0 18px;
+  font-size: 14.5px;
+  color: var(--accent);
+}
+
+.shr-next p { font-size: 15px; }
+.shr-next p:last-child { margin-bottom: 0; }
+.shr-gate { color: var(--ink-muted); }
+.shr-gate .num { color: var(--ink); font-weight: 600; }

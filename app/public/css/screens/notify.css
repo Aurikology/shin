@@ -1,0 +1,122 @@
+/* Stage 11: Price drop. Owned by this screen alone. */
+
+.notify-empty,
+.notify-wait {
+  padding-top: 14px;
+}
+.notify-empty .btn-primary {
+  margin-top: 16px;
+}
+
+/* The notification itself, drawn the way it would arrive on a lock screen. */
+.notify-push {
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-lg);
+  padding: 12px 14px 14px;
+  margin-bottom: var(--gap);
+  box-shadow: var(--shadow);
+}
+.notify-push-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 6px;
+}
+.notify-push-app {
+  color: var(--accent);
+  font-weight: 600;
+}
+.notify-push-body {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: -.02em;
+  line-height: 1.2;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.notify-verdict {
+  text-align: center;
+}
+.notify-face {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+.notify-word {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: -.03em;
+  margin: 0 0 10px;
+}
+.notify-tier-good .notify-word { color: var(--good); }
+.notify-tier-fair .notify-word { color: var(--mid); }
+.notify-tier-walk_away .notify-word { color: var(--bad); }
+
+.notify-prices {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.notify-was {
+  font-size: 17px;
+  color: var(--ink-faint);
+  text-decoration: line-through;
+}
+.notify-arrow {
+  color: var(--ink-faint);
+}
+.notify-now {
+  font-size: 27px;
+  font-weight: 600;
+}
+.notify-move {
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  margin: 0 0 12px;
+}
+.notify-line {
+  margin: 0 0 8px;
+  font-size: 16px;
+  line-height: 1.4;
+}
+.notify-conf {
+  margin: 10px 0 0;
+}
+
+.notify-refusal h2 {
+  margin-bottom: 10px;
+}
+
+.notify-secondary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: var(--gap);
+}
+
+.notify-honest {
+  background: var(--surface-sunk);
+}
+.notify-honest p {
+  margin-bottom: 10px;
+}
+.notify-todo {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink-muted);
+}
+.notify-todo li {
+  margin-bottom: 7px;
+  line-height: 1.4;
+}

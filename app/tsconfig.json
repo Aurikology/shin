@@ -1,0 +1,17 @@
+{
+  "//": "server.ts is the only TypeScript outside the spine, and until this file existed it was never typechecked. It runs on Node's type stripping, so nothing at runtime would ever tell us about a type error. Types are borrowed from the spine's install rather than duplicating a devDependency for one file.",
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "typeRoots": ["../spine/node_modules/@types"],
+    "types": ["node"]
+  },
+  "include": ["server.ts", "scripts/**/*.mjs"]
+}
