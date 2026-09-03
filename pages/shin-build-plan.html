@@ -1,0 +1,411 @@
+<title>The Correcting Build</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper: #FBFAF7;
+    --surface: #FFFFFF;
+    --surface-sunk: #F3F1EC;
+    --ink: #16130F;
+    --ink-muted: #6E6660;
+    --ink-faint: #98908A;
+    --rule: #E4DFD8;
+    --rule-strong: #CDC6BC;
+    --accent: #E5165E;
+    --accent-ink: #A70E42;
+    --accent-soft: #FDE8EF;
+    --good: #1C7C4A;
+    --good-soft: #E4F2E9;
+    --mid: #8A6E1E;
+    --mid-soft: #F6EEDA;
+    --bad: #BE3218;
+    --bad-soft: #FBE6E1;
+    --shadow: 0 1px 2px rgba(22,19,15,.05), 0 8px 24px -12px rgba(22,19,15,.12);
+    --f-display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+    --f-body: "Newsreader", Georgia, "Times New Roman", serif;
+    --f-mono: "IBM Plex Mono", "SF Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #12100E;
+      --surface: #1A1714;
+      --surface-sunk: #221E1A;
+      --ink: #F2EEE8;
+      --ink-muted: #A79E96;
+      --ink-faint: #7C736B;
+      --rule: #2C2723;
+      --rule-strong: #443D37;
+      --accent: #FF4C84;
+      --accent-ink: #FF7FA5;
+      --accent-soft: #33131F;
+      --good: #5FC98D;
+      --good-soft: #12291C;
+      --mid: #D6B45C;
+      --mid-soft: #2A2314;
+      --bad: #F0755C;
+      --bad-soft: #301711;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #12100E;
+    --surface: #1A1714;
+    --surface-sunk: #221E1A;
+    --ink: #F2EEE8;
+    --ink-muted: #A79E96;
+    --ink-faint: #7C736B;
+    --rule: #2C2723;
+    --rule-strong: #443D37;
+    --accent: #FF4C84;
+    --accent-ink: #FF7FA5;
+    --accent-soft: #33131F;
+    --good: #5FC98D;
+    --good-soft: #12291C;
+    --mid: #D6B45C;
+    --mid-soft: #2A2314;
+    --bad: #F0755C;
+    --bad-soft: #301711;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--f-body); font-size: 17px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 44px 26px 80px; }
+  @media (max-width: 640px) { .wrap { padding: 30px 17px 56px; } }
+
+  p { margin: 0 0 14px; max-width: 68ch; }
+  b, strong { font-weight: 600; }
+  em { font-style: italic; }
+
+  /* ---- masthead ---- */
+  .mast { border-bottom: 2px solid var(--ink); padding-bottom: 26px; margin-bottom: 8px; }
+  .mast-kicker {
+    font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: .15em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 16px;
+  }
+  .mast-kicker span { color: var(--ink-faint); }
+  h1 {
+    font-family: var(--f-display); font-weight: 800; font-size: clamp(34px, 6.6vw, 62px);
+    line-height: .98; letter-spacing: -.034em; margin: 0 0 16px; text-wrap: balance;
+  }
+  .mast-sub { font-size: 18.5px; color: var(--ink-muted); max-width: 56ch; margin: 0; }
+
+  h2 {
+    font-family: var(--f-display); font-weight: 700; font-size: clamp(24px, 3.4vw, 31px);
+    letter-spacing: -.024em; line-height: 1.1; margin: 54px 0 6px;
+    padding-top: 22px; border-top: 1px solid var(--rule); text-wrap: balance;
+  }
+  .sec-note { color: var(--ink-muted); font-size: 16px; margin: 0 0 22px; max-width: 62ch; }
+
+  /* ---- thesis ---- */
+  .thesis {
+    margin: 32px 0 0; padding: 20px 0 0; border-top: 1px solid var(--rule);
+    font-family: var(--f-display); font-weight: 600; font-size: clamp(19px, 2.6vw, 25px);
+    line-height: 1.3; letter-spacing: -.016em; max-width: 36ch; text-wrap: balance;
+  }
+  .thesis-label {
+    display: block; font-family: var(--f-mono); font-size: 10px; font-weight: 500;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px;
+  }
+  .thesis-foot {
+    display: block; font-family: var(--f-body); font-weight: 400; font-size: 14.5px;
+    line-height: 1.55; color: var(--ink-muted); letter-spacing: 0; margin-top: 14px; max-width: 62ch;
+  }
+
+  /* ---- phase spine ---- */
+  .phase {
+    display: grid; grid-template-columns: 62px 1fr; gap: 0 22px;
+    padding: 26px 0; border-top: 1px solid var(--rule);
+  }
+  .phase:first-of-type { border-top: 2px solid var(--ink); }
+  .ph-num {
+    font-family: var(--f-mono); font-size: 12px; font-weight: 600; letter-spacing: .06em;
+    color: var(--accent); padding-top: 5px;
+  }
+  .ph-num small { display: block; color: var(--ink-faint); font-weight: 400; letter-spacing: .04em; margin-top: 4px; }
+  .ph-title {
+    font-family: var(--f-display); font-weight: 700; font-size: 22px; letter-spacing: -.02em;
+    margin: 0 0 3px; line-height: 1.16;
+  }
+  .ph-sub { font-size: 15px; color: var(--ink-muted); margin: 0 0 14px; }
+  @media (max-width: 640px) {
+    .phase { grid-template-columns: 1fr; gap: 8px; }
+    .ph-num small { display: inline; margin-left: 8px; }
+  }
+
+  .badge {
+    display: inline-flex; gap: 5px; font-family: var(--f-mono); font-size: 9.5px; font-weight: 600;
+    letter-spacing: .09em; text-transform: uppercase; padding: 3px 8px; border-radius: 2px;
+    margin: 0 0 12px;
+  }
+  .b-human { background: var(--accent-soft); color: var(--accent-ink); }
+  .b-solo { background: var(--surface-sunk); color: var(--ink-muted); }
+  .b-lanes { background: var(--good-soft); color: var(--good); }
+  .b-loop { background: var(--mid-soft); color: var(--mid); }
+
+  /* ---- gate boxes ---- */
+  .gate {
+    border-left: 3px solid var(--accent); background: var(--surface); padding: 13px 16px;
+    margin: 16px 0 0; font-size: 15.5px;
+  }
+  .gate h5 {
+    font-family: var(--f-mono); font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase;
+    margin: 0 0 6px; color: var(--accent); font-weight: 600;
+  }
+  .gate p { margin: 0 0 7px; font-size: 15.5px; }
+  .gate p:last-child { margin: 0; }
+  .gate.kill { border-left-color: var(--bad); }
+  .gate.kill h5 { color: var(--bad); }
+
+  /* ---- tables ---- */
+  .opts { margin: 20px 0 6px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 15px; }
+  caption {
+    text-align: left; font-family: var(--f-mono); font-size: 10px; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--ink-faint); padding-bottom: 9px;
+  }
+  th {
+    text-align: left; font-family: var(--f-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--ink-muted);
+    border-bottom: 1px solid var(--rule-strong); padding: 0 12px 7px 0; vertical-align: bottom;
+  }
+  td { padding: 11px 12px 11px 0; border-bottom: 1px solid var(--rule); vertical-align: top; line-height: 1.45; }
+  td:first-child { font-family: var(--f-display); font-weight: 600; letter-spacing: -.008em; }
+  tbody tr:last-child td { border-bottom: 0; }
+  .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tag {
+    font-family: var(--f-mono); font-size: 9.5px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; padding: 3px 7px; border-radius: 2px; white-space: nowrap;
+    display: inline-block;
+  }
+  .t-top { background: var(--accent); color: #fff; }
+  .t-work { background: var(--surface-sunk); color: var(--ink-muted); }
+  .t-fresh { background: var(--good-soft); color: var(--good); }
+  .t-never { background: var(--bad-soft); color: var(--bad); }
+
+  /* ---- loop ---- */
+  .loop { display: grid; gap: 0; margin: 24px 0 8px; counter-reset: lp; }
+  .loop-step {
+    display: grid; grid-template-columns: 30px 1fr; gap: 0 16px; padding: 15px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .loop-step:first-child { border-top: 0; }
+  .loop-step::before {
+    counter-increment: lp; content: counter(lp);
+    font-family: var(--f-mono); font-size: 11px; font-weight: 600; color: var(--paper);
+    background: var(--ink); width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; margin-top: 2px;
+  }
+  .loop-step h4 {
+    font-family: var(--f-display); font-weight: 700; font-size: 17px; letter-spacing: -.014em;
+    margin: 0 0 4px;
+  }
+  .loop-step p { margin: 0; font-size: 15.5px; }
+
+  /* ---- callouts ---- */
+  .flag {
+    border: 1px solid var(--rule-strong); border-radius: 3px; padding: 15px 18px;
+    margin: 24px 0; background: var(--surface); font-size: 15.5px;
+  }
+  .flag h4 {
+    font-family: var(--f-mono); font-size: 10px; letter-spacing: .13em; text-transform: uppercase;
+    margin: 0 0 8px; color: var(--accent);
+  }
+  .flag p { margin: 0 0 9px; max-width: 68ch; }
+  .flag p:last-child { margin-bottom: 0; }
+  .flag.hard { border-width: 2px; border-color: var(--ink); }
+  .flag.hard h4 { color: var(--ink); }
+  .flag.warn { border-color: var(--bad); background: var(--bad-soft); }
+  .flag.warn h4 { color: var(--bad); }
+
+  ul { margin: 0 0 14px; padding-left: 20px; max-width: 68ch; }
+  li { margin-bottom: 7px; }
+
+  .foot {
+    margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
+    font-size: 13.5px; color: var(--ink-muted); line-height: 1.6; max-width: 78ch;
+  }
+  .foot code {
+    font-family: var(--f-mono); font-size: 12.5px; background: var(--surface-sunk);
+    padding: 1px 5px; border-radius: 2px;
+  }
+  code {
+    font-family: var(--f-mono); font-size: .88em; background: var(--surface-sunk);
+    padding: 1px 5px; border-radius: 2px;
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="mast-kicker">Build order <span>/ for the walkthrough dated 2026-09-03</span></div>
+    <h1>The correcting build</h1>
+    <p class="mast-sub">A build order for the price scanner, sequenced by what cannot be taken back, with the mechanism that makes it catch its own errors written into the structure rather than asked for at the end.</p>
+  </header>
+
+  <blockquote class="thesis">
+    <span class="thesis-label">The one thing this plan is organised around</span>
+    A plan cannot improve itself. A build improves when evidence about its mistakes is produced by something that did not make them.
+    <span class="thesis-foot">Which is why almost none of this document is about code review. Agents are good at code review. The thing that will be wrong, and the thing a user can catch in ten seconds, is the price on the screen. That is what gets a permanent instrument pointed at it.</span>
+  </blockquote>
+
+  <h2>What this builds, and what it leaves alone</h2>
+  <p class="sec-note">The walkthrough lists roughly sixty feature options. That is a menu. This is the order of operations for the floor underneath it.</p>
+
+  <p>The walkthrough's narrowed floor is one category, barcode and screenshot input, three faces, save and watch, a still share card, and the disagreement branch. Live photo recognition is out. Every other option in that document becomes the backlog, and the accuracy scoreboard built in phase three is what ranks it, rather than taste.</p>
+
+  <p>One thing in the walkthrough changed shape after it was tested and the plan inherits the new version: <b>there is no single verdict screen.</b> Each category needs its own sentence, because the comparison that makes it true is different. Grocery compares this week's promotion to the regular price. Tech compares retailers. Used goods compare live asking prices. Furniture compares the item to its own history, because nobody else sells it. Building one screen and parameterising it later is the mistake this paragraph exists to prevent.</p>
+
+  <h2>Phase order</h2>
+  <p class="sec-note">Ordered by what is spent once, not by what is easy or interesting. A form gets refilled in minutes; a store listing, a trademark and a first video do not.</p>
+
+  <div class="phase">
+    <div class="ph-num">00<small>days</small></div>
+    <div>
+      <h3 class="ph-title">The two things no agent can do for you</h3>
+      <p class="ph-sub">No code. Both can redirect everything downstream, and both are cheap.</p>
+      <span class="badge b-human">Founder only</span>
+      <p><b>The trademark search.</b> Twenty minutes at CIPO against Nongshim's marks in the software classes. It gates the store listing, and a store listing is spent once. This is a legal risk judgment about a name you will live with, so it is yours, not an agent's.</p>
+      <p><b>The two-caption video test, through borrowed audiences.</b> Three to five micro creators, or a subreddit where distribution is not follower-gated. Not a fresh handle: new posts seed to existing followers first, so a cold account can return near zero views and hand you a false negative on the one test everything else is sequenced behind. Run your own handle alongside it only to start building the seed.</p>
+      <div class="gate">
+        <h5>Gate out of phase 00</h5>
+        <p>A category and a caption chosen because something outperformed, plus a name that survived a search. Nothing downstream starts on a preference.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="ph-num">01<small>1 to 2 wks</small></div>
+    <div>
+      <h3 class="ph-title">The price spine, alone, with no interface</h3>
+      <p class="ph-sub">One category. One agent. No parallelism, because there is nothing yet to be parallel to.</p>
+      <span class="badge b-solo">Single lane</span>
+      <p>Build only this: given a product identity, return a verdict object or refuse to. No camera, no mascot, no screens. The reason it goes first is that the pilot proved this is the fragile part, and the reason it goes alone is that every other lane consumes its output shape. Fixing that shape after four lanes have built against it is the expensive version of this mistake.</p>
+      <p>The verdict object carries the comparison set it used, the count of points in it, the date of each, and the sentence type for the category. If it cannot produce those, it refuses. A refusal is a supported outcome here, not an error, and phase three measures how often it happens.</p>
+      <div class="gate">
+        <h5>Acceptance, and it is not a passing test suite</h5>
+        <p>One hundred items in the chosen category, run through it. Then a <b>fresh agent that never saw the code</b> takes twenty of those verdicts, goes and finds the real prices, and scores them. That number is the acceptance, not the test suite.</p>
+      </div>
+      <div class="gate kill">
+        <h5>Written before the build, so it can actually fire</h5>
+        <p>The pilot produced a usable range for <b>2 of 7 items</b> from free search. A paid feed that does not clear that comfortably is not worth buying, and a category whose feed cannot clear it is the wrong category. If that happens, phase 00's answer gets rerun with the next category, not patched with heuristics. The floor is derived from the pilot; the number you would actually defend in public is yours to set, and it should be set now rather than after you have seen the result.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="ph-num">02<small>2 to 3 wks</small></div>
+    <div>
+      <h3 class="ph-title">Four lanes, once the shape cannot move</h3>
+      <p class="ph-sub">Genuinely independent work in separate worktrees, each with its own brief, branch and deny list.</p>
+      <span class="badge b-lanes">Parallel, conductor above</span>
+      <p>Lanes are only lanes if they do not read and write the same things. These four qualify because phase 01 fixed the contract between them.</p>
+      <div class="opts">
+        <table>
+          <caption>The four lanes and their consumer-side check</caption>
+          <thead><tr><th style="width:19%">Lane</th><th style="width:34%">Builds</th><th>Done means, checked where its consumer meets it</th></tr></thead>
+          <tbody>
+            <tr><td>Identity</td><td>Barcode to product, screenshot import, and the repair path when it is the wrong product</td><td>Twenty items scanned off real shelves, not from a test fixture. The pilot's worst failure was identity, not price: a search for a used camera body returned a newer model bundled with lenses at nearly triple, presented as the answer</td></tr>
+            <tr><td>Verdict surface</td><td>The face, the category's sentence, the confidence line, the disagreement branch</td><td>A stranger reads a screenshot with no context and says out loud what the app told the person. If they cannot, the screen failed regardless of what it renders</td></tr>
+            <tr><td>Shell</td><td>Camera, watchlist, price-drop notification, the still share card</td><td>A save made on day one produces a correct notification on a later day, on a real device that was closed in between</td></tr>
+            <tr><td>Scoreboard</td><td>The instrument phase three runs on: every verdict logged with its comparison set, and the sampling job that pulls from it</td><td>It produces a number for a week in which nobody looked at it. An instrument that needs attention to run is not an instrument</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Shin himself is not on that list. Three faces and a share card are a design job, and it goes to a person or a design tool, not a coding agent. It is also the single most repeated asset in the product, so it is the one thing worth paying for and worth changing least.</p>
+      <div class="gate">
+        <h5>Gate out of phase 02</h5>
+        <p>Four branches merged by the conductor, each against its own written acceptance, plus one thing that does not come from any lane: <b>twenty verdicts checked by hand in a real store on one shopping trip.</b> That is an hour of your time and it is the only check in this plan that no agent can fake.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="ph-num">03<small>permanent</small></div>
+    <div>
+      <h3 class="ph-title">The loop, which starts before launch and never stops</h3>
+      <p class="ph-sub">This is the part the request was actually about, so it is specified rather than described.</p>
+      <span class="badge b-loop">Runs weekly, forever</span>
+      <p>Four mechanisms. Each exists because the version without it has a named failure mode, and two of those failures happened while the walkthrough was being written.</p>
+      <div class="loop">
+        <div class="loop-step">
+          <h4>Every task carries its falsifier, written before the build</h4>
+          <p>Not "does it work" but "what observation would prove this wrong." Written into the brief, before any code, by whoever writes the brief. The failure mode without it: the walkthrough labelled its own central claim untested three times in three sections and shipped the label instead of the test. The test took seven searches and reversed two decisions in the document that was flagging it.</p>
+        </div>
+        <div class="loop-step">
+          <h4>The thing that checks never shares context with the thing that built</h4>
+          <p>A fresh process, no project instructions loaded, given only the brief's acceptance test and the diff. This is not a formality: on a prior spec in another project this pattern caught five blockers, two of which the spec itself had created. An author reviewing their own work is the weakest form of review available, and it is the default that has to be designed out.</p>
+        </div>
+        <div class="loop-step">
+          <h4>One adversary whose only job is to produce a wrong verdict</h4>
+          <p>It writes nothing. It hunts for items where the app says "ripped off" and the price is fine, or says "steal" on a counterfeit. It reports what it found and how it found it. Price is verifiable and consequential, which is what separates this app from the calorie scanners it is modelled on: a wrong calorie count costs the user nothing they notice, and a wrong price gets argued with by a seller standing in front of them.</p>
+        </div>
+        <div class="loop-step">
+          <h4>A correction becomes a standing rule only after the same defect is logged twice</h4>
+          <p>Once is a bug fix. Twice is a missing rule. This exists because the alternative was measured in this repo: twenty-eight standing instructions written in twenty-two days, fifty-eight of the resulting rules with neither a quote nor an incident behind them. A self-improving plan with no bar for entry becomes a rulebook nobody reads, which is a worse outcome than no loop at all.</p>
+        </div>
+      </div>
+      <div class="flag hard">
+        <h4>The defect log is one table and its only interesting column is the last one</h4>
+        <p>Date, what was wrong, what the user saw, which lane, and <b>whether a test caught it or a human did.</b> A defect caught by a human is a missing test, and the fix is the test rather than the bug. If that column fills up with humans, the loop is not running, whatever else the plan says.</p>
+      </div>
+      <div class="flag">
+        <h4>The scoreboard is one tracked number with a date on it</h4>
+        <p>A fresh agent, weekly, pulls a random sample of logged verdicts, goes and finds the real prices, and scores them. Accuracy is a series from week one rather than an audit before launch. Three other numbers get instrumented on day one because no benchmark can supply them and they decide the business: <b>scans per user per week</b> split by whether a purchase followed, <b>watch rate</b> as the share of scans that end in a save, and <b>distinct products over total scans,</b> which decides whether caching rescues the per-scan cost.</p>
+      </div>
+    </div>
+  </div>
+
+  <h2>Who does what, and at what tier</h2>
+  <p class="sec-note">Every multi-lane launch gets a conductor above it. The conductor reviews and merges and never writes a line, because a reviewer who wrote the code is not a reviewer.</p>
+  <div class="opts">
+    <table>
+      <thead><tr><th style="width:20%">Role</th><th style="width:14%">Tier</th><th style="width:30%">May touch</th><th>May never touch</th></tr></thead>
+      <tbody>
+        <tr><td>Conductor</td><td><span class="tag t-top">Top</span></td><td>Briefs, review against each lane's acceptance, merges, the batch report</td><td>Any file in any lane. It manages and does not build</td></tr>
+        <tr><td>Data worker</td><td><span class="tag t-work">Mid</span></td><td>Feed adapters and the normaliser</td><td>Verdict wording, and the recorded scoreboard</td></tr>
+        <tr><td>Identity worker</td><td><span class="tag t-work">Mid</span></td><td>Scanning, matching, the repair path</td><td>Price maths</td></tr>
+        <tr><td>Verdict worker</td><td><span class="tag t-work">Mid</span></td><td>Presentation, copy, the faces, the confidence line</td><td>The comparison logic that produces the numbers it shows</td></tr>
+        <tr><td>Shell worker</td><td><span class="tag t-work">Mid</span></td><td>Camera, watchlist, notifications, share card</td><td>Anything that computes a verdict</td></tr>
+        <tr><td>Lane verifier</td><td><span class="tag t-fresh">Fresh, no context</span></td><td>The brief's acceptance test and the diff, nothing else</td><td>The lane's own reasoning about why it is correct</td></tr>
+        <tr><td>Adversary</td><td><span class="tag t-fresh">Fresh, no context</span></td><td>The running app, and the open web to check it against</td><td>Any file. It reports, it does not fix</td></tr>
+        <tr><td>Accuracy checker</td><td><span class="tag t-fresh">Fresh, weekly</span></td><td>A random sample of logged verdicts, and live sources</td><td>The build, and last week's score before it produces this week's</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Two tier rules that are not preferences. <b>Workers run mid tier, never the top one:</b> a four-lane launch at top tier was measured here as a large and pointless cost, and the reasoning that justified it did not survive contact. <b>The top tier manages and does not build,</b> in any surface. Reserve it for the conductor and for interactive work.</p>
+
+  <h2>What no agent in this plan can do</h2>
+  <p class="sec-note">Naming these is the difference between a plan and a wish.</p>
+  <ul>
+    <li><b>The video test.</b> It needs a real audience. Agents can draft the two captions and cannot make anyone watch them.</li>
+    <li><b>The store submission.</b> Spent once, and it is yours. Everything up to the submit button is the system's to prepare, including the listing copy and the assets.</li>
+    <li><b>Standing in a store with a phone,</b> checking twenty verdicts against the shelf. One trip, one hour, and it is the only check here that cannot be faked by something that wants to report success.</li>
+    <li><b>Deciding the name.</b> Trademark exposure is a risk you carry, not a search result.</li>
+  </ul>
+
+  <h2>Machinery, verified rather than assumed</h2>
+  <p class="sec-note">This repo already has the lane launcher. Four things about it were checked rather than recalled.</p>
+  <ul>
+    <li>It takes a repository path as a parameter, so it can drive a separate app repository instead of this one.</li>
+    <li>Its remote check permits exactly one remote, named <code>origin</code>, pointing at private GitHub, and refuses anything else. That is what the app repository should have, so the check passes rather than blocks.</li>
+    <li>Launching it from inside a session needs the flag that stops it inheriting the wrong terminal, or it spawns a silent orphan. A dry run first costs nothing and catches missing briefs and path collisions.</li>
+    <li><b>A spawn is not a start.</b> The launcher's own transcript check is what tells you a lane is alive, and past roughly four live lanes it warns for a reason.</li>
+  </ul>
+
+  <div class="flag warn">
+    <h4>What would prove this plan wrong</h4>
+    <p><b>Three weeks in, if the accuracy scoreboard is flat or absent, the loop is decoration</b> and the central claim of this document failed. The second signal is the defect log's last column: if humans are finding the defects, the tests are not, and no amount of process written on top of that changes it.</p>
+    <p>The honest read on the plan's own confidence: phases 00 and 01 rest on a measurement taken by hand. Phase 02's lane split rests on the contract from phase 01 holding, which is an assumption until it does. Phase 03 rests on the four mechanisms being run when nobody is watching, and that has never been true of any process document written in this repo, which is the reason the twice-before-a-rule bar is in it.</p>
+  </div>
+
+  <div class="foot">
+    Sequenced by irreversibility on a standing instruction from 2026-08-27. Delegation shape, tiers and the conductor requirement come from the encoded lane procedure and its measured corrections, not from preference. The <span class="num">2 of 7</span> floor in phase 01 is derived from the seven-item pricing pilot dated 2026-09-03 and reported inside the walkthrough. The twenty-eight instructions in twenty-two days and the fifty-eight unearned rules are this repo's own audit figures. The five-blockers-caught figure for fresh-context verification comes from a spec review in another project. Untested here: everything about phases 02 and 03, because they have not been run.
+    <br><br>
+    Companion document: the walkthrough this plan builds, thirteen stages from the first video to the week-two habit, with the verdict stage measured and then corrected.
+  </div>
+
+</div>

@@ -1,0 +1,438 @@
+<title>The Hard Dozen</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper: #FBFAF7;
+    --surface: #FFFFFF;
+    --surface-sunk: #F3F1EC;
+    --ink: #16130F;
+    --ink-muted: #6E6660;
+    --ink-faint: #98908A;
+    --rule: #E4DFD8;
+    --rule-strong: #CDC6BC;
+    --accent: #E5165E;
+    --accent-ink: #A70E42;
+    --accent-soft: #FDE8EF;
+    --good: #1C7C4A;
+    --good-soft: #E4F2E9;
+    --mid: #8A6E1E;
+    --mid-soft: #F6EEDA;
+    --bad: #BE3218;
+    --bad-soft: #FBE6E1;
+    --shadow: 0 1px 2px rgba(22,19,15,.05), 0 8px 24px -12px rgba(22,19,15,.12);
+    --f-display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+    --f-body: "Newsreader", Georgia, "Times New Roman", serif;
+    --f-mono: "IBM Plex Mono", "SF Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #12100E; --surface: #1A1714; --surface-sunk: #221E1A;
+      --ink: #F2EEE8; --ink-muted: #A79E96; --ink-faint: #7C736B;
+      --rule: #2C2723; --rule-strong: #443D37;
+      --accent: #FF4C84; --accent-ink: #FF7FA5; --accent-soft: #33131F;
+      --good: #5FC98D; --good-soft: #12291C;
+      --mid: #D6B45C; --mid-soft: #2A2314;
+      --bad: #F0755C; --bad-soft: #301711;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #12100E; --surface: #1A1714; --surface-sunk: #221E1A;
+    --ink: #F2EEE8; --ink-muted: #A79E96; --ink-faint: #7C736B;
+    --rule: #2C2723; --rule-strong: #443D37;
+    --accent: #FF4C84; --accent-ink: #FF7FA5; --accent-soft: #33131F;
+    --good: #5FC98D; --good-soft: #12291C;
+    --mid: #D6B45C; --mid-soft: #2A2314;
+    --bad: #F0755C; --bad-soft: #301711;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--f-body); font-size: 17px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 950px; margin: 0 auto; padding: 44px 26px 80px; }
+  @media (max-width: 640px) { .wrap { padding: 30px 17px 56px; } }
+
+  p { margin: 0 0 14px; max-width: 68ch; }
+  b, strong { font-weight: 600; }
+
+  .mast { border-bottom: 2px solid var(--ink); padding-bottom: 26px; margin-bottom: 8px; }
+  .mast-kicker {
+    font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: .15em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 16px;
+  }
+  .mast-kicker span { color: var(--ink-faint); }
+  h1 {
+    font-family: var(--f-display); font-weight: 800; font-size: clamp(34px, 6.6vw, 62px);
+    line-height: .98; letter-spacing: -.034em; margin: 0 0 16px; text-wrap: balance;
+  }
+  .mast-sub { font-size: 18.5px; color: var(--ink-muted); max-width: 58ch; margin: 0; }
+
+  h2 {
+    font-family: var(--f-display); font-weight: 700; font-size: clamp(24px, 3.4vw, 31px);
+    letter-spacing: -.024em; line-height: 1.1; margin: 54px 0 6px;
+    padding-top: 22px; border-top: 1px solid var(--rule); text-wrap: balance;
+  }
+  .sec-note { color: var(--ink-muted); font-size: 16px; margin: 0 0 22px; max-width: 64ch; }
+
+  /* counts strip */
+  .counts { display: flex; flex-wrap: wrap; gap: 0; margin: 26px 0 6px; border-top: 1px solid var(--rule-strong); }
+  .count {
+    flex: 1 1 150px; padding: 15px 18px 15px 0; border-bottom: 1px solid var(--rule);
+  }
+  .count b {
+    display: block; font-family: var(--f-display); font-weight: 800; font-size: 30px;
+    letter-spacing: -.03em; line-height: 1; margin-bottom: 5px;
+  }
+  .count span {
+    font-family: var(--f-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+  .c-hard b { color: var(--bad); }
+  .c-mid b { color: var(--mid); }
+  .c-easy b { color: var(--good); }
+
+  /* criteria */
+  .crit { display: grid; gap: 0; margin: 22px 0 8px; }
+  .crit-row {
+    display: grid; grid-template-columns: 42px 1fr; gap: 0 18px; padding: 13px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .crit-row:first-child { border-top: 1px solid var(--rule-strong); }
+  .crit-row dt {
+    font-family: var(--f-mono); font-size: 11px; font-weight: 600; color: var(--accent);
+    padding-top: 3px;
+  }
+  .crit-row dd { margin: 0; font-size: 15.5px; line-height: 1.45; }
+
+  /* the item blocks */
+  .item {
+    border-top: 1px solid var(--rule); padding: 28px 0 4px;
+  }
+  .item:first-of-type { border-top: 2px solid var(--ink); }
+  .item-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+  .item-n {
+    font-family: var(--f-mono); font-size: 12px; font-weight: 600; color: var(--accent-ink);
+  }
+  .item h3 {
+    font-family: var(--f-display); font-weight: 700; font-size: 23px; letter-spacing: -.022em;
+    margin: 0; line-height: 1.14;
+  }
+  .item-from {
+    font-family: var(--f-mono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .spec { display: grid; gap: 0; margin: 14px 0 0; }
+  .spec-row {
+    display: grid; grid-template-columns: 132px 1fr; gap: 0 20px; padding: 11px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .spec-row:first-child { border-top: 0; }
+  .spec-row dt {
+    font-family: var(--f-mono); font-size: 10px; font-weight: 600; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-muted); padding-top: 4px;
+  }
+  .spec-row dd { margin: 0; font-size: 15.5px; line-height: 1.5; }
+  .spec-row.cheap dt { color: var(--good); }
+  .spec-row.kill dt { color: var(--bad); }
+  @media (max-width: 640px) {
+    .spec-row { grid-template-columns: 1fr; gap: 3px; }
+  }
+
+  /* tables */
+  .opts { margin: 22px 0 6px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 540px; font-size: 14.5px; }
+  caption {
+    text-align: left; font-family: var(--f-mono); font-size: 10px; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--ink-faint); padding-bottom: 9px;
+  }
+  th {
+    text-align: left; font-family: var(--f-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--ink-muted);
+    border-bottom: 1px solid var(--rule-strong); padding: 0 12px 7px 0; vertical-align: bottom;
+  }
+  td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--rule); vertical-align: top; line-height: 1.42; }
+  td:first-child { font-family: var(--f-display); font-weight: 600; letter-spacing: -.008em; }
+  tbody tr:last-child td { border-bottom: 0; }
+  .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tag {
+    font-family: var(--f-mono); font-size: 9px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; padding: 3px 6px; border-radius: 2px; white-space: nowrap;
+    display: inline-block;
+  }
+  .t-hard { background: var(--bad-soft); color: var(--bad); }
+  .t-mid { background: var(--mid-soft); color: var(--mid); }
+  .t-easy { background: var(--good-soft); color: var(--good); }
+
+  .flag {
+    border: 1px solid var(--rule-strong); border-radius: 3px; padding: 15px 18px;
+    margin: 24px 0; background: var(--surface); font-size: 15.5px;
+  }
+  .flag h4 {
+    font-family: var(--f-mono); font-size: 10px; letter-spacing: .13em; text-transform: uppercase;
+    margin: 0 0 8px; color: var(--accent);
+  }
+  .flag p { margin: 0 0 9px; max-width: 68ch; }
+  .flag p:last-child { margin-bottom: 0; }
+  .flag.hard { border-width: 2px; border-color: var(--ink); }
+  .flag.hard h4 { color: var(--ink); }
+
+  .math {
+    font-family: var(--f-mono); font-size: 13.5px; line-height: 1.7; background: var(--surface-sunk);
+    padding: 13px 16px; border-radius: 3px; margin: 14px 0; overflow-x: auto;
+  }
+  .math span { color: var(--ink-muted); }
+
+  .foot {
+    margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
+    font-size: 13.5px; color: var(--ink-muted); line-height: 1.6; max-width: 80ch;
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="mast-kicker">Difficulty assessment <span>/ all 68 feature options, 2026-09-03</span></div>
+    <h1>The hard dozen</h1>
+    <p class="mast-sub">Every feature option in the walkthrough, counted rather than sampled, sorted by what actually makes it hard. Then the twelve genuinely hard ones worked out far enough to build from.</p>
+  </header>
+
+  <h2>What is in the walkthrough, exactly</h2>
+  <p class="sec-note">The document says "roughly sixty options." Counted, it is this.</p>
+  <div class="counts">
+    <div class="count"><b>79</b><span>Option rows, 13 tables</span></div>
+    <div class="count"><b>68</b><span>Are things you build</span></div>
+    <div class="count c-hard"><b>12</b><span>Drastically hard</span></div>
+    <div class="count c-mid"><b>19</b><span>Harder than they look</span></div>
+    <div class="count c-easy"><b>37</b><span>A week or less each</span></div>
+  </div>
+  <p>The other eleven rows are video formats and store-listing choices. Those are decisions, not builds, so they are out of scope here.</p>
+
+  <h2>The test used for "drastically hard"</h2>
+  <p class="sec-note">A feature is drastically hard if it hits two or more of these, or one of them where the obstacle is an open problem rather than a task. Unfamiliar is not the same as hard, so nothing qualifies on my discomfort alone.</p>
+  <dl class="crit">
+    <div class="crit-row"><dt>A</dt><dd><b>Data nobody sells you.</b> No feed at any price, or no comparison set in existence.</dd></div>
+    <div class="crit-row"><dt>B</dt><dd><b>An open matching problem.</b> Recognising or comparing things that share no identifier.</dd></div>
+    <div class="crit-row"><dt>C</dt><dd><b>Scale you do not have yet.</b> Needs users, an audience, or reported volume before it works at all.</dd></div>
+    <div class="crit-row"><dt>D</dt><dd><b>A cost that recurs per watched item forever,</b> rather than per user or per build.</dd></div>
+    <div class="crit-row"><dt>E</dt><dd><b>Legal or liability exposure that shapes the feature,</b> not just the wording around it.</dd></div>
+  </dl>
+
+  <h2>Three things stopped being hard when I opened a source</h2>
+  <p class="sec-note">These were on the hard list from reasoning. All three came off it from checking, and the checking took one search each.</p>
+  <div class="opts">
+    <table>
+      <thead><tr><th style="width:22%">Was assumed hard</th><th>What is actually available</th></tr></thead>
+      <tbody>
+        <tr><td>Cheaper at a store near you</td><td><b>Store-level prices are purchasable for the big grocery banners.</b> Scraper feeds resolve the nearest store from a Canadian postal code or take a store id directly, and hand back normalised unit prices per 100 g and per 100 ml. A separate weekly panel covers <span class="num">50</span> basket items across <span class="num">12</span> cities and <span class="num">22</span> banners, roughly <span class="num">160</span> stores, with per-observation history. Still open: arbitrary products across all retailers, which that panel does not cover</td></tr>
+        <tr><td>The rendered vertical clip</td><td><b>A bought component, and cheap.</b> One renderer charges <span class="num">$0.20</span> to <span class="num">$0.30</span> per rendered minute; another charges <span class="num">$0.01</span> per render above a <span class="num">$100</span> monthly floor; a third runs <span class="num">$0.10</span> a minute. A fifteen second card costs cents, so this is a template and a queue, not infrastructure</td></tr>
+        <tr><td>Alternatives that are similar but cheaper</td><td><b>Yuka's version is not a similarity model.</b> It offers same-category products with a better score. The direct equivalent is same category, lower price per unit, and grocery feeds already ship normalised unit prices. The hard part is not "similar", it is the claim <b>"tastes the same"</b>, which is why that one is still on the hard list below in its original wording</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>The hard ones are not twelve separate problems</h2>
+  <p class="sec-note">They collapse into four, which is the useful part of this whole exercise.</p>
+  <p><b>Six of the twelve are one cost shape.</b> Watch a price, tell me when a better source appears, a feed of drops, back in season, Shin was right, and the daily pick all require re-pricing things nobody is looking at. That cost scales with saved items multiplied by retailers multiplied by check frequency, and it never stops. It is also the retention mechanism and the monetising path, so the spend lands before the revenue does.</p>
+  <p><b>Three are the same missing asset:</b> a trusted price for a specific store at a specific time, contributed by people. Corrections that train the next scan, a corrected price reused for that store, and reporting a fake all need it, and no vendor sells it. That is the moat and the reason it keeps reappearing.</p>
+  <p><b>Two are not engineering at all.</b> The savings figure and selling pricing intelligence are a legal test and a different company. Building them is easy and neither is blocked by code.</p>
+  <p><b>One is a permanent tax disguised as a settings toggle,</b> and it is the most underestimated row in the entire walkthrough. See number twelve.</p>
+
+  <div class="flag hard">
+    <h4>The arithmetic behind the cost shape, since six features rest on it</h4>
+    <div class="math">
+      1,000 users &times; 5 saved items &times; 2 checks a day &times; 3 retailers<br>
+      = 30,000 lookups a day = <b>900,000 a month</b><br>
+      <span>at the grocery feed's published $0.75 per 1,000 rows</span><br>
+      = <b>$675 a month</b>, at a thousand users, before one dollar of revenue
+    </div>
+    <p>The <span class="num">$0.75</span> per thousand rows is the feed's published price. The five saves, two checks and three retailers are assumptions stated here so they can be argued with, and the <span class="num">$675</span> is arithmetic from them, not a measurement. <b>Two consequences that matter more than the number.</b> It scales with saves rather than users, so one power user with fifty watched items costs what ten casual users do, and your best users are your most expensive. And the throughput ceiling, not the monthly total, sets the plan you need: the Amazon price API's entry tier is twenty tokens a minute and its tokens expire after sixty minutes, so quota cannot be banked into a nightly sweep. Whether one token buys one lookup is not established, which makes the ceiling unknown rather than known.</p>
+  </div>
+
+  <h2>The twelve, worked out</h2>
+  <p class="sec-note">Each one: what the hard part actually is, what already exists to build on, the cheapest version that tests the same question, and what would prove the whole thing not worth doing.</p>
+
+  <div class="item">
+    <div class="item-head"><span class="item-n">01</span><h3>Live camera recognition of arbitrary products</h3><span class="item-from">First-scan paths</span></div>
+    <dl class="spec">
+      <div class="spec-row"><dt>Hard part</dt><dd>Criterion B, and it is the one obstacle on this list that money cannot move. Zero-shot fine-grained retail recognition measured <span class="num">77.0%</span> top-1 and <span class="num">94.5%</span> top-5 across 190 models on 409 products. One in four first guesses is wrong, and the walkthrough already cut this from the first version for exactly that reason.</dd></div>
+      <div class="spec-row"><dt>What exists</dt><dd>The top-5 number is the design instruction: never show one guess, show a correctable name. Barcode scanning is a solved native capability and covers most packaged goods outright.</dd></div>
+      <div class="spec-row cheap"><dt>Cheap version</dt><dd>Barcode first, and when no barcode is in frame, offer three thumbnails instead of a verdict. Ships in days and tests the same question, which is whether people tolerate being asked.</dd></div>
+      <div class="spec-row kill"><dt>Falsifier</dt><dd>If more than one scan in five needs correcting on real shelves, the camera is not an input method for this app, it is a demo for the videos.</dd></div>
+    </dl>
+  </div>
+
+  <div class="item">
+    <div class="item-head"><span class="item-n">02</span><h3>Corrections that train the next scan</h3><span class="item-from">Identity options</span></div>
+    <dl class="spec">
+      <div class="spec-row"><dt>Hard part</dt><dd>Criteria B and C together. A user fixing a name is one label. Turning labels into a better recogniser needs volume, a rule for conflicting corrections, and resistance to someone poisoning it deliberately. This is a live learning system, not a form.</dd></div>
+      <div class="spec-row"><dt>What exists</dt><dd>The correction interface is trivial and the walkthrough already specifies it. Storing labelled pairs costs nothing. The hard half is only the part that closes the loop.</dd></div>
+      <div class="spec-row cheap"><dt>Cheap version</dt><dd>Collect the pairs, apply nothing. Correcting the index by hand once a week for the first few thousand corrections is faster and safer than any pipeline, and it tells you whether the corrections are even any good.</dd></div>
+      <div class="spec-row kill"><dt>Falsifier</dt><dd>If a hand review of the first two hundred corrections finds most of them wrong, useless or adversarial, automating them would have made the product worse.</dd></div>
+    </dl>
+  </div>
+
+  <div class="item">
+    <div class="item-head"><span class="item-n">03</span><h3>A corrected price reused for that store from then on</h3><span class="item-from">Disagreement paths</span></div>
+    <dl class="spec">
+      <div class="spec-row"><dt>Hard part</dt><dd>Criteria A, C and D. This is the asset no competitor can buy, and that is exactly why it is hard. It needs a specific store rather than a chain, an expiry because a shelf price goes stale in days, a rule for two users reporting different numbers for the same shelf, and defence against a store employee or a rival reporting numbers that suit them.</dd></div>
+      <div class="spec-row"><dt>What exists</dt><dd>A whole app is built on crowdsourced shelf prices, so the model is proven, not speculative. Receipt-scanning cashback apps hold the same data as a side effect and are the precedent for volume. Store identity can come from the phone's location at the moment of the scan.</dd></div>
+      <div class="spec-row cheap"><dt>Cheap version</dt><dd>Record every report with the store, the time and the user, show it back only to the person who reported it, and trust nothing. That is a week of work, and it produces the dataset that decides whether the trusted version is possible.</dd></div>
+      <div class="spec-row kill"><dt>Falsifier</dt><dd>Fewer than one report per active user per week, or two independent reports for the same shelf disagreeing more often than they agree. Either kills the trusted layer, and the second one is the one to watch.</dd></div>
+    </dl>
+  </div>
+
+  <div class="item">
+    <div class="item-head"><span class="item-n">04</span><h3>Watch a price, at a threshold Shin picks</h3><span class="item-from">Action options</span></div>
+    <dl class="spec">
+      <div class="spec-row"><dt>Hard part</dt><dd>Criterion D, in its purest form, and it is the single most underestimated item on this list because the code is easy. Re-pricing everything nobody is looking at is a bill that arrives monthly and grows with your best users. The threshold also has to be defensible: suggesting a number means knowing the price distribution, not guessing a percentage.</dd></div>
+      <div class="spec-row"><dt>What exists</dt><dd>This exact feature is the entire product for tools with <span class="num">4.8</span> million users between them, which is proof of demand and a warning about the cost. Price history feeds sell the history you would need to set a threshold honestly.</dd></div>
+      <div class="spec-row cheap"><dt>Cheap version</dt><dd>Check watched items once a day, cap free watches at five, and set the threshold from the item's own recorded low rather than a percentage. Caps are not a monetising trick here, they are how the bill stays bounded while you learn the real usage.</dd></div>
+      <div class="spec-row kill"><dt>Falsifier</dt><dd>If the ratio of distinct products to total scans stays near one, caching saves nothing and every watch is a fresh lookup. That single ratio decides whether this feature is affordable, and it is one of the three numbers to instrument on day one.</dd></div>
+    </dl>
+  </div>
+
+  <div class="item">
+    <div class="item-head"><span class="item-n">05</span><h3>Tell me when it turns up cheaper somewhere else</h3><span class="item-from">Notification triggers</span></div>
+    <dl class="spec">
+      <div class="spec-row"><dt>Hard part</dt><dd>Criterion D multiplied by every retailer you monitor. Watching one item at one store is one lookup; watching it everywhere is one lookup per retailer per check, forever, for an item the user may never buy.</dd></div>
+      <div class="spec-row"><dt>What exists</dt><dd>One Canadian comparison service already tracks 32 retailers, which means the sweep exists as somebody else's product. Buying or partnering beats rebuilding it.</dd></div>
+      <div class="spec-row cheap"><dt>Cheap version</dt><dd>Recheck alternatives only when the user opens the item, not on a schedule. It is the same information at the moment they care, at a fraction of the cost, and it turns a background bill into a foreground one.</dd></div>
+      <div class="spec-row kill"><dt>Falsifier</dt><dd>If a month of watched items produces almost no cross-retailer wins, the sweep is paying for a notification that rarely fires.</dd></div>
+    </dl>
+  </div>
+
+  <div class="item">
+    <div class="item-head"><span class="item-n">06</span><h3>Alternatives that taste the same</h3><span class="item-from">Action options, and your original design</span></div>
+    <dl class="spec">
+      <div class="spec-row"><dt>Hard part</dt><dd>Criteria B and E. "Cheaper in the same category" is easy and already solved by the unit prices in the grocery feeds. <b>"Tastes the same" is a claim about a product you did not make,</b> and a food swap suggestion puts you in product liability territory the moment allergens differ. The recommendation is easy; standing behind the sentence is not.</dd></div>
+      <div class="spec-row"><dt>What exists</dt><dd>Yuka's alternatives run on same-category-better-score rather than any similarity model, which is a mechanism you can copy exactly. Open food data covers ingredients and allergens for packaged goods, which is what the copy has to respect.</dd></div>
+      <div class="spec-row cheap"><dt>Cheap version</dt><dd>Same category, cheaper per unit, and let Shin say "cheaper per 100 grams" instead of "tastes the same." Identical feature, no claim, and it is more useful because it is checkable.</dd></div>
+      <div class="spec-row kill"><dt>Falsifier</dt><dd>If people tap alternatives and buy nothing, this is a feature that demos well in a video and does nothing in a store, which is worth knowing before the taste claim is ever written.</dd></div>
+    </dl>
+  </div>
+
+  <div class="item">
+    <div class="item-head"><span class="item-n">07</span><h3>A feed of drops on things like what you scan</h3><span class="item-from">Home screen options</span></div>
+    <dl class="spec">
+      <div class="spec-row"><dt>Hard part</dt><dd>Criteria A, C and D at once, which makes it the hardest single row in the walkthrough. A recommender needs a catalogue you do not own, similarity you do not have, and continuous pricing of a candidate pool far larger than what anyone scanned. The walkthrough's own warning applies too: an empty feed kills an app faster than no feed.</dd></div>
+      <div class="spec-row"><dt>What exists</dt><dd>Nothing that shortens this. It is a later-stage system that assumes the other eleven work.</dd></div>
+      <div class="spec-row cheap"><dt>Cheap version</dt><dd>One item a day, chosen by hand, from the category the videos perform in. Editorial rather than algorithmic. It tests whether anyone opens the app for something they did not scan, which is the actual question hiding under the feed.</dd></div>
+      <div class="spec-row kill"><dt>Falsifier</dt><dd>If the hand-picked daily item gets no taps, no recommender was going to rescue it.</dd></div>
+    </dl>
+  </div>
+
+  <div class="item">
+    <div class="item-head"><span class="item-n">08</span><h3>Back in season</h3><span class="item-from">Notification triggers</span></div>
+    <dl class="spec">
+      <div class="spec-row"><dt>Hard part</dt><dd>Criterion A, in the one category the pilot ruled out. It needs a seasonal baseline per item per region, which means at least a year of history before the first notification can fire, and it sits on produce, where a sticker code names a category rather than a product and prices moved <span class="num">4.7%</span> in a single month this July.</dd></div>
+      <div class="spec-row"><dt>What exists</dt><dd>National monthly fresh fruit and vegetable series are published and free, which is enough to say "cucumbers are unusually expensive this month" at a country level. It is not enough to say anything about your store.</dd></div>
+      <div class="spec-row cheap"><dt>Cheap version</dt><dd>Use the public national series to caption a verdict, with the source shown: "fresh vegetables are up 5.5% this month nationally." Honest, sourced, no baseline of your own required.</dd></div>
+      <div class="spec-row kill"><dt>Falsifier</dt><dd>Produce scans staying a small share of total scans. If nobody scans produce, this notification has no audience.</dd></div>
+    </dl>
+  </div>
+
+  <div class="item">
+    <div class="item-head"><span class="item-n">09</span><h3>Monthly wrapped, what Shin saved you</h3><span class="item-from">Share formats</span></div>
+    <dl class="spec">
+      <div class="spec-row"><dt>Hard part</dt><dd>Criterion E, plus a definition problem underneath it. Section 74.01(1)(b) of the Competition Act requires a performance claim be backed by adequate and proper testing done <b>before</b> the claim is made, and it covers in-app copy. Worse than the law: "saved you" assumes the user would otherwise have bought at the higher price, and you cannot observe that. A shareable number you cannot defend is the most dangerous asset in the product.</dd></div>
+      <div class="spec-row"><dt>What exists</dt><dd>Everything you need for a defensible version, because every verdict already records both prices and the comparison set behind them.</dd></div>
+      <div class="spec-row cheap"><dt>Cheap version</dt><dd>Report what happened instead of what was saved. "You checked 47 things. Shin told you to walk away from 12." Both numbers are observed facts, both are shareable, and neither is a performance claim.</dd></div>
+      <div class="spec-row kill"><dt>Falsifier</dt><dd>Nothing kills this feature; the claim version is simply not available until the number has been tested. It is a gate with a key, not a wall.</dd></div>
+    </dl>
+  </div>
+
+  <div class="item">
+    <div class="item-head"><span class="item-n">10</span><h3>Selling aggregate pricing intelligence</h3><span class="item-from">Revenue options</span></div>
+    <dl class="spec">
+      <div class="spec-row"><dt>Hard part</dt><dd>Criteria C and E, and it is a different company rather than a feature. It needs volume that makes the aggregate meaningful, the right to resell what users contributed, privacy compliance over stored location and shopping history, and an enterprise sales motion that shares nothing with a consumer app.</dd></div>
+      <div class="spec-row"><dt>What exists</dt><dd>Commercial licensing of Canadian grocery price panels already happens, so the buyer exists and the price is discoverable. That is worth knowing and worth nothing until you have the volume.</dd></div>
+      <div class="spec-row cheap"><dt>Cheap version</dt><dd>Write the data rights into the terms of service on day one so the option stays open, and build none of it. That is an afternoon and it is the whole of what should be done now.</dd></div>
+      <div class="spec-row kill"><dt>Falsifier</dt><dd>Not applicable until there is volume. Revisit when the reported-price layer has real coverage in one city.</dd></div>
+    </dl>
+  </div>
+
+  <div class="item">
+    <div class="item-head"><span class="item-n">11</span><h3>Reading the price straight off the shelf tag</h3><span class="item-from">First-scan paths</span></div>
+    <dl class="spec">
+      <div class="spec-row"><dt>Hard part</dt><dd>Criteria A and B, though of a tedious rather than deep kind. Reading characters is solved. Knowing which number on the tag is the price, which is the unit price, which is the club price and which is the expiry date is a layout problem that differs per retailer and gets redesigned without telling you.</dd></div>
+      <div class="spec-row"><dt>What exists</dt><dd>On-device text recognition ships free in both mobile platforms. Tag layouts are consistent within a banner, so this is a finite set of templates rather than an open problem.</dd></div>
+      <div class="spec-row cheap"><dt>Cheap version</dt><dd>Read every number on the tag, show them, and let the user tap the price. That sidesteps the layout problem entirely and produces the labelled data that would later automate it.</dd></div>
+      <div class="spec-row kill"><dt>Falsifier</dt><dd>If users abandon the tap-the-price step, tag reading is not a path anyone wants and the barcode is the only in-store input.</dd></div>
+    </dl>
+  </div>
+
+  <div class="item">
+    <div class="item-head"><span class="item-n">12</span><h3>Pick Shin's attitude: polite, blunt, or unhinged</h3><span class="item-from">Introduction options</span></div>
+    <dl class="spec">
+      <div class="spec-row"><dt>Hard part</dt><dd>None of the five criteria, which is exactly why it belongs here. It is one row in a table and a toggle in settings, and it <b>triples every string in the product, permanently.</b> Each verdict has its own sentence per category, and there are four categories, so this multiplies the copy surface that carries the entire personality of the app, forever, including everything you have not written yet.</dd></div>
+      <div class="spec-row"><dt>What exists</dt><dd>Nothing makes this cheaper. Generating tone variants with a model at runtime trades the cost for an unpredictable voice, which for a mascot is the one thing not to risk.</dd></div>
+      <div class="spec-row cheap"><dt>Cheap version</dt><dd>One voice, chosen by whichever caption won the video test. The winning caption is already telling you the tone, so this decision is made by evidence you will have rather than a setting the user has to think about.</dd></div>
+      <div class="spec-row kill"><dt>Falsifier</dt><dd>Users asking for a gentler Shin in reviews. That is the only signal worth reopening this for, and it costs nothing to wait for.</dd></div>
+    </dl>
+  </div>
+
+  <h2>All 68, tiered</h2>
+  <p class="sec-note">The full enumeration, so the twelve above can be checked against what they were selected from rather than taken on trust.</p>
+  <div class="opts">
+    <table>
+      <caption>Middle tier, harder than the table row suggests</caption>
+      <thead><tr><th style="width:30%">Option</th><th>What makes it more than a week</th></tr></thead>
+      <tbody>
+        <tr><td>Regular and promo, split</td><td>Needs price history per store per product to know which number is the regular one. Required by the floor, so this cost is not optional</td></tr>
+        <tr><td>Unit price alongside</td><td>Needs normalised size data; the grocery feeds ship it, other categories do not</td></tr>
+        <tr><td>Confidence-gated identity</td><td>A model's top-two margin is not a calibrated probability, and treating it as one produces confident wrong verdicts</td></tr>
+        <tr><td>Paste a link</td><td>One extractor per site, and they break silently when a page changes</td></tr>
+        <tr><td>Share sheet target</td><td>A platform extension on both systems, handling text, links and images from any app</td></tr>
+        <tr><td>Your last screenshot</td><td>Photo library permission plus reliably finding the newest screenshot</td></tr>
+        <tr><td>Resale maths</td><td>Per-platform fee schedules and shipping estimated from weight and destination, all of which change without notice</td></tr>
+        <tr><td>Price match script</td><td>Must reflect the actual store's policy, which varies by banner and is changed by them, not you</td></tr>
+        <tr><td>Affiliate, and affiliate on the watch</td><td>Gated by program approval rather than code, and attribution through a notification is the harder half</td></tr>
+        <tr><td>Flag a fake</td><td>A reporting system needs an abuse policy and someone to action it</td></tr>
+        <tr><td>Show the receipt</td><td>Cheap only if every verdict stored its comparison set from the first day; expensive to retrofit</td></tr>
+        <tr><td>Send to a friend with a vote</td><td>Accounts, invitations and a shared object, which is the first real social plumbing</td></tr>
+        <tr><td>Shin's daily thing</td><td>Automated needs a priced candidate pool; by hand it is free</td></tr>
+        <tr><td>Shin was right</td><td>Requires keeping skipped items priced over time, same recurring cost as a watch</td></tr>
+        <tr><td>Shin has a voice</td><td>Recorded lines per verdict per category, plus a mute state, re-recorded whenever copy changes</td></tr>
+        <tr><td>Ask Shin free text</td><td>Trivial to build, and the per-question cost is why the walkthrough gates it</td></tr>
+        <tr><td>Before and after share</td><td>Inherits the alternatives problem entirely</td></tr>
+        <tr><td>Crowd correction interface</td><td>Easy alone; listed here because it is the front end of two hard systems</td></tr>
+        <tr><td>Reseller tier</td><td>Inherits resale maths, and serves the segment most likely to catch a wrong number in public</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="opts">
+    <table>
+      <caption>Bottom tier, a week or less, 37 rows</caption>
+      <thead><tr><th style="width:30%">Group</th><th>Rows</th></tr></thead>
+      <tbody>
+        <tr><td>Setup questions</td><td>City or postal code, stores you shop, what you are into, notification permission, buyer or reseller. All five are forms</td></tr>
+        <tr><td>Introduction</td><td>One static card, three-frame animation, name your Shin, skip entirely</td></tr>
+        <tr><td>Scan entry</td><td>Screenshot picker, barcode mode, try a demo item</td></tr>
+        <tr><td>Identity</td><td>Top guess correctable, three thumbnails first, barcode preferred, Shin admits it</td></tr>
+        <tr><td>Verdict presentation</td><td>Three faces, five faces, a number out of 100, face plus number, percentage over</td></tr>
+        <tr><td>Disagreement</td><td>Wrong item, wrong price, wrong range, Shin concedes</td></tr>
+        <tr><td>Actions</td><td>Make an offer, add to a list, report the price, find it cheaper within one already-bought feed</td></tr>
+        <tr><td>Share</td><td>Still card</td></tr>
+        <tr><td>Money</td><td>Free scans with paid extras, a scan limit</td></tr>
+        <tr><td>Home screen</td><td>Camera first, collection first, adaptive</td></tr>
+        <tr><td>Notifications</td><td>Price drop on a save once watching exists, streak or nudge</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="flag">
+    <h4>The one thing to say about order</h4>
+    <p>Building the hard twelve first is right for the reason you are probably asking: hard is where the unknowns are, and unknowns are what a plan should attack early. But hard is not the same as irreversible, and the two irreversible things stay in front of it, because a name and a first video are spent once while a hard feature is rebuilt at leisure. <b>Every entry above has a cheap version listed for a reason:</b> each of those tests the same question the hard version answers, for days of work instead of months, and eleven of the twelve can be settled that way before anything expensive gets built.</p>
+  </div>
+
+  <div class="foot">
+    Enumerated from the walkthrough's own tables rather than recalled: 79 rows across 13 tables, 68 of them builds. Benchmark-backed figures used above: recognition at 77.0% top-1 and 94.5% top-5 across 190 models on 409 products; the grocery feed at $0.75 per thousand rows; video rendering at $0.20 to $0.30 per rendered minute, $0.01 per render above a $100 monthly floor, and $0.10 per minute depending on vendor; a Canadian comparison service covering 32 retailers; store-level grocery feeds resolving the nearest store by postal code with normalised unit prices; a weekly panel of 50 basket items across 12 cities, 22 banners and roughly 160 stores; Statistics Canada fresh fruit up 4.7% and fresh vegetables up 5.5% in single months of 2026; price-watch tools with 4.8 million users between them; Competition Act s.74.01(1)(b) on performance claims. Derived by arithmetic and labelled as such: the $675 monthly watch cost, from the feed price and three stated assumptions about saves, check frequency and retailer count. Unestablished: whether one token of the Amazon price API buys one product lookup, which is what would turn its throughput ceiling from unknown into known.
+    <br><br>
+    Three rows moved off the hard list during this assessment because a source was opened rather than reasoned from. That correction is recorded in the third section rather than applied silently.
+  </div>
+
+</div>

@@ -1,0 +1,1013 @@
+<title>First Scan to Habit</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper: #FBFAF7;
+    --surface: #FFFFFF;
+    --surface-sunk: #F3F1EC;
+    --ink: #16130F;
+    --ink-muted: #6E6660;
+    --ink-faint: #98908A;
+    --rule: #E4DFD8;
+    --rule-strong: #CDC6BC;
+    --accent: #E5165E;
+    --accent-ink: #A70E42;
+    --accent-soft: #FDE8EF;
+    --good: #1C7C4A;
+    --good-soft: #E4F2E9;
+    --mid: #8A6E1E;
+    --mid-soft: #F6EEDA;
+    --bad: #BE3218;
+    --bad-soft: #FBE7E2;
+    --shadow: 0 1px 2px rgba(22,19,15,.05), 0 8px 24px -12px rgba(22,19,15,.14);
+
+    --f-display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+    --f-body: "Newsreader", Georgia, "Times New Roman", serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #131113;
+      --surface: #1C191B;
+      --surface-sunk: #100E10;
+      --ink: #F2EEE9;
+      --ink-muted: #A79E98;
+      --ink-faint: #7C736E;
+      --rule: #2E2A2C;
+      --rule-strong: #433D40;
+      --accent: #FF4C82;
+      --accent-ink: #FF7CA1;
+      --accent-soft: #331420;
+      --good: #56C288;
+      --good-soft: #14261C;
+      --mid: #D6B45C;
+      --mid-soft: #2A2314;
+      --bad: #F0745A;
+      --bad-soft: #2E1712;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px -14px rgba(0,0,0,.7);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #131113;
+    --surface: #1C191B;
+    --surface-sunk: #100E10;
+    --ink: #F2EEE9;
+    --ink-muted: #A79E98;
+    --ink-faint: #7C736E;
+    --rule: #2E2A2C;
+    --rule-strong: #433D40;
+    --accent: #FF4C82;
+    --accent-ink: #FF7CA1;
+    --accent-soft: #331420;
+    --good: #56C288;
+    --good-soft: #14261C;
+    --mid: #D6B45C;
+    --mid-soft: #2A2314;
+    --bad: #F0745A;
+    --bad-soft: #2E1712;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px -14px rgba(0,0,0,.7);
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 56px 24px 120px;
+  }
+
+  /* ---- masthead ---- */
+  .mast { border-bottom: 2px solid var(--ink); padding-bottom: 28px; margin-bottom: 8px; }
+  .mast-kicker {
+    font-family: var(--f-mono); font-size: 11px; font-weight: 500;
+    letter-spacing: .16em; text-transform: uppercase; color: var(--accent);
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline;
+  }
+  .mast-kicker span { color: var(--ink-faint); }
+  h1 {
+    font-family: var(--f-display); font-weight: 800; font-size: clamp(38px, 6.4vw, 66px);
+    line-height: .98; letter-spacing: -.028em; margin: 16px 0 0; text-wrap: balance;
+  }
+  .standfirst {
+    font-size: 20px; line-height: 1.5; color: var(--ink-muted);
+    max-width: 62ch; margin: 18px 0 0;
+  }
+  .standfirst em { font-style: italic; color: var(--ink); }
+
+  .premise {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0; border: 1px solid var(--rule); border-radius: 3px;
+    margin: 36px 0 0; overflow: hidden; background: var(--surface);
+  }
+  .premise > div { padding: 16px 18px; border-right: 1px solid var(--rule); }
+  .premise > div:last-child { border-right: 0; }
+  .premise dt {
+    font-family: var(--f-mono); font-size: 10px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ink-faint); margin-bottom: 6px;
+  }
+  .premise dd {
+    margin: 0; font-family: var(--f-display); font-weight: 600; font-size: 15px;
+    line-height: 1.3; letter-spacing: -.01em;
+  }
+
+  /* ---- sections ---- */
+  h2 {
+    font-family: var(--f-display); font-weight: 800; font-size: 30px;
+    letter-spacing: -.022em; line-height: 1.1; margin: 76px 0 6px; text-wrap: balance;
+  }
+  .sec-note { color: var(--ink-muted); font-size: 16px; max-width: 66ch; margin: 0 0 8px; }
+
+  /* ---- stage ---- */
+  .stage { border-top: 1px solid var(--rule); padding: 30px 0 34px; }
+  .stage:last-of-type { border-bottom: 1px solid var(--rule); }
+  .stage-head { display: flex; gap: 18px; align-items: flex-start; }
+  .stage-num {
+    font-family: var(--f-mono); font-size: 12px; font-weight: 600; letter-spacing: .08em;
+    color: var(--accent); padding-top: 8px; flex: 0 0 auto; width: 46px;
+    font-variant-numeric: tabular-nums;
+  }
+  .stage-title {
+    font-family: var(--f-display); font-weight: 700; font-size: 24px;
+    letter-spacing: -.018em; line-height: 1.16; margin: 0; text-wrap: balance;
+  }
+  .stage-sub {
+    font-family: var(--f-mono); font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-faint); margin: 7px 0 0;
+  }
+  .stage-body { margin-left: 64px; }
+  .stage-body > p { max-width: 66ch; }
+  .stage-body > p:first-child { margin-top: 18px; }
+
+  @media (max-width: 620px) {
+    .stage-body { margin-left: 0; }
+    .stage-head { gap: 12px; }
+    .stage-num { width: 34px; font-size: 11px; }
+  }
+
+  /* risk marker: encodes real funnel jeopardy at each step */
+  .risk {
+    display: inline-flex; align-items: baseline; gap: 7px;
+    font-family: var(--f-mono); font-size: 10px; letter-spacing: .1em;
+    text-transform: uppercase; padding: 4px 9px; border-radius: 2px; margin-top: 9px;
+  }
+  .risk::before { content: ""; width: 6px; height: 6px; border-radius: 50%; align-self: center; }
+  .risk-hi { background: var(--bad-soft); color: var(--bad); }
+  .risk-hi::before { background: var(--bad); }
+  .risk-md { background: var(--mid-soft); color: var(--mid); }
+  .risk-md::before { background: var(--mid); }
+  .risk-lo { background: var(--good-soft); color: var(--good); }
+  .risk-lo::before { background: var(--good); }
+
+  /* ---- copy blocks ---- */
+  .screen-copy {
+    background: var(--surface-sunk); border-left: 2px solid var(--accent);
+    padding: 16px 20px; margin: 20px 0; border-radius: 0 3px 3px 0;
+    font-family: var(--f-display); font-size: 17px; line-height: 1.45;
+  }
+  .screen-copy p { margin: 0 0 8px; }
+  .screen-copy p:last-child { margin-bottom: 0; }
+  .screen-copy .said {
+    font-family: var(--f-mono); font-size: 10px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--ink-faint); display: block; margin-bottom: 8px;
+  }
+  .screen-copy strong { font-weight: 800; }
+
+  /* ---- option tables ---- */
+  .opts { margin: 22px 0 6px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 15px; }
+  caption {
+    text-align: left; font-family: var(--f-mono); font-size: 10px;
+    letter-spacing: .13em; text-transform: uppercase; color: var(--ink-faint);
+    padding-bottom: 9px;
+  }
+  th {
+    text-align: left; font-family: var(--f-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--ink-muted);
+    border-bottom: 1px solid var(--rule-strong); padding: 0 12px 7px 0; vertical-align: bottom;
+  }
+  td { padding: 11px 12px 11px 0; border-bottom: 1px solid var(--rule); vertical-align: top; line-height: 1.45; }
+  td:first-child { font-family: var(--f-display); font-weight: 600; letter-spacing: -.008em; }
+  tbody tr:last-child td { border-bottom: 0; }
+  .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .tag {
+    font-family: var(--f-mono); font-size: 9.5px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; padding: 3px 7px; border-radius: 2px; white-space: nowrap;
+    display: inline-block;
+  }
+  .t-now { background: var(--accent); color: #fff; }
+  .t-next { background: var(--accent-soft); color: var(--accent-ink); }
+  .t-later { background: var(--surface-sunk); color: var(--ink-muted); }
+  .t-ev { background: var(--good-soft); color: var(--good); }
+  .t-guess { background: var(--mid-soft); color: var(--mid); }
+  .t-fail { background: var(--bad-soft); color: var(--bad); }
+
+  .pilot { border-color: var(--ink); border-width: 2px; }
+  .pilot h4 { color: var(--ink); }
+  .pilot .opts { margin: 16px 0 4px; }
+  .pilot table { min-width: 520px; font-size: 14.5px; }
+
+  /* ---- phone mock ---- */
+  .mocks { display: flex; flex-wrap: wrap; gap: 22px; margin: 26px 0 10px; }
+  .phone {
+    width: 232px; flex: 0 0 auto; background: var(--surface);
+    border: 1px solid var(--rule-strong); border-radius: 22px; padding: 12px;
+    box-shadow: var(--shadow);
+  }
+  .phone-cap {
+    font-family: var(--f-mono); font-size: 9.5px; letter-spacing: .11em;
+    text-transform: uppercase; color: var(--ink-faint); margin: 9px 2px 0; line-height: 1.4;
+  }
+  .ph-screen {
+    background: var(--surface-sunk); border-radius: 13px; padding: 14px 13px;
+    display: flex; flex-direction: column; gap: 10px; min-height: 250px;
+  }
+  .ph-item { font-family: var(--f-display); font-weight: 700; font-size: 15px; line-height: 1.2; }
+  .ph-label {
+    font-family: var(--f-mono); font-size: 9px; letter-spacing: .11em;
+    text-transform: uppercase; color: var(--ink-faint);
+  }
+  .ph-price {
+    font-family: var(--f-mono); font-weight: 600; font-variant-numeric: tabular-nums;
+    font-size: 27px; letter-spacing: -.02em; line-height: 1;
+  }
+  .ph-price.small { font-size: 17px; }
+  .ph-verdict {
+    font-family: var(--f-display); font-weight: 800; font-size: 19px; line-height: 1.05;
+    letter-spacing: -.02em; text-transform: uppercase;
+  }
+  .ph-shin {
+    width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center;
+    font-size: 25px; flex: 0 0 auto; line-height: 1;
+  }
+  .ph-row { display: flex; gap: 11px; align-items: center; }
+  .ph-btn {
+    font-family: var(--f-display); font-weight: 700; font-size: 13px; text-align: center;
+    padding: 10px; border-radius: 9px; background: var(--accent); color: #fff;
+  }
+  .ph-btn.ghost { background: transparent; border: 1px solid var(--rule-strong); color: var(--ink); }
+  .ph-chip {
+    font-family: var(--f-mono); font-size: 9.5px; padding: 4px 8px; border-radius: 20px;
+    border: 1px solid var(--rule-strong); color: var(--ink-muted); display: inline-block;
+  }
+  .ph-tagbar {
+    border-top: 1px dashed var(--rule-strong); padding-top: 9px; margin-top: 2px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .ph-line { display: flex; justify-content: space-between; gap: 8px; font-family: var(--f-mono); font-size: 11px; }
+  .ph-line span:last-child { font-variant-numeric: tabular-nums; }
+  .bad-txt { color: var(--bad); }
+  .good-txt { color: var(--good); }
+
+  /* ---- callouts ---- */
+  .flag {
+    border: 1px solid var(--rule-strong); border-radius: 3px; padding: 15px 18px;
+    margin: 22px 0; background: var(--surface); font-size: 15.5px;
+  }
+  .flag h4 {
+    font-family: var(--f-mono); font-size: 10px; letter-spacing: .13em; text-transform: uppercase;
+    margin: 0 0 7px; color: var(--accent);
+  }
+  .flag p { margin: 0 0 8px; max-width: 66ch; }
+  .flag p:last-child { margin-bottom: 0; }
+  .flag.law { border-color: var(--bad); background: var(--bad-soft); }
+  .flag.law h4 { color: var(--bad); }
+
+  .thesis {
+    margin: 34px 0 0; padding: 20px 0 0; border-top: 1px solid var(--rule);
+    font-family: var(--f-display); font-weight: 600; font-size: clamp(19px, 2.6vw, 24px);
+    line-height: 1.32; letter-spacing: -.016em; max-width: 34ch; text-wrap: balance;
+  }
+  .thesis-label {
+    display: block; font-family: var(--f-mono); font-size: 10px; font-weight: 500;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--accent);
+    margin-bottom: 10px; letter-spacing: .14em;
+  }
+  .thesis-foot {
+    display: block; font-family: var(--f-body); font-weight: 400; font-size: 14.5px;
+    line-height: 1.55; color: var(--ink-muted); letter-spacing: 0; margin-top: 14px;
+    max-width: 60ch;
+  }
+
+  .floor {
+    border: 2px solid var(--ink); border-radius: 3px; padding: 22px 24px; margin: 26px 0 0;
+    background: var(--surface);
+  }
+  .floor h3 {
+    font-family: var(--f-display); font-weight: 800; font-size: 21px; letter-spacing: -.018em;
+    margin: 0 0 4px;
+  }
+  .floor p.lede { color: var(--ink-muted); font-size: 15.5px; margin: 0 0 16px; max-width: 64ch; }
+  .floor-list { display: grid; gap: 0; }
+  .floor-row {
+    display: grid; grid-template-columns: 132px 1fr; gap: 16px;
+    padding: 10px 0; border-top: 1px solid var(--rule); align-items: baseline;
+  }
+  .floor-row:first-child { border-top: 0; }
+  .floor-row dt {
+    font-family: var(--f-mono); font-size: 10px; letter-spacing: .11em; text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .floor-row dd { margin: 0; font-size: 15.5px; line-height: 1.45; }
+  .floor-row dd b { font-family: var(--f-display); font-weight: 700; }
+  @media (max-width: 560px) {
+    .floor-row { grid-template-columns: 1fr; gap: 3px; }
+  }
+
+  ul.tight { margin: 14px 0; padding-left: 22px; max-width: 66ch; }
+  ul.tight li { margin-bottom: 7px; }
+  ul.tight li::marker { color: var(--accent); }
+
+  .why {
+    font-family: var(--f-mono); font-size: 12.5px; line-height: 1.6; color: var(--ink-muted);
+    border-top: 1px solid var(--rule); padding-top: 11px; margin-top: 18px; max-width: 76ch;
+  }
+  .why b { color: var(--ink); font-weight: 600; }
+
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  .foot {
+    margin-top: 70px; border-top: 2px solid var(--ink); padding-top: 20px;
+    font-family: var(--f-mono); font-size: 12px; color: var(--ink-muted); line-height: 1.7;
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="mast-kicker">Build walkthrough <span>/ v4, verdict stage measured and corrected / 2026-09-03 / Hamilton, ON</span></div>
+    <h1>First Scan to Habit</h1>
+    <p class="standfirst">Every screen from the video that gets someone to install, through the first scan that has to land, to the week-two state where they open it without a reason. Each stage carries the feature options worth considering and <em>what would decide between them</em>.</p>
+
+    <blockquote class="thesis">
+      <span class="thesis-label">The problem</span>
+      Sellers know what things are worth and buyers are guessing, so we're making the check instant enough that guessing stops being the default.
+      <span class="thesis-foot">Adopted 2026-09-03. Names no input method on purpose: barcode, screenshot, share sheet and pasted link all satisfy it, and so does a camera. Says nothing about purchasing, so the window shopper sits inside the mission rather than outside it. Falsifiable: if people already know prices, or checking is already cheap, it says stop.</span>
+    </blockquote>
+
+    <dl class="premise">
+      <div><dt>The hook</dt><dd>Scan anything. Shin tells you if you're getting ripped off.</dd></div>
+      <div><dt>Primary user</dt><dd>A window shopper, not a buyer</dd></div>
+      <div><dt>Channel</dt><dd>Short-form video, organic first</dd></div>
+      <div><dt>Output token</dt><dd>Shin's face, one per verdict</dd></div>
+    </dl>
+  </header>
+
+  <h2>Before the app</h2>
+  <p class="sec-note">The walkthrough starts one step earlier than the download, because the video is the first screen and it sets what every screen after it has to deliver.</p>
+
+  <section class="stage">
+    <div class="stage-head">
+      <div class="stage-num">00</div>
+      <div>
+        <h3 class="stage-title">The video that does the installing</h3>
+        <p class="stage-sub">15 to 25 seconds &middot; TikTok, Reels, Shorts</p>
+        <span class="risk risk-hi">Highest drop-off in the funnel</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>The structure is already proven in this exact market, so copy it rather than invent one. The thrift-flip reveal runs: tension, price reveal, then the flip that shows the real number. Shin's reaction replaces the second price tag.</p>
+      <ul class="tight">
+        <li><b>0 to 3s</b> Hand holding the item, price tag visible, no talking. The first three seconds set both click-through and install rate.</li>
+        <li><b>3 to 8s</b> The scan. Phone up, one tap, Shin's face appears already annoyed.</li>
+        <li><b>8 to 15s</b> The two numbers on screen together. This is the frame people screenshot.</li>
+        <li><b>15 to 22s</b> The dupe, or the save. "Same thing, ninety cheaper, at the place two blocks over."</li>
+      </ul>
+      <div class="opts">
+        <table>
+          <caption>Content formats to run</caption>
+          <thead><tr><th style="width:24%">Format</th><th style="width:38%">What happens on screen</th><th style="width:22%">Why this one</th><th>Build</th></tr></thead>
+          <tbody>
+            <tr><td>Ripoff hunt</td><td>Walk a store, scan the worst-value item on each aisle</td><td>Infinite supply, needs no script</td><td><span class="tag t-now">Day one</span></td></tr>
+            <tr><td>Dupe reveal</td><td>Designer item, then the near-identical cheaper one</td><td>Furniture dupe hunting is already a mass behaviour</td><td><span class="tag t-now">Day one</span></td></tr>
+            <tr><td>Guess the gap</td><td>Show the item, pause, let comments guess before the reveal</td><td>Comments are the ranking signal you want</td><td><span class="tag t-now">Day one</span></td></tr>
+            <tr><td>Shin vs a store</td><td>Named retailer, Shin escalating across a whole basket</td><td>A villain travels; helpful data does not</td><td><span class="tag t-next">After legal read</span></td></tr>
+            <tr><td>Scan my haul</td><td>Reader submits a photo, Shin grades it</td><td>Turns viewers into content supply</td><td><span class="tag t-next">Week two</span></td></tr>
+            <tr><td>Stitch bait</td><td>Deliberately arguable verdict, invite disagreement</td><td>Rewatch and duet rather than a scroll past</td><td><span class="tag t-later">Once brand can take it</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="flag law">
+        <h4>Correction, 2026-09-03: do not run this test on a new account</h4>
+        <p>TikTok now shows a new video primarily to your existing followers first for the opening days, and only pushes it to non-followers if that seed audience engages fast. Completion and rewatch outrank follower count, which favours small accounts, but the seed still gates the test. <b>A brand new handle has no seed, so it can return near-zero views for reasons unrelated to whether the idea works</b>, which is a false negative on the one test everything else rests on.</p>
+        <p>Both precedents launched borrowed. Duolingo's account already existed inside a company with an installed base. Cal AI's ladder started with fitness-influencer UGC, meaning other people's audiences, and only later went paid. So: run the test through three to five micro creators in thrifting, deal-hunting or Canadian grocery content at a small flat fee, or post where distribution is not follower-gated (Reddit, where a good post reaches strangers on day one). Run your own handle in parallel to build the seed you will need later, but do not read the result off it.</p>
+      </div>
+      <p class="why"><b>What the test decides:</b> run the same five scans with two captions, one neutral ("tells you if the price is right") and one with the villain ("tells you if you're getting ripped off"). Read views, rewatch, and how many comments ask what the app is. One week, no engineering, and it settles the brand.</p>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div class="stage-head">
+      <div class="stage-num">01</div>
+      <div>
+        <h3 class="stage-title">The store listing</h3>
+        <p class="stage-sub">Six seconds of attention, arriving from a link</p>
+        <span class="risk risk-hi">Install decision made on screenshot one</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>Traffic arrives from a link in bio, not from search, which changes what the listing is for. It is not discovery, it is reassurance that the thing in the video is real. Screenshot one must be the verdict screen from the video they just watched, not a feature grid.</p>
+      <div class="opts">
+        <table>
+          <caption>Listing decisions</caption>
+          <thead><tr><th style="width:26%">Element</th><th style="width:40%">Option</th><th>Note</th></tr></thead>
+          <tbody>
+            <tr><td>Screenshot 1</td><td>The verdict screen, one item, both prices, Shin</td><td>Matches the video frame that got the tap</td></tr>
+            <tr><td>Screenshot 2</td><td>The collection, filling up</td><td>Shows there is a reason to come back</td></tr>
+            <tr><td>Screenshot 3</td><td>A dupe side by side</td><td>The feature no competitor ships</td></tr>
+            <tr><td>Subtitle line</td><td>"Scan anything. Know if you're overpaying."</td><td>Avoid "the price is right", which is a protected TV property</td></tr>
+            <tr><td>Preview video</td><td>The best-performing organic clip, unedited</td><td>Free, already validated</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <h2>First open</h2>
+  <p class="sec-note">Two competing goals: get to a successful scan fast, and collect the region key without which every price is wrong. The order matters more than the content.</p>
+
+  <section class="stage">
+    <div class="stage-head">
+      <div class="stage-num">02</div>
+      <div>
+        <h3 class="stage-title">Shin says hello, briefly</h3>
+        <p class="stage-sub">One screen, under eight seconds</p>
+        <span class="risk risk-md">Explaining too much loses people here</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>The mascot introduction does one job: transfer the recognition from the video into the app so the person knows they are in the right place. It does not explain the product. They already know what it does, that is why they installed it.</p>
+      <div class="screen-copy">
+        <span class="said">Screen copy</span>
+        <p><strong>Hi. I'm Shin.</strong></p>
+        <p>Point me at anything with a price on it and I'll tell you if you're getting ripped off.</p>
+        <p>I'm going to be honest even when it's annoying.</p>
+      </div>
+      <div class="opts">
+        <table>
+          <caption>Introduction options, cheapest first</caption>
+          <thead><tr><th style="width:27%">Option</th><th style="width:41%">What it is</th><th style="width:16%">Build</th><th>Evidence</th></tr></thead>
+          <tbody>
+            <tr><td>One static card</td><td>Shin, three lines, one button</td><td><span class="tag t-now">Hours</span></td><td><span class="tag t-ev">Standard</span></td></tr>
+            <tr><td>Three-frame animation</td><td>Shin scans something, reacts, hands it back</td><td><span class="tag t-now">Days</span></td><td><span class="tag t-ev">Duo pattern</span></td></tr>
+            <tr><td>Shin has a voice</td><td>Short recorded lines, muteable</td><td><span class="tag t-next">Weeks</span></td><td><span class="tag t-guess">Untested</span></td></tr>
+            <tr><td>Pick Shin's attitude</td><td>Polite, blunt, or unhinged; sets copy tone throughout</td><td><span class="tag t-next">Weeks</span></td><td><span class="tag t-guess">Untested</span></td></tr>
+            <tr><td>Name your Shin</td><td>User renames the mascot</td><td><span class="tag t-later">Later</span></td><td><span class="tag t-guess">Risks the brand</span></td></tr>
+            <tr><td>Skip entirely</td><td>Open straight to camera</td><td><span class="tag t-now">Free</span></td><td><span class="tag t-guess">Worth A/B</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="why"><b>The one thing to get right:</b> Shin's aggression points at prices, stores and brands, never at the person holding the phone. Duo is aggressive at users and it works because skipping practice is a behaviour you control. Overpaying for something you need is not, and the proven viral energy in this market already points at retailers rather than shoppers.</p>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div class="stage-head">
+      <div class="stage-num">03</div>
+      <div>
+        <h3 class="stage-title">Setup, and how little of it you can get away with</h3>
+        <p class="stage-sub">One to three screens, skippable</p>
+        <span class="risk risk-hi">Every question here costs installs</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>City is not optional. Prices differ enough between banners in the same city that a verdict without a region key is guessing, and Canadian produce swings hard with imports and season. Everything else can be inferred or asked later.</p>
+      <div class="opts">
+        <table>
+          <caption>What to ask, when</caption>
+          <thead><tr><th style="width:22%">Question</th><th style="width:22%">When</th><th style="width:30%">Why there</th><th>Alternative</th></tr></thead>
+          <tbody>
+            <tr><td>City or postal code</td><td>Before first scan</td><td>Without it no price is correct</td><td>One-tap location permission</td></tr>
+            <tr><td>Stores you shop</td><td>After first scan</td><td>Improves results but is not required for one</td><td>Infer from scan locations over a week</td></tr>
+            <tr><td>What you're into</td><td>After first scan</td><td>Seeds the browse feed; nothing breaks without it</td><td>Infer from what they scan</td></tr>
+            <tr><td>Notification permission</td><td>After the first save</td><td>Ask when the value is obvious, not before</td><td>Never ask; use in-app badge only</td></tr>
+            <tr><td>Buyer or reseller</td><td>Optional, in settings</td><td>Changes the maths, not the product</td><td>Show both numbers always</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="flag law">
+        <h4>Legal wall, not a preference</h4>
+        <p>Do not put an untested savings figure on this screen. Section 74.01(1)(b) of the Competition Act requires a performance claim be backed by adequate and proper testing done before the claim is made, and it covers in-app and website copy. "People save $1,000 a year" with no users is exactly the exposed case, and the number is suspiciously close to the Dalhousie food price report's projection that a family of four will pay $994.63 <em>more</em> in 2026.</p>
+        <p>The replacement is better content anyway: a real measured spread with two named stores. "The same four items were $18 apart at two stores 1.6 km from each other" is checkable, specific, and legal.</p>
+      </div>
+    </div>
+  </section>
+
+  <h2>The first scan</h2>
+  <p class="sec-note">This is the whole product. If scan one fails, nothing downstream matters, and vision models are least reliable exactly here, on an unknown object in bad light.</p>
+
+  <section class="stage">
+    <div class="stage-head">
+      <div class="stage-num">04</div>
+      <div>
+        <h3 class="stage-title">Getting them to a scan that works</h3>
+        <p class="stage-sub">Camera opens immediately</p>
+        <span class="risk risk-hi">A failed first scan is an uninstall</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>Most people install this on the couch, from a video, with nothing to scan. So the first-scan flow has to work with nothing in front of them. That single fact should decide the design of this screen.</p>
+      <div class="opts">
+        <table>
+          <caption>First-scan paths, best first</caption>
+          <thead><tr><th style="width:25%">Path</th><th style="width:37%">How it works</th><th style="width:19%">Works on a couch</th><th>Build</th></tr></thead>
+          <tbody>
+            <tr><td>Your last screenshot</td><td>Offer the most recent screenshot in their gallery, one tap</td><td>Yes, and it is usually a shopping screenshot</td><td><span class="tag t-now">Small</span></td></tr>
+            <tr><td>Screenshot picker</td><td>Gallery, filtered to screenshots</td><td>Yes</td><td><span class="tag t-now">Small</span></td></tr>
+            <tr><td>Share sheet target</td><td>Share any listing into the app from any other app</td><td>Yes, and it is the highest-frequency path long term</td><td><span class="tag t-now">Small</span></td></tr>
+            <tr><td>Camera, live</td><td>Point at anything nearby with a price</td><td>Only in a store</td><td><span class="tag t-now">Core</span></td></tr>
+            <tr><td>Barcode mode</td><td>Auto-detects a barcode in frame and skips recognition entirely</td><td>Only with packaged goods</td><td><span class="tag t-now">Small, high value</span></td></tr>
+            <tr><td>Shelf-tag mode</td><td>OCR the price tag rather than identify the object</td><td>In-store only</td><td><span class="tag t-next">Medium</span></td></tr>
+            <tr><td>Paste a link</td><td>Marketplace or store URL</td><td>Yes</td><td><span class="tag t-now">Small</span></td></tr>
+            <tr><td>Try a demo item</td><td>Pre-loaded scan that always succeeds</td><td>Yes, guaranteed</td><td><span class="tag t-now">Trivial</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="why"><b>Why the barcode row matters more than it looks:</b> Yuka reached 80 million users, 22 million in the US, adding 25,000 US users a day on zero advertising, and it sidesteps object recognition entirely by scanning barcodes. The hardest technical problem in this app is optional for every packaged item.</p>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div class="stage-head">
+      <div class="stage-num">05</div>
+      <div>
+        <h3 class="stage-title">What it thinks it is</h3>
+        <p class="stage-sub">Under two seconds to something on screen</p>
+        <span class="risk risk-md">Wrong answers are stitchable</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>The measured limit: across 190 open-source vision models on a 409-product benchmark, the best zero-shot top-1 was 77.0%, while top-5 reached 94.5%. The model usually holds the right answer and often ranks it second. That gap is a design instruction, not a defect.</p>
+      <p>But asking before the reveal kills the reveal. So resolve it after: show the verdict on the top guess immediately, put the product name in a tappable chip, and open the alternatives only when tapped.</p>
+
+      <div class="mocks">
+        <div class="phone">
+          <div class="ph-screen">
+            <div class="ph-label">Scanning</div>
+            <div class="ph-row">
+              <div class="ph-shin" style="background:var(--mid-soft)">🤔</div>
+              <div class="ph-item">Hold on, which one is this?</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px;margin-top:2px">
+              <div class="ph-btn ghost">Navel oranges, 3 lb bag</div>
+              <div class="ph-btn ghost">Clementines, 2 lb box</div>
+              <div class="ph-btn ghost">Loose navel, per lb</div>
+            </div>
+            <div class="ph-chip" style="margin-top:auto">Scan the barcode instead</div>
+          </div>
+          <p class="phone-cap">Only when the model's own confidence is low, or the user taps the name</p>
+        </div>
+      </div>
+
+      <div class="opts">
+        <table>
+          <caption>Identity options</caption>
+          <thead><tr><th style="width:26%">Option</th><th style="width:40%">Behaviour</th><th>Trade</th></tr></thead>
+          <tbody>
+            <tr><td>Top guess, correctable</td><td>Verdict immediately; name is a chip that opens alternatives</td><td>Fast reveal, occasional wrong verdict</td></tr>
+            <tr><td>Three thumbnails first</td><td>Ask before the verdict</td><td>More accurate, worse video</td></tr>
+            <tr><td>Confidence-gated</td><td>Ask only when the top two scores are close</td><td>Best of both, needs calibration work</td></tr>
+            <tr><td>Barcode preferred</td><td>If a barcode is in frame, ignore the photo</td><td>Near-perfect where it applies</td></tr>
+            <tr><td>Shin admits it</td><td>"I genuinely don't know what this is. Type it?"</td><td>Builds trust; the mascot makes it charming</td></tr>
+            <tr><td>Crowd correction</td><td>User fixes it, correction trains the next scan</td><td>The one asset a competitor cannot buy</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <h2>The verdict</h2>
+  <p class="sec-note">The single most important screen in the app, and the one that has to survive being screenshotted by someone who has never installed it.</p>
+
+  <section class="stage">
+    <div class="stage-head">
+      <div class="stage-num">06</div>
+      <div>
+        <h3 class="stage-title">Shin's face and two numbers</h3>
+        <p class="stage-sub">Must read in three seconds at arm's length</p>
+        <span class="risk risk-lo">This is where people stay</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>Yuka's real asset is not the scan, it is the score: one number and one colour that people repeat out loud. Your equivalent is Shin's face. One image per outcome, distinctive enough that a stranger recognises it in a friend's screenshot. Design it hardest, change it least.</p>
+
+      <div class="flag pilot">
+        <h4>This screen has now been tested, and it does not pass as one thing</h4>
+        <p>Version one of this document flagged this stage as load-bearing and untested three times without testing it. So it was run: seven real items, priced by hand from public Canadian sources on 3 September 2026, recording per item whether a defensible range came out. Separately, four retailer product pages were fetched directly. <b>Three returned 403 Forbidden</b> (Loblaws, Best Buy Canada, Metro) <b>and IKEA returned its navigation menu instead of a product.</b> Zero of four gave up a price.</p>
+        <div class="opts">
+          <table>
+            <caption>Seven-item hand pilot, 3 September 2026</caption>
+            <thead><tr><th style="width:27%">Item</th><th style="width:15%">Result</th><th>What actually came back</th></tr></thead>
+            <tbody>
+              <tr><td>Kraft Dinner, 225 g</td><td><span class="tag t-ev">Range</span></td><td>Walmart <span class="num">$1.47</span>, Metro about <span class="num">$2.00</span>, Loblaw banners <span class="num">$0.55</span> promo with a limit of 8, Sobeys 4 for <span class="num">$5.00</span>. A <b>3.6&times; swing</b> inside one week, driven entirely by promotions</td></tr>
+              <tr><td>Used POÄNG armchair</td><td><span class="tag t-ev">Range</span></td><td>Dozens of live comparables. Kijiji GTA <span class="num">$35</span> to <span class="num">$159</span>, Facebook Marketplace <span class="num">$60</span> to <span class="num">$120</span>, clustering <span class="num">$55</span> to <span class="num">$80</span>. Asking prices, so biased upward, but the range was free</td></tr>
+              <tr><td>Tide Simply, 2.72 L</td><td><span class="tag t-guess">One point</span></td><td>Walmart <span class="num">$11.97</span>. Loblaws and Metro returned nothing. One number is not a range and cannot produce a verdict</td></tr>
+              <tr><td>Navel oranges, 3 lb</td><td><span class="tag t-guess">Two points</span></td><td>Metro <span class="num">$6.99</span>, Food Basics <span class="num">$5.99</span> regular, Loblaws pages with no price at all. No unit normalisation, and the identity problem is a sticker code</td></tr>
+              <tr><td>Used Canon EOS R6</td><td><span class="tag t-guess">Wrong item</span></td><td>The top result was an R6 <em>Mark II</em> bundled with lenses at <span class="num">$4,800</span>, answering a question nobody asked. eBay sold comps under <span class="num">US$2,000</span>, new Canadian around <span class="num">$2,352</span> to <span class="num">$3,099</span>. The failure here is identity, not price</td></tr>
+              <tr><td>Sony WH-1000XM5</td><td><span class="tag t-fail">No range</span></td><td>Only the <span class="num">$429.99</span> list price. Not one live retailer price, and list price is the number the app exists to argue with</td></tr>
+              <tr><td>New POÄNG armchair</td><td><span class="tag t-fail">No price</span></td><td>Five Canadian variant pages found. Zero prices captured from any of them</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><b>What this changes.</b> Three things, and they are not small. <b>First,</b> the paid feed is a day-one dependency, not an optimisation: free search produced a usable multi-retailer range for one of seven items, and direct page fetches produced none. <b>Second,</b> "typically costs $4.99" is the wrong screen. Kraft Dinner has no single typical price; it has a regular price and a promotion, and collapsing them into one number would be wrong most weeks. <b>Third,</b> the category ranking inverts. Used marketplace goods were ruled out of v1 for having no purchasable feed, and they are the only category where a range came out of the cheapest possible source, for free, in one search.</p>
+        <p><b>What this does not settle.</b> Seven items is a pilot, not a sample, and every number above came from search rather than from the feed a real build would use.</p>
+      </div>
+
+      <div class="flag pilot">
+        <h4>Correction, same day: two of those three failures were the method, not the market</h4>
+        <p>The pilot above concluded that new tech, new furniture and fresh produce were off the shortlist. Asked why, the answer turned out to be three unrelated mechanisms, and only one of them is a real obstacle. The two prices that did not come back had been looked for in the wrong place: <b>search was asked for a live price when a price tracker was the thing to open,</b> which is what a built app would query anyway.</p>
+        <div class="opts">
+          <table>
+            <caption>The three failures, separated</caption>
+            <thead><tr><th style="width:20%">Category</th><th style="width:22%">Actual mechanism</th><th>What is really there</th></tr></thead>
+            <tbody>
+              <tr><td>New tech</td><td><span class="tag t-ev">Best served of all five</span></td><td>Lowpi compares <b>32 Canadian retailers</b> and already ships as an app. <b>Best Buy runs an official developer API</b> and Best Buy Canada publishes its own docs with sample datasets that include competitor price data. Keepa's API covers Amazon.ca and its lowest paid tier is <b><span class="num">&euro;49</span> a month for 20 tokens a minute,</b> which works out to <span class="num">892,800</span> tokens a month, with no free tier and tiers running to <span class="num">&euro;4,499</span>; tokens expire after 60 minutes, so the quota cannot be banked. That is a third-party breakdown, not Keepa's own page, which refuses an automated fetch, and whether one token equals one product lookup is not established here. camelcamelcamel covers Amazon.ca free. photoprice.ca does Canadian and cross-border for cameras, lenses and computers. More price infrastructure than groceries have, some of it official and some free</td></tr>
+              <tr><td>New furniture</td><td><span class="tag t-guess">No second seller</span></td><td>Prices are gettable: at least six live IKEA trackers, plus camelcamelcamel for IKEA items resold on Amazon. But nobody except IKEA sells a POÄNG, so "cheaper somewhere else" has no answer. Every tracker solves it the same way, by comparing IKEA to <b>its own past</b>. That is a different verdict, not a dead end, and it is worth something precise: IKEA's rolling seasonal promotions never appear on the product page, so a shopper cannot tell a real low from where it has been sitting for months</td></tr>
+              <tr><td>Fresh produce</td><td><span class="tag t-fail">Genuinely hard</span></td><td>Three problems stacked. <b>No product to identify:</b> PLU codes, in use since 1990, name a category, not a product, so 4011 is bananas and nothing more. <b>Units do not line up:</b> a 3 lb bag at <span class="num">$5.99</span> against loose fruit at <span class="num">$1.49</span> a pound needs normalising before anything can be said, which is exactly where the pilot's orange stalled. <b>Volatility that is not promotional:</b> Statistics Canada has fresh fruit up <b>4.7% in one month</b> this July, the largest July move since 2011, and fresh vegetables up <b>5.5% in one month</b> in May, the largest May move since 2008, with fresh vegetables <b>7.8%</b> above a year earlier in March</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><b>Where the shortlist actually lands.</b> Four of five categories work, each with a different verdict sentence. Packaged grocery: regular price against this week's promotion. New tech: price against other retailers, and the cheapest data of the lot. Used goods: price against live comparable listings, free, leaning high because they are asking prices. New furniture: price against its own history, the Keepa move applied to a store that only competes with itself. Produce is the one genuinely hard category, and it is the one where shoppers reporting the shelf price is not a nice-to-have layer but the only source, because the underlying price is moving rather than being discounted.</p>
+        <p><b>Worth recording plainly:</b> this was the second time in one sitting that a search returning nothing got written down as the world containing nothing. The pilot's own table above still reads "no range" and "no price" for the headphones and the armchair. Those rows are accurate about what search returned and wrong about what exists, and they are left standing rather than quietly fixed for that reason.</p>
+      </div>
+
+      <div class="mocks">
+        <div class="phone">
+          <div class="ph-screen">
+            <div class="ph-row">
+              <div class="ph-shin" style="background:var(--bad-soft)">😤</div>
+              <div>
+                <div class="ph-verdict bad-txt">You're being<br>ripped off</div>
+              </div>
+            </div>
+            <div class="ph-tagbar">
+              <div class="ph-line"><span>Shelf tag</span><span class="bad-txt">$2.00</span></div>
+              <div class="ph-line"><span>Regular</span><span>$1.47 to $2.00</span></div>
+              <div class="ph-line"><span>On now</span><span class="good-txt">$0.55</span></div>
+            </div>
+            <div class="ph-label" style="margin-top:2px">Kraft Dinner, 225 g &middot; tap to fix</div>
+            <div class="ph-chip" style="border-color:var(--good);color:var(--good)">Loblaws, limit 8, ends Thursday</div>
+            <div style="display:flex;flex-direction:column;gap:7px;margin-top:auto">
+              <div class="ph-btn">Save it, tell me when it drops</div>
+              <div class="ph-btn ghost">Who has it for $0.55</div>
+            </div>
+          </div>
+          <p class="phone-cap">Real numbers from the pilot above, and the reason there are three lines rather than two. Primary action is the save, not the buy: 58.6% of cart abandonment is people who were simply browsing.</p>
+        </div>
+
+        <div class="phone">
+          <div class="ph-screen">
+            <div class="ph-row">
+              <div class="ph-shin" style="background:var(--good-soft)">😳</div>
+              <div><div class="ph-verdict good-txt">Take it.<br>Right now.</div></div>
+            </div>
+            <div class="ph-tagbar">
+              <div class="ph-line"><span>Asking</span><span class="good-txt">$180</span></div>
+              <div class="ph-line"><span>Usually</span><span>$240 to $310</span></div>
+              <div class="ph-line"><span>Sold recently</span><span>$255 avg</span></div>
+            </div>
+            <div class="ph-label" style="margin-top:2px">Based on 41 completed sales, last 90 days</div>
+            <div class="ph-label" style="color:var(--mid)">Only eBay categories can say "sold"</div>
+            <div class="ph-chip" style="border-color:var(--mid);color:var(--mid)">Careful: this far under is sometimes fake</div>
+            <div style="display:flex;flex-direction:column;gap:7px;margin-top:auto">
+              <div class="ph-btn">Save it</div>
+            </div>
+          </div>
+          <p class="phone-cap">The warning is deliberate. Prices far below market are the strongest counterfeit signal, and over a third of Marketplace ads have been estimated as scams. The pilot adds a caveat: Kijiji and Facebook give asking prices, not sold prices, so outside eBay-covered categories this middle line has to say "listed at" and mean it.</p>
+        </div>
+      </div>
+
+      <div class="opts">
+        <table>
+          <caption>Verdict scale options</caption>
+          <thead><tr><th style="width:24%">Option</th><th style="width:38%">Shape</th><th>Case for it</th></tr></thead>
+          <tbody>
+            <tr><td>Three faces</td><td>Ripped off / fine / steal</td><td>Fewest states to design, clearest screenshot</td></tr>
+            <tr><td>Five faces</td><td>Adds "negotiate" and "wait"</td><td>More useful, more to draw, muddier at a glance</td></tr>
+            <tr><td>A number out of 100</td><td>Yuka's exact device</td><td>Repeatable out loud; loses the mascot</td></tr>
+            <tr><td>Face plus number</td><td>Shin holds a shelf tag with the score</td><td>Both, and the tag is an ownable object</td></tr>
+            <tr><td>Percentage over</td><td>"You're paying 38% over"</td><td>Precise, and precision invites arguments you will lose</td></tr>
+            <tr><td>Unit price</td><td>Per 100 g or per 100 ml alongside</td><td>The actual savings lever in groceries; Gofer already normalises this</td></tr>
+            <tr><td>Regular and promo, split</td><td>Two lines: what it normally costs, what it costs somewhere this week</td><td>Not a preference. The pilot found a 3.6&times; swing on one box of pasta, which makes any single "typical price" wrong most weeks</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="flag">
+        <h4>Confidence has to be visible, and it can be charming</h4>
+        <p>Comps for a used couch in Hamilton will sometimes be four listings, not four hundred. Say so in Shin's voice rather than with a progress bar: "I only found three of these, so take this with salt." Price AI already refuses below three data points and labels three to four as provisional, which is the honest floor and a low bar to clear.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div class="stage-head">
+      <div class="stage-num">06b</div>
+      <div>
+        <h3 class="stage-title">When Shin is wrong and the user knows it</h3>
+        <p class="stage-sub">A branch off the verdict, not a step after it</p>
+        <span class="risk risk-md">Missing from v1 of this document</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>Prices are verifiable and consequential, which makes this app different from its two best precedents. A wrong calorie count costs the user nothing they will ever notice, and Cal AI survived persistent accuracy complaints in its own App Store reviews all the way to a $30M year and an acquisition. A wrong price verdict is different: the seller will argue with it, and the user can check it in ten seconds.</p>
+      <p>So this is the most likely interaction after any bad scan, and it is also the exact moment that builds the one asset a competitor cannot purchase. Handled well it is a data pipeline. Handled badly it is an uninstall.</p>
+      <div class="opts">
+        <table>
+          <caption>Disagreement paths</caption>
+          <thead><tr><th style="width:26%">Path</th><th style="width:38%">What happens</th><th>What it buys you</th></tr></thead>
+          <tbody>
+            <tr><td>Wrong item</td><td>Tap the name, pick from alternatives, verdict recomputes</td><td>A labelled identification pair, the training data</td></tr>
+            <tr><td>Wrong price</td><td>"It's actually $4.99 here" with the store attached</td><td>A real shelf price, geotagged and dated</td></tr>
+            <tr><td>Wrong range</td><td>"I see these for less all the time"</td><td>A signal your comp source is regionally off</td></tr>
+            <tr><td>Shin concedes</td><td>"Fair. Noted. I'll use your number for this store."</td><td>Trust, and the mascot makes conceding charming</td></tr>
+            <tr><td>Show the receipt</td><td>Open the comps that produced the range</td><td>Ends the argument without a debate</td></tr>
+            <tr><td>Flag a fake</td><td>User reports a listing as counterfeit or a scam</td><td>Sharpens the far-below-market warning</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="why"><b>Design rule for this branch:</b> never make the user feel stupid for having been right. The correction takes one tap, Shin thanks them, and the corrected number is used for that store from then on. A crowdsourced price layer is what ScanRebel is built on and what no purchasable feed can replicate, and every path in this table feeds it.</p>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div class="stage-head">
+      <div class="stage-num">07</div>
+      <div>
+        <h3 class="stage-title">What they can do about it</h3>
+        <p class="stage-sub">One primary action, three secondary</p>
+        <span class="risk risk-lo">Where retention is actually built</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>For a buyer, "you're being ripped off" is a dead end. For a window shopper it is the payoff, and the next move is to save it rather than walk away. Keepa's browser extension has 4 million users and camelcamelcamel 800,000, all of them watching things they have not bought. That is the loop.</p>
+      <div class="opts">
+        <table>
+          <caption>Action options by system</caption>
+          <thead><tr><th style="width:23%">Action</th><th style="width:37%">What it does</th><th style="width:17%">Build</th><th>Note</th></tr></thead>
+          <tbody>
+            <tr><td>Watch the price</td><td>Notify when it drops below a threshold Shin suggests</td><td><span class="tag t-now">Core</span></td><td>The return trigger</td></tr>
+            <tr><td>Find it cheaper</td><td>Same item, other stores, with distance</td><td><span class="tag t-now">Core</span></td><td>Actionable standing in a store</td></tr>
+            <tr><td>Show me a dupe</td><td>Different item, similar enough, cheaper</td><td><span class="tag t-next">Medium</span></td><td>No competitor ships this</td></tr>
+            <tr><td>Price match script</td><td>"Show this to the cashier here"</td><td><span class="tag t-now">Small</span></td><td>Several Canadian banners price match</td></tr>
+            <tr><td>Make an offer</td><td>Drafts a message with a number and a reason</td><td><span class="tag t-next">Small</span></td><td>Sticky, but sellers learn to ignore templates</td></tr>
+            <tr><td>Resale maths</td><td>Buy price, sale price, fees, shipping, profit</td><td><span class="tag t-next">Medium</span></td><td>Serves the flipper without a separate app</td></tr>
+            <tr><td>Add to a list</td><td>Named collections: kitchen, desk setup, someday</td><td><span class="tag t-next">Small</span></td><td>Pinterest behaviour, 1.5 billion saves a week</td></tr>
+            <tr><td>Ask Shin</td><td>Free-text follow-up about the item</td><td><span class="tag t-later">Medium</span></td><td>Costly per use; gate it</td></tr>
+            <tr><td>Report the price</td><td>User confirms or corrects the shelf price</td><td><span class="tag t-next">Small</span></td><td>Builds the crowdsourced layer</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div class="stage-head">
+      <div class="stage-num">08</div>
+      <div>
+        <h3 class="stage-title">The share, which is the growth engine</h3>
+        <p class="stage-sub">One tap, exports a vertical clip</p>
+        <span class="risk risk-lo">Compounding, if it exists at all</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>You cannot hand-make enough videos. Paid creative measurably decays, with performance dropping 15 to 20% inside two weeks and average creative life of 10 to 14 days, and TikTok's own tooling pauses fatiguing creative within three to five days. How fast an <em>organic</em> format decays is not something any source measures, which is itself a reason to make supply cheap.</p>
+      <p>So the app should manufacture the content. Export a 9:16 clip: the item, the reveal timed, Shin's reaction animated, captions burned in.</p>
+      <div class="flag">
+        <h4>Take Wordle's counterintuitive detail</h4>
+        <p>Josh Wardle added the emoji grid only after seeing people type them out by hand, and he deliberately left the link out because a link generated a preview that "felt spammy." The share spread further with no attribution than it would have with one. So: Shin, the two prices, your handle small in the corner, and no download link anywhere in the frame.</p>
+      </div>
+      <div class="opts">
+        <table>
+          <caption>Share formats</caption>
+          <thead><tr><th style="width:26%">Format</th><th style="width:40%">What it is</th><th>Build</th></tr></thead>
+          <tbody>
+            <tr><td>Still card</td><td>Screenshot-ready image, both prices, Shin</td><td><span class="tag t-now">Small</span></td></tr>
+            <tr><td>Auto clip</td><td>Rendered 9:16 video with the reveal timed</td><td><span class="tag t-next">Medium, highest leverage</span></td></tr>
+            <tr><td>Before and after</td><td>The item, then its dupe, side by side</td><td><span class="tag t-next">Small</span></td></tr>
+            <tr><td>Monthly wrapped</td><td>What Shin saved you, or stopped you buying</td><td><span class="tag t-later">Medium</span></td></tr>
+            <tr><td>Send to a friend</td><td>In-app: "should I buy this?" with a vote</td><td><span class="tag t-later">Medium</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <h2>Making money without lying</h2>
+
+  <section class="stage">
+    <div class="stage-head">
+      <div class="stage-num">09</div>
+      <div>
+        <h3 class="stage-title">The paywall, and where it goes</h3>
+        <p class="stage-sub">After value, never before</p>
+        <span class="risk risk-md">Too early kills the video funnel</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>Cal AI, built by two 18-year-olds, went from launch in May 2024 to 15 million downloads and roughly $30 million of revenue in 2025, running near $50 million ARR, on a paid subscription behind a free first experience. Yuka went to 80 million users free. Both work. The difference is that Yuka monetises depth and Cal AI monetises the core act.</p>
+      <div class="opts">
+        <table>
+          <caption>Revenue options, and what each costs you</caption>
+          <thead><tr><th style="width:22%">Model</th><th style="width:32%">Shape</th><th style="width:23%">Why it fits</th><th>The catch</th></tr></thead>
+          <tbody>
+            <tr><td>Free scans, paid extras</td><td>Unlimited verdicts; pay for watches, dupes, resale maths</td><td>Keeps the viral act free</td><td>Scan cost falls on you</td></tr>
+            <tr><td>Scan limit</td><td>Free daily allowance, then subscribe</td><td>What Price Snap does; caps your bill</td><td>Caps the window shopper, your best user</td></tr>
+            <tr><td>Affiliate</td><td>Commission when a saved item is bought</td><td>Funds camelcamelcamel entirely, free to users</td><td>Pays you for buy, not for wait</td></tr>
+            <tr><td>Affiliate on the watch</td><td>Commission fires when the drop notification converts</td><td>Honest verdict and revenue point the same way</td><td>Longer payback</td></tr>
+            <tr><td>Reseller tier</td><td>Fees, profit maths, inventory</td><td>Small, pays willingly, uses it daily</td><td>Also the segment that audits you</td></tr>
+            <tr><td>Brand-side data</td><td>Aggregate pricing intelligence</td><td>Real money</td><td>Puts you across the table from your own users</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="why"><b>Cost to plan for:</b> derived from published per-token rates and my own token assumptions, one scan runs roughly $0.008 at the cheapest tier to $0.040 at the top. Window shoppers scan more and buy less, so the bill rises before revenue does. The offsetting fact is structural: window shoppers converge on the same viral items, so a cache keyed on product identity should hit often. <b>Measure the distinct-products-over-total-scans ratio in your first thousand scans.</b> Near 1:1 means no cache and a real cost problem.</p>
+    </div>
+  </section>
+
+  <h2>Properly using it</h2>
+  <p class="sec-note">Everything above happens once. This is the state that decides whether the app is a business or a spike, and BeReal is the warning: 93.5 million downloads in 2022, then over 40 million monthly users gone by 2023.</p>
+
+  <section class="stage">
+    <div class="stage-head">
+      <div class="stage-num">10</div>
+      <div>
+        <h3 class="stage-title">The home screen, after scan one</h3>
+        <p class="stage-sub">Changes shape once there is something to show</p>
+        <span class="risk risk-md">A camera with no memory has no reason to reopen</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>Day one, the home screen is a camera, because there is nothing else. By week two the collection is the more valuable surface and the camera becomes a button on it. The app should make that transition on its own rather than picking one forever.</p>
+      <div class="mocks">
+        <div class="phone">
+          <div class="ph-screen">
+            <div class="ph-label">Week two</div>
+            <div class="ph-item">3 things you're watching</div>
+            <div class="ph-tagbar" style="border-top:0;padding-top:4px">
+              <div class="ph-line"><span>Canon R6</span><span class="good-txt">▼ $1,180</span></div>
+              <div class="ph-line"><span>Ercol chair</span><span>$420</span></div>
+              <div class="ph-line"><span>XM5</span><span>$298</span></div>
+            </div>
+            <div class="ph-row" style="margin-top:4px">
+              <div class="ph-shin" style="background:var(--good-soft)">😏</div>
+              <div class="ph-label">The camera one dropped $70 since you saved it</div>
+            </div>
+            <div class="ph-btn" style="margin-top:auto">Scan something</div>
+          </div>
+          <p class="phone-cap">The collection earns the top of the screen once it has three items in it</p>
+        </div>
+      </div>
+      <div class="opts">
+        <table>
+          <caption>Home screen options</caption>
+          <thead><tr><th style="width:24%">Option</th><th style="width:38%">Layout</th><th>Fits which user</th></tr></thead>
+          <tbody>
+            <tr><td>Camera first</td><td>Viewfinder fills the screen, recents strip below</td><td>In-store scanner</td></tr>
+            <tr><td>Collection first</td><td>Watchlist and saves, camera as a button</td><td>Window shopper</td></tr>
+            <tr><td>Adaptive</td><td>Camera until three saves exist, then collection</td><td>Both, without a permanent bet</td></tr>
+            <tr><td>Feed</td><td>Drops and deals on things like what you scan</td><td>Browsers; needs inventory ingestion</td></tr>
+            <tr><td>Shin's daily thing</td><td>One item a day Shin has an opinion about</td><td>Habit, cheap to build, no data needed</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div class="stage-head">
+      <div class="stage-num">11</div>
+      <div>
+        <h3 class="stage-title">The notification that brings them back</h3>
+        <p class="stage-sub">The whole retention mechanism</p>
+        <span class="risk risk-md">Over-send and they turn it off forever</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>Duolingo's guilt-framed nudges tested 5 to 8% more effective at re-engagement than the alternatives, and 62% of surveyed users reported feeling guilty about missing a day. The mechanism works. The difference here is that Shin has real news to deliver, which is a stronger position than manufactured guilt.</p>
+      <div class="screen-copy">
+        <span class="said">Notification copy, strongest first</span>
+        <p><strong>That chair you wanted is $90 off. Go.</strong></p>
+        <p><strong>Remember the couch I told you not to buy? Still overpriced. Told you.</strong></p>
+        <p><strong>The camera hit your number. $1,180.</strong></p>
+      </div>
+      <div class="opts">
+        <table>
+          <caption>Notification triggers</caption>
+          <thead><tr><th style="width:26%">Trigger</th><th style="width:38%">When it fires</th><th>Quality</th></tr></thead>
+          <tbody>
+            <tr><td>Price drop on a save</td><td>Item crosses the threshold</td><td>Best. Real news, user asked for it</td></tr>
+            <tr><td>Better source found</td><td>Same item appears cheaper elsewhere</td><td>Strong</td></tr>
+            <tr><td>Back in season</td><td>Produce or seasonal goods return to normal price</td><td>Genuinely useful, nobody does it</td></tr>
+            <tr><td>Shin was right</td><td>A skipped item stayed overpriced</td><td>Free, no data needed, very on-brand</td></tr>
+            <tr><td>Streak or nudge</td><td>"You haven't scanned in a while"</td><td>Weakest. Works, and costs goodwill</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div class="stage-head">
+      <div class="stage-num">12</div>
+      <div>
+        <h3 class="stage-title">Week two, and what the app has become</h3>
+        <p class="stage-sub">The state worth designing backwards from</p>
+        <span class="risk risk-lo">If this state exists, the app works</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>By now the person is not using a price checker. They are browsing with a second opinion in their pocket, and they scan things they have no intention of buying. That behaviour is not marginal: 39% of Gen Z report being constantly in a shopping and browsing mode, against 15% of boomers, and Pinterest built 631 million monthly users on exactly it.</p>
+      <ul class="tight">
+        <li>They scan four to ten things a week, most of which they will never buy.</li>
+        <li>Their collection has a dozen items in it and functions as a wishlist.</li>
+        <li>They have received at least one price-drop notification and it was correct.</li>
+        <li>They have sent a Shin card to a friend, or posted one.</li>
+        <li>They can name Shin's angry face without opening the app.</li>
+      </ul>
+      <p class="why"><b>Three numbers to instrument on day one,</b> because no benchmark can tell you them and they decide the model: <b>scans per user per week</b> split by whether a purchase followed; <b>watch rate,</b> the share of scans that end in a save; and <b>distinct products over total scans,</b> which tells you whether caching rescues your unit economics or not.</p>
+    </div>
+  </section>
+
+  <h2>The floor</h2>
+  <p class="sec-note">This document lists roughly 60 feature options across a dozen tables, which makes it a menu rather than a plan. Here is the smallest version that still tests the thesis. Everything else is a decision to make once there are users, which is the only condition under which those decisions get made with evidence instead of argument.</p>
+
+  <div class="floor">
+    <h3>Version one, narrowed by the pilot</h3>
+    <p class="lede">One thing still happens before any of it: the borrowed-audience video test. The other precondition, pricing items by hand to find out whether a defensible range can be produced, has been run at seven items and is reported at Stage 06. It came back split by category, which narrows this floor rather than blocking it.</p>
+    <dl class="floor-list">
+      <div class="floor-row"><dt>Category</dt><dd><b>One, chosen from four.</b> New tech, packaged grocery, used marketplace goods, or new furniture. Fresh produce is the only one the pilot ruled out, and it was ruled out on three stacked problems rather than on missing data. <b>New tech is the cheapest of the four to make work</b> and it is where the first attempt at this pilot looked in the wrong place.</dd></div>
+      <div class="floor-row"><dt>Price source</dt><dd><b>A real feed from day one, never live search.</b> This moved out of "later" on measurement: free search gave a usable range for one item in seven, and three of four retailer pages returned 403 Forbidden to a direct fetch. Cost depends entirely on the category, from an official Best Buy API and a free Amazon.ca tracker at one end, through <span class="num">$0.75</span> per thousand grocery rows, to Keepa's <span class="num">&euro;49</span> a month floor at the other.</dd></div>
+      <div class="floor-row"><dt>Verdict shape</dt><dd><b>One sentence per category, and they are not the same sentence.</b> Grocery: regular price against this week's promotion, never one "typically costs" number, which would have been wrong on the pilot's first item. Tech: against other retailers. Used goods: against live comparable listings. Furniture: against its own price history, because nobody else sells the item.</dd></div>
+      <div class="floor-row"><dt>Input</dt><dd><b>Barcode and screenshot only.</b> Live photo recognition is out of v1. It is the weakest component at 77% top-1, and the problem statement above deliberately does not require it. Yuka reached 80 million users without it.</dd></div>
+      <div class="floor-row"><dt>Verdict</dt><dd><b>Three faces</b> plus one honest confidence line in Shin's voice.</dd></div>
+      <div class="floor-row"><dt>Action</dt><dd><b>Save and watch.</b> One button. The price-drop notification is the return trigger and 4.8 million people already use tools that do only this.</dd></div>
+      <div class="floor-row"><dt>Share</dt><dd><b>A still card.</b> No rendered video yet. Shin, both prices, no download link in the frame.</dd></div>
+      <div class="floor-row"><dt>Correction</dt><dd><b>The disagree branch.</b> One tap to fix the item or the price. This is the data pipeline, so it ships in v1 rather than after.</dd></div>
+      <div class="floor-row"><dt>Not in v1</dt><dd>Accounts, paywall, onboarding beyond city, dupes, resale maths, social feed, negotiation drafts, multiple categories, live camera. The price feed used to be on this line and the pilot moved it off.</dd></div>
+    </dl>
+  </div>
+
+  <div class="flag">
+    <h4>How to read this document</h4>
+    <p><b>Stage 06 is load-bearing, and it has now been tested.</b> If a defensible price range cannot be produced often enough, every other screen here is decoration. Seven items were priced by hand on 3 September 2026: a range came out for two, a partial answer for three, and nothing usable for two. Then the two blanks were re-examined and one of them turned out to be a search run against the wrong source, which is recorded as a correction underneath the pilot rather than edited away. Read that stage before this section. It is the only measurement here taken first-hand rather than borrowed, it narrowed the floor below, and it is the one part of this document that changed its own conclusions twice in a day.</p>
+    <p><b>Confidence is not uniform.</b> Of the 13 stages, 9 rest on external evidence and 4 are design judgment with nothing behind them: the Shin introduction, the setup question ordering, the adaptive home screen, and the notification triggers beyond Duolingo's measured numbers. Treat those four as guesses. Separately, the grocery figures rest on a real feed at a real price while the furniture and tech stages rest on scrapers that were found but never validated. The pilot did not validate them either; it only established that the free alternative to them does not work.</p>
+    <p><b>The priors are unkind and worth holding.</b> 68.07% of apps never reach 1,000 downloads. Of App Store apps published since 2016, 0.95% earned more than $100K, and 0.57% in non-gaming. Day 30 iOS retention averages around 7%. Nothing in this document changes those numbers. The channel is the only thing that does, which is why the Stage 00 correction matters more than any screen here.</p>
+  </div>
+
+  <h2>What not to build first</h2>
+  <p class="sec-note">Not rejected. Sequenced, with the condition that promotes each one.</p>
+  <div class="opts">
+    <table>
+      <thead><tr><th style="width:24%">Feature</th><th style="width:38%">Why it waits</th><th>What promotes it</th></tr></thead>
+      <tbody>
+        <tr><td>Every category at once</td><td>Nine categories means nine data vendors, and each one needs its own verdict sentence, which is the part that does not copy across</td><td>Pick the two your first videos perform best in</td></tr>
+        <tr><td>Fresh produce</td><td>The only category the pilot genuinely ruled out. A PLU code names a category and not a product, package formats make the units incomparable without arithmetic, and Statistics Canada has fresh fruit moving 4.7% in a single month</td><td>A crowdsourced shelf-price layer with real volume, which for produce is the only source rather than a supplement</td></tr>
+        <tr><td>Clothing</td><td>No model numbers and effectively no comparable set</td><td>Dupe matching working, which needs no exact identity</td></tr>
+        <tr><td>Social feed</td><td>Needs an audience you do not have yet, and dead feeds kill apps</td><td>A thousand weekly scanners in one city</td></tr>
+        <tr><td>Reseller tooling</td><td>Small segment, and the one that will catch every wrong number</td><td>Verdict accuracy you would defend in public</td></tr>
+        <tr><td>Negotiation messages</td><td>Works until adoption, then sellers learn the template</td><td>Nothing. Ship it early precisely because it decays</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Open decisions</h2>
+  <p class="sec-note">Nothing here is settled by having been decided. Each row carries the thing that would flip it.</p>
+  <div class="opts">
+    <table>
+      <thead><tr><th style="width:26%">Decision</th><th style="width:30%">Current lean</th><th>What reverses it</th></tr></thead>
+      <tbody>
+        <tr><td>The name</td><td>Keep Shin, drop Ramen</td><td>A clear Canadian trademark search against Nongshim's marks in software classes. Twenty minutes at CIPO decides it, not taste</td></tr>
+        <tr><td>Villain framing</td><td>"Ripped off" over "is the price right"</td><td>The two-caption video test. If neutral wins, take neutral</td></tr>
+        <tr><td>Camera or screenshot first</td><td>Both, equally</td><td>Nothing needs to reverse. Among 16 to 24 year olds browsing splits 43% online and 43% in store</td></tr>
+        <tr><td>Verdict tiers</td><td>Three faces</td><td>Users asking for the distinction between "wait" and "skip"</td></tr>
+        <tr><td>Lead category</td><td>New tech, on cost of data. Then whichever video performs</td><td>Your own scan logs after week one beat every benchmark in this document. Tech leads on price of entry: an official Best Buy API, a free Amazon.ca tracker, and one comparison site already covering 32 Canadian retailers. Produce is the only category off the shortlist, and what puts it back is shoppers reporting shelf prices at real volume</td></tr>
+        <tr><td>Crowdsourced prices</td><td>Later, but less late than before</td><td>Already promoted for any category with no purchasable feed. It is the one asset a competitor cannot buy for $0.75 per thousand rows, and the pilot found two of seven items where nothing else would have worked</td></tr>
+        <tr><td>Used marketplace as the lead</td><td>Newly plausible</td><td>It was ruled out for having no purchasable feed and the pilot inverted that: it was the one category where a range came free. What reverses it back is the asking-price bias, or a read of Kijiji and Facebook's terms that says no</td></tr>
+        <tr><td>Ask Shin free text</td><td>Gated</td><td>Cheap enough per call, or a paid tier that covers it</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="flag law">
+    <h4>The five legal walls, and none of them stops a build</h4>
+    <p><b>Performance claims.</b> Competition Act s.74.01(1)(b): test before you publish a savings figure. A gate with a key, not a wall. <b>Trademark.</b> The app name, and "the price is right" as a phrase. <b>Personal data.</b> Storing home location and shopping history puts you under PIPEDA; it constrains retention and disclosure, not the feature. <b>Allergen and dietary claims.</b> A food swap suggestion is product liability territory; it constrains the copy. <b>Scraping.</b> Retailer terms are contract and civil exposure, not criminal, and I found no enforcement against Canadian grocery price apps, which means unknown rather than clear.</p>
+  </div>
+
+  <div class="foot">
+    Figures are labelled at point of use. Benchmark-backed: identification accuracy (190 models, 409 SKUs, arXiv), Yuka and Cal AI scale and accuracy criticism (press, company reports, independent reviews), cart abandonment (Baymard, 50 studies), price knowledge (Dickson and Sawyer, Journal of Marketing 1990: more than half of shoppers could not name the price of the item just placed in their cart), price dispersion (19% average standard deviation for an identical product in one area and quarter), Pinterest and Keepa user counts, creative decay (AppsFlyer), app base rates, Canadian food prices (Dalhousie). Derived by arithmetic: per-scan model cost, from published per-token rates and stated token assumptions. Measured first-hand for this document: the seven-item pricing pilot and the four direct page fetches at Stage 06, run 3 September 2026 against public Canadian sources, reported item by item including the failures. Added to that stage the same day: retailer count at Lowpi, the existence of an official Best Buy developer API and Best Buy Canada's public docs, Keepa's API tiers as reported by a third party because Keepa's own page refuses an automated fetch, camelcamelcamel's free coverage of Amazon.ca, six IKEA price trackers, PLU codes per the International Federation for Produce Standards, and Statistics Canada's monthly fresh fruit and vegetable movements for 2026. Untested: everything about how this specific app will behave, which is what the borrowed-audience video test and the three day-one metrics are for.
+    <br><br>
+    This document was written and then critiqued by the same author, which is the weakest form of review. The pilot at Stage 06 is the one part that is not that, because it could have come back the other way and twice it did. The outside version is still to hand this to someone with no context, ask them to build the first screen from it, and see what they have to ask.
+  </div>
+
+</div>

@@ -1,0 +1,403 @@
+<title>The Terminating Loop</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper: #FBFAF7; --surface: #FFFFFF; --surface-sunk: #F3F1EC;
+    --ink: #16130F; --ink-muted: #6E6660; --ink-faint: #98908A;
+    --rule: #E4DFD8; --rule-strong: #CDC6BC;
+    --accent: #E5165E; --accent-ink: #A70E42; --accent-soft: #FDE8EF;
+    --good: #1C7C4A; --good-soft: #E4F2E9;
+    --mid: #8A6E1E; --mid-soft: #F6EEDA;
+    --bad: #BE3218; --bad-soft: #FBE6E1;
+    --shadow: 0 1px 2px rgba(22,19,15,.05), 0 8px 24px -12px rgba(22,19,15,.12);
+    --f-display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+    --f-body: "Newsreader", Georgia, "Times New Roman", serif;
+    --f-mono: "IBM Plex Mono", "SF Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #12100E; --surface: #1A1714; --surface-sunk: #221E1A;
+      --ink: #F2EEE8; --ink-muted: #A79E96; --ink-faint: #7C736B;
+      --rule: #2C2723; --rule-strong: #443D37;
+      --accent: #FF4C84; --accent-ink: #FF7FA5; --accent-soft: #33131F;
+      --good: #5FC98D; --good-soft: #12291C;
+      --mid: #D6B45C; --mid-soft: #2A2314;
+      --bad: #F0755C; --bad-soft: #301711;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #12100E; --surface: #1A1714; --surface-sunk: #221E1A;
+    --ink: #F2EEE8; --ink-muted: #A79E96; --ink-faint: #7C736B;
+    --rule: #2C2723; --rule-strong: #443D37;
+    --accent: #FF4C84; --accent-ink: #FF7FA5; --accent-soft: #33131F;
+    --good: #5FC98D; --good-soft: #12291C;
+    --mid: #D6B45C; --mid-soft: #2A2314;
+    --bad: #F0755C; --bad-soft: #301711;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--f-body); font-size: 17px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 44px 26px 80px; }
+  @media (max-width: 640px) { .wrap { padding: 30px 17px 56px; } }
+  p { margin: 0 0 14px; max-width: 68ch; }
+  b, strong { font-weight: 600; }
+
+  .mast { border-bottom: 2px solid var(--ink); padding-bottom: 26px; margin-bottom: 8px; }
+  .mast-kicker {
+    font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: .15em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 16px;
+  }
+  .mast-kicker span { color: var(--ink-faint); }
+  h1 {
+    font-family: var(--f-display); font-weight: 800; font-size: clamp(34px, 6.6vw, 62px);
+    line-height: .98; letter-spacing: -.034em; margin: 0 0 16px; text-wrap: balance;
+  }
+  .mast-sub { font-size: 18.5px; color: var(--ink-muted); max-width: 58ch; margin: 0; }
+
+  h2 {
+    font-family: var(--f-display); font-weight: 700; font-size: clamp(24px, 3.4vw, 31px);
+    letter-spacing: -.024em; line-height: 1.1; margin: 54px 0 6px;
+    padding-top: 22px; border-top: 1px solid var(--rule); text-wrap: balance;
+  }
+  h3.sub {
+    font-family: var(--f-display); font-weight: 700; font-size: 20px; letter-spacing: -.018em;
+    margin: 32px 0 8px;
+  }
+  .sec-note { color: var(--ink-muted); font-size: 16px; margin: 0 0 22px; max-width: 64ch; }
+
+  .thesis {
+    margin: 32px 0 0; padding: 20px 0 0; border-top: 1px solid var(--rule);
+    font-family: var(--f-display); font-weight: 600; font-size: clamp(19px, 2.6vw, 25px);
+    line-height: 1.3; letter-spacing: -.016em; max-width: 34ch; text-wrap: balance;
+  }
+  .thesis-label {
+    display: block; font-family: var(--f-mono); font-size: 10px; font-weight: 500;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px;
+  }
+  .thesis-foot {
+    display: block; font-family: var(--f-body); font-weight: 400; font-size: 14.5px;
+    line-height: 1.55; color: var(--ink-muted); letter-spacing: 0; margin-top: 14px; max-width: 62ch;
+  }
+
+  /* exits */
+  .exits { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 0; margin: 24px 0 8px; }
+  .exit {
+    padding: 18px 20px 18px 0; border-top: 2px solid var(--ink);
+  }
+  .exit:not(:first-child) { padding-left: 20px; border-left: 1px solid var(--rule); }
+  @media (max-width: 780px) {
+    .exit:not(:first-child) { padding-left: 0; border-left: 0; border-top: 1px solid var(--rule); }
+  }
+  .exit-tag {
+    font-family: var(--f-mono); font-size: 9.5px; font-weight: 600; letter-spacing: .1em;
+    text-transform: uppercase; margin-bottom: 8px; display: block;
+  }
+  .e-ship .exit-tag { color: var(--good); }
+  .e-spine .exit-tag { color: var(--bad); }
+  .e-chan .exit-tag { color: var(--mid); }
+  .exit h4 {
+    font-family: var(--f-display); font-weight: 700; font-size: 18px; letter-spacing: -.016em;
+    margin: 0 0 7px; line-height: 1.2;
+  }
+  .exit p { margin: 0; font-size: 15px; line-height: 1.48; max-width: none; }
+
+  /* invariant + steps */
+  .inv { display: grid; gap: 0; margin: 20px 0 8px; }
+  .inv-row {
+    display: grid; grid-template-columns: 30px 1fr; gap: 0 16px; padding: 12px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .inv-row:first-child { border-top: 1px solid var(--rule-strong); }
+  .inv-row dt {
+    font-family: var(--f-mono); font-size: 11px; font-weight: 600; color: var(--accent);
+    padding-top: 3px;
+  }
+  .inv-row dd { margin: 0; font-size: 15.5px; line-height: 1.48; }
+
+  .steps { display: grid; gap: 0; margin: 22px 0 8px; counter-reset: st; }
+  .step {
+    display: grid; grid-template-columns: 32px 1fr; gap: 0 18px; padding: 16px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .step:first-child { border-top: 2px solid var(--ink); }
+  .step::before {
+    counter-increment: st; content: counter(st);
+    font-family: var(--f-mono); font-size: 11px; font-weight: 600; color: var(--paper);
+    background: var(--ink); width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; margin-top: 2px;
+  }
+  .step h4 {
+    font-family: var(--f-display); font-weight: 700; font-size: 18px; letter-spacing: -.016em;
+    margin: 0 0 5px; line-height: 1.2;
+  }
+  .step p { margin: 0 0 7px; font-size: 15.5px; }
+  .step p:last-child { margin: 0; }
+  .step .who {
+    font-family: var(--f-mono); font-size: 10px; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--ink-faint); display: block; margin-top: 7px;
+  }
+
+  /* tables */
+  .opts { margin: 20px 0 6px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14.5px; }
+  caption {
+    text-align: left; font-family: var(--f-mono); font-size: 10px; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--ink-faint); padding-bottom: 9px;
+  }
+  th {
+    text-align: left; font-family: var(--f-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--ink-muted);
+    border-bottom: 1px solid var(--rule-strong); padding: 0 12px 7px 0; vertical-align: bottom;
+  }
+  td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--rule); vertical-align: top; line-height: 1.42; }
+  td:first-child { font-family: var(--f-display); font-weight: 600; letter-spacing: -.008em; }
+  tbody tr:last-child td { border-bottom: 0; }
+  .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tag {
+    font-family: var(--f-mono); font-size: 9px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; padding: 3px 6px; border-radius: 2px; white-space: nowrap;
+    display: inline-block;
+  }
+  .t-b1 { background: var(--accent); color: #fff; }
+  .t-b2 { background: var(--accent-soft); color: var(--accent-ink); }
+  .t-b3 { background: var(--ink); color: var(--paper); }
+  .t-b4 { background: var(--surface-sunk); color: var(--ink-muted); }
+  .t-b5 { background: var(--bad-soft); color: var(--bad); }
+
+  .flag {
+    border: 1px solid var(--rule-strong); border-radius: 3px; padding: 15px 18px;
+    margin: 24px 0; background: var(--surface); font-size: 15.5px;
+  }
+  .flag h4 {
+    font-family: var(--f-mono); font-size: 10px; letter-spacing: .13em; text-transform: uppercase;
+    margin: 0 0 8px; color: var(--accent);
+  }
+  .flag p { margin: 0 0 9px; max-width: 68ch; }
+  .flag p:last-child { margin-bottom: 0; }
+  .flag.hard { border-width: 2px; border-color: var(--ink); }
+  .flag.hard h4 { color: var(--ink); }
+  .flag.warn { border-color: var(--bad); background: var(--bad-soft); }
+  .flag.warn h4 { color: var(--bad); }
+
+  ul { margin: 0 0 14px; padding-left: 20px; max-width: 68ch; }
+  li { margin-bottom: 7px; }
+  code {
+    font-family: var(--f-mono); font-size: .87em; background: var(--surface-sunk);
+    padding: 1px 5px; border-radius: 2px;
+  }
+
+  .foot {
+    margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
+    font-size: 13.5px; color: var(--ink-muted); line-height: 1.6; max-width: 80ch;
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="mast-kicker">One plan, replacing three <span>/ 2026-09-03 / Hamilton, ON</span></div>
+    <h1>The terminating loop</h1>
+    <p class="mast-sub">The whole build for the price scanner as a single repeating pass with a written exit: what done means, what has to be true at the start of every pass, the full queue in order, and the argument for why it stops instead of running forever.</p>
+  </header>
+
+  <blockquote class="thesis">
+    <span class="thesis-label">Why the exit comes first in this document</span>
+    A loop that cannot stop is not a plan, it is a habit. So done gets defined before the work does.
+    <span class="thesis-foot">Everything here is one of three things: the exit conditions, the pass that repeats until one fires, or the queue the pass consumes. The product design, the build order and the difficulty ranking all fold into that third part.</span>
+  </blockquote>
+
+  <h2>Done, in three forms, and none of them is "all the features"</h2>
+  <p class="sec-note">The queue holds 68 counted feature options. Emptying it is not the goal and would take years. These are the three states that stop the loop.</p>
+
+  <div class="exits">
+    <div class="exit e-ship">
+      <span class="exit-tag">Exit one, the good one</span>
+      <h4>Shipped, and they come back without being asked</h4>
+      <p>The floor is live and a real person scanned in week one and scanned again in week two with no notification prompting it. That is the only definition of working that matters, and the bar it has to clear is grim: day thirty retention on iOS averages around <span class="num">7%</span>.</p>
+    </div>
+    <div class="exit e-spine">
+      <span class="exit-tag">Exit two, early and cheap</span>
+      <h4>Killed on the price, before any interface exists</h4>
+      <p>No category can produce a defensible verdict often enough. The hand pilot got a usable range for <span class="num">2 of 7</span> items from free search, which is why this exit is real and why it is tested in the first pass rather than the tenth. It ends with a finding instead of a product, and it costs one pass.</p>
+    </div>
+    <div class="exit e-chan">
+      <span class="exit-tag">Exit three, the honest one</span>
+      <h4>Shipped, correct, and nobody watches</h4>
+      <p>The app works and the videos do not travel. Nothing in the build changes this, which is why the video test sits outside the loop and in front of it. <span class="num">68.07%</span> of apps never reach a thousand downloads and the channel is the only lever on that number.</p>
+    </div>
+  </div>
+
+  <h3 class="sub">And done for a single queue item, which is what makes the queue empty</h3>
+  <p>Every item leaves by exactly one of three doors, and all three are terminal. <b>Built,</b> meaning its acceptance test passed and a person checked it where its consumer meets it. <b>Killed,</b> meaning its falsifier fired. <b>Parked,</b> meaning it left with a named condition that would promote it back. There is no fourth state. In particular there is no "in progress" that survives the end of a pass: work that is not finished at the end of a pass goes back to the queue with what was learned attached, which either moves it up or moves it out.</p>
+
+  <h2>What must be true at the start of every pass</h2>
+  <p class="sec-note">If any of these is false, the pass does not start. Fixing it is the pass.</p>
+  <dl class="inv">
+    <div class="inv-row"><dt>i</dt><dd><b>The queue is written down and finite.</b> Nothing is built that is not in it, and nothing enters it without something else leaving.</dd></div>
+    <div class="inv-row"><dt>ii</dt><dd><b>Every item in it has an acceptance test and a falsifier, both written before work starts.</b> If the falsifier cannot be written, the item is not understood well enough to build, and understanding it is the item.</dd></div>
+    <div class="inv-row"><dt>iii</dt><dd><b>The scoreboard has a number for last week,</b> produced whether or not anyone looked at it.</dd></div>
+    <div class="inv-row"><dt>iv</dt><dd><b>Nothing that exited is back without new evidence.</b> Nothing is permanent except the law, so any decision can reopen, but it reopens on a new observation and never on a fresh opinion. This is the single rule that keeps "nothing is final" compatible with finishing.</dd></div>
+  </dl>
+
+  <div class="flag hard">
+    <h4>The rule that stops the loop drifting</h4>
+    <p><b>Every pass must ship something or kill something.</b> A pass that does neither is a stall. One stall is a bad week. <b>Three stalls in a row means the queue is wrong, not the work</b>, and the next pass is spent rewriting the queue rather than working it.</p>
+  </div>
+
+  <h2>The pass, six steps, identical every time</h2>
+  <p class="sec-note">One week long, fixed. The length is fixed because an open-ended pass is how a stall hides.</p>
+
+  <div class="steps">
+    <div class="step">
+      <h4>Read the evidence before touching the queue</h4>
+      <p>The scoreboard's number and the defect log come first, in that order, and they are allowed to reorder the queue. Doing this second is the classic inversion: it produces a plan that survives contact with nothing.</p>
+      <span class="who">Conductor, top tier, reads only</span>
+    </div>
+    <div class="step">
+      <h4>Take the top item and write how it could be wrong</h4>
+      <p>Acceptance test and falsifier, written into the brief before any code. The falsifier is the load-bearing half: the walkthrough labelled its own central claim untested three times in three sections and shipped the label instead of the test. Running it took seven searches and reversed two of the document's decisions.</p>
+      <span class="who">Conductor writes the brief, worker never writes its own falsifier</span>
+    </div>
+    <div class="step">
+      <h4>Build it</h4>
+      <p>Separate lanes only where the work does not read and write the same things. One worker otherwise. A lane costs its own review and merge, so parallelism that is not real is a pure loss.</p>
+      <span class="who">Workers, middle tier, one role each, scoped so they cannot touch a sibling's files</span>
+    </div>
+    <div class="step">
+      <h4>Verify with something that did not build it</h4>
+      <p>A fresh process, no project instructions loaded, handed the acceptance test and the change and nothing else. Not a formality: on a spec in another project this exact pattern caught five blockers, two of which the spec itself had introduced.</p>
+      <span class="who">Fresh verifier per lane, plus one adversary that writes nothing and only tries to produce a wrong verdict</span>
+    </div>
+    <div class="step">
+      <h4>Check it where its consumer meets it</h4>
+      <p>Nothing is done on its own artifact's word. A passing test is not a verdict a shopper accepted. For anything touching price, the consumer-side check is a person holding a phone in a store, and twenty of those fit in one shopping trip.</p>
+      <span class="who">Founder for anything user-facing, no exceptions and no substitutes</span>
+    </div>
+    <div class="step">
+      <h4>Log the outcome, and let a repeat earn a rule</h4>
+      <p>Built, killed, or parked with its promoting condition. The defect log records whether a test caught it or a human did, which is its only interesting column. A defect logged <b>twice</b> becomes a build standard; once is a bug fix. The alternative was measured here: twenty-eight standing instructions in twenty-two days, most of them backed by nothing.</p>
+      <span class="who">Conductor, and the log is the only thing the next pass reads first</span>
+    </div>
+  </div>
+
+  <h2>Pass zero, which is outside the loop because it cannot be redone</h2>
+  <p class="sec-note">Sequenced by what is spent once. A form is refilled in minutes; a name, a store listing and a first video are not.</p>
+  <ul>
+    <li><b>The trademark search.</b> Twenty minutes at CIPO against Nongshim's marks in the software classes. It gates the store listing and it is a risk judgment about a name you will live with.</li>
+    <li><b>The two-caption video test through borrowed audiences.</b> Three to five micro creators, or a forum where distribution is not follower-gated. Not a new handle: fresh posts seed to existing followers first, so a cold account can return near zero views and hand you a false negative on the one test the whole queue is ordered behind.</li>
+  </ul>
+  <p>Out of pass zero comes a category, a caption and a name, each chosen because something outperformed. The loop then starts. Neither of these can be delegated to an agent, and that is the reason they are the only two items in this document with no agent named against them.</p>
+
+  <h2>The queue, in order, all of it</h2>
+  <p class="sec-note">One ordering rule, applied throughout: <b>reduce uncertainty before adding surface.</b> Information about whether something works beats another thing that works.</p>
+
+  <div class="opts">
+    <table>
+      <caption>Band 1, alone, no parallelism</caption>
+      <thead><tr><th style="width:26%">Item</th><th style="width:37%">What it is</th><th>Exits when</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag t-b1">First</span> The price spine</td><td>For the one category pass zero picked: given a product identity, return a verdict object carrying the comparison set, the number of points in it, the date of each, and the sentence type for that category. Or refuse. No camera, no mascot, no screens.</td><td>One hundred items run through it, then a fresh agent takes twenty of those verdicts and goes and checks them against live sources. <b>Killed if it cannot comfortably beat the pilot's 2 of 7,</b> in which case the next category is tried rather than the logic patched.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="opts">
+    <table>
+      <caption>Band 2, the cheap versions of the twelve hard features, days each, information not surface</caption>
+      <thead><tr><th style="width:26%">Cheap version</th><th style="width:37%">Answers the same question as</th><th>Exits when</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag t-b2">2.1</span> Barcode, then three thumbnails</td><td>Live camera recognition, which measures <span class="num">77.0%</span> top-1 and <span class="num">94.5%</span> top-5</td><td>Killed if more than one scan in five needs correcting on real shelves</td></tr>
+        <tr><td><span class="tag t-b2">2.2</span> Collect corrections, apply none</td><td>Corrections that train the next scan</td><td>Killed if a hand review of the first two hundred finds most useless or adversarial</td></tr>
+        <tr><td><span class="tag t-b2">2.3</span> Reports stored, shown only to the reporter</td><td>A corrected price reused for that store</td><td>Killed if two independent reports on one shelf disagree more often than they agree</td></tr>
+        <tr><td><span class="tag t-b2">2.4</span> Daily check, five free watches, threshold from the item's own low</td><td>Continuous price watching, the recurring cost that scales with saves</td><td>Killed if distinct products over total scans stays near one, meaning caching saves nothing</td></tr>
+        <tr><td><span class="tag t-b2">2.5</span> Recheck alternatives on open, not on a schedule</td><td>Telling users when it appears cheaper elsewhere</td><td>Killed if a month of watched items produces almost no cross-retailer wins</td></tr>
+        <tr><td><span class="tag t-b2">2.6</span> "Cheaper per 100 grams," never "tastes the same"</td><td>Alternatives, and the liability that arrives with a taste claim</td><td>Killed if people tap alternatives and buy nothing</td></tr>
+        <tr><td><span class="tag t-b2">2.7</span> One item a day, chosen by hand</td><td>A feed of drops on things like what you scan</td><td>Killed if the hand-picked item gets no taps, since no recommender rescues that</td></tr>
+        <tr><td><span class="tag t-b2">2.8</span> Caption a verdict with the public national series</td><td>Back in season, which otherwise needs a year of regional baselines</td><td>Parked while produce stays a small share of scans</td></tr>
+        <tr><td><span class="tag t-b2">2.9</span> "You checked 47 things, Shin told you to walk away from 12"</td><td>The monthly savings figure, which is a performance claim needing testing before publication</td><td>Never killed. The claim version stays unavailable until the number is tested</td></tr>
+        <tr><td><span class="tag t-b2">2.10</span> Data rights written into the terms on day one</td><td>Selling aggregate pricing intelligence</td><td>An afternoon, then parked until one city has real coverage</td></tr>
+        <tr><td><span class="tag t-b2">2.11</span> Show every number on the tag, let the user tap the price</td><td>Shelf-tag reading, and its per-retailer layout problem</td><td>Killed if users abandon the tap step</td></tr>
+        <tr><td><span class="tag t-b2">2.12</span> One voice, set by the winning caption</td><td>Letting users pick Shin's attitude, which triples every string forever</td><td>Reopened only by reviews asking for a gentler Shin</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="opts">
+    <table>
+      <caption>Band 3, the shippable floor, four lanes in parallel once band 1 fixed the contract</caption>
+      <thead><tr><th style="width:26%">Lane</th><th style="width:37%">Ships</th><th>Consumer-side check</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag t-b3">3.1</span> Identity</td><td>Barcode to product, screenshot import, and the repair path for the wrong product</td><td>Twenty items scanned off real shelves. The pilot's worst failure was identity: a used camera search returned a newer model bundled with lenses at nearly triple, presented as the answer</td></tr>
+        <tr><td><span class="tag t-b3">3.2</span> Verdict surface</td><td>Three faces, the confidence line, the disagreement branch, and the category's own sentence. Grocery gets two lines, regular against this week's promotion, because one box of pasta swung <span class="num">3.6&times;</span> in a week</td><td>A stranger reads a screenshot cold and says out loud what the app told the person</td></tr>
+        <tr><td><span class="tag t-b3">3.3</span> Shell</td><td>Camera, screenshot import, watchlist, price-drop notification, still share card with no download link in the frame</td><td>A save made on day one fires a correct notification days later on a device that was closed in between</td></tr>
+        <tr><td><span class="tag t-b3">3.4</span> Scoreboard</td><td>Every verdict logged with its comparison set, the weekly sampling job, and the three day-one metrics: scans per user per week split by whether a purchase followed, watch rate, and distinct products over total scans</td><td>It produces a number for a week in which nobody looked at it</td></tr>
+        <tr><td><span class="tag t-b3">3.5</span> Shin himself</td><td>Three faces and the share card. Not a coding lane: this goes to a person or a design tool, and it is the most repeated asset in the product</td><td>Recognisable in a friend's screenshot by someone who has not installed it</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="opts">
+    <table>
+      <caption>Band 4, gated on the floor shipping, ordered by the scoreboard rather than by taste</caption>
+      <thead><tr><th style="width:26%">Group</th><th style="width:37%">Contents</th><th>Promoted by</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag t-b4">4.1</span> The 37 easy rows</td><td>Setup questions, introduction variants, scan entry paths, verdict presentation variants, disagreement paths, list saving, offer drafting, paywall shapes, home screen shapes, streak nudges</td><td>Nothing gates these individually. They are a week or less each and get pulled when the scoreboard says the surface they sit on matters</td></tr>
+        <tr><td><span class="tag t-b4">4.2</span> The middle nineteen</td><td>Unit price display, calibrated confidence gating, link pasting, the share sheet extension, last-screenshot detection, resale maths, price match scripts, affiliate and affiliate-on-the-watch, fake reporting, showing the comparison set, send-to-a-friend, the daily pick, Shin was right, Shin's voice, free-text questions, before-and-after shares, the reseller tier</td><td>Each takes more than a week for a named reason. Two of them are already inside band 3 because the floor needs them: the regular and promotional split, and storing the comparison set behind every verdict, which is cheap on day one and expensive to retrofit</td></tr>
+        <tr><td><span class="tag t-b4">4.3</span> More categories</td><td>The other three of the four that work. New tech leads on cost of data: an official retailer API, a free Amazon.ca tracker, and one comparison service already covering <span class="num">32</span> Canadian retailers</td><td>The first category retaining users. Not before</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="opts">
+    <table>
+      <caption>Band 5, the full versions of the hard twelve, each gated on its own band 2 result</caption>
+      <thead><tr><th style="width:26%">Item</th><th style="width:37%">Only entered if</th><th>What it then costs</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag t-b5">5.1</span> Continuous watching at scale</td><td>Band 2.4 survived and the distinct-product ratio is favourable</td><td>Scales with saved items times retailers times check frequency. Derived from the feed's published <span class="num">$0.75</span> per thousand rows and three stated assumptions: about <span class="num">$675</span> a month at a thousand users, arriving before revenue</td></tr>
+        <tr><td><span class="tag t-b5">5.2</span> The trusted reported-price layer</td><td>Bands 2.2 and 2.3 both survived, and reports agree more than they disagree</td><td>Expiry rules, conflict resolution, store-level identity, and defence against reports that suit the reporter. The one asset no competitor can buy, which is exactly why it is the most work</td></tr>
+        <tr><td><span class="tag t-b5">5.3</span> Cheaper at a store near you</td><td>The floor retains users in one city</td><td>Less than assumed. Store-level grocery feeds resolve the nearest store from a postal code and return normalised unit prices; a weekly panel covers <span class="num">50</span> basket items across <span class="num">22</span> banners and roughly <span class="num">160</span> stores. Open only for arbitrary products across all retailers</td></tr>
+        <tr><td><span class="tag t-b5">5.4</span> The rendered vertical clip</td><td>The still card is being shared at all</td><td>A template and a queue. Rendering runs <span class="num">$0.20</span> to <span class="num">$0.30</span> a minute, or a cent per render above a <span class="num">$100</span> monthly floor. A fifteen second card is cents</td></tr>
+        <tr><td><span class="tag t-b5">5.5</span> Live camera recognition</td><td>Band 2.1 showed people tolerate correcting it</td><td>The one obstacle money cannot move. Never one guess on screen, always a correctable name, because the gap between <span class="num">77%</span> and <span class="num">94.5%</span> is the whole design</td></tr>
+        <tr><td><span class="tag t-b5">5.6</span> The feed, the savings claim, brand data, seasonality, the attitude setting</td><td>Each by its own condition above. None before the floor retains</td><td>Two of these are not engineering. Neither is blocked by code and neither should be built now</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Why this stops</h2>
+  <p class="sec-note">The termination argument, since a plan that loops "until done" is worth exactly what its exit is worth.</p>
+  <ul>
+    <li><b>The queue is finite and counted.</b> 68 build options across 13 tables, plus nine floor rows. It is not a stream and nothing generates new items except a defect that has appeared twice.</li>
+    <li><b>Every item has three terminal doors</b> and no fourth. Built, killed, or parked with a promoting condition. Parked is not pending.</li>
+    <li><b>Re-entry costs evidence.</b> Any decision can reopen, and reopening requires a new observation rather than a new argument. Without that clause "nothing is final" and "eventually finished" cannot both be true.</li>
+    <li><b>Bands 2 through 5 are gated on each other,</b> so a failed cheap version deletes its expensive version from the queue outright rather than deferring it. Eleven of the twelve hard features can be settled this way for days of work each.</li>
+    <li><b>Stalls are counted.</b> Three passes in a row that neither ship nor kill spends the next pass rewriting the queue.</li>
+    <li><b>There is a cap on the floor.</b> If band 3 has not shipped in <b>eight passes</b>, the floor was too big and gets cut rather than extended. That number is a judgment, not a benchmark, and the reasoning behind it is that unshipped time is the most expensive thing in this plan: <span class="num">68.07%</span> of apps never reach a thousand downloads, <span class="num">0.57%</span> of non-gaming apps ever earn a hundred thousand dollars, and none of that improves while you build.</li>
+  </ul>
+
+  <div class="flag warn">
+    <h4>What would prove this whole document wrong</h4>
+    <p><b>Three passes in, if the scoreboard has no series and the defect log's last column is all humans, the loop is decoration</b> and every mechanism here failed at once. That is a two-column check and it takes a minute.</p>
+    <p>The honest confidence split. Pass zero and band 1 rest on a measurement taken by hand and reported in full, failures included. Band 3's lane split rests on band 1's contract holding, which is an assumption until it does. Bands 2 through 5 rest on gates that have never been run. And the loop itself rests on four mechanisms being executed in weeks when nobody is watching, which no process document written in this repo has ever managed. That is why a defect must appear twice before it earns a rule: the loop is designed to stay small, and if it grows it has already failed.</p>
+  </div>
+
+  <h2>Never in the loop, at any pass</h2>
+  <ul>
+    <li><b>The video test.</b> It needs a real audience. The captions can be drafted; the watching cannot be arranged.</li>
+    <li><b>The store submission.</b> Spent once, and yours. Everything up to the button is the system's to prepare, listing copy and assets included.</li>
+    <li><b>Twenty verdicts checked against a real shelf.</b> One trip, one hour, and the only check here that cannot be faked by something that wants to report success.</li>
+    <li><b>The name.</b> Trademark exposure is carried, not searched.</li>
+  </ul>
+
+  <div class="foot">
+    Replaces three earlier documents and carries their evidence forward. Measured first-hand: the seven-item pricing pilot and four direct retailer page fetches, 3 September 2026, which produced a usable range for two items, a partial answer for three, nothing usable for two, and no price at all from any direct fetch. Counted: 79 option rows across 13 tables, of which 68 are builds, tiered as 12 drastically hard, 19 middle, 37 at a week or less. Benchmark-backed: recognition at 77.0% top-1 and 94.5% top-5 over 190 models on 409 products; the grocery feed at $0.75 per thousand rows; store-level feeds resolving nearest store by postal code with normalised unit prices; a weekly panel of 50 basket items over 12 cities, 22 banners, about 160 stores; a comparison service covering 32 Canadian retailers; video rendering at $0.20 to $0.30 per minute or a cent per render above a $100 floor; price-watch tools with 4.8 million users between them; app base rates of 68.07% never reaching a thousand downloads, 0.57% of non-gaming apps earning six figures, day-thirty iOS retention near 7%; Competition Act s.74.01(1)(b) on performance claims. Derived by arithmetic and labelled: the $675 monthly watch cost, from the published feed price and three stated assumptions. Judgment with reasoning shown, not measurement: the eight-pass cap on the floor. Unestablished: whether one token of the Amazon price API buys one product lookup, which is what would turn its throughput ceiling from unknown into known.
+    <br><br>
+    Three features left the hard list during this work because a source was opened instead of reasoned from, and that correction is carried in the band tables rather than applied silently.
+  </div>
+
+</div>
