@@ -2,8 +2,8 @@
  * The source adapter interface.
  *
  * Everything the spine knows about a price arrives through one of these. The
- * shape is deliberately small — identify, then price — because the pilot's
- * finding was that these are two different failures with two different repairs,
+ * shape is deliberately small: identify, then price. The split is there because
+ * the pilot found these are two different failures with two different repairs,
  * and a combined `lookup()` hides which one happened.
  *
  * Real feed from day one, never live search. Four direct retailer page fetches
@@ -25,7 +25,7 @@ export interface PriceSource {
   readonly categories: readonly CategoryId[];
   /**
    * Whether this adapter has ever been run against its live endpoint by us.
-   * `false` means the code path exists and is unverified — it must be visible in
+   * `false` means the code path exists and is unverified. It must be visible in
    * every report, because an unverified adapter that returns nothing is
    * indistinguishable from a category with no prices.
    */
@@ -57,6 +57,29 @@ export function normalize(text: string): string {
     .replace(/[^a-z0-9\s.]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/** Legal and storefront suffixes that do not make a seller a different seller. */
+const SELLER_NOISE = /\b(inc|ltd|ltee|limited|corp|corporation|co|canada|ca|com|banners|stores|store)\b/g;
+
+/**
+ * One merchant, one name.
+ *
+ * A retailer arrives spelled differently from every feed that carries it: its
+ * own API, an affiliate network and a shopping comparison service will send
+ * "Best Buy", "Best Buy Canada" and "BestBuy.ca" for the same shelf. Counted
+ * raw, one merchant clears a three-distinct-sellers gate on its own, and the
+ * store the shopper is standing in fails to be excluded from its own comparison.
+ */
+export function normalizeSeller(seller: string): string {
+  const base = normalize(seller).replace(/\./g, ' ');
+  const stripped = base.replace(SELLER_NOISE, ' ').trim();
+  // Never collapse a name to nothing: "Canada Computers" is a real merchant.
+  const kept = stripped.length > 0 ? stripped : base;
+  // Whitespace goes last and entirely, so "Best Buy" and "BestBuy.ca" land on
+  // the same key. Without this the domain form stayed its own seller and five
+  // spellings of one merchant still counted as two.
+  return kept.replace(/\s+/g, '');
 }
 
 export function tokens(text: string): string[] {

@@ -4,7 +4,7 @@
  * Invariant iii of the pass: the scoreboard has a number for last week, produced
  * whether or not anyone looked at it. This is what produces it for band 1.
  *
- * The measured quantity is COVERAGE — how often the spine will answer at all —
+ * The measured quantity is COVERAGE, how often the spine will answer at all , 
  * because that is what the hand pilot measured and it is the only figure the
  * kill gate is written against. Coverage is not correctness. Whether the answers
  * are right is checked by a fresh agent against live sources, on twenty of them,
@@ -174,7 +174,7 @@ export async function runCorpus(
 export function formatReport(r: RunReport): string {
   const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
   const out: string[] = [];
-  out.push(`Corpus run — as of ${r.asOf}`);
+  out.push(`Corpus run, as of ${r.asOf}`);
   out.push(`  items      ${r.corpusSize} of ${r.corpusTarget} target${r.gateRunnable ? '' : '  (gate NOT runnable)'}`);
   out.push(`  verdicts   ${r.verdicts}`);
   out.push(`  refusals   ${r.refusals}`);
@@ -195,7 +195,7 @@ export function formatReport(r: RunReport): string {
   out.push('');
   out.push('  sources');
   for (const s of r.sources) {
-    out.push(`    ${s.id.padEnd(22)} ${s.available ? 'available' : 'unavailable'}${s.verified ? '' : ', UNVERIFIED'} — ${s.note}`);
+    out.push(`    ${s.id.padEnd(22)} ${s.available ? 'available' : 'unavailable'}${s.verified ? '' : ', UNVERIFIED'}, ${s.note}`);
   }
   out.push('');
   out.push('  read this before quoting the number above');
@@ -219,9 +219,10 @@ export function writeScoreboard(report: RunReport, root: string): { json: string
     existing = [
       '# Scoreboard',
       '',
-      'One row per corpus run. Produced by `npm run corpus` in `spine/`, whether or not',
-      'anyone looked at it. Coverage is how often the spine answers at all; it is not',
-      'correctness, and no row here has ever been checked against a live source.',
+      'One row per corpus run. Produced by `npm run corpus -- --write` in `spine/`,',
+      'whether or not anyone looked at it. Plain `npm run corpus` prints and writes',
+      'nothing. Coverage is how often the spine answers at all; it is not correctness,',
+      'and no row here has ever been checked against a live source.',
       '',
       '| date | corpus | verdicts | coverage | vs baseline | gate runnable |',
       '| --- | --- | --- | --- | --- | --- |',

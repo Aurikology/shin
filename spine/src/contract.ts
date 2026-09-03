@@ -1,5 +1,5 @@
 /**
- * THE CONTRACT — band 1's only durable output.
+ * THE CONTRACT, band 1's only durable output.
  *
  * Band 3's four-lane split rests on this file holding. Anything that changes a
  * shape here is a contract change and reopens every lane that reads it, so the
@@ -8,7 +8,7 @@
  *
  * The spine returns exactly one of two things and there is no third. It either
  * produces a Verdict or it Refuses. "Best guess with a shrug" is the shape this
- * file exists to make unrepresentable — it is what the hand pilot did when it
+ * file exists to make unrepresentable. It is what the hand pilot did when it
  * answered a Canon EOS R6 query with an R6 Mark II bundle at nearly triple.
  */
 
@@ -80,7 +80,7 @@ export interface PricePoint {
   readonly observedAt: string;
   readonly sourceId: string;
   readonly url?: string;
-  /** e.g. "limit 8" — a capped promo is not the same offer as an uncapped one. */
+  /** e.g. "limit 8", a capped promo is not the same offer as an uncapped one. */
   readonly limit?: string;
   /** Cents per 100g / 100ml, when pack size is known on both sides. */
   readonly unitAmountCents?: number;
@@ -155,7 +155,7 @@ export interface Verdict {
 export type RefusalReason =
   /** Nothing resolved. Scan again, or type it. */
   | 'no_identity'
-  /** Resolved below the floor. Show candidates and let the user pick — the R6 case. */
+  /** Resolved below the floor. Show candidates and let the user pick, the R6 case. */
   | 'identity_unsure'
   /** Category has no source we trust. Produce, today. */
   | 'category_unsupported'
@@ -199,9 +199,10 @@ export interface SpineQuery {
   /** Narrows the source set. Omit to let identity decide. */
   readonly category?: CategoryId;
   /**
-   * The price on the tag, in cents. When absent the spine looks for one among
-   * the observations and, failing that, refuses with `no_asking_price` rather
-   * than inventing a subject for its own comparison.
+   * The price on the tag, in cents. When absent, or when it does not read as a
+   * usable number, the spine refuses with `no_asking_price` rather than
+   * inventing a subject for its own comparison. It does NOT go looking for one
+   * among the observations.
    */
   readonly askingCents?: number;
   /**

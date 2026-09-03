@@ -25,8 +25,9 @@ import type {
 } from './contract.ts';
 import { isIncoherent, ruleFor } from './categories.ts';
 import type { CategoryRule } from './categories.ts';
-import { ageDays, cad, max, median, min, percentile } from './money.ts';
+import { ageDays, cad, isFutureDated, isUsableAmount, max, median, min, percentile } from './money.ts';
 import type { PriceSource } from './sources/source.ts';
+import { normalizeSeller } from './sources/source.ts';
 
 export interface SpineDeps {
   readonly sources: readonly PriceSource[];
@@ -72,7 +73,7 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     const note = deps.identityNote?.(identity.id);
     return refuse(
       'identity_unsure',
-      `Not sure enough this is the right ${rule.label.toLowerCase()} — closest match was "${identity.label}". Pick the right one and Shin will price it.${note ? ` (${note})` : ''}`,
+      `Not sure enough this is the right ${rule.label.toLowerCase()}. The closest match was "${identity.label}". Pick the right one and Shin will price it.${note ? ` (${note})` : ''}`,
       identity,
       [],
       asOf,
@@ -92,22 +93,31 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     );
   }
 
-  if (query.askingCents === undefined) {
+  // An unparsed price is not a missing one, but it must never reach a tier
+  // ladder: NaN fails every comparison, so it falls through to whatever the last
+  // `else` happens to be and comes out looking like a considered answer.
+  if (!isUsableAmount(query.askingCents)) {
     return refuse(
       'no_asking_price',
-      'Found comparisons but no price for the thing in front of you. Point at the tag.',
+      query.askingCents === undefined
+        ? 'Found comparisons but no price for the thing in front of you. Point at the tag.'
+        : 'That price did not read as a number. Type it again with a dot for the decimal.',
       identity,
       raw,
       asOf,
     );
   }
+  const askingCents = query.askingCents;
 
   // 5. Filter to what this category is allowed to compare.
+  const askingSellerKey =
+    query.askingSeller === undefined ? undefined : normalizeSeller(query.askingSeller);
   const comparison = raw.filter(
     (p) =>
       rule.usableKinds.includes(p.kind) &&
+      !isFutureDated(p.observedAt, asOf) &&
       ageDays(p.observedAt, asOf) <= rule.historyWindowDays &&
-      (query.askingSeller === undefined || p.seller !== query.askingSeller),
+      (askingSellerKey === undefined || normalizeSeller(p.seller) !== askingSellerKey),
   );
 
   const droppedKinds = [...new Set(raw.filter((p) => !rule.usableKinds.includes(p.kind)).map((p) => p.kind))];
@@ -135,7 +145,26 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     );
   }
 
-  if (comparison.length < rule.minPoints) {
+  // Every point that sets the tier must itself be current. Checking only the
+  // newest let one fresh row carry a set of month-old prices in a category whose
+  // own rule is three days, and the dead cheapest price in it became the bar the
+  // shopper was sent to chase. Furniture is exempt because there the history IS
+  // the comparison.
+  const tiering = rule.historyBased
+    ? comparison
+    : comparison.filter((p) => ageDays(p.observedAt, asOf) <= rule.maxAgeDays);
+
+  if (tiering.length < rule.minPoints && comparison.length >= rule.minPoints) {
+    return refuse(
+      'points_too_stale',
+      `Only ${tiering.length} of ${comparison.length} prices are current enough to compare; ${rule.label.toLowerCase()} needs ${rule.minPoints} inside ${rule.maxAgeDays} days.`,
+      identity,
+      comparison,
+      asOf,
+    );
+  }
+
+  if (tiering.length < rule.minPoints) {
     return refuse(
       'too_few_points',
       `Only ${comparison.length} usable price${comparison.length === 1 ? '' : 's'}; ${rule.label.toLowerCase()} needs ${rule.minPoints} before Shin will call it.`,
@@ -145,18 +174,20 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     );
   }
 
-  const sellers = new Set(comparison.map((p) => p.seller));
+  // Counted after normalising, so one merchant arriving under three feed
+  // spellings cannot clear a three-distinct-sellers gate on its own.
+  const sellers = new Set(tiering.map((p) => normalizeSeller(p.seller)));
   if (sellers.size < rule.minDistinctSellers) {
     return refuse(
       'too_few_points',
-      `All ${comparison.length} prices come from ${sellers.size} seller${sellers.size === 1 ? '' : 's'}; ${rule.label.toLowerCase()} needs ${rule.minDistinctSellers}.`,
+      `All ${tiering.length} prices come from ${sellers.size} seller${sellers.size === 1 ? '' : 's'}; ${rule.label.toLowerCase()} needs ${rule.minDistinctSellers}.`,
       identity,
       comparison,
       asOf,
     );
   }
 
-  if (isIncoherent(comparison)) {
+  if (isIncoherent(tiering, rule.mixedKindsExpected)) {
     return refuse(
       'comparison_incoherent',
       'The prices found disagree so widely that any single answer would be made up. Probably more than one product in the set.',
@@ -168,26 +199,27 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
 
   // 6. Only now does a category get to speak.
   const { tier, lines, disagreement } = rule.judge({
-    askingCents: query.askingCents,
-    points: comparison,
+    askingCents,
+    points: tiering,
     asOf,
+    minPoints: rule.minPoints,
   });
 
-  const observed = comparison.map((p) => p.observedAt).sort();
+  const observed = tiering.map((p) => p.observedAt).sort();
   const verdict: Verdict = {
     kind: 'verdict',
     identity,
     category: identity.category,
-    askingCents: query.askingCents,
+    askingCents,
     askingSource: query.askingSeller ?? 'given',
     tier,
     lines,
-    comparisonSet: comparison,
-    pointCount: comparison.length,
+    comparisonSet: tiering,
+    pointCount: tiering.length,
     oldestObservedAt: observed[0],
     newestObservedAt: observed[observed.length - 1],
-    spread: spreadOf(comparison),
-    confidence: confidenceOf(comparison, identity, rule, asOf),
+    spread: spreadOf(tiering),
+    confidence: confidenceOf(tiering, identity, rule, asOf),
     disagreement,
     producedAt: asOf,
   };
@@ -257,9 +289,18 @@ function confidenceOf(
   } else if (newestAge > rule.maxAgeDays / 2) {
     band = 'medium';
     because = `Newest price is ${newestAge} days old.`;
-  } else if (points.length >= rule.minPoints * 2 && identity.confidence >= 0.95) {
+  } else if (
+    points.length >= rule.minPoints * 2 &&
+    identity.confidence >= 0.95 &&
+    (rule.historyBased || oldestAge <= rule.maxAgeDays)
+  ) {
     band = 'high';
-    because = `${points.length} fresh prices across ${sellers} sellers, and the product is a certain match.`;
+    // "fresh" is only said where every point was checked against the category's
+    // own window. It used to be said unconditionally, over month-old prices, in
+    // the same sentence that called the product a certain match.
+    because = rule.historyBased
+      ? `${points.length} prices spanning ${oldestAge} days of this seller's own history, and the product is a certain match.`
+      : `${points.length} prices across ${sellers} sellers, none older than ${oldestAge} day${oldestAge === 1 ? '' : 's'}, and the product is a certain match.`;
   } else {
     band = 'medium';
     because = `${points.length} prices across ${sellers} sellers.`;
@@ -288,12 +329,12 @@ function refuse(
 /** One-line rendering, used by the CLI and by the harness report. */
 export function renderResult(result: SpineResult): string {
   if (result.kind === 'refusal') {
-    return `REFUSED (${result.reason}) — ${result.detail}`;
+    return `REFUSED (${result.reason}): ${result.detail}`;
   }
   const face = { good: 'GOOD', fair: 'FAIR', walk_away: 'WALK AWAY' }[result.tier];
-  const head = `${face} — ${result.identity.label} at ${cad(result.askingCents)}`;
+  const head = `${face}: ${result.identity.label} at ${cad(result.askingCents)}`;
   const body = result.lines.map((l) => `  ${l}`).join('\n');
-  const conf = `  confidence: ${result.confidence.band} — ${result.confidence.because}`;
+  const conf = `  confidence: ${result.confidence.band} (${result.confidence.because})`;
   const dis = result.disagreement ? `\n  disagreement: ${result.disagreement.detail}` : '';
   return `${head}\n${body}\n${conf}${dis}`;
 }

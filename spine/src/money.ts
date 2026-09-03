@@ -45,7 +45,13 @@ export function max(values: readonly number[]): number {
   return values.reduce((a, b) => (b > a ? b : a));
 }
 
-/** Whole days between two ISO dates, floored, never negative. */
+/**
+ * Whole days between two ISO dates, floored, never negative.
+ *
+ * The floor at zero is why `isFutureDated` exists separately. A feed whose clock
+ * runs ahead, or a flyer stamped with the date it takes effect, reads as age
+ * zero here and would silently defeat every staleness window at once.
+ */
 export function ageDays(observedAt: string, asOf: string): number {
   const a = Date.parse(observedAt);
   const b = Date.parse(asOf);
@@ -53,7 +59,26 @@ export function ageDays(observedAt: string, asOf: string): number {
   return Math.max(0, Math.floor((b - a) / 86_400_000));
 }
 
-/** "cheaper", "the same", "dearer" — the direction word, so sentences read like English. */
+/** A point stamped after the moment we are pricing at. Rejected, never aged to zero. */
+export function isFutureDated(observedAt: string, asOf: string): boolean {
+  const a = Date.parse(observedAt);
+  const b = Date.parse(asOf);
+  if (Number.isNaN(a) || Number.isNaN(b)) return true;
+  // One day of slack, because a feed stamping a plain date in a timezone ahead
+  // of ours is normal and is not the failure this guards.
+  return a - b > 86_400_000;
+}
+
+/**
+ * A price we are willing to reason about. NaN is the case that matters: it
+ * survives every `<=` and `>` comparison as false, so an unparsed price falls
+ * through a tier ladder into whatever the last `else` happens to be.
+ */
+export function isUsableAmount(cents: unknown): cents is number {
+  return typeof cents === 'number' && Number.isFinite(cents) && cents > 0;
+}
+
+/** "cheaper", "the same", "dearer", the direction word, so sentences read like English. */
 export function relation(askingCents: number, referenceCents: number): 'under' | 'level' | 'over' {
   if (askingCents < referenceCents) return 'under';
   if (askingCents > referenceCents) return 'over';

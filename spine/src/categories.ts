@@ -5,13 +5,13 @@
  * this file exists instead of a single global comparison. The four served
  * categories are asking four different questions:
  *
- *   grocery   — regular against this week's promotion (two lines, never averaged)
- *   tech      — against other retailers
- *   used      — against live comparable asking prices, which lean high
- *   furniture — against its own history, because a POÄNG has no second seller
+ *   grocery  , regular against this week's promotion (two lines, never averaged)
+ *   tech     , against other retailers
+ *   used     , against live comparable asking prices, which lean high
+ *   furniture, against its own history, because a POÄNG has no second seller
  *
  * produce is present and unserved. That is a recorded call with a reversing
- * condition, not an omission — see `unsupported` below.
+ * condition, not an omission, see `unsupported` below.
  *
  * Thresholds here are judgment with the reasoning written beside them. None of
  * them is benchmark-backed and none should be quoted as if it were. They were
@@ -27,6 +27,7 @@ import type {
   Tier,
 } from './contract.ts';
 import { cad, max, median, min, percentile, ratio } from './money.ts';
+import { normalizeSeller } from './sources/source.ts';
 
 export interface JudgeInput {
   /** The price being judged, in cents. */
@@ -34,6 +35,8 @@ export interface JudgeInput {
   /** Usable points only, already filtered for kind and staleness, asking point excluded. */
   readonly points: readonly PricePoint[];
   readonly asOf: string;
+  /** The category's own minimum, so a judge can hold a narrower basis to it. */
+  readonly minPoints: number;
 }
 
 export interface JudgeOutput {
@@ -53,22 +56,58 @@ export interface CategoryRule {
   readonly usableKinds: readonly PriceKind[];
   readonly minPoints: number;
   readonly minDistinctSellers: number;
-  /** The newest point must be no older than this, or the set is stale. */
+  /**
+   * How old a point may be and still set the tier.
+   *
+   * Applied to EVERY tiering point, not only the newest. Checking the newest
+   * alone let one fresh row keep a month-old set alive, and the cheapest price
+   * in it, long dead, set the bar the shopper was sent to chase.
+   */
   readonly maxAgeDays: number;
   /** Points older than this are dropped outright. Only furniture looks back far. */
   readonly historyWindowDays: number;
+  /**
+   * True where the comparison IS the history, so old points are the evidence
+   * rather than a staleness problem. Furniture only, because it is the only
+   * category with no second seller.
+   */
+  readonly historyBased: boolean;
+  /**
+   * Whether a spread across different price KINDS is expected here.
+   *
+   * Grocery's whole design is regular against promotional, so its contamination
+   * check runs within a kind. Everywhere else a set that spans kinds wildly is
+   * two products, and the check runs across the whole set.
+   */
+  readonly mixedKindsExpected: boolean;
   /** One line explaining the thresholds above, shown in `shin explain`. */
   readonly reasoning: string;
   readonly judge: (input: JudgeInput) => JudgeOutput;
 }
 
-/** Same-kind spread past this is not a market, it is a broken comparison set. */
-const INCOHERENT_RATIO = 8;
 /** Spread past this is real but needs saying out loud rather than averaging away. */
 const WIDE_SPREAD_RATIO = 2;
+/** Below this the set is tight enough that no single point can be dominating it. */
+const CONTAMINATION_FLOOR_RATIO = 2;
+/**
+ * If dropping one extreme point at least halves the spread, that point was
+ * carrying the disagreement rather than participating in it.
+ */
+const CONTAMINATION_COLLAPSE = 2;
+/** Fewer than this and dropping one point is not evidence of anything. */
+const CONTAMINATION_MIN_POINTS = 3;
+/**
+ * An empty multiplicative gap this wide between two adjacent listings means the
+ * set spans two products. Set well above the widest real spread measured here
+ * (a used POÄNG's neighbouring listings jump at most 2x) so it fires on shape
+ * rather than on a number tuned to one example.
+ */
+const CONTAMINATION_GAP = 4;
 
+// Counted on the normalised key, so a store arriving under two feed spellings
+// is not announced to the shopper as two stores.
 function sellersOf(points: readonly PricePoint[]): string[] {
-  return [...new Set(points.map((p) => p.seller))];
+  return [...new Set(points.map((p) => normalizeSeller(p.seller)))];
 }
 
 function amounts(points: readonly PricePoint[]): number[] {
@@ -99,14 +138,48 @@ function spreadDisagreement(points: readonly PricePoint[]): Disagreement | null 
   };
 }
 
-/** True when a set is so wide that any one verdict from it would be a lie. */
-export function isIncoherent(points: readonly PricePoint[]): boolean {
-  for (const kind of new Set(points.map((p) => p.kind))) {
-    const same = ofKind(points, kind);
-    if (same.length < 2) continue;
-    if (ratio(max(amounts(same)), min(amounts(same))) >= INCOHERENT_RATIO) return true;
+/**
+ * True when a set is so wide that any one verdict from it would be a lie.
+ *
+ * This is NOT a ratio threshold, and that is the point. A used POÄNG genuinely
+ * spans 4.5x on live marketplaces and must still get an answer, while the
+ * pilot's Canon failure spanned only 3x and must not. No single cutoff separates
+ * those two, so any number picked here would be fitted to whichever case was
+ * looked at last.
+ *
+ * What actually distinguishes them is SHAPE. The Canon set is one true listing
+ * plus a cluster of a different camera: drop the outlier and the spread
+ * collapses to nothing. The POÄNG set is a real distribution: drop either end
+ * and it is still wide. So the test is whether one point is carrying the
+ * disagreement rather than taking part in it.
+ */
+function groupIsContaminated(values: readonly number[]): boolean {
+  if (values.length < CONTAMINATION_MIN_POINTS) return false;
+  const s = [...values].sort((a, b) => a - b);
+  const full = ratio(s[s.length - 1], s[0]);
+  if (full < CONTAMINATION_FLOOR_RATIO) return false;
+
+  // Case one: a lone outlier. Drop either end; if the spread collapses, that
+  // point was carrying the disagreement rather than taking part in it.
+  const withoutLowest = ratio(s[s.length - 1], s[1]);
+  const withoutHighest = ratio(s[s.length - 2], s[0]);
+  if (Math.min(withoutLowest, withoutHighest) <= full / CONTAMINATION_COLLAPSE) return true;
+
+  // Case two: two balanced clusters, which the outlier test cannot see because
+  // dropping one point from a group of four still leaves three. What gives it
+  // away is empty space: a fourfold jump between two adjacent listings of the
+  // same product is not a market, it is two products in one set.
+  for (let i = 1; i < s.length; i += 1) {
+    if (ratio(s[i], s[i - 1]) >= CONTAMINATION_GAP) return true;
   }
   return false;
+}
+
+export function isIncoherent(points: readonly PricePoint[], mixedKindsExpected: boolean): boolean {
+  const groups: number[][] = mixedKindsExpected
+    ? [...new Set(points.map((p) => p.kind))].map((kind) => amounts(ofKind(points, kind)))
+    : [amounts(points)];
+  return groups.some(groupIsContaminated);
 }
 
 const GROCERY: CategoryRule = {
@@ -118,21 +191,29 @@ const GROCERY: CategoryRule = {
   minDistinctSellers: 2,
   maxAgeDays: 7,
   historyWindowDays: 14,
+  historyBased: false,
+  mixedKindsExpected: true,
   reasoning:
     'Seven days because grocery promotions turn over weekly: one 225g box of Kraft Dinner moved 3.6x inside a single week and every number in that swing was real. Two sellers minimum because one store is not a comparison.',
   judge({ askingCents, points }) {
     const regular = ofKind(points, 'regular');
     const promo = ofKind(points, 'promotional');
-    const best = cheapest(points);
     const regularMedian = regular.length > 0 ? median(amounts(regular)) : null;
 
+    // A capped promotion is not an offer the shopper can act on at scale, so it
+    // informs the second line and never sets the bar. Letting it set the bar
+    // called Walmart's own regular price a walk-away, because a limit-8 loss
+    // leader at a different chain had moved the goalposts.
+    const attainable = [...regular, ...promo.filter((p) => p.limit === undefined)];
+    const goodBar = attainable.length > 0 ? min(amounts(attainable)) : min(amounts(points));
+
     let tier: Tier;
-    if (askingCents <= Math.round(best.amountCents * 1.02)) {
+    if (askingCents <= Math.round(goodBar * 1.02)) {
       tier = 'good';
-    } else if (
-      (regularMedian !== null && askingCents > Math.round(regularMedian * 1.1)) ||
-      askingCents > Math.round(best.amountCents * 1.5)
-    ) {
+    } else if (regularMedian !== null && askingCents > Math.round(regularMedian * 1.1)) {
+      tier = 'walk_away';
+    } else if (regularMedian === null && askingCents > Math.round(goodBar * 1.5)) {
+      // No regular price anywhere, so the promotions are the only baseline there is.
       tier = 'walk_away';
     } else {
       tier = 'fair';
@@ -142,12 +223,17 @@ const GROCERY: CategoryRule = {
     // next week too; the promotional line is the one that makes someone move.
     const lines: string[] = [];
     if (regularMedian !== null) {
+      // One store is not an average, and saying "about" over a single
+      // observation invents a spread that was never measured.
+      const regularStores = sellersOf(regular).length;
       lines.push(
-        `Regular price is about ${cad(regularMedian)} across ${sellersOf(regular).length} store${sellersOf(regular).length === 1 ? '' : 's'}. You are looking at ${cad(askingCents)}.`,
+        regularStores === 1
+          ? `Regular price is ${cad(regularMedian)} at the one store carrying it. You are looking at ${cad(askingCents)}.`
+          : `Regular price is about ${cad(regularMedian)} across ${regularStores} stores. You are looking at ${cad(askingCents)}.`,
       );
     } else {
       lines.push(
-        `No regular shelf price found — everything below is a promotion. You are looking at ${cad(askingCents)}.`,
+        `No regular shelf price found, everything below is a promotion. You are looking at ${cad(askingCents)}.`,
       );
     }
     if (promo.length > 0) {
@@ -188,8 +274,10 @@ const TECH: CategoryRule = {
   minDistinctSellers: 3,
   maxAgeDays: 3,
   historyWindowDays: 30,
+  historyBased: false,
+  mixedKindsExpected: false,
   reasoning:
-    'Three days and three retailers because this is the best-served category and there is no excuse for a thin set: one comparison service already covers 32 Canadian retailers. Manufacturer list price is excluded on purpose — the pilot returned $429.99 list for the WH-1000XM5 and zero live retailer prices, and list alone is not a comparison.',
+    'Three days and three retailers because this is the best-served category and there is no excuse for a thin set: one comparison service already covers 32 Canadian retailers. Manufacturer list price is excluded on purpose, the pilot returned $429.99 list for the WH-1000XM5 and zero live retailer prices, and list alone is not a comparison.',
   judge({ askingCents, points }) {
     const best = cheapest(points);
     const tier: Tier =
@@ -218,13 +306,20 @@ const USED: CategoryRule = {
   minDistinctSellers: 2,
   maxAgeDays: 30,
   historyWindowDays: 90,
+  historyBased: false,
+  mixedKindsExpected: false,
   reasoning:
     'Identity floor is the highest of any category because the pilot\'s single worst failure was here: a used Canon EOS R6 search returned an R6 Mark II bundled with lenses at nearly triple, and every price attached to it was accurate. Four listings across two marketplaces, and the reference is the 25th percentile rather than the median, because asking prices are what sellers hope for and lean high by construction.',
-  judge({ askingCents, points }) {
+  judge({ askingCents, points, minPoints }) {
     const sold = ofKind(points, 'sold');
     // A sold price beats any number of asking prices. It is the only kind here
     // that records what someone was actually willing to pay.
-    const basis = sold.length >= 2 ? sold : points;
+    //
+    // But it has to clear the same bar as everything else. At two, a pair of
+    // "for parts, not working" completed listings replaced eight live ones and
+    // sent a $900 body to walk-away off a $1.35 basis, while the confidence line
+    // still boasted eight points.
+    const basis = sold.length >= minPoints ? sold : points;
     const vals = amounts(basis);
     const p25 = percentile(vals, 25);
     const mid = median(vals);
@@ -232,7 +327,8 @@ const USED: CategoryRule = {
       askingCents <= p25 ? 'good' : askingCents <= mid ? 'fair' : askingCents > Math.round(mid * 1.15) ? 'walk_away' : 'fair';
     const lo = min(amounts(points));
     const hi = max(amounts(points));
-    const basisWord = sold.length >= 2 ? 'what these actually sold for' : 'asking prices, not sales — sellers start high';
+    const basisWord =
+      basis === sold ? 'what these actually sold for' : 'asking prices, not sales, and sellers start high';
     return {
       tier,
       lines: [
@@ -253,8 +349,10 @@ const FURNITURE: CategoryRule = {
   minDistinctSellers: 1,
   maxAgeDays: 21,
   historyWindowDays: 365,
+  historyBased: true,
+  mixedKindsExpected: false,
   reasoning:
-    'The obstacle is not data, it is that there is no second seller, so the verdict is price against its own history rather than against other stores. Five points over a year because a rolling promotion needs a baseline to be visible against, and IKEA promotions never appear on the product page — which is precisely what makes this worth showing.',
+    'The obstacle is not data, it is that there is no second seller, so the verdict is price against its own history rather than against other stores. Five points over a year because a rolling promotion needs a baseline to be visible against, and IKEA promotions never appear on the product page, which is precisely what makes this worth showing.',
   judge({ askingCents, points, asOf }) {
     const vals = amounts(points);
     const lo = min(vals);
@@ -292,6 +390,8 @@ const PRODUCE: CategoryRule = {
   minDistinctSellers: 3,
   maxAgeDays: 3,
   historyWindowDays: 7,
+  historyBased: false,
+  mixedKindsExpected: false,
   reasoning: 'Unserved. The thresholds are recorded for the day it is promoted, and nothing calls judge().',
   judge() {
     throw new Error('produce is unsupported; the spine refuses before reaching judge()');

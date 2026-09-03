@@ -1,0 +1,22 @@
+{
+  "name": "shin-spine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Band 1: given a product identity, return a verdict object or refuse. No camera, no mascot, no screens.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "price": "node src/cli.ts price",
+    "corpus": "node src/cli.ts corpus",
+    "explain": "node src/cli.ts explain",
+    "sources": "node src/cli.ts sources",
+    "test": "node --test \"test/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "typescript": "^5.6.0"
+  }
+}

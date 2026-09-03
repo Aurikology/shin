@@ -3,7 +3,7 @@
  *
  * Every price in `data/observations.json` was observed by a person and carries
  * the date it was observed. Nothing in this file invents a number, and nothing
- * in this file goes to the network — which is what makes the spine runnable and
+ * in this file goes to the network, which is what makes the spine runnable and
  * testable today, before any credential exists.
  *
  * This is also the shape a paid feed will arrive in, so the live adapters are a
@@ -95,7 +95,14 @@ export class RecordedSource implements PriceSource {
       }
     }
     if (best === null || bestScore < MATCH_FLOOR) return null;
-    return this.#toIdentity(best);
+    // Fold how well the query matched into the confidence we report.
+    //
+    // Without this, identityConfidence describes the stored ROW rather than this
+    // query's fit to it, so "kd cup" and "kraft dinner 900g" both resolved to the
+    // 225g box and printed "the product is a certain match". Every price after
+    // that was accurate and about a different product, which is the exact failure
+    // the identity floor exists to stop.
+    return this.#toIdentity(best, bestScore);
   }
 
   async prices(identity: ProductIdentity): Promise<readonly PricePoint[]> {
@@ -108,7 +115,7 @@ export class RecordedSource implements PriceSource {
     return this.#store.products.find((p) => p.id === id)?.identityNote;
   }
 
-  #toIdentity(p: RecordedProduct): ProductIdentity {
+  #toIdentity(p: RecordedProduct, matchScore = 1): ProductIdentity {
     return {
       id: p.id,
       label: p.label,
@@ -117,7 +124,7 @@ export class RecordedSource implements PriceSource {
       gtin: p.gtin,
       model: p.model,
       size: p.size,
-      confidence: p.identityConfidence,
+      confidence: p.identityConfidence * matchScore,
       resolvedBy: this.id,
     };
   }

@@ -1,6 +1,6 @@
 {
   "recordedAt": "2026-09-03",
-  "provenance": "The seven-item hand pricing pilot of 2026-09-03, plus four direct retailer page fetches. Every number here was read off a public Canadian source by a person on that date. Nothing is interpolated, nothing is converted between currencies, and the failures are recorded as failures rather than dropped. The four direct fetches produced no prices at all — Loblaws, Best Buy Canada and Metro answered 403, IKEA served its nav menu — which is why no scraping adapter exists.",
+  "provenance": "The seven-item hand pricing pilot of 2026-09-03, plus four direct retailer page fetches. Every number here was read off a public Canadian source by a person on that date. Nothing is interpolated, nothing is converted between currencies, and the failures are recorded as failures rather than dropped. The four direct fetches produced no prices at all. Loblaws, Best Buy Canada and Metro answered 403, IKEA served its nav menu. That is why no scraping adapter exists.",
   "products": [
     {
       "id": "kd-original-225g",
@@ -147,7 +147,7 @@
       "model": "EOS R6",
       "identityConfidence": 0.55,
       "matchTerms": ["canon eos r6", "eos r6", "r6 body", "used canon"],
-      "identityNote": "free search answered with a Canon EOS R6 Mark II bundled with lenses at about $4,800 — a different camera at nearly triple. Every price attached to it was accurate. Separately observed and not usable as points: eBay sold listings under US$2,000, which is a bound in another currency, and new Canadian retail of $2,352 to $3,099, which is not a used comparable.",
+      "identityNote": "free search answered with a Canon EOS R6 Mark II bundled with lenses at about $4,800: a different camera at nearly triple. Every price attached to it was accurate. Separately observed and not usable as points: eBay sold listings under US$2,000, which is a bound in another currency, and new Canadian retail of $2,352 to $3,099, which is not a used comparable.",
       "points": []
     },
     {

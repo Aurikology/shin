@@ -1,5 +1,5 @@
 /**
- * Best Buy product API adapter — WRITTEN, NEVER RUN.
+ * Best Buy product API adapter, WRITTEN, NEVER RUN.
  *
  * `verified = false` and it must stay false until someone runs it against the
  * live endpoint with a real key and puts the result in the scoreboard. Until
