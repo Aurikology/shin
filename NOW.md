@@ -7,8 +7,19 @@ narrative.*
 
 ## Where this stands
 
-**Nothing is built. No code exists.** What exists is a finished plan and a body of research,
-made 2026-09-03 in one session, now in this repo so it stops living in a temp folder.
+**The price spine and the full 13-stage walkthrough app are built and running.** `spine/` is the
+engine that answers or refuses, at 44 passing tests and a clean typecheck. `app/` is the
+walkthrough as a working app: 14 screens, no framework, no dependencies, no build step. Start it
+with `cd app && npm start` and open `http://localhost:4173`. The stages button in the app bar
+opens any stage directly.
+
+**What that does not mean.** The engine answers **2 of the 7** hand-priced items and refuses the
+other five, which is the pilot's own headline rather than a regression, and the app now says so on
+its face instead of implying coverage it does not have. Nothing is deployed, nobody outside this
+machine has opened it, and the three things below still gate everything that matters.
+
+The research and the plan that produced it were made 2026-09-03 in one session, now in this repo
+so they stop living in a temp folder.
 
 The master plan is `pages/shin-terminating-loop.html`. It supersedes the two other plans and
 contains the queue, the weekly pass, and the three ways this project ends.
@@ -24,7 +35,9 @@ contains the queue, the weekly pass, and the three ways this project ends.
    `notes/session-2026-09-03.md`, along with a same-day correction that reversed two of the
    three category failures.
 
-Nothing in this list needs code, and the first two are cheap.
+Nothing in this list needs code, and the first two are cheap. **The code existing does not move
+any of them**, which is the point: the app was built to be walked through and argued with, not to
+substitute for the trademark search or the video test.
 
 ## What the pilot actually showed
 

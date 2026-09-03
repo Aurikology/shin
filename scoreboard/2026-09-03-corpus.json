@@ -1,0 +1,111 @@
+{
+  "ranAt": "2026-09-03T22:22:07.096Z",
+  "asOf": "2026-09-03T18:00:00Z",
+  "corpusSize": 7,
+  "corpusTarget": 100,
+  "gateRunnable": false,
+  "verdicts": 2,
+  "refusals": 5,
+  "coverage": 0.2857142857142857,
+  "baselineCoverage": 0.2857142857142857,
+  "beatsBaseline": false,
+  "observedAskingPrices": 4,
+  "refusalsByReason": {
+    "too_few_points": 2,
+    "category_unsupported": 1,
+    "identity_unsure": 1,
+    "no_source_response": 1
+  },
+  "sources": [
+    {
+      "id": "recorded",
+      "available": true,
+      "verified": true,
+      "note": "available"
+    },
+    {
+      "id": "bestbuy",
+      "available": false,
+      "verified": false,
+      "note": "BESTBUY_API_KEY is not set"
+    }
+  ],
+  "rows": [
+    {
+      "id": "kd-original-225g",
+      "outcome": "verdict",
+      "reason": null,
+      "tier": "walk_away",
+      "confidence": "medium",
+      "pointCount": 3,
+      "askingProvenance": "observed",
+      "line": "Regular price is about $1.47 across 1 store. You are looking at $2.00."
+    },
+    {
+      "id": "poang-used",
+      "outcome": "verdict",
+      "reason": null,
+      "tier": "fair",
+      "confidence": "low",
+      "pointCount": 4,
+      "askingProvenance": "stated stand-in: the top of the observed $55-$80 cluster. Not an individual listing.",
+      "line": "Comparable listings run $35.00 to $159.00, clustering around $35.00 to $90.00. You are looking at $80.00. These are asking prices, not sales, and sellers start high."
+    },
+    {
+      "id": "tide-simply-2720ml",
+      "outcome": "refusal",
+      "reason": "too_few_points",
+      "tier": null,
+      "confidence": null,
+      "pointCount": 1,
+      "askingProvenance": "observed",
+      "line": "Nothing recent enough to compare against."
+    },
+    {
+      "id": "navel-oranges-3lb",
+      "outcome": "refusal",
+      "reason": "category_unsupported",
+      "tier": null,
+      "confidence": null,
+      "pointCount": 0,
+      "askingProvenance": "observed",
+      "line": "Fresh produce is not something Shin can price yet. Three problems stack and none of them is solved by a better feed. A PLU names a category rather than a product (4011 has meant \"bananas\" since 1990), package formats break unit comparison, and the public series measures underlying inflation rather than what is on the shelf this week. Shopper-reported shelf prices are the only source here, not a supplement to one."
+    },
+    {
+      "id": "canon-eos-r6-used",
+      "outcome": "refusal",
+      "reason": "identity_unsure",
+      "tier": null,
+      "confidence": null,
+      "pointCount": 0,
+      "askingProvenance": "stated stand-in: no asking price was observed for the right camera.",
+      "line": "Not sure enough this is the right used goods. The closest match was \"Canon EOS R6, used body\". Pick the right one and Shin will price it. (free search answered with a Canon EOS R6 Mark II bundled with lenses at about $4,800: a different camera at nearly triple. Every price attached to it was accurate. Separately observed and not usable as points: eBay sold listings under US$2,000, which is a bound in another currency, and new Canadian retail of $2,352 to $3,099, which is not a used comparable.)"
+    },
+    {
+      "id": "sony-wh1000xm5",
+      "outcome": "refusal",
+      "reason": "too_few_points",
+      "tier": null,
+      "confidence": null,
+      "pointCount": 1,
+      "askingProvenance": "observed: the list price, which is the only number the pilot found.",
+      "line": "Only list price found, which is not a comparison."
+    },
+    {
+      "id": "poang-new",
+      "outcome": "refusal",
+      "reason": "no_source_response",
+      "tier": null,
+      "confidence": null,
+      "pointCount": 0,
+      "askingProvenance": "stated stand-in: five IKEA variant pages carried no price at all.",
+      "line": "Nothing has a price for \"IKEA POÄNG armchair, new\" right now."
+    }
+  ],
+  "caveats": [
+    "Corpus is 7 of 100. Band 1's kill gate is not runnable and this coverage figure settles nothing.",
+    "3 of 7 judged prices are stated stand-ins rather than observed shelf prices.",
+    "Unverified adapters present and never run live: bestbuy.",
+    "Coverage is not correctness. Nothing here checks whether a verdict is right; that is twenty verdicts against live sources, by something that did not build this."
+  ]
+}

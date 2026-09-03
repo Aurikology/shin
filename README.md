@@ -32,6 +32,21 @@ and why, the pricing test on seven real items and the same day correction to it,
 approaches ruled out with the condition that reverses each one, and the researched numbers so
 none of them get looked up twice.
 
+## The code, and the running record
+
+- `spine/` is the price engine and band 1 of the plan: give it a product identity and it returns a
+  verdict or refuses. It has its own README. Node runs it directly, no build step.
+- `SCOREBOARD.md` is one row per corpus run, a number produced whether or not anyone looks at it.
+  It is coverage, meaning how often the spine answers at all, which is not correctness.
+- `QUEUE.md` is what is next, in band order.
+- `PASS.md` is the record of each pass, which must ship or kill something.
+- `DEFECTS.md` is where known defects and unresolved contradictions are logged instead of quietly
+  fixed.
+
+Band 1 is not finished. Its exit needs one hundred items through the spine and twenty of those
+verdicts checked against live sources; the corpus holds seven and nothing has been checked against
+a live source yet.
+
 ## The live versions
 
 The same four documents are published and shareable:
