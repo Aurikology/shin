@@ -7,10 +7,13 @@ Problem statement, adopted verbatim 2026-09-03:
 > Sellers know what things are worth and buyers are guessing, so we're making the check instant
 > enough that guessing stops being the default.
 
-Nothing here is code yet. This folder holds the thinking, so it stops living in a temp directory
-that Windows can empty without warning.
+There is code now, in `spine/`. The rest of this folder holds the thinking, so it stops living in
+a temp directory that Windows can empty without warning.
 
 ## What is in here
+
+`NOW.md` is where things actually stand, and it wins over every other file if they disagree.
+`docs/decisions.md` is every call made so far, each one with the condition that would reverse it.
 
 `pages/` are the four documents, as web pages you can open in a browser by double clicking.
 

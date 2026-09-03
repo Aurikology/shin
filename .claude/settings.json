@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "_note": "Immutability floor. The four files in pages/ are the sources of published web pages and are the record of what was decided on 2026-09-03; the notes file is the working record of that day. They are diff baselines, not drafts. A new plan is a NEW file at a new name, never an edit to one of these. Edit() form only: Write(path) deny rules are inert, the harness warns and ignores them.",
+    "deny": [
+      "Edit(notes/session-2026-09-03.md)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/no-blind-git-add.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
