@@ -100,8 +100,11 @@ Nothing in this pass moved the three things below, which still gate the product.
 
 ## The next three things, in order
 
-1. **CIPO trademark search** on "Shin" in the software classes. Until this clears, no public
-   name, no handle, no listing. It also gates the video test, because a video needs a name.
+1. **CIPO trademark search** on "Shin" in the software classes. **Run 2026-09-04**, record in
+   `notes/trademark-search-2026-09-04.md`: no live SHIN mark in classes 9, 35 or 42 in Canada;
+   Nongshim's SHIN marks are all class 30. What it does not clear: the s.22 association with
+   Nongshim on grocery shelves, the US register, and the app store name checks. The name is
+   still his call. Until he makes it, no public name, no handle, no listing, no video.
 2. **The two-caption video test**, on borrowed audiences. Three to five micro creators, or
    Reddit. Not a new account: a cold handle can return near zero views and give a false
    negative that reads like a real one.
