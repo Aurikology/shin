@@ -4,25 +4,29 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Shin</title>
-<meta name="description" content="Scan anything. Shin tells you if you are getting ripped off.">
+<meta name="description" content="Point at a thing. Shin tells you whether the price is fair.">
+<meta name="theme-color" content="#0B0C0E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<!--
+  Three faces, three jobs. Bricolage Grotesque carries the numerals and the
+  verdict word, Instrument Sans carries every piece of interface text, IBM Plex
+  Mono carries provenance and nothing else. Newsreader is gone: a serif reads as
+  an article, and three paragraphs of serif above the fold is what the old
+  verdict screen did wrong.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/css/tokens.css">
 <link rel="stylesheet" href="/css/shell.css">
 <link rel="stylesheet" href="/css/screens.css">
 </head>
 <body>
+  <!--
+    No app bar and no tab bar. The camera reaches every edge, and the wordmark
+    and the three navigation targets live inside the camera surface itself.
+  -->
   <div class="device">
-    <header class="appbar">
-      <div class="appbar-brand">shin<span>.</span></div>
-      <button class="appbar-btn" id="btn-map" type="button" title="Every stage of the walkthrough, openable directly">stages</button>
-      <button class="appbar-btn" id="btn-theme" type="button" title="Light or dark">theme</button>
-    </header>
-
     <main id="screen" role="main"></main>
-
-    <nav class="tabbar" id="tabbar" hidden aria-label="Main"></nav>
   </div>
 
   <script type="module" src="/js/main.js"></script>

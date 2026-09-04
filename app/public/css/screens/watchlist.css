@@ -1,0 +1,93 @@
+/*
+ * Watching. The only list in the app.
+ *
+ * A row is a name and a number, and the number is the only coloured thing on it.
+ * Colour here means the same as it means on the verdict sheet: a drop is green
+ * because green is the good verdict, not because green is nice on a list.
+ */
+
+.wlist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 13px 16px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  text-align: left;
+  cursor: pointer;
+}
+.wrow:hover { border-color: var(--ink-faint); }
+
+.wrow-n { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.wrow-n b {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wrow-n span { font-size: 12px; color: var(--ink-faint); }
+
+.wrow-p {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+}
+.wrow-p em {
+  font-family: var(--f-mono);
+  font-style: normal;
+  font-weight: 500;
+  font-size: 10.5px;
+  letter-spacing: .04em;
+  color: var(--ink-faint);
+}
+.wrow-p.good { color: var(--good-bright); }
+.wrow-p.good em { color: var(--good-bright); }
+
+/*
+ * The drop card. The one thing on this screen that earns tier colour, because a
+ * price falling under the usual is a verdict and not a notification.
+ *
+ * The comparison is always against the usual price. Stating it against a capped
+ * promotion presents a loss leader as the going rate, which is a bug this
+ * project has already shipped once.
+ */
+.drop-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--r-md);
+  background: var(--tier);
+  color: var(--tier-on);
+}
+.drop-card .face { color: var(--tier-on); flex: 0 0 auto; }
+.drop-card > div { display: flex; flex-direction: column; gap: 3px; }
+.drop-card b {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -.02em;
+}
+.drop-card span { font-size: 13px; opacity: .82; }

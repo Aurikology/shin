@@ -1,86 +1,59 @@
-/* Stage 03. One question at the top, everything that justifies it below the
-   fold, so the screen can be answered in one tap without reading any of it. */
+/*
+ * The attitude picker.
+ *
+ * Each option shows the face it changes, not a swatch beside a label. The choice
+ * is about tone, and tone is legible in the brow angle at 46px, so the control
+ * shows the actual thing being chosen.
+ */
 
-.su-why {
-  font-size: 16px;
-  color: var(--ink-muted);
-  margin-bottom: 20px;
-}
-
-.su-chips {
+.atts {
   display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin: 2px 0 16px;
-}
-.su-chip {
-  font-family: var(--f-body);
-  font-size: 15px;
-  padding: 8px 13px;
-  border-radius: 999px;
-  border: 1px solid var(--rule-strong);
-  background: var(--surface);
-  color: var(--ink-muted);
-  cursor: pointer;
-}
-.su-chip:hover { border-color: var(--accent); color: var(--accent); }
-
-.su-err {
-  font-size: 14px;
-  color: var(--bad);
-  margin: -4px 0 12px;
-}
-.su-err[hidden] { display: none; }
-
-#su-skip { display: block; margin: 4px auto 0; }
-
-.su-legal {
-  margin: 32px 0 24px;
-  padding: 14px;
-  border: 1px solid var(--accent);
-  border-left-width: 4px;
-  border-radius: var(--r-md);
-  background: var(--surface);
-}
-.su-legal h3 { font-size: 15px; color: var(--accent); margin-bottom: 8px; }
-.su-legal p { font-size: 14.5px; }
-.su-legal p:last-child { margin-bottom: 0; }
-.su-legal-note {
-  padding-top: 10px;
-  border-top: 1px solid var(--rule);
-  color: var(--ink-faint);
-  font-size: 13.5px;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.su-cap {
-  font-family: var(--f-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-  margin: 0 0 6px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--rule);
-}
-
-.su-later { list-style: none; margin: 0 0 22px; padding: 0; }
-.su-later li { padding: 10px 0; border-bottom: 1px solid var(--rule); }
-.su-later li:last-child { border-bottom: 0; }
-.su-later-top {
+.att {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 14px;
+  width: 100%;
+  min-height: 76px;
+  padding: 14px 16px;
+  text-align: left;
+  background: var(--surface);
+  border: 1.5px solid var(--hairline);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  cursor: pointer;
+  transition: border-color var(--t-face) var(--ease-land),
+              background var(--t-face) var(--ease-land);
 }
-.su-later p { margin: 2px 0 0; font-size: 13.5px; color: var(--ink-faint); }
+.att:hover { border-color: var(--ink-faint); }
 
-.su-judgment {
-  margin: 0;
-  padding-top: 12px;
-  border-top: 1px solid var(--rule);
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--ink-faint);
+.att.on {
+  border-color: var(--brand);
+  background: var(--raised);
 }
-.su-judgment .tag { margin-right: 6px; vertical-align: 1px; }
+
+.att-face { flex: 0 0 auto; color: var(--ink-muted); }
+.att.on .att-face { color: var(--ink); }
+
+.att-t { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.att-t b {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -.02em;
+}
+.att-t span {
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--ink-muted);
+}
+
+/* On the settings page the same control is denser, because it is a change and
+   not a first decision. */
+.atts-row .att { min-height: 64px; padding: 10px 14px; gap: 12px; }
+.atts-row .att-t b { font-size: 15px; }
+.atts-row .att-t span { font-size: 12.5px; }

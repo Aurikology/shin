@@ -93,6 +93,46 @@ async function catalogue() {
   };
 }
 
+/**
+ * The scan scenarios: what Shin could plausibly be pointed at, with the real
+ * asking price the hand pilot recorded for each.
+ *
+ * This exists because the camera cannot identify anything yet. Rather than the
+ * app inventing an asking price to make a demo flow, it offers the seven the
+ * pilot actually priced, and carries `askingProvenance` straight through so a
+ * stated stand-in can be labelled as one on screen. A stand-in presented as an
+ * observed shelf price would be fabricated evidence, which is the one thing this
+ * product cannot do and still be worth opening.
+ */
+function scenarios() {
+  const corpus = JSON.parse(
+    readFileSync(fileURLToPath(new URL('../spine/data/corpus.json', import.meta.url)), 'utf8'),
+  ) as {
+    asOf: string;
+    items: {
+      id: string;
+      query: { text: string; category: string };
+      askingCents: number;
+      askingSeller?: string;
+      askingProvenance?: string;
+    }[];
+  };
+  return {
+    asOf: corpus.asOf,
+    items: corpus.items.map((i) => ({
+      id: i.id,
+      text: i.query.text,
+      category: i.query.category,
+      askingCents: i.askingCents,
+      askingSeller: i.askingSeller ?? null,
+      // "observed" means a person read it off a real tag or page. Anything else
+      // is a stand-in and the screen has to say so.
+      observed: (i.askingProvenance ?? '').startsWith('observed'),
+      provenance: i.askingProvenance ?? null,
+    })),
+  };
+}
+
 function categories() {
   return Object.values(CATEGORY_RULES).map((r) => ({
     id: r.id,
@@ -131,6 +171,7 @@ const server = createServer(async (req, res) => {
   try {
     if (url.pathname === '/api/catalogue') return json(200, await catalogue());
     if (url.pathname === '/api/categories') return json(200, categories());
+    if (url.pathname === '/api/scenarios') return json(200, scenarios());
 
     if (url.pathname === '/api/price') {
       if (req.method !== 'POST') return json(405, { error: 'POST only' });

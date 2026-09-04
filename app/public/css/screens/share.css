@@ -1,52 +1,57 @@
-/* Stage 08: Share. Owned by this screen alone. */
+/*
+ * The share screen.
+ *
+ * The canvas is shown at its real aspect, 4:5, so what is on screen is the file
+ * that gets saved and not a preview of it. Nothing is layered on top of the
+ * canvas: any chrome drawn over it here would be absent from the export, and a
+ * preview that lies about the export is worse than no preview.
+ */
 
-.shr-title { margin-bottom: 8px; }
-.shr-intro { margin-bottom: 16px; }
+.page-share { gap: 12px; }
 
 /*
- * The frame around the card is the app's, not the card's. Nothing painted here
- * ends up in the exported PNG, which is why the download affordance can live
- * out here and never inside the image.
+ * The preview is sized off the viewport height, not the width, so the card and
+ * the two things you can do with it are on screen at the same time. A preview
+ * that pushes its own save button under the fold is a preview of nothing.
  */
 .shr-frame {
-  background: var(--surface-sunk);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-lg);
-  padding: 12px;
-  margin-bottom: var(--gap);
+  align-self: center;
+  /* A share of the page's own height, not the window's. On a phone they are the
+     same thing; in the desktop frame they are not, and a preview sized off the
+     window slides under its own save button. */
+  height: 42%;
+  max-width: 100%;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow);
 }
 
 .shr-canvas {
   display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 9 / 16;
-  border-radius: var(--r-md);
-  background: var(--paper);
-  box-shadow: var(--shadow);
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  aspect-ratio: 4 / 5;
 }
 .shr-canvas[hidden] { display: none; }
 
 .shr-fallback {
-  white-space: pre-wrap;
-  font-family: var(--f-mono);
-  font-size: 13px;
-  line-height: 1.55;
   margin: 0;
-  padding: 12px;
-  background: var(--surface);
-  border-radius: var(--r-md);
+  padding: 16px;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-muted);
+  white-space: pre-wrap;
+  overflow-x: auto;
 }
-.shr-fallback[hidden] { display: none; }
 
 .shr-status {
+  margin: 0;
   min-height: 20px;
-  margin: 2px 0 18px;
-  font-size: 14.5px;
-  color: var(--accent);
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-faint);
 }
-
-.shr-next p { font-size: 15px; }
-.shr-next p:last-child { margin-bottom: 0; }
-.shr-gate { color: var(--ink-muted); }
-.shr-gate .num { color: var(--ink); font-weight: 600; }

@@ -1,10 +1,14 @@
 /*
- * The shell: the phone frame, the app bar, and the primitives every screen
- * shares. Screen-specific styling lives in that screen's own file.
+ * The shell: the phone frame, and the primitives shared by the four screens
+ * that are pages rather than the camera.
  *
- * The frame is a phone because that is where this is used, standing in an aisle
- * holding a basket. Anything that needs two hands or a careful read has already
- * failed the walkthrough's own three-second test.
+ * There is no app bar. The old one carried a wordmark and two developer buttons
+ * across the top of every screen, which on a camera-first app is 56 pixels of
+ * chrome sitting on the picture. The wordmark now lives inside the camera
+ * surface, over the feed, where it costs nothing.
+ *
+ * There is no tab bar either. Navigation is three targets in the camera's own
+ * bottom bar, thumb height, either side of the shutter.
  */
 
 * { box-sizing: border-box; }
@@ -13,11 +17,11 @@ html, body {
   margin: 0;
   padding: 0;
   min-height: 100%;
-  background: var(--surface-sunk);
+  background: var(--ground);
   color: var(--ink);
-  font-family: var(--f-body);
-  font-size: 17px;
-  line-height: 1.5;
+  font-family: var(--f-ui);
+  font-size: 16px;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -25,7 +29,6 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0;
 }
 
 /* The phone. On a real phone it is simply the whole viewport. */
@@ -34,228 +37,209 @@ body {
   max-width: 420px;
   min-height: 100vh;
   min-height: 100dvh;
-  background: var(--paper);
+  background: var(--ground);
   display: flex;
   flex-direction: column;
   position: relative;
-  box-shadow: var(--shadow-lift);
+  overflow: hidden;
 }
 
 @media (min-width: 520px) {
-  body { padding: 26px 0; background: var(--surface-sunk); }
+  body { padding: 26px 0; background: #000; }
   .device {
     min-height: min(880px, calc(100dvh - 52px));
     height: min(880px, calc(100dvh - 52px));
-    border-radius: 30px;
-    overflow: hidden;
-    border: 1px solid var(--rule);
+    border-radius: 34px;
+    border: 1px solid #24272c;
+    box-shadow: var(--shadow-lift);
   }
 }
 
-.appbar {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px var(--pad) 10px;
-  border-bottom: 1px solid var(--rule);
-  background: var(--paper);
+/*
+ * The screen slot. The camera fills it absolutely and scrolls nothing; a page
+ * scrolls inside itself. Padding lives on the page, never here, because the
+ * camera must reach every edge.
+ */
+#screen {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.appbar-brand {
+.screen-error {
+  padding: 24px var(--pad);
+  color: var(--walk-bright);
+  font-family: var(--f-ui);
+}
+
+/* ------------------------------------------------------------------- pages */
+
+.page {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding: max(22px, env(safe-area-inset-top)) var(--pad) 18px;
+  background: var(--ground);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  /* On a phone this bar is not drawn at all. Showing it inside the frame on a
+     desktop only advertises that the frame is a simulation. */
+  scrollbar-width: none;
+}
+.page::-webkit-scrollbar { display: none; }
+
+/*
+ * Nothing on a page is squeezed to fit. A flex column shrinks its children by
+ * default, which silently flattened a 4:5 share card into a letterbox and drew
+ * a keypad through its own caption. Anything that wants the slack asks for it.
+ */
+.page > * { flex: none; }
+
+.page-head { margin: 6px 0 4px; }
+
+.page h1 {
   font-family: var(--f-display);
   font-weight: 800;
-  font-size: 19px;
+  font-size: 30px;
   letter-spacing: -.03em;
-  color: var(--ink);
-  margin-right: auto;
-}
-.appbar-brand span { color: var(--accent); }
-
-.appbar-btn {
-  font-family: var(--f-mono);
-  font-size: 10px;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
-  background: none;
-  border: 1px solid var(--rule-strong);
-  border-radius: 999px;
-  padding: 6px 11px;
-  cursor: pointer;
-}
-.appbar-btn:hover { color: var(--ink); border-color: var(--ink-faint); }
-
-#screen {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  padding: var(--pad) var(--pad) 96px;
-}
-
-/* --- primitives --- */
-
-h1, h2, h3, h4 {
-  font-family: var(--f-display);
-  letter-spacing: -.025em;
-  line-height: 1.12;
-  margin: 0 0 10px;
+  line-height: 1.1;
+  margin: 0;
   text-wrap: balance;
 }
-h1 { font-size: 30px; font-weight: 800; }
-h2 { font-size: 23px; font-weight: 700; }
-h3 { font-size: 18px; font-weight: 700; }
-p { margin: 0 0 12px; }
-
-.muted { color: var(--ink-muted); }
-.faint { color: var(--ink-faint); }
-.small { font-size: 14px; }
 
 .kicker {
   font-family: var(--f-mono);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: .14em;
+  letter-spacing: .16em;
   text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 8px;
-}
-.kicker.plain { color: var(--ink-faint); }
-
-.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
-
-.card {
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-md);
-  padding: var(--pad);
-  margin-bottom: var(--gap);
-  box-shadow: var(--shadow);
+  color: var(--ink-faint);
+  margin: 0 0 8px;
 }
 
-.btn {
+.block { display: flex; flex-direction: column; gap: 10px; }
+
+.block-h {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 8px 0 0;
+}
+
+.fineprint {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+  margin: 0;
+}
+
+/* One committing action per page. If a page has two, one of them is wrong. */
+.cta {
   display: block;
   width: 100%;
+  min-height: var(--tap);
   font-family: var(--f-display);
   font-weight: 700;
   font-size: 17px;
   letter-spacing: -.01em;
-  padding: 15px 16px;
-  border-radius: var(--r-md);
-  border: 1px solid transparent;
-  background: var(--surface-sunk);
-  color: var(--ink);
+  padding: 14px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--ground);
   cursor: pointer;
-  text-align: center;
-  margin-bottom: 10px;
 }
-.btn:hover { filter: brightness(.97); }
-.btn:active { transform: translateY(1px); }
+.cta:disabled { opacity: .34; cursor: default; }
+.cta:not(:disabled):active { transform: translateY(1px); }
 
-/* One primary action per screen. If a screen has two, one of them is wrong. */
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover { background: var(--accent-ink); }
-.btn-quiet { background: transparent; border-color: var(--rule-strong); color: var(--ink-muted); }
-.btn-link {
+.linky {
+  display: block;
+  width: 100%;
+  min-height: 44px;
   background: none;
   border: 0;
-  color: var(--ink-muted);
-  font-family: var(--f-body);
-  font-size: 15px;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  padding: 8px 0;
-  width: auto;
+  color: var(--ink-faint);
+  font-family: var(--f-ui);
+  font-size: 14px;
   cursor: pointer;
-  margin: 0;
+  padding: 10px 0;
 }
-.btn-link:hover { color: var(--accent); }
+.linky:hover { color: var(--ink-muted); }
 
-.btn-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-.btn-row .btn { font-size: 13px; padding: 11px 6px; margin: 0; }
-
-input[type="text"], input[type="number"], select {
+/* A settings row: a label on the left, its current value on the right. */
+.rowbtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   width: 100%;
-  font-family: var(--f-body);
-  font-size: 17px;
-  padding: 13px 14px;
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--r-md);
+  min-height: var(--tap);
+  padding: 12px 16px;
   background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
   color: var(--ink);
-  margin-bottom: 10px;
+  font-family: var(--f-ui);
+  font-size: 15px;
+  cursor: pointer;
+  text-align: left;
 }
-input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rowbtn-v { color: var(--ink-faint); font-family: var(--f-mono); font-size: 13px; }
 
-label.field {
-  display: block;
-  font-family: var(--f-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
-  margin-bottom: 6px;
-}
-
-.note {
-  border-left: 3px solid var(--rule-strong);
-  padding: 2px 0 2px 12px;
-  color: var(--ink-muted);
-  font-size: 14.5px;
-  margin: 0 0 14px;
-}
-.note.legal { border-color: var(--accent); }
-
-.tag {
-  display: inline-block;
-  font-family: var(--f-mono);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  padding: 3px 7px;
-  border-radius: 3px;
-  background: var(--surface-sunk);
-  color: var(--ink-muted);
+/*
+ * The page footer. It floats over the bottom of the scroll rather than sitting
+ * at the end of it, so the committing action is under the thumb whether the page
+ * is one screen long or ten.
+ */
+.page-foot {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding: 28px 0 max(14px, env(safe-area-inset-bottom));
+  /* Opaque under the control and fading above it. A list scrolling visibly
+     behind a floating button reads as a rendering fault, not as depth. */
+  background: linear-gradient(180deg, transparent, var(--ground) 40%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.screen-error { padding: 20px 0; color: var(--bad); }
+/* The shutter travels. The primary act is never more than one tap away. */
+.mini-shutter {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 4px solid var(--ground);
+  box-shadow: 0 0 0 3px var(--brand);
+  cursor: pointer;
+}
+.mini-shutter:active { transform: scale(.94); }
 
 .empty {
   text-align: center;
-  padding: 40px 10px;
+  padding: 46px 12px;
   color: var(--ink-faint);
-}
-
-/* The bottom bar appears only once there is something to come back to. */
-.tabbar {
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
   display: flex;
-  border-top: 1px solid var(--rule);
-  background: var(--paper);
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
 }
-.tabbar button {
-  flex: 1;
-  background: none;
-  border: 0;
-  padding: 12px 4px 16px;
-  font-family: var(--f-mono);
-  font-size: 10px;
-  letter-spacing: .09em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-  cursor: pointer;
-}
-.tabbar button[aria-current="true"] { color: var(--accent); }
-.tabbar[hidden] { display: none; }
+.empty p { margin: 0; max-width: 26ch; font-size: 14.5px; }
+.empty .face { color: var(--ink-faint); }
 
-.shin-face { display: block; }
+.face { display: block; }
 
 @media (prefers-reduced-motion: no-preference) {
-  #screen > * { animation: rise .18s ease-out; }
+  .page > * { animation: rise var(--t-rise) var(--ease-land) both; }
   @keyframes rise {
-    from { opacity: 0; transform: translateY(4px); }
+    from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: none; }
   }
 }

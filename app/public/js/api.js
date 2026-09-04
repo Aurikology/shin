@@ -35,3 +35,12 @@ export function catalogue() {
 export function categories() {
   return get('/api/categories');
 }
+
+/**
+ * What Shin can plausibly be pointed at, with the asking price the hand pilot
+ * actually recorded. `observed` false means the asking price is a stated
+ * stand-in and the screen must label it as one.
+ */
+export function scenarios() {
+  return get('/api/scenarios');
+}

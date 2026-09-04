@@ -12,6 +12,13 @@ const EMPTY = {
   /** Stage 03: the only setup question that survives, and it is skippable. */
   city: null,
   seenIntro: false,
+  /**
+   * Which Shin the user picked. Null means setup has not run, which is the only
+   * thing standing between a cold start and the camera. Decision 2026-09-03: the
+   * attitude is the user's choice, not ours, and it changes the words around a
+   * number without ever changing the number.
+   */
+  personality: null,
   /** Stage 07: save and watch is the primary action, so this is the real state. */
   watchlist: [],
   /** Every verdict ever shown, which is what stage 12 reads back. */

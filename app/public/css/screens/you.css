@@ -1,0 +1,66 @@
+/*
+ * You, and the coverage list.
+ *
+ * The coverage number is the honesty of the product made visible. It says how
+ * many of the things Shin knows about he will actually answer for, and it is
+ * measured by pricing every one of them rather than counting rows, because a
+ * row count once made the app claim seven when the answer was two.
+ *
+ * "Refuses" is printed in the same grey the refusal sheet uses, not in red.
+ * Refusing is a correct outcome, and colouring it as a failure teaches people to
+ * read the most common thing the app does as the app being broken.
+ */
+
+.coverage { display: flex; flex-direction: column; gap: 10px; }
+
+.cov-big {
+  margin: 0;
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -.01em;
+  color: var(--ink-muted);
+}
+.cov-big b {
+  font-size: 44px;
+  color: var(--ink);
+  letter-spacing: -.04em;
+  font-variant-numeric: tabular-nums;
+  margin-right: 4px;
+}
+
+.covlist {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+.covrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  background: var(--surface);
+  font-size: 14px;
+}
+.covrow + .covrow { border-top: 1px solid var(--hairline); }
+.covrow > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.covrow .yes,
+.covrow .no {
+  flex: 0 0 auto;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.covrow .yes { color: var(--good-bright); }
+.covrow .no { color: var(--unknown-bright); }

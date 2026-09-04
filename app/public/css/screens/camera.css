@@ -1,0 +1,502 @@
+/*
+ * The camera surface and the verdict sheet.
+ *
+ * The most important rule in this file is the [data-conf] block near the bottom.
+ * Same hue, four fills: solid when Shin is certain, solid with a hairline when
+ * he is fairly sure, hollow and outlined when the evidence is thin, grey and
+ * dashed when he refuses. A hollow verdict and a solid verdict must never be
+ * mistaken for one another at arm's length, and if they ever are, this is the
+ * block that is wrong.
+ */
+
+.cam {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+  color: var(--ink);
+  font-family: var(--f-ui);
+}
+
+/* ------------------------------------------------------------------- feed */
+
+.feed { position: absolute; inset: 0; overflow: hidden; }
+
+.feed-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
+}
+.cam[data-camera="live"] .feed-video { display: block; }
+.cam[data-camera="live"] .feed-fallback { display: none; }
+
+/*
+ * The drawn shelf. Not a placeholder for a missing feature: a denied permission
+ * and a desktop with no camera are normal, and the app has to be the same app.
+ */
+.feed-fallback {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #5a6169 0%, #4a5058 30%, #3d434a 31%, #464d54 62%, #383e44 63%, #42484f 100%);
+  filter: blur(2px);
+}
+.feed-fallback .shelf {
+  position: absolute;
+  left: 0; right: 0;
+  height: 84px;
+  background:
+    repeating-linear-gradient(90deg,
+      rgba(200,90,60,.55) 0 42px, rgba(220,165,60,.5) 42px 84px,
+      rgba(60,110,168,.5) 84px 126px, rgba(120,80,50,.5) 126px 168px,
+      rgba(60,120,80,.5) 168px 210px);
+  border-radius: 4px;
+}
+.feed-fallback .s1 { top: 22%; }
+.feed-fallback .s2 { top: 46%; }
+.feed-fallback .s3 { top: 70%; }
+
+.feed-vignette {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg,
+    rgba(0,0,0,.55) 0%, transparent 20%, transparent 58%, rgba(0,0,0,.7) 100%);
+}
+
+/* The frame stills where it was shot. Everything after the shutter happens on
+   top of the photograph the user actually took. */
+.cam:not([data-state="idle"]) .feed {
+  filter: saturate(.94) brightness(.84);
+  transition: filter 120ms linear;
+}
+
+/* -------------------------------------------------------------- top chrome */
+
+.cam-top {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  left: 0; right: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+}
+.wordmark {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 21px;
+  letter-spacing: -.03em;
+  color: #fff;
+  text-shadow: 0 1px 12px rgba(0,0,0,.5);
+}
+.wordmark i { color: var(--brand); font-style: normal; }
+
+.icon-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.14);
+  background: var(--scrim);
+  backdrop-filter: blur(12px);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+/* ----------------------------------------------------------------- reticle */
+
+.reticle {
+  position: absolute;
+  z-index: 3;
+  left: 50%; top: 42%;
+  width: 190px; height: 190px;
+  transform: translate(-50%, -50%);
+  transition: width var(--t-reticle) var(--ease-land),
+              height var(--t-reticle) var(--ease-land),
+              opacity 160ms linear;
+}
+.reticle b {
+  position: absolute;
+  width: 28px; height: 28px;
+  border: 2px solid rgba(255,255,255,.94);
+  display: block;
+}
+.reticle b:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; border-radius: 7px 0 0 0; }
+.reticle b:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; border-radius: 0 7px 0 0; }
+.reticle b:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; border-radius: 0 0 0 7px; }
+.reticle b:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; border-radius: 0 0 7px 0; }
+
+.cam[data-state="framing"] .reticle,
+.cam[data-state="choosing"] .reticle { width: 132px; height: 132px; top: 30%; }
+.cam[data-state="reading"] .reticle { width: 132px; height: 132px; top: 26%; opacity: .5; }
+.cam[data-state="result"] .reticle { opacity: 0; }
+
+.cam-hint {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 168px;
+  transform: translateX(-50%);
+  margin: 0;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.78);
+  background: var(--scrim);
+  backdrop-filter: blur(10px);
+  padding: 7px 13px;
+  border-radius: 99px;
+  white-space: nowrap;
+  transition: opacity 140ms linear;
+}
+.cam:not([data-state="idle"]) .cam-hint { opacity: 0; pointer-events: none; }
+
+/* -------------------------------------------------------------- bottom bar */
+
+.cam-bar {
+  position: absolute;
+  z-index: 5;
+  left: 0; right: 0;
+  bottom: 0;
+  height: 132px;
+  padding-bottom: env(safe-area-inset-bottom);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+  transition: transform var(--t-rise) var(--ease-land), opacity 160ms linear;
+}
+.cam[data-state="result"] .cam-bar,
+.cam[data-state="choosing"] .cam-bar { transform: translateY(100%); opacity: 0; pointer-events: none; }
+
+.shutter {
+  width: var(--shutter);
+  height: var(--shutter);
+  border-radius: 50%;
+  background: #fff;
+  border: 0;
+  cursor: pointer;
+  flex: none;
+  box-shadow: 0 0 0 4px var(--brand), 0 0 0 9px rgba(229,22,94,.22);
+  transition: transform var(--t-shutter) var(--ease-land), box-shadow var(--t-shutter) linear;
+}
+.shutter:active { transform: scale(.92); box-shadow: 0 0 0 4px var(--brand), 0 0 0 16px rgba(229,22,94,0); }
+.shutter:focus-visible { outline: 3px solid #fff; outline-offset: 6px; }
+
+.nav-btn {
+  position: relative;
+  width: var(--tap); height: var(--tap);
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.14);
+  background: var(--scrim);
+  backdrop-filter: blur(12px);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+}
+.nav-btn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+.nav-badge {
+  position: absolute;
+  top: -3px; right: -3px;
+  min-width: 19px; height: 19px;
+  padding: 0 5px;
+  border-radius: 99px;
+  background: var(--brand);
+  color: #fff;
+  border: 2px solid #0B0C0E;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+}
+/* display:grid beats the hidden attribute, so it has to be said again here.
+   A badge reading zero is worse than no badge. */
+.nav-badge[hidden] { display: none; }
+
+/* ------------------------------------------------------------------- sheet */
+
+.sheet-slot { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+.sheet-slot > * { pointer-events: auto; }
+
+.sheet {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 0;
+  max-height: 92%;
+  border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+  padding: 12px 20px calc(22px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: rise var(--t-rise) var(--ease-land) both;
+  touch-action: pan-y;
+  scrollbar-width: none;
+}
+.sheet::-webkit-scrollbar { display: none; }
+.sheet.refusal { animation-duration: var(--t-refusal); }
+
+@keyframes rise { from { transform: translateY(100%); } to { transform: none; } }
+
+.grabber {
+  width: 38px; height: 4px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: .3;
+  margin: 0 auto 2px;
+  flex: none;
+  cursor: grab;
+}
+
+.sheet-peek { display: flex; flex-direction: column; gap: 12px; }
+
+/* The third detent. Collapsed by default so the peek is what lands. */
+.sheet-more {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 320ms var(--ease-land), opacity 200ms linear;
+}
+.sheet.open .sheet-more { max-height: 60vh; opacity: 1; overflow-y: auto; }
+.sheet-more { scrollbar-width: none; }
+.sheet-more::-webkit-scrollbar { display: none; }
+/*
+ * Nothing in here may be squeezed by the flex column. The rail is 38px because
+ * its labels are positioned inside those 38px, and a shrunk rail draws its own
+ * caption through its own track.
+ */
+.sheet-more > * { flex: none; }
+
+.sheet-head { display: flex; align-items: center; gap: 14px; cursor: pointer; }
+.sheet-head.compact { gap: 12px; }
+.sheet-head > div { min-width: 0; }
+
+.vword {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 31px;
+  letter-spacing: -.025em;
+  line-height: 1;
+  margin: 0;
+  text-wrap: balance;
+}
+.vword.small { font-size: 24px; }
+
+.said, .detail, .line, .because, .standin, .disagree {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  opacity: .88;
+}
+.said { margin-top: 4px; }
+.standin { font-weight: 600; opacity: 1; font-size: 12.5px; }
+.disagree { font-weight: 600; }
+.because { font-size: 13px; opacity: .78; }
+
+.priceline { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.price {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 64px;
+  line-height: .86;
+  letter-spacing: -.04em;
+  font-variant-numeric: tabular-nums;
+  /* Never a count-up. A number moving through values it never had is a
+     fabricated measurement, and it would be the prettiest way to lie here. */
+  animation: numeral var(--t-numeral) var(--ease-land) 60ms both;
+}
+@keyframes numeral { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+
+.sub { font-size: 13px; opacity: .82; padding-bottom: 7px; font-variant-numeric: tabular-nums; }
+
+.confrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.dots { display: inline-flex; gap: 5px; }
+.dots i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: block; }
+.dots i.off { opacity: .3; }
+.conf-label, .itemname {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  opacity: .84;
+  margin: 0;
+}
+.itemname { opacity: .7; }
+
+/* ------------------------------------------------------------------- rail */
+
+.rail { position: relative; height: 52px; margin-top: 2px; }
+.rail-track {
+  position: absolute; top: 25px; left: 0; right: 0;
+  height: 3px; border-radius: 2px;
+  background: currentColor; opacity: .18;
+}
+/* The band is the range of prices that actually exist. Everything outside it is
+   scale, not evidence. */
+.rail-band {
+  position: absolute; top: 25px;
+  height: 3px; border-radius: 2px;
+  background: currentColor; opacity: .45;
+}
+.rail-pt {
+  position: absolute; top: 19px;
+  width: 3px; height: 15px; border-radius: 2px;
+  background: currentColor; opacity: .75;
+  transform: translateX(-1.5px);
+}
+.rail-you {
+  position: absolute; top: 14px;
+  width: 4px; height: 25px; border-radius: 2px;
+  background: currentColor;
+  transform: translateX(-2px);
+  box-shadow: 0 0 0 2px rgba(0,0,0,.25);
+}
+.rail-you.out { height: 33px; top: 10px; }
+.rail-lo, .rail-hi, .rail-me {
+  position: absolute;
+  font-family: var(--f-mono); font-size: 9.5px;
+  letter-spacing: .05em;
+  font-variant-numeric: tabular-nums;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.rail-lo, .rail-hi { top: 36px; opacity: .7; }
+.rail-me { top: 0; font-weight: 600; text-transform: uppercase; opacity: .95; }
+.rail-note { margin: 0; font-size: 11.5px; opacity: .7; }
+
+/* ------------------------------------------------------------- provenance */
+
+.prov { display: flex; flex-direction: column; }
+.prov div {
+  display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  padding: 8px 0;
+  border-bottom: 1px solid currentColor;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .03em;
+  font-variant-numeric: tabular-nums;
+}
+.prov div:last-child { border-bottom: 0; }
+.prov b { font-weight: 600; text-transform: uppercase; flex: 0 0 auto; }
+/* Wraps rather than clips. A provenance line with its date cut off is a source
+   the reader cannot check, which defeats the only reason the line is here. */
+.prov span { opacity: .74; text-align: right; min-width: 0; }
+
+/* --------------------------------------------------------------- controls */
+
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.pill {
+  font-family: var(--f-ui);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 11px 18px;
+  border-radius: 99px;
+  cursor: pointer;
+  min-height: var(--tap);
+  border: 1px solid transparent;
+}
+.pill.solid { background: rgba(0,0,0,.26); color: inherit; border-color: rgba(255,255,255,.16); }
+.pill.ghost { background: transparent; color: inherit; border-color: currentColor; opacity: .82; }
+.pill:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+/* ------------------------------------------------------------- candidates */
+
+/*
+ * The candidate list scrolls inside the sheet rather than growing it. Seven
+ * items is already more than fits, and a sheet that reaches the top of the
+ * screen has stopped being a sheet over a frozen frame: the picture the user
+ * took has to stay visible, because it is the question they are answering.
+ */
+.sheet.candidates { max-height: 72%; overflow: hidden; }
+.sheet.candidates .sheet-peek { flex: 1 1 auto; min-height: 0; }
+.cands {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.cands::-webkit-scrollbar { display: none; }
+.cand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: 11px 14px;
+  border-radius: var(--r-md);
+  background: var(--raised);
+  border: 1px solid var(--hairline);
+  color: var(--ink);
+  cursor: pointer;
+  min-height: var(--tap);
+}
+.cand:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.cand-name { font-size: 14.5px; font-weight: 600; }
+.cand-meta {
+  font-family: var(--f-mono);
+  font-size: 9.5px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.cand-none { border-style: dashed; }
+
+/* =========================================================================
+   THE LOAD-BEARING BLOCK: same hue, four fills.
+   ========================================================================= */
+
+/* Certain. Solid field, no border, four dots. */
+.sheet[data-conf="certain"] {
+  background: var(--tier);
+  color: var(--tier-on);
+}
+
+/* Fairly sure. Solid, with an inner hairline that says "not quite everything". */
+.sheet[data-conf="sure"] {
+  background: var(--tier);
+  color: var(--tier-on);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.28);
+}
+
+/* Thin. Hollow. Shin still answers, and the shape says hold it loosely. */
+.sheet[data-conf="thin"] {
+  background: color-mix(in srgb, var(--tier) 14%, #0B0C0E);
+  color: var(--tier-bright);
+  border: 2px solid var(--tier);
+  border-bottom: 0;
+}
+
+/* Refuses. Grey and dashed. Never red: red means the price is bad, and it must
+   not be read as "no data". */
+.sheet[data-conf="refuses"] {
+  background: color-mix(in srgb, var(--unknown) 12%, #0B0C0E);
+  color: var(--unknown-bright);
+  border: 2px dashed var(--unknown);
+  border-bottom: 0;
+}
+
+/* Between shutter and answer. Neutral, and clearly not a verdict. */
+.sheet[data-conf="reading"] {
+  background: var(--surface);
+  color: var(--ink);
+  border-top: 1px solid var(--hairline);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet, .price { animation: none; }
+  .reticle, .cam-bar, .cam-hint, .sheet-more { transition: none; }
+}

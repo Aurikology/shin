@@ -1,96 +1,152 @@
 /*
- * Design tokens, lifted from the walkthrough document so the app and the plan
- * look like the same product. Do not restyle these on a whim: the accent is the
- * one colour a share card is recognised by in someone else's screenshot.
+ * Design tokens. The source is docs/design/DESIGN.md and it wins if the two
+ * disagree.
  *
- * Three theme states, the same as the walkthrough: an explicit light or dark
- * choice wins, and with no choice the system decides.
+ * Two rules here are load-bearing rather than cosmetic:
+ *
+ *   The brand pink is Shin's identity and never a verdict. It is the wordmark
+ *   and the shutter ring. It does not appear on the verdict surface at all,
+ *   which is what stops it being read as "walk away" in someone's screenshot.
+ *
+ *   Hue is the verdict, saturation is the confidence. The same tier colour
+ *   appears solid when Shin is sure and hollow when the evidence is thin, so
+ *   calibration is visible in the shape of the thing rather than claimed in a
+ *   footnote nobody reads.
+ *
+ * Three theme states: an explicit light or dark choice wins, and with no choice
+ * the system decides. The app is mostly live camera, so dark is the real design
+ * and light is the accommodation.
  */
 
 :root {
-  --paper: #FBFAF7;
-  --surface: #FFFFFF;
-  --surface-sunk: #F3F1EC;
-  --ink: #16130F;
-  --ink-muted: #6E6660;
-  --ink-faint: #98908A;
-  --rule: #E4DFD8;
-  --rule-strong: #CDC6BC;
-  --accent: #E5165E;
-  --accent-ink: #A70E42;
-  --accent-soft: #FDE8EF;
-  --good: #1C7C4A;
-  --good-soft: #E4F2E9;
-  --mid: #8A6E1E;
-  --mid-soft: #F6EEDA;
-  --bad: #BE3218;
-  --bad-soft: #FBE7E2;
-  --shadow: 0 1px 2px rgba(22, 19, 15, .05), 0 8px 24px -12px rgba(22, 19, 15, .14);
-  --shadow-lift: 0 2px 6px rgba(22, 19, 15, .07), 0 18px 40px -20px rgba(22, 19, 15, .28);
+  /* --- ground --- */
+  --ground: #0B0C0E;
+  --surface: #16181C;
+  --raised: #22262C;
+  --hairline: #2E333A;
+  --scrim: rgba(11, 12, 14, .55);
 
+  --ink: #F7F5F2;
+  --ink-muted: #A5ADB8;
+  --ink-faint: #6E7783;
+
+  /* --- brand, never a verdict --- */
+  --brand: #E5165E;
+  --brand-soft: rgba(229, 22, 94, .16);
+
+  /* --- verdict: base for chrome, bright for use over a camera feed --- */
+  --good: #12B76A;
+  --good-bright: #38E08B;
+  --good-on: #04140C;
+
+  --fair: #E8A020;
+  --fair-bright: #FFC24D;
+  --fair-on: #1A1204;
+
+  --walk: #F0431F;
+  --walk-bright: #FF6A45;
+  --walk-on: #FFFFFF;
+
+  /* Refusal is deliberately colourless. Red means the price is bad; it must
+     never be read as "no data". */
+  --unknown: #78848F;
+  --unknown-bright: #93A0AC;
+  --unknown-on: #F7F5F2;
+
+  /* --- type --- */
   --f-display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
-  --f-body: "Newsreader", Georgia, "Times New Roman", serif;
+  --f-ui: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-  --r-sm: 6px;
-  --r-md: 12px;
-  --r-lg: 20px;
+  /* --- geometry --- */
+  --r-sm: 8px;
+  --r-md: 16px;
+  --r-lg: 26px;
+  --r-sheet: 26px;
   --gap: 14px;
   --pad: 18px;
+  --tap: 48px;
+  --shutter: 76px;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 28px -14px rgba(0, 0, 0, .7);
+  --shadow-lift: 0 2px 8px rgba(0, 0, 0, .5), 0 20px 44px -22px rgba(0, 0, 0, .85);
+
+  /* --- motion, named so a screen cannot invent its own timing --- */
+  --ease-land: cubic-bezier(.2, .8, .2, 1);
+  --t-shutter: 90ms;
+  --t-reticle: 200ms;
+  --t-rise: 260ms;
+  --t-numeral: 180ms;
+  --t-face: 220ms;
+  --t-refusal: 340ms;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #131113;
-    --surface: #1C191B;
-    --surface-sunk: #100E10;
-    --ink: #F2EEE9;
-    --ink-muted: #A79E98;
-    --ink-faint: #7C736E;
-    --rule: #2E2A2C;
-    --rule-strong: #433D40;
-    --accent: #FF4C82;
-    --accent-ink: #FF7CA1;
-    --accent-soft: #331420;
-    --good: #56C288;
-    --good-soft: #14261C;
-    --mid: #D6B45C;
-    --mid-soft: #2A2314;
-    --bad: #F0745A;
-    --bad-soft: #2E1712;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 28px -14px rgba(0, 0, 0, .7);
-    --shadow-lift: 0 2px 8px rgba(0, 0, 0, .5), 0 20px 44px -22px rgba(0, 0, 0, .85);
+/* Light is the accommodation, not the design. The camera stays dark underneath
+   either way, so only the panelled screens change. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --ground: #F3F1EC;
+    --surface: #FFFFFF;
+    --raised: #E9E5DE;
+    --hairline: #E2DDD5;
+    --scrim: rgba(11, 12, 14, .35);
+
+    --ink: #14161A;
+    --ink-muted: #5E6570;
+    --ink-faint: #8B929C;
+
+    --good-bright: #0E9E5B;
+    --fair-bright: #B87C13;
+    --walk-bright: #D63A18;
+    --unknown-bright: #67737E;
+
+    --shadow: 0 1px 2px rgba(20, 22, 26, .06), 0 8px 24px -14px rgba(20, 22, 26, .2);
+    --shadow-lift: 0 2px 8px rgba(20, 22, 26, .08), 0 20px 44px -22px rgba(20, 22, 26, .3);
   }
 }
 
-:root[data-theme="dark"] {
-  --paper: #131113;
-  --surface: #1C191B;
-  --surface-sunk: #100E10;
-  --ink: #F2EEE9;
-  --ink-muted: #A79E98;
-  --ink-faint: #7C736E;
-  --rule: #2E2A2C;
-  --rule-strong: #433D40;
-  --accent: #FF4C82;
-  --accent-ink: #FF7CA1;
-  --accent-soft: #331420;
-  --good: #56C288;
-  --good-soft: #14261C;
-  --mid: #D6B45C;
-  --mid-soft: #2A2314;
-  --bad: #F0745A;
-  --bad-soft: #2E1712;
-  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 28px -14px rgba(0, 0, 0, .7);
-  --shadow-lift: 0 2px 8px rgba(0, 0, 0, .5), 0 20px 44px -22px rgba(0, 0, 0, .85);
+:root[data-theme="light"] {
+  --ground: #F3F1EC;
+  --surface: #FFFFFF;
+  --raised: #E9E5DE;
+  --hairline: #E2DDD5;
+  --scrim: rgba(11, 12, 14, .35);
+
+  --ink: #14161A;
+  --ink-muted: #5E6570;
+  --ink-faint: #8B929C;
+
+  --good-bright: #0E9E5B;
+  --fair-bright: #B87C13;
+  --walk-bright: #D63A18;
+  --unknown-bright: #67737E;
+
+  --shadow: 0 1px 2px rgba(20, 22, 26, .06), 0 8px 24px -14px rgba(20, 22, 26, .2);
+  --shadow-lift: 0 2px 8px rgba(20, 22, 26, .08), 0 20px 44px -22px rgba(20, 22, 26, .3);
 }
 
-/* The three faces. One per verdict tier, and the only tiering the user sees. */
-:root {
-  --tier-good-ink: var(--good);
-  --tier-good-bg: var(--good-soft);
-  --tier-fair-ink: var(--mid);
-  --tier-fair-bg: var(--mid-soft);
-  --tier-walk-ink: var(--bad);
-  --tier-walk-bg: var(--bad-soft);
+/*
+ * Per-tier bindings. A screen asks for --tier-ink and --tier-field and never
+ * names a colour, so the confidence treatments below can swap the fill without
+ * every screen knowing how.
+ */
+[data-tier="good"] {
+  --tier: var(--good);
+  --tier-bright: var(--good-bright);
+  --tier-on: var(--good-on);
+}
+[data-tier="fair"] {
+  --tier: var(--fair);
+  --tier-bright: var(--fair-bright);
+  --tier-on: var(--fair-on);
+}
+[data-tier="walk_away"] {
+  --tier: var(--walk);
+  --tier-bright: var(--walk-bright);
+  --tier-on: var(--walk-on);
+}
+[data-tier="unknown"] {
+  --tier: var(--unknown);
+  --tier-bright: var(--unknown-bright);
+  --tier-on: var(--unknown-on);
 }

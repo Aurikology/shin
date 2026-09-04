@@ -1,109 +1,116 @@
 /*
- * Stage 06b: Shin is wrong. Owned by this screen alone.
+ * Telling Shin the price.
  *
- * Styled as a branch off the verdict rather than a form: four taps sit side by
- * side, the one that is open shows a single field, and nothing on the screen
- * looks like paperwork. A correction that feels like an ordeal is a correction
- * that never arrives.
+ * The keypad is the screen. Typing a price one-handed in an aisle is the entire
+ * job, so nothing else competes for the thumb: keys are 62px tall in a three
+ * column grid, which puts every one of them inside the arc a thumb sweeps
+ * without the hand moving on the phone.
+ *
+ * The system keyboard is not used for the amount. It covers half the screen,
+ * arrives with a delay, and offers a full alphabet for a task with eleven valid
+ * characters.
  */
 
-.c-head { font-size: 25px; margin-bottom: 12px; }
+/*
+ * This screen never scrolls. A keypad that has to be scrolled to reach the 7 is
+ * not a keypad, and a sticky footer floating over its own keys is worse, so the
+ * page is a fixed column and the keypad takes whatever height is left.
+ */
+.page-correct { gap: 8px; padding-bottom: 10px; }
+.page-correct .page-head { margin-bottom: 0; }
+.page-correct h1 { font-size: 24px; }
+.page-correct .page-foot {
+  position: static;
+  background: none;
+  padding-top: 6px;
+}
+/* Only the keypad may take the slack. Everything else is the size it is. */
+.page-correct > * { flex: none; }
 
-.c-subject {
+.amount {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: clamp(40px, 11vh, 62px);
+  line-height: 1;
+  letter-spacing: -.045em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  padding: 6px 0 2px;
+  flex: none;
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--r-md);
-  background: var(--surface-sunk);
-  margin-bottom: 16px;
+  justify-content: center;
+  gap: 2px;
 }
-.c-subject-name { font-size: 14.5px; line-height: 1.25; }
-.c-subject-price { flex: 0 0 auto; font-size: 15px; color: var(--ink-muted); }
-
-.c-paths { margin-bottom: 16px; }
-
-.c-path {
-  border: 1px solid var(--rule);
-  border-radius: var(--r-md);
-  background: var(--surface);
-  margin-bottom: 8px;
-  overflow: hidden;
+.amount-cur {
+  font-size: 34px;
+  color: var(--ink-faint);
+  font-weight: 700;
 }
-.c-path.is-open { border-color: var(--accent); box-shadow: var(--shadow); }
+.amount .ghosted { color: var(--ink-faint); opacity: .45; }
 
-.c-path-head {
-  display: block;
+.seller { display: flex; flex-direction: column; gap: 6px; }
+.seller > span {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.seller input {
   width: 100%;
-  text-align: left;
-  background: none;
-  border: 0;
-  padding: 13px 14px;
-  cursor: pointer;
-  font: inherit;
+  min-height: var(--tap);
+  font-family: var(--f-ui);
+  font-size: 16px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
   color: var(--ink);
 }
-.c-path-title {
-  display: block;
+.seller input::placeholder { color: var(--ink-faint); }
+.seller input:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  /*
+   * Fixed rows, not flexible ones. A grid told to fit a box smaller than its
+   * own minimum overflows it and paints straight through whatever comes next,
+   * which is how the fine print ended up printed across the zero key.
+   */
+  grid-template-rows: repeat(4, clamp(46px, 7.4vh, 58px));
+  gap: 7px;
+}
+
+.key {
   font-family: var(--f-display);
   font-weight: 700;
-  font-size: 16.5px;
-  letter-spacing: -.02em;
-  line-height: 1.2;
+  font-size: clamp(20px, 3.4vh, 26px);
+  font-variant-numeric: tabular-nums;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  cursor: pointer;
 }
-.c-path-sub {
-  display: block;
-  font-size: 13.5px;
-  color: var(--ink-muted);
-  margin-top: 3px;
-  line-height: 1.35;
-}
-.c-path.is-open .c-path-title { color: var(--accent); }
+.key:active { background: var(--raised); transform: translateY(1px); }
 
-.c-path-body {
-  padding: 2px 14px 14px;
-  border-top: 1px solid var(--rule);
-  margin-top: 2px;
-  padding-top: 12px;
-}
-.c-path-body .btn { margin-bottom: 0; }
-
-.c-error {
-  font-size: 14px;
-  color: var(--bad);
-  margin: -2px 0 10px;
-}
-
-/* --- Shin concedes, and conceding is the charming part --- */
-
-.c-thanks {
+.saved-note {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 56px 16px;
   text-align: center;
-  padding: 14px 0 4px;
 }
-.c-thanks-face { display: flex; justify-content: center; margin-bottom: 10px; }
-.c-thanks-head {
-  font-size: 30px;
-  font-weight: 800;
-  margin-bottom: 8px;
+.saved-note .face { color: var(--good-bright); }
+.saved-note p {
+  margin: 0;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 21px;
+  letter-spacing: -.02em;
+  max-width: 22ch;
 }
-.c-thanks-said {
-  font-size: 17px;
-  line-height: 1.4;
-  color: var(--ink-muted);
-  margin: 0 auto 18px;
-  max-width: 30ch;
-  text-wrap: pretty;
-}
-
-.c-count {
-  font-family: var(--f-mono);
-  font-size: 11px;
-  letter-spacing: .06em;
-  color: var(--ink-faint);
-  margin-bottom: 18px;
-}
-
-.c-acts { margin-top: 4px; }
-.c-acts .btn:last-child { margin-bottom: 0; }
-.c-acts .btn-link { display: block; margin: 0 auto; }

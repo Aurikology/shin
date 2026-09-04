@@ -7,26 +7,31 @@ narrative.*
 
 ## Where this stands
 
-**The price spine and the full 13-stage walkthrough app are built and running.** `spine/` is the
-engine that answers or refuses, at 44 passing tests and a clean typecheck. `app/` is the
-walkthrough as a working app: 14 screens, no framework, no dependencies, no build step. Start it
-with `cd app && npm start` and open `http://localhost:4173`. The stages button in the app bar
-opens any stage directly.
+**The price spine and the camera-first app are built and running.** `spine/` is the engine that
+answers or refuses, at 44 passing tests and a clean typecheck. `app/` is a camera app: six
+screens, no framework, no dependencies, no build step. Start it with `cd app && npm start` and
+open `http://localhost:4173`. It opens on a live viewfinder with the shutter under the thumb.
 
 **What that does not mean.** The engine answers **2 of the 7** hand-priced items and refuses the
 other five, which is the pilot's own headline rather than a regression, and the app now says so on
 its face instead of implying coverage it does not have. Nothing is deployed, nobody outside this
 machine has opened it, and the three things below still gate everything that matters.
 
-**The app has been redesigned on paper, camera-first, and none of it is built yet.** The design
-that shipped in `app/` was thirteen stages as thirteen pages with no camera anywhere, and a home
-screen that described a camera in prose instead of showing one. The replacement makes the live
-viewfinder the default screen, collapses scan, identify and verdict into one surface over the
-frozen frame, and treats a refusal as a designed state rather than an error, because five of the
-seven items refuse. The spec is `docs/design/DESIGN.md` and it wins over any screen. Twelve of the
-fifteen screens are drawn as a page you can open: `docs/design/mockups.html`. **Nothing in `app/`
-has been changed to match**, so the running app and the spec now disagree on purpose until the
-rebuild happens.
+**The app has been rebuilt to the new design and the spec and the running app now agree.** What
+shipped before was thirteen stages as thirteen pages with no camera anywhere, and a home screen
+that described a camera in prose instead of showing one. What runs now opens on the viewfinder;
+scan, identify, verdict and the follow-on actions are one sheet over the frozen frame; a refusal
+is a designed grey state with its own face and its own repair, never an error and never red; and
+the same tier colour is solid when Shin is certain and hollow when the evidence is thin, so
+calibration is visible in the shape rather than claimed in a footnote. Behind the camera there
+are four pages: watching, teach Shin a price, post it, and you. Eleven walkthrough screens were
+deleted. The spec is `docs/design/DESIGN.md` and it still wins over any screen; the drawn
+mockups are `docs/design/mockups.html`.
+
+**Not built, and known.** There is no vision model, so identification is a list of the items the
+corpus actually holds and the user picks one; any asking price that was a stated stand-in rather
+than an observed tag is labelled as one on the screen where it is read. The share card is a still
+image, not a clip.
 
 The research and the plan that produced it were made 2026-09-03 in one session, now in this repo
 so they stop living in a temp folder.

@@ -1,289 +1,129 @@
 /**
- * Stage 06b: Shin is wrong and the user knows it.
+ * Correcting Shin, which is also how a refusal turns into data.
  *
- * This is a branch off the verdict, not a step after it. Prices are verifiable
- * and consequential: the seller will argue, and the shopper can check the claim
- * in ten seconds. So the most likely interaction after a bad scan is this one,
- * and it ships in v1 because it is the data pipeline rather than a nicety.
+ * The keypad is the whole screen because typing a price with one hand in an
+ * aisle is the entire job. Nothing else competes for the thumb.
  *
- * Two rules hold this screen down.
- *
- * NEVER MAKE THE USER FEEL STUPID FOR HAVING BEEN RIGHT. One tap picks the
- * path, one field carries the fact, Shin concedes. There is no form, no
- * account, no "are you sure", and no wording anywhere that suggests the person
- * standing in the aisle got something wrong. The aggression in this product
- * points at the price, the store or the brand, and never at them.
- *
- * SAY WHAT ACTUALLY HAPPENS TO IT. Corrections are written to this phone and
- * are applied to nothing. No verdict moves, no comparison set changes, no
- * number is sent anywhere. Claiming otherwise would be a small lie in the one
- * place this product cannot afford one, so the screen says it plainly, twice:
- * before the correction is made and after it is stored.
+ * The seller is recorded with the correction, always. A price with no seller
+ * cannot be excluded from its own comparison set later, and the literal string
+ * "given" that the engine uses when no store was named is not a seller and must
+ * never be stored as one.
  */
 
-function esc(value) {
-  return String(value ?? '').replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-  ));
-}
+import { faceSvg } from '../shin.js';
+import { say } from '../voice.js';
+import * as store from '../store.js';
 
-/**
- * Dollars in, cents out. Returns null for anything that is not a usable
- * number, and the caller says so in words rather than inventing a figure.
- */
-function toCents(raw) {
-  const cleaned = String(raw ?? '').replace(/[$\s,]/g, '');
-  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
-  const value = Number(cleaned);
-  if (!Number.isFinite(value) || value <= 0 || value > 1000000) return null;
-  return Math.round(value * 100);
-}
-
-/** The disagreement paths. Each one buys a different thing, so each is its own. */
-function pathsFor(result) {
-  const paths = [
-    {
-      id: 'item',
-      title: 'That is not what I am holding',
-      sub: 'The name is wrong, so the price under it is about something else',
-      field: 'text',
-      label: 'What is it, then',
-      placeholder: 'The name on the box',
-      cta: 'Tell Shin',
-    },
-    {
-      id: 'price',
-      title: 'The price here is different',
-      sub: 'The shelf in front of you beats anything Shin can look up',
-      field: 'price',
-      label: 'What does the tag say',
-      placeholder: 'e.g. 4.99',
-      cta: 'Set the record straight',
-    },
-    {
-      id: 'range',
-      title: 'I see these for less all the time',
-      sub: 'Shin may be reading the wrong part of the country',
-      field: 'note',
-      label: 'Anything Shin should know',
-      placeholder: 'Optional. Where, and roughly what for',
-      cta: 'Send it',
-    },
-  ];
-  if (result?.identity?.category === 'used') {
-    paths.push({
-      id: 'fake',
-      title: 'This listing looks fake',
-      sub: 'Far under the going rate is the strongest counterfeit signal there is',
-      field: 'note',
-      label: 'What looks off',
-      placeholder: 'Optional',
-      cta: 'Flag it',
-    });
-  }
-  return paths;
-}
+const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'];
 
 export default {
   id: 'correct',
-  title: 'Shin is wrong',
+  title: 'Tell Shin the price',
 
   render(root, ctx) {
-    const entry = ctx.store.get().history[0];
-    if (!entry || !entry.result) {
-      ctx.replace('scan');
-      return;
+    let typed = '';
+    let seller = '';
+    let saved = false;
+
+    const label = ctx.params.text ?? 'this';
+
+    function display() {
+      if (!typed) return '<span class="ghosted">0.00</span>';
+      const [whole, frac] = typed.split('.');
+      return frac === undefined
+        ? `${whole}<span class="ghosted">.00</span>`
+        : `${whole}.${frac}${frac.length === 1 ? '<span class="ghosted">0</span>' : ''}`;
     }
 
-    const result = entry.result;
-    const { faceSvg, cad } = ctx.shin;
-    // A refusal can reach this screen too, and it is the likeliest place to
-    // arrive from one: Shin declined, and the user knows what the thing is.
-    // In that case there is no identity and no asking price, so fall back to
-    // what the user asked with rather than printing a blank.
-    const identity = result.identity ?? { label: entry.query?.text ?? null };
-    const askingCents =
-      typeof result.askingCents === 'number' ? result.askingCents : entry.query?.askingCents ?? null;
-    const paths = pathsFor(result);
-    const seller =
-      result.askingSource && result.askingSource !== 'given' ? result.askingSource : null;
-
-    let chosen = paths.some((p) => p.id === ctx.params.fix) ? ctx.params.fix : null;
-    let error = '';
-    let done = null;
-
-    const heading = () => `
-      <p class="kicker plain">Shin is wrong</p>
-      <h2 class="c-head">What has Shin got wrong?</h2>
-      <div class="c-subject">
-        <span class="c-subject-name">${esc(identity.label ?? 'This item')}</span>
-        <span class="c-subject-price num">${
-          typeof askingCents === 'number' ? esc(cad(askingCents)) : 'no price'
-        }${
-          seller ? ` at ${esc(seller)}` : ''
-        }</span>
-      </div>`;
-
-    const fieldFor = (path) => {
-      if (path.field === 'text') {
-        return `<label class="field" for="c-in">${esc(path.label)}</label>
-          <input id="c-in" type="text" autocomplete="off" placeholder="${esc(path.placeholder)}"
-                 value="${esc(identity.label ?? '')}">`;
-      }
-      if (path.field === 'price') {
-        return `<label class="field" for="c-in">${esc(path.label)}</label>
-          <input id="c-in" type="text" inputmode="decimal" autocomplete="off"
-                 placeholder="${esc(path.placeholder)}">
-          <label class="field" for="c-store">Which store</label>
-          <input id="c-store" type="text" autocomplete="off" placeholder="The one you are standing in"
-                 value="${esc(seller ?? '')}">`;
-      }
-      return `<label class="field" for="c-in">${esc(path.label)}</label>
-        <input id="c-in" type="text" autocomplete="off" placeholder="${esc(path.placeholder)}">`;
-    };
-
-    const paint = () => {
-      if (done) {
-        root.innerHTML = `
-          <section class="c-thanks">
-            <div class="c-thanks-face">${faceSvg('fair', 76)}</div>
-            <h2 class="c-thanks-head">Fair. Noted.</h2>
-            <p class="c-thanks-said">${esc(done.said)}</p>
-          </section>
-          <p class="note legal">Written down on this phone, and nowhere else. It has not changed the
-            verdict you just saw, and it has not changed anyone else's. Shin will not pretend a number
-            it has not used.</p>
-          <p class="c-count">${esc(String(ctx.store.get().corrections.length))} correction${
-            ctx.store.get().corrections.length === 1 ? '' : 's'
-          } saved here so far.</p>
-          <div class="c-acts">
-            <button class="btn btn-primary" data-go="verdict" type="button">Back to the verdict</button>
-            <button class="btn btn-quiet" data-go="scan" type="button">Scan something else</button>
-          </div>`;
-        return;
-      }
-
+    function paint() {
       root.innerHTML = `
-        ${heading()}
-        <div class="c-paths">
-          ${paths
-            .map((p) => {
-              const open = p.id === chosen;
-              return `
-                <div class="c-path${open ? ' is-open' : ''}">
-                  <button class="c-path-head" type="button" data-pick="${esc(p.id)}"
-                          aria-expanded="${open}">
-                    <span class="c-path-title">${esc(p.title)}</span>
-                    <span class="c-path-sub">${esc(p.sub)}</span>
-                  </button>
-                  ${
-                    open
-                      ? `<div class="c-path-body">
-                           ${fieldFor(p)}
-                           ${error ? `<p class="c-error">${esc(error)}</p>` : ''}
-                           <button class="btn btn-primary" type="button" data-send="${esc(p.id)}">${esc(p.cta)}</button>
-                         </div>`
-                      : ''
-                  }
-                </div>`;
-            })
-            .join('')}
-        </div>
-        <p class="note legal">Corrections are collected, not applied. Nothing here changes a verdict
-          today, yours included. It is the start of the shelf-price layer, and saying it already works
-          would be exactly the kind of claim this app exists to argue with.</p>
-        <div class="c-acts">
-          <button class="btn-link" data-go="verdict" type="button">Never mind, back to the verdict</button>
+        <div class="page page-correct">
+          <header class="page-head">
+            <p class="kicker">Teach Shin</p>
+            <h1>${say('correct_ask')}</h1>
+          </header>
+
+          ${
+            saved
+              ? `<div class="saved-note">
+                   ${faceSvg('pleased', { size: 56 })}
+                   <p>${say('correct_thanks')}</p>
+                 </div>`
+              : `
+          <div class="amount"><span class="amount-cur">$</span>${display()}</div>
+
+          <label class="seller">
+            <span>Which shop?</span>
+            <input type="text" inputmode="text" autocomplete="off" placeholder="Metro, No Frills, a listing…"
+                   value="${seller.replace(/"/g, '&quot;')}" data-seller>
+          </label>
+
+          <div class="keypad">
+            ${KEYS.map((k) => `<button type="button" class="key" data-k="${k}">${k}</button>`).join('')}
+          </div>
+
+          <p class="fineprint">
+            Recorded against ${label}${seller ? ` at ${seller}` : ''}. Yours beats mine.
+          </p>
+
+          <div class="page-foot">
+            <button type="button" class="cta" data-act="save" ${typed && seller ? '' : 'disabled'}>Save it</button>
+            <button type="button" class="linky" data-act="back">Not now</button>
+          </div>`
+          }
         </div>`;
+    }
 
-      const input = root.querySelector('#c-in');
-      if (input && chosen) input.focus();
-    };
-
-    const send = (pathId) => {
-      const path = paths.find((p) => p.id === pathId);
-      if (!path) return;
-      const value = (root.querySelector('#c-in')?.value ?? '').trim();
-      const store = (root.querySelector('#c-store')?.value ?? '').trim();
-
-      const record = {
-        at: new Date().toISOString(),
-        path: path.id,
-        verdictAt: entry.at,
-        productId: identity.id ?? null,
-        productLabel: identity.label ?? null,
-        category: identity.category ?? null,
-        shinSaidCents: askingCents,
-        shinSaidSeller: seller,
-        applied: false,
-      };
-      let said = '';
-
-      if (path.id === 'item') {
-        if (!value) {
-          error = 'Shin needs a name to write down.';
-          paint();
-          return;
-        }
-        record.saidLabel = value;
-        said = `It is ${value}. Shin had it down as ${identity.label ?? 'something else'}.`;
-      } else if (path.id === 'price') {
-        const cents = toCents(value);
-        if (cents === null) {
-          error = 'Shin needs a plain number to write down. Something like 4.99.';
-          paint();
-          return;
-        }
-        record.saidCents = cents;
-        record.saidSeller = store || null;
-        said = `${cad(cents)}${store ? ` at ${store}` : ''}, on the tag, today.`;
-      } else if (path.id === 'range') {
-        record.note = value || null;
-        said = value
-          ? `These go for less than Shin thinks. ${value}`
-          : 'These go for less than Shin thinks.';
-      } else {
-        record.note = value || null;
-        said = value ? `That listing looks fake. ${value}` : 'That listing looks fake.';
-      }
-
-      error = '';
-      ctx.store.update((s) => ({ ...s, corrections: [record, ...s.corrections] }));
-      done = { said };
-      paint();
-    };
-
-    const onClick = (e) => {
-      const pick = e.target.closest('[data-pick]');
-      if (pick) {
-        chosen = chosen === pick.dataset.pick ? null : pick.dataset.pick;
-        error = '';
-        paint();
-        return;
-      }
-      const sendBtn = e.target.closest('[data-send]');
-      if (sendBtn) {
-        send(sendBtn.dataset.send);
-        return;
-      }
-      const go = e.target.closest('[data-go]');
-      if (go) ctx.go(go.dataset.go);
-    };
-
-    const onKey = (e) => {
-      if (e.key === 'Enter' && chosen && e.target.matches('#c-in, #c-store')) {
-        e.preventDefault();
-        send(chosen);
-      }
-    };
-
-    root.addEventListener('click', onClick);
-    root.addEventListener('keydown', onKey);
     paint();
 
-    return () => {
-      root.removeEventListener('click', onClick);
-      root.removeEventListener('keydown', onKey);
-    };
+    root.addEventListener('input', (e) => {
+      if (e.target.matches('[data-seller]')) {
+        seller = e.target.value;
+        const cta = root.querySelector('[data-act="save"]');
+        if (cta) cta.disabled = !(typed && seller.trim());
+      }
+    });
+
+    root.addEventListener('click', (e) => {
+      const key = e.target.closest('[data-k]');
+      if (key) {
+        const k = key.dataset.k;
+        if (k === '⌫') typed = typed.slice(0, -1);
+        else if (k === '.') { if (!typed.includes('.') && typed) typed += '.'; }
+        else if (typed.includes('.') && typed.split('.')[1].length >= 2) { /* two decimals is a price */ }
+        else typed += k;
+        const amt = root.querySelector('.amount');
+        if (amt) amt.innerHTML = `<span class="amount-cur">$</span>${display()}`;
+        const cta = root.querySelector('[data-act="save"]');
+        if (cta) cta.disabled = !(typed && seller.trim());
+        return;
+      }
+
+      if (e.target.closest('[data-act="save"]')) {
+        const cents = Math.round(Number.parseFloat(typed) * 100);
+        if (!Number.isFinite(cents)) return;
+        store.update((s) => ({
+          ...s,
+          corrections: [
+            {
+              at: new Date().toISOString(),
+              text: ctx.params.text ?? null,
+              category: ctx.params.category ?? null,
+              amountCents: cents,
+              // Never the string "given". A correction with no real seller is
+              // not usable as a comparison point later.
+              seller: seller.trim(),
+            },
+            ...s.corrections,
+          ],
+        }));
+        saved = true;
+        paint();
+        setTimeout(() => ctx.go('camera'), 1400);
+        return;
+      }
+
+      if (e.target.closest('[data-act="back"]')) ctx.go('camera');
+    });
   },
 };

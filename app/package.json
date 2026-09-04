@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "The app: the walkthrough, stage 00 to stage 12, wired to the real price spine.",
+  "description": "The app: a camera, a verdict sheet, and four pages behind it, wired to the real price spine.",
   "engines": {
     "node": ">=22.18"
   },
@@ -11,7 +11,7 @@
     "start": "node server.ts",
     "dev": "node --watch server.ts",
     "stubs": "node scripts/make-stubs.mjs",
-    "typecheck": "../spine/node_modules/.bin/tsc --noEmit -p tsconfig.json",
+    "typecheck": "node ../spine/node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
     "check": "npm run typecheck"
   }
 }
