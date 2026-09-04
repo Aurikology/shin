@@ -36,3 +36,9 @@ has cost something recorded twice. One incident is a lesson. Two is a rule.
   `price-by-hand` skill as the first step, and into `CLAUDE.md` as "real feed from day one, never
   live search". Second time this shape has appeared across his repos, the first being a job
   search reported as empty. Cross-repo, so it lives in the auto-memory too.
+
+- **2026-09-03 · The design brief was approved with one correction on borrowing.** His words: *"rememebr
+  we are not trying to copy duolingo or any other app, we are taking inspiration that applies to
+  us."* **Changed:** written into the brief as a rule for every phase: a mechanic taken from OLMA or
+  Duolingo carries the reason it applies to a person holding a phone in a store aisle, or it is
+  not taken. Not yet a standing instruction; one occurrence, no cost recorded.

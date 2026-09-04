@@ -8,3 +8,7 @@ __pycache__/
 *.log
 # Machine-local session rules. Describes one box, not the project.
 CLAUDE.local.md
+
+# OLMA recording (230 MB) and its extracted frames stay local. Aurik pulls this repo.
+notes/olma/*.mp4
+notes/olma/frames/

@@ -1,4 +1,4 @@
-# NOW — the one thing being worked on
+# NOW, the one thing being worked on
 
 *One screen. If any other doc disagrees about the current state, this file wins. State, not
 narrative.*
@@ -38,6 +38,48 @@ so they stop living in a temp folder.
 
 The master plan is `pages/shin-terminating-loop.html`. It supersedes the two other plans and
 contains the queue, the weekly pass, and the three ways this project ends.
+
+## What the design pass decided
+
+Six phases, run 2026-09-03 and folded into the spec 2026-09-04. Deliverables:
+`docs/design/USAGE.md`, `docs/design/AVATAR.md`, `docs/design/GAMIFICATION.md`,
+`notes/olma/audit.md`, `notes/duolingo-owl.md`, and the edits to `docs/design/DESIGN.md`. Twelve
+new entries in `docs/decisions.md`.
+
+**The loop.** Barcode, then the user types the tag price, then the verdict. Moment of value is the
+verdict at peek: 9.5 seconds warm in an aisle, 7.2 on a couch, where there is no tag and the
+outcome is the going rate rather than a refusal. The primary action moved into the peek detent,
+labelled by tier; correct it and share sit one detent down. Every timing there is a design budget
+the build is held to, not a measurement of anyone.
+
+**The refusal.** Five of seven scans end here, so it gets one action and never two, it never
+spends anything, the step that came up empty is named as the repair, and the session ends on a
+live viewfinder. It never promises to look again.
+
+**The avatar.** Forty screens, thirteen states, fifty four rows of contract, thirteen animations,
+thirty nine strings required before a state ships. The intense faces are gated: 25% under the
+going rate for delight, 40% over for anger, neither on thin evidence, and anger only when the
+seller's name is on the same screen as the price. Interruptions the user did not ask for: two per
+session, four per day, and zero notifications in v1.
+
+**Gamification.** In: a thumbs signal that earns nothing, the attitude picker, the watched item, a
+weekly line from the user's own record, and a callback to a verdict Shin already gave. Out:
+streak, leaderboard, badges, collection completion, draws, cash bounties, and the saved-money
+tally, each with the condition that reverses it. Nothing in v1 pays for a reported price.
+
+**The scan meter.** Not in v1. The switch is built and defaults to off, and nothing earns a scan
+back until a contributed price is confirmed by a second independent observation.
+
+**One conflict found.** `app/public/js/voice.js` ships the watching string as "Watching. I will
+say something under $1.47." That promises to look again, which `docs/design/USAGE.md` forbids
+because there is no re-queryable source. `docs/design/AVATAR.md` rows 32 and 33 split it into a v1
+form that says what was saved and a dark form that promises, shipped with the feed. The build pass
+makes the change.
+
+**The build pass starts with** the four redraws where the sequence changed under the drawn
+mockups, then the twenty seven screens listed as to-draw, then the placeholder face extended to
+thirteen states with its size and position tokens honoured. Nothing in this pass moves the three
+things below, which still gate the product.
 
 ## The next three things, in order
 
