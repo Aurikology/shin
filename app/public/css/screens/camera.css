@@ -106,6 +106,37 @@
   cursor: pointer;
 }
 
+/* OLMA audit rows 35, 90: torch toggle, top left, 44px. Chrome, not a face
+   (AVATAR.md row 10): the lit scene below is its own feedback, the fill here
+   only says which state it is in. */
+.torch-btn {
+  width: var(--tap); height: var(--tap);
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.14);
+  background: var(--scrim);
+  backdrop-filter: blur(12px);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+}
+.cam[data-torch="on"] .torch-btn {
+  background: rgba(255,196,77,.28);
+  border-color: rgba(255,196,77,.5);
+  color: #FFC24D;
+}
+.cam[data-torch="on"] .torch-btn svg { fill: currentColor; }
+.torch-btn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.cam-top-spacer { width: var(--tap); flex: none; }
+
+/* A visibly lit scene, the torch's only feedback. Applies to the live feed
+   and the drawn shelf alike, in any camera state. */
+.cam[data-torch="on"] .feed { filter: brightness(1.4) saturate(1.05); }
+.cam[data-torch="on"]:not([data-state="idle"]) .feed {
+  filter: brightness(1.4) saturate(1.05) saturate(.94) brightness(.84);
+}
+
 /* ----------------------------------------------------------------- reticle */
 
 .reticle {
@@ -132,7 +163,13 @@
 .cam[data-state="framing"] .reticle,
 .cam[data-state="choosing"] .reticle { width: 132px; height: 132px; top: 30%; }
 .cam[data-state="reading"] .reticle { width: 132px; height: 132px; top: 26%; opacity: .5; }
-.cam[data-state="result"] .reticle { opacity: 0; }
+.cam[data-state="result"] .reticle,
+.cam[data-state="asking"] .reticle,
+.cam[data-state="texting"] .reticle { opacity: 0; }
+
+/* Row 89, take: the field rises over a blurred, still-visible viewfinder,
+   never a hidden one. */
+.cam[data-state="texting"] .feed { filter: blur(3px); }
 
 .cam-hint {
   position: absolute;
@@ -142,8 +179,9 @@
   transform: translateX(-50%);
   margin: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
+  max-width: min(320px, calc(100% - 48px));
   font-family: var(--f-mono);
   font-size: 10px;
   letter-spacing: .12em;
@@ -151,12 +189,22 @@
   color: rgba(255,255,255,.78);
   background: var(--scrim);
   backdrop-filter: blur(10px);
-  padding: 4px 13px 4px 4px;
-  border-radius: 99px;
-  white-space: nowrap;
+  padding: 6px 13px 6px 4px;
+  border-radius: 18px;
   transition: opacity 140ms linear;
 }
-.cam-hint .face { color: rgba(255,255,255,.78); }
+/* The escalated hint (row 9) is the one line here long enough to wrap; every
+   other hint fits on one. Two lines at most, the 28px face pinned to the
+   first (align-items: flex-start above), never wider than the frame. */
+.cam-hint span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.35;
+  padding-top: 1px;
+}
+.cam-hint .face { color: rgba(255,255,255,.78); flex: none; }
 .cam:not([data-state="idle"]) .cam-hint { opacity: 0; pointer-events: none; }
 
 /* -------------------------------------------------------------- bottom bar */
@@ -234,7 +282,15 @@
   position: absolute;
   left: 0; right: 0;
   bottom: 0;
-  max-height: 46%;
+  /* The rule that matters is not the 46% phone proportion, it is that the
+     peek's one primary action is visible with no drag, on any viewport
+     height. So the sheet's real height is its own content, floored at the
+     spec proportion (46%) and ceilinged at the viewport minus a 120px strip
+     of frame that always stays visible behind it. A sheet whose content
+     still exceeds that ceiling scrolls inside itself. */
+  height: max-content;
+  min-height: 46%;
+  max-height: calc(100% - 120px);
   border-radius: var(--r-sheet) var(--r-sheet) 0 0;
   padding: 12px 20px calc(22px + env(safe-area-inset-bottom));
   display: flex;
@@ -251,13 +307,14 @@
 .sheet.refusal { animation-duration: var(--t-refusal); }
 
 /*
- * Three detents, USAGE.md section 7 / DESIGN.md section 4: peek 46%, half 72%,
- * full 92%. `max-height` (not `height`) so a sheet whose peek content alone
- * runs long still scrolls inside its own detent instead of pushing its primary
- * action off the bottom of the viewport, which is the defect this replaces.
+ * Three detents, USAGE.md section 7 / DESIGN.md section 4: peek (content, see
+ * above), half 72%, full 92%. `max-height` (not `height`) so a sheet whose
+ * peek content alone runs long still scrolls inside its own detent instead
+ * of pushing its primary action off the bottom of the viewport, which is the
+ * defect this replaces.
  */
-.sheet[data-detent="half"] { max-height: 72%; }
-.sheet[data-detent="full"] { max-height: 92%; }
+.sheet[data-detent="half"] { min-height: 0; max-height: 72%; }
+.sheet[data-detent="full"] { min-height: 0; max-height: 92%; }
 
 @keyframes rise { from { transform: translateY(100%); } to { transform: none; } }
 
@@ -500,6 +557,163 @@
   color: var(--ink-faint);
 }
 .cand-none { border-style: dashed; }
+
+/* --------------------------------------------------------------- price pad */
+
+/* OLMA audit rows 38, 40, 41, 42, 44: asking price pad. Same numerals as
+   correct.js's own pad, sized to fit a sheet rather than a full page. */
+.pad-prompt { margin: 0; }
+.padsheet { gap: 8px; }
+.padsheet .amount {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 32px;
+  line-height: 1;
+  letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px;
+  padding: 2px 0;
+}
+.padsheet .amount-cur { font-size: 20px; color: var(--ink-faint); font-weight: 700; }
+.padsheet .amount .ghosted { color: var(--ink-faint); opacity: .45; }
+/* Two grids, not one: 1-9 above, then the bottom row (., 0, backspace,
+   confirm) so the confirm key reads as the keypad's own key, USAGE A1
+   0:13.4, not a separate button below it. Row heights are tightened (not
+   the correct.js pad's own sizing) so the whole pad, including Clear, Skip
+   and the confirm key, fits a 640px sheet without a drag. */
+.padsheet .keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, clamp(32px, 5.2vh, 40px));
+  gap: 5px;
+}
+.padsheet .keypad-bottom {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: clamp(32px, 5.2vh, 40px);
+  gap: 5px;
+  margin-top: 5px;
+}
+.padsheet .key {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  background: var(--raised);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  cursor: pointer;
+}
+.padsheet .key:active { transform: translateY(1px); }
+.padsheet .key-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink, #fff);
+}
+.padsheet .key-confirm:disabled {
+  background: var(--raised);
+  border-color: var(--hairline);
+  color: var(--ink-faint);
+  opacity: .5;
+  cursor: not-allowed;
+}
+.padsheet .actions { margin-top: 2px; }
+
+/* -------------------------------------------------------------- going-rate */
+
+.price.sm { font-size: 38px; }
+
+/* ------------------------------------------------------------ working wait */
+
+/* OLMA audit row 47, AVATAR.md rows 16 to 19: three named steps, the current
+   one marked, the picked item echoed underneath. */
+.working-peek { align-items: center; text-align: center; gap: 14px; }
+.wsteps { display: flex; flex-direction: column; gap: 6px; }
+.wstep { font-size: 13.5px; opacity: .45; transition: opacity 160ms linear; }
+.wstep.now { opacity: 1; font-weight: 600; }
+
+/* Row 49, take: the explicit close, beside the drag that does the same
+   thing. */
+.sheet-close {
+  position: absolute;
+  top: 12px; right: 14px;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  opacity: .55;
+  background: transparent;
+  color: inherit;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.sheet-close:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+/* -------------------------------------------------------------- text route */
+
+/* Row 30, take: the field over a blurred, still-visible viewfinder. */
+.textroute-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--raised);
+  border: 1px solid var(--hairline);
+}
+.textroute-form input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  font-family: var(--f-ui);
+  font-size: 15px;
+  color: var(--ink);
+  min-width: 0;
+}
+.textroute-form input::placeholder { color: var(--ink-faint); }
+.textroute-form input:focus { outline: none; }
+.iconbtn-inline {
+  flex: none;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--brand);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+/* -------------------------------------------------------------- feedback */
+
+/* Row 35, take: the thumbs toast, earns nothing, Undo live for four seconds. */
+.toast-slot:empty { display: none; }
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  background: rgba(0,0,0,.28);
+}
+.toast-text { flex: 1; font-size: 13px; font-weight: 600; }
+.toast-undo {
+  background: none;
+  border: 0;
+  color: inherit;
+  font-size: 12.5px;
+  text-decoration: underline;
+  opacity: .85;
+  cursor: pointer;
+  padding: 4px;
+}
 
 /* =========================================================================
    THE LOAD-BEARING BLOCK: same hue, four fills.

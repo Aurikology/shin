@@ -64,3 +64,71 @@
 }
 .covrow .yes { color: var(--good-bright); }
 .covrow .no { color: var(--unknown-bright); }
+
+/*
+ * The weekly line, GAMIFICATION.md mechanic M16. One sentence, no number
+ * treated as a score, no colour, because it is a fact read back, not a result.
+ */
+.weekcard {
+  padding: 14px 16px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.weekcard p {
+  margin: 0;
+  font-size: 14.5px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+/*
+ * Legal and pricing placeholder rows. Visibly inert: no pointer cursor, no
+ * hover state, the value column says outright that nothing is written yet
+ * rather than behaving like a link to nowhere.
+ */
+.rowbtn-static {
+  cursor: default;
+}
+.rowbtn-static:hover { border-color: var(--hairline); }
+.rowbtn-v.placeholder {
+  font-style: italic;
+  color: var(--ink-faint);
+}
+
+.buildline {
+  text-align: center;
+  padding: 4px 0 0;
+}
+
+/*
+ * Market picker (screen 40). Country names only, one checked at a time.
+ * Reuses .rowbtn from shell.css, .on marks the current market the same way
+ * .att.on marks the current attitude on setup and You.
+ */
+.mkt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mkt-row.on {
+  border-color: var(--ink);
+}
+.mkt-row.on .rowbtn-v {
+  color: var(--ink);
+}
+.mkt-basis {
+  margin-top: 2px;
+}
+.mkt-head .face-block {
+  margin-bottom: 4px;
+}
+.pback {
+  width: auto;
+  min-height: 32px;
+  padding: 0 0 8px;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}

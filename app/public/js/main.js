@@ -24,8 +24,20 @@ import watchlist from './screens/watchlist.js';
 import correct from './screens/correct.js';
 import share from './screens/share.js';
 import you from './screens/you.js';
+import pastscans from './screens/pastscans.js';
+import removed from './screens/removed.js';
+import market from './screens/market.js';
 
-for (const s of [camera, setup, watchlist, correct, share, you]) router.register(s);
+for (const s of [camera, setup, watchlist, correct, share, you, pastscans, removed, market]) {
+  router.register(s);
+}
+
+/**
+ * The simplest honest version route (build pass 2026-09-04): hand-set here,
+ * labelled as such on the You page, rather than read from a server endpoint
+ * that does not exist yet. Update this string when this pass's code changes.
+ */
+export const BUILD_STAMP = '2026-09-04.1';
 
 /* Theme: three states, and no button in the chrome for it. The switch lives on
    the You screen, because it is a setting and not a primary act. */
@@ -35,4 +47,4 @@ try {
 } catch { /* private window */ }
 
 const first = store.get().seenIntro ? 'camera' : 'setup';
-router.start(document.getElementById('screen'), { store, api, shin }, first);
+router.start(document.getElementById('screen'), { store, api, shin, build: BUILD_STAMP }, first);

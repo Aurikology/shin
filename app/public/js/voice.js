@@ -77,6 +77,22 @@ const LINES = {
     blunt: () => 'They are robbing you.',
   },
 
+  /* --- the intense forms, AVATAR.md section 3 rows 21 and 24. Gated in
+   * camera.js on threshold, confidence, and (angry only) a visible seller;
+   * the word and tier colour stay the plain tier's, only the face and this
+   * line change. Aggression lands on the store or the price, never the
+   * user reading the screen. --- */
+  verdict_steal: {
+    deadpan: () => 'Nobody else is near that.',
+    warm: () => 'Oh, that is a proper find. Nobody else is close.',
+    blunt: () => 'Somebody in that store made a mistake. Enjoy it.',
+  },
+  verdict_ripoff: {
+    deadpan: () => 'Nobody else charges that.',
+    warm: () => 'No. That is not a price, that is a hope.',
+    blunt: () => 'That is a robbery with a barcode on it.',
+  },
+
   /* --- the verdict word, which is the largest text on the screen --- */
   word_good: { deadpan: () => 'Take it', warm: () => 'Good price', blunt: () => 'Take it' },
   word_fair: { deadpan: () => 'About right', warm: () => 'About right', blunt: () => 'Fine' },
@@ -209,7 +225,7 @@ const LINES = {
   /** Row 42: the watchlist, empty. Not dark, ships in v1 as written in AVATAR.md. */
   watchlist_empty: {
     deadpan: () => 'Nothing here yet.',
-    warm: () => 'Nothing here yet. Save something and I will keep an eye on it.',
+    warm: () => 'Nothing here yet. Save something and I keep the price, the seller and the day.',
     blunt: () => 'Empty. Nothing to watch yet.',
   },
 
@@ -223,6 +239,118 @@ const LINES = {
     deadpan: () => 'Recorded. Yours beats mine.',
     warm: () => 'Thank you, that helps. Yours beats mine.',
     blunt: () => 'Got it. Yours wins.',
+  },
+
+  /**
+   * --- the asking price pad, AVATAR.md section 3 row 14 ---
+   * USAGE.md A1 0:13.4: the pad rises with this line above it, and its own key
+   * is the continue, so this is the only string on that screen.
+   */
+  price_pad_prompt: {
+    deadpan: () => 'What does the tag say?',
+    warm: () => 'What is on the tag?',
+    blunt: () => 'Tag price. Type it.',
+  },
+
+  /**
+   * --- the going-rate card, AVATAR.md section 3 row 26 ---
+   * USAGE.md section 2: no asking price supplied, so this is the range, not a
+   * verdict. Never promises to look again.
+   */
+  going_rate: {
+    deadpan: () => 'I know what this goes for. I do not know what they are asking.',
+    warm: () => 'I know what this goes for. Tell me the tag and I will judge it.',
+    blunt: () => 'I know the going rate. I do not know their number.',
+  },
+
+  /**
+   * --- the working sheet's three named steps, AVATAR.md section 3 rows 16-18 ---
+   * Advanced on real events only (identification chosen, price request sent,
+   * response received), never on a timer that pretends. OLMA audit row 47.
+   */
+  working_step1: {
+    deadpan: () => 'Identifying it',
+    warm: () => 'Working out what this is',
+    blunt: () => 'Figuring out what it is',
+  },
+  working_step2: {
+    deadpan: () => 'Looking for prices',
+    warm: () => 'Off to find some prices',
+    blunt: () => 'Hunting prices',
+  },
+  working_step3: {
+    deadpan: () => 'Checking the sellers',
+    warm: () => 'Checking who has it',
+    blunt: () => 'Checking who sells it',
+  },
+  /** AVATAR.md row 19: past the 0.8s budget, still under the 6s cap. */
+  working_slow: {
+    deadpan: () => 'Still on it.',
+    warm: () => 'Still on it, sorry.',
+    blunt: () => 'Slow one.',
+  },
+
+  /**
+   * --- the hint pill's one unprompted escalation, AVATAR.md section 3 row 9 ---
+   * Fires once per camera session, after four seconds of nothing detected.
+   * USAGE.md B1 0:13.9, OLMA audit row 34.
+   */
+  hint_escalated: {
+    deadpan: () => 'No tag on it? Point at the thing itself, or use your last screenshot.',
+    warm: () => 'No tag on it? Point at the thing itself, or I can read your last screenshot.',
+    blunt: () => 'No barcode there. Try the thing itself, or a screenshot.',
+  },
+
+  /**
+   * --- the text route out of a refusal, AVATAR.md section 3 row 41 ---
+   * OLMA audit rows 17, 88, 89: naming brand and model is what makes a typed
+   * name hit the fixed corpus instead of failing silently.
+   */
+  text_route_prompt: {
+    deadpan: () => 'Name it. Brand and model gets closest.',
+    warm: () => 'Name it for me. Brand and model gets closest.',
+    blunt: () => 'Brand and model. Type.',
+  },
+
+  /**
+   * --- the thumbs feedback toast, AVATAR.md section 3 row 35 ---
+   * Earns nothing (GAMIFICATION.md M12). Undo lives beside it for four seconds,
+   * OLMA audit row 65.
+   */
+  feedback_ack: {
+    deadpan: () => 'Noted.',
+    warm: () => 'Thank you. That is how I get better.',
+    blunt: () => 'Good. Noted.',
+  },
+
+  /**
+   * --- "Recently removed" section header, AVATAR.md section 3 row 46 ---
+   * State idle, face-row 28px, no animation.
+   */
+  removed_retention: {
+    deadpan: () => 'Kept for 30 days.',
+    warm: () => 'I keep these for 30 days in case you change your mind.',
+    blunt: () => '30 days, then gone.',
+  },
+
+  /**
+   * --- "Past scans", empty state, AVATAR.md section 3 row 48 ---
+   * State asleep, face-verdict 96px, sleep-breath, loops.
+   */
+  pastscans_empty: {
+    deadpan: () => 'Nothing scanned yet.',
+    warm: () => 'Nothing yet. It fills up on its own.',
+    blunt: () => 'Nothing yet.',
+  },
+
+  /**
+   * --- market picker, opened, AVATAR.md section 3 row 54 ---
+   * State asking, face-page 48px, face-morph.
+   */
+  market_ask: {
+    deadpan: () => 'Where do you shop? Every verdict is measured against this.',
+    warm: () => 'Where do you shop? I judge everything against this, so it matters.',
+    blunt: () => 'Where do you shop? Get this wrong and I am wrong.',
   },
 };
 

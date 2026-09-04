@@ -5,16 +5,40 @@
  * it knows, not by counting rows. A shelf count looks like coverage and is not:
  * the app once told people it could answer for seven things when it could answer
  * for two, which is overstating itself by 3.5x.
+ *
+ * GAMIFICATION.md rules what is on this page: no streak, no badges, no
+ * leaderboard, no saved-money tally. The weekly line (mechanic M16) reads the
+ * user's own record back to them, computed from `store.js`'s `history`,
+ * nothing projected and nothing ranked. OLMA audit rows 76, 77, 80, 82, 84, 85,
+ * 86 cover the rest of this page: the market row and its basis, the honest
+ * scan allowance (unlimited, meter off), the privacy line adapted to what this
+ * app actually sends, a report-a-wrong-price row, legal placeholders that are
+ * visibly placeholders, the paywall as a deliberate row rather than an
+ * interruption, and a build footer.
  */
 
 import { PERSONALITIES, setPersonality, personality } from '../voice.js';
 import { faceSvg } from '../shin.js';
+import * as store from '../store.js';
+
+/**
+ * GAMIFICATION.md mechanic M16, "N scanned this week, M I could call": both
+ * numbers come from `store.weeklyStats()`, which reads `history` and never a
+ * saved-money figure. Zero scans this week is stated plainly, not hidden.
+ */
+function weeklyLine() {
+  const { scanned, callable } = store.weeklyStats();
+  if (scanned === 0) return 'Nothing scanned this week.';
+  return `${scanned} scanned this week. ${callable} I could call.`;
+}
 
 export default {
   id: 'you',
   title: 'You',
 
   render(root, ctx) {
+    const market = store.market();
+
     root.innerHTML = `
       <div class="page page-list">
         <header class="page-head">
@@ -48,6 +72,66 @@ export default {
             <span>Theme</span><span class="rowbtn-v" data-theme-v></span>
           </button>
         </section>
+
+        <section class="block">
+          <h2 class="block-h">This week</h2>
+          <div class="weekcard">
+            <p>${weeklyLine()}</p>
+          </div>
+        </section>
+
+        <section class="block">
+          <h2 class="block-h">Market</h2>
+          <button type="button" class="rowbtn" data-act="market">
+            <span>${market.country}</span>
+            <span class="rowbtn-v">Change</span>
+          </button>
+          <p class="fineprint">Price verdicts are judged against typical prices in this market.</p>
+        </section>
+
+        <section class="block">
+          <h2 class="block-h">Scanning</h2>
+          <p class="fineprint">
+            No daily limit right now. Nothing is metered in this build; if that changes, the
+            allowance will be one number, written once, shown wherever it applies.
+          </p>
+        </section>
+
+        <section class="block">
+          <h2 class="block-h">Privacy</h2>
+          <p class="fineprint">
+            Everything stays on this device. Nothing is sent anywhere but the local server that
+            answers a scan.
+          </p>
+        </section>
+
+        <section class="block">
+          <h2 class="block-h">Get in touch</h2>
+          <button type="button" class="rowbtn" data-act="report">
+            <span>Report a wrong price</span>
+            <span class="rowbtn-v">Fastest fix</span>
+          </button>
+        </section>
+
+        <section class="block">
+          <h2 class="block-h">Legal</h2>
+          <div class="rowbtn rowbtn-static" aria-disabled="true">
+            <span>Privacy policy</span>
+            <span class="rowbtn-v placeholder">Placeholder, not written yet</span>
+          </div>
+          <div class="rowbtn rowbtn-static" aria-disabled="true">
+            <span>Terms of use</span>
+            <span class="rowbtn-v placeholder">Placeholder, not written yet</span>
+          </div>
+          <div class="rowbtn rowbtn-static" aria-disabled="true">
+            <span>Pricing</span>
+            <span class="rowbtn-v placeholder">Undecided</span>
+          </div>
+        </section>
+
+        <p class="fineprint buildline">Build ${
+          ctx.build ?? 'unknown'
+        } · hand-set in main.js, not read from a running server.</p>
 
         <div class="page-foot">
           <button type="button" class="mini-shutter" data-act="camera" aria-label="Scan something"></button>
@@ -107,7 +191,9 @@ export default {
         paintTheme();
         return;
       }
-      if (e.target.closest('[data-act="camera"]')) ctx.go('camera');
+      if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }
+      if (e.target.closest('[data-act="market"]')) { ctx.go('market'); return; }
+      if (e.target.closest('[data-act="report"]')) ctx.go('correct', {});
     });
   },
 };

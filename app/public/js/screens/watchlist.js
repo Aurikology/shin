@@ -10,7 +10,7 @@
  * has already had once.
  */
 
-import { faceSvg, faceBlock, cad } from '../shin.js';
+import { faceSvg, faceBlock, cad, animateFace } from '../shin.js';
 import { say } from '../voice.js';
 import * as store from '../store.js';
 import { FLAGS } from '../flags.js';
@@ -25,22 +25,25 @@ function row(w) {
   const face = moved === null || moved === 0 ? 'fair' : cheaper ? 'good' : 'walk';
 
   return `
-    <button type="button" class="wrow" data-open="${w.id}">
-      ${faceSvg(face, { size: 'face-row' })}
-      <span class="wrow-n">
-        <b>${w.label}</b>
-        <span>${w.askingSeller ? `${w.askingSeller} · ` : ''}saved ${ago(w.savedAt)}</span>
-      </span>
-      <span class="wrow-p${cheaper ? ' good' : ''}">
-        ${cad(w.lastCents)}
-        <em>${
-          moved === null ? 'no usual price'
-          : moved === 0 ? 'at the usual'
-          : cheaper ? `▼ ${cad(Math.abs(moved))} under usual`
-          : `▲ ${cad(moved)} over usual`
-        }</em>
-      </span>
-    </button>`;
+    <div class="wrow-wrap">
+      <button type="button" class="wrow" data-open="${w.id}">
+        ${faceSvg(face, { size: 'face-row' })}
+        <span class="wrow-n">
+          <b>${w.label}</b>
+          <span>${w.askingSeller ? `${w.askingSeller} · ` : ''}saved ${ago(w.savedAt)}</span>
+        </span>
+        <span class="wrow-p${cheaper ? ' good' : ''}">
+          ${cad(w.lastCents)}
+          <em>${
+            moved === null ? 'no usual price'
+            : moved === 0 ? 'at the usual'
+            : cheaper ? `▼ ${cad(Math.abs(moved))} under usual`
+            : `▲ ${cad(moved)} over usual`
+          }</em>
+        </span>
+      </button>
+      <button type="button" class="wrow-del" data-unwatch="${w.id}" aria-label="Remove ${w.label} from watching">&times;</button>
+    </div>`;
 }
 
 function ago(iso) {
@@ -57,6 +60,11 @@ export default {
   title: 'Watching',
 
   render(root, ctx) {
+    // AVATAR.md section 5 row 11: `wake`, once, the first time this session
+    // the list goes from empty to one row. `null` on the very first paint so
+    // opening the screen already populated never counts as the transition.
+    let prevLen = null;
+
     function paint() {
       const s = store.get();
       const list = s.watchlist;
@@ -105,10 +113,26 @@ export default {
                  </div>`
           }
 
+          <div class="wmore">
+            <button type="button" class="rowbtn" data-act="pastscans">
+              <span>Past scans</span>
+              <span class="rowbtn-v">${s.history.length}</span>
+            </button>
+            <button type="button" class="rowbtn" data-act="removed">
+              <span>Recently removed</span>
+              <span class="rowbtn-v">${s.removed.length}</span>
+            </button>
+          </div>
+
           <div class="page-foot">
             <button type="button" class="mini-shutter" data-act="camera" aria-label="Scan something"></button>
           </div>
         </div>`;
+
+      if (prevLen === 0 && list.length > 0) {
+        animateFace(root.querySelector('.wlist .face'), 'wake');
+      }
+      prevLen = list.length;
     }
 
     paint();
@@ -116,6 +140,12 @@ export default {
 
     root.addEventListener('click', (e) => {
       if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }
+      if (e.target.closest('[data-act="pastscans"]')) { ctx.go('pastscans'); return; }
+      if (e.target.closest('[data-act="removed"]')) { ctx.go('removed'); return; }
+
+      const unwatch = e.target.closest('[data-unwatch]');
+      if (unwatch) { store.toggleWatch({ id: unwatch.dataset.unwatch }); return; }
+
       const open = e.target.closest('[data-open]');
       if (open) ctx.go('camera');
     });

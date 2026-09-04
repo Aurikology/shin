@@ -42,3 +42,13 @@ has cost something recorded twice. One incident is a lesson. Two is a rule.
   us."* **Changed:** written into the brief as a rule for every phase: a mechanic taken from OLMA or
   Duolingo carries the reason it applies to a person holding a phone in a store aisle, or it is
   not taken. Not yet a standing instruction; one occurrence, no cost recorded.
+
+- **2026-09-04 · An analysis he asked for changed the documents and not the product.** He opened the
+  app after a full day of passes and said: *"how come basically nothing in the app changed even
+  after i told you to analyse duolingo and olma"*. The OLMA audit marked 58 rows take or adapt and
+  the owl note mapped 24; five reached the running app, the rest became 27 drawn screens and a
+  54-row face contract. The build pass was sequenced by the previous night's plan (redraws, then
+  drawings, then the placeholder face) and I followed that order instead of calling it out.
+  **Changed:** when he asks for an analysis of a product, the deliverable is the app changed by
+  it; drawings and contracts are intermediate and ship in the same pass as the code or not at
+  all. Cost: one day of his and one turn. One occurrence.

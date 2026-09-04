@@ -90,11 +90,22 @@ earns nothing. Every refusal carries one action. No line Shin says is written in
 Walked in Chrome 2026-09-04: picker, viewfinder, unsure refusal, thin fair verdict, save
 acknowledged, no console errors. Spine still 44 passing, typecheck clean.
 
-**Not built in this pass, and known.** Per-row pixel positions are honoured by component class,
-not re-laid out per row. The three named working steps (identifying, looking for prices, checking
-sellers) are one generic line. Correct it is still a route, not a detent of the same sheet. The
-going-rate card, past scans, recently removed, market picker and the meter switch are drawn and
-not built. The mockups page is heavy to paint (fifty backdrop blurs) and slow to screenshot.
+**Second pass the same evening, after he opened the app and said nothing had changed.** He was
+right: of the 58 OLMA rows marked take or adapt and the 24 owl mappings, five had reached the
+app. Now built and walked in Chrome: the asking price pad with a confirm key (never a pause that
+submits for you), Skip to a going-rate card, three named working steps with the item name and a
+cancel, torch and the hint that escalates after four seconds, a text route out of the no-identity
+refusal, the going rate as a range with the market named, thumbs acknowledged with undo, the
+intense faces gated exactly as the contract says (a $2.49 tag on a $1.25 going rate at a named
+seller lands angry), the thirteen animations, past scans, recently removed, the market picker,
+and the You page rows including the weekly line from his own record. The peek sizes to its
+content so the primary is visible on a short window.
+
+**Not built, and known.** Per-row pixel positions are honoured by component class, not re-laid
+out per row. Correct it is still a route, not a detent of the same sheet. The multi-buy "4 for"
+toggle on the pad is not built. The paywall and the meter switch are drawn, not built, and the
+You page shows their rows as visible placeholders. The mockups page is heavy to paint (fifty
+backdrop blurs) and slow to screenshot.
 
 Nothing in this pass moved the three things below, which still gate the product.
 

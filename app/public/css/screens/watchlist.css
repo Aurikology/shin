@@ -18,6 +18,7 @@
   justify-content: space-between;
   gap: 14px;
   width: 100%;
+  min-width: 0;
   min-height: var(--tap);
   padding: 13px 16px;
   background: var(--surface);
@@ -32,7 +33,14 @@
 
 .wrow .face { flex: 0 0 auto; color: var(--ink-faint); }
 .wrow-n { display: flex; flex: 1 1 auto; flex-direction: column; gap: 3px; min-width: 0; }
+/*
+ * `display: block` is load-bearing here, not decoration: `overflow`,
+ * `text-overflow` and a constrained width have no clipping effect on an
+ * inline element like `<b>`, so without it the name never truncates and
+ * pushes the price and the delete control off the frame instead.
+ */
 .wrow-n b {
+  display: block;
   font-family: var(--f-display);
   font-weight: 700;
   font-size: 16px;
@@ -41,7 +49,14 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.wrow-n span { font-size: 12px; color: var(--ink-faint); }
+.wrow-n span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
 
 .wrow-p {
   flex: 0 0 auto;
@@ -92,3 +107,232 @@
   letter-spacing: -.02em;
 }
 .drop-card span { font-size: 13px; opacity: .82; }
+
+/*
+ * A watchlist row plus its delete control. The row keeps its own button
+ * semantics (opens the item); the delete is a separate, smaller sibling so a
+ * mis-tap near the edge of the row can never fire both.
+ */
+.wrow-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+.wrow-wrap .wrow { flex: 1 1 auto; min-width: 0; }
+
+.wrow-del,
+.prow-del {
+  flex: 0 0 auto;
+  width: 36px;
+  min-height: var(--tap);
+  background: none;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  color: var(--ink-faint);
+  font-family: var(--f-ui);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.wrow-del:hover,
+.prow-del:hover { color: var(--walk-bright); border-color: var(--walk-bright); }
+
+/* The two links off the bottom of the list: past scans, recently removed. */
+.wmore {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/*
+ * Past scans. Same row shape as the watchlist, minus the delta column: a scan
+ * is a record of what a price was, not a thing tracked over time.
+ */
+.plist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.prow-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+.prow {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: var(--tap);
+  padding: 13px 16px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  text-align: left;
+  cursor: pointer;
+}
+.prow:hover { border-color: var(--ink-faint); }
+.prow .face { flex: 0 0 auto; color: var(--ink-faint); }
+.prow-n { display: flex; flex: 1 1 auto; flex-direction: column; gap: 3px; min-width: 0; }
+/* `display: block` is load-bearing: overflow/text-overflow do not clip an inline `<b>`. */
+.prow-n b {
+  display: block;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prow-n span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.prow-p {
+  flex: 0 0 auto;
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+  white-space: nowrap;
+}
+
+/* The read-only reopened verdict. No share, no watch: it already happened. */
+.pmodal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, .5);
+  padding: 16px;
+}
+.pmodal-card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 20px 20px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  text-align: center;
+}
+.pmodal-card h2 {
+  margin: 0;
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: -.02em;
+}
+.pmodal-card .said { margin: 0; font-size: 14.5px; color: var(--ink); }
+.pmodal-meta { margin: 0; font-size: 12.5px; color: var(--ink-faint); }
+.pmodal-conf {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.pmodal-note {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+/*
+ * Recently removed. The header carries the retention line, not a face per
+ * row: row faces belong to a verdict, and a removed row is not one anymore.
+ */
+.rheader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -2px 0 4px;
+}
+.rheader-t {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.rlist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rrow-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 13px 16px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+}
+.rrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+}
+.rrow-n { display: flex; flex: 1 1 auto; flex-direction: column; gap: 3px; min-width: 0; }
+/* `display: block` is load-bearing: overflow/text-overflow do not clip an inline `<b>`. */
+.rrow-n b {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -.02em;
+}
+.rrow-n span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.rrow-p {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.rrow-actions {
+  display: flex;
+  gap: 16px;
+  border-top: 1px solid var(--hairline);
+  padding-top: 4px;
+}
+.rrow-actions .linky { width: auto; min-height: 32px; padding: 6px 0; font-size: 13px; }
+.rrow-actions .linky.danger { color: var(--walk-bright); }
+.rrow-actions .linky.confirming { font-weight: 600; }

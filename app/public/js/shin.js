@@ -120,6 +120,70 @@ export const STATES = [
   'unknown', 'pleased', 'nudging', 'asleep', 'proud',
 ];
 
+/** The thirteen animation names, docs/design/AVATAR.md section 5, list 3. */
+export const ANIMATIONS = [
+  'face-morph', 'idle-breath', 'blink', 'slow-blink', 'think-dots', 'step-swap',
+  'verdict-land', 'intense-hold', 'pleased-nod', 'sleep-breath', 'wake',
+  'nudge-arrive', 'proud-hold',
+];
+const ANIMATION_SET = new Set(ANIMATIONS);
+
+/**
+ * The default (resting) animation for each of the thirteen states,
+ * `docs/design/AVATAR.md` section 5. This is what `data-anim` carries on the
+ * SVG a screen never touches directly; a screen that wants a *different* named
+ * animation for one moment (`step-swap` on the working surface, `wake` when an
+ * empty list gains its first row, `verdict-land` explicitly before a state that
+ * defaults elsewhere) calls `animateFace(el, name)` with that name instead.
+ *
+ * `unknown` maps to `slow-blink` and nothing else: "the refusal's only motion
+ * is slow-blink" (section 5's rules, and CLAUDE.md's motion rule repeats it).
+ * `verdict-land` still happens for a refusal (340ms, per row 36-39 of the
+ * per-screen table) but it is triggered explicitly by whoever mounts the face,
+ * via `animateFace(el, 'verdict-land')` followed by the slow blink; it is not
+ * this state's steady default because a refusal that sat there re-landing
+ * every re-render would be the "face re-morphs on a drag" bug section 5 rules
+ * out, in a different guise.
+ */
+export const DEFAULT_ANIM = {
+  idle: 'idle-breath',
+  thinking: 'think-dots',
+  asking: 'face-morph',
+  good: 'verdict-land',
+  delighted: 'intense-hold',
+  fair: 'verdict-land',
+  walk: 'verdict-land',
+  angry: 'intense-hold',
+  unknown: 'slow-blink',
+  pleased: 'pleased-nod',
+  nudging: 'nudge-arrive',
+  asleep: 'sleep-breath',
+  proud: 'proud-hold',
+};
+
+/** States that get a natural, un-synchronised random blink: idle and the
+ * verdict faces. Not `unknown` -- its only motion is `slow-blink`. Not
+ * `thinking`/`nudging`/`asleep`/`proud`/`pleased` -- each of those already owns
+ * a dedicated motion of its own. */
+const BLINK_EMBER_STATES = new Set(['idle', 'asking', 'good', 'fair', 'walk', 'delighted', 'angry']);
+
+function dotsMarkup(ink) {
+  return `<circle cx="33" cy="61" r="2.6" fill="${ink}" stroke="none"/>
+       <circle cx="44" cy="61" r="2.6" fill="${ink}" stroke="none"/>
+       <circle cx="55" cy="61" r="2.6" fill="${ink}" stroke="none"/>`;
+}
+
+function openEyesMarkup(ink, eyeR) {
+  return `<circle cx="31" cy="44" r="${eyeR}" fill="${ink}"/>
+       <circle cx="57" cy="44" r="${eyeR}" fill="${ink}"/>`;
+}
+
+function closedEyesMarkup(ink, stroke) {
+  const w = (stroke * 0.75).toFixed(2);
+  return `<path d="M27 44 Q31 47.5 35 44" stroke="${ink}" stroke-width="${w}" fill="none" stroke-linecap="round"/>
+       <path d="M53 44 Q57 47.5 61 44" stroke="${ink}" stroke-width="${w}" fill="none" stroke-linecap="round"/>`;
+}
+
 /**
  * Shin's face as an SVG string.
  *
@@ -127,6 +191,16 @@ export const STATES = [
  * a standalone SVG document does not, so without it any screen that rasterises
  * this face onto a canvas gets a silently broken image and throws nothing. That
  * happened once already and the share card shipped a face with no eyebrows.
+ *
+ * The face also carries `data-anim`, the default animation for this state
+ * (`docs/design/AVATAR.md` section 5), and `data-state`/`data-who`, which
+ * `animateFace` and `morphFace` (below) use to update a mounted face without
+ * replacing the node, and which the auto-blink scheduler uses to find and
+ * schedule the faces that are allowed to blink on their own. A face rendered
+ * at `face-row` (28px, "rows, chips, hint pills, toasts") never animates --
+ * `data-anim="none"` plus the `face-static` class are the marker, per section
+ * 3's "row faces never animate" and section 5's reduced-motion rule taken to
+ * its logical size.
  *
  * @param {string} expression  one of the thirteen states in STATES, above
  * @param {object} [opts]
@@ -145,33 +219,213 @@ export function faceSvg(expression, opts = {}) {
   const size = resolveSize(opts.size);
   const ink = opts.ink ?? 'currentColor';
   const isRefusal = expression === 'unknown';
+  const rowSized = size === SIZE_TOKENS['face-row'];
 
   // Thinking has no mouth path; it has three dots, which reads as waiting
   // rather than as an opinion Shin has not formed yet.
-  const mouth = g.mouth
-    ? `<path d="${g.mouth}"/>`
-    : `<circle cx="33" cy="61" r="2.6" fill="${ink}" stroke="none"/>
-       <circle cx="44" cy="61" r="2.6" fill="${ink}" stroke="none"/>
-       <circle cx="55" cy="61" r="2.6" fill="${ink}" stroke="none"/>`;
+  const mouth = g.mouth ? `<path d="${g.mouth}"/>` : dotsMarkup(ink);
 
   // Asleep is the one state with its eyes shut. Everything else keeps the
   // filled circles; a closed eye anywhere else would read as a wink, not rest.
-  const eyes = g.closedEyes
-    ? `<path d="M27 44 Q31 47.5 35 44" stroke="${ink}" stroke-width="${(set.stroke * 0.75).toFixed(2)}" fill="none" stroke-linecap="round"/>
-       <path d="M53 44 Q57 47.5 61 44" stroke="${ink}" stroke-width="${(set.stroke * 0.75).toFixed(2)}" fill="none" stroke-linecap="round"/>`
-    : `<circle cx="31" cy="44" r="${set.eyeR}" fill="${ink}"/>
-       <circle cx="57" cy="44" r="${set.eyeR}" fill="${ink}"/>`;
+  const eyes = g.closedEyes ? closedEyesMarkup(ink, set.stroke) : openEyesMarkup(ink, set.eyeR);
+
+  const animName = rowSized ? null : (DEFAULT_ANIM[expression] ?? null);
+  const animAttr = rowSized ? ' data-anim="none"' : (animName ? ` data-anim="${animName}"` : '');
+  const staticClass = rowSized ? ' face-static' : '';
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 88" width="${size}" height="${size}"
-       role="img" aria-label="Shin: ${expression}" class="face face-${expression}" focusable="false">
-      <circle cx="44" cy="44" r="41" fill="none" stroke="${ink}" stroke-width="${set.stroke}"
+       role="img" aria-label="Shin: ${expression}" class="face face-${expression}${staticClass}"
+       data-state="${expression}" data-who="${who}"${animAttr} focusable="false">
+      <circle class="face-ring" cx="44" cy="44" r="41" fill="none" stroke="${ink}" stroke-width="${set.stroke}"
               ${isRefusal ? 'stroke-dasharray="9 7"' : ''}/>
-      <g stroke="${ink}" stroke-width="${set.stroke}" stroke-linecap="round" fill="none">
-        <path d="${g.brow}"/>
-        ${mouth}
+      <g class="face-features" stroke="${ink}" stroke-width="${set.stroke}" stroke-linecap="round" fill="none">
+        <path class="face-brow" d="${g.brow}"/>
+        <g class="face-mouth">${mouth}</g>
       </g>
-      ${eyes}
+      <g class="face-eyes">${eyes}</g>
     </svg>`;
+}
+
+/**
+ * Restart (or start) one of the thirteen named animations on a mounted face,
+ * without touching anything but that element. Used both for the default
+ * animation a face already carries (a re-render can call this to replay it)
+ * and for a one-off name a screen's own logic decides on: `step-swap` when the
+ * working label changes, `wake` when a list goes from empty to one row,
+ * `verdict-land` on a refusal before its `slow-blink`.
+ *
+ * A name outside the thirteen, or a face with no `data-anim` slot (a
+ * `face-row`, which never animates), is a no-op.
+ *
+ * @param {SVGElement|HTMLElement} el  the `.face` element `faceSvg` returned,
+ *   already in the DOM
+ * @param {string} name  one of ANIMATIONS
+ */
+export function animateFace(el, name) {
+  if (!el || !ANIMATION_SET.has(name)) return;
+  if (el.dataset && el.dataset.anim === 'none') return; // face-row: never animates
+
+  if (prefersReducedMotion()) {
+    // Reduced motion still records which animation "happened", so CSS's own
+    // reduced-motion block (every entry becomes an opacity fade or a static
+    // frame, AVATAR.md section 5) can render the right final frame.
+    if (el.dataset) el.dataset.anim = name;
+    return;
+  }
+
+  if (name === 'blink') {
+    triggerBlink(el);
+    return;
+  }
+
+  if (el.dataset) el.dataset.anim = name;
+  el.classList.remove('face-anim-run');
+  // Force a reflow so re-adding the class restarts the CSS animation even
+  // when the name (and therefore the animation-name) did not change.
+  void el.offsetWidth;
+  el.classList.add('face-anim-run');
+}
+
+function triggerBlink(el) {
+  el.classList.remove('face-blink-now');
+  void el.offsetWidth;
+  el.classList.add('face-blink-now');
+  window.setTimeout(() => el.classList.remove('face-blink-now'), 200);
+}
+
+/**
+ * Morph a mounted face from one state to another **in place**: the paths and
+ * eyes inside the existing `<svg>` are swapped, the element itself is never
+ * replaced. This is what row 32 needs (the verdict face becomes `pleased`
+ * without moving or popping) and what `face-morph` means everywhere else --
+ * "the expression changed", not "a new face appeared".
+ *
+ * Eyes and brow update first, mouth 40ms behind (`face-morph`'s own timing,
+ * AVATAR.md section 5 item 1), unless the viewer has asked for reduced
+ * motion, in which case both apply at once and nothing travels.
+ *
+ * After the geometry is swapped, the target state's own default animation
+ * plays (`opts.anim` to override, e.g. `pleased-nod` for an acknowledgement),
+ * unless the face is `face-row` sized, which never animates.
+ *
+ * @param {SVGElement} el         the mounted `.face` element
+ * @param {string} fromState      the state it currently shows (for the class swap)
+ * @param {string} toState        the state to morph into
+ * @param {object} [opts]
+ * @param {string} [opts.who]     personality override, defaults to the face's own
+ * @param {string} [opts.ink]     stroke colour override, defaults to the face's own
+ * @param {string} [opts.anim]    animation name to play instead of the target
+ *   state's default
+ */
+export function morphFace(el, fromState, toState, opts = {}) {
+  if (!el) return;
+  const who = opts.who ?? el.dataset?.who ?? personality();
+  const set = GEOM[who] ?? GEOM.deadpan;
+  const g = set[toState] ?? set.fair;
+  const ink = opts.ink ?? el.getAttribute('stroke') ?? 'currentColor';
+  const rowSized = el.dataset && el.dataset.anim === 'none';
+  const from = fromState ?? el.dataset?.state;
+
+  if (from) el.classList.remove(`face-${from}`);
+  el.classList.add(`face-${toState}`);
+  if (el.dataset) el.dataset.state = toState;
+  el.setAttribute('aria-label', `Shin: ${toState}`);
+
+  const ring = el.querySelector('.face-ring');
+  if (ring) {
+    if (toState === 'unknown') ring.setAttribute('stroke-dasharray', '9 7');
+    else ring.removeAttribute('stroke-dasharray');
+  }
+
+  const brow = el.querySelector('.face-brow');
+  const mouth = el.querySelector('.face-mouth');
+  const eyes = el.querySelector('.face-eyes');
+  const applyBrow = () => { if (brow) brow.setAttribute('d', g.brow); };
+  const applyMouthAndEyes = () => {
+    if (mouth) mouth.innerHTML = g.mouth ? `<path d="${g.mouth}"/>` : dotsMarkup(ink);
+    if (eyes) eyes.innerHTML = g.closedEyes ? closedEyesMarkup(ink, set.stroke) : openEyesMarkup(ink, set.eyeR);
+  };
+
+  if (prefersReducedMotion()) {
+    applyBrow();
+    applyMouthAndEyes();
+  } else {
+    applyBrow();
+    window.setTimeout(applyMouthAndEyes, 40);
+  }
+
+  if (rowSized) {
+    if (el.dataset) el.dataset.anim = 'none';
+    el.classList.add('face-static');
+    return;
+  }
+  animateFace(el, opts.anim ?? DEFAULT_ANIM[toState] ?? 'face-morph');
+}
+
+function prefersReducedMotion() {
+  try {
+    return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Warm blinks at the short end, Deadpan at the long, Blunt between: the
+ * personality's own blink cadence (AVATAR.md section 5 row 3, DESIGN.md
+ * section 3). Recomputed on every cycle so the interval is irregular rather
+ * than a fixed loop, and never shared between elements, so two faces on one
+ * screen (the attitude picker has three) never blink together.
+ */
+function blinkRangeMs(who) {
+  if (who === 'warm') return [3800, 6200];
+  if (who === 'blunt') return [5200, 7600];
+  return [6600, 9000]; // deadpan, the default
+}
+
+function scheduleBlink(el) {
+  if (!el || !el.isConnected || prefersReducedMotion()) return;
+  const [min, max] = blinkRangeMs(el.dataset?.who);
+  const delay = min + Math.random() * (max - min);
+  window.setTimeout(() => {
+    if (!el.isConnected || el.dataset?.anim === 'none') return;
+    if (!BLINK_EMBER_STATES.has(el.dataset?.state)) return;
+    animateFace(el, 'blink');
+    scheduleBlink(el);
+  }, delay);
+}
+
+/**
+ * Auto-attach the random blink to every eligible face that lands in the DOM,
+ * so a screen that just does `container.innerHTML = faceSvg(...)` gets it for
+ * free, with no per-screen wiring. Guarded for the Node verification harness,
+ * which imports this module with no `document`.
+ */
+if (typeof document !== 'undefined' && typeof MutationObserver !== 'undefined') {
+  const scheduled = new WeakSet();
+  const scan = (root) => {
+    if (!root || typeof root.querySelectorAll !== 'function') return;
+    const candidates = [];
+    if (root.matches && root.matches('.face')) candidates.push(root);
+    candidates.push(...root.querySelectorAll('.face'));
+    for (const el of candidates) {
+      if (scheduled.has(el)) continue;
+      if (el.dataset?.anim === 'none') continue;
+      if (!BLINK_EMBER_STATES.has(el.dataset?.state)) continue;
+      scheduled.add(el);
+      scheduleBlink(el);
+    }
+  };
+  const start = () => {
+    if (!document.body) return;
+    new MutationObserver((mutations) => {
+      for (const m of mutations) m.addedNodes.forEach((n) => { if (n.nodeType === 1) scan(n); });
+    }).observe(document.body, { childList: true, subtree: true });
+    scan(document.body);
+  };
+  if (document.body) start();
+  else document.addEventListener('DOMContentLoaded', start);
 }
 
 /**
