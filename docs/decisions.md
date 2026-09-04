@@ -111,3 +111,33 @@ groups. The project sits in the personal namespace until a group is made by hand
 transferred into it. Membership survives a transfer.
 
 **Reverses if:** Shin stops being shared work, in which case Aurik comes off the member list.
+
+## Shin's attitude is the user's choice, not ours
+**Date:** 2026-09-03 · **Status:** active
+
+Picked by him when the redesign forced the question. `NOW.md` had this open and called it the
+most underestimated decision in the plan, because it triples every string in the product forever.
+It still does: every user-facing string now exists three times and the face system carries three
+variants of six expressions. What changed is that the cost buys something. The riskiest tone call
+stops being a guess, and which Shin someone has is itself worth screenshotting, which feeds the
+borrowed-audience video test. Three personalities: Deadpan, Warm, Blunt. Default at first run is
+Deadpan, because a price tool that is wrong while being cute is worse than one that is wrong
+while being flat. The attitude changes the words and never the number.
+
+**Reverses if:** the string count starts costing more than the picker returns, measured as
+personalities nobody switches to. Then the two least used are cut and the default stands alone.
+
+## The app is camera-first, and a refusal is a designed state
+**Date:** 2026-09-03 · **Status:** active
+
+The built walkthrough app was thirteen stages as thirteen pages, with no camera anywhere and a
+home screen that described a camera in prose instead of showing one. The redesign makes the live
+viewfinder the default route, collapses scan, identify and verdict into one surface over the
+frozen frame, and gives the refusal its own colour, face and action. Refusal is not an edge case:
+five of the seven known items refuse, so it is the most common outcome of the primary action.
+Hue carries the verdict, saturation carries the confidence, and grey means no data so that red
+keeps meaning the price is bad. Spec in `docs/design/DESIGN.md`, which wins over any screen.
+
+**Reverses if:** the camera turns out not to be how people reach for this, which would show up as
+scans per session near zero against watchlist opens. Then the list becomes the default and the
+camera becomes a button on it.

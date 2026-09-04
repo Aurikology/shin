@@ -18,6 +18,16 @@ other five, which is the pilot's own headline rather than a regression, and the 
 its face instead of implying coverage it does not have. Nothing is deployed, nobody outside this
 machine has opened it, and the three things below still gate everything that matters.
 
+**The app has been redesigned on paper, camera-first, and none of it is built yet.** The design
+that shipped in `app/` was thirteen stages as thirteen pages with no camera anywhere, and a home
+screen that described a camera in prose instead of showing one. The replacement makes the live
+viewfinder the default screen, collapses scan, identify and verdict into one surface over the
+frozen frame, and treats a refusal as a designed state rather than an error, because five of the
+seven items refuse. The spec is `docs/design/DESIGN.md` and it wins over any screen. Twelve of the
+fifteen screens are drawn as a page you can open: `docs/design/mockups.html`. **Nothing in `app/`
+has been changed to match**, so the running app and the spec now disagree on purpose until the
+rebuild happens.
+
 The research and the plan that produced it were made 2026-09-03 in one session, now in this repo
 so they stop living in a temp folder.
 
@@ -49,7 +59,7 @@ instead of a search engine. Produce is the only genuinely hard one and is out of
 ## Open, and mine to decide
 
 - The name, pending the search above.
-- Shin's attitude. This is one row in the plan and it triples every string in the product
-  forever, which makes it the most underestimated decision in there.
+- ~~Shin's attitude.~~ Decided 2026-09-03: the user picks it, from three. It still triples every
+  string, and now that cost buys the choice being his rather than ours. See `docs/decisions.md`.
 - Whether Aurik is building this or reading it. He has Maintainer access on the repo either
   way; the answer changes how the plan is written from here.
