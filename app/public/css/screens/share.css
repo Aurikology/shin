@@ -10,6 +10,15 @@
 .page-share { gap: 12px; }
 
 /*
+ * The live 220px face-and-bubble, same state as the frozen card below it.
+ * The card's own face is baked into the exported pixels and never changes;
+ * this is the page around it, so it gets the app's usual blink and settle
+ * motion where the card cannot.
+ */
+.shr-live { align-self: stretch; }
+.shr-live .shin-say { align-items: flex-start; }
+
+/*
  * The preview is sized off the viewport height, not the width, so the card and
  * the two things you can do with it are on screen at the same time. A preview
  * that pushes its own save button under the fold is a preview of nothing.

@@ -4,7 +4,8 @@
  * It replaces four screens that used to be four pages: scan, identify, verdict
  * and actions. They are one surface now, because the user never leaves the
  * picture they took. The frame freezes where it was shot, the reticle contracts
- * onto what was found, and a sheet rises over it. Going back is a downward drag.
+ * onto what was found, and a sheet rises over it. Going back is a downward drag,
+ * and now also a labelled button on every sheet that has no forward-only path.
  *
  * Three things here are rules rather than choices:
  *
@@ -22,7 +23,7 @@
  *   comparison set. That is a build standard earned by the same bug twice.
  */
 
-import { faceSvg, faceBlock, cad, confidenceOf, dotsHtml, tierOf, sellerOf, animateFace } from '../shin.js';
+import { faceBlock, cad, confidenceOf, dotsHtml, tierOf, sellerOf, animateFace, shinSay, updateShinSay } from '../shin.js';
 import { say, wordFor } from '../voice.js';
 import * as store from '../store.js';
 
@@ -56,6 +57,96 @@ function stopCamera(stream) {
   }
 }
 
+/**
+ * Row 40: the frozen frame at the moment of the shutter press, only when a
+ * real camera is behind the feed. The drawn shelf is not a photograph of
+ * anything, so it captures nothing rather than pretend a fake frame is real
+ * evidence. Kept small on purpose: a 96px square, centre-cropped, as a JPEG
+ * data URL that never leaves the phone (nothing in api.js sends it anywhere).
+ */
+function captureThumb(video, isLive) {
+  if (!isLive || !video || !video.videoWidth || !video.videoHeight) return null;
+  try {
+    const size = 96;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const g = canvas.getContext('2d');
+    if (!g) return null;
+    const side = Math.min(video.videoWidth, video.videoHeight);
+    const sx = (video.videoWidth - side) / 2;
+    const sy = (video.videoHeight - side) / 2;
+    g.drawImage(video, sx, sy, side, side, 0, 0, size, size);
+    return canvas.toDataURL('image/jpeg', 0.7);
+  } catch {
+    return null;
+  }
+}
+
+/** Row 40: the thumbnail beside an identity, when one was captured. */
+function thumbImg(thumb) {
+  return thumb ? `<img class="scan-thumb" src="${thumb}" width="40" height="40" alt="" loading="lazy">` : '';
+}
+
+/**
+ * Rows the candidate list, the price pad and the type-it route all lacked: a
+ * labelled way back, not only the swipe-to-dismiss that nothing on screen
+ * teaches. Same icon and handler as the working sheet's own close,
+ * `cancel-scan`, which already resets straight to the live viewfinder.
+ */
+function backButton(label = 'Back to camera') {
+  return `<button type="button" class="sheet-close" data-act="cancel-scan" aria-label="${label}">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+  </button>`;
+}
+
+/**
+ * Row 43: a tag can say "20% off" or "3 for $5" instead of one flat number.
+ * Both recompute the unit price Shin actually judges; the typed number stops
+ * being the asking price once a modifier is active, and the confirm key sends
+ * the effective price, never the sticker number alone.
+ */
+function effectivePriceCents(typedCents, modifier) {
+  if (typedCents == null) return null;
+  if (!modifier) return typedCents;
+  if (modifier.kind === 'percent') {
+    const pct = modifier.pct;
+    if (!Number.isFinite(pct) || pct <= 0 || pct >= 100) return typedCents;
+    return Math.max(0, Math.round(typedCents * (1 - pct / 100)));
+  }
+  if (modifier.kind === 'nfor') {
+    const n = modifier.n;
+    if (!Number.isFinite(n) || n < 2) return typedCents;
+    return Math.round(typedCents / n);
+  }
+  return typedCents;
+}
+
+/** The labelled effective price under the pad, e.g. "$5.00 after 20% off". */
+function modifierLabel(typedCents, modifier) {
+  if (typedCents == null || !modifier) return '';
+  const eff = effectivePriceCents(typedCents, modifier);
+  if (eff === null || eff === typedCents) return '';
+  if (modifier.kind === 'percent') return `${cad(eff)} after ${modifier.pct}% off`;
+  return `${cad(eff)} each`;
+}
+
+/**
+ * Row 83: a short buzz on a verdict landing and on a refusal landing, never
+ * anywhere else. Off whenever the browser has no vibrate, and off whenever
+ * You's "Buzz on verdicts" toggle (Lane C, a `buzz` field on `store`) says so.
+ * Read defensively, so this works whether or not that field has landed yet:
+ * `undefined` and `true` both mean on, only `false` turns it off.
+ */
+function hapticsOn() {
+  return typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function'
+    && store.get().buzz !== false;
+}
+function buzz(pattern) {
+  if (!hapticsOn()) return;
+  try { navigator.vibrate(pattern); } catch { /* best effort only, never blocks anything */ }
+}
+
 /* ------------------------------------------------------------- sheet parts */
 
 /**
@@ -67,6 +158,12 @@ function stopCamera(stream) {
  * which is the one where the shelf is the outlier.
  *
  * The band is the range of real prices. The marker is where the user is standing.
+ *
+ * Row 57: the track, the band and the evidence ticks are neutral (`--ink`, the
+ * app's own ink token), never the tier hue. The dot (`.rail-you`) is the one
+ * mark that carries the verdict colour, because it is the only mark that IS
+ * the verdict; everything else on the rail is evidence, and evidence is not
+ * for or against anything until the dot lands on it.
  */
 function spreadRail(v) {
   const { lowCents, highCents } = v.spread;
@@ -94,8 +191,7 @@ function spreadRail(v) {
       <span class="rail-lo" style="left:${at(lowCents)}">${cad(lowCents)}</span>
       <span class="rail-hi" style="left:${at(highCents)}">${cad(highCents)}</span>
       <span class="rail-me" style="left:${at(v.askingCents)}">you</span>
-    </div>
-    <p class="rail-note">Every price I found, lowest to highest. Nothing here is an average.</p>`;
+    </div>`;
 }
 
 /**
@@ -152,44 +248,75 @@ function intenseFaceFor(v, plainFace, conf, source) {
   return plainFace;
 }
 
-/** Row 35's toast: earns nothing, writes nothing but the local signal. */
+/**
+ * Row 35's toast: earns nothing, writes nothing but the local signal.
+ * avatar-presence.md's floor: never smaller than 48 where Shin speaks, and
+ * this toast has a bubble line, so it is the shared shinSay component at
+ * face-page (48) with pleased-nod, not the bare 28px row face it used to be.
+ */
 function feedbackToast() {
   return `
     <div class="toast" data-toast>
-      ${faceBlock('pleased', { size: 'face-row' })}
-      <span class="toast-text">${say('feedback_ack')}</span>
+      ${shinSay('pleased', 'feedback_ack', {}, { size: 'face-page', anim: 'pleased-nod' })}
       <button type="button" class="toast-undo" data-act="thumbs-undo">Undo</button>
     </div>`;
 }
 
-function provenance(points) {
+/**
+ * Row 62: sorted by price, with the cheapest marked and its delta from the
+ * asking price stated ("$0.74 less"), so the seller list doubles as "buy it
+ * there instead." Only when `askingCents` is given (the verdict's own list);
+ * a refusal's evidence list has no asking price to be cheaper than, so it
+ * keeps its original order and no mark, exactly as before.
+ */
+function provenance(points, askingCents) {
   if (!points.length) return '';
-  return `<div class="prov">${points
-    .map(
-      (p) => `<div>
+  const withDelta = typeof askingCents === 'number';
+  const list = withDelta ? points.slice().sort((a, b) => a.amountCents - b.amountCents) : points;
+  const cheapest = withDelta && list.length > 1 ? list[0] : null;
+  return `<div class="prov">${list
+    .map((p) => {
+      const isCheapest = p === cheapest;
+      const delta = isCheapest ? askingCents - p.amountCents : null;
+      return `<div${isCheapest ? ' class="prov-best"' : ''}>
         <b>${p.seller}</b>
-        <span>${cad(p.amountCents)} · ${p.observedAt.slice(5)} · ${p.kind}${p.limit ? ` (${p.limit})` : ''}</span>
-      </div>`,
-    )
+        <span>${cad(p.amountCents)} &middot; ${p.observedAt.slice(5)} &middot; ${p.kind}${p.limit ? ` (${p.limit})` : ''}${
+          delta !== null && delta > 0 ? ` &middot; ${cad(delta)} less` : ''
+        }</span>
+      </div>`;
+    })
     .join('')}</div>`;
 }
 
-function verdictSheet(v, scenario) {
+function verdictSheet(v, scenario, thumb, acked = false) {
   const conf = confidenceOf(v);
   const source = sellerOf(v);
-  // Watch acknowledged (AVATAR.md row 32) morphs the verdict face in place,
-  // no move, no re-render of anything else: still the tier's own face and
-  // line once the acknowledgement has been seen, since the verdict itself
-  // has not changed, only what happened since it landed.
-  const watched = store.isWatched(v.identity.id);
+  // Landing and acknowledgement are two different things (founder's walk,
+  // this round): whether the item is ALREADY saved decides only what the
+  // primary button reads ("Saved" instead of the tier's own word), never
+  // the face or the line. The verdict's own face and line -- angry, walk,
+  // fair, good, delighted -- land every time, including on an item that
+  // was saved on a previous visit, because the emotion IS the verdict. An
+  // already-saved item with a rip-off verdict has to look like a rip-off.
+  // `acked` is the one exception: it is passed true only by the watch
+  // handler below, only in the same tap that just added the save, so the
+  // pleased morph and the "Saved. I have the number and the day." line are
+  // the acknowledgement of that action, in this session, never the
+  // landing state of a sheet that simply opened.
+  const alreadySaved = store.isWatched(v.identity.id);
   // The tier already knows which face it wears, unless the intense gate
   // (AVATAR.md section 2) is met: delighted or angry, with the tier's own
   // word and colour unchanged, per the coordinator's Chrome-walk note.
-  const face = watched ? 'pleased' : intenseFaceFor(v, tierOf(v.tier).face, conf, source);
+  const face = acked ? 'pleased' : intenseFaceFor(v, tierOf(v.tier).face, conf, source);
   const facts = { asking: cad(v.askingCents), usual: cad(v.spread.medianCents) };
   const watchFacts = { asking: cad(v.askingCents), seller: source, day: 'today' };
   const intenseKey = face === 'delighted' ? 'verdict_steal' : face === 'angry' ? 'verdict_ripoff' : null;
-  const said = watched ? say('watching', watchFacts) : say(intenseKey ?? v.tier, facts);
+  // avatar-presence.md's opening rule: Shin is always a face and a speech
+  // bubble, one component, never a heading of the screen's own. The tier
+  // word stays the sheet's own chrome (below); the spoken line is what goes
+  // in shinSay's bubble.
+  const spokenKey = acked ? 'watching' : (intenseKey ?? v.tier);
+  const spokenFacts = acked ? watchFacts : facts;
 
   // The stand-in note sits in the peek, not the detail. It qualifies the number
   // the user is reading right now, and a caveat you have to drag a sheet open to
@@ -198,25 +325,36 @@ function verdictSheet(v, scenario) {
     ? `<p class="standin">This asking price is a stated stand-in, not a tag anyone read.</p>`
     : '';
 
+  // Row: the half detent used to carry four paragraphs of the engine's own
+  // prose in a row (the rail's own caption, the full spread sentence, the
+  // confidence sentence, then the seller list) -- more than a shopper in an
+  // aisle reads. Kept: the rail itself, the seller list, and one sentence
+  // under the rail. `v.disagreement.detail` is true, engine-written text,
+  // never rewritten -- only cut at its own first sentence boundary, same
+  // technique as the produce refusal's "Why". The remainder, plus the
+  // confidence line, fold behind that same disclosure rather than being
+  // dropped outright: real evidence, just not owed to every reader.
+  const disagreeFull = v.disagreement ? v.disagreement.detail : '';
+  const disagreeCut = disagreeFull.indexOf('. ');
+  const disagreeShort = disagreeCut === -1 ? disagreeFull : disagreeFull.slice(0, disagreeCut + 1);
+  const disagreeRest = disagreeCut === -1 ? '' : disagreeFull.slice(disagreeCut + 2);
+
   // Three detents (USAGE.md section 7 / DESIGN.md section 4, which agree with
   // each other exactly, over this build pass's own looser paraphrase of them):
   // peek carries the one wide primary and nothing else can push it below the
   // fold; half adds the rail, the confidence sentence and the provenance list;
-  // full adds what Shin used in full and the one-tap correctness signal. The
-  // two full-detent actions ("Find it cheaper nearby", "Show me a dupe") are
-  // marked not-v1 in both docs, so full ships with no actions of its own.
+  // full adds what Shin used in full, the one-tap correctness signal, and (row
+  // 68) one obvious Done that closes the whole sheet in a single tap.
   return `
-    <section class="sheet" data-tier="${v.tier}" data-conf="${conf.level}" data-detent="peek" aria-live="polite">
+    <section class="sheet verdict" data-tier="${v.tier}" data-conf="${conf.level}" data-detent="peek" aria-live="polite">
       <span class="grabber" aria-hidden="true" role="button" tabindex="0" aria-label="Show more"></span>
 
       <div class="sheet-peek">
         <div class="sheet-head">
-          ${faceBlock(face, { size: 'face-verdict' })}
-          <div>
-            <h2 class="vword">${wordFor(v.tier)}</h2>
-            <p class="said">${said}</p>
-          </div>
+          ${shinSay(face, spokenKey, spokenFacts, { size: 'face-verdict', tier: v.tier })}
+          ${thumbImg(thumb)}
         </div>
+        <h2 class="vword">${wordFor(v.tier)}</h2>
 
         <div class="priceline">
           <span class="price">${cad(v.askingCents)}</span>
@@ -232,16 +370,20 @@ function verdictSheet(v, scenario) {
 
         <div class="actions actions-primary">
           <button type="button" class="pill solid wide" data-act="watch">
-            ${watched ? say('peek_watching') : say(`peek_${v.tier}`)}
+            ${alreadySaved ? say('peek_watching') : say(`peek_${v.tier}`)}
           </button>
         </div>
       </div>
 
       <div class="sheet-half">
         ${spreadRail(v)}
-        ${v.disagreement ? `<p class="disagree">${v.disagreement.detail}</p>` : ''}
-        <p class="because">${v.confidence.because}</p>
-        ${provenance(v.comparisonSet)}
+        ${disagreeShort ? `<p class="disagree">${disagreeShort}</p>` : ''}
+        ${provenance(v.comparisonSet, v.askingCents)}
+        <details class="why">
+          <summary>Why</summary>
+          ${disagreeRest ? `<p class="detail">${disagreeRest}</p>` : ''}
+          <p class="detail">${v.confidence.because}</p>
+        </details>
         <div class="actions">
           <button type="button" class="pill ghost" data-act="correct">Correct it</button>
           <button type="button" class="pill ghost" data-act="share">Share</button>
@@ -259,6 +401,7 @@ function verdictSheet(v, scenario) {
           </button>
         </div>
         <div class="toast-slot" data-toast-slot></div>
+        <button type="button" class="pill solid wide done-btn" data-act="cancel-scan">Done</button>
       </div>
     </section>`;
 }
@@ -268,8 +411,13 @@ function verdictSheet(v, scenario) {
  *
  * Every reason gets its own sentence and its own repair, because "could not
  * price this" with no way forward is how a user learns to stop scanning.
+ *
+ * The category refusal's repair used to navigate to the You page's coverage
+ * list, which abandoned the scan and the framed photo behind it. It now stays
+ * on this sheet: a short list of what Shin can price, fetched once when the
+ * camera opens and handed in here, never a second endpoint spent per refusal.
  */
-function refusalSheet(r, scenario) {
+function refusalSheet(r, scenario, categoryLabels = []) {
   const category = scenario?.category ?? 'this';
   const isCategory = r.reason === 'category_unsupported';
   const isUnsure = r.reason === 'identity_unsure';
@@ -279,13 +427,24 @@ function refusalSheet(r, scenario) {
     || r.reason === 'no_source_response'
     || r.reason === 'comparison_incoherent';
 
-  const title = isCategory
-    ? say('refuse_category', { category })
-    : isUnsure
-      ? say('refuse_unsure')
-      : isThin
-        ? say('refuse_thin')
-        : say('refuse_unknown');
+  const titleKey = isCategory ? 'refuse_category' : isUnsure ? 'refuse_unsure' : isThin ? 'refuse_thin' : 'refuse_unknown';
+  const titleFacts = isCategory ? { category } : {};
+
+  // Row 8: a category refusal's detail is the engine's own paragraph, true
+  // and real, but written for someone auditing the rule, not a shopper mid
+  // aisle -- PLU codes, the public price series, underlying inflation. A
+  // shopper does not read that, and printing all of it makes the sheet
+  // harder to use and uglier, which reference.md names as a defect on its
+  // own. Only the first sentence shows inline; the rest is the same words,
+  // verbatim, behind a native disclosure, never rewritten or shortened into
+  // something the engine did not actually say.
+  let categoryShort = '';
+  let categoryWhy = '';
+  if (isCategory) {
+    const cut = r.detail.indexOf('. ');
+    categoryShort = cut === -1 ? r.detail : r.detail.slice(0, cut + 1);
+    categoryWhy = cut === -1 ? '' : r.detail.slice(cut + 2);
+  }
 
   // The engine writes its own sentence naming the repair. Shin's voice sits
   // above it; the engine's detail is never paraphrased, because it is the part
@@ -302,26 +461,34 @@ function refusalSheet(r, scenario) {
   // Row 17/88/89, take: the no-identity refusal's one action is a second
   // route, not the dead end it used to be. USAGE.md C2 names it "Type what
   // it is"; every other reason keeps its existing repair.
-  const repair = isCategory
-    ? `<button type="button" class="pill ghost" data-act="categories">What I can price</button>`
-    : isNoIdentity
-      ? `<button type="button" class="pill solid" data-act="typeit">Type what it is</button>`
-      : `<button type="button" class="pill solid" data-act="correct">Tell me the price</button>`;
+  const repairBlock = isCategory
+    ? `<div class="actions-primary cat-repair">
+        <p class="said">${say('refuse_category_repair')}</p>
+        ${categoryLabels.length
+          ? `<ul class="cat-chips">${categoryLabels.map((c) => `<li>${c}</li>`).join('')}</ul>`
+          : `<p class="detail">Could not load the list just now.</p>`}
+        ${categoryWhy
+          ? `<details class="why"><summary>Why</summary><p class="detail">${categoryWhy}</p></details>`
+          : ''}
+      </div>`
+    : `<div class="actions actions-primary">${
+        isNoIdentity
+          ? `<button type="button" class="pill solid" data-act="typeit">Type what it is</button>`
+          : `<button type="button" class="pill solid" data-act="correct">Tell me the price</button>`
+      }</div>`;
 
   return `
     <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite">
       <span class="grabber" aria-hidden="true" role="button" tabindex="0" aria-label="Show more"></span>
+      ${isCategory ? backButton() : ''}
       <div class="sheet-peek">
         <div class="sheet-head">
-          ${faceBlock('unknown', { size: 'face-verdict' })}
-          <div>
-            <h2 class="vword small">${title}</h2>
-            ${mine}
-          </div>
+          ${shinSay('unknown', titleKey, titleFacts, { size: 'face-verdict' })}
         </div>
-        <p class="detail">${r.detail}</p>
-        <div class="actions actions-primary">${repair}</div>
-        <p class="itemname">${r.identity ? r.identity.label : 'No confident match'} · ${r.reason.replace(/_/g, ' ')}</p>
+        ${mine}
+        <p class="detail">${isCategory ? categoryShort : r.detail}</p>
+        ${repairBlock}
+        <p class="itemname">${r.identity ? r.identity.label : 'No confident match'} &middot; ${r.reason.replace(/_/g, ' ')}</p>
       </div>
       <div class="sheet-half">
         ${r.evidence.length
@@ -335,8 +502,13 @@ function refusalSheet(r, scenario) {
  * AVATAR.md row 36: the refusal's landing is `verdict-land` at 340ms, then
  * `slow-blink`, never the shake/buzz/red a normal miss might otherwise get.
  * Called right after a refusal sheet's markup is mounted, on its own face.
+ * Row 83: the same landing is where the refusal's short haptic buzz lives,
+ * once, here, so every refusal (category, unsure, unknown, thin, and the
+ * network-error and no-match refusals built inline below) gets it the same
+ * way instead of four separate call sites remembering to add it.
  */
 function playRefusalLanding(slot) {
+  buzz(14);
   const el = slot.querySelector('.face');
   if (!el) return;
   animateFace(el, 'verdict-land');
@@ -344,58 +516,30 @@ function playRefusalLanding(slot) {
 }
 
 /**
- * The wait, between a shutter press and an answer.
- *
- * AVATAR.md row 11 (identifying, right after the shutter) and rows 16 to 19
- * (working through the price search once a candidate is picked) are two
- * different moments with two different sizes; this screen renders both
- * through the same sheet component, so the size is the one thing that tells
- * them apart until the sheet itself is split in two.
- */
-function readingSheet(size = 'face-working') {
-  return `
-    <section class="sheet reading" data-tier="unknown" data-conf="reading">
-      <span class="grabber" aria-hidden="true"></span>
-      <div class="sheet-peek">
-        <div class="sheet-head">
-          ${faceBlock('thinking', { size })}
-          <div><h2 class="vword small">${say('reading')}</h2></div>
-        </div>
-      </div>
-    </section>`;
-}
-
-/**
  * What Shin might be looking at. Real items, real recorded asking prices.
  *
- * AVATAR.md row 37, the unsure refusal: two or more candidates and Shin
- * cannot separate them without help, which is exactly this screen's state.
- * Row 13 (the identity chip's wrong-item repair) was the other candidate for
- * this spot, but it only exists after a chip has already named one item and
- * been tapped as wrong; here there is no chip yet, only the candidate list
- * itself as the one action, which is row 37's own description. So this
- * screen reuses row 37's strings and its size, `face-verdict` at `unknown`,
- * rather than row 13's `face-row`.
+ * Reframed from a refusal (the fixed stand-in list used to borrow the unsure
+ * refusal's face and lines) to a plain question: this is not Shin failing to
+ * separate two things he found, it is the one honest thing to ask when there
+ * is no vision model yet. `asking`, not `unknown`; "Which one is it?", not
+ * "I am not sure which one this is."
  */
 function candidateSheet(items) {
   return `
     <section class="sheet candidates" data-tier="unknown" data-conf="reading">
       <span class="grabber" aria-hidden="true"></span>
+      ${backButton()}
       <div class="sheet-peek">
         <div class="sheet-head compact">
-          ${faceBlock('unknown', { size: 'face-verdict' })}
-          <div>
-            <h2 class="vword small">${say('refuse_unsure')}</h2>
-            <p class="said">${say('refuse_unsure_why')}</p>
-          </div>
+          ${shinSay('asking', 'cam_candidate_prompt', {}, { size: 64 })}
         </div>
         <div class="cands">
           ${items
             .map(
               (i) => `<button type="button" class="cand" data-pick="${i.id}">
                 <span class="cand-name">${i.text}</span>
-                <span class="cand-meta">${cad(i.askingCents)}${i.askingSeller ? ` · ${i.askingSeller}` : ''}${
-                  i.observed ? '' : ' · stand-in'
+                <span class="cand-meta">${cad(i.askingCents)}${i.askingSeller ? ` &middot; ${i.askingSeller}` : ''}${
+                  i.observed ? '' : ' &middot; stand-in'
                 }</span>
               </button>`,
             )
@@ -405,6 +549,7 @@ function candidateSheet(items) {
             <span class="cand-meta">I will almost certainly refuse</span>
           </button>
         </div>
+        <p class="standin-note">Stand-in list until the camera can read the item.</p>
       </div>
     </section>`;
 }
@@ -436,8 +581,12 @@ function parsePadPrice(buf) {
  * keypad with decimal and backspace, a Clear, and a Skip that proceeds with no
  * asking price at all (that is the going-rate card, not a refusal).
  *
- * The identified item's name is the confirmation above the field (row 40, the
- * photo thumbnail adapted to the name chip since there is no camera model).
+ * The identified item's name is the confirmation above the field (row 40, now
+ * joined by the frozen-frame thumbnail when one exists).
+ *
+ * Row 43: an optional "% off" or "N for $" modifier recomputes the effective
+ * unit price under the typed number, labelled, and it is that effective price
+ * the confirm key actually sends, never the sticker number alone.
  *
  * USAGE.md A1 0:13.4 says "the pad's own key is the continue," built literally
  * here as a confirm key inside the keypad grid rather than a debounce after
@@ -445,22 +594,41 @@ function parsePadPrice(buf) {
  * someone who types "2", glances back at the tag, then types ".49" gets
  * priced at $2.00, and a wrong verdict is worse than no verdict (CLAUDE.md
  * priority 1). Nothing submits until the confirm key is pressed, and it is
- * disabled until the buffer parses to more than zero.
+ * disabled until the effective price parses to more than zero.
  */
-function pricePadSheet(item, typed = '') {
-  const canConfirm = (parsePadPrice(typed) ?? 0) > 0;
+function pricePadSheet(item, typed = '', modifier = null, thumb = null) {
+  const typedCents = parsePadPrice(typed);
+  const effCents = effectivePriceCents(typedCents, modifier);
+  const canConfirm = (effCents ?? 0) > 0;
+  const effLabel = modifierLabel(typedCents, modifier);
   return `
     <section class="sheet padsheet" data-tier="unknown" data-conf="reading">
       <span class="grabber" aria-hidden="true"></span>
+      ${backButton()}
+      <div class="pad-headrow">
+        <button type="button" class="pad-textbtn" data-act="pad-clear">Clear</button>
+        <button type="button" class="pad-textbtn" data-act="pad-skip">Skip</button>
+      </div>
       <div class="sheet-peek">
         <div class="sheet-head">
-          ${faceBlock('asking', { size: 'face-page' })}
-          <div>
-            <h2 class="vword pad-prompt" style="font-size:19px">${say('price_pad_prompt')}</h2>
-            <p class="said">${item.text}</p>
-          </div>
+          ${shinSay('asking', 'price_pad_prompt', {}, { size: 64 })}
+          ${thumbImg(thumb)}
         </div>
+        <p class="itemname">${item.text}</p>
         <div class="amount pad-amount"><span class="amount-cur">$</span>${pricePadDisplay(typed)}</div>
+        <p class="pad-effective" data-pad-effective${effLabel ? '' : ' hidden'}>${effLabel}</p>
+        <div class="pad-mods" role="group" aria-label="Price modifiers">
+          <button type="button" class="modbtn${modifier?.kind === 'percent' ? ' on' : ''}" data-modtoggle="percent">% off</button>
+          <button type="button" class="modbtn${modifier?.kind === 'nfor' ? ' on' : ''}" data-modtoggle="nfor">N for $</button>
+        </div>
+        ${modifier?.kind === 'percent' ? `
+        <div class="pad-mod-input">
+          <label>Percent off <input type="number" inputmode="numeric" min="1" max="95" data-mod-value value="${modifier.pct ?? ''}" placeholder="20"></label>
+        </div>` : ''}
+        ${modifier?.kind === 'nfor' ? `
+        <div class="pad-mod-input">
+          <label>Items in the deal <input type="number" inputmode="numeric" min="2" max="20" data-mod-value value="${modifier.n ?? ''}" placeholder="3"></label>
+        </div>` : ''}
         <div class="keypad">
           ${['1', '2', '3', '4', '5', '6', '7', '8', '9']
             .map((k) => `<button type="button" class="key" data-pad="${k}">${k}</button>`)
@@ -473,10 +641,6 @@ function pricePadSheet(item, typed = '') {
           <button type="button" class="key key-confirm" data-act="pad-confirm" aria-label="Price it"${canConfirm ? '' : ' disabled'}>
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
           </button>
-        </div>
-        <div class="actions">
-          <button type="button" class="pill ghost" data-act="pad-clear">Clear</button>
-          <button type="button" class="pill ghost" data-act="pad-skip">Skip</button>
         </div>
       </div>
     </section>`;
@@ -506,14 +670,12 @@ function goingRateCard(refusal, item) {
   return `
     <section class="sheet goingrate" data-tier="unknown" data-conf="reading">
       <span class="grabber" aria-hidden="true"></span>
+      ${backButton()}
       <div class="sheet-peek">
         <div class="sheet-head">
-          ${faceBlock('asking', { size: 'face-working' })}
-          <div>
-            <h2 class="vword" style="font-size:20px">Going rate</h2>
-            <p class="said">${say('going_rate')}</p>
-          </div>
+          ${shinSay('asking', 'going_rate', {}, { size: 'face-working' })}
         </div>
+        <h2 class="vword" style="font-size:20px">Going rate</h2>
         <div class="priceline">
           <span class="price sm">${range}</span>
           <span class="sub">${cheapest ? `at ${cheapest.seller}<br>` : ''}in ${mkt}, ${sellerWord}</span>
@@ -545,6 +707,13 @@ const WORKING_STEPS = ['working_step1', 'working_step2', 'working_step3'];
  */
 function workingSheet(itemLabel, step = 0, opts = {}) {
   const slow = !!opts.slow;
+  // Deliberately not shinSay here, unlike every other sheet in this file.
+  // The working state's face sits beside three lines (row 47, AVATAR.md rows
+  // 16-19), not one: shinSay's bubble holds a single say() line, so folding
+  // this in would mean either repeating the current step's own text a
+  // second time inside the bubble, or dropping the two dimmed steps, and
+  // both make the wait harder to read than the plain three-line list. The
+  // face still carries the doc's own face-working (76) size.
   return `
     <section class="sheet working" data-tier="unknown" data-conf="reading">
       <span class="grabber" aria-hidden="true"></span>
@@ -574,14 +743,12 @@ function textRouteSheet(value = '') {
   return `
     <section class="sheet textroute" data-tier="unknown" data-conf="reading">
       <span class="grabber" aria-hidden="true"></span>
+      ${backButton()}
       <div class="sheet-peek">
         <div class="sheet-head">
-          ${faceBlock('asking', { size: 'face-page' })}
-          <div>
-            <h2 class="vword" style="font-size:20px">Name it</h2>
-            <p class="said">${say('text_route_prompt')}</p>
-          </div>
+          ${shinSay('asking', 'text_route_prompt', {}, { size: 64 })}
         </div>
+        <h2 class="vword" style="font-size:20px">Name it</h2>
         <form class="textroute-form" data-form="textroute">
           <input type="text" inputmode="text" autocomplete="off" placeholder="Brand and model&hellip;"
                  value="${value.replace(/"/g, '&quot;')}" data-textroute-input>
@@ -652,12 +819,18 @@ export default {
         </div>
 
         <div class="reticle" aria-hidden="true"><b></b><b></b><b></b><b></b></div>
-        <p class="cam-hint">${faceSvg('idle', { size: 'face-row' })}<span>Point at a price tag</span></p>
+
+        <!-- Shin docked on the viewfinder, top-left under the wordmark: the aim
+             hint, the escalated hint, the torch acknowledgement, the second-visit
+             callback and the identifying morph all happen in this one component,
+             never a second face competing with it. Replaces the old 28px hint
+             pill, which is gone. -->
+        <div class="cam-shin" data-slot="cam-shin"></div>
 
         <div class="sheet-slot"></div>
 
         <div class="cam-bar">
-          <button type="button" class="nav-btn" data-act="watchlist" aria-label="Watching">
+          <button type="button" class="nav-btn" data-act="watchlist" aria-label="Saved">
             <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
             <span class="nav-badge" hidden></span>
@@ -674,15 +847,36 @@ export default {
     const slot = root.querySelector('.sheet-slot');
     const video = root.querySelector('.feed-video');
     const badge = root.querySelector('.nav-badge');
+    const camShin = root.querySelector('.cam-shin');
 
     let stream = null;
     let scenarios = [];
     let catalogueItems = [];
-    let last = null;      // { result, scenario }
+    let supportedCategories = [];
+    let last = null;      // { result, scenario, thumb }
     let dead = false;
+    // Item 10: router.go re-renders into the same rootEl on every
+    // navigation, but rootEl itself is never replaced, only its innerHTML.
+    // Every one of this render's own root.addEventListener calls below used
+    // to stay live forever, uncancelled, so a second visit to the camera
+    // stacked a second click/pointerdown/pointerup/input/submit listener on
+    // top of the first (still-referencing-detached-nodes) one instead of
+    // replacing it. Harmless most of the time, since the stale listener's
+    // own `dead` guard (this render's cleanup below sets it) makes its
+    // delayed work no-op -- but two listeners racing the same real pointer
+    // event on the same live target is exactly the kind of thing that can
+    // swallow a tap under the wrong timing, and it is unconditionally wrong
+    // regardless. One AbortController per render; its signal goes on every
+    // listener this render owns, and the cleanup aborts it, so a screen
+    // reached the sixth time behaves identically to the first.
+    const listeners = new AbortController();
     let torchOn = false;
     let hintEscalated = false;
     let hintTimer = null;
+    let torchAckTimer = null;
+    let secondVisitShown = false;
+    let scanThumb = null;
+    let camShinEl = camShin ? camShin.querySelector('.shin-say') : null;
 
     startCamera(video).then((s) => {
       if (dead) { stopCamera(s); return; }
@@ -690,6 +884,7 @@ export default {
       // No camera is not a broken app. The drawn shelf carries the same layout
       // so every control stays exactly where it is.
       cam.dataset.camera = s ? 'live' : 'drawn';
+      showInitialIdleContent();
     });
 
     ctx.api.scenarios()
@@ -703,6 +898,12 @@ export default {
       .then((d) => { catalogueItems = d.items; })
       .catch(() => { catalogueItems = []; });
 
+    // The category refusal's own repair (row: "the repair stays on the
+    // sheet"): fetched once, up front, never re-fetched per refusal.
+    ctx.api.categories()
+      .then((d) => { supportedCategories = (Array.isArray(d) ? d : []).filter((c) => !c.unsupported).map((c) => c.label); })
+      .catch(() => { supportedCategories = []; });
+
     function paintBadge() {
       const n = store.get().watchlist.length;
       badge.hidden = n === 0;
@@ -713,11 +914,61 @@ export default {
 
     function setState(next) { cam.dataset.state = next; }
 
+    /**
+     * Row: second visit, useful and appealing. If the store has a past scan,
+     * Shin's first bubble on this camera is a callback to it, not the aim
+     * hint. Facts arrive already formatted; the verdict word reuses `wordFor`
+     * so a returning "good"/"about right"/"walk away" reads in the same words
+     * the verdict itself used.
+     */
+    function lastScanFacts() {
+      const history = store.get().history;
+      if (!history.length) return null;
+      const h = history[0];
+      const label = h.result?.identity?.label ?? h.query?.text ?? 'that item';
+      const sellerName = h.result ? sellerOf(h.result) : null;
+      const centsRaw = h.query?.askingCents ?? (h.result?.kind === 'verdict' ? h.result.askingCents : undefined);
+      const word = h.result?.kind === 'verdict' ? wordFor(h.result.tier) : 'Refused';
+      return {
+        item: label,
+        seller: sellerName || '',
+        asking: typeof centsRaw === 'number' ? cad(centsRaw) : '',
+        word,
+      };
+    }
+
+    /**
+     * Every update to the docked face's bubble goes through this rather than
+     * calling updateShinSay directly. setTorch (below) is the one place
+     * camera.js deliberately marks the mounted face `data-anim="none"`, for
+     * the torch acknowledgement's stillness; morphFace's own rowSized gate
+     * reads that same attribute to mean "this is a permanent face-row, never
+     * animate again". Anything that moves the docked face on from that line
+     * clears the sentinel first, or the docked face would freeze static for
+     * the rest of the session.
+     */
+    function dockSay(state, key, facts, anim) {
+      if (!camShinEl) return;
+      const f = camShinEl.querySelector('.face');
+      if (f && f.dataset.anim === 'none') f.dataset.anim = '';
+      updateShinSay(camShinEl, state, key, facts, anim);
+    }
+
+    /** Whichever of the two idle lines is current: the plain hint, or the
+        one-time escalation past four seconds of nothing detected. */
+    function showAimHint(anim) {
+      if (!camShinEl) return;
+      if (hintEscalated) dockSay('asking', 'hint_escalated', {}, anim ?? 'nudge-arrive');
+      else dockSay('idle', 'cam_aim_hint', {}, anim);
+    }
+
     /*
      * Row 9, unprompted, once per camera session: four seconds live with
      * nothing detected escalates the hint's face and line. Cleared the
      * instant a scan starts (that is a detection); never re-armed once it
-     * has fired, even across a reset back to idle.
+     * has fired, even across a reset back to idle. Only starts once the
+     * plain aim hint is actually showing, i.e. after the second-visit
+     * callback (if any) has already had its own six seconds.
      */
     function armHintEscalation() {
       clearTimeout(hintTimer);
@@ -725,32 +976,98 @@ export default {
       hintTimer = setTimeout(() => {
         if (dead || hintEscalated || cam.dataset.state !== 'idle') return;
         hintEscalated = true;
-        const hintText = root.querySelector('.cam-hint span');
-        const hintFace = root.querySelector('.cam-hint .face');
-        if (hintText) hintText.textContent = say('hint_escalated');
-        if (hintFace) hintFace.outerHTML = faceSvg('asking', { size: 'face-row' });
+        showAimHint('nudge-arrive');
       }, 4000);
     }
-    armHintEscalation();
+
+    /**
+     * What the docked face opens with once the camera has resolved (granted,
+     * denied, or drawn): the second-visit callback for one appearance if the
+     * store has history, otherwise straight to the aim hint. The callback
+     * gives way to the aim hint after six seconds or on the first shutter
+     * press, whichever comes first (`shoot()` clears `hintTimer` itself).
+     */
+    function showInitialIdleContent() {
+      if (!camShinEl || dead) return;
+      const facts = !secondVisitShown ? lastScanFacts() : null;
+      if (facts) {
+        secondVisitShown = true;
+        dockSay('idle', 'cam_second_visit', facts, 'idle-breath');
+        clearTimeout(hintTimer);
+        hintTimer = setTimeout(() => {
+          if (dead || cam.dataset.state !== 'idle') return;
+          showAimHint();
+          armHintEscalation();
+        }, 6000);
+      } else {
+        showAimHint();
+        armHintEscalation();
+      }
+    }
+
+    // Row 14: the one-sentence privacy line, shown while permission is being
+    // asked (this promise is exactly that moment) and swapped out for the
+    // real idle content the instant it resolves either way.
+    if (camShin) {
+      camShin.innerHTML = shinSay('idle', 'cam_privacy_line', {}, { size: 64 });
+      camShinEl = camShin.querySelector('.shin-say');
+    }
 
     /* Chrome, not a face (AVATAR.md row 10): the visibly lit scene is the
        torch's own feedback (OLMA audit row 90), the icon just says which
-       state it is in. */
+       state it is in. The docked face gets one short acknowledgement line,
+       then returns to whatever hint it was already showing. */
     function setTorch(on) {
       torchOn = on;
       cam.dataset.torch = on ? 'on' : 'off';
       root.querySelector('.torch-btn')?.setAttribute('aria-pressed', String(on));
+      clearTimeout(torchAckTimer);
+      if (on && camShinEl && cam.dataset.state === 'idle') {
+        dockSay('idle', 'cam_torch_on');
+        // avatar-presence.md gives "none" for camera, torch on. Passing
+        // 'none' as updateShinSay's own opts.anim does not reach this: that
+        // sentinel is only honoured by shinSay's initial-mount string (a
+        // fresh face-row's data-anim, written once into markup that never
+        // animates); morphFace's animateFace call only recognises the
+        // thirteen real animation names and would silently ignore 'none',
+        // leaving idle-breath (idle's default) running. Written directly on
+        // the mounted face instead: face.css's `[data-anim="none"]` rule is
+        // `!important` and stops any animation unconditionally, exactly the
+        // effect 'none' has everywhere else it is honoured.
+        const torchFace = camShinEl.querySelector('.face');
+        if (torchFace) torchFace.dataset.anim = 'none';
+        torchAckTimer = setTimeout(() => {
+          if (dead || cam.dataset.state !== 'idle') return;
+          showAimHint();
+        }, 2600);
+      }
     }
 
     let gen = 0;
     let padBuffer = '';
     let padItem = null;
+    let padModifier = null;
 
     function paintPad() {
-      const el = slot.querySelector('.pad-amount');
-      if (el) el.innerHTML = `<span class="amount-cur">$</span>${pricePadDisplay(padBuffer)}`;
+      const amountEl = slot.querySelector('.pad-amount');
+      if (amountEl) amountEl.innerHTML = `<span class="amount-cur">$</span>${pricePadDisplay(padBuffer)}`;
+      paintPadEffective();
+    }
+
+    /** Repaints only the confirm-disabled state and the effective-price
+        label, so typing into the modifier's own number input never loses
+        focus the way a full re-render would. */
+    function paintPadEffective() {
+      const typedCents = parsePadPrice(padBuffer);
+      const effCents = effectivePriceCents(typedCents, padModifier);
       const confirmBtn = slot.querySelector('.key-confirm');
-      if (confirmBtn) confirmBtn.disabled = !((parsePadPrice(padBuffer) ?? 0) > 0);
+      if (confirmBtn) confirmBtn.disabled = !((effCents ?? 0) > 0);
+      const effEl = slot.querySelector('[data-pad-effective]');
+      if (effEl) {
+        const label = modifierLabel(typedCents, padModifier);
+        effEl.textContent = label;
+        effEl.hidden = !label;
+      }
     }
 
     /*
@@ -764,15 +1081,23 @@ export default {
     function openPad(item) {
       padItem = item;
       padBuffer = '';
+      padModifier = null;
       setState('asking');
-      slot.innerHTML = pricePadSheet(item, padBuffer);
+      slot.innerHTML = pricePadSheet(item, padBuffer, padModifier, scanThumb);
     }
 
     function shoot() {
       if (cam.dataset.state !== 'idle') return;
       clearTimeout(hintTimer);
+      clearTimeout(torchAckTimer);
       setState('framing');
-      slot.innerHTML = readingSheet('face-row');
+      // Row 40: the frozen frame, captured now, at the moment of the shutter
+      // press, so it is the picture the verdict later shows, not a later
+      // re-grab of a feed that has already moved on.
+      scanThumb = captureThumb(video, cam.dataset.camera === 'live');
+      // The same docked face morphs to thinking, in place, rather than a
+      // separate sheet popping up over it for 420ms.
+      dockSay('thinking', 'reading', {}, 'think-dots');
       // The frame is already frozen by the state change. This pause is the
       // reticle contracting, not a fake loading bar over an instant answer.
       setTimeout(() => {
@@ -824,16 +1149,18 @@ export default {
         clearTimeout(slowTimer);
         if (dead || myGen !== gen) return;
         step = 2; // Event: the response has actually arrived.
-        last = { result, scenario: item };
-        store.recordVerdict(result, { text: item.text, askingCents });
+        last = { result, scenario: item, thumb: scanThumb };
+        store.recordVerdict(result, { text: item.text, askingCents, thumb: scanThumb });
         if (result.kind === 'verdict') {
-          slot.innerHTML = verdictSheet(result, item);
+          slot.innerHTML = verdictSheet(result, item, scanThumb);
+          // Row 83: the verdict landing, once, right here.
+          buzz(16);
         } else if (result.reason === 'no_asking_price') {
           // Section 2's couch card, not a refusal: Shin has the comparison
           // set, only the one number was never supplied.
           slot.innerHTML = goingRateCard(result, item);
         } else {
-          slot.innerHTML = refusalSheet(result, item);
+          slot.innerHTML = refusalSheet(result, item, supportedCategories);
           playRefusalLanding(slot);
         }
         setState('result');
@@ -849,6 +1176,7 @@ export default {
             evidence: [],
           },
           item,
+          supportedCategories,
         );
         playRefusalLanding(slot);
         setState('result');
@@ -859,8 +1187,9 @@ export default {
       gen++; // Voids any in-flight proceed() continuation.
       slot.innerHTML = '';
       last = null;
+      scanThumb = null;
       setState('idle');
-      armHintEscalation();
+      showInitialIdleContent();
     }
 
     root.addEventListener('click', (e) => {
@@ -890,6 +1219,16 @@ export default {
         return;
       }
 
+      const modToggle = e.target.closest('[data-modtoggle]');
+      if (modToggle) {
+        const kind = modToggle.dataset.modtoggle;
+        padModifier = padModifier && padModifier.kind === kind
+          ? null
+          : (kind === 'percent' ? { kind: 'percent', pct: 20 } : { kind: 'nfor', n: 3 });
+        slot.innerHTML = pricePadSheet(padItem, padBuffer, padModifier, scanThumb);
+        return;
+      }
+
       const btn = e.target.closest('[data-act]');
       if (!btn) return;
       const act = btn.dataset.act;
@@ -897,14 +1236,16 @@ export default {
       if (act === 'shoot') { shoot(); return; }
       if (act === 'watchlist') { ctx.go('watchlist'); return; }
       if (act === 'you') { ctx.go('you'); return; }
-      if (act === 'categories') { ctx.go('you'); return; }
       if (act === 'torch') { setTorch(!torchOn); return; }
 
       if (act === 'pad-clear') { padBuffer = ''; paintPad(); return; }
       // The pad's own confirm key (USAGE A1 0:13.4): nothing submits until
-      // this is pressed. No debounce, no auto-submit on a pause.
+      // this is pressed. No debounce, no auto-submit on a pause. Row 43:
+      // sends the effective price under any active modifier, not the typed
+      // sticker number.
       if (act === 'pad-confirm') {
-        const cents = parsePadPrice(padBuffer);
+        const typedCents = parsePadPrice(padBuffer);
+        const cents = effectivePriceCents(typedCents, padModifier);
         if (cents === null || cents <= 0) return;
         proceed(padItem, cents);
         return;
@@ -921,9 +1262,11 @@ export default {
         return;
       }
 
-      // Row 49, take: aborts the scan in progress and returns to the live
-      // viewfinder. The downward drag below does the same thing; this is the
-      // discoverable control the row asks for.
+      // Row 49/68, take: aborts the scan in progress, or closes a finished
+      // one, and returns to the live viewfinder. The downward drag below does
+      // the same thing; this is the discoverable control both rows ask for,
+      // now shared by the working sheet's close, the verdict's own Done, and
+      // the candidate list / price pad / type-it route's new back button.
       if (act === 'cancel-scan') { reset(); return; }
 
       if (act === 'correct') {
@@ -936,6 +1279,11 @@ export default {
       }
       if (act === 'watch' && last?.result?.kind === 'verdict') {
         const v = last.result;
+        // Only a tap that just ADDED the save gets the acknowledgement.
+        // Read the state before toggling: the same "watch" tap unsaves an
+        // already-saved item, and an unsave gets no pleased morph, no
+        // "Saved" line -- it goes straight back to the tier's own face.
+        const wasSaved = store.isWatched(v.identity.id);
         store.toggleWatch({
           id: v.identity.id,
           label: v.identity.label,
@@ -945,13 +1293,16 @@ export default {
           // the price was seen re-prices the item against its own shelf later.
           askingSeller: sellerOf(v),
           usualCents: v.spread.medianCents,
+          // Row 40: the frozen frame travels with the saved record too, so
+          // "which one was that" has an answer later.
+          thumb: last.thumb ?? null,
         });
         // Watch acknowledged (row 32) morphs the verdict face in place, so the
         // whole sheet is repainted from the same v/scenario rather than only
         // the button, and the detent the user was reading is carried across
         // the repaint.
         const prevDetent = slot.querySelector('.sheet')?.dataset.detent;
-        slot.innerHTML = verdictSheet(v, last.scenario);
+        slot.innerHTML = verdictSheet(v, last.scenario, last.thumb ?? null, !wasSaved);
         const nextSheet = slot.querySelector('.sheet');
         if (nextSheet && prevDetent) nextSheet.dataset.detent = clampDetent(nextSheet, prevDetent);
         return;
@@ -977,7 +1328,16 @@ export default {
         if (toastSlot) { clearTimeout(toastSlot._timer); toastSlot.innerHTML = ''; }
         return;
       }
-    });
+    }, { signal: listeners.signal });
+
+    root.addEventListener('input', (e) => {
+      const modInput = e.target.closest('[data-mod-value]');
+      if (!modInput || !padModifier) return;
+      const n = Number.parseFloat(modInput.value);
+      if (padModifier.kind === 'percent') padModifier.pct = Number.isFinite(n) ? n : NaN;
+      else if (padModifier.kind === 'nfor') padModifier.n = Number.isFinite(n) ? n : NaN;
+      paintPadEffective();
+    }, { signal: listeners.signal });
 
     root.addEventListener('submit', (e) => {
       const form = e.target.closest('[data-form="textroute"]');
@@ -1003,17 +1363,18 @@ export default {
           evidence: [],
         },
         null,
+        supportedCategories,
       );
       playRefusalLanding(slot);
       setState('result');
-    });
+    }, { signal: listeners.signal });
 
     /* The sheet moves between three detents: peek, half, full. A drag of more
        than 40px moves one detent in that direction (downward past peek
        dismisses); a tap on the grabber or head steps forward, wrapping from
        the sheet's own top detent back to peek. A sheet with no sheet-half or
-       sheet-full content (the reading and candidate sheets) has nowhere to
-       go, so it just stays at peek. */
+       sheet-full content (the candidate sheet) has nowhere to go, so it just
+       stays at peek. */
     const ORDER = ['peek', 'half', 'full'];
     function maxDetent(sheet) {
       if (sheet.querySelector('.sheet-full')) return 'full';
@@ -1038,7 +1399,7 @@ export default {
       if (!sheet || !e.target.closest('.grabber, .sheet-head')) return;
       dragFrom = { y: e.clientY, detent: clampDetent(sheet, sheet.dataset.detent || 'peek'), sheet };
       sheet.setPointerCapture?.(e.pointerId);
-    });
+    }, { signal: listeners.signal });
     root.addEventListener('pointerup', (e) => {
       if (!dragFrom) return;
       const dy = e.clientY - dragFrom.y;
@@ -1051,13 +1412,15 @@ export default {
       } else {
         sheet.dataset.detent = detent === maxDetent(sheet) ? 'peek' : stepUp(sheet, detent);
       }
-    });
+    }, { signal: listeners.signal });
 
     return () => {
       dead = true;
+      listeners.abort();
       unsub();
       stopCamera(stream);
       clearTimeout(hintTimer);
+      clearTimeout(torchAckTimer);
     };
   },
 };

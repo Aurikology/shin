@@ -40,14 +40,14 @@ export default {
         <div class="page page-correct">
           <header class="page-head${saved ? '' : ' ph-with-face'}">
             <p class="kicker">Teach Shin</p>
-            ${saved ? '' : faceBlock('asking', { size: 'face-page' })}
+            ${saved ? '' : faceBlock('asking', { size: 64 })}
             <h1>${say('correct_ask')}</h1>
           </header>
 
           ${
             saved
               ? `<div class="saved-note">
-                   ${faceBlock('pleased', { size: 'face-ack' })}
+                   ${faceBlock('pleased', { size: 64 })}
                    <p>${say('correct_thanks')}</p>
                  </div>`
               : `
@@ -63,9 +63,7 @@ export default {
             ${KEYS.map((k) => `<button type="button" class="key" data-k="${k}">${k}</button>`).join('')}
           </div>
 
-          <p class="fineprint">
-            Recorded against ${label}${seller ? ` at ${seller}` : ''}. Yours beats mine.
-          </p>
+          <p class="fineprint">${say('correct_fineprint', { label, seller })}</p>
 
           <div class="page-foot">
             <button type="button" class="cta" data-act="save" ${typed && seller ? '' : 'disabled'}>Save it</button>

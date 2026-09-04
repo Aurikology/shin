@@ -101,11 +101,28 @@ seller lands angry), the thirteen animations, past scans, recently removed, the 
 and the You page rows including the weekly line from his own record. The peek sizes to its
 content so the primary is visible on a short window.
 
-**Not built, and known.** Per-row pixel positions are honoured by component class, not re-laid
-out per row. Correct it is still a route, not a detent of the same sheet. The multi-buy "4 for"
-toggle on the pad is not built. The paywall and the meter switch are drawn, not built, and the
-You page shows their rows as visible placeholders. The mockups page is heavy to paint (fifty
-backdrop blurs) and slow to screenshot.
+**Third pass, redone from his original prompt (2026-09-04, late).** He said everything done from the
+prompt got nowhere near its intentions, and added the purpose every change is judged by: useful to
+the user, easy to use, visually appealing (now in `CLAUDE.md`). The pass was re-planned from the
+prompt, not from the design documents, which are no longer the reference: where the app and
+`docs/design/*.md` disagree, the app wins and the documents are behind. Two audits of the running
+app first (37 states, Shin absent or 28px on 12; 58 useful OLMA elements, 36 in, 9 partial, 10
+missing), then three build lanes, a fresh verifier, and two walks at the short desktop window he
+opens the app in. Built: one face-and-bubble unit on every screen; Shin docked on the viewfinder at
+64px, breathing, blinking, glancing at the reticle, opening a second visit with a callback to the
+last scan; every sheet, page and empty state carries Shin at 48 or larger with a line; a labelled
+way back on every sheet; percent-off and N-for on the pad; the shutter ring as progress; a neutral
+rail with the dot in the verdict hue; the cheapest seller marked; Done at full; the produce refusal
+repairs on the sheet with the engineering prose behind Why; the stand-in list labelled as one;
+saved rows open their verdict; "Watching" replaced by saved-with-price-seller-day; the correction
+ack honest; the You page opens on Shin with the weekly line; a buzz toggle; legal rows inert.
+
+**Not built, his decision, put to him in chat:** anything that meters, charges or rewards
+(paywall, trial, meter pill, earned scans, leaderboard, draw). **Not built, known:** the frozen
+frame thumbnail has only its no-camera branch tested (no camera on the build machine); the working
+sheet has a face and no bubble (three steps do not fold into one line); `docs/design/AVATAR.md`
+sizes and "none, because" rows are superseded by the app and not yet rewritten; the mockups page
+is behind the app.
 
 Nothing in this pass moved the three things below, which still gate the product.
 

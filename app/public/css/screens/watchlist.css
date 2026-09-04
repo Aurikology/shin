@@ -6,6 +6,13 @@
  * because green is the good verdict, not because green is nice on a list.
  */
 
+/* The header callback, above the rows: same 64px face-and-bubble unit the
+   past-scans header uses below. */
+.wlist-head,
+.plist-head {
+  margin: -2px 0 2px;
+}
+
 .wlist {
   display: flex;
   flex-direction: column;
@@ -32,6 +39,34 @@
 .wrow:hover { border-color: var(--ink-faint); }
 
 .wrow .face { flex: 0 0 auto; color: var(--ink-faint); }
+
+/*
+ * OLMA row 70: a row's face repeats the verdict sheet's own load-bearing
+ * rule, same hue is the verdict, fill is the confidence, at ring scale
+ * instead of a full surface. Certain and fairly-sure fill the ring solid
+ * with the tier hue and set the features to the on-tier ink so they read
+ * against it; thin evidence and a refusal are left exactly as drawn today,
+ * a plain hollow ring, which is already the sheet's own "hold it loosely"
+ * shape. `data-tier` on the row activates tokens.css's `--tier`/`--tier-on`
+ * for everything inside it, including the face this targets.
+ */
+.wrow[data-conf="certain"] .face-ring,
+.wrow[data-conf="sure"] .face-ring,
+.prow[data-conf="certain"] .face-ring,
+.prow[data-conf="sure"] .face-ring {
+  fill: var(--tier);
+}
+.wrow[data-conf="certain"] .face-features,
+.wrow[data-conf="certain"] .face-eyes circle,
+.wrow[data-conf="sure"] .face-features,
+.wrow[data-conf="sure"] .face-eyes circle,
+.prow[data-conf="certain"] .face-features,
+.prow[data-conf="certain"] .face-eyes circle,
+.prow[data-conf="sure"] .face-features,
+.prow[data-conf="sure"] .face-eyes circle {
+  stroke: var(--tier-on);
+  fill: var(--tier-on);
+}
 .wrow-n { display: flex; flex: 1 1 auto; flex-direction: column; gap: 3px; min-width: 0; }
 /*
  * `display: block` is load-bearing here, not decoration: `overflow`,
@@ -265,22 +300,17 @@
  * row: row faces belong to a verdict, and a removed row is not one anymore.
  */
 .rheader {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   margin: -2px 0 4px;
-}
-.rheader-t {
-  font-family: var(--f-mono);
-  font-size: 11px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
 }
 .rlist {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+/* The empty body: the same 48px component as the header above it, not a
+   bare, face-less line. */
+.rempty {
+  padding: 10px 2px 6px;
 }
 .rrow-wrap {
   display: flex;

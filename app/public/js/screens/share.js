@@ -20,7 +20,7 @@
  * exported PNG pixel for pixel rather than an approximation of it.
  */
 
-import { faceSvg, cad, confidenceOf, tierOf, sellerOf, SIZE_TOKENS } from '../shin.js';
+import { faceSvg, shinSay, cad, confidenceOf, tierOf, sellerOf, SIZE_TOKENS } from '../shin.js';
 import { wordFor, say } from '../voice.js';
 
 const W = 1080;
@@ -260,6 +260,10 @@ export default {
         </header>
 
         <p class="fineprint">A link would make a preview that reads as spam.</p>
+
+        <div class="shr-live">
+          ${shinSay(card.expression, v.tier, { asking: cad(v.askingCents), usual: cad(v.spread.medianCents) }, { size: 'face-share', tier: v.tier })}
+        </div>
 
         <div class="shr-frame">
           <canvas class="shr-canvas"

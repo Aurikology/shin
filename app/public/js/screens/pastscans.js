@@ -14,7 +14,7 @@
  * already happened.
  */
 
-import { faceSvg, faceBlock, cad, sellerOf, confidenceOf, dotsHtml, tierOf } from '../shin.js';
+import { faceSvg, faceBlock, shinSay, cad, sellerOf, confidenceOf, dotsHtml, tierOf } from '../shin.js';
 import { say, wordFor } from '../voice.js';
 import * as store from '../store.js';
 
@@ -47,10 +47,16 @@ function row(h) {
   const askingCents = isVerdict ? h.result.askingCents : h.query?.askingCents;
   const seller = isVerdict ? sellerOf(h.result) : null;
   const sub = [seller, ago(h.at)].filter(Boolean).join(' · ');
+  // OLMA row 70: the row's face carries the same solid-vs-hollow confidence
+  // treatment the verdict sheet gave it. confidenceOf already returns the
+  // "refuses" band for a non-verdict result, so this is one call for both
+  // shapes of row, never a second opinion recomputed from nothing.
+  const conf = confidenceOf(h.result);
+  const tierId = isVerdict ? h.result.tier : 'unknown';
 
   return `
     <div class="prow-wrap">
-      <button type="button" class="prow" data-open="${h.id}">
+      <button type="button" class="prow" data-open="${h.id}" data-tier="${tierId}" data-conf="${conf.level}">
         ${faceSvg(face, { size: 'face-row' })}
         <span class="prow-n">
           <b>${label}</b>
@@ -111,6 +117,17 @@ export default {
       const list = store.get().history;
       const open = openId ? list.find((h) => h.id === openId) : null;
 
+      // A 64px header, callback to the last scan: this row's own tier face
+      // and word if it was a verdict, "refused" if it was not, from facts
+      // already resolved here (voice.js only ever interpolates them).
+      const last = list[0];
+      const lastIsVerdict = last?.result?.kind === 'verdict';
+      const lastFace = last ? (lastIsVerdict ? tierOf(last.result.tier).face : 'unknown') : 'idle';
+      const lastFacts = last ? {
+        item: lastIsVerdict ? last.result.identity.label : (last.result?.identity?.label ?? last.query?.text ?? 'that one'),
+        verdict: lastIsVerdict ? wordFor(last.result.tier) : 'refused',
+      } : null;
+
       root.innerHTML = `
         <div class="page page-list">
           <header class="page-head">
@@ -121,7 +138,8 @@ export default {
 
           ${
             list.length
-              ? `<div class="plist">${list.map(row).join('')}</div>`
+              ? `<div class="plist-head">${shinSay(lastFace, 'pastscans_callback', lastFacts, { size: 64, anim: 'idle-breath' })}</div>
+                 <div class="plist">${list.map(row).join('')}</div>`
               : `<div class="empty">
                    ${faceBlock('asleep', { size: 'face-verdict' })}
                    <p>${say('pastscans_empty')}</p>

@@ -18,19 +18,8 @@
  */
 
 import { PERSONALITIES, setPersonality, personality } from '../voice.js';
-import { faceSvg } from '../shin.js';
+import { faceSvg, shinSay } from '../shin.js';
 import * as store from '../store.js';
-
-/**
- * GAMIFICATION.md mechanic M16, "N scanned this week, M I could call": both
- * numbers come from `store.weeklyStats()`, which reads `history` and never a
- * saved-money figure. Zero scans this week is stated plainly, not hidden.
- */
-function weeklyLine() {
-  const { scanned, callable } = store.weeklyStats();
-  if (scanned === 0) return 'Nothing scanned this week.';
-  return `${scanned} scanned this week. ${callable} I could call.`;
-}
 
 export default {
   id: 'you',
@@ -38,6 +27,10 @@ export default {
 
   render(root, ctx) {
     const market = store.market();
+    const weekly = store.weeklyStats();
+    const weekProud = store.goodFindThisWeek();
+    const weekState = weekProud ? 'proud' : 'fair';
+    const weekAnim = weekProud ? 'proud-hold' : 'idle-breath';
 
     root.innerHTML = `
       <div class="page page-list">
@@ -46,13 +39,17 @@ export default {
           <h1>You</h1>
         </header>
 
+        <section class="block block-week">
+          ${shinSay(weekState, 'you_weekly', { scanned: weekly.scanned, callable: weekly.callable }, { size: 64, anim: weekAnim })}
+        </section>
+
         <section class="block">
           <h2 class="block-h">Your Shin</h2>
           <div class="atts atts-row" role="radiogroup" aria-label="Shin's attitude">
             ${PERSONALITIES.map(
               (p) => `<button type="button" class="att${p.id === personality() ? ' on' : ''}"
                         role="radio" aria-checked="${p.id === personality()}" data-who="${p.id}">
-                <span class="att-face">${faceSvg('fair', { size: 'face-page', who: p.id })}</span>
+                <span class="att-face">${faceSvg('fair', { size: 'face-row', who: p.id })}</span>
                 <span class="att-t"><b>${p.name}</b><span>${p.blurb}</span></span>
               </button>`,
             ).join('')}
@@ -74,10 +71,11 @@ export default {
         </section>
 
         <section class="block">
-          <h2 class="block-h">This week</h2>
-          <div class="weekcard">
-            <p>${weeklyLine()}</p>
-          </div>
+          <h2 class="block-h">Notifications</h2>
+          <button type="button" class="rowbtn" data-act="buzz">
+            <span>Buzz on verdicts</span><span class="rowbtn-v" data-buzz-v></span>
+          </button>
+          <p class="fineprint">A short buzz when a verdict or a refusal lands, on by default.</p>
         </section>
 
         <section class="block">
@@ -117,15 +115,15 @@ export default {
           <h2 class="block-h">Legal</h2>
           <div class="rowbtn rowbtn-static" aria-disabled="true">
             <span>Privacy policy</span>
-            <span class="rowbtn-v placeholder">Placeholder, not written yet</span>
+            <span class="rowbtn-v placeholder">not written yet</span>
           </div>
           <div class="rowbtn rowbtn-static" aria-disabled="true">
             <span>Terms of use</span>
-            <span class="rowbtn-v placeholder">Placeholder, not written yet</span>
+            <span class="rowbtn-v placeholder">not written yet</span>
           </div>
           <div class="rowbtn rowbtn-static" aria-disabled="true">
             <span>Pricing</span>
-            <span class="rowbtn-v placeholder">Undecided</span>
+            <span class="rowbtn-v placeholder">not decided yet</span>
           </div>
         </section>
 
@@ -146,6 +144,11 @@ export default {
       root.querySelector('[data-theme-v]').textContent = currentTheme();
     }
     paintTheme();
+
+    function paintBuzz() {
+      root.querySelector('[data-buzz-v]').textContent = store.buzzOn() ? 'On' : 'Off';
+    }
+    paintBuzz();
 
     ctx.api.catalogue().then((c) => {
       const box = root.querySelector('[data-coverage]');
@@ -189,6 +192,11 @@ export default {
         else document.documentElement.dataset.theme = next;
         try { localStorage.setItem('shin.theme', next); } catch { /* private window */ }
         paintTheme();
+        return;
+      }
+      if (e.target.closest('[data-act="buzz"]')) {
+        store.setBuzz(!store.buzzOn());
+        paintBuzz();
         return;
       }
       if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }

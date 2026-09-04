@@ -9,8 +9,7 @@
  * 40, not invented here.
  */
 
-import { faceBlock } from '../shin.js';
-import { say } from '../voice.js';
+import { shinSay } from '../shin.js';
 import * as store from '../store.js';
 
 const MARKETS = [
@@ -31,9 +30,8 @@ export default {
         <div class="page page-list">
           <header class="page-head mkt-head">
             <button type="button" class="linky pback" data-act="back">Back</button>
-            ${faceBlock('asking', { size: 'face-page' })}
-            <p class="kicker">Every verdict is measured against this</p>
-            <h1>${say('market_ask')}</h1>
+            <p class="kicker">Recorded, not yet part of the comparison</p>
+            <div class="mkt-say">${shinSay('asking', 'market_ask', {}, { size: 64 })}</div>
           </header>
 
           <div class="mkt-list" role="radiogroup" aria-label="Market">
@@ -46,7 +44,7 @@ export default {
               </button>`).join('')}
           </div>
 
-          <p class="fineprint mkt-basis">Price verdicts are judged against typical prices in this market.</p>
+          <p class="fineprint mkt-basis">Does not change a verdict yet. Recorded for when it does.</p>
         </div>`;
     }
 

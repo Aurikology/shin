@@ -101,12 +101,16 @@ const LINES = {
   /*
    * --- the peek primary, USAGE.md section 7 ---
    *
-   * Keyed by tier, not by personality, on whether it says save or watch: Save
-   * it on `good`, Watch it on `fair` and `walk_away`, because telling someone
-   * to watch a price that is already good is telling them to wait for no
-   * reason. Nine strings, three tiers times three personalities. There is no
-   * feed in v1, so none of these may promise to notify, nudge or shout; the
-   * button names the act the tap performs, nothing more.
+   * All three tiers say save, never watch. This used to split on tier ("Save
+   * it" on `good`, "Watch it" on `fair`/`walk_away`) on the theory that
+   * fair/walk-away items are kept for reference rather than acted on now, but
+   * "Watch it" promises the same live price tracking "Watching" (the old page
+   * name) promised, and the founder's objection to that name applies here
+   * one screen earlier in the flow: this app does not watch a price over
+   * time, in v1 it saves a snapshot of it, on every tier, so the button may
+   * only ever say what the tap actually does. Nine strings, three tiers times
+   * three personalities. There is no feed in v1, so none of these may promise
+   * to notify, nudge or shout either.
    */
   peek_good: {
     deadpan: () => 'Save it',
@@ -114,20 +118,25 @@ const LINES = {
     blunt: () => 'Save it. Now.',
   },
   peek_fair: {
-    deadpan: () => 'Watch it',
-    warm: () => 'Watch it, just in case',
-    blunt: () => 'Watch it.',
+    deadpan: () => 'Save it',
+    warm: () => 'Save it, just in case',
+    blunt: () => 'Save it.',
   },
   peek_walk_away: {
-    deadpan: () => 'Watch it',
-    warm: () => 'Watch it, just in case',
-    blunt: () => 'Watch it.',
+    deadpan: () => 'Save it',
+    warm: () => 'Save it, just in case',
+    blunt: () => 'Save it.',
   },
-  /** Row 32: the label once the tap has landed. A state, not a personality line. */
+  /**
+   * Row 32: the label once the tap has landed. A state, not a personality
+   * line. Says "Saved" rather than "Watching": there is no re-queryable
+   * source in v1 (FLAGS.feed), so a word that promises to look again would
+   * be a promise this build cannot keep.
+   */
   peek_watching: {
-    deadpan: () => 'Watching',
-    warm: () => 'Watching',
-    blunt: () => 'Watching',
+    deadpan: () => 'Saved',
+    warm: () => 'Saved',
+    blunt: () => 'Saved',
   },
 
   /* --- refusals, which are the most common outcome and get the same care --- */
@@ -228,6 +237,33 @@ const LINES = {
     warm: () => 'Nothing here yet. Save something and I keep the price, the seller and the day.',
     blunt: () => 'Empty. Nothing to watch yet.',
   },
+  /**
+   * The watchlist header's own callback, a 64px face-and-bubble above the
+   * rows: the most recently saved item, read back from facts already on
+   * screen. Not a live promise -- item, price, seller and day, the same
+   * three things `watching` above already commits to being able to say.
+   */
+  watchlist_callback: {
+    deadpan: (f) => `${f.item}. ${f.price}${f.seller ? `, ${f.seller}` : ''}, saved ${f.day}.`,
+    warm: (f) => `Still have ${f.item} saved, ${f.price}${f.seller ? ` at ${f.seller}` : ''}, ${f.day}.`,
+    blunt: (f) => `${f.item}. ${f.price}${f.seller ? `, ${f.seller}` : ''}. ${f.day}.`,
+  },
+  /**
+   * A saved row opened with no matching scan left in history (the watch
+   * entry itself carries no verdict, only what was saved at the time). Says
+   * exactly what is left to show: the row's own fields, nothing invented.
+   */
+  watchlist_saved_only: {
+    deadpan: (f) => `${f.price}${f.seller ? `, ${f.seller}` : ''}, saved ${f.day}.`,
+    warm: (f) => `You saved this at ${f.price}${f.seller ? ` from ${f.seller}` : ''}, ${f.day}.`,
+    blunt: (f) => `${f.price}${f.seller ? `, ${f.seller}` : ''}. Saved ${f.day}.`,
+  },
+  /** The plain admission that goes with `watchlist_saved_only`: no verdict on file. */
+  watchlist_no_history_note: {
+    deadpan: () => 'No verdict on file for this one anymore. This is only what you saved.',
+    warm: () => 'I do not have the original verdict anymore, only what you saved.',
+    blunt: () => 'No verdict saved. Just the price.',
+  },
 
   /* --- corrections --- */
   correct_ask: {
@@ -235,10 +271,26 @@ const LINES = {
     warm: () => 'What is on the tag?',
     blunt: () => 'What does it say?',
   },
+  /**
+   * The correction is collected and applied to nothing yet (store.js's own
+   * comment on `corrections`), so this must never claim it changed a
+   * verdict. It says what actually happens: recorded, and it counts once a
+   * second observation agrees with it.
+   */
   correct_thanks: {
-    deadpan: () => 'Recorded. Yours beats mine.',
-    warm: () => 'Thank you, that helps. Yours beats mine.',
-    blunt: () => 'Got it. Yours wins.',
+    deadpan: () => 'Recorded. Counts once a second tag agrees.',
+    warm: () => 'Thank you, that is recorded. It counts once someone else sees the same price.',
+    blunt: () => 'Got it. Counts when a second one agrees.',
+  },
+  /**
+   * The correction screen's own fineprint, moved out of correct.js: no line
+   * Shin says may be written inside a screen file. Same honesty fix as
+   * `correct_thanks` above, against the item and seller already on screen.
+   */
+  correct_fineprint: {
+    deadpan: (f) => `Recorded against ${f.label}${f.seller ? `, at ${f.seller}` : ''}. Counts once a second tag agrees.`,
+    warm: (f) => `That is recorded against ${f.label}${f.seller ? `, at ${f.seller}` : ''}. It counts once someone else sees the same price.`,
+    blunt: (f) => `Recorded, ${f.label}${f.seller ? `, at ${f.seller}` : ''}. Counts when a second one agrees.`,
   },
 
   /**
@@ -294,11 +346,18 @@ const LINES = {
    * --- the hint pill's one unprompted escalation, AVATAR.md section 3 row 9 ---
    * Fires once per camera session, after four seconds of nothing detected.
    * USAGE.md B1 0:13.9, OLMA audit row 34.
+   *
+   * Never offers reading a screenshot: there is no gallery route, no image
+   * input and no vision model in this build, so that was a promise the app
+   * could not keep (the founder's own catch). The two things it now offers,
+   * pointing the camera at the item and typing what it is, are both real:
+   * the second is the no-identity refusal's own repair, camera.js's
+   * `data-act="typeit"`.
    */
   hint_escalated: {
-    deadpan: () => 'No tag on it? Point at the thing itself, or use your last screenshot.',
-    warm: () => 'No tag on it? Point at the thing itself, or I can read your last screenshot.',
-    blunt: () => 'No barcode there. Try the thing itself, or a screenshot.',
+    deadpan: () => 'No tag on it? Point at the thing itself, or type what it is.',
+    warm: () => 'No tag on it? Point at the thing itself, or tell me what it is instead.',
+    blunt: () => 'No barcode there. Try the thing itself, or type it.',
   },
 
   /**
@@ -315,11 +374,13 @@ const LINES = {
   /**
    * --- the thumbs feedback toast, AVATAR.md section 3 row 35 ---
    * Earns nothing (GAMIFICATION.md M12). Undo lives beside it for four seconds,
-   * OLMA audit row 65.
+   * OLMA audit row 65. camera.js's own comment on the tap handler is explicit:
+   * "it earns nothing and writes nothing but this local signal", so the warm
+   * line may not claim it teaches Shin anything; nothing is stored anywhere.
    */
   feedback_ack: {
     deadpan: () => 'Noted.',
-    warm: () => 'Thank you. That is how I get better.',
+    warm: () => 'Thank you for saying so.',
     blunt: () => 'Good. Noted.',
   },
 
@@ -332,6 +393,13 @@ const LINES = {
     warm: () => 'I keep these for 30 days in case you change your mind.',
     blunt: () => '30 days, then gone.',
   },
+  /** The empty body of "Recently removed": the same 48px component as the
+   * header above it, not a bare icon-less line. */
+  removed_empty: {
+    deadpan: () => 'Nothing removed.',
+    warm: () => 'Nothing removed. Nothing lost, either.',
+    blunt: () => 'Nothing removed.',
+  },
 
   /**
    * --- "Past scans", empty state, AVATAR.md section 3 row 48 ---
@@ -342,15 +410,139 @@ const LINES = {
     warm: () => 'Nothing yet. It fills up on its own.',
     blunt: () => 'Nothing yet.',
   },
+  /**
+   * Past scans header, a 64px callback to the most recent row: item and the
+   * word already resolved by the screen (a verdict's word, or "refused").
+   */
+  pastscans_callback: {
+    deadpan: (f) => `Last one: ${f.item}, ${f.verdict}.`,
+    warm: (f) => `Last time, ${f.item}: ${f.verdict}.`,
+    blunt: (f) => `${f.item}. ${f.verdict}.`,
+  },
 
   /**
    * --- market picker, opened, AVATAR.md section 3 row 54 ---
    * State asking, face-page 48px, face-morph.
+   *
+   * market.js's own file comment is explicit: naming a market "changes
+   * nothing in the engine today." Saying every verdict is "measured against"
+   * or "judged against" it would be a claim about how the comparison works
+   * that is not true yet, so this says what is actually true: the pick is
+   * recorded and shown, not yet part of the comparison itself.
    */
   market_ask: {
-    deadpan: () => 'Where do you shop? Every verdict is measured against this.',
-    warm: () => 'Where do you shop? I judge everything against this, so it matters.',
-    blunt: () => 'Where do you shop? Get this wrong and I am wrong.',
+    deadpan: () => 'Where do you shop? I record it. It does not change what I compare yet.',
+    warm: () => 'Where do you shop? I will keep it on file, even though it does not change what I compare yet.',
+    blunt: () => 'Where do you shop? Recorded. Does nothing yet.',
+  },
+
+  /**
+   * --- the attitude picker's own bubble, setup screen ---
+   * Each of the three faces on setup speaks its own personality's line
+   * regardless of which personality is currently picked, so a visitor can
+   * hear the difference before choosing. Same wording as PERSONALITIES'
+   * `.sample` field (that field only feeds the picker's own data table;
+   * this key is what a screen is allowed to hand to `say`).
+   */
+  attitude_sample: {
+    deadpan: () => 'Two dollars. It’s $1.47.',
+    warm: () => 'Ooh, that’s steep. I’d wait.',
+    blunt: () => 'They’re robbing you.',
+  },
+  /**
+   * The setup picker's own acknowledgement: spoken by whichever personality
+   * was just picked, morphed to `pleased` in place (setup.js). Each variant
+   * is that personality talking about itself, so the sound of the choice is
+   * the last thing heard before the camera opens.
+   */
+  attitude_pick: {
+    deadpan: () => 'Noted. This is how I sound now.',
+    warm: () => 'Good, this is me from here on.',
+    blunt: () => 'Locked in. This is my voice now.',
+  },
+
+  /* you, lane C */
+  /**
+   * --- You page header bubble, AVATAR.md You row ---
+   * State fair (idle-breath) most weeks, proud (proud-hold) when
+   * store.goodFindThisWeek() is true. Facts come straight from
+   * store.weeklyStats(): scanned and callable, already counted, never
+   * projected or ranked here.
+   */
+  you_weekly: {
+    deadpan: (f) => (f.scanned === 0
+      ? 'Nothing scanned this week.'
+      : `${f.scanned} scanned this week. ${f.callable} I could call.`),
+    warm: (f) => (f.scanned === 0
+      ? 'Nothing scanned yet this week.'
+      : `${f.scanned} scanned this week. I could call ${f.callable} of them.`),
+    blunt: (f) => (f.scanned === 0
+      ? 'Nothing this week.'
+      : `${f.scanned} this week. ${f.callable} I could call.`),
+  },
+
+  /* camera, lane B */
+  /**
+   * --- the docked camera hint, replaces the old inline "Point at a price
+   * tag" string that lived in camera.js. Idle, 64px, docked top-left under
+   * the wordmark. ---
+   */
+  cam_aim_hint: {
+    deadpan: () => 'Point at a price tag.',
+    warm: () => 'Point me at a price tag.',
+    blunt: () => 'Tag. Point at it.',
+  },
+  /**
+   * --- torch acknowledged, one short line, then back to whichever hint was
+   * already showing. State idle, no animation of its own. ---
+   */
+  cam_torch_on: {
+    deadpan: () => 'Torch on.',
+    warm: () => 'Torch on, that should help.',
+    blunt: () => 'Light on.',
+  },
+  /**
+   * --- second visit, the docked camera's first bubble instead of the aim
+   * hint, for one appearance. Facts arrive already formatted: item, seller
+   * (may be empty), asking (may be empty, a formatted amount), word (the
+   * verdict's own word, or "Refused"). ---
+   */
+  cam_second_visit: {
+    deadpan: (f) => `Last time: ${f.item}${f.seller ? ` at ${f.seller}` : ''}${f.asking ? `, ${f.asking}` : ''}. ${f.word}.`,
+    warm: (f) => `Last time you scanned ${f.item}${f.seller ? ` at ${f.seller}` : ''}${f.asking ? `, ${f.asking}` : ''}. ${f.word}.`,
+    blunt: (f) => `Last one: ${f.item}${f.asking ? `, ${f.asking}` : ''}. ${f.word}.`,
+  },
+  /**
+   * --- the candidate list's own head, reframed off the unsure refusal it
+   * used to borrow: this is a plain question, not Shin failing to separate
+   * two things. State asking, 64px, face-morph. ---
+   */
+  cam_candidate_prompt: {
+    deadpan: () => 'Which one is it?',
+    warm: () => 'Which one of these is it?',
+    blunt: () => 'Pick one.',
+  },
+  /**
+   * --- the category refusal's repair, now a short list on the same sheet
+   * instead of a navigation away that lost the framed photo. Intro line
+   * only; the categories themselves are chrome (server data, not Shin
+   * talking). ---
+   */
+  refuse_category_repair: {
+    deadpan: () => 'Here is what I price.',
+    warm: () => 'Here is what I can help you with instead.',
+    blunt: () => 'I price these instead.',
+  },
+  /**
+   * --- row 14, the privacy line, at the moment camera permission is asked.
+   * Shown while `getUserMedia` is in flight; swapped for the real idle
+   * content the instant it resolves either way. What it claims is checked
+   * against api.js: no photo field is ever sent to the server. ---
+   */
+  cam_privacy_line: {
+    deadpan: () => 'Your camera stays on your phone. Only the price ever leaves it.',
+    warm: () => 'Nothing from your camera leaves your phone, only the price does.',
+    blunt: () => 'Camera stays local. Only the price goes out.',
   },
 };
 
@@ -359,15 +551,20 @@ const LINES = {
  *
  * @param {string} key   a key in LINES
  * @param {object} [facts]  already-formatted strings, never raw numbers
+ * @param {string} [who]  personality override; defaults to the user's own
+ *   pick. Only for a screen that shows more than one personality's voice at
+ *   once (the attitude picker); every other call site omits it and gets the
+ *   same behaviour as before this parameter existed.
  */
-export function say(key, facts = {}) {
+export function say(key, facts = {}, who) {
   // watching is the only key with a dark alternate. A screen always asks for
   // watching; whether it gets the row-32 save line or the row-33 promise is
   // this one switch, never a second call site.
   const resolvedKey = key === 'watching' && FLAGS.feed ? 'watching_feed' : key;
   const row = LINES[resolvedKey];
   if (!row) return '';
-  const fn = row[personality()] ?? row[DEFAULT_PERSONALITY];
+  const speaker = who && PERSONALITIES.some((p) => p.id === who) ? who : personality();
+  const fn = row[speaker] ?? row[DEFAULT_PERSONALITY];
   return typeof fn === 'function' ? fn(facts) : '';
 }
 

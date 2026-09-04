@@ -16,7 +16,7 @@
  * already drew, and section 6 is the placeholder contract this file is.
  */
 
-import { personality } from './voice.js';
+import { personality, say } from './voice.js';
 import { FLAGS } from './flags.js';
 
 /**
@@ -448,6 +448,101 @@ export function faceLabel(expression) {
  */
 export function faceBlock(expression, opts = {}) {
   return `<span class="face-block">${faceSvg(expression, opts)}${faceLabel(expression)}</span>`;
+}
+
+/**
+ * The shared unit: a face and a speech bubble, one component every screen
+ * uses instead of composing its own pill, toast or header line. The bubble
+ * always carries `say(key, facts)` from voice.js, so no screen ever writes
+ * a Shin line of its own.
+ *
+ * Face-left, bubble-right by default; `opts.side: 'right'` flips it to
+ * face-right, bubble-left. Never below 48px: a bubble is always present, and
+ * `face-row` (28px) is reserved for faces that stand alone in a row.
+ *
+ * @param {string} state   one of STATES, the face's expression
+ * @param {string} key     a key in voice.js's LINES, passed to `say`
+ * @param {object} [facts] already-formatted facts, passed straight to `say`
+ * @param {object} [opts]
+ * @param {number|string} [opts.size]  a SIZE_TOKENS name or a raw px number;
+ *   resolved and then floored at 48 regardless (the bubble floor, not
+ *   `faceSvg`'s own 28px row floor)
+ * @param {string} [opts.who]   personality override, defaults to the user's
+ *   own pick; governs both the face drawn and which personality's line
+ *   `say` returns (the attitude picker's three faces each need their own
+ *   voice, not the currently-picked one)
+ * @param {string} [opts.anim]  animation name to play instead of the state's
+ *   default (`DEFAULT_ANIM`), applied to the mounted face's `data-anim`. Also
+ *   accepts the literal `'none'`, the same sentinel `faceSvg` writes for a
+ *   `face-row` (28px) face: at any larger size a face otherwise always gets
+ *   *some* default animation (idle-breath for `idle`, verdict-land for a
+ *   tier, and so on), and a caller that genuinely wants a still face at 48px
+ *   or above (AVATAR.md's own "none" rows, e.g. "Recently removed") needs a
+ *   way to say so that is not "make the face 28px."
+ * @param {'left'|'right'} [opts.side]  default `'left'` (face-left,
+ *   bubble-right); `'right'` flips the layout
+ * @param {string} [opts.tier]  when given, written as `data-tier` on the
+ *   root so the bubble border picks up the tier tint from tokens.css
+ * @returns {string} an HTML string: `.shin-say` root, `.face-block` >
+ *   `.face` (plus the placeholder label when the flag is on), `.bubble` >
+ *   `.bubble-text`
+ */
+export function shinSay(state, key, facts, opts = {}) {
+  const who = opts.who ?? personality();
+  const px = Math.max(SIZE_TOKENS['face-page'], resolveSize(opts.size ?? 'face-page'));
+  let faceHtml = faceSvg(state, { size: px, who });
+  if (opts.anim && (opts.anim === 'none' || ANIMATION_SET.has(opts.anim))) {
+    // faceSvg already wrote the state's default data-anim; a caller-chosen
+    // opts.anim overrides it in the same string, so the face never has to
+    // be re-rendered just to change which animation it opens with.
+    faceHtml = faceHtml.replace(/data-anim="[^"]*"/, `data-anim="${opts.anim}"`);
+  }
+  const side = opts.side === 'right' ? 'right' : 'left';
+  const tierAttr = opts.tier ? ` data-tier="${opts.tier}"` : '';
+  // opts.who governs both the face drawn and the personality that speaks:
+  // a face shown in someone else's style saying the current user's line
+  // would be the bug the attitude picker exists to avoid.
+  const line = say(key, facts, who);
+
+  return `<div class="shin-say" data-state="${state}" data-side="${side}"${tierAttr}>
+    <span class="face-block">${faceHtml}${faceLabel(state)}</span>
+    <div class="bubble"><p class="bubble-text">${line}</p></div>
+  </div>`;
+}
+
+/**
+ * Update a mounted `shinSay` root in place: morph the face to `state` (via
+ * `morphFace`, which also plays `anim` or `state`'s own default animation),
+ * and swap the bubble's line to `say(key, facts)`. No screen has to
+ * re-render itself just to change what Shin is saying.
+ *
+ * @param {HTMLElement} el     the mounted `.shin-say` root `shinSay` returned
+ * @param {string} state       the face's new expression
+ * @param {string} key         a key in voice.js's LINES, passed to `say`
+ * @param {object} [facts]     already-formatted facts, passed straight to `say`
+ * @param {string} [anim]      animation name to play instead of `state`'s
+ *   default; forwarded to `morphFace`'s own `opts.anim`
+ * @param {string} [who]       personality override, forwarded to both
+ *   `morphFace` (which face geometry draws) and `say` (which voice speaks).
+ *   Only for a mounted face that is locked to one personality regardless of
+ *   the user's own pick (the attitude picker's three faces); every other
+ *   caller omits it and gets the same behaviour as before this parameter
+ *   existed.
+ * @returns {void}
+ */
+export function updateShinSay(el, state, key, facts, anim, who) {
+  if (!el) return;
+  const face = el.querySelector('.face');
+  const fromState = face?.dataset?.state ?? el.dataset.state ?? null;
+
+  if (face) morphFace(face, fromState, state, { anim, who });
+  el.dataset.state = state;
+
+  const label = el.querySelector('.face-label');
+  if (label) label.textContent = FLAGS.placeholderLabels ? state : '';
+
+  const bubbleText = el.querySelector('.bubble-text');
+  if (bubbleText) bubbleText.textContent = say(key, facts, who);
 }
 
 /**

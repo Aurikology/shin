@@ -279,3 +279,85 @@
     to { opacity: 1; }
   }
 }
+
+/* ============================================================
+   shin-say: face + speech bubble, the one shared unit every
+   screen uses so that Shin always looks the same when he talks.
+   Face-left, bubble-right by default; [data-side="right"] flips
+   it. The bubble never truncates -- it wraps to whatever width
+   its container gives it -- and its border picks up the tier
+   tint from tokens.css's [data-tier] rules when the root carries
+   one. Built to read correctly at every face size from 48 to 220,
+   because the bubble's own size never depends on the face's. */
+.shin-say {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+}
+.shin-say[data-side="right"] {
+  flex-direction: row-reverse;
+}
+.shin-say .face-block {
+  flex: none;
+}
+.shin-say .bubble {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  background: var(--raised);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  padding: 10px 14px;
+  box-shadow: var(--shadow);
+}
+.shin-say[data-tier] .bubble {
+  border-color: var(--tier, var(--hairline));
+}
+.shin-say .bubble-text {
+  margin: 0;
+  font-family: var(--f-ui);
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--ink);
+  /* never truncated: no nowrap, no ellipsis, no line clamp */
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+/* the tail: a small rotated square, half hidden behind the
+   bubble's own edge, pointing at the face beside it. */
+.shin-say .bubble::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -6px;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  background: var(--raised);
+  border-left: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0 0 0 2px;
+  transform: rotate(45deg);
+}
+.shin-say[data-tier] .bubble::before {
+  border-left-color: var(--tier, var(--hairline));
+  border-bottom-color: var(--tier, var(--hairline));
+}
+/* flipped (face-right, bubble-left): the tail moves to the
+   bubble's right edge and points the other way. */
+.shin-say[data-side="right"] .bubble::before {
+  left: auto;
+  right: -6px;
+  border-left: none;
+  border-bottom: none;
+  border-right: 1px solid var(--hairline);
+  border-top: 1px solid var(--hairline);
+  border-radius: 0 2px 0 0;
+}
+.shin-say[data-side="right"][data-tier] .bubble::before {
+  border-right-color: var(--tier, var(--hairline));
+  border-top-color: var(--tier, var(--hairline));
+}

@@ -51,6 +51,13 @@ const EMPTY = {
    * in without guessing from shape.
    */
   removed: [],
+  /**
+   * OLMA audit row 83: buzz-on-verdicts, a You-page toggle. Default on. "On"
+   * is anything that is not literally `false`, so the camera loop (which reads
+   * this raw, `store.get().buzz !== false`) and an older stored state with no
+   * opinion on the field both read as on.
+   */
+  buzz: true,
 };
 
 /** A stable id, so a history entry can be found again after a re-render. */
@@ -77,7 +84,9 @@ function migrate(s) {
     && typeof s.market.country === 'string' && typeof s.market.currency === 'string'
     ? s.market
     : { ...EMPTY.market };
-  return { ...s, history, watchlist, removed, market };
+  /** A state saved before this pass has no `buzz` at all; that reads as on. */
+  const buzz = s.buzz !== false;
+  return { ...s, history, watchlist, removed, market, buzz };
 }
 
 /** Drops anything removed more than thirty days ago. Never throws, never loses anything early. */
@@ -252,4 +261,32 @@ export function weeklyStats() {
 
 export function isPro() {
   return state.proUntil !== null && Date.parse(state.proUntil) > Date.now();
+}
+
+/**
+ * Whether the user's own record has a good-tier verdict in the last seven
+ * days (You page header, proud state). Read from `history` alone, the same
+ * seven-day window `weeklyStats` uses: never a projected or invented figure.
+ */
+export function goodFindThisWeek() {
+  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  return state.history.some((h) => {
+    const at = Date.parse(h.at);
+    return Number.isFinite(at) && at >= cutoff && h.result?.tier === 'good';
+  });
+}
+
+/**
+ * OLMA audit row 83: buzz-on-verdicts, a You-page toggle. `buzzOn()` and
+ * `setBuzz()` are the accessor pair for a screen that wants the on/off state
+ * without reaching into `get().buzz` directly; the camera loop reads the raw
+ * field itself (`store.get().buzz !== false`), which stays equivalent to
+ * `buzzOn()` by construction.
+ */
+export function buzzOn() {
+  return state.buzz !== false;
+}
+
+export function setBuzz(on) {
+  update({ buzz: !!on });
 }

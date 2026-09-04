@@ -99,6 +99,11 @@ body {
 
 .page-head { margin: 6px 0 4px; }
 
+/* The market picker's own prompt: the shin-say unit under the kicker, not a
+   heading beside a bare face (avatar-presence.md's opening rule -- every
+   hint and prompt is Shin talking through the one face-and-bubble unit). */
+.mkt-say { margin-top: 2px; }
+
 .page h1 {
   font-family: var(--f-display);
   font-weight: 800;

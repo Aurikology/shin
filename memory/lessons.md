@@ -52,3 +52,10 @@ has cost something recorded twice. One incident is a lesson. Two is a rule.
   **Changed:** when he asks for an analysis of a product, the deliverable is the app changed by
   it; drawings and contracts are intermediate and ship in the same pass as the code or not at
   all. Cost: one day of his and one turn. One occurrence.
+
+- **2026-09-04 · "Analyse the prompt" was answered as a scorecard of what shipped against it.** His
+  words: *"i didn't ask you to tell me what it got. I just asked you to analyse it which you did,
+  but only on a surface level. I want you to analyse in depth what the intentions of each are."*
+  **Changed:** when he asks what a prompt is asking, the deliverable is the intent behind each
+  sentence (the motive, the assumption it reveals, the expectation it sets), and nothing about
+  delivery unless he asks for the diff. One turn lost. One occurrence.

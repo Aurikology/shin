@@ -12,7 +12,7 @@
  */
 
 import { PERSONALITIES, setPersonality, personality } from '../voice.js';
-import { faceSvg } from '../shin.js';
+import { shinSay, updateShinSay } from '../shin.js';
 import * as store from '../store.js';
 
 export default {
@@ -29,16 +29,15 @@ export default {
           <h1>Which Shin do you want?</h1>
         </header>
 
-        <div class="atts" role="radiogroup" aria-label="Shin's attitude">
+        <div class="atts atts-row" role="radiogroup" aria-label="Shin's attitude">
           ${PERSONALITIES.map(
             (p) => `
             <button type="button" class="att${p.id === (current ?? 'deadpan') ? ' on' : ''}"
                     role="radio" aria-checked="${p.id === (current ?? 'deadpan')}" data-who="${p.id}">
-              <span class="att-face">${faceSvg('fair', { size: 'face-verdict', who: p.id })}</span>
-              <span class="att-t">
-                <b>${p.name}</b>
-                <span>${p.sample}</span>
+              <span class="att-say" style="flex:1 1 auto;min-width:0">
+                ${shinSay('fair', 'attitude_sample', {}, { size: 'face-verdict', who: p.id })}
               </span>
+              <span class="att-t"><b>${p.name}</b></span>
             </button>`,
           ).join('')}
         </div>
@@ -56,16 +55,22 @@ export default {
       const pick = e.target.closest('[data-who]');
       if (pick) {
         setPersonality(pick.dataset.who);
+        // Each button carries its own shinSay, locked to its own
+        // personality's face and voice regardless of the global pick
+        // (opts.who / updateShinSay's who). Choosing one morphs that one
+        // button's face to `pleased` with its own pick line; every other
+        // button morphs (or stays) at `fair` with its own sample line, so
+        // hearing the difference before choosing still works after choosing.
         for (const el of root.querySelectorAll('.att')) {
           const on = el === pick;
           el.classList.toggle('on', on);
           el.setAttribute('aria-checked', String(on));
-          // Repaint the faces so the choice is shown in the face it changes,
-          // not only in the label next to it. AVATAR.md row 2: all three
-          // faces are `fair`, drawn three times, one per personality; the
-          // treatment (not the tier) is what tells them apart.
+          const say = el.querySelector('.shin-say');
           const who = el.dataset.who;
-          el.querySelector('.att-face').innerHTML = faceSvg('fair', { size: 'face-verdict', who });
+          if (say) {
+            if (on) updateShinSay(say, 'pleased', 'attitude_pick', {}, undefined, who);
+            else updateShinSay(say, 'fair', 'attitude_sample', {}, undefined, who);
+          }
         }
         return;
       }

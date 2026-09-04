@@ -66,34 +66,31 @@
 .covrow .no { color: var(--unknown-bright); }
 
 /*
- * The weekly line, GAMIFICATION.md mechanic M16. One sentence, no number
- * treated as a score, no colour, because it is a fact read back, not a result.
+ * The weekly line, GAMIFICATION.md mechanic M16, now Shin's own bubble
+ * (js/voice.js key you_weekly) rather than a bare card: one sentence, no
+ * number treated as a score, no colour, because it is a fact read back, not
+ * a result. The `.shin-say` component (css/face.css) supplies its own box;
+ * this section carries none of its own.
  */
-.weekcard {
-  padding: 14px 16px;
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-md);
-  background: var(--surface);
-}
-.weekcard p {
-  margin: 0;
-  font-size: 14.5px;
-  color: var(--ink);
-  line-height: 1.5;
-}
 
 /*
- * Legal and pricing placeholder rows. Visibly inert: no pointer cursor, no
- * hover state, the value column says outright that nothing is written yet
- * rather than behaving like a link to nowhere.
+ * Legal and pricing placeholder rows. Visibly inert, and deliberately never
+ * the same box as a live `.rowbtn`: a dashed hairline instead of a solid
+ * one, a see-through background instead of `--surface`, a muted label, and
+ * a mono "not written yet" value (`.rowbtn-v` is already mono, shell.css) so
+ * nothing about the row reads as tappable at a glance.
  */
 .rowbtn-static {
   cursor: default;
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--hairline);
+  color: var(--ink-faint);
 }
 .rowbtn-static:hover { border-color: var(--hairline); }
 .rowbtn-v.placeholder {
-  font-style: italic;
   color: var(--ink-faint);
+  text-transform: lowercase;
 }
 
 .buildline {

@@ -8,6 +8,12 @@ Problem statement, adopted verbatim 2026-09-03, use it as written:
 > Sellers know what things are worth and buyers are guessing, so we're making the check instant
 > enough that guessing stops being the default.
 
+**The purpose, his words, 2026-09-04, said while a rebuild was being re-planned from his
+original prompt:** *"the purpose of all of this is to create an app that is useful to the user,
+easy to use, and visually appealling. All improvements made now and in the future should center
+around these three things."* Every change is judged by those three, in the app as he opens it.
+A change that cannot say which of the three it serves is not made.
+
 **This repo is shared.** Aurik Disler (`Aurikology` on GitLab) has Maintainer access. Anything
 written here he can read. Nothing goes in that he should not see.
 

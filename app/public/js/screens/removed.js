@@ -8,8 +8,7 @@
  * Deleting for good is a second tap on the same button, never a dialog.
  */
 
-import { faceSvg, cad } from '../shin.js';
-import { say } from '../voice.js';
+import { shinSay, cad } from '../shin.js';
 import * as store from '../store.js';
 
 function ago(iso) {
@@ -75,15 +74,12 @@ export default {
             <h1>Recently removed</h1>
           </header>
 
-          <div class="rheader">
-            ${faceSvg('idle', { size: 'face-row' })}
-            <span class="rheader-t">${say('removed_retention')}</span>
-          </div>
+          <div class="rheader">${shinSay('idle', 'removed_retention', {}, { size: 'face-page', anim: 'none' })}</div>
 
           ${
             list.length
               ? `<div class="rlist">${list.map((r) => row(r, confirmKey)).join('')}</div>`
-              : `<p class="fineprint">Nothing removed.</p>`
+              : `<div class="rempty">${shinSay('idle', 'removed_empty', {}, { size: 'face-page', anim: 'none' })}</div>`
           }
         </div>`;
     }
