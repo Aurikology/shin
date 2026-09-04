@@ -34,10 +34,7 @@ export default {
             (p) => `
             <button type="button" class="att${p.id === (current ?? 'deadpan') ? ' on' : ''}"
                     role="radio" aria-checked="${p.id === (current ?? 'deadpan')}" data-who="${p.id}">
-              <span class="att-face">${faceSvg(p.id === 'blunt' ? 'walk' : p.id === 'warm' ? 'good' : 'fair', {
-                size: 46,
-                who: p.id,
-              })}</span>
+              <span class="att-face">${faceSvg('fair', { size: 'face-verdict', who: p.id })}</span>
               <span class="att-t">
                 <b>${p.name}</b>
                 <span>${p.sample}</span>
@@ -64,12 +61,11 @@ export default {
           el.classList.toggle('on', on);
           el.setAttribute('aria-checked', String(on));
           // Repaint the faces so the choice is shown in the face it changes,
-          // not only in the label next to it.
+          // not only in the label next to it. AVATAR.md row 2: all three
+          // faces are `fair`, drawn three times, one per personality; the
+          // treatment (not the tier) is what tells them apart.
           const who = el.dataset.who;
-          el.querySelector('.att-face').innerHTML = faceSvg(
-            who === 'blunt' ? 'walk' : who === 'warm' ? 'good' : 'fair',
-            { size: 46, who },
-          );
+          el.querySelector('.att-face').innerHTML = faceSvg('fair', { size: 'face-verdict', who });
         }
         return;
       }

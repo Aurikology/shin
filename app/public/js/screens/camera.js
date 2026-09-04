@@ -22,7 +22,7 @@
  *   comparison set. That is a build standard earned by the same bug twice.
  */
 
-import { faceSvg, cad, confidenceOf, dotsHtml, tierOf, sellerOf } from '../shin.js';
+import { faceSvg, faceBlock, cad, confidenceOf, dotsHtml, tierOf, sellerOf } from '../shin.js';
 import { say, wordFor } from '../voice.js';
 import * as store from '../store.js';
 
@@ -112,10 +112,18 @@ function provenance(points) {
 
 function verdictSheet(v, scenario) {
   const conf = confidenceOf(v);
+  const source = sellerOf(v);
+  // Watch acknowledged (AVATAR.md row 32) morphs the verdict face in place,
+  // no move, no re-render of anything else: still the tier's own face and
+  // line once the acknowledgement has been seen, since the verdict itself
+  // has not changed, only what happened since it landed.
+  const watched = store.isWatched(v.identity.id);
   // The tier already knows which face it wears. A second map here would be a
   // second opinion about the same thing.
-  const face = tierOf(v.tier).face;
+  const face = watched ? 'pleased' : tierOf(v.tier).face;
   const facts = { asking: cad(v.askingCents), usual: cad(v.spread.medianCents) };
+  const watchFacts = { asking: cad(v.askingCents), seller: source, day: 'today' };
+  const said = watched ? say('watching', watchFacts) : say(v.tier, facts);
 
   // The stand-in note sits in the peek, not the detail. It qualifies the number
   // the user is reading right now, and a caveat you have to drag a sheet open to
@@ -124,18 +132,23 @@ function verdictSheet(v, scenario) {
     ? `<p class="standin">This asking price is a stated stand-in, not a tag anyone read.</p>`
     : '';
 
-  const source = sellerOf(v);
-
+  // Three detents (USAGE.md section 7 / DESIGN.md section 4, which agree with
+  // each other exactly, over this build pass's own looser paraphrase of them):
+  // peek carries the one wide primary and nothing else can push it below the
+  // fold; half adds the rail, the confidence sentence and the provenance list;
+  // full adds what Shin used in full and the one-tap correctness signal. The
+  // two full-detent actions ("Find it cheaper nearby", "Show me a dupe") are
+  // marked not-v1 in both docs, so full ships with no actions of its own.
   return `
-    <section class="sheet" data-tier="${v.tier}" data-conf="${conf.level}" aria-live="polite">
-      <span class="grabber" aria-hidden="true"></span>
+    <section class="sheet" data-tier="${v.tier}" data-conf="${conf.level}" data-detent="peek" aria-live="polite">
+      <span class="grabber" aria-hidden="true" role="button" tabindex="0" aria-label="Show more"></span>
 
       <div class="sheet-peek">
         <div class="sheet-head">
-          ${faceSvg(face, { size: 96 })}
+          ${faceBlock(face, { size: 'face-verdict' })}
           <div>
             <h2 class="vword">${wordFor(v.tier)}</h2>
-            <p class="said">${say(v.tier, facts)}</p>
+            <p class="said">${said}</p>
           </div>
         </div>
 
@@ -150,20 +163,34 @@ function verdictSheet(v, scenario) {
         </div>
         ${standIn}
         <p class="itemname">${v.identity.label}</p>
+
+        <div class="actions actions-primary">
+          <button type="button" class="pill solid wide" data-act="watch">
+            ${watched ? say('peek_watching') : say(`peek_${v.tier}`)}
+          </button>
+        </div>
       </div>
 
-      <div class="sheet-more">
-        ${v.lines.map((l) => `<p class="line">${l}</p>`).join('')}
+      <div class="sheet-half">
         ${spreadRail(v)}
         ${v.disagreement ? `<p class="disagree">${v.disagreement.detail}</p>` : ''}
         <p class="because">${v.confidence.because}</p>
         ${provenance(v.comparisonSet)}
         <div class="actions">
-          <button type="button" class="pill solid" data-act="watch">
-            ${store.isWatched(v.identity.id) ? 'Watching' : 'Watch it'}
-          </button>
           <button type="button" class="pill ghost" data-act="correct">Correct it</button>
           <button type="button" class="pill ghost" data-act="share">Share</button>
+        </div>
+      </div>
+
+      <div class="sheet-full">
+        ${v.lines.map((l) => `<p class="line">${l}</p>`).join('')}
+        <div class="thumbs" role="group" aria-label="Was this verdict right?">
+          <button type="button" class="thumb" data-act="thumbs-up" aria-label="This looks right">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3zm0 0 4.5-8a2 2 0 0 1 2 2.2L12.5 9H19a2 2 0 0 1 2 2.4l-1.4 7A2 2 0 0 1 17.6 20H9a2 2 0 0 1-2-2v-7z"/></svg>
+          </button>
+          <button type="button" class="thumb" data-act="thumbs-down" aria-label="This looks wrong">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3zm0 0-4.5 8a2 2 0 0 1-2-2.2l1-5.8H5a2 2 0 0 1-2-2.4l1.4-7A2 2 0 0 1 6.4 4H15a2 2 0 0 1 2 2v7z"/></svg>
+          </button>
         </div>
       </div>
     </section>`;
@@ -199,58 +226,82 @@ function refusalSheet(r, scenario) {
     ? ''
     : `<p class="said">${say(isUnsure ? 'refuse_unsure_why' : 'refuse_unknown_why')}</p>`;
 
+  // USAGE.md section 4 ("the single action, by reason") and section 7 ("on a
+  // refusal: one action only... there is no share and no watch on a refusal")
+  // both forbid a second pill here. `Try again` used to sit beside the repair;
+  // it is now the same downward drag that already dismisses the sheet, so it
+  // costs no second button.
   const repair = isCategory
     ? `<button type="button" class="pill ghost" data-act="categories">What I can price</button>`
-    : `<button type="button" class="pill solid" data-act="correct">Tell me the price</button>
-       <button type="button" class="pill ghost" data-act="again">Try again</button>`;
+    : `<button type="button" class="pill solid" data-act="correct">Tell me the price</button>`;
 
   return `
-    <section class="sheet refusal" data-tier="unknown" data-conf="refuses" aria-live="polite">
-      <span class="grabber" aria-hidden="true"></span>
+    <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite">
+      <span class="grabber" aria-hidden="true" role="button" tabindex="0" aria-label="Show more"></span>
       <div class="sheet-peek">
         <div class="sheet-head">
-          ${faceSvg('unknown', { size: 96 })}
+          ${faceBlock('unknown', { size: 'face-verdict' })}
           <div>
             <h2 class="vword small">${title}</h2>
             ${mine}
           </div>
         </div>
         <p class="detail">${r.detail}</p>
-        <div class="actions">${repair}</div>
+        <div class="actions actions-primary">${repair}</div>
         <p class="itemname">${r.identity ? r.identity.label : 'No confident match'} · ${r.reason.replace(/_/g, ' ')}</p>
       </div>
-      <div class="sheet-more">
+      <div class="sheet-half">
         ${r.evidence.length
-          ? `<p class="because">What I did find, which was not enough to call it.</p>${provenance(r.evidence)}`
-          : `<p class="because">I found nothing at all for this. That is a gap in what I have been taught, not a fact about the market.</p>`}
+          ? `<p class="because">${say('refuse_evidence_some')}</p>${provenance(r.evidence)}`
+          : `<p class="because">${say('refuse_evidence_none')}</p>`}
       </div>
     </section>`;
 }
 
-function readingSheet() {
+/**
+ * The wait, between a shutter press and an answer.
+ *
+ * AVATAR.md row 11 (identifying, right after the shutter) and rows 16 to 19
+ * (working through the price search once a candidate is picked) are two
+ * different moments with two different sizes; this screen renders both
+ * through the same sheet component, so the size is the one thing that tells
+ * them apart until the sheet itself is split in two.
+ */
+function readingSheet(size = 'face-working') {
   return `
     <section class="sheet reading" data-tier="unknown" data-conf="reading">
       <span class="grabber" aria-hidden="true"></span>
       <div class="sheet-peek">
         <div class="sheet-head">
-          ${faceSvg('thinking', { size: 76 })}
+          ${faceBlock('thinking', { size })}
           <div><h2 class="vword small">${say('reading')}</h2></div>
         </div>
       </div>
     </section>`;
 }
 
-/** What Shin might be looking at. Real items, real recorded asking prices. */
+/**
+ * What Shin might be looking at. Real items, real recorded asking prices.
+ *
+ * AVATAR.md row 37, the unsure refusal: two or more candidates and Shin
+ * cannot separate them without help, which is exactly this screen's state.
+ * Row 13 (the identity chip's wrong-item repair) was the other candidate for
+ * this spot, but it only exists after a chip has already named one item and
+ * been tapped as wrong; here there is no chip yet, only the candidate list
+ * itself as the one action, which is row 37's own description. So this
+ * screen reuses row 37's strings and its size, `face-verdict` at `unknown`,
+ * rather than row 13's `face-row`.
+ */
 function candidateSheet(items) {
   return `
     <section class="sheet candidates" data-tier="unknown" data-conf="reading">
       <span class="grabber" aria-hidden="true"></span>
       <div class="sheet-peek">
         <div class="sheet-head compact">
-          ${faceSvg('thinking', { size: 62 })}
+          ${faceBlock('unknown', { size: 'face-verdict' })}
           <div>
-            <h2 class="vword small">Is it one of these?</h2>
-            <p class="said">I cannot read a tag yet, so you tell me.</p>
+            <h2 class="vword small">${say('refuse_unsure')}</h2>
+            <p class="said">${say('refuse_unsure_why')}</p>
           </div>
         </div>
         <div class="cands">
@@ -270,9 +321,15 @@ function candidateSheet(items) {
           </button>
         </div>
       </div>
-      <div class="sheet-more"></div>
     </section>`;
 }
+
+/* Exported for the sheet-layout check (`node scripts/check-sheet.mjs` or
+   equivalent): it renders verdictSheet/refusalSheet outside the browser and
+   asserts by string that the peek detent carries a primary action before any
+   half-detent markup, and that a refusal never carries two buttons. Exporting
+   these changes nothing about how the screen itself calls them. */
+export { verdictSheet, refusalSheet };
 
 /* ------------------------------------------------------------------ screen */
 
@@ -299,7 +356,7 @@ export default {
         </div>
 
         <div class="reticle" aria-hidden="true"><b></b><b></b><b></b><b></b></div>
-        <p class="cam-hint">Point at a price tag</p>
+        <p class="cam-hint">${faceSvg('idle', { size: 'face-row' })}<span>Point at a price tag</span></p>
 
         <div class="sheet-slot"></div>
 
@@ -352,7 +409,7 @@ export default {
     function shoot() {
       if (cam.dataset.state !== 'idle') return;
       setState('framing');
-      slot.innerHTML = readingSheet();
+      slot.innerHTML = readingSheet('face-row');
       // The frame is already frozen by the state change. This pause is the
       // reticle contracting, not a fake loading bar over an instant answer.
       setTimeout(() => {
@@ -425,7 +482,6 @@ export default {
       const act = btn.dataset.act;
 
       if (act === 'shoot') { shoot(); return; }
-      if (act === 'again') { reset(); return; }
       if (act === 'watchlist') { ctx.go('watchlist'); return; }
       if (act === 'you') { ctx.go('you'); return; }
       if (act === 'categories') { ctx.go('you'); return; }
@@ -450,27 +506,71 @@ export default {
           askingSeller: sellerOf(v),
           usualCents: v.spread.medianCents,
         });
-        btn.textContent = store.isWatched(v.identity.id) ? 'Watching' : 'Watch it';
+        // Watch acknowledged (row 32) morphs the verdict face in place, so the
+        // whole sheet is repainted from the same v/scenario rather than only
+        // the button, and the detent the user was reading is carried across
+        // the repaint.
+        const prevDetent = slot.querySelector('.sheet')?.dataset.detent;
+        slot.innerHTML = verdictSheet(v, last.scenario);
+        const nextSheet = slot.querySelector('.sheet');
+        if (nextSheet && prevDetent) nextSheet.dataset.detent = clampDetent(nextSheet, prevDetent);
+        return;
+      }
+      if (act === 'thumbs-up' || act === 'thumbs-down') {
+        // The one-tap correctness signal (DESIGN.md section 4, full detent).
+        // GAMIFICATION.md M12: it is counted as a contribution, but it earns
+        // nothing and never enters a comparison set, so this build pass gives
+        // it a pressed state and stops there rather than inventing a store
+        // write no other part of the app reads yet.
+        btn.parentElement.querySelectorAll('.thumb').forEach((t) => t.classList.remove('picked'));
+        btn.classList.add('picked');
         return;
       }
     });
 
-    /* The sheet drags between its detents. Downward past the peek dismisses. */
+    /* The sheet moves between three detents: peek, half, full. A drag of more
+       than 40px moves one detent in that direction (downward past peek
+       dismisses); a tap on the grabber or head steps forward, wrapping from
+       the sheet's own top detent back to peek. A sheet with no sheet-half or
+       sheet-full content (the reading and candidate sheets) has nowhere to
+       go, so it just stays at peek. */
+    const ORDER = ['peek', 'half', 'full'];
+    function maxDetent(sheet) {
+      if (sheet.querySelector('.sheet-full')) return 'full';
+      if (sheet.querySelector('.sheet-half')) return 'half';
+      return 'peek';
+    }
+    function clampDetent(sheet, d) {
+      const max = maxDetent(sheet);
+      return ORDER.indexOf(d) > ORDER.indexOf(max) ? max : d;
+    }
+    function stepUp(sheet, d) {
+      const max = maxDetent(sheet);
+      return ORDER[Math.min(ORDER.indexOf(d) + 1, ORDER.indexOf(max))];
+    }
+    function stepDown(d) {
+      return ORDER[Math.max(ORDER.indexOf(d) - 1, 0)];
+    }
+
     let dragFrom = null;
     root.addEventListener('pointerdown', (e) => {
       const sheet = e.target.closest('.sheet');
       if (!sheet || !e.target.closest('.grabber, .sheet-head')) return;
-      dragFrom = { y: e.clientY, open: sheet.classList.contains('open'), sheet };
+      dragFrom = { y: e.clientY, detent: clampDetent(sheet, sheet.dataset.detent || 'peek'), sheet };
       sheet.setPointerCapture?.(e.pointerId);
     });
     root.addEventListener('pointerup', (e) => {
       if (!dragFrom) return;
       const dy = e.clientY - dragFrom.y;
-      const { sheet, open } = dragFrom;
+      const { sheet, detent } = dragFrom;
       dragFrom = null;
-      if (dy < -40) sheet.classList.add('open');
-      else if (dy > 40) { if (open) sheet.classList.remove('open'); else reset(); }
-      else sheet.classList.toggle('open');
+      if (dy < -40) sheet.dataset.detent = stepUp(sheet, detent);
+      else if (dy > 40) {
+        if (detent === 'peek') { reset(); return; }
+        sheet.dataset.detent = stepDown(detent);
+      } else {
+        sheet.dataset.detent = detent === maxDetent(sheet) ? 'peek' : stepUp(sheet, detent);
+      }
     });
 
     return () => {

@@ -10,7 +10,7 @@
  * never be stored as one.
  */
 
-import { faceSvg } from '../shin.js';
+import { faceBlock } from '../shin.js';
 import { say } from '../voice.js';
 import * as store from '../store.js';
 
@@ -38,15 +38,16 @@ export default {
     function paint() {
       root.innerHTML = `
         <div class="page page-correct">
-          <header class="page-head">
+          <header class="page-head${saved ? '' : ' ph-with-face'}">
             <p class="kicker">Teach Shin</p>
+            ${saved ? '' : faceBlock('asking', { size: 'face-page' })}
             <h1>${say('correct_ask')}</h1>
           </header>
 
           ${
             saved
               ? `<div class="saved-note">
-                   ${faceSvg('pleased', { size: 56 })}
+                   ${faceBlock('pleased', { size: 'face-ack' })}
                    <p>${say('correct_thanks')}</p>
                  </div>`
               : `

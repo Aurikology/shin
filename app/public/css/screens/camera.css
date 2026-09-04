@@ -141,6 +141,9 @@
   bottom: 168px;
   transform: translateX(-50%);
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--f-mono);
   font-size: 10px;
   letter-spacing: .12em;
@@ -148,11 +151,12 @@
   color: rgba(255,255,255,.78);
   background: var(--scrim);
   backdrop-filter: blur(10px);
-  padding: 7px 13px;
+  padding: 4px 13px 4px 4px;
   border-radius: 99px;
   white-space: nowrap;
   transition: opacity 140ms linear;
 }
+.cam-hint .face { color: rgba(255,255,255,.78); }
 .cam:not([data-state="idle"]) .cam-hint { opacity: 0; pointer-events: none; }
 
 /* -------------------------------------------------------------- bottom bar */
@@ -230,7 +234,7 @@
   position: absolute;
   left: 0; right: 0;
   bottom: 0;
-  max-height: 92%;
+  max-height: 46%;
   border-radius: var(--r-sheet) var(--r-sheet) 0 0;
   padding: 12px 20px calc(22px + env(safe-area-inset-bottom));
   display: flex;
@@ -241,9 +245,19 @@
   animation: rise var(--t-rise) var(--ease-land) both;
   touch-action: pan-y;
   scrollbar-width: none;
+  transition: max-height 320ms var(--ease-land);
 }
 .sheet::-webkit-scrollbar { display: none; }
 .sheet.refusal { animation-duration: var(--t-refusal); }
+
+/*
+ * Three detents, USAGE.md section 7 / DESIGN.md section 4: peek 46%, half 72%,
+ * full 92%. `max-height` (not `height`) so a sheet whose peek content alone
+ * runs long still scrolls inside its own detent instead of pushing its primary
+ * action off the bottom of the viewport, which is the defect this replaces.
+ */
+.sheet[data-detent="half"] { max-height: 72%; }
+.sheet[data-detent="full"] { max-height: 92%; }
 
 @keyframes rise { from { transform: translateY(100%); } to { transform: none; } }
 
@@ -257,10 +271,13 @@
   cursor: grab;
 }
 
-.sheet-peek { display: flex; flex-direction: column; gap: 12px; }
+/* The peek detent. Never collapsed, never conditional: it is what lands with
+   no drag, on any viewport, and it ends in the sheet's one wide primary. */
+.sheet-peek { display: flex; flex-direction: column; gap: 12px; flex: none; }
 
-/* The third detent. Collapsed by default so the peek is what lands. */
-.sheet-more {
+/* Half and full. Collapsed by default so the peek is what lands; each opens
+   only once its own detent (or a deeper one) is reached. */
+.sheet-half, .sheet-full {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -268,16 +285,45 @@
   opacity: 0;
   overflow: hidden;
   transition: max-height 320ms var(--ease-land), opacity 200ms linear;
+  scrollbar-width: none;
 }
-.sheet.open .sheet-more { max-height: 60vh; opacity: 1; overflow-y: auto; }
-.sheet-more { scrollbar-width: none; }
-.sheet-more::-webkit-scrollbar { display: none; }
+.sheet-half::-webkit-scrollbar, .sheet-full::-webkit-scrollbar { display: none; }
+.sheet[data-detent="half"] .sheet-half,
+.sheet[data-detent="full"] .sheet-half {
+  max-height: 40vh; opacity: 1; overflow-y: auto; margin-top: 4px;
+}
+.sheet[data-detent="full"] .sheet-full {
+  max-height: 40vh; opacity: 1; overflow-y: auto; margin-top: 4px;
+}
 /*
  * Nothing in here may be squeezed by the flex column. The rail is 38px because
  * its labels are positioned inside those 38px, and a shrunk rail draws its own
  * caption through its own track.
  */
-.sheet-more > * { flex: none; }
+.sheet-half > *, .sheet-full > * { flex: none; }
+
+/* The one wide primary. It lives inside the peek block, always rendered, so
+   there is never a state where the user has a verdict on screen and nothing
+   to do about it. */
+.actions-primary { display: flex; }
+.pill.wide { flex: 1 1 auto; text-align: center; }
+
+/* The one-tap correctness signal, full detent only (DESIGN.md section 4). It
+   earns nothing (GAMIFICATION.md M12): the pressed state is the whole effect. */
+.thumbs { display: flex; gap: 10px; }
+.thumb {
+  width: var(--tap); height: var(--tap);
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  opacity: .7;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.thumb.picked { opacity: 1; background: rgba(0,0,0,.14); }
+.thumb:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
 .sheet-head { display: flex; align-items: center; gap: 14px; cursor: pointer; }
 .sheet-head.compact { gap: 12px; }
@@ -498,5 +544,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .sheet, .price { animation: none; }
-  .reticle, .cam-bar, .cam-hint, .sheet-more { transition: none; }
+  .reticle, .cam-bar, .cam-hint, .sheet-half, .sheet-full { transition: none; }
 }

@@ -19,6 +19,18 @@
 .page-correct { gap: 8px; padding-bottom: 10px; }
 .page-correct .page-head { margin-bottom: 0; }
 .page-correct h1 { font-size: 24px; }
+
+/* AVATAR.md row 14/30: the asking face sits above the pad, on the prompt's own line. */
+.page-correct .ph-with-face {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "face kicker" "face h1";
+  align-items: center;
+  column-gap: 12px;
+}
+.page-correct .ph-with-face .kicker { grid-area: kicker; margin-bottom: 2px; }
+.page-correct .ph-with-face h1 { grid-area: h1; }
+.page-correct .ph-with-face .face-block { grid-area: face; }
 .page-correct .page-foot {
   position: static;
   background: none;

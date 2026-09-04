@@ -28,9 +28,7 @@ export default {
             ${PERSONALITIES.map(
               (p) => `<button type="button" class="att${p.id === personality() ? ' on' : ''}"
                         role="radio" aria-checked="${p.id === personality()}" data-who="${p.id}">
-                <span class="att-face">${faceSvg(p.id === 'blunt' ? 'walk' : p.id === 'warm' ? 'good' : 'fair', {
-                  size: 40, who: p.id,
-                })}</span>
+                <span class="att-face">${faceSvg('fair', { size: 'face-page', who: p.id })}</span>
                 <span class="att-t"><b>${p.name}</b><span>${p.blurb}</span></span>
               </button>`,
             ).join('')}

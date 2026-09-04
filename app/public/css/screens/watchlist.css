@@ -30,7 +30,8 @@
 }
 .wrow:hover { border-color: var(--ink-faint); }
 
-.wrow-n { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.wrow .face { flex: 0 0 auto; color: var(--ink-faint); }
+.wrow-n { display: flex; flex: 1 1 auto; flex-direction: column; gap: 3px; min-width: 0; }
 .wrow-n b {
   font-family: var(--f-display);
   font-weight: 700;

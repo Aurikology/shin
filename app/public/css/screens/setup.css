@@ -2,14 +2,29 @@
  * The attitude picker.
  *
  * Each option shows the face it changes, not a swatch beside a label. The choice
- * is about tone, and tone is legible in the brow angle at 46px, so the control
- * shows the actual thing being chosen.
+ * is about tone, and tone is legible in the brow, and AVATAR.md row 2 sets the
+ * size at 96px, three faces side by side: the verdict surface's own size, since
+ * this is the first verdict the app ever shows, about itself.
+ *
+ * The three-across layout below applies only to the setup picker (`.atts` on
+ * its own). The denser settings-page list (`.atts-row`, further down) keeps its
+ * own row shape and its own smaller face; that screen is a change, not a first
+ * decision, and AVATAR.md row 2 does not reach it.
  */
 
 .atts {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* The setup picker: three 96px faces across a 390px phone viewport. Page
+   padding is 18px a side (tokens.css --pad), leaving 354px; three columns at
+   an 8px gap use 338px of it, 112.6px each, room enough for a 96px face with
+   no overflow. */
+.atts:not(.atts-row) {
+  flex-direction: row;
+  gap: 8px;
 }
 
 .att {
@@ -36,20 +51,40 @@
   background: var(--raised);
 }
 
+.atts:not(.atts-row) .att {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: auto;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 12px 6px;
+}
+
 .att-face { flex: 0 0 auto; color: var(--ink-muted); }
 .att.on .att-face { color: var(--ink); }
 
 .att-t { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.atts:not(.atts-row) .att-t { align-items: center; min-width: 0; }
+
 .att-t b {
   font-family: var(--f-display);
   font-weight: 700;
   font-size: 17px;
   letter-spacing: -.02em;
 }
+.atts:not(.atts-row) .att-t b { font-size: 13px; }
+
 .att-t span {
   font-size: 13.5px;
   line-height: 1.4;
   color: var(--ink-muted);
+}
+.atts:not(.atts-row) .att-t span {
+  font-size: 10.5px;
+  line-height: 1.25;
 }
 
 /* On the settings page the same control is denser, because it is a change and

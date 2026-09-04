@@ -350,16 +350,25 @@ section{padding:64px 0;border-bottom:1px solid var(--hair)}
 .att .t b{display:block;font-size:15px;font-weight:700}
 .att .t span{font-size:12.5px;color:var(--app-ink-muted);line-height:1.35;display:block;margin-top:2px}
 
+/* The setup picker only: three face-verdict (96px) faces side by side, matching
+   app/public/css/screens/setup.css's `.atts:not(.atts-row)`. The settings-page
+   market picker below keeps the plain .attitude/.att row list untouched. */
+.attitude.atts3{flex-direction:row;gap:2px;margin:0 -18px}
+.attitude.atts3 .att{flex:1 1 0;min-width:0;flex-direction:column;justify-content:flex-start;align-items:center;text-align:center;gap:6px;padding:10px 0;border-radius:12px}
+.attitude.atts3 .t{align-items:center;min-width:0}
+.attitude.atts3 .t b{font-size:12px}
+.attitude.atts3 .t span{font-size:9.5px;line-height:1.2;padding:0 3px}
+
 .sharecard{
-  position:absolute;inset:0;padding:22px;display:flex;align-items:center;justify-content:center;
+  position:absolute;inset:0;padding:12px;display:flex;align-items:center;justify-content:center;
   background:var(--app-ground);
 }
 .sc-inner{
   width:100%;border-radius:22px;overflow:hidden;background:var(--walk);color:#fff;
   display:flex;flex-direction:column;
 }
-.sc-top{padding:26px 22px 18px;display:flex;flex-direction:column;gap:16px;align-items:center;text-align:center}
-.sc-bot{background:rgba(0,0,0,.2);padding:14px 22px;display:flex;align-items:center;justify-content:space-between}
+.sc-top{padding:22px 10px 16px;display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center}
+.sc-bot{background:rgba(0,0,0,.2);padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
 
 /* motion table */
 .mtable{width:100%;border-collapse:collapse;font-size:14px}
@@ -384,16 +393,65 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
 @media (prefers-reduced-motion: reduce){
   *{animation:none!important;transition:none!important}
 }
+
+/* ---------- hoisted from fragment A (build pass, 2026-09-04) ---------- */
+/* frg9- additions: only what mockups.html has no equivalent for. */
+
+/* The iOS system permission alert (screen 4). It is deliberately NOT themed to Shin: AVATAR.md
+   row 5 says this surface is a platform field Shin draws nothing on. */
+.frg9-scrim{position:absolute;inset:0;background:rgba(0,0,0,.4);z-index:10}
+.frg9-alert{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:11;
+  width:270px;border-radius:14px;overflow:hidden;background:#F2F2F2;color:#000;
+  font-family:var(--f-ui);box-shadow:0 20px 40px rgba(0,0,0,.35);
+}
+.frg9-alert-body{padding:18px 16px 16px;text-align:center;display:flex;flex-direction:column;gap:8px}
+.frg9-alert-body b{font-size:14px}
+.frg9-alert-body p{font-size:12.5px;color:#3a3a3c;line-height:1.4;margin:0}
+.frg9-alert-btns{display:flex;border-top:1px solid rgba(0,0,0,.15)}
+.frg9-alert-btns span{flex:1;text-align:center;padding:11px 0;font-size:14.5px;border-right:1px solid rgba(0,0,0,.15)}
+.frg9-alert-btns span:last-child{border-right:0}
+.frg9-alert-btns span.ok{font-weight:700;color:#007AFF}
+
+/* The three named steps under the working face (screen 12). step-swap has one step "now". */
+.frg9-steps{display:flex;flex-direction:column;gap:9px;margin-top:2px;align-items:center}
+.frg9-steps div{font-family:var(--f-ui);font-size:13px;color:var(--app-ink-faint);opacity:.5}
+.frg9-steps div.now{color:var(--app-ink);opacity:1;font-weight:700;font-size:16px}
+
+/* A slightly larger hint pill for the face-page (48px) rows, since the shipped .hint was sized
+   for face-row (28px) only. Same visual language, wider padding. */
+.frg9-hint-lg{padding:10px 16px;gap:10px;display:inline-flex;align-items:center;bottom:auto}
+
+/* ---------- hoisted from fragment B (build pass, 2026-09-04) ---------- */
+/* Worker B additions. Prefix b- so nothing here can collide with mockups.html's own classes. */
+/* AVATAR.md section 6: until real art lands, every face carries its state name in mono underneath. */
+.b-facelabel{
+  font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--app-ink-faint);text-align:center;margin-top:6px;
+}
+
+/* ---------- hoisted from fragment C (build pass, 2026-09-04) ---------- */
+/* Fragment C additions only. Not in mockups.html's existing component set.
+   Prefixed fragc- so these cannot collide with any class already in that file. */
+.fragc-switch{width:44px;height:26px;border-radius:99px;background:var(--app-raised);position:relative;flex:none}
+.fragc-switch.on{background:var(--brand)}
+.fragc-switch i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;display:block}
+.fragc-switch.on i{left:21px}
+.fragc-undecided{border:2px dashed var(--unk);color:var(--unk-br);background:color-mix(in srgb,var(--unk) 12%,transparent);border-radius:12px;padding:14px 16px;font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;text-align:center}
+
+/* ---------- group headings inside the forty-screen grid ---------- */
+.group-head{grid-column:1/-1;display:flex;flex-direction:column;gap:4px;padding-top:12px}
+.group-head:first-child{padding-top:0}
 </style>
 
 <header class="top">
   <div class="wrap top-in">
     <div class="title-row">
-      <p class="eyebrow">Shin &middot; redesign &middot; 3 September 2026</p>
+      <p class="eyebrow">Shin &middot; redesign &middot; 3 to 4 September 2026</p>
       <h1>The camera is the app.</h1>
       <p class="lede">
         The current build describes a camera instead of showing one. This is the redesign as
-        fifteen screens: a live viewfinder as the default surface, a verdict that lands over the
+        forty screens: a live viewfinder as the default surface, a verdict that lands over the
         world you are standing in, and a refusal designed as carefully as an answer, because
         refusal is what five of the seven known items actually do.
       </p>
@@ -401,7 +459,7 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
     <dl class="meta">
       <div><dt>Direction</dt><dd>Signal</dd></div>
       <div><dt>Attitude</dt><dd>User picks it</dd></div>
-      <div><dt>Screens drawn</dt><dd>12 of 15</dd></div>
+      <div><dt>Screens drawn</dt><dd>40 of 40</dd></div>
       <div><dt>Answerable today</dt><dd>2 of 7</dd></div>
       <div><dt>Spec</dt><dd>docs/design/DESIGN.md</dd></div>
     </dl>
@@ -653,16 +711,204 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
   <div class="wrap">
     <div class="sec-head">
       <p class="eyebrow dim">The screens</p>
-      <h2>Twelve screens, and three of them exist to prove the system is honest</h2>
+      <h2>Forty screens, drawn 2026-09-03 and 2026-09-04</h2>
       <p class="lede">
-        The thin-evidence verdict and the two refusals are the ones that prove Law 2 and Law 3. A
+        Screens 18, 25, 26, 27 and 28 are the ones that prove Law 2 and Law 3. A
         mockup set without them is advertising, not design.
       </p>
     </div>
 
     <div class="screens">
 
-      <!-- 01 CAMERA HOME -->
+    <div class="group-head">
+      <p class="eyebrow dim">Group A</p>
+      <h3>Cold start and setup</h3>
+    </div>
+
+<!-- 01 FIRST RUN -->
+<div class="screen">
+  <div class="phone"><div class="vp" style="background:var(--app-ground)">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top" style="top:54px"><div class="wordmark">shin<i>.</i></div></div>
+  </div></div>
+  <div class="cap">
+    <span class="k">01 &middot; Cold open, 0:00.0</span>
+    <h3>Icon tap, no splash</h3>
+    <p>The wordmark on empty ground and nothing else. No hint, no reticle, no bottom bar, because
+    the feed is not live yet and there is no state to give a face here (AVATAR.md row 1: the
+    1.2s budget is shorter than a line can be read). Drawn from <code>USAGE.md</code> A1 0:00.0,
+    which budgets 1.2s from icon tap to viewfinder, and <code>DESIGN.md</code> section 7, screen 1.</p>
+  </div>
+</div>
+
+      <!-- 02 ATTITUDE -->
+      <div class="screen">
+        <div class="phone"><div class="vp">
+          <div class="notch"></div>
+          <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+          <div class="appscroll">
+            <div class="screenhead">
+              <span class="kick">One question, then the camera</span>
+              <h4>Which Shin do you want?</h4>
+            </div>
+            <div class="attitude atts3">
+              <div class="att on">
+                <span class="att-face">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96">
+                    <circle cx="32" cy="32" r="29" fill="none" stroke="#F7F5F2" stroke-width="3.5"/>
+                    <circle cx="23" cy="28" r="3" fill="#F7F5F2"/><circle cx="41" cy="28" r="3" fill="#F7F5F2"/>
+                    <path d="M23 42h18" stroke="#F7F5F2" stroke-width="3.5" stroke-linecap="round"/>
+                  </svg>
+                </span>
+                <div class="t"><b>Deadpan</b><span>&ldquo;Two dollars. It's $1.47.&rdquo;</span></div>
+              </div>
+              <div class="att">
+                <span class="att-face">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96">
+                    <circle cx="32" cy="32" r="29" fill="none" stroke="#A5ADB8" stroke-width="3.5"/>
+                    <path d="M18 29c2.5-1.2 8-1.2 10.5 0M35.5 29c2.5-1.2 8-1.2 10.5 0" fill="none" stroke="#A5ADB8" stroke-width="3.5" stroke-linecap="round"/>
+                    <path d="M22 43c4 2 14 2 18 0" fill="none" stroke="#A5ADB8" stroke-width="3.5" stroke-linecap="round"/>
+                  </svg>
+                </span>
+                <div class="t"><b>Warm</b><span>&ldquo;Ooh, that's steep. I'd wait.&rdquo;</span></div>
+              </div>
+              <div class="att">
+                <span class="att-face">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96">
+                    <circle cx="32" cy="32" r="29" fill="none" stroke="#A5ADB8" stroke-width="4"/>
+                    <circle cx="23" cy="28" r="3.6" fill="#A5ADB8"/><circle cx="41" cy="28" r="3.6" fill="#A5ADB8"/>
+                    <path d="M23 43h18" fill="none" stroke="#A5ADB8" stroke-width="4" stroke-linecap="round"/>
+                  </svg>
+                </span>
+                <div class="t"><b>Blunt</b><span>&ldquo;They're robbing you.&rdquo;</span></div>
+              </div>
+            </div>
+            <div style="font-family:var(--f-mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--app-ink-faint);line-height:1.7">
+              Changeable any time. The numbers never change, only the words around them.
+            </div>
+          </div>
+          <div class="bottombar" style="height:96px">
+            <div class="pill" style="background:var(--brand);color:#fff;padding:13px 40px;font-size:15px">Start scanning</div>
+          </div>
+        </div></div>
+        <div class="cap">
+          <span class="k">02 &middot; Setup, and the only question asked</span>
+          <h3>Pick your Shin</h3>
+          <p>The whole of onboarding. The line under it is the promise that keeps the personality from eating the credibility: the attitude changes the words, never the number. Camera permission is asked at the first shutter press, not here. Three faces side by side, page centre, each at <code>face-verdict</code> 96px with its name and sample line beneath and the chosen one outlined in the brand colour, AVATAR.md section 3 row 2, matching the re-layout in <code>app/public/js/screens/setup.js</code> and <code>app/public/css/screens/setup.css</code>.</p>
+        </div>
+      </div>
+
+
+<!-- 03 PERMISSION PRIMER -->
+<div class="screen">
+  <div class="phone"><div class="vp" style="background:var(--app-ground)">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top"><div class="wordmark">shin<i>.</i></div></div>
+    <div class="hint frg9-hint-lg" style="bottom:200px">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48">
+        <circle cx="32" cy="32" r="29" fill="none" stroke="#F7F5F2" stroke-width="3.5"/>
+        <path d="M18 23q5-3 10 0" stroke="#F7F5F2" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+        <path d="M36 23q5-3 10 0" stroke="#F7F5F2" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+        <circle cx="23" cy="29" r="3" fill="#F7F5F2"/><circle cx="41" cy="29" r="3" fill="#F7F5F2"/>
+        <circle cx="32" cy="43" r="3.2" fill="none" stroke="#F7F5F2" stroke-width="3"/>
+      </svg>
+      <span style="text-transform:none;font-family:var(--f-ui);font-size:13px;letter-spacing:0;color:var(--app-ink);white-space:normal;max-width:200px">I need the camera to read a barcode.</span>
+    </div>
+    <div class="bottombar" style="height:150px">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:7px">
+        <div class="shutter"></div>
+        <span style="font-family:var(--f-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--app-ink-muted)">Allow camera</span>
+      </div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">03 &middot; face-page, 48px, asking</span>
+    <h3>The line before the system asks</h3>
+    <p>Deadpan's line, shown 1.2s before the OS prompt. Not dismissible; the shutter itself is
+    relabelled <b>Allow camera</b> so the permission is something the user asked for rather than
+    an interruption. Never a second ask in the same session.
+    Traced to AVATAR.md row 4 (state <code>asking</code>, size <code>face-page</code>) and
+    <code>USAGE.md</code> A1 0:05.2, drop-off 1.</p>
+  </div>
+</div>
+
+<!-- 04 SYSTEM CAMERA PROMPT -->
+<div class="screen">
+  <div class="phone"><div class="vp" style="background:var(--app-ground)">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top"><div class="wordmark">shin<i>.</i></div></div>
+    <div class="frg9-scrim"></div>
+    <div class="frg9-alert">
+      <div class="frg9-alert-body">
+        <b>&ldquo;Shin&rdquo; Would Like to Access the Camera</b>
+        <p>I need the camera to read a barcode.</p>
+      </div>
+      <div class="frg9-alert-btns">
+        <span>Don&rsquo;t Allow</span><span class="ok">OK</span>
+      </div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">04 &middot; No face, by design</span>
+    <h3>The one screen Shin does not draw</h3>
+    <p>A platform surface with no space Shin can draw in (AVATAR.md row 5, OLMA audit row 30, whose
+    purpose string is itself a platform field). The message reuses the primer's own sourced line
+    rather than inventing new copy, since that is what the primer already promised the user.
+    Traced to <code>USAGE.md</code> A1 0:06.4.</p>
+  </div>
+</div>
+
+<!-- 05 CAMERA DENIED -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="feed" style="filter:grayscale(.5) opacity(.8)"><div class="boxes">
+      <i style="left:12px;top:170px;width:58px;height:74px;background:#6b6660"></i>
+      <i style="left:76px;top:176px;width:52px;height:68px;background:#7a7268"></i>
+      <i style="left:134px;top:168px;width:60px;height:76px;background:#5c655e"></i>
+      <i style="left:200px;top:174px;width:54px;height:70px;background:#71685c"></i>
+      <i style="left:260px;top:170px;width:50px;height:74px;background:#665e56"></i>
+    </div></div>
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top"><div class="wordmark">shin<i>.</i></div></div>
+    <div class="hint">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="28" height="28" style="vertical-align:middle;margin-right:6px">
+        <circle cx="32" cy="32" r="29" fill="none" stroke="#F7F5F2" stroke-width="3.5"/>
+        <circle cx="23" cy="28" r="3" fill="#F7F5F2"/><circle cx="41" cy="28" r="3" fill="#F7F5F2"/>
+        <path d="M23 42h18" stroke="#F7F5F2" stroke-width="3.5" stroke-linecap="round"/>
+      </svg>No camera then. Screenshots work too.
+    </div>
+    <div class="bottombar" style="height:150px">
+      <div class="navbtn badged"></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:7px">
+        <div class="shutter" style="background:var(--app-raised);box-shadow:0 0 0 4px rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center">
+          <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F7F5F2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="M21 15l-5-5L5 20"/></svg>
+        </div>
+        <span style="font-family:var(--f-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--app-ink-muted)">Last screenshot</span>
+      </div>
+      <div class="navbtn"></div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">05 &middot; Drop-off 1, the deny branch</span>
+    <h3>No wall, no second ask</h3>
+    <p>The drawn shelf fallback keeps every control exactly where it was; only the centre control's
+    job changes, from shutter to <b>Last screenshot</b>. Desaturated to read as illustration, not a
+    dead camera. Never a wall and never a repeated permission request in the same session.
+    Traced to AVATAR.md row 6 (state <code>idle</code>, <code>face-row</code>) and
+    <code>USAGE.md</code> drop-off 1.</p>
+  </div>
+</div>
+
+    <div class="group-head">
+      <p class="eyebrow dim">Group B</p>
+      <h3>The camera surface</h3>
+    </div>
+
+      <!-- 06 CAMERA HOME -->
       <div class="screen">
         <div class="phone"><div class="vp">
           <div class="feed"><div class="boxes">
@@ -697,13 +943,85 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
           </div>
         </div></div>
         <div class="cap">
-          <span class="k">01 &middot; Default screen</span>
+          <span class="k">06 &middot; Default screen</span>
           <h3>The viewfinder, and nothing else</h3>
           <p>No list, no headline, no explanation. The shutter is 76px dead centre with the watchlist and profile as 48px satellites, so the primary act is never a peer of navigation. The badge is the only number on screen.</p>
         </div>
       </div>
 
-      <!-- 02 IDENTIFYING -->
+
+<!-- 07 HINT ESCALATED -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="feed"><div class="boxes">
+      <i style="left:12px;top:170px;width:58px;height:74px;background:#c8442f"></i>
+      <i style="left:76px;top:176px;width:52px;height:68px;background:#e0a53c"></i>
+      <i style="left:134px;top:168px;width:60px;height:76px;background:#2f6ea8"></i>
+      <i style="left:200px;top:174px;width:54px;height:70px;background:#8a5230"></i>
+    </div></div>
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F7F5F2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg>
+    </div></div>
+    <div class="reticle"><b></b><b></b><b></b><b></b></div>
+    <div class="hint" style="max-width:250px;white-space:normal;text-align:center;line-height:1.5;padding:10px 14px">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="28" height="28" style="vertical-align:middle;margin-right:6px">
+        <circle cx="32" cy="32" r="29" fill="none" stroke="#F7F5F2" stroke-width="3.5"/>
+        <path d="M18 23q5-3 10 0" stroke="#F7F5F2" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+        <path d="M36 23q5-3 10 0" stroke="#F7F5F2" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+        <circle cx="23" cy="29" r="3" fill="#F7F5F2"/><circle cx="41" cy="29" r="3" fill="#F7F5F2"/>
+        <circle cx="32" cy="43" r="3.2" fill="none" stroke="#F7F5F2" stroke-width="3"/>
+      </svg>No tag on it? Point at the thing itself, or use your last screenshot.
+    </div>
+    <div class="bottombar">
+      <div class="navbtn badged"></div><div class="shutter"></div><div class="navbtn"></div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">07 &middot; Unprompted, once per session</span>
+    <h3>Four seconds of nothing, one escalation</h3>
+    <p>The idle hint's face swaps from <code>idle</code> to <code>asking</code> and the line
+    widens to offer the screenshot route. One of only two unprompted appearances in the whole
+    product; it fires once per camera session and is replaced by the idle hint the instant
+    something is detected. Traced to AVATAR.md row 9, <code>USAGE.md</code> B1 0:13.9, and
+    OLMA audit row 34 (adapt: the pill appears only while nothing is detected).</p>
+  </div>
+</div>
+
+<!-- 08 TORCH ON -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="feed" style="filter:brightness(1.4) saturate(1.05)"><div class="boxes">
+      <i style="left:20px;top:330px;width:64px;height:80px;background:#b7772c"></i>
+      <i style="left:92px;top:336px;width:58px;height:74px;background:#7a3c58"></i>
+      <i style="left:158px;top:330px;width:62px;height:80px;background:#356a76"></i>
+      <i style="left:228px;top:334px;width:58px;height:76px;background:#a2452f"></i>
+    </div></div>
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top">
+      <div class="wordmark">shin<i>.</i></div>
+      <div class="iconbtn" style="width:44px;height:44px;background:rgba(255,196,77,.28);border-color:rgba(255,196,77,.5)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="#FFC24D" stroke="#FFC24D" stroke-width="1"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg>
+      </div>
+    </div>
+    <div class="hint">Point at the barcode.</div>
+    <div class="bottombar">
+      <div class="navbtn badged"></div><div class="shutter"></div><div class="navbtn"></div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">08 &middot; Chrome, not a face</span>
+    <h3>A bottom shelf, lit</h3>
+    <p>No face triggers here: the torch is chrome and the visibly lit scene is its own feedback
+    (AVATAR.md row 10). The bolt fills solid and the toggle carries a visible lit state so nobody
+    walks out of the store with it still on. Traced to OLMA audit rows 35 (torch, on at t=79.0,
+    off by t=80.5) and 90 (filled bolt, visibly lit scene), both take.</p>
+  </div>
+</div>
+
+      <!-- 09 IDENTIFYING -->
       <div class="screen">
         <div class="phone"><div class="vp">
           <div class="feed freeze"><div class="boxes">
@@ -717,32 +1035,313 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
           <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
           <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
           <div class="reticle tight" style="top:36%"><b></b><b></b><b></b><b></b></div>
-          <div class="sheet" style="background:var(--app-surface);color:var(--app-ink);border-top:1px solid var(--app-hair)">
+          <div class="hint" style="padding:10px 14px">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="28" height="28" style="vertical-align:middle;margin-right:6px">
+              <circle cx="32" cy="32" r="29" fill="none" stroke="#F7F5F2" stroke-width="3.5"/>
+              <circle cx="23" cy="29" r="3.4" fill="#F7F5F2"/><circle cx="41" cy="29" r="3.4" fill="#F7F5F2"/>
+              <circle cx="26" cy="43" r="2.2" fill="#F7F5F2"/><circle cx="34" cy="43" r="2.2" fill="#F7F5F2"/><circle cx="42" cy="43" r="2.2" fill="#F7F5F2"/>
+            </svg>Reading the tag
+          </div>
+          <div class="bottombar">
+            <div class="navbtn badged"></div><div class="shutter"></div><div class="navbtn"></div>
+          </div>
+        </div></div>
+        <div class="cap">
+          <span class="k">09 &middot; Between shutter and answer</span>
+          <h3>The frame freezes where you took it</h3>
+          <p>The feed stills, the reticle contracts to <code>tight</code> onto what was caught, and a
+          hint pill takes the hint pill's own position, which the reticle chip in screen 10 then
+          replaces. Face is <code>thinking</code> at <code>face-row</code> 28px, Deadpan line
+          "Reading the tag" exactly, AVATAR.md section 3 row 11. No sheet and no seller count here:
+          the sheet is screen 10's identity chip and the seller count belongs to screen 12's working
+          steps, not this one. A downward drag cancels the scan, same row.</p>
+        </div>
+      </div>
+
+
+<!-- 10 IDENTITY CHIP -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="feed freeze"><div class="boxes">
+      <i style="left:12px;top:170px;width:58px;height:74px;background:#c8442f"></i>
+      <i style="left:76px;top:176px;width:52px;height:68px;background:#e0a53c"></i>
+    </div></div>
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
+    <div class="reticle tight" style="top:38%"><b></b><b></b><b></b><b></b></div>
+    <div class="hint" style="bottom:auto;top:calc(38% + 76px);padding:8px 14px 8px 10px;gap:8px;display:inline-flex;align-items:center">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="28" height="28">
+        <circle cx="32" cy="32" r="29" fill="none" stroke="#A5ADB8" stroke-width="3.5"/>
+        <circle cx="23" cy="29" r="3.4" fill="#A5ADB8"/><circle cx="41" cy="29" r="3.4" fill="#A5ADB8"/>
+        <circle cx="26" cy="43" r="2.2" fill="#A5ADB8"/><circle cx="34" cy="43" r="2.2" fill="#A5ADB8"/><circle cx="42" cy="43" r="2.2" fill="#A5ADB8"/>
+      </svg>
+      <span style="text-transform:none;font-family:var(--f-ui);font-size:12.5px;letter-spacing:0;color:var(--app-ink)">Kraft Dinner Original, 225 g.</span>
+      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6E7783" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    </div>
+    <div class="bottombar">
+      <div class="navbtn badged"></div><div class="shutter"></div><div class="navbtn"></div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">10 &middot; The wrong-item repair</span>
+    <h3>The chip is the repair</h3>
+    <p>Identity resolves under the contracted reticle in the <code>thinking</code> face, a small
+    pencil marking the whole chip as tappable. Tapping it swaps the face to <code>asking</code>
+    and the chip's text to &ldquo;Which one is it?&rdquo;, and the picker replaces the chip in
+    place; no route change, no lost frame. Traced to AVATAR.md rows 12 and 13,
+    <code>USAGE.md</code> A1 0:12.9, and OLMA audit row 48 (echoing the pick as the cheapest guard
+    against a right price on the wrong object).</p>
+  </div>
+</div>
+
+<!-- 11 ASKING PRICE PAD -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="feed freeze"><div class="boxes">
+      <i style="left:40px;top:60px;width:80px;height:96px;background:#c8442f"></i>
+      <i style="left:150px;top:66px;width:76px;height:88px;background:#e0a53c"></i>
+    </div></div>
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="sheet" style="background:var(--app-surface);color:var(--app-ink);border-top:1px solid var(--app-hair);top:46%;bottom:0;justify-content:flex-start">
+      <div class="grabber"></div>
+      <div class="sheet-head">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#F7F5F2" stroke-width="3.5"/>
+          <path d="M18 23q5-3 10 0" stroke="#F7F5F2" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+          <path d="M36 23q5-3 10 0" stroke="#F7F5F2" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+          <circle cx="23" cy="29" r="3" fill="#F7F5F2"/><circle cx="41" cy="29" r="3" fill="#F7F5F2"/>
+          <circle cx="32" cy="43" r="3.2" fill="none" stroke="#F7F5F2" stroke-width="3"/>
+        </svg>
+        <div>
+          <div class="vword" style="font-size:19px">What does the tag say?</div>
+          <div class="said" style="color:var(--app-ink-muted)">Kraft Dinner Original 225g</div>
+        </div>
+      </div>
+      <div class="card" style="display:flex;align-items:center;justify-content:center;padding:16px;margin:6px 0">
+        <span style="font-family:var(--f-display);font-weight:800;font-size:38px;letter-spacing:-.03em;font-variant-numeric:tabular-nums">$2.00</span>
+      </div>
+      <div class="actions" style="margin-bottom:8px">
+        <span class="pill ghost" style="font-size:12px;padding:6px 12px">% off</span>
+        <span class="pill ghost" style="font-size:12px;padding:6px 12px">4 for</span>
+        <span class="pill ghost" style="font-size:12px;padding:6px 12px">Clear</span>
+      </div>
+      <div class="keypad">
+        <b>1</b><b>2</b><b>3</b><b>4</b><b>5</b><b>6</b><b>7</b><b>8</b><b>9</b>
+        <b>.</b><b>0</b><b>&#9003;</b>
+      </div>
+      <div style="font-family:var(--f-mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--app-ink-faint);line-height:1.7;margin-top:8px">
+        No separate confirm. The pad's own key is the continue.
+      </div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">11 &middot; face-page, 48px, before the comparison runs</span>
+    <h3>Typed, not read by a model</h3>
+    <p>v1 has no OCR, so the number the verdict is judged against is a number a person read off a
+    tag. The percent-off and multi-buy keys show their own arithmetic before the verdict runs, so
+    nothing is ever judged against an unshown intermediate. Sized at <code>face-page</code>
+    (48px), AVATAR.md section 3 row 14. Traced to <code>USAGE.md</code> A1
+    0:13.4 and drop-off 5, and OLMA audit rows 38, 41 and 43.</p>
+  </div>
+</div>
+
+<!-- 12 WORKING -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:0 30px">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="76" height="76">
+        <circle cx="32" cy="32" r="29" fill="none" stroke="#A5ADB8" stroke-width="3.5"/>
+        <circle cx="23" cy="29" r="3.4" fill="#A5ADB8"/><circle cx="41" cy="29" r="3.4" fill="#A5ADB8"/>
+        <circle cx="26" cy="43" r="2.2" fill="#A5ADB8"/><circle cx="34" cy="43" r="2.2" fill="#A5ADB8"/><circle cx="42" cy="43" r="2.2" fill="#A5ADB8"/>
+      </svg>
+      <div class="frg9-steps">
+        <div class="now">Identifying it</div>
+        <div>Looking for prices</div>
+        <div>Checking the sellers</div>
+      </div>
+      <div class="itemname" style="color:var(--app-ink-faint)">Kraft Dinner Original 225g</div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">12 &middot; face-working, 76px, ten seconds named</span>
+    <h3>A screen, not a spinner</h3>
+    <p>Three named steps swap under the <code>thinking</code> face, the picked item echoed below
+    so a wrong pick is caught before the price arrives, and a downward drag cancels the run at any
+    point. Budget is 0.8s at p50, hard cap 2.5s; past 6s the sheet converts to the thin refusal
+    (screen 28) rather than continuing to spin. Traced to OLMA audit row 47 (three named states)
+    and row 48 (echoed item), AVATAR.md rows 16 to 19, and <code>DESIGN.md</code> section 5,
+    component 19.</p>
+  </div>
+</div>
+
+    <div class="group-head">
+      <p class="eyebrow dim">Group C</p>
+      <h3>The verdict surface</h3>
+    </div>
+
+      <!-- 13 GOOD -->
+      <div class="screen">
+        <div class="phone"><div class="vp">
+          <div class="feed freeze"><div class="boxes">
+            <i style="left:40px;top:150px;width:80px;height:96px;background:#6a4a2c"></i>
+            <i style="left:140px;top:158px;width:76px;height:88px;background:#4a5c6a"></i>
+          </div></div>
+          <div class="notch"></div>
+          <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+          <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
+          <div class="sheet" style="background:var(--good);color:var(--good-on)">
             <div class="grabber"></div>
             <div class="sheet-head">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="52" height="52">
-                <circle cx="32" cy="32" r="29" fill="none" stroke="#A5ADB8" stroke-width="3.5"/>
-                <circle cx="23" cy="29" r="3.4" fill="#A5ADB8"/><circle cx="41" cy="29" r="3.4" fill="#A5ADB8"/>
-                <circle cx="26" cy="43" r="2.2" fill="#A5ADB8"/><circle cx="34" cy="43" r="2.2" fill="#A5ADB8"/><circle cx="42" cy="43" r="2.2" fill="#A5ADB8"/>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96">
+                <circle cx="32" cy="32" r="29" fill="none" stroke="#04140C" stroke-width="3.5"/>
+                <circle cx="23" cy="27" r="3.4" fill="#04140C"/><circle cx="41" cy="27" r="3.4" fill="#04140C"/>
+                <path d="M21 40c4.5 5.5 17.5 5.5 22 0" fill="none" stroke="#04140C" stroke-width="3.5" stroke-linecap="round"/>
               </svg>
               <div>
-                <div class="vword" style="font-size:22px">Reading the tag</div>
-                <div class="said" style="color:var(--app-ink-muted)">Kraft Dinner Original, 225g</div>
+                <div class="vword">Take it</div>
+                <div class="said">Cheapest I have ever seen it.</div>
               </div>
             </div>
+            <div class="priceline">
+              <div class="price">$99</div>
+              <div class="sub">asking<br>usually $179</div>
+            </div>
             <div class="confrow">
-              <span class="lbl" style="color:var(--app-ink-faint)">Checking 3 sellers</span>
+              <div class="dots">
+                <i style="background:currentColor"></i><i style="background:currentColor"></i>
+                <i style="background:currentColor"></i><i style="background:currentColor"></i>
+              </div>
+              <span class="lbl">Certain &middot; 6 prices, 5 sellers</span>
+            </div>
+            <div class="itemname">IKEA PO&Auml;NG armchair, used</div>
+            <div class="actions">
+              <span class="pill" style="display:flex;width:100%;justify-content:center;background:var(--good-on);color:#F7F5F2;font-size:14px;padding:11px 13px">Save it</span>
             </div>
           </div>
         </div></div>
         <div class="cap">
-          <span class="k">02 &middot; Between shutter and answer</span>
-          <h3>The frame freezes where you took it</h3>
-          <p>The feed stills and desaturates 6%, the reticle contracts onto what was found, and the sheet rises over the picture. The user never leaves the photograph they took, which is what makes it one surface instead of three screens.</p>
+          <span class="k">13 &middot; Certain, redrawn 2026-09-04</span>
+          <h3>Take it, now with its peek action</h3>
+          <p>Four dots, solid field, no hairline. The $99 low is the number IKEA's own product page never shows. USAGE.md section 7 puts the primary action at peek, labelled by tier: <b>Save it</b> on good, since telling someone to watch a price that is already good is telling them to wait for no reason. Face at 96px, the verdict token from AVATAR.md section 3.</p>
         </div>
       </div>
 
-      <!-- 03 WALK AWAY -->
+
+<!-- 14 GOOD STEAL -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="feed freeze"><div class="boxes">
+      <i style="left:12px;top:170px;width:58px;height:74px;background:#c8442f"></i>
+      <i style="left:76px;top:176px;width:52px;height:68px;background:#e0a53c"></i>
+      <i style="left:134px;top:168px;width:60px;height:76px;background:#2f6ea8"></i>
+    </div></div>
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
+    <div class="sheet" style="background:var(--good);color:var(--good-on)">
+      <div class="grabber"></div>
+      <div class="sheet-head">
+        <div style="display:flex;flex-direction:column;align-items:center">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96">
+            <circle cx="32" cy="32" r="29" fill="none" stroke="#04140C" stroke-width="4"/>
+            <path d="M18 25c2-3 7-3 9 0M37 25c2-3 7-3 9 0" fill="none" stroke="#04140C" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="22.5" cy="28" r="3.6" fill="#04140C"/><circle cx="41.5" cy="28" r="3.6" fill="#04140C"/>
+            <path d="M19 39c5 8 21 8 26 0" fill="none" stroke="#04140C" stroke-width="4" stroke-linecap="round"/>
+          </svg>
+          <span class="b-facelabel" style="color:#04140C;opacity:.55">Delighted</span>
+        </div>
+        <div>
+          <div class="vword">Take it</div>
+          <div class="said">Nobody else is near that.</div>
+        </div>
+      </div>
+      <div class="priceline">
+        <div class="price">$0.49</div>
+        <div class="sub">at Metro<br>usually $1.47</div>
+      </div>
+      <div class="confrow">
+        <div class="dots">
+          <i style="background:currentColor"></i><i style="background:currentColor"></i>
+          <i style="background:currentColor"></i><i style="background:currentColor;opacity:.32"></i>
+        </div>
+        <span class="lbl">Fairly sure &middot; 3 prices, 3 sellers</span>
+      </div>
+      <div class="itemname">Kraft Dinner Original 225g</div>
+      <div style="font-family:var(--f-mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;opacity:.7">Asking price is a stated stand-in, not an observed tag</div>
+      <div class="actions"><span class="pill" style="background:rgba(0,0,0,.18);color:var(--good-on)">Save it</span></div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">14 &middot; Verdict, good, steal threshold</span>
+    <h3>Delighted, gated on confidence</h3>
+    <p>Proves the intense-form gate in AVATAR.md section 2: 25%+ under the $1.47 going rate and at or
+    below the lowest seller already on the record, with Fairly sure confidence (three sellers), which
+    is what lets <code>delighted</code> fire instead of degrading to plain <code>good</code>. Face,
+    position, size and the Deadpan line are AVATAR.md section 3 row 21; animation is
+    <code>intense-hold</code> with <code>verdict-land</code>.</p>
+  </div>
+</div>
+<!-- The $0.49 asking price at Metro is a stated stand-in, not an observed tag: chosen to sit at or
+     below the $0.55 No Frills promo already recorded in mockups.html screen 08 (the lowest comparable
+     for this item) and comfortably past the 25%-under gate on the $1.47 going rate used throughout
+     mockups.html. The three-seller comparable set (No Frills $0.55, Loblaws $1.47, Walmart $1.57) is
+     reused verbatim from mockups.html screen 08, unchanged. -->
+
+<!-- 15 VERDICT FAIR -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="feed freeze"><div class="boxes">
+      <i style="left:12px;top:170px;width:58px;height:74px;background:#c8442f"></i>
+      <i style="left:76px;top:176px;width:52px;height:68px;background:#e0a53c"></i>
+      <i style="left:134px;top:168px;width:60px;height:76px;background:#2f6ea8"></i>
+    </div></div>
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
+    <div class="sheet" style="background:var(--fair);color:var(--fair-on)">
+      <div class="grabber"></div>
+      <div class="sheet-head">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="62" height="62">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#1A1204" stroke-width="3.5"/>
+          <circle cx="23" cy="27" r="3.4" fill="#1A1204"/><circle cx="41" cy="27" r="3.4" fill="#1A1204"/>
+          <path d="M22 42h20" fill="none" stroke="#1A1204" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <div class="vword">About right</div>
+          <div class="said">That is the going rate, $1.47.</div>
+        </div>
+      </div>
+      <div class="priceline">
+        <div class="price">$1.47</div>
+        <div class="sub">at Loblaws<br>usually $1.47</div>
+      </div>
+      <div class="confrow">
+        <div class="dots">
+          <i style="background:currentColor"></i><i style="background:currentColor"></i>
+          <i style="background:currentColor"></i><i style="background:currentColor;opacity:.32"></i>
+        </div>
+        <span class="lbl">Fairly sure &middot; 3 prices, 3 sellers</span>
+      </div>
+      <div class="itemname">Kraft Dinner Original 225g</div>
+      <div class="actions"><span class="pill" style="background:rgba(0,0,0,.16);color:var(--fair-on)">Watch it</span></div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">15 &middot; Verdict, fair</span>
+    <h3>Plain evidence, not the thin split</h3>
+    <p>Screen 18 already covers thin evidence at any tier; this is the fair tier at Fairly sure
+    confidence, split out per DESIGN.md section 7's note on screen 15. Asking equals the going rate
+    exactly, both $1.47 at Loblaws, the real regular price already on mockups.html screen 08. Line and
+    face are AVATAR.md section 3 row 22, using the Deadpan exception that repeats the number, the same
+    exception rows 13, 16, 18 and 33 use.</p>
+  </div>
+</div>
+
+      <!-- 16 WALK AWAY -->
       <div class="screen">
         <div class="phone"><div class="vp">
           <div class="feed freeze"><div class="boxes">
@@ -756,7 +1355,7 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
           <div class="sheet" style="background:var(--walk);color:var(--walk-on);box-shadow:inset 0 0 0 1px rgba(255,255,255,.28)">
             <div class="grabber"></div>
             <div class="sheet-head">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="62" height="62">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96">
                 <circle cx="32" cy="32" r="29" fill="none" stroke="#fff" stroke-width="3.5"/>
                 <path d="M17 21l11 5M47 21l-11 5" stroke="#fff" stroke-width="3.5" stroke-linecap="round" fill="none"/>
                 <circle cx="23" cy="31" r="3.4" fill="#fff"/><circle cx="41" cy="31" r="3.4" fill="#fff"/>
@@ -779,60 +1378,82 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
               <span class="lbl">Fairly sure &middot; 3 prices, 3 sellers</span>
             </div>
             <div class="itemname">Kraft Dinner Original 225g</div>
+            <div class="actions">
+              <span class="pill" style="display:flex;width:100%;justify-content:center;background:#fff;color:var(--walk);font-size:14px;padding:11px 13px">Watch it</span>
+            </div>
           </div>
         </div></div>
         <div class="cap">
-          <span class="k">03 &middot; The real pilot data</span>
-          <h3>Walk away, fairly sure</h3>
-          <p>The actual numbers from the 3 September hand pricing. Solid field with an inner hairline is the fairly-sure treatment: three sellers, not four. The price is 64px because it is the answer, and the sentence under it is one line, not a paragraph.</p>
+          <span class="k">16 &middot; The real pilot data, redrawn 2026-09-04</span>
+          <h3>Walk away, fairly sure, now with its peek action</h3>
+          <p>The actual numbers from the 3 September hand pricing. Solid field with an inner hairline is the fairly-sure treatment: three sellers, not four. USAGE.md section 7 moves the primary action into the peek detent itself: <b>Watch it</b>, because this tier is fair or walk away, not good. Correct it and Share now sit one detent down, drawn in 08. Face at 96px, the verdict token from AVATAR.md section 3.</p>
         </div>
       </div>
 
-      <!-- 04 GOOD -->
-      <div class="screen">
-        <div class="phone"><div class="vp">
-          <div class="feed freeze"><div class="boxes">
-            <i style="left:40px;top:150px;width:80px;height:96px;background:#6a4a2c"></i>
-            <i style="left:140px;top:158px;width:76px;height:88px;background:#4a5c6a"></i>
-          </div></div>
-          <div class="notch"></div>
-          <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
-          <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
-          <div class="sheet" style="background:var(--good);color:var(--good-on)">
-            <div class="grabber"></div>
-            <div class="sheet-head">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="62" height="62">
-                <circle cx="32" cy="32" r="29" fill="none" stroke="#04140C" stroke-width="3.5"/>
-                <circle cx="23" cy="27" r="3.4" fill="#04140C"/><circle cx="41" cy="27" r="3.4" fill="#04140C"/>
-                <path d="M21 40c4.5 5.5 17.5 5.5 22 0" fill="none" stroke="#04140C" stroke-width="3.5" stroke-linecap="round"/>
-              </svg>
-              <div>
-                <div class="vword">Take it</div>
-                <div class="said">Cheapest I have ever seen it.</div>
-              </div>
-            </div>
-            <div class="priceline">
-              <div class="price">$99</div>
-              <div class="sub">asking<br>usually $179</div>
-            </div>
-            <div class="confrow">
-              <div class="dots">
-                <i style="background:currentColor"></i><i style="background:currentColor"></i>
-                <i style="background:currentColor"></i><i style="background:currentColor"></i>
-              </div>
-              <span class="lbl">Certain &middot; 6 prices, 5 sellers</span>
-            </div>
-            <div class="itemname">IKEA PO&Auml;NG armchair, used</div>
-          </div>
-        </div></div>
-        <div class="cap">
-          <span class="k">04 &middot; Certain</span>
-          <h3>Take it</h3>
-          <p>Four dots, solid field, no hairline. The $99 low is the number IKEA's own product page never shows, and it is the whole reason the furniture category is worth shipping even though its tier is boring.</p>
+
+<!-- 17 WALK RIPOFF -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="feed freeze"><div class="boxes">
+      <i style="left:12px;top:170px;width:58px;height:74px;background:#c8442f"></i>
+      <i style="left:76px;top:176px;width:52px;height:68px;background:#e0a53c"></i>
+      <i style="left:134px;top:168px;width:60px;height:76px;background:#2f6ea8"></i>
+    </div></div>
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
+    <div class="sheet" style="background:var(--walk);color:var(--walk-on);box-shadow:inset 0 0 0 1px rgba(255,255,255,.28)">
+      <div class="grabber"></div>
+      <div class="sheet-head">
+        <div style="display:flex;flex-direction:column;align-items:center">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96">
+            <circle cx="32" cy="32" r="29" fill="none" stroke="#fff" stroke-width="4.5"/>
+            <path d="M15 19l13 6M49 19l-13 6" stroke="#fff" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+            <circle cx="23" cy="32" r="3.6" fill="#fff"/><circle cx="41" cy="32" r="3.6" fill="#fff"/>
+            <path d="M19 47c5-7 21-7 26 0" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/>
+          </svg>
+          <span class="b-facelabel" style="color:#fff;opacity:.7">Angry</span>
+        </div>
+        <div>
+          <div class="vword">Walk away</div>
+          <div class="said">Nobody else charges that.</div>
         </div>
       </div>
+      <div class="priceline">
+        <div class="price">$2.09</div>
+        <div class="sub">at Metro<br>usually $1.47</div>
+      </div>
+      <div class="confrow">
+        <div class="dots">
+          <i style="background:currentColor"></i><i style="background:currentColor"></i>
+          <i style="background:currentColor"></i><i style="background:currentColor;opacity:.32"></i>
+        </div>
+        <span class="lbl">Fairly sure &middot; 3 prices, 3 sellers</span>
+      </div>
+      <div class="itemname">Kraft Dinner Original 225g</div>
+      <div style="font-family:var(--f-mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;opacity:.7">Asking price is a stated stand-in, not an observed tag</div>
+      <div class="actions"><span class="pill" style="display:flex;width:100%;justify-content:center;background:#fff;color:var(--walk);font-size:14px;padding:11px 13px">Watch it</span></div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">17 &middot; Verdict, walk away, rip-off threshold</span>
+    <h3>Angry, and the target is legible</h3>
+    <p>40%+ over the $1.47 going rate and above the highest recorded seller, at Fairly sure confidence,
+    is what earns <code>angry</code> over plain <code>walk</code> per AVATAR.md section 2. Both
+    conditions unique to <code>angry</code> from hard rule 4 hold: the asking price and the seller's
+    name, Metro, are on the same screen, so the aggression has somewhere to land. Line is AVATAR.md
+    section 3 row 24. Face at <code>face-verdict</code> 96px, same row. Peek action is USAGE.md
+    section 7: one wide primary, labelled by tier, <b>Watch it</b> because the tier is walk away.</p>
+  </div>
+</div>
+<!-- The $2.09 asking price at Metro is a stated stand-in, not an observed tag: 42.2% over the $1.47
+     going rate, chosen to clear the 40%-over rip-off gate. The real Metro price already drawn in
+     mockups.html screens 03 and 08 for this item is $2.00, which is only 36% over and correctly stays
+     at the plain walk-away tier there; $2.09 is constructed solely to cross the higher gate and does
+     not overwrite that earlier figure. Comparable set (No Frills $0.55, Loblaws $1.47, Walmart $1.57)
+     reused verbatim from mockups.html screen 08. -->
 
-      <!-- 05 THIN -->
+      <!-- 18 THIN -->
       <div class="screen">
         <div class="phone"><div class="vp">
           <div class="feed freeze"><div class="boxes">
@@ -844,7 +1465,7 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
           <div class="sheet" style="background:#221a08;color:var(--fair-br);border:2px solid var(--fair);border-bottom:0">
             <div class="grabber"></div>
             <div class="sheet-head">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="62" height="62">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96">
                 <circle cx="32" cy="32" r="29" fill="none" stroke="#FFC24D" stroke-width="3.5"/>
                 <circle cx="23" cy="27" r="3.4" fill="#FFC24D"/><circle cx="41" cy="27" r="3.4" fill="#FFC24D"/>
                 <path d="M22 42h20" fill="none" stroke="#FFC24D" stroke-width="3.5" stroke-linecap="round"/>
@@ -866,89 +1487,132 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
               <span class="lbl">Thin &middot; 1 seller, 6 days old</span>
             </div>
             <div class="itemname">Tide Simply Clean &amp; Fresh 2.72L</div>
-          </div>
-        </div></div>
-        <div class="cap">
-          <span class="k">05 &middot; Proves Law 2</span>
-          <h3>The hollow verdict</h3>
-          <p>Same hue, no fill, 2px outline, two dots. Shin will still answer, but the design says out loud that the evidence is thin, and it says it in the shape of the thing rather than in a footnote nobody reads.</p>
-        </div>
-      </div>
-
-      <!-- 06 REFUSAL UNKNOWN -->
-      <div class="screen">
-        <div class="phone"><div class="vp">
-          <div class="feed freeze"><div class="boxes">
-            <i style="left:70px;top:140px;width:120px;height:90px;background:#4a4038"></i>
-          </div></div>
-          <div class="notch"></div>
-          <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
-          <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
-          <div class="sheet" style="background:#191c1f;color:var(--unk-br);border:2px dashed var(--unk);border-bottom:0">
-            <div class="grabber"></div>
-            <div class="sheet-head">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="62" height="62">
-                <circle cx="32" cy="32" r="29" fill="none" stroke="#93A0AC" stroke-width="3.5" stroke-dasharray="7 6"/>
-                <path d="M19 27h8M37 27h8" stroke="#93A0AC" stroke-width="3.5" stroke-linecap="round"/>
-                <path d="M23 42c4-3 14-3 18 0" fill="none" stroke="#93A0AC" stroke-width="3.5" stroke-linecap="round"/>
-              </svg>
-              <div>
-                <div class="vword" style="font-size:25px">I don't know this one</div>
-                <div class="said">I have no prices for it, so I am not going to guess.</div>
-              </div>
-            </div>
             <div class="actions">
-              <span class="pill" style="background:var(--unk);color:#0B0C0E">Tell me the price</span>
-              <span class="pill ghost">Try again</span>
+              <span class="pill" style="display:flex;width:100%;justify-content:center;background:var(--fair);color:#221a08;font-size:14px;padding:11px 13px">Watch it</span>
             </div>
-            <div class="itemname">Unrecognised &middot; no match above 0.4</div>
           </div>
         </div></div>
         <div class="cap">
-          <span class="k">06 &middot; Proves Law 3</span>
-          <h3>The most common outcome, designed as such</h3>
-          <p>Grey, never red. No confidence dots, because there is nothing to be confident about. And it hands back one action that makes the product better next time, which turns the failure into the data-collection mechanism.</p>
+          <span class="k">18 &middot; Proves Law 2, redrawn 2026-09-04</span>
+          <h3>The hollow verdict, now with its peek action</h3>
+          <p>Same hue, no fill, 2px outline, two dots. Shin will still answer, but the design says out loud that the evidence is thin, in the shape of the thing rather than in a footnote nobody reads. USAGE.md section 7 puts the action at peek even on a thin verdict, labelled <b>Watch it</b> for this fair tier. Face at 96px, the verdict token, and it never takes the intense form on thin evidence (AVATAR.md row 25).</p>
         </div>
       </div>
 
-      <!-- 07 REFUSAL CATEGORY -->
-      <div class="screen">
-        <div class="phone"><div class="vp">
-          <div class="feed freeze"><div class="boxes">
-            <i style="left:40px;top:150px;width:70px;height:70px;background:#c96a1e;border-radius:50%"></i>
-            <i style="left:118px;top:158px;width:66px;height:66px;background:#d4791f;border-radius:50%"></i>
-            <i style="left:192px;top:150px;width:70px;height:70px;background:#c0651c;border-radius:50%"></i>
-          </div></div>
-          <div class="notch"></div>
-          <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
-          <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
-          <div class="sheet" style="background:#191c1f;color:var(--unk-br);border:2px dashed var(--unk);border-bottom:0">
-            <div class="grabber"></div>
-            <div class="sheet-head">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="62" height="62">
-                <circle cx="32" cy="32" r="29" fill="none" stroke="#93A0AC" stroke-width="3.5" stroke-dasharray="7 6"/>
-                <path d="M19 27h8M37 27h8" stroke="#93A0AC" stroke-width="3.5" stroke-linecap="round"/>
-                <path d="M23 42c4-3 14-3 18 0" fill="none" stroke="#93A0AC" stroke-width="3.5" stroke-linecap="round"/>
-              </svg>
-              <div>
-                <div class="vword" style="font-size:25px">Not produce</div>
-                <div class="said">Loose produce moves too fast and by weight. I would be making it up.</div>
-              </div>
-            </div>
-            <div class="actions">
-              <span class="pill ghost">What I can price</span>
-            </div>
-            <div class="itemname">Navel oranges 3lb &middot; category declined</div>
-          </div>
-        </div></div>
-        <div class="cap">
-          <span class="k">07 &middot; A different refusal</span>
-          <h3>Declining on purpose is not the same as not knowing</h3>
-          <p>Same grey treatment, different sentence. This one is a deliberate scope decision rather than missing data, and saying which is which is the difference between looking broken and looking careful.</p>
+
+<!-- 19 GOING RATE CARD -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="feed"><div class="boxes">
+      <i style="left:100px;top:150px;width:110px;height:70px;background:#2e4a66"></i>
+    </div></div>
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
+    <div class="sheet" style="background:var(--app-surface);color:var(--app-ink);border-top:1px solid var(--app-hair)">
+      <div class="grabber"></div>
+      <div class="sheet-head">
+        <div style="display:flex;flex-direction:column;align-items:center">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="76" height="76">
+            <circle cx="32" cy="32" r="29" fill="none" stroke="#A5ADB8" stroke-width="3.5"/>
+            <path d="M19 26h8M40 30c1.5-2.5 5-2.5 6.5 0" fill="none" stroke="#A5ADB8" stroke-width="3.5" stroke-linecap="round"/>
+            <circle cx="27" cy="43" r="2.6" fill="none" stroke="#A5ADB8" stroke-width="2.4"/>
+          </svg>
+          <span class="b-facelabel">Asking</span>
+        </div>
+        <div>
+          <div class="vword" style="font-size:20px">Going rate</div>
+          <div class="said">I know what this goes for. I do not know what they are asking.</div>
         </div>
       </div>
+      <div class="priceline">
+        <div class="price sm">$24.99</div>
+        <div class="sub">at Walmart<br>only price on record</div>
+      </div>
+      <div class="confrow">
+        <span class="lbl" style="color:var(--app-ink-faint)">Thin &middot; 1 seller, 6 days old</span>
+      </div>
+      <div class="itemname">Tide Simply Clean &amp; Fresh 2.72L &middot; no tag typed</div>
+      <div class="actions"><span class="pill" style="background:var(--brand);color:#fff">Tell me the price</span></div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">19 &middot; Going-rate card, no asking price</span>
+    <h3>Not a verdict field, not the refusal grey</h3>
+    <p>USAGE.md section 2 (Script B, the couch) fires this exact moment at B1 0:15.9 on this exact
+    item: a barcode caught with nothing typed. It is component 21, a neutral surface, never tier
+    coloured. The $24.99 at Walmart and its thin, one-seller confidence are reused verbatim from
+    mockups.html screen 05, not a new number. Face is <code>asking</code> at <code>face-working</code>
+    76px per AVATAR.md section 3 row 26, and the one action is USAGE.md's own wording.</p>
+  </div>
+</div>
 
-      <!-- 08 EXPANDED -->
+<!-- 20 HALF DETENT -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="sheet" style="top:185px;bottom:0;background:var(--walk);color:var(--walk-on);box-shadow:inset 0 0 0 1px rgba(255,255,255,.28);border-radius:26px 26px 34px 34px;overflow:hidden">
+      <div class="grabber"></div>
+      <div class="sheet-head">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="62" height="62">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#fff" stroke-width="3.5"/>
+          <path d="M17 21l11 5M47 21l-11 5" stroke="#fff" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+          <circle cx="23" cy="31" r="3.4" fill="#fff"/><circle cx="41" cy="31" r="3.4" fill="#fff"/>
+          <path d="M21 45c4.5-5.5 17.5-5.5 22 0" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <div class="vword" style="font-size:22px">Walk away</div>
+          <div class="said">Two dollars. It's $1.47.</div>
+        </div>
+      </div>
+      <div class="priceline"><div class="price sm">$2.00</div><div class="sub">at Metro<br>usually $1.47</div></div>
+      <div class="confrow">
+        <div class="dots">
+          <i style="background:currentColor"></i><i style="background:currentColor"></i>
+          <i style="background:currentColor"></i><i style="background:currentColor;opacity:.32"></i>
+        </div>
+        <span class="lbl">Fairly sure &middot; 3 prices, 3 sellers</span>
+      </div>
+      <p style="font-size:12.5px;opacity:.85;margin-top:-2px">Fairly sure: three sellers within the week, no promotions folded into the number.</p>
+
+      <div class="rail">
+        <div class="track"></div>
+        <div class="pt" style="left:0"></div>
+        <div class="pt" style="left:46%"></div>
+        <div class="pt" style="left:52%"></div>
+        <div class="you" style="left:calc(100% - 4px)"></div>
+        <div class="lb" style="left:0">0.55</div>
+        <div class="lb" style="left:44%">1.47</div>
+        <div class="lb" style="right:0">2.00</div>
+      </div>
+      <p style="font-size:11.5px;opacity:.82;margin-top:-4px">Every price I found, lowest to highest. Nothing here is an average.</p>
+
+      <div class="prov">
+        <div><b>NO FRILLS</b><span>$0.55 &middot; 09-03 &middot; promo</span></div>
+        <div><b>LOBLAWS</b><span>$1.47 &middot; 09-03 &middot; regular</span></div>
+        <div><b>WALMART</b><span>$1.57 &middot; 09-03 &middot; regular</span></div>
+      </div>
+
+      <div class="actions" style="margin-top:2px">
+        <span class="pill ghost">Correct it</span>
+        <span class="pill ghost">Share</span>
+      </div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">20 &middot; Verdict sheet, half detent</span>
+    <h3>The face never re-morphs on a drag</h3>
+    <p>USAGE.md section 7 wins on sequence here: half adds the spread rail, a confidence sentence and
+    the mono provenance list, and its actions are Correct it then Share, not the peek's Watch it.
+    Face drops to <code>face-ack</code> 62px, holds its expression and position, and the peek line
+    stays exactly as drawn at the walk-away scan already on mockups.html screens 03 and 08, whose
+    numbers are reused verbatim. AVATAR.md section 3 row 27 and DESIGN.md section 6's
+    <code>face-morph</code> ban on drag both hold.</p>
+  </div>
+</div>
+
+      <!-- 21 EXPANDED -->
       <div class="screen">
         <div class="phone"><div class="vp">
           <div class="notch"></div>
@@ -956,7 +1620,7 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
           <div class="sheet" style="top:56px;bottom:0;background:var(--walk);color:#fff;border-radius:26px 26px 34px 34px;overflow:hidden">
             <div class="grabber"></div>
             <div class="sheet-head">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="50" height="50">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="62" height="62">
                 <circle cx="32" cy="32" r="29" fill="none" stroke="#fff" stroke-width="3.5"/>
                 <path d="M17 21l11 5M47 21l-11 5" stroke="#fff" stroke-width="3.5" stroke-linecap="round" fill="none"/>
                 <circle cx="23" cy="31" r="3.4" fill="#fff"/><circle cx="41" cy="31" r="3.4" fill="#fff"/>
@@ -987,6 +1651,19 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
               <div><b>WALMART</b><span>$1.57 &middot; 09-03 &middot; regular</span></div>
             </div>
 
+            <!-- Thumbs row: no face beside it, AVATAR.md row 34, because the row asks whether
+                 the verdict was right and a face here would be Shin marking its own work -->
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid rgba(255,255,255,.16);border-bottom:1px solid rgba(255,255,255,.16)">
+              <span style="font-family:var(--f-mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;opacity:.78">Was this right? No reward, just tells me.</span>
+              <div style="display:flex;gap:8px;flex:none">
+                <span style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v11H3V10h4zm4 11h7a2 2 0 0 0 2-2l1.5-6.5a2 2 0 0 0-2-2.5H14V4a2 2 0 0 0-2-2l-1 2-3 6v11z"/></svg>
+                </span>
+                <span style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="rotate(180 12 12)"><path d="M7 10v11H3V10h4zm4 11h7a2 2 0 0 0 2-2l1.5-6.5a2 2 0 0 0-2-2.5H14V4a2 2 0 0 0-2-2l-1 2-3 6v11z"/></svg>
+                </span>
+              </div>
+            </div>
             <div class="actions" style="margin-top:2px">
               <span class="pill" style="background:rgba(0,0,0,.28);color:#fff">Watch it</span>
               <span class="pill ghost">Correct it</span>
@@ -995,21 +1672,43 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
           </div>
         </div></div>
         <div class="cap">
-          <span class="k">08 &middot; Drag the sheet up</span>
-          <h3>Where the number came from</h3>
-          <p>Third detent: the spread rail with every price found and the asking price marked, then the sources in mono with seller and date. The $0.55 is labelled a promotion rather than folded into an average, because a blended grocery number is a fabricated one.</p>
+          <span class="k">21 &middot; Drag the sheet up, redrawn 2026-09-04</span>
+          <h3>Where the number came from, and the one-tap correctness signal</h3>
+          <p>The spread rail with every price found and the asking price marked, then the sources in mono with seller and date. The $0.55 is labelled a promotion rather than folded into an average, because a blended grocery number is a fabricated one. New: the thumbs row from GAMIFICATION.md, a signal that earns nothing on either tap, so gaming it buys nothing. It carries no face, AVATAR.md row 34: the row is Shin asking whether its own work was right, and a face beside it would be Shin marking its own work. The sheet header face is now 62px, the acknowledgement token, since it carries an unchanged verdict rather than a fresh one.</p>
         </div>
       </div>
 
-      <!-- 09 CORRECT -->
+
+      <!-- 22 CORRECT -->
+      <!-- Redrawn 2026-09-04: correcting Shin is now a detent of the verdict sheet, not its own
+           surface (USAGE.md C3 item 3, AVATAR.md rows 30 and 31), reached from the walk-away
+           verdict drawn in 08. Boxes reused from mockup 02's Kraft Dinner shelf so the frame the
+           user actually took is what stays frozen behind the pad. -->
       <div class="screen">
         <div class="phone"><div class="vp">
+          <div class="feed freeze"><div class="boxes">
+            <i style="left:12px;top:170px;width:58px;height:74px;background:#c8442f"></i>
+            <i style="left:76px;top:176px;width:52px;height:68px;background:#e0a53c"></i>
+            <i style="left:134px;top:168px;width:60px;height:76px;background:#2f6ea8"></i>
+            <i style="left:200px;top:174px;width:54px;height:70px;background:#8a5230"></i>
+            <i style="left:260px;top:170px;width:50px;height:74px;background:#3d7a4e"></i>
+          </div></div>
           <div class="notch"></div>
           <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
-          <div class="appscroll">
-            <div class="screenhead">
-              <span class="kick">Teach Shin</span>
-              <h4>What does it actually say?</h4>
+          <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
+          <div class="sheet" style="background:var(--app-surface);color:var(--app-ink);border-top:1px solid var(--app-hair)">
+            <div class="grabber"></div>
+            <div class="sheet-head">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48">
+                <circle cx="32" cy="32" r="29" fill="none" stroke="#A5ADB8" stroke-width="3.5"/>
+                <path d="M18 24c2-2.5 6-2.5 8 0M38 24c2-2.5 6-2.5 8 0" fill="none" stroke="#A5ADB8" stroke-width="3.5" stroke-linecap="round"/>
+                <circle cx="23" cy="31" r="3" fill="#A5ADB8"/><circle cx="41" cy="31" r="3" fill="#A5ADB8"/>
+                <ellipse cx="32" cy="44" rx="4.5" ry="5.5" fill="none" stroke="#A5ADB8" stroke-width="3.5"/>
+              </svg>
+              <div>
+                <div class="vword" style="font-size:22px">What does it actually say?</div>
+                <div class="said" style="color:var(--app-ink-muted)">Kraft Dinner Original 225g</div>
+              </div>
             </div>
             <div class="card" style="display:flex;align-items:center;justify-content:center;padding:22px">
               <span style="font-family:var(--f-display);font-weight:800;font-size:46px;letter-spacing:-.03em;font-variant-numeric:tabular-nums">$1.<span style="opacity:.35">97</span></span>
@@ -1023,19 +1722,409 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
             <div style="font-family:var(--f-mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--app-ink-faint);line-height:1.7">
               Recorded against Metro, 3 Sept.<br>Your correction beats my number.
             </div>
-          </div>
-          <div class="bottombar" style="height:96px">
-            <div class="pill" style="background:var(--brand);color:#fff;padding:13px 34px;font-size:15px">Save it</div>
+            <div class="actions">
+              <span class="pill" style="display:flex;width:100%;justify-content:center;background:var(--brand);color:#fff;font-size:15px;padding:13px 34px">Save it</span>
+            </div>
           </div>
         </div></div>
         <div class="cap">
-          <span class="k">09 &middot; The refusal's exit</span>
-          <h3>Correcting Shin is the data pipeline</h3>
-          <p>Reached from any refusal and from any verdict. The keypad is the whole screen because typing a price with one hand in an aisle is the entire job, and the mono line records which seller the correction is attached to, which is the rule that stops a store being compared against itself.</p>
+          <span class="k">22 &middot; The refusal's exit, redrawn 2026-09-04</span>
+          <h3>Correcting Shin is a detent, not a new screen</h3>
+          <p>Reached from any refusal and from any verdict, and now drawn as a detent of the same sheet over the still-frozen frame instead of its own surface (USAGE.md C3 item 3). Dragging down returns to the verdict; the picture the user took is never lost. The <code>asking</code> face sits above the pad at 48px, the page token, per AVATAR.md rows 30 and 31. The keypad is still the whole job, and the mono line still records which seller the correction is attached to, the rule that stops a store being compared against itself.</p>
         </div>
       </div>
 
-      <!-- 10 WATCHLIST -->
+
+<!-- 23 WATCH ACKNOWLEDGED -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="feed freeze"><div class="boxes">
+      <i style="left:12px;top:170px;width:58px;height:74px;background:#c8442f"></i>
+      <i style="left:76px;top:176px;width:52px;height:68px;background:#e0a53c"></i>
+      <i style="left:134px;top:168px;width:60px;height:76px;background:#2f6ea8"></i>
+    </div></div>
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
+    <div class="sheet" style="background:var(--walk);color:var(--walk-on);box-shadow:inset 0 0 0 1px rgba(255,255,255,.28)">
+      <div class="grabber"></div>
+      <div class="sheet-head">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="62" height="62">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#fff" stroke-width="3.5"/>
+          <path d="M18 28c2.5-4 8-4 10.5 0M35.5 28c2.5-4 8-4 10.5 0" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M22 39c4.5 6.5 15.5 6.5 20 0" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <div class="vword">Walk away</div>
+          <div class="said">Saved at $2.00, Metro, today.</div>
+        </div>
+      </div>
+      <div class="priceline">
+        <div class="price sm">$2.00</div>
+        <div class="sub">at Metro<br>usually $1.47</div>
+      </div>
+      <div class="itemname">Kraft Dinner Original 225g</div>
+      <div class="actions"><span class="pill ghost" style="opacity:.55">Watching</span></div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">23 &middot; Watch or save acknowledged</span>
+    <h3>What was saved, never a promise to watch</h3>
+    <p>The v1, no-feed form: AVATAR.md section 3 row 32's Deadpan line, quoted exactly, states the
+    price, the seller and the day and stops there. The peek pill's label swaps from Watch it to an
+    inert Watching once tapped; there is no re-queryable feed in v1, so this never claims Shin will
+    say something later, the rule USAGE.md C4 and the dark row 33 both hold to. Face is
+    <code>pleased</code>, morphing in place at <code>face-verdict</code> 96px, no move.</p>
+  </div>
+</div>
+
+<!-- 24 THUMBS FEEDBACK -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="sheet" style="top:56px;bottom:0;background:var(--walk);color:#fff;border-radius:26px 26px 34px 34px;overflow:hidden">
+      <div class="grabber"></div>
+      <div class="sheet-head">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="62" height="62">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#fff" stroke-width="3.5"/>
+          <path d="M17 21l11 5M47 21l-11 5" stroke="#fff" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+          <circle cx="23" cy="31" r="3.4" fill="#fff"/><circle cx="41" cy="31" r="3.4" fill="#fff"/>
+          <path d="M21 45c4.5-5.5 17.5-5.5 22 0" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+        <div><div class="vword" style="font-size:22px">Walk away</div><div class="said">Kraft Dinner Original 225g</div></div>
+      </div>
+      <div class="priceline"><div class="price sm">$2.00</div><div class="sub">at Metro</div></div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 2px;border-top:1px solid rgba(255,255,255,.2);border-bottom:1px solid rgba(255,255,255,.2);margin-top:4px">
+        <span style="font-size:13.5px;font-weight:600">How was this verdict?</span>
+        <div style="display:flex;gap:10px">
+          <span class="iconbtn" style="background:rgba(0,0,0,.22);border-color:rgba(255,255,255,.22)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/></svg>
+          </span>
+          <span class="iconbtn" style="background:rgba(0,0,0,.22);border-color:rgba(255,255,255,.22)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(180deg)"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/></svg>
+          </span>
+        </div>
+      </div>
+      <p style="font-size:11px;opacity:.75;margin-top:-2px">Earns nothing. It only tells Shin the verdict was wrong.</p>
+
+      <div style="margin-top:auto;display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.3);border-radius:14px;padding:10px 14px">
+        <div style="display:flex;flex-direction:column;align-items:center">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="28" height="28">
+            <circle cx="32" cy="32" r="29" fill="none" stroke="#fff" stroke-width="4"/>
+            <path d="M18 28c2.5-4 8-4 10.5 0M35.5 28c2.5-4 8-4 10.5 0" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+            <path d="M22 39c4.5 6.5 15.5 6.5 20 0" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span style="flex:1;font-size:13px;font-weight:600">Noted.</span>
+        <span style="font-size:12.5px;text-decoration:underline;opacity:.85">Undo</span>
+      </div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">24 &middot; Thumbs feedback row and its acknowledgement</span>
+    <h3>The row that marks nothing and pays nothing</h3>
+    <p>Component 22 and GAMIFICATION.md's M12: one thumb up, one thumb down, reached in the full
+    detent, with no face beside the row itself, AVATAR.md section 3 row 34, because a face there
+    would be Shin marking its own work. Tapping either produces the toast shown below it, row 35's
+    exact Deadpan line, a 28px <code>pleased</code> face, and Undo live for four seconds. It earns no
+    points, streak or badge, on purpose, per OLMA audit rows 64 and 65.</p>
+  </div>
+</div>
+
+    <div class="group-head">
+      <p class="eyebrow dim">Group D</p>
+      <h3>Refusals</h3>
+    </div>
+
+      <!-- 25 REFUSAL UNKNOWN -->
+      <div class="screen">
+        <div class="phone"><div class="vp">
+          <div class="feed freeze"><div class="boxes">
+            <i style="left:70px;top:140px;width:120px;height:90px;background:#4a4038"></i>
+          </div></div>
+          <div class="notch"></div>
+          <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+          <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
+          <div class="sheet" style="background:#191c1f;color:var(--unk-br);border:2px dashed var(--unk);border-bottom:0">
+            <div class="grabber"></div>
+            <div class="sheet-head">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96">
+                <circle cx="32" cy="32" r="29" fill="none" stroke="#93A0AC" stroke-width="3.5" stroke-dasharray="7 6"/>
+                <path d="M19 27h8M37 27h8" stroke="#93A0AC" stroke-width="3.5" stroke-linecap="round"/>
+                <path d="M23 42c4-3 14-3 18 0" fill="none" stroke="#93A0AC" stroke-width="3.5" stroke-linecap="round"/>
+              </svg>
+              <div>
+                <div class="vword" style="font-size:25px">No barcode I can read.</div>
+                <div class="said">Type what it is.</div>
+              </div>
+            </div>
+            <div class="itemname">Unrecognised &middot; no match above 0.4. That is the step that came up empty.</div>
+            <div class="actions">
+              <span class="pill" style="display:flex;width:100%;justify-content:center;background:var(--unk);color:#0B0C0E">Type what it is</span>
+            </div>
+          </div>
+        </div></div>
+        <div class="cap">
+          <span class="k">25 &middot; Proves Law 3, redrawn 2026-09-04</span>
+          <h3>Screen 25, no identity, one action</h3>
+          <p>Grey, never red. No confidence dots, because there is nothing to be confident about. This is the no-identity refusal, AVATAR.md section 3 row 36: <code>unknown</code> at face-verdict 96px, headline and line the Deadpan quote verbatim, "No barcode I can read. Type what it is." USAGE.md C2 gives its one action as <b>Type what it is</b>, replacing the old second, equally weighted pill with the downward drag that already dismisses the sheet, at no new cost. The too-few-points refusal is a different screen, 28, drawn by another worker. The session that follows this tap ends on a live viewfinder, and nothing here promises to look again (C4).</p>
+        </div>
+      </div>
+
+
+<!-- 26 REFUSAL UNSURE -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="feed freeze"><div class="boxes">
+      <i style="left:74px;top:150px;width:56px;height:70px;background:#5a6169"></i>
+      <i style="left:130px;top:154px;width:56px;height:70px;background:#4a5058"></i>
+    </div></div>
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
+    <div class="sheet" style="background:#191c1f;color:var(--unk-br);border:2px dashed var(--unk);border-bottom:0">
+      <div class="grabber"></div>
+      <div class="sheet-head">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#93A0AC" stroke-width="3.5" stroke-dasharray="7 6"/>
+          <path d="M19 27h8M37 27h8" stroke="#93A0AC" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M23 42c4-3 14-3 18 0" fill="none" stroke="#93A0AC" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <div class="vword" style="font-size:23px">I am not sure which one this is</div>
+          <div class="said">Two or more candidates matched closely enough that Shin cannot separate them.</div>
+        </div>
+      </div>
+      <div class="actions"><span class="pill" style="background:var(--unk);color:#0B0C0E">Which one is it?</span></div>
+      <div class="itemname">Barcode partial match &middot; candidates too close to separate</div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">26 &middot; Refusal, unsure which one</span>
+    <h3>Grey, one action, and the repair is picking</h3>
+    <p>USAGE.md drop-off 3 and section 4's C2: the <code>identity_unsure</code> reason gets exactly
+    one action, the candidate list itself, never a second pill. Deadpan line is AVATAR.md section 3
+    row 37; the trigger description, two or more candidates too close to separate, is quoted from
+    that same row rather than inventing a count. Same dashed, 12% <code>unknown</code> field, same
+    <code>verdict-land</code> then <code>slow-blink</code>, no shake, no red, as the two refusals
+    already drawn in mockups.html.</p>
+  </div>
+</div>
+
+      <!-- 27 REFUSAL CATEGORY -->
+      <div class="screen">
+        <div class="phone"><div class="vp">
+          <div class="feed freeze"><div class="boxes">
+            <i style="left:40px;top:150px;width:70px;height:70px;background:#c96a1e;border-radius:50%"></i>
+            <i style="left:118px;top:158px;width:66px;height:66px;background:#d4791f;border-radius:50%"></i>
+            <i style="left:192px;top:150px;width:70px;height:70px;background:#c0651c;border-radius:50%"></i>
+          </div></div>
+          <div class="notch"></div>
+          <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+          <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
+          <div class="sheet" style="background:#191c1f;color:var(--unk-br);border:2px dashed var(--unk);border-bottom:0">
+            <div class="grabber"></div>
+            <div class="sheet-head">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96">
+                <circle cx="32" cy="32" r="29" fill="none" stroke="#93A0AC" stroke-width="3.5" stroke-dasharray="7 6"/>
+                <path d="M19 27h8M37 27h8" stroke="#93A0AC" stroke-width="3.5" stroke-linecap="round"/>
+                <path d="M23 42c4-3 14-3 18 0" fill="none" stroke="#93A0AC" stroke-width="3.5" stroke-linecap="round"/>
+              </svg>
+              <div>
+                <div class="vword" style="font-size:25px">Not produce</div>
+                <div class="said">Loose produce moves too fast and by weight. I would be making it up.</div>
+              </div>
+            </div>
+            <div class="actions">
+              <span class="pill ghost">What I can price</span>
+            </div>
+            <div class="itemname">Navel oranges 3lb &middot; category declined</div>
+          </div>
+        </div></div>
+        <div class="cap">
+          <span class="k">27 &middot; A different refusal</span>
+          <h3>Declining on purpose is not the same as not knowing</h3>
+          <p>Same grey treatment, different sentence. This one is a deliberate scope decision rather than missing data, and saying which is which is the difference between looking broken and looking careful.</p>
+        </div>
+      </div>
+
+
+<!-- 28 REFUSAL THIN -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="feed freeze"><div class="boxes">
+      <i style="left:100px;top:150px;width:110px;height:70px;background:#2e4a66"></i>
+    </div></div>
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
+    <div class="sheet" style="background:#191c1f;color:var(--unk-br);border:2px dashed var(--unk);border-bottom:0">
+      <div class="grabber"></div>
+      <div class="sheet-head">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#93A0AC" stroke-width="3.5" stroke-dasharray="7 6"/>
+          <path d="M19 27h8M37 27h8" stroke="#93A0AC" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M23 42c4-3 14-3 18 0" fill="none" stroke="#93A0AC" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <div class="vword" style="font-size:25px">Not enough to call it</div>
+          <div class="said">One seller returned a price. Two is the minimum Shin trusts.</div>
+        </div>
+      </div>
+      <div style="font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.8">1 price found. I need 2.</div>
+      <div class="actions"><span class="pill" style="background:var(--unk);color:#0B0C0E">Keep it</span></div>
+      <div class="itemname">Tide Simply Clean &amp; Fresh 2.72L &middot; $13.49 typed at Metro</div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">28 &middot; Refusal, too little evidence</span>
+    <h3>The empty step named, never a promise to look again</h3>
+    <p>This is the exact script in USAGE.md section 4, C1: Tide Simply at one seller only, refused on
+    <code>too_few_points</code>, headline and mono line quoted verbatim from that script, including
+    the $13.49 typed at Metro. One action, Keep it, per C2 and C4, which forbids any line that
+    promises Shin will look again since there is no re-queryable source. Face is <code>unknown</code>
+    at <code>face-verdict</code> 96px, AVATAR.md section 3 row 39.</p>
+  </div>
+</div>
+
+<!-- 29 REFUSAL KEPT -->
+<!-- Source: AVATAR.md section 3 row 40 (state pleased, position "the refusal face morphs in
+     place", size face-ack 62px, Deadpan string, animation pleased-nod, holds 2.0s then the sheet
+     drops). Item name and the $13.49-at-Metro figure are quoted verbatim from USAGE.md section 4,
+     C1, the 0:12.9 line of Script C, which is the same figure AVATAR.md row 40 carries. Not a new
+     price: both files already hold this number. -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="feed freeze"><div class="boxes">
+      <i style="left:100px;top:150px;width:110px;height:70px;background:#2e4a66"></i>
+    </div></div>
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
+    <div class="sheet" style="background:#191c1f;color:var(--unk-br);border:2px dashed var(--unk);border-bottom:0">
+      <div class="grabber"></div>
+      <div class="sheet-head">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="62" height="62">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#93A0AC" stroke-width="3.5"/>
+          <circle cx="23" cy="28" r="3.2" fill="#93A0AC"/><circle cx="41" cy="28" r="3.2" fill="#93A0AC"/>
+          <path d="M22 41c4 4 16 4 20 0" fill="none" stroke="#93A0AC" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <div class="vword" style="font-size:22px">Written down</div>
+          <div class="said">Written down. $13.49 at Metro, today. I still cannot call it.</div>
+        </div>
+      </div>
+      <div class="itemname">Tide Simply, 2.72 L &middot; too_few_points, 1 of 2 needed</div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">29 &middot; Refusal acknowledged, Keep it landed</span>
+    <h3>Written down, still not called</h3>
+    <p>Keep it tapped on the too_few_points refusal from USAGE.md C1: the same grey dashed panel
+    morphs its face to pleased at face-ack, and the line is Shin recording a fact rather than
+    asking a favour. The panel stays dashed on purpose, the face resolves but the verdict does
+    not, because the sheet still has not called a price. Holds 2.0s, then drops to a live
+    viewfinder, per AVATAR.md row 40.</p>
+  </div>
+</div>
+
+<!-- 30 TYPE IT INSTEAD -->
+<!-- Source: AVATAR.md section 3 row 41 (state asking, position "above the field, leading edge",
+     size face-page 48px, Deadpan string, animation face-morph). Component 26 and OLMA audit rows
+     17, 88, 89 (search button as the refusal's second route; the prompt naming brand and model;
+     the field kept over a still-visible, not hidden, viewfinder). No price on this screen, it is
+     pre-verdict. -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="feed freeze" style="filter:blur(3px)"><div class="boxes">
+      <i style="left:70px;top:140px;width:120px;height:90px;background:#4a4038"></i>
+    </div></div>
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
+    <div class="sheet" style="background:var(--app-surface);color:var(--app-ink);border-top:1px solid var(--app-hair)">
+      <div class="grabber"></div>
+      <div class="sheet-head">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#F7F5F2" stroke-width="3.5"/>
+          <path d="M18 24h9" stroke="#F7F5F2" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M37 22l8 4" stroke="#F7F5F2" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="23" cy="29" r="3.2" fill="#F7F5F2"/><circle cx="41" cy="29" r="3.2" fill="#F7F5F2"/>
+          <circle cx="32" cy="43" r="3" fill="none" stroke="#F7F5F2" stroke-width="3"/>
+        </svg>
+        <div>
+          <div class="vword" style="font-size:20px">Name it</div>
+          <div class="said" style="color:var(--app-ink-muted)">Name it. Brand and model gets closest.</div>
+        </div>
+      </div>
+      <div class="card" style="display:flex;align-items:center;gap:10px;padding:14px 16px">
+        <span style="flex:1;font-family:var(--f-ui);font-size:15px;color:var(--app-ink-faint)">Brand and model&hellip;</span>
+        <span class="iconbtn" style="position:static">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F7F5F2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </span>
+      </div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">30 &middot; Type it instead, the text route out of a refusal</span>
+    <h3>Name it, camera stays behind you</h3>
+    <p>The panel rises over a blurred but still visible frame, never a fully hidden camera, so the
+    thing being named is still what the person is looking at (OLMA audit row 89). It is the second
+    route the no_identity and identity_unsure refusals get, where before there was a dead end
+    (OLMA audit row 17), and the prompt names brand and model because a typed name has to hit a
+    fixed corpus (OLMA audit row 88).</p>
+  </div>
+</div>
+
+    <div class="group-head">
+      <p class="eyebrow dim">Group E</p>
+      <h3>Pages</h3>
+    </div>
+
+<!-- 31 WATCHLIST EMPTY -->
+<!-- Source: AVATAR.md section 3 row 42 (state asleep, position "centred, 33% from the top", size
+     face-verdict 96px, Deadpan string, animation sleep-breath, loops). Also
+     notes/duolingo-owl.md mapping row 19, adapted: Duo drawn asleep in an empty state, with the
+     want-next spun from "go do the core act" to a save rather than a lesson. No item data, this
+     is the zero-items state and every new install starts here. -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="appscroll" style="justify-content:flex-start">
+      <div class="screenhead">
+        <span class="kick">0 things</span>
+        <h4>Watching</h4>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:14px;margin-top:56px">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#6E7783" stroke-width="3.5"/>
+          <path d="M18 29c2 2 6 2 8 0M38 29c2 2 6 2 8 0" fill="none" stroke="#6E7783" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M25 43h14" stroke="#6E7783" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M46 14h5M49 11h4" stroke="#6E7783" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <div style="text-align:center;font-size:14.5px;color:var(--app-ink-muted);max-width:24ch">Nothing here yet.</div>
+      </div>
+    </div>
+    <div class="bottombar" style="height:112px;gap:52px">
+      <div class="navbtn" style="background:var(--app-raised)"></div>
+      <div class="shutter" style="width:64px;height:64px"></div>
+      <div class="navbtn" style="background:var(--app-raised)"></div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">31 &middot; Watchlist, empty</span>
+    <h3>Asleep, not sorry</h3>
+    <p>Every new install opens here. The face is asleep rather than apologetic, because there is
+    nothing wrong, only nothing saved yet. AVATAR.md's per-screen table draws this at face-verdict,
+    96px, centred 33% from the top.</p>
+  </div>
+</div>
+
+      <!-- 32 WATCHLIST ITEMS -->
+      <!-- 33 PRICE DROPPED -->
       <div class="screen">
         <div class="phone"><div class="vp">
           <div class="notch"></div>
@@ -1074,65 +2163,136 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
           </div>
         </div></div>
         <div class="cap">
-          <span class="k">10 &middot; Second surface</span>
+          <span class="k">32-33 &middot; Second surface</span>
           <h3>Watching, and the one thing that moved</h3>
           <p>The only screen that is a list, and the shutter still travels with you at a reduced 64px so the primary act is never more than one tap away. A drop is stated against the regular price, never against a promotion.</p>
         </div>
       </div>
 
-      <!-- 11 ATTITUDE -->
-      <div class="screen">
-        <div class="phone"><div class="vp">
-          <div class="notch"></div>
-          <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
-          <div class="appscroll">
-            <div class="screenhead">
-              <span class="kick">One question, then the camera</span>
-              <h4>Which Shin do you want?</h4>
-            </div>
-            <div class="attitude">
-              <div class="att on">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="42" height="42">
-                  <circle cx="32" cy="32" r="29" fill="none" stroke="#F7F5F2" stroke-width="3.5"/>
-                  <circle cx="23" cy="28" r="3" fill="#F7F5F2"/><circle cx="41" cy="28" r="3" fill="#F7F5F2"/>
-                  <path d="M23 42h18" stroke="#F7F5F2" stroke-width="3.5" stroke-linecap="round"/>
-                </svg>
-                <div class="t"><b>Deadpan</b><span>&ldquo;Two dollars. It's $1.47.&rdquo;</span></div>
-              </div>
-              <div class="att">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="42" height="42">
-                  <circle cx="32" cy="32" r="29" fill="none" stroke="#A5ADB8" stroke-width="3.5"/>
-                  <path d="M18 26c2.5-3.5 8-3.5 10.5 0M35.5 26c2.5-3.5 8-3.5 10.5 0" fill="none" stroke="#A5ADB8" stroke-width="3.5" stroke-linecap="round"/>
-                  <path d="M22 38c4.5 6.5 15.5 6.5 20 0" fill="none" stroke="#A5ADB8" stroke-width="3.5" stroke-linecap="round"/>
-                </svg>
-                <div class="t"><b>Warm</b><span>&ldquo;Ooh, that's steep. I'd wait.&rdquo;</span></div>
-              </div>
-              <div class="att">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="42" height="42">
-                  <circle cx="32" cy="32" r="29" fill="none" stroke="#A5ADB8" stroke-width="3.5"/>
-                  <path d="M16 20l13 7M48 20l-13 7" stroke="#A5ADB8" stroke-width="4" stroke-linecap="round"/>
-                  <circle cx="23" cy="33" r="3" fill="#A5ADB8"/><circle cx="41" cy="33" r="3" fill="#A5ADB8"/>
-                  <path d="M23 46c4-4 14-4 18 0" fill="none" stroke="#A5ADB8" stroke-width="3.5" stroke-linecap="round"/>
-                </svg>
-                <div class="t"><b>Blunt</b><span>&ldquo;They're robbing you.&rdquo;</span></div>
-              </div>
-            </div>
-            <div style="font-family:var(--f-mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--app-ink-faint);line-height:1.7">
-              Changeable any time. The numbers never change, only the words around them.
-            </div>
-          </div>
-          <div class="bottombar" style="height:96px">
-            <div class="pill" style="background:var(--brand);color:#fff;padding:13px 40px;font-size:15px">Start scanning</div>
-          </div>
-        </div></div>
-        <div class="cap">
-          <span class="k">11 &middot; Setup, and the only question asked</span>
-          <h3>Pick your Shin</h3>
-          <p>The whole of onboarding. The line under it is the promise that keeps the personality from eating the credibility: the attitude changes the words, never the number. Camera permission is asked at the first shutter press, not here.</p>
+
+<!-- 34 RECENTLY REMOVED -->
+<!-- Source: AVATAR.md section 3 row 46 (state idle, position "section header, leading edge",
+     size face-row 28px, Deadpan string, no animation). OLMA audit row 75, take: a saved scan is
+     the only record of what a thing cost when the user looked, so a delete needs a stated
+     recovery window rather than silent loss. Item reused verbatim from mockups.html screen 04
+     (IKEA POAENG armchair, used, $99, certain). The "6 days ago" removal timestamp is an
+     illustrative placeholder in the same convention mockups.html already uses for "1 h ago" and
+     "2 d ago" on its own watchlist screen, not a sourced measurement. -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="appscroll">
+      <div class="screenhead">
+        <span class="kick">Watching</span>
+        <h4>Recently removed</h4>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin:-2px 0 4px">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="28" height="28">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#A5ADB8" stroke-width="4"/>
+          <circle cx="23" cy="28" r="3.6" fill="#A5ADB8"/><circle cx="41" cy="28" r="3.6" fill="#A5ADB8"/>
+          <path d="M23 42h18" stroke="#A5ADB8" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+        <span style="font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--app-ink-faint)">Kept for 30 days</span>
+      </div>
+      <div class="card" style="padding:4px 16px">
+        <div class="rowitem">
+          <div class="rn"><b>IKEA PO&Auml;NG armchair, used</b><span>Removed 6 days ago &middot; 24 left</span></div>
+          <div class="rp">$99<em style="color:var(--app-ink-faint)">restore</em></div>
         </div>
       </div>
+    </div>
+    <div class="bottombar" style="height:112px;gap:52px">
+      <div class="navbtn badged" style="background:var(--app-raised)"></div>
+      <div class="shutter" style="width:64px;height:64px"></div>
+      <div class="navbtn" style="background:var(--app-raised)"></div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">34 &middot; Recently removed</span>
+    <h3>Thirty days, stated</h3>
+    <p>The idle face at face-row, 28px, sits beside the retention line rather than over the list,
+    because the section header is the only thing here that needs a face. The item and its $99 are
+    the same certain-tier IKEA PO&Auml;NG record drawn in mockups.html screen 04, now shown as a
+    removed watch rather than an active one, which is what OLMA audit row 75 asked for: a record
+    that would otherwise be unrecoverable.</p>
+  </div>
+</div>
 
-      <!-- 12 SHARE -->
+<!-- 35 PAST SCANS -->
+<!-- Source: AVATAR.md section 3 row 47 (per-row: the tier face each scan produced, in the
+     confidence treatment it had, face-row 28px, no line, no animation, "row faces never
+     animate"). Component 23 and OLMA audit rows 69 and 70, adapt: the history is what a thing
+     cost when looked at, not a scan trophy case, and the row renders from the same verdict
+     object as the sheet so a thin verdict stays hollow in the list too. All three rows below are
+     the exact items, prices, tiers and sources already drawn in mockups.html screens 03, 04 and
+     05; nothing here is new data. Row 48 (the empty state, asleep, "Nothing scanned yet.") is
+     not drawn in this fragment, to keep one drawn state per number on the forty-screen list. -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="appscroll">
+      <div class="screenhead">
+        <span class="kick">Watching</span>
+        <h4>Past scans</h4>
+      </div>
+      <div class="card" style="border-color:var(--walk);background:rgba(240,67,31,.1);display:flex;gap:12px;align-items:center">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="28" height="28">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#FF6A45" stroke-width="4"/>
+          <path d="M17 21l11 5M47 21l-11 5" stroke="#FF6A45" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <circle cx="23" cy="31" r="3.6" fill="#FF6A45"/><circle cx="41" cy="31" r="3.6" fill="#FF6A45"/>
+          <path d="M21 45c4.5-5.5 17.5-5.5 22 0" fill="none" stroke="#FF6A45" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+        <div style="flex:1;min-width:0">
+          <b style="font-size:14px;display:block">Kraft Dinner Original 225g</b>
+          <span style="font-size:12px;color:var(--app-ink-muted)">Metro &middot; walk away, fairly sure</span>
+        </div>
+        <div style="font-family:var(--f-display);font-weight:800;font-size:17px;color:var(--walk-br)">$2.00</div>
+      </div>
+      <div class="card" style="border-color:var(--good);background:rgba(18,183,106,.09);display:flex;gap:12px;align-items:center">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="28" height="28">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#38E08B" stroke-width="4"/>
+          <circle cx="23" cy="27" r="3.6" fill="#38E08B"/><circle cx="41" cy="27" r="3.6" fill="#38E08B"/>
+          <path d="M21 40c4.5 5.5 17.5 5.5 22 0" fill="none" stroke="#38E08B" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+        <div style="flex:1;min-width:0">
+          <b style="font-size:14px;display:block">IKEA PO&Auml;NG armchair, used</b>
+          <span style="font-size:12px;color:var(--app-ink-muted)">Marketplace &middot; take it, certain</span>
+        </div>
+        <div style="font-family:var(--f-display);font-weight:800;font-size:17px;color:var(--good-br)">$99</div>
+      </div>
+      <div class="card" style="border:2px solid var(--fair);background:rgba(232,160,32,.1);display:flex;gap:12px;align-items:center">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="28" height="28">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#FFC24D" stroke-width="4"/>
+          <circle cx="23" cy="27" r="3.6" fill="#FFC24D"/><circle cx="41" cy="27" r="3.6" fill="#FFC24D"/>
+          <path d="M22 42h20" fill="none" stroke="#FFC24D" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+        <div style="flex:1;min-width:0">
+          <b style="font-size:14px;display:block">Tide Simply Clean &amp; Fresh 2.72L</b>
+          <span style="font-size:12px;color:var(--app-ink-muted)">Walmart &middot; about right, thin</span>
+        </div>
+        <div style="font-family:var(--f-display);font-weight:800;font-size:17px;color:var(--fair-br)">$24.99</div>
+      </div>
+    </div>
+    <div class="bottombar" style="height:112px;gap:52px">
+      <div class="navbtn badged" style="background:var(--app-raised)"></div>
+      <div class="shutter" style="width:64px;height:64px"></div>
+      <div class="navbtn" style="background:var(--app-raised)"></div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">35 &middot; Past scans</span>
+    <h3>One list, three treatments</h3>
+    <p>Three rows, three confidence treatments, from the same three items and prices already
+    drawn in mockups.html: solid walk away for Kraft Dinner, solid good for the PO&Auml;NG, hollow
+    thin for Tide Simply. Row faces never animate. This is the fix for the exact OLMA contradiction
+    named in audit rows 69 and 70: a collection screen that showed a different verdict than the one
+    the same scan gave at the moment it happened.</p>
+  </div>
+</div>
+
+      <!-- 36 SHARE -->
       <div class="screen">
         <div class="phone"><div class="vp">
           <div class="notch"></div>
@@ -1140,7 +2300,7 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
           <div class="sharecard">
             <div class="sc-inner">
               <div class="sc-top">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="86" height="86">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="220" height="220">
                   <circle cx="32" cy="32" r="29" fill="none" stroke="#fff" stroke-width="3.5"/>
                   <path d="M17 21l11 5M47 21l-11 5" stroke="#fff" stroke-width="3.5" stroke-linecap="round" fill="none"/>
                   <circle cx="23" cy="31" r="3.4" fill="#fff"/><circle cx="41" cy="31" r="3.4" fill="#fff"/>
@@ -1161,11 +2321,224 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
           </div>
         </div></div>
         <div class="cap">
-          <span class="k">12 &middot; Distribution</span>
+          <span class="k">36 &middot; Distribution</span>
           <h3>The share card, 4:5</h3>
-          <p>The one place the brand pink is allowed near a verdict, and only in the footer wordmark, because that is the mark someone recognises in a stranger's screenshot. One face, one price, one line, and the source count in mono so the claim is checkable.</p>
+          <p>The one place the brand pink is allowed near a verdict, and only in the footer wordmark, because that is the mark someone recognises in a stranger's screenshot. One face, one price, one line, and the source count in mono so the claim is checkable. Face is <code>face-share</code> 220px, upper third, centred, AVATAR.md section 3 row 49, the one size larger than the verdict token and used nowhere else.</p>
         </div>
       </div>
+
+<!-- 37 PAYWALL -->
+<!-- Source: AVATAR.md section 3 row 50 (state idle, position "page header, leading edge, under
+     the title", size face-page 48px, Deadpan string, animation face-morph). OLMA audit rows 20
+     (reject: never auto-presented, moved off first launch), 21 (take: dismissible in one tap at a
+     thumb-reachable corner) and 76 (take: a deliberate second entry point, "Try Pro", reached from
+     You). Hard rule 2, no savings claim: nothing on this screen states or implies money saved.
+     The only feature line drawn is the one already specified, in USAGE.md section 6: the
+     subscription is what a meter zero state would offer instead of waiting for midnight. The
+     price itself is undecided anywhere in the docs read for this pass, so it is drawn as a
+     labelled placeholder, never a number. -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="iconbtn" style="position:absolute;top:52px;right:16px;z-index:9">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F7F5F2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </div>
+    <div class="appscroll">
+      <div class="screenhead">
+        <span class="kick">Reached from You, or from the meter. Never on its own.</span>
+        <h4>This is what the paid one does.</h4>
+      </div>
+      <div style="display:flex;justify-content:center;margin:6px 0 4px">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#F7F5F2" stroke-width="3.5"/>
+          <circle cx="23" cy="28" r="3.4" fill="#F7F5F2"/><circle cx="41" cy="28" r="3.4" fill="#F7F5F2"/>
+          <path d="M23 42h18" stroke="#F7F5F2" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="card" style="padding:16px">
+        <span style="font-size:14.5px;line-height:1.5">No daily limit, once the scan meter is on. The meter itself is off in v1.</span>
+      </div>
+      <div class="fragc-undecided">Price undecided</div>
+    </div>
+    <div class="bottombar" style="height:96px">
+      <div class="pill" style="background:var(--brand);color:#fff;padding:13px 34px;font-size:15px">Continue</div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">37 &middot; Paywall, reached deliberately and never auto-presented</span>
+    <h3>Walked in, not pushed</h3>
+    <p>No auto-presentation at launch, which is the OLMA failure this screen fixes (audit row 20);
+    a close X sits at a thumb-reachable corner because any full-screen interruption Shin shows must
+    be dismissible in one tap (audit row 21). The one feature line stated is the one already
+    specified elsewhere, the scan meter is off in v1 and this is what removes its cap once it
+    exists. The price is a labelled placeholder because no number for it exists in any file read
+    for this pass, and hard rule 2 keeps a savings figure off this screen entirely.</p>
+  </div>
+</div>
+
+<!-- 38 METER ZERO -->
+<!-- Source: AVATAR.md section 3 row 51 (state unknown, position "panel, centred", size
+     face-verdict 96px, Deadpan string quoted verbatim, animation slow-blink, no shake, no buzz,
+     no red). USAGE.md section 6, "the zero state" row, which is also where the primary action
+     (the subscription) and the secondary plain text are specified verbatim. This whole screen is
+     the dark specification for a switch that is off in v1: it documents what flipping it on would
+     show, and is not a state the shipped app can currently reach. -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="feed freeze" style="filter:brightness(.55)"><div class="boxes">
+      <i style="left:12px;top:170px;width:58px;height:74px;background:#c8442f"></i>
+      <i style="left:200px;top:174px;width:54px;height:70px;background:#8a5230"></i>
+    </div></div>
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="chrome-top"><div class="wordmark">shin<i>.</i></div><div class="iconbtn"></div></div>
+    <div style="position:absolute;left:20px;right:20px;top:42%;transform:translateY(-50%);z-index:8;background:#191c1f;border:2px dashed var(--unk);border-radius:20px;padding:24px 20px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96">
+        <circle cx="32" cy="32" r="29" fill="none" stroke="#93A0AC" stroke-width="3.5" stroke-dasharray="7 6"/>
+        <path d="M19 27h8M37 27h8" stroke="#93A0AC" stroke-width="3.5" stroke-linecap="round"/>
+        <path d="M23 42c4-3 14-3 18 0" fill="none" stroke="#93A0AC" stroke-width="3.5" stroke-linecap="round"/>
+      </svg>
+      <span style="font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--unk-br)">0 of 10 left today</span>
+      <p style="font-size:14.5px;color:var(--app-ink);line-height:1.5;margin:0">That is ten for today. The camera still works. I just will not have an opinion until midnight.</p>
+      <span class="pill ghost">See the paid tier</span>
+      <span style="font-size:12px;color:var(--app-ink-faint)">Everything you saved is still here.</span>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">38 &middot; Meter zero state, dark switch, off in v1</span>
+    <h3>A limit on Shin, not on you</h3>
+    <p>The scan meter is not built into the shipped app; USAGE.md section 6 specifies it as a
+    switch that defaults to off, and this is the state that switch would show if it were flipped
+    on. Grey, dashed, one slow blink, no shake, no red, because the limit is a design default
+    Shin names honestly rather than an error. The watchlist, a correction, a share and this
+    going-rate card are the four things a meter never blocks; only new verdicts are gated.</p>
+  </div>
+</div>
+
+<!-- 39 YOU -->
+<!-- Source: AVATAR.md section 3 rows 52 and 53 (the attitude row carries a fair face, face-row
+     28px, no line, the row label carries the personality name; the rest of the page carries no
+     face, because it is a list of the user's own settings). OLMA audit rows 78, 79, 80, 82, 83,
+     84, 85, 86 (market row and its basis line, optional location, the privacy line adapted for
+     Shin's actual barcode-based identification rather than OLMA's photo-based one, the haptics
+     half of the motion toggle, report an issue, legal, and a build footer). GAMIFICATION.md rules
+     what is in and out here: no streak, no badges, no saved-money tally, no leaderboard; the
+     weekly line (mechanic M16) is in, drawn only from the user's own record.
+     Weekly-line count: "7 scanned this week, 2 I could call" is NOW.md's own stated pilot result
+     ("answers 2 of 7 hand-priced items and refuses the other five") plus
+     notes/session-2026-09-03.md's seven-item pilot, read as a first week's worth of scanning
+     since that is the entire real dataset this repo holds. Nothing is projected past it, nothing
+     is ranked, and no dollar figure is attached. -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="appscroll">
+      <div class="screenhead">
+        <span class="kick">Settings</span>
+        <h4>You</h4>
+      </div>
+
+      <div class="card" style="display:flex;align-items:center;gap:12px;padding:14px 16px">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="28" height="28">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#FFC24D" stroke-width="4"/>
+          <circle cx="23" cy="27" r="3.6" fill="#FFC24D"/><circle cx="41" cy="27" r="3.6" fill="#FFC24D"/>
+          <path d="M22 42h20" fill="none" stroke="#FFC24D" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+        <div style="flex:1"><b style="font-size:14.5px;display:block">Deadpan</b><span style="font-size:12px;color:var(--app-ink-muted)">Your Shin's voice. Tap to change.</span></div>
+      </div>
+
+      <div class="card" style="padding:14px 16px">
+        <span style="font-family:var(--f-mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--app-ink-faint)">This week</span>
+        <p style="font-size:14.5px;margin:6px 0 0">7 scanned this week. 2 I could call.</p>
+      </div>
+
+      <div class="card" style="padding:4px 16px">
+        <div class="rowitem"><div class="rn"><b>Market</b><span>Price verdicts are judged against typical prices in this market</span></div><div class="rp" style="font-size:14px;font-weight:600">Canada</div></div>
+        <div class="rowitem"><div class="rn"><b>Location</b><span>Optional. Only used to sharpen the market above.</span></div><div class="rp" style="font-size:14px;font-weight:600;color:var(--app-ink-faint)">Off</div></div>
+      </div>
+
+      <div class="card" style="padding:14px 16px">
+        <span style="font-size:13px;color:var(--app-ink-muted);line-height:1.5">Scan history stays on this device. Only the barcode is sent to identify the product and compare prices.</span>
+      </div>
+
+      <div class="card" style="display:flex;align-items:center;gap:12px;padding:14px 16px">
+        <div style="flex:1"><b style="font-size:14.5px;display:block">Haptics</b></div>
+        <div class="fragc-switch on"><i></i></div>
+      </div>
+
+      <div class="card" style="padding:4px 16px">
+        <div class="rowitem"><div class="rn"><b>Report an issue</b><span>A wrong price is the fastest thing to get fixed</span></div></div>
+        <div class="rowitem"><div class="rn"><b>Privacy policy</b></div></div>
+        <div class="rowitem"><div class="rn"><b>Terms of use</b></div></div>
+      </div>
+
+      <div class="fragc-undecided">Version undecided</div>
+    </div>
+    <div class="bottombar" style="height:112px;gap:52px">
+      <div class="navbtn badged" style="background:var(--app-raised)"></div>
+      <div class="shutter" style="width:64px;height:64px"></div>
+      <div class="navbtn" style="background:var(--app-raised)"></div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">39 &middot; You</span>
+    <h3>Nothing to rank</h3>
+    <p>GAMIFICATION.md keeps this page to what pays for nothing and corrupts nothing: the weekly
+    line reads the user's own count back to them without a streak, a badge, a leaderboard or a
+    saved-money tally anywhere on it. The market row and its basis line exist because an unscoped
+    verdict is a confidently wrong one waiting to happen (OLMA audit rows 9, 11, 78, 80), and the
+    privacy line names what actually leaves the phone in this app, a barcode, not the photo OLMA's
+    own line describes.</p>
+  </div>
+</div>
+
+<!-- 40 MARKET PICKER -->
+<!-- Source: AVATAR.md section 3 row 54 (state asking, position "above the list, leading edge",
+     size face-page 48px, Deadpan string, animation face-morph). OLMA audit rows 9 (take: a
+     pre-filled market row scopes the verdict) and 11 and 80 (take: the basis line, quoted
+     verbatim). Reached from the market row on the You page (screen 39) above. Country names only,
+     no price or currency figures. -->
+<div class="screen">
+  <div class="phone"><div class="vp">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679;</span></div>
+    <div class="appscroll">
+      <div class="screenhead">
+        <span class="kick">Every verdict is measured against this</span>
+        <h4>Where do you shop?</h4>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin:-2px 0 4px">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#F7F5F2" stroke-width="3.5"/>
+          <path d="M18 24h9" stroke="#F7F5F2" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M37 22l8 4" stroke="#F7F5F2" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="23" cy="29" r="3.2" fill="#F7F5F2"/><circle cx="41" cy="29" r="3.2" fill="#F7F5F2"/>
+          <circle cx="32" cy="43" r="3" fill="none" stroke="#F7F5F2" stroke-width="3"/>
+        </svg>
+        <span style="font-size:13.5px;color:var(--app-ink-muted)">Where do you shop? Every verdict is measured against this.</span>
+      </div>
+      <div class="attitude">
+        <div class="att on"><div class="t"><b>Canada</b><span>Current market</span></div></div>
+        <div class="att"><div class="t"><b>United States</b></div></div>
+        <div class="att"><div class="t"><b>United Kingdom</b></div></div>
+      </div>
+      <div style="font-family:var(--f-mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--app-ink-faint);line-height:1.7">
+        Price verdicts are judged against typical prices in this market.
+      </div>
+    </div>
+  </div></div>
+  <div class="cap">
+    <span class="k">40 &middot; Market picker</span>
+    <h3>What every verdict is measured against</h3>
+    <p>Canada is pre-filled and checked, one tap changes it, matching the take from OLMA audit row
+    9. The basis line under the list is quoted directly from OLMA audit row 80: without it, "above
+    what it goes for" has no referent for someone standing in an aisle, and an unscoped range is
+    exactly the confidently wrong verdict the priority order exists to prevent.</p>
+  </div>
+</div>
+
 
     </div>
   </div>
@@ -1203,69 +2576,11 @@ footer{padding:48px 0 72px;color:var(--ink-faint);font-size:13.5px;display:flex;
   </div>
 </section>
 
-<section>
-  <div class="wrap">
-    <div class="sec-head">
-      <p class="eyebrow dim">Not yet drawn</p>
-      <h2>Twenty seven more screens, listed and not drawn</h2>
-      <p class="lede">
-        The screen list grew from fifteen to forty on 4 September 2026, in
-        <span style="font-family:var(--f-mono);font-size:13px">docs/design/DESIGN.md</span> section 7
-        and <span style="font-family:var(--f-mono);font-size:13px">docs/design/AVATAR.md</span>
-        section 1, which are the same list. Thirteen of the forty are drawn above. These twenty seven
-        are specified and <b>not drawn</b>. Drawing them is the build pass, not this one. The numbers
-        are the numbers on the forty-screen list.
-      </p>
-    </div>
-
-    <ul style="max-width:74ch;line-height:1.75;padding-left:20px;margin:0">
-      <li><b>01</b> First run, cold open, feed not yet live. <i>Not drawn.</i></li>
-      <li><b>03</b> Permission primer, before the system prompt. <i>Not drawn.</i></li>
-      <li><b>04</b> System camera prompt. <i>Not drawn.</i></li>
-      <li><b>05</b> Camera denied, screenshot fallback. <i>Not drawn.</i></li>
-      <li><b>07</b> Camera, hint escalated after four seconds of nothing. <i>Not drawn.</i></li>
-      <li><b>08</b> Camera, torch on. <i>Not drawn.</i></li>
-      <li><b>10</b> Identity chip resolved, and the wrong-item repair. <i>Not drawn.</i></li>
-      <li><b>11</b> Asking price pad, over the frozen frame. <i>Not drawn.</i></li>
-      <li><b>12</b> Working, the three named steps. <i>Not drawn.</i></li>
-      <li><b>14</b> Verdict, good, at the steal threshold. <i>Not drawn.</i></li>
-      <li><b>15</b> Verdict, fair, plain evidence. <i>Not drawn.</i></li>
-      <li><b>17</b> Verdict, walk away, at the rip-off threshold. <i>Not drawn.</i></li>
-      <li><b>19</b> Going-rate card, no asking price supplied. <i>Not drawn.</i></li>
-      <li><b>20</b> Verdict sheet, half detent. <i>Not drawn.</i></li>
-      <li><b>23</b> Watch or save acknowledged. <i>Not drawn.</i></li>
-      <li><b>24</b> Thumbs feedback row and its acknowledgement. <i>Not drawn.</i></li>
-      <li><b>26</b> Refusal, unsure which one. <i>Not drawn.</i></li>
-      <li><b>28</b> Refusal, too little evidence, with the empty step named. <i>Not drawn.</i></li>
-      <li><b>29</b> Refusal acknowledged, Keep it landed. <i>Not drawn.</i></li>
-      <li><b>30</b> Type it instead, the text route out of a refusal. <i>Not drawn.</i></li>
-      <li><b>31</b> Watchlist, empty. <i>Not drawn.</i></li>
-      <li><b>34</b> Recently removed. <i>Not drawn.</i></li>
-      <li><b>35</b> Past scans. <i>Not drawn.</i></li>
-      <li><b>37</b> Paywall, reached deliberately and never auto-presented. <i>Not drawn.</i></li>
-      <li><b>38</b> Meter zero state, dark switch, off in v1. <i>Not drawn.</i></li>
-      <li><b>39</b> You. <i>Not drawn.</i></li>
-      <li><b>40</b> Market picker. <i>Not drawn.</i></li>
-    </ul>
-
-    <div class="callout" style="margin-top:24px">
-      <b>Four of the thirteen drawn above are now out of date, and are redraws rather than new work.</b>
-      <p>
-        06, the refusal, hands back two equally weighted pills; the sequence file replaced the second
-        with the downward drag that already dismisses the sheet. 03, 04 and 05, the verdicts, carry no
-        action at peek; the primary action moved there. 08, the full detent, does not carry the one tap
-        correctness signal. 09, correcting Shin, is drawn as its own surface; it is a detent of the same
-        sheet now, and the frozen frame is never lost.
-      </p>
-    </div>
-  </div>
-</section>
-
 <footer>
   <div class="wrap">
     <p style="font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--brand)">Still open</p>
     <p style="margin-top:10px;max-width:64ch;line-height:1.6">
-      Twenty seven of the forty screens are specified and not yet drawn; they are listed above. The
+      All forty screens on the list are drawn; none is left undrawn. The
       spec they follow is in
       <span style="font-family:var(--f-mono);font-size:13px">docs/design/DESIGN.md</span>, which wins
       over any screen here if the two disagree, except on sequence, where

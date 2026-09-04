@@ -104,11 +104,13 @@ account with a stated floor on what counts as a signal is better than no test.
 ## The repo lives on GitLab, private, with Aurik on it
 **Date:** 2026-09-03 · **Status:** active
 
-`gitlab.com/jaminke/shin`, private, Aurik Disler (`Aurikology`) at Maintainer. A top-level
-GitLab group was asked for and could not be created: the account creates projects fine but
-`POST /groups` is refused for every path, which is gitlab.com's identity check on new top-level
-groups. The project sits in the personal namespace until a group is made by hand and the project
-transferred into it. Membership survives a transfer.
+`gitlab.com/shin3223636/shin`, private, Aurik Disler (`Aurikology`) at Maintainer. A top-level
+GitLab group was asked for and could not be created by the API: the account creates projects
+fine but `POST /groups` is refused for every path, which is gitlab.com's identity check on new
+top-level groups. The project was first pushed to the personal namespace,
+`gitlab.com/jaminke/shin`. A group named "shin" (path `shin3223636`) was then made by hand and
+the project transferred into it. Verified 2026-09-04 on the project's members page: two direct
+members, roles unchanged, so membership survived the transfer.
 
 **Reverses if:** Shin stops being shared work, in which case Aurik comes off the member list.
 

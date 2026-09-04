@@ -16,6 +16,7 @@
  */
 
 import * as store from './store.js';
+import { FLAGS } from './flags.js';
 
 export const PERSONALITIES = [
   {
@@ -81,6 +82,38 @@ const LINES = {
   word_fair: { deadpan: () => 'About right', warm: () => 'About right', blunt: () => 'Fine' },
   word_walk_away: { deadpan: () => 'Walk away', warm: () => 'I would wait', blunt: () => 'Walk away' },
 
+  /*
+   * --- the peek primary, USAGE.md section 7 ---
+   *
+   * Keyed by tier, not by personality, on whether it says save or watch: Save
+   * it on `good`, Watch it on `fair` and `walk_away`, because telling someone
+   * to watch a price that is already good is telling them to wait for no
+   * reason. Nine strings, three tiers times three personalities. There is no
+   * feed in v1, so none of these may promise to notify, nudge or shout; the
+   * button names the act the tap performs, nothing more.
+   */
+  peek_good: {
+    deadpan: () => 'Save it',
+    warm: () => 'Save it, easily',
+    blunt: () => 'Save it. Now.',
+  },
+  peek_fair: {
+    deadpan: () => 'Watch it',
+    warm: () => 'Watch it, just in case',
+    blunt: () => 'Watch it.',
+  },
+  peek_walk_away: {
+    deadpan: () => 'Watch it',
+    warm: () => 'Watch it, just in case',
+    blunt: () => 'Watch it.',
+  },
+  /** Row 32: the label once the tap has landed. A state, not a personality line. */
+  peek_watching: {
+    deadpan: () => 'Watching',
+    warm: () => 'Watching',
+    blunt: () => 'Watching',
+  },
+
   /* --- refusals, which are the most common outcome and get the same care --- */
   refuse_unknown: {
     deadpan: () => 'I do not know this one',
@@ -117,6 +150,22 @@ const LINES = {
     warm: () => 'I would rather not say yet',
     blunt: () => 'Not enough. Ask me later.',
   },
+  /** The evidence line under a refusal, when something was found but not enough. */
+  refuse_evidence_some: {
+    deadpan: () => 'What I did find, which was not enough to call it.',
+    warm: () => 'Here is what I did find. It was just not enough to call it.',
+    blunt: () => 'What I found. Not enough.',
+  },
+  /**
+   * The evidence line under a refusal, when nothing was found at all.
+   * USAGE.md section 4 row 4: "the line that must never change is the one
+   * already in camera.js", so all three personalities read the same.
+   */
+  refuse_evidence_none: {
+    deadpan: () => 'I found nothing at all for this. That is a gap in what I have been taught, not a fact about the market.',
+    warm: () => 'I found nothing at all for this. That is a gap in what I have been taught, not a fact about the market.',
+    blunt: () => 'I found nothing at all for this. That is a gap in what I have been taught, not a fact about the market.',
+  },
 
   /* --- the states between shutter and answer --- */
   reading: {
@@ -125,16 +174,43 @@ const LINES = {
     blunt: () => 'Hang on',
   },
 
-  /* --- what a save is worth --- */
+  /*
+   * --- what a save is worth ---
+   *
+   * AVATAR.md section 3 rows 32 and 33 are two different promises. `watching`
+   * (row 32) is the v1 form: it says what was just saved, in facts already on
+   * screen (asking price, seller, day), and nothing it cannot check again.
+   * `watching_feed` (row 33) is the dark form: it promises to look again, which
+   * only a re-queryable source can honour. `say()` below picks between them on
+   * FLAGS.feed so a screen never has to know which one it is asking for.
+   */
   watching: {
-    deadpan: (f) => `Watching. I will say something under ${f.usual}.`,
-    warm: (f) => `Saved. I will nudge you if it drops under ${f.usual}.`,
-    blunt: (f) => `Saved. Under ${f.usual} and I will shout.`,
+    deadpan: (f) => `Saved at ${f.asking}${f.seller ? `, ${f.seller}` : ''}, ${f.day}.`,
+    warm: () => 'Saved. I have the number and the day.',
+    blunt: (f) => `Saved. ${f.asking}${f.seller ? `, ${f.seller}` : ''}.`,
   },
+  /** Ships only with a re-queryable source. FLAGS.feed gates it. Never call this key directly. */
+  watching_feed: {
+    deadpan: (f) => `Watching. I will say something under ${f.usual}.`,
+    warm: () => 'Watching. I will tell you if it drops under the usual.',
+    blunt: () => 'Watching. I will shout if it drops.',
+  },
+  /**
+   * Row 45, "dark, not v1". A real drop needs a source re-queried on a
+   * schedule, which does not exist, so this key is only ever read behind
+   * FLAGS.feed (see watchlist.js). Never call it with FLAGS.feed off.
+   */
   dropped: {
-    deadpan: (f) => `Down to ${f.asking}.`,
-    warm: (f) => `It dropped. ${f.asking} now.`,
-    blunt: (f) => `${f.asking}. Go.`,
+    deadpan: (f) => `${f.asking} at ${f.seller}. You watched it at ${f.usual}.`,
+    warm: (f) => `It dropped. ${f.asking} at ${f.seller}, down from what you saw.`,
+    blunt: (f) => `It dropped. ${f.asking}. They were pushing it before.`,
+  },
+
+  /** Row 42: the watchlist, empty. Not dark, ships in v1 as written in AVATAR.md. */
+  watchlist_empty: {
+    deadpan: () => 'Nothing here yet.',
+    warm: () => 'Nothing here yet. Save something and I will keep an eye on it.',
+    blunt: () => 'Empty. Nothing to watch yet.',
   },
 
   /* --- corrections --- */
@@ -157,7 +233,11 @@ const LINES = {
  * @param {object} [facts]  already-formatted strings, never raw numbers
  */
 export function say(key, facts = {}) {
-  const row = LINES[key];
+  // watching is the only key with a dark alternate. A screen always asks for
+  // watching; whether it gets the row-32 save line or the row-33 promise is
+  // this one switch, never a second call site.
+  const resolvedKey = key === 'watching' && FLAGS.feed ? 'watching_feed' : key;
+  const row = LINES[resolvedKey];
   if (!row) return '';
   const fn = row[personality()] ?? row[DEFAULT_PERSONALITY];
   return typeof fn === 'function' ? fn(facts) : '';

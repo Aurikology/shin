@@ -236,6 +236,22 @@ body {
 
 .face { display: block; }
 
+/*
+ * The placeholder's other half, docs/design/AVATAR.md section 6: the state
+ * name in mono under the face, behind FLAGS.placeholderLabels. `.face-block`
+ * only wraps a face where a vertical stack fits; a face sitting inline beside
+ * text in a row uses `.face` alone.
+ */
+.face-block { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; }
+.face-label {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .page > * { animation: rise var(--t-rise) var(--ease-land) both; }
   @keyframes rise {

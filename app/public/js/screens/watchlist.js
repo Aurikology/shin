@@ -10,18 +10,23 @@
  * has already had once.
  */
 
-import { faceSvg, cad } from '../shin.js';
+import { faceSvg, faceBlock, cad } from '../shin.js';
 import { say } from '../voice.js';
 import * as store from '../store.js';
+import { FLAGS } from '../flags.js';
 
 function row(w) {
   const moved = typeof w.lastCents === 'number' && typeof w.usualCents === 'number'
     ? w.lastCents - w.usualCents
     : null;
   const cheaper = moved !== null && moved < 0;
+  // Row faces never animate (AVATAR.md section 5), and the tier they wear is
+  // the same delta already printed beside the price, not a second judgment.
+  const face = moved === null || moved === 0 ? 'fair' : cheaper ? 'good' : 'walk';
 
   return `
     <button type="button" class="wrow" data-open="${w.id}">
+      ${faceSvg(face, { size: 'face-row' })}
       <span class="wrow-n">
         <b>${w.label}</b>
         <span>${w.askingSeller ? `${w.askingSeller} · ` : ''}saved ${ago(w.savedAt)}</span>
@@ -71,11 +76,20 @@ export default {
           </header>
 
           ${
-            dropped.length
+            // Row 45 is dark, not v1: without a re-queryable source, "under
+            // the usual" is a snapshot taken at save time, not a movement
+            // Shin watched happen, and a nudging face would claim the
+            // latter. FLAGS.feed is the same switch row 33's promise waits
+            // on, for the same reason (USAGE.md C4).
+            FLAGS.feed && dropped.length
               ? `<div class="drop-card" data-tier="good">
-                   ${faceSvg('pleased', { size: 44 })}
+                   ${faceBlock('nudging', { size: 'face-page' })}
                    <div>
-                     <b>${say('dropped', { asking: cad(dropped[0].lastCents) })}</b>
+                     <b>${say('dropped', {
+                       asking: cad(dropped[0].lastCents),
+                       seller: dropped[0].askingSeller ?? 'the seller you saved it at',
+                       usual: cad(dropped[0].usualCents),
+                     })}</b>
                      <span>${dropped[0].label}, under the usual ${cad(dropped[0].usualCents)}.</span>
                    </div>
                  </div>`
@@ -86,8 +100,8 @@ export default {
             list.length
               ? `<div class="wlist">${list.map(row).join('')}</div>`
               : `<div class="empty">
-                   ${faceSvg('fair', { size: 64 })}
-                   <p>Nothing here yet. Scan something and save it, and I will keep an eye on the price.</p>
+                   ${faceBlock('asleep', { size: 'face-verdict' })}
+                   <p>${say('watchlist_empty')}</p>
                  </div>`
           }
 

@@ -20,7 +20,7 @@
  * exported PNG pixel for pixel rather than an approximation of it.
  */
 
-import { faceSvg, cad, confidenceOf, tierOf, sellerOf } from '../shin.js';
+import { faceSvg, cad, confidenceOf, tierOf, sellerOf, SIZE_TOKENS } from '../shin.js';
 import { wordFor, say } from '../voice.js';
 
 const W = 1080;
@@ -128,8 +128,9 @@ async function drawCard(canvas, card) {
 
   g.textAlign = 'center';
 
-  // The face, which is the token the card exists to carry.
-  const faceSize = 300;
+  // The face, which is the token the card exists to carry. AVATAR.md row 49:
+  // face-share, 220px, the one size token above face-verdict.
+  const faceSize = SIZE_TOKENS['face-share'];
   const img = await faceImage(card.expression, faceSize, onBand, card.who);
   if (img) g.drawImage(img, mid - faceSize / 2, 108, faceSize, faceSize);
 

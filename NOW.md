@@ -31,7 +31,7 @@ mockups are `docs/design/mockups.html`.
 **Not built, and known.** There is no vision model, so identification is a list of the items the
 corpus actually holds and the user picks one; any asking price that was a stated stand-in rather
 than an observed tag is labelled as one on the screen where it is read. The share card is a still
-image, not a clip.
+image, not a clip. The build pass of 2026-09-04 is recorded below.
 
 The research and the plan that produced it were made 2026-09-03 in one session, now in this repo
 so they stop living in a temp folder.
@@ -70,16 +70,33 @@ tally, each with the condition that reverses it. Nothing in v1 pays for a report
 **The scan meter.** Not in v1. The switch is built and defaults to off, and nothing earns a scan
 back until a contributed price is confirmed by a second independent observation.
 
-**One conflict found.** `app/public/js/voice.js` ships the watching string as "Watching. I will
-say something under $1.47." That promises to look again, which `docs/design/USAGE.md` forbids
-because there is no re-queryable source. `docs/design/AVATAR.md` rows 32 and 33 split it into a v1
-form that says what was saved and a dark form that promises, shipped with the feed. The build pass
-makes the change.
+## What the build pass did, 2026-09-04
 
-**The build pass starts with** the four redraws where the sequence changed under the drawn
-mockups, then the twenty seven screens listed as to-draw, then the placeholder face extended to
-thirteen states with its size and position tokens honoured. Nothing in this pass moves the three
-things below, which still gate the product.
+**All forty screens are drawn** in `docs/design/mockups.html`, in the five groups and the numbering
+of `DESIGN.md` section 7. The six mockups the sequence file had made stale were redrawn, the
+twenty seven missing ones were drawn from their traced rows, and every face on every screen was
+checked against the size token on its `AVATAR.md` row by an enumerating script, after a fresh
+verifier found nine of them wrong on the first pass. Stand-in asking prices on the steal and
+rip-off screens are labelled as stand-ins in visible text.
+
+**The running app now honours the contract where it has a screen for it.** The face draws all
+thirteen states in three personality treatments with the state name printed under it behind one
+flag; the six size tokens live in the stylesheet and every face call uses one. The watching line
+says what was saved and no longer promises to look again; the promising form exists behind a feed
+switch that is off. The verdict sheet has three detents: the peek carries the one primary,
+labelled by tier from the string table (Save it on good, Watch it otherwise, Watching once saved);
+half adds Correct it and Share with the spread and provenance; full adds the thumbs row, which
+earns nothing. Every refusal carries one action. No line Shin says is written inside a screen.
+Walked in Chrome 2026-09-04: picker, viewfinder, unsure refusal, thin fair verdict, save
+acknowledged, no console errors. Spine still 44 passing, typecheck clean.
+
+**Not built in this pass, and known.** Per-row pixel positions are honoured by component class,
+not re-laid out per row. The three named working steps (identifying, looking for prices, checking
+sellers) are one generic line. Correct it is still a route, not a detent of the same sheet. The
+going-rate card, past scans, recently removed, market picker and the meter switch are drawn and
+not built. The mockups page is heavy to paint (fifty backdrop blurs) and slow to screenshot.
+
+Nothing in this pass moved the three things below, which still gate the product.
 
 ## The next three things, in order
 
