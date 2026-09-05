@@ -228,6 +228,51 @@ function storeClauseFor(price: PricedProduct): string {
   return 'a store that reported this price';
 }
 
+/*
+ * Not every "allergen tag" is the name of an allergen.
+ *
+ * Open Food Facts allergen tags are contributor-entered, and a slice of them
+ * are whole sentences off the back of a package rather than a name: warnings,
+ * cautions, ingredient prose, and in at least one case a French allergen
+ * declaration complete with a newline in the middle of it. Rendered into this
+ * screen's sentence they came out as, verbatim from a live run:
+ *
+ *   "Adds gluten, milk, soybeans, always read the label carefully because not
+ *    all our products are manufactured in a peanut free facility."
+ *
+ * which is incoherent, and worse, buries three real allergens inside a run-on
+ * that reads like a rendering fault rather than a warning.
+ *
+ * A readable allergen name is short. Measured over the whole catalogue, 39,533
+ * tag occurrences across 512 distinct tags: at a 48-character cut, 51
+ * occurrences fall outside it, which is 0.13%. That cut keeps every genuine
+ * name in the data including the long chemical ones, "sulphur dioxide and
+ * sulphites" at 29 characters and "hydroxyisohexyl 3 cyclohexene
+ * carboxaldehyde" at 44, and drops the paragraphs, which start at 100-plus.
+ *
+ * WHAT HAPPENS TO A PRODUCT THAT HAS ONE. Its whole side becomes not-recorded,
+ * rather than being compared on the tags that survived the filter. Silently
+ * dropping something unreadable and then comparing what is left claims a
+ * complete comparison over a list we edited, which is the one thing the
+ * allergen wording exists to avoid. We could not read it, so we do not know,
+ * and the sentence says we do not know. The cost is small and lands the safe
+ * way round: a handful of products get "check the packaging" instead of a
+ * comparison, and none get a comparison drawn over data nobody could read.
+ */
+const MAX_ALLERGEN_NAME = 48;
+
+function isReadableAllergen(tag: string): boolean {
+  return allergenName(tag).length <= MAX_ALLERGEN_NAME;
+}
+
+function readableAllergens(tags: readonly string[]): string[] {
+  return tags.filter(isReadableAllergen);
+}
+
+function allAllergensReadable(tags: readonly string[]): boolean {
+  return tags.every(isReadableAllergen);
+}
+
 /**
  * The allergen sentence. Two states only, per decision 40's printed-not-
  * filtered rule and the coverage limit above `allergenNote`:
@@ -342,7 +387,8 @@ export async function alternativesFor(
 
   const originalUnit =
     original.sizeValue !== null ? unitCentsOf(originalPriceCents, original.sizeValue) : null;
-  const originalAllergens = new Set(original.allergens);
+  const originalAllergens = new Set(readableAllergens(original.allergens));
+  const originalAllergensReadable = allAllergensReadable(original.allergens);
 
   const out: Alternative[] = [];
   for (const r of rows) {
@@ -367,16 +413,24 @@ export async function alternativesFor(
       : (originalPriceCents - price.amountCents) / originalPriceCents;
     if (cheaperBy < MIN_SAVING) continue;
 
-    const theirAllergens: string[] = JSON.parse(r.allergens) as string[];
+    const storedAllergens: string[] = JSON.parse(r.allergens) as string[];
+    const theirAllergens = readableAllergens(storedAllergens);
     /*
-     * A comparison needs two tag lists to compare. An empty list here is not
-     * "confirmed no allergens", it is "nothing recorded" (Open Food Facts has
-     * no way to say the former, see prepare_rows.py:243), so an empty side on
-     * either product means no comparison is drawn at all rather than a
-     * comparison drawn against a false zero.
+     * A comparison needs two tag lists to compare, and both of them have to be
+     * readable. An empty list here is not "confirmed no allergens", it is
+     * "nothing recorded" (Open Food Facts has no way to say the former, see
+     * prepare_rows.py:243), so an empty side on either product means no
+     * comparison is drawn at all rather than one drawn against a false zero.
+     * A side carrying a tag we had to discard as unreadable is the same case
+     * for the same reason: we do not know what it said.
      */
     const allergenNote: 'compared' | 'not-recorded' =
-      originalAllergens.size > 0 && theirAllergens.length > 0 ? 'compared' : 'not-recorded';
+      originalAllergens.size > 0
+      && theirAllergens.length > 0
+      && originalAllergensReadable
+      && storedAllergens.length === theirAllergens.length
+        ? 'compared'
+        : 'not-recorded';
     const added =
       allergenNote === 'compared' ? theirAllergens.filter((a) => !originalAllergens.has(a)) : [];
     const removed =

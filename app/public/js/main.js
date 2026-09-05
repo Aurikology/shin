@@ -27,8 +27,9 @@ import you from './screens/you.js';
 import pastscans from './screens/pastscans.js';
 import removed from './screens/removed.js';
 import market from './screens/market.js';
+import licences from './screens/licences.js';
 
-for (const s of [camera, setup, watchlist, correct, share, you, pastscans, removed, market]) {
+for (const s of [camera, setup, watchlist, correct, share, you, pastscans, removed, market, licences]) {
   router.register(s);
 }
 

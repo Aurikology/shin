@@ -45,6 +45,20 @@ export default {
           </div>
 
           <p class="fineprint mkt-basis">Does not change a verdict yet. Recorded for when it does.</p>
+
+          <!--
+            The attribution line. One line, and it is a real control rather than
+            small print: nearly everything this app knows is open data whose
+            licence asks for credit, and credit nobody can reach is not credit.
+            It sits on this screen because this is where a person is already
+            thinking about where their prices come from.
+
+            No animation on it. This line is on screen every time the market
+            screen opens, and the screen it leads to is the rare one.
+          -->
+          <button type="button" class="linky mkt-attrib" data-act="licences">
+            Prices and product details come from open data. See the sources and licences.
+          </button>
         </div>`;
     }
 
@@ -53,6 +67,7 @@ export default {
 
     root.addEventListener('click', (e) => {
       if (e.target.closest('[data-act="back"]')) { ctx.go('you'); return; }
+      if (e.target.closest('[data-act="licences"]')) { ctx.go('licences'); return; }
       const row = e.target.closest('[data-country]');
       if (row) store.setMarket(row.dataset.country, row.dataset.currency);
     });

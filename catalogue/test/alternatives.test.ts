@@ -54,6 +54,16 @@ function fixture() {
     ['F', 'Strawberry Jam 500 g', 500, 'g', ['en:spreads', 'en:jams'], '[]', 1],
     ['G', 'Imported Smooth 500 g', 500, 'g', PB, '["en:peanuts"]', 0],
     ['H', 'No Allergen Data Smooth 500 g', 500, 'g', PB, '[]', 1],
+    /*
+     * A product whose allergen list carries a whole warning sentence beside two
+     * real names. Open Food Facts allergen tags are contributor-entered and a
+     * slice of them are package prose rather than names; this exact shape came
+     * off a live run, where it rendered as "Adds gluten, milk, soybeans, always
+     * read the label carefully because not all our products are manufactured in
+     * a peanut free facility."
+     */
+    ['I', 'Prose In The Allergen Field 500 g', 500, 'g', PB,
+      '["en:peanuts","en:always-read-the-label-carefully-because-not-all-our-products-are-manufactured-in-a-peanut-free-facility"]', 1],
   ];
   for (const [code, name, size, unit, path, allergens, canada] of rows) {
     insert.run(code, name, name, null, null, null, size, unit,
@@ -184,6 +194,32 @@ test('never "same allergens recorded": identical tags on both sides still avoid 
   assert.deepEqual(alts[0].addedAllergens, []);
   assert.deepEqual(alts[0].removedAllergens, []);
   assert.ok(!/same allergens|checked|clean|safe/i.test(alts[0].line), alts[0].line);
+});
+
+/*
+ * The allergen field sometimes contains a sentence instead of a name, and the
+ * rule is that a side carrying one is not compared at all rather than compared
+ * on whatever survived the filter. Dropping the unreadable part and then
+ * comparing the rest would claim a complete comparison over a list we edited,
+ * which is the exact failure the two-state wording exists to prevent: we could
+ * not read it, so we do not know, and the sentence has to say we do not know.
+ *
+ * Product I carries "en:peanuts" alongside the prose, so a filter that merely
+ * discarded the long tag would leave a clean-looking peanuts-to-peanuts
+ * comparison and this test would pass while the rule was broken. It asserts the
+ * note, not just the absence of the prose.
+ */
+test('a warning sentence in the allergen field is never read as an allergen', async () => {
+  const db = fixture();
+  const alts = await alternativesFor(db, original, 800, lookupOf({ I: 500 }));
+  assert.equal(alts.length, 1);
+  assert.ok(
+    !/read the label|manufactured|facility/i.test(alts[0].line),
+    `package prose reached the shopper: ${alts[0].line}`,
+  );
+  assert.equal(alts[0].allergenNote, 'not-recorded');
+  assert.deepEqual(alts[0].addedAllergens, []);
+  assert.deepEqual(alts[0].removedAllergens, []);
 });
 
 test('a saving too small to matter is not an interruption', async () => {

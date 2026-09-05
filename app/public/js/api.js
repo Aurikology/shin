@@ -71,3 +71,15 @@ export function categories() {
 export function scenarios() {
   return get('/api/scenarios');
 }
+
+/**
+ * The open datasets this app is built on, with each one's licence.
+ *
+ * Fetched rather than written into the client, because the list is a legal
+ * statement and a second copy of one drifts. The server holds the single fixed
+ * list; this is the only way the screen gets it, so an empty result means the
+ * fetch failed rather than that there is nothing to credit.
+ */
+export function attribution() {
+  return get('/api/attribution');
+}
