@@ -463,3 +463,65 @@ Each of these is a gap in `docs/design/DESIGN.md` as it stands, not a compliment
 Frames on disk: 503 (99 at one per second, 8 scene change, 396 at four per second). Frames read:
 233 (all 99, all 8, and 126 of the 396, per section 0), plus six full resolution re-crops of
 frames already read.
+
+---
+
+## Addendum, 2026-09-05: what the four per second frames settle about the architecture
+
+Written after a re-read of f_0158 to f_0212 and s_039, s_057, s_062, s_090, s_091, prompted by a
+challenge to an earlier verbal account of how the app is built. Each item below is a frame
+citation, not an inference from the tables above.
+
+1. **Identification runs during price entry and is withheld until the user commits.** The Enter
+   Price sheet at t=38.75 (`s_039`, and the full resolution `full/enterprice_top.jpg`) shows the
+   photo thumbnail, a spinning "Detecting price...", the keypad and CAD 2, and **no product
+   name**. The first analysing frame after the Analyze tap, `f_0158` at t=39.5, already reads
+   "Aquafina purified water". Half a second is not enough for a vision call, so the identification
+   was running behind the sheet and its result was held back.
+
+2. **The analysing screen is where progress is shown, and it is shown as named ordered steps**,
+   each with its own icon, under the resolved product name: "Searching for prices" with a
+   magnifier (`f_0158` to `f_0170`, t=39.5 to 42.5), "Finding retailer links" with a link glyph
+   (`f_0176`, `f_0186`, t=44 to 46.5), "Verifying results" with a filled green check (`f_0193`,
+   t=48.25). "Add More Details" sits under all three throughout.
+
+3. **The result screen arrives whole.** Its first fade-in frame, `f_0196` at t=49, already carries
+   the product card, the 4.6 (799) star row, "Tagged at $2.00" in red, the "Outrageous" block with
+   its sentence and "Confidence 65%", "Typical price in Canada $0.50 - $0.75", the complete rail
+   with the dot pinned at the far right, and the "Comparable prices" heading. Nothing on this
+   screen fades in after anything else.
+
+4. **The sentence rewrite at t=50 is a whole string replacing a whole string, inside one 250 ms
+   frame boundary.** `f_0201` carries "You should look elsewhere, this is much higher than other
+   prices."; `f_0202` carries "Walk away and shop around because other Canadian retailers are
+   selling this for less." Label and confidence are identical either side. A twelve word sentence
+   generated token by token would occupy several frames in partial states; none exists. This is a
+   placeholder being swapped for a final, which strengthens element 53's reject rather than
+   softening it: it is not a stream the user caught mid-flight, it is two finished sentences.
+
+5. **The range and the comparable set are on different clocks, and only one of them can hold up
+   the verdict.** The range is fully populated in the first paint at t=49. The comparable set is
+   still empty and still spinning at t=57 (`s_057`: "No comparable prices found where you scanned
+   this." above "Searching for more sources...", with "Similar products: Still looking..." below
+   it), and the user leaves the screen at about t=59 with both still running (`s_062`, t=62, is the
+   camera again, meter reading "2 Scans Remaining"). So the number the verdict is measured against
+   does not come from the search that is labelled as the evidence, and does not wait for it.
+   Whether that is two stores or one store with a national filter and a local filter, the frames
+   cannot say. What they do say is that the panel presented as the evidence has no power to stop
+   the verdict.
+
+6. **The Collection badge is a second answer, not a stale first one.** One card, the same scan
+   (`s_091`, t=91, full frame; `full/collection_card.jpg` is the crop). Amber "Fair Price" with an
+   equals icon, "$2.00" rendered in amber, dated Sep 3. Identical at t=63.5 and t=90.5, thirty
+   seconds apart. Two explanations are ruled out by the frames: it is not a stale copy of an
+   earlier verdict, because the result screen read "Outrageous" from its first readable frame and
+   was never anything else; and it is not a late revision, because nothing late ever arrived and
+   the badge did not move in thirty seconds. What remains is that the badge is computed from
+   something other than the verdict, most plausibly a neutral default written at save time when
+   the comparable set was empty, since an equals icon and the middle colour is what "no evidence"
+   looks like if absence is not handled. The default is a reading; the disagreement is a fact.
+   Element 70 stands as written.
+
+The three items that survive as the sharpest for Shin: the verdict is drawn before the evidence
+set is closed (5), the two surfaces disagree about the same scan (6), and the explanatory sentence
+changes under the reader (4).

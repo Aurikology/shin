@@ -1,5 +1,11 @@
 # Queue
 
+**Superseded in its ordering, 2026-09-04, by him.** The gate-first sequence below (band 1's
+100-item corpus and fresh-agent audit before a product exists, band 2's stand-in tests before
+the floor) was written for a world where building is the expensive part. It is not: iterations
+are the cheapest thing available. Read `NOW.md` for the pipeline and the order that replace it.
+The falsifiers and the killed register here stay valid as evidence; the sequencing does not.
+
 The written-down, finite queue that the master plan's first two start-of-pass invariants
 require. `pages/shin-terminating-loop.html` is the plan; this file is its operational form,
 and if the two disagree the plan wins and this file gets fixed.

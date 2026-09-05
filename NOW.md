@@ -5,6 +5,204 @@ narrative.*
 
 ---
 
+## The pipeline and the ordering, his call, 2026-09-04
+
+He read the plan below and rejected its shape rather than its facts. It put a hundred
+hand-priced items and a fresh-agent audit in front of a working product, which is the right
+order when building is the expensive part. His words: *"the cheapest thing in the current world
+is producing iterations because I'm vibecoding and not manually working on something... What you
+said takes months only really takes a couple of days... Its actually faster to just build the
+product than to perform all these tests."* **The gate-first ordering in `QUEUE.md` is retired.**
+Band 1's 100-item gate, its fresh-agent check, and the band 2 stand-in tests no longer sit in
+front of the build.
+
+### His pipeline, as he stated it
+
+Two tiers.
+
+**Basic.** Search the catalogue freely, plus three image searches a week. An image search starts
+with a guidance system that helps the user frame the object correctly, then excess image is cut
+out automatically, then the cropped image goes to a weaker model than the pro tier for
+identification. The identified item is looked up in the catalogue, and the average price and the
+alternatives are displayed. If the item is not found, the screen shows similar items (a specific
+type of orange missing shows other oranges), and an option to use the pro tier appears.
+
+**Pro.** Two versions: catalogue search, and if the catalogue misses, an online LLM search.
+
+His standing note on all of it: *"The specifics of this system are very open to changes, anything
+can be changed if there appears to be a better option for something."*
+
+### The one component, and it is the whole product
+
+Four of the five steps are one thing: a searchable catalogue with embeddings. Matching an
+identified name to a product, showing similar items on a miss, and showing alternatives are the
+same query at three thresholds (exact, nearest neighbour, nearest neighbour filtered to lower
+unit price). Build it once and three steps light up together. The catalogue is therefore the
+first build, not the identification model.
+
+**Identity and price are two different datasets and only one is free.**
+
+- Identity, usable now, free, no key: Open Food Facts, roughly 4M products with barcodes, names,
+  brands and images, ODbL. Its price data is not usable.
+- Price, narrow and paid or scraped, per chain: Savvi sells a daily Canadian grocery feed over
+  Superstore, No Frills, Save-On, PriceSmart and T&T; Apify has scrapers on the same chains;
+  Parse.bot has Super C. Best Buy's official API remains the tech candidate and has still never
+  been run with a real key.
+
+Consequence for the screens: the not-found path fires far more often on **price** than on
+identity. "We know exactly what this is and not what it costs near you" is a different state
+from "we do not know what this is", and the app currently has only the second.
+
+### Proposals against his pipeline, not decisions
+
+Four, each with the reason. None is built and none is decided.
+
+1. **Split the tiers by what the object is, not by model strength.** Most retail objects are
+   identified by the text and barcode printed on them. Cheap path: barcode anywhere in frame,
+   then OCR the label and match the catalogue text, then a model only if both miss. Basic becomes
+   cheap because most scans never reach a model; pro earns its price on the unlabeled objects
+   (produce, used goods, furniture) where reasoning is the actual work.
+2. **Framing by detection, not instruction.** Run a small on-device detector, draw the box found,
+   let the user confirm or drag it, then crop to it. Same crop, less user effort, and a bad crop
+   is visible before it spends a search.
+3. **Cheapest and the spread, not the average.** An average across sellers hides the two things a
+   person acts on: the cheapest place to get it, and how far above it they are standing. The
+   spine already computes the comparison set to do this.
+4. **The weekly limit is a conversion lever, not a cost control.** Haiku 4.5 is $1/MTok input and
+   Opus 5 is $5/MTok (cached 2026-06-24, `claude-api` skill); a cropped product photo is small
+   enough that a scan is a fraction of a cent on either tier. Set the number where it converts,
+   not where the bill allows.
+
+### What this retires in the written record
+
+- The 100-hand-priced-item gate and the fresh-agent check ahead of the build.
+- *Nearby-cheaper and dupes are out of v1* (`docs/decisions.md`): alternatives are now inside the
+  main loop, displayed beside the price. Nearby-cheaper still needs a store-level feed before it
+  can claim a location.
+- *Scans are not metered in v1* (`docs/decisions.md`): three image searches a week is metering.
+  Reversed by him, 2026-09-04.
+- The assumption that identification needs a vision model months away. It does not; it needs a
+  catalogue.
+
+### The decisions and the build order
+
+`docs/pipeline-decisions-and-plan.md`, written 2026-09-04 on his instruction that Claude always
+defaults to the easier option and that every decision must be made now, on user experience rather
+than build cost. Fifty-four decisions, all made, eight of them reversals of the cheap answer given
+earlier the same day; then ten build stages, each naming libraries rather than capabilities, with
+every decision assigned to one. Two measurements taken first: Open Food Facts holds 125,751
+Canadian products (grocery-first survives its kill check), and the browser's native barcode reader
+does not exist on iOS and fails silently (so the barcode reader is WebAssembly on every platform).
+
+The four proposals above are superseded by that file, which decides all four and 50 more. The app's
+no-dependency, no-build-step property is deliberately ended there.
+
+### Every free catalogue that needs no account is loaded, 2026-09-05
+
+The catalogue went from 122,158 rows to **211,846**, by loading Open Beauty Facts (48,968), Open
+Products Facts (28,426) and Open Pet Food Facts (12,295) through a new JSONL prepare step that
+shares its size and unit judgements with the Parquet one. Counts read out of the database, not
+off the loader.
+
+**The number that matters is not the total.** Only **1,756** of the 89,688 new rows are sold in
+Canada, against 122,157 Canadian grocery rows. Free coverage outside groceries is roughly 1,756
+products in this market, not 90,000. The world's cosmetics are searchable; Canada's are barely.
+
+Two things came out of doing it. The package's own `npm test` had been broken since some Node
+version bump and ran zero tests while reporting a failure; it now runs the 29 that exist. And the
+embedder was rescanning the whole product table for every batch of 64, which at this size meant
+five rows a second instead of 130; measured before and after, and the fix is a page rather than a
+per-batch query.
+
+Still free but needing one signup each: Open Icecat for electronics (fetch and a schema inspector
+are written, the parser waits on seeing the real file), and Best Buy and eBay, which are price
+sources rather than catalogue rows and belong with the other sellers.
+
+Cost research, vendor pages only, is in `docs/catalogues.md`. Buy nothing yet: the number that
+decides any purchase is the per-category miss rate on real scans, which does not exist. Two open
+risks written up there, the share-alike licence on the open food data, and whether any paid
+vendor permits caching an identity, on which the entire per-lookup cost argument rests.
+
+### What of it is built, 2026-09-04
+
+Nine of the ten stages have code and tests. In package order:
+
+`catalogue/` holds 122,158 Canadian grocery products with a full-text index and a 384-dimension
+vector for every one of them, searched together and fused by rank rather than by score. It answers
+by barcode in three digit forms, decides between confident, ambiguous and missing, records every
+miss as a gap, and widens to a named neighbour ring when it cannot find the exact thing.
+`alternatives.ts` is the cheaper-swap stage: same category, comparable size, lower unit price, a
+seller with a real price, three at most, and allergen differences printed on the row rather than
+used to hide it.
+
+`app/src/eye/` is the camera: a barcode reader that runs on iOS (nineteen symbologies, three
+agreeing frames before it fires), a framing pass that unions a trained detector with a hand-written
+saliency detector so packaging that no model knows still gets a box, a burst that keeps the
+sharpest frame and crops to the object losslessly, and an offline queue that never drops a capture.
+Bundled at 77 kB before the camera runs, with the detector in a chunk fetched later. Attached to
+the camera screen through `app/public/js/eye-attach.js`, which falls back to the screen's old
+camera whenever any part of it will not start.
+
+`identify/` turns a crop into a named product, with the confidence derived from independent signals
+rather than taken from the model's own opinion of itself, and asks a two-button question rather
+than guessing when two sizes of the same product are both plausible.
+
+`price/` judges. Two sellers minimum, never an average, regular and promotional never mixed, the
+age of the oldest number always in words on screen, and no tier at all below the evidence floor.
+`sources.ts` carries what the storefront check actually found (Walmart Canada publishes barcodes,
+Loblaws publishes none) and refuses any name-only join that the catalogue cannot make confidently.
+
+`spine/src/meter.ts` and `spine/src/run.ts` are the tiers and the surface: a search counts only
+when the user accepted the identification, the verdict is the only thing the limit gates, and the
+three answers arrive one at a time in the order they finish, each step named, nothing held behind
+the slowest call.
+
+127 tests across the packages, all passing, all five typechecking clean.
+
+### Four things the real catalogue said that the plan had wrong
+
+These were all decided by feel before there was data, and all four were replaced by a measurement
+rather than by a second guess.
+
+**How sure the catalogue is cannot be read off similarity.** Twenty probes, ten naming one exact
+product and ten naming a kind of thing: the two groups score identically on every distance measure
+tried. What separates them is whether the leader agrees with a brand or a size the label actually
+showed, and whether it is alone in agreeing. The threshold that decided this was unreachable
+against real data, so every photo would have asked the user to choose, forever.
+
+**Backfilling the missing categories the obvious way does not run.** Asking the vector index for
+each product's nearest neighbours costs a fifth of a second a query and six hours for the
+catalogue. Collapsing each category to its own centre first does the same job in two minutes.
+
+**The held out accuracy number was a lie by 12 points.** It scores products that already had
+categories, and the job only ever runs on products that did not. Hand reading 25 real assignments
+at each setting found the honest one: two Clif bars filed as kefir at the loose setting, 25 of 25
+correct one notch tighter. Set from the hand read, not the table.
+
+**His own example did not work, twice.** Ask for a kind of orange the catalogue does not stock and
+it showed no other oranges, though it holds 367. Two causes: the neighbour list was read off the
+top result only, which is usually an uncategorised duplicate of a row just below it that knows
+what it is, and nothing stopped it drawing a ring from a tag holding 15,226 things. Both fixed and
+both now tested. It answers with other navel oranges.
+
+Not built: the live price feed itself, which is a purchase or a crawler and is his call, and the
+result screen that consumes the run stream (the existing camera screen still runs the hand-priced
+pilot flow underneath).
+
+### Open, and his
+
+Which category leads, because that picks the price feed bought. The identity layer is the same
+either way.
+
+Second, and raised by the decision list rather than by him: barcodes are free and do not touch the
+weekly meter, and nearly every packaged grocery item has one, so if grocery leads almost nobody
+reaches the limit and the meter only charges for produce, used goods and furniture, the categories
+where the answer is least likely to be good. Three ways out, all his: count catalogue lookups too,
+lead with a category where photos are the normal path, or sell pro on something other than image
+count.
+
+---
+
 ## Where this stands
 
 **The price spine and the camera-first app are built and running.** `spine/` is the engine that
@@ -158,3 +356,24 @@ instead of a search engine. Produce is the only genuinely hard one and is out of
   string, and now that cost buys the choice being his rather than ours. See `docs/decisions.md`.
 - Whether Aurik is building this or reading it. He has Maintainer access on the repo either
   way; the answer changes how the plan is written from here.
+
+---
+
+## Interface review, 2026-09-04
+
+A ranked flaw list against `DESIGN.md` is at `docs/design/FLAWS.md`. Contrast computed, overlap
+measured in the running app, hit-testing done rather than eyeballed.
+
+The through-line: **the camera surface is designed, the shell behind it is on defaults.** The
+camera has authored focus rings on all seven controls, transitions, and a state machine that
+clears the bottom bar for the verdict. `shell.css` has no focus rules, no transitions and no
+hover gating, and its four controls carry nine screens.
+
+Two findings cost a user something outright: white on the walk-away field computes to 3.80, and
+2.51 once the verdict copy opacity is applied, against a 4.5 floor; and light theme never
+re-themes the four verdict bases, so `good` sits at 2.62 and `fair` at 2.22 on white.
+
+The light palette in code also drifted from the one in `DESIGN.md` on every token, warm to cool.
+Per that file the screen gets fixed, but closing the drift alone will not clear contrast.
+
+Uncommitted. Nothing in the app was changed.

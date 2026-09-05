@@ -26,6 +26,7 @@
 import { faceBlock, cad, confidenceOf, dotsHtml, tierOf, sellerOf, animateFace, shinSay, updateShinSay } from '../shin.js';
 import { say, wordFor } from '../voice.js';
 import * as store from '../store.js';
+import { attachEye } from '../eye-attach.js';
 
 /* ------------------------------------------------------------------ camera */
 
@@ -77,6 +78,30 @@ function captureThumb(video, isLive) {
     const sx = (video.videoWidth - side) / 2;
     const sy = (video.videoHeight - side) / 2;
     g.drawImage(video, sx, sy, side, side, 0, 0, size, size);
+    return canvas.toDataURL('image/jpeg', 0.7);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The same 96px thumbnail, made from the eye's crop rather than from a centre
+ * square of the live feed. Same size and same shape on screen; what is inside
+ * it is the object that was found instead of whatever happened to be in the
+ * middle of the frame.
+ */
+async function thumbFromCrop(crop) {
+  try {
+    const bitmap = await createImageBitmap(crop.blob);
+    const size = 96;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const g = canvas.getContext('2d');
+    if (!g) return null;
+    const side = Math.min(bitmap.width, bitmap.height);
+    g.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, size, size);
+    bitmap.close();
     return canvas.toDataURL('image/jpeg', 0.7);
   } catch {
     return null;
@@ -850,6 +875,8 @@ export default {
     const camShin = root.querySelector('.cam-shin');
 
     let stream = null;
+    let eye = null;
+    let lastCrop = null;
     let scenarios = [];
     let catalogueItems = [];
     let supportedCategories = [];
@@ -878,13 +905,46 @@ export default {
     let scanThumb = null;
     let camShinEl = camShin ? camShin.querySelector('.shin-say') : null;
 
-    startCamera(video).then((s) => {
-      if (dead) { stopCamera(s); return; }
-      stream = s;
-      // No camera is not a broken app. The drawn shelf carries the same layout
-      // so every control stays exactly where it is.
-      cam.dataset.camera = s ? 'live' : 'drawn';
-      showInitialIdleContent();
+    /*
+     * The eye first, the old plain camera second.
+     *
+     * The eye is what makes the reticle land on the object rather than sit in
+     * the middle of the frame waiting to be lined up with, and it is what reads
+     * a barcode without anybody pressing anything. When it cannot start, for a
+     * denied permission or a browser that will not run it, the screen falls
+     * back to exactly the camera it had before and every control stays where it
+     * is. Neither branch is an error path.
+     */
+    attachEye(video, root.querySelector('.reticle'), {
+      onBarcode: (read) => {
+        if (dead || cam.dataset.state !== 'idle') return;
+        onBarcode(read);
+      },
+      onTorch: (on) => { if (!dead) setTorch(on); },
+      onCapture: (crop) => {
+        if (dead) return;
+        // The crop, not a centre square of the whole shelf. This is the frozen
+        // frame the verdict later shows, and it is also what would be sent to
+        // be read, so the two can never disagree about what was photographed.
+        lastCrop = crop;
+        thumbFromCrop(crop).then((url) => { if (!dead && url) scanThumb = url; });
+      },
+    }).then((e) => {
+      if (dead) { e.stop(); return; }
+      eye = e;
+      if (e.live) {
+        cam.dataset.camera = 'live';
+        showInitialIdleContent();
+        return;
+      }
+      startCamera(video).then((s) => {
+        if (dead) { stopCamera(s); return; }
+        stream = s;
+        // No camera is not a broken app. The drawn shelf carries the same layout
+        // so every control stays exactly where it is.
+        cam.dataset.camera = s ? 'live' : 'drawn';
+        showInitialIdleContent();
+      });
     });
 
     ctx.api.scenarios()
@@ -1017,6 +1077,49 @@ export default {
        torch's own feedback (OLMA audit row 90), the icon just says which
        state it is in. The docked face gets one short acknowledgement line,
        then returns to whatever hint it was already showing. */
+    /*
+     * The torch button asks the camera hardware first and reflects what
+     * actually happened, rather than lighting the icon and hoping. A phone with
+     * no torch is common and is not a failure the user hears about: the icon
+     * simply does not latch. When the eye is not running, the old behaviour
+     * stands, because the drawn shelf has a torch state too.
+     */
+    function requestTorch(on) {
+      if (eye?.live) {
+        eye.setTorch(on).then((worked) => { if (!dead && !worked) setTorch(false); });
+        return;
+      }
+      setTorch(on);
+    }
+
+    /*
+     * A barcode ends the guessing. It arrives without a shutter press, so the
+     * screen jumps straight from idle to the working state with an identity
+     * already in hand and no candidate list to choose from: there is nothing to
+     * choose between when the package told us what it is.
+     */
+    function onBarcode(read) {
+      clearTimeout(hintTimer);
+      clearTimeout(torchAckTimer);
+      scanThumb = captureThumb(video, cam.dataset.camera === 'live');
+      dockSay('thinking', 'reading', {}, 'think-dots');
+      setState('framing');
+      const match = catalogueItems.find((i) => i.gtin && sameCode(i.gtin, read.text));
+      if (!match) {
+        // Read fine, and we do not have it. Decision 22's sentence, not a
+        // failure of the camera and not shown as one.
+        setState('choosing');
+        slot.innerHTML = candidateSheet(scenarios);
+        return;
+      }
+      proceed(match, null);
+    }
+
+    function sameCode(a, b) {
+      const n = (s) => String(s).replace(/\D/g, '').replace(/^0+/, '');
+      return n(a) === n(b);
+    }
+
     function setTorch(on) {
       torchOn = on;
       cam.dataset.torch = on ? 'on' : 'off';
@@ -1095,6 +1198,12 @@ export default {
       // press, so it is the picture the verdict later shows, not a later
       // re-grab of a feed that has already moved on.
       scanThumb = captureThumb(video, cam.dataset.camera === 'live');
+      // With the eye running, the shutter also takes the real capture: a short
+      // burst, the sharpest frame of it, cropped to what was found. It replaces
+      // the thumbnail above when it lands, which is a frame or two later and
+      // always before the sheet it appears on.
+      lastCrop = null;
+      if (eye?.live) void eye.capture();
       // The same docked face morphs to thinking, in place, rather than a
       // separate sheet popping up over it for 420ms.
       dockSay('thinking', 'reading', {}, 'think-dots');
@@ -1236,7 +1345,7 @@ export default {
       if (act === 'shoot') { shoot(); return; }
       if (act === 'watchlist') { ctx.go('watchlist'); return; }
       if (act === 'you') { ctx.go('you'); return; }
-      if (act === 'torch') { setTorch(!torchOn); return; }
+      if (act === 'torch') { requestTorch(!torchOn); return; }
 
       if (act === 'pad-clear') { padBuffer = ''; paintPad(); return; }
       // The pad's own confirm key (USAGE A1 0:13.4): nothing submits until
@@ -1418,6 +1527,7 @@ export default {
       dead = true;
       listeners.abort();
       unsub();
+      eye?.stop();
       stopCamera(stream);
       clearTimeout(hintTimer);
       clearTimeout(torchAckTimer);

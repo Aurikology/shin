@@ -13,5 +13,12 @@
     "stubs": "node scripts/make-stubs.mjs",
     "typecheck": "node ../spine/node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
     "check": "npm run typecheck"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^1.0.1",
+    "zxing-wasm": "^3.1.3"
   }
 }

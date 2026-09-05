@@ -1,0 +1,17 @@
+{
+  "name": "shin-identify",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Crop to named product: the model call, the derived confidence, and the candidate list. Decisions 15-22.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.ts\"",
+    "typecheck": "node ../spine/node_modules/typescript/bin/tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0"
+  }
+}

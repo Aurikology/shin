@@ -1,0 +1,28 @@
+{
+  "name": "shin-catalogue",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The product catalogue: identity, hybrid retrieval, and named neighbour rings. Decisions 20 and 23-30.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "fetch": "node src/fetch.ts",
+    "fetch:open-facts": "python src/fetch_open_facts.py data",
+    "fetch:icecat": "python src/fetch_icecat.py fetch",
+    "inspect:icecat": "python src/fetch_icecat.py inspect",
+    "prepare:beauty": "python src/prepare_rows_jsonl.py data/openbeautyfacts.jsonl.gz data/rows-openbeautyfacts.jsonl openbeautyfacts",
+    "prepare:products": "python src/prepare_rows_jsonl.py data/openproductsfacts.jsonl.gz data/rows-openproductsfacts.jsonl openproductsfacts",
+    "prepare:petfood": "python src/prepare_rows_jsonl.py data/openpetfoodfacts.jsonl.gz data/rows-openpetfoodfacts.jsonl openpetfoodfacts",
+    "load": "node src/load.ts",
+    "embed": "node src/embed-all.ts",
+    "search": "node src/cli.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "node ../spine/node_modules/typescript/bin/tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "sqlite-vec": "^0.1.7-alpha.2",
+    "@huggingface/transformers": "^3.8.1"
+  }
+}

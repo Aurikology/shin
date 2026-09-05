@@ -12,3 +12,15 @@ CLAUDE.local.md
 # OLMA recording (230 MB) and its extracted frames stay local. Aurik pulls this repo.
 notes/olma/*.mp4
 notes/olma/frames/
+
+# Catalogue downloads and the database built from them: 9.1 GB, one file of it 7.4 GB.
+# Every byte is re-fetchable from Open Food Facts and Canada's open data by the
+# scripts in catalogue/src. Nothing here is authored.
+catalogue/data/
+
+# Camera bundle and the WebAssembly it needs: build output of
+# `node app/scripts/build-eye.mjs`, 35 MB, pinned by app/package-lock.json.
+app/public/js/eye.js
+app/public/js/eye.js.map
+app/public/js/chunks/
+app/public/js/vendor/
