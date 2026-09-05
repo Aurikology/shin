@@ -351,3 +351,185 @@ the person's inactivity.
 
 **Reverses if:** a re-queryable source ships for the lead category, at which point the widget is
 built immediately after the price-drop notification, and co-watch after accounts.
+
+## The viewfinder acts first and speaks last, and only four things earn a sentence
+**Date:** 2026-09-05 · **Status:** active
+
+The camera guidance system, decided against the OLMA walkthrough. OLMA taught the same five
+photography rules on four separate surfaces (audit rows 14, 31, 32, 87), all of them before
+anything had gone wrong, and the recording shows the user acting on none of it. An instruction
+delivered before the failure teaches nothing, because none of it has happened yet.
+
+So the ordering is: the camera does everything it can about a bad frame itself, silently, and
+only asks the person once its own moves are spent. It reads a barcode every frame, marks the one
+it is part way through reading, boxes the object, offers the other objects as taps, lights the
+shelf, puts its own torch back out when the torch is what is blowing the label out, and zooms
+toward a small object. Only then does it say one line.
+
+Four measurements earn a line, each mapped to one action: a barcode agreeing with itself (hold
+it there), clipped pixels inside the box (tilt it), a crop too narrow to carry fine print with
+no zoom left (step closer), and more than one object in frame (tap the one you mean, said once
+per session because it teaches a control rather than fixing a shot).
+
+Three of the obvious candidates are deliberately absent. "Move back" is not a real aisle failure,
+and where it does happen the camera zooms out instead of asking. "The lighting is bad" states a
+fact the person can see and cannot change; glare replaces it, because glare is the light failure
+a single small movement fixes. "Bad angle" has no cheap measurement for arbitrary packaging and
+angled packaging photographs fine; the only place angle actually breaks something is a barcode,
+and that case is covered exactly.
+
+**Reverses if:** a measured refusal rate falls when a rule is shown before the failure rather
+than at it, or a fifth measurement is found that predicts a wrong identification.
+
+## Allergens are two-state, because the source cannot say "checked and clean"
+**Date:** 2026-09-05 · **Status:** active
+
+The comparison between two products says either what changed or that it does not know, and it may
+never say an item was checked and found clear of something.
+
+This is a property of the data, not a choice about wording. `catalogue/data/canada.parquet` carries
+exactly one allergen column, `allergens_tags`: 13,209 rows have values, 111,437 are empty and 217
+are null. There is no `states_tags` and no `ingredients_text` to derive intent from, and
+`catalogue/src/prepare_rows.py:243` collapses what is left with `or []`. Open Icecat's 494,513 rows
+are empty by literal assignment. Coverage over the Canadian food rows is 13,037 of 122,154, which
+is 10.7%.
+
+An empty array therefore means two different things that the data cannot separate: nobody has
+entered allergens for this product, and this product genuinely contains none. Every wording that
+treats empty as the second reading is a fabricated claim about food, which is the worst category of
+claim this system could make. "Same allergens recorded" is the specific sentence that is banned,
+because a shopper reading it about two items that both have empty arrays has been told they match
+when nothing was compared.
+
+So: both sides carry tags, and the row names what is added and removed. Either side is empty, and
+the row says the allergens are not recorded for one of them and to check the packaging. In the
+second case the added and removed lists are left empty rather than computed, because no comparison
+happened and a partial one presented as whole is the same error in a smaller font.
+
+Two states of knowledge, three sentences. The third is the case where both products carry tags and
+the tags agree, and it reads "No difference in the allergens recorded." That is a statement about
+two records agreeing, which is true and checkable. It is deliberately not "Same allergens", which
+would be a statement about the products, and it is not the banned wording, which claims the pair was
+checked and found clean. The distinction is thin on the page and total in meaning, so it is written
+down here rather than left to whoever next edits the string: the sentence may describe what the
+records say, and may never describe what is in the food.
+
+This changes the wording and not the policy. Allergens are printed and never used to filter, for
+the reason already on record: filtering silently shrinks the list with no explanation, and 89.3% of
+products would be filtered on absence of data rather than on presence of an allergen.
+
+**Reverses if:** a source ships that distinguishes "no allergens present" from "no allergens
+entered", at which point the third state is added and the not-recorded sentence stops covering both.
+
+## The store name is provenance, and it is not the nearby-store feature
+**Date:** 2026-09-05 · **Status:** active
+
+A price row may name the shop the price was seen in, and a date. That is the whole of it. There is
+no distance, no map, no tap through to directions, and no ordering of results by how close a store
+is.
+
+The distinction matters because the two look identical on a screen and are completely different
+promises. Naming the shop says where this observation came from, which is checkable against the
+photograph it came from. Telling someone a store near them is cheaper says the price is true there
+now, which requires a store-level feed nobody has checked against a shelf. The condition for
+building the second one is already on record and is unchanged: a category with a store-level feed
+someone has verified against a shelf. This entry does not meet it and does not reverse it.
+"Nearby-cheaper and dupes are out of v1" still stands.
+
+The store name is printed only when the price was joined to the product by barcode AND a store name
+exists. Both conditions, each for its own reason. Counted 2026-09-05 over 896 rows: 782 joined by
+barcode, of which 700 carry a store name across 377 distinct products; 82 barcode-joined rows have
+no store, so a join-method-only gate would print a blank; 14 rows joined by name, all from
+walmart.ca, none of which carries a store name today, so the join-method half of the gate cannot
+currently fire on any row. It is kept anyway, because walmart.ca is the only name-joining seller and
+is exactly the one that could gain store names later. A name join can attach a price to the wrong
+product, and a real shop's name beside a wrong price is worse than no shop at all, because the shop
+name is precisely what makes it feel checkable.
+
+The date goes on every row regardless of join method, and is not decoration. Prices in the table run
+from 2020 to 2026. It is the only thing stopping a shelf tag photographed in 2024 from reading as
+today's price.
+
+Every row on a screen carries a provenance clause or none does. One row saying where it came from
+beside two that do not reads as those two being unsourced rather than differently sourced.
+
+Display is by name; identity is never the name. Two Fortinos are two stores, and the composite
+`store_osm` value, of the form "WAY/120689533", is what distinguishes them. Self-exclusion and
+distinct-seller counting key on that and never on the printed name.
+
+What goes wrong if you key on the name anyway is the half that makes this non-obvious, because
+keying on the name looks like a strict improvement over keying on nothing. The failure is
+symmetrical. It fixes the shopper's own store failing to be excluded from its own comparison, and it
+creates the mirror: a genuine competitor across town sharing a banner gets excluded as though it
+were the shopper's own store. Both come out on screen as the word fair. Only one of them is ever
+visible in testing, because two Fortinos in a comparison set look like a duplicate and a missing
+Fortino looks like nothing at all.
+
+The seller field gets the same treatment one level up, and for the same reason. A seller is printed
+as a shop only if it is on an explicit list of places a shopper can actually walk into. The first
+version of that check asked whether the seller was not "openprices", which is a denylist of one: it
+fixes the string that had already caused the bug and silently re-creates it for the next donated
+feed added, whose name would print as a shop on its first run with no test failing, because no test
+covers a seller that did not exist when it was written. Inverted, forgetting to add a real shop
+costs a vaguer sentence instead of a false one.
+
+**Reverses if:** a category gets a store-level feed checked against a shelf, at which point distance
+and the map tap are reconsidered on their own merits and this entry stops being the reason not to.
+
+## The Walmart search leg is dropped, and the sitemap is its named replacement
+**Date:** 2026-09-05 · **Status:** active
+
+`search()` in `price/src/walmart.ts` fetched `/search?q=...`. `walmart.ca/robots.txt` disallows
+`/search?*` under `User-agent: *` while explicitly allowing `/en/ip/*/*`, which is what `detail()`
+already used. The discovery half of the crawl was therefore fetching a path we were asked not to
+fetch, and the fix is deletion rather than a delay between requests. The crawl now works from SKUs
+already in the observation table.
+
+Deleting the code did not delete what it taught, and both things it taught are kept in the file
+header. Walmart does not index barcodes, which is why search-by-barcode never worked. And the same
+robots.txt publishes a product sitemap index whose five shards carry 43,532 product URLs each,
+roughly 217,660 in total, all under the allowed path, with the SKU as the last path segment.
+
+That matters for a reason worth stating plainly, because it was got wrong twice in conversation
+before it was checked: dropping the search leg does NOT freeze Walmart at its current 22 rows
+permanently. The sitemap is a sanctioned route to the same discovery. Nothing is built against it
+here, deliberately. It is recorded so the next person does not rediscover it and so the decision to
+use it is taken on purpose.
+
+One rule attaches to it in advance. Walmart's product URLs carry a human-readable slug before the
+SKU, and the slug is not a product identity. The slug may choose what to open, never what it
+matched. Anything harvested this way is confirmed by fetching the detail page and reading the
+barcode, exactly as `detail()` already does.
+
+The 15.7-day crawl estimate was removed rather than corrected, because it described a
+search-and-confirm shape that no longer exists and a stale estimate is worse than none.
+
+**Reverses if:** robots.txt changes to allow the search path, which would still not bring `search()`
+back, because the sitemap route is cheaper and more complete than paging search results.
+
+## The contributor's handle is not collected, and attribution names the databases
+**Date:** 2026-09-05 · **Status:** active
+
+Open Prices returns the contributor's username on every price. Checked against the live API on
+2026-09-05: the payload carries `owner`, a real handle, and `owner_comment` beside it. Shin parses
+neither and stores neither, and the `ApiItem` type deliberately does not declare them.
+
+That is the right default and it is not a licensing shortcut. The Open Database Licence requires
+attributing the database, not each person who contributed a row, and the attribution screen does
+exactly that: Open Food Facts, Open Beauty Facts, Open Pet Food Facts, Open Products Facts, Open
+Prices and OpenStreetMap named as ODbL sources, with Open Icecat named separately because its terms
+are its own and are not ODbL.
+
+The reason for not storing the handle is the shape of what would be built with it. A handle beside a
+store name and a date is a record of where a named individual shops and when, assembled by us out of
+rows they contributed to a database for a different purpose. Storing it costs nothing today and
+creates that record permanently. Not parsing it is the version that cannot leak.
+
+The attribution list is a frozen literal in `app/src/attribution.ts` and is never assembled by
+querying the databases. It is a legal statement, and a legal statement that changes silently
+depending on what happened to be loaded is not one.
+
+**Reverses if:** the founder decides contributors should be credited individually, which is his call
+and not a technical one. If it ever happens, it is a display of a handle the contributor already
+published, never a stored per-person history, and the licence obligation is unchanged either way
+because it was already met by naming the databases.

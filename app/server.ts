@@ -14,12 +14,18 @@ import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { extname, join, normalize as normalizePath, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { DatabaseSync } from 'node:sqlite';
 import { priceIt } from '../spine/src/spine.ts';
 import { defaultDeps } from '../spine/src/sources/registry.ts';
 import { RecordedSource } from '../spine/src/sources/recorded.ts';
 import { CATEGORY_RULES } from '../spine/src/categories.ts';
 import type { SpineQuery } from '../spine/src/contract.ts';
 import { categoryFor } from './src/category-map.ts';
+import { alternativesFor, alternativesHeading } from '../catalogue/src/alternatives.ts';
+import type { Candidate } from '../catalogue/src/search.ts';
+import { lookupPrices } from '../price/src/lookup.ts';
+import { ATTRIBUTION } from './src/attribution.ts';
+import { packScope, packVersion, servePack } from './src/pack-route.ts';
 
 const PUBLIC_DIR = fileURLToPath(new URL('./public/', import.meta.url));
 const PORT = Number(process.env.PORT ?? 4173);
@@ -46,6 +52,13 @@ const CATALOGUE_DB =
 let fastLookup: { byGtin(code: string): unknown } | null = null;
 let searchService: { search(q: unknown): Promise<unknown> } | null = null;
 let catalogueWhyNot = 'not attempted yet';
+/**
+ * The same read-only handle `fastLookup` was built from, kept so `/api/alternatives`
+ * can query `product_category` directly (what `alternativesFor` needs) without
+ * opening a second connection to the same file. `fastLookup` keeps its own handle
+ * private, so this is the one place outside `attachCatalogue` that gets to see it.
+ */
+let catalogueDb: DatabaseSync | null = null;
 
 /**
  * Whether the meaning half of search is affordable right now.
@@ -112,6 +125,7 @@ async function attachCatalogue(): Promise<void> {
         import('../catalogue/src/service.ts'),
       ]);
     const db = openCatalogueReadOnly(CATALOGUE_DB);
+    catalogueDb = db;
     // The embedder handed to this one is never used: byGtin does no embedding,
     // and it loads its model lazily, so constructing it costs nothing here.
     fastLookup = new Catalogue(db, defaultEmbedder()) as unknown as { byGtin(code: string): unknown };
@@ -557,6 +571,83 @@ const server = createServer(async (req, res) => {
       // A refusal is a 200. It is a correct answer, and any client that treats
       // it as an error will start retrying around the one safety mechanism here.
       return json(200, await priceIt(query, defaultDeps()));
+    }
+
+    /*
+     * Cheaper same-category alternatives for a product, given the price the
+     * shopper is being asked to pay.
+     *
+     * GET, matching /api/identify: this is a lookup with two simple scalar
+     * inputs (a code and a price), it changes nothing, and a GET is what a
+     * scan screen can fire straight from a query string and retry safely,
+     * the same reasoning /api/identify already gives for its own shape.
+     *
+     * An empty list is a 200 with the heading, not a 404 and not an error --
+     * the same rule /api/price documents above: a refusal to name a cheaper
+     * option is a correct answer, and a client that treats an empty list as
+     * failure will retry around it exactly the way a client retrying a
+     * refused verdict would.
+     *
+     * No timeout wrapper, unlike /api/identify and /api/search: this route
+     * never reaches `searchService` (the worker) or the network. `byGtin`,
+     * the `product_category` query inside `alternativesFor`, and the price
+     * lookup are all synchronous, in-process, indexed reads with no scan that
+     * grows unbounded the way a fallen-through vector search does, so there
+     * is nothing here the identify()/search() timeout exists to guard against.
+     */
+    if (url.pathname === '/api/alternatives') {
+      const code = url.searchParams.get('code')?.trim();
+      const askingRaw = Number(url.searchParams.get('askingCents') ?? '');
+      if (!code || !Number.isFinite(askingRaw) || askingRaw <= 0) {
+        return json(400, { error: 'code and askingCents (a positive number of cents) are required' });
+      }
+      const askingCents = Math.round(askingRaw);
+
+      if (!fastLookup || !catalogueDb) {
+        return json(200, {
+          catalogueUp: false,
+          heading: 'The catalogue is not attached, so nothing was looked up.',
+          alternatives: [],
+        });
+      }
+
+      // byGtin, not a bespoke code lookup: it already tries the UPC-A and
+      // EAN-13 forms of the same code, and "a barcode or a code identifying
+      // the product" is exactly the ambiguity that exists to resolve.
+      const original = fastLookup.byGtin(code) as Candidate | null;
+      if (!original) {
+        return json(200, {
+          catalogueUp: true,
+          heading: 'We have not seen this one.',
+          alternatives: [],
+        });
+      }
+
+      const alternatives = await alternativesFor(catalogueDb, original, askingCents, lookupPrices);
+      return json(200, {
+        catalogueUp: true,
+        heading: alternativesHeading(original, alternatives.length),
+        alternatives,
+      });
+    }
+
+    /*
+     * The ODbL and Icecat credits this app is required to show somewhere.
+     * Frozen list, not a query -- see app/src/attribution.ts for why.
+     */
+    if (url.pathname === '/api/attribution') {
+      return json(200, { sources: ATTRIBUTION });
+    }
+
+    if (url.pathname === '/api/pack-version') {
+      const scope = packScope(url.searchParams.get('scope'));
+      if (!scope) return json(400, { error: 'scope must be grocery or canada' });
+      return json(200, await packVersion(scope));
+    }
+    if (url.pathname === '/api/pack') {
+      const scope = packScope(url.searchParams.get('scope'));
+      if (!scope) return json(400, { error: 'scope must be grocery or canada' });
+      return servePack(req, res, scope);
     }
 
     if (url.pathname.startsWith('/api/')) return json(404, { error: 'no such endpoint' });

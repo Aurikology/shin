@@ -1,10 +1,11 @@
 /**
- * Tests for the four refusals in the alternatives stage.
- *
- * Every one of these guards a rule that a later change would break by being
- * more helpful: widening the category to fill three slots, dropping the size
- * rule to find a saving, hiding an alternative that adds an allergen, or
- * showing a row whose price nobody has.
+ * Tests for the alternatives stage: the original refusals (widening the
+ * category to fill three slots, dropping the size rule to find a saving,
+ * hiding an alternative that adds an allergen, showing a row whose price
+ * nobody has) plus the 2026-09-05 store/date/allergen-wording rewrite. The
+ * most load-bearing test in the file is the one asserting "openprices" can
+ * never reach a composed line: that string is the name of the database, not
+ * a shop, and it is the bug this rewrite exists to fix.
  */
 
 import { test } from 'node:test';
@@ -14,6 +15,14 @@ import { alternativesFor, alternativesHeading, type PricedProduct } from '../src
 import type { Candidate } from '../src/search.ts';
 
 const PB = ['en:spreads', 'en:nut-butters', 'en:peanut-butters'];
+
+/**
+ * A price spec is either a plain cents number, keeping every default test
+ * price the same as before storeName/storeCity/joinMethod existed, or a
+ * partial override for the tests below that need to control the store, the
+ * join method, or the seller string itself.
+ */
+type PriceSpec = number | (Partial<PricedProduct> & { amountCents: number });
 
 function candidate(over: Partial<Candidate> & { code: string }): Candidate {
   return {
@@ -44,6 +53,7 @@ function fixture() {
     ['E', 'Unpriced Smooth 400 g', 400, 'g', PB, '["en:peanuts"]', 1],
     ['F', 'Strawberry Jam 500 g', 500, 'g', ['en:spreads', 'en:jams'], '[]', 1],
     ['G', 'Imported Smooth 500 g', 500, 'g', PB, '["en:peanuts"]', 0],
+    ['H', 'No Allergen Data Smooth 500 g', 500, 'g', PB, '[]', 1],
   ];
   for (const [code, name, size, unit, path, allergens, canada] of rows) {
     insert.run(code, name, name, null, null, null, size, unit,
@@ -54,13 +64,35 @@ function fixture() {
   return db;
 }
 
-/** Prices in cents, keyed by code. Whatever is absent has no price at all. */
-function lookupOf(prices: Record<string, number>) {
+/**
+ * Prices keyed by code. Whatever is absent has no price at all. A bare number
+ * is the old shape: a real seller, no store, joined by name, so every test
+ * written before storeName/storeCity/joinMethod existed keeps behaving the
+ * same way. A spec object overrides just the fields a test cares about.
+ */
+function lookupOf(prices: Record<string, PriceSpec>) {
   return async (codes: readonly string[]) => {
     const m = new Map<string, PricedProduct>();
     for (const c of codes) {
-      if (prices[c] === undefined) continue;
-      m.set(c, { code: c, amountCents: prices[c], seller: 'Test Grocer', observedAt: '2026-09-04' });
+      const spec = prices[c];
+      if (spec === undefined) continue;
+      const full: PricedProduct = {
+        code: c,
+        amountCents: typeof spec === 'number' ? spec : spec.amountCents,
+        // walmart.ca rather than an invented shop name, because the seller
+        // clause is an allowlist: an unrecognised seller is deliberately NOT
+        // printed, so a made-up fixture seller would silently push every
+        // general test onto the fallback branch and stop them covering the
+        // named-seller one. The pairing is also what the live table holds:
+        // all 14 name-joined rows are walmart.ca.
+        seller: 'walmart.ca',
+        observedAt: '2026-09-04',
+        storeName: null,
+        storeCity: null,
+        joinMethod: 'name',
+        ...(typeof spec === 'number' ? {} : spec),
+      };
+      m.set(c, full);
     }
     return m;
   };
@@ -108,6 +140,8 @@ test('an added allergen is printed on the row, not used to hide it', async () =>
   const alts = await alternativesFor(db, original, 800, lookupOf({ C: 600 }));
   assert.equal(alts.length, 1);
   assert.deepEqual(alts[0].addedAllergens, ['en:nuts']);
+  assert.equal(alts[0].allergenNote, 'compared', 'both sides had tags, so a comparison was made');
+  assert.match(alts[0].line, /Adds nuts\./);
 });
 
 test('a removed allergen is reported too', async () => {
@@ -116,6 +150,40 @@ test('a removed allergen is reported too', async () => {
   const alts = await alternativesFor(db, nutty, 1500, lookupOf({ A: 600, B: 600 }));
   assert.ok(alts.length > 0);
   assert.deepEqual(alts[0].removedAllergens, ['en:nuts']);
+  assert.equal(alts[0].allergenNote, 'compared');
+  assert.match(alts[0].line, /Removes nuts\./);
+});
+
+test('no allergen tags on the alternative means not-recorded, never "same"', async () => {
+  // H has no allergen tags at all. Open Food Facts cannot tell "checked, none
+  // found" apart from "never checked" (prepare_rows.py:243 collapses both to
+  // []), so an empty list here must never read as a comparison that came back
+  // clean.
+  const db = fixture();
+  const alts = await alternativesFor(db, original, 800, lookupOf({ H: 500 }));
+  assert.equal(alts.length, 1);
+  assert.equal(alts[0].allergenNote, 'not-recorded');
+  assert.deepEqual(alts[0].addedAllergens, []);
+  assert.deepEqual(alts[0].removedAllergens, []);
+  assert.match(alts[0].line, /Allergens not recorded for one of these\. Check the packaging\./);
+});
+
+test('no allergen tags on the original means not-recorded too', async () => {
+  const db = fixture();
+  const noTags = candidate({ code: 'A', allergens: [] });
+  const alts = await alternativesFor(db, noTags, 800, lookupOf({ B: 500 }));
+  assert.equal(alts.length, 1);
+  assert.equal(alts[0].allergenNote, 'not-recorded');
+  assert.match(alts[0].line, /Allergens not recorded for one of these\. Check the packaging\./);
+});
+
+test('never "same allergens recorded": identical tags on both sides still avoid a safety claim', async () => {
+  const db = fixture();
+  const alts = await alternativesFor(db, original, 800, lookupOf({ B: 500 }));
+  assert.equal(alts[0].allergenNote, 'compared');
+  assert.deepEqual(alts[0].addedAllergens, []);
+  assert.deepEqual(alts[0].removedAllergens, []);
+  assert.ok(!/same allergens|checked|clean|safe/i.test(alts[0].line), alts[0].line);
 });
 
 test('a saving too small to matter is not an interruption', async () => {
@@ -155,12 +223,143 @@ test('the row names a measurement and a seller, and makes no taste claim', async
   const alts = await alternativesFor(db, original, 800, lookupOf({ B: 500 }));
   const line = alts[0].line;
   assert.match(line, /per 100 g/);
-  assert.match(line, /Test Grocer/);
+  assert.match(line, /walmart\.ca/);
   assert.ok(!/tast|same|just as|identical|as good/i.test(line), `line made a claim: ${line}`);
   assert.equal(alts[0].price.observedAt, '2026-09-04');
 });
 
+/*
+ * The seller clause is an allowlist, and this is the test that keeps it one.
+ *
+ * The defect being fixed in this file was "openprices", the name of a
+ * database, printed as though a shopper could walk into it. The first fix
+ * asked `seller !== 'openprices'`, which is the same rule written as a
+ * denylist of one: correct for that string, and silently wrong again the day
+ * a second donated feed is added, because its name would print as a shop on
+ * its first run with nothing failing. This test fails if anyone inverts it
+ * back, and it uses a seller that does not exist precisely because the
+ * denylist version passes every test written against sellers that do.
+ */
+test('a seller nobody has confirmed is a real shop is never printed as one', async () => {
+  const db = fixture();
+  const alts = await alternativesFor(
+    db,
+    original,
+    800,
+    lookupOf({ B: { amountCents: 500, seller: 'somenewfeed', joinMethod: 'name', storeName: null } }),
+  );
+  const line = alts[0].line;
+  assert.ok(!/somenewfeed/i.test(line), `an unvetted seller name reached the shopper: ${line}`);
+  assert.match(line, /a store that reported this price/);
+});
+
+/*
+ * Four tests for the store gate, and the reason there are four rather than
+ * two. `storeClauseFor` is a conjunction of `joinMethod === 'gtin'` and
+ * `storeName !== null`, and on the live table today one input combination
+ * to that conjunction (a name-joined row WITH a resolved store) never
+ * actually occurs: all 14 name-joined rows have a null store name. A
+ * comment saying the branch is safe is not evidence it is safe -- this repo
+ * already has two defects of exactly this shape, both found only when an
+ * unreachable branch was finally made to fire: a spine seller count that
+ * was wrong for its entire life behind a gate that rejected every input
+ * that would have exposed it, and a Canada tiebreak that had never executed
+ * once and changed the top result completely the day it finally fired. The
+ * fix here is not a better comment, it is a synthetic input that forces the
+ * combination to run now, before 2026-09-05's join data makes it possible
+ * for real.
+ */
+
+test('a name-joined price with a SYNTHETIC resolved store still prints no store', async () => {
+  // This exact combination does not exist on the live table today (all 14
+  // name-joined rows have a null store name), which is precisely why it has
+  // to be forced here rather than found in a fixture. A name join can attach
+  // a price to the wrong product, and a store name is exactly what would
+  // make that wrong price look checkable, so this must fail closed even on
+  // an input the real data does not produce yet.
+  const db = fixture();
+  const alts = await alternativesFor(db, original, 800, lookupOf({
+    B: { amountCents: 500, seller: 'openprices', joinMethod: 'name', storeName: 'Fortinos', storeCity: 'Hamilton' },
+  }));
+  assert.equal(alts.length, 1);
+  assert.ok(!/Fortinos|Hamilton/.test(alts[0].line), alts[0].line);
+  assert.match(alts[0].line, /a store that reported this price/);
+});
+
+test('a barcode-joined price with a resolved store names it', async () => {
+  const db = fixture();
+  const alts = await alternativesFor(db, original, 800, lookupOf({
+    B: { amountCents: 500, seller: 'openprices', joinMethod: 'gtin', storeName: 'Fortinos', storeCity: 'Hamilton' },
+  }));
+  assert.equal(alts.length, 1);
+  assert.match(alts[0].line, /Fortinos, Hamilton/);
+});
+
+test('a barcode-joined price with a null store name never leaves a blank or "null" in the sentence', async () => {
+  // 82 of 782 barcode-joined rows resolve no store at all, so this one DOES
+  // happen on the live table, but it is tested with the same rigour as the
+  // synthetic case above: a template literal built from a null field is
+  // exactly how "at null," or "at ," reaches a shopper, and that failure
+  // mode is silent (no exception, just a wrong string) so only reading the
+  // composed text catches it.
+  const db = fixture();
+  const alts = await alternativesFor(db, original, 800, lookupOf({
+    B: { amountCents: 500, seller: 'openprices', joinMethod: 'gtin', storeName: null, storeCity: null },
+  }));
+  assert.equal(alts.length, 1);
+  const line = alts[0].line;
+  assert.match(line, /a store that reported this price/);
+  assert.ok(!/\bnull\b/i.test(line), `"null" leaked into: ${line}`);
+  assert.ok(!/\bundefined\b/i.test(line), `"undefined" leaked into: ${line}`);
+  assert.ok(!/at\s*,/.test(line), `a blank store name leaked into: ${line}`);
+});
+
+test('a real seller like walmart.ca is still named as a seller', async () => {
+  const db = fixture();
+  const alts = await alternativesFor(db, original, 800, lookupOf({
+    B: { amountCents: 500, seller: 'walmart.ca', joinMethod: 'name', storeName: null, storeCity: null },
+  }));
+  assert.equal(alts.length, 1);
+  assert.match(alts[0].line, /walmart\.ca/);
+});
+
+test('the date is shown the way a person would say it, on every row', async () => {
+  const db = fixture();
+  const alts = await alternativesFor(db, original, 800, lookupOf({
+    B: { amountCents: 500, seller: 'Test Grocer', joinMethod: 'name', storeName: null, storeCity: null, observedAt: '2025-08-28' },
+  }));
+  assert.match(alts[0].line, /Seen 28 August 2025\./);
+});
+
+test('"openprices" the database is never printed as though it were a shop', async () => {
+  // The bug that mattered most: price.seller is literally "openprices" for
+  // most of the price table, and a shopper reading that string would think
+  // it names a store. This is written so it fails hard if that string ever
+  // reaches a composed line again, in any of the shapes it can arrive in.
+  const db = fixture();
+
+  const noStoreNoJoin = await alternativesFor(db, original, 800, lookupOf({
+    B: { amountCents: 500, seller: 'openprices', joinMethod: 'gtin', storeName: null, storeCity: null },
+  }));
+  const nameJoinedWithStore = await alternativesFor(db, original, 800, lookupOf({
+    B: { amountCents: 500, seller: 'openprices', joinMethod: 'name', storeName: 'Fortinos', storeCity: null },
+  }));
+  const nameJoinedNoStore = await alternativesFor(db, original, 800, lookupOf({
+    B: { amountCents: 500, seller: 'openprices', joinMethod: 'name', storeName: null, storeCity: null },
+  }));
+
+  for (const alts of [noStoreNoJoin, nameJoinedWithStore, nameJoinedNoStore]) {
+    assert.equal(alts.length, 1);
+    assert.ok(!/openprices/i.test(alts[0].line), `"openprices" leaked into: ${alts[0].line}`);
+  }
+});
+
 test('the heading names the category the swap came from', async () => {
-  assert.equal(alternativesHeading(original, 2), 'Cheaper peanut butters');
+  // labelForTag now matches search.ts exactly (Task 5b): lower-case first,
+  // strip the language prefix, capitalise only the first letter of ITS OWN
+  // output. Fed straight into "Cheaper ${...}" that reads "Cheaper Peanut
+  // butters", not "Cheaper peanut butters" -- the capital moved, it did not
+  // disappear, because this function is not told it is the second word here.
+  assert.equal(alternativesHeading(original, 2), 'Cheaper Peanut butters');
   assert.equal(alternativesHeading(original, 0), 'No cheaper option we can price');
 });
