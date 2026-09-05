@@ -58,10 +58,17 @@ test('no points at all is a source failure, not a thin comparison', async () => 
   assert.equal(r.reason, 'no_source_response');
 });
 
-test('one seller is not a comparison in grocery', async () => {
+test('one seller in grocery is answered, and the answer says it is one seller', async () => {
+  // CHANGED 2026-09-05. This used to assert a refusal. One seller is now an
+  // answer with the thinness named, because a shopper holding the box learns
+  // more from "Walmart has it at $11.97, and that is the only seller we found"
+  // than from being told nothing.
   const src = new StubSource(identity('grocery'), [point('Walmart', 1197)]);
-  const r = asRefusal(await priceIt({ text: 'tide', askingCents: 1197, asOf: AS_OF }, deps(src)));
-  assert.equal(r.reason, 'too_few_points');
+  const v = asVerdict(await priceIt({ text: 'tide', askingCents: 1197, asOf: AS_OF }, deps(src)));
+  assert.ok(v.tier, 'a single seller must still produce a tier');
+  assert.equal(v.confidence.band, 'low');
+  assert.equal(v.confidence.distinctSellers, 1);
+  assert.match(v.confidence.because, /1 seller/);
 });
 
 test('comparisons without a subject refuse rather than inventing one', async () => {
@@ -71,27 +78,39 @@ test('comparisons without a subject refuse rather than inventing one', async () 
   assert.equal(r.evidence.length, 2);
 });
 
-test('stale points are refused, not quietly used', async () => {
+test('stale points are used, and never quietly', async () => {
+  // CHANGED 2026-09-05. The old name was "stale points are refused, not quietly
+  // used" and the half that mattered was "not quietly". Ten-day-old grocery
+  // prices are now used and the age is stated on the answer, which is the same
+  // protection without the silence.
   const src = new StubSource(identity('grocery'), [
     point('Walmart', 147, 'regular', '2026-08-25'),
     point('Metro', 189, 'regular', '2026-08-24'),
   ]);
-  const r = asRefusal(await priceIt({ text: 'kd', askingCents: 200, asOf: AS_OF }, deps(src)));
-  assert.equal(r.reason, 'points_too_stale');
+  const v = asVerdict(await priceIt({ text: 'kd', askingCents: 200, asOf: AS_OF }, deps(src)));
+  assert.ok(v.tier);
+  assert.equal(v.confidence.band, 'low');
+  assert.match(v.confidence.because, /days old/, 'the age must be said, not implied');
+  assert.equal(v.pointCount, 2, 'the old prices are what the answer rests on, so they are shown');
 });
 
-test('two balanced clusters refuse rather than averaging two products together', async () => {
+test('two balanced clusters are called out rather than averaged into one product', async () => {
+  // CHANGED 2026-09-05. $50 listings and $4,800 listings in one set are two
+  // different things wearing one name. That is still never averaged into a
+  // single number, which was always the real content of this test; it is now
+  // said on the answer instead of replacing the answer.
   const src = new StubSource(identity('used'), [
     point('Kijiji', 5000, 'asking'),
     point('Kijiji', 6000, 'asking'),
     point('eBay', 480000, 'asking'),
     point('eBay', 490000, 'asking'),
   ]);
-  const r = asRefusal(await priceIt({ text: 'r6', askingCents: 200000, asOf: AS_OF }, deps(src)));
-  assert.equal(r.reason, 'comparison_incoherent');
+  const v = asVerdict(await priceIt({ text: 'r6', askingCents: 200000, asOf: AS_OF }, deps(src)));
+  assert.equal(v.confidence.band, 'low');
+  assert.match(v.confidence.because, /more than one product/);
 });
 
-test('the pilot Canon failure refuses, at the 3x spread it actually had', async () => {
+test('the pilot Canon failure is caught, at the 3x spread it actually had', async () => {
   // One true body listing among a cluster of R6 Mark II bundles. This is the
   // case the whole identity design was written about, and a ratio threshold set
   // anywhere that keeps a real used market alive cannot catch it. The set is
@@ -104,8 +123,12 @@ test('the pilot Canon failure refuses, at the 3x spread it actually had', async 
     point('Facebook Marketplace', 470000, 'asking'),
     point('eBay', 480000, 'asking'),
   ]);
-  const r = asRefusal(await priceIt({ text: 'canon r6', askingCents: 450000, asOf: AS_OF }, deps(src)));
-  assert.equal(r.reason, 'comparison_incoherent');
+  // CHANGED 2026-09-05: named on the answer rather than withheld. The detection
+  // this test exists for is unchanged, and it is still the case that no ratio
+  // threshold wide enough to keep a real used market alive would catch this set.
+  const v = asVerdict(await priceIt({ text: 'canon r6', askingCents: 450000, asOf: AS_OF }, deps(src)));
+  assert.equal(v.confidence.band, 'low');
+  assert.match(v.confidence.because, /more than one product/);
 });
 
 test('a genuinely wide used market is still answered', async () => {
@@ -291,9 +314,14 @@ test('one merchant under several feed spellings is one seller', async () => {
     point('Best Buy Canada Ltd', 49999),
     point('best buy', 49999),
   ]);
-  const r = asRefusal(await priceIt({ text: 'xm5', askingCents: 49999, asOf: AS_OF }, deps(src)));
-  assert.equal(r.reason, 'too_few_points');
-  assert.match(r.detail, /1 seller/);
+  // CHANGED 2026-09-05. Five spellings of Best Buy are still exactly one
+  // seller, and that is now asserted on the number the shopper is shown rather
+  // than on a refusal. Removing the gate briefly made this a three-seller
+  // answer, because the gate normalised and the confidence sentence did not.
+  const v = asVerdict(await priceIt({ text: 'xm5', askingCents: 49999, asOf: AS_OF }, deps(src)));
+  assert.equal(v.confidence.distinctSellers, 1, 'five spellings of one chain are one chain');
+  assert.equal(v.confidence.band, 'low');
+  assert.match(v.confidence.because, /1 seller/);
 });
 
 test('the store being judged is excluded however its feed spells it', async () => {
@@ -301,10 +329,16 @@ test('the store being judged is excluded however its feed spells it', async () =
     point('Metro Inc', 899),
     point('Walmart', 899),
   ]);
-  const r = asRefusal(
+  // CHANGED 2026-09-05. The fact under test is that "Metro Inc" in the feed is
+  // the same store as the "Metro" the shopper is standing in, so it cannot be
+  // one of the prices Metro is judged against. Asserted on the comparison set
+  // now, which is stronger than the old assertion: a refusal only told us the
+  // count fell short, not which row was dropped.
+  const v = asVerdict(
     await priceIt({ text: 'kd', askingCents: 899, askingSeller: 'Metro', asOf: AS_OF }, deps(src)),
   );
-  assert.equal(r.reason, 'too_few_points');
+  assert.deepEqual(v.comparisonSet.map((p) => p.seller), ['Walmart']);
+  assert.equal(v.confidence.band, 'low');
 });
 
 test('a month-old price cannot set the bar in a three-day category', async () => {
@@ -316,9 +350,16 @@ test('a month-old price cannot set the bar in a three-day category', async () =>
     point('Costco', 41499, 'regular', '2026-08-05'),
     point('The Source', 39999, 'regular', '2026-09-03'),
   ]);
-  const r = asRefusal(await priceIt({ text: 'xm5', askingCents: 39999, asOf: AS_OF }, deps(src)));
-  assert.equal(r.reason, 'points_too_stale');
-  assert.match(r.detail, /current enough/);
+  // CHANGED 2026-09-05. The month-old Best Buy $279.99 promo is the bar this
+  // test exists to keep the shopper from being sent to chase, and it is still
+  // kept out of the comparison set. What changed is that the one current price
+  // now answers instead of the whole thing refusing, with the five dropped rows
+  // named as the reason confidence is low.
+  const v = asVerdict(await priceIt({ text: 'xm5', askingCents: 39999, asOf: AS_OF }, deps(src)));
+  assert.deepEqual(v.comparisonSet.map((p) => p.seller), ['The Source']);
+  assert.ok(!v.comparisonSet.some((p) => p.amountCents === 27999), 'a dead promo cannot set the bar');
+  assert.equal(v.confidence.band, 'low');
+  assert.match(v.confidence.because, /too old to count/);
 });
 
 test('future-dated points are rejected rather than aged to zero', async () => {

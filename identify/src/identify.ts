@@ -171,7 +171,15 @@ export class IdentifyStage {
       limit: 5,
     });
 
-    if (result.band === 'miss' || result.candidates.length === 0) {
+    // 2026-09-05, his correction (docs/the-combined-pipeline.md): the app was
+    // refusing to answer instead of committing to a top candidate. A band of
+    // 'miss' used to be treated the same as no candidates at all, which threw
+    // away decision 17's whole point -- ranked candidates always exist, and the
+    // top one is shown large with a "not this?" affordance, band or no band.
+    // The only real refusal left is arithmetic: nothing came back at all, which
+    // is the one case a confidence number cannot paper over because there is no
+    // candidate for it to be a confidence about.
+    if (result.candidates.length === 0) {
       return { kind: 'not_in_catalogue', readAs, ring: result.ring, reading, tier };
     }
 

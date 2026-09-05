@@ -41,7 +41,19 @@ test('the two items the pilot could price are the two that answer', () => {
 });
 
 test('each of the five refusals gives the reason the pilot actually hit', () => {
-  // One price is not a comparison.
+  /*
+   * Re-checked 2026-09-05, after every count threshold in the spine was removed
+   * in favour of a low confidence band. Coverage did not move: still 2 of 7.
+   *
+   * That is the finding, and it is worth more than the deletion was. Not one of
+   * these five was a threshold turning away prices we held. Each is an empty
+   * hand: no usable price at all, a category we decline, or an identity too
+   * doubtful to attach any price to. Thresholds were never what capped the
+   * pilot, so nothing about relaxing them will lift coverage; only more sellers
+   * will.
+   */
+  // The single Walmart price IS the shopper's own store, so excluding it leaves
+  // nothing to compare against. Not a threshold: a set of size zero.
   assert.equal(by.get('tide-simply-2720ml')?.reason, 'too_few_points');
   // Produce is declined as a category, not missed as an item.
   assert.equal(by.get('navel-oranges-3lb')?.reason, 'category_unsupported');

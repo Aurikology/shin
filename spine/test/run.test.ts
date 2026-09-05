@@ -145,12 +145,20 @@ test('past the limit the name and the options still ship and only the verdict is
   assert.equal(g.offer, 'Unlock the price check.');
 });
 
-test('one seller shows the going rate and says it is not a verdict', async () => {
+test('one seller is answered, not declined', async () => {
+  // CHANGED 2026-09-05. This used to assert the opposite: that a single seller
+  // produced a refusal reading "not enough to say if it is a good price". It
+  // now asserts that the verdict ships, because the price stage carries its own
+  // confidence and the reason behind it, and a screen that prints a judgement
+  // and a denial of that judgement is worse than either alone.
   const es = await collect(ports({
-    prices: async () => ({ verdict: { tier: null }, sellerCount: 1 }),
+    prices: async () => ({ verdict: { tier: 'good' }, sellerCount: 1 }),
   }));
-  const r = es.find((e) => e.type === 'refusal') as { refusal: typeof REFUSALS.one_seller };
-  assert.match(r.refusal.says, /not enough/i);
+  assert.ok(types(es).includes('verdict'), 'one seller must still produce an answer');
+  const priceRefusal = es.find(
+    (e) => e.type === 'refusal' && (e as { refusal: { step: string } }).refusal.step === 'checking prices',
+  );
+  assert.equal(priceRefusal, undefined, 'the answer must not be followed by a denial of itself');
 });
 
 test('every refusal names its step, and none of them shrugs', async () => {

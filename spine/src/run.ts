@@ -101,12 +101,10 @@ export const REFUSALS: Record<string, Refusal> = {
     says: 'Nobody we read sells this right now, so there is no price to compare.',
     repair: null,
   },
-  one_seller: {
-    step: 'checking prices',
-    fault: 'world',
-    says: 'Only one seller has this, which is not enough to say if it is a good price.',
-    repair: null,
-  },
+  // REMOVED 2026-09-05: one_seller. A single seller is now answered rather than
+  // declined, and the verdict carries a lower confidence with "one seller" named
+  // as the reason. Keeping the refusal here as well meant the screen printed a
+  // price judgement and then a sentence saying no judgement was possible.
   no_alternatives: {
     step: 'finding cheaper options',
     fault: 'world',
@@ -225,12 +223,12 @@ export async function* scan(ports: ScanPorts): AsyncGenerator<ScanEvent> {
         // on the result.
         return [{ type: 'gated', part: 'verdict', offer: ports.upgradeOffer ?? '' }];
       }
-      if (p.sellerCount < 2) {
-        return [
-          { type: 'verdict', verdict: p.verdict, ms },
-          { type: 'refusal', refusal: REFUSALS.one_seller },
-        ];
-      }
+      // CHANGED 2026-09-05, on his instruction. A one seller result used to
+      // ship the verdict AND a refusal saying one seller is not enough to say
+      // if it is a good price, which is the screen contradicting itself in two
+      // consecutive lines. The verdict now carries its own confidence and the
+      // reasons behind it, so the doubt has somewhere to live that is not a
+      // second paragraph taking the first one back.
       return [{ type: 'verdict', verdict: p.verdict, ms }];
     }),
     altPromise.then((a): ScanEvent[] => {

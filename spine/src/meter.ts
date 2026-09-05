@@ -145,6 +145,13 @@ export function upgradeOffer(v: MeterView, hasIdentity: boolean): string | null 
 /**
  * Decision 45 spelled out for the result screen so nobody has to infer it from
  * a boolean: what is still free when the meter is empty.
+ *
+ * Verified 2026-09-05 against his correction (docs/the-combined-pipeline.md):
+ * this was checked line by line for anywhere the meter withholds more than the
+ * verdict. It does not. `identity` and `alternatives` are hardcoded false here,
+ * not derived from `verdictAvailable`, and `spine/src/run.ts` only reads the
+ * `verdict` part of this object to decide what to gate. Nothing changed here
+ * because nothing needed to.
  */
 export function gatedParts(v: MeterView): { identity: boolean; alternatives: boolean; verdict: boolean } {
   return { identity: false, alternatives: false, verdict: !v.verdictAvailable };

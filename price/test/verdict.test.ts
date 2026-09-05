@@ -28,11 +28,22 @@ function o(
   };
 }
 
-test('one seller gets a going rate and no verdict', () => {
+test('one seller still gets a verdict, at lower confidence', () => {
   const v = judge({ shelfCents: 500, observations: [o('Loblaws', 480)], now: NOW });
-  assert.equal(v.tier, null);
-  assert.match(v.withheldBecause ?? '', /only 1 seller/);
-  assert.match(v.line, /Not enough to say/);
+  assert.ok(v.tier !== null, 'a single seller must still produce an answer');
+  assert.equal(v.withheldBecause, null);
+  assert.ok(v.confidence > 0 && v.confidence < 0.7, `expected thin confidence, got ${v.confidence}`);
+  assert.deepEqual(v.confidenceBasis, ['one seller']);
+});
+
+test('more sellers buy more confidence for the same verdict', () => {
+  const thin = judge({ shelfCents: 500, observations: [o('A', 480)], now: NOW });
+  const thick = judge({
+    shelfCents: 500,
+    observations: [o('A', 480), o('B', 490), o('C', 495), o('D', 505)],
+    now: NOW,
+  });
+  assert.ok(thick.confidence > thin.confidence);
 });
 
 test('two sellers is enough for a verdict', () => {
@@ -74,15 +85,15 @@ test('a sale price never moves the regular range', () => {
   assert.match(withSale.line, /on sale/);
 });
 
-test('a promotional only product still gets its going rate named', () => {
+test('sale prices alone still produce a verdict, and say so', () => {
   const v = judge({
     shelfCents: 500,
     observations: [o('A', 300, { kind: 'promotional' })],
     now: NOW,
   });
-  assert.equal(v.tier, null);
-  assert.match(v.line, /on sale/);
-  assert.match(v.withheldBecause ?? '', /no regular price/);
+  assert.ok(v.tier !== null, 'a sale price is still something to compare against');
+  assert.ok(v.confidenceBasis.includes('only sale prices to compare against'));
+  assert.ok(v.confidence < 0.5, 'and it must cost confidence');
 });
 
 test('a post tax number is dropped, not corrected', () => {
@@ -91,8 +102,7 @@ test('a post tax number is dropped, not corrected', () => {
     observations: [o('A', 480), o('B', 900, { preTax: false })],
     now: NOW,
   });
-  assert.equal(v.regular?.sellerCount, 1);
-  assert.equal(v.tier, null);
+  assert.equal(v.regular?.sellerCount, 1, 'the post tax row must not reach the band');
 });
 
 test('one seller listing a product three times is still one seller', () => {
@@ -102,7 +112,14 @@ test('one seller listing a product three times is still one seller', () => {
     now: NOW,
   });
   assert.equal(v.regular?.sellerCount, 1);
+  assert.deepEqual(v.confidenceBasis, ['one seller'], 'three listings do not buy confidence');
+});
+
+test('nothing at all is the only case with no verdict', () => {
+  const v = judge({ shelfCents: 500, observations: [], now: NOW });
   assert.equal(v.tier, null);
+  assert.equal(v.confidence, 0);
+  assert.match(v.withheldBecause ?? '', /no price from any seller/);
 });
 
 test('the age shown is the oldest contributing number, in words', () => {

@@ -135,17 +135,8 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
   }
 
   const newestAge = min(comparison.map((p) => ageDays(p.observedAt, asOf)));
-  if (newestAge > rule.maxAgeDays) {
-    return refuse(
-      'points_too_stale',
-      `The newest price we have is ${newestAge} days old and ${rule.label.toLowerCase()} moves faster than that.`,
-      identity,
-      comparison,
-      asOf,
-    );
-  }
 
-  // Every point that sets the tier must itself be current. Checking only the
+  // Every point that sets the tier should itself be current. Checking only the
   // newest let one fresh row carry a set of month-old prices in a category whose
   // own rule is three days, and the dead cheapest price in it became the bar the
   // shopper was sent to chase. Furniture is exempt because there the history IS
@@ -154,58 +145,70 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     ? comparison
     : comparison.filter((p) => ageDays(p.observedAt, asOf) <= rule.maxAgeDays);
 
-  if (tiering.length < rule.minPoints && comparison.length >= rule.minPoints) {
-    return refuse(
-      'points_too_stale',
-      `Only ${tiering.length} of ${comparison.length} prices are current enough to compare; ${rule.label.toLowerCase()} needs ${rule.minPoints} inside ${rule.maxAgeDays} days.`,
-      identity,
-      comparison,
-      asOf,
+  /*
+   * CHANGED 2026-09-05, on his instruction, and this is the largest change in
+   * this file.
+   *
+   * Four checks used to sit here and each of them returned a refusal while
+   * holding real prices in its hand: the newest price being older than the
+   * category window, too few current prices, too few prices at all, too few
+   * distinct sellers, and a comparison set that disagreed with itself. A
+   * shopper standing in an aisle got "Shin needs 3 before it will call it"
+   * instead of the two prices we had.
+   *
+   * Every one of them is now a named shortfall on the answer rather than a
+   * reason to withhold it. The confidence band already existed and already
+   * carried a plain sentence saying what limits it, so the doubt has somewhere
+   * honest to live. The category minimums are kept and still mean something:
+   * they are what separates a low band from a high one.
+   *
+   * What still refuses, and why: no prices at all, and no price on the thing in
+   * front of the shopper. Neither of those is a threshold. There is nothing to
+   * compare, so there is no answer to give at any confidence.
+   */
+  const shortfalls: string[] = [];
+
+  let basis = tiering;
+  if (basis.length === 0) {
+    // Everything we have is outside the category's window. Old prices still
+    // locate a product far better than silence does, so they answer, labelled.
+    basis = comparison;
+    shortfalls.push(
+      `the newest price we have is ${newestAge} days old, and ${rule.label.toLowerCase()} moves faster than that`,
     );
+  } else if (tiering.length < comparison.length) {
+    const dropped = comparison.length - tiering.length;
+    shortfalls.push(`${dropped} of ${comparison.length} prices are too old to count`);
   }
 
-  if (tiering.length < rule.minPoints) {
-    return refuse(
-      'too_few_points',
-      `Only ${comparison.length} usable price${comparison.length === 1 ? '' : 's'}; ${rule.label.toLowerCase()} needs ${rule.minPoints} before Shin will call it.`,
-      identity,
-      comparison,
-      asOf,
+  if (basis.length < rule.minPoints) {
+    shortfalls.push(
+      `${basis.length} price${basis.length === 1 ? '' : 's'} where ${rule.label.toLowerCase()} usually needs ${rule.minPoints}`,
     );
   }
 
   // Counted after normalising, so one merchant arriving under three feed
-  // spellings cannot clear a three-distinct-sellers gate on its own.
-  const sellers = new Set(tiering.map((p) => normalizeSeller(p.seller)));
+  // spellings cannot look like three sellers.
+  const sellers = new Set(basis.map((p) => normalizeSeller(p.seller)));
   if (sellers.size < rule.minDistinctSellers) {
-    return refuse(
-      'too_few_points',
-      `All ${tiering.length} prices come from ${sellers.size} seller${sellers.size === 1 ? '' : 's'}; ${rule.label.toLowerCase()} needs ${rule.minDistinctSellers}.`,
-      identity,
-      comparison,
-      asOf,
+    shortfalls.push(
+      `${sellers.size} seller${sellers.size === 1 ? '' : 's'} where ${rule.label.toLowerCase()} usually needs ${rule.minDistinctSellers}`,
     );
   }
 
-  if (isIncoherent(tiering, rule.mixedKindsExpected)) {
-    return refuse(
-      'comparison_incoherent',
-      'The prices found disagree so widely that any single answer would be made up. Probably more than one product in the set.',
-      identity,
-      comparison,
-      asOf,
-    );
+  if (isIncoherent(basis, rule.mixedKindsExpected)) {
+    shortfalls.push('the prices found disagree widely enough that this may be more than one product');
   }
 
   // 6. Only now does a category get to speak.
   const { tier, lines, disagreement } = rule.judge({
     askingCents,
-    points: tiering,
+    points: basis,
     asOf,
     minPoints: rule.minPoints,
   });
 
-  const observed = tiering.map((p) => p.observedAt).sort();
+  const observed = basis.map((p) => p.observedAt).sort();
   const verdict: Verdict = {
     kind: 'verdict',
     identity,
@@ -214,12 +217,12 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     askingSource: query.askingSeller ?? 'given',
     tier,
     lines,
-    comparisonSet: tiering,
-    pointCount: tiering.length,
+    comparisonSet: basis,
+    pointCount: basis.length,
     oldestObservedAt: observed[0],
     newestObservedAt: observed[observed.length - 1],
-    spread: spreadOf(tiering),
-    confidence: confidenceOf(tiering, identity, rule, asOf),
+    spread: spreadOf(basis),
+    confidence: confidenceOf(basis, identity, rule, asOf, shortfalls),
     disagreement,
     producedAt: asOf,
   };
@@ -274,16 +277,33 @@ function confidenceOf(
   identity: ProductIdentity,
   rule: CategoryRule,
   asOf: string,
+  /**
+   * The category minimums this answer did not reach, in plain words. Empty for
+   * an answer that cleared every one of them. These used to be refusals; they
+   * are the reason a band is low, and the sentence the user is shown.
+   */
+  shortfalls: readonly string[] = [],
 ): Confidence {
   const ages = points.map((p) => ageDays(p.observedAt, asOf));
   const newestAge = min(ages);
   const oldestAge = max(ages);
-  const sellers = new Set(points.map((p) => p.seller)).size;
+  // Normalised, matching how the shortfall above counts them. This used to be
+  // a raw string set, so "Best Buy", "BestBuy.ca" and "best buy" reported as
+  // three sellers. It was invisible while a normalised gate stood in front of
+  // it and rejected that set before confidence was ever computed; with the gate
+  // gone this number is the one the shopper reads.
+  const sellers = new Set(points.map((p) => normalizeSeller(p.seller))).size;
 
   let band: ConfidenceBand;
   let because: string;
 
-  if (points.length === rule.minPoints || sellers === rule.minDistinctSellers) {
+  if (shortfalls.length > 0) {
+    band = 'low';
+    // Named, not summarised. "Low confidence" on its own is a shrug; "1 price
+    // where groceries usually needs 2" is something a shopper can weigh.
+    const listed = shortfalls.join('; ');
+    because = `${listed.charAt(0).toUpperCase()}${listed.slice(1)}.`;
+  } else if (points.length === rule.minPoints || sellers === rule.minDistinctSellers) {
     band = 'low';
     because = `Only just enough to answer: ${points.length} price${points.length === 1 ? '' : 's'} from ${sellers} seller${sellers === 1 ? '' : 's'}.`;
   } else if (newestAge > rule.maxAgeDays / 2) {

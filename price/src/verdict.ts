@@ -6,11 +6,23 @@
  * replaced at least once, and the rules about what may be claimed from a given
  * amount of evidence must not be replaced with it.
  *
- * THE FOUR RULES THAT COST SOMETHING
+ * REWRITTEN 2026-09-05, on his correction. His words: the accuracy-first
+ * posture "impeeds so much of our design", and OLMA, which answers every time,
+ * is the better product.
  *
- * Two sellers minimum (31). One seller's price is that seller's price. Calling
- * it "a good deal" from a single number is the single easiest way to be
- * confidently wrong in front of somebody holding a jar.
+ * The rule that is gone: two sellers minimum before any verdict. Twenty-one
+ * refusals were counted across the design and not one of them carried his
+ * words; they all descend from a line a previous session wrote, not him. So the
+ * default flips. There is always a verdict when there is anything to compare
+ * against, and the doubt is carried by a confidence number beside it instead of
+ * by a blank space where the answer should be.
+ *
+ * The one thing kept: the direction of the verdict is arithmetic, computed
+ * here, never asked of a model. Telling someone a price is good when it is not
+ * is the only mistake on the screen that makes them spend money, and it is the
+ * only one they cannot undo by looking again.
+ *
+ * THE THREE RULES THAT STILL COST SOMETHING
  *
  * Never an average (32, marked a reversal in the plan). An average of four
  * sellers is a number that exists nowhere and that nobody can check. The
@@ -39,6 +51,13 @@ export interface Observation {
   /** Size in the product's base unit, when known, for the unit price. */
   readonly sizeValue?: number | null;
   readonly sizeUnit?: string | null;
+  /**
+   * How sure we are this row is about this product. `exact` means the seller
+   * published the barcode. `likely` means brand, name and size lined up and
+   * nobody published a barcode to prove it, which is every Loblaws row.
+   * Defaults to exact so existing callers are unchanged.
+   */
+  readonly joinQuality?: 'exact' | 'likely';
 }
 
 export type Tier = 'good' | 'fair' | 'high';
@@ -59,10 +78,19 @@ export interface Band {
 
 export interface Verdict {
   /**
-   * Null below minimum evidence. Decision 35: we show the going rate with no
-   * tier rather than dress one data point up as a judgement.
+   * Null only when there is genuinely nothing to compare against: no shelf
+   * price, or no observation of any kind. One seller is enough for a tier now.
+   * The doubt lives in `confidence`, not in a missing answer.
    */
   readonly tier: Tier | null;
+  /**
+   * Zero to one. How much the tier is worth, from how many sellers agree, how
+   * old the numbers are, and whether they were matched by barcode or by name.
+   * Shown beside the verdict, never used to suppress it.
+   */
+  readonly confidence: number;
+  /** The short reasons behind the confidence, in the user's words, for the detail row. */
+  readonly confidenceBasis: readonly string[];
   /** Decision 33: at most one of each, never merged. */
   readonly regular: Band | null;
   readonly promotional: Band | null;
@@ -72,12 +100,24 @@ export interface Verdict {
   readonly ageInWords: string | null;
   /** The one sentence to show. Written here so no screen can improvise one. */
   readonly line: string;
-  /** Why there is no tier, when there is none. Never blank when tier is null. */
+  /** Why there is no tier, in the rare case there is none. Never blank when tier is null. */
   readonly withheldBecause: string | null;
 }
 
-/** Decision 31. Below this there is a going rate but never a verdict. */
-const MIN_SELLERS = 2;
+/**
+ * What each piece of evidence is worth.
+ *
+ * These replace the old minimum-seller gate. One seller no longer stops a
+ * verdict; it produces a verdict worth about half of what three sellers buy.
+ */
+const CONF_BY_SELLERS: Record<number, number> = { 1: 0.5, 2: 0.7, 3: 0.82 };
+const CONF_MANY_SELLERS = 0.9;
+/** A price nobody has re-checked in three weeks is worth less than a fresh one. */
+const CONF_STALE_PENALTY = 0.15;
+/** Judged against sale prices because no regular price exists at all. */
+const CONF_PROMO_ONLY_PENALTY = 0.2;
+/** At least one contributing number was matched by name, not by barcode. */
+const CONF_LIKELY_JOIN_PENALTY = 0.1;
 
 /** Cheapest third is good, dearest third is high. Thirds, not a mean. */
 const GOOD_BELOW = 1 / 3;
@@ -197,51 +237,53 @@ export function judge(input: VerdictInput): Verdict {
       ? null
       : contributing.reduce((a, b) => (a.observedAt <= b.observedAt ? a : b)).observedAt;
 
-  // The tier is judged against regular prices only. A shelf price that beats a
-  // promotional low is a fine thing and it is not a claim about what this
-  // product normally costs.
-  const basis = regular;
+  // Regular prices are the yardstick when they exist. When they do not, sale
+  // prices are used rather than nothing, at a confidence penalty, because "a
+  // sale price is all anyone is showing" is still information about what this
+  // costs and a blank screen is not.
+  const basis = regular ?? promotional;
+  const judgedOnPromoOnly = regular === null && promotional !== null;
 
-  if (!basis || basis.sellerCount < MIN_SELLERS) {
-    const going = basis
-      ? `${money(basis.cheapestCents)} at ${basis.cheapestSeller}`
-      : promotional
-        ? `${money(promotional.cheapestCents)} at ${promotional.cheapestSeller}, on sale`
-        : null;
+  // The only two cases left with no tier: nothing to compare against, and
+  // nothing to compare. Neither is a judgement call, both are arithmetic.
+  if (!basis) {
     return {
       tier: null,
+      confidence: 0,
+      confidenceBasis: ['nobody we read is selling this'],
       regular,
       promotional,
       oldestObservedAt: oldest,
       ageInWords: oldest ? ageInWords(oldest, now) : null,
-      // Decision 35: the going rate with no tier. The sentence says what we
-      // have, not what we think.
-      line: going
-        ? `One seller has this at ${going}. Not enough to say whether that is good.`
-        : 'Nobody we can see is selling this right now.',
-      withheldBecause:
-        basis === null
-          ? 'no regular price from any seller we read'
-          : `only ${basis.sellerCount} seller${basis.sellerCount === 1 ? '' : 's'}, and a verdict needs ${MIN_SELLERS}`,
+      line: 'Nobody we can see is selling this right now.',
+      withheldBecause: 'no price from any seller we read',
     };
   }
 
   if (input.shelfCents === null) {
     return {
       tier: null,
+      confidence: 0,
+      confidenceBasis: ['no price to judge'],
       regular,
       promotional,
       oldestObservedAt: oldest,
       ageInWords: oldest ? ageInWords(oldest, now) : null,
       line:
-        `Others sell this from ${money(basis.cheapestCents)} at ${basis.cheapestSeller} ` +
-        `to ${money(basis.dearestCents)} at ${basis.dearestSeller}.`,
+        basis.cheapestCents === basis.dearestCents
+          ? `${basis.cheapestSeller} has this at ${money(basis.cheapestCents)}.`
+          : `Others sell this from ${money(basis.cheapestCents)} at ${basis.cheapestSeller} ` +
+            `to ${money(basis.dearestCents)} at ${basis.dearestSeller}.`,
       withheldBecause: 'we could not read the price on the shelf tag',
     };
   }
 
   const pos = basis.position ?? 0;
   const tier: Tier = pos <= GOOD_BELOW ? 'good' : pos >= HIGH_ABOVE ? 'high' : 'fair';
+
+  const stale = oldest !== null && daysBetween(oldest, now) >= STALE_DAYS;
+  const anyLikely = contributing.some((o) => o.joinQuality === 'likely');
+  const conf = confidenceOf(basis.sellerCount, stale, judgedOnPromoOnly, anyLikely);
 
   // Every sentence names a real number at a named seller. Decision 32: there is
   // no average anywhere in this string.
@@ -270,6 +312,8 @@ export function judge(input: VerdictInput): Verdict {
 
   return {
     tier,
+    confidence: conf.value,
+    confidenceBasis: conf.basis,
     regular,
     promotional,
     oldestObservedAt: oldest,
@@ -277,4 +321,37 @@ export function judge(input: VerdictInput): Verdict {
     line: `${head} ${compare}${unitPart}${promoPart}`,
     withheldBecause: null,
   };
+}
+
+/**
+ * What the verdict is worth, and why, in words a shopper can read.
+ *
+ * This is the thing that replaced the refusal. The old design's answer to thin
+ * evidence was to say nothing; this one says the answer and says how much to
+ * trust it. Every reason is a fact about the evidence, never a hedge.
+ */
+export function confidenceOf(
+  sellerCount: number,
+  stale: boolean,
+  promoOnly: boolean,
+  likelyJoin = false,
+): { value: number; basis: readonly string[] } {
+  const basis: string[] = [];
+  let value = CONF_BY_SELLERS[sellerCount] ?? CONF_MANY_SELLERS;
+  basis.push(
+    sellerCount === 1 ? 'one seller' : `${Math.min(sellerCount, 9)} sellers agree on the range`,
+  );
+  if (stale) {
+    value -= CONF_STALE_PENALTY;
+    basis.push('the newest price is over three weeks old');
+  }
+  if (promoOnly) {
+    value -= CONF_PROMO_ONLY_PENALTY;
+    basis.push('only sale prices to compare against');
+  }
+  if (likelyJoin) {
+    value -= CONF_LIKELY_JOIN_PENALTY;
+    basis.push('one seller matched by name, not barcode');
+  }
+  return { value: Math.max(0.1, Math.min(1, Number(value.toFixed(2)))), basis };
 }
