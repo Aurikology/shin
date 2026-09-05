@@ -94,6 +94,7 @@ export async function joinToProduct(
 
   for (const l of listings) {
     const how = joinOf.get(l.seller) ?? 'name';
+    let quality: 'exact' | 'likely' = 'exact';
 
     if (how === 'gtin') {
       if (!l.gtin) {
@@ -110,15 +111,17 @@ export async function joinToProduct(
         unjoined.push({ listing: l, because: 'nothing in the catalogue matched the title' });
         continue;
       }
-      if (!m.confident) {
-        // The refusal that costs us a seller and is still right.
-        unjoined.push({ listing: l, because: 'the title matched more than one product' });
-        continue;
-      }
       if (m.code !== code) {
         unjoined.push({ listing: l, because: 'the title matched a different product' });
         continue;
       }
+      // CHANGED 2026-09-05. This used to drop a listing whose title matched
+      // more than one product. Loblaws publishes no barcode at all, so that
+      // refusal threw away an entire national seller whenever the catalogue
+      // held two similar rows. The listing is kept now and carries its own
+      // weaker join, which lowers the verdict's confidence rather than
+      // removing the verdict.
+      quality = m.confident ? 'exact' : 'likely';
     }
 
     observations.push({
@@ -129,6 +132,7 @@ export async function joinToProduct(
       preTax: l.preTax,
       sizeValue: l.sizeValue,
       sizeUnit: l.sizeUnit,
+      joinQuality: quality,
     });
   }
 

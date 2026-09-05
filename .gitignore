@@ -18,6 +18,11 @@ notes/olma/frames/
 # scripts in catalogue/src. Nothing here is authored.
 catalogue/data/
 
+# Crawled shelf prices and the SQLite files SQLite writes beside them. Every row is
+# re-fetchable by price/src/crawl.ts from the retailer it names, and a price a week old
+# is worse than no price. Nothing here is authored.
+price/data/
+
 # Camera bundle and the WebAssembly it needs: build output of
 # `node app/scripts/build-eye.mjs`, 35 MB, pinned by app/package-lock.json.
 app/public/js/eye.js

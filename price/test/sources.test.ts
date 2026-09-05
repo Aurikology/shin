@@ -69,11 +69,23 @@ test('a different barcode is never taken as close enough', async () => {
   assert.match(r.unjoined[0].because, /different barcode/);
 });
 
-test('a name seller joins only in the confident band', async () => {
+test('a name seller with an unsure title still counts, marked as unsure', async () => {
   const ambiguous = async () => ({ code: CODE, confident: false });
   const r = await joinToProduct(CODE, [listing({ seller: 'Loblaws' })], sources, ambiguous);
-  assert.equal(r.observations.length, 0, 'an ambiguous title became a price');
-  assert.match(r.unjoined[0].because, /more than one product/);
+  assert.equal(r.observations.length, 1, 'Loblaws publishes no barcode; refusing here loses the seller');
+  assert.equal(r.observations[0].joinQuality, 'likely');
+  assert.equal(r.unjoined.length, 0);
+});
+
+test('a barcode seller still joins exactly', async () => {
+  const r = await joinToProduct(
+    CODE,
+    [listing({ seller: 'Walmart', gtin: '068100084245' })],
+    sources,
+    async () => null,
+  );
+  assert.equal(r.observations.length, 1);
+  assert.equal(r.observations[0].joinQuality, 'exact');
 });
 
 test('a name match landing on another product is refused', async () => {
