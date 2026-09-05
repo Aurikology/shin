@@ -15,9 +15,12 @@
  * This file will not average a seller's several prices for one barcode into a
  * single number: `spine.ts` already turns a set of PricePoints into a verdict,
  * with the kind and the date attached, which an average would throw away. It
- * also will not invent a category for a row: `categories` below is
- * `['grocery']` because every sampled row is food, drink, or household goods;
- * nothing in this table is tech, furniture, or used goods.
+ * also will not invent a category for a row. `categories` below is
+ * `['grocery', 'tech']`, and the note there carries the measurement behind it.
+ * An earlier version of this line claimed every row is food, drink or household
+ * goods, from a sample that happened to be food; joining all 438 priced codes
+ * to the catalogue showed 2 electronics rows, which grocery alone would have
+ * made permanently unreachable.
  *
  * THE SELLER-IDENTITY PROBLEM, and why most of this file's complexity is here
  * rather than in the price mapping. openprices rows (874 of 896) carry the
@@ -208,7 +211,27 @@ function combineNotes(...parts: (string | undefined)[]): string | undefined {
 export class ObservedSource implements PriceSource {
   readonly id = 'observed';
   readonly label = 'Observed retail prices (openprices, walmart.ca)';
-  readonly categories: readonly CategoryId[] = ['grocery'];
+  /**
+   * MEASURED, not sampled, 2026-09-05. The header used to say every row here is
+   * food, drink or household goods and that nothing in this table is tech. That
+   * was wrong, and it was wrong in the direction that loses prices silently.
+   * Joining all 438 distinct priced codes against the catalogue by source:
+   * openfoodfacts 409, openbeautyfacts 16, openproductsfacts 10, icecat 2, and
+   * 1 code not in the catalogue at all.
+   *
+   * `spine.ts` filters sources by this list before it asks any of them anything
+   * (`sources.filter((s) => s.categories.includes(query.category))`). So while
+   * this said grocery alone, the two icecat rows were prices we hold and would
+   * never once have served: a tech query could not reach this source, and the
+   * failure would have read as "no price found" rather than as a misrouting.
+   *
+   * Beauty and general products stay under grocery, which is this app's
+   * household bucket. The two electronics rows are why tech is here. Found by
+   * another lane noticing a PC game in a table whose comment claimed groceries,
+   * which is worth recording: the claim was written from a sample and the
+   * sample happened to be food.
+   */
+  readonly categories: readonly CategoryId[] = ['grocery', 'tech'];
   /**
    * False. This adapter's own read path, against the live database with the
    * seller-identity seam above, has not been run and verified by us the way

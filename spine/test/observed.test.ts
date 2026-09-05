@@ -376,6 +376,20 @@ test('a name that already opens with its brand is not given the brand twice', as
   assert.ok(!identity.label.startsWith('Green Giant Green Giant'), 'brand printed once');
 });
 
+test('the source declares tech as well as grocery, because prices we hold are otherwise unreachable', () => {
+  /*
+   * spine.ts filters sources by this list BEFORE asking any of them anything,
+   * so a category missing here is not a narrower source, it is a set of prices
+   * that can never be served and whose absence reads as "no price found".
+   * Measured against the live data: of 438 distinct priced codes, 409 join to
+   * openfoodfacts, 16 to openbeautyfacts, 10 to openproductsfacts and 2 to
+   * icecat. Those 2 are electronics. Grocery alone made them unreachable.
+   */
+  const cats = source().categories;
+  assert.ok(cats.includes('grocery'), 'the bulk of the table is food and household');
+  assert.ok(cats.includes('tech'), 'two electronics rows exist and must be reachable');
+});
+
 function source(): ObservedSource {
   return new ObservedSource(FIXTURE_PATH);
 }

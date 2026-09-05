@@ -164,6 +164,52 @@ export interface SearchQuery {
    * answer whenever the caller has a barcode or is only completing typed text.
    */
   readonly vectors?: boolean;
+  /**
+   * Which upstream databases the answer may come from, e.g. ['openfoodfacts'].
+   * Omitted or empty means the whole catalogue, which is the old behaviour and
+   * stays the default. The word arm honours it; the vector arm does not, and
+   * #runFts says why.
+   *
+   * THIS IS FOR RELEVANCE, NOT SPEED. It cannot be faster: EXPLAIN QUERY PLAN
+   * says `SCAN f VIRTUAL TABLE` then `SEARCH p USING INTEGER PRIMARY KEY`, so
+   * the MATCH always drives and product is a rowid lookup. An index on `source`
+   * could never be chosen, and the clause only rejects rows the FTS index has
+   * already handed over.
+   *
+   * What it buys: on 1 of 12 words a supermarket and an appliance catalogue
+   * share ("mixer"), the unrestricted top five put an electronics row, Cucina
+   * Mixer, beside four bottles of drink mixer. That is the wrong KIND of thing
+   * and the price engine would judge it by the wrong rule; Candidate.source
+   * below is there for the same reason.
+   *
+   * WHAT IT COSTS, AND THIS IS THE PART TO READ BEFORE USING IT ON A NARROW
+   * SOURCE. Restricting does not cost a flat millisecond. #textSearch keeps the
+   * strict AND pass only if it returned ENOUGH_STRICT_HITS rows, and a filter
+   * makes that pass return fewer rows for the same words, so it tips queries
+   * into the expensive OR fallback that never used to tip. Measured 2026-09-05
+   * over 11 multi-word queries, warmed, counting how many fell through:
+   *
+   *     all sources                   1 of 11 fell to OR,     99.9 ms total
+   *     grocery (3 sources, 3.8%)     2 of 11,               668.5 ms
+   *     openfoodfacts alone (2.4%)    2 of 11,               643.5 ms
+   *     openpetfoodfacts (0.2%)      10 of 11,             1,095.7 ms
+   *
+   * The worst single case: "toner cartridge hp" costs 55 ms unrestricted, where
+   * the strict pass fills up and answers, and 622 ms restricted to grocery,
+   * where the strict pass finds nothing and the OR pass scores an 850,420-row
+   * posting list one rowid lookup at a time. So the penalty scales with how
+   * small a share of the matches the named sources hold, not with the filter.
+   *
+   * This is the OR fallback's own pathology and it predates this field, but
+   * narrowing is what makes it common, and node:sqlite is synchronous, so those
+   * 622 ms block every other lookup on the thread. The fallback is NOT skipped
+   * when a restricted strict pass returns zero, because it sometimes earns its
+   * keep there: "greek yogurt" against openpetfoodfacts has no strict hit and
+   * the fallback finds a real yogurt in 6 ms. Telling the two apart wants the
+   * size of the OR match set, which is a change with its own measurement, not a
+   * rule to guess at.
+   */
+  readonly sources?: readonly string[];
 }
 
 export interface SearchResult {
@@ -355,28 +401,44 @@ export class Catalogue {
    * need the loose pass, and they are cheap ones, so the fallback costs little
    * and the recall is not traded away.
    */
-  #textSearch(text: string): { row: Row; bm25: number }[] {
+  #textSearch(text: string, sources?: readonly string[]): { row: Row; bm25: number }[] {
     const tokens = ftsTokens(text);
     if (tokens.length === 0) return [];
 
     if (tokens.length > 1) {
-      const strict = this.#runFts(joinFts(tokens, 'AND'));
+      const strict = this.#runFts(joinFts(tokens, 'AND'), sources);
       if (strict.length >= ENOUGH_STRICT_HITS) return strict;
     }
-    return this.#runFts(joinFts(tokens, 'OR'));
+    return this.#runFts(joinFts(tokens, 'OR'), sources);
   }
 
-  #runFts(match: string): { row: Row; bm25: number }[] {
+  /**
+   * `sources` narrows the word arm to the upstream databases a route says the
+   * answer can be in. It belongs in the SQL rather than in a filter over the
+   * returned list, because the LIMIT is applied here: filtering afterwards
+   * leaves you with fewer than RETRIEVE_N rows to fuse and rank, so the list
+   * gets shorter instead of getting the next best rows. It does not make the
+   * query faster and was never going to; SearchQuery.sources has the numbers.
+   *
+   * The vector arm deliberately does NOT take it. `product_vec` is a vec0 KNN
+   * that cannot join to `product.source` inside the match, so restricting it
+   * means overfetching and filtering, which silently returns a short list the
+   * moment survivors fall below RETRIEVE_N and reads as a weak arm rather than
+   * a truncated one. Left alone until someone measures it properly.
+   */
+  #runFts(match: string, sources?: readonly string[]): { row: Row; bm25: number }[] {
+    const narrowed = sources && sources.length > 0;
+    const clause = narrowed ? ` AND p.source IN (${sources.map(() => '?').join(',')})` : '';
     const rows = this.#db
       .prepare(
         `SELECT ${SELECT_COLS.split(', ').map((c) => `p.${c.trim()}`).join(', ')},
                 bm25(product_fts, 4.0, 4.0, 2.0, 1.0) AS score
          FROM product_fts f
          JOIN product p ON p.rowid = f.rowid
-         WHERE product_fts MATCH ?
+         WHERE product_fts MATCH ?${clause}
          ORDER BY score
          LIMIT ?`,
-      ).all(match, RETRIEVE_N) as unknown as (Row & { score: number })[];
+      ).all(match, ...(narrowed ? sources : []), RETRIEVE_N) as unknown as (Row & { score: number })[];
     return rows.map((r) => ({ row: r, bm25: r.score }));
   }
 
@@ -512,7 +574,7 @@ export class Catalogue {
     }
 
     const [textHits, vecHits] = await Promise.all([
-      Promise.resolve(this.#textSearch(text)),
+      Promise.resolve(this.#textSearch(text, query.sources)),
       query.vectors === false ? Promise.resolve([]) : this.#vectorSearch(text),
     ]);
 

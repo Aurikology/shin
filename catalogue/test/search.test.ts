@@ -309,3 +309,141 @@ test('a stray capital inside a stored tag does not leak into the label', () => {
   // out the same as the common spelling would, not title-cased.
   assert.equal(labelForTag('En:Snacks-And-Treats'), 'Snacks and treats');
 });
+
+/* ------------------------------------------------------------------------ *
+ * Restricting the word arm to named upstream databases.
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Its own fixture, because the shared one gives every row the source "test",
+ * and a filter cannot be observed against a table with one source in it.
+ *
+ * The shape here is the real one in miniature: a large source of the wrong KIND
+ * of thing (appliances) sitting beside a small source of the right kind, and a
+ * word that means something in both. In the live catalogue that is 4,972,252
+ * icecat rows against 122,154 openfoodfacts rows, and the word is "mixer".
+ */
+async function twoSourceFixture() {
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+
+  // Six drink mixers and six appliances. Six matters: RETRIEVE_N is larger than
+  // the fixture, so if the filter were applied to the RESULT rather than inside
+  // the query the drink list could not grow past the four that outranked the
+  // appliances. It has to be able to reach the fifth and sixth.
+  const drinks = ['Margarita Mixer', 'Bloody Mary Mixer', 'Pina Colada Mixer',
+    'Mojito Mixer', 'Daiquiri Mixer', 'Sangria Mixer'];
+  const gadgets = ['Stand Mixer', 'Hand Mixer', 'Audio Mixer',
+    'Cement Mixer', 'Planetary Mixer', 'Immersion Mixer'];
+
+  let n = 0;
+  for (const name of drinks) {
+    insert.run(`900000000000${n++}`, name, name, null, 'Bar Co', '750 ml', 750, 'ml',
+      '["en:beverages"]', 'en:beverages', '[]', 1, 'drinksdb');
+  }
+  for (const name of gadgets) {
+    insert.run(`900000000000${n++}`, name, name, null, 'Appliance Co', '1 ea', null, null,
+      '["en:appliances"]', 'en:appliances', '[]', 1, 'gadgetsdb');
+  }
+  rebuildFts(db);
+  rebuildCategories(db);
+  // The embedder is required even though every test below passes vectors:false
+  // and never reaches it. Leaving it off still ran green and only the typecheck
+  // caught it, which is worth knowing: a passing test here does not prove the
+  // fixture is well formed.
+  return new Catalogue(db, new HashEmbedder());
+}
+
+test('naming sources keeps the word arm inside them', async () => {
+  const cat = await twoSourceFixture();
+
+  const whole = await cat.search({ text: 'mixer', vectors: false, limit: 12 });
+  const wholeSources = new Set(whole.candidates.map((c) => c.source));
+  assert.ok(wholeSources.has('gadgetsdb'), 'unrestricted search should reach the appliances');
+
+  const narrowed = await cat.search({ text: 'mixer', vectors: false, limit: 12, sources: ['drinksdb'] });
+  assert.ok(narrowed.candidates.length > 0, 'restricting to a source that has matches returns them');
+  for (const c of narrowed.candidates) {
+    assert.equal(c.source, 'drinksdb', `${c.name} came from ${c.source}, which was not asked for`);
+  }
+});
+
+/**
+ * The same idea again, but with the wrong source big enough to fill the whole
+ * retrieval window. This is the case that decides where the filter has to live,
+ * and the smaller fixture above cannot show it: with twelve rows, RETRIEVE_N
+ * fetches all of them, so filtering the result and filtering the query give the
+ * same answer and either one would look correct. That is how a test passes
+ * without testing anything.
+ *
+ * Seventy appliances all named "Mixer" outrank three long drink names on bm25,
+ * so the unrestricted retrieval is appliances the whole way down.
+ */
+async function drownedFixture() {
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+
+  for (let i = 0; i < 70; i += 1) {
+    insert.run(`8000000000${String(i).padStart(3, '0')}`, 'Mixer', 'Mixer', null, 'Appliance Co',
+      '1 ea', null, null, '["en:appliances"]', 'en:appliances', '[]', 1, 'gadgetsdb');
+  }
+  const drinks = ['Margarita Cocktail Drink Mixer Bottle', 'Bloody Mary Cocktail Drink Mixer Bottle',
+    'Pina Colada Cocktail Drink Mixer Bottle'];
+  drinks.forEach((name, i) => {
+    insert.run(`900000000${String(i).padStart(4, '0')}`, name, name, null, 'Bar Co', '750 ml', 750,
+      'ml', '["en:beverages"]', 'en:beverages', '[]', 1, 'drinksdb');
+  });
+  rebuildFts(db);
+  rebuildCategories(db);
+  // The embedder is required even though every test below passes vectors:false
+  // and never reaches it. Leaving it off still ran green and only the typecheck
+  // caught it, which is worth knowing: a passing test here does not prove the
+  // fixture is well formed.
+  return new Catalogue(db, new HashEmbedder());
+}
+
+test('a source drowned out of the retrieval window is still reachable by naming it', async () => {
+  const cat = await drownedFixture();
+
+  const whole = await cat.search({ text: 'mixer', vectors: false, limit: 5 });
+  assert.ok(
+    whole.candidates.every((c) => c.source === 'gadgetsdb'),
+    'the fixture is only interesting if the wrong source really does drown the right one',
+  );
+
+  const narrowed = await cat.search({ text: 'mixer', vectors: false, limit: 5, sources: ['drinksdb'] });
+  assert.equal(narrowed.candidates.length, 3, 'every drink in the fixture comes back');
+
+  // The whole point, stated as an assertion: filtering the returned list would
+  // have produced nothing at all here, because nothing in it was a drink.
+  const wholeCodes = new Set(whole.candidates.map((c) => c.code));
+  assert.equal(
+    narrowed.candidates.filter((c) => !wholeCodes.has(c.code)).length,
+    3,
+    'all three were absent from the unrestricted result, so post-filtering could not have found them',
+  );
+});
+
+test('an empty or absent source list means the whole catalogue', async () => {
+  const cat = await twoSourceFixture();
+
+  const absent = await cat.search({ text: 'mixer', vectors: false, limit: 12 });
+  const empty = await cat.search({ text: 'mixer', vectors: false, limit: 12, sources: [] });
+  assert.deepEqual(
+    empty.candidates.map((c) => c.code),
+    absent.candidates.map((c) => c.code),
+    'an empty list is not a filter that matches nothing, it is no filter',
+  );
+});
+
+test('asking for a source with no match returns a miss, not another source', async () => {
+  const cat = await twoSourceFixture();
+  const out = await cat.search({ text: 'mixer', vectors: false, sources: ['nosuchdb'] });
+  assert.equal(out.candidates.length, 0);
+});
