@@ -51,7 +51,35 @@ export interface ObservationRow {
   readonly seenOn: string;
   readonly url: string | null;
   readonly imageUrl: string | null;
-  readonly inStock: number;
+  /**
+   * Whether the item was in stock when observed: 1 yes, 0 no. NULL means no
+   * stock claim was made at all, and that is not the same thing as 0. A
+   * source that photographs a price tag, not a shelf (see openprices.ts's
+   * header), carries no stock signal whatsoever, and writing 0 or 1 in that
+   * case would assert an observation nobody made. NULL is the honest value
+   * for "we do not know", and a caller that never observed stock must pass
+   * it rather than guess.
+   */
+  readonly inStock: number | null;
+  /**
+   * The three fields below are optional so a caller that never learned a
+   * physical store's identity (an online listing, or a caller written
+   * before these fields existed) is not forced to invent a value. Omitted
+   * means the caller does not carry store identity at all; present and null
+   * means it does, but this particular row has none.
+   */
+  /** Human readable store name, e.g. "Dominion". NULL when not a shop (see openprices.ts's filter) or unknown. */
+  readonly storeName?: string | null;
+  /** The store's city, e.g. "Mount Pearl". Same NULL rule as storeName. */
+  readonly storeCity?: string | null;
+  /**
+   * The composite OpenStreetMap id, "<OSM_TYPE>/<id>", e.g. "WAY/120689533".
+   * NEVER the bare numeric id: node, way and relation ids are separate number
+   * spaces in OpenStreetMap, so the same integer can name three different
+   * places depending on which space it came from, and a bare id silently
+   * picks one of the three without saying so.
+   */
+  readonly storeOsm?: string | null;
 }
 
 const DDL = `
@@ -72,7 +100,17 @@ CREATE TABLE IF NOT EXISTS observation (
   seen_on         TEXT NOT NULL,
   url             TEXT,
   image_url       TEXT,
-  in_stock        INTEGER NOT NULL DEFAULT 1,
+  /*
+   * No NOT NULL and no DEFAULT. A default of 1 here is the bug this column
+   * used to have: it made silence say yes. Open Prices' API carries no stock
+   * field at all, so every row it ever wrote asserted a fact nobody observed.
+   * NULL is now a real, storable state, meaning "not observed", distinct
+   * from 0, "observed out of stock".
+   */
+  in_stock        INTEGER,
+  store_name      TEXT,
+  store_city      TEXT,
+  store_osm       TEXT,
   PRIMARY KEY (seller, seller_sku, seen_on)
 );
 
@@ -121,20 +159,46 @@ export type AttemptOutcome =
   | 'throttled'
   | 'error';
 
-export function openPrices(path: string): DatabaseSync {
+/**
+ * Default location of the price database. SHIN_PRICES overrides it, the same
+ * way catalogue/src/load.ts's SHIN_CATALOGUE overrides that package's own
+ * path, so a package outside price/ (the app that serves a verdict has to
+ * open this same database) is not stuck hardcoding a relative path of its
+ * own into a different package's data directory. The fallback is exactly
+ * the path openprices.ts and crawl.ts already resolved on their own before
+ * this existed, so nothing that runs today without the variable set changes
+ * behaviour.
+ */
+export const PRICES_DB_PATH: string =
+  process.env.SHIN_PRICES ??
+  new URL('../data/prices.db', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+
+export function openPrices(path: string = PRICES_DB_PATH): DatabaseSync {
   const db = new DatabaseSync(path);
   db.exec('PRAGMA journal_mode = WAL');
   db.exec(DDL);
   return db;
 }
 
+/*
+ * INSERT OR REPLACE deletes the existing row and inserts a fresh one; it does
+ * not merge. Any column that exists in the table but is missing from this
+ * statement's column list silently reverts to its default (or NULL, now that
+ * in_stock has none) on every re-crawl of an already-seen key. The three
+ * store_* columns were added to the table in this same change; if a future
+ * column is added to the table and not added here, in both the column list
+ * and the values list and the bind arguments below, it will quietly wipe
+ * itself out on the next INSERT OR REPLACE for that key. Count them: 20
+ * columns, 20 placeholders, 20 bind arguments below. Keep the three counts
+ * equal.
+ */
 export function recordObservation(db: DatabaseSync, o: ObservationRow): void {
   db.prepare(
     `INSERT OR REPLACE INTO observation
        (code, seller, seller_sku, seller_name, seller_brand, price_cents, kind,
         unit_price_cents, unit_label, currency, country, region, join_method,
-        seen_on, url, image_url, in_stock)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        seen_on, url, image_url, in_stock, store_name, store_city, store_osm)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   ).run(
     o.code,
     o.seller,
@@ -153,6 +217,9 @@ export function recordObservation(db: DatabaseSync, o: ObservationRow): void {
     o.url,
     o.imageUrl,
     o.inStock,
+    o.storeName ?? null,
+    o.storeCity ?? null,
+    o.storeOsm ?? null,
   );
 }
 

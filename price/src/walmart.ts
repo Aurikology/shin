@@ -3,27 +3,37 @@
  *
  * MEASURED 2026-09-05, not remembered:
  *
- *   - Search and product pages both embed their data as JSON in a script tag
- *     with id `__NEXT_DATA__`. No key, no auth, no cookie. About 800 ms a page.
- *   - Search by UPC returns ZERO results. `q=068100084245` gives count 0 while
- *     `q=kraft peanut butter` gives 15. The site does not index barcodes. This
- *     kills the obvious plan of joining by barcode in one request and is why
- *     this adapter costs two requests per product instead of one.
- *   - Search result items carry name, brand, price, rating, review count, image
- *     and a canonical URL, and carry NO barcode. Every key was listed; there is
- *     no upc, gtin, ean, sku or barcode field.
- *   - The product page DOES carry the barcode, as `product.upc`, twelve digits.
- *     Zero padded to thirteen it is the same code Open Food Facts uses. The
- *     Kraft 1 kg jar reads upc 068100084245 at $5.97 with a unit price of
- *     "30 cents per 100 g" already computed by the seller.
+ *   - Product pages embed their data as JSON in a script tag with id
+ *     `__NEXT_DATA__`. No key, no auth, no cookie. About 800 ms a page.
+ *   - The site does not index barcodes: searching `q=068100084245` (before the
+ *     search leg below was removed) returned count 0, while `q=kraft peanut
+ *     butter` returned 15. The barcode exists nowhere except the product page,
+ *     as `product.upc`, twelve digits. Zero padded to thirteen it is the same
+ *     code Open Food Facts uses. The Kraft 1 kg jar reads upc 068100084245 at
+ *     $5.97 with a unit price of "30 cents per 100 g" already computed by the
+ *     seller.
  *
- * So the shape is forced: search by text to get candidates, then open the top
- * few product pages to learn their barcodes, and accept the one whose barcode
- * is the one we asked for. That is still an exact join. It just costs a hop.
+ * This file only opens a product page by SKU; it no longer searches by text.
+ * `search()` and the candidate parsing that fed it were removed 2026-09-05
+ * because walmart.ca/robots.txt disallows `/search?*` under `User-agent: *`.
  *
- * The text search is where the recall is won or lost, so the query is built
- * from brand plus name plus size rather than from the catalogue's display name,
- * which often carries marketing words the seller does not use.
+ * That does not close off discovery. The same robots.txt lists, among sixteen
+ * Sitemap lines:
+ *
+ *     Sitemap: https://www.walmart.ca/sitemap-product-1p-en.xml
+ *
+ * which is a sitemap INDEX (checked 2026-09-05) pointing at five gzipped
+ * shards, lastmod 2026-09-03. One shard, downloaded and read, holds entries
+ * shaped exactly like:
+ *
+ *     <loc>https://www.walmart.ca/en/ip/miniJACK-Gender-Neutral-Toddler-Washed-Muscle-Tank/7EC4X3MM71OJ</loc>
+ *
+ * The last path segment, `7EC4X3MM71OJ` here, is the sku `detail()` below
+ * takes, and the URL sits under `/en/ip/*\/*`, which robots.txt explicitly
+ * Allows. A sitemap crawler built against this would be a sanctioned way to
+ * discover new SKUs. It is not built here: that is a scoped decision for
+ * whoever picks it up next, not a side effect of deleting a disallowed search
+ * call. See crawl.ts's header for what the crawl can do without it.
  */
 
 const SELLER = 'walmart.ca';
@@ -51,20 +61,6 @@ const HEADERS: Record<string, string> = {
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
   'accept-language': 'en-CA,en;q=0.9',
 };
-
-/** How many product pages one search is allowed to open. */
-export const MAX_PAGES_PER_SEARCH = 4;
-
-export interface Candidate {
-  readonly sku: string;
-  readonly name: string;
-  readonly brand: string | null;
-  readonly priceCents: number | null;
-  readonly url: string | null;
-  readonly imageUrl: string | null;
-  readonly rating: number | null;
-  readonly reviews: number | null;
-}
 
 export interface ProductDetail {
   readonly sku: string;
@@ -107,11 +103,14 @@ function embeddedJson(html: string): unknown | null {
  * MEASURED 2026-09-05: the site is behind PerimeterX bot detection (the page
  * declares `window._pxAppId`). Three concurrent workers tripped it within about
  * forty requests. A throttled response still returns HTTP 200 with a normal
- * looking shell, about 7.5 kB, and NO embedded data. A real search page is 460
- * to 580 kB.
+ * looking shell, about 7.5 kB, and NO embedded data. A real search page,
+ * measured before the search leg was removed, ran 460 to 580 kB. The stub
+ * comes from PerimeterX sitting in front of the whole site, not from anything
+ * route specific, so the same 60 kB cutoff below is what tells a throttled
+ * product page apart from a real one too.
  *
  * This distinction is the whole reason this function exists. Without it a
- * throttled reply parses as a search that found nothing, and the coverage
+ * throttled reply parses as a page that found nothing, and the coverage
  * figure the crawl reports becomes a statement about our request rate dressed
  * up as a statement about what Walmart stocks. A zero has to be provably a zero
  * before it is recorded as one.
@@ -180,44 +179,6 @@ function dig(o: unknown, path: readonly string[]): any {
     cur = cur[k];
   }
   return cur;
-}
-
-/**
- * Text search. Returns the grid as the site would show it, price included, barcode absent.
- *
- * Throws `Throttled` rather than returning an empty list, because an empty list
- * means the seller has nothing and a throttle means we do not know.
- */
-export async function search(query: string, timeoutMs = 8000): Promise<Candidate[]> {
-  const html = await getHtml(`${BASE}/search?q=${encodeURIComponent(query)}`, timeoutMs);
-  if (html === null) return [];
-  const json = embeddedJson(html);
-  if (json === null) return [];
-  const stacks = dig(json, ['props', 'pageProps', 'initialData', 'searchResult', 'itemStacks']);
-  if (!Array.isArray(stacks)) return [];
-  const out: Candidate[] = [];
-  for (const stack of stacks) {
-    const items = (stack as any)?.items;
-    if (!Array.isArray(items)) continue;
-    for (const it of items) {
-      const sku = String((it as any)?.usItemId ?? (it as any)?.id ?? '');
-      const name = (it as any)?.name;
-      if (sku === '' || typeof name !== 'string') continue;
-      /* Sponsored rows are ads for a different product. They price something we did not ask about. */
-      if ((it as any)?.sponsoredProduct) continue;
-      out.push({
-        sku,
-        name,
-        brand: typeof (it as any)?.brand === 'string' ? (it as any).brand : null,
-        priceCents: cents((it as any)?.price),
-        url: typeof (it as any)?.canonicalUrl === 'string' ? BASE + (it as any).canonicalUrl : null,
-        imageUrl: typeof (it as any)?.image === 'string' ? (it as any).image : null,
-        rating: typeof (it as any)?.averageRating === 'number' ? (it as any).averageRating : null,
-        reviews: typeof (it as any)?.numberOfReviews === 'number' ? (it as any).numberOfReviews : null,
-      });
-    }
-  }
-  return out;
 }
 
 /** Open one product page. This is the only place the barcode exists. */

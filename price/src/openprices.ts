@@ -51,14 +51,16 @@
  */
 
 import { DatabaseSync } from 'node:sqlite';
-import { openPrices, recordObservation, recordAttempt } from './store.ts';
+import { openPrices, recordObservation, recordAttempt, PRICES_DB_PATH } from './store.ts';
 import type { JoinMethod } from './store.ts';
 
 const CATALOGUE = new URL('../../catalogue/data/catalogue.db', import.meta.url).pathname.replace(
   /^\/([A-Za-z]:)/,
   '$1',
 );
-const PRICES = new URL('../data/prices.db', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+/* PRICES_DB_PATH lives in store.ts, behind SHIN_PRICES, so every package that
+ * opens this database resolves the same path the same way. */
+const PRICES = PRICES_DB_PATH;
 
 const SELLER = 'openprices';
 const API = 'https://prices.openfoodfacts.org/api/v1/prices';
@@ -78,6 +80,15 @@ export function pad13(code: string): string {
 interface ApiLocation {
   readonly osm_address_country_code?: string | null;
   readonly type?: string;
+  readonly osm_id?: number | null;
+  /** "NODE" | "WAY" | "RELATION" in practice; kept as string, not an enum, because a new OSM type is a value the API can add, not a bug in this file. */
+  readonly osm_type?: string | null;
+  readonly osm_name?: string | null;
+  readonly osm_address_city?: string | null;
+  /** e.g. "shop", "amenity", "tourism". THE FILTER below reads this. */
+  readonly osm_tag_key?: string | null;
+  /** e.g. "supermarket", "convenience", "house". THE FILTER below reads this. */
+  readonly osm_tag_value?: string | null;
 }
 
 interface ApiProduct {
@@ -139,6 +150,10 @@ function isCatalogued(cat: DatabaseSync, code: string): boolean {
  * address to look up on OpenStreetMap; those fall back to the project's own
  * internal location id instead of being recorded as national (null), because
  * they are a specific listing, not an average across the country.
+ *
+ * This keeps returning the bare id: the `region` column's meaning is
+ * unchanged by this file's other additions. `storeOsmOf` below is the new,
+ * unambiguous form, and it is what the new `store_osm` column stores.
  */
 function regionOf(item: ApiItem): string | null {
   if (item.location_osm_id !== null && item.location_osm_id !== undefined) {
@@ -148,6 +163,94 @@ function regionOf(item: ApiItem): string | null {
     return `online:${item.location_id}`;
   }
   return null;
+}
+
+/**
+ * The composite OpenStreetMap id for the `store_osm` column: "<OSM_TYPE>/<id>",
+ * e.g. "WAY/120689533". Node, way and relation ids are separate number spaces
+ * in OpenStreetMap, so the bare id `regionOf` stores in `region` can name
+ * three different places depending on which space it came from; this is the
+ * form that does not have that ambiguity. Online listings have no OSM
+ * location at all, so they keep the same `online:<location_id>` form as
+ * `region`, for the same reason: it is a specific listing, not an average.
+ */
+function storeOsmOf(item: ApiItem): string | null {
+  const osmType = item.location?.osm_type;
+  if (item.location_osm_id !== null && item.location_osm_id !== undefined && osmType) {
+    return `${osmType}/${item.location_osm_id}`;
+  }
+  if (item.location_id !== null && item.location_id !== undefined) {
+    return `online:${item.location_id}`;
+  }
+  return null;
+}
+
+/**
+ * Is this location somewhere a person buys the thing, as opposed to somewhere
+ * they happened to be standing?
+ *
+ * CORRECTED 2026-09-05, same day it was written. The first version allowed
+ * `osm_tag_key === 'shop'` and nothing else, chosen from a 100-LOCATION sample.
+ * That sample answered the wrong question: prices are not spread evenly across
+ * locations, so counting locations tells you nothing about how many prices a
+ * rule withholds. Counting ROWS over the whole Canadian feed (664 rows, 7
+ * pages) instead:
+ *
+ *   shop=supermarket        212 rows,  33 locations  Dominion, Real Canadian Superstore
+ *   shop=department_store   181 rows,   9 locations  Walmart, Winners, Hudson's Bay
+ *   amenity=pharmacy         95 rows,   6 locations  London Drugs, Shoppers Drug Mart
+ *   highway=bus_stop         56 rows,   2 locations  8 Ave (WB) at McBride Blvd
+ *   shop=greengrocer         39 rows,   1 location   Choices Market
+ *   shop=wholesale           34 rows,  13 locations  Costco, Costco Business Center
+ *   ... then a long tail of single-location shop=* kinds ...
+ *   railway=station           4 rows,   1 location   Runnymede
+ *   amenity=charging_station  1 row,    1 location   New Westminster City Hall
+ *   leisure=park              1 row,    1 location   Tipperary Park
+ *
+ * The shop-only rule withheld 161 of those rows, and 95 of the 161 were a
+ * pharmacy chain: London Drugs alone carries 146 rows in our stored table.
+ * OpenStreetMap tags a pharmacy under `amenity`, not `shop`, so a real
+ * retailer was being anonymised on a tagging convention. Hence the pharmacy
+ * exception, which is added because the data showed it and not on principle.
+ *
+ * Everything still withheld is withheld correctly: somebody has geotagged 56
+ * prices to a BUS STOP, four to a railway station, one to a city hall charging
+ * point and one to a park. Those are places a person stood, not places that
+ * sold anything, and naming one as the store would be a straightforward lie.
+ *
+ * Nothing is added to this list on the grounds that it sounds retail. A kind
+ * earns a place by appearing in the feed with a real retailer's name against
+ * it, counted in rows.
+ */
+function isRetail(loc: ApiLocation): boolean {
+  if (loc.osm_tag_key === 'shop') return true;
+  return loc.osm_tag_key === 'amenity' && loc.osm_tag_value === 'pharmacy';
+}
+
+/**
+ * THE FILTER. A 100-location sample of this API on 2026-09-05 found prices
+ * attached to more than shops: supermarket 69, convenience 12, furniture 3,
+ * fuel 2, town 2, administrative 2, house 1, chemist 1, greengrocer 1,
+ * books 1, pedestrian 1, charging_station 1, frozen_food 1, retail 1,
+ * garden_centre 1. `osm_tag_key === 'shop'` is what tells those apart: a
+ * price attached to a `house` (tag key "building", not "shop") is somebody's
+ * home, and naming it would publish a stranger's address as a store. A price
+ * attached to a `town` (tag key "place") would render as "Seen at Mount
+ * Pearl, Mount Pearl" - a place, not a store, wearing its own city's name
+ * twice. Non-shop rows still keep `storeOsm` (see above), so the location is
+ * not lost, only the human-readable name and city are withheld.
+ */
+function storeNameAndCity(item: ApiItem): { storeName: string | null; storeCity: string | null } {
+  const loc = item.location;
+  if (!loc || !isRetail(loc)) {
+    return { storeName: null, storeCity: null };
+  }
+  /* osm_name was present on 100 of 100 sampled locations, so a null here is a
+   * guard against a hole in the data, not the expected case. */
+  return {
+    storeName: loc.osm_name ?? null,
+    storeCity: loc.osm_address_city ?? null,
+  };
 }
 
 async function main(): Promise<void> {
@@ -196,6 +299,8 @@ async function main(): Promise<void> {
 
       const region = regionOf(item);
       if (region !== null) locations.add(region);
+      const storeOsm = storeOsmOf(item);
+      const { storeName, storeCity } = storeNameAndCity(item);
 
       if (minDate === null || item.date < minDate) minDate = item.date;
       if (maxDate === null || item.date > maxDate) maxDate = item.date;
@@ -230,7 +335,13 @@ async function main(): Promise<void> {
         seenOn: item.date,
         url: null,
         imageUrl,
-        inStock: 1,
+        /* This source photographs a price tag, not a shelf: the API carries
+         * no stock field at all, so every row here is "not observed", never
+         * a guessed yes. See the header and ObservationRow.inStock. */
+        inStock: null,
+        storeName,
+        storeCity,
+        storeOsm,
       });
 
       /* Mirror crawl.ts's wasPrice handling: a discounted row that also names
@@ -255,7 +366,10 @@ async function main(): Promise<void> {
           seenOn: item.date,
           url: null,
           imageUrl,
-          inStock: 1,
+          inStock: null,
+          storeName,
+          storeCity,
+          storeOsm,
         });
       }
 

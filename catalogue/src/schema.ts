@@ -205,6 +205,34 @@ export function rebuildFts(db: DatabaseSync): void {
  * Done as a rebuild rather than incrementally on insert, because a product's
  * path can shrink on an upstream refresh and an incremental writer would leave
  * the product a member of a category it has left.
+ *
+ * Tags are lower-cased here, at write time, rather than at query time.
+ * Measured against the loaded catalogue: 522 lower-cased tags carry more than
+ * one spelling (en:kitchenware = 9,534 rows, en:Kitchenware = 5; en:snacks =
+ * 7,353, en:Snacks = 2), covering 116,168 membership rows that a query for the
+ * common spelling cannot see. The tempting fix is `WHERE lower(pc.tag) = ?` at
+ * the two call sites that read this table (the ring walk in search.ts, the
+ * alternatives probe in alternatives.ts). That is wrong: it defeats
+ * product_category_tag, the index both of those queries ride on, over a table
+ * that is about to hold 17.2 million rows, turning an index seek into a full
+ * scan on every search. Folding the case once, here, when the row is written,
+ * keeps the index usable and fixes every reader at once.
+ *
+ * This relies on two things about the table that are worth stating so a future
+ * reader does not have to re-derive them:
+ *
+ *   `INSERT OR IGNORE` against the `(rowid_ref, tag)` primary key already
+ *   collapses duplicate tags for the same product, and it is already doing so
+ *   today: the stored paths imply 17,190,313 tag insertions against
+ *   17,188,658 rows actually present, so 1,655 are already being silently
+ *   collapsed before this change. Lower-casing only grows the set of pairs
+ *   that collide; it does not change what collision means.
+ *
+ *   `depth` (written below) is read nowhere in this codebase -- grepped, not
+ *   assumed. So when a lower-casing collision makes `INSERT OR IGNORE` keep
+ *   whichever depth arrived first and drop the other, nothing downstream can
+ *   observe the difference. If `depth` is ever read, that stops being true and
+ *   this comment stops being sufficient.
  */
 export function rebuildCategories(db: DatabaseSync): void {
   db.exec('DELETE FROM product_category');
@@ -223,7 +251,7 @@ export function rebuildCategories(db: DatabaseSync): void {
       continue;
     }
     path.forEach((tag, depth) => {
-      insert.run(BigInt(r.rowid), tag, depth);
+      insert.run(BigInt(r.rowid), tag.toLowerCase(), depth);
       n += 1;
       if (n % 50000 === 0) {
         db.exec('COMMIT');

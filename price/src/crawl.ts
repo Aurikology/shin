@@ -1,15 +1,39 @@
 /**
  * The crawl, and the measurement that decides what this product can be.
  *
- * Run it on a sample first. The number it prints, how many catalogue rows come
+ * DISCOVERY LEG REMOVED, 2026-09-05. walmart.ca/robots.txt, fetched live that
+ * day, disallows `/search?*` under `User-agent: *`. This crawl used to build a
+ * text query, call `walmart.search`, and open the top few results to learn new
+ * SKUs; that leg is gone. `detail()` in walmart.ts still opens a known product
+ * page, which robots.txt permits, but as of this change nothing here can turn
+ * a catalogue product into a Walmart SKU.
+ *
+ * This is not a permanent dead end, and this crawl is not the reason: a
+ * sanctioned discovery route exists and is documented in walmart.ts's header
+ * (the site's own product sitemap, listed in its robots.txt, under a path
+ * robots.txt Allows) - it is just not built here. Building it, or getting a
+ * Walmart Marketplace API key instead, is a scoped decision for whoever picks
+ * this up next, not a side effect of deleting a disallowed search call.
+ *
+ * The immediate consequence: until one of those is built, this crawl can only
+ * re-price a Walmart product it has already priced at least once. Counted
+ * 2026-09-05: 22 walmart.ca observation rows across 21 distinct products, out
+ * of a catalogue over 76,000 rows deep. That is the entire set this crawl can
+ * touch today.
+ *
+ * This is an accepted cost, decided the day the search leg was found to be
+ * disallowed, not an oversight to "fix" by restoring the search call. A
+ * disabled-but-present crawler of a disallowed path is the same liability as
+ * a live one, so it was deleted rather than flagged off.
+ *
+ * Run it on a sample first. The number it prints, how many known SKUs come
  * back with a price, is the one number every downstream design choice depends
  * on, and it is not guessable. A tier design, a verdict, a range and a set of
- * cheaper options all assume prices exist. If they exist for five percent of
- * the catalogue, the product is a different product.
+ * cheaper options all assume prices exist.
  *
- *   node src/crawl.ts --sample 100
- *   node src/crawl.ts --sample 100 --concurrency 6
- *   node src/crawl.ts --all --resume
+ *   node src/crawl.ts --sample 10
+ *   node src/crawl.ts --concurrency 6
+ *   node src/crawl.ts --resume
  *   node src/crawl.ts --report
  *
  * Every attempt is written down, including the ones that found nothing, so the
@@ -22,10 +46,11 @@ import { openPrices, recordObservation, recordAttempt, alreadyAttempted, coverag
 import type { AttemptOutcome } from './store.ts';
 import * as walmart from './walmart.ts';
 
-const CATALOGUE = new URL('../../catalogue/data/catalogue.db', import.meta.url).pathname.replace(
-  /^\/([A-Za-z]:)/,
-  '$1',
-);
+/*
+ * No more catalogue.db import: the SKU list this crawl works from now comes
+ * entirely out of the price database itself, since `search()` is gone and the
+ * catalogue plays no part in choosing what to ask Walmart about any more.
+ */
 const PRICES = new URL('../data/prices.db', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 
 /**
@@ -36,65 +61,26 @@ const PRICES = new URL('../data/prices.db', import.meta.url).pathname.replace(/^
  * refused everything for roughly ten minutes. At one worker every 3000 ms,
  * twenty consecutive requests came back clean with no throttle at all.
  *
- * The consequence, stated plainly because it sets the schedule.
- *
- * CORRECTED 2026-09-05 against a timed 60 product run, replacing an estimate
- * that was about half the truth. The old figure assumed 2.5 requests per
- * product and gave seven days. The measured run took 17 min 40 s for 60
- * products at one worker, which is 17.7 s per product, because 65% of products
- * are not found by barcode and each of those scans all four candidate detail
- * pages before giving up: 1 search plus 4 details, not 2.5 requests.
- *
- * 76,965 Canadian grocery rows at 17.7 s is about 15.7 days of continuous
- * crawling at one worker. That is the real cost of a national price corpus read
- * this way, and it is why the crawl starts before anything needs it.
- *
- * The lever, if that is too slow, is the 65% rather than the pacing: a cheaper
- * way to reject a wrong candidate would cut four requests off two products in
- * three.
+ * REMOVED 2026-09-05: this comment used to carry a full-catalogue crawl time
+ * estimate (17.7 s per product, ~15.7 days for 76,965 rows). That number was
+ * built almost entirely from the four detail pages an unmatched product opened
+ * while scanning search candidates. The search leg that produced unmatched
+ * products is gone (see the file header), so the number is not stale, it is
+ * about a workload that no longer exists. A fresh estimate belongs here once
+ * this crawl has a real discovery source again, not a corrected version of one
+ * that measured a different crawl.
  */
 const DELAY_MS = 3000;
 
-interface Target {
-  readonly code: string;
-  readonly name: string;
-  readonly brands: string | null;
-  readonly quantity: string | null;
-}
-
 /**
- * The query the seller is actually asked.
- *
- * Built from brand plus name plus size rather than the catalogue's display
- * string, because the display string carries marketing words ("Grade A Dark
- * Color Robust Taste") that no retailer's search index contains, and every one
- * of them narrows a keyword search toward zero. The brand is the single most
- * discriminating token a retail search has, so it leads.
+ * One Walmart SKU this crawl already knows about, and the catalogue code it
+ * was priced against. Read back from our own price history, not the
+ * catalogue: since `search()` was removed (see the file header), a Walmart
+ * SKU can only come from a row this crawl has already written.
  */
-export function buildQuery(t: Target): string {
-  const brand = (t.brands ?? '')
-    .split(',')[0]
-    .replace(/\b(usda|organic|certified)\b/gi, '')
-    .trim();
-  const name = t.name
-    .replace(/[™®]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .split(' ')
-    .slice(0, 6)
-    .join(' ');
-  const size = (t.quantity ?? '').trim();
-  const parts = [brand, name, size].filter((p) => p.length > 0);
-  /* Deduplicate: the brand is very often already the first word of the name. */
-  const seen = new Set<string>();
-  const words: string[] = [];
-  for (const w of parts.join(' ').split(/\s+/)) {
-    const k = w.toLowerCase();
-    if (seen.has(k)) continue;
-    seen.add(k);
-    words.push(w);
-  }
-  return words.slice(0, 10).join(' ');
+interface SkuTarget {
+  readonly sku: string;
+  readonly code: string;
 }
 
 /** Catalogue codes are 13 digits, zero padded. A seller's 12 digit UPC is the same code. */
@@ -105,8 +91,26 @@ export function pad13(upc: string): string {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * The outcomes this crawl can still produce, now that `search()` is gone.
+ *
+ * `AttemptOutcome` itself, declared in store.ts, still lists `no_candidates`
+ * and `named` too - this lane does not own that file, so it is not narrowed
+ * there. This local alias is the real contract: nothing below writes either
+ * of those two any more. HANDOFF for whoever next edits store.ts: narrow
+ * `AttemptOutcome` to match, and reword the `crawl_attempt` table's comment,
+ * which still describes one row per catalogue product per crawl - the
+ * denominator is now known SKUs, not catalogue products.
+ */
+type KnownSkuOutcome = Extract<AttemptOutcome, 'matched' | 'no_barcode_match' | 'throttled' | 'error'>;
+
 interface Outcome {
-  readonly outcome: AttemptOutcome;
+  readonly outcome: KnownSkuOutcome;
+  /**
+   * Always 0. There is no candidate list any more now that a known SKU is
+   * asked for directly; the field stays only because store.ts's schema still
+   * has the column and this lane does not own that file.
+   */
   readonly candidates: number;
   readonly note: string | null;
 }
@@ -133,12 +137,11 @@ function throttleHit(): void {
   gate.until = Math.max(gate.until, Date.now() + backoff);
 }
 
-async function priceOne(db: DatabaseSync, t: Target, today: string): Promise<Outcome> {
-  const query = buildQuery(t);
-  let candidates: walmart.Candidate[];
+async function priceOne(db: DatabaseSync, t: SkuTarget, today: string): Promise<Outcome> {
   await waitForGate();
+  let d: walmart.ProductDetail | null;
   try {
-    candidates = await walmart.search(query);
+    d = await walmart.detail(t.sku);
     gate.strikes = Math.max(0, gate.strikes - 1);
   } catch (e) {
     if (e instanceof walmart.Throttled) {
@@ -147,161 +150,112 @@ async function priceOne(db: DatabaseSync, t: Target, today: string): Promise<Out
     }
     return { outcome: 'error', candidates: 0, note: String(e).slice(0, 200) };
   }
-  if (candidates.length === 0) return { outcome: 'no_candidates', candidates: 0, note: query };
 
-  const want = pad13(t.code);
-  const look = candidates.slice(0, walmart.MAX_PAGES_PER_SEARCH);
-
-  /*
-   * Best name candidate is kept as we go. If no barcode matches we still know
-   * the seller stocks something by this brand and name, and that is a real
-   * observation about the world even though it is a weaker join. Discarding it
-   * would report "nobody sells this" when the truth is "we could not prove it
-   * was the same jar".
-   */
-  let nameFallback: walmart.ProductDetail | null = null;
-
-  for (const c of look) {
-    await sleep(DELAY_MS);
-    await waitForGate();
-    let d: walmart.ProductDetail | null;
-    try {
-      d = await walmart.detail(c.sku);
-    } catch (e) {
-      if (e instanceof walmart.Throttled) {
-        throttleHit();
-        return { outcome: 'throttled', candidates: candidates.length, note: e.message };
-      }
-      return { outcome: 'error', candidates: candidates.length, note: String(e).slice(0, 200) };
-    }
-    if (d === null || d.priceCents === null) continue;
-
-    if (d.upc !== null && pad13(d.upc) === want) {
-      const promo = d.wasPriceCents !== null && d.wasPriceCents > d.priceCents;
-      recordObservation(db, {
-        code: want,
-        seller: walmart.WALMART_SELLER,
-        sellerSku: d.sku,
-        sellerName: d.name,
-        sellerBrand: d.brand,
-        priceCents: d.priceCents,
-        kind: promo ? 'promotional' : 'regular',
-        unitPriceCents: d.unitPriceCents,
-        unitLabel: d.unitLabel,
-        currency: 'CAD',
-        country: 'CA',
-        region: null,
-        joinMethod: 'gtin',
-        seenOn: today,
-        url: d.url,
-        imageUrl: d.imageUrl,
-        inStock: d.inStock ? 1 : 0,
-      });
-      /* The regular price is also worth keeping when the current one is a sale. */
-      if (promo && d.wasPriceCents !== null) {
-        recordObservation(db, {
-          code: want,
-          seller: walmart.WALMART_SELLER,
-          sellerSku: `${d.sku}#was`,
-          sellerName: d.name,
-          sellerBrand: d.brand,
-          priceCents: d.wasPriceCents,
-          kind: 'regular',
-          unitPriceCents: null,
-          unitLabel: null,
-          currency: 'CAD',
-          country: 'CA',
-          region: null,
-          joinMethod: 'gtin',
-          seenOn: today,
-          url: d.url,
-          imageUrl: d.imageUrl,
-          inStock: d.inStock ? 1 : 0,
-        });
-      }
-      return { outcome: 'matched', candidates: candidates.length, note: null };
-    }
-
-    if (nameFallback === null && brandAgrees(t, d)) nameFallback = d;
+  if (d === null || d.priceCents === null) {
+    return { outcome: 'no_barcode_match', candidates: 0, note: 'no usable price on the product page' };
   }
 
-  if (nameFallback !== null) {
+  /*
+   * Checked every time, not trusted from history: a Walmart SKU can be
+   * reassigned to a different product on their side between crawls, and this
+   * is the only place left that would catch it. `no_barcode_match` is reused
+   * for the disagreement rather than left unrecorded - openprices.ts already
+   * uses that same outcome for "we saw a barcode and it did not join" - and it
+   * keeps the name `AttemptOutcome` gives it in store.ts, which this lane does
+   * not own. A name less tied to "barcode" is a handoff, not a fix made here.
+   */
+  if (d.upc !== null && pad13(d.upc) !== t.code) {
+    return {
+      outcome: 'no_barcode_match',
+      candidates: 0,
+      note: `page now shows upc ${d.upc}, expected ${t.code}`,
+    };
+  }
+
+  const promo = d.wasPriceCents !== null && d.wasPriceCents > d.priceCents;
+  recordObservation(db, {
+    code: t.code,
+    seller: walmart.WALMART_SELLER,
+    sellerSku: d.sku,
+    sellerName: d.name,
+    sellerBrand: d.brand,
+    priceCents: d.priceCents,
+    kind: promo ? 'promotional' : 'regular',
+    unitPriceCents: d.unitPriceCents,
+    unitLabel: d.unitLabel,
+    currency: 'CAD',
+    country: 'CA',
+    region: null,
+    joinMethod: 'gtin',
+    seenOn: today,
+    url: d.url,
+    imageUrl: d.imageUrl,
+    inStock: d.inStock ? 1 : 0,
+  });
+  /* The regular price is also worth keeping when the current one is a sale. */
+  if (promo && d.wasPriceCents !== null) {
     recordObservation(db, {
-      code: want,
+      code: t.code,
       seller: walmart.WALMART_SELLER,
-      sellerSku: nameFallback.sku,
-      sellerName: nameFallback.name,
-      sellerBrand: nameFallback.brand,
-      priceCents: nameFallback.priceCents ?? 0,
+      sellerSku: `${d.sku}#was`,
+      sellerName: d.name,
+      sellerBrand: d.brand,
+      priceCents: d.wasPriceCents,
       kind: 'regular',
-      unitPriceCents: nameFallback.unitPriceCents,
-      unitLabel: nameFallback.unitLabel,
+      unitPriceCents: null,
+      unitLabel: null,
       currency: 'CAD',
       country: 'CA',
       region: null,
-      joinMethod: 'name',
+      joinMethod: 'gtin',
       seenOn: today,
-      url: nameFallback.url,
-      imageUrl: nameFallback.imageUrl,
-      inStock: nameFallback.inStock ? 1 : 0,
+      url: d.url,
+      imageUrl: d.imageUrl,
+      inStock: d.inStock ? 1 : 0,
     });
-    return { outcome: 'named', candidates: candidates.length, note: nameFallback.name.slice(0, 120) };
   }
-
-  return { outcome: 'no_barcode_match', candidates: candidates.length, note: query };
-}
-
-function brandAgrees(t: Target, d: walmart.ProductDetail): boolean {
-  const ours = (t.brands ?? '').toLowerCase();
-  const theirs = (d.brand ?? '').toLowerCase();
-  if (ours === '' || theirs === '') return false;
-  return ours.split(',').some((b) => {
-    const s = b.trim();
-    return s.length > 2 && (theirs.includes(s) || s.includes(theirs));
-  });
+  return { outcome: 'matched', candidates: 0, note: null };
 }
 
 /**
- * MEASURED 2026-09-05, and it invalidated the first run entirely. The catalogue
- * is not the grocery corpus it was assumed to be. Canadian rows carrying a
- * brand, by source:
+ * Known Walmart SKUs, read back from this crawl's own price history rather
+ * than the catalogue. Once `search()` is gone the catalogue plays no part in
+ * choosing what to ask Walmart about; a SKU is here only because a past run
+ * already matched it by barcode and wrote the observation.
  *
- *   icecat             494,513   electronics and office supplies
- *   openfoodfacts       76,965   grocery
- *   openbeautyfacts        669
- *   openproductsfacts      581
- *   openpetfoodfacts       117
- *
- * An evenly spaced sample across all of it is 87% electronics, so the first
- * coverage run priced Jabra headsets and Lenovo laptops and said nothing at all
- * about groceries. A source has to be named, or the number answers a question
- * nobody asked.
+ * `seller_sku` values ending `#was` are not real Walmart item ids: `priceOne`
+ * above writes a second row under `${sku}#was` to keep a pre-discount price
+ * next to the promotional one. Asking Walmart for that literal string would
+ * just fail, so it is filtered out here rather than burning a wasted request
+ * and an ambiguous outcome row. Verified against the live table 2026-09-05:
+ * of 22 walmart.ca rows, exactly one carries a `#was` suffix.
  */
-function targets(limit: number | null, skip: ReadonlySet<string>, source: string | null): Target[] {
-  const cat = new DatabaseSync(CATALOGUE, { readOnly: true });
-  const where = source === null ? '' : 'AND source = ?';
-  const rows = cat
+function knownSkus(db: DatabaseSync, limit: number | null, skip: ReadonlySet<string>): SkuTarget[] {
+  const rows = db
     .prepare(
-      `SELECT code, name, brands, quantity
-         FROM product
-        WHERE sold_in_canada = 1
-          AND brands IS NOT NULL AND brands <> ''
-          AND name IS NOT NULL AND name <> ''
-          ${where}
-        ORDER BY code`,
+      `SELECT DISTINCT seller_sku AS sku, code
+         FROM observation
+        WHERE seller = ?
+          AND code IS NOT NULL
+          AND seller_sku NOT LIKE '%#was'
+        ORDER BY seller_sku`,
     )
-    .all(...(source === null ? [] : [source])) as unknown as Target[];
-  cat.close();
-  const usable = rows.filter((r) => !skip.has(pad13(r.code)));
+    .all(walmart.WALMART_SELLER) as unknown as SkuTarget[];
+  const usable = rows.filter((r) => !skip.has(r.code));
   if (limit === null) return usable;
-  /* Evenly spaced rather than the first N: codes are ordered by manufacturer
-   * prefix, so the first N is one brand's shelf, not the catalogue. */
-  const step = Math.max(1, Math.floor(usable.length / limit));
-  const out: Target[] = [];
-  for (let i = 0; i < usable.length && out.length < limit; i += step) out.push(usable[i]);
-  return out;
+  return usable.slice(0, limit);
 }
 
+/*
+ * HANDOFF: `named` and `noCandidates` below can now only hold history from
+ * before 2026-09-05 - `priceOne` no longer produces either outcome, because
+ * there is no search result to fall back to a name match on and no such thing
+ * as "the seller had no search results" once a known SKU is asked for
+ * directly. Left printed rather than removed because old rows are still real
+ * data; whoever narrows `AttemptOutcome` in store.ts (see the outcome comment
+ * above `priceOne`) should also decide whether these two lines still belong
+ * in a report about a SKU-driven crawl.
+ */
 function report(db: DatabaseSync): void {
   const c = coverage(db, walmart.WALMART_SELLER);
   const pct = (n: number) => (c.attempted === 0 ? '0.0' : ((n / c.attempted) * 100).toFixed(1));
@@ -346,16 +300,21 @@ async function main(): Promise<void> {
     return;
   }
 
-  const sample = flag('--all') ? null : value('--sample', 60);
+  /*
+   * No `--source` any more: that flag picked a catalogue source (grocery vs
+   * electronics) for the discovery leg, and there is nothing left to pick a
+   * source for. `--all` is gone too since the default is already every known
+   * SKU; `--sample` still caps the list, for a quick test run.
+   */
+  const sampleArg = value('--sample', -1);
+  const sample = sampleArg < 0 ? null : sampleArg;
   const workers = value('--concurrency', 4);
   const skip = flag('--resume') ? alreadyAttempted(db, walmart.WALMART_SELLER) : new Set<string>();
-  const si = argv.indexOf('--source');
-  const source = si >= 0 && argv[si + 1] ? argv[si + 1] : 'openfoodfacts';
-  const list = targets(sample, skip, source === 'all' ? null : source);
+  const list = knownSkus(db, sample, skip);
   const today = new Date().toISOString().slice(0, 10);
 
   console.log(
-    `walmart.ca: ${list.length} products, ${workers} workers, ${skip.size} already done`,
+    `walmart.ca: ${list.length} known SKUs, ${workers} workers, ${skip.size} already done`,
   );
 
   let done = 0;
@@ -365,7 +324,7 @@ async function main(): Promise<void> {
       const t = queue.shift();
       if (t === undefined) return;
       const r = await priceOne(db, t, today);
-      recordAttempt(db, pad13(t.code), walmart.WALMART_SELLER, today, r.outcome, r.candidates, r.note);
+      recordAttempt(db, t.code, walmart.WALMART_SELLER, today, r.outcome, r.candidates, r.note);
       done += 1;
       if (done % 10 === 0 || done === list.length) {
         process.stdout.write(`\r  ${done}/${list.length}   `);
