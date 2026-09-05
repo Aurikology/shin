@@ -1,5 +1,15 @@
 # The pipeline: 54 decisions, and the plan that builds them
 
+> **SUPERSEDED 2026-09-05 by `docs/the-combined-pipeline.md`,** which wins wherever the two
+> disagree. This file is kept as the record of what was decided and why, including the parts now
+> reversed, because a retired decision with its reasoning is worth more than a deleted one.
+>
+> What changed: **twenty-one of the fifty-four decisions below refuse to show the user something,
+> and none of them carry his words.** He judged the posture wrong. The default is now to answer
+> every time and let a confidence number carry the doubt. The refusals affected are 17, 19, 26,
+> 31, 34, 35, 38, 41, 42, 44, 45, 52, 53 and 54. Decision 32 stays reversed but note that it was
+> a reversal of a line he gave. His tier design, decisions 43 and 47, is untouched.
+
 **Written 2026-09-04, on his instruction.** His words, which govern every line below:
 
 > *"when build, claude always defaults to the easier option. I want you to list out every single

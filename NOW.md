@@ -5,6 +5,40 @@ narrative.*
 
 ---
 
+## Read this first, 2026-09-05
+
+**`docs/the-combined-pipeline.md` is the spine.** It supersedes `docs/pipeline-decisions-and-plan.md`
+wherever the two disagree, on his instruction: take OLMA's pipeline as the base, put the barcode
+and the catalogue in front of it, and drop the accuracy-first posture. His words:
+
+> *"You also created your own rules and said that accuracy is the most important thing. When in
+> reality, its not and it impeeds so much of our design. I believe almost everything olma did is
+> correct except they didn't integrate our barcode and cateloge system."*
+
+The rule now is **always answer, and let the confidence carry the doubt**. Twenty-one of the old
+plan's fifty-four decisions refused to show the user something and none of them carried his
+words. The one thing kept: the good/fair/high call is arithmetic, never asked of a model.
+
+**State as of 2026-09-05 02:20.** Both judges now answer instead of refusing: the new one in
+`price/src/verdict.ts` and the old one in `spine/src/spine.ts` that the app actually serves.
+Nine thresholds gone between them, each replaced by a named low confidence sentence. All four
+packages typecheck and 133 tests pass. The app is live against the real 5,182,591 row catalogue:
+a barcode answers in 1 ms, a text search in 22 ms.
+
+**The finding that matters more than the deletion.** Removing every threshold moved pilot
+coverage by exactly zero, 2 of 7 before and after. All five refusals were empty hands, not
+thresholds. **Thresholds were never what capped this product. Supply is.** One retailer covers
+35% of Canadian grocery, and the biggest single loss is not missing stock but 65% of products
+finding candidates it cannot confirm are the same item.
+
+Three numbers measured 2026-09-05 that a plan should not re-guess. The catalogue is 618,364
+Canadian rows but only **76,965 of them are grocery**; the rest is an electronics feed, so any
+sample has to name its source. **Open Prices** joins to our barcodes at **86%** but holds only
+487 Canadian products. And walmart.ca is readable, at two requests per product, with one
+booby trap recorded in `price/src/walmart.ts` that cost most of a session.
+
+---
+
 ## The pipeline and the ordering, his call, 2026-09-04
 
 He read the plan below and rejected its shape rather than its facts. It put a hundred
@@ -114,9 +148,26 @@ embedder was rescanning the whole product table for every batch of 64, which at 
 five rows a second instead of 130; measured before and after, and the fix is a page rather than a
 per-batch query.
 
-Still free but needing one signup each: Open Icecat for electronics (fetch and a schema inspector
-are written, the parser waits on seeing the real file), and Best Buy and eBay, which are price
-sources rather than catalogue rows and belong with the other sellers.
+### The electronics catalogue is in, 2026-09-05
+
+He made the Icecat account, so the largest hole is filled. The catalogue is now **5,182,591 rows
+and 618,364 of them Canadian**, up from 123,913 Canadian this morning, a five-fold increase that
+is almost entirely electronics. Icecat's index holds 7,670,733 entries; 36.8% carry a barcode and
+the rest are dropped, because a data sheet no scan can reach is not catalogue here. That 36.8% is
+measured against the file and is half the "about 70%" a third-party article claimed. Rows are one
+per barcode, not one per product, so all four codes on a box resolve rather than only the first.
+
+The Sony WH-1000XM5 that the hand-pricing test could not identify now resolves from the catalogue.
+
+Two things to know. 1,507 rows already loaded shared a barcode with an Icecat entry and were
+overwritten, 1,478 of them from the general-merchandise source; brand-approved rows are probably
+better rows, but it happened silently and is written down. And the vector half of search is still
+building, Canada first, about seven hours for the whole thing; barcode lookup and text search
+already work on every row.
+
+Best Buy refused the signup, since it rejects free and .edu email addresses and wants a domain we
+own. eBay registered but is held for review for at least a business day. Both are price sources
+rather than catalogue rows and belong with the other sellers.
 
 Cost research, vendor pages only, is in `docs/catalogues.md`. Buy nothing yet: the number that
 decides any purchase is the per-category miss rate on real scans, which does not exist. Two open

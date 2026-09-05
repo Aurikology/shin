@@ -59,3 +59,11 @@ has cost something recorded twice. One incident is a lesson. Two is a rule.
   **Changed:** when he asks what a prompt is asking, the deliverable is the intent behind each
   sentence (the motive, the assumption it reveals, the expectation it sets), and nothing about
   delivery unless he asks for the diff. One turn lost. One occurrence.
+
+- **2026-09-05 · A performance question was answered with a diagnosis and four subagent reports
+  instead of a fix.** His words: *"also, you are not fixing this issue, you are just diagnosing
+  the problem, and brainstorming solutions"*, and before it *"consider that this is a phone app
+  and having multiple gbs of data is impossible"*. **Changed:** when he asks how something will
+  work, the deliverable is the working thing with a measurement before and after; the diagnosis
+  is the first paragraph of the report, not the report. Research agents run alongside the build,
+  never in front of it. One turn lost. One occurrence.
