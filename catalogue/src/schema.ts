@@ -121,21 +121,33 @@ CREATE VIRTUAL TABLE IF NOT EXISTS product_fts USING fts5(
   tokenize="unicode61 remove_diacritics 2"
 );
 
-/*
- * A miss is a finding, not a dead end (decision 30). Written by the search path
- * when nothing clears the confident band, and read by whoever fills gaps later.
- * Nothing here is ever promoted into the product table automatically.
- */
-CREATE TABLE IF NOT EXISTS catalogue_gap (
-  id          INTEGER PRIMARY KEY,
-  gtin        TEXT,
-  query_text  TEXT,
-  observed_at TEXT NOT NULL,
-  note        TEXT
-) STRICT;
-
-CREATE INDEX IF NOT EXISTS gap_gtin ON catalogue_gap(gtin);
 `;
+
+/*
+ * WHERE THE MISSES WENT. A miss is a finding, not a dead end (decision 30), but
+ * it is not recorded in this schema any more. Misses now live in their own
+ * database: catalogue/src/gaps.ts, default path catalogue/data/gaps.db,
+ * overridable with SHIN_GAPS, read with catalogue/src/gaps-report.ts.
+ *
+ * The catalogue_gap table that used to be declared above held 0 rows for its
+ * entire life and always would have. The serving connection is opened read-only
+ * so a request can never damage a 3.47 GB file, and recording a miss is a
+ * write, so the one path that most needed to say "we have not seen this one"
+ * raised "attempt to write a readonly database" instead, and was swallowed.
+ * Giving the log its own small file lets the read-only guarantee and the
+ * recording both hold at once. Removed 2026-09-05 in the same pass that pointed
+ * search.ts at the replacement, so there was never a window with neither.
+ *
+ * A catalogue file built before today still carries the empty table and its
+ * index. Nothing reads them, so nothing has to drop them, and they disappear on
+ * the next rebuild. If you are looking at one of those files directly: zero
+ * rows in catalogue_gap means the table was RETIRED, not that no miss has ever
+ * been recorded. Query the gaps database instead.
+ *
+ * (This comment sits outside the DDL string deliberately. Its first draft was
+ * inside it and the backticks around the file names closed the template literal
+ * early, which the typecheck caught as six unrelated-looking syntax errors.)
+ */
 
 /** Opens the database with the vector extension loaded and the schema applied. */
 export function openCatalogue(path: string): DatabaseSync {

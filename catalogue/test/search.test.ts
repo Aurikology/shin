@@ -113,7 +113,7 @@ test('a product we do not have returns a ring named at the right level', async (
   const ring = cat.ring(ORANGE_PATH, 3, '1000000000002');
   assert.ok(ring, 'expected a ring');
   assert.equal(ring.tag, 'en:oranges');
-  assert.equal(ring.label, 'oranges');
+  assert.equal(ring.label, 'Oranges');
   assert.equal(ring.distanceOut, 0);
   assert.equal(ring.members.length, 2);
   assert.ok(!ring.members.some((m) => m.code === '1000000000002'), 'excluded item leaked in');
@@ -267,7 +267,45 @@ test('a category too big to be a kind of thing is not a ring', async () => {
   assert.equal(cat.ring(['en:beverages'], 3), null);
 });
 
-test('tag labels are readable by a person', () => {
-  assert.equal(labelForTag('en:creamy-peanut-butters'), 'creamy peanut butters');
-  assert.equal(labelForTag('fr:oranges-sanguines'), 'oranges sanguines');
+test('a mixed-case tag whose combined size crosses the cap is skipped by both probes', () => {
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  // Two spellings of the same tag, each under the cap alone (600 < 1000) but
+  // over it once rebuildCategories folds them into one row (1200 > 1000).
+  // This is the shape the fold is FOR: en:Beverages/en:beverages sat at
+  // 2/4,114 in the real catalogue. If the ring's size check (#tagSize) and
+  // its membership SELECT ever read different casings of `tag`, this tag
+  // would pass the size check on the small half and come back as a
+  // 1,200-member "ring" -- the exact failure MAX_RING_TAG exists to stop.
+  for (let i = 0; i < 600; i += 1) {
+    insert.run(`7${String(i).padStart(12, '0')}`, `Thing ${i}`, `Thing ${i}`, null, null, null,
+      null, null, '["en:beverages"]', 'en:beverages', '[]', 1, 'test');
+  }
+  for (let i = 0; i < 600; i += 1) {
+    insert.run(`6${String(i).padStart(12, '0')}`, `Other ${i}`, `Other ${i}`, null, null, null,
+      null, null, '["en:Beverages"]', 'en:Beverages', '[]', 1, 'test');
+  }
+  rebuildCategories(db);
+  const cat = new Catalogue(db, new HashEmbedder());
+
+  // A product whose own path carries the capitalised spelling must still be
+  // refused a ring here: the fold means there are really 1,200 members, not
+  // 600, and no arbitrary three of them are "other beverages".
+  assert.equal(cat.ring(['en:Beverages'], 3), null);
+});
+
+test('tag labels are readable by a person, first letter capitalised, not every word', () => {
+  assert.equal(labelForTag('en:creamy-peanut-butters'), 'Creamy peanut butters');
+  assert.equal(labelForTag('fr:oranges-sanguines'), 'Oranges sanguines');
+});
+
+test('a stray capital inside a stored tag does not leak into the label', () => {
+  // Case is a typo signal in this data, not a presentation choice (522 tags
+  // exist under more than one spelling). labelForTag lower-cases before
+  // capitalising, so an odd source casing like "En:Snacks-And-Treats" comes
+  // out the same as the common spelling would, not title-cased.
+  assert.equal(labelForTag('En:Snacks-And-Treats'), 'Snacks and treats');
 });

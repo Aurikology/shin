@@ -13,5 +13,9 @@
     "typeRoots": ["../spine/node_modules/@types"],
     "types": ["node"]
   },
-  "include": ["server.ts", "scripts/**/*.mjs"]
+  /* src/** is listed explicitly because `npm run typecheck` used to reach a file in src
+   * only if server.ts imported it. Anything in src that nothing imports yet -- a route
+   * written before it is registered, for instance -- was silently never compiled, and the
+   * command still printed a clean result. Verified 2026-09-05: all of src typechecks. */
+  "include": ["server.ts", "src/**/*.ts", "scripts/**/*.mjs"]
 }

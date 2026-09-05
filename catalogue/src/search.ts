@@ -19,6 +19,7 @@
 
 import type { DatabaseSync } from 'node:sqlite';
 import { toVecBlob } from './schema.ts';
+import { recordGap, activeGapLog } from './gaps.ts';
 import type { Embedder } from './embed.ts';
 
 /** RRF's damping constant. 60 is the value from the original paper. */
@@ -84,7 +85,7 @@ const FLOOR_SIM = 0.72;
  * butters). The next tier up is not a kind of thing at all: beverages 4,114,
  * snacks 7,252, plant based foods 15,226. A thousand sits in the gap.
  */
-const MAX_RING_TAG = 1000;
+export const MAX_RING_TAG = 1000;
 
 export type Band = 'confident' | 'ambiguous' | 'miss';
 
@@ -199,9 +200,25 @@ interface Row {
 const SELECT_COLS = `code, name, name_en, name_fr, brands, quantity, size_value,
   size_unit, category_path, leaf_category, allergens, sold_in_canada, source`;
 
-/** Strips "en:" and hyphens so a tag can be shown to a person (decision 27). */
+/**
+ * Strips "en:" and hyphens so a tag can be shown to a person (decision 27).
+ *
+ * Tags are stored lower-case by design (schema.ts, rebuildCategories): 522 of
+ * them existed under more than one spelling, and folding case is what makes
+ * them one row again. That leaves every label lower-case unless something
+ * restores a capital, and whatever casing survived in the source data is a
+ * typo signal, not a presentation choice -- an incoming tag is lower-cased
+ * here again before anything is capitalised, so a stray "Snacks-And-Treats"
+ * cannot leak internal capitals into the label. Only the FIRST letter is
+ * capitalised, never every word: "Peanut butters" reads as a category name,
+ * "Peanut Butters" reads as a proper noun this catalogue never asserted.
+ */
 export function labelForTag(tag: string): string {
-  return tag.replace(/^[a-z]{2}:/, '').replace(/-/g, ' ');
+  // Lower-cased FIRST: the language prefix itself can carry the same kind of
+  // stray capital as the rest of the tag ("En:" as well as "en:Snacks"), and
+  // the prefix regex only recognises the lower-cased form.
+  const label = tag.toLowerCase().replace(/^[a-z]{2}:/, '').replace(/-/g, ' ');
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 /**
@@ -398,7 +415,18 @@ export class Catalogue {
    */
   ring(categoryPath: readonly string[], want: number, exclude?: string): NeighbourRing | null {
     for (let i = categoryPath.length - 1; i >= 0; i -= 1) {
-      const tag = categoryPath[i];
+      // product.category_path keeps whatever casing the source data carried,
+      // but product_category is written lower-cased (schema.ts,
+      // rebuildCategories) so that 522 case-variant spellings collapse into
+      // one row each instead of splitting membership across the index. Both
+      // probes against product_category below -- #tagSize's count and the
+      // membership SELECT -- read this same `tag`, lowered once here, so
+      // neither can drift out of step with the other: #tagSize is also
+      // memoized per tag string for the life of this worker, and memoizing a
+      // wrong case would stick until restart. labelForTag lower-cases its own
+      // input again before presenting it, so passing the canonical form here
+      // rather than the raw path entry changes nothing about what is shown.
+      const tag = categoryPath[i].toLowerCase();
 
       // A tag this big is not a kind of thing, it is a shelf of the whole shop,
       // and three arbitrary rows from it read as the app having lost the plot.
@@ -625,12 +653,15 @@ export class Catalogue {
   /** Decision 30: a miss is recorded, and nothing typed is promoted automatically. */
   #recordGap(query: SearchQuery): void {
     try {
-      this.#db
-        .prepare(
-          `INSERT INTO catalogue_gap (gtin, query_text, observed_at, note)
-           VALUES (?, ?, ?, ?)`,
-        )
-        .run(query.gtin ?? null, query.text ?? null, new Date().toISOString(), null);
+      /*
+       * Writes to its own small file, never to the catalogue. The seam the
+       * comment below left open is now closed: the serving connection stays
+       * read-only, and the miss still gets written down. `recordGap` opens its
+       * own log lazily, rolls repeats up by barcode and by normalised text, and
+       * is documented never to throw, so the catch here guards a promise rather
+       * than an expectation, and the counters below stay as the proof.
+       */
+      recordGap({ gtin: query.gtin, queryText: query.text });
     } catch (err) {
       /*
        * A gap that cannot be written must never become a search that cannot
@@ -646,12 +677,35 @@ export class Catalogue {
        * writable file for findings, which is a seam left open here rather than
        * a reason to give a serving process write access to 3.47 GB.
        */
-      this.gapsDropped += 1;
-      this.gapsDroppedWhy = err instanceof Error ? err.message : String(err);
+      this.#localGapsDropped += 1;
+      this.#localGapsDroppedWhy = err instanceof Error ? err.message : String(err);
     }
   }
 
-  /** Misses that could not be written down, and why. Zero on a writable connection. */
-  gapsDropped = 0;
-  gapsDroppedWhy = '';
+  /**
+   * Misses that could not be written down, and why.
+   *
+   * These read through to the miss log's own counters rather than counting
+   * this class's failed writes, because this class no longer performs the
+   * write. Left as plain fields they would have been frozen at zero forever:
+   * `recordGap` never throws, so the catch above can no longer fire, and a
+   * field named "gaps dropped" that cannot leave zero does not read as an
+   * absence of evidence, it reads as an assurance that nothing is being lost,
+   * given by code that is no longer able to notice. Same shape as a guard that
+   * returns success after crashing before it checked anything.
+   *
+   * `#localGapsDropped` still counts the one failure that is genuinely this
+   * class's own, `recordGap` being unreachable at all, so no failure has
+   * nowhere to land. The two are summed.
+   */
+  get gapsDropped(): number {
+    return this.#localGapsDropped + (activeGapLog()?.dropped ?? 0);
+  }
+
+  get gapsDroppedWhy(): string {
+    return this.#localGapsDroppedWhy || (activeGapLog()?.droppedWhy ?? '');
+  }
+
+  #localGapsDropped = 0;
+  #localGapsDroppedWhy = '';
 }
