@@ -196,9 +196,10 @@ repairs, and a combined `lookup()` hides which one happened. `available()` retur
 is skipped, and the reason is printed.
 
 Order in `src/sources/registry.ts` is trust order, because `resolveIdentity` breaks confidence ties
-by taking the first source. Recorded observations come first. Best Buy comes second.
-
-There are two implementations:
+by taking the first source. Recorded observations come first, then observed prices, then the two
+live adapters. eBay is last of all, because of the kind of number it returns rather than anything
+about the adapter: it can only see what strangers are ASKING, which the contract defines as
+upward-biased and never a clearing price, so it breaks no ties.
 
 - **`recorded`** reads `data/observations.json`. Every price in it was read off a public Canadian
   source by a person on 2026-09-03 and carries that date. It touches no network, which is why the
@@ -207,6 +208,26 @@ There are two implementations:
   endpoint.** Nobody here has held a key, so no request has ever left this machine to
   `api.bestbuy.com`. `node src/cli.ts sources` prints it as `unavailable UNVERIFIED` because
   `BESTBUY_API_KEY` is not set, and the corpus report names it in its caveats.
+- **`ebay`** is `verified: false`, same status and same reason. Set `EBAY_CLIENT_ID` and
+  `EBAY_CLIENT_SECRET` to turn it on. It covers `used` and `tech`, deliberately never `grocery`,
+  because eBay grocery listings are bulk, imported or collectible packaging and none of those is a
+  comparable for a box on a Canadian shelf.
+
+  **It cannot tell you what anything sold for.** Sold and completed listings are behind eBay's
+  Marketplace Insights API, a Limited Release that eBay describes as restricted and not open to new
+  users. The free Browse key does not reach it, so every point is `kind: 'asking'`. This is the same
+  wall the 2026-09-03 pilot hit from the other side, when it recorded eBay sold listings "under
+  US$2,000" for a used Canon and correctly refused to use it: a bound, in the wrong currency.
+
+  Four filters, each preventing a wrong number rather than a noisy one. Requests go to the Canadian
+  marketplace and each item's own currency is checked against CAD anyway. Auctions are excluded at
+  the query, because a $1 opening bid is not an asking price and would drag a verdict to walk-away
+  on a number nobody will pay. The point is the delivered price, item plus stated shipping, and a
+  listing whose shipping is not stated is skipped rather than assumed free. Items shipping from
+  outside Canada are dropped, since duties and weeks of delay are not in the price.
+
+  Its daily budget is 5,000 calls for the whole application rather than per user, which is roughly
+  2,500 scans a day across everyone at once before eBay's free Application Growth Check is needed.
 
 What `verified: false` means, plainly: the code path exists, its shape compiles, and nothing about
 whether it returns a correct price, a wrong price, or anything at all has been established. It is

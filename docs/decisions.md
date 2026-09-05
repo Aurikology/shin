@@ -533,3 +533,55 @@ depending on what happened to be loaded is not one.
 and not a technical one. If it ever happens, it is a display of a handle the contributor already
 published, never a stored per-person history, and the licence obligation is unchanged either way
 because it was already met by naming the databases.
+
+## eBay answers for used and tech, in asking prices only, and never for groceries
+**Date:** 2026-09-05 · **Status:** active
+
+The eBay account cleared review, so the Browse key is available. What it buys is narrower than the
+plan on record assumed, and the scope is set here so it is not re-litigated later.
+
+IT CANNOT SEE WHAT ANYTHING SOLD FOR. Sold and completed listings live behind the Marketplace
+Insights API, which eBay describes as a Limited Release, restricted and not open to new users, and
+which recent developer reports say is granted to major partners only. The free Browse key does not
+reach it. So every point this source can ever produce is an asking price, which the price contract
+already defines as upward-biased and never a clearing price.
+
+That is the same wall the 2026-09-03 pilot hit from the other side. Pricing a used Canon EOS R6 it
+recorded eBay sold listings "under US$2,000" and correctly refused to use them, for two reasons that
+both still stand: a bound is not a point, and it was in another currency. Nothing about the key
+changes either. The adapter is built so neither can recur structurally rather than by anyone
+remembering, and the price type admits only Canadian dollars, so a US listing cannot be represented
+even by accident.
+
+NOT A GROCERY SOURCE. The adapter covers used and tech and deliberately not grocery. eBay grocery
+listings are bulk cases, imports and collectible packaging, and none of those is a comparable for a
+single box on a Canadian shelf. Adding grocery would put pantry-sized prices beside single units and
+be wrong in the app's lead category, which is the one place it can least afford to be.
+
+Four filters, each preventing a wrong number rather than a noisy one, because a missing comparable
+makes the app refuse, which is an outcome it is designed for, while a wrong comparable produces a
+confident verdict about a price that does not exist:
+
+- Canadian marketplace requested, and every item's own currency checked against CAD regardless. The
+  marketplace header is a request; the per-item currency is the fact.
+- Fixed price only. An auction's current bid is not an asking price, and one $1 opening bid would
+  enter the comparison set as a $1 camera and drag a verdict to walk-away.
+- The delivered price, item plus stated shipping. A listing whose shipping is not stated is skipped
+  rather than assumed free, because an unknown read as zero is the same shape as the invented stock
+  flag: an absence recorded as a favourable fact.
+- Located in Canada, since duties and weeks of delay are not in the price.
+
+Unverified until it is run. `verified` is false and stays false until somebody runs it with a real
+key and puts the result in the scoreboard, because an unverified adapter returning nothing looks
+exactly like a category with no prices. Setting the two credentials is the only step left.
+
+One thing left open rather than settled quietly. Every listing becomes its own point with its own
+seller, because ten people asking ten prices for a used lens genuinely are ten independent
+observations. But confidence counts distinct sellers, and no previous source could produce ten of
+them from one marketplace in a single call. If a confidence band ever reads high on the strength of
+eBay usernames alone, the repair is a per-source seller cap in the spine, not a change to the
+adapter.
+
+**Reverses if:** eBay grants Marketplace Insights access, which turns this from the weakest source in
+the system into one of the strongest, since a sold price is the rarest and most useful kind of number
+the spine can hold. Nothing else about this entry changes if that happens.
