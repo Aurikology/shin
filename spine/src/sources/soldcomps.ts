@@ -27,8 +27,17 @@
  *    sending a $900 body to walk-away off a $1.35 basis.
  * 3. A sold listing whose title does not cover the identity is not a comp for
  *    it. The pilot's worst failure was an R6 query answered with R6 Mark II
- *    prices, all accurate, all about a different camera. The overlap floor
- *    here is the same guard `recorded.ts` uses to claim a match at all.
+ *    prices, all accurate, all about a different camera. Two checks, both
+ *    required. Every token of the model, when the identity has one, must
+ *    appear in the title: "Canon EOS R5" and "Canon EOS RP" share two of the
+ *    three keyword tokens with "Canon EOS R6" and an overlap floor alone let
+ *    them through, and the model token is the only one that tells them apart.
+ *    Then the overlap floor `recorded.ts` uses, over the whole keyword. The
+ *    cost is that "Canon R6 body" with no "EOS" is dropped too, which is the
+ *    safe direction: a wrong verdict is worse than no verdict.
+ *    Without a model the keyword is the label, never the bare brand: the
+ *    corpus's POÄNG has brand "IKEA" and no model, and "IKEA" as the query
+ *    matched every IKEA sale on the site at overlap 1.0.
  *
  * It does not identify. SoldComps is a keyword feed with no product graph, so
  * `identify()` returns null and identity comes from a source that has one.
@@ -40,14 +49,24 @@ import { normalize, overlap } from './source.ts';
 
 const DEFAULT_BASE = 'https://api.sold-comps.com';
 const EBAY_SITE = 'ebay.ca';
-/** Days of history asked for. The used rule's window is 90 and the feed holds about that. */
+/**
+ * Days of history asked for. The used rule keeps 90 days of history but tiers
+ * only on sales 30 days old or newer (`maxAgeDays`), so most of what comes back
+ * is context, not basis. The feed holds about 90.
+ */
 const LOOKBACK_DAYS = 90;
 /** Items per request. One request is one of 100 free ones a month; ask for plenty. */
 const COUNT = 40;
 /** Same floor `recorded.ts` uses before it will claim a match. */
 const TITLE_OVERLAP_FLOOR = 0.5;
 
-const PARTS_ONLY = /\b(for parts|parts only|not working|broken|cracked|as is|as-is|read description)\b/;
+/**
+ * Runs on `normalize()` output, so punctuation is already spaces: "as-is" is
+ * "as is" and "doesn't work" is "doesn t work". "broken in" is a cushion, not
+ * a fault.
+ */
+const PARTS_ONLY =
+  /\b(for parts|parts only|spares or repair|spares repair|for repair|needs repair|not working|doesn t work|does not work|faulty|defective|untested|damaged|broken(?! in\b)|cracked|as is|read description)\b/;
 
 interface SoldCompsItem {
   itemId?: string;
@@ -136,7 +155,7 @@ export class SoldCompsSource implements PriceSource {
       const title = it.title ?? '';
       const haystack = normalize(`${title} ${it.condition ?? ''}`);
       if (PARTS_ONLY.test(haystack)) continue; // rule 2
-      if (overlap(keyword, title) < TITLE_OVERLAP_FLOOR) continue; // rule 3
+      if (!coversIdentity(identity, keyword, title)) continue; // rule 3
       if (!it.endedAt) continue; // an undated sale cannot be checked for staleness
       points.push({
         seller: it.sellerUsername ? `eBay seller ${it.sellerUsername}` : 'eBay seller',
@@ -153,10 +172,26 @@ export class SoldCompsSource implements PriceSource {
   }
 }
 
-/** Brand and model when present; the label otherwise. This is what eBay is asked. */
+/**
+ * Brand and model when there is a model; the label otherwise. This is what
+ * eBay is asked. A brand on its own is never the keyword: it names a
+ * catalogue, not a product.
+ */
 export function keywordFor(identity: ProductIdentity): string {
-  const specific = [identity.brand, identity.model].filter((s): s is string => !!s && s.trim() !== '');
-  return (specific.length > 0 ? specific.join(' ') : identity.label).trim();
+  const model = identity.model?.trim() ?? '';
+  if (model === '') return identity.label.trim();
+  const brand = identity.brand?.trim() ?? '';
+  return (brand === '' ? model : `${brand} ${model}`).trim();
+}
+
+/**
+ * Rule 3. Every model token must be in the title when the identity has a
+ * model, and the keyword as a whole must clear the overlap floor.
+ */
+export function coversIdentity(identity: ProductIdentity, keyword: string, title: string): boolean {
+  const model = identity.model?.trim() ?? '';
+  if (model !== '' && overlap(model, title) < 1) return false;
+  return overlap(keyword, title) >= TITLE_OVERLAP_FLOOR;
 }
 
 function toCents(price: string | null | undefined): number | null {

@@ -15,6 +15,15 @@ const CANON: ProductIdentity = {
   resolvedBy: 'test',
 };
 
+const POANG: ProductIdentity = {
+  id: 'test:poang',
+  label: 'IKEA POÄNG armchair, used',
+  category: 'used',
+  brand: 'IKEA',
+  confidence: 0.93,
+  resolvedBy: 'test',
+};
+
 function item(over: Record<string, unknown>) {
   return {
     itemId: 'x',
@@ -133,7 +142,65 @@ test('a non-2xx answer throws rather than reading as "no sales exist"', async ()
   await assert.rejects(() => s.prices(CANON, AS_OF), /soldcomps: 429/);
 });
 
-test('keyword is brand and model when present, label otherwise', () => {
+test('keyword is brand and model when there is a model, the label otherwise, never a bare brand', () => {
   assert.equal(keywordFor(CANON), 'Canon EOS R6');
+  assert.equal(keywordFor({ ...CANON, brand: undefined }), 'EOS R6');
   assert.equal(keywordFor({ ...CANON, brand: undefined, model: undefined }), 'Canon EOS R6 body, used');
+  // The corpus's POÄNG: brand, no model. "IKEA" as the query matched every
+  // IKEA sale on the site at overlap 1.0.
+  assert.equal(keywordFor(POANG), 'IKEA POÄNG armchair, used');
+});
+
+test('rule 3: a brand with no model is matched on the label, so a BILLY is not a POÄNG comp', async () => {
+  const cap: { url?: string } = {};
+  const s = new SoldCompsSource(
+    { SOLDCOMPS_API_KEY: 'k' },
+    fetchReturning(
+      [
+        item({ title: 'IKEA BILLY bookcase white', soldPrice: '30.00' }),
+        item({ title: 'IKEA KALLAX shelf unit', soldPrice: '35.00' }),
+        item({ title: 'IKEA POANG armchair birch veneer used', soldPrice: '60.00' }),
+      ],
+      cap,
+    ),
+  );
+  const pts = await s.prices(POANG, AS_OF);
+  assert.equal(new URL(cap.url!).searchParams.get('keyword'), 'IKEA POÄNG armchair, used');
+  assert.deepEqual(pts.map((p) => p.amountCents), [6000]);
+});
+
+test('rule 3: a sibling model is not a comp even when it shares brand and line (R5, RP, R8 against R6)', async () => {
+  const s = new SoldCompsSource(
+    { SOLDCOMPS_API_KEY: 'k' },
+    fetchReturning([
+      item({ title: 'Canon EOS R5 Mirrorless Body', soldPrice: '2900.00' }),
+      item({ title: 'Canon EOS RP body', soldPrice: '1000.00' }),
+      item({ title: 'Canon EOS R8 body', soldPrice: '1500.00' }),
+      // Accepted cost: the model is "EOS R6" and this title has no "EOS".
+      item({ title: 'Canon R6 body', soldPrice: '1600.00' }),
+      item({ soldPrice: '1650.00' }),
+    ]),
+  );
+  const pts = await s.prices(CANON, AS_OF);
+  assert.deepEqual(pts.map((p) => p.amountCents), [165000]);
+});
+
+test('rule 2: the other ways eBay says a unit does not work', async () => {
+  const junk = [
+    'Canon EOS R6 faulty untested',
+    'Canon EOS R6 spares or repair',
+    'Canon EOS R6 damaged shutter',
+    'Canon EOS R6 needs repair',
+    "Canon EOS R6 body, doesn't work",
+    'Canon EOS R6 as-is',
+  ];
+  const s = new SoldCompsSource(
+    { SOLDCOMPS_API_KEY: 'k' },
+    fetchReturning([
+      ...junk.map((title) => item({ title, soldPrice: '150.00' })),
+      item({ title: 'IKEA POANG armchair broken-in cushion', soldPrice: '60.00' }),
+    ]),
+  );
+  assert.deepEqual((await s.prices(CANON, AS_OF)).map((p) => p.amountCents), []);
+  assert.deepEqual((await s.prices(POANG, AS_OF)).map((p) => p.amountCents), [6000]);
 });
