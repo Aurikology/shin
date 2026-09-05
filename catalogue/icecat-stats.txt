@@ -1,0 +1,48 @@
+entries examined     7670733
+carrying a barcode   2826327  (36.8%)
+barcode values       4981204
+listed for Canada    167545  (2.2%)
+still on market      3610677  (47.1%)
+
+top country markets: [('GB', 1707740), ('DE', 1431619), ('NL', 1068093), ('DK', 639944), ('FR', 616159), ('FI', 467502), ('BE', 454805), ('US', 428314), ('WW', 419701), ('SE', 405094), ('IT', 400377), ('ES', 386657)]
+
+elements:
+  Country_Market                 11375042
+  file                           7670733
+  EAN_UPC                        4981204
+  Country_Markets                3610663
+  EAN_UPCS                       2826327
+  M_Prod_ID                      744865
+  files.index                    1
+  ICECAT-interface               1
+
+attributes:
+  Country_Market@Value                     11375042
+  file@path                                7670733
+  file@Limited                             7670733
+  file@HighPic                             7670733
+  file@HighPicSize                         7670733
+  file@HighPicWidth                        7670733
+  file@HighPicHeight                       7670733
+  file@Product_ID                          7670733
+  file@Updated                             7670733
+  file@Quality                             7670733
+  file@Prod_ID                             7670733
+  file@Supplier_id                         7670733
+  file@Catid                               7670733
+  file@On_Market                           7670733
+  file@Model_Name                          7670733
+  file@Product_View                        7670733
+  file@Date_Added                          7670733
+  EAN_UPC@Value                            4981204
+  EAN_UPC@IsApproved                       4981204
+  EAN_UPC@Format                           4981204
+  M_Prod_ID@Supplier_id                    279780
+  M_Prod_ID@Supplier_name                  279780
+  files.index@Generated                    1
+  ICECAT-interface@{http://www.w3.org/2001/XMLSchema-instance}noNamespaceSchemaLocation 1
+
+first entries:
+  {'path': 'export/freexml/EN/1399.xml', 'Limited': 'No', 'HighPic': 'https://images.icecat.biz/img/gallery/34c93509f3d7ce1809f726d16e9ac37b6dcb3402.jpg', 'HighPicSize': '2973358', 'HighPicWidth': '4200', 'HighPicHeight': '2772', 'Product_ID': '1399', 'Updated': '20260810063112', 'Quality': 'ICECAT', 'Prod_ID': 'C4872A', 'Supplier_id': '1', 'Catid': '846', 'On_Market': '1', 'Model_Name': "Cartouche d'encre cyan HP 80 175-ml", 'Product_View': '848524', 'Date_Added': '20051027000000'}
+  {'path': 'export/freexml/EN/1400.xml', 'Limited': 'No', 'HighPic': 'https://images.icecat.biz/img/gallery/1c7ac0d40dda1bea9e2cdcd32c2dd75a0a5f2759.jpg', 'HighPicSize': '2859109', 'HighPicWidth': '4200', 'HighPicHeight': '2952', 'Product_ID': '1400', 'Updated': '20260810063140', 'Quality': 'ICECAT', 'Prod_ID': 'C4874A', 'Supplier_id': '1', 'Catid': '846', 'On_Market': '1', 'Model_Name': '80 175-ml Magenta DesignJet Ink Cartridge', 'Product_View': '373238', 'Date_Added': '20051027000000'}
+  {'path': 'export/freexml/EN/1406.xml', 'Limited': 'No', 'HighPic': 'https://images.icecat.biz/img/gallery/cecc4a2a9b013dcc89c9d1a68d6f686fecfbef80.jpg', 'HighPicSize': '728236', 'HighPicWidth': '2664', 'HighPicHeight': '1152', 'Product_ID': '1406', 'Updated': '20260810063142', 'Quality': 'ICECAT', 'Prod_ID': 'C4994A', 'Supplier_id': '1', 'Catid': '846', 'On_Market': '1', 'Model_Name': '81 Value Pack 680-ml Light Cyan DesignJet Dye Ink Cartridge and Printhead', 'Product_View': '188403', 'Date_Added': '20051028000000'}

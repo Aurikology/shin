@@ -50,17 +50,68 @@ Reproduce the whole thing with `npm run fetch:open-facts`, then `prepare:beauty`
 `prepare:products`, `prepare:petfood`, then `node src/load.ts data/rows-<source>.jsonl` for each,
 then `node src/embed-all.ts`, which only embeds what has no vector yet.
 
-### Still free, but needing one signup each
+### Open Icecat, loaded 2026-09-05
 
-- **Open Icecat**, the electronics catalogue. `src/fetch_icecat.py` fetches the index and
-  `inspect` prints its real shape; both are written and neither can run until an account exists.
-  Free signup at icecat.biz, then `ICECAT_USER` and `ICECAT_PASSWORD` in the environment. The
-  prepare step is deliberately not written yet: Icecat's manual names some index fields and not
-  others, and a parser built on a manual rather than on the file is how half a million rows of
-  confident nonsense get loaded. About 70% of Icecat data sheets carry a barcode.
-- **Best Buy and eBay** are free keys, and they are not catalogue sources. They return live
-  prices, which makes them price sources under `price/src/sources.ts`, where a source has to
-  declare whether it joins by barcode or by name. They belong to that file, not to this table.
+The account exists and the electronics catalogue is in. This is the category the 2026-09-03
+pricing correction called the best served of the five, and it was the largest hole in the
+catalogue.
+
+| Measured over the whole index | |
+|---|---|
+| Index entries | 7,670,733 |
+| Carrying at least one barcode | 2,826,327 (36.8%) |
+| Barcode values in total | 4,981,204 |
+| Listed for the Canadian market | 167,545 (2.2%) |
+| Still on market | 3,610,677 (47.1%) |
+| Brands, from the reference file | 44,321 |
+| Categories, with a parent chain | 6,812 |
+
+**36.8%, not "about 70%".** The 70% figure in the paid-source notes came from a third-party
+article. Measured against the file it is half that. The rows without a barcode are dropped: a
+data sheet that cannot be reached by a scan is not catalogue for this product.
+
+Rows are written one per barcode rather than one per product, because the catalogue is keyed by
+barcode and a product reachable by only the first of its four codes is broken for the other
+three. That turned 2,826,327 products into 4,972,274 rows, of which 4,972,252 barcodes are
+distinct; the 22 collisions are Icecat's own warning that brands reuse GTINs.
+
+**What it added, counted in the database.** The catalogue is now 5,182,591 rows and the Canadian
+part of it went from 123,913 to 618,364. Icecat contributed 494,513 Canadian rows covering 80,443
+distinct product names. Canadian coverage is five times what it was this morning, and almost all
+of the growth is electronics.
+
+**What it overwrote, which was not free.** 1,507 rows already in the catalogue shared a barcode
+with an Icecat entry and the loader's upsert replaced them. 1,478 of those came from Open Products
+Facts, which is 5% of that source, and the overlap makes sense: general merchandise is Icecat's
+own territory. Brand-approved data sheets are better rows than crowd-entered ones, so this is
+probably an improvement, but it happened silently and is recorded here rather than discovered
+later.
+
+**Where the manual was wrong, and why the parser waited for the file.** Icecat's published manual
+lists `EAN_UPCS` among the fields of a `<file>` entry, which reads as an attribute. It is not one:
+the barcodes are child elements underneath it. A parser written from the manual finds zero
+barcodes in a file holding 4,981,204 of them and raises nothing. The first two measurement passes
+here reported 0.0% for exactly that reason, plus a second bug of the same family: clearing each
+XML element as it ended wiped a child's attributes before its parent was read.
+
+**Vectors are still filling.** Text search and barcode lookup work on all 5.18 million rows now.
+The vector half is being built at roughly 196 rows a second, Canada-ordered so the useful rows
+come first, which is about forty minutes for the Canadian ones and seven hours for the rest. It
+is resumable: stop it and run `node src/embed-all.ts` again whenever, and pass
+`SHIN_EMBED_PAGE=200000` because the default page makes the query dominate at this size.
+
+Reproduce with `npm run fetch:icecat`, then `python src/prepare_rows_icecat.py`, then
+`node src/load.ts data/rows-icecat.jsonl`. Credentials come from `.env` at the repo root, which is
+gitignored, and the two reference files (brands, categories) come from
+`data.icecat.biz/export/freexml/refs/`, which the free account can read.
+
+### Still free, but not yet had
+
+- **Best Buy** refused the signup: their portal rejects free email and .edu addresses outright,
+  so the key needs an email on a domain we own. It is a price source rather than a catalogue in
+  any case, so it belongs with the sellers in `price/src/sources.ts`.
+- **eBay** registered but the account is held for review, stated as at least one business day.
+  Also a price source, and the one that covers used goods.
 
 ## Free, bulk-downloadable, no key
 

@@ -23,6 +23,8 @@ import type { Embedder } from './embed.ts';
 
 /** RRF's damping constant. 60 is the value from the original paper. */
 const RRF_K = 60;
+/** How much a row nobody sells here gives up. See the sort in `search`. */
+const CANADA_DISCOUNT = 0.85;
 
 /** How deep each retriever goes before fusion. Deep enough that a result ranked
  *  poorly by one and well by the other still survives to be fused. */
@@ -62,6 +64,15 @@ const RETRIEVE_N = 60;
  *              all, and the answer is neighbours rather than candidates. This
  *              one is a floor, not a discriminator, and the measurement above
  *              does not bear on it.
+ *
+ *              2026-09-05: the catalogue is now 5,182,591 rows and the vector
+ *              index covers 437,574 of them -- 4.6% of the 4,972,252 electronics
+ *              rows. A row with no vector has `similarity: null`, which is an
+ *              ABSENT signal, not a measured low one. #band below used to read
+ *              it with `?? 0`, which pushed every electronics row without a
+ *              vector under this floor regardless of how well it actually
+ *              matched, for a reason that had nothing to do with fit. Fixed the
+ *              same day: the floor only fires on a similarity we actually have.
  */
 const FLOOR_SIM = 0.72;
 
@@ -90,6 +101,18 @@ export interface Candidate {
   readonly categoryPath: readonly string[];
   readonly allergens: readonly string[];
   readonly soldInCanada: boolean;
+  /**
+   * Which upstream database this row came from.
+   *
+   * Returned because the caller has to decide what KIND of thing this is before
+   * the price engine will look at it, and the source is the strongest signal
+   * available: every one of the 4,972,252 electronics rows carries the same
+   * source, while only 27% of the grocery rows carry a category at all. Without
+   * it the app was left inferring the source from the category path, which is a
+   * guess, and a guess about which pricing rule to apply is how a product gets
+   * judged by the wrong one.
+   */
+  readonly source: string;
   /** Everything a confidence calculation upstream might want. Nothing is hidden. */
   readonly signals: {
     readonly textRank: number | null;
@@ -121,9 +144,35 @@ export interface SearchQuery {
   readonly sizeValue?: number;
   readonly sizeUnit?: string;
   readonly limit?: number;
+  /**
+   * Whether to run the vector arm at all. Default true.
+   *
+   * THIS EXISTS BECAUSE THE VECTOR ARM DOES NOT SCALE AND A TIMEOUT CANNOT SAVE
+   * IT. Measured 2026-09-05 with 316,486 of 5,182,591 rows embedded: one k=60
+   * KNN takes 735 ms and reads all 471 MB of the vector table, which is a
+   * straight scan at 640 MB/s. Finished, that table is 5,182,591 x 384 x 4
+   * bytes = 7.96 GB and the same scan is roughly twelve seconds.
+   *
+   * The part that makes it a correctness problem rather than a slowness one:
+   * `node:sqlite` is synchronous. The KNN blocks the thread it runs on for its
+   * whole duration, so racing it against a timer does nothing at all, and one
+   * photo search would freeze every barcode lookup in the same process. The two
+   * fixes are to make the scan cheap or to run it somewhere that blocking is
+   * survivable. `service.ts` does the second by running search in a worker
+   * thread; this flag does the first by not running it, which is the right
+   * answer whenever the caller has a barcode or is only completing typed text.
+   */
+  readonly vectors?: boolean;
 }
 
 export interface SearchResult {
+  // Verified 2026-09-05 against his correction (docs/the-combined-pipeline.md,
+  // decision 17): `band` is advisory metadata for confidence, never a gate on
+  // `candidates`. `candidates` below is populated from the ranked list before
+  // the band is even computed, and stays populated on 'ambiguous' and 'miss'
+  // alike -- a caller has a top candidate to show whenever anything was found.
+  // The one caller that was still treating 'miss' as "nothing to show" was
+  // identify/src/identify.ts, fixed the same day; this file never did.
   readonly band: Band;
   readonly candidates: readonly Candidate[];
   /** Populated on a miss, and on an ambiguous result whose leader is weak. */
@@ -144,10 +193,11 @@ interface Row {
   leaf_category: string | null;
   allergens: string;
   sold_in_canada: number;
+  source: string;
 }
 
 const SELECT_COLS = `code, name, name_en, name_fr, brands, quantity, size_value,
-  size_unit, category_path, leaf_category, allergens, sold_in_canada`;
+  size_unit, category_path, leaf_category, allergens, sold_in_canada, source`;
 
 /** Strips "en:" and hyphens so a tag can be shown to a person (decision 27). */
 export function labelForTag(tag: string): string {
@@ -162,15 +212,30 @@ export function labelForTag(tag: string): string {
  * user. Every token is quoted and OR-ed, and a trailing prefix wildcard is added
  * so a half-typed word still matches.
  */
-function toFtsQuery(text: string): string {
-  const tokens = text
+function ftsTokens(text: string): string[] {
+  return text
     .toLowerCase()
     .replace(/["*()]/g, ' ')
     .split(/[^\p{L}\p{N}.]+/u)
     .filter((t) => t.length > 1);
-  if (tokens.length === 0) return '';
-  return tokens.map((t, i) => (i === tokens.length - 1 ? `"${t}"*` : `"${t}"`)).join(' OR ');
 }
+
+/**
+ * Every token quoted, the last one given a prefix wildcard so a half-typed word
+ * still matches, joined by whichever operator the caller is trying.
+ */
+function joinFts(tokens: readonly string[], op: 'AND' | 'OR'): string {
+  return tokens.map((t, i) => (i === tokens.length - 1 ? `"${t}"*` : `"${t}"`)).join(` ${op} `);
+}
+
+/**
+ * How many strict hits are enough to skip the loose pass.
+ *
+ * Five, because the caller asks for five candidates by default and the ring
+ * walk needs a candidate that carries a category path, which not every row has.
+ * Below five it is worth paying for the wider net.
+ */
+const ENOUGH_STRICT_HITS = 5;
 
 /** sqlite-vec stores L2 distance; with unit vectors this recovers cosine. */
 function similarityFromDistance(distance: number): number {
@@ -212,6 +277,7 @@ function rowToCandidate(
     categoryPath: JSON.parse(row.category_path) as string[],
     allergens: JSON.parse(row.allergens) as string[],
     soldInCanada: row.sold_in_canada === 1,
+    source: row.source,
     signals: { ...signals, brandAgrees, sizeAgrees },
   };
 }
@@ -249,9 +315,41 @@ export class Catalogue {
     return null;
   }
 
+  /**
+   * Text retrieval: all the words first, any of the words only if that failed.
+   *
+   * THE OR-ONLY VERSION WAS THE SLOWEST THING IN THE PRODUCT AND THE CATALOGUE
+   * SAID SO. Joining every token with OR means a query containing one common
+   * word matches an enormous row set, and `ORDER BY bm25` has to score all of
+   * it before it can return five. Measured 2026-09-05 against 5,182,591 rows:
+   *
+   *   query                     OR      AND    same top hit
+   *   toner cartridge hp     1485 ms  206 ms   yes
+   *   samsung monitor         585 ms   64 ms   yes
+   *   logitech wireless mouse 182 ms   10 ms   yes
+   *   lait au chocolat         56 ms    8 ms   yes
+   *   kraft peanut butter      25 ms  2.5 ms   yes
+   *
+   * AND was faster on all nine probes, between seven and thirty times, and
+   * returned the same leader on every one of them that returned anything at
+   * all. Two of the nine returned nothing under AND, "dyson vacuum cleaner" and
+   * "coca cola 2l", because the catalogue's own name for those rows does not
+   * contain every word the shopper used. Those are exactly the queries that
+   * need the loose pass, and they are cheap ones, so the fallback costs little
+   * and the recall is not traded away.
+   */
   #textSearch(text: string): { row: Row; bm25: number }[] {
-    const q = toFtsQuery(text);
-    if (!q) return [];
+    const tokens = ftsTokens(text);
+    if (tokens.length === 0) return [];
+
+    if (tokens.length > 1) {
+      const strict = this.#runFts(joinFts(tokens, 'AND'));
+      if (strict.length >= ENOUGH_STRICT_HITS) return strict;
+    }
+    return this.#runFts(joinFts(tokens, 'OR'));
+  }
+
+  #runFts(match: string): { row: Row; bm25: number }[] {
     const rows = this.#db
       .prepare(
         `SELECT ${SELECT_COLS.split(', ').map((c) => `p.${c.trim()}`).join(', ')},
@@ -261,7 +359,7 @@ export class Catalogue {
          WHERE product_fts MATCH ?
          ORDER BY score
          LIMIT ?`,
-      ).all(q, RETRIEVE_N) as unknown as (Row & { score: number })[];
+      ).all(match, RETRIEVE_N) as unknown as (Row & { score: number })[];
     return rows.map((r) => ({ row: r, bm25: r.score }));
   }
 
@@ -343,12 +441,31 @@ export class Catalogue {
     return null;
   }
 
-  /** Cached: the ring walk asks about the same handful of tags constantly. */
+  /**
+   * How big a category is, counted only as far as the answer needs.
+   *
+   * Cached, because the ring walk asks about the same handful of tags
+   * constantly. Capped, because the only question ever asked of this number is
+   * whether it exceeds MAX_RING_TAG, and counting a category out to its true
+   * size to learn that it is "more than a thousand" is wasted work at this
+   * scale: the widest tag in the catalogue holds 3,910,054 rows, and counting
+   * those index entries was most of the 823 ms a search for "toner cartridge
+   * hp" cost after the text half had already been fixed.
+   *
+   * Stopping at the cap plus one gives the comparison everything it needs and
+   * nothing it does not. The stored value is therefore a floor, not a
+   * population, which is safe here and would not be if anything ever displayed
+   * it. Nothing does.
+   */
   #tagSize(tag: string): number {
     const hit = this.#tagSizes.get(tag);
     if (hit !== undefined) return hit;
     const row = this.#db
-      .prepare('SELECT count(*) AS n FROM product_category WHERE tag = ?')
+      .prepare(
+        `SELECT count(*) AS n FROM (
+           SELECT 1 FROM product_category WHERE tag = ? LIMIT ${MAX_RING_TAG + 1}
+         )`,
+      )
       .get(tag) as { n: number };
     this.#tagSizes.set(tag, row.n);
     return row.n;
@@ -368,7 +485,7 @@ export class Catalogue {
 
     const [textHits, vecHits] = await Promise.all([
       Promise.resolve(this.#textSearch(text)),
-      this.#vectorSearch(text),
+      query.vectors === false ? Promise.resolve([]) : this.#vectorSearch(text),
     ]);
 
     // Fuse on rank, keeping each retriever's own evidence attached so the caller
@@ -406,11 +523,27 @@ export class Catalogue {
       }
     });
 
-    const ranked = [...merged.values()].sort((a, b) => {
-      if (b.rrf !== a.rrf) return b.rrf - a.rrf;
-      // Decision 28: Canada preferred, never a hard filter.
-      return b.row.sold_in_canada - a.row.sold_in_canada;
-    });
+    /*
+     * Decision 28: Canada preferred, never a hard filter.
+     *
+     * FIXED 2026-09-05. This used to be a tiebreak on equal RRF, and two
+     * fused rank lists essentially never produce equal RRF, so the preference
+     * fired approximately never. With the vector arm switched off it is
+     * provably dead: a single rank list gives every row a distinct 1/(k+rank),
+     * so the comparison above always returns first. The visible result was that
+     * "peanut butter" answered with an Indian beauty-database row carrying no
+     * brand, no size and sold_in_canada = 0, ahead of every Canadian jar.
+     *
+     * A discount on the score rather than a filter, so the preference is real
+     * but losable. At 0.85 a non-Canadian row holding the top text rank lands
+     * around twelfth if Canadian rows exist above it, and still wins outright
+     * when nothing Canadian is close. That is the behaviour decision 28 asks
+     * for: preferred, not required.
+     */
+    const score = (m: { rrf: number; row: { sold_in_canada: number } }) =>
+      m.row.sold_in_canada === 1 ? m.rrf : m.rrf * CANADA_DISCOUNT;
+
+    const ranked = [...merged.values()].sort((a, b) => score(b) - score(a));
 
     const limit = query.limit ?? 5;
     const candidates = ranked
@@ -457,9 +590,15 @@ export class Catalogue {
   #band(candidates: readonly Candidate[]): Band {
     const top = candidates[0];
     if (!top) return 'miss';
-    const topSim = top.signals.similarity ?? 0;
+    const topSim = top.signals.similarity;
 
-    if (topSim < FLOOR_SIM && top.signals.textRank !== 1) return 'miss';
+    // 2026-09-05: `?? 0` used to sit here. Null means no vector exists for this
+    // row (95% of electronics, per the coverage measured the same day), not
+    // that the row scored a measured 0 against the query. Coalescing the two
+    // meant an unvectored row could never clear the floor on any rank but
+    // first, no matter how well its brand and size actually agreed. The floor
+    // is a claim about a similarity we hold, so it only applies when we hold one.
+    if (topSim !== null && topSim < FLOOR_SIM && top.signals.textRank !== 1) return 'miss';
 
     // How much of what the caller pinned down this row matches. Null means the
     // caller did not supply it, which is different from supplying it and being
@@ -485,11 +624,34 @@ export class Catalogue {
 
   /** Decision 30: a miss is recorded, and nothing typed is promoted automatically. */
   #recordGap(query: SearchQuery): void {
-    this.#db
-      .prepare(
-        `INSERT INTO catalogue_gap (gtin, query_text, observed_at, note)
-         VALUES (?, ?, ?, ?)`,
-      )
-      .run(query.gtin ?? null, query.text ?? null, new Date().toISOString(), null);
+    try {
+      this.#db
+        .prepare(
+          `INSERT INTO catalogue_gap (gtin, query_text, observed_at, note)
+           VALUES (?, ?, ?, ?)`,
+        )
+        .run(query.gtin ?? null, query.text ?? null, new Date().toISOString(), null);
+    } catch (err) {
+      /*
+       * A gap that cannot be written must never become a search that cannot
+       * answer. This threw in front of a user on 2026-09-05: the serving
+       * connection is opened read-only so a request can never damage the
+       * catalogue, recording a miss is a write, and so the one path that most
+       * needed to say "we have not seen this one" said "attempt to write a
+       * readonly database" instead. The finding is worth keeping; it is not
+       * worth the screen.
+       *
+       * Counted rather than swallowed, so "gaps are not being logged" is a
+       * visible fact instead of a silence. The proper home is a separate small
+       * writable file for findings, which is a seam left open here rather than
+       * a reason to give a serving process write access to 3.47 GB.
+       */
+      this.gapsDropped += 1;
+      this.gapsDroppedWhy = err instanceof Error ? err.message : String(err);
+    }
   }
+
+  /** Misses that could not be written down, and why. Zero on a writable connection. */
+  gapsDropped = 0;
+  gapsDroppedWhy = '';
 }

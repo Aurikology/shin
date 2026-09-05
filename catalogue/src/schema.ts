@@ -155,6 +155,26 @@ export function openCatalogue(path: string): DatabaseSync {
 }
 
 /**
+ * Opens the database for serving: read only, no DDL, no migration.
+ *
+ * `openCatalogue` is a builder's door. It applies DDL and ALTERs on every open,
+ * which is correct while loading and wrong while answering: a serving process
+ * that can write can also corrupt, and a serving process that runs a migration
+ * on boot will do it at the worst possible moment, which is a restart under
+ * load. It also means several serving processes can share one file with the
+ * loader still running, because WAL allows one writer and any number of
+ * readers, and a reader that never writes can never contend for the lock.
+ *
+ * The vector extension is still loaded, because a read-only connection still
+ * has to be able to run a KNN query.
+ */
+export function openCatalogueReadOnly(path: string): DatabaseSync {
+  const db = new DatabaseSync(path, { readOnly: true, allowExtension: true });
+  sqliteVec.load(db);
+  return db;
+}
+
+/**
  * Columns added to the schema after a database was already built.
  *
  * `CREATE TABLE IF NOT EXISTS` silently does nothing to a table that exists, so

@@ -43,11 +43,22 @@ export interface PriceLookup {
   (codes: readonly string[]): Promise<Map<string, PricedProduct>>;
 }
 
+/**
+ * What "cheaper" was measured on.
+ *
+ * `unit` is cents per 100 g or 100 ml and is the honest comparison. `ticket` is
+ * the price on the tag, used when one of the two products has no size recorded,
+ * which is 82% of the catalogue. A ticket comparison is weaker and the row says
+ * so in its own sentence rather than being hidden.
+ */
+export type SavingBasis = 'unit' | 'ticket';
+
 export interface Alternative {
   readonly product: Candidate;
   readonly price: PricedProduct;
-  /** Cents per 100 g or 100 ml. The only fair comparison across pack sizes. */
-  readonly unitCents: number;
+  readonly basis: SavingBasis;
+  /** Cents per 100 g or 100 ml. Null when the comparison fell back to the ticket price. */
+  readonly unitCents: number | null;
   /** How much cheaper per unit than the thing being compared, as a fraction. */
   readonly cheaperBy: number;
   /**
@@ -84,9 +95,16 @@ function formatCents(cents: number): string {
 /**
  * Finds up to three cheaper same-category products with a real price.
  *
- * Returns an empty list rather than widening the category or dropping the size
- * rule when it cannot find three. An alternative that is not really an
- * alternative is worse than none: the user walks to another aisle for it.
+ * REWRITTEN 2026-09-05. The old version refused outright unless the product had
+ * a recorded size, and 82% of the catalogue has none, so it returned nothing
+ * for four products in five. It also refused unless the size units matched
+ * exactly, which drops every gram against millilitre pairing.
+ *
+ * It now always looks. When both sizes are known it compares unit prices, which
+ * is the honest comparison and is preferred. When either size is missing it
+ * compares the price on the tag and labels the row as such, because "this other
+ * jar is two dollars less" is useful to somebody in an aisle even when nobody
+ * recorded how big either jar is, and silence is not.
  */
 export async function alternativesFor(
   db: DatabaseSync,
@@ -94,35 +112,44 @@ export async function alternativesFor(
   originalPriceCents: number,
   lookup: PriceLookup,
 ): Promise<Alternative[]> {
-  if (original.sizeValue === null || original.sizeUnit === null) {
-    // Decision 37's dependency. Without a size there is no unit price, and
-    // without a unit price "cheaper" is a comparison between two different
-    // amounts of product, which is the error this whole module avoids.
-    return [];
-  }
-
   const path = original.categoryPath;
   if (path.length === 0) return [];
   const tag = path[path.length - 1];
 
-  const minSize = original.sizeValue / SIZE_RATIO;
-  const maxSize = original.sizeValue * SIZE_RATIO;
+  const sized = original.sizeValue !== null && original.sizeUnit !== null;
+  const minSize = sized ? original.sizeValue! / SIZE_RATIO : 0;
+  const maxSize = sized ? original.sizeValue! * SIZE_RATIO : 0;
 
+  /*
+   * When the original has a size, prefer same-unit comparable-size rows but do
+   * not require them: they sort first and the rest follow, so a category with
+   * only differently sized neighbours still returns something.
+   */
   const rows = db
     .prepare(
       `SELECT p.code, p.name, p.name_en, p.name_fr, p.brands, p.quantity,
               p.size_value, p.size_unit, p.category_path, p.leaf_category,
-              p.allergens, p.sold_in_canada
+              p.allergens, p.sold_in_canada, p.source,
+              CASE WHEN ?1 = 1
+                     AND p.size_unit = ?4
+                     AND p.size_value BETWEEN ?5 AND ?6
+                   THEN 0 ELSE 1 END AS rank_bucket
        FROM product_category pc
        JOIN product p ON p.rowid = pc.rowid_ref
-       WHERE pc.tag = ?
-         AND p.code <> ?
-         AND p.size_unit = ?
-         AND p.size_value BETWEEN ? AND ?
+       WHERE pc.tag = ?2
+         AND p.code <> ?3
          AND p.sold_in_canada = 1
-       ORDER BY p.name
-       LIMIT ?`,
-    ).all(tag, original.code, original.sizeUnit, minSize, maxSize, MAX_CONSIDERED) as unknown as {
+       ORDER BY rank_bucket, p.name
+       LIMIT ?7`,
+    ).all(
+    sized ? 1 : 0,
+    tag,
+    original.code,
+    original.sizeUnit,
+    minSize,
+    maxSize,
+    MAX_CONSIDERED,
+  ) as unknown as {
     code: string;
     name: string;
     name_en: string | null;
@@ -135,6 +162,7 @@ export async function alternativesFor(
     leaf_category: string | null;
     allergens: string;
     sold_in_canada: number;
+    source: string;
   }[];
 
   if (rows.length === 0) return [];
@@ -142,7 +170,8 @@ export async function alternativesFor(
   const prices = await lookup(rows.map((r) => r.code));
   if (prices.size === 0) return [];
 
-  const originalUnit = unitCentsOf(originalPriceCents, original.sizeValue);
+  const originalUnit =
+    original.sizeValue !== null ? unitCentsOf(originalPriceCents, original.sizeValue) : null;
   const originalAllergens = new Set(original.allergens);
 
   const out: Alternative[] = [];
@@ -150,8 +179,22 @@ export async function alternativesFor(
     const price = prices.get(r.code);
     if (!price) continue;
 
-    const unitCents = unitCentsOf(price.amountCents, r.size_value);
-    const cheaperBy = (originalUnit - unitCents) / originalUnit;
+    /*
+     * Unit price when both sides have a size and the same unit, ticket price
+     * otherwise. The fallback is where four products in five now get an answer
+     * instead of nothing.
+     */
+    const comparable =
+      originalUnit !== null &&
+      r.size_value !== null &&
+      r.size_value > 0 &&
+      r.size_unit === original.sizeUnit;
+
+    const basis: SavingBasis = comparable ? 'unit' : 'ticket';
+    const unitCents = comparable ? unitCentsOf(price.amountCents, r.size_value) : null;
+    const cheaperBy = comparable
+      ? (originalUnit! - unitCents!) / originalUnit!
+      : (originalPriceCents - price.amountCents) / originalPriceCents;
     if (cheaperBy < MIN_SAVING) continue;
 
     const theirAllergens: string[] = JSON.parse(r.allergens) as string[];
@@ -172,6 +215,7 @@ export async function alternativesFor(
       categoryPath: JSON.parse(r.category_path) as string[],
       allergens: theirAllergens,
       soldInCanada: r.sold_in_canada === 1,
+      source: r.source,
       signals: {
         textRank: null, vectorRank: null, bm25: null, similarity: null,
         rrf: 0, brandAgrees: null, sizeAgrees: null,
@@ -181,15 +225,19 @@ export async function alternativesFor(
     out.push({
       product,
       price,
+      basis,
       unitCents,
       cheaperBy,
       addedAllergens: added,
       removedAllergens: removed,
       // The sentence, written once, here. A measurement and a source, and
-      // nothing about how it tastes.
-      line:
-        `${formatCents(unitCents)} per ${per} at ${price.seller}, ` +
-        `against ${formatCents(originalUnit)}`,
+      // nothing about how it tastes. The weaker comparison says it is weaker
+      // in the sentence itself rather than being dropped.
+      line: comparable
+        ? `${formatCents(unitCents!)} per ${per} at ${price.seller}, ` +
+          `against ${formatCents(originalUnit!)}`
+        : `${formatCents(price.amountCents)} at ${price.seller}, ` +
+          `against ${formatCents(originalPriceCents)}. Sizes may differ.`,
     });
   }
 

@@ -19,7 +19,7 @@ function candidate(over: Partial<Candidate> & { code: string }): Candidate {
   return {
     name: 'x', nameEn: null, nameFr: null, brands: null, quantity: null,
     sizeValue: 500, sizeUnit: 'g', leafCategory: 'en:peanut-butters',
-    categoryPath: PB, allergens: [], soldInCanada: true,
+    categoryPath: PB, allergens: [], soldInCanada: true, source: 'openfoodfacts',
     signals: {
       textRank: null, vectorRank: null, bm25: null, similarity: null,
       rrf: 0, brandAgrees: null, sizeAgrees: null,
@@ -91,10 +91,16 @@ test('a different category is never borrowed to fill the list', async () => {
   assert.equal(alts.length, 0, 'jam is not an alternative to peanut butter');
 });
 
-test('a size far outside the original is not a fair swap', async () => {
+test('a size far outside the original is still named, on a real per-unit number', async () => {
   const db = fixture();
   const alts = await alternativesFor(db, original, 800, lookupOf({ D: 3000 }));
-  assert.equal(alts.length, 0, '5 kg against 500 g is a different purchase');
+  assert.equal(alts.length, 1, '5 kg against 500 g is still worth naming');
+  // Per 100 g is comparable across any two pack sizes, so the claim is true
+  // and stays a unit claim. The size ratio now orders the list rather than
+  // deciding whether the user is told anything at all.
+  assert.equal(alts[0].basis, 'unit');
+  assert.equal(alts[0].unitCents, 60);
+  assert.match(alts[0].line, /per 100 g/);
 });
 
 test('an added allergen is printed on the row, not used to hide it', async () => {
@@ -134,11 +140,14 @@ test('a product not sold in Canada is not an alternative here', async () => {
   assert.equal(alts.length, 0);
 });
 
-test('without a size on the original there is no unit price and so no claim', async () => {
+test('without a size the answer is the ticket price, never silence', async () => {
   const db = fixture();
   const unsized = candidate({ code: 'A', sizeValue: null, sizeUnit: null });
   const alts = await alternativesFor(db, unsized, 800, lookupOf({ B: 100 }));
-  assert.equal(alts.length, 0);
+  assert.equal(alts.length, 1, '82% of the catalogue has no size; it cannot mean no answer');
+  assert.equal(alts[0].basis, 'ticket');
+  assert.equal(alts[0].unitCents, null, 'and no per-unit number is invented');
+  assert.ok(!/per 100/.test(alts[0].line));
 });
 
 test('the row names a measurement and a seller, and makes no taste claim', async () => {
