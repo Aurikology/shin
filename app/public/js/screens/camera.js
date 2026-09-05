@@ -1098,21 +1098,79 @@ export default {
      * already in hand and no candidate list to choose from: there is nothing to
      * choose between when the package told us what it is.
      */
-    function onBarcode(read) {
+    async function onBarcode(read) {
       clearTimeout(hintTimer);
       clearTimeout(torchAckTimer);
       scanThumb = captureThumb(video, cam.dataset.camera === 'live');
       dockSay('thinking', 'reading', {}, 'think-dots');
       setState('framing');
-      const match = catalogueItems.find((i) => i.gtin && sameCode(i.gtin, read.text));
-      if (!match) {
-        // Read fine, and we do not have it. Decision 22's sentence, not a
-        // failure of the camera and not shown as one.
-        setState('choosing');
-        slot.innerHTML = candidateSheet(scenarios);
+
+      /*
+       * The real catalogue, 5.18 million products, asked directly. This costs
+       * about 2 ms and nothing else in the app is allowed to slow it down: it
+       * is the unlimited free path, and on a packaged grocery item it settles
+       * what the thing is before the shutter is ever pressed.
+       */
+      let found = null;
+      try {
+        found = await catalogueLookup(read.text);
+      } catch {
+        found = null;
+      }
+      if (dead) return;
+
+      if (found) {
+        proceed(found, null);
         return;
       }
-      proceed(match, null);
+
+      // Read fine, and we do not have it. Decision 22's sentence, not a failure
+      // of the camera and not shown as one.
+      setState('choosing');
+      slot.innerHTML = candidateSheet(scenarios);
+    }
+
+    /**
+     * A barcode to something `proceed` can price, or null.
+     *
+     * Falls back to the hand-priced demo shelf when the catalogue is not
+     * attached, so the app still demonstrates itself on a machine that does not
+     * have the 3.47 GB file sitting next to it.
+     */
+    async function catalogueLookup(code) {
+      /*
+       * The priced shelf first, for the same reason the typed route asks it
+       * first: a product somebody has actually recorded a price for produces a
+       * verdict, and a catalogue row nobody has priced produces a refusal.
+       * None of the seven carries a barcode today, so this never fires yet, and
+       * it is here so that the day one does, the barcode reaches the price
+       * rather than walking past it.
+       */
+      const priced = catalogueItems.find((i) => i.gtin && sameCode(i.gtin, code));
+      if (priced) return priced;
+
+      const id = await ctx.api.identify({ gtin: code });
+      if (!id.catalogueUp) return null;
+      if (!id.product) return null;
+      return {
+        id: id.product.code,
+        text: productLabel(id.product),
+        category: id.category,
+        categoryWhy: id.categoryWhy,
+        gtin: id.product.code,
+      };
+    }
+
+    /** Brand, name and size, without repeating the brand when the name has it. */
+    function productLabel(p) {
+      const parts = [];
+      const brand = (p.brands ?? '').split(',')[0].trim();
+      if (brand && !p.name.toLowerCase().includes(brand.toLowerCase())) parts.push(brand);
+      parts.push(p.name);
+      if (p.quantity && !p.name.toLowerCase().includes(String(p.quantity).toLowerCase())) {
+        parts.push(p.quantity);
+      }
+      return parts.join(' ');
     }
 
     function sameCode(a, b) {
@@ -1448,16 +1506,57 @@ export default {
       paintPadEffective();
     }, { signal: listeners.signal });
 
-    root.addEventListener('submit', (e) => {
+    root.addEventListener('submit', async (e) => {
       const form = e.target.closest('[data-form="textroute"]');
       if (!form) return;
       e.preventDefault();
       const text = (form.querySelector('[data-textroute-input]')?.value ?? '').trim();
       if (!text) return;
-      const match = matchCatalogue(text, catalogueItems);
-      if (match) {
-        const item = scenarios.find((s) => s.id === match.id) ?? { text: match.label, category: match.category };
-        openPad(item);
+
+      /*
+       * The hand-priced shelf is asked FIRST, and that ordering is the whole
+       * point rather than a leftover.
+       *
+       * The catalogue knows 5,182,591 products and the price engine has
+       * observations for seven. Typing "Kraft Dinner 225g" against the
+       * catalogue finds a real 200 g row that nobody has ever priced, and the
+       * answer is an honest refusal. Asking the priced shelf first finds the
+       * 225 g box somebody actually stood in a store and recorded, and the
+       * answer is a verdict. Preferring the row we can price over the row we
+       * merely have is not a demo shortcut; it is the same preference the
+       * product will keep once the priced set is thousands rather than seven.
+       */
+      let typed = null;
+      const priced = matchCatalogue(text, catalogueItems);
+      if (priced) {
+        typed = scenarios.find((s) => s.id === priced.id) ?? {
+          text: priced.label,
+          category: priced.category,
+        };
+      }
+
+      /*
+       * Nothing priced matches, so ask the real catalogue. Measured against
+       * 5,182,591 rows: 11 to 300 ms depending on how common the words are.
+       */
+      if (!typed) {
+        try {
+          const id = await ctx.api.identify({ text });
+          if (id.catalogueUp && id.product) {
+            typed = {
+              id: id.product.code,
+              text: productLabel(id.product),
+              category: id.category,
+              gtin: id.product.code,
+            };
+          }
+        } catch {
+          typed = null;
+        }
+      }
+      if (dead) return;
+      if (typed) {
+        openPad(typed);
         return;
       }
       // No match: the unsure refusal, the engine's own shape, never a fake

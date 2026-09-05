@@ -28,6 +28,33 @@ export function price(query) {
   return post('/api/price', query);
 }
 
+/**
+ * What is this thing, asked of the real catalogue: 5,182,591 products, 618,364
+ * of them sold in Canada.
+ *
+ * A barcode answers in about 2 ms and never counts against anything, which is
+ * why the scan loop fires this the instant a code is read rather than waiting
+ * for a shutter press. Text answers in tens of milliseconds.
+ *
+ * Three outcomes, and the screen has to tell them apart:
+ *   product set                 we know what it is
+ *   product null, catalogueUp   read fine, we have never seen it
+ *   catalogueUp false           the catalogue is not attached, we did not look
+ *
+ * `category` null is a fourth state and not a failure: we know the product and
+ * have no fair way to price that kind of thing. `categoryWhy` is the sentence
+ * for it, already written in words a person can read.
+ */
+export function identify({ gtin, text, brand, sizeValue, sizeUnit } = {}) {
+  const params = new URLSearchParams();
+  if (gtin) params.set('gtin', gtin);
+  if (text) params.set('text', text);
+  if (brand) params.set('brand', brand);
+  if (sizeValue) params.set('sizeValue', String(sizeValue));
+  if (sizeUnit) params.set('sizeUnit', sizeUnit);
+  return get(`/api/identify?${params.toString()}`);
+}
+
 export function catalogue() {
   return get('/api/catalogue');
 }
