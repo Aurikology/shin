@@ -225,6 +225,32 @@ export interface SearchResult {
   /** Populated on a miss, and on an ambiguous result whose leader is weak. */
   readonly ring: NeighbourRing | null;
   readonly matchedBy: 'gtin' | 'hybrid' | 'none';
+  /**
+   * Whether every word the shopper typed appears in the word arm's results, or
+   * only some of them.
+   *
+   * 'all' means every word appears together in at least one row of whatever was
+   * searched. 'some' means no row holds them all, so everything returned matches
+   * a SUBSET of the query. 'n/a' is a one-word query, where the strict and loose
+   * passes are the same search and the distinction does not exist, and a barcode.
+   *
+   * Note it is NOT "the strict pass answered". That was the first version and it
+   * was wrong: a strict pass returning fewer than ENOUGH_STRICT_HITS rows still
+   * proves the words co-occur, and calling that a partial match mislabels the
+   * ordinary case of a specific product in a small source.
+   *
+   * This was already computed inside #textSearch and thrown away, and throwing
+   * it away had a cost. Restricted to grocery, "macbook pro" returned PROTEIN2O
+   * and "wireless mouse" returned Mini Mouse, both reported as legitimate
+   * restricted hits carrying only a 0.85 confidence penalty, because the one
+   * word that survived was a real grocery word. `band` cannot see it: it reads
+   * 'ambiguous' for those two exactly as it does for "peanut butter". Measured
+   * over 10 grocery-route queries, this field separates them completely -- all
+   * five genuine hits answered strictly, all five nonsense ones answered
+   * loosely -- which is why routing.ts uses it to decide whether a narrowed
+   * answer is trustworthy enough to suppress the whole-catalogue fallback.
+   */
+  readonly wordsMatched: 'all' | 'some' | 'n/a';
 }
 
 interface Row {
@@ -401,15 +427,38 @@ export class Catalogue {
    * need the loose pass, and they are cheap ones, so the fallback costs little
    * and the recall is not traded away.
    */
-  #textSearch(text: string, sources?: readonly string[]): { row: Row; bm25: number }[] {
+  #textSearch(
+    text: string,
+    sources?: readonly string[],
+  ): { hits: { row: Row; bm25: number }[]; wordsMatched: 'all' | 'some' | 'n/a' } {
     const tokens = ftsTokens(text);
-    if (tokens.length === 0) return [];
+    if (tokens.length === 0) return { hits: [], wordsMatched: 'n/a' };
 
-    if (tokens.length > 1) {
-      const strict = this.#runFts(joinFts(tokens, 'AND'), sources);
-      if (strict.length >= ENOUGH_STRICT_HITS) return strict;
-    }
-    return this.#runFts(joinFts(tokens, 'OR'), sources);
+    // One word: the strict and loose passes are the same search, so "only some
+    // of the words matched" is not a thing that can happen and must not be
+    // reported. Saying 'some' here would make every one-word grocery query --
+    // "milk", "bread" -- look like weak evidence and send it to the fallback.
+    if (tokens.length === 1) return { hits: this.#runFts(joinFts(tokens, 'OR'), sources), wordsMatched: 'n/a' };
+
+    const strict = this.#runFts(joinFts(tokens, 'AND'), sources);
+    if (strict.length >= ENOUGH_STRICT_HITS) return { hits: strict, wordsMatched: 'all' };
+
+    // `wordsMatched` keys on whether the strict pass found ANYTHING, not on
+    // whether it found enough to answer with. Those are different questions and
+    // the first draft of this conflated them: "pro whey" has both words in one
+    // row, so all the words plainly do match, but a single hit is under
+    // ENOUGH_STRICT_HITS, so the loose pass answers and the result was being
+    // labelled a partial match. That is a real query shape -- a specific product
+    // in a small source -- and mislabelling it sends a good narrowed answer to
+    // the whole-catalogue fallback.
+    //
+    // So: 'all' means every word the shopper typed appears together in at least
+    // one row of whatever was searched, which is the question a caller deciding
+    // whether to trust a narrowed answer actually has. Whether the ranked list
+    // handed back came from the strict or the loose pass is a separate matter,
+    // and the loose list is still the better one to return here.
+    const loose = this.#runFts(joinFts(tokens, 'OR'), sources);
+    return { hits: loose, wordsMatched: strict.length > 0 ? 'all' : 'some' };
   }
 
   /**
@@ -564,16 +613,16 @@ export class Catalogue {
   async search(query: SearchQuery): Promise<SearchResult> {
     if (query.gtin) {
       const hit = this.byGtin(query.gtin);
-      if (hit) return { band: 'confident', candidates: [hit], ring: null, matchedBy: 'gtin' };
+      if (hit) return { band: 'confident', candidates: [hit], ring: null, matchedBy: 'gtin', wordsMatched: 'n/a' };
     }
 
     const text = query.text?.trim();
     if (!text) {
       this.#recordGap(query);
-      return { band: 'miss', candidates: [], ring: null, matchedBy: 'none' };
+      return { band: 'miss', candidates: [], ring: null, matchedBy: 'none', wordsMatched: 'n/a' };
     }
 
-    const [textHits, vecHits] = await Promise.all([
+    const [textResult, vecHits] = await Promise.all([
       Promise.resolve(this.#textSearch(text, query.sources)),
       query.vectors === false ? Promise.resolve([]) : this.#vectorSearch(text),
     ]);
@@ -585,6 +634,7 @@ export class Catalogue {
       { row: Row; textRank: number | null; vectorRank: number | null; bm25: number | null; similarity: number | null; rrf: number }
     >();
 
+    const textHits = textResult.hits;
     textHits.forEach((h, i) => {
       merged.set(h.row.code, {
         row: h.row,
@@ -674,7 +724,7 @@ export class Catalogue {
 
     if (band === 'miss') this.#recordGap(query);
 
-    return { band, candidates, ring, matchedBy: candidates.length > 0 ? 'hybrid' : 'none' };
+    return { band, candidates, ring, matchedBy: candidates.length > 0 ? 'hybrid' : 'none', wordsMatched: textResult.wordsMatched };
   }
 
   #band(candidates: readonly Candidate[]): Band {

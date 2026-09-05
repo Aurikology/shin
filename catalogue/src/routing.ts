@@ -349,9 +349,42 @@ export async function restrictedSearch(
   const inRoute = (candidate: Candidate) => route.categories.some((category) => candidateInCategory(candidate, category));
   const filtered = pooled.candidates.filter(inRoute).slice(0, requestedLimit);
 
-  if (filtered.length === 0) {
-    // RULE: a restricted search that finds nothing falls back to the whole
-    // catalogue rather than returning nothing.
+  /*
+   * A NARROWED ANSWER THAT ONLY MATCHED SOME OF THE WORDS IS NOT AN ANSWER.
+   *
+   * The fallback used to fire only on an EMPTY list, and that let the worst
+   * results through, because a bad narrowed answer is not an empty one. Under a
+   * grocery route, "macbook pro" came back with PROTEIN2O and "wireless mouse"
+   * with Mini Mouse, both reported as legitimate restricted hits carrying a
+   * mere 0.85 penalty, and neither fell back. The plan's own test for this lane
+   * is that a shopper flagged as buying groceries can still find a laptop:
+   * "laptop" passed it, because it matched nothing at all and fell back, and
+   * "macbook pro" failed it, because it matched something.
+   *
+   * `band` cannot tell these apart -- it reads 'ambiguous' for PROTEIN2O and for
+   * a real jar of peanut butter alike. `wordsMatched` can, and it costs nothing
+   * because search.ts already computed it. Measured over 10 grocery-route
+   * queries: all five genuine hits answered with every word present, all five
+   * nonsense ones matched only a subset.
+   *
+   * Note this is NOT the rule that was considered and rejected earlier, which
+   * was to skip the expensive OR pass entirely when a restricted strict pass
+   * finds nothing. That one loses real answers. This one still runs the pass,
+   * still uses its result when nothing better exists, and only declines to let
+   * a subset match SUPPRESS the whole-catalogue fallback.
+   */
+  // Scoped to routes that were actually narrowed by source, which is where the
+  // 10 queries were measured. A produce or furniture route retrieves from the
+  // whole catalogue and is only category-filtered afterwards, so a subset match
+  // there is the same subset match an unrestricted search would have returned,
+  // and dropping the category filter for it would be a behaviour change nobody
+  // has measured.
+  const narrowedBySource = Boolean(query.sources ?? sources);
+  const onlySomeWordsMatched = narrowedBySource && pooled.wordsMatched === 'some';
+
+  if (filtered.length === 0 || onlySomeWordsMatched) {
+    // RULE: a restricted search that finds nothing USEFUL falls back to the
+    // whole catalogue rather than returning nothing, or returning junk.
     //
     // The second search is not redundant. Before stage 1 existed, `pooled` was
     // an unrestricted retrieval and slicing it WAS the whole-catalogue answer.
@@ -360,7 +393,7 @@ export async function restrictedSearch(
     // no confidence penalty -- a narrowed answer wearing an unnarrowed label,
     // which is worse than either behaviour on its own.
     const wide =
-      (query.sources ?? sources)
+      narrowedBySource
         ? await catalogue.search({ ...query, limit: requestedLimit, sources: undefined })
         : { ...pooled, candidates: pooled.candidates.slice(0, requestedLimit) };
     return {

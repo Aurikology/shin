@@ -325,3 +325,83 @@ test('a caller that names its own sources keeps them, routing does not overwrite
   assert.equal(out.restricted, false);
   assert.equal(out.fellBack, true);
 });
+
+/**
+ * The plan's own test for this lane is that a shopper flagged as buying
+ * groceries can still find a laptop. "laptop" always passed it, because it
+ * matches nothing in grocery and fell back. "macbook pro" failed it, because it
+ * matched SOMETHING: the word "pro" is a real grocery word, so a restricted
+ * search returned PROTEIN2O and reported it as a legitimate hit carrying only a
+ * 0.85 penalty. A bad narrowed answer is not an empty one, and the fallback
+ * used to fire only on empty.
+ */
+async function twoWordFixture() {
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+
+  // Grocery rows carrying ONE of the two words a shopper types, and never both.
+  const groceries = ['Protein Pro Shake', 'Pro Whey Powder', 'Chocolate Mouse Cake', 'Mini Mouse Biscuit'];
+  groceries.forEach((name, i) => {
+    insert.run(`140000000${String(i).padStart(4, '0')}`, name, name, null, 'Bar Co', '500 g', 500, 'g',
+      '["en:snacks"]', 'en:snacks', '[]', 1, 'openfoodfacts');
+  });
+  // The rows the shopper actually meant, in the source a grocery route excludes.
+  const gadgets = ['Macbook Pro Laptop', 'Wireless Mouse Receiver'];
+  gadgets.forEach((name, i) => {
+    insert.run(`150000000${String(i).padStart(4, '0')}`, name, name, null, 'Apple', '1 ea', null, null,
+      '["en:computers-peripherals"]', 'en:accessories', '[]', 1, 'icecat');
+  });
+  rebuildFts(db);
+  rebuildCategories(db);
+
+  const embedder = new HashEmbedder();
+  const all = db.prepare('SELECT rowid, name, brands FROM product').all() as unknown as {
+    rowid: number; name: string; brands: string | null;
+  }[];
+  const vecs = await embedder.embedPassages(all.map((r) => `${r.brands ?? ''} ${r.name}`));
+  const iv = db.prepare('INSERT INTO product_vec(rowid, embedding) VALUES (?, ?)');
+  all.forEach((r, i) => iv.run(BigInt(r.rowid), toVecBlob(vecs[i])));
+
+  return new Catalogue(db, embedder);
+}
+
+test('a grocery route that matched only some of the words falls back instead of answering', async () => {
+  const catalogue = await twoWordFixture();
+
+  for (const text of ['macbook pro', 'wireless mouse']) {
+    const out = await restrictedSearch(catalogue, { text, vectors: false, limit: 3 }, GROCERY_ROUTE);
+    assert.equal(out.restricted, false, `"${text}" was answered as a restricted hit`);
+    assert.equal(out.fellBack, true, `"${text}" did not fall back`);
+    assert.ok(out.result.candidates.length > 0, `"${text}" returned nothing at all`);
+    assert.equal(
+      out.result.candidates[0]?.source,
+      'icecat',
+      `"${text}" led with a grocery row that matched only one of the two words`,
+    );
+  }
+});
+
+test('matching every word keeps a narrowed answer narrowed', async () => {
+  // The other side of the same rule: it must not send genuine grocery hits to
+  // the fallback. Without this, "words matched" would look like a fix while
+  // quietly turning restriction off.
+  const catalogue = await twoWordFixture();
+  const out = await restrictedSearch(catalogue, { text: 'pro whey', vectors: false, limit: 3 }, GROCERY_ROUTE);
+  assert.equal(out.restricted, true, 'both words are present in a grocery row, so this is a real restricted hit');
+  assert.equal(out.fellBack, false);
+  assert.equal(out.result.candidates[0]?.source, 'openfoodfacts');
+});
+
+test('a one-word query is never treated as a partial match', async () => {
+  // One word means the strict and loose passes are the same search, so
+  // wordsMatched is 'n/a' and the fallback must not fire on it. Reporting
+  // 'some' here would send every one-word grocery query to the whole catalogue.
+  const catalogue = await twoWordFixture();
+  const out = await restrictedSearch(catalogue, { text: 'chocolate', vectors: false, limit: 3 }, GROCERY_ROUTE);
+  assert.equal(out.result.wordsMatched, 'n/a');
+  assert.equal(out.restricted, true, 'a one-word grocery query still gets a restricted answer');
+  assert.equal(out.result.candidates[0]?.source, 'openfoodfacts');
+});
