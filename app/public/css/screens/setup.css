@@ -44,7 +44,33 @@
   transition: border-color var(--t-face) var(--ease-land),
               background var(--t-face) var(--ease-land);
 }
-.att:hover { border-color: var(--ink-faint); }
+/*
+ * Gated behind a real pointer. Ungated, a tapped face stays lit on a phone as
+ * if it were the selection, on the one screen whose entire job is showing which
+ * of three things is selected. FLAWS.md item 8.
+ */
+@media (hover: hover) and (pointer: fine) {
+  .att:hover { border-color: var(--ink-faint); }
+}
+
+/*
+ * `.att` is the picker on setup and the picker on You, and it had no focus
+ * style at all -- it is not a `.cta`, `.linky`, `.rowbtn` or `.mini-shutter`,
+ * so components.css's shared rule does not reach it and the browser default was
+ * all there was. FLAWS.md's opening line, exactly: the camera authors a ring on
+ * all seven of its controls and everything behind it takes what it is given.
+ *
+ * This is components.css's ring, named again rather than aliased, because the
+ * selector list there addresses shipped class names one by one and adding a
+ * screen's class to it would put a screen-owned name in the component layer.
+ * Same two tokens, so it cannot drift.
+ */
+.att:focus-visible {
+  outline: var(--ring-width) solid currentColor;
+  outline-offset: var(--ring-offset);
+  z-index: 1;
+  position: relative;
+}
 
 .att.on {
   border-color: var(--brand);

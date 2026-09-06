@@ -79,9 +79,26 @@
   position: relative;
 }
 
-/* The shutter is the primary act and carries the brand ring already, so its
-   focus ring is drawn in the brand rather than in its own ink -- otherwise a
-   white ring sits on a white disc and disappears. */
+/*
+ * currentColor is right for a control that sits ON the page ground and takes
+ * its ink from it. It is wrong for an inverted control, and measurably so:
+ * .cta is --ink filled with --ground text, so currentColor resolved to
+ * rgb(11,12,14) and drew a near-black ring, at a 3px offset, on the near-black
+ * page behind it. The ring was there and invisible, which is worse than absent
+ * because it passes a code review and fails a user.
+ *
+ * The rule underneath: a focus ring contrasts with the GROUND BEHIND THE
+ * CONTROL, never with the control's own fill. For an inverted pill that is the
+ * page's ink, in either theme.
+ */
+.cta:focus-visible,
+.btn--primary:focus-visible {
+  outline-color: var(--ink);
+}
+
+/* The shutter is the primary act and already carries a brand ring as its
+   resting state, so its focus ring is drawn in the brand and pushed out past
+   it -- otherwise a white ring sits on a white disc and disappears. */
 .mini-shutter:focus-visible {
   outline-color: var(--brand);
   outline-offset: 5px;

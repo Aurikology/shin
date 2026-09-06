@@ -1,9 +1,17 @@
 /*
- * Watching. The only list in the app.
+ * The three lists: Saved, Past scans, Recently removed.
  *
  * A row is a name and a number, and the number is the only coloured thing on it.
  * Colour here means the same as it means on the verdict sheet: a drop is green
  * because green is the good verdict, not because green is nice on a list.
+ *
+ * WHAT MOVED OUT OF THIS FILE, 2026-09-06. `.wrow`, `.prow` and `.rrow` were
+ * three near-identical row implementations, each with its own copy of the same
+ * truncation fix and its own copy of the comment explaining it -- 34 lines
+ * saying one thing three times. The shape is now components.css's `.row`, and
+ * the trim is its `.row-title`. What is left below is only what is genuinely
+ * per-list: Saved's delta column and its tier/confidence binding, Past scans'
+ * single price, Recently removed's two-line card and its confirm affordance.
  */
 
 /* The header callback, above the rows: same 64px face-and-bubble unit the
@@ -13,32 +21,131 @@
   margin: -2px 0 2px;
 }
 
-.wlist {
+.wlist,
+.plist,
+.rlist {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.wrow {
+/* ------------------------------------------------------- the row internals */
+
+/*
+ * The name-and-subtitle stack, shared by all three lists. `min-width: 0` is
+ * load-bearing on the flex child as well as on the title inside it: without it
+ * the child refuses to shrink below its content and the price is pushed off the
+ * frame instead of the name being trimmed. The trim itself is `.row-title`,
+ * in components.css, once.
+ */
+.row-n {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  width: 100%;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 3px;
   min-width: 0;
+}
+.row-sub {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+/* The title's display size on a list row: components.css sets the trim and the
+   role, this sets the face it wears on these three screens. */
+.row-title {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -.02em;
+}
+
+/*
+ * The delete control on a row.
+ *
+ * It was 36px wide against a `min-height: var(--tap)` (48px) -- a target 25%
+ * under the floor this same file was already setting for its own height, on the
+ * one control in the list that destroys something. It is now 48 x 48. Its
+ * accessible name is the `.sr-only` span inside it, not an `aria-label` built
+ * by string interpolation, because that attribute was being written from a
+ * user-typed item name with no escaping.
+ */
+.rowdel {
+  flex: 0 0 auto;
+  width: var(--tap);
+  min-width: var(--tap);
   min-height: var(--tap);
-  padding: 13px 16px;
-  background: var(--surface);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
   border: 1px solid var(--hairline);
   border-radius: var(--r-md);
+  color: var(--ink-faint);
+  font-family: var(--f-ui);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--t-tint) linear, border-color var(--t-tint) linear;
+}
+
+/*
+ * The focus ring, matching components.css's one ring exactly (2px currentColor
+ * at 3px offset, camera.css line 239's own standard). These four controls are
+ * not `.btn`, `.cta`, `.linky` or `.rowbtn`, so the shared rule there does not
+ * reach them and this is the same declaration rather than a second opinion.
+ * `:focus-visible`, so a tap does not leave a ring behind it.
+ */
+.wrow:focus-visible,
+.prow:focus-visible,
+.rowdel:focus-visible {
+  outline: var(--ring-width) solid currentColor;
+  outline-offset: var(--ring-offset);
+  position: relative;
+  z-index: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  /* FLAWS item 8: on a phone `:hover` latches to the last thing tapped, so a
+     tapped row stays lit as if it were selected. Gated, like camera.css's. */
+  .wrow:hover,
+  .prow:hover { border-color: var(--ink-faint); }
+  .rowdel:hover { color: var(--walk-bright); border-color: var(--walk-bright); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rowdel { transition: none; }
+}
+
+/* ------------------------------------------------------------------ Saved */
+
+.wrow-wrap,
+.prow-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
+/*
+ * A watchlist row plus its delete control. The row keeps its own button
+ * semantics (opens the item); the delete is a separate, smaller sibling so a
+ * mis-tap near the edge of the row can never fire both.
+ */
+.wrow,
+.prow {
+  flex: 1 1 auto;
+  min-width: 0;
   color: var(--ink);
   font-family: var(--f-ui);
-  text-align: left;
   cursor: pointer;
 }
-.wrow:hover { border-color: var(--ink-faint); }
+.wrow { justify-content: space-between; }
 
-.wrow .face { flex: 0 0 auto; color: var(--ink-faint); }
+.wrow .face,
+.prow .face { flex: 0 0 auto; color: var(--ink-faint); }
 
 /*
  * OLMA row 70: a row's face repeats the verdict sheet's own load-bearing
@@ -64,31 +171,6 @@
 .prow[data-conf="sure"] .face {
   color: var(--tier-on);
 }
-.wrow-n { display: flex; flex: 1 1 auto; flex-direction: column; gap: 3px; min-width: 0; }
-/*
- * `display: block` is load-bearing here, not decoration: `overflow`,
- * `text-overflow` and a constrained width have no clipping effect on an
- * inline element like `<b>`, so without it the name never truncates and
- * pushes the price and the delete control off the frame instead.
- */
-.wrow-n b {
-  display: block;
-  font-family: var(--f-display);
-  font-weight: 700;
-  font-size: 16px;
-  letter-spacing: -.02em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.wrow-n span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  color: var(--ink-faint);
-}
 
 .wrow-p {
   flex: 0 0 auto;
@@ -99,7 +181,6 @@
   font-family: var(--f-display);
   font-weight: 800;
   font-size: 19px;
-  font-variant-numeric: tabular-nums;
   letter-spacing: -.02em;
 }
 .wrow-p em {
@@ -140,36 +221,6 @@
 }
 .drop-card span { font-size: 13px; opacity: .82; }
 
-/*
- * A watchlist row plus its delete control. The row keeps its own button
- * semantics (opens the item); the delete is a separate, smaller sibling so a
- * mis-tap near the edge of the row can never fire both.
- */
-.wrow-wrap {
-  display: flex;
-  align-items: stretch;
-  gap: 8px;
-  min-width: 0;
-}
-.wrow-wrap .wrow { flex: 1 1 auto; min-width: 0; }
-
-.wrow-del,
-.prow-del {
-  flex: 0 0 auto;
-  width: 36px;
-  min-height: var(--tap);
-  background: none;
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-md);
-  color: var(--ink-faint);
-  font-family: var(--f-ui);
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-}
-.wrow-del:hover,
-.prow-del:hover { color: var(--walk-bright); border-color: var(--walk-bright); }
-
 /* The two links off the bottom of the list: past scans, recently removed. */
 .wmore {
   display: flex;
@@ -178,70 +229,25 @@
   margin-top: 4px;
 }
 
+/* ------------------------------------------------------------- Past scans */
+
 /*
- * Past scans. Same row shape as the watchlist, minus the delta column: a scan
- * is a record of what a price was, not a thing tracked over time.
+ * Same row shape as the watchlist, minus the delta column: a scan is a record
+ * of what a price was, not a thing tracked over time.
  */
-.plist {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.prow-wrap {
-  display: flex;
-  align-items: stretch;
-  gap: 8px;
-  min-width: 0;
-}
-.prow {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-height: var(--tap);
-  padding: 13px 16px;
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-md);
-  color: var(--ink);
-  font-family: var(--f-ui);
-  text-align: left;
-  cursor: pointer;
-}
-.prow:hover { border-color: var(--ink-faint); }
-.prow .face { flex: 0 0 auto; color: var(--ink-faint); }
-.prow-n { display: flex; flex: 1 1 auto; flex-direction: column; gap: 3px; min-width: 0; }
-/* `display: block` is load-bearing: overflow/text-overflow do not clip an inline `<b>`. */
-.prow-n b {
-  display: block;
-  font-family: var(--f-display);
-  font-weight: 700;
-  font-size: 16px;
-  letter-spacing: -.02em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.prow-n span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  color: var(--ink-faint);
-}
 .prow-p {
   flex: 0 0 auto;
   font-family: var(--f-display);
   font-weight: 800;
   font-size: 17px;
-  font-variant-numeric: tabular-nums;
   letter-spacing: -.02em;
   white-space: nowrap;
 }
 
-/* The read-only reopened verdict. No share, no watch: it already happened. */
+/* ---------------------------------------------- the reopened verdict modal */
+
+/* Read-only. No share, no watch: it already happened. `role="dialog"`,
+   `aria-modal` and the trap are put on after mount by lib/listscreen.js. */
 .pmodal {
   position: fixed;
   inset: 0;
@@ -265,6 +271,10 @@
   border: 1px solid var(--hairline);
   text-align: center;
 }
+/* The card carries `tabindex="-1"` so focus has somewhere to land in a dialog
+   with no controls of its own, but it is not itself a control: the ring belongs
+   to the Close button inside it, which is where focus actually goes. */
+.pmodal-card:focus { outline: none; }
 .pmodal-card h2 {
   margin: 0;
   font-family: var(--f-display);
@@ -292,32 +302,31 @@
   font-style: italic;
 }
 
+/* ------------------------------------------------------ Recently removed */
+
 /*
- * Recently removed. The header carries the retention line, not a face per
- * row: row faces belong to a verdict, and a removed row is not one anymore.
+ * The header carries the retention line, not a face per row: row faces belong
+ * to a verdict, and a removed row is not one anymore.
  */
 .rheader {
   margin: -2px 0 4px;
 }
-.rlist {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-/* The empty body: the same 48px component as the header above it, not a
-   bare, face-less line. */
+/* The empty body sits in the shared `.empty` container the other two lists
+   use, so the three screens end the same way; its contents stay the 48px
+   `shinSay` unit AVATAR.md row 46 specifies, so the padding is trimmed back
+   from `.empty`'s 46px, which was sized for a 96px face. */
 .rempty {
-  padding: 10px 2px 6px;
+  padding: 16px 2px 6px;
 }
+/*
+ * A removed row is a card, not a single line: the name and price on top, the
+ * two recovery actions under a hairline. It takes `.row`'s box and overrides
+ * the axis, which is the one thing about it that is not a row.
+ */
 .rrow-wrap {
-  display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 4px;
-  min-width: 0;
-  padding: 13px 16px;
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-md);
 }
 .rrow {
   display: flex;
@@ -326,33 +335,13 @@
   gap: 14px;
   min-width: 0;
 }
-.rrow-n { display: flex; flex: 1 1 auto; flex-direction: column; gap: 3px; min-width: 0; }
-/* `display: block` is load-bearing: overflow/text-overflow do not clip an inline `<b>`. */
-.rrow-n b {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--f-display);
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: -.02em;
-}
-.rrow-n span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  color: var(--ink-faint);
-}
+.rrow .row-title { font-size: 15px; }
 .rrow-p {
   flex: 0 0 auto;
   white-space: nowrap;
   font-family: var(--f-display);
   font-weight: 800;
   font-size: 16px;
-  font-variant-numeric: tabular-nums;
 }
 .rrow-actions {
   display: flex;
@@ -363,3 +352,22 @@
 .rrow-actions .linky { width: auto; min-height: 32px; padding: 6px 0; font-size: 13px; }
 .rrow-actions .linky.danger { color: var(--walk-bright); }
 .rrow-actions .linky.confirming { font-weight: 600; }
+
+/* ------------------------------------------------- the two other outcomes */
+
+/*
+ * A list that could not be read, and a list that has not arrived yet. Same
+ * shape and the same voice as the You page's coverage box, which is the only
+ * other place in the app that admits a read did not work ("I could not reach my
+ * own engine to check."). Quiet, centred, and carrying the way out: the retry
+ * is a control, because a dead end with no control is FLAWS item 5.
+ */
+.list-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 36px 12px;
+  text-align: center;
+}
+.list-state .linky { width: auto; }

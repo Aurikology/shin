@@ -18,6 +18,7 @@
 
 import { personality, say } from './voice.js';
 import { FLAGS } from './flags.js';
+import { escapeHtml } from './lib/dom.js';
 import { FACE_SETS, faceInner, faceParts } from './face-art.js';
 
 /**
@@ -537,7 +538,16 @@ export function shinSay(state, key, facts, opts = {}) {
 
   return `<div class="shin-say" data-state="${state}" data-side="${side}"${tierAttr}>
     <span class="face-block">${faceHtml}${faceLabel(state)}</span>
-    <div class="bubble"><p class="bubble-text">${line}</p></div>
+    <div class="bubble">
+      <!-- The line is escaped here rather than by each caller. Every screen
+           interpolates into innerHTML, and voice.js lines carry facts that
+           can be a user-typed item name or a seller they wrote down, so this
+           is the last point before markup where the whole class of problem
+           can be closed once. Callers must NOT escape on the way in:
+           escapeHtml is not idempotent and "Tom & Jerry" would come back as
+           "Tom &amp;amp; Jerry". voice.js holds no markup, so nothing is lost. -->
+      <p class="bubble-text">${escapeHtml(line)}</p>
+    </div>
   </div>`;
 }
 

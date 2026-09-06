@@ -31,11 +31,23 @@ body {
   align-items: center;
 }
 
-/* The phone. On a real phone it is simply the whole viewport. */
+/*
+ * The phone. On a real phone it is simply the whole viewport.
+ *
+ * `dvh` and never `vh`, everywhere in this file. This used to declare `100vh`
+ * and then `100dvh` over it as a fallback, while the desktop block below used
+ * `100dvh` with no fallback at all -- so the stylesheet disagreed with itself
+ * about which unit was the real one. `vh` on a phone is the LARGEST viewport,
+ * the one with the browser's address bar collapsed, so a `100vh` box is taller
+ * than the screen for as long as the bar is showing and the shutter sits below
+ * the fold on exactly the first tap of a cold start. `dvh` is the viewport that
+ * is actually there. Every browser that can run this app (getUserMedia, WASM,
+ * ES modules) has supported it since 2022, which is why the fallback line is
+ * gone rather than duplicated into the block below.
+ */
 .device {
   width: 100%;
   max-width: 420px;
-  min-height: 100vh;
   min-height: 100dvh;
   background: var(--ground);
   display: flex;
@@ -208,10 +220,27 @@ body {
   position: sticky;
   bottom: 0;
   margin-top: auto;
-  padding: 28px 0 max(14px, env(safe-area-inset-bottom));
-  /* Opaque under the control and fading above it. A list scrolling visibly
-     behind a floating button reads as a rendering fault, not as depth. */
-  background: linear-gradient(180deg, transparent, var(--ground) 40%);
+  padding: 14px 0 max(14px, env(safe-area-inset-bottom));
+  /*
+   * Opaque under the control and fading above it. A list scrolling visibly
+   * behind a floating button reads as a rendering fault, not as depth.
+   *
+   * The fade is 14 pixels and stated in pixels, not 40% of the footer's height,
+   * which is FLAWS.md item 10. At 40% of a 28px-padded footer the ramp ran
+   * something like 45 pixels, and measured on You at mid-scroll it left 80% of
+   * a `.fineprint` paragraph and 47% of a `.rowbtn` half-dissolved -- readable
+   * enough to try to read, faint enough to fail. That is the exact appearance
+   * of a rendering fault the gradient was added to prevent. A short steep ramp
+   * makes a line either clearly there or clearly gone.
+   *
+   * The other half of that item's suggested fix, bottom padding on `.page` equal
+   * to the footer height, is deliberately NOT applied: `.page-foot` is sticky
+   * and therefore still in flow as the last child, so at the bottom of the
+   * scroll the last item already clears it. Padding would add a permanent band
+   * of dead space to fix an overlap that only exists mid-scroll, and the ramp
+   * is what fixes that.
+   */
+  background: linear-gradient(180deg, transparent, var(--ground) 14px);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -260,10 +289,60 @@ body {
   color: var(--ink-faint);
 }
 
+/*
+ * The entrance, FLAWS.md item 9.
+ *
+ * This was `.page > * { animation: rise ... }`: every direct child of every
+ * screen, fading and sliding on every single arrival. Two things wrong with it.
+ * It is the fade-and-slide-everything pattern, which is what a screen looks like
+ * when nobody chose what should move. And it replayed on a path used dozens of
+ * times a day -- camera to Saved and back is the app's main loop, not a
+ * ceremony -- which is where motion costs the most and is wanted the least.
+ *
+ * Now: one element, the header block, and only the first time a screen is
+ * opened in this session. `[data-fresh]` is set by router.js on that first
+ * paint and removed on every arrival after it, so going back to Saved is
+ * instant, and toggling a setting on You that repaints the screen is instant.
+ * The camera is untouched by this and always was; it has its own motion.
+ */
 @media (prefers-reduced-motion: no-preference) {
-  .page > * { animation: rise var(--t-rise) var(--ease-land) both; }
+  #screen[data-fresh] .page-head { animation: rise var(--t-rise) var(--ease-land) both; }
   @keyframes rise {
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: none; }
   }
 }
+
+/*
+ * The route focus target, set by router.js after every navigation so focus lands
+ * inside the screen the user asked for instead of back on <body>.
+ *
+ * No ring on it, and this is the one place in the app where that is right. It is
+ * not a control -- it is an h1, or #screen itself on the camera -- and a ring
+ * around it would draw a 420-pixel box round the whole viewport on every
+ * navigation, which reads as a fault rather than as focus. The arrival is
+ * signalled by the live region announcing the screen and by the next Tab landing
+ * inside it. Every actual control keeps the shared ring from components.css.
+ */
+#screen[tabindex="-1"]:focus,
+#screen [tabindex="-1"]:focus { outline: none; }
+
+/*
+ * Scripting off. There is no server-rendered fallback -- every screen is drawn
+ * by the router -- so without this the frame is simply black.
+ */
+.noscript {
+  padding: 40px var(--pad);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  max-width: 34ch;
+}
+.noscript h1 {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 30px;
+  letter-spacing: -.03em;
+  line-height: 1.1;
+  margin: 0 0 12px;
+}
+.noscript p { margin: 0 0 10px; color: var(--ink-muted); font-size: 15px; line-height: 1.5; }

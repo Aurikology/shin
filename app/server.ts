@@ -173,6 +173,12 @@ const TYPES: Record<string, string> = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.webmanifest': 'application/manifest+json',
+  /* Added 2026-09-06 with the self-hosted fonts. Without it these fall through
+     to application/octet-stream below. Browsers do parse them anyway, because
+     the format('woff2') hint in the @font-face rule is what actually drives
+     parsing -- but an octet-stream is not cacheable the same way and it is the
+     kind of thing that works on a desktop and fails behind a proxy. */
+  '.woff2': 'font/woff2',
 };
 
 /**

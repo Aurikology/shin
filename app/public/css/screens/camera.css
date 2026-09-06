@@ -231,13 +231,30 @@
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .65));
   transition: border-color 140ms linear, background-color 140ms linear;
 }
-.alt-box:hover { border-color: rgba(255, 255, 255, .72); }
+/* FLAWS.md item 8: gated behind a real pointer. On a phone `:hover` latches to
+   the last thing touched, so a tapped alternative stayed lit as though it were
+   still the selected one -- which is the exact confusion the dimmer, dashed
+   drawing above exists to avoid. */
+@media (hover: hover) and (pointer: fine) {
+  .alt-box:hover { border-color: rgba(255, 255, 255, .72); }
+}
 .alt-box:active {
   border-color: rgba(255, 255, 255, .92);
   background: rgba(255, 255, 255, .08);
 }
 /* The camera's own standard, applied outward: 2px white at 3px offset, the
-   ring every other control on this screen already draws. */
+   ring every other control on this screen already draws.
+
+   READ BEFORE "FIXING" THE #fff LITERALS IN THIS FILE. Every hardcoded white in
+   the over-the-feed chrome -- this ring, the reticle corners, the wordmark, the
+   torch and nav buttons, the shutter, the docked face -- is correct and must
+   stay a literal. The ground under all of them is a photograph of a shelf, not
+   a theme surface: `.cam` sets `background: #000` and the feed covers it in
+   both themes, so `--ink` would flip to near-black in light theme and paint the
+   viewfinder's controls invisible over a dark aisle. The literals that were
+   wrong were the near-black ones (`#0B0C0E`, the theme's own dark ground
+   written out by hand), and those are now `var(--ground)`; see .nav-badge and
+   the confidence block at the bottom of this file. */
 .alt-box:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 3px;
@@ -351,6 +368,27 @@
   gap: 48px;
   transition: transform var(--t-rise) var(--ease-land), opacity 160ms linear;
 }
+/*
+ * The bar slides away on the verdict, which is right and is on FLAWS.md's own
+ * "do not flatten this" list: it keeps the brand pink shutter off the verdict
+ * surface.
+ *
+ * The tab order is NOT fixed here, deliberately. `opacity: 0` plus
+ * `pointer-events: none` takes a control away from the eye and from a pointer
+ * and leaves it in the tab order, so Tab out of the verdict sheet used to land
+ * on three invisible buttons -- but the obvious CSS repair does not work and
+ * both spellings were measured on the running app before giving up on it:
+ * `visibility: hidden` with `visibility 0s linear var(--t-rise)`, and with
+ * `visibility var(--t-rise) linear`, BOTH left `.cam-bar` computing `visible`
+ * and the shutter still able to take focus() four seconds after the verdict
+ * landed. (Both spellings do work on a bare element in the same browser, which
+ * is what makes it worth writing down rather than assuming a typo.)
+ *
+ * It is done with `inert` in camera.js's setState instead -- see the comment
+ * there. That is the better primitive anyway: it takes the whole subtree out of
+ * the tab order AND the accessibility tree without touching `visibility`, so
+ * the slide-out above is left to animate exactly as it did.
+ */
 .cam[data-state="result"] .cam-bar,
 .cam[data-state="choosing"] .cam-bar { transform: translateY(100%); opacity: 0; pointer-events: none; }
 
@@ -410,7 +448,19 @@
   border-radius: 99px;
   background: var(--brand);
   color: #fff;
-  border: 2px solid #0B0C0E;
+  /* FLAWS.md item 2, third of the three hardcoded grounds. This was the literal
+     `#0B0C0E`, which is the dark theme's --ground copied out by hand -- a token
+     value pinned so it could not follow the theme. Now the token.
+
+     Being honest about what is under it, because it is not the same case as the
+     two in the confidence block: the bar has no background of its own, so this
+     ring is drawn over the vignetted feed rather than over a theme surface. In
+     dark it renders exactly as it always did. In light it becomes a cream halo
+     around the pink count instead of a black one, which still separates the
+     badge from the bookmark glyph underneath it -- the whole job of the ring.
+     If a later pass gives the bar a real surface, this token is already right;
+     the literal never would have been. */
+  border: 2px solid var(--ground);
   font-family: var(--f-mono);
   font-size: 10px;
   font-weight: 600;
@@ -453,6 +503,15 @@
 }
 .sheet::-webkit-scrollbar { display: none; }
 .sheet.refusal { animation-duration: var(--t-refusal); }
+/* The sheet carries `tabindex="-1"` and camera.js focuses it on mount, because
+   the bottom bar (and the shutter the user just pressed) has slid away by then
+   and the focus would otherwise fall to `body`. That is a programmatic focus,
+   so no browser draws a ring for it; this is only here so that if one ever
+   does, it is the app's ring and not the UA's. */
+.sheet:focus-visible {
+  outline: var(--ring-width, 2px) solid currentColor;
+  outline-offset: calc(var(--ring-offset, 3px) * -1);
+}
 
 /*
  * Three detents, USAGE.md section 7 / DESIGN.md section 4: peek (content, see
@@ -466,14 +525,65 @@
 
 @keyframes rise { from { transform: translateY(100%); } to { transform: none; } }
 
+/*
+ * Two elements wear this class and they are not the same thing.
+ *
+ * On the verdict and the refusal it is a real `<button class="grabber">` -- the
+ * sheets with a half and a full detent, and therefore with something the press
+ * can do. It used to be a span carrying `role="button" tabindex="0"` AND
+ * `aria-hidden="true"` with no key handler in the repo, which put it in the tab
+ * order, named it a button, hid it from the accessibility tree and left it
+ * inert. See camera.js's grabber() for why the button won over promoting
+ * `.sheet-head`.
+ *
+ * On the five sheets that top out at peek it is still a decorative
+ * `<span aria-hidden="true">` with nowhere to go. Both render identically, so
+ * the reset below has to cover a button (appearance, border, padding, font)
+ * without changing the bar the span already drew.
+ */
 .grabber {
+  position: relative;
+  display: block;
   width: 38px; height: 4px;
+  padding: 0;
+  border: 0;
   border-radius: 2px;
   background: currentColor;
+  color: inherit;
+  -webkit-appearance: none;
+  appearance: none;
   opacity: .3;
   margin: 0 auto 2px;
   flex: none;
   cursor: grab;
+}
+/*
+ * The bar is 38x4. A 4px-tall button is not a button, so the hit area is this
+ * pseudo-element rather than the drawn mark: 86x28, centred on it, which is
+ * what a thumb aiming at the bar actually covers. It stops 2px short of the
+ * sheet head below (4px bar + 12px flex gap + 2px margin = 18px to the head's
+ * own top, and this reaches 16px), so it never eats a press meant for the face
+ * or the thumbnail.
+ *
+ * Still under the 48px tap floor on its own, deliberately: the drag that does
+ * the same job is bound to `.grabber, .sheet-head` together, so the real target
+ * for the gesture is the whole head of the sheet. This is the target for a
+ * deliberate press on the mark itself.
+ */
+.grabber::after {
+  content: "";
+  position: absolute;
+  inset: -12px -24px;
+}
+.grabber:focus-visible {
+  /* Foundation's one ring (components.css): 2px currentColor at 3px offset.
+     Named here rather than inherited because `.grabber` is not a `.btn` -- it
+     is a 4px mark, and every shape .btn carries would redraw it. Opacity is
+     lifted at the same time: a ring around a mark at .3 is a ring around
+     something the eye reads as absent. */
+  outline: var(--ring-width, 2px) solid currentColor;
+  outline-offset: var(--ring-offset, 3px);
+  opacity: .8;
 }
 
 /* The peek detent. Never collapsed, never conditional: it is what lands with
@@ -568,11 +678,16 @@
   border: 1px solid rgba(255,255,255,.2);
 }
 
+/* FLAWS.md item 12: this read 31px, -.025em, and DESIGN.md section 2 specifies
+   34px, 800, -.02em. Taken from the named type role rather than retyped, so the
+   spec and the screen cannot drift apart again by three pixels. The short-
+   viewport override below (22px under 640px tall) still applies and is the one
+   sanctioned deviation, for the reason stated there. */
 .vword {
   font-family: var(--f-display);
-  font-weight: 800;
-  font-size: 31px;
-  letter-spacing: -.025em;
+  font-weight: var(--t-verdict-weight);
+  font-size: var(--t-verdict-size);
+  letter-spacing: var(--t-verdict-track);
   line-height: 1;
   margin: 0;
   text-wrap: balance;
@@ -588,7 +703,18 @@
 .said { margin-top: 4px; }
 .standin { font-weight: 600; opacity: 1; font-size: 12.5px; }
 .disagree { font-weight: 600; }
-.because { font-size: 13px; opacity: .78; }
+/* Opacity floor on the verdict field, measured 2026-09-06.
+   Text on a solid tier field is --tier-on faded by whatever opacity the rule
+   asks for, and the composite is the ratio a reader actually gets. On --walk
+   the numbers are: 1.0 -> 5.48, .88 -> 4.57, .84 -> 4.29, .82 -> 4.15,
+   .78 -> 3.89, .74 -> 3.65, .70 -> 3.41. Everything below .88 fails the 4.5
+   that text under 24px needs, and five of these rules were below it, on the
+   smallest text on the surface -- a 10px confidence label at .84 and a 13px
+   price sub-line at .82 among them.
+   Raised to the floor rather than darkening --walk further: taking the field
+   down to #992B14 would have let a styling shortcut choose the palette, and
+   DESIGN.md section 2 already carries the hierarchy in size and weight. */
+.because { font-size: 13px; opacity: .88; }
 
 .priceline { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
 .price {
@@ -604,7 +730,7 @@
 }
 @keyframes numeral { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
 
-.sub { font-size: 13px; opacity: .82; padding-bottom: 7px; font-variant-numeric: tabular-nums; }
+.sub { font-size: 13px; opacity: .88; padding-bottom: 7px; font-variant-numeric: tabular-nums; }
 
 .confrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .dots { display: inline-flex; gap: 5px; }
@@ -615,10 +741,25 @@
   font-size: 10px;
   letter-spacing: .11em;
   text-transform: uppercase;
-  opacity: .84;
+  opacity: .88;
   margin: 0;
 }
-.itemname { opacity: .7; }
+.itemname { opacity: .88; }
+
+/* The placeholder state label, on a verdict field.
+   shell.css gives .face-label --ink-faint, which is chosen against --ground and
+   is a page colour, not a field colour. On the walk field it measured 1.63 --
+   the worst ratio anywhere on the surface, and it was printing the raw state
+   name ("angry") at 11px while doing it. Inside a sheet the label belongs to
+   the field, so it takes the field's own ink at the same .88 floor as every
+   other secondary line here: 4.57 on walk.
+   This fixes the contrast, not the question of whether the label should ship
+   at all -- that is FLAGS.placeholderLabels and AVATAR.md section 6, and it is
+   an art-handoff decision rather than a styling one. */
+.sheet .face-label {
+  color: var(--tier-on, var(--ink));
+  opacity: .88;
+}
 
 /* Row 2: at 575 (and anything under 640) tall, the verdict peek's own
    content -- face, bubble, headline, price, range, confidence, item line,
@@ -650,7 +791,7 @@
   .padsheet .amount { font-size: 26px; padding: 0; }
   .padsheet .keypad { grid-template-rows: repeat(3, clamp(26px, 4.4vh, 34px)); gap: 4px; }
   .padsheet .keypad-bottom { grid-template-rows: clamp(26px, 4.4vh, 34px); gap: 4px; margin-top: 4px; }
-  .padsheet .key { font-size: 15px; }
+  .padsheet .btn--key { font-size: 15px; }
 }
 
 /* ------------------------------------------------------------------- rail */
@@ -697,7 +838,7 @@
   transform: translateX(-50%);
   white-space: nowrap;
 }
-.rail-lo, .rail-hi { top: 36px; opacity: .7; }
+.rail-lo, .rail-hi { top: 36px; opacity: .88; }
 .rail-me { top: 0; font-weight: 600; text-transform: uppercase; opacity: .95; }
 
 /* ------------------------------------------------------------- provenance */
@@ -716,7 +857,7 @@
 .prov b { font-weight: 600; text-transform: uppercase; flex: 0 0 auto; }
 /* Wraps rather than clips. A provenance line with its date cut off is a source
    the reader cannot check, which defeats the only reason the line is here. */
-.prov span { opacity: .74; text-align: right; min-width: 0; }
+.prov span { opacity: .88; text-align: right; min-width: 0; }
 /* Row 62: the cheapest seller in the verdict's own list, marked. Bold carries
    the mark; the delta text itself ("$0.74 less") is what says why. */
 .prov div.prov-best { font-weight: 700; }
@@ -736,7 +877,7 @@
   border: 1px solid transparent;
 }
 .pill.solid { background: rgba(0,0,0,.26); color: inherit; border-color: rgba(255,255,255,.16); }
-.pill.ghost { background: transparent; color: inherit; border-color: currentColor; opacity: .82; }
+.pill.ghost { background: transparent; color: inherit; border-color: currentColor; opacity: .88; }
 .pill:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
 /* The category refusal's repair: a short list on the same sheet, never a
@@ -878,6 +1019,10 @@
   cursor: pointer;
 }
 .modbtn.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.modbtn:focus-visible {
+  outline: var(--ring-width, 2px) solid currentColor;
+  outline-offset: var(--ring-offset, 3px);
+}
 .pad-mod-input label {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   font-size: 12px; color: var(--ink-muted);
@@ -891,6 +1036,14 @@
   color: var(--ink);
   font-family: var(--f-ui);
   font-size: 14px;
+}
+/* Same ring as components.css `.field`, which is the baseline for an input.
+   Not migrated onto `.field` itself: that is a full-width control at var(--tap)
+   and this is a 60px spinner sitting inline in a sentence. */
+.pad-mod-input input:focus-visible {
+  outline: var(--ring-width, 2px) solid currentColor;
+  outline-offset: var(--ring-offset, 3px);
+  border-color: currentColor;
 }
 /* Two grids, not one: 1-9 above, then the bottom row (., 0, backspace,
    confirm) so the confirm key reads as the keypad's own key, USAGE A1
@@ -910,22 +1063,35 @@
   gap: 5px;
   margin-top: 5px;
 }
-.padsheet .key {
-  font-family: var(--f-display);
-  font-weight: 700;
-  font-size: 17px;
-  font-variant-numeric: tabular-nums;
-  background: var(--raised);
+/* Three columns when there is no confirm key in the row, so a pad without one
+   stays the same 3-wide field of keys all the way down. Not used by this
+   screen -- the camera's pad always confirms -- and it is here because the
+   markup builder is shared (camera.js keypadHtml) and the class it emits has to
+   mean something wherever the pad is hosted. */
+.padsheet .keypad-bottom-3 { grid-template-columns: repeat(3, 1fr); }
+
+/*
+ * The keys are Foundation's `.btn .btn--key` now (components.css), which
+ * carries the fill, the radius, the display face, the tabular figures, the
+ * press transition, the one focus ring and the reduced-motion opt-out. What is
+ * left here is the only thing the sheet pad does not share with the correction
+ * pad: it lives inside a sheet over a frozen frame, not on a whole page.
+ *
+ * The min-height is the one real conflict. `.btn` sets `min-height: var(--tap)`
+ * -- 48px, the tap floor for a standalone control -- and the grid rows here are
+ * clamp(32px, 5.2vh, 40px), measured (see the max-height: 640px block above) to
+ * fit twelve keys plus Clear, Skip and the confirm key on a 575px-tall viewport
+ * with no drag. A 48px minimum inside a 32px row overflows the cell and paints
+ * through the row below. Released rather than fought with, because the tap
+ * target for a key in a contiguous 3x4 field is the cell it fills and its
+ * neighbours are more of the same control, not a different one.
+ */
+.padsheet .btn--key {
+  min-height: 0;
   border: 1px solid var(--hairline);
-  border-radius: var(--r-md);
-  color: var(--ink);
-  cursor: pointer;
+  font-size: 17px;
 }
-.padsheet .key:active { transform: translateY(1px); }
 .padsheet .key-confirm {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: var(--brand);
   border-color: var(--brand);
   color: var(--brand-ink, #fff);
@@ -961,6 +1127,12 @@
   cursor: pointer;
 }
 .pad-textbtn:active { opacity: .6; }
+/* Skip is the only way out of the pad that is not a cancel, and Clear is the
+   only way back to zero. Both were reachable by Tab and drew nothing under it. */
+.pad-textbtn:focus-visible {
+  outline: var(--ring-width, 2px) solid currentColor;
+  outline-offset: var(--ring-offset, 3px);
+}
 
 /* -------------------------------------------------------------- going-rate */
 
@@ -1014,6 +1186,22 @@
   min-width: 0;
 }
 .textroute-form input::placeholder { color: var(--ink-faint); }
+/*
+ * FLAWS.md item 3, the only `outline: none` in the codebase and the only
+ * control on this screen without an authored ring, while its seven neighbours
+ * all had one. The ring is now on the form, not on the input: the input is
+ * borderless and fills a bordered row, so a ring drawn 3px outside a
+ * transparent field would float inside the row's own box with no relationship
+ * to it. `:focus-within` puts the app's ring around the thing that visually IS
+ * the field. components.css `.field` is the baseline this matches -- same
+ * width, same offset, same currentColor -- and the border tints with it for the
+ * same reason it does there.
+ */
+.textroute-form:focus-within {
+  outline: var(--ring-width, 2px) solid currentColor;
+  outline-offset: var(--ring-offset, 3px);
+  border-color: currentColor;
+}
 .textroute-form input:focus { outline: none; }
 .iconbtn-inline {
   flex: none;
@@ -1025,6 +1213,14 @@
   display: grid;
   place-items: center;
   cursor: pointer;
+}
+/* White, not currentColor: this button is a filled brand-pink disc and a pink
+   ring on pink is not a ring. The one place on a sheet where the literal is the
+   right answer for the same reason it is right over the feed -- the ground is
+   not the theme's. */
+.iconbtn-inline:focus-visible {
+  outline: var(--ring-width, 2px) solid #fff;
+  outline-offset: var(--ring-offset, 3px);
 }
 
 /* -------------------------------------------------------------- feedback */
@@ -1051,6 +1247,12 @@
   cursor: pointer;
   padding: 4px;
 }
+/* Undo is live for four seconds and is the only way back from a mis-tapped
+   thumb. It has to be findable in that window without a mouse. */
+.toast-undo:focus-visible {
+  outline: var(--ring-width, 2px) solid currentColor;
+  outline-offset: var(--ring-offset, 3px);
+}
 
 /* =========================================================================
    THE LOAD-BEARING BLOCK: same hue, four fills.
@@ -1069,9 +1271,24 @@
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.28);
 }
 
-/* Thin. Hollow. Shin still answers, and the shape says hold it loosely. */
+/*
+ * Thin. Hollow. Shin still answers, and the shape says hold it loosely.
+ *
+ * FLAWS.md item 2: the second argument to both mixes below was the literal
+ * `#0B0C0E`, which is the dark theme's --ground copied out by hand, so a thin
+ * or refused verdict mixed toward near-black on a cream page and landed as a
+ * dark card in light theme. It is the token now.
+ *
+ * This one is load-bearing beyond the look. app/test/tokens.test.mjs computes
+ * the thin and refusal tints as `mix(--tier, --ground, 14%)` and
+ * `mix(--unknown, --ground, 12%)` and asserts --tier-bright clears 4.5 on them,
+ * in BOTH themes, including at the .88 Shin's sentence is drawn at. Until this
+ * change that test described a surface the light theme never painted. It
+ * describes the real one now, which is the only reason its light-theme numbers
+ * mean anything.
+ */
 .sheet[data-conf="thin"] {
-  background: color-mix(in srgb, var(--tier) 14%, #0B0C0E);
+  background: color-mix(in srgb, var(--tier) 14%, var(--ground));
   color: var(--tier-bright);
   border: 2px solid var(--tier);
   border-bottom: 0;
@@ -1080,7 +1297,7 @@
 /* Refuses. Grey and dashed. Never red: red means the price is bad, and it must
    not be read as "no data". */
 .sheet[data-conf="refuses"] {
-  background: color-mix(in srgb, var(--unknown) 12%, #0B0C0E);
+  background: color-mix(in srgb, var(--unknown) 12%, var(--ground));
   color: var(--unknown-bright);
   border: 2px dashed var(--unknown);
   border-bottom: 0;

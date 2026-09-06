@@ -11,6 +11,82 @@
  * read the most common thing the app does as the app being broken.
  */
 
+/*
+ * A section heading that is a heading. FLAWS.md item 6.
+ *
+ * `.block-h` (shell.css) is 10px mono uppercase at .16em in `--ink-faint`,
+ * which is DESIGN.md section 2's Label role -- "11px, 600, 0.12em, Mono,
+ * uppercase, provenance only", where Mono "earns its place because honesty
+ * about sources is the product". This screen spent that signal ten times on
+ * words like "Appearance", so mono uppercase stopped meaning "recorded
+ * measurement" and started meaning "heading", and ten stacked eyebrow labels
+ * is what a settings page looks like when nobody decided what the sections
+ * were. It also failed contrast as text: `--ink-faint` computes 3.92 on
+ * `--surface`, at the smallest size in the app.
+ *
+ * So: Instrument Sans, sentence case, 17px, `--ink`. Real heading weight at a
+ * readable size, and mono uppercase on this screen is a source and a date
+ * again. Six of the nine labels went entirely rather than being restyled --
+ * the spacing and the hairline were already doing the grouping, and a label
+ * over a single row that says its own name was never carrying anything.
+ *
+ * Named `.sect-h` rather than editing `.block-h`, which lives in shell.css and
+ * is used by eight screens this lane does not own. The handoff is in the lane
+ * report.
+ */
+.sect-h {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -.02em;
+  line-height: 1.25;
+  color: var(--ink);
+  margin: 14px 0 2px;
+  text-transform: none;
+}
+
+/*
+ * The theme control, which was a button that cycled and printed its new value.
+ * Three exclusive options presented as three options: the state is in the
+ * markup rather than in a text node beside it, and it is the same radio group
+ * the attitude picker above it already is, driven by the same helper.
+ *
+ * A segmented row and not three stacked `.rowbtn`s, because the three labels
+ * are one word each and stacking them would make the smallest decision on the
+ * page take the most vertical space on it.
+ */
+.setting {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.setting-t { font-size: 15px; color: var(--ink); }
+
+.seg {
+  display: flex;
+  gap: 6px;
+}
+.seg-o {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 4px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+/* Selected is a border and an ink change, matching how `.att.on` and
+   `.mkt-row.on` mark the current thing everywhere else in this app. No fill,
+   because a filled segment at this size reads as a button that is pressed
+   rather than an option that is chosen. */
+.seg-o.on {
+  border-color: var(--ink);
+  color: var(--ink);
+  font-weight: 700;
+}
+
 .coverage { display: flex; flex-direction: column; gap: 10px; }
 
 .cov-big {
@@ -74,24 +150,15 @@
  */
 
 /*
- * Legal and pricing placeholder rows. Visibly inert, and deliberately never
- * the same box as a live `.rowbtn`: a dashed hairline instead of a solid
- * one, a see-through background instead of `--surface`, a muted label, and
- * a mono "not written yet" value (`.rowbtn-v` is already mono, shell.css) so
- * nothing about the row reads as tappable at a glance.
+ * `.rowbtn-static` and `.rowbtn-v.placeholder` were here, styling three rows
+ * that read "Privacy policy / not written yet", "Terms of use / not written
+ * yet" and "Pricing / not decided yet". They were carefully made: dashed
+ * hairline, transparent ground, nothing about them reading as tappable. The
+ * craft was real and it was spent making a placeholder look deliberate, which
+ * a placeholder on a shipping surface cannot be. The rows are gone (you.js),
+ * and with the last user of these two selectors gone, so are they -- CSS for
+ * markup that no longer exists is the next lane's puzzle.
  */
-.rowbtn-static {
-  cursor: default;
-  background: transparent;
-  border-style: dashed;
-  border-color: var(--hairline);
-  color: var(--ink-faint);
-}
-.rowbtn-static:hover { border-color: var(--hairline); }
-.rowbtn-v.placeholder {
-  color: var(--ink-faint);
-  text-transform: lowercase;
-}
 
 .buildline {
   text-align: center;

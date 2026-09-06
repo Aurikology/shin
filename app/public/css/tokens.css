@@ -42,6 +42,13 @@
   /* --- brand, never a verdict --- */
   --brand: #E5165E;
   --brand-soft: rgba(229, 22, 94, .16);
+  /* Added 2026-09-06. camera.css asked for --brand-ink and nothing defined it,
+     so the confirm key on the price pad has been living on its own `#fff`
+     fallback -- which happens to be right, and was right by luck rather than
+     by decision. White on the brand measures 4.56 and near-black measures 4.29,
+     so white is the only one of the two that carries text at all. Named here so
+     the pad is not the only thing that knows. */
+  --brand-ink: #FFFFFF;
 
   /* --- verdict: base for chrome, bright for use over a camera feed --- */
   --good: #12B76A;

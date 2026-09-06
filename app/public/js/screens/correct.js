@@ -30,6 +30,8 @@ import { faceBlock } from '../shin.js';
 import { say } from '../voice.js';
 import * as store from '../store.js';
 import { submitCorrection } from '../corrections.js';
+import { escapeHtml, on } from '../lib/dom.js';
+import { storagePersists, NOT_KEPT } from '../lib/persistence.js';
 
 /**
  * The product this correction is about, best available.
@@ -59,7 +61,35 @@ function subjectOf(params) {
   };
 }
 
-const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'];
+/**
+ * The pad. `⌫` is the only key whose glyph is not its own name, so it is the
+ * only one carrying a label -- the camera's identical key already had one and
+ * this one did not, which is the same control announcing itself two different
+ * ways depending on which screen you reached it from.
+ */
+const KEYS = [
+  { k: '1' }, { k: '2' }, { k: '3' },
+  { k: '4' }, { k: '5' }, { k: '6' },
+  { k: '7' }, { k: '8' }, { k: '9' },
+  { k: '.' }, { k: '0' }, { k: '⌫', label: 'Delete last digit' },
+];
+
+/**
+ * Why the save button is off, in the order a person fills the screen in.
+ *
+ * The gate itself is not new -- a price with no seller is unusable as a
+ * comparison point later, which is this file's own opening argument. What is
+ * new is saying so. A disabled control that will not explain itself is a
+ * control a person reads as broken, and at .34 opacity (components.css) it is
+ * not even legible enough to guess from. Returns null when the button works,
+ * which is also the signal to print nothing.
+ */
+function gateReason(typed, seller) {
+  if (!typed && !seller.trim()) return 'I need the price and the shop before I can file this.';
+  if (!typed) return 'Type the price on the tag.';
+  if (!seller.trim()) return 'Name the shop. A price with no shop cannot be compared to anything later.';
+  return null;
+}
 
 export default {
   id: 'correct',
@@ -70,6 +100,7 @@ export default {
     let seller = '';
     let saved = false;
     let onSale = false;
+    const ac = new AbortController();
 
     const subject = subjectOf(ctx.params);
     const label = subject.label ?? 'this';
@@ -98,25 +129,60 @@ export default {
                    <p>${say('correct_thanks')}</p>
                  </div>`
               : `
-          <div class="amount"><span class="amount-cur">$</span>${display()}</div>
+          <div class="amount" role="status" aria-label="Price typed so far">
+            <span class="amount-cur">$</span>${display()}
+          </div>
 
           <label class="seller">
             <span>Which shop?</span>
             <input type="text" inputmode="text" autocomplete="off" placeholder="Metro, No Frills, a listing…"
-                   value="${seller.replace(/"/g, '&quot;')}" data-seller>
+                   class="field" value="${escapeHtml(seller)}" data-seller>
           </label>
 
           <button type="button" class="chip${onSale ? ' chip-on' : ''}" data-act="sale"
                   aria-pressed="${onSale ? 'true' : 'false'}">On sale</button>
 
           <div class="keypad">
-            ${KEYS.map((k) => `<button type="button" class="key" data-k="${k}">${k}</button>`).join('')}
+            ${KEYS.map(
+              ({ k, label: kl }) =>
+                `<button type="button" class="btn btn--key key" data-k="${escapeHtml(k)}"${
+                  kl ? ` aria-label="${escapeHtml(kl)}"` : ''
+                }>${escapeHtml(k)}</button>`,
+            ).join('')}
           </div>
 
-          <p class="fineprint">${say('correct_fineprint', { label, seller })}</p>
+          <!-- The label and the seller are both text a person typed. say()
+               interpolates them into its sentence and the sentence goes to
+               innerHTML, so this is a live injection path, not a theoretical
+               one: correcting an item to an img tag with an onerror attribute
+               and opening this screen ran it. Escaped at the boundary. -->
+          <p class="fineprint">${escapeHtml(say('correct_fineprint', { label, seller }))}</p>
+          ${
+            /*
+             * The error state, and the only one this screen can honestly have.
+             * `corrections.js` states in its own header that the send is
+             * deliberately not awaited and "NOTHING HERE THROWS AT A CALLER",
+             * because a correction typed in a supermarket with no signal is
+             * already saved locally and goes out later -- so a network error
+             * banner here would contradict a recorded decision and turn a
+             * working feature into a broken-looking one.
+             *
+             * What is not covered by that argument is a device that cannot
+             * hold the local write either. Then the queue has nowhere to wait
+             * and the promise the thank-you screen makes is not true. That is
+             * worth saying before the price is typed, not after. See
+             * lib/persistence.js.
+             */
+            storagePersists()
+              ? ''
+              : `<p class="fineprint" role="status">${escapeHtml(NOT_KEPT)}</p>`
+          }
 
           <div class="page-foot">
-            <button type="button" class="cta" data-act="save" ${typed && seller ? '' : 'disabled'}>Save it</button>
+            <p class="fineprint gate" data-gate role="status">${escapeHtml(gateReason(typed, seller) ?? '')}</p>
+            <button type="button" class="cta" data-act="save" ${
+              gateReason(typed, seller) ? 'disabled' : ''
+            }>Save it</button>
             <button type="button" class="linky" data-act="back">Not now</button>
           </div>`
           }
@@ -125,15 +191,23 @@ export default {
 
     paint();
 
-    root.addEventListener('input', (e) => {
+    /** The save gate and the sentence explaining it are one thing, so they move together. */
+    function paintGate() {
+      const why = gateReason(typed, seller);
+      const cta = root.querySelector('[data-act="save"]');
+      if (cta) cta.disabled = Boolean(why);
+      const gate = root.querySelector('[data-gate]');
+      if (gate) gate.textContent = why ?? '';
+    }
+
+    on(root, 'input', (e) => {
       if (e.target.matches('[data-seller]')) {
         seller = e.target.value;
-        const cta = root.querySelector('[data-act="save"]');
-        if (cta) cta.disabled = !(typed && seller.trim());
+        paintGate();
       }
-    });
+    }, ac.signal);
 
-    root.addEventListener('click', (e) => {
+    on(root, 'click', (e) => {
       const key = e.target.closest('[data-k]');
       if (key) {
         const k = key.dataset.k;
@@ -143,8 +217,7 @@ export default {
         else typed += k;
         const amt = root.querySelector('.amount');
         if (amt) amt.innerHTML = `<span class="amount-cur">$</span>${display()}`;
-        const cta = root.querySelector('[data-act="save"]');
-        if (cta) cta.disabled = !(typed && seller.trim());
+        paintGate();
         return;
       }
 
@@ -181,6 +254,8 @@ export default {
       }
 
       if (e.target.closest('[data-act="back"]')) ctx.go('camera');
-    });
+    }, ac.signal);
+
+    return () => ac.abort();
   },
 };

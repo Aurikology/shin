@@ -143,6 +143,34 @@ function backButton(label = 'Back to camera') {
 }
 
 /**
+ * The grabber on a sheet that has somewhere to go, as a real control.
+ *
+ * It used to be `<span class="grabber" aria-hidden="true" role="button"
+ * tabindex="0" aria-label="Show more">` with no key handler anywhere in the
+ * repo -- `grep -rn "keydown" public/js` returned zero hits -- which is the
+ * worst of the three available states at once: in the tab order, announced as a
+ * button, hidden from the accessibility tree by `aria-hidden`, and inert on
+ * every key. A keyboard user reached it, was told it was a button, and nothing
+ * happened.
+ *
+ * Made a real `<button>` rather than promoting `.sheet-head` to the control,
+ * because the head is not a control: it holds Shin's face, his spoken bubble
+ * (which changes text while the sheet is open) and the frozen-frame thumbnail,
+ * and a button's accessible name is its whole subtree -- so promoting the head
+ * would name this control with a paragraph of speech and would re-announce it
+ * every time the bubble changed. The head keeps its drag, which is a gesture
+ * and not a control, and the grabber keeps its own short, stable name.
+ *
+ * Only the two sheets with a half or full detent get one. The candidate list,
+ * the pad, the going-rate card, the working wait and the type-it route all top
+ * out at peek, so their grabber stays a decorative `<span aria-hidden="true">`:
+ * a focusable control that cannot do anything is the defect this is fixing.
+ */
+function grabber() {
+  return `<button type="button" class="grabber" data-act="detent-step" aria-label="Show more"></button>`;
+}
+
+/**
  * Row 43: a tag can say "20% off" or "3 for $5" instead of one flat number.
  * Both recompute the unit price Shin actually judges; the typed number stops
  * being the asking price once a modifier is active, and the confirm key sends
@@ -388,8 +416,8 @@ function verdictSheet(v, scenario, thumb, acked = false) {
   // full adds what Shin used in full, the one-tap correctness signal, and (row
   // 68) one obvious Done that closes the whole sheet in a single tap.
   return `
-    <section class="sheet verdict" data-tier="${v.tier}" data-conf="${conf.level}" data-detent="peek" aria-live="polite">
-      <span class="grabber" aria-hidden="true" role="button" tabindex="0" aria-label="Show more"></span>
+    <section class="sheet verdict" data-tier="${v.tier}" data-conf="${conf.level}" data-detent="peek" aria-live="polite" tabindex="-1">
+      ${grabber()}
 
       <div class="sheet-peek">
         <div class="sheet-head">
@@ -520,8 +548,8 @@ function refusalSheet(r, scenario, categoryLabels = []) {
       }</div>`;
 
   return `
-    <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite">
-      <span class="grabber" aria-hidden="true" role="button" tabindex="0" aria-label="Show more"></span>
+    <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite" tabindex="-1">
+      ${grabber()}
       ${isCategory ? backButton() : ''}
       <div class="sheet-peek">
         <div class="sheet-head">
@@ -568,7 +596,7 @@ function playRefusalLanding(slot) {
  */
 function candidateSheet(items) {
   return `
-    <section class="sheet candidates" data-tier="unknown" data-conf="reading">
+    <section class="sheet candidates" data-tier="unknown" data-conf="reading" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
       ${backButton()}
       <div class="sheet-peek">
@@ -609,6 +637,60 @@ function pricePadDisplay(typed) {
     : `${whole || '0'}.${frac}${frac.length === 1 ? '<span class="ghosted">0</span>' : ''}`;
 }
 
+/**
+ * The keypad, once, for both pads.
+ *
+ * `camera.css .padsheet .keypad` and `correct.css .keypad` were two
+ * implementations of one component, and `pricePadDisplay` above was duplicated
+ * verbatim as `display()` inside correct.js. This is the markup half of that
+ * duplication removed: the keys come from here and carry Foundation's
+ * `.btn .btn--key` (components.css), so the fill, the radius, the display face,
+ * the tabular figures and the one focus ring are stated once, and each pad only
+ * says what is genuinely its own -- row height, and whether there is a confirm
+ * key in the bottom row at all.
+ *
+ * Deliberately NOT carrying the bare `.key` class any more. `correct.css`
+ * declares `.key` and `.keypad` unscoped, so those rules were reaching into the
+ * camera's sheet pad -- `.key { background: var(--surface) }` against
+ * camera.css's own `--raised`, at equal specificity, settled by nothing but
+ * which file screens.css imports last. The camera's keys are addressed as
+ * `.padsheet .btn--key` now and the two pads cannot paint each other by
+ * accident.
+ *
+ * The digits are one 3x3 grid and the bottom row is its own, because the confirm
+ * key has to read as the keypad's own key (USAGE.md A1 0:13.4) rather than a
+ * button underneath it. A pad with no confirm (the correction screen's, whose
+ * commit is its page CTA) gets a three-column bottom row instead of four, so it
+ * stays the same 3-wide field of keys all the way down.
+ *
+ * @param {object}  [opts]
+ * @param {boolean} [opts.confirm=false]           render the confirm key.
+ * @param {boolean} [opts.canConfirm=false]        whether that key is enabled.
+ * @param {string}  [opts.confirmLabel='Price it'] its accessible name.
+ * @returns {string} markup: `.keypad` (1-9) followed by `.keypad-bottom`
+ *   (`.`, `0`, backspace, and the confirm key when asked for). Every key carries
+ *   `data-pad="<char>"`, the char being one of `1`-`9`, `.`, `0`, `⌫`; the
+ *   confirm key carries `data-act="pad-confirm"` and `.key-confirm`.
+ */
+function keypadHtml({ confirm = false, canConfirm = false, confirmLabel = 'Price it' } = {}) {
+  const key = (char, extra = '') =>
+    `<button type="button" class="btn btn--key" data-pad="${char}"${extra}>${char}</button>`;
+  return `
+        <div class="keypad">
+          ${['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((k) => key(k)).join('')}
+        </div>
+        <div class="keypad keypad-bottom${confirm ? '' : ' keypad-bottom-3'}">
+          ${key('.')}
+          ${key('0')}
+          ${key('⌫', ' aria-label="Backspace"')}
+          ${confirm
+            ? `<button type="button" class="btn btn--key key-confirm" data-act="pad-confirm" aria-label="${confirmLabel}"${canConfirm ? '' : ' disabled'}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </button>`
+            : ''}
+        </div>`;
+}
+
 /** The pad buffer, read as cents, or null if it does not parse as a usable
     amount. Shared by the render function (the confirm key's disabled state)
     and the screen (what actually gets priced). */
@@ -644,7 +726,7 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null) {
   const canConfirm = (effCents ?? 0) > 0;
   const effLabel = modifierLabel(typedCents, modifier);
   return `
-    <section class="sheet padsheet" data-tier="unknown" data-conf="reading">
+    <section class="sheet padsheet" data-tier="unknown" data-conf="reading" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
       ${backButton()}
       <div class="pad-headrow">
@@ -671,19 +753,7 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null) {
         <div class="pad-mod-input">
           <label>Items in the deal <input type="number" inputmode="numeric" min="2" max="20" data-mod-value value="${modifier.n ?? ''}" placeholder="3"></label>
         </div>` : ''}
-        <div class="keypad">
-          ${['1', '2', '3', '4', '5', '6', '7', '8', '9']
-            .map((k) => `<button type="button" class="key" data-pad="${k}">${k}</button>`)
-            .join('')}
-        </div>
-        <div class="keypad keypad-bottom">
-          <button type="button" class="key" data-pad=".">.</button>
-          <button type="button" class="key" data-pad="0">0</button>
-          <button type="button" class="key" data-pad="⌫" aria-label="Backspace">⌫</button>
-          <button type="button" class="key key-confirm" data-act="pad-confirm" aria-label="Price it"${canConfirm ? '' : ' disabled'}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-          </button>
-        </div>
+        ${keypadHtml({ confirm: true, canConfirm })}
       </div>
     </section>`;
 }
@@ -710,8 +780,13 @@ function goingRateCard(refusal, item) {
   const label = refusal.identity ? refusal.identity.label : (item?.text ?? 'this');
 
   return `
-    <section class="sheet goingrate" data-tier="unknown" data-conf="reading">
-      <span class="grabber" aria-hidden="true"></span>
+    <section class="sheet goingrate" data-tier="unknown" data-conf="reading" tabindex="-1">
+      <!-- A real grabber, like the verdict and the refusal, because this card
+           has a half detent too: the seller list below is the whole evidence
+           for the range quoted above it, and it was as unreachable from a
+           keyboard as the verdict's own was. Found by app/test/sheet.test.mjs
+           asserting the rule rather than the two known cases. -->
+      ${grabber()}
       ${backButton()}
       <div class="sheet-peek">
         <div class="sheet-head">
@@ -757,7 +832,7 @@ function workingSheet(itemLabel, step = 0, opts = {}) {
   // both make the wait harder to read than the plain three-line list. The
   // face still carries the doc's own face-working (76) size.
   return `
-    <section class="sheet working" data-tier="unknown" data-conf="reading">
+    <section class="sheet working" data-tier="unknown" data-conf="reading" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
       <button type="button" class="sheet-close" data-act="cancel-scan" aria-label="Cancel and go back to the viewfinder">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -783,7 +858,7 @@ function workingSheet(itemLabel, step = 0, opts = {}) {
  */
 function textRouteSheet(value = '') {
   return `
-    <section class="sheet textroute" data-tier="unknown" data-conf="reading">
+    <section class="sheet textroute" data-tier="unknown" data-conf="reading" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
       ${backButton()}
       <div class="sheet-peek">
@@ -824,12 +899,24 @@ function matchCatalogue(text, catalogueItems) {
   return bestScore >= Math.min(2, words.length) ? best : null;
 }
 
-/* Exported for the sheet-layout check (`node scripts/check-sheet.mjs` or
-   equivalent): it renders verdictSheet/refusalSheet outside the browser and
+/* Exported for the sheet-layout check, which is `app/test/sheet.test.mjs` as of
+   2026-09-06 (this comment named `scripts/check-sheet.mjs` for two commits and
+   that file was never written). It renders every sheet outside the browser and
    asserts by string that the peek detent carries a primary action before any
-   half-detent markup, and that a refusal never carries two buttons. Exporting
-   these changes nothing about how the screen itself calls them. */
+   half-detent markup, that a refusal carries exactly one action and is never
+   tier-red, and that nothing focusable is hidden behind `aria-hidden`.
+   Exporting these changes nothing about how the screen itself calls them. */
 export { verdictSheet, refusalSheet, pricePadSheet, goingRateCard, workingSheet, textRouteSheet };
+
+/*
+ * Exported for the correction screen (correct.js), which had its own copy of
+ * both of these. The keypad is one component with two hosts; see keypadHtml's
+ * own comment for what the camera's pad keeps for itself and why the bare
+ * `.key` class is gone. `parsePadPrice` travels with them because a pad that
+ * renders the same digits and reads them back differently is the same
+ * duplication one layer down.
+ */
+export { keypadHtml, pricePadDisplay, parsePadPrice };
 
 /* ------------------------------------------------------------------ screen */
 
@@ -840,6 +927,13 @@ export default {
   render(root, ctx) {
     root.innerHTML = `
       <div class="cam" data-state="idle">
+        <!-- FLAWS.md item 12: every other screen has an h1 and this one had no
+             heading element at all, so a screen reader's heading list skipped
+             the app's main surface entirely and router.js has nothing to move
+             focus to after a paint. Visually hidden because the wordmark below
+             is already the visible identity and a second one drawn over a live
+             feed would be chrome for its own sake. -->
+        <h1 class="sr-only" tabindex="-1">Shin camera</h1>
         <div class="feed">
           <video class="feed-video" playsinline muted autoplay></video>
           <div class="feed-fallback" aria-hidden="true">
@@ -1025,7 +1119,35 @@ export default {
     paintBadge();
     const unsub = store.subscribe(paintBadge);
 
-    function setState(next) { cam.dataset.state = next; }
+    const camBar = root.querySelector('.cam-bar');
+
+    /**
+     * The state, and with it whether the bottom bar is reachable at all.
+     *
+     * The bar slides away on `result` and `choosing` and is covered by the
+     * sheet on `asking` and `texting`. In all four it was still in the tab
+     * order: Tab out of the verdict sheet landed on three invisible buttons
+     * (Saved, the shutter, You) with the focus ring drawn where nothing is,
+     * and a stray Tab-and-Enter during price entry navigated away to Saved
+     * mid-scan. Measured with elementFromPoint on the running app: during
+     * `asking` the shutter's own centre returns no element at all, and all
+     * three still took `focus()`.
+     *
+     * `inert` and not `visibility: hidden`, for two reasons. It leaves
+     * `visibility` alone, so camera.css's slide-out animates exactly as it did
+     * -- hiding it outright would make the bar vanish instead of slide, and
+     * delaying the hide to the end of the slide is precisely what does not
+     * work: both `visibility 0s linear var(--t-rise)` and
+     * `visibility var(--t-rise) linear` were tried on the running app and left
+     * the bar computing `visible`, with the shutter still focusable, four
+     * seconds after the verdict landed. And `inert` is the primitive that
+     * actually says the thing: this subtree is not interactive right now, in
+     * the tab order and in the accessibility tree together.
+     */
+    function setState(next) {
+      cam.dataset.state = next;
+      if (camBar) camBar.inert = next === 'result' || next === 'choosing' || next === 'asking' || next === 'texting';
+    }
 
     /**
      * Row: second visit, useful and appealing. If the store has a past scan,
@@ -1211,6 +1333,7 @@ export default {
       // of the camera and not shown as one.
       setState('choosing');
       slot.innerHTML = candidateSheet(scenarios);
+      mounted();
     }
 
     /**
@@ -1328,6 +1451,7 @@ export default {
       padModifier = null;
       setState('asking');
       slot.innerHTML = pricePadSheet(item, padBuffer, padModifier, scanThumb);
+      mounted();
     }
 
     function shoot() {
@@ -1355,6 +1479,9 @@ export default {
         if (dead) return;
         slot.innerHTML = candidateSheet(scenarios);
         setState('choosing');
+        // The bottom bar has just slid away and taken the shutter the user
+        // pressed with it. Without this the focus goes with it -- see mounted().
+        mounted();
       }, 420);
     }
 
@@ -1372,6 +1499,7 @@ export default {
       let slow = false;
       setState('reading');
       slot.innerHTML = workingSheet(item.text, step);
+      mounted();
 
       // Row 19: past the 0.8s budget, the step already showing changes its
       // own word. Never a new step, and it never fires once the answer has
@@ -1385,6 +1513,7 @@ export default {
         const steps = slot.querySelectorAll('.wstep');
         if (steps.length !== WORKING_STEPS.length) {
           slot.innerHTML = workingSheet(item.text, nextStep, { slow: isSlow });
+          mounted();
           return;
         }
         steps.forEach((elStep, i) => {
@@ -1437,6 +1566,7 @@ export default {
           playRefusalLanding(slot);
         }
         setState('result');
+        mounted();
       } catch (err) {
         clearTimeout(slowTimer);
         if (dead || myGen !== gen) return;
@@ -1453,6 +1583,7 @@ export default {
         );
         playRefusalLanding(slot);
         setState('result');
+        mounted();
       }
     }
 
@@ -1469,6 +1600,11 @@ export default {
       eye?.clearSelection?.();
       setState('idle');
       showInitialIdleContent();
+      // The sheet that had focus has just been deleted. Back to the shutter,
+      // which is where the viewfinder's own attention is and the one control a
+      // returning user wants next -- otherwise focus falls to `body` and the
+      // next Tab starts again from the top of the document.
+      root.querySelector('.shutter')?.focus({ preventScroll: true });
     }
 
     root.addEventListener('click', (e) => {
@@ -1505,6 +1641,11 @@ export default {
           ? null
           : (kind === 'percent' ? { kind: 'percent', pct: 20 } : { kind: 'nfor', n: 3 });
         slot.innerHTML = pricePadSheet(padItem, padBuffer, padModifier, scanThumb);
+        // The whole sheet was repainted under the button that was just pressed,
+        // so the press has to be given back its own control rather than the
+        // sheet: a modifier is toggled on, checked, and toggled off again, and
+        // that is three presses of the same key.
+        mounted(`[data-modtoggle="${kind}"]`);
         return;
       }
 
@@ -1528,6 +1669,26 @@ export default {
       const btn = e.target.closest('[data-act]');
       if (!btn) return;
       const act = btn.dataset.act;
+
+      /*
+       * The grabber, pressed. Keyboard only, and the guard is the reason.
+       *
+       * A pointer tap on the grabber already steps, in the pointerup handler
+       * at the bottom of this render, because that handler carries the drag as
+       * well and a tap is just a drag of under 40px. The grabber is a real
+       * <button> now, so Enter and Space arrive here as a click -- and so does
+       * a tap. `detail` is what separates them: a click synthesised from a key
+       * press reports 0, a click from a real tap reports 1 or more. Without
+       * this the same tap would be counted twice and skip a detent.
+       */
+      if (act === 'detent-step') {
+        if (e.detail !== 0) return;
+        const sheet = btn.closest('.sheet');
+        if (!sheet) return;
+        const at = clampDetent(sheet, sheet.dataset.detent || 'peek');
+        setDetent(sheet, at === maxDetent(sheet) ? 'peek' : stepUp(sheet, at));
+        return;
+      }
 
       if (act === 'shoot') { shoot(); return; }
       if (act === 'watchlist') { ctx.go('watchlist'); return; }
@@ -1555,6 +1716,9 @@ export default {
       if (act === 'typeit') {
         setState('texting');
         slot.innerHTML = textRouteSheet();
+        // The one sheet where a specific control is the obvious landing: the
+        // whole route is "type the name", and the field is the route.
+        mounted('[data-textroute-input]');
         return;
       }
 
@@ -1600,7 +1764,10 @@ export default {
         const prevDetent = slot.querySelector('.sheet')?.dataset.detent;
         slot.innerHTML = verdictSheet(v, last.scenario, last.thumb ?? null, !wasSaved);
         const nextSheet = slot.querySelector('.sheet');
-        if (nextSheet && prevDetent) nextSheet.dataset.detent = clampDetent(nextSheet, prevDetent);
+        if (nextSheet && prevDetent) setDetent(nextSheet, prevDetent);
+        // Same repaint-under-the-press as the modifier toggles: the save button
+        // is a toggle, and the second press has to land on the same key.
+        mounted('[data-act="watch"]');
         return;
       }
       if (act === 'thumbs-up' || act === 'thumbs-down') {
@@ -1704,6 +1871,7 @@ export default {
       );
       playRefusalLanding(slot);
       setState('result');
+      mounted();
     }, { signal: listeners.signal });
 
     /* The sheet moves between three detents: peek, half, full. A drag of more
@@ -1730,6 +1898,60 @@ export default {
       return ORDER[Math.max(ORDER.indexOf(d) - 1, 0)];
     }
 
+    /**
+     * The one place a detent is written. Every path -- drag, tap, arrow key,
+     * the watch repaint -- goes through here, so the grabber's own name can
+     * never say the opposite of where the sheet actually is.
+     */
+    function setDetent(sheet, next) {
+      const d = clampDetent(sheet, next);
+      sheet.dataset.detent = d;
+      syncGrabber(sheet);
+      return d;
+    }
+
+    /**
+     * The grabber's accessible name says what pressing it will DO, and that
+     * changes with the detent: it steps up until the sheet is at its own top
+     * detent and then wraps back to peek. `aria-expanded` was the obvious
+     * alternative and it is the wrong shape here -- it has two values and this
+     * control has three positions, so at half it would have to claim either
+     * "expanded" (there is another detent above) or "collapsed" (the rail and
+     * the seller list are already open), and both are false.
+     */
+    function syncGrabber(sheet) {
+      const g = sheet.querySelector('button.grabber');
+      if (!g) return;
+      const at = clampDetent(sheet, sheet.dataset.detent || 'peek');
+      g.setAttribute('aria-label', at === maxDetent(sheet) ? 'Back to the summary' : 'Show more');
+    }
+
+    /**
+     * Called after every sheet is written into the slot.
+     *
+     * Focus is the half of this that matters. The bottom bar slides away on
+     * `data-state="result"` and `"choosing"` (which is right -- DESIGN.md wants
+     * the brand pink off the verdict surface), so the shutter the user had just
+     * pressed is gone from under the focus ring, and before this the focus went
+     * with it: back to `body`, one screen away from everything the sheet
+     * offers. The sheet itself takes it instead (`tabindex="-1"` on the
+     * section, so it is a focus target and not a tab stop), which is the same
+     * move a dialog makes and it puts the next Tab on the sheet's own first
+     * control. `preferred` overrides that where a specific control is the
+     * obvious landing -- the type-it field, or the button that was just
+     * repainted underneath the user.
+     */
+    function mounted(preferred) {
+      const sheet = slot.querySelector('.sheet');
+      if (!sheet) return;
+      syncGrabber(sheet);
+      const target = (preferred && slot.querySelector(preferred)) || sheet;
+      // preventScroll: `.sheet` is its own scroll container and it has just
+      // animated in from translateY(100%). Letting focus scroll it lands the
+      // user part way down a peek that is meant to open at its own top.
+      target.focus?.({ preventScroll: true });
+    }
+
     let dragFrom = null;
     root.addEventListener('pointerdown', (e) => {
       const sheet = e.target.closest('.sheet');
@@ -1742,13 +1964,70 @@ export default {
       const dy = e.clientY - dragFrom.y;
       const { sheet, detent } = dragFrom;
       dragFrom = null;
-      if (dy < -40) sheet.dataset.detent = stepUp(sheet, detent);
+      if (dy < -40) setDetent(sheet, stepUp(sheet, detent));
       else if (dy > 40) {
         if (detent === 'peek') { reset(); return; }
-        sheet.dataset.detent = stepDown(detent);
+        setDetent(sheet, stepDown(detent));
       } else {
-        sheet.dataset.detent = detent === maxDetent(sheet) ? 'peek' : stepUp(sheet, detent);
+        setDetent(sheet, detent === maxDetent(sheet) ? 'peek' : stepUp(sheet, detent));
       }
+    }, { signal: listeners.signal });
+
+    /*
+     * The same three detents, from the keyboard.
+     *
+     * `grep -rn "keydown" public/js` returned zero hits repo-wide before this,
+     * and the detents were `pointerdown`/`pointerup` only. Everything that
+     * lives at half or full -- the price rail, the seller list, Correct it,
+     * Share, both thumbs and Done -- was unreachable without a pointer. That is
+     * not a rough edge on the feature; it is the feature missing for anyone on
+     * a keyboard.
+     *
+     * Up and Down step one detent, which is the move the drag already makes.
+     * Escape is the way out: back to peek from half or full, and out of the
+     * sheet entirely from peek, which is exactly what a downward drag past peek
+     * does. On a sheet with nowhere to go (the candidate list, the pad, the
+     * going-rate card, the working wait, the type-it route) Escape is the only
+     * one of the three that does anything, and it cancels the scan -- the same
+     * thing their own close button does.
+     *
+     * Arrow keys inside a field belong to the field: the pad's "% off" and
+     * "N for $" spinners step by one on Up and Down, and the type-it input
+     * moves its caret. Only Escape is taken there, because a field you cannot
+     * back out of without a mouse is the defect one layer down.
+     *
+     * Scrolling a long detent stays on Tab, PageUp and PageDown -- `.sheet` is
+     * the scroll container and is focusable, so those reach it without the
+     * arrows having to do two jobs.
+     *
+     * Nothing here animates, so there is nothing for prefers-reduced-motion to
+     * turn off: a stepped detent is the same `data-detent` write the drag
+     * makes, and camera.css's own reduced-motion block already drops the
+     * transition on `.sheet-half` and `.sheet-full`.
+     */
+    root.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Escape') return;
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      const sheet = slot.querySelector('.sheet');
+      if (!sheet) return;
+      const inField = e.target instanceof HTMLElement
+        && (e.target.closest('input, textarea, select') !== null || e.target.isContentEditable);
+      if (inField && e.key !== 'Escape') return;
+
+      const at = clampDetent(sheet, sheet.dataset.detent || 'peek');
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (at === 'peek') { reset(); return; }
+        setDetent(sheet, 'peek');
+        // Back to peek means back to the top of the peek. A sheet left scrolled
+        // where the full detent had it shows the verdict's middle.
+        sheet.scrollTop = 0;
+        return;
+      }
+      const next = e.key === 'ArrowUp' ? stepUp(sheet, at) : stepDown(at);
+      if (next === at) return; // Already at an end. Let the key do whatever it would.
+      e.preventDefault();
+      setDetent(sheet, next);
     }, { signal: listeners.signal });
 
     return () => {

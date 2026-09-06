@@ -181,6 +181,62 @@ test('--tier-bright clears 4.5 as text on ground and on surface', () => {
 });
 
 /**
+ * The opacity floor on the verdict field.
+ *
+ * The palette being right is not enough: text on a solid tier field is
+ * --tier-on faded by whatever opacity its rule asks for, and the composite is
+ * what a reader gets. On 2026-09-06 the tokens passed every check above while
+ * seven rules in camera.css still failed on the rendered screen, at .70 to .84
+ * -- including a 10px confidence label and a 13px price sub-line, the smallest
+ * text on the surface. Measuring the live sheet is what found them.
+ *
+ * So this reads the stylesheet and computes the floor rather than trusting a
+ * number written down: the lowest opacity that still clears 4.5 on the darkest
+ * tier field, in either theme.
+ */
+test('no text on the verdict field is faded below what its tier can carry', () => {
+  const cameraCss = readFileSync(
+    fileURLToPath(new URL('../public/css/screens/camera.css', import.meta.url)), 'utf8',
+  ).replace(/\r\n/g, '\n');
+
+  // The floor, derived: the smallest opacity clearing 4.5 on the worst field.
+  let floor = 0;
+  for (const [, T] of THEMES) {
+    for (const tier of TIERS) {
+      const field = T[`--${tier}`];
+      let lowest = 1;
+      for (let a = 100; a >= 50; a--) {
+        if (ratio(over(T[`--${tier}-on`], field, a / 100), field) >= 4.5) lowest = a / 100;
+        else break;
+      }
+      floor = Math.max(floor, lowest);
+    }
+  }
+  assert.ok(floor > 0.5 && floor <= 1, `derived a nonsense floor: ${floor}`);
+
+  // Text rules on the verdict surface. Icon-only controls are not here: they
+  // are non-text graphics and answer to 3.0, not 4.5.
+  const TEXT_RULES = [
+    '.because', '.sub', '.conf-label', '.itemname',
+    '.rail-lo', '.rail-hi', '.rail-me', '.prov span', '.pill.ghost',
+  ];
+
+  const offenders = [];
+  for (const sel of TEXT_RULES) {
+    // Find each rule block that starts with this selector and read its opacity.
+    const esc = sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`(^|\\n)([^\\n{}]*${esc}[^\\n{}]*)\\{([^}]*)\\}`, 'g');
+    for (const m of cameraCss.matchAll(re)) {
+      const op = /opacity:\s*([\d.]+)/.exec(m[3]);
+      if (op && parseFloat(op[1]) < floor) {
+        offenders.push(`${m[2].trim()} { opacity: ${op[1]} } -- floor is ${floor}`);
+      }
+    }
+  }
+  assert.deepEqual(offenders, [], `text faded below the floor the palette can carry:\n${offenders.join('\n')}`);
+});
+
+/**
  * The brand pink is never a verdict -- DESIGN.md, and the comment at the top of
  * tokens.css. If it ever equals a tier colour, a screenshot of a refusal starts
  * looking like a walk away.
