@@ -133,3 +133,19 @@ has cost something recorded twice. One incident is a lesson. Two is a rule.
   reason. Before attributing anything to him, find the message; a number inside a what-if is an
   input to that calculation and nothing else. Of the four hard rules left, two rest on law and
   two (aggression never at the user; name the paths in a commit) carry no words of his either.
+
+- **2026-09-06 · A tree drawn from the moonshot had no node for the app itself, and cited one of
+  its four stated sources nowhere.** The first skeleton pass carried sixty-eight nodes across nine
+  branches, every one sourced and every one about machinery: identity, supply, verdict, purchases,
+  money, reach, permission, instruments, infrastructure. No screen, no flow, no card, no mascot,
+  so two thirds of his stated purpose (*"useful to the user, easy to use, and visually
+  appealling"*, 2026-09-04) and the avatar he calls *"one of our most important features"*
+  (2026-09-03) had no home. The header claimed the four documents as sources and the shipping
+  design was cited by zero lines, which is why the whole shipping shape (the viewfinder that
+  waits, the shutter, the typed asking price) was absent and the moonshot's end state was drawn as
+  if it were the next build. **Changed:** the tree gained a branch for the app a person opens, and
+  the redraw named where the shipping design and the end state differ. Two mechanical checks worth
+  keeping for any document that lists its own sources: grep each source's name in the finished
+  document before delivering, and ask of every plan whether the thing the user touches is in it.
+  A fresh reader with none of the session's conversation found both; the artifact read as complete
+  on its own word.
