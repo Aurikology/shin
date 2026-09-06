@@ -61,6 +61,12 @@ node, it says what that node waits on. It is one file, one line per node, plain 
    *Stops:* the hedged "about N" the depth gate has caught repeatedly; 25 scans a second carried
    as fact when the press kit said 85.
 
+6b. **Below the third level a line inherits its parent's source, kind and goal figure** unless it
+   says otherwise, and only a leaf carries its measurement. *(Added 2026-09-06: repeating four
+   tags on every line at depth trebled the file and made the tree unreadable, which is the one
+   thing it cannot be.)*
+   *Stops:* a document nobody opens.
+
 7. **One line, plain words, no identifiers.** A node reads to someone who has read nothing in the
    repo. File paths, decision numbers and slot names go in a trailing bracket if a session needs
    them, never in the sentence.
@@ -121,7 +127,14 @@ node, it says what that node waits on. It is one file, one line per node, plain 
       must sign up for), written as the question it waits on;
     - *wall*: rule 10.
     Anything else is not a leaf and is decomposed further. Depth is set by this rule, not by a
-    number. *(Amended 2026-09-06 from three states: the wall-5 test had five leaves that fit
+    number, and not by whether a line is easy to describe. *(Amended 2026-09-06, his words: "the
+    levels are too broad. each level is a culmination of multiple, slightly less complex levels.
+    the fact that the fourth layer has less nodes than the 3rd layer is a big red flag." A layer
+    with fewer nodes than the one above it is the signal that decomposition stopped early. The
+    test for buildable is now three things at once: one person does it in one sitting, it needs
+    no decision that belongs to somebody else, and it produces one thing you can point at. Being
+    able to name a measurement does not make a line an end; the measurement is what a leaf
+    carries once it is one.)* *(Amended 2026-09-06 from three states: the wall-5 test had five leaves that fit
     none of the three and were forced into one anyway.)*
 
 12. **"Exists" is verified from outside its own claim.** A caller in the running app, a test that
