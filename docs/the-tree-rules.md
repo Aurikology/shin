@@ -90,8 +90,15 @@ node, it says what that node waits on. It is one file, one line per node, plain 
    present and whose parent still would not run.)*
    *Stops:* a tree that is a to-do list in disguise; finished pieces with zero callers.
 
-8b. **The children of a node cover every dimension that applies to it, and the line says which do
-   not.** Sufficiency is not only "what steps make this work"; a node is a piece of a product, and
+8b. **Every node is reviewed across the dimensions, and the review is recorded on the node rather
+   than as its children.** A dimension is an aspect of a thing, not a part of it, so a dimension
+   written as a child breaks rule 8: if "what it costs" existed, nothing would have been built.
+   The review sits under the node as marked notes; where it finds work nobody had planned, that
+   work becomes an ordinary child, phrased as work. *(Amended 2026-09-06, after the first version
+   of this rule put 307 dimension lines into the tree as children: a reader adjudicated 150 ends
+   and found 91% of those lines failed the test for an end, and the sufficiency question could no
+   longer be asked of any of the 98 second-level nodes.)*
+   The dimensions, from his purpose and from the four documents: Sufficiency is not only "what steps make this work"; a node is a piece of a product, and
    a product has more than one dimension at once. The eight, from his purpose and from the four
    documents:
    - **what the person sees and does** (his purpose: easy to use);
@@ -104,7 +111,8 @@ node, it says what that node waits on. It is one file, one line per node, plain 
    - **what it feeds back**, since every scan is a harvest;
    - **how it gets shown to the world**, since short video is the channel.
    A dimension that genuinely does not apply is written as not applying, so silence is never
-   mistaken for coverage. *(Added 2026-09-06, his words: "the solutions you've stated only cover
+   mistaken for coverage; and a node that has simply not been reviewed yet says that, rather than
+   being counted as covered. *(Added 2026-09-06, his words: "the solutions you've stated only cover
    one dimension and it's often only in the backend aspect." Measured the same day across 1,007
    nodes: machinery 28%, what the person sees 15%, how it looks and sounds 5.6%, who runs it 2.5%.
    The barcode subtree, printed for him, had twenty-one children and every one of them was
@@ -146,7 +154,12 @@ node, it says what that node waits on. It is one file, one line per node, plain 
       the catalogue has no rows for);
     - *his*: a call only he can make (the name, the privacy wording, the price, a key he
       must sign up for), written as the question it waits on;
-    - *wall*: rule 10.
+    - *wall*: rule 10;
+    - *a standing rule*: a thing that is enforced from now on rather than built once (no distance
+      printed without a per-store feed; nothing posted under an uncleared name; no savings figure
+      published before it is measured). It carries what enforces it and what catches a breach.
+      *(Added 2026-09-06: four such lines had been forced into "buildable", where they fail the
+      one-sitting test forever.)*
     Anything else is not a leaf and is decomposed further. Depth is set by this rule, not by a
     number, and not by whether a line is easy to describe. *(Amended 2026-09-06, his words: "the
     levels are too broad. each level is a culmination of multiple, slightly less complex levels.
