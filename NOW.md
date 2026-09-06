@@ -26,6 +26,19 @@ go-arounds named but not drawn; five things are marked blocked outside rather th
 with what lifts it, including the phone platform, which fails the rule that a wall is about our
 size.
 
+**Three levels now, and a correction pass after two more fresh readers, 2026-09-06.** The third
+level opened 85 lines into about 290. Then a logic reader and a structure reader went over all
+three levels together. The three that mattered: the fair line had been written as a middle, which
+is a defect this repo already found and fixed, and which under the refund promise pays out on
+about half of all purchases; the way around the chain wall was drawn as if it delivered per-store
+prices and stock, and it delivers neither, with five things depending on it; and the metering
+problem was lost, so the paid path only fires on the two kinds that are blocked from outside. All
+three are fixed, along with a bootstrap cycle, a limit keyed to a value a reinstall regenerates,
+nine duplicate pairs, and a goal figure that could not move. Added with no previous home: whether
+the answers were right, who operates it, the legal surface, the payout inside the guarantee, and
+reading the shelf tag. Recorded rather than fixed: rule 3 was amended so the measuring branch
+would pass, which is the wrong direction of fit, and that now says so on the rule.
+
 **The skeleton was checked by a fresh reader before he saw it, and redrawn.** The first draft had
 no node for the app itself, which took two thirds of his stated purpose with it, and cited the
 combined pipeline nowhere while claiming it as a source. Also missing and now in: the free

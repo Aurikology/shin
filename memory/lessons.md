@@ -149,3 +149,19 @@ has cost something recorded twice. One incident is a lesson. Two is a rule.
   document before delivering, and ask of every plan whether the thing the user touches is in it.
   A fresh reader with none of the session's conversation found both; the artifact read as complete
   on its own word.
+
+- **2026-09-06 · Drawing a plan toward a destination imported the destination's definitions, and
+  put back a defect that had already been found and fixed.** The tree's fair line was written as
+  the middle of prices within reach, which is the moonshot's definition. The fault list already
+  held that exact thing as a defect found on 2026-09-03 and fixed: on a grocery set the middle
+  lands on a capped promotion, so a loss leader was being shown as the going rate. The shipping
+  design's own yardstick, a national typical range over a recency window with promotions kept
+  apart, appeared nowhere in twelve hundred lines. Two branches away, a refund promise fired on
+  anything above that middle, which is about half of all purchases, while the payout rate was
+  written as something to measure later. His words the same day: *"when building, don't assume the
+  reason we are building this tree, just build the tree without worrying about the destination."*
+  **Changed:** the shipping yardstick leads and the end-state one waits on its wall; the refund
+  threshold is chosen with the yardstick. The check worth keeping: when two documents define the
+  same thing differently, a plan that names only one of them has not chosen, it has drifted, and
+  the fault list is the place to look before adopting any definition, because a defect that was
+  fixed in code can still be alive in prose.
