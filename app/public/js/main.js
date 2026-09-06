@@ -14,6 +14,7 @@
  */
 
 import * as router from './router.js';
+import { startThemeColourSync } from './lib/theme.js';
 import * as store from './store.js';
 import * as api from './api.js';
 import * as shin from './shin.js';
@@ -47,6 +48,13 @@ try {
   const saved = localStorage.getItem('shin.theme');
   if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved;
 } catch { /* private window */ }
+
+/* And the browser's own chrome follows the choice, not just the system
+   preference -- the two theme-color metas in index.html are media-qualified and
+   cannot see an explicit pick, so forcing light left a near-black status bar
+   over a cream page. Started after the line above so the first paint of the
+   chrome is already the right colour. */
+startThemeColourSync();
 
 const first = store.get().seenIntro ? 'camera' : 'setup';
 router.start(document.getElementById('screen'), { store, api, shin, build: BUILD_STAMP }, first);

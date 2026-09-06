@@ -12,7 +12,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { brotliDecompressSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { parsePack, lookupCode } from '../public/js/pack.js';
@@ -23,6 +23,27 @@ const KNOWN_CODE = 270013810754n;
 const KNOWN_NAME = 'Extra Lean Ground Beef';
 const KNOWN_BRAND = 'Farm Boy';
 const MADE_UP_CODE = 9999999999999n;
+
+/*
+ * The pack is a build artifact, not a fixture, and catalogue/data/ is
+ * gitignored -- 9.1 GB, every byte re-fetchable by the scripts in
+ * catalogue/src. So on a fresh clone, and in any git worktree that has not
+ * built it, this file is simply not there.
+ *
+ * These five tests used to fail in that case, which meant `npm test` was red
+ * out of the box and stayed red, and five permanent failures are worse than
+ * none: they train everyone to read a red suite as normal, and the next real
+ * failure hides among them. A test that cannot pass on a clean checkout is a
+ * broken gate rather than a strict one.
+ *
+ * Skipped, not replaced with a fixture: the comment at the top of this file
+ * is right that a fixture would only prove this module agrees with itself.
+ * Where the pack exists these tests are unchanged and still run.
+ */
+const HAVE_PACK = existsSync(PACK_PATH);
+const NEEDS_PACK = HAVE_PACK
+  ? false
+  : 'catalogue/data/pack-grocery.bin.br is not built here; run the catalogue export to cover this';
 
 function loadRealPackBuffer() {
   const compressed = readFileSync(PACK_PATH);
@@ -36,7 +57,7 @@ function loadRealPackBuffer() {
   return buffer;
 }
 
-test('a known barcode resolves to the product the pack itself names', () => {
+test('a known barcode resolves to the product the pack itself names', { skip: NEEDS_PACK }, () => {
   const buffer = loadRealPackBuffer();
 
   const prepareStart = performance.now();
@@ -58,13 +79,13 @@ test('a known barcode resolves to the product the pack itself names', () => {
   assert.equal(hit.brands, KNOWN_BRAND);
 });
 
-test('a made-up barcode returns null, not a neighbour', () => {
+test('a made-up barcode returns null, not a neighbour', { skip: NEEDS_PACK }, () => {
   const buffer = loadRealPackBuffer();
   const parsed = parsePack(buffer);
   assert.equal(lookupCode(parsed, MADE_UP_CODE), null);
 });
 
-test('a truncated pack is rejected before it can be searched', () => {
+test('a truncated pack is rejected before it can be searched', { skip: NEEDS_PACK }, () => {
   const buffer = loadRealPackBuffer();
   // Cut it off partway through the offset table: past the header and codes,
   // but before the layout it declares can possibly be satisfied.
@@ -72,14 +93,14 @@ test('a truncated pack is rejected before it can be searched', () => {
   assert.throws(() => parsePack(truncated), /truncated/);
 });
 
-test('a corrupted magic is rejected rather than silently mis-parsed', () => {
+test('a corrupted magic is rejected rather than silently mis-parsed', { skip: NEEDS_PACK }, () => {
   const buffer = loadRealPackBuffer();
   const corrupted = buffer.slice(0);
   new Uint8Array(corrupted, 0, 8).set(Buffer.from('NOTAPACK', 'latin1'));
   assert.throws(() => parsePack(corrupted), /bad magic/);
 });
 
-test('a blob whose declared length does not match the file is rejected', () => {
+test('a blob whose declared length does not match the file is rejected', { skip: NEEDS_PACK }, () => {
   const buffer = loadRealPackBuffer();
   // Chop bytes off the very end, after the offset table, so the header and
   // offsets all look fine and only the blob is short of what they promise.

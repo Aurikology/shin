@@ -42,7 +42,7 @@
 .amount {
   font-family: var(--f-display);
   font-weight: 800;
-  font-size: clamp(40px, 11vh, 62px);
+  font-size: clamp(40px, 11svh, 62px);
   line-height: 1;
   letter-spacing: -.045em;
   font-variant-numeric: tabular-nums;
@@ -83,16 +83,58 @@
  */
 .seller .field { font-size: 16px; }
 
-.keypad {
+/*
+ * SCOPED, deliberately. These rules were bare `.keypad` and `.key` and the
+ * camera's pad matched them too -- two files declaring the same class at equal
+ * specificity, and which one won was decided by the @import order in
+ * screens.css. The camera's pad wanted --raised keys and this screen's wants
+ * --surface, so the leak was visible and nobody could see why.
+ *
+ * The markup comes from camera.js's keypadHtml now, so this is a host styling
+ * a shared component rather than a second implementation of it.
+ */
+/*
+ * svh, not vh, on anything that sizes a key.
+ *
+ * vh is the LARGEST viewport -- the one with the mobile address bar collapsed.
+ * A pad sized against it is taller than the screen it is actually in whenever
+ * the bar is showing, which is the overflow this file already records happening
+ * once ("the fine print ended up printed across the zero key"). svh is the
+ * smallest viewport, so the pad is sized for the tight case and simply does not
+ * move when the bar collapses. dvh would be wrong here for that last reason: a
+ * keypad that resizes under the thumb mid-entry is worse than one that is a
+ * few pixels short of the space available.
+ */
+.page-correct .keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   /*
    * Fixed rows, not flexible ones. A grid told to fit a box smaller than its
    * own minimum overflows it and paints straight through whatever comes next,
    * which is how the fine print ended up printed across the zero key.
+   *
+   * Three rows, not four: keypadHtml emits the digits and the bottom row as
+   * two sibling grids so the camera can put a confirm key in the second one.
+   * Four rows here left an empty row's worth of gap under the 9.
    */
-  grid-template-rows: repeat(4, clamp(46px, 7.4vh, 58px));
+  grid-template-rows: repeat(3, clamp(46px, 7.4svh, 58px));
   gap: 7px;
+}
+
+/*
+ * keypadHtml emits two sibling grids. Left as direct children of `.page` they
+ * inherited its 8px flex gap on top of any margin, so the bottom row sat 15px
+ * under the 9 while the rows above it were 7px apart -- a visible seam across
+ * the middle of one control. The wrapper gives the pad its own gap, which is
+ * the row gap, so it reads as one block again.
+ */
+.page-correct .pad {
+  display: grid;
+  gap: 7px;
+}
+
+.page-correct .keypad-bottom {
+  grid-template-rows: clamp(46px, 7.4svh, 58px);
 }
 
 /*
@@ -110,13 +152,13 @@
  * above `grid-template-rows` records happening once already. The row height is
  * the height.
  */
-.key {
+.page-correct .btn--key {
   min-height: 0;
-  font-size: clamp(20px, 3.4vh, 26px);
+  font-size: clamp(20px, 3.4svh, 26px);
   background: var(--surface);
   border: 1px solid var(--hairline);
 }
-.key:active { background: var(--raised); }
+.page-correct .btn--key:active { background: var(--raised); }
 
 .saved-note {
   display: flex;

@@ -31,6 +31,13 @@ import { say } from '../voice.js';
 import * as store from '../store.js';
 import { submitCorrection } from '../corrections.js';
 import { escapeHtml, on } from '../lib/dom.js';
+/*
+ * The keypad, from the screen that owns it. This file had its own 3x4 grid
+ * and its own `display()`, a verbatim copy of `pricePadDisplay` minus the
+ * `whole || '0'` guard -- so typing ".5" here rendered ".50" and on the
+ * camera "0.50". One component, two hosts, and the copy was the worse one.
+ */
+import { keypadHtml, pricePadDisplay } from './camera.js';
 import { storagePersists, NOT_KEPT } from '../lib/persistence.js';
 
 /**
@@ -67,13 +74,6 @@ function subjectOf(params) {
  * this one did not, which is the same control announcing itself two different
  * ways depending on which screen you reached it from.
  */
-const KEYS = [
-  { k: '1' }, { k: '2' }, { k: '3' },
-  { k: '4' }, { k: '5' }, { k: '6' },
-  { k: '7' }, { k: '8' }, { k: '9' },
-  { k: '.' }, { k: '0' }, { k: '⌫', label: 'Delete last digit' },
-];
-
 /**
  * Why the save button is off, in the order a person fills the screen in.
  *
@@ -105,14 +105,6 @@ export default {
     const subject = subjectOf(ctx.params);
     const label = subject.label ?? 'this';
 
-    function display() {
-      if (!typed) return '<span class="ghosted">0.00</span>';
-      const [whole, frac] = typed.split('.');
-      return frac === undefined
-        ? `${whole}<span class="ghosted">.00</span>`
-        : `${whole}.${frac}${frac.length === 1 ? '<span class="ghosted">0</span>' : ''}`;
-    }
-
     function paint() {
       root.innerHTML = `
         <div class="page page-correct">
@@ -130,7 +122,7 @@ export default {
                  </div>`
               : `
           <div class="amount" role="status" aria-label="Price typed so far">
-            <span class="amount-cur">$</span>${display()}
+            <span class="amount-cur">$</span>${pricePadDisplay(typed)}
           </div>
 
           <label class="seller">
@@ -142,14 +134,7 @@ export default {
           <button type="button" class="chip${onSale ? ' chip-on' : ''}" data-act="sale"
                   aria-pressed="${onSale ? 'true' : 'false'}">On sale</button>
 
-          <div class="keypad">
-            ${KEYS.map(
-              ({ k, label: kl }) =>
-                `<button type="button" class="btn btn--key key" data-k="${escapeHtml(k)}"${
-                  kl ? ` aria-label="${escapeHtml(kl)}"` : ''
-                }>${escapeHtml(k)}</button>`,
-            ).join('')}
-          </div>
+          <div class="pad">${keypadHtml()}</div>
 
           <!-- The label and the seller are both text a person typed. say()
                interpolates them into its sentence and the sentence goes to
@@ -208,15 +193,15 @@ export default {
     }, ac.signal);
 
     on(root, 'click', (e) => {
-      const key = e.target.closest('[data-k]');
+      const key = e.target.closest('[data-pad]');
       if (key) {
-        const k = key.dataset.k;
+        const k = key.dataset.pad;
         if (k === '⌫') typed = typed.slice(0, -1);
         else if (k === '.') { if (!typed.includes('.') && typed) typed += '.'; }
         else if (typed.includes('.') && typed.split('.')[1].length >= 2) { /* two decimals is a price */ }
         else typed += k;
         const amt = root.querySelector('.amount');
-        if (amt) amt.innerHTML = `<span class="amount-cur">$</span>${display()}`;
+        if (amt) amt.innerHTML = `<span class="amount-cur">$</span>${pricePadDisplay(typed)}`;
         paintGate();
         return;
       }

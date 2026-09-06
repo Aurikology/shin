@@ -303,7 +303,9 @@ test('the keypad emits the twelve keys, on the shared class, with the char in da
   assert.equal(count(pad, 'class="btn btn--key"'), 12, 'every key carries the Foundation key class');
   assert.ok(!/class="[^"]*\bkey\b[^"]*"/.test(pad.replace(/btn--key/g, '')),
     'a key still carries the bare `.key` class, which correct.css styles unscoped');
-  assert.ok(pad.includes('aria-label="Backspace"'), 'the backspace key has no accessible name');
+  assert.ok(pad.includes('aria-label="Delete last digit"'), 'the backspace key has no accessible name');
+  // "Delete last digit" over "Backspace": the correction screen had the
+  // better name and the camera had the canonical pad, so the pad took the name.
 });
 
 test('the confirm key appears only when asked for, and disables until it can be pressed', () => {

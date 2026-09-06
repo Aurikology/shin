@@ -789,8 +789,8 @@
      tall-viewport sizing above. */
   .padsheet { gap: 4px; }
   .padsheet .amount { font-size: 26px; padding: 0; }
-  .padsheet .keypad { grid-template-rows: repeat(3, clamp(26px, 4.4vh, 34px)); gap: 4px; }
-  .padsheet .keypad-bottom { grid-template-rows: clamp(26px, 4.4vh, 34px); gap: 4px; margin-top: 4px; }
+  .padsheet .keypad { grid-template-rows: repeat(3, clamp(26px, 4.4svh, 34px)); gap: 4px; }
+  .padsheet .keypad-bottom { grid-template-rows: clamp(26px, 4.4svh, 34px); gap: 4px; margin-top: 4px; }
   .padsheet .btn--key { font-size: 15px; }
 }
 
@@ -1053,13 +1053,25 @@
 .padsheet .keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, clamp(32px, 5.2vh, 40px));
+/*
+ * svh, not vh, on anything that sizes a key.
+ *
+ * vh is the LARGEST viewport -- the one with the mobile address bar collapsed.
+ * A pad sized against it is taller than the screen it is actually in whenever
+ * the bar is showing, which is the overflow this file already records happening
+ * once ("the fine print ended up printed across the zero key"). svh is the
+ * smallest viewport, so the pad is sized for the tight case and simply does not
+ * move when the bar collapses. dvh would be wrong here for that last reason: a
+ * keypad that resizes under the thumb mid-entry is worse than one that is a
+ * few pixels short of the space available.
+ */
+  grid-template-rows: repeat(3, clamp(32px, 5.2svh, 40px));
   gap: 5px;
 }
 .padsheet .keypad-bottom {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: clamp(32px, 5.2vh, 40px);
+  grid-template-rows: clamp(32px, 5.2svh, 40px);
   gap: 5px;
   margin-top: 5px;
 }
