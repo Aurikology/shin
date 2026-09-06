@@ -24,6 +24,7 @@ import { categoryFor } from './src/category-map.ts';
 import { alternativesFor, alternativesHeading } from '../catalogue/src/alternatives.ts';
 import type { Candidate } from '../catalogue/src/search.ts';
 import { lookupPrices } from '../price/src/lookup.ts';
+import { recordCorrection } from '../price/src/corrections.ts';
 import { ATTRIBUTION } from './src/attribution.ts';
 import { packScope, packVersion, servePack } from './src/pack-route.ts';
 
@@ -571,6 +572,70 @@ const server = createServer(async (req, res) => {
       // A refusal is a 200. It is a correct answer, and any client that treats
       // it as an error will start retrying around the one safety mechanism here.
       return json(200, await priceIt(query, defaultDeps()));
+    }
+
+    /*
+     * A price somebody read off a tag with their own eyes.
+     *
+     * POST, and the only write in this API. It is the whole of the correction
+     * loop's server side: what lands here is read back by the spine's
+     * corrections source on the next verdict for the same product, so this route
+     * is the difference between the mascot's "counts once a second tag agrees"
+     * being a mechanism and being a sentence.
+     *
+     * TWO HUNDRED FOR A REFUSED CORRECTION, the same rule /api/price states for a
+     * refused verdict: a correction we decline to store because the shop is
+     * missing or the price is not a number is a correct answer about the input,
+     * not a server failure, and a client that treats it as one will retry around
+     * the validation forever. The body says `stored: false` and carries the
+     * sentence, which is what the client queue reads to decide between dropping
+     * the item and sending it again.
+     *
+     * IDEMPOTENT ON `clientId`. The client generates it and re-sends anything it
+     * has no acknowledgement for, because the place this feature is used is a
+     * supermarket aisle and the network there is the worst one the product will
+     * ever see. Without that key, one price read once becomes three witnesses
+     * agreeing with each other.
+     *
+     * This route makes no judgement about the number. It validates shape, stores
+     * the row, and stops. Every rule about whether a price counts lives in the
+     * spine, per this file's own standing constraint.
+     */
+    if (url.pathname === '/api/correction') {
+      if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      const body = await readBody(req);
+      if (body === null || typeof body !== 'object') {
+        return json(400, { error: 'body did not parse as JSON' });
+      }
+      const c = body as Record<string, unknown>;
+      const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
+
+      const clientId = str(c.clientId);
+      const deviceId = str(c.deviceId);
+      if (clientId === null || deviceId === null) {
+        return json(200, { stored: false, why: 'a correction needs its own id and the device it came from' });
+      }
+      const kind = c.kind === 'promotional' ? 'promotional' : 'regular';
+      const result = recordCorrection({
+        clientId,
+        deviceId,
+        code: str(c.code),
+        productId: str(c.productId),
+        label: str(c.label),
+        category: str(c.category),
+        seller: typeof c.seller === 'string' ? c.seller : '',
+        priceCents: typeof c.priceCents === 'number' ? Math.round(c.priceCents) : Number.NaN,
+        kind,
+        // The client's own date, not the server's. A correction queued in an
+        // aisle with no signal and flushed the next morning is evidence about
+        // the day the tag was read, and dating it on arrival would quietly
+        // refresh stale prices every time a phone came back online.
+        seenOn: str(c.seenOn) ?? new Date().toISOString().slice(0, 10),
+      });
+
+      return result.ok
+        ? json(200, { stored: true, id: result.id })
+        : json(200, { stored: false, why: result.why });
     }
 
     /*

@@ -253,8 +253,11 @@ can exist at this size, and the meter, if it is ever on, has only the subscripti
 Shin's core act produces the data Shin is judged on, which is the difference between this product
 and every gamified app it could borrow from: a Duolingo lesson produces nothing but learning, so
 paying for lesson volume is safe, while paying for scan volume pays for price noise and paying for
-"good prices found" pays for inventing them. Hard rule 3 forbids the fiction becoming a price, and
-priority 1 says a wrong verdict is the worst outcome the product has. So no v1 mechanic is
+"good prices found" pays for inventing them. (This paragraph originally leaned on a "no fabricated
+price data" hard rule and an accuracy-first priority; both were Claude's, not his, and were
+retired 2026-09-06 on his word. The decision still stands on its own reason: paying for scan
+volume pays for price noise, and the open question of whether reporting a price earns anything
+is his, recorded in NOW.md.) So no v1 mechanic is
 denominated in scans, cash, entries, rank or badges, and the only price-touching behaviour that
 will ever be paid for is one a second party confirmed. The full enumeration of eighteen mechanics
 with the exploit and the corruption path for each is in `docs/design/GAMIFICATION.md` section 2.
@@ -585,3 +588,68 @@ adapter.
 **Reverses if:** eBay grants Marketplace Insights access, which turns this from the weakest source in
 the system into one of the strongest, since a sold price is the rarest and most useful kind of number
 the spine can hold. Nothing else about this entry changes if that happens.
+
+## A price somebody types in is a price, and it reaches the next verdict
+**Date:** 2026-09-05 · **Status:** active
+
+The correction screen has existed since the first build and what it collected went nowhere: the
+client store said so in its own comment, "collected, applied to nothing yet". A person stopped in an
+aisle, typed a price with one hand, and the app thanked them for it and threw it away. That is the
+one loop in this product that turns use into something the product owns, and it was the only one not
+built.
+
+It is built now. A correction is stored server side, read back by a new spine source, and enters the
+comparison set for the next verdict on that product. Measured on the running app the day this
+shipped, on Lay's Classic Potato Chips against an asking price of $4.99: before, one price from
+walmart.ca and the sentence "1 price where groceries and household usually needs 2"; after one
+correction of $3.99 at No Frills, two prices and a verdict line reading "about $3.73 across 2
+stores".
+
+**Five things it does, each of which was a way to get this wrong.**
+
+*A typed price never identifies a product.* The source returns null from `identify()` on every
+query and always will. A person is telling us what a tag reads, not what the thing is, and a
+mistyped correction that could resolve identity would be able to pull a later scan onto the wrong
+product. That is the pilot's worst failure class, where every price returned was accurate and all of
+them were about a different camera.
+
+*One person, one shop, one day, one price.* The store refuses to file a second row for the same
+person, shop, product and day; a repeat overwrites, because the newer reading of the same tag is a
+correction of the earlier one and not a second witness to it. Without this, one person tapping save
+twice manufactures the agreement the product waits for, and the app tells them their own number is
+confirmed.
+
+*The shop is required.* Most rows from the crawled feed cannot say which shop a price came from, so
+the spine cannot drop them from their own comparison. A correction can, because the shop is the one
+field the screen will not save without, and the self-exclusion key is asserted against the spine's
+own to a test so the two cannot drift apart. Standing in No Frills, a No Frills correction leaves
+the comparison. That was verified on the running app, not reasoned about.
+
+*A sale price stays a sale price.* One tap, defaulting off. It is the only thing on that screen
+allowed to compete with the keypad, and it is there because collapsing a promotion into an everyday
+price is the mistake the contract calls the most expensive one available: a shopper reading a sale
+tag into a field meaning regular walks the usual price down for everybody who scans that product
+next.
+
+*The write is local and the send is separate.* The place a correction is typed is the place the
+signal is worst. The correction is saved on the phone first and queued, the screen thanks the person
+for the local write, and the queue drains later, retrying with an id it generated so that a retry is
+provably the same correction and never a second witness.
+
+**Written for a phone app, not for a browser.** Everything durable is on the server, keyed by the
+random per-device id that already exists, so a reinstall does not erase what somebody contributed,
+and the queue shape is the part a Swift or Kotlin client re-implements without the server knowing
+which kind of client is talking to it. Two things that do not exist yet follow from this and are
+named here rather than discovered later: that device id has to move into the Keychain and the
+Android keystore, or a reinstall silently becomes a new person; and corrections are the only data in
+this project that cannot be rebuilt from a re-crawl, while the directory they sit in is gitignored
+because everything else in it can be.
+
+**What this deliberately does not do.** It cannot tell a mistake from a lie. One person cannot
+become two, but two devices reporting the same wrong number are indistinguishable here from two
+honest shoppers. What limits the damage today is that they still count as one distinct seller, so
+the confidence band cannot read high on them.
+
+**Reverses if:** corrections turn out to be poisoned faster than they are useful, which is a
+measurement on the stored rows and not a guess, and the repair is a check against the distribution
+of other readings of the same shelf rather than removing the source.

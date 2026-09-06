@@ -83,3 +83,26 @@ export function scenarios() {
 export function attribution() {
   return get('/api/attribution');
 }
+
+/**
+ * Sends one correction: a price a person read off a tag, with the shop it was
+ * read in.
+ *
+ * Three outcomes and the caller has to tell them apart, because the right
+ * response to each is different and two of them are not failures:
+ *
+ *   { stored: true }             kept. Drop it from the queue.
+ *   { stored: false, why }       the server looked at it and will never take it
+ *                                (no shop, price not a number). Drop it too, and
+ *                                a queue that keeps retrying this is a queue
+ *                                that never empties.
+ *   throws                       the network did not reach the server. KEEP it.
+ *                                This is the aisle-with-no-signal case and it is
+ *                                the normal one, not the exception.
+ *
+ * This is the only function here that is allowed to fail into a retry, which is
+ * why it is the only one that says so out loud.
+ */
+export function sendCorrection(correction) {
+  return post('/api/correction', correction);
+}

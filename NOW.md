@@ -5,7 +5,14 @@ narrative.*
 
 ---
 
-## Read this first, 2026-09-05
+## Read this first, 2026-09-06
+
+**`docs/the-vision.md` is what every improvement is judged against.** Written on his instruction
+from the 09-05/06 conversations: two goals as numbers (share of scans that end the decision;
+payers per hundred downloads and what each leaves), eight principles, and the order of the next
+stretch. It is "scan anything", not a grocery app; grocery only had a free catalogue first.
+
+## Read this second, 2026-09-05
 
 **`docs/the-combined-pipeline.md` is the spine.** It supersedes `docs/pipeline-decisions-and-plan.md`
 wherever the two disagree, on his instruction: take OLMA's pipeline as the base, put the barcode
@@ -18,6 +25,48 @@ and the catalogue in front of it, and drop the accuracy-first posture. His words
 The rule now is **always answer, and let the confidence carry the doubt**. Twenty-one of the old
 plan's fifty-four decisions refused to show the user something and none of them carried his
 words. The one thing kept: the good/fair/high call is arithmetic, never asked of a model.
+
+**The camera guidance system shipped 2026-09-05, uncommitted in the tree.** His ask: a system in
+the camera view that massively helps with object selection, with the feature calls left to this
+side. The decision is in `docs/decisions.md`, "The viewfinder acts first and speaks last". What
+landed: a mark on a barcode while it is still being read, with the agreement filling as a bar;
+every object the detectors found drawn as a tappable box, so decision 9's promised tap finally
+exists; the reticle drawing the padded rectangle that actually gets sent rather than the bare
+box; auto-zoom toward a small object, and the torch putting itself back out when the torch is
+what is blowing the label out; and one measured coaching line at a time in the docked face, from
+four measurements and no others. Rejected on the record: "move back", "the lighting is bad", and
+a general "bad angle". New file `app/src/eye/framing.ts`, 11 tests in `app/test/framing.test.ts`,
+`npm test` added to the app package. Typechecks, bundle rebuilt, marks verified rendering and
+hit-testable in Chrome against both a dark and a bright ground.
+
+**The corrections are wired, 2026-09-05, uncommitted in the tree.** His ask, in two parts: wire the
+corrections, and this is going to be an iOS and Android app. What a person types into the correction
+screen now reaches the next verdict on that product instead of being collected and dropped. New
+`price/src/corrections.ts` (the store, one row per person per shop per day, never rebuildable, and
+the only file in a gitignored directory that a re-crawl cannot replace), new
+`spine/src/sources/corrections.ts` (reads them back as price points, identifies nothing, ranks above
+the crawled feed because it names its shop), `POST /api/correction`, and a client offline queue that
+writes locally first because the aisle is where the signal is worst. Decision on the record: "A
+price somebody types in is a price, and it reaches the next verdict". 27 new tests, 271 across the
+four packages, all four typecheck, and both new files were broken on purpose to confirm the
+typecheck reaches them.
+
+Measured on the running app, not reasoned about: Lay's Classic at an asking $4.99 went from one
+price and "1 price where groceries and household usually needs 2" to two prices and "about $3.73
+across 2 stores" after one $3.99 correction at No Frills; the same query standing in No Frills drops
+that correction from its own comparison; a re-sent correction comes back as the same row.
+
+**The mascot line had gone false and was rewritten.** "Counts once a second tag agrees" was written
+to be honest when corrections went nowhere. Since the thresholds came out earlier the same day, one
+price is enough to answer, so a single correction already moves the verdict and that line was
+understating what the person's contribution does. It now says it counts from now and firms up when a
+second tag agrees.
+
+**Two things this leaves for the phone app, named rather than discovered later.** The per-device id
+lives in browser storage, so on iOS and Android it has to move into the Keychain and the keystore or
+a reinstall quietly becomes a new person with no history. And the corrections file is the only data
+here that cannot be rebuilt from a re-crawl, while it sits in a directory ignored by git because
+everything else in that directory can be.
 
 **State as of 2026-09-05 02:20.** Both judges now answer instead of refusing: the new one in
 `price/src/verdict.ts` and the old one in `spine/src/spine.ts` that the app actually serves.

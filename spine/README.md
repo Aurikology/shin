@@ -208,8 +208,27 @@ upward-biased and never a clearing price, so it breaks no ties.
   endpoint.** Nobody here has held a key, so no request has ever left this machine to
   `api.bestbuy.com`. `node src/cli.ts sources` prints it as `unavailable UNVERIFIED` because
   `BESTBUY_API_KEY` is not set, and the corpus report names it in its caveats.
-- **`ebay`** is `verified: false`, same status and same reason. Set `EBAY_CLIENT_ID` and
-  `EBAY_CLIENT_SECRET` to turn it on. It covers `used` and `tech`, deliberately never `grocery`,
+- **`ebay`** is `verified: false`, same status and same reason. Set `EBAY_APP_ID` and
+  `EBAY_CERT_ID` to turn it on, which are the names eBay's own console uses; `EBAY_CLIENT_ID` and
+  `EBAY_CLIENT_SECRET` are accepted too. `EBAY_DEV_ID` is not used at all: it belongs to the older
+  Trading API and plays no part in the OAuth exchange.
+
+  Two things nothing loads for you. Node does not read `.env` on its own, so a runner needs
+  `--env-file=.env`. And `EBAY_ENV=sandbox` switches the host, because sandbox and production are
+  separate keysets against separate hosts and sending one to the other is a bare 401.
+
+  **A sandbox run can never set `verified: true`.** The sandbox is a functional fixture with a
+  small set of seeded listings, not a copy of eBay, so a green sandbox call proves the credentials,
+  the OAuth exchange, the request shape and the parsing, and proves nothing about whether real
+  Canadian listings come back or what they cost. Only a production run whose result goes in the
+  scoreboard can flip that flag.
+
+  If eBay answers `invalid_client`, the thrown error now names what to check. The mistake that
+  happened here first time: the Dev ID pasted into the secret, because it is visible in the console
+  while the Cert ID sits behind a "show" toggle, and both are UUID-shaped. The App ID and Cert ID
+  carry an `SBX` or `PRD` stamp matching the keyset; the Dev ID does not.
+
+  It covers `used` and `tech`, deliberately never `grocery`,
   because eBay grocery listings are bulk, imported or collectible packaging and none of those is a
   comparable for a box on a Canadian shelf.
 

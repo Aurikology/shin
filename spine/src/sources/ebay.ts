@@ -69,8 +69,32 @@
 import type { CategoryId, PricePoint, ProductIdentity, SpineQuery } from '../contract.ts';
 import type { PriceSource, SourceAvailability } from './source.ts';
 
-const DEFAULT_BASE = 'https://api.ebay.com';
+const PRODUCTION_BASE = 'https://api.ebay.com';
+const SANDBOX_BASE = 'https://api.sandbox.ebay.com';
 const MARKETPLACE = 'EBAY_CA';
+
+/*
+ * WHAT THE SANDBOX IS AND IS NOT, because it decides what a passing run means.
+ *
+ * eBay issues two keysets, sandbox and production, and they are not
+ * interchangeable: different credentials against a different host. A sandbox
+ * key sent to api.ebay.com fails to authenticate, which is a confusing error
+ * rather than an obvious one, so `EBAY_ENV=sandbox` switches the host and the
+ * two are never mixed.
+ *
+ * The sandbox is a FUNCTIONAL fixture, not a copy of eBay. It carries a small
+ * set of seeded test listings and does not mirror the real marketplace, so a
+ * successful sandbox call proves the credentials, the OAuth exchange, the
+ * request shape and the parsing, and proves NOTHING about whether real
+ * Canadian listings come back or what they cost. `verified` therefore stays
+ * false after a sandbox run. It may only be set true by a production run whose
+ * result goes in the scoreboard, which is exactly the distinction that flag
+ * was created for.
+ */
+function baseFor(env: Record<string, string | undefined>): string {
+  if (env.EBAY_API_BASE) return env.EBAY_API_BASE;
+  return env.EBAY_ENV === 'sandbox' ? SANDBOX_BASE : PRODUCTION_BASE;
+}
 
 /**
  * 5,000 calls per day, application-wide rather than per user, raised only by
@@ -129,15 +153,33 @@ export class EbaySource implements PriceSource {
   #base: string;
   #token: { value: string; expiresAtMs: number } | null = null;
 
+  /*
+   * TWO ACCEPTED SPELLINGS, and this is not indulgence.
+   *
+   * eBay's developer console labels the pair "App ID (Client ID)" and "Cert ID
+   * (Client Secret)", so a person copying their keyset out of that page has
+   * EBAY_APP_ID and EBAY_CERT_ID in front of them, not the OAuth names. That is
+   * what actually happened here on the first attempt, and the failure mode is
+   * the bad one: the adapter simply reported itself as switched off, which is
+   * indistinguishable from not having applied for a key at all. A source that
+   * silently stays dark because a variable is spelled the way its own vendor
+   * spells it is a trap, not a validation.
+   *
+   * EBAY_DEV_ID is deliberately NOT read. It belongs to eBay's older Trading
+   * API and plays no part in the OAuth client-credentials exchange this uses.
+   */
   constructor(env: Record<string, string | undefined> = process.env) {
-    this.#clientId = env.EBAY_CLIENT_ID;
-    this.#clientSecret = env.EBAY_CLIENT_SECRET;
-    this.#base = env.EBAY_API_BASE ?? DEFAULT_BASE;
+    this.#clientId = env.EBAY_CLIENT_ID ?? env.EBAY_APP_ID;
+    this.#clientSecret = env.EBAY_CLIENT_SECRET ?? env.EBAY_CERT_ID;
+    this.#base = baseFor(env);
   }
 
   available(): SourceAvailability {
     if (!this.#clientId || !this.#clientSecret) {
-      return { ok: false, reason: 'EBAY_CLIENT_ID and EBAY_CLIENT_SECRET are not set' };
+      return {
+        ok: false,
+        reason: 'no eBay keyset: set EBAY_APP_ID and EBAY_CERT_ID (or EBAY_CLIENT_ID and EBAY_CLIENT_SECRET)',
+      };
     }
     return { ok: true };
   }
@@ -278,6 +320,46 @@ export class EbaySource implements PriceSource {
    * sixty-second margin is so a token cannot expire in flight between the check
    * and the request that uses it.
    */
+  /*
+   * What to check when eBay says 401 invalid_client, written from the mistake
+   * that actually happened here rather than from the documentation.
+   *
+   * eBay's console shows three values per keyset and two of them are UUIDs:
+   * the Dev ID, and, at a glance, whatever is under the Cert ID's "show"
+   * toggle. The Cert ID is hidden behind that toggle and the Dev ID is not, so
+   * the easy error is to copy the Dev ID into both slots, which is exactly what
+   * happened on the first attempt here. eBay's own reply to that is
+   * "invalid_client", which describes the outcome and not the cause, and a
+   * reader who has not made this mistake before will go and re-check the App ID
+   * instead, because that is the value they can see.
+   *
+   * The two tells are cheap and neither requires printing a secret: the App ID
+   * and Cert ID both carry a PRD or SBX stamp matching the keyset, and the Dev
+   * ID does not; and a secret identical to the Dev ID cannot be right whatever
+   * it looks like.
+   */
+  #authHint(): string {
+    const secret = this.#clientSecret ?? '';
+    const app = this.#clientId ?? '';
+    const stamped = (v: string) => v.includes('SBX') || v.includes('PRD');
+    const hints: string[] = [];
+    if (!stamped(secret)) {
+      hints.push(
+        'the secret carries no SBX or PRD stamp, so it may be the Dev ID rather than the Cert ID (the Cert ID is behind the "show" toggle in eBay\'s console)',
+      );
+    }
+    if (stamped(app) && stamped(secret) && app.includes('SBX') !== secret.includes('SBX')) {
+      hints.push('the App ID and the secret are from different keysets, one sandbox and one production');
+    }
+    if (app.includes('SBX') && this.#base === PRODUCTION_BASE) {
+      hints.push('a sandbox keyset is being sent to the production host; set EBAY_ENV=sandbox');
+    }
+    if (app.includes('PRD') && this.#base === SANDBOX_BASE) {
+      hints.push('a production keyset is being sent to the sandbox host; unset EBAY_ENV');
+    }
+    return hints.length > 0 ? `check: ${hints.join('; ')}` : 'credentials were rejected by eBay';
+  }
+
   async #accessToken(): Promise<string> {
     const now = Date.now();
     if (this.#token && this.#token.expiresAtMs > now) return this.#token.value;
@@ -294,7 +376,7 @@ export class EbaySource implements PriceSource {
         scope: 'https://api.ebay.com/oauth/api_scope',
       }).toString(),
     });
-    if (!res.ok) throw new Error(`ebay auth: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw new Error(`ebay auth: ${res.status} ${res.statusText}. ${this.#authHint()}`);
 
     const body = (await res.json()) as TokenResponse;
     if (!body.access_token) throw new Error('ebay auth: no access_token in response');

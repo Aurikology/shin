@@ -168,6 +168,10 @@
   width: 28px; height: 28px;
   border: 2px solid rgba(255,255,255,.94);
   display: block;
+  /* Same reason as .alt-box: a white corner over a brightly lit shelf is a
+     white corner over white. Found by putting the viewfinder over a light
+     ground and looking at it, not by reading the rule. */
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .55));
 }
 .reticle b:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; border-radius: 7px 0 0 0; }
 .reticle b:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; border-radius: 0 7px 0 0; }
@@ -180,6 +184,98 @@
 .cam[data-state="result"] .reticle,
 .cam[data-state="asking"] .reticle,
 .cam[data-state="texting"] .reticle { opacity: 0; }
+
+/*
+ * Everything the eye draws over the feed that is not the reticle.
+ *
+ * The container never takes a pointer event of its own, because a transparent
+ * layer across the whole viewfinder that swallows taps would break the shutter
+ * without leaving any evidence of why. Only the marks inside it are hit.
+ */
+.frame-marks {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/*
+ * The other objects the camera found, as things you can tap.
+ *
+ * Dimmer than the reticle on purpose and by a wide margin. The reticle is the
+ * app's answer and these are the alternatives to it; drawn at the same weight
+ * they would read as four equal boxes and the user would have to decide which
+ * one the app meant, which is the work this is supposed to be removing. Dashed
+ * rather than solid for the same reason: a different kind of line, not a
+ * quieter version of the same one.
+ *
+ * The 44px floor in eye-attach.js is a hit target, not a look. A jar at the far
+ * end of a shelf can project to eighteen pixels, and an eighteen pixel button
+ * held one handed in an aisle is not a button.
+ */
+.alt-box {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+  background: transparent;
+  border: 1.5px dashed rgba(255, 255, 255, .46);
+  border-radius: 10px;
+  cursor: pointer;
+  /* A white dashed line over a brightly lit supermarket shelf is a white line
+     over white, which is the reading condition FLAWS.md names as the hardest
+     one this product has. The shadow is what makes the mark survive it, and it
+     costs nothing on a dark aisle. */
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .65));
+  transition: border-color 140ms linear, background-color 140ms linear;
+}
+.alt-box:hover { border-color: rgba(255, 255, 255, .72); }
+.alt-box:active {
+  border-color: rgba(255, 255, 255, .92);
+  background: rgba(255, 255, 255, .08);
+}
+/* The camera's own standard, applied outward: 2px white at 3px offset, the
+   ring every other control on this screen already draws. */
+.alt-box:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+/*
+ * The barcode being read, while it is still being read.
+ *
+ * Four corners like the reticle, in the accent that means a good outcome,
+ * because that is what a barcode is: the exact, instant, free answer. The fill
+ * underneath is the agreement so far, and it is a real fraction of a real
+ * count, not an animation on a timer. When it reaches full the screen has
+ * already moved on, so the bar completing and the answer arriving are the same
+ * event rather than two.
+ */
+.code-mark {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--good-bright);
+  border-radius: 8px;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, .28);
+  overflow: hidden;
+  pointer-events: none;
+}
+.code-mark i {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 3px;
+  background: var(--good-bright);
+  transform: scaleX(var(--code-progress, 0));
+  transform-origin: left center;
+  transition: transform 120ms linear;
+}
+
+/* Nothing drawn over the feed survives the shutter. From the moment the frame
+   freezes, the picture is taken and an alternative object is no longer an
+   alternative to anything. */
+.cam:not([data-state="idle"]) .frame-marks { opacity: 0; pointer-events: none; }
 
 /* Row 89, take: the field rises over a blurred, still-visible viewfinder,
    never a hidden one. */
@@ -208,6 +304,15 @@
   transition: opacity 120ms linear;
 }
 .cam-shin .bubble-text { font-size: 13.5px; }
+
+/* The placeholder state label, same reasoning as the forced white above and
+   for the same reason it was missed: it is the one piece of text in this unit
+   that sits on the literal black rather than inside the bubble's own card, so
+   it needs the DARK scale's faint ink in both themes. Pinned here rather than
+   left on `--ink-faint`, because that token flips with the theme and the
+   ground under it does not. Measured on black: this clears at 6.25, the light
+   value fails at 3.68. Goes away with FLAGS.placeholderLabels. */
+.cam-shin .face-label { color: #848D99; }
 
 /* Hidden whenever a sheet has risen with its own head face, so the viewfinder
    never shows two Shins at once. Visible only at idle and through the 420ms
@@ -991,6 +1096,9 @@
 @media (prefers-reduced-motion: reduce) {
   .sheet, .price { animation: none; }
   .reticle, .cam-bar, .cam-shin, .sheet-half, .sheet-full { transition: none; }
+  /* The barcode fill still fills, because it is information rather than
+     decoration: it says how far along a read is. It just stops easing. */
+  .code-mark i, .alt-box { transition: none; }
   .cam-shin .face-eyes { animation: none; }
   .shutter::after { animation: none; }
 }

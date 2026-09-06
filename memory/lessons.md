@@ -67,3 +67,69 @@ has cost something recorded twice. One incident is a lesson. Two is a rule.
   work, the deliverable is the working thing with a measurement before and after; the diagnosis
   is the first paragraph of the report, not the report. Research agents run alongside the build,
   never in front of it. One turn lost. One occurrence.
+
+- **2026-09-05 · One negative test was written into a plan as a verdict on the mechanism.** The
+  vector arm lost on 40 French queries and I recorded "it lost" as the reason it is off, in a
+  document describing what to build. His words: *"even thouse meaning search failed at one test
+  doesn't mean it shouldn't be used in the product at all. The test could have been a false
+  positive, or even if the test was correct, meaning search can be integrated in other aspects."*
+  The test used clean catalogue names against rows carrying both language names, which is the one
+  query shape word search handles best; the four shapes that matter (a model's paraphrase of a
+  photo, an English-only row queried in French, a user typing what they want, deduping across
+  source databases) were never run. **Changed:** a measurement goes in a plan with the shape it
+  was run on attached, and a negative result retires a *version* until the untested cases are
+  named and run. **This is the second incident of an existing standing instruction**, `agent`'s
+  08-28 line *"a failed system is not a bad idea until the test is shown valid"*, which until now
+  rested on one conversation and no incident. It now has one.
+
+- **2026-09-05 · A green check is only evidence about the files it actually opened.** I built the
+  camera guidance system, ran `npm run typecheck` in `app`, got a clean result, and reported the
+  new `src/eye/framing.ts` as typechecking. It was never compiled. The tsconfig `include` was
+  `["server.ts", "scripts/**/*.mjs"]`, so a file in `src` was only reached if `server.ts` imported
+  it, and nothing imports the eye. The `database` terminal hit the identical hole the same
+  afternoon with `src/pack-route.ts`, widened the include to add `src/**/*.ts`, and told me. Both
+  files then compiled clean, so the claim survived, by luck rather than because the check ran.
+  Their line for the record: an include written as a list of entry points is not a list of what to
+  check. **Changed:** before reporting a check as passed, confirm the check's own configuration
+  reaches the file in question, because `CLAUDE.md`'s *"a check that did not run never passed"*
+  fails silently exactly here: the command exits zero and prints nothing about what it skipped.
+  Cheapest confirmation is to break the file on purpose once and watch the check go red.
+  **Second incident of the same shape as `agent`'s 08-06 line**, nothing is done on its own
+  artifact's word.
+
+- **2026-09-05 · A sentence written to be honest about a missing mechanism goes false the moment
+  somebody builds the mechanism, and nothing points at it.** The correction screen said "Counts
+  once a second tag agrees", written carefully so it could not claim to have changed a verdict
+  while corrections went nowhere. Two changes landed the same day from two directions: the
+  thresholds came out of the spine (one price now answers) and the corrections got wired. Between
+  them the line became false in the *understating* direction, telling a person their contribution
+  was waiting when it was already being used, which is the version that makes people stop
+  bothering. It was caught only because a test asserted the old sentence's claim and failed, and
+  the failure looked at first like the code being wrong rather than the copy. **Changed:** when a
+  comment or a user-facing line is written as a hedge about something not yet built, the thing
+  that builds it has to go looking for the hedge. Grepping the feature's own vocabulary across
+  the client is the cheap version and it is what worked here. Related but not the same as
+  `agent`'s 08-06 line: nothing was wrong with the artifact's own word, the world moved
+  underneath a true sentence.
+
+- **2026-09-05 · A test written to describe intended behaviour found the real behaviour instead,
+  and the real behaviour was the more interesting fact.** Two spine tests asserted that one price
+  point refuses and two produce a verdict, straight from the category rule's `minPoints: 2`. Both
+  failed: `minPoints` stopped being a gate when the thresholds came out and is now a shortfall
+  sentence appended to the confidence. **Changed:** nothing about the code, and that is the point.
+  A failing test is a question about which side is out of date, and reading the failure before
+  editing either side is what turned a two-minute test fix into finding a false line in the
+  product's own voice.
+
+- **2026-09-06 · A Claude-written rule was cited to him as his own, and a what-if in his question
+  was carried as his decision.** The constitution's "no fabricated price data, a price the app
+  cannot source is absent, not estimated" and the priority "a wrong verdict is worse than no
+  verdict" were both written by Claude on 2026-09-03 under a header that says "added only by
+  him"; a critique then quoted the rule back to him as "your rule". Separately, "if 10 in 100
+  users buy the subscription for 20 dollars a year" was a hypothetical inside a question, and two
+  later answers called $20 "your number". His words: *"this is not created by me its assumed by
+  claude"* and *"$20 is not my number, i never stated it."* **Changed:** the rule is removed and
+  the priority rewritten in his words; the one decision that cited them now stands on its own
+  reason. Before attributing anything to him, find the message; a number inside a what-if is an
+  input to that calculation and nothing else. Of the four hard rules left, two rest on law and
+  two (aggression never at the user; name the paths in a commit) carry no words of his either.

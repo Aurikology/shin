@@ -28,7 +28,16 @@
 
   --ink: #F7F5F2;
   --ink-muted: #A5ADB8;
-  --ink-faint: #6E7783;
+  /* Was #6E7783 until 2026-09-05. It measured 4.31 on --ground, 3.96 on
+     --surface and 3.60 on --raised, against the 4.5 that text under 24px
+     needs, and it was the ONLY failing colour on the app: a sweep of every
+     leaf text node on all ten screens found 136 elements below their
+     threshold in this theme and all 136 of them were this token (past scans
+     69, you 27, licences 8, saved 7, five more screens at 5 each, camera 0).
+     --ink-muted already cleared everywhere (6.71 to 8.64) and is untouched.
+     Stepped 22 per channel toward white, which keeps the cool-grey character
+     exactly, until the worst of the three grounds cleared: 4.52 on --raised. */
+  --ink-faint: #848D99;
 
   /* --- brand, never a verdict --- */
   --brand: #E5165E;
@@ -101,7 +110,19 @@
 
     --ink: #14161A;
     --ink-muted: #5E6570;
-    --ink-faint: #8B929C;
+    /* Was #8B929C until 2026-09-05, and worse here than in dark: 2.78 on
+       --ground, 3.14 on --surface, 2.50 on --raised. Same sweep, same story,
+       138 of the 141 failing elements in this theme were this one token.
+       Stepped 43 per channel toward black, character preserved, until the
+       worst ground cleared: 4.55 on --raised.
+
+       READ THIS BEFORE USING BOTH TOKENS ON ONE SCREEN. #606771 sits 2, 7 and
+       1 per channel from --ink-muted #5E6570 above. On this ground there is no
+       room for three readable levels of ink, so light theme now has two that
+       look alike where dark has three. Keeping the old value kept the tier and
+       cost the reading; this keeps the reading and costs the tier. Reverses if
+       the light grounds get darker, which would open the gap back up. */
+    --ink-faint: #606771;
 
     --good-bright: #0E9E5B;
     --fair-bright: #B87C13;
@@ -122,7 +143,10 @@
 
   --ink: #14161A;
   --ink-muted: #5E6570;
-  --ink-faint: #8B929C;
+  /* Same value and same reasoning as the media-query block above. These two
+     light blocks are deliberate duplicates (system preference, explicit
+     choice); they must move together. */
+  --ink-faint: #606771;
 
   --good-bright: #0E9E5B;
   --fair-bright: #B87C13;

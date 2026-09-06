@@ -23,10 +23,20 @@ import Anthropic from '@anthropic-ai/sdk';
 
 export type Tier = 'basic' | 'pro';
 
-/** Decision 21: the only difference between the tiers. */
+/*
+ * Decision 21: the only difference between the tiers.
+ *
+ * Pro was Opus 5 until 2026-09-05. Priced out at the crop this app actually
+ * sends (1568px long edge, so 2,459 image tokens), one Opus identification cost
+ * $0.0169 against Sonnet's $0.0068, and at 20 scans a week that is $17.58 a year
+ * of inference per user against a subscription the whole category prices at $10
+ * to $20. Reading a brand and a size off a label is not the kind of problem the
+ * top tier is for. Opus is worth spending on the hard fallback after a cheaper
+ * model comes back unsure, which is a different call than a default.
+ */
 const MODEL: Record<Tier, string> = {
   basic: 'claude-haiku-4-5',
-  pro: 'claude-opus-5',
+  pro: 'claude-sonnet-5',
 };
 
 export interface IdentifiedFields {

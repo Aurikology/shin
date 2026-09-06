@@ -325,14 +325,24 @@ products it got a usable price for 35%, nothing throttled, nothing errored.
 The only source that compounds, and the only way to ever see a competitor's house-brand price,
 because that price exists only on a shelf in that chain's store.
 
-**Nothing exists.** No way to send a price. The one place the app accepts a POST is the verdict
-request. Corrections users type are saved on their own phone and sent nowhere; the code says so.
+**The door exists as of 2026-09-05.** This part used to open "nothing exists", and it was right:
+corrections were saved on the phone and sent nowhere. There is now a second POST beside the verdict
+request. A price a person types is stored on the server, read back as an ordinary price point, and
+in the next verdict for that product. Measured the day it shipped: an asking $4.99 bag of chips went
+from one price and "1 price where groceries and household usually needs 2" to two prices and "about
+$3.73 across 2 stores", off a single $3.99 correction at No Frills.
 
-**What has to be built.** A door that accepts a price, and with it: which product, which store,
-which town, when it was seen, whether it was everyday or sale, and ideally the photo of the tag.
-A store and location concept, which does not exist today beyond one text field. And the trust
-system in Part 15, because the first person who submits a fake price to move a verdict will do it
-on purpose.
+What it carries is most of the list this section asked for: which product, which shop, when it was
+seen, and whether it was everyday or sale, which is one tap on the correction screen and matters
+because averaging a sale into an everyday price is the most expensive mistake in the engine. One
+person can file one price per shop per day, so nobody agrees with themselves.
+
+**What is still missing.** The town, and any real store concept: the shop is one text field, so two
+branches of one chain are one shop to us. The photo of the tag. And the trust system in Part 15,
+which is untouched: one person cannot become two, but two devices reporting the same fake number are
+indistinguishable from two honest shoppers, and what limits the damage today is only that they still
+count as one seller, so confidence cannot read high on them. The first person who submits a fake
+price to move a verdict will do it on purpose.
 
 **Your open question sits here**, and it is one mechanism rather than three: does reporting a price
 earn extra scans, a place on a leaderboard, or a draw entry. Whichever it is, it answers the

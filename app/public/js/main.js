@@ -17,6 +17,7 @@ import * as router from './router.js';
 import * as store from './store.js';
 import * as api from './api.js';
 import * as shin from './shin.js';
+import { flushCorrections } from './corrections.js';
 
 import camera from './screens/camera.js';
 import setup from './screens/setup.js';
@@ -49,3 +50,9 @@ try {
 
 const first = store.get().seenIntro ? 'camera' : 'setup';
 router.start(document.getElementById('screen'), { store, api, shin, build: BUILD_STAMP }, first);
+
+/* Corrections typed where there was no signal go out now. After the router
+   starts and never awaited: this is somebody's earlier aisle, not this screen's
+   business, and a phone that is still offline must reach the viewfinder exactly
+   as fast as one that is not. */
+void flushCorrections();

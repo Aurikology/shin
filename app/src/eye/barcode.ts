@@ -90,7 +90,7 @@ export interface ScannerOptions {
 export class BarcodeScanner {
   readonly #framesToConfirm: number;
   readonly #windowMs: number;
-  #recent: { value: string; at: number }[] = [];
+  #recent: { value: string; at: number; box: Reading['box'] }[] = [];
   #ready: Promise<unknown> | null = null;
   #lastFired: { value: string; at: number } | null = null;
 
@@ -157,7 +157,7 @@ export class BarcodeScanner {
     const value = extractGtin(chosen.text, String(chosen.format));
     if (!value) return null;
 
-    this.#recent.push({ value, at: now });
+    this.#recent.push({ value, at: now, box: boxOf(chosen) });
     const agreeing = this.#recent.filter((r) => r.value === value).length;
     if (agreeing < this.#framesToConfirm) return null;
 
@@ -172,15 +172,29 @@ export class BarcodeScanner {
     return { value, format: String(chosen.format), box: boxOf(chosen), frames: agreeing };
   }
 
-  /** The value currently accumulating agreement, for drawing a progress hint. */
-  peek(): { value: string; frames: number; needed: number } | null {
+  /**
+   * The value currently accumulating agreement, and where it sits in frame.
+   *
+   * This is what the viewfinder draws its barcode mark from, and the mark is
+   * the reason the box is carried through `#recent` at all. A scanner that
+   * says nothing until it is certain leaves the user with no idea the app
+   * wanted a barcode, no idea it is nearly there, and no explanation when the
+   * screen suddenly jumps to an answer. Reporting the in-progress read turns
+   * all three into one mark that fills up.
+   *
+   * The box returned is the most recent sighting of the leading value rather
+   * than the first, because the mark has to sit where the code is now.
+   */
+  peek(): { value: string; frames: number; needed: number; box: Reading['box'] } | null {
     const now = Date.now();
     const live = this.#recent.filter((r) => now - r.at <= this.#windowMs);
     if (live.length === 0) return null;
     const counts = new Map<string, number>();
     for (const r of live) counts.set(r.value, (counts.get(r.value) ?? 0) + 1);
     const [value, frames] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
-    return { value, frames, needed: this.#framesToConfirm };
+    let box: Reading['box'] = null;
+    for (const r of live) if (r.value === value && r.box) box = r.box;
+    return { value, frames, needed: this.#framesToConfirm, box };
   }
 
   /** Clears the hold. Call when the user backs out, so a stale read cannot fire. */

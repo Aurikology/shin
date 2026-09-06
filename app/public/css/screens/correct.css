@@ -117,6 +117,47 @@
   padding: 56px 16px;
   text-align: center;
 }
+/*
+ * The one extra question on a screen whose argument is that nothing competes
+ * with the keypad. It is a chip and not a row or a switch because it has to
+ * read as optional at a glance: off is the common case, off is the default, and
+ * a person who never notices it files the right kind of price anyway.
+ *
+ * It sits between the shop field and the keypad so the thumb passes it on the
+ * way down without having to travel back up for it.
+ */
+.page-correct .chip {
+  align-self: start;
+  margin: 0 0 2px;
+  padding: 7px 14px;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -.01em;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+.page-correct .chip-on {
+  background: var(--raised);
+  border-color: currentColor;
+  color: var(--ink);
+}
+.page-correct .chip:active { transform: translateY(1px); }
+
+/*
+ * Reduced motion drops the press travel and keeps the press colour. The
+ * feedback that a key or a chip was hit is the background change; the one-pixel
+ * dip is the part that is movement, so it is the part that goes. Both press
+ * states are handled here because they are the same gesture.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .key:active,
+  .page-correct .chip:active { transform: none; }
+}
+
 .saved-note .face { color: var(--good-bright); }
 .saved-note p {
   margin: 0;

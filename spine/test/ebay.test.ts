@@ -222,3 +222,93 @@ test('a listing with no seller name never becomes a point', async () => {
   const { points } = await pointsFor([listing({ seller: {} })]);
   assert.deepEqual(points, []);
 });
+
+/*
+ * eBay's console labels the pair "App ID (Client ID)" and "Cert ID (Client
+ * Secret)", so a person copying a keyset out of that page has APP_ID and
+ * CERT_ID in front of them. Reading only the OAuth names made the source report
+ * itself as switched off, which is indistinguishable from never having applied
+ * for a key. That is a trap, not a validation, and it is what happened here.
+ */
+test("eBay's own console names for the keyset are accepted", () => {
+  const source = new EbaySource({ EBAY_APP_ID: 'app', EBAY_CERT_ID: 'cert' });
+  assert.equal(source.available().ok, true);
+});
+
+test('the OAuth names still work and win when both are present', async () => {
+  const source = new EbaySource({
+    EBAY_APP_ID: 'console-app',
+    EBAY_CLIENT_ID: 'oauth-app',
+    EBAY_CERT_ID: 'cert',
+  });
+  assert.equal(source.available().ok, true);
+});
+
+test('the Dev ID alone is not a keyset', () => {
+  const source = new EbaySource({ EBAY_DEV_ID: 'a-uuid' });
+  const a = source.available();
+  assert.equal(a.ok, false);
+  assert.match(a.ok === false ? a.reason : '', /EBAY_APP_ID and EBAY_CERT_ID/);
+});
+
+/*
+ * A sandbox keyset sent to the production host authenticates against nothing
+ * and returns a bare 401, which sends the reader to re-check the value they can
+ * see rather than the host. The two are never mixed silently.
+ */
+test('EBAY_ENV=sandbox switches the host, and production is the default', async () => {
+  const stub = stubFetch([listing()]);
+  try {
+    const sandbox = new EbaySource({ ...CREDS, EBAY_ENV: 'sandbox' });
+    await sandbox.identify({ gtin: '1' }).catch(() => null);
+    assert.ok(
+      stub.calls.every((c) => c.startsWith('https://api.sandbox.ebay.com')),
+      `sandbox calls went elsewhere: ${stub.calls.join(', ')}`,
+    );
+  } finally {
+    stub.restore();
+  }
+
+  const stub2 = stubFetch([listing()]);
+  try {
+    await new EbaySource(CREDS).identify({ gtin: '1' }).catch(() => null);
+    assert.ok(
+      stub2.calls.every((c) => c.startsWith('https://api.ebay.com')),
+      `default was not production: ${stub2.calls.join(', ')}`,
+    );
+  } finally {
+    stub2.restore();
+  }
+});
+
+/*
+ * The failure this repo actually hit: the Dev ID pasted into the secret slot,
+ * because it is visible in the console while the Cert ID sits behind a "show"
+ * toggle. eBay answers "invalid_client", which names the outcome and not the
+ * cause. The adapter has both tells available without printing anything secret.
+ */
+test('a 401 explains what to check rather than only its status', async () => {
+  const real = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ error: 'invalid_client' }), { status: 401 })) as typeof fetch;
+  try {
+    const source = new EbaySource({ EBAY_APP_ID: 'shin-shin-SBX-abc', EBAY_CERT_ID: 'a-plain-uuid', EBAY_ENV: 'sandbox' });
+    await assert.rejects(
+      () => source.identify({ gtin: '1' }),
+      /Dev ID rather than the Cert ID/,
+    );
+  } finally {
+    globalThis.fetch = real;
+  }
+});
+
+test('a sandbox keyset aimed at production says so', async () => {
+  const real = globalThis.fetch;
+  globalThis.fetch = (async () => new Response('{}', { status: 401 })) as typeof fetch;
+  try {
+    const source = new EbaySource({ EBAY_APP_ID: 'shin-shin-SBX-abc', EBAY_CERT_ID: 'SBX-cert' });
+    await assert.rejects(() => source.identify({ gtin: '1' }), /set EBAY_ENV=sandbox/);
+  } finally {
+    globalThis.fetch = real;
+  }
+});

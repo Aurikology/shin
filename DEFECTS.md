@@ -33,10 +33,35 @@ humans, the loop is decoration and every mechanism failed at once. Two columns, 
 | D-007 | 2026-09-03 | `verdict` and `actions` read `history[0]` unconditionally while `home` routed to them with the id of the row that was tapped. Tapping the POÄNG chair in the watchlist showed the Kraft Dinner verdict. Nothing looked broken. | **Human**, reading two screens written by different lanes against each other. Neither was wrong alone; the seam between them was never owned. | **Fixed.** Both resolve the routed id against history and fall back to the newest scan. |
 | D-008 | 2026-09-03 | The app told the user "Shin can answer for 7 things today". It can answer for **2**: two items have no recorded points, two have one point against a two-seller minimum, one is a declined category, and one identity is too weak to call. The app was overstating its own coverage by 3.5x. | **Human**, by pricing all seven through the real API and counting. The catalogue endpoint reported `pointCount`, which looks like coverage and is not. | **Fixed.** `/api/catalogue` now reports `answerableCount` and a per-item `answerable`, measured by actually pricing each item rather than inferred, so it corrects itself when data is added. Home states the shelf and the answer rate as two different numbers, and the scan shelf marks every row. |
 | D-009 | 2026-09-03 | The price-drop screen re-priced a watched item without passing `askingSeller`, so the store the user was standing in had its own shelf price counted as a competing quote. It pushed the stated regular price from $1.47 to $1.74 and made the drop look better than it was. **This is D-003's shape for the second time**, reached through the caller instead of the engine. | **Human**, reading a number on the drop screen that disagreed with the same item's verdict screen. | **Fixed** in three places, because one was not enough: the re-price call passes the seller, the watch entry stores it, and the watch normaliser stops discarding it (with a fallback to the recorded scan, so saves made before the fix still price correctly). |
+| D-010 | 2026-09-05 | Small text on the verdict card fails contrast, in two different ways, and one label is effectively invisible. Computed from the running browser: white on the walk-away fill is **3.80:1**; the thin-evidence card in light theme is **3.70:1**; the state word under the face on a solid card is **1.19:1**. The failing text and its measured size: confidence line 10px, item name 10px, price rail low and high 9.5px, stand-in note 12.5px, range line 13px. The floor for text under 24px is 4.5. The verdict word and the price itself pass as large text. The thin card fails in light theme only, because the card stays dark in both themes while its text token darkens for a page it never sits on. | **Human**, computing contrast off the rendered screen. No test renders a screen. | **Open.** |
+| D-011 | 2026-09-05 | The raw internal refusal code reaches the shopper and contradicts the sentence printed directly above it. The Tide refusal prints TOO FEW POINTS under the item name while the line above reads "Nothing recent enough to compare against." Over the API the same refusal returns `too_few_points` with **13 price points** in its evidence array. The code name describes a count; the condition that actually fired is age. | **Human**, reading the rendered refusal. | **Open.** Two faults in one row and both need fixing: an internal identifier is on a shopper's screen at all, and it names the wrong cause. |
+| D-012 | 2026-09-05 | The refusal names the wrong cause because one of its four conditions has no message. The comparison set is filtered on four things at once (usable price kind, not future dated, inside the history window, not the seller being judged) and the empty result has only **two** messages: dropped kinds, or nothing recent enough. Self-exclusion, which is the condition that fires most often now that one store supplies almost every price, falls through to the age message. This is the root cause under D-011 and it is logged separately because fixing the printed string would leave it. | **Human**, reading the filter against the two messages it can produce. | **Open.** |
+| D-013 | 2026-09-05 | A refusal shows the shopper research notes and an internal category word. The Canon message runs **450 characters** about free search results, eBay sold listings in US dollars and new Canadian retail, and reads "Not sure enough this is the right used goods", which is a category slug dropped into a sentence. | **Human**, reading the rendered refusal. | **Open.** |
+| D-014 | 2026-09-05 | Labels print the brand twice: "Häagen-Dazs HAAGEN-DAZS Extraz Strawberry Cheesecake Ice Cream, 450 ml". The catalogue holds a clean name and size against that barcode and the verdict prefers the scraped retailer page title over it. | **Human**, reading the rendered verdict. | **Open.** The catalogue is the better name and is already joined; this is a precedence choice, not missing data. |
+| D-015 | 2026-09-05 | A seller renders as "at walmart.ca" where every other seller renders as a store name. | **Human**, reading the rendered verdict. | **Open.** |
+| D-016 | 2026-09-05 | The browser tab reads "Shin · Shin". The camera screen's own title is "Shin" and the router appends " · Shin" to whatever a screen sets. | **Human**, looking at the tab. | **Open.** |
+| D-017 | 2026-09-05 | An invisible element drives a permanent repaint loop on a phone for the whole interaction. The viewfinder face correctly fades to `opacity: 0` once a sheet is up, but it stays mounted carrying the thinking state, and its three dot animations run with infinite iterations from the moment the shutter fires, through the item picker and the price pad, to the verdict or the refusal. Counted live at the pad step: **3 running animations**, a 900ms repaint cycle, none of it visible. | **Human**, by screenshotting a state and then counting running animations. An earlier reading of this as "two faces at once" was a 120ms fade caught mid-flight and is withdrawn. | **Open.** |
+| D-018 | 2026-09-05 | Search ranks the wrong thing first, and the signal that would fix it is computed and thrown away. "peanut butter" ranks Quest peanut butter cups, an RXBAR and a KIND bar above the actual Kraft jar, which lands at **5**. "kraft dinner" spends **three of six** slots on rows all named "Kraft Dinner" with distinct barcodes, no brand and no size. The category ring is computed on every search and returned, and it is never used to reorder the candidates. | **Human**, by running real queries and reading the list. | **Open.** |
+| D-019 | 2026-09-05 | The Canada preference never fires for electronics. It is written as a score discount, and on tech nothing Canadian survives it: "wireless headphones" returns six non-Canadian rows including **two exact duplicates**. Same shape as the "Canada preferred" rule fixed earlier the same day, which had been written as a tiebreak on a score that never ties and so had never once fired. | **Human**, by running the query and reading the rows. | **Open.** |
+| D-020 | 2026-09-05 | A shipped command prints three requirements that no longer exist. `spine explain grocery` still says "needs 2 points from 2 seller(s), newest within 7d". None of the three is a requirement since the thresholds came out: Tide answered on 1 point from 1 seller. | **Human**, running the command against the current behaviour. | **Open.** |
+| D-021 | 2026-09-05 | The line-writing function has no missing-fact guard, so a caller that omits a field ships "Saved at undefined, Metro, undefined" to the screen and returns it silently. This is the caller-side shape of D-004 and D-007: nothing errors, nothing looks broken, and the sentence is wrong. There are **58 copy keys across 3 personalities and 174 shopper-facing strings**, and no test renders any of them. | **Human**, reading the function against its callers. | **Open.** |
+| D-022 | 2026-09-05 | A single typed price moves a verdict, and nothing holds an outlier. The correction path shipped the same day and works: one $3.99 correction at No Frills took Lay's Classic from one price to two and changed the sentence. None of the rules that stop that being abused exist. No corroboration is required before a report counts, a photographed tag does not outweigh a typed number, a price far outside the known range is published rather than held, and there is no reliability score per person. One row per person per shop per day is the only rule in place. | **Human**, from the design of what shipped, before anyone outside this machine can reach it. | **Open, and it gates opening the app to anybody else.** The first person who submits a fake price to move a verdict will do it deliberately, and a fake low price is the dangerous direction because it tells somebody a bad deal is good. |
+| D-023 | 2026-09-05 | The offline aisle does not exist from a user's side, though both halves of it are finished. The server serves the compressed slice (1,504,130 bytes in 96ms, version matching) and the phone-side module parses it, stores it in permanent browser storage and answers a barcode from it. **No screen imports that module**, so `lookupOffline` and `primePack` are never called. The stated check for this work was "load the app, turn the network off, scan a known barcode, get the product name", and walking the app it does not happen. The endpoint was tested; the path a person takes was not. | **Human**, by grepping for callers after the endpoint test passed. This is standing instruction 08-06 exactly: the artifact was checked, its consumer was not. | **Open.** |
+| D-024 | 2026-09-05 | The camera cannot see anything, and the code that would let it is written, tested and imported by nothing. The four-attempt chain, and the vision read that turns a crop into brand, product line, variant, size, unit and category while keeping everyday, sale and loyalty prices as three separate numbers, both have **zero importers**. The camera screen shows a hand-written list of items and the user picks one. Still genuinely missing around them: the upload door with a size cap, a per-device rate limit and a timeout, the model key, and cheap-model-first escalation. | **Human**, by grepping for importers. | **Open.** |
+| D-025 | 2026-09-05 | Two live endpoints have no caller. The ranked-candidate search and the cheaper-options route are both served and neither is called by any screen: the client calls price, identify, catalogue, categories, scenarios, attribution and correction, and nothing else. Cheaper options is a finished feature the product does not show. | **Human**, by listing the client's calls against the server's routes. | **Open.** |
+| D-026 | 2026-09-05 | Four more finished, tested pieces with no caller: the scan record that the meter, the crawler queue, the priors and the shared answer cache all need; the search routing that narrows by what a person is shopping for; the crawl ordering that decides what to price next; and the capture queue that keeps a photo when the signal drops, whose start function is exported and never called. | **Human**, by grepping for importers. | **Open.** Logged as one row because the four share a cause and a fix, and separately from D-023 to D-025 because these are not yet visible to a user. |
+| D-027 | 2026-09-05 | `app/data/` is untracked and not ignored, so it appears in every `git status` as a candidate for exactly the accidental commit the blind-add hook exists to prevent. | **Human**, reading `git status`. | **Open.** |
+| D-028 | 2026-09-05 | The stated diff-baseline floor covers one of four files. The settings note calls the four files in `pages/` baselines rather than drafts, and only the session-notes file has a deny rule. Three quarters of the stated floor is a comment. | **Human**, reading the settings against the note. | **Open.** |
+| D-029 | 2026-09-05 | `main.js` says it registers six screens. It registers ten. | **Human**, counting. | **Open.** Trivial on its own, kept because comment drift is how D-020 happened at a size that mattered. |
+| D-030 | 2026-09-05 | **The instruments were not run.** Twelve commits landed on 2026-09-05 and neither this file nor `SCOREBOARD.md` gained a row. Two bugs were found and fixed inside that day's work and neither was logged: a seller count that broke the moment the gate in front of it was removed, and the "Canada preferred" tiebreak that had never once fired. `PASS.md` names the check for whether this loop is decoration, three passes in with no scoreboard series and an all-human caught-by column, and **both halves are true right now**. | **Human**, comparing the commit log against the two files. | **Open.** This row is the reason the twenty above exist as one batch rather than as twenty entries made on the days they were introduced. |
+| D-031 | 2026-09-06 | **The app promises the user the opposite of his data policy.** The "Privacy" section on the profile screen (`app/public/js/screens/you.js:98-104`) says *"Everything stays on this device. Nothing is sent anywhere but the local server that answers a scan."* and the camera line (`app/public/js/voice.js:594-596`) says *"Your camera stays on your phone. Only the price ever leaves it."* His policy, 2026-09-05: all scanned data is collected, used to train the models and to answer other people. Both lines become false the day scans are pooled or a photo is sent to a model, and a false privacy line on screen is a spent-once problem, not a wording one. The "Privacy policy" row on the same screen reads "not written yet" (`you.js:114-119`). | **Agent**, verifying a tree branch against the code (rule 12 of the tree rules) | **Open.** Waits on his wording; the two lines come out or change the same day the photo route or pooling goes live, whichever is first. |
+| D-032 | 2026-09-06 | **The request reader buffers any body without a cap.** `readBody` in `app/server.ts:448-456` reads the whole request into memory before `JSON.parse`, on every route, so a large non-JSON body exhausts memory before the parse even fails. Filed under the photo path last night as "a size cap before anything is read" for the future upload route; it is a defect on the routes that exist today. | **Agent**, verifying the upload-door leaf (A5) against the code | **Open.** One pass: cap before read, 413 on breach, a test that sends one byte over. |
 
-Counts so far: **9 defects, 8 found by humans and 1 by a test.** That ratio is the thing to
-watch, not the total, and it is getting worse rather than better. Six of the nine were found by
-looking at a rendered screen, which is the one activity none of the 43 tests perform.
+Counts so far: **32 defects, 29 found by humans, 2 by an agent reading code against a claim, 1 by
+a test.** That ratio is the thing to watch, not the total, and it is getting worse rather than
+better. Twenty-two of the first thirty were found by looking at a rendered screen or by asking
+who calls a piece of code, which are the two activities none of the 254 tests perform; the two
+agent finds were the same two activities, delegated.
 
 ---
 
@@ -58,5 +83,63 @@ locks a fix at one layer does not lock the fix.** D-003's test asserts the engin
 judged seller. It passes. The app was still comparing Kraft Dinner to Kraft Dinner, because the
 question was never asked with the seller in it.
 
+**2. A piece is not built until something a person can reach calls it, and the check that says it
+is built has to run through that path.** Earned by D-023 and D-024, with D-025 and D-026 as four
+further instances found the same hour. D-023 is the offline aisle: the server serves the slice, the
+phone module parses and stores it, the endpoint test passes, and no screen imports the module, so
+the aisle does not work. D-024 is the identification chain and the vision read, complete and tested
+and imported by nothing while the camera shows a hand-written list.
+
+Forbidden: recording a piece as built on a test that calls it directly, or on an endpoint answered
+by hand. Required: the check names the path a person takes and runs it end to end. A new file
+lands with its caller in the same change, or it lands with a row here.
+
+This is standing instruction 08-06 arriving from inside the product rather than from a document,
+and the cost of not having it is measured: eight finished, tested pieces sitting unreachable at
+once, which reads as a working product in a test run and as an empty one in a browser.
+
+**3. Every pass ends with somebody looking at the running screens.** Earned by the caught-by
+column and not by an argument: twenty-four of the thirty-two defects here were found by looking
+at a rendered screen or by asking who calls a piece of code, and one was found by a test. D-004 was a
+sentence that read wrong while every test asserting the tier passed. D-021 is the same shape one
+layer up, a function that will ship "Saved at undefined" and return it silently.
+
+Forbidden: closing a pass on a green test run alone. Required: the screens are walked, in both
+themes, and what was walked is written down. This is a habit and gets no hook.
+
 When one is earned, write it as one sentence naming the shape, the two occurrences that earned
 it, and what it forbids.
+
+---
+
+## Not defects, and they are not filed here
+
+These came out of the same walkthrough and are absences rather than faults. They are listed once,
+here, so nothing from that list is lost, and they are kept out of the log above because the only
+interesting column in it is whether a test or a human caught a defect, and an unbuilt thing was
+never caught by anything. Each belongs in the build plan.
+
+- **Prices are the cap on this product, and the number is small.** 896 collected prices, of which
+  **23** are both inside the freshness window and carry a product code, covering **22 products, 21
+  of them from a single store**. Priced through the running app: 22 of 22 answer with no store
+  named, **1 of 22** answers when the shopper says which store they are standing in, and 2 of the 7
+  hand-priced items answer with their real store named. So the app answers for **3 products in the
+  situation the product exists for**. The 21 that vanish do so correctly, because a store cannot be
+  compared against itself. The freshness window is the one threshold left, it is right, and it is
+  what puts 97% of the collected data out of reach. Widening it buys coverage by lying. This is a
+  measurement and it belongs in `SCOREBOARD.md`, which has held one row since 2026-09-03.
+- **The step that checks the answer is the right product does not exist.** Show the catalogue's own
+  product photo and the user's crop to a model, ask one question. Without it a ranked list is being
+  presented as an answer, which is the pilot's worst failure repeated.
+- **Nothing is metered and every route is open to anyone who can reach it.** Needed before a photo
+  costs money: a random identifier the phone makes on first run, a weekly count, and our own
+  failures not counting against the person.
+- **There is nowhere to run it.** One program started by hand on one laptop, no address on the
+  internet, and a phone will not turn its camera on without an encrypted connection.
+- **It has to become an iOS and Android app**, and two consequences are already named: the
+  per-device identifier lives in browser storage, so a reinstall quietly becomes a new person with
+  no history unless it moves into the keychain and the keystore, and everything a user has lives in
+  one browser and vanishes with it.
+- **Three things that are not code and gate the launch:** the name (the Canadian software classes
+  came back clear on 2026-09-04, the US register and the app store name checks did not happen), the
+  two-caption test on borrowed audiences, and the thirty hand-priced items, of which seven exist.

@@ -29,7 +29,18 @@ const EMPTY = {
   watchlist: [],
   /** Every verdict ever shown, which is what stage 12 reads back. */
   history: [],
-  /** Stage 06b: corrections the user made. Collected, applied to nothing yet. */
+  /**
+   * Stage 06b: corrections the user made, and the outbound queue for them.
+   *
+   * These are no longer collected and dropped. Each entry carries a `clientId`
+   * and a `sentAt`, and `pendingCorrections()` is what has not reached the
+   * server yet. Once a correction lands there, the spine reads it back as a
+   * price point, so the next verdict on the same product is computed with it.
+   *
+   * The local copy is kept after sending rather than deleted. It is what the
+   * app can show the person about their own contributions without a round trip,
+   * and it is the only record if the server ever loses one.
+   */
   corrections: [],
   /** Stage 11: fake price drops the demo can fire, so the loop can be seen. */
   drops: [],
@@ -289,4 +300,87 @@ export function buzzOn() {
 
 export function setBuzz(on) {
   update({ buzz: !!on });
+}
+
+/* ---------------------------------------------------------------------------
+ * Corrections, and the queue that gets them to the server.
+ *
+ * WHY THERE IS A QUEUE AT ALL. The place a correction is typed is the place the
+ * signal is worst: a supermarket aisle, often a basement one. A correction that
+ * only exists if the POST happens to succeed is a correction lost exactly when
+ * the person went to the trouble of typing it. So the write is local and
+ * immediate, the send is a separate thing that can fail and be retried, and the
+ * screen never waits on the network to say thank you.
+ *
+ * THIS SHAPE IS THE ONE A PHONE APP RE-IMPLEMENTS. When this becomes an iOS and
+ * Android app, `localStorage` is replaced by whatever that platform stores with,
+ * and nothing else here changes: the same fields, the same client-generated id,
+ * the same three outcomes in `api.js`'s `sendCorrection`. The server has no idea
+ * which kind of client is talking to it and must never be given one.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Files one correction locally and returns it, ready to send.
+ *
+ * `clientId` is generated here rather than by the server so that a retry after a
+ * timeout is provably the same correction and not a second witness to the same
+ * tag. That is the whole reason the id exists.
+ *
+ * `seenOn` is the day the tag was read, taken now, and it travels with the
+ * correction even if it is not sent for days. The number is evidence about that
+ * day, and stamping it on arrival would silently refresh a stale price every
+ * time a phone came back online.
+ */
+export function recordCorrection({ code, productId, label, category, amountCents, seller, kind }) {
+  const entry = {
+    clientId: newId(),
+    at: new Date().toISOString(),
+    seenOn: new Date().toISOString().slice(0, 10),
+    code: code ?? null,
+    productId: productId ?? null,
+    label: label ?? null,
+    category: category ?? null,
+    amountCents,
+    // Never the string "given". A correction with no real seller is not usable
+    // as a comparison point later, and the engine uses that literal word when
+    // no store was named.
+    seller: (seller ?? '').trim(),
+    kind: kind === 'promotional' ? 'promotional' : 'regular',
+    sentAt: null,
+  };
+  update((s) => ({ ...s, corrections: [entry, ...s.corrections] }));
+  return entry;
+}
+
+/** Everything typed here that the server has not acknowledged, oldest first so the queue drains in order. */
+export function pendingCorrections() {
+  return state.corrections.filter((c) => !c.sentAt).slice().reverse();
+}
+
+/** The server took it. */
+export function markCorrectionSent(clientId) {
+  update((s) => ({
+    ...s,
+    corrections: s.corrections.map((c) =>
+      c.clientId === clientId ? { ...c, sentAt: new Date().toISOString(), refusedWhy: null } : c,
+    ),
+  }));
+}
+
+/**
+ * The server looked at it and will never take it.
+ *
+ * Marked sent, not deleted, and the reason is kept. A queue that retries
+ * something the server has already judged is a queue that never empties, and
+ * throwing the row away would lose the one record that the person did type
+ * something. Nothing shows `refusedWhy` yet; it is stored so that the day
+ * somebody asks why a correction did nothing, the answer is on the device.
+ */
+export function markCorrectionRefused(clientId, why) {
+  update((s) => ({
+    ...s,
+    corrections: s.corrections.map((c) =>
+      c.clientId === clientId ? { ...c, sentAt: new Date().toISOString(), refusedWhy: why ?? 'refused' } : c,
+    ),
+  }));
 }

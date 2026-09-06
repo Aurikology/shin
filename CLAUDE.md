@@ -22,8 +22,11 @@ directory you are not looking at.
 
 ## PRIORITY ORDER
 
-1. **A wrong verdict is worse than no verdict.** This is a product whose only value is being
-   trusted about a number. "I cannot price this, and here is why" is a success state.
+1. **Always answer; the confidence carries the doubt.** His words, 2026-09-05: *"The worst thing
+   this app can do is tell people it doesn't know because that literally wastes the users time."*
+   The good/fair/high call is arithmetic, never asked of a model. (The previous line here, "a
+   wrong verdict is worse than no verdict", was written by Claude on 2026-09-03 with no words of
+   his behind it; he named it as not his on 2026-09-06 and it is retired.)
 2. **Ship or kill.** A pass that does neither is the failure mode this project dies of.
 3. **Speed**, never traded for the first two.
 
@@ -40,11 +43,9 @@ Added only by him.
 2. **No savings claim until it is measured.** Competition Act s.74.01(1)(b) requires adequate
    and proper testing before a performance claim is published. The "$1,000 a year" figure was
    never measured and mirrors a published forecast. Measure first or say nothing.
-3. **No fabricated price data.** A price the app cannot source is absent, not estimated. A
-   verdict with no comparable set says so. A row that returned nothing is recorded as nothing.
-4. **The aggression points at the price, the store, or the brand. Never at the user.** Groceries
+3. **The aggression points at the price, the store, or the brand. Never at the user.** Groceries
    are non-discretionary and the person scanning did not set the price.
-5. **Name the paths in a commit.** No catch-all stage, no catch-all commit. Enforced by
+4. **Name the paths in a commit.** No catch-all stage, no catch-all commit. Enforced by
    `.claude/hooks/no-blind-git-add.mjs`, which exists because of a real incident, not a theory.
 
 ## HOW WE WORK

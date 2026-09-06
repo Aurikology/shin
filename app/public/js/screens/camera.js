@@ -28,6 +28,23 @@ import { say, wordFor } from '../voice.js';
 import * as store from '../store.js';
 import { attachEye } from '../eye-attach.js';
 
+/**
+ * The four things the viewfinder is ever allowed to say, and the lines they map
+ * to.
+ *
+ * The map is here and not in the eye because the eye measures and this screen
+ * speaks. Adding a fifth entry means first finding a measurement that earns it:
+ * the eye produces a key only when a number taken off the live frame says that
+ * exact thing is wrong right now, which is what keeps this from becoming the
+ * five-rule checklist OLMA showed four times before anything had failed.
+ */
+const COACH_LINES = {
+  hold: 'cam_hold_still',
+  glare: 'cam_glare',
+  closer: 'cam_closer',
+  pick: 'cam_pick_one',
+};
+
 /* ------------------------------------------------------------------ camera */
 
 /**
@@ -845,6 +862,13 @@ export default {
 
         <div class="reticle" aria-hidden="true"><b></b><b></b><b></b><b></b></div>
 
+        <!-- Everything the eye draws over the feed that is not the reticle: the
+             other objects it found, as buttons you can tap to scan one of them
+             instead, and the mark on a barcode it is part way through reading.
+             Both are created and positioned by eye-attach.js and both are empty
+             when there is nothing to say, which is most of the time. -->
+        <div class="frame-marks" data-slot="marks"></div>
+
         <!-- Shin docked on the viewfinder, top-left under the wordmark: the aim
              hint, the escalated hint, the torch acknowledgement, the second-visit
              callback and the identifying morph all happen in this one component,
@@ -903,6 +927,7 @@ export default {
     let torchAckTimer = null;
     let secondVisitShown = false;
     let scanThumb = null;
+    let coachKey = null;
     let camShinEl = camShin ? camShin.querySelector('.shin-say') : null;
 
     /*
@@ -915,12 +940,40 @@ export default {
      * back to exactly the camera it had before and every control stays where it
      * is. Neither branch is an error path.
      */
-    attachEye(video, root.querySelector('.reticle'), {
+    attachEye(video, {
+      reticle: root.querySelector('.reticle'),
+      marks: root.querySelector('.frame-marks'),
+    }, {
       onBarcode: (read) => {
         if (dead || cam.dataset.state !== 'idle') return;
         onBarcode(read);
       },
       onTorch: (on) => { if (!dead) setTorch(on); },
+      /*
+       * The measured coaching line, which is the only kind that gets said.
+       *
+       * It arrives already gated: the eye has held the condition for the best
+       * part of a second, has already tried whatever it can do itself about
+       * it, and will not send another for at least the length of time this one
+       * takes to read. So the screen's whole job is to put it in the mouth of
+       * the face that is already docked there, and to put the ordinary aim
+       * hint back when it clears. Never a second surface, never a toast, and
+       * never a list of rules before anything has gone wrong.
+       */
+      onCoach: (key) => {
+        if (dead || cam.dataset.state !== 'idle') return;
+        coachKey = key;
+        if (key) {
+          // A real problem outranks the four-second nothing-detected nudge,
+          // and having something to say means the nudge is not the thing
+          // wrong with this frame.
+          clearTimeout(hintTimer);
+          dockSay('asking', COACH_LINES[key], {}, 'nudge-arrive');
+        } else {
+          showAimHint();
+          armHintEscalation();
+        }
+      },
       onCapture: (crop) => {
         if (dead) return;
         // The crop, not a centre square of the whole shelf. This is the frozen
@@ -1018,6 +1071,9 @@ export default {
         one-time escalation past four seconds of nothing detected. */
     function showAimHint(anim) {
       if (!camShinEl) return;
+      // A measured line is on screen. It is about this frame, it names a thing
+      // to do, and the generic hint would be talking over it.
+      if (coachKey) return;
       if (hintEscalated) dockSay('asking', 'hint_escalated', {}, anim ?? 'nudge-arrive');
       else dockSay('idle', 'cam_aim_hint', {}, anim);
     }
@@ -1034,7 +1090,7 @@ export default {
       clearTimeout(hintTimer);
       if (hintEscalated) return;
       hintTimer = setTimeout(() => {
-        if (dead || hintEscalated || cam.dataset.state !== 'idle') return;
+        if (dead || hintEscalated || coachKey || cam.dataset.state !== 'idle') return;
         hintEscalated = true;
         showAimHint('nudge-arrive');
       }, 4000);
@@ -1101,6 +1157,7 @@ export default {
     async function onBarcode(read) {
       clearTimeout(hintTimer);
       clearTimeout(torchAckTimer);
+      coachKey = null;
       scanThumb = captureThumb(video, cam.dataset.camera === 'live');
       dockSay('thinking', 'reading', {}, 'think-dots');
       setState('framing');
@@ -1113,14 +1170,40 @@ export default {
        */
       let found = null;
       try {
-        found = await catalogueLookup(read.text);
+        /*
+         * `value`, not `text`. A StableRead is { value, format, box, frames }
+         * and has never carried a `text`; that was the name of the raw zxing
+         * field, one layer down, before the GTIN was pulled out of it. Reading
+         * the wrong one here cost the whole barcode path silently: undefined
+         * went to identify, identify with no gtin answers 400, the throw was
+         * swallowed by the catch below, and every successful scan landed on
+         * "read fine, we have never seen it" while the catalogue sat there
+         * holding the product. Nothing threw and nothing logged, which is why
+         * it survived the commit that was meant to turn this path on.
+         */
+        found = await catalogueLookup(read.value);
       } catch {
         found = null;
       }
       if (dead) return;
 
       if (found) {
-        proceed(found, null);
+        /*
+         * `scannedGtin` carries the code the package itself published, and only
+         * ever from here. The price judge scores a barcode-resolved identity at
+         * 0.81 and a name-resolved one at 0.64, and the grocery floor sits
+         * between them, so the same product comes back as a verdict when the
+         * code travels and as "not sure enough this is the right groceries" when
+         * only the words do. Measured on Lay's Classic Potato Chips: with the
+         * code, walk_away against $3.47 at Walmart; without it, identity_unsure
+         * on the identical row.
+         *
+         * It is deliberately not `item.gtin`, which the typed route also sets
+         * from a catalogue match on words alone. Passing that one would hand the
+         * judge barcode-grade certainty for a guess, which is the same error
+         * pointing the other way and the worse of the two.
+         */
+        proceed({ ...found, scannedGtin: read.value }, null);
         return;
       }
 
@@ -1251,6 +1334,7 @@ export default {
       if (cam.dataset.state !== 'idle') return;
       clearTimeout(hintTimer);
       clearTimeout(torchAckTimer);
+      coachKey = null;
       setState('framing');
       // Row 40: the frozen frame, captured now, at the moment of the shutter
       // press, so it is the picture the verdict later shows, not a later
@@ -1307,6 +1391,11 @@ export default {
         }
         const result = await ctx.api.price({
           text: item.text,
+          // Only when the package published it. See onBarcode: this is the
+          // single strongest identity signal the app ever holds, and without it
+          // the judge re-derives identity from the words and doubts itself on a
+          // product it was just handed the barcode for.
+          gtin: item.scannedGtin,
           category: item.category,
           askingCents,
           // Always, when there is a price to attribute. The store being
@@ -1355,6 +1444,12 @@ export default {
       slot.innerHTML = '';
       last = null;
       scanThumb = null;
+      // A pick belongs to the scan that has just ended. Carrying it into the
+      // next one would frame whatever happens to overlap the old rectangle,
+      // which is the class of quietly-wrong framing this whole system exists
+      // to remove.
+      coachKey = null;
+      eye?.clearSelection?.();
       setState('idle');
       showInitialIdleContent();
     }
@@ -1393,6 +1488,23 @@ export default {
           ? null
           : (kind === 'percent' ? { kind: 'percent', pct: 20 } : { kind: 'nfor', n: 3 });
         slot.innerHTML = pricePadSheet(padItem, padBuffer, padModifier, scanThumb);
+        return;
+      }
+
+      /*
+       * The tap on one of the other objects the camera found.
+       *
+       * This is the whole of object selection as a control, and it is deliberately
+       * not a mode: there is no "choose an object" step to enter or leave, no
+       * confirm, and no way to end up with nothing selected. The camera has always
+       * already framed its best guess, and tapping a neighbour moves the frame
+       * onto that one instead. Getting it wrong costs one more tap.
+       */
+      const altPick = e.target.closest('.alt-box');
+      if (altPick) {
+        if (cam.dataset.state !== 'idle') return;
+        eye?.select?.(Number(altPick.dataset.alt) || 0);
+        buzz(8);
         return;
       }
 

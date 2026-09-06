@@ -272,25 +272,38 @@ const LINES = {
     blunt: () => 'What does it say?',
   },
   /**
-   * The correction is collected and applied to nothing yet (store.js's own
-   * comment on `corrections`), so this must never claim it changed a
-   * verdict. It says what actually happens: recorded, and it counts once a
-   * second observation agrees with it.
+   * REWRITTEN when the corrections were actually wired, because the old line
+   * had become false in the other direction.
+   *
+   * It used to say "counts once a second tag agrees", written when a correction
+   * was collected and applied to nothing, and carefully hedged so it could not
+   * claim to have changed a verdict. Two things happened since. The correction
+   * now reaches the spine as a price point, and the thresholds came out
+   * (2026-09-05, always answer and let the confidence carry the doubt), so a
+   * single correction already moves the next verdict on that product. Telling
+   * somebody their contribution is waiting for a second witness, when it is
+   * already being used, is as wrong as overclaiming and it is wrong in the
+   * direction that makes people stop bothering.
+   *
+   * What a second reading does is move the confidence band off low, which is
+   * what the second half of the line now says.
    */
   correct_thanks: {
-    deadpan: () => 'Recorded. Counts once a second tag agrees.',
-    warm: () => 'Thank you, that is recorded. It counts once someone else sees the same price.',
-    blunt: () => 'Got it. Counts when a second one agrees.',
+    deadpan: () => 'Recorded. It counts from now. A second tag makes it firm.',
+    warm: () => 'Thank you, that is recorded. It counts from your next scan, and it gets firmer when someone else sees the same price.',
+    blunt: () => 'Got it. Counts now. Firmer when a second one agrees.',
   },
   /**
    * The correction screen's own fineprint, moved out of correct.js: no line
-   * Shin says may be written inside a screen file. Same honesty fix as
-   * `correct_thanks` above, against the item and seller already on screen.
+   * Shin says may be written inside a screen file. Says what is now actually
+   * true, against the item and seller already on screen: the correction is
+   * filed against that product, at that shop, and counts when a second reading
+   * agrees. See `correct_thanks` above for why the wording stays as it is.
    */
   correct_fineprint: {
-    deadpan: (f) => `Recorded against ${f.label}${f.seller ? `, at ${f.seller}` : ''}. Counts once a second tag agrees.`,
-    warm: (f) => `That is recorded against ${f.label}${f.seller ? `, at ${f.seller}` : ''}. It counts once someone else sees the same price.`,
-    blunt: (f) => `Recorded, ${f.label}${f.seller ? `, at ${f.seller}` : ''}. Counts when a second one agrees.`,
+    deadpan: (f) => `Recorded against ${f.label}${f.seller ? `, at ${f.seller}` : ''}. It counts from now, firmer when a second tag agrees.`,
+    warm: (f) => `That is recorded against ${f.label}${f.seller ? `, at ${f.seller}` : ''}. It counts from your next scan, and firms up when someone else sees the same price.`,
+    blunt: (f) => `Recorded, ${f.label}${f.seller ? `, at ${f.seller}` : ''}. Counts now, firmer when a second one agrees.`,
   },
 
   /**
@@ -491,6 +504,45 @@ const LINES = {
     deadpan: () => 'Point at a price tag.',
     warm: () => 'Point me at a price tag.',
     blunt: () => 'Tag. Point at it.',
+  },
+  /*
+   * --- the four measured lines. Every one of them is produced by a number
+   * taken off the live frame, never by a timer and never on arrival, and every
+   * one names a single thing to do. Hard rule 4 applies with force here: the
+   * aggression points at the price, the store or the brand, never at the user,
+   * and a person who has framed a shot badly is the easiest target in the app.
+   * So none of these say what went wrong. They say what to do next. ---
+   */
+  /** A barcode is decoding and has not agreed with itself enough times yet. */
+  cam_hold_still: {
+    deadpan: () => 'Barcode. Hold it there.',
+    warm: () => 'I can see the barcode. Hold it there.',
+    blunt: () => 'Got a barcode. Hold.',
+  },
+  /** The label is blown out by a reflection, which one small movement fixes. */
+  cam_glare: {
+    deadpan: () => 'Shine on the label. Tilt it a little.',
+    warm: () => 'The light is bouncing off the label. Tilt it a little.',
+    blunt: () => 'Too much shine. Tilt it.',
+  },
+  /**
+   * The object is too small in frame to carry its own fine print, and the
+   * camera has already spent whatever zoom it had.
+   */
+  cam_closer: {
+    deadpan: () => 'A step closer and I can read it.',
+    warm: () => 'One step closer and I can read the label.',
+    blunt: () => 'Closer. I cannot read that.',
+  },
+  /**
+   * More than one thing is in frame. Said once per camera session, because it
+   * teaches a control rather than fixing a shot, and a control only needs
+   * teaching once.
+   */
+  cam_pick_one: {
+    deadpan: () => 'More than one thing here. Tap the one you mean.',
+    warm: () => 'I can see a few things. Tap the one you mean.',
+    blunt: () => 'Several here. Tap yours.',
   },
   /**
    * --- torch acknowledged, one short line, then back to whichever hint was

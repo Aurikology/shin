@@ -8,11 +8,56 @@
  * cannot be excluded from its own comparison set later, and the literal string
  * "given" that the engine uses when no store was named is not a seller and must
  * never be stored as one.
+ *
+ * WHAT THE CORRECTION IS FILED AGAINST. A price with no product is a number
+ * nobody can ever look up again, so this screen resolves an identity before it
+ * saves anything: the barcode and product key handed in by the camera if there
+ * is one, and otherwise the identity from the verdict that was on screen when
+ * the person tapped correct, which is the most recent thing in their own
+ * history. Only if both are missing does it fall back to the text, which is what
+ * happens after a refusal that never resolved anything, and that is still worth
+ * keeping.
+ *
+ * THE ONE EXTRA QUESTION, and why it earns its place on a screen whose whole
+ * argument is that nothing competes for the thumb. `spine/src/contract.ts` calls
+ * collapsing a sale price into an everyday price "the single most expensive
+ * mistake available here"; a shopper reading a promo tag into a field that means
+ * regular walks the usual price down for everybody who scans that product next.
+ * It is one tap, it defaults to the common case, and it is never required.
  */
 
 import { faceBlock } from '../shin.js';
 import { say } from '../voice.js';
 import * as store from '../store.js';
+import { submitCorrection } from '../corrections.js';
+
+/**
+ * The product this correction is about, best available.
+ *
+ * The camera's own call to this screen passes text and category only, so the
+ * identity is recovered here rather than by changing that call: the verdict is
+ * written to history the moment it is produced, before any tap, so the newest
+ * entry is the thing the person is looking at. A saved verdict is preferred over
+ * a saved refusal because only the first carries an identity worth filing under.
+ */
+function subjectOf(params) {
+  const explicit = {
+    code: params.gtin ?? params.code ?? null,
+    productId: params.productId ?? null,
+    label: params.text ?? null,
+    category: params.category ?? null,
+  };
+  if (explicit.code || explicit.productId) return explicit;
+
+  const recent = store.get().history[0];
+  const identity = recent?.result?.identity ?? null;
+  return {
+    code: identity?.gtin ?? null,
+    productId: identity?.id ?? null,
+    label: params.text ?? identity?.label ?? null,
+    category: params.category ?? identity?.category ?? null,
+  };
+}
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'];
 
@@ -24,8 +69,10 @@ export default {
     let typed = '';
     let seller = '';
     let saved = false;
+    let onSale = false;
 
-    const label = ctx.params.text ?? 'this';
+    const subject = subjectOf(ctx.params);
+    const label = subject.label ?? 'this';
 
     function display() {
       if (!typed) return '<span class="ghosted">0.00</span>';
@@ -58,6 +105,9 @@ export default {
             <input type="text" inputmode="text" autocomplete="off" placeholder="Metro, No Frills, a listing…"
                    value="${seller.replace(/"/g, '&quot;')}" data-seller>
           </label>
+
+          <button type="button" class="chip${onSale ? ' chip-on' : ''}" data-act="sale"
+                  aria-pressed="${onSale ? 'true' : 'false'}">On sale</button>
 
           <div class="keypad">
             ${KEYS.map((k) => `<button type="button" class="key" data-k="${k}">${k}</button>`).join('')}
@@ -98,24 +148,32 @@ export default {
         return;
       }
 
+      if (e.target.closest('[data-act="sale"]')) {
+        onSale = !onSale;
+        const chip = root.querySelector('[data-act="sale"]');
+        if (chip) {
+          chip.classList.toggle('chip-on', onSale);
+          chip.setAttribute('aria-pressed', onSale ? 'true' : 'false');
+        }
+        return;
+      }
+
       if (e.target.closest('[data-act="save"]')) {
         const cents = Math.round(Number.parseFloat(typed) * 100);
         if (!Number.isFinite(cents)) return;
-        store.update((s) => ({
-          ...s,
-          corrections: [
-            {
-              at: new Date().toISOString(),
-              text: ctx.params.text ?? null,
-              category: ctx.params.category ?? null,
-              amountCents: cents,
-              // Never the string "given". A correction with no real seller is
-              // not usable as a comparison point later.
-              seller: seller.trim(),
-            },
-            ...s.corrections,
-          ],
-        }));
+        // Saved on this device first, then sent. The thank-you below is about
+        // the local write, which cannot fail on a network, so an aisle with no
+        // signal produces the same screen as a good connection and the queue
+        // sends it later.
+        submitCorrection({
+          code: subject.code,
+          productId: subject.productId,
+          label: subject.label,
+          category: subject.category,
+          amountCents: cents,
+          seller: seller.trim(),
+          kind: onSale ? 'promotional' : 'regular',
+        });
         saved = true;
         paint();
         setTimeout(() => ctx.go('camera'), 1400);

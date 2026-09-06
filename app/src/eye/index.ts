@@ -24,7 +24,17 @@ export {
   type CropResult,
   type ScoredFrame,
 } from './capture.ts';
-export { Camera, type CameraEvents, type CameraOptions } from './camera.ts';
+export { Camera, type CameraEvents, type CameraOptions, type CodeMark } from './camera.ts';
+export {
+  Coach,
+  chooseCoach,
+  glareIn,
+  zoomFor,
+  MIN_CROP_PX,
+  GLARE_FRACTION,
+  type CoachKey,
+  type FrameSignals,
+} from './framing.ts';
 export {
   enqueue,
   pending,
