@@ -21,10 +21,22 @@ money, reach, permission and anti-abuse, the instruments, and running it); every
 carries its kind, the goal number it moves, its source, and **not decomposed yet**.
 
 **Nothing in it is marked built or not built.** State marking reads the code and opens every
-citation, and it is the pass after the branches. Four walls sit in the tree as slots with their
-go-arounds named but not drawn; sold prices for used goods are marked blocked outside rather than
-a wall, with what lifts it. A fresh rules reader was run on the skeleton before he read it; its
-findings and the fixes go in the next pass over this file.
+citation, and it is the pass after the branches. Three walls sit in the tree as slots with their
+go-arounds named but not drawn; five things are marked blocked outside rather than a wall, each
+with what lifts it, including the phone platform, which fails the rule that a wall is about our
+size.
+
+**The skeleton was checked by a fresh reader before he saw it, and redrawn.** The first draft had
+no node for the app itself, which took two thirds of his stated purpose with it, and cited the
+combined pipeline nowhere while claiming it as a source. Also missing and now in: the free
+catalogue lookup between a code and a paid reader, the model key as his call, the correction as a
+thing rather than a number, the photo door, the crawl, the retailer-to-catalogue join that is the
+measured cap, the estimate at the bottom of the evidence ladder, the person's location, per-feed
+permission, the meter, the way money is taken, the seller audit, video production and the caption
+test, and what brings a person back. Lines that named a category of figure instead of a figure
+were rewritten, six "all kinds" claims that were chain retail only were narrowed, and three joins
+that were policies rather than pieces were replaced. `docs/the-tree-rules.md` rule 3 gained one
+amendment: the branch that measures does not move a figure by itself and is not cut for it.
 
 ## Read this second, 2026-09-05
 

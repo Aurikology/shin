@@ -29,7 +29,13 @@ node, it says what that node waits on. It is one file, one line per node, plain 
    *Stops:* the $20 that became "your number" (2026-09-06).
 
 3. **Every node names the goal number its subtree moves**: one of the want, reliance or money
-   figures in the vision. A subtree that moves none is cut, not kept for completeness.
+   figures in the vision, and the figure itself, never the category it sits in ("money" is not a
+   figure; "payers per hundred downloads" is). A subtree that moves none is cut, not kept for
+   completeness. The one exception is the instruments: a node whose job is to make a figure
+   readable names every figure it makes readable and is not cut for moving none, because the
+   vision puts the instruments second in its order precisely when nothing is measured yet.
+   *(Amended 2026-09-06: the skeleton's measuring branch would have been cut by this rule as
+   written, and forty of its lines named a category instead of a figure.)*
    *Stops:* work that serves neither of his two goals.
 
 4. **A node says which kind of thing it is about, or says "all kinds".** A node that assumes
