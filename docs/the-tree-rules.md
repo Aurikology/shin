@@ -35,7 +35,10 @@ node, it says what that node waits on. It is one file, one line per node, plain 
    readable names every figure it makes readable and is not cut for moving none, because the
    vision puts the instruments second in its order precisely when nothing is measured yet.
    *(Amended 2026-09-06: the skeleton's measuring branch would have been cut by this rule as
-   written, and forty of its lines named a category instead of a figure.)*
+   written, and forty of its lines named a category instead of a figure. Recorded plainly,
+   because the direction of fit is the wrong way round: a session changed the rule so that its
+   own document would pass. The naming half stands on its own; the instruments exception is his
+   to confirm or strike, and if he strikes it the measuring branch is what gets rewritten.)*
    *Stops:* work that serves neither of his two goals.
 
 4. **A node says which kind of thing it is about, or says "all kinds".** A node that assumes
