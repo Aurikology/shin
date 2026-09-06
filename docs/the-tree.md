@@ -25,6 +25,10 @@ suite going green, because a green suite has already once read 39 of 39 in this 
 thing it covered was wrong; and not a note we wrote ourselves, because a note is the thing's own
 word for itself.
 
+**The numbers this document states about itself are counted, not typed.** Running
+`node scripts/count-the-tree.mjs` prints them and fails if the prose disagrees with the file. It
+exists because the prose was wrong three times in one day, and a reader caught it each time.
+
 **What carries no measurement, exactly.** Nine ends: four calls that are his, and five things
 blocked by somebody outside. Neither kind is work, so neither has a measurement; each says instead
 what he decides, or what would lift the block. One more line is a pointer at work built elsewhere

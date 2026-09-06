@@ -165,3 +165,24 @@ has cost something recorded twice. One incident is a lesson. Two is a rule.
   same thing differently, a plan that names only one of them has not chosen, it has drifted, and
   the fault list is the place to look before adopting any definition, because a defect that was
   fixed in code can still be alive in prose.
+
+- **2026-09-06 · A measurement that restates its own line measures nothing, and I wrote about
+  fifty-five of them in one pass.** Building the tree's bottom layer meant giving every end the
+  thing you would look at to know it worked. More than a sixth of them came back as the line said
+  twice: "A body too large is refused before it is read. Shown by: one oversized body refused
+  before it is read." Thirteen more were a document we would write ourselves, which is the
+  artifact's own word and what rule 12 already forbids. A fresh reader found both classes; nothing
+  in my own re-reading did. **Changed:** every one rewritten to something outside the claim, many
+  of them a person who has not seen the app being asked what they think the screen says. The test
+  worth keeping: read the measurement without the line above it, and ask whether it names a place,
+  a person, a count or a bill. If it only makes sense as an echo of the line, it is not a
+  measurement.
+
+- **2026-09-06 · I stated numbers about my own document three times and all three were wrong.**
+  "The ways around the three walls" when the file held four. "Nineteen lines could not name a
+  measurement" when it was sixteen. "Two lines carry no measurement" when nine ends did. Each was
+  caught by a fresh reader, none by me, and each was in the front matter or the closing note, which
+  is where somebody checks whether a document is finished. Per the protocol's third rule this is a
+  reflex, not a judgement, so it went to a mechanism rather than to prose: `scripts/count-the-tree.mjs`
+  counts the tree and fails when the document's own prose disagrees with the file. Fired live the
+  same session: passing on the real file, failing on a copy with one number changed.
