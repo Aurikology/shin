@@ -41,14 +41,15 @@
   One icon file for the tab, the home screen and the manifest. It is Shin's own
   `pleased` face, maskable-safe, and it explains itself in public/icon.svg.
 
-  TODO: iOS ignores an SVG apple-touch-icon and falls back to a screenshot of
-  the page, which for this app is a black frame. It needs a 180x180 PNG. There
-  is no rasteriser on this machine and this pass added no dependencies, so the
-  link below is deliberately absent rather than pointing at a file that is not
-  there. Export public/icon.svg at 180 and add:
-    <link rel="apple-touch-icon" href="/icon-180.png">
+  iOS ignores an SVG apple-touch-icon and falls back to a screenshot of the
+  page, which for this app is a black frame, so the 180x180 PNG below is not
+  optional. It is generated from the same icon.svg by scripts/build-icon.mjs,
+  which drives the headless Chrome already on this machine rather than adding an
+  image dependency; `npm run icon` rewrites it and `npm run icon -- --check`
+  fails if it has drifted, the same contract build-faces.mjs uses.
 -->
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-180.png">
 
 <!--
   Three faces, three jobs. Bricolage Grotesque carries the numerals and the

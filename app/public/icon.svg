@@ -13,9 +13,18 @@
   `pleased` rather than `idle`: an icon is greeting somebody, and the flat idle
   mouth reads as indifference at 48 pixels.
 
-  Ground is --ground's dark value. tokens.css says dark is the design and light
-  the accommodation, and an icon does not get to follow the system theme -- it
-  is one image, so it is the design.
+  NOTE ON THIS COMMENT: an SVG is XML, and a double hyphen is illegal inside an
+  XML comment. This file carried three of them (two CSS token names and one
+  dash, all in the house style used everywhere else in the repo) and Chrome
+  refused to parse the whole file: "Double hyphen within comment", so the
+  favicon, the manifest icon and every rasteriser saw nothing at all. Token
+  names are written without their leading hyphens below for that reason, and
+  the prose uses a semicolon where it wants a dash. This is the one file type
+  in the repo where that style is a syntax error.
+
+  Ground is the dark value of the ground token. tokens.css says dark is the
+  design and light the accommodation, and an icon does not get to follow the
+  system theme; it is one image, so it is the design.
 
   Geometry is maskable-safe, which is why the face is 62% of the canvas rather
   than full bleed. Android masks this to a circle, a squircle or a rounded
@@ -25,7 +34,7 @@
   the outermost point at 140 from centre. So the manifest can honestly declare
   `any maskable` off one file.
 
-  The pink is --brand. That is allowed and deliberate: brand pink is Shin's
+  The pink is the brand token. That is allowed and deliberate: brand pink is Shin's
   identity, the wordmark and the shutter ring, and this ring is the shutter. The
   rule it must not break is that pink is never a verdict, and an icon is not a
   verdict surface.
