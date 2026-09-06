@@ -5,8 +5,8 @@ exist". Read a line upward and it says what that piece unlocks; read it downward
 it is waiting on.
 
 **Five levels, 2026-09-06.** The root, the ten things under it, and three layers of what each of
-those is made of. The shape, counted rather than claimed: **98, then 326, then 522, then 66**,
-with **676 ends** spread across the depths. It fans out where a thing is still made of parts and
+those is made of. The shape, counted rather than claimed: **98, then 622, then 522, then 66**,
+with **964 ends** spread across the depths. It fans out where a thing is still made of parts and
 stops where it is not, so a level being narrower than the one above it is only correct when the
 level above it is mostly ends.
 
@@ -17,6 +17,9 @@ slightly less complex levels. the fact that the fourth layer has less nodes than
 a big red flag."* The cause was a bad stopping rule: being able to name a measurement was treated
 as reaching the bottom, which stops wherever a line is easy to describe rather than wherever it is
 actually small.
+
+**Every second-level node has been through the dimension pass**, and the ones where a dimension
+genuinely does not apply say so on a line rather than leaving it out.
 
 **A node is decomposed across dimensions, not only down steps.** His words, 2026-09-06: *"the
 solutions you've stated only cover one dimension and it's often only in the backend aspect."*
@@ -117,6 +120,18 @@ condition; what the app is for, a path per kind.*
 
 - **It decides what kind of thing it is looking at before anything else runs.** *Kind: all
   kinds. Moves: answer rate per kind. From: the moonshot, first step of knowing.*
+  - **What the person sees:** the kind is visible and changeable, never a silent decision made
+    for them. **Shown by:** somebody who has not seen the app finding what it decided and
+    changing it
+  - **How it looks:** the kind shown as a word, not an icon nobody can read. **Shown by:** the
+    word read by somebody who has not seen the app
+  - **What it costs:** picking the wrong kind costs a paid call for nothing, so the wrong-kind
+    rate is a money number. **Shown by:** the wrong-kind rate counted on a sample, times the
+    cost of a paid call
+  - **What it feeds back:** every kind decision is kept, so the next reader can be trained on
+    the ones we got wrong. **Shown by:** a week of decisions, with the corrected ones marked
+  - **Not applicable:** who runs it when it breaks, and how it reaches people: nothing here is
+    separately operable or filmable. **Shown by:**
   - The five kinds it can land on, and what each one changes about the steps after it. *(from:
     what the app is for, a path per kind; moves: answer rate per kind)*
     - The five names, written once, with an example of each. **Shown by:** somebody sorting
@@ -232,6 +247,18 @@ condition; what the app is for, a path per kind.*
   before anything paid runs.** *Kind: all kinds. Moves: what each payer leaves after the
   store's cut and the model bill. From: what the app is for, the catalogue lookup before any
   model is called; how it ships, the second of its four attempts.*
+  - **What the person sees:** the app finding it from the words without asking them to type
+    anything. **Shown by:** a scan of an unbarcoded package, with the taps counted
+  - **What the person sees when it misses:** a list they can pick from rather than a dead end.
+    **Shown by:** the miss walked by somebody who has not seen the app
+  - **What it costs:** this is the step that keeps a scan free, so the share of scans it
+    answers is a money number. **Shown by:** the share answered here rather than by a paid
+    reader, counted
+  - **What we are allowed to do:** the terms of the shelf data we search, since serving it is
+    not the same as holding it. **Shown by:** the clause quoted per source
+  - **What it feeds back:** every failed word search is a gap in the shelf, and the gaps
+    decide what gets loaded next. **Shown by:** a week of failures, and the next load traced
+    to them
   - The words pulled off the package in the frame. *(from: how it ships, its second attempt;
     moves: answer rate per kind)*
     - Getting the text off a curved, shiny, partly turned package.
@@ -293,11 +320,23 @@ condition; what the app is for, a path per kind.*
 
 - **Finding the right row when the words nearly match: on one run of 60 grocery products at
   one seller, 65% found candidates that could not be confirmed to be the same product (counted
-  2026-09-05).** The rival reading, which the same source gives: part of that 65% is a
-  fixable matching failure and part is a store's own label that genuinely has no counterpart
-  anywhere. Separated by hand-checking a sample of the misses and counting which kind each one
-  is. *Kind: packaged at chain retail, since that is all the run covered. Moves: answer rate
-  per kind. From: how it ships, what one seller actually covers.*
+  2026-09-05).** The rival reading, which the same source gives: part of that 65% is a fixable
+  matching failure and part is a store's own label that genuinely has no counterpart anywhere.
+  Separated by hand-checking a sample of the misses and counting which kind each one is.
+  *Kind: packaged at chain retail, since that is all the run covered. Moves: answer rate per
+  kind. From: how it ships, what one seller actually covers.*
+  - **What the person sees:** when it cannot decide, two rows and a tap, not a wrong answer
+    delivered confidently. **Shown by:** the two shown to somebody who has not seen the app
+  - **How it looks:** the two candidates drawn so the difference between them is the thing you
+    notice first. **Shown by:** five people shown a pair and asked what differs
+  - **What it costs:** a wrong join spends a paid call and produces a wrong answer, so the
+    rate is money and trust at once. **Shown by:** the wrong-join rate on a hand-checked
+    sample
+  - **What it feeds back:** every hand-tapped choice is a labelled example of a hard pair.
+    **Shown by:** the choices counted, kept as a training set
+  - **Who runs it when it breaks:** a seller changing how they write sizes silently breaks
+    this, and somebody has to notice. **Shown by:** the join rate watched per seller, with a
+    drop raising an alert
   - Size and unit pulled out of both sides before they are compared. *(from: how it ships, the
     join; moves: answer rate per kind)*
     - Reading a size out of a name that was never written for us.
@@ -338,9 +377,21 @@ condition; what the app is for, a path per kind.*
 
 - **A photo names the thing when the words do not, cheapest reader first and a stronger one
   only when the cheap one is unsure, with the crop being the label rather than the whole
-  scene.** *Kind: all kinds. Moves: what each payer leaves after the store's cut and the
-  model bill. From: the moonshot, third step; what the app is for, every model call designed
-  for credits.*
+  scene.** *Kind: all kinds. Moves: what each payer leaves after the store's cut and the model
+  bill. From: the moonshot, third step; what the app is for, every model call designed for
+  credits.*
+  - **What the person sees:** one thing happening, not a machine thinking out loud, and the
+    wait spent typing the price. **Shown by:** the flow walked on a slow network
+  - **How it looks:** the face while it waits, since this is the longest moment in the
+    product. **Shown by:** the states read by somebody who has not seen the app
+  - **What it costs:** this is the only step that costs money per scan, so its cost is the
+    free tier's ceiling. **Shown by:** the cost per scan from the first fifty real calls
+  - **What we are allowed to do:** what the reader's terms say about the pictures we send and
+    what comes back. **Shown by:** the clause quoted, beside the key
+  - **Who runs it when it breaks:** the reader being down, slow, or changed under us, and what
+    the person sees then. **Shown by:** the reader stubbed out, and the app walked
+  - **What it feeds back:** every photo and its accepted answer is a labelled row for the
+    reader we would train. **Shown by:** the rows counted after a week
   - What gets sent is the label, cropped, not the whole scene. *(from: what the app is for,
     every model call designed for credits; moves: what each payer leaves)*
     - Finding the label in the frame.
@@ -415,6 +466,13 @@ condition; what the app is for, a path per kind.*
   model bill. From: the fault list, nothing is metered and every route is open to anyone who
   can reach it, and a request read without a cap, 2026-09-06.* [waits on: the count behind the
   free allowance]
+  - **What the person sees:** a refusal that reads as the app protecting itself, not as a
+    fault of theirs. **Shown by:** the screen read by somebody who has not seen the app
+  - **Who runs it when it breaks:** somebody hitting the cap constantly is either abusing it
+    or is a real person with a bad connection. **Shown by:** the top ten by refusals, looked
+    at by a person
+  - **Not applicable:** how it reaches people, and how it looks and sounds beyond that one
+    screen. **Shown by:**
   - The size cap and the per-phone limit are the same ones every route gets, built once where
     the routes are protected, not a second copy here. *(from: the fault list, one defect about
     all routes, 2026-09-06; moves: what each payer leaves)* [waits on: no route is open to
@@ -430,13 +488,25 @@ condition; what the app is for, a path per kind.*
       arriving after a timeout and being used.
 
 - **HIS: a key for the paid reader, which nobody but him can sign up for.** The question he
-  answers: which account pays for the photo reads, since nothing here can call a model until one
-  exists. *Kind: all kinds. Moves: answer rate per kind. From: what the app is for, no key exists
-  in this environment, 2026-09-06.*
+  answers: which account pays for the photo reads, since nothing here can call a model until
+  one exists. *Kind: all kinds. Moves: answer rate per kind. From: what the app is for, no key
+  exists in this environment, 2026-09-06.*
+  - **What it costs:** the account itself, and what it bills before anybody pays us anything.
+    **Shown by:** the first bill, against zero revenue
 - **It checks that the thing in the picture is the thing it just named, by showing both to a
-  reader and asking one question.** *Kind: all kinds. Moves: corrections per hundred
-  verdicts. From: the moonshot, fourth step; the fault list, the step that checks the answer
-  is the right product does not exist.*
+  reader and asking one question.** *Kind: all kinds. Moves: corrections per hundred verdicts.
+  From: the moonshot, fourth step; the fault list, the step that checks the answer is the
+  right product does not exist.*
+  - **What the person sees:** the check happening without adding a step they have to do.
+    **Shown by:** the taps counted with and without it
+  - **How it looks:** our photo and their crop side by side, if it is shown at all, which is a
+    design choice. **Shown by:** the screen shown to somebody who has not seen the app, and
+    asked what it is asking
+  - **What it costs:** a second call per scan, so it is only worth it where it prevents a
+    wrong answer. **Shown by:** the cost added, against the wrong answers prevented on a
+    sample
+  - **What it feeds back:** a disagreement here is the most useful training row we can
+    produce. **Shown by:** the disagreements counted and kept
   - Our stored product photo and the person's crop shown together, one question asked. *(from:
     the fault list, this step does not exist; moves: corrections per hundred verdicts)*
     - Getting our own photo for that product at all.
@@ -459,8 +529,18 @@ condition; what the app is for, a path per kind.*
     - What stands in: another seller's photo, or nothing, decided per kind. **Shown by:** the
       decision written per kind, with the terms that allow it.
 
-- **Second-hand things get a condition, because condition is most of the price.** *Kind:
-  used. Moves: answer rate per kind. From: the moonshot, fifth step.*
+- **Second-hand things get a condition, because condition is most of the price.** *Kind: used.
+  Moves: answer rate per kind. From: the moonshot, fifth step.*
+  - **What the person sees:** being asked for a few photos in a way that does not feel like a
+    form. **Shown by:** the share of people who finish, counted
+  - **How it looks:** the grade shown as a word people use, not a letter nobody knows. **Shown
+    by:** the word read by somebody who has not seen the app
+  - **What it costs:** grading is several reads per item, so this kind is the most expensive
+    scan we have. **Shown by:** the cost per graded item, from real calls
+  - **What we are allowed to do:** photos of somebody's own possessions are theirs, and the
+    policy has to say what we keep. **Shown by:** the wording read against what is stored
+  - **How it reaches people:** a used item graded and priced is the most watchable thing this
+    app does. **Shown by:** one clip made from a real grading
   - A grade read off the photos in four steps. *(from: the moonshot, used goods; moves: answer
     rate per kind)**Shown by:** a grade produced for a sample of second-hand photos.
     - What the four steps are, written so two people grade the same item the same way. *(from:
@@ -487,6 +567,14 @@ condition; what the app is for, a path per kind.*
 
 - **Loose things with no package get a variety and a grade.** *Kind: produce. Moves: answer
   rate per kind. From: the moonshot, sixth step.*
+  - **What the person sees:** a produce answer that admits what it does not know rather than
+    guessing confidently. **Shown by:** the screen read by somebody who has not seen the app
+  - **What it costs:** produce needs a reader on every scan and has no code path, so it is the
+    worst cost per answer. **Shown by:** the cost per produce scan, once a key exists
+  - **What it feeds back:** every produce photo is a labelled row for a kind nothing prices
+    today. **Shown by:** the rows counted
+  - **Not applicable:** who runs it when it breaks: there is nothing running to break until a
+    produce price source exists. **Shown by:**
   - The variety named from the image. *(from: the moonshot, produce; moves: answer rate per
     kind)**Shown by:** a variety named from a photo of loose produce.
     - The list of varieties worth telling apart, which is short and is a decision. *(from: the
@@ -513,6 +601,12 @@ condition; what the app is for, a path per kind.*
 
 - **A thing no list anywhere holds still gets named, and the answer says what it rests on.**
   *Kind: all kinds. Moves: answer rate per kind. From: what the app is for, always answer.*
+  - **What the person sees:** an answer that says plainly this is not something we know, and
+    still helps. **Shown by:** the screen read by somebody who has not seen the app
+  - **How it sounds:** the face and the line for the least certain answer the app gives.
+    **Shown by:** the line read aloud by somebody who has not seen it
+  - **What it feeds back:** an unlisted thing scanned twice is a product worth adding to the
+    shelf. **Shown by:** repeat unknowns counted over a week
   - Named in words a person would recognise, not in a code. *(from: the moonshot, unlisted
     things; moves: answer rate per kind)*
     - The name built from what the reader saw, not from a code. **Shown by:** ten unlisted
@@ -534,6 +628,15 @@ condition; what the app is for, a path per kind.*
 - **The same thing in the same store is not read twice in a day.** *Kind: all kinds. Moves:
   what each payer leaves after the store's cut and the model bill. From: the moonshot, the
   recognition cache.* [waits on: every scan recorded in a shape the measures can read]
+  - **What the person sees:** the second person getting the same answer faster, with nothing
+    to explain. **Shown by:** the second scan timed against the first
+  - **What it costs:** this is the single biggest saving in the paid path. **Shown by:** the
+    hit rate, times the cost of a paid call
+  - **What we are allowed to do:** the cache holds other people's scans, so it must hold
+    nothing about who scanned. **Shown by:** an entry read, checked for anything naming a
+    person
+  - **Who runs it when it breaks:** a stale cache serving a dead price is worse than no cache.
+    **Shown by:** a price changed at a store, and the time until the cache reflects it
   - One key made of the product, the store and the day. *(from: the moonshot, the recognition
     cache; moves: what each payer leaves)*
     - The key, and what happens when the store is unknown. **Shown by:** a scan with no store
@@ -552,11 +655,20 @@ condition; what the app is for, a path per kind.*
     - The money that share is worth, from the bill and not from the rate card. **Shown by:**
       two months of bills compared.
 
-- **WALL: a reader trained on Canadian shelves and receipts, small and fast enough to run on the
-  phone.** A company our size cannot train it. Its children are the way around it, which is the
-  corrections and the scans becoming the training signal. *Kind: all kinds. Moves: what each payer
-  leaves after the store's cut and the model bill. From: the moonshot, fifth wall. Its way around
-  is not decomposed yet.* [waits on: a correction changes the next answer]
+- **WALL: a reader trained on Canadian shelves and receipts, small and fast enough to run on
+  the phone.** A company our size cannot train it. Its children are the way around it, which
+  is the corrections and the scans becoming the training signal. *Kind: all kinds. Moves: what
+  each payer leaves after the store's cut and the model bill. From: the moonshot, fifth wall.
+  Its way around is not decomposed yet.* [waits on: a correction changes the next answer]
+  - **What the person sees:** when it lands, nothing: the same answer, arriving without a
+    network. **Shown by:** a scan answered in aeroplane mode
+  - **What it costs:** this is the difference between a bill that scales with users and one
+    that does not. **Shown by:** the cold-call share before and after, times the cost per call
+  - **What we are allowed to do:** training on what people scanned is exactly what his policy
+    allows and the wording must say. **Shown by:** the policy read against what the training
+    set holds
+  - **Who runs it when it breaks:** a reader on the phone that is worse than the server's, and
+    how that is noticed. **Shown by:** the two scored on the same held-back set
   - Way around: every scan and every correction kept as a labelled row from the first build,
     so the pile exists before the model does. *(from: the moonshot, why it is impossible for
     us; moves: what each payer leaves)*
@@ -598,9 +710,15 @@ condition; what the app is for, a path per kind.*
     - The count today, so the gap is visible. **Shown by:** the rows counted, and the two
       numbers side by side.
 
-- **The join: one naming step the camera calls, which picks the path and hands back one
-  answer with its confidence.** *Kind: all kinds. Moves: answer rate per kind. From: the
-  fault list, finished naming code that nothing in the running app reaches, 2026-09-05.*
+- **The join: one naming step the camera calls, which picks the path and hands back one answer
+  with its confidence.** *Kind: all kinds. Moves: answer rate per kind. From: the fault list,
+  finished naming code that nothing in the running app reaches, 2026-09-05.*
+  - **What the person sees:** one thing happening from their side, whatever ran underneath.
+    **Shown by:** the flow walked with each path forced in turn
+  - **How it looks:** one set of states across every path, so the app never looks like four
+    different apps. **Shown by:** each path walked and the screens compared
+  - **Who runs it when it breaks:** when one path is down, the others still answer. **Shown
+    by:** each path switched off in turn, with the app still answering
   - One step, one way in, that picks the path rather than each screen picking for itself.
     *(from: the fault list, finished naming code nothing reaches, 2026-09-05; moves: answer
     rate per kind)*
@@ -626,11 +744,22 @@ condition; what the app is for, a path per kind.*
 *Kind: all kinds. Moves: answer rate per kind. From: the moonshot, knowing the price everywhere;
 what the app is for, supply is the engine.*
 
-- **WALL: live per-store price and stock from the chains, under contract.** The feed exists and
-  the reason to hand it to an app that sends customers next door does not. Its children are the
-  way around it, which is the crawl and the harvest below. *Kind: packaged and tech at chain
-  retail. Moves: answer rate per kind. From: the moonshot, first wall. Its way around is not
-  decomposed yet.*
+- **WALL: live per-store price and stock from the chains, under contract.** The feed exists
+  and the reason to hand it to an app that sends customers next door does not. Its children
+  are the way around it, which is the crawl and the harvest below. *Kind: packaged and tech at
+  chain retail. Moves: answer rate per kind. From: the moonshot, first wall. Its way around is
+  not decomposed yet.*
+  - **What the person sees:** until it lands, an answer that never claims a store it cannot
+    prove. **Shown by:** every screen naming a store traced to the price behind it
+  - **What it costs:** a contract is the cheapest supply we could ever have, and the crawl is
+    the expensive substitute. **Shown by:** the cost of a month of crawling, written down
+    beside it
+  - **What we are allowed to do:** reading a shop's own pages is governed by their terms, and
+    that answer decides the way around. **Shown by:** the clause quoted per seller
+  - **Who runs it when it breaks:** the way around is what breaks, and somebody notices before
+    the answers go thin. **Shown by:** the price count per seller watched daily
+  - **How it reaches people:** a chain refusing to be compared is itself the story the channel
+    runs on. **Shown by:** one clip made from a real refusal, watched by somebody
   - Way around: read the storefronts that are open, and treat the harvest from people as the
     second feed. *(from: how it ships, the price corpus; moves: answer rate per kind)* This
     one is a pointer, not work: it is built under reading the storefronts and under every look
@@ -663,6 +792,16 @@ what the app is for, supply is the engine.*
 - **Reading the storefronts that are readable, on a schedule, starting with the two whose
   readers are already hand-checked.** *Kind: packaged and tech at chain retail. Moves: answer
   rate per kind. From: how it ships, the price corpus, which calls this the recommendation.*
+  - **What the person sees:** nothing, and that is the point: the shelf just answers more
+    often. **Shown by:** the answer rate before and after a seller is added
+  - **What it costs:** machine time and traffic per seller per day. **Shown by:** the bill for
+    a month of it
+  - **What we are allowed to do:** each seller's terms, read before the reader is written
+    rather than after. **Shown by:** the clause quoted, dated before the code
+  - **Who runs it when it breaks:** a seller changing their pages, which they will, and the
+    time until somebody knows. **Shown by:** a change simulated, and the time to notice
+  - **What it feeds back:** every read price is supply that makes the next person's answer
+    better. **Shown by:** the rows added per week
   - The two readers already hand-checked, put on a schedule rather than run by hand. *(from:
     how it ships, the price corpus; moves: answer rate per kind)*
     - Each one running from a schedule rather than a person.
@@ -707,14 +846,26 @@ what the app is for, supply is the engine.*
     - Never guessing, which needs a check that a guess cannot pass. **Shown by:** the joined
       rows sampled by hand for wrong joins.
 
-- **BLOCKED OUTSIDE: the two chains whose front doors refuse a reader.** Lifts with a credential
-  or a data agreement from them, or a source that resells their prices. *Kind: packaged at chain
-  retail. Moves: answer rate per kind. From: how it ships, the price corpus, 2026-09-05.*
+- **BLOCKED OUTSIDE: the two chains whose front doors refuse a reader.** Lifts with a
+  credential or a data agreement from them, or a source that resells their prices. *Kind:
+  packaged at chain retail. Moves: answer rate per kind. From: how it ships, the price corpus,
+  2026-09-05.*
+  - **What the person sees:** those chains simply absent from comparisons, never guessed at.
+    **Shown by:** the answers checked for any price attributed to them
+  - **How it reaches people:** a chain that cannot be compared is a fact worth saying out
+    loud, carefully and without naming them as villains. **Shown by:** the wording read
+    against the rule that aggression never points at the user
 - **One seller is never enough, because a tenth of the shelf is that seller's own label and
   nobody else carries it (counted 2026-09-05: 11.7% of Canadian grocery rows, one seller, one
   run; the rival reading is that another seller carries an equivalent under its own label,
   which a second seller's data would separate).** *Kind: packaged at chain retail. Moves:
   answer rate per kind. From: how it ships, the private-label ceiling.*
+  - **What the person sees:** a one-seller answer that says so, rather than sounding like a
+    market. **Shown by:** the sentence read by somebody who has not seen the app
+  - **What it costs:** every added seller costs its own reader and its own upkeep. **Shown
+    by:** the hours to add the third seller, recorded
+  - **What it feeds back:** the products only one seller carries are exactly what the harvest
+    is for. **Shown by:** the single-seller list, and how it shrinks with harvested prices
   - Which products only one seller carries, counted rather than assumed. *(from: how it ships,
     the private-label ceiling; moves: answer rate per kind)*
     - The count, per seller, per kind. **Shown by:** the numbers written down.
@@ -733,9 +884,18 @@ what the app is for, supply is the engine.*
     - Comparing them without claiming they are the same thing. **Shown by:** the sentence read
       by a person, and asked whether it says they are identical.
 
-- **A record of one row per product per store per price change, kept long enough to prove
-  what fair was at a given minute.** *Kind: all kinds. Moves: answer rate per kind. From: the
+- **A record of one row per product per store per price change, kept long enough to prove what
+  fair was at a given minute.** *Kind: all kinds. Moves: answer rate per kind. From: the
   moonshot, the price index.*
+  - **What the person sees:** an answer that can say how old its prices are, because the
+    record knows. **Shown by:** the age shown on a real answer
+  - **What it costs:** storage that grows forever, and the cost of keeping two years of it.
+    **Shown by:** the size per month, and the bill
+  - **What we are allowed to do:** prices we hold from other people's pages, and what we may
+    do with them later. **Shown by:** the answer written per source
+  - **Who runs it when it breaks:** a corrupted or half-written record is the worst failure
+    here, since nothing else can be trusted. **Shown by:** a restore tested, not just a backup
+    taken
   - Nothing overwrites: a new price is a new row, so the past stays readable. *(from: the
     moonshot, the price index; moves: savings measured)**Shown by:** the price of a product
     on a chosen past date reconstructed after several changes
@@ -760,8 +920,14 @@ what the app is for, supply is the engine.*
     - What is slow when it is slow, so the fix is found rather than guessed. **Shown by:** the
       time split by step on a real scan.
 
-- **Every store on a map, with its hours and what it has in stock.** *Kind: packaged and
-  tech at chain retail. Moves: answer rate per kind. From: the moonshot, the store graph.*
+- **Every store on a map, with its hours and what it has in stock.** *Kind: packaged and tech
+  at chain retail. Moves: answer rate per kind. From: the moonshot, the store graph.*
+  - **What the person sees:** store names they recognise, not the names in a database. **Shown
+    by:** the names read by somebody who shops there
+  - **What it costs:** geocoding, and keeping it current as stores open and close. **Shown
+    by:** the bill, and the hours per refresh
+  - **Who runs it when it breaks:** a chain reorganising its store list, and who finds out.
+    **Shown by:** the count per chain watched against their published number
   - Every store of every chain, with its address turned into a point on a map. *(from: the
     moonshot, the store graph; moves: answer rate per kind)*
     - Getting each chain's own list of stores.
@@ -792,6 +958,13 @@ what the app is for, supply is the engine.*
   "nearby".** Nothing prints a distance or a stock claim without a per-store feed behind it.
   *Kind: all kinds. Moves: scans per returning person per week. From: what the app is for, the
   standing rule against printing a distance without a feed, 2026-09-05.*
+  - **What the person sees:** being asked once, told why, and never nagged again. **Shown
+    by:** a refusal, then a week of use with no second ask
+  - **How it sounds:** the ask itself, which is the moment a person decides whether to trust
+    this app. **Shown by:** the sentence read by somebody who has not seen it
+  - **What we are allowed to do:** location is the most sensitive thing here, and the policy
+    has to say what is kept. **Shown by:** the wording read against what is stored
+  - **Not applicable:** how it reaches people. **Shown by:**
   - Location asked for once, with a reason given, and refusable without breaking the app.
     *(from: the moonshot, consent and deletion; moves: installs)*
     - The words the ask uses. **Shown by:** the sentence read by somebody who has not seen the
@@ -820,11 +993,23 @@ what the app is for, supply is the engine.*
       tap, counted.
 
 - **Every look is a harvest: what the tag said, what the person typed, what the receipt
-  showed, pooled so it answers the next person.** His words, 2026-09-05: *"we will collect
-  all of a users' scanned data, and all of it will be used to both train our models and also
-  to answer other people"*. *Kind: all kinds. Moves: answer rate per kind. From: his words
-  above, quoted in what the app is for.* [waits on: a wrong price cannot move an answer; the
-  privacy wording]
+  showed, pooled so it answers the next person.** His words, 2026-09-05: *"we will collect all
+  of a users' scanned data, and all of it will be used to both train our models and also to
+  answer other people"*. *Kind: all kinds. Moves: answer rate per kind. From: his words above,
+  quoted in what the app is for.* [waits on: a wrong price cannot move an answer; the privacy
+  wording]
+  - **What the person sees:** that their scanning helps other people, said plainly rather than
+    buried. **Shown by:** the sentence read by somebody who has not seen the app
+  - **How it sounds:** the app thanking somebody for a contribution without being sentimental
+    about it. **Shown by:** the line read aloud
+  - **What it costs:** the storage is small and the value is the whole supply strategy.
+    **Shown by:** the rows per thousand scans, counted
+  - **What we are allowed to do:** this is the policy's sharpest edge and the wording is his.
+    **Shown by:** the screen wording read against his policy
+  - **Who runs it when it breaks:** harvested rows that are wrong at scale, and who catches
+    it. **Shown by:** the correction rate watched weekly
+  - **How it reaches people:** people like seeing their own contribution counted. **Shown
+    by:** the count shown, and whether anybody shares it
   - What the shelf tag said in the photo, kept as a price. *(from: the moonshot, harvest
     corrections; moves: answer rate per kind)*
     - Storing it with the store and the minute it was seen. **Shown by:** a tag scan found
@@ -851,9 +1036,16 @@ what the app is for, supply is the engine.*
       by:** one person's rows searched for after a deletion.
 
 - **A correction changes the next answer on that product, and disagreement with a feed is
-  recorded rather than discarded.** *Kind: all kinds. Moves: corrections per hundred
-  verdicts. From: what the app is for, use makes it better; the moonshot, harvest
-  corrections.*
+  recorded rather than discarded.** *Kind: all kinds. Moves: corrections per hundred verdicts.
+  From: what the app is for, use makes it better; the moonshot, harvest corrections.*
+  - **What the person sees:** their correction mattering immediately, which is the whole
+    reason to bother. **Shown by:** the next answer, seconds later
+  - **How it sounds:** what the app says back, which is currently a promise about the future
+    rather than a thank you. **Shown by:** the line read by somebody who has not seen it
+  - **What we are allowed to do:** a typed price is a contribution to a pool, and the person
+    has to know that. **Shown by:** the wording read against the policy
+  - **Who runs it when it breaks:** a correction that makes an answer worse, and how it is
+    undone. **Shown by:** a bad correction planted, and the time until it is reversed
   - It reaches the very next answer on that product, not a later rebuild. *(from: what the app
     is for, use makes it better; moves: corrections per hundred verdicts)*
     - The correction read at answer time, not folded in overnight. **Shown by:** a correction
@@ -883,6 +1075,12 @@ what the app is for, supply is the engine.*
 - **What gets re-priced next is decided by what people actually scan.** *Kind: all kinds.
   Moves: answer rate per kind. From: what the app is for, supply is the engine.* [waits on:
   every scan recorded in a shape the measures can read]
+  - **What the person sees:** prices that are fresh for the things they actually scan, not for
+    the whole shelf. **Shown by:** the age of prices for the top hundred scanned products
+  - **What it costs:** this is the difference between crawling everything and crawling what
+    matters. **Shown by:** the crawl cost per useful answer, before and after
+  - **Who runs it when it breaks:** a queue that stalls, so everything quietly goes stale at
+    once. **Shown by:** the oldest price in the top hundred, watched daily
   - The queue is ordered by what people scanned recently, not by what is easy to fetch.
     *(from: what the app is for, supply is the engine; moves: answer rate per kind)*
     - The order computed from the scan record. **Shown by:** the top hundred compared against
@@ -896,17 +1094,31 @@ what the app is for, supply is the engine.*
     next crawl. *(from: the fault list, misses get written down; moves: answer rate per kind)*
     **Shown by:** a miss caused deliberately, then found in the next crawl's input
 
-- **BLOCKED OUTSIDE: what second-hand things actually sold for, rather than what they are listed
-  at.** Sold prices are closed to new accounts (checked in one marketplace, 2026-09-06; an aged
-  account or a paid tier of the same source would separate a policy from an account age). Lifts
-  with a data agreement or an open source of sold prices. *Kind: used. Moves: answer rate per
-  kind. From: the moonshot, marketplace feeds.*
+- **BLOCKED OUTSIDE: what second-hand things actually sold for, rather than what they are
+  listed at.** Sold prices are closed to new accounts (checked in one marketplace, 2026-09-06;
+  an aged account or a paid tier of the same source would separate a policy from an account
+  age). Lifts with a data agreement or an open source of sold prices. *Kind: used. Moves:
+  answer rate per kind. From: the moonshot, marketplace feeds.*
+  - **What the person sees:** used answers built on asking prices say so, since that is a
+    different thing. **Shown by:** the wording read by somebody who has not seen the app
+  - **What we are allowed to do:** the terms of the marketplace we would ask, before any
+    arrangement is sought. **Shown by:** the clause quoted
 - **BLOCKED OUTSIDE: loose produce, which no source here prices.** Lifts the day a per-unit
-  produce source exists, public or bought. *Kind: produce. Moves: answer rate per kind. From: the
-  fault list and how it ships, produce declined.*
+  produce source exists, public or bought. *Kind: produce. Moves: answer rate per kind. From:
+  the fault list and how it ships, produce declined.*
+  - **What the person sees:** produce answered honestly as the thing we cannot price yet, with
+    what we can offer instead. **Shown by:** the screen read by somebody who has not seen the
+    app
 - **A store whose prices go quiet is marked stale, and the answer says so instead of
-  pretending.** *Kind: all kinds. Moves: corrections per hundred verdicts. From: the
-  moonshot, the freshness monitor.*
+  pretending.** *Kind: all kinds. Moves: corrections per hundred verdicts. From: the moonshot,
+  the freshness monitor.*
+  - **What the person sees:** an answer that says the price is old rather than pretending.
+    **Shown by:** the line read by somebody who has not seen the app
+  - **How it looks:** staleness visible in the shape of the answer, not only in a word.
+    **Shown by:** a stale answer and a fresh one shown side by side
+  - **Who runs it when it breaks:** a source silently returning yesterday's prices as today's,
+    which staleness alone will not catch. **Shown by:** the same page fetched twice a day
+    apart and compared
   - A feed that has said nothing for long enough is flagged, not assumed steady. *(from: the
     moonshot, the freshness monitor; moves: corrections per hundred verdicts)*
     - How long is long enough, per source. **Shown by:** the numbers written down, per source.
@@ -929,6 +1141,11 @@ what the app is for, supply is the engine.*
 - **Sources sit in a fixed order of trust behind one interface, so a new one is added and a
   dead one dropped without any screen changing.** *Kind: all kinds. Moves: answer rate per
   kind. From: what the app is for, supply is the engine.*
+  - **What the person sees:** the answer naming its source in words they understand. **Shown
+    by:** the line read by somebody who has not seen the app
+  - **Who runs it when it breaks:** a source that starts lying rather than failing, and how it
+    is demoted. **Shown by:** a source's prices compared against a shelf by hand
+  - **Not applicable:** how it looks and sounds, and how it reaches people. **Shown by:**
   - One shape every source answers in, so a new one is added without a screen changing.
     *(from: what the app is for, supply is the engine; moves: answer rate per kind)*
     - The shape, written once. **Shown by:** two different sources answering in it, field for
@@ -947,6 +1164,12 @@ what the app is for, supply is the engine.*
 - **The join: one price question the app asks, answered from whichever source is best at that
   moment.** *Kind: all kinds. Moves: answer rate per kind. From: the fault list, two finished
   price routes that no screen calls, 2026-09-05.*
+  - **What the person sees:** one wait, not several, however many sources were asked. **Shown
+    by:** the answer timed with all sources slow
+  - **Who runs it when it breaks:** one source failing must not take the answer with it.
+    **Shown by:** each source failed in turn, with an answer still arriving
+  - **What it costs:** asking every source every time is the expensive way to do this. **Shown
+    by:** the calls per answer, counted
   - One question in, one answer out, whichever sources it took. *(from: the fault list, two
     finished price routes no screen calls, 2026-09-05; moves: answer rate per kind)*
     - The one way in. **Shown by:** the app's outgoing calls for one scan, counted.
@@ -973,10 +1196,22 @@ what the app is for, supply is the engine.*
 *Kind: all kinds. Moves: answer rate per kind. From: the moonshot, it says fair or not and where
 cheaper; what the app is for, always answer.*
 
-- **The fair line: what this thing goes for.** Two definitions, and a line here says which
-  it is describing, because they are not the same yardstick. *Kind: all kinds. Moves: answer
-  rate per kind. From: how it ships, its verdict stage; the moonshot, the fair line.* [waits
-  on: the record of one row per product per store per price change]
+- **The fair line: what this thing goes for.** Two definitions, and a line here says which it
+  is describing, because they are not the same yardstick. *Kind: all kinds. Moves: answer rate
+  per kind. From: how it ships, its verdict stage; the moonshot, the fair line.* [waits on:
+  the record of one row per product per store per price change]
+  - **What the person sees:** a number they can act on, with the spread visible rather than a
+    single figure pretending to be exact. **Shown by:** the answer read by somebody who has
+    not seen the app, and asked what they would pay
+  - **How it looks:** the range drawn so its width is the thing you feel, since width is
+    confidence. **Shown by:** a wide and a narrow range shown to somebody, and asked which the
+    app is surer about
+  - **What it costs:** this is arithmetic on data we already hold, so it costs nothing per
+    answer and that is deliberate. **Shown by:** the paid calls between the record and the
+    number, counted, expecting none
+  - **Who runs it when it breaks:** a yardstick that drifts wrong is invisible from the
+    inside, so it is checked against real shelves. **Shown by:** a sample of fair lines
+    checked against real prices by hand
   - What ships: a typical range across the country, from stored observations inside a recency
     window, never an average, with promotions kept apart from regular prices. *(from: how it
     ships, its verdict stage; moves: answer rate per kind)*
@@ -1032,6 +1267,14 @@ cheaper; what the app is for, always answer.*
 - **The good, fair or high call, which is arithmetic on how many sellers, how fresh and how
   close the match, and never a model's opinion.** *Kind: all kinds. Moves: answer rate per
   kind. From: what the app is for, always answer.*
+  - **What the person sees:** one word they can act on in an aisle, before any explanation.
+    **Shown by:** the word recalled correctly after a two-second look
+  - **How it looks:** three states a person can tell apart without reading, and without
+    relying on colour alone. **Shown by:** the three shown in greyscale and told apart
+  - **What it feeds back:** every call and what the person did next is the only honest test of
+    whether the bands are right. **Shown by:** the calls and the outcomes counted together
+  - **Not applicable:** what it costs, and how it reaches people, beyond the card itself.
+    **Shown by:**
   - How many sellers, how fresh, how close the match, combined the same way every time.
     *(from: what the app is for, always answer; moves: answer rate per kind)*
     - The three inputs, counted the same way every time. **Shown by:** one scan run twice
@@ -1050,9 +1293,16 @@ cheaper; what the app is for, always answer.*
     - The disagreements counted before and after a change. **Shown by:** the two counts,
       expecting no rise.
 
-- **When no source has a price, it still answers, down a named ladder that ends in an
-  estimate labelled as an estimate.** *Kind: all kinds. Moves: answer rate per kind. From:
-  what the app is for, the order of evidence.*
+- **When no source has a price, it still answers, down a named ladder that ends in an estimate
+  labelled as an estimate.** *Kind: all kinds. Moves: answer rate per kind. From: what the app
+  is for, the order of evidence.*
+  - **What the person sees:** an answer that says how thin it is in words they understand, not
+    in a score. **Shown by:** the wording read by somebody who has not seen the app
+  - **How it sounds:** the least certain thing the app ever says, which is where the voice
+    matters most. **Shown by:** the line read aloud by somebody who has not seen it
+  - **Who runs it when it breaks:** a ladder that quietly falls to its bottom rung for
+    everything, which looks like it is working. **Shown by:** the share answered at each rung,
+    watched weekly
   - The same thing in another size, converted, before anything weaker. *(from: what the app is
     for, the order of evidence; moves: answer rate per kind)*
     - Finding the same product in another size.
@@ -1077,9 +1327,14 @@ cheaper; what the app is for, always answer.*
     is for, the order of evidence; moves: answer rate per kind)**Shown by:** an estimate
     shown to somebody who has not seen the app, and asked whether the app knows this price
 
-- **Every answer carries what it rests on, and the confidence carries the doubt.** *Kind:
-  all kinds. Moves: corrections per hundred verdicts. From: what the app is for, always
-  answer.*
+- **Every answer carries what it rests on, and the confidence carries the doubt.** *Kind: all
+  kinds. Moves: corrections per hundred verdicts. From: what the app is for, always answer.*
+  - **What the person sees:** the evidence in one line, not a panel they have to open. **Shown
+    by:** the line read by somebody who has not seen the app
+  - **How it looks:** confidence in the shape of the card, so it is felt before it is read.
+    **Shown by:** a thin and a firm answer told apart without reading
+  - **What it feeds back:** what an answer rested on, kept, so a wrong one can be traced
+    later. **Shown by:** an answer from a month ago opened and its evidence read
   - How many prices, from how many sellers, how old, in words. *(from: what the app is for,
     always answer; moves: corrections per hundred verdicts)*
     - The three facts kept with every answer. **Shown by:** an answer opened and all three
@@ -1101,6 +1356,14 @@ cheaper; what the app is for, always answer.*
 - **The cheaper one: the same thing cheaper within reach, or the equivalent on this shelf.**
   *Kind: all kinds. Moves: scans per returning person per week. From: the moonshot, where
   cheaper.* [waits on: the chain feed wall, for anything that names a store and a distance]
+  - **What the person sees:** one alternative worth acting on, not a list to sort through.
+    **Shown by:** the screen shown to somebody, and asked what they would do next
+  - **How it looks:** the saving and the effort shown together, since one without the other is
+    a half answer. **Shown by:** both read off the screen by somebody who has not seen the app
+  - **What it costs:** this is the row that earns money later, so its coverage is a money
+    number. **Shown by:** the share of answers that carry one, counted
+  - **How it reaches people:** the cheaper-one moment is the shot that makes the video.
+    **Shown by:** one clip of it, watched by somebody who has not seen the app
   - The same product, cheaper, at a named store, with when that price was seen. *(from: the
     moonshot, same product cheaper; moves: scans per returning person per week)*
     - Finding it cheaper at all, which needs more than one seller.
@@ -1129,6 +1392,13 @@ cheaper; what the app is for, always answer.*
 - **One sentence of reason, written from the numbers, with no internal words in it.** *Kind:
   all kinds. Moves: return in week two. From: the moonshot, the reason line; the fault list,
   internal words and research notes reaching the shopper, 2026-09-05.*
+  - **How it sounds:** the sentence in all three voices, each one still true. **Shown by:**
+    all three read aloud by a person
+  - **What the person sees:** a reason short enough to read in an aisle. **Shown by:** the
+    length measured, and the sentence read in two seconds
+  - **Who runs it when it breaks:** a sentence that goes false when the data behind it
+    changes, which is how a line about corrections went wrong before. **Shown by:** every
+    sentence re-read against what it claims, on a schedule
   - Written from the numbers by a fixed set of sentences, never by a reader. *(from: the
     moonshot, the reason line; moves: return in week two)*
     - The sentences, written once. **Shown by:** the list, and every screen's line traced to
@@ -1155,9 +1425,17 @@ cheaper; what the app is for, always answer.*
     - Each one read once by a person before it ships. **Shown by:** the reading recorded, with
       who read it.
 
-- **The week's shop priced before the trip, one store or two, with the drive counted.**
-  *Kind: packaged at chain retail. Moves: scans per returning person per week. From: the
-  moonshot, the week's basket.* [waits on: the chain feed wall; the record of what was bought]
+- **The week's shop priced before the trip, one store or two, with the drive counted.** *Kind:
+  packaged at chain retail. Moves: scans per returning person per week. From: the moonshot,
+  the week's basket.* [waits on: the chain feed wall; the record of what was bought]
+  - **What the person sees:** a plan, not a spreadsheet, and one number that says whether the
+    second stop is worth it. **Shown by:** the plan read by somebody who has not seen the app
+  - **How it looks:** a list that is pleasant to open on a phone in a car park. **Shown by:**
+    it walked on a phone, outdoors
+  - **What it costs:** pricing forty items against thirty stores is the heaviest thing the app
+    asks for. **Shown by:** the cost per plan, measured
+  - **How it reaches people:** a whole basket compared across two stores is the most shareable
+    number this app can produce. **Shown by:** one clip made from a real plan
   - A list a person keeps, or one predicted from what they buy. *(from: the moonshot, the
     basket; moves: scans per returning person per week)*
     - A list a person keeps, added to from a scan or by hand. *(from: the moonshot, the
@@ -1195,9 +1473,13 @@ cheaper; what the app is for, always answer.*
     - The plan built before that, not on demand. **Shown by:** the plan's timestamp against
       the trip.
 
-- **An empty shelf becomes a swap or the nearest store that has it.** *Kind: packaged and
-  tech at chain retail. Moves: scans per returning person per week. From: the moonshot, out of
+- **An empty shelf becomes a swap or the nearest store that has it.** *Kind: packaged and tech
+  at chain retail. Moves: scans per returning person per week. From: the moonshot, out of
   stock means a swap.* [waits on: the chain feed wall, which is where stock comes from]
+  - **What the person sees:** something to do instead, in the aisle, immediately. **Shown
+    by:** the screen shown to somebody standing at an empty shelf
+  - **What it feeds back:** an empty shelf reported is stock information nobody else has.
+    **Shown by:** the reports counted, and one traced into an answer
   - The nearest store that has it, from a stock feed and never from a guess. *(from: the
     moonshot, out of stock; moves: scans per returning person per week)**Shown by:** no
     store named as having it while no stock feed exists, and once one exists, the claim
@@ -1216,6 +1498,15 @@ cheaper; what the app is for, always answer.*
   makes them walk.** *Kind: all kinds. Moves: scans per returning person per week. From: the
   moonshot, it knows what you will buy; what the app is for, answer before they search.*
   [waits on: the record of what was bought; the setup questions]
+  - **What the person sees:** the app fitting them without being configured. **Shown by:** a
+    person's second week compared with their first
+  - **How it sounds:** never telling somebody what it has worked out about them in a way that
+    feels watched. **Shown by:** the wording read by somebody who has not seen it
+  - **What we are allowed to do:** this is the most personal thing here, and the policy has to
+    say what leaves the phone. **Shown by:** the outbound traffic read against the policy
+  - **Who runs it when it breaks:** a model that learns the wrong thing quietly makes the app
+    worse for that person only. **Shown by:** a person's own answers compared against a fresh
+    account's
   - What they buy, and when they usually go. *(from: the moonshot, the personal model; moves:
     scans per returning person per week)*
     - The next basket predicted from what they bought. **Shown by:** the predicted list
@@ -1241,6 +1532,10 @@ cheaper; what the app is for, always answer.*
 - **The join: one answer, assembled once, that the card draws and every other screen reuses.*
   **Kind: all kinds. Moves: answer rate per kind. From: the fault list, two screens reading
   the newest answer instead of the one that was tapped, 2026-09-03.*
+  - **What the person sees:** the same facts everywhere, so the app never contradicts itself.
+    **Shown by:** one scan read off every screen
+  - **Who runs it when it breaks:** two screens disagreeing is invisible to tests and obvious
+    to a person. **Shown by:** the screens walked together after every change to the answer
   - One answer built once and reused, never rebuilt per screen. *(from: the fault list, two
     screens showing the newest answer instead of the tapped one, 2026-09-03; moves: return in
     week two)*
@@ -1265,10 +1560,17 @@ cheaper; what the app is for, always answer.*
 of this is to create an app that is useful to the user, easy to use, and visually appealling";
 how it ships, its stages.*
 
-- **The viewfinder does nothing until the shutter, because everything before it is battery
-  and heat spent on a frame the person is about to replace.** This is the shipping shape, not
-  the moonshot's live reading of every tag. *Kind: all kinds. Moves: return in week two. From:
-  how it ships, its first two stages.*
+- **The viewfinder does nothing until the shutter, because everything before it is battery and
+  heat spent on a frame the person is about to replace.** This is the shipping shape, not the
+  moonshot's live reading of every tag. *Kind: all kinds. Moves: return in week two. From: how
+  it ships, its first two stages.*
+  - **How it looks:** a still, calm frame, which is a deliberate look and not an absence of
+    one. **Shown by:** the screen shown to somebody who has not seen the app, and asked what
+    it wants them to do
+  - **What it costs:** every frame processed before the shutter is battery and heat spent on a
+    frame about to be replaced. **Shown by:** battery over ten minutes of viewfinder, measured
+  - **What it feeds back:** nothing, deliberately: nothing before the shutter is kept. **Shown
+    by:** the code path, checked for anything stored
   - The camera opens on a live frame with the shutter under the thumb and nothing else
     demanded. *(from: how it ships, its first stage; moves: return in week two)*
     - The app opening straight onto a frame, with nothing in front of it. **Shown by:** the
@@ -1286,8 +1588,20 @@ how it ships, its stages.*
     one.
 
 - **The camera helps the person point at the right thing: a mark on a code as it is being
-  read, a box on each thing found, and one coaching line at a time.** *Kind: all kinds.
-  Moves: answer rate per kind. From: how it ships, the shutter and the trade behind it.*
+  read, a box on each thing found, and one coaching line at a time.** *Kind: all kinds. Moves:
+  answer rate per kind. From: how it ships, the shutter and the trade behind it.*
+  - **What it costs:** boxing every object on every frozen frame is the heaviest thing the
+    phone does, and it costs battery rather than money. **Shown by:** battery over ten minutes
+    of use, measured on a real phone
+  - **What it feeds back:** which box a person taps is a labelled example of what they meant,
+    on a frame we already have. **Shown by:** the taps counted and kept beside their frames
+  - **Who runs it when it breaks:** guidance that starts pointing people the wrong way is
+    invisible unless somebody watches real scans. **Shown by:** twenty real scans watched,
+    with the coaching lines judged
+  - **How it reaches people:** the marks appearing on a shelf are the most recognisable two
+    seconds we can film. **Shown by:** one clip of it, and the app named from the marks alone
+  - **Not applicable:** what we are allowed to do: nothing here leaves the phone. **Shown
+    by:**
   - A mark on a code while it is still being read, filling as it becomes sure. *(from: how it
     ships, the shutter; moves: answer rate per kind)*
     - The mark drawn on the code in the frame, not in a corner. **Shown by:** the mark's
@@ -1328,6 +1642,14 @@ how it ships, its stages.*
   frame; what ships reads the one tag in the shot, and typing stays the way in when it cannot.
   *Kind: all kinds, wherever a shelf tag exists. Moves: answer rate per kind. From: the
   moonshot, the tag reader.*
+  - **What the person sees:** not having to type a price they are looking straight at. **Shown
+    by:** the taps counted with and without it
+  - **How it looks:** what it read shown over the tag, so a mistake is obvious. **Shown by:**
+    twenty reads shown to a person and the errors spotted
+  - **What it costs:** reading tags on the phone is free; reading them in the cloud is not.
+    **Shown by:** the calls per tag read, counted
+  - **What it feeds back:** a tag read is the highest quality price we can collect, and it
+    arrives free. **Shown by:** the tag prices counted per week
   - The tag inside the shot found and read, rather than the whole scene. *(from: the moonshot,
     the tag reader; moves: answer rate per kind)*
     - Finding a tag in a shot of a shelf.
@@ -1357,6 +1679,12 @@ how it ships, its stages.*
 - **The person types the asking price while the naming runs behind the sheet, so the wait is
   spent rather than watched.** *Kind: all kinds. Moves: return in week two. From: how it
   ships, the price sheet.*
+  - **How it looks:** a pad that is fast to use with one thumb in a busy aisle. **Shown by:**
+    five people entering a price one-handed, timed
+  - **How it sounds:** what the app says while it is thinking, which is the only wait a person
+    feels. **Shown by:** the line read by somebody who has not seen the app
+  - **What it feeds back:** the typed price is a price observation, so this is a supply moment
+    as well as an input. **Shown by:** the typed prices found in the record
   - The price pad comes up the moment the shutter fires, over the frozen frame. *(from: how it
     ships, the price sheet; moves: return in week two)*
     - The pad over the frozen frame, not a new screen. **Shown by:** the frame still visible
@@ -1381,9 +1709,12 @@ how it ships, its stages.*
     the app is for, supply is the engine; moves: answer rate per kind)**Shown by:** a typed
     price found in the record afterwards.
 
-- **Three named steps of progress, and late arrivals never hold the answer back.** *Kind:
-  all kinds. Moves: return in week two. From: how it ships, its named steps and late
-  arrivals.*
+- **Three named steps of progress, and late arrivals never hold the answer back.** *Kind: all
+  kinds. Moves: return in week two. From: how it ships, its named steps and late arrivals.*
+  - **How it looks:** progress that reads as progress rather than as a spinner. **Shown by:**
+    the three watched by somebody who has not seen the app
+  - **Who runs it when it breaks:** a step that never completes, and what the person is shown
+    then. **Shown by:** each step stalled in turn
   - Three steps with names a person understands, not a spinner. *(from: how it ships, its
     named steps; moves: return in week two)*
     - The three names, in words with no jargon. **Shown by:** the three read by somebody who
@@ -1404,6 +1735,12 @@ how it ships, its stages.*
   the shape rather than in a footnote.** *Kind: all kinds. Moves: return in week two. From:
   how it ships, the verdict; the fault list, small text that cannot be read at all,
   2026-09-05.*
+  - **What it costs:** this screen is where a person decides whether the app was worth
+    opening. **Shown by:** the share who take an action from it, counted
+  - **How it reaches people:** this is the screen that appears in every video, so it is
+    designed to be filmed. **Shown by:** one clip of it, watched by somebody
+  - **Who runs it when it breaks:** a card that renders differently on a smaller phone, which
+    is most phones. **Shown by:** it walked on the smallest phone we support
   - The face, the call, the price, the reason and the confidence, in one card. *(from: how it
     ships, the verdict; moves: return in week two)*
     - The five, each in a fixed place. **Shown by:** somebody who has not seen the app naming
@@ -1443,6 +1780,14 @@ how it ships, its stages.*
   with a face and a voice that never aim at the person.** *Kind: all kinds. Moves: return in
   week two. From: what the app is for, the avatar; the repo's third hard rule, which forbids
   the aggression pointing at the user.*
+  - **What the person sees:** a character that reacts to what actually happened, so it feels
+    like it is paying attention. **Shown by:** the states walked against real scans
+  - **What it costs:** three voices means every string written three times, which is the cost
+    of the choice being his. **Shown by:** the string count, times three
+  - **What it feeds back:** which voice people choose is the clearest signal of who is using
+    this. **Shown by:** the choices counted
+  - **How it reaches people:** the face is the thing that makes a clip recognisable in two
+    frames. **Shown by:** one clip watched, and the app named from the face alone
   - A face with states that match what is actually happening, and no state that lies. *(from:
     what the app is for, the avatar; moves: return in week two)*
     - The list of states, and what each one means. **Shown by:** the list, with the condition
@@ -1471,9 +1816,15 @@ how it ships, its stages.*
     animations counted while a sheet is up, expecting none.
 
 - **One tap says "not this", and it is the same tap that feeds the correction back into
-  supply.** *Kind: all kinds. Moves: corrections per hundred verdicts. From: how it ships,
-  its verification stage; what the app is for, use makes it better.* [waits on: a correction
+  supply.** *Kind: all kinds. Moves: corrections per hundred verdicts. From: how it ships, its
+  verification stage; what the app is for, use makes it better.* [waits on: a correction
   changes the next answer]
+  - **How it sounds:** the app taking a correction gracefully, since being corrected is the
+    moment it earns trust. **Shown by:** the line read by somebody who has not seen it
+  - **What it feeds back:** this is the cheapest labelled data in the product. **Shown by:**
+    the corrections counted per hundred answers
+  - **Who runs it when it breaks:** a correction path that silently drops what people type is
+    worse than not having one. **Shown by:** a correction made and then found in the record
   - One tap from the answer, no form and no typing to start. *(from: how it ships, its
     verification stage; moves: corrections per hundred verdicts)*
     - The tap reachable from the answer itself. **Shown by:** the taps counted from answer to
@@ -1502,6 +1853,12 @@ how it ships, its stages.*
 - **What a person has scanned, saved and watched is theirs, in the app, and worth opening for
   its own sake.** *Kind: all kinds. Moves: return in week two. From: what the app is for, use
   makes it better.*
+  - **How it looks:** a history worth opening for its own sake rather than a log. **Shown
+    by:** somebody who has not seen the app asked what they would do with it
+  - **What we are allowed to do:** this is their own copy of what we also pool, and the
+    difference has to be said. **Shown by:** the wording read against the policy
+  - **How it reaches people:** a person's own month of scanning is a shareable thing. **Shown
+    by:** one summary made and shown to its owner
   - Everything they scanned, in order, openable again. *(from: what the app is for, use makes
     it better; moves: return in week two)*
     - The list, newest first, with enough to recognise each one. **Shown by:** somebody
@@ -1523,6 +1880,12 @@ how it ships, its stages.*
 - **A short set of questions at setup, so a person has a prior before they have any history.*
   **Kind: all kinds. Moves: answer rate per kind. From: what the app is for, answer before
   they search, his words 2026-09-05.*
+  - **How it looks:** a setup that does not feel like a form, and can be skipped. **Shown
+    by:** the completion rate, counted on real first runs
+  - **How it sounds:** the first thing the app ever says to somebody. **Shown by:** the words
+    read by somebody who has not seen it
+  - **What we are allowed to do:** answers about how somebody shops are personal data and the
+    policy has to cover them. **Shown by:** the wording read against what is stored
   - A few questions, skippable, that say what this person shops for. *(from: what the app is
     for, answer before they search, his words 2026-09-05; moves: answer rate per kind)*
     - The questions, short enough that they are answered rather than skipped. **Shown by:**
@@ -1542,6 +1905,11 @@ how it ships, its stages.*
 - **Every screen readable by a person with ordinary eyesight, in both themes, checked on a
   rendered screen rather than in a test.** *Kind: all kinds. Moves: return in week two. From:
   the fault list, three contrast failures and a label at one to one, 2026-09-05.*
+  - **What the person sees:** text they can read in a badly lit aisle at arm's length. **Shown
+    by:** the screens read at arm's length in a real store
+  - **Who runs it when it breaks:** contrast drifts every time a colour changes, so this is a
+    standing check and not a task. **Shown by:** the check re-run after each colour change,
+    dated
   - Every piece of text over its contrast floor, computed rather than eyeballed. *(from: the
     fault list, three failures at once, 2026-09-05; moves: return in week two)*
     - Every text and its size measured as it actually renders. **Shown by:** the computed
@@ -1577,6 +1945,11 @@ how it ships, its stages.*
   nothing finished sits with nothing calling it.** *Kind: all kinds. Moves: return in week
   two. From: the fault list, four finished pieces with no caller and an offline shelf no
   screen reaches, 2026-09-05.*
+  - **What the person sees:** one app that behaves the same everywhere. **Shown by:** every
+    screen walked in one session
+  - **Who runs it when it breaks:** a finished piece with no caller is invisible until
+    somebody looks for it. **Shown by:** the callers listed against the finished pieces, on a
+    schedule
   - One way in to everything behind the app, not one per screen. *(from: the fault list, four
     finished pieces with no caller, 2026-09-05; moves: return in week two)*
     - The one entry point named and used by every screen. **Shown by:** a search for other
@@ -1598,10 +1971,14 @@ how it ships, its stages.*
 *Kind: all kinds. Moves: savings measured. From: the moonshot, receipts arrive on their own and
 the ledger fills itself.*
 
-- **WALL: itemised purchases from the loyalty programs, which hold every line of every basket.**
-  A company our size does not get that feed; its children are the way around it, which is the
-  receipt photo. *Kind: packaged and tech at chain retail. Moves: savings measured. From: the
-  moonshot, second wall. Its way around is not decomposed yet.*
+- **WALL: itemised purchases from the loyalty programs, which hold every line of every
+  basket.** A company our size does not get that feed; its children are the way around it,
+  which is the receipt photo. *Kind: packaged and tech at chain retail. Moves: savings
+  measured. From: the moonshot, second wall. Its way around is not decomposed yet.*
+  - **What the person sees:** being asked for a photo instead, which is the honest version of
+    this until it lifts. **Shown by:** the steps counted
+  - **What we are allowed to do:** reading somebody's own loyalty account on their behalf has
+    its own rules. **Shown by:** the terms read, per programme
   - Way around: the receipt photo, which needs nobody's permission but the person's. *(from:
     the moonshot, why it is impossible for us; moves: savings measured)*
     - What a person has to do, which is take one photo. *(from: the moonshot, the receipt
@@ -1626,12 +2003,25 @@ the ledger fills itself.*
     dropped in and filling the ledger
 
 - **BLOCKED OUTSIDE: the bank feed, which confirms the total but not the items.** The law was
-  assented in March 2026 and the draft rules published in June 2026, read-only first and covering
-  transactions rather than the items in them. Lifts when the rules are in force and we are
-  accredited under them. *Kind: all kinds. Moves: savings measured. From: the moonshot, second
-  wall and its sources.*
+  assented in March 2026 and the draft rules published in June 2026, read-only first and
+  covering transactions rather than the items in them. Lifts when the rules are in force and
+  we are accredited under them. *Kind: all kinds. Moves: savings measured. From: the moonshot,
+  second wall and its sources.*
+  - **What the person sees:** the ledger filling from receipts only, and saying so, until this
+    lifts. **Shown by:** the wording read by somebody who has not seen the app
 - **A photo of a receipt, for cash and for sellers with no feed at all.** *Kind: all kinds.
   Moves: savings measured. From: the moonshot, the receipt reader.*
+  - **What the person sees:** one photo and nothing else asked of them. **Shown by:** the
+    steps counted from paying to a filled ledger row
+  - **How it looks:** a camera step that tells them how to hold a long receipt without being
+    fussy. **Shown by:** five people photographing their own receipts, unprompted
+  - **What it costs:** reading a receipt is several reads per photo, so this is expensive per
+    person. **Shown by:** the cost per receipt, from real calls
+  - **What we are allowed to do:** a receipt is a record of somebody's private spending, which
+    is the most sensitive thing we would hold. **Shown by:** the wording read against what is
+    stored
+  - **What it feeds back:** every line is a confirmed price at a named store and minute, which
+    is the best supply there is. **Shown by:** the price rows produced per receipt
   - Line items, store and time read off the photo. *(from: the moonshot, the receipt reader;
     moves: savings measured)*
     - Getting a usable photo of a folded, creased receipt.
@@ -1668,6 +2058,12 @@ the ledger fills itself.*
 - **The person's permission, given per feed, before any of the three is read.** *Kind: all
   kinds. Moves: installs, since neither phone store lists an app that reads a bank without it.
   From: the moonshot, consent and deletion; the law behind the banking rules.*
+  - **How it sounds:** the ask, which decides whether anybody ever connects anything. **Shown
+    by:** each ask read by somebody who has not seen the app
+  - **What the person sees:** what they get for saying yes, before they say it. **Shown by:**
+    the screen shown to somebody, and asked what they would receive
+  - **Who runs it when it breaks:** a permission that silently lapses and stops the ledger
+    filling. **Shown by:** a lapse forced, and the person told
   - Asked per feed, in words, with what it is for. *(from: the moonshot, consent and deletion;
     moves: installs)*
     - The words each ask uses. **Shown by:** each read by somebody who has not seen the app,
@@ -1683,6 +2079,12 @@ the ledger fills itself.*
 
 - **Matching a line on a bank statement to the receipt that explains it.** *Kind: all kinds.
   Moves: savings measured. From: the moonshot, the matcher.*
+  - **What the person sees:** nothing when it works, and one tap to fix it when it does not.
+    **Shown by:** an unmatched pair resolved by a person
+  - **Who runs it when it breaks:** a matcher that pairs the wrong things quietly corrupts the
+    ledger and the refunds. **Shown by:** a hand-checked sample, with wrong matches counted
+    separately
+  - **Not applicable:** how it looks and sounds, and how it reaches people. **Shown by:**
   - Matched on merchant, amount and minute. *(from: the moonshot, the matcher; moves: savings
     measured)*
     - The match itself. **Shown by:** the share matched on real pairs.
@@ -1699,6 +2101,13 @@ the ledger fills itself.*
 
 - **The record of what was bought: person, thing, store, price, minute.** *Kind: all kinds.
   Moves: savings measured. From: the moonshot, the purchase graph.*
+  - **What the person sees:** their own spending, in the app, as something worth looking at.
+    **Shown by:** the screen shown to somebody who has not seen it
+  - **What we are allowed to do:** this is the most complete picture of a person we would ever
+    hold. **Shown by:** the wording read against what is stored, by somebody who did not write
+    either
+  - **What it costs:** one row per line item per person is the largest thing we would store.
+    **Shown by:** the size per person per year, measured
   - One row per line item: person, thing, store, price, minute. *(from: the moonshot, the
     purchase graph; moves: savings measured)*
     - The row written for every line of a receipt. **Shown by:** a multi-line receipt, and the
@@ -1714,8 +2123,16 @@ the ledger fills itself.*
     people using it for a month]
 
 - **The ledger: what they paid, what fair was at that minute at that store, and what it was
-  elsewhere.** *Kind: all kinds. Moves: savings measured. From: the moonshot, the ledger
-  fills itself.* [waits on: the record of one row per product per store per price change]
+  elsewhere.** *Kind: all kinds. Moves: savings measured. From: the moonshot, the ledger fills
+  itself.* [waits on: the record of one row per product per store per price change]
+  - **What the person sees:** what they actually saved, without being asked to report it.
+    **Shown by:** the number shown, and checked by hand against their own receipts
+  - **How it looks:** a number that is honest even when it is small or negative. **Shown by:**
+    a month where they overpaid, shown to somebody
+  - **What we are allowed to do:** this is the only lawful basis for any savings claim.
+    **Shown by:** a claim traced to the rows behind it
+  - **How it reaches people:** a measured saving is the only marketing number we could ever
+    use. **Shown by:** the figure, with the testing behind it, ready to be shown
   - Fair at that minute at that store, from the price history rather than today's price.
     *(from: the moonshot, the ledger; moves: savings measured)*
     - Reading the past rather than today. **Shown by:** a purchase from months ago judged, and
@@ -1737,6 +2154,10 @@ the ledger fills itself.*
 - **The join: a purchase arrives, is matched, and lands in the ledger with no tap from the
   person.** *Kind: all kinds. Moves: savings measured. From: the moonshot, what the person
   sees is nothing.*
+  - **What the person sees:** the ledger filling without them doing anything. **Shown by:** a
+    week of purchases with no taps
+  - **Who runs it when it breaks:** a route that stops delivering, which looks like somebody
+    simply spending less. **Shown by:** the rows per route watched weekly
   - The three ways in feed one record, in one shape. *(from: the moonshot, the purchase graph;
     moves: savings measured)*
     - The shape, written once. **Shown by:** rows from all three compared field by field.
@@ -1760,6 +2181,8 @@ fit; what the app is for, the money numbers.*
   the shelf free and unlimited, a small number of photo reads a week free, the online reader
   paid. *Kind: all kinds. Moves: payers per hundred downloads. From: what the app is for, the
   price and the free allowance unset and his; how it ships, his tier table.*
+  - **How it sounds:** how the paywall is described, which is the moment most apps become
+    unpleasant. **Shown by:** the wording read by somebody who has not seen it
   - The problem the decision has to solve, carried here rather than lost: codes are free and
     nearly every packaged item has one, so the meter only ever fires on the kinds
     identification is worst at, two of which are blocked from outside today. *(from: how it
@@ -1779,6 +2202,14 @@ fit; what the app is for, the money numbers.*
   payers per hundred downloads. From: the fault list, nothing is metered and every route is
   open to anyone who can reach it; how it ships, a search counts only when the person accepted
   it.*
+  - **What the person sees:** where they stand, before they hit a wall rather than at it.
+    **Shown by:** the screen shown to somebody at their last free scan
+  - **How it sounds:** the moment the app asks for money, which is the one it must not sound
+    greedy in. **Shown by:** the wording read by somebody who has not seen it
+  - **What we are allowed to do:** the identifier is not a person, and the wording must not
+    imply we know who they are. **Shown by:** the wording read against what the identifier is
+  - **Who runs it when it breaks:** a counter that charges somebody for our own failure.
+    **Shown by:** a forced failure, and the tally checked
   - An identifier the phone makes on first run, which is not a person's name, and which lives
     in the phone's own secure store from the start, since a limit counted against a value a
     reinstall regenerates limits nobody. *(from: the fault list, nothing is metered, and a
@@ -1807,6 +2238,12 @@ fit; what the app is for, the money numbers.*
 - **A way to take money on both phone stores, and a reading of what is left after the store's
   cut and the model bill.** *Kind: all kinds. Moves: what each payer leaves after the store's
   cut and the model bill. From: what the app is for, the money numbers.*
+  - **What the person sees:** paying in the way the phone already knows how to pay. **Shown
+    by:** a payment taken by somebody who has not seen the app
+  - **What we are allowed to do:** each store's rules about what may be sold and how it is
+    described. **Shown by:** the rules read, and the listing checked against them
+  - **Who runs it when it breaks:** a failed payment that leaves somebody paid-but-not-served.
+    **Shown by:** a failure forced mid-payment, and the state afterwards
   - Payment through each store's own billing, because the alternative is not allowed. *(from:
     what the app is for, the money numbers; moves: what each payer leaves)*
     - Each store's billing, one at a time. **Shown by:** a payment taken on each.
@@ -1829,10 +2266,14 @@ fit; what the app is for, the money numbers.*
     what the app is for, use makes it better; moves: payers per hundred downloads)**Shown
     by:** a reinstall keeping what was paid for.
 
-- **Paying for it out of savings that were measured, never claimed.** *Kind: all kinds.
-  Moves: payers per hundred downloads. From: the moonshot, paid from measured savings; the law
-  on performance claims, which requires adequate and proper testing before a claim is
-  published.* [waits on: the ledger]
+- **Paying for it out of savings that were measured, never claimed.** *Kind: all kinds. Moves:
+  payers per hundred downloads. From: the moonshot, paid from measured savings; the law on
+  performance claims, which requires adequate and proper testing before a claim is published.*
+  [waits on: the ledger]
+  - **What the person sees:** their own number, not an average from a marketing page. **Shown
+    by:** one person's figure recomputed by hand and compared
+  - **How it sounds:** the claim, worded so it stays true on a bad month. **Shown by:** the
+    wording read against a month with no savings
   - The claim is built from the ledger, on real purchases, before it is ever shown. *(from:
     the law on performance claims; moves: savings measured)**Shown by:** the figure
     recomputed from the rows by somebody who did not build it, landing on the same number
@@ -1848,6 +2289,16 @@ fit; what the app is for, the money numbers.*
   back, with the proof kept beside the claim and one claim per receipt.** *Kind: all kinds.
   Moves: payers per hundred downloads. From: the moonshot, the guarantee.* [waits on: the
   ledger; matching a bank line to a receipt]
+  - **What the person sees:** money arriving without them chasing it. **Shown by:** one claim
+    carried end to end
+  - **How it sounds:** a promise stated plainly, with its limits in the same breath. **Shown
+    by:** the wording read by somebody who has not seen it
+  - **What we are allowed to do:** whether this is insurance in law, answered before it is
+    promised. **Shown by:** the answer in writing, with who gave it
+  - **Who runs it when it breaks:** who decides a claim, and inside what time. **Shown by:**
+    the hours on a real claim
+  - **How it reaches people:** a refund arriving unasked is the strongest story this product
+    has. **Shown by:** one real refund, told with permission
   - It fires on a purchase above a stated distance from the fair line, without being asked,
     and that distance is chosen together with the yardstick: against a middle, everything
     above it is half of all purchases. *(from: the moonshot, the guarantee, read against its
@@ -1880,8 +2331,14 @@ fit; what the app is for, the money numbers.*
     - The money held back, computed from it. **Shown by:** the reserve written down beside the
       rate it came from.
 
-- **A cut of the purchases Shin steered, free to the person.** *Kind: all kinds. Moves:
-  payers per hundred downloads. From: the moonshot, card-linked and affiliate.*
+- **A cut of the purchases Shin steered, free to the person.** *Kind: all kinds. Moves: payers
+  per hundred downloads. From: the moonshot, card-linked and affiliate.*
+  - **What the person sees:** that this exists, said plainly, since finding it out later is
+    what destroys trust. **Shown by:** the disclosure read by somebody who has not seen the
+    app
+  - **Who runs it when it breaks:** a merchant paying more than another must never move a
+    face, and something has to check. **Shown by:** the answers re-scored by a path that
+    cannot see the rates
   - Only on a purchase the app actually pointed at, tied to a row in the record. *(from: the
     moonshot, settlement; moves: payers per hundred downloads)*
     - Knowing the app pointed at it. **Shown by:** a steered purchase traced from the answer
@@ -1899,6 +2356,12 @@ fit; what the app is for, the money numbers.*
   mark the moment the two disagree.** *Kind: packaged and tech at chain retail. Moves: payers
   per hundred downloads. From: the moonshot, sellers pay to be shown fair.* [waits on: the
   installs wall]
+  - **What the person sees:** a mark that is clearly a mark, not part of the verdict. **Shown
+    by:** the card shown to somebody, and asked what the mark means
+  - **How it looks:** it beside the face, never touching it. **Shown by:** the two compared
+    with the mark on and off
+  - **What we are allowed to do:** paid placement has rules about disclosure. **Shown by:**
+    the disclosure checked against them
   - A mark beside the face, never a change to the face. *(from: the moonshot, sellers pay to
     be shown fair; moves: payers per hundred downloads)**Shown by:** the face compared with
     and without the mark.
@@ -1916,6 +2379,10 @@ fit; what the app is for, the money numbers.*
 
 - **The live price record sold to the people who already buy price data.** *Kind: all kinds.
   Moves: payers per hundred downloads. From: the moonshot, the live index.*
+  - **What we are allowed to do:** whether our sources permit reselling what they gave us.
+    **Shown by:** the clause quoted per source
+  - **Not applicable:** what the person sees, how it looks and sounds, and how it reaches
+    people: this never touches the app. **Shown by:**
   - What is sold is the aggregate, never a person. *(from: the moonshot, the live index;
     moves: payers per hundred downloads)**Shown by:** the sold extract checked for anything
     that identifies a person.
@@ -1931,6 +2398,10 @@ fit; what the app is for, the money numbers.*
 - **The join: money is switched on in one place, and every dollar in or out is tied to a row
   in the record of what was bought.** *Kind: all kinds. Moves: payers per hundred downloads.
   From: the moonshot, settlement.*
+  - **Who runs it when it breaks:** a charge that should not have happened, and how fast it
+    can be stopped. **Shown by:** the switch thrown, and the time until charges stop
+  - **What the person sees:** never being charged by surprise. **Shown by:** the flow walked
+    with the switch on and off
   - One switch, so nothing charges anybody by accident. *(from: what the app is for, the money
     numbers; moves: payers per hundred downloads)**Shown by:** the switch off, a full
     purchase attempted, and the payment provider showing nothing
@@ -1950,9 +2421,15 @@ can share; the moonshot, it is already on the phone.*
   software classes came back with no live mark and the association with a noodle brand on a
   grocery shelf was never tested. Nothing public happens before this. *Kind: all kinds. Moves:
   installs. From: trademark law, and the search of the Canadian software classes, 2026-09-04.*
-- **The two checks that search did not do: the United States register, and whether the name
-  is free on both phone stores.** *Kind: all kinds. Moves: installs. From: the fault list,
-  the two name checks that did not happen.*
+  - **How it looks:** the name as a word on a store page and a video, not only as a legal
+    search result. **Shown by:** it written out and shown to five people
+- **The two checks that search did not do: the United States register, and whether the name is
+  free on both phone stores.** *Kind: all kinds. Moves: installs. From: the fault list, the
+  two name checks that did not happen.*
+  - **What it costs:** a name change after launch costs everything already posted. **Shown
+    by:** the count of things that would have to change, listed
+  - **Not applicable:** what the person sees and how it looks: this is a search, not a screen.
+    **Shown by:**
   - The United States register searched in the software classes, and the result written down.
     *(from: the fault list, the checks that did not happen; moves: installs)*
     - The classes searched, which are the software ones and not the food one. **Shown by:**
@@ -1976,6 +2453,14 @@ can share; the moonshot, it is already on the phone.*
   happens afterwards.** His words, 2026-09-06: *"our main marketing is going to be through
   short form video content"*. *Kind: all kinds. Moves: installs per video. From: his words
   above, quoted in what the app is for.*
+  - **What the person sees:** nothing: this is the only branch that is not in the app at all.
+    **Shown by:** the clips, and who watched them
+  - **How it looks:** a clip that is recognisable as ours in two frames. **Shown by:** five
+    clips shown, and the app named from them
+  - **What it costs:** the hours per clip, and what that is against the installs it brings.
+    **Shown by:** the minutes per clip and the installs per clip, together
+  - **Who runs it when it breaks:** who makes them when nobody feels like making them, which
+    is the real failure mode of a channel. **Shown by:** a month of them, counted
   - What a video is made of, decided once: the scan, the face, the number, the turn. *(from:
     his words, 2026-09-06, on short form video; moves: installs per video)**Shown by:** the
     parts listed, and a video made from the list.
@@ -2009,6 +2494,10 @@ can share; the moonshot, it is already on the phone.*
   a cold account can return near zero and hand back a false negative.** *Kind: all kinds.
   Moves: installs per video. From: the fault list, the three gates that are not code.* [waits
   on: the name]
+  - **What it costs:** what the creators are paid, and what the answer is worth. **Shown by:**
+    the cost, against the decision it settles
+  - **Not applicable:** who runs it when it breaks, and what it feeds back: this runs once.
+    **Shown by:**
   - Three to five small creators, or a forum where reach is not follower-gated. *(from: the
     fault list, the three gates that are not code; moves: installs per video)*
     - Who they are, named before the run. **Shown by:** the list, with follower counts, dated.
@@ -2035,8 +2524,14 @@ can share; the moonshot, it is already on the phone.*
       down before the run.
 
 - **Every answer is a card someone can post, and every card and every video carries its own
-  link.** *Kind: all kinds. Moves: installs per video. From: what the app is for, every
-  answer is a moment someone can share.* [waits on: the name]
+  link.** *Kind: all kinds. Moves: installs per video. From: what the app is for, every answer
+  is a moment someone can share.* [waits on: the name]
+  - **How it looks:** a card that survives being screenshotted and re-shared. **Shown by:**
+    the exported image opened on its own
+  - **What it costs:** rendering per card, which is small but real at scale. **Shown by:** the
+    cost per thousand cards
+  - **What we are allowed to do:** a card shows a seller's price, which is a claim about them.
+    **Shown by:** the wording checked against what we can prove
   - The card carries the thing, the face, the price and where it came from. *(from: what the
     app is for, every answer is a moment; moves: installs per video)*
     - The four things on it, in a fixed layout. **Shown by:** somebody who was not there
@@ -2055,10 +2550,16 @@ can share; the moonshot, it is already on the phone.*
   - No card leaves the app under a name that is not cleared. *(from: trademark law; moves:
     installs)**Shown by:** the share button absent from the app until the name is settled
 
-- **What brings a person back on purpose: a price they are watching, a drop worth telling
-  them about, and the shop plan on the morning they usually go.** *Kind: all kinds. Moves:
-  return in week two. From: the moonshot, the plan arrives the morning of the usual trip day.*
-  [waits on: what a person has scanned, saved and watched]
+- **What brings a person back on purpose: a price they are watching, a drop worth telling them
+  about, and the shop plan on the morning they usually go.** *Kind: all kinds. Moves: return
+  in week two. From: the moonshot, the plan arrives the morning of the usual trip day.* [waits
+  on: what a person has scanned, saved and watched]
+  - **How it sounds:** a message that is worth the interruption, or none at all. **Shown by:**
+    the wording read by somebody who has not seen it
+  - **What we are allowed to do:** messaging rules, and the person's ability to stop them in
+    one place. **Shown by:** the switch found by somebody who has not seen the app
+  - **Who runs it when it breaks:** a message sent about a price that did not really move.
+    **Shown by:** every message traced to a real change
   - A thing they are watching, and a message when its price actually moves. *(from: the
     moonshot, the personal model; moves: return in week two)*
     - What counts as a move worth telling somebody about. **Shown by:** the number written
@@ -2081,10 +2582,14 @@ can share; the moonshot, it is already on the phone.*
     - It read before more of this is built. **Shown by:** the date of the reading against the
       dates of the work.
 
-- **WALL: tens of millions of installs, which is what makes a high price a price nobody pays.**
-  The target is ten million in Canada (untested target). Its children are the way around it, which
-  is the first ten thousand people. *Kind: all kinds. Moves: installs. From: the moonshot, fourth
-  wall. Its way around is not decomposed yet.*
+- **WALL: tens of millions of installs, which is what makes a high price a price nobody
+  pays.** The target is ten million in Canada (untested target). Its children are the way
+  around it, which is the first ten thousand people. *Kind: all kinds. Moves: installs. From:
+  the moonshot, fourth wall. Its way around is not decomposed yet.*
+  - **What the person sees:** nothing directly, but everything about supply gets better as
+    this grows. **Shown by:** the answer rate against the number of people, over time
+  - **What it costs:** the serving cost at that scale, which is a different product than the
+    one we run today. **Shown by:** the cost per answer, times the target scale
   - Way around: the first ten thousand people, from video, which is the only reach we control.
     *(from: the moonshot, why it is impossible for us; moves: installs)**Shown by:** the
     first ten thousand counted, and where each came from.
@@ -2111,14 +2616,20 @@ can share; the moonshot, it is already on the phone.*
     - What one person's scanning adds, so ten thousand is a multiplication and not a hope.
       **Shown by:** the rows one person produces in a week, counted.
 
-- **BLOCKED OUTSIDE: the verdict inside the phone's own camera and the receipt in its wallet.**
-  Not a matter of our size: a company with a grocery chain's money cannot ship inside another
-  company's camera app either. Lifts if that platform opens the surface, or on a partnership with
-  its owner. *Kind: all kinds. Moves: installs. From: the moonshot, third wall, reclassified here
-  under the rule that a block that is somebody else's policy is not a wall.*
+- **BLOCKED OUTSIDE: the verdict inside the phone's own camera and the receipt in its
+  wallet.** Not a matter of our size: a company with a grocery chain's money cannot ship
+  inside another company's camera app either. Lifts if that platform opens the surface, or on
+  a partnership with its owner. *Kind: all kinds. Moves: installs. From: the moonshot, third
+  wall, reclassified here under the rule that a block that is somebody else's policy is not a
+  wall.*
+  - **What the person sees:** until it lands, the app is the only way in, so opening it has to
+    be worth doing. **Shown by:** the taps from a locked phone to an answer, counted
 - **The join: an install can be traced to the video that caused it, so the channel is steered
   by what actually travelled.** *Kind: all kinds. Moves: installs per video. From: what the
   app is for, installs per video once each video carries its own link.*
+  - **What we are allowed to do:** tracking where an install came from is regulated on both
+    phone platforms. **Shown by:** the method read against each platform's rules
+  - **Not applicable:** how it looks and sounds. **Shown by:**
   - A different link per video, and per card. *(from: what the app is for, installs per video;
     moves: installs per video)**Shown by:** two links opened, landing in the same place, and
     distinguishable in what they record
@@ -2139,13 +2650,20 @@ can share; the moonshot, it is already on the phone.*
 the law; the fault list.*
 
 - **HIS: the privacy wording.** The question he answers: how the pooling and the training are
-  described to a person, given that his policy is to collect all scanned data and use it to train
-  and to answer others, and two lines on the screen today promise the opposite. *Kind: all kinds.
-  Moves: installs. From: his policy, 2026-09-05, quoted in full in what the app is for, and the
-  fault list entry that the app promises its opposite, 2026-09-06.*
+  described to a person, given that his policy is to collect all scanned data and use it to
+  train and to answer others, and two lines on the screen today promise the opposite. *Kind:
+  all kinds. Moves: installs. From: his policy, 2026-09-05, quoted in full in what the app is
+  for, and the fault list entry that the app promises its opposite, 2026-09-06.*
+  - **How it sounds:** the difference between a policy that is honest and one that is merely
+    accurate. **Shown by:** the wording read by somebody, and asked what they think we do with
+    their scans
 - **Nothing is claimed about savings until it has been measured.** *Kind: all kinds. Moves:
   savings measured. From: the law on performance claims, which requires adequate and proper
   testing before publication.*
+  - **What the person sees:** no number anywhere that we cannot show the working for. **Shown
+    by:** every figure on every screen traced to its testing
+  - **How it reaches people:** the channel is where an unmeasured claim would appear first.
+    **Shown by:** every script checked before filming
   - Adequate and proper testing exists before a number is published anywhere. *(from: the law
     on performance claims; moves: savings measured)**Shown by:** the testing kept where
     somebody outside could ask for it, and produced on request
@@ -2159,6 +2677,14 @@ the law; the fault list.*
 - **A person can have everything about them deleted, and the deletion is real.** *Kind: all
   kinds. Moves: installs, since both phone stores require it. From: the moonshot, consent and
   deletion.*
+  - **What the person sees:** one place to ask, and a plain answer about what happens. **Shown
+    by:** the flow walked by somebody who has not seen the app
+  - **How it sounds:** the wording, which is where most apps get weaselly. **Shown by:** the
+    sentence read by somebody, and asked what they think stays
+  - **Who runs it when it breaks:** a deletion that half completes. **Shown by:** one carried
+    out, then searched for what should be gone
+  - **What it costs:** removing somebody from pooled data is the expensive half. **Shown by:**
+    the work per deletion, timed on the first one
   - One ask, from inside the app, and everything about that person goes. *(from: the moonshot,
     consent and deletion; moves: installs)*
     - The ask reachable from inside the app. **Shown by:** somebody who has not seen the app
@@ -2184,12 +2710,20 @@ the law; the fault list.*
     list, its own build standard; moves: installs)**Shown by:** asking, then looking for
     what should be gone.
 
-- **A wrong price cannot move an answer: a photographed tag outweighs a typed one, a price
-  far outside the known range is held rather than published, a person carries a score from how
+- **A wrong price cannot move an answer: a photographed tag outweighs a typed one, a price far
+  outside the known range is held rather than published, a person carries a score from how
   often they were later confirmed, and one report never decides alone.** His words,
   2026-09-05: *"of course there has to be systems in place for this because people might
   report incorrect prices"*. *Kind: all kinds. Moves: corrections per hundred verdicts. From:
   his words above; the fault list, a single typed price moving a verdict, 2026-09-05.*
+  - **What the person sees:** never being told a bad deal is good because somebody lied.
+    **Shown by:** a fake low price submitted, and the answer checked
+  - **How it sounds:** what a person is told when their price is held, which must not sound
+    like an accusation. **Shown by:** the wording read by somebody who has not seen it
+  - **Who runs it when it breaks:** somebody working out how to move a price and doing it
+    repeatedly. **Shown by:** the top contributors reviewed by a person weekly
+  - **How it reaches people:** the fact that the app cannot be gamed is worth saying, once it
+    is true. **Shown by:** the wording, checked against what is actually in place
   - A photographed tag outweighs a typed number. *(from: his words, 2026-09-05, on systems
     against wrong reports; moves: corrections per hundred verdicts)*
     - The rule, written where the two are ranked. **Shown by:** both on one product, and which
@@ -2234,9 +2768,13 @@ the law; the fault list.*
     rules are checked.
 
 - **No route is open to anyone who can reach it: a limit per phone and a cap on what any one
-  person can send.** *Kind: all kinds. Moves: what each payer leaves after the store's cut
-  and the model bill. From: the fault list, every route open and nothing metered.* [waits on:
-  the count behind the free allowance]
+  person can send.** *Kind: all kinds. Moves: what each payer leaves after the store's cut and
+  the model bill. From: the fault list, every route open and nothing metered.* [waits on: the
+  count behind the free allowance]
+  - **What the person sees:** a real person hitting a cap gets a way forward, not a wall.
+    **Shown by:** the screen shown to somebody who has hit it
+  - **Who runs it when it breaks:** the difference between abuse and a bad connection, decided
+    by a person. **Shown by:** the top ten by refusals, reviewed
   - A limit per phone on the things that cost money. *(from: the fault list, every route open;
     moves: what each payer leaves)*
     - The limit, per window. **Shown by:** the numbers written down.
@@ -2256,6 +2794,12 @@ the law; the fault list.*
   product in Canada rather than a marketing offer. *Kind: all kinds. Moves: installs, since
   any of the three can stop the whole thing. From: what the app is for, no vendor's terms yet
   confirm that a looked-up identity may be kept; the moonshot, the guarantee.*
+  - **What the person sees:** nothing, until an answer disappears because a source was
+    dropped. **Shown by:** the answer rate before and after a source is dropped
+  - **What it costs:** a wrong answer here can cost the whole product, which makes it worth
+    paying for advice. **Shown by:** the cost of the advice, against what it protects
+  - **Who runs it when it breaks:** terms change, and somebody has to notice before we are on
+    the wrong side of them. **Shown by:** the terms re-read on a schedule, dated
   - Each source's own terms read and written down beside the source, not assumed from the fact
     that a page loads. *(from: what the app is for, standing decisions; moves: answer rate per
     kind)*
@@ -2275,6 +2819,12 @@ the law; the fault list.*
 - **A person's history survives a reinstall and follows them to a new phone.** *Kind: all
   kinds. Moves: return in week two. From: what the app is for, use makes it better and the
   history is carried.*
+  - **What the person sees:** their history still there after a new phone, without an account
+    or a password. **Shown by:** a restore done on a second phone
+  - **How it sounds:** how this is explained, since no account also means no recovery if the
+    phone is lost. **Shown by:** the wording read by somebody who has not seen it
+  - **Who runs it when it breaks:** a person losing everything, and whether anything can be
+    done. **Shown by:** a lost phone simulated, and what is recoverable
   - The identifier moves into the phone's own secure store rather than the browser's. *(from:
     the fault list, a reinstall quietly becoming a new person; moves: return in week two)*
     - The move itself. **Shown by:** a reinstall keeping the identifier.
@@ -2294,6 +2844,9 @@ the law; the fault list.*
   the same time, and the day the photo path or the pooling goes live is the day both are
   true.** *Kind: all kinds. Moves: installs. From: the fault list, the two screen lines that
   contradict the policy, 2026-09-06.*
+  - **Who runs it when it breaks:** a change to the system that makes a screen sentence false,
+    and who catches it. **Shown by:** the sentences re-read against the system on a schedule
+  - **Not applicable:** what it costs, and how it reaches people. **Shown by:**
   - The words on the screen come from one place, so they cannot drift from the policy. *(from:
     the fault list, two screen lines contradicting the policy, 2026-09-06; moves: installs)*
     - Every privacy sentence coming from one source. **Shown by:** the screens searched for
@@ -2316,9 +2869,16 @@ no number by itself, and that is what it is for; the two lines that do move one,
 hand-priced set and running the old gates against it, say so on their own line. From: what the app
 is for, the numbers; the moonshot, the instruments.*
 
-- **The ten figures read themselves every day, off the system, without asking anyone.**
-  *Kind: all kinds. Moves: every figure. From: what the app is for, the numbers; the moonshot,
-  the instruments.*
+- **The ten figures read themselves every day, off the system, without asking anyone.** *Kind:
+  all kinds. Moves: every figure. From: what the app is for, the numbers; the moonshot, the
+  instruments.*
+  - **What the person sees:** nothing: this is entirely for us, and that is worth saying so
+    nobody builds it into the app. **Shown by:** the app searched for any of it
+  - **How it looks:** a page that can be read in a minute, or it will not be read at all.
+    **Shown by:** the time somebody takes to read it, measured
+  - **Who runs it when it breaks:** a figure that stops reading and nobody notices, which has
+    already happened once. **Shown by:** a reader broken deliberately, and the time until
+    somebody knew
   - Each figure defined once, in words, so two readings cannot disagree. *(from: what the app
     is for, the numbers; moves: every figure)*
     - Each of the ten defined. **Shown by:** two people reading each definition the same way
@@ -2335,9 +2895,12 @@ is for, the numbers; the moonshot, the instruments.*
     fault list, one row since 2026-09-03; moves: every figure)**Shown by:** thirty
     consecutive rows, and the gaps in them counted
 
-- **Every scan is recorded in a shape those figures can read.** *Kind: all kinds. Moves:
-  every figure. From: what the app is for, the scan record exists and has no reader,
-  2026-09-05.*
+- **Every scan is recorded in a shape those figures can read.** *Kind: all kinds. Moves: every
+  figure. From: what the app is for, the scan record exists and has no reader, 2026-09-05.*
+  - **What we are allowed to do:** a scan record is a record of a person's movements through
+    shops. **Shown by:** the fields read against the policy
+  - **What it costs:** one row per scan is small until it is not. **Shown by:** the size per
+    thousand scans, measured
   - One row per scan: who, what, which kind, whether it answered, what it rested on. *(from:
     what the app is for, the scan record has no reader; moves: every figure)*
     - The row written on every scan, answered or not. **Shown by:** a day of scans, and rows
@@ -2360,6 +2923,12 @@ is for, the numbers; the moonshot, the instruments.*
   decision to stop looking. *Kind: all kinds. Moves: corrections per hundred verdicts. From:
   the fault list, whose only interesting column is whether a person or a test caught a thing;
   what the app is for, success is measured before it is claimed.*
+  - **What the person sees:** nothing directly, but this is what stops the app being
+    confidently wrong for months. **Shown by:** the wrong-answer rate over time
+  - **What it costs:** somebody's hours, every week, which is the cheapest insurance in the
+    product. **Shown by:** the hours per run, recorded
+  - **Who runs it when it breaks:** the check quietly stopping, which is what happened to the
+    running score already. **Shown by:** the dates of the runs, read at each pass
   - A sample of answers checked against a real shelf or a real sold price, by hand, on a
     schedule. *(from: what the app is for, success is measured before it is claimed; moves:
     corrections per hundred verdicts)*
@@ -2392,6 +2961,10 @@ is for, the numbers; the moonshot, the instruments.*
 
 - **A figure that reads zero for a day wakes somebody.** *Kind: all kinds. Moves: every
   figure. From: the moonshot, failure is loud.*
+  - **Who runs it when it breaks:** the alert going to a person who is asleep, which is most
+    of the hours. **Shown by:** a night-time failure, and the time until somebody acted
+  - **Not applicable:** what the person sees, how it looks, what it costs, and how it reaches
+    people. **Shown by:**
   - Zero for a day is treated as broken, not as quiet. *(from: the moonshot, failure is loud;
     moves: every figure)*
     - The rule, per figure, since some may legitimately read zero. **Shown by:** the
@@ -2407,6 +2980,10 @@ is for, the numbers; the moonshot, the instruments.*
 - **What people tap to say they bought or walked is reported as a sentence about those people
   and never as a rate.** *Kind: all kinds. Moves: scans per returning person per week. From:
   what the app is for, the outcome tap is a biased sample.*
+  - **How it looks:** a tap that is easy to ignore and easy to give. **Shown by:** the share
+    who tap, counted
+  - **How it sounds:** asking without nagging, since this is the app asking a favour. **Shown
+    by:** the wording read by somebody who has not seen it
   - The tap exists, because what a person did is worth knowing. *(from: what the app is for,
     the outcome tap; moves: scans per returning person per week)**Shown by:** the share of
     answers that get a tap, counted
@@ -2418,8 +2995,11 @@ is for, the numbers; the moonshot, the instruments.*
     numbers compared once the ledger runs.
 
 - **The join: one place where all ten are read at once, and it is read before any work is
-  chosen.** *Kind: all kinds. Moves: every figure. From: the fault list, twelve changes in
-  one day with neither the fault list nor the running score gaining a row, 2026-09-05.*
+  chosen.** *Kind: all kinds. Moves: every figure. From: the fault list, twelve changes in one
+  day with neither the fault list nor the running score gaining a row, 2026-09-05.*
+  - **Who runs it when it breaks:** it being read at the start of a pass, which is a habit and
+    fails like one. **Shown by:** the dates of the readings against the dates of the work
+  - **Not applicable:** what the person sees and how it reaches people. **Shown by:**
   - One screen or one command that shows all ten at once. *(from: the fault list, the running
     score with one row; moves: every figure)*
     - All ten in one place. **Shown by:** somebody who has never seen it finding all ten
@@ -2437,9 +3017,15 @@ is for, the numbers; the moonshot, the instruments.*
 *Kind: all kinds. Moves: installs. From: what the app is for, fast enough that using it is not a
 decision; the moonshot, it works with no signal.*
 
-- **Somewhere to run at an encrypted address, because a phone will not open its camera
-  without one.** *Kind: all kinds. Moves: installs. From: what the app is for, the order of
-  what cannot be taken back.*
+- **Somewhere to run at an encrypted address, because a phone will not open its camera without
+  one.** *Kind: all kinds. Moves: installs. From: what the app is for, the order of what
+  cannot be taken back.*
+  - **What the person sees:** the camera opening at all, which it will not do without this.
+    **Shown by:** a phone opening its camera against it
+  - **What it costs:** the monthly bill, which is the first real cost this project has.
+    **Shown by:** the first bill
+  - **Who runs it when it breaks:** it going down at a weekend, and who is woken. **Shown
+    by:** an outage forced, and the time until somebody acted
   - One address, encrypted, that a phone will open its camera against. *(from: what the app is
     for, the order of what cannot be taken back; moves: installs)*
     - Somewhere it runs that is not a laptop. **Shown by:** the laptop closed and the app
@@ -2469,9 +3055,19 @@ decision; the moonshot, it works with no signal.*
     - A restore done, not just a backup taken. **Shown by:** a restore into an empty place,
       and the rows counted.
 
-- **Real apps on both phone stores.** *Kind: all kinds. Moves: downloads, which is where
-  they are counted before an install is one. From: the fault list, it has to become an iOS and
+- **Real apps on both phone stores.** *Kind: all kinds. Moves: downloads, which is where they
+  are counted before an install is one. From: the fault list, it has to become an iOS and
   Android app.* [waits on: the name; a person can have everything deleted]
+  - **What the person sees:** an app that behaves like the other apps on their phone. **Shown
+    by:** the flow walked by somebody who has not seen it, on their own phone
+  - **How it looks:** a first screen that survives being seen for two seconds in a store
+    listing. **Shown by:** five people shown the listing and asked what the app does
+  - **What it costs:** two builds, two review processes, two sets of rules, forever. **Shown
+    by:** the hours for the first submission on each
+  - **What we are allowed to do:** each store's rules about data, permissions and claims.
+    **Shown by:** the listing checked against both
+  - **How it reaches people:** the store page is the last thing between a video and an
+    install. **Shown by:** the install rate from the page, counted
   - The camera, the sheet and the answer working as a real app rather than a page in a
     browser. *(from: the fault list, it has to become an iOS and Android app; moves:
     installs)*
@@ -2508,6 +3104,12 @@ decision; the moonshot, it works with no signal.*
   because a phone app cannot hold gigabytes (his constraint, 2026-09-05). *Kind: packaged and
   tech at chain retail. Moves: answer rate per kind. From: the moonshot, it works with no
   signal.*
+  - **What the person sees:** the same answers in a basement, with nothing to turn on. **Shown
+    by:** a scan in aeroplane mode by somebody who has not seen the app
+  - **What it costs:** the download itself costs a person their data allowance. **Shown by:**
+    the megabytes, measured on a real phone
+  - **Who runs it when it breaks:** a slice that goes stale on a phone that has not been on
+    wifi for a week. **Shown by:** the age of the slice on a phone, read
   - A small slice, prices only, sized for what this person is likely to scan. *(from: his
     constraint, 2026-09-05, that a phone cannot hold gigabytes; moves: answer rate per kind)*
     - What goes in it, and what is deliberately left out. **Shown by:** the size on disk, on a
@@ -2545,6 +3147,11 @@ decision; the moonshot, it works with no signal.*
 - **Under a second on a phone (untested target), which is not the same as under a second on a
   laptop.** *Kind: all kinds. Moves: return in week two. From: what the app is for, fast
   enough that using it is not a decision.*
+  - **What the person sees:** an answer that arrives before they decide to look away. **Shown
+    by:** the time measured on a real phone in a real store
+  - **How it looks:** what fills the time when it is not under a second. **Shown by:** the
+    waiting state watched by somebody
+  - **Not applicable:** what we are allowed to do, and how it reaches people. **Shown by:**
   - Measured on a phone on a real network, since every figure we have is from a laptop.
     *(from: what the app is for, today's figures are laptop figures; moves: return in week
     two)**Shown by:** the timing read on a phone on a real network.
@@ -2561,6 +3168,10 @@ decision; the moonshot, it works with no signal.*
 - **It stays up under a Saturday afternoon, and each answer costs under a twentieth of a cent
   before any model call (untested target).** *Kind: all kinds. Moves: what each payer leaves
   after the store's cut and the model bill. From: the moonshot, the infrastructure line.*
+  - **What the person sees:** the app working at the exact hour everybody is shopping. **Shown
+    by:** the answers at the busiest hour, timed
+  - **Who runs it when it breaks:** Saturday afternoon is when nobody is at a desk. **Shown
+    by:** a Saturday failure simulated, and the response timed
   - It survives the busiest hour of the week, tested before that hour arrives. *(from: the
     moonshot, its peak figure; moves: installs)*
     - What the busiest hour actually looks like, as a number. **Shown by:** the number written
@@ -2582,6 +3193,12 @@ decision; the moonshot, it works with no signal.*
   zero. *Kind: all kinds. Moves: payers per hundred downloads, since the promises above are
   only as good as the person behind them. From: the moonshot, decision in 24 hours and its
   zero-day page; the fault list, one program started by hand on one laptop.*
+  - **What the person sees:** a person answering them when the app got it wrong. **Shown by:**
+    a real message, and the hours to a reply
+  - **How it sounds:** the voice of a person answering, which is the app's voice with a human
+    behind it. **Shown by:** one reply read by somebody who has not seen it
+  - **What it costs:** hours per week, and what they are worth against automating each one.
+    **Shown by:** the hours logged for a month
   - What a person has to do each week for this to keep running, written down and then made
     smaller. *(from: the moonshot, the instruments; moves: what each payer leaves)*
     - The list written down, honestly. **Shown by:** a week logged by whoever does it.
@@ -2607,6 +3224,10 @@ decision; the moonshot, it works with no signal.*
 - **The join: one deployment, made from one command, that carries the app and every piece
   behind it together.** *Kind: all kinds. Moves: installs. From: the fault list, one program
   started by hand on one laptop with no address on the internet.*
+  - **Who runs it when it breaks:** a deployment that half succeeds, leaving a mix of
+    versions. **Shown by:** a failure forced mid-deploy, and the state afterwards
+  - **What it costs:** the time from a change to it running, which is the tax on every
+    improvement. **Shown by:** the minutes, measured on three real changes
   - One command puts the app and everything behind it up together. *(from: the fault list, one
     program started by hand; moves: installs)*
     - The command, run from a clean machine by somebody who has not done it. **Shown by:** the
@@ -2654,8 +3275,10 @@ Nothing yet.
 - **No piece is marked built or not built.** That marking reads the code and opens every
   citation, and it is the next pass. Until it runs, nothing here says a thing exists or is
   missing, and "one sitting" is about size, not about state.
-- **The bottom is uneven, and that is correct.** Ends sit at every depth: 8 at the second level,
-  114 at the third, 488 at the fourth, 66 at the fifth. What matters is that no end is still made
+- **The bottom is uneven, and that is correct.** Ends sit at every depth: 0 at the second level,
+  410 at the third, 488 at the fourth, 66 at the fifth. The third level grew most in the dimension
+  pass, because what the person sees, what it costs and who runs it are usually one job each,
+  while the machinery under the same parent is several. What matters is that no end is still made
   of parts, not that they all sit on one line.
 - **The fifth level is thin on purpose and is the next place to check.** Most fourth-level lines
   are single jobs; the sixty-six that were not have children. If a sixth level turns out to be
