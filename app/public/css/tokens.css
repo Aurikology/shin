@@ -52,13 +52,28 @@
   --fair-bright: #FFC24D;
   --fair-on: #1A1204;
 
-  --walk: #F0431F;
+  /* Was #F0431F until 2026-09-06. docs/design/DESIGN.md section 1 asserts these
+     pairings are "the only pairing that clears contrast on each field";
+     computed, this one did not. White on #F0431F is 3.80 against the 4.5 that
+     text under 24px needs, and camera.css draws the verdict's own sentence at
+     opacity .88, which dropped it to 3.23. Walk away is the outcome this
+     product exists to deliver, and five of seven scans end in it or a refusal.
+     Darkened 19% toward black rather than lightening the text, so the hue
+     survives: white now reads 5.48, and 4.57 at .88. */
+  --walk: #C23619;
+  /* Unchanged. This is text ON a dark tint, never a field behind text -- see
+     the confidence block in camera.css -- so it was never the failing pairing
+     the flaw list named. It reads 6.31 on its own tint. */
   --walk-bright: #FF6A45;
   --walk-on: #FFFFFF;
 
   /* Refusal is deliberately colourless. Red means the price is bad; it must
      never be read as "no data". */
-  --unknown: #78848F;
+  /* Was #78848F until 2026-09-06, failing the same way: --unknown-on on it
+     measured 3.51, and 3.09 at the .88 the refusal's sentence is drawn at. A
+     refusal is a success state here, so its reason has to be readable.
+     Darkened 22%: 5.29, and 4.53 at .88. */
+  --unknown: #5E6770;
   --unknown-bright: #93A0AC;
   --unknown-on: #F7F5F2;
 
@@ -76,6 +91,53 @@
   --pad: 18px;
   --tap: 48px;
   --shutter: 76px;
+
+  /* --- spacing, added 2026-09-06 ---
+     A sweep of the seven stylesheets found gaps of 5, 6, 7, 8, 10, 12, 14, 16
+     and 48px in use with no rule behind any of them, which is most of why the
+     panelled screens read as looser than the camera. The steps below are the
+     clusters that were already there, rounded to a 4px rhythm. --gap and --pad
+     above are unchanged and stay the defaults for a page and a stack; these are
+     for the cases that were reaching for a bare number. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+
+  /* --- type, docs/design/DESIGN.md section 2 ---
+     Roles, not a t-shirt ramp. A role can be checked against the spec and a
+     --fs-4 cannot, and the spec gives size, weight and tracking together
+     because that triple is what makes the price hero a price hero. Font sizes
+     found in use before this: 9.5, 10.5, 11.5, 12.5, 13.5, 14.5, and fifteen
+     others. Any currency figure uses tabular figures, everywhere, always. */
+  --t-price-size: 72px;         /* 64px under 380px wide, see the query below */
+  --t-price-weight: 800;
+  --t-price-track: -.03em;
+
+  --t-verdict-size: 34px;       /* sentence case, never shouting caps */
+  --t-verdict-weight: 800;
+  --t-verdict-track: -.02em;
+
+  --t-price2-size: 20px;
+  --t-price2-weight: 600;
+  --t-price2-track: -.01em;
+
+  --t-body-size: 16px;
+  --t-body-weight: 400;
+  --t-body-leading: 1.45;
+
+  --t-row-size: 16px;
+  --t-row-weight: 600;
+
+  --t-label-size: 11px;         /* mono, uppercase, provenance only */
+  --t-label-weight: 600;
+  --t-label-track: .12em;
+
+  /* The one figure style the whole product uses. */
+  --figures: tabular-nums;
 
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 28px -14px rgba(0, 0, 0, .7);
   --shadow-lift: 0 2px 8px rgba(0, 0, 0, .5), 0 20px 44px -22px rgba(0, 0, 0, .85);
@@ -124,10 +186,30 @@
        the light grounds get darker, which would open the gap back up. */
     --ink-faint: #606771;
 
-    --good-bright: #0E9E5B;
-    --fair-bright: #B87C13;
-    --walk-bright: #D63A18;
-    --unknown-bright: #67737E;
+/* Added 2026-09-06. Until now light theme re-themed the four -bright
+       variants and never the bases, and the bases are what [data-tier] binds
+       --tier to, so every piece of tier chrome in light theme was painted a
+       colour chosen for a near-black ground. Measured against --ground #F3F1EC:
+       good 2.32, fair 1.96, against the 3.0 a non-text graphic needs. Law 2 is
+       "hue is the verdict"; for the two most common non-refusal outcomes the hue
+       was not readable as a signal at all.
+       These clear both light grounds as chrome and carry --tier-on at 4.5 with
+       the .88 sentence still applied: good 5.53/4.78, fair 5.47/4.72,
+       walk 5.48/4.57, unknown 5.29/4.53. */
+    --good: #109F5C;
+    --fair: #BA801A;
+    --walk: #C23619;
+    --unknown: #5E6770;
+
+    /* Darkened 2026-09-06 from #0E9E5B / #B87C13 / #D63A18 / #67737E. In light
+       theme these are text -- the tier word on a saved row, the coverage yes/no,
+       the error line -- and on a 14% tint of their own base they are the thin and
+       refusal sheets' only text colour. All four now clear 4.5 on ground, on
+       surface, and on their own tint with the .88 applied. */
+    --good-bright: #0A6138;
+    --fair-bright: #6F4D0F;
+    --walk-bright: #9A2B14;
+    --unknown-bright: #4C535A;
 
     --shadow: 0 1px 2px rgba(20, 22, 26, .06), 0 8px 24px -14px rgba(20, 22, 26, .2);
     --shadow-lift: 0 2px 8px rgba(20, 22, 26, .08), 0 20px 44px -22px rgba(20, 22, 26, .3);
@@ -148,13 +230,40 @@
      choice); they must move together. */
   --ink-faint: #606771;
 
-  --good-bright: #0E9E5B;
-  --fair-bright: #B87C13;
-  --walk-bright: #D63A18;
-  --unknown-bright: #67737E;
+/* Added 2026-09-06. Until now light theme re-themed the four -bright
+     variants and never the bases, and the bases are what [data-tier] binds
+     --tier to, so every piece of tier chrome in light theme was painted a
+     colour chosen for a near-black ground. Measured against --ground #F3F1EC:
+     good 2.32, fair 1.96, against the 3.0 a non-text graphic needs. Law 2 is
+     "hue is the verdict"; for the two most common non-refusal outcomes the hue
+     was not readable as a signal at all.
+     These clear both light grounds as chrome and carry --tier-on at 4.5 with
+     the .88 sentence still applied: good 5.53/4.78, fair 5.47/4.72,
+     walk 5.48/4.57, unknown 5.29/4.53. */
+  --good: #109F5C;
+  --fair: #BA801A;
+  --walk: #C23619;
+  --unknown: #5E6770;
+
+  /* Darkened 2026-09-06 from #0E9E5B / #B87C13 / #D63A18 / #67737E. In light
+     theme these are text -- the tier word on a saved row, the coverage yes/no,
+     the error line -- and on a 14% tint of their own base they are the thin and
+     refusal sheets' only text colour. All four now clear 4.5 on ground, on
+     surface, and on their own tint with the .88 applied. */
+  --good-bright: #0A6138;
+  --fair-bright: #6F4D0F;
+  --walk-bright: #9A2B14;
+  --unknown-bright: #4C535A;
 
   --shadow: 0 1px 2px rgba(20, 22, 26, .06), 0 8px 24px -14px rgba(20, 22, 26, .2);
   --shadow-lift: 0 2px 8px rgba(20, 22, 26, .08), 0 20px 44px -22px rgba(20, 22, 26, .3);
+}
+
+/* DESIGN.md section 2 gives the price hero a second size on a narrow phone.
+   It lives with the token rather than in camera.css so the hero cannot be
+   restyled somewhere that does not know about the step. */
+@media (max-width: 379px) {
+  :root { --t-price-size: 64px; }
 }
 
 /*

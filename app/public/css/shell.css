@@ -159,8 +159,9 @@ body {
   color: var(--ground);
   cursor: pointer;
 }
-.cta:disabled { opacity: .34; cursor: default; }
-.cta:not(:disabled):active { transform: translateY(1px); }
+/* :disabled, :active, :focus-visible and the transition now come from
+   components.css, which applies them to every pressable in the app rather than
+   to this one. */
 
 .linky {
   display: block;
@@ -174,7 +175,9 @@ body {
   cursor: pointer;
   padding: 10px 0;
 }
-.linky:hover { color: var(--ink-muted); }
+/* :hover moved to components.css, where it is gated behind a real pointer.
+   Ungated, it sticks to the last thing tapped on a touch screen and reads as a
+   selection the user did not make. */
 
 /* A settings row: a label on the left, its current value on the right. */
 .rowbtn {
