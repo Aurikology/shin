@@ -266,6 +266,39 @@ const LINES = {
   },
 
   /* --- corrections --- */
+  /*
+   * Added 2026-09-06. These four arrived written once each, inline in a screen
+   * and in lib/persistence.js, during the UI pass -- which is the thing the
+   * capitals at the top of this file forbid. Three variants each, so they ship.
+   *
+   * The register, from PERSONALITIES above: Deadpan states it and stops, Warm
+   * is on your side about it, Blunt is short. Blunt is short at the situation
+   * and never at the person -- CLAUDE.md hard rule 4, the aggression points at
+   * the price, the store or the brand.
+   *
+   * The fact is identical in all three of each: same requirement, same
+   * consequence. Only the words move.
+   */
+  storage_not_kept: {
+    deadpan: () => 'This browser is not letting me keep anything. It works until you close the tab, then it is gone.',
+    warm: () => 'Heads up, this browser will not let me save anything. It all still works, it just will not be here next time.',
+    blunt: () => 'This browser blocks saving. Nothing here survives the tab closing.',
+  },
+  correct_gate_both: {
+    deadpan: () => 'I need the price and the shop before I can file this.',
+    warm: () => 'Just the price and the shop, then I can file it.',
+    blunt: () => 'Price and shop. Then I can file it.',
+  },
+  correct_gate_price: {
+    deadpan: () => 'Type the price on the tag.',
+    warm: () => 'Pop in the price from the tag.',
+    blunt: () => 'The price. Off the tag.',
+  },
+  correct_gate_seller: {
+    deadpan: () => 'Name the shop. A price with no shop cannot be compared to anything later.',
+    warm: () => 'Which shop was it? A price on its own cannot be compared to anything later.',
+    blunt: () => 'Which shop. A price with no shop is useless later.',
+  },
   correct_ask: {
     deadpan: () => 'What does it actually say?',
     warm: () => 'What is on the tag?',

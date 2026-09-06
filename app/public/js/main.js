@@ -40,7 +40,7 @@ for (const s of [camera, setup, watchlist, correct, share, you, pastscans, remov
  * labelled as such on the You page, rather than read from a server endpoint
  * that does not exist yet. Update this string when this pass's code changes.
  */
-export const BUILD_STAMP = '2026-09-04.1';
+export const BUILD_STAMP = '2026-09-06.1';
 
 /* Theme: three states, and no button in the chrome for it. The switch lives on
    the You screen, because it is a setting and not a primary act. */

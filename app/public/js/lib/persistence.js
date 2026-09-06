@@ -49,10 +49,10 @@ export function storagePersists() {
   return cached;
 }
 
-/**
- * The one line to show when it does not. Shin's register: says the fact, says
- * what still works, does not apologise and does not hedge. No variant per
- * personality, because `voice.js` is the home for personality-varied copy and
- * this file does not own it -- see the handoff note in the lane report.
+/*
+ * The line that goes with a false answer here lives in voice.js as
+ * `storage_not_kept`, with all three personalities, as of 2026-09-06. It was
+ * briefly a constant in this file, which voice.js's own opening rule forbids:
+ * no string Shin says is written inside anything but voice.js. This module
+ * answers the question; it does not phrase the answer.
  */
-export const NOT_KEPT = 'This browser is not letting me keep anything. It works until you close the tab, then it is gone.';

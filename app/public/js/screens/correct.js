@@ -38,7 +38,7 @@ import { escapeHtml, on } from '../lib/dom.js';
  * camera "0.50". One component, two hosts, and the copy was the worse one.
  */
 import { keypadHtml, pricePadDisplay } from './camera.js';
-import { storagePersists, NOT_KEPT } from '../lib/persistence.js';
+import { storagePersists } from '../lib/persistence.js';
 
 /**
  * The product this correction is about, best available.
@@ -85,9 +85,9 @@ function subjectOf(params) {
  * which is also the signal to print nothing.
  */
 function gateReason(typed, seller) {
-  if (!typed && !seller.trim()) return 'I need the price and the shop before I can file this.';
-  if (!typed) return 'Type the price on the tag.';
-  if (!seller.trim()) return 'Name the shop. A price with no shop cannot be compared to anything later.';
+  if (!typed && !seller.trim()) return say('correct_gate_both');
+  if (!typed) return say('correct_gate_price');
+  if (!seller.trim()) return say('correct_gate_seller');
   return null;
 }
 
@@ -160,7 +160,7 @@ export default {
              */
             storagePersists()
               ? ''
-              : `<p class="fineprint" role="status">${escapeHtml(NOT_KEPT)}</p>`
+              : `<p class="fineprint" role="status">${escapeHtml(say('storage_not_kept'))}</p>`
           }
 
           <div class="page-foot">

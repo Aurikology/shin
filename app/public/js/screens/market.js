@@ -13,7 +13,8 @@ import { shinSay } from '../shin.js';
 import * as store from '../store.js';
 import { escapeHtml, on } from '../lib/dom.js';
 import { wireRadioGroup } from '../lib/radiogroup.js';
-import { storagePersists, NOT_KEPT } from '../lib/persistence.js';
+import { storagePersists } from '../lib/persistence.js';
+import { say } from '../voice.js';
 
 const MARKETS = [
   { country: 'Canada', currency: 'CAD' },
@@ -71,7 +72,7 @@ export default {
              * accepting a pick it cannot keep, which store.js's persist()
              * swallows. See lib/persistence.js.
              */
-            storagePersists() ? '' : `<p class="fineprint" role="status">${escapeHtml(NOT_KEPT)}</p>`
+            storagePersists() ? '' : `<p class="fineprint" role="status">${escapeHtml(say('storage_not_kept'))}</p>`
           }
 
           <!--

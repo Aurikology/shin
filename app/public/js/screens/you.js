@@ -31,12 +31,12 @@
  * than as three pieces of dead furniture.
  */
 
-import { PERSONALITIES, setPersonality, personality } from '../voice.js';
+import { PERSONALITIES, setPersonality, personality, say } from '../voice.js';
 import { faceSvg, shinSay } from '../shin.js';
 import * as store from '../store.js';
 import { escapeHtml, on } from '../lib/dom.js';
 import { wireRadioGroup } from '../lib/radiogroup.js';
-import { storagePersists, NOT_KEPT } from '../lib/persistence.js';
+import { storagePersists } from '../lib/persistence.js';
 
 /**
  * The three themes, and the reason this is a radio group and not the cycling
@@ -163,7 +163,7 @@ export default {
              * The coverage block above already covers the engine; this covers
              * the device. See lib/persistence.js.
              */
-            storagePersists() ? '' : `<p class="fineprint" role="status">${escapeHtml(NOT_KEPT)}</p>`
+            storagePersists() ? '' : `<p class="fineprint" role="status">${escapeHtml(say('storage_not_kept'))}</p>`
           }
         </section>
 
