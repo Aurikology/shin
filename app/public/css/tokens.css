@@ -50,6 +50,15 @@
      the pad is not the only thing that knows. */
   --brand-ink: #FFFFFF;
 
+  /* Shin's own outline, and the only colour in this file that belongs to the
+     character rather than to the interface. It is INK_DEFAULT in
+     public/js/face-art.js, which is the source of truth; this is a copy so that
+     CSS can reach it, and test/faces.test.mjs asserts the two are equal so the
+     copy cannot drift. Used where a face is drawn on a page rather than on a
+     tier field -- on a field it inherits that field's ink on purpose, which is
+     what gives it its white sticker edge on a verdict. */
+  --face-ink: #12233A;
+
   /* --- verdict: base for chrome, bright for use over a camera feed --- */
   --good: #12B76A;
   --good-bright: #38E08B;

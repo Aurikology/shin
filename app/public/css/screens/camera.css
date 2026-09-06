@@ -44,26 +44,62 @@
  * The drawn shelf. Not a placeholder for a missing feature: a denied permission
  * and a desktop with no camera are normal, and the app has to be the same app.
  */
+/*
+ * Redrawn 2026-09-06. This is what a person sees on a desktop, on a denied
+ * permission, and in every screenshot of this product -- so it is not a
+ * throwaway, it is the backdrop the verdict is judged against.
+ *
+ * What it was: five saturated colours in a repeating-linear-gradient at exactly
+ * 42px each, hard 90-degree edges, under blur(2px). Uniform width plus hard
+ * edges plus saturation reads as a test pattern, and two pixels of blur is not
+ * a depth of field, so it looked like a broken image rather than an aisle.
+ *
+ * What it is now: irregular column widths so nothing repeats on a beat, colours
+ * pulled toward the ground so they read as objects in low light rather than
+ * swatches, and enough blur to actually be out of focus. The blur sits on this
+ * layer only; the reticle and every control above it stay sharp.
+ */
 .feed-fallback {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, #5a6169 0%, #4a5058 30%, #3d434a 31%, #464d54 62%, #383e44 63%, #42484f 100%);
-  filter: blur(2px);
+  background:
+    /* a warm pool where the reticle sits, so the centre reads as the subject */
+    radial-gradient(120% 80% at 50% 42%, rgba(255,238,214,.10) 0%, transparent 60%),
+    linear-gradient(180deg, #4c525a 0%, #434951 28%, #3b4148 46%, #40464e 64%, #343940 100%);
+  filter: blur(11px) saturate(.72);
+  /* The blur samples past the edges and would otherwise show a pale rim. */
+  transform: scale(1.08);
 }
 .feed-fallback .shelf {
   position: absolute;
-  left: 0; right: 0;
-  height: 84px;
-  background:
-    repeating-linear-gradient(90deg,
-      rgba(200,90,60,.55) 0 42px, rgba(220,165,60,.5) 42px 84px,
-      rgba(60,110,168,.5) 84px 126px, rgba(120,80,50,.5) 126px 168px,
-      rgba(60,120,80,.5) 168px 210px);
-  border-radius: 4px;
+  left: -6%; right: -6%;
+  height: 96px;
+  border-radius: 3px;
+  opacity: .9;
 }
-.feed-fallback .s1 { top: 22%; }
-.feed-fallback .s2 { top: 46%; }
-.feed-fallback .s3 { top: 70%; }
+/* Three shelves, three different rhythms: nothing lines up column to column,
+   which is what stops the eye reading a pattern. */
+.feed-fallback .s1 {
+  top: 20%;
+  background: linear-gradient(90deg,
+    rgba(150,84,64,.42) 0 8%, rgba(168,132,72,.38) 8% 19%, rgba(72,96,126,.40) 19% 27%,
+    rgba(122,92,70,.36) 27% 44%, rgba(84,110,88,.38) 44% 53%, rgba(150,84,64,.34) 53% 68%,
+    rgba(96,104,120,.36) 68% 81%, rgba(168,132,72,.34) 81% 100%);
+}
+.feed-fallback .s2 {
+  top: 45%;
+  background: linear-gradient(90deg,
+    rgba(96,104,120,.38) 0 13%, rgba(150,84,64,.36) 13% 22%, rgba(168,140,86,.40) 22% 38%,
+    rgba(76,100,112,.36) 38% 47%, rgba(122,92,70,.38) 47% 61%, rgba(84,110,88,.34) 61% 74%,
+    rgba(150,96,72,.36) 74% 88%, rgba(96,104,120,.34) 88% 100%);
+}
+.feed-fallback .s3 {
+  top: 70%;
+  background: linear-gradient(90deg,
+    rgba(122,92,70,.36) 0 11%, rgba(84,110,88,.34) 11% 24%, rgba(150,84,64,.36) 24% 35%,
+    rgba(96,104,120,.34) 35% 52%, rgba(168,132,72,.36) 52% 63%, rgba(76,100,112,.34) 63% 79%,
+    rgba(122,92,70,.34) 79% 100%);
+}
 
 .feed-vignette {
   position: absolute;
@@ -476,7 +512,21 @@
 .sheet-slot { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
 .sheet-slot > * { pointer-events: auto; }
 
+/*
+ * The sheet sits ON the camera, and until 2026-09-06 nothing said so: no
+ * outer shadow at all, so a flat tier fill met a flat feed on a hard line and
+ * the whole surface read as two rectangles rather than one thing over another.
+ * The lift is a variable because the confidence block below rewrites box-shadow
+ * per state and has to carry it through rather than replace it.
+ *
+ * The 1px top highlight is the sheet's own edge catching light. It sits on the
+ * very top border, above every piece of text, so it cannot change a measured
+ * contrast ratio -- which matters, because test/tokens.test.mjs computes those
+ * against the flat fill.
+ */
 .sheet {
+  --sheet-lift: 0 -1px 0 rgba(255,255,255,.13) inset, 0 -12px 34px -16px rgba(0,0,0,.7);
+  box-shadow: var(--sheet-lift);
   position: absolute;
   left: 0; right: 0;
   bottom: 0;
@@ -736,7 +786,12 @@
 .dots { display: inline-flex; gap: 5px; }
 .dots i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: block; }
 .dots i.off { opacity: .3; }
-.conf-label, .itemname {
+/*
+ * The confidence line is provenance -- a source count and how sure the engine
+ * is about them -- so it keeps the mono face DESIGN.md section 2 reserves for
+ * exactly that: "seller names, dates, source counts, timestamps".
+ */
+.conf-label {
   font-family: var(--f-mono);
   font-size: 10px;
   letter-spacing: .11em;
@@ -744,7 +799,34 @@
   opacity: .88;
   margin: 0;
 }
-.itemname { opacity: .88; }
+
+/*
+ * The item name is NOT provenance, and it was sharing the rule above: mono,
+ * 10px, uppercase, tracked out. So the verdict surface carried two stacked
+ * lines of tracked mono caps under the price, which is heavy to look at and
+ * genuinely hard to read at length -- "KRAFT DINNER ORIGINAL MACARONI & CHEESE
+ * 225G" is forty-four characters of it.
+ *
+ * It is a product name, so it takes the interface face in the case the
+ * catalogue actually stored, which is also what section 2 says: Instrument Sans
+ * carries "every piece of UI", and the mono face is reserved rather than
+ * decorative. Reserving it means not spending it here.
+ */
+.itemname {
+  font-family: var(--f-ui);
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: .88;
+  margin: 0;
+  /* Two lines is a long product name; three is the catalogue being verbose at
+     the user, on the one surface that is meant to be read at a glance. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
 /* The placeholder state label, on a verdict field.
    shell.css gives .face-label --ink-faint, which is chosen against --ground and
@@ -876,7 +958,38 @@
   min-height: var(--tap);
   border: 1px solid transparent;
 }
-.pill.solid { background: rgba(0,0,0,.26); color: inherit; border-color: rgba(255,255,255,.16); }
+/*
+ * The primary action, inverted out of the field it sits on.
+ *
+ * It was rgba(0,0,0,.26) -- a 26% black wash on the tier colour, no elevation,
+ * 14px -- which made the one thing the user is meant to do the quietest element
+ * on the surface. On the walk field it was a slightly darker red rectangle
+ * inside a red rectangle.
+ *
+ * Inverting costs no new colour and no new decision: --tier-on is already the
+ * ink this field carries, and DESIGN.md section 1 picked that pair precisely
+ * because it clears contrast on this field. Swapping which side is the fill
+ * keeps the same measured ratio (5.48 on walk, 7.21 on good) and turns the
+ * action into the highest-contrast object on the screen, which is what it is.
+ *
+ * Still no brand pink: this is the verdict surface, and pink is never a verdict.
+ */
+.pill.solid {
+  background: var(--tier-on, var(--ink));
+  color: var(--tier, var(--ground));
+  border-color: transparent;
+  font-size: var(--t-row-size);
+  font-weight: 700;
+  letter-spacing: -.01em;
+  /* Lifted off the field. The field is flat by design, so the only thing that
+     can say "this is on top" is the shadow. */
+  box-shadow: 0 1px 2px rgba(0,0,0,.18), 0 6px 16px -8px rgba(0,0,0,.45);
+}
+@media (hover: hover) and (pointer: fine) {
+  .pill.solid:hover { filter: brightness(.96); }
+}
+.pill.solid:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+@media (prefers-reduced-motion: reduce) { .pill.solid:active { transform: none; } }
 .pill.ghost { background: transparent; color: inherit; border-color: currentColor; opacity: .88; }
 .pill:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
@@ -1280,7 +1393,7 @@
 .sheet[data-conf="sure"] {
   background: var(--tier);
   color: var(--tier-on);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.28);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.28), var(--sheet-lift);
 }
 
 /*

@@ -10,11 +10,27 @@
  * drops" is a capability claim this build cannot honour. Reverses when a
  * re-queryable source ships for the lead category (USAGE.md section 5).
  *
- * `placeholderLabels` prints the state name under the placeholder face
- * (AVATAR.md section 6). Setting it false is the entire art hand-off: nothing
- * else changes.
+ * `placeholderLabels` printed the state name under the placeholder face
+ * (AVATAR.md section 6), and this file said setting it false "is the entire art
+ * hand-off: nothing else changes."
+ *
+ * Turned off 2026-09-06, because the hand-off happened. The faces are no longer
+ * placeholders: face-art.js draws all thirteen Deadpan states, build-faces.mjs
+ * generates them to public/faces/deadpan/*.svg, and test/faces.test.mjs fails if
+ * the two ever disagree. The condition the flag was waiting for is met.
+ *
+ * What it was costing while it stayed on: every face on every screen printed its
+ * own internal state name underneath itself, in mono caps -- "ANGRY" under the
+ * verdict, "FAIR" on the profile, "ASLEEP" on an empty list. That is debug
+ * output, on the surface, in front of users. It also measured 1.63 against the
+ * walk field until it was repointed at the field's own ink earlier today, which
+ * is a lot of work spent making a debug string legible.
+ *
+ * Warm and Blunt still have no art of their own and fall back to Deadpan. That
+ * is a real gap and it is tracked, but a state name in mono caps was never what
+ * made it visible, so it is not a reason to keep printing one.
  */
 export const FLAGS = {
   feed: false,
-  placeholderLabels: true,
+  placeholderLabels: false,
 };

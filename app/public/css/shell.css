@@ -259,17 +259,43 @@ body {
 }
 .mini-shutter:active { transform: scale(.94); }
 
+/*
+ * An empty list is a screen Shin is on, not a gap where content failed. It was
+ * being drawn as one: 46px of padding at the top of a flex column whose items
+ * do not grow, so on a phone the face and its line sat under the heading and
+ * left roughly seven hundred pixels of nothing beneath the two nav rows.
+ *
+ * Growing rather than shrinking. `.page > *` is flex: none on purpose -- the
+ * comment above it records a share card being squeezed into a letterbox -- so
+ * this takes the slack explicitly and centres in it, which puts Shin in the
+ * middle of the space he is meant to occupy and leaves the rows where the thumb
+ * expects them.
+ */
 .empty {
   text-align: center;
-  padding: 46px 12px;
+  padding: 32px 12px;
   color: var(--ink-faint);
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 14px;
 }
+.page > .empty { flex: 1 0 auto; }
 .empty p { margin: 0; max-width: 26ch; font-size: 14.5px; }
-.empty .face { color: var(--ink-faint); }
+
+/*
+ * The face keeps its own colours here.
+ *
+ * This used to set `color: var(--ink-faint)`, and the character is drawn with
+ * `stroke="currentColor"` -- so the one place Shin appears at full size on an
+ * otherwise bare screen was also the one place his outline was overridden to
+ * grey. He came out washed out and slightly ill next to the same character
+ * drawn correctly on the verdict.
+ *
+ * Only the line under him is muted, which is what --ink-faint is for.
+ */
+.empty .face { color: var(--face-ink); }
 
 .face { display: block; }
 

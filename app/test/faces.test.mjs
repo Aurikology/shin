@@ -17,13 +17,23 @@ import { readFileSync, existsSync } from 'node:fs';
 const lf = (s) => s.replace(/\r\n/g, '\n');
 
 import { fileURLToPath } from 'node:url';
-import { FACE_SETS, FACE_STATES, standaloneSvg, faceInner } from '../public/js/face-art.js';
+import { FACE_SETS, FACE_STATES, standaloneSvg, faceInner, INK_DEFAULT } from '../public/js/face-art.js';
 import { contractProblems } from '../scripts/build-faces.mjs';
 
 const CONTRACT = [
   'idle', 'thinking', 'asking', 'good', 'delighted', 'fair', 'walk', 'angry',
   'unknown', 'pleased', 'nudging', 'asleep', 'proud',
 ];
+
+test('tokens.css --face-ink matches the module INK_DEFAULT', () => {
+  const css = lf(readFileSync(fileURLToPath(new URL('../public/css/tokens.css', import.meta.url)), 'utf8'));
+  const m = /--face-ink:\s*(#[0-9a-fA-F]{3,8})/.exec(css);
+  assert.ok(m, 'tokens.css no longer defines --face-ink');
+  assert.equal(
+    m[1].toUpperCase(), INK_DEFAULT.toUpperCase(),
+    "the CSS copy of Shin's outline colour has drifted from face-art.js",
+  );
+});
 
 test('the thirteen states are exactly the contract list', () => {
   assert.deepEqual([...FACE_STATES].sort(), [...CONTRACT].sort());
