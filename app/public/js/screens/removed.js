@@ -75,7 +75,13 @@ export default {
      * build -- `store.get()` is synchronous localStorage -- and is stated as
      * such rather than left to be found. The long version is in watchlist.js.
      */
-    let phase = 'ready';
+    /*
+     * An unreadable store is an error, not an empty list. store.loadFault()
+     * says whether the last read failed to parse or was blocked outright; if
+     * it did, this screen opens in its error state rather than drawing "you
+     * have saved nothing" over somebody's actual data.
+     */
+    let phase = store.loadFault() ? 'error' : 'ready';
 
     store.purgeRemoved();
 

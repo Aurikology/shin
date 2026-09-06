@@ -174,7 +174,13 @@ export default {
      * (FLAGS.feed), and because the copy for it should be decided once, beside
      * the error copy, not improvised on the day the read becomes a fetch.
      */
-    let phase = 'ready';
+    /*
+     * An unreadable store is an error, not an empty list. store.loadFault()
+     * says whether the last read failed to parse or was blocked outright; if
+     * it did, this screen opens in its error state rather than drawing "you
+     * have saved nothing" over somebody's actual data.
+     */
+    let phase = store.loadFault() ? 'error' : 'ready';
 
     function paint() {
       const s = store.get();

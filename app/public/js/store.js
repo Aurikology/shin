@@ -110,12 +110,46 @@ function purgeExpired(s) {
   return removed.length === s.removed.length ? s : { ...s, removed };
 }
 
+/**
+ * Why the last read came back empty, or null if it did not fail.
+ *
+ * `load()` used to collapse two situations that are not the same thing: a
+ * person who has saved nothing yet, and a person whose saved things could not
+ * be read. Both produced EMPTY, so every list screen drew its empty state --
+ * "Nothing saved yet" over somebody's actual watchlist -- and the error branch
+ * those screens grew on 2026-09-06 could never fire, because nothing told them.
+ *
+ *   'corrupt'  the stored JSON did not parse
+ *   'blocked'  localStorage threw on read (private window, site data blocked)
+ */
+let fault = null;
+
+/** @returns {null | 'corrupt' | 'blocked'} */
+export function loadFault() {
+  return fault;
+}
+
 function load() {
+  let raw;
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return { ...EMPTY };
+    raw = localStorage.getItem(KEY);
+  } catch {
+    fault = 'blocked';
+    return { ...EMPTY };
+  }
+  if (!raw) return { ...EMPTY };
+  try {
     return purgeExpired(migrate({ ...EMPTY, ...JSON.parse(raw) }));
   } catch {
+    fault = 'corrupt';
+    /*
+     * Keep the unreadable blob before anything overwrites it. The next
+     * `update()` persists this EMPTY state straight over it, so without this
+     * line a single bad byte costs a person their whole watchlist and scan
+     * history permanently -- and this data has the same property the
+     * corrections database does: nothing can rebuild it.
+     */
+    try { localStorage.setItem(`${KEY}.unreadable`, raw); } catch { /* nothing more to try */ }
     return { ...EMPTY };
   }
 }
