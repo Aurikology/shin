@@ -186,3 +186,18 @@ has cost something recorded twice. One incident is a lesson. Two is a rule.
   reflex, not a judgement, so it went to a mechanism rather than to prose: `scripts/count-the-tree.mjs`
   counts the tree and fails when the document's own prose disagrees with the file. Fired live the
   same session: passing on the real file, failing on a copy with one number changed.
+
+- **2026-09-06 · A dimension is an aspect of a thing, not a part of it, and writing 307 of them as
+  children broke the tree they were meant to improve.** His criticism was right: *"the solutions
+  you've stated only cover one dimension and it's often only in the backend aspect."* Measured
+  across 1,007 lines: machinery 28%, what the person sees 15%, how it looks and sounds 5.6%. The
+  fix I built put a child under every node for each dimension, which produced 307 lines nobody
+  could build ("what it costs: this is the difference between a bill that scales with users and one
+  that does not") and made the sufficiency test unanswerable for all 98 nodes at once, since a node
+  whose children include "what it costs" can have every child exist with nothing built. A reader
+  adjudicated 150 ends and found 91% of those lines failing the document's own test. **Changed:**
+  the review is recorded on the node as a note, not as a child, and the eight pieces of genuinely
+  unplanned work it surfaced became ordinary children phrased as work. The shape worth keeping: a
+  checklist applied to a thing produces findings, and findings are not the same kind of object as
+  the thing's parts. Filing them as parts inflates every count meant to measure whether the parts
+  are complete.
