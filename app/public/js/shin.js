@@ -18,6 +18,7 @@
 
 import { personality, say } from './voice.js';
 import { FLAGS } from './flags.js';
+import { FACE_SETS, faceInner, faceParts } from './face-art.js';
 
 /**
  * Six size tokens, docs/design/AVATAR.md section 3. Never below 28px anywhere,
@@ -53,66 +54,16 @@ export function tierOf(tierId) {
 }
 
 /**
- * Face geometry, keyed by personality then expression.
- *
- * Deadpan moves least: small eyes, near-flat mouths, brows that barely tilt.
- * Warm is rounder and blinks more. Blunt has the heaviest brow and the biggest
- * mouth deltas. The user picks which one they get, which is a recorded decision
- * and the reason every one of these has three variants.
+ * The face art lives in `face-art.js`: the character (head and upper body on
+ * a circle) and the thirteen states, each as a set of swappable parts. Only
+ * the Deadpan treatment is drawn so far; Warm and Blunt fall back to it, so
+ * the attitude picker's three faces differ in voice but not yet in face.
+ * `data-who` still records the personality asked for, so nothing has to
+ * change at the call sites when those two sets land.
  */
-const GEOM = {
-  deadpan: {
-    eyeR: 3.8, stroke: 3.2,
-    good: { brow: 'M24 31 L38 30M50 30 L64 31', mouth: 'M30 59 Q44 67 58 59' },
-    fair: { brow: 'M24 31 L38 31M50 31 L64 31', mouth: 'M30 62 L58 62' },
-    walk: { brow: 'M24 27 L38 32M64 27 L50 32', mouth: 'M30 66 Q44 58 58 66' },
-    unknown: { brow: 'M25 30 L37 30M51 30 L63 30', mouth: 'M31 63 Q38 59 44 63 Q50 67 57 63' },
-    thinking: { brow: 'M24 31 L38 31M50 31 L64 31', mouth: null },
-    pleased: { brow: 'M24 30 L38 29M50 29 L64 30', mouth: 'M29 58 Q44 70 59 58' },
-    /* --- the seven added states, section 2 --- */
-    idle: { brow: 'M25 31 L39 31M49 31 L63 31', mouth: 'M31 61 L57 61' },
-    asking: { brow: 'M24 29 L38 32M50 32 L64 29', mouth: 'M40 59 Q44 64 48 59 Q44 62 40 59' },
-    delighted: { brow: 'M23 29 L38 27M50 27 L65 29', mouth: 'M28 57 Q44 71 60 57' },
-    angry: { brow: 'M23 25 L38 33M65 25 L50 33', mouth: 'M28 68 Q44 56 60 68' },
-    nudging: { brow: 'M24 28 L38 31M50 31 L64 28', mouth: 'M32 60 Q44 64 56 60' },
-    asleep: { brow: 'M25 33 L37 33M51 33 L63 33', mouth: 'M33 61 L55 61', closedEyes: true },
-    proud: { brow: 'M24 30 L38 28M50 28 L64 30', mouth: 'M31 58 Q44 64 57 58' },
-  },
-  warm: {
-    eyeR: 4.6, stroke: 3.4,
-    good: { brow: 'M23 30 Q31 25 39 29M49 29 Q57 25 65 30', mouth: 'M27 57 Q44 74 61 57' },
-    fair: { brow: 'M23 30 Q31 28 39 30M49 30 Q57 28 65 30', mouth: 'M30 61 Q44 66 58 61' },
-    walk: { brow: 'M23 28 Q31 24 39 31M65 28 Q57 24 49 31', mouth: 'M29 67 Q44 57 59 67' },
-    unknown: { brow: 'M24 30 Q31 27 38 30M50 30 Q57 27 64 30', mouth: 'M30 63 Q37 58 44 63 Q51 68 58 63' },
-    thinking: { brow: 'M23 30 Q31 28 39 30M49 30 Q57 28 65 30', mouth: null },
-    pleased: { brow: 'M23 29 Q31 23 39 28M49 28 Q57 23 65 29', mouth: 'M26 56 Q44 78 62 56' },
-    /* --- the seven added states, section 2 --- */
-    idle: { brow: 'M23 30 Q31 29 39 30M49 30 Q57 29 65 30', mouth: 'M28 60 Q44 63 60 60' },
-    asking: { brow: 'M23 27 Q31 22 39 30M49 30 Q57 27 65 26', mouth: 'M39 58 Q44 67 49 58 Q44 63 39 58' },
-    delighted: { brow: 'M23 27 Q31 21 39 28M49 28 Q57 21 65 27', mouth: 'M25 55 Q44 80 63 55' },
-    angry: { brow: 'M23 26 Q31 21 39 32M65 26 Q57 21 49 32', mouth: 'M27 70 Q44 54 61 70' },
-    nudging: { brow: 'M23 28 Q31 24 39 29M49 29 Q57 24 65 28', mouth: 'M29 59 Q44 65 59 59' },
-    asleep: { brow: 'M23 31 Q31 30 39 31M49 31 Q57 30 65 31', mouth: 'M30 62 Q44 65 58 62', closedEyes: true },
-    proud: { brow: 'M23 28 Q31 24 39 29M49 29 Q57 24 65 28', mouth: 'M27 57 Q44 71 61 57' },
-  },
-  blunt: {
-    eyeR: 4.0, stroke: 4.0,
-    good: { brow: 'M23 30 L39 27M49 27 L65 30', mouth: 'M28 58 Q44 70 60 58' },
-    fair: { brow: 'M23 29 L39 30M49 30 L65 29', mouth: 'M28 62 L60 62' },
-    walk: { brow: 'M22 24 L40 34M66 24 L48 34', mouth: 'M27 69 Q44 55 61 69' },
-    unknown: { brow: 'M23 29 L39 29M49 29 L65 29', mouth: 'M30 64 Q37 59 44 64 Q51 69 58 64' },
-    thinking: { brow: 'M23 29 L39 30M49 30 L65 29', mouth: null },
-    pleased: { brow: 'M22 28 L40 24M48 24 L66 28', mouth: 'M26 57 Q44 74 62 57' },
-    /* --- the seven added states, section 2 --- */
-    idle: { brow: 'M23 30 L39 30M49 30 L65 30', mouth: 'M28 62 L60 62' },
-    asking: { brow: 'M22 26 L40 31M48 31 L66 25', mouth: 'M38 58 Q44 68 50 58 Q44 63 38 58' },
-    delighted: { brow: 'M22 27 L40 23M48 23 L66 27', mouth: 'M26 56 Q44 74 62 56' },
-    angry: { brow: 'M21 22 L41 34M67 22 L47 34', mouth: 'M25 71 Q44 52 63 71' },
-    nudging: { brow: 'M22 25 L40 29M48 29 L66 25', mouth: 'M30 60 Q44 66 58 60' },
-    asleep: { brow: 'M23 30 L39 30M49 30 L65 30', mouth: 'M31 63 L57 63', closedEyes: true },
-    proud: { brow: 'M22 28 L40 25M48 25 L66 28', mouth: 'M26 57 Q44 72 62 57' },
-  },
-};
+function artWho(who) {
+  return FACE_SETS[who] ? who : 'deadpan';
+}
 
 /** The thirteen state names, docs/design/AVATAR.md section 6, list 1. */
 export const STATES = [
@@ -161,27 +112,47 @@ export const DEFAULT_ANIM = {
   proud: 'proud-hold',
 };
 
-/** States that get a natural, un-synchronised random blink: idle and the
- * verdict faces. Not `unknown` -- its only motion is `slow-blink`. Not
- * `thinking`/`nudging`/`asleep`/`proud`/`pleased` -- each of those already owns
- * a dedicated motion of its own. */
-const BLINK_EMBER_STATES = new Set(['idle', 'asking', 'good', 'fair', 'walk', 'delighted', 'angry']);
+/** States that get a natural, un-synchronised random blink: `idle` and
+ * `asking`, exactly the two AVATAR.md section 5 row 3 names. Not the verdict
+ * faces: once a verdict has landed the expression is fixed until a new scan
+ * (section 5's rules), and a blink on a landed verdict is motion under the
+ * reader. Not `unknown` -- its only motion is `slow-blink`. Not
+ * `thinking`/`nudging`/`asleep`/`proud`/`pleased` -- each already owns a
+ * dedicated motion of its own. */
+const BLINK_EMBER_STATES = new Set(['idle', 'asking']);
 
-function dotsMarkup(ink) {
-  return `<circle cx="33" cy="61" r="2.6" fill="${ink}" stroke="none"/>
-       <circle cx="44" cy="61" r="2.6" fill="${ink}" stroke="none"/>
-       <circle cx="55" cy="61" r="2.6" fill="${ink}" stroke="none"/>`;
+/** How far behind the eyes and brow the mouth lands, per animation, in ms.
+ * `face-morph` is the 40ms of section 5 row 1; `intense-hold` widens it to
+ * 60 (row 8); `verdict-land` is 0 because the expression must already be set
+ * before the rise (row 7). face.css delays the mouth's own fade by the same
+ * amount, so the DOM swap and the fade agree. Anything else: 40. */
+const MOUTH_STAGGER_MS = { 'face-morph': 40, 'intense-hold': 60, 'verdict-land': 0 };
+
+/** `proud-hold` grows a 28px row face to 40px (section 5 row 13). On a
+ * bigger face the same 12px of growth is kept, not the same ratio, so a 64px
+ * face does not balloon to 91px. */
+function proudPeakFor(el) {
+  const px = Number(el.getAttribute?.('width')) || el.clientWidth || SIZE_TOKENS['face-row'];
+  return ((px + 12) / px).toFixed(4);
 }
 
-function openEyesMarkup(ink, eyeR) {
-  return `<circle cx="31" cy="44" r="${eyeR}" fill="${ink}"/>
-       <circle cx="57" cy="44" r="${eyeR}" fill="${ink}"/>`;
+/** The label a `step-swap` crossfades: the current working step beside the
+ * face, or failing that the speech-bubble line. Never the face. */
+function labelBeside(el) {
+  const host = el.closest?.('.working-peek, .sheet, .shin-say') ?? el.parentElement;
+  return host?.querySelector?.('.wstep.now') ?? host?.querySelector?.('.bubble-text') ?? null;
 }
 
-function closedEyesMarkup(ink, stroke) {
-  const w = (stroke * 0.75).toFixed(2);
-  return `<path d="M27 44 Q31 47.5 35 44" stroke="${ink}" stroke-width="${w}" fill="none" stroke-linecap="round"/>
-       <path d="M53 44 Q57 47.5 61 44" stroke="${ink}" stroke-width="${w}" fill="none" stroke-linecap="round"/>`;
+/** Restart a one-shot CSS animation on any element by toggling a class off
+ * and on across a forced reflow, then drop the class once it has played.
+ * Exported so a screen can crossfade a line of its own (`step-swap-run`,
+ * 160ms; `line-fade-run`, 260ms) without reaching into the face. */
+export function runClassAnimation(el, className, ms) {
+  if (!el) return;
+  el.classList.remove(className);
+  forceStyle(el);
+  el.classList.add(className);
+  window.setTimeout(() => el.classList.remove(className), ms + 40);
 }
 
 /**
@@ -191,6 +162,12 @@ function closedEyesMarkup(ink, stroke) {
  * a standalone SVG document does not, so without it any screen that rasterises
  * this face onto a canvas gets a silently broken image and throws nothing. That
  * happened once already and the share card shipped a face with no eyebrows.
+ *
+ * The outline, brows and mouth are drawn in `currentColor`. Inline, that is
+ * whatever `color` the face inherits (the tier hue on a verdict, `ink-faint`
+ * on a row). For a rasterised export there is no cascade, so `opts.ink` is
+ * written as a `color` attribute on the root and `currentColor` resolves to
+ * it inside the <img>.
  *
  * The face also carries `data-anim`, the default animation for this state
  * (`docs/design/AVATAR.md` section 5), and `data-state`/`data-who`, which
@@ -206,43 +183,28 @@ function closedEyesMarkup(ink, stroke) {
  * @param {object} [opts]
  * @param {number|string} [opts.size]  a token name (`'face-page'`) or a raw px
  *   number. Defaults to `face-verdict` (96) and is never rendered under 28px.
- * @param {string} [opts.ink]     stroke colour, defaults to the current tier
+ * @param {string} [opts.ink]     outline colour for a standalone render;
+ *   inline faces inherit `color` instead
  * @param {string} [opts.who]     personality override, defaults to the user's
  */
 export function faceSvg(expression, opts = {}) {
   const who = opts.who ?? personality();
-  const set = GEOM[who] ?? GEOM.deadpan;
-  // Every one of the thirteen states has its own entry in every personality
-  // (checked by scripts/verify-faces used in the build pass). The ?? here is
-  // a guard against a typo'd expression name, never a real fallback.
-  const g = set[expression] ?? set.fair;
+  // Every one of the thirteen states is drawn (test/faces.test.mjs checks the
+  // list against the contract). A typo'd name falls back to `fair` inside
+  // faceInner, never to a blank.
+  const state = STATES.includes(expression) ? expression : 'fair';
   const size = resolveSize(opts.size);
-  const ink = opts.ink ?? 'currentColor';
-  const isRefusal = expression === 'unknown';
+  const colorAttr = opts.ink ? ` color="${opts.ink}"` : '';
   const rowSized = size === SIZE_TOKENS['face-row'];
 
-  // Thinking has no mouth path; it has three dots, which reads as waiting
-  // rather than as an opinion Shin has not formed yet.
-  const mouth = g.mouth ? `<path d="${g.mouth}"/>` : dotsMarkup(ink);
-
-  // Asleep is the one state with its eyes shut. Everything else keeps the
-  // filled circles; a closed eye anywhere else would read as a wink, not rest.
-  const eyes = g.closedEyes ? closedEyesMarkup(ink, set.stroke) : openEyesMarkup(ink, set.eyeR);
-
-  const animName = rowSized ? null : (DEFAULT_ANIM[expression] ?? null);
+  const animName = rowSized ? null : (DEFAULT_ANIM[state] ?? null);
   const animAttr = rowSized ? ' data-anim="none"' : (animName ? ` data-anim="${animName}"` : '');
   const staticClass = rowSized ? ' face-static' : '';
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 88" width="${size}" height="${size}"
-       role="img" aria-label="Shin: ${expression}" class="face face-${expression}${staticClass}"
-       data-state="${expression}" data-who="${who}"${animAttr} focusable="false">
-      <circle class="face-ring" cx="44" cy="44" r="41" fill="none" stroke="${ink}" stroke-width="${set.stroke}"
-              ${isRefusal ? 'stroke-dasharray="9 7"' : ''}/>
-      <g class="face-features" stroke="${ink}" stroke-width="${set.stroke}" stroke-linecap="round" fill="none">
-        <path class="face-brow" d="${g.brow}"/>
-        <g class="face-mouth">${mouth}</g>
-      </g>
-      <g class="face-eyes">${eyes}</g>
+       role="img" aria-label="Shin: ${state}" class="face face-${state}${staticClass}"
+       data-state="${state}" data-who="${who}"${animAttr}${colorAttr} focusable="false">
+  ${faceInner(artWho(who), state)}
     </svg>`;
 }
 
@@ -263,34 +225,82 @@ export function faceSvg(expression, opts = {}) {
  */
 export function animateFace(el, name) {
   if (!el || !ANIMATION_SET.has(name)) return;
-  if (el.dataset && el.dataset.anim === 'none') return; // face-row: never animates
+  const rowSized = el.dataset && el.dataset.anim === 'none';
 
-  if (prefersReducedMotion()) {
-    // Reduced motion still records which animation "happened", so CSS's own
-    // reduced-motion block (every entry becomes an opacity fade or a static
-    // frame, AVATAR.md section 5) can render the right final frame.
-    if (el.dataset) el.dataset.anim = name;
+  // step-swap is a label crossfade and nothing else (section 5 row 6): the
+  // face does not move and its steady animation (think-dots) is left
+  // running. It never touches `data-anim`.
+  if (name === 'step-swap') {
+    runClassAnimation(labelBeside(el), 'step-swap-run', 160);
+    return;
+  }
+
+  // Row faces never animate, with one contract-named exception: proud-hold
+  // is written *at* 28px ("the row face grows from 28px to 40px", row 13), so
+  // an explicit call lifts the gate for exactly its 400ms and puts it back.
+  // Nothing automatic reaches this branch; a scrolling list never does.
+  if (rowSized) {
+    if (name !== 'proud-hold') return;
+    el.classList.remove('face-static');
+    el.style.setProperty('--proud-peak', proudPeakFor(el));
+    restartAnim(el, name);
+    window.setTimeout(() => {
+      el.dataset.anim = 'none';
+      el.classList.add('face-static');
+      el.style.removeProperty('--proud-peak');
+    }, 440);
     return;
   }
 
   if (name === 'blink') {
-    triggerBlink(el);
+    // Under reduced motion the eyes stay open (row 3): face.css kills the
+    // class's animation, so toggling it is harmless, but skip the work.
+    if (!prefersReducedMotion()) triggerBlink(el);
     return;
   }
 
-  if (el.dataset) el.dataset.anim = name;
-  el.classList.remove('face-anim-run');
-  // Force a reflow so re-adding the class restarts the CSS animation even
-  // when the name (and therefore the animation-name) did not change.
-  void el.offsetWidth;
-  el.classList.add('face-anim-run');
+  // slow-blink layers on the eyes as a class, the way blink does, so calling
+  // it 340ms into a refusal's verdict-land does not cut the landing short by
+  // rewriting `data-anim` under it. A freshly mounted `unknown` face still
+  // blinks once from its own `data-anim="slow-blink"` default.
+  if (name === 'slow-blink') {
+    runClassAnimation(el, 'face-slow-blink-now', 520);
+    return;
+  }
+
+  if (name === 'proud-hold') el.style.setProperty('--proud-peak', proudPeakFor(el));
+  restartAnim(el, name);
+}
+
+/**
+ * Write `data-anim` so that the CSS animation restarts even when the name did
+ * not change (asking -> asking on a repeated hint, a second verdict-land on
+ * the same face). Every rule in face.css keys off `data-anim`, on the face and
+ * on its groups alike, so clearing it across a forced reflow resets all of
+ * them at once. Reduced motion takes the same path: the CSS block decides
+ * whether the result is a fade or a static frame, not this function.
+ */
+function restartAnim(el, name) {
+  if (!el.dataset) return;
+  const same = el.dataset.anim === name;
+  if (same) {
+    el.dataset.anim = '';
+    forceStyle(el);
+  }
+  el.dataset.anim = name;
+}
+
+/** Force a style flush so a removed-then-re-added animation actually restarts.
+ * `offsetWidth` is the usual trick but an <svg> element has none (it is
+ * undefined, and reading it flushes nothing); `getBoundingClientRect` works
+ * on SVG and HTML alike. */
+function forceStyle(el) {
+  if (typeof el.getBoundingClientRect === 'function') void el.getBoundingClientRect();
+  else void el.offsetWidth;
 }
 
 function triggerBlink(el) {
-  el.classList.remove('face-blink-now');
-  void el.offsetWidth;
-  el.classList.add('face-blink-now');
-  window.setTimeout(() => el.classList.remove('face-blink-now'), 200);
+  runClassAnimation(el, 'face-blink-now', 140);
 }
 
 /**
@@ -313,53 +323,67 @@ function triggerBlink(el) {
  * @param {string} toState        the state to morph into
  * @param {object} [opts]
  * @param {string} [opts.who]     personality override, defaults to the face's own
- * @param {string} [opts.ink]     stroke colour override, defaults to the face's own
+ * @param {string} [opts.ink]     outline colour override, written as the root's
+ *   `color` attribute; omit to keep inheriting
  * @param {string} [opts.anim]    animation name to play instead of the target
  *   state's default
  */
 export function morphFace(el, fromState, toState, opts = {}) {
   if (!el) return;
   const who = opts.who ?? el.dataset?.who ?? personality();
-  const set = GEOM[who] ?? GEOM.deadpan;
-  const g = set[toState] ?? set.fair;
-  const ink = opts.ink ?? el.getAttribute('stroke') ?? 'currentColor';
+  const state = STATES.includes(toState) ? toState : 'fair';
+  const parts = faceParts(artWho(who), state);
   const rowSized = el.dataset && el.dataset.anim === 'none';
   const from = fromState ?? el.dataset?.state;
 
   if (from) el.classList.remove(`face-${from}`);
-  el.classList.add(`face-${toState}`);
-  if (el.dataset) el.dataset.state = toState;
-  el.setAttribute('aria-label', `Shin: ${toState}`);
+  el.classList.add(`face-${state}`);
+  if (el.dataset) el.dataset.state = state;
+  if (opts.who && el.dataset) el.dataset.who = opts.who;
+  el.setAttribute('aria-label', `Shin: ${state}`);
+  if (opts.ink) el.setAttribute('color', opts.ink);
+  const anim = opts.anim ?? DEFAULT_ANIM[state] ?? 'face-morph';
 
-  const ring = el.querySelector('.face-ring');
-  if (ring) {
-    if (toState === 'unknown') ring.setAttribute('stroke-dasharray', '9 7');
-    else ring.removeAttribute('stroke-dasharray');
-  }
-
-  const brow = el.querySelector('.face-brow');
-  const mouth = el.querySelector('.face-mouth');
-  const eyes = el.querySelector('.face-eyes');
-  const applyBrow = () => { if (brow) brow.setAttribute('d', g.brow); };
-  const applyMouthAndEyes = () => {
-    if (mouth) mouth.innerHTML = g.mouth ? `<path d="${g.mouth}"/>` : dotsMarkup(ink);
-    if (eyes) eyes.innerHTML = g.closedEyes ? closedEyesMarkup(ink, set.stroke) : openEyesMarkup(ink, set.eyeR);
+  const head = el.querySelector('.face-head');
+  const swap = (selector, markup) => {
+    const g = el.querySelector(selector);
+    if (g) g.innerHTML = markup;
+  };
+  const replace = (selector, markup) => {
+    const g = el.querySelector(selector);
+    if (g) g.outerHTML = markup;
+  };
+  // Eyes first: brows, eyes and the head's tilt move together.
+  const applyEyes = () => {
+    if (head) {
+      if (parts.pose) head.setAttribute('transform', parts.pose);
+      else head.removeAttribute('transform');
+    }
+    swap('.face-brows', parts.brows);
+    swap('.face-eyes', parts.eyes);
+  };
+  // Mouth 40ms behind, and everything that is not the face rides with it.
+  const applyMouth = () => {
+    swap('.face-mouth', parts.mouth);
+    swap('.face-extras', parts.extras);
+    replace('.face-hat', parts.hat);
+    replace('.face-body', parts.body);
   };
 
-  if (prefersReducedMotion()) {
-    applyBrow();
-    applyMouthAndEyes();
-  } else {
-    applyBrow();
-    window.setTimeout(applyMouthAndEyes, 40);
-  }
+  // The stagger is the animation's own (40 / 60 / 0), not the viewer's:
+  // under reduced motion the mouth still lands behind, as an opacity fade
+  // rather than a move. Row faces never animate, so they swap at once.
+  const stagger = rowSized ? 0 : (MOUTH_STAGGER_MS[anim] ?? MOUTH_STAGGER_MS['face-morph']);
+  applyEyes();
+  if (stagger > 0) window.setTimeout(applyMouth, stagger);
+  else applyMouth();
 
   if (rowSized) {
     if (el.dataset) el.dataset.anim = 'none';
     el.classList.add('face-static');
     return;
   }
-  animateFace(el, opts.anim ?? DEFAULT_ANIM[toState] ?? 'face-morph');
+  animateFace(el, anim);
 }
 
 function prefersReducedMotion() {
@@ -379,9 +403,11 @@ function prefersReducedMotion() {
  * screen (the attitude picker has three) never blink together.
  */
 function blinkRangeMs(who) {
-  if (who === 'warm') return [3800, 6200];
-  if (who === 'blunt') return [5200, 7600];
-  return [6600, 9000]; // deadpan, the default
+  // Section 5 row 3: "every 4 to 9 seconds". Three bands inside that window,
+  // never below 4000 and never above 9000.
+  if (who === 'warm') return [4000, 5600];
+  if (who === 'blunt') return [5400, 7400];
+  return [7200, 9000]; // deadpan, the default
 }
 
 function scheduleBlink(el) {
@@ -411,6 +437,11 @@ if (typeof document !== 'undefined' && typeof MutationObserver !== 'undefined') 
     candidates.push(...root.querySelectorAll('.face'));
     for (const el of candidates) {
       if (scheduled.has(el)) continue;
+      // A freshly mounted proud-hold face needs its 12px growth peak written
+      // before the CSS animation reads it (`--proud-peak`, face.css row 13).
+      if (el.dataset?.anim === 'proud-hold' && !el.style.getPropertyValue('--proud-peak')) {
+        el.style.setProperty('--proud-peak', proudPeakFor(el));
+      }
       if (el.dataset?.anim === 'none') continue;
       if (!BLINK_EMBER_STATES.has(el.dataset?.state)) continue;
       scheduled.add(el);
@@ -542,7 +573,13 @@ export function updateShinSay(el, state, key, facts, anim, who) {
   if (label) label.textContent = FLAGS.placeholderLabels ? state : '';
 
   const bubbleText = el.querySelector('.bubble-text');
-  if (bubbleText) bubbleText.textContent = say(key, facts, who);
+  if (bubbleText) {
+    bubbleText.textContent = say(key, facts, who);
+    // pleased-nod (section 5 row 9): the acknowledgement line crossfades over
+    // the nod's own 260ms, and under reduced motion that fade is the whole
+    // animation ("opacity fade of the acknowledgement line only").
+    if ((anim ?? DEFAULT_ANIM[state]) === 'pleased-nod') runClassAnimation(bubbleText, 'line-fade-run', 260);
+  }
 }
 
 /**

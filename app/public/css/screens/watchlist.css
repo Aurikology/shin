@@ -48,24 +48,21 @@
  * against it; thin evidence and a refusal are left exactly as drawn today,
  * a plain hollow ring, which is already the sheet's own "hold it loosely"
  * shape. `data-tier` on the row activates tokens.css's `--tier`/`--tier-on`
- * for everything inside it, including the face this targets.
+ * for everything inside it, including the face this targets. The disc
+ * behind Shin takes the tier fill and the outline takes the on-tier ink; the
+ * character's own colours never change.
  */
-.wrow[data-conf="certain"] .face-ring,
-.wrow[data-conf="sure"] .face-ring,
-.prow[data-conf="certain"] .face-ring,
-.prow[data-conf="sure"] .face-ring {
+.wrow[data-conf="certain"] .face-disc,
+.wrow[data-conf="sure"] .face-disc,
+.prow[data-conf="certain"] .face-disc,
+.prow[data-conf="sure"] .face-disc {
   fill: var(--tier);
 }
-.wrow[data-conf="certain"] .face-features,
-.wrow[data-conf="certain"] .face-eyes circle,
-.wrow[data-conf="sure"] .face-features,
-.wrow[data-conf="sure"] .face-eyes circle,
-.prow[data-conf="certain"] .face-features,
-.prow[data-conf="certain"] .face-eyes circle,
-.prow[data-conf="sure"] .face-features,
-.prow[data-conf="sure"] .face-eyes circle {
-  stroke: var(--tier-on);
-  fill: var(--tier-on);
+.wrow[data-conf="certain"] .face,
+.wrow[data-conf="sure"] .face,
+.prow[data-conf="certain"] .face,
+.prow[data-conf="sure"] .face {
+  color: var(--tier-on);
 }
 .wrow-n { display: flex; flex: 1 1 auto; flex-direction: column; gap: 3px; min-width: 0; }
 /*

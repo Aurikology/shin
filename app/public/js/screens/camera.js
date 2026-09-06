@@ -1376,16 +1376,33 @@ export default {
       // Row 19: past the 0.8s budget, the step already showing changes its
       // own word. Never a new step, and it never fires once the answer has
       // already landed.
+      // AVATAR.md section 5 row 6: step-swap is a 160ms label crossfade and
+      // the face does not move. So the step labels are patched in place and
+      // the mounted face (with its think-dots loop) is never replaced;
+      // re-rendering the whole sheet here would restart the dots from zero
+      // and re-run the sheet's own rise on every step.
+      const patchSteps = (nextStep, isSlow) => {
+        const steps = slot.querySelectorAll('.wstep');
+        if (steps.length !== WORKING_STEPS.length) {
+          slot.innerHTML = workingSheet(item.text, nextStep, { slow: isSlow });
+          return;
+        }
+        steps.forEach((elStep, i) => {
+          elStep.classList.toggle('now', i === nextStep);
+          elStep.textContent = i === nextStep ? say(isSlow ? 'working_slow' : WORKING_STEPS[i]) : say(WORKING_STEPS[i]);
+        });
+      };
+
       const slowTimer = setTimeout(() => {
         if (dead || myGen !== gen) return;
         slow = true;
-        slot.innerHTML = workingSheet(item.text, step, { slow: true });
+        patchSteps(step, true);
       }, 800);
 
       try {
         step = 1; // Event: the price request is actually about to be sent.
         if (myGen === gen) {
-          slot.innerHTML = workingSheet(item.text, step, { slow });
+          patchSteps(step, slow);
           // AVATAR.md row 17/section 5 row 6: the named step changed, once.
           animateFace(slot.querySelector('.face'), 'step-swap');
         }

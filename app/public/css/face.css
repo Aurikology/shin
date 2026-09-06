@@ -5,56 +5,116 @@
  * all of them).
  *
  * Every animation is keyed off the `data-anim` attribute `shin.js`'s `faceSvg`
- * already writes onto the face, or a transient class `animateFace`/the blink
- * scheduler in `shin.js` adds and removes. Nothing here is triggered from a
- * screen file: a screen renders `faceSvg(...)` and the face animates itself.
+ * writes onto the face, or a transient class `animateFace`/the blink scheduler
+ * in `shin.js` adds and removes. Nothing here is triggered from a screen file:
+ * a screen renders `faceSvg(...)` and the face animates itself.
+ *
+ * The groups animated are exactly the ones the face component exposes and
+ * nothing else: `.face` (the <svg> itself, the body), `.face-ring`,
+ * `.face-brow` (or `.face-brows`, the faces branch's spelling), `.face-eyes`,
+ * `.face-mouth`. No selector here reaches into
+ * the shapes inside a group except `think-dots`, which needs the three
+ * circles the thinking mouth is made of.
  *
  * Hard rules this file honours:
- *   - `intense-hold` is a hold and a settle. No shake, ever.
- *   - The refusal (`unknown`)'s only motion is `slow-blink`.
- *   - The face never re-morphs on a drag or a scroll -- nothing here is tied
- *     to scroll or pointer-move, only to `data-anim` and the transient classes.
+ *   - `face-morph` is eyes first, mouth 40ms behind, 220ms total.
+ *   - `intense-hold` is a hold and a settle. No shake, ever: no rotate, no
+ *     translate, nothing that reads as agitation.
+ *   - The refusal (`unknown`)'s only motion is `slow-blink`. Its ring is grey
+ *     (`--unknown`, tokens.css) and nothing here recolours it.
+ *   - The face never re-morphs on a drag or a scroll: nothing here is tied
+ *     to scroll or pointer-move, only to `data-anim` and transient classes.
  *   - Row faces (`face-row`, 28px) never animate: `data-anim="none"` and the
  *     `face-static` class both kill every animation below, unconditionally.
- *   - A price never counts up. Not this file's surface, but nothing here
- *     participates in it either.
- *   - Under `prefers-reduced-motion: reduce`, every animation collapses to its
- *     final frame.
+ *     `proud-hold` is the one entry the contract writes *at* 28px ("the row
+ *     face grows from 28px to 40px"), so `animateFace(el, 'proud-hold')`
+ *     lifts the gate for exactly its 400ms and puts it back (shin.js).
+ *   - Nothing here counts anything up.
+ *   - Under `prefers-reduced-motion: reduce`, every entry becomes an opacity
+ *     fade of the same duration and nothing moves in space; loops hold
+ *     static.
  */
 
 .face {
   animation-fill-mode: both;
+  transform-origin: 50% 50%;
+}
+
+/* Inner groups scale and tilt about their own centre, not the viewBox origin.
+   Without this, a `scaleY` blink slides the eyes to the top of the face. */
+.face .face-eyes,
+.face .face-brow,
+.face .face-brows,
+.face .face-mouth,
+.face .face-ring {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation-fill-mode: both;
+}
+
+/* Where the browser can interpolate a path (same command structure, which
+   every brow within one personality has), a state change travels instead of
+   snapping. Where it cannot, the per-group fade below covers the swap. */
+.face .face-brow,
+.face .face-brows,
+.face .face-mouth path {
+  transition: d 180ms var(--ease-land, cubic-bezier(.2, .8, .2, 1));
+}
+
+/* The eyes squash about their own centre when they blink. Without this an
+   SVG group scales about the viewBox origin and a blink would slide the
+   eyes up to the propeller. */
+.face .face-eyes {
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
 /* Row faces never animate. This wins over every rule below it, always. */
 .face.face-static,
-.face[data-anim="none"] {
-  animation: none !important;
-}
+.face[data-anim="none"],
 .face.face-static .face-eyes,
 .face[data-anim="none"] .face-eyes,
+.face.face-static.face-slow-blink-now .face-eyes,
+.face.face-static .face-brow,
+.face[data-anim="none"] .face-brow,
+.face.face-static .face-brows,
+.face[data-anim="none"] .face-brows,
+.face.face-static .face-mouth,
+.face[data-anim="none"] .face-mouth,
 .face.face-static .face-mouth circle,
 .face[data-anim="none"] .face-mouth circle {
   animation: none !important;
+  transition: none !important;
 }
 
 /* ---------------------------------------------------------- 1. face-morph */
-/* "The expression changed." 220ms, eyes/brow first, mouth 40ms behind -- the
-   40ms stagger is done in shin.js's morphFace by updating the DOM in two
-   steps; this is the fade the whole face rides while that happens. */
-.face[data-anim="face-morph"] {
-  animation-name: face-morph;
-  animation-duration: var(--t-face, 220ms);
+/* "The expression changed." 220ms total: eyes and brow start at 0 and land
+   by 180ms, the mouth starts at 40ms and lands at 220ms. shin.js's morphFace
+   swaps the mouth geometry at the same 40ms mark so the DOM and the fade
+   agree. Any state change outside a landed verdict. */
+.face[data-anim="face-morph"] .face-eyes,
+.face[data-anim="face-morph"] .face-brow,
+.face[data-anim="face-morph"] .face-brows {
+  animation-name: face-morph-part;
+  animation-duration: 180ms;
+  animation-delay: 0s;
   animation-timing-function: var(--ease-land, cubic-bezier(.2, .8, .2, 1));
   animation-iteration-count: 1;
 }
-@keyframes face-morph {
-  from { opacity: .32; }
+.face[data-anim="face-morph"] .face-mouth {
+  animation-name: face-morph-part;
+  animation-duration: 180ms;
+  animation-delay: 40ms;
+  animation-timing-function: var(--ease-land, cubic-bezier(.2, .8, .2, 1));
+  animation-iteration-count: 1;
+}
+@keyframes face-morph-part {
+  from { opacity: .35; }
   to { opacity: 1; }
 }
 
 /* --------------------------------------------------------- 2. idle-breath */
-/* "Present and waiting, not frozen." 3200ms, loops, on `idle`. */
+/* "Present and waiting, not frozen." 3200ms per cycle, loops, on `idle`. */
 .face[data-anim="idle-breath"] {
   animation-name: idle-breath;
   animation-duration: 3200ms;
@@ -67,13 +127,14 @@
 }
 
 /* -------------------------------------------------------------- 3. blink */
-/* "Alive." 140ms, random every 4-9s while idle/asking or a verdict face,
-   never synchronised. shin.js schedules it per-element and toggles this
-   class; it never lives in `data-anim` because it layers on top of whatever
-   steady animation the face already carries. */
+/* "Alive." 140ms, random every 4-9s while `idle` or `asking`, never
+   synchronised. shin.js schedules it per element (Warm at the short end,
+   Deadpan at the long) and toggles this class; it never lives in `data-anim`
+   because it layers on top of whatever steady animation the face carries. */
 .face.face-blink-now .face-eyes {
   animation-name: blink;
   animation-duration: 140ms;
+  animation-delay: 0s;
   animation-timing-function: ease-in-out;
   animation-iteration-count: 1;
 }
@@ -84,53 +145,74 @@
 
 /* --------------------------------------------------------- 4. slow-blink */
 /* "Declining to guess." 520ms, one blink. The refusal's entire motion
-   vocabulary, and the meter-zero panel's. */
-.face[data-anim="slow-blink"] .face-eyes {
+   vocabulary, and the meter-zero panel's. Two ways in: `data-anim` for a
+   freshly mounted `unknown` face, and the `face-slow-blink-now` class for an
+   explicit `animateFace(el, 'slow-blink')`, which layers on the eyes without
+   cutting short whatever the face itself is finishing (the 340ms landing). */
+.face[data-anim="slow-blink"] .face-eyes,
+.face.face-slow-blink-now .face-eyes {
   animation-name: slow-blink;
   animation-duration: 520ms;
+  animation-delay: 0s;
   animation-timing-function: ease-in-out;
   animation-iteration-count: 1;
 }
 @keyframes slow-blink {
   0%, 100% { transform: scaleY(1); }
-  45%, 55% { transform: scaleY(.08); }
+  42%, 58% { transform: scaleY(.08); }
 }
 
 /* -------------------------------------------------------- 5. think-dots */
-/* "A step is running." 900ms per cycle, three dots filling left to right,
-   loops until the step resolves. */
+/* "A step is running." 900ms per cycle, three dots in the mouth position
+   filling left to right, then all three release together and it starts
+   again. Loops until the step resolves. */
 .face[data-anim="think-dots"] .face-mouth circle {
-  animation-name: think-dots;
   animation-duration: 900ms;
-  animation-timing-function: ease-in-out;
+  animation-timing-function: ease-out;
   animation-iteration-count: infinite;
 }
-.face[data-anim="think-dots"] .face-mouth circle:nth-child(2) { animation-delay: .15s; }
-.face[data-anim="think-dots"] .face-mouth circle:nth-child(3) { animation-delay: .3s; }
-@keyframes think-dots {
-  0%, 100% { opacity: .25; }
-  50% { opacity: 1; }
+.face[data-anim="think-dots"] .face-mouth circle:nth-child(1) { animation-name: think-dot-1; }
+.face[data-anim="think-dots"] .face-mouth circle:nth-child(2) { animation-name: think-dot-2; }
+.face[data-anim="think-dots"] .face-mouth circle:nth-child(3) { animation-name: think-dot-3; }
+@keyframes think-dot-1 {
+  0%            { opacity: .25; }
+  11%, 88%      { opacity: 1; }
+  100%          { opacity: .25; }
+}
+@keyframes think-dot-2 {
+  0%, 33%       { opacity: .25; }
+  44%, 88%      { opacity: 1; }
+  100%          { opacity: .25; }
+}
+@keyframes think-dot-3 {
+  0%, 66%       { opacity: .25; }
+  77%, 88%      { opacity: 1; }
+  100%          { opacity: .25; }
 }
 
 /* --------------------------------------------------------- 6. step-swap */
-/* "The named step changed." 160ms, once per step, the face itself does not
-   move -- only the label crossfades. Triggered explicitly via
-   `animateFace(el, 'step-swap')` when the working label changes. */
-.face.face-anim-run[data-anim="step-swap"] {
-  animation-name: step-swap;
+/* "The named step changed." 160ms, once per step. A label crossfade and
+   nothing else: the face does not move and its own `data-anim` (think-dots)
+   is never touched. shin.js's `animateFace(face, 'step-swap')` finds the
+   step label beside the face and toggles this class on it. */
+.step-swap-run {
+  animation-name: label-crossfade;
   animation-duration: 160ms;
   animation-timing-function: linear;
   animation-iteration-count: 1;
+  animation-fill-mode: both;
 }
-@keyframes step-swap {
-  from { opacity: .3; }
+@keyframes label-crossfade {
+  from { opacity: .25; }
   to { opacity: 1; }
 }
 
 /* ------------------------------------------------------- 7. verdict-land */
-/* "The judgment arrived." 260ms, 340ms on a refusal. The expression is
-   already set before this plays -- shin.js's morphFace updates the geometry
-   first and this only ever fades/settles the already-correct face in. */
+/* "The judgment arrived." 260ms with the field, 340ms on a refusal. The
+   expression is already set before this plays: a fresh render carries its
+   final geometry, and shin.js's morphFace applies every group at once (no
+   40ms stagger) when the target animation is this one, so nobody watches
+   Shin change its mind on screen. */
 .face[data-anim="verdict-land"] {
   animation-name: verdict-land;
   animation-duration: var(--t-rise, 260ms);
@@ -146,25 +228,46 @@
 }
 
 /* ------------------------------------------------------- 8. intense-hold */
-/* "The intense forms are more, not louder." Brow/mouth set first (handled in
-   shin.js's morphFace), then a hold at 1.12x for 180ms, settling to 1.0 over
-   200ms. A HOLD AND A SETTLE. NEVER A SHAKE -- no rotation, no translate,
-   nothing that reads as agitation. */
+/* "The intense forms are more, not louder." The brow sets 60ms before the
+   mouth (the mouth's own fade is delayed 60ms here, and morphFace swaps its
+   geometry at the same 60ms mark), then the face holds 1.12x for 180ms and
+   settles to 1.0 over 200ms. 60 + 180 + 200 = 440ms. A HOLD AND A SETTLE.
+   NEVER A SHAKE: no rotation, no translate, nothing that reads as agitation. */
 .face[data-anim="intense-hold"] {
   animation-name: intense-hold;
   animation-duration: 440ms;
+  animation-iteration-count: 1;
+}
+.face[data-anim="intense-hold"] .face-brow,
+.face[data-anim="intense-hold"] .face-brows {
+  animation-name: face-morph-part;
+  animation-duration: 180ms;
+  animation-delay: 0s;
+  animation-timing-function: var(--ease-land, cubic-bezier(.2, .8, .2, 1));
+  animation-iteration-count: 1;
+}
+.face[data-anim="intense-hold"] .face-mouth {
+  animation-name: face-morph-part;
+  animation-duration: 180ms;
+  animation-delay: 60ms;
   animation-timing-function: var(--ease-land, cubic-bezier(.2, .8, .2, 1));
   animation-iteration-count: 1;
 }
 @keyframes intense-hold {
-  0%   { transform: scale(1); }
-  14%  { transform: scale(1); }   /* brow/mouth set first, no scale move yet */
-  55%  { transform: scale(1.12); } /* the hold */
-  100% { transform: scale(1); }    /* the settle */
+  /* 0 to 60ms: the brow sets, the face reaches 1.12 as it does */
+  0%      { transform: scale(1);    animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+  /* 60ms to 240ms: the hold, 180ms at exactly 1.12 */
+  13.64%  { transform: scale(1.12); animation-timing-function: linear; }
+  /* 240ms to 440ms: the settle, 200ms back to 1.0 */
+  54.55%  { transform: scale(1.12); animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+  100%    { transform: scale(1); }
 }
 
 /* -------------------------------------------------------- 9. pleased-nod */
-/* "It landed and Shin recorded it." 260ms, a 4 degree tilt and back. */
+/* "It landed and Shin recorded it." 260ms, a 4 degree tilt and back. The
+   acknowledgement line beside the face crossfades over the same 260ms
+   (`.line-fade-run`, toggled by shin.js's updateShinSay), and under reduced
+   motion that line fade is the whole animation. */
 .face[data-anim="pleased-nod"] {
   animation-name: pleased-nod;
   animation-duration: 260ms;
@@ -175,6 +278,13 @@
   0%   { transform: rotate(0deg); }
   45%  { transform: rotate(4deg); }
   100% { transform: rotate(0deg); }
+}
+.line-fade-run {
+  animation-name: label-crossfade;
+  animation-duration: 260ms;
+  animation-timing-function: linear;
+  animation-iteration-count: 1;
+  animation-fill-mode: both;
 }
 
 /* ------------------------------------------------------- 10. sleep-breath */
@@ -193,15 +303,15 @@
 /* --------------------------------------------------------------- 11. wake */
 /* "An empty screen just gained its first item." 400ms, once. Triggered via
    `animateFace(el, 'wake')` when a list goes from empty to one row. */
-.face.face-anim-run[data-anim="wake"] {
+.face[data-anim="wake"] {
   animation-name: wake;
   animation-duration: 400ms;
   animation-timing-function: var(--ease-land, cubic-bezier(.2, .8, .2, 1));
   animation-iteration-count: 1;
 }
 @keyframes wake {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: .4; transform: scale(.96); }
+  to { opacity: 1; transform: none; }
 }
 
 /* ---------------------------------------------------------- 12. nudge-arrive */
@@ -214,18 +324,22 @@
   animation-iteration-count: 1;
 }
 @keyframes nudge-arrive {
-  from { opacity: 0; transform: translateX(-8px); }
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: none; }
+}
+:dir(rtl) .face[data-anim="nudge-arrive"] {
+  animation-name: nudge-arrive-rtl;
+}
+@keyframes nudge-arrive-rtl {
+  from { opacity: 0; transform: translateX(12px); }
   to { opacity: 1; transform: none; }
 }
 
 /* ----------------------------------------------------------- 13. proud-hold */
-/* "A contributed price was confirmed by somebody else." 400ms, described in
-   AVATAR.md as the row face growing from 28px to 40px and settling back.
-   Not reachable in v1. `data-anim="none"` still wins at 28px here exactly as
-   it does everywhere else ("row faces never animate" has no stated
-   exception) -- when this state ships, whoever wires it renders the face at
-   a size above `face-row` for the moment of the grow, the way the confirmed
-   badge itself would, rather than animating a face this rule has switched off. */
+/* "A contributed price was confirmed by somebody else." 400ms, the row face
+   grows from 28px to 40px and settles back: 40/28 is the default peak, and
+   shin.js writes `--proud-peak` on a bigger face so the growth stays the
+   same 12px rather than the same ratio. Not reachable in v1. */
 .face[data-anim="proud-hold"] {
   animation-name: proud-hold;
   animation-duration: 400ms;
@@ -234,17 +348,26 @@
 }
 @keyframes proud-hold {
   0%   { transform: scale(1); }
-  60%  { transform: scale(1.15); }
+  45%  { transform: scale(var(--proud-peak, 1.4286)); }
+  60%  { transform: scale(var(--proud-peak, 1.4286)); }
   100% { transform: scale(1); }
 }
 
 /* ------------------------------------------------------ prefers-reduced-motion */
 /* "Every entry becomes an opacity fade of the same duration and nothing moves
-   in space." AVATAR.md section 5's own fallback column, applied per
-   animation rather than as one blanket rule, so a loop that should hold
-   static (idle-breath, think-dots, sleep-breath) does not flicker at a
-   near-zero duration instead. */
+   in space." AVATAR.md section 5's own fallback column, applied per animation
+   so every fade keeps its own entry's duration and every loop holds static. */
 @media (prefers-reduced-motion: reduce) {
+  .face .face-brow,
+  .face .face-brows,
+  .face .face-mouth path {
+    transition: none;
+  }
+
+  /* Loops and holds go static: idle-breath, think-dots, sleep-breath,
+     intense-hold (renders at 1.0, brow timing unchanged), pleased-nod (the
+     line fades, the face does not move), proud-hold (the badge appears with
+     no size change), blink (the eyes stay open). */
   .face[data-anim="idle-breath"],
   .face[data-anim="think-dots"] .face-mouth circle,
   .face[data-anim="intense-hold"],
@@ -256,27 +379,38 @@
     transform: none !important;
   }
 
-  .face[data-anim="slow-blink"] .face-eyes {
-    animation-name: reduced-fade !important;
+  /* slow-blink: the eyes close and open as an opacity fade, same 520ms. */
+  .face[data-anim="slow-blink"] .face-eyes,
+  .face.face-slow-blink-now .face-eyes {
+    animation-name: reduced-close-open !important;
     animation-duration: 520ms !important;
+    animation-timing-function: ease-in-out !important;
     animation-iteration-count: 1 !important;
     transform: none !important;
   }
 
-  .face[data-anim="face-morph"],
+  /* face-morph and intense-hold's group fades are already opacity-only, so
+     they keep their own timing (eyes 0-180, mouth 40-220 / 60-240). */
+
+  /* The entries that travel become fades of the same duration. */
   .face[data-anim="verdict-land"],
   .face[data-anim="nudge-arrive"],
-  .face.face-anim-run[data-anim="wake"],
-  .face.face-anim-run[data-anim="step-swap"] {
+  .face[data-anim="wake"] {
     animation-name: reduced-fade !important;
-    animation-duration: 220ms !important;
-    animation-iteration-count: 1 !important;
     transform: none !important;
   }
+  .face[data-anim="verdict-land"] { animation-duration: var(--t-rise, 260ms) !important; }
+  .face.face-unknown[data-anim="verdict-land"] { animation-duration: var(--t-refusal, 340ms) !important; }
+  .face[data-anim="nudge-arrive"] { animation-duration: 300ms !important; }
+  .face[data-anim="wake"] { animation-duration: 400ms !important; }
 
   @keyframes reduced-fade {
     from { opacity: 0; }
     to { opacity: 1; }
+  }
+  @keyframes reduced-close-open {
+    0%, 100% { opacity: 1; }
+    42%, 58% { opacity: 0; }
   }
 }
 

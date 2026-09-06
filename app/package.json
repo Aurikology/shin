@@ -11,6 +11,7 @@
     "start": "node server.ts",
     "dev": "node --watch server.ts",
     "stubs": "node scripts/make-stubs.mjs",
+    "faces": "node scripts/build-faces.mjs",
     "typecheck": "node ../spine/node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
     "test": "node --test \"test/*.test.{ts,mjs}\"",
     "check": "npm run typecheck && npm test"
