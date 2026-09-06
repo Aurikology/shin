@@ -12,6 +12,20 @@ from the 09-05/06 conversations: two goals as numbers (share of scans that end t
 payers per hundred downloads and what each leaves), eight principles, and the order of the next
 stretch. It is "scan anything", not a grocery app; grocery only had a free catalogue first.
 
+## The build tree, skeleton pass, 2026-09-06
+
+**`docs/the-tree.md` exists as of this pass: the root and the two levels under it, drawn from the
+four documents only** and following `docs/the-tree-rules.md`. Root is the moonshot sentence; nine
+first-level branches (identity, price supply, the verdict in the frame, the purchase record, the
+money, reach, permission and anti-abuse, the instruments, and running it); every second-level line
+carries its kind, the goal number it moves, its source, and **not decomposed yet**.
+
+**Nothing in it is marked built or not built.** State marking reads the code and opens every
+citation, and it is the pass after the branches. Four walls sit in the tree as slots with their
+go-arounds named but not drawn; sold prices for used goods are marked blocked outside rather than
+a wall, with what lifts it. A fresh rules reader was run on the skeleton before he read it; its
+findings and the fixes go in the next pass over this file.
+
 ## Read this second, 2026-09-05
 
 **`docs/the-combined-pipeline.md` is the spine.** It supersedes `docs/pipeline-decisions-and-plan.md`
