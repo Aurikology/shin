@@ -90,6 +90,27 @@ node, it says what that node waits on. It is one file, one line per node, plain 
    present and whose parent still would not run.)*
    *Stops:* a tree that is a to-do list in disguise; finished pieces with zero callers.
 
+8b. **The children of a node cover every dimension that applies to it, and the line says which do
+   not.** Sufficiency is not only "what steps make this work"; a node is a piece of a product, and
+   a product has more than one dimension at once. The eight, from his purpose and from the four
+   documents:
+   - **what the person sees and does** (his purpose: easy to use);
+   - **how it looks and sounds**, the face, the voice, the drawing (his purpose: visually
+     appealing; the avatar is "one of our most important features", 2026-09-03);
+   - **what happens behind the glass** (his purpose: useful);
+   - **what it costs and what it earns** (the money figures);
+   - **what we are allowed to do**, his data policy, the law, and other people's terms;
+   - **who runs it when it breaks**;
+   - **what it feeds back**, since every scan is a harvest;
+   - **how it gets shown to the world**, since short video is the channel.
+   A dimension that genuinely does not apply is written as not applying, so silence is never
+   mistaken for coverage. *(Added 2026-09-06, his words: "the solutions you've stated only cover
+   one dimension and it's often only in the backend aspect." Measured the same day across 1,007
+   nodes: machinery 28%, what the person sees 15%, how it looks and sounds 5.6%, who runs it 2.5%.
+   The barcode subtree, printed for him, had twenty-one children and every one of them was
+   machinery.)*
+   *Stops:* a plan that builds a working engine nobody wants to open.
+
 9. **Siblings are independent where they can be.** A dependency two siblings share is pulled up
    to a node above them, never duplicated. Independent siblings can be built by different
    sessions at once; the tree says which those are. When the shared thing sits in another
