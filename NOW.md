@@ -110,8 +110,23 @@ everything else in that directory can be.
 **State as of 2026-09-05 02:20.** Both judges now answer instead of refusing: the new one in
 `price/src/verdict.ts` and the old one in `spine/src/spine.ts` that the app actually serves.
 Nine thresholds gone between them, each replaced by a named low confidence sentence. All four
-packages typecheck and 133 tests pass. The app is live against the real 5,182,591 row catalogue:
-a barcode answers in 1 ms, a text search in 22 ms.
+packages typecheck and 133 tests pass. The app was live against the real 5,182,591 row catalogue
+on that date: a barcode answered in 1 ms, a text search in 22 ms.
+
+> **Not true on this machine as of 2026-09-07, and read this before trusting any number below.**
+> `catalogue/data/` is gitignored, at 9.1 GB with one file of 7.4 GB, and a git worktree does not
+> carry ignored files. There is no catalogue database anywhere on this laptop: searched by name
+> and by size across the whole drive. Every running server answers `catalogueUp: false, "unable
+> to open database file"`.
+>
+> What that means for anything demonstrated here: **the app is answering off the seven-item hand
+> pricing corpus, not off five million rows.** Identities come back `resolvedBy: "recorded"`. A
+> walk of the app looks exactly the same either way, which is precisely why this is worth writing
+> down rather than rediscovering.
+>
+> Restoring it means re-fetching 9.1 GB and re-embedding, or pointing `SHIN_CATALOGUE` at a copy.
+> Any work on search ranking is blocked until then, because the evidence it would need cannot be
+> produced.
 
 **The finding that matters more than the deletion.** Removing every threshold moved pilot
 coverage by exactly zero, 2 of 7 before and after. All five refusals were empty hands, not
