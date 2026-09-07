@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Phone preview</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #101216; }
+    body { display: flex; justify-content: center; align-items: flex-start; padding-top: 24px; overflow: hidden; box-sizing: border-box; font-family: 'Courier New', monospace; color: #6E7783; }
+    .phone {
+      position: relative;
+      width: 390px; height: 844px;
+      background: #0B0C0E;
+      border: 4px solid #2E333A;
+      box-shadow: inset 4px 4px 0 rgba(255,255,255,.08), inset -4px -4px 0 rgba(0,0,0,.6), 0 0 0 4px #0B0C0E, 0 24px 0 -8px #000;
+      image-rendering: pixelated;
+      transform-origin: top center;
+    }
+    iframe { display: block; width: 100%; height: 100%; border: 0; background: #0B0C0E; }
+    .label { position: absolute; left: 0; right: 0; bottom: -34px; text-align: center; font-size: 12px; letter-spacing: .1em; }
+    .sizes { position: fixed; top: 12px; left: 12px; font-size: 12px; }
+    .sizes button { font: inherit; background: #16181C; color: #A5ADB8; border: 2px solid #2E333A; padding: 6px 10px; margin-right: 6px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="sizes">
+    <button data-w="390" data-h="844">390 x 844</button>
+    <button data-w="360" data-h="780">360 x 780</button>
+    <button data-w="430" data-h="932">430 x 932</button>
+  </div>
+  <div class="phone" id="phone">
+    <iframe id="frame" src="/" allow="camera; microphone"></iframe>
+    <div class="label">PHONE PREVIEW</div>
+  </div>
+  <script>
+    const fit = () => {
+      const p = document.getElementById('phone')
+      const h = parseInt(p.style.height || '844', 10)
+      const s = Math.min(1, (window.innerHeight - 40) / h)
+      p.style.transform = 'scale(' + s + ')'
+    }
+    window.addEventListener('resize', fit)
+    fit()
+    document.querySelectorAll('.sizes button').forEach((b) => {
+      b.onclick = () => {
+        const p = document.getElementById('phone')
+        p.style.width = b.dataset.w + 'px'
+        p.style.height = b.dataset.h + 'px'
+        fit()
+      }
+    })
+  </script>
+</body>
+</html>

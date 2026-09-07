@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0B0C0E" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Price Check</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/styles/tokens.css" />
+  <link rel="stylesheet" href="/src/styles/retro.css" />
+</head>
+<body>
+  <div id="app" class="app" data-screen="boot">
+
+    <!-- Boot: 1.2s, no line -->
+    <section class="screen screen-boot" data-screen="boot">
+      <div class="boot-face" id="boot-face"></div>
+      <div class="boot-wordmark">PRICE CHECK</div>
+      <div class="boot-sub">PROTOTYPE 0.1</div>
+    </section>
+
+    <!-- Attitude picker: once per install -->
+    <section class="screen screen-picker" data-screen="picker" hidden>
+      <h1 class="picker-title">PICK YOUR GUIDE</h1>
+      <p class="picker-sub">Same price check. Different mouth.</p>
+      <div class="picker-row" id="picker-row">
+        <button class="picker-card" data-personality="deadpan">
+          <div class="picker-face"></div>
+          <div class="picker-name">DEADPAN</div>
+          <div class="picker-line"></div>
+        </button>
+        <button class="picker-card" data-personality="warm">
+          <div class="picker-face"></div>
+          <div class="picker-name">WARM</div>
+          <div class="picker-line"></div>
+        </button>
+        <button class="picker-card" data-personality="blunt">
+          <div class="picker-face"></div>
+          <div class="picker-name">BLUNT</div>
+          <div class="picker-line"></div>
+        </button>
+      </div>
+    </section>
+
+    <!-- Primer: before the system camera prompt -->
+    <section class="screen screen-primer" data-screen="primer" hidden>
+      <div class="pill pill-page" id="primer-pill">
+        <div class="pill-face" id="primer-face"></div>
+        <div class="pill-text" id="primer-line"></div>
+      </div>
+      <button class="btn btn-primary" id="primer-allow">ALLOW CAMERA</button>
+      <button class="btn btn-ghost" id="primer-skip">NO CAMERA, SHOW ME ANYWAY</button>
+    </section>
+
+    <!-- Camera: the app -->
+    <section class="screen screen-camera" data-screen="camera" hidden>
+      <video id="cam-video" playsinline muted autoplay hidden></video>
+      <canvas id="feed" class="feed"></canvas>
+
+      <div class="hud">
+        <div class="hud-top">
+          <button class="hud-btn" id="torch-btn" hidden aria-label="Torch"><span class="hud-icon" data-icon="bolt"></span></button>
+          <div class="hud-top-right">
+            <button class="hud-btn" id="sound-btn" aria-label="Sound"><span class="hud-icon" data-icon="sound"></span></button>
+            <button class="hud-btn hud-btn-wide" id="film-btn" aria-label="Film mode">PIXEL</button>
+          </div>
+        </div>
+
+        <div class="overlay" id="overlay">
+          <div class="reticle" id="reticle">
+            <i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i>
+          </div>
+          <div class="sweep" id="sweep" hidden></div>
+          <div class="flash" id="flash" hidden></div>
+          <div class="chip" id="chip" hidden>
+            <div class="chip-face" id="chip-face"></div>
+            <div class="chip-text" id="chip-text"></div>
+            <button class="chip-btn" id="chip-notit">NOT IT?</button>
+          </div>
+        </div>
+
+        <div class="pill pill-hint" id="hint-pill">
+          <div class="pill-face" id="hint-face"></div>
+          <div class="pill-text" id="hint-line"></div>
+        </div>
+
+        <div class="working" id="working" hidden>
+          <div class="working-face" id="working-face"></div>
+          <div class="working-step" id="working-step"></div>
+        </div>
+
+        <div class="riffle" id="riffle" hidden></div>
+
+        <div class="hud-bottom">
+          <button class="shutter" id="shutter" aria-label="Scan">
+            <span class="shutter-ring"></span>
+            <span class="shutter-core"></span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Verdict / refusal sheet, rises over the camera -->
+    <section class="sheet" id="sheet" data-tier="" hidden>
+      <div class="sheet-grip"></div>
+      <div class="sheet-head">
+        <div class="sheet-face" id="sheet-face"></div>
+        <div class="sheet-headline" id="sheet-headline"></div>
+      </div>
+      <div class="sheet-body">
+        <div class="product">
+          <div class="product-icon" id="product-icon"></div>
+          <div class="product-text">
+            <div class="product-name" id="product-name"></div>
+            <div class="product-size" id="product-size"></div>
+          </div>
+          <div class="tier-chip" id="tier-chip"></div>
+        </div>
+        <div class="prices" id="prices">
+          <div class="price">
+            <div class="price-label">TAG</div>
+            <div class="price-value" id="price-tag"></div>
+          </div>
+          <div class="price">
+            <div class="price-label">GOING</div>
+            <div class="price-value" id="price-going"></div>
+          </div>
+          <div class="price">
+            <div class="price-label">SELLER</div>
+            <div class="price-value price-seller" id="price-seller"></div>
+          </div>
+        </div>
+        <div class="provenance" id="provenance"></div>
+        <div class="repair" id="repair" hidden>
+          <input class="repair-input" id="repair-input" type="text" placeholder="TYPE THE NAME" autocomplete="off" />
+        </div>
+      </div>
+      <div class="sheet-actions">
+        <button class="btn btn-secondary" id="sheet-secondary">WATCH</button>
+        <button class="btn btn-primary" id="sheet-again">SCAN AGAIN</button>
+      </div>
+    </section>
+
+    <!-- Toast for acknowledgements -->
+    <div class="toast" id="toast" hidden>
+      <div class="toast-face" id="toast-face"></div>
+      <div class="toast-text" id="toast-text"></div>
+    </div>
+
+    <!-- CRT overlay, always on top, never interactive -->
+    <div class="crt" aria-hidden="true"><div class="crt-band"></div></div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

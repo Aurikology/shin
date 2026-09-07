@@ -1,0 +1,153 @@
+/* Scan effects: sweep line, flash, reticle lock transition, riffle cards.
+   Stepped motion only. Base .reticle (position, size, corner brackets) lives in
+   retro.css; this file owns only the locked state and the flash. */
+
+/* ---------- sweep ---------- */
+
+#sweep {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -34px;
+  height: 34px;
+  pointer-events: none;
+  z-index: 3;
+  background: linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 8px,
+    rgba(127, 209, 255, 0.15) 16px,
+    rgba(127, 209, 255, 0.45) 25px,
+    rgba(60, 92, 107, 0.6) 25px,
+    rgba(60, 92, 107, 0.6) 26px,
+    rgba(127, 209, 255, 0.5) 26px,
+    rgba(127, 209, 255, 0.85) 31px,
+    #7fd1ff 32px,
+    #7fd1ff 34px
+  );
+}
+
+#sweep.is-sweeping {
+  animation: sweep-pass 500ms steps(12) both;
+}
+
+@keyframes sweep-pass {
+  from { top: -34px; }
+  to { top: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #sweep.is-sweeping {
+    top: 50%;
+    animation: sweep-fade 500ms steps(2) both;
+  }
+}
+
+@keyframes sweep-fade {
+  0% { opacity: 0; }
+  50% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ---------- flash ---------- */
+
+#flash {
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+  pointer-events: none;
+  opacity: 1;
+  z-index: 4;
+}
+
+/* ---------- reticle lock ---------- */
+
+.reticle.is-locked {
+  transition: left 300ms steps(5), top 300ms steps(5), width 300ms steps(5), height 300ms steps(5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reticle.is-locked {
+    transition: none;
+  }
+}
+
+.reticle.is-flash i {
+  filter: brightness(0) invert(1);
+}
+
+/* ---------- riffle ---------- */
+
+.riffle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.riffle-card {
+  width: 150px;
+  height: 170px;
+  box-sizing: border-box;
+  background: var(--surface);
+  border: 2px solid var(--hairline);
+  box-shadow: inset 2px 2px 0 var(--bevel-light), inset -2px -2px 0 var(--bevel-dark);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 8px;
+}
+
+.riffle-card.is-entering {
+  animation: riffle-enter 50ms steps(1) both;
+}
+
+@keyframes riffle-enter {
+  0% { transform: translateY(6px); }
+  100% { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .riffle-card.is-entering {
+    animation: none;
+    transform: none;
+  }
+}
+
+.riffle-card.is-landed {
+  border-color: #7fd1ff;
+}
+
+.riffle-card.is-blank {
+  border-style: dashed;
+  border-color: #93a0ac;
+}
+
+.riffle-card-icon canvas {
+  image-rendering: pixelated;
+  width: 32px;
+  height: 32px;
+}
+
+.riffle-card-label {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  text-align: center;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.riffle-card-index {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: var(--ink-faint);
+}
