@@ -674,6 +674,70 @@
 .sheet[data-detent="full"] .sheet-full {
   max-height: 2000px; opacity: 1; overflow: visible; margin-top: 4px;
 }
+
+/*
+ * The evidence sits on the app's own surface; the verdict keeps the field.
+ *
+ * At the full detent the tier fill covered the entire phone, so a walk away was
+ * roughly eight hundred vertical pixels of one saturated red, and the rail, the
+ * seller list and the two secondary actions were all being read against it.
+ * That is a lot of signal spent on things that are not the signal.
+ *
+ * DESIGN.md's second law is "hue is the verdict, saturation is the confidence".
+ * The verdict is the peek: the face, the word, the price, the confidence dots,
+ * the one primary action. What opens underneath is the evidence behind it --
+ * where the number came from, which seller, on what date. Putting the evidence
+ * on --surface and leaving the verdict on the field draws that line instead of
+ * blurring it, and it means the tier colour is doing one job rather than being
+ * the wallpaper.
+ *
+ * Reversing this is a one-line change: delete this block and the panels go back
+ * to inheriting the field. Flagged for Jamin in the MR rather than assumed --
+ * section 4 specifies what each detent contains and not what it is made of.
+ */
+.sheet[data-detent="half"] .sheet-half,
+.sheet[data-detent="full"] .sheet-half,
+.sheet[data-detent="full"] .sheet-full {
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--r-lg);
+  /* Bleeds to the sheet's own gutter (20px) so the panel reads as a layer of
+     the sheet rather than a card floating in it. */
+  margin-left: -20px;
+  margin-right: -20px;
+  padding: 14px 20px;
+}
+/*
+ * Two stacked panels are one surface, not two cards.
+ *
+ * `.sheet` is a flex column with `gap: 12px`, and the full panel adds its own
+ * 4px top margin when it opens, so 16px of the tier field was showing through
+ * the seam between them -- a red stripe across the middle of what is meant to
+ * read as one sheet of paper. The negative margin closes exactly that 16px.
+ *
+ * The gap ABOVE the half panel is deliberately left alone: that one separates
+ * the verdict from the evidence, which is the whole point of the split.
+ */
+.sheet[data-detent="full"] .sheet-half {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  margin-bottom: -16px;
+  padding-bottom: 8px;
+}
+.sheet[data-detent="full"] .sheet-full {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  padding-top: 8px;
+}
+/* The last panel runs to the sheet's bottom edge, so the safe-area padding
+   below it is surface rather than a band of tier colour under the content. */
+.sheet[data-detent="half"] .sheet-half:last-child,
+.sheet[data-detent="full"] .sheet-full {
+  margin-bottom: calc(-22px - env(safe-area-inset-bottom));
+  padding-bottom: calc(22px + env(safe-area-inset-bottom));
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
 /*
  * Nothing in here may be squeezed by the flex column. The rail is 38px because
  * its labels are positioned inside those 38px, and a shrunk rail draws its own
@@ -926,17 +990,38 @@
 /* ------------------------------------------------------------- provenance */
 
 .prov { display: flex; flex-direction: column; }
+/*
+ * A grid, not a wrapping flex row.
+ *
+ * These were `display: flex` with `justify-content: space-between` and
+ * `flex-wrap: wrap`, which gave every row a different shape depending on how
+ * long its own text happened to be: a short seller sat on one line with its
+ * data right-aligned opposite, and the cheapest seller -- which carries an
+ * extra "$2.44 less" and is therefore always the longest -- wrapped onto a
+ * second line and aligned the other way. So the one row the layout is trying to
+ * draw attention to was the one row that broke the pattern.
+ *
+ * Two columns: the seller takes what it needs, the data takes the rest and
+ * wraps inside its own column instead of dropping below. Every row is the same
+ * shape whatever its length.
+ */
 .prov div {
-  display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 14px;
+  align-items: baseline;
   padding: 8px 0;
-  border-bottom: 1px solid currentColor;
+  /* Was `1px solid currentColor` -- full-strength ink, so a four-source list
+     drew four hard rules across the panel and the rules read louder than the
+     sources. A divider is meant to separate, not to be seen. */
+  border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
   font-family: var(--f-mono);
   font-size: 10px;
   letter-spacing: .03em;
   font-variant-numeric: tabular-nums;
 }
 .prov div:last-child { border-bottom: 0; }
-.prov b { font-weight: 600; text-transform: uppercase; flex: 0 0 auto; }
+.prov b { font-weight: 600; text-transform: uppercase; }
 /* Wraps rather than clips. A provenance line with its date cut off is a source
    the reader cannot check, which defeats the only reason the line is here. */
 .prov span { opacity: .88; text-align: right; min-width: 0; }
