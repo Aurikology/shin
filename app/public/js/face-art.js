@@ -50,18 +50,50 @@ function ring() {
 }
 
 /**
- * Shoulders and lanyard. The lower edge is the disc's own arc, so nothing
- * needs clipping; the ring drawn last hides the seam.
+ * The barcode printed on the badge.
+ *
+ * It was three identical bars at one width and one gap, which is a comb rather
+ * than a barcode: at any size below the badge itself it read as a white chip
+ * with a smudge on it. A real symbol is built from modules of one, two and
+ * three widths, and that irregular rhythm is most of what makes a barcode
+ * recognisable at a glance. Seven bars now, from a fixed pattern, so the shape
+ * is stable across all thirty-nine faces rather than arbitrary per face.
+ */
+function barcode(x, y, width, height) {
+  const pattern = [2, 1, 3, 1, 1, 2, 1];
+  const units = pattern.reduce((a, b) => a + b, 0) + pattern.length - 1;
+  const u = width / units;
+  let at = x;
+  const bars = [];
+  for (const w of pattern) {
+    bars.push(`M${at.toFixed(2)} ${y} h${(w * u).toFixed(2)} v${height} h-${(w * u).toFixed(2)} Z`);
+    at += (w + 1) * u;
+  }
+  return `<path d="${bars.join(' ')}" fill="${IRIS}"/>`;
+}
+
+/**
+ * Shoulders, lanyard and badge. The lower edge is the disc's own arc, so
+ * nothing needs clipping; the ring drawn last hides the seam.
+ *
+ * The straps are closed shapes with their own outline. They used to be one
+ * path stroked twice, a heavy `currentColor` stroke with a thinner orange one
+ * painted over it, which fakes an outline convincingly right up until the ink
+ * happens to be the accent hue, at which point the strap vanishes.
+ *
  * @param {{ lift?: number }} o  `lift` raises the chest (proud)
  */
 function body({ lift = 0 } = {}) {
   const t = lift ? ` transform="translate(0 ${-lift})"` : '';
+  const strap = (top, bottom) => {
+    const w = 1.2;
+    return `M${(top - w).toFixed(2)} 70 L${(top + w).toFixed(2)} 70 L${(bottom + w).toFixed(2)} 77 L${(bottom - w).toFixed(2)} 77 Z`;
+  };
   return `<g class="face-body"${t}>
   <path d="M32 67 C27 70 22 73 19.2 76 A40.5 40.5 0 0 0 68.8 76 C66 73 61 70 56 67 Z" fill="${BODY}" stroke="currentColor" stroke-width="${W.body}" stroke-linejoin="round"/>
-  <path d="M38.5 70 L41 77 M49.5 70 L47 77" stroke="currentColor" stroke-width="4.6" stroke-linecap="round" fill="none"/>
-  <path d="M38.5 70 L41 77 M49.5 70 L47 77" stroke="${ACCENT}" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+  <path d="${strap(38.5, 41)} ${strap(49.5, 47)}" fill="${ACCENT}" stroke="currentColor" stroke-width="${W.small}" stroke-linejoin="round"/>
   <rect x="38.5" y="75.5" width="11" height="7" rx="1.5" fill="${WHITE}" stroke="currentColor" stroke-width="${W.small}"/>
-  <path d="M40.6 77.5 h1.3 v3 h-1.3 Z M43 77.5 h1.3 v3 h-1.3 Z M45.4 77.5 h1.3 v3 h-1.3 Z" fill="${IRIS}"/>
+  ${barcode(40.3, 77.4, 7.4, 3.2)}
 </g>`;
 }
 
@@ -132,19 +164,75 @@ function eye({ cx, cy, rx = 8.5, ry = 9, iris = 4.6, dx = 0, dy = 0, lid = 0, sh
   return parts.join('\n    ');
 }
 
-/** A closed eye: `up` arches like a contented smile, otherwise it sags like sleep. */
-function closedEye(cx, cy, up) {
-  const d = up ? `M${cx - 7} ${cy + 1} Q${cx} ${cy - 7} ${cx + 7} ${cy + 1}` : `M${cx - 7} ${cy - 1} Q${cx} ${cy + 5} ${cx + 7} ${cy - 1}`;
-  return `<path d="${d}" stroke="currentColor" stroke-width="${W.brow}" stroke-linecap="round" fill="none"/>`;
+/**
+ * A closed eye. `up` arches like a contented smile, otherwise it sags like
+ * sleep.
+ *
+ * It used to be one arc at the brow's own weight, shared verbatim by all three
+ * personalities, and two things were wrong with that. At size an `asleep` face
+ * read as four identical horizontal bars, because a closed eye drawn at brow
+ * weight underneath an actual brow is the same mark twice. And because the
+ * three sets shared it byte for byte, `pleased`, `asleep` and `proud` drew
+ * identical eyes in every treatment, which is the only reason the drift test
+ * could ask for ten of thirteen states to differ rather than all of them.
+ *
+ * It is drawn at the eye's weight now rather than the brow's, so a lid reads
+ * as a lid, and each treatment passes its own span, depth and lash.
+ */
+function closedEye(cx, cy, up, { span = 7, depth = 6, lash = 0, weight = W.eye } = {}) {
+  const y = up ? cy + 1 : cy - 1;
+  const bend = up ? y - depth - 1 : y + depth;
+  const parts = [`M${(cx - span).toFixed(2)} ${y} Q${cx} ${bend.toFixed(2)} ${(cx + span).toFixed(2)} ${y}`];
+  if (lash) {
+    // One tick at the outer corner, away from the nose, so a closed eye has a
+    // direction the brow above it does not.
+    const out = cx < 44 ? -1 : 1;
+    const bx = cx + out * span;
+    parts.push(`M${bx.toFixed(2)} ${y} l${(out * lash).toFixed(2)} ${(-lash * 0.8).toFixed(2)}`);
+  }
+  return `<path d="${parts.join(' ')}" stroke="currentColor" stroke-width="${weight}" stroke-linecap="round" fill="none"/>`;
 }
 
 function eyesOpen(o = {}) {
   return `${eye({ cx: 33.5, cy: 47, ...o })}\n    ${eye({ cx: 54.5, cy: 47, ...o })}`;
 }
 
-function eyesClosed(up) {
-  return `${closedEye(33.5, 47, up)}\n    ${closedEye(54.5, 47, up)}`;
+function eyesClosed(up, o) {
+  return `${closedEye(33.5, 47, up, o)}\n    ${closedEye(54.5, 47, up, o)}`;
 }
+
+/**
+ * The sleeping z, drawn once and shared rather than pasted into three records.
+ *
+ * It was one z at 7 units on a 88 unit face, which at any real size read as a
+ * bent line beside the ear rather than as sleep. Two of them at different
+ * sizes, the smaller one drifting up and out, is the reading the shape wants,
+ * and `scale` lets each treatment breathe differently without a fourth copy of
+ * the path.
+ */
+function sleepZ(scale = 1) {
+  // A z is four points: across, back down the diagonal, across again.
+  const z = (x, y, w, weight) => `<path d="M${x.toFixed(1)} ${y.toFixed(1)} L${(x + w).toFixed(1)} ${y.toFixed(1)}`
+    + ` L${x.toFixed(1)} ${(y + w).toFixed(1)} L${(x + w).toFixed(1)} ${(y + w).toFixed(1)}"`
+    + ` stroke="currentColor" stroke-width="${weight.toFixed(2)}" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
+  // Both z's have to finish inside the ring at r 40.5 from (44, 44), because
+  // the ring is painted last and would otherwise cut the small one in half.
+  // The first placement put the small z's far corner 42.1 units out and it
+  // came back sliced.
+  const big = 6.5 * scale;
+  const small = 3.8 * scale;
+  return z(59.5, 25, big, 2.6 * scale) + z(59.5 + big + 1.6, 25 - big * 0.85, small, 1.9 * scale);
+}
+
+/**
+ * The three closed-eye treatments, the counterpart of dBrows/wBrows/bBrows:
+ * Deadpan even and quiet, Warm deeper with a lash, Blunt short, straight and
+ * heavy. Passing these is what takes the eye-difference guarantee in
+ * faces.test.mjs from ten of the thirteen states to all thirteen.
+ */
+const dEyesClosed = (up) => eyesClosed(up, { span: 7, depth: 6 });
+const wEyesClosed = (up) => eyesClosed(up, { span: 7.4, depth: 7.6, lash: 1.8 });
+const bEyesClosed = (up) => eyesClosed(up, { span: 6.2, depth: 3.4, weight: 3 });
 
 /**
  * One brow, as a filled tapered shape rather than a stroked segment.
@@ -242,14 +330,32 @@ const MOUTH = {
   smile: (depth = 2.2, tooth = true) => `${tooth ? `<rect x="42.3" y="${(62 + depth - 0.9).toFixed(2)}" width="3.4" height="3.6" rx=".8" fill="${WHITE}" stroke="currentColor" stroke-width="1.6"/>` : ''}
     <path d="M38 62 Q44 ${62 + depth * 2} 50 62" stroke="currentColor" stroke-width="${W.mouth}" stroke-linecap="round" fill="none"/>`,
   /**
-   * An open smile, the mouth interior in ink, the tooth inside it. `halfW`
-   * widens it, `drop` deepens it, and the tooth is derived from both. It used
-   * to be a rect fixed at x 39.8 while the mouth width was a parameter, so
-   * Warm's `grin(10.5, 15)` drew its tooth a third of the way in from the left
-   * corner of a mouth 2.5 units wider than the one the number was fitted to.
+   * An open smile. `halfW` widens it, `drop` deepens it, and the tooth is
+   * derived from both. It used to be a rect fixed at x 39.8 while the mouth
+   * width was a parameter, so Warm's `grin(10.5, 15)` drew its tooth a third
+   * of the way in from the left corner of a mouth 2.5 units wider than the one
+   * that number was fitted to.
+   *
+   * The interior is navy rather than `currentColor`. Filling it with the ink
+   * meant the inside of Shin's mouth took the verdict hue, so a good verdict
+   * opened a green cavity in a cyan face and the white tooth inside it read as
+   * a floating square. Navy is a fill here, which the file's colour rule
+   * allows, and it is what the inside of a mouth actually looks like.
    */
-  grin: (halfW = 8, drop = 12) => `<path d="M${44 - halfW} 60 Q44 ${60 + drop} ${44 + halfW} 60 Z" fill="currentColor" stroke="currentColor" stroke-width="${W.mouth}" stroke-linejoin="round"/>
-    <rect x="${(44 - halfW * 0.2625).toFixed(2)}" y="${(60 + drop * 0.05).toFixed(2)}" width="${(halfW * 0.525).toFixed(2)}" height="${(drop * 0.283).toFixed(2)}" rx=".8" fill="${WHITE}"/>`,
+  grin: (halfW = 8, drop = 12) => {
+    const tw = halfW * 0.5;
+    const th = drop * 0.3;
+    const r = Math.min(tw / 2, th / 2);
+    // The tooth hangs from the lip line rather than floating below it: flat
+    // along the top where it meets the gum, rounded at the biting edge. It was
+    // a rect with every corner rounded, sitting a unit clear of the lip, which
+    // at size read as a white block loose inside a coloured hole.
+    const tooth = `M${(44 - tw / 2).toFixed(2)} 60 h${tw.toFixed(2)} v${(th - r).toFixed(2)}`
+      + ` a${r.toFixed(2)} ${r.toFixed(2)} 0 0 1 -${r.toFixed(2)} ${r.toFixed(2)}`
+      + ` h-${(tw - 2 * r).toFixed(2)} a${r.toFixed(2)} ${r.toFixed(2)} 0 0 1 -${r.toFixed(2)} -${r.toFixed(2)} Z`;
+    return `<path d="M${44 - halfW} 60 Q44 ${60 + drop} ${44 + halfW} 60 Z" fill="${IRIS}" stroke="currentColor" stroke-width="${W.mouth}" stroke-linejoin="round"/>
+    <path d="${tooth}" fill="${WHITE}"/>`;
+  },
   frown: (w = 10, depth = 4, y = 66.5) => `<path d="M${44 - w / 2} ${y} Q44 ${y - depth} ${44 + w / 2} ${y}" stroke="currentColor" stroke-width="${W.mouth}" stroke-linecap="round" fill="none"/>`,
   o: (r = 2.8, y = 64.5) => `<circle cx="44" cy="${y}" r="${r}" fill="none" stroke="currentColor" stroke-width="${W.mouth}"/>`,
   /** Pulled to one side: a flat line with a lift at the right end. */
@@ -332,7 +438,7 @@ export const DEADPAN = {
   },
   pleased: {
     brows: dBrows([26, 32.5, 40, 32], [48, 32, 62, 32.5]),
-    eyes: eyesClosed(true),
+    eyes: dEyesClosed(true),
     mouth: MOUTH.smile(1.6, false),
   },
   nudging: {
@@ -345,15 +451,15 @@ export const DEADPAN = {
     pose: 'translate(0 3) rotate(4 44 50)',
     prop: 22,
     brows: dBrows([26, 36, 40, 36], [48, 36, 62, 36]),
-    eyes: eyesClosed(false),
+    eyes: dEyesClosed(false),
     mouth: MOUTH.flat(7, 65),
-    extras: `<path d="M64 21 L71 21 L64 28 L71 28" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
+    extras: sleepZ(),
   },
   proud: {
     pose: 'translate(0 -1.5)',
     bodyLift: 2.5,
     brows: dBrows([26, 32, 40, 31], [48, 31, 62, 32]),
-    eyes: eyesClosed(true),
+    eyes: dEyesClosed(true),
     mouth: MOUTH.smile(2, true),
   },
 };
@@ -498,7 +604,7 @@ export const WARM = {
     // the chest up 2.
     bodyLift: 2,
     brows: wBrows([27, 32.8, 40, 31.6], [48, 31.6, 61, 32.8], 3),
-    eyes: eyesClosed(true),
+    eyes: wEyesClosed(true),
     mouth: MOUTH.smile(3, true),
   },
   nudging: {
@@ -524,9 +630,9 @@ export const WARM = {
     pose: 'translate(0 3) rotate(6 44 50)',
     prop: 22,
     brows: wBrows([27, 34.5, 40, 33.6], [48, 33.6, 61, 34.5], 3),
-    eyes: eyesClosed(false),
+    eyes: wEyesClosed(false),
     mouth: MOUTH.o(2.4, 63.5),
-    extras: `<path d="M64 21 L71 21 L64 28 L71 28" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
+    extras: sleepZ(1.08),
   },
   proud: {
     // Dark in v1. The largest bodyLift in the set: proud is the one state whose
@@ -537,7 +643,7 @@ export const WARM = {
     pose: 'translate(0 -3)',
     bodyLift: 3.5,
     brows: wBrows([27, 32.6, 40, 31.4], [48, 31.4, 61, 32.6], 3),
-    eyes: eyesClosed(true),
+    eyes: wEyesClosed(true),
     mouth: MOUTH.smile(3.2, true),
   },
 };
@@ -689,9 +795,9 @@ export const BLUNT = {
     pose: 'translate(0 3) rotate(4 44 50)',
     prop: 22,
     brows: bBrows([27, 36.5, 39, 36.5], [49, 36.5, 61, 36.5], 4.6),
-    eyes: eyesClosed(false),
+    eyes: bEyesClosed(false),
     mouth: MOUTH.flat(5, 63.5),
-    extras: `<path d="M64 21 L71 21 L64 28 L71 28" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
+    extras: sleepZ(0.92),
   },
   proud: {
     // Dark in v1. Warm lifts 3.5 and floats the head up 2; Blunt lifts 1.5 and

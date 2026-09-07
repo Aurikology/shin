@@ -99,15 +99,22 @@ test('every set differs from the others in the eyes, not only in the mouth', () 
   // A set could pass the test above on mouths alone, and the mouth is the one
   // feature a 28px row face renders in about two pixels. The eyes are the
   // largest feature and the one that has to carry the distinction at row size,
-  // so each pair must differ there too, on at least most of the thirteen.
+  // so each pair must differ there too, in every one of the thirteen.
+  //
+  // This asked for ten of thirteen until 2026-09-07. The three that were
+  // allowed to match were pleased, asleep and proud, which draw a closed eye,
+  // and closedEye was one shared function with no personality argument. Now
+  // that each treatment has its own closed eye, the exemption is spent, and
+  // the number is the point: it is the standing evidence that a redraw
+  // differentiated the three sets rather than quietly converging them.
   const group = (who, state) => faceInner(who, state).match(/<g class="face-eyes">([\s\S]*?)<\/g>/)[1];
   const sets = Object.keys(FACE_SETS);
   for (let i = 0; i < sets.length; i++) {
     for (let j = i + 1; j < sets.length; j++) {
       const differing = CONTRACT.filter((s) => group(sets[i], s) !== group(sets[j], s));
       assert.ok(
-        differing.length >= 10,
-        `${sets[i]} and ${sets[j]} draw the same eyes in ${13 - differing.length} of 13 states`,
+        differing.length === CONTRACT.length,
+        `${sets[i]} and ${sets[j]} draw the same eyes in ${CONTRACT.length - differing.length} of ${CONTRACT.length} states`,
       );
     }
   }
