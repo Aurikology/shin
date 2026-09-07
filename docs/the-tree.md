@@ -5,8 +5,8 @@ exist". Read a line upward and it says what that piece unlocks; read it downward
 it is waiting on.
 
 **Six levels, 2026-09-07.** The root, the ten things under it, and four layers of what each of
-those is made of. The shape, counted rather than claimed: **99, then 337, then 542, then 99, then
-14**, with **735 ends** spread across the depths. It fans out where a thing is still made of parts
+those is made of. The shape, counted rather than claimed: **99, then 338, then 548, then 101, then
+14**, with **740 ends** spread across the depths. It fans out where a thing is still made of parts
 and stops where it is not, so a level being narrower than the one above it is only correct when
 the level above it is mostly ends.
 
@@ -78,11 +78,11 @@ would show it worked, since those were the three numbers still being taken by ha
 clone it had been reporting the whole file as empty and every stated number as wrong, which is
 fixed.
 
-**What carries no measurement, exactly.** Thirty-four ends, and the script fails the run if any
-other end lacks one. Fourteen are calls that are his, five are blocked by somebody outside, and
-fifteen are standing rules. None of the three is work, so none has a measurement; each says
+**What carries no measurement, exactly.** Thirty-eight ends, and the script fails the run if any
+other end lacks one. Fifteen are calls that are his, six are blocked by somebody outside, and
+seventeen are standing rules. None of the three is work, so none has a measurement; each says
 instead what he decides, what would lift the block, or what enforces the rule and what catches a
-breach. Five more lines are pointers at work built elsewhere, each naming the line it waits on
+breach. Seven more lines are pointers at work built elsewhere, each naming the line it waits on
 rather than building it twice, and the script now fails the run if a pointer names a line that
 does not exist, since three of them did. Two end-state definitions carry a measurement for the half that can be shown today and
 say plainly which half waits on a wall.
@@ -141,8 +141,8 @@ decide, written as the question · a wall, meaning a thing a company our size ca
 as a slot with its way around underneath it · a standing rule, meaning a thing enforced from now
 on rather than built once, carrying what enforces it and what catches a breach. The seventh was
 added because four lines were sitting in "buildable", where they fail the one-sitting test
-forever; the file now holds fifteen of them as ends, on nineteen lines in all, and the number is
-counted, not typed.
+forever; the file now holds seventeen of them as ends, on twenty-two lines in all, and the number
+is counted, not typed.
 
 **An end that names only what would show it worked is buildable, and that is the default.** Only
 the other six states are written on the line, so silence means buildable and nothing else. Two of
@@ -1644,10 +1644,14 @@ everywhere; what the app is for, supply is the engine.*
   - The freshness window is the one threshold left, and widening it buys coverage by lying.
     *(from: the fault list, what the freshness window puts out of reach, 2026-09-05; moves:
     the share answered from real prices on the thing itself)*
-    - The window, per kind, with the reason for each. **Shown by:** the numbers and their
-      reasons on one page.
-    - The share of stored prices it puts out of reach, counted. **Shown by:** the share, per
-      kind.
+    - One window for each of the five kinds the classifier names, packaged, tech, used, produce
+      and unlisted, with the reason each number is what it is. Five numbers written in one
+      sitting, not five jobs. **Shown by:** a stored price aged just past each of the five
+      windows, and the answer for that kind refusing to use it, with the fifth failing the run
+      if a kind has no window at all.
+    - The share of stored prices those windows put out of reach, counted for all five kinds
+      from the same pass over the record. **Shown by:** the five shares computed off a copy of
+      the real record, and each one re-derived by hand on a sample of a hundred rows.
     - **STANDING RULE: the freshness window is never widened to buy coverage.** Enforced every
       time somebody wants the coverage number to look better, not settled once; a breach is
       caught the same way each time, by reading the window's history against the coverage number
@@ -1773,8 +1777,11 @@ says fair or not and where cheaper; what the app is for, always answer.*
   - What ships: a typical range across the country, from stored observations inside a recency
     window, never an average, with promotions kept apart from regular prices. *(from: how it
     ships, its verdict stage; moves: the share answered from real prices on the thing itself)*
-    - The window: how recent a price must be to count, per kind. **Shown by:** the share of
-      stored prices inside it, per kind.
+    - How recent a price must be to count, set once for each of the five kinds the classifier
+      names, packaged, tech, used, produce and unlisted. Five numbers written in one sitting,
+      not five jobs, and the same five the freshness window uses rather than a second set.
+      **Shown by:** a price aged just outside each of the five windows, and the range for that
+      kind computed without it, with a kind that has no window failing the run.
     - The two ends of the range and how they are computed, keeping promotions in their own set
       so a range never moves because one was blended in. *(from: how it ships, its verdict
       stage, never an average; moves: the share answered from real prices on the thing itself)*
@@ -2082,8 +2089,11 @@ says fair or not and where cheaper; what the app is for, always answer.*
     - The other two voices written the same way, each its own pass rather than assumed from
       the first. **Shown by:** the second and third personality read the same way, and one key
       compared across all three to see they still agree on the fact, not just the tone.
-    - Each string read once by a person before it ships. **Shown by:** the reading recorded,
-      per string, with who read it.
+    - **STANDING RULE: no string ships until a person has read it once.** Enforced on every
+      string added from now on, not only the 174 counted above; a breach is caught the same
+      way each time, by finding a shipped string with no reading recorded against it. *(from:
+      what the app is for, the avatar; moves: return in week two)* **Shown by:** a new string
+      added, and the release checked for it with no reading recorded against it.
 
 - **The week's shop priced before the trip, one store or two, with the drive counted.** *Kind:
   packaged at chain retail. Moves: scans per returning person per week. From: the moonshot,
@@ -2913,9 +2923,12 @@ how it ships, its stages.*
       themes. **Shown by:** the computed numbers, per element, in both themes.
     - The failures fixed at the colour rather than on the one screen that found them. **Shown
       by:** the same colour checked elsewhere afterwards.
-    - The check re-run whenever a colour changes, since this is where drift shows first.
-      **Shown by:** the dates of the checks written down against the dates of the colour
-      changes.
+    - **STANDING RULE: the contrast check is re-run every time a colour changes, since this is
+      where drift shows first.** Enforced on every colour change from now on, not proven once
+      and set aside; a breach is caught the same way each time, by finding a changed colour
+      with no re-check dated after it. *(from: the fault list, three failures at once,
+      2026-09-05; moves: return in week two)* **Shown by:** a colour changed, and the check's
+      date compared against the change's date, with no gap.
   - The light theme themed as deliberately as the dark one. *(from: the fault list, the light
     theme never re-themed, 2026-09-04; moves: return in week two)*
     - Every colour defined for both, not inherited. **Shown by:** the light screens walked,
@@ -3029,10 +3042,15 @@ the ledger fills itself.*
       savings measured)* **Shown by:** the line read against the branch's own promise.
   - Way around: the person's own loyalty account, read with their permission rather than the
     chain's. *(from: the moonshot, second wall; moves: savings measured)*
-    - Whether the programme even offers a person their own read access, which most do not, so
-      this is checked once per programme, one for each of the same chains whose prices this
-      already reads, before anything is built against it. **Shown by:** one programme's own
-      terms read, and whether a personal export or read exists at all.
+    - Whether the programme even offers a person their own read access, checked once per
+      programme before anything is built against it. *(from: the moonshot, second wall;
+      moves: savings measured)*
+      - One programme's own terms read and the answer recorded, the same job repeated for
+        each chain whose prices this already reads. **Shown by:** one programme's own terms
+        read, and whether a personal export or read exists at all.
+      - How many programmes that is, and where the list of them lives, held where that
+        chain reading is already built rather than repeated here. **Shown by:** the list
+        opened and the programmes on it counted.
     - Where a personal read exists, turning its export or screen into the same purchase shape
       the receipt photo produces, so nothing downstream treats it differently. **Shown by:**
       one person's own loyalty history read and landing as the same kind of row a receipt
@@ -3110,12 +3128,17 @@ the ledger fills itself.*
         found, counted against the paper.
       - Reading the abbreviations a till prints, which are not product names. *(from: the
         moonshot, the receipt reader; moves: savings measured)*
-        - A dictionary per chain, one for each of the same chains whose prices this already
-          reads, its count and list held where that reading is built rather than repeated
-          here, mapping the shorthand its own tills print to a real product name, seeded
-          from receipts already read rather than typed once and assumed complete. **Shown
-          by:** fifty real till lines from one chain, and the share resolved through the
-          dictionary alone.
+        - A dictionary per chain, mapping the shorthand its own tills print to a real
+          product name, seeded from receipts already read rather than typed once and
+          assumed complete. *(from: the moonshot, the receipt reader; moves: savings
+          measured)*
+          - One chain's dictionary built and seeded from its own receipts, the same job
+            repeated for each chain whose prices this already reads. **Shown by:** fifty
+            real till lines from one chain, and the share resolved through the dictionary
+            alone.
+          - How many chains that is, and where the list of them lives, held where that
+            reading is built rather than repeated here. **Shown by:** the list opened and
+            the chains on it counted.
         - What an abbreviation that could mean more than one product does, settled by its
           price and by what the person's history says they actually buy, rather than picked
           at random. **Shown by:** one ambiguous abbreviation on a real receipt, and which
@@ -3264,8 +3287,8 @@ the ledger fills itself.*
       a person uses the app, this is the most complete picture of a person we would ever hold,
       fuller than any single thing that feeds it (looked at by: the wording read against what is
       stored, by somebody who did not write either)
-    · **What it costs:** one row per line item per person is the largest thing we would store by
-      number of rows, where the kept pictures are the largest by bytes, and neither has been
+    · **What it costs:** one row per line item per person is the largest thing we would store
+      by number of rows, where the kept pictures are the largest by bytes, and neither has been
       measured (looked at by: the size per person per year, measured, set beside the bytes per
       thousand scans held as pictures)
     · **Who runs it when it breaks:** a malformed row, a missing price or a null store,
@@ -3289,9 +3312,16 @@ the ledger fills itself.*
     moonshot, the ledger and the personal model; moves: savings measured)* **Shown by:** the
     same record read by both, rather than two copies.
   - The share of a person's spending it captures is the number that says whether it works.
-    *(from: the moonshot, its stated measure; moves: savings measured)* **Shown by:** the
-    captured share counted against a person's own statements for a month, which cannot be
-    taken yet: it needs a month of real people using it, not a line already in this tree.
+    *(from: the moonshot, its stated measure; moves: savings measured)*
+    - The captured share computed from the purchase graph, checked against one statement
+      already on hand rather than waiting for fresh use. *(from: the moonshot, its stated
+      measure; moves: savings measured)* **Shown by:** one person's own statement, already
+      available today, compared against the purchase graph for the same period.
+    - The same share read over a full month of a real person using the app, which cannot be
+      taken until the app has been in real use that long and lifts on its own when it has, with
+      no other line in this tree standing in for that wait. *(from: the moonshot, its stated
+      measure; moves: savings measured)* **Shown by:** the same comparison run a second time
+      after that month, against the same person's own statements for the month itself.
 
 - **The ledger: what they paid, what fair was at that minute at that store, and what it was
   elsewhere.** *Kind: all kinds. Moves: savings measured. From: the moonshot, the ledger fills
@@ -3486,8 +3516,11 @@ fit; what the app is for, the money numbers.*
       day of refusals, and the bill for them.
   - Whatever earns an allowance back is counted the same way, once he decides what earns it.
     *(from: how it ships, the open question of what a good price earns; moves: payers per
-    hundred downloads)*
-    - What earns one, which is his to decide. **Shown by:** his answer written down.
+    hundred downloads)* [waits on: what a reported price earns back]
+    - Whatever he answers wired into the tally, so it credits the allowance the same way a
+      bought scan does. *(from: how it ships, the open question of what a good price earns;
+      moves: payers per hundred downloads)* **Shown by:** the answer, once given, credited
+      to the tally and counted the same as a bought scan.
     - It counted in the same tally as a bought one. **Shown by:** both present,
       indistinguishable to what reads the tally.
 
@@ -3758,10 +3791,15 @@ fit; what the app is for, the money numbers.*
     the live index; moves: payers per hundred downloads)*
     - What a buyer says they need. **Shown by:** the answer from one real buyer, written down.
     - Our coverage measured against that. **Shown by:** the two numbers side by side.
-  - Whether our sources allow reselling what they gave us, checked before anything is offered.
-    *(from: what the app is for, no vendor's terms confirm it yet; moves: payers per hundred
-    downloads)* **Shown by:** the answer for each source written where the next person will
-    find it, with the clause it rests on quoted
+  - Whether our sources allow reselling what they gave us, checked before anything is
+    offered. *(from: what the app is for, no vendor's terms confirm it yet; moves: payers
+    per hundred downloads)*
+    - One source's own terms read and the answer written down, with the clause it rests on
+      quoted, the same job repeated for each source this reads prices from. **Shown by:**
+      one source's terms read, the answer written where the next person will find it, and
+      the clause it rests on quoted.
+    - How many sources that is, and where the list of them lives. **Shown by:** the list
+      opened and the sources on it counted.
 
 - **The join: money is switched on in one place, and every dollar in or out is tied to a row
   in the record of what was bought.** *Kind: all kinds. Moves: payers per hundred downloads.
@@ -4054,10 +4092,11 @@ can share; the moonshot, it is already on the phone.*
       person's own last five trips.
     - The message that carries it, arriving without being opened first. **Shown by:** the
       message received on a phone with the app closed.
-  - Nothing is sent that is not about a real change in a real price. *(from: the repo's rule
-    that the aggression never points at the user; moves: return in week two)*
-    - Every message traced to a price row that changed. **Shown by:** a week of messages, each
-      traced.
+  - **STANDING RULE: nothing is sent that is not about a real change in a real price.** *(from:
+    the repo's rule that the aggression never points at the user; moves: return in week two)*
+    Enforced by the send path refusing to fire without a changed price row behind it. What
+    catches a breach: a sampled week of sent messages, each traced back to the row that caused
+    it.
     - No message that exists to bring somebody back for its own sake. **Shown by:** the list
       of message kinds, read against that rule.
   - How many come back in week two is read, not assumed, before more of this is built. *(from:
@@ -4090,8 +4129,9 @@ can share; the moonshot, it is already on the phone.*
       impossible for us; moves: installs)* **Shown by:** installs per link, per source.
       - The making and posting itself, which is built under short video and named here
         because this way around is nothing without it. *(from: what the app is for, short
-        form video is the channel; moves: installs per video)* **Shown by:** posts existing,
-        with installs counted against each.
+        form video is the channel; moves: installs per video)* [waits on: Short video is the
+        channel, so making the videos is part of the product, not a thing that happens
+        afterwards.]
     - What ten thousand people are enough to prove, which is more answers resting on a real
       price for the thing itself, not the wall falling. *(from: what the app is for, supply is
       the engine; moves: the share answered from real prices on the thing itself)* **Shown by:**
@@ -4101,8 +4141,15 @@ can share; the moonshot, it is already on the phone.*
       by:** the list of things still waiting on scale.
   - Way around: everything that depends on scale is built so it switches on at scale rather
     than being rebuilt for it. *(from: the moonshot, sellers pay only after this wall; moves:
-    payers per hundred downloads)* **Shown by:** the switch flipped in a copy of the running
-    system, and what breaks listed.
+    payers per hundred downloads)*
+    - The seller fee, the one piece of the app that only starts once this wall is passed.
+      *(from: the moonshot, sellers pay only after this wall; moves: payers per hundred
+      downloads)* [waits on: Sellers pay to be shown fair, and a nightly re-score by a path
+      nobody paid for pulls the mark the moment the two disagree.]
+    - How many pieces wait on this wall: one, the seller fee above, and the count comes from
+      searching the tree for every line naming this wall. *(from: the moonshot, sellers pay
+      only after this wall; moves: payers per hundred downloads)* **Shown by:** every line in
+      the tree searched for a mention of this wall, and the seller fee the only one found.
   - Way around: the harvest works at any size, so ten thousand people still improve the answers.
     *(from: what the app is for, supply is the engine; moves: answered from real prices on the
     thing itself)*
@@ -4485,24 +4532,43 @@ the law; the fault list.*
     · **How it reaches people:** if the refund promise turns out to be insurance, the guarantee
       cannot be said the same way in public, so the answer gates what marketing is allowed to
       claim (looked at by: the marketing script, read against whatever the legal answer is)
-  - Each source's own terms read and written down beside the source, not assumed from the fact
-    that a page loads. *(from: what the app is for, standing decisions; moves: installs)*
-    - The terms found for each source. **Shown by:** a link or a copy kept per source.
-    - What each source's terms permit, in one sentence a person can act on, written per
-      source. **Shown by:** somebody picking any one source and knowing what is allowed
-      without asking.
+  - The three sources actually read today, each with its own terms found and cited beside it,
+    not assumed from the fact that a page loads. *(from: what the app is for, standing
+    decisions; moves: installs)*
+    - Walmart Canada's terms: found, quoted and dated beside its adapter, and what they permit
+      written in one sentence a person can act on. *(from: the pipeline measurement, Walmart
+      Canada is readable, 2026-09-05; moves: installs)* **Shown by:** the terms read and dated
+      beside the adapter, and somebody picking this source and knowing what is allowed without
+      asking.
+    - Canadian Tire's terms: found, quoted and dated beside its adapter, and what they permit
+      written in one sentence a person can act on. *(from: the pipeline measurement, Canadian
+      Tire is the readable second seller, 2026-09-05; moves: installs)* **Shown by:** the terms
+      read and dated beside the adapter, and somebody picking this source and knowing what is
+      allowed without asking.
+    - Open Prices' terms: found, quoted and dated beside its feed, and what they permit
+      written in one sentence a person can act on. *(from: the pipeline measurement, Open
+      Prices joins on the same barcode namespace, 2026-09-05; moves: installs)* **Shown by:**
+      the terms read and dated beside the feed, and somebody picking this source and knowing
+      what is allowed without asking.
+    - How many sources that is: three, read today, Walmart Canada, Canadian Tire and Open
+      Prices, and the list lives with the pipeline's own measurement of what is readable and
+      what is blocked. *(from: the pipeline measurement, the shape of the seller problem,
+      2026-09-05; moves: installs)* **Shown by:** the count of live adapters matched against
+      this list.
   - **STANDING RULE: each source's stored permission is checked before its data is used in the
     guarantee, not only a document somebody read once.** *(from: what the app is for, standing
     decisions; moves: installs)* Enforced by the guarantee code reading a source's stored
     permission on every use rather than trusting a decision made once. What catches a breach:
     a source flipped to forbidden, checked for whether its data stopped being used without
     anyone touching the guarantee code.
-  - Whether the refund promise is insurance in law, answered before any money is promised in
-    public. *(from: the moonshot, the guarantee; moves: payers per hundred downloads)*
-    - The question asked of somebody qualified to answer it. **Shown by:** the answer in
-      writing, with who gave it.
-    - What changes if the answer is yes. **Shown by:** the consequence written down before the
-      question is asked.
+  - **BLOCKED OUTSIDE: whether the refund promise is insurance in law.** Lifts on a written
+    opinion from somebody qualified to give one. *(from: the moonshot, the guarantee; moves:
+    payers per hundred downloads)*
+  - The question written down and sent to somebody qualified to answer it, and what changes if
+    the answer comes back yes, decided before the question is asked so the answer cannot be
+    reinterpreted to fit either way. *(from: the moonshot, the guarantee; moves: payers per
+    hundred downloads)* **Shown by:** the question in writing, with who it was sent to and
+    when, and the consequence written down before it was sent.
   - **STANDING RULE: a source whose terms forbid what we do is replaced rather than quietly
     kept.** *(from: what the app is for, supply is the engine; moves: installs)* Enforced by
     supply's own intake refusing a source once its terms say no. What catches a breach: a
@@ -5145,10 +5211,15 @@ decision; the moonshot, it works with no signal.*
   - The tone a person answers in, which is the app's voice with a human behind it, written
     down before anybody answers anything. **Shown by:** three real replies read against it by
     somebody who did not write them.
-  - What a person has to do each week for this to keep running, written down and then made
-    smaller. *(from: the moonshot, the instruments; moves: what each payer leaves)*
-    - The list written down, honestly. **Shown by:** a week logged by whoever does it.
-    - It shorter a month later. **Shown by:** the two logs compared.
+  - What a person has to do to keep this running, written down and then made smaller. *(from:
+    the moonshot, the instruments; moves: what each payer leaves)*
+    - **HIS: who does this work each week, and logs what it took?** *(from: the moonshot, the
+      instruments)*
+    - The list of tasks written down in one sitting, checked against one real instance of each
+      task rather than assumed. **Shown by:** somebody who did not write the list finding one
+      real example of each task on it.
+    - It shorter once checked again later. **Shown by:** the list compared against an earlier
+      version.
   - A way for somebody to say the answer was wrong and reach a person, not only a form.
     *(from: what the app is for, failure is loud; moves: return in week two)*
     - The way in, from inside the app. **Shown by:** somebody who has not seen the app finding
@@ -5248,15 +5319,29 @@ Nothing yet.
   citation, and it is the next pass. Until it runs, nothing here says a thing exists or is
   missing, and "one sitting" is about size, not about state.
 - **The bottom is uneven, and that is correct.** Ends sit at every depth: 9 at the second level,
-  114 at the third, 503 at the fourth, 95 at the fifth, 14 at the sixth.
-- **How many ends are still too big is no longer known.** The last reader to adjudicate a sample
-  by hand found about a quarter failing, and this pass opened the five that document named as the
-  worst, along with everything else ten readers found failing inside their own branch. Nobody has
-  re-sampled since, so the honest statement is that the number is unmeasured, not that it improved.
-  Re-running that hand adjudication is the first thing the next check should do.
-- **The fifth and sixth levels are thin on purpose.** Most fourth-level lines are single jobs; the
-  ninety-nine that were not have children, and fourteen of those needed one more layer still. If a
-  seventh level turns out to be needed under many lines, the same red flag applies again.
+  113 at the third, 508 at the fourth, 97 at the fifth, 13 at the sixth.
+- **How many ends are still too big: 13.2%, measured 2026-09-07, and then fixed.** A reader with
+  none of this session's conversation adjudicated 120 ends by hand against the three-part test,
+  drawn every Nth line across eight of the ten branches rather than picked, with the two branches
+  being rewritten that hour left out. Of 106 that were work rather than his call, a block, a
+  standing rule or a pointer, 92 passed and 14 failed. All 14 were opened the same day, so the
+  13.2% describes the document before that fix and not after; nobody has re-sampled since, and the
+  number after is unmeasured. The share was 47% two rounds ago, though that figure counted
+  dimension lines that no longer exist as tree lines, so the two are not comparable and the
+  comparable earlier number was never taken. Re-running this adjudication is still what the next
+  check should start with, and the sample should include the two branches this one skipped.
+- **What the 14 failures were, since the shape matters more than the count.** Eight were a line
+  saying every, each or per, where the number of builds behind it is written nowhere: still the
+  dominant shape, unchanged across three rounds of finding it. Four spanned time rather than a
+  sitting, one of them measured by something that cannot be taken until a month of real people
+  have used the app. Two hid a decision belonging to somebody else, one of them a call the tree
+  already knew was his in the line directly above it, which had never been given the state that
+  would have flagged it.
+- **The fifth and sixth levels are thin on purpose.** Most fourth-level lines are single jobs; 40
+  of the 548 are not, and those have children, and 4 of the 101 lines that produced needed one
+  more layer still. An earlier version of this line reported the size of each level instead of how
+  many lines at the level above had to be opened, which are different numbers. If a seventh level
+  turns out to be needed under many lines, the same red flag applies again.
 - **A measurement is not a claim that the thing is missing.** Several ends will turn out to be
   built already, and the measurement is then what confirms it, which is exactly what the state
   pass needs.
@@ -5461,8 +5546,22 @@ adding the source that does say five rather than by dropping either; one unlabel
 cent, now marked as an untested target; and a node promising the shelf is deep enough that the
 code almost always lands, with no child measuring whether it does.
 
+**The ends were re-sampled by hand, which is what the note above had been asking for since round
+four.** 120 of them, drawn every Nth line across eight branches, adjudicated one at a time against
+the three-part test: 13.2% failing. Three more readers opened all fourteen. The measured share is
+written in the closing note beside what it does and does not compare with.
+
+**One expansion was rejected at the join.** A reader opened two lines written "per kind" into five
+near-identical children each, one per kind, measured by reading a page we would write ourselves.
+The round three entry above records that same defect being fixed once already, two children that
+were their own parent with a word swapped. The finding underneath it was right, since the number
+of builds really was written nowhere; the cure was not. Both are now one line naming the five
+kinds outright, measured against the running system: a stored price aged just past each window,
+and the answer for that kind refusing to use it.
+
 **What this round did not do.** The code has still never been opened. The state pass, which reads
 every citation against the code and marks what is running, what is written with nothing calling
 it, and what is missing, has not run, and two of the seven leaf states cannot appear anywhere in
-this file until it does.
+this file until it does. The hand sample that produced the 13.2% skipped the two branches being
+rewritten at the time, so that figure covers eight branches out of ten.
 
