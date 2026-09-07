@@ -29,7 +29,16 @@ node, it says what that node waits on. It is one file, one line per node, plain 
    *Stops:* the $20 that became "your number" (2026-09-06).
 
 3. **Every node names the goal number its subtree moves**: one of the want, reliance or money
-   figures in the vision. A subtree that moves none is cut, not kept for completeness.
+   figures in the vision, and the figure itself, never the category it sits in ("money" is not a
+   figure; "payers per hundred downloads" is). A subtree that moves none is cut, not kept for
+   completeness. The one exception is the instruments: a node whose job is to make a figure
+   readable names every figure it makes readable and is not cut for moving none, because the
+   vision puts the instruments second in its order precisely when nothing is measured yet.
+   *(Amended 2026-09-06: the skeleton's measuring branch would have been cut by this rule as
+   written, and forty of its lines named a category instead of a figure. Recorded plainly,
+   because the direction of fit is the wrong way round: a session changed the rule so that its
+   own document would pass. The naming half stands on its own; the instruments exception is his
+   to confirm or strike, and if he strikes it the measuring branch is what gets rewritten.)*
    *Stops:* work that serves neither of his two goals.
 
 4. **A node says which kind of thing it is about, or says "all kinds".** A node that assumes
@@ -51,6 +60,12 @@ node, it says what that node waits on. It is one file, one line per node, plain 
    shows its chain in one clause.
    *Stops:* the hedged "about N" the depth gate has caught repeatedly; 25 scans a second carried
    as fact when the press kit said 85.
+
+6b. **Below the third level a line inherits its parent's source, kind and goal figure** unless it
+   says otherwise, and only a leaf carries its measurement. *(Added 2026-09-06: repeating four
+   tags on every line at depth trebled the file and made the tree unreadable, which is the one
+   thing it cannot be.)*
+   *Stops:* a document nobody opens.
 
 7. **One line, plain words, no identifiers.** A node reads to someone who has read nothing in the
    repo. File paths, decision numbers and slot names go in a trailing bracket if a session needs
@@ -75,6 +90,35 @@ node, it says what that node waits on. It is one file, one line per node, plain 
    present and whose parent still would not run.)*
    *Stops:* a tree that is a to-do list in disguise; finished pieces with zero callers.
 
+8b. **Every node is reviewed across the dimensions, and the review is recorded on the node rather
+   than as its children.** A dimension is an aspect of a thing, not a part of it, so a dimension
+   written as a child breaks rule 8: if "what it costs" existed, nothing would have been built.
+   The review sits under the node as marked notes; where it finds work nobody had planned, that
+   work becomes an ordinary child, phrased as work. *(Amended 2026-09-06, after the first version
+   of this rule put 307 dimension lines into the tree as children: a reader adjudicated 150 ends
+   and found 91% of those lines failed the test for an end, and the sufficiency question could no
+   longer be asked of any of the 98 second-level nodes.)*
+   The dimensions, from his purpose and from the four documents: Sufficiency is not only "what steps make this work"; a node is a piece of a product, and
+   a product has more than one dimension at once. The eight, from his purpose and from the four
+   documents:
+   - **what the person sees and does** (his purpose: easy to use);
+   - **how it looks and sounds**, the face, the voice, the drawing (his purpose: visually
+     appealing; the avatar is "one of our most important features", 2026-09-03);
+   - **what happens behind the glass** (his purpose: useful);
+   - **what it costs and what it earns** (the money figures);
+   - **what we are allowed to do**, his data policy, the law, and other people's terms;
+   - **who runs it when it breaks**;
+   - **what it feeds back**, since every scan is a harvest;
+   - **how it gets shown to the world**, since short video is the channel.
+   A dimension that genuinely does not apply is written as not applying, so silence is never
+   mistaken for coverage; and a node that has simply not been reviewed yet says that, rather than
+   being counted as covered. *(Added 2026-09-06, his words: "the solutions you've stated only cover
+   one dimension and it's often only in the backend aspect." Measured the same day across 1,007
+   nodes: machinery 28%, what the person sees 15%, how it looks and sounds 5.6%, who runs it 2.5%.
+   The barcode subtree, printed for him, had twenty-one children and every one of them was
+   machinery.)*
+   *Stops:* a plan that builds a working engine nobody wants to open.
+
 9. **Siblings are independent where they can be.** A dependency two siblings share is pulled up
    to a node above them, never duplicated. Independent siblings can be built by different
    sessions at once; the tree says which those are. When the shared thing sits in another
@@ -98,7 +142,7 @@ node, it says what that node waits on. It is one file, one line per node, plain 
 
 ## Rules for a leaf
 
-11. **A leaf is exactly one of six things**, and its line says which:
+11. **A leaf is exactly one of seven things**, and its line says which:
     - *exists*: running, with the outside check of rule 12 named;
     - *written, no caller*: the code is there and nothing in the running app reaches it;
     - *buildable*: one pass, with the measurement that will show it worked. If the thing is
@@ -110,9 +154,21 @@ node, it says what that node waits on. It is one file, one line per node, plain 
       the catalogue has no rows for);
     - *his*: a call only he can make (the name, the privacy wording, the price, a key he
       must sign up for), written as the question it waits on;
-    - *wall*: rule 10.
+    - *wall*: rule 10;
+    - *a standing rule*: a thing that is enforced from now on rather than built once (no distance
+      printed without a per-store feed; nothing posted under an uncleared name; no savings figure
+      published before it is measured). It carries what enforces it and what catches a breach.
+      *(Added 2026-09-06: four such lines had been forced into "buildable", where they fail the
+      one-sitting test forever.)*
     Anything else is not a leaf and is decomposed further. Depth is set by this rule, not by a
-    number. *(Amended 2026-09-06 from three states: the wall-5 test had five leaves that fit
+    number, and not by whether a line is easy to describe. *(Amended 2026-09-06, his words: "the
+    levels are too broad. each level is a culmination of multiple, slightly less complex levels.
+    the fact that the fourth layer has less nodes than the 3rd layer is a big red flag." A layer
+    with fewer nodes than the one above it is the signal that decomposition stopped early. The
+    test for buildable is now three things at once: one person does it in one sitting, it needs
+    no decision that belongs to somebody else, and it produces one thing you can point at. Being
+    able to name a measurement does not make a line an end; the measurement is what a leaf
+    carries once it is one.)* *(Amended 2026-09-06 from three states: the wall-5 test had five leaves that fit
     none of the three and were forced into one anyway.)*
 
 12. **"Exists" is verified from outside its own claim.** A caller in the running app, a test that
@@ -183,7 +239,7 @@ node, it says what that node waits on. It is one file, one line per node, plain 
 - Every node has a source (rule 1) and a goal number (rule 3).
 - A random ten non-leaf nodes pass the sufficiency question, and each has a wiring child
   (rule 8); walls are tested at their go-around.
-- Every leaf is one of the six states (rule 11) and every "exists" names its outside check
+- Every leaf is one of the seven states (rule 11) and every "exists" names its outside check
   as file and line or a command (rule 12).
 - Every "waits on" names a node that is in the tree (rule 9).
 - Every leaf marked buildable or blocked because something is absent says where the search

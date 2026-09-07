@@ -12,6 +12,45 @@ from the 09-05/06 conversations: two goals as numbers (share of scans that end t
 payers per hundred downloads and what each leaves), eight principles, and the order of the next
 stretch. It is "scan anything", not a grocery app; grocery only had a free catalogue first.
 
+## The build tree, skeleton pass, 2026-09-06
+
+**`docs/the-tree.md` exists as of this pass: the root and the two levels under it, drawn from the
+four documents only** and following `docs/the-tree-rules.md`. Root is the moonshot sentence; nine
+first-level branches (identity, price supply, the verdict in the frame, the purchase record, the
+money, reach, permission and anti-abuse, the instruments, and running it); every second-level line
+carries its kind, the goal number it moves, its source, and **not decomposed yet**.
+
+**Nothing in it is marked built or not built.** State marking reads the code and opens every
+citation, and it is the pass after the branches. Three walls sit in the tree as slots with their
+go-arounds named but not drawn; five things are marked blocked outside rather than a wall, each
+with what lifts it, including the phone platform, which fails the rule that a wall is about our
+size.
+
+**Three levels now, and a correction pass after two more fresh readers, 2026-09-06.** The third
+level opened 85 lines into about 290. Then a logic reader and a structure reader went over all
+three levels together. The three that mattered: the fair line had been written as a middle, which
+is a defect this repo already found and fixed, and which under the refund promise pays out on
+about half of all purchases; the way around the chain wall was drawn as if it delivered per-store
+prices and stock, and it delivers neither, with five things depending on it; and the metering
+problem was lost, so the paid path only fires on the two kinds that are blocked from outside. All
+three are fixed, along with a bootstrap cycle, a limit keyed to a value a reinstall regenerates,
+nine duplicate pairs, and a goal figure that could not move. Added with no previous home: whether
+the answers were right, who operates it, the legal surface, the payout inside the guarantee, and
+reading the shelf tag. Recorded rather than fixed: rule 3 was amended so the measuring branch
+would pass, which is the wrong direction of fit, and that now says so on the rule.
+
+**The skeleton was checked by a fresh reader before he saw it, and redrawn.** The first draft had
+no node for the app itself, which took two thirds of his stated purpose with it, and cited the
+combined pipeline nowhere while claiming it as a source. Also missing and now in: the free
+catalogue lookup between a code and a paid reader, the model key as his call, the correction as a
+thing rather than a number, the photo door, the crawl, the retailer-to-catalogue join that is the
+measured cap, the estimate at the bottom of the evidence ladder, the person's location, per-feed
+permission, the meter, the way money is taken, the seller audit, video production and the caption
+test, and what brings a person back. Lines that named a category of figure instead of a figure
+were rewritten, six "all kinds" claims that were chain retail only were narrowed, and three joins
+that were policies rather than pieces were replaced. `docs/the-tree-rules.md` rule 3 gained one
+amendment: the branch that measures does not move a figure by itself and is not cut for it.
+
 ## Read this second, 2026-09-05
 
 **`docs/the-combined-pipeline.md` is the spine.** It supersedes `docs/pipeline-decisions-and-plan.md`

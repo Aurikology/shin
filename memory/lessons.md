@@ -133,3 +133,71 @@ has cost something recorded twice. One incident is a lesson. Two is a rule.
   reason. Before attributing anything to him, find the message; a number inside a what-if is an
   input to that calculation and nothing else. Of the four hard rules left, two rest on law and
   two (aggression never at the user; name the paths in a commit) carry no words of his either.
+
+- **2026-09-06 · A tree drawn from the moonshot had no node for the app itself, and cited one of
+  its four stated sources nowhere.** The first skeleton pass carried sixty-eight nodes across nine
+  branches, every one sourced and every one about machinery: identity, supply, verdict, purchases,
+  money, reach, permission, instruments, infrastructure. No screen, no flow, no card, no mascot,
+  so two thirds of his stated purpose (*"useful to the user, easy to use, and visually
+  appealling"*, 2026-09-04) and the avatar he calls *"one of our most important features"*
+  (2026-09-03) had no home. The header claimed the four documents as sources and the shipping
+  design was cited by zero lines, which is why the whole shipping shape (the viewfinder that
+  waits, the shutter, the typed asking price) was absent and the moonshot's end state was drawn as
+  if it were the next build. **Changed:** the tree gained a branch for the app a person opens, and
+  the redraw named where the shipping design and the end state differ. Two mechanical checks worth
+  keeping for any document that lists its own sources: grep each source's name in the finished
+  document before delivering, and ask of every plan whether the thing the user touches is in it.
+  A fresh reader with none of the session's conversation found both; the artifact read as complete
+  on its own word.
+
+- **2026-09-06 · Drawing a plan toward a destination imported the destination's definitions, and
+  put back a defect that had already been found and fixed.** The tree's fair line was written as
+  the middle of prices within reach, which is the moonshot's definition. The fault list already
+  held that exact thing as a defect found on 2026-09-03 and fixed: on a grocery set the middle
+  lands on a capped promotion, so a loss leader was being shown as the going rate. The shipping
+  design's own yardstick, a national typical range over a recency window with promotions kept
+  apart, appeared nowhere in twelve hundred lines. Two branches away, a refund promise fired on
+  anything above that middle, which is about half of all purchases, while the payout rate was
+  written as something to measure later. His words the same day: *"when building, don't assume the
+  reason we are building this tree, just build the tree without worrying about the destination."*
+  **Changed:** the shipping yardstick leads and the end-state one waits on its wall; the refund
+  threshold is chosen with the yardstick. The check worth keeping: when two documents define the
+  same thing differently, a plan that names only one of them has not chosen, it has drifted, and
+  the fault list is the place to look before adopting any definition, because a defect that was
+  fixed in code can still be alive in prose.
+
+- **2026-09-06 · A measurement that restates its own line measures nothing, and I wrote about
+  fifty-five of them in one pass.** Building the tree's bottom layer meant giving every end the
+  thing you would look at to know it worked. More than a sixth of them came back as the line said
+  twice: "A body too large is refused before it is read. Shown by: one oversized body refused
+  before it is read." Thirteen more were a document we would write ourselves, which is the
+  artifact's own word and what rule 12 already forbids. A fresh reader found both classes; nothing
+  in my own re-reading did. **Changed:** every one rewritten to something outside the claim, many
+  of them a person who has not seen the app being asked what they think the screen says. The test
+  worth keeping: read the measurement without the line above it, and ask whether it names a place,
+  a person, a count or a bill. If it only makes sense as an echo of the line, it is not a
+  measurement.
+
+- **2026-09-06 · I stated numbers about my own document three times and all three were wrong.**
+  "The ways around the three walls" when the file held four. "Nineteen lines could not name a
+  measurement" when it was sixteen. "Two lines carry no measurement" when nine ends did. Each was
+  caught by a fresh reader, none by me, and each was in the front matter or the closing note, which
+  is where somebody checks whether a document is finished. Per the protocol's third rule this is a
+  reflex, not a judgement, so it went to a mechanism rather than to prose: `scripts/count-the-tree.mjs`
+  counts the tree and fails when the document's own prose disagrees with the file. Fired live the
+  same session: passing on the real file, failing on a copy with one number changed.
+
+- **2026-09-06 · A dimension is an aspect of a thing, not a part of it, and writing 307 of them as
+  children broke the tree they were meant to improve.** His criticism was right: *"the solutions
+  you've stated only cover one dimension and it's often only in the backend aspect."* Measured
+  across 1,007 lines: machinery 28%, what the person sees 15%, how it looks and sounds 5.6%. The
+  fix I built put a child under every node for each dimension, which produced 307 lines nobody
+  could build ("what it costs: this is the difference between a bill that scales with users and one
+  that does not") and made the sufficiency test unanswerable for all 98 nodes at once, since a node
+  whose children include "what it costs" can have every child exist with nothing built. A reader
+  adjudicated 150 ends and found 91% of those lines failing the document's own test. **Changed:**
+  the review is recorded on the node as a note, not as a child, and the eight pieces of genuinely
+  unplanned work it surfaced became ordinary children phrased as work. The shape worth keeping: a
+  checklist applied to a thing produces findings, and findings are not the same kind of object as
+  the thing's parts. Filing them as parts inflates every count meant to measure whether the parts
+  are complete.
