@@ -597,6 +597,31 @@ const LINES = {
    * app's fault and never the reader's, so none of these six may imply the
    * person holding the phone broke something.
    */
+  /**
+   * The camera's own two, migrated 2026-09-07 with the five above.
+   *
+   * `cam_sources_failed` is the sixth copy of the same sentence the five list
+   * screens carried, and it was the worst of the six: the screen concatenated
+   * `String(err.message ?? err)` onto the end, so a raw JavaScript error
+   * reached a shopper's refusal sheet. That is the same class as D-011, an
+   * internal string on the screen of someone who cannot act on it. The error
+   * belongs in the console, where somebody can.
+   */
+  cam_sources_failed: {
+    deadpan: () => 'I could not reach my own sources just now.',
+    warm: () => 'I could not reach my own sources just now. Not your doing, and worth another try.',
+    blunt: () => 'My own sources did not answer. Try me again.',
+  },
+  /**
+   * The last row of the stand-in candidate list, under "Something else". It
+   * promises a refusal rather than pretending, which is the honest thing for a
+   * list that cannot yet be produced by a camera.
+   */
+  cam_candidate_none: {
+    deadpan: () => 'I will almost certainly refuse',
+    warm: () => 'I will probably have to refuse this one',
+    blunt: () => 'I will refuse. Fair warning.',
+  },
   watchlist_loading: {
     deadpan: () => 'Reading what you saved…',
     warm: () => 'Fetching what you saved…',

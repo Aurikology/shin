@@ -234,24 +234,18 @@ const FIRST_PERSON = /\bI\s|\bI['’]|\bmy own\b/;
  * The one thing standing between Rule 1 and having no exceptions, and it is
  * deliberately shaped to delete itself.
  *
- * `camera.js` belongs to another lane and was not this pass's to edit, so its
- * two first-person strings are named here rather than quietly excluded by a
- * filename filter. The test below asserts both are STILL PRESENT: the moment
- * somebody migrates them into voice.js, this file goes red and has to lose the
- * quarantine, so the exception cannot outlive the violation it covers.
+ * `camera.js` had two first-person strings when this file was written, named
+ * here rather than quietly excluded by a filename filter, with a test that
+ * asserted they were STILL PRESENT so the exception could not outlive the
+ * violation it covered.
+ *
+ * **It worked.** Both were migrated the same day, that test went red exactly
+ * as designed, and the list is empty. It is kept, empty, because the mechanism
+ * is the useful part: the next time a lane cannot reach a file, the string
+ * goes here with a reason and a deadline that enforces itself, instead of
+ * becoming a permanent exception nobody revisits.
  */
-const QUARANTINE = [
-  {
-    file: 'camera.js',
-    text: 'I will almost certainly refuse',
-    why: 'The stand-in item list\'s caption. camera.js is another lane\'s file this pass.',
-  },
-  {
-    file: 'camera.js',
-    text: 'I could not reach my own sources just now.',
-    why: 'The camera\'s own fetch failure, the sixth copy of the line the five list screens just migrated. Same lane note.',
-  },
-];
+const QUARANTINE = [];
 
 test('no screen writes a first-person line inside a string', () => {
   const quarantined = new Set(QUARANTINE.map((q) => `${q.file}\u0001${q.text}`));
@@ -268,7 +262,7 @@ test('no screen writes a first-person line inside a string', () => {
   ].join('\n'));
 });
 
-test('the camera quarantine is still describing something real', () => {
+test('the quarantine is still describing something real, and is empty', () => {
   const missing = QUARANTINE.filter(
     (q) => !SEGMENTS.some((s) => s.file === q.file && s.text === q.text),
   ).map((q) => `${q.file}: ${JSON.stringify(q.text)}`);

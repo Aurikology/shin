@@ -640,7 +640,7 @@ function candidateSheet(items) {
             .join('')}
           <button type="button" class="cand cand-none" data-pick="__none">
             <span class="cand-name">Something else</span>
-            <span class="cand-meta">I will almost certainly refuse</span>
+            <span class="cand-meta">${say('cam_candidate_none')}</span>
           </button>
         </div>
         <p class="standin-note">Stand-in list until the camera can read the item.</p>
@@ -1633,11 +1633,16 @@ export default {
       } catch (err) {
         clearTimeout(slowTimer);
         if (dead || myGen !== gen) return;
+        /* The error text goes to the console and not to the sheet. It used to
+           be concatenated onto the end of the shopper's sentence, which put a
+           raw JavaScript message on the screen of the one person who cannot
+           act on it: the same class of fault as D-011. */
+        console.error('scan failed:', err);
         slot.innerHTML = refusalSheet(
           {
             kind: 'refusal',
             reason: 'no_source_response',
-            detail: `I could not reach my own sources just now. ${String(err.message ?? err)}`,
+            detail: say('cam_sources_failed'),
             identity: null,
             evidence: [],
           },
