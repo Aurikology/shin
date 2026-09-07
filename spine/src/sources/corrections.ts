@@ -38,7 +38,7 @@
  * real check and not this file's job.
  */
 
-import { correctionsFor, type CorrectionRow } from '../../../price/src/corrections.ts';
+import { correctionsFor, witnessesFor, type CorrectionRow } from '../../../price/src/corrections.ts';
 import type { CategoryId, PricePoint, ProductIdentity, SpineQuery } from '../contract.ts';
 import type { PriceSource, SourceAvailability } from './source.ts';
 
@@ -106,16 +106,30 @@ export class CorrectionSource implements PriceSource {
 
   async prices(identity: ProductIdentity): Promise<readonly PricePoint[]> {
     const rows = correctionsFor({ code: identity.gtin ?? null, productId: identity.id });
-    return rows.map((r) => toPricePoint(r));
+    /*
+     * D-022. Every row now carries how many independent people stand behind it,
+     * counted across the whole set for this subject rather than per row, so a
+     * second phone reporting the same shelf lifts both readings at once.
+     *
+     * The header of this file used to end by saying that two devices reporting
+     * the same wrong number are indistinguishable here from two honest
+     * shoppers, and that what limited the damage was them counting as one
+     * seller. That is still true and it is still not enough. What is new is
+     * that the spine can now tell a claim from a reading and decline to publish
+     * a lone claim that disagrees with everything else.
+     */
+    const witnesses = witnessesFor(rows);
+    return rows.map((r) => toPricePoint(r, witnesses.get(r.id) ?? 1));
   }
 }
 
-function toPricePoint(row: CorrectionRow): PricePoint {
+function toPricePoint(row: CorrectionRow, witnesses: number): PricePoint {
   return {
     seller: row.seller,
     amountCents: row.price_cents,
     currency: 'CAD',
     kind: row.kind,
+    witnesses,
     // The day the tag was seen, never the day the row was written. A correction
     // queued offline in an aisle and flushed three days later is still evidence
     // about the day it was read, and staleness is checked against this field.

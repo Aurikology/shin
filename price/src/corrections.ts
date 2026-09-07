@@ -449,6 +449,53 @@ export function correctionsFor(input: {
   }
 }
 
+/**
+ * How many independent people have reported the same shelf at the same shop.
+ *
+ * D-022. The unique index upstream stops one device manufacturing agreement
+ * with itself, and until now that was the whole integrity story: two devices
+ * reporting the same wrong number were indistinguishable from two honest
+ * shoppers, and one device reporting one number moved a verdict on its own.
+ * The index cannot fix that, because it is doing a different job.
+ *
+ * A row is corroborated when a **different device** reported the same subject
+ * at the same shop for a price close enough to be the same tag. Close enough is
+ * deliberately generous: shelf tags move, someone reads $3.99 the day before a
+ * sale ends and someone else reads $4.49 the day after, and calling those two
+ * different observations would make corroboration almost unreachable and the
+ * mechanism decorative. What it must not do is let two genuinely different
+ * numbers vouch for each other, which is what the ceiling is for.
+ *
+ * Returned as a count and not a boolean because the spine weighs it: one
+ * witness is a claim, two is a reading, and the difference decides whether an
+ * outlier is published or held.
+ *
+ * NOT a reliability score per person, which D-022 also asks for and which this
+ * is not. That needs a history of a device being contradicted, which needs
+ * volume this app does not have. Named here so the gap stays visible.
+ */
+export const CORROBORATION_TOLERANCE = 0.12;
+export const CORROBORATION_FLOOR_CENTS = 25;
+
+export function witnessesFor(rows: readonly CorrectionRow[]): Map<number, number> {
+  const out = new Map<number, number>();
+  for (const row of rows) {
+    const near = rows.filter((other) => {
+      if (other.id === row.id) return false;
+      // A second reading from the same phone is the same witness, not a second
+      // one. This is the whole point: it is what the unique index cannot say,
+      // because that index is per day and a person can come back tomorrow.
+      if (other.device_id === row.device_id) return false;
+      if (sellerKey(other.seller) !== sellerKey(row.seller)) return false;
+      const gap = Math.abs(other.price_cents - row.price_cents);
+      const allowed = Math.max(CORROBORATION_FLOOR_CENTS, row.price_cents * CORROBORATION_TOLERANCE);
+      return gap <= allowed;
+    });
+    out.set(row.id, 1 + new Set(near.map((n) => n.device_id)).size);
+  }
+  return out;
+}
+
 /** Every row, for tests and for the one-line count a report prints. */
 export function allCorrections(s: CorrectionStore = store()): CorrectionRow[] {
   if (s.db === null) return [];

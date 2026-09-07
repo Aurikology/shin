@@ -85,6 +85,20 @@ export interface PricePoint {
   /** Cents per 100g / 100ml, when pack size is known on both sides. */
   readonly unitAmountCents?: number;
   readonly note?: string;
+  /**
+   * How many independent observers stand behind this price, when the source can
+   * answer that. **Undefined means the source vouches for it itself**, which is
+   * every crawled feed: a Walmart page is not a witness statement, it is the
+   * seller's own number, and counting observers of it would be a category
+   * error.
+   *
+   * Only a source a member of the public can write sets this. Today that is
+   * corrections, where 1 means one person typed it and nobody has seen the same
+   * tag since. D-022 names a single uncorroborated number moving a verdict as
+   * the thing that gates opening this app to anybody else, and the spine cannot
+   * weigh what the contract does not carry.
+   */
+  readonly witnesses?: number;
 }
 
 /** The three faces. One per verdict, and the only user-facing tiering that exists. */
