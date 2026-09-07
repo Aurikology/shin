@@ -28,6 +28,7 @@ import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { attachEye } from '../eye-attach.js';
 import { escapeHtml } from '../lib/dom.js';
+import { submitCorrection } from '../corrections.js';
 
 /**
  * The camera states in which the docked face is faded out by `camera.css`.
@@ -498,25 +499,73 @@ function verdictSheet(v, scenario, thumb, acked = false) {
  * on this sheet: a short list of what Shin can price, fetched once when the
  * camera opens and handed in here, never a second endpoint spent per refusal.
  */
-function refusalSheet(r, scenario, categoryLabels = []) {
+/**
+ * Every reason that means "prices were found and none of them can settle this",
+ * as opposed to "we do not know what this is".
+ *
+ * One list, because two callers need it and they must never disagree: the sheet
+ * picks the refuse_thin title from it, and the scan decides whether Keep it is
+ * offered. The list gained three members on 2026-09-07 when the engine stopped
+ * answering four different filter conditions with one code (D-012). Missing one
+ * here is not cosmetic: an unlisted reason falls through to the refuse_unknown
+ * title, so a Tide refusal with thirteen prices behind it would tell the shopper
+ * Shin could not identify the product.
+ */
+const THIN_REASONS = new Set([
+  'too_few_points',
+  'points_too_stale',
+  'no_source_response',
+  'comparison_incoherent',
+  'unusable_price_kinds',
+  'points_future_dated',
+  'all_points_from_asking_seller',
+]);
+
+function isThinReason(reason) {
+  return THIN_REASONS.has(reason);
+}
+
+/**
+ * What "Keep it" needs before it can be offered, or null.
+ *
+ * AVATAR.md section 3 row 39 gives the thin refusal exactly one action and
+ * names it Keep it; DESIGN.md section 5 says it "records what the user read,
+ * dated and attributed to a named seller". Both halves of that are conditions,
+ * not decoration:
+ *
+ * - **A price the shopper actually gave.** Keep it exists so nobody is asked to
+ *   type a number they typed ninety seconds ago. With no asking price there is
+ *   nothing to keep, and the honest action is the one that asks for it.
+ * - **A named shop.** A correction with no seller cannot be excluded from its
+ *   own comparison later, so `store.recordCorrection` refuses to invent one and
+ *   the engine uses the literal word "given" when none was named. A price
+ *   attributed to nowhere is not evidence, it is a number.
+ *
+ * Only the thin refusals qualify. The other three are a different problem: no
+ * identity and unsure-which-one do not know what the price would be about, and
+ * an unsupported category has already said it will not price this at all.
+ */
+function keepableFrom(r, scenario, askingCents, isThin) {
+  if (!isThin) return null;
+  if (typeof askingCents !== 'number' || !Number.isFinite(askingCents) || askingCents <= 0) return null;
+  const seller = (scenario?.askingSeller ?? '').trim();
+  if (seller === '') return null;
+  return {
+    askingCents,
+    seller,
+    code: scenario?.scannedGtin ?? null,
+    productId: r.identity?.id ?? null,
+    label: r.identity?.label ?? scenario?.text ?? null,
+    category: scenario?.category ?? null,
+  };
+}
+
+function refusalSheet(r, scenario, categoryLabels = [], keepable = null) {
   const category = scenario?.category ?? 'this';
   const isCategory = r.reason === 'category_unsupported';
   const isUnsure = r.reason === 'identity_unsure';
   const isNoIdentity = r.reason === 'no_identity';
-  /* Every reason that means "prices were found and none of them can settle
-     this", as opposed to "we do not know what this is". The list gained three
-     members on 2026-09-07 when the engine stopped answering four different
-     filter conditions with one code (D-012). Missing them here is not
-     cosmetic: an unlisted reason falls through to the refuse_unknown title,
-     so a Tide refusal that has thirteen prices behind it would tell the
-     shopper Shin could not identify the product. */
-  const isThin = r.reason === 'too_few_points'
-    || r.reason === 'points_too_stale'
-    || r.reason === 'no_source_response'
-    || r.reason === 'comparison_incoherent'
-    || r.reason === 'unusable_price_kinds'
-    || r.reason === 'points_future_dated'
-    || r.reason === 'all_points_from_asking_seller';
+  const isThin = isThinReason(r.reason);
 
   const titleKey = isCategory ? 'refuse_category' : isUnsure ? 'refuse_unsure' : isThin ? 'refuse_thin' : 'refuse_unknown';
   const titleFacts = isCategory ? { category } : {};
@@ -563,9 +612,16 @@ function refusalSheet(r, scenario, categoryLabels = []) {
           : ''}
       </div>`
     : `<div class="actions actions-primary">${
-        isNoIdentity
-          ? `<button type="button" class="pill solid" data-act="typeit">Type what it is</button>`
-          : `<button type="button" class="pill solid" data-act="correct">Tell me the price</button>`
+        keepable
+          /* One action, never two. USAGE.md section 7 and section 4 both forbid
+             a second pill on a refusal, and the label is the contract's own
+             word. It is chrome rather than a voice key: two words, no sentence,
+             and the same button on every attitude. What Shin SAYS about it is
+             keep_it_ack, which has all three. */
+          ? `<button type="button" class="pill solid" data-act="keepit">Keep it</button>`
+          : isNoIdentity
+            ? `<button type="button" class="pill solid" data-act="typeit">Type what it is</button>`
+            : `<button type="button" class="pill solid" data-act="correct">Tell me the price</button>`
       }</div>`;
 
   return `
@@ -1044,6 +1100,10 @@ export default {
     let hintTimer = null;
     let torchAckTimer = null;
     let secondVisitShown = false;
+    /* What the current refusal would keep, or null. Held here rather than read
+       off the DOM because the price and the shop are facts about the scan, not
+       about the markup, and a button cannot be trusted to carry money. */
+    let lastKeepable = null;
     let scanThumb = null;
     let coachKey = null;
     let camShinEl = camShin ? camShin.querySelector('.shin-say') : null;
@@ -1625,7 +1685,8 @@ export default {
           // set, only the one number was never supplied.
           slot.innerHTML = goingRateCard(result, item);
         } else {
-          slot.innerHTML = refusalSheet(result, item, supportedCategories);
+          lastKeepable = keepableFrom(result, item, askingCents, isThinReason(result.reason));
+          slot.innerHTML = refusalSheet(result, item, supportedCategories, lastKeepable);
           playRefusalLanding(slot);
         }
         setState('result');
@@ -1659,6 +1720,7 @@ export default {
       gen++; // Voids any in-flight proceed() continuation.
       slot.innerHTML = '';
       last = null;
+      lastKeepable = null;
       scanThumb = null;
       // A pick belongs to the scan that has just ended. Carrying it into the
       // next one would frame whatever happens to overlap the old rectangle,
@@ -1799,6 +1861,63 @@ export default {
 
       if (act === 'correct') {
         ctx.go('correct', last?.scenario ? { text: last.scenario.text, category: last.scenario.category } : {});
+        return;
+      }
+      /*
+       * Keep it. AVATAR.md section 3 rows 39 and 40, and the last unbuilt
+       * action on the surface five of seven scans end on.
+       *
+       * The whole point is that it asks for nothing. The shopper typed the
+       * price ninety seconds ago and Shin could not settle it; making them
+       * open a form and type the same number again is the app charging a
+       * person for its own gap. The number, the shop and the day are already
+       * in hand, so this is one tap.
+       *
+       * `submitCorrection` writes locally first and flushes in the background,
+       * which is the right shape for the aisle: the acknowledgement below is
+       * about the local write, which has already happened, and a phone with no
+       * signal keeps the price rather than losing it.
+       *
+       * Reactive and therefore unbudgeted (AVATAR.md's own distinction): this
+       * lands inside two seconds of the user's own tap on the same surface, so
+       * it does not touch the interruption budget and must not ask it.
+       */
+      if (act === 'keepit' && lastKeepable) {
+        const k = lastKeepable;
+        lastKeepable = null; // One tap. A second would be a second witness that does not exist.
+        submitCorrection({
+          code: k.code,
+          productId: k.productId,
+          label: k.label,
+          category: k.category,
+          amountCents: k.askingCents,
+          seller: k.seller,
+          kind: 'regular',
+        });
+        const head = slot.querySelector('.sheet-head');
+        if (head) {
+          head.innerHTML = shinSay(
+            'pleased',
+            'keep_it_ack',
+            { asking: cad(k.askingCents), seller: k.seller, day: 'today' },
+            { size: 'face-ack', anim: 'pleased-nod' },
+          );
+        }
+        /* The action goes with the acknowledgement. It is spent: this sheet
+           holds for two seconds and then drops to the viewfinder, and there is
+           nothing left to tap. Leaving the button up while the guard above
+           makes a second press do nothing is a dead control, which is worse
+           than no control, and it invites the double-submit the one-price-per
+           -shop-per-day index exists to catch rather than avoiding it here. */
+        slot.querySelector('.actions-primary')?.remove();
+        // Row 40: it holds, then the sheet drops to a live viewfinder. Held
+        // against the generation counter so a scan started during the hold
+        // wins rather than being wiped by a timer from the one before it.
+        const heldGen = gen;
+        window.setTimeout(() => {
+          if (dead || heldGen !== gen) return;
+          reset();
+        }, 2000);
         return;
       }
       if (act === 'share' && last?.result?.kind === 'verdict') {

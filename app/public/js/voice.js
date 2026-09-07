@@ -598,6 +598,21 @@ const LINES = {
    * person holding the phone broke something.
    */
   /**
+   * Keep it, landed. AVATAR.md section 3 row 40, and these three are the
+   * contract's own words rather than a rewrite of them.
+   *
+   * The sentence has to do two things at once and the second is the one that
+   * makes it honest: it confirms the number is written down, and it repeats
+   * that Shin still cannot call it. A thin refusal that ends in a thank-you
+   * reads as though the refusal was solved. It was not. What changed is that
+   * the price is no longer only in the shopper's head.
+   */
+  keep_it_ack: {
+    deadpan: (f) => `Written down. ${f.asking} at ${f.seller}, ${f.day}. I still cannot call it.`,
+    warm: (f) => `Written down, ${f.asking} at ${f.seller}, ${f.day}. I still cannot call it, but it is not lost.`,
+    blunt: () => 'Written down. Still cannot call it.',
+  },
+  /**
    * The camera's own two, migrated 2026-09-07 with the five above.
    *
    * `cam_sources_failed` is the sixth copy of the same sentence the five list
@@ -943,6 +958,11 @@ const BARE = {
     deadpan: () => 'Some of what I know about, I will still refuse on, because the evidence is not enough to call.',
     warm: () => 'There are some I know about and will still refuse on, because what is behind them is not enough to call.',
     blunt: () => 'Some of them I refuse on. Not enough behind them.',
+  },
+  keep_it_ack: {
+    deadpan: () => 'Written down. I still cannot call it.',
+    warm: () => 'Written down. I still cannot call it, but it is not lost.',
+    blunt: () => 'Written down. Still cannot call it.',
   },
   watching: {
     deadpan: () => 'Saved.',
