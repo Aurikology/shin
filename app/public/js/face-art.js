@@ -146,11 +146,77 @@ function eyesClosed(up) {
   return `${closedEye(33.5, 47, up)}\n    ${closedEye(54.5, 47, up)}`;
 }
 
-/** Brows as two segments, each [x0, y0, x1, y1], drawn heavy. */
-function brows(left, right, weight = W.brow) {
-  const seg = ([x0, y0, x1, y1]) => `M${x0} ${y0} L${x1} ${y1}`;
-  return `<path d="${seg(left)} ${seg(right)}" stroke="currentColor" stroke-width="${weight}" stroke-linecap="round" fill="none"/>`;
+/**
+ * One brow, as a filled tapered shape rather than a stroked segment.
+ *
+ * Every brow in the file used to be `M..L..` at a single stroke width with a
+ * round cap, which is a bar. Rendered at 300px that is what it read as: two
+ * blunt rectangles floating under the beanie, on all thirty-nine faces. A brow
+ * that thins toward one end is the cheapest mark in the whole drawing that
+ * says "drawn" rather than "constructed", and it costs nothing at 28px because
+ * the thick end keeps the weight the small size needs.
+ *
+ * The segment is still given as a centreline `[x0, y0, x1, y1]`, so the
+ * thirty-nine records below did not have to be re-authored. What is new is
+ * where the weight goes: `taper` is the ratio of the far end's half-width to
+ * the near end's, and the end nearer the face's centre line is the thick one,
+ * which is how a brow actually sits on a face.
+ *
+ * `face.css` transitions `d` on `.face-brows`, and SVG only interpolates `d`
+ * when the command structure matches, so **every brow this function emits uses
+ * the same sequence** -- `M Q A Q A Z`, twice -- whatever the state. Change
+ * that and the 180ms brow travel silently becomes a snap that no test can see.
+ */
+function browPath([x0, y0, x1, y1], weight, taper, arch) {
+  const inner = Math.abs(x0 - 44) < Math.abs(x1 - 44) ? [x0, y0] : [x1, y1];
+  const outer = inner[0] === x0 && inner[1] === y0 ? [x1, y1] : [x0, y0];
+  const dx = outer[0] - inner[0];
+  const dy = outer[1] - inner[1];
+  const len = Math.hypot(dx, dy) || 1;
+  // Normal to the segment. The brow bows toward the top of the head, so the
+  // arch is applied along whichever way this points at the face's own scale.
+  const nx = -dy / len;
+  const ny = dx / len;
+  // The thick end is deliberately heavier than the old uniform bar, not equal
+  // to it: a taper that only removes weight reads as a lighter brow rather
+  // than as a shaped one, which is what the first attempt did.
+  const wi = weight * 0.63;
+  const wo = weight * 0.63 * taper;
+  const p = (x, y) => `${x.toFixed(2)} ${y.toFixed(2)}`;
+  const mx = (inner[0] + outer[0]) / 2 + nx * arch;
+  const my = (inner[1] + outer[1]) / 2 + ny * arch;
+  const wm = (wi + wo) / 2;
+  const a = [inner[0] + nx * wi, inner[1] + ny * wi];
+  const b = [outer[0] + nx * wo, outer[1] + ny * wo];
+  const c = [outer[0] - nx * wo, outer[1] - ny * wo];
+  const d = [inner[0] - nx * wi, inner[1] - ny * wi];
+  return `M${p(a[0], a[1])} Q${p(mx + nx * wm, my + ny * wm)} ${p(b[0], b[1])}`
+    + ` A${wo.toFixed(2)} ${wo.toFixed(2)} 0 0 1 ${p(c[0], c[1])}`
+    + ` Q${p(mx - nx * wm, my - ny * wm)} ${p(d[0], d[1])}`
+    + ` A${wi.toFixed(2)} ${wi.toFixed(2)} 0 0 1 ${p(a[0], a[1])} Z`;
 }
+
+/**
+ * Brows as two segments, each [x0, y0, x1, y1].
+ *
+ * `taper` and `arch` are the personality's, not the state's: the three
+ * treatments differ in how a brow is shaped, and every state within a
+ * treatment shares that shape so only the angle carries the expression.
+ */
+function brows(left, right, weight = W.brow, taper = 0.5, arch = 0.9) {
+  return `<path d="${browPath(left, weight, taper, arch)} ${browPath(right, weight, taper, arch)}" fill="currentColor"/>`;
+}
+
+/**
+ * The three brow shapes, one per personality. Only the angle carries the state
+ * inside a treatment; the shape carries the treatment. AVATAR.md section 6 asks
+ * for Blunt to have the heaviest brow, and this is where that stops being only
+ * a stroke width: Blunt is a hard wedge with no arch and the sharpest taper,
+ * Warm is the most arched with the thinnest tail, Deadpan sits between them.
+ */
+const dBrows = (l, r, weight = W.brow) => brows(l, r, weight, 0.50, 0.9);
+const wBrows = (l, r, weight = W.brow) => brows(l, r, weight, 0.38, 1.7);
+const bBrows = (l, r, weight = W.brow) => brows(l, r, weight, 0.28, 0);
 
 /**
  * Every entry takes its shape parameters with defaults that reproduce the
@@ -218,67 +284,67 @@ const LEVEL_R = [48, 34, 62, 34];
 
 export const DEADPAN = {
   idle: {
-    brows: brows([26, 33, 40, 33], [48, 33, 62, 33]),
+    brows: dBrows([26, 33, 40, 33], [48, 33, 62, 33]),
     eyes: eyesOpen(),
     mouth: MOUTH.flat(8),
   },
   thinking: {
-    brows: brows([26, 32, 40, 33], [48, 33, 62, 32]),
+    brows: dBrows([26, 32, 40, 33], [48, 33, 62, 32]),
     eyes: eyesOpen({ dx: 2.4, dy: -2.8 }),
     mouth: MOUTH.dots(),
   },
   asking: {
     pose: 'rotate(-8 44 50)',
-    brows: brows([26, 29.5, 40, 32], LEVEL_R),
+    brows: dBrows([26, 29.5, 40, 32], LEVEL_R),
     eyes: eyesOpen(),
     mouth: MOUTH.o(),
   },
   good: {
-    brows: brows([26, 33.5, 40, 32.5], [48, 32.5, 62, 33.5]),
+    brows: dBrows([26, 33.5, 40, 32.5], [48, 32.5, 62, 33.5]),
     eyes: eyesOpen(),
     mouth: MOUTH.smile(2.2),
   },
   delighted: {
-    brows: brows([26, 31, 40, 29.5], [48, 29.5, 62, 31]),
+    brows: dBrows([26, 31, 40, 29.5], [48, 29.5, 62, 31]),
     eyes: eyesOpen({ rx: 8.6, ry: 10, iris: 5.2, shine: 'star' }),
     mouth: MOUTH.grin(),
   },
   fair: {
-    brows: brows(LEVEL_L, LEVEL_R),
+    brows: dBrows(LEVEL_L, LEVEL_R),
     eyes: eyesOpen(),
     mouth: MOUTH.flat(12),
   },
   walk: {
-    brows: brows([26, 33, 40, 36], LEVEL_R),
+    brows: dBrows([26, 33, 40, 36], LEVEL_R),
     eyes: eyesOpen({ lid: 0.42 }),
     mouth: MOUTH.aside(),
   },
   angry: {
     prop: -18,
-    brows: brows([25, 30.5, 41, 37], [63, 30.5, 47, 37], 4.2),
+    brows: dBrows([25, 30.5, 41, 37], [63, 30.5, 47, 37], 4.2),
     eyes: eyesOpen({ rx: 8, ry: 5, iris: 3.8, shine: null }),
     mouth: MOUTH.frown(),
   },
   unknown: {
-    brows: brows(LEVEL_L, LEVEL_R),
+    brows: dBrows(LEVEL_L, LEVEL_R),
     eyes: eyesOpen({ lid: 0.5, shine: null }),
     mouth: MOUTH.flat(9),
   },
   pleased: {
-    brows: brows([26, 32.5, 40, 32], [48, 32, 62, 32.5]),
+    brows: dBrows([26, 32.5, 40, 32], [48, 32, 62, 32.5]),
     eyes: eyesClosed(true),
     mouth: MOUTH.smile(1.6, false),
   },
   nudging: {
     pose: 'translate(0 1) rotate(6 44 50)',
-    brows: brows(LEVEL_L, [48, 32, 62, 29.5]),
+    brows: dBrows(LEVEL_L, [48, 32, 62, 29.5]),
     eyes: eyesOpen({ dx: -1.2 }),
     mouth: MOUTH.flat(9, 64),
   },
   asleep: {
     pose: 'translate(0 3) rotate(4 44 50)',
     prop: 22,
-    brows: brows([26, 36, 40, 36], [48, 36, 62, 36]),
+    brows: dBrows([26, 36, 40, 36], [48, 36, 62, 36]),
     eyes: eyesClosed(false),
     mouth: MOUTH.flat(7, 65),
     extras: `<path d="M64 21 L71 21 L64 28 L71 28" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
@@ -286,7 +352,7 @@ export const DEADPAN = {
   proud: {
     pose: 'translate(0 -1.5)',
     bodyLift: 2.5,
-    brows: brows([26, 32, 40, 31], [48, 31, 62, 32]),
+    brows: dBrows([26, 32, 40, 31], [48, 31, 62, 32]),
     eyes: eyesClosed(true),
     mouth: MOUTH.smile(2, true),
   },
@@ -348,7 +414,7 @@ export const WARM = {
   idle: {
     // A readier mouth than Deadpan's dash: the smallest smile in the set,
     // shallow enough that it is still "waiting" and not "pleased".
-    brows: brows([27, 33, 40, 31.6], [48, 31.6, 61, 33], 3),
+    brows: wBrows([27, 33, 40, 31.6], [48, 31.6, 61, 33], 3),
     eyes: warmEyes(),
     mouth: MOUTH.smile(1.2, false),
   },
@@ -356,7 +422,7 @@ export const WARM = {
     // Same up-and-right glance as Deadpan, because that is what looking
     // something up looks like; the brows go asymmetric and high instead of
     // asymmetric and level.
-    brows: brows([27, 32.6, 40, 31.2], [48, 31.8, 61, 33.4], 3),
+    brows: wBrows([27, 32.6, 40, 31.2], [48, 31.8, 61, 33.4], 3),
     eyes: warmEyes({ dx: 2.4, dy: -2.8 }),
     mouth: MOUTH.dots(6.6),
   },
@@ -365,13 +431,13 @@ export const WARM = {
     // leading brow: leaning in is the posture, and at 28px a 3 degree tilt
     // delta on the whole head is worth more than any feature edit.
     pose: 'rotate(-11 44 50)',
-    brows: brows([27, 33.4, 40, 31], [48, 31.8, 61, 33], 3),
+    brows: wBrows([27, 33.4, 40, 31], [48, 31.8, 61, 33], 3),
     eyes: warmEyes(),
     mouth: MOUTH.o(3.4),
   },
   good: {
     bodyLift: 1.5,
-    brows: brows([27, 32.8, 40, 31.2], [48, 31.2, 61, 32.8], 3),
+    brows: wBrows([27, 32.8, 40, 31.2], [48, 31.2, 61, 32.8], 3),
     eyes: warmEyes(),
     mouth: MOUTH.smile(3, true),
   },
@@ -381,14 +447,14 @@ export const WARM = {
     // and a half units wider and three deeper than Deadpan's, and the chest up.
     pose: 'translate(0 -1)',
     bodyLift: 3,
-    brows: brows([27, 32.4, 40, 30.8], [48, 30.8, 61, 32.4], 3),
+    brows: wBrows([27, 32.4, 40, 30.8], [48, 30.8, 61, 32.4], 3),
     eyes: warmEyes({ ry: 11.4, iris: 6.4, shine: 'star' }),
     mouth: MOUTH.grin(10.5, 15),
   },
   fair: {
     // "You are fine" rather than "that is the number": Deadpan's widest flat
     // line becomes a small closed smile at the same width.
-    brows: brows([27, 32.8, 40, 32], [48, 32, 61, 32.8], 3),
+    brows: wBrows([27, 32.8, 40, 32], [48, 32, 61, 32.8], 3),
     eyes: warmEyes(),
     mouth: MOUTH.smile(1.6, false),
   },
@@ -399,7 +465,7 @@ export const WARM = {
     // at someone standing in front of a bad price looks like appraisal of the
     // person. Hard rule 4: the frown is at the price.
     pose: 'rotate(-5 44 50)',
-    brows: brows([27, 33.6, 40, 30.8], [48, 30.8, 61, 33.6], 3),
+    brows: wBrows([27, 33.6, 40, 30.8], [48, 30.8, 61, 33.6], 3),
     eyes: warmEyes({ dy: 0.6 }),
     mouth: MOUTH.frown(12, 3.5),
   },
@@ -411,7 +477,7 @@ export const WARM = {
     // deep frown reads "no, that is not a price"; a slit over a frown reads at
     // the person holding the phone.
     prop: -14,
-    brows: brows([25, 30.5, 41, 36.5], [63, 30.5, 47, 36.5], 4),
+    brows: wBrows([25, 30.5, 41, 36.5], [63, 30.5, 47, 36.5], 4),
     eyes: warmEyes({ ry: 8.6, iris: 5.4, shine: null }),
     mouth: MOUTH.frown(11, 4.5),
   },
@@ -421,7 +487,7 @@ export const WARM = {
     // comes to 0.32 rather than Deadpan's 0.5 and the highlight stays, so the
     // eye is soft rather than shuttered, and the mouth is a 1.6 unit dip -
     // barely down, an apology and not a refusal to help.
-    brows: brows([27, 33.2, 40, 30.8], [48, 30.8, 61, 33.2], 3),
+    brows: wBrows([27, 33.2, 40, 30.8], [48, 30.8, 61, 33.2], 3),
     eyes: warmEyes({ lid: 0.32 }),
     mouth: MOUTH.frown(10, 1.6),
   },
@@ -431,7 +497,7 @@ export const WARM = {
     // personality owns them - and doubles the mouth, adds the tooth, and puts
     // the chest up 2.
     bodyLift: 2,
-    brows: brows([27, 32.8, 40, 31.6], [48, 31.6, 61, 32.8], 3),
+    brows: wBrows([27, 32.8, 40, 31.6], [48, 31.6, 61, 32.8], 3),
     eyes: eyesClosed(true),
     mouth: MOUTH.smile(3, true),
   },
@@ -443,7 +509,7 @@ export const WARM = {
     // tooth here: on a head rotated 8 degrees the tooth rect does not rotate
     // into the lip convincingly and rendered as a loose white chip on the jaw.
     pose: 'translate(0 1) rotate(8 44 50)',
-    brows: brows([27, 33, 40, 32.6], [48, 30.8, 61, 33.4], 3),
+    brows: wBrows([27, 33, 40, 32.6], [48, 30.8, 61, 33.4], 3),
     eyes: warmEyes({ dx: -1.6 }),
     mouth: MOUTH.smile(2.4, false),
   },
@@ -457,7 +523,7 @@ export const WARM = {
     // rather than as a mouth. Blunt's asleep is raised for the same reason.
     pose: 'translate(0 3) rotate(6 44 50)',
     prop: 22,
-    brows: brows([27, 34.5, 40, 33.6], [48, 33.6, 61, 34.5], 3),
+    brows: wBrows([27, 34.5, 40, 33.6], [48, 33.6, 61, 34.5], 3),
     eyes: eyesClosed(false),
     mouth: MOUTH.o(2.4, 63.5),
     extras: `<path d="M64 21 L71 21 L64 28 L71 28" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
@@ -470,7 +536,7 @@ export const WARM = {
     // chin and the smile ends up sitting on the collar.
     pose: 'translate(0 -3)',
     bodyLift: 3.5,
-    brows: brows([27, 32.6, 40, 31.4], [48, 31.4, 61, 32.6], 3),
+    brows: wBrows([27, 32.6, 40, 31.4], [48, 31.4, 61, 32.6], 3),
     eyes: eyesClosed(true),
     mouth: MOUTH.smile(3.2, true),
   },
@@ -526,14 +592,14 @@ const BLUNT_R = [49, 35, 61, 35];
 
 export const BLUNT = {
   idle: {
-    brows: brows(BLUNT_L, BLUNT_R, 4.6),
+    brows: bBrows(BLUNT_L, BLUNT_R, 4.6),
     eyes: bluntEyes(),
     mouth: MOUTH.flat(6),
   },
   thinking: {
     // Tighter dot spacing than either other set, 5 units against 6 and 6.6,
     // and a fatter dot: the same think-dots animation, said in less space.
-    brows: brows([27, 34, 39, 35.6], [49, 35.6, 61, 34], 4.6),
+    brows: bBrows([27, 34, 39, 35.6], [49, 35.6, 61, 34], 4.6),
     eyes: bluntEyes({ dx: 2.6, dy: -1.4 }),
     mouth: MOUTH.dots(5, 2.4),
   },
@@ -542,13 +608,13 @@ export const BLUNT = {
     // Blunt is asking because it needs the input, not because it is curious.
     // One brow up, the other flat, is the whole expression.
     pose: 'rotate(-5 44 50)',
-    brows: brows([27, 32.2, 39, 35], BLUNT_R, 4.6),
+    brows: bBrows([27, 32.2, 39, 35], BLUNT_R, 4.6),
     eyes: bluntEyes({ ry: 7 }),
     mouth: MOUTH.o(2.2),
   },
   good: {
     // "Take it before they notice." One-sided approval, no tooth, no lift.
-    brows: brows([27, 34.6, 39, 33.4], [49, 33.4, 61, 34.6], 4.6),
+    brows: bBrows([27, 34.6, 39, 33.4], [49, 33.4, 61, 34.6], 4.6),
     eyes: bluntEyes(),
     mouth: MOUTH.smirk(10, 3.4),
   },
@@ -558,14 +624,14 @@ export const BLUNT = {
     // where the shine returns, so the state that has to read as genuinely
     // pleased is also the only one that looks it.
     bodyLift: 1,
-    brows: brows([27, 31, 39, 30], [49, 30, 61, 31], 4.6),
+    brows: bBrows([27, 31, 39, 30], [49, 30, 61, 31], 4.6),
     eyes: bluntEyes({ ry: 8.4, iris: 4.8, shine: 'dot' }),
     mouth: MOUTH.grin(),
   },
   fair: {
     // "Fine. Whatever." A shrug: the longest flat mouth Blunt draws, over
     // half-lidded eyes. The lid is doing the shrugging, not the mouth.
-    brows: brows(BLUNT_L, BLUNT_R, 4.6),
+    brows: bBrows(BLUNT_L, BLUNT_R, 4.6),
     eyes: bluntEyes({ lid: 0.3 }),
     mouth: MOUTH.flat(11),
   },
@@ -573,7 +639,7 @@ export const BLUNT = {
     // Narrowed further, brows down at the inner ends, a short shallow frown.
     // Deadpan pulls the mouth aside here and Warm frowns wide and soft; Blunt's
     // is 9 units and 2.2 deep, the most economical negative in the file.
-    brows: brows([27, 32.4, 39, 36], [61, 32.4, 49, 36], 4.6),
+    brows: bBrows([27, 32.4, 39, 36], [61, 32.4, 49, 36], 4.6),
     eyes: bluntEyes({ ry: 5.6, iris: 4 }),
     mouth: MOUTH.frown(9, 2.2),
   },
@@ -585,14 +651,14 @@ export const BLUNT = {
     // NOT a frown: this face is unimpressed with a number, and a mouth that
     // curves down turns a judgement about a price into a reaction to a person.
     prop: -22,
-    brows: brows([25, 30, 41, 37.5], [63, 30, 47, 37.5], 5),
+    brows: bBrows([25, 30, 41, 37.5], [63, 30, 47, 37.5], 5),
     eyes: bluntEyes({ ry: 4.6, iris: 3.6 }),
     mouth: MOUTH.flat(11, 66.5),
   },
   unknown: {
     // "Not enough. I am not guessing." Level heavy brows, the lid nearly half
     // down, and a 7 unit mouth. Not an apology and not a shrug: a stop.
-    brows: brows(BLUNT_L, BLUNT_R, 4.6),
+    brows: bBrows(BLUNT_L, BLUNT_R, 4.6),
     eyes: bluntEyes({ lid: 0.45 }),
     mouth: MOUTH.flat(7, 64.5),
   },
@@ -602,7 +668,7 @@ export const BLUNT = {
     // and narrow with a smirk. Closing the eyes is a moment of enjoyment; Blunt
     // acknowledges and moves on. It still reads as pleased because the mouth is
     // up and the brows are off their low baseline.
-    brows: brows([27, 33.4, 39, 32.6], [49, 32.6, 61, 33.4], 4.6),
+    brows: bBrows([27, 33.4, 39, 32.6], [49, 32.6, 61, 33.4], 4.6),
     eyes: bluntEyes({ ry: 5.4 }),
     mouth: MOUTH.smirk(9, 3),
   },
@@ -611,7 +677,7 @@ export const BLUNT = {
     // single-brow move in the file. The head barely leans, 4 degrees against
     // Warm's 8: Blunt points, it does not lean over.
     pose: 'translate(0 1) rotate(4 44 50)',
-    brows: brows(BLUNT_L, [49, 34, 61, 29.5], 4.6),
+    brows: bBrows(BLUNT_L, [49, 34, 61, 29.5], 4.6),
     eyes: bluntEyes({ dx: -1.4 }),
     mouth: MOUTH.flat(7, 64),
   },
@@ -622,7 +688,7 @@ export const BLUNT = {
     // a physical fact and not an attitude.
     pose: 'translate(0 3) rotate(4 44 50)',
     prop: 22,
-    brows: brows([27, 36.5, 39, 36.5], [49, 36.5, 61, 36.5], 4.6),
+    brows: bBrows([27, 36.5, 39, 36.5], [49, 36.5, 61, 36.5], 4.6),
     eyes: eyesClosed(false),
     mouth: MOUTH.flat(5, 63.5),
     extras: `<path d="M64 21 L71 21 L64 28 L71 28" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
@@ -632,7 +698,7 @@ export const BLUNT = {
     // does not move the head at all. Eyes stay open, mouth stays a smirk: the
     // posture changed and the face did not.
     bodyLift: 1.5,
-    brows: brows([27, 32.6, 39, 32], [49, 32, 61, 32.6], 4.6),
+    brows: bBrows([27, 32.6, 39, 32], [49, 32, 61, 32.6], 4.6),
     eyes: bluntEyes({ ry: 5 }),
     mouth: MOUTH.smirk(10, 3.2),
   },

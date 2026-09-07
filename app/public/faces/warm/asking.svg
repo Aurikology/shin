@@ -17,7 +17,7 @@
     <circle cx="44" cy="9.5" r="1.5" fill="#12233A"/>
   </g>
 </g>
-    <g class="face-brows"><path d="M27 33.4 L40 31 M48 31.8 L61 33" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/></g>
+    <g class="face-brows"><path d="M39.66 29.14 Q32.95 29.25 26.87 32.69 A0.72 0.72 0 0 1 27.13 34.11 Q33.43 31.81 40.34 32.86 A1.89 1.89 0 0 1 39.66 29.14 Z M47.83 33.68 Q54.22 35.39 60.93 33.72 A0.72 0.72 0 0 1 61.07 32.28 Q54.46 32.79 48.17 29.92 A1.89 1.89 0 0 1 47.83 33.68 Z" fill="currentColor"/></g>
     <g class="face-eyes"><ellipse cx="33.5" cy="47" rx="8.8" ry="10.8" fill="#FFFFFF"/>
     <circle cx="33.5" cy="47" r="6" fill="#12233A"/>
     <circle cx="35.1" cy="45.4" r="1.6" fill="#FFFFFF"/>
