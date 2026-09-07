@@ -1,11 +1,18 @@
 /**
- * Wires the shell together and registers the six screens.
+ * Wires the shell together and registers every screen the app has.
  *
- * The list used to be fourteen and it used to be in walkthrough order, which is
- * the order a story is told and not the order an app is used. It is six now, and
- * the camera is first because the camera is the app: cold start lands on a live
- * viewfinder with the shutter under the thumb, and everything else is reached
- * from there.
+ * The list is the array below and nowhere else. This comment used to state a
+ * count, the count was wrong, and it was logged as a defect (D-029) for the
+ * same reason a shipped command's stale requirements were (D-020): a number
+ * written in prose beside the thing it counts drifts the first time the thing
+ * changes and nothing fails. So the count is not stated here, or anywhere else
+ * in prose. Read the array.
+ *
+ * What is worth saying, because the array cannot say it: the list used to be in
+ * walkthrough order, which is the order a story is told and not the order an app
+ * is used, and it was cut back hard. The camera is first because the camera is
+ * the app: cold start lands on a live viewfinder with the shutter under the
+ * thumb, and everything else is reached from there.
  *
  * The one thing that can stand in front of the camera is the attitude question,
  * asked once. Camera permission is deliberately not asked here; it is asked at

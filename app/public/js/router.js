@@ -57,6 +57,36 @@ function scroller() {
   return rootEl && rootEl.querySelector('.page');
 }
 
+/** The app's name, and the suffix every screen title is hung off. One literal. */
+const APP_NAME = 'Shin';
+
+/**
+ * The browser tab's text for a screen title.
+ *
+ * D-016: the tab read "Shin · Shin". Two things were producing the app name and
+ * exactly one of them is redundant. The redundant one is the SUFFIX, not the
+ * camera's title, and here is why.
+ *
+ * The camera's registered title being "Shin" is not an oversight. Every other
+ * screen is a place inside the app and is titled after itself ("Saved", "Past
+ * scans"). The camera is not a place inside the app, it is the app: it is the
+ * cold-start screen, it has no h1, and the honest name of the tab a person
+ * opened is the app's name. Retitling it to make the suffix rule uniform would
+ * buy uniformity by putting a wrong word in the tab ("Camera · Shin" names a
+ * screen nobody navigated to) and would still leave this function needing to
+ * know something, because a screen title that IS the app name can arrive again.
+ *
+ * So the suffix is the conditional half. It exists to say which app a screen
+ * belongs to, and a screen whose title is already the app name has said that.
+ * Appending it there adds no information, which is the definition of redundant.
+ *
+ * Exported and pure so `test/title.test.mjs` can assert it without a DOM.
+ */
+export function titleFor(screenTitle) {
+  if (!screenTitle) return APP_NAME;
+  return screenTitle === APP_NAME ? APP_NAME : `${screenTitle} · ${APP_NAME}`;
+}
+
 export function register(screen) {
   routes.set(screen.id, screen);
 }
@@ -172,9 +202,9 @@ function paint(id, params, restore = false) {
   if (seen.has(id)) delete rootEl.dataset.fresh;
   else rootEl.dataset.fresh = '';
   seen.add(id);
-  // Not `${title} · Shin` unconditionally: the camera's registered title IS
-  // "Shin", and that read "Shin · Shin" in the tab (FLAWS.md item 12).
-  document.title = screen.title && screen.title !== 'Shin' ? `${screen.title} · Shin` : 'Shin';
+  // The rule and the reasoning live on `titleFor` above (FLAWS.md item 12,
+  // DEFECTS.md D-016).
+  document.title = titleFor(screen.title);
   try {
     cleanup = screen.render(rootEl, { ...ctxBase, go, replace, params }) ?? null;
   } catch (err) {
