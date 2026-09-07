@@ -87,15 +87,61 @@ test('every line has all three personalities', () => {
   assert.deepEqual(missing, [], `lines with a missing cell:\n${missing.join('\n')}`);
 });
 
-test('every line actually returns something in every personality', () => {
+/**
+ * The full fact bag, one place, used by the three tests below. Any name a line
+ * interpolates has to appear here or that line looks broken to the suite,
+ * which is the point: a new fact name is a deliberate addition.
+ */
+const ALL_FACTS = {
+  price: '$4.99', cents: '$4.99', amount: '$4.99', asking: '$4.99', usual: '$3.49',
+  item: 'Kraft Dinner', seller: 'Metro', day: 'today', count: '3',
+  category: 'grocery', verdict: 'walk away', word: 'Walk away', what: 'the list', label: 'Kraft Dinner 225g',
+  scanned: '4', callable: '2', low: '$0.55', high: '$1.47', n: '2',
+};
+
+test('every line actually returns something when it is given its facts', () => {
   const empty = [];
   for (const key of BLOCKS.keys()) {
     for (const id of IDS) {
-      const out = say(key, {}, id);
+      const out = say(key, ALL_FACTS, id);
       if (typeof out !== 'string' || out.trim() === '') empty.push(`${key}/${id}`);
     }
   }
   assert.deepEqual(empty, [], `keys returning nothing: ${empty.join(', ')}`);
+});
+
+/**
+ * D-021, and the reason this test replaced the one that used to live here.
+ *
+ * The old test rendered every key with `{}` and asserted the result was a
+ * non-empty string. "Saved at undefined, Metro, undefined." is a non-empty
+ * string, so the one test that touched every line was the test certifying the
+ * defect green. Rendering with nothing is still the right probe; the assertion
+ * was the wrong one.
+ */
+test('no line ever puts a missing fact on the screen', () => {
+  const leaking = [];
+  for (const key of BLOCKS.keys()) {
+    for (const id of IDS) {
+      const out = say(key, {}, id);
+      if (/\bundefined\b|\bnull\b|\bNaN\b/.test(out)) leaking.push(`${key}/${id}: ${out}`);
+    }
+  }
+  assert.deepEqual(leaking, [], `lines shipping a missing fact:\n${leaking.join('\n')}`);
+});
+
+/**
+ * The caller-side shape of the same defect. A default parameter only fires on
+ * undefined, so a screen passing an explicit null threw a TypeError instead of
+ * printing "undefined". watchlist.js did exactly that.
+ */
+test('say survives a caller that hands it nothing at all', () => {
+  for (const key of BLOCKS.keys()) {
+    for (const id of IDS) {
+      assert.doesNotThrow(() => say(key, null, id), `${key}/${id} threw on null facts`);
+      assert.doesNotThrow(() => say(key, undefined, id), `${key}/${id} threw on undefined facts`);
+    }
+  }
 });
 
 /**

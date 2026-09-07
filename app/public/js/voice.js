@@ -632,6 +632,98 @@ const LINES = {
 };
 
 /**
+ * What a line falls back to when a fact it needed did not arrive.
+ *
+ * D-021: seven of the keys above interpolate a fact with no guard, so a caller
+ * that omits one ships "Saved at undefined, Metro, undefined." to the screen.
+ * A blank bubble would be honest but leaves a hole where Shin was, so every
+ * key that can break this way names the sentence it can still say with nothing
+ * in hand. These are deliberately weaker than the real lines: they are what is
+ * left when the facts are gone, not a second voice.
+ *
+ * A key not listed here degrades to nothing, which is the same thing an
+ * unknown key has always done.
+ */
+const BARE = {
+  /* The three verdict lines come first because they are the ones that must
+     never go quiet. The tier word, the price and the rail are all still on the
+     screen when Shin's sentence loses its facts, so the fallback carries the
+     call and drops the numbers rather than the other way round. */
+  good: {
+    deadpan: () => 'That is under the usual.',
+    warm: () => 'Good spot. That is under the usual.',
+    blunt: () => 'Buy it. Now.',
+  },
+  fair: {
+    deadpan: () => 'That is the going rate.',
+    warm: () => 'That is about what it goes for. You are fine.',
+    blunt: () => 'Fine. Whatever.',
+  },
+  walk_away: {
+    deadpan: () => 'That is over the usual.',
+    warm: () => 'Ooh, that is steep for this one.',
+    blunt: () => 'They are robbing you.',
+  },
+  refuse_category: {
+    deadpan: () => 'Not something I price',
+    warm: () => 'I skip this kind of thing',
+    blunt: () => 'Not this. No.',
+  },
+  correct_fineprint: {
+    deadpan: () => 'Recorded. It counts from now, firmer when a second tag agrees.',
+    warm: () => 'That is recorded. It counts from your next scan, and firms up when someone else sees the same price.',
+    blunt: () => 'Recorded. Counts now, firmer when a second one agrees.',
+  },
+  you_weekly: {
+    deadpan: () => 'Your week is on file.',
+    warm: () => 'I have your week, I just cannot read it back right now.',
+    blunt: () => 'Week is there. Cannot read it.',
+  },
+  watching: {
+    deadpan: () => 'Saved.',
+    warm: () => 'Saved. I have it.',
+    blunt: () => 'Saved.',
+  },
+  watching_feed: {
+    deadpan: () => 'Watching this one.',
+    warm: () => 'Watching. I will tell you if it drops.',
+    blunt: () => 'Watching it.',
+  },
+  dropped: {
+    deadpan: () => 'The price moved.',
+    warm: () => 'This one moved since you saved it.',
+    blunt: () => 'It moved.',
+  },
+  watchlist_callback: {
+    deadpan: () => 'Something is saved here.',
+    warm: () => 'You have something saved here.',
+    blunt: () => 'Saved. Details are gone.',
+  },
+  watchlist_saved_only: {
+    deadpan: () => 'Saved, and the details did not survive.',
+    warm: () => 'This one is saved, but I have lost what came with it.',
+    blunt: () => 'Saved. Nothing else left.',
+  },
+  pastscans_callback: {
+    deadpan: () => 'There is a scan behind this.',
+    warm: () => 'You have scanned before. I cannot read the last one back.',
+    blunt: () => 'Scanned before. Cannot read it back.',
+  },
+  cam_second_visit: {
+    deadpan: () => 'You have been here before.',
+    warm: () => 'Good to see you again.',
+    blunt: () => 'Back again.',
+  },
+};
+
+/**
+ * A rendered line that carries a missing fact. A template literal turns an
+ * absent value into the word itself, so this is exact rather than a heuristic:
+ * no line in this file contains either word, checked.
+ */
+const MISSING_FACT = /\bundefined\b|\bnull\b|\bNaN\b/;
+
+/**
  * Say one line.
  *
  * @param {string} key   a key in LINES
@@ -650,7 +742,21 @@ export function say(key, facts = {}, who) {
   if (!row) return '';
   const speaker = who && PERSONALITIES.some((p) => p.id === who) ? who : personality();
   const fn = row[speaker] ?? row[DEFAULT_PERSONALITY];
-  return typeof fn === 'function' ? fn(facts) : '';
+  if (typeof fn !== 'function') return '';
+  /* A caller may hand null rather than omitting the argument, and a default
+     parameter only fires on undefined. watchlist.js did exactly that and threw
+     a TypeError reading a field off null, which is D-021's missing guard
+     wearing a different failure. */
+  const out = fn(facts ?? {});
+  if (!MISSING_FACT.test(out)) return out;
+  /* D-021. The broken sentence is a perfectly non-empty string, so nothing
+     downstream can tell it from a good one. It is loud in the console and
+     quiet on the screen, which is the right way round: the person holding the
+     phone did not cause this and cannot fix it. */
+  const bare = BARE[resolvedKey];
+  const spare = bare ? (bare[speaker] ?? bare[DEFAULT_PERSONALITY]) : null;
+  console.error(`voice: "${resolvedKey}" spoke without its facts and produced: ${out}`);
+  return typeof spare === 'function' ? spare() : '';
 }
 
 /** The verdict word for a tier, which is the biggest text on the surface. */

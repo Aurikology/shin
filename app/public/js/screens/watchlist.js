@@ -214,7 +214,7 @@ export default {
           seller: first.askingSeller ?? '',
           price: cad(first.lastCents),
           day: ago(first.savedAt),
-        } : null;
+        } : {};
         return shinSay(face, 'watchlist_callback', facts, { size: 64, anim: 'idle-breath' });
       }
 

@@ -180,7 +180,7 @@ export default {
         const facts = last ? {
           item: last.result?.identity?.label ?? last.query?.text ?? 'that one',
           verdict: isVerdict ? wordFor(last.result.tier) : 'refused',
-        } : null;
+        } : {};
         return shinSay(face, 'pastscans_callback', facts, { size: 64, anim: 'idle-breath' });
       }
 
