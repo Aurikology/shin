@@ -35,6 +35,18 @@ export const ACCENT = '#F26B1D';
 export const DISC = '#DDF1FA';
 const IRIS = '#12233A';
 const WHITE = '#FFFFFF';
+/**
+ * One flat shade of the body cyan, for cel shading.
+ *
+ * Added 2026-09-07. The character sheet above names four colours and this is a
+ * fifth, so it is a deliberate addition rather than a convenience: the head was
+ * one flat fill with an outline, which is why it read as a shape with features
+ * placed on it. The face contract forbids gradients, and a gradient would be
+ * three pixels of mud at the 28px row size anyway, so depth here is one darker
+ * flat fill on the side away from the light. It is never a stroke, so the
+ * colour rule at the top of the file still holds.
+ */
+const BODY_SHADE = '#1E93C9';
 
 /** Outline weights, in user units on the 88 viewBox. */
 const W = { body: 3, eye: 2.4, brow: 3.6, mouth: 2.8, small: 2 };
@@ -97,9 +109,32 @@ function body({ lift = 0 } = {}) {
 </g>`;
 }
 
-/** The egg. Narrower at the top, rounder at the jaw. */
+/**
+ * The head: ears, the egg, and one shadow.
+ *
+ * The egg used to be a single path of four cubics and nothing else, which is
+ * why the character read as a shape with features placed on it rather than as
+ * a head. Three things changed, all of them state-invariant, which matters:
+ * `shin.js`'s `morphFace` only ever swaps the brows, eyes, mouth, extras, hat
+ * and body groups, and the skull is drawn once at mount and never updated. Art
+ * that has to change per state cannot live here.
+ *
+ * The ears are drawn before the egg so the head occludes their inner edge.
+ * Occlusion is the cheapest depth cue there is and it needs no gradient.
+ *
+ * The shade is one flat shape on the lower left, drawn after the fill and
+ * before the outline. The light in this drawing comes from the upper right,
+ * which the eye highlight has always assumed, so the shadow goes opposite it.
+ * Flat cel shading rather than a gradient: the face contract forbids
+ * `<linearGradient>` and this reads better at 28px anyway, where a gradient is
+ * three pixels of mud.
+ */
 function skull() {
-  return `<path class="face-skull" d="M44 17 C59 17 68 30 68 46 C68 61 57 70 44 70 C31 70 20 61 20 46 C20 30 29 17 44 17 Z" fill="${BODY}" stroke="currentColor" stroke-width="${W.body}"/>`;
+  const ear = (cx) => `<ellipse cx="${cx}" cy="48" rx="4" ry="5.4" fill="${BODY}" stroke="currentColor" stroke-width="${W.body}"/>`;
+  return `${ear(19.5)}
+  ${ear(68.5)}
+  <path class="face-skull" d="M44 17 C59 17 68 30 68 46 C68 62 59 70.5 44 70.5 C29 70.5 20 62 20 46 C20 30 29 17 44 17 Z" fill="${BODY}" stroke="currentColor" stroke-width="${W.body}"/>
+  <path d="M21.6 44 C21.4 60 30 69 44 69 C34.5 64.5 28.5 55 28.4 44 C28.4 39.5 29.2 35.5 30.6 32.2 C25.4 35.6 21.9 39.4 21.6 44 Z" fill="${BODY_SHADE}"/>`;
 }
 
 /**
@@ -145,8 +180,20 @@ function eye({ cx, cy, rx = 8.5, ry = 9, iris = 4.6, dx = 0, dy = 0, lid = 0, sh
   const parts = [];
   parts.push(`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${WHITE}"/>`);
   parts.push(`<circle cx="${cx + dx}" cy="${cy + dy}" r="${iris}" fill="${IRIS}"/>`);
+  /* The highlight is a reflection, not a mark on the iris.
+     It used to sit at a fixed offset from the iris centre and travel with a
+     glance one for one, which reads as paint on the pupil. It is scaled to the
+     iris and damped now, so it lags behind a glance rather than riding it. It
+     stays inside the iris deliberately: an earlier attempt anchored it to the
+     eyeball instead, which put it half on the white where it read as a notch
+     bitten out of the eye rather than as a glint. The second, fixed catchlight
+     at the lower inner edge is the one that belongs on the white, and it is
+     what makes the surface read as wet. */
+  const hx = cx + dx * 0.72 + iris * 0.37;
+  const hy = cy + dy * 0.72 - iris * 0.37;
   if (shine === 'dot') {
-    parts.push(`<circle cx="${cx + dx + 1.6}" cy="${cy + dy - 1.6}" r="1.6" fill="${WHITE}"/>`);
+    parts.push(`<circle cx="${hx.toFixed(2)}" cy="${hy.toFixed(2)}" r="1.7" fill="${WHITE}"/>`);
+    parts.push(`<circle cx="${(cx - rx * 0.4).toFixed(2)}" cy="${(cy + ry * 0.44).toFixed(2)}" r="0.9" fill="${WHITE}"/>`);
   } else if (shine === 'star') {
     const sx = cx + dx + 1.2, sy = cy + dy - 1.2;
     parts.push(`<path d="M${sx} ${sy - 3} L${sx + 0.9} ${sy - 0.9} L${sx + 3} ${sy} L${sx + 0.9} ${sy + 0.9} L${sx} ${sy + 3} L${sx - 0.9} ${sy + 0.9} L${sx - 3} ${sy} L${sx - 0.9} ${sy - 0.9} Z" fill="${WHITE}"/>`);
@@ -358,12 +405,20 @@ const MOUTH = {
   },
   frown: (w = 10, depth = 4, y = 66.5) => `<path d="M${44 - w / 2} ${y} Q44 ${y - depth} ${44 + w / 2} ${y}" stroke="currentColor" stroke-width="${W.mouth}" stroke-linecap="round" fill="none"/>`,
   o: (r = 2.8, y = 64.5) => `<circle cx="44" cy="${y}" r="${r}" fill="none" stroke="currentColor" stroke-width="${W.mouth}"/>`,
-  /** Pulled to one side: a flat line with a lift at the right end. */
-  aside: () => `<path d="M37 65 L49 63" stroke="currentColor" stroke-width="${W.mouth}" stroke-linecap="round" fill="none"/>`,
+  /**
+   * Pulled to one side: a flat line with a lift at the right end.
+   *
+   * It was hardcoded as `M37 65 L49 63`, a unit left of the face's centre, and
+   * its own comment recorded that the asymmetry was accidental and was being
+   * preserved only because the thirteen Deadpan files were frozen byte for
+   * byte. Those files are regenerated deliberately now, so the excuse is spent:
+   * it is centred on 44 and parameterised like every other mouth.
+   */
+  aside: (w = 12, tilt = 2, y = 64) => `<path d="M${44 - w / 2} ${y + tilt / 2} L${44 + w / 2} ${y - tilt / 2}" stroke="currentColor" stroke-width="${W.mouth}" stroke-linecap="round" fill="none"/>`,
   /**
    * Blunt's approval: `aside` with the tilt pushed far enough to read as a
-   * decision rather than as a slack mouth. Centred on 44 unlike `aside`, which
-   * sits a unit to the left; that asymmetry is Deadpan's and is left alone.
+   * decision rather than as a slack mouth. Both are centred on 44 now; the two
+   * differ in how far the line leans, which is the whole distinction.
    */
   smirk: (w = 10, tilt = 3, y = 64) => `<path d="M${44 - w / 2} ${y + tilt / 2} L${44 + w / 2} ${y - tilt / 2}" stroke="currentColor" stroke-width="${W.mouth}" stroke-linecap="round" fill="none"/>`,
   /** Three dots for `thinking`; `face.css`'s think-dots keys on these circles, so all three sets keep exactly three. */

@@ -7,7 +7,10 @@
   <path d="M40.30 77.4 h0.87 v3.2 h-0.87 Z M41.61 77.4 h0.44 v3.2 h-0.44 Z M42.48 77.4 h1.31 v3.2 h-1.31 Z M44.22 77.4 h0.44 v3.2 h-0.44 Z M45.09 77.4 h0.44 v3.2 h-0.44 Z M45.96 77.4 h0.87 v3.2 h-0.87 Z M47.26 77.4 h0.44 v3.2 h-0.44 Z" fill="#12233A"/>
 </g>
   <g class="face-head">
-    <path class="face-skull" d="M44 17 C59 17 68 30 68 46 C68 61 57 70 44 70 C31 70 20 61 20 46 C20 30 29 17 44 17 Z" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/>
+    <ellipse cx="19.5" cy="48" rx="4" ry="5.4" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/>
+  <ellipse cx="68.5" cy="48" rx="4" ry="5.4" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/>
+  <path class="face-skull" d="M44 17 C59 17 68 30 68 46 C68 62 59 70.5 44 70.5 C29 70.5 20 62 20 46 C20 30 29 17 44 17 Z" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/>
+  <path d="M21.6 44 C21.4 60 30 69 44 69 C34.5 64.5 28.5 55 28.4 44 C28.4 39.5 29.2 35.5 30.6 32.2 C25.4 35.6 21.9 39.4 21.6 44 Z" fill="#1E93C9"/>
     <g class="face-hat">
   <path d="M24 29.5 C26 19 35 14.5 44 14.5 C53 14.5 62 19 64 29.5 C57 27 31 27 24 29.5 Z" fill="#F26B1D" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
   <path d="M44 14.5 L44 10.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
@@ -19,11 +22,13 @@
     <g class="face-brows"><path d="M38.76 27.11 Q32.85 28.65 26.93 30.19 A0.81 0.81 0 0 1 27.07 31.81 Q33.15 32.35 39.24 32.89 A2.90 2.90 0 0 1 38.76 27.11 Z M48.76 32.89 Q54.85 32.35 60.93 31.81 A0.81 0.81 0 0 1 61.07 30.19 Q55.15 28.65 49.24 27.11 A2.90 2.90 0 0 1 48.76 32.89 Z" fill="currentColor"/></g>
     <g class="face-eyes"><ellipse cx="33.5" cy="47" rx="8.6" ry="8.4" fill="#FFFFFF"/>
     <circle cx="33.5" cy="47" r="4.8" fill="#12233A"/>
-    <circle cx="35.1" cy="45.4" r="1.6" fill="#FFFFFF"/>
+    <circle cx="35.28" cy="45.22" r="1.7" fill="#FFFFFF"/>
+    <circle cx="30.06" cy="50.70" r="0.9" fill="#FFFFFF"/>
     <ellipse cx="33.5" cy="47" rx="8.6" ry="8.4" fill="none" stroke="currentColor" stroke-width="2.4"/>
     <ellipse cx="54.5" cy="47" rx="8.6" ry="8.4" fill="#FFFFFF"/>
     <circle cx="54.5" cy="47" r="4.8" fill="#12233A"/>
-    <circle cx="56.1" cy="45.4" r="1.6" fill="#FFFFFF"/>
+    <circle cx="56.28" cy="45.22" r="1.7" fill="#FFFFFF"/>
+    <circle cx="51.06" cy="50.70" r="0.9" fill="#FFFFFF"/>
     <ellipse cx="54.5" cy="47" rx="8.6" ry="8.4" fill="none" stroke="currentColor" stroke-width="2.4"/></g>
     <g class="face-mouth"><path d="M36 60 Q44 72 52 60 Z" fill="#12233A" stroke="currentColor" stroke-width="2.8" stroke-linejoin="round"/>
     <path d="M42.00 60 h4.00 v1.80 a1.80 1.80 0 0 1 -1.80 1.80 h-0.40 a1.80 1.80 0 0 1 -1.80 -1.80 Z" fill="#FFFFFF"/></g>
