@@ -1251,8 +1251,15 @@ export default {
       if (hintEscalated) return;
       hintTimer = setTimeout(() => {
         if (dead || hintEscalated || coachKey || cam.dataset.state !== 'idle') return;
+        /* One of the two unprompted sources AVATAR.md section 3 allows, and
+           the budget is asked before it speaks rather than after. If the
+           answer is no it is dropped, never queued: the moment an unprompted
+           line was for does not come back, and a line that arrives late is a
+           worse interruption than the one that was skipped. */
+        if (!store.canInterrupt()) return;
         hintEscalated = true;
         showAimHint('nudge-arrive');
+        store.recordInterruption();
       }, 4000);
     }
 
@@ -1265,10 +1272,14 @@ export default {
      */
     function showInitialIdleContent() {
       if (!camShinEl || dead) return;
-      const facts = !secondVisitShown ? lastScanFacts() : null;
+      /* The other unprompted source. Same rule: ask first, and fall through
+         to the aim hint (which is not unprompted, it is the resting state of
+         a screen the user opened) if the budget is spent. */
+      const facts = !secondVisitShown && store.canInterrupt() ? lastScanFacts() : null;
       if (facts) {
         secondVisitShown = true;
         dockSay('idle', 'cam_second_visit', facts, 'idle-breath');
+        store.recordInterruption();
         clearTimeout(hintTimer);
         hintTimer = setTimeout(() => {
           if (dead || cam.dataset.state !== 'idle') return;

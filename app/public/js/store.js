@@ -46,6 +46,12 @@ const EMPTY = {
   drops: [],
   scanCount: 0,
   shareCount: 0,
+  /**
+   * ISO timestamps of the times Shin has spoken without being asked.
+   * AVATAR.md section 3's interruption budget, made real. Pruned to the last
+   * day on every read, so this never grows.
+   */
+  interruptions: [],
   /** Stage 09: the paywall arrives after value, never before. */
   proUntil: null,
   /**
@@ -183,6 +189,10 @@ export function update(patch) {
 
 export function reset() {
   state = { ...EMPTY };
+  // The session half of the interruption budget lives in memory rather than in
+  // state, so wiping state would otherwise leave it standing and a reset user
+  // would start their next session already out of unprompted lines.
+  resetSessionInterruptions();
   persist();
   for (const fn of listeners) fn(state);
 }
@@ -319,6 +329,77 @@ export function goodFindThisWeek() {
     const at = Date.parse(h.at);
     return Number.isFinite(at) && at >= cutoff && h.result?.tier === 'good';
   });
+}
+
+/* --------------------------------------------- the interruption budget ---- */
+
+/**
+ * AVATAR.md section 3 caps what Shin may say when the user did not act:
+ * **two per session, four per day, and zero notifications in v1.** The file is
+ * explicit that "no third source may be added without a row in this table".
+ *
+ * Until now that cap was not enforced anywhere. It was satisfied by accident:
+ * the two unprompted sources that exist, the aim-hint escalation and the
+ * second-visit callback, each carried a one-shot boolean in the camera screen,
+ * so a session could not exceed two because there were only two flags. Nothing
+ * counted a day at all, and nothing would have stopped a third source being
+ * added and quietly breaking a contract nobody could see.
+ *
+ * The distinction the budget rests on is AVATAR.md's own: an appearance is
+ * **reactive** if it lands within two seconds of the user's own act on the same
+ * surface, and reactive appearances are unbudgeted, because capping the answer
+ * to a question the user just asked would make the product worse at the only
+ * thing it does. Only unprompted appearances come through here.
+ */
+const UNPROMPTED_PER_SESSION = 2;
+const UNPROMPTED_PER_DAY = 4;
+
+/* Session, not day: a reload is a new session by design. The day count is
+   persisted; this one deliberately is not. */
+let interruptionsThisSession = 0;
+
+function interruptionsToday() {
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  return (state.interruptions ?? []).filter((iso) => {
+    const at = Date.parse(iso);
+    return Number.isFinite(at) && at >= cutoff;
+  });
+}
+
+/**
+ * Whether Shin may speak unprompted right now. A screen asks before it speaks,
+ * and stays silent if the answer is no. It never queues the line for later:
+ * the moment an unprompted line was for does not come back.
+ */
+export function canInterrupt() {
+  return interruptionsThisSession < UNPROMPTED_PER_SESSION
+    && interruptionsToday().length < UNPROMPTED_PER_DAY;
+}
+
+/**
+ * Record that Shin spoke unprompted. Called only after the line actually went
+ * on screen, never at the point it was considered, or a line that was decided
+ * against would still spend the budget.
+ */
+export function recordInterruption() {
+  interruptionsThisSession += 1;
+  update((s) => ({ ...s, interruptions: [...interruptionsToday(), new Date().toISOString()] }));
+}
+
+/**
+ * Clears the session half only. `reset()` calls it, because a user wiping
+ * their data should not carry a spent session budget into the next one.
+ */
+export function resetSessionInterruptions() {
+  interruptionsThisSession = 0;
+}
+
+/** For the record and for tests: what is left of each cap. */
+export function interruptionBudget() {
+  return {
+    session: UNPROMPTED_PER_SESSION - interruptionsThisSession,
+    day: UNPROMPTED_PER_DAY - interruptionsToday().length,
+  };
 }
 
 /**
