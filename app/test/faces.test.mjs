@@ -61,13 +61,67 @@ for (const who of Object.keys(FACE_SETS)) {
   }
 }
 
-test('thinking has three mouth dots for think-dots to animate', () => {
-  const mouth = faceInner('deadpan', 'thinking').match(/<g class="face-mouth">([\s\S]*?)<\/g>/)[1];
-  assert.equal((mouth.match(/<circle/g) ?? []).length, 3);
+test('the three personalities of the contract all exist as face sets', () => {
+  // voice.js ships lines for deadpan, warm and blunt, and `faceParts` falls
+  // back to DEADPAN for anything it does not know. A missing set is therefore
+  // silent: the picker renders three identical faces beside three different
+  // voices, which is the one thing that screen exists not to do.
+  assert.deepEqual(Object.keys(FACE_SETS).sort(), ['blunt', 'deadpan', 'warm']);
 });
 
-test('unknown is a slow blink, never a dashed or red refusal marker', () => {
-  const svg = standaloneSvg('deadpan', 'unknown');
-  assert.doesNotMatch(svg, /stroke-dasharray/);
-  assert.doesNotMatch(svg, /#F0431F|#FF6A45|red/i);
+for (const who of Object.keys(FACE_SETS)) {
+  test(`${who} defines all thirteen states itself, with no fallback`, () => {
+    assert.deepEqual(Object.keys(FACE_SETS[who]).sort(), [...CONTRACT].sort());
+  });
+}
+
+test('the three personalities are actually drawn differently, state by state', () => {
+  // The regression this guards is a silent revert: delete a set, or let a state
+  // fall through to DEADPAN, and everything above still passes while the
+  // attitude picker goes back to showing one face three times. Byte identity is
+  // the right test because these are generated strings - two sets that agree on
+  // every part produce the same bytes, and any real difference in brow, eye,
+  // mouth, pose or lift produces different ones.
+  const sets = Object.keys(FACE_SETS);
+  for (const state of CONTRACT) {
+    for (let i = 0; i < sets.length; i++) {
+      for (let j = i + 1; j < sets.length; j++) {
+        assert.notEqual(
+          faceInner(sets[i], state), faceInner(sets[j], state),
+          `${sets[i]} and ${sets[j]} draw an identical ${state}`,
+        );
+      }
+    }
+  }
 });
+
+test('every set differs from the others in the eyes, not only in the mouth', () => {
+  // A set could pass the test above on mouths alone, and the mouth is the one
+  // feature a 28px row face renders in about two pixels. The eyes are the
+  // largest feature and the one that has to carry the distinction at row size,
+  // so each pair must differ there too, on at least most of the thirteen.
+  const group = (who, state) => faceInner(who, state).match(/<g class="face-eyes">([\s\S]*?)<\/g>/)[1];
+  const sets = Object.keys(FACE_SETS);
+  for (let i = 0; i < sets.length; i++) {
+    for (let j = i + 1; j < sets.length; j++) {
+      const differing = CONTRACT.filter((s) => group(sets[i], s) !== group(sets[j], s));
+      assert.ok(
+        differing.length >= 10,
+        `${sets[i]} and ${sets[j]} draw the same eyes in ${13 - differing.length} of 13 states`,
+      );
+    }
+  }
+});
+
+for (const who of Object.keys(FACE_SETS)) {
+  test(`${who}/thinking has three mouth dots for think-dots to animate`, () => {
+    const mouth = faceInner(who, 'thinking').match(/<g class="face-mouth">([\s\S]*?)<\/g>/)[1];
+    assert.equal((mouth.match(/<circle/g) ?? []).length, 3);
+  });
+
+  test(`${who}/unknown is a slow blink, never a dashed or red refusal marker`, () => {
+    const svg = standaloneSvg(who, 'unknown');
+    assert.doesNotMatch(svg, /stroke-dasharray/);
+    assert.doesNotMatch(svg, /#F0431F|#FF6A45|red/i);
+  });
+}
