@@ -67,6 +67,11 @@ export default {
     const weekProud = store.goodFindThisWeek();
     const weekState = weekProud ? 'proud' : 'fair';
     const weekAnim = weekProud ? 'proud-hold' : 'idle-breath';
+    // The third branch this pair was missing. `proud` picked its own face and
+    // its own animation and then borrowed `fair`'s line, so the state shipped
+    // with a cell that was never written for it (DESIGN.md section 3). The key
+    // takes the same two facts; only the sentence differs.
+    const weekKey = weekProud ? 'you_weekly_proud' : 'you_weekly';
     const ac = new AbortController();
 
     function currentTheme() {
@@ -82,7 +87,7 @@ export default {
         </header>
 
         <section class="block block-week">
-          ${shinSay(weekState, 'you_weekly', { scanned: weekly.scanned, callable: weekly.callable }, { size: 64, anim: weekAnim })}
+          ${shinSay(weekState, weekKey, { scanned: weekly.scanned, callable: weekly.callable }, { size: 64, anim: weekAnim })}
         </section>
 
         <section class="block">
@@ -99,9 +104,9 @@ export default {
         </section>
 
         <section class="block">
-          <h2 class="sect-h">What I can actually answer</h2>
+          <h2 class="sect-h">What Shin can actually answer</h2>
           <div class="coverage" data-coverage aria-live="polite" aria-busy="true">
-            <p class="fineprint">Asking the engine…</p>
+            <p class="fineprint">${escapeHtml(say('you_coverage_loading'))}</p>
           </div>
         </section>
 
@@ -131,7 +136,7 @@ export default {
         </section>
 
         <section class="block">
-          <h2 class="sect-h">What I do with your data</h2>
+          <h2 class="sect-h">What Shin does with your data</h2>
           <p class="fineprint">
             Everything stays on this device. Nothing is sent anywhere but the local server that
             answers a scan.
@@ -155,7 +160,7 @@ export default {
           <p class="fineprint">
             There is no privacy policy page and no terms page. When there is something legal
             worth reading, it will be here; until then the two paragraphs above are the whole
-            of what I do.
+            of it.
           </p>
           ${
             /*
@@ -206,10 +211,7 @@ export default {
       box.setAttribute('aria-busy', 'false');
       box.innerHTML = `
         <p class="cov-big"><b>${c.answerableCount}</b> of ${c.items.length}</p>
-        <p class="fineprint">
-          ${refused} of the things I know about, I will refuse on, because the evidence behind them
-          is not enough to call. That is measured by pricing every one of them, not counted off a list.
-        </p>
+        <p class="fineprint">${escapeHtml(say('you_coverage_refused', { refused: String(refused) }))}</p>
         <div class="covlist">
           ${c.items
             .map(
@@ -224,7 +226,7 @@ export default {
       const box = root.querySelector('[data-coverage]');
       if (!box) return;
       box.setAttribute('aria-busy', 'false');
-      box.innerHTML = `<p class="fineprint">I could not reach my own engine to check.</p>`;
+      box.innerHTML = `<p class="fineprint">${escapeHtml(say('you_coverage_failed'))}</p>`;
     });
 
     on(root, 'click', (e) => {

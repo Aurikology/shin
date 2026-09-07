@@ -14,6 +14,7 @@
  */
 
 import { shinSay, cad } from '../shin.js';
+import { say } from '../voice.js';
 import * as store from '../store.js';
 import { html, raw, agoDays, on } from '../lib/dom.js';
 import { repainter } from '../lib/listscreen.js';
@@ -90,12 +91,12 @@ export default {
 
       let body;
       if (phase === 'loading') {
-        body = html`<div class="list-state"><p class="fineprint">Reading what was removed…</p></div>`;
+        body = html`<div class="list-state"><p class="fineprint">${say('removed_loading')}</p></div>`;
       } else if (phase === 'error') {
         // Same shape and voice as you.js's engine failure.
         body = html`
           <div class="list-state">
-            <p class="fineprint">I could not read what was removed.</p>
+            <p class="fineprint">${say('removed_failed')}</p>
             <button type="button" class="linky" data-act="retry" data-fk="retry:removed">Try again</button>
           </div>`;
       } else if (list.length) {

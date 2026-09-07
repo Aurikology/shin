@@ -23,22 +23,22 @@
  */
 
 import { faceSvg, faceBlock, shinSay, cad, sellerOf, confidenceOf, dotsHtml, tierOf } from '../shin.js';
-import { say, wordFor } from '../voice.js';
+import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { escapeHtml, html, raw, ago, on } from '../lib/dom.js';
 import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.js';
 
-/** Plain screen labels, not Shin speaking: the reason a refusal happened, for a one-line row. */
-const REFUSAL_LABEL = {
-  no_identity: 'Refused, could not identify it',
-  identity_unsure: 'Refused, not sure which one',
-  category_unsupported: 'Refused, out of scope',
-  no_source_response: 'Refused, no sources answered',
-  too_few_points: 'Refused, not enough evidence',
-  points_too_stale: 'Refused, evidence too old',
-  comparison_incoherent: 'Refused, evidence disagreed',
-  no_asking_price: 'Refused, no price given',
-};
+/*
+ * The eight refusal reasons used to be a map here, described in this comment
+ * as "plain screen labels, not Shin speaking". They were duplicated copy:
+ * voice.js already owned eight refusal keys covering the same eight reasons in
+ * three voices, and this map wrote each of them a ninth time in one. They are
+ * `refusal_label_*` in voice.js now and reached through `refusalLabel`, which
+ * falls back to the plain word for a reason code that has no key yet.
+ *
+ * camera.js is the other place a refusal reason reaches a screen and it has
+ * not had this treatment. That file belongs to another lane this pass.
+ */
 
 /** The name to show for a history entry, verdict or refusal. */
 function labelOf(h) {
@@ -111,7 +111,7 @@ export function detail(h) {
           <p class="said">${say(v.tier, facts)}</p>
           <p class="pmodal-meta">${v.identity.label}${source ? ` · ${source}` : ''} · ${ago(h.at)}</p>
           <p class="pmodal-conf">${conf.label}${raw(dotsHtml(conf.dots))}</p>
-          <p class="pmodal-note">This is what Shin said at the time. Read-only.</p>
+          <p class="pmodal-note">${say('read_only_note')}</p>
           <button type="button" class="linky" data-act="close-detail">Close</button>
         </div>
       </div>`;
@@ -122,10 +122,10 @@ export function detail(h) {
     <div class="pmodal" data-act="modal">
       <div class="pmodal-card" data-tier="unknown" tabindex="-1">
         ${raw(faceBlock('unknown', { size: 'face-verdict' }))}
-        <h2>${REFUSAL_LABEL[r?.reason] ?? 'Refused'}</h2>
+        <h2>${refusalLabel(r?.reason)}</h2>
         <p class="pmodal-meta">${h.query?.text ?? 'Unknown item'} · ${ago(h.at)}</p>
         <p class="said">${r?.detail ?? ''}</p>
-        <p class="pmodal-note">This is what Shin said at the time. Read-only.</p>
+        <p class="pmodal-note">${say('read_only_note')}</p>
         <button type="button" class="linky" data-act="close-detail">Close</button>
       </div>
     </div>`;
@@ -186,13 +186,13 @@ export default {
 
       let body;
       if (phase === 'loading') {
-        body = html`<div class="list-state"><p class="fineprint">Reading your past scans…</p></div>`;
+        body = html`<div class="list-state"><p class="fineprint">${say('pastscans_loading')}</p></div>`;
       } else if (phase === 'error') {
         // The same shape and voice as you.js's engine failure, which is the
         // only other place in the app that admits a read did not work.
         body = html`
           <div class="list-state">
-            <p class="fineprint">I could not read your past scans.</p>
+            <p class="fineprint">${say('pastscans_failed')}</p>
             <button type="button" class="linky" data-act="retry" data-fk="retry:pastscans">Try again</button>
           </div>`;
       } else if (list.length) {

@@ -113,7 +113,7 @@ export function detailModal(w, match) {
           <p class="said">${say(v.tier, facts)}</p>
           <p class="pmodal-meta">${v.identity.label}${source ? ` · ${source}` : ''} · ${ago(match.at)}</p>
           <p class="pmodal-conf">${conf.label}${raw(dotsHtml(conf.dots))}</p>
-          <p class="pmodal-note">This is what Shin said at the time. Read-only.</p>
+          <p class="pmodal-note">${say('read_only_note')}</p>
           <button type="button" class="linky" data-act="close-detail">Close</button>
         </div>
       </div>`;
@@ -220,13 +220,13 @@ export default {
 
       let body;
       if (phase === 'loading') {
-        body = html`<div class="list-state"><p class="fineprint">Reading what you saved…</p></div>`;
+        body = html`<div class="list-state"><p class="fineprint">${say('watchlist_loading')}</p></div>`;
       } else if (phase === 'error') {
         // Same shape and the same voice as you.js's engine failure, which is
         // the only other place in the app that admits a read did not work.
         body = html`
           <div class="list-state">
-            <p class="fineprint">I could not read what you saved.</p>
+            <p class="fineprint">${say('watchlist_failed')}</p>
             <button type="button" class="linky" data-act="retry" data-fk="retry:watchlist">Try again</button>
           </div>`;
       } else if (list.length) {

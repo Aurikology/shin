@@ -10,6 +10,21 @@
  * NO STRING SHIN SAYS IS WRITTEN INSIDE A SCREEN. If a screen needs a new line,
  * it gets a new key here with all three variants, or it does not ship.
  *
+ * WHERE THE LINE IS, decided 2026-09-07 and enforced by test/screens-voice.test.mjs:
+ *
+ *   In voice.js: anything in the first person, anything that judges, advises,
+ *   apologises, or narrates what Shin is doing.
+ *
+ *   In the screen: structural labels, headings, button text, kickers, and
+ *   factual captions that do not speak as Shin.
+ *
+ * That boundary retired a self-authored exemption in licences.js which held that
+ * "a fetch narration is not a verdict" and so could live in the screen. It
+ * appears in no design document, and under the line above a fetch narration
+ * written in the first person is Shin talking whether or not it is a verdict.
+ * Both of that screen's lines are keys here now, with the four other screens
+ * that had been copying the same exemption without ever writing it down.
+ *
  * The promise under the picker is that the attitude changes the words and never
  * the number. Nothing in this file may take a price, a count, a seller or a date
  * and alter it. Those arrive already formatted and are only ever interpolated.
@@ -526,6 +541,217 @@ const LINES = {
       ? 'Nothing this week.'
       : `${f.scanned} this week. ${f.callable} I could call.`),
   },
+  /**
+   * The same header when `store.goodFindThisWeek()` is true, which is the
+   * condition you.js already uses to pick the `proud` face and the
+   * `proud-hold` animation. Before this key that face was handed `you_weekly`,
+   * a line written for `fair`, so the proud state shipped with a borrowed
+   * cell. DESIGN.md section 3: a state with a missing cell does not ship.
+   *
+   * Same two facts, same arithmetic, no third number. The good find is not
+   * counted here, because nothing in this file may count anything; the fact
+   * that there was one is carried by the branch that chose this key.
+   */
+  you_weekly_proud: {
+    deadpan: (f) => `${f.scanned} scanned this week. ${f.callable} I could call, and one of them was a good price.`,
+    warm: (f) => `${f.scanned} scanned this week, and I could call ${f.callable} of them. One was a properly good price.`,
+    blunt: (f) => `${f.scanned} this week. ${f.callable} callable, and one was a good price.`,
+  },
+  /**
+   * --- the You page's coverage block, three states ---
+   *
+   * The block asks the engine to price everything it knows and prints how many
+   * it can actually answer for. All three of these were written inline in
+   * you.js: they narrate what Shin is doing and then judge what Shin can do,
+   * which is both halves of the boundary at the top of this file.
+   *
+   * The refused line takes the count already computed by the screen. It is
+   * interpolated and never derived here.
+   */
+  you_coverage_loading: {
+    deadpan: () => 'Asking the engine…',
+    warm: () => 'Let me go and ask the engine…',
+    blunt: () => 'Asking. One moment…',
+  },
+  you_coverage_refused: {
+    deadpan: (f) => `${f.refused} of the things I know about, I will refuse on, because the evidence behind them is not enough to call. That is measured by pricing every one of them, not counted off a list.`,
+    warm: (f) => `There are ${f.refused} I know about and will still refuse on, because what is behind them is not enough to call. I measure that by pricing every one of them rather than counting a list.`,
+    blunt: (f) => `${f.refused} of them I will refuse on. Not enough behind them. Measured by pricing every one, not counted off a list.`,
+  },
+  you_coverage_failed: {
+    deadpan: () => 'I could not reach my own engine to check.',
+    warm: () => 'I could not reach my own engine to check, and I would rather say that than put a number up I did not measure.',
+    blunt: () => 'My own engine did not answer. No count until it does.',
+  },
+
+  /* --- the three list screens, lane C ---
+   *
+   * Saved, Past scans and Recently removed each had a reading line and a
+   * failure line written inside the screen, in the first person, copied from
+   * one screen to the next. One key per surface rather than one key with the
+   * name of the list interpolated: a noun dropped into a sentence makes the
+   * voice depend on a fact, which is the defect D-021 was, and the saving
+   * would have been three strings.
+   *
+   * Hard rule 3 governs the failure lines. A read that did not work is the
+   * app's fault and never the reader's, so none of these six may imply the
+   * person holding the phone broke something.
+   */
+  watchlist_loading: {
+    deadpan: () => 'Reading what you saved…',
+    warm: () => 'Fetching what you saved…',
+    blunt: () => 'Reading your saves…',
+  },
+  watchlist_failed: {
+    deadpan: () => 'I could not read what you saved.',
+    warm: () => 'I could not read what you saved back. Give me another go at it.',
+    blunt: () => 'Cannot read what you saved. Try me again.',
+  },
+  pastscans_loading: {
+    deadpan: () => 'Reading your past scans…',
+    warm: () => 'Getting your past scans together…',
+    blunt: () => 'Reading your scans…',
+  },
+  pastscans_failed: {
+    deadpan: () => 'I could not read your past scans.',
+    warm: () => 'I could not read your past scans back. Give me another go at it.',
+    blunt: () => 'Cannot read your past scans. Try me again.',
+  },
+  removed_loading: {
+    deadpan: () => 'Reading what was removed…',
+    warm: () => 'Looking up what was removed…',
+    blunt: () => 'Reading the removed list…',
+  },
+  removed_failed: {
+    deadpan: () => 'I could not read what was removed.',
+    warm: () => 'I could not read what was removed back. Give me another go at it.',
+    blunt: () => 'Cannot read the removed list. Try me again.',
+  },
+
+  /**
+   * --- the reopened verdict's own footer, three call sites, one key ---
+   *
+   * "This is what Shin said at the time. Read-only." was written three times,
+   * twice in pastscans.js and once in watchlist.js, and it is Shin narrating
+   * the state of its own record. One key is a real deduplication rather than a
+   * bookkeeping one: the three copies were already free to drift.
+   *
+   * All three variants keep the two things the note does: it was said then,
+   * and nothing on this card can be acted on now.
+   */
+  read_only_note: {
+    deadpan: () => 'This is what I said at the time. Nothing here can be changed.',
+    warm: () => 'This is what I said at the time, kept as it was. Nothing on this card changes.',
+    blunt: () => 'What I said then. Nothing to change here.',
+  },
+
+  /**
+   * --- the refusal reasons, as a heading on a reopened refusal ---
+   *
+   * pastscans.js carried these as a plain map called REFUSAL_LABEL, described
+   * in its own comment as "plain screen labels, not Shin speaking". They are
+   * duplicated copy: this file already owns eight refusal keys covering the
+   * same eight reasons, written three times each, and the map wrote each of
+   * them a ninth time in one voice.
+   *
+   * Read `refusalLabel(reason)` below rather than these keys directly, so a
+   * reason with no key of its own still gets the plain word.
+   *
+   * Hard rule 3: "no asking price" and "could not identify it" are the two
+   * that would be easiest to write at the person who scanned. Neither of them
+   * names anybody. The refusal is the app's, and it says so.
+   */
+  refusal_label_no_identity: {
+    deadpan: () => 'Refused. I could not identify it.',
+    warm: () => 'Refused, because I could not work out what it was.',
+    blunt: () => 'Refused. No idea what it was.',
+  },
+  refusal_label_identity_unsure: {
+    deadpan: () => 'Refused. I was not sure which one it was.',
+    warm: () => 'Refused, because I could not tell which one of them it was.',
+    blunt: () => 'Refused. Could not pick which one.',
+  },
+  refusal_label_category_unsupported: {
+    deadpan: () => 'Refused. I do not price that kind of thing.',
+    warm: () => 'Refused, because that is a kind of thing I skip.',
+    blunt: () => 'Refused. Not something I do.',
+  },
+  refusal_label_no_source_response: {
+    deadpan: () => 'Refused. No source answered me.',
+    warm: () => 'Refused, because nowhere I asked came back with a price.',
+    blunt: () => 'Refused. Nobody answered.',
+  },
+  refusal_label_too_few_points: {
+    deadpan: () => 'Refused. Not enough evidence to call it.',
+    warm: () => 'Refused, because there was not enough behind it to call.',
+    blunt: () => 'Refused. Too little to go on.',
+  },
+  refusal_label_points_too_stale: {
+    deadpan: () => 'Refused. The prices I had were too old.',
+    warm: () => 'Refused, because everything I had on it was too old to trust.',
+    blunt: () => 'Refused. Old prices only.',
+  },
+  refusal_label_comparison_incoherent: {
+    deadpan: () => 'Refused. The prices disagreed with each other.',
+    warm: () => 'Refused, because the prices I found did not agree with each other.',
+    blunt: () => 'Refused. The prices contradicted each other.',
+  },
+  refusal_label_no_asking_price: {
+    deadpan: () => 'Refused. No asking price to judge.',
+    warm: () => 'Refused, because there was no tag price to judge it against.',
+    blunt: () => 'Refused. No price to judge.',
+  },
+  /*
+   * The three the engine gained when D-012 was fixed. That defect was four
+   * filter conditions sharing two messages, so the refusal named the wrong
+   * cause; splitting the conditions is only half a fix until each one can say
+   * what it actually was, which is these.
+   *
+   * Hard rule 3 does real work on the last of them. Every price coming from
+   * the shop the person is standing in is a fact about where the price data
+   * comes from, not a mistake anybody made by walking into that shop, so none
+   * of its three variants may read as though the wrong store was picked.
+   */
+  refusal_label_unusable_price_kinds: {
+    deadpan: () => 'Refused. The prices I found were all the wrong kind to compare.',
+    warm: () => 'Refused, because the only prices I could find were list prices with no shop behind them.',
+    blunt: () => 'Refused. List prices only. Nobody is actually selling it at those.',
+  },
+  refusal_label_points_future_dated: {
+    deadpan: () => 'Refused. Every price I found is dated later than this.',
+    warm: () => 'Refused, because every price I hold for it is dated in the future, and that cannot be right.',
+    blunt: () => 'Refused. All the prices are dated in the future.',
+  },
+  refusal_label_all_points_from_asking_seller: {
+    deadpan: () => 'Refused. Every price I found is from this same shop, so there is nothing to compare it against.',
+    warm: () => 'Refused, because every price I found comes from this same shop. Comparing a shop against itself would tell you nothing.',
+    blunt: () => 'Refused. This shop is the only one I have prices from. Nothing to compare.',
+  },
+
+  /**
+   * --- the licences screen, two states ---
+   *
+   * That screen carried its own exemption in its file comment, and it is the
+   * reason the boundary at the top of this file is written down: it argued
+   * that "a fetch narration is not a verdict" and so could live in the screen.
+   * Both lines are first person and both narrate what Shin is doing, so both
+   * are here. The exemption is deleted.
+   *
+   * The failure line keeps the thing that matters about it: an empty
+   * attribution screen looks identical to an app with nothing to attribute,
+   * so all three variants say the list is being withheld rather than shown
+   * short. The aggression, such as it is, points at the fetch.
+   */
+  licences_loading: {
+    deadpan: () => 'Asking for the list of sources…',
+    warm: () => 'Let me go and fetch the list of sources…',
+    blunt: () => 'Getting the source list…',
+  },
+  licences_failed: {
+    deadpan: () => 'I could not reach the list of sources to credit them. It is not being shown at all rather than shown short.',
+    warm: () => 'I could not reach the list of sources to credit them. I would rather show you none of it than a short version that credits the wrong people.',
+    blunt: () => 'Could not reach the source list. None of it goes up rather than half of it.',
+  },
 
   /* camera, lane B */
   /**
@@ -679,6 +905,20 @@ const BARE = {
     warm: () => 'I have your week, I just cannot read it back right now.',
     blunt: () => 'Week is there. Cannot read it.',
   },
+  /* The good find is what put this key on screen rather than `you_weekly`, so
+     it is the one thing the fallback keeps when the counts are gone. */
+  you_weekly_proud: {
+    deadpan: () => 'You found a good price this week.',
+    warm: () => 'You found a good price this week. I have the rest of it, I just cannot read it back.',
+    blunt: () => 'Good week. Cannot read the numbers back.',
+  },
+  /* The coverage block prints its two counts directly above this sentence, so
+     the fallback drops the number and keeps the reason. */
+  you_coverage_refused: {
+    deadpan: () => 'Some of what I know about, I will still refuse on, because the evidence is not enough to call.',
+    warm: () => 'There are some I know about and will still refuse on, because what is behind them is not enough to call.',
+    blunt: () => 'Some of them I refuse on. Not enough behind them.',
+  },
   watching: {
     deadpan: () => 'Saved.',
     warm: () => 'Saved. I have it.',
@@ -762,4 +1002,21 @@ export function say(key, facts = {}, who) {
 /** The verdict word for a tier, which is the biggest text on the surface. */
 export function wordFor(tierId) {
   return say(`word_${tierId}`) || 'About right';
+}
+
+/**
+ * The heading on a reopened refusal, for one of the eight reasons the engine
+ * can return.
+ *
+ * Shaped like `wordFor` on purpose: a screen hands over a reason code and gets
+ * a sentence, and never holds a table of its own. A reason with no key here
+ * falls back to the plain word rather than to nothing, because a refusal card
+ * with no heading is worse than one that does not say why.
+ *
+ * `say` returns '' for an unknown key, so a new reason code added to the engine
+ * shows "Refused" until it gets three variants here, which is the failure this
+ * file wants: quiet on the screen, obvious in the table.
+ */
+export function refusalLabel(reason) {
+  return say(`refusal_label_${reason}`) || 'Refused';
 }
