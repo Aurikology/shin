@@ -384,7 +384,13 @@
   0%, 80%, 100% { transform: translate(0, 0); }
   86%, 94% { transform: translate(2.4px, 1.1px); }
 }
-.cam-shin .face-eyes {
+/* Gated to the only two states the docked face is visible in. It used to be
+   unscoped, so it kept running behind every sheet for the whole session: the
+   fourth infinite animation on the hidden subtree that D-017 counted three of,
+   and the one that survives parking the face, because it is a stylesheet rule
+   and not a `data-anim` value the parking can reach. */
+.cam[data-state="idle"] .cam-shin .face-eyes,
+.cam[data-state="framing"] .cam-shin .face-eyes {
   animation: camEyeGlance 5200ms ease-in-out infinite;
   animation-delay: 1400ms;
 }

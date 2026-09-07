@@ -29,6 +29,16 @@ import * as store from '../store.js';
 import { attachEye } from '../eye-attach.js';
 
 /**
+ * The camera states in which the docked face is faded out by `camera.css`.
+ *
+ * This list and the selector list in `camera.css` under "Hidden whenever a
+ * sheet has risen" are one fact written twice, and they have to agree: a state
+ * in the stylesheet and not here leaves an invisible face animating (D-017), a
+ * state here and not in the stylesheet freezes a face the user can see.
+ */
+const FACE_HIDDEN_IN = new Set(['choosing', 'asking', 'reading', 'texting', 'result']);
+
+/**
  * The four things the viewfinder is ever allowed to say, and the lines they map
  * to.
  *
@@ -1147,6 +1157,34 @@ export default {
     function setState(next) {
       cam.dataset.state = next;
       if (camBar) camBar.inert = next === 'result' || next === 'choosing' || next === 'asking' || next === 'texting';
+      parkDockedFace(FACE_HIDDEN_IN.has(next));
+    }
+
+    /**
+     * D-017. The docked face fades to `opacity: 0` in five of the camera's
+     * states but stays mounted, so whatever it was last told to do keeps
+     * running. Measured at the price pad: three `think-dots` circles on a
+     * 900ms infinite loop, repainting for the whole interaction, none of it
+     * visible. A phone held up in an aisle pays for that.
+     *
+     * Opacity is not a kill switch, so the fix is the one primitive that is:
+     * `data-anim="none"`, which `face.css` answers with `animation: none
+     * !important` on the face and every group inside it. setTorch already
+     * writes exactly this attribute for the same reason (stillness the CSS has
+     * to honour), and `animateFace` cannot be used because 'none' is not one of
+     * the thirteen names it accepts.
+     *
+     * Written and cleared here rather than only written, because `dockSay`'s
+     * sentinel clear only fires when something speaks. Coming back to the
+     * viewfinder from a verdict does not always speak, and a docked face left
+     * parked would sit still for the rest of the session.
+     */
+    function parkDockedFace(park) {
+      if (!camShinEl) return;
+      const f = camShinEl.querySelector('.face');
+      if (!f) return;
+      if (park) f.dataset.anim = 'none';
+      else if (f.dataset.anim === 'none') f.dataset.anim = '';
     }
 
     /**
