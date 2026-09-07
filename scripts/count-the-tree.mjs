@@ -128,6 +128,60 @@ for (const kind of ["HIS", "BLOCKED OUTSIDE", "WALL", "STANDING RULE"]) {
 }
 counts.endsThatArePointers = pointers.length;
 counts.endsWithNothingToShow = unshown.length;
+// A figure that cannot move is worse than no figure, because a line naming one looks finished.
+// The front matter split this one on 2026-09-06 and the split was declared done while 124 lines
+// still carried the flat version; a fresh reader found it. Counted from here on, and it fails.
+// Count on the text with its line breaks flattened, not line by line. The figure is four words
+// long and the file wraps at 96 columns, so eight of them sat across a line break and a per-line
+// test read the file as clean while they were still there. Found 2026-09-07.
+counts.flatFigure = (lines.slice(0, end).join(" ").replace(/\s+/g, " ")
+  .match(/answer rate per kind/gi) || []).length;
+// A dimension waved away with no reason is silence wearing a label. The old style put "Does not
+// apply" in the label itself, which leaves the body holding a list of dimension names and nowhere
+// for the reason to go; the notes written that way are the ones a fresh reader found bare. The
+// style that works names the dimension in the label and says in the body that it does not apply,
+// and why, so the reason has a place to sit.
+const bareDismissals = [];
+for (const node of reviewed) {
+  for (const n of node.notes) {
+    if (!/^\*\*Does not apply:\*\*/.test(n)) continue;
+    // Two styles say this. One names the dimensions and then gives the reason, in brackets or
+    // after a "since"; that is fine. The other names the dimensions and stops, which is silence
+    // with a label on it, and is the only one this fails.
+    if (!/[(]|since|because/i.test(n.replace("**Does not apply:**", ""))) bareDismissals.push(n);
+  }
+}
+counts.dimensionsWavedAwayWithNoReason = bareDismissals.length;
+// A citation bracket that lost the asterisk closing its italic swallows the rest of the line into
+// the emphasis, so the line reads as italic prose in any viewer and the "shown by" clause stops
+// looking like one. 27 lines were shipped that way in the last round and nobody saw them, because
+// the raw text still reads correctly. Counted from here on, and it fails.
+counts.brokenCitationClose = lines.slice(0, end)
+  .filter((l) => /\)\*\*Shown/.test(l)).length;
+// A pointer that names a line which does not exist is worse than a duplicate build, because the
+// reader goes looking and finds nothing, and the thing pointed at may never have been built at
+// all. Three of them were shipped in the last round, each naming a real node in words the node
+// itself does not use. A wall is allowed its shorthand, since the walls are named in the closing
+// note. Everything else must appear somewhere outside a pointer bracket. Found 2026-09-07.
+const flat = lines.slice(0, end).join(" ").replace(/\s+/g, " ");
+const plain = flat.replace(/\*/g, "").toLowerCase();
+const pointerTargets = new Set();
+for (const m of flat.matchAll(/\[waits on: ([^\]]*)\]/g)) {
+  for (const part of m[1].split(";")) {
+    const t = part.trim().split(/, (?:since|which|for|and per) /)[0].trim();
+    if (t) pointerTargets.add(t);
+  }
+}
+const dangling = [];
+for (const t of pointerTargets) {
+  if (/\bwall$/i.test(t)) continue;
+  const k = t.replace(/\*/g, "").toLowerCase();
+  const all = plain.split(k).length - 1;
+  const insideBrackets = (plain.match(new RegExp("\\[waits on:[^\\]]*" + k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) || []).length;
+  if (all - insideBrackets < 1) dangling.push(t);
+}
+counts.pointersNamingNoLine = dangling.length;
+if (dangling.length) counts.danglingPointers = dangling.join(" | ");
 counts.dimensionNodes = reviewed.length;
 counts.dimensionSlots = reviewed.length * SLOTS.length;
 counts.dimensionSilent = silent;
@@ -160,6 +214,10 @@ const claims = [
   ["ends at the fourth level", claim(/(\d+) at the fourth/), counts.leavesFourth],
   ["ends at the fifth level", claim(/(\d+) at the fifth/), counts.leavesFifth],
   ["ends at the sixth level", claim(/(\d+) at the sixth/) ?? (counts.leavesSixth ? null : 0), counts.leavesSixth],
+  ["lines still naming the figure that cannot move", 0, counts.flatFigure],
+  ["dimensions waved away with no reason", 0, counts.dimensionsWavedAwayWithNoReason],
+  ["citation brackets that swallow the rest of their line", 0, counts.brokenCitationClose],
+  ["pointers naming a line that does not exist", 0, counts.pointersNamingNoLine],
   ["dimension slots in total", claim(/\d+ of (\d+) dimension slots/), counts.dimensionSlots],
   ["dimension slots left silent", claim(/(\d+) of \d+ dimension slots/), counts.dimensionSilent],
 ];

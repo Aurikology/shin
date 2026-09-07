@@ -142,7 +142,7 @@ node, it says what that node waits on. It is one file, one line per node, plain 
 
 ## Rules for a leaf
 
-11. **A leaf is exactly one of six things**, and its line says which:
+11. **A leaf is exactly one of seven things**, and its line says which:
     - *exists*: running, with the outside check of rule 12 named;
     - *written, no caller*: the code is there and nothing in the running app reaches it;
     - *buildable*: one pass, with the measurement that will show it worked. If the thing is
@@ -239,7 +239,7 @@ node, it says what that node waits on. It is one file, one line per node, plain 
 - Every node has a source (rule 1) and a goal number (rule 3).
 - A random ten non-leaf nodes pass the sufficiency question, and each has a wiring child
   (rule 8); walls are tested at their go-around.
-- Every leaf is one of the six states (rule 11) and every "exists" names its outside check
+- Every leaf is one of the seven states (rule 11) and every "exists" names its outside check
   as file and line or a command (rule 12).
 - Every "waits on" names a node that is in the tree (rule 9).
 - Every leaf marked buildable or blocked because something is absent says where the search
