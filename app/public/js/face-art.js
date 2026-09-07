@@ -72,6 +72,13 @@ function skull() {
 
 /**
  * The propeller beanie.
+ *
+ * The hub is a navy fill and not `currentColor`, for the same reason the irises
+ * are: it sits on the orange blade, and an ink that follows the verdict hue put
+ * a green dot in the middle of an orange propeller on a good verdict while the
+ * blade around it stayed orange. Navy is only ever a fill, so this keeps the
+ * colour rule at the top of the file.
+ *
  * @param {{ prop?: number }} o  `prop` tilts the propeller in degrees (drooped when angry, tipped when asleep)
  */
 function hat({ prop = 0 } = {}) {
@@ -81,7 +88,7 @@ function hat({ prop = 0 } = {}) {
   <path d="M44 14.5 L44 10.5" stroke="currentColor" stroke-width="${W.body}" stroke-linecap="round"/>
   <g${spin}>
     <path d="M34.5 9.5 Q44 5.5 53.5 9.5 Q44 13.5 34.5 9.5 Z" fill="${ACCENT}" stroke="currentColor" stroke-width="${W.small}" stroke-linejoin="round"/>
-    <circle cx="44" cy="9.5" r="1.5" fill="currentColor"/>
+    <circle cx="44" cy="9.5" r="1.5" fill="${IRIS}"/>
   </g>
 </g>`;
 }
@@ -156,12 +163,27 @@ function brows(left, right, weight = W.brow) {
  */
 const MOUTH = {
   flat: (w = 12, y = 64) => `<path d="M${44 - w / 2} ${y} L${44 + w / 2} ${y}" stroke="currentColor" stroke-width="${W.mouth}" stroke-linecap="round" fill="none"/>`,
-  /** A closed smile with one tooth hanging under the lip line. The tooth is drawn first so the lip covers its top edge. */
-  smile: (depth = 2.2, tooth = true) => `${tooth ? `<rect x="43.4" y="${(62 + depth * 0.93 - 0.6).toFixed(2)}" width="3.8" height="4.6" rx="1" fill="${WHITE}" stroke="currentColor" stroke-width="1.6"/>` : ''}
+  /**
+   * A closed smile with one tooth under the lip line.
+   *
+   * The tooth is centred on the mouth's own centre and tucked so the lip stroke
+   * covers its top edge. It used to be a fixed rect at x 43.4, which put its
+   * centre on 45.3 while the lip's centre was 44, and it sat low enough that
+   * almost none of it was behind the lip; at 300px it read as a detached white
+   * block beside the mouth rather than as a tooth in it. Both numbers now come
+   * from the lip, so a deeper smile keeps the tooth seated.
+   */
+  smile: (depth = 2.2, tooth = true) => `${tooth ? `<rect x="42.3" y="${(62 + depth - 0.9).toFixed(2)}" width="3.4" height="3.6" rx=".8" fill="${WHITE}" stroke="currentColor" stroke-width="1.6"/>` : ''}
     <path d="M38 62 Q44 ${62 + depth * 2} 50 62" stroke="currentColor" stroke-width="${W.mouth}" stroke-linecap="round" fill="none"/>`,
-  /** An open smile, the mouth interior in ink, the tooth inside it. `halfW` widens it, `drop` deepens it. */
+  /**
+   * An open smile, the mouth interior in ink, the tooth inside it. `halfW`
+   * widens it, `drop` deepens it, and the tooth is derived from both. It used
+   * to be a rect fixed at x 39.8 while the mouth width was a parameter, so
+   * Warm's `grin(10.5, 15)` drew its tooth a third of the way in from the left
+   * corner of a mouth 2.5 units wider than the one the number was fitted to.
+   */
   grin: (halfW = 8, drop = 12) => `<path d="M${44 - halfW} 60 Q44 ${60 + drop} ${44 + halfW} 60 Z" fill="currentColor" stroke="currentColor" stroke-width="${W.mouth}" stroke-linejoin="round"/>
-    <rect x="39.8" y="60.6" width="4.2" height="3.4" rx=".8" fill="${WHITE}"/>`,
+    <rect x="${(44 - halfW * 0.2625).toFixed(2)}" y="${(60 + drop * 0.05).toFixed(2)}" width="${(halfW * 0.525).toFixed(2)}" height="${(drop * 0.283).toFixed(2)}" rx=".8" fill="${WHITE}"/>`,
   frown: (w = 10, depth = 4, y = 66.5) => `<path d="M${44 - w / 2} ${y} Q44 ${y - depth} ${44 + w / 2} ${y}" stroke="currentColor" stroke-width="${W.mouth}" stroke-linecap="round" fill="none"/>`,
   o: (r = 2.8, y = 64.5) => `<circle cx="44" cy="${y}" r="${r}" fill="none" stroke="currentColor" stroke-width="${W.mouth}"/>`,
   /** Pulled to one side: a flat line with a lift at the right end. */

@@ -14,7 +14,7 @@
   <path d="M44 14.5 L44 10.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
   <g>
     <path d="M34.5 9.5 Q44 5.5 53.5 9.5 Q44 13.5 34.5 9.5 Z" fill="#F26B1D" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-    <circle cx="44" cy="9.5" r="1.5" fill="currentColor"/>
+    <circle cx="44" cy="9.5" r="1.5" fill="#12233A"/>
   </g>
 </g>
     <g class="face-brows"><path d="M27 32.8 L40 31.2 M48 31.2 L61 32.8" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/></g>
@@ -26,7 +26,7 @@
     <circle cx="54.5" cy="47" r="6" fill="#12233A"/>
     <circle cx="56.1" cy="45.4" r="1.6" fill="#FFFFFF"/>
     <ellipse cx="54.5" cy="47" rx="8.8" ry="10.8" fill="none" stroke="currentColor" stroke-width="2.4"/></g>
-    <g class="face-mouth"><rect x="43.4" y="64.19" width="3.8" height="4.6" rx="1" fill="#FFFFFF" stroke="currentColor" stroke-width="1.6"/>
+    <g class="face-mouth"><rect x="42.3" y="64.10" width="3.4" height="3.6" rx=".8" fill="#FFFFFF" stroke="currentColor" stroke-width="1.6"/>
     <path d="M38 62 Q44 68 50 62" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" fill="none"/></g>
   </g>
   <g class="face-extras"></g>

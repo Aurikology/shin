@@ -14,7 +14,7 @@
   <path d="M44 14.5 L44 10.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
   <g>
     <path d="M34.5 9.5 Q44 5.5 53.5 9.5 Q44 13.5 34.5 9.5 Z" fill="#F26B1D" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-    <circle cx="44" cy="9.5" r="1.5" fill="currentColor"/>
+    <circle cx="44" cy="9.5" r="1.5" fill="#12233A"/>
   </g>
 </g>
     <g class="face-brows"><path d="M26 32.5 L40 32 M48 32 L62 32.5" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" fill="none"/></g>
