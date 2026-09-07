@@ -63,11 +63,20 @@
 /* ---------- reticle lock ---------- */
 
 .reticle.is-locked {
-  transition: left 300ms steps(5), top 300ms steps(5), width 300ms steps(5), height 300ms steps(5);
+  transition: none;
+  animation: none;
+}
+
+.reticle.is-locked i {
+  transition: transform 300ms steps(5);
+  top: 0;
+  left: 0;
+  right: auto;
+  bottom: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .reticle.is-locked {
+  .reticle.is-locked i {
     transition: none;
   }
 }
@@ -103,7 +112,7 @@
 }
 
 .riffle-card.is-entering {
-  animation: riffle-enter 50ms steps(1) both;
+  animation: riffle-enter 50ms steps(2) both;
 }
 
 @keyframes riffle-enter {

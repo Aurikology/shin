@@ -2,7 +2,7 @@
 // module that reads LINES. Everything else is a part with a fixed interface.
 import { createMascot } from './mascot/mascot.js'
 import { line } from './mascot/lines.js'
-import { startCamera } from './camera.js'
+import { startCamera, stopCamera } from './camera.js'
 import { createFeed } from './feed.js'
 import { createDemoShelf } from './demo-shelf.js'
 import { findBox, identify } from './scan.js'
@@ -34,6 +34,7 @@ const HUE = {
 const TIER_WORD = { good: 'GOOD', fair: 'FAIR', walk: 'HIGH' }
 const FILM_MODES = ['pixel', 'gb', 'clean']
 const FILM_LABEL = { pixel: 'PIXEL', gb: 'GB', clean: 'CLEAN' }
+const PERSONALITIES = ['warm', 'blunt', 'deadpan']
 
 // ---------- persisted preferences ----------
 const store = {
@@ -45,8 +46,9 @@ const store = {
   },
 }
 
+const storedPersonality = store.get('pc.personality', null)
 const state = {
-  personality: store.get('pc.personality', null),
+  personality: PERSONALITIES.includes(storedPersonality) ? storedPersonality : null,
   film: store.get('pc.film', 'pixel'),
   muted: store.get('pc.muted', false),
   seq: 0,
@@ -54,15 +56,19 @@ const state = {
   camera: null,
   shelf: null,
   scanning: false,
+  resolving: false,
   escalated: false,
   escalateTimer: null,
+  hintGen: 0,
   current: null, // { result, candidateIndex, product, verdict }
   watched: false,
 }
 
 // ---------- mascots ----------
 const faces = {}
+let dragWired = false
 function mountFace(name, hostId, size, opts = {}) {
+  if (faces[name]) faces[name].destroy()
   const host = $(hostId)
   const m = createMascot({ size, personality: state.personality || 'warm', hue: HUE.idle, state: 'idle', ...opts })
   host.replaceChildren(m.el)
@@ -161,25 +167,45 @@ function picker() {
 // ---------- primer ----------
 function primer() {
   showScreen('primer')
-  const m = mountFace('primer', 'primer-face', 48)
-  m.setState('asking')
-  typeText($('primer-line'), say('primer'))
+  try {
+    const m = mountFace('primer', 'primer-face', 48)
+    m.setState('asking')
+    typeText($('primer-line'), say('primer'))
+  } catch (err) {
+    console.warn('primer line failed, falling back to picker', err)
+    picker()
+    return
+  }
   $('primer-allow').onclick = async () => {
     sfx.unlock(); sfx.blip()
     $('primer-allow').disabled = true
+    $('primer-skip').disabled = true
     try {
       state.camera = await startCamera($('cam-video'))
+      state.camera.onended = () => {
+        stopCamera(state.camera)
+        state.feed?.stop()
+        openCamera(null, true)
+        toast('nudging', say('denied'))
+      }
       openCamera($('cam-video'), false)
     } catch (err) {
       console.warn('camera unavailable, using the demo shelf', err)
       openCamera(null, true)
     }
   }
-  $('primer-skip').onclick = () => { sfx.unlock(); sfx.blip(); openCamera(null, true) }
+  $('primer-skip').onclick = () => {
+    sfx.unlock(); sfx.blip()
+    $('primer-skip').disabled = true
+    $('primer-allow').disabled = true
+    openCamera(null, true)
+  }
 }
 
 // ---------- camera ----------
 function openCamera(video, demo) {
+  if (state.feed) { state.feed.stop(); state.feed = null }
+  if (state.shelf) { state.shelf.stop(); state.shelf = null }
   showScreen('camera')
   const canvas = $('feed')
   let source = video
@@ -251,6 +277,7 @@ function idle(lineKey) {
   pill.classList.remove('is-leaving')
   faces.hint.setHue(HUE.idle)
   faces.hint.setState('idle')
+  state.hintGen += 1
   typeText($('hint-line'), say(lineKey), { sound: false })
   $('shutter').disabled = false
   clearTimeout(state.escalateTimer)
@@ -259,6 +286,7 @@ function idle(lineKey) {
       if (state.scanning || state.escalated) return
       state.escalated = true
       faces.hint.setState('asking')
+      state.hintGen += 1
       typeText($('hint-line'), say('escalated'), { sound: false })
     }, 4000)
   }
@@ -270,9 +298,11 @@ function pokeInPill(m, textEl) {
   m.poke()
   const keys = ['poke1', 'poke2', 'poke3']
   const key = keys[Math.floor(Math.random() * keys.length)]
+  state.hintGen += 1
+  const myGen = state.hintGen
   const before = textEl.textContent
   typeText(textEl, say(key), { sound: false })
-  setTimeout(() => { if (!state.scanning) typeText(textEl, before, { sound: false }) }, 1600)
+  setTimeout(() => { if (!state.scanning && state.hintGen === myGen) typeText(textEl, before, { sound: false }) }, 1600)
 }
 
 // ---------- the scan ----------
@@ -320,7 +350,12 @@ async function scan() {
 
   showChip(box)
   await wait(900)
-  await resolveCandidate()
+  state.resolving = true
+  try {
+    await resolveCandidate()
+  } finally {
+    state.resolving = false
+  }
 }
 
 function swapStep(el, text) {
@@ -345,21 +380,27 @@ function showChip(box) {
 
 async function notIt() {
   const cur = state.current
-  if (!cur || !cur.result.found) return
-  cur.candidateIndex = (cur.candidateIndex + 1) % cur.result.candidates.length
-  faces.chip.setState('asking')
-  typeText($('chip-text'), say('wrong'), { sound: false })
-  hideSheet()
-  await wait(500)
-  faces.chip.setState('thinking')
-  const label = cur.result.candidates[cur.candidateIndex].label
-  typeText($('chip-text'), say('chip', { name: label }), { sound: false })
-  await wait(600)
-  await resolveCandidate()
+  if (!cur || !cur.result.found || state.resolving) return
+  state.resolving = true
+  try {
+    cur.candidateIndex = (cur.candidateIndex + 1) % cur.result.candidates.length
+    faces.chip.setState('asking')
+    typeText($('chip-text'), say('wrong'), { sound: false })
+    hideSheet()
+    await wait(500)
+    faces.chip.setState('thinking')
+    const label = cur.result.candidates[cur.candidateIndex].label
+    typeText($('chip-text'), say('chip', { name: label }), { sound: false })
+    await wait(600)
+    await resolveCandidate()
+  } finally {
+    state.resolving = false
+  }
 }
 
 async function resolveCandidate() {
   const cur = state.current
+  if (!cur) return
   const cand = cur.result.candidates[cur.candidateIndex]
   const product = match(cand.id)
   const landOn = product ? CATALOGUE.findIndex((p) => p.id === product.id) : -1
@@ -382,6 +423,7 @@ async function runRiffle(landOn) {
 
 // ---------- the sheet ----------
 function showVerdict() {
+  if (!state.current) return
   const { result, product, verdict: v } = state.current
   const sheet = $('sheet')
   const stateName = v.thin ? v.tier : v.state
@@ -454,12 +496,14 @@ function refuse() {
 }
 
 function riseSheet(refusal) {
+  $('chip').hidden = true
   const sheet = $('sheet')
   sheet.hidden = false
   sheet.classList.remove('is-landing', 'is-landing-refusal', 'is-dismissed')
   void sheet.offsetWidth
   sheet.classList.add(refusal ? 'is-landing-refusal' : 'is-landing')
   sheet.style.transform = ''
+  sheet.addEventListener('animationend', () => sheet.classList.remove('is-landing', 'is-landing-refusal'), { once: true })
 }
 
 function hideSheet() {
@@ -498,19 +542,28 @@ function toast(faceState, text) {
   m.nod()
   $('toast-text').textContent = text
   t.hidden = false
-  t.classList.remove('is-out')
   clearTimeout(t._timer)
+  clearTimeout(t._hideTimer)
+  t.classList.remove('is-shown')
+  void t.offsetWidth
+  t.classList.add('is-shown')
   t._timer = setTimeout(() => {
-    t.classList.add('is-out')
-    setTimeout(() => { t.hidden = true }, 200)
+    t.classList.remove('is-shown')
+    t._hideTimer = setTimeout(() => { t.hidden = true }, 200)
   }, 1600)
 }
 
 function wireSheetDrag() {
+  if (dragWired) return
+  dragWired = true
   const sheet = $('sheet')
   const grip = sheet.querySelector('.sheet-grip')
   let startY = null
-  const onDown = (e) => { startY = e.clientY; sheet.style.transition = 'none' }
+  const onDown = (e) => {
+    startY = e.clientY
+    sheet.style.transition = 'none'
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
   const onMove = (e) => {
     if (startY === null) return
     const dy = Math.max(0, e.clientY - startY)
@@ -540,6 +593,8 @@ function resetToIdle() {
   const reticle = $('reticle')
   reticle.classList.remove('is-locked')
   reticle.style.cssText = ''
+  reticle.querySelectorAll('i').forEach((i) => { i.style.cssText = '' })
+  $('repair-input').value = ''
   state.feed.resume()
   state.scanning = false
   state.current = null

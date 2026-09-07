@@ -31,18 +31,24 @@
       <div class="picker-row" id="picker-row">
         <button class="picker-card" data-personality="deadpan">
           <div class="picker-face"></div>
-          <div class="picker-name">DEADPAN</div>
-          <div class="picker-line"></div>
+          <div class="picker-text">
+            <div class="picker-name">DEADPAN</div>
+            <div class="picker-line"></div>
+          </div>
         </button>
         <button class="picker-card" data-personality="warm">
           <div class="picker-face"></div>
-          <div class="picker-name">WARM</div>
-          <div class="picker-line"></div>
+          <div class="picker-text">
+            <div class="picker-name">WARM</div>
+            <div class="picker-line"></div>
+          </div>
         </button>
         <button class="picker-card" data-personality="blunt">
           <div class="picker-face"></div>
-          <div class="picker-name">BLUNT</div>
-          <div class="picker-line"></div>
+          <div class="picker-text">
+            <div class="picker-name">BLUNT</div>
+            <div class="picker-line"></div>
+          </div>
         </button>
       </div>
     </section>
@@ -59,7 +65,7 @@
 
     <!-- Camera: the app -->
     <section class="screen screen-camera" data-screen="camera" hidden>
-      <video id="cam-video" playsinline muted autoplay hidden></video>
+      <video id="cam-video" playsinline muted autoplay></video>
       <canvas id="feed" class="feed"></canvas>
 
       <div class="hud">

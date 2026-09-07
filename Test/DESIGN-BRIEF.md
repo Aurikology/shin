@@ -158,7 +158,7 @@ short and aims at the price or the store, never the person.
 | Screen | Owner | What happens |
 |---|---|---|
 | Boot | `main.js` + `retro.css` | 1.2s, CRT power-on flicker, mascot face at 96px in `--idle-hue`, PRICE CHECK wordmark in brand. No line. |
-| Attitude picker | `main.js` + `retro.css` | Once per install. Three `fair` faces side by side, each with its personality's verdict line under it. Tap one: it turns `pleased`, nods, the other two fade, advance after 400ms. |
+| Attitude picker | `main.js` + `retro.css` | Once per install. Three `fair` faces stacked on a phone (face left, name and line right), side by side on a wide screen. Tap one: it turns `pleased`, nods, the other two fade, advance after 400ms. |
 | Primer | `main.js` | Mascot `asking` at 48px in a hint pill: the camera line. One button: ALLOW CAMERA. Then `startCamera`. |
 | Camera idle | `feed.js`, `hud`, `main.js` | Live pixelated feed. Reticle brackets at centre. Hint pill with mascot `idle` at 28px and the aim line. Shutter at the bottom centre, brand ring. Film mode toggle (PIXEL / GB / CLEAN) top-right, torch toggle top-left when supported. After 4s with no shutter, the hint escalates once to `asking`. |
 | Identifying | `scanfx.js`, `main.js` | Shutter tapped: shutter sound, flash, the frame freezes and digitises (pixel size steps up 1,2,4,8 then back down to the feed's size over 600ms), a sweep line crosses top to bottom once, brackets contract from the reticle onto the object box. Mascot `thinking`, think dots, step label under it swapping through the three steps. |
