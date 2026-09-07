@@ -236,10 +236,23 @@ export function animateFace(el, name) {
     return;
   }
 
-  // Row faces never animate, with one contract-named exception: proud-hold
-  // is written *at* 28px ("the row face grows from 28px to 40px", row 13), so
-  // an explicit call lifts the gate for exactly its 400ms and puts it back.
-  // Nothing automatic reaches this branch; a scrolling list never does.
+  /* Row faces never animate, with one contract-named exception: proud-hold is
+     written *at* 28px ("the row face grows from 28px to 40px", row 13), so an
+     explicit call lifts the gate for exactly its 400ms and puts it back.
+     Nothing automatic reaches this branch; a scrolling list never does.
+
+     Nothing at all reaches it, in fact. you.js mounts `proud` at 64px, which
+     takes the ordinary path below, and no screen calls animateFace with this
+     name. It belongs with nudge-arrive and the drop card: a contract row that
+     is implemented and unreachable in v1, rather than one that is missing.
+
+     Exercised by hand 2026-09-07 rather than assumed, because a branch nobody
+     has run is not the same as a branch that works. Mounted a face-row proud
+     face and called it: face-static comes off, data-anim becomes proud-hold,
+     the animation runs, and 440ms later both are put back. Note that the
+     --proud-peak written here is only ever face.css's own fallback at 28px,
+     since (28 + 12) / 28 is exactly 1.4286, so the custom property earns its
+     keep only if a second row size ever exists. */
   if (rowSized) {
     if (name !== 'proud-hold') return;
     el.classList.remove('face-static');

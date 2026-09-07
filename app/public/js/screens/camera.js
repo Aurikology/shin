@@ -24,9 +24,10 @@
  */
 
 import { faceBlock, cad, confidenceOf, dotsHtml, tierOf, sellerOf, animateFace, shinSay, updateShinSay } from '../shin.js';
-import { say, wordFor } from '../voice.js';
+import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { attachEye } from '../eye-attach.js';
+import { escapeHtml } from '../lib/dom.js';
 
 /**
  * The camera states in which the docked face is faded out by `camera.css`.
@@ -502,10 +503,20 @@ function refusalSheet(r, scenario, categoryLabels = []) {
   const isCategory = r.reason === 'category_unsupported';
   const isUnsure = r.reason === 'identity_unsure';
   const isNoIdentity = r.reason === 'no_identity';
+  /* Every reason that means "prices were found and none of them can settle
+     this", as opposed to "we do not know what this is". The list gained three
+     members on 2026-09-07 when the engine stopped answering four different
+     filter conditions with one code (D-012). Missing them here is not
+     cosmetic: an unlisted reason falls through to the refuse_unknown title,
+     so a Tide refusal that has thirteen prices behind it would tell the
+     shopper Shin could not identify the product. */
   const isThin = r.reason === 'too_few_points'
     || r.reason === 'points_too_stale'
     || r.reason === 'no_source_response'
-    || r.reason === 'comparison_incoherent';
+    || r.reason === 'comparison_incoherent'
+    || r.reason === 'unusable_price_kinds'
+    || r.reason === 'points_future_dated'
+    || r.reason === 'all_points_from_asking_seller';
 
   const titleKey = isCategory ? 'refuse_category' : isUnsure ? 'refuse_unsure' : isThin ? 'refuse_thin' : 'refuse_unknown';
   const titleFacts = isCategory ? { category } : {};
@@ -568,12 +579,15 @@ function refusalSheet(r, scenario, categoryLabels = []) {
         ${mine}
         <p class="detail">${isCategory ? categoryShort : r.detail}</p>
         ${repairBlock}
-        <p class="itemname">${r.identity ? r.identity.label : 'No confident match'} &middot; ${r.reason.replace(/_/g, ' ')}</p>
+        <p class="itemname">${r.identity ? r.identity.label : 'No confident match'} &middot; ${refusalLabel(r.reason)}</p>
       </div>
       <div class="sheet-half">
         ${r.evidence.length
           ? `<p class="because">${say('refuse_evidence_some')}</p>${provenance(r.evidence)}`
           : `<p class="because">${say('refuse_evidence_none')}</p>`}
+        ${r.evidenceNote
+          ? `<details class="why"><summary>Why</summary><p class="detail">${escapeHtml(r.evidenceNote)}</p></details>`
+          : ''}
       </div>
     </section>`;
 }
