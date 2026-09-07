@@ -69,14 +69,30 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
   }
 
   // 3. A shaky identity is a repair path in front of the user, not a verdict.
+  //
+  // D-013, 2026-09-05. Two things used to be concatenated into this one
+  // sentence and neither belonged there.
+  //
+  // The first was `identityNote`, which is research prose out of
+  // `data/observations.json` and ran to about 450 characters about eBay sold
+  // listings in US dollars and new Canadian retail. That is evidence. It now
+  // travels on the refusal as `evidenceNote`, a field of its own, so a caller
+  // can put it behind the disclosure it already has and the headline stays one
+  // sentence.
+  //
+  // The second was the category label, which produced "Not sure enough this is
+  // the right used goods": an internal category slug dropped into a sentence a
+  // shopper reads. Put to the founder, and the answer was to drop the category
+  // from the sentence rather than to find a nicer word for it. The category is
+  // still on the refusal, on `identity.category`, for anything that needs it.
   if (identity.confidence < rule.identityFloor) {
-    const note = deps.identityNote?.(identity.id);
     return refuse(
       'identity_unsure',
-      `Not sure enough this is the right ${rule.label.toLowerCase()}. The closest match was "${identity.label}". Pick the right one and Shin will price it.${note ? ` (${note})` : ''}`,
+      `Not sure enough this is the right one. The closest match was "${identity.label}". Pick the right one and Shin will price it.`,
       identity,
       [],
       asOf,
+      deps.identityNote?.(identity.id),
     );
   }
 
@@ -109,25 +125,73 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
   }
   const askingCents = query.askingCents;
 
-  // 5. Filter to what this category is allowed to compare.
+  /*
+   * 5. Filter to what this category is allowed to compare.
+   *
+   * D-012, 2026-09-05. This filter tests four conditions and the empty result
+   * used to carry only two messages, dropped kinds or "nothing recent enough".
+   * Self-exclusion had no message of its own and fell through to the age one,
+   * so the engine named a cause that had not fired. That is the root under
+   * D-011, where `too_few_points` came back holding thirteen prices.
+   *
+   * The four conditions are applied one at a time now, in the order they are
+   * written, and the cause is the stage that emptied the set. Written as a
+   * cascade rather than as four independent counts because more than one
+   * condition can be true of the same price and only one sentence gets shown:
+   * the first stage that leaves nothing is the one a shopper can act on, and
+   * asking "what was left after the kinds we can compare" is the same question
+   * in each row down.
+   *
+   * This adds no refusal. The set that refused before refuses now, with the
+   * cause named. Priority 1 stands: nothing here makes a refusal more likely.
+   */
   const askingSellerKey =
     query.askingSeller === undefined ? undefined : normalizeSeller(query.askingSeller);
-  const comparison = raw.filter(
-    (p) =>
-      rule.usableKinds.includes(p.kind) &&
-      !isFutureDated(p.observedAt, asOf) &&
-      ageDays(p.observedAt, asOf) <= rule.historyWindowDays &&
-      (askingSellerKey === undefined || normalizeSeller(p.seller) !== askingSellerKey),
+
+  const usableKind = raw.filter((p) => rule.usableKinds.includes(p.kind));
+  const notFutureDated = usableKind.filter((p) => !isFutureDated(p.observedAt, asOf));
+  const withinWindow = notFutureDated.filter(
+    (p) => ageDays(p.observedAt, asOf) <= rule.historyWindowDays,
+  );
+  const comparison = withinWindow.filter(
+    (p) => askingSellerKey === undefined || normalizeSeller(p.seller) !== askingSellerKey,
   );
 
   const droppedKinds = [...new Set(raw.filter((p) => !rule.usableKinds.includes(p.kind)).map((p) => p.kind))];
 
   if (comparison.length === 0) {
+    // The order matches the filter order above. Every branch points at the
+    // prices, the sellers or the dates, never at the person holding the phone.
+    if (usableKind.length === 0) {
+      return refuse(
+        'unusable_price_kinds',
+        `Only ${droppedKinds.join(' and ')} price${droppedKinds.length === 1 ? '' : 's'} found, which is not a comparison.`,
+        identity,
+        raw,
+        asOf,
+      );
+    }
+    if (notFutureDated.length === 0) {
+      return refuse(
+        'points_future_dated',
+        'Every price found is dated later than today, so there is nothing to compare against yet.',
+        identity,
+        raw,
+        asOf,
+      );
+    }
+    if (withinWindow.length === 0) {
+      return refuse(
+        'points_too_stale',
+        'Nothing recent enough to compare against.',
+        identity,
+        raw,
+        asOf,
+      );
+    }
     return refuse(
-      'too_few_points',
-      droppedKinds.length > 0
-        ? `Only ${droppedKinds.join(' and ')} price${droppedKinds.length === 1 ? '' : 's'} found, which is not a comparison.`
-        : 'Nothing recent enough to compare against.',
+      'all_points_from_asking_seller',
+      'Every price found is this same store, so there is nothing to compare it against.',
       identity,
       raw,
       asOf,
@@ -342,8 +406,11 @@ function refuse(
   identity: ProductIdentity | null,
   evidence: readonly PricePoint[],
   producedAt: string,
+  /** Research prose, D-013. Carried as its own field so it never joins `detail`. */
+  evidenceNote?: string,
 ): Refusal {
-  return { kind: 'refusal', reason, detail, identity, evidence, producedAt };
+  const base: Refusal = { kind: 'refusal', reason, detail, identity, evidence, producedAt };
+  return evidenceNote === undefined || evidenceNote === '' ? base : { ...base, evidenceNote };
 }
 
 /** One-line rendering, used by the CLI and by the harness report. */

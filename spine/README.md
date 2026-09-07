@@ -42,16 +42,17 @@ Corpus run, as of 2026-09-03T18:00:00Z
   by item
     kd-original-225g       walk_away (medium, 3pts)
     poang-used             fair (low, 4pts)
-    tide-simply-2720ml     refused: too_few_points
+    tide-simply-2720ml     refused: all_points_from_asking_seller
     navel-oranges-3lb      refused: category_unsupported
     canon-eos-r6-used      refused: identity_unsure
-    sony-wh1000xm5         refused: too_few_points
+    sony-wh1000xm5         refused: unusable_price_kinds
     poang-new              refused: no_source_response
 
   refusals by reason
-    too_few_points         2
+    all_points_from_asking_seller 1
     category_unsupported   1
     identity_unsure        1
+    unusable_price_kinds   1
     no_source_response     1
 
   sources
@@ -105,10 +106,23 @@ A `Verdict` carries the identity, the category, the asking price and where it ca
 oldest and newest observation dates, the spread, a confidence band with a plain sentence naming what
 limits it, and a disagreement or null.
 
-A `Refusal` carries one of eight closed reasons (`no_identity`, `identity_unsure`,
-`category_unsupported`, `no_source_response`, `too_few_points`, `points_too_stale`,
+A `Refusal` carries one of eleven closed reasons (`no_identity`, `identity_unsure`,
+`category_unsupported`, `no_source_response`, `too_few_points`, `unusable_price_kinds`,
+`points_future_dated`, `points_too_stale`, `all_points_from_asking_seller`,
 `comparison_incoherent`, `no_asking_price`), one sentence written for the user, the identity if
 there was one, and whatever evidence was found. A refusal still shows its work.
+
+**Four of those reasons are one filter condition each, and that is the point of them.** The
+comparison set is filtered on usable price kind, not future dated, inside the history window, and
+not the seller being judged. Until 2026-09-07 all four empty results came back as
+`too_few_points`, which names a count, and self-exclusion had no message at all and was reported
+as an age problem. That is D-011 and D-012. `too_few_points` now means a count and nothing else,
+and nothing produces it today.
+
+A refusal may also carry `evidenceNote`: research prose explaining why a stored identity was
+doubted. It is evidence, not copy, it runs to hundreds of characters, and it belongs behind a
+disclosure rather than in the sentence. It used to be concatenated into `detail` and shown to a
+shopper mid aisle, which is D-013.
 
 Two outcomes and no third, because the third one is "best guess with a shrug" and that is exactly
 what the hand pilot did when it answered a Canon EOS R6 query with an R6 Mark II bundle at nearly
@@ -139,7 +153,7 @@ sellers with the newest within 3 days, which is the strictest set here because t
 best-served category and a thin comparison has no excuse. Manufacturer list price is excluded from
 `usableKinds` on purpose: the pilot found $429.99 list for the WH-1000XM5 and zero live retailer
 prices, and list alone is not a comparison. That item still refuses today, with
-`too_few_points`.
+`unusable_price_kinds`.
 
 **Used** compares against live comparable asking prices, and treats them as what they are. An
 asking price is what a seller hopes for, so it leans high by construction, and the reference is the
