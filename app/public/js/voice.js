@@ -636,6 +636,46 @@ const LINES = {
     blunt: () => 'Could not check for a cheaper one.',
   },
 
+  /*
+   * "Not this?", added 2026-09-08 when the ranked search finally got a caller.
+   *
+   * `cam_notthis_offer` is the only one of the four a shopper sees without
+   * asking for it, and it is deliberately not an apology. It appears only when
+   * the search came back `ambiguous`, meaning there really were other plausible
+   * rows; after a confident answer it would be Shin hedging about something he
+   * is not actually unsure of, which costs trust in every other answer he gives.
+   *
+   * `cam_notthis_empty` exists because the second ask can legitimately return
+   * nothing new: identify and search run the same query, so the one row already
+   * on screen can be the whole of it. Saying so is better than an empty list,
+   * which reads as a failure.
+   */
+  cam_notthis_offer: {
+    deadpan: () => 'Not this one?',
+    warm: () => 'Not this one? There were others close to it.',
+    blunt: () => 'Wrong one? There were others.',
+  },
+  cam_notthis_prompt: {
+    deadpan: (f) => `Everything I found for "${f.query}".`,
+    warm: (f) => `Here is everything I found for "${f.query}". Pick the right one and I will price that instead.`,
+    blunt: (f) => `All of it, for "${f.query}". Pick one.`,
+  },
+  cam_notthis_empty: {
+    deadpan: (f) => `That is the only thing I have for "${f.query}".`,
+    warm: (f) => `That really is the only thing I have for "${f.query}", so the first answer was not a guess between several.`,
+    blunt: (f) => `Only one. "${f.query}" gets you that and nothing else.`,
+  },
+  cam_notthis_keep: {
+    deadpan: () => 'The first answer stands',
+    warm: () => 'I will stay with the first one',
+    blunt: () => 'Fine. The first one.',
+  },
+  cam_notthis_failed: {
+    deadpan: () => 'I could not go back and look again.',
+    warm: () => 'I could not go back and look again just now. The first answer still stands.',
+    blunt: () => 'Could not look again.',
+  },
+
   /* --- the three list screens, lane C ---
    *
    * Saved, Past scans and Recently removed each had a reading line and a
@@ -982,6 +1022,19 @@ const LINES = {
  * unknown key has always done.
  */
 const BARE = {
+  /* "Not this?" asks its own question back at the shopper, so the fallback has
+     to stay a question. Dropping the query is survivable; dropping the ask is
+     a list of products with nothing saying what to do with them. */
+  cam_notthis_prompt: {
+    deadpan: () => 'Everything I found.',
+    warm: () => 'Here is everything I found. Pick the right one and I will price that instead.',
+    blunt: () => 'All of it. Pick one.',
+  },
+  cam_notthis_empty: {
+    deadpan: () => 'That is the only thing I have.',
+    warm: () => 'That really is the only thing I have, so the first answer was not a guess between several.',
+    blunt: () => 'Only one. That is it.',
+  },
   /* The scan log's two fact carriers. What is left when the count is gone is
      the sentence about what the count means, which is the half a reader cannot
      work out for themselves. */

@@ -5,6 +5,36 @@ narrative.*
 
 ---
 
+## "Not this?", and the UI branch caught up with main, 2026-09-08
+
+**Type a name, get the wrong product, and there is now something to press.** Under the item name
+on the price pad, after a typed scan that turned up more than one plausible row, a shopper can
+reopen the same search and pick a different one. That is the ranked-candidate endpoint's first
+caller: it has been live and unreachable since it was built.
+
+**The gate is the part worth knowing.** The obvious one, "offer this when the search says
+ambiguous", is wrong and looks right. A typed query is ambiguous by construction, because the
+band scores how much of what the caller pinned the top row agrees with and text pins neither
+brand nor size. Gating on it alone puts the offer under every typed scan, including the ones
+where pressing it opens a list saying there was nothing else. `/api/identify` now also says how
+many other rows the same search found, and both have to be true.
+
+Walked, not asserted: typed "tortilla chips", got Santitas, pressed the offer, got the other
+three with the Santitas row dropped, picked Tostitos and landed on a fresh pad for it. No console
+output at all through the route. Contrast measured on the rendered control in both themes.
+
+**The branch also merged main**, which was five conflicts and none of them textual: both sides had
+fixed the request-body cap and both had touched the camera's failure path. What that surfaced is
+the useful part. Main's scan-log block predates this branch's rule that no screen writes a
+sentence Shin says, so five of its lines were inline; they are keys with three personalities now.
+Both branches had also spent the same five defect numbers on different defects, so DEFECTS.md is
+renumbered with main's numbers standing.
+
+Still open on the profile screen and the camera, unchanged by this: the photo path needs a model
+key nobody has set, and D-036 says the cheaper-options ring is not safe to show anybody yet.
+
+---
+
 ## The aisle with no signal answers now, 2026-09-07
 
 **Point the camera at a barcode with the phone offline and it tells you what you are holding.**
@@ -48,9 +78,9 @@ both themes, with no console errors. Also fixed on the way: a request body could
 the first cap written for it answered with a hang-up rather than a status, which the aisle
 correction queue would have retried forever.
 
-Still uncalled, and the next of this shape: the offline aisle has no screen importing it, the
-ranked-candidate search has no caller, and the camera still shows a hand-written list because the
-photo path needs a model key nobody has set.
+Still uncalled, and the next of this shape: the camera still shows a hand-written list because
+the photo path needs a model key nobody has set. The offline aisle and the ranked-candidate
+search have both been wired since this was written, on 2026-09-07 and 2026-09-08.
 
 ## Two bugs the walk found, and they were bigger than the feature, 2026-09-07
 

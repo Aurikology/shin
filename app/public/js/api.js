@@ -92,6 +92,25 @@ export function scans() {
 }
 
 /**
+ * The ranked list behind identify's single pick, for "not this?".
+ *
+ * `identify` answers with the one product it will price; this is the rest of
+ * what the same search found. A screen asks for it only when identify came back
+ * `ambiguous`, because that is the band that means there was genuinely more
+ * than one plausible row. Asking after a `confident` answer would be offering a
+ * choice that does not exist, which reads as Shin hedging rather than as Shin
+ * being careful.
+ *
+ * Text only, and that is the endpoint's shape rather than an omission here: a
+ * barcode either resolves to one row or to none, so there is no second
+ * candidate for a code to offer.
+ */
+export function search({ text, limit = 5 }) {
+  const params = new URLSearchParams({ q: text, limit: String(limit) });
+  return get(`/api/search?${params.toString()}`);
+}
+
+/**
  * The cheaper same-category swaps for a product at a given asking price.
  *
  * Three at most, and the server writes each row's sentence: the rule about what

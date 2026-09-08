@@ -1365,6 +1365,24 @@
   outline-offset: var(--ring-offset, 3px);
 }
 
+/* "Not this?", under the item name it is questioning. It borrows
+   `.pad-textbtn` for its type and colour and overrides only the placement,
+   because it is the same weight of action as Clear and Skip: optional, not
+   the thing the sheet is for. It is underlined rather than boxed for the same
+   reason -- a button outline here would compete with the keypad, which is
+   what the shopper is actually meant to press.
+
+   No opacity on it. D-040 is the whole file's reason: seven rules in here
+   faded text below the contrast floor and the token test could not see it,
+   so muted text takes a colour token and never a fade. */
+.notthis {
+  display: block;
+  margin: 2px auto 0;
+  padding: 6px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* -------------------------------------------------------------- going-rate */
 
 .price.sm { font-size: 38px; }

@@ -791,6 +791,52 @@ function candidateSheet(items) {
 }
 
 /**
+ * The ranked list behind a pick, reopened by "not this?".
+ *
+ * NOT `candidateSheet`, and the difference is the whole reason there are two.
+ * That one is the stand-in list the camera shows because there is no vision
+ * model yet: seven hand-priced things, offered before Shin has looked at
+ * anything. This one is the rest of what a real search actually found, offered
+ * after Shin has already answered, when the band said the answer was one of
+ * several plausible rows rather than the only one.
+ *
+ * So it carries no asking price and no stand-in note. These rows are catalogue
+ * products, not priced shelf entries; a price appears after one is picked, in
+ * the pad, the same as the first time round. Putting a number here would be
+ * inventing one.
+ *
+ * The row already on screen is dropped by the caller, not here, so an empty
+ * list reaching this function means the search found nothing else and the
+ * sentence says exactly that rather than drawing an empty box.
+ */
+function searchCandidateSheet(items, query) {
+  return `
+    <section class="sheet candidates" data-tier="unknown" data-conf="reading" tabindex="-1">
+      <span class="grabber" aria-hidden="true"></span>
+      ${backButton()}
+      <div class="sheet-peek">
+        <div class="sheet-head compact">
+          ${shinSay('asking', items.length ? 'cam_notthis_prompt' : 'cam_notthis_empty', { query }, { size: 64 })}
+        </div>
+        <div class="cands">
+          ${items
+            .map(
+              (i) => `<button type="button" class="cand" data-pick-code="${escapeHtml(i.code)}">
+                <span class="cand-name">${escapeHtml(i.label)}</span>
+                ${i.meta ? `<span class="cand-meta">${escapeHtml(i.meta)}</span>` : ''}
+              </button>`,
+            )
+            .join('')}
+          <button type="button" class="cand cand-none" data-act="notthis-back">
+            <span class="cand-name">Keep the first one</span>
+            <span class="cand-meta">${escapeHtml(say('cam_notthis_keep'))}</span>
+          </button>
+        </div>
+      </div>
+    </section>`;
+}
+
+/**
  * The typed-price display, shared shape with `correct.js`'s own pad: a ghosted
  * ".00" until it is actually typed, never a placeholder that could be misread
  * as a real number.
@@ -905,6 +951,13 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null) {
           ${thumbImg(thumb)}
         </div>
         <p class="itemname">${item.text}</p>
+        ${
+          item.notThisQuery
+            ? `<button type="button" class="pad-textbtn notthis" data-act="notthis">${escapeHtml(
+                say('cam_notthis_offer'),
+              )}</button>`
+            : ''
+        }
         <div class="amount pad-amount"><span class="amount-cur">$</span>${pricePadDisplay(typed)}</div>
         <p class="pad-effective" data-pad-effective${effLabel ? '' : ' hidden'}>${effLabel}</p>
         <div class="pad-mods" role="group" aria-label="Price modifiers">
@@ -1073,6 +1126,12 @@ function matchCatalogue(text, catalogueItems) {
    tier-red, and that nothing focusable is hidden behind `aria-hidden`.
    Exporting these changes nothing about how the screen itself calls them. */
 export { verdictSheet, refusalSheet, pricePadSheet, goingRateCard, workingSheet, textRouteSheet };
+
+/* Exported with them 2026-09-08, when "not this?" gave the ranked search its
+   first caller. It is in the same check for the same reason: it is a sheet, and
+   the one rule it has of its own -- an empty list says so in a sentence rather
+   than drawing an empty box -- is only true if something asserts it. */
+export { searchCandidateSheet };
 
 /*
  * Exported for the correction screen (correct.js), which had its own copy of
@@ -1680,6 +1739,57 @@ export default {
      * Clear resets the buffer; Skip proceeds with no asking price at all,
      * which is the going-rate card, not a refusal.
      */
+    /**
+     * The rows the last "not this?" put on screen, so a tap can be resolved
+     * back to a product without the button carrying one in an attribute.
+     */
+    let notThisResults = [];
+
+    /**
+     * Ask the same query again and show everything it found.
+     *
+     * The row already on the pad is dropped from the list. It is the one thing
+     * the shopper has just said is wrong, and leaving it in makes the list read
+     * as if Shin did not hear.
+     *
+     * A search that fails leaves the pad exactly as it was and says so. It is
+     * an optional second look at an answer that already exists, so there is
+     * nothing here worth losing a half-typed price over: the failure is the
+     * one case where the affordance simply does nothing, and it says that out
+     * loud rather than emptying the screen.
+     */
+    async function reopenCandidates() {
+      const query = padItem?.notThisQuery;
+      if (!query) return;
+      const from = padItem;
+      let found;
+      try {
+        found = await ctx.api.search({ text: query, limit: 8 });
+      } catch (err) {
+        console.error('not-this search failed:', err);
+        const head = slot.querySelector('.itemname');
+        if (head && !dead) {
+          head.insertAdjacentHTML(
+            'afterend',
+            `<p class="detail">${escapeHtml(say('cam_notthis_failed'))}</p>`,
+          );
+        }
+        return;
+      }
+      if (dead || padItem !== from) return;
+      notThisResults = (found.candidates ?? [])
+        .filter((c) => !sameCode(c.code, from.gtin ?? from.id ?? ''))
+        .map((c) => ({
+          code: c.code,
+          label: productLabel(c),
+          category: c.leafCategory ?? from.category,
+          meta: c.brands ? String(c.brands).split(',')[0].trim() : '',
+        }));
+      setState('choosing');
+      slot.innerHTML = searchCandidateSheet(notThisResults, query);
+      mounted();
+    }
+
     function openPad(item) {
       padItem = item;
       padBuffer = '';
@@ -1887,6 +1997,47 @@ export default {
         }
         const item = scenarios.find((s) => s.id === id);
         if (item) openPad(item);
+        return;
+      }
+
+      const notThis = e.target.closest('[data-act="notthis"]');
+      if (notThis) {
+        void reopenCandidates();
+        return;
+      }
+
+      const back = e.target.closest('[data-act="notthis-back"]');
+      if (back) {
+        // Straight back to the pad on the item that was already picked. The
+        // buffer is deliberately not cleared: a shopper who had typed half a
+        // price, looked at the list and decided the first answer was right
+        // should not have to type it again.
+        setState('asking');
+        slot.innerHTML = pricePadSheet(padItem, padBuffer, padModifier, scanThumb);
+        mounted();
+        return;
+      }
+
+      const pickCode = e.target.closest('[data-pick-code]');
+      if (pickCode) {
+        const chosen = notThisResults.find((c) => c.code === pickCode.dataset.pickCode);
+        if (chosen) {
+          /*
+           * A pick from this list is a different product, so it starts a fresh
+           * pad rather than editing the old one: the typed buffer belonged to
+           * the row that was just rejected, and carrying it over would price a
+           * new item at a number somebody entered for a different one.
+           *
+           * `notThisQuery` is not carried either. The shopper has now seen the
+           * whole list and chosen from it, so there is nothing left to reopen.
+           */
+          openPad({
+            id: chosen.code,
+            text: chosen.label,
+            category: chosen.category,
+            gtin: chosen.code,
+          });
+        }
         return;
       }
 
@@ -2171,6 +2322,26 @@ export default {
               text: productLabel(id.product),
               category: id.category,
               gtin: id.product.code,
+              /*
+               * The query is kept so "not this?" has something to search again
+               * with, and it is kept only when BOTH halves are true.
+               *
+               * The band alone is not enough, and finding that out is what this
+               * field cost. A text-only query is `ambiguous` by construction:
+               * `#band` in catalogue/src/search.ts scores how much of what the
+               * caller PINNED the top row agrees with, a plain text query pins
+               * neither brand nor size, so the lead is 0 and the band returns
+               * ambiguous before it has looked at a single rival. Gating on it
+               * alone puts "not this?" under every typed scan, including the
+               * ones where the list opens to say there was nothing else -- the
+               * face-saving offer /api/search's own comment warns against.
+               *
+               * `otherCandidates` is the half that actually counts rivals. Both
+               * together mean what the affordance claims: the pick was not
+               * pinned down, and there is something else to show.
+               */
+              notThisQuery:
+                id.band === 'ambiguous' && id.otherCandidates > 0 ? text : null,
             };
           }
         } catch {

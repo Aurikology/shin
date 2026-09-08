@@ -351,6 +351,22 @@ interface Identified {
   readonly categoryWhy: string;
   /** "We do not have that one, here are other oranges." Named, never implied. */
   readonly ring: { readonly label: string; readonly members: { code: string; name: string }[] } | null;
+  /**
+   * How many OTHER rows the same search turned up behind `product`.
+   *
+   * Added 2026-09-08 for "not this?", which needs a question `band` cannot
+   * answer. A text-only query is `ambiguous` by construction -- with no brand
+   * and no size pinned, `#band` has nothing to agree with and never reaches
+   * `confident` -- so a screen gating an alternatives affordance on the band
+   * alone would offer alternatives on every typed scan, including the ones
+   * where there is nothing else to offer. That is the "face-saving" case
+   * `/api/search`'s own comment warns about, and this is the number that tells
+   * the two apart.
+   *
+   * 0 for a resolved barcode, which has exactly one answer by definition, and
+   * 0 when the catalogue is not attached.
+   */
+  readonly otherCandidates: number;
   /** False when the catalogue process is not running. The screen must not read this as a miss. */
   readonly catalogueUp: boolean;
   readonly ms: number;
@@ -364,6 +380,7 @@ function offline(ms: number): Identified {
     category: null,
     categoryWhy: `The catalogue is not attached, so nothing was looked up. ${catalogueWhyNot}`.trim(),
     ring: null,
+    otherCandidates: 0,
     catalogueUp: false,
     ms,
   };
@@ -442,6 +459,7 @@ async function identify(query: {
         ring: result.ring
           ? { label: result.ring.label, members: result.ring.members.map((m) => ({ code: m.code, name: m.name })) }
           : null,
+        otherCandidates: 0,
         catalogueUp: true,
         ms: Date.now() - started,
       };
@@ -470,6 +488,7 @@ async function identify(query: {
       ring: result.ring
         ? { label: result.ring.label, members: result.ring.members.map((m) => ({ code: m.code, name: m.name })) }
         : null,
+      otherCandidates: Math.max(0, result.candidates.length - 1),
       catalogueUp: true,
       ms: Date.now() - started,
     };
