@@ -5,6 +5,34 @@ narrative.*
 
 ---
 
+## The app counts what it does now, 2026-09-07
+
+**Every scan is written down and read back, and the profile screen shows it.** This is the second
+item in the order the vision sets, the instruments, and it was the one unblocked thing at the top
+of that list. Three of the vision's four Want-and-Reliance figures said "Nothing measures this
+today", and one of them named the reason out loud: the scan record existed and had no reader. It
+had no writer either. Both ends are attached now.
+
+What a person sees: a block on the profile screen, under the coverage list, saying how often Shin
+could name the thing, split by whether the person scanned a barcode or typed, plus corrections per
+hundred, second-week return, and their own week. Every rate can say "not yet" instead of a number,
+because a share over no scans is unknown and printing 0% for it would be claiming a failure nobody
+has measured.
+
+What it counts and what it does not: the log is one row per "what is this thing", so the rate is
+how often the catalogue could NAME it, not how often anyone got a price. Those are far apart, three
+products can be priced in a store, and the screen says which of the two it is showing.
+
+Checked through the path a person takes, not through the endpoint: a scan typed into the running
+app appears against that browser's own random id and moves the number on the profile screen, in
+both themes, with no console errors. Also fixed on the way: a request body could be any size, and
+the first cap written for it answered with a hang-up rather than a status, which the aisle
+correction queue would have retried forever.
+
+Still uncalled, and the next of this shape: the offline aisle has no screen importing it, the
+ranked-candidate search and the cheaper-options route have no caller, and the camera still shows a
+hand-written list because the photo path needs a model key nobody has set.
+
 ## Read this first, 2026-09-06
 
 **`docs/the-vision.md` is what every improvement is judged against.** Written on his instruction

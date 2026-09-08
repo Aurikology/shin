@@ -27,6 +27,8 @@ import { lookupPrices } from '../price/src/lookup.ts';
 import { recordCorrection } from '../price/src/corrections.ts';
 import { ATTRIBUTION } from './src/attribution.ts';
 import { packScope, packVersion, servePack } from './src/pack-route.ts';
+import { correctScan, lastAnsweredScan, openScanStore, recordScan, type ScanKind } from './src/scans.ts';
+import { summariseScans, UNATTRIBUTED } from './src/scan-summary.ts';
 
 const PUBLIC_DIR = fileURLToPath(new URL('./public/', import.meta.url));
 const PORT = Number(process.env.PORT ?? 4173);
@@ -445,9 +447,64 @@ async function identify(query: {
   }
 }
 
+/**
+ * The largest body any route here accepts. A correction is a few hundred bytes
+ * and a price query is smaller; 64 kB is roomy for both and small enough that
+ * a body arriving over a phone's worst connection is never near it.
+ *
+ * A photo will not fit, on purpose: when the upload door is built it gets its
+ * own cap in its own units, because a limit that has to serve both a JSON
+ * object and a megapixel image is a limit that protects neither.
+ */
+const MAX_BODY_BYTES = 64 * 1024;
+
+/**
+ * How much over the cap we will keep reading and throwing away before hanging
+ * up instead of answering.
+ *
+ * A 413 only arrives if the client got to finish sending: a client still
+ * writing when the socket dies sees a connection reset and cannot tell "this
+ * will never fit" from "the aisle has no signal", and the one client this has
+ * to be readable by is a queue that retries the second one forever. So the
+ * rest of a slightly-too-big body is read and discarded, which costs nothing
+ * because nothing is kept. Past this, the reply is not worth the read.
+ */
+const DRAIN_CEILING = 1024 * 1024;
+
+/** Thrown by `readBody` when a body is over the cap. Caught by the route chain. */
+class BodyTooLarge extends Error {}
+
+/**
+ * Reads a JSON body, with a cap counted as the bytes arrive.
+ *
+ * D-032: this used to push every chunk into an array and concat at the end, so
+ * a body larger than memory exhausted the process before `JSON.parse` ever got
+ * the chance to reject it. The cap has to be checked per chunk for that reason;
+ * trusting `content-length` would not help, since a client that lies about it
+ * is exactly the client this guards against.
+ */
 async function readBody(req: import('node:http').IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
-  for await (const c of req) chunks.push(c as Buffer);
+  let bytes = 0;
+  let over = false;
+  for await (const c of req) {
+    const chunk = c as Buffer;
+    bytes += chunk.length;
+    // Past the cap nothing is kept, so memory stops growing at the cap itself,
+    // which is the whole of D-032. Reading continues only so the client can
+    // finish and read a status back.
+    if (bytes > MAX_BODY_BYTES) {
+      over = true;
+      chunks.length = 0;
+      if (bytes > DRAIN_CEILING) {
+        req.destroy();
+        throw new BodyTooLarge(`body over ${MAX_BODY_BYTES} bytes, and too far over to answer`);
+      }
+      continue;
+    }
+    if (!over) chunks.push(chunk);
+  }
+  if (over) throw new BodyTooLarge(`body over ${MAX_BODY_BYTES} bytes`);
   if (chunks.length === 0) return {};
   try {
     return JSON.parse(Buffer.concat(chunks).toString('utf8'));
@@ -487,16 +544,45 @@ const server = createServer(async (req, res) => {
       const text = url.searchParams.get('text') ?? undefined;
       if (!gtin && !text) return json(400, { error: 'gtin or text is required' });
       const sizeValue = Number(url.searchParams.get('sizeValue') ?? '');
-      return json(
-        200,
-        await identify({
-          gtin,
-          text,
-          brand: url.searchParams.get('brand') ?? undefined,
-          sizeValue: Number.isFinite(sizeValue) && sizeValue > 0 ? sizeValue : undefined,
-          sizeUnit: url.searchParams.get('sizeUnit') ?? undefined,
-        }),
-      );
+      const answer = await identify({
+        gtin,
+        text,
+        brand: url.searchParams.get('brand') ?? undefined,
+        sizeValue: Number.isFinite(sizeValue) && sizeValue > 0 ? sizeValue : undefined,
+        sizeUnit: url.searchParams.get('sizeUnit') ?? undefined,
+      });
+
+      /*
+       * One row per scan, written here and nowhere else.
+       *
+       * HERE, because this is the act: a person pointed at a thing and asked
+       * what it is. Pricing is a second question about an answer they already
+       * have, and writing a row there too would count one scan twice and make
+       * every rate depend on how far down the screen somebody got.
+       *
+       * WHAT 'answered' MEANS ON THIS ROW is that the catalogue NAMED the
+       * thing, not that anybody was given a price. The two numbers are far
+       * apart (three products can be priced in a store, measured 2026-09-05)
+       * and `scan-summary.ts` never calls this one the answer rate without the
+       * word identity in front of it.
+       *
+       * A scan whose catalogue was not attached is not recorded at all: it is
+       * a fact about this machine's setup, and mixing it into the answer rate
+       * would report a missing file as a product that could not be identified.
+       */
+      if (answer.catalogueUp) {
+        recordScan({
+          deviceId: url.searchParams.get('deviceId')?.trim() || UNATTRIBUTED,
+          kind: (gtin ? 'barcode' : 'text') as ScanKind,
+          query: gtin ?? text ?? '',
+          resolvedCode: answer.product?.code ?? null,
+          resolvedLabel: answer.product?.name ?? null,
+          source: answer.matchedBy,
+          outcome: answer.product ? 'answered' : 'refused',
+        });
+      }
+
+      return json(200, answer);
     }
 
     /*
@@ -633,9 +719,43 @@ const server = createServer(async (req, res) => {
         seenOn: str(c.seenOn) ?? new Date().toISOString().slice(0, 10),
       });
 
+      /*
+       * A stored correction marks the scan it corrects.
+       *
+       * Decision 44's rule lives in `scans.ts`: a scan a person had to correct
+       * is a scan we got wrong, so it stops counting as answered and stops
+       * counting against their free week. That rule was written and nothing
+       * ever set the flag it reads, so every wrong answer this product has
+       * given still counts in its own favour. It does not from here.
+       *
+       * A correction with no matching scan is normal, not a fault: a price
+       * typed on the corrections screen for a product scanned before scans
+       * were written down, or on another device, has nothing to point at. It
+       * is still stored as a price; only the marking is skipped.
+       */
+      const correctedCode = str(c.code);
+      if (result.ok && correctedCode) {
+        const scanId = lastAnsweredScan(deviceId, correctedCode);
+        if (scanId !== null) correctScan(scanId, correctedCode);
+      }
+
       return result.ok
         ? json(200, { stored: true, id: result.id })
         : json(200, { stored: false, why: result.why });
+    }
+
+    /*
+     * The scan log, read back as the figures the vision asks for.
+     *
+     * `docs/the-vision.md` says of three of its four Want-and-Reliance figures
+     * "Nothing measures this today", and names the cause on one of them: the
+     * scan record has no reader. This is the reader, and it is a route rather
+     * than a script because the numbers are shown to the person on the profile
+     * screen. `deviceId` adds that person's own week to the answer; without it
+     * the reply is about the whole log.
+     */
+    if (url.pathname === '/api/scans') {
+      return json(200, summariseScans(url.searchParams.get('deviceId')?.trim() || undefined));
     }
 
     /*
@@ -730,6 +850,21 @@ const server = createServer(async (req, res) => {
     });
     res.end(file);
   } catch (err) {
+    // An over-cap body is a fact about the request, not a failure of the
+    // server, so it gets the status that says so rather than a 500 that would
+    // read to a client as "try again".
+    if (err instanceof BodyTooLarge) {
+      // `connection: close` and then destroying the request is what lets the
+      // status arrive: the rest of the body is still on its way and nothing is
+      // going to read it, so the socket has to go, but only after the reply is
+      // flushed. Destroying first is what turns a 413 into a reset.
+      res.writeHead(413, {
+        'content-type': 'application/json; charset=utf-8',
+        connection: 'close',
+      });
+      res.end(JSON.stringify({ error: `body must be under ${MAX_BODY_BYTES} bytes` }), () => req.destroy());
+      return;
+    }
     const code = (err as NodeJS.ErrnoException)?.code;
     if (code === 'ENOENT' || code === 'EISDIR') {
       res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
@@ -742,9 +877,27 @@ const server = createServer(async (req, res) => {
   }
 });
 
+/**
+ * The scan log, opened at boot rather than on the first scan.
+ *
+ * Opening it lazily would move the one thing that can fail here (a directory
+ * that will not create, a locked file) into the middle of somebody's first
+ * scan, where the only place it could be reported is a screen that is trying
+ * to answer them. Opened here, a failure is a line on the console at start-up
+ * and every later write is a counted drop, which is the contract scans.ts was
+ * written to keep.
+ */
+const SCAN_DB = process.env.SHIN_SCANS ?? fileURLToPath(new URL('./data/scans.db', import.meta.url));
+
 server.listen(PORT, () => {
   console.log(`Shin is running.  http://localhost:${PORT}`);
   console.log('The engine behind it knows 7 products, because 7 is what has been priced by hand.');
+  const scans = openScanStore(SCAN_DB);
+  console.log(
+    scans.db
+      ? `Scans are being written down: ${scans.path}`
+      : `Scans are NOT being written down (${scans.droppedWhy}). Everything else still works.`,
+  );
   // Attached after the port is open, never before: the screens have to come up
   // whether or not a 3.47 GB file is sitting where this expects it.
   void attachCatalogue();

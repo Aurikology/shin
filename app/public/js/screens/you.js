@@ -64,6 +64,13 @@ export default {
         </section>
 
         <section class="block">
+          <h2 class="block-h">What I have actually answered</h2>
+          <div class="coverage" data-scanlog>
+            <p class="fineprint">Reading the scan log…</p>
+          </div>
+        </section>
+
+        <section class="block">
           <h2 class="block-h">Appearance</h2>
           <button type="button" class="rowbtn" data-act="theme">
             <span>Theme</span><span class="rowbtn-v" data-theme-v></span>
@@ -173,6 +180,84 @@ export default {
     }).catch(() => {
       const box = root.querySelector('[data-coverage]');
       if (box) box.innerHTML = `<p class="fineprint">I could not reach my own engine to check.</p>`;
+    });
+
+    /*
+     * The scan log, read back.
+     *
+     * WHY THIS IS A DIFFERENT NUMBER FROM THE WEEKLY LINE AT THE TOP. That one
+     * is this phone's own history out of localStorage: what you saw. This is
+     * the server's record of what was asked of the catalogue, across every
+     * device that has ever asked. They will not agree and are not meant to, so
+     * this block says whose scans it is counting rather than leaving two
+     * numbers on one screen to quietly contradict each other.
+     *
+     * AND WHY EVERY RATE HERE CAN SAY "not yet". A share over no scans is
+     * unknown, not zero, and printing 0% for it would be this app claiming a
+     * measured failure it has not measured. `null` comes back from the server
+     * for exactly that case and `pct` turns it into words, never a number.
+     */
+    const pct = (r) => (r === null || r === undefined ? null : `${Math.round(r * 100)}%`);
+    ctx.api.scans().then((s) => {
+      const box = root.querySelector('[data-scanlog]');
+      if (!box) return;
+      if (s.scans === 0) {
+        box.innerHTML = `<p class="fineprint">
+          Nothing scanned yet${s.dropped ? `, and the log could not be written: ${s.droppedWhy}` : ''}.
+          Every scan from now on is written down, so these numbers start the first time you point
+          me at something.
+        </p>`;
+        return;
+      }
+      const named = pct(s.namedRate);
+      const mine = s.thisDevice;
+      box.innerHTML = `
+        <p class="cov-big"><b>${named ?? 'not yet'}</b> named</p>
+        <p class="fineprint">
+          Out of ${s.scans} scan${s.scans === 1 ? '' : 's'} anyone has made, that is how often I
+          could say what the thing was. Being able to name it is not the same as being able to
+          price it, and this number is the first one, which is the larger of the two.
+        </p>
+        <div class="covlist">
+          ${s.perKind
+            .map(
+              // No yes/no class on these. Those two mean "can answer" and
+              // "refuses" on the coverage list above, and borrowing them here
+              // set a percentage in a different size and colour from the
+              // percentage on the row under it, which reads as two different
+              // kinds of number when it is one kind.
+              (k) => `<div class="covrow">
+                <span>${k.kind === 'barcode' ? 'Barcode' : k.kind === 'text' ? 'Typed' : 'Photo'}
+                  · ${k.scans}</span>
+                <span>${pct(k.rate) ?? 'not yet'}</span>
+              </div>`,
+            )
+            .join('')}
+          <div class="covrow">
+            <span>Corrections per hundred named</span>
+            <span>${s.correctionsPerHundred === null ? 'not yet' : Math.round(s.correctionsPerHundred)}</span>
+          </div>
+          <div class="covrow">
+            <span>Back in week two</span>
+            <span>${
+              s.secondWeekReturn.rate === null
+                ? `nobody is two weeks old`
+                : `${pct(s.secondWeekReturn.rate)} of ${s.secondWeekReturn.eligible}`
+            }</span>
+          </div>
+          <div class="covrow">
+            <span>Yours this week</span>
+            <span>${mine ? `${mine.scansThisWeek} scan${mine.scansThisWeek === 1 ? '' : 's'}, ${mine.named} named` : 'unknown'}</span>
+          </div>
+        </div>
+        ${
+          s.dropped
+            ? `<p class="fineprint">${s.dropped} scan${s.dropped === 1 ? '' : 's'} could not be written down: ${s.droppedWhy}. The numbers above are missing them.</p>`
+            : ''
+        }`;
+    }).catch(() => {
+      const box = root.querySelector('[data-scanlog]');
+      if (box) box.innerHTML = `<p class="fineprint">I could not read my own scan log.</p>`;
     });
 
     root.addEventListener('click', (e) => {
