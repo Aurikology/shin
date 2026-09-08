@@ -119,7 +119,9 @@ protocol was rewritten to prevent.
 reverses-if · `memory/lessons.md` the capture log · `pages/` the four planning documents,
 openable in a browser · `notes/` the working record including the pricing pilot and the numbers
 already researched · `spine/` the price spine, built by a parallel session · `.claude/skills/`
-self-improve, decision, weekly-pass, price-by-hand, republish-page · `.claude/hooks/` one guard
+self-improve, decision, weekly-pass, price-by-hand, republish-page, and the three verification
+skills added 2026-09-08 (`wire-check` is it reachable, `screen-walk` walk it at phone size,
+`negative-test` make the check prove it can fail) · `.claude/hooks/` one guard
 plus its selftest.
 
 **Each package installs its own dependencies.** `app/`, `spine/`, `price/`, `catalogue/` and

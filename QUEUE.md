@@ -65,7 +65,7 @@ Parts of it are built and they are split out below so that neither fact hides th
 
 The honest state, in numbers that come from the spine's own output:
 
-- The spine runs. `cd C:\shin\spine && npm test` passes **58 of 58 tests**, and
+- The spine runs. `cd spine && npm test` passes **58 of 58 tests**, and
   `node src/cli.ts corpus` produces a report.
 - The corpus holds **7 items**, not the 100 the gate requires. Those 7 are the real hand-priced
   pilot from 2026-09-03.

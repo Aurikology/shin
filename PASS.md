@@ -18,7 +18,7 @@ in order and write the answers down somewhere the next pass can see.
 | --- | --- | --- |
 | i | **The queue is written down and finite.** Nothing is built that is not in it, and nothing enters it without something else leaving. | Open `QUEUE.md`. Every row has a state. If work happened last week that has no row, invariant (i) is already false. |
 | ii | **Every item has an acceptance test and a falsifier, both written before work starts.** If the falsifier cannot be written, the item is not understood well enough to build, and understanding it is the item. | For the row you are about to take, both columns are filled and neither says "to be written". Several band 3, 4 and 5 rows in `QUEUE.md` say exactly that today, on purpose, and writing them is step 2. |
-| iii | **The scoreboard has a number for last week,** produced whether or not anyone looked at it. | `SCOREBOARD.md` has a row dated inside the last seven days. If it does not, produce one before anything else: `cd C:\shin\spine && npm run corpus -- --write`. |
+| iii | **The scoreboard has a number for last week,** produced whether or not anyone looked at it. | `SCOREBOARD.md` has a row dated inside the last seven days. If it does not, produce one before anything else: `cd spine && npm run corpus -- --write`. |
 | iv | **Nothing that exited is back without new evidence.** Any decision can reopen, but it reopens on a new observation and never on a fresh opinion. | Read the closed register in `QUEUE.md`. If something killed or parked is being worked on, name the observation that reopened it. If you cannot name one, put it back. |
 
 Nothing is permanent except the law. Invariant (iv) is not a wall, it is a receipt.
@@ -34,8 +34,8 @@ nothing.
 
 **Who.** The conductor, top tier. This step reads only and writes nothing.
 
-**In this repo.** Read `C:\shin\SCOREBOARD.md`, then `C:\shin\DEFECTS.md`. Read the raw run
-behind the top scoreboard row if the number moved: `C:\shin\scoreboard\*-corpus.json`.
+**In this repo.** Read `SCOREBOARD.md`, then `DEFECTS.md`. Read the raw run
+behind the top scoreboard row if the number moved: `scoreboard/*-corpus.json`.
 
 Two things to look at in the defect log and nowhere else: whether the last column is filling up
 with humans rather than tests, and whether any defect now appears twice. A defect logged twice
@@ -56,7 +56,7 @@ document's decisions.
 
 **Who.** The conductor writes the brief. **A worker never writes its own falsifier.**
 
-**In this repo.** Edit the row in `C:\shin\QUEUE.md`. Rows whose falsifier column reads "to be
+**In this repo.** Edit the row in `QUEUE.md`. Rows whose falsifier column reads "to be
 written in step 2" are the ones this step exists for. Where the master plan already wrote an
 "exits when" sentence, that sentence is the falsifier and it is carried across unchanged rather
 than reworded.
@@ -75,7 +75,7 @@ that is not real is a pure loss.
 **In this repo.**
 
 ```
-cd C:\shin\spine
+cd spine
 npm test          # 32 tests as of 2026-09-03
 npm run typecheck
 ```
@@ -98,7 +98,7 @@ adversary's job on anything touching price is to find an input that makes the sp
 confidently and wrongly. The commands it has:
 
 ```
-cd C:\shin\spine
+cd spine
 node src/cli.ts price "<what it is>" --asking <dollars> --seller <name> --category <id>
 node src/cli.ts explain <category>     # the thresholds and the reasoning behind them
 node src/cli.ts sources                # which sources are available, and which are UNVERIFIED
@@ -134,14 +134,14 @@ it out.
 
 **In this repo, in this order.**
 
-1. Append any defect to `C:\shin\DEFECTS.md`, filling in its only interesting column: whether a
+1. Append any defect to `DEFECTS.md`, filling in its only interesting column: whether a
    test caught it or a human did.
 2. If that defect is now in the log **twice**, promote it to a build standard in the same file.
    Once is a bug fix and earns no rule. The alternative was measured: twenty-eight standing
    instructions in twenty-two days in another repo, most of them backed by nothing.
-3. Set the row's state in `C:\shin\QUEUE.md`. A killed row takes its band 5 version with it.
+3. Set the row's state in `QUEUE.md`. A killed row takes its band 5 version with it.
 4. Produce the week's number whether or not anyone will look at it:
-   `cd C:\shin\spine && npm run corpus -- --write`. It writes
+   `cd spine && npm run corpus -- --write`. It writes
    `scoreboard\<date>-corpus.json` and appends a row to `SCOREBOARD.md`.
 5. Update the stall counter below.
 

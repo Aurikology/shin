@@ -47,6 +47,8 @@ description: Capture what this session learned into its permanent home. Run imme
    | What it is | Where it goes |
    |---|---|
    | Something that went wrong, first time | `memory/lessons.md` |
+   | A defect in shipped behaviour | `DEFECTS.md`, with how it was caught |
+   | A defect of a shape already logged | `DEFECTS.md` → the standards section at the bottom |
    | Something that went wrong, second time, with a cost | `CLAUDE.md` → STANDING INSTRUCTIONS, quoting his words and citing both incidents |
    | A reflex | a hook, or the deny list |
    | Procedural know-how | the relevant `.claude/skills/*/SKILL.md` |
@@ -83,3 +85,9 @@ apply or retire.
 - 2026-09-03 — Created with the repo. Adapted from ACT's `self-improve`, with the promotion bar
   from the agent repo's audit added at step 3 and step 5, because ACT's version captures without
   a bar and generated 28 standing instructions in 22 days.
+- 2026-09-08 — The routing table sent every failure to `memory/lessons.md` and never named
+  `DEFECTS.md`, which runs its own promotion ladder (a shape logged twice becomes a build
+  standard) and is where three of this repo's best rules actually live. So a defect in shipped
+  behaviour routed reliably to neither: D-030 is a day of twelve commits where two bugs were
+  found, fixed, and logged nowhere. Two rows added rather than one, because the ladder's second
+  rung is the part that produced the standards.
