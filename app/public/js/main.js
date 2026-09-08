@@ -26,6 +26,7 @@ import * as store from './store.js';
 import * as api from './api.js';
 import * as shin from './shin.js';
 import { flushCorrections } from './corrections.js';
+import { primeOfflineAisle } from './offline-aisle.js';
 
 import camera from './screens/camera.js';
 import setup from './screens/setup.js';
@@ -71,3 +72,21 @@ router.start(document.getElementById('screen'), { store, api, shin, build: BUILD
    business, and a phone that is still offline must reach the viewfinder exactly
    as fast as one that is not. */
 void flushCorrections();
+
+/* The barcode pack, fetched once and kept, so the aisle with no signal still
+   gets an answer to "what is this". Same rules as the line above: after the
+   router, never awaited, and it waits for an idle moment of its own before it
+   spends anything, because the viewfinder outranks it. */
+primeOfflineAisle();
+
+/* The offline shell. Registered after the router for the same reason as the two
+   lines above: the viewfinder comes first and nothing here may hold it up. What
+   it buys is the app starting at all with no signal, which the pack above needs
+   and cannot provide by itself. */
+if ('serviceWorker' in navigator) {
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      /* An unsupported browser or a private window. The app is the same app. */
+    });
+  });
+}

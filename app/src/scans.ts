@@ -252,6 +252,41 @@ export function weeklyCount(deviceId: string, now: Date = new Date()): number {
   }
 }
 
+/**
+ * The id of this device's most recent scan that named `code`, or null.
+ *
+ * This exists so a correction can find the scan it corrects. The correction
+ * route knows the device and the product code and nothing else about the scan
+ * that produced the wrong answer, because the client never carried a scan id
+ * back; asking it to would mean a round trip through a screen in a supermarket
+ * aisle, and the id would be the one thing in the correction queue that a
+ * re-install could invalidate. Device plus code is enough: a person correcting
+ * a price is correcting the last thing they scanned of that product.
+ *
+ * Rows already marked corrected are skipped, so two corrections of the same
+ * product mark two different scans rather than the same one twice.
+ *
+ * Never throws. A store that will not open returns null and counts the drop.
+ */
+export function lastAnsweredScan(deviceId: string, code: string): number | null {
+  const store = active ?? openScanStore();
+  try {
+    if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
+    const row = store.db
+      .prepare(
+        `SELECT id FROM scan
+          WHERE device_id = ? AND resolved_code = ? AND outcome = 'answered'
+          ORDER BY id DESC LIMIT 1`,
+      )
+      .get(deviceId, code) as unknown as { id: number } | undefined;
+    return row ? Number(row.id) : null;
+  } catch (err) {
+    store.dropped += 1;
+    store.droppedWhy = err instanceof Error ? err.message : String(err);
+    return null;
+  }
+}
+
 /** Reads every row back, oldest first. Test and inspection helper only. */
 export function allScans(store: ScanStore): ScanRow[] {
   if (!store.db) return [];

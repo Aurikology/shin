@@ -27,6 +27,8 @@ import { lookupPrices } from '../price/src/lookup.ts';
 import { recordCorrection } from '../price/src/corrections.ts';
 import { ATTRIBUTION } from './src/attribution.ts';
 import { packScope, packVersion, servePack } from './src/pack-route.ts';
+import { correctScan, lastAnsweredScan, openScanStore, recordScan, type ScanKind } from './src/scans.ts';
+import { summariseScans, UNATTRIBUTED } from './src/scan-summary.ts';
 
 const PUBLIC_DIR = fileURLToPath(new URL('./public/', import.meta.url));
 const PORT = Number(process.env.PORT ?? 4173);
@@ -192,7 +194,24 @@ const TYPES: Record<string, string> = {
      through, so the type is a decision rather than an accident if it is ever
      served. See build-eye.mjs for why it may legitimately be absent. */
   '.tflite': 'application/octet-stream',
+  /* Source maps, so a devtools fetch of one is not an octet-stream download. */
+  '.map': 'application/json; charset=utf-8',
 };
+
+/**
+ * Third-party binaries that never change without their filename changing.
+ *
+ * Everything else here stays `no-store`, because this is also the dev server
+ * and an edited screen has to be one reload away. These are different: they are
+ * vendored blobs, they are the largest things served, and leaving them
+ * uncacheable is what makes the camera unable to read a barcode with no signal
+ * -- the reader re-fetches its WebAssembly every time it starts, so the moment
+ * the network goes, the scanner aborts and the screen says "no barcode there"
+ * about a barcode it is looking straight at.
+ */
+function longLived(path: string): boolean {
+  return path.includes(`${sep}vendor${sep}`);
+}
 
 /**
  * The catalogue the app can actually answer for.
@@ -695,16 +714,45 @@ const server = createServer(async (req, res) => {
       const text = url.searchParams.get('text') ?? undefined;
       if (!gtin && !text) return json(400, { error: 'gtin or text is required' });
       const sizeValue = Number(url.searchParams.get('sizeValue') ?? '');
-      return json(
-        200,
-        await identify({
-          gtin,
-          text,
-          brand: url.searchParams.get('brand') ?? undefined,
-          sizeValue: Number.isFinite(sizeValue) && sizeValue > 0 ? sizeValue : undefined,
-          sizeUnit: url.searchParams.get('sizeUnit') ?? undefined,
-        }),
-      );
+      const answer = await identify({
+        gtin,
+        text,
+        brand: url.searchParams.get('brand') ?? undefined,
+        sizeValue: Number.isFinite(sizeValue) && sizeValue > 0 ? sizeValue : undefined,
+        sizeUnit: url.searchParams.get('sizeUnit') ?? undefined,
+      });
+
+      /*
+       * One row per scan, written here and nowhere else.
+       *
+       * HERE, because this is the act: a person pointed at a thing and asked
+       * what it is. Pricing is a second question about an answer they already
+       * have, and writing a row there too would count one scan twice and make
+       * every rate depend on how far down the screen somebody got.
+       *
+       * WHAT 'answered' MEANS ON THIS ROW is that the catalogue NAMED the
+       * thing, not that anybody was given a price. The two numbers are far
+       * apart (three products can be priced in a store, measured 2026-09-05)
+       * and `scan-summary.ts` never calls this one the answer rate without the
+       * word identity in front of it.
+       *
+       * A scan whose catalogue was not attached is not recorded at all: it is
+       * a fact about this machine's setup, and mixing it into the answer rate
+       * would report a missing file as a product that could not be identified.
+       */
+      if (answer.catalogueUp) {
+        recordScan({
+          deviceId: url.searchParams.get('deviceId')?.trim() || UNATTRIBUTED,
+          kind: (gtin ? 'barcode' : 'text') as ScanKind,
+          query: gtin ?? text ?? '',
+          resolvedCode: answer.product?.code ?? null,
+          resolvedLabel: answer.product?.name ?? null,
+          source: answer.matchedBy,
+          outcome: answer.product ? 'answered' : 'refused',
+        });
+      }
+
+      return json(200, answer);
     }
 
     /*
@@ -849,9 +897,43 @@ const server = createServer(async (req, res) => {
         seenOn: str(c.seenOn) ?? new Date().toISOString().slice(0, 10),
       });
 
+      /*
+       * A stored correction marks the scan it corrects.
+       *
+       * Decision 44's rule lives in `scans.ts`: a scan a person had to correct
+       * is a scan we got wrong, so it stops counting as answered and stops
+       * counting against their free week. That rule was written and nothing
+       * ever set the flag it reads, so every wrong answer this product has
+       * given still counts in its own favour. It does not from here.
+       *
+       * A correction with no matching scan is normal, not a fault: a price
+       * typed on the corrections screen for a product scanned before scans
+       * were written down, or on another device, has nothing to point at. It
+       * is still stored as a price; only the marking is skipped.
+       */
+      const correctedCode = str(c.code);
+      if (result.ok && correctedCode) {
+        const scanId = lastAnsweredScan(deviceId, correctedCode);
+        if (scanId !== null) correctScan(scanId, correctedCode);
+      }
+
       return result.ok
         ? json(200, { stored: true, id: result.id })
         : json(200, { stored: false, why: result.why });
+    }
+
+    /*
+     * The scan log, read back as the figures the vision asks for.
+     *
+     * `docs/the-vision.md` says of three of its four Want-and-Reliance figures
+     * "Nothing measures this today", and names the cause on one of them: the
+     * scan record has no reader. This is the reader, and it is a route rather
+     * than a script because the numbers are shown to the person on the profile
+     * screen. `deviceId` adds that person's own week to the answer; without it
+     * the reply is about the whole log.
+     */
+    if (url.pathname === '/api/scans') {
+      return json(200, summariseScans(url.searchParams.get('deviceId')?.trim() || undefined));
     }
 
     /*
@@ -942,7 +1024,7 @@ const server = createServer(async (req, res) => {
     const file = await readFile(resolved);
     res.writeHead(200, {
       'content-type': TYPES[extname(resolved)] ?? 'application/octet-stream',
-      'cache-control': 'no-store',
+      'cache-control': longLived(resolved) ? 'public, max-age=31536000, immutable' : 'no-store',
     });
     res.end(file);
   } catch (err) {
@@ -958,9 +1040,27 @@ const server = createServer(async (req, res) => {
   }
 });
 
+/**
+ * The scan log, opened at boot rather than on the first scan.
+ *
+ * Opening it lazily would move the one thing that can fail here (a directory
+ * that will not create, a locked file) into the middle of somebody's first
+ * scan, where the only place it could be reported is a screen that is trying
+ * to answer them. Opened here, a failure is a line on the console at start-up
+ * and every later write is a counted drop, which is the contract scans.ts was
+ * written to keep.
+ */
+const SCAN_DB = process.env.SHIN_SCANS ?? fileURLToPath(new URL('./data/scans.db', import.meta.url));
+
 server.listen(PORT, () => {
   console.log(`Shin is running.  http://localhost:${PORT}`);
   console.log('The engine behind it knows 7 products, because 7 is what has been priced by hand.');
+  const scans = openScanStore(SCAN_DB);
+  console.log(
+    scans.db
+      ? `Scans are being written down: ${scans.path}`
+      : `Scans are NOT being written down (${scans.droppedWhy}). Everything else still works.`,
+  );
   // Attached after the port is open, never before: the screens have to come up
   // whether or not a 3.47 GB file is sitting where this expects it.
   void attachCatalogue();

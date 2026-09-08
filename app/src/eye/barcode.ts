@@ -32,6 +32,16 @@ import { readBarcodes, prepareZXingModule, type ReadResult } from 'zxing-wasm/re
  * ITF-14 and Code 128, which are on case packs and on the deli and bakery labels
  * that stores print themselves, and those are real products on real shelves.
  */
+/**
+ * How long one decode is allowed to take before the reader is treated as gone.
+ *
+ * Not a performance budget. A real decode of a 960px frame is about 45ms, so
+ * nothing that is still working comes near this. It is the line past which a
+ * promise is assumed never to settle, which is what an aborted WebAssembly
+ * module produces. See `scan`.
+ */
+const DECODE_CEILING_MS = 1500;
+
 export const RETAIL_FORMATS = [
   'EAN13',
   'EAN8',
@@ -93,6 +103,8 @@ export class BarcodeScanner {
   #recent: { value: string; at: number; box: Reading['box'] }[] = [];
   #ready: Promise<unknown> | null = null;
   #lastFired: { value: string; at: number } | null = null;
+  /** Set when the reader stopped answering at all. See `scan`. */
+  #wedged = false;
 
   constructor(options: ScannerOptions = {}) {
     this.#framesToConfirm = options.framesToConfirm ?? 3;
@@ -125,19 +137,57 @@ export class BarcodeScanner {
    * them. The caller can draw the in-progress box from `peek()` without acting.
    */
   async scan(frame: ImageData): Promise<StableRead | null> {
+    // Once the module is wedged it never recovers, and every further call adds
+    // another promise that will not settle. Answering null immediately keeps
+    // the frame loop alive and costs nothing.
+    if (this.#wedged) return null;
+
     let results: ReadResult[];
     try {
-      results = await readBarcodes(frame, {
-        formats: [...RETAIL_FORMATS],
-        // A barcode on a shelf is curved, angled, and half in shadow. These cost
-        // milliseconds and are the difference between reading a real shelf and
-        // reading a flat test image.
-        tryHarder: true,
-        tryRotate: true,
-        tryInvert: true,
-        tryDownscale: true,
-        maxNumberOfSymbols: 4,
+      /*
+       * The timeout is the whole point of this race, and it is here because of
+       * a failure that took the entire camera down rather than the barcode.
+       *
+       * The reader's WebAssembly is fetched when the scanner starts. When that
+       * fetch cannot complete -- no signal, or a server that answers the .wasm
+       * with the wrong content type -- Emscripten aborts the module, and an
+       * aborted module's `readBarcodes` never settles. It does not reject, so
+       * the catch below never runs. The caller awaits it forever, and the frame
+       * loop that awaits the caller schedules no further frames: the reticle
+       * stops, the coaching stops, auto-capture stops, and the screen goes on
+       * saying "No barcode there" about a barcode it is pointed straight at,
+       * for the rest of the session. Measured here on 2026-09-07: with the
+       * server unreachable the whole eye died on the first frame and nothing
+       * short of leaving the screen brought it back.
+       *
+       * A decode of a 960px frame takes about 45ms on this machine, so a
+       * second and a half is not a budget anything real will hit; it is only a
+       * floor under a module that has stopped answering at all.
+       */
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timeout = new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), DECODE_CEILING_MS);
       });
+      const decoded = await Promise.race([
+        readBarcodes(frame, {
+          formats: [...RETAIL_FORMATS],
+          // A barcode on a shelf is curved, angled, and half in shadow. These cost
+          // milliseconds and are the difference between reading a real shelf and
+          // reading a flat test image.
+          tryHarder: true,
+          tryRotate: true,
+          tryInvert: true,
+          tryDownscale: true,
+          maxNumberOfSymbols: 4,
+        }),
+        timeout,
+      ]);
+      clearTimeout(timer);
+      if (decoded === null) {
+        this.#wedged = true;
+        return null;
+      }
+      results = decoded;
     } catch {
       return null;
     }

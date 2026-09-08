@@ -59,7 +59,7 @@ const IDLE_EYES = eyeLayer(11, [
   '.FFF.' + d(4) + '.FFF.',
 ])
 
-const GOOD_EYES = eyeLayer(11, [
+const GOOD_EYES = eyeLayer(12, [
   '.WFF.' + d(4) + '.WFF.',
   '.FFF.' + d(4) + '.FFF.',
   '.FFF.' + d(4) + '.FFF.',
@@ -80,13 +80,13 @@ const ASKING_EYES = eyeLayer(11, [
 ])
 
 const DELIGHTED_EYES = eyeLayer(12, [
-  d(2) + 'F' + d(8) + 'F' + d(2),
-  d(1) + 'F' + d(1) + 'F' + d(6) + 'F' + d(1) + 'F' + d(1),
+  '.FFF.' + d(4) + '.FFF.',
+  'FF.FF' + d(4) + 'FF.FF',
 ])
 
 const PROUD_EYES = eyeLayer(11, [
-  d(2) + 'F' + d(8) + 'F' + d(2),
-  d(1) + 'F' + d(1) + 'F' + d(6) + 'F' + d(1) + 'F' + d(1),
+  '.FFF.' + d(4) + '.FFF.',
+  'FF.FF' + d(4) + 'FF.FF',
 ])
 
 const FAIR_EYES = eyeLayer(11, [
@@ -114,8 +114,9 @@ const UNKNOWN_EYES = eyeLayer(12, [
   '.FFF.' + d(4) + '.FFF.',
 ])
 
-const PLEASED_EYES = eyeLayer(13, [
-  d(2) + 'F' + d(8) + 'F' + d(2),
+const PLEASED_EYES = eyeLayer(12, [
+  '..FF.' + d(4) + '.FF..',
+  '.FFF.' + d(4) + '.FFF.',
 ])
 
 const NUDGING_EYES = eyeLayer(11, [
@@ -126,8 +127,7 @@ const NUDGING_EYES = eyeLayer(11, [
 ])
 
 export const EYES_CLOSED = eyeLayer(13, [
-  '.FFF.' + d(4) + '.FFF.',
-  '.FFF.' + d(4) + '.FFF.',
+  'FFFFF' + d(4) + 'FFFFF',
 ])
 
 export const EYES_HALF = eyeLayer(12, [

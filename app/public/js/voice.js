@@ -584,6 +584,58 @@ const LINES = {
     blunt: () => 'My own engine did not answer. No count until it does.',
   },
 
+  /*
+   * The scan log's four, migrated 2026-09-08 when main's block met this rule.
+   *
+   * They arrived on main as sentences written inside `you.js`, which is legal
+   * on a branch that does not have this file's rule and is not legal here. The
+   * two that carry a number take it as a fact rather than building the sentence
+   * at the call site, so the screen holds no copy at all: `you_scans_named`
+   * gets "12 scans", already pluralised, and never the bare integer.
+   *
+   * Both fact-carrying keys are in BARE. A rate the server could not put a
+   * denominator under is the normal case on a new install, so a caller here
+   * getting its facts wrong is a live possibility rather than a theoretical
+   * one, and D-021 says the screen must not show the word "undefined" for it.
+   */
+  you_scans_none: {
+    deadpan: (f) =>
+      `Nothing scanned yet${f.problem}. Every scan from now on is written down, so these numbers start the first time you point me at something.`,
+    warm: (f) =>
+      `Nothing scanned yet${f.problem}. Everything from here is written down, so these fill in the first time you point me at something.`,
+    blunt: (f) => `Nothing yet${f.problem}. Scan something and this starts counting.`,
+  },
+  you_scans_named: {
+    deadpan: (f) =>
+      `Out of ${f.scans} anyone has made, that is how often I could say what the thing was. Being able to name it is not the same as being able to price it, and this number is the first one, which is the larger of the two.`,
+    warm: (f) =>
+      `Out of ${f.scans} anyone has made, that is how often I could tell you what the thing was. Naming it is not the same as pricing it, and this is the naming one, which is always the kinder number.`,
+    blunt: (f) => `${f.scans}. That is how often I knew what it was. Knowing is not pricing.`,
+  },
+  you_scans_dropped: {
+    deadpan: (f) => `${f.scans} could not be written down: ${f.why}. The numbers above are missing them.`,
+    warm: (f) => `${f.scans} did not make it into the log: ${f.why}. The numbers above are missing them, so treat them as a floor.`,
+    blunt: (f) => `${f.scans} lost: ${f.why}. The numbers above are short by that much.`,
+  },
+  you_scanlog_failed: {
+    deadpan: () => 'I could not read my own scan log.',
+    warm: () => 'I could not read my own scan log, and I would rather say so than show you a number I did not read.',
+    blunt: () => 'My own scan log did not answer.',
+  },
+
+  /*
+   * The cheaper-options slot's failure, migrated 2026-09-08 with the four above.
+   *
+   * A lookup that threw is not "there is nothing cheaper", and the slot has to
+   * say which of the two it is: leaving the searching line up reads as a search
+   * still running, and printing the empty sentence claims a result nobody got.
+   */
+  cam_cheaper_failed: {
+    deadpan: () => 'I could not check for a cheaper one.',
+    warm: () => 'I could not check for a cheaper one just now. Worth another try.',
+    blunt: () => 'Could not check for a cheaper one.',
+  },
+
   /* --- the three list screens, lane C ---
    *
    * Saved, Past scans and Recently removed each had a reading line and a
@@ -626,6 +678,25 @@ const LINES = {
     deadpan: () => 'I could not reach my own sources just now.',
     warm: () => 'I could not reach my own sources just now. Not your doing, and worth another try.',
     blunt: () => 'My own sources did not answer. Try me again.',
+  },
+  /**
+   * The offline aisle's own ending, added 2026-09-07 when the pack landed.
+   *
+   * Its sibling above is for sources that did not answer; this one is for the
+   * scan that never asked them, because the phone had no signal and the pack on
+   * the phone answered instead. The pack knows what the thing is and can never
+   * know what it costs, and the sentence has to say both halves: a shopper told
+   * only "I cannot price this" would reasonably think the name was a guess.
+   * It arrived inline on the refusal sheet and was moved here with the six, so
+   * the three tones apply to it like everything else a shopper reads.
+   */
+  cam_offline_no_price: {
+    deadpan: () =>
+      'No signal, so I am working off what this phone already had. That tells me what it is and never what it costs, because prices move every week and a stale one is worse than none. Ask me again where there is a bar of signal.',
+    warm: () =>
+      'No signal, so this is what the phone already had saved. It is enough to name the thing, never enough to price it -- prices move every week and a stale one would mislead you. Catch me again with a bar of signal.',
+    blunt: () =>
+      'No signal. The phone knows what this is. It cannot know what it costs, and a stale price is worse than none.',
   },
   /**
    * The last row of the stand-in candidate list, under "Something else". It
@@ -911,6 +982,19 @@ const LINES = {
  * unknown key has always done.
  */
 const BARE = {
+  /* The scan log's two fact carriers. What is left when the count is gone is
+     the sentence about what the count means, which is the half a reader cannot
+     work out for themselves. */
+  you_scans_named: {
+    deadpan: () => 'That is how often I could say what the thing was. Naming it is not pricing it.',
+    warm: () => 'That is how often I could say what the thing was. Naming it is not the same as pricing it.',
+    blunt: () => 'How often I knew what it was. Knowing is not pricing.',
+  },
+  you_scans_dropped: {
+    deadpan: () => 'Some scans could not be written down, so the numbers above are missing them.',
+    warm: () => 'Some scans did not make it into the log, so the numbers above are missing them.',
+    blunt: () => 'Some scans were lost. The numbers above are short.',
+  },
   /* The three verdict lines come first because they are the ones that must
      never go quiet. The tier word, the price and the rail are all still on the
      screen when Shin's sentence loses its facts, so the fallback carries the

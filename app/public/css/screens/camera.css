@@ -1036,6 +1036,21 @@
 .prov div.prov-best { font-weight: 700; }
 .prov div.prov-best span { opacity: .92; }
 
+/* --------------------------------------------------- cheaper same-category
+
+   Its rows ARE provenance rows and reuse .prov wholesale: same evidence, one
+   step sideways, so giving it a second row style would say they are two
+   different kinds of fact. All this block owns is the space around it and the
+   one sentence above the rows.
+
+   No transition and no entrance. This lands on every verdict, which is the
+   loop of the whole product, and the thing you see most is the first place
+   motion turns into noise. It also arrives after the sheet, in the half
+   detent, so it fills below the fold and nothing a reader is looking at moves. */
+
+.cheaper { margin-top: 14px; }
+.cheaper .detail { margin: 0 0 6px; }
+
 /* --------------------------------------------------------------- controls */
 
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }

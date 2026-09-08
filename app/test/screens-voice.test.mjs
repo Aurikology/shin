@@ -32,7 +32,7 @@
  * than described in the abstract, and the next inline sentence fails until
  * somebody either moves it into voice.js or justifies it here as chrome.
  *
- * DEFECTS.md standard 3, and D-033 under it: a test covers the model it was
+ * DEFECTS.md standard 3, and D-040 under it: a test covers the model it was
  * given, and the screen is not obliged to be that model. Both rules here were
  * negative-tested by putting a violation back and watching them go red.
  */

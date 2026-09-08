@@ -2,6 +2,7 @@
 // teardown. No module state, no DOM access at import time.
 
 export async function startCamera(videoEl) {
+  let onended = null
   if (!window.isSecureContext) {
     throw new Error('Camera needs a secure connection (https or localhost).')
   }
@@ -32,6 +33,7 @@ export async function startCamera(videoEl) {
   }
 
   const track = stream.getVideoTracks()[0]
+  if (track) track.addEventListener('ended', () => { if (onended) onended() })
   let torchSupported = false
   try {
     const caps = track && track.getCapabilities ? track.getCapabilities() : {}
@@ -55,7 +57,12 @@ export async function startCamera(videoEl) {
     if (videoEl.srcObject === stream) videoEl.srcObject = null
   }
 
-  return { stream, torch, stop }
+  return {
+    stream,
+    torch,
+    stop,
+    set onended(fn) { onended = fn },
+  }
 }
 
 export function stopCamera(handle) {

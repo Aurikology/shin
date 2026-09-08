@@ -96,32 +96,63 @@ function rectRelativeTo(el, parent) {
 
 // Contracts the reticle from wherever it is onto box (fractions of overlayEl), 300ms,
 // then a two-frame flash of the bracket colour to white and back.
+//
+// The reticle box itself is invisible (only the four corner brackets render), so once
+// locked it snaps straight to a full-cover frame and stays there; only the corners
+// animate, each on its own inline transform, so the motion is transform-only.
 export function lockBrackets(overlayEl, box) {
   return new Promise((resolve) => {
     const reticle = overlayEl.querySelector('#reticle')
-    if (!reticle) {
+    const corners = reticle && {
+      tl: reticle.querySelector('i.tl'),
+      tr: reticle.querySelector('i.tr'),
+      bl: reticle.querySelector('i.bl'),
+      br: reticle.querySelector('i.br'),
+    }
+    if (!reticle || !corners.tl || !corners.tr || !corners.bl || !corners.br) {
       resolve()
       return
     }
     const W = overlayEl.clientWidth
     const H = overlayEl.clientHeight
 
-    // Capture wherever the reticle currently renders (its centred default position
-    // may come from a transform) and pin that down as explicit inline values first,
-    // so the transition below has a real starting point instead of jumping.
-    const start = rectRelativeTo(reticle, overlayEl)
-    reticle.style.transform = 'none'
-    reticle.style.left = `${start.left}px`
-    reticle.style.top = `${start.top}px`
-    reticle.style.width = `${start.width}px`
-    reticle.style.height = `${start.height}px`
-    void reticle.offsetWidth // force reflow before the class/target change
+    // Capture wherever each corner currently renders (its pre-lock position comes from
+    // top/left/right/bottom, not a transform), before the reticle switches to full-cover
+    // and the corners switch to transform-only positioning.
+    const starts = {
+      tl: rectRelativeTo(corners.tl, overlayEl),
+      tr: rectRelativeTo(corners.tr, overlayEl),
+      bl: rectRelativeTo(corners.bl, overlayEl),
+      br: rectRelativeTo(corners.br, overlayEl),
+    }
 
+    reticle.style.left = '0'
+    reticle.style.top = '0'
+    reticle.style.width = '100%'
+    reticle.style.height = '100%'
     reticle.classList.add('is-locked')
-    reticle.style.left = `${box.x * W}px`
-    reticle.style.top = `${box.y * H}px`
-    reticle.style.width = `${box.w * W}px`
-    reticle.style.height = `${box.h * H}px`
+
+    // Pin each corner at its captured on-screen position with transitions off, commit
+    // that with a reflow, then let the stylesheet transition apply. Otherwise the
+    // transition would start from the untransformed corner (the overlay origin).
+    const all = [corners.tl, corners.tr, corners.bl, corners.br]
+    all.forEach((c) => { c.style.transition = 'none' })
+    corners.tl.style.transform = `translate(${starts.tl.left}px, ${starts.tl.top}px)`
+    corners.tr.style.transform = `translate(${starts.tr.left}px, ${starts.tr.top}px)`
+    corners.bl.style.transform = `translate(${starts.bl.left}px, ${starts.bl.top}px)`
+    corners.br.style.transform = `translate(${starts.br.left}px, ${starts.br.top}px)`
+    void reticle.offsetWidth // commit the pin
+    all.forEach((c) => { c.style.transition = '' })
+    void reticle.offsetWidth // the transition is live again before the targets land
+
+    const boxX = box.x * W
+    const boxY = box.y * H
+    const boxRight = boxX + box.w * W - 22
+    const boxBottom = boxY + box.h * H - 22
+    corners.tl.style.transform = `translate(${boxX}px, ${boxY}px)`
+    corners.tr.style.transform = `translate(${boxRight}px, ${boxY}px)`
+    corners.bl.style.transform = `translate(${boxX}px, ${boxBottom}px)`
+    corners.br.style.transform = `translate(${boxRight}px, ${boxBottom}px)`
 
     setTimeout(() => {
       reticle.classList.add('is-flash')

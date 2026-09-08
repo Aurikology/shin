@@ -5,6 +5,76 @@ narrative.*
 
 ---
 
+## The aisle with no signal answers now, 2026-09-07
+
+**Point the camera at a barcode with the phone offline and it tells you what you are holding.**
+122,101 grocery products come down as a 1.5 MB file the first time the app is opened and stay on
+the phone. A scan asks the server first, because the server is the only one of the two that can
+lead to a price; when the server cannot be reached, the phone's own copy answers with the name,
+the brand and the size, and says plainly that it cannot tell you the price and why. The repair on
+that screen still works: a price typed there is kept and sent when the signal comes back.
+
+**Running that check for the first time is what mattered.** It had been written down when the pack
+was built and never actually performed, and performing it found three things, one of which was
+serious. The camera's barcode reader loads a piece of compiled code when the camera opens; that
+piece was being served in a way the browser refuses, so it was downloaded twice every time, and
+when it could not be downloaded at all the whole camera stopped for good. Not just the barcode:
+the framing box, the coaching lines and the automatic shot all stopped too, and the screen kept
+saying "no barcode there" while pointed straight at one. All three are fixed. The app also loads
+with no signal at all now, which it never did, and that is what makes the offline pack reachable
+rather than a file sitting on a phone behind an app that cannot start.
+
+## The app counts what it does now, 2026-09-07
+
+**Every scan is written down and read back, and the profile screen shows it.** This is the second
+item in the order the vision sets, the instruments, and it was the one unblocked thing at the top
+of that list. Three of the vision's four Want-and-Reliance figures said "Nothing measures this
+today", and one of them named the reason out loud: the scan record existed and had no reader. It
+had no writer either. Both ends are attached now.
+
+What a person sees: a block on the profile screen, under the coverage list, saying how often Shin
+could name the thing, split by whether the person scanned a barcode or typed, plus corrections per
+hundred, second-week return, and their own week. Every rate can say "not yet" instead of a number,
+because a share over no scans is unknown and printing 0% for it would be claiming a failure nobody
+has measured.
+
+What it counts and what it does not: the log is one row per "what is this thing", so the rate is
+how often the catalogue could NAME it, not how often anyone got a price. Those are far apart, three
+products can be priced in a store, and the screen says which of the two it is showing.
+
+Checked through the path a person takes, not through the endpoint: a scan typed into the running
+app appears against that browser's own random id and moves the number on the profile screen, in
+both themes, with no console errors. Also fixed on the way: a request body could be any size, and
+the first cap written for it answered with a hang-up rather than a status, which the aisle
+correction queue would have retried forever.
+
+Still uncalled, and the next of this shape: the offline aisle has no screen importing it, the
+ranked-candidate search has no caller, and the camera still shows a hand-written list because the
+photo path needs a model key nobody has set.
+
+## Two bugs the walk found, and they were bigger than the feature, 2026-09-07
+
+**The app was identifying a product by its barcode and then throwing the barcode away.** Every
+scan that went through the catalogue, by code or by name, reached the judge as words only, and the
+judge did the right thing with words and said it was not sure enough. Walking the typed route on
+Lay's Classic, a product we hold fresh prices for under its own barcode, produced a refusal.
+Fixed, and the line that caused it had a comment on it explaining why it must never happen.
+
+**Then fixing that made things worse, and that is the second bug.** With the code restored, a
+barcode we hold no prices for made the answer go from "pick the right one" to "no clue", because
+identity stopped the moment a code resolved nothing. More information, worse answer, which is the
+one shape the first rule of this project forbids. The words now get their own attempt when a code
+comes back empty. Most catalogue codes have no prices, so without this the first fix would have
+made most scans worse.
+
+**Cheaper options is wired and it shows nothing, and that is the honest state.** Zero of the sixty
+most-priced products in the store both produce a verdict and have a cheaper option, so the block
+prints its one line saying so. Supply is the cap, exactly as the vision says. One thing to know
+before this is ever shown to anybody: the single populated result the store can produce offers
+ginger oat cookies as the cheaper option for tortilla chips, because the swap is drawn on one
+shared category tag. The price, the shop and the date on that row are true; the word cheaper is
+the part that lies, because it implies "instead of this".
+
 ## Read this first, 2026-09-06
 
 **`docs/the-vision.md` is what every improvement is judged against.** Written on his instruction

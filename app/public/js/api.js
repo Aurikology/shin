@@ -7,6 +7,8 @@
  * safety mechanism in the product.
  */
 
+import { getDeviceId } from './device.js';
+
 async function post(path, body, { refusalIsAnswer = false } = {}) {
   const res = await fetch(path, {
     method: 'POST',
@@ -63,7 +65,48 @@ export function identify({ gtin, text, brand, sizeValue, sizeUnit } = {}) {
   if (brand) params.set('brand', brand);
   if (sizeValue) params.set('sizeValue', String(sizeValue));
   if (sizeUnit) params.set('sizeUnit', sizeUnit);
+  // The device's own random id rides along so the scan can be written down
+  // against somebody rather than against nobody. It is the same coin-flip id
+  // corrections already send: no name, no email, no account, and nothing
+  // derived from the phone. A scan that arrives without it is still recorded,
+  // filed under "unattributed", which counts in the answer rate and in nothing
+  // about people.
+  const device = getDeviceId();
+  if (device?.id) params.set('deviceId', device.id);
   return get(`/api/identify?${params.toString()}`);
+}
+
+/**
+ * What the scan log says, for the profile screen.
+ *
+ * Every rate in the reply is either a number or null, and null means the
+ * denominator was empty. A screen must print those differently: a week with no
+ * scans in it is unknown, not zero percent, and this product's first priority
+ * is that the difference survives all the way to the glass.
+ */
+export function scans() {
+  const device = getDeviceId();
+  const params = new URLSearchParams();
+  if (device?.id) params.set('deviceId', device.id);
+  return get(`/api/scans?${params.toString()}`);
+}
+
+/**
+ * The cheaper same-category swaps for a product at a given asking price.
+ *
+ * Three at most, and the server writes each row's sentence: the rule about what
+ * counts as cheaper (same category, comparable size, lower price per unit, a
+ * seller with a real price) lives in the catalogue package and this client is
+ * not allowed to have an opinion about it. Allergen differences come back on
+ * the row and are printed, never used to hide one.
+ *
+ * A missing catalogue and a product we have never seen both come back 200 with
+ * an empty list and a sentence saying which, because neither is an error and a
+ * screen that treats them as one starts retrying around them.
+ */
+export function alternatives({ code, askingCents }) {
+  const params = new URLSearchParams({ code, askingCents: String(askingCents) });
+  return get(`/api/alternatives?${params.toString()}`);
 }
 
 export function catalogue() {

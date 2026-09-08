@@ -1,7 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { priceIt } from '../src/spine.ts';
-import type { Refusal, Verdict } from '../src/contract.ts';
+import type {
+  CategoryId,
+  PricePoint,
+  ProductIdentity,
+  Refusal,
+  SpineQuery,
+  Verdict,
+} from '../src/contract.ts';
+import type { PriceSource, SourceAvailability } from '../src/sources/source.ts';
 import { AS_OF, StubSource, identity, point } from './helpers.ts';
 
 function deps(source: StubSource) {
@@ -561,4 +569,55 @@ test('omitting the asking seller silently inflates the comparison, which is why 
   assert.equal(without.comparisonSet.length, 3);
   assert.ok(without.comparisonSet.some((p) => p.seller === 'Metro'));
   assert.match(without.lines[0], /about \$1\.74 across 2 stores/);
+});
+
+/**
+ * A source that answers by name and knows nothing by code: the shape of every
+ * real source here, since a code only resolves for a product we hold prices
+ * under that code.
+ */
+class ByWordsOnly implements PriceSource {
+  readonly id = 'words';
+  readonly label = 'Words';
+  readonly verified = true;
+  readonly categories: readonly CategoryId[] = ['grocery'];
+  available(): SourceAvailability {
+    return { ok: true };
+  }
+  async identify(query: SpineQuery): Promise<ProductIdentity | null> {
+    if (query.gtin) return null;
+    return query.text ? identity('grocery', 0.99, query.text) : null;
+  }
+  async prices(): Promise<readonly PricePoint[]> {
+    return [point('Walmart', 147), point('No Frills', 152)];
+  }
+}
+
+test('a barcode we hold no prices for falls back to the words, never to no clue', async () => {
+  const src = new ByWordsOnly();
+
+  // The same query, twice, differing only by a code nothing can resolve. The
+  // one carrying MORE information must not get the worse answer: that is the
+  // shape priority 1 forbids, and it is what shipped until 2026-09-07.
+  const withCode = await priceIt(
+    { text: 'kraft dinner', gtin: '0000000000000', category: 'grocery', askingCents: 200, asOf: AS_OF },
+    { sources: [src] },
+  );
+  const withoutCode = await priceIt(
+    { text: 'kraft dinner', category: 'grocery', askingCents: 200, asOf: AS_OF },
+    { sources: [src] },
+  );
+
+  assert.equal(withCode.kind, withoutCode.kind);
+  assert.equal(asVerdict(withCode).identity.label, 'kraft dinner');
+});
+
+test('a code that resolves nothing and words that resolve nothing is still a refusal', async () => {
+  const src = new ByWordsOnly();
+  const r = asRefusal(
+    await priceIt({ gtin: '0000000000000', category: 'grocery', askingCents: 200, asOf: AS_OF }, { sources: [src] }),
+  );
+  // No text to fall back to, so the retry has nothing to try and nothing is
+  // invented. The fallback must not turn every unknown code into an answer.
+  assert.equal(r.reason, 'no_identity');
 });
