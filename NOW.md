@@ -128,6 +128,28 @@ on that date: a barcode answered in 1 ms, a text search in 22 ms.
 > Any work on search ranking is blocked until then, because the evidence it would need cannot be
 > produced.
 
+**The barcode reader works, and this is the first time anyone has shown that.** Same day, and it
+matters because `app/public/js/eye.js` is a build artifact, is gitignored, and is therefore absent
+from a fresh worktree: the camera falls back to a plain video element and nothing on screen says
+so. Every walk of this app before 2026-09-07 evening ran with no reader and no framing pass.
+
+Rebuilt with `node app/scripts/build-eye.mjs`, which is wired into no npm script. Then an EAN-13
+for Kraft Dinner, `0060383689247`, was drawn to a canvas, fed to the app's own `<video>` as a
+MediaStream, and the app left alone to do the rest. It fired `onBarcode` with no shutter press,
+drew its frame marks on the code, and requested **`/api/identify?gtin=0060383689247`**: the exact
+thirteen digits, decoded off a live stream by zxing.
+
+It then fell through to the stand-in candidate list, because identify has no catalogue to answer
+from. **So the whole barcode path is built and correct, and the one thing standing between it and
+a working scan is the missing file above.** That is the strongest argument for restoring the
+catalogue being the highest-leverage thing available: it does not unblock one defect, it turns on
+the product's primary input.
+
+Two faults were found and fixed on the way, both invisible until the reader actually ran: `.wasm`
+was served as `application/octet-stream`, so `WebAssembly.compileStreaming` refused it and the
+loader silently fell back to buffering a 1.1 MB module and compiling from an ArrayBuffer; and the
+trained detector swallowed every failure into one silent `false`.
+
 **The finding that matters more than the deletion.** Removing every threshold moved pilot
 coverage by exactly zero, 2 of 7 before and after. All five refusals were empty hands, not
 thresholds. **Thresholds were never what capped this product. Supply is.** One retailer covers
