@@ -5,6 +5,34 @@ narrative.*
 
 ---
 
+## The app knows what you shop for, 2026-09-08
+
+**Type a word two shelves share and you get the shelf you have been buying from.** "chips" is a
+bag of tortilla chips to somebody whose last six scans were groceries and a laptop to somebody
+whose were not. That is `catalogue/src/routing.ts`, written and tested since 2026-09-05 and called
+by nothing until today.
+
+**What it needed was one column.** The router wants the five-kind verdict for each past scan;
+`category-map.ts` computes that at scan time from the product's own tags, and the scan log never
+stored it. Deriving it later needs the catalogue attached, which is exactly what a phone in an
+aisle does not have. `scan.category` is added with an explicit `ALTER`, because
+`CREATE TABLE IF NOT EXISTS` does nothing to a table that already exists and a missing migration
+would be silent: every route in the field built from an empty history, and nothing to see.
+
+**A route guesses about the person, never about the product**, and the three rules that keep it
+honest were checked through the app rather than read: a barcode is never narrowed, a grocery
+shopper can still find a ThinkPad, and a narrowed answer is never reported as a confident one.
+The route is on the answer too. An app that quietly narrows a search on a guess about somebody,
+without being able to say it did, is the thing the priority-1 rule exists to prevent.
+
+Walked at 390px: six grocery scans through the real typed route, then "chips", then "not this?",
+whose list is grocery-only because the same route narrows that call too.
+
+Still uncalled of D-026's four: the crawl ordering, and the capture queue, which waits on the
+photo path and so on a model key nobody has set.
+
+---
+
 ## "Not this?", and the UI branch caught up with main, 2026-09-08
 
 **Type a name, get the wrong product, and there is now something to press.** Under the item name

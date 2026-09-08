@@ -38,6 +38,15 @@ test('the endpoint has a client function at all, which is the thing that was mis
   assert.match(API, /\/api\/search\?/);
 });
 
+test('the alternatives are fetched for the same device the pick was', () => {
+  // Both endpoints route by this device's scan history. A list fetched without
+  // the id would be narrowed differently from the pick it is offering
+  // alternatives to, so it could contain rows the pick could never have been.
+  const fn = API.slice(API.indexOf('export function search('), API.indexOf('export function alternatives('));
+  assert.match(fn, /getDeviceId\(\)/);
+  assert.match(fn, /params\.set\('deviceId'/);
+});
+
 test('the pad offers "not this?" when the pick was one of several', () => {
   const html = pricePadSheet(item({ notThisQuery: 'test item' }));
   assert.match(html, /data-act="notthis"/);

@@ -107,6 +107,14 @@ export function scans() {
  */
 export function search({ text, limit = 5 }) {
   const params = new URLSearchParams({ q: text, limit: String(limit) });
+  /*
+   * The same device id identify sends, for the same reason it sends one: the
+   * server routes both by this device's own scan history, and a list fetched
+   * without it would be narrowed differently from the pick it is offering
+   * alternatives to.
+   */
+  const device = getDeviceId();
+  if (device?.id) params.set('deviceId', device.id);
   return get(`/api/search?${params.toString()}`);
 }
 

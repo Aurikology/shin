@@ -36,6 +36,31 @@
  * it and exactly one place that could get it wrong.
  */
 
+/*
+ * ON `scan.category`, which is declared in the DDL below with a one-line note.
+ *
+ * (This comment sits outside the template literal deliberately, the same way
+ * catalogue/src/schema.ts's does and for the same reason: the backticks this
+ * paragraph needs around file names would close the literal early. That file
+ * learned it as six unrelated-looking syntax errors; this one learned it as
+ * two.)
+ *
+ * It holds which of the five kinds the app decided a scan was, at the moment
+ * it was scanned, or NULL when it would not name one.
+ *
+ * STORED RATHER THAN DERIVED, and that is the point of the column. The verdict
+ * comes from `app/src/category-map.ts` reading the product's own tags, so
+ * re-deriving it later needs the catalogue attached, which is exactly what a
+ * phone in an aisle does not have. It is also a record of what we thought
+ * THEN, which is the only honest thing to build a prior about a person from.
+ *
+ * NOT A CLAIM ABOUT THE PRODUCT, and nothing may read it as one. Its only
+ * consumer is `catalogue/src/routing.ts`, whose header carries the rule this
+ * column has to obey: a route guesses about the PERSON and never about the
+ * PRODUCT. A prior that decided the product would tell somebody holding a
+ * laptop it is groceries because that is what they usually buy.
+ */
+
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -52,7 +77,9 @@ CREATE TABLE IF NOT EXISTS scan (
   source         TEXT,
   outcome        TEXT NOT NULL CHECK (outcome IN ('answered', 'refused', 'corrected')),
   corrected_code TEXT,
-  scanned_at     TEXT NOT NULL
+  scanned_at     TEXT NOT NULL,
+  -- The five-kind verdict at scan time, or NULL. See the note below the DDL.
+  category       TEXT
 ) STRICT;
 
 CREATE INDEX IF NOT EXISTS scan_device_week ON scan(device_id, outcome, scanned_at);
@@ -105,6 +132,21 @@ export function openScanStore(path: string = process.env.SHIN_SCANS ?? 'data/sca
     db = new DatabaseSync(path);
     db.exec('PRAGMA journal_mode = WAL');
     db.exec(DDL);
+    /*
+     * `CREATE TABLE IF NOT EXISTS` does nothing to a table that already
+     * exists, so a column added after the first release has to be added by
+     * hand or every database in the field is silently one column short. This
+     * reads what is actually there rather than tracking a version number,
+     * which cannot be wrong about the file in front of it.
+     *
+     * Additive and nullable on purpose: rows written before the column existed
+     * keep a NULL category, which `recentCategories` skips. An old log makes
+     * the route unsure, never wrong.
+     */
+    const columns = db.prepare('PRAGMA table_info(scan)').all() as { name: string }[];
+    if (!columns.some((c) => c.name === 'category')) {
+      db.exec('ALTER TABLE scan ADD COLUMN category TEXT');
+    }
   } catch (err) {
     db = null;
     droppedWhy = err instanceof Error ? err.message : String(err);
@@ -126,6 +168,8 @@ export interface ScanInput {
   readonly resolvedLabel?: string | null;
   readonly confidence?: number | null;
   readonly source?: string | null;
+  /** The five-kind verdict at scan time, or null when the app would not name one. */
+  readonly category?: string | null;
   readonly outcome: ScanOutcome;
   /**
    * Overrides the recorded timestamp. Tests use this to place a row in a
@@ -147,6 +191,7 @@ interface ScanRow {
   outcome: string;
   corrected_code: string | null;
   scanned_at: string;
+  category: string | null;
 }
 
 /**
@@ -164,8 +209,8 @@ export function recordScan(input: ScanInput): number | null {
     const scannedAt = input.scannedAt ?? new Date().toISOString();
     const result = store.db
       .prepare(
-        `INSERT INTO scan (device_id, kind, query_text, resolved_code, resolved_label, confidence, source, outcome, corrected_code, scanned_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
+        `INSERT INTO scan (device_id, kind, query_text, resolved_code, resolved_label, confidence, source, outcome, corrected_code, scanned_at, category)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
       )
       .run(
         input.deviceId,
@@ -177,6 +222,7 @@ export function recordScan(input: ScanInput): number | null {
         input.source ?? null,
         input.outcome,
         scannedAt,
+        input.category ?? null,
       );
     return Number(result.lastInsertRowid);
   } catch (err) {
@@ -284,6 +330,53 @@ export function lastAnsweredScan(deviceId: string, code: string): number | null 
     store.dropped += 1;
     store.droppedWhy = err instanceof Error ? err.message : String(err);
     return null;
+  }
+}
+
+/**
+ * What this device has actually been shopping for, oldest first.
+ *
+ * The shape `catalogue/src/routing.ts` asks for, and nothing more: a list of
+ * five-kind guesses in the order they happened, so its own fading function can
+ * weigh recent scans above old ones. This function does no weighing and makes
+ * no decision; it reads rows.
+ *
+ * WHAT IT LEAVES OUT, and each exclusion is the rule rather than a filter that
+ * happened to be convenient:
+ *
+ *   - Rows with no category. Both the ones written before this column existed
+ *     and the ones where the app looked and would not name a kind. Neither is
+ *     evidence about the person, and counting an unknown as a vote for
+ *     whatever is most common would manufacture a prior out of nothing.
+ *   - Refusals. A scan that could not be answered says what the catalogue
+ *     lacks, not what the person shops for. `outcome = 'corrected'` is kept:
+ *     the person told us what it was, which is the strongest signal in the
+ *     table about what they were actually holding.
+ *   - Everything past `limit`, taken from the NEWEST end and then reversed,
+ *     because a route about who somebody is today should not be outvoted by a
+ *     year of who they were.
+ *
+ * Never throws. A store that will not open is a device with no history, which
+ * `decideRoute` already handles as "search everything".
+ */
+export function recentCategories(deviceId: string, limit = 40): { category: string }[] {
+  const store = active ?? openScanStore();
+  try {
+    if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
+    const rows = store.db
+      .prepare(
+        `SELECT category FROM scan
+          WHERE device_id = ? AND category IS NOT NULL AND outcome != 'refused'
+          ORDER BY id DESC LIMIT ?`,
+      )
+      .all(deviceId, limit) as unknown as { category: string }[];
+    // Newest-first out of SQL so the LIMIT keeps the recent end; routing wants
+    // oldest-first so its decay runs the right way round.
+    return rows.reverse();
+  } catch (err) {
+    store.dropped += 1;
+    store.droppedWhy = err instanceof Error ? err.message : String(err);
+    return [];
   }
 }
 

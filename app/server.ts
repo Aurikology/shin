@@ -27,7 +27,14 @@ import { lookupPrices } from '../price/src/lookup.ts';
 import { recordCorrection } from '../price/src/corrections.ts';
 import { ATTRIBUTION } from './src/attribution.ts';
 import { packScope, packVersion, servePack } from './src/pack-route.ts';
-import { correctScan, lastAnsweredScan, openScanStore, recordScan, type ScanKind } from './src/scans.ts';
+import {
+  correctScan,
+  lastAnsweredScan,
+  openScanStore,
+  recentCategories,
+  recordScan,
+  type ScanKind,
+} from './src/scans.ts';
 import { summariseScans, UNATTRIBUTED } from './src/scan-summary.ts';
 
 const PUBLIC_DIR = fileURLToPath(new URL('./public/', import.meta.url));
@@ -54,6 +61,21 @@ const CATALOGUE_DB =
 
 let fastLookup: { byGtin(code: string): unknown } | null = null;
 let searchService: { search(q: unknown): Promise<unknown> } | null = null;
+/*
+ * The routing priors, loaded beside the catalogue because they are useless
+ * without one: a route narrows a search, and there is nothing to narrow when
+ * the catalogue is not attached. Null here is the same state as a device with
+ * no history -- search everything -- so nothing downstream needs a second
+ * branch for it.
+ */
+let routing: {
+  decideRoute(input: unknown): { categories: readonly string[]; confidence: number; why: string };
+  restrictedSearch(
+    catalogue: unknown,
+    query: unknown,
+    route: unknown,
+  ): Promise<{ result: unknown; restricted: boolean; fellBack: boolean; confidenceAdjustment: number }>;
+} | null = null;
 let catalogueWhyNot = 'not attempted yet';
 /**
  * The same read-only handle `fastLookup` was built from, kept so `/api/alternatives`
@@ -127,6 +149,7 @@ async function attachCatalogue(): Promise<void> {
         import('../catalogue/src/embed.ts'),
         import('../catalogue/src/service.ts'),
       ]);
+    routing = (await import('../catalogue/src/routing.ts')) as unknown as typeof routing;
     const db = openCatalogueReadOnly(CATALOGUE_DB);
     catalogueDb = db;
     // The embedder handed to this one is never used: byGtin does no embedding,
@@ -367,6 +390,16 @@ interface Identified {
    * 0 when the catalogue is not attached.
    */
   readonly otherCandidates: number;
+  /**
+   * The narrowing this device's own scan history argued for, or null when the
+   * search ran against the whole catalogue.
+   *
+   * Reported rather than kept internal because it changes the answer, and an
+   * app that narrows a search on a guess about somebody without being able to
+   * say so is the shape of thing this repo's priority-1 rule exists to stop.
+   * `why` is plain words and safe to show.
+   */
+  readonly route: { readonly categories: readonly string[]; readonly confidence: number; readonly why: string } | null;
   /** False when the catalogue process is not running. The screen must not read this as a miss. */
   readonly catalogueUp: boolean;
   readonly ms: number;
@@ -381,6 +414,7 @@ function offline(ms: number): Identified {
     categoryWhy: `The catalogue is not attached, so nothing was looked up. ${catalogueWhyNot}`.trim(),
     ring: null,
     otherCandidates: 0,
+    route: null,
     catalogueUp: false,
     ms,
   };
@@ -396,12 +430,42 @@ function offline(ms: number): Identified {
  * plan names a spinner that never resolves as the specific failure being
  * designed out.
  */
+/**
+ * The route this device's own history argues for, or null for "search
+ * everything".
+ *
+ * Null in three cases that are one case: no routing module (no catalogue), no
+ * device id, or a history that gave `decideRoute` nothing to be sure about.
+ * All three mean the same thing to every caller, so they are collapsed here
+ * rather than branched on three times downstream.
+ *
+ * Never throws and never blocks an answer. A prior is an optimisation on
+ * relevance; a scan log that will not open must not be able to stop a scan.
+ */
+function routeFor(deviceId: string | null): { categories: readonly string[]; confidence: number; why: string } | null {
+  if (!routing || !deviceId) return null;
+  try {
+    const history = recentCategories(deviceId);
+    if (history.length === 0) return null;
+    const route = routing.decideRoute({ history });
+    // decideRoute says "no narrowing" by returning all five. Passing that on as
+    // a route would make every answer look routed in the response while
+    // changing nothing about the search.
+    return route.categories.length >= 5 ? null : route;
+  } catch (err) {
+    console.error('routing failed, searching everything:', err);
+    return null;
+  }
+}
+
 async function identify(query: {
   gtin?: string;
   text?: string;
   brand?: string;
   sizeValue?: number;
   sizeUnit?: string;
+  /** Whose history to route by. Omitted means no prior, which is not an error. */
+  deviceId?: string | null;
 }): Promise<Identified> {
   const started = Date.now();
   if (!fastLookup) return offline(Date.now() - started);
@@ -424,6 +488,26 @@ async function identify(query: {
     ring: { label: string; members: { code: string; name: string }[] } | null;
   };
 
+  let routeUsed: { categories: readonly string[]; confidence: number; why: string } | null = null;
+
+  /**
+   * One search, narrowed by this device's history when there is one.
+   *
+   * `restrictedSearch` owns every safety rule about narrowing (a barcode is
+   * never restricted, an empty narrowed result falls back to the whole
+   * catalogue rather than reporting a miss it did not check for), so this
+   * wrapper adds none of its own. It exists to keep "is there a route" in one
+   * place instead of at each of the three call sites below.
+   */
+  const routedSearch = async (q: Record<string, unknown>) => {
+    const route = routeFor(query.deviceId ?? null);
+    if (!route || !routing) {
+      return { result: (await searchService!.search(q)) as Result, route: null, restricted: false, fellBack: false };
+    }
+    const out = await routing.restrictedSearch(searchService, q, route);
+    return { result: out.result as Result, route, restricted: out.restricted, fellBack: out.fellBack };
+  };
+
   try {
     let result: Result;
 
@@ -442,10 +526,31 @@ async function identify(query: {
         // Read fine, and we do not have it. A gap, not a camera failure.
         result = { band: 'miss', matchedBy: 'none', candidates: [], ring: null };
       } else {
-        result = (await searchService!.search({ ...query, vectors: vectorsOn })) as Result;
+        result = (await routedSearch({ ...query, vectors: vectorsOn })).result;
       }
     } else {
-      result = (await searchService!.search({ ...query, vectors: vectorsOn })) as Result;
+      const routed = await routedSearch({ ...query, vectors: vectorsOn });
+      result = routed.result;
+      routeUsed = routed.route;
+      /*
+       * A NARROWED ANSWER IS NEVER A CONFIDENT ONE.
+       *
+       * routing.ts hands back a confidence adjustment strictly below 1 when it
+       * actually restricted, and says why in its own header: narrowing can hide
+       * the true best match, so finding something despite the narrowing is not
+       * evidence the narrowing was right. This interface has no number to
+       * multiply -- it reports a band -- so the adjustment lands as the one
+       * discrete move that means the same thing, and it only ever moves
+       * downward.
+       *
+       * It also lands where it can be acted on. "Not this?" is gated on
+       * `ambiguous` plus a rival, so a restricted answer that had rivals now
+       * offers the shopper the list, which is exactly the repair somebody needs
+       * when a prior about them picked the wrong shelf.
+       */
+      if (routed.restricted && !routed.fellBack && result.band === 'confident') {
+        result = { ...result, band: 'ambiguous' };
+      }
     }
 
     const top = result.candidates[0] ?? null;
@@ -460,6 +565,7 @@ async function identify(query: {
           ? { label: result.ring.label, members: result.ring.members.map((m) => ({ code: m.code, name: m.name })) }
           : null,
         otherCandidates: 0,
+        route: routeUsed,
         catalogueUp: true,
         ms: Date.now() - started,
       };
@@ -489,6 +595,7 @@ async function identify(query: {
         ? { label: result.ring.label, members: result.ring.members.map((m) => ({ code: m.code, name: m.name })) }
         : null,
       otherCandidates: Math.max(0, result.candidates.length - 1),
+      route: routeUsed,
       catalogueUp: true,
       ms: Date.now() - started,
     };
@@ -733,12 +840,22 @@ const server = createServer(async (req, res) => {
       const text = url.searchParams.get('text') ?? undefined;
       if (!gtin && !text) return json(400, { error: 'gtin or text is required' });
       const sizeValue = Number(url.searchParams.get('sizeValue') ?? '');
+      const device = url.searchParams.get('deviceId')?.trim() || UNATTRIBUTED;
       const answer = await identify({
         gtin,
         text,
         brand: url.searchParams.get('brand') ?? undefined,
         sizeValue: Number.isFinite(sizeValue) && sizeValue > 0 ? sizeValue : undefined,
         sizeUnit: url.searchParams.get('sizeUnit') ?? undefined,
+        /*
+         * The same id the scan is filed under, which is what makes the prior
+         * this device's own rather than everybody's. An unattributed scan
+         * routes on the unattributed history, which is the honest reading of
+         * "we do not know who this is": it is one bucket, it is disclosed on
+         * the answer like any other route, and it never reaches across to a
+         * device that did identify itself.
+         */
+        deviceId: device,
       });
 
       /*
@@ -761,13 +878,20 @@ const server = createServer(async (req, res) => {
        */
       if (answer.catalogueUp) {
         recordScan({
-          deviceId: url.searchParams.get('deviceId')?.trim() || UNATTRIBUTED,
+          deviceId: device,
           kind: (gtin ? 'barcode' : 'text') as ScanKind,
           query: gtin ?? text ?? '',
           resolvedCode: answer.product?.code ?? null,
           resolvedLabel: answer.product?.name ?? null,
           source: answer.matchedBy,
           outcome: answer.product ? 'answered' : 'refused',
+          /*
+           * What the app decided this was, so the next scan can be routed. It
+           * is category-map.ts's verdict on the product's own tags, taken at
+           * the moment it was made; null when it would not name a kind, and a
+           * null is skipped by the reader rather than counted as a vote.
+           */
+          category: answer.category,
         });
       }
 
@@ -807,13 +931,41 @@ const server = createServer(async (req, res) => {
         // Same ceiling `identify()` obeys: past 90,000 embedded rows a KNN
         // scans the whole table (2.8 microseconds a row, measured), and this
         // endpoint is not exempt just because it shows more than one result.
-        const result = (await searchService.search({ text, limit, vectors: vectorsOn })) as {
+        const query = { text, limit, vectors: vectorsOn };
+        /*
+         * Routed by the same history `/api/identify` used, and the matching
+         * matters here more than the narrowing does.
+         *
+         * This endpoint is what "not this?" calls: a shopper saying the pick
+         * was wrong and asking what else was found. Running it unrouted while
+         * identify ran routed answers a different question from the one that
+         * produced the pick, and the list would then hold rows the pick could
+         * never have come from.
+         */
+        const route = routeFor(url.searchParams.get('deviceId')?.trim() || null);
+        const routed =
+          route && routing
+            ? await routing.restrictedSearch(searchService, query, route)
+            : {
+                result: await searchService.search(query),
+                restricted: false,
+                fellBack: false,
+                confidenceAdjustment: 1,
+              };
+        const result = routed.result as {
           band: 'confident' | 'ambiguous' | 'miss';
           matchedBy: 'gtin' | 'hybrid' | 'none';
           candidates: unknown[];
           ring: unknown;
         };
-        return json(200, { catalogueUp: true, vectorsOn, ...result, ms: Date.now() - started });
+        return json(200, {
+          catalogueUp: true,
+          vectorsOn,
+          ...result,
+          route: routed.restricted ? route : null,
+          fellBack: routed.fellBack,
+          ms: Date.now() - started,
+        });
       } catch (err) {
         // A search that threw is not the same as a search that found nothing;
         // identify() names this distinction too and this endpoint keeps it.
