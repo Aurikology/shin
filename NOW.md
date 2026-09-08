@@ -30,6 +30,13 @@ sentence Shin says, so five of its lines were inline; they are keys with three p
 Both branches had also spent the same five defect numbers on different defects, so DEFECTS.md is
 renumbered with main's numbers standing.
 
+**First 390px pass on this branch**, driven with Playwright because Chrome cannot emulate that
+viewport. Nothing scrolls sideways and no text on the screens this branch touched is under its
+contrast floor in either theme. What it did find is D-045: nearly every control on the price pad
+is under a thumb's size, the keypad's own digits included, on the one screen this product exists
+for. The new affordance was in that list and is fixed; the keypad is a layout decision and is
+not.
+
 Still open on the profile screen and the camera, unchanged by this: the photo path needs a model
 key nobody has set, and D-036 says the cheaper-options ring is not safe to show anybody yet.
 

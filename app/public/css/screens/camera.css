@@ -1377,8 +1377,13 @@
    so muted text takes a colour token and never a fade. */
 .notthis {
   display: block;
-  margin: 2px auto 0;
-  padding: 6px;
+  margin: 0 auto;
+  /* 44px of thumb, 12px of type. Measured at 390 x 844 on 2026-09-08 and it
+     came back 86 x 27, which is a real target on a desktop pointer and a miss
+     in a store with one hand on a cart. The padding buys the height without
+     moving the text, so the sheet's spacing is unchanged. */
+  min-height: 44px;
+  padding: 8px 12px;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
