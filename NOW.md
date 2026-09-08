@@ -5,6 +5,25 @@ narrative.*
 
 ---
 
+## The aisle with no signal answers now, 2026-09-07
+
+**Point the camera at a barcode with the phone offline and it tells you what you are holding.**
+122,101 grocery products come down as a 1.5 MB file the first time the app is opened and stay on
+the phone. A scan asks the server first, because the server is the only one of the two that can
+lead to a price; when the server cannot be reached, the phone's own copy answers with the name,
+the brand and the size, and says plainly that it cannot tell you the price and why. The repair on
+that screen still works: a price typed there is kept and sent when the signal comes back.
+
+**Running that check for the first time is what mattered.** It had been written down when the pack
+was built and never actually performed, and performing it found three things, one of which was
+serious. The camera's barcode reader loads a piece of compiled code when the camera opens; that
+piece was being served in a way the browser refuses, so it was downloaded twice every time, and
+when it could not be downloaded at all the whole camera stopped for good. Not just the barcode:
+the framing box, the coaching lines and the automatic shot all stopped too, and the screen kept
+saying "no barcode there" while pointed straight at one. All three are fixed. The app also loads
+with no signal at all now, which it never did, and that is what makes the offline pack reachable
+rather than a file sitting on a phone behind an app that cannot start.
+
 ## The app counts what it does now, 2026-09-07
 
 **Every scan is written down and read back, and the profile screen shows it.** This is the second

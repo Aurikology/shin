@@ -27,6 +27,7 @@ import { faceBlock, cad, confidenceOf, dotsHtml, tierOf, sellerOf, animateFace, 
 import { say, wordFor } from '../voice.js';
 import * as store from '../store.js';
 import { attachEye } from '../eye-attach.js';
+import { identifyOffline } from '../offline-aisle.js';
 
 /**
  * The four things the viewfinder is ever allowed to say, and the lines they map
@@ -1318,16 +1319,39 @@ export default {
       const priced = catalogueItems.find((i) => i.gtin && sameCode(i.gtin, code));
       if (priced) return priced;
 
-      const id = await ctx.api.identify({ gtin: code });
-      if (!id.catalogueUp) return null;
-      if (!id.product) return null;
-      return {
-        id: id.product.code,
-        text: productLabel(id.product),
-        category: id.category,
-        categoryWhy: id.categoryWhy,
-        gtin: id.product.code,
-      };
+      /*
+       * The server first, always, because it is the only one of the two that
+       * can carry a category and therefore the only one that can lead to a
+       * verdict. The pack is the floor under it, not a faster path around it.
+       */
+      let id = null;
+      try {
+        id = await ctx.api.identify({ gtin: code });
+      } catch {
+        id = null; // No signal. The aisle this app was built for.
+      }
+
+      /*
+       * Two ways to end up with nothing from the server, and the pack can help
+       * with both: the request never landed, and the catalogue is not attached
+       * to the server at all. The third way, `catalogueUp` with no product, is
+       * the catalogue saying it has never seen this code -- and the pack is a
+       * slice of that same catalogue, so it cannot know better. Asking it there
+       * would only spend time to be told the same thing.
+       */
+      if (id && id.catalogueUp && !id.product) return null;
+
+      if (id?.product) {
+        return {
+          id: id.product.code,
+          text: productLabel(id.product),
+          category: id.category,
+          categoryWhy: id.categoryWhy,
+          gtin: id.product.code,
+        };
+      }
+
+      return identifyOffline(code);
     }
 
     /** Brand, name and size, without repeating the brand when the name has it. */
@@ -1522,12 +1546,26 @@ export default {
       } catch (err) {
         clearTimeout(slowTimer);
         if (dead || myGen !== gen) return;
+        /*
+         * The name survives the failure. `item.offline` means the barcode was
+         * answered off the pack on this phone, with the network already down,
+         * so this refusal is that scan's expected ending and not a surprise --
+         * and the one thing worth saying is the thing we do know. Naming the
+         * product here is the whole reason the pack is on the phone; dropping
+         * it into "no confident match", which is what an unset identity prints,
+         * would throw away the answer at the last step.
+         *
+         * It is passed on every path, not just the offline one. Whatever the
+         * price call was going to do, the app always knew what it was pricing.
+         */
         slot.innerHTML = refusalSheet(
           {
             kind: 'refusal',
             reason: 'no_source_response',
-            detail: `I could not reach my own sources just now. ${String(err.message ?? err)}`,
-            identity: null,
+            detail: item.offline
+              ? 'No signal, so I am working off what this phone already had. That tells me what it is and never what it costs, because prices move every week and a stale one is worse than none. Ask me again where there is a bar of signal.'
+              : `I could not reach my own sources just now. ${String(err.message ?? err)}`,
+            identity: item.text ? { label: item.text } : null,
             evidence: [],
           },
           item,

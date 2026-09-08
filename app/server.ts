@@ -175,7 +175,33 @@ const TYPES: Record<string, string> = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.webmanifest': 'application/manifest+json',
+  /*
+   * The barcode reader will not start without this one. A .wasm served as
+   * application/octet-stream makes WebAssembly.instantiateStreaming refuse it
+   * outright ("Incorrect response MIME type"), and the loader's answer is to
+   * fall back to downloading the whole module a second time and compiling it
+   * from an ArrayBuffer. It works, which is why nothing ever showed it, and it
+   * costs a second full download of the reader on every camera mount.
+   */
+  '.wasm': 'application/wasm',
+  '.tflite': 'application/octet-stream',
+  '.map': 'application/json; charset=utf-8',
 };
+
+/**
+ * Third-party binaries that never change without their filename changing.
+ *
+ * Everything else here stays `no-store`, because this is also the dev server
+ * and an edited screen has to be one reload away. These are different: they are
+ * vendored blobs, they are the largest things served, and leaving them
+ * uncacheable is what makes the camera unable to read a barcode with no signal
+ * -- the reader re-fetches its WebAssembly every time it starts, so the moment
+ * the network goes, the scanner aborts and the screen says "no barcode there"
+ * about a barcode it is looking straight at.
+ */
+function longLived(path: string): boolean {
+  return path.includes(`${sep}vendor${sep}`);
+}
 
 /**
  * The catalogue the app can actually answer for.
@@ -846,7 +872,7 @@ const server = createServer(async (req, res) => {
     const file = await readFile(resolved);
     res.writeHead(200, {
       'content-type': TYPES[extname(resolved)] ?? 'application/octet-stream',
-      'cache-control': 'no-store',
+      'cache-control': longLived(resolved) ? 'public, max-age=31536000, immutable' : 'no-store',
     });
     res.end(file);
   } catch (err) {
