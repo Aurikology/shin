@@ -380,6 +380,59 @@ export function recentCategories(deviceId: string, limit = 40): { category: stri
   }
 }
 
+/**
+ * How many times each product was scanned in the last `windowDays`, across
+ * every device.
+ *
+ * This is the seam `price/src/queue.ts` documents and has never been handed:
+ * its `readScanCounts` defaults to an empty map, and with an empty map its own
+ * main result -- scanned products no crawler can reach -- is empty by
+ * construction. The ordering module has been correct and blind since it was
+ * written.
+ *
+ * ACROSS EVERY DEVICE, deliberately, and this is the one place in this file
+ * where that is the right answer. Everything else here is per-device because
+ * it is about a person: their week, their free tier, their correction. This is
+ * about the CATALOGUE -- what the crowd is asking for and cannot be told --
+ * and a per-device count would rank a product ten people scanned once below a
+ * product one person scanned twice.
+ *
+ * A WINDOW, not all history, because the question is what to price NEXT. A
+ * product that was scanned fifty times in March and never since should not
+ * outrank one being scanned today; queue.ts's own interval maths reads this as
+ * "times this week" and the default matches.
+ *
+ * Refusals count here, unlike in `recentCategories`, and the difference is the
+ * point of both. There, a refusal was not evidence about the person. Here, a
+ * scan we could not answer is the single strongest reason to go and price
+ * something. Rows with no resolved code are skipped only because there is no
+ * code for a crawler to act on.
+ *
+ * Never throws. A store that will not open is an empty map, which is exactly
+ * the default queue.ts already handles.
+ */
+export function scanCountsByCode(windowDays = 7, now: Date = new Date()): Map<string, number> {
+  const store = active ?? openScanStore();
+  const counts = new Map<string, number>();
+  try {
+    if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
+    const since = new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000).toISOString();
+    const rows = store.db
+      .prepare(
+        `SELECT resolved_code AS code, COUNT(*) AS n FROM scan
+          WHERE resolved_code IS NOT NULL AND scanned_at >= ?
+          GROUP BY resolved_code`,
+      )
+      .all(since) as unknown as { code: string; n: number }[];
+    for (const row of rows) counts.set(String(row.code), Number(row.n));
+    return counts;
+  } catch (err) {
+    store.dropped += 1;
+    store.droppedWhy = err instanceof Error ? err.message : String(err);
+    return counts;
+  }
+}
+
 /** Reads every row back, oldest first. Test and inspection helper only. */
 export function allScans(store: ScanStore): ScanRow[] {
   if (!store.db) return [];

@@ -28,8 +28,20 @@ without being able to say it did, is the thing the priority-1 rule exists to pre
 Walked at 390px: six grocery scans through the real typed route, then "chips", then "not this?",
 whose list is grocery-only because the same route narrows that call too.
 
-Still uncalled of D-026's four: the crawl ordering, and the capture queue, which waits on the
-photo path and so on a model key nobody has set.
+**The crawl ordering answers too, and its answer is the useful one.** `npm run what-to-price`
+prints, most-scanned first, the products people asked about that nothing here can price. That
+list is the gap between what the crowd wants and what this system can do, and it is what says
+which seller to add next. `nextToPrice` had been able to produce it since it was written and
+never had: the scan reader it takes defaults to empty, and an empty reader makes that result
+empty by construction, so the module answered nothing without ever looking broken.
+
+Running it for the first time found a fault in the report itself. `nextToPrice` returns the same
+empty answer for "no prices database", "no observation table" and "nothing is due", and there is
+no prices database on a fresh checkout, so the first run said every scanned product already had a
+price. The report names the three apart now and refuses to compute rather than reassure.
+
+Still uncalled of D-026's four: only the capture queue, which waits on the photo path and so on a
+model key nobody has set.
 
 ---
 
