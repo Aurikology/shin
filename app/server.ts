@@ -179,6 +179,19 @@ const TYPES: Record<string, string> = {
      parsing -- but an octet-stream is not cacheable the same way and it is the
      kind of thing that works on a desktop and fails behind a proxy. */
   '.woff2': 'font/woff2',
+  /* Added 2026-09-07, and this one is not cosmetic the way the fonts were.
+     Without it a .wasm falls through to application/octet-stream, and
+     `WebAssembly.compileStreaming` refuses an octet-stream outright: the
+     console reads "Incorrect response MIME type. Expected 'application/wasm'"
+     and the loader falls back to buffering the whole module and compiling it
+     from an ArrayBuffer. That works, which is exactly why nobody noticed, but
+     it gives up the streaming compile on a 1.1 MB reader on the one screen
+     the product opens on. Measured in Chrome against this server. */
+  '.wasm': 'application/wasm',
+  /* The on-device detector's model. Named here rather than left to fall
+     through, so the type is a decision rather than an accident if it is ever
+     served. See build-eye.mjs for why it may legitimately be absent. */
+  '.tflite': 'application/octet-stream',
 };
 
 /**
