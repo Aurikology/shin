@@ -122,6 +122,13 @@ already researched · `spine/` the price spine, built by a parallel session · `
 self-improve, decision, weekly-pass, price-by-hand, republish-page · `.claude/hooks/` one guard
 plus its selftest.
 
+**Each package installs its own dependencies.** `app/`, `spine/`, `price/`, `catalogue/` and
+`identify/` each carry a `package.json` and their own `node_modules`, and a fresh worktree has
+none of them. A missing install does not say so: `identify`'s tests failed with
+`Cannot find package '@anthropic-ai/sdk'` for as long as that worktree existed, and `app`'s
+`check` script could not run at all without `spine/node_modules` (D-043). Run `npm install` in the
+package before believing a red suite.
+
 `pages/` files are the sources for the four published web pages. Editing one does not change the
 published page; republishing is a separate step, and `republish-page` has the mechanics.
 
