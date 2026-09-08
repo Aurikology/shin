@@ -127,6 +127,22 @@ published page; republishing is a separate step, and `republish-page` has the me
 
 ## GIT
 
-One remote, `origin`, `gitlab.com/shin3223636/shin`, private. Commits `[scope] description`.
-Never `--force`: Aurik can pull this. Multi-line messages through a file, never a shell heredoc,
-because a backslash does not survive the trip through `bash -c`. Name the paths you stage.
+**NO BRANCHES.** His instruction, 2026-09-07: *"from now on, there will be no branches. For the
+way me and my partner are working, there is no purpose with branches and it just makes things
+more complex."* Two people, both trusted, both pushing: work goes on `main`, commit small, pull
+before you start and push when you stop. Never create a branch, never suggest one, and never
+answer a merge problem by proposing to isolate the work. The cost this removes is real and
+measured: on the day this rule was written, three branches held 31 unmerged commits and 6 files
+that would not merge cleanly, and the newest branch had already rebuilt work sitting on an older
+one. If a conflict appears, resolve it on `main` in the open.
+
+`origin` is `gitlab.com/shin3223636/shin`, private, and it is where `main` tracks. It carries a
+SECOND push URL at `github.com/xu826Jamin/shin`, and there is also a separate `github` remote for
+the same GitHub repo, so one `git push origin main` writes to BOTH hosts. That is deliberate
+backup, not a mistake, but it means a push is never only to GitLab. (Corrected 2026-09-07: this
+section used to say "one remote", which was false and would have made a push look narrower than
+it is.)
+
+Commits `[scope] description`. Never `--force`: Aurik can pull this. Multi-line messages through
+a file, never a shell heredoc, because a backslash does not survive the trip through `bash -c`.
+Name the paths you stage.
