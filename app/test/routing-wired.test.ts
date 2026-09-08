@@ -104,6 +104,31 @@ test('a database written before the column existed gains it, and still reads', (
   assert.deepEqual(recentCategories('d1').map((r) => r.category), ['grocery']);
 });
 
+test('losing the migration race does not turn the scan log off', () => {
+  // Two processes open the same file, both read a table with no `category`, and
+  // both try to add it. The loser used to take `duplicate column name` into the
+  // open, which nulled the handle and silently muted every write and every read
+  // for the life of that process. A column somebody else added is success.
+  const path = fresh();
+  const first = new DatabaseSync(path);
+  first.exec(`CREATE TABLE scan (
+    id INTEGER PRIMARY KEY, device_id TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('barcode','text','photo')),
+    query_text TEXT, resolved_code TEXT, resolved_label TEXT, confidence REAL,
+    source TEXT,
+    outcome TEXT NOT NULL CHECK (outcome IN ('answered','refused','corrected')),
+    corrected_code TEXT, scanned_at TEXT NOT NULL) STRICT`);
+  // The winner of the race, standing in for the other process.
+  first.exec('ALTER TABLE scan ADD COLUMN category TEXT');
+  first.close();
+
+  const store = openScanStore(path);
+  assert.ok(store.db, `the handle was nulled: ${store.droppedWhy}`);
+  assert.equal(store.dropped, 0);
+  recordScan({ deviceId: 'd1', kind: 'text', query: 'x', outcome: 'answered', category: 'grocery' });
+  assert.deepEqual(recentCategories('d1').map((r) => r.category), ['grocery']);
+});
+
 test('a store that will not open is a device with no history, not a throw', () => {
   openScanStore(join(fresh(), 'nested', 'impossible', '\0bad'));
   assert.deepEqual(recentCategories('d1').map((r) => r.category), []);

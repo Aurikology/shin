@@ -150,7 +150,7 @@ function thumbImg(thumb) {
  * `cancel-scan`, which already resets straight to the live viewfinder.
  */
 function backButton(label = 'Back to camera') {
-  return `<button type="button" class="sheet-close" data-act="cancel-scan" aria-label="${label}">
+  return `<button type="button" class="sheet-close" data-act="cancel-scan" aria-label="${escapeHtml(label)}">
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
   </button>`;
 }
@@ -259,7 +259,7 @@ function spreadRail(v) {
   const at = (c) => `${pct(c)}%`;
 
   const marks = v.comparisonSet
-    .map((p) => `<i class="rail-pt" style="left:${at(p.amountCents)}" title="${p.seller}"></i>`)
+    .map((p) => `<i class="rail-pt" style="left:${at(p.amountCents)}" title="${escapeHtml(p.seller)}"></i>`)
     .join('');
 
   const outside = v.askingCents > highCents || v.askingCents < lowCents;
@@ -362,7 +362,7 @@ function provenance(points, askingCents) {
       const isCheapest = p === cheapest;
       const delta = isCheapest ? askingCents - p.amountCents : null;
       return `<div${isCheapest ? ' class="prov-best"' : ''}>
-        <b>${p.seller}</b>
+        <b>${escapeHtml(p.seller)}</b>
         <span>${cad(p.amountCents)} &middot; ${p.observedAt.slice(5)} &middot; ${p.kind}${p.limit ? ` (${p.limit})` : ''}${
           delta !== null && delta > 0 ? ` &middot; ${cad(delta)} less` : ''
         }</span>
@@ -422,8 +422,8 @@ async function fillCheaper(root, code, askingCents) {
             // allergen note a second time, which read as two different warnings
             // about one fact.
             (a) => `<div>
-              <b>${a.product.name}</b>
-              <span>${a.line}</span>
+              <b>${escapeHtml(a.product.name)}</b>
+              <span>${escapeHtml(a.line)}</span>
             </div>`,
           )
           .join('')}
@@ -530,10 +530,10 @@ function verdictSheet(v, scenario, thumb, acked = false) {
 
         <div class="confrow">
           ${dotsHtml(conf.dots)}
-          <span class="conf-label">${conf.label}</span>
+          <span class="conf-label">${escapeHtml(conf.label)}</span>
         </div>
         ${standIn}
-        <p class="itemname">${v.identity.label}</p>
+        <p class="itemname">${escapeHtml(v.identity.label)}</p>
 
         <div class="actions actions-primary">
           <button type="button" class="pill solid wide" data-act="watch">
@@ -544,13 +544,13 @@ function verdictSheet(v, scenario, thumb, acked = false) {
 
       <div class="sheet-half">
         ${spreadRail(v)}
-        ${disagreeShort ? `<p class="disagree">${disagreeShort}</p>` : ''}
+        ${disagreeShort ? `<p class="disagree">${escapeHtml(disagreeShort)}</p>` : ''}
         ${provenance(v.comparisonSet, v.askingCents)}
         ${cheaperSlot(codeOf(v, scenario))}
         <details class="why">
           <summary>Why</summary>
           ${disagreeRest ? `<p class="detail">${disagreeRest}</p>` : ''}
-          <p class="detail">${v.confidence.because}</p>
+          <p class="detail">${escapeHtml(v.confidence.because)}</p>
         </details>
         <div class="actions">
           <button type="button" class="pill ghost" data-act="correct">Correct it</button>
@@ -559,7 +559,7 @@ function verdictSheet(v, scenario, thumb, acked = false) {
       </div>
 
       <div class="sheet-full">
-        ${v.lines.map((l) => `<p class="line">${l}</p>`).join('')}
+        ${v.lines.map((l) => `<p class="line">${escapeHtml(l)}</p>`).join('')}
         <div class="thumbs" role="group" aria-label="Was this verdict right?">
           <button type="button" class="thumb" data-act="thumbs-up" aria-label="This looks right">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3zm0 0 4.5-8a2 2 0 0 1 2 2.2L12.5 9H19a2 2 0 0 1 2 2.4l-1.4 7A2 2 0 0 1 17.6 20H9a2 2 0 0 1-2-2v-7z"/></svg>
@@ -646,6 +646,27 @@ function keepableFrom(r, scenario, askingCents, isThin) {
   };
 }
 
+/*
+ * EVERYTHING TEXTUAL IN THIS FILE'S SHEETS IS ESCAPED AT THE SINK, ADDED
+ * 2026-09-08.
+ *
+ * These builders write their result into `innerHTML`, and until today they
+ * interpolated product labels, sellers, confidence labels and refusal details
+ * raw. One of those carried text the shopper typed: the no-match refusal on the
+ * type-it route puts the typed name into `detail`, so typing an `<img
+ * src=x onerror=...>` into the name field and submitting it executed. Confirmed
+ * against the built markup, not reasoned about.
+ *
+ * The four list screens were converted to `dom.js`'s escaping tag when that hole
+ * was found in `pastscans.js`; this file was not, and it is the one with the
+ * whole primary flow in it.
+ *
+ * ESCAPED AT THE SINK RATHER THAN AT THE SOURCE, on purpose. A sheet builder
+ * cannot tell a catalogue name from something a person typed, and the rule "the
+ * caller escapes" is one every future caller has to remember. The rule here is
+ * that nothing textual reaches `innerHTML` from these functions without going
+ * through `escapeHtml`, which is checkable by reading one file.
+ */
 function refusalSheet(r, scenario, categoryLabels = [], keepable = null) {
   const category = scenario?.category ?? 'this';
   const isCategory = r.reason === 'category_unsupported';
@@ -719,9 +740,9 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null) {
           ${shinSay('unknown', titleKey, titleFacts, { size: 'face-verdict' })}
         </div>
         ${mine}
-        <p class="detail">${isCategory ? categoryShort : r.detail}</p>
+        <p class="detail">${escapeHtml(isCategory ? categoryShort : r.detail)}</p>
         ${repairBlock}
-        <p class="itemname">${r.identity ? r.identity.label : 'No confident match'} &middot; ${refusalLabel(r.reason)}</p>
+        <p class="itemname">${escapeHtml(r.identity ? r.identity.label : 'No confident match')} &middot; ${refusalLabel(r.reason)}</p>
       </div>
       <div class="sheet-half">
         ${r.evidence.length
@@ -773,7 +794,7 @@ function candidateSheet(items) {
           ${items
             .map(
               (i) => `<button type="button" class="cand" data-pick="${i.id}">
-                <span class="cand-name">${i.text}</span>
+                <span class="cand-name">${escapeHtml(i.text)}</span>
                 <span class="cand-meta">${cad(i.askingCents)}${i.askingSeller ? ` &middot; ${i.askingSeller}` : ''}${
                   i.observed ? '' : ' &middot; stand-in'
                 }</span>
@@ -950,7 +971,7 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null) {
           ${shinSay('asking', 'price_pad_prompt', {}, { size: 64 })}
           ${thumbImg(thumb)}
         </div>
-        <p class="itemname">${item.text}</p>
+        <p class="itemname">${escapeHtml(item.text)}</p>
         ${
           item.notThisQuery
             ? `<button type="button" class="pad-textbtn notthis" data-act="notthis">${escapeHtml(
@@ -1014,9 +1035,9 @@ function goingRateCard(refusal, item) {
         <h2 class="vword" style="font-size:20px">Going rate</h2>
         <div class="priceline">
           <span class="price sm">${range}</span>
-          <span class="sub">${cheapest ? `at ${cheapest.seller}<br>` : ''}in ${mkt}, ${sellerWord}</span>
+          <span class="sub">${cheapest ? `at ${escapeHtml(cheapest.seller)}<br>` : ''}in ${mkt}, ${sellerWord}</span>
         </div>
-        <p class="itemname">${label} &middot; no tag typed</p>
+        <p class="itemname">${escapeHtml(label)} &middot; no tag typed</p>
         <div class="actions actions-primary">
           <button type="button" class="pill solid wide" data-act="pad-reopen">Tell me the price</button>
         </div>
@@ -1063,7 +1084,7 @@ function workingSheet(itemLabel, step = 0, opts = {}) {
             (k, i) => `<div class="wstep${i === step ? ' now' : ''}">${i === step ? say(slow ? 'working_slow' : k) : say(k)}</div>`,
           ).join('')}
         </div>
-        <p class="itemname">${itemLabel}</p>
+        <p class="itemname">${escapeHtml(itemLabel)}</p>
       </div>
     </section>`;
 }

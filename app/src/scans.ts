@@ -130,6 +130,28 @@ export function openScanStore(path: string = process.env.SHIN_SCANS ?? 'data/sca
   try {
     if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
     db = new DatabaseSync(path);
+    /*
+     * WAIT FOR A WRITE LOCK RATHER THAN GIVING UP ON ONE.
+     *
+     * Opening this file runs DDL, and DDL takes the write lock. More than one
+     * process opens it -- the server, `npm run what-to-price`, and this repo's
+     * concurrent sessions -- so two opens can collide on it. Measured on
+     * 2026-09-08 with ten processes opening one unmigrated file at once: one
+     * of the ten failed with `database is locked`.
+     *
+     * The cost of that failure is out of all proportion to its cause. The
+     * throw lands in the catch below, which nulls the handle, and a null
+     * handle is permanent for the life of the process: every scan becomes a
+     * counted drop, `recentCategories` returns empty so every search silently
+     * stops being routed, and the profile screen reports zeroes. All of it
+     * from losing a race by a few milliseconds.
+     *
+     * Five seconds is far longer than any statement here takes and far shorter
+     * than a person waits for a scan. It is a busy timeout, not a retry loop:
+     * SQLite blocks the one statement that needs the lock and gives it up the
+     * moment the other writer commits.
+     */
+    db.exec('PRAGMA busy_timeout = 5000');
     db.exec('PRAGMA journal_mode = WAL');
     db.exec(DDL);
     /*
@@ -145,7 +167,41 @@ export function openScanStore(path: string = process.env.SHIN_SCANS ?? 'data/sca
      */
     const columns = db.prepare('PRAGMA table_info(scan)').all() as { name: string }[];
     if (!columns.some((c) => c.name === 'category')) {
-      db.exec('ALTER TABLE scan ADD COLUMN category TEXT');
+      /*
+       * THE ALTER GETS ITS OWN CATCH, BECAUSE THE READ ABOVE IT AND THE WRITE
+       * HERE ARE NOT ONE OPERATION.
+       *
+       * Two processes opening this file at once -- the server and
+       * `npm run what-to-price`, or two of this repo's concurrent sessions --
+       * can both read a table with no `category` and both try to add it. The
+       * loser gets `duplicate column name: category`.
+       *
+       * Without this catch that throw escapes into the open above, which sets
+       * `db = null` and turns the whole scan log off for the life of the
+       * process: every write becomes a counted drop, `recentCategories`
+       * returns empty so every route falls back to searching everything, and
+       * the profile screen reports zeroes. All of it silent, and all of it
+       * from losing a race that changed nothing, because the column the loser
+       * wanted is now there.
+       *
+       * So a duplicate column is success arriving from somebody else. Anything
+       * else is rethrown and does null the handle, which is correct: a table
+       * that cannot take the column is not a scan log this code can use.
+       */
+      try {
+        db.exec('ALTER TABLE scan ADD COLUMN category TEXT');
+      } catch (err) {
+        /*
+         * The question is not which error this was, it is whether the column
+         * is there now. `duplicate column name` means somebody else added it
+         * and this process is fine; a lock that outlasted the busy timeout
+         * means it is not there and this handle cannot be trusted. Reading the
+         * table back answers both without matching on message text, which is
+         * the part that would rot the day the driver rewords itself.
+         */
+        const again = db.prepare('PRAGMA table_info(scan)').all() as { name: string }[];
+        if (!again.some((c) => c.name === 'category')) throw err;
+      }
     }
   } catch (err) {
     db = null;

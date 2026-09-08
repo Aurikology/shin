@@ -731,7 +731,39 @@ function readBody(
 }
 
 const server = createServer(async (req, res) => {
-  const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+  /*
+   * THE HOST HEADER IS NOT PARSED, AND THAT IS THE FIX RATHER THAN THE
+   * SHORTCUT.
+   *
+   * This line used to interpolate `req.headers.host` into the base URL, and it
+   * sat outside the try below, in an async handler. A request whose Host does
+   * not parse as an authority -- `Host: [zzz` is enough -- threw
+   * ERR_INVALID_URL as an unhandled rejection, which on Node 24 kills the
+   * process. One packet, no body, no credentials, and the server is gone for
+   * everybody. Reproduced against this file on 2026-09-08: 200, one socket
+   * write, then ECONNREFUSED on every connection after it.
+   *
+   * Nothing in this file reads the host. Every route matches on pathname and
+   * searchParams, and every response is relative. So the base is a constant
+   * placeholder that exists only to make the URL parser work on a path, and
+   * the attacker-controlled header is not part of it at all. Keeping the host
+   * and wrapping the parse in a try would answer 400 instead of dying, which
+   * is better, but it would leave a value nothing needs in the one expression
+   * that runs before any error handling exists.
+   *
+   * `req.url` on a server request is a path, never absolute, so the parse
+   * cannot fail on it -- but it is wrapped anyway, because that argument is
+   * exactly the kind that was true until a proxy sent an absolute-form request
+   * line.
+   */
+  let url: URL;
+  try {
+    url = new URL(req.url ?? '/', 'http://localhost');
+  } catch {
+    res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ error: 'that request line could not be read as a path' }));
+    return;
+  }
 
   const json = (status: number, body: unknown) => {
     const payload = JSON.stringify(body);
