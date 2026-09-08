@@ -686,3 +686,13 @@ One line each, with the reason.
     refusal. **Rows 32 and 33 of section 3 split that string into a v1 form that says what Shin
     saved and a dark form that promises, shipped with the feed.** The build pass makes that change
     in `voice.js`; it is recorded here because this file is where the conflict was found.
+
+    **Closed 2026-09-07. The build pass made the change and this entry did not catch up.**
+    `voice.js` now carries both forms: `watching` is the v1 one and says only facts already on
+    screen, "Saved at $13.49, Metro, today"; `watching_feed` is the dark one and holds the
+    promise. `say()` picks between them on `FLAGS.feed`, which is `false`, and nothing outside
+    `voice.js` names the dark key, whose own comment reads "Never call this key directly."
+    Verified on `main` and on `feature/ui-excellence`; neither ships a promise. Left in place
+    rather than deleted because the split it asked for is the thing that shipped, and because
+    an open item that was silently satisfied is worth seeing once. **Reverses if** `FLAGS.feed`
+    is ever set true without the dark strings being re-read first.

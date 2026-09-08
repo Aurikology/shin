@@ -65,7 +65,7 @@ Parts of it are built and they are split out below so that neither fact hides th
 
 The honest state, in numbers that come from the spine's own output:
 
-- The spine runs. `cd C:\shin\spine && npm test` passes **32 of 32 tests**, and
+- The spine runs. `cd C:\shin\spine && npm test` passes **58 of 58 tests**, and
   `node src/cli.ts corpus` produces a report.
 - The corpus holds **7 items**, not the 100 the gate requires. Those 7 are the real hand-priced
   pilot from 2026-09-03.
@@ -85,6 +85,7 @@ band 1 has not passed and cannot pass yet.
 | **1.2 Fill the corpus to 100 hand-priced items** | `queued` | `spine/data/corpus.json` holds 100 items, each priced by hand from a named public source, and `gateRunnable` in the scoreboard output flips to `true`. **Hand work. This cannot be delegated to an agent**, because an agent asking a search engine for a live price is the exact method the 2026-09-03 pilot showed to be broken. | It has no separate falsifier and does not need one. It exists only to make band 1's gate runnable, so band 1's falsifier is its falsifier. | Not applicable while queued. |
 | **1.3 Fresh-agent check of 20 verdicts against live sources** | `queued`, blocked on 1.2 | The master plan's own test: one hundred items run through the spine, then a fresh agent takes twenty of those verdicts and goes and checks them against live sources. The agent gets the verdicts and nothing else, no project instructions loaded. | "Killed if it cannot comfortably beat the pilot's 2 of 7, in which case the next category is tried rather than the logic patched." Carried from the plan. Note that the threshold itself is uncertain by one item until defect D-001 is settled. | Not applicable while queued. |
 | **1.4 What one Best Buy or Keepa token actually buys** | `queued` | Run `spine/src/sources/bestbuy.ts` against the live endpoint with a real key. Two answers get written down: whether the base URL serves Canadian pricing, and what one token buys per lookup and per day. The source's `verified` flag flips to `true` and the result goes in the scoreboard, or the source is killed. | The token buys fewer lookups than a category needs, or the endpoint serves US pricing only, in which case tech needs a different source and this adapter is killed rather than patched. **[written here. The plan records the same thing as unestablished rather than as a gate: "whether one token of the Amazon price API buys one product lookup, which is what would turn its throughput ceiling from unknown into known"]** | Not applicable while queued. |
+| **1.4b What one SoldComps request actually returns for ebay.ca** | `queued` | Run `spine/src/sources/soldcomps.ts` against the live endpoint with a real key, on the corpus's used items (the POÄNG and the Canon). Four numbers get written down for each: how many ebay.ca sold listings the 90-day window holds, how many of those are 30 days old or newer, which is the only age the used rule tiers on, what share come back in a currency other than CAD and are therefore dropped, and how many survive the parts-only and identity guards. The source's `verified` flag flips to `true` and the result goes in the scoreboard, or the source is killed. Free tier is 100 requests a month, so the run is budgeted at 10. | ebay.ca holds fewer than four sold listings inside 30 days for either item, which is what the used rule needs before a sold basis replaces an asking one, or most of what it holds is priced in USD, in which case used goods need a different sold-price feed and this adapter is killed rather than converted. Currency conversion is not a repair: a converted sale is a number nobody observed. **[written here]** | Not applicable while queued. |
 | **1.5 Band 1 itself** | `queued` | 1.2, 1.3 and 1.4 all done, and the fresh agent's check comfortably beats 2 of 7. | "Killed if it cannot comfortably beat the pilot's 2 of 7." That is the plan's second exit, killed on the price before any interface exists, and it costs one pass. | Not applicable while queued. |
 
 **What `built` does and does not cover on 1.1.** The plan's definition of built has two halves:
@@ -94,10 +95,12 @@ not exist. Its only consumer today is the corpus harness, which is code that was
 alongside it. Treat 1.1 as built on its test and unchecked by its real consumer, and expect the
 first band 3 lane to be the thing that actually tests it.
 
-**The adapter that has never run.** `spine/src/sources/bestbuy.ts` is written and has never
-been executed. Its `verified` flag is `false` and must stay false until 1.4 runs it. This
-matters more than it looks: an unverified adapter that returns nothing looks exactly like a
-category that has no prices.
+**The adapters that have never run.** `spine/src/sources/bestbuy.ts` and
+`spine/src/sources/soldcomps.ts` are written and have never been executed. Their `verified`
+flags are `false` and must stay false until 1.4 and 1.4b run them. This matters more than it
+looks: an unverified adapter that returns nothing looks exactly like a category that has no
+prices. SoldComps is the only route in the tree to a `sold` basis, which the used rule ranks
+above every asking price, and the corpus today holds zero sold prices.
 
 ---
 
