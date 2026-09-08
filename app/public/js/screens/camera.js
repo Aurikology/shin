@@ -330,6 +330,88 @@ function provenance(points, askingCents) {
     .join('')}</div>`;
 }
 
+/**
+ * Where the cheaper swaps go, drawn empty and filled when they arrive.
+ *
+ * IN THE HALF DETENT, NOT THE PEEK, and that is the whole reason this is a
+ * placeholder rather than a late `insertAdjacentHTML`. The list arrives after
+ * the verdict, so wherever it lands it lands under somebody's eyes; landing
+ * below the fold means the reflow happens on a part of the sheet nobody is
+ * reading yet. Nothing here animates: this appears on every verdict, which is
+ * the loop of the whole product, and motion on the thing you see most is the
+ * first motion to become noise.
+ *
+ * Nothing at all is drawn without a barcode, because the lookup is keyed on one
+ * and an empty box that could never fill is worse than no box.
+ */
+function cheaperSlot(code) {
+  if (!code) return '';
+  return `<div class="cheaper" data-cheaper><p class="detail">Looking for a cheaper one&hellip;</p></div>`;
+}
+
+/**
+ * Paints the swaps into the slot the sheet left for them.
+ *
+ * The row sentence is the server's, printed as written. The rule about what
+ * counts as cheaper lives in the catalogue package, and a screen that
+ * paraphrases it is a second place that can be wrong about the same thing.
+ *
+ * An empty result still says something, in one quiet line, because "there is
+ * nothing cheaper we can price" and "we did not look" are different facts and
+ * silence would read as the second.
+ */
+async function fillCheaper(root, code, askingCents) {
+  const box = root.querySelector('[data-cheaper]');
+  if (!box || !code || typeof askingCents !== 'number') return;
+  try {
+    const r = await ctxApi.alternatives({ code, askingCents });
+    if (!box.isConnected) return;
+    if (!r.alternatives.length) {
+      box.innerHTML = `<p class="detail">${r.heading}</p>`;
+      return;
+    }
+    box.innerHTML = `
+      <p class="detail">${r.heading}</p>
+      <div class="prov">
+        ${r.alternatives
+          .map(
+            // Name and the server's sentence, and nothing else. The sentence
+            // already carries the seller, the price, the date it was seen and
+            // the allergen caveat; an earlier version of this row appended the
+            // allergen note a second time, which read as two different warnings
+            // about one fact.
+            (a) => `<div>
+              <b>${a.product.name}</b>
+              <span>${a.line}</span>
+            </div>`,
+          )
+          .join('')}
+      </div>`;
+  } catch {
+    // A lookup that threw is not "there is nothing cheaper". Saying so, rather
+    // than leaving the placeholder sentence up forever, which would read as a
+    // search still running.
+    if (box.isConnected) box.innerHTML = `<p class="detail">I could not check for a cheaper one.</p>`;
+  }
+}
+
+/** Set once when the screen renders, so the two helpers above can reach the API. */
+let ctxApi = null;
+
+/**
+ * The barcode this verdict is about, or null.
+ *
+ * Three places hold it and none of them holds it always: the judge's own
+ * identity when the spine resolved one, the code read off the package on the
+ * barcode route, and the catalogue row's code on the typed route. Taking the
+ * first that exists is not a fallback chain papering over a bug; those are
+ * three genuinely different ways a person can arrive at the same product, and
+ * only one of them fires per scan.
+ */
+function codeOf(v, scenario) {
+  return v?.identity?.gtin ?? scenario?.scannedGtin ?? scenario?.gtin ?? null;
+}
+
 function verdictSheet(v, scenario, thumb, acked = false) {
   const conf = confidenceOf(v);
   const source = sellerOf(v);
@@ -421,6 +503,7 @@ function verdictSheet(v, scenario, thumb, acked = false) {
         ${spreadRail(v)}
         ${disagreeShort ? `<p class="disagree">${disagreeShort}</p>` : ''}
         ${provenance(v.comparisonSet, v.askingCents)}
+        ${cheaperSlot(codeOf(v, scenario))}
         <details class="why">
           <summary>Why</summary>
           ${disagreeRest ? `<p class="detail">${disagreeRest}</p>` : ''}
@@ -838,6 +921,9 @@ export default {
   title: 'Shin',
 
   render(root, ctx) {
+    // The two sheet-filling helpers above sit outside this method because the
+    // sheet builders do, and they need the same API this render was handed.
+    ctxApi = ctx.api;
     root.innerHTML = `
       <div class="cam" data-state="idle">
         <div class="feed">
@@ -1391,11 +1477,20 @@ export default {
         }
         const result = await ctx.api.price({
           text: item.text,
-          // Only when the package published it. See onBarcode: this is the
-          // single strongest identity signal the app ever holds, and without it
-          // the judge re-derives identity from the words and doubts itself on a
-          // product it was just handed the barcode for.
-          gtin: item.scannedGtin,
+          // The single strongest identity signal the app ever holds, and
+          // without it the judge re-derives identity from the words and doubts
+          // itself on a product it was just handed the code for.
+          //
+          // BOTH FIELDS, and that is the fix for a defect this line's own
+          // comment described while the line caused it. `scannedGtin` is set
+          // only by the raw barcode read. The two routes that resolve a code
+          // out of the catalogue, a barcode we had to look up and a typed
+          // search, both write `gtin` instead, so their code was dropped here
+          // and every one of their scans went to the judge as words. Walking
+          // the typed route on Lay's Classic, a product with fresh prices under
+          // its own barcode, returned "Not sure enough this is the right
+          // groceries and household" instead of a verdict.
+          gtin: item.scannedGtin ?? item.gtin,
           category: item.category,
           askingCents,
           // Always, when there is a price to attribute. The store being
@@ -1409,6 +1504,10 @@ export default {
         store.recordVerdict(result, { text: item.text, askingCents, thumb: scanThumb });
         if (result.kind === 'verdict') {
           slot.innerHTML = verdictSheet(result, item, scanThumb);
+          // Not awaited: the verdict is the answer and must not wait on a
+          // second lookup. The swaps land in the half detent, below the fold,
+          // whenever they arrive.
+          void fillCheaper(slot, codeOf(result, item), result.askingCents);
           // Row 83: the verdict landing, once, right here.
           buzz(16);
         } else if (result.reason === 'no_asking_price') {
@@ -1582,6 +1681,9 @@ export default {
         // the repaint.
         const prevDetent = slot.querySelector('.sheet')?.dataset.detent;
         slot.innerHTML = verdictSheet(v, last.scenario, last.thumb ?? null, !wasSaved);
+        // The sheet was rebuilt from scratch by the save, so the swaps have to
+        // be fetched again: they live in the markup that was just replaced.
+        void fillCheaper(slot, codeOf(v, last.scenario), v.askingCents);
         const nextSheet = slot.querySelector('.sheet');
         if (nextSheet && prevDetent) nextSheet.dataset.detent = clampDetent(nextSheet, prevDetent);
         return;

@@ -30,8 +30,31 @@ the first cap written for it answered with a hang-up rather than a status, which
 correction queue would have retried forever.
 
 Still uncalled, and the next of this shape: the offline aisle has no screen importing it, the
-ranked-candidate search and the cheaper-options route have no caller, and the camera still shows a
-hand-written list because the photo path needs a model key nobody has set.
+ranked-candidate search has no caller, and the camera still shows a hand-written list because the
+photo path needs a model key nobody has set.
+
+## Two bugs the walk found, and they were bigger than the feature, 2026-09-07
+
+**The app was identifying a product by its barcode and then throwing the barcode away.** Every
+scan that went through the catalogue, by code or by name, reached the judge as words only, and the
+judge did the right thing with words and said it was not sure enough. Walking the typed route on
+Lay's Classic, a product we hold fresh prices for under its own barcode, produced a refusal.
+Fixed, and the line that caused it had a comment on it explaining why it must never happen.
+
+**Then fixing that made things worse, and that is the second bug.** With the code restored, a
+barcode we hold no prices for made the answer go from "pick the right one" to "no clue", because
+identity stopped the moment a code resolved nothing. More information, worse answer, which is the
+one shape the first rule of this project forbids. The words now get their own attempt when a code
+comes back empty. Most catalogue codes have no prices, so without this the first fix would have
+made most scans worse.
+
+**Cheaper options is wired and it shows nothing, and that is the honest state.** Zero of the sixty
+most-priced products in the store both produce a verdict and have a cheaper option, so the block
+prints its one line saying so. Supply is the cap, exactly as the vision says. One thing to know
+before this is ever shown to anybody: the single populated result the store can produce offers
+ginger oat cookies as the cheaper option for tortilla chips, because the swap is drawn on one
+shared category tag. The price, the shop and the date on that row are true; the word cheaper is
+the part that lies, because it implies "instead of this".
 
 ## Read this first, 2026-09-06
 

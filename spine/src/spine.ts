@@ -238,10 +238,41 @@ async function resolveIdentity(
     : sources;
   const found = await Promise.all(eligible.map((s) => s.identify(query).catch(() => null)));
   const hits = found.filter((i): i is ProductIdentity => i !== null);
-  if (hits.length === 0) return null;
-  // Highest confidence wins. Ties keep source order, which is registry order,
-  // which is the order a human decided sources should be trusted in.
-  return hits.reduce((a, b) => (b.confidence > a.confidence ? b : a));
+  if (hits.length > 0) {
+    // Highest confidence wins. Ties keep source order, which is registry order,
+    // which is the order a human decided sources should be trusted in.
+    return hits.reduce((a, b) => (b.confidence > a.confidence ? b : a));
+  }
+
+  /*
+   * A code we have never seen is a gap in our prices, not a failure to know
+   * what the person is holding. So the words get their own attempt.
+   *
+   * WHY THIS EXISTS. A source that resolves by code returns nothing for a code
+   * it has no rows for, and a query carrying one used to stop right there: no
+   * identity, "could not work out what this is", nothing to tap. The same query
+   * with the code removed resolves by name and comes back with a candidate and
+   * a repair. So handing the judge MORE information made the answer worse,
+   * which is the exact shape priority 1 forbids.
+   *
+   * Found 2026-09-07 by walking the app: the screen had been dropping the code
+   * on both catalogue-resolved routes, and fixing that turned "pick the right
+   * one" into "no clue" for every product whose barcode we hold no price for,
+   * which is most of them.
+   *
+   * The retry cannot loop: it only runs when a gtin was given, and it removes
+   * it. Nothing here invents an identity; if the words resolve nothing either,
+   * the answer is still null and the refusal above still stands.
+   */
+  if (query.gtin && query.text) {
+    const byWords = await Promise.all(
+      eligible.map((s) => s.identify({ ...query, gtin: undefined }).catch(() => null)),
+    );
+    const wordHits = byWords.filter((i): i is ProductIdentity => i !== null);
+    if (wordHits.length > 0) return wordHits.reduce((a, b) => (b.confidence > a.confidence ? b : a));
+  }
+
+  return null;
 }
 
 async function gatherPoints(
