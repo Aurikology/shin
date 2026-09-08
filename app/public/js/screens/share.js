@@ -18,36 +18,216 @@
  *
  * The card is drawn on a canvas rather than in DOM, so what is on screen is the
  * exported PNG pixel for pixel rather than an approximation of it.
+ *
+ * WHY THIS FILE HAS COPIES OF THE TOKENS AT ALL. A canvas cannot cascade. Every
+ * colour and every font has to arrive as a resolved literal, so this is the one
+ * file in the app where a token value is written down twice, and therefore the
+ * one file where the two copies can disagree. They did: `--ink-faint` moved on
+ * 2026-09-05 for failing contrast at 4.31 and the fallback here stayed on the
+ * abandoned #6E7783, and `--walk` and `--unknown` moved on 2026-09-06 and would
+ * have done the same. See the loudness rule on `reader()` below and
+ * `test/share-tokens.test.mjs`, which is what actually holds the two in step.
  */
 
 import { faceSvg, shinSay, cad, confidenceOf, tierOf, sellerOf, SIZE_TOKENS } from '../shin.js';
 import { wordFor, say } from '../voice.js';
+import { on } from '../lib/dom.js';
 
 const W = 1080;
 const H = 1350;
 
-/** Read the live theme, so the card matches the app the user is looking at. */
-function palette(tierId) {
+/*
+ * The colour tokens the card needs, per theme, exactly as `public/css/tokens.css`
+ * defines them. `dark` is the `:root` block; `light` is `:root[data-theme="light"]`
+ * layered over it, so a token light theme does not re-declare -- `--brand`, and
+ * every `-on` colour -- carries the dark value here the same way it does in the
+ * cascade. tokens.css is the source and this table is the copy; when they differ
+ * the test fails and the table is what gets fixed.
+ */
+const TOKENS = {
+  '--ground':     { dark: '#0B0C0E', light: '#F3F1EC' },
+  '--surface':    { dark: '#16181C', light: '#FFFFFF' },
+  '--hairline':   { dark: '#2E333A', light: '#E2DDD5' },
+  '--ink':        { dark: '#F7F5F2', light: '#14161A' },
+  '--ink-muted':  { dark: '#A5ADB8', light: '#5E6570' },
+  '--ink-faint':  { dark: '#848D99', light: '#606771' },
+  '--brand':      { dark: '#E5165E', light: '#E5165E' },
+  '--good':       { dark: '#12B76A', light: '#109F5C' },
+  '--fair':       { dark: '#E8A020', light: '#BA801A' },
+  '--walk':       { dark: '#C23619', light: '#C23619' },
+  '--unknown':    { dark: '#5E6770', light: '#5E6770' },
+  '--good-on':    { dark: '#04140C', light: '#04140C' },
+  '--fair-on':    { dark: '#1A1204', light: '#1A1204' },
+  '--walk-on':    { dark: '#FFFFFF', light: '#FFFFFF' },
+  '--unknown-on': { dark: '#F7F5F2', light: '#F7F5F2' },
+};
+
+/*
+ * The type tokens, same deal. These live only in the `:root` block -- neither
+ * light block re-declares one -- so they have a single value rather than a pair,
+ * and the test checks them against `:root` alone.
+ *
+ * `--t-price-size` has a second value under `@media (max-width: 379px)`, which
+ * is why no size except the label's is read from a token here: the card is a
+ * fixed 1080px artboard and must not change with the phone it was made on.
+ */
+const TYPE = {
+  '--f-display': '"Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif',
+  '--f-ui': '"Instrument Sans", "Helvetica Neue", Arial, sans-serif',
+  '--f-mono': '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace',
+  '--t-price-weight': '800',
+  '--t-price-track': '-.03em',
+  '--t-verdict-weight': '800',
+  '--t-verdict-track': '-.02em',
+  '--t-body-weight': '400',
+  '--t-body-leading': '1.45',
+  '--t-row-weight': '600',
+  '--t-label-size': '11px',
+  '--t-label-weight': '600',
+  '--t-label-track': '.12em',
+};
+
+/**
+ * Development, for the purposes of "fail loudly rather than draw the wrong
+ * colour". Deliberately host-based rather than a flag: a flag would have to be
+ * remembered, and the whole class of bug this guards against is the one nobody
+ * remembered to check.
+ */
+const DEV =
+  typeof location !== 'undefined' &&
+  (/^(localhost|127\.0\.0\.1|\[?::1\]?)$/.test(location.hostname) ||
+    location.hostname.endsWith('.local') ||
+    location.protocol === 'file:');
+
+class MissingTokenError extends Error {
+  constructor(name) {
+    super(`${name} did not resolve from the live stylesheet`);
+    this.name = 'MissingTokenError';
+  }
+}
+
+/** dark or light, resolved the way the cascade resolves it. */
+function themeNow() {
+  const chosen = document.documentElement.dataset.theme;
+  if (chosen === 'light' || chosen === 'dark') return chosen;
+  return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+/**
+ * One reader for every token the card draws with.
+ *
+ * The old shape was `pick('--x', '#hex')` with the hex inline at the call site,
+ * which is how the stale `--ink-faint` survived a day: a wrong fallback is
+ * invisible, because the computed value is almost always present and so the
+ * wrong branch is almost never taken. This inverts that. In development a token
+ * that does not resolve THROWS, drawCard's caller catches it, and the card
+ * visibly becomes the text version with a line naming the token. In production
+ * it still falls back rather than showing a user nothing -- but it logs, and the
+ * literal it falls back to is the one the test keeps current.
+ *
+ * A share card is the one artefact that leaves the app and gets screenshotted.
+ * It drifting is worse than it failing.
+ */
+function reader() {
   const cs = getComputedStyle(document.documentElement);
-  const pick = (name, fallback) => (cs.getPropertyValue(name) || '').trim() || fallback;
-  const map = {
-    good: ['--good', '#12B76A'],
-    fair: ['--fair', '#E8A020'],
-    walk_away: ['--walk', '#F0431F'],
-    unknown: ['--unknown', '#78848F'],
-  };
-  const [tv, tf] = map[tierId] ?? map.unknown;
-  return {
-    ground: pick('--ground', '#0B0C0E'),
-    surface: pick('--surface', '#16181C'),
-    hairline: pick('--hairline', '#2E333A'),
-    ink: pick('--ink', '#F7F5F2'),
-    muted: pick('--ink-muted', '#A5ADB8'),
-    faint: pick('--ink-faint', '#6E7783'),
-    brand: pick('--brand', '#E5165E'),
-    tier: pick(tv, tf),
+  const theme = themeNow();
+  return function read(name) {
+    const live = (cs.getPropertyValue(name) || '').trim();
+    if (live) return live;
+    const table = TOKENS[name];
+    const stale = table ? table[theme] : TYPE[name];
+    // No literal at all is a programming error in this file, in either mode.
+    if (stale === undefined) throw new MissingTokenError(name);
+    if (DEV) throw new MissingTokenError(name);
+    console.error(`share card: ${name} did not resolve; drawing the ${theme} literal ${stale}`);
+    return stale;
   };
 }
+
+/** Read the live theme, so the card matches the app the user is looking at. */
+function palette(read, tierId) {
+  const tierVar = { good: '--good', fair: '--fair', walk_away: '--walk' }[tierId] ?? '--unknown';
+  return {
+    ground: read('--ground'),
+    surface: read('--surface'),
+    hairline: read('--hairline'),
+    ink: read('--ink'),
+    muted: read('--ink-muted'),
+    faint: read('--ink-faint'),
+    brand: read('--brand'),
+    tier: read(tierVar),
+    tierOn: read(`${tierVar}-on`),
+  };
+}
+
+/*
+ * The card's type, reconciled against DESIGN.md section 2.
+ *
+ * WHAT THE CARD TAKES FROM THE SPEC AND WHAT IT KEEPS. The spec's table gives
+ * each role a family, a weight and a tracking together, because that triple is
+ * what makes a price hero a price hero. The canvas took none of it: it declared
+ * its own three font builders re-listing families already in tokens.css, set no
+ * tracking anywhere at all, spaced the label role at 5px on 22px (.227em)
+ * against the spec's .12em, and drew the item name in Bricolage, which section 2
+ * reserves for "the price numeral and the verdict word. Nothing else."
+ *
+ * So every triple below is now read from the `--t-*` role tokens. The SIZES are
+ * still the card's own, and that is a decision rather than an omission. The
+ * app's hierarchy puts the price hero on top because the user is standing in a
+ * shop looking at a tag; the card's hierarchy puts the verdict word on top
+ * because it is a post. And the card carries TWO prices side by side in one box
+ * where the viewfinder carries one alone -- the spec's 72px hero at this
+ * artboard's scale is 199px, and no realistic price fits a 422px column at that
+ * size. Sizes are named constants below rather than numbers inline, so the next
+ * person can see there is a ramp and what it is.
+ *
+ * The one size that IS taken from the spec is the label, because a label has a
+ * floor rather than a hierarchy: 11px, at the artboard's scale.
+ *
+ * DESIGN.md's other rule that lands here: two prices, never the arithmetic
+ * between them. Nothing below computes a saving and nothing may.
+ */
+const CARD_SCALE = W / 390; // the artboard measured against a phone's own width, 2.77
+
+function typeset(read) {
+  const em = (name, size) => `${(parseFloat(read(name)) || 0) * size}px`;
+  return {
+    display: read('--f-display'),
+    ui: read('--f-ui'),
+    mono: read('--f-mono'),
+
+    priceWeight: read('--t-price-weight'),
+    priceTrack: (size) => em('--t-price-track', size),
+    verdictWeight: read('--t-verdict-weight'),
+    verdictTrack: (size) => em('--t-verdict-track', size),
+    bodyWeight: read('--t-body-weight'),
+    bodyLeading: parseFloat(read('--t-body-leading')) || 1.45,
+    rowWeight: read('--t-row-weight'),
+    labelSize: Math.round((parseFloat(read('--t-label-size')) || 11) * CARD_SCALE), // 11 -> 30
+    labelWeight: read('--t-label-weight'),
+    labelTrack: (size) => em('--t-label-track', size),
+  };
+}
+
+/* The card's own ramp. Not the spec's -- see the block comment above. */
+const SIZE = {
+  verdict: 108,   // the largest text on the card, because the card is a post
+  line: 38,       // Shin's own sentence, the part people quote
+  item: 46,       // the product name
+  price: 76,      // both price columns; the short size below when the figure is long
+  priceLong: 56,
+  wordmark: 42,
+};
+/*
+ * The seller, and the range, under each price. NOT a constant: it is the label
+ * size, because the label is this card's floor. It was 24px, which at the size
+ * a feed shows a 1080px card is 8.7 CSS px -- smaller than the 11px label, which
+ * is the smallest thing DESIGN.md section 2 defines anywhere, and smaller than
+ * the kicker directly above it, which inverted the two. Body at the artboard's
+ * scale would be 44px and would fight the price beside it, so the sub sits on
+ * the floor rather than at its role's own size.
+ */
+const subSize = (f) => f.labelSize;
 
 /**
  * Shin's face as a bitmap.
@@ -66,6 +246,16 @@ function faceImage(expression, size, ink, who) {
     img.onerror = () => resolve(null);
     img.src = src;
   });
+}
+
+/**
+ * Canvas tracking is a context property rather than part of the font shorthand,
+ * and it is not supported everywhere. Every call site goes through here so that
+ * none of them has to carry its own copy of the guard, and none of them can
+ * forget to put the value back.
+ */
+function track(g, value) {
+  if ('letterSpacing' in g) g.letterSpacing = value;
 }
 
 function wrap(g, text, maxWidth, maxLines) {
@@ -94,13 +284,10 @@ function wrap(g, text, maxWidth, maxLines) {
   return lines;
 }
 
-const display = (weight, px) =>
-  `${weight} ${px}px "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif`;
-const ui = (weight, px) => `${weight} ${px}px "Instrument Sans", "Helvetica Neue", Arial, sans-serif`;
-const mono = (weight, px) => `${weight} ${px}px "IBM Plex Mono", ui-monospace, Menlo, monospace`;
-
 async function drawCard(canvas, card) {
-  const t = palette(card.tierId);
+  const read = reader();
+  const t = palette(read, card.tierId);
+  const f = typeset(read);
   const g = canvas.getContext('2d');
   canvas.width = W;
   canvas.height = H;
@@ -124,7 +311,7 @@ async function drawCard(canvas, card) {
     g.strokeRect(3, 3, W - 6, 757);
     g.setLineDash([]);
   }
-  const onBand = solid ? card.tierOn : t.tier;
+  const onBand = solid ? t.tierOn : t.tier;
 
   g.textAlign = 'center';
 
@@ -134,18 +321,25 @@ async function drawCard(canvas, card) {
   const img = await faceImage(card.expression, faceSize, onBand, card.who);
   if (img) g.drawImage(img, mid - faceSize / 2, 108, faceSize, faceSize);
 
-  // The verdict word, the largest text on the card.
+  // The verdict word, the largest text on the card. Verdict role: display, 800,
+  // -.02em, sentence case -- `wordFor` returns it already cased and nothing
+  // here shouts it.
   g.fillStyle = onBand;
-  g.font = display(800, 108);
+  g.font = `${f.verdictWeight} ${SIZE.verdict}px ${f.display}`;
+  track(g, f.verdictTrack(SIZE.verdict));
   g.fillText(card.word, mid, 520);
+  track(g, '0px');
 
-  // Shin's own sentence, which is the part people quote.
-  g.font = ui(500, 38);
-  wrap(g, card.line, W - pad * 2, 2).forEach((l, i) => g.fillText(l, mid, 588 + i * 50));
+  // Shin's own sentence, which is the part people quote. Body role: UI face,
+  // 400, 1.45 leading, and section 2's two lines maximum.
+  g.font = `${f.bodyWeight} ${SIZE.line}px ${f.ui}`;
+  const lineStep = Math.round(SIZE.line * f.bodyLeading);
+  wrap(g, card.line, W - pad * 2, 2).forEach((l, i) => g.fillText(l, mid, 588 + i * lineStep));
 
-  // The item.
+  // The item. Row-title role -- UI face, 600. It was Bricolage 700, and section
+  // 2 reserves Bricolage for the price numeral and the verdict word.
   g.fillStyle = t.ink;
-  g.font = display(700, 46);
+  g.font = `${f.rowWeight} ${SIZE.item}px ${f.ui}`;
   wrap(g, card.label, W - pad * 2, 2).forEach((l, i) => g.fillText(l, mid, 872 + i * 56));
 
   // The two prices, both of them, never the difference between them.
@@ -164,39 +358,74 @@ async function drawCard(canvas, card) {
   g.lineTo(mid, boxTop + boxH - 40);
   g.stroke();
 
+  /*
+   * A price column. The figure takes the price role's weight and tracking; the
+   * kicker over it takes the label role, which is exactly what "ON THE TAG" is
+   * -- mono, uppercase, provenance -- at 11px scaled to the artboard and .12em
+   * rather than the flat 5px that was hard-coded here.
+   *
+   * NO TABULAR FIGURES, and this is the one surface in the product where that
+   * is true. Canvas2D has no `fontVariantNumeric` and no way to reach a font
+   * feature at all, so the rule cannot be applied. It costs nothing that
+   * matters here -- tabular figures buy stability across a value that changes,
+   * and a card is a still -- but the rule says "everywhere, always", so the one
+   * exception is written down rather than left to be discovered.
+   */
   const col = (x, kicker, value, sub, valueColor) => {
     g.fillStyle = t.faint;
-    g.font = mono(600, 22);
-    if ('letterSpacing' in g) g.letterSpacing = '5px';
+    g.font = `${f.labelWeight} ${f.labelSize}px ${f.mono}`;
+    track(g, f.labelTrack(f.labelSize));
     g.fillText(kicker, x, boxTop + 66);
-    if ('letterSpacing' in g) g.letterSpacing = '0px';
+    track(g, '0px');
+
+    const size = value.length > 7 ? SIZE.priceLong : SIZE.price;
     g.fillStyle = valueColor;
-    g.font = display(800, value.length > 7 ? 56 : 76);
+    g.font = `${f.priceWeight} ${size}px ${f.display}`;
+    track(g, f.priceTrack(size));
     g.fillText(value, x, boxTop + 148);
+    track(g, '0px');
+
     g.fillStyle = t.muted;
-    g.font = ui(400, 24);
-    wrap(g, sub, mid - pad - 30, 1).forEach((l) => g.fillText(l, x, boxTop + 190));
+    g.font = `${f.bodyWeight} ${subSize(f)}px ${f.ui}`;
+    wrap(g, sub, mid - pad - 30, 1).forEach((l) => g.fillText(l, x, boxTop + 194));
   };
   col(W * 0.27, 'ON THE TAG', card.askingText, card.askingSub, t.ink);
   col(W * 0.73, 'ELSEWHERE', card.elsewhereText, card.elsewhereSub, t.tier);
 
-  // How sure Shin was, on the card, because a screenshot outlives the screen.
+  /*
+   * How sure Shin was, on the card, because a screenshot outlives the screen.
+   * Label role, like the two kickers above it.
+   *
+   * The baseline moved from +62 to +44 when the label role went from 24px to
+   * the spec's 11px-at-artboard-scale, 30px. Measured on the canvas: at +62 the
+   * taller glyphs left 11px between this line's descender and the date's cap
+   * height below it, which is 4 CSS px at the size a feed shows the card and
+   * reads as one crowded block. The box's bottom edge is at 1190 and the
+   * wordmark's cap top at 1256; +44 puts the line's 21px ascent centred in that
+   * 66px gap, 23 above and 22 below.
+   */
   g.fillStyle = t.faint;
-  g.font = mono(500, 24);
-  g.fillText(card.confidence, mid, boxTop + boxH + 62);
+  g.font = `${f.labelWeight} ${f.labelSize}px ${f.mono}`;
+  track(g, f.labelTrack(f.labelSize));
+  g.fillText(card.confidence, mid, boxTop + boxH + 44);
+  track(g, '0px');
 
   // The wordmark, small, in the corner. No link, on purpose.
   g.textAlign = 'left';
-  g.font = display(800, 42);
+  g.font = `${f.priceWeight} ${SIZE.wordmark}px ${f.display}`;
   g.fillStyle = t.ink;
   g.fillText('shin', pad, H - 62);
   g.fillStyle = t.brand;
   g.fillText('.', pad + g.measureText('shin').width, H - 62);
 
+  // The date: the third of the card's three label-role strings. Provenance is
+  // what section 2 reserves the mono face for, and a date is provenance.
   g.textAlign = 'right';
   g.fillStyle = t.faint;
-  g.font = mono(400, 22);
+  g.font = `${f.labelWeight} ${f.labelSize}px ${f.mono}`;
+  track(g, f.labelTrack(f.labelSize));
   g.fillText(card.stamp, W - pad, H - 66);
+  track(g, '0px');
 }
 
 /** What the card would say if it had to be typed into a message box. */
@@ -227,12 +456,9 @@ export default {
     const v = entry.result;
     const conf = confidenceOf(v);
     const tier = tierOf(v.tier);
-    const cs = getComputedStyle(document.documentElement);
-    const onVar = { good: '--good-on', fair: '--fair-on', walk_away: '--walk-on' }[v.tier] ?? '--unknown-on';
 
     const card = {
       tierId: v.tier,
-      tierOn: (cs.getPropertyValue(onVar) || '').trim() || '#FFFFFF',
       expression: tier.face,
       who: undefined,
       level: conf.level,
@@ -247,9 +473,11 @@ export default {
           ? 'one price, one seller'
           : `${cad(v.spread.lowCents)} to ${cad(v.spread.highCents)}`,
       confidence: conf.label.toUpperCase(),
-      stamp: new Date(entry.at ?? Date.now()).toLocaleDateString(undefined, {
-        year: 'numeric', month: 'short', day: 'numeric',
-      }),
+      /* Uppercased so it sits in the label role beside the two price kickers
+         and the confidence line, which is the role mono is reserved for. */
+      stamp: new Date(entry.at ?? Date.now())
+        .toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+        .toUpperCase(),
     };
 
     root.innerHTML = `
@@ -273,9 +501,9 @@ export default {
         </div>
 
         <div class="page-foot">
-          <button type="button" class="cta" data-act="save">Save the image</button>
-          <button type="button" class="linky" data-act="copy">Copy as text</button>
-          <button type="button" class="linky" data-act="back">Back to the camera</button>
+          <button type="button" class="btn cta" data-act="save">Save the image</button>
+          <button type="button" class="btn linky" data-act="copy">Copy as text</button>
+          <button type="button" class="btn linky" data-act="back">Back to the camera</button>
         </div>
         <p class="shr-status" role="status"></p>
       </div>`;
@@ -283,32 +511,59 @@ export default {
     const canvas = root.querySelector('.shr-canvas');
     const fallback = root.querySelector('.shr-fallback');
     const status = root.querySelector('.shr-status');
-    let alive = true;
+
+    /*
+     * One controller for everything this render owns: the click listener on the
+     * persistent `#screen`, and the in-flight font-and-draw work that used to be
+     * guarded by a separate `alive` flag returned as the cleanup. Two mechanisms
+     * answering one question -- "is this render still the current one?" -- is
+     * how one of them ends up not being checked, and the listener was the one
+     * that never was: it attached to `#screen`, which the router never replaces,
+     * so every visit to this screen left another live handler behind it.
+     * camera.js:915 is the same fix, and its comment is the long version.
+     */
+    const listeners = new AbortController();
+    const gone = () => listeners.signal.aborted;
+
+    /* Drawing failed, so show the text version rather than a card that might be
+       drawn in a palette the app no longer uses. `why` is only surfaced in
+       development: in production the user gets the outcome and the console gets
+       the reason. */
+    function degrade(err, why) {
+      console.error('card draw failed', err);
+      canvas.hidden = true;
+      fallback.hidden = false;
+      fallback.textContent = cardText(card);
+      if (DEV && err instanceof MissingTokenError) {
+        status.textContent = `${why} ${err.message}`;
+        return true;
+      }
+      return false;
+    }
 
     (async () => {
       try {
         if (document.fonts?.ready) await document.fonts.ready;
-        if (!alive) return;
+        if (gone()) return;
         await drawCard(canvas, card);
       } catch (err) {
-        console.error('card draw failed', err);
-        if (!alive) return;
-        canvas.hidden = true;
-        fallback.hidden = false;
-        fallback.textContent = cardText(card);
+        if (gone()) return;
+        degrade(err, 'The card did not draw:');
       }
     })();
 
-    root.addEventListener('click', async (e) => {
+    on(root, 'click', async (e) => {
       const act = e.target.closest('[data-act]')?.dataset.act;
       if (act === 'back') { ctx.go('camera'); return; }
 
       if (act === 'copy') {
         try {
           await navigator.clipboard.writeText(cardText(card));
+          if (gone()) return;
           ctx.store.update((s) => ({ ...s, shareCount: (s.shareCount ?? 0) + 1 }));
           status.textContent = 'Copied as text.';
         } catch {
+          if (gone()) return;
           fallback.hidden = false;
           fallback.textContent = cardText(card);
           status.textContent = 'The clipboard is blocked here, so the text is above.';
@@ -323,6 +578,7 @@ export default {
           const blob = await new Promise((res, rej) => {
             canvas.toBlob((b) => (b ? res(b) : rej(new Error('toBlob gave nothing'))), 'image/png');
           });
+          if (gone()) return;
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
@@ -334,14 +590,13 @@ export default {
           ctx.store.update((s) => ({ ...s, shareCount: (s.shareCount ?? 0) + 1 }));
           status.textContent = 'Saved to your downloads.';
         } catch (err) {
-          console.error('png export failed', err);
-          fallback.hidden = false;
-          fallback.textContent = cardText(card);
-          status.textContent = 'The image would not export here. The text version is above.';
+          if (gone()) return;
+          const named = degrade(err, 'The image would not export, and the text version is above:');
+          if (!named) status.textContent = 'The image would not export here. The text version is above.';
         }
       }
-    });
+    }, listeners.signal);
 
-    return () => { alive = false; };
+    return () => listeners.abort();
   },
 };

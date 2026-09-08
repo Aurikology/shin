@@ -175,16 +175,26 @@ const TYPES: Record<string, string> = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.webmanifest': 'application/manifest+json',
-  /*
-   * The barcode reader will not start without this one. A .wasm served as
-   * application/octet-stream makes WebAssembly.instantiateStreaming refuse it
-   * outright ("Incorrect response MIME type"), and the loader's answer is to
-   * fall back to downloading the whole module a second time and compiling it
-   * from an ArrayBuffer. It works, which is why nothing ever showed it, and it
-   * costs a second full download of the reader on every camera mount.
-   */
+  /* Added 2026-09-06 with the self-hosted fonts. Without it these fall through
+     to application/octet-stream below. Browsers do parse them anyway, because
+     the format('woff2') hint in the @font-face rule is what actually drives
+     parsing -- but an octet-stream is not cacheable the same way and it is the
+     kind of thing that works on a desktop and fails behind a proxy. */
+  '.woff2': 'font/woff2',
+  /* Added 2026-09-07, and this one is not cosmetic the way the fonts were.
+     Without it a .wasm falls through to application/octet-stream, and
+     `WebAssembly.compileStreaming` refuses an octet-stream outright: the
+     console reads "Incorrect response MIME type. Expected 'application/wasm'"
+     and the loader falls back to buffering the whole module and compiling it
+     from an ArrayBuffer. That works, which is exactly why nobody noticed, but
+     it gives up the streaming compile on a 1.1 MB reader on the one screen
+     the product opens on. Measured in Chrome against this server. */
   '.wasm': 'application/wasm',
+  /* The on-device detector's model. Named here rather than left to fall
+     through, so the type is a decision rather than an accident if it is ever
+     served. See build-eye.mjs for why it may legitimately be absent. */
   '.tflite': 'application/octet-stream',
+  /* Source maps, so a devtools fetch of one is not an octet-stream download. */
   '.map': 'application/json; charset=utf-8',
 };
 
@@ -341,6 +351,22 @@ interface Identified {
   readonly categoryWhy: string;
   /** "We do not have that one, here are other oranges." Named, never implied. */
   readonly ring: { readonly label: string; readonly members: { code: string; name: string }[] } | null;
+  /**
+   * How many OTHER rows the same search turned up behind `product`.
+   *
+   * Added 2026-09-08 for "not this?", which needs a question `band` cannot
+   * answer. A text-only query is `ambiguous` by construction -- with no brand
+   * and no size pinned, `#band` has nothing to agree with and never reaches
+   * `confident` -- so a screen gating an alternatives affordance on the band
+   * alone would offer alternatives on every typed scan, including the ones
+   * where there is nothing else to offer. That is the "face-saving" case
+   * `/api/search`'s own comment warns about, and this is the number that tells
+   * the two apart.
+   *
+   * 0 for a resolved barcode, which has exactly one answer by definition, and
+   * 0 when the catalogue is not attached.
+   */
+  readonly otherCandidates: number;
   /** False when the catalogue process is not running. The screen must not read this as a miss. */
   readonly catalogueUp: boolean;
   readonly ms: number;
@@ -354,6 +380,7 @@ function offline(ms: number): Identified {
     category: null,
     categoryWhy: `The catalogue is not attached, so nothing was looked up. ${catalogueWhyNot}`.trim(),
     ring: null,
+    otherCandidates: 0,
     catalogueUp: false,
     ms,
   };
@@ -432,6 +459,7 @@ async function identify(query: {
         ring: result.ring
           ? { label: result.ring.label, members: result.ring.members.map((m) => ({ code: m.code, name: m.name })) }
           : null,
+        otherCandidates: 0,
         catalogueUp: true,
         ms: Date.now() - started,
       };
@@ -460,83 +488,139 @@ async function identify(query: {
       ring: result.ring
         ? { label: result.ring.label, members: result.ring.members.map((m) => ({ code: m.code, name: m.name })) }
         : null,
+      otherCandidates: Math.max(0, result.candidates.length - 1),
       catalogueUp: true,
       ms: Date.now() - started,
     };
   } catch (err) {
     // A search that threw is not a product we do not have. Saying so.
+    //
+    // The thrown message goes to the log, never to the screen. It is a sqlite
+    // or a worker string addressed to whoever is running this, and the person
+    // holding the phone can do nothing with it; the app side made the same fix
+    // this week. What they get is the one sentence that is true and actionable.
+    console.error('identify failed:', err);
     return {
       ...offline(Date.now() - started),
       catalogueUp: true,
-      categoryWhy: `The catalogue could not answer: ${err instanceof Error ? err.message : String(err)}`,
+      categoryWhy: 'The catalogue could not answer that one. Try again in a moment.',
     };
   }
 }
 
 /**
- * The largest body any route here accepts. A correction is a few hundred bytes
- * and a price query is smaller; 64 kB is roomy for both and small enough that
- * a body arriving over a phone's worst connection is never near it.
+ * How many bytes of JSON a request is allowed to spend before it is refused.
  *
- * A photo will not fit, on purpose: when the upload door is built it gets its
- * own cap in its own units, because a limit that has to serve both a JSON
- * object and a megapixel image is a limit that protects neither.
+ * ONE NUMBER FOR EVERY ROUTE THAT TAKES A BODY TODAY, because both of them
+ * (`/api/price` and `/api/correction`) carry the same kind of thing: a flat
+ * JSON object of a dozen short scalars. The largest legitimate body in the
+ * product is a correction, and a fat one measures about 450 bytes: two UUIDs,
+ * a barcode, a product id, a label, a category, a shop name typed by hand, a
+ * price, a kind and a date. 8 KiB is eighteen times that, so a long label in
+ * multi-byte UTF-8, or a field somebody adds next month, has room without
+ * anybody having to think about this constant again.
+ *
+ * It is a PARAMETER rather than a constant read inside the reader, and that is
+ * the whole provision made for the photo upload door named in `NOW.md` and in
+ * DEFECTS.md D-032. An upload needs a limit in megabytes, and the wrong way to
+ * give it one is to raise this number, because that would hand every JSON route
+ * a megabyte-sized mouth to feed for the sake of a route none of them are. When
+ * the upload route lands it passes its own limit here, and this one does not
+ * move.
+ *
+ * The number is deliberately small. It is not tuned for memory (8 KiB is
+ * nothing); it is tuned to say what the routes accept, so that anything else
+ * is refused at the first chunk rather than parsed and then argued with.
  */
-const MAX_BODY_BYTES = 64 * 1024;
+const MAX_JSON_BODY_BYTES = 8 * 1024;
 
 /**
- * How much over the cap we will keep reading and throwing away before hanging
- * up instead of answering.
- *
- * A 413 only arrives if the client got to finish sending: a client still
- * writing when the socket dies sees a connection reset and cannot tell "this
- * will never fit" from "the aisle has no signal", and the one client this has
- * to be readable by is a queue that retries the second one forever. So the
- * rest of a slightly-too-big body is read and discarded, which costs nothing
- * because nothing is kept. Past this, the reply is not worth the read.
+ * The body was bigger than the route accepts. A value rather than a throw,
+ * because `price/src/corrections.ts` states the contract this file works
+ * under: a phone correcting a price must never be able to take the server
+ * down, so nothing on this path throws at a request handler.
  */
-const DRAIN_CEILING = 1024 * 1024;
-
-/** Thrown by `readBody` when a body is over the cap. Caught by the route chain. */
-class BodyTooLarge extends Error {}
+const TOO_LARGE = Symbol('body over the cap');
 
 /**
- * Reads a JSON body, with a cap counted as the bytes arrive.
+ * Read a JSON body, refusing before the bytes accumulate.
  *
- * D-032: this used to push every chunk into an array and concat at the end, so
- * a body larger than memory exhausted the process before `JSON.parse` ever got
- * the chance to reject it. The cap has to be checked per chunk for that reason;
- * trusting `content-length` would not help, since a client that lies about it
- * is exactly the client this guards against.
+ * CAP BEFORE READ, WHICH IS THE POINT (D-032). The old version buffered the
+ * whole request and then parsed, so a large non-JSON body exhausted memory
+ * before the parse even failed. Here the running total is checked on every
+ * chunk and the buffer is dropped the moment it is crossed, so the peak is one
+ * chunk over the limit rather than whatever the client felt like sending.
+ *
+ * `content-length` is checked first when it is present, so an honest client is
+ * refused without a byte being read. It is not trusted as the only check: a
+ * client can lie about it, omit it, or send chunked, and the running total is
+ * what actually holds. The header is an optimisation, never the gate.
+ *
+ * Events rather than `for await`, on purpose: exiting a `for await` early
+ * destroys the request, which on HTTP/1.1 destroys the socket the 413 still has
+ * to go out on. This pauses instead, leaving the caller to answer and then end
+ * the socket itself once the response has flushed.
+ *
+ * Returns the parsed value, `{}` for an empty body, `null` for something that
+ * did not parse or a socket that died mid-body, or `TOO_LARGE`.
  */
-async function readBody(req: import('node:http').IncomingMessage): Promise<unknown> {
-  const chunks: Buffer[] = [];
-  let bytes = 0;
-  let over = false;
-  for await (const c of req) {
-    const chunk = c as Buffer;
-    bytes += chunk.length;
-    // Past the cap nothing is kept, so memory stops growing at the cap itself,
-    // which is the whole of D-032. Reading continues only so the client can
-    // finish and read a status back.
-    if (bytes > MAX_BODY_BYTES) {
-      over = true;
-      chunks.length = 0;
-      if (bytes > DRAIN_CEILING) {
-        req.destroy();
-        throw new BodyTooLarge(`body over ${MAX_BODY_BYTES} bytes, and too far over to answer`);
+function readBody(
+  req: import('node:http').IncomingMessage,
+  limit: number = MAX_JSON_BODY_BYTES,
+): Promise<unknown> {
+  const declared = Number(req.headers['content-length']);
+  if (Number.isFinite(declared) && declared > limit) return Promise.resolve(TOO_LARGE);
+
+  return new Promise((resolve) => {
+    const chunks: Buffer[] = [];
+    let total = 0;
+    let settled = false;
+
+    const onData = (c: Buffer) => {
+      total += c.length;
+      if (total > limit) {
+        // Drop what was collected before answering. Holding it costs nothing
+        // useful, and the request is about to be refused anyway.
+        chunks.length = 0;
+        req.pause();
+        done(TOO_LARGE);
+        return;
       }
-      continue;
+      chunks.push(c);
+    };
+    const onEnd = () => {
+      if (chunks.length === 0) return done({});
+      try {
+        done(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+      } catch {
+        done(null);
+      }
+    };
+    // A socket that died mid-body is not a parse failure and is not ours to
+    // throw about. It reads as an unusable body, which is what it is.
+    const onDead = () => done(null);
+
+    /**
+     * Settle once and then let go of the stream. Detaching matters rather than
+     * being tidy: the caller answering a 413 puts its own reader on this
+     * request to drain it, and a listener from here still calling `pause` on
+     * every chunk would fight that reader for control of the socket.
+     */
+    function done(value: unknown) {
+      if (settled) return;
+      settled = true;
+      req.off('data', onData);
+      req.off('end', onEnd);
+      req.off('aborted', onDead);
+      req.off('error', onDead);
+      resolve(value);
     }
-    if (!over) chunks.push(chunk);
-  }
-  if (over) throw new BodyTooLarge(`body over ${MAX_BODY_BYTES} bytes`);
-  if (chunks.length === 0) return {};
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  } catch {
-    return null;
-  }
+
+    req.on('data', onData);
+    req.on('end', onEnd);
+    req.on('aborted', onDead);
+    req.on('error', onDead);
+  });
 }
 
 const server = createServer(async (req, res) => {
@@ -549,6 +633,85 @@ const server = createServer(async (req, res) => {
       'cache-control': 'no-store',
     });
     res.end(payload);
+  };
+
+  /**
+   * The answer to a body over the cap.
+   *
+   * DRAIN FIRST, THEN ANSWER, and that order was measured rather than reasoned.
+   * The obvious shape is to write the 413 and destroy the request, and it does
+   * not work: on HTTP/1.1 the request and the response are one socket, so
+   * closing it with bytes still arriving is a TCP reset, and a reset entitles
+   * the peer to throw away everything it has already received, the refusal
+   * included. A client streaming a megabyte read a status of nothing at all.
+   * Half-closing instead of destroying was no better; the unread bytes still
+   * sat in a buffer, and the reset arrived when it filled. The break was
+   * repeatable and sat between 64 KB and 256 KB, which is the size of the
+   * socket buffers rather than anything about this code.
+   *
+   * So what is still coming is read and thrown on the floor first, and the
+   * refusal goes out to a socket with nothing unread behind it, which closes
+   * cleanly and gets heard. It is what nginx calls a lingering close and does
+   * for this exact response.
+   *
+   * DISCARDING IS NOT BUFFERING and that is what keeps this a fix rather than
+   * the defect wearing a hat: the chunks are counted and dropped, never
+   * assembled, so the drain is flat in memory no matter how much is sent. What
+   * it costs is a socket, and that is bounded twice: two seconds, or eight
+   * megabytes read and dropped, whichever lands first, after which the socket
+   * is destroyed and the client gets no answer at all. A client past either
+   * bound has stopped being a phone correcting a price.
+   *
+   * The byte bound is far above anything a JSON route could be sent by
+   * accident, because cutting the drain short is itself the reset this whole
+   * arrangement exists to avoid. It is there for the case the clock cannot
+   * catch: a sender going as fast as loopback allows, measured here at about a
+   * megabyte every five milliseconds.
+   */
+  const LINGER_MS = 2_000;
+  const LINGER_BYTES = 8 * 1024 * 1024;
+  const refuseTooLarge = () => {
+    const answer = () => {
+      if (res.writableEnded) return;
+      res.writeHead(413, {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'no-store',
+        connection: 'close',
+      });
+      res.end(JSON.stringify({ error: `body is over the ${MAX_JSON_BODY_BYTES} byte limit` }));
+    };
+
+    if (req.readableEnded || !req.readable) return answer();
+
+    let discarded = 0;
+    let stop: NodeJS.Timeout;
+    const detach = () => {
+      clearTimeout(stop);
+      req.off('data', onData);
+      req.off('end', onEnd);
+      req.off('error', detach);
+    };
+    const onData = (c: Buffer) => {
+      discarded += c.length;
+      if (discarded > LINGER_BYTES) {
+        detach();
+        req.destroy();
+      }
+    };
+    const onEnd = () => {
+      detach();
+      answer();
+    };
+
+    stop = setTimeout(() => {
+      detach();
+      req.destroy();
+    }, LINGER_MS);
+    stop.unref();
+    req.on('data', onData);
+    req.on('end', onEnd);
+    req.on('error', detach);
+    req.resume();
   };
 
   try {
@@ -654,6 +817,12 @@ const server = createServer(async (req, res) => {
       } catch (err) {
         // A search that threw is not the same as a search that found nothing;
         // identify() names this distinction too and this endpoint keeps it.
+        //
+        // The caught message is logged, not returned. Same reason identify()
+        // gives: an internal string on the screen of somebody who cannot act on
+        // it is not an answer, and this one would be the only place in the API
+        // where a raw exception reaches a client.
+        console.error('search failed:', err);
         return json(200, {
           catalogueUp: true,
           band: 'miss',
@@ -661,7 +830,7 @@ const server = createServer(async (req, res) => {
           candidates: [],
           ring: null,
           ms: Date.now() - started,
-          error: err instanceof Error ? err.message : String(err),
+          error: 'the catalogue could not answer that one',
         });
       }
     }
@@ -669,6 +838,7 @@ const server = createServer(async (req, res) => {
     if (url.pathname === '/api/price') {
       if (req.method !== 'POST') return json(405, { error: 'POST only' });
       const body = await readBody(req);
+      if (body === TOO_LARGE) return refuseTooLarge();
       if (body === null || typeof body !== 'object') {
         return json(400, { error: 'body did not parse as JSON' });
       }
@@ -716,6 +886,7 @@ const server = createServer(async (req, res) => {
     if (url.pathname === '/api/correction') {
       if (req.method !== 'POST') return json(405, { error: 'POST only' });
       const body = await readBody(req);
+      if (body === TOO_LARGE) return refuseTooLarge();
       if (body === null || typeof body !== 'object') {
         return json(400, { error: 'body did not parse as JSON' });
       }
@@ -876,21 +1047,6 @@ const server = createServer(async (req, res) => {
     });
     res.end(file);
   } catch (err) {
-    // An over-cap body is a fact about the request, not a failure of the
-    // server, so it gets the status that says so rather than a 500 that would
-    // read to a client as "try again".
-    if (err instanceof BodyTooLarge) {
-      // `connection: close` and then destroying the request is what lets the
-      // status arrive: the rest of the body is still on its way and nothing is
-      // going to read it, so the socket has to go, but only after the reply is
-      // flushed. Destroying first is what turns a 413 into a reset.
-      res.writeHead(413, {
-        'content-type': 'application/json; charset=utf-8',
-        connection: 'close',
-      });
-      res.end(JSON.stringify({ error: `body must be under ${MAX_BODY_BYTES} bytes` }), () => req.destroy());
-      return;
-    }
     const code = (err as NodeJS.ErrnoException)?.code;
     if (code === 'ENOENT' || code === 'EISDIR') {
       res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });

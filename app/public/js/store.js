@@ -46,6 +46,12 @@ const EMPTY = {
   drops: [],
   scanCount: 0,
   shareCount: 0,
+  /**
+   * ISO timestamps of the times Shin has spoken without being asked.
+   * AVATAR.md section 3's interruption budget, made real. Pruned to the last
+   * day on every read, so this never grows.
+   */
+  interruptions: [],
   /** Stage 09: the paywall arrives after value, never before. */
   proUntil: null,
   /**
@@ -110,12 +116,46 @@ function purgeExpired(s) {
   return removed.length === s.removed.length ? s : { ...s, removed };
 }
 
+/**
+ * Why the last read came back empty, or null if it did not fail.
+ *
+ * `load()` used to collapse two situations that are not the same thing: a
+ * person who has saved nothing yet, and a person whose saved things could not
+ * be read. Both produced EMPTY, so every list screen drew its empty state --
+ * "Nothing saved yet" over somebody's actual watchlist -- and the error branch
+ * those screens grew on 2026-09-06 could never fire, because nothing told them.
+ *
+ *   'corrupt'  the stored JSON did not parse
+ *   'blocked'  localStorage threw on read (private window, site data blocked)
+ */
+let fault = null;
+
+/** @returns {null | 'corrupt' | 'blocked'} */
+export function loadFault() {
+  return fault;
+}
+
 function load() {
+  let raw;
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return { ...EMPTY };
+    raw = localStorage.getItem(KEY);
+  } catch {
+    fault = 'blocked';
+    return { ...EMPTY };
+  }
+  if (!raw) return { ...EMPTY };
+  try {
     return purgeExpired(migrate({ ...EMPTY, ...JSON.parse(raw) }));
   } catch {
+    fault = 'corrupt';
+    /*
+     * Keep the unreadable blob before anything overwrites it. The next
+     * `update()` persists this EMPTY state straight over it, so without this
+     * line a single bad byte costs a person their whole watchlist and scan
+     * history permanently -- and this data has the same property the
+     * corrections database does: nothing can rebuild it.
+     */
+    try { localStorage.setItem(`${KEY}.unreadable`, raw); } catch { /* nothing more to try */ }
     return { ...EMPTY };
   }
 }
@@ -149,6 +189,10 @@ export function update(patch) {
 
 export function reset() {
   state = { ...EMPTY };
+  // The session half of the interruption budget lives in memory rather than in
+  // state, so wiping state would otherwise leave it standing and a reset user
+  // would start their next session already out of unprompted lines.
+  resetSessionInterruptions();
   persist();
   for (const fn of listeners) fn(state);
 }
@@ -285,6 +329,77 @@ export function goodFindThisWeek() {
     const at = Date.parse(h.at);
     return Number.isFinite(at) && at >= cutoff && h.result?.tier === 'good';
   });
+}
+
+/* --------------------------------------------- the interruption budget ---- */
+
+/**
+ * AVATAR.md section 3 caps what Shin may say when the user did not act:
+ * **two per session, four per day, and zero notifications in v1.** The file is
+ * explicit that "no third source may be added without a row in this table".
+ *
+ * Until now that cap was not enforced anywhere. It was satisfied by accident:
+ * the two unprompted sources that exist, the aim-hint escalation and the
+ * second-visit callback, each carried a one-shot boolean in the camera screen,
+ * so a session could not exceed two because there were only two flags. Nothing
+ * counted a day at all, and nothing would have stopped a third source being
+ * added and quietly breaking a contract nobody could see.
+ *
+ * The distinction the budget rests on is AVATAR.md's own: an appearance is
+ * **reactive** if it lands within two seconds of the user's own act on the same
+ * surface, and reactive appearances are unbudgeted, because capping the answer
+ * to a question the user just asked would make the product worse at the only
+ * thing it does. Only unprompted appearances come through here.
+ */
+const UNPROMPTED_PER_SESSION = 2;
+const UNPROMPTED_PER_DAY = 4;
+
+/* Session, not day: a reload is a new session by design. The day count is
+   persisted; this one deliberately is not. */
+let interruptionsThisSession = 0;
+
+function interruptionsToday() {
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  return (state.interruptions ?? []).filter((iso) => {
+    const at = Date.parse(iso);
+    return Number.isFinite(at) && at >= cutoff;
+  });
+}
+
+/**
+ * Whether Shin may speak unprompted right now. A screen asks before it speaks,
+ * and stays silent if the answer is no. It never queues the line for later:
+ * the moment an unprompted line was for does not come back.
+ */
+export function canInterrupt() {
+  return interruptionsThisSession < UNPROMPTED_PER_SESSION
+    && interruptionsToday().length < UNPROMPTED_PER_DAY;
+}
+
+/**
+ * Record that Shin spoke unprompted. Called only after the line actually went
+ * on screen, never at the point it was considered, or a line that was decided
+ * against would still spend the budget.
+ */
+export function recordInterruption() {
+  interruptionsThisSession += 1;
+  update((s) => ({ ...s, interruptions: [...interruptionsToday(), new Date().toISOString()] }));
+}
+
+/**
+ * Clears the session half only. `reset()` calls it, because a user wiping
+ * their data should not carry a spent session budget into the next one.
+ */
+export function resetSessionInterruptions() {
+  interruptionsThisSession = 0;
+}
+
+/** For the record and for tests: what is left of each cap. */
+export function interruptionBudget() {
+  return {
+    session: UNPROMPTED_PER_SESSION - interruptionsThisSession,
+    day: UNPROMPTED_PER_DAY - interruptionsToday().length,
+  };
 }
 
 /**

@@ -36,7 +36,27 @@
  * call. See crawl.ts's header for what the crawl can do without it.
  */
 
-const SELLER = 'walmart.ca';
+/*
+ * D-015. The seller is the store's name, not the domain the page was fetched
+ * from. It was 'walmart.ca' here and 'canadiantire.ca' next door, while every
+ * other source in this package emits a store name, so one row in a verdict's
+ * provenance list read "at walmart.ca" among a column of proper names.
+ *
+ * Fixed at the producer rather than in the screens, and that was the argument
+ * worth having. A lookup table in the client would have been a third copy of a
+ * name this tree already holds twice (spine/data/observations.json says
+ * "Walmart", and /api/scenarios serves it), and the day loblaws.ca is crawled
+ * the client prints a hostname, nothing fails, and no test covers a seller that
+ * did not exist when the test was written. There are four render sites and only
+ * one origin.
+ *
+ * Safe for matching, checked rather than assumed: normalizeSeller strips the
+ * .ca through SELLER_NOISE and removes whitespace, so 'walmart.ca' and
+ * 'Walmart' already collapsed to the same key. Its own comment says so. This
+ * changes what a person reads and nothing about self-exclusion or the count of
+ * distinct sellers.
+ */
+const SELLER = 'Walmart';
 const BASE = 'https://www.walmart.ca';
 
 /**

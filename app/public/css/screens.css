@@ -8,6 +8,10 @@
  * screens are one surface now. The rest were walkthrough stages, which is
  * scaffolding, and scaffolding that ships is a bug.
  */
+/* The shared component layer, before every screen so a screen can still
+   override it and after shell.css so it can build on the shell's primitives. */
+@import url('/css/components.css');
+
 @import url('/css/screens/camera.css');
 @import url('/css/screens/setup.css');
 @import url('/css/screens/watchlist.css');

@@ -7,7 +7,18 @@
  * preview that lies about the export is worse than no preview.
  */
 
-.page-share { gap: 12px; }
+/*
+ * A size container, so the preview below can be measured against the PAGE's
+ * height rather than the browser window's. In the desktop frame those are
+ * different numbers -- the simulated phone is a fixed box inside a taller
+ * window -- and `svh` here sizes the card off the wrong one. `.page` is already
+ * `position: absolute; inset: 0`, so its size does not depend on its contents
+ * and size containment costs nothing.
+ */
+.page-share {
+  gap: 12px;
+  container-type: size;
+}
 
 /*
  * The live 220px face-and-bubble, same state as the frozen card below it.
@@ -22,14 +33,60 @@
  * The preview is sized off the viewport height, not the width, so the card and
  * the two things you can do with it are on screen at the same time. A preview
  * that pushes its own save button under the fold is a preview of nothing.
+ *
+ * WHY THE 42% IS NOW BOUNDED, AND WHY THE RATIO MOVED UP HERE. The rule was a
+ * bare `height: 42%` on a flex child of `.page`, with the 4:5 living on the
+ * canvas inside it. Three things were wrong with that and one thing was right.
+ *
+ * Right, and kept: the share is of the PAGE's height, not the window's. In the
+ * desktop frame those are different numbers -- the simulated phone is a fixed
+ * box inside a taller window -- and a preview sized off the window slides under
+ * its own save button. So this stays a percentage rather than becoming `svh`,
+ * which was the first thing tried here and which sizes the card off the browser
+ * window in the desktop frame.
+ *
+ * Wrong: the percentage had no floor and no ceiling. On a 500px-tall landscape
+ * phone 42% is 210px, and the canvas's own ratio then made the card 168px wide
+ * -- a thumbnail claiming to be a preview, with the verdict word rendering at
+ * 13 CSS px. On a tall desktop window it ran past the footer it exists to sit
+ * above. `clamp` gives it both ends: 220px is the smallest the card can be with
+ * its verdict word still legible (the artboard's 108px on 1350px is 17.6 CSS px
+ * at that height), 520px is where it starts crowding the sticky footer.
+ *
+ * Wrong: the 4:5 was on the canvas, one level below the box that was being
+ * sized, so the frame and its content were each deciding a shape. shell.css
+ * line 94 names what that costs from experience -- "a flex column shrinks its
+ * children by default, which silently flattened a 4:5 share card into a
+ * letterbox". `.page > * { flex: none }` stops that particular shrink; putting
+ * the ratio on the sized box means there is only one shape to get wrong.
+ *
+ * WHY THE HEIGHT IS DRIVEN FROM THE WIDTH RATHER THAN SET DIRECTLY. Measured,
+ * in the browser, at five page heights: with the height clamped and the width
+ * left to `aspect-ratio`, a 1400px page gave a 520px-tall card that wanted to be
+ * 416px wide, hit `max-width: 100%` at 382px, and came out 0.735 -- the same
+ * letterboxing this comment is about, arriving from the other direction. A
+ * definite height plus a capped width cannot both be honoured and the ratio is
+ * what CSS drops. So the clamp feeds the WIDTH, through `min(100%, ...)`, and
+ * `aspect-ratio` derives the height from whichever of the two constraints
+ * actually binds. Re-measured at 300 / 420 / 586 / 900 / 1400: 4:5 at all five.
+ *
+ * `cqh` and not `%` or `svh`: a percentage height resolves to `auto` the moment
+ * `.page` stops having a definite one, and `clamp(220px, auto, 520px)` is not a
+ * floor; `svh` is the browser window, which is not the page in the desktop
+ * frame. The block above turns `.page-share` into the size container this reads.
+ * The plain `height` rule is the fallback for anything without container
+ * queries, and it is the old behaviour with the two ends put on it.
+ *
+ * The export is untouched by all of this. drawCard sets canvas.width/height to
+ * 1080x1350 itself and those are the pixels toBlob writes; everything here is
+ * only the CSS box that bitmap is painted into.
  */
 .shr-frame {
   align-self: center;
-  /* A share of the page's own height, not the window's. On a phone they are the
-     same thing; in the desktop frame they are not, and a preview sized off the
-     window slides under its own save button. */
-  height: 42%;
+  height: clamp(220px, 42%, 520px);
+  min-height: 220px;
   max-width: 100%;
+  aspect-ratio: 4 / 5;
   border-radius: var(--r-md);
   overflow: hidden;
   background: var(--surface);
@@ -37,14 +94,36 @@
   box-shadow: var(--shadow);
 }
 
+@supports (height: 1cqh) {
+  .shr-frame {
+    height: auto;
+    min-height: 0;
+    width: min(100%, calc(clamp(220px, 42cqh, 520px) * 4 / 5));
+  }
+}
+
+/* The canvas fills the frame; the frame is the thing holding the ratio. The
+   canvas keeps its own `aspect-ratio` too, so the two cannot disagree if the
+   frame is ever handed an explicit height. */
 .shr-canvas {
   display: block;
+  width: 100%;
   height: 100%;
-  width: auto;
-  max-width: 100%;
   aspect-ratio: 4 / 5;
 }
 .shr-canvas[hidden] { display: none; }
+
+/* When the card could not be drawn the frame holds the text version instead,
+   and a 4:5 column is the wrong shape for a paragraph. Progressive: a browser
+   without `:has()` keeps the card shape and scrolls the text, which is the old
+   behaviour rather than a broken one. */
+.shr-frame:has(.shr-canvas[hidden]) {
+  width: 100%;
+  max-width: none;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: auto;
+}
 
 .shr-fallback {
   margin: 0;

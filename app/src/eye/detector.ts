@@ -205,8 +205,25 @@ export class ObjectDetector {
         runningMode: 'VIDEO',
       });
       return true;
-    } catch {
+    } catch (err) {
+      /* Say why, once.
+         This used to swallow the error entirely, so a network failure, a GPU
+         that would not start and a corrupt model were the same silent `false`,
+         and the framing pass ran on the hand-written saliency detector alone
+         with nothing anywhere saying the trained one was off.
+         Note what this is NOT reporting. A missing model file is a legitimate
+         and expected state: `eye-attach.js` HEAD-probes the asset and passes no
+         URL at all when it is absent, precisely so that a permanent silent
+         failure cannot masquerade as graceful degradation. So reaching this
+         catch means the model was there and something else went wrong, which is
+         the case worth a line in the console.
+         Once, because this runs on every camera start and a repeated warning
+         trains people to ignore the console. */
       this.#failed = true;
+      console.warn(
+        `eye: the model was present but the trained detector did not start, so framing is running on saliency alone. Model: ${this.#modelUrl}`,
+        err,
+      );
       return false;
     }
   }

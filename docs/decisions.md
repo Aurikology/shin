@@ -653,3 +653,52 @@ the confidence band cannot read high on them.
 **Reverses if:** corrections turn out to be poisoned faster than they are useful, which is a
 measurement on the stored rows and not a guess, and the repair is a check against the distribution
 of other readings of the same shelf rather than removing the source.
+
+## The camera's standard is applied outward, and the tier palette is measured
+**Date:** 2026-09-06 · **Status:** active
+
+`docs/design/FLAWS.md` (2026-09-04) found that "the camera surface is genuinely designed.
+Everything behind it is running on defaults", and named the cost: a user who taps into Saved or You
+crosses a line where the craft stops. This pass takes that finding as the brief. It executes
+`DESIGN.md` rather than replacing it; no new visual direction was proposed and none is wanted.
+
+**The tier palette was asserted, not measured, and two of four pairings were wrong.** `DESIGN.md`
+section 1 says of the text-on-tier pairings: "This is not a preference, it is the only pairing that
+clears contrast on each field." Computed: `--walk-on` on `--walk` was 3.80 against the 4.5 that
+text under 24px needs, and 3.23 once camera.css's `opacity: .88` on Shin's own sentence was applied.
+`--unknown-on` on `--unknown` was 3.51, and 3.09. Walk away and refusal are five of the seven
+outcomes the engine can reach, so this was the product's main output failing to be readable while a
+design document asserted it could not fail. `--walk` and `--unknown` are darkened 19% and 22%
+toward black -- the fields, not the text, so the hue survives and Law 2 still holds.
+
+**Light theme never re-themed the tier bases at all.** It re-themed the four `-bright` variants and
+stopped, and the bases are what `[data-tier]` binds `--tier` to, so every piece of tier chrome in
+light theme was painted a colour picked for a near-black ground: `good` 2.32 and `fair` 1.96 against
+a 3.0 floor. "Hue is the verdict" was not true in light theme for the two most common non-refusal
+outcomes. Four light bases are added and the four light `-bright` values darkened to carry text.
+
+**One correction to FLAWS.md.** Its P0 #1 table lists "white on `--walk-bright` 2.84" as a failure.
+No rule in the app draws that pairing: `--tier-bright` is text on a dark tint in the thin and
+refusal sheets, never a field behind white. Measured as used it was 6.11 and passing. The row is
+wrong; the two rows above it were right, and were the real defect.
+
+**A component layer exists now.** `components.css` holds one `.btn` base carrying one focus ring --
+camera.css line 239's own rule, "2px at 3px offset, the ring every other control on this screen
+already draws" -- plus the row, the field, the label and the money figure. The shell's four controls
+had zero focus rules, zero transitions and no hover gating while the camera had all three on all
+seven of its controls. Existing class names are addressed directly rather than migrated, because
+changing markup across nine screens while five lanes are editing those screens loses the merge.
+
+**No build step.** It was considered and cut. `screens.css` already `@import`s its stylesheets so a
+component layer costs one line; custom properties give the scale; `test/faces.test.mjs` already
+imports a browser module directly under `node --test`, so front-end code is testable with no
+tooling. A `src/`-to-`dist/` split would have moved every path on the day five lanes were editing
+those paths, and `server.ts` serves `public/` directly, so "run it" stays one command for the
+person this branch exists to show it to.
+
+**Reverses if:** a measured pairing is shown to be measured against the wrong ground -- the tints
+in particular are computed from `color-mix` against `--ground`, and camera.css currently hardcodes
+`#0B0C0E` in three places, so if that hardcode is kept deliberately the light-theme tint numbers in
+`test/tokens.test.mjs` are checking a surface that is not drawn. Or if the type roles turn out to
+need a seventh, which would mean DESIGN.md section 2's table is short rather than that the roles
+were the wrong shape.

@@ -54,13 +54,18 @@ test('each of the five refusals gives the reason the pilot actually hit', () => 
    */
   // The single Walmart price IS the shopper's own store, so excluding it leaves
   // nothing to compare against. Not a threshold: a set of size zero.
-  assert.equal(by.get('tide-simply-2720ml')?.reason, 'too_few_points');
+  //
+  // The code changed on 2026-09-07 and the behaviour did not. Both of these
+  // rows used to read `too_few_points`, which describes a count, over sets
+  // emptied by two different conditions and by neither of them a count. That
+  // mismatch is D-011 and its cause is D-012.
+  assert.equal(by.get('tide-simply-2720ml')?.reason, 'all_points_from_asking_seller');
   // Produce is declined as a category, not missed as an item.
   assert.equal(by.get('navel-oranges-3lb')?.reason, 'category_unsupported');
   // The failure mode was identity, not price.
   assert.equal(by.get('canon-eos-r6-used')?.reason, 'identity_unsure');
   // List price only, zero live retailer prices.
-  assert.equal(by.get('sony-wh1000xm5')?.reason, 'too_few_points');
+  assert.equal(by.get('sony-wh1000xm5')?.reason, 'unusable_price_kinds');
   // Five variant pages, no prices in any of them.
   assert.equal(by.get('poang-new')?.reason, 'no_source_response');
 });

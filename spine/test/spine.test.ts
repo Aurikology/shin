@@ -46,6 +46,41 @@ test('a shaky identity refuses even when the prices are perfect', async () => {
   assert.match(r.detail, /Canon EOS R6 Mark II bundle/);
 });
 
+test('the unsure sentence carries no category slug and no research prose', async () => {
+  /*
+   * D-013. The Canon refusal read "Not sure enough this is the right used
+   * goods" and then concatenated about 450 characters of research notes about
+   * eBay sold listings in US dollars. The category is out of the sentence and
+   * the notes travel on their own field.
+   *
+   * Negative-tested 2026-09-07 by restoring the old template and watching both
+   * halves go red.
+   */
+  const note =
+    'free search answered with a Canon EOS R6 Mark II bundled with lenses at about $4,800: a different camera at nearly triple.';
+  const src = new StubSource(identity('used', 0.55, 'Canon EOS R6, used body'), []);
+  const r = asRefusal(
+    await priceIt(
+      { text: 'canon r6', askingCents: 200000, asOf: AS_OF },
+      { sources: [src], identityNote: () => note },
+    ),
+  );
+  assert.equal(r.reason, 'identity_unsure');
+  assert.equal(
+    r.detail,
+    'Not sure enough this is the right one. The closest match was "Canon EOS R6, used body". Pick the right one and Shin will price it.',
+  );
+  assert.doesNotMatch(r.detail, /used goods|grocery|furniture/i, 'no category slug in the sentence');
+  assert.ok(!r.detail.includes(note), 'the research note must not be in the headline');
+  assert.equal(r.evidenceNote, note, 'and it must still be reachable, on its own field');
+});
+
+test('an identity with no recorded note carries no empty evidence field', async () => {
+  const src = new StubSource(identity('used', 0.55, 'Something'), []);
+  const r = asRefusal(await priceIt({ text: 'x', askingCents: 100, asOf: AS_OF }, deps(src)));
+  assert.equal(r.evidenceNote, undefined);
+});
+
 test('produce is refused as a category, with the reversing condition available', async () => {
   const src = new StubSource(identity('produce'), [point('Metro', 699), point('Food Basics', 599)]);
   const r = asRefusal(await priceIt({ text: 'oranges', askingCents: 699, asOf: AS_OF }, deps(src)));
@@ -53,11 +88,91 @@ test('produce is refused as a category, with the reversing condition available',
   assert.match(r.detail, /PLU/);
 });
 
-test('list price alone is not a comparison', async () => {
+/*
+ * D-011 and D-012, one test per filter condition.
+ *
+ * The comparison set is filtered on four things and the empty result used to
+ * carry two messages, so self-exclusion was reported as an age problem and the
+ * whole family came back as `too_few_points` over an evidence array that was
+ * not thin. Each condition now has its own code, and each of the four tests
+ * below empties the set on exactly one of them.
+ *
+ * Every one of these was negative-tested on 2026-09-07 by reverting
+ * `spine/src/spine.ts` to the single combined filter and watching it go red.
+ */
+
+test('every price found being a kind we cannot compare is its own reason', async () => {
+  // Condition 1: usable kind. A manufacturer list price with no retailer
+  // behind it, which is the Sony WH-1000XM5 row in the pilot corpus.
   const src = new StubSource(identity('tech'), [point('Sony (list)', 42999, 'list')]);
   const r = asRefusal(await priceIt({ text: 'xm5', askingCents: 42999, asOf: AS_OF }, deps(src)));
-  assert.equal(r.reason, 'too_few_points');
+  assert.equal(r.reason, 'unusable_price_kinds');
   assert.match(r.detail, /list/);
+  assert.equal(r.evidence.length, 1, 'a refusal still shows what it did find');
+});
+
+test('every price found being dated in the future is its own reason', async () => {
+  // Condition 2: not future dated. These used to report as an age problem,
+  // which is the opposite of what is wrong with them.
+  const src = new StubSource(identity('grocery'), [
+    point('Walmart', 299, 'regular', '2027-06-01'),
+    point('Metro', 299, 'regular', '2027-06-01'),
+  ]);
+  const r = asRefusal(await priceIt({ text: 'kd', askingCents: 299, asOf: AS_OF }, deps(src)));
+  assert.equal(r.reason, 'points_future_dated');
+  assert.match(r.detail, /later than today/);
+  assert.equal(r.evidence.length, 2);
+});
+
+test('every price found being older than the window is its own reason', async () => {
+  // Condition 3: inside the history window. Grocery's window is short and
+  // these are years outside it, from two sellers, neither of them the shopper's.
+  const src = new StubSource(identity('grocery'), [
+    point('Walmart', 299, 'regular', '2020-02-01'),
+    point('Metro', 315, 'regular', '2020-03-01'),
+  ]);
+  const r = asRefusal(
+    await priceIt({ text: 'kd', askingCents: 299, askingSeller: 'Sobeys', asOf: AS_OF }, deps(src)),
+  );
+  assert.equal(r.reason, 'points_too_stale');
+  assert.match(r.detail, /recent enough/);
+  assert.equal(r.evidence.length, 2);
+});
+
+test('every price found being the shopper own store is its own reason, not an age problem', async () => {
+  // Condition 4, D-012 itself, and the condition that fires most often now
+  // that one store supplies almost every price we hold. Thirteen current
+  // prices, every one of them Walmart, and Walmart is the store being judged.
+  // This is the exact shape D-011 recorded: `too_few_points` over an evidence
+  // array that was never thin.
+  const walmart = Array.from({ length: 13 }, (_, i) =>
+    point(i % 2 === 0 ? 'Walmart' : 'walmart.ca', 1197 + i, 'regular', '2026-09-03'),
+  );
+  const src = new StubSource(identity('grocery'), walmart);
+  const r = asRefusal(
+    await priceIt({ text: 'tide', askingCents: 1197, askingSeller: 'Walmart', asOf: AS_OF }, deps(src)),
+  );
+  assert.equal(r.reason, 'all_points_from_asking_seller');
+  assert.match(r.detail, /same store/);
+  assert.equal(r.evidence.length, 13, 'the count the old code name claimed to describe');
+  assert.doesNotMatch(r.detail, /recent|old/, 'age is not what fired and must not be named');
+});
+
+test('a refusal never suggests the shopper did anything wrong', async () => {
+  // Hard rule 3. The aggression points at the price, the store or the brand.
+  const cases = [
+    { points: [point('Sony (list)', 42999, 'list')], cat: 'tech' as const, seller: undefined },
+    { points: [point('Walmart', 299, 'regular', '2027-06-01')], cat: 'grocery' as const, seller: undefined },
+    { points: [point('Walmart', 299, 'regular', '2020-02-01')], cat: 'grocery' as const, seller: 'Sobeys' },
+    { points: [point('Walmart', 1197)], cat: 'grocery' as const, seller: 'Walmart' },
+  ];
+  for (const c of cases) {
+    const src = new StubSource(identity(c.cat), c.points);
+    const r = asRefusal(
+      await priceIt({ text: 'x', askingCents: 1197, askingSeller: c.seller, asOf: AS_OF }, deps(src)),
+    );
+    assert.doesNotMatch(r.detail, /\byou\b|\byour\b/i, `${r.reason} points at the user`);
+  }
 });
 
 test('no points at all is a source failure, not a thin comparison', async () => {
@@ -377,7 +492,9 @@ test('future-dated points are rejected rather than aged to zero', async () => {
     point('Sobeys', 299, 'regular', '2027-06-01'),
   ]);
   const r = asRefusal(await priceIt({ text: 'kd', askingCents: 299, asOf: AS_OF }, deps(src)));
-  assert.equal(r.reason, 'too_few_points');
+  // Was `too_few_points`. D-011: three prices is not a count problem, and a
+  // date in the future is not an age problem either.
+  assert.equal(r.reason, 'points_future_dated');
 });
 
 test('an unparsable asking price refuses instead of falling through to fair', async () => {

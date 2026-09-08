@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 88" width="88" height="88" color="#12233A" role="img" aria-label="Shin: delighted">
+  <circle class="face-disc" cx="44" cy="44" r="40.5" fill="#DDF1FA"/>
+  <g class="face-body" transform="translate(0 -1)">
+  <path d="M32 67 C27 70 22 73 19.2 76 A40.5 40.5 0 0 0 68.8 76 C66 73 61 70 56 67 Z" fill="#2BB5F0" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M37.30 70 L39.70 70 L42.20 77 L39.80 77 Z M48.30 70 L50.70 70 L48.20 77 L45.80 77 Z" fill="#F26B1D" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="38.5" y="75.5" width="11" height="7" rx="1.5" fill="#FFFFFF" stroke="currentColor" stroke-width="2"/>
+  <path d="M40.30 77.4 h0.87 v3.2 h-0.87 Z M41.61 77.4 h0.44 v3.2 h-0.44 Z M42.48 77.4 h1.31 v3.2 h-1.31 Z M44.22 77.4 h0.44 v3.2 h-0.44 Z M45.09 77.4 h0.44 v3.2 h-0.44 Z M45.96 77.4 h0.87 v3.2 h-0.87 Z M47.26 77.4 h0.44 v3.2 h-0.44 Z" fill="#12233A"/>
+</g>
+  <g class="face-head">
+    <ellipse cx="19.5" cy="48" rx="4" ry="5.4" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/>
+  <ellipse cx="68.5" cy="48" rx="4" ry="5.4" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/>
+  <path class="face-skull" d="M44 17 C59 17 68 30 68 46 C68 62 59 70.5 44 70.5 C29 70.5 20 62 20 46 C20 30 29 17 44 17 Z" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/>
+  <path d="M21.6 44 C21.4 60 30 69 44 69 C34.5 64.5 28.5 55 28.4 44 C28.4 39.5 29.2 35.5 30.6 32.2 C25.4 35.6 21.9 39.4 21.6 44 Z" fill="#1E93C9"/>
+    <g class="face-hat">
+  <path d="M24 29.5 C26 19 35 14.5 44 14.5 C53 14.5 62 19 64 29.5 C57 27 31 27 24 29.5 Z" fill="#F26B1D" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M44 14.5 L44 10.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+  <g>
+    <path d="M34.5 9.5 Q44 5.5 53.5 9.5 Q44 13.5 34.5 9.5 Z" fill="#F26B1D" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="44" cy="9.5" r="1.5" fill="#12233A"/>
+  </g>
+</g>
+    <g class="face-brows"><path d="M38.76 27.11 Q32.85 28.65 26.93 30.19 A0.81 0.81 0 0 1 27.07 31.81 Q33.15 32.35 39.24 32.89 A2.90 2.90 0 0 1 38.76 27.11 Z M48.76 32.89 Q54.85 32.35 60.93 31.81 A0.81 0.81 0 0 1 61.07 30.19 Q55.15 28.65 49.24 27.11 A2.90 2.90 0 0 1 48.76 32.89 Z" fill="currentColor"/></g>
+    <g class="face-eyes"><ellipse cx="33.5" cy="47" rx="8.6" ry="8.4" fill="#FFFFFF"/>
+    <circle cx="33.5" cy="47" r="4.8" fill="#12233A"/>
+    <circle cx="35.28" cy="45.22" r="1.7" fill="#FFFFFF"/>
+    <circle cx="30.06" cy="50.70" r="0.9" fill="#FFFFFF"/>
+    <ellipse cx="33.5" cy="47" rx="8.6" ry="8.4" fill="none" stroke="currentColor" stroke-width="2.4"/>
+    <ellipse cx="54.5" cy="47" rx="8.6" ry="8.4" fill="#FFFFFF"/>
+    <circle cx="54.5" cy="47" r="4.8" fill="#12233A"/>
+    <circle cx="56.28" cy="45.22" r="1.7" fill="#FFFFFF"/>
+    <circle cx="51.06" cy="50.70" r="0.9" fill="#FFFFFF"/>
+    <ellipse cx="54.5" cy="47" rx="8.6" ry="8.4" fill="none" stroke="currentColor" stroke-width="2.4"/></g>
+    <g class="face-mouth"><path d="M36 60 Q44 72 52 60 Z" fill="#12233A" stroke="currentColor" stroke-width="2.8" stroke-linejoin="round"/>
+    <path d="M42.00 60 h4.00 v1.80 a1.80 1.80 0 0 1 -1.80 1.80 h-0.40 a1.80 1.80 0 0 1 -1.80 -1.80 Z" fill="#FFFFFF"/></g>
+  </g>
+  <g class="face-extras"></g>
+  <circle class="face-ring" cx="44" cy="44" r="40.5" fill="none" stroke="currentColor" stroke-width="3"/>
+</svg>

@@ -24,10 +24,22 @@
  */
 
 import { faceBlock, cad, confidenceOf, dotsHtml, tierOf, sellerOf, animateFace, shinSay, updateShinSay } from '../shin.js';
-import { say, wordFor } from '../voice.js';
+import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { attachEye } from '../eye-attach.js';
+import { escapeHtml } from '../lib/dom.js';
+import { submitCorrection } from '../corrections.js';
 import { identifyOffline } from '../offline-aisle.js';
+
+/**
+ * The camera states in which the docked face is faded out by `camera.css`.
+ *
+ * This list and the selector list in `camera.css` under "Hidden whenever a
+ * sheet has risen" are one fact written twice, and they have to agree: a state
+ * in the stylesheet and not here leaves an invisible face animating (D-017), a
+ * state here and not in the stylesheet freezes a face the user can see.
+ */
+const FACE_HIDDEN_IN = new Set(['choosing', 'asking', 'reading', 'texting', 'result']);
 
 /**
  * The four things the viewfinder is ever allowed to say, and the lines they map
@@ -141,6 +153,34 @@ function backButton(label = 'Back to camera') {
   return `<button type="button" class="sheet-close" data-act="cancel-scan" aria-label="${label}">
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
   </button>`;
+}
+
+/**
+ * The grabber on a sheet that has somewhere to go, as a real control.
+ *
+ * It used to be `<span class="grabber" aria-hidden="true" role="button"
+ * tabindex="0" aria-label="Show more">` with no key handler anywhere in the
+ * repo -- `grep -rn "keydown" public/js` returned zero hits -- which is the
+ * worst of the three available states at once: in the tab order, announced as a
+ * button, hidden from the accessibility tree by `aria-hidden`, and inert on
+ * every key. A keyboard user reached it, was told it was a button, and nothing
+ * happened.
+ *
+ * Made a real `<button>` rather than promoting `.sheet-head` to the control,
+ * because the head is not a control: it holds Shin's face, his spoken bubble
+ * (which changes text while the sheet is open) and the frozen-frame thumbnail,
+ * and a button's accessible name is its whole subtree -- so promoting the head
+ * would name this control with a paragraph of speech and would re-announce it
+ * every time the bubble changed. The head keeps its drag, which is a gesture
+ * and not a control, and the grabber keeps its own short, stable name.
+ *
+ * Only the two sheets with a half or full detent get one. The candidate list,
+ * the pad, the going-rate card, the working wait and the type-it route all top
+ * out at peek, so their grabber stays a decorative `<span aria-hidden="true">`:
+ * a focusable control that cannot do anything is the defect this is fixing.
+ */
+function grabber() {
+  return `<button type="button" class="grabber" data-act="detent-step" aria-label="Show more"></button>`;
 }
 
 /**
@@ -392,7 +432,9 @@ async function fillCheaper(root, code, askingCents) {
     // A lookup that threw is not "there is nothing cheaper". Saying so, rather
     // than leaving the placeholder sentence up forever, which would read as a
     // search still running.
-    if (box.isConnected) box.innerHTML = `<p class="detail">I could not check for a cheaper one.</p>`;
+    if (box.isConnected) {
+      box.innerHTML = `<p class="detail">${escapeHtml(say('cam_cheaper_failed'))}</p>`;
+    }
   }
 }
 
@@ -471,8 +513,8 @@ function verdictSheet(v, scenario, thumb, acked = false) {
   // full adds what Shin used in full, the one-tap correctness signal, and (row
   // 68) one obvious Done that closes the whole sheet in a single tap.
   return `
-    <section class="sheet verdict" data-tier="${v.tier}" data-conf="${conf.level}" data-detent="peek" aria-live="polite">
-      <span class="grabber" aria-hidden="true" role="button" tabindex="0" aria-label="Show more"></span>
+    <section class="sheet verdict" data-tier="${v.tier}" data-conf="${conf.level}" data-detent="peek" aria-live="polite" tabindex="-1">
+      ${grabber()}
 
       <div class="sheet-peek">
         <div class="sheet-head">
@@ -543,15 +585,73 @@ function verdictSheet(v, scenario, thumb, acked = false) {
  * on this sheet: a short list of what Shin can price, fetched once when the
  * camera opens and handed in here, never a second endpoint spent per refusal.
  */
-function refusalSheet(r, scenario, categoryLabels = []) {
+/**
+ * Every reason that means "prices were found and none of them can settle this",
+ * as opposed to "we do not know what this is".
+ *
+ * One list, because two callers need it and they must never disagree: the sheet
+ * picks the refuse_thin title from it, and the scan decides whether Keep it is
+ * offered. The list gained three members on 2026-09-07 when the engine stopped
+ * answering four different filter conditions with one code (D-012). Missing one
+ * here is not cosmetic: an unlisted reason falls through to the refuse_unknown
+ * title, so a Tide refusal with thirteen prices behind it would tell the shopper
+ * Shin could not identify the product.
+ */
+const THIN_REASONS = new Set([
+  'too_few_points',
+  'points_too_stale',
+  'no_source_response',
+  'comparison_incoherent',
+  'unusable_price_kinds',
+  'points_future_dated',
+  'all_points_from_asking_seller',
+]);
+
+function isThinReason(reason) {
+  return THIN_REASONS.has(reason);
+}
+
+/**
+ * What "Keep it" needs before it can be offered, or null.
+ *
+ * AVATAR.md section 3 row 39 gives the thin refusal exactly one action and
+ * names it Keep it; DESIGN.md section 5 says it "records what the user read,
+ * dated and attributed to a named seller". Both halves of that are conditions,
+ * not decoration:
+ *
+ * - **A price the shopper actually gave.** Keep it exists so nobody is asked to
+ *   type a number they typed ninety seconds ago. With no asking price there is
+ *   nothing to keep, and the honest action is the one that asks for it.
+ * - **A named shop.** A correction with no seller cannot be excluded from its
+ *   own comparison later, so `store.recordCorrection` refuses to invent one and
+ *   the engine uses the literal word "given" when none was named. A price
+ *   attributed to nowhere is not evidence, it is a number.
+ *
+ * Only the thin refusals qualify. The other three are a different problem: no
+ * identity and unsure-which-one do not know what the price would be about, and
+ * an unsupported category has already said it will not price this at all.
+ */
+function keepableFrom(r, scenario, askingCents, isThin) {
+  if (!isThin) return null;
+  if (typeof askingCents !== 'number' || !Number.isFinite(askingCents) || askingCents <= 0) return null;
+  const seller = (scenario?.askingSeller ?? '').trim();
+  if (seller === '') return null;
+  return {
+    askingCents,
+    seller,
+    code: scenario?.scannedGtin ?? null,
+    productId: r.identity?.id ?? null,
+    label: r.identity?.label ?? scenario?.text ?? null,
+    category: scenario?.category ?? null,
+  };
+}
+
+function refusalSheet(r, scenario, categoryLabels = [], keepable = null) {
   const category = scenario?.category ?? 'this';
   const isCategory = r.reason === 'category_unsupported';
   const isUnsure = r.reason === 'identity_unsure';
   const isNoIdentity = r.reason === 'no_identity';
-  const isThin = r.reason === 'too_few_points'
-    || r.reason === 'points_too_stale'
-    || r.reason === 'no_source_response'
-    || r.reason === 'comparison_incoherent';
+  const isThin = isThinReason(r.reason);
 
   const titleKey = isCategory ? 'refuse_category' : isUnsure ? 'refuse_unsure' : isThin ? 'refuse_thin' : 'refuse_unknown';
   const titleFacts = isCategory ? { category } : {};
@@ -598,14 +698,21 @@ function refusalSheet(r, scenario, categoryLabels = []) {
           : ''}
       </div>`
     : `<div class="actions actions-primary">${
-        isNoIdentity
-          ? `<button type="button" class="pill solid" data-act="typeit">Type what it is</button>`
-          : `<button type="button" class="pill solid" data-act="correct">Tell me the price</button>`
+        keepable
+          /* One action, never two. USAGE.md section 7 and section 4 both forbid
+             a second pill on a refusal, and the label is the contract's own
+             word. It is chrome rather than a voice key: two words, no sentence,
+             and the same button on every attitude. What Shin SAYS about it is
+             keep_it_ack, which has all three. */
+          ? `<button type="button" class="pill solid" data-act="keepit">Keep it</button>`
+          : isNoIdentity
+            ? `<button type="button" class="pill solid" data-act="typeit">Type what it is</button>`
+            : `<button type="button" class="pill solid" data-act="correct">Tell me the price</button>`
       }</div>`;
 
   return `
-    <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite">
-      <span class="grabber" aria-hidden="true" role="button" tabindex="0" aria-label="Show more"></span>
+    <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite" tabindex="-1">
+      ${grabber()}
       ${isCategory ? backButton() : ''}
       <div class="sheet-peek">
         <div class="sheet-head">
@@ -614,12 +721,15 @@ function refusalSheet(r, scenario, categoryLabels = []) {
         ${mine}
         <p class="detail">${isCategory ? categoryShort : r.detail}</p>
         ${repairBlock}
-        <p class="itemname">${r.identity ? r.identity.label : 'No confident match'} &middot; ${r.reason.replace(/_/g, ' ')}</p>
+        <p class="itemname">${r.identity ? r.identity.label : 'No confident match'} &middot; ${refusalLabel(r.reason)}</p>
       </div>
       <div class="sheet-half">
         ${r.evidence.length
           ? `<p class="because">${say('refuse_evidence_some')}</p>${provenance(r.evidence)}`
           : `<p class="because">${say('refuse_evidence_none')}</p>`}
+        ${r.evidenceNote
+          ? `<details class="why"><summary>Why</summary><p class="detail">${escapeHtml(r.evidenceNote)}</p></details>`
+          : ''}
       </div>
     </section>`;
 }
@@ -652,7 +762,7 @@ function playRefusalLanding(slot) {
  */
 function candidateSheet(items) {
   return `
-    <section class="sheet candidates" data-tier="unknown" data-conf="reading">
+    <section class="sheet candidates" data-tier="unknown" data-conf="reading" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
       ${backButton()}
       <div class="sheet-peek">
@@ -672,10 +782,56 @@ function candidateSheet(items) {
             .join('')}
           <button type="button" class="cand cand-none" data-pick="__none">
             <span class="cand-name">Something else</span>
-            <span class="cand-meta">I will almost certainly refuse</span>
+            <span class="cand-meta">${say('cam_candidate_none')}</span>
           </button>
         </div>
         <p class="standin-note">Stand-in list until the camera can read the item.</p>
+      </div>
+    </section>`;
+}
+
+/**
+ * The ranked list behind a pick, reopened by "not this?".
+ *
+ * NOT `candidateSheet`, and the difference is the whole reason there are two.
+ * That one is the stand-in list the camera shows because there is no vision
+ * model yet: seven hand-priced things, offered before Shin has looked at
+ * anything. This one is the rest of what a real search actually found, offered
+ * after Shin has already answered, when the band said the answer was one of
+ * several plausible rows rather than the only one.
+ *
+ * So it carries no asking price and no stand-in note. These rows are catalogue
+ * products, not priced shelf entries; a price appears after one is picked, in
+ * the pad, the same as the first time round. Putting a number here would be
+ * inventing one.
+ *
+ * The row already on screen is dropped by the caller, not here, so an empty
+ * list reaching this function means the search found nothing else and the
+ * sentence says exactly that rather than drawing an empty box.
+ */
+function searchCandidateSheet(items, query) {
+  return `
+    <section class="sheet candidates" data-tier="unknown" data-conf="reading" tabindex="-1">
+      <span class="grabber" aria-hidden="true"></span>
+      ${backButton()}
+      <div class="sheet-peek">
+        <div class="sheet-head compact">
+          ${shinSay('asking', items.length ? 'cam_notthis_prompt' : 'cam_notthis_empty', { query }, { size: 64 })}
+        </div>
+        <div class="cands">
+          ${items
+            .map(
+              (i) => `<button type="button" class="cand" data-pick-code="${escapeHtml(i.code)}">
+                <span class="cand-name">${escapeHtml(i.label)}</span>
+                ${i.meta ? `<span class="cand-meta">${escapeHtml(i.meta)}</span>` : ''}
+              </button>`,
+            )
+            .join('')}
+          <button type="button" class="cand cand-none" data-act="notthis-back">
+            <span class="cand-name">Keep the first one</span>
+            <span class="cand-meta">${escapeHtml(say('cam_notthis_keep'))}</span>
+          </button>
+        </div>
       </div>
     </section>`;
 }
@@ -691,6 +847,60 @@ function pricePadDisplay(typed) {
   return frac === undefined
     ? `${whole || '0'}<span class="ghosted">.00</span>`
     : `${whole || '0'}.${frac}${frac.length === 1 ? '<span class="ghosted">0</span>' : ''}`;
+}
+
+/**
+ * The keypad, once, for both pads.
+ *
+ * `camera.css .padsheet .keypad` and `correct.css .keypad` were two
+ * implementations of one component, and `pricePadDisplay` above was duplicated
+ * verbatim as `display()` inside correct.js. This is the markup half of that
+ * duplication removed: the keys come from here and carry Foundation's
+ * `.btn .btn--key` (components.css), so the fill, the radius, the display face,
+ * the tabular figures and the one focus ring are stated once, and each pad only
+ * says what is genuinely its own -- row height, and whether there is a confirm
+ * key in the bottom row at all.
+ *
+ * Deliberately NOT carrying the bare `.key` class any more. `correct.css`
+ * declares `.key` and `.keypad` unscoped, so those rules were reaching into the
+ * camera's sheet pad -- `.key { background: var(--surface) }` against
+ * camera.css's own `--raised`, at equal specificity, settled by nothing but
+ * which file screens.css imports last. The camera's keys are addressed as
+ * `.padsheet .btn--key` now and the two pads cannot paint each other by
+ * accident.
+ *
+ * The digits are one 3x3 grid and the bottom row is its own, because the confirm
+ * key has to read as the keypad's own key (USAGE.md A1 0:13.4) rather than a
+ * button underneath it. A pad with no confirm (the correction screen's, whose
+ * commit is its page CTA) gets a three-column bottom row instead of four, so it
+ * stays the same 3-wide field of keys all the way down.
+ *
+ * @param {object}  [opts]
+ * @param {boolean} [opts.confirm=false]           render the confirm key.
+ * @param {boolean} [opts.canConfirm=false]        whether that key is enabled.
+ * @param {string}  [opts.confirmLabel='Price it'] its accessible name.
+ * @returns {string} markup: `.keypad` (1-9) followed by `.keypad-bottom`
+ *   (`.`, `0`, backspace, and the confirm key when asked for). Every key carries
+ *   `data-pad="<char>"`, the char being one of `1`-`9`, `.`, `0`, `⌫`; the
+ *   confirm key carries `data-act="pad-confirm"` and `.key-confirm`.
+ */
+function keypadHtml({ confirm = false, canConfirm = false, confirmLabel = 'Price it' } = {}) {
+  const key = (char, extra = '') =>
+    `<button type="button" class="btn btn--key" data-pad="${char}"${extra}>${char}</button>`;
+  return `
+        <div class="keypad">
+          ${['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((k) => key(k)).join('')}
+        </div>
+        <div class="keypad keypad-bottom${confirm ? '' : ' keypad-bottom-3'}">
+          ${key('.')}
+          ${key('0')}
+          ${key('⌫', ' aria-label="Delete last digit"')}
+          ${confirm
+            ? `<button type="button" class="btn btn--key key-confirm" data-act="pad-confirm" aria-label="${confirmLabel}"${canConfirm ? '' : ' disabled'}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </button>`
+            : ''}
+        </div>`;
 }
 
 /** The pad buffer, read as cents, or null if it does not parse as a usable
@@ -728,7 +938,7 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null) {
   const canConfirm = (effCents ?? 0) > 0;
   const effLabel = modifierLabel(typedCents, modifier);
   return `
-    <section class="sheet padsheet" data-tier="unknown" data-conf="reading">
+    <section class="sheet padsheet" data-tier="unknown" data-conf="reading" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
       ${backButton()}
       <div class="pad-headrow">
@@ -741,6 +951,13 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null) {
           ${thumbImg(thumb)}
         </div>
         <p class="itemname">${item.text}</p>
+        ${
+          item.notThisQuery
+            ? `<button type="button" class="pad-textbtn notthis" data-act="notthis">${escapeHtml(
+                say('cam_notthis_offer'),
+              )}</button>`
+            : ''
+        }
         <div class="amount pad-amount"><span class="amount-cur">$</span>${pricePadDisplay(typed)}</div>
         <p class="pad-effective" data-pad-effective${effLabel ? '' : ' hidden'}>${effLabel}</p>
         <div class="pad-mods" role="group" aria-label="Price modifiers">
@@ -755,19 +972,7 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null) {
         <div class="pad-mod-input">
           <label>Items in the deal <input type="number" inputmode="numeric" min="2" max="20" data-mod-value value="${modifier.n ?? ''}" placeholder="3"></label>
         </div>` : ''}
-        <div class="keypad">
-          ${['1', '2', '3', '4', '5', '6', '7', '8', '9']
-            .map((k) => `<button type="button" class="key" data-pad="${k}">${k}</button>`)
-            .join('')}
-        </div>
-        <div class="keypad keypad-bottom">
-          <button type="button" class="key" data-pad=".">.</button>
-          <button type="button" class="key" data-pad="0">0</button>
-          <button type="button" class="key" data-pad="⌫" aria-label="Backspace">⌫</button>
-          <button type="button" class="key key-confirm" data-act="pad-confirm" aria-label="Price it"${canConfirm ? '' : ' disabled'}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-          </button>
-        </div>
+        ${keypadHtml({ confirm: true, canConfirm })}
       </div>
     </section>`;
 }
@@ -794,8 +999,13 @@ function goingRateCard(refusal, item) {
   const label = refusal.identity ? refusal.identity.label : (item?.text ?? 'this');
 
   return `
-    <section class="sheet goingrate" data-tier="unknown" data-conf="reading">
-      <span class="grabber" aria-hidden="true"></span>
+    <section class="sheet goingrate" data-tier="unknown" data-conf="reading" tabindex="-1">
+      <!-- A real grabber, like the verdict and the refusal, because this card
+           has a half detent too: the seller list below is the whole evidence
+           for the range quoted above it, and it was as unreachable from a
+           keyboard as the verdict's own was. Found by app/test/sheet.test.mjs
+           asserting the rule rather than the two known cases. -->
+      ${grabber()}
       ${backButton()}
       <div class="sheet-peek">
         <div class="sheet-head">
@@ -841,7 +1051,7 @@ function workingSheet(itemLabel, step = 0, opts = {}) {
   // both make the wait harder to read than the plain three-line list. The
   // face still carries the doc's own face-working (76) size.
   return `
-    <section class="sheet working" data-tier="unknown" data-conf="reading">
+    <section class="sheet working" data-tier="unknown" data-conf="reading" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
       <button type="button" class="sheet-close" data-act="cancel-scan" aria-label="Cancel and go back to the viewfinder">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -867,7 +1077,7 @@ function workingSheet(itemLabel, step = 0, opts = {}) {
  */
 function textRouteSheet(value = '') {
   return `
-    <section class="sheet textroute" data-tier="unknown" data-conf="reading">
+    <section class="sheet textroute" data-tier="unknown" data-conf="reading" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
       ${backButton()}
       <div class="sheet-peek">
@@ -908,12 +1118,30 @@ function matchCatalogue(text, catalogueItems) {
   return bestScore >= Math.min(2, words.length) ? best : null;
 }
 
-/* Exported for the sheet-layout check (`node scripts/check-sheet.mjs` or
-   equivalent): it renders verdictSheet/refusalSheet outside the browser and
+/* Exported for the sheet-layout check, which is `app/test/sheet.test.mjs` as of
+   2026-09-06 (this comment named `scripts/check-sheet.mjs` for two commits and
+   that file was never written). It renders every sheet outside the browser and
    asserts by string that the peek detent carries a primary action before any
-   half-detent markup, and that a refusal never carries two buttons. Exporting
-   these changes nothing about how the screen itself calls them. */
+   half-detent markup, that a refusal carries exactly one action and is never
+   tier-red, and that nothing focusable is hidden behind `aria-hidden`.
+   Exporting these changes nothing about how the screen itself calls them. */
 export { verdictSheet, refusalSheet, pricePadSheet, goingRateCard, workingSheet, textRouteSheet };
+
+/* Exported with them 2026-09-08, when "not this?" gave the ranked search its
+   first caller. It is in the same check for the same reason: it is a sheet, and
+   the one rule it has of its own -- an empty list says so in a sentence rather
+   than drawing an empty box -- is only true if something asserts it. */
+export { searchCandidateSheet };
+
+/*
+ * Exported for the correction screen (correct.js), which had its own copy of
+ * both of these. The keypad is one component with two hosts; see keypadHtml's
+ * own comment for what the camera's pad keeps for itself and why the bare
+ * `.key` class is gone. `parsePadPrice` travels with them because a pad that
+ * renders the same digits and reads them back differently is the same
+ * duplication one layer down.
+ */
+export { keypadHtml, pricePadDisplay, parsePadPrice };
 
 /* ------------------------------------------------------------------ screen */
 
@@ -927,6 +1155,13 @@ export default {
     ctxApi = ctx.api;
     root.innerHTML = `
       <div class="cam" data-state="idle">
+        <!-- FLAWS.md item 12: every other screen has an h1 and this one had no
+             heading element at all, so a screen reader's heading list skipped
+             the app's main surface entirely and router.js has nothing to move
+             focus to after a paint. Visually hidden because the wordmark below
+             is already the visible identity and a second one drawn over a live
+             feed would be chrome for its own sake. -->
+        <h1 class="sr-only" tabindex="-1">Shin camera</h1>
         <div class="feed">
           <video class="feed-video" playsinline muted autoplay></video>
           <div class="feed-fallback" aria-hidden="true">
@@ -1013,6 +1248,10 @@ export default {
     let hintTimer = null;
     let torchAckTimer = null;
     let secondVisitShown = false;
+    /* What the current refusal would keep, or null. Held here rather than read
+       off the DOM because the price and the shop are facts about the scan, not
+       about the markup, and a button cannot be trusted to carry money. */
+    let lastKeepable = null;
     let scanThumb = null;
     let coachKey = null;
     let camShinEl = camShin ? camShin.querySelector('.shin-say') : null;
@@ -1112,7 +1351,63 @@ export default {
     paintBadge();
     const unsub = store.subscribe(paintBadge);
 
-    function setState(next) { cam.dataset.state = next; }
+    const camBar = root.querySelector('.cam-bar');
+
+    /**
+     * The state, and with it whether the bottom bar is reachable at all.
+     *
+     * The bar slides away on `result` and `choosing` and is covered by the
+     * sheet on `asking` and `texting`. In all four it was still in the tab
+     * order: Tab out of the verdict sheet landed on three invisible buttons
+     * (Saved, the shutter, You) with the focus ring drawn where nothing is,
+     * and a stray Tab-and-Enter during price entry navigated away to Saved
+     * mid-scan. Measured with elementFromPoint on the running app: during
+     * `asking` the shutter's own centre returns no element at all, and all
+     * three still took `focus()`.
+     *
+     * `inert` and not `visibility: hidden`, for two reasons. It leaves
+     * `visibility` alone, so camera.css's slide-out animates exactly as it did
+     * -- hiding it outright would make the bar vanish instead of slide, and
+     * delaying the hide to the end of the slide is precisely what does not
+     * work: both `visibility 0s linear var(--t-rise)` and
+     * `visibility var(--t-rise) linear` were tried on the running app and left
+     * the bar computing `visible`, with the shutter still focusable, four
+     * seconds after the verdict landed. And `inert` is the primitive that
+     * actually says the thing: this subtree is not interactive right now, in
+     * the tab order and in the accessibility tree together.
+     */
+    function setState(next) {
+      cam.dataset.state = next;
+      if (camBar) camBar.inert = next === 'result' || next === 'choosing' || next === 'asking' || next === 'texting';
+      parkDockedFace(FACE_HIDDEN_IN.has(next));
+    }
+
+    /**
+     * D-017. The docked face fades to `opacity: 0` in five of the camera's
+     * states but stays mounted, so whatever it was last told to do keeps
+     * running. Measured at the price pad: three `think-dots` circles on a
+     * 900ms infinite loop, repainting for the whole interaction, none of it
+     * visible. A phone held up in an aisle pays for that.
+     *
+     * Opacity is not a kill switch, so the fix is the one primitive that is:
+     * `data-anim="none"`, which `face.css` answers with `animation: none
+     * !important` on the face and every group inside it. setTorch already
+     * writes exactly this attribute for the same reason (stillness the CSS has
+     * to honour), and `animateFace` cannot be used because 'none' is not one of
+     * the thirteen names it accepts.
+     *
+     * Written and cleared here rather than only written, because `dockSay`'s
+     * sentinel clear only fires when something speaks. Coming back to the
+     * viewfinder from a verdict does not always speak, and a docked face left
+     * parked would sit still for the rest of the session.
+     */
+    function parkDockedFace(park) {
+      if (!camShinEl) return;
+      const f = camShinEl.querySelector('.face');
+      if (!f) return;
+      if (park) f.dataset.anim = 'none';
+      else if (f.dataset.anim === 'none') f.dataset.anim = '';
+    }
 
     /**
      * Row: second visit, useful and appealing. If the store has a past scan,
@@ -1178,8 +1473,15 @@ export default {
       if (hintEscalated) return;
       hintTimer = setTimeout(() => {
         if (dead || hintEscalated || coachKey || cam.dataset.state !== 'idle') return;
+        /* One of the two unprompted sources AVATAR.md section 3 allows, and
+           the budget is asked before it speaks rather than after. If the
+           answer is no it is dropped, never queued: the moment an unprompted
+           line was for does not come back, and a line that arrives late is a
+           worse interruption than the one that was skipped. */
+        if (!store.canInterrupt()) return;
         hintEscalated = true;
         showAimHint('nudge-arrive');
+        store.recordInterruption();
       }, 4000);
     }
 
@@ -1192,10 +1494,14 @@ export default {
      */
     function showInitialIdleContent() {
       if (!camShinEl || dead) return;
-      const facts = !secondVisitShown ? lastScanFacts() : null;
+      /* The other unprompted source. Same rule: ask first, and fall through
+         to the aim hint (which is not unprompted, it is the resting state of
+         a screen the user opened) if the budget is spent. */
+      const facts = !secondVisitShown && store.canInterrupt() ? lastScanFacts() : null;
       if (facts) {
         secondVisitShown = true;
         dockSay('idle', 'cam_second_visit', facts, 'idle-breath');
+        store.recordInterruption();
         clearTimeout(hintTimer);
         hintTimer = setTimeout(() => {
           if (dead || cam.dataset.state !== 'idle') return;
@@ -1298,6 +1604,7 @@ export default {
       // of the camera and not shown as one.
       setState('choosing');
       slot.innerHTML = candidateSheet(scenarios);
+      mounted();
     }
 
     /**
@@ -1432,12 +1739,64 @@ export default {
      * Clear resets the buffer; Skip proceeds with no asking price at all,
      * which is the going-rate card, not a refusal.
      */
+    /**
+     * The rows the last "not this?" put on screen, so a tap can be resolved
+     * back to a product without the button carrying one in an attribute.
+     */
+    let notThisResults = [];
+
+    /**
+     * Ask the same query again and show everything it found.
+     *
+     * The row already on the pad is dropped from the list. It is the one thing
+     * the shopper has just said is wrong, and leaving it in makes the list read
+     * as if Shin did not hear.
+     *
+     * A search that fails leaves the pad exactly as it was and says so. It is
+     * an optional second look at an answer that already exists, so there is
+     * nothing here worth losing a half-typed price over: the failure is the
+     * one case where the affordance simply does nothing, and it says that out
+     * loud rather than emptying the screen.
+     */
+    async function reopenCandidates() {
+      const query = padItem?.notThisQuery;
+      if (!query) return;
+      const from = padItem;
+      let found;
+      try {
+        found = await ctx.api.search({ text: query, limit: 8 });
+      } catch (err) {
+        console.error('not-this search failed:', err);
+        const head = slot.querySelector('.itemname');
+        if (head && !dead) {
+          head.insertAdjacentHTML(
+            'afterend',
+            `<p class="detail">${escapeHtml(say('cam_notthis_failed'))}</p>`,
+          );
+        }
+        return;
+      }
+      if (dead || padItem !== from) return;
+      notThisResults = (found.candidates ?? [])
+        .filter((c) => !sameCode(c.code, from.gtin ?? from.id ?? ''))
+        .map((c) => ({
+          code: c.code,
+          label: productLabel(c),
+          category: c.leafCategory ?? from.category,
+          meta: c.brands ? String(c.brands).split(',')[0].trim() : '',
+        }));
+      setState('choosing');
+      slot.innerHTML = searchCandidateSheet(notThisResults, query);
+      mounted();
+    }
+
     function openPad(item) {
       padItem = item;
       padBuffer = '';
       padModifier = null;
       setState('asking');
       slot.innerHTML = pricePadSheet(item, padBuffer, padModifier, scanThumb);
+      mounted();
     }
 
     function shoot() {
@@ -1465,6 +1824,9 @@ export default {
         if (dead) return;
         slot.innerHTML = candidateSheet(scenarios);
         setState('choosing');
+        // The bottom bar has just slid away and taken the shutter the user
+        // pressed with it. Without this the focus goes with it -- see mounted().
+        mounted();
       }, 420);
     }
 
@@ -1482,20 +1844,39 @@ export default {
       let slow = false;
       setState('reading');
       slot.innerHTML = workingSheet(item.text, step);
+      mounted();
 
       // Row 19: past the 0.8s budget, the step already showing changes its
       // own word. Never a new step, and it never fires once the answer has
       // already landed.
+      // AVATAR.md section 5 row 6: step-swap is a 160ms label crossfade and
+      // the face does not move. So the step labels are patched in place and
+      // the mounted face (with its think-dots loop) is never replaced;
+      // re-rendering the whole sheet here would restart the dots from zero
+      // and re-run the sheet's own rise on every step.
+      const patchSteps = (nextStep, isSlow) => {
+        const steps = slot.querySelectorAll('.wstep');
+        if (steps.length !== WORKING_STEPS.length) {
+          slot.innerHTML = workingSheet(item.text, nextStep, { slow: isSlow });
+          mounted();
+          return;
+        }
+        steps.forEach((elStep, i) => {
+          elStep.classList.toggle('now', i === nextStep);
+          elStep.textContent = i === nextStep ? say(isSlow ? 'working_slow' : WORKING_STEPS[i]) : say(WORKING_STEPS[i]);
+        });
+      };
+
       const slowTimer = setTimeout(() => {
         if (dead || myGen !== gen) return;
         slow = true;
-        slot.innerHTML = workingSheet(item.text, step, { slow: true });
+        patchSteps(step, true);
       }, 800);
 
       try {
         step = 1; // Event: the price request is actually about to be sent.
         if (myGen === gen) {
-          slot.innerHTML = workingSheet(item.text, step, { slow });
+          patchSteps(step, slow);
           // AVATAR.md row 17/section 5 row 6: the named step changed, once.
           animateFace(slot.querySelector('.face'), 'step-swap');
         }
@@ -1539,13 +1920,20 @@ export default {
           // set, only the one number was never supplied.
           slot.innerHTML = goingRateCard(result, item);
         } else {
-          slot.innerHTML = refusalSheet(result, item, supportedCategories);
+          lastKeepable = keepableFrom(result, item, askingCents, isThinReason(result.reason));
+          slot.innerHTML = refusalSheet(result, item, supportedCategories, lastKeepable);
           playRefusalLanding(slot);
         }
         setState('result');
+        mounted();
       } catch (err) {
         clearTimeout(slowTimer);
         if (dead || myGen !== gen) return;
+        /* The error text goes to the console and not to the sheet. It used to
+           be concatenated onto the end of the shopper's sentence, which put a
+           raw JavaScript message on the screen of the one person who cannot
+           act on it: the same class of fault as D-011. */
+        console.error('scan failed:', err);
         /*
          * The name survives the failure. `item.offline` means the barcode was
          * answered off the pack on this phone, with the network already down,
@@ -1562,9 +1950,7 @@ export default {
           {
             kind: 'refusal',
             reason: 'no_source_response',
-            detail: item.offline
-              ? 'No signal, so I am working off what this phone already had. That tells me what it is and never what it costs, because prices move every week and a stale one is worse than none. Ask me again where there is a bar of signal.'
-              : `I could not reach my own sources just now. ${String(err.message ?? err)}`,
+            detail: item.offline ? say('cam_offline_no_price') : say('cam_sources_failed'),
             identity: item.text ? { label: item.text } : null,
             evidence: [],
           },
@@ -1573,6 +1959,7 @@ export default {
         );
         playRefusalLanding(slot);
         setState('result');
+        mounted();
       }
     }
 
@@ -1580,6 +1967,7 @@ export default {
       gen++; // Voids any in-flight proceed() continuation.
       slot.innerHTML = '';
       last = null;
+      lastKeepable = null;
       scanThumb = null;
       // A pick belongs to the scan that has just ended. Carrying it into the
       // next one would frame whatever happens to overlap the old rectangle,
@@ -1589,6 +1977,11 @@ export default {
       eye?.clearSelection?.();
       setState('idle');
       showInitialIdleContent();
+      // The sheet that had focus has just been deleted. Back to the shutter,
+      // which is where the viewfinder's own attention is and the one control a
+      // returning user wants next -- otherwise focus falls to `body` and the
+      // next Tab starts again from the top of the document.
+      root.querySelector('.shutter')?.focus({ preventScroll: true });
     }
 
     root.addEventListener('click', (e) => {
@@ -1604,6 +1997,47 @@ export default {
         }
         const item = scenarios.find((s) => s.id === id);
         if (item) openPad(item);
+        return;
+      }
+
+      const notThis = e.target.closest('[data-act="notthis"]');
+      if (notThis) {
+        void reopenCandidates();
+        return;
+      }
+
+      const back = e.target.closest('[data-act="notthis-back"]');
+      if (back) {
+        // Straight back to the pad on the item that was already picked. The
+        // buffer is deliberately not cleared: a shopper who had typed half a
+        // price, looked at the list and decided the first answer was right
+        // should not have to type it again.
+        setState('asking');
+        slot.innerHTML = pricePadSheet(padItem, padBuffer, padModifier, scanThumb);
+        mounted();
+        return;
+      }
+
+      const pickCode = e.target.closest('[data-pick-code]');
+      if (pickCode) {
+        const chosen = notThisResults.find((c) => c.code === pickCode.dataset.pickCode);
+        if (chosen) {
+          /*
+           * A pick from this list is a different product, so it starts a fresh
+           * pad rather than editing the old one: the typed buffer belonged to
+           * the row that was just rejected, and carrying it over would price a
+           * new item at a number somebody entered for a different one.
+           *
+           * `notThisQuery` is not carried either. The shopper has now seen the
+           * whole list and chosen from it, so there is nothing left to reopen.
+           */
+          openPad({
+            id: chosen.code,
+            text: chosen.label,
+            category: chosen.category,
+            gtin: chosen.code,
+          });
+        }
         return;
       }
 
@@ -1625,6 +2059,11 @@ export default {
           ? null
           : (kind === 'percent' ? { kind: 'percent', pct: 20 } : { kind: 'nfor', n: 3 });
         slot.innerHTML = pricePadSheet(padItem, padBuffer, padModifier, scanThumb);
+        // The whole sheet was repainted under the button that was just pressed,
+        // so the press has to be given back its own control rather than the
+        // sheet: a modifier is toggled on, checked, and toggled off again, and
+        // that is three presses of the same key.
+        mounted(`[data-modtoggle="${kind}"]`);
         return;
       }
 
@@ -1648,6 +2087,26 @@ export default {
       const btn = e.target.closest('[data-act]');
       if (!btn) return;
       const act = btn.dataset.act;
+
+      /*
+       * The grabber, pressed. Keyboard only, and the guard is the reason.
+       *
+       * A pointer tap on the grabber already steps, in the pointerup handler
+       * at the bottom of this render, because that handler carries the drag as
+       * well and a tap is just a drag of under 40px. The grabber is a real
+       * <button> now, so Enter and Space arrive here as a click -- and so does
+       * a tap. `detail` is what separates them: a click synthesised from a key
+       * press reports 0, a click from a real tap reports 1 or more. Without
+       * this the same tap would be counted twice and skip a detent.
+       */
+      if (act === 'detent-step') {
+        if (e.detail !== 0) return;
+        const sheet = btn.closest('.sheet');
+        if (!sheet) return;
+        const at = clampDetent(sheet, sheet.dataset.detent || 'peek');
+        setDetent(sheet, at === maxDetent(sheet) ? 'peek' : stepUp(sheet, at));
+        return;
+      }
 
       if (act === 'shoot') { shoot(); return; }
       if (act === 'watchlist') { ctx.go('watchlist'); return; }
@@ -1675,6 +2134,9 @@ export default {
       if (act === 'typeit') {
         setState('texting');
         slot.innerHTML = textRouteSheet();
+        // The one sheet where a specific control is the obvious landing: the
+        // whole route is "type the name", and the field is the route.
+        mounted('[data-textroute-input]');
         return;
       }
 
@@ -1687,6 +2149,63 @@ export default {
 
       if (act === 'correct') {
         ctx.go('correct', last?.scenario ? { text: last.scenario.text, category: last.scenario.category } : {});
+        return;
+      }
+      /*
+       * Keep it. AVATAR.md section 3 rows 39 and 40, and the last unbuilt
+       * action on the surface five of seven scans end on.
+       *
+       * The whole point is that it asks for nothing. The shopper typed the
+       * price ninety seconds ago and Shin could not settle it; making them
+       * open a form and type the same number again is the app charging a
+       * person for its own gap. The number, the shop and the day are already
+       * in hand, so this is one tap.
+       *
+       * `submitCorrection` writes locally first and flushes in the background,
+       * which is the right shape for the aisle: the acknowledgement below is
+       * about the local write, which has already happened, and a phone with no
+       * signal keeps the price rather than losing it.
+       *
+       * Reactive and therefore unbudgeted (AVATAR.md's own distinction): this
+       * lands inside two seconds of the user's own tap on the same surface, so
+       * it does not touch the interruption budget and must not ask it.
+       */
+      if (act === 'keepit' && lastKeepable) {
+        const k = lastKeepable;
+        lastKeepable = null; // One tap. A second would be a second witness that does not exist.
+        submitCorrection({
+          code: k.code,
+          productId: k.productId,
+          label: k.label,
+          category: k.category,
+          amountCents: k.askingCents,
+          seller: k.seller,
+          kind: 'regular',
+        });
+        const head = slot.querySelector('.sheet-head');
+        if (head) {
+          head.innerHTML = shinSay(
+            'pleased',
+            'keep_it_ack',
+            { asking: cad(k.askingCents), seller: k.seller, day: 'today' },
+            { size: 'face-ack', anim: 'pleased-nod' },
+          );
+        }
+        /* The action goes with the acknowledgement. It is spent: this sheet
+           holds for two seconds and then drops to the viewfinder, and there is
+           nothing left to tap. Leaving the button up while the guard above
+           makes a second press do nothing is a dead control, which is worse
+           than no control, and it invites the double-submit the one-price-per
+           -shop-per-day index exists to catch rather than avoiding it here. */
+        slot.querySelector('.actions-primary')?.remove();
+        // Row 40: it holds, then the sheet drops to a live viewfinder. Held
+        // against the generation counter so a scan started during the hold
+        // wins rather than being wiped by a timer from the one before it.
+        const heldGen = gen;
+        window.setTimeout(() => {
+          if (dead || heldGen !== gen) return;
+          reset();
+        }, 2000);
         return;
       }
       if (act === 'share' && last?.result?.kind === 'verdict') {
@@ -1723,7 +2242,10 @@ export default {
         // be fetched again: they live in the markup that was just replaced.
         void fillCheaper(slot, codeOf(v, last.scenario), v.askingCents);
         const nextSheet = slot.querySelector('.sheet');
-        if (nextSheet && prevDetent) nextSheet.dataset.detent = clampDetent(nextSheet, prevDetent);
+        if (nextSheet && prevDetent) setDetent(nextSheet, prevDetent);
+        // Same repaint-under-the-press as the modifier toggles: the save button
+        // is a toggle, and the second press has to land on the same key.
+        mounted('[data-act="watch"]');
         return;
       }
       if (act === 'thumbs-up' || act === 'thumbs-down') {
@@ -1800,6 +2322,26 @@ export default {
               text: productLabel(id.product),
               category: id.category,
               gtin: id.product.code,
+              /*
+               * The query is kept so "not this?" has something to search again
+               * with, and it is kept only when BOTH halves are true.
+               *
+               * The band alone is not enough, and finding that out is what this
+               * field cost. A text-only query is `ambiguous` by construction:
+               * `#band` in catalogue/src/search.ts scores how much of what the
+               * caller PINNED the top row agrees with, a plain text query pins
+               * neither brand nor size, so the lead is 0 and the band returns
+               * ambiguous before it has looked at a single rival. Gating on it
+               * alone puts "not this?" under every typed scan, including the
+               * ones where the list opens to say there was nothing else -- the
+               * face-saving offer /api/search's own comment warns against.
+               *
+               * `otherCandidates` is the half that actually counts rivals. Both
+               * together mean what the affordance claims: the pick was not
+               * pinned down, and there is something else to show.
+               */
+              notThisQuery:
+                id.band === 'ambiguous' && id.otherCandidates > 0 ? text : null,
             };
           }
         } catch {
@@ -1827,6 +2369,7 @@ export default {
       );
       playRefusalLanding(slot);
       setState('result');
+      mounted();
     }, { signal: listeners.signal });
 
     /* The sheet moves between three detents: peek, half, full. A drag of more
@@ -1853,6 +2396,60 @@ export default {
       return ORDER[Math.max(ORDER.indexOf(d) - 1, 0)];
     }
 
+    /**
+     * The one place a detent is written. Every path -- drag, tap, arrow key,
+     * the watch repaint -- goes through here, so the grabber's own name can
+     * never say the opposite of where the sheet actually is.
+     */
+    function setDetent(sheet, next) {
+      const d = clampDetent(sheet, next);
+      sheet.dataset.detent = d;
+      syncGrabber(sheet);
+      return d;
+    }
+
+    /**
+     * The grabber's accessible name says what pressing it will DO, and that
+     * changes with the detent: it steps up until the sheet is at its own top
+     * detent and then wraps back to peek. `aria-expanded` was the obvious
+     * alternative and it is the wrong shape here -- it has two values and this
+     * control has three positions, so at half it would have to claim either
+     * "expanded" (there is another detent above) or "collapsed" (the rail and
+     * the seller list are already open), and both are false.
+     */
+    function syncGrabber(sheet) {
+      const g = sheet.querySelector('button.grabber');
+      if (!g) return;
+      const at = clampDetent(sheet, sheet.dataset.detent || 'peek');
+      g.setAttribute('aria-label', at === maxDetent(sheet) ? 'Back to the summary' : 'Show more');
+    }
+
+    /**
+     * Called after every sheet is written into the slot.
+     *
+     * Focus is the half of this that matters. The bottom bar slides away on
+     * `data-state="result"` and `"choosing"` (which is right -- DESIGN.md wants
+     * the brand pink off the verdict surface), so the shutter the user had just
+     * pressed is gone from under the focus ring, and before this the focus went
+     * with it: back to `body`, one screen away from everything the sheet
+     * offers. The sheet itself takes it instead (`tabindex="-1"` on the
+     * section, so it is a focus target and not a tab stop), which is the same
+     * move a dialog makes and it puts the next Tab on the sheet's own first
+     * control. `preferred` overrides that where a specific control is the
+     * obvious landing -- the type-it field, or the button that was just
+     * repainted underneath the user.
+     */
+    function mounted(preferred) {
+      const sheet = slot.querySelector('.sheet');
+      if (!sheet) return;
+      syncGrabber(sheet);
+      const target = (preferred && slot.querySelector(preferred)) || sheet;
+      // preventScroll: `.sheet` is its own scroll container and it has just
+      // animated in from translateY(100%). Letting focus scroll it lands the
+      // user part way down a peek that is meant to open at its own top.
+      target.focus?.({ preventScroll: true });
+    }
+
     let dragFrom = null;
     root.addEventListener('pointerdown', (e) => {
       const sheet = e.target.closest('.sheet');
@@ -1865,13 +2462,70 @@ export default {
       const dy = e.clientY - dragFrom.y;
       const { sheet, detent } = dragFrom;
       dragFrom = null;
-      if (dy < -40) sheet.dataset.detent = stepUp(sheet, detent);
+      if (dy < -40) setDetent(sheet, stepUp(sheet, detent));
       else if (dy > 40) {
         if (detent === 'peek') { reset(); return; }
-        sheet.dataset.detent = stepDown(detent);
+        setDetent(sheet, stepDown(detent));
       } else {
-        sheet.dataset.detent = detent === maxDetent(sheet) ? 'peek' : stepUp(sheet, detent);
+        setDetent(sheet, detent === maxDetent(sheet) ? 'peek' : stepUp(sheet, detent));
       }
+    }, { signal: listeners.signal });
+
+    /*
+     * The same three detents, from the keyboard.
+     *
+     * `grep -rn "keydown" public/js` returned zero hits repo-wide before this,
+     * and the detents were `pointerdown`/`pointerup` only. Everything that
+     * lives at half or full -- the price rail, the seller list, Correct it,
+     * Share, both thumbs and Done -- was unreachable without a pointer. That is
+     * not a rough edge on the feature; it is the feature missing for anyone on
+     * a keyboard.
+     *
+     * Up and Down step one detent, which is the move the drag already makes.
+     * Escape is the way out: back to peek from half or full, and out of the
+     * sheet entirely from peek, which is exactly what a downward drag past peek
+     * does. On a sheet with nowhere to go (the candidate list, the pad, the
+     * going-rate card, the working wait, the type-it route) Escape is the only
+     * one of the three that does anything, and it cancels the scan -- the same
+     * thing their own close button does.
+     *
+     * Arrow keys inside a field belong to the field: the pad's "% off" and
+     * "N for $" spinners step by one on Up and Down, and the type-it input
+     * moves its caret. Only Escape is taken there, because a field you cannot
+     * back out of without a mouse is the defect one layer down.
+     *
+     * Scrolling a long detent stays on Tab, PageUp and PageDown -- `.sheet` is
+     * the scroll container and is focusable, so those reach it without the
+     * arrows having to do two jobs.
+     *
+     * Nothing here animates, so there is nothing for prefers-reduced-motion to
+     * turn off: a stepped detent is the same `data-detent` write the drag
+     * makes, and camera.css's own reduced-motion block already drops the
+     * transition on `.sheet-half` and `.sheet-full`.
+     */
+    root.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Escape') return;
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      const sheet = slot.querySelector('.sheet');
+      if (!sheet) return;
+      const inField = e.target instanceof HTMLElement
+        && (e.target.closest('input, textarea, select') !== null || e.target.isContentEditable);
+      if (inField && e.key !== 'Escape') return;
+
+      const at = clampDetent(sheet, sheet.dataset.detent || 'peek');
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (at === 'peek') { reset(); return; }
+        setDetent(sheet, 'peek');
+        // Back to peek means back to the top of the peek. A sheet left scrolled
+        // where the full detent had it shows the verdict's middle.
+        sheet.scrollTop = 0;
+        return;
+      }
+      const next = e.key === 'ArrowUp' ? stepUp(sheet, at) : stepDown(at);
+      if (next === at) return; // Already at an end. Let the key do whatever it would.
+      e.preventDefault();
+      setDetent(sheet, next);
     }, { signal: listeners.signal });
 
     return () => {

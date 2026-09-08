@@ -42,7 +42,7 @@
 .amount {
   font-family: var(--f-display);
   font-weight: 800;
-  font-size: clamp(40px, 11vh, 62px);
+  font-size: clamp(40px, 11svh, 62px);
   line-height: 1;
   letter-spacing: -.045em;
   font-variant-numeric: tabular-nums;
@@ -70,44 +70,95 @@
   text-transform: uppercase;
   color: var(--ink-faint);
 }
-.seller input {
-  width: 100%;
-  min-height: var(--tap);
-  font-family: var(--f-ui);
-  font-size: 16px;
-  padding: 12px 14px;
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-md);
-  color: var(--ink);
-}
-.seller input::placeholder { color: var(--ink-faint); }
-.seller input:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+/*
+ * The field itself is components.css's `.field` now. What was here was a
+ * from-scratch input -- one of two in the app, the other being the camera's
+ * text route, styled differently -- with a `:focus` ring rather than a
+ * `:focus-visible` one, so a pointer press left a 2px brand outline sitting on
+ * the field for the rest of the screen.
+ *
+ * One thing does not come from `.field`: 16px. Mobile Safari zooms the page
+ * when a focused input's text is under 16px, and on a screen that never scrolls
+ * (see the top of this file) a zoom puts the 7 key off the bottom edge.
+ */
+.seller .field { font-size: 16px; }
 
-.keypad {
+/*
+ * SCOPED, deliberately. These rules were bare `.keypad` and `.key` and the
+ * camera's pad matched them too -- two files declaring the same class at equal
+ * specificity, and which one won was decided by the @import order in
+ * screens.css. The camera's pad wanted --raised keys and this screen's wants
+ * --surface, so the leak was visible and nobody could see why.
+ *
+ * The markup comes from camera.js's keypadHtml now, so this is a host styling
+ * a shared component rather than a second implementation of it.
+ */
+/*
+ * svh, not vh, on anything that sizes a key.
+ *
+ * vh is the LARGEST viewport -- the one with the mobile address bar collapsed.
+ * A pad sized against it is taller than the screen it is actually in whenever
+ * the bar is showing, which is the overflow this file already records happening
+ * once ("the fine print ended up printed across the zero key"). svh is the
+ * smallest viewport, so the pad is sized for the tight case and simply does not
+ * move when the bar collapses. dvh would be wrong here for that last reason: a
+ * keypad that resizes under the thumb mid-entry is worse than one that is a
+ * few pixels short of the space available.
+ */
+.page-correct .keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   /*
    * Fixed rows, not flexible ones. A grid told to fit a box smaller than its
    * own minimum overflows it and paints straight through whatever comes next,
    * which is how the fine print ended up printed across the zero key.
+   *
+   * Three rows, not four: keypadHtml emits the digits and the bottom row as
+   * two sibling grids so the camera can put a confirm key in the second one.
+   * Four rows here left an empty row's worth of gap under the 9.
    */
-  grid-template-rows: repeat(4, clamp(46px, 7.4vh, 58px));
+  grid-template-rows: repeat(3, clamp(46px, 7.4svh, 58px));
   gap: 7px;
 }
 
-.key {
-  font-family: var(--f-display);
-  font-weight: 700;
-  font-size: clamp(20px, 3.4vh, 26px);
-  font-variant-numeric: tabular-nums;
+/*
+ * keypadHtml emits two sibling grids. Left as direct children of `.page` they
+ * inherited its 8px flex gap on top of any margin, so the bottom row sat 15px
+ * under the 9 while the rows above it were 7px apart -- a visible seam across
+ * the middle of one control. The wrapper gives the pad its own gap, which is
+ * the row gap, so it reads as one block again.
+ */
+.page-correct .pad {
+  display: grid;
+  gap: 7px;
+}
+
+.page-correct .keypad-bottom {
+  grid-template-rows: clamp(46px, 7.4svh, 58px);
+}
+
+/*
+ * The keys are `.btn .btn--key` now (components.css), which brings the ring,
+ * the transition, the display face and the tabular figures. What stays here is
+ * only what is true of this pad and not of the camera's: the fluid size, and
+ * the border that makes a key legible against this screen's ground rather than
+ * against a photograph.
+ *
+ * `min-height` is overridden deliberately. `.btn` sets it to `var(--tap)` (44px)
+ * because a control that is not a grid cell has nothing else giving it height.
+ * These are grid cells with explicit rows, and on a short viewport those rows
+ * are clamped to 46px -- close enough that any future change to `--tap` would
+ * start pushing the grid past its own box, which is the failure the comment
+ * above `grid-template-rows` records happening once already. The row height is
+ * the height.
+ */
+.page-correct .btn--key {
+  min-height: 0;
+  font-size: clamp(20px, 3.4svh, 26px);
   background: var(--surface);
   border: 1px solid var(--hairline);
-  border-radius: var(--r-md);
-  color: var(--ink);
-  cursor: pointer;
 }
-.key:active { background: var(--raised); transform: translateY(1px); }
+.page-correct .btn--key:active { background: var(--raised); }
 
 .saved-note {
   display: flex;
@@ -146,6 +197,32 @@
   color: var(--ink);
 }
 .page-correct .chip:active { transform: translateY(1px); }
+/* The chip is not one of the four shell controls, so components.css's shared
+   ring does not reach it either. Same two tokens as everything else. */
+.page-correct .chip:focus-visible {
+  outline: var(--ring-width) solid currentColor;
+  outline-offset: var(--ring-offset);
+}
+
+/*
+ * Why the save button is off.
+ *
+ * `.cta:disabled` is .34 opacity, which FLAWS.md item 12 computes at 2.88 and
+ * calls out directly: "a disabled control still has to be readable enough to
+ * explain why it is disabled". It cannot explain itself at that opacity, so
+ * this line explains it instead, at full fineprint contrast, immediately above
+ * the button and inside the same footer so the two read as one unit. It is a
+ * `role="status"`, so filling in the price announces that the shop is what is
+ * left rather than leaving a screen reader to discover a still-disabled button.
+ *
+ * Empty when the button works: no reserved height, nothing to say.
+ */
+.page-correct .gate {
+  margin: 0 0 6px;
+  text-align: center;
+  line-height: 1.35;
+}
+.page-correct .gate:empty { display: none; }
 
 /*
  * Reduced motion drops the press travel and keeps the press colour. The
@@ -154,7 +231,9 @@
  * states are handled here because they are the same gesture.
  */
 @media (prefers-reduced-motion: reduce) {
-  .key:active,
+  /* The key's press travel now comes from `.btn` and is dropped by
+     components.css's own reduced-motion block. The chip is not a `.btn`, so its
+     travel is still dropped here. */
   .page-correct .chip:active { transform: none; }
 }
 

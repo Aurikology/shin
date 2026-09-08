@@ -29,32 +29,44 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-md);
-  overflow: hidden;
+  gap: var(--s-2);
 }
 
+/*
+ * The shape, the padding, the surface, the hairline and the radius come from
+ * `.row` in components.css now. This was a fourth private copy of the app's
+ * list row, and it had drifted: a bare 14px pad where the other three use
+ * --s-3/--s-4, and a shared outer border where the rest of the app uses
+ * separate cards.
+ *
+ * The two things that ARE local: a source is three stacked lines rather than a
+ * title and a value, so the flex direction and cross-axis alignment are
+ * overridden here; and the entrance below.
+ */
 .lic-row {
-  padding: 14px;
-  border-bottom: 1px solid var(--hairline);
+  flex-direction: column;
+  align-items: stretch;
 
   opacity: 0;
   transform: translateY(6px);
   animation: lic-in 200ms cubic-bezier(.23, 1, .32, 1) forwards;
   animation-delay: calc(var(--i, 0) * 40ms);
 }
-.lic-row:last-child { border-bottom: 0; }
 
 @keyframes lic-in {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* The row-title role, not a display face. DESIGN.md section 2 gives Bricolage
+   exactly two jobs -- "the price numeral and the verdict word. Nothing else."
+   -- and a source name is neither. It was display 700 at 15px with -.01em; it
+   is now the role's own 16px/600 in the UI face, which is what every other list
+   title in the app is set in. */
 .lic-name {
-  margin: 0 0 4px;
-  font-family: var(--f-display);
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: -.01em;
+  margin: 0 0 var(--s-1);
+  font-family: var(--f-ui);
+  font-size: var(--t-row-size);
+  font-weight: var(--t-row-weight);
   color: var(--ink);
 }
 
@@ -110,11 +122,13 @@
    the one red in this app means exactly one thing. */
 .lic-failed { color: var(--ink); }
 
-.lic-retry {
-  margin-top: 4px;
-  transition: transform 160ms cubic-bezier(.23, 1, .32, 1);
-}
-.lic-retry:active { transform: scale(.97); }
+/* The one committing action on this screen, so it is `.btn--primary` rather
+   than the `.rowbtn` it used to borrow. Its press, its transition, its disabled
+   state and its focus ring all come from components.css; the only thing left
+   here is where it sits. The private `transform: scale(.97)` it carried is gone
+   -- the component layer's press is a 1px translate, and two different press
+   gestures on two screens is exactly what that layer exists to stop. */
+.lic-retry { margin-top: var(--s-1); }
 
 .lic-foot { margin-top: 18px; }
 
@@ -125,6 +139,6 @@
     animation-delay: calc(var(--i, 0) * 40ms);
   }
   @keyframes lic-fade { to { opacity: 1; } }
-  .lic-retry { transition: none; }
-  .lic-retry:active { transform: none; }
+  /* The retry's motion is components.css's now, and that file already turns
+     itself off under this query. */
 }

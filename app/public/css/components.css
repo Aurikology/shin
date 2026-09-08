@@ -1,0 +1,306 @@
+/*
+ * The component layer, added 2026-09-06.
+ *
+ * docs/design/FLAWS.md opens with the finding this file exists to close:
+ *
+ *   "The camera surface is genuinely designed. Everything behind it is running
+ *    on defaults. [...] a user who taps into Saved or You crosses a line where
+ *    the craft stops, and the app stops feeling like one thing. The fix is not
+ *    a redesign; it is applying the camera's own standard outward."
+ *
+ * camera.css carries authored focus rings on all seven of its controls,
+ * transitions on its pressables, and hover gated behind a real pointer.
+ * shell.css -- whose four controls appear on nine screens -- carried none of
+ * those. There was a token layer and there were screens, and nothing between
+ * them, so the same control existed three and four times with different values.
+ *
+ * The ring below is camera.css line 239's rule, quoted there as "the camera's
+ * own standard, applied outward: 2px white at 3px offset". Over a live feed
+ * that ring is white because the ground is a photograph. On a panelled screen
+ * it is currentColor, so it stays legible on a tier field, a surface card and
+ * the ground alike without any screen naming a colour.
+ *
+ * Existing class names are addressed directly rather than migrated, because a
+ * markup change across nine screens on the day five agents are editing those
+ * screens is how the merge gets lost. `.btn` is the canonical name from here;
+ * `.cta`, `.linky` and `.rowbtn` are its three shipped shapes and keep working.
+ */
+
+:root {
+  --ring-width: 2px;
+  --ring-offset: 3px;
+  /* The two speeds the camera already uses for a pressable. Nothing here
+     invents a duration; both are lifted from camera.css. */
+  --t-press: 120ms;
+  --t-tint: 140ms;
+}
+
+/* ------------------------------------------------------------------- the base */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-family: var(--f-ui);
+  font-size: var(--t-row-size);
+  font-weight: var(--t-row-weight);
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color var(--t-tint) linear,
+              border-color var(--t-tint) linear,
+              color var(--t-tint) linear,
+              opacity var(--t-press) linear,
+              transform var(--t-press) linear;
+}
+
+/*
+ * One ring, every control, both themes. `:focus-visible` rather than `:focus`
+ * so a pointer press does not leave a ring behind it -- which is the reason the
+ * shell had no ring at all rather than an ugly one.
+ */
+.btn:focus-visible,
+.cta:focus-visible,
+.linky:focus-visible,
+.rowbtn:focus-visible,
+.mini-shutter:focus-visible,
+.empty a:focus-visible,
+.page a:focus-visible {
+  outline: var(--ring-width) solid currentColor;
+  outline-offset: var(--ring-offset);
+  /* The ring is the affordance; nothing may clip it. */
+  z-index: 1;
+  position: relative;
+}
+
+/*
+ * currentColor is right for a control that sits ON the page ground and takes
+ * its ink from it. It is wrong for an inverted control, and measurably so:
+ * .cta is --ink filled with --ground text, so currentColor resolved to
+ * rgb(11,12,14) and drew a near-black ring, at a 3px offset, on the near-black
+ * page behind it. The ring was there and invisible, which is worse than absent
+ * because it passes a code review and fails a user.
+ *
+ * The rule underneath: a focus ring contrasts with the GROUND BEHIND THE
+ * CONTROL, never with the control's own fill. For an inverted pill that is the
+ * page's ink, in either theme.
+ */
+.cta:focus-visible,
+.btn--primary:focus-visible {
+  outline-color: var(--ink);
+}
+
+/* The shutter is the primary act and already carries a brand ring as its
+   resting state, so its focus ring is drawn in the brand and pushed out past
+   it -- otherwise a white ring sits on a white disc and disappears. */
+.mini-shutter:focus-visible {
+  outline-color: var(--brand);
+  outline-offset: 5px;
+}
+
+/*
+ * Hover is gated behind a real pointer. On a touch screen `:hover` sticks to
+ * the last thing tapped, which on a list of saved items reads as a selection
+ * the user did not make. camera.css already gates every one of its own.
+ */
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover:not(:disabled) { opacity: .92; }
+  .linky:hover { color: var(--ink-muted); }
+  .rowbtn:hover { border-color: var(--ink-faint); background: var(--raised); }
+}
+
+.btn:disabled,
+.cta:disabled {
+  opacity: .34;
+  cursor: default;
+}
+
+.btn:not(:disabled):active,
+.cta:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn { transition: none; }
+  .btn:not(:disabled):active,
+  .cta:not(:disabled):active { transform: none; }
+}
+
+/* -------------------------------------------------------------- the shapes */
+
+/* One committing action per page. If a page has two, one of them is wrong. */
+.btn--primary {
+  display: block;
+  width: 100%;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -.01em;
+  padding: 14px var(--pad);
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--ground);
+}
+
+/* The quiet second action. Never beside a second one of itself. */
+.btn--ghost {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 0;
+  color: var(--ink-faint);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+/* A settings row: a label on the left, its current value on the right. */
+.btn--row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 400;
+  text-align: left;
+}
+
+/* A keypad key. The camera's pad and the correction pad were two different
+   implementations of this; both now have one place to come to. */
+.btn--key {
+  border-radius: var(--r-md);
+  background: var(--raised);
+  color: var(--ink);
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-variant-numeric: var(--figures);
+}
+
+/* An icon-only control. It still has to say what it is. */
+.btn--icon {
+  width: var(--tap);
+  min-width: var(--tap);
+  padding: 0;
+  border-radius: 50%;
+}
+
+/* ------------------------------------------------------------------- rows */
+
+/*
+ * `.wrow`, `.prow` and `.rrow` were three near-identical implementations of
+ * one row, each carrying its own copy of the same truncation fix and the same
+ * comment explaining it. This is that row, once. The three keep their own
+ * names for what is genuinely theirs -- a delete affordance, a tier binding --
+ * and inherit the shape from here.
+ */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  text-align: left;
+}
+
+/*
+ * The truncation fix, in one place. A flex child will not shrink below its
+ * content unless it is told it may, and an inline element will not ellipsis at
+ * all -- which is why a long product name used to push its own price off the
+ * row instead of trimming.
+ */
+.row-title {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--t-row-size);
+  font-weight: var(--t-row-weight);
+}
+
+/* ------------------------------------------------------------------ fields */
+
+/*
+ * There was no input baseline at all: the seller field on the correction screen
+ * and the text-route field on the camera were each styled from scratch, and
+ * differently. A field is a field.
+ */
+.field {
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s-3) var(--s-4);
+  background: var(--raised);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  font-size: var(--t-body-size);
+  transition: border-color var(--t-tint) linear;
+}
+
+.field::placeholder { color: var(--ink-faint); }
+
+.field:focus-visible {
+  outline: var(--ring-width) solid currentColor;
+  outline-offset: var(--ring-offset);
+  border-color: currentColor;
+}
+
+/* Any currency figure anywhere in the product uses tabular figures. Prices that
+   shift width as they change look like an animation bug and undermine the one
+   thing being measured. DESIGN.md section 2. */
+.money,
+.price,
+.amount,
+.wrow-p,
+.prow-p {
+  font-variant-numeric: var(--figures);
+}
+
+/* --------------------------------------------------------------- utilities */
+
+/*
+ * A label that is a label. The kicker and block heading in shell.css were two
+ * copies of this; screens reaching for an 11px mono uppercase string were
+ * writing a third by hand each time.
+ */
+.label {
+  font-family: var(--f-mono);
+  font-size: var(--t-label-size);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-track);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/*
+ * Visually hidden, still announced. Needed wherever a control's only visible
+ * label is a glyph -- the delete crosses on the saved and past-scan rows -- and
+ * wherever a screen has to tell assistive tech something the layout already
+ * says to everyone else.
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

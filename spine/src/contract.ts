@@ -85,6 +85,20 @@ export interface PricePoint {
   /** Cents per 100g / 100ml, when pack size is known on both sides. */
   readonly unitAmountCents?: number;
   readonly note?: string;
+  /**
+   * How many independent observers stand behind this price, when the source can
+   * answer that. **Undefined means the source vouches for it itself**, which is
+   * every crawled feed: a Walmart page is not a witness statement, it is the
+   * seller's own number, and counting observers of it would be a category
+   * error.
+   *
+   * Only a source a member of the public can write sets this. Today that is
+   * corrections, where 1 means one person typed it and nobody has seen the same
+   * tag since. D-022 names a single uncorroborated number moving a verdict as
+   * the thing that gates opening this app to anybody else, and the spine cannot
+   * weigh what the contract does not carry.
+   */
+  readonly witnesses?: number;
 }
 
 /** The three faces. One per verdict, and the only user-facing tiering that exists. */
@@ -161,10 +175,34 @@ export type RefusalReason =
   | 'category_unsupported'
   /** Sources exist for the category but none answered for this item. */
   | 'no_source_response'
-  /** Fewer usable points than the category needs. */
+  /**
+   * Fewer usable points than the category needs. A count, and only a count.
+   * Nothing produces it today: the count thresholds came out on 2026-09-05 and
+   * became named shortfalls on the answer instead. It stays in the union
+   * because consumers already map it and because the shape may return, and it
+   * is deliberately NOT the code for the four filter conditions below. D-011
+   * was this member standing in for a cause it does not describe, over an
+   * evidence array holding thirteen prices.
+   */
   | 'too_few_points'
+  /**
+   * Prices were found and every one of them is a kind this category cannot
+   * compare against. A manufacturer list price with no retailer behind it is
+   * the case this fires on.
+   */
+  | 'unusable_price_kinds'
+  /** Every usable price carries a date later than the moment being priced. */
+  | 'points_future_dated'
   /** Points exist but all older than the category tolerates. */
   | 'points_too_stale'
+  /**
+   * Every usable, current price belongs to the seller whose own price is being
+   * judged, so the only comparison left would be that price against itself.
+   * Its own code rather than a share of the stale one, because it is a
+   * different repair and because it is the condition that fires most often now
+   * that one store supplies almost every price we hold. See D-012.
+   */
+  | 'all_points_from_asking_seller'
   /** Points disagree past the point where any single verdict would be a lie. */
   | 'comparison_incoherent'
   /** We have comparisons but no price for the thing being judged. */
@@ -175,6 +213,15 @@ export interface Refusal {
   readonly reason: RefusalReason;
   /** One sentence, written for the user, naming the repair when there is one. */
   readonly detail: string;
+  /**
+   * Evidence, not copy. Research prose explaining why a stored identity was
+   * doubted: what a search actually returned, what currency a bound was in,
+   * what was seen and ruled out. It runs to hundreds of characters and belongs
+   * behind a disclosure, never in the headline sentence. Added by D-013, where
+   * 450 characters of it were concatenated into `detail` and shown to a shopper
+   * mid aisle. Absent when there is nothing recorded.
+   */
+  readonly evidenceNote?: string;
   readonly identity: ProductIdentity | null;
   /** Whatever we did find. A refusal still shows its work. */
   readonly evidence: readonly PricePoint[];

@@ -19,6 +19,18 @@
  * impression this screen exists to prevent. It cannot fall back to a built-in
  * list, because the whole point of the single source is that there isn't one.
  *
+ * THE LOADING AND FAILURE LINES ARE SHIN TALKING, and they now live in
+ * voice.js as `licences_loading` and `licences_failed`, three variants each.
+ *
+ * This file used to argue the opposite, and the argument is worth recording
+ * because it was wrong: it held that voice.js is the verdict voice and "a
+ * fetch narration is not a verdict", so these two could stay here. That
+ * exemption appears in no design document, it was written by the screen it
+ * exempted, and four other screens quietly copied it. voice.js's own boundary,
+ * written down 2026-09-07, is first person and narration rather than verdict
+ * and not-verdict, and both of these lines are both. They moved, and so did
+ * the five they were matching.
+ *
  * Animation: the rows lift in once, 200ms, staggered 40ms. This screen is seen
  * rarely, usually once, which is the only reason it animates at all. The line
  * on the market screen that leads here does not animate, because that one is
@@ -26,26 +38,26 @@
  */
 
 import * as api from '../api.js';
+import { html, raw, on } from '../lib/dom.js';
+import { say } from '../voice.js';
 
 /* Escaped because these strings come off the wire. Nothing in the list is user
    input today, but a screen that interpolates a fetched string into innerHTML
-   without escaping is one data change away from being wrong about that. */
-function esc(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
+   without escaping is one data change away from being wrong about that. The
+   local `esc` this file carried is now `html` from lib/dom.js, which escapes
+   every interpolation by default and makes the opt-out say the word. */
 function sourceRow(entry, i) {
-  return `
-    <li class="lic-row" style="--i:${i}">
-      <p class="lic-name">${esc(entry.name)}</p>
-      <p class="lic-what">${esc(entry.what)}</p>
+  /* `.row` is the component layer's row: the padding, surface, hairline and
+     radius the saved, past-scan and removed lists already share. licences.css
+     turns it into a stack, because this row is three lines rather than a title
+     and a value, and that is the only thing about it that is local. */
+  return html`
+    <li class="row lic-row" style="--i:${String(i)}">
+      <p class="lic-name">${entry.name}</p>
+      <p class="lic-what">${entry.what}</p>
       <p class="lic-terms">
-        <span class="lic-licence">${esc(entry.licence)}</span>
-        <a class="lic-link" href="${esc(entry.url)}" target="_blank" rel="noopener noreferrer">Open</a>
+        <span class="lic-licence">${entry.licence}</span>
+        <a class="lic-link" href="${entry.url}" target="_blank" rel="noopener noreferrer">Open</a>
       </p>
     </li>`;
 }
@@ -56,34 +68,42 @@ export default {
 
   render(root, ctx) {
     function shell(inner) {
-      root.innerHTML = `
+      root.innerHTML = html`
         <div class="page page-list">
           <header class="page-head">
-            <button type="button" class="linky pback" data-act="back">Back</button>
+            <button type="button" class="btn linky pback" data-act="back">Back</button>
             <p class="kicker">Data and licences</p>
             <h1>Where this comes from</h1>
           </header>
-          ${inner}
+          ${raw(inner)}
         </div>`;
     }
 
+    /* `aria-busy` is what tells a screen reader what the ellipsis tells
+       everybody else. The region is `polite` rather than `assertive`: the list
+       arriving is not an interruption. */
     function paintLoading() {
-      shell('<p class="fineprint lic-state">Loading the list of sources.</p>');
+      shell(html`
+        <p class="fineprint lic-state" role="status" aria-busy="true">
+          ${say('licences_loading')}
+        </p>`);
     }
 
+    /* The failure line is deliberately not in --walk, and licences.css says why:
+       failing to load a list is not a bad price, and the one red in this app
+       means exactly one thing. */
     function paintFailed() {
-      shell(`
-        <p class="lic-state lic-failed">
-          The list of sources could not be loaded, so it is not being shown rather
-          than shown incomplete.
+      shell(html`
+        <p class="lic-state lic-failed" role="status">
+          ${say('licences_failed')}
         </p>
         <p class="fineprint">
           This app is built on open data from Open Food Facts, Open Prices,
           OpenStreetMap and Open Icecat. The full list, with each licence, is what
           failed to load.
         </p>
-        <button type="button" class="rowbtn lic-retry" data-act="retry">
-          <span>Try again</span>
+        <button type="button" class="btn btn--primary lic-retry" data-act="retry">
+          Try again
         </button>`);
     }
 
@@ -106,13 +126,24 @@ export default {
         </p>`);
     }
 
-    let dead = false;
+    /*
+     * The leak camera.js fixed for itself and nine screens did not. This
+     * listener goes on `#screen`, which the router never replaces -- only its
+     * innerHTML -- so before this, every visit
+     * to the screen left another live handler behind it, and a retry tapped on
+     * the fourth visit fired four fetches at once. One AbortController per
+     * render, aborted in the cleanup, exactly as camera.js:915 does it. It also
+     * stands in for the `dead` flag the in-flight fetch used to check, so there
+     * is one answer to "is this render still the current one?" instead of two.
+     */
+    const listeners = new AbortController();
+    const gone = () => listeners.signal.aborted;
 
     async function load() {
       paintLoading();
       try {
         const res = await api.attribution();
-        if (dead) return;
+        if (gone()) return;
         const sources = res && Array.isArray(res.sources) ? res.sources : [];
         /* An empty list is a failure, not an answer. The server holds a fixed
            list that is never empty, so zero rows means we did not really get it,
@@ -120,16 +151,16 @@ export default {
         if (sources.length === 0) paintFailed();
         else paintList(sources);
       } catch {
-        if (!dead) paintFailed();
+        if (!gone()) paintFailed();
       }
     }
 
-    root.addEventListener('click', (e) => {
+    on(root, 'click', (e) => {
       if (e.target.closest('[data-act="back"]')) { ctx.go('market'); return; }
       if (e.target.closest('[data-act="retry"]')) load();
-    });
+    }, listeners.signal);
 
     load();
-    return () => { dead = true; };
+    return () => listeners.abort();
   },
 };

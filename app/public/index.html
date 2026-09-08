@@ -5,17 +5,77 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Shin</title>
 <meta name="description" content="Point at a thing. Shin tells you whether the price is fair.">
-<meta name="theme-color" content="#0B0C0E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<!--
+  Dark is the design and light is the accommodation (tokens.css), so dark is
+  declared first and is what a browser that ignores the media attribute gets.
+  The two values are --ground in each theme, so the phone's status bar and the
+  desktop tab strip are painted the same colour as the app behind them rather
+  than a near-miss.
+
+  These are static, so an explicit choice on the You screen does NOT move them:
+  a user who forces light inside the app still gets the dark status bar. Fixing
+  that means writing the meta from the same place that sets data-theme -- see
+  the handoff note for main.js.
+-->
+<meta name="theme-color" content="#0B0C0E" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="dark light">
+
+<!--
+  Add to home screen. This is a camera-first phone app and standalone is the
+  only mode it makes sense in: 60-odd pixels of browser chrome over a viewfinder
+  is the same 56 pixels of app bar this design already refused.
+
+  `black-translucent` puts the status bar over the feed instead of on a bar
+  above it, which is why the viewport carries `viewport-fit=cover` and why
+  shell.css pads with env(safe-area-inset-*).
+-->
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Shin">
+
+<!--
+  One icon file for the tab, the home screen and the manifest. It is Shin's own
+  `pleased` face, maskable-safe, and it explains itself in public/icon.svg.
+
+  iOS ignores an SVG apple-touch-icon and falls back to a screenshot of the
+  page, which for this app is a black frame, so the 180x180 PNG below is not
+  optional. It is generated from the same icon.svg by scripts/build-icon.mjs,
+  which drives the headless Chrome already on this machine rather than adding an
+  image dependency; `npm run icon` rewrites it and `npm run icon -- --check`
+  fails if it has drifted, the same contract build-faces.mjs uses.
+-->
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-180.png">
+
 <!--
   Three faces, three jobs. Bricolage Grotesque carries the numerals and the
   verdict word, Instrument Sans carries every piece of interface text, IBM Plex
   Mono carries provenance and nothing else. Newsreader is gone: a serif reads as
   an article, and three paragraphs of serif above the fold is what the old
   verdict screen did wrong.
+
+  Self-hosted since 2026-09-06. This was a stylesheet on fonts.googleapis.com
+  with preconnects to two Google origins above it -- two extra DNS+TLS
+  handshakes and a blocking round trip on a third-party origin, standing in
+  front of first paint, on a phone on a store's guest wifi. It also handed every
+  user's IP to Google on every cold start. `npm run fonts` writes
+  /css/fonts.css and /fonts/*.woff2; scripts/fonts.mjs has the rest of it.
+
+  The two preloads are the families that carry every visible glyph on the first
+  screen: Instrument Sans is all interface text, Bricolage is the numerals and
+  the verdict word. Both are single variable files serving all three weights, so
+  two requests cover six faces. IBM Plex Mono is provenance only, appears below
+  the fold, and is left to normal discovery rather than competing with these.
+  `crossorigin` is required even same-origin: fonts are always fetched in CORS
+  mode, and a preload without it is a second, wasted download.
 -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="preload" href="/fonts/instrument-sans-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/bricolage-grotesque-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/css/fonts.css">
 <link rel="stylesheet" href="/css/tokens.css">
 <link rel="stylesheet" href="/css/shell.css">
 <link rel="stylesheet" href="/css/face.css">
@@ -29,6 +89,27 @@
   <div class="device">
     <main id="screen" role="main"></main>
   </div>
+
+  <!--
+    Every screen is rendered by the router, so with scripting off the frame is
+    empty and stays empty. Say so, in Shin's voice, rather than showing a black
+    rectangle that reads as a broken app.
+  -->
+  <noscript>
+    <div class="noscript">
+      <h1>Shin cannot open.</h1>
+      <p>The whole app is a camera and an answer, and both of them are script. There is nothing here to read with JavaScript switched off.</p>
+      <p>Turn it on for this site and reload.</p>
+    </div>
+  </noscript>
+
+  <!--
+    The route announcement's live region. It lives here, outside #screen, on
+    purpose: the router empties #screen on every navigation, and a live region
+    that is removed and re-added in the same tick is not announced by any screen
+    reader. It has to survive the repaint to be able to describe it.
+  -->
+  <div id="route-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
   <script type="module" src="/js/main.js"></script>
 </body>

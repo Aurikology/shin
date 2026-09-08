@@ -9,13 +9,24 @@
 
 import { getDeviceId } from './device.js';
 
-async function post(path, body) {
+async function post(path, body, { refusalIsAnswer = false } = {}) {
   const res = await fetch(path, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`${path} returned ${res.status}`);
+  if (!res.ok) {
+    /* A 4xx from a caller that can act on one is an answer, not a failure. The
+       server read this and declined it; retrying an unchanged body against an
+       unchanged rule cannot ever succeed. Only sendCorrection asks for this,
+       and its own header says why. A 5xx still throws for everybody: a server
+       that fell over has not looked at anything, so the request is still live. */
+    if (refusalIsAnswer && res.status >= 400 && res.status < 500) {
+      const why = await res.json().then((b) => b?.error).catch(() => null);
+      return { stored: false, why: why ?? `the server declined it (${res.status})` };
+    }
+    throw new Error(`${path} returned ${res.status}`);
+  }
   return res.json();
 }
 
@@ -81,6 +92,25 @@ export function scans() {
 }
 
 /**
+ * The ranked list behind identify's single pick, for "not this?".
+ *
+ * `identify` answers with the one product it will price; this is the rest of
+ * what the same search found. A screen asks for it only when identify came back
+ * `ambiguous`, because that is the band that means there was genuinely more
+ * than one plausible row. Asking after a `confident` answer would be offering a
+ * choice that does not exist, which reads as Shin hedging rather than as Shin
+ * being careful.
+ *
+ * Text only, and that is the endpoint's shape rather than an omission here: a
+ * barcode either resolves to one row or to none, so there is no second
+ * candidate for a code to offer.
+ */
+export function search({ text, limit = 5 }) {
+  const params = new URLSearchParams({ q: text, limit: String(limit) });
+  return get(`/api/search?${params.toString()}`);
+}
+
+/**
  * The cheaper same-category swaps for a product at a given asking price.
  *
  * Three at most, and the server writes each row's sentence: the rule about what
@@ -139,13 +169,28 @@ export function attribution() {
  *                                (no shop, price not a number). Drop it too, and
  *                                a queue that keeps retrying this is a queue
  *                                that never empties.
+ *   { stored: false, why }       ALSO how a 4xx comes back, as of 2026-09-07.
+ *                                See below: a server that has looked at this and
+ *                                refused it is the same outcome whether it says
+ *                                so in a 200 body or in a status code.
  *   throws                       the network did not reach the server. KEEP it.
  *                                This is the aisle-with-no-signal case and it is
  *                                the normal one, not the exception.
  *
  * This is the only function here that is allowed to fail into a retry, which is
  * why it is the only one that says so out loud.
+ *
+ * WHY A 4xx IS NOT A THROW HERE. `post` throws on any non-2xx, and a throw means
+ * KEEP by the contract above, so any status the server uses to say no would make
+ * this queue retry that item forever. The server gained a 413 on 2026-09-07 when
+ * the request reader got a size cap (D-032), which made that reachable for the
+ * first time: not with today's fields, which cannot approach 8 KB, but certainly
+ * the day the photo route lands. A queue that never empties is the exact failure
+ * the second outcome above was written to prevent, so the rule is the same one
+ * stated in different words: **the server having looked at it and said no is a
+ * drop, whatever shape the no arrives in.** A 5xx still throws, because a server
+ * that fell over has not looked at anything.
  */
 export function sendCorrection(correction) {
-  return post('/api/correction', correction);
+  return post('/api/correction', correction, { refusalIsAnswer: true });
 }

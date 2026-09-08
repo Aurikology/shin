@@ -11,9 +11,12 @@
  * the request makes sense to them.
  */
 
-import { PERSONALITIES, setPersonality, personality } from '../voice.js';
+import { PERSONALITIES, setPersonality, personality, say } from '../voice.js';
 import { shinSay, updateShinSay } from '../shin.js';
 import * as store from '../store.js';
+import { escapeHtml, on } from '../lib/dom.js';
+import { wireRadioGroup } from '../lib/radiogroup.js';
+import { storagePersists } from '../lib/persistence.js';
 
 export default {
   id: 'setup',
@@ -21,6 +24,11 @@ export default {
 
   render(root, ctx) {
     const current = store.get().personality ?? null;
+    // Every listener on this screen goes on the persistent `#screen` element,
+    // which outlives the screen. Before this, none of them came off again, so
+    // camera -> setup -> camera -> setup left two live setup handlers on one
+    // node and every tap ran twice. camera.js:915 is the pattern.
+    const ac = new AbortController();
 
     root.innerHTML = `
       <div class="page">
@@ -33,11 +41,11 @@ export default {
           ${PERSONALITIES.map(
             (p) => `
             <button type="button" class="att${p.id === (current ?? 'deadpan') ? ' on' : ''}"
-                    role="radio" aria-checked="${p.id === (current ?? 'deadpan')}" data-who="${p.id}">
+                    role="radio" aria-checked="${p.id === (current ?? 'deadpan')}" data-who="${escapeHtml(p.id)}">
               <span class="att-say" style="flex:1 1 auto;min-width:0">
                 ${shinSay('fair', 'attitude_sample', {}, { size: 'face-verdict', who: p.id })}
               </span>
-              <span class="att-t"><b>${p.name}</b></span>
+              <span class="att-t"><b>${escapeHtml(p.name)}</b></span>
             </button>`,
           ).join('')}
         </div>
@@ -46,12 +54,29 @@ export default {
           Changeable any time. The attitude changes the words and never the number.
         </p>
 
+        ${
+          /*
+           * The error state this screen was missing, and the only one it can
+           * honestly have: nothing here is fetched, so there is nothing to be
+           * loading. What there is, is a write that store.js swallows on
+           * failure -- so in a private window this screen used to accept the
+           * choice, paint it, and lose it. See lib/persistence.js.
+           */
+          storagePersists()
+            ? ''
+            : `<p class="fineprint" role="status">${escapeHtml(say('storage_not_kept'))}</p>`
+        }
+
         <div class="page-foot">
           <button type="button" class="cta" data-act="go">Start scanning</button>
         </div>
       </div>`;
 
-    root.addEventListener('click', (e) => {
+    // The group promised arrow keys in its ARIA and had none, and Tab stopped
+    // on all three faces instead of entering the group once. lib/radiogroup.js.
+    wireRadioGroup(root.querySelector('[role="radiogroup"]'), { signal: ac.signal });
+
+    on(root, 'click', (e) => {
       const pick = e.target.closest('[data-who]');
       if (pick) {
         setPersonality(pick.dataset.who);
@@ -79,6 +104,8 @@ export default {
         store.update({ seenIntro: true });
         ctx.replace('camera');
       }
-    });
+    }, ac.signal);
+
+    return () => ac.abort();
   },
 };
