@@ -49,9 +49,31 @@ export function packScope(raw: string | null | undefined): PackScope | null {
  */
 export async function packVersion(
   scope: PackScope,
-): Promise<{ scope: PackScope; version: string; bytes: number }> {
-  const info = await stat(PACK_PATH[scope]);
-  return { scope, version: `${Math.trunc(info.mtimeMs)}-${info.size}`, bytes: info.size };
+): Promise<{ scope: PackScope; version: string; bytes: number } | null> {
+  /*
+   * NULL WHEN THE PACK IS NOT BUILT, rather than a throw, and the reason is
+   * that `servePack` twenty lines down has always said so and this function
+   * never did. Two functions over the same file disagreeing about whether its
+   * absence is an error is the kind of seam somebody debugs twice.
+   *
+   * Before this, a missing pack threw ENOENT out of `stat` and landed in the
+   * server's catch-all, which is written for missing STATIC FILES: the client
+   * got `text/plain: not found`, from a JSON endpoint, with nothing in it
+   * naming the pack. Observed as a 404 on every page load on a checkout with
+   * no pack built, which is every fresh checkout, since the pack is a
+   * gitignored artifact (D-043).
+   *
+   * The caller is opportunistic and swallows failures either way, so this
+   * changes no behaviour a shopper sees. It changes what the person looking at
+   * the network tab is told, which is the only audience a version endpoint
+   * has.
+   */
+  try {
+    const info = await stat(PACK_PATH[scope]);
+    return { scope, version: `${Math.trunc(info.mtimeMs)}-${info.size}`, bytes: info.size };
+  } catch {
+    return null;
+  }
 }
 
 /**

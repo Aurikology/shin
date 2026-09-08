@@ -1176,7 +1176,12 @@ const server = createServer(async (req, res) => {
     if (url.pathname === '/api/pack-version') {
       const scope = packScope(url.searchParams.get('scope'));
       if (!scope) return json(400, { error: 'scope must be grocery or canada' });
-      return json(200, await packVersion(scope));
+      const version = await packVersion(scope);
+      // The same sentence servePack uses for the same state, in JSON, from a
+      // JSON endpoint. A pack that was never built is a fact about this
+      // deployment, not a mistyped URL, and the two used to be indistinguishable.
+      if (!version) return json(404, { error: 'pack not built', scope });
+      return json(200, version);
     }
     if (url.pathname === '/api/pack') {
       const scope = packScope(url.searchParams.get('scope'));

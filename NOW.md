@@ -5,6 +5,30 @@ narrative.*
 
 ---
 
+## Two things that were written and in no list, 2026-09-08
+
+**The sold-listings adapter is registered.** `soldcomps.ts` was written, tested and reviewed, and
+was not in `defaultSources()`, so nothing ever constructed it. It is the only path this system has
+to a SOLD price, which `categories.ts` calls the one number that records what somebody was
+actually willing to pay, and the corpus holds zero of them.
+
+It is registered last, and that is argued rather than assumed. On the kind of number it returns it
+probably belongs above eBay and Best Buy for used goods. It is last because this array's order is
+trust, trust is earned by being run, and nobody has run it: `verified` is false on all three. That
+reverses the day someone points it at the live endpoint with a real key. Registering it now costs
+nothing and buys the thing that was actually missing: `node src/cli.ts sources` lists it as
+unavailable because `SOLDCOMPS_API_KEY` is not set, which is a reportable absence instead of a
+file nobody imported.
+
+The guard that would have caught this did not exist. Five tests on the registry do now.
+
+**And a JSON endpoint was answering with a static-file 404.** `/api/pack-version` let a missing
+pack throw into the catch-all written for missing static files, so it returned
+`text/plain: not found` and was indistinguishable from a mistyped URL, on every fresh checkout.
+Its sibling over the same file had always named that state. It does now too.
+
+---
+
 ## The app knows what you shop for, 2026-09-08
 
 **Type a word two shelves share and you get the shelf you have been buying from.** "chips" is a
