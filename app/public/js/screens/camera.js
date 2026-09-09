@@ -1944,12 +1944,24 @@ export default {
       // the thumbnail above when it lands, which is a frame or two later and
       // always before the sheet it appears on.
       lastCrop = null;
-      if (eye?.live) void eye.capture();
       // The same docked face morphs to thinking, in place, rather than a
       // separate sheet popping up over it for 420ms.
       dockSay('thinking', 'reading', {}, 'think-dots');
-      // The frame is already frozen by the state change. This pause is the
-      // reticle contracting, not a fake loading bar over an instant answer.
+      if (eye?.live) {
+        // With the eye running, the shutter takes the real capture and the
+        // answer paints from handlePhotoCapture, never from a timer. The eye
+        // always yields a crop (a centre fallback when nothing was detected) or
+        // reports trouble, so nothing here has to stand in for it. Found
+        // 2026-09-09 by walking the photo path at 390px: the stand-in timer
+        // below used to fire regardless and, on a fast answer, painted the
+        // demo list over a real refusal (D-083).
+        void eye.capture();
+        return;
+      }
+      // No eye: the frame is already frozen by the state change. This pause is
+      // the reticle contracting, not a fake loading bar over an instant answer,
+      // and the list it lands on is the hand-priced stand-in because there is
+      // no crop to send.
       setTimeout(() => {
         if (dead) return;
         slot.innerHTML = candidateSheet(scenarios);
