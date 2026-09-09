@@ -5,6 +5,35 @@ narrative.*
 
 ---
 
+## The ceiling is forty of forty, the keypad fits a thumb, and the screens were walked, 2026-09-09
+
+**D-082 was the size pin labelling instead of ranking.** `brandAgrees` / `sizeAgrees` were
+computed after the slice, so a pinned size never shaped the order and the 151 g row sat outside
+the ten-row union. A pin tier now sits ahead of the score in `catalogue/src/search.ts` and in
+identify's union, promote-only on evidence (demoting lost two multipacks). Then the multipack
+pin itself: a 4 x 100 g reading pins 400 g, because the catalogue stores the net. **Dry run 40
+of 40**, all twelve size-pair rows and all four multipacks top-1. This is still the catalogue
+side alone; the model has not been measured.
+
+**D-050's keypad is closed, on the founder's go-ahead.** Every key at least 44 x 44 on both
+hosts, 51 tall on the 390 x 844 target, and the short-viewport rule that had never applied
+(shadowed by a later rule) now does, paid for at 375 x 575 by the avatar row, the peek gap and a
+line-height, never a key. Measured by Playwright bounding boxes; not looked at by a person.
+
+**The four photo screens were walked at 390 px with the real eye and a fake model.** Fake media
+device, the real shutter, the real `handlePhotoCapture`: identity lands on the pad with the
+product name; candidates show brand and size; timeout, unreadable and offline each say their
+sentence in the app's voice and no raw class reached the glass; offline kept the photo in the
+queue. The walk found D-083: the shutter's 420 ms stand-in timer fired regardless of the eye and
+could paint the demo list over a real answer. Fixed the same session. Suites: identify 48,
+catalogue 87, app 403 with 5 skipped, spine 160.
+
+**Not done, unchanged: the model call.** Aurik set up the console and chose not to add a card
+yet. When funded, the key goes in repo-root `.env` and `node identify/eval/run.ts --tier pro`
+is the first real measurement, about $0.60 for forty photos. Nothing from 1e43e29 on is pushed.
+
+---
+
 ## The photo door is open, the picture is read twice, and the first number is a ceiling, 2026-09-09
 
 **Aurik reversed the six-systems floor: "the user must take a picture and Shin must be able to

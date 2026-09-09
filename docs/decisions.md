@@ -960,3 +960,20 @@ the pick pass lands, in which case the photo path is demoted to a suggestion and
 stays the only identity; or the founder who wrote the 2026-09-03 floor names a reason it should
 stand that this entry did not weigh.
 
+## Every key on the price pad is a thumb's size, on every phone
+**Date:** 2026-09-09 · **Status:** active
+
+The keypad's digits, backspace, decimal, confirm, Clear, Skip and the two modifier toggles are
+44 x 44 CSS px at minimum wherever they are reachable: 48 to 52 px tall on the primary 390 x 844
+target and 44 on viewports under 640 px tall, on both hosts (the camera sheet and the correction
+screen), with no scroll or drag needed to reach any key. This was the half of D-050 that waited
+for the founder, and it was decided with the "complete the other tasks" instruction of
+2026-09-09. The short-phone budget is tight on purpose: at 375 x 575 the sheet uses its 450 px
+of room to the pixel, and the things that paid for the keys were the pad's avatar row, the peek
+gap and the item name's line-height, never a control.
+
+**Reverses if:** a design pass needs the pad shorter than its ~536 px sheet at 844 tall, or
+shorter than the 450 px budget at 575 tall. In either case the fix is more non-control trims,
+never a key back under 44. Also reverses if a measured tap-error rate on the pad does not fall
+after this, which would mean the size was not the problem.
+
