@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS scan (
   confidence     REAL,
   source         TEXT,
   outcome        TEXT NOT NULL CHECK (outcome IN ('answered', 'refused', 'corrected')),
+  failure_class  TEXT,
   corrected_code TEXT,
   scanned_at     TEXT NOT NULL,
   -- The five-kind verdict at scan time, or NULL. See the note below the DDL.
@@ -95,6 +96,60 @@ CREATE INDEX IF NOT EXISTS scan_device_week ON scan(device_id, outcome, scanned_
 CREATE INDEX IF NOT EXISTS scan_device_recent ON scan(device_id, id DESC);
 CREATE INDEX IF NOT EXISTS scan_device_code ON scan(device_id, resolved_code, id DESC);
 `;
+
+/**
+ * Why a scan failed, added 2026-09-08 as a column of its own.
+ *
+ * The beta readiness audit found every failure of the vision path arriving at
+ * the user as one sentence, the photo could not be read, and therefore also
+ * arriving here as one undifferentiated 'refused'. An outage during a beta
+ * would then be indistinguishable from bad photographs in the data, which is
+ * the one thing this table exists to make readable afterwards.
+ *
+ * The vocabulary is identify/src/model.ts's, restated because this package
+ * does not import that one. Null on every answered scan and on any refusal
+ * whose caller did not classify it, so a null means unclassified and never
+ * means fine.
+ */
+export type FailureClass =
+  | 'unreadable_photo'
+  | 'model_timeout'
+  | 'model_rate_limited'
+  | 'model_outage'
+  | 'model_malformed'
+  | 'model_client_error'
+  | 'spend_cap_reached'
+  | 'not_in_catalogue';
+
+/**
+ * Adds a column an older file does not have yet.
+ *
+ * There is a live scans.db in app/data written before failure_class existed,
+ * and CREATE TABLE IF NOT EXISTS will not touch it. Checked with table_info
+ * rather than a caught error, because a swallowed ALTER is how a column ends
+ * up missing on one machine and present on another with nothing to read back.
+ */
+function addColumnIfMissing(db: DatabaseSync, table: string, column: string, decl: string): void {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as unknown as { name: string }[];
+  if (columns.some((c) => c.name === column)) return;
+  /*
+   * The read above and the write below are not one operation. Two processes
+   * opening this file at once can both see no column and both try to add it;
+   * the busy timeout serialises the write, so the loser's ALTER runs after
+   * the winner's committed and fails with `duplicate column name`. Without
+   * this catch that throw escaped into the open, nulled the handle, and
+   * turned the whole scan log off for the life of the process (D-057 as
+   * merged). A column somebody else added is success; anything else is
+   * rethrown, since a table that cannot take it is not a log this code can
+   * use. Answered by re-reading the table, not by matching message text.
+   */
+  try {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
+  } catch (err) {
+    const again = db.prepare(`PRAGMA table_info(${table})`).all() as unknown as { name: string }[];
+    if (!again.some((c) => c.name === column)) throw err;
+  }
+}
 
 /**
  * A handle on the scan log.
@@ -166,54 +221,13 @@ export function openScanStore(path: string = process.env.SHIN_SCANS ?? 'data/sca
     db.exec('PRAGMA journal_mode = WAL');
     db.exec(DDL);
     /*
-     * `CREATE TABLE IF NOT EXISTS` does nothing to a table that already
-     * exists, so a column added after the first release has to be added by
-     * hand or every database in the field is silently one column short. This
-     * reads what is actually there rather than tracking a version number,
-     * which cannot be wrong about the file in front of it.
-     *
-     * Additive and nullable on purpose: rows written before the column existed
-     * keep a NULL category, which `recentCategories` skips. An old log makes
-     * the route unsure, never wrong.
+     * Both columns added after the first release go through one helper. Two
+     * lanes wrote the same migration on the same night -- `category` here for
+     * the routing priors, `failure_class` on main for the beta audit -- and
+     * the merge keeps main's helper and gives it this branch's race catch.
      */
-    const columns = db.prepare('PRAGMA table_info(scan)').all() as { name: string }[];
-    if (!columns.some((c) => c.name === 'category')) {
-      /*
-       * THE ALTER GETS ITS OWN CATCH, BECAUSE THE READ ABOVE IT AND THE WRITE
-       * HERE ARE NOT ONE OPERATION.
-       *
-       * Two processes opening this file at once -- the server and
-       * `npm run what-to-price`, or two of this repo's concurrent sessions --
-       * can both read a table with no `category` and both try to add it. The
-       * loser gets `duplicate column name: category`.
-       *
-       * Without this catch that throw escapes into the open above, which sets
-       * `db = null` and turns the whole scan log off for the life of the
-       * process: every write becomes a counted drop, `recentCategories`
-       * returns empty so every route falls back to searching everything, and
-       * the profile screen reports zeroes. All of it silent, and all of it
-       * from losing a race that changed nothing, because the column the loser
-       * wanted is now there.
-       *
-       * So a duplicate column is success arriving from somebody else. Anything
-       * else is rethrown and does null the handle, which is correct: a table
-       * that cannot take the column is not a scan log this code can use.
-       */
-      try {
-        db.exec('ALTER TABLE scan ADD COLUMN category TEXT');
-      } catch (err) {
-        /*
-         * The question is not which error this was, it is whether the column
-         * is there now. `duplicate column name` means somebody else added it
-         * and this process is fine; a lock that outlasted the busy timeout
-         * means it is not there and this handle cannot be trusted. Reading the
-         * table back answers both without matching on message text, which is
-         * the part that would rot the day the driver rewords itself.
-         */
-        const again = db.prepare('PRAGMA table_info(scan)').all() as { name: string }[];
-        if (!again.some((c) => c.name === 'category')) throw err;
-      }
-    }
+    addColumnIfMissing(db, 'scan', 'category', 'TEXT');
+    addColumnIfMissing(db, 'scan', 'failure_class', 'TEXT');
   } catch (err) {
     db = null;
     droppedWhy = err instanceof Error ? err.message : String(err);
@@ -239,6 +253,14 @@ export interface ScanInput {
   readonly category?: string | null;
   readonly outcome: ScanOutcome;
   /**
+   * Why, when the outcome is 'refused'. Added 2026-09-08 alongside `outcome`
+   * rather than folded into it: 'refused' is what the person experienced and
+   * the free-tier rule reads it, while this is what happened on our side and
+   * only the defect log reads it. Merging them would have made the metering
+   * rule depend on an outage.
+   */
+  readonly failureClass?: FailureClass | null;
+  /**
    * Overrides the recorded timestamp. Tests use this to place a row in a
    * specific week without mocking the clock; real callers should omit it
    * and get `new Date().toISOString()`.
@@ -256,6 +278,7 @@ interface ScanRow {
   confidence: number | null;
   source: string | null;
   outcome: string;
+  failure_class: string | null;
   corrected_code: string | null;
   scanned_at: string;
   category: string | null;
@@ -276,8 +299,8 @@ export function recordScan(input: ScanInput): number | null {
     const scannedAt = input.scannedAt ?? new Date().toISOString();
     const result = store.db
       .prepare(
-        `INSERT INTO scan (device_id, kind, query_text, resolved_code, resolved_label, confidence, source, outcome, corrected_code, scanned_at, category)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+        `INSERT INTO scan (device_id, kind, query_text, resolved_code, resolved_label, confidence, source, outcome, failure_class, corrected_code, scanned_at, category)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
       )
       .run(
         input.deviceId,
@@ -288,6 +311,7 @@ export function recordScan(input: ScanInput): number | null {
         input.confidence ?? null,
         input.source ?? null,
         input.outcome,
+        input.failureClass ?? null,
         scannedAt,
         input.category ?? null,
       );

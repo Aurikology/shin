@@ -702,3 +702,189 @@ in particular are computed from `color-mix` against `--ground`, and camera.css c
 `test/tokens.test.mjs` are checking a surface that is not drawn. Or if the type roles turn out to
 need a seventh, which would mean DESIGN.md section 2's table is short rather than that the roles
 were the wrong shape.
+
+## The price judge answers where the category cannot, and thin evidence stops being a refusal
+**Date:** 2026-09-08 · **Status:** active
+
+His instruction, 2026-09-05: *"The worst thing this app can do is tell people it doesn't know
+because that literally wastes the users time."* That day two things were done in its name and only
+one of them shipped. The count thresholds in `spine/src/spine.ts` became named shortfalls on the
+answer, which is real and is still in place. And `price/src/verdict.ts` was rewritten to answer off
+a single seller, with the doubt in a confidence number, and was then imported by nothing but its own
+test. For three days the app served an older path while a function written to his correction sat
+unreachable.
+
+What nobody checked on 2026-09-05 was the filter stage sitting IN FRONT of the thresholds. The
+corpus note written that day says all five pilot refusals were empty hands rather than thresholds.
+Two of them were not. Tide was refused holding a Walmart price, because Walmart was also the shop
+being stood in, and the WH-1000XM5 was refused holding a manufacturer list price. Both are a
+seller's number, both drew a blank screen, and both are the outcome he named as the worst available.
+
+So the stage that empties the comparison set now names itself as a shortfall on the confidence and
+`judge()` produces the verdict, in production, through `/api/price`. Three refusal reasons stop
+firing: `unusable_price_kinds`, `points_too_stale`, `all_points_from_asking_seller`. They stay in
+the contract's union, unreachable, the way `too_few_points` already does.
+
+**`judge()` is deliberately not put in front of `CategoryRule.judge`.** The four served categories
+ask four different questions and grocery's two lines, used goods' 25th percentile and furniture's
+own-history sentence are the part of this worth shipping. Routing every set through one comparator
+would have removed the refusal and flattened the product in the same move. The category judges every
+set it can compare; the price judge answers only where the category's own filters left it nothing,
+which is exactly where the alternative was a blank screen.
+
+**What still refuses, and none of it is a threshold.** No price at all from anybody, which is zero
+sellers and has no answer at any confidence. No price on the thing in front of the shopper. An
+identity below the category floor, because a number attached to the wrong product is the pilot's own
+worst failure. Every price dated after the moment being priced, which is a broken record rather than
+thin evidence. And produce, which is refused on **"Produce is out of v1", 2026-09-03, active**: a PLU
+names a category rather than a product, package formats break unit comparison, and the public series
+measures underlying inflation rather than the shelf. That decision reverses on crowdsourced shelf
+volume, not on one more price arriving, so the 2026-09-08 wiring does not reach it.
+
+Measured, not reasoned about: pilot corpus coverage moved 2 of 7 to 4 of 7, the first time it has
+moved at all. Read it for exactly what the harness says it is, which is how often the spine will
+answer and never whether the answer is right. Two of those four answers now rest on a single price.
+
+**Reverses if:** a single-seller answer is shown to be worse for a shopper than the blank screen it
+replaced. The shape to watch for is already visible and is logged as D-045: where the only price we
+hold equals the price on the tag, the range has zero width, and `judge()` calls that position
+zero, so the sentence reads "at the low end" over a set with no low end. Low confidence and a named
+reason sit beside it, but hard rule 3's neighbour still applies, that telling someone a price is
+good when it is not is the only mistake on this screen that makes them spend money. If that reads
+as a lie to him or to a tester, the fix is `judge()`'s tier ladder for a single-point band, not a
+return to refusing.
+
+## D-045 resolved: zero-width band tier logic
+**Date:** 2026-09-08 · **Status:** resolved
+
+When the band has zero width (one price or multiple sellers agreeing), `judge()` now compares the asking price directly to that number: equal yields fair tier with "matches", below yields good with "less than", above yields high with "more than", replacing the old "at the low/high end" wording that made no sense for single-point ranges.
+## Sitemap discovery is built, and the marketplace tail is out of reach on purpose
+**Date:** 2026-09-08 · **Status:** active
+
+The 2026-09-05 decision above dropped the Walmart search leg and named the product sitemap as its
+replacement, then deliberately did not build it. `docs/beta-readiness-audit.md` found the cost:
+896 observations over 438 distinct products against a 5.18 million row catalogue, with "the
+designed replacement (reading their sitemap instead) exists only as a comment, not as code". It is
+code now, in `price/src/walmart-sitemap.ts`, and reachable as `crawl.ts --discover`.
+
+**robots.txt was re-read live before a byte was fetched**, 2026-09-08, and it still says what the
+earlier decision said it said: `Disallow: /search?*` closed, `Disallow: /en/ip/*` then
+`Allow: /en/ip/*/*` open, and sixteen `Sitemap:` lines including the six product indexes. There is
+no `Crawl-delay` for `User-agent: *`; the only one in the file belongs to Bingbot. Absence of a
+published limit is not permission, so the crawler imposes its own 3,000 ms floor and still reads
+the file each run, so that a `Crawl-delay` added later wins over our floor without anyone noticing
+it appeared.
+
+**The sizes are counted, not estimated, and they decide the shape of the feature.** The first-party
+index has 5 gzipped children at 43,532 product URLs each, about 217,660 SKUs. The marketplace head
+has 19. The marketplace tail has 1,848, and a randomly sampled child of it held 44,980 entries,
+which puts that set near 83 million. Ten product pages opened at the polite rate averaged 1,277 ms,
+so one SKU costs 4.28 seconds start to start: 10.8 days for a full first-party pass, 42 days for
+the marketplace head, and eleven years for the tail.
+
+**So `discoverSkus` defaults to the first-party index alone and the other two need `--indexes` by
+name.** That is the decision, and it is a refusal, not an omission. Eleven years is not a slow
+crawl, it is a proof that walking 3p exhaustively is the wrong shape, and a default that silently
+started down it would look like it was working for the first several days. What brings any of these
+numbers down is choosing which SKUs are worth opening, which is `queue.ts`'s job, never a shorter
+delay against a site that is already behind PerimeterX.
+
+**One SKU is one page open, and the slug still decides nothing**, per the rule attached in advance
+on 2026-09-05. The sitemap chooses which page to open; `detail()` reads the barcode off that page;
+`sources.ts`'s `joinToProduct` decides whether it joins. A discovered SKU whose barcode is not in
+the catalogue is written as an unjoined observation, `code` NULL, exactly the case `store.ts`'s
+header describes, so the price survives for a later catalogue to resolve and no verdict can be
+built on it in the meantime.
+
+**Walked, not asserted.** Five real SKUs off the live first-party sitemap, opened on 2026-09-08:
+all five returned the real page with a price and a barcode, none returned the PerimeterX challenge,
+and the run recorded five `crawl_attempt` rows. Re-run against a two row stand-in catalogue, two
+of the five joined by barcode and wrote `join_method` 'gtin' rows and the other three stayed
+unjoined with the barcode named in the note. The 12-digit-to-13 padding was exercised on the way:
+the page published 990370255035 and the join found 0990370255035.
+
+**Reverses if:** Walmart adds a `Crawl-delay` for `*` that makes even the first-party pass
+pointless, or publishes a Marketplace API key we can get, which would beat this on both cost and
+completeness and would retire the crawl rather than tune it. Or if the joined fraction of
+discovered SKUs turns out to be low enough that walking a general sitemap is the wrong instrument
+for a grocery-and-electronics catalogue, in which case the answer is a category-scoped source, not
+a faster walk.
+
+## The vision call gets a clock, one retry and a ceiling, and a failure says which failure it was
+**Date:** 2026-09-08 · **Status:** active
+
+`docs/beta-readiness-audit.md` found no timeout, no retry policy and no spending cap anywhere in
+the code that calls the vision model, and every failure on that path arriving as the same
+sentence: the photo could not be read. **The sentence is right and it stays.** A rate limit, an
+outage and a malformed answer leave the person in the aisle with the same one thing to do, and
+naming our billing at them is hard rule 3's exact failure. What was wrong is that the sentence was
+also all we kept, so an outage during a beta would have read back afterwards as a beta full of bad
+photographers. The class is now its own field, added beside the copy and never folded into it, and
+it travels from `identify/src/model.ts` through the spine's refusal event in `spine/src/run.ts`
+into a new `failure_class` column on the scan log in `app/src/scans.ts`.
+
+**The timeout is 1,800 ms per call**, taken from `docs/the-moonshot.md`'s 2 second p99 for the
+cold path and his "results return in 1 second" behind it, with everything downstream already
+measured at a couple hundred milliseconds. There is exactly one retry, on a rate limit, a 5xx, or a
+network error with no status, because a second attempt is the whole remaining budget. A timeout is
+deliberately not retried: the first attempt already spent the budget, so the second would be
+answering a screen nobody is still watching. A bad request and a malformed answer are not retried
+either; both are money spent to be told the same thing twice. The cap is 2,000 calls per process
+per UTC day (`SHIN_MODEL_DAILY_CALLS`), charged per attempt because a retry is a real invoice
+line, and checked before the socket opens so it is a cap and not a log entry. It guards against a
+loop, not a busy day.
+
+**What the pass could not do, stated so nobody reads the tests as proof.** No key exists on this
+machine, so no real photo went through the real API; every 429, 503 and abort in
+`identify/test/model.test.ts` is a hand-built shape. And the larger finding: `IdentifyStage` and
+`Identifier` are called from nowhere outside `identify/test`. `app/server.ts`'s `identify()` is
+the catalogue lookup, and `server.ts` itself names the photo upload door as not built. The
+hardening is wired end to end in types and tests, and the last hop has no caller. Reverses if a
+measured p99 comes in materially under 1,800 ms, or if a per-account ceiling lands at the billing
+account and makes the per-process count redundant.
+
+## Crawl now, join later: an unjoined price keeps the barcode that would resolve it
+**Date:** 2026-09-08 · **Status:** active
+
+The sitemap discovery decision above says a discovered SKU whose barcode is not in the catalogue
+is written as an unjoined observation so the price survives for a later catalogue to resolve. The
+first half was true and the second half was not: `observationFrom` read the barcode off the
+product page, failed the catalogue lookup, and wrote the row without it, so the only way to
+resolve such a row later was to open Walmart's page again. `catalogue/data/catalogue.db` lives on
+the cofounder's machine, not this one, which meant a first-party crawl could not start until it
+arrived and would have had to be repeated afterwards: 10.8 days paid twice.
+
+**The barcode now goes on the row.** `observation` gains one nullable column, `page_gtin`, holding
+the barcode exactly as the seller published it, unnormalised, because a stored number that has
+been quietly rewritten cannot be argued with later. `code` is still the only field that means
+"this is a catalogue product" and `page_gtin` never stands in for it. `price/src/rejoin.ts` walks
+the rows where `code` is NULL and `page_gtin` is not, joins them through `sources.ts`'s
+`joinToProduct`, and fills `code` and `join_method` in place. `attachCode` carries `AND code IS
+NULL` in its own WHERE clause, so a rerun is a no-op at the level of the database and no
+already-decided code can be overwritten. A rejoin never writes a price.
+
+**A column added in place, not a rebuild.** `migrate-observation.ts` exists because SQLite cannot
+drop a NOT NULL without copying every row, which a person supervises. Adding a nullable column is
+not that, so `openPrices` does it with `ALTER TABLE ADD COLUMN` behind a `PRAGMA table_info`
+check; without it the column would exist only in databases created after today.
+
+**Walked, not asserted, and the walk found the real ceiling.** A live 1p discovery run opened 10
+product pages at the polite rate, mean 1,283 ms, and wrote 10 unjoined rows each carrying price,
+kind, url and the page's barcode; a dry-run rejoin against a one-row stand-in catalogue then
+joined 990370255035 to 0990370255035 out of that live table with no further request to
+walmart.ca. Then SKUs 11 and 12 each came back as four consecutive PerimeterX challenge pages
+inside `walmart.ts`'s retry loop, eight in a row, and the run was aborted on the
+three-consecutive rule. **One request every 4.3 seconds from a residential address is tolerated
+for about ten pages and then it is not.** The 10.8-day figure in the decision above is therefore a
+lower bound on time at a rate Walmart does not accept, not a plan. What is allowed to change is
+the rate (slower, and measured for where the ceiling actually sits), and which SKUs are worth the
+budget (`queue.ts`). What is not allowed to change is the header set, the address, or anything
+that makes the crawler look like something it is not; see D-049.
+
+**A defect found on the way.** `lookup.ts` marked a code as seen before deciding whether to skip
+an unjoined row, so one such row hid every older joined row for the same code and the product
+vanished from the alternatives map. Fixed and tested (D-048).
+
+**Reverses if:** the catalogue becomes something every crawling machine has, in which case
+`page_gtin` becomes an audit field rather than a mechanism; or a seller's page barcode proves
+untrustworthy often enough that storing it is worse than not joining.

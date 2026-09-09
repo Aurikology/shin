@@ -117,7 +117,7 @@ export async function servePack(
   /*
    * `pipe` does not forward the source's errors, and an unhandled 'error' on a
    * ReadStream throws out of the event loop -- outside the request handler's
-   * try, so it kills the process the same way D-050 did. The window is between
+   * try, so it kills the process the same way D-055 did. The window is between
    * the `stat` above and the open: the pack rewritten by export-pack.ts while a
    * phone is mid-download, or the path resolving to a directory (stat succeeds,
    * open gives EISDIR). Headers are already out by then, so the only honest

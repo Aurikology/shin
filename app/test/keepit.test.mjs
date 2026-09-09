@@ -45,7 +45,7 @@ function extract(name, kind = 'function') {
 const THIN_REASONS = new Set(
   [...extract('THIN_REASONS', 'const').matchAll(/'([a-z_]+)'/g)].map((m) => m[1]),
 );
-assert.ok(THIN_REASONS.size >= 7, `parsed only ${THIN_REASONS.size} thin reasons from camera.js`);
+assert.ok(THIN_REASONS.size >= 4, `parsed only ${THIN_REASONS.size} thin reasons from camera.js`);
 // eslint-disable-next-line no-new-func
 const keepableFrom = new Function(`${extract('keepableFrom')}; return keepableFrom;`)();
 
@@ -124,6 +124,10 @@ test('every reason the engine can answer with is classified one way or the other
     'identity_unsure',
     'category_unsupported',
     'no_asking_price',
+    // These three stopped being emitted 2026-09-08 when the thin-verdict path landed.
+    'unusable_price_kinds',
+    'points_too_stale',
+    'all_points_from_asking_seller',
   ]);
   const orphans = reasons.filter((r) => !known.has(r));
   assert.deepEqual(orphans, [], `the engine can refuse with reasons no screen classifies: ${orphans.join(', ')}`);

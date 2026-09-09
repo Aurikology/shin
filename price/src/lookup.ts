@@ -116,7 +116,6 @@ export const lookupPrices: PriceLookup = async (codes) => {
     const seen = new Set<string>();
     for (const row of rows) {
       if (seen.has(row.code)) continue; // a later row for this code is older
-      seen.add(row.code);
 
       if (row.join_method === 'none') {
         // Cannot happen against today's table (see above), but this is a
@@ -126,9 +125,19 @@ export const lookupPrices: PriceLookup = async (codes) => {
         // tied to a product has no honest join method to report, and the
         // other lane is coding against that two-value contract, not a three
         // -value one that quietly turns into 'gtin' or 'name' by coercion.
+        //
+        // CHANGED 2026-09-08: `seen.add` used to run above this check, which
+        // meant a skipped 'none' row also suppressed every older row for the
+        // same code, and the code went missing from the result entirely rather
+        // than falling back to the last observation that did join. Now the code
+        // is marked seen only when a row is actually emitted for it, so a
+        // rejoin that has not run yet costs a stale price, never a silent
+        // absence. Nothing unjoined gets through either way: `code` is NULL on
+        // those rows and the WHERE clause above cannot bind to a NULL.
         continue;
       }
 
+      seen.add(row.code);
       out.set(row.code, {
         code: row.code,
         amountCents: row.price_cents,

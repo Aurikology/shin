@@ -201,3 +201,18 @@ has cost something recorded twice. One incident is a lesson. Two is a rule.
   checklist applied to a thing produces findings, and findings are not the same kind of object as
   the thing's parts. Filing them as parts inflates every count meant to measure whether the parts
   are complete.
+
+- **2026-09-08 · a function written on his correction shipped nowhere for three days, and every
+  status file said the fix was done.** `price/src/verdict.ts` was rewritten on 2026-09-05 to his
+  instruction (*"The worst thing this app can do is tell people it doesn't know because that
+  literally wastes the users time."*) and was imported by nothing but its own test. Its test suite
+  passed the whole time; NOW.md recorded "both judges now answer instead of refusing" on the
+  strength of the code being written rather than of it being reachable. The audit found it by
+  asking who calls it, which is the one activity none of the 291 tests perform. Compounding it: the
+  corpus note written the same day asserted that all five pilot refusals were empty hands, checked
+  against the thresholds that had just been removed and never against the filter stage in front of
+  them, and it was wrong about two of the five. **What it would change:** "who imports this" is a
+  mechanical question and belongs to a check, not to prose. A test that asserts a production export
+  has a non-test importer would have caught this on 2026-09-05 and would cost one file. Second and
+  cheaper: when a pass removes a class of refusal, re-run the corpus and read the item table, not
+  the total; both wrong claims here would have died on one command that was already wired.

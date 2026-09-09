@@ -48,6 +48,6 @@ the test written to catch them was green:
 ## Learnings log
 
 - 2026-09-08 — Written after the fifth instance. The phrase "negative-tested" already recurs in
-  D-040, D-043, D-044 and D-047 as an ad-hoc convention with no definition; this is the definition.
+  D-040, D-043, D-044 and D-052 as an ad-hoc convention with no definition; this is the definition.
   Step 2 is separate from step 3 because the 2026-09-05 tsconfig case never ran the check at all,
   and a check that does not run cannot be made to fail.

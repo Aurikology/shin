@@ -66,6 +66,110 @@ price. The report names the three apart now and refuses to compute rather than r
 
 Still uncalled of D-026's four: only the capture queue, which waits on the photo path and so on a
 model key nobody has set.
+## A price can be kept before the catalogue arrives, and Walmart's real rate limit is found, 2026-09-08
+
+**An unjoined observation now carries the page's barcode, and `rejoin.ts` resolves it later.**
+`observation.page_gtin` is added in place on open; `node price/src/rejoin.ts` fills `code` for
+any row a catalogue can now name, idempotently. A live crawl on a machine with no catalogue wrote
+10 Walmart rows with barcodes; a dry-run rejoin joined one against a stand-in catalogue offline.
+price 98 pass, typecheck clean. A `lookup.ts` bug that hid a product behind a pending rejoin is
+fixed (D-048).
+
+**The finding that changes the plan: PerimeterX challenged at page 11.** The bounded live run,
+one request every 4.3 s, got ten real pages and then eight challenge responses in a row. Aborted
+on the rule. The 10.8-day first-party crawl is not viable at that rate from this address (D-049,
+open). Next is finding the rate that is tolerated, and spending it on the SKUs `queue.ts` says
+matter, not on all 217,660.
+
+**A local subset catalogue exists for the first time.** `catalogue/data/catalogue.db` holds
+89,991 rows from Open Beauty / Products / Pet Food Facts, all with distinct GTINs, built in 5.5
+minutes. The Open Food Facts Canadian slice (the grocery bulk) 429'd on HuggingFace's
+range-request path; the 7.8 GB parquet is being pulled once as the documented cache. Icecat, 96%
+of the real catalogue, still needs `ICECAT_USER` / `ICECAT_PASSWORD`, which only the founder can
+create.
+
+---
+
+## The vision call is hardened, and it turns out nothing calls it, 2026-09-08
+
+**Timeout, one retry, a daily cap, and a failure class that survives into the scan log.**
+`identify/src/model.ts` now wraps both Anthropic calls in an 1,800 ms clock, retries once on
+429/5xx/network only, refuses past 2,000 calls a day, and throws a `ModelCallError` whose class
+(`unreadable_photo`, `model_timeout`, `model_rate_limited`, `model_outage`, `model_malformed`,
+`model_client_error`, `spend_cap_reached`) rides the refusal event into a new `failure_class`
+column on `app/data/scans.db`. The user-facing sentence is unchanged on purpose. identify 19 pass,
+spine 152 pass, app 285 pass with 5 skipped, all three typecheck clean.
+
+**The finding that outranks the fix: the vision path has no caller.** `IdentifyStage` /
+`Identifier` are reachable only from `identify/test`. The photo upload door in `app/server.ts` is
+named there as not built. So the audit's "vision identification path has never been tested against
+the real thing" is true for a reason it did not name: the app that ships cannot reach it yet.
+
+**Not done:** no `ANTHROPIC_API_KEY` on this machine, so no real photo through the real API.
+
+---
+
+## Walmart discovery is alive: a barcode we have never priced can now be found, 2026-09-08
+
+**The sitemap crawler that three file headers have been pointing at since 2026-09-05 exists.**
+`price/src/walmart-sitemap.ts` streams Walmart's own product sitemap, the one their robots file
+publishes and their robots file allows, and `node price/src/crawl.ts --discover` feeds what it
+finds into the barcode confirmation and the join that were already there. Until today the price
+side could only ask again about the 21 products it had already priced. It can now find products it
+has never seen.
+
+**Walked, not asserted.** robots.txt fetched live first, before anything was crawled: search still
+closed, `/en/ip/<slug>/<sku>` still explicitly allowed, no crawl delay published for us. Five real
+SKUs off the live first-party sitemap opened cleanly at the polite rate, all five returned the real
+page with a price and a barcode, none returned the bot challenge. Re-run against a stand-in
+catalogue, two of the five joined by barcode and three were kept as unjoined evidence with the
+barcode written down.
+
+**The number that decides the shape.** 1,277 ms a page measured over ten pages, plus the measured
+3 second delay, is 4.28 seconds a product. Walmart's own inventory is about 217,660 products, so a
+full pass is 10.8 days. Their marketplace is about 83 million, which is eleven years, so that half
+is reachable only by asking for it by name and is not something a default run can wander into. The
+way that comes down is choosing which products are worth opening, not crawling faster.
+
+**What this does not yet do.** There is no catalogue database on this machine (it is 9.1 GB and not
+in the repo), so the live pass could not join against the real 5.18 million rows, only against a
+two row stand-in. The first real number, how many discovered Walmart products match something the
+catalogue already knows, is one run away and has not been taken.
+## The price judge is in production, and thin evidence stops being a blank screen, 2026-09-08
+
+**The fix he asked for on 2026-09-05 was never connected to the app, and now it is.** `judge()` in
+`price/src/verdict.ts` was rewritten that day on his correction, to answer off a single seller with
+the doubt in a confidence number. It was imported by nothing but its own test. The app kept serving
+a path that refused while holding prices, which is the outcome he named as the worst this app can
+produce, and it did that for three days.
+
+**Two of the pilot's five refusals were holding a seller's price the whole time.** Tide, refused
+over a Walmart price because Walmart was also the shop being stood in. The WH-1000XM5, refused over
+a manufacturer list price. The 2026-09-05 note in this repo said all five refusals were empty hands
+and it was wrong about both of them: it was checked against the count thresholds, which had just
+been removed, and never against the filter stage sitting in front of them.
+
+**Measured through `/api/price` on the running server, not from the test suite.** Tide at $11.97
+now answers "$11.97 matches the only price we have. Walmart has it at $11.97 too." with confidence low, one
+seller, and the sentence "Every price we have is this same store, so this is against its own
+history rather than against anybody else." The XM5 answers the same shape off its list price. POÄNG
+new still refuses, because there is genuinely no price. Navel oranges still refuses, on the recorded
+produce decision.
+
+**Pilot corpus coverage moved for the first time: 2 of 7 to 4 of 7.** That number is how often the
+spine will answer and it is not correctness; two of the four now rest on a single price. The
+2026-09-05 finding that thresholds were never the cap still stands for thresholds. What was capping
+these two was a filter, not a threshold, and not supply either.
+
+**Found on the same pass and closed the same day.** Where the only price we hold equals the price
+on the tag the band has zero width, and `judge()` called that position zero, so the first two
+answers read "at the low end" over a set with no low end. That was D-045; it is resolved: a
+zero-width band now compares the tag to the one number directly and says "matches the only price
+we have", or "matches what every seller charges" when several sellers agree. The three refusal
+codes the cascade can no longer emit were pruned from the camera screen's thin list too.
+
+Counts on this tree, run directly: price 76 pass, spine 152 pass, app 283 pass with 5 skipped,
+and app, price and spine all typecheck clean.
 
 ---
 
@@ -96,7 +200,7 @@ renumbered with main's numbers standing.
 
 **First 390px pass on this branch**, driven with Playwright because Chrome cannot emulate that
 viewport. Nothing scrolls sideways and no text on the screens this branch touched is under its
-contrast floor in either theme. What it did find is D-045: nearly every control on the price pad
+contrast floor in either theme. What it did find is D-050: nearly every control on the price pad
 is under a thumb's size, the keypad's own digits included, on the one screen this product exists
 for. The new affordance was in that list and is fixed; the keypad is a layout decision and is
 not.

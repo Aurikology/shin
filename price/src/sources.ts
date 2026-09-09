@@ -29,7 +29,7 @@
  * the exact shape of failure the confidence rules elsewhere exist to prevent.
  */
 
-import type { Observation, PriceKind } from './observation.ts';
+import type { Observation, PriceKind } from './verdict.ts';
 
 /** How a seller's row can be tied to a catalogue product. */
 export type JoinKind =

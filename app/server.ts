@@ -927,6 +927,17 @@ const server = createServer(async (req, res) => {
            * null is skipped by the reader rather than counted as a vote.
            */
           category: answer.category,
+          /*
+           * WHY IT WAS REFUSED, 2026-09-08.
+           *
+           * The beta readiness audit's point: a bare 'refused' cannot tell an
+           * outage from a photo nobody could have read, so a beta spent inside
+           * one would look like a beta full of bad photographs. This route only
+           * ever produces one of them: the catalogue answered and did not have
+           * the thing. The model-side classes reach this column from the vision
+           * path (identify/src/model.ts's FailureClass), which has no route yet.
+           */
+          failureClass: answer.product ? null : 'not_in_catalogue',
         });
       }
 
@@ -1268,7 +1279,7 @@ const server = createServer(async (req, res) => {
      *
      * This catch was written for missing static files, and every `/api/`
      * route that threw landed in it too: `text/plain: not found` from a JSON
-     * endpoint, indistinguishable from a mistyped URL. D-046 patched one route
+     * endpoint, indistinguishable from a mistyped URL. D-051 patched one route
      * by hand; this is the mechanism that produced it. The reachable case
      * today is `/api/alternatives` on a machine with a catalogue and no prices
      * database: `lookupPrices` throws SQLITE_CANTOPEN and the client got a

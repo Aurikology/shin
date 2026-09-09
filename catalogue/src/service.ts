@@ -91,7 +91,7 @@ export function startCatalogueService(dbPath: string): CatalogueService {
        * working sheet the comments name as the thing to guard against. The
        * `error` handler above covers a worker that CRASHES; this covers one
        * that merely stops answering, which no event announces. A comment
-       * reporting a guard that was never installed is D-046's shape.
+       * reporting a guard that was never installed is D-051's shape.
        *
        * Cleared on settle. On timeout the pending entry is dropped, so a late
        * reply finds nothing and is ignored rather than resolving a promise

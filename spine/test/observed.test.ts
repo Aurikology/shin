@@ -502,7 +502,7 @@ test('a shopper standing at a seller this source can name is excluded from its o
   const src = source();
   // walmart.ca is a real, specific seller this source already emits correctly.
   // Standing there and pricing the same code the fixture holds must exclude
-  // it, leaving nothing to compare against (it is the only row for this code).
+  // it, leaving nothing to compare it against (it is the only row for this code).
   const result = await priceIt(
     {
       gtin: NAME_JOINED_CODE,
@@ -513,7 +513,17 @@ test('a shopper standing at a seller this source can name is excluded from its o
     },
     { sources: [src] },
   );
-  assert.equal(result.kind, 'refusal');
+  /*
+   * CHANGED 2026-09-08. This asserted a refusal. Since the price judge reached
+   * production that set answers against the store's own history rather than
+   * withholding, so the refusal is no longer the observable and the exclusion
+   * itself is asserted instead: the shopper's own store is recognised as the
+   * only seller here, and cannot be counted as a second one under a second
+   * spelling.
+   */
+  assert.equal(result.kind, 'verdict');
+  assert.equal(result.confidence.distinctSellers, 1);
+  assert.match(result.confidence.because, /same store/);
 });
 
 test('REGRESSION SEAM: once store_osm identifies real shops, excluding the shopper\'s own store changes the verdict, and the shared shop-unknown sentinel never gets to stand in for a real one', async () => {

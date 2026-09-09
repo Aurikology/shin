@@ -25,7 +25,7 @@ defect survived.
    Windows, and a stale server serving a rebuilt tree makes everything look broken.
 
 2. **Drive it with Playwright at 390 x 844.** Chrome devtools cannot emulate that viewport here.
-   D-045 and D-046 were both only visible on the Playwright pass. A fresh browser profile lands on
+   D-050 and D-051 were both only visible on the Playwright pass. A fresh browser profile lands on
    the setup screen, not the camera; click through it first.
 
 3. **Walk the route, in both themes.** Camera, typed scan, item picker, "not this?", price pad,
@@ -42,7 +42,7 @@ defect survived.
 
    **Normalise colours through a canvas before computing contrast.** Backgrounds come back as
    wide-gamut `color(srgb 0.88 0.88 0.87)`, and reading those three numbers as 0-255 produces a
-   page of contrast failures that are not real. That false positive is recorded in D-045. Composite
+   page of contrast failures that are not real. That false positive is recorded in D-050. Composite
    the element's opacity over the ground before comparing.
 
 5. **Read every sentence as a shopper would**, against the numbers behind it. Look for a fact
@@ -50,7 +50,7 @@ defect survived.
    a screen belonging to somebody who cannot act on it (D-011); a hedge about a mechanism that has
    since been built; and any number the app asserts about itself.
 
-6. **Read the console for the whole walk**, and explain every line in it. D-037 and D-046 were both
+6. **Read the console for the whole walk**, and explain every line in it. D-037 and D-051 were both
    console lines nobody had explained. A 404 you decide is harmless still needs the sentence saying
    why.
 
@@ -65,4 +65,4 @@ defect survived.
 - 2026-09-08 — Written from build standard 3, which had stated the requirement since it was earned
   and never the steps. Step 4's canvas normalisation is in here because the first run of this walk
   produced four contrast failures that were the measuring script's bug, not the app's; step 6 is
-  here because the same run found D-046 by chasing a 404 nobody had explained.
+  here because the same run found D-051 by chasing a 404 nobody had explained.

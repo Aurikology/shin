@@ -40,7 +40,7 @@ actually decides.
 3. **Lists, not just imports.** Some things join an array rather than being imported by a caller.
    Open the array itself and confirm the entry is in it: `defaultSources()` in
    `spine/src/sources/registry.ts`, the screen list in `app/public/js/main.js`, the content-type
-   map in `app/server.ts`, the copy tables in `app/public/js/voice.js`. D-047's adapter was
+   map in `app/server.ts`, the copy tables in `app/public/js/voice.js`. D-052's adapter was
    imported by nothing **and** in no list, and no test anywhere could tell.
 
 4. **Empty by construction.** If the new code takes an injectable dependency with a default, read
@@ -66,6 +66,6 @@ standard 2 and every row below was a case of getting it wrong.
 
 - 2026-09-08 — Written after the fifth instance. D-023 (offline aisle, both halves finished, no
   screen imported it), D-024 (identification chain and vision read, zero importers), D-025 (two live
-  endpoints, no caller), D-026 (four finished pieces at once), D-047 (adapter in no list). Step 3
-  exists because D-047 was invisible to a grep for importers, which is what step 1 would have run.
+  endpoints, no caller), D-026 (four finished pieces at once), D-052 (adapter in no list). Step 3
+  exists because D-052 was invisible to a grep for importers, which is what step 1 would have run.
   Step 4 exists because `nextToPrice` was worse than uncalled: callable, and mute.

@@ -184,7 +184,7 @@ function labelOf(row: Row): string {
 function sellerOf(row: Row): string {
   if (row.seller !== 'openprices') return row.seller; // walmart.ca: already a real, specific merchant.
   /*
-   * KNOWN TENSION, LEFT OPEN ON PURPOSE (DEFECTS.md D-076). The header says the
+   * KNOWN TENSION, LEFT OPEN ON PURPOSE (DEFECTS.md D-081). The header says the
    * identity is `store_osm` and this returns the display name. Switching it to
    * the OSM id was tried on 2026-09-09 and reverted the same hour: the shopper
    * excludes their own store by the NAME they typed, so a seller keyed on the
