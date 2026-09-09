@@ -22,6 +22,14 @@
  * come out the same on the other side, it rolls back and exits non-zero
  * rather than leaving a half-built table in place.
  *
+ * PAGE_GTIN, 2026-09-08. `store.ts` grew a `page_gtin` column after this
+ * script was written, and `openPrices` adds it in place with ALTER TABLE on
+ * every database it opens. That means a database can reach this script already
+ * carrying `page_gtin` while still missing `store_osm`, and a rebuild whose
+ * SELECT did not mention the column would silently drop every barcode an
+ * unjoined row was keeping for `rejoin.ts`. The new table always has the
+ * column; the copy reads it only when the old table has one to read.
+ *
  * Run as: node --experimental-strip-types price/src/migrate-observation.ts
  * Do NOT run this from an agent session. The conductor runs it, because
  * another terminal may have prices.db open.
@@ -44,9 +52,13 @@ interface SellerStockRow {
   readonly n: number;
 }
 
-function alreadyMigrated(db: DatabaseSync): boolean {
+function columnNames(db: DatabaseSync): Set<string> {
   const columns = db.prepare('PRAGMA table_info(observation)').all() as unknown as ColumnInfo[];
-  return columns.some((c) => c.name === 'store_osm');
+  return new Set(columns.map((c) => c.name));
+}
+
+function alreadyMigrated(db: DatabaseSync): boolean {
+  return columnNames(db).has('store_osm');
 }
 
 /**
@@ -130,9 +142,15 @@ function main(): void {
         store_name      TEXT,
         store_city      TEXT,
         store_osm       TEXT,
+        page_gtin       TEXT,
         PRIMARY KEY (seller, seller_sku, seen_on)
       )
     `);
+
+    /* Present only if openPrices already ALTERed this database. NULL for every
+     * row otherwise: nothing in the old data can invent a barcode retroactively,
+     * and a rejoin simply has nothing to try for those rows. */
+    const pageGtinSource = columnNames(db).has('page_gtin') ? 'page_gtin' : 'NULL';
 
     /*
      * in_stock is copied verbatim only for seller = 'walmart.ca': those rows
@@ -148,13 +166,15 @@ function main(): void {
       INSERT INTO observation_new
         (code, seller, seller_sku, seller_name, seller_brand, price_cents, kind,
          unit_price_cents, unit_label, currency, country, region, join_method,
-         seen_on, url, image_url, in_stock, store_name, store_city, store_osm)
+         seen_on, url, image_url, in_stock, store_name, store_city, store_osm,
+         page_gtin)
       SELECT
         code, seller, seller_sku, seller_name, seller_brand, price_cents, kind,
         unit_price_cents, unit_label, currency, country, region, join_method,
         seen_on, url, image_url,
         CASE WHEN seller = 'walmart.ca' THEN in_stock ELSE NULL END,
-        NULL, NULL, NULL
+        NULL, NULL, NULL,
+        ${pageGtinSource}
       FROM observation
     `);
 
@@ -168,6 +188,9 @@ function main(): void {
 
     db.exec('CREATE INDEX IF NOT EXISTS observation_by_code ON observation(code, seen_on)');
     db.exec("CREATE INDEX IF NOT EXISTS observation_unjoined ON observation(join_method) WHERE code IS NULL");
+    db.exec(
+      'CREATE INDEX IF NOT EXISTS observation_rejoinable ON observation(page_gtin) WHERE code IS NULL AND page_gtin IS NOT NULL',
+    );
 
     const after = totalRows(db);
     if (after !== before) {

@@ -226,6 +226,7 @@ async function priceOne(db: DatabaseSync, t: SkuTarget, today: string): Promise<
     url: d.url,
     imageUrl: d.imageUrl,
     inStock: d.inStock ? 1 : 0,
+    pageGtin: d.upc,
   });
   /* The regular price is also worth keeping when the current one is a sale. */
   if (promo && d.wasPriceCents !== null) {
@@ -247,6 +248,7 @@ async function priceOne(db: DatabaseSync, t: SkuTarget, today: string): Promise<
       url: d.url,
       imageUrl: d.imageUrl,
       inStock: d.inStock ? 1 : 0,
+      pageGtin: d.upc,
     });
   }
   return { outcome: 'matched', candidates: 0, note: null };
@@ -352,11 +354,11 @@ function report(db: DatabaseSync): void {
  * never read as a statement about Walmart when it was a statement about a
  * missing file.
  */
-const CATALOGUE_PATH =
+export const CATALOGUE_PATH =
   process.env.SHIN_CATALOGUE ??
   new URL('../../catalogue/data/catalogue.db', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 
-interface CatalogueProbe {
+export interface CatalogueProbe {
   /** False when there is no catalogue on this machine at all. See the comment above. */
   readonly available: boolean;
   /** The catalogue's own code for this barcode, or null if it does not hold one. */
@@ -364,7 +366,10 @@ interface CatalogueProbe {
   close(): void;
 }
 
-function openCatalogue(): CatalogueProbe {
+/* Exported 2026-09-08 so `rejoin.ts` opens the catalogue through this exact
+ * function, with its three barcode forms and its "missing catalogue is not an
+ * error" contract, rather than growing a second one that would drift from it. */
+export function openCatalogue(): CatalogueProbe {
   let db: DatabaseSync;
   try {
     db = new DatabaseSync(CATALOGUE_PATH, { readOnly: true });
@@ -458,6 +463,16 @@ function observationFrom(
     url: d.url,
     imageUrl: d.imageUrl,
     inStock: d.inStock ? 1 : 0,
+    /*
+     * KEPT EVEN WHEN THE JOIN FAILED, 2026-09-08, and that is the point of the
+     * column. Before today an unjoined row was written without the barcode the
+     * page had just handed us, so the only way to join it later was to open the
+     * page again: a full first-party crawl could not start until the catalogue
+     * arrived on this machine, and would have had to be repeated afterwards.
+     * The barcode goes on the row as the seller published it, `code` stays NULL
+     * until a catalogue confirms it, and `rejoin.ts` closes the gap offline.
+     */
+    pageGtin: d.upc,
   };
 }
 
