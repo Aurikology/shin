@@ -758,3 +758,54 @@ return to refusing.
 **Date:** 2026-09-08 · **Status:** resolved
 
 When the band has zero width (one price or multiple sellers agreeing), `judge()` now compares the asking price directly to that number: equal yields fair tier with "matches", below yields good with "less than", above yields high with "more than", replacing the old "at the low/high end" wording that made no sense for single-point ranges.
+## Sitemap discovery is built, and the marketplace tail is out of reach on purpose
+**Date:** 2026-09-08 · **Status:** active
+
+The 2026-09-05 decision above dropped the Walmart search leg and named the product sitemap as its
+replacement, then deliberately did not build it. `docs/beta-readiness-audit.md` found the cost:
+896 observations over 438 distinct products against a 5.18 million row catalogue, with "the
+designed replacement (reading their sitemap instead) exists only as a comment, not as code". It is
+code now, in `price/src/walmart-sitemap.ts`, and reachable as `crawl.ts --discover`.
+
+**robots.txt was re-read live before a byte was fetched**, 2026-09-08, and it still says what the
+earlier decision said it said: `Disallow: /search?*` closed, `Disallow: /en/ip/*` then
+`Allow: /en/ip/*/*` open, and sixteen `Sitemap:` lines including the six product indexes. There is
+no `Crawl-delay` for `User-agent: *`; the only one in the file belongs to Bingbot. Absence of a
+published limit is not permission, so the crawler imposes its own 3,000 ms floor and still reads
+the file each run, so that a `Crawl-delay` added later wins over our floor without anyone noticing
+it appeared.
+
+**The sizes are counted, not estimated, and they decide the shape of the feature.** The first-party
+index has 5 gzipped children at 43,532 product URLs each, about 217,660 SKUs. The marketplace head
+has 19. The marketplace tail has 1,848, and a randomly sampled child of it held 44,980 entries,
+which puts that set near 83 million. Ten product pages opened at the polite rate averaged 1,277 ms,
+so one SKU costs 4.28 seconds start to start: 10.8 days for a full first-party pass, 42 days for
+the marketplace head, and eleven years for the tail.
+
+**So `discoverSkus` defaults to the first-party index alone and the other two need `--indexes` by
+name.** That is the decision, and it is a refusal, not an omission. Eleven years is not a slow
+crawl, it is a proof that walking 3p exhaustively is the wrong shape, and a default that silently
+started down it would look like it was working for the first several days. What brings any of these
+numbers down is choosing which SKUs are worth opening, which is `queue.ts`'s job, never a shorter
+delay against a site that is already behind PerimeterX.
+
+**One SKU is one page open, and the slug still decides nothing**, per the rule attached in advance
+on 2026-09-05. The sitemap chooses which page to open; `detail()` reads the barcode off that page;
+`sources.ts`'s `joinToProduct` decides whether it joins. A discovered SKU whose barcode is not in
+the catalogue is written as an unjoined observation, `code` NULL, exactly the case `store.ts`'s
+header describes, so the price survives for a later catalogue to resolve and no verdict can be
+built on it in the meantime.
+
+**Walked, not asserted.** Five real SKUs off the live first-party sitemap, opened on 2026-09-08:
+all five returned the real page with a price and a barcode, none returned the PerimeterX challenge,
+and the run recorded five `crawl_attempt` rows. Re-run against a two row stand-in catalogue, two
+of the five joined by barcode and wrote `join_method` 'gtin' rows and the other three stayed
+unjoined with the barcode named in the note. The 12-digit-to-13 padding was exercised on the way:
+the page published 990370255035 and the join found 0990370255035.
+
+**Reverses if:** Walmart adds a `Crawl-delay` for `*` that makes even the first-party pass
+pointless, or publishes a Marketplace API key we can get, which would beat this on both cost and
+completeness and would retire the crawl rather than tune it. Or if the joined fraction of
+discovered SKUs turns out to be low enough that walking a general sitemap is the wrong instrument
+for a grocery-and-electronics catalogue, in which case the answer is a category-scoped source, not
+a faster walk.

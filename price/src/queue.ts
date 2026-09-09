@@ -12,44 +12,47 @@
  *   2. Scanned, has a price.            -> ordered by scan count, most first.
  *   3. Has a price, was not scanned.    -> ordered by staleness, oldest first.
  *
- * THE ROBOTS.TXT CONSTRAINT ON RULE 1, learned after this lane was briefed,
- * not before. `price/src/crawl.ts`'s header (2026-09-05) records that
- * walmart.ca/robots.txt disallows `/search?*` for every agent, so the search
- * leg that used to turn a bare catalogue product into a new Walmart SKU was
- * deleted, not slowed down. That crawl can now only re-price a SKU it has
- * already priced at least once, because the SKU list it works from is read
- * back out of its own observation history (`crawl.ts`'s `knownSkus`).
+ * WHAT RULE 1 USED TO SAY, AND WHY IT NO LONGER SAYS IT. Until 2026-09-08 this
+ * header recorded that a scanned product with no price was unreachable by any
+ * crawler, because walmart.ca/robots.txt disallows `/search?*`, the search leg
+ * was deleted for it, and the SKU list `crawl.ts` worked from was read back out
+ * of its own observation history. The comment ended by naming the fix, the
+ * site's own product sitemap, and saying it was not built.
  *
- * The 874 openprices.org rows in this table are not a live crawl target at
- * all: they are a receipt feed contributors upload to, and there is no
- * per-code query this file or any crawler could make against it to price a
- * specific new product on demand.
+ * It is built now: `price/src/walmart-sitemap.ts`, and `crawl.ts --discover`.
+ * The sitemap index publishes about 217,660 first-party product URLs under
+ * `/en/ip/*\/*`, which robots.txt explicitly Allows, and each one is confirmed
+ * by opening its own page and reading the barcode. So a barcode this system has
+ * never priced CAN now be reached, and the reason below is no longer true as
+ * written.
  *
- * So a scanned product with zero rows in `observation` has no seller SKU on
- * either side, and putting its code in a "to crawl" list would be handing the
- * crawler a code it has no mechanical way to act on. Rule 1 is not dropped:
- * it is real, and it is reported below as THE MAIN RESULT rather than folded
- * into `toCrawl`, because a list a crawler cannot execute is not a queue.
+ * WHAT REPLACES IT, and it is a different fact, not the same one reworded.
+ * Discovery is a walk, not a lookup. There is no per-code query: the sitemap
+ * cannot be asked "which SKU is barcode X", it can only be read start to finish
+ * until the barcode turns up, and a full first-party pass measures 10.8 days at
+ * the rate PerimeterX tolerates (`crawl.ts`'s header carries the arithmetic).
+ * The 874 openprices.org rows are still not a crawl target at all: that is a
+ * receipt feed contributors upload to, with no per-code query either.
  *
- * This is a robots.txt constraint TODAY, not a permanent property of this
- * design and not a bug in this file. `walmart.ts`'s header names the
- * sanctioned way to close the gap: the site's own sitemap index, listed in
- * its own robots.txt --
+ * So rule 1 still does not go into `toCrawl`, and the reason has moved from
+ * "no crawler can reach it" to "no crawler can reach it ON DEMAND". Handing the
+ * crawler a bare code would still be handing it something it cannot act on in
+ * one request, which is what `toCrawl` promises. What changed is that the list
+ * is now actionable by a different mechanism: run discovery, and the barcodes in
+ * `scannedNoCrawlerCanReach` become reachable as the walk passes them.
  *
- *     Sitemap: https://www.walmart.ca/sitemap-product-1p-en.xml
- *
- * -- which robots.txt explicitly Allows crawling under (its entries point at
- * `/en/ip/*\/*`, the same path shape `detail()` already fetches). A sitemap
- * crawler built against that would let rule 1 actually place a product into
- * `toCrawl` for the first time. It is not built here, and building it is not
- * this lane's job; if it reads as a bug that rule 1 does nothing today,
- * follow this comment to `walmart.ts` and `crawl.ts` before touching this
- * file, because the fix is a discovery crawler, not a change to the order.
+ * THE DISTINCTION IS THE WHOLE POINT OF STILL REPORTING IT. A code in this list
+ * is no longer evidence that a seller must be added. It is evidence about how
+ * much of the sitemap has been walked, which is a completely different
+ * instruction to the person reading it, and collapsing the two would have made
+ * this list keep printing "add a seller" on the day the seller was already there.
  *
  * SIZE, so nobody reads a confident-looking queue against numbers it does not
  * have: of 896 rows in `observation`, 22 are walmart.ca, across 21 distinct
- * products (measured in `crawl.ts`'s header). That is the entire population
- * `toCrawl`'s rule 2 and rule 3 can reorder for that seller today. The other
+ * products (measured 2026-09-05, and audited again 2026-09-08 at 896 rows over
+ * 438 distinct products against a 5.18 million row catalogue). That is the
+ * entire population `toCrawl`'s rule 2 and rule 3 can reorder for that seller
+ * today, and it is the number sitemap discovery exists to move. The other
  * 874 rows, from openprices, are the receipt feed above and are not
  * re-crawlable at all; they can only ever move through `toCrawl` in the sense
  * that their age can be reported, never in the sense that pricing them again
@@ -310,9 +313,16 @@ export async function nextToPrice(options: NextToPriceOptions = {}): Promise<Que
       scannedNoCrawlerCanReach.push({
         code,
         scanCount,
+        /*
+         * CHANGED 2026-09-08, and the change is the word "on demand". Sitemap
+         * discovery (`crawl.ts --discover`) can reach this code; it just cannot
+         * be asked for it by barcode, because a sitemap is a list to be walked
+         * and not an index to be queried. See this file's header.
+         */
         reason:
-          'scanned but priced nowhere, and no current crawler can reach it: ' +
-          'walmart.ca can only re-price a SKU it already knows, and the openprices rows are a receipt feed, not a queryable crawl target',
+          'scanned but priced nowhere, and no crawler can reach it on demand: ' +
+          'walmart.ca discovery has to walk its product sitemap until this barcode turns up, ' +
+          'and the openprices rows are a receipt feed, not a queryable crawl target',
       });
     }
     scannedNoCrawlerCanReach.sort((a, b) => b.scanCount - a.scanCount || a.code.localeCompare(b.code));

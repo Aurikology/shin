@@ -5,6 +5,32 @@ narrative.*
 
 ---
 
+## Walmart discovery is alive: a barcode we have never priced can now be found, 2026-09-08
+
+**The sitemap crawler that three file headers have been pointing at since 2026-09-05 exists.**
+`price/src/walmart-sitemap.ts` streams Walmart's own product sitemap, the one their robots file
+publishes and their robots file allows, and `node price/src/crawl.ts --discover` feeds what it
+finds into the barcode confirmation and the join that were already there. Until today the price
+side could only ask again about the 21 products it had already priced. It can now find products it
+has never seen.
+
+**Walked, not asserted.** robots.txt fetched live first, before anything was crawled: search still
+closed, `/en/ip/<slug>/<sku>` still explicitly allowed, no crawl delay published for us. Five real
+SKUs off the live first-party sitemap opened cleanly at the polite rate, all five returned the real
+page with a price and a barcode, none returned the bot challenge. Re-run against a stand-in
+catalogue, two of the five joined by barcode and three were kept as unjoined evidence with the
+barcode written down.
+
+**The number that decides the shape.** 1,277 ms a page measured over ten pages, plus the measured
+3 second delay, is 4.28 seconds a product. Walmart's own inventory is about 217,660 products, so a
+full pass is 10.8 days. Their marketplace is about 83 million, which is eleven years, so that half
+is reachable only by asking for it by name and is not something a default run can wander into. The
+way that comes down is choosing which products are worth opening, not crawling faster.
+
+**What this does not yet do.** There is no catalogue database on this machine (it is 9.1 GB and not
+in the repo), so the live pass could not join against the real 5.18 million rows, only against a
+two row stand-in. The first real number, how many discovered Walmart products match something the
+catalogue already knows, is one run away and has not been taken.
 ## The price judge is in production, and thin evidence stops being a blank screen, 2026-09-08
 
 **The fix he asked for on 2026-09-05 was never connected to the app, and now it is.** `judge()` in

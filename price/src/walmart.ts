@@ -17,6 +17,14 @@
  * `search()` and the candidate parsing that fed it were removed 2026-09-05
  * because walmart.ca/robots.txt disallows `/search?*` under `User-agent: *`.
  *
+ * DISCOVERY IS BUILT NOW, 2026-09-08. What the paragraphs below describe as
+ * "not built here" is `walmart-sitemap.ts`, sitting next to this file. It
+ * reuses this file's header set, its retry shape and its `Throttled` error
+ * rather than carrying a second copy of any of them, which is why `HEADERS`,
+ * `RETRIES` and `RETRY_BASE_MS` are exported below instead of staying local.
+ * The rest of this header is left standing because it is the measurement that
+ * decided the route, and it is still what makes the route legal.
+ *
  * That does not close off discovery. The same robots.txt lists, among sixteen
  * Sitemap lines:
  *
@@ -76,7 +84,7 @@ const BASE = 'https://www.walmart.ca';
  * unpaired A/B test look random. The controls between every case are what
  * finally separated it.
  */
-const HEADERS: Record<string, string> = {
+export const HEADERS: Record<string, string> = {
   'user-agent':
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
   'accept-language': 'en-CA,en;q=0.9',
@@ -159,8 +167,8 @@ export class Throttled extends Error {
  * longer each time, and treats the whole thing as unknown rather than as a
  * zero if it never gets a real page.
  */
-const RETRIES = 3;
-const RETRY_BASE_MS = 6000;
+export const RETRIES = 3;
+export const RETRY_BASE_MS = 6000;
 
 const nap = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
