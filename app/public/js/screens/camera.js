@@ -1399,7 +1399,19 @@ export default {
      */
     function setState(next) {
       cam.dataset.state = next;
-      if (camBar) camBar.inert = next === 'result' || next === 'choosing' || next === 'asking' || next === 'texting';
+      const sheetUp = next === 'result' || next === 'choosing' || next === 'asking' || next === 'texting';
+      if (camBar) camBar.inert = sheetUp;
+      /*
+       * The alternate-object buttons the eye draws are hidden by opacity while
+       * a sheet is up (camera.css, `.frame-marks`), which hides them from the
+       * pointer and not from the keyboard: they stayed real buttons with an
+       * accessible name, Tab landed on them, the ring drew over nothing, and
+       * pressing one did nothing because the click handler returns early off
+       * `idle`. The same defect the cam-bar `inert` line above was written to
+       * remove, in the one place it did not reach. `inert` covers both.
+       */
+      const marks = root.querySelector('.frame-marks');
+      if (marks) marks.inert = next !== 'idle';
       parkDockedFace(FACE_HIDDEN_IN.has(next));
     }
 

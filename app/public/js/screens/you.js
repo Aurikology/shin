@@ -256,7 +256,15 @@ export default {
       const box = root.querySelector('[data-scanlog]');
       if (!box) return;
       if (s.scans === 0) {
-        const problem = s.dropped ? `, and the log could not be written: ${s.droppedWhy}` : '';
+        /*
+         * `droppedWhy` is the store's own error message -- SQLITE_CANTOPEN and
+         * the like. It used to be interpolated into this sentence verbatim,
+         * which is an internal identifier on the screen of the one person who
+         * cannot act on it (D-011). The screen says that scans were not
+         * written; the reason goes where somebody can read it.
+         */
+        if (s.dropped) console.error('scan log could not be written:', s.droppedWhy);
+        const problem = s.dropped ? ', and some could not be written down' : '';
         box.innerHTML = `<p class="fineprint">${escapeHtml(say('you_scans_none', { problem }))}</p>`;
         return;
       }
@@ -304,7 +312,8 @@ export default {
             ? `<p class="fineprint">${escapeHtml(
                 say('you_scans_dropped', {
                   scans: `${s.dropped} scan${s.dropped === 1 ? '' : 's'}`,
-                  why: s.droppedWhy,
+                  // Same rule as above: the cause is logged, not printed.
+                  why: (console.error('scan log could not be written:', s.droppedWhy), 'the log could not be written to on this phone'),
                 }),
               )}</p>`
             : ''

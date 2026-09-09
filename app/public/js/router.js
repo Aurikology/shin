@@ -7,6 +7,7 @@
  * return a cleanup function.
  *
  * Screens never import one another. They move by calling ctx.go(id, params),
+import { escapeHtml } from './lib/dom.js';
  * which is what keeps the walkthrough's branches (06b off 06, the paywall off
  * 07) from turning into a tangle.
  *
@@ -24,6 +25,18 @@
 
 const routes = new Map();
 let current = null;
+/*
+ * Counts paints. A screen that navigates DURING its own render -- share.js
+ * does, when the scan it was asked to show is gone -- re-enters `paint`, which
+ * renders the next screen and stores that screen's cleanup. Control then
+ * returns to the OUTER paint, whose next statement stored its own screen's
+ * return value over it: undefined, from a screen that had already handed off.
+ * The camera's cleanup was lost that way, so its stream, its eye and its
+ * listeners kept running under whatever screen came next, and every return to
+ * the camera stacked another set. Each paint takes a number; a render's return
+ * value is kept only if no later paint began while it ran.
+ */
+let paintGen = 0;
 let cleanup = null;
 let rootEl = null;
 let ctxBase = null;
@@ -205,14 +218,25 @@ function paint(id, params, restore = false) {
   // The rule and the reasoning live on `titleFor` above (FLAWS.md item 12,
   // DEFECTS.md D-016).
   document.title = titleFor(screen.title);
+  const gen = ++paintGen;
   try {
-    cleanup = screen.render(rootEl, { ...ctxBase, go, replace, params }) ?? null;
+    const returned = screen.render(rootEl, { ...ctxBase, go, replace, params }) ?? null;
+    if (gen === paintGen) cleanup = returned;
   } catch (err) {
     console.error('render failed for', id, err);
+    if (gen !== paintGen) return;
+    /*
+     * The message stays in the console. It was printed here raw and
+     * unescaped: an internal string on the screen of somebody who cannot act
+     * on it (D-011), and an injection sink for whatever the error carried.
+     * The one thing a person can do from this page is leave it.
+     */
     rootEl.innerHTML = `<div class="screen-error">
       <h2>That screen did not open.</h2>
-      <p>${String(err && err.message ? err.message : err)}</p>
+      <p>Something on it broke before it could draw. Going back to the camera will clear it.</p>
+      <button type="button" class="btn" data-act="screen-error-home">${escapeHtml('Back to the camera')}</button>
     </div>`;
+    rootEl.querySelector('[data-act="screen-error-home"]')?.addEventListener('click', () => replace('camera'));
   }
   /*
    * The first paint is a page load, not a navigation. The browser has already
