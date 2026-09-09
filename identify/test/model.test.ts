@@ -350,3 +350,18 @@ test('the pick is billed like any other call and the cap counts it', async () =>
     assert.equal(client.calls, 2, 'the cap refuses the pick before the socket opens');
   });
 });
+
+test('a missing key is our misconfiguration, classed as a client error and never retried', async () => {
+  let calls = 0;
+  const client = {
+    messages: {
+      create: async () => {
+        calls += 1;
+        throw Object.assign(new Error('Could not resolve authentication method. Expected either apiKey or authToken to be set.'), { name: 'AnthropicError' });
+      },
+    },
+  } as unknown as MessagesClient;
+  const id = new Identifier(undefined, client);
+  await assert.rejects(id.read(new Uint8Array(), null, 'pro'), (e: unknown) => e instanceof ModelCallError && e.failure === 'model_client_error');
+  assert.equal(calls, 1, 'no second attempt against the same empty environment');
+});

@@ -235,6 +235,16 @@ function classify(err: unknown): FailureClass {
   }
   const name = (err as { name?: unknown } | null)?.name;
   if (name === 'AbortError' || name === 'TimeoutError') return 'model_timeout';
+  // No credentials at all is our misconfiguration, not the wire. The SDK
+  // throws this before a socket opens and with no status, so without this
+  // branch a missing key reads as an outage, which is exactly the "an outage
+  // looks like bad photos" confusion the class exists to prevent. Found
+  // 2026-09-09 by posting a real PNG to the running route on a machine with
+  // no key. Not retried: the second attempt has the same empty environment.
+  const message = String((err as { message?: unknown } | null)?.message ?? '');
+  if (name === 'AuthenticationError' || /api key|apiKey|ANTHROPIC_API_KEY|auth(entication)? token/i.test(message)) {
+    return 'model_client_error';
+  }
   // No status at all is the wire, not the service: a reset socket, a DNS
   // failure, a TLS error. Treated as a 5xx is, because the same second attempt
   // is the thing that might work.
