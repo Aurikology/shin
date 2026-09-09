@@ -11,8 +11,17 @@
  * this file knowing that happened.
  */
 
-import { Identifier, failureOf, type FailureClass, type ModelReading, type Tier } from './model.ts';
-import { deriveConfidence, type Confidence } from './confidence.ts';
+import {
+  Identifier,
+  failureOf,
+  selfConfidenceNumber,
+  type FailureClass,
+  type ModelReading,
+  type PickCandidateRow,
+  type Tier,
+} from './model.ts';
+import { capByPick, deriveConfidence, LEAD_CLEAR, type Confidence } from './confidence.ts';
+import { gtinFrom } from './gtin.ts';
 
 export type { FailureClass } from './model.ts';
 
@@ -63,6 +72,15 @@ export type IdentifyOutcome =
       readonly sizeQuestion: { options: CatalogueCandidate[] } | null;
       readonly reading: ModelReading | null;
       readonly tier: Tier;
+      /**
+       * How many vision calls this answer cost. 1 when pass one settled it or a
+       * barcode short-circuited it, 2 when the pick pass ran. Added 2026-09-09
+       * so the eval runner can report a pass-2 rate without instrumenting the
+       * model client, and so the scan log can price a scan after the fact.
+       */
+      readonly passes?: 1 | 2;
+      /** The pick pass's one sentence, when it ran. */
+      readonly pick?: { readonly why: string };
     }
   | {
       /**
@@ -169,6 +187,55 @@ export class IdentifyStage {
     }
 
     const p = reading.product;
+
+    /*
+     * THE BARCODE OFF THE PACK (2026-09-09, the photo path section 2).
+     *
+     * Decision 15 says a barcode never reaches the model because a fact beats
+     * an opinion. This is the same rule arriving one step later: the model has
+     * already looked, and if what it read under the bars survives its own check
+     * digit then we are holding a fact again, and the text cascade below is an
+     * opinion we no longer need. `gtinFrom` is the whole guard, and it is not a
+     * formality: a single misread digit fails the check about nine times in
+     * ten, which is what makes reading a barcode off a photograph safe enough
+     * to short-circuit on.
+     *
+     * A miss falls through. The code was legible, the catalogue simply does not
+     * carry it, and the text path may still find the same product by name.
+     *
+     * This runs before the unreadable check on purpose: a pack whose front is
+     * glare or French or upside down can still have a perfectly legible barcode,
+     * and that scan is exactly the one worth saving.
+     */
+    const gtin = gtinFrom(p.barcode_digits);
+    if (gtin) {
+      const byCode = await this.#lookup({ gtin });
+      const chosen = byCode.candidates[0];
+      if (chosen) {
+        return {
+          kind: 'identified',
+          chosen,
+          alternates: [],
+          confidence: deriveConfidence({
+            barcodeResolved: true,
+            catalogueSimilarity: 1,
+            lead: 1,
+            brandAgrees: null,
+            sizeAgrees: null,
+            selfConfidence: 1,
+            sharpnessOk: true,
+          }),
+          sizeQuestion: null,
+          // The note the contract asks for: this code came off the photograph,
+          // not off a scanner, so a later audit of a wrong answer can tell the
+          // two apart.
+          reading: { ...reading, barcodeFromPhoto: gtin },
+          tier,
+          passes: 1,
+        };
+      }
+    }
+
     const readAs = [p.brand, p.name, p.variant].filter(Boolean).join(' ').trim();
     if (!readAs) {
       return {
@@ -182,17 +249,51 @@ export class IdentifyStage {
       };
     }
 
-    // Everything the model read goes into the query, including the raw visible
-    // text: a half-legible flavour word is often the token that separates two
-    // otherwise identical rows, and the text index can use it even when the
-    // model could not turn it into a clean field.
-    const result = await this.#lookup({
-      text: [readAs, p.visible_text].filter(Boolean).join(' ').slice(0, 300),
-      brand: p.brand ?? undefined,
-      sizeValue: p.size_value ?? undefined,
-      sizeUnit: p.size_unit ?? undefined,
-      limit: 5,
-    });
+    /*
+     * THE CASCADE (2026-09-09). Three queries instead of one, in parallel.
+     *
+     * One query has to be right about everything at once. These three are each
+     * allowed to be wrong about a different thing:
+     *
+     *   q1  brand + name + variant, brand AND size pinned. The precise one. It
+     *       is right when the model read the pack correctly, and it is the only
+     *       one that can separate two sizes of the same product.
+     *   q2  brand + name, brand pinned, size NOT pinned. Written for the
+     *       failure mode the research pass named first: size variants that look
+     *       identical. Unpinning the size brings the siblings back as a set
+     *       rather than dropping them, which is what decision 19 needs to be
+     *       able to ask a question about.
+     *   q3  name plus the transcribed front text, nothing pinned. The one that
+     *       survives the brand being read wrong, which is the store-brand and
+     *       the bilingual-face case: a pinned brand that is wrong does not
+     *       narrow the search, it excludes the answer.
+     *
+     * In parallel because they are independent and the photo budget is 7,000 ms
+     * for two vision calls plus this; run in series they would be the third.
+     */
+    const front = p.front_text.join(' ').trim();
+    const q1Text = [p.brand, p.name, p.variant].filter(Boolean).join(' ').trim();
+    const q2Text = [p.brand, p.name].filter(Boolean).join(' ').trim();
+    const q3Text = [p.name, front].filter(Boolean).join(' ').trim();
+
+    const queries: Parameters<CatalogueLookup>[0][] = [];
+    if (q1Text) {
+      queries.push({
+        text: q1Text.slice(0, 300),
+        brand: p.brand ?? undefined,
+        sizeValue: p.size_value ?? undefined,
+        sizeUnit: p.size_unit ?? undefined,
+        limit: 10,
+      });
+    }
+    if (q2Text) {
+      queries.push({ text: q2Text.slice(0, 300), brand: p.brand ?? undefined, limit: 10 });
+    }
+    if (q3Text) {
+      queries.push({ text: q3Text.slice(0, 300), limit: 10 });
+    }
+
+    const result = union(await Promise.all(queries.map((q) => this.#lookup(q))));
 
     // 2026-09-05, his correction (docs/the-combined-pipeline.md): the app was
     // refusing to answer instead of committing to a top candidate. A band of
@@ -221,11 +322,13 @@ export class IdentifyStage {
       lead,
       brandAgrees: best.signals.brandAgrees,
       sizeAgrees: best.signals.sizeAgrees,
-      selfConfidence: p.self_confidence,
+      // The model now answers in words. The translation lives at this boundary
+      // so confidence.ts never learns that it changed.
+      selfConfidence: selfConfidenceNumber(p.self_confidence),
       sharpnessOk: sharpness >= SHARPNESS_FLOOR,
     });
 
-    return {
+    const pass1: IdentifyOutcome = {
       kind: 'identified',
       chosen: best,
       alternates: rest,
@@ -233,8 +336,184 @@ export class IdentifyStage {
       sizeQuestion: sizeQuestionFor(result.candidates, p.size_value),
       reading,
       tier,
+      passes: 1,
+    };
+
+    /*
+     * DID PASS ONE SETTLE IT?
+     *
+     * Two conditions, both already in the codebase and neither invented here:
+     * the catalogue's own 'confident' band, and a lead clear of `LEAD_CLEAR`,
+     * which is the same 0.03 that already makes confidence.ts say two products
+     * match almost equally well. A confident band with a hairline lead is
+     * precisely the "confidently the wrong one of two near identical products"
+     * failure the lead signal exists to catch, and it is the case the pick pass
+     * was added for.
+     *
+     * Fewer than two candidates and there is nothing to pick between, so the
+     * second call would be spending money to re-read a decision already made.
+     */
+    const settled = result.band === 'confident' && lead !== null && lead > LEAD_CLEAR;
+    if (settled || result.candidates.length < 2) return pass1;
+
+    let picked;
+    try {
+      picked = await this.#model.pick(productPng, pickRows(result.candidates), tier);
+    } catch {
+      /*
+       * PRIORITY 1: always answer. A pick that times out, hits the daily cap,
+       * or comes back malformed is a lost improvement, not a lost scan; we
+       * still hold a ranked candidate from pass one and refusing here would be
+       * the exact behaviour his 2026-09-05 correction removed. The failure is
+       * not swallowed silently in any way that matters, because the answer that
+       * ships is pass one's, with pass one's confidence and `passes: 1`.
+       */
+      return pass1;
+    }
+
+    const chosenIndex = picked.pick.chosen_index;
+    const sizeIndexes = (picked.pick.size_question ?? []).filter(
+      (i) => Number.isInteger(i) && i >= 0 && i < result.candidates.length,
+    );
+    const why = picked.pick.why;
+
+    // Decision 19 first: an unanswerable size question is not a weak pick, it
+    // is a question, and asking it costs one tap where guessing costs the whole
+    // verdict. It is honoured even if the model also named an index.
+    if (sizeIndexes.length >= 2) {
+      const options = sizeIndexes.map((i) => result.candidates[i]);
+      const head = options[0];
+      return {
+        kind: 'identified',
+        chosen: head,
+        alternates: result.candidates.filter((c) => c.code !== head.code),
+        confidence: capByPick(confidence, picked.pick.confidence),
+        sizeQuestion: { options: options.slice(0, 3) },
+        reading,
+        tier,
+        passes: 2,
+        pick: { why },
+      };
+    }
+
+    if (chosenIndex !== null && chosenIndex >= 0 && chosenIndex < result.candidates.length) {
+      const chosen = result.candidates[chosenIndex];
+      return {
+        kind: 'identified',
+        chosen,
+        alternates: result.candidates.filter((_, i) => i !== chosenIndex),
+        // The pick caps the six-signal score and never raises it. Decision 18:
+        // an opinion, however well informed, does not get to set the number.
+        confidence: capByPick(confidence, picked.pick.confidence),
+        sizeQuestion: null,
+        reading,
+        tier,
+        passes: 2,
+        pick: { why },
+      };
+    }
+
+    /*
+     * The pick refused. That is a real answer and it is not a refusal to the
+     * user: the contract's section 3 says unsure is expressed as 'identified'
+     * with a low band and non-empty alternates, and the route turns that into
+     * the identity_unsure screen with the candidates. Still an answer, still
+     * ranked, with the doubt carried by the confidence exactly as priority 1
+     * requires.
+     */
+    return {
+      kind: 'identified',
+      chosen: best,
+      alternates: rest,
+      confidence: capByPick(confidence, 'low'),
+      sizeQuestion: null,
+      reading,
+      tier,
+      passes: 2,
+      pick: { why },
     };
   }
+}
+
+/**
+ * The three query results become one ranked list.
+ *
+ * Dedupe is by catalogue code, and a row seen twice keeps the BEST of each
+ * signal rather than whichever copy happened to arrive first. That matters
+ * because the queries disagree by design: q2 unpins the size, so the same row
+ * comes back with `sizeAgrees` null there and true from q1, and taking the
+ * later copy would throw away a signal that was actually established.
+ *
+ * Ten is the cap, because ten is what the pick pass is asked to read and a
+ * longer list is tokens spent on rows nobody will choose.
+ */
+function union(results: readonly CatalogueResult[]): CatalogueResult {
+  const BAND_RANK = { confident: 2, ambiguous: 1, miss: 0 } as const;
+
+  const byCode = new Map<string, CatalogueCandidate>();
+  for (const result of results) {
+    for (const c of result.candidates) {
+      const seen = byCode.get(c.code);
+      if (!seen) {
+        byCode.set(c.code, c);
+        continue;
+      }
+      byCode.set(c.code, {
+        ...(bestSimilarity(seen, c) === c ? c : seen),
+        signals: {
+          similarity: maxOrNull(seen.signals.similarity, c.signals.similarity),
+          brandAgrees: bestFlag(seen.signals.brandAgrees, c.signals.brandAgrees),
+          sizeAgrees: bestFlag(seen.signals.sizeAgrees, c.signals.sizeAgrees),
+        },
+      });
+    }
+  }
+
+  const candidates = [...byCode.values()]
+    .sort((a, b) => (b.signals.similarity ?? -1) - (a.signals.similarity ?? -1))
+    .slice(0, 10);
+
+  let band: CatalogueResult['band'] = 'miss';
+  let ring: CatalogueResult['ring'] = null;
+  let matchedBy: CatalogueResult['matchedBy'] = candidates.length > 0 ? 'hybrid' : 'none';
+  for (const result of results) {
+    if (BAND_RANK[result.band] > BAND_RANK[band]) band = result.band;
+    if (!ring && result.ring) ring = result.ring;
+    if (result.matchedBy === 'gtin') matchedBy = 'gtin';
+  }
+
+  return { band, candidates, ring, matchedBy };
+}
+
+function bestSimilarity(a: CatalogueCandidate, b: CatalogueCandidate): CatalogueCandidate {
+  return (b.signals.similarity ?? -1) > (a.signals.similarity ?? -1) ? b : a;
+}
+
+function maxOrNull(a: number | null, b: number | null): number | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return Math.max(a, b);
+}
+
+/** true beats false beats "was never asked". */
+function bestFlag(a: boolean | null, b: boolean | null): boolean | null {
+  if (a === true || b === true) return true;
+  if (a === false || b === false) return false;
+  return null;
+}
+
+/** The rows as the pick pass sees them: what is printed on a pack, nothing else. */
+function pickRows(candidates: readonly CatalogueCandidate[]): PickCandidateRow[] {
+  return candidates.map((c, index) => ({
+    index,
+    code: c.code,
+    brand: c.brands,
+    name: c.name,
+    size:
+      c.quantity ??
+      (c.sizeValue !== null ? `${c.sizeValue}${c.sizeUnit ?? ''}` : null),
+    category: c.categoryPath.at(-1) ?? null,
+  }));
 }
 
 /**

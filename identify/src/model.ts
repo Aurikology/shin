@@ -96,16 +96,43 @@ export function failureOf(err: unknown): FailureClass {
  * has already lost the p99 bar, and continuing to wait on it only decides how
  * long the screen goes on implying it is still working.
  *
- * 1,800 ms leaves the rest of the cold path its measured couple of hundred
- * milliseconds inside 2 seconds, and two of them still sit inside decision
- * 48's four second photo budget, which matters because a scan with a shelf tag
- * makes this call twice.
+ * WIDENED TO 3,500 ms, 2026-09-09 (docs/the-photo-path.md section 2).
+ *
+ * The 1,800 figure had no measurement behind it. It was arithmetic off a 2
+ * second p99 bar that was itself an aspiration, and no photograph has ever gone
+ * through the real API from this machine, so nothing in this repo has ever
+ * observed how long the call actually takes.
+ *
+ * What changed is that the path is now two vision calls, not one: an extract
+ * pass and, when pass one does not settle it, a pick pass over the catalogue
+ * rows. Two calls cannot both fit inside a clock that was already a guess.
+ * 3,500 for the extract and 3,000 for the pick sit inside the 8,000 ms call cap
+ * with the photo budget at 7,000.
+ *
+ * REVERSES IF: a real key exists and a measured p95 comes in under this. The
+ * number is a placeholder until then and should be re-measured, not defended.
  *
  * Read from the environment on each call rather than captured at import, so a
  * deployment can widen it without a rebuild and a test can shorten it without
  * mocking a clock.
  */
-const TIMEOUT_MS = 1_800;
+const TIMEOUT_MS = 3_500;
+
+/*
+ * The pick pass has its own clock, and its own model.
+ *
+ * Its own clock because it is a different question with a different answer
+ * size: the extract pass transcribes a label, the pick pass returns an index
+ * and a sentence. Sharing one number would have meant the smaller call
+ * inheriting the larger call's allowance for no reason.
+ *
+ * Its own model because the pick is where the precision comes from. It runs at
+ * most once per scan, only on the scans that did not settle on pass one, and it
+ * is the call that turns a ranked guess into a chosen row, so both tiers get
+ * Sonnet 5 for it rather than the tier's own model.
+ */
+const PICK_MODEL = 'claude-sonnet-5';
+const PICK_TIMEOUT_MS = 3_000;
 
 /*
  * THE RETRY POLICY, 2026-09-08.
@@ -223,7 +250,56 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * The model's own view of itself, as a word.
+ *
+ * An enum and not a number, changed 2026-09-09. Asked for a number, a model
+ * produces one that looks like a probability and is not one; the digits after
+ * the decimal point are invented and they invite arithmetic that means nothing.
+ * Three words is the resolution the thing actually has. Decision 18 still
+ * treats it as one signal out of six either way, so the loss of imaginary
+ * precision costs nothing downstream.
+ */
+export type SelfConfidence = 'high' | 'medium' | 'low';
+
+/**
+ * The enum turned back into the number the six-signal score expects.
+ *
+ * Kept at this boundary on purpose. `confidence.ts` weighs a 0..1 self-report
+ * against five independent signals and has no business knowing that the model
+ * now answers in words, so the translation happens once, here, where the words
+ * come in. The numbers are the middles of the three thirds, not measurements.
+ */
+export function selfConfidenceNumber(value: unknown): number {
+  // A number that arrives anyway is honoured rather than discarded: an older
+  // fixture, or a model that ignored the enum, should not silently score zero.
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.min(1, Math.max(0, value));
+  }
+  if (value === 'high') return 0.9;
+  if (value === 'medium') return 0.6;
+  if (value === 'low') return 0.3;
+  return 0.3;
+}
+
 export interface IdentifiedFields {
+  /**
+   * TRANSCRIPTION BEFORE INTERPRETATION (2026-09-09).
+   *
+   * Every line legible on the front of the pack, verbatim, in reading order,
+   * before any field below is filled. The research pass was blunt about this:
+   * a model asked for a brand straight away supplies a plausible one, and a
+   * model made to write down what it can actually see first supplies fewer.
+   * It is also the raw material the third catalogue query runs on, which is the
+   * query that survives the brand being read wrong.
+   */
+  front_text: string[];
+  /**
+   * Digits legible under a barcode, and only that. Never inferred, never
+   * completed from memory. Checked against the GS1 check digit before it is
+   * believed; see `gtin.ts`.
+   */
+  barcode_digits: string | null;
   /** Null when the model genuinely cannot tell, which is a real answer. */
   brand: string | null;
   /** The product line as printed, without the brand and without the size. */
@@ -231,14 +307,20 @@ export interface IdentifiedFields {
   /** Flavour, variant, formulation: the word that separates two identical boxes. */
   variant: string | null;
   size_value: number | null;
-  size_unit: 'g' | 'ml' | 'ea' | null;
+  size_unit: 'g' | 'kg' | 'ml' | 'l' | 'ea' | null;
+  /**
+   * How many are in the pack when it is a multipack, null when it is one item.
+   * A six pack judged against single-unit prices reads "walk away" every time,
+   * which is the same failure decision 19 already caught for sizes.
+   */
+  count: number | null;
   category: string | null;
-  /** Text the model actually read off the packaging, for the text search. */
-  visible_text: string | null;
+  /** Which language the front of the pack was actually read in. */
+  language_seen: 'en' | 'fr' | 'both' | null;
   /** Other readings it considered. Decision 17 needs these to exist. */
   alternates: { name: string; why: string }[];
   /** The model's own view. Decision 18 treats this as ONE signal, never the answer. */
-  self_confidence: number;
+  self_confidence: SelfConfidence;
   /** Why it is unsure, in the user's words, for the ambiguous screen. */
   uncertainty: string | null;
 }
@@ -262,6 +344,45 @@ export interface ModelReading {
   readonly tag: TagFields | null;
   readonly model: string;
   readonly ms: number;
+  /**
+   * Set by the identify stage when `barcode_digits` passed its check digit and
+   * the catalogue answered on it. It says the code came off the photograph
+   * rather than off a scanner, which is the difference between a fact we read
+   * and a fact we were handed, and the scan log wants to be able to tell them
+   * apart later when the top-1 number is being explained.
+   */
+  readonly barcodeFromPhoto?: string;
+}
+
+/**
+ * One catalogue row as the pick pass sees it.
+ *
+ * Compact on purpose: the row goes into a prompt alongside a 2,459 token image,
+ * and allergens, category paths and retrieval signals are not things a model
+ * looking at a photograph can check. Only what is printed on a pack is sent,
+ * because only that is checkable against the picture.
+ */
+export interface PickCandidateRow {
+  readonly index: number;
+  readonly code: string;
+  readonly brand: string | null;
+  readonly name: string;
+  readonly size: string | null;
+  readonly category: string | null;
+}
+
+export interface PickFields {
+  chosen_index: number | null;
+  confidence: SelfConfidence;
+  why: string;
+  /** Decision 19: the indexes that are the same product in different sizes. */
+  size_question: number[] | null;
+}
+
+export interface PickReading {
+  readonly pick: PickFields;
+  readonly model: string;
+  readonly ms: number;
 }
 
 /**
@@ -274,18 +395,28 @@ export interface ModelReading {
 const PRODUCT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
+  // ORDER IS THE POINT (2026-09-09). A structured answer is generated in the
+  // order the schema lists it, so putting the transcription first is not
+  // presentation: it makes the model write down what it can see before it is
+  // asked what it thinks, and every interpreted field below is then conditioned
+  // on text it has already committed to rather than on the picture alone.
   required: [
-    'brand', 'name', 'variant', 'size_value', 'size_unit',
-    'category', 'visible_text', 'alternates', 'self_confidence', 'uncertainty',
+    'front_text', 'barcode_digits',
+    'brand', 'name', 'variant', 'size_value', 'size_unit', 'count',
+    'category', 'language_seen', 'self_confidence', 'alternates', 'uncertainty',
   ],
   properties: {
+    front_text: { type: 'array', maxItems: 12, items: { type: 'string' } },
+    barcode_digits: { type: ['string', 'null'] },
     brand: { type: ['string', 'null'] },
     name: { type: ['string', 'null'] },
     variant: { type: ['string', 'null'] },
     size_value: { type: ['number', 'null'] },
-    size_unit: { type: ['string', 'null'], enum: ['g', 'ml', 'ea', null] },
+    size_unit: { type: ['string', 'null'], enum: ['g', 'kg', 'ml', 'l', 'ea', null] },
+    count: { type: ['integer', 'null'] },
     category: { type: ['string', 'null'] },
-    visible_text: { type: ['string', 'null'] },
+    language_seen: { type: ['string', 'null'], enum: ['en', 'fr', 'both', null] },
+    self_confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
     alternates: {
       type: 'array',
       maxItems: 4,
@@ -296,7 +427,6 @@ const PRODUCT_SCHEMA = {
         properties: { name: { type: 'string' }, why: { type: 'string' } },
       },
     },
-    self_confidence: { type: 'number', minimum: 0, maximum: 1 },
     uncertainty: { type: ['string', 'null'] },
   },
 } as const;
@@ -317,20 +447,83 @@ const TAG_SCHEMA = {
 
 const SYSTEM = `You read photographs of retail products and Canadian shelf tags.
 
+Transcribe first, reason second. Fill front_text before anything else: every line
+of text legible on the front of the pack, verbatim, in reading order, exactly as
+printed and without translating or tidying it. Up to twelve lines. Then, and only
+then, fill the interpreted fields, and fill them from the lines you just wrote
+down rather than from what the packaging looks like.
+
+barcode_digits is for digits you can actually read printed under a barcode. Read
+them left to right and report them as one run of digits. If any digit is not
+legible, or there is no barcode in frame, barcode_digits is null. Never infer,
+complete, or recall a barcode number: a guessed one is worse than none, because
+it will be believed.
+
 Report only what is legible in the image. If the brand is not readable, brand is
 null; do not infer it from the packaging style. If you cannot separate two
 readings, put both in alternates and say why in uncertainty.
 
 Size is part of what the product IS: a 500 ml and a 1 L of the same thing are
-different products. Read the declared net quantity and convert to grams for solid
-weight, millilitres for liquid volume, or "ea" for a countable item.
+different products. Read the declared net quantity as printed and report its own
+unit: g, kg, ml, l, or "ea" for a countable item. Do not convert between them.
+If the pack is a multipack, count is how many units are inside and size_value is
+the size of one unit; count is null for a single item.
 
 Canadian packaging is bilingual. Read whichever language is clearer and report the
-product name in English when both are present.
+product name in English when both are present. Say in language_seen which you
+actually read: en, fr, or both.
+
+self_confidence is one of high, medium or low, and it is about the identification
+as a whole, not about any single field.
 
 Shelf tags in Canada often carry several prices at once: an everyday price, a
 time-boxed sale price, and a loyalty-card price. These are three different
 numbers and must never be merged. Report each only if it is actually printed.`;
+
+/**
+ * Pass two, and the reason the cascade above is allowed to be generous.
+ *
+ * The retrieval half of this path is tuned to recall: three queries, a union,
+ * ten rows. That is deliberately more than one answer, and something has to
+ * choose. A vision model choosing between ten concrete rows while looking at
+ * the packaging is a much easier question than the open one pass one asked, and
+ * it is the step the research pass credits for most of the gap between a
+ * single-pass 60-70 % and a cascade's 85-92 %.
+ *
+ * It is allowed to answer null. A pick that cannot refuse is a ranker with
+ * extra steps, and the null is what separates "the catalogue does not have
+ * this" from "the catalogue has it and here it is".
+ */
+const PICK_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['chosen_index', 'confidence', 'why', 'size_question'],
+  properties: {
+    chosen_index: { type: ['integer', 'null'] },
+    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+    why: { type: 'string' },
+    size_question: { type: ['array', 'null'], maxItems: 4, items: { type: 'integer' } },
+  },
+} as const;
+
+const PICK_SYSTEM = `You are shown a photograph of a retail product and a numbered
+list of candidate rows from a product catalogue. Choose the row that IS the
+product in the photograph.
+
+Choose a row only if the text printed on the packaging matches that row. Matching
+packaging style, category, or general appearance is not a match. If no row
+matches the printed text, chosen_index is null. Answering null is a correct and
+expected answer; a wrong row is worse than no row.
+
+When more than one row could be the product, prefer the row whose size matches
+the net quantity printed on the pack.
+
+If two or more rows are the same product in different sizes and the size printed
+on the pack is not legible, do not choose between them: put their indexes in
+size_question and leave chosen_index null. The person holding the phone will be
+asked which one it is.
+
+why is one short sentence naming the printed text that decided it.`;
 
 function schemaFormat(name: string, schema: unknown) {
   return { type: 'json_schema' as const, name, schema: schema as Record<string, unknown> };
@@ -431,15 +624,86 @@ export class Identifier {
   }
 
   /**
+   * Pass two: the same image again, plus the rows the cascade found.
+   *
+   * Same image and not a second photograph. The person took one picture and the
+   * cost of re-sending it is cache-friendly tokens, where the cost of asking
+   * for another is the scan.
+   *
+   * Sonnet 5 on both tiers (`SHIN_MODEL_PICK` overrides). It runs only on the
+   * scans pass one did not settle, so it is a fraction of a call per scan on
+   * average, and it is the call the accuracy actually comes from. It is charged
+   * against the same daily cap as every other call, because the invoice does
+   * not care which pass a request belonged to.
+   *
+   * Throws `ModelCallError` and nothing else, exactly like `read()`.
+   */
+  async pick(
+    productPng: Uint8Array,
+    candidates: readonly PickCandidateRow[],
+    tier: Tier,
+  ): Promise<PickReading> {
+    const started = Date.now();
+    const model = process.env.SHIN_MODEL_PICK?.trim() || PICK_MODEL;
+    // `tier` is accepted and deliberately unused for the model choice: the
+    // signature says the pick is a tiered operation so a later tier split needs
+    // no caller change, and decision 21 says basic is the same experience with
+    // a smaller model, not a worse pick.
+    void tier;
+
+    const rows = candidates.map((c) => ({
+      index: c.index,
+      code: c.code,
+      brand: c.brand,
+      name: c.name,
+      size: c.size,
+      category: c.category,
+    }));
+
+    const message = await this.#send(
+      {
+        model,
+        max_tokens: 512,
+        system: PICK_SYSTEM,
+        output_config: { format: schemaFormat('catalogue_pick', PICK_SCHEMA) },
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: 'image/png', data: toBase64(productPng) },
+              },
+              {
+                type: 'text',
+                text: `Candidate rows:\n${JSON.stringify(rows)}\n\nWhich row is the product in the photograph?`,
+              },
+            ],
+          },
+        ],
+      },
+      envInt('SHIN_MODEL_PICK_TIMEOUT_MS', PICK_TIMEOUT_MS),
+    );
+
+    return { pick: parseJson<PickFields>(message), model, ms: Date.now() - started };
+  }
+
+  /**
    * The whole call policy in one place: cap, timeout, classify, retry once.
    *
    * In that order on purpose. The cap is checked before the socket is opened,
    * because a cap that refuses after the request went out is a log line rather
    * than a cap.
+   *
+   * The clock is a parameter with a default rather than a constant, because the
+   * two passes are different sizes of question and each reads its own env var.
    */
-  async #send(body: Anthropic.MessageCreateParamsNonStreaming): Promise<Anthropic.Message> {
+  async #send(
+    body: Anthropic.MessageCreateParamsNonStreaming,
+    clockMs = envInt('SHIN_MODEL_TIMEOUT_MS', TIMEOUT_MS),
+  ): Promise<Anthropic.Message> {
     const attempts = Math.max(1, envInt('SHIN_MODEL_ATTEMPTS', MAX_ATTEMPTS));
-    const timeoutMs = envInt('SHIN_MODEL_TIMEOUT_MS', TIMEOUT_MS);
+    const timeoutMs = clockMs;
     let spent = 0;
     let last: ModelCallError | null = null;
 

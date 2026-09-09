@@ -69,6 +69,40 @@ const W = {
 const HIGH = 0.78;
 const MEDIUM = 0.52;
 
+/**
+ * How far ahead the best candidate has to be before the lead counts as clear.
+ *
+ * It was already the number `reasonFor` used to say "two products match this
+ * almost equally well"; exported 2026-09-09 so the photo path can ask the same
+ * question it answers. Below this, pass one has not settled anything and the
+ * pick pass is worth a call.
+ */
+export const LEAD_CLEAR = 0.03;
+
+/**
+ * What a pick-pass confidence is allowed to leave the six-signal score at.
+ *
+ * The pick looks at the packaging and the rows together, so when it is not sure
+ * it has seen something the retrieval signals cannot: two rows that both fit
+ * the print. A ceiling and not a replacement, because a confident pick is still
+ * only one opinion and decision 18 does not let an opinion set the number.
+ */
+const PICK_CAP: Record<ConfidenceBand, number> = { high: 1, medium: 0.75, low: 0.5 };
+
+/**
+ * Fuses the pick pass into an already-derived confidence.
+ *
+ * Only ever downward. `high` is not a boost; it is the absence of a cap.
+ */
+export function capByPick(c: Confidence, pick: ConfidenceBand): Confidence {
+  const cap = PICK_CAP[pick];
+  if (c.score <= cap) return c;
+
+  const score = cap;
+  const band: ConfidenceBand = score >= HIGH ? 'high' : score >= MEDIUM ? 'medium' : 'low';
+  return { band, score, because: reasonFor(c.signals, band, pick), signals: c.signals };
+}
+
 export function deriveConfidence(s: ConfidenceSignals): Confidence {
   // A resolved barcode is not scored, it is answered. Every other signal is a
   // way of guessing at what the barcode would have told us.
@@ -123,10 +157,17 @@ export function deriveConfidence(s: ConfidenceSignals): Confidence {
  * are 61% sure" tells a shopper nothing they can act on and "two products look
  * the same from this angle" tells them to turn the box.
  */
-function reasonFor(s: ConfidenceSignals, band: ConfidenceBand): string {
+function reasonFor(s: ConfidenceSignals, band: ConfidenceBand, pickCapped?: ConfidenceBand): string {
   if (!s.sharpnessOk) return 'The photo came out soft, so this could be the wrong one.';
+  // Added 2026-09-09 for the two-pass path. When the second look at the pack
+  // was the thing that held the number down, that is the honest limit to name,
+  // and it is a different sentence from the retrieval scores being close: it
+  // says the printed text itself did not separate them.
+  if (pickCapped !== undefined && pickCapped !== 'high') {
+    return 'More than one product matched the print on the pack, so this is the likelier one.';
+  }
   if (s.catalogueSimilarity === null) return 'Nothing in the catalogue looks like this.';
-  if (s.lead !== null && s.lead < 0.03) {
+  if (s.lead !== null && s.lead < LEAD_CLEAR) {
     return 'Two products match this almost equally well.';
   }
   if (s.brandAgrees === false) return 'The brand on the pack does not match this product.';

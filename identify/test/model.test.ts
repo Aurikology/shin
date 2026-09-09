@@ -25,19 +25,23 @@ import {
   ModelCallError,
   modelSpend,
   resetModelSpend,
+  selfConfidenceNumber,
   type MessagesClient,
 } from '../src/model.ts';
 
 const FIELDS = JSON.stringify({
+  front_text: ['ACME', 'Widget', '500 g'],
+  barcode_digits: null,
   brand: 'Acme',
   name: 'Widget',
   variant: null,
   size_value: 500,
   size_unit: 'g',
+  count: null,
   category: null,
-  visible_text: 'Acme Widget 500 g',
+  language_seen: 'en',
   alternates: [],
-  self_confidence: 0.6,
+  self_confidence: 'medium',
   uncertainty: null,
 });
 
@@ -217,4 +221,132 @@ test('every failure class exists in the two files that restate it', () => {
       assert.ok(text.includes(`'${name}'`), `${relative.join('/')} is missing the class ${name}`);
     }
   }
+});
+
+/*
+ * ------------------------------------------------------------------------
+ * The two-pass path, added 2026-09-09 (docs/the-photo-path.md section 2).
+ * Still a fake client, for the reason this file's header already gives.
+ * ------------------------------------------------------------------------
+ */
+
+/** A client that keeps every request body, so the prompt itself can be asserted. */
+function recording(text: string): MessagesClient & { bodies: Record<string, unknown>[] } {
+  const client = {
+    bodies: [] as Record<string, unknown>[],
+    messages: {
+      async create(body: Record<string, unknown>): Promise<unknown> {
+        client.bodies.push(body);
+        return { stop_reason: 'end_turn', content: [{ type: 'text', text }] };
+      },
+    },
+  };
+  return client as unknown as MessagesClient & { bodies: Record<string, unknown>[] };
+}
+
+function schemaOf(body: Record<string, unknown>): {
+  required: string[];
+  properties: Record<string, { enum?: unknown[] }>;
+} {
+  const config = body.output_config as { format: { schema: unknown } };
+  return config.format.schema as {
+    required: string[];
+    properties: Record<string, { enum?: unknown[] }>;
+  };
+}
+
+test('the extract pass asks for the transcription before it asks for a brand', async () => {
+  await withEnv({}, async () => {
+    const client = recording(FIELDS);
+    await new Identifier(undefined, client).read(new Uint8Array(), null, 'basic');
+
+    const schema = schemaOf(client.bodies[0]);
+    assert.equal(schema.required[0], 'front_text', 'front_text has to be generated first');
+    assert.ok(schema.properties.front_text, 'the schema must request front_text at all');
+    assert.ok(schema.properties.barcode_digits, 'the schema must request barcode_digits');
+    assert.ok(
+      schema.required.indexOf('front_text') < schema.required.indexOf('brand'),
+      'transcription before interpretation is the whole change',
+    );
+    assert.deepEqual(
+      schema.properties.self_confidence.enum,
+      ['high', 'medium', 'low'],
+      'the self-report is three words now, not an invented probability',
+    );
+  });
+});
+
+test('the model answering in words becomes the number the six signals expect', () => {
+  assert.equal(selfConfidenceNumber('high'), 0.9);
+  assert.equal(selfConfidenceNumber('medium'), 0.6);
+  assert.equal(selfConfidenceNumber('low'), 0.3);
+  // A model that ignores the enum, or an older fixture, is honoured rather than
+  // silently scored zero.
+  assert.equal(selfConfidenceNumber(0.42), 0.42);
+  assert.equal(selfConfidenceNumber(null), 0.3, 'nothing readable is not confidence');
+});
+
+const PICK_ANSWER = JSON.stringify({
+  chosen_index: 1,
+  confidence: 'high',
+  why: 'the pack says Smooth and row 1 is the smooth one',
+  size_question: null,
+});
+
+test('the pick pass runs on Sonnet for both tiers and sends the rows as compact JSON', async () => {
+  await withEnv({}, async () => {
+    const client = recording(PICK_ANSWER);
+    const rows = [
+      { index: 0, code: 'C0', brand: 'Acme', name: 'Widget', size: '250 g', category: 'widgets' },
+      { index: 1, code: 'C1', brand: 'Acme', name: 'Widget', size: '500 g', category: 'widgets' },
+    ];
+    const basic = await new Identifier(undefined, client).pick(new Uint8Array(), rows, 'basic');
+    const pro = await new Identifier(undefined, client).pick(new Uint8Array(), rows, 'pro');
+
+    assert.equal(basic.model, 'claude-sonnet-5', 'the pick is where the precision comes from');
+    assert.equal(pro.model, 'claude-sonnet-5');
+    assert.equal(basic.pick.chosen_index, 1);
+
+    const schema = schemaOf(client.bodies[0]);
+    assert.deepEqual(schema.required, ['chosen_index', 'confidence', 'why', 'size_question']);
+
+    const content = (client.bodies[0].messages as { content: { type: string; text?: string }[] }[])[0]
+      .content;
+    assert.equal(content[0].type, 'image', 'the pick sees the same photograph');
+    assert.match(content[1].text ?? '', /"code":"C1"/, 'the rows travel as JSON, not as prose');
+  });
+});
+
+test('SHIN_MODEL_PICK overrides the pick model without touching the extract model', async () => {
+  await withEnv({ SHIN_MODEL_PICK: 'claude-haiku-4-5' }, async () => {
+    const client = recording(PICK_ANSWER);
+    const reading = await new Identifier(undefined, client).pick(new Uint8Array(), [], 'pro');
+    assert.equal(reading.model, 'claude-haiku-4-5');
+  });
+});
+
+test('the pick has its own clock and it is not the extract clock', async () => {
+  await withEnv({ SHIN_MODEL_PICK_TIMEOUT_MS: '25', SHIN_MODEL_TIMEOUT_MS: '60000' }, async () => {
+    const client = scripted([
+      () => new Promise((resolve) => setTimeout(() => resolve(answer(PICK_ANSWER)), 400)),
+    ]);
+    const err = await failure(() => new Identifier(undefined, client).pick(new Uint8Array(), [], 'pro'));
+    assert.equal(err.failure, 'model_timeout');
+    assert.equal(client.calls, 1, 'a timeout is not retried on either pass');
+  });
+});
+
+test('the pick is billed like any other call and the cap counts it', async () => {
+  await withEnv({ SHIN_MODEL_DAILY_CALLS: '2' }, async () => {
+    const client = scripted([() => Promise.resolve(answer(FIELDS)), () => Promise.resolve(answer(PICK_ANSWER))]);
+    const identifier = new Identifier(undefined, client);
+
+    await identifier.read(new Uint8Array(), null, 'pro');
+    await identifier.pick(new Uint8Array(), [], 'pro');
+    assert.equal(modelSpend().calls, 2, 'two vision calls is two calls against the day');
+
+    const err = await failure(() => identifier.pick(new Uint8Array(), [], 'pro'));
+    assert.equal(err.failure, 'spend_cap_reached');
+    assert.equal(client.calls, 2, 'the cap refuses the pick before the socket opens');
+  });
 });
