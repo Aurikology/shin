@@ -114,5 +114,23 @@ export async function servePack(
     res.end();
     return;
   }
-  createReadStream(path).pipe(res);
+  /*
+   * `pipe` does not forward the source's errors, and an unhandled 'error' on a
+   * ReadStream throws out of the event loop -- outside the request handler's
+   * try, so it kills the process the same way D-050 did. The window is between
+   * the `stat` above and the open: the pack rewritten by export-pack.ts while a
+   * phone is mid-download, or the path resolving to a directory (stat succeeds,
+   * open gives EISDIR). Headers are already out by then, so the only honest
+   * answer is to end the socket: a truncated body fails the client's own
+   * parse, which pack.js treats as "no pack", the normal starting state.
+   */
+  const stream = createReadStream(path);
+  stream.on('error', (err) => {
+    console.error('pack stream failed:', err);
+    res.destroy();
+  });
+  // A phone that walks out of signal mid-download leaves a stream reading a
+  // file nobody is receiving. Close it when the response closes.
+  res.on('close', () => stream.destroy());
+  stream.pipe(res);
 }

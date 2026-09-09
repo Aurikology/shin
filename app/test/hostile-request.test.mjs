@@ -76,6 +76,14 @@ test('a path that cannot be parsed is answered, not thrown', async () => {
   }
 });
 
+test('whitespace is not a query, on identify as it already was not on search', async () => {
+  // `?text=%20%20` used to pass the presence guard, run a real search on
+  // nothing, and write a refused scan row that dragged the identity rate down.
+  const res = await fetch(`http://127.0.0.1:${PORT}/api/identify?text=%20%20%20`);
+  assert.equal(res.status, 400);
+  assert.match(res.headers.get('content-type') ?? '', /application\/json/);
+});
+
 test('the ordinary request still works, so the guard did not break routing', async () => {
   const res = await fetch(`http://127.0.0.1:${PORT}/api/categories`);
   assert.equal(res.status, 200);

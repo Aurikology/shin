@@ -231,7 +231,19 @@ export function sellerKey(seller: string): string {
 const NOT_A_SELLER = 'given';
 
 export type RecordResult =
-  | { readonly ok: true; readonly id: number; readonly replaced: boolean }
+  | {
+      readonly ok: true;
+      readonly id: number;
+      readonly replaced: boolean;
+      /**
+       * True when this client id had already been stored and nothing changed.
+       * A retry is not a second reading, and the caller that marks a scan as
+       * corrected must not mark a second one: on a retry the scan marked the
+       * first time no longer reads `answered`, so a second lookup finds the
+       * device's PREVIOUS scan of the same product and corrupts it.
+       */
+      readonly alreadyStored: boolean;
+    }
   | { readonly ok: false; readonly why: string };
 
 /**
@@ -280,7 +292,7 @@ export function recordCorrection(input: CorrectionInput): RecordResult {
     const seen = s.db
       .prepare('SELECT id FROM correction WHERE client_id = ?')
       .get(input.clientId) as { id: number } | undefined;
-    if (seen) return { ok: true, id: seen.id, replaced: false };
+    if (seen) return { ok: true, id: seen.id, replaced: false, alreadyStored: true };
 
     /*
      * THE SAME SHELF, READ TWICE BY ONE PERSON, and the reason this lookup is
@@ -358,7 +370,7 @@ export function recordCorrection(input: CorrectionInput): RecordResult {
           now,
           existing.id,
         );
-      return { ok: true, id: existing.id, replaced: true };
+      return { ok: true, id: existing.id, replaced: true, alreadyStored: false };
     }
 
     const row = s.db
@@ -390,7 +402,7 @@ export function recordCorrection(input: CorrectionInput): RecordResult {
       s.droppedWhy = 'insert returned no row';
       return { ok: false, why: 'the correction did not store' };
     }
-    return { ok: true, id: row.id, replaced: false };
+    return { ok: true, id: row.id, replaced: false, alreadyStored: false };
   } catch (err) {
     s.dropped += 1;
     s.droppedWhy = err instanceof Error ? err.message : String(err);

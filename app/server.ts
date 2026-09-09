@@ -869,7 +869,10 @@ const server = createServer(async (req, res) => {
      */
     if (url.pathname === '/api/identify') {
       const gtin = url.searchParams.get('gtin') ?? undefined;
-      const text = url.searchParams.get('text') ?? undefined;
+      // Trimmed, as `/api/search` trims `q`: `?text=%20%20` used to pass the
+      // presence guard, run a real search on whitespace, and write a refused
+      // scan row that dragged the identity rate down for nothing.
+      const text = url.searchParams.get('text')?.trim() || undefined;
       if (!gtin && !text) return json(400, { error: 'gtin or text is required' });
       const sizeValue = Number(url.searchParams.get('sizeValue') ?? '');
       const device = url.searchParams.get('deviceId')?.trim() || UNATTRIBUTED;
@@ -1115,7 +1118,16 @@ const server = createServer(async (req, res) => {
        * is still stored as a price; only the marking is skipped.
        */
       const correctedCode = str(c.code);
-      if (result.ok && correctedCode) {
+      /*
+       * ONLY A FRESH STORE MARKS A SCAN. A retry -- the aisle-with-no-signal
+       * case the client id exists for -- used to reach here too, because
+       * `recordCorrection` reported it with the same shape as a first store.
+       * The scan marked the first time no longer reads `answered`, so the
+       * second lookup found the device's PREVIOUS scan of the same product and
+       * marked that one wrong: corrections inflated, the named rate deflated,
+       * and a correct answer stopped being metered, all from one resend.
+       */
+      if (result.ok && !result.alreadyStored && correctedCode) {
         const scanId = lastAnsweredScan(deviceId, correctedCode);
         if (scanId !== null) correctScan(scanId, correctedCode);
       }
@@ -1237,7 +1249,38 @@ const server = createServer(async (req, res) => {
     res.end(file);
   } catch (err) {
     const code = (err as NodeJS.ErrnoException)?.code;
-    if (code === 'ENOENT' || code === 'EISDIR') {
+    const missing = code === 'ENOENT' || code === 'EISDIR';
+    /*
+     * AN API ROUTE THAT THROWS ANSWERS IN JSON, AND NAMES ITS STATE.
+     *
+     * This catch was written for missing static files, and every `/api/`
+     * route that threw landed in it too: `text/plain: not found` from a JSON
+     * endpoint, indistinguishable from a mistyped URL. D-046 patched one route
+     * by hand; this is the mechanism that produced it. The reachable case
+     * today is `/api/alternatives` on a machine with a catalogue and no prices
+     * database: `lookupPrices` throws SQLITE_CANTOPEN and the client got a
+     * plain-text 500 it could not parse.
+     *
+     * The message stays out of the body. It is an internal string on the
+     * screen of somebody who cannot act on it (D-011); it goes to the console,
+     * where somebody can.
+     */
+    if (url.pathname.startsWith('/api/')) {
+      if (!missing) console.error(`${url.pathname} failed:`, err);
+      res.writeHead(missing ? 404 : 500, {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'no-store',
+      });
+      res.end(
+        JSON.stringify({
+          error: missing
+            ? 'something this endpoint reads is not on this machine'
+            : 'this endpoint could not answer just now',
+        }),
+      );
+      return;
+    }
+    if (missing) {
       res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
       res.end('not found');
       return;
