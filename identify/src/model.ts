@@ -20,6 +20,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import { loadDotEnv } from './env.ts';
 
 export type Tier = 'basic' | 'pro';
 
@@ -561,7 +562,10 @@ export class Identifier {
 
   constructor(apiKey?: string, client?: MessagesClient) {
     // A bare constructor also picks up an OAuth profile, so an unset env var
-    // does not mean there are no credentials.
+    // does not mean there are no credentials. And a repo-root .env is read
+    // first (env.ts), so a founder can drop the key in a file the repo
+    // already ignores.
+    if (!apiKey && !client) loadDotEnv();
     //
     // maxRetries: 0 added 2026-09-08. The SDK retries twice by default, which
     // would sit underneath the policy above and make the real behaviour four
