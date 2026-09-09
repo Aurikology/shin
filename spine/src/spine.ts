@@ -433,7 +433,32 @@ function medianOf(values: readonly number[]): number {
 function isLoneOutlier(point: PricePoint, all: readonly PricePoint[]): boolean {
   if (point.witnesses === undefined || point.witnesses > 1) return false;
   const baseline = vouchedBaseline(all.filter((p) => p !== point));
-  if (baseline.length < 2) return false;
+  /*
+   * ONE VOUCHED PRICE IS ENOUGH TO HOLD A CLAIM AGAINST. This read `< 2`
+   * until 2026-09-08, which made the whole D-022 hold inert on almost every
+   * product the app can answer for.
+   *
+   * The corpus holds roughly one crawled price per product. So the baseline
+   * was almost always exactly one, the hold returned false before looking at
+   * anything, and the mechanism written to stop a single typed price moving a
+   * verdict did not run in the one data shape that exists. Measured before the
+   * change: a crawled $3.47 at walmart.ca, one typed $0.99 claim, and a $3.49
+   * tag at Metro went from GOOD to WALK AWAY, with the sentence reporting
+   * "about $0.99 across 2 stores" as though two shops agreed.
+   *
+   * Two was the safer-looking number and it was safe about the wrong thing. A
+   * median of one point is that point, which is a weaker baseline than a median
+   * of several -- but the comparison it enables is against a price somebody
+   * crawled, and the alternative is no comparison at all. Holding a claim that
+   * sits at 28% of the only price we hold costs a shopper nothing; publishing
+   * it costs them the trip.
+   *
+   * Zero is still not enough, and that is not symmetry: with no vouched point
+   * there is nothing to be an outlier FROM, and the only comparison left would
+   * be against other unvouched claims, which is the collusion the baseline
+   * excludes by construction.
+   */
+  if (baseline.length < 1) return false;
   const going = medianOf(baseline);
   if (going <= 0) return false;
   return point.amountCents < going * LONE_CLAIM_FLOOR || point.amountCents > going * LONE_CLAIM_CEILING;

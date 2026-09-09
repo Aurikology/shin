@@ -206,14 +206,34 @@ const GROCERY: CategoryRule = {
     // leader at a different chain had moved the goalposts.
     const attainable = [...regular, ...promo.filter((p) => p.limit === undefined)];
     const goodBar = attainable.length > 0 ? min(amounts(attainable)) : min(amounts(points));
+    /*
+     * EVERY PRICE WE HOLD IS A CAPPED PROMOTION, which is the one case the
+     * paragraph above did not actually cover.
+     *
+     * `attainable` being empty makes `goodBar` fall back to the whole set,
+     * caps included, and with no regular price the walk-away test runs off
+     * that bar. So the rule that a capped promotion never sets the bar held
+     * everywhere except where it was the only thing there was. Measured:
+     * a limit-8 loss leader at $0.55 and a limit-4 at $0.60 called a $1.47 tag
+     * WALK AWAY -- D-003's shape, from the guard written to prevent it.
+     *
+     * A cap is a statement that the shop will not sell you this at that price
+     * beyond a handful. Tiering off it tells somebody a normal shelf price is
+     * a ripoff because a rival ran a doorbuster. Nothing here is comparable,
+     * so the honest answer is `fair` plus a line saying what we actually have.
+     * The `good` direction is left alone: a price at or under a loss leader is
+     * genuinely a good price, and saying so misleads nobody.
+     */
+    const onlyCapped = attainable.length === 0 && regularMedian === null;
 
     let tier: Tier;
     if (askingCents <= Math.round(goodBar * 1.02)) {
       tier = 'good';
     } else if (regularMedian !== null && askingCents > Math.round(regularMedian * 1.1)) {
       tier = 'walk_away';
-    } else if (regularMedian === null && askingCents > Math.round(goodBar * 1.5)) {
-      // No regular price anywhere, so the promotions are the only baseline there is.
+    } else if (regularMedian === null && !onlyCapped && askingCents > Math.round(goodBar * 1.5)) {
+      // No regular price anywhere, so the UNCAPPED promotions are the only
+      // baseline there is. Capped ones cannot reach here; see `onlyCapped`.
       tier = 'walk_away';
     } else {
       tier = 'fair';
@@ -233,7 +253,9 @@ const GROCERY: CategoryRule = {
       );
     } else {
       lines.push(
-        `No regular shelf price found, everything below is a promotion. You are looking at ${cad(askingCents)}.`,
+        onlyCapped
+          ? `Every price I have for this is a limited promotion, so there is nothing here I can fairly call a going rate. You are looking at ${cad(askingCents)}.`
+          : `No regular shelf price found, everything below is a promotion. You are looking at ${cad(askingCents)}.`,
       );
     }
     if (promo.length > 0) {
@@ -322,9 +344,39 @@ const USED: CategoryRule = {
     const basis = sold.length >= minPoints ? sold : points;
     const vals = amounts(basis);
     const p25 = percentile(vals, 25);
+    /*
+     * TWO NUMBERS, ON PURPOSE, AND THE SPLIT IS THE POINT.
+     *
+     * `mid` is shown to a shopper, so it is a price somebody actually asked:
+     * `median` returns the lower of two middles for exactly that reason, the
+     * same rule `percentile` obeys one line up.
+     *
+     * `bandCentre` is never shown. It is the centre this rule's ladder was
+     * calibrated against, and on an even count it sits between the two middles
+     * rather than on the lower one. Using the displayed median for it instead
+     * moves verdicts: on the corpus's own POÄNG case -- asking prices of $35,
+     * $60, $120 and $159 -- an $80 tag goes from `fair` to `walk_away`, because
+     * the ceiling drops from $90 to $60 on nothing but the parity of the list.
+     * A market that wide should not be called a ripoff at its own middle.
+     *
+     * Whether this ladder SHOULD be tighter is a real question and not this
+     * function's to answer: the rule's own reasoning says asking prices lean
+     * high, which is an argument for reading lower. It is written up as an open
+     * decision rather than changed here as a side effect of a display fix.
+     */
     const mid = median(vals);
+    const sorted = [...vals].sort((a, b) => a - b);
+    const half = sorted.length >> 1;
+    const bandCentre =
+      sorted.length % 2 === 1 ? sorted[half]! : Math.round((sorted[half - 1]! + sorted[half]!) / 2);
     const tier: Tier =
-      askingCents <= p25 ? 'good' : askingCents <= mid ? 'fair' : askingCents > Math.round(mid * 1.15) ? 'walk_away' : 'fair';
+      askingCents <= p25
+        ? 'good'
+        : askingCents <= bandCentre
+          ? 'fair'
+          : askingCents > Math.round(bandCentre * 1.15)
+            ? 'walk_away'
+            : 'fair';
     const lo = min(amounts(points));
     const hi = max(amounts(points));
     const basisWord =

@@ -17,10 +17,18 @@ test('dollarsToCents survives the classic 1.15 case', () => {
   assert.equal(dollarsToCents(429.99), 42999);
 });
 
-test('median takes the mean of the middle two on even lengths', () => {
+test('median returns a price somebody actually charged, on even lengths too', () => {
   assert.equal(median([5]), 5);
   assert.equal(median([3, 1, 2]), 2);
-  assert.equal(median([6000, 12000, 3500, 15900]), 9000);
+  /*
+   * The lower of the two middles, not their mean. This assertion used to read
+   * 9000 -- the mean of 6000 and 12000, a number charged by nobody -- while the
+   * test immediately below it asserted `percentile(vals, 50) === 6000` on this
+   * exact array. One file, two answers to the same question, and the averaging
+   * one was what the shopper's sentence and the walk-away threshold both used.
+   */
+  assert.equal(median([6000, 12000, 3500, 15900]), 6000);
+  assert.equal(median([6000, 12000, 3500, 15900]), percentile([6000, 12000, 3500, 15900], 50));
 });
 
 test('percentile returns a price someone actually charged', () => {

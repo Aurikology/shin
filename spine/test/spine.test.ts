@@ -416,6 +416,81 @@ test('confidence names the thing that actually limits it', async () => {
 // Each one produced a wrong verdict on the shipped code. They are locked here so
 // a later change cannot quietly reopen them.
 
+test('a set that is nothing but capped promotions cannot walk anybody away', async () => {
+  /*
+   * The gap in the rule above. That test passes a regular price alongside the
+   * capped promotion, so `attainable` is never empty; when it IS empty the bar
+   * fell back to the whole set, caps included, and the guard was bypassed by the
+   * one case it most needed to cover.
+   *
+   * A cap is the shop saying it will not sell you this at that price beyond a
+   * handful. Tiering off it tells somebody an ordinary shelf price is a ripoff
+   * because a rival ran a doorbuster.
+   */
+  const capped = [
+    point('Loblaw', 55, 'promotional', '2026-09-03', { limit: 'limit 8' }),
+    point('Metro', 60, 'promotional', '2026-09-03', { limit: 'limit 4' }),
+  ];
+  const src = new StubSource(identity('grocery'), capped);
+  const v = asVerdict(
+    await priceIt({ text: 'kd', askingCents: 147, askingSeller: 'Walmart', asOf: AS_OF }, deps(src)),
+  );
+  assert.equal(v.tier, 'fair', 'a limit-8 loss leader set the walk-away bar');
+  assert.match(v.lines[0], /limited promotion/);
+
+  // The good direction is deliberately untouched: at or under a loss leader is
+  // genuinely a good price and saying so misleads nobody.
+  const cheap = asVerdict(
+    await priceIt({ text: 'kd', askingCents: 50, askingSeller: 'Walmart', asOf: AS_OF }, deps(src)),
+  );
+  assert.equal(cheap.tier, 'good');
+
+  // And an UNCAPPED promotion is attainable, so it still sets the bar.
+  const open = new StubSource(identity('grocery'), [
+    point('Loblaw', 55, 'promotional'),
+    point('Metro', 60, 'promotional'),
+  ]);
+  const walk = asVerdict(
+    await priceIt({ text: 'kd', askingCents: 147, askingSeller: 'Walmart', asOf: AS_OF }, deps(open)),
+  );
+  assert.equal(walk.tier, 'walk_away');
+});
+
+test('one typed price cannot move a verdict when we hold one crawled price', async () => {
+  /*
+   * D-022's hold, in the data shape the app actually has. The corpus holds about
+   * one crawled price per product, and the hold used to require two before it
+   * would look at a claim -- so it never ran where the attack lands. One typed
+   * $0.99 against a crawled $3.47 flipped a $3.49 tag from GOOD to WALK AWAY,
+   * with the sentence reporting "about $0.99 across 2 stores".
+   */
+  const crawled = point('walmart.ca', 347);
+  const ask = { text: 'kd', askingCents: 349, askingSeller: 'Metro', asOf: AS_OF };
+  const alone = asVerdict(await priceIt(ask, deps(new StubSource(identity('grocery'), [crawled]))));
+  assert.equal(alone.tier, 'good');
+
+  const lone = asVerdict(
+    await priceIt(ask, deps(new StubSource(identity('grocery'), [crawled, { ...point('No Frills', 99), witnesses: 1 }]))),
+  );
+  assert.equal(lone.tier, 'good', 'a single unwitnessed claim at 28% of the only crawled price moved the verdict');
+  assert.doesNotMatch(lone.lines[0], /\$0\.99/, 'the held claim was printed as the going rate');
+
+  // A lone claim INSIDE the plausible range still counts. The hold is for
+  // outliers, not for typed prices as such.
+  const plausible = asVerdict(
+    await priceIt(ask, deps(new StubSource(identity('grocery'), [crawled, { ...point('No Frills', 319), witnesses: 1 }]))),
+  );
+  assert.equal(plausible.tier, 'fair');
+
+  // And a corroborated claim is published, which is the rule working as
+  // designed -- and also the seam that remains open: `witnesses` is counted
+  // over device ids the browser invents. See DEFECTS.md D-054.
+  const agreed = asVerdict(
+    await priceIt(ask, deps(new StubSource(identity('grocery'), [crawled, { ...point('No Frills', 99), witnesses: 2 }]))),
+  );
+  assert.equal(agreed.tier, 'walk_away');
+});
+
 test('a capped loss leader at another chain does not set the walk-away bar', async () => {
   const src = new StubSource(identity('grocery', 0.97, 'Kraft Dinner 225g'), [
     point('Walmart', 147),
@@ -540,9 +615,22 @@ test('omitting the asking seller silently inflates the comparison, which is why 
   // still comparing an item to itself, because the app never told the engine
   // which seller to exclude. This test states the cost of that omission in
   // numbers so the next caller-author reads it rather than rediscovers it.
+  /*
+   * Three regular prices, not two, so the inflation this test is named for is
+   * actually visible in the stated price.
+   *
+   * With two, the regular set is [147, 200] with Metro and [147] without, and
+   * the median is $1.47 either way -- the lower of two middles is the same
+   * number as the only middle. The old assertion here read $1.74 and appeared
+   * to prove the point, but $1.74 was the MEAN of the two, a price nobody
+   * charged; when `median` was corrected to return a real price the test went
+   * green while demonstrating nothing. A third store makes the median move for
+   * a real reason: [147, 160] without Metro, [147, 160, 200] with.
+   */
   const points = [
     point('Metro', 200),
     point('Walmart', 147),
+    point('Sobeys', 160),
     point('Loblaw', 55, 'promotional', '2026-09-03', { limit: 'limit 8' }),
   ];
 
@@ -560,15 +648,25 @@ test('omitting the asking seller silently inflates the comparison, which is why 
   );
 
   // Named: Metro is gone from the set it is judged against.
-  assert.equal(withSeller.comparisonSet.length, 2);
+  assert.equal(withSeller.comparisonSet.length, 3);
   assert.ok(!withSeller.comparisonSet.some((p) => p.seller === 'Metro'));
-  assert.match(withSeller.lines[0], /\$1\.47 at the one store carrying it/);
+  assert.match(withSeller.lines[0], /\$1\.47/);
 
   // Unnamed: Metro's own $2.00 counts as a competing quote and drags the stated
   // regular price up, which reads to the shopper as other shops being dearer.
-  assert.equal(without.comparisonSet.length, 3);
+  assert.equal(without.comparisonSet.length, 4);
   assert.ok(without.comparisonSet.some((p) => p.seller === 'Metro'));
-  assert.match(without.lines[0], /about \$1\.74 across 2 stores/);
+  /*
+   * The inflation, in the number a shopper reads: excluding Metro the regular
+   * median is $1.47, including it the median is $1.60. Metro's own $2.00 pulled
+   * the stated going rate up by thirteen cents, which reads as other shops
+   * being dearer than they are, and it is Metro's tag being judged.
+   */
+  assert.match(without.lines[0], /\$1\.60/);
+  assert.doesNotMatch(without.lines[0], /\$1\.47/);
+  // And whatever it states is a price somebody actually charged, never a midpoint.
+  const stated = without.comparisonSet.map((pt) => pt.amountCents);
+  assert.ok(stated.includes(160), 'the stated regular price is not a price anybody charged');
 });
 
 /**

@@ -15,12 +15,30 @@ export function dollarsToCents(dollars: number): number {
   return Math.round(dollars * 100);
 }
 
-/** Median over an unsorted list. Even lengths take the lower-of-two mean, rounded. */
+/**
+ * Median over an unsorted list. An even count takes the LOWER of the two
+ * middles, never their mean.
+ *
+ * Same rule as `percentile` below, for the reason its own comment gives: every
+ * number this file returns can end up inside a sentence shown to a shopper, so
+ * it has to be a price somebody actually charged. Averaging two middles invents
+ * one. Two regular prices of $3.47 and $0.99 used to render as "Regular price
+ * is about $2.23 across 2 stores", and $2.23 is charged nowhere -- it was also
+ * the number the walk-away threshold was computed from.
+ *
+ * `spine.ts` had already written this rule and its own private copy of this
+ * function to obey it, citing AVATAR.md: "always a price somebody actually
+ * asked". Two medians in one engine, and the averaging one was the one the
+ * shopper's sentence and the tier ladder both called. There is one now.
+ *
+ * The old doc line here read "the lower-of-two mean", which described neither
+ * behaviour and is how the disagreement stayed invisible.
+ */
 export function median(values: readonly number[]): number {
   if (values.length === 0) throw new Error('median of empty set');
   const s = [...values].sort((a, b) => a - b);
   const mid = s.length >> 1;
-  return s.length % 2 === 1 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2);
+  return s.length % 2 === 1 ? s[mid]! : s[mid - 1]!;
 }
 
 /**
