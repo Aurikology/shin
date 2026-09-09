@@ -888,3 +888,42 @@ vanished from the alternatives map. Fixed and tested (D-048).
 **Reverses if:** the catalogue becomes something every crawling machine has, in which case
 `page_gtin` becomes an audit field rather than a mechanism; or a seller's page barcode proves
 untrustworthy often enough that storing it is worse than not joining.
+
+## The rate could not be measured, because the address is still shut
+**Date:** 2026-09-09 · **Status:** active
+
+`crawl.ts --discover` gained three flags for the probe: `--delay-ms`, refused below the 3,000 ms
+floor rather than clamped to it, because a clamp turns a wrong number into a silent right one;
+`--offset`, so a second probe reaches pages the first never opened; and `--stop-on-throttle`,
+which ends a run on the first challenge, since during a rate probe one challenge is the whole
+answer. It is also the discover leg's first abort rule: the "three-consecutive rule" the entry
+above credits was a person watching the log, not code.
+
+**Three probe runs on 2026-09-09, at 00:28, 00:48 and 00:50**, each asked for one product page
+at a 30,000 ms spacing and each got a 7,535 byte PerimeterX challenge on page one, in 40.1, 39.3
+and 37.6 seconds. The second was 47 minutes after the previous night's last challenge and
+followed a 20 minute idle window; the third used a different SKU, which rules out one bad page.
+In all three the sitemap index and its 3.8 MB gzipped child fetched normally, so the block is on
+`/en/ip/` and not on the address as a whole. **The lockout outlives fifty minutes, which retires
+the "roughly ten minutes" figure recorded on 2026-09-05.** No sustainable pages-per-hour follows,
+and no day count for the 217,660 SKU first-party index follows either; the 10.8 day estimate
+stays a lower bound on a rate nobody has yet shown Walmart will accept from a residential
+address.
+
+**One mechanism found while reading rather than measuring.** `walmart.ts` retries a challenged
+page three times at 6, 12 and 18 seconds, so a single challenge costs four requests in about
+forty seconds and the effective rate during a challenge is one request per ten seconds no matter
+what `--delay-ms` is set to. The flag cannot govern the burst it exists to measure, and each
+probe re-feeds whatever counter holds the block: twelve challenge requests today bought zero
+pages. So challenge retries become an override (`SHIN_WALMART_CHALLENGE_RETRIES`, default
+unchanged), and the next measurement is worth making only after a multi-hour idle, with that set
+to zero, opening a single page and stopping.
+
+**What this means for the product, said plainly.** A residential address is not the shape for
+this crawl. The mechanism (sitemap discovery, crawl-now/join-later, rejoin) is built and proven;
+what it needs is an origin Walmart's bot wall treats as a well-behaved crawler for hours at a
+time, or a different first source for the grocery bulk. Still not a fix: rotating addresses,
+spoofing headers, or anything that makes the crawler look like something it is not.
+
+**Reverses if:** a single-request probe after a multi-hour idle returns a real page, in which
+case the ceiling is a cool-down length and the rate question reopens at 30 s.

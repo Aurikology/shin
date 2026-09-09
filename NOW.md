@@ -5,6 +5,36 @@ narrative.*
 
 ---
 
+## The address is shut, the catalogue is local, and the photo door is one decision away, 2026-09-09
+
+**Walmart's rate could not be measured because the address is still blocked.** Three one-page
+probes at 30 s spacing (00:28, 00:48, 00:50), the second after a 20 minute idle and 47 minutes
+past the last challenge, the third on a different SKU: all three challenged on page one;
+sitemaps fetch fine. The lockout outlives fifty minutes. `crawl.ts --discover` now has
+`--delay-ms` (refused below the 3,000 floor), `--offset` and `--stop-on-throttle`; price 105
+pass. Challenge retries in `walmart.ts` re-feed the block (four requests per challenge), so they
+become an env override for the next probe, which should wait hours, not minutes. **The crawl
+mechanism is proven; a residential origin is not the shape for it.**
+
+**A 212,340-row local catalogue exists on this machine for the first time.** Open Food Facts
+Canada (122,349, all sold in Canada) plus Beauty, Products and Pet Food Facts; every code
+distinct. The 7.86 GB parquet was downloaded twice: the first copy reached the right size and
+failed Snappy decompression, the second was sha256-checked against HuggingFace's LFS etag before
+anything read it. `rejoin --dry-run` against it joins 1 of the 10 Walmart rows from last night
+(the one grocery item); the other nine are Icecat's territory, and Icecat still needs
+`ICECAT_USER` / `ICECAT_PASSWORD`.
+
+**The photo door is blocked on a decision, not code.** "The v1 floor is six systems"
+(2026-09-03, active) cuts live photo recognition and nothing supersedes it; the lane that went to
+build the route stopped at that gate. `run.ts`'s `scan()`, the `failure_class` column, the
+reserved body limit and the camera's JPEG data URL are all in place (D-047). The founders decide.
+
+**Scoreboard has its first row above baseline:** 2026-09-09, 4 of 7, 57.1% vs 28.6%. Six
+commits from the night were pushed to GitLab and to the GitHub mirror (which was 70 commits
+stale and is not a server-side mirror), both verified by `ls-remote`.
+
+---
+
 ## A price can be kept before the catalogue arrives, and Walmart's real rate limit is found, 2026-09-08
 
 **An unjoined observation now carries the page's barcode, and `rejoin.ts` resolves it later.**
