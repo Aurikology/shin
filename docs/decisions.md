@@ -927,3 +927,9 @@ spoofing headers, or anything that makes the crawler look like something it is n
 
 **Reverses if:** a single-request probe after a multi-hour idle returns a real page, in which
 case the ceiling is a cool-down length and the rate question reopens at 30 s.
+
+**The multi-hour probe was made, 2026-09-09 at 13:47, and did not reverse this.** Twelve hours
+and fifty-seven minutes after the last challenge, retries set to zero, offset 40 into the sitemap
+so the page was one no earlier run had opened: one request, one 7,535 byte challenge in 565 ms,
+sitemap fetched normally. The lockout outlives thirteen hours. Requests spent on this probe:
+one. The decision stands as written.

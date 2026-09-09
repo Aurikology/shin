@@ -5,6 +5,35 @@ narrative.*
 
 ---
 
+## The branch is home, seven rows closed, and the address is still shut at thirteen hours, 2026-09-09
+
+**`feature/ui-excellence` is folded into `main` and the no-branches rule holds again.** Fifteen
+commits, twenty-nine audit fixes, the D-050..D-081 renumber; two conflicts, both by
+construction, resolved from the pre-merge files. Every suite green on the merged tree before
+the fast-forward.
+
+**Seven defect rows closed on main, four lanes, each verified at its consumer.** D-061: "per
+each" was a hundred times the price, staleness read the oldest number; the file's "no importer"
+claim was false, `/api/price` reaches `judge()` through `thinAnswer`. D-010, D-011, D-013: the
+state word was white on a pale tint (1.19, now 4.54 to 5.50, computed from the stylesheet and
+locked by test), three refusal codes had no thin title, a verdict can carry its evidence.
+D-018, D-019: the ring ranks instead of decorating, the Canada preference is a boost that can
+fire, twins collapse before the slice. D-020: `explain` says "usually needs". D-045's row moved
+to Fixed where it had been since 09-08. Suites: spine 160, price 113, catalogue 86, identify 19,
+app 361 pass with 5 skipped. Tide through the running server: `fair`, low, one seller. XM5 with
+the corpus's own query: `fair`. Corpus coverage unchanged at 4 of 7, so no scoreboard row.
+
+**The probe was made and the address is still shut.** 13:47, twelve hours fifty-seven minutes
+after the last challenge, retries off, one page at offset 40: challenged in 565 ms. The lockout
+outlives thirteen hours; the 09-09 decision stands unreversed. One request spent.
+
+**Not verified:** no screen was walked in a browser; every contrast ratio is computed. The
+Icecat search path is covered by test only, since the local catalogue holds none of its rows.
+The first catalogue CLI run fetched the e5-small weights, an unplanned network fetch, now
+cached. Nothing from the merge on is pushed.
+
+---
+
 ## The address is shut, the catalogue is local, and the photo door is one decision away, 2026-09-09
 
 **Walmart's rate could not be measured because the address is still blocked.** Three one-page
