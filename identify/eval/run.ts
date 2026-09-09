@@ -169,19 +169,45 @@ function makeLookup(catalogue: Catalogue): CatalogueLookup {
 // against for the size-pair rows, which are the whole point of that bucket.
 // Good enough for "750 mL" / "1.5 litre" / "5 x 40 g. Net: 200 g"; not a
 // general quantity parser.
-function parseSize(raw: string | null): { value: number | null; unit: 'g' | 'ml' | null } {
-  if (!raw) return { value: null, unit: null };
+//
+// `count` is new (2026-09-09, the multipack pin fix): a multipack prints its
+// PER-UNIT size ("4 x 100 g"), the catalogue stores the NET ("400 g" for that
+// same row), and identify.ts's `fromCrop` now does that multiplication itself
+// given `size_value` (the unit) and `count`. So this function surfaces both,
+// not a pre-multiplied net: `value`/`unit` stay the net for anything that
+// wants it, `unitSize` is the per-item number a real reading would put in
+// `size_value`, and `count` is the N a real reading would put in `count`.
+// Handles "N x M unit", "N × M unit" and "NxM unit" (French labels use the
+// same shape, no separate case needed); an explicit "Net: ..." on the pack
+// (Kashi's "5 x 40 g.  Net: 200 g") is authoritative for the net, count and
+// unitSize still come from the "N x M" match alongside it.
+function parseSize(
+  raw: string | null,
+): { value: number | null; unit: 'g' | 'ml' | null; count: number | null; unitSize: number | null } {
+  if (!raw) return { value: null, unit: null, count: null, unitSize: null };
   const unitAlt =
     '(kilograms|kilogram|kgs|kg|grams|gram|g|millilitres|milliliters|milliliter|ml|litres|litre|liters|liter|l)';
+
+  const convert = (rawUnit: string, value: number): { value: number; unit: 'g' | 'ml' } => {
+    const unit = rawUnit.toLowerCase();
+    if (unit.startsWith('kg') || unit.startsWith('kilo')) return { value: value * 1000, unit: 'g' };
+    if (unit === 'l' || unit.startsWith('lit')) return { value: value * 1000, unit: 'ml' };
+    if (unit.startsWith('ml') || unit.startsWith('milli')) return { value, unit: 'ml' };
+    return { value, unit: 'g' };
+  };
+
+  const countMatch = raw.match(new RegExp(`([\\d.]+)\\s*[x×]\\s*([\\d.]+)\\s*${unitAlt}\\b`, 'i'));
   const netMatch = raw.match(new RegExp(`net:?\\s*([\\d.]+)\\s*${unitAlt}\\b`, 'i'));
   const m = netMatch ?? raw.match(new RegExp(`([\\d.]+)\\s*${unitAlt}\\b`, 'i'));
-  if (!m) return { value: null, unit: null };
-  const value = parseFloat(m[1]);
-  const unit = m[2].toLowerCase();
-  if (unit.startsWith('kg') || unit.startsWith('kilo')) return { value: value * 1000, unit: 'g' };
-  if (unit === 'l' || unit.startsWith('lit')) return { value: value * 1000, unit: 'ml' };
-  if (unit.startsWith('ml') || unit.startsWith('milli')) return { value, unit: 'ml' };
-  return { value, unit: 'g' };
+  if (!m) return { value: null, unit: null, count: null, unitSize: null };
+
+  const converted = convert(m[2], parseFloat(m[1]));
+  if (!countMatch) return { value: converted.value, unit: converted.unit, count: null, unitSize: converted.value };
+
+  const count = parseFloat(countMatch[1]);
+  const unitSize = convert(countMatch[3], parseFloat(countMatch[2]));
+  const net = netMatch ? converted : { value: unitSize.value * count, unit: unitSize.unit };
+  return { value: net.value, unit: net.unit, count, unitSize: unitSize.value };
 }
 
 // ------------------------------------------------------ fake model, --dry-run
@@ -213,6 +239,11 @@ class FakeIdentifier extends Identifier {
   }
 
   async read(): Promise<ModelReading> {
+    // Filled the way a real reading would: `size_value` is the per-unit
+    // number off the label (100 for "4 x 100 g"), `count` is the N, and
+    // fromCrop's own `pinnedSize` multiplies them back to the net when it
+    // builds the catalogue query -- this dry run exercises that production
+    // multiplication rather than doing it here and leaving `count` null.
     const size = parseSize(this.#row.size);
     const product: IdentifiedFields = {
       front_text: [this.#row.brand, this.#row.name, this.#row.size].filter(
@@ -222,9 +253,9 @@ class FakeIdentifier extends Identifier {
       brand: this.#row.brand,
       name: this.#row.name,
       variant: null,
-      size_value: size.value,
+      size_value: size.unitSize,
       size_unit: size.unit,
-      count: null,
+      count: size.count,
       category: this.#row.category,
       language_seen: 'en',
       alternates: [],
@@ -306,12 +337,41 @@ interface RowResult {
   passes: 1 | 2 | undefined;
   ms: number;
   failure: string | null;
+  /**
+   * The size the cascade actually pinned against the catalogue, for display
+   * only (2026-09-09, the multipack pin fix). Recomputed here from the same
+   * reading the outcome already carries, mirroring identify.ts's own
+   * (unexported) `pinnedSize`: a multipack's `size_value * count` when count
+   * is 2 or more and the unit is g/kg/ml/l, `count` itself when the unit is
+   * `ea` and no size was read, otherwise the size as read. A drift between
+   * this and identify.ts would only mislabel a table cell -- the real pin
+   * lives entirely inside `fromCrop`.
+   */
+  pin: string;
 }
 
 // `passes` only exists on the 'identified' arm (lane A landed it while this
 // lane was running). Read narrowly rather than casting now that it is real.
 function passesOf(outcome: IdentifyOutcome): 1 | 2 | undefined {
   return outcome.kind === 'identified' ? outcome.passes : undefined;
+}
+
+function pinLabel(outcome: IdentifyOutcome): string {
+  const p = outcome.reading?.product;
+  if (!p) return '';
+  if (p.size_unit === 'ea') {
+    const v = p.size_value ?? p.count;
+    return v !== null ? `${v} ea` : '';
+  }
+  if (
+    p.count !== null &&
+    p.count >= 2 &&
+    p.size_value !== null &&
+    (p.size_unit === 'g' || p.size_unit === 'kg' || p.size_unit === 'ml' || p.size_unit === 'l')
+  ) {
+    return `${p.size_value * p.count}${p.size_unit}`;
+  }
+  return p.size_value !== null ? `${p.size_value}${p.size_unit ?? ''}` : '';
 }
 
 async function run(): Promise<void> {
@@ -367,6 +427,7 @@ async function run(): Promise<void> {
       passes: passesOf(outcome),
       ms,
       failure: outcome.kind === 'unreadable' ? outcome.failure : null,
+      pin: pinLabel(outcome),
     });
   }
 
@@ -385,7 +446,13 @@ function percentile(sortedMs: readonly number[], p: number): number {
 
 function report(args: Args, results: RowResult[]): void {
   console.log(
-    pad('code', 15) + pad('kind', 12) + pad('outcome', 15) + pad('top1', 6) + pad('top3', 6) + pad('ms', 7),
+    pad('code', 15) +
+      pad('kind', 12) +
+      pad('outcome', 15) +
+      pad('top1', 6) +
+      pad('top3', 6) +
+      pad('ms', 7) +
+      pad('pin', 10),
   );
   for (const r of results) {
     console.log(
@@ -394,7 +461,8 @@ function report(args: Args, results: RowResult[]): void {
         pad(r.outcome, 15) +
         pad(r.top1 ? 'yes' : 'no', 6) +
         pad(r.top3 ? 'yes' : 'no', 6) +
-        pad(String(r.ms), 7),
+        pad(String(r.ms), 7) +
+        pad(r.pin, 10),
     );
   }
 

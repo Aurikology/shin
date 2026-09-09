@@ -16,6 +16,7 @@ import {
   failureOf,
   selfConfidenceNumber,
   type FailureClass,
+  type IdentifiedFields,
   type ModelReading,
   type PickCandidateRow,
   type Tier,
@@ -276,13 +277,15 @@ export class IdentifyStage {
     const q2Text = [p.brand, p.name].filter(Boolean).join(' ').trim();
     const q3Text = [p.name, front].filter(Boolean).join(' ').trim();
 
+    const pinned = pinnedSize(p);
+
     const queries: Parameters<CatalogueLookup>[0][] = [];
     if (q1Text) {
       queries.push({
         text: q1Text.slice(0, 300),
         brand: p.brand ?? undefined,
-        sizeValue: p.size_value ?? undefined,
-        sizeUnit: p.size_unit ?? undefined,
+        sizeValue: pinned.value ?? undefined,
+        sizeUnit: pinned.unit ?? undefined,
         limit: 10,
       });
     }
@@ -333,7 +336,7 @@ export class IdentifyStage {
       chosen: best,
       alternates: rest,
       confidence,
-      sizeQuestion: sizeQuestionFor(result.candidates, p.size_value),
+      sizeQuestion: sizeQuestionFor(result.candidates, pinned.value),
       reading,
       tier,
       passes: 1,
@@ -433,6 +436,44 @@ export class IdentifyStage {
       pick: { why },
     };
   }
+}
+
+/**
+ * The size to pin against the catalogue, which is not always the size the
+ * label reads (found and left unfixed by D-082, closed here 2026-09-09).
+ *
+ * The catalogue stores a multipack's NET quantity -- Danone Danette "4 x
+ * 100 g" is listed as 400 g, SunRype "5 x 200 mL" as 1000 ml -- while
+ * `size_value`/`size_unit` off the extract schema describe one unit and
+ * `count` is how many. Pinning the unit reading against a net-quantity
+ * catalogue pins the wrong number for every multipack, silently, because the
+ * pin still looks like a size and still sorts a row to the top: just the
+ * wrong row's sibling. Multiplying by `count` closes that gap; `count`
+ * below 2 (single item, or unread) leaves the reading exactly as read.
+ *
+ * `ea` is the other shape: a countable item's size IS the count (a 12-pack
+ * is 12 ea), so when the label gave no per-item size at all, `count` stands
+ * in for it rather than leaving the pin empty.
+ *
+ * This only changes what gets PINNED against the catalogue. `reading` stays
+ * the model's own words, untouched, because it is the audit trail for what
+ * was actually read off the photograph.
+ */
+function pinnedSize(
+  p: IdentifiedFields,
+): { value: number | null; unit: IdentifiedFields['size_unit'] } {
+  if (p.size_unit === 'ea') {
+    return { value: p.size_value ?? p.count, unit: 'ea' };
+  }
+  if (
+    p.count !== null &&
+    p.count >= 2 &&
+    p.size_value !== null &&
+    (p.size_unit === 'g' || p.size_unit === 'kg' || p.size_unit === 'ml' || p.size_unit === 'l')
+  ) {
+    return { value: p.size_value * p.count, unit: p.size_unit };
+  }
+  return { value: p.size_value, unit: p.size_unit };
 }
 
 /**

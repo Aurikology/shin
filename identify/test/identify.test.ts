@@ -472,3 +472,59 @@ test('the union puts the size the label showed above its sibling, whatever the s
   const brandOnly = ranked.findIndex((c) => c.signals.brandAgrees === true && c.signals.sizeAgrees !== true);
   assert.ok(both !== -1 && (brandOnly === -1 || both < brandOnly), 'a brand-and-size row sorted below a brand-only row');
 });
+
+/*
+ * D-082's "found and not fixed here": the catalogue stores a multipack's net
+ * quantity (Danone Danette "4 x 100 g" is listed as 400 g), while the reading
+ * off the label is per-unit size plus a count. Pinning the unit reading
+ * against a net-quantity catalogue pins the wrong number. The `reading` the
+ * outcome carries stays exactly what the model said -- these assert q1's
+ * pinned size only.
+ */
+test('a multipack reading pins the net (size_value * count), not the unit size, and the reading is untouched', async () => {
+  const { lookup, queries } = recordingLookup(() => ({
+    band: 'miss',
+    candidates: [candidate('A', 0.5)],
+    ring: null,
+    matchedBy: 'hybrid',
+  }));
+
+  const stage = new IdentifyStage(
+    lookup,
+    fakeModel({ brand: 'Danone', name: 'Danette', size_value: 100, size_unit: 'g', count: 4 }),
+  );
+  const outcome = await stage.fromCrop(new Uint8Array(), null, 'pro', 100);
+
+  assert.equal(queries[0].sizeValue, 400, 'q1 pins the net (100 g x 4), not the 100 g unit reading');
+  assert.equal(queries[0].sizeUnit, 'g');
+
+  assert.equal(outcome.kind, 'identified');
+  if (outcome.kind === 'identified') {
+    assert.equal(outcome.reading?.product.size_value, 100, 'the reading itself keeps the unit size the model read');
+    assert.equal(outcome.reading?.product.count, 4);
+  }
+});
+
+test('a 12 ea reading pins count as the size when the label gave no size of its own', async () => {
+  const { lookup, queries } = recordingLookup(() => ({
+    band: 'miss',
+    candidates: [candidate('A', 0.5)],
+    ring: null,
+    matchedBy: 'hybrid',
+  }));
+
+  const stage = new IdentifyStage(
+    lookup,
+    fakeModel({ brand: 'Acme', name: 'Widget', size_value: null, size_unit: 'ea', count: 12 }),
+  );
+  const outcome = await stage.fromCrop(new Uint8Array(), null, 'pro', 100);
+
+  assert.equal(queries[0].sizeValue, 12, 'a 12-pack is 12 ea, so count stands in for the missing size');
+  assert.equal(queries[0].sizeUnit, 'ea');
+
+  assert.equal(outcome.kind, 'identified');
+  if (outcome.kind === 'identified') {
+    assert.equal(outcome.reading?.product.size_value, null, 'the reading itself is untouched');
+    assert.equal(outcome.reading?.product.count, 12);
+  }
+});
