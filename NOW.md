@@ -5,6 +5,38 @@ narrative.*
 
 ---
 
+## The photo door is open, the picture is read twice, and the first number is a ceiling, 2026-09-09
+
+**Aurik reversed the six-systems floor: "the user must take a picture and Shin must be able to
+identify. Nothing less."** Logged as "Live photo recognition is load-bearing" in
+`docs/decisions.md`. The design and the lane contract are `docs/the-photo-path.md`.
+
+**The chain runs, end to end, on this machine, with fakes.** `POST /api/identify/photo` (3 MiB
+cap, PNG or JPEG by magic bytes, 30 per device per 10 minutes) → `IdentifyStage.fromCrop`,
+which now transcribes the pack before naming it, tries the printed barcode as a fact, runs a
+three-query catalogue cascade, and when that cannot settle it makes one more vision call that
+picks from the catalogue's own ten rows → the same `Identified` shape the barcode door returns,
+plus `passes`, `failure`, `candidates`. `camera.js` sends the eye's 1568 px crop it had been
+holding since 2026-09-05, and each of the four answers has a screen; the capture queue has its
+caller (D-026 closed). D-024 and D-047 are closed. Suites: identify 43, app 394, spine 160.
+
+**Checked at the consumer.** A real PNG posted to the running server: 200, `failure` named, a
+`kind = 'photo'` scan row; garbage 400; GET 405. That check found two things and both are
+fixed: a missing key read as an outage (now a client error, never retried), and every image was
+sent as PNG (now sniffed; the eval set is JPEG).
+
+**The eval set exists: forty Open Food Facts photos, `identify/eval/`.** Six size pairs, four
+store brands, four multipacks. The dry run, a fake model returning the exact reading, scores
+**39 of 40 top-1 on the catalogue side alone**; the miss is a size pair and is D-082. That is
+the ceiling, not a model measurement.
+
+**Not done, and it is one thing: no `ANTHROPIC_API_KEY` on this machine.** No photo has gone
+through the real model. `node identify/eval/run.ts --tier pro` is the command that produces the
+first real top-1; the prompts, the 3,500 / 3,000 ms clocks and the per-scan cost are all
+unmeasured until it runs. Nothing from 1c13f34 on is pushed.
+
+---
+
 ## The branch is home, seven rows closed, and the address is still shut at thirteen hours, 2026-09-09
 
 **`feature/ui-excellence` is folded into `main` and the no-branches rule holds again.** Fifteen
