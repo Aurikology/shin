@@ -29,7 +29,15 @@
 /** Decision 51. */
 export const CALL_CAP_MS = 8_000;
 /** Decision 48. Exceeding these is a defect, not a preference. */
-export const BUDGET_MS = { barcode: 1_000, photo: 4_000 } as const;
+/*
+ * 2026-09-09: photo moved from 4,000 to 7,000. The photo path is now two vision
+ * calls when the first cannot settle it (extract, then a pick from the
+ * catalogue's own rows, docs/the-photo-path.md section 2), and the 4,000 figure
+ * was one call against a 2 s p99 bar nobody had measured. It stays inside the
+ * 8,000 cap on purpose: the cap is the promise to the screen, the budget is
+ * the number the log judges a run against. Re-measured once a key exists.
+ */
+export const BUDGET_MS = { barcode: 1_000, photo: 7_000 } as const;
 
 export type Step =
   | 'reading the barcode'

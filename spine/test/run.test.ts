@@ -8,7 +8,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { scan, REFUSALS, overBudget, type ScanEvent, type ScanPorts } from '../src/run.ts';
+import { scan, REFUSALS, overBudget, type ScanEvent, type ScanPorts, BUDGET_MS, CALL_CAP_MS } from '../src/run.ts';
 
 function defer<T>() {
   let resolve!: (v: T) => void;
@@ -172,9 +172,11 @@ test('every refusal names its step, and none of them shrugs', async () => {
   }
 });
 
-test('the speed budget is a barcode second and a photo four', () => {
+test('the speed budget is a barcode second and a photo seven, inside the eight second cap', () => {
   assert.equal(overBudget('123', 900), false);
   assert.equal(overBudget('123', 1200), true);
-  assert.equal(overBudget(null, 3500), false);
-  assert.equal(overBudget(null, 4500), true);
+  // 2026-09-09: two vision calls (extract, then pick), docs/the-photo-path.md.
+  assert.equal(overBudget(null, 6500), false);
+  assert.equal(overBudget(null, 7500), true);
+  assert.ok(BUDGET_MS.photo < CALL_CAP_MS, 'the budget is judged inside the cap, never past it');
 });
