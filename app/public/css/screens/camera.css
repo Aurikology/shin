@@ -954,12 +954,18 @@
      sheet (up to 40px each, three rows plus a bottom row) and pushed the
      confirm key past the bottom of a 575px viewport even after Skip and
      Clear moved into the head row above. Tighter rows here only, not the
-     tall-viewport sizing above. */
+     tall-viewport sizing above.
+
+     D-050 found this block's own .keypad / .keypad-bottom / .btn--key rules
+     had never actually applied at any viewport: `.padsheet .keypad` etc. are
+     redeclared, at equal specificity, in the price-pad section further down
+     this file, and a later same-specificity rule always wins regardless of
+     which media query it sits in. So a short viewport was silently getting
+     the TALL sizing the whole time. The short-viewport versions now live
+     next to that later block instead, where they actually win; only the
+     rules that were never shadowed (gap, amount font-size) stay here. */
   .padsheet { gap: 4px; }
   .padsheet .amount { font-size: 26px; padding: 0; }
-  .padsheet .keypad { grid-template-rows: repeat(3, clamp(26px, 4.4svh, 34px)); gap: 4px; }
-  .padsheet .keypad-bottom { grid-template-rows: clamp(26px, 4.4svh, 34px); gap: 4px; margin-top: 4px; }
-  .padsheet .btn--key { font-size: 15px; }
 }
 
 /* ------------------------------------------------------------------- rail */
@@ -1242,7 +1248,15 @@
 }
 .pad-effective[hidden] { display: none; }
 .pad-mods { display: flex; justify-content: center; gap: 8px; }
+/* D-050: measured 54 x 29 and 63 x 29 at 390 x 844, both under the 44px
+   floor on the axis that matters for a thumb (height). inline-flex plus
+   min-height keeps the 12px label centred in a taller box rather than
+   top-aligned in it, the same fix `.btn` already applies everywhere else. */
 .modbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   font-family: var(--f-ui);
   font-size: 12px;
   font-weight: 600;
@@ -1282,9 +1296,17 @@
 }
 /* Two grids, not one: 1-9 above, then the bottom row (., 0, backspace,
    confirm) so the confirm key reads as the keypad's own key, USAGE A1
-   0:13.4, not a separate button below it. Row heights are tightened (not
-   the correct.js pad's own sizing) so the whole pad, including Clear, Skip
-   and the confirm key, fits a 640px sheet without a drag. */
+   0:13.4, not a separate button below it.
+
+   D-050: row height was clamp(32px, 5.2svh, 40px), which measured 113 x 35
+   to 113 x 40 at 390 x 844 -- under the 44px HIG floor on a screen a person
+   opens one-handed in a store. `.sheet`'s own ceiling is `calc(100% - 120px)`
+   (camera.css line ~547) and the pad was using 465px of the 724px available
+   at 844 tall, so the floor was never a fit problem, only a number nobody had
+   raised: 48px rows (matching --tap, tokens.css) cost roughly 70px of sheet
+   height total across both grids, well inside the remaining budget, and the
+   sheet stays anchored to the bottom (`position: absolute; bottom: 0`) so
+   growing it taller moves its top edge up, never its bottom edge past 844. */
 .padsheet .keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1300,15 +1322,15 @@
  * keypad that resizes under the thumb mid-entry is worse than one that is a
  * few pixels short of the space available.
  */
-  grid-template-rows: repeat(3, clamp(32px, 5.2svh, 40px));
-  gap: 5px;
+  grid-template-rows: repeat(3, clamp(48px, 6svh, 52px));
+  gap: 6px;
 }
 .padsheet .keypad-bottom {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: clamp(32px, 5.2svh, 40px);
-  gap: 5px;
-  margin-top: 5px;
+  grid-template-rows: clamp(48px, 6svh, 52px);
+  gap: 6px;
+  margin-top: 6px;
 }
 /* Three columns when there is no confirm key in the row, so a pad without one
    stays the same 3-wide field of keys all the way down. Not used by this
@@ -1350,6 +1372,35 @@
   opacity: .5;
   cursor: not-allowed;
 }
+
+/* Short-viewport row sizing, moved down from the max-height:640px block
+   near the top of this file (see the comment there) so it actually wins
+   the cascade against the rules above. 44px is the floor kept here, not 48:
+   measured at 375 x 575, 48px rows plus the D-050 tap-size fixes on Clear,
+   Skip and the modifiers overflowed the sheet's own max-height and forced a
+   drag to reach the confirm key, which is the exact regression Row 38/44
+   fixed once already. Fitting 44px rows back in needed three non-control
+   trims -- the face row 56px instead of 64, the sheet-peek gap 4px instead
+   of 8, the item name's line-height tightened -- and none of them touch a
+   control. Measured live at 375 x 575: 450px of content in 450px of room,
+   no drag. */
+@media (max-height: 640px) {
+  .padsheet .sheet-head { height: 56px; }
+  .padsheet .sheet-head .face-block svg { width: 56px; height: 56px; }
+  .padsheet .sheet-peek { gap: 4px; }
+  .padsheet .itemname { line-height: 1.2; }
+  .padsheet .keypad {
+    grid-template-rows: repeat(3, 44px);
+    gap: 4px;
+  }
+  .padsheet .keypad-bottom {
+    grid-template-rows: 44px;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .padsheet .btn--key { font-size: 15px; }
+}
+
 /* Row 38, 44 fix (575 tall): Skip and Clear used to sit in a bottom
    `.actions` block below the keypad, which pushed them to y=957 on a
    575px-tall viewport, off screen with no scroll available. Both move
@@ -1363,7 +1414,17 @@
   gap: 4px;
   padding: 2px 34px 0 0;
 }
+/* D-050: measured 42 x 23 (Clear) and 37 x 23 (Skip) at 390 x 844. Same
+   inline-flex-and-min-height fix as .modbtn above: the label stays 12px and
+   centred, the hit box grows around it. Right-padded headrow already clears
+   the close button horizontally (see the comment above); the two rows now
+   overlapping there is the two controls sharing a row, not a collision. */
 .pad-textbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
   font-family: var(--f-ui);
   font-size: 12px;
   font-weight: 600;
