@@ -520,3 +520,151 @@ test('a row that matched some of the words is never a confident answer, however 
   assert.equal(full.wordsMatched, 'all');
   assert.equal(full.band, 'confident');
 });
+
+/*
+ * D-018 and D-019, written from the rows' own examples.
+ *
+ * The fixture is the live "wireless headphones" answer in miniature. On the
+ * real catalogue that query filled slots three to five with a lavalier
+ * microphone, a "Florence Wireless Comvo" and an Xbox controller, while the two
+ * rows that are BOTH headphones and sold here sat at word ranks 24 and 34 where
+ * nothing would ever show them. Here the same shape is built out of headphone
+ * ACCESSORIES: ten short rows that say the rare word in the field that scores
+ * highest and are not headphones at all, against five rows that are.
+ *
+ * The two Canadian rows carry no query word in their names, exactly as Jabra's
+ * "Evolve 65e Link 370" and AfterShokz's "aeropex" do not. They reach the pool
+ * only through the leaf category, which `product_fts` weights at 1.0 against a
+ * name's 4.0, which is why they rank where they do.
+ *
+ * The ring is drawn at `en:headphones` on every one of these searches. Before
+ * this fix it was drawn and then thrown away.
+ */
+const HEADPHONE_PATH = ['en:electronics', 'en:audio', 'en:audio-components', 'en:headphones-headsets', 'en:headphones'];
+
+/** The five rows in the fixture that are headphones, two of them sold here. */
+const HEADPHONE_CODES = ['5054903785729', '6931474757357', '0017817861083', '0811071032162', '5706991021974'];
+
+async function headphoneFixture() {
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+
+  const rows: [string, string, string, readonly string[], string | null, number][] = [
+    ['5054903785729', 'Headphones P507075', 'Kappa', HEADPHONE_PATH, 'en:headphones', 0],
+    ['6931474757357', 'True Stereo Headset EW11', 'hoco', HEADPHONE_PATH, 'en:headphones', 0],
+    ['0017817861083', 'Quietcomfort Ultra Earbuds Gen 2', 'Bose', HEADPHONE_PATH, 'en:headphones', 0],
+    ['0811071032162', 'Aeropex Bone Conduction Open Ear Sport Bluetooth Titanium Headset for Running and Cycling Lunar Grey', 'AfterShokz', HEADPHONE_PATH, 'en:headphones', 1],
+    ['5706991021974', 'Evolve 65e Link 370 MS Unified Communications Certified In Ear Corded Neckband Professional Headset', 'Jabra', HEADPHONE_PATH, 'en:headphones', 1],
+  ];
+  for (const [code, name, brand, path, leaf, canada] of rows) {
+    insert.run(code, name, name, null, brand, null, null, null, JSON.stringify(path), leaf, '[]', canada, 'icecat');
+  }
+
+  // Ten accessories. Not headphones, no category, and they own the answer:
+  // two-word names carrying the rare word in the highest-weighted field.
+  const accessories = ['Splitter', 'Stand', 'Case', 'Cable', 'Pouch', 'Hook', 'Amplifier', 'Cushion', 'Bag', 'Clip'];
+  accessories.forEach((thing, i) => {
+    insert.run(`600000000000${i}`, `Headphones ${thing}`, `Headphones ${thing}`, null, 'Generic',
+      null, null, null, '[]', null, '[]', 0, 'icecat');
+  });
+
+  /*
+   * More filler, because POOL DEPTH is half of D-019. A preference worth nine
+   * rank positions carries a row from the bottom of an eleven-row pool to the
+   * top of it and carries it nowhere at all in a pool of sixty, and sixty is
+   * what the live "wireless headphones" pool is.
+   */
+  const other = ['Charger', 'Speaker', 'Doorbell', 'Keyboard', 'Adapter', 'Camera', 'Printer', 'Thermometer'];
+  other.forEach((thing, i) => {
+    insert.run(`700000000000${i}`, `Wireless ${thing}`, `Wireless ${thing}`, null, 'Generic',
+      null, null, null, '[]', null, '[]', 0, 'icecat');
+  });
+
+  rebuildFts(db);
+  rebuildCategories(db);
+  // 95% of the electronics rows in the live catalogue have no vector, so this
+  // path is the word arm alone. Every search below passes vectors:false to say so.
+  return new Catalogue(db, new HashEmbedder());
+}
+
+test('D-018: the ring the search already drew decides what a result is a kind of', async () => {
+  const cat = await headphoneFixture();
+  const r = await cat.search({ text: 'wireless headphones', limit: 5, vectors: false });
+
+  assert.ok(r.ring, 'the search drew no ring at all, so there was nothing to rank with');
+  assert.equal(r.ring.tag, 'en:headphones');
+
+  // A splitter, a stand, a case and a cable are not headphones, and the ring is
+  // the field that already knew it.
+  const leaked = r.candidates.filter((c) => !HEADPHONE_CODES.includes(c.code)).map((c) => c.name);
+  assert.deepEqual(leaked, [], `rows outside the ring outranked rows inside it: ${leaked.join(', ')}`);
+});
+
+test('D-019: the Canada preference fires on a pool whose whole top is not Canadian', async () => {
+  const cat = await headphoneFixture();
+  const r = await cat.search({ text: 'wireless headphones', limit: 5, vectors: false });
+
+  const canadian = r.candidates.filter((c) => c.soldInCanada).map((c) => c.code);
+  assert.equal(
+    canadian.length,
+    2,
+    'both Canadian headphone rows should surface, got: ' +
+      r.candidates.map((c) => `${c.code}${c.soldInCanada ? ' CA' : ''}`).join(', '),
+  );
+  // Preferred, never required. Decision 28 asks for a preference, not a filter,
+  // and the three non-Canadian headphones are still in the answer.
+  assert.ok(r.candidates.some((c) => !c.soldInCanada), 'the preference became a filter');
+});
+
+test('D-019: the same product listed three times takes one slot, not three', async () => {
+  // "kraft dinner" spent three of six slots on rows all named "Kraft Dinner"
+  // with distinct barcodes, no brand and no size. The barcodes differ, so the
+  // code alone cannot tell them apart; brand, name and size can.
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  insert.run('0068100894332', 'Kraft Dinner', 'Kraft Dinner', null, null, null, null, null, '[]', null, '[]', 1, 'openfoodfacts');
+  insert.run('0068100145120', 'Kraft dinner', 'Kraft dinner', null, null, null, null, null, '[]', null, '[]', 1, 'openfoodfacts');
+  insert.run('58575857', 'Kraft Dinner', 'Kraft Dinner', null, null, null, null, null, '[]', null, '[]', 1, 'openfoodfacts');
+  insert.run('0068100902426', 'Kraft Dinner', 'Kraft Dinner', null, 'Kraft', '4080 g', 4080, 'g', '[]', null, '[]', 1, 'openfoodfacts');
+  insert.run('0068100903249', 'Kraft dinner buffalo wings', 'Kraft dinner buffalo wings', null, null, null, null, null, '[]', null, '[]', 1, 'openfoodfacts');
+  rebuildFts(db);
+  rebuildCategories(db);
+
+  const cat = new Catalogue(db, new HashEmbedder());
+  const r = await cat.search({ text: 'kraft dinner', limit: 5, vectors: false });
+
+  const bare = r.candidates.filter((c) => c.brands === null && c.name.toLowerCase() === 'kraft dinner');
+  assert.equal(bare.length, 1, `the same unbranded listing came back ${bare.length} times`);
+
+  // Deduping must not eat the rows that are genuinely different products.
+  const codes = r.candidates.map((c) => c.code);
+  assert.ok(codes.includes('0068100902426'), 'the branded 4080 g box is a different product');
+  assert.ok(codes.includes('0068100903249'), 'buffalo wings is a different product');
+});
+
+test('a UPC-A row and its EAN-13 twin are one product, not two results', async () => {
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  // The same barcode published twice: once padded to EAN-13, once as the UPC-A
+  // a scanner reports. `byGtin` has treated these as one product since the day
+  // it was written; the ranked list did not.
+  insert.run('0012345678905', 'Void Elite Wireless Headset', 'Void Elite Wireless Headset', null, 'Corsair', null, null, null, '[]', null, '[]', 0, 'icecat');
+  insert.run('12345678905', 'Void Elite Wireless Headset Black', 'Void Elite Wireless Headset Black', null, 'Corsair Gaming', null, null, null, '[]', null, '[]', 0, 'icecat');
+  insert.run('0999999999999', 'Wireless Headset Stand', 'Wireless Headset Stand', null, 'Generic', null, null, null, '[]', null, '[]', 0, 'icecat');
+  rebuildFts(db);
+  rebuildCategories(db);
+
+  const cat = new Catalogue(db, new HashEmbedder());
+  const r = await cat.search({ text: 'wireless headset', limit: 5, vectors: false });
+  const twins = r.candidates.filter((c) => c.code === '0012345678905' || c.code === '12345678905');
+  assert.equal(twins.length, 1, 'the same barcode came back in two forms');
+});

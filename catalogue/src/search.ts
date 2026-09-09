@@ -24,8 +24,42 @@ import type { Embedder } from './embed.ts';
 
 /** RRF's damping constant. 60 is the value from the original paper. */
 const RRF_K = 60;
-/** How much a row nobody sells here gives up. See the sort in `search`. */
-const CANADA_DISCOUNT = 0.85;
+/**
+ * How much a row the catalogue positively labels as the kind of thing this
+ * search is about outranks one it does not. See `search`, and D-018.
+ *
+ * Worth about twenty rank positions at RRF_K = 60: a ring member fused at rank
+ * 24 finishes above a non-member fused at rank 1, and a non-member at rank 1
+ * still finishes above a ring member at rank 40. That is the size the live
+ * catalogue asks for. "wireless headphones" put a lavalier microphone, a
+ * "Florence Wireless Comvo" and an Xbox controller in slots three to five while
+ * two real headphone rows sat at word ranks 24 and 34.
+ */
+const RING_BOOST = 1.5;
+
+/**
+ * How much a row sold here outranks an otherwise equal row that is not.
+ *
+ * A BOOST ON THE PREFERRED ROWS, NOT A DISCOUNT ON THE REST, since 2026-09-09.
+ * The difference is invisible on a mixed pool and total on a uniform one, which
+ * is D-019: scaling every row of an all-non-Canadian pool by the same 0.85
+ * leaves the order it started in, and on the electronics path every pool is
+ * that pool -- all 4,972,252 icecat rows carry the same `sold_in_canada`. The
+ * preference now has something to bite on because the ring boost above puts the
+ * right KIND of row in contention first, and it separates them from there.
+ */
+const CANADA_BOOST = 1.25;
+
+/**
+ * How far down the fused list the ring may be drawn from.
+ *
+ * Only a quarter of the catalogue arrived with a category, so the first row
+ * that carries one is often well below the leader; capping the search at the
+ * caller's `limit` is why a query whose whole first page is uncategorised drew
+ * no ring at all. Twenty, because a row that neither retriever put in its own
+ * top twenty is not evidence about what was asked for.
+ */
+const RING_SOURCE_WINDOW = 20;
 
 /** How deep each retriever goes before fusion. Deep enough that a result ranked
  *  poorly by one and well by the other still survives to be fused. */
@@ -335,6 +369,84 @@ function normalizeBrand(b: string): string {
   return b.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+/** One row after fusion, with each retriever's own evidence still attached. */
+interface Fused {
+  row: Row;
+  textRank: number | null;
+  vectorRank: number | null;
+  bm25: number | null;
+  similarity: number | null;
+  rrf: number;
+}
+
+/** Product names as something two strings can be compared on. */
+function normalizeName(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function pathOf(row: Row): string[] {
+  return JSON.parse(row.category_path) as string[];
+}
+
+/**
+ * Is this row one of the things the ring names?
+ *
+ * A path question, not a leaf question, for the reason `ring` gives: nothing
+ * has "citrus" as its deepest tag. The leaf is checked as well because a
+ * handful of rows carry one that their own path does not repeat. Answered from
+ * the row already in hand rather than from `product_category`, so ranking a
+ * pool of sixty costs no queries at all.
+ */
+function inRing(row: Row, tag: string): boolean {
+  const lower = tag.toLowerCase();
+  if (row.leaf_category && row.leaf_category.toLowerCase() === lower) return true;
+  return pathOf(row).some((t) => t.toLowerCase() === lower);
+}
+
+/**
+ * THE SAME PRODUCT, LISTED TWICE, IS ONE ANSWER.
+ *
+ * D-019 asked for a dedupe by product code, and a dedupe by product code alone
+ * is a no-op here: `product.code` is the PRIMARY KEY and the fusion map above
+ * is already keyed on it, so two rows sharing a code cannot reach this point.
+ * The duplicates the defect rows actually recorded are of two other kinds, and
+ * both are handled here.
+ *
+ * ONE: the same barcode published in two forms, EAN-13 and the UPC-A a scanner
+ * reports, which are different strings and the same product. `byGtin` has
+ * always treated those as one; the ranked list did not.
+ *
+ * TWO: the same listing entered more than once with different barcodes, which
+ * is what "kraft dinner" spending three of six slots on rows all named "Kraft
+ * Dinner", no brand and no size, was. Nothing about the code can tell those
+ * apart. Brand, name and size can, and SIZE IS IN THE KEY ON PURPOSE: the same
+ * jar in 1 kg and 2 kg is two products and two prices, which is the whole
+ * subject of this app, and collapsing them would be a worse defect than the one
+ * being fixed.
+ *
+ * The list arrives sorted, so the row kept is always the best-ranked of its
+ * group.
+ */
+function dedupeListings(ranked: readonly Fused[]): Fused[] {
+  const seen = new Set<string>();
+  const out: Fused[] = [];
+  for (const m of ranked) {
+    const barcode = m.row.code.replace(/\D/g, '').replace(/^0+/, '') || m.row.code;
+    const name = normalizeName(m.row.name_en ?? m.row.name);
+    const brand = m.row.brands ? normalizeBrand(m.row.brands) : '';
+    const size =
+      m.row.size_value !== null && m.row.size_unit
+        ? `${m.row.size_value}${m.row.size_unit.toLowerCase()}`
+        : (m.row.quantity ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const listing = `${brand}|${name}|${size}`;
+    if (seen.has(barcode) || seen.has(listing)) continue;
+    seen.add(barcode);
+    seen.add(listing);
+    out.push(m);
+  }
+  return out;
+}
+
 function rowToCandidate(
   row: Row,
   signals: Candidate['signals'],
@@ -525,6 +637,42 @@ export class Catalogue {
    * of small lie that costs the whole product's credibility.
    */
   ring(categoryPath: readonly string[], want: number, exclude?: string): NeighbourRing | null {
+    const found = this.#ringTag(categoryPath, exclude);
+    if (!found) return null;
+    const rows = this.#db
+      .prepare(
+        `SELECT ${SELECT_COLS.split(', ').map((c) => `p.${c.trim()}`).join(', ')}
+           FROM product_category pc
+           JOIN product p ON p.rowid = pc.rowid_ref
+           WHERE pc.tag = ? AND p.code != ?
+           ORDER BY p.sold_in_canada DESC, (p.size_value IS NOT NULL) DESC, p.name
+           LIMIT ?`,
+      ).all(found.tag, exclude ?? '', want) as unknown as Row[];
+    if (rows.length === 0) return null;
+    return {
+      tag: found.tag,
+      label: labelForTag(found.tag),
+      distanceOut: found.distanceOut,
+      members: rows.map((r) =>
+        rowToCandidate(
+          r,
+          { textRank: null, vectorRank: null, bm25: null, similarity: null, rrf: 0, brandAgrees: null, sizeAgrees: null },
+          {},
+        ),
+      ),
+    };
+  }
+
+  /**
+   * The tag the ring would be drawn at, and how far out it is, without paying
+   * for its members.
+   *
+   * Split out of `ring` on 2026-09-09 so that RANKING can ask the same question
+   * the heading asks and get the same answer (D-018). One walk, one cap, one
+   * membership rule: if these two ever disagreed, a result could be reordered
+   * by a ring the screen then refused to name.
+   */
+  #ringTag(categoryPath: readonly string[], exclude?: string): { tag: string; distanceOut: number } | null {
     for (let i = categoryPath.length - 1; i >= 0; i -= 1) {
       // product.category_path keeps whatever casing the source data carried,
       // but product_category is written lower-cased (schema.ts,
@@ -550,32 +698,19 @@ export class Catalogue {
       // Membership is a path question, not a leaf question. Matching on the leaf
       // is the version that looks right and never widens: nothing has "citrus"
       // as its deepest tag, so the wider ring would always come back empty.
-      const rows = this.#db
-        .prepare(
-          `SELECT ${SELECT_COLS.split(', ').map((c) => `p.${c.trim()}`).join(', ')}
-           FROM product_category pc
-           JOIN product p ON p.rowid = pc.rowid_ref
-           WHERE pc.tag = ? AND p.code != ?
-           ORDER BY p.sold_in_canada DESC, (p.size_value IS NOT NULL) DESC, p.name
-           LIMIT ?`,
-        ).all(tag, exclude ?? '', want) as unknown as Row[];
+      //
       // One honest neighbour at the right level beats three at the wrong one.
       // "We do not have that one, here is the other orange we have" is true;
       // widening to "here are some fruits" to reach a quota is not.
-      if (rows.length >= 1) {
-        return {
-          tag,
-          label: labelForTag(tag),
-          distanceOut: categoryPath.length - 1 - i,
-          members: rows.map((r) =>
-            rowToCandidate(
-              r,
-              { textRank: null, vectorRank: null, bm25: null, similarity: null, rrf: 0, brandAgrees: null, sizeAgrees: null },
-              {},
-            ),
-          ),
-        };
-      }
+      const hit = this.#db
+        .prepare(
+          `SELECT 1 AS found
+           FROM product_category pc
+           JOIN product p ON p.rowid = pc.rowid_ref
+           WHERE pc.tag = ? AND p.code != ?
+           LIMIT 1`,
+        ).get(tag, exclude ?? '') as { found: number } | undefined;
+      if (hit) return { tag, distanceOut: categoryPath.length - 1 - i };
     }
     return null;
   }
@@ -642,10 +777,7 @@ export class Catalogue {
 
     // Fuse on rank, keeping each retriever's own evidence attached so the caller
     // can see WHY something ranked where it did.
-    const merged = new Map<
-      string,
-      { row: Row; textRank: number | null; vectorRank: number | null; bm25: number | null; similarity: number | null; rrf: number }
-    >();
+    const merged = new Map<string, Fused>();
 
     const textHits = textResult.hits;
     textHits.forEach((h, i) => {
@@ -687,16 +819,82 @@ export class Catalogue {
      * "peanut butter" answered with an Indian beauty-database row carrying no
      * brand, no size and sold_in_canada = 0, ahead of every Canadian jar.
      *
-     * A discount on the score rather than a filter, so the preference is real
-     * but losable. At 0.85 a non-Canadian row holding the top text rank lands
-     * around twelfth if Canadian rows exist above it, and still wins outright
-     * when nothing Canadian is close. That is the behaviour decision 28 asks
-     * for: preferred, not required.
+     * FIXED AGAIN 2026-09-09, D-019. The replacement was a 0.85 DISCOUNT on
+     * every row not sold here, and a discount applied to every row in the pool
+     * is an identity: multiply the whole list by the same number and it comes
+     * back in the order it went in. On the electronics path that is every pool,
+     * because all 4,972,252 icecat rows carry the same `sold_in_canada`, so the
+     * second version of this preference fired no more often than the first.
+     * "wireless headphones" answered with six non-Canadian rows while a Jabra
+     * and an AfterShokz sat at word ranks 34 and 24.
+     *
+     * It is a boost on the preferred rows now, and it works because it is no
+     * longer alone: RING_BOOST puts the right KIND of row in contention, and
+     * this separates them from there. Preferred, not required -- a non-Canadian
+     * row of the right kind still beats a Canadian one of the wrong kind, and
+     * the explicit tiebreak below only decides rows that are otherwise equal,
+     * which is the case the 2026-09-05 version wrongly assumed was the only one.
      */
-    const score = (m: { rrf: number; row: { sold_in_canada: number } }) =>
-      m.row.sold_in_canada === 1 ? m.rrf : m.rrf * CANADA_DISCOUNT;
+    const baseScore = (m: { rrf: number; row: { sold_in_canada: number } }) =>
+      m.row.sold_in_canada === 1 ? m.rrf * CANADA_BOOST : m.rrf;
+    const byScore =
+      (score: (m: Fused) => number) =>
+      (a: Fused, b: Fused) =>
+        score(b) - score(a) || b.row.sold_in_canada - a.row.sold_in_canada;
 
-    const ranked = [...merged.values()].sort((a, b) => score(b) - score(a));
+    const pool = dedupeListings([...merged.values()].sort(byScore(baseScore)));
+
+    /*
+     * D-018: THE RING WAS COMPUTED ON EVERY SEARCH AND THROWN AWAY.
+     *
+     * It is the only signal in this function that knows what a row IS rather
+     * than which words it happens to contain, and it was used for nothing but a
+     * heading. "peanut butter" ranked peanut butter cups, an RXBAR and a KIND
+     * bar above the jar; "wireless headphones" ranked a microphone, a "Florence
+     * Wireless Comvo" and an Xbox controller above both headphone rows. In
+     * every one of those the ring was drawn, correctly, at the category the
+     * shopper meant, and then discarded.
+     *
+     * Drawn here from the pool rather than from the answer, and BEFORE the
+     * slice, because the ranking is what it is meant to change. The tag comes
+     * from #ringTag, so it obeys MAX_RING_TAG exactly as the heading does
+     * (D-068): a tag holding a shelf of the whole shop is not a kind of thing
+     * and does not get to reorder anything.
+     *
+     * A row with no category is not demoted. Three quarters of the catalogue
+     * has no category, and "we were never told" is not evidence that this is
+     * the wrong kind of thing. Only rows the data positively places inside the
+     * ring are lifted.
+     */
+    const ringSource = pool.slice(0, RING_SOURCE_WINDOW).find((m) => pathOf(m.row).length > 0);
+    const rankingTag = ringSource ? this.#ringTag(pathOf(ringSource.row), ringSource.row.code)?.tag : undefined;
+    /*
+     * A ROW THE SHOPPER NAMED EXACTLY IS ALSO OF THE KIND, WHATEVER ITS TAGS SAY.
+     *
+     * Three quarters of the catalogue has no category, so a category boost with
+     * no guard demotes every unlabelled row, and the unlabelled row is often the
+     * best answer in the list. Asking for "cara cara oranges" when the catalogue
+     * holds a row called exactly that, uncategorised, and two labelled navel
+     * oranges, must not answer with the navel oranges: the ring is evidence
+     * about a KIND, and the shopper's own words are evidence about a THING.
+     *
+     * This is also what carries D-018's own example. "peanut butter" has three
+     * rows named exactly that, one of them the Kraft jar that was landing at
+     * five behind a peanut butter cup and an RXBAR, and none of the three
+     * carries a category at all.
+     */
+    const asked = normalizeName(text);
+    // Membership is settled once, not inside the comparator, so a pool of sixty
+    // costs sixty path reads rather than one per comparison.
+    const ofTheKind = new Set(
+      pool
+        .filter((m) => (rankingTag ? inRing(m.row, rankingTag) : false) || normalizeName(m.row.name_en ?? m.row.name) === asked)
+        .map((m) => m.row.code),
+    );
+    const ranked =
+      ofTheKind.size > 0
+        ? [...pool].sort(byScore((m) => baseScore(m) * (ofTheKind.has(m.row.code) ? RING_BOOST : 1)))
+        : pool;
 
     const limit = query.limit ?? 5;
     const candidates = ranked
@@ -729,11 +927,14 @@ export class Catalogue {
     // that knows exactly what it is. Reading only the leader is why asking for
     // a kind of orange the catalogue does not stock returned no other oranges,
     // when it had 367 of them.
-    const withPath = candidates.find((c) => c.categoryPath.length > 0);
+    // Read over RING_SOURCE_WINDOW rather than over the answer alone, so the
+    // heading and the ranking above are drawn from the same row. A query whose
+    // whole first page is uncategorised used to get no ring at all.
+    const withPath = ranked.slice(0, RING_SOURCE_WINDOW).find((m) => pathOf(m.row).length > 0);
     const ring =
       band === 'confident'
         ? null
-        : this.ring(withPath?.categoryPath ?? [], 3, candidates[0]?.code);
+        : this.ring(withPath ? pathOf(withPath.row) : [], 3, candidates[0]?.code);
 
     if (band === 'miss') this.#recordGap(query);
 
