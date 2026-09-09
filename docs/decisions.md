@@ -44,7 +44,7 @@ who were just browsing. Optimizing for a purchase optimizes for the smaller half
 cost scales with saves rather than users.
 
 ## The v1 floor is six systems
-**Date:** 2026-09-03 · **Status:** active
+**Date:** 2026-09-03 · **Status:** reversed 2026-09-09, see "Live photo recognition is load-bearing" below
 
 One category, barcode and screenshot input only, three faces, save and watch, a still share
 card, and a branch for when the user disagrees. Live photo recognition is cut: it is the weakest
@@ -933,3 +933,30 @@ and fifty-seven minutes after the last challenge, retries set to zero, offset 40
 so the page was one no earlier run had opened: one request, one 7,535 byte challenge in 565 ms,
 sitemap fetched normally. The lockout outlives thirteen hours. Requests spent on this probe:
 one. The decision stands as written.
+
+## Live photo recognition is load-bearing, and the photo door opens
+**Date:** 2026-09-09 · **Status:** active
+
+Aurik, 2026-09-09, on the identification feature: *"the user must take a picture and Shin must be
+able to identify. Nothing less."* That is the founder's call the 2026-09-03 entry said it needed:
+"The v1 floor is six systems" cut live photo recognition as the weakest input, and its own
+reverses-if was recognition becoming load-bearing. It is now the stated product, so the entry is
+reversed rather than argued around. The other five systems in that floor are untouched.
+
+What opens with it, in the order the ladder already describes (`docs/the-backend-walkthrough.md`
+§3.2): barcode first and unmetered; then the photo through `identify/`'s `IdentifyStage`, which
+has been written, tested and called by nothing since 2026-09-05 (D-024, D-047); a catalogue
+search with the reading pinned; and, new, a second model pass that picks from the catalogue's
+own candidates when the first pass cannot settle it. The route is `POST /api/identify/photo`,
+the crop is the eye's 1568 px PNG that `camera.js` has been holding in `lastCrop` and never
+sending, and the scan log's `kind = 'photo'` and `failure_class` columns already exist for it.
+
+What stays cut: searching the open web on a catalogue miss (attempt four), and any image
+embedding index over catalogue photos, both parked until a measured top-1 on a real eval set
+says the text path cannot get there.
+
+**Reverses if:** a measured top-1 on real shelf photos stays under the floor the eval sets after
+the pick pass lands, in which case the photo path is demoted to a suggestion and the barcode
+stays the only identity; or the founder who wrote the 2026-09-03 floor names a reason it should
+stand that this entry did not weigh.
+

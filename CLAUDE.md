@@ -108,10 +108,24 @@ strategy decision → `docs/decisions.md` · reflex → `.claude/hooks/` or the 
 
 ## STANDING INSTRUCTIONS
 
-**Empty on purpose.** Nothing has yet been ignored twice at a cost. The one thing this repo has
-learned the hard way is a reflex, so it went to a hook rather than to this list. An empty section
-here is the correct state for a repo four hours old, and filling it early is the failure this
-protocol was rewritten to prevent.
+**One entry, 2026-09-09, stated twice and therefore encoded.** Aurik, 2026-09-08 and again
+2026-09-09: *"Fable must play the boss role and all other agents must submit to it... distribute
+tasks to lower credit consuming agents like opus, sonnet and haiku."*
+
+**The boss and the lanes.** The top model in the session (Fable) is the boss. It reads the tree,
+does the research, writes the plan, cuts it into lanes, reviews every diff, verifies at the
+consumer, commits with named paths, and is the ONLY writer of `NOW.md`, `DEFECTS.md`,
+`docs/decisions.md`, `SCOREBOARD.md`, `QUEUE.md` and this file. It never delegates a merge, a
+status file, or the choice of what is next. Lanes are the cheapest model that can do the job:
+Opus for anything touching money, the verdict, or more than one package; Sonnet for a contained
+single-package fix, its tests, fixtures, and exploration; Haiku for text edits, counts, lookups.
+Every lane prompt carries the contract: one package, no status files, no `git add`/commit/push,
+no network unless named, no server left running (kill by PID), tests plus typecheck in its
+package, report files changed / before-after counts / what it could not verify. A lane report is
+producer evidence; the row moves only after the boss checks at the consumer (`/api/...` on the
+running server, the CLI against the real database, a real photo through the real route). Lanes
+run in parallel only on disjoint files; re-check `origin/main` before every commit. Push needs
+Aurik's explicit yes, every time.
 
 ## REPO MAP
 
