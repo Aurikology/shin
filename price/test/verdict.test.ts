@@ -122,7 +122,9 @@ test('nothing at all is the only case with no verdict', () => {
   assert.match(v.withheldBecause ?? '', /no price from any seller/);
 });
 
-test('the age shown is the oldest contributing number, in words', () => {
+test('the age shown is the newest contributing number, in words', () => {
+  // D-061. The sentence beside the confidence says "the newest price is over
+  // three weeks old", so the date behind it has to be the newest one.
   const v = judge({
     shelfCents: 500,
     observations: [
@@ -131,8 +133,75 @@ test('the age shown is the oldest contributing number, in words', () => {
     ],
     now: NOW,
   });
-  assert.equal(v.oldestObservedAt, '2026-08-28');
-  assert.equal(v.ageInWords, 'seen last week');
+  assert.equal(v.newestObservedAt, '2026-09-04');
+  assert.equal(v.ageInWords, 'seen today');
+});
+
+test('D-061: stale reads the freshest evidence, not the oldest', () => {
+  // One number is a month old and one is two days old. The freshest evidence is
+  // fresh, so nothing here is stale and nothing is penalised for age.
+  const mixed = judge({
+    shelfCents: 500,
+    observations: [
+      o('A', 480, { observedAt: '2026-08-05' }),
+      o('B', 700, { observedAt: '2026-09-02' }),
+    ],
+    now: NOW,
+  });
+  assert.equal(mixed.newestObservedAt, '2026-09-02');
+  assert.ok(
+    !mixed.confidenceBasis.includes('the newest price is over three weeks old'),
+    `a two day old price is not stale, got ${JSON.stringify(mixed.confidenceBasis)}`,
+  );
+
+  // Move the fresh one back past the threshold and the same set is stale.
+  const allOld = judge({
+    shelfCents: 500,
+    observations: [
+      o('A', 480, { observedAt: '2026-08-05' }),
+      o('B', 700, { observedAt: '2026-08-06' }),
+    ],
+    now: NOW,
+  });
+  assert.equal(allOld.newestObservedAt, '2026-08-06');
+  assert.ok(allOld.confidenceBasis.includes('the newest price is over three weeks old'));
+  assert.ok(allOld.confidence < mixed.confidence, 'age must cost confidence');
+});
+
+test('D-061: a 12-pack priced per each is not multiplied by a hundred', () => {
+  const v = judge({
+    shelfCents: 599,
+    observations: [o('A', 549), o('B', 699)],
+    sizeValue: 12,
+    sizeUnit: 'ea',
+    now: NOW,
+  });
+  // $5.99 over twelve items is 49.9 cents each, not the $49.92 this printed.
+  assert.equal(Math.round((v.regular?.unitCents ?? 0) * 100) / 100, 49.92);
+  assert.equal(v.regular?.unitLabel, 'each');
+  assert.match(v.line, /\$0\.50 per each/);
+  assert.ok(!v.line.includes('$49.92'), v.line);
+});
+
+test('D-061: every size unit the contract allows matches its own label', () => {
+  const per = (sizeValue: number, sizeUnit: string) => {
+    const v = judge({
+      shelfCents: 800,
+      observations: [o('A', 700), o('B', 1100)],
+      sizeValue,
+      sizeUnit,
+      now: NOW,
+    });
+    return [v.regular?.unitCents, v.regular?.unitLabel];
+  };
+  // $8.00 for 500 g, 500 ml, 0.5 kg and 0.5 l are all the same price per 100.
+  assert.deepEqual(per(500, 'g'), [160, '100 g']);
+  assert.deepEqual(per(500, 'ml'), [160, '100 ml']);
+  assert.deepEqual(per(0.5, 'kg'), [160, '100 g']);
+  assert.deepEqual(per(0.5, 'l'), [160, '100 ml']);
+  assert.deepEqual(per(4, 'ea'), [200, 'each']);
+  // An unknown unit falls through to grams, which is what the feeds send.
+  assert.deepEqual(per(500, 'grams'), [160, '100 g']);
 });
 
 test('an old number is described as old rather than dated', () => {

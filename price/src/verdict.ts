@@ -33,9 +33,14 @@
  * Regular and promotional never mix (33). A sale price averaged into a regular
  * range makes the regular range look cheaper than it will be next week.
  *
- * The age of the oldest contributing number is on screen (34). Not in a
- * tooltip, not "recently". Grocery prices move weekly and a four week old
- * number is a different claim from a yesterday one.
+ * The age of the contributing evidence is on screen (34). Not in a tooltip, not
+ * "recently". Grocery prices move weekly and a four week old number is a
+ * different claim from a yesterday one. The number shown, and the number
+ * staleness is judged on, is the NEWEST contributing observation: a verdict is
+ * only stale when even its freshest evidence is old, and the sentence a shopper
+ * reads has always said "the newest price is over three weeks old". D-061: this
+ * used to measure the oldest number while printing that sentence, so one fresh
+ * price beside an old one was reported as stale and penalised for it.
  */
 
 export type PriceKind = 'regular' | 'promotional';
@@ -94,9 +99,12 @@ export interface Verdict {
   /** Decision 33: at most one of each, never merged. */
   readonly regular: Band | null;
   readonly promotional: Band | null;
-  /** ISO date of the oldest number contributing to anything above. */
-  readonly oldestObservedAt: string | null;
-  /** Decision 34, already in words: "seen 3 days ago". */
+  /**
+   * ISO date of the NEWEST number contributing to anything above, which is the
+   * date staleness and `ageInWords` are both taken from. D-061.
+   */
+  readonly newestObservedAt: string | null;
+  /** Decision 34, already in words: "seen 3 days ago". The newest number's age. */
   readonly ageInWords: string | null;
   /** The one sentence to show. Written here so no screen can improvise one. */
   readonly line: string;
@@ -152,10 +160,34 @@ export function money(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+/**
+ * The unit price, with the arithmetic matched to the label it prints.
+ *
+ * D-061. The old body ran `(cents / sizeValue) * 100` for every unit and then
+ * chose a label, which is right only when the size is already in the base unit
+ * the label names. A 12-pack at $5.99 printed "$49.92 per each", a hundred
+ * times the true 49.9 cents, and a 2 kg bag priced per 100 g came out a
+ * thousand times over. The multiplier now belongs to the unit, not to the
+ * function: `ea` is per one, kilograms and litres are converted to their base
+ * unit first, and anything unrecognised is treated as grams, which is what the
+ * old fallthrough did and what the feeds actually send.
+ */
+const UNIT_SCALE: Record<string, { per: number; label: string }> = {
+  // Per one item: no scaling at all.
+  ea: { per: 1, label: 'each' },
+  g: { per: 100, label: '100 g' },
+  ml: { per: 100, label: '100 ml' },
+  // A size given in kilograms or litres is 1000 base units, so per 100 base
+  // units is the price divided by ten times the number on the pack.
+  kg: { per: 0.1, label: '100 g' },
+  l: { per: 0.1, label: '100 ml' },
+};
+
 function unitOf(cents: number, sizeValue: number, sizeUnit: string) {
+  const scale = UNIT_SCALE[sizeUnit.trim().toLowerCase()] ?? UNIT_SCALE.g;
   return {
-    unitCents: (cents / sizeValue) * 100,
-    unitLabel: sizeUnit === 'ml' ? '100 ml' : sizeUnit === 'ea' ? 'each' : '100 g',
+    unitCents: (cents / sizeValue) * scale.per,
+    unitLabel: scale.label,
   };
 }
 
@@ -232,10 +264,13 @@ export function judge(input: VerdictInput): Verdict {
   const contributing = usable.filter(
     (o) => (regular && o.kind === 'regular') || (promotional && o.kind === 'promotional'),
   );
-  const oldest =
+  // D-061. The freshest contributing number, not the oldest: the confidence
+  // sentence this feeds says "the newest price is over three weeks old", so
+  // that is the number it has to be measuring.
+  const newest =
     contributing.length === 0
       ? null
-      : contributing.reduce((a, b) => (a.observedAt <= b.observedAt ? a : b)).observedAt;
+      : contributing.reduce((a, b) => (a.observedAt >= b.observedAt ? a : b)).observedAt;
 
   // Regular prices are the yardstick when they exist. When they do not, sale
   // prices are used rather than nothing, at a confidence penalty, because "a
@@ -253,8 +288,8 @@ export function judge(input: VerdictInput): Verdict {
       confidenceBasis: ['nobody we read is selling this'],
       regular,
       promotional,
-      oldestObservedAt: oldest,
-      ageInWords: oldest ? ageInWords(oldest, now) : null,
+      newestObservedAt: newest,
+      ageInWords: newest ? ageInWords(newest, now) : null,
       line: 'Nobody we can see is selling this right now.',
       withheldBecause: 'no price from any seller we read',
     };
@@ -267,8 +302,8 @@ export function judge(input: VerdictInput): Verdict {
       confidenceBasis: ['no price to judge'],
       regular,
       promotional,
-      oldestObservedAt: oldest,
-      ageInWords: oldest ? ageInWords(oldest, now) : null,
+      newestObservedAt: newest,
+      ageInWords: newest ? ageInWords(newest, now) : null,
       line:
         basis.cheapestCents === basis.dearestCents
           ? `${basis.cheapestSeller} has this at ${money(basis.cheapestCents)}.`
@@ -299,7 +334,7 @@ export function judge(input: VerdictInput): Verdict {
     tier = pos <= GOOD_BELOW ? 'good' : pos >= HIGH_ABOVE ? 'high' : 'fair';
   }
 
-  const stale = oldest !== null && daysBetween(oldest, now) >= STALE_DAYS;
+  const stale = newest !== null && daysBetween(newest, now) >= STALE_DAYS;
   const anyLikely = contributing.some((o) => o.joinQuality === 'likely');
   const conf = confidenceOf(basis.sellerCount, stale, judgedOnPromoOnly, anyLikely);
 
@@ -345,8 +380,8 @@ export function judge(input: VerdictInput): Verdict {
     confidenceBasis: conf.basis,
     regular,
     promotional,
-    oldestObservedAt: oldest,
-    ageInWords: oldest ? ageInWords(oldest, now) : null,
+    newestObservedAt: newest,
+    ageInWords: newest ? ageInWords(newest, now) : null,
     line: `${head} ${compare}${unitPart}${promoPart}`,
     withheldBecause: null,
   };
