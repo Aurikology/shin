@@ -15,6 +15,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openCatalogue, rebuildFts, rebuildCategories, toVecBlob, EMBED_DIM } from '../src/schema.ts';
+import { openGapLog } from '../src/gaps.ts';
+import { mkdtempSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { Catalogue, labelForTag } from '../src/search.ts';
 import type { Embedder } from '../src/embed.ts';
 
@@ -209,13 +213,48 @@ test('a non-Canadian product stays reachable rather than being filtered away', a
   assert.ok(r.candidates.some((c) => c.code === '1000000000005'), 'decision 28 violated');
 });
 
-test('a miss is recorded as a gap rather than thrown away', async () => {
+test('a miss is recorded as a gap, and the record is read back rather than assumed', async () => {
+  /*
+   * This test used to construct the catalogue, run a search, and assert that
+   * the catalogue object existed. It was green while proving nothing about the
+   * gap it is named for. The gap table is the record; reading it back is the
+   * only proof it was kept.
+   */
+  const log = openGapLog(join(mkdtempSync(join(tmpdir(), 'shin-gap-')), 'gaps.db'));
   const cat = await fixture();
   await cat.search({ text: 'zzzz nonexistent product qqqq' });
-  // The gap table is the record; reading it back is the only proof it was kept.
-  const db = (cat as unknown as { [k: symbol]: unknown });
-  assert.ok(db, 'catalogue constructed');
+  const rows = log.db!.prepare('SELECT query_text, gtin FROM gap').all() as { query_text: string | null; gtin: string | null }[];
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].query_text, 'zzzz nonexistent product qqqq');
 });
+
+test('a barcode we have never seen is a gap even when the words resolve', async () => {
+  /*
+   * The camera reads a code and the label gives words. When the words resolved
+   * to something plausible the search banded `ambiguous`, nothing was written,
+   * and the single most actionable miss the log can hold -- a real product with
+   * a real code that is not in the catalogue -- went unlogged. `what-to-price`
+   * reads this log.
+   */
+  const log = openGapLog(join(mkdtempSync(join(tmpdir(), 'shin-gap-')), 'gaps.db'));
+  const db = openCatalogue(':memory:');
+  db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .run('9000000000002', 'Navel Oranges', 'Navel Oranges', null, null, null, null, null, '[]', null, '[]', 1, 'test');
+  rebuildFts(db);
+  rebuildCategories(db);
+  const cat = new Catalogue(db, new HashEmbedder());
+
+  const out = await cat.search({ gtin: '9999999999990', text: 'navel oranges' });
+  assert.ok(out.candidates.length > 0, 'the words should still resolve; that is the case under test');
+
+  const gaps = log.db!.prepare('SELECT gtin FROM gap WHERE gtin IS NOT NULL').all() as { gtin: string }[];
+  assert.equal(gaps.length, 1, 'the unseen barcode was not recorded because the text arm answered');
+  assert.equal(gaps[0].gtin, '9999999999990');
+});
+  // The gap table is the record; reading it back is the only proof it was kept.
 
 test('the ring comes from the best candidate that has a category, not only the leader', async () => {
   // Duplicate listings of the same product are everywhere in the catalogue and

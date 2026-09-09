@@ -27,6 +27,7 @@
  */
 
 import type { DatabaseSync } from 'node:sqlite';
+import { MAX_RING_TAG } from './search.ts';
 import type { Candidate } from './search.ts';
 
 export interface PricedProduct {
@@ -330,6 +331,26 @@ export async function alternativesFor(
   // WHERE pc.tag = ?2 probe below silently matches less than it should
   // whenever the original product's own path carries any stray capital.
   const tag = path[path.length - 1].toLowerCase();
+  /*
+   * THE SAME CAP THE RING OBEYS, WHICH THIS PATH SKIPPED. `search.ts` refuses
+   * to draw a neighbour ring from a tag over MAX_RING_TAG members, and says
+   * why: a tag that big is not a kind of thing, it is a shelf of the whole
+   * shop. The alternatives query read `product_category` directly and never
+   * asked. That is the mechanism under D-036 -- the one populated result the
+   * store could produce offered ginger oat cookies as a cheaper swap for
+   * tortilla chips, both `en:whole-grains`, a tag broad enough to pair
+   * anything with anything. The word "cheaper" implies "instead of this",
+   * and over a shelf-sized tag it lies.
+   *
+   * Counted the way the ring counts, capped at MAX_RING_TAG + 1 so a huge tag
+   * costs a bounded scan rather than a true count. An empty list is the
+   * answer, not a narrower tag: walking inward is a product decision about
+   * what counts as a substitute, and it is still the founder's (D-036).
+   */
+  const members = db
+    .prepare(`SELECT count(*) AS n FROM (SELECT 1 FROM product_category WHERE tag = ? LIMIT ${MAX_RING_TAG + 1})`)
+    .get(tag) as { n: number };
+  if (members.n > MAX_RING_TAG) return [];
 
   const sized = original.sizeValue !== null && original.sizeUnit !== null;
   const minSize = sized ? original.sizeValue! / SIZE_RATIO : 0;

@@ -39,7 +39,7 @@
  * present an inferred category as a declared one.
  */
 
-import { openCatalogue, rebuildCategories, EMBED_DIM } from './schema.ts';
+import { openCatalogue, rebuildCategories, rebuildFts, EMBED_DIM } from './schema.ts';
 
 const DB_PATH = process.env.SHIN_CATALOGUE ?? 'data/catalogue.db';
 
@@ -376,6 +376,19 @@ async function main(): Promise<number> {
   }
 
   process.stdout.write('rebuilding category index...              \r');
+  /*
+   * BOTH INDEXES, NOT ONE. The UPDATE above rewrites `leaf_category`, which is
+   * one of the four columns in `product_fts`, and FTS5 external-content
+   * tables do not follow the base table on their own: the index is a separate
+   * copy of the terms, and this DDL declares no triggers. `load.ts` rebuilds
+   * both after it writes; this script rebuilt only the category index, so the
+   * text index kept scoring the pre-backfill leaf terms for the rest of the
+   * file's life, and a search for a category word could not reach any row
+   * whose category this script had just inferred -- 73% of the Canadian rows.
+   * `schema.ts`'s claim that "an update cannot desynchronise the two" was
+   * true of neither.
+   */
+  rebuildFts(db);
   rebuildCategories(db);
 
   const declared = db

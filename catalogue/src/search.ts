@@ -614,6 +614,19 @@ export class Catalogue {
     if (query.gtin) {
       const hit = this.byGtin(query.gtin);
       if (hit) return { band: 'confident', candidates: [hit], ring: null, matchedBy: 'gtin', wordsMatched: 'n/a' };
+      /*
+       * A BARCODE WE HAVE NEVER SEEN IS A GAP WHATEVER THE WORDS DO NEXT.
+       *
+       * Until 2026-09-09 the gap was recorded only when the whole search
+       * missed. When a barcode arrived with text -- the camera read a code and
+       * the label gave words -- and the words resolved to something plausible,
+       * the search banded `ambiguous`, nothing was written, and the single
+       * most actionable miss the log can hold went unlogged: a real product,
+       * a real code, not in the catalogue. `what-to-price` reads this log.
+       * Keyed on the gtin alone, so the text arm's own miss, if it comes, is
+       * recorded separately rather than merged with it.
+       */
+      this.#recordGap({ gtin: query.gtin });
     }
 
     const text = query.text?.trim();

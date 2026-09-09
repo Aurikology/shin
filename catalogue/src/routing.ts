@@ -404,12 +404,26 @@ export async function restrictedSearch(
     };
   }
 
-  // `band` and `ring` are inherited from the unrestricted pool: `#band` and
-  // the ring walk are private to `Catalogue` and cannot be recomputed here
-  // against just the filtered set. Disclosed, not hidden: on a restricted
-  // result, `band`/`ring` describe the full retrieval's top candidate, which
-  // may not be the same row as `candidates[0]` when the true leader fell
-  // outside the route and got filtered out.
-  const restricted: SearchResult = { ...pooled, candidates: filtered };
+  /*
+   * `band` is inherited from the unrestricted pool and disclosed as such: it
+   * describes the full retrieval's leader, which may not be `candidates[0]`
+   * once the route has filtered. Callers that report a band already downgrade
+   * it on a restricted result.
+   *
+   * `ring` IS NOT INHERITED, as of 2026-09-09. It used to be, under the same
+   * disclosure, and the disclosure did not reach the screen: the ring is the
+   * field a "not this?" list renders as a heading, and it was drawn at the
+   * pool leader's category. A grocery-routed "mixer" whose pool leader was an
+   * icecat stand mixer filtered every icecat row away and then showed drink
+   * mixers under an appliance heading. `/api/identify` compensated for `band`;
+   * nothing compensated for `ring`.
+   *
+   * Nulled rather than recomputed, because this function takes a duck-typed
+   * catalogue -- in the app it is the worker service, which exposes `search`
+   * and nothing else -- so `Catalogue.ring` is not reliably reachable from
+   * here. A missing ring is a screen with no neighbour heading; a wrong ring
+   * is a heading that lies.
+   */
+  const restricted: SearchResult = { ...pooled, candidates: filtered, ring: null };
   return { result: restricted, restricted: true, fellBack: false, confidenceAdjustment: RESTRICTED_CONFIDENCE_PENALTY };
 }

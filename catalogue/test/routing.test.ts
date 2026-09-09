@@ -405,3 +405,56 @@ test('a one-word query is never treated as a partial match', async () => {
   assert.equal(out.restricted, true, 'a one-word grocery query still gets a restricted answer');
   assert.equal(out.result.candidates[0]?.source, 'openfoodfacts');
 });
+
+test('a restricted result carries no ring, because the pool ring was drawn at the wrong row', async () => {
+  /*
+   * The ring is the field a "not this?" list renders as its heading, and it was
+   * inherited from the unrestricted pool -- drawn at the POOL leader's category,
+   * which the route may have just filtered away. `band` gets a downgrade at the
+   * callers; nothing compensated for `ring`, and this function cannot recompute
+   * it against a duck-typed catalogue. Null is a screen with no neighbour
+   * heading; the inherited value was a heading that lied.
+   *
+   * THE ROUTE HAS TO BE ONE STAGE 1 CANNOT NARROW BY SOURCE. A grocery route
+   * narrows the QUERY to openfoodfacts, so the pool is already grocery-only and
+   * its ring is honestly null -- two earlier versions of this test used grocery
+   * and passed with the defect restored. Produce and furniture live inside other
+   * sources and are filtered by tag over a whole-catalogue pool, which is where
+   * the pool leader and the kept rows can disagree.
+   */
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  // Two chargers under one leaf, so the pool leader has a sibling and a ring is
+  // drawn at `en:chargers`; one produce row the route will keep.
+  insert.run('2200000000001', 'Apple MagSafe Charger', 'Apple MagSafe Charger', null, 'Apple', '1 ea', null, null,
+    '["en:computers-peripherals","en:chargers"]', 'en:chargers', '[]', 1, 'icecat');
+  insert.run('2200000000002', 'Apple USB-C Charger 20 W', 'Apple USB-C Charger 20 W', null, 'Apple', '1 ea', null, null,
+    '["en:computers-peripherals","en:chargers"]', 'en:chargers', '[]', 1, 'icecat');
+  insert.run('2200000000003', 'Fresh Apples 1 kg', 'Fresh Apples 1 kg', null, null, '1 kg', 1000, 'g',
+    '["en:fruits","en:fresh-apples"]', 'en:fresh-apples', '[]', 1, 'openfoodfacts');
+  rebuildFts(db);
+  rebuildCategories(db);
+  const embedder = new HashEmbedder();
+  const all = db.prepare('SELECT rowid, name, brands FROM product').all() as unknown as { rowid: number; name: string; brands: string | null }[];
+  const vecs = await embedder.embedPassages(all.map((r) => `${r.brands ?? ''} ${r.name}`));
+  const iv = db.prepare('INSERT INTO product_vec(rowid, embedding) VALUES (?, ?)');
+  all.forEach((r, i) => iv.run(BigInt(r.rowid), toVecBlob(vecs[i])));
+  const cat = new Catalogue(db, embedder);
+
+  // Precondition: the whole-catalogue search draws a ring. If this fails the
+  // fixture no longer produces one and the assertions below prove nothing.
+  const wide = await restrictedSearch(cat, { text: 'apple', limit: 5 }, decideRoute({}));
+  assert.equal(wide.restricted, false);
+  assert.notEqual(wide.result.ring, null, 'the unrestricted search drew no ring, so this fixture cannot test inheritance');
+
+  // Routed to produce: stage 1 cannot narrow by source, so the pool is the
+  // whole catalogue with a charger on top; stage 2 keeps only the apples. The
+  // ring drawn at the chargers' tag must not survive onto them.
+  const routed = await restrictedSearch(cat, { text: 'apple', limit: 5 }, decideRoute({ setupAnswer: 'produce' }));
+  assert.equal(routed.restricted, true, 'the produce route did not narrow; the fixture needs a produce row matching "apple"');
+  assert.ok(routed.result.candidates.every((c) => c.code === '2200000000003'));
+  assert.equal(routed.result.ring, null);
+});

@@ -11,6 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openCatalogue, rebuildFts, rebuildCategories } from '../src/schema.ts';
+import { MAX_RING_TAG } from '../src/search.ts';
 import { alternativesFor, alternativesHeading, type PricedProduct } from '../src/alternatives.ts';
 import type { Candidate } from '../src/search.ts';
 
@@ -398,4 +399,47 @@ test('the heading names the category the swap came from', async () => {
   // disappear, because this function is not told it is the second word here.
   assert.equal(alternativesHeading(original, 2), 'Cheaper Peanut butters');
   assert.equal(alternativesHeading(original, 0), 'No cheaper option we can price');
+});
+
+test('a tag as wide as a whole shelf offers no alternatives at all', async () => {
+  /*
+   * D-036's mechanism. `search.ts` refuses to draw a ring from a tag over
+   * MAX_RING_TAG members -- a tag that big is not a kind of thing -- and the
+   * alternatives query read `product_category` directly without asking. The one
+   * populated result the store could produce offered ginger oat cookies as a
+   * cheaper swap for tortilla chips, both `en:whole-grains`. Over a shelf-sized
+   * tag, "cheaper" lies about "instead of this".
+   */
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  const SHELF = ['en:groceries', 'en:whole-grains'];
+  for (let i = 0; i <= MAX_RING_TAG; i++) {
+    insert.run(`S${i}`, `Shelf item ${i} 500 g`, `Shelf item ${i} 500 g`, null, null, null, 500, 'g',
+      JSON.stringify(SHELF), 'en:whole-grains', '[]', 1, 'test');
+  }
+  const NARROW = ['en:groceries', 'en:tortilla-chips'];
+  for (const code of ['T1', 'T2', 'T3']) {
+    insert.run(code, `Tortilla ${code} 300 g`, `Tortilla ${code} 300 g`, null, null, null, 300, 'g',
+      JSON.stringify(NARROW), 'en:tortilla-chips', '[]', 1, 'test');
+  }
+  rebuildFts(db);
+  rebuildCategories(db);
+  const row = (code: string) =>
+    db.prepare('SELECT * FROM product WHERE code = ?').get(code) as Record<string, unknown>;
+  const asOriginal = (r: Record<string, unknown>) => ({
+    code: String(r.code), name: String(r.name), brands: null, quantity: null,
+    sizeValue: r.size_value as number | null, sizeUnit: r.size_unit as string | null,
+    categoryPath: JSON.parse(String(r.category_path)) as string[],
+    leafCategory: r.leaf_category as string | null, allergens: [] as string[],
+    soldInCanada: true, source: 'test',
+  });
+
+  const wide = await alternativesFor(db, asOriginal(row('S0')) as never, 800, lookupOf({ S1: 300, S2: 300 }));
+  assert.deepEqual(wide, [], 'a shelf-sized tag produced alternatives');
+
+  const narrow = await alternativesFor(db, asOriginal(row('T1')) as never, 800, lookupOf({ T2: 300 }));
+  assert.ok(narrow.length > 0, 'a genuinely narrow tag stopped producing alternatives');
 });
