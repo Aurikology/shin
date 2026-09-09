@@ -551,6 +551,17 @@ function verdictSheet(v, scenario, thumb, acked = false) {
           <summary>Why</summary>
           ${disagreeRest ? `<p class="detail">${disagreeRest}</p>` : ''}
           <p class="detail">${escapeHtml(v.confidence.because)}</p>
+          ${/* D-013. `evidenceNote` is declared on Refusal and nothing declares
+                it on Verdict today, so this branch is dark on every payload the
+                engine currently produces. It is here because the field is
+                research prose about a doubted identity, and the same doubt can
+                survive into an answer: the day a verdict carries one, the
+                evidence lands behind the same disclosure the refusal puts it
+                behind rather than reaching nobody, which is exactly the state
+                D-013 logged. Escaped, and absent when absent. */ ''}
+          ${v.evidenceNote
+            ? `<p class="detail">${escapeHtml(v.evidenceNote)}</p>`
+            : ''}
         </details>
         <div class="actions">
           <button type="button" class="pill ghost" data-act="correct">Correct it</button>
@@ -595,14 +606,26 @@ function verdictSheet(v, scenario, thumb, acked = false) {
  * answering four different filter conditions with one code (D-012). Missing one
  * here is not cosmetic: an unlisted reason falls through to the refuse_unknown
  * title, so a Tide refusal with thirteen prices behind it would tell the shopper
- * Shin could not identify the product. Three codes stopped being emitted 2026-09-08
- * when the thin-verdict path landed.
+ * Shin could not identify the product.
+ *
+ * The last three stopped being EMITTED on 2026-09-08, when the thin-verdict
+ * path started answering those shortfalls instead of refusing on them. They
+ * stay listed, and this is the whole of D-011's app half: they are still
+ * members of the engine's closed `RefusalReason` union, and a refusal is a
+ * stored record as well as a live answer -- a scan taken before that date and
+ * reopened from Past scans hands one of these three straight back to this
+ * function. Dropping them because nothing produces them today would put the
+ * refuse_unknown title, "could not identify it", over thirteen prices the
+ * sheet is about to list underneath it.
  */
 const THIN_REASONS = new Set([
   'too_few_points',
   'no_source_response',
   'comparison_incoherent',
   'points_future_dated',
+  'unusable_price_kinds',
+  'points_too_stale',
+  'all_points_from_asking_seller',
 ]);
 
 function isThinReason(reason) {
@@ -1151,6 +1174,14 @@ export { verdictSheet, refusalSheet, pricePadSheet, goingRateCard, workingSheet,
    the one rule it has of its own -- an empty list says so in a sentence rather
    than drawing an empty box -- is only true if something asserts it. */
 export { searchCandidateSheet };
+
+/* Exported 2026-09-09 for `app/test/refusal-voice.test.mjs`, D-011's app half.
+   The list it reads is the seam between this file and the engine's closed
+   RefusalReason union, and a seam nothing asserts is how the last three codes
+   went missing from it. The check reads the union out of spine's contract, so
+   the next code added there fails here rather than shipping as
+   "could not identify it" over a screen full of prices. */
+export { isThinReason };
 
 /*
  * Exported for the correction screen (correct.js), which had its own copy of

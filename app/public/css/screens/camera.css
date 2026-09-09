@@ -907,9 +907,25 @@
    other secondary line here: 4.57 on walk.
    This fixes the contrast, not the question of whether the label should ship
    at all -- that is FLAGS.placeholderLabels and AVATAR.md section 6, and it is
-   an art-handoff decision rather than a styling one. */
+   an art-handoff decision rather than a styling one.
+
+   D-010, third measurement, closed 2026-09-09. This rule used to name
+   --tier-on, which is only the sheet's ink on the two SOLID confidence states.
+   The load-bearing block at the bottom of this file repaints the sheet on the
+   other two: a thin verdict is --tier-bright on a 14% tint, a refusal is
+   --unknown-bright on a 12% tint, and both tints are pale in light theme. So a
+   rule naming --tier-on painted #FFFFFF on #ecd7ce for a thin walk away and
+   #F7F5F2 on #e1e0dd for a refusal: 1.33 and 1.18, the state word effectively
+   invisible, which is the 1.19 the row measured off the running browser.
+   `inherit` is the fix and it is one word rather than four cases, because the
+   sheet already computes its own ink per confidence state and the label's
+   whole job is to belong to the surface it sits on. Measured after, at the .88
+   below: 4.57 solid walk (both themes), 5.15 / 4.54 thin walk dark / light,
+   5.50 / 4.54 refusal dark / light. The floor for text under 24px is 4.5.
+   Locked by test/tokens.test.mjs, which computes all six rather than trusting
+   these numbers. */
 .sheet .face-label {
-  color: var(--tier-on, var(--ink));
+  color: inherit;
   opacity: .88;
 }
 

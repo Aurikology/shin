@@ -361,3 +361,88 @@ test('the pad buffer reads back as cents, or as nothing at all', () => {
   assert.equal(parsePadPrice('4.99'), 499);
   assert.equal(parsePadPrice('0.05'), 5);
 });
+
+/* ---------------------------------------------------- the evidence note, D-013 */
+
+/**
+ * D-013's app half. The Canon refusal's 450 characters of research prose --
+ * what a free search actually returned, that the eBay sold listings were in US
+ * dollars, what new Canadian retail was -- used to be concatenated into
+ * `detail` and printed whole to a shopper in an aisle. The engine moved it onto
+ * its own `evidenceNote` field on 2026-09-07, and for two days nothing in this
+ * app read that field, so the evidence reached nobody at all.
+ *
+ * It is evidence, not copy: it belongs behind the same native disclosure the
+ * category refusal already puts its own remainder behind, and nowhere near the
+ * headline sentence. Three things are asserted here and each one is a way this
+ * has already gone wrong somewhere in this repo: it renders when present, it
+ * renders NOTHING when absent (an empty `<details>` is a control that opens on
+ * nothing), and it is escaped, because it is prose from a source and this file
+ * writes its result into `innerHTML`.
+ */
+const NOTE = 'Free search returned three listings, two of them eBay sold prices in US dollars, '
+  + 'and new Canadian retail on the manufacturer page sits well above all of them.';
+
+test('a refusal carrying an evidence note puts it behind the disclosure, never in the headline', () => {
+  const html = refusalSheet({ ...refusal('identity_unsure'), evidenceNote: NOTE }, scenario, []);
+  assert.ok(html.includes(NOTE), 'the evidence note did not render at all');
+  const inWhy = /<details class="why">[\s\S]*?<\/details>/.exec(html);
+  assert.ok(inWhy, 'the refusal drew no disclosure to put the note in');
+  assert.ok(inWhy[0].includes(NOTE), 'the evidence note rendered outside the disclosure');
+  // The headline is the peek's own detail line. The note must not be in it.
+  const head = html.slice(0, html.indexOf('<div class="sheet-half">'));
+  assert.ok(!head.includes(NOTE), 'the evidence note reached the peek, which is D-013 exactly');
+});
+
+test('a refusal with no evidence note draws no disclosure to open on nothing', () => {
+  for (const value of [undefined, '', null]) {
+    const r = { ...refusal('identity_unsure') };
+    if (value !== undefined) r.evidenceNote = value;
+    const html = refusalSheet(r, scenario, []);
+    const half = html.slice(html.indexOf('<div class="sheet-half">'));
+    assert.ok(
+      !half.includes('<details'),
+      `evidenceNote ${JSON.stringify(value)} still drew a disclosure in the half detent`,
+    );
+  }
+});
+
+test('an evidence note is escaped, like everything else these sheets write', () => {
+  const hostile = 'Sold <img src=x onerror="alert(1)"> for "cheap" & less';
+  const html = refusalSheet({ ...refusal('identity_unsure'), evidenceNote: hostile }, scenario, []);
+  assert.ok(!html.includes('<img src=x'), 'raw markup from the evidence note reached the sheet');
+  assert.ok(html.includes('&lt;img src=x'), 'the evidence note was not escaped');
+});
+
+/**
+ * The verdict card, checked for the same field.
+ *
+ * `evidenceNote` is declared on `Refusal` and not on `Verdict` today, so this
+ * branch is dark on every payload the engine currently produces. It is
+ * asserted anyway, and that is the point: D-013 was a field the engine added
+ * and the app never read, and the whole cost of it was that nobody noticed for
+ * two days. The doubt this field records can survive into an answer, and the
+ * day it does, the note lands behind the verdict's own "Why" rather than
+ * reaching nobody again.
+ */
+test('a verdict carrying an evidence note renders it behind its own Why', () => {
+  const html = verdictSheet({ ...verdict('low'), evidenceNote: NOTE }, scenario, null);
+  const why = /<details class="why">[\s\S]*?<\/details>/.exec(html);
+  assert.ok(why, 'the verdict drew no disclosure');
+  assert.ok(why[0].includes(NOTE), 'the evidence note is not behind the verdict disclosure');
+  const peek = html.slice(0, html.indexOf('<div class="sheet-half">'));
+  assert.ok(!peek.includes(NOTE), 'the evidence note reached the verdict peek');
+});
+
+test('a verdict with no evidence note prints nothing for it', () => {
+  const html = verdictSheet(verdict('high'), scenario, null);
+  assert.ok(!html.includes('undefined'), 'an absent evidence note printed as undefined');
+  assert.ok(!html.includes('null'), 'an absent evidence note printed as null');
+});
+
+test('a verdict evidence note is escaped', () => {
+  const hostile = '<script>alert(1)</script> & "quoted"';
+  const html = verdictSheet({ ...verdict('high'), evidenceNote: hostile }, scenario, null);
+  assert.ok(!html.includes('<script>'), 'raw markup from the verdict evidence note reached the sheet');
+  assert.ok(html.includes('&lt;script&gt;'), 'the verdict evidence note was not escaped');
+});

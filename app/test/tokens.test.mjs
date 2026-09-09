@@ -237,6 +237,60 @@ test('no text on the verdict field is faded below what its tier can carry', () =
 });
 
 /**
+ * The state word under the face, on all four sheet fills. D-010, third
+ * measurement.
+ *
+ * `.sheet .face-label` used to name `--tier-on`, which is the sheet's ink on
+ * the two SOLID confidence states and on neither of the other two: a thin
+ * verdict repaints itself `--tier-bright` on a 14% tint and a refusal
+ * `--unknown-bright` on a 12% tint, and both tints are pale in light theme. So
+ * the rule painted white on cream and the label was effectively invisible --
+ * 1.19:1 off the running browser.
+ *
+ * This models the four fills the load-bearing block in camera.css actually
+ * paints, at the opacity that rule actually asks for, both read out of the
+ * stylesheet rather than written down here. The rule the test is really
+ * holding is one line: the label inherits the sheet's own ink. Naming any
+ * single token there is wrong on at least one of the four by construction.
+ */
+test('the state word under the face carries 4.5 on every fill a sheet can wear', () => {
+  const cameraCss = readFileSync(
+    fileURLToPath(new URL('../public/css/screens/camera.css', import.meta.url)), 'utf8',
+  ).replace(/\r\n/g, '\n');
+
+  const rule = /\.sheet \.face-label\s*\{([^}]*)\}/.exec(cameraCss);
+  assert.ok(rule, 'camera.css no longer gives the sheet its own .face-label rule');
+  const colour = /color:\s*([^;]+);/.exec(rule[1]);
+  assert.ok(colour, '.sheet .face-label sets no colour, so shell.css\'s page ink wins on a field');
+  assert.match(
+    colour[1].trim(),
+    /^(inherit|currentColor)$/,
+    `.sheet .face-label names "${colour[1].trim()}" instead of inheriting the sheet's own ink; `
+      + 'no single token is right on all four fills',
+  );
+  const op = /opacity:\s*([\d.]+)/.exec(rule[1]);
+  const alpha = op ? parseFloat(op[1]) : 1;
+
+  // The four fills, exactly as the [data-conf] block at the bottom of
+  // camera.css paints them, with the ink each one sets alongside it.
+  for (const [name, T] of THEMES) {
+    for (const tier of TIERS) {
+      const fills = [
+        [`certain/sure ${tier}`, T[`--${tier}-on`], T[`--${tier}`]],
+        [`thin ${tier}`, T[`--${tier}-bright`], mix(T[`--${tier}`], T['--ground'], TINT[tier])],
+      ];
+      for (const [what, ink, field] of fills) {
+        const r = ratio(over(ink, field, alpha), field);
+        assert.ok(r >= 4.5, `${name}: the state word on ${what} is ${r.toFixed(2)} at ${alpha}, needs 4.5`);
+      }
+    }
+    const refusalTint = mix(T['--unknown'], T['--ground'], TINT.unknown);
+    const r = ratio(over(T['--unknown-bright'], refusalTint, alpha), refusalTint);
+    assert.ok(r >= 4.5, `${name}: the state word on the refusal fill is ${r.toFixed(2)} at ${alpha}, needs 4.5`);
+  }
+});
+
+/**
  * The brand pink is never a verdict -- DESIGN.md, and the comment at the top of
  * tokens.css. If it ever equals a tier colour, a screenshot of a refusal starts
  * looking like a walk away.
