@@ -344,7 +344,8 @@ export default {
       if (e.target.closest('[data-act="removed"]')) { ctx.go('removed'); return; }
 
       if (e.target.closest('[data-act="retry"]')) {
-        phase = 'ready';
+        // Ask storage again; seed the phase from what it says, not from hope.
+        phase = store.reload() ? 'error' : 'ready';
         repaint();
         return;
       }

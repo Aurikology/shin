@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const src = (rel) => readFileSync(new URL(`../public/js/${rel}`, import.meta.url), 'utf8');
+const tsSrc = (rel) => readFileSync(new URL(`../src/${rel}`, import.meta.url), 'utf8');
 
 test('a nested paint cannot have its cleanup overwritten by the paint it interrupted', () => {
   const router = src('router.js');
@@ -41,4 +42,23 @@ test('the alt-object buttons are inert whenever a sheet is up, not just faded', 
   const camera = src('screens/camera.js');
   // Opacity hides them from the pointer and not from the keyboard.
   assert.match(camera, /marks\.inert = next !== 'idle'/);
+});
+
+test('the capture queue removes every listener it attached', () => {
+  const queue = tsSrc('eye/queue.ts');
+  const auto = queue.slice(queue.indexOf('export function autoDrain'), queue.indexOf('}', queue.indexOf('return () => {')) + 1);
+  // It attached two and removed one. The visibility handler was an anonymous
+  // closure the teardown could not name, so every re-entry of the queue left a
+  // permanent handler draining IndexedDB on every tab-visibility change.
+  assert.match(auto, /document\.addEventListener\('visibilitychange', onWake\)/);
+  assert.match(auto, /document\.removeEventListener\('visibilitychange', onWake\)/);
+  assert.doesNotMatch(auto, /addEventListener\('visibilitychange', \(\) =>/, 'the anonymous listener is back');
+});
+
+test('a list screen retry asks storage again instead of assuming it will work now', () => {
+  for (const file of ['screens/watchlist.js', 'screens/pastscans.js', 'screens/removed.js']) {
+    const screen = src(file);
+    assert.match(screen, /phase = store\.reload\(\) \? 'error' : 'ready'/, `${file} retries on hope`);
+    assert.doesNotMatch(screen, /retry"\]'\)\) \{ phase = 'ready'/, `${file} still sets ready blindly`);
+  }
 });

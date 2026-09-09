@@ -183,6 +183,16 @@ function labelOf(row: Row): string {
  */
 function sellerOf(row: Row): string {
   if (row.seller !== 'openprices') return row.seller; // walmart.ca: already a real, specific merchant.
+  /*
+   * KNOWN TENSION, LEFT OPEN ON PURPOSE (DEFECTS.md D-076). The header says the
+   * identity is `store_osm` and this returns the display name. Switching it to
+   * the OSM id was tried on 2026-09-09 and reverted the same hour: the shopper
+   * excludes their own store by the NAME they typed, so a seller keyed on the
+   * OSM id stops matching it and the regression-seam test below this file's
+   * suite goes red on the exact property it guards. Two branches of one chain
+   * collapsing is real and still unsolved; solving it needs a second field,
+   * not a different value in this one.
+   */
   if (row.store_osm) return row.store_name ?? row.store_osm;
   return UNKNOWN_SHOP_SELLER;
 }

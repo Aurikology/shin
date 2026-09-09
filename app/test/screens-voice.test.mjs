@@ -198,6 +198,29 @@ function allSegments() {
     const src = readFileSync(join(SCREENS, file), 'utf8').replace(/\r\n/g, '\n');
     for (const lit of literals(src)) {
       for (const text of segments(lit.text)) out.push({ file, line: lit.line, text });
+      /*
+       * THE BLIND SPOT THIS CLOSES. `segments` splits a literal at every
+       * interpolation, so `Nothing matches "${text}".` became two runs, neither
+       * ending in a period, and `isSentence` never saw it. Any inline Shin line
+       * with a `${}` before its final period was invisible to this file --
+       * verified by running `segments` over camera.js: the run was `Nothing in
+       * what Shin has been taught matches "`, no full stop, no first person,
+       * both rules missed it. So each literal is ALSO judged whole, every
+       * interpolation stood in for by a word, and a sentence found that way is
+       * reported against the same line. Duplicates with the split pass are
+       * harmless: the allowlist is keyed on text, and a run that was already a
+       * sentence is the same sentence whole.
+       */
+      for (const text of segments(lit.text.replace(/ /g, ' \u0002 '))) {
+        // A scaffold like `${a}. ${b} ${c}` is all stand-ins and no words; it
+        // is punctuation around values, not a sentence somebody wrote. Three
+        // real words is the floor, so "Shin says: ${line}." (a label) drops
+        // out and "Nothing in what Shin has been taught matches \"${text}\"."
+        // stays in. The marker is shown as a word in the report.
+        const real = text.replace(/\u0002/g, ' ').split(/\s+/).filter((w) => /[a-z]/i.test(w));
+        if (real.length < 3) continue;
+        out.push({ file, line: lit.line, text: text.replace(/\u0002/g, '{value}') });
+      }
     }
   }
   return out;
@@ -295,6 +318,8 @@ test('the quarantine is still describing something real, and is empty', () => {
  * happens to reach them. Nothing asserts an entry is used, for that reason.
  */
 const ALLOWED = [
+  { file: 'watchlist.js', text: '{value} , under the usual {value} .', why: 'Two prices and a relation word: a factual caption on a saved row, not Shin speaking. Surfaced by the whole-literal pass; the values are the sentence.' },
+  { file: 'you.js', text: 'Build {value} · hand-set in main.js, not read from a running server.', why: 'A build stamp on the profile screen. Chrome, addressed to whoever is debugging, and it says where the number comes from.' },
   /* --- setup.js --- */
   {
     file: 'setup.js',

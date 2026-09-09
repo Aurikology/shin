@@ -135,6 +135,27 @@ export function loadFault() {
   return fault;
 }
 
+/**
+ * Reads storage again and re-derives the fault, for a "Try again" that means
+ * it.
+ *
+ * `fault` was set once, by the `load()` at import, and never re-evaluated;
+ * there was no way to ask storage a second time. The three list screens'
+ * retry buttons set their phase to ready and repainted, and `get()` handed
+ * back the same EMPTY it had before, so a private window or a corrupt blob
+ * went from an honest error state to "Nothing saved yet" over the person's
+ * actual data -- the exact outcome the error state exists to prevent. A retry
+ * that cannot succeed can only mislead.
+ *
+ * Returns the fault after the attempt, so a caller can re-seed its phase from
+ * the answer rather than from hope.
+ */
+export function reload() {
+  fault = null;
+  state = load();
+  return fault;
+}
+
 function load() {
   let raw;
   try {

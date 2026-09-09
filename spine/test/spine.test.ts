@@ -491,6 +491,21 @@ test('one typed price cannot move a verdict when we hold one crawled price', asy
   assert.equal(agreed.tier, 'walk_away');
 });
 
+test('furniture can reach a band above low, because one seller is its whole design', async () => {
+  /*
+   * The `low` clause fired on `sellers === minDistinctSellers`, and furniture's
+   * minimum is one, so it fired on every furniture verdict: eight fresh IKEA
+   * points at identity 0.99 read "Only just enough to answer: 8 prices from 1
+   * seller." The seller half of that clause is now applied only where a second
+   * seller is something the category could have.
+   */
+  const points = Array.from({ length: 8 }, (_, i) => point('IKEA', 9900 + i * 50, 'regular', AS_OF));
+  const src = new StubSource(identity('furniture', 0.99), points);
+  const v = asVerdict(await priceIt({ text: 'poang', askingCents: 12900, askingSeller: 'Wayfair', asOf: AS_OF }, deps(src)));
+  assert.notEqual(v.confidence.band, 'low', `eight fresh points from the one seller furniture is built around read: ${v.confidence.because}`);
+  assert.doesNotMatch(v.confidence.because, /Only just enough/);
+});
+
 test('a capped loss leader at another chain does not set the walk-away bar', async () => {
   const src = new StubSource(identity('grocery', 0.97, 'Kraft Dinner 225g'), [
     point('Walmart', 147),

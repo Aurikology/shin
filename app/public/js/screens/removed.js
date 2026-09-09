@@ -157,7 +157,7 @@ export default {
 
     on(root, 'click', (e) => {
       if (e.target.closest('[data-act="back"]')) { ctx.go('watchlist'); return; }
-      if (e.target.closest('[data-act="retry"]')) { phase = 'ready'; repaint(); return; }
+      if (e.target.closest('[data-act="retry"]')) { phase = store.reload() ? 'error' : 'ready'; repaint(); return; }
 
       const restore = e.target.closest('[data-restore]');
       if (restore) {

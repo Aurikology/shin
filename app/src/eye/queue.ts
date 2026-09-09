@@ -123,8 +123,16 @@ export function autoDrain(send: (item: PendingCapture) => Promise<boolean>): () 
   };
   addEventListener('online', run);
   // Also on wake: a phone that was locked in a pocket never fires 'online'.
-  document.addEventListener('visibilitychange', () => {
+  // NAMED, so the teardown can remove it. It was an anonymous closure, which
+  // the returned function could not reference, so every re-entry of the
+  // capture queue left one more permanent handler firing a full IndexedDB
+  // drain on every tab-visibility change for the life of the page.
+  const onWake = () => {
     if (document.visibilityState === 'visible' && navigator.onLine) run();
-  });
-  return () => removeEventListener('online', run);
+  };
+  document.addEventListener('visibilitychange', onWake);
+  return () => {
+    removeEventListener('online', run);
+    document.removeEventListener('visibilitychange', onWake);
+  };
 }

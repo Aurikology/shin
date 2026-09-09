@@ -2393,7 +2393,7 @@ export default {
         {
           kind: 'refusal',
           reason: 'no_identity',
-          detail: `Nothing in what Shin has been taught matches "${text}".`,
+          detail: say('cam_text_no_match', { query: text }),
           identity: null,
           evidence: [],
         },

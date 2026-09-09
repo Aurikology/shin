@@ -670,6 +670,18 @@ const LINES = {
     warm: () => 'I will stay with the first one',
     blunt: () => 'Fine. The first one.',
   },
+  /*
+   * The type-it route's no-match refusal, migrated 2026-09-09. It was written
+   * inline in camera.js with the typed text interpolated before its final
+   * period, which is the one shape the voice test could not see: `segments`
+   * splits at the interpolation and neither half ends in a period. The test
+   * judges literals whole now, and this was the first thing it found.
+   */
+  cam_text_no_match: {
+    deadpan: (f) => `Nothing in what Shin has been taught matches "${f.query}".`,
+    warm: (f) => `I could not find anything I know that matches "${f.query}". Try the barcode, or a different word or two.`,
+    blunt: (f) => `"${f.query}" matches nothing I know.`,
+  },
   cam_notthis_failed: {
     deadpan: () => 'I could not go back and look again.',
     warm: () => 'I could not go back and look again just now. The first answer still stands.',
@@ -1022,6 +1034,11 @@ const LINES = {
  * unknown key has always done.
  */
 const BARE = {
+  cam_text_no_match: {
+    deadpan: () => 'Nothing in what Shin has been taught matches that.',
+    warm: () => 'I could not find anything I know that matches that. Try the barcode, or a different word or two.',
+    blunt: () => 'That matches nothing I know.',
+  },
   /* "Not this?" asks its own question back at the shopper, so the fallback has
      to stay a question. Dropping the query is survivable; dropping the ask is
      a list of products with nothing saying what to do with them. */

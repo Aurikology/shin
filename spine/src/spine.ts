@@ -511,7 +511,19 @@ function confidenceOf(
     // where groceries usually needs 2" is something a shopper can weigh.
     const listed = shortfalls.join('; ');
     because = `${listed.charAt(0).toUpperCase()}${listed.slice(1)}.`;
-  } else if (points.length === rule.minPoints || sellers === rule.minDistinctSellers) {
+  } else if (
+    points.length === rule.minPoints ||
+    /*
+     * The seller half of this clause is only a limit where a SECOND seller is
+     * something the category could have. Furniture's rule is built around one
+     * seller by design, so `sellers === 1` was true on every furniture verdict
+     * and the band could never leave `low`: eight fresh IKEA points read
+     * "Only just enough to answer: 8 prices from 1 seller." The one category
+     * built around a single seller was barred from the `high` band the
+     * history-based clause below was written to give it.
+     */
+    (rule.minDistinctSellers > 1 && sellers === rule.minDistinctSellers)
+  ) {
     band = 'low';
     because = `Only just enough to answer: ${points.length} price${points.length === 1 ? '' : 's'} from ${sellers} seller${sellers === 1 ? '' : 's'}.`;
   } else if (newestAge > rule.maxAgeDays / 2) {

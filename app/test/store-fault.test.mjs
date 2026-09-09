@@ -90,3 +90,27 @@ test('a storage that cannot be written to does not throw while rescuing', async 
   const s = await loadStore(fakeStorage({ 'shin.v1': 'not json' }, { throwOnWrite: true }));
   assert.equal(s.loadFault(), 'corrupt');
 });
+
+test('reload asks storage again, so a retry can actually recover', async () => {
+  /*
+   * `fault` was set once, at import, and nothing could re-evaluate it. A "Try
+   * again" set its phase to ready over the same EMPTY, which turned a private
+   * window's honest error state into "Nothing saved yet" over real data.
+   */
+  const good = fakeStorage({ 'shin.v1': '{"watchlist":[{"id":"a","label":"Neilson milk"}]}' });
+  const blocked = fakeStorage({}, { throwOnRead: true });
+  globalThis.localStorage = blocked;
+  const store = await import(`../public/js/store.js?case=reload-${Date.now()}`);
+  assert.equal(store.loadFault(), 'blocked');
+  assert.equal(store.get().watchlist.length, 0);
+
+  // Still blocked: a retry reports the truth rather than clearing the flag.
+  assert.equal(store.reload(), 'blocked');
+  assert.equal(store.loadFault(), 'blocked');
+
+  // Storage comes back: the same retry now reads the data it could not before.
+  globalThis.localStorage = good;
+  assert.equal(store.reload(), null);
+  assert.equal(store.loadFault(), null);
+  assert.equal(store.get().watchlist.length, 1);
+});

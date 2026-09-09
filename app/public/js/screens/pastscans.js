@@ -252,7 +252,7 @@ export default {
 
     on(root, 'click', (e) => {
       if (e.target.closest('[data-act="back"]')) { ctx.go('watchlist'); return; }
-      if (e.target.closest('[data-act="retry"]')) { phase = 'ready'; repaint(); return; }
+      if (e.target.closest('[data-act="retry"]')) { phase = store.reload() ? 'error' : 'ready'; repaint(); return; }
 
       // Clicking the modal's own backdrop closes it; clicking the card must
       // not. This used to be `e.target.dataset.act === 'modal'`, true only when
