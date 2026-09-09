@@ -1,0 +1,128 @@
+{
+  "ranAt": "2026-09-09T04:25:54.122Z",
+  "asOf": "2026-09-03T18:00:00Z",
+  "corpusSize": 7,
+  "corpusTarget": 100,
+  "gateRunnable": false,
+  "verdicts": 4,
+  "refusals": 3,
+  "coverage": 0.5714285714285714,
+  "baselineCoverage": 0.2857142857142857,
+  "beatsBaseline": true,
+  "observedAskingPrices": 4,
+  "refusalsByReason": {
+    "category_unsupported": 1,
+    "identity_unsure": 1,
+    "no_source_response": 1
+  },
+  "sources": [
+    {
+      "id": "recorded",
+      "available": true,
+      "verified": true,
+      "note": "available"
+    },
+    {
+      "id": "corrections",
+      "available": true,
+      "verified": true,
+      "note": "available"
+    },
+    {
+      "id": "observed",
+      "available": true,
+      "verified": false,
+      "note": "available"
+    },
+    {
+      "id": "bestbuy",
+      "available": false,
+      "verified": false,
+      "note": "BESTBUY_API_KEY is not set"
+    },
+    {
+      "id": "ebay",
+      "available": false,
+      "verified": false,
+      "note": "no eBay keyset: set EBAY_APP_ID and EBAY_CERT_ID (or EBAY_CLIENT_ID and EBAY_CLIENT_SECRET)"
+    }
+  ],
+  "rows": [
+    {
+      "id": "kd-original-225g",
+      "outcome": "verdict",
+      "reason": null,
+      "tier": "walk_away",
+      "confidence": "medium",
+      "pointCount": 3,
+      "askingProvenance": "observed",
+      "line": "Regular price is $1.47 at the one store carrying it. You are looking at $2.00."
+    },
+    {
+      "id": "poang-used",
+      "outcome": "verdict",
+      "reason": null,
+      "tier": "fair",
+      "confidence": "low",
+      "pointCount": 4,
+      "askingProvenance": "stated stand-in: the top of the observed $55-$80 cluster. Not an individual listing.",
+      "line": "Comparable listings run $35.00 to $159.00, clustering around $35.00 to $90.00. You are looking at $80.00. These are asking prices, not sales, and sellers start high."
+    },
+    {
+      "id": "tide-simply-2720ml",
+      "outcome": "verdict",
+      "reason": null,
+      "tier": "fair",
+      "confidence": "low",
+      "pointCount": 1,
+      "askingProvenance": "observed",
+      "line": "$11.97 matches the only price we have. Walmart has it at $11.97 too."
+    },
+    {
+      "id": "navel-oranges-3lb",
+      "outcome": "refusal",
+      "reason": "category_unsupported",
+      "tier": null,
+      "confidence": null,
+      "pointCount": 0,
+      "askingProvenance": "observed",
+      "line": "Fresh produce is not something Shin can price yet. Three problems stack and none of them is solved by a better feed. A PLU names a category rather than a product (4011 has meant \"bananas\" since 1990), package formats break unit comparison, and the public series measures underlying inflation rather than what is on the shelf this week. Shopper-reported shelf prices are the only source here, not a supplement to one."
+    },
+    {
+      "id": "canon-eos-r6-used",
+      "outcome": "refusal",
+      "reason": "identity_unsure",
+      "tier": null,
+      "confidence": null,
+      "pointCount": 0,
+      "askingProvenance": "stated stand-in: no asking price was observed for the right camera.",
+      "line": "Not sure enough this is the right one. The closest match was \"Canon EOS R6, used body\". Pick the right one and Shin will price it."
+    },
+    {
+      "id": "sony-wh1000xm5",
+      "outcome": "verdict",
+      "reason": null,
+      "tier": "fair",
+      "confidence": "low",
+      "pointCount": 1,
+      "askingProvenance": "observed: the list price, which is the only number the pilot found.",
+      "line": "$429.99 matches the only price we have. Sony (manufacturer list) has it at $429.99 too."
+    },
+    {
+      "id": "poang-new",
+      "outcome": "refusal",
+      "reason": "no_source_response",
+      "tier": null,
+      "confidence": null,
+      "pointCount": 0,
+      "askingProvenance": "stated stand-in: five IKEA variant pages carried no price at all.",
+      "line": "Nothing has a price for \"IKEA POÄNG armchair, new\" right now."
+    }
+  ],
+  "caveats": [
+    "Corpus is 7 of 100. Band 1's kill gate is not runnable and this coverage figure settles nothing.",
+    "3 of 7 judged prices are stated stand-ins rather than observed shelf prices.",
+    "Unverified adapters present and never run live: observed, bestbuy, ebay.",
+    "Coverage is not correctness. Nothing here checks whether a verdict is right; that is twenty verdicts against live sources, by something that did not build this."
+  ]
+}

@@ -68,6 +68,7 @@
  *   node src/crawl.ts --report
  *   node src/crawl.ts --discover --limit 5 --dry-run
  *   node src/crawl.ts --discover --limit 200
+ *   node src/crawl.ts --discover --offset 20 --limit 20 --delay-ms 30000 --stop-on-throttle
  *
  * Every attempt is written down, including the ones that found nothing, so the
  * coverage figure has an honest denominator. A row we never asked about and a
@@ -596,16 +597,42 @@ async function discoverOne(
  * `--dry-run` makes no request to walmart.ca except the sitemaps themselves. It
  * answers "is discovery finding sane URLs" without opening a single product
  * page, which is the cheap check to run before the expensive one.
+ *
+ * THREE FLAGS ADDED 2026-09-09, all of them for D-049, all of them about rate
+ * rather than about what is crawled:
+ *
+ *   --delay-ms N        the wait between two product pages. DELAY_MS is the
+ *                       floor and stays the floor: a value under it is refused
+ *                       rather than clamped, because 3000 ms is a decision
+ *                       somebody measured, not a default somebody typed.
+ *   --offset N          skip the first N SKUs the sitemap yields without
+ *                       opening any of them. The sitemap's order is stable
+ *                       (see `discoverSkus`), so a second probe run reaches
+ *                       fresh pages instead of re-opening the ones the first
+ *                       run already asked for, which would measure our cache
+ *                       and Walmart's memory of us at the same time.
+ *   --stop-on-throttle  end the run on the FIRST throttled outcome. During a
+ *                       rate probe one challenge is the whole answer and every
+ *                       page after it only makes this address look worse.
+ *
+ * The default run keeps every one of its previous behaviours: no offset, the
+ * 3000 ms floor, and no abort rule of its own beyond `throttleHit`'s backoff.
  */
-async function discover(
-  db: DatabaseSync,
-  limit: number | null,
-  dryRun: boolean,
-  indexes: readonly string[],
-  today: string,
-): Promise<void> {
+export interface DiscoverRun {
+  readonly limit: number | null;
+  readonly offset: number;
+  readonly delayMs: number;
+  readonly dryRun: boolean;
+  readonly stopOnThrottle: boolean;
+  readonly indexes: readonly string[];
+}
+
+async function discover(db: DatabaseSync, run: DiscoverRun, today: string): Promise<void> {
+  const { limit, offset, delayMs, dryRun, stopOnThrottle, indexes } = run;
   console.log(
-    `walmart.ca discovery: ${indexes.join(', ')}, limit ${limit ?? 'none'}${dryRun ? ', DRY RUN (no product page is opened)' : ''}`,
+    `walmart.ca discovery: ${indexes.join(', ')}, limit ${limit ?? 'none'}, offset ${offset}, ` +
+      `${delayMs} ms between pages${stopOnThrottle ? ', stopping on the first throttle' : ''}` +
+      `${dryRun ? ', DRY RUN (no product page is opened)' : ''}`,
   );
 
   const cat = openCatalogue();
@@ -614,16 +641,24 @@ async function discover(
   }
 
   const tally = new Map<string, number>();
+  let seen = 0;
   let n = 0;
   const startedAt = Date.now();
 
   try {
     for await (const e of discoverSkus({
-      limit,
+      /*
+       * `discoverSkus` counts what it yields, not what we open, so the offset
+       * has to be added back or a run with one would come up short by exactly
+       * the pages it skipped.
+       */
+      limit: limit === null ? null : limit + offset,
       indexes,
       onShard: (shard, _index, i, total) =>
         console.log(`  sitemap ${i}/${total}: ${shard.url} (lastmod ${shard.lastmod ?? 'none'})`),
     })) {
+      seen += 1;
+      if (seen <= offset) continue;
       n += 1;
       if (dryRun) {
         console.log(`  ${n}. ${e.sku}  ${e.lastmod ?? 'no lastmod'}  ${e.url}`);
@@ -637,7 +672,11 @@ async function discover(
       tally.set(r.outcome, (tally.get(r.outcome) ?? 0) + 1);
       const money = r.priceCents === null ? '' : ` $${(r.priceCents / 100).toFixed(2)}`;
       console.log(`  ${n}. ${e.sku}  ${r.outcome}${money}  ${ms} ms  ${r.note ?? ''}`);
-      await sleep(DELAY_MS);
+      if (stopOnThrottle && r.outcome === 'throttled') {
+        console.log(`  STOPPING: throttled on page ${n} and --stop-on-throttle is set`);
+        break;
+      }
+      await sleep(delayMs);
     }
   } finally {
     cat.close();
@@ -648,6 +687,68 @@ async function discover(
   console.log(`  discovered ${n} SKUs in ${elapsed.toFixed(1)} s`);
   for (const [outcome, count] of [...tally].sort()) console.log(`  ${outcome.padEnd(18)} ${count}`);
   console.log('');
+}
+
+/**
+ * `--discover`'s flags, read off an argv slice.
+ *
+ * A separate function from `main` so a test can read the flags without the
+ * database, the network or a process. It throws rather than returning an error
+ * shape because every caller is a command line and a refused flag has exactly
+ * one sensible response, which is to say so and stop.
+ */
+export function parseDiscoverArgs(argv: readonly string[]): DiscoverRun {
+  const flag = (name: string) => argv.includes(name);
+  const value = (name: string, dflt: number): number => {
+    const i = argv.indexOf(name);
+    if (i < 0) return dflt;
+    const raw = argv[i + 1];
+    if (raw === undefined || raw === '' || !Number.isFinite(Number(raw))) {
+      throw new Error(`${name} needs a number`);
+    }
+    return Number(raw);
+  };
+
+  const limitArg = value('--limit', -1);
+
+  const delayMs = value('--delay-ms', DELAY_MS);
+  if (delayMs < DELAY_MS) {
+    throw new Error(
+      `--delay-ms ${delayMs} is below the ${DELAY_MS} ms politeness floor, which is a decision and not a default; refusing`,
+    );
+  }
+
+  const offset = value('--offset', 0);
+  if (!Number.isInteger(offset) || offset < 0) {
+    throw new Error(`--offset ${offset} must be a whole number of SKUs, zero or more`);
+  }
+
+  /*
+   * `--indexes` takes the keys of PRODUCT_SITEMAP_INDEXES, comma separated,
+   * and defaults to the first-party one alone. The marketplace tail is 1,848
+   * sitemap children and roughly 83 million SKUs; a flag is the honest way to
+   * reach it, because nobody should walk into that by running the default.
+   */
+  const idxArg = argv.indexOf('--indexes');
+  const chosen = idxArg >= 0 && argv[idxArg + 1] ? argv[idxArg + 1].split(',') : ['firstParty'];
+  const indexes = chosen.map((k) => {
+    const url = (PRODUCT_SITEMAP_INDEXES as Record<string, string>)[k.trim()];
+    if (url === undefined) {
+      throw new Error(
+        `unknown --indexes value ${k}; expected one of ${Object.keys(PRODUCT_SITEMAP_INDEXES).join(', ')}`,
+      );
+    }
+    return url;
+  });
+
+  return {
+    limit: limitArg < 0 ? null : limitArg,
+    offset,
+    delayMs,
+    dryRun: flag('--dry-run'),
+    stopOnThrottle: flag('--stop-on-throttle'),
+    indexes,
+  };
 }
 
 async function main(): Promise<void> {
@@ -674,25 +775,7 @@ async function main(): Promise<void> {
    */
   const today0 = new Date().toISOString().slice(0, 10);
   if (flag('--discover')) {
-    const limitArg = value('--limit', -1);
-    /*
-     * `--indexes` takes the keys of PRODUCT_SITEMAP_INDEXES, comma separated,
-     * and defaults to the first-party one alone. The marketplace tail is 1,848
-     * sitemap children and roughly 83 million SKUs; a flag is the honest way to
-     * reach it, because nobody should walk into that by running the default.
-     */
-    const idxArg = argv.indexOf('--indexes');
-    const chosen = idxArg >= 0 && argv[idxArg + 1] ? argv[idxArg + 1].split(',') : ['firstParty'];
-    const indexes = chosen.map((k) => {
-      const url = (PRODUCT_SITEMAP_INDEXES as Record<string, string>)[k.trim()];
-      if (url === undefined) {
-        throw new Error(
-          `unknown --indexes value ${k}; expected one of ${Object.keys(PRODUCT_SITEMAP_INDEXES).join(', ')}`,
-        );
-      }
-      return url;
-    });
-    await discover(db, limitArg < 0 ? null : limitArg, flag('--dry-run'), indexes, today0);
+    await discover(db, parseDiscoverArgs(argv), today0);
     db.close();
     return;
   }

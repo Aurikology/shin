@@ -173,7 +173,25 @@ export const RETRY_BASE_MS = 6000;
 const nap = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function getHtml(url: string, timeoutMs: number): Promise<string | null> {
+  /*
+   * 2026-09-09: During a rate probe, a challenged page should cost exactly one
+   * request. A retry on a CHALLENGE response is another request against the
+   * counter that is holding the block, not a break through it. So challenge
+   * retries are controlled separately from 429/403/network retries via the env
+   * var SHIN_WALMART_CHALLENGE_RETRIES. This lets a probe set it to 0 to get
+   * one page for one request, while keeping retry logic for transient errors.
+   */
+  const challengeRetriesEnv = process.env.SHIN_WALMART_CHALLENGE_RETRIES;
+  const maxChallengeRetries =
+    challengeRetriesEnv === undefined
+      ? RETRIES
+      : (() => {
+          const parsed = parseInt(challengeRetriesEnv, 10);
+          return isNaN(parsed) ? RETRIES : parsed;
+        })();
+
   let last = 0;
+  let challengeRetryCount = 0;
   for (let attempt = 0; attempt <= RETRIES; attempt += 1) {
     if (attempt > 0) await nap(RETRY_BASE_MS * attempt);
     let res: Response;
@@ -190,6 +208,8 @@ async function getHtml(url: string, timeoutMs: number): Promise<string | null> {
     const body = await res.text();
     if (body.length >= BLOCKED_UNDER_BYTES) return body;
     last = body.length;
+    if (challengeRetryCount >= maxChallengeRetries) break;
+    challengeRetryCount += 1;
   }
   throw new Throttled(last);
 }
