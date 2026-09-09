@@ -5,6 +5,44 @@ narrative.*
 
 ---
 
+## The price judge is in production, and thin evidence stops being a blank screen, 2026-09-08
+
+**The fix he asked for on 2026-09-05 was never connected to the app, and now it is.** `judge()` in
+`price/src/verdict.ts` was rewritten that day on his correction, to answer off a single seller with
+the doubt in a confidence number. It was imported by nothing but its own test. The app kept serving
+a path that refused while holding prices, which is the outcome he named as the worst this app can
+produce, and it did that for three days.
+
+**Two of the pilot's five refusals were holding a seller's price the whole time.** Tide, refused
+over a Walmart price because Walmart was also the shop being stood in. The WH-1000XM5, refused over
+a manufacturer list price. The 2026-09-05 note in this repo said all five refusals were empty hands
+and it was wrong about both of them: it was checked against the count thresholds, which had just
+been removed, and never against the filter stage sitting in front of them.
+
+**Measured through `/api/price` on the running server, not from the test suite.** Tide at $11.97
+now answers "$11.97 matches the only price we have. Walmart has it at $11.97 too." with confidence low, one
+seller, and the sentence "Every price we have is this same store, so this is against its own
+history rather than against anybody else." The XM5 answers the same shape off its list price. POÄNG
+new still refuses, because there is genuinely no price. Navel oranges still refuses, on the recorded
+produce decision.
+
+**Pilot corpus coverage moved for the first time: 2 of 7 to 4 of 7.** That number is how often the
+spine will answer and it is not correctness; two of the four now rest on a single price. The
+2026-09-05 finding that thresholds were never the cap still stands for thresholds. What was capping
+these two was a filter, not a threshold, and not supply either.
+
+**Found on the same pass and closed the same day.** Where the only price we hold equals the price
+on the tag the band has zero width, and `judge()` called that position zero, so the first two
+answers read "at the low end" over a set with no low end. That was D-045; it is resolved: a
+zero-width band now compares the tag to the one number directly and says "matches the only price
+we have", or "matches what every seller charges" when several sellers agree. The three refusal
+codes the cascade can no longer emit were pruned from the camera screen's thin list too.
+
+Counts on this tree, run directly: price 76 pass, spine 152 pass, app 283 pass with 5 skipped,
+and app, price and spine all typecheck clean.
+
+---
+
 ## "Not this?", and the UI branch caught up with main, 2026-09-08
 
 **Type a name, get the wrong product, and there is now something to press.** Under the item name

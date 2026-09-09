@@ -278,8 +278,26 @@ export function judge(input: VerdictInput): Verdict {
     };
   }
 
-  const pos = basis.position ?? 0;
-  const tier: Tier = pos <= GOOD_BELOW ? 'good' : pos >= HIGH_ABOVE ? 'high' : 'fair';
+  // D-045, 2026-09-08. When the band has zero width (one seller or multiple sellers
+  // agreeing), the position is forced to 0, making all prices read as "at the low end".
+  // Instead, compare the asking price directly to that number. The confidence stays
+  // unchanged. Wording depends on seller count: with one, "the only price we have";
+  // with more, "what every seller charges".
+  const isZeroBand = basis.cheapestCents === basis.dearestCents;
+  let tier: Tier;
+  if (isZeroBand) {
+    // For a single-point band, compare the price directly
+    if (input.shelfCents === basis.cheapestCents) {
+      tier = 'fair'; // The price matches exactly
+    } else if (input.shelfCents < basis.cheapestCents) {
+      tier = 'good'; // The price is below
+    } else {
+      tier = 'high'; // The price is above
+    }
+  } else {
+    const pos = basis.position ?? 0;
+    tier = pos <= GOOD_BELOW ? 'good' : pos >= HIGH_ABOVE ? 'high' : 'fair';
+  }
 
   const stale = oldest !== null && daysBetween(oldest, now) >= STALE_DAYS;
   const anyLikely = contributing.some((o) => o.joinQuality === 'likely');
@@ -287,12 +305,23 @@ export function judge(input: VerdictInput): Verdict {
 
   // Every sentence names a real number at a named seller. Decision 32: there is
   // no average anywhere in this string.
+  const zeroBandPhrase =
+    basis.sellerCount === 1
+      ? 'the only price we have'
+      : 'what every seller charges';
+
   const head =
     tier === 'good'
-      ? `${money(input.shelfCents)} is at the low end.`
+      ? isZeroBand
+        ? `${money(input.shelfCents)} is less than ${zeroBandPhrase}.`
+        : `${money(input.shelfCents)} is at the low end.`
       : tier === 'fair'
-        ? `${money(input.shelfCents)} is about what others charge.`
-        : `${money(input.shelfCents)} is at the high end.`;
+        ? isZeroBand
+          ? `${money(input.shelfCents)} matches ${zeroBandPhrase}.`
+          : `${money(input.shelfCents)} is about what others charge.`
+        : isZeroBand
+          ? `${money(input.shelfCents)} is more than ${zeroBandPhrase}.`
+          : `${money(input.shelfCents)} is at the high end.`;
 
   const compare =
     basis.cheapestCents === basis.dearestCents

@@ -122,8 +122,16 @@ function cheapest(points: readonly PricePoint[]): PricePoint {
   return points.reduce((a, b) => (b.amountCents < a.amountCents ? b : a));
 }
 
-/** Wide-spread detection shared by every category. Grocery adds its own on top. */
-function spreadDisagreement(points: readonly PricePoint[]): Disagreement | null {
+/**
+ * Wide-spread detection shared by every category. Grocery adds its own on top.
+ *
+ * Exported 2026-09-08 so the spine's thin-evidence answer can raise the same
+ * disagreement the category rules raise. That path bypasses `CategoryRule.judge`
+ * by construction, and a wide spread is a fact about the prices rather than a
+ * category's opinion about them, so it must not go missing just because the
+ * category never got to speak.
+ */
+export function spreadDisagreement(points: readonly PricePoint[]): Disagreement | null {
   if (points.length < 2) return null;
   const lo = min(amounts(points));
   const hi = max(amounts(points));

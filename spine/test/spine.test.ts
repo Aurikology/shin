@@ -101,14 +101,24 @@ test('produce is refused as a category, with the reversing condition available',
  * `spine/src/spine.ts` to the single combined filter and watching it go red.
  */
 
-test('every price found being a kind we cannot compare is its own reason', async () => {
+/*
+ * CHANGED 2026-09-08. Three of the four tests below asserted a refusal and now
+ * assert an answer, because `price/src/verdict.ts` reached production and the
+ * stage that emptied the set names itself on the confidence instead of
+ * withholding the verdict. The cause each one isolates is unchanged and is
+ * still asserted; what changed is where it is written down. `points_future_dated`
+ * is the one that still refuses, and it keeps its refusal test.
+ */
+
+test('a kind the category cannot compare is answered off, and named on the confidence', async () => {
   // Condition 1: usable kind. A manufacturer list price with no retailer
   // behind it, which is the Sony WH-1000XM5 row in the pilot corpus.
   const src = new StubSource(identity('tech'), [point('Sony (list)', 42999, 'list')]);
-  const r = asRefusal(await priceIt({ text: 'xm5', askingCents: 42999, asOf: AS_OF }, deps(src)));
-  assert.equal(r.reason, 'unusable_price_kinds');
-  assert.match(r.detail, /list/);
-  assert.equal(r.evidence.length, 1, 'a refusal still shows what it did find');
+  const v = asVerdict(await priceIt({ text: 'xm5', askingCents: 42999, asOf: AS_OF }, deps(src)));
+  assert.ok(v.tier, 'one seller of any kind must still produce a tier');
+  assert.equal(v.confidence.band, 'low');
+  assert.match(v.confidence.because, /list/, 'the kind is still the named cause');
+  assert.equal(v.pointCount, 1, 'the answer still shows what it found');
 });
 
 test('every price found being dated in the future is its own reason', async () => {
@@ -124,42 +134,54 @@ test('every price found being dated in the future is its own reason', async () =
   assert.equal(r.evidence.length, 2);
 });
 
-test('every price found being older than the window is its own reason', async () => {
+test('prices older than the window are answered off, and the age is the named cause', async () => {
   // Condition 3: inside the history window. Grocery's window is short and
   // these are years outside it, from two sellers, neither of them the shopper's.
   const src = new StubSource(identity('grocery'), [
     point('Walmart', 299, 'regular', '2020-02-01'),
     point('Metro', 315, 'regular', '2020-03-01'),
   ]);
-  const r = asRefusal(
+  const v = asVerdict(
     await priceIt({ text: 'kd', askingCents: 299, askingSeller: 'Sobeys', asOf: AS_OF }, deps(src)),
   );
-  assert.equal(r.reason, 'points_too_stale');
-  assert.match(r.detail, /recent enough/);
-  assert.equal(r.evidence.length, 2);
+  assert.ok(v.tier);
+  assert.equal(v.confidence.band, 'low');
+  assert.match(v.confidence.because, /days old/, 'age is still the named cause');
+  assert.equal(v.pointCount, 2);
 });
 
-test('every price found being the shopper own store is its own reason, not an age problem', async () => {
-  // Condition 4, D-012 itself, and the condition that fires most often now
+test('the shopper own store is answered against its own history, not refused', async () => {
+  // Condition 4, D-012's shape, and the condition that fires most often now
   // that one store supplies almost every price we hold. Thirteen current
   // prices, every one of them Walmart, and Walmart is the store being judged.
-  // This is the exact shape D-011 recorded: `too_few_points` over an evidence
-  // array that was never thin.
+  // Thirteen prices in hand and a blank screen was the defect; the seller count
+  // is what has to stay honest, because two feed spellings of one shop must not
+  // buy the confidence that two shops would.
   const walmart = Array.from({ length: 13 }, (_, i) =>
     point(i % 2 === 0 ? 'Walmart' : 'walmart.ca', 1197 + i, 'regular', '2026-09-03'),
   );
   const src = new StubSource(identity('grocery'), walmart);
-  const r = asRefusal(
+  const v = asVerdict(
     await priceIt({ text: 'tide', askingCents: 1197, askingSeller: 'Walmart', asOf: AS_OF }, deps(src)),
   );
-  assert.equal(r.reason, 'all_points_from_asking_seller');
-  assert.match(r.detail, /same store/);
-  assert.equal(r.evidence.length, 13, 'the count the old code name claimed to describe');
-  assert.doesNotMatch(r.detail, /recent|old/, 'age is not what fired and must not be named');
+  assert.ok(v.tier);
+  assert.equal(v.confidence.band, 'low');
+  assert.equal(v.pointCount, 13, 'the count the old refusal was holding all along');
+  assert.equal(v.confidence.distinctSellers, 1, 'Walmart and walmart.ca are one store');
+  assert.match(v.confidence.because, /same store/);
+  assert.match(v.confidence.because, /one seller/);
+  assert.doesNotMatch(v.confidence.because, /2 sellers/);
 });
 
-test('a refusal never suggests the shopper did anything wrong', async () => {
-  // Hard rule 3. The aggression points at the price, the store or the brand.
+test('a thin outcome never suggests the shopper did anything wrong', async () => {
+  /*
+   * Hard rule 3. The aggression points at the price, the store or the brand.
+   *
+   * Widened 2026-09-08 from refusals to whatever each case now produces. Three
+   * of these four became answers, and the sentence a shopper reads moved from
+   * `detail` to `confidence.because` with it, so checking only refusals would
+   * have quietly stopped covering three quarters of this rule.
+   */
   const cases = [
     { points: [point('Sony (list)', 42999, 'list')], cat: 'tech' as const, seller: undefined },
     { points: [point('Walmart', 299, 'regular', '2027-06-01')], cat: 'grocery' as const, seller: undefined },
@@ -168,10 +190,13 @@ test('a refusal never suggests the shopper did anything wrong', async () => {
   ];
   for (const c of cases) {
     const src = new StubSource(identity(c.cat), c.points);
-    const r = asRefusal(
-      await priceIt({ text: 'x', askingCents: 1197, askingSeller: c.seller, asOf: AS_OF }, deps(src)),
+    const r = await priceIt(
+      { text: 'x', askingCents: 1197, askingSeller: c.seller, asOf: AS_OF },
+      deps(src),
     );
-    assert.doesNotMatch(r.detail, /\byou\b|\byour\b/i, `${r.reason} points at the user`);
+    const sentence = r.kind === 'refusal' ? r.detail : r.confidence.because;
+    const where = r.kind === 'refusal' ? r.reason : 'verdict confidence';
+    assert.doesNotMatch(sentence, /\byou\b|\byour\b/i, `${where} points at the user`);
   }
 });
 
@@ -620,4 +645,110 @@ test('a code that resolves nothing and words that resolve nothing is still a ref
   // No text to fall back to, so the retry has nothing to try and nothing is
   // invented. The fallback must not turn every unknown code into an answer.
   assert.equal(r.reason, 'no_identity');
+});
+
+/*
+ * THE FOUNDER'S RULE, THROUGH THE SHIPPING PATH. 2026-09-08.
+ *
+ * His words, 2026-09-05: "The worst thing this app can do is tell people it
+ * doesn't know because that literally wastes the users time." A function was
+ * rewritten that day to match, in `price/src/verdict.ts`, and until today it was
+ * imported by nothing but its own test while the app kept refusing. Every
+ * assertion in this block goes through `priceIt`, which is what `/api/price`
+ * calls, for exactly that reason: the same rule asserted in `price/test` passed
+ * for three days over an app that did the opposite.
+ */
+
+test('one seller of any kind, in any category, is an answer and never a refusal', async () => {
+  const cases = [
+    // The kind the category cannot compare. The XM5's list price.
+    { cat: 'tech' as const, points: [point('Sony (list)', 42999, 'list')], seller: undefined },
+    // Older than the category's window, by years.
+    { cat: 'grocery' as const, points: [point('Metro', 299, 'regular', '2020-02-01')], seller: undefined },
+    // The only store selling it is the store being stood in. The Tide case.
+    { cat: 'grocery' as const, points: [point('Walmart', 1197)], seller: 'Walmart' },
+    // A marketplace asking price where the category wants four of them.
+    { cat: 'used' as const, points: [point('Kijiji', 90000, 'asking', '2019-01-01')], seller: undefined },
+    // One seller is furniture's normal state, not its thin one.
+    { cat: 'furniture' as const, points: [point('IKEA', 9900, 'regular', '2019-01-01')], seller: 'IKEA' },
+  ];
+  for (const c of cases) {
+    const src = new StubSource(identity(c.cat), c.points);
+    const v = asVerdict(
+      await priceIt({ text: 'x', askingCents: 12900, askingSeller: c.seller, asOf: AS_OF }, deps(src)),
+    );
+    assert.ok(v.tier, `${c.cat} produced no tier`);
+    assert.equal(v.confidence.band, 'low', `${c.cat} must carry the doubt in the confidence`);
+    assert.ok(v.confidence.because.length > 0, `${c.cat} must say what limits it`);
+  }
+});
+
+test('the thin answer is the price judge, not a second copy of it', async () => {
+  /*
+   * The seam. `judge()` scores one seller at 0.5 and takes 0.1 off when the
+   * identity was matched by name rather than by barcode, so a name-matched
+   * single seller is 0.4 and a barcode-matched one is 0.5. Asserting the number
+   * is what makes this test fail if the wiring is replaced by a lookalike
+   * computed here, which is the thing that went wrong in the first place.
+   */
+  const points = [point('Walmart', 1197)];
+  const byName = asVerdict(
+    await priceIt({ text: 'tide', askingCents: 1197, askingSeller: 'Walmart', asOf: AS_OF }, deps(new StubSource(identity('grocery'), points))),
+  );
+  assert.equal(byName.confidence.score, 0.4);
+  assert.match(byName.confidence.because, /matched by name, not barcode/);
+
+  const withCode: ProductIdentity = { ...identity('grocery'), gtin: '0060383689247' };
+  const byCode = asVerdict(
+    await priceIt({ text: 'tide', askingCents: 1197, askingSeller: 'Walmart', asOf: AS_OF }, deps(new StubSource(withCode, points))),
+  );
+  assert.equal(byCode.confidence.score, 0.5);
+});
+
+test('zero sellers still refuses, and that refusal is the one that must survive', async () => {
+  /*
+   * The floor under the rule above. "Never refuse if there is at least one
+   * seller's data" is not "never refuse": with nothing to compare against there
+   * is no answer to give at any confidence, and inventing one is the failure
+   * this whole file is arranged around. The POÄNG-new row in the pilot corpus,
+   * five IKEA variant pages and not a price in any of them.
+   */
+  const src = new StubSource(identity('furniture'), []);
+  const r = asRefusal(await priceIt({ text: 'poang', askingCents: 12900, asOf: AS_OF }, deps(src)));
+  assert.equal(r.reason, 'no_source_response');
+  assert.equal(r.evidence.length, 0);
+});
+
+test('produce still refuses, and it is a recorded decision that keeps it refusing', async () => {
+  /*
+   * "Produce is out of v1", docs/decisions.md, 2026-09-03, status active. A PLU
+   * names a category rather than a product, package formats break unit
+   * comparison, and the public series measures underlying inflation rather than
+   * the shelf. This refusal is NOT a thin-evidence one and the 2026-09-08 wiring
+   * deliberately does not reach it: the decision reverses on crowdsourced volume,
+   * not on one more price arriving.
+   */
+  const src = new StubSource(identity('produce'), [point('Loblaws', 399), point('Metro', 449)]);
+  const r = asRefusal(await priceIt({ text: 'oranges', askingCents: 429, asOf: AS_OF }, deps(src)));
+  assert.equal(r.reason, 'category_unsupported');
+});
+
+test('a category that can compare its set is still judged by the category', async () => {
+  /*
+   * The other half of the seam, and the one a regression would come through
+   * silently. Removing the refusal must not flatten four categories into one
+   * comparator: grocery's two lines are its whole design and `judge()` writes
+   * one. A set the category can handle must never reach the thin path.
+   */
+  const src = new StubSource(identity('grocery'), [
+    point('Walmart', 147, 'regular'),
+    point('Metro', 174, 'regular'),
+    point('No Frills', 99, 'promotional'),
+  ]);
+  const v = asVerdict(
+    await priceIt({ text: 'kd', askingCents: 174, askingSeller: 'Sobeys', asOf: AS_OF }, deps(src)),
+  );
+  assert.equal(v.lines.length, 2, 'grocery speaks in two lines and must keep doing so');
+  assert.match(v.lines[0], /Regular price/);
+  assert.equal(v.confidence.score, undefined, 'the category judged this, not the thin path');
 });

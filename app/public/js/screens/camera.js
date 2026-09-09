@@ -595,16 +595,14 @@ function verdictSheet(v, scenario, thumb, acked = false) {
  * answering four different filter conditions with one code (D-012). Missing one
  * here is not cosmetic: an unlisted reason falls through to the refuse_unknown
  * title, so a Tide refusal with thirteen prices behind it would tell the shopper
- * Shin could not identify the product.
+ * Shin could not identify the product. Three codes stopped being emitted 2026-09-08
+ * when the thin-verdict path landed.
  */
 const THIN_REASONS = new Set([
   'too_few_points',
-  'points_too_stale',
   'no_source_response',
   'comparison_incoherent',
-  'unusable_price_kinds',
   'points_future_dated',
-  'all_points_from_asking_seller',
 ]);
 
 function isThinReason(reason) {

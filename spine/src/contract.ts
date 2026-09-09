@@ -110,6 +110,16 @@ export interface Confidence {
   readonly band: ConfidenceBand;
   /** Plain sentence naming what actually limits it. Shown, not hidden. */
   readonly because: string;
+  /**
+   * 0..1, and present only where `price/src/verdict.ts` produced the answer.
+   *
+   * Added 2026-09-08, and added rather than repurposed because this file's own
+   * rule says so. The band is three words and is what a screen draws; this is
+   * the number the thin-evidence judge actually computed, kept so a later pass
+   * can calibrate the band against something rather than re-deriving it. No
+   * screen reads it today and none has to.
+   */
+  readonly score?: number;
   readonly pointCount: number;
   readonly distinctSellers: number;
   readonly oldestPointAgeDays: number;

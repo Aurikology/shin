@@ -156,8 +156,9 @@ test('every seller charging the same is not a high price', () => {
     observations: [o('A', 500), o('B', 500)],
     now: NOW,
   });
-  assert.equal(v.tier, 'good');
-  assert.match(v.line, /too\./);
+  // D-045: when the band has zero width, compare directly. Price matches -> fair tier.
+  assert.equal(v.tier, 'fair');
+  assert.match(v.line, /matches/i);
 });
 
 test('unit price is shown whenever both sizes are known', () => {
@@ -193,4 +194,61 @@ test('nothing at all is said plainly and is not our fault', () => {
 test('money never rounds a price away', () => {
   assert.equal(money(1), '$0.01');
   assert.equal(money(1999), '$19.99');
+});
+
+test('single point: asking price equals the one observation', () => {
+  const v = judge({
+    shelfCents: 429_99,
+    observations: [o('Sony', 429_99)],
+    now: NOW,
+  });
+  assert.equal(v.tier, 'fair', 'exact match should be fair tier');
+  assert.ok(
+    !v.line.includes('low end') && !v.line.includes('high end'),
+    `should not mention "low end" or "high end", got: ${v.line}`,
+  );
+  assert.match(v.line, /matches/i, 'should indicate the price matches');
+});
+
+test('single point: asking price is below the one observation', () => {
+  const v = judge({
+    shelfCents: 400_00,
+    observations: [o('Loblaws', 429_99)],
+    now: NOW,
+  });
+  assert.equal(v.tier, 'good', 'below the one price should be good tier');
+  assert.ok(
+    !v.line.includes('low end') && !v.line.includes('high end'),
+    `should not mention "low end" or "high end", got: ${v.line}`,
+  );
+  assert.match(v.line, /less than/i, 'should indicate the price is below');
+});
+
+test('single point: asking price is above the one observation', () => {
+  const v = judge({
+    shelfCents: 500_00,
+    observations: [o('Metro', 429_99)],
+    now: NOW,
+  });
+  assert.equal(v.tier, 'high', 'above the one price should be high tier');
+  assert.ok(
+    !v.line.includes('low end') && !v.line.includes('high end'),
+    `should not mention "low end" or "high end", got: ${v.line}`,
+  );
+  assert.match(v.line, /more than/i, 'should indicate the price is above');
+});
+
+test('multi-seller zero band: asking price equals what every seller charges', () => {
+  const v = judge({
+    shelfCents: 429_99,
+    observations: [o('Loblaws', 429_99), o('Metro', 429_99), o('Costco', 429_99)],
+    now: NOW,
+  });
+  assert.equal(v.tier, 'fair', 'exact match should be fair tier');
+  assert.ok(
+    !v.line.includes('low end') && !v.line.includes('high end'),
+    `should not mention "low end" or "high end", got: ${v.line}`,
+  );
+  assert.match(v.line, /every seller/i, 'should reference every seller, not "the only"');
+  assert.match(v.line, /matches/i, 'should indicate the price matches');
 });

@@ -170,7 +170,16 @@ test('a stale correction ages out the way any other price does', async () => {
     { gtin: CODE, category: 'grocery', askingCents: 429, asOf: AS_OF },
     { sources },
   );
-  assert.equal(result.kind, 'refusal');
+  /*
+   * CHANGED 2026-09-08. This asserted a refusal, which was a proxy for "the age
+   * was noticed" and stopped being available on 2026-09-08 when a set outside
+   * the window started answering with its age named instead of withholding the
+   * verdict. The property under test is unchanged and is now asserted directly:
+   * a correction from January does not get to look current.
+   */
+  assert.equal(result.kind, 'verdict');
+  assert.equal(result.confidence.band, 'low');
+  assert.match(result.confidence.because, /days old/);
 });
 
 test('the corrections source is wired into the real source list', () => {

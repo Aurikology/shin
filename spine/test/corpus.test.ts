@@ -34,40 +34,48 @@ test('every item reaches a terminal outcome and none throws', () => {
   }
 });
 
-test('the two items the pilot could price are the two that answer', () => {
+test('every item holding a seller price answers, and that is four of the seven', () => {
+  /*
+   * CHANGED 2026-09-08, and this is the measurement that pass produced.
+   *
+   * The 2026-09-05 note here read: "Not one of these five was a threshold
+   * turning away prices we held. Each is an empty hand." That was checked
+   * against the thresholds, which had just been removed, and not against the
+   * filter cascade sitting in front of them, and it was wrong about two of the
+   * five rows. Tide was refused holding a Walmart price and the XM5 was refused
+   * holding a manufacturer list price. Both are a seller's number and both drew
+   * a blank screen for three days after the founder's instruction that they
+   * should not.
+   *
+   * Coverage 2 of 7 -> 4 of 7. Read it for what it is: this measures how often
+   * the spine will ANSWER, never whether the answer is right, and two of these
+   * four now rest on a single price. What moved is the refusal, not the supply.
+   */
   assert.equal(by.get('kd-original-225g')?.outcome, 'verdict');
   assert.equal(by.get('poang-used')?.outcome, 'verdict');
-  assert.equal(report.verdicts, 2);
+  // One Walmart price, and Walmart is the shop being stood in. Judged against
+  // that store's own history, the way furniture already is.
+  assert.equal(by.get('tide-simply-2720ml')?.outcome, 'verdict');
+  // List price only, zero live retailer prices, and it says so on the answer.
+  assert.equal(by.get('sony-wh1000xm5')?.outcome, 'verdict');
+  assert.equal(report.verdicts, 4);
+  // Every one of the two new answers carries its doubt where the doubt belongs.
+  assert.equal(by.get('tide-simply-2720ml')?.confidence, 'low');
+  assert.equal(by.get('sony-wh1000xm5')?.confidence, 'low');
 });
 
-test('each of the five refusals gives the reason the pilot actually hit', () => {
-  /*
-   * Re-checked 2026-09-05, after every count threshold in the spine was removed
-   * in favour of a low confidence band. Coverage did not move: still 2 of 7.
-   *
-   * That is the finding, and it is worth more than the deletion was. Not one of
-   * these five was a threshold turning away prices we held. Each is an empty
-   * hand: no usable price at all, a category we decline, or an identity too
-   * doubtful to attach any price to. Thresholds were never what capped the
-   * pilot, so nothing about relaxing them will lift coverage; only more sellers
-   * will.
-   */
-  // The single Walmart price IS the shopper's own store, so excluding it leaves
-  // nothing to compare against. Not a threshold: a set of size zero.
-  //
-  // The code changed on 2026-09-07 and the behaviour did not. Both of these
-  // rows used to read `too_few_points`, which describes a count, over sets
-  // emptied by two different conditions and by neither of them a count. That
-  // mismatch is D-011 and its cause is D-012.
-  assert.equal(by.get('tide-simply-2720ml')?.reason, 'all_points_from_asking_seller');
-  // Produce is declined as a category, not missed as an item.
+test('the three refusals left are the three that are not about thin evidence', () => {
+  // Produce is declined as a category, not missed as an item. "Produce is out
+  // of v1", docs/decisions.md 2026-09-03, active, and it reverses on
+  // crowdsourced volume rather than on one more price.
   assert.equal(by.get('navel-oranges-3lb')?.reason, 'category_unsupported');
-  // The failure mode was identity, not price.
+  // The failure mode was identity, not price. No number is attached to a
+  // product we cannot name, at any confidence.
   assert.equal(by.get('canon-eos-r6-used')?.reason, 'identity_unsure');
-  // List price only, zero live retailer prices.
-  assert.equal(by.get('sony-wh1000xm5')?.reason, 'unusable_price_kinds');
-  // Five variant pages, no prices in any of them.
+  // Five variant pages, no prices in any of them. Zero sellers is the one
+  // refusal the founder's rule leaves standing.
   assert.equal(by.get('poang-new')?.reason, 'no_source_response');
+  assert.equal(report.refusals, 3);
 });
 
 test('the Kraft Dinner verdict is a walk-away with two lines', () => {

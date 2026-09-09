@@ -23,8 +23,10 @@ import type {
   SpineResult,
   Verdict,
 } from './contract.ts';
-import { isIncoherent, ruleFor } from './categories.ts';
+import { isIncoherent, ruleFor, spreadDisagreement } from './categories.ts';
 import type { CategoryRule } from './categories.ts';
+import { judge as judgeThinEvidence } from '../../price/src/verdict.ts';
+import type { Observation as ThinObservation } from '../../price/src/verdict.ts';
 import { ageDays, cad, isFutureDated, isUsableAmount, max, median, min, percentile } from './money.ts';
 import type { PriceSource } from './sources/source.ts';
 import { normalizeSeller } from './sources/source.ts';
@@ -159,19 +161,55 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
 
   const droppedKinds = [...new Set(raw.filter((p) => !rule.usableKinds.includes(p.kind)).map((p) => p.kind))];
 
+  /*
+   * WIRED 2026-09-08. The cascade above used to end in four refusals and this
+   * is where three of them were.
+   *
+   * His instruction of 2026-09-05: nothing refuses while there is a seller's
+   * number to work with, and the doubt is carried by the confidence. That was
+   * done in two places at once and only one of them ever shipped. The count
+   * thresholds further down this file became named shortfalls, and
+   * `price/src/verdict.ts` was rewritten to answer off a single seller and was
+   * then imported by nothing but its own test. Nobody checked the filter stage
+   * that sits IN FRONT of the thresholds, which refuses while holding prices:
+   * Tide with thirteen Walmart prices, refused because Walmart is also the shop
+   * being stood in, and the XM5 with a manufacturer list price and no retailer
+   * behind it. Both are a seller's number and both got a blank screen. Two of
+   * the pilot corpus's five refusals are these.
+   *
+   * So the stage that empties the set now names itself as a shortfall on the
+   * answer instead of as a reason to withhold it, exactly as the count
+   * thresholds already do, and `judge()` produces the answer.
+   *
+   * WHY `judge()` IS NOT PUT IN FRONT OF `CategoryRule.judge`. The four served
+   * categories ask four different questions, and grocery's two lines, used
+   * goods' 25th percentile and furniture's own-history sentence are the part of
+   * this that is worth anything. Routing every set through one comparator would
+   * remove the refusal and flatten the product in the same move. So the
+   * category still judges every set it can compare, and `judge()` answers only
+   * where the category's own filters left it nothing, which is precisely where
+   * the alternative is a blank screen.
+   *
+   * WHAT STILL REFUSES HERE, and neither is a threshold. A date later than the
+   * moment being priced is a broken record rather than thin evidence: the age
+   * line under a verdict would have to describe a day that has not happened, so
+   * it is dropped and the drop is what shows. And a set that judges to no tier
+   * at all falls back to the refusal it would have had, which cannot happen
+   * with a shelf price and a price point in hand and is guarded rather than
+   * assumed.
+   */
   if (comparison.length === 0) {
-    // The order matches the filter order above. Every branch points at the
-    // prices, the sellers or the dates, never at the person holding the phone.
-    if (usableKind.length === 0) {
-      return refuse(
-        'unusable_price_kinds',
-        `Only ${droppedKinds.join(' and ')} price${droppedKinds.length === 1 ? '' : 's'} found, which is not a comparison.`,
-        identity,
-        raw,
-        asOf,
-      );
-    }
-    if (notFutureDated.length === 0) {
+    /*
+     * Dated sanely, taken off `raw` and NOT off `notFutureDated`. The cascade
+     * above narrows kind first and date second, so `notFutureDated` is empty
+     * whenever the kind filter emptied the set, and reading it here called a
+     * manufacturer list price future-dated. Caught 2026-09-08 by running the
+     * pilot corpus, where it turned the XM5's refusal into a differently wrong
+     * refusal; no test covered it because until today nothing downstream of the
+     * cascade cared which stage had emptied which set.
+     */
+    const datedSanely = raw.filter((p) => !isFutureDated(p.observedAt, asOf));
+    if (datedSanely.length === 0) {
       return refuse(
         'points_future_dated',
         'Every price found is dated later than today, so there is nothing to compare against yet.',
@@ -180,18 +218,32 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
         asOf,
       );
     }
-    if (withinWindow.length === 0) {
-      return refuse(
-        'points_too_stale',
-        'Nothing recent enough to compare against.',
-        identity,
-        raw,
-        asOf,
-      );
-    }
+
+    // The order matches the filter order above. Every sentence points at the
+    // prices, the sellers or the dates, never at the person holding the phone.
+    const shortfall =
+      usableKind.length === 0
+        ? `the only prices anyone publishes for this are ${droppedKinds.join(' and ')}, which is not a comparison`
+        : withinWindow.length === 0
+          ? `the newest price we have is ${min(datedSanely.map((p) => ageDays(p.observedAt, asOf)))} days old, past what ${rule.label.toLowerCase()} tolerates`
+          : 'every price we have is this same store, so this is against its own history rather than against anybody else';
+
+    const thin = thinAnswer(
+      identity,
+      rule,
+      datedSanely,
+      askingCents,
+      query.askingSeller,
+      shortfall,
+      asOf,
+    );
+    if (thin !== null) return thin;
+
+    // Unreachable with a shelf price and at least one point, kept because the
+    // alternative to a guard here is a crash in an aisle.
     return refuse(
-      'all_points_from_asking_seller',
-      'Every price found is this same store, so there is nothing to compare it against.',
+      'no_source_response',
+      `Nothing has a price for "${identity.label}" right now.`,
       identity,
       raw,
       asOf,
@@ -340,6 +392,130 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     producedAt: asOf,
   };
   return verdict;
+}
+
+/**
+ * One display name per merchant before `judge()` counts them.
+ *
+ * `judge()` counts sellers by the exact string, which is correct for its own
+ * caller and wrong here: our feeds hand the same shop over as "Walmart" and as
+ * "walmart.ca", and one merchant under two spellings would buy a confidence of
+ * 0.7 off a single store's word. On this path the confidence IS the mechanism
+ * carrying the doubt, so it must not be inflated by a spelling. This is the
+ * same failure `confidenceOf` below records having had for real.
+ */
+function canonicalSellers(points: readonly PricePoint[]): Map<string, string> {
+  const names = new Map<string, string>();
+  for (const p of points) {
+    const key = normalizeSeller(p.seller);
+    const seen = names.get(key);
+    // Shortest spelling wins, which is the plain name over the domain form.
+    if (seen === undefined || p.seller.length < seen.length) names.set(key, p.seller);
+  }
+  return names;
+}
+
+/**
+ * The answer where the category cannot give one. `price/src/verdict.ts`, in
+ * production, from 2026-09-08.
+ *
+ * The translation is the whole of this function and it is deliberately dull.
+ * The two files disagree on three things and each disagreement is resolved in
+ * the direction that keeps the answer honest rather than the one that keeps it
+ * short:
+ *
+ * - `judge()` knows two kinds, regular and promotional. The spine knows five. A
+ *   promotion stays a promotion, because decision 33 says a sale price and a
+ *   shelf price never merge; everything else, including an asking price and a
+ *   manufacturer list, becomes the regular band, because on this path they are
+ *   not a supplement to a real comparison, they are the only numbers there are
+ *   and the shortfall sentence says exactly that.
+ * - `judge()` calls the dear end `high`; the contract's third face is
+ *   `walk_away`. Same tier, two vocabularies, and the contract's wins.
+ * - `judge()` asks whether a row was matched by barcode or by name. The spine
+ *   carries that on the identity rather than on the point, so a query that
+ *   resolved without a barcode takes the `likely` penalty across the set. That
+ *   is the more pessimistic reading of what we know and it is the right one
+ *   here, where the evidence is already thin.
+ *
+ * The band is pinned to `low` and not derived from the score. Reaching this
+ * function means the category's own filters threw away every price, which is a
+ * shortfall by definition; a set that clears a category's bar never gets here.
+ */
+function thinAnswer(
+  identity: ProductIdentity,
+  rule: CategoryRule,
+  points: readonly PricePoint[],
+  askingCents: number,
+  askingSeller: string | undefined,
+  shortfall: string,
+  asOf: string,
+): Verdict | null {
+  // D-022's hold applies here too, and under the same rule: it may name a lone
+  // claim, it may never be the thing that empties the set.
+  const held = points.filter((p) => isLoneOutlier(p, points));
+  const basis = held.length === 0 || held.length === points.length
+    ? points
+    : points.filter((p) => !held.includes(p));
+
+  const names = canonicalSellers(basis);
+  const observations: ThinObservation[] = basis.map((p) => ({
+    seller: names.get(normalizeSeller(p.seller)) ?? p.seller,
+    amountCents: p.amountCents,
+    kind: p.kind === 'promotional' ? 'promotional' : 'regular',
+    observedAt: p.observedAt.slice(0, 10),
+    // Every price in this contract is a shelf or listing price, never a total
+    // at a till, so nothing is dropped by decision 36's pre-tax filter.
+    preTax: true,
+    joinQuality: identity.gtin ? 'exact' : 'likely',
+  }));
+
+  const judged = judgeThinEvidence({
+    shelfCents: askingCents,
+    observations,
+    now: new Date(asOf),
+  });
+  if (judged.tier === null) return null;
+
+  const reasons = [shortfall, ...judged.confidenceBasis];
+  if (held.length > 0 && held.length < points.length) {
+    reasons.push(
+      `${held.length} typed price${held.length === 1 ? ' is' : 's are'} being held back for now, too far from everything else to publish on one person's word`,
+    );
+  }
+  if (isIncoherent(basis, rule.mixedKindsExpected)) {
+    reasons.push('the prices found disagree widely enough that this may be more than one product');
+  }
+  const listed = reasons.join('; ');
+
+  const ages = basis.map((p) => ageDays(p.observedAt, asOf));
+  const observed = basis.map((p) => p.observedAt).sort();
+
+  return {
+    kind: 'verdict',
+    identity,
+    category: identity.category,
+    askingCents,
+    askingSource: askingSeller ?? 'given',
+    tier: judged.tier === 'high' ? 'walk_away' : judged.tier,
+    lines: [judged.line],
+    comparisonSet: basis,
+    pointCount: basis.length,
+    oldestObservedAt: observed[0],
+    newestObservedAt: observed[observed.length - 1],
+    spread: spreadOf(basis),
+    confidence: {
+      band: 'low',
+      because: `${listed.charAt(0).toUpperCase()}${listed.slice(1)}.`,
+      score: judged.confidence,
+      pointCount: basis.length,
+      distinctSellers: names.size,
+      oldestPointAgeDays: max(ages),
+      identityConfidence: identity.confidence,
+    },
+    disagreement: spreadDisagreement(basis),
+    producedAt: asOf,
+  };
 }
 
 async function resolveIdentity(

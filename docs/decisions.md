@@ -702,3 +702,59 @@ in particular are computed from `color-mix` against `--ground`, and camera.css c
 `test/tokens.test.mjs` are checking a surface that is not drawn. Or if the type roles turn out to
 need a seventh, which would mean DESIGN.md section 2's table is short rather than that the roles
 were the wrong shape.
+
+## The price judge answers where the category cannot, and thin evidence stops being a refusal
+**Date:** 2026-09-08 · **Status:** active
+
+His instruction, 2026-09-05: *"The worst thing this app can do is tell people it doesn't know
+because that literally wastes the users time."* That day two things were done in its name and only
+one of them shipped. The count thresholds in `spine/src/spine.ts` became named shortfalls on the
+answer, which is real and is still in place. And `price/src/verdict.ts` was rewritten to answer off
+a single seller, with the doubt in a confidence number, and was then imported by nothing but its own
+test. For three days the app served an older path while a function written to his correction sat
+unreachable.
+
+What nobody checked on 2026-09-05 was the filter stage sitting IN FRONT of the thresholds. The
+corpus note written that day says all five pilot refusals were empty hands rather than thresholds.
+Two of them were not. Tide was refused holding a Walmart price, because Walmart was also the shop
+being stood in, and the WH-1000XM5 was refused holding a manufacturer list price. Both are a
+seller's number, both drew a blank screen, and both are the outcome he named as the worst available.
+
+So the stage that empties the comparison set now names itself as a shortfall on the confidence and
+`judge()` produces the verdict, in production, through `/api/price`. Three refusal reasons stop
+firing: `unusable_price_kinds`, `points_too_stale`, `all_points_from_asking_seller`. They stay in
+the contract's union, unreachable, the way `too_few_points` already does.
+
+**`judge()` is deliberately not put in front of `CategoryRule.judge`.** The four served categories
+ask four different questions and grocery's two lines, used goods' 25th percentile and furniture's
+own-history sentence are the part of this worth shipping. Routing every set through one comparator
+would have removed the refusal and flattened the product in the same move. The category judges every
+set it can compare; the price judge answers only where the category's own filters left it nothing,
+which is exactly where the alternative was a blank screen.
+
+**What still refuses, and none of it is a threshold.** No price at all from anybody, which is zero
+sellers and has no answer at any confidence. No price on the thing in front of the shopper. An
+identity below the category floor, because a number attached to the wrong product is the pilot's own
+worst failure. Every price dated after the moment being priced, which is a broken record rather than
+thin evidence. And produce, which is refused on **"Produce is out of v1", 2026-09-03, active**: a PLU
+names a category rather than a product, package formats break unit comparison, and the public series
+measures underlying inflation rather than the shelf. That decision reverses on crowdsourced shelf
+volume, not on one more price arriving, so the 2026-09-08 wiring does not reach it.
+
+Measured, not reasoned about: pilot corpus coverage moved 2 of 7 to 4 of 7, the first time it has
+moved at all. Read it for exactly what the harness says it is, which is how often the spine will
+answer and never whether the answer is right. Two of those four answers now rest on a single price.
+
+**Reverses if:** a single-seller answer is shown to be worse for a shopper than the blank screen it
+replaced. The shape to watch for is already visible and is logged as D-045: where the only price we
+hold equals the price on the tag, the range has zero width, and `judge()` calls that position
+zero, so the sentence reads "at the low end" over a set with no low end. Low confidence and a named
+reason sit beside it, but hard rule 3's neighbour still applies, that telling someone a price is
+good when it is not is the only mistake on this screen that makes them spend money. If that reads
+as a lie to him or to a tester, the fix is `judge()`'s tier ladder for a single-point band, not a
+return to refusing.
+
+## D-045 resolved: zero-width band tier logic
+**Date:** 2026-09-08 · **Status:** resolved
+
+When the band has zero width (one price or multiple sellers agreeing), `judge()` now compares the asking price directly to that number: equal yields fair tier with "matches", below yields good with "less than", above yields high with "more than", replacing the old "at the low/high end" wording that made no sense for single-point ranges.
