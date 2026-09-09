@@ -470,7 +470,10 @@ function union(results: readonly CatalogueResult[]): CatalogueResult {
   }
 
   const candidates = [...byCode.values()]
-    .sort((a, b) => (b.signals.similarity ?? -1) - (a.signals.similarity ?? -1))
+    .sort(
+      (a, b) =>
+        pinRank(b) - pinRank(a) || (b.signals.similarity ?? -1) - (a.signals.similarity ?? -1),
+    )
     .slice(0, 10);
 
   let band: CatalogueResult['band'] = 'miss';
@@ -483,6 +486,28 @@ function union(results: readonly CatalogueResult[]): CatalogueResult {
   }
 
   return { band, candidates, ring, matchedBy };
+}
+
+/**
+ * The same rank the catalogue ranks by, applied again after the merge (D-082).
+ *
+ * The union orders three lists that were asked three different questions, and
+ * similarity is the only thing they all carry, so it used to be the whole sort.
+ * That reintroduces the bug the catalogue side just fixed: q1 pins the size and
+ * q2 deliberately does not, the dedupe above keeps whichever answer was actually
+ * established, and then a sort on cosine alone puts the sibling with the wrong
+ * size back on top, because two listings of the same product under the same name
+ * differ on cosine by noise and on size by the only fact in the query.
+ *
+ * Same absolute rule and the same reason it is a rank rather than a weight:
+ * agreeing on brand AND size never sorts below agreeing on brand alone. It
+ * promotes and never demotes, for the reason `pinTier` records: a multipack
+ * prints its unit size and the catalogue stores its net size, so a size that
+ * DISAGREES is not evidence against a row. A query that pinned no size leaves
+ * every row level, so the order is the similarity order it has always been.
+ */
+function pinRank(c: CatalogueCandidate): number {
+  return c.signals.sizeAgrees === true && c.signals.brandAgrees !== false ? 1 : 0;
 }
 
 function bestSimilarity(a: CatalogueCandidate, b: CatalogueCandidate): CatalogueCandidate {

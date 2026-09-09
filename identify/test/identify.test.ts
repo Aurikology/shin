@@ -413,3 +413,62 @@ test('the words the model answers in become the number the confidence expects', 
     );
   }
 });
+
+test('the union puts the size the label showed above its sibling, whatever the similarities say (D-082)', async () => {
+  /*
+   * D-082. The reading is exact -- Cadbury Mini Eggs, 151 g -- and the row was
+   * still lost. Two things had to hold for that: the catalogue's q1 must lift
+   * the row whose size agrees (fixed in catalogue/src/search.ts), and this
+   * union must not then sort it back down, which it did, because it ordered on
+   * similarity alone and similarity knows nothing about the pin.
+   *
+   * Here q1 returns both siblings with the 151 g row scoring LOWER on cosine,
+   * which is the ordinary case for two listings whose names are identical.
+   * q2 unpins the size and returns them with no size signal at all, and the
+   * union's dedupe keeps the established `true` and the established `false`.
+   */
+  const want = candidate('0061200018585', 0.71, {
+    name: 'Mini Eggs',
+    brands: 'Cadbury',
+    quantity: '151 g',
+    sizeValue: 151,
+    sizeUnit: 'g',
+    signals: { similarity: 0.71, brandAgrees: true, sizeAgrees: true },
+  });
+  const sibling = candidate('0061200016741', 0.93, {
+    name: 'Mini Eggs',
+    brands: 'Cadbury',
+    quantity: '90 g',
+    sizeValue: 90,
+    sizeUnit: 'g',
+    signals: { similarity: 0.93, brandAgrees: true, sizeAgrees: false },
+  });
+  const unpinned = (c: CatalogueCandidate): CatalogueCandidate => ({
+    ...c,
+    signals: { ...c.signals, sizeAgrees: null },
+  });
+
+  const { lookup, queries } = recordingLookup((q) => ({
+    band: 'ambiguous',
+    // q1 is the only query carrying the size pin.
+    candidates: q.sizeValue ? [sibling, want] : [unpinned(sibling), unpinned(want)],
+    ring: null,
+    matchedBy: 'hybrid',
+  }));
+
+  const stage = new IdentifyStage(
+    lookup,
+    fakeModel({ brand: 'Cadbury', name: 'Mini Eggs', size_value: 151, size_unit: 'g' }),
+  );
+  const out = await stage.fromCrop(new Uint8Array([1]), null, 'pro', 100);
+
+  assert.ok(queries.some((q) => q.sizeValue === 151), 'q1 never pinned the size');
+  assert.equal(out.kind, 'identified');
+  if (out.kind !== 'identified') return;
+  assert.equal(out.chosen.code, '0061200018585', 'the sibling with the wrong size led the union');
+  // The general rule: brand AND size never below brand alone.
+  const ranked = [out.chosen, ...out.alternates];
+  const both = ranked.findIndex((c) => c.signals.brandAgrees === true && c.signals.sizeAgrees === true);
+  const brandOnly = ranked.findIndex((c) => c.signals.brandAgrees === true && c.signals.sizeAgrees !== true);
+  assert.ok(both !== -1 && (brandOnly === -1 || both < brandOnly), 'a brand-and-size row sorted below a brand-only row');
+});

@@ -668,3 +668,66 @@ test('a UPC-A row and its EAN-13 twin are one product, not two results', async (
   const twins = r.candidates.filter((c) => c.code === '0012345678905' || c.code === '12345678905');
   assert.equal(twins.length, 1, 'the same barcode came back in two forms');
 });
+
+test('a pinned size lifts the sibling that agrees with it above the one that does not (D-082)', async () => {
+  /*
+   * D-082, from the eval's own rows. The dry run reads a Cadbury Mini Eggs
+   * 151 g pack perfectly and still loses it: the catalogue holds several
+   * listings of "Cadbury Mini Eggs" whose names are word-for-word the same,
+   * so BM25 cannot separate them, and the ONE thing that can -- the size the
+   * caller pinned -- was computed after the slice and used only to label the
+   * rows that had already survived. The 151 g row sat at word rank 27 with
+   * `sizeAgrees: true` while its 90 g sibling led the list with
+   * `sizeAgrees: false`.
+   *
+   * The fixture is that shape in miniature: an untitled twin that wins on
+   * text alone, the wrong-size sibling, and the row the caller actually
+   * described, deliberately given the weakest name of the three.
+   */
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  insert.run('0061200225013', 'Cadbury Mini Eggs', 'Cadbury Mini Eggs', null, 'cadbury', null, null, null, '[]', null, '[]', 1, 'openfoodfacts');
+  insert.run('0061200016741', 'Mini Eggs', 'Mini Eggs', null, 'Cadbury', '90g', 90, 'g', '[]', null, '[]', 1, 'openfoodfacts');
+  insert.run('0061200018585', 'Mini Eggs Chocolate Candy', 'Mini Eggs Chocolate Candy', null, 'Cadbury', '151g', 151, 'g', '[]', null, '[]', 1, 'openfoodfacts');
+  rebuildFts(db);
+  rebuildCategories(db);
+
+  const cat = new Catalogue(db, new HashEmbedder());
+  const pinned = await cat.search({
+    text: 'Cadbury Mini Eggs',
+    brand: 'Cadbury',
+    sizeValue: 151,
+    sizeUnit: 'g',
+    limit: 10,
+    vectors: false,
+  });
+
+  assert.equal(pinned.candidates[0]?.code, '0061200018585', 'the row that agrees with the pinned size did not lead');
+
+  // The general rule, not the one row: agreeing on brand AND size never sorts
+  // below agreeing on brand alone.
+  const agrees = (c: { signals: { brandAgrees: boolean | null; sizeAgrees: boolean | null } }) =>
+    c.signals.brandAgrees === true && c.signals.sizeAgrees === true;
+  const lastAgreeing = pinned.candidates.map(agrees).lastIndexOf(true);
+  const firstBrandOnly = pinned.candidates.findIndex(
+    (c) => c.signals.brandAgrees === true && c.signals.sizeAgrees !== true,
+  );
+  assert.ok(
+    firstBrandOnly === -1 || lastAgreeing < firstBrandOnly,
+    'a brand-and-size row sorted below a brand-only row',
+  );
+
+  // Unpinning the size is the cascade's q2 and must still bring the siblings
+  // back as a set, so decision 19 has something to ask a question about.
+  const unpinned = await cat.search({
+    text: 'Cadbury Mini Eggs',
+    brand: 'Cadbury',
+    limit: 10,
+    vectors: false,
+  });
+  const codes = unpinned.candidates.map((c) => c.code);
+  assert.ok(codes.includes('0061200016741') && codes.includes('0061200018585'), 'both sizes must survive an unpinned query');
+});

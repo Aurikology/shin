@@ -447,23 +447,80 @@ function dedupeListings(ranked: readonly Fused[]): Fused[] {
   return out;
 }
 
+/** Does this row carry the brand the caller pinned? Null when none was pinned. */
+function brandAgreesWith(row: Row, query: SearchQuery): boolean | null {
+  return query.brand && row.brands
+    ? normalizeBrand(row.brands).includes(normalizeBrand(query.brand)) ||
+        normalizeBrand(query.brand).includes(normalizeBrand(row.brands.split(',')[0] ?? ''))
+    : null;
+}
+
+/**
+ * Does this row carry the size the caller pinned? Null when none was pinned.
+ *
+ * Within 5%: pack sizes are printed rounded and "500 ml" and "0.5 L" should not
+ * read as different products (decision 19).
+ */
+function sizeAgreesWith(row: Row, query: SearchQuery): boolean | null {
+  return query.sizeValue && row.size_value && query.sizeUnit === row.size_unit
+    ? Math.abs(row.size_value - query.sizeValue) / query.sizeValue <= 0.05
+    : null;
+}
+
+/**
+ * HOW FAR A ROW ANSWERS WHAT THE CALLER PINNED, AS A RANK NO SCORE MAY CROSS.
+ *
+ * D-082, and it is a ranking bug rather than a labelling one. `brandAgrees` and
+ * `sizeAgrees` were computed inside `rowToCandidate`, which runs on the rows
+ * that have ALREADY survived the slice, so the two signals the band leans on
+ * hardest could describe the answer and never shape it. Fine while the words
+ * separate the rows. Useless in the one case a size pin exists for: a product
+ * published in two sizes under word-for-word the same name, where BM25 has
+ * nothing to tell them apart with and picks by accident.
+ *
+ * Measured on the live catalogue: "Cadbury Mini Eggs" pinned at 151 g put the
+ * 151 g row at word rank 27, outside the cascade's ten-row window, with the
+ * 90 g sibling leading on a name that is the same string. The pin was the only
+ * evidence in the query that could separate them and it was spent on a label.
+ *
+ * A rank and not another multiplier, because the rule this has to hold is
+ * absolute: a row agreeing on brand AND size never sorts below a row agreeing
+ * on brand alone. A boost, however large, is a number some other boost can beat,
+ * and RING_BOOST and CANADA_BOOST are already stacked here.
+ *
+ * A caller who pinned no size leaves every row UNKNOWN, so the order of a typed
+ * search is untouched -- this can only fire where the caller supplied a size and
+ * some row agrees with it.
+ *
+ * IT PROMOTES AND IT NEVER DEMOTES, AND THAT IS THE MEASURED SHAPE, NOT A
+ * SOFTENING. The first version put a size-contradicting row in a tier BELOW a
+ * row carrying no size at all, which is defensible right up until the pinned
+ * size is wrong -- and on a multipack it routinely is. The eval's Danone
+ * Danette is published as "4 x 100 g" and stored as 400 g; a reader that takes
+ * 100 g off the front of the pack pins the unit size against a net size and
+ * contradicts the correct row. Demoting on that lost two multipack rows that
+ * had been landing top-1. A size that agrees is evidence FOR a row; a size that
+ * disagrees is not evidence against one, because packs print per-unit sizes,
+ * rounded sizes, and drained weights. So agreement lifts, disagreement costs
+ * nothing, and the cascade's q2 still asks the same question unpinned so the
+ * siblings come back as a set for decision 19.
+ */
+const PIN_AGREES = 1;
+const PIN_UNKNOWN = 0;
+
+function pinTier(row: Row, query: SearchQuery): number {
+  return sizeAgreesWith(row, query) === true && brandAgreesWith(row, query) !== false
+    ? PIN_AGREES
+    : PIN_UNKNOWN;
+}
+
 function rowToCandidate(
   row: Row,
   signals: Candidate['signals'],
   query: SearchQuery,
 ): Candidate {
-  const brandAgrees =
-    query.brand && row.brands
-      ? normalizeBrand(row.brands).includes(normalizeBrand(query.brand)) ||
-        normalizeBrand(query.brand).includes(normalizeBrand(row.brands.split(',')[0] ?? ''))
-      : null;
-
-  // Within 5%: pack sizes are printed rounded and "500 ml" and "0.5 L" should
-  // not read as different products (decision 19).
-  const sizeAgrees =
-    query.sizeValue && row.size_value && query.sizeUnit === row.size_unit
-      ? Math.abs(row.size_value - query.sizeValue) / query.sizeValue <= 0.05
-      : null;
+  const brandAgrees = brandAgreesWith(row, query);
+  const sizeAgrees = sizeAgreesWith(row, query);
 
   return {
     code: row.code,
@@ -837,10 +894,13 @@ export class Catalogue {
      */
     const baseScore = (m: { rrf: number; row: { sold_in_canada: number } }) =>
       m.row.sold_in_canada === 1 ? m.rrf * CANADA_BOOST : m.rrf;
+    // The pin tier leads, and nothing the scores do can cross it. See pinTier.
     const byScore =
       (score: (m: Fused) => number) =>
       (a: Fused, b: Fused) =>
-        score(b) - score(a) || b.row.sold_in_canada - a.row.sold_in_canada;
+        pinTier(b.row, query) - pinTier(a.row, query) ||
+        score(b) - score(a) ||
+        b.row.sold_in_canada - a.row.sold_in_canada;
 
     const pool = dedupeListings([...merged.values()].sort(byScore(baseScore)));
 
