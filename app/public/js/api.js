@@ -202,3 +202,87 @@ export function attribution() {
 export function sendCorrection(correction) {
   return post('/api/correction', correction, { refusalIsAnswer: true });
 }
+
+/**
+ * A blob, as the base64 the photo route wants. No `data:` prefix: the route
+ * takes a bare base64 PNG (docs/the-photo-path.md section 3).
+ *
+ * `btoa`, not `Buffer`: both the browser and the Node this repo's tests run
+ * under carry it as a global, and `Buffer` does not exist in the first of
+ * those. Chunked so a multi-megabyte crop does not blow `String.fromCharCode`'s
+ * argument limit.
+ */
+async function blobToBase64(blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
+
+/**
+ * The picture the eye captured, sent to be read. docs/the-photo-path.md
+ * section 3 is the contract this talks to.
+ *
+ * Four outcomes, and the caller has to tell them apart without a throw hiding
+ * one of them -- the same discipline `identify` and `sendCorrection` already
+ * keep:
+ *
+ *   product set              an identity, the same shape `identify` returns.
+ *   candidates set            unsure: a short list to offer as a pick.
+ *   failure set               the route declined it or the model could not:
+ *                             'too_large' | 'rate_limited' | 'unreadable_photo'
+ *                             | 'model_timeout' | 'model_outage' |
+ *                             'model_rate_limited' | 'spend_cap_reached'.
+ *   failure: 'offline'        the request never reached the server, or came
+ *                             back in a shape this function was not told to
+ *                             expect. The crop is still good either way, and
+ *                             this is the signal the capture queue keeps it
+ *                             on rather than losing the one thing the shopper
+ *                             cannot retake.
+ *
+ * 413 and 429 are answers here, never throws, for the reason `sendCorrection`'s
+ * own comment gives: a caller building a queue on this has to tell "the server
+ * looked and said no" from "the request never arrived", and only the second is
+ * worth trying again.
+ */
+export async function identifyPhoto(blob, { sharpness, deviceId, tier } = {}) {
+  const body = {};
+  try {
+    body.image = await blobToBase64(blob);
+  } catch (err) {
+    console.error('photo could not be read for sending:', err);
+    return { product: null, failure: 'offline' };
+  }
+  if (typeof sharpness === 'number') body.sharpness = sharpness;
+  if (tier) body.tier = tier;
+  const device = deviceId ?? getDeviceId()?.id;
+  if (device) body.deviceId = device;
+
+  let res;
+  try {
+    res = await fetch('/api/identify/photo', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    // The aisle with no signal. Ordinary, and the crop is still good.
+    return { product: null, failure: 'offline' };
+  }
+
+  if (res.status === 413 || res.status === 429) {
+    const says = await res.json().then((b) => b?.error ?? b?.says ?? null).catch(() => null);
+    return { product: null, failure: res.status === 413 ? 'too_large' : 'rate_limited', says };
+  }
+  if (!res.ok) {
+    // A status this function was not built against. The crop is real and the
+    // aisle it was taken in may already be gone, so it is kept rather than
+    // thrown away on an error nobody named.
+    console.error(`/api/identify/photo returned ${res.status}`);
+    return { product: null, failure: 'offline' };
+  }
+  return res.json();
+}

@@ -26,7 +26,7 @@
 import { faceBlock, cad, confidenceOf, dotsHtml, tierOf, sellerOf, animateFace, shinSay, updateShinSay } from '../shin.js';
 import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
-import { attachEye } from '../eye-attach.js';
+import { attachEye, startCaptureQueue } from '../eye-attach.js';
 import { escapeHtml } from '../lib/dom.js';
 import { submitCorrection } from '../corrections.js';
 import { identifyOffline } from '../offline-aisle.js';
@@ -633,6 +633,32 @@ function isThinReason(reason) {
 }
 
 /**
+ * The four ways the photo model itself never got a real look at the picture,
+ * as opposed to looking and failing to read it. docs/the-photo-path.md
+ * section 3: `identifyPhoto`'s `failure` field, minus `too_large` and
+ * `rate_limited` (the route declining the request, handled before a scan is
+ * ever attempted) and `unreadable_photo` (the model did look).
+ *
+ * Titled apart from `refuse_unknown` in `refusalSheet` below for hard rule 3:
+ * an outage is not the shopper's photo being unclear, and saying so would be
+ * the aggression landing on the wrong target.
+ */
+const MODEL_DOWN_REASONS = new Set([
+  'model_timeout',
+  'model_outage',
+  'model_rate_limited',
+  'spend_cap_reached',
+]);
+
+/** Each model-down failure's own sentence in voice.js, keyed by the failure code. */
+const PHOTO_MODEL_FAILURE_LINES = {
+  model_timeout: 'cam_photo_model_timeout',
+  model_outage: 'cam_photo_model_outage',
+  model_rate_limited: 'cam_photo_model_rate_limited',
+  spend_cap_reached: 'cam_photo_spend_cap_reached',
+};
+
+/**
  * What "Keep it" needs before it can be offered, or null.
  *
  * AVATAR.md section 3 row 39 gives the thin refusal exactly one action and
@@ -694,8 +720,17 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null) {
   const isUnsure = r.reason === 'identity_unsure';
   const isNoIdentity = r.reason === 'no_identity';
   const isThin = isThinReason(r.reason);
+  const isModelDown = MODEL_DOWN_REASONS.has(r.reason);
 
-  const titleKey = isCategory ? 'refuse_category' : isUnsure ? 'refuse_unsure' : isThin ? 'refuse_thin' : 'refuse_unknown';
+  const titleKey = isCategory
+    ? 'refuse_category'
+    : isUnsure
+      ? 'refuse_unsure'
+      : isModelDown
+        ? 'refuse_unavailable'
+        : isThin
+          ? 'refuse_thin'
+          : 'refuse_unknown';
   const titleFacts = isCategory ? { category } : {};
 
   // Row 8: a category refusal's detail is the engine's own paragraph, true
@@ -719,7 +754,9 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null) {
   // that says what actually happened.
   const mine = isCategory || isThin
     ? ''
-    : `<p class="said">${say(isUnsure ? 'refuse_unsure_why' : 'refuse_unknown_why')}</p>`;
+    : isModelDown
+      ? `<p class="said">${say('refuse_unavailable_why')}</p>`
+      : `<p class="said">${say(isUnsure ? 'refuse_unsure_why' : 'refuse_unknown_why')}</p>`;
 
   // USAGE.md section 4 ("the single action, by reason") and section 7 ("on a
   // refusal: one action only... there is no share and no watch on a refusal")
@@ -747,7 +784,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null) {
              and the same button on every attitude. What Shin SAYS about it is
              keep_it_ack, which has all three. */
           ? `<button type="button" class="pill solid" data-act="keepit">Keep it</button>`
-          : isNoIdentity
+          : isNoIdentity || isModelDown
             ? `<button type="button" class="pill solid" data-act="typeit">Type what it is</button>`
             : `<button type="button" class="pill solid" data-act="correct">Tell me the price</button>`
       }</div>`;
@@ -1305,6 +1342,15 @@ export default {
     let scanThumb = null;
     let coachKey = null;
     let camShinEl = camShin ? camShin.querySelector('.shin-say') : null;
+    /* Decision 15: a stable barcode is truth and never competes with a photo
+       for the same capture. Set the instant a barcode read begins, so a crop
+       that lands in the same narrow window `onCapture` does not start the
+       photo route underneath a barcode already being resolved. Cleared by
+       `reset()`, which is every path back to idle. */
+    let barcodeInFlight = false;
+    /** D-026's caller, started once below. The teardown `startCaptureQueue`
+        returns, held so the render's own cleanup can call it. */
+    let stopCaptureQueue = () => {};
 
     /*
      * The eye first, the old plain camera second.
@@ -1357,6 +1403,13 @@ export default {
         // be read, so the two can never disagree about what was photographed.
         lastCrop = crop;
         thumbFromCrop(crop).then((url) => { if (!dead && url) scanThumb = url; });
+        // Decision 15: a stable barcode already answers. Auto-capture is off
+        // (below), so this only ever fires off the manual shutter, which
+        // itself will not fire while a barcode is already being handled --
+        // this guard is the belt for the narrow window where both can start
+        // within the same tick.
+        if (barcodeInFlight) return;
+        void handlePhotoCapture(crop);
       },
     }).then((e) => {
       if (dead) { e.stop(); return; }
@@ -1374,6 +1427,17 @@ export default {
         cam.dataset.camera = s ? 'live' : 'drawn';
         showInitialIdleContent();
       });
+    });
+
+    // D-026: `startCaptureQueue` has been exported and called by nothing. A
+    // photo taken with no signal is queued by the eye (decision 13) and has to
+    // be drained by somebody once the network comes back; this screen is that
+    // somebody, because it is the one place a queued crop can still become a
+    // real answer. Started once per mount, torn down with the render's own
+    // cleanup below.
+    startCaptureQueue(sendQueuedCapture).then((stop) => {
+      if (dead) { stop(); return; }
+      stopCaptureQueue = stop;
     });
 
     ctx.api.scenarios()
@@ -1610,6 +1674,10 @@ export default {
      * choose between when the package told us what it is.
      */
     async function onBarcode(read) {
+      // Decision 15, the other half: raised before anything else so a photo
+      // capture landing in the same window defers to the code. `reset()`
+      // lowers it again on the way back to idle.
+      barcodeInFlight = true;
       clearTimeout(hintTimer);
       clearTimeout(torchAckTimer);
       coachKey = null;
@@ -2025,8 +2093,152 @@ export default {
       }
     }
 
+    /**
+     * The photo route: the crop the eye just captured, sent to be read.
+     * Section 3 of docs/the-photo-path.md is the contract; this is the client
+     * half of it.
+     *
+     * Four outcomes, and each one gets its own screen rather than a shared
+     * guess:
+     *
+     *   identity, band not low   the same flow the typed route takes once
+     *                            `ctx.api.identify` finds a product --
+     *                            `openPad`, not `proceed` directly, because a
+     *                            photo carries no typed price either.
+     *   candidates                `searchCandidateSheet`, the same picker
+     *                            "not this?" already uses, so choosing among
+     *                            photo candidates feels like the choice it
+     *                            already is elsewhere in this file.
+     *   failure                   a refusal, in Shin's voice and never the raw
+     *                            class (hard rule 3, D-011's whole point).
+     *   failure: 'offline'        the crop goes into the eye's own queue
+     *                            rather than being lost, decision 13.
+     *
+     * `gen` is the same generation counter `proceed()` guards its own
+     * continuation with: `reset()` bumps it on the way back to idle, which is
+     * what stops a slow photo answer from painting over a scan the shopper
+     * has already left.
+     */
+    async function handlePhotoCapture(crop) {
+      if (dead || barcodeInFlight) return;
+      const myGen = ++gen;
+      setState('reading');
+      slot.innerHTML = workingSheet('What you photographed', 0);
+      mounted();
+
+      let id;
+      try {
+        id = await ctx.api.identifyPhoto(crop.blob, { sharpness: crop.sharpness });
+      } catch (err) {
+        console.error('photo identify failed:', err);
+        id = { product: null, failure: 'offline' };
+      }
+      if (dead || myGen !== gen) return;
+
+      if (id?.failure === 'offline') {
+        void enqueuePhotoCapture(crop);
+        showPhotoRefusal('no_source_response', say('cam_photo_offline'));
+        return;
+      }
+
+      const modelLine = id?.failure ? PHOTO_MODEL_FAILURE_LINES[id.failure] : null;
+      if (modelLine) {
+        showPhotoRefusal(id.failure, say(modelLine));
+        return;
+      }
+
+      // `unreadable_photo`, or a failure code this build does not know the
+      // name of yet: both are an honest miss on what the photo itself showed,
+      // so both read as `no_identity` -- the same reason the typed route's
+      // own no-match refusal uses.
+      if (id?.failure) {
+        showPhotoRefusal('no_identity', say('cam_photo_unreadable'));
+        return;
+      }
+
+      if (Array.isArray(id?.candidates) && id.candidates.length) {
+        const readAs = id.reading || photoCandidateLabel(id.candidates[0]) || 'the photo';
+        const mapped = id.candidates.map((c) => ({
+          code: c.code,
+          label: photoCandidateLabel(c) || 'Unlabelled item',
+          meta: c.brand ?? '',
+        }));
+        setState('choosing');
+        slot.innerHTML = searchCandidateSheet(mapped, readAs);
+        mounted();
+        return;
+      }
+
+      if (id?.product && id.band !== 'low') {
+        // The typed route's own flow, reused rather than copied: an identity
+        // with no typed price yet goes to the pad, exactly as it does when a
+        // typed name resolves to a catalogue product.
+        openPad({
+          id: id.product.code,
+          text: productLabel(id.product),
+          category: id.category,
+          gtin: id.product.code,
+          notThisQuery: null,
+        });
+        return;
+      }
+
+      // No product, no candidates, no named failure. Rare, and still an
+      // honest miss rather than a silent one.
+      showPhotoRefusal('no_identity', say('cam_photo_unreadable'));
+    }
+
+    /** Every photo-route refusal's own paint: build the sheet, land it, focus it. */
+    function showPhotoRefusal(reason, detail) {
+      if (dead) return;
+      slot.innerHTML = refusalSheet(
+        { kind: 'refusal', reason, detail, identity: null, evidence: [] },
+        null,
+        supportedCategories,
+      );
+      playRefusalLanding(slot);
+      setState('result');
+      mounted();
+    }
+
+    /** Brand, name and size off a photo-route candidate row, without inventing punctuation for a missing field. */
+    function photoCandidateLabel(c) {
+      return [c?.brand, c?.name, c?.size].filter(Boolean).join(' ');
+    }
+
+    /**
+     * D-026's caller. `startCaptureQueue` hands back a `PendingCapture` (id,
+     * blob, gtin, takenAt, note, attempts); `identifyPhoto` only needs the
+     * blob, and the queue only needs to know whether to stop asking.
+     * `offline` is the one answer that means "still no signal", so it is the
+     * one answer that keeps the item queued; every other answer, including a
+     * refusal, means the request reached the server and the queue's job here
+     * is done.
+     */
+    function sendQueuedCapture(item) {
+      return ctx.api.identifyPhoto(item.blob, {})
+        .then((res) => res?.failure !== 'offline')
+        .catch(() => false);
+    }
+
+    /** Decision 13: the capture goes into durable storage before anything
+        else, so a lost network never loses the photo. */
+    async function enqueuePhotoCapture(crop) {
+      try {
+        const mod = await import('/js/eye.js');
+        await mod.enqueue({
+          blob: crop.blob,
+          gtin: null,
+          takenAt: Date.now(),
+          note: say('cam_photo_offline'),
+        });
+      } catch (err) {
+        console.error('could not queue an offline photo:', err);
+      }
+    }
+
     function reset() {
-      gen++; // Voids any in-flight proceed() continuation.
+      gen++; // Voids any in-flight proceed() continuation, including a photo capture's.
       slot.innerHTML = '';
       last = null;
       lastKeepable = null;
@@ -2036,6 +2248,7 @@ export default {
       // which is the class of quietly-wrong framing this whole system exists
       // to remove.
       coachKey = null;
+      barcodeInFlight = false;
       eye?.clearSelection?.();
       setState('idle');
       showInitialIdleContent();
@@ -2596,6 +2809,7 @@ export default {
       unsub();
       eye?.stop();
       stopCamera(stream);
+      stopCaptureQueue();
       clearTimeout(hintTimer);
       clearTimeout(torchAckTimer);
     };

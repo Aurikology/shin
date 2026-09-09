@@ -185,6 +185,24 @@ const LINES = {
     warm: (f) => `I skip ${f.category}`,
     blunt: (f) => `${f.category}? No.`,
   },
+  /*
+   * --- the photo route's own refusal title, added with the photo path ---
+   * A model that timed out, went down, is over its rate limit, or is over its
+   * daily spend cap never got a real look at the picture, so titling it like
+   * `refuse_unknown` ("I do not know this one") would blame the photo for an
+   * outage that has nothing to do with it. Hard rule 3: the aggression, such
+   * as it is, points at the reader, never at the shot the shopper took.
+   */
+  refuse_unavailable: {
+    deadpan: () => 'The photo reader is not answering',
+    warm: () => 'The photo reader is not answering right now',
+    blunt: () => 'Reader is down',
+  },
+  refuse_unavailable_why: {
+    deadpan: () => 'This is the reader, not your photo. The barcode and typing it still work.',
+    warm: () => 'This is on my end, not your photo. The barcode or typing it will still get you an answer.',
+    blunt: () => 'My fault, not your shot. Try the barcode or type it.',
+  },
   refuse_thin: {
     deadpan: () => 'Not enough to call it',
     warm: () => 'I would rather not say yet',
@@ -750,6 +768,56 @@ const LINES = {
     blunt: () =>
       'No signal. The phone knows what this is. It cannot know what it costs, and a stale price is worse than none.',
   },
+  /*
+   * --- the photo route's own six, added with the photo path
+   * (docs/the-photo-path.md section 3) ---
+   *
+   * `cam_photo_offline` is this app's own words for spine's own fixed line,
+   * "You are offline, so we kept the photo." (spine/src/run.ts REFUSALS.offline):
+   * the request never reached the server, the crop is queued rather than lost,
+   * and the sentence has to say both halves the same way `cam_offline_no_price`
+   * does above it.
+   *
+   * `cam_photo_unreadable` is the honest miss: the photo made it to the model
+   * and the model could not read it. Reason stays `no_identity` on the sheet,
+   * because that is what actually happened.
+   *
+   * The four `cam_photo_model_*` lines are the reader itself not answering --
+   * timed out, down, over its rate limit, or over its daily spend cap. None of
+   * them says the raw class, and none of them reads as the shopper's photo
+   * being at fault (hard rule 3): each one repeats what still works right now,
+   * the barcode or typing it, so a refusal is never a dead end.
+   */
+  cam_photo_offline: {
+    deadpan: () => 'You are offline, so I kept the photo. I will finish this once you are back on.',
+    warm: () => 'No signal, so I kept your photo safe. I will pick this back up the moment you are online again.',
+    blunt: () => 'Offline. Photo kept. I will finish this once you are back.',
+  },
+  cam_photo_unreadable: {
+    deadpan: () => 'That photo did not read clearly enough to say what it is. Try again, or type what it is.',
+    warm: () => 'I could not read that photo clearly enough to say what it is. Try again, or tell me what it is.',
+    blunt: () => 'Could not read that photo. Try again, or type it.',
+  },
+  cam_photo_model_timeout: {
+    deadpan: () => 'The photo reader took too long to answer this one. The barcode and typing it still work.',
+    warm: () => 'The photo reader took too long on this one, not your shot. The barcode or typing it will still get you an answer.',
+    blunt: () => 'Reader timed out. Try the barcode or type it.',
+  },
+  cam_photo_model_outage: {
+    deadpan: () => 'The photo reader is down right now. The barcode and typing it still work.',
+    warm: () => 'The photo reader is down right now, not your shot. The barcode or typing it will still get you an answer.',
+    blunt: () => 'Reader is down. Try the barcode or type it.',
+  },
+  cam_photo_model_rate_limited: {
+    deadpan: () => 'Too many photos are going through right now. The barcode and typing it still work.',
+    warm: () => 'Photos are backed up right now, not your shot. The barcode or typing it will still get you an answer.',
+    blunt: () => 'Too busy right now. Try the barcode or type it.',
+  },
+  cam_photo_spend_cap_reached: {
+    deadpan: () => 'Today’s photo reads are used up. The barcode and typing it still work.',
+    warm: () => 'Today’s photo reads are already used up, not your shot. The barcode or typing it will still get you an answer.',
+    blunt: () => 'Out of photo reads today. Try the barcode or type it.',
+  },
   /**
    * The last row of the stand-in candidate list, under "Something else". It
    * promises a refusal rather than pretending, which is the honest thing for a
@@ -889,6 +957,38 @@ const LINES = {
     deadpan: () => 'Refused. Every price I found is from this same shop, so there is nothing to compare it against.',
     warm: () => 'Refused, because every price I found comes from this same shop. Comparing a shop against itself would tell you nothing.',
     blunt: () => 'Refused. This shop is the only one I have prices from. Nothing to compare.',
+  },
+  /*
+   * The four the photo route can return as `failure`, added with the photo
+   * path. These are not members of spine's `RefusalReason` union -- they are
+   * `FailureClass` codes from the identify layer, reused as the sheet's own
+   * `reason` for a photo capture the model itself never finished -- so
+   * `refusal-voice.test.mjs`'s sweep of that union does not (and should not)
+   * cover them. camera.js passes the failure code straight through as
+   * `r.reason`, and D-011 is exactly what happens if a code like that reaches
+   * `refusalLabel` with no row here: it falls to the bare "Refused" instead of
+   * printing itself, but the itemname line is still better for saying what
+   * happened, so these four exist.
+   */
+  refusal_label_model_timeout: {
+    deadpan: () => 'Refused. The photo reader took too long.',
+    warm: () => 'Refused, because the photo reader took too long to answer.',
+    blunt: () => 'Refused. Reader timed out.',
+  },
+  refusal_label_model_outage: {
+    deadpan: () => 'Refused. The photo reader is down.',
+    warm: () => 'Refused, because the photo reader is down right now.',
+    blunt: () => 'Refused. Reader is down.',
+  },
+  refusal_label_model_rate_limited: {
+    deadpan: () => 'Refused. Too many photos right now.',
+    warm: () => 'Refused, because too many photos are going through right now.',
+    blunt: () => 'Refused. Too busy right now.',
+  },
+  refusal_label_spend_cap_reached: {
+    deadpan: () => 'Refused. Today’s photo reads are used up.',
+    warm: () => 'Refused, because today’s photo reads are already used up.',
+    blunt: () => 'Refused. Out of photo reads today.',
   },
 
   /**
