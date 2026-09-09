@@ -66,6 +66,19 @@ test('the gate is the band AND a rival, never the band alone', () => {
   assert.match(CAMERA, /id\.band === 'ambiguous' && id\.otherCandidates > 0/);
 });
 
+test('/api/search downgrades a restricted confident band the way /api/identify does', () => {
+  // Routing returns a confidence adjustment below 1 on a restricted result;
+  // this interface reports a band, so the adjustment lands as confident ->
+  // ambiguous. /api/search spread the raw result and dropped it. It was
+  // unreachable only because the route pins neither brand nor size, so the
+  // band could not be confident: a rule holding on an invariant nothing
+  // asserted. Now it holds on a line.
+  const server = readFileSync(new URL('../server.ts', import.meta.url), 'utf8');
+  const searchRoute = server.slice(server.indexOf("url.pathname === '/api/search'"), server.indexOf("url.pathname === '/api/price'"));
+  assert.match(searchRoute, /routed\.restricted && !routed\.fellBack && raw\.band === 'confident'/);
+  assert.match(searchRoute, /band: 'ambiguous' as const/);
+});
+
 test('the server counts the rivals, so the screen does not have to guess', () => {
   const server = readFileSync(new URL('../server.ts', import.meta.url), 'utf8');
   assert.match(server, /otherCandidates: Math\.max\(0, result\.candidates\.length - 1\)/);

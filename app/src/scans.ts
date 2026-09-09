@@ -83,6 +83,17 @@ CREATE TABLE IF NOT EXISTS scan (
 ) STRICT;
 
 CREATE INDEX IF NOT EXISTS scan_device_week ON scan(device_id, outcome, scanned_at);
+-- The two indexes below cover the queries that actually run on every request.
+-- scan_device_week above covers weeklyCount exactly, and weeklyCount has no
+-- production caller. recentCategories runs on every identify and search and
+-- filters on category and an INEQUALITY on outcome, so the index above stops
+-- at the device_id prefix and the rest is a scan-and-sort of every row that
+-- device has, on the request thread, growing without bound for the repeat
+-- shopper this product is built for. lastAnsweredScan runs on every
+-- correction. Both want newest-first by id under a device. Indexes, unlike
+-- columns, are created by IF NOT EXISTS on a table that already exists.
+CREATE INDEX IF NOT EXISTS scan_device_recent ON scan(device_id, id DESC);
+CREATE INDEX IF NOT EXISTS scan_device_code ON scan(device_id, resolved_code, id DESC);
 `;
 
 /**

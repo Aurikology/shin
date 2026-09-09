@@ -987,12 +987,25 @@ const server = createServer(async (req, res) => {
                 fellBack: false,
                 confidenceAdjustment: 1,
               };
-        const result = routed.result as {
+        const raw = routed.result as {
           band: 'confident' | 'ambiguous' | 'miss';
           matchedBy: 'gtin' | 'hybrid' | 'none';
           candidates: unknown[];
           ring: unknown;
         };
+        /*
+         * The same downgrade `/api/identify` applies, which this route dropped:
+         * routing returns a confidence adjustment below 1 on a restricted
+         * result and this interface reports a band, so the adjustment lands
+         * as confident -> ambiguous. It was unreachable here only because
+         * this route pins neither brand nor size, so the band could not be
+         * `confident` -- a safety rule holding on an invariant nothing
+         * asserted. Now it holds on a line.
+         */
+        const result =
+          routed.restricted && !routed.fellBack && raw.band === 'confident'
+            ? { ...raw, band: 'ambiguous' as const }
+            : raw;
         return json(200, {
           catalogueUp: true,
           vectorsOn,

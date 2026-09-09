@@ -129,6 +129,46 @@ test('losing the migration race does not turn the scan log off', () => {
   assert.deepEqual(recentCategories('d1').map((r) => r.category), ['grocery']);
 });
 
+test('the hot queries have an index, on a fresh store and on one built before the indexes existed', () => {
+  // scan_device_week covers weeklyCount, which nothing in production calls.
+  // recentCategories runs on every identify and search, lastAnsweredScan on
+  // every correction, and both want newest-first by id under a device. Without
+  // these the planner stops at the device_id prefix and scans every row that
+  // device has, on the request thread, growing without bound.
+  const indexes = (db: DatabaseSync) =>
+    (db.prepare(`SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'scan'`).all() as { name: string }[])
+      .map((r) => r.name);
+
+  const fresh1 = openScanStore(fresh());
+  assert.ok(fresh1.db);
+  assert.ok(indexes(fresh1.db).includes('scan_device_recent'));
+  assert.ok(indexes(fresh1.db).includes('scan_device_code'));
+
+  // A table from before the indexes existed. Unlike a column, an index IS
+  // created by IF NOT EXISTS on an existing table, so no migration is needed;
+  // this asserts that assumption rather than trusting it.
+  const path = fresh();
+  const old = new DatabaseSync(path);
+  old.exec(`CREATE TABLE scan (
+    id INTEGER PRIMARY KEY, device_id TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('barcode','text','photo')),
+    query_text TEXT, resolved_code TEXT, resolved_label TEXT, confidence REAL,
+    source TEXT,
+    outcome TEXT NOT NULL CHECK (outcome IN ('answered','refused','corrected')),
+    corrected_code TEXT, scanned_at TEXT NOT NULL) STRICT`);
+  old.close();
+  const upgraded = openScanStore(path);
+  assert.ok(upgraded.db);
+  assert.ok(indexes(upgraded.db).includes('scan_device_recent'));
+  assert.ok(indexes(upgraded.db).includes('scan_device_code'));
+
+  // And the planner actually uses it for the hot query.
+  const plan = (upgraded.db.prepare(
+    `EXPLAIN QUERY PLAN SELECT category FROM scan WHERE device_id = ? AND category IS NOT NULL AND outcome != 'refused' ORDER BY id DESC LIMIT 40`,
+  ).all('d') as { detail: string }[]).map((r) => r.detail).join(' | ');
+  assert.match(plan, /scan_device_recent/, `planner chose: ${plan}`);
+});
+
 test('a store that will not open is a device with no history, not a throw', () => {
   openScanStore(join(fresh(), 'nested', 'impossible', '\0bad'));
   assert.deepEqual(recentCategories('d1').map((r) => r.category), []);

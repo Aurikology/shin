@@ -46,6 +46,9 @@ export interface CatalogueService {
  * bug. If concurrent search volume ever justifies a pool, the queueing shows
  * up as `ms` on the slower request, which is the signal to add one.
  */
+/** See the note inside `send`. The number the comments that promised it chose. */
+export const SEARCH_TIMEOUT_MS = 5_000;
+
 export function startCatalogueService(dbPath: string): CatalogueService {
   const worker = new Worker(fileURLToPath(new URL('./worker.ts', import.meta.url)), {
     workerData: { dbPath },
@@ -76,7 +79,35 @@ export function startCatalogueService(dbPath: string): CatalogueService {
     const id = nextId;
     nextId += 1;
     return new Promise<T>((resolve, reject) => {
-      pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
+      /*
+       * THE FIVE-SECOND TIMEOUT THAT THREE COMMENTS IN app/server.ts PROMISED
+       * AND NOTHING IMPLEMENTED, added 2026-09-09.
+       *
+       * `/api/identify` and `/api/search` both documented a 5 second ceiling
+       * on this worker, and `/api/alternatives` documented why it is exempt
+       * from that ceiling. There was no ceiling. A worker that never replied
+       * -- a hung SQLite lock, a crashed embedder, a message lost on
+       * terminate -- left the request awaiting forever, and the screen on the
+       * working sheet the comments name as the thing to guard against. The
+       * `error` handler above covers a worker that CRASHES; this covers one
+       * that merely stops answering, which no event announces. A comment
+       * reporting a guard that was never installed is D-046's shape.
+       *
+       * Cleared on settle. On timeout the pending entry is dropped, so a late
+       * reply finds nothing and is ignored rather than resolving a promise
+       * that already rejected. Five seconds is the number the comments
+       * chose: a text search is 24 to 113 ms measured, so this is not a
+       * budget, it is the line between slow and gone.
+       */
+      const timer = setTimeout(() => {
+        pending.delete(id);
+        reject(new Error(`catalogue worker did not answer a ${job.kind} within ${SEARCH_TIMEOUT_MS} ms`));
+      }, SEARCH_TIMEOUT_MS);
+      timer.unref();
+      pending.set(id, {
+        resolve: (v: unknown) => { clearTimeout(timer); (resolve as (v: unknown) => void)(v); },
+        reject: (e: Error) => { clearTimeout(timer); reject(e); },
+      });
       worker.postMessage({ id, job });
     });
   }

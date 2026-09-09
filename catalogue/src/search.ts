@@ -717,7 +717,7 @@ export class Catalogue {
         ),
       );
 
-    const band = this.#band(candidates);
+    const band = this.#band(candidates, textResult.wordsMatched);
 
     // A ring is attached whenever the leader is not good enough to stand alone,
     // so the screen never has to make a second round trip to have something to
@@ -740,7 +740,7 @@ export class Catalogue {
     return { band, candidates, ring, matchedBy: candidates.length > 0 ? 'hybrid' : 'none', wordsMatched: textResult.wordsMatched };
   }
 
-  #band(candidates: readonly Candidate[]): Band {
+  #band(candidates: readonly Candidate[], wordsMatched: 'all' | 'some' | 'n/a' = 'n/a'): Band {
     const top = candidates[0];
     if (!top) return 'miss';
     const topSim = top.signals.similarity;
@@ -752,6 +752,27 @@ export class Catalogue {
     // first, no matter how well its brand and size actually agreed. The floor
     // is a claim about a similarity we hold, so it only applies when we hold one.
     if (topSim !== null && topSim < FLOOR_SIM && top.signals.textRank !== 1) return 'miss';
+
+    /*
+     * A ROW THAT MATCHED SOME OF THE WORDS IS NOT A CONFIDENT ANSWER, however
+     * well it agrees with the brand and size the caller pinned.
+     *
+     * The loose OR pass exists so that a query with one wrong word still finds
+     * the row, and it is documented above as producing rows that match a
+     * subset. This function never read that signal: with brand and size
+     * pinned, a 225 g Kraft ANYTHING alone in agreeing on both read
+     * `confident` on a row that matched one word of "kraft dinner original
+     * macaroni". `restrictedSearch` already trusts `wordsMatched` for exactly
+     * this class of result; the band now does too, and `ambiguous` is what
+     * lets "not this?" offer the list.
+     *
+     * BELOW THE FLOOR CHECK, NOT ABOVE IT. The first placement of this line
+     * sat before the similarity floor, and a nonsense query -- which still
+     * collects vector neighbours as candidates -- stopped banding `miss` and
+     * stopped being recorded as a gap. A subset match demotes `confident`;
+     * it must never promote `miss`. The gap test caught it.
+     */
+    if (wordsMatched === 'some') return 'ambiguous';
 
     // How much of what the caller pinned down this row matches. Null means the
     // caller did not supply it, which is different from supplying it and being

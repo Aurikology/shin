@@ -486,3 +486,37 @@ test('asking for a source with no match returns a miss, not another source', asy
   const out = await cat.search({ text: 'mixer', vectors: false, sources: ['nosuchdb'] });
   assert.equal(out.candidates.length, 0);
 });
+
+test('a row that matched some of the words is never a confident answer, however well it agrees on brand and size', async () => {
+  /*
+   * `#band` scores how far the leader agrees with what the caller pinned and
+   * used to ignore `wordsMatched`. The loose OR pass sets that to `some` when
+   * the strict pass found nothing, and it is documented in two files as a
+   * signal the band cannot see. With brand and size pinned, a 225 g Kraft
+   * ANYTHING alone in agreeing on both read `confident` against a query it
+   * matched one word of.
+   */
+  const db = openCatalogue(':memory:');
+  db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .run('0068100084245', 'Kraft Dinner Original 225 g', 'Kraft Dinner Original 225 g', null, 'Kraft', '225 g', 225, 'g',
+      '["en:pasta"]', 'en:pasta', '[]', 1, 'openfoodfacts');
+  rebuildFts(db);
+  rebuildCategories(db);
+  const cat = new Catalogue(db, new HashEmbedder());
+  const pins = { brand: 'Kraft', sizeValue: 225, sizeUnit: 'g', vectors: false };
+
+  // "zebra" matches nothing, so strict finds nothing and loose finds the row on
+  // "kraft" alone: a one-word match wearing a perfect brand-and-size agreement.
+  const partial = await cat.search({ text: 'kraft zebra', ...pins });
+  assert.equal(partial.wordsMatched, 'some', 'the fixture no longer produces a subset match');
+  assert.equal(partial.candidates[0]?.code, '0068100084245');
+  assert.equal(partial.band, 'ambiguous', 'a subset match read as confident');
+
+  // Every word present: the same pins earn the confident band they deserve.
+  const full = await cat.search({ text: 'kraft dinner', ...pins });
+  assert.equal(full.wordsMatched, 'all');
+  assert.equal(full.band, 'confident');
+});
