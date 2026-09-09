@@ -5,6 +5,49 @@ narrative.*
 
 ---
 
+## A price can be kept before the catalogue arrives, and Walmart's real rate limit is found, 2026-09-08
+
+**An unjoined observation now carries the page's barcode, and `rejoin.ts` resolves it later.**
+`observation.page_gtin` is added in place on open; `node price/src/rejoin.ts` fills `code` for
+any row a catalogue can now name, idempotently. A live crawl on a machine with no catalogue wrote
+10 Walmart rows with barcodes; a dry-run rejoin joined one against a stand-in catalogue offline.
+price 98 pass, typecheck clean. A `lookup.ts` bug that hid a product behind a pending rejoin is
+fixed (D-048).
+
+**The finding that changes the plan: PerimeterX challenged at page 11.** The bounded live run,
+one request every 4.3 s, got ten real pages and then eight challenge responses in a row. Aborted
+on the rule. The 10.8-day first-party crawl is not viable at that rate from this address (D-049,
+open). Next is finding the rate that is tolerated, and spending it on the SKUs `queue.ts` says
+matter, not on all 217,660.
+
+**A local subset catalogue exists for the first time.** `catalogue/data/catalogue.db` holds
+89,991 rows from Open Beauty / Products / Pet Food Facts, all with distinct GTINs, built in 5.5
+minutes. The Open Food Facts Canadian slice (the grocery bulk) 429'd on HuggingFace's
+range-request path; the 7.8 GB parquet is being pulled once as the documented cache. Icecat, 96%
+of the real catalogue, still needs `ICECAT_USER` / `ICECAT_PASSWORD`, which only the founder can
+create.
+
+---
+
+## The vision call is hardened, and it turns out nothing calls it, 2026-09-08
+
+**Timeout, one retry, a daily cap, and a failure class that survives into the scan log.**
+`identify/src/model.ts` now wraps both Anthropic calls in an 1,800 ms clock, retries once on
+429/5xx/network only, refuses past 2,000 calls a day, and throws a `ModelCallError` whose class
+(`unreadable_photo`, `model_timeout`, `model_rate_limited`, `model_outage`, `model_malformed`,
+`model_client_error`, `spend_cap_reached`) rides the refusal event into a new `failure_class`
+column on `app/data/scans.db`. The user-facing sentence is unchanged on purpose. identify 19 pass,
+spine 152 pass, app 285 pass with 5 skipped, all three typecheck clean.
+
+**The finding that outranks the fix: the vision path has no caller.** `IdentifyStage` /
+`Identifier` are reachable only from `identify/test`. The photo upload door in `app/server.ts` is
+named there as not built. So the audit's "vision identification path has never been tested against
+the real thing" is true for a reason it did not name: the app that ships cannot reach it yet.
+
+**Not done:** no `ANTHROPIC_API_KEY` on this machine, so no real photo through the real API.
+
+---
+
 ## Walmart discovery is alive: a barcode we have never priced can now be found, 2026-09-08
 
 **The sitemap crawler that three file headers have been pointing at since 2026-09-05 exists.**

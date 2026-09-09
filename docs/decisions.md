@@ -809,3 +809,82 @@ completeness and would retire the crawl rather than tune it. Or if the joined fr
 discovered SKUs turns out to be low enough that walking a general sitemap is the wrong instrument
 for a grocery-and-electronics catalogue, in which case the answer is a category-scoped source, not
 a faster walk.
+
+## The vision call gets a clock, one retry and a ceiling, and a failure says which failure it was
+**Date:** 2026-09-08 · **Status:** active
+
+`docs/beta-readiness-audit.md` found no timeout, no retry policy and no spending cap anywhere in
+the code that calls the vision model, and every failure on that path arriving as the same
+sentence: the photo could not be read. **The sentence is right and it stays.** A rate limit, an
+outage and a malformed answer leave the person in the aisle with the same one thing to do, and
+naming our billing at them is hard rule 3's exact failure. What was wrong is that the sentence was
+also all we kept, so an outage during a beta would have read back afterwards as a beta full of bad
+photographers. The class is now its own field, added beside the copy and never folded into it, and
+it travels from `identify/src/model.ts` through the spine's refusal event in `spine/src/run.ts`
+into a new `failure_class` column on the scan log in `app/src/scans.ts`.
+
+**The timeout is 1,800 ms per call**, taken from `docs/the-moonshot.md`'s 2 second p99 for the
+cold path and his "results return in 1 second" behind it, with everything downstream already
+measured at a couple hundred milliseconds. There is exactly one retry, on a rate limit, a 5xx, or a
+network error with no status, because a second attempt is the whole remaining budget. A timeout is
+deliberately not retried: the first attempt already spent the budget, so the second would be
+answering a screen nobody is still watching. A bad request and a malformed answer are not retried
+either; both are money spent to be told the same thing twice. The cap is 2,000 calls per process
+per UTC day (`SHIN_MODEL_DAILY_CALLS`), charged per attempt because a retry is a real invoice
+line, and checked before the socket opens so it is a cap and not a log entry. It guards against a
+loop, not a busy day.
+
+**What the pass could not do, stated so nobody reads the tests as proof.** No key exists on this
+machine, so no real photo went through the real API; every 429, 503 and abort in
+`identify/test/model.test.ts` is a hand-built shape. And the larger finding: `IdentifyStage` and
+`Identifier` are called from nowhere outside `identify/test`. `app/server.ts`'s `identify()` is
+the catalogue lookup, and `server.ts` itself names the photo upload door as not built. The
+hardening is wired end to end in types and tests, and the last hop has no caller. Reverses if a
+measured p99 comes in materially under 1,800 ms, or if a per-account ceiling lands at the billing
+account and makes the per-process count redundant.
+
+## Crawl now, join later: an unjoined price keeps the barcode that would resolve it
+**Date:** 2026-09-08 · **Status:** active
+
+The sitemap discovery decision above says a discovered SKU whose barcode is not in the catalogue
+is written as an unjoined observation so the price survives for a later catalogue to resolve. The
+first half was true and the second half was not: `observationFrom` read the barcode off the
+product page, failed the catalogue lookup, and wrote the row without it, so the only way to
+resolve such a row later was to open Walmart's page again. `catalogue/data/catalogue.db` lives on
+the cofounder's machine, not this one, which meant a first-party crawl could not start until it
+arrived and would have had to be repeated afterwards: 10.8 days paid twice.
+
+**The barcode now goes on the row.** `observation` gains one nullable column, `page_gtin`, holding
+the barcode exactly as the seller published it, unnormalised, because a stored number that has
+been quietly rewritten cannot be argued with later. `code` is still the only field that means
+"this is a catalogue product" and `page_gtin` never stands in for it. `price/src/rejoin.ts` walks
+the rows where `code` is NULL and `page_gtin` is not, joins them through `sources.ts`'s
+`joinToProduct`, and fills `code` and `join_method` in place. `attachCode` carries `AND code IS
+NULL` in its own WHERE clause, so a rerun is a no-op at the level of the database and no
+already-decided code can be overwritten. A rejoin never writes a price.
+
+**A column added in place, not a rebuild.** `migrate-observation.ts` exists because SQLite cannot
+drop a NOT NULL without copying every row, which a person supervises. Adding a nullable column is
+not that, so `openPrices` does it with `ALTER TABLE ADD COLUMN` behind a `PRAGMA table_info`
+check; without it the column would exist only in databases created after today.
+
+**Walked, not asserted, and the walk found the real ceiling.** A live 1p discovery run opened 10
+product pages at the polite rate, mean 1,283 ms, and wrote 10 unjoined rows each carrying price,
+kind, url and the page's barcode; a dry-run rejoin against a one-row stand-in catalogue then
+joined 990370255035 to 0990370255035 out of that live table with no further request to
+walmart.ca. Then SKUs 11 and 12 each came back as four consecutive PerimeterX challenge pages
+inside `walmart.ts`'s retry loop, eight in a row, and the run was aborted on the
+three-consecutive rule. **One request every 4.3 seconds from a residential address is tolerated
+for about ten pages and then it is not.** The 10.8-day figure in the decision above is therefore a
+lower bound on time at a rate Walmart does not accept, not a plan. What is allowed to change is
+the rate (slower, and measured for where the ceiling actually sits), and which SKUs are worth the
+budget (`queue.ts`). What is not allowed to change is the header set, the address, or anything
+that makes the crawler look like something it is not; see D-049.
+
+**A defect found on the way.** `lookup.ts` marked a code as seen before deciding whether to skip
+an unjoined row, so one such row hid every older joined row for the same code and the product
+vanished from the alternatives map. Fixed and tested (D-048).
+
+**Reverses if:** the catalogue becomes something every crawling machine has, in which case
+`page_gtin` becomes an audit field rather than a mechanism; or a seller's page barcode proves
+untrustworthy often enough that storing it is worse than not joining.
