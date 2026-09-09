@@ -1,0 +1,362 @@
+[
+  {
+    "code": "0057000013165",
+    "file": "photos/0057000013165.jpg",
+    "brand": "Heinz",
+    "name": "Tomato Ketchup",
+    "size": "750 mL",
+    "kind": "size-pair",
+    "category": "en:groceries"
+  },
+  {
+    "code": "0057000063085",
+    "file": "photos/0057000063085.jpg",
+    "brand": "Heinz",
+    "name": "Tomato Ketchup",
+    "size": "1.5 litre",
+    "kind": "size-pair",
+    "category": "en:groceries"
+  },
+  {
+    "code": "0056200957613",
+    "file": "photos/0056200957613.jpg",
+    "brand": "French's",
+    "name": "Tomato Ketchup",
+    "size": "375 mL",
+    "kind": "size-pair",
+    "category": "en:tomato-ketchup"
+  },
+  {
+    "code": "0056200926466",
+    "file": "photos/0056200926466.jpg",
+    "brand": "French's",
+    "name": "Tomato Ketchup",
+    "size": "1 l",
+    "kind": "size-pair",
+    "category": "en:groceries"
+  },
+  {
+    "code": "0061200016741",
+    "file": "photos/0061200016741.jpg",
+    "brand": "Cadbury",
+    "name": "Mini Eggs",
+    "size": "90g",
+    "kind": "size-pair",
+    "category": "en:eggs"
+  },
+  {
+    "code": "0061200018585",
+    "file": "photos/0061200018585.jpg",
+    "brand": "Cadbury",
+    "name": "Mini Eggs",
+    "size": "151g",
+    "kind": "size-pair",
+    "category": "en:chocolate-eggs"
+  },
+  {
+    "code": "0064100144521",
+    "file": "photos/0064100144521.jpg",
+    "brand": "Kellogg's",
+    "name": "Corn Flakes",
+    "size": "1, 340 grams",
+    "kind": "size-pair",
+    "category": "en:corn-flakes"
+  },
+  {
+    "code": "0064100122253",
+    "file": "photos/0064100122253.jpg",
+    "brand": "Kellogg's",
+    "name": "Corn Flakes",
+    "size": "760g",
+    "kind": "size-pair",
+    "category": "en:corn-flakes"
+  },
+  {
+    "code": "06746102",
+    "file": "photos/06746102.jpg",
+    "brand": "Sprite",
+    "name": "Lemon-Lime Soda",
+    "size": "355ml",
+    "kind": "size-pair",
+    "category": "en:sodas"
+  },
+  {
+    "code": "06750600",
+    "file": "photos/06750600.jpg",
+    "brand": "Sprite",
+    "name": "Lemon-Lime Soda",
+    "size": "2 L",
+    "kind": "size-pair",
+    "category": "en:sweetened-beverages"
+  },
+  {
+    "code": "0065633132115",
+    "file": "photos/0065633132115.jpg",
+    "brand": "General Mills",
+    "name": "Cinnamon Toast Crunch",
+    "size": "354 Grams",
+    "kind": "size-pair",
+    "category": "en:extruded-cereals"
+  },
+  {
+    "code": "0065633134423",
+    "file": "photos/0065633134423.jpg",
+    "brand": "General Mills",
+    "name": "Cinnamon Toast Crunch",
+    "size": "591 g",
+    "kind": "size-pair",
+    "category": "en:extruded-cereals"
+  },
+  {
+    "code": "0060383007621",
+    "file": "photos/0060383007621.jpg",
+    "brand": "no name",
+    "name": "crunchy peanut butter",
+    "size": "1 kg",
+    "kind": "store-brand",
+    "category": "en:crunchy-peanut-butters"
+  },
+  {
+    "code": "0605388881243",
+    "file": "photos/0605388881243.jpg",
+    "brand": "Great Value",
+    "name": "Natural Spring Water",
+    "size": "500 mL",
+    "kind": "store-brand",
+    "category": "en:unsweetened-beverages"
+  },
+  {
+    "code": "0055742532708",
+    "file": "photos/0055742532708.jpg",
+    "brand": "Compliments",
+    "name": "Medium cheddar cheese",
+    "size": "450 g",
+    "kind": "store-brand",
+    "category": "en:cheddar-cheese"
+  },
+  {
+    "code": "0096619150717",
+    "file": "photos/0096619150717.jpg",
+    "brand": "Kirkland Signature",
+    "name": "Coffee Kirkland",
+    "size": "1.36kg",
+    "kind": "store-brand",
+    "category": "en:colombian-coffees"
+  },
+  {
+    "code": "0018627102564",
+    "file": "photos/0018627102564.jpg",
+    "brand": "Kashi",
+    "name": "Oat Grain with Quinoa Bars",
+    "size": "5 x 40 g.  Net: 200 g",
+    "kind": "multipack",
+    "category": "en:cereal-bars"
+  },
+  {
+    "code": "0056800911893",
+    "file": "photos/0056800911893.jpg",
+    "brand": "Danone",
+    "name": "Danette Dessert Laitier Au Chocolat",
+    "size": "4 x 100 g",
+    "kind": "multipack",
+    "category": "en:creamy-puddings"
+  },
+  {
+    "code": "0056936660009",
+    "file": "photos/0056936660009.jpg",
+    "brand": "CHEEMO 🇨🇦",
+    "name": "Perogies Variety 4-pack",
+    "size": "2 kg",
+    "kind": "multipack",
+    "category": "en:frozen-perogies-variety-pack"
+  },
+  {
+    "code": "0057961018070",
+    "file": "photos/0057961018070.jpg",
+    "brand": "SunRype",
+    "name": "Fruit Medley",
+    "size": "5 x 200 mL",
+    "kind": "multipack",
+    "category": "en:fruit-juices"
+  },
+  {
+    "code": "0005220400060",
+    "file": "photos/0005220400060.jpg",
+    "brand": "Honey Bunny",
+    "name": "Raw Organic Honey",
+    "size": "500 g",
+    "kind": "plain",
+    "category": "en:honeys"
+  },
+  {
+    "code": "0040822027052",
+    "file": "photos/0040822027052.jpg",
+    "brand": "Sabra",
+    "name": "Roasted Pine Nut Hummus",
+    "size": "283 g",
+    "kind": "plain",
+    "category": "en:hummus"
+  },
+  {
+    "code": "0029145082542",
+    "file": "photos/0029145082542.jpg",
+    "brand": "Première Moisson",
+    "name": "100 % Whole Wheat Loaf",
+    "size": "800 g",
+    "kind": "plain",
+    "category": "en:breads"
+  },
+  {
+    "code": "0627843240013",
+    "file": "photos/0627843240013.jpg",
+    "brand": "Tonica",
+    "name": "Kombucha au gingembre",
+    "size": "355 ml",
+    "kind": "plain",
+    "category": "en:kombuchas"
+  },
+  {
+    "code": "0000380101788",
+    "file": "photos/0000380101788.jpg",
+    "brand": "Isagenix",
+    "name": "Chocolate IsaPro Plant-Based Protein",
+    "size": "969 g",
+    "kind": "plain",
+    "category": "en:protein-powders"
+  },
+  {
+    "code": "0055577102732",
+    "file": "photos/0055577102732.jpg",
+    "brand": "Cap'n Crunch",
+    "name": "Cap'n Crunch's Crunch Berries",
+    "size": "360 g",
+    "kind": "plain",
+    "category": "en:breakfast-cereals"
+  },
+  {
+    "code": "0020685000454",
+    "file": "photos/0020685000454.jpg",
+    "brand": "Cape Cod",
+    "name": "Chips",
+    "size": "50 g",
+    "kind": "plain",
+    "category": "en:potato-crisps"
+  },
+  {
+    "code": "0032917101747",
+    "file": "photos/0032917101747.jpg",
+    "brand": "Traditional Medicinals",
+    "name": "Organic Spearmint",
+    "size": "30 g",
+    "kind": "plain",
+    "category": "en:teas"
+  },
+  {
+    "code": "0014100098720",
+    "file": "photos/0014100098720.jpg",
+    "brand": "Pepperidge Farm",
+    "name": "Chessmen Butter Cookies",
+    "size": "206 g",
+    "kind": "plain",
+    "category": "en:biscuits"
+  },
+  {
+    "code": "0055500010974",
+    "file": "photos/0055500010974.jpg",
+    "brand": "Hidden Valley",
+    "name": "The Original Ranch Fat Free Condiment & Dressing",
+    "size": "473 ml",
+    "kind": "plain",
+    "category": "en:salad-dressings"
+  },
+  {
+    "code": "0034856003755",
+    "file": "photos/0034856003755.jpg",
+    "brand": "Welch's",
+    "name": "Fruit Snacks",
+    "size": "22 g",
+    "kind": "plain",
+    "category": "en:confectioneries"
+  },
+  {
+    "code": "0058716303663",
+    "file": "photos/0058716303663.jpg",
+    "brand": "Beaver",
+    "name": "Peanuts Barbercue",
+    "size": "190 g",
+    "kind": "plain",
+    "category": "en:peanuts"
+  },
+  {
+    "code": "0056757320700",
+    "file": "photos/0056757320700.jpg",
+    "brand": "Hawkins",
+    "name": "Cheezies",
+    "size": "70g",
+    "kind": "plain",
+    "category": "en:corn-chips"
+  },
+  {
+    "code": "0055498027121",
+    "file": "photos/0055498027121.jpg",
+    "brand": "Krinos",
+    "name": "Feta Cheese",
+    "size": "200 g",
+    "kind": "plain",
+    "category": "en:cheeses"
+  },
+  {
+    "code": "0006478107227",
+    "file": "photos/0006478107227.jpg",
+    "brand": "St-Guillaume",
+    "name": "Baya Halloumi",
+    "size": "170 g",
+    "kind": "plain",
+    "category": "en:cheeses"
+  },
+  {
+    "code": "0039978302564",
+    "file": "photos/0039978302564.jpg",
+    "brand": "Bob's Red Mill",
+    "name": "Préparation pour Scones Écossais à l’avoine et aux raisins",
+    "size": "567 g",
+    "kind": "plain",
+    "category": "en:flours"
+  },
+  {
+    "code": "0055653688006",
+    "file": "photos/0055653688006.jpg",
+    "brand": "Dare",
+    "name": "Breton flax & sea salt crackers",
+    "size": "135 g",
+    "kind": "plain",
+    "category": "en:crackers-appetizers"
+  },
+  {
+    "code": "0055000490955",
+    "file": "photos/0055000490955.jpg",
+    "brand": "Maggi,Nestlé",
+    "name": "Masala Festive Pack Authentic Indian Noodles",
+    "size": "70 g",
+    "kind": "plain",
+    "category": "en:instant-noodles"
+  },
+  {
+    "code": "0056920052421",
+    "file": "photos/0056920052421.jpg",
+    "brand": "Yoplait",
+    "name": "Yoplait Crémeux vanille",
+    "size": "650 g",
+    "kind": "plain",
+    "category": "en:yogurts"
+  },
+  {
+    "code": "0055000202107",
+    "file": "photos/0055000202107.jpg",
+    "brand": "Cuisine vie",
+    "name": "Bol poulet, Sésame et brocoli",
+    "size": "281 g",
+    "kind": "plain",
+    "category": "en:chickens"
+  }
+]
