@@ -27,6 +27,7 @@ import {
   resetModelSpend,
   selfConfidenceNumber,
   type MessagesClient,
+  mediaTypeOf,
 } from '../src/model.ts';
 
 const FIELDS = JSON.stringify({
@@ -364,4 +365,10 @@ test('a missing key is our misconfiguration, classed as a client error and never
   const id = new Identifier(undefined, client);
   await assert.rejects(id.read(new Uint8Array(), null, 'pro'), (e: unknown) => e instanceof ModelCallError && e.failure === 'model_client_error');
   assert.equal(calls, 1, 'no second attempt against the same empty environment');
+});
+
+test('the media type on the wire is sniffed from the bytes, so a JPEG is not sent as a PNG', () => {
+  assert.equal(mediaTypeOf(new Uint8Array([0xff, 0xd8, 0xff, 0xe0])), 'image/jpeg');
+  assert.equal(mediaTypeOf(new Uint8Array([0x89, 0x50, 0x4e, 0x47])), 'image/png');
+  assert.equal(mediaTypeOf(new Uint8Array()), 'image/png');
 });

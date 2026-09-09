@@ -592,7 +592,7 @@ export class Identifier {
     const content: Anthropic.ContentBlockParam[] = [
       {
         type: 'image',
-        source: { type: 'base64', media_type: 'image/png', data: toBase64(productPng) },
+        source: { type: 'base64', media_type: mediaTypeOf(productPng), data: toBase64(productPng) },
       },
       { type: 'text', text: 'Identify this product.' },
     ];
@@ -620,7 +620,7 @@ export class Identifier {
             content: [
               {
                 type: 'image',
-                source: { type: 'base64', media_type: 'image/png', data: toBase64(tagPng) },
+                source: { type: 'base64', media_type: mediaTypeOf(tagPng), data: toBase64(tagPng) },
               },
               { type: 'text', text: 'Read every price printed on this shelf tag.' },
             ],
@@ -682,7 +682,7 @@ export class Identifier {
             content: [
               {
                 type: 'image',
-                source: { type: 'base64', media_type: 'image/png', data: toBase64(productPng) },
+                source: { type: 'base64', media_type: mediaTypeOf(productPng), data: toBase64(productPng) },
               },
               {
                 type: 'text',
@@ -803,6 +803,18 @@ function parseJson<T>(message: Anthropic.Message): T {
       `the model returned text that is not JSON: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
+}
+
+/*
+ * The eye sends PNG (decision 12) and the route also admits JPEG by its
+ * magic bytes, as do the eval photos from Open Food Facts. The media type
+ * on the wire has to say which, or the API rejects the block. Sniffed here
+ * rather than passed in, so no caller can lie about it. Added 2026-09-09
+ * when lane D noticed the eval set is JPEG and this said PNG for everything.
+ */
+export function mediaTypeOf(bytes: Uint8Array): 'image/png' | 'image/jpeg' {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
+  return 'image/png';
 }
 
 function toBase64(bytes: Uint8Array): string {
