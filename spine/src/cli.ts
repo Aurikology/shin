@@ -93,7 +93,8 @@ async function main(): Promise<number> {
         console.log(`  UNSERVED. ${rule.unsupported.why}`);
         console.log(`  reversed by: ${rule.unsupported.reversedBy}`);
       } else {
-        console.log(`  needs ${rule.minPoints} points from ${rule.minDistinctSellers} seller(s), newest within ${rule.maxAgeDays}d`);
+        console.log(`  usually needs ${rule.minPoints} points from ${rule.minDistinctSellers} seller(s), newest within ${rule.maxAgeDays}d`);
+        console.log(`  with less than that it still answers, at low confidence, off the single price judge; only no price at all refuses`);
         console.log(`  counts: ${rule.usableKinds.join(', ')}   identity floor: ${rule.identityFloor}`);
         console.log(`  why: ${rule.reasoning}`);
       }
