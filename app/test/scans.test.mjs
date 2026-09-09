@@ -108,3 +108,37 @@ test('recordScan never throws when the store cannot be written, and the drop is 
   assert.doesNotThrow(() => weeklyCount('device-e'));
   assert.doesNotThrow(() => correctScan(1, 'whatever'));
 });
+
+/**
+ * Added 2026-09-08 with the failure_class column.
+ *
+ * The beta readiness audit: a bare 'refused' cannot tell an outage from a
+ * photo nobody could have read, so a beta run during an outage would read
+ * back afterwards as a beta full of bad photographers. The column has to
+ * survive a round trip or the distinction only exists in a type.
+ */
+test('a refusal carries why it was refused, and an answer carries nothing', () => {
+  const path = tempDb();
+  const store = openScanStore(path);
+
+  recordScan({ deviceId: 'device-f', kind: 'photo', query: 'a jar', outcome: 'refused', failureClass: 'model_outage' });
+  recordScan({ deviceId: 'device-f', kind: 'photo', query: 'another jar', outcome: 'refused', failureClass: 'unreadable_photo' });
+  recordScan({ deviceId: 'device-f', kind: 'barcode', query: '111', outcome: 'answered' });
+
+  const rows = allScans(store);
+  console.log('failure classes:', rows.map((r) => r.failure_class));
+  assert.deepEqual(rows.map((r) => r.failure_class), ['model_outage', 'unreadable_photo', null]);
+});
+
+/** An older file, written before the column existed, still opens and still writes. */
+test('a database created without failure_class gains it on open', () => {
+  const path = tempDb();
+  const first = openScanStore(path);
+  assert.ok(first.db, 'store should have opened');
+  first.db.exec('ALTER TABLE scan DROP COLUMN failure_class');
+
+  const second = openScanStore(path);
+  recordScan({ deviceId: 'device-g', kind: 'photo', query: 'x', outcome: 'refused', failureClass: 'model_timeout' });
+  assert.equal(second.dropped, 0, second.droppedWhy);
+  assert.deepEqual(allScans(second).map((r) => r.failure_class), ['model_timeout']);
+});

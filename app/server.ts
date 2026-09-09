@@ -768,6 +768,17 @@ const server = createServer(async (req, res) => {
           resolvedLabel: answer.product?.name ?? null,
           source: answer.matchedBy,
           outcome: answer.product ? 'answered' : 'refused',
+          /*
+           * WHY IT WAS REFUSED, 2026-09-08.
+           *
+           * The beta readiness audit's point: a bare 'refused' cannot tell an
+           * outage from a photo nobody could have read, so a beta spent inside
+           * one would look like a beta full of bad photographs. This route only
+           * ever produces one of them: the catalogue answered and did not have
+           * the thing. The model-side classes reach this column from the vision
+           * path (identify/src/model.ts's FailureClass), which has no route yet.
+           */
+          failureClass: answer.product ? null : 'not_in_catalogue',
         });
       }
 

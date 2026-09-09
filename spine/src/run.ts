@@ -40,6 +40,30 @@ export type Step =
 
 export type Fault = 'ours' | 'theirs' | 'world';
 
+/**
+ * Why a photo did not become an identity, added 2026-09-08.
+ *
+ * Restated here rather than imported: this file imports nothing on purpose
+ * (see ScanPorts), and a shared type would be the first import. The list is
+ * owned by identify/src/model.ts and this is a copy of it; the two are checked
+ * against each other by the identify package's own tests, not by the compiler.
+ *
+ * It exists because `Refusal` is copy and copy is the wrong place for this.
+ * The beta readiness audit found a rate limit, an outage and a dark photo all
+ * arriving as the same sentence, which is right for the screen and wrong for
+ * the log: an outage during a beta would have been indistinguishable from bad
+ * photographs in the data. So the sentence stays shared and the class travels
+ * beside it, as its own field on the event.
+ */
+export type FailureClass =
+  | 'unreadable_photo'
+  | 'model_timeout'
+  | 'model_rate_limited'
+  | 'model_outage'
+  | 'model_malformed'
+  | 'model_client_error'
+  | 'spend_cap_reached';
+
 export interface Refusal {
   /** Decision 52: the step that came up empty, named. */
   readonly step: Step;
@@ -56,9 +80,9 @@ export type ScanEvent =
   | { readonly type: 'alternatives'; readonly items: readonly unknown[]; readonly ms: number }
   | { readonly type: 'ring'; readonly label: string; readonly members: readonly unknown[] }
   | { readonly type: 'gated'; readonly part: 'verdict'; readonly offer: string }
-  | { readonly type: 'refusal'; readonly refusal: Refusal }
+  | { readonly type: 'refusal'; readonly refusal: Refusal; readonly failure?: FailureClass }
   /** Decision 51: the call did not come back in time, and the screen says so. */
-  | { readonly type: 'timed_out'; readonly step: Step; readonly says: string }
+  | { readonly type: 'timed_out'; readonly step: Step; readonly says: string; readonly failure?: FailureClass }
   | { readonly type: 'done'; readonly ms: number };
 
 /**
@@ -141,7 +165,17 @@ export interface ScanPorts {
   identify(): Promise<
     | { kind: 'identified'; name: string; confidence: unknown; sizeValue: number | null; sizeUnit: string | null; shelfCents: number | null; key: string }
     | { kind: 'not_in_catalogue'; readAs: string; ring: { label: string; members: readonly unknown[] } | null }
-    | { kind: 'unreadable'; reason: 'blurry' | 'no_text' | 'model_down' }
+    | {
+        kind: 'unreadable';
+        reason: 'blurry' | 'no_text' | 'model_down';
+        /**
+         * Added 2026-09-08 beside `reason`, not in place of it. `reason` picks
+         * the sentence and there are three of those; this says what actually
+         * happened and there are seven. Optional so a port written before this
+         * date still satisfies the shape.
+         */
+        failure?: FailureClass;
+      }
   >;
   prices(key: string): Promise<{ verdict: unknown; sellerCount: number } | null>;
   alternatives(key: string, shelfCents: number | null): Promise<readonly unknown[]>;
@@ -179,14 +213,22 @@ export async function* scan(ports: ScanPorts): AsyncGenerator<ScanEvent> {
       type: 'timed_out',
       step: 'looking at the photo',
       says: 'That is taking longer than it should.',
+      failure: 'model_timeout',
     };
-    yield { type: 'refusal', refusal: REFUSALS.model_down };
+    yield { type: 'refusal', refusal: REFUSALS.model_down, failure: 'model_timeout' };
     yield { type: 'done', ms: clock() - t0 };
     return;
   }
 
   if (id.kind === 'unreadable') {
-    yield { type: 'refusal', refusal: REFUSALS[id.reason] };
+    // The sentence comes from `reason` and the class from `failure`. A port
+    // that predates the field gets the nearest honest class from its reason
+    // rather than nothing, so the log never has a blank where a scan failed.
+    yield {
+      type: 'refusal',
+      refusal: REFUSALS[id.reason],
+      failure: id.failure ?? (id.reason === 'model_down' ? 'model_outage' : 'unreadable_photo'),
+    };
     yield { type: 'done', ms: clock() - t0 };
     return;
   }

@@ -11,8 +11,10 @@
  * this file knowing that happened.
  */
 
-import { Identifier, type ModelReading, type Tier } from './model.ts';
+import { Identifier, failureOf, type FailureClass, type ModelReading, type Tier } from './model.ts';
 import { deriveConfidence, type Confidence } from './confidence.ts';
+
+export type { FailureClass } from './model.ts';
 
 /** The shape the catalogue returns. Structural, so no dependency is needed. */
 export interface CatalogueCandidate {
@@ -76,6 +78,12 @@ export type IdentifyOutcome =
   | {
       readonly kind: 'unreadable';
       readonly because: string;
+      /**
+       * Added 2026-09-08, added and not repurposed: `because` is the sentence
+       * the person reads and it stays the same across most of these, which is
+       * the whole reason a second field had to exist. This one is for the log.
+       */
+      readonly failure: FailureClass;
       readonly reading: ModelReading | null;
       readonly tier: Tier;
     };
@@ -140,9 +148,21 @@ export class IdentifyStage {
     try {
       reading = await this.#model.read(productPng, tagPng, tier);
     } catch (err) {
+      /*
+       * 2026-09-08, the beta readiness audit: every failure here left as one
+       * sentence about the photograph, so an outage and a dark photo were the
+       * same row in the log and a beta run during an outage would have read
+       * back as a beta full of bad photographers.
+       *
+       * The sentence stays identical anyway. A rate limit, an outage and a
+       * malformed answer all leave the person with the same one thing to do,
+       * and naming our billing at somebody in a supermarket aisle is hard rule
+       * 3's exact failure. What changes is that the class rides alongside it.
+       */
       return {
         kind: 'unreadable',
         because: 'That photo could not be read. Try again a little closer.',
+        failure: failureOf(err),
         reading: null,
         tier,
       };
@@ -154,6 +174,9 @@ export class IdentifyStage {
       return {
         kind: 'unreadable',
         because: p.uncertainty ?? 'Nothing readable on the label from this angle.',
+        // The model answered and there was nothing on the label to answer with.
+        // The only member of the vocabulary that is genuinely about the photo.
+        failure: 'unreadable_photo',
         reading,
         tier,
       };

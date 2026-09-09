@@ -51,12 +51,51 @@ CREATE TABLE IF NOT EXISTS scan (
   confidence     REAL,
   source         TEXT,
   outcome        TEXT NOT NULL CHECK (outcome IN ('answered', 'refused', 'corrected')),
+  failure_class  TEXT,
   corrected_code TEXT,
   scanned_at     TEXT NOT NULL
 ) STRICT;
 
 CREATE INDEX IF NOT EXISTS scan_device_week ON scan(device_id, outcome, scanned_at);
 `;
+
+/**
+ * Why a scan failed, added 2026-09-08 as a column of its own.
+ *
+ * The beta readiness audit found every failure of the vision path arriving at
+ * the user as one sentence, the photo could not be read, and therefore also
+ * arriving here as one undifferentiated 'refused'. An outage during a beta
+ * would then be indistinguishable from bad photographs in the data, which is
+ * the one thing this table exists to make readable afterwards.
+ *
+ * The vocabulary is identify/src/model.ts's, restated because this package
+ * does not import that one. Null on every answered scan and on any refusal
+ * whose caller did not classify it, so a null means unclassified and never
+ * means fine.
+ */
+export type FailureClass =
+  | 'unreadable_photo'
+  | 'model_timeout'
+  | 'model_rate_limited'
+  | 'model_outage'
+  | 'model_malformed'
+  | 'model_client_error'
+  | 'spend_cap_reached'
+  | 'not_in_catalogue';
+
+/**
+ * Adds a column an older file does not have yet.
+ *
+ * There is a live scans.db in app/data written before failure_class existed,
+ * and CREATE TABLE IF NOT EXISTS will not touch it. Checked with table_info
+ * rather than a caught error, because a swallowed ALTER is how a column ends
+ * up missing on one machine and present on another with nothing to read back.
+ */
+function addColumnIfMissing(db: DatabaseSync, table: string, column: string, decl: string): void {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as unknown as { name: string }[];
+  if (columns.some((c) => c.name === column)) return;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
+}
 
 /**
  * A handle on the scan log.
@@ -105,6 +144,7 @@ export function openScanStore(path: string = process.env.SHIN_SCANS ?? 'data/sca
     db = new DatabaseSync(path);
     db.exec('PRAGMA journal_mode = WAL');
     db.exec(DDL);
+    addColumnIfMissing(db, 'scan', 'failure_class', 'TEXT');
   } catch (err) {
     db = null;
     droppedWhy = err instanceof Error ? err.message : String(err);
@@ -128,6 +168,14 @@ export interface ScanInput {
   readonly source?: string | null;
   readonly outcome: ScanOutcome;
   /**
+   * Why, when the outcome is 'refused'. Added 2026-09-08 alongside `outcome`
+   * rather than folded into it: 'refused' is what the person experienced and
+   * the free-tier rule reads it, while this is what happened on our side and
+   * only the defect log reads it. Merging them would have made the metering
+   * rule depend on an outage.
+   */
+  readonly failureClass?: FailureClass | null;
+  /**
    * Overrides the recorded timestamp. Tests use this to place a row in a
    * specific week without mocking the clock; real callers should omit it
    * and get `new Date().toISOString()`.
@@ -145,6 +193,7 @@ interface ScanRow {
   confidence: number | null;
   source: string | null;
   outcome: string;
+  failure_class: string | null;
   corrected_code: string | null;
   scanned_at: string;
 }
@@ -164,8 +213,8 @@ export function recordScan(input: ScanInput): number | null {
     const scannedAt = input.scannedAt ?? new Date().toISOString();
     const result = store.db
       .prepare(
-        `INSERT INTO scan (device_id, kind, query_text, resolved_code, resolved_label, confidence, source, outcome, corrected_code, scanned_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
+        `INSERT INTO scan (device_id, kind, query_text, resolved_code, resolved_label, confidence, source, outcome, failure_class, corrected_code, scanned_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
       )
       .run(
         input.deviceId,
@@ -176,6 +225,7 @@ export function recordScan(input: ScanInput): number | null {
         input.confidence ?? null,
         input.source ?? null,
         input.outcome,
+        input.failureClass ?? null,
         scannedAt,
       );
     return Number(result.lastInsertRowid);
