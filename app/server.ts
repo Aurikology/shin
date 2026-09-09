@@ -23,6 +23,24 @@ import type { SpineQuery } from '../spine/src/contract.ts';
 import { categoryFor } from './src/category-map.ts';
 import { alternativesFor, alternativesHeading } from '../catalogue/src/alternatives.ts';
 import type { Candidate } from '../catalogue/src/search.ts';
+/*
+ * TYPES ONLY, AND THE VALUES ARRIVE BY DYNAMIC IMPORT BELOW.
+ *
+ * `identify/src/model.ts` imports `@anthropic-ai/sdk`, which is installed in
+ * `identify/node_modules` and in no other package. A static import here would
+ * make the whole server -- every screen, every route that has nothing to do
+ * with a photo -- refuse to boot on a worktree where that install has not been
+ * run, which CLAUDE.md records as a state fresh worktrees are actually in. So
+ * the photo path is loaded on its first request and its absence is one route
+ * answering a named failure rather than a server that will not start.
+ */
+import type {
+  CatalogueCandidate,
+  CatalogueLookup,
+  CatalogueResult,
+  IdentifyOutcome,
+} from '../identify/src/identify.ts';
+import type { FailureClass, Identifier, Tier } from '../identify/src/model.ts';
 import { lookupPrices } from '../price/src/lookup.ts';
 import { recordCorrection } from '../price/src/corrections.ts';
 import { ATTRIBUTION } from './src/attribution.ts';
@@ -458,6 +476,31 @@ function routeFor(deviceId: string | null): { categories: readonly string[]; con
   }
 }
 
+/** What `decideRoute` hands back, named so two callers can pass it around. */
+type Route = { categories: readonly string[]; confidence: number; why: string };
+
+/**
+ * One search, narrowed by a device's history when there is one.
+ *
+ * Lifted out of `identify()` on 2026-09-09 so the photo door can run the
+ * SAME search rather than a second one that drifts from it. `restrictedSearch`
+ * owns every safety rule about narrowing (a barcode is never restricted, an
+ * empty narrowed result falls back to the whole catalogue rather than
+ * reporting a miss it did not check for), so this wrapper adds none of its
+ * own. It exists to keep "is there a route" in one place.
+ */
+async function searchRouted(
+  q: Record<string, unknown>,
+  deviceId: string | null,
+): Promise<{ result: unknown; route: Route | null; restricted: boolean; fellBack: boolean }> {
+  const route = routeFor(deviceId);
+  if (!route || !routing) {
+    return { result: await searchService!.search(q), route: null, restricted: false, fellBack: false };
+  }
+  const out = await routing.restrictedSearch(searchService, q, route);
+  return { result: out.result, route, restricted: out.restricted, fellBack: out.fellBack };
+}
+
 async function identify(query: {
   gtin?: string;
   text?: string;
@@ -488,24 +531,12 @@ async function identify(query: {
     ring: { label: string; members: { code: string; name: string }[] } | null;
   };
 
-  let routeUsed: { categories: readonly string[]; confidence: number; why: string } | null = null;
+  let routeUsed: Route | null = null;
 
-  /**
-   * One search, narrowed by this device's history when there is one.
-   *
-   * `restrictedSearch` owns every safety rule about narrowing (a barcode is
-   * never restricted, an empty narrowed result falls back to the whole
-   * catalogue rather than reporting a miss it did not check for), so this
-   * wrapper adds none of its own. It exists to keep "is there a route" in one
-   * place instead of at each of the three call sites below.
-   */
+  /** The shared helper above, with this route's result type on it. */
   const routedSearch = async (q: Record<string, unknown>) => {
-    const route = routeFor(query.deviceId ?? null);
-    if (!route || !routing) {
-      return { result: (await searchService!.search(q)) as Result, route: null, restricted: false, fellBack: false };
-    }
-    const out = await routing.restrictedSearch(searchService, q, route);
-    return { result: out.result as Result, route, restricted: out.restricted, fellBack: out.fellBack };
+    const out = await searchRouted(q, query.deviceId ?? null);
+    return { ...out, result: out.result as Result };
   };
 
   try {
@@ -615,6 +646,373 @@ async function identify(query: {
   }
 }
 
+/* ========================= THE PHOTO DOOR =========================
+ *
+ * `identify/src/identify.ts` has been written and tested since 2026-09-05 and
+ * was imported by nothing (D-024, D-047). This is the import. The eye already
+ * produces the right thing -- a burst-scored, object-cropped, 1568 px PNG --
+ * and `camera.js` has been holding it as `lastCrop` and never sending it.
+ *
+ * Everything about WHAT the picture is stays in `identify/`. This file is only
+ * allowed to move an answer, never to make one, which is the same constraint
+ * the top of this file states about prices. So there is no confidence
+ * arithmetic here, no prompt, and no decision about whether a candidate is
+ * good enough; there is a catalogue adapter, a body reader, a scan row and a
+ * rate limit.
+ */
+
+/**
+ * How big a photo body may be.
+ *
+ * A 1568 px long-edge PNG off the eye measures a few hundred kilobytes and
+ * base64 adds a third. 3 MiB is roughly five times the largest crop the
+ * capture path can produce, which leaves room for a JPEG from a picker or a
+ * future higher-resolution pass without anybody having to think about this
+ * number again, and is still small enough that a body over it is refused at
+ * the first chunk rather than buffered.
+ */
+const MAX_PHOTO_BODY_BYTES = 3 * 1024 * 1024;
+
+/**
+ * Is this actually an image, checked on the bytes rather than on a header.
+ *
+ * A content-type is whatever the client typed. The first four bytes are what
+ * the decoder will see, so they are what is checked: PNG's 89 50 4E 47 and
+ * JPEG's FF D8 FF. Anything else is refused here rather than sent to a vision
+ * model, which is the expensive way to find out the same thing.
+ */
+function imageKind(bytes: Buffer): 'png' | 'jpeg' | null {
+  if (bytes.length >= 4 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+    return 'png';
+  }
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpeg';
+  return null;
+}
+
+/**
+ * Thirty photo calls per device per rolling ten minutes.
+ *
+ * ONLY THIS ROUTE. A barcode is free and unlimited by design (it is the
+ * cheapest thing in the product) and a text search costs a local index read;
+ * this one costs a vision call, so it is the only one with a ceiling. Thirty
+ * in ten minutes is well above a person shopping -- the capture path takes a
+ * burst and sends one crop -- and well below anything that could spend the
+ * daily model cap in a sitting.
+ *
+ * In memory on purpose, and it is stated rather than hidden: a restart forgets
+ * every count, and this is one process. It is a spend guard, not a security
+ * boundary, and a spend guard that needed a database to start would be a
+ * reason not to have one at all. The daily cap in `identify/src/model.ts` is
+ * the backstop underneath it.
+ */
+const PHOTO_RATE_WINDOW_MS = 10 * 60 * 1000;
+const PHOTO_RATE_LIMIT = 30;
+const photoCalls = new Map<string, number[]>();
+
+function photoRateAllows(deviceId: string): boolean {
+  const now = Date.now();
+  const recent = (photoCalls.get(deviceId) ?? []).filter((t) => now - t < PHOTO_RATE_WINDOW_MS);
+  if (recent.length >= PHOTO_RATE_LIMIT) {
+    photoCalls.set(deviceId, recent);
+    return false;
+  }
+  recent.push(now);
+  photoCalls.set(deviceId, recent);
+  /*
+   * Devices that stopped scanning are dropped rather than kept forever. The
+   * map is one entry per device that has ever posted a photo to this process,
+   * and without this it is a leak with a nice name.
+   */
+  if (photoCalls.size > 5_000) {
+    for (const [id, times] of photoCalls) {
+      if (times.every((t) => now - t >= PHOTO_RATE_WINDOW_MS)) photoCalls.delete(id);
+    }
+  }
+  return true;
+}
+
+/**
+ * The model, built once and lazily.
+ *
+ * Lazily because constructing it reads credentials and loads an SDK, and this
+ * server has to boot on a machine with neither. Once because it is stateless
+ * across calls and the daily spend cap it enforces lives in its module, not in
+ * the instance.
+ */
+let photoModel: Identifier | null = null;
+
+/**
+ * TEST ONLY. Nothing in the product calls this.
+ *
+ * The HTTP edge is the thing worth testing here -- a real socket, a real body,
+ * a real 413 -- and the one thing that cannot be real in a test is the vision
+ * call, because there is no API key on this machine and a test that needed one
+ * would be a test that never runs. So the model and the catalogue are the two
+ * things this seam can replace, and it replaces nothing else: the body
+ * reading, the magic-byte check, the rate limit, the outcome mapping and the
+ * scan row are all the shipped code in every test below.
+ *
+ * `model` is a real `Identifier` built with a fake `MessagesClient`, which is
+ * how `identify/test/model.test.ts` does it, so the retry policy, the timeout
+ * and the failure classification are the real ones.
+ */
+export function setIdentifierForTests(
+  fake: { model?: Identifier; lookup?: CatalogueLookup } | null,
+): void {
+  photoTestDouble = fake;
+  photoModel = null;
+}
+let photoTestDouble: { model?: Identifier; lookup?: CatalogueLookup } | null = null;
+
+async function modelOnce(): Promise<Identifier> {
+  if (photoTestDouble?.model) return photoTestDouble.model;
+  if (!photoModel) {
+    const { Identifier } = await import('../identify/src/model.ts');
+    photoModel = new Identifier();
+  }
+  return photoModel;
+}
+
+/**
+ * The catalogue, in the shape `IdentifyStage` asks for.
+ *
+ * It is the SAME machinery `/api/identify` runs: `fastLookup.byGtin` for a
+ * barcode (which also tries the UPC-A and EAN-13 forms of one code) and
+ * `searchRouted` for everything else, including the confident-to-ambiguous
+ * downgrade a narrowed search earns. Written as a factory rather than a
+ * constant because it closes over one request's device id and hands back the
+ * raw catalogue rows, which carry the source and the category path this file
+ * needs to name a category and which `CatalogueCandidate` does not declare.
+ */
+function photoLookup(
+  deviceId: string | null,
+  seen: { route: Route | null; rows: Map<string, Candidate> },
+): CatalogueLookup {
+  const miss: CatalogueResult = { band: 'miss', candidates: [], ring: null, matchedBy: 'none' };
+
+  return async (q) => {
+    if (!fastLookup || !searchService) return miss;
+    // Cap 10, per the lane contract. Past that the fused list is noise and the
+    // pick pass is being asked to read a page of it.
+    const limit = Math.min(Math.max(1, Math.round(q.limit ?? 5)), 10);
+
+    const keep = (result: CatalogueResult): CatalogueResult => {
+      for (const c of result.candidates) seen.rows.set(c.code, c as unknown as Candidate);
+      return result;
+    };
+
+    /*
+     * Barcode first and on this thread, the same order and the same reason
+     * `/api/identify` gives: a fact beats an opinion, and this one costs
+     * 0.2 ms against all 5,182,591 rows.
+     */
+    if (q.gtin) {
+      const hit = (fastLookup.byGtin(q.gtin) ?? null) as Candidate | null;
+      if (hit) {
+        return keep({
+          band: 'confident',
+          candidates: [hit as unknown as CatalogueCandidate],
+          ring: null,
+          matchedBy: 'gtin',
+        });
+      }
+      // Read fine and we do not have it. A gap, not a camera failure -- unless
+      // there is text to fall back to, which is what the cascade is for.
+      if (!q.text) return miss;
+    }
+
+    const routed = await searchRouted(
+      {
+        text: q.text,
+        brand: q.brand,
+        sizeValue: q.sizeValue,
+        sizeUnit: q.sizeUnit,
+        limit,
+        vectors: vectorsOn,
+      },
+      deviceId,
+    );
+    seen.route = routed.route;
+    const raw = routed.result as {
+      band: CatalogueResult['band'];
+      matchedBy: CatalogueResult['matchedBy'];
+      candidates: CatalogueCandidate[];
+      ring: { label: string; members: CatalogueCandidate[] } | null;
+    };
+    // A narrowed answer is never a confident one. `/api/identify` and
+    // `/api/search` both apply this; a third caller of the same search does not
+    // get to skip it.
+    const band = routed.restricted && !routed.fellBack && raw.band === 'confident' ? 'ambiguous' : raw.band;
+    return keep({ band, candidates: raw.candidates, ring: raw.ring, matchedBy: raw.matchedBy });
+  };
+}
+
+/**
+ * What the photo route answers with: everything `/api/identify` returns, plus
+ * the three things only a model-read identity has.
+ */
+interface PhotoAnswer extends Identified {
+  /** How many vision calls it took. 1 today; the pick pass makes it 2. */
+  readonly passes: 1 | 2;
+  /** The class of what went wrong, for the log and for the screen's copy. Null when nothing did. */
+  readonly failure: FailureClass | 'not_in_catalogue' | null;
+  /** Up to five, populated only when the answer is unsure and the shopper has to pick. */
+  readonly candidates: readonly { code: string; brand: string | null; name: string; size: string | null }[];
+  /** One word the client maps to a screen, so it never has to infer one from three fields. */
+  readonly reason: 'identified' | 'identity_unsure' | 'not_in_catalogue' | FailureClass;
+  /** The band, the score and the plain sentence naming what limits it. */
+  readonly confidence: { readonly band: 'high' | 'medium' | 'low'; readonly score: number; readonly because: string } | null;
+  /** Decision 19: set when two sizes of one product were both plausible. */
+  readonly sizeQuestion: readonly { code: string; name: string; size: string | null }[] | null;
+  /**
+   * What the model actually read off the pack, brand then name, before the
+   * catalogue was asked. Null when it read nothing.
+   *
+   * The screen can say "we read that as X" on a miss, and it is what the scan
+   * row files as the query: on this route the query IS the reading, the same
+   * way the barcode digits are the query on `/api/identify`.
+   */
+  readonly readAs: string | null;
+}
+
+const sizeText = (c: { sizeValue: number | null; sizeUnit: string | null; quantity?: string | null }): string | null =>
+  c.sizeValue !== null && c.sizeUnit ? `${c.sizeValue} ${c.sizeUnit}` : (c.quantity ?? null);
+
+/**
+ * Run one photo through identification and turn the outcome into an answer.
+ *
+ * NEVER THROWS AND NEVER 500s ON A MODEL FAILURE. `IdentifyStage` already
+ * turns every `ModelCallError` into an `unreadable` outcome carrying its
+ * class, which is an answer: the person gets one sentence and a repair they
+ * can perform, and the log gets the distinction the sentence deliberately
+ * does not carry. A 500 here would tell the screen to retry around it.
+ */
+async function identifyPhoto(
+  image: Buffer,
+  tier: Tier,
+  sharpness: number,
+  deviceId: string | null,
+): Promise<PhotoAnswer> {
+  const started = Date.now();
+  const base = (over: Partial<PhotoAnswer>): PhotoAnswer => ({
+    product: null,
+    matchedBy: 'none',
+    band: 'miss',
+    category: null,
+    categoryWhy: '',
+    ring: null,
+    otherCandidates: 0,
+    route: null,
+    catalogueUp: fastLookup !== null,
+    ms: Date.now() - started,
+    passes: 1,
+    failure: null,
+    candidates: [],
+    reason: 'identified',
+    confidence: null,
+    sizeQuestion: null,
+    readAs: null,
+    ...over,
+  });
+
+  /** Brand then name, as the model read them. The catalogue has not spoken yet. */
+  const readingOf = (o: IdentifyOutcome): string | null => {
+    const p = o.reading?.product;
+    if (!p) return null;
+    return [p.brand, p.name].filter(Boolean).join(' ').trim() || null;
+  };
+
+  const seen: { route: Route | null; rows: Map<string, Candidate> } = { route: null, rows: new Map() };
+  const { IdentifyStage } = await import('../identify/src/identify.ts');
+  const stage = new IdentifyStage(photoTestDouble?.lookup ?? photoLookup(deviceId, seen), await modelOnce());
+  const outcome: IdentifyOutcome = await stage.fromCrop(new Uint8Array(image), null, tier, sharpness);
+  // Added on the outcome by lane A; absent until then, and 1 is the truth in
+  // that case rather than a placeholder.
+  const passes = ((outcome as { passes?: 1 | 2 }).passes ?? 1) as 1 | 2;
+
+  if (outcome.kind === 'unreadable') {
+    return base({
+      passes,
+      failure: outcome.failure,
+      reason: outcome.failure,
+      categoryWhy: outcome.because,
+      route: seen.route,
+      readAs: readingOf(outcome),
+    });
+  }
+
+  if (outcome.kind === 'not_in_catalogue') {
+    return base({
+      passes,
+      failure: 'not_in_catalogue',
+      reason: 'not_in_catalogue',
+      categoryWhy: `We read that as ${outcome.readAs} and we do not have it.`,
+      ring: outcome.ring
+        ? { label: outcome.ring.label, members: outcome.ring.members.map((m) => ({ code: m.code, name: m.name })) }
+        : null,
+      route: seen.route,
+      readAs: readingOf(outcome) ?? outcome.readAs,
+    });
+  }
+
+  /*
+   * Identified. The raw catalogue row is preferred over the structural
+   * candidate because only the raw row carries the source and the category
+   * path, and `category-map.ts` needs both to name a kind. A fake lookup in a
+   * test hands back the structural shape alone, so this falls back to it
+   * rather than requiring the richer one.
+   */
+  const chosen = outcome.chosen;
+  const row = (seen.rows.get(chosen.code) ?? chosen) as Candidate;
+  const verdict =
+    row.source !== undefined
+      ? categoryFor({ source: row.source, categoryPath: row.categoryPath, leafCategory: row.leafCategory ?? null })
+      : { category: null, why: '' };
+
+  /*
+   * Decision 17 as the lane contract states it: there is no `unsure` arm.
+   * Unsure is a low band with somewhere else to go, and the candidate list is
+   * what makes it a question rather than a shrug.
+   */
+  const unsure = outcome.confidence.band === 'low' && outcome.alternates.length > 0;
+
+  return base({
+    product: {
+      code: chosen.code,
+      name: chosen.name,
+      brands: chosen.brands,
+      quantity: chosen.quantity,
+      sizeValue: chosen.sizeValue,
+      sizeUnit: chosen.sizeUnit,
+      soldInCanada: row.soldInCanada ?? false,
+    },
+    matchedBy: outcome.reading === null ? 'gtin' : 'hybrid',
+    band: outcome.confidence.band === 'high' ? 'confident' : 'ambiguous',
+    category: verdict.category,
+    categoryWhy: verdict.why || outcome.confidence.because,
+    otherCandidates: outcome.alternates.length,
+    route: seen.route,
+    passes,
+    reason: unsure ? 'identity_unsure' : 'identified',
+    confidence: {
+      band: outcome.confidence.band,
+      score: outcome.confidence.score,
+      because: outcome.confidence.because,
+    },
+    candidates: unsure
+      ? [chosen, ...outcome.alternates].slice(0, 5).map((c) => ({
+          code: c.code,
+          brand: c.brands,
+          name: c.name,
+          size: sizeText(c),
+        }))
+      : [],
+    sizeQuestion:
+      outcome.sizeQuestion?.options.map((c) => ({ code: c.code, name: c.name, size: sizeText(c) })) ?? null,
+    readAs: readingOf(outcome),
+  });
+}
+
 /**
  * How many bytes of JSON a request is allowed to spend before it is refused.
  *
@@ -631,9 +1029,14 @@ async function identify(query: {
  * the whole provision made for the photo upload door named in `NOW.md` and in
  * DEFECTS.md D-032. An upload needs a limit in megabytes, and the wrong way to
  * give it one is to raise this number, because that would hand every JSON route
- * a megabyte-sized mouth to feed for the sake of a route none of them are. When
- * the upload route lands it passes its own limit here, and this one does not
- * move.
+ * a megabyte-sized mouth to feed for the sake of a route none of them are.
+ *
+ * THE DOOR NOW EXISTS, 2026-09-09. `POST /api/identify/photo` is the route
+ * this paragraph was written for. It passes `MAX_PHOTO_BODY_BYTES` (3 MiB) as
+ * the parameter and this number did not move, which is the provision working
+ * as described rather than a plan for it. `/api/price` and `/api/correction`
+ * still take the 8 KiB default, so the two routes that carry a dozen short
+ * scalars are still refused at the first chunk if they are sent anything else.
  *
  * The number is deliberately small. It is not tuned for memory (8 KiB is
  * nothing); it is tuned to say what the routes accept, so that anything else
@@ -730,7 +1133,16 @@ function readBody(
   });
 }
 
-const server = createServer(async (req, res) => {
+/*
+ * Exported for the tests only, and for one thing: closing it.
+ *
+ * `app/test/photo-route.test.ts` imports this file so it can hand the photo
+ * route a fake model through `setIdentifierForTests`, which a child process
+ * cannot be given. An imported server that nothing can close leaves the test
+ * runner holding an open listener and the process never exits. Nothing in the
+ * product reads this binding; `node server.ts` still starts it below.
+ */
+export const server = createServer(async (req, res) => {
   /*
    * THE HOST HEADER IS NOT PARSED, AND THAT IS THE FIX RATHER THAN THE
    * SHORTCUT.
@@ -809,7 +1221,10 @@ const server = createServer(async (req, res) => {
    */
   const LINGER_MS = 2_000;
   const LINGER_BYTES = 8 * 1024 * 1024;
-  const refuseTooLarge = () => {
+  // The limit is a parameter because the routes no longer share one: a photo
+  // is allowed 3 MiB and the JSON routes are allowed 8 KiB, and a refusal that
+  // quoted the wrong one would send somebody looking for the wrong bug.
+  const refuseTooLarge = (limit: number = MAX_JSON_BODY_BYTES) => {
     const answer = () => {
       if (res.writableEnded) return;
       res.writeHead(413, {
@@ -817,7 +1232,7 @@ const server = createServer(async (req, res) => {
         'cache-control': 'no-store',
         connection: 'close',
       });
-      res.end(JSON.stringify({ error: `body is over the ${MAX_JSON_BODY_BYTES} byte limit` }));
+      res.end(JSON.stringify({ error: `body is over the ${limit} byte limit` }));
     };
 
     if (req.readableEnded || !req.readable) return answer();
@@ -1044,6 +1459,89 @@ const server = createServer(async (req, res) => {
           error: 'the catalogue could not answer that one',
         });
       }
+    }
+
+    /*
+     * A photograph becomes an identity.
+     *
+     * POST because it carries a megabyte of image, and the third rung of the
+     * ladder rather than the first: the client tries the barcode, then the
+     * catalogue by text, and arrives here only when a person is pointing at
+     * something whose barcode is not visible. That is the expensive path and
+     * it is the only one with a rate limit.
+     *
+     * A REFUSAL IS A 200 HERE, the same rule `/api/price` states for a refused
+     * verdict and for the same reason. A photo nobody could read, a model that
+     * timed out and a product the catalogue does not have are all correct
+     * answers about the input, and a client that treats them as errors will
+     * retry around the one thing telling it the truth. The only non-200s are
+     * about the REQUEST: a body over the cap, a body that is not JSON, a
+     * payload that is not an image, and a device asking too often.
+     */
+    if (url.pathname === '/api/identify/photo') {
+      if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      const body = await readBody(req, MAX_PHOTO_BODY_BYTES);
+      if (body === TOO_LARGE) return refuseTooLarge(MAX_PHOTO_BODY_BYTES);
+      if (body === null || typeof body !== 'object') {
+        return json(400, { error: 'body did not parse as JSON' });
+      }
+      const p = body as Record<string, unknown>;
+      if (typeof p.image !== 'string' || p.image.trim() === '') {
+        return json(400, { error: 'image is required and must be a base64 string' });
+      }
+      const image = Buffer.from(p.image, 'base64');
+      // Buffer.from ignores what it cannot decode rather than throwing, so an
+      // empty result is the only signal that the string was not base64 at all.
+      if (image.length === 0) {
+        return json(400, { error: 'image did not decode as base64' });
+      }
+      if (imageKind(image) === null) {
+        return json(400, { error: 'image must be a PNG or a JPEG' });
+      }
+
+      const device = typeof p.deviceId === 'string' && p.deviceId.trim() !== '' ? p.deviceId.trim() : UNATTRIBUTED;
+      /*
+       * Counted after the body is read, which is deliberate and is the cost of
+       * putting the device id in the body: there is nothing to count before
+       * the bytes arrive. The 3 MiB cap is what bounds a flood, and this is
+       * what bounds the spending.
+       */
+      if (!photoRateAllows(device)) {
+        return json(429, {
+          error: 'That is a lot of photos in a short time. Give it a few minutes and try again.',
+        });
+      }
+
+      const tier: Tier = p.tier === 'pro' ? 'pro' : 'basic';
+      const sharpnessRaw = Number(p.sharpness);
+      const sharpness = Number.isFinite(sharpnessRaw) ? sharpnessRaw : 0;
+
+      const answer = await identifyPhoto(image, tier, sharpness, device === UNATTRIBUTED ? null : device);
+
+      /*
+       * One row per call, the same rule `/api/identify` states: this is the
+       * act, and pricing is a second question about an answer somebody already
+       * has. Unlike that route, this one records even when the catalogue is
+       * not attached, because the model failure classes are facts about US and
+       * a beta run inside an outage has to be readable afterwards -- which is
+       * the whole reason `failure_class` exists.
+       */
+      recordScan({
+        deviceId: device,
+        kind: 'photo' as ScanKind,
+        // What was READ, not what was matched. A row whose query is the
+        // catalogue's own name for the product cannot be used afterwards to
+        // ask why the match was wrong.
+        query: answer.readAs ?? '',
+        resolvedCode: answer.product?.code ?? null,
+        resolvedLabel: answer.product?.name ?? null,
+        source: answer.matchedBy,
+        outcome: answer.product ? 'answered' : 'refused',
+        category: answer.category,
+        failureClass: answer.failure,
+      });
+
+      return json(200, answer);
     }
 
     if (url.pathname === '/api/price') {
