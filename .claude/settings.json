@@ -1,8 +1,12 @@
 {
   "permissions": {
-    "_note": "Immutability floor. The four files in pages/ are the sources of published web pages and are the record of what was decided on 2026-09-03; the notes file is the working record of that day. They are diff baselines, not drafts. A new plan is a NEW file at a new name, never an edit to one of these. Edit() form only: Write(path) deny rules are inert, the harness warns and ignores them.",
+    "_note": "Immutability floor. The four files in pages/ are the sources of published web pages and are the record of what was decided on 2026-09-03; the notes file is the working record of that day. They are diff baselines, not drafts. A new plan is a NEW file at a new name, never an edit to one of these. All four pages/ files and the session-notes file are now enforced with deny rules (2026-09-10). Edit() form only: Write(path) deny rules are inert, the harness warns and ignores them.",
     "deny": [
-      "Edit(notes/session-2026-09-03.md)"
+      "Edit(notes/session-2026-09-03.md)",
+      "Edit(pages/shin-build-plan.html)",
+      "Edit(pages/shin-hard-dozen.html)",
+      "Edit(pages/shin-terminating-loop.html)",
+      "Edit(pages/shin-walkthrough.html)"
     ]
   },
   "hooks": {
