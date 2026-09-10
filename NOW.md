@@ -5,6 +5,28 @@ narrative.*
 
 ---
 
+## A seller has an identity and a name, the brand prints once, and one floor is written but unfired, 2026-09-10
+
+**D-081 closed with the second field the row asked for.** `PricePoint.sellerId` is the identity
+for counting and `seller` stays the name for display and matching; two branches of one chain
+count as two and both still drop out when the shopper types the chain. Fixture-only until the
+live `prices.db` grows a `store_osm` column. The client-side count on the going-rate card keys
+the same way. spine 168 pass.
+
+**D-014 closed.** The brand printed twice because the brand-in-name check compared raw strings
+across a scraped name's casing; it folds case and accents now, and the photo and typed candidate
+lists share one row helper. The model-down refusal says it once instead of three times.
+app 413 pass, 5 skipped.
+
+**D-028: four deny rules written, not proven.** The boss fired one live and the Edit went
+through, because this session runs with permissions bypassed; the row closes when a default-mode
+session is refused.
+
+**Unchanged: the model call is unmeasured**, pending the founders' meeting on the key
+(`docs/the-photo-path.md` section 6). Nothing from b453086 on is pushed.
+
+---
+
 ## The ceiling is forty of forty, the keypad fits a thumb, and the screens were walked, 2026-09-09
 
 **D-082 was the size pin labelling instead of ranking.** `brandAgrees` / `sizeAgrees` were
