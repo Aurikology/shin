@@ -752,11 +752,17 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null) {
   // The engine writes its own sentence naming the repair. Shin's voice sits
   // above it; the engine's detail is never paraphrased, because it is the part
   // that says what actually happened.
-  const mine = isCategory || isThin
+  //
+  // Model-down is not given a `said` line of its own here. It used to render
+  // `refuse_unavailable_why` ("This is the reader, not your photo. The
+  // barcode and typing it still work.") above `r.detail`'s own per-class line
+  // (`cam_photo_model_*`, e.g. "The photo reader took too long to answer this
+  // one. The barcode and typing it still work.") -- both stating the same two
+  // facts, what happened and what still works, in almost the same words. The
+  // per-class line already carries both; this line only repeated them.
+  const mine = isCategory || isThin || isModelDown
     ? ''
-    : isModelDown
-      ? `<p class="said">${say('refuse_unavailable_why')}</p>`
-      : `<p class="said">${say(isUnsure ? 'refuse_unsure_why' : 'refuse_unknown_why')}</p>`;
+    : `<p class="said">${say(isUnsure ? 'refuse_unsure_why' : 'refuse_unknown_why')}</p>`;
 
   // USAGE.md section 4 ("the single action, by reason") and section 7 ("on a
   // refusal: one action only... there is no share and no watch on a refusal")
@@ -800,7 +806,19 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null) {
         ${mine}
         <p class="detail">${escapeHtml(isCategory ? categoryShort : r.detail)}</p>
         ${repairBlock}
-        <p class="itemname">${escapeHtml(r.identity ? r.identity.label : 'No confident match')} &middot; ${refusalLabel(r.reason)}</p>
+        <p class="itemname">${escapeHtml(r.identity ? r.identity.label : 'No confident match')} &middot; ${
+          /*
+           * `refusalLabel` restates the reason as a full sentence, e.g.
+           * "Refused. The photo reader took too long." -- exactly the fact
+           * `r.detail` above already gave, in fuller words. That is the right
+           * call when this footer is the ONLY sentence a reason gets, which
+           * is what it is on a reopened refusal in pastscans.js; here it sits
+           * under a sentence that already said it. The footer adds a fact
+           * (the plain word "Refused") without repeating the one it does not
+           * need to say twice.
+           */
+          isModelDown ? 'Refused.' : refusalLabel(r.reason)
+        }</p>
       </div>
       <div class="sheet-half">
         ${r.evidence.length
@@ -1069,7 +1087,11 @@ function goingRateCard(refusal, item) {
   const amounts = pts.map((p) => p.amountCents);
   const lo = Math.min(...amounts);
   const hi = Math.max(...amounts);
-  const sellers = new Set(pts.map((p) => p.seller)).size;
+  // D-081: `sellerId` is identity for counting distinct sellers; `seller` is
+  // the display and matching name and is not guaranteed to be a stable key
+  // (two spellings of the same store). Falls back to `seller` for a point
+  // that predates `sellerId`.
+  const sellers = new Set(pts.map((p) => p.sellerId ?? p.seller)).size;
   const mkt = store.market().country || 'Canada';
   const single = pts.length <= 1 || lo === hi;
   const range = single ? cad(lo) : `${cad(lo)} to ${cad(hi)}`;
@@ -1197,6 +1219,86 @@ function matchCatalogue(text, catalogueItems) {
   return bestScore >= Math.min(2, words.length) ? best : null;
 }
 
+/**
+ * Case- and accent-insensitive equality, so "Häagen-Dazs" (the catalogue's
+ * clean `brands` field) and "HAAGEN-DAZS" (a scraped retailer title's own
+ * casing of the same word) compare equal. `String.includes`/`startsWith`
+ * alone do not: they compare code points, and an accented letter is a
+ * different code point from its bare form.
+ */
+function normalizeForCompare(s) {
+  return String(s ?? '')
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * Brand, name and size, without repeating the brand when the name already
+ * leads with it.
+ *
+ * D-014: a catalogue row's `name` is sometimes the scraped retailer page
+ * title verbatim, which already opens with the brand in its own casing --
+ * "HAAGEN-DAZS Extraz Strawberry Cheesecake Ice Cream, 450 ml" against a
+ * clean `brands` field of "Häagen-Dazs". A plain case-insensitive substring
+ * check treated those as two different strings, because of the accent, and
+ * prepended the clean brand onto a name that already carried it: "Häagen-Dazs
+ * HAAGEN-DAZS Extraz Strawberry Cheesecake Ice Cream, 450 ml". Comparing
+ * through `normalizeForCompare` on both sides fixes that: when the name
+ * (accent- and case-folded) starts with the brand, the brand is not said
+ * twice. When it does not, the catalogue's brand is the only source of that
+ * fact and leads the label -- this is "catalogue brand + name + size when the
+ * catalogue row is joined"; a caller with no `product` (no catalogue row) has
+ * nothing to pass here and falls back to whatever raw text it has instead.
+ */
+function productLabel(p) {
+  const parts = [];
+  const brand = (p.brands ?? '').split(',')[0].trim();
+  const name = (p.name ?? '').trim();
+  const brandLeadsName = brand !== '' && normalizeForCompare(name).startsWith(normalizeForCompare(brand));
+  if (brand && !brandLeadsName) parts.push(brand);
+  parts.push(name);
+  if (p.quantity && !normalizeForCompare(name).includes(normalizeForCompare(String(p.quantity)))) {
+    parts.push(p.quantity);
+  }
+  return parts.join(' ');
+}
+
+/**
+ * One row for a candidate list: a title (name + size) and a meta line (the
+ * brand, or the category when the brand had to move into the title instead).
+ *
+ * The photo route's vision-model candidates and the typed route's "not
+ * this?" candidates used to build a row each in its own way and disagreed:
+ * the photo list said "Kraft Kraft Dinner 4080 g" with a second "KRAFT"
+ * underneath it, brand in both the title and the meta. This is the one place
+ * either list decides what a row says, so they cannot diverge again. The
+ * dedupe rule is `productLabel`'s own (accent- and case-insensitive, name
+ * leads): when the name already opens with the brand, the title is just name
+ * and size and the brand moves down to the meta line, said once. When it does
+ * not, the row has nowhere else to put the brand and still name the product,
+ * so the brand leads the title instead, and the meta line falls back to the
+ * category (or nothing) rather than repeating the brand that is now in the
+ * title already.
+ */
+function candidateRow({ brand, name, size, category } = {}) {
+  const b = (brand ?? '').trim();
+  const n = (name ?? '').trim();
+  const s = size ? String(size).trim() : '';
+  const brandLeadsName = b !== '' && normalizeForCompare(n).startsWith(normalizeForCompare(b));
+  const title = brandLeadsName ? [n, s] : [b, n, s];
+  return {
+    label: title.filter(Boolean).join(' '),
+    meta: brandLeadsName ? b : (category ?? ''),
+  };
+}
+
+/** Brand, name and size off a photo-route candidate row (`{ brand, name, size }`), through the same rule `candidateRow` uses everywhere else. */
+function photoCandidateLabel(c) {
+  return candidateRow({ brand: c?.brand, name: c?.name, size: c?.size }).label;
+}
+
 /* Exported for the sheet-layout check, which is `app/test/sheet.test.mjs` as of
    2026-09-06 (this comment named `scripts/check-sheet.mjs` for two commits and
    that file was never written). It renders every sheet outside the browser and
@@ -1211,6 +1313,13 @@ export { verdictSheet, refusalSheet, pricePadSheet, goingRateCard, workingSheet,
    the one rule it has of its own -- an empty list says so in a sentence rather
    than drawing an empty box -- is only true if something asserts it. */
 export { searchCandidateSheet };
+
+/* Exported 2026-09-10 for the D-014 label test: `productLabel` decides what a
+   catalogue row is called on the verdict and the pad, and `candidateRow`
+   decides what a candidate-list row says, in both the photo and typed
+   candidate lists. Neither is browser-only; both take plain data and return a
+   string, so both are asserted directly rather than by source-scanning. */
+export { productLabel, candidateRow };
 
 /* Exported 2026-09-09 for `app/test/refusal-voice.test.mjs`, D-011's app half.
    The list it reads is the seam between this file and the engine's closed
@@ -1791,18 +1900,6 @@ export default {
       return identifyOffline(code);
     }
 
-    /** Brand, name and size, without repeating the brand when the name has it. */
-    function productLabel(p) {
-      const parts = [];
-      const brand = (p.brands ?? '').split(',')[0].trim();
-      if (brand && !p.name.toLowerCase().includes(brand.toLowerCase())) parts.push(brand);
-      parts.push(p.name);
-      if (p.quantity && !p.name.toLowerCase().includes(String(p.quantity).toLowerCase())) {
-        parts.push(p.quantity);
-      }
-      return parts.join(' ');
-    }
-
     function sameCode(a, b) {
       const n = (s) => String(s).replace(/\D/g, '').replace(/^0+/, '');
       return n(a) === n(b);
@@ -1909,12 +2006,16 @@ export default {
       if (dead || padItem !== from) return;
       notThisResults = (found.candidates ?? [])
         .filter((c) => !sameCode(c.code, from.gtin ?? from.id ?? ''))
-        .map((c) => ({
-          code: c.code,
-          label: productLabel(c),
-          category: c.leafCategory ?? from.category,
-          meta: c.brands ? String(c.brands).split(',')[0].trim() : '',
-        }));
+        .map((c) => {
+          const category = c.leafCategory ?? from.category;
+          const row = candidateRow({
+            brand: c.brands ? String(c.brands).split(',')[0].trim() : '',
+            name: c.name,
+            size: c.quantity,
+            category,
+          });
+          return { code: c.code, label: row.label, category, meta: row.meta };
+        });
       setState('choosing');
       slot.innerHTML = searchCandidateSheet(notThisResults, query);
       mounted();
@@ -2170,11 +2271,10 @@ export default {
 
       if (Array.isArray(id?.candidates) && id.candidates.length) {
         const readAs = id.reading || photoCandidateLabel(id.candidates[0]) || 'the photo';
-        const mapped = id.candidates.map((c) => ({
-          code: c.code,
-          label: photoCandidateLabel(c) || 'Unlabelled item',
-          meta: c.brand ?? '',
-        }));
+        const mapped = id.candidates.map((c) => {
+          const row = candidateRow({ brand: c.brand, name: c.name, size: c.size });
+          return { code: c.code, label: row.label || 'Unlabelled item', meta: row.meta };
+        });
         setState('choosing');
         slot.innerHTML = searchCandidateSheet(mapped, readAs);
         mounted();
@@ -2211,11 +2311,6 @@ export default {
       playRefusalLanding(slot);
       setState('result');
       mounted();
-    }
-
-    /** Brand, name and size off a photo-route candidate row, without inventing punctuation for a missing field. */
-    function photoCandidateLabel(c) {
-      return [c?.brand, c?.name, c?.size].filter(Boolean).join(' ');
     }
 
     /**

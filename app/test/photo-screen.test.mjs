@@ -184,6 +184,37 @@ test('a model-down refusal sheet carries a real sentence and never the raw class
   }
 });
 
+/**
+ * The refusal used to say the same thing three times: a generic
+ * `refuse_unavailable_why` line ("This is the reader, not your photo. The
+ * barcode and typing it still work."), then `r.detail`'s own per-class
+ * sentence saying almost the same two facts in different words, then the
+ * footer's `refusalLabel(reason)` repeating the "what happened" half a third
+ * time ("Refused. The photo reader took too long."). `r.detail` alone
+ * already carries both what happened and what still works, so the generic
+ * line is retired and the footer falls back to the bare word instead of
+ * restating the reason.
+ */
+test('a model-down refusal no longer repeats what-still-works in a second said line, in any voice', () => {
+  for (const reason of MODEL_DOWN_REASONS) {
+    const detail = say(`cam_photo_${reason}`);
+    const html = refusalSheet(refusal(reason, detail), null, []);
+    for (const who of ['deadpan', 'warm', 'blunt']) {
+      const retired = say('refuse_unavailable_why', {}, who);
+      assert.ok(!html.includes(retired), `${reason}/${who}: the retired refuse_unavailable_why line still renders: "${retired}"`);
+    }
+  }
+});
+
+test('a model-down refusal footer adds the bare word, not a third repeat of the reason', () => {
+  for (const reason of MODEL_DOWN_REASONS) {
+    const html = refusalSheet(refusal(reason, say(`cam_photo_${reason}`)), null, []);
+    const itemname = /<p class="itemname">([\s\S]*?)<\/p>/.exec(html);
+    assert.ok(itemname, `${reason}: no itemname footer at all`);
+    assert.match(itemname[1], /&middot; Refused\.$/, `${reason}: the footer restates the reason instead of the bare word: "${itemname[1]}"`);
+  }
+});
+
 test('a model-down refusal offers exactly one action: type what it is', () => {
   for (const reason of MODEL_DOWN_REASONS) {
     const html = refusalSheet(refusal(reason, say(`cam_photo_${reason}`)), null, []);

@@ -20,6 +20,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   verdictSheet,
@@ -31,6 +32,8 @@ import {
   keypadHtml,
   pricePadDisplay,
   parsePadPrice,
+  productLabel,
+  candidateRow,
 } from '../public/js/screens/camera.js';
 
 /* ----------------------------------------------------------------- fixtures */
@@ -445,4 +448,95 @@ test('a verdict evidence note is escaped', () => {
   const html = verdictSheet({ ...verdict('high'), evidenceNote: hostile }, scenario, null);
   assert.ok(!html.includes('<script>'), 'raw markup from the verdict evidence note reached the sheet');
   assert.ok(html.includes('&lt;script&gt;'), 'the verdict evidence note was not escaped');
+});
+
+/**
+ * D-081. The going-rate card used to count distinct sellers on `seller`, the
+ * display name, so two spellings of the same store ("Walmart" and
+ * "Walmart.ca") counted as two sellers. The price point now carries a
+ * `sellerId`, identity for counting, separate from `seller`, which stays the
+ * name shown next to the cheapest price.
+ */
+test('going rate counts distinct sellers by sellerId, not by the display name (D-081)', () => {
+  const evidence = [
+    { seller: 'Walmart', sellerId: 'walmart', amountCents: 299, observedAt: '2026-08-01', kind: 'shelf' },
+    { seller: 'Walmart.ca', sellerId: 'walmart', amountCents: 305, observedAt: '2026-08-02', kind: 'shelf' },
+    { seller: 'Metro', sellerId: 'metro', amountCents: 429, observedAt: '2026-08-03', kind: 'shelf' },
+  ];
+  const html = goingRateCard(
+    { ...refusal('no_asking_price'), evidence, identity: { id: 'demo-1', label: 'Test item 500 g' } },
+    padItem,
+  );
+  assert.ok(html.includes('2 sellers'), 'two sellerIds for the same store did not collapse into one seller');
+  assert.ok(!html.includes('3 sellers'), 'a display-name split still counted the same seller twice');
+});
+
+test('going rate falls back to the display name when a point carries no sellerId (D-081)', () => {
+  const evidence = [
+    { seller: 'Walmart', amountCents: 299, observedAt: '2026-08-01', kind: 'shelf' },
+    { seller: 'Loblaws', amountCents: 389, observedAt: '2026-08-02', kind: 'shelf' },
+  ];
+  const html = goingRateCard(
+    { ...refusal('no_asking_price'), evidence, identity: { id: 'demo-1', label: 'Test item 500 g' } },
+    padItem,
+  );
+  assert.ok(html.includes('2 sellers'), 'a point with no sellerId was not counted by its own seller name');
+});
+
+/* ------------------------------------------------------------- D-014 label */
+
+/**
+ * D-014. The catalogue's `name` field is sometimes a scraped retailer page
+ * title verbatim and already opens with the brand in its own casing and, as
+ * here, without the accent the clean `brands` field carries. A plain
+ * case-insensitive substring check treats "HAAGEN-DAZS" and "Häagen-Dazs" as
+ * two different strings, so the brand was prepended a second time:
+ * "Häagen-Dazs HAAGEN-DAZS Extraz Strawberry Cheesecake Ice Cream, 450 ml".
+ * `productLabel` now compares with accents stripped on both sides.
+ */
+test('productLabel does not repeat a brand the scraped name already carries under a different accent (D-014)', () => {
+  const p = {
+    name: 'HAAGEN-DAZS Extraz Strawberry Cheesecake Ice Cream, 450 ml',
+    brands: 'Häagen-Dazs',
+    quantity: '450 ml',
+  };
+  assert.equal(productLabel(p), 'HAAGEN-DAZS Extraz Strawberry Cheesecake Ice Cream, 450 ml');
+});
+
+/** The plain case of the same rule: an exact, same-spelling brand at the front of the name. */
+test('productLabel does not repeat a brand already the first word of the name (D-014)', () => {
+  const p = { name: 'Kraft Dinner', brands: 'Kraft', quantity: '200 g' };
+  assert.equal(productLabel(p), 'Kraft Dinner 200 g');
+});
+
+/** Control: when the name does not lead with the brand, the catalogue's brand is the only source of that fact and stays in the label. */
+test('productLabel leads with the brand when the name does not already carry it', () => {
+  const p = { name: 'Extraz Strawberry Cheesecake Ice Cream', brands: 'Häagen-Dazs', quantity: '450 ml' };
+  assert.equal(productLabel(p), 'Häagen-Dazs Extraz Strawberry Cheesecake Ice Cream 450 ml');
+});
+
+/**
+ * D-014's sibling in the candidate lists: "Kraft Kraft Dinner 4080 g" with a
+ * second "KRAFT" underneath as the meta. `candidateRow` is the one function
+ * both the photo route and the typed "not this?" route build a row through,
+ * so they cannot disagree about what a row says.
+ */
+test('candidateRow puts a name-led brand in the meta line, not the title (D-014)', () => {
+  const row = candidateRow({ brand: 'Kraft', name: 'Kraft Dinner', size: '4080 g' });
+  assert.equal(row.label, 'Kraft Dinner 4080 g');
+  assert.equal(row.meta, 'Kraft');
+});
+
+test('candidateRow leads the title with the brand, and falls back to category in the meta, when the name does not carry it', () => {
+  const row = candidateRow({ brand: 'Häagen-Dazs', name: 'Extraz Strawberry Cheesecake', size: '450 ml', category: 'Ice cream' });
+  assert.equal(row.label, 'Häagen-Dazs Extraz Strawberry Cheesecake 450 ml');
+  assert.equal(row.meta, 'Ice cream');
+});
+
+test('the photo and typed candidate lists build a row through the same function', () => {
+  const CAMERA = readFileSync(new URL('../public/js/screens/camera.js', import.meta.url), 'utf8');
+  const photoSite = /const mapped = id\.candidates\.map\(\(c\) => \{[\s\S]{0,200}?candidateRow\(/;
+  const notThisSite = /notThisResults = \(found\.candidates \?\? \[\]\)[\s\S]{0,300}?candidateRow\(/;
+  assert.match(CAMERA, photoSite, 'the photo candidate list no longer builds its row through candidateRow');
+  assert.match(CAMERA, notThisSite, 'the typed "not this?" candidate list no longer builds its row through candidateRow');
 });
