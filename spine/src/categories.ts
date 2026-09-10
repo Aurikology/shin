@@ -27,7 +27,7 @@ import type {
   Tier,
 } from './contract.ts';
 import { cad, max, median, min, percentile, ratio } from './money.ts';
-import { normalizeSeller } from './sources/source.ts';
+import { sellerIdentity } from './sources/source.ts';
 
 export interface JudgeInput {
   /** The price being judged, in cents. */
@@ -104,10 +104,12 @@ const CONTAMINATION_MIN_POINTS = 3;
  */
 const CONTAMINATION_GAP = 4;
 
-// Counted on the normalised key, so a store arriving under two feed spellings
-// is not announced to the shopper as two stores.
+// Counted on the identity key (D-081), so a store arriving under two feed
+// spellings is not announced to the shopper as two stores, and two branches of
+// one chain under one display name are not announced as one. Both callers use
+// this for a COUNT; the names a shopper reads come off `p.seller` directly.
 function sellersOf(points: readonly PricePoint[]): string[] {
-  return [...new Set(points.map((p) => normalizeSeller(p.seller)))];
+  return [...new Set(points.map((p) => sellerIdentity(p)))];
 }
 
 function amounts(points: readonly PricePoint[]): number[] {

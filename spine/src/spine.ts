@@ -29,7 +29,7 @@ import { judge as judgeThinEvidence } from '../../price/src/verdict.ts';
 import type { Observation as ThinObservation } from '../../price/src/verdict.ts';
 import { ageDays, cad, isFutureDated, isUsableAmount, max, median, min, percentile } from './money.ts';
 import type { PriceSource } from './sources/source.ts';
-import { normalizeSeller } from './sources/source.ts';
+import { normalizeSeller, sellerIdentity } from './sources/source.ts';
 
 export interface SpineDeps {
   readonly sources: readonly PriceSource[];
@@ -352,9 +352,11 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     );
   }
 
-  // Counted after normalising, so one merchant arriving under three feed
-  // spellings cannot look like three sellers.
-  const sellers = new Set(basis.map((p) => normalizeSeller(p.seller)));
+  // Counted on the identity, never on the name (D-081): after normalising so
+  // one merchant arriving under three feed spellings cannot look like three
+  // sellers, and on `sellerId` where the source has one so two branches of one
+  // chain sharing a display name cannot look like one.
+  const sellers = new Set(basis.map((p) => sellerIdentity(p)));
   if (sellers.size < rule.minDistinctSellers) {
     shortfalls.push(
       `${sellers.size} seller${sellers.size === 1 ? '' : 's'} where ${rule.label.toLowerCase()} usually needs ${rule.minDistinctSellers}`,
@@ -459,6 +461,10 @@ function thinAnswer(
     : points.filter((p) => !held.includes(p));
 
   const names = canonicalSellers(basis);
+  // Displayed under one name per merchant (`names`), counted on the identity
+  // (D-081). Two branches of one chain print the chain's name and still count
+  // as two, which is what `distinctSellers` below has always claimed to be.
+  const distinctSellers = new Set(basis.map((p) => sellerIdentity(p))).size;
   const observations: ThinObservation[] = basis.map((p) => ({
     seller: names.get(normalizeSeller(p.seller)) ?? p.seller,
     amountCents: p.amountCents,
@@ -509,7 +515,7 @@ function thinAnswer(
       because: `${listed.charAt(0).toUpperCase()}${listed.slice(1)}.`,
       score: judged.confidence,
       pointCount: basis.length,
-      distinctSellers: names.size,
+      distinctSellers,
       oldestPointAgeDays: max(ages),
       identityConfidence: identity.confidence,
     },
@@ -663,12 +669,12 @@ function confidenceOf(
   const ages = points.map((p) => ageDays(p.observedAt, asOf));
   const newestAge = min(ages);
   const oldestAge = max(ages);
-  // Normalised, matching how the shortfall above counts them. This used to be
+  // On the identity, matching how the shortfall above counts them. This used to be
   // a raw string set, so "Best Buy", "BestBuy.ca" and "best buy" reported as
   // three sellers. It was invisible while a normalised gate stood in front of
   // it and rejected that set before confidence was ever computed; with the gate
   // gone this number is the one the shopper reads.
-  const sellers = new Set(points.map((p) => normalizeSeller(p.seller))).size;
+  const sellers = new Set(points.map((p) => sellerIdentity(p))).size;
 
   let band: ConfidenceBand;
   let because: string;

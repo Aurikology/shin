@@ -185,6 +185,7 @@ function buildDb(path: string, ddl: string, rows: FixtureRow[]): void {
 
 const STORE_CODE = '0011122233334';
 const MIXED_CODE = '0022233344445';
+const CHAIN_CODE = '0055566677778';
 
 /**
  * Three rows at the shopper's own store (FreshMart Downtown), priced high, and
@@ -314,8 +315,87 @@ const MIXED_ROWS: FixtureRow[] = [
   },
 ];
 
+/**
+ * D-081, the case the defect names. Two branches of one chain: one display name
+ * ("FreshMart"), two OpenStreetMap ids, and two genuinely different shops. Plus
+ * two unrelated stores at real lower prices.
+ *
+ * Chosen so the two properties in tension are both observable on one fixture.
+ * Counted by NAME the chain is one seller, so this set reports three sellers
+ * where it holds four. Matched by ID the shopper's typed "FreshMart" excludes
+ * neither branch, so the 900-cent rows they are standing in front of stay in
+ * the comparison and set their own bar. The fix has to satisfy both at once,
+ * which is why it is a second field and not a different value in the first.
+ */
+const CHAIN_ROWS: FixtureRow[] = [
+  {
+    code: CHAIN_CODE,
+    seller: 'openprices',
+    seller_sku: 'fm-dt-1',
+    seller_name: 'Store Brand Olive Oil',
+    seller_brand: null,
+    price_cents: 900,
+    kind: 'regular',
+    unit_price_cents: null,
+    unit_label: null,
+    join_method: 'gtin',
+    seen_on: '2026-09-01',
+    url: null,
+    store_name: 'FreshMart',
+    store_osm: 'NODE/111',
+  },
+  {
+    code: CHAIN_CODE,
+    seller: 'openprices',
+    seller_sku: 'fm-up-1',
+    seller_name: 'Store Brand Olive Oil',
+    seller_brand: null,
+    price_cents: 940,
+    kind: 'regular',
+    unit_price_cents: null,
+    unit_label: null,
+    join_method: 'gtin',
+    seen_on: '2026-09-02',
+    url: null,
+    store_name: 'FreshMart',
+    store_osm: 'NODE/444',
+  },
+  {
+    code: CHAIN_CODE,
+    seller: 'openprices',
+    seller_sku: 'vm-2',
+    seller_name: 'Store Brand Olive Oil',
+    seller_brand: null,
+    price_cents: 500,
+    kind: 'regular',
+    unit_price_cents: null,
+    unit_label: null,
+    join_method: 'gtin',
+    seen_on: '2026-09-01',
+    url: null,
+    store_name: 'ValuMart',
+    store_osm: 'NODE/222',
+  },
+  {
+    code: CHAIN_CODE,
+    seller: 'openprices',
+    seller_sku: 'gc-2',
+    seller_name: 'Store Brand Olive Oil',
+    seller_brand: null,
+    price_cents: 520,
+    kind: 'regular',
+    unit_price_cents: null,
+    unit_label: null,
+    join_method: 'gtin',
+    seen_on: '2026-09-01',
+    url: null,
+    store_name: 'GroceryCo',
+    store_osm: 'WAY/333',
+  },
+];
+
 buildDb(FIXTURE_PATH, DDL_WITHOUT_STORE_COLUMNS, FIXTURE_ROWS);
-buildDb(STORE_FIXTURE_PATH, DDL_WITH_STORE_COLUMNS, [...STORE_ROWS, ...MIXED_ROWS]);
+buildDb(STORE_FIXTURE_PATH, DDL_WITH_STORE_COLUMNS, [...STORE_ROWS, ...MIXED_ROWS, ...CHAIN_ROWS]);
 
 after(() => {
   try {
@@ -561,4 +641,81 @@ test('within one product, a row with store_osm keeps a real distinct seller and 
   const unknown = points.find((p) => p.amountCents === 310);
   assert.equal(known?.seller, 'Corner Grocer');
   assert.equal(unknown?.seller, 'openprices (shop unknown)');
+});
+
+test('D-081: two branches of one chain carry one store_name and two store_osm ids on the price point', async () => {
+  const src = storeSource();
+  const identity = await src.identify({ gtin: CHAIN_CODE, category: 'grocery' });
+  assert.ok(identity);
+  const points = await src.prices(identity!);
+  const branches = points.filter((p) => p.seller === 'FreshMart');
+  assert.equal(branches.length, 2, 'both branches print the name on the sign');
+  assert.deepEqual(
+    [...new Set(branches.map((p) => p.sellerId))].sort(),
+    ['NODE/111', 'NODE/444'],
+    'the identity is the OSM id, exactly as the header of this file has always said',
+  );
+});
+
+test('D-081: two branches of one chain count as two sellers', async () => {
+  const src = storeSource();
+  const result = await priceIt(
+    {
+      gtin: CHAIN_CODE,
+      category: 'grocery',
+      askingCents: 700,
+      askingSeller: 'Sobeys',
+      asOf: '2026-09-05T00:00:00Z',
+    },
+    { sources: [src] },
+  );
+  assert.equal(result.kind, 'verdict');
+  if (result.kind === 'verdict') {
+    // Four shops, two of them the same chain. Counted on store_name this reads
+    // 3, which is the understatement the defect describes.
+    assert.equal(result.confidence.distinctSellers, 4, 'two FreshMart branches, ValuMart, GroceryCo');
+  }
+});
+
+test('D-081: the same chain is still excluded as the shopper\'s own store by the name they typed', async () => {
+  const src = storeSource();
+  const result = await priceIt(
+    {
+      gtin: CHAIN_CODE,
+      category: 'grocery',
+      askingCents: 900,
+      askingSeller: 'FreshMart',
+      asOf: '2026-09-05T00:00:00Z',
+    },
+    { sources: [src] },
+  );
+  assert.equal(result.kind, 'verdict');
+  if (result.kind === 'verdict') {
+    assert.ok(
+      result.comparisonSet.every((p) => p.seller !== 'FreshMart'),
+      'a shopper types a name, so the exclusion must still match on the name',
+    );
+    assert.equal(result.confidence.distinctSellers, 2, 'ValuMart and GroceryCo remain');
+    // 900 against 500 and 520 is a walk_away. It reads 'fair' if the chain's
+    // own 900 and 940 stay in and set the bar.
+    assert.equal(result.tier, 'walk_away');
+  }
+});
+
+test('D-081: a row with no store_osm carries no sellerId, so it counts under the shared sentinel as before', async () => {
+  const src = storeSource();
+  const identity = await src.identify({ gtin: MIXED_CODE, category: 'grocery' });
+  const points = await src.prices(identity!);
+  const known = points.find((p) => p.amountCents === 300);
+  const unknown = points.find((p) => p.amountCents === 310);
+  assert.equal(known?.sellerId, 'NODE/999');
+  assert.equal(unknown?.sellerId, undefined, 'no id means the normalised name, which is the sentinel');
+});
+
+test('walmart.ca sets no sellerId: the name is already a specific merchant', async () => {
+  const src = source();
+  const identity = await src.identify({ gtin: NAME_JOINED_CODE, category: 'grocery' });
+  const points = await src.prices(identity!);
+  assert.equal(points[0].seller, 'walmart.ca');
+  assert.equal(points[0].sellerId, undefined);
 });

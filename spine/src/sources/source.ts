@@ -82,6 +82,22 @@ export function normalizeSeller(seller: string): string {
   return kept.replace(/\s+/g, '');
 }
 
+/**
+ * The key a price point is COUNTED under. Not the key it is matched or shown
+ * under: that is always `normalizeSeller(p.seller)`, because a shopper types a
+ * name and never an id.
+ *
+ * D-081. `sellerId` is the source's own identity for the shop when it has one
+ * stronger than the name (`observed.ts` sets it from `store_osm`), so two
+ * branches of one chain under one `store_name` count as the two sellers they
+ * are. Undefined falls straight back to the normalised name, which is what
+ * every other adapter has always counted as, so nothing that does not set the
+ * field changes.
+ */
+export function sellerIdentity(point: { readonly seller: string; readonly sellerId?: string }): string {
+  return point.sellerId ?? normalizeSeller(point.seller);
+}
+
 export function tokens(text: string): string[] {
   return normalize(text).split(' ').filter((t) => t.length > 0);
 }

@@ -37,7 +37,8 @@
  * fully-identified seller:
  *
  *   - Distinct-seller counting collapses. `categories.ts` counts sellers by
- *     `normalizeSeller(p.seller)`; 89 real locations behind the string
+ *     `sellerIdentity(p)`, which is `sellerId` when a row has one and the
+ *     normalised name when it does not; 89 real locations behind the string
  *     "openprices" would count as one, understating exactly the number the
  *     confidence sentence reports.
  *   - Self-exclusion fails silently. The spine drops the shopper's own store
@@ -49,10 +50,18 @@
  *
  * The chosen identity key, once the columns exist, is `store_osm`, NOT
  * `store_name`. A name is not an identity: two branches of the same chain are
- * two different stores, and matching by name would collapse them, which
+ * two different stores, and counting by name would collapse them, which
  * silently drops a genuine competitor from the comparison along with the
  * shopper's own store, the same class of wrongness as never excluding
- * anything. `store_name` is display text only. Until `store_osm` is present
+ * anything. `store_name` is display text only.
+ *
+ * SO THE PRICE POINT CARRIES BOTH (D-081, closed 2026-09-10). `sellerId` is
+ * `store_osm` and is what every distinct-seller count keys on; `seller` is
+ * `store_name` and is what the shopper reads and what their own store is
+ * excluded by. The shopper types a name, so the exclusion can only ever match
+ * a name; the count wants the identity, so it takes the id. One field could
+ * not serve both, which is what the reverted 2026-09-09 attempt proved by
+ * turning the regression-seam test red. Until `store_osm` is present
  * and non-null for a row, that row is COMPARISON-ONLY: its price still
  * contributes to the spread and the verdict arithmetic (amounts do not need an
  * identity), but its seller string is a shared, clearly-labelled sentinel that
@@ -184,17 +193,37 @@ function labelOf(row: Row): string {
 function sellerOf(row: Row): string {
   if (row.seller !== 'openprices') return row.seller; // walmart.ca: already a real, specific merchant.
   /*
-   * KNOWN TENSION, LEFT OPEN ON PURPOSE (DEFECTS.md D-081). The header says the
-   * identity is `store_osm` and this returns the display name. Switching it to
-   * the OSM id was tried on 2026-09-09 and reverted the same hour: the shopper
-   * excludes their own store by the NAME they typed, so a seller keyed on the
-   * OSM id stops matching it and the regression-seam test below this file's
-   * suite goes red on the exact property it guards. Two branches of one chain
-   * collapsing is real and still unsolved; solving it needs a second field,
-   * not a different value in this one.
+   * RESOLVED 2026-09-10, D-081. This field is the DISPLAY AND MATCHING name and
+   * nothing else. It stays the display name on purpose: the shopper excludes
+   * their own store by the NAME they typed, so a seller keyed on the OSM id
+   * stops matching it, which is exactly why returning `store_osm` here was
+   * tried on 2026-09-09 and reverted the same hour when the regression-seam
+   * test went red on the property it guards.
+   *
+   * The header's identity rule is now honoured by `sellerIdOf` below, on the
+   * separate `sellerId` field, which is what every distinct-seller COUNT keys
+   * on. Two branches of one chain share this name and carry two ids, so they
+   * are matched as one name and counted as two stores, and both of those are
+   * correct. One field could not be both.
    */
   if (row.store_osm) return row.store_name ?? row.store_osm;
   return UNKNOWN_SHOP_SELLER;
+}
+
+/**
+ * The identity a row is COUNTED under. `store_osm`, exactly as this file's
+ * header says: a name is not an identity, and two branches of one chain are two
+ * different stores no matter what their sign says.
+ *
+ * Undefined where there is no OSM id, which leaves the count falling back to
+ * the normalised name it always used: `walmart.ca` is one specific merchant
+ * already, and an openprices row with no `store_osm` yet is reported under the
+ * shared shop-unknown sentinel and must keep counting as the single unknown it
+ * is, never as one store per row.
+ */
+function sellerIdOf(row: Row): string | undefined {
+  if (row.seller !== 'openprices') return undefined;
+  return row.store_osm ?? undefined;
 }
 
 /** The join-quality half of a price point's note, or undefined when the row needs no caveat. */
@@ -388,6 +417,7 @@ export class ObservedSource implements PriceSource {
   #toPricePoint(row: Row): PricePoint {
     const point: PricePoint = {
       seller: sellerOf(row),
+      sellerId: sellerIdOf(row),
       amountCents: row.price_cents,
       currency: 'CAD',
       kind: row.kind,

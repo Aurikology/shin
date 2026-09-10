@@ -72,7 +72,31 @@ export type PriceKind =
   | 'list';
 
 export interface PricePoint {
+  /**
+   * The seller's DISPLAY and MATCHING name. Everything a shopper reads, and
+   * everything matched against what a shopper typed, keys on this: the
+   * self-exclusion in `spine.ts` drops the store they are standing in by the
+   * name they typed, and it can only ever match a name.
+   */
   readonly seller: string;
+  /**
+   * The seller's IDENTITY, when the source has one that is stronger than the
+   * name. Everything that COUNTS distinct sellers keys on `sellerId ?? seller`.
+   *
+   * D-081, and the reason this field exists. `observed.ts`'s header says the
+   * identity of a shop is its OpenStreetMap id, never its name: two branches of
+   * one chain are two different stores, and counted by name they collapse into
+   * one, understating exactly the number the confidence sentence reports.
+   * Returning the OSM id in `seller` was tried on 2026-09-09 and reverted the
+   * same hour, because the shopper excludes their own store by the NAME they
+   * typed and an id never matches a name. One field cannot be both, so there
+   * are two: identity for counting, name for matching.
+   *
+   * Optional. A source with no identity beyond the name leaves it undefined and
+   * counts exactly as it did before, which is every adapter but `observed.ts`
+   * today, and every price point already stored in a fixture.
+   */
+  readonly sellerId?: string;
   readonly amountCents: number;
   readonly currency: 'CAD';
   readonly kind: PriceKind;

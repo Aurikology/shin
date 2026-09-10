@@ -865,3 +865,77 @@ test('a category that can compare its set is still judged by the category', asyn
   assert.match(v.lines[0], /Regular price/);
   assert.equal(v.confidence.score, undefined, 'the category judged this, not the thin path');
 });
+
+/*
+ * D-081. `sellerId` is the identity a price point is COUNTED under; `seller` is
+ * the name it is DISPLAYED and MATCHED under. The three tests below pin the two
+ * halves apart, at the spine rather than at one adapter, because the rule is a
+ * contract rule and any future source can set the field.
+ */
+
+test('D-081: two branches of one chain share a display name and still count as two sellers', async () => {
+  // One chain, one sign, two shops. Counted on the name they are one seller and
+  // grocery's two-seller floor reports a shortfall it does not have; counted on
+  // the identity they are the two competitors they really are.
+  const src = new StubSource(identity('grocery'), [
+    point('FreshMart', 900, 'regular', '2026-09-03', { sellerId: 'NODE/111' }),
+    point('FreshMart', 940, 'regular', '2026-09-03', { sellerId: 'NODE/444' }),
+  ]);
+  const v = asVerdict(
+    await priceIt({ text: 'pasta sauce', askingCents: 920, askingSeller: 'ValuMart', asOf: AS_OF }, deps(src)),
+  );
+  assert.equal(v.confidence.distinctSellers, 2, 'two OSM ids are two stores, whatever the sign says');
+  assert.doesNotMatch(
+    v.confidence.because,
+    /1 seller where/,
+    'the two-seller floor is met, so no shortfall may claim otherwise',
+  );
+});
+
+test('D-081: the shopper standing in one branch is still excluded by the name they typed, and so is the other branch', async () => {
+  /*
+   * The half the reverted 2026-09-09 fix broke. A shopper types a name and can
+   * only ever type a name, so the exclusion matches on `seller` and never on
+   * `sellerId`. Both branches carry the chain's name, so typing it drops both,
+   * which is the honest reading: a shopper cannot tell us which branch they are
+   * in, and a chain's own other branch is not an independent check on its price.
+   */
+  const src = new StubSource(identity('grocery'), [
+    point('FreshMart', 900, 'regular', '2026-09-03', { sellerId: 'NODE/111' }),
+    point('FreshMart', 900, 'regular', '2026-09-03', { sellerId: 'NODE/444' }),
+    point('ValuMart', 500, 'regular', '2026-09-03', { sellerId: 'NODE/222' }),
+    point('GroceryCo', 520, 'regular', '2026-09-03', { sellerId: 'WAY/333' }),
+  ]);
+  const v = asVerdict(
+    await priceIt({ text: 'pasta sauce', askingCents: 900, askingSeller: 'FreshMart', asOf: AS_OF }, deps(src)),
+  );
+  assert.equal(v.comparisonSet.length, 2, 'both FreshMart branches are the shopper\'s own store');
+  assert.ok(
+    v.comparisonSet.every((p) => p.seller !== 'FreshMart'),
+    'a branch keyed on an id must not survive a name the shopper typed',
+  );
+  assert.equal(v.confidence.distinctSellers, 2, 'ValuMart and GroceryCo');
+  // 900 against 500 and 520 is not a fair price, and would read as one if the
+  // shopper's own two branches set their own bar.
+  assert.equal(v.tier, 'walk_away');
+});
+
+test('D-081: a source that sets no sellerId counts exactly as it did before', async () => {
+  // Every adapter but `observed.ts` today, and every stored fixture. The field
+  // is optional so the fallback is the normalised name, spelling-folding and
+  // all: five spellings of one chain must still be one chain.
+  const src = new StubSource(identity('grocery'), [
+    point('Best Buy', 1000),
+    point('BestBuy.ca', 1010),
+    point('best buy', 1020),
+    point('Metro', 900),
+  ]);
+  const v = asVerdict(
+    await priceIt({ text: 'thing', askingCents: 1000, askingSeller: 'Sobeys', asOf: AS_OF }, deps(src)),
+  );
+  assert.ok(
+    v.comparisonSet.every((p) => p.sellerId === undefined),
+    'the fixture sets no identity, which is the case under test',
+  );
+  assert.equal(v.confidence.distinctSellers, 2, 'three spellings of Best Buy, plus Metro');
+});
