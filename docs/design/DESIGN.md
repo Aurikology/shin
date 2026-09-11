@@ -44,25 +44,33 @@ always hands back one thing the user can do.
 
 The app is mostly live camera, so chrome is dark, translucent, and gets out of the way.
 
-| Token | Dark | Light | Use |
-| --- | --- | --- | --- |
-| `ground` | `#0B0C0E` | `#FBFAF7` | Behind everything that is not camera |
-| `surface` | `#16181C` | `#FFFFFF` | Sheets, cards, rows |
-| `raised` | `#22262C` | `#F3F1EC` | Inputs, chips, pressed states |
-| `scrim` | `rgba(11,12,14,.55)` | `rgba(11,12,14,.35)` | Over the camera feed, with a 20px backdrop blur |
-| `hairline` | `#2E333A` | `#E4DFD8` | Dividers, 1px |
+**The values are in `app/public/css/tokens.css` and are not repeated here.** This section owns
+what each token is FOR; that file owns what each token IS. Read the value from the declaration,
+never from a document. Rewritten 2026-09-11, when ten of this section's eleven two-theme colour
+rows were found to disagree with the file that ships, having drifted through the 2026-09-05 and
+2026-09-06 palette passes while still reading as the authority. `app/test/design-doc.test.mjs`
+now fails if a hex value for a named token reappears in this file, which is the only way a rule
+like this survives contact with a hurry. `DEFECTS.md` D-085 and build standard 4 are the story.
+
+| Token | Use |
+| --- | --- |
+| `ground` | Behind everything that is not camera |
+| `surface` | Sheets, cards, rows |
+| `raised` | Inputs, chips, pressed states, and a card that sits ON a surface |
+| `scrim` | Over the camera feed, with a 20px backdrop blur |
+| `hairline` | Dividers, 1px |
 
 ### Text
 
-| Token | Dark | Light |
-| --- | --- | --- |
-| `ink` | `#F7F5F2` | `#16130F` |
-| `ink-muted` | `#A5ADB8` | `#6E6660` |
-| `ink-faint` | `#6E7783` | `#98908A` |
+| Token | Use |
+| --- | --- |
+| `ink` | Anything the answer is made of |
+| `ink-muted` | Supporting sentences, captions that must still be read |
+| `ink-faint` | Quiet labels and provenance. Clears 4.5 on all three grounds in both themes, worst case 4.52 on `raised`; it did not before 2026-09-05, and the comment in `tokens.css` recording that is about the OLD value |
 
 ### Brand
 
-`shin` = `#E5165E`
+`shin`, the one brand colour, declared once in `tokens.css`.
 
 This is Shin's own colour. It is the wordmark and the shutter ring, and it is the colour a share
 card is recognised by in someone else's screenshot. **It is never a verdict.** It does not appear
@@ -74,15 +82,25 @@ screenshot. That collision is real in the current app and this rule is the fix.
 Four states, not three, because the refusal is one of them. Each has a base for chrome and a
 bright for use over a live camera feed in a well lit store.
 
-| State | Base | Bright (over camera) | Text on it | Means |
-| --- | --- | --- | --- | --- |
-| `good` | `#12B76A` | `#38E08B` | `#04140C` | Cheaper than it usually goes for |
-| `fair` | `#E8A020` | `#FFC24D` | `#1A1204` | About the going rate |
-| `walk` | `#F0431F` | `#FF6A45` | `#FFFFFF` | Above what it goes for |
-| `unknown` | `#78848F` | `#93A0AC` | `#F7F5F2` | Shin will not call it |
+| State | Means |
+| --- | --- |
+| `good` | Cheaper than it usually goes for |
+| `fair` | About the going rate |
+| `walk` | Above what it goes for |
+| `unknown` | Shin will not call it |
 
-`fair` and `good` carry dark text. `walk` and `unknown` carry light text. This is not a
-preference, it is the only pairing that clears contrast on each field.
+Each state has three tokens in `tokens.css`: `--<state>` is the FILL of a field, `--<state>-on` is
+the text drawn ON that field, and `--<state>-bright` is the same hue lifted for use as text or as a
+mark on a ground rather than on a field. `fair` and `good` carry dark text on their fill, `walk`
+and `unknown` carry light text, and each pairing is asserted in `app/test/tokens.test.mjs` rather
+than claimed here.
+
+**A fill colour is never text on a ground.** `--<state>` is tuned to be read as a field with its
+own `-on` text over it, so putting it on `surface` at small sizes fails the floor: measured
+2026-09-11, `walk` is 3.25 and `unknown` is 3.09 on dark surface, and in light it is `good` at 3.42
+and `fair` at 3.39 that fail instead, so testing one theme proves nothing. Tier-hued TEXT uses
+`--<state>-bright`, which clears everywhere. Earned by D-086 on the share card and by the same
+shape already fixed on the verdict sheet.
 
 ### Confidence, expressed in fill
 
@@ -254,6 +272,12 @@ cards: `surface` at 16px radius, rows 52px with a 1px `hairline` divider inset 1
 chevron on rows that go somewhere, a tick on the chosen row of a picker. Section headings are
 sentence case in the UI face; mono uppercase stays reserved for a recorded measurement.
 
+**A list ON the camera is the same card one step up the ladder.** The candidate picker rides a
+sheet whose own fill is `surface`, so its card is `raised` and its rows are 56px, because a
+candidate row carries a name over a price and a seller. No chevron and no tick: its rows resolve
+in place rather than going somewhere. Everything else is the rule above. Added 2026-09-11, when
+the picker was eight separate cards with gaps and read as eight objects rather than one list.
+
 **Scan, identify and verdict are one surface.** The frame freezes in place, a reticle contracts
 onto what was found, and a sheet rises from the bottom over the frozen frame. The user never
 leaves the picture they took. Going back is a downward drag, not a back button.
@@ -379,7 +403,10 @@ Added by the forty-screen list:
     (`docs/design/GAMIFICATION.md` M12).
 23. **Past scans row**, rendered from the same verdict object as the sheet, in the confidence
     treatment that verdict had. OLMA rows 69 and 70, adapt.
-24. **Recently removed section**, with a stated retention window. OLMA row 75, take.
+24. **Recently removed section**, with a stated retention window whenever there is a row for it to
+    be about. On an empty list the window is not stated and the empty state is the only thing on
+    screen, because the header and the empty line were saying the same thing twice with a face
+    each. OLMA row 75, take.
 25. **Market row**, pre-filled, one tap to change, with the basis line under it. OLMA rows 9, 11,
     78, 80, take.
 26. **Type it instead**, a text field over a still-visible camera, with the line naming brand and

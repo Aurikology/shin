@@ -21,12 +21,25 @@
   margin: -2px 0 2px;
 }
 
+/*
+ * One card per list, not one card per row.
+ *
+ * Each row used to be its own rounded surface with its own border, 8px from the
+ * next, and the remove control was a SECOND rounded box beside it with another
+ * 8px gap -- so a saved item read as two objects sitting next to each other and
+ * the row stopped short of the right edge. Next to the grouped cards on the same
+ * screens (`.ilist`, shell.css) it was the last thing behind the camera still
+ * drawn the old way. Same convention as those: one surface, corners clipped by
+ * the card, rows divided by a hairline inset from the left.
+ */
 .wlist,
 .plist,
 .rlist {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  background: var(--surface);
+  border-radius: var(--r-md);
+  overflow: hidden;
 }
 
 /* ------------------------------------------------------- the row internals */
@@ -63,33 +76,43 @@
 }
 
 /*
- * The delete control on a row.
+ * The remove control on a row, and the restore control on a removed one.
  *
- * It was 36px wide against a `min-height: var(--tap)` (48px) -- a target 25%
- * under the floor this same file was already setting for its own height, on the
- * one control in the list that destroys something. It is now 48 x 48. Its
- * accessible name is the `.sr-only` span inside it, not an `aria-label` built
- * by string interpolation, because that attribute was being written from a
- * user-typed item name with no escaping.
+ * It is INSIDE the row now, at its right edge, with no box and no border of its
+ * own. The box was what made every item read as two objects; the 44px target is
+ * what the box was there to guarantee, and a target does not have to be drawn to
+ * be hit. 44 x 44 holding a 16px stroke glyph in `--ink-faint`, so it sits under
+ * the price in weight rather than beside it.
+ *
+ * It stays a separate button, deliberately. The row opens the item and this one
+ * destroys it; the two can never be one control, and as siblings on the row's
+ * flex line the row's own hit area ENDS where this begins. Same reasoning as the
+ * divider below: nothing is drawn on top of anything, so nothing can be hit
+ * through anything.
+ *
+ * Its accessible name is the `.sr-only` span inside it, not an `aria-label`
+ * built by string interpolation, because that attribute was being written from
+ * a user-typed item name with no escaping.
  */
 .rowdel {
   flex: 0 0 auto;
-  width: var(--tap);
-  min-width: var(--tap);
-  min-height: var(--tap);
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
   background: none;
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-md);
+  border: 0;
+  border-radius: var(--r-sm);
   color: var(--ink-faint);
   font-family: var(--f-ui);
-  font-size: 18px;
   line-height: 1;
   cursor: pointer;
-  transition: color var(--t-tint) linear, border-color var(--t-tint) linear;
+  transition: color var(--t-tint) linear, transform var(--t-press) linear;
 }
+.rowdel:active { transform: scale(.9); }
 
 /*
  * The focus ring, matching components.css's one ring exactly (2px currentColor
@@ -98,46 +121,92 @@
  * reach them and this is the same declaration rather than a second opinion.
  * `:focus-visible`, so a tap does not leave a ring behind it.
  */
+/*
+ * The focus ring, matching components.css's one ring exactly (2px currentColor,
+ * camera.css line 239's own standard). These controls are not `.btn`, `.cta`,
+ * `.linky` or `.rowbtn`, so the shared rule there does not reach them and this
+ * is the same declaration rather than a second opinion.
+ *
+ * The offset is NEGATIVE now, as it is on `.ilist-row`. The list clips its own
+ * corners, so a ring drawn 3px outside a row is a ring drawn outside the card,
+ * and the card cuts it off: present in the stylesheet and invisible on the
+ * screen, which is the exact failure components.css already records once.
+ */
 .wrow:focus-visible,
 .prow:focus-visible,
 .rowdel:focus-visible {
   outline: var(--ring-width) solid currentColor;
-  outline-offset: var(--ring-offset);
+  outline-offset: calc(var(--ring-offset) * -1);
   position: relative;
   z-index: 1;
 }
 
 @media (hover: hover) and (pointer: fine) {
   /* FLAWS item 8: on a phone `:hover` latches to the last thing tapped, so a
-     tapped row stays lit as if it were selected. Gated, like camera.css's. */
+     tapped row stays lit as if it were selected. Gated, like camera.css's.
+     A tint and not a border, because the borders are gone. */
   .wrow:hover,
-  .prow:hover { border-color: var(--ink-faint); }
-  .rowdel:hover { color: var(--walk-bright); border-color: var(--walk-bright); }
+  .prow:hover { background: var(--raised); }
+  .rowdel:hover { color: var(--walk-bright); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .rowdel { transition: none; }
+  .rowdel:active { transform: none; }
 }
 
 /* ------------------------------------------------------------------ Saved */
 
+/*
+ * One row of a list: the opening button, then the control at its right edge.
+ *
+ * 64px, where the shared `.row` floor is 48. These rows carry a face, two lines
+ * of text and a price, and 48 was never what they measured -- the content was
+ * already pushing them past 60 and the floor simply was not describing them.
+ * Stated, so the three lists are one height rather than three accidents of
+ * their own line-heights.
+ */
 .wrow-wrap,
-.prow-wrap {
+.prow-wrap,
+.rrow-wrap {
+  position: relative;
   display: flex;
-  align-items: stretch;
-  gap: 8px;
+  align-items: center;
   min-width: 0;
+  min-height: 64px;
+  padding-right: 6px;
+}
+
+/* Inset 16px from the left, so it reads as a divider inside the card rather
+   than as the edge of the next one -- the same rule `.ilist` uses. A
+   pseudo-element and not a border, because a border on a row that also takes a
+   pressed tint would move the tint by a pixel. */
+.wrow-wrap + .wrow-wrap::before,
+.prow-wrap + .prow-wrap::before,
+.rrow-wrap + .rrow-wrap::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--hairline);
 }
 
 /*
- * A watchlist row plus its delete control. The row keeps its own button
- * semantics (opens the item); the delete is a separate, smaller sibling so a
- * mis-tap near the edge of the row can never fire both.
+ * The row's own button. It takes its shape from `.row` in components.css and
+ * gives back the surface, the border and the radius, which belong to the card
+ * around the whole list now.
  */
 .wrow,
 .prow {
   flex: 1 1 auto;
   min-width: 0;
+  min-height: 64px;
+  padding: 12px 6px 12px 16px;
+  background: none;
+  border: 0;
+  border-radius: 0;
   color: var(--ink);
   font-family: var(--f-ui);
   cursor: pointer;
@@ -313,29 +382,30 @@
 .rheader {
   margin: -2px 0 4px;
 }
-/* The empty body sits in the shared `.empty` container the other two lists
-   use, so the three screens end the same way; its contents stay the 48px
-   `shinSay` unit AVATAR.md row 46 specifies, so the padding is trimmed back
-   from `.empty`'s 46px, which was sized for a 96px face. */
-.rempty {
-  padding: 16px 2px 6px;
-}
+/* `.rempty` was here: a padding trim, because this screen's empty state held a
+   48px face where `.empty`'s own padding is sized for a 96px one. It holds the
+   same 96px `asleep` face the other two lists hold now, so there is nothing
+   left to trim and `.empty` describes all three. */
 /*
- * A removed row is a card, not a single line: the name and price on top, the
- * two recovery actions under a hairline. It takes `.row`'s box and overrides
- * the axis, which is the one thing about it that is not a row.
+ * A removed row is a row now, not a card of its own.
+ *
+ * It was the name and the price on one line and the two recovery actions
+ * stacked under a hairline INSIDE the same box, about 104px of it, which made
+ * this screen a third shape on top of the two the other lists had. Both
+ * controls sit at the right edge now, the same 44px targets Saved and Past
+ * scans carry, so the three lists are one thing.
+ *
+ * `.rrow` is the text and the price, taking the slack; the two controls follow
+ * it on the same line.
  */
-.rrow-wrap {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
-}
 .rrow {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
   min-width: 0;
+  padding: 12px 4px 12px 16px;
 }
 .rrow .row-title { font-size: 15px; }
 .rrow-p {
@@ -345,15 +415,31 @@
   font-weight: 800;
   font-size: 16px;
 }
-.rrow-actions {
-  display: flex;
-  gap: 16px;
-  border-top: 1px solid var(--hairline);
-  padding-top: 4px;
+
+/*
+ * The permanent delete, armed.
+ *
+ * A glyph until the first tap and a sentence after it. A destructive act
+ * confirmed by a second tap on a control that looks identical to the first tap
+ * is not confirmed at all, and this screen exists because a delete with no
+ * recovery destroys the only record of what a thing cost. So the button drops
+ * the glyph, widens to the words, and turns red only at the point where the
+ * next tap actually does it.
+ */
+.rrow-del.confirming {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 0;
+  padding: 0 10px;
+  color: var(--walk-bright);
 }
-.rrow-actions .linky { width: auto; min-height: 32px; padding: 6px 0; font-size: 13px; }
-.rrow-actions .linky.danger { color: var(--walk-bright); }
-.rrow-actions .linky.confirming { font-weight: 600; }
+.rrow-confirm {
+  font-family: var(--f-ui);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: right;
+}
 
 /* ------------------------------------------------- the two other outcomes */
 

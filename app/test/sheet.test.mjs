@@ -317,10 +317,10 @@ test('the confirm key appears only when asked for, and disables until it can be 
 
   const off = keypadHtml({ confirm: true, canConfirm: false });
   assert.ok(off.includes('data-act="pad-confirm"'), 'the confirm key is not wired to pad-confirm');
-  assert.ok(off.includes(' disabled'), 'the confirm key is pressable with nothing typed');
+  assert.ok(keyDisabled(off, 'pad-confirm'), 'the confirm key is pressable with nothing typed');
 
   const on = keypadHtml({ confirm: true, canConfirm: true, confirmLabel: 'File it' });
-  assert.ok(!on.includes(' disabled'), 'the confirm key stayed disabled with a usable price typed');
+  assert.ok(!keyDisabled(on, 'pad-confirm'), 'the confirm key stayed disabled with a usable price typed');
   assert.ok(on.includes('aria-label="File it"'), 'the confirm key ignored its label');
 });
 
@@ -329,10 +329,31 @@ test('the confirm key appears only when asked for, and disables until it can be 
  * is disabled until the effective price parses above zero. The pad sheet's own
  * end of that, since the key's state is computed there and not in the builder.
  */
+/**
+ * Whether ONE named button in a sheet carries `disabled`, rather than whether
+ * the word appears anywhere in the markup.
+ *
+ * The looser spelling was a real hole, found 2026-09-11 by a second lane and
+ * not by this file: the pad grew a second disableable control (Clear, inert
+ * until a digit is typed), so `sheet.includes(' disabled')` started passing on
+ * Clear's attribute while saying nothing at all about the confirm key it was
+ * written to guard. It would have gone green with the confirm key wrongly
+ * pressable. Scope every such assertion to the button it is about.
+ */
+function keyDisabled(sheet, act) {
+  const tag = sheet.match(new RegExp(`<button[^>]*data-act="${act}"[^>]*>`));
+  assert.ok(tag, `no button with data-act="${act}" in this sheet`);
+  return / disabled/.test(tag[0]);
+}
+
 test('the pad sheet enables its confirm key exactly when there is a price to send', () => {
-  assert.ok(pricePadSheet(padItem, '', null, null).includes(' disabled'), 'empty pad offered to price nothing');
-  assert.ok(pricePadSheet(padItem, '0', null, null).includes(' disabled'), 'a typed zero is not a price');
-  assert.ok(!pricePadSheet(padItem, '4.99', null, null).includes(' disabled'), '$4.99 could not be confirmed');
+  assert.ok(keyDisabled(pricePadSheet(padItem, '', null, null), 'pad-confirm'), 'empty pad offered to price nothing');
+  assert.ok(keyDisabled(pricePadSheet(padItem, '0', null, null), 'pad-confirm'), 'a typed zero is not a price');
+  assert.ok(!keyDisabled(pricePadSheet(padItem, '4.99', null, null), 'pad-confirm'), '$4.99 could not be confirmed');
+  // The other disableable control on the same sheet, asserted here so the two
+  // can never again be confused for one another.
+  assert.ok(keyDisabled(pricePadSheet(padItem, '', null, null), 'pad-clear'), 'Clear was live with nothing to clear');
+  assert.ok(!keyDisabled(pricePadSheet(padItem, '4.99', null, null), 'pad-clear'), 'Clear was inert with a price typed');
   // Row 43: a modifier that wipes the price out has to disable it again.
   assert.ok(
     pricePadSheet(padItem, '4.99', { kind: 'percent', pct: 100 }, null).includes('4.99'),

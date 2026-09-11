@@ -36,6 +36,33 @@ const CHEVRON_RIGHT = `<svg viewBox="0 0 24 24" width="16" height="16" fill="non
 const CHECK = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
      stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5.5 5.5L20 7"/></svg>`;
 
+/*
+ * The two controls a list row carries at its right edge. They live here with
+ * the chevron and the tick because this file is where the app's shared row and
+ * bar glyphs are drawn once, at one weight, rather than as a character in one
+ * screen and an SVG in another. `&times;` was the old remove control: a text
+ * glyph whose size and weight came from whatever font happened to load, next to
+ * stroke icons that did not.
+ *
+ * `aria-hidden` on both. The accessible name of the button is the `.sr-only`
+ * span beside the glyph, which names the item it acts on, and a screen that
+ * built that name by interpolating a user-typed label into an `aria-label` is
+ * the bug that put it in a span in the first place.
+ */
+const REMOVE_GLYPH = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+     stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
+
+/* Counter-clockwise, and back to where it started: the shape for undoing,
+   never a forward-pointing arrow, which reads as "go to". */
+const RESTORE_GLYPH = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M3 4.5V10h5.5"/></svg>`;
+
+/** The remove control's glyph, on a saved row and a past-scan row. */
+export const removeGlyph = () => REMOVE_GLYPH;
+
+/** The restore control's glyph, on a recently-removed row. */
+export const restoreGlyph = () => RESTORE_GLYPH;
+
 /** The chevron a navigating row carries on its right. */
 export const rowChevron = () => `<span class="ilist-c">${CHEVRON_RIGHT}</span>`;
 

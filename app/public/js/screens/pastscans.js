@@ -27,7 +27,7 @@ import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { escapeHtml, html, raw, ago, on } from '../lib/dom.js';
 import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.js';
-import { pageBar, backButton, goBack } from '../lib/pagebar.js';
+import { pageBar, backButton, goBack, removeGlyph } from '../lib/pagebar.js';
 
 /*
  * The eight refusal reasons used to be a map here, described in this comment
@@ -80,7 +80,7 @@ export function row(h) {
         <span class="prow-p">${typeof askingCents === 'number' ? cad(askingCents) : 'no price given'}</span>
       </button>
       <button type="button" class="rowdel prow-del" data-remove="${h.id}" data-fk="del:${h.id}">
-        <span aria-hidden="true">&times;</span>
+        ${raw(removeGlyph())}
         <span class="sr-only">Remove the scan of ${label}</span>
       </button>
     </div>`;

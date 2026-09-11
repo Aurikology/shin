@@ -13,12 +13,12 @@
  * further along. Every interpolation goes through `dom.js`'s `html` tag.
  */
 
-import { shinSay, cad } from '../shin.js';
+import { faceBlock, shinSay, cad } from '../shin.js';
 import { say } from '../voice.js';
 import * as store from '../store.js';
 import { html, raw, agoDays, on } from '../lib/dom.js';
 import { repainter } from '../lib/listscreen.js';
-import { pageBar, backButton, goBack } from '../lib/pagebar.js';
+import { pageBar, backButton, goBack, removeGlyph, restoreGlyph } from '../lib/pagebar.js';
 
 function itemOf(r) {
   if (r.kind === 'watch') {
@@ -44,8 +44,38 @@ export function row(r, confirmKey) {
   const left = store.daysLeft(r.removedAt);
   const confirming = confirmKey === key;
 
+  /*
+   * The two controls sit IN the row now, at its right edge, the same 44px
+   * targets the saved and past-scan rows carry. The three lists were three
+   * shapes: a row beside a boxed cross on two of them, and here a card with its
+   * actions stacked under a hairline inside it. One shape, so that moving
+   * between the three screens is not three things to learn.
+   *
+   * The permanent delete keeps its two taps and keeps saying so in words. A
+   * glyph cannot carry "Tap again, gone for good", and a destructive act whose
+   * confirmation is invisible is not a confirmation, so the button drops the
+   * glyph and widens to the sentence for as long as it is armed. It is
+   * `--ink-faint` until then: quiet while it is only an option, red once it
+   * will actually happen on the next tap.
+   *
+   * ARMED, WITHOUT LOOKING AT IT. The widened sentence is visual, and it was
+   * the only thing saying the next press destroys something, so the button's
+   * ACCESSIBLE NAME changes with it: "Delete X for good" becomes "Press again
+   * to delete X for good". That reaches a keyboard user for free, through what
+   * this row already has rather than anything new -- arming the button repaints
+   * the screen, and listscreen.js's repainter puts focus back on the control
+   * with the same `data-fk`, so the reader lands on the button again and reads
+   * the name it has now.
+   *
+   * NOT a live region, and that is a measured call rather than a preference.
+   * router.js records it: a live region that is removed and re-inserted in the
+   * same tick announces nothing, because the platform has no old value to diff
+   * against. Every node on this screen is thrown away on every repaint, so a
+   * `role="status"` on the armed text would be inserted already-populated and
+   * would be silent at exactly the moment it was added for.
+   */
   return html`
-    <div class="rrow-wrap row">
+    <div class="rrow-wrap">
       <div class="rrow">
         <span class="row-n">
           <b class="row-title">${label}</b>
@@ -53,15 +83,15 @@ export function row(r, confirmKey) {
         </span>
         <span class="rrow-p money">${typeof cents === 'number' ? cad(cents) : '--'}</span>
       </div>
-      <div class="rrow-actions">
-        <button type="button" class="linky" data-restore="${key}" data-fk="restore:${key}">
-          Restore<span class="sr-only"> ${label}</span>
-        </button>
-        <button type="button" class="linky danger${confirming ? ' confirming' : ''}"
-                data-del="${key}" data-fk="del:${key}">
-          ${confirming ? 'Tap again, gone for good' : 'Delete'}<span class="sr-only"> ${label}</span>
-        </button>
-      </div>
+      <button type="button" class="rowdel rrow-restore" data-restore="${key}" data-fk="restore:${key}">
+        ${raw(restoreGlyph())}
+        <span class="sr-only">Restore ${label}</span>
+      </button>
+      <button type="button" class="rowdel rrow-del${confirming ? ' confirming' : ''}"
+              data-del="${key}" data-fk="del:${key}">
+        ${raw(confirming ? '<span class="rrow-confirm">Tap again, gone for good</span>' : removeGlyph())}
+        <span class="sr-only">${confirming ? `Press again to delete ${label} for good` : `Delete ${label} for good`}</span>
+      </button>
     </div>`;
 }
 
@@ -104,18 +134,30 @@ export default {
         body = html`<div class="rlist">${raw(list.map((r) => row(r, confirmKey)).join(''))}</div>`;
       } else {
         /*
-         * The empty state.
+         * The empty state, and it is now the same one the other two lists have.
          *
-         * The other two lists use `.empty` -- a 96px asleep face, centred, with
-         * one voiced line -- and this one used its own `.rempty` box, so the
-         * three screens ended a hair apart. It now uses `.empty`'s container,
-         * for that consistency, and keeps the 48px `shinSay` unit inside it
-         * rather than swapping in a 96px `faceBlock`: AVATAR.md section 3 row
-         * 46 and voice.js's own comment on `removed_empty` both specify "the
-         * same 48px component as the header above it", and the line was written
-         * for that unit. Consistent container, spec-sized contents.
+         * All three say `asleep` at `face-verdict`, centred, breathing. That is
+         * what AVATAR.md rows 42 (watchlist empty) and 48 (past scans empty)
+         * specify, and an empty Recently removed is the same moment on the same
+         * kind of screen: a list with nothing in it, which is not a failure and
+         * is not worth a different face. `sleep-breath` is not passed -- it is
+         * `asleep`'s own default in shin.js's DEFAULT_ANIM, which is how the
+         * other two get it, so asking for it by name here would be a second
+         * place for it to drift.
+         *
+         * This was `idle` at `face-page`, still, inside a `shinSay` bubble. The
+         * reason recorded for the smaller face was "the same 48px component as
+         * the header above it", and that header no longer renders in this state
+         * (two faces talking on one screen), so the reason had outlived itself.
+         * The string key is untouched; only the face, the size, the animation
+         * and the unit that carries them changed, which is the same `faceBlock`
+         * and line the siblings use rather than a bubble beside a 96px face.
          */
-        body = html`<div class="empty rempty">${raw(shinSay('idle', 'removed_empty', {}, { size: 'face-page', anim: 'none' }))}</div>`;
+        body = html`
+          <div class="empty">
+            ${raw(faceBlock('asleep', { size: 'face-verdict' }))}
+            <p>${say('removed_empty')}</p>
+          </div>`;
       }
 
       root.innerHTML = html`
@@ -126,7 +168,26 @@ export default {
             <h1>Recently removed</h1>
           </header>
 
-          <div class="rheader">${raw(shinSay('idle', 'removed_retention', {}, { size: 'face-page', anim: 'none' }))}</div>
+          ${raw(
+            /*
+             * ONE FACE ON A SCREEN, AVATAR.md's opening rule. With the list
+             * empty this header unit and the empty state below it were two
+             * Shins talking on one 390px screen, and they were saying the same
+             * thing twice: "Kept for 30 days" over a list with nothing in it to
+             * keep. The retention line is a fact ABOUT ROWS, so it appears when
+             * there are rows. With none, the empty state is the only face and
+             * the header above is the kicker and the heading alone.
+             *
+             * Saved and Past scans were checked for the same double and do not
+             * have it: both build their header unit inside the `list.length`
+             * branch already, so their empty states are the only face there
+             * too. This makes the third screen agree with the two rather than
+             * inventing a rule for it.
+             */
+            phase === 'ready' && list.length
+              ? html`<div class="rheader">${raw(shinSay('idle', 'removed_retention', {}, { size: 'face-page', anim: 'none' }))}</div>`
+              : '',
+          )}
 
           ${raw(body)}
 

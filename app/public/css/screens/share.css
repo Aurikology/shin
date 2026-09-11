@@ -21,15 +21,6 @@
 }
 
 /*
- * The live 220px face-and-bubble, same state as the frozen card below it.
- * The card's own face is baked into the exported pixels and never changes;
- * this is the page around it, so it gets the app's usual blink and settle
- * motion where the card cannot.
- */
-.shr-live { align-self: stretch; }
-.shr-live .shin-say { align-items: flex-start; }
-
-/*
  * The preview is sized off the viewport height, not the width, so the card and
  * the two things you can do with it are on screen at the same time. A preview
  * that pushes its own save button under the fold is a preview of nothing.
@@ -143,3 +134,21 @@
   font-size: 13px;
   color: var(--ink-faint);
 }
+
+/*
+ * The two quiet actions, side by side under the primary rather than stacked
+ * as a third and fourth row of it. Stacked, all three read as one list of
+ * equal choices at a 50px cadence (48px button + shell.css's 2px page-foot
+ * gap) with nothing but a radius nobody could see telling them apart. Now
+ * that `.cta` is filled (see share.js -- it was carrying a stray `btn` class
+ * that let components.css's transparent `.btn` background win the cascade),
+ * the fill alone separates the primary; this closes the rhythm so the two
+ * `.linky` rows read as one secondary pair under it instead of two more
+ * peers, and it costs the footer a whole row of height, which the 375x575
+ * budget needed anyway.
+ */
+.shr-secondary {
+  display: flex;
+  gap: var(--s-4);
+}
+.shr-secondary .linky { flex: 1 1 0; width: auto; }
