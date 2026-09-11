@@ -7,8 +7,14 @@
  * chrome sitting on the picture. The wordmark now lives inside the camera
  * surface, over the feed, where it costs nothing.
  *
- * There is no tab bar either. Navigation is three targets in the camera's own
- * bottom bar, thumb height, either side of the shutter.
+ * Navigation is three targets, thumb height, either side of the shutter, and
+ * since 2026-09-10 every page has them and not just the camera. This file used
+ * to say "there is no tab bar", and what that produced was a lone shutter
+ * floating at the bottom of Saved and You with nothing under it and no way to
+ * cross between the two without going through the viewfinder. `.page-bar`
+ * below is that bar; its markup is built once in js/lib/pagebar.js. The camera
+ * keeps its own, because that one is drawn over a live feed and slides away on
+ * a verdict.
  */
 
 * { box-sizing: border-box; }
@@ -102,6 +108,12 @@ body {
 }
 .page::-webkit-scrollbar { display: none; }
 
+/* A page that carries the bottom bar pads itself with the bar. The 18px above
+   would otherwise sit BELOW a sticky bar pinned to bottom:0, which stops it
+   reaching the bottom edge at the end of the scroll and leaves a strip of bare
+   ground under it. */
+.page:has(.page-bar) { padding-bottom: 0; }
+
 /*
  * Nothing on a page is squeezed to fit. A flex column shrinks its children by
  * default, which silently flattened a 4:5 share card into a letterbox and drew
@@ -109,17 +121,24 @@ body {
  */
 .page > * { flex: none; }
 
-.page-head { margin: 6px 0 4px; }
+.page-head { margin: 6px 0 8px; }
 
 /* The market picker's own prompt: the shin-say unit under the kicker, not a
    heading beside a bare face (avatar-presence.md's opening rule -- every
    hint and prompt is Shin talking through the one face-and-bubble unit). */
 .mkt-say { margin-top: 2px; }
 
+/*
+ * 26px, not 30px. At 30 the page title was the largest thing in the app outside
+ * the price hero, on screens whose job is a list, and the kicker above it was
+ * reading as a caption to a poster rather than as a line of the same block.
+ * DESIGN.md section 2 gives 72px to the price and 34px to the verdict word; a
+ * heading on a settings page has no claim on the space under those.
+ */
 .page h1 {
   font-family: var(--f-display);
   font-weight: 800;
-  font-size: 30px;
+  font-size: 26px;
   letter-spacing: -.03em;
   line-height: 1.1;
   margin: 0;
@@ -138,14 +157,33 @@ body {
 
 .block { display: flex; flex-direction: column; gap: 10px; }
 
-.block-h {
-  font-family: var(--f-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: .16em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-  margin: 8px 0 0;
+/*
+ * A section heading that is a heading, and the header of a grouped list. It
+ * sits OUTSIDE the card it names, which is the inset-grouped convention: the
+ * label belongs to the gap and the card holds only rows.
+ *
+ * `.block-h` was here: 10px mono uppercase at .16em, which is DESIGN.md section
+ * 2's Label role -- "11px, 600, 0.12em, Mono, uppercase, provenance only",
+ * where Mono "earns its place because honesty about sources is the product".
+ * FLAWS.md item 6 is that seventeen section headings across eight screens were
+ * spending that signal, so mono uppercase had stopped meaning "this is a
+ * recorded measurement" and started meaning "this is a heading". You was fixed
+ * first, privately, in you.css; this is that same rule moved here unchanged so
+ * every page can agree with it, and `.block-h` is deleted because with Saved
+ * and Licences on this rule nothing was left using it.
+ *
+ * Instrument Sans, sentence case, 17px, `--ink`. Real heading weight at a
+ * readable size, and mono uppercase is a source and a date again.
+ */
+.sect-h {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -.02em;
+  line-height: 1.25;
+  color: var(--ink);
+  margin: 14px 0 2px;
+  text-transform: none;
 }
 
 .fineprint {
@@ -211,6 +249,137 @@ body {
 }
 .rowbtn-v { color: var(--ink-faint); font-family: var(--f-mono); font-size: 13px; }
 
+/* ------------------------------------------------- inset grouped lists */
+
+/*
+ * A group of settings rows, as one card rather than as a stack of separate
+ * ones.
+ *
+ * Every page behind the camera was drawing its rows as individual `.rowbtn`
+ * cards, each with its own border and its own 16px radius, 8px apart. Three of
+ * those in a column is three boxes and two gaps announcing nothing: the rows
+ * were already related, and the spacing was the only thing saying so. One card
+ * with hairlines between the rows says it in the shape, and the hairline is
+ * inset 16px from the left so it reads as a divider inside a thing rather than
+ * as the edge of another thing.
+ *
+ * `.rowbtn` is not deleted. It is still what a single row on its own should be,
+ * and other screens use it; what changed is that a GROUP of them is a group.
+ */
+.ilist {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+.ilist-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 16px;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  color: var(--ink);
+  font-family: var(--f-ui);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.3;
+  text-align: left;
+}
+button.ilist-row { cursor: pointer; }
+
+/* The divider is a pseudo-element and not a border, so it can start 16px in
+   while the row's own background still reaches the card's edge. */
+.ilist-row + .ilist-row::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--hairline);
+}
+
+.ilist-l {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The value on the right is mono, because on these rows it is a count, a date
+   or a market: a recorded fact, which is the one job DESIGN.md section 2 gives
+   the mono face. */
+.ilist-v {
+  flex: 0 0 auto;
+  font-family: var(--f-mono);
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+/* The chevron says the row goes somewhere. A row that only reports a value does
+   not get one, which is the whole of the difference between the two. */
+.ilist-c,
+.ilist-k {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: var(--ink-faint);
+}
+.ilist-k { color: var(--ink); }
+
+.ilist-row:focus-visible {
+  outline: var(--ring-width) solid currentColor;
+  outline-offset: calc(var(--ring-offset) * -1);
+  z-index: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button.ilist-row:hover { background: var(--raised); }
+}
+
+/* ------------------------------------------------------- the back control */
+
+/*
+ * A sub-page's way back to its parent.
+ *
+ * Past scans, Recently removed, the market picker and the licences screen are
+ * all reached from a page and had a word, "Back", set as a 12px mono link above
+ * the kicker. It was the smallest target on each of those screens and it read as
+ * a label. A 44px chevron is the platform's own shape for this and it is the one
+ * control on the screen a thumb goes to without reading.
+ */
+.pbk {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 0 2px -10px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: color var(--t-tint) linear, transform var(--t-press) linear;
+}
+.pbk:active { transform: scale(.96); }
+.pbk:focus-visible {
+  outline: var(--ring-width) solid currentColor;
+  outline-offset: var(--ring-offset);
+}
+@media (hover: hover) and (pointer: fine) {
+  .pbk:hover { color: var(--ink); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pbk { transition: none; }
+  .pbk:active { transform: none; }
+}
+
 /*
  * The page footer. It floats over the bottom of the scroll rather than sitting
  * at the end of it, so the committing action is under the thumb whether the page
@@ -246,18 +415,116 @@ body {
   gap: 2px;
 }
 
-/* The shutter travels. The primary act is never more than one tap away. */
+/* ---------------------------------------------------------- the page bar */
+
+/*
+ * The same three targets as the camera's bar, in the same order, on every page
+ * behind it. Markup in js/lib/pagebar.js, so the active state is decided once.
+ *
+ * Sticky and IN FLOW as the last child of `.page`, which is the scroll
+ * container. That is the shape that needs no JS and no measured offset: the bar
+ * reserves its own height at the end of the scroll, so the last line of content
+ * can never end up underneath it, and it stays pinned to the bottom of the
+ * viewport while the content behind it scrolls. `position: fixed` inside
+ * `.device` would have taken it out of flow and required exactly the bottom
+ * padding it then made necessary, on every page, maintained by hand.
+ *
+ * This is the You screen's overlap bug: the build line was the last thing on
+ * that page and sat under a shutter that was floating over it with nothing in
+ * flow to push it clear.
+ */
+.page-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  margin-top: auto;
+  /* The stated height is the bar; the inset is the phone's home indicator. */
+  height: calc(84px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  /* The page pads itself at --pad; the bar reaches both edges. */
+  margin-left: calc(var(--pad) * -1);
+  margin-right: calc(var(--pad) * -1);
+  background: var(--ground);
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+
+.pbar-i {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 64px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--ink-faint);
+  font-family: var(--f-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  cursor: pointer;
+  transition: color var(--t-tint) linear, transform var(--t-press) linear;
+}
+.pbar-i:active { transform: scale(.96); }
+.pbar-i:focus-visible {
+  outline: var(--ring-width) solid currentColor;
+  outline-offset: var(--ring-offset);
+  border-radius: var(--r-sm);
+}
+
+/* The pill behind the active icon. It is the indicator, and the ink change is
+   what carries it where the pill cannot be seen -- a 12% white wash is nothing
+   on a cream ground, so light theme gets the raised surface instead. */
+.pbar-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 30px;
+  border-radius: 999px;
+  transition: background-color var(--t-tint) linear;
+}
+.pbar-i.on { color: var(--ink); }
+.pbar-i.on .pbar-ic { background: var(--pbar-pill, rgba(255, 255, 255, .12)); }
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) { --pbar-pill: var(--raised); }
+}
+:root[data-theme="light"] { --pbar-pill: var(--raised); }
+
+/*
+ * The shutter travels. The primary act is never more than one tap away.
+ *
+ * 56px and white with a 3px brand ring: the camera's own shutter at two thirds
+ * the size, rather than the --ink disc with a --ground collar this used to be.
+ * The collar existed because the control was floating over the page with
+ * nothing behind it; it is in a bar now and the bar is the separation.
+ * `#fff` and not a token deliberately, and camera.css does the same: the
+ * shutter is white in both themes, because it is the one control whose job is
+ * to be found without looking.
+ */
 .mini-shutter {
-  width: 58px;
-  height: 58px;
-  margin: 0 auto;
+  width: 56px;
+  height: 56px;
+  flex: none;
   border-radius: 50%;
-  background: var(--ink);
-  border: 4px solid var(--ground);
+  background: #fff;
+  border: 0;
   box-shadow: 0 0 0 3px var(--brand);
   cursor: pointer;
+  transition: transform var(--t-press) linear;
 }
-.mini-shutter:active { transform: scale(.94); }
+.mini-shutter:active { transform: scale(.96); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pbar-i,
+  .mini-shutter { transition: none; }
+  .pbar-i:active,
+  .mini-shutter:active { transform: none; }
+}
 
 /*
  * An empty list is a screen Shin is on, not a gap where content failed. It was
@@ -279,10 +546,15 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  /* 16px from the face to the line. The gap below is what makes the step to a
+     button 20px, so the three pieces read as face, then line, then act. */
+  gap: 16px;
 }
 .page > .empty { flex: 1 0 auto; }
 .empty p { margin: 0; max-width: 26ch; font-size: 14.5px; }
+.empty .cta,
+.empty .btn--primary,
+.empty > button { margin-top: 4px; }
 
 /*
  * The face keeps its own colours here.

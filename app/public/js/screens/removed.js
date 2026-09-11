@@ -18,6 +18,7 @@ import { say } from '../voice.js';
 import * as store from '../store.js';
 import { html, raw, agoDays, on } from '../lib/dom.js';
 import { repainter } from '../lib/listscreen.js';
+import { pageBar, backButton, goBack } from '../lib/pagebar.js';
 
 function itemOf(r) {
   if (r.kind === 'watch') {
@@ -120,7 +121,7 @@ export default {
       root.innerHTML = html`
         <div class="page page-list">
           <header class="page-head">
-            <button type="button" class="linky pback" data-act="back" data-fk="nav:back">Back</button>
+            ${raw(backButton())}
             ${raw(phase === 'ready' ? html`<p class="kicker">Recently removed · ${list.length}</p>` : '')}
             <h1>Recently removed</h1>
           </header>
@@ -128,6 +129,8 @@ export default {
           <div class="rheader">${raw(shinSay('idle', 'removed_retention', {}, { size: 'face-page', anim: 'none' }))}</div>
 
           ${raw(body)}
+
+          ${raw(pageBar('watchlist'))}
         </div>`;
     }
 
@@ -156,7 +159,11 @@ export default {
     const listeners = new AbortController();
 
     on(root, 'click', (e) => {
-      if (e.target.closest('[data-act="back"]')) { ctx.go('watchlist'); return; }
+      // See pastscans.js: back is history, not a second forward move.
+      if (e.target.closest('[data-act="back"]')) { goBack(ctx, 'watchlist'); return; }
+      if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }
+      if (e.target.closest('[data-act="watchlist"]')) { ctx.go('watchlist'); return; }
+      if (e.target.closest('[data-act="you"]')) { ctx.go('you'); return; }
       if (e.target.closest('[data-act="retry"]')) { phase = store.reload() ? 'error' : 'ready'; repaint(); return; }
 
       const restore = e.target.closest('[data-restore]');

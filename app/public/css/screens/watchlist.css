@@ -221,12 +221,14 @@
 }
 .drop-card span { font-size: 13px; opacity: .82; }
 
-/* The two links off the bottom of the list: past scans, recently removed. */
+/* The two links off the bottom of the list: past scans, recently removed.
+   One card with a hairline between them now (`.ilist` in shell.css) rather than
+   two separate bordered boxes 8px apart. They are one group and the gap was the
+   only thing that had been saying so; the gap belongs above the card, with the
+   heading. */
 .wmore {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 4px;
+  margin-top: 0;
+  margin-bottom: var(--s-3);
 }
 
 /* ------------------------------------------------------------- Past scans */

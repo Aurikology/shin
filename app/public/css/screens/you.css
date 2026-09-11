@@ -12,38 +12,17 @@
  */
 
 /*
- * A section heading that is a heading. FLAWS.md item 6.
+ * `.sect-h` was defined here, and the handoff its last paragraph asked for has
+ * happened: it lives in shell.css now, unchanged, because Saved and Licences
+ * need the same heading and the reason it exists (FLAWS.md item 6, mono
+ * uppercase is provenance and not a heading) was never local to this screen.
+ * `.block-h` went with the move, having nothing left using it.
  *
- * `.block-h` (shell.css) is 10px mono uppercase at .16em in `--ink-faint`,
- * which is DESIGN.md section 2's Label role -- "11px, 600, 0.12em, Mono,
- * uppercase, provenance only", where Mono "earns its place because honesty
- * about sources is the product". This screen spent that signal ten times on
- * words like "Appearance", so mono uppercase stopped meaning "recorded
- * measurement" and started meaning "heading", and ten stacked eyebrow labels
- * is what a settings page looks like when nobody decided what the sections
- * were. It also failed contrast as text: `--ink-faint` computes 3.92 on
- * `--surface`, at the smallest size in the app.
- *
- * So: Instrument Sans, sentence case, 17px, `--ink`. Real heading weight at a
- * readable size, and mono uppercase on this screen is a source and a date
- * again. Six of the nine labels went entirely rather than being restyled --
- * the spacing and the hairline were already doing the grouping, and a label
- * over a single row that says its own name was never carrying anything.
- *
- * Named `.sect-h` rather than editing `.block-h`, which lives in shell.css and
- * is used by eight screens this lane does not own. The handoff is in the lane
- * report.
+ * What was local and stays recorded: six of this screen's nine labels went
+ * entirely rather than being restyled, because the spacing and the hairline
+ * were already doing the grouping and a label over a single row that says its
+ * own name was never carrying anything.
  */
-.sect-h {
-  font-family: var(--f-display);
-  font-weight: 700;
-  font-size: 17px;
-  letter-spacing: -.02em;
-  line-height: 1.25;
-  color: var(--ink);
-  margin: 14px 0 2px;
-  text-transform: none;
-}
 
 /*
  * The theme control, which was a button that cycled and printed its new value.
@@ -89,40 +68,46 @@
 
 .coverage { display: flex; flex-direction: column; gap: 10px; }
 
-.cov-big {
-  margin: 0;
-  font-family: var(--f-display);
-  font-weight: 800;
-  font-size: 15px;
-  letter-spacing: -.01em;
-  color: var(--ink-muted);
-}
-.cov-big b {
-  font-size: 44px;
-  color: var(--ink);
-  letter-spacing: -.04em;
-  font-variant-numeric: tabular-nums;
-  margin-right: 4px;
-}
+/*
+ * `.cov-big` was here: a 44px numeral over the word "of 7", and the same shape
+ * again over the word "named" on the scan log. DESIGN.md section 2 gives 72px
+ * to the price hero and 34px to the verdict word, and nothing else in the
+ * product is allowed to compete with those; a coverage count is neither a price
+ * nor a verdict, it is a fact about the catalogue. Both are grouped rows now
+ * (`.ilist`, shell.css), which is what every other fact on this page is, and
+ * the numbers themselves are unchanged.
+ */
 
+/* The same card as `.ilist` in shell.css: one surface, hairlines inset 16px
+   from the left, no outer border. It was an outlined box with edge-to-edge
+   dividers, which is the one list on this page that did not match the others. */
 .covlist {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--hairline);
+  background: var(--surface);
   border-radius: var(--r-md);
   overflow: hidden;
 }
 
 .covrow {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 11px 14px;
-  background: var(--surface);
+  min-height: 44px;
+  padding: 12px 16px;
   font-size: 14px;
 }
-.covrow + .covrow { border-top: 1px solid var(--hairline); }
+.covrow + .covrow::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--hairline);
+}
 .covrow > span:first-child {
   min-width: 0;
   overflow: hidden;
@@ -167,20 +152,24 @@
 
 /*
  * Market picker (screen 40). Country names only, one checked at a time.
- * Reuses .rowbtn from shell.css, .on marks the current market the same way
- * .att.on marks the current attitude on setup and You.
+ *
+ * One card with a tick on the chosen row, the same shape the attitude picker
+ * above it now has, because they are the same control: three exclusive options
+ * on a settings surface. It was three separate `.rowbtn` cards 8px apart with
+ * the current one carrying an `--ink` border and the words "Current market" on
+ * its right -- a border, a colour change and a label all saying the one thing
+ * a tick says.
  */
 .mkt-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
-.mkt-row.on {
-  border-color: var(--ink);
-}
-.mkt-row.on .rowbtn-v {
-  color: var(--ink);
-}
+/* The tick is the whole of the selected state here. `.ilist-row` is already
+   `--ink`, so a colour change on the chosen row would say nothing. */
+/* Held whether or not the row is chosen, so picking a different market does not
+   shift the three country names sideways. */
+.mkt-list .ilist-k { visibility: hidden; }
+.mkt-row.on .ilist-k { visibility: visible; }
 .mkt-basis {
   margin-top: 2px;
 }
@@ -213,18 +202,69 @@
   .mkt-attrib:hover { text-decoration-color: var(--ink-faint); }
 }
 
+/* Was written out twice, identically, and both copies said the same thing. */
 .mkt-head .face-block {
   margin-bottom: 4px;
 }
-.mkt-head .face-block {
-  margin-bottom: 4px;
+
+/*
+ * `.pback` was here: the word "Back" as a 12px mono uppercase link above the
+ * kicker on four screens. It read as a label rather than a control and it was
+ * the smallest target on each of them. It is `.pbk` in shell.css now, a 44px
+ * chevron at the top left of `.page-head`, because the back control is shared
+ * by four screens and belongs where the page head is defined.
+ */
+
+/* --------------------------------------------- the attitude picker on You */
+
+/*
+ * One card, three rows, a tick on the chosen one.
+ *
+ * The three options were three separate surfaces with the selected one carrying
+ * a brand-pink border. Two things wrong with that and only one of them is
+ * taste. DESIGN.md section 1: the brand pink "is never a verdict [...] it is
+ * the wordmark and the shutter ring" -- it had become a selection state on a
+ * settings page. And three exclusive options are one control, so they are one
+ * card; the tick is what a chosen row carries everywhere else in this app.
+ *
+ * setup.css still owns `.att` itself, and the setup picker (three faces across,
+ * `.atts` without `.atts-row`) is untouched: that screen is the first decision
+ * the app ever asks for and AVATAR.md row 2 sizes it deliberately.
+ */
+.atts-row.ilist {
+  gap: 0;
+  background: var(--surface);
+  border-radius: var(--r-md);
+  overflow: hidden;
 }
-.pback {
-  width: auto;
-  min-height: 32px;
-  padding: 0 0 8px;
-  font-family: var(--f-mono);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: .08em;
+.atts-row .att {
+  position: relative;
+  min-height: 52px;
+  padding: 14px 16px;
+  gap: 12px;
+  background: none;
+  border: 0;
+  border-radius: 0;
 }
+.atts-row .att + .att::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--hairline);
+}
+/* No border and no fill on the chosen one: the tick and the ink are the state.
+   The rule this overrides is setup.css's `.att.on`, which is right on setup,
+   where the three options are three cards side by side with nothing else to
+   mark them. */
+.atts-row .att.on {
+  border-color: transparent;
+  background: none;
+}
+.atts-row .att-t { flex: 1 1 auto; }
+/* The tick occupies its space whether or not it is the chosen row, so picking a
+   different attitude does not shift the three labels sideways. */
+.atts-row .ilist-k { visibility: hidden; }
+.atts-row .att.on .ilist-k { visibility: visible; }

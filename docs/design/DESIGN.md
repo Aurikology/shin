@@ -217,8 +217,13 @@ personalities for every state and every trigger, are `AVATAR.md` section 3.
 The first app was thirteen stages as thirteen pages, a walkthrough rather than a product. The
 running app is the re-cut below; `USAGE.md` sets its sequence and `AVATAR.md` sets its face.
 
-**The camera is the default route.** Full-bleed live viewfinder. Chrome floats over it: a small
-wordmark top left, a **torch toggle** top left at 44px, and the bottom bar. The help affordance
+**The camera is the default route.** Full-bleed live viewfinder. Chrome lives in two bands and
+the centre stays clear: the top band is a **torch toggle** top left at 48px and a small wordmark
+centred; the bottom band is Shin's caption under the frame (face at 36px, one pill bubble,
+centred, 14px above the bar) and the bottom bar. Nothing else sits on the picture. The reticle
+centres in the free space between the two bands, and at idle the feed outside the frame is a
+quarter darker so the eye goes to the brackets. Changed 2026-09-10 from a top-left dock under the
+wordmark, which competed with it. The help affordance
 that used to sit top right is gone: the tips appear inside the refusal panel, at the only moment
 they mean anything (OLMA audit rows 19, 31 and 87, and rows 35 and 90 for the torch, which is a
 take because grocery aisles have bottom shelves and glass doors and a dark photo is one of the
@@ -231,8 +236,23 @@ route (`USAGE.md` B1 0:13.9). That escalation is one of only two unprompted appe
 product is allowed; the budget is `AVATAR.md` section 4.
 
 **The bottom bar** carries three things. Shutter dead centre at 76px, because centre bottom is
-reachable from either grip. Watchlist to its left, You to its right, both 48px. The shutter is
+reachable from either grip. Saved to its left, You to its right, each a 56px column of a 22px
+glyph over an 11px label, with a 56 x 30 pill behind the glyph on press. The labels are there
+because an unlabelled glyph is a guess, and a guess is a tap wasted. The bar sits on a gradient
+band, transparent to 72% black, so the controls always have something under them. The shutter is
 never a peer of the other two in size or weight; it is the product.
+
+**The pages carry the same bar.** Saved, You, Past scans, Recently removed, Licences and the
+market picker end in a bar of the same three targets, built once in `js/lib/pagebar.js`: 84px
+plus the safe area, on `ground` with a hairline above it, glyph 22px over an 11px label, the
+current page's item in `ink` with a 56 x 30 pill behind its glyph, the shutter at 56px with a 3px
+`shin` ring. Before 2026-09-10 a page ended in a lone 58px shutter with nothing under it, which
+read as a control that had lost its bar; and the only way from Saved to You was through the
+camera. Sub-pages (Past scans, Recently removed, Licences, market) get a 44px back chevron at the
+top left; Saved and You are top level and get none. Lists behind the camera are inset grouped
+cards: `surface` at 16px radius, rows 52px with a 1px `hairline` divider inset 16px, a 16px
+chevron on rows that go somewhere, a tick on the chosen row of a picker. Section headings are
+sentence case in the UI face; mono uppercase stays reserved for a recorded measurement.
 
 **Scan, identify and verdict are one surface.** The frame freezes in place, a reticle contracts
 onto what was found, and a sheet rises from the bottom over the frozen frame. The user never
@@ -375,8 +395,8 @@ Motion exists to make the judgment feel like it landed. It never decorates.
 | --- | --- |
 | Shutter press | Scale to 0.92 over 90ms, ring pulses outward once |
 | Frame freeze | Live feed stills, 6% desaturation over 120ms |
-| Reticle | Contracts onto the found object over 200ms, cubic-bezier(.2,.8,.2,1) |
-| Verdict field rises | 260ms, cubic-bezier(.2,.8,.2,1), from the bottom edge |
+| Reticle | Contracts from 216px onto the found object at 150px over 200ms, cubic-bezier(.2,.8,.2,1). The brackets keep their weight; only the frame changes |
+| Verdict field rises | 420ms, cubic-bezier(.32,.72,0,1), from the bottom edge. A sheet is a big object moving a long way; the shorter shared curve landed it with a snap |
 | Price numeral | Enters at 0.94 scale and 0 opacity, 180ms, starting 60ms after the field |
 | Face | Expression morphs over 220ms, eyes first, mouth 40ms behind. The full set is `AVATAR.md` section 5 |
 | Confidence dots | Fill left to right, 80ms each, after the numeral |

@@ -17,7 +17,7 @@
  *
  * TWO THINGS CHANGED HERE IN THE 2026-09-06 PASS, both from FLAWS.md.
  *
- * The section labels are headings again. FLAWS.md item 6: `.block-h` is 10px
+ * The section labels are headings again. FLAWS.md item 6: `.block-h` was 10px
  * mono uppercase, which DESIGN.md section 2 reserves for provenance -- "Mono
  * earns its place because honesty about sources is the product" -- and this
  * screen alone spent that signal ten times on the word "Appearance" and its
@@ -37,6 +37,7 @@ import * as store from '../store.js';
 import { escapeHtml, on } from '../lib/dom.js';
 import { wireRadioGroup } from '../lib/radiogroup.js';
 import { storagePersists } from '../lib/persistence.js';
+import { pageBar, rowChevron, rowCheck } from '../lib/pagebar.js';
 
 /**
  * The three themes, and the reason this is a radio group and not the cycling
@@ -92,12 +93,13 @@ export default {
 
         <section class="block">
           <h2 class="sect-h">Your Shin</h2>
-          <div class="atts atts-row" role="radiogroup" aria-label="Shin's attitude">
+          <div class="atts atts-row ilist" role="radiogroup" aria-label="Shin's attitude">
             ${PERSONALITIES.map(
               (p) => `<button type="button" class="att${p.id === personality() ? ' on' : ''}"
                         role="radio" aria-checked="${p.id === personality()}" data-who="${escapeHtml(p.id)}">
                 <span class="att-face">${faceSvg('fair', { size: 'face-row', who: p.id })}</span>
                 <span class="att-t"><b>${escapeHtml(p.name)}</b><span>${escapeHtml(p.blurb)}</span></span>
+                ${rowCheck()}
               </button>`,
             ).join('')}
           </div>
@@ -130,15 +132,17 @@ export default {
             </div>
           </div>
 
-          <button type="button" class="rowbtn" data-act="buzz" aria-pressed="${store.buzzOn()}">
-            <span>Buzz on verdicts</span><span class="rowbtn-v" data-buzz-v></span>
-          </button>
+          <div class="ilist">
+            <button type="button" class="ilist-row" data-act="buzz" aria-pressed="${store.buzzOn()}">
+              <span class="ilist-l">Buzz on verdicts</span><span class="ilist-v" data-buzz-v></span>
+            </button>
+            <button type="button" class="ilist-row" data-act="market">
+              <span class="ilist-l">Market</span>
+              <span class="ilist-v">${escapeHtml(market.country)}</span>
+              ${rowChevron()}
+            </button>
+          </div>
           <p class="fineprint">A short buzz when a verdict or a refusal lands, on by default.</p>
-
-          <button type="button" class="rowbtn" data-act="market">
-            <span>Market</span>
-            <span class="rowbtn-v">${escapeHtml(market.country)}</span>
-          </button>
           <p class="fineprint">Price verdicts are judged against typical prices in this market.</p>
         </section>
 
@@ -180,19 +184,20 @@ export default {
         </section>
 
         <section class="block">
-          <button type="button" class="rowbtn" data-act="report">
-            <span>Report a wrong price</span>
-            <span class="rowbtn-v">Fastest fix</span>
-          </button>
+          <div class="ilist">
+            <button type="button" class="ilist-row" data-act="report">
+              <span class="ilist-l">Report a wrong price</span>
+              <span class="ilist-v">Fastest fix</span>
+              ${rowChevron()}
+            </button>
+          </div>
         </section>
 
         <p class="fineprint buildline">Build ${escapeHtml(
           ctx.build ?? 'unknown',
         )} · hand-set in main.js, not read from a running server.</p>
 
-        <div class="page-foot">
-          <button type="button" class="mini-shutter" data-act="camera" aria-label="Scan something"></button>
-        </div>
+        ${pageBar('you')}
       </div>`;
 
     function paintBuzz() {
@@ -216,8 +221,19 @@ export default {
       if (!box) return;
       const refused = c.items.length - c.answerableCount;
       box.setAttribute('aria-busy', 'false');
+      /*
+       * The headline was a 44px numeral, which is the size DESIGN.md section 2
+       * gives a price. This is a stat about the product's own data gaps, not a
+       * price and not a score, so it is a row that states a fact like every
+       * other row on this page. The fact is unchanged; only its volume is.
+       */
       box.innerHTML = `
-        <p class="cov-big"><b>${c.answerableCount}</b> of ${c.items.length}</p>
+        <div class="ilist">
+          <div class="ilist-row">
+            <span class="ilist-l">Products Shin can price</span>
+            <span class="ilist-v">${c.answerableCount} of ${c.items.length}</span>
+          </div>
+        </div>
         <p class="fineprint">${escapeHtml(say('you_coverage_refused', { refused: String(refused) }))}</p>
         <div class="covlist">
           ${c.items
@@ -271,7 +287,12 @@ export default {
       const named = pct(s.namedRate);
       const mine = s.thisDevice;
       box.innerHTML = `
-        <p class="cov-big"><b>${named ?? 'not yet'}</b> named</p>
+        <div class="ilist">
+          <div class="ilist-row">
+            <span class="ilist-l">Scans Shin could name</span>
+            <span class="ilist-v">${named ?? 'not yet'}</span>
+          </div>
+        </div>
         <p class="fineprint">${escapeHtml(
           say('you_scans_named', { scans: `${s.scans} scan${s.scans === 1 ? '' : 's'}` }),
         )}</p>
@@ -353,6 +374,9 @@ export default {
         return;
       }
       if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }
+      if (e.target.closest('[data-act="watchlist"]')) { ctx.go('watchlist'); return; }
+      // No branch for data-act="you": the bar marks it as the current page, and
+      // pressing the page you are on must not push a second entry for it.
       if (e.target.closest('[data-act="market"]')) { ctx.go('market'); return; }
       if (e.target.closest('[data-act="report"]')) ctx.go('correct', {});
     }, ac.signal);

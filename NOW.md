@@ -5,6 +5,47 @@ narrative.*
 
 ---
 
+## The camera's standard applied outward: one bar everywhere, grouped lists, the caption under the frame, 2026-09-10
+
+**The finding this closes is FLAWS.md's own opening verdict**, that the camera surface was
+designed and everything behind it ran on defaults. Aurik said the design was not good and the
+walk agreed: the wordmark and Shin's bubble fought for the top of the viewfinder, the pages ended
+in a lone shutter with no bar under it, You's last line ran beneath that shutter, and the
+settings were a stack of grey boxes. Direction came from eleven references (Open Food Facts,
+vaul, Apple sheets, Material 3 navigation bar, inset grouped lists, Snap Camera Kit, Duolingo's
+empty states) distilled to ten rules with numbers; the camera and the sheets were kept.
+
+**Camera.** Chrome lives in two bands and the centre stays clear. Shin's caption sits under the
+frame, centred, 14px above the bar, face at 36px. Reticle 216px, brackets 30 at 2.5px, and the
+feed outside it a quarter darker at idle. The bar's two targets carry labels (Saved, You) with a
+pill on press, on a gradient band. Sheets rise on cubic-bezier(.32,.72,0,1) over 420ms with a
+24px grabber hit area. Walked at 390 x 844 and 375 x 575 with Playwright: no overlap either way.
+
+**Pages.** Every page ends in the same three-target bar (`app/public/js/lib/pagebar.js`, 84px
+plus safe area, active item marked) so Saved to You no longer routes through the camera; sub-pages
+get a 44px back chevron. Lists are inset grouped cards with 52px rows, an inset hairline and a
+chevron or a tick; the attitude picker, the market picker, You's settings and stats, Saved's two
+rows and the licence sources all use it. The 40px coverage numerals are rows now. Section headings
+are sentence case in the UI face; mono uppercase stays reserved for a measurement (FLAWS item 6
+wins). Light theme checked on You and Saved.
+
+**Docs moved with it**: DESIGN.md section 4 and the motion table, AVATAR.md rows 7 and 11 and the
+`idle` line, and the index.html comment that said there was no tab bar.
+
+**app 413 pass, 5 skipped, typecheck clean** on the finished tree, before the incident below.
+
+**Incident, same session, not the app's fault.** A scratch worktree of main was made for
+before/after screenshots with its dependency folders junctioned into this tree; deleting it
+followed the junctions and emptied `app`, `catalogue`, `identify` and `spine` dependencies. All
+four reinstalled from their lockfiles; the embedding model cache under catalogue was re-fetched.
+Nothing tracked by git was touched. The lesson is recorded outside this repo.
+
+**Not done:** the mascot itself, which Aurik named as weak and which is the founders' committed
+asset, so it is a conversation, not a lane. Past scans rows keep their old two-box shape (row plus
+a separate remove button); the grouped-list treatment there is a follow-up. Nothing is committed.
+
+---
+
 ## A seller has an identity and a name, the brand prints once, and one floor is written but unfired, 2026-09-10
 
 **D-081 closed with the second field the row asked for.** `PricePoint.sellerId` is the identity

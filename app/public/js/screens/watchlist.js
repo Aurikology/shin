@@ -29,6 +29,7 @@ import * as store from '../store.js';
 import { FLAGS } from '../flags.js';
 import { escapeHtml, html, raw, ago, on } from '../lib/dom.js';
 import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.js';
+import { pageBar, rowChevron } from '../lib/pagebar.js';
 
 /** The most recent history entry whose verdict identity matches a saved row's id. */
 function matchFor(history, id) {
@@ -278,20 +279,21 @@ export default {
 
           ${raw(body)}
 
-          <div class="wmore">
-            <button type="button" class="rowbtn" data-act="pastscans" data-fk="nav:pastscans">
-              <span>Past scans</span>
-              <span class="rowbtn-v">${s.history.length}</span>
+          <h2 class="sect-h">More</h2>
+          <div class="wmore ilist">
+            <button type="button" class="ilist-row" data-act="pastscans" data-fk="nav:pastscans">
+              <span class="ilist-l">Past scans</span>
+              <span class="ilist-v">${s.history.length}</span>
+              ${raw(rowChevron())}
             </button>
-            <button type="button" class="rowbtn" data-act="removed" data-fk="nav:removed">
-              <span>Recently removed</span>
-              <span class="rowbtn-v">${s.removed.length}</span>
+            <button type="button" class="ilist-row" data-act="removed" data-fk="nav:removed">
+              <span class="ilist-l">Recently removed</span>
+              <span class="ilist-v">${s.removed.length}</span>
+              ${raw(rowChevron())}
             </button>
           </div>
 
-          <div class="page-foot">
-            <button type="button" class="mini-shutter" data-act="camera" aria-label="Scan something" data-fk="nav:camera"></button>
-          </div>
+          ${raw(pageBar('watchlist'))}
         </div>
         ${raw(phase === 'ready' && openEntry ? detailModal(openEntry, openMatch) : '')}`;
 
@@ -340,6 +342,9 @@ export default {
 
     on(root, 'click', (e) => {
       if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }
+      // No branch for data-act="watchlist": the bar draws it as the page you
+      // are already on, so pressing it must not push a second entry for it.
+      if (e.target.closest('[data-act="you"]')) { ctx.go('you'); return; }
       if (e.target.closest('[data-act="pastscans"]')) { ctx.go('pastscans'); return; }
       if (e.target.closest('[data-act="removed"]')) { ctx.go('removed'); return; }
 

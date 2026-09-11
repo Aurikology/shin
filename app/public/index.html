@@ -83,8 +83,10 @@
 </head>
 <body>
   <!--
-    No app bar and no tab bar. The camera reaches every edge, and the wordmark
-    and the three navigation targets live inside the camera surface itself.
+    No app bar. The camera reaches every edge, and the wordmark and the three
+    navigation targets live inside the camera surface itself. The pages behind
+    it carry the same three targets in a bar of their own (js/lib/pagebar.js),
+    so navigation is one shape everywhere and the shutter is never an orphan.
   -->
   <div class="device">
     <main id="screen" role="main"></main>

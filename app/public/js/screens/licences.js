@@ -40,6 +40,7 @@
 import * as api from '../api.js';
 import { html, raw, on } from '../lib/dom.js';
 import { say } from '../voice.js';
+import { pageBar, backButton, goBack } from '../lib/pagebar.js';
 
 /* Escaped because these strings come off the wire. Nothing in the list is user
    input today, but a screen that interpolates a fetched string into innerHTML
@@ -71,11 +72,13 @@ export default {
       root.innerHTML = html`
         <div class="page page-list">
           <header class="page-head">
-            <button type="button" class="btn linky pback" data-act="back">Back</button>
+            ${raw(backButton())}
             <p class="kicker">Data and licences</p>
             <h1>Where this comes from</h1>
           </header>
           ${raw(inner)}
+
+          ${raw(pageBar('you'))}
         </div>`;
     }
 
@@ -115,6 +118,7 @@ export default {
           terms for reuse, and this is the credit those terms ask for.
         </p>
 
+        <h2 class="sect-h">Sources</h2>
         <ul class="lic-list">
           ${sources.map(sourceRow).join('')}
         </ul>
@@ -156,7 +160,12 @@ export default {
     }
 
     on(root, 'click', (e) => {
-      if (e.target.closest('[data-act="back"]')) { ctx.go('market'); return; }
+      // The market picker is the only way in, so the browser's own back is
+      // already pointing at it. See lib/pagebar.js.
+      if (e.target.closest('[data-act="back"]')) { goBack(ctx, 'market'); return; }
+      if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }
+      if (e.target.closest('[data-act="watchlist"]')) { ctx.go('watchlist'); return; }
+      if (e.target.closest('[data-act="you"]')) { ctx.go('you'); return; }
       if (e.target.closest('[data-act="retry"]')) load();
     }, listeners.signal);
 

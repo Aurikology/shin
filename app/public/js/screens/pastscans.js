@@ -27,6 +27,7 @@ import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { escapeHtml, html, raw, ago, on } from '../lib/dom.js';
 import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.js';
+import { pageBar, backButton, goBack } from '../lib/pagebar.js';
 
 /*
  * The eight refusal reasons used to be a map here, described in this comment
@@ -210,12 +211,14 @@ export default {
       root.innerHTML = html`
         <div class="page page-list">
           <header class="page-head">
-            <button type="button" class="linky pback" data-act="back" data-fk="nav:back">Back</button>
+            ${raw(backButton())}
             ${raw(phase === 'ready' ? html`<p class="kicker">Past scans · ${list.length}</p>` : '')}
             <h1>Past scans</h1>
           </header>
 
           ${raw(body)}
+
+          ${raw(pageBar('watchlist'))}
         </div>
         ${raw(phase === 'ready' && open ? detail(open) : '')}`;
     }
@@ -251,7 +254,12 @@ export default {
     const listeners = new AbortController();
 
     on(root, 'click', (e) => {
-      if (e.target.closest('[data-act="back"]')) { ctx.go('watchlist'); return; }
+      // Back is the browser's back, not a forward move dressed as one: router.js
+      // pushes an entry on every `go`, so Saved is already the previous entry.
+      if (e.target.closest('[data-act="back"]')) { goBack(ctx, 'watchlist'); return; }
+      if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }
+      if (e.target.closest('[data-act="watchlist"]')) { ctx.go('watchlist'); return; }
+      if (e.target.closest('[data-act="you"]')) { ctx.go('you'); return; }
       if (e.target.closest('[data-act="retry"]')) { phase = store.reload() ? 'error' : 'ready'; repaint(); return; }
 
       // Clicking the modal's own backdrop closes it; clicking the card must

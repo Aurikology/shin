@@ -101,7 +101,10 @@
    it -- otherwise a white ring sits on a white disc and disappears. */
 .mini-shutter:focus-visible {
   outline-color: var(--brand);
-  outline-offset: 5px;
+  /* Clears the 3px brand ring the shutter wears at rest. At the old 5px the
+     focus ring landed on top of that ring and read as a slightly thicker one,
+     which is not a focus state. */
+  outline-offset: 7px;
 }
 
 /*

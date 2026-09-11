@@ -16,13 +16,35 @@
   background: #000;
   color: var(--ink);
   font-family: var(--f-ui);
-  /* Row 5 fix: the docked Shin's own band, and the bar at the bottom, named
-     here as variables so the reticle below can centre itself in whatever
-     space is actually left between them, at any viewport height -- not a
-     42% guess that only happened to clear the dock on a tall phone and ran
-     straight through its bubble at 575. */
-  --dock-band-bottom: calc(max(14px, env(safe-area-inset-top)) + 54px + 64px);
+  /*
+   * The three bands, named here so the reticle below can centre itself in
+   * whatever space is actually left between them, at any viewport height --
+   * not a percentage that only happens to clear things on a tall phone.
+   *
+   * Chrome lives in the top band and the bottom band. The top band is the
+   * torch and the wordmark, one 48px row under the safe area. The bottom
+   * band is the bar plus the docked Shin sitting above it, which is why
+   * --dock-band-bottom is measured up from the bottom edge now rather than
+   * down from the top: the dock moved out of the top band, where it was
+   * competing with the wordmark for the same corner.
+   *
+   * --dock-h is a two-line reserve, not the unit's real height. The dock is
+   * anchored by its bottom edge, so a longer line grows it UPWARD, away from
+   * the bar it must never touch; the reserve only has to keep the reticle
+   * off it, and two lines is what the aim hint and the privacy line actually
+   * run to at 300px wide.
+   */
+  --top-band-bottom: calc(max(14px, env(safe-area-inset-top)) + var(--tap));
   --cam-bar-h: calc(132px + env(safe-area-inset-bottom));
+  --dock-h: 60px;
+  --dock-gap: 14px;
+  --dock-band-bottom: calc(var(--cam-bar-h) + var(--dock-gap) + var(--dock-h));
+  /* The free space between the two bands, centred. With T = top band bottom
+     and D = the bottom band's total height, the midpoint of (T, 100% - D) is
+     50% + (T - D) / 2. Holds at every height, tall or 575, because it is the
+     same two boundaries every time. Both the reticle and the focus wash read
+     it, so they cannot drift apart. */
+  --reticle-y: calc(50% + (var(--top-band-bottom) - var(--dock-band-bottom)) / 2);
 }
 
 /* ------------------------------------------------------------------- feed */
@@ -108,6 +130,32 @@
     rgba(0,0,0,.55) 0%, transparent 20%, transparent 58%, rgba(0,0,0,.7) 100%);
 }
 
+/*
+ * The focus wash: the frame stays at full brightness, everything around it
+ * drops about a quarter. It is what makes the reticle read as a frame you put
+ * something INTO rather than four marks lying on the picture.
+ *
+ * A radial gradient centred on --reticle-y, not a backdrop-filter and not a
+ * mask: this sits over a live video on a phone, so it has to be one paint with
+ * no readback. Transparent out to 150px (the idle reticle's half-diagonal is
+ * 153, so the corners sit in clear air) and up to full at 250px, which is the
+ * soft falloff -- a hard ring around the frame would read as a second mark
+ * competing with the one that matters.
+ *
+ * Idle only. From the shutter on, the feed is a photograph being judged and
+ * the reticle is on its way out; dimming three quarters of the user's own
+ * picture at that moment is the opposite of the job.
+ */
+.feed-focus {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% var(--reticle-y),
+    rgba(0,0,0,0) 0, rgba(0,0,0,0) 150px, rgba(0,0,0,.25) 250px);
+  opacity: 0;
+  transition: opacity 160ms linear;
+}
+.cam[data-state="idle"] .feed-focus { opacity: 1; }
+
 /* The frame stills where it was shot. Everything after the shutter happens on
    top of the photograph the user actually took. */
 .cam:not([data-state="idle"]) .feed {
@@ -186,14 +234,13 @@
   position: absolute;
   z-index: 3;
   left: 50%;
-  /* Row 5 fix: centred in the space actually left below the dock's band and
-     above the bottom bar, not a flat 42% -- see --dock-band-bottom and
-     --cam-bar-h on .cam. Derivation: with B = band bottom and C = bar
-     height, the midpoint of (B, 100% - C) is 50% + (B - C) / 2. Holds at
-     every height, tall or 575, because it is the same two boundaries every
-     time, not a percentage that happened to clear a tall phone. */
-  top: calc(50% + (var(--dock-band-bottom) - var(--cam-bar-h)) / 2);
-  width: 190px; height: 190px;
+  /* Centred in the space actually left between the top band and the bottom
+     band (bar plus dock) -- the derivation is on --reticle-y on .cam. */
+  top: var(--reticle-y);
+  /* 1:1, and 216 rather than 190 because the frame is the one thing on this
+     screen that says what the app is for. Measured at both ends: at 375 x 575
+     it still leaves 45px of clear air above the dock. */
+  width: 216px; height: 216px;
   transform: translate(-50%, -50%);
   transition: width var(--t-reticle) var(--ease-land),
               height var(--t-reticle) var(--ease-land),
@@ -201,22 +248,28 @@
 }
 .reticle b {
   position: absolute;
-  width: 28px; height: 28px;
-  border: 2px solid rgba(255,255,255,.94);
+  width: 30px; height: 30px;
+  border: 2.5px solid rgba(255,255,255,.95);
   display: block;
   /* Same reason as .alt-box: a white corner over a brightly lit shelf is a
      white corner over white. Found by putting the viewfinder over a light
      ground and looking at it, not by reading the rule. */
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .55));
 }
-.reticle b:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; border-radius: 7px 0 0 0; }
-.reticle b:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; border-radius: 0 7px 0 0; }
-.reticle b:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; border-radius: 0 0 0 7px; }
-.reticle b:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; border-radius: 0 0 7px 0; }
+.reticle b:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; border-radius: 9px 0 0 0; }
+.reticle b:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; border-radius: 0 9px 0 0; }
+.reticle b:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; border-radius: 0 0 0 9px; }
+.reticle b:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; border-radius: 0 0 9px 0; }
 
+/* The contracted sizes are the same proportion of the idle frame they always
+   were (132/190), scaled with it: 216 x 0.695 = 150. The corner brackets do
+   not scale -- a bracket is a mark of a fixed weight, and the thing that
+   changes between these states is how much of the world is inside it. The
+   two `top` values stay absolute percentages because a sheet is up by then
+   and the free space the idle frame centres in no longer exists. */
 .cam[data-state="framing"] .reticle,
-.cam[data-state="choosing"] .reticle { width: 132px; height: 132px; top: 30%; }
-.cam[data-state="reading"] .reticle { width: 132px; height: 132px; top: 26%; opacity: .5; }
+.cam[data-state="choosing"] .reticle { width: 150px; height: 150px; top: 30%; }
+.cam[data-state="reading"] .reticle { width: 150px; height: 150px; top: 26%; opacity: .5; }
 .cam[data-state="result"] .reticle,
 .cam[data-state="asking"] .reticle,
 .cam[data-state="texting"] .reticle { opacity: 0; }
@@ -335,10 +388,20 @@
 .cam[data-state="texting"] .feed { filter: blur(3px); }
 
 /*
- * Shin, docked on the viewfinder, top-left under the wordmark. Replaces the
- * old 28px hint pill: one face-and-bubble unit that carries the aim hint, its
+ * Shin, docked on the viewfinder, in the lower band between the frame and the
+ * bottom bar. One face-and-bubble unit that carries the aim hint, its
  * escalation, the torch acknowledgement, the second-visit callback and the
- * identifying morph, instead of a pill that only ever showed static text.
+ * identifying morph.
+ *
+ * It used to sit top-left, under the wordmark, and the two of them fought for
+ * the same corner: a full-width bar of chrome directly under the app's own
+ * name, with the frame it is talking about somewhere below. Centred under the
+ * frame it reads as the caption to the frame, which is what it has always
+ * been -- and it puts the whole top band back to torch, wordmark, spacer.
+ *
+ * Anchored by its BOTTOM edge, so a long line grows it up into the free space
+ * rather than down into the bar. --dock-h on .cam is the reserve that keeps
+ * the reticle off it; see the comment there.
  *
  * Forced white/currentColor rather than the theme's own `--ink` token: the
  * camera background is always literal black regardless of light/dark theme,
@@ -349,14 +412,27 @@
 .cam-shin {
   position: absolute;
   z-index: 4;
-  top: calc(max(14px, env(safe-area-inset-top)) + 54px);
-  left: 16px;
-  right: 16px;
-  min-height: 64px;
+  left: 50%;
+  bottom: calc(var(--cam-bar-h) + var(--dock-gap));
+  transform: translateX(-50%);
+  width: min(300px, calc(100% - 32px));
   color: #fff;
   transition: opacity 120ms linear;
 }
-.cam-shin .bubble-text { font-size: 13.5px; }
+/* Compact: a 36px face beside a tight bubble, because this unit is now a
+   caption under the frame and not a banner across the top.
+
+   The size is set HERE and not at the call site. shinSay clamps every size it
+   is given up to 48 (face-page), so camera.js cannot ask for 36; and the face
+   is one 88-unit viewBox scaled by its width, so 64 rendered at 36 and 36
+   rendered at 36 are the same drawing. Leaving the call at 64 also leaves
+   shin.js's row-sized gate alone -- at 28 it would stamp data-anim="none" and
+   the docked face would stop blinking. AVATAR.md's own floor is 28, so 36 is
+   inside it. */
+.cam-shin .shin-say { gap: 10px; align-items: center; }
+.cam-shin .face { width: 36px; height: 36px; }
+.cam-shin .bubble { padding: 8px 15px; border-radius: 18px; }
+.cam-shin .bubble-text { font-size: 13px; }
 
 /* The placeholder state label, same reasoning as the forced white above and
    for the same reason it was missed: it is the one piece of text in this unit
@@ -402,13 +478,38 @@
   z-index: 5;
   left: 0; right: 0;
   bottom: 0;
-  height: 132px;
+  /* The one number, and it is the token the reticle and the dock are both
+     measured against (see .cam). `box-sizing: border-box` is global, so the
+     safe-area padding sits INSIDE this height and the controls keep their
+     full 132px of room above the home indicator. Changing the bar's height
+     means changing the token, which moves everything that depends on it in
+     the same edit rather than leaving them behind. */
+  height: var(--cam-bar-h);
   padding-bottom: env(safe-area-inset-bottom);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 48px;
+  gap: 44px;
   transition: transform var(--t-rise) var(--ease-land), opacity 160ms linear;
+}
+/*
+ * The resting band. Three white controls were floating on whatever the feed
+ * happened to be at the time -- a pale shelf under the shutter and the bar
+ * disappeared into it. A gradient from nothing to 72% black over the bar's own
+ * height means the controls always sit on something, and it costs one paint:
+ * no blur, no second surface, nothing to read back from the video.
+ *
+ * z-index: -1 rather than a stacking order on the children, because .cam-bar
+ * already establishes its own stacking context (z-index: 5) -- the wash goes
+ * behind the bar's own content and stays in front of the feed.
+ */
+.cam-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.72) 100%);
+  pointer-events: none;
 }
 /*
  * The bar slides away on the verdict, which is right and is on FLAWS.md's own
@@ -467,24 +568,68 @@
 }
 @keyframes shutterSweep { to { transform: rotate(360deg); } }
 
+/*
+ * Named, not guessed at. Two 44px circles either side of the shutter carrying
+ * a bookmark glyph and a person glyph is a rebus: nothing on the screen said
+ * which list is which, and the only people who knew were the ones who had
+ * already tapped both. The label under the icon is eleven pixels and it ends
+ * the guessing; the aria-labels are unchanged, so the name a screen reader
+ * gets and the name a reader sets are finally the same word.
+ *
+ * The circle border and the scrim are gone with it. A bordered disc was
+ * chrome standing in for a boundary, and the resting band above now draws the
+ * ground all three controls sit on -- two discs plus a band is one surface too
+ * many. What is left is icon, gap, word, and a pill that appears under the
+ * thumb on press.
+ */
 .nav-btn {
   position: relative;
-  width: var(--tap); height: var(--tap);
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,.14);
-  background: var(--scrim);
-  backdrop-filter: blur(12px);
+  width: 56px;
+  min-height: var(--tap);
+  border: 0;
+  background: none;
+  padding: 0;
   color: #fff;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
   flex: none;
+  transition: transform 120ms var(--ease-land);
 }
-.nav-btn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+/* The pressed pill, 56 x 30, behind the icon and never behind the label: it
+   marks where the thumb landed, so it is the shape of the target and not the
+   shape of the control. */
+.nav-icon {
+  display: grid;
+  place-items: center;
+  width: 56px; height: 30px;
+  border-radius: 999px;
+  transition: background-color 120ms linear;
+}
+.nav-btn:active { transform: scale(.96); }
+.nav-btn:active .nav-icon { background: rgba(255,255,255,.14); }
+.nav-label {
+  font-family: var(--f-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  line-height: 1;
+  /* White at 82%, the same literal-white reasoning as everything else drawn
+     over the feed (see the note in .alt-box:focus-visible). The shadow is what
+     carries it over a brightly lit shelf, where the resting band is thinnest. */
+  color: rgba(255,255,255,.82);
+  text-shadow: 0 1px 6px rgba(0,0,0,.6);
+}
+.nav-btn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; border-radius: 14px; }
 
+/* Pinned to the icon's own pill rather than the button's corner: the button
+   is a two-row column now (icon, then label), so a badge hung off its top
+   right corner would float beside the word instead of on the bookmark. */
 .nav-badge {
   position: absolute;
-  top: -3px; right: -3px;
+  top: -4px; right: 6px;
   min-width: 19px; height: 19px;
   padding: 0 5px;
   border-radius: 99px;
@@ -552,7 +697,17 @@
   gap: 12px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  animation: rise var(--t-rise) var(--ease-land) both;
+  /* The rise, for every sheet on this screen in one place -- the sheets differ
+     in what they carry, never in how they arrive. Longer and much flatter at
+     the end than the shared --t-rise/--ease-land pair it used to borrow: a
+     sheet is a big object moving a long way, and the shared curve (built for a
+     36px control) landed it with a snap that read as the sheet being thrown at
+     you. 420ms on a decelerating curve that is essentially stopped for its
+     last third settles instead. The refusal keeps its own shorter duration
+     below, for the reason it always had. */
+  --sheet-rise: 420ms;
+  --sheet-rise-ease: cubic-bezier(.32, .72, 0, 1);
+  animation: rise var(--sheet-rise) var(--sheet-rise-ease) both;
   touch-action: pan-y;
   scrollbar-width: none;
   transition: max-height 320ms var(--ease-land);
@@ -600,10 +755,10 @@
 .grabber {
   position: relative;
   display: block;
-  width: 38px; height: 4px;
+  width: 36px; height: 5px;
   padding: 0;
   border: 0;
-  border-radius: 2px;
+  border-radius: 3px;
   background: currentColor;
   color: inherit;
   -webkit-appearance: none;
@@ -614,12 +769,12 @@
   cursor: grab;
 }
 /*
- * The bar is 38x4. A 4px-tall button is not a button, so the hit area is this
- * pseudo-element rather than the drawn mark: 86x28, centred on it, which is
- * what a thumb aiming at the bar actually covers. It stops 2px short of the
- * sheet head below (4px bar + 12px flex gap + 2px margin = 18px to the head's
- * own top, and this reaches 16px), so it never eats a press meant for the face
- * or the thumbnail.
+ * The bar is 36x5. A 5px-tall button is not a button, so the hit area is this
+ * pseudo-element rather than the drawn mark: 86x24, centred on it, which is
+ * what a thumb aiming at the bar actually covers. It stops well short of the
+ * sheet head below (5px bar + 12px flex gap + 2px margin = 19px to the head's
+ * own top, and this reaches 9.5px), so it never eats a press meant for the
+ * face or the thumbnail.
  *
  * Still under the 48px tap floor on its own, deliberately: the drag that does
  * the same job is bound to `.grabber, .sheet-head` together, so the real target
@@ -629,7 +784,7 @@
 .grabber::after {
   content: "";
   position: absolute;
-  inset: -12px -24px;
+  inset: -9.5px -25px;
 }
 .grabber:focus-visible {
   /* Foundation's one ring (components.css): 2px currentColor at 3px offset.
@@ -1644,6 +1799,11 @@
 @media (prefers-reduced-motion: reduce) {
   .sheet, .price { animation: none; }
   .reticle, .cam-bar, .cam-shin, .sheet-half, .sheet-full { transition: none; }
+  /* The nav press keeps its pill, which is information (where the thumb
+     landed), and loses the scale, which is decoration. */
+  .nav-btn { transition: none; }
+  .nav-btn:active { transform: none; }
+  .feed-focus { transition: none; }
   /* The barcode fill still fills, because it is information rather than
      decoration: it says how far along a read is. It just stops easing. */
   .code-mark i, .alt-box { transition: none; }

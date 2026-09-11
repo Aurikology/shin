@@ -15,6 +15,7 @@ import { escapeHtml, on } from '../lib/dom.js';
 import { wireRadioGroup } from '../lib/radiogroup.js';
 import { storagePersists } from '../lib/persistence.js';
 import { say } from '../voice.js';
+import { pageBar, backButton, goBack, rowCheck } from '../lib/pagebar.js';
 
 const MARKETS = [
   { country: 'Canada', currency: 'CAD' },
@@ -49,18 +50,18 @@ export default {
       root.innerHTML = `
         <div class="page page-list">
           <header class="page-head mkt-head">
-            <button type="button" class="linky pback" data-act="back">Back</button>
+            ${backButton()}
             <p class="kicker">Recorded, not yet part of the comparison</p>
             <div class="mkt-say">${shinSay('asking', 'market_ask', {}, { size: 64 })}</div>
           </header>
 
-          <div class="mkt-list" role="radiogroup" aria-label="Market">
+          <div class="mkt-list ilist" role="radiogroup" aria-label="Market">
             ${MARKETS.map((m) => `
-              <button type="button" class="rowbtn mkt-row${m.country === current.country ? ' on' : ''}"
+              <button type="button" class="ilist-row mkt-row${m.country === current.country ? ' on' : ''}"
                       role="radio" aria-checked="${m.country === current.country}"
                       data-country="${escapeHtml(m.country)}" data-currency="${escapeHtml(m.currency)}">
-                <span>${escapeHtml(m.country)}</span>
-                <span class="rowbtn-v">${m.country === current.country ? 'Current market' : ''}</span>
+                <span class="ilist-l">${escapeHtml(m.country)}</span>
+                ${rowCheck()}
               </button>`).join('')}
           </div>
 
@@ -88,6 +89,8 @@ export default {
           <button type="button" class="linky mkt-attrib" data-act="licences">
             Prices and product details come from open data. See the sources and licences.
           </button>
+
+          ${pageBar('you')}
         </div>`;
 
       // Re-wired on every paint, because the group's elements are new elements.
@@ -105,7 +108,11 @@ export default {
     const unsub = store.subscribe(paint);
 
     on(root, 'click', (e) => {
-      if (e.target.closest('[data-act="back"]')) { ctx.go('you'); return; }
+      // You is the only way in, so the browser's own back already lands there.
+      if (e.target.closest('[data-act="back"]')) { goBack(ctx, 'you'); return; }
+      if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }
+      if (e.target.closest('[data-act="watchlist"]')) { ctx.go('watchlist'); return; }
+      if (e.target.closest('[data-act="you"]')) { ctx.go('you'); return; }
       if (e.target.closest('[data-act="licences"]')) { ctx.go('licences'); return; }
       const row = e.target.closest('[data-country]');
       if (row) store.setMarket(row.dataset.country, row.dataset.currency);

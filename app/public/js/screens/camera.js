@@ -1364,11 +1364,18 @@ export default {
             <span class="shelf s1"></span><span class="shelf s2"></span><span class="shelf s3"></span>
           </div>
           <span class="feed-vignette" aria-hidden="true"></span>
+          <!-- The focus wash: the frame at full brightness, the rest of the
+               feed a quarter darker, at idle only. Drawn here rather than on
+               the reticle because it belongs to the picture, not to the mark
+               over it; camera.css has the shape of it. -->
+          <span class="feed-focus" aria-hidden="true"></span>
         </div>
 
-        <!-- The wordmark and nothing else. The settings icon that used to sit up
-             here duplicated the one in the bottom bar, and the top right corner
-             of a camera is the hardest place on the phone for a thumb to reach. -->
+        <!-- The torch, the wordmark, and a spacer that balances it. Nothing
+             else lives in this band: the settings icon that used to sit up here
+             duplicated the one in the bottom bar, the top right corner of a
+             camera is the hardest place on the phone for a thumb to reach, and
+             Shin's own dock moved down under the frame it talks about. -->
         <div class="cam-top">
           <button type="button" class="torch-btn" data-act="torch" aria-label="Torch" aria-pressed="false">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -1387,25 +1394,35 @@ export default {
              when there is nothing to say, which is most of the time. -->
         <div class="frame-marks" data-slot="marks"></div>
 
-        <!-- Shin docked on the viewfinder, top-left under the wordmark: the aim
-             hint, the escalated hint, the torch acknowledgement, the second-visit
-             callback and the identifying morph all happen in this one component,
-             never a second face competing with it. Replaces the old 28px hint
-             pill, which is gone. -->
+        <!-- Shin docked under the frame, above the bottom bar: the aim hint, the
+             escalated hint, the torch acknowledgement, the second-visit callback
+             and the identifying morph all happen in this one component, never a
+             second face competing with it. It reads as the caption to the frame
+             because that is what it has always been saying. -->
         <div class="cam-shin" data-slot="cam-shin"></div>
 
         <div class="sheet-slot"></div>
 
+        <!-- The two nav destinations now say their own names. The aria-labels
+             are unchanged and still win as the accessible name, so the word
+             under the glyph and the word a screen reader reads are the same
+             one rather than two descriptions of the same button. -->
         <div class="cam-bar">
           <button type="button" class="nav-btn" data-act="watchlist" aria-label="Saved">
-            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            </span>
             <span class="nav-badge" hidden></span>
+            <span class="nav-label" aria-hidden="true">Saved</span>
           </button>
           <button type="button" class="shutter" data-act="shoot" aria-label="Scan what you are pointing at"></button>
           <button type="button" class="nav-btn" data-act="you" aria-label="You">
-            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
+            </span>
+            <span class="nav-label" aria-hidden="true">You</span>
           </button>
         </div>
       </div>`;
