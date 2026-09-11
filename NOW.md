@@ -5,6 +5,55 @@ narrative.*
 
 ---
 
+## Top priority, set by him 2026-09-11: prices with every product, cheaper model calls, competitors
+
+**His words:** *"mark these as the highest priority to do right now: Expand our product catalogue
+by finidng all possible methods to gain more infomation(product and price catalogue come hand in
+hand, knowing the product without the price is meaningless), figuring out the most efficient and
+effective way to operate the llms. Can we use multiple llms like grok and claude together since
+grok is cheaper? How can we prompt to ensure efficiency with credit and effective answers. And
+Among all of this, we should aggresively resesarch everythign about what competitors do and how
+they do that and take the best parts."*
+
+These three sit above every band in `QUEUE.md` (rows P1 to P3) and above every entry below. What
+each starts from, so nothing is looked up twice:
+
+**P1, grow the catalogue, counted by price, not by rows.** A product with no price is not
+coverage, so the number this moves is products holding a current price from two sellers (the
+verdict floor in decision 31), never catalogue rows. Today: 211,846 identity rows plus Icecat
+(`docs/catalogues.md`); Walmart discovery through its own sitemap, about 217,660 products at 4.28 s
+each and rate-blocked as of 2026-09-09; Open Prices joins at 86% but holds 487 Canadian products;
+the Canadian Tire adapter; Best Buy and SoldComps adapters written and never run (`QUEUE.md` 1.4,
+1.4b). Method: enumerate every source class before picking one (retailer sitemaps and embedded
+page data, official and affiliate feeds, flyer data, open datasets, paid feeds, crowd reports,
+receipts), and record each with its Canadian product-and-price coverage and its cost per thousand
+lookups. Two methods are already killed with stated reopen conditions (direct page scraping,
+search-engine prices; closed register in `QUEUE.md`); they reopen only on the observation each
+row names, never on an argument.
+
+**P2, run the models for less without worse answers.** Today: Haiku 4.5 on basic, Sonnet 5 on pro
+and on the pick-from-ten call (`identify/src/model.ts`), and none of it measured, because no photo
+has gone through a real model. The Grok question has one honest answer path: the forty-photo eval
+set (`identify/eval/`) run through each candidate, scored as cost per correct identification, not
+cost per call; a cheaper model that is wrong more often can cost more per right answer. Whether
+Grok is cheaper, and whether it reads a pack photo as well, is unknown until that runs; it needs an
+Anthropic key and an xAI key. Levers to test in the same run: caching the fixed instructions, the
+crop size (1568 px is 2,459 image tokens), cheap-first with escalation only on low confidence, and
+output length. Second scope, same question: what the build sessions themselves spend, already
+governed by the boss-and-lanes rule in `CLAUDE.md`.
+
+**P3, study competitors and take what works.** Enumerate, never sample: every app that tells a
+shopper a price, or identifies a product from a photo or barcode, by class (flyer aggregators,
+price trackers and history, scan-and-verdict apps, resale comps, cashback and coupon apps,
+retailer apps, visual search). For each: where its product and price data comes from, how it
+identifies a product, which models it runs and what it charges, and the one part worth taking.
+The data-source column feeds P1 and goes first. No single competitor study exists; the word
+appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
+Every claim carries a source (the product's page, store listing, job posting, engineering blog);
+anything else goes in as unknown.
+
+---
+
 ## The camera's standard applied outward: one bar everywhere, grouped lists, the caption under the frame, 2026-09-10
 
 **The finding this closes is FLAWS.md's own opening verdict**, that the camera surface was

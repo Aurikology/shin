@@ -40,6 +40,18 @@ than in the plan are marked **[written here]**.
 
 ---
 
+## Top priority, set by him 2026-09-11, ahead of every band below
+
+His words and the starting point for each row are in `NOW.md`, top entry.
+
+| Item | State | Acceptance test | Falsifier | Reopens / promotes on |
+| --- | --- | --- | --- | --- |
+| **P1 Grow the catalogue, and every product carries its price** | `queued`, top priority | Every source class for Canadian products and prices is enumerated and written down with coverage and cost per thousand lookups, and the count of products holding a current price from two sellers rises, read off the price store rather than a loader's tally. | The count of two-seller priced products does not move, in which case the sources tried were the wrong class and the list is re-sorted rather than the loaders patched. **[written here]** | Not applicable while queued. |
+| **P2 Run the models for less without worse answers** | `queued`, top priority | The forty-photo eval set runs through each candidate model (Claude tiers and Grok at least), and the cheapest cost per correct identification is chosen from those numbers, with the prompt levers (cached instructions, crop size, cheap-first escalation, output length) each measured rather than assumed. | Every cheaper candidate loses on cost per correct answer, in which case the current tiers stay and the finding is written down. **[written here]** | Not applicable while queued. |
+| **P3 Study every competitor and take the best parts** | `queued`, top priority | One written study covering every competitor class, each app with its data source, how it identifies a product, its models and its price, every claim sourced, and a named list of parts to take, each turned into a row here or rejected with a reason. | The study names nothing Shin does not already do, which would mean the search was too narrow, not that nothing exists. **[written here]** | Not applicable while queued. |
+
+---
+
 ## Pass zero, outside the loop
 
 Neither of these can be delegated to an agent. They are the only two items in the plan with no
