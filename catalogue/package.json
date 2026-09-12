@@ -24,5 +24,12 @@
   "dependencies": {
     "sqlite-vec": "^0.1.7-alpha.2",
     "@huggingface/transformers": "^3.8.1"
+  },
+  "allowScripts": {
+    "sqlite-vec": true,
+    "@huggingface/transformers": true,
+    "onnxruntime-node": true,
+    "protobufjs": true,
+    "sharp": true
   }
 }

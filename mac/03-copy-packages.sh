@@ -56,7 +56,44 @@ echo "check script failing outright both mean an install was skipped or"
 echo "failed silently -- re-run npm install in that one package before"
 echo "believing any red result from it."
 echo
+echo
+echo "Step 2b. PROVE THE VECTOR ARM LOADED. Do not skip this one."
+echo
+echo "npm now withholds a dependency's install scripts by default, and four"
+echo "of catalogue's need theirs: sqlite-vec, @huggingface/transformers,"
+echo "onnxruntime-node and sharp. catalogue/package.json carries an"
+echo "allowScripts block naming exactly those, so a plain npm install should"
+echo "build them. Should is not did."
+echo
+echo "This matters more than it sounds. sqlite-vec IS the vector search, the"
+echo "thing that finds a product when the words do not match. If it does not"
+echo "load, the server does not crash and nothing turns red: it quietly"
+echo "answers worse forever. Measured on 2026-09-11, catalogue's 87 tests"
+echo "passed on a machine where all four had been withheld, so a green suite"
+echo "is not evidence here. Run this instead:"
+echo
+echo "  cd \"\$SHIN_REPO_DIR/catalogue\" && node -e \"const {DatabaseSync}=require('node:sqlite');const v=require('sqlite-vec');const db=new DatabaseSync(':memory:',{allowExtension:true});db.enableLoadExtension(true);v.load(db);console.log('vec',db.prepare('select vec_version() as v').get().v)\""
+echo
+echo "Expected output: a line reading vec v0.1.9 (the experimental-SQLite"
+echo "warning on stderr is normal and is not a failure). Anything else, or a"
+echo "throw, means the extension did not build. The fix is to approve the"
+echo "scripts explicitly and reinstall:"
+echo
+echo "  cd \"\$SHIN_REPO_DIR/catalogue\" && npm install --foreground-scripts"
+echo
+echo "If it still will not load, say so rather than continuing: a beta server"
+echo "with a dead vector arm is worse than one that has not started, because"
+echo "it looks like it is working."
+echo
 echo "Do not run the Node version-parity test gate (mac/02-install-node.sh"
 echo "step 2) until mac/04-catalogue-acquire.md's transfer has also"
 echo "finished, since the packages that read the catalogue need it in"
 echo "place for their own tests to mean anything."
+echo
+echo "One thing the gate WILL show and it is not a fault: app reports 418"
+echo "tests, 413 pass, 5 skipped. All five are the on-device barcode pack"
+echo "tests and each names its own reason, that"
+echo "catalogue/data/pack-grocery.bin.br is not built on this machine yet."
+echo "mac/04-catalogue-acquire.md brings that file over. Once it is in"
+echo "place those five should go green, and if they do not, THAT is a"
+echo "finding worth reporting."
