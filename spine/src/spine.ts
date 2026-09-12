@@ -27,6 +27,7 @@ import { isIncoherent, ruleFor, spreadDisagreement } from './categories.ts';
 import type { CategoryRule } from './categories.ts';
 import { judge as judgeThinEvidence } from '../../price/src/verdict.ts';
 import type { Observation as ThinObservation } from '../../price/src/verdict.ts';
+import { CORROBORATION_FLOOR_CENTS, CORROBORATION_TOLERANCE } from '../../price/src/corrections.ts';
 import { ageDays, cad, isFutureDated, isUsableAmount, max, median, min, percentile } from './money.ts';
 import type { PriceSource } from './sources/source.ts';
 import { normalizeSeller, sellerIdentity } from './sources/source.ts';
@@ -228,13 +229,25 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
           ? `the newest price we have is ${min(datedSanely.map((p) => ageDays(p.observedAt, asOf)))} days old, past what ${rule.label.toLowerCase()} tolerates`
           : 'every price we have is this same store, so this is against its own history rather than against anybody else';
 
+    /*
+     * Item 15b applies on this path too, and it has to be applied HERE rather
+     * than inside `thinAnswer`, because the answer when nothing counts is not a
+     * thinner verdict, it is a different shape: the one report, named. Routing
+     * it through the thin judge and letting that return null would land on the
+     * `no_source_response` guard below, which says nobody has a price for this
+     * while holding the price somebody typed.
+     */
+    const counted = datedSanely.filter((p) => countsTowardTier(p, datedSanely));
+    if (counted.length === 0) return singleReport(identity, datedSanely, asOf);
+    const uncounted = datedSanely.filter((p) => !counted.includes(p));
+
     const thin = thinAnswer(
       identity,
       rule,
-      datedSanely,
+      counted,
       askingCents,
       query.askingSeller,
-      shortfall,
+      uncounted.length === 0 ? shortfall : `${shortfall}; ${notCountedShortfall(uncounted)}`,
       asOf,
     );
     if (thin !== null) return thin;
@@ -289,7 +302,25 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
   const held = comparison.filter((p) => isLoneOutlier(p, comparison));
   const vetted = held.length === 0 ? comparison : comparison.filter((p) => !held.includes(p));
 
-  const newestAge = min(vetted.map((p) => ageDays(p.observedAt, asOf)));
+  /*
+   * 6a. Item 15b, and it sits here because it is the broader form of the hold
+   * above: a typed price counts toward a tier only when a second device or a
+   * crawled source agrees within the band. Everything the hold catches this
+   * catches too (a claim far outside the crawled prices agrees with none of
+   * them), so the two are layered rather than duplicated: the hold decides
+   * WHICH SENTENCE a dropped price gets, because "too far from everything else"
+   * and "nobody has seen that tag yet" are different facts about different
+   * prices and a shopper who typed an honest number is owed the true one.
+   *
+   * When nothing is left, there is no tier to give. That is item 15a and it is
+   * the one place in this file where evidence exists and no tier is produced on
+   * purpose: the answer is the reading itself, which `singleReport` writes.
+   */
+  const counted = vetted.filter((p) => countsTowardTier(p, vetted));
+  if (counted.length === 0) return singleReport(identity, vetted, asOf);
+  const uncounted = vetted.filter((p) => !counted.includes(p));
+
+  const newestAge = min(counted.map((p) => ageDays(p.observedAt, asOf)));
 
   // Every point that sets the tier should itself be current. Checking only the
   // newest let one fresh row carry a set of month-old prices in a category whose
@@ -297,8 +328,8 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
   // shopper was sent to chase. Furniture is exempt because there the history IS
   // the comparison.
   const tiering = rule.historyBased
-    ? vetted
-    : vetted.filter((p) => ageDays(p.observedAt, asOf) <= rule.maxAgeDays);
+    ? counted
+    : counted.filter((p) => ageDays(p.observedAt, asOf) <= rule.maxAgeDays);
 
   /*
    * CHANGED 2026-09-05, on his instruction, and this is the largest change in
@@ -333,17 +364,23 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     );
   }
 
+  /* Item 15b's own sentence, for a reading nobody has confirmed rather than one
+     that disagrees with everything. Same rule as the hold above: a price that is
+     not being used is said out loud, because a disappearance is the one thing a
+     person who typed an honest number cannot tell from a bug. */
+  if (uncounted.length > 0) shortfalls.push(notCountedShortfall(uncounted));
+
   let basis = tiering;
   if (basis.length === 0) {
     // Everything we have is outside the category's window. Old prices still
     // locate a product far better than silence does, so they answer, labelled.
-    basis = vetted;
+    basis = counted;
     shortfalls.push(
       `the newest price we have is ${newestAge} days old, and ${rule.label.toLowerCase()} moves faster than that`,
     );
-  } else if (tiering.length < vetted.length) {
-    const dropped = vetted.length - tiering.length;
-    shortfalls.push(`${dropped} of ${vetted.length} prices are too old to count`);
+  } else if (tiering.length < counted.length) {
+    const dropped = counted.length - tiering.length;
+    shortfalls.push(`${dropped} of ${counted.length} prices are too old to count`);
   }
 
   if (basis.length < rule.minPoints) {
@@ -592,6 +629,126 @@ async function gatherPoints(
  */
 export const LONE_CLAIM_FLOOR = 0.5;
 export const LONE_CLAIM_CEILING = 2.5;
+
+/**
+ * THE CORROBORATION RULE. Item 15b of the beta build plan: "a typed price counts
+ * toward a tier only when a second device or a crawled source agrees within a
+ * band."
+ *
+ * This is the half of D-022 the lone-claim hold above could not reach. That hold
+ * asks whether one typed number is wildly out of line with the crawled prices we
+ * hold, so it can only fire where crawled prices exist; with nothing crawled
+ * there is no baseline, it correctly declines to accuse, and the result until
+ * today was a full good / fair / walk away call computed from one person's typed
+ * number. The hold is the narrow rule and stays; this is the general one.
+ *
+ * WHERE THE BAND COMES FROM, since the brief asks for the number to be argued
+ * rather than chosen. It is `CORROBORATION_TOLERANCE` and
+ * `CORROBORATION_FLOOR_CENTS` out of `price/src/corrections.ts`, imported rather
+ * than retyped, because that file already answers exactly this question for the
+ * device-to-device case: 12 percent or 25 cents, whichever is larger, is how
+ * close two readings of one shelf have to be before they are treated as the same
+ * tag. A crawled price agreeing with a typed one is the same question asked of a
+ * different witness, and two different numbers for one question would mean a
+ * report could be corroborated by a phone and not by a crawl at the same gap,
+ * which nobody could explain to the person who typed it. The tolerance is
+ * deliberately generous for the reason that file gives: shelf tags move, someone
+ * reads $3.99 the day before a sale ends and someone else reads $4.49 the day
+ * after, and calling those two different observations would make corroboration
+ * almost unreachable and the mechanism decorative.
+ *
+ * Symmetric, where `witnessesFor` is not. That function judges one row against
+ * the others and scales the tolerance by the row being judged; here neither
+ * price is the subject, so the scale is taken off the smaller of the two and
+ * "A agrees with B" and "B agrees with A" cannot disagree.
+ */
+function agreesWithinBand(aCents: number, bCents: number): boolean {
+  const allowed = Math.max(CORROBORATION_FLOOR_CENTS, Math.min(aCents, bCents) * CORROBORATION_TOLERANCE);
+  return Math.abs(aCents - bCents) <= allowed;
+}
+
+/**
+ * A price a member of the public cannot write, which is every crawled feed and
+ * every catalogue price. `contract.ts` on `witnesses`: undefined means the source
+ * vouches for it itself, because a Walmart page is not a witness statement, it is
+ * the seller's own number.
+ */
+function isCrawled(p: PricePoint): boolean {
+  return p.witnesses === undefined;
+}
+
+/**
+ * Whether this price may count toward a tier. Crawled prices always may. A typed
+ * one may when a second device saw the same tag (`witnesses > 1`, counted
+ * upstream in `witnessesFor`) or when a crawled price agrees within the band.
+ *
+ * It never removes the last price: `priceIt` checks for an empty result and
+ * answers with the one report instead of a tier, which is the whole of item 15a.
+ */
+function countsTowardTier(point: PricePoint, all: readonly PricePoint[]): boolean {
+  if (isCrawled(point)) return true;
+  if ((point.witnesses ?? 0) > 1) return true;
+  return all.some((o) => o !== point && isCrawled(o) && agreesWithinBand(o.amountCents, point.amountCents));
+}
+
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+/** "3 September". A shopper reads a day, not an ISO string they have to decode. */
+function dayInWords(observedAt: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(observedAt);
+  if (m === null) return observedAt;
+  const month = MONTHS[Number(m[2]) - 1];
+  return month === undefined ? observedAt : `${Number(m[3])} ${month}`;
+}
+
+/** "$3.99 at No Frills on 3 September". One reading, named in full. */
+function readingInWords(p: PricePoint): string {
+  return `${cad(p.amountCents)} at ${p.seller} on ${dayInWords(p.observedAt)}`;
+}
+
+/**
+ * The answer when every price we hold is one person's word. Item 15a's sentence.
+ *
+ * It names every reading rather than summarising them, for the reason decision 32
+ * gives about averages: a number that exists nowhere is a number nobody can
+ * check. Two people in two shops are two readings, not a range, because nothing
+ * has confirmed either of them.
+ */
+function singleReport(
+  identity: ProductIdentity,
+  reports: readonly PricePoint[],
+  asOf: string,
+): Refusal {
+  const newestFirst = [...reports].sort((a, b) => (a.observedAt < b.observedAt ? 1 : -1));
+  const detail =
+    newestFirst.length === 1
+      ? `One shopper saw ${readingInWords(newestFirst[0])}. Nobody else has priced this yet, so there is nothing to check it against.`
+      : `Shoppers typed in ${newestFirst.map(readingInWords).join(', and ')}. Nobody has seen either of those tags twice, so there is nothing to check them against.`;
+  return refuse('single_report', detail, identity, reports, asOf);
+}
+
+/**
+ * The sentence for prices that were left out of a tier the rest of the evidence
+ * could still produce. Named, never a silent disappearance, and worded apart
+ * from the lone-claim hold's "held back": this one is not an accusation, it is
+ * a reading nobody has confirmed yet.
+ */
+function notCountedShortfall(uncounted: readonly PricePoint[]): string {
+  return `${uncounted.length} typed price${uncounted.length === 1 ? ' is' : 's are'} not counted toward this, because nobody else has seen ${uncounted.length === 1 ? 'that tag' : 'those tags'} yet`;
+}
 
 /** Points a member of the public cannot write. The only honest baseline. */
 function vouchedBaseline(points: readonly PricePoint[]): number[] {

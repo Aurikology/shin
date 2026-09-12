@@ -123,6 +123,16 @@ CREATE INDEX IF NOT EXISTS correction_subject ON correction(subject, seen_on);
 CREATE INDEX IF NOT EXISTS correction_code ON correction(code);
 CREATE INDEX IF NOT EXISTS correction_product ON correction(product_id);
 CREATE INDEX IF NOT EXISTS correction_dedupe ON correction(device_id, seller_key, seen_on);
+
+/*
+ * The rate limit's own index, item 15c. Keyed on when the row was WRITTEN, not
+ * on the day the tag was seen, because the limit is about how fast one phone
+ * can file and seen_on is a field the phone chooses. Added to this DDL rather
+ * than to a migration for the reason the whole block is safe to re-run: every
+ * statement here is IF NOT EXISTS and the DDL is executed on every open, so a
+ * database written before today gains the index the next time the app starts.
+ */
+CREATE INDEX IF NOT EXISTS correction_by_device_written ON correction(device_id, recorded_at);
 `;
 
 export interface CorrectionStore {
@@ -229,6 +239,57 @@ export function sellerKey(seller: string): string {
 
 /** The literal string the spine uses when no shop was named. Never a seller, so never stored as one. */
 const NOT_A_SELLER = 'given';
+
+/**
+ * How many NEW typed prices one phone may file in one day. Item 15c.
+ *
+ * WHERE 200 COMES FROM, and it is a design default rather than a measurement.
+ * The beta build plan's own target for seeding a store is "the 200 items per
+ * store the six of you actually buy" (item 16c), so 200 is the largest honest
+ * day anybody in this beta is expected to have: a whole afternoon walking one
+ * store typing every price on the list. A limit under that would refuse the
+ * exact work the beta exists to do; a limit far over it stops being a limit.
+ *
+ * WHAT IT IS FOR, since the unique index upstream already stops the obvious
+ * abuse. That index caps one row per device per shop per subject per day, which
+ * stops one person manufacturing agreement with themselves on ONE shelf. It
+ * does nothing about volume across shelves, and volume is what an attack on a
+ * price store looks like: a script filing a thousand rows overnight does not
+ * need to file two for the same product. This is the ceiling on that.
+ *
+ * NOT A JUDGEMENT ABOUT THE PERSON. Hard rule 3 in this repo's CLAUDE.md points
+ * the aggression at the price, the store or the brand and never at the user, so
+ * the sentence below says what the app does and never what the person is.
+ *
+ * REVERSES IF a real day of seeding is ever measured above it. The number to
+ * change is here, the reason is this comment, and the test that pins it is in
+ * `price/test/reporter-limits.test.ts`.
+ */
+export const TYPED_PRICES_PER_DEVICE_PER_DAY = 200;
+
+/**
+ * The reporter reliability score, item 15c: "starts at zero and rises with
+ * corroborated reports."
+ *
+ * Full at ten corroborated readings. A design default, like the cap above, and
+ * chosen at the low end deliberately: the score exists to separate a phone that
+ * has been confirmed by other people from one nobody has ever confirmed, and ten
+ * is about a fortnight of ordinary shopping rather than a career.
+ *
+ * WHAT THIS SCORE DOES TODAY: nothing gates on it, and that is deliberate rather
+ * than unfinished. Every score starts at zero, including the six beta testers'
+ * on the day they install; gating anything on it would refuse the first walk
+ * through the first store, which is the run that produces every corroboration
+ * there will ever be. It is computed, reported and stored nowhere else so that
+ * the day there IS volume, the calibration question can be asked against real
+ * numbers instead of against a rule somebody wrote first.
+ *
+ * WHAT IT IS NOT: a measure of honesty. It counts readings other people's phones
+ * agreed with. A person who only ever shops somewhere nobody else in the beta
+ * shops scores zero and has done nothing wrong, which is the main reason it must
+ * not gate anything yet.
+ */
+export const RELIABILITY_FULL_AT = 10;
 
 export type RecordResult =
   | {
@@ -373,6 +434,25 @@ export function recordCorrection(input: CorrectionInput): RecordResult {
       return { ok: true, id: existing.id, replaced: true, alreadyStored: false };
     }
 
+    /*
+     * THE RATE LIMIT, item 15c, and it is checked HERE rather than at the top of
+     * this function on purpose. A retry returns above this line and a second
+     * reading of a shelf this device already filed today is an UPDATE, not a new
+     * row; neither is a new price, so neither may be refused by a cap on new
+     * prices. Counting them would mean a phone that fixes its own typo twice
+     * loses two of its day's readings, and a flaky aisle that re-sends would
+     * spend the whole cap on one number.
+     */
+    const filedToday = s.db
+      .prepare('SELECT COUNT(*) AS n FROM correction WHERE device_id = ? AND substr(recorded_at, 1, 10) = ?')
+      .get(input.deviceId, now.slice(0, 10)) as { n: number } | undefined;
+    if ((filedToday?.n ?? 0) >= TYPED_PRICES_PER_DEVICE_PER_DAY) {
+      return {
+        ok: false,
+        why: `this phone has already sent ${TYPED_PRICES_PER_DEVICE_PER_DAY} prices today, which is as many as one day's readings count for. Tomorrow's count again.`,
+      };
+    }
+
     const row = s.db
       .prepare(
         `INSERT INTO correction
@@ -506,6 +586,101 @@ export function witnessesFor(rows: readonly CorrectionRow[]): Map<number, number
     out.set(row.id, 1 + new Set(near.map((n) => n.device_id)).size);
   }
   return out;
+}
+
+/**
+ * What one phone's reporting history is worth, item 15c.
+ *
+ * A report is corroborated under exactly the rule `witnessesFor` above uses, and
+ * the SQL below is that rule and not a second version of it: same shop, same
+ * subject, a different device, and a price inside the same band. Written as one
+ * statement rather than by re-reading every row through `witnessesFor` because
+ * this question is asked about a device across every product it ever reported,
+ * where that one is asked about one product across its reporters.
+ *
+ * `score` starts at zero for a phone that has never been confirmed by anybody
+ * and reaches one at `RELIABILITY_FULL_AT` confirmed readings. Read the constant
+ * for what this does and does not gate.
+ */
+export interface ReporterReliability {
+  readonly deviceId: string;
+  /** Every reading this phone has filed. */
+  readonly reports: number;
+  /** The ones another phone has since agreed with, on the same shelf, inside the band. */
+  readonly corroborated: number;
+  /** 0 to 1. Zero until somebody else sees the same tag. */
+  readonly score: number;
+}
+
+const CORROBORATED_BY_OTHERS = `
+  SELECT c.device_id AS device_id,
+         COUNT(*) AS reports,
+         SUM(
+           CASE WHEN EXISTS (
+             SELECT 1 FROM correction o
+              WHERE o.subject = c.subject
+                AND o.seller_key = c.seller_key
+                AND o.device_id <> c.device_id
+                AND abs(o.price_cents - c.price_cents) <= max(?, c.price_cents * ?)
+           ) THEN 1 ELSE 0 END
+         ) AS corroborated
+    FROM correction c`;
+
+function reliabilityRows(s: CorrectionStore, deviceId: string | null): ReporterReliability[] {
+  if (s.db === null) return [];
+  try {
+    const sql = `${CORROBORATED_BY_OTHERS}${deviceId === null ? '' : ' WHERE c.device_id = ?'} GROUP BY c.device_id ORDER BY c.device_id`;
+    const args: (string | number)[] = [CORROBORATION_FLOOR_CENTS, CORROBORATION_TOLERANCE];
+    if (deviceId !== null) args.push(deviceId);
+    const rows = s.db.prepare(sql).all(...args) as unknown as {
+      device_id: string;
+      reports: number;
+      corroborated: number;
+    }[];
+    return rows.map((r) => ({
+      deviceId: r.device_id,
+      reports: r.reports,
+      corroborated: r.corroborated,
+      score: Math.min(1, r.corroborated / RELIABILITY_FULL_AT),
+    }));
+  } catch (err) {
+    s.dropped += 1;
+    s.droppedWhy = err instanceof Error ? err.message : String(err);
+    return [];
+  }
+}
+
+/**
+ * One phone's score. A phone that has never filed anything is zero of zero
+ * rather than an absence: it has reported nothing and been confirmed on nothing,
+ * which is exactly what the numbers say, and a caller that had to tell "no rows"
+ * from "no corroboration" would get it wrong the first time.
+ */
+export function reliabilityOf(deviceId: string, s: CorrectionStore = store()): ReporterReliability {
+  const rows = reliabilityRows(s, deviceId);
+  return rows[0] ?? { deviceId, reports: 0, corroborated: 0, score: 0 };
+}
+
+/** Every phone that has ever filed a price, for a report. Never shown to a shopper. */
+export function reporterReliability(s: CorrectionStore = store()): ReporterReliability[] {
+  return reliabilityRows(s, null);
+}
+
+/** How many new prices this phone may still file today. Item 15c, for a route that wants to say so early. */
+export function typedPricesLeftToday(
+  deviceId: string,
+  now: Date = new Date(),
+  s: CorrectionStore = store(),
+): number {
+  if (s.db === null) return 0;
+  try {
+    const row = s.db
+      .prepare('SELECT COUNT(*) AS n FROM correction WHERE device_id = ? AND substr(recorded_at, 1, 10) = ?')
+      .get(deviceId, now.toISOString().slice(0, 10)) as { n: number } | undefined;
+    return Math.max(0, TYPED_PRICES_PER_DEVICE_PER_DAY - (row?.n ?? 0));
+  } catch {
+    return 0;
+  }
 }
 
 /** Every row, for tests and for the one-line count a report prints. */

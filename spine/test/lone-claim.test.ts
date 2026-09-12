@@ -88,14 +88,35 @@ test('a lone claim inside the range is published, because it is ordinary', async
   assert.doesNotMatch(v.confidence.because, /held back/i);
 });
 
-test('nothing is held when there is no vouched evidence to judge against', async () => {
-  // Two typed claims and nothing else. There is no basis for an accusation, and
-  // inventing one from the claims themselves is how two colluding devices would
-  // establish their own normal.
+test('nothing is ACCUSED when there is no vouched evidence to judge against', async () => {
+  /*
+   * Two typed claims and nothing else. There is no basis for an accusation, and
+   * inventing one from the claims themselves is how two colluding devices would
+   * establish their own normal. That is what this test has always been about and
+   * it is unchanged: neither reading is called an outlier.
+   *
+   * CHANGED 2026-09-11 by item 15 of the beta build plan. What used to follow
+   * from "nothing is held" was a full tier computed from two numbers nobody has
+   * checked, which is the hole the hold was never able to close: it can only
+   * accuse a claim of disagreeing with crawled evidence, so where there is no
+   * crawled evidence it lets everything through. Item 15b decides the other
+   * half: a typed price counts toward a tier only when a second device or a
+   * crawled source agrees within a band. Neither of these two has either, so
+   * both are still reported, in full, with their shops and their days, and
+   * neither is turned into a good / fair / walk away call.
+   */
   const a = point('No Frills', 20, 'regular', '2026-09-03', { witnesses: 1 });
   const b = point('Metro', 900, 'regular', '2026-09-03', { witnesses: 1 });
-  const v = await priceWith([a, b]);
-  assert.equal(v.comparisonSet.length, 2, 'a claim was held with nothing to judge it against');
+  const src = new StubSource(identity('grocery'), [a, b]);
+  const r = await priceIt({ text: 'x', askingCents: GOING, asOf: AS_OF }, deps(src));
+
+  assert.equal(r.kind, 'refusal');
+  if (r.kind !== 'refusal') return;
+  assert.equal(r.reason, 'single_report');
+  assert.equal(r.evidence.length, 2, 'a claim was dropped where there was nothing to judge it against');
+  assert.doesNotMatch(r.detail, /held back/i, 'neither reading was accused of anything');
+  assert.match(r.detail, /\$0\.20 at No Frills/);
+  assert.match(r.detail, /\$9\.00 at Metro/);
 });
 
 test('a hold never turns a verdict into a refusal', async () => {

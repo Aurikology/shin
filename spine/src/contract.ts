@@ -239,6 +239,25 @@ export type RefusalReason =
   | 'all_points_from_asking_seller'
   /** Points disagree past the point where any single verdict would be a lie. */
   | 'comparison_incoherent'
+  /**
+   * Every price we hold for this is a number a member of the public typed in
+   * and nobody else has seen: no second device on that shelf, and no crawled
+   * price close enough to be the same tag. Item 15 of the beta build plan, in
+   * its own words: "one typed price with no other source shows 'one shopper saw
+   * $X at store, date', never a tier."
+   *
+   * NOT SILENCE, and this is why it is a refusal rather than a missing answer.
+   * `detail` carries the number, the shop and the day, which is the whole of
+   * what the one report actually says. What is withheld is only the good / fair
+   * / walk away call, because that call is arithmetic over a comparison and one
+   * person's word is not a comparison. Priority 1 is answered by the sentence;
+   * the tier is the part that would have been invented.
+   *
+   * A consumer that maps refusal reasons to repair paths should treat this one
+   * as "show the sentence, and ask for a second reading", never as "we do not
+   * know what this is": the identity is on the refusal and so is the evidence.
+   */
+  | 'single_report'
   /** We have comparisons but no price for the thing being judged. */
   | 'no_asking_price';
 

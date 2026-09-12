@@ -185,6 +185,20 @@ export type AttemptOutcome =
   | 'no_candidates'
   | 'no_barcode_match'
   /**
+   * The seller had candidates and none of them was confidently this product.
+   * Added 2026-09-11 for item 17, the Canadian Tire run.
+   *
+   * It is not `no_barcode_match` and the difference is the whole reason it
+   * exists. Canadian Tire publishes no barcode at all (measured 2026-09-05,
+   * `canadiantire.ts`'s header: `partNumber` is a vendor part number and the one
+   * 12 digit example fails its own check digit), so every row from that seller
+   * joins by brand, name and size or does not join. Recording those misses as a
+   * barcode mismatch would report a fact about a field the seller does not
+   * publish, and the coverage figure for a name-joining seller would be read as
+   * though it had failed a check nobody ran.
+   */
+  | 'no_name_match'
+  /**
    * The seller refused to answer. NOT a zero. A throttled row is retried and
    * must never sit in the denominator of a coverage figure, because doing so
    * reports our own request rate as a fact about what the seller stocks.
@@ -339,6 +353,8 @@ export interface Coverage {
   readonly named: number;
   readonly noCandidates: number;
   readonly noBarcodeMatch: number;
+  /** Candidates existed and none was confidently this product. Name-joining sellers only. */
+  readonly noNameMatch: number;
   readonly throttled: number;
   readonly errors: number;
 }
@@ -354,13 +370,14 @@ export function coverage(db: DatabaseSync, seller: string): Coverage {
   const by = new Map(rows.map((r) => [r.outcome, r.n]));
   const get = (k: string) => by.get(k) ?? 0;
   const answered =
-    get('matched') + get('named') + get('no_candidates') + get('no_barcode_match');
+    get('matched') + get('named') + get('no_candidates') + get('no_barcode_match') + get('no_name_match');
   return {
     attempted: answered,
     matched: get('matched'),
     named: get('named'),
     noCandidates: get('no_candidates'),
     noBarcodeMatch: get('no_barcode_match'),
+    noNameMatch: get('no_name_match'),
     throttled: get('throttled'),
     errors: get('error'),
   };
@@ -431,6 +448,67 @@ export function rejoinable(
     sellerSku: r.seller_sku,
     seenOn: r.seen_on,
     pageGtin: r.page_gtin,
+    sellerName: r.seller_name,
+    sellerBrand: r.seller_brand,
+    priceCents: r.price_cents,
+    kind: r.kind,
+    url: r.url,
+  }));
+}
+
+/**
+ * One stored row from a seller that publishes no barcode, waiting on a name.
+ *
+ * ADDED 2026-09-11 for item 17. `rejoinable` above is the barcode leg and
+ * deliberately refuses to return these rows: nothing a catalogue arriving later
+ * can do would join a row by a barcode the seller never published. But a row
+ * from Canadian Tire, which publishes none at all, is not unjoinable forever;
+ * it is joinable by brand and name against a catalogue, which is the same offline
+ * question asked of different columns. So it gets its own reader, and the two
+ * legs stay apart so a run can report them apart: "waiting on a barcode we hold"
+ * and "waiting on a name match" are different work.
+ */
+export interface NameRejoinableRow {
+  readonly seller: string;
+  readonly sellerSku: string;
+  readonly seenOn: string;
+  readonly sellerName: string;
+  readonly sellerBrand: string | null;
+  readonly priceCents: number;
+  readonly kind: PriceKind;
+  readonly url: string | null;
+}
+
+/** Unjoined rows with no barcode on them, for the name leg of a nightly rejoin. */
+export function nameRejoinable(
+  db: DatabaseSync,
+  seller: string | null = null,
+  limit: number | null = null,
+): NameRejoinableRow[] {
+  const rows = db
+    .prepare(
+      `SELECT seller, seller_sku, seen_on, seller_name, seller_brand, price_cents, kind, url
+         FROM observation
+        WHERE code IS NULL
+          AND page_gtin IS NULL
+          ${seller === null ? '' : 'AND seller = ?'}
+        ORDER BY seen_on, seller, seller_sku
+        ${limit === null ? '' : 'LIMIT ?'}`,
+    )
+    .all(...(seller === null ? [] : [seller]), ...(limit === null ? [] : [limit])) as unknown as {
+    seller: string;
+    seller_sku: string;
+    seen_on: string;
+    seller_name: string;
+    seller_brand: string | null;
+    price_cents: number;
+    kind: PriceKind;
+    url: string | null;
+  }[];
+  return rows.map((r) => ({
+    seller: r.seller,
+    sellerSku: r.seller_sku,
+    seenOn: r.seen_on,
     sellerName: r.seller_name,
     sellerBrand: r.seller_brand,
     priceCents: r.price_cents,

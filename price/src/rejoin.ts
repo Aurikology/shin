@@ -38,6 +38,11 @@
  *   node src/rejoin.ts
  *   node src/rejoin.ts --limit 500
  *   node src/rejoin.ts --seller Walmart
+ *   node src/rejoin.ts --names          <- the nightly one: both legs
+ *
+ * `--names` adds the leg written for item 17: rows from a seller that publishes
+ * no barcode, joined by the catalogue's own names instead. See its own comment
+ * block below for what that leg can and cannot do.
  *
  * With no catalogue on the machine it refuses to start and says so, rather than
  * walking every row to report that none of them joined: "0 joined" and "there
@@ -46,10 +51,11 @@
  */
 
 import { DatabaseSync } from 'node:sqlite';
-import { openPrices, rejoinable, attachCode, joinState, PRICES_DB_PATH } from './store.ts';
-import type { RejoinableRow } from './store.ts';
+import { openPrices, rejoinable, nameRejoinable, attachCode, joinState, PRICES_DB_PATH } from './store.ts';
+import type { NameRejoinableRow, RejoinableRow } from './store.ts';
 import { openCatalogue, CATALOGUE_PATH, type CatalogueProbe } from './crawl.ts';
 import { joinToProduct, type Listing, type PriceSource } from './sources.ts';
+import { scoreCandidate, verdictOn, type NamedProduct } from './name-match.ts';
 
 export interface RejoinTally {
   /** Rows looked at. */
@@ -149,6 +155,188 @@ export async function rejoin(
   return { considered: rows.length, filled, notInCatalogue, refused };
 }
 
+/*
+ * ---------------------------------------------------------------------------
+ * THE NAME LEG, 2026-09-11, item 17's "rejoin unmatched rows nightly".
+ *
+ * Everything above joins a stored barcode to a catalogue code. Canadian Tire
+ * publishes no barcode at all (measured 2026-09-05), so its unjoined rows carry
+ * no `page_gtin`, `rejoinable` correctly refuses to return them, and the leg
+ * above can never do anything for them however many nights it runs.
+ *
+ * They are not unjoinable, though. The row holds the seller's own title, its
+ * brand and its price, and the question "is this title this catalogue product"
+ * is answerable offline against a catalogue that keeps growing. So this leg asks
+ * exactly that, through the same `name-match.ts` rule the live run used, and
+ * through `joinToProduct` for the same reason the barcode leg does.
+ *
+ * WHAT IT CANNOT DO, said plainly so a report of it is not read as more than it
+ * is. It searches the catalogue's own full text index over `name_en`, `name_fr`
+ * and `brands`. A catalogue row whose English and French names are both null is
+ * unreachable by it no matter how good the match would have been, and this leg
+ * is token overlap, not the catalogue's semantic search. A row it cannot join
+ * tonight stays exactly as it is and is asked again tomorrow, which costs
+ * nothing: there is no request to anybody, only indexed reads.
+ * ---------------------------------------------------------------------------
+ */
+
+/** The half of the catalogue this leg reads: full text search over names and brands. */
+export interface CatalogueNames {
+  readonly available: boolean;
+  /** Products whose indexed names share words with this title, best effort, capped. */
+  candidates(title: string, brand: string | null): NamedProduct[];
+  close(): void;
+}
+
+/** How many full text hits one row is scored against. Enough to find it, small enough to stay fast. */
+const NAME_CANDIDATES = 20;
+
+export function openCatalogueNames(path: string = CATALOGUE_PATH): CatalogueNames {
+  let db: DatabaseSync;
+  try {
+    db = new DatabaseSync(path, { readOnly: true });
+    db.prepare('SELECT code FROM product LIMIT 1').get();
+    db.prepare('SELECT rowid FROM product_fts LIMIT 1').get();
+  } catch {
+    return { available: false, candidates: () => [], close: () => {} };
+  }
+
+  const stmt = db.prepare(
+    `SELECT p.code AS code, p.name AS name, p.brands AS brands
+       FROM product_fts f
+       JOIN product p ON p.rowid = f.rowid
+      WHERE product_fts MATCH ?
+      LIMIT ${NAME_CANDIDATES}`,
+  );
+
+  return {
+    available: true,
+    candidates(title: string, brand: string | null): NamedProduct[] {
+      /*
+       * Every token is quoted before it reaches MATCH. An unquoted word can be
+       * an FTS operator (NOT, OR, NEAR, a bare hyphen) and a product title is
+       * full of punctuation nobody vetted, so an unquoted query is a syntax
+       * error waiting for the one row that contains the word AND.
+       */
+      const words = [...new Set([...(brand ?? '').split(/\s+/), ...title.split(/\s+/)])]
+        .map((w) => w.replace(/[^\p{L}\p{N}]/gu, ''))
+        .filter((w) => w.length > 1)
+        .slice(0, 12);
+      if (words.length === 0) return [];
+      const match = words.map((w) => `"${w}"`).join(' OR ');
+      try {
+        const rows = stmt.all(match) as unknown as { code: string; name: string; brands: string | null }[];
+        return rows.map((r) => ({ code: r.code, name: r.name, brand: r.brands }));
+      } catch {
+        return [];
+      }
+    },
+    close: () => db.close(),
+  };
+}
+
+export interface NameRejoinTally {
+  readonly considered: number;
+  readonly filled: number;
+  /** The catalogue had candidates and none of them cleared the name floor. */
+  readonly noMatch: number;
+  /** The catalogue's text index returned nothing for this title at all. */
+  readonly noCandidates: number;
+  /** The catalogue matched and `joinToProduct` still refused the row. */
+  readonly refused: number;
+}
+
+/**
+ * Walk the unjoined rows that carry no barcode and join the ones a catalogue
+ * name confirms. Exported so a test can drive it against a stand-in catalogue.
+ */
+export async function rejoinByName(
+  db: DatabaseSync,
+  cat: CatalogueNames,
+  options: { seller?: string | null; limit?: number | null; dryRun?: boolean; onRow?: (line: string) => void } = {},
+): Promise<NameRejoinTally> {
+  const rows = nameRejoinable(db, options.seller ?? null, options.limit ?? null);
+  let filled = 0;
+  let noMatch = 0;
+  let noCandidates = 0;
+  let refused = 0;
+
+  for (const r of rows) {
+    const listing = nameListingFor(r);
+    const candidates = cat.candidates(r.sellerName, r.sellerBrand);
+    if (candidates.length === 0) {
+      noCandidates += 1;
+      continue;
+    }
+
+    let best: NamedProduct | null = null;
+    let bestScore = 0;
+    for (const c of candidates) {
+      /* Scored in the direction the live run scores it: how much of the
+         CATALOGUE product's name is present in the SELLER's title. */
+      const score = scoreCandidate(c, { name: r.sellerName, brand: r.sellerBrand });
+      if (score > bestScore) {
+        bestScore = score;
+        best = c;
+      }
+    }
+
+    const { join, confident } = verdictOn(bestScore);
+    if (best === null || !join) {
+      noMatch += 1;
+      continue;
+    }
+
+    const joined = await joinToProduct(best.code, [listing], [nameSourceFor(r.seller)], async () => ({
+      code: best.code,
+      confident,
+    }));
+    if (joined.observations.length !== 1) {
+      refused += 1;
+      options.onRow?.(
+        `  ${r.seller} ${r.sellerSku} ${r.seenOn}  refused: ${joined.unjoined[0]?.because ?? 'the join gate refused it'}`,
+      );
+      continue;
+    }
+
+    if (options.dryRun) {
+      filled += 1;
+      options.onRow?.(`  ${r.seller} ${r.sellerSku} ${r.seenOn}  would join to ${best.code} at ${bestScore.toFixed(2)}`);
+      continue;
+    }
+
+    if (attachCode(db, { seller: r.seller, sellerSku: r.sellerSku, seenOn: r.seenOn }, best.code, 'name')) {
+      filled += 1;
+      options.onRow?.(`  ${r.seller} ${r.sellerSku} ${r.seenOn}  -> ${best.code} at ${bestScore.toFixed(2)}`);
+    }
+  }
+
+  return { considered: rows.length, filled, noMatch, noCandidates, refused };
+}
+
+/** The stored barcode-less row, back in the shape `joinToProduct` takes. */
+function nameListingFor(r: NameRejoinableRow): Listing {
+  return {
+    seller: r.seller,
+    sellerSku: r.sellerSku,
+    title: r.sellerName,
+    brand: r.sellerBrand,
+    /* Null and not missing: these are the rows whose seller published none. */
+    gtin: null,
+    sizeValue: null,
+    sizeUnit: null,
+    amountCents: r.priceCents,
+    kind: r.kind,
+    observedAt: r.seenOn,
+    preTax: true,
+    url: r.url,
+  };
+}
+
+function nameSourceFor(seller: string): PriceSource {
+  return { seller, joins: 'name', fetch: async () => [] };
+}
+
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const flag = (name: string) => argv.includes(name);
@@ -189,6 +377,37 @@ async function main(): Promise<void> {
   console.log(`  not in catalogue  ${t.notInCatalogue}`);
   console.log(`  join gate refused ${t.refused}`);
   console.log(`  in ${elapsed.toFixed(1)} s`);
+
+  /*
+   * The name leg, off `--names`, so the nightly job is one command that does
+   * both: barcode rows first because that join is exact and cheap, then the
+   * rows no barcode can ever reach.
+   */
+  if (flag('--names')) {
+    const names = openCatalogueNames();
+    if (!names.available) {
+      console.error('no full text index in the catalogue, so no row can be joined by name');
+    } else {
+      console.log('');
+      console.log(`name rejoin against ${CATALOGUE_PATH}${dryRun ? ', DRY RUN (nothing is written)' : ''}`);
+      const startedNames = Date.now();
+      const n = await rejoinByName(db, names, {
+        seller,
+        limit: limitArg < 0 ? null : limitArg,
+        dryRun,
+        onRow: (line) => console.log(line),
+      });
+      console.log('');
+      console.log(`  considered        ${n.considered}`);
+      console.log(`  joined            ${n.filled}${dryRun ? ' (would have)' : ''}`);
+      console.log(`  no name match     ${n.noMatch}`);
+      console.log(`  nothing indexed   ${n.noCandidates}`);
+      console.log(`  join gate refused ${n.refused}`);
+      console.log(`  in ${((Date.now() - startedNames) / 1000).toFixed(1)} s`);
+      names.close();
+    }
+  }
+
   if (seller !== null) {
     const s = joinState(db, seller);
     console.log('');

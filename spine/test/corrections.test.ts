@@ -17,7 +17,7 @@ import { CorrectionSource } from '../src/sources/corrections.ts';
 import { defaultSources } from '../src/sources/registry.ts';
 import { priceIt } from '../src/spine.ts';
 import type { ProductIdentity } from '../src/contract.ts';
-import { StubSource } from './helpers.ts';
+import { StubSource, point } from './helpers.ts';
 
 const CODE = '0060383689247';
 const AS_OF = '2026-09-05T18:00:00Z';
@@ -96,31 +96,40 @@ test('with no corrections at all the source is available and silent', async () =
 });
 
 test('a typed price turns a refusal into an answer, and a second one makes it stronger', async () => {
-  // The whole point of the feature, end to end through the real spine.
-  //
-  // Note what this asserts and what it does not. Since the thresholds came out
-  // (2026-09-05, "always answer, and let the confidence carry the doubt"), one
-  // price is enough to produce a verdict, so a single correction is not
-  // recorded-and-waiting: it answers, at low confidence, with the shortfall
-  // named in a sentence the shopper reads. The second correction is what moves
-  // the band, not what unlocks the answer.
+  /*
+   * The whole point of the feature, end to end through the real spine.
+   *
+   * REWRITTEN 2026-09-11 for item 15 of the beta build plan. This used to assert
+   * that one typed price produces a tier at low confidence. It does not any
+   * more, and that is the item: "one typed price with no other source shows 'one
+   * shopper saw $X at store, date', never a tier." One person's word cannot be
+   * compared against anything, and a good / fair / walk away call is a
+   * comparison.
+   *
+   * What the feature still does, and what this test now asserts, is the sentence
+   * this test was always about: before the correction the app can say nothing at
+   * all about this product; after it, it can say the number, the shop and the
+   * day. The second device at the same shelf is what makes it a tier.
+   */
   const sources = [new StubSource(IDENTITY, []), new CorrectionSource()];
   const query = { gtin: CODE, category: 'grocery' as const, askingCents: 429, asOf: AS_OF };
 
   const before = await priceIt(query, { sources });
   assert.equal(before.kind, 'refusal', 'nothing to compare against at all');
+  if (before.kind !== 'refusal') return;
+  assert.equal(before.reason, 'no_source_response');
 
   recordCorrection(correction({ deviceId: 'device-a', seller: 'Metro', priceCents: 249 }));
   const one = await priceIt(query, { sources });
-  assert.equal(one.kind, 'verdict', 'one typed price is enough to answer');
-  if (one.kind !== 'verdict') return;
-  assert.equal(one.pointCount, 1);
-  assert.equal(one.confidence.band, 'low');
-  assert.match(one.confidence.because, /1 price where groceries.*needs 2/i);
+  assert.equal(one.kind, 'refusal', 'one typed price is one person"s word, not a comparison');
+  if (one.kind !== 'refusal') return;
+  assert.equal(one.reason, 'single_report');
+  assert.match(one.detail, /one shopper saw \$2\.49 at Metro on 5 September/i, one.detail);
+  assert.equal(one.evidence.length, 1, 'the reading itself still travels with the answer');
 
-  recordCorrection(correction({ deviceId: 'device-b', seller: 'No Frills', priceCents: 269 }));
+  recordCorrection(correction({ deviceId: 'device-b', seller: 'Metro', priceCents: 269 }));
   const two = await priceIt(query, { sources });
-  assert.equal(two.kind, 'verdict');
+  assert.equal(two.kind, 'verdict', 'a second device on the same shelf is a reading, not a claim');
   if (two.kind !== 'verdict') return;
 
   assert.equal(two.pointCount, 2);
@@ -128,18 +137,21 @@ test('a typed price turns a refusal into an answer, and a second one makes it st
   assert.equal(two.spread.lowCents, 249);
   assert.equal(two.spread.highCents, 269);
   assert.equal(two.tier, 'walk_away', '$4.29 against a shelf of $2.49 and $2.69');
-  assert.doesNotMatch(
-    two.confidence.because,
-    /usually needs/i,
-    'the second reading clears the shortfall the first one was flagged for',
-  );
 });
 
 test('a correction from the shop you are standing in is dropped from your own comparison', async () => {
   // The reason the correction screen refuses to save without a shop. Without
   // this, a shopper in Metro is shown Metro's own price as the thing Metro is
   // being judged against, and it reads as a fair deal because it is itself.
-  const sources = [new StubSource(IDENTITY, []), new CorrectionSource()];
+  /*
+   * The crawled price is here for item 15b, not for the property under test: a
+   * typed price counts toward a tier only when a second device or a crawled
+   * source agrees within a band, and $2.59 published by a seller is within the
+   * band of both typed readings. Without it this case would correctly come back
+   * as two uncorroborated reports and the self-exclusion under test would never
+   * be reached.
+   */
+  const sources = [new StubSource(IDENTITY, [point('Walmart', 259, 'regular', '2026-09-05')]), new CorrectionSource()];
 
   recordCorrection(correction({ deviceId: 'device-a', seller: 'Metro', priceCents: 249 }));
   recordCorrection(correction({ deviceId: 'device-b', seller: 'No Frills', priceCents: 269 }));
@@ -151,10 +163,10 @@ test('a correction from the shop you are standing in is dropped from your own co
 
   assert.equal(standingInMetro.kind, 'verdict');
   if (standingInMetro.kind !== 'verdict') return;
-  assert.equal(standingInMetro.pointCount, 1, 'Metro is gone from its own comparison');
   assert.deepEqual(
-    standingInMetro.comparisonSet.map((p) => p.seller),
-    ['No Frills'],
+    standingInMetro.comparisonSet.map((p) => p.seller).sort(),
+    ['No Frills', 'Walmart'],
+    'Metro is gone from its own comparison',
   );
   // "Metro Inc." and "Metro" are the same merchant. If this ever stops holding,
   // the price is compared against itself and nothing else in the system notices.
@@ -162,7 +174,13 @@ test('a correction from the shop you are standing in is dropped from your own co
 });
 
 test('a stale correction ages out the way any other price does', async () => {
-  const sources = [new StubSource(IDENTITY, []), new CorrectionSource()];
+  // The January crawl is what lets the January corrections count at all (item
+  // 15b); it is January too, so nothing here is fresher than anything else and
+  // the age is still the only thing being tested.
+  const sources = [
+    new StubSource(IDENTITY, [point('Walmart', 259, 'regular', '2026-01-01')]),
+    new CorrectionSource(),
+  ];
   recordCorrection(correction({ deviceId: 'device-a', seller: 'Metro', seenOn: '2026-01-01' }));
   recordCorrection(correction({ deviceId: 'device-b', seller: 'No Frills', seenOn: '2026-01-01' }));
 
