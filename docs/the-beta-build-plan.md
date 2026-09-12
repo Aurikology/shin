@@ -11,17 +11,19 @@ Every repo step ends at a consumer-side check, never at the lane's own word.
 
 ## Before the six-person beta
 
-**1. Hosted API with HTTPS, catalogue, backups, migrations.** repo, account is yours
-a. You open the server account and the domain; credentials go in the environment file, never the repo.
-b. Provision a box with at least 20 GB of disk; install the same Node major the tests run on, because the server uses Node's built-in SQLite.
-c. Copy the four packages (app, spine, price, catalogue, identify); run the install in each, since each carries its own dependencies.
-d. Upload the 4.13 GB catalogue with its vector table; verify the checksum after transfer (a download once reached the right size and still failed to decompress).
-e. Run the server under a process manager that restarts it; port and data paths come from environment variables.
-f. Put a reverse proxy with an automatic certificate in front, on the domain.
-g. Nightly backup of the scans, prices, corrections and gaps databases to a second location; restore once to prove the backup is real.
+**1. The server runs on your Mac, reachable over HTTPS through a tunnel.** repo, the Mac and the domain are yours
+His call, 2026-09-11: *"can i host on my mac."* For six family testers, yes. Cloudflare Tunnel makes an outbound-only connection from the Mac, so no router port is opened; a named tunnel needs a domain added to a Cloudflare account and gives a stable public hostname with HTTPS while the server stays plain HTTP on localhost. Quick tunnels without an account get a random address that dies with the session and are marked testing-only by Cloudflare, so the wrapper cannot bake one in. Moves to a rented box before the public launch by copying the database files and repointing the hostname.
+a. You buy a domain and add it to a Cloudflare account; the tunnel credentials go in the environment file, never the repo.
+b. Install on the Mac the same Node major the tests run on, because the server uses Node's built-in SQLite.
+c. Copy the four packages (app, spine, price, catalogue, identify) from the Windows laptop; run the install in each, since each carries its own dependencies.
+d. Copy the 4.13 GB catalogue with its vector table; verify the checksum after the copy (a download once reached the right size and still failed to decompress).
+e. Run the server under a process manager that restarts it, and the tunnel client the same way; port and data paths come from environment variables.
+f. Set the Mac to never sleep on power, and keep it on the charger; a closed lid or a trip to campus is the beta going down, so the You screen's offline sentence must be true.
+g. Nightly backup of the scans, prices, corrections and gaps databases to the Windows laptop or a cloud folder; restore once to prove the backup is real.
 h. Add a schema-version table and run pending additive migrations at start; today columns are added ad hoc with no version.
 i. Guard startup: a taken port or a missing database logs a sentence and exits, instead of crashing.
-j. Check from a phone on cellular: the identify route answers a known barcode over HTTPS.
+j. A beta invite code checked on every API call, so the public hostname is not an open server.
+k. Check from a phone on cellular, off the home wifi: the identify route answers a known barcode over HTTPS at the tunnel hostname.
 
 **2. Native wrapper for iOS and Android.** repo; the iOS build runs on your Mac
 a. Add a base URL setting so the seven relative API calls go to the hosted domain inside the wrapper.
