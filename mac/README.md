@@ -1,122 +1,126 @@
 # The Mac beta setup, start to finish
 
-Written from a Windows laptop with no Mac present, so nothing below has
-been run. Every step names the exact command and what its output should
-look like; a check that did not run never passed. This file is the ordered
-list; the numbered files it points to carry the detail and the reasoning.
+Written from a Windows laptop, mostly without a Mac present -- except
+where marked "FACT", every line below is unrun. Where a fact came back
+from a session actually on the Mac partway through this work, it is
+stated as a fact and dated in place, not as a plan.
 
-One thing this whole runbook depends on and cannot itself supply: before
-step 0, `mac/config.env.example` needs to be copied to `mac/config.env` and
-filled in with real values (the domain, the tunnel token, the repo path,
-the database paths, the model key, the invite code once it exists). That
-copy is not committed -- ask whoever owns `.gitignore` in this repo (a root
-file, outside what this Mac-prep work is allowed to touch) to add
-`mac/config.env` to it before it is ever filled in with a real secret, since
-right now nothing stops it from being committed by accident.
+Before step 0: copy `mac/config.env.example` to `mac/config.env` and fill
+in what is still a placeholder there (the tunnel UUID once step 1 below
+creates it, the invite code, the model API key, `WINDOWS_SOURCE_HOST`).
+`mac/config.env` has been added to the root `.gitignore` (done by the
+boss directly), so it is safe to fill in without it landing in a commit.
 
 ## Order
 
-1. **`01-cloudflare-tunnel.md`** -- item 1a. Install cloudflared (it is not
-   on the Mac today), add one subdomain record, create a named tunnel with
-   a dashboard token, install it as a system service. Ends with the tunnel
-   answering (a 502/503 from Cloudflare, since the app is not running yet).
+1. **`01-cloudflare-tunnel.md`** -- item 1a. FACT as of this write-up: the
+   Mac already has cloudflared 2026.9.1 (Homebrew), and `cloudflared
+   tunnel login` has already been run against the founder's own
+   Cloudflare account -- the one browser-click step in this whole item is
+   done. His account carries exactly one zone, `anjiawenda.com`, which is
+   therefore `SHIN_DOMAIN_APEX`. Remaining, all scripted: create the named
+   tunnel, route the one subdomain record, write the ingress config,
+   install it as a service, verify.
 
-2. **`02-install-node.sh`** -- item 1b, and the version-parity gate the boss
-   added after the Mac inventory. The Mac already has node v26.7.0, ahead
-   of the >=22.18 floor every package declares, but that floor being met is
-   not the same claim as the tests passing on it -- node:sqlite is an
-   evolving API and this code imports `DatabaseSync` from it in at least
-   five files. Step 2 of this file is a mandatory full-test-suite run on
-   the Mac's own Node before the server ever gets pointed at the tunnel;
-   step 3 is the fallback (pin to node 24.14.0 via nvm) if that gate fails.
-   Actually run in full only after step 3 below has put the code and
-   `node_modules` on the Mac.
+2. **`02-install-node.sh`** -- item 1b, and the version-parity gate. FACT:
+   the Mac runs node v26.7.0, ahead of the >=22.18 floor every package
+   declares. That floor being met is not the same claim as the tests
+   passing on it -- node:sqlite is an evolving API and this code imports
+   `DatabaseSync` from it in at least five files. Step 2 of this file is a
+   mandatory full-test-suite run on the Mac's own Node before the server
+   ever gets pointed at the tunnel; step 3 is the fallback (pin to node
+   24.14.0 via nvm) if that gate fails. Run in full only after step 3
+   below has the code, and step 5 below has the catalogue, in place.
 
-3. **`03-copy-packages.sh`** -- item 1c. UPDATED: the Mac has no clone of
-   this repo and no GitLab credential today. Two paths, clone (recommended,
-   needs one credential input from the founder, a read-only GitLab access
-   token) or copy (no credential, goes stale after every lane's commits).
-   Either way, ends with `npm install` run in each of app, spine, price,
-   catalogue, identify.
+3. **`03-copy-packages.sh`** -- item 1c. FACT: the repo is already cloned
+   at `/Users/worker/shin` from `git@gitlab.com:shin3223636/shin.git`, on
+   main at 840d70c, authenticated as `@jaminke` through an SSH key already
+   on the machine. Nothing to request from the founder; staying current
+   is `git pull`. This step is now just that plus `npm install` in each of
+   app, spine, price, catalogue, identify.
 
-4. **On Windows, before step 5**: `node checkpoint-wal.mjs
-   C:\shin\catalogue\data\catalogue.db` then `powershell -File
-   ..\scripts\mac-catalogue-checksum.ps1 -DbPath
-   C:\shin\catalogue\data\catalogue.db`. Produces the expected SHA-256 for
-   the 4.13 GB catalogue before it travels anywhere.
+4. **`mac/04-catalogue-acquire.md`** -- item 1d, the single largest step in
+   the whole setup and the one with a real trap in it. The clone is 10 MB;
+   the catalogue is 4+ GB and is NOT in git. Worse: `catalogue.db` is
+   opened in WAL mode, and at the time this was measured another lane was
+   actively writing to it (a 241 MB `-wal` file, changing). Copying
+   `catalogue.db` alone while that log has real content in it produces a
+   database that opens cleanly, reports a plausible row count, and is
+   silently missing whatever the log held -- it looks like success. This
+   file lays out the two ways to make the copy safe (checkpoint-then-copy
+   via `mac/checkpoint-wal.mjs`, or copy-the-three-files-as-a-set) and
+   which to pick depending on whether something is writing right now, the
+   exact files the server needs (not the ~16 GB `catalogue/data/` holds in
+   total -- `food.parquet` and `off.csv.gz` etc are rebuild sources, never
+   read by the running server), the transfer commands (guarded: it refuses
+   to run with a named error if `WINDOWS_SOURCE_HOST` is still unset,
+   rather than silently trying a placeholder network address), and
+   `mac/04-verify-catalogue-checksum.sh`'s job of confirming the exact
+   bytes that were hashed on Windows are the bytes that landed.
 
-5. **`04-verify-catalogue-checksum.sh`** -- item 1d, the Mac half. Copy
-   catalogue.db, catalogue.db.sha256, pack-grocery.bin.br and
-   pack-canada.bin.br into `catalogue/data/` on the Mac (by whichever path
-   step 3 used), then recompute the hash there and compare. A size match
-   alone is not this check; a download once reached the right size and
-   still failed to decompress.
+5. **Go back and finish `02-install-node.sh` step 2** (the test gate) with
+   the code and the catalogue both in place, and step 3 if it fails.
 
-6. **Now go back and finish `02-install-node.sh` step 2** (the test gate)
-   with the code and the catalogue both in place, and step 3 if it fails.
+6. **`run-server.sh` + `launchd/com.shin.server.plist` + `05-install-launchd.sh`**
+   -- item 1e. Installs the server as a restarting LaunchAgent. The
+   tunnel half of 1e is already covered by step 1 above
+   (`cloudflared service install` installs its own daemon);
+   `05-install-launchd.sh`'s tunnel section is only needed if that command
+   itself cannot be used for some reason not yet encountered.
 
-7. **`run-server.sh` + `launchd/com.shin.server.plist` + `05-install-launchd.sh`**
-   -- item 1e. Installs the server as a restarting LaunchAgent. The tunnel
-   half of 1e is already covered by step 1 above if the dashboard token
-   path was used (`cloudflared service install` installs its own daemon);
-   `05-install-launchd.sh` only additionally installs a tunnel LaunchAgent
-   if the CLI-managed fallback (`cloudflared/config.yml.example` +
-   `launchd/com.shin.tunnel.plist`) had to be used instead.
+7. **`06-verify-no-sleep.sh`** -- item 1f. FACT from the Mac inventory:
+   sleep is already fully disabled on AC power (SleepDisabled 1, sleep 0,
+   disksleep 0). This is a verify-only check, with the fix commands kept
+   in case something changes the profile later.
 
-8. **`06-verify-no-sleep.sh`** -- item 1f. UPDATED: the Mac inventory found
-   sleep already fully disabled on AC power. This is a verify-only check
-   now, with the fix commands kept for the case something has changed the
-   profile since.
-
-9. **`07-backup.sh`** then **`07-restore.sh`** -- item 1g. Backs up the
+8. **`07-backup.sh`** then **`07-restore.sh`** -- item 1g. Backs up the
    four live databases (scans, prices, corrections, gaps -- not the
    read-only catalogue) and then actually restores the newest backup into
-   a throwaway path and reads a real row out of it. The restore step is
-   the whole point; a backup nobody has restored is a claim, not a fact.
+   a throwaway path and reads a real row out of it. A backup nobody has
+   restored is a claim, not a fact.
 
-10. **`08-cellular-check.md`** -- item 1k. Run from a phone genuinely off
-    the home wifi, against the tunnel hostname. UNVERIFIED: the exact
-    identify-route URL is written from the plan text's wording, not from
-    reading the Server lane's route table (out of scope for this brief);
-    confirm the real path before trusting a pass or fail here.
+9. **`08-cellular-check.md`** -- item 1k. Run from a phone genuinely off
+   the home wifi, against the tunnel hostname, with the invite header set.
+   Route (`GET /api/identify?gtin=...`), header (`x-shin-invite`) and env
+   var (`SHIN_INVITE_CODE`) all confirmed by reading the code, and the
+   guard confirmed WIRED into `app/server.ts`'s dispatch, not just defined.
 
-11. **`09-e12-checks.sh`** -- E12, the founder's own exit gate: one backup
-    restored (same shape as step 9's restore proof), the server survives a
-    `kill -9` (proves the LaunchAgent's KeepAlive from step 7 actually
-    works), and a call without the invite code is refused. That third
-    check is UNVERIFIED for a structural reason, not carelessness: item 1j
-    (the invite code) was being built by the Server lane in `app/` at the
-    same time this was written, and this brief was explicitly told not to
-    write that file. Get the real header/param name from whoever lands 1j
-    and fix the placeholder in this script before running it.
+10. **`09-e12-checks.sh`** -- E12, the founder's own exit gate: one backup
+    restored (same shape as step 8's restore proof), the server survives a
+    `kill -9` (proves the LaunchAgent's KeepAlive from step 6 actually
+    works), and a call without the invite code is refused (trustworthy as
+    written; see step 9).
 
 ## The one file every script above reads from
 
-`mac/config.env` (copied from `mac/config.env.example`, never committed).
-Every placeholder used anywhere in `mac/` is named there, once, with a
+`mac/config.env` (copied from `mac/config.env.example`, gitignored).
+Every placeholder used anywhere in `mac/` is named there once, with a
 comment saying where it comes from and what a wrong value looks like.
+`SHIN_DOMAIN_APEX` and `SHIN_TUNNEL_HOSTNAME` hold the founder's real
+domain rather than a placeholder -- deliberate, and explained in that
+file's own comment: a hostname is visible in every request the app makes,
+so it is not a secret the way the tunnel credential, the invite code and
+the model key are, and those three stay placeholders.
 
-## What is UNVERIFIED, named plainly rather than buried
+## What is still UNVERIFIED, named plainly
 
-- Every single command in every file above: none of it has been run.
-  There is no Mac reachable from where this was written.
-- The invite-code header, env var and route/query shape were confirmed by
-  reading `app/src/invite.ts` and `app/server.ts` directly (header
-  `x-shin-invite`, env var `SHIN_INVITE_CODE`, route `GET /api/identify`
-  with a `gtin` query parameter, not `barcode`). What is still open: at
-  the time of that read, `app/server.ts` had no call to `invite.ts`'s
-  `inviteAllows` anywhere in its dispatch, so the guard may exist without
-  being wired into any route yet. `08-cellular-check.md` and
-  `09-e12-checks.sh` both name the exact grep to run first to find out.
-- Whether the Mac is Apple Silicon or Intel (changes which cloudflared
-  .pkg to fetch in the Homebrew-absent path of `01-cloudflare-tunnel.md`).
-- Whether Homebrew is present on the Mac at all (checked for, with a
-  fallback, in `01-cloudflare-tunnel.md`, but not measured by the
-  inventory).
+- Every command in every file above that is not marked FACT: none of it
+  has been run end to end. The facts above came back piecemeal, mid-task,
+  from sessions actually on the Mac; nobody has yet run this runbook start
+  to finish in one sitting.
+- Whether the Mac is Apple Silicon or Intel (the Homebrew cloudflared
+  install already covers this either way, but it would matter if the
+  Homebrew-absent fallback in an earlier draft were ever needed -- it is
+  not, cloudflared is already installed).
+- Whether `mac/04-catalogue-acquire.md`'s transfer actually completes over
+  the available LAN in reasonable time, or needs the external-drive
+  fallback instead -- not knowable without trying it.
 - Whether the founder wants the server to survive a full reboot with
   nobody logged in (needs a LaunchDaemon, not the LaunchAgent written
   here) -- flagged in `launchd/com.shin.server.plist`'s own comment and in
   `05-install-launchd.sh`, not decided either way.
-- Whether a GitLab access token can actually be issued tonight for the
-  clone path in `03-copy-packages.sh`, and if not, whether the copy path's
-  staleness is acceptable for the beta's short life.
+- One anomaly, resolved: an earlier version of `mac/config.env.example`
+  briefly held an unexplained domain value between two reads of this file.
+  The boss identified the source (the Mac session's zone lookup, landing
+  between the two reads) and it is now recorded as the provenance note at
+  the top of that file's domain section rather than a live question.

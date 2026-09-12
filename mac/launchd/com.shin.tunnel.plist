@@ -2,14 +2,17 @@
 <!--
   mac/launchd/com.shin.tunnel.plist
 
-  FALLBACK ONLY. If the dashboard token path is used (mac/01-cloudflare-tunnel.md,
-  step 6: `sudo cloudflared service install <token>`), that command installs
-  and loads its OWN launchd daemon (com.cloudflare.cloudflared) automatically
-  -- do not also load this file, the two would fight over the same port.
+  FALLBACK, NOT THE PRIMARY PATH. mac/01-cloudflare-tunnel.md's own step 4
+  is `sudo cloudflared service install` (no token: cloudflared already has
+  a certificate on this Mac from `cloudflared tunnel login`), which
+  installs and loads its OWN launchd daemon (com.cloudflare.cloudflared)
+  automatically, reading ~/.cloudflared/config.yml -- do not also load
+  this file in that case, the two would fight over the same port.
 
-  This file is only for the locally-managed fallback (mac/cloudflared/config.yml.example):
-  it runs `cloudflared tunnel run` against that hand-written config instead
-  of a dashboard token. Template: __SHIN_REPO_DIR__ and __TUNNEL_NAME__ are
+  This file exists only for the rarer case where `cloudflared service
+  install` itself cannot be used and the tunnel has to be launched by hand
+  against mac/cloudflared/config.yml.example instead. Template:
+  __SHIN_REPO_DIR__ and __TUNNEL_NAME__ are
   replaced by mac/05-install-launchd.sh before this is copied into
   ~/Library/LaunchAgents/.
 -->

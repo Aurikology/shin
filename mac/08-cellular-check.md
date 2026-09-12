@@ -26,16 +26,13 @@ code directly, not guessed: `app/server.ts` line 1285 dispatches
 and the env var as `SHIN_INVITE_CODE`, matching what `mac/config.env`
 already uses.
 
-REMAINING UNVERIFIED PIECE: at the time this was checked, `app/src/invite.ts`
-existed as a module (the guard function `inviteAllows`, the header name,
-the exempt-route list) but `app/server.ts` had no call to `inviteAllows`
-anywhere in it yet -- the Server lane had written the check but not yet
-wired it into the request dispatch. If that wiring has landed by the time
-this runs, the command above is correct as written. If it has not, a
-request with no header or the wrong one will still succeed (200), which
-would be this check legitimately failing because 1j is not finished yet,
-not because the check itself is wrong. Confirm which is true with
-`grep -n "inviteAllows" app/server.ts` before reporting a pass or a fail.
+VERIFIED WIRED: `app/server.ts` imports `INVITE_EXEMPT`, `INVITE_HEADER`,
+`INVITE_REFUSAL` and `inviteAllows` and calls
+`inviteAllows(req.headers[INVITE_HEADER])`, guarding every `/api/` path
+except the exempt `/api/health`. The command above needs the invite
+header to get a real answer once `SHIN_INVITE_CODE` is set on the Mac; a
+request with no header will be refused, which is correct once the code is
+configured, not a sign of a broken check.
 
 ## What a pass looks like
 

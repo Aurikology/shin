@@ -1,28 +1,23 @@
 # mac/cloudflared/config.yml.example
 #
-# FALLBACK ONLY. If the dashboard token path in mac/01-cloudflare-tunnel.md
-# step 2-3 cannot be used (no Zero Trust seat, or the founder would rather
-# manage the tunnel from the CLI), this is the locally-managed alternative:
-# the CLI creates the tunnel and a credentials JSON file, and this config
-# file tells cloudflared which local port answers which public hostname.
+# The primary tunnel config, now that cloudflared login has already been
+# run on the Mac (see mac/01-cloudflare-tunnel.md's "Already done"
+# section) and produced a certificate. Copy this to
+# ~/.cloudflared/config.yml on the Mac and fill in the two placeholders
+# after running:
 #
-# Not run as-is. Copy to ~/.cloudflared/config.yml on the Mac and replace
-# both placeholders, after running (on the Mac, with cloudflared already
-# installed per mac/01-cloudflare-tunnel.md step 5):
-#
-#   cloudflared tunnel login
 #   cloudflared tunnel create shin-beta
-#   cloudflared tunnel route dns shin-beta relay.example.com
+#   cloudflared tunnel route dns shin-beta relay.anjiawenda.com
 #
 # The create command prints a tunnel UUID and writes
-# ~/.cloudflared/<UUID>.json -- that JSON file is the credential in this
-# path (equivalent to the token in the dashboard path) and it must stay
-# inside ~/.cloudflared/ on the Mac, never copied into this repo.
+# ~/.cloudflared/<UUID>.json -- that JSON file is the tunnel's own
+# credential and it stays inside ~/.cloudflared/ on the Mac, never copied
+# into this repo.
 
 tunnel: __TUNNEL_UUID__
-credentials-file: /Users/__MAC_USERNAME__/.cloudflared/__TUNNEL_UUID__.json
+credentials-file: /Users/worker/.cloudflared/__TUNNEL_UUID__.json
 
 ingress:
-  - hostname: __SHIN_TUNNEL_HOSTNAME__
-    service: http://localhost:__PORT__
+  - hostname: relay.anjiawenda.com
+    service: http://localhost:4173
   - service: http_status:404

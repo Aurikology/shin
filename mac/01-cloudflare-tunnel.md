@@ -1,8 +1,8 @@
 # 1a. One subdomain, one named tunnel
 
-Not run. Cannot be run from this machine: it needs the founder's Cloudflare
-login and a Mac with cloudflared installed. Every command below is exact so
-the Mac session spends minutes, not an hour, working out the syntax.
+Not fully run, but further along than earlier drafts of this file claimed.
+Everything under "Already done" below is a fact from a session on the
+Mac, not a plan; everything under "Remaining steps" has not been run.
 
 Checked before writing this (web search, current as of 2026-09-11):
 Cloudflare's own docs for creating a tunnel and routing DNS
@@ -12,112 +12,110 @@ running cloudflared as a macOS service
 (developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/local-management/as-a-service/macos/).
 A quick tunnel (`cloudflared tunnel --url ...`) is explicitly marked
 testing-only by Cloudflare and its address dies with the process, which is
-why this uses the dashboard-managed named tunnel with a connector token
-instead.
+why this uses a named tunnel instead, whichever way it is created.
 
-## Why this path, not the CLI credentials-file path
+## Already done, on the Mac
 
-cloudflared supports two ways to run a named tunnel: a locally-managed
-tunnel (CLI creates a UUID and a credentials JSON file under
-~/.cloudflared/, you write a config.yml by hand) or a remotely-managed
-tunnel (the Zero Trust dashboard creates the tunnel and hands you a single
-connector token). The founder's own plan (item I3) says he will "paste a
-tunnel token into the environment file", which only makes sense for the
-token path, so that is the one written here. It also means the tunnel's
-credentials really do live only in the environment file (mac/config.env),
-never as a JSON file inside this repo.
+- cloudflared 2026.9.1 installed via Homebrew, at
+  `/opt/homebrew/bin/cloudflared`.
+- `cloudflared tunnel login` already run. This is the one step in this
+  whole item that is a person's own click, not a script: it opens a
+  browser, the founder authorizes it against his own Cloudflare account,
+  and Cloudflare hands the CLI a certificate. That already happened; the
+  certificate is written at `~/.cloudflared/cert.pem`, mode 600.
+- `cloudflared tunnel list` answers cleanly and reports zero tunnels,
+  which is the correct empty state (not an auth failure -- an auth
+  failure would refuse to answer at all, not answer with an empty list).
+- The account carries exactly one zone: `anjiawenda.com`, Active, Free
+  plan. That is `SHIN_DOMAIN_APEX` in `mac/config.env`, and it is the only
+  zone the tunnel can possibly sit under, so there is no domain choice
+  left to make.
 
-## Steps
+Because the login already produced a certificate, the natural path from
+here is the locally-managed one (CLI creates the tunnel, a config.yml
+names the hostname), not a separate dashboard-token flow that would need
+a different credential the Mac does not have a reason to hold. The
+dashboard-token path (`cloudflared service install <token>`) is documented
+as an alternative at the end of this file only in case the founder would
+rather manage the tunnel from the Zero Trust dashboard than the CLI; it is
+not needed given what already exists on the Mac.
 
-1. Fill in `SHIN_DOMAIN_APEX` in `mac/config.env` (copied from
-   `mac/config.env.example`) with the domain already delegated to Cloudflare
-   DNS for the paused ACT venture, and pick a neutral `SHIN_TUNNEL_SUBDOMAIN`
-   that names nothing (not "shin", not "beta", not the mascot's name -- the
-   hostname shows up in network requests, never to a shopper, but treat it
-   as public anyway). `SHIN_TUNNEL_HOSTNAME` is those two joined with a dot.
+## Remaining steps, all scripted, none needing a person at the keyboard
 
-2. In the Cloudflare dashboard (dash.cloudflare.com), open Zero Trust >
-   Networks > Tunnels > Create a tunnel. Choose "Cloudflared" as the
-   connector. Name it whatever `CLOUDFLARE_TUNNEL_NAME` is set to
-   (`shin-beta` by default).
+1. Create the named tunnel:
 
-3. The dashboard shows an install command containing a long token after
-   `--token`. Copy only the token (the part after `--token`, not the whole
-   command) into `CLOUDFLARE_TUNNEL_TOKEN` in `mac/config.env`.
+       cloudflared tunnel create shin-beta
 
-4. Still in the dashboard, on the same tunnel, add a Public Hostname:
-   - Subdomain: the value of `SHIN_TUNNEL_SUBDOMAIN`
-   - Domain: the value of `SHIN_DOMAIN_APEX`
-   - Service: HTTP, `localhost:4173` (or whatever `PORT` is set to in
-     `mac/config.env`)
-   This is the one DNS record this item adds. It is a CNAME the dashboard
-   creates for you, on the subdomain only; it never touches the apex, so
-   mail forwarding on the apex is untouched. Confirm this afterward with:
+   Expected output: a line with a tunnel UUID and confirmation that a
+   credentials file was written to `~/.cloudflared/<UUID>.json`. That
+   file is the tunnel's own credential from here on; it stays under
+   `~/.cloudflared/` and never goes in this repo.
 
-       dig ${SHIN_TUNNEL_SUBDOMAIN}.${SHIN_DOMAIN_APEX} CNAME +short
+2. Route the DNS record. This is the one subdomain record item 1a asks
+   for, and it is the only one: it never touches the apex, so the mail
+   forwarding already running on `anjiawenda.com` is untouched.
 
-   Expected output: one line ending in `.cfargotunnel.com.`. If that line
-   is missing, the hostname was not created and step 4 needs redoing.
+       cloudflared tunnel route dns shin-beta relay.anjiawenda.com
 
-5. Install cloudflared on the Mac. UPDATED after the Mac inventory: a
-   session on the Mac ran `which cloudflared` and found nothing, so this is
-   a real step, not a check that will already pass. The inventory did not
-   check for Homebrew itself, so test that first:
+   Expected output: a confirmation the DNS record was added. Verify
+   directly:
 
-       which brew
+       dig relay.anjiawenda.com CNAME +short
 
-   If that prints a path, use Homebrew:
+   Expected: one line ending in `.cfargotunnel.com.`. If that line is
+   missing, step 2 did not actually create the record.
 
-       brew install cloudflared
+3. Write the ingress config. Fill in the real UUID from step 1's output
+   and the Mac's own username into `mac/cloudflared/config.yml.example`
+   (copy it to `~/.cloudflared/config.yml`, do not leave the template in
+   place of the real file):
 
-   If it prints nothing, do not install Homebrew just for this one binary;
-   Cloudflare ships a signed installer directly:
+       tunnel: <the UUID from step 1>
+       credentials-file: /Users/worker/.cloudflared/<the UUID>.json
 
-       curl -L --output cloudflared.pkg https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-amd64.pkg
-       sudo installer -pkg cloudflared.pkg -target /
+       ingress:
+         - hostname: relay.anjiawenda.com
+           service: http://localhost:4173
+         - service: http_status:404
 
-   (Apple Silicon Macs also work with the amd64 .pkg since it is
-   installed through Rosetta by that installer; if `uname -m` on the Mac
-   prints `arm64` and this .pkg fails, use
-   `cloudflared-darwin-arm64.pkg` from the same releases page instead --
-   check the actual architecture on the Mac before choosing, do not
-   assume.)
+4. Install it as a system service (LaunchDaemon, starts on boot, no login
+   needed afterward):
 
-   Proof it worked: `cloudflared --version` prints a version string.
+       sudo cloudflared service install
 
-6. Install the tunnel as a system service using the token from step 3:
-
-       sudo cloudflared service install ${CLOUDFLARE_TUNNEL_TOKEN}
-
-   This writes and loads cloudflared's own launchd daemon
-   (com.cloudflare.cloudflared, installed system-wide because of `sudo`,
-   which is what makes it restart on boot without anyone logged in -- the
-   Mac is meant to run headless most of the time). This is why mac/ does not
-   also hand-write a competing tunnel plist for the token path: the command
-   above generates the real one. `mac/launchd/com.shin.tunnel.plist` in this
-   directory is kept only as a fallback for the locally-managed path, if the
-   dashboard token approach turns out to be unavailable (e.g. no Zero Trust
-   seat) and the CLI path has to be used instead; see the comment at the top
-   of that file for the three extra commands it needs first.
-
-7. Proof the tunnel is actually up: on the Mac,
+   Expected output: confirmation it wrote and loaded a LaunchDaemon.
+   Proof:
 
        sudo launchctl list | grep com.cloudflare.cloudflared
 
-   Expected output: one line, with a PID (not `-`) in the first column. Then
-   from any device on any network (this is the point of item 1k, not this
-   item, but a first check is free here):
+   Expected: one line, with a PID (not `-`) in the first column.
 
-       curl -sSI https://${SHIN_TUNNEL_HOSTNAME}/
+5. Proof the tunnel is actually up, before the app server is even running
+   (a 502/503 from Cloudflare, not a DNS failure or a timeout, is the
+   correct state here):
 
-   Expected output while the app server is not running yet: a connection
-   that reaches Cloudflare and gets a 502 or 503 from cloudflared (proves
-   DNS and the tunnel are live) rather than a DNS failure or a timeout
-   (which would mean the record or the tunnel is not actually up).
+       curl -sSI https://relay.anjiawenda.com/
 
-## What was not run, and could not be
+   Expected: a response that reached Cloudflare (a `cf-ray` header is the
+   clearest sign) with a 502 or 503, since nothing is listening on
+   localhost:4173 yet.
 
-Every command above needs the founder's Cloudflare login, a Mac with
-network access, and cloudflared installed on it. None of that exists on
-this Windows laptop. Nothing here is claimed as done; it is the exact
-command list so it costs the Mac session minutes.
+## Alternative, not needed given the above: the dashboard-token path
+
+If a future session would rather manage the tunnel from the Zero Trust
+dashboard instead of the CLI: Networks > Tunnels > Create a tunnel >
+Cloudflared, copy the token from the install command it shows, add a
+Public Hostname (subdomain `relay`, domain `anjiawenda.com`, service
+`http://localhost:4173`), put the token in `CLOUDFLARE_TUNNEL_TOKEN` in
+`mac/config.env`, and run `sudo cloudflared service install <token>`
+instead of step 4 above. The two paths install to the same place and
+should never be run together against the same tunnel name.
+
+## What is still not verified
+
+Steps 1 through 5 above have not been run; only the "already done" section
+is a session's own measured fact. `mac/launchd/com.shin.tunnel.plist` and
+`mac/05-install-launchd.sh`'s tunnel section stay documented as a further
+fallback (a hand-rolled LaunchAgent instead of `cloudflared service
+install`), needed only if `service install` itself cannot be used for some
+reason not yet encountered.

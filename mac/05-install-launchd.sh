@@ -1,17 +1,18 @@
 #!/bin/sh
-# 1e. Run the server (and, only in the CLI-managed fallback, the tunnel
-# client) under a process manager that restarts them.
+# 1e. Run the server (and, only in the rare fallback, the tunnel client)
+# under a process manager that restarts them.
 #
 # Not run. Cannot be run from Windows: launchctl and the log paths only
 # exist on the Mac.
 #
-# The primary tunnel path (mac/01-cloudflare-tunnel.md, dashboard token,
-# `sudo cloudflared service install <token>`) already installs and starts
+# The primary tunnel path (mac/01-cloudflare-tunnel.md step 4,
+# `sudo cloudflared service install`, using the certificate already on
+# this Mac from `cloudflared tunnel login`) already installs and starts
 # its own launchd daemon for the tunnel -- this script does NOT touch that.
 # This script installs only the server's LaunchAgent
-# (mac/launchd/com.shin.server.plist), and, ONLY if the CLI-managed
-# fallback tunnel is being used instead of the dashboard token, the
-# tunnel's LaunchAgent (mac/launchd/com.shin.tunnel.plist) as well.
+# (mac/launchd/com.shin.server.plist), and, ONLY if `cloudflared service
+# install` itself cannot be used for some reason, the tunnel's LaunchAgent
+# (mac/launchd/com.shin.tunnel.plist) as a hand-rolled fallback.
 
 echo "This script is not run. It is the exact command list for the Mac session."
 echo "Fill in mac/config.env first (SHIN_REPO_DIR at minimum, NODE_BIN if"
@@ -44,8 +45,8 @@ echo "Expected: HTML back (the app's own index page), not a connection"
 echo "refused error."
 
 echo
-echo "===== ONLY if using the CLI-managed fallback tunnel, not the"
-echo "dashboard token path: ====="
+echo "===== ONLY if \`cloudflared service install\` (mac/01-cloudflare-tunnel.md"
+echo "step 4) could not be used and the tunnel must be launched by hand: ====="
 echo "Step 4. Find where cloudflared actually installed:"
 echo "  which cloudflared"
 echo "Step 5. Substitute that path, the tunnel name, and the repo path,"
