@@ -213,3 +213,79 @@ a. Twelve testers opted in for fourteen continuous days; six more people than th
 a. Define what is paid; entitlement column; Apple in-app purchase and Google Play Billing; no Stripe inside the app.
 
 **46. Store submissions.** you
+
+## The schedule: lanes, days, and the exit
+
+Written Friday 2026-09-11 on his instruction: *"build a plan to build all of the items listed
+that are not assigned to aurik. when the plan is done and auriks work is in, the app should be
+ready to beta test."* The week has three days left. The code is done by Sunday night if his
+inputs land today; the beta starts the day both store accounts clear, which no one here controls.
+
+### The exit: "ready to beta" means every line below has been checked on a phone or on the Mac
+
+- E1. The iOS build is installed through TestFlight on a parent's phone and the Android build through Play internal testing on another. Check: a screenshot from the tester's phone.
+- E2. A barcode scanned in a real store over cellular answers inside the seven-second budget: a verdict, or the honest "no price yet" with the typed-price pad. Check: the scan row on the Mac carrying that tester's device id.
+- E3. A photo scan returns a product name from a real model. Check: a photo-kind scan row with the model's JSON.
+- E4. That row holds the photo path (consent on), the model output, the price seen, the verdict shown and the rating. Check: one row read from the database.
+- E5. The consent screen shows at first launch; a device that refused photos has a null photo path on every row. Check: two device ids, one refused.
+- E6. A rating is stored and undo deletes it. Check: rows before and after.
+- E7. A price typed on phone A shows on phone B as "one shopper saw". Check: two phones, one barcode.
+- E8. A grocery item shows its food quality fields; a tech item shows a Best Buy (US) rating with the source and link. Check: screens.
+- E9. A produce photo never reaches the model. Check: the model call counter is unchanged after a banana scan.
+- E10. A product shows its two-sentence description labelled "written from the label". Check: screen.
+- E11. The name is cleared or replaced before the App Store Connect record is created. Check: the search record in the notes.
+- E12. On the Mac: one backup restored, the server comes back after being killed, a call without the invite code is refused. Check: the three commands and their output.
+- E13. Aurik's work plugs in here: the model tiers chosen by item 14's eval (his items 21 and 22); the interface language stays English for the beta (31 not gating); accounts (44) and Google Lens (23) are not gating.
+
+### Day 0, Friday 2026-09-11: his inputs, each with a default so nothing waits
+
+- I1. Apple Developer enrolment started today. Gates E1 iOS.
+- I2. Google Play Console registration started today, with the ID and device verification. Gates E1 Android.
+- I3. Cloudflare: the Mac session adds the subdomain record and the tunnel with him logged in, or he pastes a tunnel token into the environment file. Gates item 1 and therefore the wrapper's baked hostname.
+- I4. A card on the model console and the key in the Mac's environment file. Default caps: 10 CAD a day in code, 100 CAD a month at the console. Gates items 13, 14, 20d, 26.
+- I5. The two or three stores the six testers use. Gates item 16.
+- I6. The six testers' Apple IDs and Gmail addresses, the day the accounts clear. Gates item 4.
+- I7. Sign-ups only he can make: a Best Buy developer key (item 27). Icecat and the Canadian Tire portal are not for the beta; default skip.
+- I8. Decisions, defaults in brackets: rating form [thumbs with a reason tap]; Best Buy US prices [labelled reference, never in the verdict]; Walmart [dropped for the beta]; privacy wording [drafted tonight, his approval before it ships]; the name [after the search].
+- I9. Aurik: told that none of his items gate the beta; he owns the model file (his are the last five commits on it), and this repo's lanes touch only the dollar cap, the eval runner and a new description module; the push rule [his sync rule stands, Aurik informed].
+- I10. A Claude Code session open on the Mac in this repo, tonight or Saturday morning, for the Mac lane.
+
+### Lanes: one package each, disjoint files, cheapest model that can do the job
+
+| Lane | Model | Package and files | Items |
+|---|---|---|---|
+| Mac | Opus (live data) | the Mac: environment, process manager, tunnel, Xcode | 1b to 1k, 2f, 4b |
+| Server | Opus (touches the scan record) | app/server.ts, app/src/* | 1i, 1j, 7a, 8a, 8b, 9, 10, 11 server side, 12, 39a, 39b |
+| Client | Sonnet | app/public/js/screens/*, app/public/css/*, app/public/js/{api,store,device,main,eye-attach}.js | 2a, 2b, 6b to 6e, 7b, 8c, 8d, 11a, 19b, 20a to 20c, 30 |
+| Wrapper | Sonnet | a new native/ directory only | 2c to 2e, 2g, 3, 4a, 4c |
+| Spine and price | Opus (money) | spine/src/*, price/src/* | 15, 16b adapters, 17, 18a, 27 |
+| Catalogue | Sonnet | catalogue/src/* | 19a, 25, 32 |
+| Identify | Sonnet | identify/src/cap.ts, identify/eval/*, identify/src/describe.ts; never model.ts | 13c, 14, 26 |
+| Docs | Haiku, Sonnet for research | notes/, docs/ | 5, 6a, 6f draft, 28, 34, 36, 37, 40 to 42 drafts |
+
+Every lane prompt carries the contract from `CLAUDE.md`: one package, no status files, no git add or
+commit or push, no network unless named, no server left running, tests plus typecheck in its
+package, report files changed, before-and-after counts, and what it could not verify. A lane
+report is producer evidence; the boss checks at the consumer (the running server through the
+tunnel, the CLI against the real database, a real photo through the real route) before a row moves.
+
+### Days
+
+**Friday night.** His inputs. The docs lane runs the trademark search and drafts the consent
+wording. The boss cuts the lane briefs.
+
+**Saturday.** The Mac lane has the server answering at the hostname by midday (1b to 1k). Server,
+Client, Spine and price, Catalogue and Identify lanes run all day in parallel. The boss reviews
+each diff and verifies at the consumer. By night: E5, E6, E7 and E12 checkable from a phone in
+Safari against the hosted server; the scan id round trip (7) and the record (9, 10, 12) in place.
+
+**Sunday.** The Wrapper lane builds against the live hostname; the Android bundle sideloads to
+one phone and the iOS build goes to his own iPhone from Xcode. The eval runs for real (14) the
+moment the card is in; the classifier (20), descriptions (26), the review display (30) and the
+defects (19) land; a screen walk at 390 by 844 and 375 by 575. By night: E2, E3, E4, E8, E9, E10
+checked on a phone through the wrapper build.
+
+**Monday 2026-09-14 onward.** The hour both accounts clear: uploads and tester invites (4), E1.
+Parents' first scans in their stores; the correctness procedure starts (37). Ongoing from here:
+the price seed (16), Canadian Tire at scale (17), source enumeration (34), the competitor study
+(36), operations (39), and the public-launch items (40 to 46) as the beta runs.

@@ -5,6 +5,21 @@ narrative.*
 
 ---
 
+## Active, set by him 2026-09-11 evening: the beta build plan, code done by Sunday night
+
+**His words:** *"build a plan to build all of the items listed that are not assigned to aurik.
+when the plan is done and auriks work is in, the app should be ready to beta test."* The plan
+is `docs/the-beta-build-plan.md`: 46 items, the steps under each, eight lanes on disjoint
+packages, a thirteen-line exit checked on a phone or on the Mac, and his ten day-0 inputs with
+a default for each. Decisions of the day are in `docs/decisions.md` (six-person store-track
+beta, review scores only through official APIs, a stored scan rating). The three priorities
+below fold into it: P1 is items 15 to 18 and 34, P2 is items 13, 14 and 20, P3 is item 36.
+The server for the beta runs on his Mac through a Cloudflare tunnel on the domain he already
+holds there. Nothing waits on a reply: every input has a default, and the beta starts the day
+both store accounts clear.
+
+---
+
 ## Top priority, set by him 2026-09-11: prices with every product, cheaper model calls, competitors
 
 **His words:** *"mark these as the highest priority to do right now: Expand our product catalogue
