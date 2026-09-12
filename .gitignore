@@ -38,3 +38,10 @@ app/public/js/vendor/
 
 # Local SQLite runtime state (plus its -shm/-wal lock files). Rebuilt by the app.
 app/data/
+
+# The Mac beta server's own settings, filled in from mac/config.env.example. It
+# holds the Cloudflare tunnel connector token and the beta invite code, so it is
+# a credential file and not a config file, whatever its extension says. The
+# .env rules above do not catch it: they match a file named .env, and this one
+# is named config.env.
+mac/config.env

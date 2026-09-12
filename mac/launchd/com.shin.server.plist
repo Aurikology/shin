@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  mac/launchd/com.shin.server.plist
+
+  Template. The literal string __SHIN_REPO_DIR__ below is replaced with the
+  real absolute path by mac/05-install-launchd.sh before this file is
+  copied into ~/Library/LaunchAgents/. Do not load this file as-is; run the
+  install script instead, which does the substitution and the load.
+
+  A LaunchAgent (not a LaunchDaemon) so it runs as the logged-in user, same
+  as npm install and the file paths in mac/config.env assume. This means a
+  reboot needs the Mac to auto-login before the server comes back, which is
+  a real gap: note it to the founder rather than silently assuming it. If
+  he would rather the server survive a reboot with nobody logged in, this
+  needs to become a LaunchDaemon (installed with sudo into
+  /Library/LaunchDaemons, with a UserName key added so it still runs as him
+  and not root) instead; that rewrite is not done here since it was not
+  asked for and changes the install step in 05-install-launchd.sh too.
+
+  KeepAlive true restarts the server if it exits for any reason, which is
+  the mechanism E12's "the server comes back after being killed" check
+  actually proves.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.shin.server</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>__SHIN_REPO_DIR__/mac/run-server.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__SHIN_REPO_DIR__/app</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>__SHIN_REPO_DIR__/mac/logs/server.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__SHIN_REPO_DIR__/mac/logs/server.err.log</string>
+</dict>
+</plist>
