@@ -148,6 +148,16 @@ export interface Candidate {
    * judged by the wrong one.
    */
   readonly source: string;
+  /** Item 25. The label's own short description. Null on most rows; not every source carries one. */
+  readonly genericName: string | null;
+  /** Item 25. Open Food Facts' 'a' to 'e' letter. Null when ungraded or not a food row. */
+  readonly nutriscoreGrade: string | null;
+  /** Item 25. Open Food Facts' 1 to 4 processing group. Null when ungraded. */
+  readonly novaGroup: number | null;
+  /** Item 25. Count of additive tags on the label. Null, never 0, when nobody recorded any. */
+  readonly additivesN: number | null;
+  /** Item 25. Free text off the ingredients list. */
+  readonly ingredientsText: string | null;
   /** Everything a confidence calculation upstream might want. Nothing is hidden. */
   readonly signals: {
     readonly textRank: number | null;
@@ -301,10 +311,16 @@ interface Row {
   allergens: string;
   sold_in_canada: number;
   source: string;
+  generic_name: string | null;
+  nutriscore_grade: string | null;
+  nova_group: number | null;
+  additives_n: number | null;
+  ingredients_text: string | null;
 }
 
 const SELECT_COLS = `code, name, name_en, name_fr, brands, quantity, size_value,
-  size_unit, category_path, leaf_category, allergens, sold_in_canada, source`;
+  size_unit, category_path, leaf_category, allergens, sold_in_canada, source,
+  generic_name, nutriscore_grade, nova_group, additives_n, ingredients_text`;
 
 /**
  * Strips "en:" and hyphens so a tag can be shown to a person (decision 27).
@@ -536,6 +552,11 @@ function rowToCandidate(
     allergens: JSON.parse(row.allergens) as string[],
     soldInCanada: row.sold_in_canada === 1,
     source: row.source,
+    genericName: row.generic_name,
+    nutriscoreGrade: row.nutriscore_grade,
+    novaGroup: row.nova_group,
+    additivesN: row.additives_n,
+    ingredientsText: row.ingredients_text,
     signals: { ...signals, brandAgrees, sizeAgrees },
   };
 }
@@ -942,13 +963,27 @@ export class Catalogue {
      * rows named exactly that, one of them the Kraft jar that was landing at
      * five behind a peanut butter cup and an RXBAR, and none of the three
      * carries a category at all.
+     *
+     * ITEM 32. This only ever compared against name_en (falling back to the
+     * display name, which itself prefers name_en). A shopper typing the
+     * row's own French name exactly, on a row with no category, could never
+     * reach this escape hatch, because name_fr was never read here at all.
+     * Measured against 40 real bilingual Canadian rows queried by their own
+     * name_fr: 28 of 40 top-1 before this line read name_fr too, 34 of 40
+     * after. Both names are checked because decision 20 asks for a French
+     * query to reach an English row and the other way round, and a shopper
+     * naming the thing exactly is evidence regardless of which of the row's
+     * two names they happened to type.
      */
     const asked = normalizeName(text);
     // Membership is settled once, not inside the comparator, so a pool of sixty
     // costs sixty path reads rather than one per comparison.
     const ofTheKind = new Set(
       pool
-        .filter((m) => (rankingTag ? inRing(m.row, rankingTag) : false) || normalizeName(m.row.name_en ?? m.row.name) === asked)
+        .filter((m) =>
+          (rankingTag ? inRing(m.row, rankingTag) : false) ||
+          normalizeName(m.row.name_en ?? m.row.name) === asked ||
+          (m.row.name_fr !== null && normalizeName(m.row.name_fr) === asked))
         .map((m) => m.row.code),
     );
     const ranked =

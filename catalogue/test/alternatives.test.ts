@@ -30,6 +30,8 @@ function candidate(over: Partial<Candidate> & { code: string }): Candidate {
     name: 'x', nameEn: null, nameFr: null, brands: null, quantity: null,
     sizeValue: 500, sizeUnit: 'g', leafCategory: 'en:peanut-butters',
     categoryPath: PB, allergens: [], soldInCanada: true, source: 'openfoodfacts',
+    genericName: null, nutriscoreGrade: null, novaGroup: null, additivesN: null,
+    ingredientsText: null,
     signals: {
       textRank: null, vectorRank: null, bm25: null, similarity: null,
       rrf: 0, brandAgrees: null, sizeAgrees: null,
@@ -66,9 +68,13 @@ function fixture() {
     ['I', 'Prose In The Allergen Field 500 g', 500, 'g', PB,
       '["en:peanuts","en:always-read-the-label-carefully-because-not-all-our-products-are-manufactured-in-a-peanut-free-facility"]', 1],
   ];
+  // Same source as `original`'s default ('openfoodfacts', see candidate()
+  // above): item 19a's fix filters alternatives to the original's own
+  // source, so a fixture row under a different source would silently stop
+  // being reachable by every test in this file that does not say otherwise.
   for (const [code, name, size, unit, path, allergens, canada] of rows) {
     insert.run(code, name, name, null, null, null, size, unit,
-      JSON.stringify(path), path[path.length - 1], allergens, canada, 'test');
+      JSON.stringify(path), path[path.length - 1], allergens, canada, 'openfoodfacts');
   }
   rebuildFts(db);
   rebuildCategories(db);
@@ -442,4 +448,49 @@ test('a tag as wide as a whole shelf offers no alternatives at all', async () =>
 
   const narrow = await alternativesFor(db, asOriginal(row('T1')) as never, 800, lookupOf({ T2: 300 }));
   assert.ok(narrow.length > 0, 'a genuinely narrow tag stopped producing alternatives');
+});
+
+test('a cheaper pet-food snack is not offered as an alternative to a human snack (item 19a)', async () => {
+  /*
+   * Tester-visible defect, item 19a: "cheaper alternatives of the wrong
+   * kind". Open Food Facts' category taxonomy is shared by its sibling
+   * projects with no wall between them -- measured against the live
+   * catalogue, "en:snacks" alone is the leaf category of 9 pet food rows and
+   * of human snack rows. Before the fix below, a cat treat offered a real
+   * saving over a human cracker sharing that tag, which is not an
+   * alternative a shopper asked for: the two are not the same kind of thing,
+   * only the same tag.
+   *
+   * Written first and confirmed red against the pre-fix query (no `p.source`
+   * filter): the pet snack came back as `alts[0]`. The fix is the `AND
+   * p.source = ?8` clause in alternatives.ts.
+   */
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  const SNACKS = ['en:snacks'];
+  insert.run('HUMAN1', 'Cheddar Crackers 200 g', 'Cheddar Crackers 200 g', null, null, null,
+    200, 'g', JSON.stringify(SNACKS), 'en:snacks', '[]', 1, 'openfoodfacts');
+  insert.run('PET1', 'Salmon Cat Treats 200 g', 'Salmon Cat Treats 200 g', null, null, null,
+    200, 'g', JSON.stringify(SNACKS), 'en:snacks', '[]', 1, 'openpetfoodfacts');
+  rebuildFts(db);
+  rebuildCategories(db);
+
+  const humanSnack = candidate({
+    code: 'HUMAN1', name: 'Cheddar Crackers 200 g', leafCategory: 'en:snacks',
+    categoryPath: SNACKS, source: 'openfoodfacts',
+  });
+
+  // The cat treat is priced far below the cracker, so if it survived the
+  // category match it would win on price alone: a saving this size is
+  // exactly the case the feature exists to surface, which is why it is the
+  // one case that must be checked and refused here.
+  const alts = await alternativesFor(db, humanSnack, 500, lookupOf({ PET1: 100 }));
+  assert.deepEqual(
+    alts.map((a) => a.product.code),
+    [],
+    'a pet food product was offered as a cheaper alternative to a human snack',
+  );
 });

@@ -366,6 +366,8 @@ export async function alternativesFor(
       `SELECT p.code, p.name, p.name_en, p.name_fr, p.brands, p.quantity,
               p.size_value, p.size_unit, p.category_path, p.leaf_category,
               p.allergens, p.sold_in_canada, p.source,
+              p.generic_name, p.nutriscore_grade, p.nova_group, p.additives_n,
+              p.ingredients_text,
               CASE WHEN ?1 = 1
                      AND p.size_unit = ?4
                      AND p.size_value BETWEEN ?5 AND ?6
@@ -375,6 +377,20 @@ export async function alternativesFor(
        WHERE pc.tag = ?2
          AND p.code <> ?3
          AND p.sold_in_canada = 1
+         /*
+          * ITEM 19a. A category tag is Open Food Facts' own taxonomy, shared
+          * across the sibling projects with no wall between them: pet food and
+          * human food both carry "en:snacks", "en:biscuits", "en:beverages",
+          * "en:pate". Without this, a cheaper cat treat priced at a store gets
+          * offered as the cheaper option beside a human snack sharing the tag,
+          * which is a cheaper alternative of the wrong kind, not a cheaper
+          * alternative. Same source as the original is the narrowest rule that
+          * actually stops it: it also keeps electronics off a grocery original
+          * and vice versa, at the cost that a genuinely comparable product filed
+          * under a different sibling project (rare; the sources are close to
+          * disjoint by design) is missed rather than shown wrong.
+          */
+         AND p.source = ?8
        ORDER BY rank_bucket, p.name
        LIMIT ?7`,
     ).all(
@@ -385,6 +401,7 @@ export async function alternativesFor(
     minSize,
     maxSize,
     MAX_CONSIDERED,
+    original.source,
   ) as unknown as {
     code: string;
     name: string;
@@ -398,6 +415,11 @@ export async function alternativesFor(
     leaf_category: string | null;
     allergens: string;
     sold_in_canada: number;
+    generic_name: string | null;
+    nutriscore_grade: string | null;
+    nova_group: number | null;
+    additives_n: number | null;
+    ingredients_text: string | null;
     source: string;
   }[];
 
@@ -474,6 +496,11 @@ export async function alternativesFor(
       allergens: theirAllergens,
       soldInCanada: r.sold_in_canada === 1,
       source: r.source,
+      genericName: r.generic_name,
+      nutriscoreGrade: r.nutriscore_grade,
+      novaGroup: r.nova_group,
+      additivesN: r.additives_n,
+      ingredientsText: r.ingredients_text,
       signals: {
         textRank: null, vectorRank: null, bm25: null, similarity: null,
         rrf: 0, brandAgrees: null, sizeAgrees: null,

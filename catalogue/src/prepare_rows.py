@@ -196,6 +196,30 @@ def main() -> int:
     return 0 if written > 0 else 1
 
 
+# Open Food Facts prints 'unknown' and 'not-applicable' in the same column
+# a real grade lives in, and neither is a grade: 'unknown' means nobody has
+# graded it yet and 'not-applicable' means the product cannot be graded at
+# all (an unprepared ingredient, for instance). Item 25 asks for the Nutri-
+# Score, not for a string that happens to sit in that column, so both collapse
+# to the same absence a true NULL already gets.
+VALID_NUTRISCORE = {"a", "b", "c", "d", "e"}
+
+
+def clean_grade(v):
+    s = (v or "").strip().lower()
+    return s if s in VALID_NUTRISCORE else None
+
+
+def clean_int(v):
+    """additives_n and nova_group arrive as floats from Parquet; 0 is real, keep it."""
+    if v is None:
+        return None
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
+
+
 def write_batch(fh, rows, written, skipped_no_name, with_size):
         for r in rows:
             code = (r.get("code") or "").strip()
@@ -224,6 +248,16 @@ def write_batch(fh, rows, written, skipped_no_name, with_size):
             cats = list(r.get("categories_tags") or [])
             countries = list(r.get("countries_tags") or [])
 
+            # generic_name and ingredients_text are the same {lang, text} list
+            # shape as product_name (verified against a live sample of
+            # canada.parquet, not assumed from the column name), so the same
+            # language cascade applies: English first, French second, whatever
+            # the contributor marked as the product's own language last.
+            generic_en, generic_fr, generic_fallback = name_by_lang(r.get("generic_name"))
+            generic_name = generic_en or generic_fr or generic_fallback
+            ing_en, ing_fr, ing_fallback = name_by_lang(r.get("ingredients_text"))
+            ingredients_text = ing_en or ing_fr or ing_fallback
+
             fh.write(json.dumps({
                 "code": code,
                 "name": display,
@@ -244,6 +278,12 @@ def write_batch(fh, rows, written, skipped_no_name, with_size):
                 "image_url": None,
                 "sold_in_canada": 1 if "en:canada" in countries else 0,
                 "source": "openfoodfacts",
+                # Item 25's five quality fields.
+                "generic_name": generic_name,
+                "nutriscore_grade": clean_grade(r.get("nutriscore_grade")),
+                "nova_group": clean_int(r.get("nova_group")),
+                "additives_n": clean_int(r.get("additives_n")),
+                "ingredients_text": ingredients_text,
             }, ensure_ascii=False) + "\n")
             written += 1
 

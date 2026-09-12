@@ -55,6 +55,16 @@ export interface ProductRow {
   readonly image_url: string | null;
   readonly sold_in_canada: number;
   readonly source: string;
+  /** The label's own short description, when the upstream data carries one. Item 25. */
+  readonly generic_name: string | null;
+  /** 'a' to 'e', Open Food Facts' own letter. Null when ungraded or not a food row. Item 25. */
+  readonly nutriscore_grade: string | null;
+  /** 1 to 4, Open Food Facts' own processing group. Null when ungraded. Item 25. */
+  readonly nova_group: number | null;
+  /** Count of additive tags found on the label. Item 25. */
+  readonly additives_n: number | null;
+  /** Free text off the ingredients list, as the label prints it. Item 25. */
+  readonly ingredients_text: string | null;
 }
 
 const DDL = `
@@ -83,7 +93,21 @@ CREATE TABLE IF NOT EXISTS product (
   allergens      TEXT NOT NULL DEFAULT '[]',
   image_url      TEXT,
   sold_in_canada INTEGER NOT NULL DEFAULT 0,
-  source         TEXT NOT NULL
+  source         TEXT NOT NULL,
+  /*
+   * Item 25, the five Open Food Facts quality fields. Nullable throughout:
+   * the sibling Open *Facts projects (beauty, products, pet food) carry these
+   * tags mostly as 'not-applicable' or 'unknown', a non-food row has no Nutri-
+   * Score to be missing, and the OFF rows themselves are graded on 55% of
+   * the catalogue at best. A field nobody filled in is an absence, never a
+   * zero (hard rule 3, agent repo): NOVA and additives count are INTEGER so
+   * a real 0 additives stays distinguishable from no data at all.
+   */
+  generic_name     TEXT,
+  nutriscore_grade TEXT,
+  nova_group       INTEGER,
+  additives_n      INTEGER,
+  ingredients_text TEXT
 ) STRICT;
 
 CREATE INDEX IF NOT EXISTS product_leaf ON product(leaf_category);
@@ -200,7 +224,14 @@ function addMissingColumns(db: DatabaseSync): void {
     (db.prepare('PRAGMA table_info(product)').all() as unknown as { name: string }[])
       .map((r) => r.name),
   );
-  const wanted: [string, string][] = [['category_source', 'TEXT']];
+  const wanted: [string, string][] = [
+    ['category_source', 'TEXT'],
+    ['generic_name', 'TEXT'],
+    ['nutriscore_grade', 'TEXT'],
+    ['nova_group', 'INTEGER'],
+    ['additives_n', 'INTEGER'],
+    ['ingredients_text', 'TEXT'],
+  ];
   for (const [name, type] of wanted) {
     if (!have.has(name)) db.exec(`ALTER TABLE product ADD COLUMN ${name} ${type}`);
   }

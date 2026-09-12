@@ -37,6 +37,11 @@ SOURCE = sys.argv[2] if len(sys.argv) > 2 else REMOTE
 
 # Kept deliberately narrow. Every column here is read by the loader; anything
 # else is 7.8 GB of bandwidth for a field nothing consumes.
+#
+# Item 25 added the last five: nutriscore_grade, nova_group, additives_n and
+# ingredients_text are the quality fields the product answer now carries;
+# generic_name was already read here but never carried past this file until
+# prepare_rows.py was updated in the same change to write it out.
 QUERY = f"""
 COPY (
   SELECT
@@ -51,7 +56,11 @@ COPY (
     allergens_tags,
     countries_tags,
     images,
-    lang
+    lang,
+    nutriscore_grade,
+    nova_group,
+    additives_n,
+    ingredients_text
   FROM read_parquet('{SOURCE}')
   WHERE list_contains(countries_tags, 'en:canada')
 ) TO '{OUT}' (FORMAT PARQUET, COMPRESSION ZSTD)

@@ -35,6 +35,11 @@ interface PreparedRow {
   image_url: string | null;
   sold_in_canada: number;
   source: string;
+  generic_name?: string | null;
+  nutriscore_grade?: string | null;
+  nova_group?: number | null;
+  additives_n?: number | null;
+  ingredients_text?: string | null;
 }
 
 async function main(): Promise<number> {
@@ -45,15 +50,19 @@ async function main(): Promise<number> {
   const insert = db.prepare(`
     INSERT INTO product (
       code, name, name_en, name_fr, brands, quantity, size_value, size_unit,
-      category_path, leaf_category, allergens, image_url, sold_in_canada, source
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      category_path, leaf_category, allergens, image_url, sold_in_canada, source,
+      generic_name, nutriscore_grade, nova_group, additives_n, ingredients_text
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(code) DO UPDATE SET
       name=excluded.name, name_en=excluded.name_en, name_fr=excluded.name_fr,
       brands=excluded.brands, quantity=excluded.quantity,
       size_value=excluded.size_value, size_unit=excluded.size_unit,
       category_path=excluded.category_path, leaf_category=excluded.leaf_category,
       allergens=excluded.allergens, image_url=excluded.image_url,
-      sold_in_canada=excluded.sold_in_canada, source=excluded.source
+      sold_in_canada=excluded.sold_in_canada, source=excluded.source,
+      generic_name=excluded.generic_name, nutriscore_grade=excluded.nutriscore_grade,
+      nova_group=excluded.nova_group, additives_n=excluded.additives_n,
+      ingredients_text=excluded.ingredients_text
   `);
 
   const rl = createInterface({
@@ -90,6 +99,11 @@ async function main(): Promise<number> {
       r.image_url,
       r.sold_in_canada ? 1 : 0,
       r.source,
+      r.generic_name ?? null,
+      r.nutriscore_grade ?? null,
+      r.nova_group ?? null,
+      r.additives_n ?? null,
+      r.ingredients_text ?? null,
     );
     read += 1;
     inBatch += 1;
@@ -124,6 +138,20 @@ async function main(): Promise<number> {
     .prepare('SELECT count(DISTINCT rowid_ref) AS n FROM product_category')
     .get() as { n: number };
 
+  // Item 25's five quality fields. Counted from the table, same as everything
+  // above, so this reports what actually landed rather than what the loader
+  // tried to write.
+  const genericName = db
+    .prepare('SELECT count(*) AS n FROM product WHERE generic_name IS NOT NULL').get() as { n: number };
+  const nutriscore = db
+    .prepare('SELECT count(*) AS n FROM product WHERE nutriscore_grade IS NOT NULL').get() as { n: number };
+  const nova = db
+    .prepare('SELECT count(*) AS n FROM product WHERE nova_group IS NOT NULL').get() as { n: number };
+  const additives = db
+    .prepare('SELECT count(*) AS n FROM product WHERE additives_n IS NOT NULL').get() as { n: number };
+  const ingredients = db
+    .prepare('SELECT count(*) AS n FROM product WHERE ingredients_text IS NOT NULL').get() as { n: number };
+
   console.log(`lines read        ${read}`);
   console.log(`malformed         ${malformed}`);
   console.log(`rows in product   ${total.n}`);
@@ -132,6 +160,11 @@ async function main(): Promise<number> {
   console.log(`  EN and FR both  ${bilingual.n}`);
   console.log(`rows in text index ${fts.n}`);
   console.log(`category memberships ${cats.n} across ${catProducts.n} products`);
+  console.log(`  with generic_name       ${genericName.n}`);
+  console.log(`  with nutriscore_grade   ${nutriscore.n}`);
+  console.log(`  with nova_group         ${nova.n}`);
+  console.log(`  with additives_n        ${additives.n}`);
+  console.log(`  with ingredients_text   ${ingredients.n}`);
 
   if (fts.n !== total.n) {
     console.error(`text index out of step with the table: ${fts.n} vs ${total.n}`);
