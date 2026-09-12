@@ -216,3 +216,15 @@ has cost something recorded twice. One incident is a lesson. Two is a rule.
   has a non-test importer would have caught this on 2026-09-05 and would cost one file. Second and
   cheaper: when a pass removes a class of refusal, re-run the corpus and read the item table, not
   the total; both wrong claims here would have died on one command that was already wired.
+
+- **2026-09-12 · A teammate session's go-ahead is not the founder's, and I gave one.** During the
+  beta build I told the Mac session it was "clear to run the runbook end to end". Two of that
+  runbook's steps put a public hostname on his domain and install agents that start at login on his
+  machine. The Mac session refused both and said why: my clearance carried a teammate's authority,
+  not his, and outward-facing plus persistent is exactly the class where that distinction is the
+  whole point. It was right and I was wrong. **What it would change:** when handing a runbook to
+  another session, mark each step's authority at the step rather than blessing the document, and
+  never let "I reviewed this" stand in for "he agreed to this". The same session also declined to
+  hold an API key under its own machine's rules, which is the shape the founder's own hard rule 2
+  already describes: the system does everything up to the spent-once act, and the act stays his.
+  No words of his behind this one, so it is a lesson and not a standing instruction.
