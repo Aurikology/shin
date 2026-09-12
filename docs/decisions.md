@@ -977,3 +977,60 @@ shorter than the 450 px budget at 575 tall. In either case the fix is more non-c
 never a key back under 44. Also reverses if a measured tap-error rate on the pad does not fall
 after this, which would mean the size was not the problem.
 
+## The beta is six people on the stores' own test tracks, and the app ships to both stores
+**Date:** 2026-09-11 · **Status:** active
+
+His words: *"this app will be launched to the app and google play store. The beta tester will be
+aurik and i and our parents."* So the beta is a native build, not a web link: TestFlight internal
+testing (no review, up to 100 App Store Connect users) and Google Play internal testing (no
+review, no Data safety form, up to 100 testers), each of which needs the paid developer account
+first (Apple 99 USD a year, Google 25 USD once plus identity verification; neither vendor states
+a processing time). The web app is wrapped rather than rewritten: the client already uses relative
+API paths, no content security policy and no cross-origin isolation, so the wrap needs a base URL
+setting, a remap of the two wasm files' root paths, and a real-phone camera test on day one, with
+the native barcode plugin as the fallback if the web camera fails inside the wrapper. Hosting with
+HTTPS is still required, because the wrapped app calls the founders' API. Google's 12 testers for
+14 days rule applies to production access, not to internal testing, so it gates the public launch
+and needs six more people than this beta has.
+
+**Reverses if:** either store account is not approved in time for the week, in which case the
+same six people test the hosted web app in Safari and Chrome while the accounts clear; or the
+camera cannot be made to work inside the wrapper on a real phone after the native plugin fallback,
+in which case the photo path stays web-only for the beta and the barcode path goes native.
+
+## Review scores come only through a retailer's official API, named on screen, and food quality comes from Open Food Facts
+**Date:** 2026-09-11 · **Status:** active
+
+His words: *"the reviews can be pulled from amazon or walmart, or best buy or any other popular
+store and referenced where the review is pull from. It just gives the user an idea of how good
+something is."* Checked 2026-09-11 against the vendors' own pages: Amazon's Creators API needs a
+fully approved Associates account with referred qualifying sales (third-party summaries say ten in
+the trailing thirty days), so it is closed until the app has an audience; Walmart's affiliate API
+is documented for walmart.com only and no walmart.ca product API was found; Best Buy's developer
+API returns a review average and count but covers the United States and Puerto Rico only, and no
+Best Buy Canada product API exists; Amazon's and Walmart's terms forbid automated gathering, and
+Walmart already blocks this repo's crawler. So: Best Buy's US ratings by barcode for tech, labelled
+"Best Buy (US)" with a link; nothing scraped, ever; Amazon added the day Associates access is
+granted. For food, where no licensed review source exists at all, the "how good is it" signal is
+Open Food Facts' own fields (Nutri-Score, NOVA group, additives, ingredients), which the loader
+currently drops and the product table has no columns for. A model-written review is a fabricated
+claim and stays out.
+
+**Reverses if:** a Canadian retailer publishes a product API that returns ratings (Canadian Tire's
+developer portal was not checked while signed in and is the first place to look), or Amazon
+Associates access is granted, in which case that source is added under the same attribution rule.
+
+## A shopper can rate a scan, and the rating is stored against the scan row
+**Date:** 2026-09-11 · **Status:** active
+
+His words: *"There should be an ability to rate the quality of a scan."* The thumbs on the verdict
+sheet exist and write nothing but a local highlight. The server already generates a scan row id on
+every identify call and discards it before replying. The build: return the id in both identify
+responses, keep it on the client's current-verdict object, store the tap in a rating table keyed by
+scan id and device id, with an optional one-tap reason on a thumbs-down (wrong product, wrong
+price, no price, too slow), and keep the four-second undo. A five-point scale is the same wire with
+one screen change if he wants it.
+
+**Reverses if:** he names a five-point scale as the form he meant, in which case the thumbs become
+stars and the table's rating column widens; nothing else changes.
+
