@@ -358,5 +358,365 @@
     "size": "281 g",
     "kind": "plain",
     "category": "en:chickens"
+  },
+  {
+    "code": null,
+    "file": "photos/produce-01.jpg",
+    "brand": null,
+    "name": "Banana",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-02.jpg",
+    "brand": null,
+    "name": "Gala Apple",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-03.jpg",
+    "brand": null,
+    "name": "Roma Tomato",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-04.jpg",
+    "brand": null,
+    "name": "English Cucumber",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-05.jpg",
+    "brand": null,
+    "name": "Green Bell Pepper",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-06.jpg",
+    "brand": null,
+    "name": "Red Onion",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-07.jpg",
+    "brand": null,
+    "name": "Russet Potato",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-08.jpg",
+    "brand": null,
+    "name": "Iceberg Lettuce",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-09.jpg",
+    "brand": null,
+    "name": "Broccoli Crown",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-10.jpg",
+    "brand": null,
+    "name": "Carrots (loose)",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-11.jpg",
+    "brand": null,
+    "name": "Navel Orange",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-12.jpg",
+    "brand": null,
+    "name": "Avocado (Hass)",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-13.jpg",
+    "brand": null,
+    "name": "Green Grapes (seedless)",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-14.jpg",
+    "brand": null,
+    "name": "Strawberries (loose)",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-15.jpg",
+    "brand": null,
+    "name": "Yellow Onion",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-16.jpg",
+    "brand": null,
+    "name": "Garlic Bulb",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-17.jpg",
+    "brand": null,
+    "name": "Sweet Potato",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-18.jpg",
+    "brand": null,
+    "name": "Cauliflower",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-19.jpg",
+    "brand": null,
+    "name": "Celery Stalk",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": null,
+    "file": "photos/produce-20.jpg",
+    "brand": null,
+    "name": "Lemon",
+    "size": null,
+    "kind": "produce",
+    "category": null
+  },
+  {
+    "code": "0000048050500",
+    "file": "photos/tech-01.jpg",
+    "brand": "MSI",
+    "name": "GS66 11UG-264RU Stealth",
+    "size": null,
+    "kind": "tech",
+    "category": "en:laptops"
+  },
+  {
+    "code": "0000021378652",
+    "file": "photos/tech-02.jpg",
+    "brand": "Apple",
+    "name": "iPhone 13 Pro",
+    "size": null,
+    "kind": "tech",
+    "category": "en:smartphones"
+  },
+  {
+    "code": "0036725229914",
+    "file": "photos/tech-03.jpg",
+    "brand": "Samsung",
+    "name": "55\" 1080p LED HDTV",
+    "size": null,
+    "kind": "tech",
+    "category": "en:tvs"
+  },
+  {
+    "code": "0000000041645",
+    "file": "photos/tech-04.jpg",
+    "brand": "Verbatim",
+    "name": "Multimedia Headset",
+    "size": null,
+    "kind": "tech",
+    "category": "en:headphones-headsets"
+  },
+  {
+    "code": "0000051775186",
+    "file": "photos/tech-05.jpg",
+    "brand": "CHERRY",
+    "name": "19\" compact PC keyboard PS/2",
+    "size": null,
+    "kind": "tech",
+    "category": "en:keyboards"
+  },
+  {
+    "code": "0000100388855",
+    "file": "photos/tech-06.jpg",
+    "brand": "Samsung",
+    "name": "LS27F350FHLXZX",
+    "size": null,
+    "kind": "tech",
+    "category": "en:computer-monitors"
+  },
+  {
+    "code": "0036725730052",
+    "file": "photos/tech-07.jpg",
+    "brand": "Samsung",
+    "name": "Q1 Ultra Tablet PC",
+    "size": null,
+    "kind": "tech",
+    "category": "en:tablets"
+  },
+  {
+    "code": "0003200804515",
+    "file": "photos/tech-08.jpg",
+    "brand": "HP",
+    "name": "Z Turbo Drive 1TB TLC Z8 G4 SSD Kit",
+    "size": null,
+    "kind": "tech",
+    "category": "en:internal-solid-state-drives"
+  },
+  {
+    "code": "0000000130912",
+    "file": "photos/tech-09.jpg",
+    "brand": "HP",
+    "name": "Smart Tank 7305 All-in-One Printer",
+    "size": null,
+    "kind": "tech",
+    "category": "en:multifunction-printers"
+  },
+  {
+    "code": "0000000058865",
+    "file": "photos/tech-10.jpg",
+    "brand": "Intellinet",
+    "name": "Cat5e, UTP, 0.25m",
+    "size": null,
+    "kind": "tech",
+    "category": "en:networking-cables"
+  },
+  {
+    "code": "0012300052313",
+    "file": "photos/tech-11.jpg",
+    "brand": "Thrustmaster",
+    "name": "GPX Lightback Ferrari F1 Edition",
+    "size": null,
+    "kind": "tech",
+    "category": "en:gaming-controllers"
+  },
+  {
+    "code": "0000000002776",
+    "file": "photos/tech-12.jpg",
+    "brand": "Seagate",
+    "name": "1500GB 3.5\" SATA II",
+    "size": null,
+    "kind": "tech",
+    "category": "en:internal-hard-drives"
+  },
+  {
+    "code": "0000000185608",
+    "file": "photos/tech-13.jpg",
+    "brand": "HP",
+    "name": "LaserJet Pro 4002dw Printer",
+    "size": null,
+    "kind": "tech",
+    "category": "en:laser-printers"
+  },
+  {
+    "code": "0011411205717",
+    "file": "photos/tech-14.jpg",
+    "brand": "QNAP",
+    "name": "TS-EC879U-RP 10Gbit/s 4x3TB",
+    "size": null,
+    "kind": "tech",
+    "category": "en:nas-storage-servers"
+  },
+  {
+    "code": "0000001839340",
+    "file": "photos/tech-15.jpg",
+    "brand": "Samsung",
+    "name": "8GB DDR3 1600MHz",
+    "size": null,
+    "kind": "tech",
+    "category": "en:memory-modules"
+  },
+  {
+    "code": "0023424322435",
+    "file": "photos/tech-16.jpg",
+    "brand": "Verbatim",
+    "name": "CD-RW 700MB 80Min 32x UltraSpeed JC 10pk",
+    "size": null,
+    "kind": "tech",
+    "category": "en:blank-cds"
+  },
+  {
+    "code": "0001975305558",
+    "file": "photos/tech-17.jpg",
+    "brand": "Lenovo",
+    "name": "ThinkStation P3 Tower",
+    "size": null,
+    "kind": "tech",
+    "category": "en:pcs-workstations"
+  },
+  {
+    "code": "0033584171415",
+    "file": "photos/tech-18.jpg",
+    "brand": "OtterBox",
+    "name": "Commuter Case",
+    "size": null,
+    "kind": "tech",
+    "category": "en:mobile-phone-cases"
+  },
+  {
+    "code": "0000000367820",
+    "file": "photos/tech-19.jpg",
+    "brand": "Ricoh",
+    "name": "Toner Type 1220D Black",
+    "size": null,
+    "kind": "tech",
+    "category": "en:toner-cartridges"
+  },
+  {
+    "code": "0000004780113",
+    "file": "photos/tech-20.jpg",
+    "brand": "Epson",
+    "name": "Ink Cart light magenta 220ml f SP9500",
+    "size": "220 mL",
+    "kind": "tech",
+    "category": "en:ink-cartridges"
   }
 ]

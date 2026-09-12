@@ -31,7 +31,7 @@
  * discovering the gap on row 17 -- "must never spend on a partial manifest."
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -95,7 +95,12 @@ interface ManifestRow {
   readonly brand: string | null;
   readonly name: string | null;
   readonly size: string | null;
-  readonly kind: 'plain' | 'size-pair' | 'store-brand' | 'multipack';
+  // 'produce' and 'tech' added 2026-09-11, item 14b of the beta build plan:
+  // 20 slots of each, manifest.json rows already there, photo files not.
+  // Loose produce carries no barcode by design (item 20's own point), so a
+  // produce row's `code`/`brand`/`category` are legitimately null rather than
+  // a placeholder waiting on a lookup.
+  readonly kind: 'plain' | 'size-pair' | 'store-brand' | 'multipack' | 'produce' | 'tech';
   readonly category: string | null;
 }
 
@@ -325,7 +330,7 @@ async function hasCredentials(): Promise<boolean> {
 // -------------------------------------------------------------------- run
 
 interface RowResult {
-  code: string;
+  code: string | null;
   kind: ManifestRow['kind'];
   category: string | null;
   expectedBrand: string | null;
@@ -400,8 +405,29 @@ async function run(): Promise<void> {
   const sharedStage = sharedModel ? new IdentifyStage(lookup, sharedModel) : null;
 
   const results: RowResult[] = [];
+  let pending = 0;
 
   for (const row of rows) {
+    // Item 14b's produce and tech slots: manifest.json already carries the
+    // row, the photo does not exist yet. Skipped, not a crash, and not
+    // counted toward top-1/top-3/pass-2 for the rows that DO have a photo --
+    // "adding the photos is the only remaining step" only holds if a bare
+    // manifest entry can sit here without breaking the run for everyone else.
+    if (!existsSync(evalPath(row.file))) {
+      pending += 1;
+      console.log(`PENDING  ${row.code ?? '(no code)'}  ${row.kind}  no photo yet at ${row.file}`);
+      continue;
+    }
+    // A photo landed with no recorded answer at all -- name, brand and code
+    // all null -- is a row someone dropped a file into without filling in
+    // what it is a photo of. Scoring it would silently read as a miss
+    // (correctly) or, worse, as a spurious top-1 if a future change ever lets
+    // a null code compare equal to a null chosenCode. Flagged rather than run.
+    if (row.name === null && row.brand === null && row.code === null) {
+      console.log(`SKIP     ${row.file}  has a photo but no recorded answer (name/brand/code all null)`);
+      continue;
+    }
+
     const bytes = readFileSync(evalPath(row.file));
     const stage = sharedStage ?? new IdentifyStage(lookup, new FakeIdentifier(row));
     const started = Date.now();
@@ -409,8 +435,13 @@ async function run(): Promise<void> {
     const ms = Date.now() - started;
 
     const chosenCode = outcome.kind === 'identified' ? outcome.chosen.code : null;
-    const top1 = chosenCode === row.code;
+    // Guarded on `row.code != null`: a produce row has no barcode by design,
+    // and without this guard a null-code row would score top-1 the moment
+    // the outcome also carries no chosen code (e.g. 'unreadable'), which is
+    // an accident of both sides being null, not a match.
+    const top1 = row.code != null && chosenCode === row.code;
     const top3 =
+      row.code != null &&
       outcome.kind === 'identified' &&
       [outcome.chosen, ...outcome.alternates].slice(0, 3).some((c) => c.code === row.code);
 
@@ -431,7 +462,7 @@ async function run(): Promise<void> {
     });
   }
 
-  report(args, results);
+  report(args, results, pending);
 }
 
 function pad(s: string, n: number): string {
@@ -444,7 +475,7 @@ function percentile(sortedMs: readonly number[], p: number): number {
   return sortedMs[idx];
 }
 
-function report(args: Args, results: RowResult[]): void {
+function report(args: Args, results: RowResult[], pending = 0): void {
   console.log(
     pad('code', 15) +
       pad('kind', 12) +
@@ -456,7 +487,7 @@ function report(args: Args, results: RowResult[]): void {
   );
   for (const r of results) {
     console.log(
-      pad(r.code, 15) +
+      pad(r.code ?? '(no code)', 15) +
         pad(r.kind, 12) +
         pad(r.outcome, 15) +
         pad(r.top1 ? 'yes' : 'no', 6) +
@@ -505,6 +536,9 @@ function report(args: Args, results: RowResult[]): void {
   );
   console.log(`p50 ms: ${percentile(times, 50)}  p95 ms: ${percentile(times, 95)}`);
   console.log(`estimated cost: ${costNote}`);
+  if (pending > 0) {
+    console.log(`pending (manifest slot, no photo yet): ${pending}`);
+  }
 
   mkdirSync(evalPath('results'), { recursive: true });
   const date = new Date().toISOString().slice(0, 10);
@@ -525,6 +559,7 @@ function report(args: Args, results: RowResult[]): void {
           pass2Denominator: withPasses.length,
           p50Ms: percentile(times, 50),
           p95Ms: percentile(times, 95),
+          pending,
         },
         results,
       },

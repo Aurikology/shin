@@ -21,6 +21,7 @@ import {
   type PickCandidateRow,
   type Tier,
 } from './model.ts';
+import { spendCapRefusalMessage } from './cap.ts';
 import { capByPick, deriveConfidence, LEAD_CLEAR, type Confidence } from './confidence.ts';
 import { gtinFrom } from './gtin.ts';
 
@@ -177,11 +178,27 @@ export class IdentifyStage {
        * malformed answer all leave the person with the same one thing to do,
        * and naming our billing at somebody in a supermarket aisle is hard rule
        * 3's exact failure. What changes is that the class rides alongside it.
+       *
+       * ONE EXCEPTION, added 2026-09-11 when the daily dollar cap landed in
+       * cap.ts. The reasoning above holds because every class it names leaves
+       * the person with the SAME next move: take the photo again. A spend cap
+       * refusal does not. Taking it again cannot work, today or on the tenth
+       * try, so "try again a little closer" sends somebody standing in an
+       * aisle into a loop that is guaranteed to fail and blames their
+       * photograph for our budget. The one thing left to do is genuinely
+       * different, so the sentence is genuinely different. It still does not
+       * name our billing at them: cap.ts's wording says the budget is spent
+       * and points at the typed-price pad, which is a path that works right
+       * now.
        */
+      const failure = failureOf(err);
       return {
         kind: 'unreadable',
-        because: 'That photo could not be read. Try again a little closer.',
-        failure: failureOf(err),
+        because:
+          failure === 'spend_cap_reached'
+            ? spendCapRefusalMessage()
+            : 'That photo could not be read. Try again a little closer.',
+        failure,
         reading: null,
         tier,
       };

@@ -28,6 +28,8 @@ import {
   type CatalogueResult,
 } from '../src/identify.ts';
 import type { Identifier, IdentifiedFields, ModelReading, PickFields } from '../src/model.ts';
+import { ModelCallError } from '../src/model.ts';
+import { spendCapRefusalMessage } from '../src/cap.ts';
 
 type Query = Parameters<CatalogueLookup>[0];
 
@@ -526,5 +528,76 @@ test('a 12 ea reading pins count as the size when the label gave no size of its 
   if (outcome.kind === 'identified') {
     assert.equal(outcome.reading?.product.size_value, null, 'the reading itself is untouched');
     assert.equal(outcome.reading?.product.count, 12);
+  }
+});
+
+/*
+ * THE SPEND CAP'S SENTENCE, 2026-09-11.
+ *
+ * The two tests below exist as a pair and neither is worth anything alone. The
+ * first says the cap refusal gets its own wording; the second says every other
+ * failure still gets the photograph wording. Without the second, the first
+ * would pass just as happily against a version that had thrown away the
+ * distinction and shown the cap sentence for an outage too, which would be a
+ * worse bug than the one being fixed: it would tell somebody whose photo
+ * genuinely failed that the budget was spent.
+ *
+ * The error is built from the same two exports `withSpendCap` builds it from,
+ * `ModelCallError` and `spendCapRefusalMessage`, rather than from a literal
+ * string. A literal would keep passing after somebody reworded cap.ts, which
+ * is exactly the day this check needs to fail.
+ */
+function throwingModel(err: Error): Identifier {
+  return {
+    read: async () => {
+      throw err;
+    },
+    pick: async () => {
+      throw new Error('the pick should never be reached when the read threw');
+    },
+  } as unknown as Identifier;
+}
+
+const NO_CANDIDATES: CatalogueResult = {
+  band: 'miss',
+  candidates: [],
+  ring: null,
+  matchedBy: 'hybrid',
+};
+
+test('a spend cap refusal says the budget is spent, never that the photo was bad', async () => {
+  const stage = new IdentifyStage(
+    async () => NO_CANDIDATES,
+    throwingModel(new ModelCallError('spend_cap_reached', spendCapRefusalMessage())),
+  );
+  const outcome = await stage.fromCrop(new Uint8Array(), null, 'pro', 100);
+
+  assert.equal(outcome.kind, 'unreadable');
+  if (outcome.kind === 'unreadable') {
+    assert.equal(outcome.failure, 'spend_cap_reached');
+    assert.equal(outcome.because, spendCapRefusalMessage());
+    assert.ok(
+      !/photo could not be read/i.test(outcome.because),
+      'a cap refusal must not blame the photograph: taking it again cannot work today',
+    );
+  }
+});
+
+test('every other failure still blames nothing and asks for another photo', async () => {
+  const stage = new IdentifyStage(
+    async () => NO_CANDIDATES,
+    throwingModel(new ModelCallError('model_outage', 'upstream is down')),
+  );
+  const outcome = await stage.fromCrop(new Uint8Array(), null, 'pro', 100);
+
+  assert.equal(outcome.kind, 'unreadable');
+  if (outcome.kind === 'unreadable') {
+    assert.equal(outcome.failure, 'model_outage');
+    assert.match(outcome.because, /photo could not be read/i);
+    assert.notEqual(
+      outcome.because,
+      spendCapRefusalMessage(),
+      'an outage is not a spent budget and must not say it is',
+    );
   }
 });
