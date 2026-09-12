@@ -239,14 +239,14 @@ inputs land today; the beta starts the day both store accounts clear, which no o
 
 ### Day 0, Friday 2026-09-11: his inputs, each with a default so nothing waits
 
-- I1. Apple Developer enrolment started today. Gates E1 iOS.
-- I2. Google Play Console registration started today, with the ID and device verification. Gates E1 Android.
+- I1. Apple Developer enrolment. His call 2026-09-11: *"1. and 2. will be done after everythings done."* So he opens it once the code is complete; Apple's approval time then sits between Sunday night and the first iPhone install. Gates E1 iOS only.
+- I2. Google Play Console registration, with the ID and device verification, same timing. Gates E1 Android only.
 - I3. Cloudflare: the Mac session adds the subdomain record and the tunnel with him logged in, or he pastes a tunnel token into the environment file. Gates item 1 and therefore the wrapper's baked hostname.
 - I4. A card on the model console and the key in the Mac's environment file. Default caps: 10 CAD a day in code, 100 CAD a month at the console. Gates items 13, 14, 20d, 26.
-- I5. The two or three stores the six testers use. Gates item 16.
+- I5. Withdrawn. His question 2026-09-11: *"Why do you need 5."* Not needed: the testers' own first scans seed the price store, and item 11 records which stores they are, so the seed targets the right shelves without anyone naming them.
 - I6. The six testers' Apple IDs and Gmail addresses, the day the accounts clear. Gates item 4.
-- I7. Sign-ups only he can make: a Best Buy developer key (item 27). Icecat and the Canadian Tire portal are not for the beta; default skip.
-- I8. Decisions, defaults in brackets: rating form [thumbs with a reason tap]; Best Buy US prices [labelled reference, never in the verdict]; Walmart [dropped for the beta]; privacy wording [drafted tonight, his approval before it ships]; the name [after the search].
+- I7. A Best Buy developer key (item 27) is the one input that needs an email address in someone's name, which is why it was his; the rating ships the hour a key exists, and the beta does not wait on it. Icecat and the Canadian Tire portal are skipped for the beta.
+- I8. Decided by the boss on his word 2026-09-11 (*"you can make these decisions"*): rating form is thumbs with a reason tap; Best Buy US prices are a labelled reference and never enter the verdict; Walmart is dropped for the beta and reopens only on a route its terms permit; the consent wording is drafted, shipped and shown to him in chat when done, no approval gate; the name stays "Shin" if the search is clean, and if it hits, the boss picks a cleared working name for the internal tracks and he picks the public one before launch.
 - I9. Aurik: told that none of his items gate the beta; he owns the model file (his are the last five commits on it), and this repo's lanes touch only the dollar cap, the eval runner and a new description module; the push rule [his sync rule stands, Aurik informed].
 - I10. A Claude Code session open on the Mac in this repo, tonight or Saturday morning, for the Mac lane.
 
@@ -285,7 +285,7 @@ moment the card is in; the classifier (20), descriptions (26), the review displa
 defects (19) land; a screen walk at 390 by 844 and 375 by 575. By night: E2, E3, E4, E8, E9, E10
 checked on a phone through the wrapper build.
 
-**Monday 2026-09-14 onward.** The hour both accounts clear: uploads and tester invites (4), E1.
+**Monday 2026-09-14 onward.** He opens the two store accounts once the code is done; the hour both clear: uploads and tester invites (4), E1. Until then the six people test the wrapper builds sideloaded on Android and, on iPhone, the hosted web app in Safari, so the store approval wait costs no testing days.
 Parents' first scans in their stores; the correctness procedure starts (37). Ongoing from here:
 the price seed (16), Canadian Tire at scale (17), source enumeration (34), the competitor study
 (36), operations (39), and the public-launch items (40 to 46) as the beta runs.
