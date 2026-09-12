@@ -1,0 +1,10 @@
+# Line endings, repo wide.
+#
+# This repo is worked on from a Windows laptop with core.autocrlf=true and from
+# a Mac that now holds the beta server. A shell script that arrives on the Mac
+# with carriage returns fails as "bad interpreter" or as a command not found on
+# the last word of every line, neither of which names the real cause, so the
+# person reading it goes looking for a broken toolchain instead of a line
+# ending. Two lines here make that impossible for the whole class.
+*.sh text eol=lf
+*.mjs text eol=lf
