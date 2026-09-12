@@ -134,9 +134,49 @@ confirmed by reading the code paths directly rather than guessing:
 
 ### Transfer, Windows to Mac
 
+**READ THIS BEFORE STEP 4. The pull direction below does not work today, and
+the reason is a measurement, not a guess.** Checked on the Windows laptop
+2026-09-11:
+
+- Its LAN address is `192.168.2.16` on Wi-Fi.
+- **It is running no SSH server at all.** `Get-Service sshd` reports the
+  service is not present. OpenSSH Server is a Windows optional feature and it
+  is off. So every `rsync ... user@windows:` line below has nothing to connect
+  to, and would fail with a connection refused that names nothing useful.
+- It is on a Tailscale tailnet as `jamin` / `100.87.254.73`, but **the Mac is
+  not on that tailnet**. The only other devices on it belong to someone else
+  and have all been offline for over 50 days.
+
+So pick one of these three before step 4, in this order of preference:
+
+**(a) Push from Windows instead of pulling from the Mac.** This needs no new
+software on the Windows laptop, only Remote Login switched on on the Mac
+(System Settings, General, Sharing, Remote Login). Check it first with
+`sudo systemsetup -getremotelogin`. Then the transfer runs FROM Windows and
+the direction of every rsync line below reverses: source becomes the local
+`catalogue\data` path and destination becomes `user@mac:...`. Both machines
+must be on the same network; confirm with `ipconfig getifaddr en0` on the Mac
+and check it is also on `192.168.2.x`.
+
+**(b) An external drive.** Slower to set up, needs no network and no service
+enabled on either machine, and the checksum verify in the next section works
+identically against the drive-copied files. This is the fallback the rest of
+this document already anticipates.
+
+**(c) Put the Mac on the same tailnet.** Then either direction works from
+anywhere, not only on the home network, which also helps later when the Mac
+is the beta server and the laptop is not beside it. This is an account action
+and therefore his, not a session's.
+
+**Do not solve this by installing OpenSSH Server on the Windows laptop
+unprompted.** It opens a listening service on a personal machine, which is a
+persistent change to how that machine is exposed, and it is his call whether
+that is worth saving one step.
+
 4. Confirm `WINDOWS_SOURCE_HOST` in `mac/config.env` is actually filled in
    (it ships empty on purpose, see that file's own comment) before running
-   this, or fail loudly rather than guessing:
+   this, or fail loudly rather than guessing. The address is `192.168.2.16`
+   if and only if route (a) is reversed into a pull, which today it cannot be:
 
        if [ -z "$WINDOWS_SOURCE_HOST" ]; then echo "WINDOWS_SOURCE_HOST is not set. Fill it in in mac/config.env (ipconfig on Windows, IPv4 Address of the active adapter) before running this transfer." >&2; exit 1; fi
 
