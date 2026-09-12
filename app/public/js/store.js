@@ -75,6 +75,30 @@ const EMPTY = {
    * opinion on the field both read as on.
    */
   buzz: true,
+  /**
+   * Item 6: photos and location, each off until the person turns it on.
+   * `updatedAt` is the timestamp item 6c asks for ("store each choice per
+   * device with a timestamp"); it is null until the first choice is made, so
+   * a screen can tell "never asked" from "asked and left off", which read the
+   * same on every boolean-only design this field replaces.
+   */
+  consent: { photos: false, location: false, updatedAt: null },
+  /**
+   * Whether the first-launch consent screen (item 6b) has been shown and
+   * acted on. Separate from `seenIntro`: the attitude picker and the consent
+   * screen are two different questions, asked once each, and folding them
+   * into one flag would mean an app updated mid-flow could not tell which one
+   * a half-finished first launch actually reached.
+   */
+  consentSeen: false,
+  /**
+   * Item 8: the thumbs ratings this device has actually sent, keyed by scan
+   * id so a repeat tap on the same verdict overwrites rather than piling up,
+   * and so item 8d's rated-count row has something of its own to count that
+   * survives a reload (the on-screen thumb state does not; it is a class on a
+   * DOM node that goes away the moment the sheet does).
+   */
+  ratings: [],
 };
 
 /** A stable id, so a history entry can be found again after a re-render. */
@@ -103,7 +127,13 @@ function migrate(s) {
     : { ...EMPTY.market };
   /** A state saved before this pass has no `buzz` at all; that reads as on. */
   const buzz = s.buzz !== false;
-  return { ...s, history, watchlist, removed, market, buzz };
+  /** A state saved before item 6 has no `consent` at all, or a malformed one; both read as the off default, never as on. */
+  const consent = s.consent && typeof s.consent === 'object'
+    ? { photos: s.consent.photos === true, location: s.consent.location === true, updatedAt: s.consent.updatedAt ?? null }
+    : { ...EMPTY.consent };
+  const consentSeen = s.consentSeen === true;
+  const ratings = Array.isArray(s.ratings) ? s.ratings : [];
+  return { ...s, history, watchlist, removed, market, buzz, consent, consentSeen, ratings };
 }
 
 /** Drops anything removed more than thirty days ago. Never throws, never loses anything early. */
@@ -436,6 +466,74 @@ export function buzzOn() {
 
 export function setBuzz(on) {
   update({ buzz: !!on });
+}
+
+/* --------------------------------------------------------------- consent --- */
+
+/** The current consent flags. Never mutated in place; every reader gets the object `update()` last persisted. */
+export function consent() {
+  return state.consent ?? EMPTY.consent;
+}
+
+/**
+ * Writes one or both flags, always with a fresh timestamp (item 6c: "store
+ * each choice per device with a timestamp"). `patch` is `{ photos? }`,
+ * `{ location? }`, or both; a field left out keeps its current value, so the
+ * consent screen's two independent toggles and the You screen's withdrawal
+ * toggles can both call this with only the one flag they changed.
+ */
+export function setConsent(patch) {
+  update((s) => ({
+    ...s,
+    consent: {
+      photos: patch.photos !== undefined ? !!patch.photos : (s.consent?.photos ?? false),
+      location: patch.location !== undefined ? !!patch.location : (s.consent?.location ?? false),
+      updatedAt: new Date().toISOString(),
+    },
+  }));
+  return state.consent;
+}
+
+export function consentSeen() {
+  return state.consentSeen === true;
+}
+
+export function setConsentSeen() {
+  update({ consentSeen: true });
+}
+
+/* --------------------------------------------------------------- ratings --- */
+
+/**
+ * Item 8: records (or overwrites) this device's rating for one scan. Keyed by
+ * `scanId`, so a changed mind before the four-second undo window closes, or a
+ * second look at the same past scan, replaces the earlier entry rather than
+ * counting the same scan twice in `ratedCounts()`.
+ */
+export function recordRating({ scanId, rating, reason }) {
+  if (scanId === null || scanId === undefined) return null;
+  const entry = { scanId, rating, reason: reason ?? null, at: new Date().toISOString() };
+  update((s) => ({
+    ...s,
+    ratings: [entry, ...s.ratings.filter((r) => r.scanId !== scanId)],
+  }));
+  return entry;
+}
+
+/** The undo: removes this device's rating for a scan entirely, local half of item 8's undo. */
+export function deleteRating(scanId) {
+  update((s) => ({ ...s, ratings: s.ratings.filter((r) => r.scanId !== scanId) }));
+}
+
+export function ratingFor(scanId) {
+  return state.ratings.find((r) => r.scanId === scanId) ?? null;
+}
+
+/** Item 8d: the You screen's rated counts, this device's own record, nothing projected. */
+export function ratedCounts() {
+  const up = state.ratings.filter((r) => r.rating === 'up').length;
+  const down = state.ratings.filter((r) => r.rating === 'down').length;
+  return { up, down, total: up + down };
 }
 
 /* ---------------------------------------------------------------------------

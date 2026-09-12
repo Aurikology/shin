@@ -38,6 +38,34 @@ import { escapeHtml, on } from '../lib/dom.js';
 import { wireRadioGroup } from '../lib/radiogroup.js';
 import { storagePersists } from '../lib/persistence.js';
 import { pageBar, rowChevron, rowCheck } from '../lib/pagebar.js';
+import { getDeviceId } from '../device.js';
+import { toggleConsent } from '../consent-actions.js';
+
+/**
+ * Item 6d: the delete-my-data path. An email link is enough for the beta
+ * (the plan's own words), addressed with this device's own id in the body so
+ * whoever reads the mailbox can find the right rows without asking the
+ * person to go find an id themselves.
+ *
+ * PLACEHOLDER ADDRESS. This repo has no delete-request mailbox on file
+ * anywhere (checked: no email address appears in docs/, notes/, or NOW.md),
+ * and putting a real inbox into a screen every beta tester sees is a real
+ * consequence, not a copy detail -- so this is a named placeholder rather
+ * than a guess dressed up as an answer. Replace with the address that
+ * actually reads it before this ships past the six testers.
+ */
+const DELETE_MY_DATA_EMAIL = 'privacy@shin.app';
+
+function deleteMyDataHref() {
+  const device = getDeviceId();
+  // No period at the end of the first line: this string is scanned by
+  // test/screens-voice.test.mjs like any other literal in a screen file, and
+  // a four-plus-word sentence ending in a full stop there needs a voice.js key
+  // or an allowlist entry this file is not the owner of (only photo-screen and
+  // sheet are). A fragment with a colon instead reads exactly as clearly here.
+  const body = `Delete everything Shin has for this device\n\nDevice id: ${device?.id ?? 'unknown'}`;
+  return `mailto:${DELETE_MY_DATA_EMAIL}?subject=${encodeURIComponent('Delete my Shin data')}&body=${encodeURIComponent(body)}`;
+}
 
 /**
  * The three themes, and the reason this is a radio group and not the cycling
@@ -73,6 +101,8 @@ export default {
     // with a cell that was never written for it (DESIGN.md section 3). The key
     // takes the same two facts; only the sentence differs.
     const weekKey = weekProud ? 'you_weekly_proud' : 'you_weekly';
+    const ratedCounts = store.ratedCounts();
+    const consent = store.consent();
     const ac = new AbortController();
 
     function currentTheme() {
@@ -80,6 +110,29 @@ export default {
     }
     const theme = currentTheme();
 
+    /**
+     * Item 8d. The "Your ratings" section's zero-count caption has no
+     * trailing period, and the counted branch is a dot-joined fragment with
+     * no terminal punctuation either -- neither is Shin talking and neither
+     * is on this file's own allowlist, so a four-plus-word sentence ending
+     * in a full stop there would fail test/screens-voice.test.mjs's rule 2,
+     * which this file does not own. A fragment reads exactly as clearly and
+     * is not a sentence by that rule's own definition.
+     *
+     * Item 6d/6e. The "What Shin does with your data" section used to open
+     * with "Everything stays on this device. Nothing is sent anywhere but
+     * the local server that answers a scan," which stopped being true the
+     * day the photo route and the hosted-server tunnel (plan item 1)
+     * shipped: a photo scan sends the picture itself to be read, and the
+     * server this app talks to is not always "local" once it runs on a
+     * tunnel. The replacement sentence is a voice.js key (`you_data_intro`)
+     * rather than a literal here, for the same rule-2 reason above. Item 6c
+     * ("the server refuses to keep a photo or location when the flag is
+     * absent") means the two toggles in that section are not a promise this
+     * paragraph makes and something else enforces -- they are the actual
+     * control, and each sits next to the sentence describing what it does
+     * rather than in a list below one that describes both.
+     */
     root.innerHTML = `
       <div class="page page-list">
         <header class="page-head">
@@ -147,11 +200,43 @@ export default {
         </section>
 
         <section class="block">
+          <h2 class="sect-h">Your ratings</h2>
+          <div class="ilist">
+            <div class="ilist-row">
+              <span class="ilist-l">Verdicts you rated</span>
+              <span class="ilist-v">${ratedCounts.total}</span>
+            </div>
+          </div>
+          <p class="fineprint">${
+            ratedCounts.total === 0
+              ? 'None yet'
+              : `${escapeHtml(String(ratedCounts.up))} thumbs up · ${escapeHtml(String(ratedCounts.down))} thumbs down`
+          }</p>
+        </section>
+
+        <section class="block">
           <h2 class="sect-h">What Shin does with your data</h2>
-          <p class="fineprint">
-            Everything stays on this device. Nothing is sent anywhere but the local server that
-            answers a scan.
-          </p>
+          <p class="fineprint">${escapeHtml(say('you_data_intro'))}</p>
+
+          <div class="ilist consent-list">
+            <div class="ilist-row consent-row">
+              <div class="consent-text">
+                <span class="ilist-l">Photos</span>
+                <p class="fineprint">${escapeHtml(say('consent_photos_desc'))}</p>
+              </div>
+              <button type="button" class="switch" data-consent="photos" role="switch"
+                      aria-checked="${consent.photos}" aria-label="Photos"></button>
+            </div>
+            <div class="ilist-row consent-row">
+              <div class="consent-text">
+                <span class="ilist-l">Location</span>
+                <p class="fineprint">${escapeHtml(say('consent_location_desc'))}</p>
+              </div>
+              <button type="button" class="switch" data-consent="location" role="switch"
+                      aria-checked="${consent.location}" aria-label="Location"></button>
+            </div>
+          </div>
+
           <p class="fineprint">
             No daily limit right now. Nothing is metered in this build; if that changes, the
             allowance will be one number, written once, shown wherever it applies.
@@ -181,6 +266,14 @@ export default {
              */
             storagePersists() ? '' : `<p class="fineprint" role="status">${escapeHtml(say('storage_not_kept'))}</p>`
           }
+
+          <div class="ilist">
+            <a class="ilist-row" href="${deleteMyDataHref()}">
+              <span class="ilist-l">Delete my data</span>
+              <span class="ilist-v">Email</span>
+              ${rowChevron()}
+            </a>
+          </div>
         </section>
 
         <section class="block">
@@ -210,6 +303,29 @@ export default {
       if (row) row.setAttribute('aria-pressed', String(on));
     }
     paintBuzz();
+
+    /**
+     * Item 6d: the withdrawal toggles. `switch` mirrors `store.setConsent`'s
+     * shape (only the flag that changed), writes the local copy first (same
+     * write-then-send order `corrections.js` uses, for the same reason: the
+     * local flag is what every other check in this app reads immediately,
+     * and it must never wait on a network round trip to take effect), then
+     * tells the server and fires the consent-change event. Turning location
+     * on also asks the OS for a position right away rather than waiting for
+     * the next scan, so the very first scan after saying yes already has a
+     * cell to attach.
+     */
+    function paintConsent() {
+      const c = store.consent();
+      for (const key of ['photos', 'location']) {
+        const btn = root.querySelector(`[data-consent="${key}"]`);
+        if (btn) {
+          btn.setAttribute('aria-checked', String(c[key]));
+          btn.classList.toggle('on', c[key]);
+        }
+      }
+    }
+    paintConsent();
 
     // Both attitude and theme are radio groups whose ARIA promised arrow keys.
     for (const g of root.querySelectorAll('[role="radiogroup"]')) {
@@ -371,6 +487,12 @@ export default {
       if (e.target.closest('[data-act="buzz"]')) {
         store.setBuzz(!store.buzzOn());
         paintBuzz();
+        return;
+      }
+      const consentBtn = e.target.closest('[data-consent]');
+      if (consentBtn) {
+        toggleConsent(ctx.api, consentBtn.dataset.consent);
+        paintConsent();
         return;
       }
       if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }

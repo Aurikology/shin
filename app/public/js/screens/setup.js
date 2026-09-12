@@ -102,7 +102,11 @@ export default {
       if (e.target.closest('[data-act="go"]')) {
         if (!store.get().personality) setPersonality('deadpan');
         store.update({ seenIntro: true });
-        ctx.replace('camera');
+        // Item 6b: the consent screen sits between this one and the camera,
+        // once, ever. `main.js`'s own `firstScreen()` makes the same check on
+        // a cold start; this is the warm-start version of it, taken the
+        // instant setup finishes rather than on the next reload.
+        ctx.replace(store.get().consentSeen ? 'camera' : 'consent');
       }
     }, ac.signal);
 

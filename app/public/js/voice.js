@@ -798,6 +798,18 @@ const LINES = {
     warm: () => 'I could not read that photo clearly enough to say what it is. Try again, or tell me what it is.',
     blunt: () => 'Could not read that photo. Try again, or type it.',
   },
+  /*
+   * Item 20c: the produce branch of the on-device kind classifier, before any
+   * paid model call. Reason stays `category_unsupported` on the sheet, the
+   * same one the priced side of this app already uses for a category it will
+   * not judge -- this is the same honest refusal, only reached from a photo
+   * rather than a barcode or a typed name.
+   */
+  cam_photo_produce: {
+    deadpan: () => 'That looks like fresh produce. I do not price that from a photo; type the price off the sign instead.',
+    warm: () => 'That looks like fresh produce, so a photo will not get you a verdict there. Type the price off the sign and I will note it.',
+    blunt: () => 'Produce. No photo verdict for that. Type the price.',
+  },
   cam_photo_model_timeout: {
     deadpan: () => 'The photo reader took too long to answer this one. The barcode and typing it still work.',
     warm: () => 'The photo reader took too long on this one, not your shot. The barcode or typing it will still get you an answer.',
@@ -1110,13 +1122,73 @@ const LINES = {
   /**
    * --- row 14, the privacy line, at the moment camera permission is asked.
    * Shown while `getUserMedia` is in flight; swapped for the real idle
-   * content the instant it resolves either way. What it claims is checked
-   * against api.js: no photo field is ever sent to the server. ---
+   * content the instant it resolves either way.
+   *
+   * REWRITTEN 2026-09-11 (item 6e). The line this replaced said "your camera
+   * stays on your phone, only the price ever leaves it," which was true the
+   * day it was written and stopped being true the day the photo route
+   * shipped: `identifyPhoto` in api.js sends the picture itself, as base64,
+   * to be read. What is still true, and what this line says instead: a
+   * barcode read never sends a picture, only the decoded code, and a photo
+   * scan's picture is kept on the server afterward only when Photos is on
+   * (item 6, the consent screen and the You screen's withdrawal toggle) --
+   * otherwise it is read once, to answer this scan, and not retained. ---
    */
   cam_privacy_line: {
-    deadpan: () => 'Your camera stays on your phone. Only the price ever leaves it.',
-    warm: () => 'Nothing from your camera leaves your phone, only the price does.',
-    blunt: () => 'Camera stays local. Only the price goes out.',
+    deadpan: () => 'A barcode never sends a picture, only the code. A photo is sent to be read, and kept afterward only if Photos is on.',
+    warm: () => 'Scanning a barcode never sends a picture, just the code. A photo scan sends the picture so I can read it, and I only keep it afterward if you have Photos turned on.',
+    blunt: () => 'Barcode: no picture sent. Photo: sent to be read, kept only if Photos is on.',
+  },
+  /*
+   * Item 6: the consent screen's own copy, and the You screen's withdrawal
+   * section reads the same two description keys so the sentence explaining a
+   * toggle cannot drift between the two places it appears. This is policy
+   * text, not Shin having a personality about privacy, so the three voices
+   * below say the same thing in close to the same words on purpose -- the
+   * opposite intent from a verdict line, and the same intent the existing
+   * data paragraph on the You screen was written with.
+   */
+  consent_intro: {
+    deadpan: () => 'Every scan is written down: the product and the price you saw, always, so the next person who scans it gets an answer. Two more things are off unless you turn them on.',
+    warm: () => 'Every scan gets written down: what you scanned and the price you saw, always, so the next person who scans the same thing gets an answer too. Two more things below are off unless you switch them on.',
+    blunt: () => 'Every scan is logged: product and price, always. Two more things below are off by default.',
+  },
+  consent_photos_desc: {
+    deadpan: () => 'Keeps the picture from a photo scan, tied to that scan, so a wrong answer can be checked later. Off, the picture is read once to answer the scan and is not kept. The risk: a kept photo can show what is near you in the shot.',
+    warm: () => 'Keeps the picture from a photo scan, tied to that scan, so a wrong answer can be checked later. Off, the picture is only read once, to answer that scan, and then it is gone. The risk is that a kept photo can show whatever else was in the shot around you.',
+    blunt: () => 'Keeps the photo, tied to the scan, so a wrong answer can be checked. Off: read once, not kept. Risk: a kept photo can show what is near you.',
+  },
+  consent_location_desc: {
+    deadpan: () => 'Keeps a rough area, about a kilometre wide, never your exact spot, so a price can be matched to a nearby store. Off, no location is kept at all. The risk: even a rough area narrows down where you shop.',
+    warm: () => 'Keeps a rough area, about a kilometre wide, never your exact spot, so a price can be matched to the store you were near. Off, nothing about where you are is kept. The risk is that even a rough area says something about where you shop.',
+    blunt: () => 'Keeps a rough area, about a kilometre wide, never your exact spot. Off: nothing kept. Risk: even a rough area narrows down where you shop.',
+  },
+  /**
+   * Item 8d: the You screen's rated-count row. Shin's own voice, same family
+   * as `you_scans_named` above it: a fact about this device's own record,
+   * narrated rather than printed as a bare caption, so it reads as the same
+   * kind of sentence as the rest of the page rather than switching registers
+   * for one row.
+   */
+  you_ratings_none: {
+    deadpan: () => 'None yet. A thumb on any verdict counts here.',
+    warm: () => 'None yet, but a thumb on any verdict starts this counting.',
+    blunt: () => 'None yet. Rate one.',
+  },
+  /*
+   * The You screen's own copy of the data paragraph, item 6e's replacement
+   * for "Everything stays on this device," which stopped being true the day
+   * the photo route and the hosted tunnel (plan item 1) shipped.
+   */
+  you_data_intro: {
+    deadpan: () => 'Every scan is written down: the product and the price you saw, always. A barcode never sends a picture, only the decoded code.',
+    warm: () => 'Every scan gets written down, the product and the price you saw, always. Scanning a barcode never sends a picture, just the code.',
+    blunt: () => 'Every scan is logged: product and price, always. Barcode scans never send a picture.',
+  },
+  consent_footer: {
+    deadpan: () => 'Only this app and the person running it can see any of this. Change either choice any time on the You page.',
+    warm: () => 'Only this app and the person running it can see any of this, and you can change either choice any time from the You page.',
+    blunt: () => 'Only this app and whoever runs it sees this. Change it any time on the You page.',
   },
 };
 

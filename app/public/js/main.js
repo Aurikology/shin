@@ -27,9 +27,11 @@ import * as api from './api.js';
 import * as shin from './shin.js';
 import { flushCorrections } from './corrections.js';
 import { primeOfflineAisle } from './offline-aisle.js';
+import { refreshCell } from './geocell.js';
 
 import camera from './screens/camera.js';
 import setup from './screens/setup.js';
+import consent from './screens/consent.js';
 import watchlist from './screens/watchlist.js';
 import correct from './screens/correct.js';
 import share from './screens/share.js';
@@ -39,7 +41,7 @@ import removed from './screens/removed.js';
 import market from './screens/market.js';
 import licences from './screens/licences.js';
 
-for (const s of [camera, setup, watchlist, correct, share, you, pastscans, removed, market, licences]) {
+for (const s of [camera, setup, consent, watchlist, correct, share, you, pastscans, removed, market, licences]) {
   router.register(s);
 }
 
@@ -64,8 +66,29 @@ try {
    chrome is already the right colour. */
 startThemeColourSync();
 
-const first = store.get().seenIntro ? 'camera' : 'setup';
+/**
+ * Item 6b: the consent screen sits between the attitude picker and the
+ * camera, once, ever. An install that already ran setup before this item
+ * existed has `seenIntro` true and `consentSeen` false, and that state must
+ * still land on consent rather than skip it -- the flag this checks is its
+ * own, never folded into `seenIntro`, for exactly that reason.
+ */
+function firstScreen() {
+  const s = store.get();
+  if (!s.seenIntro) return 'setup';
+  if (!s.consentSeen) return 'consent';
+  return 'camera';
+}
+const first = firstScreen();
 router.start(document.getElementById('screen'), { store, api, shin, build: BUILD_STAMP }, first);
+
+/* Item 11a: if location consent already carries over from an earlier
+   session, get a cell warm before the first scan of this one rather than
+   waiting for the first identify call to discover it has none. Never
+   awaited and never blocking: a slow or denied OS prompt must not hold up
+   the viewfinder, which is exactly why `currentCell()` (what api.js reads)
+   is synchronous and this is the only thing that fills it. */
+if (store.consent().location) void refreshCell();
 
 /* Corrections typed where there was no signal go out now. After the router
    starts and never awaited: this is somebody's earlier aisle, not this screen's
@@ -79,11 +102,27 @@ void flushCorrections();
    spends anything, because the viewfinder outranks it. */
 primeOfflineAisle();
 
-/* The offline shell. Registered after the router for the same reason as the two
-   lines above: the viewfinder comes first and nothing here may hold it up. What
-   it buys is the app starting at all with no signal, which the pack above needs
-   and cannot provide by itself. */
-if ('serviceWorker' in navigator) {
+/*
+ * The offline shell. Registered after the router for the same reason as the two
+ * lines above: the viewfinder comes first and nothing here may hold it up. What
+ * it buys is the app starting at all with no signal, which the pack above needs
+ * and cannot provide by itself.
+ *
+ * ITEM 2c: NOT INSIDE THE NATIVE WRAPPER. `sw.js`'s own fetch handler already
+ * lets every `/api/` path and every cross-origin request straight through
+ * unmodified (checked: `if (url.pathname.startsWith('/api/')) return;` and
+ * `if (url.origin !== self.location.origin) return;`), so a registered worker
+ * cannot serve a stale price or a stale photo route inside a wrapper pointed
+ * at `SHIN_API_BASE` -- it would be harmless there. It still is not
+ * registered there: rule 3 ("Everything else same-origin is served from cache
+ * first") caches the wrapper's own bundled HTML and JS beside whatever the
+ * wrapper's own asset loader is doing, buying this app nothing (the wrapper
+ * already ships those files, offline, by construction) while adding a second
+ * mechanism that can serve a stale asset after an app-store update replaces
+ * the bundle underneath it. A wrapper is detectable by `window.SHIN_API_BASE`
+ * being set, per the wrapper lane's own contract.
+ */
+if ('serviceWorker' in navigator && !window.SHIN_API_BASE) {
   addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {
       /* An unsupported browser or a private window. The app is the same app. */

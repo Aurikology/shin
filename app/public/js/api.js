@@ -8,11 +8,63 @@
  */
 
 import { getDeviceId } from './device.js';
+import { APP_VERSION } from './version.js';
+import { currentCell } from './geocell.js';
+import { consent } from './store.js';
+
+/**
+ * The three facts every identify body carries, per the fixed contract: an
+ * app version and platform always, and a coarse cell only when location
+ * consent is actually on right now. Read at call time, not at module load,
+ * because consent can flip mid-session on the You screen and the very next
+ * scan has to reflect it -- sending last session's cell after consent was
+ * withdrawn would be exactly the leak withdrawal exists to stop.
+ *
+ * `platform` reads a wrapper-set global with the same naming convention as
+ * `SHIN_API_BASE` and `SHIN_INVITE_CODE`; nothing here has been told what the
+ * wrapper actually calls it, so this is this file's own assumption, named as
+ * one. Absent, it is `'web'`, which is true for every build that exists today.
+ */
+function identifyExtras() {
+  const extras = { appVersion: APP_VERSION, platform: globalThis.window?.SHIN_PLATFORM ?? 'web' };
+  if (consent().location) {
+    const cell = currentCell();
+    if (cell) extras.cell = cell;
+  }
+  return extras;
+}
+
+/**
+ * Item 2a. Read once, at module load, never again: `window.SHIN_API_BASE` is
+ * set by the wrapper lane before this module is first imported (its own
+ * contract, not this file's), so a value that changed after this line ran
+ * would mean two different callers on the same page talking to two different
+ * hosts, which is worse than the wrapper forgetting to set it at all. In the
+ * browser the global is absent, `??` falls through to `''`, and every path
+ * below is unchanged from before this item existed: a relative fetch against
+ * whatever origin served the page.
+ */
+const BASE = globalThis.window?.SHIN_API_BASE ?? '';
+
+/**
+ * The beta invite code (plan item 1j), a header rather than a query param or
+ * body field so it rides on every request from one place instead of being
+ * added to every function below by hand and forgotten on the next one. Read
+ * once for the same reason `BASE` is: the wrapper sets it before this module
+ * loads and it does not change under a running page.
+ */
+const INVITE_CODE = globalThis.window?.SHIN_INVITE_CODE ?? null;
+
+function headers(extra = {}) {
+  const h = { ...extra };
+  if (INVITE_CODE) h['x-shin-invite'] = INVITE_CODE;
+  return h;
+}
 
 async function post(path, body, { refusalIsAnswer = false } = {}) {
-  const res = await fetch(path, {
+  const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: headers({ 'content-type': 'application/json' }),
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -31,9 +83,43 @@ async function post(path, body, { refusalIsAnswer = false } = {}) {
 }
 
 async function get(path) {
-  const res = await fetch(path);
+  const res = await fetch(`${BASE}${path}`, { headers: headers() });
   if (!res.ok) throw new Error(`${path} returned ${res.status}`);
   return res.json();
+}
+
+/**
+ * Best-effort variants for the routes in the "API CONTRACTS" list that a scan
+ * must never depend on to still work: consent, rating, events, the store
+ * picker. All four "may not exist yet" while the server lane builds them, and
+ * a 404 (or any other failure) from one of these must degrade quietly rather
+ * than throwing into a screen that has nothing to do with it -- the exact
+ * rule sendCorrection's own comment states for a 4xx, widened here to cover a
+ * route that is not there at all yet, not just one that looked at a body and
+ * said no.
+ */
+async function postSoft(path, body, fallback) {
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      method: 'POST',
+      headers: headers({ 'content-type': 'application/json' }),
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return fallback;
+    return await res.json();
+  } catch {
+    return fallback; // Offline, or the route is not there yet. Same outcome either way.
+  }
+}
+
+async function getSoft(path, fallback) {
+  try {
+    const res = await fetch(`${BASE}${path}`, { headers: headers() });
+    if (!res.ok) return fallback;
+    return await res.json();
+  } catch {
+    return fallback;
+  }
 }
 
 /** Returns a Verdict or a Refusal. Both are success. */
@@ -73,6 +159,7 @@ export function identify({ gtin, text, brand, sizeValue, sizeUnit } = {}) {
   // about people.
   const device = getDeviceId();
   if (device?.id) params.set('deviceId', device.id);
+  for (const [k, v] of Object.entries(identifyExtras())) params.set(k, String(v));
   return get(`/api/identify?${params.toString()}`);
 }
 
@@ -260,12 +347,13 @@ export async function identifyPhoto(blob, { sharpness, deviceId, tier } = {}) {
   if (tier) body.tier = tier;
   const device = deviceId ?? getDeviceId()?.id;
   if (device) body.deviceId = device;
+  Object.assign(body, identifyExtras());
 
   let res;
   try {
-    res = await fetch('/api/identify/photo', {
+    res = await fetch(`${BASE}/api/identify/photo`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: headers({ 'content-type': 'application/json' }),
       body: JSON.stringify(body),
     });
   } catch {
@@ -285,4 +373,64 @@ export async function identifyPhoto(blob, { sharpness, deviceId, tier } = {}) {
     return { product: null, failure: 'offline' };
   }
   return res.json();
+}
+
+/* ------------------------------------------------------------- item 8: rating */
+
+/**
+ * Posts one thumbs rating for a scan. `{ stored: true }` on success; on any
+ * failure (offline, the route not shipped yet, a refusal because the scan id
+ * was missing server-side) this resolves to `{ stored: false }` rather than
+ * throwing, because a rating is feedback about an answer already on screen --
+ * losing the network here must never take the verdict down with it.
+ */
+export function postScanRating({ deviceId, scanId, rating, reason }) {
+  const body = { deviceId, scanId, rating };
+  if (reason) body.reason = reason;
+  return postSoft('/api/scan-rating', body, { stored: false });
+}
+
+/** The undo: deletes the rating just posted. Same quiet-failure rule as the post. */
+export function deleteScanRating({ deviceId, scanId }) {
+  return postSoft('/api/scan-rating/delete', { deviceId, scanId }, { deleted: false });
+}
+
+/* ------------------------------------------------------------ item 6: consent */
+
+/**
+ * The server's record of this device's consent, so a screen can show what is
+ * actually on file rather than only what this phone last wrote (a reinstall,
+ * or a second device under the same beta invite, could disagree). Both flags
+ * default to `false` on any failure, matching the route's own stated default,
+ * so a screen that cannot reach the server shows the same off-by-default state
+ * item 6b requires rather than guessing consent was ever given.
+ */
+export function getConsent(deviceId) {
+  const params = new URLSearchParams({ deviceId });
+  return getSoft(`/api/consent?${params.toString()}`, { photos: false, location: false, updatedAt: null });
+}
+
+/** Writes this device's consent choice. Quiet on failure: the local copy (store.js) is the source of truth the app itself reads from. */
+export function postConsent({ deviceId, photos, location }) {
+  return postSoft('/api/consent', { deviceId, photos, location }, { stored: false });
+}
+
+/* -------------------------------------------------------------- item 10: event */
+
+/**
+ * One client event. Never awaited by a caller and never allowed to affect
+ * one: an event log with an opinion about whether the thing it is logging is
+ * allowed to happen is a contradiction, so this always resolves and never
+ * throws, and every call site here is `void`.
+ */
+export function postEvent({ deviceId, type, payload }) {
+  return postSoft('/api/event', { deviceId, type, payload: payload ?? {} }, { stored: false });
+}
+
+/* -------------------------------------------------------------- item 11: stores */
+
+/** The nearest few stores for a cell, at most three, per the fixed contract. Empty on any failure, never a throw a picker would have to guard against. */
+export function stores(cell) {
+  const params = new URLSearchParams({ cell });
+  return getSoft(`/api/stores?${params.toString()}`, { stores: [] });
 }
