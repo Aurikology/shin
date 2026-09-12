@@ -130,12 +130,24 @@ test('a refusal carries why it was refused, and an answer carries nothing', () =
   assert.deepEqual(rows.map((r) => r.failure_class), ['model_outage', 'unreadable_photo', null]);
 });
 
-/** An older file, written before the column existed, still opens and still writes. */
+/**
+ * An older file, written before the column existed, still opens and still writes.
+ *
+ * THE SECOND STATEMENT WAS ADDED 2026-09-11 and it is what makes this an old
+ * file rather than a vandalised new one. The ad-hoc `addColumnIfMissing` calls
+ * this test was written against became migration 1 of a numbered list, and a
+ * numbered list runs a migration once: a database that is already at the
+ * current version does not re-check columns, by design, or the version number
+ * would be decoration. So "written before the column existed" now means
+ * exactly what it says, a file whose `schema_version` does not know about it,
+ * and that is the shape of the real live `app/data/scans.db` this guards.
+ */
 test('a database created without failure_class gains it on open', () => {
   const path = tempDb();
   const first = openScanStore(path);
   assert.ok(first.db, 'store should have opened');
   first.db.exec('ALTER TABLE scan DROP COLUMN failure_class');
+  first.db.exec('DELETE FROM schema_version');
 
   const second = openScanStore(path);
   recordScan({ deviceId: 'device-g', kind: 'photo', query: 'x', outcome: 'refused', failureClass: 'model_timeout' });

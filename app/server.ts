@@ -40,20 +40,32 @@ import type {
   CatalogueResult,
   IdentifyOutcome,
 } from '../identify/src/identify.ts';
-import type { FailureClass, Identifier, Tier } from '../identify/src/model.ts';
+import type { FailureClass, Identifier, MessagesClient, Tier } from '../identify/src/model.ts';
 import { lookupPrices } from '../price/src/lookup.ts';
 import { recordCorrection } from '../price/src/corrections.ts';
 import { ATTRIBUTION } from './src/attribution.ts';
 import { packScope, packVersion, servePack } from './src/pack-route.ts';
 import {
   correctScan,
+  getScan,
   lastAnsweredScan,
   openScanStore,
   recentCategories,
   recordScan,
+  updateScan,
   type ScanKind,
 } from './src/scans.ts';
 import { summariseScans, UNATTRIBUTED } from './src/scan-summary.ts';
+import { keepLocation, keepPhoto, readConsent, writeConsent } from './src/consent.ts';
+import { deleteRating, isRating, isRatingReason, rateScan, scanExists } from './src/ratings.ts';
+import { recordEvent, serialisePayload } from './src/events.ts';
+import { parseCell, storesNear, type StoreFetcher } from './src/stores.ts';
+import { INVITE_EXEMPT, INVITE_HEADER, INVITE_REFUSAL, inviteAllows, inviteRequired } from './src/invite.ts';
+import { logError } from './src/errlog.ts';
+import { listenProblem, startupProblems } from './src/startup.ts';
+import { estimatedCostCents } from './src/model-cost.ts';
+import { savePhoto, sweepPhotos } from './src/photos.ts';
+import { dailyLatency } from './src/latency.ts';
 
 const PUBLIC_DIR = fileURLToPath(new URL('./public/', import.meta.url));
 const PORT = Number(process.env.PORT ?? 4173);
@@ -95,6 +107,25 @@ let routing: {
   ): Promise<{ result: unknown; restricted: boolean; fellBack: boolean; confidenceAdjustment: number }>;
 } | null = null;
 let catalogueWhyNot = 'not attempted yet';
+
+/**
+ * TEST ONLY. Nothing in the product calls this.
+ *
+ * The barcode half of `/api/identify` needs a `byGtin`, and on every machine
+ * that runs the test suite the only thing that can provide one is a 4.13 GB
+ * catalogue file that is not there. Without this seam the GET identify route
+ * is untestable at the socket: it answers `catalogueUp: false`, writes no scan
+ * row, and every assertion about a scan id would be an assertion about the
+ * offline path instead of about the route.
+ *
+ * It replaces exactly one thing, the same way `setIdentifierForTests` does.
+ * The routing, the category verdict, the scan write, the telemetry columns and
+ * the response shape are all the shipped code in the tests that use it.
+ */
+export function setCatalogueForTests(fake: { byGtin(code: string): unknown } | null): void {
+  fastLookup = fake;
+  catalogueWhyNot = fake ? 'a test double' : 'not attempted yet';
+}
 /**
  * The same read-only handle `fastLookup` was built from, kept so `/api/alternatives`
  * can query `product_category` directly (what `alternativesFor` needs) without
@@ -764,11 +795,88 @@ export function setIdentifierForTests(
 }
 let photoTestDouble: { model?: Identifier; lookup?: CatalogueLookup } | null = null;
 
+/**
+ * The daily dollar cap, wired. Plan item 13c.
+ *
+ * WHAT WAS WRONG UNTIL 2026-09-11: this function built a bare `Identifier`,
+ * which constructs its own Anthropic client with no ceiling on it. The cap had
+ * been written, tested and merged in `identify/src/cap.ts`, and it was
+ * protecting nothing, because nothing in the running server ever went through
+ * it. That is worse than having no cap: every person downstream, including the
+ * one putting a card on the account, believes there is one.
+ *
+ * WRAPPED AT THE CLIENT, not at the call sites, and that is `cap.ts`'s design
+ * rather than a choice made here. `Identifier` builds both of its calls -- the
+ * read and the pick -- out of one `#send` that ends at
+ * `client.messages.create`, so a wrapper around the client is a ceiling that a
+ * third call site added next month cannot get around by forgetting to ask.
+ * The constructor's second argument exists for exactly this.
+ *
+ * The API key is still the constructor's to find. Passing `undefined` is what
+ * the bare version did and keeps `loadDotEnv` in charge of it, so wiring the
+ * cap did not quietly become a change to how credentials are read.
+ *
+ * WHAT HAPPENS WHEN IT TRIPS: `withSpendCap` throws a `ModelCallError` whose
+ * failure class is `spend_cap_reached`, that class travels out through
+ * `IdentifyStage` as the outcome's `failure`, and the scan row records it
+ * verbatim (see the `recordScan` call on the photo route, which passes
+ * `answer.failure` and has never had a default). So a capped day reads back as
+ * a capped day rather than as a beta full of unreadable photographs, which is
+ * the whole reason `failure_class` is a column.
+ */
 async function modelOnce(): Promise<Identifier> {
   if (photoTestDouble?.model) return photoTestDouble.model;
   if (!photoModel) {
-    const { Identifier } = await import('../identify/src/model.ts');
-    photoModel = new Identifier();
+    const [{ Identifier }, { withSpendCap }, { loadDotEnv }] = await Promise.all([
+      import('../identify/src/model.ts'),
+      import('../identify/src/cap.ts'),
+      import('../identify/src/env.ts'),
+    ]);
+    /*
+     * THE SDK IS RESOLVED THROUGH `identify`, AND IT HAS TO BE.
+     *
+     * `@anthropic-ai/sdk` is installed in `identify/node_modules` and nowhere
+     * else, which is this repo's arrangement (CLAUDE.md: each package installs
+     * its own dependencies) and is the reason the type imports at the top of
+     * this file are types only. A bare `import('@anthropic-ai/sdk')` from here
+     * resolves from `app/` and fails with ERR_MODULE_NOT_FOUND; checked on
+     * 2026-09-11 rather than assumed. `model.ts`'s own static import works
+     * because the specifier is resolved relative to the file that wrote it.
+     *
+     * So the package is located from `identify`'s own directory and imported
+     * by path. It is one line of indirection, and the alternative is either a
+     * dependency duplicated into `app/package.json` (a second copy of an SDK,
+     * free to drift from the one the identify package is tested against) or an
+     * uncapped model client, which is the thing being fixed.
+     *
+     * A FAILURE HERE IS LOUD. If the SDK cannot be found, this throws, the
+     * photo route classifies it like any other model failure, and the scan row
+     * says so. It must never fall back to a bare `new Identifier()`, because
+     * that is an uncapped client arriving silently through the one code path
+     * written to prevent it.
+     */
+    const { createRequire } = await import('node:module');
+    const { pathToFileURL } = await import('node:url');
+    const fromIdentify = createRequire(fileURLToPath(new URL('../identify/package.json', import.meta.url)));
+    const sdk = await import(pathToFileURL(fromIdentify.resolve('@anthropic-ai/sdk')).href);
+    const Anthropic = (sdk.default ?? sdk.Anthropic) as new (options: { maxRetries: number }) => unknown;
+
+    /*
+     * `loadDotEnv` by hand, because passing a client turns off the
+     * constructor's own call to it (`if (!apiKey && !client) loadDotEnv()`).
+     * Without this line the key would stop being read from the environment
+     * file the moment the cap was wired, which is the kind of thing that looks
+     * like the cap breaking the beta.
+     *
+     * `maxRetries: 0` is copied from `model.ts`'s own construction and is load
+     * bearing twice over: that file runs its own two-attempt policy, so an SDK
+     * retrying underneath it would mean the visible policy is not the one that
+     * runs, and every hidden retry would be a call that spends without the cap
+     * ever being asked.
+     */
+    loadDotEnv();
+    const client = new Anthropic({ maxRetries: 0 }) as MessagesClient;
+    photoModel = new Identifier(undefined, withSpendCap(client));
   }
   return photoModel;
 }
@@ -1142,6 +1250,78 @@ function readBody(
  * runner holding an open listener and the process never exits. Nothing in the
  * product reads this binding; `node server.ts` still starts it below.
  */
+/** When this process came up. The uptime ping subtracts from it. Plan item 39c. */
+const STARTED_AT = Date.now();
+
+/**
+ * TEST ONLY. The shop lookup's network seam, hoisted to the server so a route
+ * test can hand `/api/stores` a fixture instead of calling OpenStreetMap.
+ *
+ * Nothing in the product calls this. It exists because the alternative -- a
+ * test that calls `parseOverpass` directly and declares the route covered --
+ * is a test that agrees with the code rather than one that hits the route, and
+ * this lane's contract says the route is what gets checked.
+ */
+let storeFetcherDouble: StoreFetcher | null = null;
+export function setStoreFetcherForTests(fake: StoreFetcher | null): void {
+  storeFetcherDouble = fake;
+}
+
+/**
+ * The three things a client may tell us about itself, read off a query string
+ * or off a JSON body.
+ *
+ * NAMED AND BOUNDED, never copied wholesale. `appVersion` and `platform` are
+ * free text from a phone and they land in a database column, so each is capped
+ * and trimmed here rather than trusted. The cap is generous (64 characters is
+ * four times any build string this project will produce) and its job is to
+ * stop a column, not to validate a format we have not fixed yet.
+ *
+ * THE CELL IS NOT READ HERE. It is read by `locationFor`, which is the
+ * function that also asks about consent, so that there is no path on which a
+ * cell is parsed into a variable that something later writes down without
+ * having asked.
+ */
+function telemetryFrom(source: URLSearchParams | Record<string, unknown>): {
+  appVersion: string | null;
+  platform: string | null;
+} {
+  const read = (key: string): string | null => {
+    const raw = source instanceof URLSearchParams ? source.get(key) : source[key];
+    if (typeof raw !== 'string') return null;
+    const value = raw.trim();
+    return value === '' ? null : value.slice(0, 64);
+  };
+  return { appVersion: read('appVersion'), platform: read('platform') };
+}
+
+/**
+ * The location fields a scan row may carry, after consent has been consulted.
+ *
+ * THE REFUSAL IS HERE AND NOWHERE ELSE, which is plan item 6c's second half:
+ * "the server refuses to keep a location when the flag is absent". A device
+ * that has not said yes gets three nulls, whatever it sent, and the sending is
+ * not an error worth answering with -- a client built before the consent
+ * screen shipped is exactly the case this has to be silent about.
+ *
+ * The cell is snapped onto the kilometre grid by `parseCell` before it can be
+ * returned, so what is stored is coarse whether or not the client coarsened it.
+ */
+function locationFor(
+  deviceId: string,
+  cellRaw: unknown,
+  storeIdRaw: unknown,
+  storeNameRaw: unknown,
+): { cell: string | null; storeId: string | null; storeName: string | null } {
+  const none = { cell: null, storeId: null, storeName: null };
+  if (deviceId === UNATTRIBUTED) return none;
+  if (!keepLocation(deviceId)) return none;
+  const cell = parseCell(typeof cellRaw === 'string' ? cellRaw : null);
+  const text = (value: unknown): string | null =>
+    typeof value === 'string' && value.trim() !== '' ? value.trim().slice(0, 120) : null;
+  return { cell: cell?.text ?? null, storeId: text(storeIdRaw), storeName: text(storeNameRaw) };
+}
+
 export const server = createServer(async (req, res) => {
   /*
    * THE HOST HEADER IS NOT PARSED, AND THAT IS THE FIX RATHER THAN THE
@@ -1268,7 +1448,42 @@ export const server = createServer(async (req, res) => {
     req.resume();
   };
 
+  /*
+   * THE SCAN THIS REQUEST IS ABOUT, for the error log at the bottom.
+   *
+   * Plan item 39a asks for a structured error log carrying the scan id, and
+   * this is how the id gets to the catch: every route that writes or is handed
+   * a scan row sets it, and a failure anywhere after that point is logged
+   * against the row a tester can point at. Before any row exists it is null,
+   * which is the honest answer and not a gap.
+   */
+  let scanForLog: number | null = null;
+  let deviceForLog: string | null = null;
+
   try {
+    /*
+     * THE INVITE CODE, checked before any route runs. Plan item 1j.
+     *
+     * Every `/api/` path, with one exemption named in `invite.ts`: the uptime
+     * ping, which carries nothing and is polled by something that is not the
+     * app. Static files are not gated -- the screens are not the expensive
+     * thing and a locked-out browser that cannot even load a stylesheet
+     * reports as a broken site rather than as a closed beta.
+     *
+     * 401, not 403, and not 404. A 403 says "you are known and not allowed"
+     * and a 404 hides a route that is plainly there under a hostname somebody
+     * was given on purpose; 401 is the one that means "this needs a credential
+     * you did not send", which is exactly the situation.
+     *
+     * When SHIN_INVITE_CODE is unset this is a function call that returns true,
+     * which is why it can sit in front of every route from today.
+     */
+    if (url.pathname.startsWith('/api/') && !INVITE_EXEMPT.includes(url.pathname)) {
+      if (!inviteAllows(req.headers[INVITE_HEADER])) {
+        return json(401, { error: INVITE_REFUSAL });
+      }
+    }
+
     if (url.pathname === '/api/catalogue') return json(200, await catalogue());
     if (url.pathname === '/api/categories') return json(200, categories());
     if (url.pathname === '/api/scenarios') return json(200, scenarios());
@@ -1291,6 +1506,25 @@ export const server = createServer(async (req, res) => {
       if (!gtin && !text) return json(400, { error: 'gtin or text is required' });
       const sizeValue = Number(url.searchParams.get('sizeValue') ?? '');
       const device = url.searchParams.get('deviceId')?.trim() || UNATTRIBUTED;
+      deviceForLog = device;
+      /*
+       * ON A QUERY STRING RATHER THAN A BODY, and it is the one place this
+       * lane's contract had to be read rather than copied. The contract names
+       * `appVersion`, `platform` and `cell` as "client-sent telemetry fields on
+       * identify bodies"; this identify route is a GET and has no body, by a
+       * deliberate decision above (a barcode read fires it with no body and it
+       * is cacheable later). So the same three names arrive as query
+       * parameters here and in the body on the photo route, which is the only
+       * reading that leaves both routes as they are.
+       */
+      const identifyStarted = Date.now();
+      const telemetry = telemetryFrom(url.searchParams);
+      const where = locationFor(
+        device,
+        url.searchParams.get('cell'),
+        url.searchParams.get('storeId'),
+        url.searchParams.get('storeName'),
+      );
       const answer = await identify({
         gtin,
         text,
@@ -1326,8 +1560,9 @@ export const server = createServer(async (req, res) => {
        * a fact about this machine's setup, and mixing it into the answer rate
        * would report a missing file as a product that could not be identified.
        */
+      let scanId: number | null = null;
       if (answer.catalogueUp) {
-        recordScan({
+        scanId = recordScan({
           deviceId: device,
           kind: (gtin ? 'barcode' : 'text') as ScanKind,
           query: gtin ?? text ?? '',
@@ -1353,10 +1588,57 @@ export const server = createServer(async (req, res) => {
            * path (identify/src/model.ts's FailureClass), which has no route yet.
            */
           failureClass: answer.product ? null : 'not_in_catalogue',
+          /*
+           * The conditions the answer was produced under. Plan item 9e.
+           *
+           * The latency is measured here and not on the client, because what
+           * this column has to be comparable against is other rows in the same
+           * column; a phone's own stopwatch includes a network the server
+           * cannot see and varies by handset. The client's round trip is a
+           * different and also useful number, and it belongs in the event log.
+           */
+          appVersion: telemetry.appVersion,
+          platform: telemetry.platform,
+          latencyMs: Date.now() - identifyStarted,
+          cell: where.cell,
+          storeId: where.storeId,
+          storeName: where.storeName,
+        });
+        scanForLog = scanId;
+        /*
+         * Which source answered, as an event. Plan item 10b's server half.
+         * One line per identify, so a week of rows says how often the barcode
+         * path settled it outright and how often the catalogue was asked to
+         * search, which is the number that decides whether the vision path is
+         * worth its cost.
+         */
+        recordEvent({
+          deviceId: device,
+          type: answer.product ? 'source_used' : 'refusal',
+          payload: {
+            scanId,
+            kind: gtin ? 'barcode' : 'text',
+            matchedBy: answer.matchedBy,
+            reason: answer.product ? null : 'not_in_catalogue',
+            ms: Date.now() - identifyStarted,
+          },
         });
       }
 
-      return json(200, answer);
+      /*
+       * THE SCAN ID GOES BACK WITH THE ANSWER. Plan item 7a.
+       *
+       * It is what lets a rating, a correction and a typed price attach to the
+       * exact scan they are about instead of being matched back to one by
+       * guessing from the device and the product code. The guess is still
+       * there as a fallback (`lastAnsweredScan`, on the correction route) and
+       * it is still the only thing a client built before today can use.
+       *
+       * ABSENT WHEN THE WRITE DROPPED, never zero and never a placeholder. A
+       * scan the log could not record has no id, and a client holding a made-up
+       * one would file a rating against a row that does not exist.
+       */
+      return json(200, scanId === null ? answer : { ...answer, scanId });
     }
 
     /*
@@ -1500,6 +1782,7 @@ export const server = createServer(async (req, res) => {
       }
 
       const device = typeof p.deviceId === 'string' && p.deviceId.trim() !== '' ? p.deviceId.trim() : UNATTRIBUTED;
+      deviceForLog = device;
       /*
        * Counted after the body is read, which is deliberate and is the cost of
        * putting the device id in the body: there is nothing to count before
@@ -1516,7 +1799,53 @@ export const server = createServer(async (req, res) => {
       const sharpnessRaw = Number(p.sharpness);
       const sharpness = Number.isFinite(sharpnessRaw) ? sharpnessRaw : 0;
 
+      const photoStarted = Date.now();
+      const telemetry = telemetryFrom(p);
+      const where = locationFor(device, p.cell, p.storeId, p.storeName);
       const answer = await identifyPhoto(image, tier, sharpness, device === UNATTRIBUTED ? null : device);
+      const photoMs = Date.now() - photoStarted;
+
+      /*
+       * WHAT THE MODEL ACTUALLY SAID, kept whole. Plan item 9b.
+       *
+       * Until now the candidates never left the server and only the chosen
+       * label was written down, which means the one question worth asking
+       * about a wrong identification -- was the right row in the list and did
+       * we pick the wrong one, or was it never in the list at all -- could not
+       * be answered from the record at all. Those are opposite defects with
+       * opposite fixes (the ranker, or the catalogue), and telling them apart
+       * needs the list.
+       *
+       * WHAT IS NOT IN IT: the image, in any form. This is a JSON column in a
+       * database that gets backed up nightly to a laptop, and a photograph
+       * belongs in the photos folder behind the consent flag or nowhere.
+       */
+      const modelJson = JSON.stringify({
+        readAs: answer.readAs,
+        matchedBy: answer.matchedBy,
+        band: answer.band,
+        confidence: answer.confidence,
+        reason: answer.reason,
+        failure: answer.failure,
+        passes: answer.passes,
+        chosen: answer.product ? { code: answer.product.code, name: answer.product.name } : null,
+        otherCandidates: answer.otherCandidates,
+        candidates: answer.candidates,
+        sizeQuestion: answer.sizeQuestion,
+        ring: answer.ring,
+        route: answer.route,
+        tier,
+        sharpness,
+      });
+
+      /*
+       * A call that never reached the model cost nothing, and `reachedModel`
+       * is how that is said rather than assumed. The two failure classes that
+       * are decided before the request goes out are the spend cap and a photo
+       * the local checks rejected; everything else, including a timeout and an
+       * outage, was a call that was made and may well be billed.
+       */
+      const reachedModel = answer.failure !== 'spend_cap_reached';
 
       /*
        * One row per call, the same rule `/api/identify` states: this is the
@@ -1526,7 +1855,7 @@ export const server = createServer(async (req, res) => {
        * a beta run inside an outage has to be readable afterwards -- which is
        * the whole reason `failure_class` exists.
        */
-      recordScan({
+      const scanId = recordScan({
         deviceId: device,
         kind: 'photo' as ScanKind,
         // What was READ, not what was matched. A row whose query is the
@@ -1539,9 +1868,56 @@ export const server = createServer(async (req, res) => {
         outcome: answer.product ? 'answered' : 'refused',
         category: answer.category,
         failureClass: answer.failure,
+        modelJson,
+        modelCostCents: estimatedCostCents(tier, answer.passes, reachedModel),
+        appVersion: telemetry.appVersion,
+        platform: telemetry.platform,
+        latencyMs: photoMs,
+        cell: where.cell,
+        storeId: where.storeId,
+        storeName: where.storeName,
+      });
+      scanForLog = scanId;
+
+      /*
+       * THE PHOTOGRAPH, ONLY IF THEY SAID SO. Plan items 9a and 6c.
+       *
+       * Three conditions, all of them necessary. The scan row has to exist,
+       * because the file is named after its id and a photo with no row is a
+       * photo nothing can ever find or delete. The device has to be a real
+       * device, because the unattributed bucket is shared and a consent answer
+       * cannot be attributed to it. And the device has to have said yes.
+       *
+       * The write is awaited rather than fired and forgotten: the path goes on
+       * the row, and a row claiming a file that is still being written is the
+       * kind of inconsistency that only shows up in the retention sweep three
+       * months later.
+       */
+      if (scanId !== null && device !== UNATTRIBUTED && keepPhoto(device)) {
+        const kind = imageKind(image);
+        if (kind) {
+          const stored = await savePhoto(scanId, image, kind);
+          if (stored) updateScan(scanId, { photoPath: stored });
+        }
+      }
+
+      // The server half of the event log, plan item 10b: a model call was
+      // made, at what tier, over how many passes, and what it cost by estimate.
+      recordEvent({
+        deviceId: device,
+        type: 'model_call',
+        payload: {
+          scanId,
+          tier,
+          passes: answer.passes,
+          failure: answer.failure,
+          reachedModel,
+          costCents: estimatedCostCents(tier, answer.passes, reachedModel),
+          ms: photoMs,
+        },
       });
 
-      return json(200, answer);
+      return json(200, scanId === null ? answer : { ...answer, scanId });
     }
 
     if (url.pathname === '/api/price') {
@@ -1552,6 +1928,14 @@ export const server = createServer(async (req, res) => {
         return json(400, { error: 'body did not parse as JSON' });
       }
       const q = body as Record<string, unknown>;
+      /*
+       * Noted before the work, not after, so that a failure inside the pricing
+       * is logged against the scan it was about. An assignment after the call
+       * only ever runs when nothing went wrong, which is the one case the
+       * error log does not need (plan item 39a).
+       */
+      const pricedScan = Number(q.scanId);
+      if (Number.isInteger(pricedScan) && pricedScan > 0) scanForLog = pricedScan;
       const query: SpineQuery = {
         text: typeof q.text === 'string' ? q.text : undefined,
         gtin: typeof q.gtin === 'string' ? q.gtin : undefined,
@@ -1562,7 +1946,31 @@ export const server = createServer(async (req, res) => {
       };
       // A refusal is a 200. It is a correct answer, and any client that treats
       // it as an error will start retrying around the one safety mechanism here.
-      return json(200, await priceIt(query, defaultDeps()));
+      const priced = await priceIt(query, defaultDeps());
+
+      /*
+       * THE VERDICT AS IT WAS SHOWN, written onto the scan it belongs to.
+       * Plan item 9d.
+       *
+       * AS SHOWN, not as recomputable, and that is the entire reason this is a
+       * column rather than a query. A verdict is a function of the price
+       * evidence at one moment, and the evidence moves every time the crawler
+       * runs. Re-deriving next week what a tester saw today answers a different
+       * question from the one they will be asked about.
+       *
+       * The scan id is optional on this body: a price lookup can be asked
+       * about a product nobody scanned (the catalogue screen does exactly
+       * that), and a body without one prices the thing and writes nothing.
+       * A refusal writes nothing either, because there was no verdict to show.
+       */
+      if (Number.isInteger(pricedScan) && pricedScan > 0 && priced.kind === 'verdict') {
+        updateScan(pricedScan, {
+          verdictTier: priced.tier,
+          verdictConfidence: priced.confidence.band,
+          verdictSellers: priced.confidence.distinctSellers,
+        });
+      }
+      return json(200, priced);
     }
 
     /*
@@ -1607,13 +2015,67 @@ export const server = createServer(async (req, res) => {
       if (clientId === null || deviceId === null) {
         return json(200, { stored: false, why: 'a correction needs its own id and the device it came from' });
       }
+      deviceForLog = deviceId;
+
+      /*
+       * THE SCAN THIS PRICE IS ABOUT. Plan item 7c.
+       *
+       * When the client sends an id, that is the scan, full stop. The
+       * device-and-code lookup below stays as the fallback and nothing else:
+       * it is what a client built before today uses, and it is a guess -- "the
+       * last scan this device made of this product" -- which is right almost
+       * always and silently wrong in the case that matters (two scans of the
+       * same thing, a correction typed about the first).
+       */
+      const sentScanId = Number(c.scanId);
+      const scanRow = Number.isInteger(sentScanId) && sentScanId > 0 ? getScan(sentScanId) : null;
+      if (scanRow) scanForLog = scanRow.id;
+
+      /*
+       * A CORRECTION WITH NO PRODUCT ON IT. The defect in plan item 19d, and
+       * the scan id is what fixes it rather than merely reports it.
+       *
+       * What went wrong: a correction is filed under the most specific key it
+       * has, and `subjectOf` in price/src/corrections.ts will happily fall back
+       * to `text:<whatever was on screen>` when the body carries no barcode and
+       * no product id. It stores, the route answers `stored: true`, and the
+       * tester sees the price accepted. But `correctionsFor` -- the only reader,
+       * the one the spine calls on every verdict -- takes a code and a product
+       * id and returns nothing at all when both are null. It cannot match a
+       * text subject and never will. So that price was accepted, kept, backed
+       * up, and can never appear in any verdict for the rest of its life.
+       *
+       * It is not a rare shape either: it is what the corrections screen sends
+       * for anything the catalogue refused, which is precisely the case where a
+       * tester is most motivated to type a price in.
+       *
+       * The fix is in two halves. First, fill the identity in from the scan
+       * the correction is about, which is why this sits under the scan lookup:
+       * a scan that named a product carries the code, and the client not
+       * echoing it back is a client detail, not a missing fact. Second, when
+       * there is still no code and no product id after that, refuse -- in the
+       * route's documented shape, a 200 with `stored: false` and a sentence,
+       * which the client queue reads as "drop it" rather than retrying forever.
+       * Refusing is better than storing because the person finds out now,
+       * while they are standing in front of the tag.
+       */
+      const code = str(c.code) ?? scanRow?.resolved_code ?? null;
+      const productId = str(c.productId);
+      const label = str(c.label) ?? scanRow?.resolved_label ?? null;
+      if (code === null && productId === null) {
+        return json(200, {
+          stored: false,
+          why: 'that price has no product attached to it, so nothing could ever read it back. Scan the item first, then type the price.',
+        });
+      }
+
       const kind = c.kind === 'promotional' ? 'promotional' : 'regular';
       const result = recordCorrection({
         clientId,
         deviceId,
-        code: str(c.code),
-        productId: str(c.productId),
-        label: str(c.label),
+        code,
+        productId,
+        label,
         category: str(c.category),
         seller: typeof c.seller === 'string' ? c.seller : '',
         priceCents: typeof c.priceCents === 'number' ? Math.round(c.priceCents) : Number.NaN,
@@ -1639,7 +2101,7 @@ export const server = createServer(async (req, res) => {
        * were written down, or on another device, has nothing to point at. It
        * is still stored as a price; only the marking is skipped.
        */
-      const correctedCode = str(c.code);
+      const correctedCode = code;
       /*
        * ONLY A FRESH STORE MARKS A SCAN. A retry -- the aisle-with-no-signal
        * case the client id exists for -- used to reach here too, because
@@ -1650,8 +2112,35 @@ export const server = createServer(async (req, res) => {
        * and a correct answer stopped being metered, all from one resend.
        */
       if (result.ok && !result.alreadyStored && correctedCode) {
-        const scanId = lastAnsweredScan(deviceId, correctedCode);
+        // The id the client sent, or the guess. Plan item 7c: by id when
+        // present, the last-answered lookup only when it is not.
+        const scanId = scanRow?.id ?? lastAnsweredScan(deviceId, correctedCode);
         if (scanId !== null) correctScan(scanId, correctedCode);
+      }
+
+      /*
+       * THE TYPED PRICE, ON THE SCAN ROW. Plan item 9c, and 11c for the store.
+       *
+       * The correction itself lives in the corrections database, which is the
+       * spine's evidence store and is not this package's. What goes here is the
+       * link: the price a person typed for THIS scan, and the shop they were
+       * in. Without it, the complete scan record has a hole exactly where the
+       * most valuable thing a tester does is recorded.
+       *
+       * Written on a retry as well as on a fresh store, unlike the marking
+       * above. The marking must not run twice because it moves an outcome; this
+       * writes the same values to the same row, which is the definition of
+       * something a resend may do.
+       */
+      if (result.ok && scanRow) {
+        const priceCents = typeof c.priceCents === 'number' ? Math.round(c.priceCents) : null;
+        const typedWhere = locationFor(deviceId, c.cell, c.storeId, c.storeName);
+        updateScan(scanRow.id, {
+          typedPriceCents: Number.isFinite(priceCents) ? priceCents : null,
+          cell: typedWhere.cell ?? undefined,
+          storeId: typedWhere.storeId ?? undefined,
+          storeName: typedWhere.storeName ?? undefined,
+        });
       }
 
       return result.ok
@@ -1671,6 +2160,229 @@ export const server = createServer(async (req, res) => {
      */
     if (url.pathname === '/api/scans') {
       return json(200, summariseScans(url.searchParams.get('deviceId')?.trim() || undefined));
+    }
+
+    /*
+     * WAS THAT ANSWER ANY GOOD. Plan item 8b.
+     *
+     * POST, like every other write in this API, and for the reason stated on
+     * `/api/correction`: this server routes on pathname alone and every write
+     * it already has is a POST. A PUT here would be the only one and would buy
+     * nothing, since the overwrite is the schema's job (the table's key is the
+     * scan id) rather than the verb's.
+     *
+     * A 400 WITHOUT A VALID SCAN ID, and this is the one place in the API
+     * where a refusal is a 4xx rather than a 200 with a sentence. The
+     * difference is who is wrong. A refused correction is a correct answer
+     * about a person's input (no shop, a price that is not a number) and the
+     * client should drop it. A rating with no scan id is a CLIENT that did not
+     * keep the id it was given in the identify response, which is a bug to
+     * find in a log, not a sentence to put on a screen.
+     */
+    if (url.pathname === '/api/scan-rating') {
+      if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      const body = await readBody(req);
+      if (body === TOO_LARGE) return refuseTooLarge();
+      if (body === null || typeof body !== 'object') {
+        return json(400, { error: 'body did not parse as JSON' });
+      }
+      const r = body as Record<string, unknown>;
+      const deviceId = typeof r.deviceId === 'string' ? r.deviceId.trim() : '';
+      if (deviceId === '') return json(400, { error: 'deviceId is required' });
+      deviceForLog = deviceId;
+      const ratedScan = Number(r.scanId);
+      if (!scanExists(ratedScan)) {
+        return json(400, { error: 'scanId must be the id of a scan this server recorded' });
+      }
+      scanForLog = ratedScan;
+      if (!isRating(r.rating)) return json(400, { error: "rating must be 'up' or 'down'" });
+      // A reason that is not one of the four is dropped rather than refused.
+      // It is a client sending a chip this server has not shipped yet, and
+      // losing the thumb over it would lose the signal we were actually given.
+      const reason = isRatingReason(r.reason) ? r.reason : null;
+
+      const stored = rateScan({ scanId: ratedScan, deviceId, rating: r.rating, reason });
+      if (!stored) return json(200, { stored: false, why: 'that rating could not be written down' });
+      recordEvent({ deviceId, type: 'thumbs', payload: { scanId: ratedScan, rating: r.rating, reason } });
+      return json(200, { stored: true });
+    }
+
+    /*
+     * The undo behind the four-second window on the phone. Plan item 8c.
+     *
+     * A POST to its own path rather than a DELETE, because this file routes on
+     * pathname and every write in it is a POST; a DELETE would be the only
+     * request in the product that needs a different method on the same path,
+     * for an operation the client already sends as a normal write.
+     *
+     * DELETING NOTHING IS SUCCESS. The client's question is "is it gone", and
+     * a double-tapped undo asking twice must not read as a failure to a queue
+     * that would then retry it.
+     */
+    if (url.pathname === '/api/scan-rating/delete') {
+      if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      const body = await readBody(req);
+      if (body === TOO_LARGE) return refuseTooLarge();
+      if (body === null || typeof body !== 'object') {
+        return json(400, { error: 'body did not parse as JSON' });
+      }
+      const r = body as Record<string, unknown>;
+      const deviceId = typeof r.deviceId === 'string' ? r.deviceId.trim() : '';
+      if (deviceId === '') return json(400, { error: 'deviceId is required' });
+      deviceForLog = deviceId;
+      const ratedScan = Number(r.scanId);
+      if (!Number.isInteger(ratedScan) || ratedScan <= 0) {
+        return json(400, { error: 'scanId must be the id of a scan this server recorded' });
+      }
+      scanForLog = ratedScan;
+      const deleted = deleteRating(ratedScan);
+      if (deleted) recordEvent({ deviceId, type: 'thumbs_undo', payload: { scanId: ratedScan } });
+      return json(200, { deleted });
+    }
+
+    /*
+     * WHAT THIS DEVICE HAS AGREED TO. Plan item 6c.
+     *
+     * Two shapes on one path: GET reads, POST writes. Both default to false,
+     * and a device that has never answered reads exactly the same as a device
+     * that answered no, which is the only honest default for a question nobody
+     * has been asked yet.
+     *
+     * THE REFUSAL THIS BACKS IS NOT HERE. It is in `locationFor` and in the
+     * photo branch of `/api/identify/photo`, which is the point: a consent
+     * route that stores a flag nothing reads is the shape of privacy theatre.
+     * The two readers are named in `consent.ts`.
+     */
+    if (url.pathname === '/api/consent') {
+      if (req.method === 'GET') {
+        const deviceId = url.searchParams.get('deviceId')?.trim() ?? '';
+        if (deviceId === '') return json(400, { error: 'deviceId is required' });
+        return json(200, readConsent(deviceId));
+      }
+      if (req.method !== 'POST') return json(405, { error: 'GET or POST only' });
+      const body = await readBody(req);
+      if (body === TOO_LARGE) return refuseTooLarge();
+      if (body === null || typeof body !== 'object') {
+        return json(400, { error: 'body did not parse as JSON' });
+      }
+      const k = body as Record<string, unknown>;
+      const deviceId = typeof k.deviceId === 'string' ? k.deviceId.trim() : '';
+      if (deviceId === '') return json(400, { error: 'deviceId is required' });
+      deviceForLog = deviceId;
+      /*
+       * ANYTHING THAT IS NOT LITERALLY `true` IS NO. Not truthiness: a missing
+       * field, a string, a 1, an object all read as no. Consent is the one
+       * place in this server where a client bug must fail towards keeping
+       * less, and `photos: "false"` is a real thing a client sends.
+       */
+      const photos = k.photos === true;
+      const location = k.location === true;
+      const stored = writeConsent(deviceId, photos, location);
+      if (!stored) {
+        // Reported rather than swallowed. A person who just turned photo
+        // consent on and was told nothing would go on believing their photos
+        // are being kept when they are not, and the reverse is worse.
+        return json(200, { stored: false, why: 'that choice could not be written down, so nothing changed' });
+      }
+      recordEvent({ deviceId, type: 'consent_change', payload: { photos, location } });
+      return json(200, { stored: true });
+    }
+
+    /*
+     * The event log's door. Plan item 10.
+     *
+     * ONE EVENT PER REQUEST, not a batch, and that is a decision worth stating
+     * because a batch is the obvious next request. Six testers on a home
+     * network are nowhere near the volume that makes batching worth the
+     * partial-failure semantics it brings, and the client already has a queue
+     * for the aisle-with-no-signal case that it can drain one at a time.
+     *
+     * A DROPPED EVENT IS A 200 WITH `stored: false`, never a 500. Logging is
+     * ours; the person's request was fine, and a client that treats a failed
+     * event as an error will retry a log line in a loop.
+     */
+    if (url.pathname === '/api/event') {
+      if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      const body = await readBody(req);
+      if (body === TOO_LARGE) return refuseTooLarge();
+      if (body === null || typeof body !== 'object') {
+        return json(400, { error: 'body did not parse as JSON' });
+      }
+      const e = body as Record<string, unknown>;
+      const deviceId = typeof e.deviceId === 'string' ? e.deviceId.trim() : '';
+      const type = typeof e.type === 'string' ? e.type.trim() : '';
+      if (deviceId === '') return json(400, { error: 'deviceId is required' });
+      if (type === '') return json(400, { error: 'type is required' });
+      deviceForLog = deviceId;
+      const payload = serialisePayload(e.payload);
+      if ('why' in payload) return json(400, { error: payload.why });
+      const id = recordEvent({ deviceId, type, payload: e.payload });
+      return json(200, id === null ? { stored: false } : { stored: true });
+    }
+
+    /*
+     * WHICH SHOPS ARE NEAR THIS SQUARE. Plan item 11b.
+     *
+     * GET, and it stores nothing at all. What comes in is a coarse cell and
+     * what goes out is a fact about the world (OpenStreetMap's shops), so
+     * there is nothing here for the consent flag to gate: the flag gates
+     * WRITING a cell onto a scan row, which happens on the identify and
+     * correction routes and nowhere else.
+     *
+     * AN EMPTY LIST IS A 200, the same rule `/api/alternatives` states. A cell
+     * with no mapped shops in it, an Overpass outage and a timeout are all the
+     * same answer to the screen -- type the price without a store -- and a
+     * client that treated them as errors would block a correction over a
+     * nicety.
+     */
+    if (url.pathname === '/api/stores') {
+      const cell = parseCell(url.searchParams.get('cell'));
+      if (!cell) {
+        return json(400, { error: 'cell is required, as "lat,lon" rounded to two decimal places' });
+      }
+      const stores = await storesNear(cell, storeFetcherDouble ? { fetch: storeFetcherDouble } : {});
+      return json(200, { stores });
+    }
+
+    /*
+     * IS IT UP. Plan item 39c, first half.
+     *
+     * The one route that answers without an invite code (see `invite.ts`), so
+     * it carries nothing worth having: whether the process is alive, how long
+     * it has been alive, and whether the scan log and the catalogue attached.
+     * No counts, no device, no scan.
+     *
+     * WHY THOSE TWO FLAGS AND NOTHING ELSE. A ping that only says the process
+     * is running is green through the exact outage this beta is most likely to
+     * have -- the Mac reboots, the server comes up, the external disk with the
+     * catalogue on it did not mount, and every scan answers "we have not seen
+     * this one" while the monitor says fine.
+     */
+    if (url.pathname === '/api/health') {
+      const scans = openScanStore();
+      return json(200, {
+        ok: true,
+        uptimeSeconds: Math.round((Date.now() - STARTED_AT) / 1000),
+        startedAt: new Date(STARTED_AT).toISOString(),
+        scanLog: scans.db !== null,
+        catalogueUp: fastLookup !== null,
+      });
+    }
+
+    /*
+     * HOW LONG THE ANSWERS TOOK, by day and by kind. Plan item 39c, second half.
+     *
+     * Behind the invite code, unlike the ping, because this one is operational
+     * detail about a running service rather than a liveness bit.
+     *
+     * p95 rather than an average, and by kind rather than across all three
+     * paths: the reasoning is in `latency.ts` and it comes down to the mean of
+     * a barcode read and a vision call describing no scan anybody performed.
+     */
+    if (url.pathname === '/api/latency') {
+      const daysRaw = Number(url.searchParams.get('days') ?? '7');
+      const days = Number.isFinite(daysRaw) && daysRaw > 0 ? Math.min(Math.floor(daysRaw), 90) : 7;
+      return json(200, { days, latency: dailyLatency(days) });
     }
 
     /*
@@ -1788,7 +2500,18 @@ export const server = createServer(async (req, res) => {
      * where somebody can.
      */
     if (url.pathname.startsWith('/api/')) {
-      if (!missing) console.error(`${url.pathname} failed:`, err);
+      /*
+       * STRUCTURED, AND CARRYING THE SCAN ID. Plan item 39a.
+       *
+       * This used to be `console.error(path, err)`: a line of English and a
+       * stack, from which the one question a beta actually asks -- a tester
+       * says it broke on the cereal, and the cereal's scan row is right there
+       * with an id -- could not be answered by searching. `scanForLog` is set
+       * by every route that wrote or was handed a row, so the line joins.
+       */
+      if (!missing) {
+        logError({ where: url.pathname, scanId: scanForLog, deviceId: deviceForLog, err });
+      }
       res.writeHead(missing ? 404 : 500, {
         'content-type': 'application/json; charset=utf-8',
         'cache-control': 'no-store',
@@ -1825,6 +2548,44 @@ export const server = createServer(async (req, res) => {
  */
 const SCAN_DB = process.env.SHIN_SCANS ?? fileURLToPath(new URL('./data/scans.db', import.meta.url));
 
+/**
+ * The startup guard. Plan item 1i, and plan item 19c as a tester-visible
+ * defect.
+ *
+ * CHECKED BEFORE THE PORT IS OPENED, because the whole point is not to come up
+ * half-working. A server listening on a hostname six people were given, with
+ * its catalogue path pointing at a disk that did not mount, answers "we have
+ * not seen this one" to every barcode they scan, and the only sign anything is
+ * wrong is on the tester's screen.
+ *
+ * The rule for what counts as a missing database is in `startup.ts` and it is
+ * narrow on purpose: a file missing inside a folder that exists is a database
+ * not copied yet, which every development machine in this project is, while a
+ * path whose folder is not there is always a typo or an unmounted disk.
+ */
+const problems = startupProblems();
+if (problems.length > 0) {
+  for (const problem of problems) console.error(problem);
+  console.error('Shin did not start. Nothing was changed on disk.');
+  process.exit(1);
+}
+
+/*
+ * A TAKEN PORT IS A SENTENCE, NOT A STACK.
+ *
+ * Without this handler, `listen` on a port something else holds emits an
+ * unhandled `error` event: nine lines of Error, errno, syscall, address and
+ * stack, exit code 1, and under a process manager that is what a restart loop
+ * writes to a log file every few seconds. The cause -- a second copy of this
+ * server is already running -- is one of the nine and never the first.
+ */
+server.on('error', (err) => {
+  const sentence = listenProblem(err, PORT);
+  console.error(sentence ?? `Shin could not open port ${PORT}: ${err instanceof Error ? err.message : String(err)}`);
+  logError({ where: 'server.listen', err, detail: { port: PORT } });
+  process.exit(1);
+});
+
 server.listen(PORT, () => {
   console.log(`Shin is running.  http://localhost:${PORT}`);
   console.log('The engine behind it knows 7 products, because 7 is what has been priced by hand.');
@@ -1834,6 +2595,30 @@ server.listen(PORT, () => {
       ? `Scans are being written down: ${scans.path}`
       : `Scans are NOT being written down (${scans.droppedWhy}). Everything else still works.`,
   );
+  if (inviteRequired()) console.log('An invite code is required on every API call.');
+
+  /*
+   * PHOTO RETENTION. Plan item 39d.
+   *
+   * At start and then once a day. At start because a server that was off for a
+   * week has a week of photographs that are now past their date and nobody is
+   * going to run a command; once a day because ninety days is the promise and
+   * an hourly sweep would be reading the same rows twenty-four times to find
+   * nothing.
+   *
+   * `unref` so the timer is not a reason this process stays alive. A server
+   * with nothing else holding it open should exit, and a retention sweep
+   * scheduled for tomorrow is not a reason to keep a machine running.
+   */
+  const sweep = () => {
+    const result = sweepPhotos();
+    if (result.deleted > 0) {
+      console.log(`Deleted ${result.deleted} photo(s) older than the retention window (before ${result.cutoff}).`);
+    }
+  };
+  sweep();
+  setInterval(sweep, 24 * 60 * 60 * 1000).unref();
+
   // Attached after the port is open, never before: the screens have to come up
   // whether or not a 3.47 GB file is sitting where this expects it.
   void attachCatalogue();

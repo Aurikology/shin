@@ -64,6 +64,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { runMigrations } from './migrations.ts';
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS scan (
@@ -121,35 +122,12 @@ export type FailureClass =
   | 'spend_cap_reached'
   | 'not_in_catalogue';
 
-/**
- * Adds a column an older file does not have yet.
- *
- * There is a live scans.db in app/data written before failure_class existed,
- * and CREATE TABLE IF NOT EXISTS will not touch it. Checked with table_info
- * rather than a caught error, because a swallowed ALTER is how a column ends
- * up missing on one machine and present on another with nothing to read back.
+/*
+ * `addColumnIfMissing` used to live here and now lives in `migrations.ts`,
+ * moved 2026-09-11 when the ad-hoc column additions below became a numbered
+ * list. It is the primitive every additive migration is built out of, and the
+ * two calls it used to have here are migration 1.
  */
-function addColumnIfMissing(db: DatabaseSync, table: string, column: string, decl: string): void {
-  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as unknown as { name: string }[];
-  if (columns.some((c) => c.name === column)) return;
-  /*
-   * The read above and the write below are not one operation. Two processes
-   * opening this file at once can both see no column and both try to add it;
-   * the busy timeout serialises the write, so the loser's ALTER runs after
-   * the winner's committed and fails with `duplicate column name`. Without
-   * this catch that throw escaped into the open, nulled the handle, and
-   * turned the whole scan log off for the life of the process (D-057 as
-   * merged). A column somebody else added is success; anything else is
-   * rethrown, since a table that cannot take it is not a log this code can
-   * use. Answered by re-reading the table, not by matching message text.
-   */
-  try {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
-  } catch (err) {
-    const again = db.prepare(`PRAGMA table_info(${table})`).all() as unknown as { name: string }[];
-    if (!again.some((c) => c.name === column)) throw err;
-  }
-}
 
 /**
  * A handle on the scan log.
@@ -221,13 +199,18 @@ export function openScanStore(path: string = process.env.SHIN_SCANS ?? 'data/sca
     db.exec('PRAGMA journal_mode = WAL');
     db.exec(DDL);
     /*
-     * Both columns added after the first release go through one helper. Two
-     * lanes wrote the same migration on the same night -- `category` here for
-     * the routing priors, `failure_class` on main for the beta audit -- and
-     * the merge keeps main's helper and gives it this branch's race catch.
+     * Everything added after the first release, as a numbered list that this
+     * file no longer has an opinion about. See `migrations.ts`: the two
+     * columns that used to be added by hand here are migration 1, and every
+     * table the beta added (ratings, events, consent, the store on a scan, the
+     * user id) is a migration above it.
+     *
+     * It runs on every open, not on a flag, because that is what makes the
+     * live `app/data/scans.db` and a temp file in a test the same shape: a
+     * database at version 7 does nothing here, and a database at 0 catches up
+     * before the first scan is written.
      */
-    addColumnIfMissing(db, 'scan', 'category', 'TEXT');
-    addColumnIfMissing(db, 'scan', 'failure_class', 'TEXT');
+    runMigrations(db);
   } catch (err) {
     db = null;
     droppedWhy = err instanceof Error ? err.message : String(err);
@@ -266,9 +249,98 @@ export interface ScanInput {
    * and get `new Date().toISOString()`.
    */
   readonly scannedAt?: string;
+
+  /*
+   * THE COMPLETE SCAN RECORD, plan item 9, added 2026-09-11.
+   *
+   * Everything below is a fact about the CONDITIONS the answer was produced
+   * under rather than about the answer, and all of it is optional. A caller
+   * that measured none of it writes nulls, which is what every caller did
+   * before today and what the `what-to-price` CLI still does.
+   *
+   * None of it is required and none of it has a default that stands in for a
+   * measurement. A latency of 0 would be a claim that the call was instant; a
+   * null is the honest record that nobody timed it.
+   */
+
+  /** What the model itself said, whole, as JSON. Photo scans only. */
+  readonly modelJson?: string | null;
+  /** Cents, fractional, estimated rather than billed. See `model-cost.ts`. */
+  readonly modelCostCents?: number | null;
+  /** The client's own build string, as the client reported it. */
+  readonly appVersion?: string | null;
+  /** ios, android, web, or whatever the client calls itself. Not derived here. */
+  readonly platform?: string | null;
+  /** Round trip on the server side: request in to answer out, milliseconds. */
+  readonly latencyMs?: number | null;
+  /**
+   * The coarse square the phone was in, already snapped by `stores.ts`.
+   * Written only when the device has consented to location (see `consent.ts`);
+   * the route, not this function, is what refuses.
+   */
+  readonly cell?: string | null;
+  readonly storeId?: string | null;
+  readonly storeName?: string | null;
+  /** Null until accounts exist. Plan item 12. */
+  readonly userId?: string | null;
 }
 
-interface ScanRow {
+/**
+ * The fields of a scan row that are learned AFTER the row is written.
+ *
+ * Four of item 9's facts cannot be known at insert time and this is why there
+ * are two ways to write a scan rather than one enormous one:
+ *
+ *   - the photo path, because the file is named after the row id;
+ *   - the typed price, which arrives on a later request from the corrections
+ *     screen, sometimes the next morning from an aisle with no signal;
+ *   - the verdict as shown, which is a second request to `/api/price` about an
+ *     identity the first request produced;
+ *   - the store, which the person picks from a list after the scan.
+ *
+ * Anything left `undefined` is not written. A key present with `null` IS
+ * written, so a consent withdrawal can clear a photo path. That distinction is
+ * the whole reason this is a patch object and not a positional argument list.
+ */
+export interface ScanPatch {
+  readonly photoPath?: string | null;
+  readonly typedPriceCents?: number | null;
+  readonly verdictTier?: string | null;
+  readonly verdictConfidence?: string | null;
+  readonly verdictSellers?: number | null;
+  readonly cell?: string | null;
+  readonly storeId?: string | null;
+  readonly storeName?: string | null;
+  readonly modelJson?: string | null;
+  readonly latencyMs?: number | null;
+  readonly modelCostCents?: number | null;
+  readonly userId?: string | null;
+}
+
+/**
+ * The only mapping from a patch key to a column name, and the reason
+ * `updateScan` can build SQL by concatenation without being an injection.
+ *
+ * A caller hands in an object whose keys came off a JSON body on a bad day;
+ * anything not on this list is dropped before a string is built, so the SET
+ * clause is assembled out of these literals and nothing else.
+ */
+const PATCH_COLUMNS: Readonly<Record<keyof ScanPatch, string>> = {
+  photoPath: 'photo_path',
+  typedPriceCents: 'typed_price_cents',
+  verdictTier: 'verdict_tier',
+  verdictConfidence: 'verdict_confidence',
+  verdictSellers: 'verdict_sellers',
+  cell: 'cell',
+  storeId: 'store_id',
+  storeName: 'store_name',
+  modelJson: 'model_json',
+  latencyMs: 'latency_ms',
+  modelCostCents: 'model_cost_cents',
+  userId: 'user_id',
+};
+
+export interface ScanRow {
   id: number;
   device_id: string;
   kind: string;
@@ -282,6 +354,22 @@ interface ScanRow {
   corrected_code: string | null;
   scanned_at: string;
   category: string | null;
+  // The complete scan record, plan item 9. Every one of them is null on a row
+  // written before 2026-09-11 and on any row whose caller measured nothing.
+  photo_path: string | null;
+  model_json: string | null;
+  typed_price_cents: number | null;
+  verdict_tier: string | null;
+  verdict_confidence: string | null;
+  verdict_sellers: number | null;
+  app_version: string | null;
+  platform: string | null;
+  latency_ms: number | null;
+  model_cost_cents: number | null;
+  cell: string | null;
+  store_id: string | null;
+  store_name: string | null;
+  user_id: string | null;
 }
 
 /**
@@ -299,8 +387,9 @@ export function recordScan(input: ScanInput): number | null {
     const scannedAt = input.scannedAt ?? new Date().toISOString();
     const result = store.db
       .prepare(
-        `INSERT INTO scan (device_id, kind, query_text, resolved_code, resolved_label, confidence, source, outcome, failure_class, corrected_code, scanned_at, category)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+        `INSERT INTO scan (device_id, kind, query_text, resolved_code, resolved_label, confidence, source, outcome, failure_class, corrected_code, scanned_at, category,
+                           model_json, model_cost_cents, app_version, platform, latency_ms, cell, store_id, store_name, user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         input.deviceId,
@@ -314,6 +403,15 @@ export function recordScan(input: ScanInput): number | null {
         input.failureClass ?? null,
         scannedAt,
         input.category ?? null,
+        input.modelJson ?? null,
+        input.modelCostCents ?? null,
+        input.appVersion ?? null,
+        input.platform ?? null,
+        input.latencyMs ?? null,
+        input.cell ?? null,
+        input.storeId ?? null,
+        input.storeName ?? null,
+        input.userId ?? null,
       );
     return Number(result.lastInsertRowid);
   } catch (err) {
@@ -343,6 +441,67 @@ export function correctScan(scanId: number, correctedCode: string): void {
   } catch (err) {
     store.dropped += 1;
     store.droppedWhy = err instanceof Error ? err.message : String(err);
+  }
+}
+
+/**
+ * Fills in the part of a scan record that was not known when the row was
+ * written: the photo file, the price somebody typed, the verdict they were
+ * shown, the store they picked.
+ *
+ * Never throws, and returns whether a row actually moved. `false` means the
+ * scan id named nothing, which is the normal answer to a client holding an id
+ * from before a reinstall or from another machine, and it is a fact the caller
+ * usually wants to ignore rather than report.
+ *
+ * A patch with no known keys writes nothing and returns false rather than
+ * running `UPDATE scan SET WHERE id = ?`, which is a syntax error, not an
+ * empty update.
+ */
+export function updateScan(scanId: number, patch: ScanPatch): boolean {
+  const store = active ?? openScanStore();
+  try {
+    if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
+    const sets: string[] = [];
+    const values: (string | number | null)[] = [];
+    for (const key of Object.keys(PATCH_COLUMNS) as (keyof ScanPatch)[]) {
+      const value = patch[key];
+      if (value === undefined) continue;
+      sets.push(`${PATCH_COLUMNS[key]} = ?`);
+      values.push(value === null ? null : value);
+    }
+    if (sets.length === 0) return false;
+    values.push(scanId);
+    const result = store.db.prepare(`UPDATE scan SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+    return Number(result.changes) > 0;
+  } catch (err) {
+    store.dropped += 1;
+    store.droppedWhy = err instanceof Error ? err.message : String(err);
+    return false;
+  }
+}
+
+/**
+ * One scan row by id, or null.
+ *
+ * The rating route needs it to answer "is that a real scan id" without
+ * trusting the client, and the correction route needs it to attach a typed
+ * price to the product the scan actually named (plan item 7c, and the fix for
+ * the defect where a correction was stored with no product on it at all).
+ *
+ * Never throws: a store that will not open is a scan id that names nothing,
+ * which is the same answer the caller has to handle anyway.
+ */
+export function getScan(scanId: number): ScanRow | null {
+  const store = active ?? openScanStore();
+  try {
+    if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
+    const row = store.db.prepare('SELECT * FROM scan WHERE id = ?').get(scanId) as unknown as ScanRow | undefined;
+    return row ?? null;
+  } catch (err) {
+    store.dropped += 1;
+    store.droppedWhy = err instanceof Error ? err.message : String(err);
+    return null;
   }
 }
 

@@ -30,6 +30,7 @@
 
 import type { ScanStore } from './scans.ts';
 import { activeScanStore, openScanStore } from './scans.ts';
+import { ratingCounts, type RatingCounts } from './ratings.ts';
 
 /** The device id given to a scan that arrived without one. Never a person. */
 export const UNATTRIBUTED = 'unattributed';
@@ -64,6 +65,14 @@ export interface ScanSummary {
   readonly secondWeekReturn: { eligible: number; returned: number; rate: number | null };
   /** Scans this device made since UTC Monday, when a device was asked about. */
   readonly thisDevice: { deviceId: string; scansThisWeek: number; named: number } | null;
+  /**
+   * Thumbs, and the reasons behind the thumbs-down ones. Plan item 8d.
+   *
+   * Scoped to the device when one was asked about, and across everything
+   * otherwise, the same way `thisDevice` is. These are counts rather than
+   * rates and so zero is a real answer here, unlike every rate above it.
+   */
+  readonly rated: RatingCounts;
   /** Writes or reads the log itself could not complete. Never hidden. */
   readonly dropped: number;
   readonly droppedWhy: string;
@@ -101,6 +110,7 @@ export function summariseScans(deviceId?: string, now: Date = new Date(), store?
     corrections: 0,
     secondWeekReturn: { eligible: 0, returned: 0, rate: null },
     thisDevice: deviceId ? { deviceId, scansThisWeek: 0, named: 0 } : null,
+    rated: ratingCounts(deviceId),
     dropped: s.dropped,
     droppedWhy: s.droppedWhy,
   };
@@ -185,6 +195,18 @@ export function summariseScans(deviceId?: string, now: Date = new Date(), store?
     correctionsPerHundred: named ? (corrections / named) * 100 : null,
     secondWeekReturn: { eligible, returned, rate: eligible ? returned / eligible : null },
     thisDevice,
+    /*
+     * How this device rated its own answers. Plan item 8d, the server half.
+     *
+     * Per device when one was named, across everything otherwise, matching the
+     * rest of this reply: the profile screen asks about the person looking at
+     * it, and every other per-device figure here is already scoped that way.
+     *
+     * Zeroes are honest here, unlike the rates above. A rate with no
+     * denominator is unknown and is reported as null; a device that has rated
+     * nothing has rated nothing, and that is a count.
+     */
+    rated: ratingCounts(deviceId),
     dropped: s.dropped,
     droppedWhy: s.droppedWhy,
   };
