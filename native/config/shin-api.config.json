@@ -1,0 +1,6 @@
+{
+  "_comment": "PLACEHOLDER. Replace apiBase with the real https subdomain once the founder picks it (item 1a of the beta build plan: a subdomain on the Cloudflare domain already used for the paused ACT venture). This is the ONLY file that needs to change to point the wrapper at the real server.",
+  "apiBase": "https://REPLACE-WITH-REAL-HOSTNAME.example.invalid",
+  "inviteCode": "REPLACE-WITH-REAL-INVITE-CODE",
+  "nativeCameraFallback": false
+}

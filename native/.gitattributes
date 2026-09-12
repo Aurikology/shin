@@ -1,0 +1,15 @@
+# Line endings for the wrapper.
+#
+# This repo is worked on from a Windows laptop with core.autocrlf=true and from
+# a Mac. Git normalised gradlew to LF in the index on its own, but that is a
+# property of one machine's config, not of the repo, and a future checkout with
+# a different setting would hand the Mac a gradlew full of carriage returns.
+# A CRLF shell script fails on Unix with "bad interpreter", which reads as a
+# broken toolchain rather than as a line-ending problem, so it is worth the two
+# lines here to make it impossible.
+gradlew text eol=lf
+*.sh text eol=lf
+
+# Xcode's project file is line-sensitive and merges badly when a tool rewrites
+# its endings. Pin it the same way.
+*.pbxproj text eol=lf

@@ -1,0 +1,36 @@
+# Node dependencies. Reinstalled with `npm install` in native/.
+node_modules/
+
+# Generated copy of app/public with the config script injected. Regenerated
+# by `npm run sync` (or `npm run cap:sync`). Never hand-edit this; edit
+# app/public (owned by the app lane) or scripts/sync-web.mjs instead.
+www/
+
+# Android platform build output. The android/ project itself (AndroidManifest.xml,
+# build.gradle, MainActivity.java etc) is hand-edited (camera permission, app id)
+# and stays tracked; only Gradle's generated build artifacts are ignored.
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/
+android/local.properties
+*.apk
+*.aab
+
+# iOS platform build output. The ios/ project itself (Info.plist, project.pbxproj)
+# is hand-edited (camera usage string, bundle id) and stays tracked; only
+# Xcode/CocoaPods generated output is ignored. (Xcode build only runs on the Mac.)
+ios/App/Pods/
+ios/App/build/
+ios/App/output/
+ios/DerivedData/
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App/public/
+
+# Android's copy of www/, made by `npx cap copy` / `npx cap sync`. Same reason
+# as www/ above: generated, not authored.
+android/app/src/main/assets/public/
+
+# OS noise
+.DS_Store

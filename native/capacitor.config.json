@@ -1,0 +1,10 @@
+{
+  "appId": "com.placeholder.pricecheck",
+  "appName": "PriceCheck Placeholder",
+  "webDir": "www",
+  "server": {
+    "hostname": "localhost",
+    "androidScheme": "https",
+    "iosScheme": "https"
+  }
+}
