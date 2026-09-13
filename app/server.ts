@@ -2087,6 +2087,46 @@ export const server = createServer(async (req, res) => {
       const productId = str(c.productId);
       const label = str(c.label) ?? scanRow?.resolved_label ?? null;
       if (code === null && productId === null) {
+        /*
+         * A PRICE WITH NO PRODUCT, RECORDED AS AN OBSERVATION. Added
+         * 2026-09-13 for "type the price when the barcode is not visible".
+         *
+         * The refusal above stands and is not weakened: a price with no code
+         * and no product id still may not enter the corrections store, for
+         * exactly the reason the comment above gives -- `correctionsFor` takes
+         * a code and a product id, so a text-subject correction is accepted
+         * and then unreadable forever. Nothing about that has changed.
+         *
+         * What has changed is that there is now a second, honest home for the
+         * number. A photo that could not be identified STILL WROTE A SCAN ROW
+         * (`/api/identify/photo` records on its failure paths too, on purpose)
+         * and still returned that row's id, and `scan.typed_price_cents` is a
+         * column that exists for precisely this -- migration 2, item 9c, "the
+         * price somebody typed off the tag for this scan". So when the body
+         * names a real scan and carries a real price, the price goes on that
+         * row, beside the photo and the store, and the route says so.
+         *
+         * IT IS NOT A CORRECTION AND IT DOES NOT PRETEND TO BE ONE. Nothing
+         * here calls `recordCorrection`, so this number never becomes evidence
+         * in anybody's verdict; it is an observation, readable by the scan log
+         * and by the person who took it, and that is the whole claim. The card
+         * the shopper sees says the same thing.
+         *
+         * `stored: true` because the server HAS it. The client queue's whole
+         * contract is that `stored` means stop resending, and a row the server
+         * has written is not a row to resend.
+         */
+        const observedCents = typeof c.priceCents === 'number' ? Math.round(c.priceCents) : Number.NaN;
+        if (scanRow && Number.isFinite(observedCents) && observedCents > 0) {
+          const observedWhere = locationFor(deviceId, c.cell, c.storeId, c.storeName);
+          updateScan(scanRow.id, {
+            typedPriceCents: observedCents,
+            cell: observedWhere.cell ?? undefined,
+            storeId: observedWhere.storeId ?? undefined,
+            storeName: observedWhere.storeName ?? undefined,
+          });
+          return json(200, { stored: true, observation: true, scanId: scanRow.id });
+        }
         return json(200, {
           stored: false,
           why: 'that price has no product attached to it, so nothing could ever read it back. Scan the item first, then type the price.',

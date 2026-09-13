@@ -1988,3 +1988,32 @@
   .cam-shin .face-eyes { animation: none; }
   .shutter::after { animation: none; }
 }
+
+/* --------------------------------------------------- the price-only route */
+
+/* "Just write the price down", under the refusal's one pill. 2026-09-13.
+
+   Borrows `.pad-textbtn` for its type and colour exactly as `.notthis` above
+   does, and for the same reason: it is a secondary route, and it has to LOOK
+   secondary beside the pill above it before the shopper taps either one. The
+   pill can still produce a verdict; this can only ever produce a note, and a
+   sheet that presented the two as equals would be selling the weaker one.
+
+   Thumb-sized on the same measurement the note above records: a 44px minimum,
+   bought with padding so the sheet's own spacing does not move. No opacity,
+   per D-040 -- muted text takes a token and never a fade. */
+.priceonly {
+  display: block;
+  margin: 4px auto 0;
+  min-height: 44px;
+  padding: 8px 12px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* The observation card. It reuses `.goingrate`'s spacing rather than defining
+   its own, because it is the same shape of sheet -- a number, a caption, no
+   verdict word in a tier colour -- and the two should not drift apart. Only
+   the price block needs saying, and only because there is no seller line
+   under it to hold the gap. */
+.sheet.observed .priceline { margin-bottom: 10px; }

@@ -724,7 +724,36 @@ function keepableFrom(r, scenario, askingCents, isThin) {
  * that nothing textual reaches `innerHTML` from these functions without going
  * through `escapeHtml`, which is checkable by reading one file.
  */
-function refusalSheet(r, scenario, categoryLabels = [], keepable = null) {
+/*
+ * THE PRICE ROUTE OUT OF A REFUSAL, added 2026-09-13.
+ *
+ * Asked for in those words: "there should be a enter the price based on the
+ * photo that the user entered if the barcode is not visible". Before today the
+ * no-identity refusal offered "Type what it is" and nothing else, so a shopper
+ * holding a tag Shin could not read had one option, and it was to do Shin's
+ * job by hand. Standing in front of a price with no way to write it down is
+ * the moment this app is least useful and most annoying.
+ *
+ * WHY IT IS NOT A SECOND PILL, and this is a real constraint rather than a
+ * style choice. USAGE.md section 4 and section 7 both say a refusal carries
+ * ONE action, and test/sheet.test.mjs and test/photo-screen.test.mjs both
+ * count `class="pill` and assert exactly one. That rule is right: the second
+ * pill on a refusal has historically been "Try again", which the downward drag
+ * already does, and two equal-weight buttons on a sheet that has just failed
+ * is a shopper being asked to choose between two repairs they did not want.
+ *
+ * So the repair stays one pill and this is a text button underneath it, which
+ * is the same shape `notthis` already uses on the pad: a secondary route,
+ * visibly lighter than the action above it, taking nothing away from it. The
+ * primary repair can still produce a real verdict; this one never can, and the
+ * hierarchy says so before the shopper taps anything.
+ */
+function priceRouteBtn(on) {
+  if (!on) return '';
+  return `<button type="button" class="pad-textbtn priceonly" data-act="priceonly">${escapeHtml(t('cam_just_the_price'))}</button>`;
+}
+
+function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = {}) {
   const category = scenario?.category ?? 'this';
   const isCategory = r.reason === 'category_unsupported';
   const isUnsure = r.reason === 'identity_unsure';
@@ -816,6 +845,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null) {
         ${mine}
         <p class="detail">${escapeHtml(isCategory ? categoryShort : renderProse(r.structuredDetail, r.detail))}</p>
         ${repairBlock}
+        ${priceRouteBtn(opts.priceRoute)}
         <p class="itemname">${escapeHtml(r.identity ? r.identity.label : t('cam_no_confident_match'))} &middot; ${
           /*
            * `refusalLabel` restates the reason as a full sentence, e.g.
@@ -1157,6 +1187,52 @@ function goingRateCard(refusal, item) {
     </section>`;
 }
 
+/**
+ * The price was written down and Shin cannot call it. 2026-09-13.
+ *
+ * NOT A VERDICT, AND NOT A REFUSAL WEARING A NUMBER. Those are the two things
+ * this card had to avoid being, and the reason it is its own function rather
+ * than a branch inside `verdictSheet` or `refusalSheet`.
+ *
+ * It is not a verdict because there is nothing to judge against: the photo was
+ * never identified, so there is no comparison set, not a thin one. The
+ * recorded decision that a low-confidence identity must not produce a verdict
+ * is the weaker case; this is the stronger one. Nothing here is near a number,
+ * because there is no number to be near. So: `data-tier="unknown"`, no
+ * `vword`, no tier colour, and no `share` or `watch` -- there is nothing to
+ * share and nothing to follow.
+ *
+ * It is not a refusal because something useful actually happened. The price is
+ * saved, against this scan, beside the photo, and it will still be there when
+ * somebody can say what the thing was. `data-conf="reading"` rather than
+ * `refuses` is that distinction in the markup: Shin is not turning the shopper
+ * away, Shin is taking a note.
+ *
+ * The price is the biggest thing on it, formatted by `cad()` like every other
+ * price in this app (`4,99 $` in French, and never re-implemented here), and
+ * the caption under it says in chrome what the bubble says in Shin's voice.
+ */
+function observationCard(cents, seller, thumb = null) {
+  return `
+    <section class="sheet observed" data-tier="unknown" data-conf="reading" tabindex="-1">
+      <span class="grabber" aria-hidden="true"></span>
+      <div class="sheet-peek">
+        <div class="sheet-head">
+          ${shinSay('pleased', 'price_only_recorded', { price: cad(cents), seller: seller || '' }, {
+            size: 'face-ack',
+            anim: 'pleased-nod',
+          })}
+          ${thumbImg(thumb)}
+        </div>
+        <h2 class="vword" style="font-size:20px">${escapeHtml(t('cam_price_written_down'))}</h2>
+        <div class="priceline">
+          <span class="price sm">${cad(cents)}</span>
+        </div>
+        <p class="itemname">${escapeHtml(t('cam_no_name_for_it'))}${seller ? ` &middot; ${escapeHtml(seller)}` : ''}</p>
+      </div>
+    </section>`;
+}
+
 const WORKING_STEPS = ['working_step1', 'working_step2', 'working_step3'];
 
 /**
@@ -1357,6 +1433,12 @@ function photoCandidateLabel(c) {
    Exporting these changes nothing about how the screen itself calls them. */
 export { verdictSheet, refusalSheet, pricePadSheet, goingRateCard, workingSheet, textRouteSheet };
 
+/* `observationCard` joins them 2026-09-13. Same reason as the six above, and
+   one more that is specific to it: the whole claim of that card is that it
+   never renders a verdict, and the only way to hold a never is to render it
+   and look. See `app/test/price-only.test.mjs`. */
+export { observationCard };
+
 /* Exported with them 2026-09-08, when "not this?" gave the ranked search its
    first caller. It is in the same check for the same reason: it is a sheet, and
    the one rule it has of its own -- an empty list says so in a sentence rather
@@ -1489,6 +1571,21 @@ export default {
     let catalogueItems = [];
     let supportedCategories = [];
     let last = null;      // { result, scenario, thumb }
+    /*
+     * THE SERVER'S OWN ID FOR THE SCAN ON SCREEN, or null. 2026-09-13.
+     *
+     * `/api/identify` and `/api/identify/photo` both return `scanId`, and the
+     * photo route returns it ON ITS FAILURE PATHS TOO, on purpose: a photo
+     * that could not be read still wrote a durable row, and that row is the
+     * only thing a price with no product can be attached to. Held here so the
+     * price route out of a refusal has somewhere to send the number.
+     *
+     * Cleared by `reset()` with everything else. A scan id belonging to the
+     * previous scan is exactly the kind of quietly-wrong attachment this file
+     * clears `coachKey` and `scanThumb` to avoid: it would file this aisle's
+     * price against the last aisle's photo.
+     */
+    let lastScanId = null;
     let dead = false;
     // Item 10: router.go re-renders into the same rootEl on every
     // navigation, but rootEl itself is never replaced, only its innerHTML.
@@ -1939,6 +2036,10 @@ export default {
       let id = null;
       try {
         id = await ctx.api.identify({ gtin: code });
+        // The row the server just wrote for this scan. Kept whatever the
+        // answer was: a refused identification is exactly the case the
+        // price route below exists for.
+        if (Number.isInteger(id?.scanId)) lastScanId = id.scanId;
       } catch {
         id = null; // No signal. The aisle this app was built for.
       }
@@ -2104,6 +2205,78 @@ export default {
       mounted();
     }
 
+    /**
+     * A price with nothing to compare it to, written down anyway. 2026-09-13.
+     *
+     * WHAT THIS IS AND IS NOT. It is an observation: a number, a photo and a
+     * shop, hanging off the scan row the server already wrote. It is not a
+     * correction -- `/api/correction` carries it because it is the route that
+     * already takes a typed price with a client id, a device and a scan id,
+     * and inventing a second endpoint for the same three fields would be worse
+     * -- and the server does not file it as one. With no code and no product
+     * id it never enters the corrections store, because `correctionsFor`
+     * matches on a code or a product id and could never read it back; it goes
+     * on `scan.typed_price_cents`, a column that exists for exactly this.
+     *
+     * LOCAL FIRST, like every other price this app takes. `submitCorrection`
+     * writes to the device synchronously and flushes in the background, so the
+     * card below is telling the truth about a write that has already happened,
+     * and an aisle with no signal keeps the number instead of losing it. That
+     * is the same contract `keepit` above runs on, and the same reason neither
+     * awaits anything.
+     *
+     * THE STORE IS ATTACHED IF IT IS KNOWN AND NEVER ASKED FOR. The brief is
+     * explicit that this must not add a question to the flow, and an
+     * unattributed observation is still worth having. The coarse cell rides
+     * along inside `corrections.js` when location consent is on, and the
+     * server's `locationFor` drops it again if it is not -- consent is checked
+     * on both sides, and neither side trusts the other to have done it.
+     *
+     * CONSENT GOVERNS THE PHOTO, NOT THE PRICE. Nothing here consults the
+     * photo flag: a shopper who declined to have pictures kept still gets
+     * their typed price recorded, because the price is a fact they chose to
+     * type and the photograph is one they did not choose to keep. The photo
+     * half was already decided at capture time, in the server's own
+     * `keepPhoto` check, and is none of this function's business.
+     */
+    function recordObservation(cents) {
+      const seller = sellerNow();
+      submitCorrection({
+        // No code and no product id, said explicitly rather than by omission.
+        // This is the whole shape of the thing: a price about a scan, not
+        // about a product, because nobody could say what the product was.
+        code: null,
+        productId: null,
+        label: null,
+        category: padItem?.category ?? null,
+        amountCents: cents,
+        seller,
+        kind: 'regular',
+        scanId: lastScanId,
+      });
+      slot.innerHTML = observationCard(cents, seller, scanThumb);
+      buzz(14);
+      setState('result');
+      mounted();
+    }
+
+    /**
+     * The shop, if this device has already named one, and otherwise nothing.
+     *
+     * Never a prompt and never a guess. `market()` holds a country and a
+     * currency, which is a market and not a seller, so it is deliberately not
+     * used as one here: filing an observation against "Canada" would put a
+     * word in the seller column that no later reader could do anything with,
+     * and the engine already treats an invented seller as worse than none.
+     */
+    function sellerNow() {
+      try {
+        return (store.market().seller ?? '').trim();
+      } catch {
+        return '';
+      }
+    }
+
     function shoot() {
       if (cam.dataset.state !== 'idle') return;
       clearTimeout(hintTimer);
@@ -2238,7 +2411,9 @@ export default {
           slot.innerHTML = goingRateCard(result, item);
         } else {
           lastKeepable = keepableFrom(result, item, askingCents, isThinReason(result.reason));
-          slot.innerHTML = refusalSheet(result, item, supportedCategories, lastKeepable);
+          slot.innerHTML = refusalSheet(result, item, supportedCategories, lastKeepable, {
+            priceRoute: lastScanId !== null,
+          });
           playRefusalLanding(slot);
         }
         setState('result');
@@ -2273,6 +2448,8 @@ export default {
           },
           item,
           supportedCategories,
+          null,
+          { priceRoute: lastScanId !== null },
         );
         playRefusalLanding(slot);
         setState('result');
@@ -2316,6 +2493,10 @@ export default {
       let id;
       try {
         id = await ctx.api.identifyPhoto(crop.blob, { sharpness: crop.sharpness });
+        // The row the server just wrote for this scan. Kept whatever the
+        // answer was: a refused identification is exactly the case the
+        // price route below exists for.
+        if (Number.isInteger(id?.scanId)) lastScanId = id.scanId;
       } catch (err) {
         console.error('photo identify failed:', err);
         id = { product: null, failure: 'offline' };
@@ -2381,6 +2562,11 @@ export default {
         { kind: 'refusal', reason, detail, identity: null, evidence: [] },
         null,
         supportedCategories,
+        null,
+        /* The photo route's whole point. `/api/identify/photo` writes a scan row
+           and returns its id even when it could not read the picture, so an
+           unidentified photo already has somewhere durable for a price to go. */
+        { priceRoute: lastScanId !== null },
       );
       playRefusalLanding(slot);
       setState('result');
@@ -2423,6 +2609,7 @@ export default {
       slot.innerHTML = '';
       last = null;
       lastKeepable = null;
+      lastScanId = null;
       scanThumb = null;
       // A pick belongs to the scan that has just ended. Carrying it into the
       // next one would frame whatever happens to overlap the old rectangle,
@@ -2578,12 +2765,53 @@ export default {
         const typedCents = parsePadPrice(padBuffer);
         const cents = effectivePriceCents(typedCents, padModifier);
         if (cents === null || cents <= 0) return;
+        /*
+         * THE PRICING ENGINE IS NOT ASKED. 2026-09-13, and it is the point of
+         * the whole route rather than an optimisation.
+         *
+         * `proceed` sends the number to `/api/price`, which answers with a
+         * verdict or a refusal. With no identity there is no query to send:
+         * the engine would be handed a price and no product, and whatever came
+         * back would be an answer to a question nobody asked. A refusal from
+         * the engine here would also be a SECOND refusal on top of the one the
+         * shopper is already looking at, which reads as the app failing twice
+         * at something it never attempted.
+         *
+         * So this path never calls it. It writes the observation down and says
+         * so, which is the honest whole of what happened.
+         */
+        if (padItem?.observationOnly) { recordObservation(cents); return; }
         proceed(padItem, cents);
         return;
       }
       // Skip proceeds with no asking price at all (row 44): not a refusal,
       // the going-rate card.
-      if (act === 'pad-skip') { proceed(padItem, undefined); return; }
+      if (act === 'pad-skip') {
+        /* Nothing to skip TO on the observation route. The going-rate card is
+           built out of the comparison set the engine gathered, and there is no
+           comparison set here, so skipping the price leaves literally nothing
+           to show -- which is the viewfinder. */
+        if (padItem?.observationOnly) { reset(); return; }
+        proceed(padItem, undefined);
+        return;
+      }
+
+      /*
+       * The price route out of a refusal. Opens the SAME pad every other price
+       * goes through -- the thumb-sized keys, the percent-off and multi-buy
+       * modifiers, the confirm key that is the only thing that submits -- with
+       * no identity on it. `openPad` already takes a loose `{ text, category }`
+       * item (the `__none` pick below does exactly that), so this reuses that
+       * shape and adds the one flag that changes what confirm means.
+       */
+      if (act === 'priceonly') {
+        openPad({
+          text: t('cam_no_name_for_it'),
+          category: null,
+          observationOnly: true,
+        });
+        return;
+      }
       if (act === 'pad-reopen' && last?.scenario) { openPad(last.scenario); return; }
 
       // Row 17, 88, 89, take: the second route out of a no-identity refusal.
@@ -2772,6 +3000,10 @@ export default {
       if (!typed) {
         try {
           const id = await ctx.api.identify({ text });
+          // The row the server just wrote for this scan. Kept whatever the
+          // answer was: a refused identification is exactly the case the
+          // price route below exists for.
+          if (Number.isInteger(id?.scanId)) lastScanId = id.scanId;
           if (id.catalogueUp && id.product) {
             typed = {
               id: id.product.code,
@@ -2822,6 +3054,8 @@ export default {
         },
         null,
         supportedCategories,
+        null,
+        { priceRoute: lastScanId !== null },
       );
       playRefusalLanding(slot);
       setState('result');

@@ -273,6 +273,12 @@ export const LINES_FR = {
     blunt: () => "Je connais le prix courant. Pas le leur.",
   },
 
+  price_only_recorded: {
+    deadpan: (f) => `Noté. ${f.price}${f.seller ? ` chez ${f.seller}` : ''}. Je ne sais pas ce que c'est, alors je n'ai rien pour le comparer.`,
+    warm: (f) => `C'est noté. ${f.price}${f.seller ? ` chez ${f.seller}` : ''}. Je ne sais toujours pas ce que c'est, donc je n'ai rien pour comparer pour l'instant, mais le prix n'est pas perdu.`,
+    blunt: (f) => `Noté. ${f.price}${f.seller ? ` chez ${f.seller}` : ''}. Aucune idée de ce que c'est, alors je ne tranche pas.`,
+  },
+
   working_step1: {
     deadpan: () => "Je l'identifie",
     warm: () => "Je cherche ce que c'est",
@@ -740,6 +746,11 @@ export const BARE_FR = {
     deadpan: () => "C'est la seule chose que j'ai.",
     warm: () => "C'est vraiment la seule chose que j'ai, alors la première réponse n'était pas un choix parmi plusieurs.",
     blunt: () => "Un seul. C'est ça.",
+  },
+  price_only_recorded: {
+    deadpan: () => "Noté. Je ne sais pas ce que c'est, alors je n'ai rien pour le comparer.",
+    warm: () => "C'est noté. Je ne sais toujours pas ce que c'est, donc je n'ai rien pour comparer pour l'instant.",
+    blunt: () => "Noté. Aucune idée de ce que c'est, alors je ne tranche pas.",
   },
   you_scans_named: {
     deadpan: () => "Voilà à quelle fréquence j'ai pu dire ce que la chose était. Nommer n'est pas chiffrer.",

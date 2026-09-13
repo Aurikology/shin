@@ -23,6 +23,7 @@
 import * as api from './api.js';
 import * as store from './store.js';
 import { getDeviceId } from './device.js';
+import { currentCell } from './geocell.js';
 
 /**
  * Guards against two flushes overlapping, which would send every pending row
@@ -32,10 +33,32 @@ import { getDeviceId } from './device.js';
  */
 let flushing = false;
 
+/**
+ * The coarse square the phone is in, or nothing.
+ *
+ * Consent-gated here rather than at the server alone, which is belt and braces
+ * on purpose: `locationFor` already drops a cell from a device that has not
+ * said yes, and this stops it leaving the phone in the first place. Same rule,
+ * same shape, as `identifyExtras` in api.js.
+ */
+function cellNow() {
+  try {
+    if (!store.consent().location) return null;
+    return currentCell() ?? null;
+  } catch {
+    return null; // A geolocation that will not answer is not a reason to lose the price.
+  }
+}
+
 function wireFor(entry) {
   return {
     clientId: entry.clientId,
     deviceId: getDeviceId().id,
+    /* Null for every correction typed before this field existed, and for the
+       corrections screen, which is reached from a list and not from a live
+       scan. The server falls back to its own lookup in exactly that case. */
+    scanId: entry.scanId ?? null,
+    cell: cellNow(),
     code: entry.code,
     productId: entry.productId,
     label: entry.label,

@@ -565,11 +565,24 @@ export function ratedCounts() {
  * day, and stamping it on arrival would silently refresh a stale price every
  * time a phone came back online.
  */
-export function recordCorrection({ code, productId, label, category, amountCents, seller, kind }) {
+export function recordCorrection({ code, productId, label, category, amountCents, seller, kind, scanId }) {
   const entry = {
     clientId: newId(),
     at: new Date().toISOString(),
     seenOn: new Date().toISOString().slice(0, 10),
+    /*
+     * The scan this price is about, when the caller knows it. Plan item 7c's
+     * client half: the server prefers a sent id over its own "the last scan
+     * this device made of this product" guess, and that guess is the one that
+     * is silently wrong when somebody scans the same thing twice.
+     *
+     * It is also the ONLY thing that makes a price-only observation possible
+     * (2026-09-13, the photo whose barcode was not visible). With no code and
+     * no product id, the scan row is the only place the number can hang, so a
+     * missing id there is the difference between a recorded price and a
+     * refused one.
+     */
+    scanId: Number.isInteger(scanId) && scanId > 0 ? scanId : null,
     code: code ?? null,
     productId: productId ?? null,
     label: label ?? null,

@@ -428,6 +428,32 @@ const LINES_EN = {
   },
 
   /**
+   * --- the price written down off a photo nobody could identify, 2026-09-13 ---
+   *
+   * The exact inverse of `going_rate` above, and the pair is worth reading
+   * together: there, Shin has the comparison set and not the tag; here, Shin
+   * has the tag and no idea what the thing is. Both are honest halves, and
+   * neither is a verdict.
+   *
+   * THIS LINE MAY NEVER JUDGE, hedge, or approximate, and that is not a style
+   * note. The recorded decision is that a low-confidence identity must not
+   * produce a verdict, and an unidentified product has no comparison set at
+   * all -- there is no number to be near. "About right" or "roughly" here
+   * would be a verdict with the confidence filed off, which is worse than
+   * saying nothing, because the shopper cannot tell it from the real thing.
+   *
+   * So it states two facts and stops: the price is written down, and Shin
+   * cannot call this one, because Shin does not know what it is. The reason is
+   * given rather than implied; "I cannot judge this" with no because reads as
+   * a malfunction, and this is not one.
+   */
+  price_only_recorded: {
+    deadpan: (f) => `Written down. ${f.price}${f.seller ? ` at ${f.seller}` : ''}. I do not know what this is, so I have nothing to compare it to.`,
+    warm: (f) => `I have written that down. ${f.price}${f.seller ? ` at ${f.seller}` : ''}. I still do not know what this is, so there is nothing to compare it against yet, but the price is not lost.`,
+    blunt: (f) => `Written down. ${f.price}${f.seller ? ` at ${f.seller}` : ''}. No idea what it is, so no call from me.`,
+  },
+
+  /**
    * --- the working sheet's three named steps, AVATAR.md section 3 rows 16-18 ---
    * Advanced on real events only (identification chosen, price request sent,
    * response received), never on a timer that pretends. OLMA audit row 47.
@@ -1256,6 +1282,15 @@ const BARE_EN = {
     deadpan: () => 'That is the only thing I have.',
     warm: () => 'That really is the only thing I have, so the first answer was not a guess between several.',
     blunt: () => 'Only one. That is it.',
+  },
+  /* The price is the fact this line exists to report, so losing it is the one
+     degradation that costs something real. What survives is still true and
+     still the whole point: it is written down, and Shin cannot call it. The
+     number is on the sheet beside this bubble either way. */
+  price_only_recorded: {
+    deadpan: () => 'Written down. I do not know what this is, so I have nothing to compare it to.',
+    warm: () => 'I have written it down. I still do not know what this is, so there is nothing to compare it against yet.',
+    blunt: () => 'Written down. No idea what it is, so no call from me.',
   },
   /* The scan log's two fact carriers. What is left when the count is gone is
      the sentence about what the count means, which is the half a reader cannot

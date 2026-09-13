@@ -76,6 +76,12 @@ const EN = {
   cam_keep_it: 'Keep it',
   cam_type_what_it_is: 'Type what it is',
   cam_tell_me_the_price: 'Tell me the price',
+  /* The price route out of a refusal, added 2026-09-13. Chrome, not voice:
+     four words on a button, no first person, and the same label whatever
+     attitude is picked. What SHIN says about it is price_only_recorded. */
+  cam_just_the_price: 'Just write the price down',
+  cam_price_written_down: 'Price written down',
+  cam_no_name_for_it: 'No name for it',
   cam_name_it: 'Name it',
   cam_price_it: 'Price it',
   cam_no_confident_match: 'No confident match',
@@ -337,6 +343,9 @@ const FR = {
   cam_keep_it: 'Garde le prix',
   cam_type_what_it_is: 'Écris ce que c’est',
   cam_tell_me_the_price: 'Donne-moi le prix',
+  cam_just_the_price: 'Note juste le prix',
+  cam_price_written_down: 'Prix noté',
+  cam_no_name_for_it: 'Aucun nom pour ça',
   cam_name_it: 'Nomme-le',
   cam_price_it: 'Donne-lui un prix',
   cam_no_confident_match: 'Aucune correspondance sûre',
