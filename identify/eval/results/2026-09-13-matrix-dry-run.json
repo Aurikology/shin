@@ -1,0 +1,55 @@
+{
+  "date": "2026-09-13",
+  "dryRun": true,
+  "assumedTokens": {
+    "image": 2459,
+    "prompt": 450,
+    "extractOutput": 350,
+    "pickRows": 700,
+    "pickOutput": 60
+  },
+  "listPrices": {
+    "claude-opus-5": {
+      "input": 5,
+      "output": 25
+    },
+    "claude-sonnet-5": {
+      "input": 2,
+      "output": 10
+    },
+    "claude-haiku-4-5": {
+      "input": 1,
+      "output": 5
+    }
+  },
+  "cells": [
+    {
+      "provider": "anthropic",
+      "tier": "basic",
+      "extractModel": "claude-haiku-4-5",
+      "pickModel": "claude-sonnet-5",
+      "rows": 40,
+      "top1": 40,
+      "top3": 40,
+      "pickCalls": 40,
+      "totalUsd": 0.49908,
+      "usdPerCorrect": 0.012477,
+      "basis": "assumed",
+      "pending": 40
+    },
+    {
+      "provider": "anthropic",
+      "tier": "pro",
+      "extractModel": "claude-sonnet-5",
+      "pickModel": "claude-sonnet-5",
+      "rows": 40,
+      "top1": 40,
+      "top3": 40,
+      "pickCalls": 40,
+      "totalUsd": 0.68544,
+      "usdPerCorrect": 0.017136000000000002,
+      "basis": "assumed",
+      "pending": 40
+    }
+  ]
+}

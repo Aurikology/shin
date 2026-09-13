@@ -1,0 +1,50 @@
+{
+  "date": "2026-09-13",
+  "tier": "pro",
+  "dryRun": true,
+  "summary": {
+    "rows": 2,
+    "top1": 2,
+    "top3": 2,
+    "unreadable": 0,
+    "pass2OfKnown": 2,
+    "pass2Denominator": 2,
+    "p50Ms": 385,
+    "p95Ms": 385,
+    "pending": 0
+  },
+  "results": [
+    {
+      "code": "0057000013165",
+      "kind": "size-pair",
+      "category": "en:groceries",
+      "expectedBrand": "Heinz",
+      "expectedName": "Tomato Ketchup",
+      "outcome": "identified",
+      "chosenCode": "0057000013165",
+      "top1": true,
+      "top3": true,
+      "passes": 2,
+      "ms": 385,
+      "failure": null,
+      "pin": "750ml",
+      "usage": null
+    },
+    {
+      "code": "0057000063085",
+      "kind": "size-pair",
+      "category": "en:groceries",
+      "expectedBrand": "Heinz",
+      "expectedName": "Tomato Ketchup",
+      "outcome": "identified",
+      "chosenCode": "0057000063085",
+      "top1": true,
+      "top3": true,
+      "passes": 2,
+      "ms": 60,
+      "failure": null,
+      "pin": "1500ml",
+      "usage": null
+    }
+  ]
+}

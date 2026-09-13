@@ -17,10 +17,40 @@
  * prompt, same handling. Basic is not a cut-down experience, it is the same
  * experience with a smaller model behind it. A tier that feels broken does not
  * sell an upgrade; it teaches people the product does not work.
+ *
+ * WHAT THIS FILE STOPPED KNOWING, 2026-09-13 (beta plan item 22). It no longer
+ * imports an SDK. The prompts, the schemas, the two clocks, the retry policy,
+ * the call-count cap and the dollar cap are all still here, unchanged; the wire
+ * is behind `provider.ts` and one adapter per vendor under `providers/`. The
+ * levers added alongside it (`provider.ts`'s usage record, prompt caching,
+ * output ceilings, cheap-first escalation) are every one of them OFF unless an
+ * environment variable turns them on, so an empty environment sends exactly the
+ * request this file sent before any of it existed.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
 import { loadDotEnv } from './env.ts';
+import {
+  addUsage,
+  classifyProviderError,
+  type CacheHint,
+  type Provider,
+  type ProviderRequest,
+  type ProviderResponse,
+  type TokenUsage,
+} from './provider.ts';
+import { AnthropicProvider, anthropicClient, type MessagesClient } from './providers/anthropic.ts';
+import { XaiProvider } from './providers/xai.ts';
+
+/**
+ * Still exported from here, 2026-09-13.
+ *
+ * The type moved to `providers/anthropic.ts` when item 22 split the vendor out,
+ * but `cap.ts`, `describe.ts`, `app/server.ts` and three test files all import
+ * it from this module. A re-export costs nothing and keeps the refactor from
+ * reaching into four packages it has no business editing.
+ */
+export type { MessagesClient } from './providers/anthropic.ts';
+export type { Provider, ProviderRequest, ProviderResponse, TokenUsage } from './provider.ts';
 
 export type Tier = 'basic' | 'pro';
 
@@ -190,6 +220,101 @@ function envInt(name: string, fallback: number): number {
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : fallback;
 }
 
+/**
+ * An environment flag. Off unless it is explicitly one of these four words.
+ *
+ * Every lever added by beta plan item 21 is off by default and reads through
+ * here, so the shipped behaviour with an empty environment is byte for byte the
+ * behaviour that was there before the levers existed. That is not caution for
+ * its own sake: none of the levers has ever been measured, because there is no
+ * key on this machine, and a default-on lever would mean the first real
+ * measurement was taken through an unproven change.
+ */
+function envFlag(name: string): boolean {
+  const raw = process.env[name]?.trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
+/* ------------------------------------------------------------- item 21 levers
+ *
+ * THE OUTPUT CEILINGS. Small on purpose: the schema bounds the answer and a
+ * large ceiling only buys the chance of a slow response inside a budget that is
+ * already mostly spent. Exposed as tunables because the right ceiling is a
+ * measurement nobody has taken -- a truncated answer reads as `model_malformed`
+ * downstream, so a ceiling set too low would look like a model that cannot
+ * follow a schema.
+ */
+const MAX_TOKENS_EXTRACT = 1_024;
+const MAX_TOKENS_TAG = 512;
+const MAX_TOKENS_PICK = 512;
+
+/*
+ * USAGE CAPTURE. Off by default. When on, `ModelReading.usage` and
+ * `PickReading.usage` carry what the provider actually reported, so a cost can
+ * be computed from a measurement instead of from `eval/run.ts`'s static
+ * $0.0068-per-call guess. Nothing has ever been measured through it: there is no
+ * key, so every usage record this repo has ever produced is four nulls from a
+ * fake client.
+ */
+function usageEnabled(): boolean {
+  return envFlag('SHIN_MODEL_USAGE');
+}
+
+/*
+ * PROMPT CACHING. Off by default, and the caveat is bigger than the lever.
+ *
+ * Pass 2 re-sends the same image (about 2,459 tokens at the 1568 px crop), and
+ * that image is the only prefix on this path worth caching at all. As the two
+ * passes were written it CANNOT be cached: the render order is tools, then
+ * system, then messages, and pass 1 (`SYSTEM`) and pass 2 (`PICK_SYSTEM`) use
+ * different system prompts, so the prefix has already diverged before the image
+ * is reached. A cache breakpoint after a diverged prefix hits nothing.
+ *
+ * So the lever restructures both passes onto ONE shared system prefix
+ * (`SHARED_SYSTEM`) and moves each pass's own instruction into the user turn
+ * AFTER the image, leaving exactly one `cache_control: {type:'ephemeral'}`
+ * breakpoint on the image block.
+ *
+ * TWO THINGS THAT ARE STILL TRUE WITH THE LEVER ON.
+ *
+ * First, caches are model-scoped. On the basic tier the extract runs on Haiku
+ * and the pick runs on Sonnet, so a cross-pass hit is impossible in principle,
+ * not merely unlikely -- the restructure buys nothing there and the lever should
+ * not be expected to. Only the pro tier (Sonnet on both passes) can hit at all,
+ * and only on the scans where pass 2 actually runs.
+ *
+ * Second, there is a MINIMUM CACHEABLE PREFIX, somewhere in the 512 to 4,096
+ * token range depending on the model, below which a breakpoint is silently
+ * ignored. `SHARED_SYSTEM` plus one 2,459-token image is comfortably inside that
+ * range for the larger models and may or may not clear it for the smaller ones.
+ * Which side of the line a given model sits on has not been checked here.
+ *
+ * NO SAVING IS CLAIMED. A cache hit is visible only as a non-zero
+ * `cache_read_input_tokens`, that field only arrives with the usage lever on,
+ * and no call has ever been made. Anyone quoting a percentage off this lever
+ * before that number exists is quoting an aspiration.
+ */
+function cacheEnabled(): boolean {
+  return envFlag('SHIN_MODEL_PROMPT_CACHE');
+}
+
+/*
+ * CHEAP-FIRST ESCALATION. Off by default.
+ *
+ * When basic's extract pass comes back saying `low` about itself, run the
+ * extract once more on the pro model and keep that answer instead. The pick pass
+ * is untouched: it already runs conditionally, on its own condition, decided in
+ * `identify.ts`, and two conditional escalations stacked would make the number
+ * of calls per scan a thing nobody can read off one file.
+ *
+ * A second call is a second charge against both caps, which is correct -- the
+ * invoice does not care why a request was sent. If the escalated call fails for
+ * any reason the first answer stands, because priority 1 is always answer.
+ */
+function escalationEnabled(): boolean {
+  return envFlag('SHIN_MODEL_ESCALATE');
+}
+
 const spend = { day: '', calls: 0 };
 
 /** The UTC day the cap resets on. Not local: two machines have to agree. */
@@ -226,30 +351,18 @@ export function resetModelSpend(): void {
   spend.calls = 0;
 }
 
-/** Maps anything thrown by the SDK or by the wire onto the vocabulary above. */
+/**
+ * Maps anything thrown by a provider or by the wire onto the vocabulary above.
+ *
+ * The body moved to `provider.ts` on 2026-09-13 (item 22) so that a second
+ * vendor's adapter classes a 429 the same way this one always has, instead of
+ * each adapter growing its own opinion about what a 503 means. The union itself
+ * stays declared in this file: it is the copy `spine/src/run.ts` and
+ * `app/src/scans.ts` restate by hand and that `model.test.ts` checks by reading
+ * this source.
+ */
 function classify(err: unknown): FailureClass {
-  const status = (err as { status?: unknown } | null)?.status;
-  if (typeof status === 'number') {
-    if (status === 429) return 'model_rate_limited';
-    if (status >= 500) return 'model_outage';
-    if (status >= 400) return 'model_client_error';
-  }
-  const name = (err as { name?: unknown } | null)?.name;
-  if (name === 'AbortError' || name === 'TimeoutError') return 'model_timeout';
-  // No credentials at all is our misconfiguration, not the wire. The SDK
-  // throws this before a socket opens and with no status, so without this
-  // branch a missing key reads as an outage, which is exactly the "an outage
-  // looks like bad photos" confusion the class exists to prevent. Found
-  // 2026-09-09 by posting a real PNG to the running route on a machine with
-  // no key. Not retried: the second attempt has the same empty environment.
-  const message = String((err as { message?: unknown } | null)?.message ?? '');
-  if (name === 'AuthenticationError' || /api key|apiKey|ANTHROPIC_API_KEY|auth(entication)? token/i.test(message)) {
-    return 'model_client_error';
-  }
-  // No status at all is the wire, not the service: a reset socket, a DNS
-  // failure, a TLS error. Treated as a 5xx is, because the same second attempt
-  // is the thing that might work.
-  return 'model_outage';
+  return classifyProviderError(err);
 }
 
 const RETRYABLE: ReadonlySet<FailureClass> = new Set<FailureClass>([
@@ -363,6 +476,15 @@ export interface ModelReading {
    * apart later when the top-1 number is being explained.
    */
   readonly barcodeFromPhoto?: string;
+  /**
+   * What the calls behind this reading actually cost, in tokens (item 21).
+   *
+   * Optional, and undefined unless `SHIN_MODEL_USAGE` is on. Undefined means
+   * "not captured", which is a different thing from "reported as zero" -- see
+   * `TokenUsage` in provider.ts for why that distinction is kept all the way
+   * down. When the extract escalates, this is the sum of both calls.
+   */
+  readonly usage?: TokenUsage;
 }
 
 /**
@@ -394,6 +516,8 @@ export interface PickReading {
   readonly pick: PickFields;
   readonly model: string;
   readonly ms: number;
+  /** As `ModelReading.usage`: undefined unless `SHIN_MODEL_USAGE` is on. */
+  readonly usage?: TokenUsage;
 }
 
 /**
@@ -536,50 +660,152 @@ asked which one it is.
 
 why is one short sentence naming the printed text that decided it.`;
 
+/* ------------------------------------------------- the cacheable arrangement
+ *
+ * The same two prompts, cut differently, for the prompt-cache lever above.
+ * Reached only when `SHIN_MODEL_PROMPT_CACHE` is on; with the lever off the
+ * passes send `SYSTEM` and `PICK_SYSTEM` exactly as they always have, and the
+ * text below is dead weight rather than a live second prompt.
+ *
+ * `SHARED_SYSTEM` has to be byte-identical between the passes or the whole point
+ * is lost, so it holds only what is genuinely common: what the model is looking
+ * at, the rule against inventing anything, and the two facts about Canadian
+ * packaging (bilingual faces, and size being part of the identity) that both
+ * passes need. Everything that is about ONE pass moved into that pass's
+ * instruction, which is sent after the image.
+ */
+const SHARED_SYSTEM = `You read photographs of retail products and Canadian shelf tags.
+
+Report only what is legible in the image. Never infer, complete, or recall
+something that is not printed: a guessed answer is worse than none, because it
+will be believed.
+
+Size is part of what the product IS: a 500 ml and a 1 L of the same thing are
+different products. Read the declared net quantity as printed and do not convert
+between units.
+
+Canadian packaging is bilingual. Read whichever language is clearer and report
+the product name in English when both are present.
+
+You will be shown the photograph first, and then the question to answer about it.`;
+
+const EXTRACT_INSTRUCTION = `Identify this product.
+
+Transcribe first, reason second. Fill front_text before anything else: every line
+of text legible on the front of the pack, verbatim, in reading order, exactly as
+printed and without translating or tidying it. Up to twelve lines. Then, and only
+then, fill the interpreted fields, and fill them from the lines you just wrote
+down rather than from what the packaging looks like.
+
+barcode_digits is for digits you can actually read printed under a barcode. Read
+them left to right and report them as one run of digits. If any digit is not
+legible, or there is no barcode in frame, barcode_digits is null.
+
+If the brand is not readable, brand is null; do not infer it from the packaging
+style. If you cannot separate two readings, put both in alternates and say why in
+uncertainty.
+
+Report the size in its own unit: g, kg, ml, l, or "ea" for a countable item. If
+the pack is a multipack, count is how many units are inside and size_value is the
+size of one unit; count is null for a single item.
+
+Say in language_seen which language you actually read: en, fr, or both.
+
+self_confidence is one of high, medium or low, and it is about the identification
+as a whole, not about any single field.`;
+
+const TAG_INSTRUCTION = `Read every price printed on this shelf tag.
+
+Shelf tags in Canada often carry several prices at once: an everyday price, a
+time-boxed sale price, and a loyalty-card price. These are three different
+numbers and must never be merged. Report each only if it is actually printed.`;
+
+const PICK_INSTRUCTION = `You are shown a photograph of a retail product and a numbered
+list of candidate rows from a product catalogue. Choose the row that IS the
+product in the photograph.
+
+Choose a row only if the text printed on the packaging matches that row. Matching
+packaging style, category, or general appearance is not a match. If no row
+matches the printed text, chosen_index is null. Answering null is a correct and
+expected answer; a wrong row is worse than no row.
+
+When more than one row could be the product, prefer the row whose size matches
+the net quantity printed on the pack.
+
+If two or more rows are the same product in different sizes and the size printed
+on the pack is not legible, do not choose between them: put their indexes in
+size_question and leave chosen_index null. The person holding the phone will be
+asked which one it is.
+
+why is one short sentence naming the printed text that decided it.`;
+
 function schemaFormat(name: string, schema: unknown) {
   return { type: 'json_schema' as const, name, schema: schema as Record<string, unknown> };
 }
 
 /**
- * The one thing this file needs from a client, so a test can supply it.
+ * Which system prompt and which user text a pass sends, given the cache lever.
  *
- * Structural rather than the SDK class: a test that wants to prove the retry
- * policy has to be able to hand back a 429 and then a success, and it should
- * not have to construct an Anthropic instance, an API key, or a socket to do
- * it. The real client satisfies this shape.
+ * One function so the two arrangements cannot drift apart: with the lever off,
+ * the pass-specific prompt is the system prompt and the user turn is the short
+ * line it has always been; with it on, the system prompt is `SHARED_SYSTEM` for
+ * every pass and the specific instruction is prepended to the user turn, which
+ * puts it after the image and therefore after the cache breakpoint.
  */
-export interface MessagesClient {
-  messages: {
-    create(
-      body: Anthropic.MessageCreateParamsNonStreaming,
-      options?: { signal?: AbortSignal; maxRetries?: number },
-    ): Promise<Anthropic.Message>;
-  };
+function arrange(
+  legacySystem: string,
+  legacyUser: string,
+  instruction: string,
+  payload = '',
+): { system: string; user: string; cache: CacheHint } {
+  if (!cacheEnabled()) {
+    return { system: legacySystem, user: legacyUser + payload, cache: 'none' };
+  }
+  return { system: SHARED_SYSTEM, user: instruction + payload, cache: 'after_image' };
 }
 
-export class Identifier {
-  readonly #client: MessagesClient;
+/**
+ * Which provider is behind the seam. `anthropic` unless explicitly told
+ * otherwise, so an unset environment is today's behaviour exactly.
+ */
+function makeProvider(apiKey?: string): Provider {
+  const named = process.env.SHIN_MODEL_PROVIDER?.trim().toLowerCase();
+  if (named === 'xai') return new XaiProvider({ apiKey });
+  return new AnthropicProvider(anthropicClient(apiKey));
+}
 
-  constructor(apiKey?: string, client?: MessagesClient) {
+/**
+ * A pass, as this file describes one. The clock supplies the signal, so the
+ * request is built without one and `withTimeout` completes it.
+ */
+type PassRequest = Omit<ProviderRequest, 'signal'>;
+
+export class Identifier {
+  readonly #provider: Provider;
+
+  /**
+   * `client` is still an Anthropic-shaped `MessagesClient`, unchanged, because
+   * every existing test and `cap.ts`'s `withSpendCap` wrapper builds one. Given
+   * one, it is wrapped in the Anthropic adapter; given none, the provider named
+   * by `SHIN_MODEL_PROVIDER` (default `anthropic`) is built. `provider` is the
+   * new door: a caller that has its own adapter hands it straight in.
+   */
+  constructor(apiKey?: string, client?: MessagesClient, provider?: Provider) {
     // A bare constructor also picks up an OAuth profile, so an unset env var
     // does not mean there are no credentials. And a repo-root .env is read
     // first (env.ts), so a founder can drop the key in a file the repo
     // already ignores.
-    if (!apiKey && !client) loadDotEnv();
-    //
-    // maxRetries: 0 added 2026-09-08. The SDK retries twice by default, which
-    // would sit underneath the policy above and make the real behaviour four
-    // attempts with a backoff nothing in this file chose.
-    this.#client =
-      client ??
-      (new Anthropic(apiKey ? { apiKey, maxRetries: 0 } : { maxRetries: 0 }) as unknown as MessagesClient);
+    if (!apiKey && !client && !provider) loadDotEnv();
+    this.#provider = provider ?? (client ? new AnthropicProvider(client) : makeProvider(apiKey));
   }
 
   /**
    * One call, one or two images.
    *
-   * `maxTokens` is small on purpose: the schema bounds the answer, and a large
-   * ceiling only buys the chance of a slow response inside a four second budget.
+   * The output ceiling is small on purpose: the schema bounds the answer, and a
+   * large ceiling only buys the chance of a slow response inside a four second
+   * budget. It is `SHIN_MODEL_MAX_TOKENS_EXTRACT` now (item 21), defaulting to
+   * the 1,024 it has always been.
    *
    * Throws `ModelCallError` and nothing else. Added 2026-09-08: before this,
    * whatever the SDK threw travelled up unclassified and the caller turned all
@@ -591,50 +817,67 @@ export class Identifier {
     tier: Tier,
   ): Promise<ModelReading> {
     const started = Date.now();
-    const model = MODEL[tier];
+    let model = MODEL[tier];
 
-    const content: Anthropic.ContentBlockParam[] = [
-      {
-        type: 'image',
-        source: { type: 'base64', media_type: mediaTypeOf(productPng), data: toBase64(productPng) },
-      },
-      { type: 'text', text: 'Identify this product.' },
-    ];
-
-    const product = await this.#send({
+    const extract = arrange(SYSTEM, 'Identify this product.', EXTRACT_INSTRUCTION);
+    const extractRequest: PassRequest = {
       model,
-      max_tokens: 1024,
-      system: SYSTEM,
-      output_config: { format: schemaFormat('product_identity', PRODUCT_SCHEMA) },
-      messages: [{ role: 'user', content }],
-    });
+      images: [{ bytes: productPng, mediaType: mediaTypeOf(productPng) }],
+      system: extract.system,
+      user: extract.user,
+      schema: schemaFormat('product_identity', PRODUCT_SCHEMA),
+      maxOutputTokens: envInt('SHIN_MODEL_MAX_TOKENS_EXTRACT', MAX_TOKENS_EXTRACT),
+      cache: extract.cache,
+    };
 
-    const fields = parseJson<IdentifiedFields>(product);
+    const product = await this.#send<IdentifiedFields>(extractRequest);
+    let fields = product.value;
+    let usage = product.usage;
+
+    /*
+     * CHEAP-FIRST ESCALATION (item 21). Off unless SHIN_MODEL_ESCALATE is set.
+     *
+     * Only from basic, and only on the model's own `low`. `medium` is left
+     * alone deliberately: the enum exists because a model asked for a number
+     * invents precision it does not have, and escalating on the middle word
+     * would spend a second call on most of the scans that were already fine.
+     */
+    if (escalationEnabled() && tier === 'basic' && fields.self_confidence === 'low') {
+      try {
+        const escalated = await this.#send<IdentifiedFields>({ ...extractRequest, model: MODEL.pro });
+        fields = escalated.value;
+        usage = addUsage(usage, escalated.usage);
+        model = MODEL.pro;
+      } catch {
+        // Priority 1 is always answer. The cheap reading is unconfident, not
+        // absent, and it is a better outcome than a refusal built out of a
+        // failure on a call the user never asked for.
+      }
+    }
 
     let tag: TagFields | null = null;
     if (tagPng) {
-      const tagMessage = await this.#send({
+      const tagPass = arrange(SYSTEM, 'Read every price printed on this shelf tag.', TAG_INSTRUCTION);
+      const tagAnswer = await this.#send<TagFields>({
         model,
-        max_tokens: 512,
-        system: SYSTEM,
-        output_config: { format: schemaFormat('shelf_tag', TAG_SCHEMA) },
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: { type: 'base64', media_type: mediaTypeOf(tagPng), data: toBase64(tagPng) },
-              },
-              { type: 'text', text: 'Read every price printed on this shelf tag.' },
-            ],
-          },
-        ],
+        images: [{ bytes: tagPng, mediaType: mediaTypeOf(tagPng) }],
+        system: tagPass.system,
+        user: tagPass.user,
+        schema: schemaFormat('shelf_tag', TAG_SCHEMA),
+        maxOutputTokens: envInt('SHIN_MODEL_MAX_TOKENS_TAG', MAX_TOKENS_TAG),
+        cache: tagPass.cache,
       });
-      tag = parseJson<TagFields>(tagMessage);
+      tag = tagAnswer.value;
+      usage = addUsage(usage, tagAnswer.usage);
     }
 
-    return { product: fields, tag, model, ms: Date.now() - started };
+    return {
+      product: fields,
+      tag,
+      model,
+      ms: Date.now() - started,
+      ...(usageEnabled() ? { usage } : {}),
+    };
   }
 
   /**
@@ -674,32 +917,28 @@ export class Identifier {
       category: c.category,
     }));
 
-    const message = await this.#send(
+    const payload = `Candidate rows:\n${JSON.stringify(rows)}\n\nWhich row is the product in the photograph?`;
+    const pass = arrange(PICK_SYSTEM, '', PICK_INSTRUCTION + '\n\n', payload);
+
+    const answer = await this.#send<PickFields>(
       {
         model,
-        max_tokens: 512,
-        system: PICK_SYSTEM,
-        output_config: { format: schemaFormat('catalogue_pick', PICK_SCHEMA) },
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: { type: 'base64', media_type: mediaTypeOf(productPng), data: toBase64(productPng) },
-              },
-              {
-                type: 'text',
-                text: `Candidate rows:\n${JSON.stringify(rows)}\n\nWhich row is the product in the photograph?`,
-              },
-            ],
-          },
-        ],
+        images: [{ bytes: productPng, mediaType: mediaTypeOf(productPng) }],
+        system: pass.system,
+        user: pass.user,
+        schema: schemaFormat('catalogue_pick', PICK_SCHEMA),
+        maxOutputTokens: envInt('SHIN_MODEL_MAX_TOKENS_PICK', MAX_TOKENS_PICK),
+        cache: pass.cache,
       },
       envInt('SHIN_MODEL_PICK_TIMEOUT_MS', PICK_TIMEOUT_MS),
     );
 
-    return { pick: parseJson<PickFields>(message), model, ms: Date.now() - started };
+    return {
+      pick: answer.value,
+      model,
+      ms: Date.now() - started,
+      ...(usageEnabled() ? { usage: answer.usage } : {}),
+    };
   }
 
   /**
@@ -712,10 +951,10 @@ export class Identifier {
    * The clock is a parameter with a default rather than a constant, because the
    * two passes are different sizes of question and each reads its own env var.
    */
-  async #send(
-    body: Anthropic.MessageCreateParamsNonStreaming,
+  async #send<T>(
+    request: PassRequest,
     clockMs = envInt('SHIN_MODEL_TIMEOUT_MS', TIMEOUT_MS),
-  ): Promise<Anthropic.Message> {
+  ): Promise<ProviderResponse<T>> {
     const attempts = Math.max(1, envInt('SHIN_MODEL_ATTEMPTS', MAX_ATTEMPTS));
     const timeoutMs = clockMs;
     let spent = 0;
@@ -737,7 +976,7 @@ export class Identifier {
       spent += 1;
 
       try {
-        return await withTimeout(this.#client, body, timeoutMs);
+        return await withTimeout<T>(this.#provider, request, timeoutMs);
       } catch (err) {
         const failure = failureOf(err);
         last = new ModelCallError(failure, err instanceof Error ? err.message : String(err), spent);
@@ -758,11 +997,11 @@ export class Identifier {
  * does not. A client that ignores the signal would otherwise hold the screen
  * for as long as it liked while this file claimed to have a timeout.
  */
-async function withTimeout(
-  client: MessagesClient,
-  body: Anthropic.MessageCreateParamsNonStreaming,
+async function withTimeout<T>(
+  provider: Provider,
+  request: PassRequest,
   ms: number,
-): Promise<Anthropic.Message> {
+): Promise<ProviderResponse<T>> {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const expired = new Promise<never>((_, reject) => {
@@ -774,38 +1013,11 @@ async function withTimeout(
 
   try {
     return await Promise.race([
-      client.messages.create(body, { signal: controller.signal, maxRetries: 0 }),
+      provider.send<T>({ ...request, signal: controller.signal }),
       expired,
     ]);
   } finally {
     if (timer !== undefined) clearTimeout(timer);
-  }
-}
-
-function parseJson<T>(message: Anthropic.Message): T {
-  // stop_reason is checked before content is read: a refusal returns HTTP 200
-  // with no usable body, and treating that as a parse failure would report a
-  // camera problem for something that is not one.
-  if (message.stop_reason === 'refusal') {
-    throw new ModelCallError('unreadable_photo', 'model declined to read this image');
-  }
-  const text = message.content
-    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-    .map((b) => b.text)
-    .join('');
-  // 2026-09-08: an answer that will not parse is its own class. It is the one
-  // failure here that is neither the photograph nor the wire, and reading it
-  // as either would have been the audit's point exactly.
-  if (text.trim() === '') {
-    throw new ModelCallError('model_malformed', 'the model returned no text block');
-  }
-  try {
-    return JSON.parse(text) as T;
-  } catch (err) {
-    throw new ModelCallError(
-      'model_malformed',
-      `the model returned text that is not JSON: ${err instanceof Error ? err.message : String(err)}`,
-    );
   }
 }
 
@@ -821,6 +1033,8 @@ export function mediaTypeOf(bytes: Uint8Array): 'image/png' | 'image/jpeg' {
   return 'image/png';
 }
 
-function toBase64(bytes: Uint8Array): string {
-  return Buffer.from(bytes).toString('base64');
-}
+/**
+ * The empty usage record, re-exported so a caller that wants to total up several
+ * readings has a zero to start from without importing provider.ts.
+ */
+export { NO_USAGE } from './provider.ts';

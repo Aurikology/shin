@@ -44,6 +44,8 @@ import {
   type PickReading,
   type Tier,
 } from '../src/model.ts';
+import { LIST_PRICES_USD_PER_MTOK, addUsage, costUsd, NO_USAGE, type TokenUsage } from '../src/provider.ts';
+import { grokModelFor } from '../src/providers/xai.ts';
 
 import { openCatalogueReadOnly } from '../../catalogue/src/schema.ts';
 import { Catalogue, type Candidate } from '../../catalogue/src/search.ts';
@@ -59,6 +61,28 @@ interface Args {
   limit: number | null;
   only: string | null;
   dryRun: boolean;
+  /** --matrix: score every provider/tier cell and rank by cost per CORRECT answer. */
+  matrix: boolean;
+  providers: string[];
+  tiers: Tier[];
+  /**
+   * --fake-catalogue: score against the manifest itself instead of opening
+   * `catalogue/data/catalogue.db`.
+   *
+   * ADDED 2026-09-13 UNDER PROTEST, and only for the matrix plumbing proof. The
+   * checked-in catalogue.db is from 2026-09-09 and `catalogue/src/search.ts` has
+   * since grown a `generic_name` column, so every query through the real
+   * catalogue dies with `no such column: generic_name` -- before this lane
+   * touched anything, on plain `--dry-run --limit 3` at bfd79be. Rebuilding that
+   * database is a 7.8 GB reload in a package this lane does not own.
+   *
+   * A NUMBER OUT OF THIS FLAG IS NOT AN EVAL RESULT. The manifest is both the
+   * question and the answer key here, so top-1 is near-trivially perfect and
+   * means nothing about retrieval. It exists so the matrix can be shown to walk
+   * the cells, price each half at the right model's rate, and divide. Never
+   * quote a top-1 from a run carrying this flag.
+   */
+  fakeCatalogue: boolean;
 }
 
 function parseArgs(argv: readonly string[]): Args {
@@ -66,6 +90,10 @@ function parseArgs(argv: readonly string[]): Args {
   let limit: number | null = null;
   let only: string | null = null;
   let dryRun = false;
+  let matrix = false;
+  let providers = ['anthropic'];
+  let tiers: Tier[] = ['basic', 'pro'];
+  let fakeCatalogue = false;
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--tier') {
@@ -80,11 +108,23 @@ function parseArgs(argv: readonly string[]): Args {
       only = argv[(i += 1)];
     } else if (a === '--dry-run') {
       dryRun = true;
+    } else if (a === '--matrix') {
+      matrix = true;
+    } else if (a === '--fake-catalogue') {
+      fakeCatalogue = true;
+    } else if (a === '--providers') {
+      providers = (argv[(i += 1)] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+      if (providers.length === 0) throw new Error('--providers needs at least one name');
+    } else if (a === '--tiers') {
+      const parsed = (argv[(i += 1)] ?? '').split(',').map((s) => s.trim());
+      for (const t of parsed) if (t !== 'basic' && t !== 'pro') throw new Error(`--tiers takes basic/pro, got ${t}`);
+      tiers = parsed as Tier[];
+      if (tiers.length === 0) throw new Error('--tiers needs at least one tier');
     } else {
       throw new Error(`unrecognised argument: ${a}`);
     }
   }
-  return { tier, limit, only, dryRun };
+  return { tier, limit, only, dryRun, matrix, providers, tiers, fakeCatalogue };
 }
 
 // ---------------------------------------------------------------- manifest
@@ -163,6 +203,76 @@ function makeLookup(catalogue: Catalogue): CatalogueLookup {
         ? { label: result.ring.label, members: result.ring.members.map(toCandidate) }
         : null,
     };
+  };
+}
+
+/**
+ * A catalogue made out of the manifest, for `--fake-catalogue` only.
+ *
+ * Token overlap, nothing cleverer: the point is to return SOME ranked list with
+ * SOME similarity so the cascade, the union, the pick pass and the cost model
+ * all run. See `Args.fakeCatalogue` for why this exists and why no number out of
+ * it may be quoted.
+ */
+function manifestLookup(all: readonly ManifestRow[]): CatalogueLookup {
+  const rows = all.filter((r) => r.code != null);
+  const textOf = (r: ManifestRow) => [r.brand, r.name, r.size].filter(Boolean).join(' ').toLowerCase();
+  const tokens = (s: string) => new Set(s.toLowerCase().split(/[^a-z0-9.]+/i).filter(Boolean));
+
+  return async (query) => {
+    if (query.gtin) {
+      const hit = rows.find((r) => r.code === query.gtin);
+      return {
+        band: hit ? 'confident' : 'miss',
+        matchedBy: hit ? 'gtin' : 'none',
+        candidates: hit ? [asCandidate(hit, 1)] : [],
+        ring: null,
+      };
+    }
+    const wanted = tokens(query.text ?? '');
+    if (wanted.size === 0) return { band: 'miss', matchedBy: 'none', candidates: [], ring: null };
+
+    const scored = rows
+      .map((r) => {
+        const have = tokens(textOf(r));
+        let shared = 0;
+        for (const t of wanted) if (have.has(t)) shared += 1;
+        return { row: r, score: shared / Math.max(wanted.size, have.size) };
+      })
+      .filter((s) => s.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, query.limit ?? 10);
+
+    return {
+      // Never 'confident'. The real band is a calibrated thing the catalogue
+      // computes; this fake has no calibration and claiming one would be an
+      // invention. The side effect is the useful one: an ambiguous band always
+      // sends a multi-candidate row to the pick pass, so the cost model's pick
+      // half is exercised rather than sitting at zero.
+      band: scored.length > 0 ? 'ambiguous' : 'miss',
+      matchedBy: scored.length > 0 ? 'hybrid' : 'none',
+      candidates: scored.map((s) => asCandidate(s.row, s.score, query)),
+      ring: null,
+    };
+  };
+}
+
+function asCandidate(row: ManifestRow, similarity: number, query?: { brand?: string; sizeValue?: number }) {
+  const size = parseSize(row.size);
+  return {
+    code: row.code as string,
+    name: row.name ?? '',
+    brands: row.brand,
+    quantity: row.size,
+    sizeValue: size.value,
+    sizeUnit: size.unit,
+    categoryPath: row.category ? [row.category] : [],
+    allergens: [] as string[],
+    signals: {
+      similarity,
+      brandAgrees: query?.brand ? query.brand.toLowerCase() === (row.brand ?? '').toLowerCase() : null,
+      sizeAgrees: query?.sizeValue != null ? query.sizeValue === size.value : null,
+    },
   };
 }
 
@@ -353,6 +463,20 @@ interface RowResult {
    * lives entirely inside `fromCrop`.
    */
   pin: string;
+  /**
+   * What the extract call actually cost in tokens, when `SHIN_MODEL_USAGE` was
+   * on and a real provider answered. Null in every dry run and in every run with
+   * the lever off, and null is treated as "not measured" by the cost model
+   * below, never as zero.
+   *
+   * ONE GAP, NAMED: this is the EXTRACT pass only. `IdentifyOutcome` carries the
+   * `ModelReading` but not the `PickReading`, so a pick call's real usage does
+   * not reach here and is priced from the assumption table instead, even on a
+   * measured run. Closing that means adding the pick's usage to the outcome in
+   * `identify.ts`, which is a change to a type `app/server.ts` consumes and was
+   * left for whoever owns that decision.
+   */
+  usage: TokenUsage | null;
 }
 
 // `passes` only exists on the 'identified' arm (lane A landed it while this
@@ -382,6 +506,10 @@ function pinLabel(outcome: IdentifyOutcome): string {
 async function run(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
 
+  // The credential refusal is deliberate and it survives --matrix: a matrix run
+  // is N full passes over the manifest, so it is the LAST mode that should be
+  // allowed to discover a missing key halfway through. --dry-run is the only
+  // way past it, exactly as before.
   if (!args.dryRun) {
     const ok = await hasCredentials();
     if (!ok) {
@@ -393,10 +521,38 @@ async function run(): Promise<void> {
   }
 
   const rows = loadManifest(args);
-  const db = openCatalogueReadOnly(evalPath('../../catalogue/data/catalogue.db'));
-  const catalogue = new Catalogue(db, defaultEmbedder());
-  const lookup = makeLookup(catalogue);
+  let lookup: CatalogueLookup;
+  if (args.fakeCatalogue) {
+    console.log(
+      'FAKE CATALOGUE: scoring against manifest.json itself. Accuracy numbers from this run are meaningless; only the plumbing is being exercised.',
+    );
+    lookup = manifestLookup(loadManifest({ ...args, limit: null, only: null }));
+  } else {
+    const db = openCatalogueReadOnly(evalPath('../../catalogue/data/catalogue.db'));
+    const catalogue = new Catalogue(db, defaultEmbedder());
+    lookup = makeLookup(catalogue);
+  }
 
+  if (args.matrix) {
+    await runMatrix(args, rows, lookup);
+    return;
+  }
+
+  const { results, pending } = await pass(args, rows, lookup, args.tier);
+  report(args, results, pending);
+}
+
+/**
+ * One full sweep of the manifest at one tier. Factored out of `run()` on
+ * 2026-09-13 so `--matrix` can call it once per cell without duplicating the
+ * scoring rules; the body below is the loop that was already there.
+ */
+async function pass(
+  args: Args,
+  rows: readonly ManifestRow[],
+  lookup: CatalogueLookup,
+  tier: Tier,
+): Promise<{ results: RowResult[]; pending: number }> {
   // One real Identifier and one IdentifyStage shared across every row, same
   // as production would use one per process. The fake model needs to know
   // which row it is answering for, so dry-run builds a fresh one per row
@@ -431,7 +587,7 @@ async function run(): Promise<void> {
     const bytes = readFileSync(evalPath(row.file));
     const stage = sharedStage ?? new IdentifyStage(lookup, new FakeIdentifier(row));
     const started = Date.now();
-    const outcome = await stage.fromCrop(bytes, null, args.tier, 100);
+    const outcome = await stage.fromCrop(bytes, null, tier, 100);
     const ms = Date.now() - started;
 
     const chosenCode = outcome.kind === 'identified' ? outcome.chosen.code : null;
@@ -459,10 +615,11 @@ async function run(): Promise<void> {
       ms,
       failure: outcome.kind === 'unreadable' ? outcome.failure : null,
       pin: pinLabel(outcome),
+      usage: outcome.reading?.usage ?? null,
     });
   }
 
-  report(args, results, pending);
+  return { results, pending };
 }
 
 function pad(s: string, n: number): string {
@@ -540,9 +697,20 @@ function report(args: Args, results: RowResult[], pending = 0): void {
     console.log(`pending (manifest slot, no photo yet): ${pending}`);
   }
 
+  // A --fake-catalogue run writes NO results file. Its accuracy numbers are the
+  // manifest graded against itself, so the only thing a saved artifact could do
+  // is get quoted later as though it meant something. This repo has already had
+  // a dry run's 40 of 40 read as a model score once; a second unquotable number
+  // does not get a file to be found in. The banner on stdout is the whole output.
+  if (args.fakeCatalogue) {
+    console.log('');
+    console.log('--fake-catalogue: no results file written, because this run graded the manifest against itself.');
+    return;
+  }
+
   mkdirSync(evalPath('results'), { recursive: true });
   const date = new Date().toISOString().slice(0, 10);
-  const outFile = evalPath(`results/${date}${args.dryRun ? '-dry-run' : ''}.json`);
+  const outFile = evalPath(`results/${date}${args.dryRun ? "-dry-run" : ""}.json`);
   writeFileSync(
     outFile,
     JSON.stringify(
@@ -562,6 +730,237 @@ function report(args: Args, results: RowResult[], pending = 0): void {
           pending,
         },
         results,
+      },
+      null,
+      2,
+    ),
+  );
+  console.log(`\nwrote ${outFile}`);
+}
+
+/* ==========================================================================
+ * THE COMPARATOR: cost per CORRECT identification, over a provider/tier matrix.
+ *
+ * Added 2026-09-13, beta plan item 21's last bullet.
+ *
+ * WHY NOT COST PER CALL. Cost per call ranks the cheapest model first, always,
+ * and that ranking is wrong whenever the cheap model is wrong more often: eighty
+ * calls at a third of the price that land sixty right answers cost MORE per
+ * right answer than forty calls at full price that land thirty-eight. The only
+ * number that can decide a tier is the one with the denominator in it.
+ *
+ * WHAT A DRY-RUN MATRIX DOES AND DOES NOT SHOW. In --dry-run every cell runs the
+ * same `FakeIdentifier`, which reads the manifest's own answer back perfectly.
+ * So every cell scores IDENTICALLY by construction, and the accuracy columns are
+ * not a comparison of anything -- they are the catalogue cascade's ceiling,
+ * printed once per cell. What the dry run proves is the plumbing: that the
+ * matrix walks the cells, scores each one, prices each one with the right
+ * model's rate, and divides. The comparison only becomes real with a key.
+ * ========================================================================== */
+
+/*
+ * TOKEN ASSUMPTIONS. Only the first line is a measurement.
+ *
+ * `image` is the repo's own figure for a 1568 px long-edge crop
+ * (docs/the-photo-path.md section 6). Everything under it is a GUESS typed in on
+ * 2026-09-13 by reading the prompts and estimating; no call has ever been made
+ * from this machine, so no prompt or completion has ever been counted. Every
+ * dollar figure below that is derived from a cell WITHOUT measured usage
+ * inherits these guesses and is labelled `assumed` in the output for exactly
+ * that reason.
+ */
+const ASSUMED_TOKENS = {
+  /** Measured in-repo: 1568 px long edge. */
+  image: 2_459,
+  /** PLACEHOLDER: system prompt plus the pass instruction. */
+  prompt: 450,
+  /** PLACEHOLDER: a filled PRODUCT_SCHEMA with twelve front_text lines. */
+  extractOutput: 350,
+  /** PLACEHOLDER: ten compact catalogue rows as JSON. */
+  pickRows: 700,
+  /** PLACEHOLDER: an index, a word and one sentence. */
+  pickOutput: 60,
+} as const;
+
+interface Cell {
+  provider: string;
+  tier: Tier;
+  extractModel: string;
+  pickModel: string;
+  results: RowResult[];
+  pending: number;
+}
+
+/** Which models a cell actually runs, so each half is priced at its own rate. */
+function modelsFor(provider: string, tier: Tier): { extract: string; pick: string } {
+  const extract = tier === 'basic' ? 'claude-haiku-4-5' : 'claude-sonnet-5';
+  // The pick runs on Sonnet 5 on both tiers (model.ts's PICK_MODEL), unless
+  // SHIN_MODEL_PICK says otherwise, which is the same override the real call
+  // reads.
+  const pick = process.env.SHIN_MODEL_PICK?.trim() || 'claude-sonnet-5';
+  if (provider === 'xai') return { extract: grokModelFor(extract), pick: grokModelFor(pick) };
+  return { extract, pick };
+}
+
+function assumedUsage(kind: 'extract' | 'pick'): TokenUsage {
+  return kind === 'extract'
+    ? {
+        inputTokens: ASSUMED_TOKENS.image + ASSUMED_TOKENS.prompt,
+        outputTokens: ASSUMED_TOKENS.extractOutput,
+        cacheReadTokens: null,
+        cacheCreationTokens: null,
+      }
+    : {
+        inputTokens: ASSUMED_TOKENS.image + ASSUMED_TOKENS.prompt + ASSUMED_TOKENS.pickRows,
+        outputTokens: ASSUMED_TOKENS.pickOutput,
+        cacheReadTokens: null,
+        cacheCreationTokens: null,
+      };
+}
+
+interface CellCost {
+  /** Null when a model in this cell has no row in the price table. */
+  usd: number | null;
+  /** 'measured' only when every extract call reported real token counts. */
+  basis: 'measured' | 'assumed' | 'partly measured';
+}
+
+function costOfCell(cell: Cell): CellCost {
+  const scored = cell.results.length;
+  const pickCalls = cell.results.filter((r) => r.passes === 2).length;
+  const measured = cell.results.filter((r) => r.usage !== null && r.usage.inputTokens !== null);
+
+  const extractUsage = measured.length
+    ? // Real counts for the rows that reported them, the assumption for the rest.
+      [
+        ...measured.map((r) => r.usage as TokenUsage),
+        ...Array.from({ length: scored - measured.length }, () => assumedUsage('extract')),
+      ].reduce(addUsage, NO_USAGE)
+    : Array.from({ length: scored }, () => assumedUsage('extract')).reduce(addUsage, NO_USAGE);
+
+  const pickUsage = Array.from({ length: pickCalls }, () => assumedUsage('pick')).reduce(
+    addUsage,
+    NO_USAGE,
+  );
+
+  const extractCost = costUsd(cell.extractModel, extractUsage);
+  const pickCost = pickCalls === 0 ? 0 : costUsd(cell.pickModel, pickUsage);
+  const usd = extractCost === null || pickCost === null ? null : extractCost + pickCost;
+
+  const basis: CellCost['basis'] =
+    measured.length === 0 ? 'assumed' : measured.length === scored ? 'measured' : 'partly measured';
+  // The pick half is never measured today (see RowResult.usage), so a cell that
+  // ran any pick call cannot honestly claim to be fully measured.
+  return { usd, basis: basis === 'measured' && pickCalls > 0 ? 'partly measured' : basis };
+}
+
+async function runMatrix(args: Args, rows: readonly ManifestRow[], lookup: CatalogueLookup): Promise<void> {
+  const before = process.env.SHIN_MODEL_PROVIDER;
+  const cells: Cell[] = [];
+
+  try {
+    for (const provider of args.providers) {
+      for (const tier of args.tiers) {
+        // Real mode selects the provider the same way production does: through
+        // the env var model.ts reads at construction. In --dry-run the fake
+        // identifier never reaches a provider at all, so this only labels the
+        // row.
+        process.env.SHIN_MODEL_PROVIDER = provider;
+        const models = modelsFor(provider, tier);
+        console.log(`\n--- ${provider} / ${tier}  (extract ${models.extract}, pick ${models.pick}) ---`);
+        const { results, pending } = await pass(args, rows, lookup, tier);
+        cells.push({ provider, tier, extractModel: models.extract, pickModel: models.pick, results, pending });
+      }
+    }
+  } finally {
+    if (before === undefined) delete process.env.SHIN_MODEL_PROVIDER;
+    else process.env.SHIN_MODEL_PROVIDER = before;
+  }
+
+  reportMatrix(args, cells);
+}
+
+function reportMatrix(args: Args, cells: Cell[]): void {
+  console.log('');
+  console.log('cost per CORRECT identification');
+  console.log(
+    pad('provider', 11) +
+      pad('tier', 7) +
+      pad('extract model', 18) +
+      pad('rows', 6) +
+      pad('top1', 7) +
+      pad('pick', 6) +
+      pad('total $', 11) +
+      pad('$/correct', 12) +
+      pad('basis', 16),
+  );
+
+  const scored: { cell: Cell; perCorrect: number | null; cost: CellCost }[] = [];
+  for (const cell of cells) {
+    const cost = costOfCell(cell);
+    const correct = cell.results.filter((r) => r.top1).length;
+    const perCorrect = cost.usd === null || correct === 0 ? null : cost.usd / correct;
+    scored.push({ cell, perCorrect, cost });
+    console.log(
+      pad(cell.provider, 11) +
+        pad(cell.tier, 7) +
+        pad(cell.extractModel, 18) +
+        pad(String(cell.results.length), 6) +
+        pad(`${correct}`, 7) +
+        pad(String(cell.results.filter((r) => r.passes === 2).length), 6) +
+        pad(cost.usd === null ? 'unknown' : `$${cost.usd.toFixed(4)}`, 11) +
+        pad(perCorrect === null ? 'unknown' : `$${perCorrect.toFixed(5)}`, 12) +
+        pad(cost.basis, 16),
+    );
+  }
+
+  const ranked = scored.filter((s) => s.perCorrect !== null).sort((a, b) => a.perCorrect! - b.perCorrect!);
+  console.log('');
+  if (ranked.length === 0) {
+    console.log('no cell could be priced: every model in the matrix is missing from the list-price table.');
+  } else {
+    console.log(
+      `cheapest per correct answer: ${ranked[0].cell.provider}/${ranked[0].cell.tier} at $${ranked[0].perCorrect!.toFixed(5)}`,
+    );
+  }
+  console.log(
+    'prices are LIST prices typed in from a public page on 2026-09-13 and never checked against an invoice.',
+  );
+  console.log(
+    `token counts marked 'assumed' come from a placeholder table (image ${ASSUMED_TOKENS.image} measured; prompt/output counts are guesses).`,
+  );
+  console.log('the pick pass is always priced from assumptions: its usage does not reach this runner yet.');
+  if (args.dryRun) {
+    console.log(
+      'DRY RUN: every cell ran the same perfect fake reading, so the accuracy columns are identical by construction and compare nothing. This run proves the plumbing, not the models.',
+    );
+  }
+
+  mkdirSync(evalPath('results'), { recursive: true });
+  const date = new Date().toISOString().slice(0, 10);
+  const outFile = evalPath(`results/${date}-matrix${args.dryRun ? '-dry-run' : ''}.json`);
+  writeFileSync(
+    outFile,
+    JSON.stringify(
+      {
+        date,
+        dryRun: args.dryRun,
+        assumedTokens: ASSUMED_TOKENS,
+        listPrices: LIST_PRICES_USD_PER_MTOK,
+        cells: scored.map(({ cell, perCorrect, cost }) => ({
+          provider: cell.provider,
+          tier: cell.tier,
+          extractModel: cell.extractModel,
+          pickModel: cell.pickModel,
+          rows: cell.results.length,
+          top1: cell.results.filter((r) => r.top1).length,
+          top3: cell.results.filter((r) => r.top3).length,
+          pickCalls: cell.results.filter((r) => r.passes === 2).length,
+          totalUsd: cost.usd,
+          usdPerCorrect: perCorrect,
+          basis: cost.basis,
+          pending: cell.pending,
+        })),
       },
       null,
       2,

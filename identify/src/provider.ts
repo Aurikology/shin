@@ -1,0 +1,257 @@
+/**
+ * The provider seam: one vision call, described without naming a vendor.
+ *
+ * WHY THIS FILE EXISTS (2026-09-13, beta plan item 22).
+ *
+ * Until today `model.ts` imported `Anthropic` from `@anthropic-ai/sdk` and its
+ * only test seam -- `MessagesClient` -- was typed in Anthropic's own wire types
+ * (`MessageCreateParamsNonStreaming`, `Message`). That is a seam for a test, not
+ * a seam for a provider: a second vendor could not be put behind it without
+ * either speaking Anthropic's wire shape or rewriting every caller. The request
+ * and response below are the same call said in nobody's dialect -- an image, a
+ * system prompt, a user prompt, a JSON schema, an output ceiling, a clock, and
+ * an optional hint about where a cache breakpoint would go.
+ *
+ * WHAT DELIBERATELY IS NOT HERE. No timeout, no retry, no cap, no prompt. Those
+ * are policy and they stay in `model.ts`, where they were written and where the
+ * comments explaining the numbers live. A provider implementation is a
+ * translator and nothing else: it turns this request into one HTTP call, and it
+ * turns the answer (or the failure) back into these types. If a provider file
+ * ever grows a retry loop, two retry policies are stacked again and the visible
+ * one is not the one that runs -- the exact bug `maxRetries: 0` was added for.
+ *
+ * WHY `FailureClass` IS IMPORTED AND NOT REDEFINED. The vocabulary in
+ * `model.ts` is copied by hand into `spine/src/run.ts` and `app/src/scans.ts`,
+ * and `identify/test/model.test.ts` reads `model.ts`'s source to check the three
+ * copies still agree. A second definition here would be a fourth copy with no
+ * check on it. The import is type-only, so nothing at runtime depends on
+ * `model.ts` and the two files are not a cycle.
+ */
+
+import type { FailureClass } from './model.ts';
+
+export type MediaType = 'image/png' | 'image/jpeg';
+
+/** One picture, and the media type the wire has to be told about (see `mediaTypeOf`). */
+export interface ProviderImage {
+  readonly bytes: Uint8Array;
+  readonly mediaType: MediaType;
+}
+
+/**
+ * Where the cache breakpoint goes, when a caller wants one.
+ *
+ * `none` is the default and means what it says: send no cache directive at all.
+ * `after_image` marks the image as the end of the cacheable prefix, which is the
+ * only breakpoint this path has any use for -- see `model.ts`'s
+ * PROMPT CACHING block for why, and for why no saving is claimed anywhere.
+ */
+export type CacheHint = 'none' | 'after_image';
+
+export interface ProviderSchema {
+  /** A name for the structured output. Some providers require one; all accept one. */
+  readonly name: string;
+  /** A JSON Schema object. Written out by hand in `model.ts`, not generated. */
+  readonly schema: Record<string, unknown>;
+}
+
+/**
+ * One vision call.
+ *
+ * The render order a provider MUST preserve is: system, then image(s), then the
+ * user text. `model.ts`'s cache restructure depends on the pass-specific
+ * instruction sitting AFTER the image, because a prefix that diverges before the
+ * image is a prefix that cannot be shared between the two passes.
+ */
+export interface ProviderRequest {
+  readonly model: string;
+  readonly images: readonly ProviderImage[];
+  readonly system: string;
+  readonly user: string;
+  readonly schema: ProviderSchema;
+  readonly maxOutputTokens: number;
+  readonly signal: AbortSignal;
+  readonly cache?: CacheHint;
+}
+
+/**
+ * What a call cost, in tokens, as the provider reported it.
+ *
+ * EVERY FIELD IS NULLABLE, and that is the point rather than defensiveness. Not
+ * every provider reports every number, and a provider that reports none of them
+ * must be distinguishable from one that genuinely used zero cache tokens. A
+ * zero here would be a measurement; a null is an absence, and the cost model in
+ * `eval/run.ts` has to be able to tell them apart before it prints a dollar
+ * figure that somebody believes.
+ */
+export interface TokenUsage {
+  readonly inputTokens: number | null;
+  readonly outputTokens: number | null;
+  readonly cacheReadTokens: number | null;
+  readonly cacheCreationTokens: number | null;
+}
+
+export const NO_USAGE: TokenUsage = {
+  inputTokens: null,
+  outputTokens: null,
+  cacheReadTokens: null,
+  cacheCreationTokens: null,
+};
+
+export interface ProviderResponse<T> {
+  /** The structured answer, already parsed. A provider that cannot parse throws. */
+  readonly value: T;
+  readonly usage: TokenUsage;
+  /** Which adapter answered: `anthropic`, `xai`. */
+  readonly provider: string;
+  /** The model the provider says it actually ran, which need not be the one asked for. */
+  readonly model: string;
+}
+
+export interface Provider {
+  readonly name: string;
+  send<T>(request: ProviderRequest): Promise<ProviderResponse<T>>;
+}
+
+/**
+ * A failure a provider adapter raised on its own account, already classed.
+ *
+ * Separate from `ModelCallError` so that `provider.ts` needs no runtime import
+ * of `model.ts`. `model.ts`'s `classify` reads the `failure` field off anything
+ * that carries one, so one of these travels up with its class intact and is
+ * re-wrapped as a `ModelCallError` by `#send`, which is the only thing callers
+ * ever see thrown.
+ */
+export class ProviderError extends Error {
+  readonly failure: FailureClass;
+  readonly status: number | null;
+
+  constructor(failure: FailureClass, message: string, status: number | null = null) {
+    super(message);
+    this.name = 'ProviderError';
+    this.failure = failure;
+    this.status = status;
+  }
+}
+
+/**
+ * Maps anything thrown by a provider, an SDK, or the wire onto the vocabulary.
+ *
+ * Moved here from `model.ts` on 2026-09-13 unchanged except for the first
+ * branch, which is new: anything already carrying a `failure` keeps it. That
+ * covers both `ModelCallError` (so `cap.ts`'s spend-cap refusal is not
+ * reclassified as an outage on its way up) and `ProviderError`.
+ */
+export function classifyProviderError(err: unknown): FailureClass {
+  const carried = (err as { failure?: unknown } | null)?.failure;
+  if (typeof carried === 'string' && (KNOWN_CLASSES as readonly string[]).includes(carried)) {
+    return carried as FailureClass;
+  }
+  const status = (err as { status?: unknown } | null)?.status;
+  if (typeof status === 'number') {
+    if (status === 429) return 'model_rate_limited';
+    if (status >= 500) return 'model_outage';
+    if (status >= 400) return 'model_client_error';
+  }
+  const name = (err as { name?: unknown } | null)?.name;
+  if (name === 'AbortError' || name === 'TimeoutError') return 'model_timeout';
+  // No credentials at all is our misconfiguration, not the wire. The SDK
+  // throws this before a socket opens and with no status, so without this
+  // branch a missing key reads as an outage, which is exactly the "an outage
+  // looks like bad photos" confusion the class exists to prevent. Found
+  // 2026-09-09 by posting a real PNG to the running route on a machine with
+  // no key. Not retried: the second attempt has the same empty environment.
+  const message = String((err as { message?: unknown } | null)?.message ?? '');
+  if (
+    name === 'AuthenticationError' ||
+    /api key|apiKey|ANTHROPIC_API_KEY|XAI_API_KEY|auth(entication)? token/i.test(message)
+  ) {
+    return 'model_client_error';
+  }
+  // No status at all is the wire, not the service: a reset socket, a DNS
+  // failure, a TLS error. Treated as a 5xx is, because the same second attempt
+  // is the thing that might work.
+  return 'model_outage';
+}
+
+/**
+ * The union, as data, only so the branch above can check a string against it.
+ *
+ * `model.ts` still owns the type. If the two ever disagree TypeScript says so at
+ * the `satisfies` below, which is why it is written that way rather than as a
+ * bare array.
+ */
+const KNOWN_CLASSES = [
+  'unreadable_photo',
+  'model_timeout',
+  'model_rate_limited',
+  'model_outage',
+  'model_malformed',
+  'model_client_error',
+  'spend_cap_reached',
+] as const satisfies readonly FailureClass[];
+
+/* -------------------------------------------------------------- the price list
+ *
+ * LIST PRICES, NOT MEASUREMENTS. Every number below was typed in from a public
+ * price page on 2026-09-13 and nothing in this repo has ever been billed, so
+ * none of it has been checked against an invoice. Re-check before any figure
+ * derived from this table is quoted to anybody. A wrong number here is silent:
+ * it produces a plausible dollar amount, not an error.
+ *
+ * USD per million tokens. Cache reads bill at about 0.1x the input rate and
+ * cache writes at about 1.25x; both multipliers are the published ratios, and
+ * both are also list, not observed.
+ *
+ * xAI has no row on purpose. This lane had no network access to check Grok's
+ * published rates, and an invented number here would be indistinguishable from
+ * a checked one three files downstream. A model with no row costs `null`, and
+ * every consumer prints that as unknown rather than as zero.
+ */
+export interface ModelPrice {
+  /** USD per million input tokens. */
+  readonly input: number;
+  /** USD per million output tokens. */
+  readonly output: number;
+}
+
+export const LIST_PRICES_USD_PER_MTOK: Readonly<Record<string, ModelPrice>> = {
+  'claude-opus-5': { input: 5, output: 25 },
+  'claude-sonnet-5': { input: 2, output: 10 },
+  'claude-haiku-4-5': { input: 1, output: 5 },
+};
+
+export const CACHE_READ_MULTIPLIER = 0.1;
+export const CACHE_WRITE_MULTIPLIER = 1.25;
+
+/**
+ * What one call cost, from what the provider actually reported.
+ *
+ * Returns null rather than a number in the two cases where a number would be a
+ * lie: a model with no row in the table above, and a usage record with no input
+ * or output count in it (which is every call made with the usage lever off, and
+ * every call made against a fake client in a test).
+ */
+export function costUsd(model: string, usage: TokenUsage): number | null {
+  const price = LIST_PRICES_USD_PER_MTOK[model];
+  if (!price) return null;
+  if (usage.inputTokens === null && usage.outputTokens === null) return null;
+  const perToken = (rate: number, tokens: number | null) => ((tokens ?? 0) / 1_000_000) * rate;
+  return (
+    perToken(price.input, usage.inputTokens) +
+    perToken(price.output, usage.outputTokens) +
+    perToken(price.input * CACHE_READ_MULTIPLIER, usage.cacheReadTokens) +
+    perToken(price.input * CACHE_WRITE_MULTIPLIER, usage.cacheCreationTokens)
+  );
+}
+
+/** Adds two usage records, treating a null on either side as "not reported here". */
+export function addUsage(a: TokenUsage, b: TokenUsage): TokenUsage {
+  const add = (x: number | null, y: number | null) => (x === null && y === null ? null : (x ?? 0) + (y ?? 0));
+  return {
+    inputTokens: add(a.inputTokens, b.inputTokens),
+    outputTokens: add(a.outputTokens, b.outputTokens),
+    cacheReadTokens: add(a.cacheReadTokens, b.cacheReadTokens),
+    cacheCreationTokens: add(a.cacheCreationTokens, b.cacheCreationTokens),
+  };
+}
