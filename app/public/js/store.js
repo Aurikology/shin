@@ -99,7 +99,36 @@ const EMPTY = {
    * DOM node that goes away the moment the sheet does).
    */
   ratings: [],
+  /**
+   * The shops this person has confirmed they were standing in, and which one
+   * they confirmed last in each coarse cell. 2026-09-13, asked for in these
+   * words: "instead of them having to input the store they're in multiple
+   * times... Shin must be able to identify the pattern of where the user
+   * often goes."
+   *
+   * THIS LIVES HERE AND NOWHERE ELSE, and that is the decision rather than an
+   * implementation detail. A record of which shops a named person visits and
+   * how often is a record of their week; `app/src/stores.ts` says so in its
+   * own header ("a kilometre square plus a repeated visit is a home or a
+   * workplace"). So the pattern is learned on the phone, read only by the
+   * phone, and there is no server table for it and no field on the wire that
+   * carries it. What reaches the server is what already did: the one shop
+   * attached to the one price, which the shopper confirmed by tapping it.
+   *
+   *   known       [{ id, name, hint, count, at }] -- the shops confirmed, and
+   *               how often. `count` is the whole of "where they often go".
+   *   lastByCell  { [cell]: shopId } -- the shop last confirmed in each cell,
+   *               which is what makes the second visit to a shop cost no taps.
+   *
+   * Both are bounded (see SHOPS_KEPT / CELLS_KEPT), because one entry per cell
+   * anybody has ever stood in is a leak with a nice name.
+   */
+  shops: { known: [], lastByCell: {} },
 };
+
+/** How many confirmed shops and how many cells the device remembers. */
+const SHOPS_KEPT = 60;
+const CELLS_KEPT = 60;
 
 /** A stable id, so a history entry can be found again after a re-render. */
 function newId() {
@@ -133,7 +162,26 @@ function migrate(s) {
     : { ...EMPTY.consent };
   const consentSeen = s.consentSeen === true;
   const ratings = Array.isArray(s.ratings) ? s.ratings : [];
-  return { ...s, history, watchlist, removed, market, buzz, consent, consentSeen, ratings };
+  /* A state saved before the shop shortlist has no `shops` at all. Both halves
+     are rebuilt defensively rather than trusted: this blob is on a device and
+     a half-written one must not take the pad down. */
+  const shops = {
+    known: Array.isArray(s.shops?.known)
+      ? s.shops.known
+        .filter((k) => k && typeof k.id === 'string' && typeof k.name === 'string')
+        .map((k) => ({
+          id: k.id,
+          name: k.name,
+          hint: typeof k.hint === 'string' ? k.hint : '',
+          count: Number.isFinite(k.count) && k.count > 0 ? Math.floor(k.count) : 1,
+          at: typeof k.at === 'string' ? k.at : null,
+        }))
+      : [],
+    lastByCell: s.shops?.lastByCell && typeof s.shops.lastByCell === 'object' && !Array.isArray(s.shops.lastByCell)
+      ? s.shops.lastByCell
+      : {},
+  };
+  return { ...s, history, watchlist, removed, market, buzz, consent, consentSeen, ratings, shops };
 }
 
 /** Drops anything removed more than thirty days ago. Never throws, never loses anything early. */
@@ -382,6 +430,75 @@ export function goodFindThisWeek() {
   });
 }
 
+/* ------------------------------------------------ the shops on this phone --- */
+
+/**
+ * Every shop this device has confirmed, most-confirmed first.
+ *
+ * Read by `shops.js` to order the shortlist and by nothing else. Never sent
+ * anywhere: see the `shops` field's own note above for why that is a decision
+ * and not an omission.
+ */
+export function knownShops() {
+  return (state.shops?.known ?? []).slice().sort((a, b) => b.count - a.count);
+}
+
+/** The id of the shop last confirmed in this cell, or null. */
+export function lastShopIn(cell) {
+  if (typeof cell !== 'string' || cell === '') return null;
+  return state.shops?.lastByCell?.[cell] ?? null;
+}
+
+/**
+ * The shopper tapped a shop and said they are in it.
+ *
+ * Two writes, and they answer the two halves of the ask separately: the count
+ * goes up (which shops they often go to, everywhere) and the cell's last shop
+ * is set (which shop is right HERE, so the next visit costs no taps).
+ *
+ * `cell` may be null -- a shop can be confirmed with location off if it ever
+ * got onto the screen some other way -- and then only the count moves. A null
+ * key in `lastByCell` would be a bucket every cell-less confirmation shared,
+ * which is worse than not recording it.
+ */
+export function confirmShop(cell, shop) {
+  if (!shop || typeof shop.id !== 'string' || shop.id === '') return null;
+  const entry = {
+    id: shop.id,
+    name: typeof shop.name === 'string' ? shop.name.trim() : '',
+    hint: typeof shop.hint === 'string' ? shop.hint : '',
+  };
+  if (entry.name === '') return null;
+  update((s) => {
+    const before = s.shops?.known ?? [];
+    const seen = before.find((k) => k.id === entry.id);
+    const known = [
+      { ...entry, count: (seen?.count ?? 0) + 1, at: new Date().toISOString() },
+      ...before.filter((k) => k.id !== entry.id),
+    ].slice(0, SHOPS_KEPT);
+
+    let lastByCell = s.shops?.lastByCell ?? {};
+    if (typeof cell === 'string' && cell !== '') {
+      // Newest key last-written wins and the oldest is dropped first; object
+      // key order is insertion order, so re-inserting is how a cell stays fresh.
+      const pairs = Object.entries(lastByCell).filter(([c]) => c !== cell);
+      pairs.push([cell, entry.id]);
+      lastByCell = Object.fromEntries(pairs.slice(-CELLS_KEPT));
+    }
+    return { ...s, shops: { known, lastByCell } };
+  });
+  return entry;
+}
+
+/**
+ * Forgets every shop and every cell. The withdrawal half: turning location
+ * consent off must not leave a map of somebody's week behind on the device,
+ * and `reset()` is not the only way a person says stop.
+ */
+export function forgetShops() {
+  update((s) => ({ ...s, shops: { known: [], lastByCell: {} } }));
+}
+
 /* --------------------------------------------- the interruption budget ---- */
 
 /**
@@ -565,7 +682,7 @@ export function ratedCounts() {
  * day, and stamping it on arrival would silently refresh a stale price every
  * time a phone came back online.
  */
-export function recordCorrection({ code, productId, label, category, amountCents, seller, kind, scanId }) {
+export function recordCorrection({ code, productId, label, category, amountCents, seller, storeId, kind, scanId }) {
   const entry = {
     clientId: newId(),
     at: new Date().toISOString(),
@@ -592,6 +709,21 @@ export function recordCorrection({ code, productId, label, category, amountCents
     // as a comparison point later, and the engine uses that literal word when
     // no store was named.
     seller: (seller ?? '').trim(),
+    /*
+     * D-081, the client half. `seller` above is the DISPLAY AND MATCHING name
+     * -- what the shopper reads on the card, and what the spine's own-store
+     * filter matches on -- and it is not a stable key, because two spellings
+     * of one shop are two sellers to anything counting them. `storeId` is the
+     * identity: OpenStreetMap's own `node/1234` for the shop that was tapped,
+     * which is the same shop in both spellings and in both branches of a
+     * chain. The server takes both (`locationFor` reads `storeId` and
+     * `storeName`) and the spine counts distinct sellers on the identity.
+     *
+     * Null whenever the name was typed rather than tapped: a hand-typed shop
+     * has no identity, and inventing one from the string would be the exact
+     * collapse D-081 was opened about.
+     */
+    storeId: typeof storeId === 'string' && storeId.trim() !== '' ? storeId.trim() : null,
     kind: kind === 'promotional' ? 'promotional' : 'regular',
     sentAt: null,
   };

@@ -28,7 +28,10 @@ import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { attachEye, startCaptureQueue } from '../eye-attach.js';
 import { escapeHtml } from '../lib/dom.js';
+import { rowCheck } from '../lib/pagebar.js';
+import { wireRadioGroup } from '../lib/radiogroup.js';
 import { t } from '../ui-strings.js';
+import * as shops from '../shops.js';
 import { countryLabel, countryIn } from './market.js';
 import { locale } from '../lib/locale.js';
 import { render as renderProse, renderLines } from '../prose.js';
@@ -1088,7 +1091,97 @@ function parsePadPrice(buf) {
  * word in an HTML comment. Prose about the attribute belongs here, outside the
  * template literal, not in the string this returns.
  */
-function pricePadSheet(item, typed = '', modifier = null, thumb = null) {
+/**
+ * The shop row that sits on the price pad, or nothing at all.
+ *
+ * NOTHING AT ALL IS THE DEFAULT AND IT IS NOT A DEGRADED STATE. Location
+ * consent is off until somebody turns it on (`consent.js`), and with it off
+ * this returns '' -- no row, no shortlist, no question, and the pad is
+ * character for character the pad that shipped before this feature. A price
+ * with no shop on it is still worth recording, which is the rule the whole
+ * correction queue already runs on, so there is nothing here to block or
+ * nudge with.
+ *
+ * WITH CONSENT ON IT IS A STATEMENT, NOT A PROMPT. It says which shop the
+ * price is about to be filed at -- already filled in, on every visit after
+ * the first, from what this device remembers about this cell -- and tapping
+ * it opens the shortlist. That is the shape the brief asks for: the shopper
+ * taps once per shop, ever, and reads the row the rest of the time.
+ *
+ * @param {{name: string}|null} shop  the chosen shop, or null for none chosen
+ *   yet. `null` still renders the row (with "Choose"): the row is how the
+ *   shortlist is reached, so hiding it when nothing is chosen would hide the
+ *   only way to choose.
+ * @param {boolean} allowed  whether location consent is on.
+ */
+function padShopRow(shop, allowed) {
+  if (!allowed) return '';
+  const value = shop?.name ? escapeHtml(shop.name) : escapeHtml(t('cam_shop_choose'));
+  return `
+        <button type="button" class="ilist-row pad-shop" data-act="pad-shop"
+                aria-label="${escapeHtml(t('cam_shop'))}">
+          <span class="ilist-l">${escapeHtml(t('cam_shop'))}</span>
+          <span class="ilist-v">${value}</span>
+        </button>`;
+}
+
+/**
+ * The shortlist itself. One tap, and then never again for this shop.
+ *
+ * THE INSET GROUPED LIST, not a new control: this is the same `.ilist` the
+ * market picker and the You screen's attitude picker are built from, with the
+ * same `role="radiogroup"` and the same `rowCheck()`, so a shopper who has
+ * used either already knows what this is and `lib/radiogroup.js` wires the
+ * keyboard for free.
+ *
+ * ORDER IS `shops.js`'s AND NOT THIS FUNCTION'S. What arrives here is already
+ * in the order it goes on screen (the shop last confirmed in this cell, then
+ * the ones this device confirms most, then by distance). This renders it.
+ *
+ * THE "NO SHOP" ROW IS NOT A CANCEL. It is a real answer -- a market stall, a
+ * shop nobody has mapped, a tap on the wrong row a minute ago -- and it files
+ * the price with no shop, which is what the app did before any of this and is
+ * still a price worth having.
+ *
+ * @param {{id:string,name:string,hint?:string,count?:number}[]} shops
+ * @param {string|null} chosenId  which row is checked.
+ */
+function storePickerSheet(shops, chosenId = null) {
+  const rows = shops.map((s) => {
+    const on = s.id === chosenId;
+    return `
+          <button type="button" class="ilist-row shop-row${on ? ' on' : ''}"
+                  role="radio" aria-checked="${on}" data-shop="${escapeHtml(s.id)}">
+            <span class="ilist-l">${escapeHtml(s.name)}${
+              (s.count ?? 0) > 0 ? ` <span class="shop-usual">${escapeHtml(t('cam_shop_usual'))}</span>` : ''
+            }</span>
+            ${s.hint ? `<span class="ilist-v">${escapeHtml(s.hint)}</span>` : ''}
+            ${rowCheck()}
+          </button>`;
+  }).join('');
+
+  return `
+    <section class="sheet shopsheet" data-tier="unknown" data-conf="reading" tabindex="-1">
+      <span class="grabber" aria-hidden="true"></span>
+      ${backButton()}
+      <div class="sheet-peek">
+        <div class="sheet-head">
+          ${shinSay('asking', shops.length ? 'shop_pick_prompt' : 'shop_none_nearby', {}, { size: 64 })}
+        </div>
+        <h2 class="vword" style="font-size:20px">${escapeHtml(t('correct_which_shop'))}</h2>
+        <div class="ilist shop-list" role="radiogroup" aria-label="${escapeHtml(t('correct_which_shop'))}">
+          ${rows}
+          <button type="button" class="ilist-row shop-row${chosenId ? '' : ' on'}"
+                  role="radio" aria-checked="${!chosenId}" data-shop="__none">
+            <span class="ilist-l">${escapeHtml(t('cam_shop_none'))}</span>
+            ${rowCheck()}
+          </button>
+        </div>
+      </div>
+    </section>`;
+}
+
+function pricePadSheet(item, typed = '', modifier = null, thumb = null, shop = null, shopAllowed = false) {
   const typedCents = parsePadPrice(typed);
   const effCents = effectivePriceCents(typedCents, modifier);
   const canConfirm = (effCents ?? 0) > 0;
@@ -1114,6 +1207,7 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null) {
               )}</button>`
             : ''
         }
+        ${padShopRow(shop, shopAllowed)}
         <div class="amount pad-amount"><span class="amount-cur">$</span>${pricePadDisplay(typed)}</div>
         <p class="pad-effective" data-pad-effective${effLabel ? '' : ' hidden'}>${effLabel}</p>
         <div class="pad-mods" role="group" aria-label="${escapeHtml(t('cam_price_modifiers'))}">
@@ -1432,6 +1526,12 @@ function photoCandidateLabel(c) {
    tier-red, and that nothing focusable is hidden behind `aria-hidden`.
    Exporting these changes nothing about how the screen itself calls them. */
 export { verdictSheet, refusalSheet, pricePadSheet, goingRateCard, workingSheet, textRouteSheet };
+
+/* The shop shortlist joins them 2026-09-13, same reason: `padShopRow` and
+   `storePickerSheet` are pure string builders, so app/test/shops.test.mjs can
+   render them for real in both languages rather than asserting about the
+   source that produces them. */
+export { padShopRow, storePickerSheet };
 
 /* `observationCard` joins them 2026-09-13. Same reason as the six above, and
    one more that is specific to it: the whole claim of that card is that it
@@ -2102,6 +2202,9 @@ export default {
     let padBuffer = '';
     let padItem = null;
     let padModifier = null;
+    /* The shortlist as it was last rendered, so a tap on a row resolves to the
+       shop object that built it rather than to the row's own text. */
+    let shopList = [];
 
     function paintPad() {
       const amountEl = slot.querySelector('.pad-amount');
@@ -2196,13 +2299,78 @@ export default {
       mounted();
     }
 
+    /**
+     * The pad, rendered. Every repaint of it goes through here.
+     *
+     * There were three `slot.innerHTML = pricePadSheet(...)` lines before the
+     * shop row existed, and a fourth argument that some of them remembered to
+     * pass would be exactly the bug this feature cannot afford: a pad that
+     * shows the shop when it opens, loses it when a modifier is toggled, and
+     * files the price at a shop the shopper can no longer see.
+     *
+     * `shops.chosenFor()` is the seeding, and it is why a second visit to a
+     * cell costs no taps: it reads the device's own record of which shop was
+     * confirmed in this cell and returns it, without asking the OS for
+     * anything. With consent off it returns null and `padShopRow` renders
+     * nothing.
+     */
+    function padHtml() {
+      return pricePadSheet(
+        padItem,
+        padBuffer,
+        padModifier,
+        scanThumb,
+        shops.chosenFor(),
+        shops.locationAllowed(),
+      );
+    }
+
     function openPad(item) {
       padItem = item;
       padBuffer = '';
       padModifier = null;
       setState('asking');
-      slot.innerHTML = pricePadSheet(item, padBuffer, padModifier, scanThumb);
+      slot.innerHTML = padHtml();
       mounted();
+    }
+
+    /**
+     * The shortlist, opened because the shopper tapped the shop row.
+     *
+     * THE OS IS ASKED HERE AND NOWHERE ELSE IN THIS SCREEN. `openShortlist`
+     * refreshes the cell only when there is no fresh one and consent is
+     * already on, so a location prompt -- if the browser shows one at all --
+     * arrives on the tap that means "which shop am I in", which is the one
+     * moment it explains itself. Nothing about a scan waits on it.
+     *
+     * A list that comes back empty still renders, with its own line and the
+     * "no shop" row: an empty sheet after a tap reads as broken, and the
+     * honest answer ("nobody has mapped the shops here") is one the shopper
+     * can act on by typing the price anyway.
+     */
+    async function openShopPicker() {
+      const myGen = gen;
+      setState('asking');
+      const { shops: list } = await shops.openShortlist();
+      // The scan moved on while a third-party server was thinking. Painting a
+      // shop list over whatever is there now would be the same class of bug
+      // as a late identify response painting over a live refusal (D-083).
+      if (dead || myGen !== gen || cam.dataset.state !== 'asking') return;
+      // "Usual" marks a shop this device has confirmed before, which is the
+      // pattern half of the ask made visible: the shopper can see that Shin
+      // knows where they go, rather than only feeling it in the ordering.
+      shopList = list;
+      slot.innerHTML = storePickerSheet(list, shops.chosenId());
+      mounted();
+      /*
+       * The keyboard the markup promises. `lib/radiogroup.js` exists because
+       * `role="radiogroup"` over `role="radio"` children with nothing handling
+       * arrow keys is worse than plain buttons: it tells a screen reader to
+       * arrow between the options and then nothing moves. Re-wired on every
+       * open because the sheet is rebuilt from a string each time, and bound
+       * to this screen's own signal so it comes off with the screen.
+       */
+      wireRadioGroup(slot.querySelector('.shop-list'), { signal: listeners.signal });
     }
 
     /**
@@ -2251,6 +2419,7 @@ export default {
         category: padItem?.category ?? null,
         amountCents: cents,
         seller,
+        storeId: sellerIdNow(),
         kind: 'regular',
         scanId: lastScanId,
       });
@@ -2271,9 +2440,29 @@ export default {
      */
     function sellerNow() {
       try {
-        return (store.market().seller ?? '').trim();
+        return shops.chosenName();
       } catch {
         return '';
+      }
+    }
+
+    /**
+     * The same shop, as its identity rather than its name (D-081).
+     *
+     * `sellerNow()` above is the DISPLAY AND MATCHING name -- what goes on the
+     * card and what the spine's own-store filter compares against -- and two
+     * spellings of one shop are two sellers to anything counting them.
+     * `sellerIdNow()` is OpenStreetMap's `node/1234` for the shop that was
+     * tapped, which is one shop in both spellings and two shops across two
+     * branches of a chain, and it is what distinct-seller counting keys on.
+     *
+     * Null whenever no shop was tapped. Never derived from the name.
+     */
+    function sellerIdNow() {
+      try {
+        return shops.chosenId();
+      } catch {
+        return null;
       }
     }
 
@@ -2643,6 +2832,33 @@ export default {
         return;
       }
 
+      /*
+       * A row in the shop shortlist, tapped. The one tap this feature costs,
+       * and the last one for this shop: `chooseShop` records it against the
+       * coarse cell, so the next pad opened in this square comes up with the
+       * shop already on it.
+       *
+       * `__none` is a real answer and not a cancel -- see `storePickerSheet`.
+       * Either way the shopper lands back on the pad with the price they had
+       * already typed still in the buffer, because `padBuffer` was never
+       * touched and the pad is rebuilt from it.
+       */
+      const shopPick = e.target.closest('[data-shop]');
+      if (shopPick) {
+        const id = shopPick.dataset.shop;
+        /* The shop object comes from the list that was rendered, not from
+           reading the row's own text back out of the DOM: the row carries a
+           "Usual" badge and an escaped hint beside the name, so scraping it
+           would file the price under a name with a badge word glued to it. */
+        const picked = id === '__none' ? null : shopList.find((s) => s.id === id);
+        shops.chooseShop(picked ?? null);
+        buzz(8);
+        setState('asking');
+        slot.innerHTML = padHtml();
+        mounted('[data-act="pad-shop"]');
+        return;
+      }
+
       const notThis = e.target.closest('[data-act="notthis"]');
       if (notThis) {
         void reopenCandidates();
@@ -2656,7 +2872,7 @@ export default {
         // price, looked at the list and decided the first answer was right
         // should not have to type it again.
         setState('asking');
-        slot.innerHTML = pricePadSheet(padItem, padBuffer, padModifier, scanThumb);
+        slot.innerHTML = padHtml();
         mounted();
         return;
       }
@@ -2701,7 +2917,7 @@ export default {
         padModifier = padModifier && padModifier.kind === kind
           ? null
           : (kind === 'percent' ? { kind: 'percent', pct: 20 } : { kind: 'nfor', n: 3 });
-        slot.innerHTML = pricePadSheet(padItem, padBuffer, padModifier, scanThumb);
+        slot.innerHTML = padHtml();
         // The whole sheet was repainted under the button that was just pressed,
         // so the press has to be given back its own control rather than the
         // sheet: a modifier is toggled on, checked, and toggled off again, and
@@ -2756,6 +2972,10 @@ export default {
       if (act === 'you') { ctx.go('you'); return; }
       if (act === 'torch') { requestTorch(!torchOn); return; }
 
+      // The shop row on the pad. The only thing in this screen that can cause
+      // a location read, and it does so because the shopper asked which shop
+      // they are in.
+      if (act === 'pad-shop') { void openShopPicker(); return; }
       if (act === 'pad-clear') { padBuffer = ''; paintPad(); return; }
       // The pad's own confirm key (USAGE A1 0:13.4): nothing submits until
       // this is pressed. No debounce, no auto-submit on a pause. Row 43:

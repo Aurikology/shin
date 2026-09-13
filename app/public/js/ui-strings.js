@@ -82,6 +82,14 @@ const EN = {
   cam_just_the_price: 'Just write the price down',
   cam_price_written_down: 'Price written down',
   cam_no_name_for_it: 'No name for it',
+  /* The shop shortlist. Chrome, not Shin: a row label, a heading, and the
+     two rows that are not a shop. The one sentence that speaks as Shin
+     (`shop_pick_prompt`) is in voice.js, with all three attitudes. */
+  cam_shop: 'Shop',
+  cam_shop_choose: 'Choose',
+  cam_shop_none: 'No shop',
+  cam_shop_usual: 'Usual',
+  cam_shop_looking: 'Finding shops',
   cam_name_it: 'Name it',
   cam_price_it: 'Price it',
   cam_no_confident_match: 'No confident match',
@@ -346,6 +354,11 @@ const FR = {
   cam_just_the_price: 'Note juste le prix',
   cam_price_written_down: 'Prix noté',
   cam_no_name_for_it: 'Aucun nom pour ça',
+  cam_shop: 'Magasin',
+  cam_shop_choose: 'Choisir',
+  cam_shop_none: 'Aucun magasin',
+  cam_shop_usual: 'Habituel',
+  cam_shop_looking: 'Recherche des magasins',
   cam_name_it: 'Nomme-le',
   cam_price_it: 'Donne-lui un prix',
   cam_no_confident_match: 'Aucune correspondance sûre',

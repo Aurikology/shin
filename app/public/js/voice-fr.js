@@ -279,6 +279,17 @@ export const LINES_FR = {
     blunt: (f) => `Noté. ${f.price}${f.seller ? ` chez ${f.seller}` : ''}. Aucune idée de ce que c'est, alors je ne tranche pas.`,
   },
 
+  shop_pick_prompt: {
+    deadpan: () => "Les magasins autour d'ici. Touche celui où tu es et je vais m'en souvenir.",
+    warm: () => "Voici les magasins autour de toi. Touche celui où tu te trouves et je vais m'en souvenir, comme ça je ne te le redemanderai pas la prochaine fois que tu viens ici.",
+    blunt: () => "Les magasins proches. Touche le tien. Je vais m'en souvenir.",
+  },
+  shop_none_nearby: {
+    deadpan: () => "Aucun magasin sur la carte par ici. Le prix vaut quand même la peine d'être noté sans magasin.",
+    warm: () => "Je ne trouve aucun magasin sur la carte par ici, ce qui veut souvent dire que personne ne les a encore ajoutés. Le prix vaut quand même la peine d'être noté sans magasin.",
+    blunt: () => "Rien sur la carte ici. Note le prix pareil.",
+  },
+
   working_step1: {
     deadpan: () => "Je l'identifie",
     warm: () => "Je cherche ce que c'est",

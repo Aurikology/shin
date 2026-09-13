@@ -64,6 +64,23 @@ function wireFor(entry) {
     label: entry.label,
     category: entry.category,
     seller: entry.seller,
+    /*
+     * The shop, as the two things D-081 says it is. `storeName` is the name
+     * the shopper sees and the spine matches on; `storeId` is OpenStreetMap's
+     * own identity for it, which is what distinct-seller counting keys on so
+     * that two branches of one chain count as two and two spellings of one
+     * shop count as one. Both are consent-gated on arrival by the server's
+     * `locationFor`, along with the cell, so a device that has not said yes
+     * gets all three dropped whatever it sent.
+     *
+     * `storeName` repeats `seller` today, and deliberately is not folded into
+     * it: `seller` is the correction's own field and can be hand-typed on the
+     * corrections screen, while these two are the location record on the scan
+     * row. They stay separate fields because the server keeps them in
+     * separate places.
+     */
+    storeId: entry.storeId ?? null,
+    storeName: entry.seller || null,
     priceCents: entry.amountCents,
     kind: entry.kind,
     seenOn: entry.seenOn,

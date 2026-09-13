@@ -2017,3 +2017,55 @@
    the price block needs saying, and only because there is no seller line
    under it to hold the gap. */
 .sheet.observed .priceline { margin-bottom: 10px; }
+
+/* ---------------------------------------------------------- the shop row --
+ *
+ * The shop a price is about to be filed at, on the pad, and the shortlist it
+ * opens. Both are built out of `.ilist` from shell.css -- the same inset
+ * grouped list the market picker and the attitude picker use -- so nearly
+ * everything here is placement and nothing is a new control.
+ *
+ * The row is a 44px target on the same measurement D-050 records for
+ * `.pad-textbtn`, bought with the list's own row height rather than padding
+ * added on top of it.
+ */
+.pad-shop {
+  width: 100%;
+  margin: 6px 0 2px;
+  border-radius: var(--r-card, 12px);
+  background: var(--raised);
+  min-height: 44px;
+}
+.pad-shop .ilist-v { color: var(--ink); font-weight: 600; }
+
+.sheet.shopsheet .shop-list {
+  margin-top: 10px;
+  text-align: left;
+}
+.shop-row { min-height: 52px; }
+/* "Usual" -- a shop this device has confirmed before. A label, not a badge
+   with a fill: it sits inside a list row that is already carrying a name and
+   an address, and a coloured pill there would read as the most important
+   thing on the row, which it is not. */
+.shop-usual {
+  font-family: var(--f-ui);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+/*
+ * THE TICK IS VISIBLE BY DEFAULT AND EVERY LIST HAS TO HIDE ITS OWN.
+ *
+ * `rowCheck()` in lib/pagebar.js renders an `.ilist-k` for every row, and the
+ * base rule in shell.css only colours it -- it does not hide it. So a list that
+ * uses the shared row and forgets this pair draws a tick on EVERY option, which
+ * is how the shop picker first rendered: Metro chosen, and Loblaws ticked too.
+ * `you.css` carries the same pair twice, once for the market list and once for
+ * the attitude picker, which is the pattern being copied here rather than a new
+ * idea. Caught by looking at the rendered sheet; no test rendered it.
+ */
+.shop-list .ilist-k { visibility: hidden; }
+.shop-row.on .ilist-k { visibility: visible; }

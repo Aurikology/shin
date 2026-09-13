@@ -14,6 +14,7 @@
 import * as store from './store.js';
 import { getDeviceId } from './device.js';
 import { refreshCell } from './geocell.js';
+import { clearChosen } from './shops.js';
 
 /**
  * Flips one flag (`'photos'` or `'location'`) and returns the new consent
@@ -26,6 +27,20 @@ export function toggleConsent(api, key) {
   const next = store.setConsent({ [key]: !before[key] });
   const device = getDeviceId();
   if (key === 'location' && next.location) void refreshCell();
+  /*
+   * WITHDRAWAL HAS TO TAKE THE PATTERN WITH IT. 2026-09-13, with the shop
+   * shortlist. `store.js`'s `shops` field is a record of which shops this
+   * person confirmed and how often, and which one they were in in each
+   * kilometre square -- which `app/src/stores.ts` names for what it is: a
+   * cell plus a repeated visit is a home or a workplace. Leaving that on the
+   * device after somebody has switched location off would mean the toggle
+   * stopped the collecting and kept the collection, which is not what the
+   * word off means on the screen it is written on.
+   */
+  if (key === 'location' && !next.location) {
+    store.forgetShops();
+    clearChosen();
+  }
   if (device?.id) {
     void api.postConsent({ deviceId: device.id, photos: next.photos, location: next.location });
     void api.postEvent({

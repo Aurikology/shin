@@ -454,6 +454,30 @@ const LINES_EN = {
   },
 
   /**
+   * --- the shop shortlist, 2026-09-13 ---
+   *
+   * Asked once per shop and then never again: the tap is remembered against
+   * the coarse cell, so the second visit opens with the right shop already
+   * chosen. Both lines say what the list IS rather than instructing -- the
+   * shortlist is a question a person answers, and Shin's own note on it is
+   * why the list is short, not an order to pick from it.
+   *
+   * `shop_none_nearby` has to be honest about a thing this app cannot fix:
+   * the shop data is OpenStreetMap's, so a shop nobody has mapped is a shop
+   * that is not on the list, and the price is still worth writing down.
+   */
+  shop_pick_prompt: {
+    deadpan: () => 'The shops around here. Tap the one you are in and I will remember it.',
+    warm: () => 'Here are the shops around you. Tap the one you are standing in and I will remember it, so I will not ask again next time you come here.',
+    blunt: () => 'Shops near you. Tap yours. I will remember.',
+  },
+  shop_none_nearby: {
+    deadpan: () => 'No shops mapped around here. The price is still worth writing down without one.',
+    warm: () => 'I cannot find any shops mapped around here, which usually means nobody has added them to the map yet. The price is still worth writing down without one.',
+    blunt: () => 'Nothing mapped here. Write the price down anyway.',
+  },
+
+  /**
    * --- the working sheet's three named steps, AVATAR.md section 3 rows 16-18 ---
    * Advanced on real events only (identification chosen, price request sent,
    * response received), never on a timer that pretends. OLMA audit row 47.

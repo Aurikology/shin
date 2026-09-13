@@ -30,6 +30,7 @@ import { faceBlock } from '../shin.js';
 import { say } from '../voice.js';
 import * as store from '../store.js';
 import { submitCorrection } from '../corrections.js';
+import * as shops from '../shops.js';
 import { escapeHtml, on } from '../lib/dom.js';
 /*
  * The keypad, from the screen that owns it. This file had its own 3x4 grid
@@ -99,7 +100,27 @@ export default {
 
   render(root, ctx) {
     let typed = '';
-    let seller = '';
+    /**
+     * The shop, pre-filled from the one the shopper already confirmed.
+     *
+     * THE WHOLE OF "instead of them having to input the store they're in
+     * multiple times", on the screen that was doing the asking. This field
+     * was a blank text box and the gate below refuses to save without it, so
+     * every correction cost the shop's name typed out again, every time.
+     *
+     * It is a PRE-FILL AND NOT A LOCK. The box stays editable, the gate is
+     * unchanged, and typing over it is how somebody corrects a price they saw
+     * at a different shop from the one they are standing in -- which is a
+     * normal thing to do from the past-scans list, where this screen is
+     * usually reached from.
+     *
+     * `shopId` rides beside it as the identity (D-081), and is dropped the
+     * moment the text stops matching the shop it came from: an id that no
+     * longer names what the box says would count a hand-typed shop as the
+     * tapped one, which is the collapse D-081 exists to prevent.
+     */
+    let seller = shops.chosenName();
+    const shopId = shops.chosenId();
     let saved = false;
     let onSale = false;
     const ac = new AbortController();
@@ -232,6 +253,7 @@ export default {
           category: subject.category,
           amountCents: cents,
           seller: seller.trim(),
+          storeId: seller.trim() === shops.chosenName() ? shopId : null,
           kind: onSale ? 'promotional' : 'regular',
         });
         saved = true;
