@@ -66,6 +66,73 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## His five items get their steps written and four of them get built, 2026-09-13
+
+**His words:** *"LLM - model identifies the image, that model identifies the image / Look for a way
+to get into google lenses. We want to search / Language translate / Account creation - these are
+the things we must complete today."* Items 21, 22, 23, 31 and 44 were the five the beta plan listed
+by title only, with no steps under them, because they were Aurik's. They have steps now, and five
+lanes on disjoint packages built them in one pass with Fable reviewing every diff.
+
+**First, the branch came home.** `feature/ui-polish` held `1e326c9` alone while main moved 23
+commits ahead. The no-branches rule of 2026-09-07 says work lands on `main` and a conflict is
+resolved there in the open, so the branch merged into main rather than the reverse. One conflict,
+`NOW.md`, resolved by keeping both sides in this file's own order. All seven `feature/*` branches
+are now fully contained in `main` and strand nothing.
+
+**The mirror was 25 commits behind and the file said it could not be.** See D-088 and build
+standard 5. Both hosts are at `cf06c6c`, proved by `ls-remote` on each rather than by reading a
+remote out of a config.
+
+**The key is still the gate, and a second gate was hiding under it.** Aurik chose not to add an
+Anthropic or xAI key today, so items 21 and 22 are BUILT AND UNMEASURED by design, not by
+oversight. Underneath that, D-089: `catalogue.db` was missing five columns `search.ts` had started
+selecting, so every catalogue search on this machine was dead and **the eval could not have run
+even with a funded key**. Migrated (15 -> 20 columns, 212,340 rows intact); the five values are
+still NULL and populating them is item 25b, Jamin's.
+
+**21 and 22, `identify/`.** `model.ts` no longer imports the Anthropic SDK. A neutral seam carries
+the call; `providers/anthropic.ts` and `providers/xai.ts` implement it; `SHIN_MODEL_PROVIDER`
+selects and defaults to `anthropic`. Five levers, all default-off, all unit-tested: usage capture,
+prompt caching, per-call token caps, cheap-first escalation, provider select. The eval scores a
+matrix in **cost per correct identification**, never cost per call. **66 -> 96 tests, zero existing
+test files edited**, which was the acceptance bar for a behaviour-preserving refactor. The Grok
+adapter has never run and its eleven wire assumptions are in its file header.
+
+**23, `research/`.** There is no public Google Lens API. The route is Cloud Vision Web Detection at
+$3.50/1,000, and it is **specified and not built**: the only seam is the catalogue-miss branch of
+`IdentifyStage.fromCrop`, and on this repo's own 40-of-40 dry run that branch fires zero times.
+Decision logged with a two-part falsifier so it cannot be reopened on an argument.
+
+**31, `spine/` + `app/`.** The app is bilingual. The server was the blocker and stopped being one:
+every sentence in `categories.ts` and `spine.ts` now emits a line code plus RAW facts beside the
+English it already sent, additive, with **all 65 sentences asserted to round-trip byte for byte**.
+The client grew `locale x variant` in `voice.js`, a separate chrome catalogue with no personality
+axis, a language row on You, and `name_fr` for product display. **spine 181 -> 212, app 514 -> 546.**
+
+**44, `docs/`.** `docs/the-store-accounts-packet.md`. **No agent can do this one** and it was never
+going to be done today: enrolment needs his legal identity, ID and card, which is the boundary
+`memory/lessons.md` recorded on 2026-09-12. Three things in the packet change how he does it:
+TestFlight internal testers must be USERS on his developer account, not just emails; a bundle id can
+be permanently burned by a TestFlight-only build, so `com.placeholder.pricecheck` must never touch
+either console; and the Play internal track needs neither the data-safety form nor a finished app
+setup, so the privacy work does not block getting builds to testers. Two figures in
+`native/README.md` were corrected: Apple publishes no processing time, and Google's "near-instant"
+describes the pre-2023 signup.
+
+**Walked, not asserted.** Eleven screens at 390x844 and 375x575 in `fr-CA`: `lang` correct
+everywhere, **zero document-level horizontal scroll on any screen at either size**. Four elements
+flag wide on camera and share; the identical walk in `en-CA` flags the same four, so it is
+pre-existing camera-fallback geometry and the French work introduces no layout regression.
+
+**1,006 tests pass, 0 fail, 5 skipped** across app 541, spine 212, price 157, identify 96; four
+typechecks clean. Four defects filed, D-088 to D-091, one of them earning build standard 5.
+
+**Not done, and named rather than hidden:** every number about model cost and accuracy, because
+there is no key; the Grok adapter, never executed; money still prints `$4.99` in French where
+Canadian French writes `4,99 $`; the French register wants a human speaker's read, starting with
+`Gardés` for Saved; and D-090, the eval runner being outside `tsconfig` with no test, is open.
+
 ## The last four screens brought up to standard, and the doc that was lying about colour, 2026-09-11
 
 **Every screen has now been walked and measured.** Three lanes on disjoint files, every claim

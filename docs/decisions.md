@@ -1034,3 +1034,100 @@ one screen change if he wants it.
 **Reverses if:** he names a five-point scale as the form he meant, in which case the thumbs become
 stars and the table's rating column widens; nothing else changes.
 
+
+## The app ships in French and English from the first beta, not English-only
+**Date:** 2026-09-13 · **Status:** active
+
+`docs/the-beta-build-plan.md` E13 recorded that "the interface language stays English for the beta
+(31 not gating)". That stands as a statement about GATING and is now overtaken as a statement about
+scope: item 31 was Aurik's, he asked for it on 2026-09-13, and it is the one item of his five that
+could reach done without a funded API key, so it was built rather than deferred.
+
+Canadian French, not France French, and one French: `Ouvrez une session` is not what a Quebec
+shopper reads. The catalogue was already bilingual for MATCHING under decision 20 ("French and
+English match to the same row, both directions"); this extends the same fact to DISPLAY, and it
+reuses it — a product shows its `name_fr` in French rather than a machine translation of its
+English name, because the column already holds the real one.
+
+The shape, and the reason it is three layers rather than one: `voice.js` became `locale x variant`,
+keeping the three personalities as the inner axis so the attitude contract was untouched;
+`ui-strings.js` is a new catalogue for structural chrome with NO personality axis, because a Share
+button that gets ruder on Blunt is the picker leaking into furniture; and the server stopped being
+the blocker by emitting a line code plus raw facts beside every sentence it already sent. That last
+one is the load-bearing part. Counts, pluralisation and word order were baked into English grammar
+inside `spine/src/categories.ts` before the JSON ever left, so no amount of client work could have
+translated a verdict. It is additive: `lines`, `because` and `detail` keep their exact English bytes
+and a test asserts all 65 sentences round-trip byte for byte from their codes.
+
+Two things are deliberately NOT done. Money still prints `$4.99` in both languages where Canadian
+French writes `4,99 $`; `cad()` feeds every price on every surface and several tests compare its
+output byte for byte, so that is a decision about the whole app rather than a side effect of this
+pass. And a fragment with no French renderer drops its WHOLE sentence back to English, because a
+half-translated verdict is worse than an untranslated one.
+
+**Reverses if:** a French speaker reads the copy and finds the register wrong often enough that it
+reads as machine output, in which case the French tables are rewritten by a person rather than
+patched key by key. The uncertainty list is in the session report and starts with `Gardés` for
+Saved, which may want to be `Enregistrés` or `Favoris` and appears in eighteen keys plus the nav
+bar. Nothing here reverses on the English side: the English strings were moved, never rewritten,
+and the existing suite proves it.
+
+## Google Lens means Google Cloud Vision Web Detection, and it is specified but not built
+**Date:** 2026-09-13 · **Status:** active
+
+Beta-plan item 23 was titled "Google Lens" and nothing more. Two facts settle it. First, **there is
+no public Google Lens API** and there never has been; the reseller class (SerpApi and equivalents)
+scrapes it, and its Legal Shield starts at the $150/month tier rather than the $25 one a beta would
+buy, so the one thing that class offers against the legal question is not on sale at the price in
+question. Aurik chose the official route. Second, the honest route is
+`research/price-sources/36-visual-product-search.md`'s enumeration: Web Detection at $3.50 per
+thousand and no catalogue to build, against Product Search at $4.50 plus storage, which is **in
+maintenance mode by Google's own documentation** (though absent from the deprecations page, so with
+no announced end), refreshes its index about once a day, and would need a product-photo corpus this
+repo does not have — roughly 217,660 SKUs against the 40 photos that exist.
+
+It is **not built**, and the reason is a measurement rather than a preference. The only place it
+could plug in is the catalogue-miss branch of `IdentifyStage.fromCrop`, where the three-query
+cascade unions to zero rows. On this repo's own 40-of-40 dry run **that branch fires zero times**.
+Buying a visual-search call to rescue a miss that has never been observed is spending against a
+number nobody has measured.
+
+Recorded against the closed register so it is not re-proposed by accident: Web Detection returns
+retailer URLs, and FOLLOWING those URLs is the direct-page-scraping method already killed on
+2026-09-03. Any build takes the name or GTIN string back into the catalogue lookup and stops there.
+
+**Reverses if:** a real eval run against a funded model shows a top-1 below the floor AND a
+`not_in_catalogue` count above one in forty. Either alone is not enough: a low top-1 with no misses
+is a ranking problem, and misses with a high top-1 are a catalogue problem. Kills outright if a real
+run shows top-1 at or above the floor with zero or one miss in forty.
+
+## A model call goes through a provider seam, and the measure is cost per correct identification
+**Date:** 2026-09-13 · **Status:** active
+
+His question, 2026-09-11: *"Can we use multiple llms like grok and claude together since grok is
+cheaper?"* It cannot be answered by comparing price lists, and this decision is mostly about
+refusing to answer it that way. A model that costs half as much per call and is wrong twice as
+often costs MORE per right answer, and the right answer is the product. So the unit is **cost per
+correct identification**, never cost per call, and `identify/eval/run.ts` now scores a
+provider-and-tier matrix in that unit.
+
+To make the question askable at all, `identify/src/model.ts` no longer imports the Anthropic SDK.
+A neutral seam in `identify/src/provider.ts` carries an image, a system prompt, a schema and a token
+budget; `providers/anthropic.ts` and `providers/xai.ts` implement it; `SHIN_MODEL_PROVIDER` selects,
+defaulting to `anthropic` so nothing moves without an explicit opt-in. The refactor was held to
+behaviour preservation and all 66 pre-existing tests passed unedited.
+
+**Nothing here is measured, and the file says so in its own output.** There is no Anthropic key and
+no xAI key on this machine. The Grok adapter has never been executed, not once, not against a
+recorded fixture; its eleven wire-format assumptions are listed in its file header, and the one
+worth doubting is `strict: true` structured output, because every nullable field in `PRODUCT_SCHEMA`
+is a `['string','null']` union and strict implementations commonly reject those — if that is wrong,
+all ten of its tests still pass and every real call still fails. The matrix prints `unknown` in the
+xAI cost cells rather than a number. Four of the five token counts behind every dollar are guesses.
+The prompt-caching lever asserts the request SHAPE that makes a cache hit possible and claims no
+saving, because a saving is `cache_read_input_tokens` and that requires a key.
+
+**Reverses if:** a funded run shows the seam's indirection costing latency that matters inside the
+seven-second photo budget, in which case the winning provider is inlined and the seam kept only in
+the eval. The xAI adapter is deleted rather than maintained if a first real run shows Grok losing on
+cost per correct identification, since an unrun second provider is a liability and not an option.
