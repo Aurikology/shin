@@ -66,6 +66,57 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## Google Lens answered on law and on pipeline, and the answer is mostly no, 2026-09-13 evening
+
+**His words:** *"research if it is possible to use google lense to search for this item without
+getting into any legal problems. or if we could use its metrics and pipelines for SHIN."* Two lanes,
+`research/price-sources/37-google-lens-legal-position.md` (702 lines) and
+`38-lens-pipeline-and-google-data.md` (438).
+
+**The biggest finding is not about Lens.** Grounding with Google Search is the one licensed Google
+product that could answer "what does this cost", and its terms forbid what Shin does with an answer:
+*"cache, frame, syndicate, resell, analyze, train on, or otherwise learn from Grounded Results"*,
+with the exact attempt named as a violation, *"using Links to identify destination pages for crawling
+or scraping"*. Identical wording on the Vertex side, so there is no escape. **`QUEUE.md`'s
+"asking a search engine for a live price" kill now stands on contract as well as on the 2026-09-03
+measurement**, and that row's reopen condition has been updated because a better measurement can no
+longer satisfy it.
+
+**The Canadian case that becomes a design rule.** Trader Corporation v CarGurus, 2017 ONSC 1841:
+$305,064 in statutory damages against a scraper of product photographs, $2 an image across 152,532.
+So: **take the string, never the image.** Century 21 v Rogers, 2011 BCSC 1196 confirms browse-wrap
+terms bind in Canada, with the injunction as the real remedy.
+
+**Clean, and worth saying because most of this section is negative:** plain Gemini/Vertex multimodal
+calls on a cropped photo are unrestricted for this use. Cloud Vision Web Detection is fine when it
+recovers a STRING and the returned URLs are never followed.
+
+**Through the front door, there is no door.** The Merchant API price-competitiveness report returns
+a GTIN-keyed cross-retailer benchmark for free, and forbids exactly Shin's product: *"Pricing data
+can't be resold, publicly displayed, advertised, or aggregated across businesses."* CSS is EEA,
+Switzerland and the UK, Canada excluded, and it is an ads channel rather than a feed. UCP looked like
+the one live thread; **measured, twelve retailers, zero manifests, including walmart.com and
+target.com which co-developed it.**
+
+**On the pipeline: there is nothing published to copy.** Google has never released a Lens
+architecture paper; the only primary description is two sentences in Encyclopedic-VQA (arXiv
+2306.09224). What that does confirm is that Google never derives a price from a picture either — the
+image selects an identity and the price arrives GTIN-keyed from feeds, which is already Shin's shape.
+The pick pass already IS the published re-ranking stage and the cascade already IS candidate
+generation.
+
+**The one buildable idea needs no vendor, no key and no model call:** text refinement on the unsure
+branch, a typed qualifier re-entering `this.#lookup` as a fourth query.
+
+**The metric gap worth closing first, at $0:** the eval cannot distinguish "the cascade never
+surfaced the row" from "the row was there and the pick chose wrong", and those have opposite fixes.
+Also recorded: at n=40 an observed 90% top-1 has a 95% interval of roughly 77-97%, so **forty photos
+cannot tell 85% from 95%**; 200 photos is about $3 a run against $0.60.
+
+**Not done:** no CanLII full-text search was run, so "s.342.1 has never been applied to scraping" is
+an absence of found precedent, not proven absence. A Gemini Deep Research run was started in his
+browser to close that gap and was left at its plan step.
+
 ## His five items get their steps written and four of them get built, 2026-09-13
 
 **His words:** *"LLM - model identifies the image, that model identifies the image / Look for a way

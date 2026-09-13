@@ -1163,3 +1163,95 @@ sees, not a ruder version of it. See D-092 for the half of that which shipped br
 space in a real browser on a real phone, in which case it becomes a plain space and the wrap
 hazard is accepted. Nothing here reverses on the English side, which is byte-identical to what it
 was.
+
+## "Never live search" stops being a measurement and becomes a contract
+**Date:** 2026-09-13 · **Status:** active
+
+`QUEUE.md`'s closed register killed "asking a search engine for a live price" on the 2026-09-03
+pilot, which is a MEASUREMENT, and measurements can be overturned by better measurements. That
+kill is now independently true on contract, which cannot.
+
+Grounding with Google Search is the one licensed Google product that could answer "what does this
+cost". Its terms (https://ai.google.dev/gemini-api/terms, effective 2026-03-23) say you will not
+*"cache, frame, syndicate, resell, analyze, train on, or otherwise learn from Grounded Results"*,
+and spell out the exact thing a price app would try: it is a violation *"to use Grounding with
+Google Search to extract or collect one or more of these components for another purpose (for
+example, using programmatic or automated means to collect Links, using Links to build an index, or
+using Links to identify destination pages for crawling or scraping)."* Shin stores a price,
+compares it, and renders a verdict: that is cache, analyze, and learn from, three of the six banned
+verbs. The two-year storage carve-out does not reach it, because the carve-out is for optimising
+display and for an end user's own chat history.
+
+**There is no Vertex-side escape.** The same clause appears word for word in the Google Cloud
+Service Specific Terms §(k) (https://cloud.google.com/terms/service-terms, last modified
+2026-07-29). Checked rather than assumed.
+
+The consequence for the register: that row's "reopens on" condition — a search-derived range
+reproduced against a live source — is **no longer sufficient by itself**. A reproduction would
+satisfy the measurement and still leave the contract standing.
+
+**Reverses if:** Google publishes terms that permit storing and comparing grounded prices, or a
+licensed price source appears whose terms allow public cross-retailer display. Note the opposite of
+this finding also holds and is good news: plain Gemini/Vertex multimodal calls on a cropped photo
+are **clean** — those terms restrict competing models and reverse engineering, and nothing there
+touches product identification.
+
+## Take the string, never the image
+**Date:** 2026-09-13 · **Status:** active
+
+**Trader Corporation v CarGurus, 2017 ONSC 1841.** An Ontario court awarded **$305,064** in
+statutory damages against a scraper of product photographs — $2 per image across 152,532 images —
+rejecting the originality defence, the information-location-tool defence, and fair dealing. It is
+the closest Canadian case to Shin's shape that anyone has found.
+
+So the rule is not a preference about tidiness: **whatever route Shin ever uses to identify a
+product, it takes back a NAME or a GTIN and never an image.** This already governs the Cloud Vision
+Web Detection design in item 36 (recover a string, do not follow the returned URLs); it now also
+governs the open question in that file about whether Open Food Facts photos could be uploaded as
+Product Search reference images, which stays open and is now a liability question rather than a
+licensing curiosity.
+
+Alongside it: **Century 21 Canada LP v Rogers Communications, 2011 BCSC 1196** — browse-wrap terms
+of use ARE enforceable in Canada. Damages were small; the injunction was the real remedy, which is
+the part that matters to a product that would have to stop.
+
+**Not legal advice, and the file says so in its first three lines.** `research/price-sources/37-google-lens-legal-position.md`
+is a sourced summary of published terms and reported outcomes. It also records what it could not do:
+**no CanLII full-text search was run**, so "s.342.1 has never been applied to ToS-violating
+scraping" is an absence of FOUND precedent, not proven absence. A Gemini Deep Research run was
+started on 2026-09-13 to close exactly that gap.
+
+**Reverses if:** a Canadian court distinguishes Trader on the ground that it was about photographs
+specifically and not about the factual listing data beneath them — which is the single most
+valuable thing the CanLII survey could return, and is why it was asked for by name.
+
+## The Universal Commerce Protocol is not deployed, measured rather than argued
+**Date:** 2026-09-13 · **Status:** active
+
+UCP is an open standard co-developed by Google with Walmart, Target and Shopify, under which a
+merchant publishes a machine-readable manifest at `/.well-known/ucp`, and `ucp.dev` lists "Catalog
+Search and Lookup" among its capabilities. On paper it was the one live route to product-and-price
+data through a front door, after the Merchant API turned out to forbid public display and the CSS
+programme turned out to exclude Canada.
+
+**Ruling first, because it decides whether the check was even allowed:** fetching
+`/.well-known/ucp` is NOT the killed direct-page-scraping method. The register killed fetching
+product pages built for humans and parsing prices out of the HTML. A `.well-known` URI (RFC 8615)
+is the opposite — a machine-readable contract the merchant publishes deliberately for programmatic
+consumption, the same class as `robots.txt` and the Walmart sitemap this repo already crawls in
+`price/src/walmart-sitemap.ts`. The boundary: following the manifest's own declared endpoints is
+fine; using it to discover product page URLs and scrape the HTML is the killed method renamed.
+
+**Then the measurement, one GET per host, 2026-09-13:** twelve retailers, **zero manifests.**
+walmart.ca, metro.ca, bestbuy.ca, costco.ca 404; canadiantire.ca, sobeys.com, londondrugs.com 403;
+shoppersdrugmart.ca failed to connect; loblaws.ca and realcanadiansuperstore.ca returned **200 with
+`Content-Type: text/html`** — soft-404s serving the app shell, not JSON, confirmed by parsing. And
+decisively, **walmart.com and target.com, the protocol's own named co-developers, both 404.**
+
+So the route does not exist yet in the market Shin sells into, and it does not exist at the firms
+that built it. Recorded so it is not re-proposed as an idea next month; the answer is a number, not
+an opinion.
+
+**Reverses if:** a repeat of the same twelve GETs returns a JSON manifest from any Canadian
+retailer. That check is cheap and worth re-running when a Canadian retailer announces UCP support,
+never on the strength of a press release about the protocol itself.
