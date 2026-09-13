@@ -5,7 +5,14 @@
  * five exports and no framework. A screen that needs a sixth thing should say
  * so rather than growing this file, because five modules import it and a file
  * five modules import is a file that has to stay boring.
+ *
+ * Two of the five now read the locale, because `ago` and `agoDays` produce
+ * sentences and not markup. They import lib/locale.js and nothing else, which
+ * keeps this file under ui-strings.js rather than beside it: the string tables
+ * are screen furniture and may depend on the floor, never the other way round.
  */
+
+import { locale } from './locale.js';
 
 /**
  * Text into HTML, safely.
@@ -69,13 +76,20 @@ export const raw = (value) => new Raw(value);
  * It is `agoDays` below.
  */
 export function ago(iso) {
+  const fr = locale() === 'fr';
   const at = Date.parse(iso);
-  if (!Number.isFinite(at)) return 'just now';
+  if (!Number.isFinite(at)) return fr ? 'a l’instant' : 'just now';
   const mins = Math.max(0, Math.round((Date.now() - at) / 60000));
-  if (mins < 60) return `${mins} min ago`;
+  /* The number is never touched by either branch, only the unit beside it and
+     the order the two go in. French puts the preposition in front ("il y a 12
+     min") where English puts it behind ("12 min ago"), which is exactly the
+     kind of move that breaks a sentence assembled by concatenation elsewhere;
+     assembled here, in one function, it cannot. */
+  if (mins < 60) return fr ? `il y a ${mins} min` : `${mins} min ago`;
   const h = Math.round(mins / 60);
-  if (h < 24) return `${h} h ago`;
-  return `${Math.round(h / 24)} d ago`;
+  if (h < 24) return fr ? `il y a ${h} h` : `${h} h ago`;
+  const d = Math.round(h / 24);
+  return fr ? `il y a ${d} j` : `${d} d ago`;
 }
 
 /**
@@ -85,10 +99,12 @@ export function ago(iso) {
  * thing that decides whether it still exists. Minutes would be noise.
  */
 export function agoDays(iso) {
+  const fr = locale() === 'fr';
   const at = Date.parse(iso);
-  if (!Number.isFinite(at)) return 'today';
+  if (!Number.isFinite(at)) return fr ? 'aujourd’hui' : 'today';
   const days = Math.floor((Date.now() - at) / 86400000);
-  if (days <= 0) return 'today';
+  if (days <= 0) return fr ? 'aujourd’hui' : 'today';
+  if (fr) return `il y a ${days} jour${days === 1 ? '' : 's'}`;
   return `${days} day${days === 1 ? '' : 's'} ago`;
 }
 

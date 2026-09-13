@@ -30,6 +30,7 @@ import { FLAGS } from '../flags.js';
 import { escapeHtml, html, raw, ago, on } from '../lib/dom.js';
 import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.js';
 import { pageBar, rowChevron, removeGlyph } from '../lib/pagebar.js';
+import { t } from '../ui-strings.js';
 
 /** The most recent history entry whose verdict identity matches a saved row's id. */
 function matchFor(history, id) {
@@ -58,10 +59,10 @@ export function row(w, history) {
   const match = matchFor(history, w.id);
   const conf = match ? confidenceOf(match.result) : null;
 
-  const delta = moved === null ? 'no usual price'
-    : moved === 0 ? 'at the usual'
-    : cheaper ? `▼ ${cad(Math.abs(moved))} under usual`
-    : `▲ ${cad(moved)} over usual`;
+  const delta = moved === null ? t('saved_no_usual')
+    : moved === 0 ? t('saved_at_the_usual')
+    : cheaper ? `▼ ${cad(Math.abs(moved))} ${t('saved_under_usual')}`
+    : `▲ ${cad(moved)} ${t('saved_over_usual')}`;
 
   // `data-fk` is the focus key the repainter finds this control by after a
   // full teardown. Built from the row's id, never its index, so it survives
@@ -83,7 +84,7 @@ export function row(w, history) {
       </button>
       <button type="button" class="rowdel wrow-del" data-unwatch="${w.id}" data-fk="del:${w.id}">
         ${raw(removeGlyph())}
-        <span class="sr-only">Remove ${w.label} from saved</span>
+        <span class="sr-only">${t('remove')} ${w.label} ${t('saved_remove_from')}</span>
       </button>
     </div>`;
 }
@@ -115,7 +116,7 @@ export function detailModal(w, match) {
           <p class="pmodal-meta">${v.identity.label}${source ? ` · ${source}` : ''} · ${ago(match.at)}</p>
           <p class="pmodal-conf">${conf.label}${raw(dotsHtml(conf.dots))}</p>
           <p class="pmodal-note">${say('read_only_note')}</p>
-          <button type="button" class="linky" data-act="close-detail">Close</button>
+          <button type="button" class="linky" data-act="close-detail">${t('close')}</button>
         </div>
       </div>`;
   }
@@ -137,7 +138,7 @@ export function detailModal(w, match) {
         <p class="said">${say('watchlist_saved_only', facts)}</p>
         <p class="pmodal-meta">${facts.seller ? `${facts.seller} · ` : ''}${facts.day}</p>
         <p class="pmodal-note">${say('watchlist_no_history_note')}</p>
-        <button type="button" class="linky" data-act="close-detail">Close</button>
+        <button type="button" class="linky" data-act="close-detail">${t('close')}</button>
       </div>
     </div>`;
 }
@@ -145,6 +146,7 @@ export function detailModal(w, match) {
 export default {
   id: 'watchlist',
   title: 'Saved',
+  titleKey: 'saved_title',
 
   render(root, ctx) {
     // AVATAR.md section 5 row 11: `wake`, once, the first time this session
@@ -228,7 +230,7 @@ export default {
         body = html`
           <div class="list-state">
             <p class="fineprint">${say('watchlist_failed')}</p>
-            <button type="button" class="linky" data-act="retry" data-fk="retry:watchlist">Try again</button>
+            <button type="button" class="linky" data-act="retry" data-fk="retry:watchlist">${t('try_again')}</button>
           </div>`;
       } else if (list.length) {
         body = html`
@@ -251,9 +253,9 @@ export default {
         <div class="page page-list">
           <header class="page-head">
             ${raw(list.length && phase === 'ready'
-              ? html`<p class="kicker">${list.length} thing${list.length === 1 ? '' : 's'} · ${dropped.length} under the usual</p>`
+              ? html`<p class="kicker">${t('saved_kicker_things', { n: String(list.length) })} · ${dropped.length} ${t('saved_under_the_usual')}</p>`
               : '')}
-            <h1>Saved</h1>
+            <h1>${t('saved_title')}</h1>
           </header>
 
           ${raw(
@@ -268,10 +270,10 @@ export default {
                    <div>
                      <b>${say('dropped', {
                        asking: cad(dropped[0].lastCents),
-                       seller: dropped[0].askingSeller ?? 'the seller you saved it at',
+                       seller: dropped[0].askingSeller ?? t('saved_the_seller'),
                        usual: cad(dropped[0].usualCents),
                      })}</b>
-                     <span>${dropped[0].label}, under the usual ${cad(dropped[0].usualCents)}.</span>
+                     <span>${dropped[0].label}${t('saved_comma_under_the_usual')} ${cad(dropped[0].usualCents)}.</span>
                    </div>
                  </div>`
               : '',
@@ -279,15 +281,15 @@ export default {
 
           ${raw(body)}
 
-          <h2 class="sect-h">More</h2>
+          <h2 class="sect-h">${t('nav_more')}</h2>
           <div class="wmore ilist">
             <button type="button" class="ilist-row" data-act="pastscans" data-fk="nav:pastscans">
-              <span class="ilist-l">Past scans</span>
+              <span class="ilist-l">${t('past_scans')}</span>
               <span class="ilist-v">${s.history.length}</span>
               ${raw(rowChevron())}
             </button>
             <button type="button" class="ilist-row" data-act="removed" data-fk="nav:removed">
-              <span class="ilist-l">Recently removed</span>
+              <span class="ilist-l">${t('removed_title')}</span>
               <span class="ilist-v">${s.removed.length}</span>
               ${raw(rowChevron())}
             </button>

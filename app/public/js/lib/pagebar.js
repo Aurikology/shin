@@ -18,6 +18,8 @@
  * carry a label under them rather than sitting alone over a photograph.
  */
 
+import { t } from '../ui-strings.js';
+
 /** The bookmark, `data-act="watchlist"`. Same path as camera.js's nav button. */
 const SAVED_ICON = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
@@ -94,9 +96,9 @@ function item(act, label, icon, active) {
  */
 export function pageBar(activeId) {
   return `<nav class="page-bar" aria-label="Shin">
-      ${item('watchlist', 'Saved', SAVED_ICON, activeId === 'watchlist')}
-      <button type="button" class="mini-shutter" data-act="camera" aria-label="Scan something" data-fk="nav:camera"></button>
-      ${item('you', 'You', YOU_ICON, activeId === 'you')}
+      ${item('watchlist', t('nav_saved'), SAVED_ICON, activeId === 'watchlist')}
+      <button type="button" class="mini-shutter" data-act="camera" aria-label="${t('nav_scan')}" data-fk="nav:camera"></button>
+      ${item('you', t('nav_you'), YOU_ICON, activeId === 'you')}
     </nav>`;
 }
 
@@ -108,7 +110,7 @@ export function pageBar(activeId) {
  * be looking at before, which is not a parent.
  */
 export function backButton() {
-  return `<button type="button" class="pbk" data-act="back" aria-label="Back" data-fk="nav:back">${CHEVRON_LEFT}</button>`;
+  return `<button type="button" class="pbk" data-act="back" aria-label="${t('nav_back')}" data-fk="nav:back">${CHEVRON_LEFT}</button>`;
 }
 
 /**

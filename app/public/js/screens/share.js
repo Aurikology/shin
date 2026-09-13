@@ -32,6 +32,7 @@
 import { faceSvg, cad, confidenceOf, tierOf, sellerOf, SIZE_TOKENS } from '../shin.js';
 import { wordFor, say } from '../voice.js';
 import { on } from '../lib/dom.js';
+import { t } from '../ui-strings.js';
 
 const W = 1080;
 const H = 1350;
@@ -416,11 +417,11 @@ async function drawCard(canvas, card) {
     g.font = `${f.bodyWeight} ${subSize(f)}px ${f.ui}`;
     wrap(g, sub, mid - pad - 30, 1).forEach((l) => g.fillText(l, x, boxTop + 194));
   };
-  col(W * 0.27, 'ON THE TAG', card.askingText, card.askingSub, t.ink);
+  col(W * 0.27, t('share_on_the_tag_caps'), card.askingText, card.askingSub, t.ink);
   // t.tierBright, not t.tier: this text sits on --surface, not on the tier
   // field, and the field colour under-contrasts there. See the TOKENS
   // comment above.
-  col(W * 0.73, 'ELSEWHERE', card.elsewhereText, card.elsewhereSub, t.tierBright);
+  col(W * 0.73, t('share_elsewhere_caps'), card.elsewhereText, card.elsewhereSub, t.tierBright);
 
   /*
    * How sure Shin was, on the card, because a screenshot outlives the screen.
@@ -461,10 +462,10 @@ async function drawCard(canvas, card) {
 /** What the card would say if it had to be typed into a message box. */
 function cardText(card) {
   return [
-    `Shin says: ${card.word}.`,
+    `${t('share_shin_says')} ${card.word}.`,
     card.label,
-    `On the tag: ${card.askingText}${card.askingSub ? ` (${card.askingSub})` : ''}`,
-    `Elsewhere: ${card.elsewhereText}${card.elsewhereSub ? ` (${card.elsewhereSub})` : ''}`,
+    `${t('share_on_the_tag')} ${card.askingText}${card.askingSub ? ` (${card.askingSub})` : ''}`,
+    `${t('share_elsewhere')} ${card.elsewhereText}${card.elsewhereSub ? ` (${card.elsewhereSub})` : ''}`,
     '',
     card.line,
   ].join('\n');
@@ -473,6 +474,7 @@ function cardText(card) {
 export default {
   id: 'share',
   title: 'Share',
+  titleKey: 'share_title',
 
   render(root, ctx) {
     const entry = ctx.store.get().history.find(
@@ -496,12 +498,12 @@ export default {
       line: say(v.tier, { asking: cad(v.askingCents), usual: cad(v.spread.medianCents) }),
       label: v.identity.label,
       askingText: cad(v.askingCents),
-      askingSub: sellerOf(v) ? `at ${sellerOf(v)}` : '',
+      askingSub: sellerOf(v) ? `${t('share_at_seller', { seller: sellerOf(v) })}` : '',
       elsewhereText: cad(v.spread.medianCents),
       elsewhereSub:
         v.spread.lowCents === v.spread.highCents
-          ? 'one price, one seller'
-          : `${cad(v.spread.lowCents)} to ${cad(v.spread.highCents)}`,
+          ? t('share_one_price_one_seller')
+          : t('share_range', { low: cad(v.spread.lowCents), high: cad(v.spread.highCents) }),
       confidence: conf.label.toUpperCase(),
       /* Uppercased so it sits in the label role beside the two price kickers
          and the confidence line, which is the role mono is reserved for. */
@@ -513,16 +515,16 @@ export default {
     root.innerHTML = `
       <div class="page page-share">
         <header class="page-head">
-          <p class="kicker">No link in the frame, on purpose</p>
-          <h1>Post it</h1>
+          <p class="kicker">${t('share_kicker')}</p>
+          <h1>${t('share_post_it')}</h1>
         </header>
 
-        <p class="fineprint">A link would make a preview that reads as spam.</p>
+        <p class="fineprint">${t('share_no_link_why')}</p>
 
         <div class="shr-frame">
           <canvas class="shr-canvas"
                   role="img"
-                  aria-label="Shin card. ${card.word}. ${card.label}. On the tag ${card.askingText}. Elsewhere ${card.elsewhereText}."></canvas>
+                  aria-label="${t('share_card_alt', { word: card.word, label: card.label, asking: card.askingText, elsewhere: card.elsewhereText })}"></canvas>
           <pre class="shr-fallback" hidden></pre>
         </div>
 
@@ -535,10 +537,10 @@ export default {
              sat under it, the same shape as the You screen's build-line bug
              shell.css's page-bar comment records. -->
         <div class="page-foot">
-          <button type="button" class="cta" data-act="save">Save the image</button>
+          <button type="button" class="cta" data-act="save">${t('share_save_image')}</button>
           <div class="shr-secondary">
-            <button type="button" class="linky" data-act="copy">Copy as text</button>
-            <button type="button" class="linky" data-act="back">Back to the camera</button>
+            <button type="button" class="linky" data-act="copy">${t('share_copy_text')}</button>
+            <button type="button" class="linky" data-act="back">${t('back_to_camera')}</button>
           </div>
         </div>
       </div>`;
@@ -583,7 +585,7 @@ export default {
         await drawCard(canvas, card);
       } catch (err) {
         if (gone()) return;
-        degrade(err, 'The card did not draw:');
+        degrade(err, t('share_card_failed'));
       }
     })();
 
@@ -596,18 +598,18 @@ export default {
           await navigator.clipboard.writeText(cardText(card));
           if (gone()) return;
           ctx.store.update((s) => ({ ...s, shareCount: (s.shareCount ?? 0) + 1 }));
-          status.textContent = 'Copied as text.';
+          status.textContent = t('share_copied');
         } catch {
           if (gone()) return;
           fallback.hidden = false;
           fallback.textContent = cardText(card);
-          status.textContent = 'The clipboard is blocked here, so the text is above.';
+          status.textContent = t('share_clipboard_blocked');
         }
         return;
       }
 
       if (act === 'save') {
-        status.textContent = 'Rendering...';
+        status.textContent = t('share_rendering');
         try {
           await drawCard(canvas, card);
           const blob = await new Promise((res, rej) => {
@@ -623,11 +625,11 @@ export default {
           a.remove();
           setTimeout(() => URL.revokeObjectURL(url), 4000);
           ctx.store.update((s) => ({ ...s, shareCount: (s.shareCount ?? 0) + 1 }));
-          status.textContent = 'Saved to your downloads.';
+          status.textContent = t('share_saved_to_downloads');
         } catch (err) {
           if (gone()) return;
-          const named = degrade(err, 'The image would not export, and the text version is above:');
-          if (!named) status.textContent = 'The image would not export here. The text version is above.';
+          const named = degrade(err, t('share_export_failed_text'));
+          if (!named) status.textContent = t('share_export_failed');
         }
       }
     }, listeners.signal);

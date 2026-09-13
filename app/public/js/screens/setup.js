@@ -11,16 +11,18 @@
  * the request makes sense to them.
  */
 
-import { PERSONALITIES, setPersonality, personality, say } from '../voice.js';
+import { PERSONALITIES, personalityCopy, setPersonality, personality, say } from '../voice.js';
 import { shinSay, updateShinSay } from '../shin.js';
 import * as store from '../store.js';
 import { escapeHtml, on } from '../lib/dom.js';
 import { wireRadioGroup } from '../lib/radiogroup.js';
 import { storagePersists } from '../lib/persistence.js';
+import { t } from '../ui-strings.js';
 
 export default {
   id: 'setup',
   title: 'Pick your Shin',
+  titleKey: 'setup_title',
 
   render(root, ctx) {
     const current = store.get().personality ?? null;
@@ -33,12 +35,12 @@ export default {
     root.innerHTML = `
       <div class="page">
         <header class="page-head">
-          <p class="kicker">One question, then the camera</p>
-          <h1>Which Shin do you want?</h1>
+          <p class="kicker">${escapeHtml(t('setup_kicker'))}</p>
+          <h1>${escapeHtml(t('setup_heading'))}</h1>
         </header>
 
-        <div class="atts atts-row" role="radiogroup" aria-label="Shin's attitude">
-          ${PERSONALITIES.map(
+        <div class="atts atts-row" role="radiogroup" aria-label="${escapeHtml(t('you_attitude_group'))}">
+          ${PERSONALITIES.map((q) => personalityCopy(q.id)).map(
             (p) => `
             <button type="button" class="att${p.id === (current ?? 'deadpan') ? ' on' : ''}"
                     role="radio" aria-checked="${p.id === (current ?? 'deadpan')}" data-who="${escapeHtml(p.id)}">
@@ -51,7 +53,7 @@ export default {
         </div>
 
         <p class="fineprint">
-          Changeable any time. The attitude changes the words and never the number.
+          ${escapeHtml(t('setup_promise'))}
         </p>
 
         ${
@@ -68,7 +70,7 @@ export default {
         }
 
         <div class="page-foot">
-          <button type="button" class="cta" data-act="go">Start scanning</button>
+          <button type="button" class="cta" data-act="go">${escapeHtml(t('setup_start'))}</button>
         </div>
       </div>`;
 

@@ -1,10 +1,20 @@
 <!doctype html>
+<!--
+  `lang` is en here and is rewritten on every paint by router.js, through
+  applyLang() in js/lib/locale.js, to whatever language is actually in force.
+  It has to have a value in the served bytes because the document is parsed and
+  a screen reader may start speaking before any module has run; en is the
+  honest default for that window, and it is the same default lib/locale.js
+  falls back to. Everything below that a person reads before scripting starts
+  (the title, the description, the noscript) is written in BOTH languages for
+  the same reason: none of it can be swapped in time to matter.
+-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Shin</title>
-<meta name="description" content="Point at a thing. Shin tells you whether the price is fair.">
+<meta name="description" content="Point at a thing. Shin tells you whether the price is fair. Pointe un objet. Shin te dit si le prix est correct.">
 
 <!--
   Dark is the design and light is the accommodation (tokens.css), so dark is
@@ -102,6 +112,12 @@
       <h1>Shin cannot open.</h1>
       <p>The whole app is a camera and an answer, and both of them are script. There is nothing here to read with JavaScript switched off.</p>
       <p>Turn it on for this site and reload.</p>
+      <hr>
+      <div lang="fr-CA">
+        <h1>Shin ne peut pas s&#8217;ouvrir.</h1>
+        <p>Toute l&#8217;application est une cam&#233;ra et une r&#233;ponse, et les deux sont du script. Il n&#8217;y a rien &#224; lire ici avec JavaScript d&#233;sactiv&#233;.</p>
+        <p>Active-le pour ce site et recharge la page.</p>
+      </div>
     </div>
   </noscript>
 

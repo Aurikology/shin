@@ -410,6 +410,20 @@ interface Identified {
   readonly product: {
     readonly code: string;
     readonly name: string;
+    /**
+     * The catalogue's own French name for this product, when it has one.
+     *
+     * A SEPARATE COLUMN AND NOT A TRANSLATION. catalogue/src/schema.ts keeps
+     * `name_en` and `name_fr` apart deliberately, and these are real names
+     * written by whoever published the row, not machine output: "Croustilles
+     * ondulees" is what the bag says in Quebec, and no translator would produce
+     * it from "Wavy Chips". So the French client prefers this and falls back to
+     * `name` when it is absent, which is most rows.
+     *
+     * Null is the normal case and never an error. The client's own fallback is
+     * what makes it safe to ship before the catalogue is filled in.
+     */
+    readonly nameFr: string | null;
     readonly brands: string | null;
     readonly quantity: string | null;
     readonly sizeValue: number | null;
@@ -555,6 +569,7 @@ async function identify(query: {
         sizeValue: number | null;
         sizeUnit: string | null;
         soldInCanada: boolean;
+        nameFr: string | null;
         leafCategory: string | null;
         categoryPath: string[];
         source: string;
@@ -643,6 +658,11 @@ async function identify(query: {
       product: {
         code: top.code,
         name: top.name,
+        /* `?? null` rather than passed straight through: this field is declared
+           on the catalogue's Candidate and the local type above is a structural
+           copy, so a build whose catalogue predates the column hands back
+           undefined here and the contract says null. */
+        nameFr: top.nameFr ?? null,
         brands: top.brands,
         quantity: top.quantity,
         sizeValue: top.sizeValue,
@@ -1088,6 +1108,10 @@ async function identifyPhoto(
     product: {
       code: chosen.code,
       name: chosen.name,
+      /* The raw row when there is one, because only it carries the column; the
+         structural candidate a test hands back does not, and null is the
+         honest answer there rather than a thrown property access. */
+      nameFr: row.nameFr ?? null,
       brands: chosen.brands,
       quantity: chosen.quantity,
       sizeValue: chosen.sizeValue,

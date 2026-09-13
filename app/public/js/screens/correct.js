@@ -39,6 +39,7 @@ import { escapeHtml, on } from '../lib/dom.js';
  */
 import { keypadHtml, pricePadDisplay } from './camera.js';
 import { storagePersists } from '../lib/persistence.js';
+import { t } from '../ui-strings.js';
 
 /**
  * The product this correction is about, best available.
@@ -94,6 +95,7 @@ function gateReason(typed, seller) {
 export default {
   id: 'correct',
   title: 'Tell Shin the price',
+  titleKey: 'correct_title',
 
   render(root, ctx) {
     let typed = '';
@@ -103,13 +105,13 @@ export default {
     const ac = new AbortController();
 
     const subject = subjectOf(ctx.params);
-    const label = subject.label ?? 'this';
+    const label = subject.label ?? t('cam_this');
 
     function paint() {
       root.innerHTML = `
         <div class="page page-correct">
           <header class="page-head${saved ? '' : ' ph-with-face'}">
-            <p class="kicker">Teach Shin</p>
+            <p class="kicker">${escapeHtml(t('correct_kicker'))}</p>
             ${saved ? '' : faceBlock('asking', { size: 64 })}
             <h1>${say('correct_ask')}</h1>
           </header>
@@ -121,18 +123,18 @@ export default {
                    <p>${say('correct_thanks')}</p>
                  </div>`
               : `
-          <div class="amount" role="status" aria-label="Price typed so far">
+          <div class="amount" role="status" aria-label="${escapeHtml(t('correct_price_typed'))}">
             <span class="amount-cur">$</span>${pricePadDisplay(typed)}
           </div>
 
           <label class="seller">
-            <span>Which shop?</span>
-            <input type="text" inputmode="text" autocomplete="off" placeholder="Metro, No Frills, a listing…"
+            <span>${escapeHtml(t('correct_which_shop'))}</span>
+            <input type="text" inputmode="text" autocomplete="off" placeholder="${escapeHtml(t('correct_shop_placeholder'))}"
                    class="field" value="${escapeHtml(seller)}" data-seller>
           </label>
 
           <button type="button" class="chip${onSale ? ' chip-on' : ''}" data-act="sale"
-                  aria-pressed="${onSale ? 'true' : 'false'}">On sale</button>
+                  aria-pressed="${onSale ? 'true' : 'false'}">${escapeHtml(t('correct_on_sale'))}</button>
 
           <div class="pad">${keypadHtml()}</div>
 
@@ -167,8 +169,8 @@ export default {
             <p class="fineprint gate" data-gate role="status">${escapeHtml(gateReason(typed, seller) ?? '')}</p>
             <button type="button" class="cta" data-act="save" ${
               gateReason(typed, seller) ? 'disabled' : ''
-            }>Save it</button>
-            <button type="button" class="linky" data-act="back">Not now</button>
+            }>${escapeHtml(t('correct_save_it'))}</button>
+            <button type="button" class="linky" data-act="back">${escapeHtml(t('correct_not_now'))}</button>
           </div>`
           }
         </div>`;

@@ -19,6 +19,7 @@ import * as store from '../store.js';
 import { html, raw, agoDays, on } from '../lib/dom.js';
 import { repainter } from '../lib/listscreen.js';
 import { pageBar, backButton, goBack, removeGlyph, restoreGlyph } from '../lib/pagebar.js';
+import { t } from '../ui-strings.js';
 
 function itemOf(r) {
   if (r.kind === 'watch') {
@@ -26,7 +27,7 @@ function itemOf(r) {
   }
   const isVerdict = r.result?.kind === 'verdict';
   return {
-    label: isVerdict ? r.result.identity.label : (r.result?.identity?.label ?? r.query?.text ?? 'Unknown item'),
+    label: isVerdict ? r.result.identity.label : (r.result?.identity?.label ?? r.query?.text ?? t('removed_unknown_item')),
     cents: isVerdict ? r.result.askingCents : (r.query?.askingCents ?? null),
   };
 }
@@ -79,18 +80,20 @@ export function row(r, confirmKey) {
       <div class="rrow">
         <span class="row-n">
           <b class="row-title">${label}</b>
-          <span class="row-sub">Removed ${agoDays(r.removedAt)} · ${left} day${left === 1 ? '' : 's'} left</span>
+          <span class="row-sub">${t('removed_label')} ${agoDays(r.removedAt)} · ${t('removed_days_left', { n: String(left) })}</span>
         </span>
         <span class="rrow-p money">${typeof cents === 'number' ? cad(cents) : '--'}</span>
       </div>
       <button type="button" class="rowdel rrow-restore" data-restore="${key}" data-fk="restore:${key}">
         ${raw(restoreGlyph())}
-        <span class="sr-only">Restore ${label}</span>
+        <span class="sr-only">${t('restore')} ${label}</span>
       </button>
       <button type="button" class="rowdel rrow-del${confirming ? ' confirming' : ''}"
               data-del="${key}" data-fk="del:${key}">
-        ${raw(confirming ? '<span class="rrow-confirm">Tap again, gone for good</span>' : removeGlyph())}
-        <span class="sr-only">${confirming ? `Press again to delete ${label} for good` : `Delete ${label} for good`}</span>
+        ${raw(confirming ? `<span class="rrow-confirm">${t('removed_tap_again')}</span>` : removeGlyph())}
+        <span class="sr-only">${confirming
+          ? `${t('removed_press_again')} ${label} ${t('removed_for_good')}`
+          : `${t('delete')} ${label} ${t('removed_for_good')}`}</span>
       </button>
     </div>`;
 }
@@ -98,6 +101,7 @@ export function row(r, confirmKey) {
 export default {
   id: 'removed',
   title: 'Recently removed',
+  titleKey: 'removed_title',
 
   render(root, ctx) {
     let confirmKey = null;
@@ -128,7 +132,7 @@ export default {
         body = html`
           <div class="list-state">
             <p class="fineprint">${say('removed_failed')}</p>
-            <button type="button" class="linky" data-act="retry" data-fk="retry:removed">Try again</button>
+            <button type="button" class="linky" data-act="retry" data-fk="retry:removed">${t('try_again')}</button>
           </div>`;
       } else if (list.length) {
         body = html`<div class="rlist">${raw(list.map((r) => row(r, confirmKey)).join(''))}</div>`;
@@ -164,8 +168,8 @@ export default {
         <div class="page page-list">
           <header class="page-head">
             ${raw(backButton())}
-            ${raw(phase === 'ready' ? html`<p class="kicker">Recently removed · ${list.length}</p>` : '')}
-            <h1>Recently removed</h1>
+            ${raw(phase === 'ready' ? html`<p class="kicker">${t('removed_title')} · ${list.length}</p>` : '')}
+            <h1>${t('removed_title')}</h1>
           </header>
 
           ${raw(

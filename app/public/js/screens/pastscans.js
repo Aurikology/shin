@@ -28,6 +28,7 @@ import * as store from '../store.js';
 import { escapeHtml, html, raw, ago, on } from '../lib/dom.js';
 import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.js';
 import { pageBar, backButton, goBack, removeGlyph } from '../lib/pagebar.js';
+import { t } from '../ui-strings.js';
 
 /*
  * The eight refusal reasons used to be a map here, described in this comment
@@ -44,7 +45,7 @@ import { pageBar, backButton, goBack, removeGlyph } from '../lib/pagebar.js';
 /** The name to show for a history entry, verdict or refusal. */
 function labelOf(h) {
   const isVerdict = h.result?.kind === 'verdict';
-  return isVerdict ? h.result.identity.label : (h.result?.identity?.label ?? h.query?.text ?? 'Unknown item');
+  return isVerdict ? h.result.identity.label : (h.result?.identity?.label ?? h.query?.text ?? t('past_scans_unknown_item'));
 }
 
 /**
@@ -77,11 +78,11 @@ export function row(h) {
           <b class="row-title">${label}</b>
           <span class="row-sub">${sub}</span>
         </span>
-        <span class="prow-p">${typeof askingCents === 'number' ? cad(askingCents) : 'no price given'}</span>
+        <span class="prow-p">${typeof askingCents === 'number' ? cad(askingCents) : t('past_scans_no_price')}</span>
       </button>
       <button type="button" class="rowdel prow-del" data-remove="${h.id}" data-fk="del:${h.id}">
         ${raw(removeGlyph())}
-        <span class="sr-only">Remove the scan of ${label}</span>
+        <span class="sr-only">${t('past_scans_remove_of')} ${label}</span>
       </button>
     </div>`;
 }
@@ -113,7 +114,7 @@ export function detail(h) {
           <p class="pmodal-meta">${v.identity.label}${source ? ` · ${source}` : ''} · ${ago(h.at)}</p>
           <p class="pmodal-conf">${conf.label}${raw(dotsHtml(conf.dots))}</p>
           <p class="pmodal-note">${say('read_only_note')}</p>
-          <button type="button" class="linky" data-act="close-detail">Close</button>
+          <button type="button" class="linky" data-act="close-detail">${t('close')}</button>
         </div>
       </div>`;
   }
@@ -124,10 +125,10 @@ export function detail(h) {
       <div class="pmodal-card" data-tier="unknown" tabindex="-1">
         ${raw(faceBlock('unknown', { size: 'face-verdict' }))}
         <h2>${refusalLabel(r?.reason)}</h2>
-        <p class="pmodal-meta">${h.query?.text ?? 'Unknown item'} · ${ago(h.at)}</p>
+        <p class="pmodal-meta">${h.query?.text ?? t('past_scans_unknown_item')} · ${ago(h.at)}</p>
         <p class="said">${r?.detail ?? ''}</p>
         <p class="pmodal-note">${say('read_only_note')}</p>
-        <button type="button" class="linky" data-act="close-detail">Close</button>
+        <button type="button" class="linky" data-act="close-detail">${t('close')}</button>
       </div>
     </div>`;
 }
@@ -135,6 +136,7 @@ export function detail(h) {
 export default {
   id: 'pastscans',
   title: 'Past scans',
+  titleKey: 'past_scans',
 
   render(root, ctx) {
     let openId = null;
@@ -179,7 +181,7 @@ export default {
         // 2026-09-06, and escaping twice is a visible bug rather than a safe
         // default -- escapeHtml is not idempotent.
         const facts = last ? {
-          item: last.result?.identity?.label ?? last.query?.text ?? 'that one',
+          item: last.result?.identity?.label ?? last.query?.text ?? t('past_scans_that_one'),
           verdict: isVerdict ? wordFor(last.result.tier) : 'refused',
         } : {};
         return shinSay(face, 'pastscans_callback', facts, { size: 64, anim: 'idle-breath' });
@@ -194,7 +196,7 @@ export default {
         body = html`
           <div class="list-state">
             <p class="fineprint">${say('pastscans_failed')}</p>
-            <button type="button" class="linky" data-act="retry" data-fk="retry:pastscans">Try again</button>
+            <button type="button" class="linky" data-act="retry" data-fk="retry:pastscans">${t('try_again')}</button>
           </div>`;
       } else if (list.length) {
         body = html`
@@ -212,8 +214,8 @@ export default {
         <div class="page page-list">
           <header class="page-head">
             ${raw(backButton())}
-            ${raw(phase === 'ready' ? html`<p class="kicker">Past scans · ${list.length}</p>` : '')}
-            <h1>Past scans</h1>
+            ${raw(phase === 'ready' ? html`<p class="kicker">${t('past_scans')} · ${list.length}</p>` : '')}
+            <h1>${t('past_scans')}</h1>
           </header>
 
           ${raw(body)}

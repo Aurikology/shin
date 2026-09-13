@@ -234,8 +234,17 @@ test('the scanner actually reads the screens', () => {
   // had: green because it was measuring nothing.
   assert.ok(FILES.length >= 10, `only ${FILES.length} screen files found`);
   assert.ok(SEGMENTS.length > 200, `only ${SEGMENTS.length} text runs found; the scanner has probably stopped matching`);
+  /*
+   * The canary used to be setup.js's own heading, "Which Shin do you want?".
+   * It is not in a screen any more: the French interface (item 31) moved every
+   * user-facing English literal out of the screens and into ui-strings.js,
+   * which is the whole point of Rule 3 below, so a canary made of prose would
+   * now be asserting the opposite of what the file wants. It is a string that
+   * is still legitimately in a screen instead: `deadpan`, setup.js's default
+   * personality id, which is a code value and is meant to stay there.
+   */
   assert.ok(
-    SEGMENTS.some((s) => s.file === 'setup.js' && s.text === 'Which Shin do you want?'),
+    SEGMENTS.some((s) => s.file === 'setup.js' && s.text === 'deadpan'),
     'the scanner cannot see a string it is standing on',
   );
 });
@@ -499,6 +508,175 @@ test('every allowlist entry carries a reason somebody wrote', () => {
 });
 
 /* ------------------------------------------------------------------ *
+ * Rule 3: hard-ish. No user-facing ENGLISH in a screen at all.
+ * ------------------------------------------------------------------ *
+ *
+ * ADDED WITH THE FRENCH INTERFACE (item 31), and it is the rule that stops
+ * this regressing next week.
+ *
+ * Rules 1 and 2 above are about WHO is speaking. This one is about WHETHER THE
+ * WORDS CAN CHANGE LANGUAGE AT ALL. A screen that hardcodes "Undo", "Share" or
+ * "Going rate" is not breaking either of them: none of those is first person
+ * and none is a sentence. They are chrome, correctly identified as chrome, and
+ * in one language that is the end of it. In two it is an English button on a
+ * French page, and nothing in this file could see it.
+ *
+ * So: a literal in a screen that reads as English prose fails, and the two
+ * ways out are the same two Rule 2 offers, one layer along. Either it is Shin
+ * and gets a voice.js key in every locale and personality, or it is chrome and
+ * gets a ui-strings.js key in every locale. The screen holds neither table.
+ *
+ * WHAT COUNTS AS "READS AS ENGLISH PROSE" is `looksEnglish` below, and it is
+ * deliberately conservative: a screen file is mostly CSS class names, data
+ * attributes, selectors, event names and dataset keys, and a rule that fired
+ * on those would be noise nobody reads. It wants at least two words, or one
+ * capitalised word that is not an identifier. Everything it cannot judge falls
+ * through as NOT prose, which means this rule under-reports rather than
+ * over-reports; that is the right way for it to be wrong, because an
+ * over-reporting rule gets an allowlist entry per false positive and dies.
+ *
+ * NOT_SHOWN is the allowlist and, as with Rule 2, the entries are the artefact.
+ * Every one of them is an English string that is genuinely never read by a
+ * shopper: a console message, a CSS selector with a space in it, a keyboard key
+ * name, a font stack, a stored value that must not move with the language.
+ */
+
+/** The strings a screen may still hold in English, with why nobody reads them. */
+const NOT_SHOWN = [
+  /* --- console output. Addressed to whoever is running this, never shown. --- */
+  { file: 'camera.js', text: 'not-this search failed:', why: 'console.error prefix. Goes to the console, where the person who can act on it is; D-011 is what happens when one of these reaches a screen instead.' },
+  { file: 'camera.js', text: 'scan failed:', why: 'console.error prefix for a thrown scan, addressed to whoever is running this.' },
+  { file: 'camera.js', text: 'photo identify failed:', why: 'console.error prefix for a thrown photo call, addressed to whoever is running this.' },
+  { file: 'camera.js', text: 'could not queue an offline photo:', why: 'console.error prefix for a queue write that failed, developer-facing only.' },
+  { file: 'pastscans.js', text: 'Past scans failed to render', why: 'console.error message in the screen\'s own render guard. The person holding the phone sees the error state, not this string.' },
+  { file: 'removed.js', text: 'Recently removed failed to render', why: 'console.error message in the render guard on this screen. The shopper sees the error state; this names the screen for whoever reads the log.' },
+  { file: 'watchlist.js', text: 'Saved failed to render', why: 'console.error message in the render guard on this screen, same reasoning as the two above it.' },
+  { file: 'you.js', text: 'scan log could not be written:', why: 'console.error prefix. The sentence the screen shows for this is a voice.js key; the cause goes where somebody can read it.' },
+  { file: 'share.js', text: 'share card:', why: 'console group label for the card draw, developer-facing only.' },
+  { file: 'share.js', text: 'card draw failed', why: 'console.error message for a canvas that would not draw. What the reader gets is share_card_failed.' },
+  { file: 'share.js', text: 'did not resolve from the live stylesheet', why: 'The message of a thrown MissingTokenError, caught and logged. A token that is missing is a build problem, not something a shopper is told about.' },
+
+  /* --- selectors, key names and stored values. Not language at all. --- */
+  { file: 'camera.js', text: '.grabber, .sheet-head', why: 'A CSS selector passed to querySelector. It has a space in it because the selector list does, not because it is a sentence.' },
+  { file: 'camera.js', text: 'input, textarea, select', why: 'A CSS selector list used to decide whether a key press belongs to a field.' },
+  { file: 'watchlist.js', text: '.wlist-head .face', why: 'A CSS descendant selector passed to querySelector; the space is the combinator.' },
+  { file: 'watchlist.js', text: '.empty .face', why: 'A CSS descendant selector passed to querySelector, not a phrase anybody reads.' },
+  { file: 'camera.js', text: 'NFKD', why: 'The Unicode normalisation form passed to String.normalize, a constant of the platform rather than a word.' },
+  { file: 'camera.js', text: 'a thing shin has never seen', why: 'A query string sent to the engine on purpose, to make it produce its own honest refusal rather than the app faking one. It is a search term, not a label; translating it would change what is asked.' },
+  { file: 'market.js', text: 'United States', why: 'A STORED market value, not a shown one. market.js\'s MARKETS comment has the whole reasoning: the country is what store.market() writes and what a future comparison keys on, so it stays English in every language and country_us is what the row prints.' },
+  { file: 'market.js', text: 'United Kingdom', why: 'A stored market value that must not move with the language, the same as United States above it.' },
+
+  { file: 'camera.js', text: 'Escape', why: 'A KeyboardEvent.key value compared against in the sheet key handler. A platform constant, the same string on a French keyboard.' },
+  { file: 'camera.js', text: 'Canada', why: 'The default market value when store.market() has none, and it is the STORED form, not the shown one. countryIn() is what puts it on screen.' },
+  { file: 'market.js', text: 'Canada', why: 'A stored market value, same reasoning as United States and United Kingdom above it.' },
+  { file: 'share.js', text: 'toBlob gave nothing', why: 'The message of an Error thrown and caught inside the save path, so the console gets it. What the reader gets is share_export_failed.' },
+
+  /* --- the registered screen titles ---
+   *
+   * A screen registers `title` in English and `titleKey` beside it. The
+   * literal is the screen's own name in the source and the identity
+   * test/title.test.mjs reads off the module; router.js prints t(titleKey) in
+   * the tab and the route announcement, so nothing a person reads comes from
+   * the literal. Listed one per screen rather than filtered by field name,
+   * because the day a screen registers a title with no titleKey beside it is
+   * the day this list stops matching and somebody has to look. --- */
+  { file: 'camera.js', text: 'Shin', why: 'The camera\'s registered title, and it is the app name: titleFor() in router.js has the reasoning for why this screen is titled after the app rather than after itself.' },
+  { file: 'consent.js', text: 'Your data', why: 'The registered title. consent_title is what the tab and the announcement print; this literal is the screen\'s name in the source.' },
+  { file: 'correct.js', text: 'Tell Shin the price', why: 'The registered title, translated through correct_title. Same split as every other screen.' },
+  { file: 'licences.js', text: 'Where this comes from', why: 'The registered title, translated through lic_kicker. Same split.' },
+  { file: 'market.js', text: 'Where do you shop?', why: 'The registered title, translated through market_title. Same split.' },
+  { file: 'pastscans.js', text: 'Past scans', why: 'The registered title, translated through past_scans. Same split.' },
+  { file: 'removed.js', text: 'Recently removed', why: 'The registered title, translated through removed_title. Same split.' },
+  { file: 'setup.js', text: 'Pick your Shin', why: 'The registered title, translated through setup_title. Same split.' },
+  { file: 'share.js', text: 'Share', why: 'The registered title, translated through share_title. Same split.' },
+  { file: 'watchlist.js', text: 'Saved', why: 'The registered title, translated through saved_title. Same split.' },
+  { file: 'you.js', text: 'You', why: 'The registered title, translated through you_title. Same split.' },
+
+  /* --- font stacks --- */
+  { file: 'share.js', text: '"Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif', why: 'A CSS font stack for the share card canvas. Family names, and they are the same names in every language.' },
+  { file: 'share.js', text: '"Instrument Sans", "Helvetica Neue", Arial, sans-serif', why: 'A CSS font stack for the share card canvas; family names do not translate.' },
+  { file: 'share.js', text: '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace', why: 'A CSS font stack for the share card canvas; family names do not translate.' },
+];
+
+/**
+ * Does this run read as English somebody is meant to read?
+ *
+ * Conservative on purpose; the long version is in the block comment above.
+ * Anything with markup, a path, a selector character or an identifier shape is
+ * out. What is left has to be either two or more alphabetic words, or a single
+ * capitalised word that is not camelCase and not a known code token.
+ */
+export function looksEnglish(text) {
+  const s = text.trim();
+  if (!s || !/[A-Za-z]/.test(s)) return false;
+  // Markup, selectors, paths, urls, code punctuation.
+  if (/[<>{}()\[\];=|\\/#@$]/.test(s)) return false;
+  if (/[_]/.test(s)) return false;
+  if (/^[.:]/.test(s)) return false;
+  const words = s.split(/\s+/).filter((w) => /[A-Za-z]/.test(w));
+  if (words.length === 0) return false;
+  if (words.length === 1) {
+    const w = words[0];
+    if (!/^[A-Z][a-z]+$/.test(w)) return false;   // Capitalised, plain, not camelCase.
+    return true;
+  }
+  // Two or more words: a kebab or dotted token is still one identifier.
+  if (words.every((w) => /^[a-z][a-z0-9-]*$/.test(w) && w.includes('-'))) return false;
+  return true;
+}
+
+test('no screen hardcodes a user-facing English string', () => {
+  const allowed = new Set(NOT_SHOWN.map((a) => `${a.file}\u0001${a.text}`));
+  const found = SEGMENTS
+    .filter((s) => looksEnglish(s.text))
+    .filter((s) => !allowed.has(`${s.file}\u0001${s.text}`))
+    // The whole-literal pass stands interpolations in as {value}; that copy is
+    // the same string as the split one for this rule's purposes and reporting
+    // both twice is noise.
+    .filter((s) => !s.text.includes('{value}'))
+    .map((s) => `${s.file}:${s.line}  ${JSON.stringify(s.text)}`);
+
+  assert.deepEqual([...new Set(found)], [], [
+    'An English string is written inside a screen. In a bilingual app that is an',
+    'English control on a French page, and no other rule in this file can see it.',
+    '',
+    'Two ways out:',
+    '  1. It is Shin. Give it a key in voice.js, in every locale and personality.',
+    '  2. It is chrome. Give it a key in ui-strings.js, in every locale, and call',
+    '     t(key) from the screen.',
+    '',
+    'If it is genuinely never read by a shopper (a console message, a selector, a',
+    'stored value), add it to NOT_SHOWN in this file WITH A REASON.',
+    '',
+    ...new Set(found),
+  ].join('\n'));
+});
+
+test('every not-shown entry carries a reason somebody wrote', () => {
+  const thin = NOT_SHOWN
+    .filter((a) => !a.why || a.why.trim().split(/\s+/).length < 5)
+    .map((a) => `${a.file}: ${JSON.stringify(a.text)}`);
+  assert.deepEqual(thin, [], [
+    'A not-shown entry with no real reason is a suppression wearing the costume of',
+    'a decision. Say why nobody reads the string.',
+    '',
+    ...thin,
+  ].join('\n'));
+});
+
+test('the not-shown list is still describing something real', () => {
+  const missing = NOT_SHOWN
+    .filter((a) => !SEGMENTS.some((s) => s.file === a.file && s.text === a.text))
+    .map((a) => `${a.file}: ${JSON.stringify(a.text)}`);
+  assert.deepEqual(missing, [], [
+    'A not-shown string is gone from the screen, which makes this entry a lie.',
+    'Delete it; Rule 3 then covers that file with one fewer exception.',
+    '',
+    ...missing,
+  ].join('\n'));
+});
+
+/* ------------------------------------------------------------------ *
  * The keys this pass moved, asserted by name.
  * ------------------------------------------------------------------ */
 
@@ -566,6 +744,13 @@ test('nothing in the screen layer or in voice.js uses an em dash', () => {
   const files = [
     ...FILES.map((f) => ['screens/' + f, join(SCREENS, f)]),
     ['voice.js', fileURLToPath(new URL('../public/js/voice.js', import.meta.url))],
+    // The two tables the French interface added. Same rule, same reason: they
+    // are the files this app's copy lives in now, and a rule that only covered
+    // half of them would be a rule about where a file happens to sit.
+    ['voice-fr.js', fileURLToPath(new URL('../public/js/voice-fr.js', import.meta.url))],
+    ['ui-strings.js', fileURLToPath(new URL('../public/js/ui-strings.js', import.meta.url))],
+    ['lib/locale.js', fileURLToPath(new URL('../public/js/lib/locale.js', import.meta.url))],
+    ['prose.js', fileURLToPath(new URL('../public/js/prose.js', import.meta.url))],
   ];
   const offenders = [];
   for (const [name, path] of files) {

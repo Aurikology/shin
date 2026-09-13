@@ -32,7 +32,16 @@
 
 import * as store from './store.js';
 import { FLAGS } from './flags.js';
+import { locale, DEFAULT_LOCALE } from './lib/locale.js';
+import { LINES_FR, BARE_FR, PERSONALITIES_FR } from './voice-fr.js';
 
+/**
+ * The English personality cards. `personalityCopy(id)` below is how a screen
+ * gets them, because the name, the blurb and the sample are all read by
+ * somebody and all three have to move with the language. The array itself is
+ * kept, and kept English, because the ids are the contract every other file
+ * holds and test/voice.test.mjs reads them off it.
+ */
 export const PERSONALITIES = [
   {
     id: 'deadpan',
@@ -71,10 +80,34 @@ export function setPersonality(id) {
 }
 
 /**
+ * One personality's card, in the language in force.
+ *
+ * The setup screen and the You screen both print a name, a one-line blurb and
+ * a sample of each voice. Those were read straight off `PERSONALITIES` above,
+ * which is English, so a French user picking an attitude read three English
+ * cards and then heard French. A screen asks for this instead and never holds
+ * either table.
+ *
+ * Falls back to the English card field by field rather than wholesale: a
+ * French table missing one blurb should lose that blurb, not the whole card.
+ */
+export function personalityCopy(id) {
+  const en = PERSONALITIES.find((p) => p.id === id);
+  if (!en) return null;
+  const fr = locale() === 'fr' ? PERSONALITIES_FR[id] : null;
+  return {
+    id,
+    name: fr?.name ?? en.name,
+    blurb: fr?.blurb ?? en.blurb,
+    sample: fr?.sample ?? en.sample,
+  };
+}
+
+/**
  * The table. Every entry is a function of the already-formatted facts, so no
  * line here can invent or reshape a number.
  */
-const LINES = {
+const LINES_EN = {
   /* --- the three verdicts --- */
   good: {
     deadpan: (f) => `${f.usual} usually. This is ${f.asking}.`,
@@ -1205,7 +1238,7 @@ const LINES = {
  * A key not listed here degrades to nothing, which is the same thing an
  * unknown key has always done.
  */
-const BARE = {
+const BARE_EN = {
   cam_text_no_match: {
     deadpan: () => 'Nothing in what Shin has been taught matches that.',
     warm: () => 'I could not find anything I know that matches that. Try the barcode, or a different word or two.',
@@ -1328,6 +1361,33 @@ const BARE = {
 };
 
 /**
+ * The tables, keyed locale first.
+ *
+ * LOCALE IS THE OUTER KEY AND THE PERSONALITY IS THE INNER ONE, which is the
+ * one structural decision this change had to make and it is not arbitrary.
+ * The personality contract is the older and the louder of the two: the file
+ * opens on it, three test files assert it, and `say(key, facts, who)` takes it
+ * as an argument. Putting the locale outside it leaves every one of those
+ * untouched and adds exactly one lookup in front. The other way round would
+ * have made every key in the file a three-way branch with a language inside
+ * it, which is a table nobody can read and a diff nobody can review.
+ *
+ * A key missing from the French table falls through to English rather than to
+ * an empty bubble. That is a visible defect and not a hidden one: a screen
+ * that suddenly speaks English is obvious to the person holding the phone,
+ * where silence is not, and test/voice.test.mjs fails on the missing key long
+ * before anybody sees it.
+ */
+const LINES = { en: LINES_EN, fr: LINES_FR };
+const BARE = { en: BARE_EN, fr: BARE_FR };
+
+/** The row for a key in the language in force, or the English row behind it. */
+function rowFor(table, key) {
+  const here = table[locale()] ?? table[DEFAULT_LOCALE];
+  return here?.[key] ?? table[DEFAULT_LOCALE][key] ?? null;
+}
+
+/**
  * A rendered line that carries a missing fact. A template literal turns an
  * absent value into the word itself, so this is exact rather than a heuristic:
  * no line in this file contains either word, checked.
@@ -1349,7 +1409,7 @@ export function say(key, facts = {}, who) {
   // watching; whether it gets the row-32 save line or the row-33 promise is
   // this one switch, never a second call site.
   const resolvedKey = key === 'watching' && FLAGS.feed ? 'watching_feed' : key;
-  const row = LINES[resolvedKey];
+  const row = rowFor(LINES, resolvedKey);
   if (!row) return '';
   const speaker = who && PERSONALITIES.some((p) => p.id === who) ? who : personality();
   const fn = row[speaker] ?? row[DEFAULT_PERSONALITY];
@@ -1364,7 +1424,7 @@ export function say(key, facts = {}, who) {
      downstream can tell it from a good one. It is loud in the console and
      quiet on the screen, which is the right way round: the person holding the
      phone did not cause this and cannot fix it. */
-  const bare = BARE[resolvedKey];
+  const bare = rowFor(BARE, resolvedKey);
   const spare = bare ? (bare[speaker] ?? bare[DEFAULT_PERSONALITY]) : null;
   console.error(`voice: "${resolvedKey}" spoke without its facts and produced: ${out}`);
   return typeof spare === 'function' ? spare() : '';
@@ -1372,8 +1432,21 @@ export function say(key, facts = {}, who) {
 
 /** The verdict word for a tier, which is the biggest text on the surface. */
 export function wordFor(tierId) {
-  return say(`word_${tierId}`) || 'About right';
+  return say(`word_${tierId}`) || FALLBACKS[locale()]?.word || FALLBACKS[DEFAULT_LOCALE].word;
 }
+
+/**
+ * The two words that are printed when the table has nothing.
+ *
+ * They are in this file rather than in ui-strings.js, which owns the rest of
+ * the chrome, because the import would run the other way: ui-strings.js is
+ * screen furniture and voice.js may not depend on it. Two strings times two
+ * languages is the whole of the duplication and it buys the layering back.
+ */
+const FALLBACKS = {
+  en: { word: 'About right', refused: 'Refused' },
+  fr: { word: 'C’est correct', refused: 'Refusé' },
+};
 
 /**
  * The heading on a reopened refusal, for one of the eight reasons the engine
@@ -1389,5 +1462,7 @@ export function wordFor(tierId) {
  * file wants: quiet on the screen, obvious in the table.
  */
 export function refusalLabel(reason) {
-  return say(`refusal_label_${reason}`) || 'Refused';
+  return say(`refusal_label_${reason}`)
+    || FALLBACKS[locale()]?.refused
+    || FALLBACKS[DEFAULT_LOCALE].refused;
 }

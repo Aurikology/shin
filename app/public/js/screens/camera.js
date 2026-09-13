@@ -28,6 +28,10 @@ import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { attachEye, startCaptureQueue } from '../eye-attach.js';
 import { escapeHtml } from '../lib/dom.js';
+import { t } from '../ui-strings.js';
+import { countryLabel, countryIn } from './market.js';
+import { locale } from '../lib/locale.js';
+import { render as renderProse, renderLines } from '../prose.js';
 import { submitCorrection } from '../corrections.js';
 import { identifyOffline } from '../offline-aisle.js';
 
@@ -149,7 +153,7 @@ function thumbImg(thumb) {
  * teaches. Same icon and handler as the working sheet's own close,
  * `cancel-scan`, which already resets straight to the live viewfinder.
  */
-function backButton(label = 'Back to camera') {
+function backButton(label = t('back_to_camera_short')) {
   return `<button type="button" class="sheet-close" data-act="cancel-scan" aria-label="${escapeHtml(label)}">
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
   </button>`;
@@ -180,7 +184,7 @@ function backButton(label = 'Back to camera') {
  * a focusable control that cannot do anything is the defect this is fixing.
  */
 function grabber() {
-  return `<button type="button" class="grabber" data-act="detent-step" aria-label="Show more"></button>`;
+  return `<button type="button" class="grabber" data-act="detent-step" aria-label="${escapeHtml(t('cam_show_more'))}"></button>`;
 }
 
 /**
@@ -266,7 +270,7 @@ function spreadRail(v) {
 
   return `
     <div class="rail" role="img"
-         aria-label="Prices found run ${cad(lowCents)} to ${cad(highCents)}. You are looking at ${cad(v.askingCents)}.">
+         aria-label="${escapeHtml(t('cam_rail_alt', { low: cad(lowCents), high: cad(highCents), asking: cad(v.askingCents) }))}">
       <span class="rail-track"></span>
       <span class="rail-band" style="left:${at(lowCents)};width:${pct(highCents) - pct(lowCents)}%"></span>
       ${marks}
@@ -286,11 +290,11 @@ function spreadRail(v) {
  */
 function goingRateRange(v) {
   const { lowCents, highCents } = v.spread;
-  const mkt = store.market().country || 'Canada';
+  const mkt = countryIn(store.market().country || 'Canada');
   if (lowCents === highCents || v.pointCount <= 1) {
-    return `${cad(lowCents)} in ${mkt}, one seller`;
+    return t('cam_rate_single', { price: cad(lowCents), market: mkt });
   }
-  return `${cad(lowCents)} to ${cad(highCents)} in ${mkt}`;
+  return t('cam_rate_range', { low: cad(lowCents), high: cad(highCents), market: mkt });
 }
 
 /**
@@ -341,7 +345,7 @@ function feedbackToast() {
   return `
     <div class="toast" data-toast>
       ${shinSay('pleased', 'feedback_ack', {}, { size: 'face-page', anim: 'pleased-nod' })}
-      <button type="button" class="toast-undo" data-act="thumbs-undo">Undo</button>
+      <button type="button" class="toast-undo" data-act="thumbs-undo">${escapeHtml(t('cam_undo'))}</button>
     </div>`;
 }
 
@@ -422,7 +426,7 @@ async function fillCheaper(root, code, askingCents) {
             // allergen note a second time, which read as two different warnings
             // about one fact.
             (a) => `<div>
-              <b>${escapeHtml(a.product.name)}</b>
+              <b>${escapeHtml(displayName(a.product))}</b>
               <span>${escapeHtml(a.line)}</span>
             </div>`,
           )
@@ -489,7 +493,7 @@ function verdictSheet(v, scenario, thumb, acked = false) {
   // the user is reading right now, and a caveat you have to drag a sheet open to
   // find is not a caveat.
   const standIn = scenario && scenario.observed === false
-    ? `<p class="standin">This asking price is a stated stand-in, not a tag anyone read.</p>`
+    ? `<p class="standin">${escapeHtml(t('cam_standin_note'))}</p>`
     : '';
 
   // Row: the half detent used to carry four paragraphs of the engine's own
@@ -548,9 +552,9 @@ function verdictSheet(v, scenario, thumb, acked = false) {
         ${provenance(v.comparisonSet, v.askingCents)}
         ${cheaperSlot(codeOf(v, scenario))}
         <details class="why">
-          <summary>Why</summary>
+          <summary>${escapeHtml(t('cam_why'))}</summary>
           ${disagreeRest ? `<p class="detail">${disagreeRest}</p>` : ''}
-          <p class="detail">${escapeHtml(v.confidence.because)}</p>
+          <p class="detail">${escapeHtml(renderProse(v.confidence.structuredBecause, v.confidence.because))}</p>
           ${/* D-013. `evidenceNote` is declared on Refusal and nothing declares
                 it on Verdict today, so this branch is dark on every payload the
                 engine currently produces. It is here because the field is
@@ -564,23 +568,29 @@ function verdictSheet(v, scenario, thumb, acked = false) {
             : ''}
         </details>
         <div class="actions">
-          <button type="button" class="pill ghost" data-act="correct">Correct it</button>
-          <button type="button" class="pill ghost" data-act="share">Share</button>
+          <button type="button" class="pill ghost" data-act="correct">${escapeHtml(t('cam_correct_it'))}</button>
+          <button type="button" class="pill ghost" data-act="share">${escapeHtml(t('cam_share'))}</button>
         </div>
       </div>
 
       <div class="sheet-full">
-        ${v.lines.map((l) => `<p class="line">${escapeHtml(l)}</p>`).join('')}
-        <div class="thumbs" role="group" aria-label="Was this verdict right?">
-          <button type="button" class="thumb" data-act="thumbs-up" aria-label="This looks right">
+        ${/*
+             The engine's own lines, in the reader's language where this build
+             can manage it. `renderLines` hands back `v.lines` untouched in
+             English and for any line whose codes it has not been taught, so
+             this is the same markup it has always been and the English bytes
+             are the engine's own. prose.js has the rules. */ ''}
+        ${renderLines(v.structuredLines, v.lines).map((l) => `<p class="line">${escapeHtml(l)}</p>`).join('')}
+        <div class="thumbs" role="group" aria-label="${escapeHtml(t('cam_verdict_right_q'))}">
+          <button type="button" class="thumb" data-act="thumbs-up" aria-label="${escapeHtml(t('cam_looks_right'))}">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3zm0 0 4.5-8a2 2 0 0 1 2 2.2L12.5 9H19a2 2 0 0 1 2 2.4l-1.4 7A2 2 0 0 1 17.6 20H9a2 2 0 0 1-2-2v-7z"/></svg>
           </button>
-          <button type="button" class="thumb" data-act="thumbs-down" aria-label="This looks wrong">
+          <button type="button" class="thumb" data-act="thumbs-down" aria-label="${escapeHtml(t('cam_looks_wrong'))}">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3zm0 0-4.5 8a2 2 0 0 1-2-2.2l1-5.8H5a2 2 0 0 1-2-2.4l1.4-7A2 2 0 0 1 6.4 4H15a2 2 0 0 1 2 2v7z"/></svg>
           </button>
         </div>
         <div class="toast-slot" data-toast-slot></div>
-        <button type="button" class="pill solid wide done-btn" data-act="cancel-scan">Done</button>
+        <button type="button" class="pill solid wide done-btn" data-act="cancel-scan">${escapeHtml(t('done'))}</button>
       </div>
     </section>`;
 }
@@ -777,9 +787,9 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null) {
         <p class="said">${say('refuse_category_repair')}</p>
         ${categoryLabels.length
           ? `<ul class="cat-chips">${categoryLabels.map((c) => `<li>${c}</li>`).join('')}</ul>`
-          : `<p class="detail">Could not load the list just now.</p>`}
+          : `<p class="detail">${escapeHtml(t('cam_list_failed'))}</p>`}
         ${categoryWhy
-          ? `<details class="why"><summary>Why</summary><p class="detail">${categoryWhy}</p></details>`
+          ? `<details class="why"><summary>${escapeHtml(t('cam_why'))}</summary><p class="detail">${categoryWhy}</p></details>`
           : ''}
       </div>`
     : `<div class="actions actions-primary">${
@@ -789,10 +799,10 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null) {
              word. It is chrome rather than a voice key: two words, no sentence,
              and the same button on every attitude. What Shin SAYS about it is
              keep_it_ack, which has all three. */
-          ? `<button type="button" class="pill solid" data-act="keepit">Keep it</button>`
+          ? `<button type="button" class="pill solid" data-act="keepit">${escapeHtml(t('cam_keep_it'))}</button>`
           : isNoIdentity || isModelDown
-            ? `<button type="button" class="pill solid" data-act="typeit">Type what it is</button>`
-            : `<button type="button" class="pill solid" data-act="correct">Tell me the price</button>`
+            ? `<button type="button" class="pill solid" data-act="typeit">${escapeHtml(t('cam_type_what_it_is'))}</button>`
+            : `<button type="button" class="pill solid" data-act="correct">${escapeHtml(t('cam_tell_me_the_price'))}</button>`
       }</div>`;
 
   return `
@@ -804,9 +814,9 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null) {
           ${shinSay('unknown', titleKey, titleFacts, { size: 'face-verdict' })}
         </div>
         ${mine}
-        <p class="detail">${escapeHtml(isCategory ? categoryShort : r.detail)}</p>
+        <p class="detail">${escapeHtml(isCategory ? categoryShort : renderProse(r.structuredDetail, r.detail))}</p>
         ${repairBlock}
-        <p class="itemname">${escapeHtml(r.identity ? r.identity.label : 'No confident match')} &middot; ${
+        <p class="itemname">${escapeHtml(r.identity ? r.identity.label : t('cam_no_confident_match'))} &middot; ${
           /*
            * `refusalLabel` restates the reason as a full sentence, e.g.
            * "Refused. The photo reader took too long." -- exactly the fact
@@ -817,7 +827,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null) {
            * (the plain word "Refused") without repeating the one it does not
            * need to say twice.
            */
-          isModelDown ? 'Refused.' : refusalLabel(r.reason)
+          isModelDown ? t('cam_refused_sentence') : refusalLabel(r.reason)
         }</p>
       </div>
       <div class="sheet-half">
@@ -825,7 +835,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null) {
           ? `<p class="because">${say('refuse_evidence_some')}</p>${provenance(r.evidence)}`
           : `<p class="because">${say('refuse_evidence_none')}</p>`}
         ${r.evidenceNote
-          ? `<details class="why"><summary>Why</summary><p class="detail">${escapeHtml(r.evidenceNote)}</p></details>`
+          ? `<details class="why"><summary>${escapeHtml(t('cam_why'))}</summary><p class="detail">${escapeHtml(r.evidenceNote)}</p></details>`
           : ''}
       </div>
     </section>`;
@@ -878,7 +888,7 @@ function candidateSheet(items) {
             )
             .join('')}
           <button type="button" class="cand cand-none" data-pick="__none">
-            <span class="cand-name">Something else</span>
+            <span class="cand-name">${escapeHtml(t('cam_something_else'))}</span>
             <span class="cand-meta">${say('cam_candidate_none')}</span>
           </button>
         </div>
@@ -888,7 +898,7 @@ function candidateSheet(items) {
              caps at the foot of the glass reads as a developer's note. The
              claim is unchanged; only the wording is tighter and the full stop
              is gone, a caption not being a sentence. -->
-        <p class="standin-note">Stand-ins until the camera can read the item</p>
+        <p class="standin-note">${escapeHtml(t('cam_standins_caption'))}</p>
       </div>
     </section>`;
 }
@@ -931,7 +941,7 @@ function searchCandidateSheet(items, query) {
             )
             .join('')}
           <button type="button" class="cand cand-none" data-act="notthis-back">
-            <span class="cand-name">Keep the first one</span>
+            <span class="cand-name">${escapeHtml(t('cam_keep_the_first_one'))}</span>
             <span class="cand-meta">${escapeHtml(say('cam_notthis_keep'))}</span>
           </button>
         </div>
@@ -981,13 +991,15 @@ function pricePadDisplay(typed) {
  * @param {object}  [opts]
  * @param {boolean} [opts.confirm=false]           render the confirm key.
  * @param {boolean} [opts.canConfirm=false]        whether that key is enabled.
- * @param {string}  [opts.confirmLabel='Price it'] its accessible name.
+ * @param {string}  [opts.confirmLabel] its accessible name. Defaults to the
+ *   translated "Price it"; read at call time, never at module load, because
+ *   the language can change under a running page (the You screen's row).
  * @returns {string} markup: `.keypad` (1-9) followed by `.keypad-bottom`
  *   (`.`, `0`, backspace, and the confirm key when asked for). Every key carries
  *   `data-pad="<char>"`, the char being one of `1`-`9`, `.`, `0`, `⌫`; the
  *   confirm key carries `data-act="pad-confirm"` and `.key-confirm`.
  */
-function keypadHtml({ confirm = false, canConfirm = false, confirmLabel = 'Price it' } = {}) {
+function keypadHtml({ confirm = false, canConfirm = false, confirmLabel = t('cam_price_it') } = {}) {
   const key = (char, extra = '') =>
     `<button type="button" class="btn btn--key" data-pad="${char}"${extra}>${char}</button>`;
   return `
@@ -997,7 +1009,7 @@ function keypadHtml({ confirm = false, canConfirm = false, confirmLabel = 'Price
         <div class="keypad keypad-bottom${confirm ? '' : ' keypad-bottom-3'}">
           ${key('.')}
           ${key('0')}
-          ${key('⌫', ' aria-label="Delete last digit"')}
+          ${key('⌫', ` aria-label="${escapeHtml(t('cam_delete_last_digit'))}"`)}
           ${confirm
             ? `<button type="button" class="btn btn--key key-confirm" data-act="pad-confirm" aria-label="${confirmLabel}"${canConfirm ? '' : ' disabled'}>
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
@@ -1056,8 +1068,8 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null) {
       <span class="grabber" aria-hidden="true"></span>
       ${backButton()}
       <div class="pad-headrow">
-        <button type="button" class="pad-textbtn" data-act="pad-clear"${typed ? '' : ' disabled'}>Clear</button>
-        <button type="button" class="pad-textbtn" data-act="pad-skip">Skip</button>
+        <button type="button" class="pad-textbtn" data-act="pad-clear"${typed ? '' : ' disabled'}>${escapeHtml(t('clear'))}</button>
+        <button type="button" class="pad-textbtn" data-act="pad-skip">${escapeHtml(t('skip'))}</button>
       </div>
       <div class="sheet-peek">
         <div class="sheet-head">
@@ -1074,17 +1086,17 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null) {
         }
         <div class="amount pad-amount"><span class="amount-cur">$</span>${pricePadDisplay(typed)}</div>
         <p class="pad-effective" data-pad-effective${effLabel ? '' : ' hidden'}>${effLabel}</p>
-        <div class="pad-mods" role="group" aria-label="Price modifiers">
-          <button type="button" class="modbtn${modifier?.kind === 'percent' ? ' on' : ''}" data-modtoggle="percent">% off</button>
-          <button type="button" class="modbtn${modifier?.kind === 'nfor' ? ' on' : ''}" data-modtoggle="nfor">N for $</button>
+        <div class="pad-mods" role="group" aria-label="${escapeHtml(t('cam_price_modifiers'))}">
+          <button type="button" class="modbtn${modifier?.kind === 'percent' ? ' on' : ''}" data-modtoggle="percent">${escapeHtml(t('cam_percent_off_suffix'))}</button>
+          <button type="button" class="modbtn${modifier?.kind === 'nfor' ? ' on' : ''}" data-modtoggle="nfor">${escapeHtml(t('cam_n_for'))}</button>
         </div>
         ${modifier?.kind === 'percent' ? `
         <div class="pad-mod-input">
-          <label>Percent off <input type="number" inputmode="numeric" min="1" max="95" data-mod-value value="${modifier.pct ?? ''}" placeholder="20"></label>
+          <label>${escapeHtml(t('cam_percent_off'))} <input type="number" inputmode="numeric" min="1" max="95" data-mod-value value="${modifier.pct ?? ''}" placeholder="20"></label>
         </div>` : ''}
         ${modifier?.kind === 'nfor' ? `
         <div class="pad-mod-input">
-          <label>Items in the deal <input type="number" inputmode="numeric" min="2" max="20" data-mod-value value="${modifier.n ?? ''}" placeholder="3"></label>
+          <label>${escapeHtml(t('cam_items_in_the_deal'))} <input type="number" inputmode="numeric" min="2" max="20" data-mod-value value="${modifier.n ?? ''}" placeholder="3"></label>
         </div>` : ''}
         ${keypadHtml({ confirm: true, canConfirm })}
       </div>
@@ -1109,12 +1121,12 @@ function goingRateCard(refusal, item) {
   // (two spellings of the same store). Falls back to `seller` for a point
   // that predates `sellerId`.
   const sellers = new Set(pts.map((p) => p.sellerId ?? p.seller)).size;
-  const mkt = store.market().country || 'Canada';
+  const mkt = countryIn(store.market().country || 'Canada');
   const single = pts.length <= 1 || lo === hi;
-  const range = single ? cad(lo) : `${cad(lo)} to ${cad(hi)}`;
-  const sellerWord = sellers === 1 ? '1 seller' : `${sellers} sellers`;
+  const range = single ? cad(lo) : t('cam_rate_to', { low: cad(lo), high: cad(hi) });
+  const sellerWord = t('cam_seller_count', { n: String(sellers) });
   const cheapest = pts.slice().sort((a, b) => a.amountCents - b.amountCents)[0];
-  const label = refusal.identity ? refusal.identity.label : (item?.text ?? 'this');
+  const label = refusal.identity ? refusal.identity.label : (item?.text ?? t('cam_this'));
 
   return `
     <section class="sheet goingrate" data-tier="unknown" data-conf="reading" tabindex="-1">
@@ -1129,14 +1141,14 @@ function goingRateCard(refusal, item) {
         <div class="sheet-head">
           ${shinSay('asking', 'going_rate', {}, { size: 'face-working' })}
         </div>
-        <h2 class="vword" style="font-size:20px">Going rate</h2>
+        <h2 class="vword" style="font-size:20px">${escapeHtml(t('cam_going_rate'))}</h2>
         <div class="priceline">
           <span class="price sm">${range}</span>
           <span class="sub">${cheapest ? `at ${escapeHtml(cheapest.seller)}<br>` : ''}in ${mkt}, ${sellerWord}</span>
         </div>
         <p class="itemname">${escapeHtml(label)} &middot; no tag typed</p>
         <div class="actions actions-primary">
-          <button type="button" class="pill solid wide" data-act="pad-reopen">Tell me the price</button>
+          <button type="button" class="pill solid wide" data-act="pad-reopen">${escapeHtml(t('cam_tell_me_the_price'))}</button>
         </div>
       </div>
       <div class="sheet-half">
@@ -1171,7 +1183,7 @@ function workingSheet(itemLabel, step = 0, opts = {}) {
   return `
     <section class="sheet working" data-tier="unknown" data-conf="reading" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
-      <button type="button" class="sheet-close" data-act="cancel-scan" aria-label="Cancel and go back to the viewfinder">
+      <button type="button" class="sheet-close" data-act="cancel-scan" aria-label="${escapeHtml(t('cam_cancel_scan'))}">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
       <div class="sheet-peek working-peek">
@@ -1202,11 +1214,11 @@ function textRouteSheet(value = '') {
         <div class="sheet-head">
           ${shinSay('asking', 'text_route_prompt', {}, { size: 64 })}
         </div>
-        <h2 class="vword" style="font-size:20px">Name it</h2>
+        <h2 class="vword" style="font-size:20px">${escapeHtml(t('cam_name_it'))}</h2>
         <form class="textroute-form" data-form="textroute">
-          <input type="text" inputmode="text" autocomplete="off" placeholder="Brand and model&hellip;"
+          <input type="text" inputmode="text" autocomplete="off" placeholder="${escapeHtml(t('cam_brand_model_placeholder'))}"
                  value="${value.replace(/"/g, '&quot;')}" data-textroute-input>
-          <button type="submit" class="iconbtn-inline" aria-label="Search">
+          <button type="submit" class="iconbtn-inline" aria-label="${escapeHtml(t('cam_search'))}">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
           </button>
         </form>
@@ -1269,10 +1281,30 @@ function normalizeForCompare(s) {
  * catalogue row is joined"; a caller with no `product` (no catalogue row) has
  * nothing to pass here and falls back to whatever raw text it has instead.
  */
+/**
+ * The product's own name, in the language the shopper is reading.
+ *
+ * `nameFr` is a REAL FRENCH NAME off the catalogue row, not a translation of
+ * `name`: catalogue/src/schema.ts keeps `name_en` and `name_fr` as separate
+ * columns because whoever published the row wrote both, and what is on the bag
+ * in a Quebec aisle is not what a translator would produce from the English.
+ * So French prefers it and falls back to `name`, which is what most rows have
+ * and what every row has.
+ *
+ * English never reads `nameFr`, even when `name` is missing: showing a French
+ * product name to an English reader because the English column happened to be
+ * empty is a worse answer than the row's own `name`, and `name` is never null.
+ */
+function displayName(p) {
+  const fr = (p.nameFr ?? '').trim();
+  if (locale() === 'fr' && fr) return fr;
+  return (p.name ?? '').trim();
+}
+
 function productLabel(p) {
   const parts = [];
   const brand = (p.brands ?? '').split(',')[0].trim();
-  const name = (p.name ?? '').trim();
+  const name = displayName(p);
   const brandLeadsName = brand !== '' && normalizeForCompare(name).startsWith(normalizeForCompare(brand));
   if (brand && !brandLeadsName) parts.push(brand);
   parts.push(name);
@@ -1374,7 +1406,7 @@ export default {
              focus to after a paint. Visually hidden because the wordmark below
              is already the visible identity and a second one drawn over a live
              feed would be chrome for its own sake. -->
-        <h1 class="sr-only" tabindex="-1">Shin camera</h1>
+        <h1 class="sr-only" tabindex="-1">${escapeHtml(t('cam_label'))}</h1>
         <div class="feed">
           <video class="feed-video" playsinline muted autoplay></video>
           <div class="feed-fallback" aria-hidden="true">
@@ -1394,7 +1426,7 @@ export default {
              camera is the hardest place on the phone for a thumb to reach, and
              Shin's own dock moved down under the frame it talks about. -->
         <div class="cam-top">
-          <button type="button" class="torch-btn" data-act="torch" aria-label="Torch" aria-pressed="false">
+          <button type="button" class="torch-btn" data-act="torch" aria-label="${escapeHtml(t('cam_torch'))}" aria-pressed="false">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg>
           </button>
@@ -1425,21 +1457,21 @@ export default {
              under the glyph and the word a screen reader reads are the same
              one rather than two descriptions of the same button. -->
         <div class="cam-bar">
-          <button type="button" class="nav-btn" data-act="watchlist" aria-label="Saved">
+          <button type="button" class="nav-btn" data-act="watchlist" aria-label="${escapeHtml(t('nav_saved'))}">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
             </span>
             <span class="nav-badge" hidden></span>
-            <span class="nav-label" aria-hidden="true">Saved</span>
+            <span class="nav-label" aria-hidden="true">${escapeHtml(t('nav_saved'))}</span>
           </button>
-          <button type="button" class="shutter" data-act="shoot" aria-label="Scan what you are pointing at"></button>
-          <button type="button" class="nav-btn" data-act="you" aria-label="You">
+          <button type="button" class="shutter" data-act="shoot" aria-label="${escapeHtml(t('cam_shutter'))}"></button>
+          <button type="button" class="nav-btn" data-act="you" aria-label="${escapeHtml(t('nav_you'))}">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
                    stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
             </span>
-            <span class="nav-label" aria-hidden="true">You</span>
+            <span class="nav-label" aria-hidden="true">${escapeHtml(t('nav_you'))}</span>
           </button>
         </div>
       </div>`;
@@ -1689,10 +1721,10 @@ export default {
       const history = store.get().history;
       if (!history.length) return null;
       const h = history[0];
-      const label = h.result?.identity?.label ?? h.query?.text ?? 'that item';
+      const label = h.result?.identity?.label ?? h.query?.text ?? t('cam_that_item');
       const sellerName = h.result ? sellerOf(h.result) : null;
       const centsRaw = h.query?.askingCents ?? (h.result?.kind === 'verdict' ? h.result.askingCents : undefined);
-      const word = h.result?.kind === 'verdict' ? wordFor(h.result.tier) : 'Refused';
+      const word = h.result?.kind === 'verdict' ? wordFor(h.result.tier) : t('cam_refused_word');
       return {
         item: label,
         seller: sellerName || '',
@@ -2049,7 +2081,10 @@ export default {
           const category = c.leafCategory ?? from.category;
           const row = candidateRow({
             brand: c.brands ? String(c.brands).split(',')[0].trim() : '',
-            name: c.name,
+            /* The catalogue's own French name when there is one and the reader
+               is French. `/api/search` spreads the raw candidate rows, so this
+               column is already on the wire; displayName has the rule. */
+            name: displayName(c),
             size: c.quantity,
             category,
           });
@@ -2275,7 +2310,7 @@ export default {
       if (dead || barcodeInFlight) return;
       const myGen = ++gen;
       setState('reading');
-      slot.innerHTML = workingSheet('What you photographed', 0);
+      slot.innerHTML = workingSheet(t('cam_what_you_photographed'), 0);
       mounted();
 
       let id;
@@ -2309,10 +2344,10 @@ export default {
       }
 
       if (Array.isArray(id?.candidates) && id.candidates.length) {
-        const readAs = id.reading || photoCandidateLabel(id.candidates[0]) || 'the photo';
+        const readAs = id.reading || photoCandidateLabel(id.candidates[0]) || t('cam_the_photo');
         const mapped = id.candidates.map((c) => {
           const row = candidateRow({ brand: c.brand, name: c.name, size: c.size });
-          return { code: c.code, label: row.label || 'Unlabelled item', meta: row.meta };
+          return { code: c.code, label: row.label || t('cam_unlabelled_item'), meta: row.meta };
         });
         setState('choosing');
         slot.innerHTML = searchCandidateSheet(mapped, readAs);
@@ -2842,7 +2877,7 @@ export default {
       const g = sheet.querySelector('button.grabber');
       if (!g) return;
       const at = clampDetent(sheet, sheet.dataset.detent || 'peek');
-      g.setAttribute('aria-label', at === maxDetent(sheet) ? 'Back to the summary' : 'Show more');
+      g.setAttribute('aria-label', at === maxDetent(sheet) ? t('cam_back_to_summary') : t('cam_show_more'));
     }
 
     /**

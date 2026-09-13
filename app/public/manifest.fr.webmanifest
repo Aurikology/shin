@@ -1,8 +1,8 @@
 {
   "name": "Shin",
   "short_name": "Shin",
-  "description": "Point at a thing. Shin tells you whether the price is fair.",
-  "lang": "en-CA",
+  "description": "Pointe un objet. Shin te dit si le prix est correct.",
+  "lang": "fr-CA",
   "dir": "ltr",
   "start_url": "/",
   "scope": "/",

@@ -11,6 +11,7 @@ import { getDeviceId } from './device.js';
 import { APP_VERSION } from './version.js';
 import { currentCell } from './geocell.js';
 import { consent } from './store.js';
+import { locale, localeTag } from './lib/locale.js';
 
 /**
  * The three facts every identify body carries, per the fixed contract: an
@@ -26,7 +27,16 @@ import { consent } from './store.js';
  * one. Absent, it is `'web'`, which is true for every build that exists today.
  */
 function identifyExtras() {
-  const extras = { appVersion: APP_VERSION, platform: globalThis.window?.SHIN_PLATFORM ?? 'web' };
+  const extras = {
+    appVersion: APP_VERSION,
+    platform: globalThis.window?.SHIN_PLATFORM ?? 'web',
+    /* On the body and the query string as well as in the header, alongside
+       appVersion and platform, which are the same kind of fact: a condition
+       the answer was produced under. The server drops an unknown parameter
+       today, so this costs nothing and is there the day a scan row wants a
+       column for it. A header is not written to a scan row; this can be. */
+    locale: locale(),
+  };
   if (consent().location) {
     const cell = currentCell();
     if (cell) extras.cell = cell;
@@ -55,9 +65,33 @@ const BASE = globalThis.window?.SHIN_API_BASE ?? '';
  */
 const INVITE_CODE = globalThis.window?.SHIN_INVITE_CODE ?? null;
 
+/**
+ * What language the person on the other end of this request is reading.
+ *
+ * A HEADER, on every request, rather than a field added to each body: it is
+ * true of the whole client and not of any one call, which is the same argument
+ * `x-shin-invite` above is here on. Read at call time, never cached, because
+ * the You screen's language row can flip it under a running page and the very
+ * next request has to carry the new one.
+ *
+ * THE SERVER DOES NOT READ THIS YET AND THAT IS THE POINT. Every sentence a
+ * verdict carries today (`lines`, `because`, `detail`) is written in English
+ * by the engine, and the client cannot translate them: they are assembled from
+ * facts the client does not have. The fix is line codes plus facts, which the
+ * spine lane is adding, and the server will need to know which language to
+ * resolve them in. Sending it now costs one header and means the day the
+ * server can answer in French, no client has to ship first.
+ *
+ * `x-shin-locale` carries the BCP 47 tag (fr-CA), which is what an
+ * Accept-Language-shaped consumer expects; `x-shin-lang` carries the bare id
+ * (fr), which is what a table lookup wants. Two headers rather than making the
+ * server parse one, because a parse is a place to be wrong.
+ */
 function headers(extra = {}) {
   const h = { ...extra };
   if (INVITE_CODE) h['x-shin-invite'] = INVITE_CODE;
+  h['x-shin-locale'] = localeTag();
+  h['x-shin-lang'] = locale();
   return h;
 }
 

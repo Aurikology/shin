@@ -19,6 +19,7 @@
 import { personality, say } from './voice.js';
 import { FLAGS } from './flags.js';
 import { escapeHtml } from './lib/dom.js';
+import { t } from './ui-strings.js';
 import { FACE_SETS, faceInner, faceParts } from './face-art.js';
 
 /**
@@ -639,17 +640,24 @@ export function cad(cents) {
  */
 export function confidenceOf(result) {
   if (!result || result.kind !== 'verdict') {
-    return { level: 'refuses', dots: 0, label: 'No price to compare' };
+    return { level: 'refuses', dots: 0, label: t('conf_no_price') };
   }
   const band = result.confidence?.band;
   // The engine already counted these. Recounting them here would be a second
   // opinion about the same evidence, which is how two numbers start disagreeing.
   const n = result.confidence?.distinctSellers ?? 0;
-  const sellers = n === 1 ? '1 seller' : `${n} sellers`;
+  /*
+   * The count and the word beside it go out together, through one chrome key,
+   * rather than being concatenated here. `level` and `dots` stay exactly what
+   * they were: they are the machine-readable half, they drive a CSS attribute
+   * and a fill, and a level that moved with the language would break every
+   * stylesheet rule keyed on it.
+   */
+  const sellers = t('conf_sellers', { n: String(n) });
 
-  if (band === 'high') return { level: 'certain', dots: 4, label: `Certain · ${sellers}` };
-  if (band === 'medium') return { level: 'sure', dots: 3, label: `Fairly sure · ${sellers}` };
-  return { level: 'thin', dots: 2, label: `Thin · ${sellers}` };
+  if (band === 'high') return { level: 'certain', dots: 4, label: t('conf_certain', { sellers }) };
+  if (band === 'medium') return { level: 'sure', dots: 3, label: t('conf_sure', { sellers }) };
+  return { level: 'thin', dots: 2, label: t('conf_thin', { sellers }) };
 }
 
 /** The four confidence dots, filled left to right. */

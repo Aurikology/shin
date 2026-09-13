@@ -114,7 +114,10 @@ test('every reason the engine can answer with is classified one way or the other
     fileURLToPath(new URL('../../spine/src/contract.ts', import.meta.url)),
     'utf8',
   );
-  const block = contract.slice(contract.indexOf('RefusalReason'));
+  // Anchored on the declaration, not the bare name: prose above the union
+  // mentions `RefusalReason` too, and a bare indexOf lands in the comment and
+  // parses zero reasons.
+  const block = contract.slice(contract.indexOf('export type RefusalReason'));
   const reasons = [...block.slice(0, block.indexOf(';')).matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
   assert.ok(reasons.length >= 8, `parsed only ${reasons.length} reasons; the union has moved`);
 

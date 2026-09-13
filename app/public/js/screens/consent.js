@@ -37,10 +37,12 @@ import * as store from '../store.js';
 import { escapeHtml, on } from '../lib/dom.js';
 import { storagePersists } from '../lib/persistence.js';
 import { toggleConsent } from '../consent-actions.js';
+import { t } from '../ui-strings.js';
 
 export default {
   id: 'consent',
   title: 'Your data',
+  titleKey: 'consent_title',
 
   render(root, ctx) {
     const ac = new AbortController();
@@ -48,8 +50,8 @@ export default {
     root.innerHTML = `
       <div class="page consent-page">
         <header class="page-head">
-          <p class="kicker">Before your first scan</p>
-          <h1>What Shin does with your data</h1>
+          <p class="kicker">${escapeHtml(t('consent_kicker'))}</p>
+          <h1>${escapeHtml(t('consent_heading'))}</h1>
         </header>
 
         <p class="fineprint consent-enter">${escapeHtml(say('consent_intro'))}</p>
@@ -57,19 +59,19 @@ export default {
         <div class="ilist consent-list consent-enter">
           <div class="ilist-row consent-row">
             <div class="consent-text">
-              <span class="ilist-l">Photos</span>
+              <span class="ilist-l">${escapeHtml(t('consent_photos'))}</span>
               <p class="fineprint">${escapeHtml(say('consent_photos_desc'))}</p>
             </div>
             <button type="button" class="switch" data-consent="photos" role="switch"
-                    aria-checked="false" aria-label="Photos"></button>
+                    aria-checked="false" aria-label="${escapeHtml(t('consent_photos'))}"></button>
           </div>
           <div class="ilist-row consent-row">
             <div class="consent-text">
-              <span class="ilist-l">Location</span>
+              <span class="ilist-l">${escapeHtml(t('consent_location'))}</span>
               <p class="fineprint">${escapeHtml(say('consent_location_desc'))}</p>
             </div>
             <button type="button" class="switch" data-consent="location" role="switch"
-                    aria-checked="false" aria-label="Location"></button>
+                    aria-checked="false" aria-label="${escapeHtml(t('consent_location'))}"></button>
           </div>
         </div>
 
@@ -82,7 +84,7 @@ export default {
         }
 
         <div class="page-foot">
-          <button type="button" class="cta" data-act="go">Continue</button>
+          <button type="button" class="cta" data-act="go">${escapeHtml(t('consent_continue'))}</button>
         </div>
       </div>`;
 

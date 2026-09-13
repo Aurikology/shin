@@ -31,7 +31,7 @@
  * than as three pieces of dead furniture.
  */
 
-import { PERSONALITIES, setPersonality, personality, say } from '../voice.js';
+import { PERSONALITIES, personalityCopy, setPersonality, personality, say } from '../voice.js';
 import { faceSvg, shinSay } from '../shin.js';
 import * as store from '../store.js';
 import { escapeHtml, on } from '../lib/dom.js';
@@ -40,6 +40,9 @@ import { storagePersists } from '../lib/persistence.js';
 import { pageBar, rowChevron, rowCheck } from '../lib/pagebar.js';
 import { getDeviceId } from '../device.js';
 import { toggleConsent } from '../consent-actions.js';
+import { t } from '../ui-strings.js';
+import { LOCALES, locale, setLocale } from '../lib/locale.js';
+import { countryLabel } from './market.js';
 
 /**
  * Item 6d: the delete-my-data path. An email link is enough for the beta
@@ -63,8 +66,8 @@ function deleteMyDataHref() {
   // a four-plus-word sentence ending in a full stop there needs a voice.js key
   // or an allowlist entry this file is not the owner of (only photo-screen and
   // sheet are). A fragment with a colon instead reads exactly as clearly here.
-  const body = `Delete everything Shin has for this device\n\nDevice id: ${device?.id ?? 'unknown'}`;
-  return `mailto:${DELETE_MY_DATA_EMAIL}?subject=${encodeURIComponent('Delete my Shin data')}&body=${encodeURIComponent(body)}`;
+  const body = `${t('you_delete_body_head')}\n\n${t('you_delete_body_device')}: ${device?.id ?? t('unknown')}`;
+  return `mailto:${DELETE_MY_DATA_EMAIL}?subject=${encodeURIComponent(t('you_delete_subject'))}&body=${encodeURIComponent(body)}`;
 }
 
 /**
@@ -81,14 +84,15 @@ function deleteMyDataHref() {
  * the screen already has two of them, so it costs nothing new to learn.
  */
 const THEMES = [
-  { id: 'system', label: 'System' },
-  { id: 'light', label: 'Light' },
-  { id: 'dark', label: 'Dark' },
+  { id: 'system', key: 'you_theme_system' },
+  { id: 'light', key: 'you_theme_light' },
+  { id: 'dark', key: 'you_theme_dark' },
 ];
 
 export default {
   id: 'you',
   title: 'You',
+  titleKey: 'you_title',
 
   render(root, ctx) {
     const market = store.market();
@@ -109,6 +113,9 @@ export default {
       try { return localStorage.getItem('shin.theme') ?? 'system'; } catch { return 'system'; }
     }
     const theme = currentTheme();
+    /* Read once per render, like `theme` above it, so the markup and the tick
+       cannot disagree with each other inside one paint. */
+    const chosenLocale = locale();
 
     /**
      * Item 8d. The "Your ratings" section's zero-count caption has no
@@ -136,8 +143,8 @@ export default {
     root.innerHTML = `
       <div class="page page-list">
         <header class="page-head">
-          <p class="kicker">Settings and honesty</p>
-          <h1>You</h1>
+          <p class="kicker">${escapeHtml(t('you_kicker'))}</p>
+          <h1>${escapeHtml(t('you_title'))}</h1>
         </header>
 
         <section class="block block-week">
@@ -145,9 +152,9 @@ export default {
         </section>
 
         <section class="block">
-          <h2 class="sect-h">Your Shin</h2>
-          <div class="atts atts-row ilist" role="radiogroup" aria-label="Shin's attitude">
-            ${PERSONALITIES.map(
+          <h2 class="sect-h">${escapeHtml(t('you_your_shin'))}</h2>
+          <div class="atts atts-row ilist" role="radiogroup" aria-label="${escapeHtml(t('you_attitude_group'))}">
+            ${PERSONALITIES.map((q) => personalityCopy(q.id)).map(
               (p) => `<button type="button" class="att${p.id === personality() ? ' on' : ''}"
                         role="radio" aria-checked="${p.id === personality()}" data-who="${escapeHtml(p.id)}">
                 <span class="att-face">${faceSvg('fair', { size: 'face-row', who: p.id })}</span>
@@ -159,88 +166,114 @@ export default {
         </section>
 
         <section class="block">
-          <h2 class="sect-h">What Shin can actually answer</h2>
+          <h2 class="sect-h">${escapeHtml(t('you_can_answer_h'))}</h2>
           <div class="coverage" data-coverage aria-live="polite" aria-busy="true">
             <p class="fineprint">${escapeHtml(say('you_coverage_loading'))}</p>
           </div>
         </section>
 
         <section class="block">
-          <h2 class="sect-h">What Shin has actually answered</h2>
+          <h2 class="sect-h">${escapeHtml(t('you_has_answered_h'))}</h2>
           <div class="coverage" data-scanlog aria-live="polite">
-            <p class="fineprint">Reading the scan log…</p>
+            <p class="fineprint">${escapeHtml(t('you_reading_scan_log'))}</p>
           </div>
         </section>
 
         <section class="block">
-          <h2 class="sect-h">Settings</h2>
+          <h2 class="sect-h">${escapeHtml(t('you_settings'))}</h2>
 
           <div class="setting">
-            <span class="setting-t" id="you-theme-l">Theme</span>
+            <span class="setting-t" id="you-theme-l">${escapeHtml(t('you_theme'))}</span>
             <div class="seg" role="radiogroup" aria-labelledby="you-theme-l">
               ${THEMES.map(
-                (t) => `<button type="button" class="btn seg-o${t.id === theme ? ' on' : ''}"
-                          role="radio" aria-checked="${t.id === theme}" data-theme="${t.id}">${t.label}</button>`,
+                (th) => `<button type="button" class="btn seg-o${th.id === theme ? ' on' : ''}"
+                          role="radio" aria-checked="${th.id === theme}" data-theme="${th.id}">${escapeHtml(t(th.key))}</button>`,
               ).join('')}
             </div>
           </div>
 
+          <!--
+            The language row, item 31. Built as the same inset grouped list the
+            attitude picker above it is: one .ilist that is a radiogroup, one
+            .ilist-row per option, each carrying rowCheck() for the tick.
+
+            A radio group and not a two-state toggle, for the reason the theme
+            control one section up gives: a control with N exclusive options is
+            a radio group, and this screen already has two of them, so it costs
+            nothing new to learn.
+
+            Each option names ITSELF, in its own language (LOCALES in
+            lib/locale.js). An option that says "French" to somebody who cannot
+            read English is an option they cannot use.
+          -->
+          <div class="setting setting-stack">
+            <span class="setting-t" id="you-lang-l">${escapeHtml(t('you_language'))}</span>
+          </div>
+          <div class="ilist" role="radiogroup" aria-labelledby="you-lang-l">
+            ${LOCALES.map(
+              (l) => `<button type="button" class="ilist-row${l.id === chosenLocale ? ' on' : ''}"
+                        role="radio" aria-checked="${l.id === chosenLocale}"
+                        lang="${escapeHtml(l.tag)}" data-locale="${escapeHtml(l.id)}">
+                <span class="ilist-l">${escapeHtml(l.name)}</span>
+                ${rowCheck()}
+              </button>`,
+            ).join('')}
+          </div>
+          <p class="fineprint">${escapeHtml(t('you_language_caption'))}</p>
+
           <div class="ilist">
             <button type="button" class="ilist-row" data-act="buzz" aria-pressed="${store.buzzOn()}">
-              <span class="ilist-l">Buzz on verdicts</span><span class="ilist-v" data-buzz-v></span>
+              <span class="ilist-l">${escapeHtml(t('you_buzz'))}</span><span class="ilist-v" data-buzz-v></span>
             </button>
             <button type="button" class="ilist-row" data-act="market">
-              <span class="ilist-l">Market</span>
-              <span class="ilist-v">${escapeHtml(market.country)}</span>
+              <span class="ilist-l">${escapeHtml(t('you_market'))}</span>
+              <span class="ilist-v">${escapeHtml(countryLabel(market.country))}</span>
               ${rowChevron()}
             </button>
           </div>
-          <p class="fineprint">A short buzz when a verdict or a refusal lands, on by default.</p>
-          <p class="fineprint">Price verdicts are judged against typical prices in this market.</p>
+          <p class="fineprint">${escapeHtml(t('you_buzz_caption'))}</p>
+          <p class="fineprint">${escapeHtml(t('you_market_caption'))}</p>
         </section>
 
         <section class="block">
-          <h2 class="sect-h">Your ratings</h2>
+          <h2 class="sect-h">${escapeHtml(t('you_ratings'))}</h2>
           <div class="ilist">
             <div class="ilist-row">
-              <span class="ilist-l">Verdicts you rated</span>
+              <span class="ilist-l">${escapeHtml(t('you_ratings_rated'))}</span>
               <span class="ilist-v">${ratedCounts.total}</span>
             </div>
           </div>
           <p class="fineprint">${
             ratedCounts.total === 0
-              ? 'None yet'
-              : `${escapeHtml(String(ratedCounts.up))} thumbs up · ${escapeHtml(String(ratedCounts.down))} thumbs down`
+              ? escapeHtml(t('you_ratings_none'))
+              : `${escapeHtml(String(ratedCounts.up))} ${escapeHtml(t('you_thumbs_up'))} · ${escapeHtml(String(ratedCounts.down))} ${escapeHtml(t('you_thumbs_down'))}`
           }</p>
         </section>
 
         <section class="block">
-          <h2 class="sect-h">What Shin does with your data</h2>
+          <h2 class="sect-h">${escapeHtml(t('you_data_h'))}</h2>
           <p class="fineprint">${escapeHtml(say('you_data_intro'))}</p>
 
           <div class="ilist consent-list">
             <div class="ilist-row consent-row">
               <div class="consent-text">
-                <span class="ilist-l">Photos</span>
+                <span class="ilist-l">${escapeHtml(t('you_photos'))}</span>
                 <p class="fineprint">${escapeHtml(say('consent_photos_desc'))}</p>
               </div>
               <button type="button" class="switch" data-consent="photos" role="switch"
-                      aria-checked="${consent.photos}" aria-label="Photos"></button>
+                      aria-checked="${consent.photos}" aria-label="${escapeHtml(t('you_photos'))}"></button>
             </div>
             <div class="ilist-row consent-row">
               <div class="consent-text">
-                <span class="ilist-l">Location</span>
+                <span class="ilist-l">${escapeHtml(t('you_location'))}</span>
                 <p class="fineprint">${escapeHtml(say('consent_location_desc'))}</p>
               </div>
               <button type="button" class="switch" data-consent="location" role="switch"
-                      aria-checked="${consent.location}" aria-label="Location"></button>
+                      aria-checked="${consent.location}" aria-label="${escapeHtml(t('you_location'))}"></button>
             </div>
           </div>
 
-          <p class="fineprint">
-            No daily limit right now. Nothing is metered in this build; if that changes, the
-            allowance will be one number, written once, shown wherever it applies.
-          </p>
+          <p class="fineprint">${escapeHtml(t('you_no_meter'))}</p>
           <!--
             What used to be three rows here -- "Privacy policy / not written yet",
             "Terms of use / not written yet", "Pricing / not decided yet" -- is now
@@ -253,11 +286,7 @@ export default {
             deliberately nothing to write. That decision is not an embarrassment to
             hide behind a placeholder; said plainly, it is the paragraph above.
           -->
-          <p class="fineprint">
-            There is no privacy policy page and no terms page. When there is something legal
-            worth reading, it will be here; until then the two paragraphs above are the whole
-            of it.
-          </p>
+          <p class="fineprint">${escapeHtml(t('you_no_legal'))}</p>
           ${
             /*
              * The one error state this screen can honestly report about itself.
@@ -269,8 +298,8 @@ export default {
 
           <div class="ilist">
             <a class="ilist-row" href="${deleteMyDataHref()}">
-              <span class="ilist-l">Delete my data</span>
-              <span class="ilist-v">Email</span>
+              <span class="ilist-l">${escapeHtml(t('you_delete_my_data'))}</span>
+              <span class="ilist-v">${escapeHtml(t('you_email'))}</span>
               ${rowChevron()}
             </a>
           </div>
@@ -279,16 +308,16 @@ export default {
         <section class="block">
           <div class="ilist">
             <button type="button" class="ilist-row" data-act="report">
-              <span class="ilist-l">Report a wrong price</span>
-              <span class="ilist-v">Fastest fix</span>
+              <span class="ilist-l">${escapeHtml(t('you_report'))}</span>
+              <span class="ilist-v">${escapeHtml(t('you_report_fastest'))}</span>
               ${rowChevron()}
             </button>
           </div>
         </section>
 
-        <p class="fineprint buildline">Build ${escapeHtml(
-          ctx.build ?? 'unknown',
-        )} · hand-set in main.js, not read from a running server.</p>
+        <p class="fineprint buildline">${escapeHtml(t('you_build'))} ${escapeHtml(
+          ctx.build ?? t('unknown'),
+        )} ${escapeHtml(t('you_build_note'))}</p>
 
         ${pageBar('you')}
       </div>`;
@@ -296,7 +325,7 @@ export default {
     function paintBuzz() {
       const row = root.querySelector('[data-act="buzz"]');
       const on = store.buzzOn();
-      root.querySelector('[data-buzz-v]').textContent = on ? 'On' : 'Off';
+      root.querySelector('[data-buzz-v]').textContent = on ? t('on') : t('off');
       // The row is a two-state toggle, so `aria-pressed` is the honest thing to
       // say about it -- unlike the theme control above, which has three states
       // and is a radio group for that reason.
@@ -346,8 +375,8 @@ export default {
       box.innerHTML = `
         <div class="ilist">
           <div class="ilist-row">
-            <span class="ilist-l">Products Shin can price</span>
-            <span class="ilist-v">${c.answerableCount} of ${c.items.length}</span>
+            <span class="ilist-l">${escapeHtml(t('you_can_price'))}</span>
+            <span class="ilist-v">${c.answerableCount} ${escapeHtml(t('of'))} ${c.items.length}</span>
           </div>
         </div>
         <p class="fineprint">${escapeHtml(say('you_coverage_refused', { refused: String(refused) }))}</p>
@@ -356,7 +385,7 @@ export default {
             .map(
               (i) => `<div class="covrow">
                 <span>${escapeHtml(i.label)}</span>
-                <span class="${i.answerable ? 'yes' : 'no'}">${i.answerable ? 'can answer' : 'refuses'}</span>
+                <span class="${i.answerable ? 'yes' : 'no'}">${escapeHtml(i.answerable ? t('you_row_can_answer') : t('you_row_refuses'))}</span>
               </div>`,
             )
             .join('')}
@@ -396,7 +425,7 @@ export default {
          * written; the reason goes where somebody can read it.
          */
         if (s.dropped) console.error('scan log could not be written:', s.droppedWhy);
-        const problem = s.dropped ? ', and some could not be written down' : '';
+        const problem = s.dropped ? t('you_some_not_written') : '';
         box.innerHTML = `<p class="fineprint">${escapeHtml(say('you_scans_none', { problem }))}</p>`;
         return;
       }
@@ -405,12 +434,12 @@ export default {
       box.innerHTML = `
         <div class="ilist">
           <div class="ilist-row">
-            <span class="ilist-l">Scans Shin could name</span>
-            <span class="ilist-v">${named ?? 'not yet'}</span>
+            <span class="ilist-l">${escapeHtml(t('you_scans_named_row'))}</span>
+            <span class="ilist-v">${escapeHtml(named ?? t('not_yet'))}</span>
           </div>
         </div>
         <p class="fineprint">${escapeHtml(
-          say('you_scans_named', { scans: `${s.scans} scan${s.scans === 1 ? '' : 's'}` }),
+          say('you_scans_named', { scans: t('you_scan_count', { n: String(s.scans) }) }),
         )}</p>
         <div class="covlist">
           ${s.perKind
@@ -421,36 +450,36 @@ export default {
               // percentage on the row under it, which reads as two different
               // kinds of number when it is one kind.
               (k) => `<div class="covrow">
-                <span>${k.kind === 'barcode' ? 'Barcode' : k.kind === 'text' ? 'Typed' : 'Photo'}
+                <span>${escapeHtml(k.kind === 'barcode' ? t('you_kind_barcode') : k.kind === 'text' ? t('you_kind_typed') : t('you_kind_photo'))}
                   · ${k.scans}</span>
-                <span>${pct(k.rate) ?? 'not yet'}</span>
+                <span>${escapeHtml(pct(k.rate) ?? t('not_yet'))}</span>
               </div>`,
             )
             .join('')}
           <div class="covrow">
-            <span>Corrections per hundred named</span>
-            <span>${s.correctionsPerHundred === null ? 'not yet' : Math.round(s.correctionsPerHundred)}</span>
+            <span>${escapeHtml(t('you_corrections_row'))}</span>
+            <span>${s.correctionsPerHundred === null ? escapeHtml(t('not_yet')) : Math.round(s.correctionsPerHundred)}</span>
           </div>
           <div class="covrow">
-            <span>Back in week two</span>
+            <span>${escapeHtml(t('you_week_two_row'))}</span>
             <span>${
               s.secondWeekReturn.rate === null
-                ? `nobody is two weeks old`
-                : `${pct(s.secondWeekReturn.rate)} of ${s.secondWeekReturn.eligible}`
+                ? escapeHtml(t('you_week_two_none'))
+                : `${pct(s.secondWeekReturn.rate)} ${escapeHtml(t('of'))} ${s.secondWeekReturn.eligible}`
             }</span>
           </div>
           <div class="covrow">
-            <span>Yours this week</span>
-            <span>${mine ? `${mine.scansThisWeek} scan${mine.scansThisWeek === 1 ? '' : 's'}, ${mine.named} named` : 'unknown'}</span>
+            <span>${escapeHtml(t('you_yours_this_week'))}</span>
+            <span>${mine ? escapeHtml(`${t('you_scan_count', { n: String(mine.scansThisWeek) })}, ${t('you_named_suffix', { n: String(mine.named) })}`) : escapeHtml(t('unknown'))}</span>
           </div>
         </div>
         ${
           s.dropped
             ? `<p class="fineprint">${escapeHtml(
                 say('you_scans_dropped', {
-                  scans: `${s.dropped} scan${s.dropped === 1 ? '' : 's'}`,
+                  scans: t('you_scan_count', { n: String(s.dropped) }),
                   // Same rule as above: the cause is logged, not printed.
-                  why: (console.error('scan log could not be written:', s.droppedWhy), 'the log could not be written to on this phone'),
+                  why: (console.error('scan log could not be written:', s.droppedWhy), t('you_log_not_written')),
                 }),
               )}</p>`
             : ''
@@ -469,6 +498,19 @@ export default {
           el.classList.toggle('on', picked);
           el.setAttribute('aria-checked', String(picked));
         }
+        return;
+      }
+      /*
+       * The language. Unlike the attitude and the theme above, this cannot be
+       * repainted in place: every string on this screen was already rendered
+       * in the old language, and half of them are inside blocks a fetch fills
+       * in later. `replace` rather than `go` so switching language does not
+       * push a history entry, which would make the system back button undo a
+       * setting instead of leaving the page.
+       */
+      const localeOpt = e.target.closest('[data-locale]');
+      if (localeOpt) {
+        if (setLocale(localeOpt.dataset.locale)) ctx.replace('you');
         return;
       }
       const themeOpt = e.target.closest('[data-theme]');

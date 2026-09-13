@@ -16,16 +16,48 @@ import { wireRadioGroup } from '../lib/radiogroup.js';
 import { storagePersists } from '../lib/persistence.js';
 import { say } from '../voice.js';
 import { pageBar, backButton, goBack, rowCheck } from '../lib/pagebar.js';
+import { t } from '../ui-strings.js';
 
+/**
+ * The three markets. `country` is the STORED value and stays English in every
+ * language: it is what `store.market()` writes, what the You screen's market
+ * row reads back, and what a future server comparison would key on, so
+ * translating it would silently fork the data on the language the person
+ * happened to be using when they picked. `key` is how the row is labelled on
+ * screen, which is the half a reader sees. That split is the same one the
+ * screen titles make (`title` English, `titleKey` translated).
+ */
 const MARKETS = [
-  { country: 'Canada', currency: 'CAD' },
-  { country: 'United States', currency: 'USD' },
-  { country: 'United Kingdom', currency: 'GBP' },
+  { country: 'Canada', currency: 'CAD', key: 'country_ca' },
+  { country: 'United States', currency: 'USD', key: 'country_us' },
+  { country: 'United Kingdom', currency: 'GBP', key: 'country_gb' },
 ];
+
+/** A stored country value, as it should read on screen. */
+export function countryLabel(country) {
+  const row = MARKETS.find((m) => m.country === country);
+  return row ? t(row.key) : country;
+}
+
+/**
+ * The same country, in the form that follows "in" / the French preposition.
+ *
+ * Two keys per country rather than a name plus a preposition glued in front of
+ * it, because French contracts the preposition with the article and the
+ * contraction depends on the country's own gender and number: "au Canada" but
+ * "aux Etats-Unis". A sentence assembled as `${prep} ${name}` is wrong for one
+ * of the three, and which one it is wrong for is invisible from the call site.
+ * Whole phrases cannot be wrong that way.
+ */
+export function countryIn(country) {
+  const row = MARKETS.find((m) => m.country === country);
+  return row ? t(`${row.key}_in`) : country;
+}
 
 export default {
   id: 'market',
   title: 'Where do you shop?',
+  titleKey: 'market_title',
 
   render(root, ctx) {
     const ac = new AbortController();
@@ -51,21 +83,21 @@ export default {
         <div class="page page-list">
           <header class="page-head mkt-head">
             ${backButton()}
-            <p class="kicker">Recorded, not yet part of the comparison</p>
+            <p class="kicker">${escapeHtml(t('market_kicker'))}</p>
             <div class="mkt-say">${shinSay('asking', 'market_ask', {}, { size: 64 })}</div>
           </header>
 
-          <div class="mkt-list ilist" role="radiogroup" aria-label="Market">
+          <div class="mkt-list ilist" role="radiogroup" aria-label="${escapeHtml(t('you_market'))}">
             ${MARKETS.map((m) => `
               <button type="button" class="ilist-row mkt-row${m.country === current.country ? ' on' : ''}"
                       role="radio" aria-checked="${m.country === current.country}"
                       data-country="${escapeHtml(m.country)}" data-currency="${escapeHtml(m.currency)}">
-                <span class="ilist-l">${escapeHtml(m.country)}</span>
+                <span class="ilist-l">${escapeHtml(t(m.key))}</span>
                 ${rowCheck()}
               </button>`).join('')}
           </div>
 
-          <p class="fineprint mkt-basis">Does not change a verdict yet. Recorded for when it does.</p>
+          <p class="fineprint mkt-basis">${escapeHtml(t('market_caption'))}</p>
           ${
             /*
              * The error state. This screen fetches nothing -- the three markets
@@ -87,7 +119,7 @@ export default {
             screen opens, and the screen it leads to is the rare one.
           -->
           <button type="button" class="linky mkt-attrib" data-act="licences">
-            Prices and product details come from open data. See the sources and licences.
+            ${escapeHtml(t('market_sources_button'))}
           </button>
 
           ${pageBar('you')}

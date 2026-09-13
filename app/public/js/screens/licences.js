@@ -41,6 +41,7 @@ import * as api from '../api.js';
 import { html, raw, on } from '../lib/dom.js';
 import { say } from '../voice.js';
 import { pageBar, backButton, goBack } from '../lib/pagebar.js';
+import { t } from '../ui-strings.js';
 
 /* Escaped because these strings come off the wire. Nothing in the list is user
    input today, but a screen that interpolates a fetched string into innerHTML
@@ -58,7 +59,7 @@ function sourceRow(entry, i) {
       <p class="lic-what">${entry.what}</p>
       <p class="lic-terms">
         <span class="lic-licence">${entry.licence}</span>
-        <a class="lic-link" href="${entry.url}" target="_blank" rel="noopener noreferrer">Open</a>
+        <a class="lic-link" href="${entry.url}" target="_blank" rel="noopener noreferrer">${t('open')}</a>
       </p>
     </li>`;
 }
@@ -66,6 +67,7 @@ function sourceRow(entry, i) {
 export default {
   id: 'licences',
   title: 'Where this comes from',
+  titleKey: 'lic_kicker',
 
   render(root, ctx) {
     function shell(inner) {
@@ -73,8 +75,8 @@ export default {
         <div class="page page-list">
           <header class="page-head">
             ${raw(backButton())}
-            <p class="kicker">Data and licences</p>
-            <h1>Where this comes from</h1>
+            <p class="kicker">${t('lic_title')}</p>
+            <h1>${t('lic_kicker')}</h1>
           </header>
           ${raw(inner)}
 
@@ -100,34 +102,22 @@ export default {
         <p class="lic-state lic-failed" role="status">
           ${say('licences_failed')}
         </p>
-        <p class="fineprint">
-          This app is built on open data from Open Food Facts, Open Prices,
-          OpenStreetMap and Open Icecat. The full list, with each licence, is what
-          failed to load.
-        </p>
+        <p class="fineprint">${t('lic_fallback_credit')}</p>
         <button type="button" class="btn btn--primary lic-retry" data-act="retry">
-          Try again
+          ${t('try_again')}
         </button>`);
     }
 
     function paintList(sources) {
       shell(`
-        <p class="lic-intro">
-          Product details, prices and store names in this app are open data,
-          collected and published by other people. Each source below sets its own
-          terms for reuse, and this is the credit those terms ask for.
-        </p>
+        <p class="lic-intro">${t('lic_intro')}</p>
 
-        <h2 class="sect-h">Sources</h2>
+        <h2 class="sect-h">${t('lic_sources')}</h2>
         <ul class="lic-list">
           ${sources.map(sourceRow).join('')}
         </ul>
 
-        <p class="fineprint lic-foot">
-          Shin is not affiliated with any of them. Prices are what somebody
-          recorded on the day shown beside them, not an offer, and not checked
-          with the shop.
-        </p>`);
+        <p class="fineprint lic-foot">${t('lic_footer')}</p>`);
     }
 
     /*

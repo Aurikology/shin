@@ -7,7 +7,6 @@
  * return a cleanup function.
  *
  * Screens never import one another. They move by calling ctx.go(id, params),
-import { escapeHtml } from './lib/dom.js';
  * which is what keeps the walkthrough's branches (06b off 06, the paywall off
  * 07) from turning into a tangle.
  *
@@ -22,6 +21,19 @@ import { escapeHtml } from './lib/dom.js';
  * order on purpose: focus first so the reader's cursor is already inside the
  * new screen when the live region speaks.
  */
+
+/*
+ * MOVED OUT OF THE COMMENT ABOVE, 2026-09-13. `import { escapeHtml } from
+ * './lib/dom.js';` was sitting between two lines of the file's own header
+ * comment, which makes it a comment: `escapeHtml` was never bound, and the
+ * render-failure branch below that calls it would have thrown a second time
+ * on top of the error it was reporting. Nothing caught it because nothing
+ * renders that branch in the suite. Found while adding the two imports under
+ * it; a one-line move, and it belongs with them.
+ */
+import { escapeHtml } from './lib/dom.js';
+import { t } from './ui-strings.js';
+import { applyLang } from './lib/locale.js';
 
 const routes = new Map();
 let current = null;
@@ -169,11 +181,24 @@ function focusScreen() {
  * screen the user is on was permanently empty. A background tab is not a corner
  * case for an app you switch away from to read a receipt.
  */
-function announce(screen) {
+function announce(title) {
   const region = document.getElementById('route-status');
-  if (!region || !screen.title) return;
+  if (!region || !title) return;
   region.textContent = '';
-  setTimeout(() => { region.textContent = screen.title; }, 50);
+  setTimeout(() => { region.textContent = title; }, 50);
+}
+
+/**
+ * What this screen is called, in the language in force.
+ *
+ * A screen registers `title` (English, and the identity `test/title.test.mjs`
+ * reads off the module) and, when it has one, `titleKey`, which is the
+ * ui-strings key for the same name. The tab and the route announcement are
+ * both read by a person, so both take the translated one; the registered
+ * literal stays put as the screen's own name in the source.
+ */
+function titleOf(screen) {
+  return screen.titleKey ? t(screen.titleKey) : screen.title;
 }
 
 /** Replace without adding a history entry. Used when a screen redirects itself. */
@@ -209,6 +234,18 @@ function paint(id, params, restore = false) {
   current = id;
   rootEl.innerHTML = '';
   rootEl.dataset.screen = id;
+  /*
+   * The document's language, restamped on every paint.
+   *
+   * `lang` is what a screen reader picks a voice from, and it is the one
+   * attribute a single-page app has no natural moment to set: there is no
+   * second document load after the language picker on the You screen, so
+   * without this the whole app would keep announcing French copy in an English
+   * voice until a reload. `setLocale` also stamps it the instant the choice is
+   * made (lib/locale.js), for the screen the user is standing on; this is the
+   * one that catches every screen after it.
+   */
+  applyLang();
   // Set before render so the animation is already armed when the markup lands;
   // setting it after would restart the animation a frame late and show the
   // pre-animation state for that frame.
@@ -217,7 +254,8 @@ function paint(id, params, restore = false) {
   seen.add(id);
   // The rule and the reasoning live on `titleFor` above (FLAWS.md item 12,
   // DEFECTS.md D-016).
-  document.title = titleFor(screen.title);
+  const screenTitle = titleOf(screen);
+  document.title = titleFor(screenTitle);
   const gen = ++paintGen;
   try {
     const returned = screen.render(rootEl, { ...ctxBase, go, replace, params }) ?? null;
@@ -232,9 +270,9 @@ function paint(id, params, restore = false) {
      * The one thing a person can do from this page is leave it.
      */
     rootEl.innerHTML = `<div class="screen-error">
-      <h2>That screen did not open.</h2>
-      <p>Something on it broke before it could draw. Going back to the camera will clear it.</p>
-      <button type="button" class="btn" data-act="screen-error-home">${escapeHtml('Back to the camera')}</button>
+      <h2>${escapeHtml(t('screen_error_title'))}</h2>
+      <p>${escapeHtml(t('screen_error_body'))}</p>
+      <button type="button" class="btn" data-act="screen-error-home">${escapeHtml(t('back_to_camera'))}</button>
     </div>`;
     rootEl.querySelector('[data-act="screen-error-home"]')?.addEventListener('click', () => replace('camera'));
   }
@@ -247,7 +285,7 @@ function paint(id, params, restore = false) {
    */
   if (painted) {
     focusScreen();
-    announce(screen);
+    announce(screenTitle);
   }
   painted = true;
 
