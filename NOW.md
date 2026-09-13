@@ -66,6 +66,31 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## Client-side parsing looked like a way round the wall, and is not, 2026-09-13 night
+
+**His words:** *"look into the client side parsing route."* `research/price-sources/40-client-side-extraction.md`.
+
+**The analogy fails on a product fact.** Karma and Honey read a DOM the user's browser already
+fetched on a page the user chose to open; the operative fact is the human gesture, not where the
+parser runs. Shin's shopper is in an aisle on no page at all. So client-side here means fetching
+with no gesture — automation from a residential IP — and Century 21's agency line keeps the
+contracting party as Shin. It changes who gets blocked, and that is the shopper.
+
+**Store policy kills it before the law is reached.** Apple 5.2.2 requires being *"specifically
+permitted ... under the service's terms of use"* with *"authorization must be provided upon
+request"* — verified verbatim, and file 39 §11 already has Loblaws, Walmart Canada and Best Buy
+Canada forbidding automated extraction, so there is nothing to produce. Play's Spam policy forbids a
+webview of a site *"without permission"* and uses a shopping-comparison wrapper as its own example.
+
+**Killed in the register**, with a three-part reopen condition and the explicit note that
+*"it runs on the phone now"* is an argument, not an observation. The three things that would make it
+fit are a product redesign, a licensing deal, and the row already killed — none of them a
+client-side finding.
+
+**One correction upstream:** file 39's Honey row is unverified and looks incomplete — a 30,000-site
+index with 120 days of price history cannot be built by a content script, so the script is probably
+the display surface and the index is Honey's own infrastructure.
+
 ## The eval stops reporting one number and starts saying which stage failed, 2026-09-13 night
 
 The eval could not tell *"the cascade never surfaced the right row"* from *"the row was there and

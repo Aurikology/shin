@@ -1301,3 +1301,46 @@ an obstacle to be routed around.
 
 **Reverses if:** nothing foreseeable. If a retailer grants written permission or publishes an API,
 the question disappears rather than reverses.
+
+## Client-side parsing is not a route, it is three other conversations wearing one name
+**Date:** 2026-09-13 · **Status:** active
+
+Asked for on his instruction after `research/price-sources/39-canadian-scraping-law.md` reported that
+Karma and Honey *"avoid centralized server-side scraping liability by executing the extraction
+client-side on the consumer's local machine."* Answered in `40-client-side-extraction.md`.
+
+**The analogy fails on a fact about the product, not a point of law.** Karma and Honey read a DOM the
+user's own browser already fetched, on a page the user chose to open. **The legally operative fact is
+the human gesture, not where the parser runs.** Shin's shopper is in an aisle, on no page at all, and
+needs prices from retailers they are not visiting. So "client-side" for Shin means the app fetching
+pages with no gesture — automation from a residential IP. Century 21's agency line makes an automated
+agent the agent of whoever commands it, so the contracting party stays Shin. **It moves who gets
+blocked, not who is in breach, and the party who gets blocked is a shopper who did nothing wrong.**
+
+**Store policy kills it before the law is reached, which is the part worth remembering.** Apple 5.2.2
+requires an app displaying third-party content to be *"specifically permitted ... under the service's
+terms of use"*, with *"authorization must be provided upon request"* — verified verbatim against the
+guidelines on 2026-09-13. File 39 §11 already quotes Loblaws, Walmart Canada and Best Buy Canada
+forbidding automated extraction, so there is nothing to produce when asked. Google Play's Spam policy
+forbids *"apps whose primary purpose is to provide a webview of a website without permission"* and
+uses a shopping-comparison wrapper as its own worked example, and its Device and Network Abuse policy
+converts a breach of a site's terms into a Play violation directly, with no lawsuit required.
+
+**The cleanest statement of why not to build it.** Three things would make it fit, and none is a
+client-side finding: a real user gesture (a product redesign — a visible in-app browser, which is
+what Karma's mobile app actually is, and which spends the whole seven-second budget and turns a
+verdict into a browser); written retailer permission (a licensing deal, the shape of which is
+`28-canadian-tire-developer-portal.md`); or a retailer serving pages to unauthenticated requests
+(the row that is already killed). **The idea contributes nothing of its own to any of the three.**
+
+**A correction to file 39, which this lane earned.** That file's Karma/Honey row is uncited model
+output and, for Honey, looks incomplete: commentators describe a 30,000-site index carrying 120 days
+of Amazon price history, which a content script cannot build. The client-side script is plausibly the
+**display surface**, with the index on Honey's own infrastructure — which would mean "client-side
+avoids the liability" was never the whole story. Marked unverified rather than adopted. Separately,
+the 2025 Honey litigation is about affiliate last-click attribution, not scraping, and must not be
+cited as a scraping precedent.
+
+**Reverses if:** all three of the register row's conditions land together — a named retailer serving
+or permitting, a named approved app or written store guidance, and a measured in-budget fetch from a
+real device. Any one alone reopens nothing.
