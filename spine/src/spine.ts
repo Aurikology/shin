@@ -21,12 +21,18 @@ import type {
   Spread,
   SpineQuery,
   SpineResult,
+  StructuredText,
+  TextFragment,
   Verdict,
 } from './contract.ts';
+import { fragment, say } from './contract.ts';
 import { isIncoherent, ruleFor, spreadDisagreement } from './categories.ts';
 import type { CategoryRule } from './categories.ts';
 import { judge as judgeThinEvidence } from '../../price/src/verdict.ts';
-import type { Observation as ThinObservation } from '../../price/src/verdict.ts';
+import type {
+  Observation as ThinObservation,
+  Verdict as ThinJudgement,
+} from '../../price/src/verdict.ts';
 import { CORROBORATION_FLOOR_CENTS, CORROBORATION_TOLERANCE } from '../../price/src/corrections.ts';
 import { ageDays, cad, isFutureDated, isUsableAmount, max, median, min, percentile } from './money.ts';
 import type { PriceSource } from './sources/source.ts';
@@ -38,12 +44,54 @@ export interface SpineDeps {
   readonly identityNote?: (identityId: string) => string | undefined;
 }
 
+/**
+ * A shortfall said twice: today's exact English, and the same thing as a code
+ * with raw facts beside it.
+ *
+ * ONE OBJECT RATHER THAN TWO PARALLEL ARRAYS, on purpose. Parallel arrays drift
+ * the first time somebody adds a reason on one line and forgets the other, and
+ * the failure mode is a French screen quietly missing a caveat the English
+ * screen shows, with nothing red anywhere. Here a shortfall cannot be built
+ * without both halves, and `test/structured-prose.test.ts` renders the fragment
+ * back and asserts it equals the text.
+ */
+interface Shortfall {
+  readonly text: string;
+  readonly fragment: TextFragment;
+}
+
+function shortfall(text: string, frag: TextFragment): Shortfall {
+  return { text, fragment: frag };
+}
+
+/**
+ * Reasons joined into the one sentence `Confidence.because` shows.
+ *
+ * English's join is `"; "`, then sentence-case, then a full stop, and that is
+ * what `shortfall_list` names. The shape travels rather than the punctuation so
+ * a locale can join and capitalise by its own rules.
+ */
+function becauseOf(reasons: readonly Shortfall[]): { text: string; structured: StructuredText } {
+  const listed = reasons.map((r) => r.text).join('; ');
+  return {
+    text: `${listed.charAt(0).toUpperCase()}${listed.slice(1)}.`,
+    structured: { shape: 'shortfall_list', fragments: reasons.map((r) => r.fragment) },
+  };
+}
+
 export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<SpineResult> {
   const asOf = query.asOf ?? new Date().toISOString();
   const usableSources = deps.sources.filter((s) => s.available().ok);
 
   if (usableSources.length === 0) {
-    return refuse('no_source_response', 'No price source is available right now.', null, [], asOf);
+    return refuse(
+      'no_source_response',
+      'No price source is available right now.',
+      say('refusal_no_price_source_available'),
+      null,
+      [],
+      asOf,
+    );
   }
 
   // 1. Identity, before anything else touches a number.
@@ -52,6 +100,7 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     return refuse(
       'no_identity',
       'Could not work out what this is. Scan the barcode, or type the model number.',
+      say('refusal_identity_unresolved'),
       null,
       [],
       asOf,
@@ -65,6 +114,15 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     return refuse(
       'category_unsupported',
       `${rule.label} is not something Shin can price yet. ${rule.unsupported.why}`,
+      // `category` is the raw code and is what a French renderer keys on; the
+      // label and the recorded `why` travel beside it because both are English
+      // prose owned by `categories.ts`, and translating a recorded decision is
+      // that file's problem, not this sentence's.
+      say('refusal_category_not_served', {
+        category: identity.category,
+        categoryLabel: rule.label,
+        why: rule.unsupported.why,
+      }),
       identity,
       [],
       asOf,
@@ -92,6 +150,7 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     return refuse(
       'identity_unsure',
       `Not sure enough this is the right one. The closest match was "${identity.label}". Pick the right one and Shin will price it.`,
+      say('refusal_identity_below_floor', { label: identity.label }),
       identity,
       [],
       asOf,
@@ -106,6 +165,7 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     return refuse(
       'no_source_response',
       `Nothing has a price for "${identity.label}" right now.`,
+      say('refusal_no_price_for_product', { label: identity.label }),
       identity,
       [],
       asOf,
@@ -121,6 +181,13 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
       query.askingCents === undefined
         ? 'Found comparisons but no price for the thing in front of you. Point at the tag.'
         : 'That price did not read as a number. Type it again with a dot for the decimal.',
+      // Two codes because they are two different repairs, which is the same
+      // reason `RefusalReason` splits anywhere else in this file.
+      say(
+        query.askingCents === undefined
+          ? 'refusal_asking_price_missing'
+          : 'refusal_asking_price_unreadable',
+      ),
       identity,
       raw,
       asOf,
@@ -214,6 +281,7 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
       return refuse(
         'points_future_dated',
         'Every price found is dated later than today, so there is nothing to compare against yet.',
+        say('refusal_all_prices_future_dated'),
         identity,
         raw,
         asOf,
@@ -222,12 +290,30 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
 
     // The order matches the filter order above. Every sentence points at the
     // prices, the sellers or the dates, never at the person holding the phone.
-    const shortfall =
-      usableKind.length === 0
-        ? `the only prices anyone publishes for this are ${droppedKinds.join(' and ')}, which is not a comparison`
-        : withinWindow.length === 0
-          ? `the newest price we have is ${min(datedSanely.map((p) => ageDays(p.observedAt, asOf)))} days old, past what ${rule.label.toLowerCase()} tolerates`
-          : 'every price we have is this same store, so this is against its own history rather than against anybody else';
+    let cause: Shortfall;
+    if (usableKind.length === 0) {
+      // The kinds go out as the contract's own `PriceKind` codes. English joins
+      // them with " and "; a locale joins its own translations its own way.
+      cause = shortfall(
+        `the only prices anyone publishes for this are ${droppedKinds.join(' and ')}, which is not a comparison`,
+        fragment('shortfall_no_comparable_price_kinds', { kinds: droppedKinds }),
+      );
+    } else if (withinWindow.length === 0) {
+      const newestAgeDays = min(datedSanely.map((p) => ageDays(p.observedAt, asOf)));
+      cause = shortfall(
+        `the newest price we have is ${newestAgeDays} days old, past what ${rule.label.toLowerCase()} tolerates`,
+        fragment('shortfall_newest_price_past_tolerance', {
+          ageDays: newestAgeDays,
+          category: identity.category,
+          categoryLabel: rule.label,
+        }),
+      );
+    } else {
+      cause = shortfall(
+        'every price we have is this same store, so this is against its own history rather than against anybody else',
+        fragment('shortfall_only_the_asking_seller_has_prices'),
+      );
+    }
 
     /*
      * Item 15b applies on this path too, and it has to be applied HERE rather
@@ -247,7 +333,7 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
       counted,
       askingCents,
       query.askingSeller,
-      uncounted.length === 0 ? shortfall : `${shortfall}; ${notCountedShortfall(uncounted)}`,
+      uncounted.length === 0 ? [cause] : [cause, notCountedShortfall(uncounted)],
       asOf,
     );
     if (thin !== null) return thin;
@@ -257,6 +343,7 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     return refuse(
       'no_source_response',
       `Nothing has a price for "${identity.label}" right now.`,
+      say('refusal_no_price_for_product', { label: identity.label }),
       identity,
       raw,
       asOf,
@@ -352,16 +439,14 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
    * front of the shopper. Neither of those is a threshold. There is nothing to
    * compare, so there is no answer to give at any confidence.
    */
-  const shortfalls: string[] = [];
+  const shortfalls: Shortfall[] = [];
 
   /* A held price is named, never silently dropped. Somebody typed that number
      in and it is not being used; saying so is the difference between a
      judgement and a disappearance, and it is the only way a person who typed an
      honest price that happens to be an outlier can tell what happened. */
   if (held.length > 0) {
-    shortfalls.push(
-      `${held.length} typed price${held.length === 1 ? ' is' : 's are'} being held back for now, too far from everything else to publish on one person's word`,
-    );
+    shortfalls.push(heldBackShortfall(held.length));
   }
 
   /* Item 15b's own sentence, for a reading nobody has confirmed rather than one
@@ -376,16 +461,39 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     // locate a product far better than silence does, so they answer, labelled.
     basis = counted;
     shortfalls.push(
-      `the newest price we have is ${newestAge} days old, and ${rule.label.toLowerCase()} moves faster than that`,
+      shortfall(
+        `the newest price we have is ${newestAge} days old, and ${rule.label.toLowerCase()} moves faster than that`,
+        fragment('shortfall_newest_price_older_than_category', {
+          ageDays: newestAge,
+          category: identity.category,
+          categoryLabel: rule.label,
+        }),
+      ),
     );
   } else if (tiering.length < counted.length) {
     const dropped = counted.length - tiering.length;
-    shortfalls.push(`${dropped} of ${counted.length} prices are too old to count`);
+    shortfalls.push(
+      shortfall(
+        `${dropped} of ${counted.length} prices are too old to count`,
+        fragment('shortfall_some_prices_too_old_to_count', {
+          droppedCount: dropped,
+          totalCount: counted.length,
+        }),
+      ),
+    );
   }
 
   if (basis.length < rule.minPoints) {
     shortfalls.push(
-      `${basis.length} price${basis.length === 1 ? '' : 's'} where ${rule.label.toLowerCase()} usually needs ${rule.minPoints}`,
+      shortfall(
+        `${basis.length} price${basis.length === 1 ? '' : 's'} where ${rule.label.toLowerCase()} usually needs ${rule.minPoints}`,
+        fragment('shortfall_fewer_points_than_category_needs', {
+          pointCount: basis.length,
+          needed: rule.minPoints,
+          category: identity.category,
+          categoryLabel: rule.label,
+        }),
+      ),
     );
   }
 
@@ -396,16 +504,24 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
   const sellers = new Set(basis.map((p) => sellerIdentity(p)));
   if (sellers.size < rule.minDistinctSellers) {
     shortfalls.push(
-      `${sellers.size} seller${sellers.size === 1 ? '' : 's'} where ${rule.label.toLowerCase()} usually needs ${rule.minDistinctSellers}`,
+      shortfall(
+        `${sellers.size} seller${sellers.size === 1 ? '' : 's'} where ${rule.label.toLowerCase()} usually needs ${rule.minDistinctSellers}`,
+        fragment('shortfall_fewer_sellers_than_category_needs', {
+          sellerCount: sellers.size,
+          needed: rule.minDistinctSellers,
+          category: identity.category,
+          categoryLabel: rule.label,
+        }),
+      ),
     );
   }
 
   if (isIncoherent(basis, rule.mixedKindsExpected)) {
-    shortfalls.push('the prices found disagree widely enough that this may be more than one product');
+    shortfalls.push(incoherentShortfall());
   }
 
   // 6. Only now does a category get to speak.
-  const { tier, lines, disagreement } = rule.judge({
+  const { tier, lines, structuredLines, disagreement } = rule.judge({
     askingCents,
     points: basis,
     asOf,
@@ -421,6 +537,7 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     askingSource: query.askingSeller ?? 'given',
     tier,
     lines,
+    structuredLines,
     comparisonSet: basis,
     pointCount: basis.length,
     oldestObservedAt: observed[0],
@@ -481,13 +598,151 @@ function canonicalSellers(points: readonly PricePoint[]): Map<string, string> {
  * function means the category's own filters threw away every price, which is a
  * shortfall by definition; a set that clears a category's bar never gets here.
  */
+/**
+ * The thin-evidence sentence as codes and raw facts.
+ *
+ * RE-DERIVED HERE RATHER THAN EMITTED WHERE THE WORDS ARE CHOSEN, and that is a
+ * compromise worth naming. `price/src/verdict.ts` composes that string out of
+ * four pieces (a head, a comparison, an optional unit price and an optional
+ * promotion) and it is another package. So this reads the judgement object back
+ * and rebuilds the same four pieces from it.
+ *
+ * The derivation is TOTAL, not a guess: every number and name the sentence
+ * interpolates is on that object -- both bands, their ends, their sellers, the
+ * unit price and the shelf price -- and the branches below are the same
+ * branches that file takes, in the same order. `test/structured-prose.test.ts`
+ * renders these fragments back into English and asserts the result equals
+ * `judged.line` byte for byte, so a change over there fails here rather than
+ * quietly shipping a French screen that says something else.
+ *
+ * The right long-term home is `verdict.ts` itself. That is a different package
+ * and a different lane.
+ *
+ * EXPORTED for `test/structured-prose.test.ts` only. The test drives it over
+ * judgements `priceIt` cannot currently reach -- a known unit price is one, see
+ * `thinAnswer` -- so the derivation is proven total against the shape rather
+ * than against today's reachable subset of it.
+ */
+export function thinStructuredLine(judged: ThinJudgement, askingCents: number): StructuredText {
+  const basis = judged.regular ?? judged.promotional;
+  // Unreachable: a null basis is one of the two cases that return a null tier,
+  // and the caller returns before this on a null tier. Guarded, not assumed.
+  if (basis === null || judged.tier === null) return { shape: 'sentences', fragments: [] };
+
+  // A band with no width is one price, not a range, and the sentence says
+  // something different about it. That is a meaning split, so it is a code
+  // split. `sellerCount` is the fact that picks "the only price we have" from
+  // "what every seller charges", because that is an English phrasing choice
+  // over one number and not a separate claim.
+  const soleprice = basis.cheapestCents === basis.dearestCents;
+  const head =
+    judged.tier === 'good'
+      ? soleprice
+        ? fragment('asking_below_sole_price', {
+            askingCents,
+            currency: 'CAD',
+            sellerCount: basis.sellerCount,
+          })
+        : fragment('asking_below_range', { askingCents, currency: 'CAD' })
+      : judged.tier === 'fair'
+        ? soleprice
+          ? fragment('asking_equals_sole_price', {
+              askingCents,
+              currency: 'CAD',
+              sellerCount: basis.sellerCount,
+            })
+          : fragment('asking_within_range', { askingCents, currency: 'CAD' })
+        : soleprice
+          ? fragment('asking_above_sole_price', {
+              askingCents,
+              currency: 'CAD',
+              sellerCount: basis.sellerCount,
+            })
+          : fragment('asking_above_range', { askingCents, currency: 'CAD' });
+
+  const compare = soleprice
+    ? fragment('sole_price_matched_at_seller', {
+        seller: basis.cheapestSeller,
+        amountCents: basis.cheapestCents,
+        currency: 'CAD',
+      })
+    : fragment('cheapest_and_dearest_sellers', {
+        cheapestSeller: basis.cheapestSeller,
+        cheapestCents: basis.cheapestCents,
+        dearestSeller: basis.dearestSeller,
+        dearestCents: basis.dearestCents,
+        currency: 'CAD',
+      });
+
+  const fragments: TextFragment[] = [head, compare];
+
+  // `unitLabel` is "100g" or "100ml" off the pack size, which is a unit symbol
+  // rather than prose, so it travels as it is.
+  if (basis.unitCents !== null && basis.unitLabel !== null) {
+    fragments.push(
+      fragment('unit_price', {
+        unitCents: basis.unitCents,
+        currency: 'CAD',
+        unitLabel: basis.unitLabel,
+      }),
+    );
+  }
+
+  if (judged.promotional !== null && judged.promotional.cheapestCents < basis.cheapestCents) {
+    fragments.push(
+      fragment('cheaper_on_promotion_at_seller', {
+        seller: judged.promotional.cheapestSeller,
+        amountCents: judged.promotional.cheapestCents,
+        currency: 'CAD',
+      }),
+    );
+  }
+
+  return { shape: 'sentences', fragments };
+}
+
+/** The four strings `price/src/verdict.ts` can put in `confidenceBasis`, as codes. */
+const THIN_BASIS_CODES = new Map<string, TextFragment>([
+  ['one seller', fragment('basis_single_seller')],
+  ['the newest price is over three weeks old', fragment('basis_newest_price_over_three_weeks')],
+  ['only sale prices to compare against', fragment('basis_only_sale_prices')],
+  ['one seller matched by name, not barcode', fragment('basis_matched_by_name_not_barcode')],
+]);
+
+const THIN_BASIS_SELLERS = /^(\d+) sellers agree on the range$/;
+
+/**
+ * One of that file's reasons, as a shortfall carrying both halves.
+ *
+ * The seller count is READ BACK OFF THE STRING rather than recomputed from our
+ * own points, deliberately: that file clamps it (`Math.min(sellerCount, 9)`)
+ * and counts sellers on its own band, so any number we derived here could
+ * differ from the one the English actually printed and the two halves would
+ * stop agreeing. Reading it back cannot drift.
+ *
+ * EXPORTED for `test/structured-prose.test.ts`, which drives `confidenceOf` in
+ * `price/src/verdict.ts` across its whole input domain and asserts none of the
+ * strings it can produce falls through to `basis_reason_not_yet_coded`.
+ */
+export function thinBasisShortfall(text: string): { text: string; fragment: TextFragment } {
+  const known = THIN_BASIS_CODES.get(text);
+  if (known !== undefined) return shortfall(text, known);
+  const sellers = THIN_BASIS_SELLERS.exec(text);
+  if (sellers !== null) {
+    return shortfall(text, fragment('basis_sellers_agree_on_range', { sellerCount: Number(sellers[1]) }));
+  }
+  // See `basis_reason_not_yet_coded`: unreachable, test-enforced, and it keeps
+  // the English exact rather than dropping a reason a shopper is owed.
+  return shortfall(text, fragment('basis_reason_not_yet_coded', { text }));
+}
+
 function thinAnswer(
   identity: ProductIdentity,
   rule: CategoryRule,
   points: readonly PricePoint[],
   askingCents: number,
   askingSeller: string | undefined,
-  shortfall: string,
+  causes: readonly Shortfall[],
   asOf: string,
 ): Verdict | null {
   // D-022's hold applies here too, and under the same rule: it may name a lone
@@ -520,16 +775,14 @@ function thinAnswer(
   });
   if (judged.tier === null) return null;
 
-  const reasons = [shortfall, ...judged.confidenceBasis];
+  const reasons: Shortfall[] = [...causes, ...judged.confidenceBasis.map(thinBasisShortfall)];
   if (held.length > 0 && held.length < points.length) {
-    reasons.push(
-      `${held.length} typed price${held.length === 1 ? ' is' : 's are'} being held back for now, too far from everything else to publish on one person's word`,
-    );
+    reasons.push(heldBackShortfall(held.length));
   }
   if (isIncoherent(basis, rule.mixedKindsExpected)) {
-    reasons.push('the prices found disagree widely enough that this may be more than one product');
+    reasons.push(incoherentShortfall());
   }
-  const listed = reasons.join('; ');
+  const said = becauseOf(reasons);
 
   const ages = basis.map((p) => ageDays(p.observedAt, asOf));
   const observed = basis.map((p) => p.observedAt).sort();
@@ -542,6 +795,7 @@ function thinAnswer(
     askingSource: askingSeller ?? 'given',
     tier: judged.tier === 'high' ? 'walk_away' : judged.tier,
     lines: [judged.line],
+    structuredLines: [thinStructuredLine(judged, askingCents)],
     comparisonSet: basis,
     pointCount: basis.length,
     oldestObservedAt: observed[0],
@@ -549,7 +803,8 @@ function thinAnswer(
     spread: spreadOf(basis),
     confidence: {
       band: 'low',
-      because: `${listed.charAt(0).toUpperCase()}${listed.slice(1)}.`,
+      because: said.text,
+      structuredBecause: said.structured,
       score: judged.confidence,
       pointCount: basis.length,
       distinctSellers,
@@ -737,7 +992,28 @@ function singleReport(
     newestFirst.length === 1
       ? `One shopper saw ${readingInWords(newestFirst[0])}. Nobody else has priced this yet, so there is nothing to check it against.`
       : `Shoppers typed in ${newestFirst.map(readingInWords).join(', and ')}. Nobody has seen either of those tags twice, so there is nothing to check them against.`;
-  return refuse('single_report', detail, identity, reports, asOf);
+  /*
+   * Every reading goes out whole and raw: cents as an integer, the seller's
+   * name, and the full ISO timestamp. `dayInWords` turning that into
+   * "3 September" is an ENGLISH rendering of the same fact, and it is exactly
+   * the kind of thing that had to stop happening on this side of the wire.
+   *
+   * Two codes, because these are two different statements: one reading nobody
+   * can check, and several readings none of which was seen twice. That is a
+   * meaning split. The count is still a fact on both so a renderer never has to
+   * infer it from the array length.
+   */
+  const readings = newestFirst.map((p) => ({
+    amountCents: p.amountCents,
+    currency: p.currency,
+    seller: p.seller,
+    observedAt: p.observedAt,
+  }));
+  const structuredDetail = say(
+    newestFirst.length === 1 ? 'refusal_one_shopper_report' : 'refusal_several_unconfirmed_reports',
+    { readings, count: readings.length },
+  );
+  return refuse('single_report', detail, structuredDetail, identity, reports, asOf);
 }
 
 /**
@@ -746,8 +1022,31 @@ function singleReport(
  * from the lone-claim hold's "held back": this one is not an accusation, it is
  * a reading nobody has confirmed yet.
  */
-function notCountedShortfall(uncounted: readonly PricePoint[]): string {
-  return `${uncounted.length} typed price${uncounted.length === 1 ? ' is' : 's are'} not counted toward this, because nobody else has seen ${uncounted.length === 1 ? 'that tag' : 'those tags'} yet`;
+function notCountedShortfall(uncounted: readonly PricePoint[]): Shortfall {
+  // ONE code and a count fact, not two codes. English splits on 1 and French
+  // does not split in the same place; a `..._singular` code would hard-code an
+  // English grammar rule into the contract, which is the thing this whole
+  // mechanism exists to undo.
+  return shortfall(
+    `${uncounted.length} typed price${uncounted.length === 1 ? ' is' : 's are'} not counted toward this, because nobody else has seen ${uncounted.length === 1 ? 'that tag' : 'those tags'} yet`,
+    fragment('shortfall_uncorroborated_typed_prices', { count: uncounted.length }),
+  );
+}
+
+/** D-022's hold, said out loud. Same one-code-plus-count rule as above. */
+function heldBackShortfall(count: number): Shortfall {
+  return shortfall(
+    `${count} typed price${count === 1 ? ' is' : 's are'} being held back for now, too far from everything else to publish on one person's word`,
+    fragment('shortfall_lone_claims_held_back', { count }),
+  );
+}
+
+/** Raised on both the category path and the thin path, so it is written once. */
+function incoherentShortfall(): Shortfall {
+  return shortfall(
+    'the prices found disagree widely enough that this may be more than one product',
+    fragment('shortfall_prices_may_be_two_products'),
+  );
 }
 
 /** Points a member of the public cannot write. The only honest baseline. */
@@ -821,7 +1120,7 @@ function confidenceOf(
    * an answer that cleared every one of them. These used to be refusals; they
    * are the reason a band is low, and the sentence the user is shown.
    */
-  shortfalls: readonly string[] = [],
+  shortfalls: readonly Shortfall[] = [],
 ): Confidence {
   const ages = points.map((p) => ageDays(p.observedAt, asOf));
   const newestAge = min(ages);
@@ -835,13 +1134,15 @@ function confidenceOf(
 
   let band: ConfidenceBand;
   let because: string;
+  let structuredBecause: StructuredText;
 
   if (shortfalls.length > 0) {
     band = 'low';
     // Named, not summarised. "Low confidence" on its own is a shrug; "1 price
     // where groceries usually needs 2" is something a shopper can weigh.
-    const listed = shortfalls.join('; ');
-    because = `${listed.charAt(0).toUpperCase()}${listed.slice(1)}.`;
+    const said = becauseOf(shortfalls);
+    because = said.text;
+    structuredBecause = said.structured;
   } else if (
     points.length === rule.minPoints ||
     /*
@@ -857,9 +1158,14 @@ function confidenceOf(
   ) {
     band = 'low';
     because = `Only just enough to answer: ${points.length} price${points.length === 1 ? '' : 's'} from ${sellers} seller${sellers === 1 ? '' : 's'}.`;
+    structuredBecause = say('confidence_minimum_met_only', {
+      pointCount: points.length,
+      sellerCount: sellers,
+    });
   } else if (newestAge > rule.maxAgeDays / 2) {
     band = 'medium';
     because = `Newest price is ${newestAge} days old.`;
+    structuredBecause = say('confidence_newest_price_age', { ageDays: newestAge });
   } else if (
     points.length >= rule.minPoints * 2 &&
     identity.confidence >= 0.95 &&
@@ -872,14 +1178,29 @@ function confidenceOf(
     because = rule.historyBased
       ? `${points.length} prices spanning ${oldestAge} days of this seller's own history, and the product is a certain match.`
       : `${points.length} prices across ${sellers} sellers, none older than ${oldestAge} day${oldestAge === 1 ? '' : 's'}, and the product is a certain match.`;
+    structuredBecause = rule.historyBased
+      ? say('confidence_history_span_exact_match', {
+          pointCount: points.length,
+          spanDays: oldestAge,
+        })
+      : say('confidence_fresh_across_sellers_exact_match', {
+          pointCount: points.length,
+          sellerCount: sellers,
+          oldestAgeDays: oldestAge,
+        });
   } else {
     band = 'medium';
     because = `${points.length} prices across ${sellers} sellers.`;
+    structuredBecause = say('confidence_price_count_across_sellers', {
+      pointCount: points.length,
+      sellerCount: sellers,
+    });
   }
 
   return {
     band,
     because,
+    structuredBecause,
     pointCount: points.length,
     distinctSellers: sellers,
     oldestPointAgeDays: oldestAge,
@@ -890,13 +1211,32 @@ function confidenceOf(
 function refuse(
   reason: RefusalReason,
   detail: string,
+  /**
+   * `detail` again, as a code and raw facts. A required parameter rather than
+   * an optional one: a refusal that reaches a French screen with no structured
+   * form is a blank line where a repair path should be, and the compiler is a
+   * cheaper place to find that than the aisle.
+   *
+   * NOT derivable from `reason`. Several reasons carry more than one sentence
+   * (`no_asking_price` has two repairs, `single_report` has two shapes) and one
+   * sentence appears under two reasons, so the code is its own axis.
+   */
+  structuredDetail: StructuredText,
   identity: ProductIdentity | null,
   evidence: readonly PricePoint[],
   producedAt: string,
   /** Research prose, D-013. Carried as its own field so it never joins `detail`. */
   evidenceNote?: string,
 ): Refusal {
-  const base: Refusal = { kind: 'refusal', reason, detail, identity, evidence, producedAt };
+  const base: Refusal = {
+    kind: 'refusal',
+    reason,
+    detail,
+    structuredDetail,
+    identity,
+    evidence,
+    producedAt,
+  };
   return evidenceNote === undefined || evidenceNote === '' ? base : { ...base, evidenceNote };
 }
 

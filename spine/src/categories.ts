@@ -24,8 +24,10 @@ import type {
   Disagreement,
   PriceKind,
   PricePoint,
+  StructuredText,
   Tier,
 } from './contract.ts';
+import { say } from './contract.ts';
 import { cad, max, median, min, percentile, ratio } from './money.ts';
 import { sellerIdentity } from './sources/source.ts';
 
@@ -42,6 +44,14 @@ export interface JudgeInput {
 export interface JudgeOutput {
   readonly tier: Tier;
   readonly lines: readonly string[];
+  /**
+   * `lines` as codes and raw facts, same order, one entry each. Beta-plan item
+   * 31: the French interface cannot exist while the only output is an English
+   * sentence with the counts and the currency already baked in. Every rule
+   * below emits both, and `test/structured-prose.test.ts` rebuilds the English
+   * from the facts and asserts it matches byte for byte.
+   */
+  readonly structuredLines: readonly StructuredText[];
   readonly disagreement: Disagreement | null;
 }
 
@@ -142,6 +152,12 @@ export function spreadDisagreement(points: readonly PricePoint[]): Disagreement 
   return {
     kind: 'wide_spread',
     detail: `Prices for the same thing run ${cad(lo)} to ${cad(hi)} right now. That is a ${r}x spread, so there is no single right price to quote.`,
+    structuredDetail: say('disagreement_wide_spread', {
+      lowCents: lo,
+      highCents: hi,
+      currency: 'CAD',
+      ratio: r,
+    }),
     lowCents: lo,
     highCents: hi,
     ratio: r,
@@ -252,6 +268,7 @@ const GROCERY: CategoryRule = {
     // Two lines, always in this order. The regular line is the one that is true
     // next week too; the promotional line is the one that makes someone move.
     const lines: string[] = [];
+    const structuredLines: StructuredText[] = [];
     if (regularMedian !== null) {
       // One store is not an average, and saying "about" over a single
       // observation invents a spread that was never measured.
@@ -261,11 +278,35 @@ const GROCERY: CategoryRule = {
           ? `Regular price is ${cad(regularMedian)} at the one store carrying it. You are looking at ${cad(askingCents)}.`
           : `Regular price is about ${cad(regularMedian)} across ${regularStores} stores. You are looking at ${cad(askingCents)}.`,
       );
+      // Two codes rather than one plus a count, because the two sentences make
+      // DIFFERENT CLAIMS: one states a price that was observed, the other
+      // reports a typical value across a spread. That is a meaning split, not
+      // an English number split, so it survives translation.
+      structuredLines.push(
+        regularStores === 1
+          ? say('regular_price_at_sole_store', {
+              regularCents: regularMedian,
+              currency: 'CAD',
+              askingCents,
+            })
+          : say('regular_price_across_stores', {
+              regularCents: regularMedian,
+              currency: 'CAD',
+              storeCount: regularStores,
+              askingCents,
+            }),
+      );
     } else {
       lines.push(
         onlyCapped
           ? `Every price I have for this is a limited promotion, so there is nothing here I can fairly call a going rate. You are looking at ${cad(askingCents)}.`
           : `No regular shelf price found, everything below is a promotion. You are looking at ${cad(askingCents)}.`,
+      );
+      structuredLines.push(
+        say(onlyCapped ? 'all_prices_are_capped_promotions' : 'no_regular_price_only_promotions', {
+          askingCents,
+          currency: 'CAD',
+        }),
       );
     }
     if (promo.length > 0) {
@@ -273,8 +314,22 @@ const GROCERY: CategoryRule = {
       lines.push(
         `This week it is ${cad(bestPromo.amountCents)} at ${bestPromo.seller}${bestPromo.limit ? ` (${bestPromo.limit})` : ''}.`,
       );
+      // `limit` is the retailer's own words off the feed ("limit 8"), carried
+      // through rather than re-expressed: it is source data, not our prose, and
+      // this package has nothing to translate it from.
+      structuredLines.push(
+        say('best_promotion_this_week', {
+          promotionalCents: bestPromo.amountCents,
+          currency: 'CAD',
+          seller: bestPromo.seller,
+          // Matching the truthiness above, not `?? null`: an empty `limit`
+          // prints no bracket today and must carry no cap fact either.
+          limit: bestPromo.limit ? bestPromo.limit : null,
+        }),
+      );
     } else {
       lines.push('Nothing on promotion anywhere we can see this week.');
+      structuredLines.push(say('no_promotion_this_week'));
     }
 
     let disagreement = spreadDisagreement(points);
@@ -286,6 +341,12 @@ const GROCERY: CategoryRule = {
         disagreement = {
           kind: 'regular_vs_promotional',
           detail: `The gap here is the promotion, not the store: ${cad(promoLow)} on sale against ${cad(regHigh)} regular is a ${r}x difference on the same box.`,
+          structuredDetail: say('disagreement_promotion_not_store', {
+            promotionalCents: promoLow,
+            regularCents: regHigh,
+            currency: 'CAD',
+            ratio: r,
+          }),
           lowCents: promoLow,
           highCents: regHigh,
           ratio: r,
@@ -293,7 +354,7 @@ const GROCERY: CategoryRule = {
       }
     }
 
-    return { tier, lines, disagreement };
+    return { tier, lines, structuredLines, disagreement };
   },
 };
 
@@ -323,6 +384,15 @@ const TECH: CategoryRule = {
       tier,
       lines: [
         `${sellers} retailers have it. Cheapest is ${cad(best.amountCents)} at ${best.seller}. You are looking at ${cad(askingCents)}.`,
+      ],
+      structuredLines: [
+        say('cheapest_of_retailers_carrying_it', {
+          retailerCount: sellers,
+          cheapestCents: best.amountCents,
+          cheapestSeller: best.seller,
+          currency: 'CAD',
+          askingCents,
+        }),
       ],
       disagreement: spreadDisagreement(points),
     };
@@ -396,6 +466,20 @@ const USED: CategoryRule = {
       lines: [
         `Comparable listings run ${cad(lo)} to ${cad(hi)}, clustering around ${cad(p25)} to ${cad(mid)}. You are looking at ${cad(askingCents)}. These are ${basisWord}.`,
       ],
+      structuredLines: [
+        // `basis` is a fact, not two codes: the clause it selects is a caveat
+        // about the evidence, and a locale may place it anywhere in the
+        // sentence or drop it into a footnote.
+        say('comparable_listings_range', {
+          lowCents: lo,
+          highCents: hi,
+          clusterLowCents: p25,
+          clusterHighCents: mid,
+          currency: 'CAD',
+          askingCents,
+          basis: basis === sold ? 'sold' : 'asking',
+        }),
+      ],
       disagreement: spreadDisagreement(points),
     };
   },
@@ -432,6 +516,17 @@ const FURNITURE: CategoryRule = {
       tier,
       lines: [
         `Only one seller, so this is against its own history: as low as ${cad(lo)} on ${when}, usually about ${cad(mid)}. You are looking at ${cad(askingCents)}.`,
+      ],
+      structuredLines: [
+        // The date goes out as ISO. English prints it as `YYYY-MM-DD` today;
+        // a locale renderer is the layer that gets to decide otherwise.
+        say('own_price_history_single_seller', {
+          lowestCents: lo,
+          lowestObservedOn: when,
+          typicalCents: mid,
+          currency: 'CAD',
+          askingCents,
+        }),
       ],
       disagreement: spreadDisagreement(points),
     };

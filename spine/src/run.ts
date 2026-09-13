@@ -72,13 +72,49 @@ export type FailureClass =
   | 'model_client_error'
   | 'spend_cap_reached';
 
+/**
+ * Every sentence this file can put on a screen, named for MEANING.
+ *
+ * Beta-plan item 31, and the same move `contract.ts` makes for the verdict
+ * tier: a screen that can only be handed a finished English string can never be
+ * a French screen. Restated locally rather than imported, for the reason
+ * `FailureClass` above gives -- this file imports nothing on purpose.
+ *
+ * These sentences interpolate NOTHING, so there are no facts beside the code
+ * and none is invented to look symmetrical. The code alone is the whole of what
+ * a renderer needs, exactly as `RefusalReason` is in `contract.ts`.
+ */
+export type ScanSaysCode =
+  | 'photo_too_soft_to_read'
+  | 'photo_no_label_found'
+  | 'photo_processing_failed'
+  | 'product_not_in_catalogue'
+  | 'no_seller_prices_found'
+  | 'no_cheaper_option'
+  | 'device_offline_photo_kept'
+  /** Decision 51's three timeouts, one per step that can run long. */
+  | 'identity_taking_too_long'
+  | 'prices_did_not_return_in_time'
+  | 'alternatives_did_not_return_in_time';
+
+/** Decision 52's repairs. Null where there is nothing the user can do. */
+export type ScanRepairCode =
+  | 'hold_still_and_retry'
+  | 'aim_at_front_of_package'
+  | 'try_once_more'
+  | 'will_finish_when_back_online';
+
 export interface Refusal {
   /** Decision 52: the step that came up empty, named. */
   readonly step: Step;
   readonly fault: Fault;
   readonly says: string;
+  /** `says` as a code, so a screen can write the sentence in its own language. */
+  readonly saysCode: ScanSaysCode;
   /** Decision 52: exactly one repair, and only when there is one. */
   readonly repair: string | null;
+  /** `repair` as a code. Null exactly where `repair` is null. */
+  readonly repairCode: ScanRepairCode | null;
 }
 
 export type ScanEvent =
@@ -90,7 +126,14 @@ export type ScanEvent =
   | { readonly type: 'gated'; readonly part: 'verdict'; readonly offer: string }
   | { readonly type: 'refusal'; readonly refusal: Refusal; readonly failure?: FailureClass }
   /** Decision 51: the call did not come back in time, and the screen says so. */
-  | { readonly type: 'timed_out'; readonly step: Step; readonly says: string; readonly failure?: FailureClass }
+  | {
+      readonly type: 'timed_out';
+      readonly step: Step;
+      readonly says: string;
+      /** `says` as a code, so the sentence is not stuck in English. */
+      readonly saysCode: ScanSaysCode;
+      readonly failure?: FailureClass;
+    }
   | { readonly type: 'done'; readonly ms: number };
 
 /**
@@ -105,33 +148,43 @@ export const REFUSALS: Record<string, Refusal> = {
     step: 'looking at the photo',
     fault: 'ours',
     says: 'That came out too soft to read the label.',
+    saysCode: 'photo_too_soft_to_read',
     repair: 'Hold still for a second and try again.',
+    repairCode: 'hold_still_and_retry',
   },
   no_text: {
     step: 'looking at the photo',
     fault: 'ours',
     says: 'We could not find any label in that photo.',
+    saysCode: 'photo_no_label_found',
     repair: 'Point at the front of the package and fill more of the frame.',
+    repairCode: 'aim_at_front_of_package',
   },
   model_down: {
     step: 'looking at the photo',
     fault: 'ours',
     says: 'Our side could not process that photo.',
+    saysCode: 'photo_processing_failed',
     repair: 'Try once more.',
+    repairCode: 'try_once_more',
   },
   not_in_catalogue: {
     step: 'searching the catalogue',
     fault: 'world',
     says: 'We know what this is and it is not in our catalogue yet.',
+    saysCode: 'product_not_in_catalogue',
     // Nothing they can do, so nothing is asked of them. Decision 52's "exactly
     // one" is a ceiling, not a quota.
     repair: null,
+    repairCode: null,
   },
   no_prices: {
     step: 'checking prices',
     fault: 'world',
     says: 'Nobody we read sells this right now, so there is no price to compare.',
+    saysCode: 'no_seller_prices_found',
     repair: null,
+    repairCode: null,
   },
   // REMOVED 2026-09-05: one_seller. A single seller is now answered rather than
   // declined, and the verdict carries a lower confidence with "one seller" named
@@ -141,13 +194,17 @@ export const REFUSALS: Record<string, Refusal> = {
     step: 'finding cheaper options',
     fault: 'world',
     says: 'Nothing comparable is cheaper right now.',
+    saysCode: 'no_cheaper_option',
     repair: null,
+    repairCode: null,
   },
   offline: {
     step: 'checking prices',
     fault: 'theirs',
     says: 'You are offline, so we kept the photo.',
+    saysCode: 'device_offline_photo_kept',
     repair: 'We will finish this as soon as you are back on.',
+    repairCode: 'will_finish_when_back_online',
   },
 };
 
@@ -221,6 +278,7 @@ export async function* scan(ports: ScanPorts): AsyncGenerator<ScanEvent> {
       type: 'timed_out',
       step: 'looking at the photo',
       says: 'That is taking longer than it should.',
+      saysCode: 'identity_taking_too_long',
       failure: 'model_timeout',
     };
     yield { type: 'refusal', refusal: REFUSALS.model_down, failure: 'model_timeout' };
@@ -262,7 +320,14 @@ export async function* scan(ports: ScanPorts): AsyncGenerator<ScanEvent> {
     pricePromise.then((p): ScanEvent[] => {
       const ms = clock() - t0;
       if (p === LATE) {
-        return [{ type: 'timed_out', step: 'checking prices', says: 'Prices did not come back in time.' }];
+        return [
+          {
+            type: 'timed_out',
+            step: 'checking prices',
+            says: 'Prices did not come back in time.',
+            saysCode: 'prices_did_not_return_in_time',
+          },
+        ];
       }
       if (p === null || p.sellerCount === 0) {
         return [{ type: 'refusal', refusal: REFUSALS.no_prices }];
@@ -284,7 +349,14 @@ export async function* scan(ports: ScanPorts): AsyncGenerator<ScanEvent> {
     altPromise.then((a): ScanEvent[] => {
       const ms = clock() - t0;
       if (a === LATE) {
-        return [{ type: 'timed_out', step: 'finding cheaper options', says: 'Cheaper options did not come back in time.' }];
+        return [
+          {
+            type: 'timed_out',
+            step: 'finding cheaper options',
+            says: 'Cheaper options did not come back in time.',
+            saysCode: 'alternatives_did_not_return_in_time',
+          },
+        ];
       }
       if (a.length === 0) return [{ type: 'refusal', refusal: REFUSALS.no_alternatives }];
       return [{ type: 'alternatives', items: a, ms }];

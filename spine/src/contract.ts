@@ -12,6 +12,212 @@
  * answered a Canon EOS R6 query with an R6 Mark II bundle at nearly triple.
  */
 
+/*
+ * ────────────────────────────────────────────────────────────────────────────
+ * STRUCTURED PROSE. Codes and facts beside every finished English sentence.
+ *
+ * Beta-plan item 31 is a French interface, and it was unbuildable because this
+ * package shipped finished SENTENCES rather than facts: counts, currency
+ * formatting, pluralisation and word order were all baked into English grammar
+ * before the JSON left the server, so no amount of client work could translate
+ * them.
+ *
+ * The pattern is the one this file already uses for refusals. `RefusalReason`
+ * is a CODE and `app/public/js/voice.js` turns a code plus facts into words.
+ * Everything below extends that to the verdict tier.
+ *
+ * ADDITIVE, ALWAYS. `Verdict.lines`, `Confidence.because`, `Refusal.detail` and
+ * `Disagreement.detail` keep the exact English bytes they have today. The
+ * structured fields sit beside them, and `spine/test/structured-prose.test.ts`
+ * rebuilds every one of those strings from its code and facts and asserts the
+ * result is byte-identical. A sentence that cannot be rebuilt means its facts
+ * are incomplete, and the fix is the facts.
+ *
+ * TWO RULES FOR ANYONE ADDING A CODE:
+ *
+ *   1. Name it for MEANING, never for the English wording. A French renderer
+ *      reads these. `regular_price_across_stores`, not `regular_price_sentence`.
+ *   2. Facts are RAW. Cents as integers with the currency beside them, never
+ *      `cad()` output; counts as numbers; dates as ISO, never "3 September".
+ *      Singular and plural are a CONSEQUENCE of a count fact and never a
+ *      separate code: French pluralises on different boundaries than English
+ *      and a code that encodes an English number split cannot be translated.
+ * ────────────────────────────────────────────────────────────────────────────
+ */
+
+/**
+ * A value a locale renderer may format. Deliberately narrow: raw scalars,
+ * arrays of them, and plain records. Nothing here is pre-formatted for a
+ * reader, because formatting is the thing the client is being handed back.
+ */
+export type Fact = string | number | boolean | null | readonly Fact[] | { readonly [key: string]: Fact };
+
+/**
+ * Every sentence or sentence fragment the spine can produce, named for what it
+ * MEANS. Closed union on purpose, exactly like `RefusalReason`: a new sentence
+ * is a new member here and a new entry in every renderer, which is the whole
+ * point of the mechanism.
+ */
+export type LineCode =
+  // ── Verdict lines, one category rule each (`categories.ts`) ──────────────
+  /** Grocery: one store carries it, so the regular price is stated, not averaged. */
+  | 'regular_price_at_sole_store'
+  /** Grocery: a regular price is typical across several stores. */
+  | 'regular_price_across_stores'
+  /** Grocery: everything we hold is a capped promotion, so there is no going rate. */
+  | 'all_prices_are_capped_promotions'
+  /** Grocery: no regular shelf price anywhere, only promotions. */
+  | 'no_regular_price_only_promotions'
+  /** Grocery's second line: the cheapest promotion running this week. */
+  | 'best_promotion_this_week'
+  /** Grocery's second line when nothing is on promotion. */
+  | 'no_promotion_this_week'
+  /** Tech: how many retailers carry it and who is cheapest. */
+  | 'cheapest_of_retailers_carrying_it'
+  /** Used goods: the range of comparable listings and where they cluster. */
+  | 'comparable_listings_range'
+  /** Furniture: no second seller, so the comparison is its own history. */
+  | 'own_price_history_single_seller'
+
+  // ── Thin-evidence line, assembled from up to four fragments ──────────────
+  // `price/src/verdict.ts` writes that sentence and lives outside this package.
+  // `spine.ts` re-derives these codes and facts from the judgement object it
+  // gets back, which carries every number the sentence used.
+  /** Asking price is under the single price we hold (no band to sit in). */
+  | 'asking_below_sole_price'
+  /** Asking price is in the cheapest third of the band. */
+  | 'asking_below_range'
+  /** Asking price equals the single price we hold. */
+  | 'asking_equals_sole_price'
+  /** Asking price is in the middle of the band. */
+  | 'asking_within_range'
+  /** Asking price is over the single price we hold. */
+  | 'asking_above_sole_price'
+  /** Asking price is in the dearest third of the band. */
+  | 'asking_above_range'
+  /** Every seller we read charges the same, named once. */
+  | 'sole_price_matched_at_seller'
+  /** The two ends of the band, each at its seller. */
+  | 'cheapest_and_dearest_sellers'
+  /** Price per unit of size, where both sides know the pack size. */
+  | 'unit_price'
+  /** A promotion undercutting the band it was not allowed to join. */
+  | 'cheaper_on_promotion_at_seller'
+
+  // ── Confidence.because (`spine.ts` confidenceOf) ─────────────────────────
+  /** The set cleared the category's minimum and no more. */
+  | 'confidence_minimum_met_only'
+  /** The band is held down by the age of the freshest price. */
+  | 'confidence_newest_price_age'
+  /** History-based category: a long run of one seller's own prices, identity certain. */
+  | 'confidence_history_span_exact_match'
+  /** Plenty of recent prices across sellers, identity certain. */
+  | 'confidence_fresh_across_sellers_exact_match'
+  /** The unremarkable middle: a count of prices across a count of sellers. */
+  | 'confidence_price_count_across_sellers'
+
+  // ── Shortfall fragments, joined into Confidence.because ──────────────────
+  /** D-022: unwitnessed claims too far outside the vouched prices to publish. */
+  | 'shortfall_lone_claims_held_back'
+  /** Item 15b: typed prices nobody else has seen, so they do not set the tier. */
+  | 'shortfall_uncorroborated_typed_prices'
+  /** Nothing is inside the category's window, so old prices answered instead. */
+  | 'shortfall_newest_price_older_than_category'
+  /** Some of the set was outside the window and did not count toward the tier. */
+  | 'shortfall_some_prices_too_old_to_count'
+  /** Fewer prices than the category's own minimum. */
+  | 'shortfall_fewer_points_than_category_needs'
+  /** Fewer distinct sellers than the category's own minimum. */
+  | 'shortfall_fewer_sellers_than_category_needs'
+  /** The set's shape says it spans more than one product. */
+  | 'shortfall_prices_may_be_two_products'
+  /** Every price published for this is a kind the category cannot compare. */
+  | 'shortfall_no_comparable_price_kinds'
+  /** Every price is past what the category tolerates (the filter-cascade form). */
+  | 'shortfall_newest_price_past_tolerance'
+  /** Every price belongs to the shop being stood in, so this is its own history. */
+  | 'shortfall_only_the_asking_seller_has_prices'
+
+  // ── Confidence basis fragments out of `price/src/verdict.ts` ─────────────
+  /** One seller behind the band. */
+  | 'basis_single_seller'
+  /** Several sellers agree on the band. */
+  | 'basis_sellers_agree_on_range'
+  /** The freshest contributing number is past the staleness bar. */
+  | 'basis_newest_price_over_three_weeks'
+  /** No regular price existed, so sale prices were the yardstick. */
+  | 'basis_only_sale_prices'
+  /** At least one row was joined on name rather than on a barcode. */
+  | 'basis_matched_by_name_not_barcode'
+  /**
+   * THE GUARD, and it must never appear in a payload.
+   *
+   * `price/src/verdict.ts` writes its own confidence reasons and lives outside
+   * this package, so `spine.ts` maps its four possible strings onto the four
+   * codes above. This member exists for a fifth string that mapping has not
+   * been taught, and it carries the English verbatim on `facts.text` so the
+   * round trip stays byte-exact even then. It is the one code here a locale
+   * cannot translate, which is why it is an ALARM rather than a fallback:
+   * `test/structured-prose.test.ts` drives that file's `confidenceOf` across
+   * its whole input domain and fails if this is ever reached. If it ever does
+   * fire, the fix is a new code above and a renderer entry, not a wider guard.
+   */
+  | 'basis_reason_not_yet_coded'
+
+  // ── Refusal.detail (`spine.ts`) ──────────────────────────────────────────
+  /** No source is answering at all. */
+  | 'refusal_no_price_source_available'
+  /** Nothing resolved to a product. */
+  | 'refusal_identity_unresolved'
+  /** The whole category is declined, with the recorded reason. */
+  | 'refusal_category_not_served'
+  /** Resolved, but under the category's identity floor. */
+  | 'refusal_identity_below_floor'
+  /** Identified, and nobody we read has a price for it. */
+  | 'refusal_no_price_for_product'
+  /** No price was given for the thing being judged. */
+  | 'refusal_asking_price_missing'
+  /** A price was given and did not read as a number. */
+  | 'refusal_asking_price_unreadable'
+  /** Every price found is dated after the moment being priced. */
+  | 'refusal_all_prices_future_dated'
+  /** Item 15a: one shopper's reading, named in full, with no tier. */
+  | 'refusal_one_shopper_report'
+  /** Item 15a with several readings, none of them seen twice. */
+  | 'refusal_several_unconfirmed_reports'
+
+  // ── Disagreement.detail (`categories.ts`) ────────────────────────────────
+  /** The same thing is priced far apart right now. */
+  | 'disagreement_wide_spread'
+  /** The gap is a promotion against a regular price, not one store against another. */
+  | 'disagreement_promotion_not_store';
+
+/** One code and the raw values its sentence interpolates. */
+export interface TextFragment {
+  readonly code: LineCode;
+  /** Raw. Cents as integers, counts as numbers, dates as ISO. Never formatted. */
+  readonly facts: Readonly<Record<string, Fact>>;
+}
+
+/**
+ * How a renderer turns fragments into one string. Three shapes, and English's
+ * own rendering of each is asserted byte-for-byte by the round-trip test.
+ *
+ * - `single`      exactly one fragment, rendered on its own.
+ * - `sentences`   fragments rendered and joined with a single space.
+ * - `shortfall_list`  fragments joined with `"; "`, then the first character
+ *                 upper-cased and a full stop appended. A locale is free to
+ *                 join and capitalise differently; this names the INTENT, which
+ *                 is "a list of reasons read as one sentence".
+ */
+export type TextShape = 'single' | 'sentences' | 'shortfall_list';
+
+/** A sentence the client can build in its own language. */
+export interface StructuredText {
+  readonly shape: TextShape;
+  readonly fragments: readonly TextFragment[];
+}
+
 /** The five categories considered. `produce` is present and deliberately unserved. */
 export type CategoryId = 'grocery' | 'tech' | 'used' | 'furniture' | 'produce';
 
@@ -135,6 +341,12 @@ export interface Confidence {
   /** Plain sentence naming what actually limits it. Shown, not hidden. */
   readonly because: string;
   /**
+   * `because` as codes and facts, so a locale that is not English can say the
+   * same thing. Renders byte-for-byte back to `because`; see the block at the
+   * top of this file.
+   */
+  readonly structuredBecause: StructuredText;
+  /**
    * 0..1, and present only where `price/src/verdict.ts` produced the answer.
    *
    * Added 2026-09-08, and added rather than repurposed because this file's own
@@ -158,6 +370,8 @@ export interface Confidence {
 export interface Disagreement {
   readonly kind: 'wide_spread' | 'regular_vs_promotional' | 'seller_conflict';
   readonly detail: string;
+  /** `detail` as codes and facts. Renders byte-for-byte back to `detail`. */
+  readonly structuredDetail: StructuredText;
   readonly lowCents: number;
   readonly highCents: number;
   /** high / low, rounded to 2dp. 3.6 means the swing the pilot measured. */
@@ -185,6 +399,11 @@ export interface Verdict {
    * promotional are different questions; everything else gets one.
    */
   readonly lines: readonly string[];
+  /**
+   * `lines` as codes and facts, one entry per line and in the same order, so
+   * `structuredLines[i]` renders byte-for-byte back to `lines[i]`.
+   */
+  readonly structuredLines: readonly StructuredText[];
   readonly comparisonSet: readonly PricePoint[];
   readonly pointCount: number;
   readonly oldestObservedAt: string;
@@ -266,6 +485,8 @@ export interface Refusal {
   readonly reason: RefusalReason;
   /** One sentence, written for the user, naming the repair when there is one. */
   readonly detail: string;
+  /** `detail` as codes and facts. Renders byte-for-byte back to `detail`. */
+  readonly structuredDetail: StructuredText;
   /**
    * Evidence, not copy. Research prose explaining why a stored identity was
    * doubted: what a search actually returned, what currency a bound was in,
@@ -282,6 +503,16 @@ export interface Refusal {
 }
 
 export type SpineResult = Verdict | Refusal;
+
+/** One code plus its raw facts. The unit every renderer is keyed on. */
+export function fragment(code: LineCode, facts: Readonly<Record<string, Fact>> = {}): TextFragment {
+  return { code, facts };
+}
+
+/** A whole sentence that is one fragment, which is most of them. */
+export function say(code: LineCode, facts: Readonly<Record<string, Fact>> = {}): StructuredText {
+  return { shape: 'single', fragments: [fragment(code, facts)] };
+}
 
 export function isVerdict(r: SpineResult): r is Verdict {
   return r.kind === 'verdict';
