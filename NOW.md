@@ -91,6 +91,43 @@ client-side finding.
 index with 120 days of price history cannot be built by a content script, so the script is probably
 the display surface and the index is Honey's own infrastructure.
 
+## The shop a shopper is standing in, asked once instead of every time, 2026-09-13 night
+
+**His words:** *"can we allow shin to use their location and then asses instead of them having to
+input the store their in multiple times. Also Shin must be able to indentify the pattern of where
+the user often goes."* His two calls when asked: the record of usual shops lives **on the phone
+only**, and the cell **stays coarse** with a shortlist plus one tap rather than finer location.
+Both keep the privacy screen true as written, which matters because item 6f says he approves that
+wording.
+
+**Most of it was already built and none of it worked.** `geocell.js` (item 11a) and
+`app/src/stores.ts` (item 11) were both marked done. **D-094: they never agreed what a cell looks
+like.** The phone wrote `"43.2537:-79.9208"` and the server's `parseCell` wanted `"43.26,-79.92"`,
+so every cell ever sent parsed to `null`. `/api/stores` would have answered 400 to every request,
+and the correction route dropped the cell in silence — because **a null cell and consent being
+switched off are the same shape**. A broken feature and a correctly-disabled one looked identical.
+Found by a lane proving the two formats against each other before writing code.
+
+**Built:** a shortlist from the cell, the usual shop first, the last shop confirmed in a cell
+preselected so the second visit is no taps at all, the chosen shop finally reaching `sellerNow()`
+so corrections and observations carry a real shop. Switching location consent off wipes the device
+record. **578 tests to 600.**
+
+**D-095, and only a render could have found it.** Every row in the picker drew a tick: `rowCheck()`
+emits one per row and the base stylesheet only colours it, leaving each list to hide its own — which
+`you.css` does twice and the new list did not. Markup and `aria-checked` were correct on exactly one
+row the whole time, so a screen reader was told the truth while the screen showed four shops chosen.
+Third CSS-only defect in this file, and evidence for build standard 3 rather than a new standard:
+nothing in `app/test` renders a screen.
+
+**Why the shop matters more than the convenience:** the spine cannot compare prices across markets,
+and D-081 split a seller's identity from its display name for counting. Every price a tester has
+typed so far has been, in `stores.ts`'s own words, "a Canadian price with no shop on it".
+
+**Waiting on him:** the location consent copy is still true but now incomplete — with the toggle on,
+the phone keeps which shop was confirmed in each square. Wording is drafted in the lane report for
+his approval; approved consent copy is not changed without him.
+
 ## The eval stops reporting one number and starts saying which stage failed, 2026-09-13 night
 
 The eval could not tell *"the cascade never surfaced the right row"* from *"the row was there and
