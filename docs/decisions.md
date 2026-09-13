@@ -1221,9 +1221,32 @@ is a sourced summary of published terms and reported outcomes. It also records w
 scraping" is an absence of FOUND precedent, not proven absence. A Gemini Deep Research run was
 started on 2026-09-13 to close exactly that gap.
 
-**Reverses if:** a Canadian court distinguishes Trader on the ground that it was about photographs
-specifically and not about the factual listing data beneath them — which is the single most
-valuable thing the CanLII survey could return, and is why it was asked for by name.
+**ANSWERED the same evening, and the rule survives.** The CanLII survey was run (Gemini Deep
+Research, `research/price-sources/39-canadian-scraping-law.md`) and reports that no later court had
+to distinguish Trader, because **Trader itself drew the line**: the infringement finding *"applied
+exclusively to photographs"*, Trader *"made no copyright claim over the underlying factual listing
+data—such as vehicle make, model, year, trim, mileage, or retail price"*, and the court *"awarded no
+damages and made no finding of infringement regarding the automated collection, indexing, or display
+of vehicle pricing or technical specifications."* So "take the string, never the image" is not a
+cautious margin around the case; it is the exact boundary the case draws, and the string side was
+litigated and produced nothing.
+
+Two riders that came with it. **Framing is not a way out**: CarGurus argued it never copied the
+photos to its own servers and merely framed them from the dealers' servers, and the court rejected
+that under s.2.4(1.1) — so hotlinking a retailer's image is infringement exactly as copying it is.
+And the **$305,064 was a reduction, not a ceiling**: the s.38.1 statutory minimum would have given
+$76M across 152,532 photos, and Justice Conway used the s.38.1(3)(b) relief valve to compress it to
+$2 a photo on findings of good faith, no actual loss and no Canadian profit. A defendant without
+those findings does not get that compression.
+
+**That citation is a lead, not yet a fact.** File 39 is unverified model output and its own header
+says so; paras 23-25 and 33 of Trader are first on its spot-check list. The rule does not change
+either way, because it was already the conservative reading.
+
+**Reverses if:** the spot-check shows the report misdescribed Trader — in which case the rule stays
+anyway and only this decision's confidence drops; or a later Canadian decision extends copyright to
+the factual listing data beneath a commercial compilation, which would contradict CCH and
+Tele-Direct and would be a much larger event than this product.
 
 ## The Universal Commerce Protocol is not deployed, measured rather than argued
 **Date:** 2026-09-13 · **Status:** active
@@ -1255,3 +1278,26 @@ an opinion.
 **Reverses if:** a repeat of the same twelve GETs returns a JSON manifest from any Canadian
 retailer. That check is cheap and worth re-running when a Canadian retailer announces UCP support,
 never on the strength of a press release about the protocol itself.
+
+
+## Never circumvent a bot block, and now for a second reason
+**Date:** 2026-09-13 · **Status:** active
+
+D-049 recorded that Aurik's home IP is shut out of walmart.ca by PerimeterX, and the standing
+instruction that came with it was **never rotate IPs or spoof headers** — made on the grounds that
+the mechanism was proven and the shape was wrong, which is to say on manners and on engineering.
+
+`research/price-sources/39-canadian-scraping-law.md` puts a second reason underneath it and moves
+the practice from the report's "contract risk only" band into its **"do not attempt"** band:
+evading CAPTCHAs, bot detection or IP blocks is framed there as circumvention of a technological
+protection measure under **Copyright Act s.41.1**, which carries statutory damages and injunctions
+and is a different animal from breaching a browse-wrap term. The distinction that matters: scraping
+a public price is, on that report's reading, a contract matter with nominal damages; *getting past a
+block in order to* scrape it is a statutory one.
+
+The practical line for this repo, unchanged in behaviour and now better argued: a 403 or a challenge
+page is an answer. It is recorded as a measurement and the method is killed or parked. It is never
+an obstacle to be routed around.
+
+**Reverses if:** nothing foreseeable. If a retailer grants written permission or publishes an API,
+the question disappears rather than reverses.

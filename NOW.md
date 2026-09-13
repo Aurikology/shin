@@ -66,6 +66,45 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## The CanLII survey ran, and the design rule it tested survives, 2026-09-13 night
+
+A Gemini Deep Research run in his browser closed the gap file 37 named and could not fill: nobody
+had searched CanLII. Captured to `research/price-sources/39-canadian-scraping-law.md`, 742 lines,
+**with a provenance header saying plainly that it is unverified model output and a spot-check list
+in priority order.** A language model citing case law is exactly the shape of thing that invents a
+citation, so nothing here is evidence until somebody opens it on CanLII.
+
+**The question that mattered is answered favourably.** "Take the string, never the image" was
+written as a cautious margin around Trader v CarGurus. It turns out to be the exact line the case
+draws: the infringement finding *"applied exclusively to photographs"*, and the court *"awarded no
+damages and made no finding of infringement regarding the automated collection, indexing, or display
+of vehicle pricing or technical specifications."* The string side was litigated and produced nothing.
+
+Two riders: **framing is not an escape** — CarGurus argued it only hotlinked the dealers' images and
+lost under s.2.4(1.1) — and **$305,064 was a reduction, not a ceiling**: the statutory minimum was
+$76M across 152,532 photos and was compressed to $2 each on findings of good faith, no actual loss
+and no Canadian profit, which a different defendant would not get.
+
+**Criminal exposure: none found, now for a stated reason.** s.342.1 needs "fraudulently and without
+colour of right"; an unauthenticated HTTP GET carries no deceit. Its reported use is credential
+bypass, rogue insiders, spyware and DDoS.
+
+**A price is a fact.** CCH ended sweat-of-the-brow; Tele-Direct held a mechanical listing compilation
+unprotected; one extracted price is not a substantial part.
+
+**One finding lands on an existing defect.** Circumventing bot detection or an IP block is framed as
+TPM circumvention under s.41.1 — statutory damages and injunctions, not nominal contract damages.
+D-049 already forbade rotating IPs and spoofing headers on engineering grounds; that now has a legal
+reason under it, and a new decision records it. A 403 is an answer, never an obstacle.
+
+**The strategic finding, and it is the uncomfortable one.** No Canadian competitor obtains prices the
+way this repo has been trying to. Flipp and Reebee run **direct publisher agreements with retailers —
+including Loblaws, Walmart, Metro and Canadian Tire**, the exact four this repo keeps failing to
+crawl. RedFlagDeals uses affiliate networks. Karma and Honey do **client-side DOM parsing in the
+shopper's own browser**, which the report reads as avoiding centralised scraping liability
+altogether. The three parties that relied on unconsented scraping — Zoocasa, CarGurus, Mongohouse —
+were all litigated. **That is a route question for him, not a lane.**
+
 ## Google Lens answered on law and on pipeline, and the answer is mostly no, 2026-09-13 evening
 
 **His words:** *"research if it is possible to use google lense to search for this item without
