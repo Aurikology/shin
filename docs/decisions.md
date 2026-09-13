@@ -1131,3 +1131,35 @@ saving, because a saving is `cache_read_input_tokens` and that requires a key.
 seven-second photo budget, in which case the winning provider is inlined and the seam kept only in
 the eval. The xAI adapter is deleted rather than maintained if a first real run shows Grok losing on
 cost per correct identification, since an unrun second provider is a liability and not an option.
+
+## Money is written the way the reader's language writes money, and only the client does it
+**Date:** 2026-09-13 · **Status:** active
+
+The bilingual decision earlier today recorded this as deliberately not done and as its own
+call rather than a rider. Aurik made it the same day: French Canada writes **`4,99 $`** — comma
+for the decimal, symbol after the number, and a no-break space between them so a line can never
+wrap between an amount and its dollar sign. `$4.99` sitting inside a French sentence is one of
+the reliable tells that a translation was done by a machine.
+
+**The digits are never touched.** The formatter reshapes punctuation and nothing else: no
+rounding, no conversion, no opinion about the value. `4,99 $` and `$4.99` are the same 499 cents,
+and a test asserts digit-for-digit equality across both languages over a range of values
+including zero and a negative. This is `voice.js`'s promise — the attitude changes the words and
+never the number — applied to the locale.
+
+**Only `app/public/js/shin.js`'s `cad()` changed. `spine/src/money.ts`'s `cad()` stays English and
+untouched**, which is the whole reason this was safe to do in an afternoon. The server's English
+sentences are the FALLBACK the client renders when a line code has no French renderer, and
+`spine/test/structured-prose.test.ts` asserts all 65 of them byte for byte. Localising money in
+the engine would have broken that net in order to fix a string the French path does not use.
+
+The same rule gave the screen reader its French: the thirteen face states now have labels in both
+languages in `ui-strings.js` rather than shipping the raw English state id, and French puts its
+no-break space before the colon (`Shin : content`). That is chrome, not Shin speaking, so it sits
+outside `voice.js` and carries no personality axis — a blind user must hear what a sighted user
+sees, not a ruder version of it. See D-092 for the half of that which shipped broken.
+
+**Reverses if:** a Quebec reader finds the no-break space rendering as a visible box or a double
+space in a real browser on a real phone, in which case it becomes a plain space and the wrap
+hazard is accepted. Nothing here reverses on the English side, which is byte-identical to what it
+was.

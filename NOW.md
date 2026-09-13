@@ -128,10 +128,23 @@ pre-existing camera-fallback geometry and the French work introduces no layout r
 **1,006 tests pass, 0 fail, 5 skipped** across app 541, spine 212, price 157, identify 96; four
 typechecks clean. Four defects filed, D-088 to D-091, one of them earning build standard 5.
 
-**Not done, and named rather than hidden:** every number about model cost and accuracy, because
-there is no key; the Grok adapter, never executed; money still prints `$4.99` in French where
-Canadian French writes `4,99 $`; the French register wants a human speaker's read, starting with
-`Gardés` for Saved; and D-090, the eval runner being outside `tsconfig` with no test, is open.
+**Two of those gaps closed the same day, on his call.** Money is now written the way the reader's
+language writes it — `4,99 $` in French, `$4.99` in English, from the same cents, with the digits
+asserted identical across both — and the thirteen face states have screen-reader labels in both
+languages instead of a raw English id. **D-092 came out of the second one:** the label was
+localised where the face is DRAWN and not where it CHANGES, so a French screen reader reverted to
+"Shin: walk" on every verdict. The markup was right and the running app was wrong. Found by
+reading `aria-label` off a real page in a browser; invisible to the unit tests, the eleven-screen
+French walk, and the typecheck, all of which were green. The test that now guards it asserts the
+render path and the update path AGREE, which is the shape of the defect rather than the instance.
+
+**D-090 also closed**, negative-tested both ways: `eval/` is in the typecheck include and
+`identify/test/eval-run.test.ts` imports the runner, so a syntax error in the script that chooses
+the model tiers now fails `npm test` at 1 fail where the same break previously left 96 pass.
+
+**Still not done, and named rather than hidden:** every number about model cost and accuracy,
+because there is no key; the Grok adapter, never executed; and the French register wants a human
+speaker's read, starting with `Gardés` for Saved, which appears in eighteen keys plus the nav bar.
 
 ## The last four screens brought up to standard, and the doc that was lying about colour, 2026-09-11
 
