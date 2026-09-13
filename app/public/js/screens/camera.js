@@ -882,7 +882,13 @@ function candidateSheet(items) {
             <span class="cand-meta">${say('cam_candidate_none')}</span>
           </button>
         </div>
-        <p class="standin-note">Stand-in list until the camera can read the item.</p>
+        <!-- The caption on the stand-in list. Shortened and set in the
+             interface face by the elevation pass: it was mono uppercase, which
+             this file reserves for a recorded measurement, and a caption in
+             caps at the foot of the glass reads as a developer's note. The
+             claim is unchanged; only the wording is tighter and the full stop
+             is gone, a caption not being a sentence. -->
+        <p class="standin-note">Stand-ins until the camera can read the item</p>
       </div>
     </section>`;
 }
@@ -1028,6 +1034,17 @@ function parsePadPrice(buf) {
  * priced at $2.00, and a wrong verdict is worse than no verdict (CLAUDE.md
  * priority 1). Nothing submits until the confirm key is pressed, and it is
  * disabled until the effective price parses to more than zero.
+ *
+ * Clear is gated the same way, on the buffer rather than the price: it was live
+ * from the moment the pad opened, with nothing to clear, and a control that
+ * does nothing when pressed teaches a person their taps are not being read.
+ * Rendered inert here and toggled live by the screen's paintPadEffective, which
+ * is where the confirm key's own state already lives.
+ *
+ * NOTE, and it is a real trap: test/sheet.test.mjs asserts on this function's
+ * OUTPUT with `.includes(' disabled')`, so the markup below must not carry the
+ * word in an HTML comment. Prose about the attribute belongs here, outside the
+ * template literal, not in the string this returns.
  */
 function pricePadSheet(item, typed = '', modifier = null, thumb = null) {
   const typedCents = parsePadPrice(typed);
@@ -1039,7 +1056,7 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null) {
       <span class="grabber" aria-hidden="true"></span>
       ${backButton()}
       <div class="pad-headrow">
-        <button type="button" class="pad-textbtn" data-act="pad-clear">Clear</button>
+        <button type="button" class="pad-textbtn" data-act="pad-clear"${typed ? '' : ' disabled'}>Clear</button>
         <button type="button" class="pad-textbtn" data-act="pad-skip">Skip</button>
       </div>
       <div class="sheet-peek">
@@ -1959,14 +1976,19 @@ export default {
       paintPadEffective();
     }
 
-    /** Repaints only the confirm-disabled state and the effective-price
-        label, so typing into the modifier's own number input never loses
-        focus the way a full re-render would. */
+    /** Repaints only the two disabled states and the effective-price label, so
+        typing into the modifier's own number input never loses focus the way a
+        full re-render would. */
     function paintPadEffective() {
       const typedCents = parsePadPrice(padBuffer);
       const effCents = effectivePriceCents(typedCents, padModifier);
       const confirmBtn = slot.querySelector('.key-confirm');
       if (confirmBtn) confirmBtn.disabled = !((effCents ?? 0) > 0);
+      // Clear is gated on the buffer itself, never on the parsed price: "0" and
+      // "." are both things a person typed and both things Clear has to be able
+      // to take back, and neither of them parses to a price worth confirming.
+      const clearBtn = slot.querySelector('[data-act="pad-clear"]');
+      if (clearBtn) clearBtn.disabled = !padBuffer;
       const effEl = slot.querySelector('[data-pad-effective]');
       if (effEl) {
         const label = modifierLabel(typedCents, padModifier);

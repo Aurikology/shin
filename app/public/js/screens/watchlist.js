@@ -29,7 +29,7 @@ import * as store from '../store.js';
 import { FLAGS } from '../flags.js';
 import { escapeHtml, html, raw, ago, on } from '../lib/dom.js';
 import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.js';
-import { pageBar, rowChevron } from '../lib/pagebar.js';
+import { pageBar, rowChevron, removeGlyph } from '../lib/pagebar.js';
 
 /** The most recent history entry whose verdict identity matches a saved row's id. */
 function matchFor(history, id) {
@@ -82,7 +82,7 @@ export function row(w, history) {
         </span>
       </button>
       <button type="button" class="rowdel wrow-del" data-unwatch="${w.id}" data-fk="del:${w.id}">
-        <span aria-hidden="true">&times;</span>
+        ${raw(removeGlyph())}
         <span class="sr-only">Remove ${w.label} from saved</span>
       </button>
     </div>`;

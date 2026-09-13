@@ -450,8 +450,8 @@ const ALLOWED = [
   },
   {
     file: 'camera.js',
-    text: 'Stand-in list until the camera can read the item.',
-    why: 'Caption on the stand-in list. Same lane note.',
+    text: 'Stand-ins until the camera can read the item',
+    why: 'Caption on the stand-in list. Same lane note. Reworded and set in the UI face 2026-09-11; it carries no full stop now, because a caption is not a sentence.',
   },
   {
     file: 'camera.js',

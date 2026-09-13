@@ -12,13 +12,30 @@
  */
 
 /*
- * This screen never scrolls. A keypad that has to be scrolled to reach the 7 is
- * not a keypad, and a sticky footer floating over its own keys is worse, so the
- * page is a fixed column and the keypad takes whatever height is left.
+ * This screen does not scroll on an ordinary phone. Measured at 390x844 (the
+ * tall reference this repo checks against): the whole column, footer
+ * included, exactly fills clientHeight, nothing left over.
+ *
+ * It DOES scroll at 375x575, this repo's own short-viewport target (D-050,
+ * `test/keypad-tap-size.test.mjs`'s second viewport). Measured: even with
+ * the short-viewport trims below (the asking face dropped from the header,
+ * the explainer sentence dropped, the pad at camera.css's own short rhythm
+ * of 44px rows and a 4px gap rather than a new pair invented here), the
+ * column is still taller than the viewport. This comment used to say "never
+ * scrolls" with no qualifier, which that measurement makes false, so it is
+ * corrected rather than left standing on top of a contradiction. Closing
+ * the rest of the gap means cutting the amount, the seller field or the
+ * keypad -- the job this screen does, not the chrome around it -- so the
+ * guarantee stops there instead: the footer is `position: static`, never
+ * floating, so nothing is ever hidden under it at either size, and the CTA
+ * is reached by one straight scroll with no dead zone, never a hunt.
  */
 .page-correct { gap: 8px; padding-bottom: 10px; }
 .page-correct .page-head { margin-bottom: 0; }
-.page-correct h1 { font-size: 24px; }
+/* h1 was pinned to 24px here, the one screen in the app not reading at the
+   shared 26px (shell.css). Two pixels was not buying the pad any room -- the
+   rows are svh-clamped and already have a floor for a short viewport -- so it
+   is the standard size now, like every other page-head. */
 
 /* AVATAR.md row 14/30: the asking face sits above the pad, on the prompt's own line. */
 .page-correct .ph-with-face {
@@ -62,12 +79,18 @@
 .amount .ghosted { color: var(--ink-faint); opacity: .45; }
 
 .seller { display: flex; flex-direction: column; gap: 6px; }
+/*
+ * Sentence case in the UI face, not mono uppercase. This was mono, 10px,
+ * .16em, uppercase -- the Label role DESIGN.md section 2 reserves for
+ * "provenance only", which a question asked of the user is not. FLAWS.md
+ * item 6 made the same call for section headings; a form prompt was spending
+ * the same signal a heading did. Contrast is unchanged: --ink-faint on
+ * --ground still reads 5.82, well over the 4.5 this size needs.
+ */
 .seller > span {
-  font-family: var(--f-mono);
-  font-size: 10px;
+  font-family: var(--f-ui);
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: .16em;
-  text-transform: uppercase;
   color: var(--ink-faint);
 }
 /*
@@ -118,7 +141,8 @@
    * Four rows here left an empty row's worth of gap under the 9.
    */
   grid-template-rows: repeat(3, clamp(46px, 7.4svh, 58px));
-  gap: 7px;
+  /* 8px, not 7: the floor for the gap between two >=44px targets. */
+  gap: 8px;
 }
 
 /*
@@ -130,7 +154,7 @@
  */
 .page-correct .pad {
   display: grid;
-  gap: 7px;
+  gap: 8px;
 }
 
 .page-correct .keypad-bottom {
@@ -159,6 +183,33 @@
   border: 1px solid var(--hairline);
 }
 .page-correct .btn--key:active { background: var(--raised); }
+
+/*
+ * Short-viewport trim, 375x575 -- see the header comment. Chrome only.
+ *
+ * The asking face is decoration beside the kicker and h1, which already say
+ * what this screen is for (`faceBlock('asking', ...)` in correct.js); it
+ * drops to a plain two-line stack. The explainer sentence under the pad is
+ * supplementary, not needed to type a price and tap save; it drops
+ * entirely, `.gate`'s own fineprint in the footer is untouched (it is load-
+ * bearing: it is the only explanation a disabled Save button gets). The pad
+ * drops to camera.css's OWN short-viewport numbers -- `@media (max-height:
+ * 640px)` there, same breakpoint, same 44px rows and 4px gap -- rather than
+ * a second short-viewport rhythm invented for one more screen.
+ *
+ * Left alone on purpose: the amount, the seller field, and the "on sale"
+ * chip. Those are the job this screen does, not chrome around it.
+ */
+@media (max-height: 640px) {
+  .page-correct .ph-with-face { display: block; }
+  .page-correct .ph-with-face .face-block { display: none; }
+  .page-correct > .fineprint { display: none; }
+  .page-correct .keypad { grid-template-rows: repeat(3, 44px); gap: 4px; }
+  .page-correct .keypad-bottom { grid-template-rows: 44px; }
+  .page-correct .pad { gap: 4px; }
+  .page-correct .btn--key { font-size: 15px; }
+  .page-correct .page-foot { padding-top: 0; }
+}
 
 .saved-note {
   display: flex;

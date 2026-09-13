@@ -1324,31 +1324,78 @@
  */
 .sheet.candidates { max-height: 72%; overflow: hidden; }
 .sheet.candidates .sheet-peek { flex: 1 1 auto; min-height: 0; }
+/*
+ * One grouped card, not eight objects.
+ *
+ * Every row used to be its own rounded, bordered, raised rectangle with 6px of
+ * air between them, which is the drawing for eight unrelated things. This is a
+ * list of one kind of thing, and the question on the sheet is which of them it
+ * is -- so the eye should get one card and read down it, not count boxes.
+ *
+ * --raised, not --surface, and this is the one place the grouped-card language
+ * the pages use has to be translated rather than copied. Those cards sit on the
+ * page ground; this one sits inside a sheet, and the candidate sheet is
+ * `data-conf="reading"`, whose own fill IS --surface (see the load-bearing
+ * block at the bottom of this file). A --surface card on a --surface sheet is
+ * an invisible card in both themes. --raised is the next step up the same
+ * ladder and it is what "one object on this ground" is spelled as here.
+ *
+ * The radius clips the rows: `overflow-y: auto` makes overflow-x `auto` too,
+ * and a non-visible overflow is what makes border-radius clip its content, so
+ * the first and last rows round off without needing corner rules of their own.
+ */
 .cands {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  background: var(--raised);
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  /* The card is the scroller, so it has to be allowed to shrink below its own
+     content inside the peek's flex column. Without this it keeps its full
+     content height and the sheet clips it instead, which is the sheet
+     scrolling and not the card. */
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
-  padding-bottom: 2px;
 }
 .cands::-webkit-scrollbar { display: none; }
 .cand {
+  position: relative;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
   text-align: left;
-  padding: 11px 14px;
-  border-radius: var(--r-md);
-  background: var(--raised);
-  border: 1px solid var(--hairline);
+  padding: 9px 16px;
+  min-height: 56px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   color: var(--ink);
   cursor: pointer;
-  min-height: var(--tap);
 }
-.cand:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+/* The divider between rows, inset from the leading edge so it reads as a break
+   inside one card rather than a cut across it. A pseudo-element and not a
+   border-top, because a border cannot be inset. */
+.cand + .cand::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 16px; right: 0;
+  height: 1px;
+  background: var(--hairline);
+}
+.cand:active { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+/* Inset ring. The card clips its own overflow now, so a ring drawn 2px OUTSIDE
+   the first or the last row would be cut off by the corner it sits in -- which
+   is the one row where the ring is the only thing saying where you are. */
+.cand:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 .cand-name { font-size: 14.5px; font-weight: 600; }
+/*
+ * Mono, and it stays mono: this line is a recorded asking price and the seller
+ * who recorded it, which is exactly what DESIGN.md section 2 reserves the mono
+ * face FOR. It is the one sub-line in this list that is a measurement.
+ */
 .cand-meta {
   font-family: var(--f-mono);
   font-size: 9.5px;
@@ -1356,16 +1403,63 @@
   text-transform: uppercase;
   color: var(--ink-faint);
 }
-.cand-none { border-style: dashed; }
+/*
+ * "Something else" is a different kind of answer from a product, so it is
+ * marked off rather than styled up: a dashed divider running the full width of
+ * the card, where every other row's divider is inset. One card still, one rule
+ * that reads differently. It used to carry a dashed border on all four sides,
+ * which made it a second card sitting under the first.
+ */
+.cand + .cand-none::before {
+  left: 0;
+  height: 0;
+  background: none;
+  border-top: 1px dashed var(--hairline);
+}
+/*
+ * Its sub-line is Shin talking ("I will almost certainly refuse"), not a
+ * measurement, so it loses the mono caps the priced rows keep. FLAWS.md item 6:
+ * the mono face is reserved for a recorded measurement, and spending it on a
+ * sentence is what made this list read as a readout rather than a question.
+ */
+.cand-none .cand-meta {
+  font-family: var(--f-ui);
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  /* Colour is inherited from .cand-meta on purpose: --ink-faint is what this
+     line should be, and it clears on the card's --raised ground -- 4.52 dark,
+     4.55 light, against the 4.5 floor for text under 24px. That is the value
+     tokens.css was stepped to on 2026-09-05 for exactly this reason, and its
+     own comment records the same 4.52. Measured from the parsed declaration,
+     not from DESIGN.md section 1's colour table, which still prints the
+     pre-2026-09-05 values and is what made an earlier pass of this file say
+     this pairing failed. Quiet is the job here, and --ink-muted would make the
+     sub-line louder than the row's own name above it. */
+}
 /* The list being a fixed stand-in for vision, stated once, so nobody mistakes
-   it for a camera that actually read the item. */
+   it for a camera that actually read the item.
+   It was mono, uppercase and tracked out across the full width of the glass,
+   which is the same reserved face being spent on something that is not a
+   measurement -- and a caption in caps at the bottom of the screen reads as a
+   developer's note rather than as something written for a shopper. Interface
+   face, sentence case, and the faint ink token rather than an opacity fade
+   (D-040: muted text takes a colour token, never a fade, because the contrast
+   test cannot see through an opacity). */
 .standin-note {
-  margin: 6px 0 0;
-  font-family: var(--f-mono);
-  font-size: 9.5px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  opacity: .55;
+  margin: 2px 0 0;
+  font-family: var(--f-ui);
+  font-size: 12.5px;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-transform: none;
+  /* --ink-faint, measured on this sheet's own ground (--surface, via
+     data-conf="reading"): 5.29 dark, 5.71 light, against the 4.5 floor for
+     text under 24px. Comfortably clear, so the caption gets to be as quiet as
+     it is meant to be. A colour token and not the opacity fade it replaced --
+     D-040, because a fade is a contrast failure the token test cannot see. */
+  color: var(--ink-faint);
   text-align: center;
 }
 
@@ -1374,6 +1468,33 @@
 /* OLMA audit rows 38, 40, 41, 42, 44: asking price pad. Same numerals as
    correct.js's own pad, sized to fit a sheet rather than a full page. */
 .padsheet { gap: 8px; }
+/*
+ * The pad as one block, not four bands.
+ *
+ * The sheet's generic 12px rhythm applied to seven stacked children spread the
+ * amount, the modifier pills and the keypad into three separate objects with a
+ * field of empty glass between them, and the pills read as floating in it. The
+ * peek's own gap goes to zero here and each step is named instead: 16px from
+ * the amount to the pills, 20px from the pills to the keys. The space that
+ * bought comes off the top of the sheet, which had a 12px lid over a grabber
+ * that is already 19px of clear air.
+ *
+ * Every one of these margins is reset in the short-viewport block at the end of
+ * this file, back to the 4px rhythm measured to fit 450px of content in 450px
+ * of room at 375 x 575. Growing the pad at that height is the one regression
+ * Row 38/44 and D-050 have each fixed once already.
+ */
+.padsheet { padding-top: 6px; }
+.padsheet .sheet-peek { gap: 0; }
+.padsheet .itemname { margin-top: 10px; }
+.padsheet .notthis { margin-top: 2px; }
+.padsheet .amount { margin-top: 10px; }
+.padsheet .pad-effective { margin-top: 8px; }
+.padsheet .pad-mods { margin-top: 16px; }
+.padsheet .pad-mod-input { margin-top: 10px; }
+/* :not(.keypad-bottom), because the bottom row carries both classes and keeps
+   its own 6px so the two grids read as one field of keys. */
+.padsheet .keypad:not(.keypad-bottom) { margin-top: 20px; }
 .padsheet .amount {
   font-family: var(--f-display);
   font-weight: 800;
@@ -1520,11 +1641,21 @@
   border-color: var(--brand);
   color: var(--brand-ink, #fff);
 }
+/*
+ * Disabled, and still recognisably the confirm key.
+ *
+ * It used to repaint itself --raised on --hairline, which is exactly what an
+ * ordinary digit key is made of: the one key that finishes the job became
+ * indistinguishable from the twelve around it, so the pad had no visible
+ * destination until the first digit landed. It keeps the brand fill and drops
+ * to 38%, which reads as "this is the key, it is not ready yet" rather than as
+ * a key that is not there. The enabled state above is untouched.
+ */
 .padsheet .key-confirm:disabled {
-  background: var(--raised);
-  border-color: var(--hairline);
-  color: var(--ink-faint);
-  opacity: .5;
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink, #fff);
+  opacity: .38;
   cursor: not-allowed;
 }
 
@@ -1543,6 +1674,20 @@
   .padsheet .sheet-head { height: 56px; }
   .padsheet .sheet-head .face-block svg { width: 56px; height: 56px; }
   .padsheet .sheet-peek { gap: 4px; }
+  /* The tall-viewport rhythm, undone. Those margins are what make the pad read
+     as one block on a phone with room; at 575 the measured budget is 450px of
+     content in 450px of room, so the 4px gap above is the whole spacing and
+     every named margin goes back to zero. Adding height here is the regression
+     Row 38/44 and D-050 have each fixed once already, so it is reset rather
+     than re-tuned: one rule that cannot drift out of step with the block it
+     is cancelling. */
+  .padsheet .itemname,
+  .padsheet .notthis,
+  .padsheet .amount,
+  .padsheet .pad-effective,
+  .padsheet .pad-mods,
+  .padsheet .pad-mod-input,
+  .padsheet .keypad:not(.keypad-bottom) { margin-top: 0; }
   .padsheet .itemname { line-height: 1.2; }
   .padsheet .keypad {
     grid-template-rows: repeat(3, 44px);
@@ -1563,11 +1708,29 @@
    gesture that gets you out of the pad (Skip) or back to zero (Clear)
    is reachable at every height, not just tall ones. Right-padded to
    clear the close button's own circle (see .sheet .close). */
+/*
+ * Clear and Skip, as one group on the sheet's own left gutter.
+ *
+ * They used to be pushed to the right end of the row with 34px of padding to
+ * duck under the close button, which left them aligned to nothing: every other
+ * line in the sheet ends at the 20px gutter and these two ended at 54px, under
+ * a control they had no relationship to. Moved to the leading edge, where the
+ * item name and the keypad already start, and the close button keeps the other
+ * corner to itself with no arithmetic between them.
+ *
+ * The negative margin is optical alignment, not a nudge: `.pad-textbtn` carries
+ * 10px of inner padding to make its 44px box, so pulling the row out by exactly
+ * that lands the C of "Clear" on the gutter instead of 10px inside it.
+ */
 .pad-headrow {
   display: flex;
-  justify-content: flex-end;
-  gap: 4px;
-  padding: 2px 34px 0 0;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 2px;
+  margin-left: -10px;
+  /* Nothing in this row ever reaches the close button's corner. */
+  margin-right: 44px;
+  padding: 0;
 }
 /* D-050: measured 42 x 23 (Clear) and 37 x 23 (Skip) at 390 x 844. Same
    inline-flex-and-min-height fix as .modbtn above: the label stays 12px and
@@ -1586,10 +1749,25 @@
   color: var(--ink-muted);
   background: none;
   border: none;
-  padding: 4px 6px;
+  padding: 4px 10px;
   cursor: pointer;
 }
 .pad-textbtn:active { opacity: .6; }
+/*
+ * Clear, while the amount is still $0.00.
+ *
+ * It was live and did nothing, which is the kind of control that teaches a
+ * person their taps are not being read. Disabled rather than hidden: a button
+ * that appears the moment you type is movement in the corner of the eye at the
+ * exact moment the eye is on the keypad, and the row would reflow under the
+ * thumb. Same treatment as the confirm key below and for the same reason --
+ * still legible, plainly inert.
+ */
+.pad-textbtn:disabled {
+  opacity: .38;
+  cursor: not-allowed;
+}
+.pad-textbtn:disabled:active { opacity: .38; }
 /* Skip is the only way out of the pad that is not a cancel, and Clear is the
    only way back to zero. Both were reachable by Tab and drew nothing under it. */
 .pad-textbtn:focus-visible {

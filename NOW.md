@@ -66,6 +66,70 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## The last four screens brought up to standard, and the doc that was lying about colour, 2026-09-11
+
+**Every screen has now been walked and measured.** Three lanes on disjoint files, every claim
+checked at the consumer before it moved a row. Four defects filed, one build standard earned, and
+two of the four were found by recomputing a lane's own report rather than by reading the screen.
+
+**The two sheets on the camera.** The candidate picker was eight separate cards with gaps and read
+as eight objects; it is one grouped card now, `raised` rather than `surface` because it sits on a
+sheet that is already `surface`, rows 56px, divider inset 16. Its footnote was a line of mono caps
+across the glass and is now a sentence in the UI face. The price pad: Clear and Skip align to the
+sheet's own gutter, Clear is inert until there is a digit, the amount, the modifier pills and the
+keypad are one block at 16 and 20, and the disabled confirm key is visible at 38 percent instead of
+being the same colour as an ordinary key. All of it resets at short viewport so the pad cannot grow
+there, which is a regression this repo has already fixed twice.
+
+**The three lists.** Saved, Past scans and Recently removed were a row card, a gap, then a separate
+box holding an x, so every item read as two objects. One card per list now, the remove control
+inside the row at 44x44 with no box of its own, divider inset 16. Recently removed loses about 40px
+a row. The permanent delete stays a second tap and now says so in its accessible name as well as
+its colour, because the visible word was the only thing carrying it.
+
+**Two faces on one screen, on Recently removed.** With the list empty the header said "Kept for 30
+days" with a face and the empty state said "Nothing removed" with another. The retention line is a
+fact about rows, so it appears when there are rows. All three empty lists now render the same
+thing: `asleep` at 96px, centred, breathing.
+
+**The share card, which is the channel.** It drew a tier FILL colour as small text on `surface`.
+Measured: dark fails on walk at 3.25 and unknown at 3.09, and LIGHT fails on the other two instead,
+good at 3.42 and fair at 3.39, so checking one theme proved nothing. It uses `-bright` now, 6.26 to
+7.80. The sticky footer was also covering the bottom 36px of the card, which is the row carrying
+both prices, and the header drew Shin at 220px above a 270px card while repeating the card's own
+sentence. The face is gone, the card is the subject, the primary action is a filled pill again, and
+the page fits exactly at 390x844 and at 375x575.
+
+**The correction screen said "This screen never scrolls" and overflowed by 170px at 375x575.** The
+claim is deleted, the measurement is in its place, and a short-viewport block at the same 640px
+breakpoint the camera already uses drops the face and compresses the pad: overflow 48px and the
+Save button now lands above the fold at 553 on a 575 tall screen.
+
+**The document was lying about colour, and that is the important one.** `DESIGN.md` opens by
+declaring itself the source for colour. Ten of its eleven two-theme rows disagreed with
+`tokens.css`, having drifted through two palette passes. A lane read `--ink-faint` out of that
+table, reported it failing contrast everywhere, changed two lines and filed a third as a defect;
+every number was stale and the token had cleared 4.5 since the day it was fixed. Section 1 no
+longer states a value. It owns what each token is FOR, `tokens.css` owns what each token IS, and
+`app/test/design-doc.test.mjs` fails if a hex literal returns to the document. Negative-tested: it
+names the line and the value.
+
+**A test was green on the wrong button.** `sheet.test.mjs` asserted the confirm key's disabled
+state with a substring search over the whole sheet. The pad grew a second disableable control and
+from that moment the assertion was satisfied by Clear and said nothing about the confirm key. It
+would have stayed green with the key wrongly pressable. Scoped to the named button, both controls
+asserted, negative-tested against markup where confirm is enabled.
+
+**Verified at the consumer, not from a lane report:** app 415 pass, 0 fail, 5 skipped, typecheck
+clean. Every screen walked at 390x844, the short ones re-measured at 375x575, light theme checked
+on You and Saved, computed styles compared across three screens for the button defect. The three
+lanes could not see a screen; every visual claim here was measured by the boss afterwards.
+
+**Not done.** The mascot art itself, which is the founders' asset and a conversation rather than a
+lane. Two voice lines where Shin pre-refuses a choice the shopper has not made (`cam_candidate_none`
+and `cam_notthis_keep`). `.btn` supplies a transition that bare `.cta` does not, so a shell comment
+claiming otherwise is wrong. USAGE.md still records that correct and share should be detents of the
+verdict sheet rather than routes. Nothing is committed.
 
 ---
 

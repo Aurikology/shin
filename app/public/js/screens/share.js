@@ -29,7 +29,7 @@
  * `test/share-tokens.test.mjs`, which is what actually holds the two in step.
  */
 
-import { faceSvg, shinSay, cad, confidenceOf, tierOf, sellerOf, SIZE_TOKENS } from '../shin.js';
+import { faceSvg, cad, confidenceOf, tierOf, sellerOf, SIZE_TOKENS } from '../shin.js';
 import { wordFor, say } from '../voice.js';
 import { on } from '../lib/dom.js';
 
@@ -60,6 +60,30 @@ const TOKENS = {
   '--fair-on':    { dark: '#1A1204', light: '#1A1204' },
   '--walk-on':    { dark: '#FFFFFF', light: '#FFFFFF' },
   '--unknown-on': { dark: '#F7F5F2', light: '#F7F5F2' },
+  /*
+   * The bright variants, added for the price figure in the ELSEWHERE column
+   * (see `col()` below). `--tier` is a FIELD colour -- it is what the verdict
+   * band is filled with, and text drawn on it uses `--tier-on`. It was also
+   * being used as the price figure's own colour, text sitting directly on
+   * `--surface`, which is a different pairing tokens.css never measured this
+   * one against, and checking only one theme missed half of it: DARK fails on
+   * walk and unknown (walk #C23619 on dark --surface is 3.25, unknown #5E6770
+   * is 3.09), LIGHT fails on good and fair instead (good #109F5C on light
+   * --surface, which is white, is 3.42, fair #BA801A is 3.39) -- all four
+   * under the 4.5 text under 24px needs, and the card's long-price path
+   * (`SIZE.priceLong`, 56px canvas / 2.77 scale = 20px) is under 24px.
+   * camera.css already has the fix for the same shape of problem: the
+   * thin/refuses sheet states draw their tier-hued text in `--tier-bright`,
+   * never `--tier`, because `--tier-bright` is the variant tokens.test.mjs
+   * holds to the 4.5 floor. Same fix here, applied to all four tiers rather
+   * than only the two that failed in one theme, since the pairing is wrong in
+   * both, just for different tiers: dark walk-bright 6.26, dark unknown-
+   * bright 6.66, light good-bright 7.55, light fair-bright 7.65.
+   */
+  '--good-bright':    { dark: '#38E08B', light: '#0A6138' },
+  '--fair-bright':    { dark: '#FFC24D', light: '#6F4D0F' },
+  '--walk-bright':    { dark: '#FF6A45', light: '#9A2B14' },
+  '--unknown-bright': { dark: '#93A0AC', light: '#4C535A' },
 };
 
 /*
@@ -157,6 +181,9 @@ function palette(read, tierId) {
     brand: read('--brand'),
     tier: read(tierVar),
     tierOn: read(`${tierVar}-on`),
+    // Text ON --surface, not a field fill -- see the block comment on the
+    // TOKENS table above.
+    tierBright: read(`${tierVar}-bright`),
   };
 }
 
@@ -390,7 +417,10 @@ async function drawCard(canvas, card) {
     wrap(g, sub, mid - pad - 30, 1).forEach((l) => g.fillText(l, x, boxTop + 194));
   };
   col(W * 0.27, 'ON THE TAG', card.askingText, card.askingSub, t.ink);
-  col(W * 0.73, 'ELSEWHERE', card.elsewhereText, card.elsewhereSub, t.tier);
+  // t.tierBright, not t.tier: this text sits on --surface, not on the tier
+  // field, and the field colour under-contrasts there. See the TOKENS
+  // comment above.
+  col(W * 0.73, 'ELSEWHERE', card.elsewhereText, card.elsewhereSub, t.tierBright);
 
   /*
    * How sure Shin was, on the card, because a screenshot outlives the screen.
@@ -489,10 +519,6 @@ export default {
 
         <p class="fineprint">A link would make a preview that reads as spam.</p>
 
-        <div class="shr-live">
-          ${shinSay(card.expression, v.tier, { asking: cad(v.askingCents), usual: cad(v.spread.medianCents) }, { size: 'face-share', tier: v.tier })}
-        </div>
-
         <div class="shr-frame">
           <canvas class="shr-canvas"
                   role="img"
@@ -500,12 +526,21 @@ export default {
           <pre class="shr-fallback" hidden></pre>
         </div>
 
-        <div class="page-foot">
-          <button type="button" class="btn cta" data-act="save">Save the image</button>
-          <button type="button" class="btn linky" data-act="copy">Copy as text</button>
-          <button type="button" class="btn linky" data-act="back">Back to the camera</button>
-        </div>
         <p class="shr-status" role="status"></p>
+        <!-- page-foot has to be the LAST child, not this line. shell.css's
+             own comment on page-foot says its no-overlap guarantee IS "the
+             last child": sticky is still in flow, so the last item in flow
+             clears it at the bottom of the scroll, and nothing does if
+             something follows it. This line used to sit after the footer and
+             sat under it, the same shape as the You screen's build-line bug
+             shell.css's page-bar comment records. -->
+        <div class="page-foot">
+          <button type="button" class="cta" data-act="save">Save the image</button>
+          <div class="shr-secondary">
+            <button type="button" class="linky" data-act="copy">Copy as text</button>
+            <button type="button" class="linky" data-act="back">Back to the camera</button>
+          </div>
+        </div>
       </div>`;
 
     const canvas = root.querySelector('.shr-canvas');
