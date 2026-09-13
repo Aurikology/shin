@@ -9,8 +9,8 @@
     "unreadable": 0,
     "pass2OfKnown": 2,
     "pass2Denominator": 2,
-    "p50Ms": 385,
-    "p95Ms": 385,
+    "p50Ms": 430,
+    "p95Ms": 430,
     "pending": 0
   },
   "results": [
@@ -25,7 +25,7 @@
       "top1": true,
       "top3": true,
       "passes": 2,
-      "ms": 385,
+      "ms": 430,
       "failure": null,
       "pin": "750ml",
       "usage": null
@@ -41,7 +41,7 @@
       "top1": true,
       "top3": true,
       "passes": 2,
-      "ms": 60,
+      "ms": 44,
       "failure": null,
       "pin": "1500ml",
       "usage": null

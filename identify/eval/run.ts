@@ -33,6 +33,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 
 import { IdentifyStage, type CatalogueLookup, type CatalogueResult, type IdentifyOutcome } from '../src/identify.ts';
@@ -56,7 +57,7 @@ const evalPath = (p: string) => fileURLToPath(new URL(p, HERE));
 
 // ---------------------------------------------------------------- CLI args
 
-interface Args {
+export interface Args {
   tier: Tier;
   limit: number | null;
   only: string | null;
@@ -85,7 +86,7 @@ interface Args {
   fakeCatalogue: boolean;
 }
 
-function parseArgs(argv: readonly string[]): Args {
+export function parseArgs(argv: readonly string[]): Args {
   let tier: Tier = 'pro';
   let limit: number | null = null;
   let only: string | null = null;
@@ -969,7 +970,25 @@ function reportMatrix(args: Args, cells: Cell[]): void {
   console.log(`\nwrote ${outFile}`);
 }
 
-run().catch((err: unknown) => {
-  console.error(err instanceof Error ? (err.stack ?? err.message) : String(err));
-  process.exit(1);
-});
+/**
+ * Runs only when this file IS the program, not when a test imports it.
+ *
+ * D-090: before this guard, `run()` fired at module load, so nothing could
+ * import this file to check it, so nothing did -- and `eval/` sat outside
+ * `tsconfig.json` as well. A broken string literal here passed both
+ * `npm run typecheck` and all 96 tests and was caught only by executing the
+ * file by hand. This is the single most decision-bearing script in the package
+ * (QUEUE.md P2 names its number as what chooses the model tiers) and it was the
+ * one thing nothing guarded. `eval/**` is in the include array now, and
+ * `test/eval-run.test.ts` imports this module, which is what makes a parse
+ * error fail a test run rather than wait for somebody to run the eval.
+ */
+const invokedDirectly =
+  process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+
+if (invokedDirectly) {
+  run().catch((err: unknown) => {
+    console.error(err instanceof Error ? (err.stack ?? err.message) : String(err));
+    process.exit(1);
+  });
+}
