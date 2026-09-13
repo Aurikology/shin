@@ -913,9 +913,31 @@ export function faceInner(who, state) {
  * A standalone SVG document for one state: xmlns, the 88 viewBox, and a
  * default navy ink on the root so `currentColor` resolves when the file is
  * opened on its own. This is exactly what `scripts/build-faces.mjs` writes.
+ *
+ * IT CARRIES THE STATE'S IDENTITY AND NOT A SENTENCE IN ANY LANGUAGE. These
+ * files used to root an `aria-label="Shin: idle"` in the markup, which is an
+ * ENGLISH accessible name baked into a build artifact. The app ships in French
+ * and English; a static file cannot know which one is reading it, so whichever
+ * language is baked in is wrong for somebody. This is D-092's shape at the
+ * asset layer -- there, the face was localised where it was drawn and not
+ * where it changed; here, the label cannot be localised at all because the
+ * file has no runtime.
+ *
+ * So the file states WHICH face it is (`data-who`, `data-state`, and a `title`
+ * holding the two identifiers AVATAR.md section 6 defines as the artist/build
+ * interface) and leaves the accessible NAME to whoever embeds it. In this repo
+ * that consumer is `shin.js`, whose `faceSvg` and `morphFace` both look the
+ * label up through `t('face_label', ...)` in the reader's own language. It is
+ * the same rule `spine` follows for a verdict: the producer emits a code and
+ * the facts, and the layer that knows the reader chooses the words.
+ *
+ * These files live under `public/`, so they are served and the Capacitor
+ * wrapper bundles them. Nothing links them today; that is not a reason to ship
+ * a deliverable that is wrong in one of the two languages the product speaks.
  */
 export function standaloneSvg(who, state) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 88" width="88" height="88" color="${INK_DEFAULT}" role="img" aria-label="Shin: ${state}">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 88" width="88" height="88" color="${INK_DEFAULT}" role="img" data-who="${who}" data-state="${state}">
+  <title>Shin ${who} ${state}</title>
   ${faceInner(who, state)}
 </svg>
 `;

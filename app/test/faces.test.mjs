@@ -132,3 +132,68 @@ for (const who of Object.keys(FACE_SETS)) {
     assert.doesNotMatch(svg, /#F0431F|#FF6A45|red/i);
   });
 }
+
+/**
+ * The deliverable states which face it is; it does not speak a language.
+ *
+ * These 39 files used to root `aria-label="Shin: idle"` -- an English
+ * accessible name baked into a build artifact. The product ships in French and
+ * English, the files live under `public/` so they are served and the Capacitor
+ * wrapper bundles them, and a static file cannot know who is reading it, so
+ * whichever language is baked in is wrong for somebody. D-092's shape one
+ * layer down: there the label was localised where the face was drawn and not
+ * where it changed; here it cannot be localised at all, because the file has
+ * no runtime to look anything up in.
+ *
+ * The rule these tests hold: the ASSET carries identity, the CONSUMER chooses
+ * the words. `shin.js` does exactly that, in two languages, through
+ * `t('face_label', ...)`.
+ */
+
+test('no face file carries an accessible name in any one language', () => {
+  for (const who of Object.keys(FACE_SETS)) {
+    for (const state of CONTRACT) {
+      const svg = standaloneSvg(who, state);
+      assert.ok(!/aria-label=/.test(svg),
+        `${who}/${state} bakes an accessible name into the asset; the consumer must choose it`);
+      assert.ok(!/aria-labelledby=/.test(svg),
+        `${who}/${state} points at an in-file label, which is the same problem with an indirection`);
+    }
+  }
+});
+
+test('every face file says which face it is, in attributes a consumer can read', () => {
+  for (const who of Object.keys(FACE_SETS)) {
+    for (const state of CONTRACT) {
+      const svg = standaloneSvg(who, state);
+      assert.match(svg, new RegExp(`data-who="${who}"`), `${who}/${state} does not name its personality`);
+      assert.match(svg, new RegExp(`data-state="${state}"`), `${who}/${state} does not name its state`);
+    }
+  }
+});
+
+test('the title names the same two identifiers as the path, so a misfiled face fails here', () => {
+  for (const who of Object.keys(FACE_SETS)) {
+    for (const state of CONTRACT) {
+      const title = /<title>([^<]*)<\/title>/.exec(standaloneSvg(who, state));
+      assert.ok(title, `${who}/${state} has no title, so a file opened on its own is unnamed`);
+      assert.equal(title[1], `Shin ${who} ${state}`,
+        `${who}/${state}'s title disagrees with its own path`);
+    }
+  }
+});
+
+test('the files on disk carry the change too, not just the module', () => {
+  // The pairwise comparison above already pins file to module, but it would
+  // pass just as happily if BOTH still had the English label. This asserts the
+  // bytes on disk directly, because the whole defect was an artifact nobody
+  // regenerated.
+  for (const who of Object.keys(FACE_SETS)) {
+    for (const state of CONTRACT) {
+      const file = fileURLToPath(new URL(`../public/faces/${who}/${state}.svg`, import.meta.url));
+      const svg = readFileSync(file, 'utf8');
+      assert.ok(!/aria-label="Shin: /.test(svg),
+        `${who}/${state}.svg still holds the old English label; run npm run faces`);
+    }
+  }
+});
