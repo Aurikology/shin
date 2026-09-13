@@ -273,6 +273,30 @@ const EN = {
   /** "12 scans" / "1 scan", already pluralised before it reaches voice.js. */
   you_scan_count: (f) => `${f.n} scan${f.n === '1' ? '' : 's'}`,
   you_named_suffix: (f) => `${f.n} named`,
+
+  /* ----------------------------------------- Shin's face, for a screen reader
+   * The thirteen face states are drawn, so a sighted reader gets them for free
+   * and a screen reader gets only this label. They live here rather than in
+   * voice.js because a state name is a LABEL and not Shin speaking: it does not
+   * change with the attitude, and it must not, or a blind user would hear a
+   * different product than a sighted one sees. Keys match `FACE_STATES` in
+   * face-art.js exactly; `app/test/locale.test.mjs` asserts all thirteen are
+   * present in both languages, so a fourteenth state fails a test here rather
+   * than reaching a screen reader as a raw English id. */
+  face_label: (f) => `Shin: ${f.state}`,
+  face_state_idle: 'waiting',
+  face_state_thinking: 'thinking',
+  face_state_asking: 'asking',
+  face_state_good: 'good price',
+  face_state_delighted: 'delighted',
+  face_state_fair: 'fair price',
+  face_state_walk: 'walk away',
+  face_state_angry: 'angry',
+  face_state_unknown: 'unsure',
+  face_state_pleased: 'pleased',
+  face_state_nudging: 'nudging',
+  face_state_asleep: 'asleep',
+  face_state_proud: 'proud',
 };
 
 const FR = {
@@ -513,6 +537,26 @@ const FR = {
      a changer. */
   you_scan_count: (f) => `${f.n} scan${f.n === '1' ? '' : 's'}`,
   you_named_suffix: (f) => `${f.n} nommés`,
+
+  /* ------------------------------------- le visage de Shin, pour un lecteur
+   * d'ecran. Le francais met une espace insecable AVANT le deux-points, ce que
+   * l'anglais ne fait pas: "Shin : content" et non "Shin: content". C'est la
+   * meme raison que 4,99 $ dans shin.js -- la ponctuation est ce qui trahit une
+   * traduction faite a la machine. */
+  face_label: (f) => `Shin\u00A0: ${f.state}`,
+  face_state_idle: 'en attente',
+  face_state_thinking: 'réfléchit',
+  face_state_asking: 'pose une question',
+  face_state_good: 'bon prix',
+  face_state_delighted: 'ravi',
+  face_state_fair: 'prix correct',
+  face_state_walk: 'passe ton tour',
+  face_state_angry: 'fâché',
+  face_state_unknown: 'incertain',
+  face_state_pleased: 'content',
+  face_state_nudging: 'te fait signe',
+  face_state_asleep: 'endormi',
+  face_state_proud: 'fier',
 };
 
 const UI = { en: EN, fr: FR };

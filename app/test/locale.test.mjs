@@ -306,8 +306,15 @@ test('a code this build does know is rendered in French, with its numbers intact
   };
   const out = inLocale('fr', () => prose.render(structured, english));
   assert.notEqual(out, english, 'a code with a French renderer still came back English');
-  assert.ok(out.includes('$4.99'), `the regular price was reshaped: ${out}`);
-  assert.ok(out.includes('$6.49'), `the asking price was reshaped: ${out}`);
+  // The VALUE survives; the punctuation is expected to change. This assertion
+  // used to demand the literal `$4.99` inside a French sentence, which was
+  // correct only while `cad()` was English-only, and became the wrong
+  // expectation the day money learned French -- D-002's shape, a test asserting
+  // a behaviour the product had deliberately moved past. What actually matters
+  // is that no digit is invented or lost between the two languages.
+  assert.ok(out.includes('4,99 $'), `the regular price is not Canadian French money: ${out}`);
+  assert.ok(out.includes('6,49 $'), `the asking price is not Canadian French money: ${out}`);
+  assert.equal(out.replace(/[^0-9]/g, ''), '4993649', `a digit moved: ${out}`);
   assert.ok(out.includes('3'), `the store count was reshaped: ${out}`);
 });
 
@@ -333,5 +340,155 @@ test('every French renderer produces a non-empty sentence for its own code', () 
     const out = inLocale('fr', () => prose.render({ shape: 'single', fragments: [{ code, facts }] }, 'FALLBACK'));
     assert.notEqual(out, 'FALLBACK', `${code} fell back instead of rendering`);
     assert.ok(out.trim().length > 5, `${code} rendered almost nothing: ${out}`);
+  }
+});
+
+/* ------------------------------------------------------------------ *
+ * 7. Money, and the face label a screen reader hears.
+ *
+ * Both are punctuation problems, and punctuation is the tell. `$4.99` inside a
+ * French sentence and `Shin: content` without the space before the colon are
+ * exactly what a machine translation leaves behind.
+ * ------------------------------------------------------------------ */
+
+test('French money is 4,99 $ and English money is $4.99, from the same cents', async () => {
+  const { cad } = await import('../public/js/shin.js');
+  assert.equal(inLocale('en', () => cad(499)), '$4.99');
+  assert.equal(inLocale('fr', () => cad(499)), '4,99 $');
+});
+
+test('the space in French money is NO-BREAK, so a line never wraps before the dollar sign', async () => {
+  const { cad } = await import('../public/js/shin.js');
+  const fr = inLocale('fr', () => cad(499));
+  assert.ok(fr.includes(' '), `expected a no-break space, got ${JSON.stringify(fr)}`);
+  assert.ok(!fr.includes(' $'), 'a plain space would let the amount wrap away from its symbol');
+});
+
+test('the formatter reshapes punctuation and never a digit', async () => {
+  const { cad } = await import('../public/js/shin.js');
+  // The promise voice.js makes about the attitude, made here about the locale:
+  // 4,99 $ and $4.99 are the same 499 cents, and a formatter gets no opinion.
+  for (const cents of [0, 5, 99, 100, 499, 1999, 123456, -499]) {
+    const en = inLocale('en', () => cad(cents));
+    const fr = inLocale('fr', () => cad(cents));
+    const digitsOf = (s) => s.replace(/[^0-9]/g, '');
+    assert.equal(digitsOf(en), digitsOf(fr), `${cents} lost or gained a digit: ${en} vs ${fr}`);
+  }
+});
+
+test('a negative keeps its sign in front in both languages', async () => {
+  const { cad } = await import('../public/js/shin.js');
+  assert.equal(inLocale('en', () => cad(-499)), '-$4.99');
+  assert.equal(inLocale('fr', () => cad(-499)), '-4,99 $');
+});
+
+test('a non-number is still the dash in both languages, because a formatter never throws', async () => {
+  const { cad } = await import('../public/js/shin.js');
+  for (const bad of [null, undefined, NaN, Infinity, 'x']) {
+    assert.equal(inLocale('en', () => cad(bad)), '--');
+    assert.equal(inLocale('fr', () => cad(bad)), '--');
+  }
+});
+
+test('every one of the thirteen face states has a label in both languages', async () => {
+  const { FACE_STATES } = await import('../public/js/face-art.js');
+  const { t } = await import('../public/js/ui-strings.js');
+  assert.equal(FACE_STATES.length, 13, 'the contract says thirteen states');
+  for (const state of FACE_STATES) {
+    for (const loc of ['en', 'fr']) {
+      const label = inLocale(loc, () => t(`face_state_${state}`));
+      assert.ok(label && label !== `face_state_${state}`,
+        `${loc} has no label for face state ${state}; a screen reader would hear the raw id`);
+    }
+  }
+});
+
+test('French puts a no-break space before the colon and English does not', async () => {
+  const { t } = await import('../public/js/ui-strings.js');
+  const en = inLocale('en', () => t('face_label', { state: t('face_state_fair') }));
+  const fr = inLocale('fr', () => t('face_label', { state: t('face_state_fair') }));
+  assert.ok(en.startsWith('Shin: '), `English label was ${JSON.stringify(en)}`);
+  assert.ok(fr.startsWith('Shin : '), `French label was ${JSON.stringify(fr)}`);
+});
+
+test('the face label does not change with the attitude, so a blind user hears what a sighted one sees', async () => {
+  const { t } = await import('../public/js/ui-strings.js');
+  // ui-strings.js has no personality axis by design. Asserted rather than
+  // assumed, because the obvious "improvement" is to move these into voice.js.
+  const label = inLocale('fr', () => t('face_label', { state: t('face_state_walk') }));
+  assert.equal(label, inLocale('fr', () => t('face_label', { state: t('face_state_walk') })));
+  assert.ok(!label.includes('undefined'));
+});
+
+/* ------------------------------------------------------------------ *
+ * 8. The face label survives a STATE CHANGE, not just a render.
+ *
+ * This is the one that was actually broken, and it was invisible to every
+ * test that renders markup. `faceSvg` writes the label once; `morphFace`
+ * mutates the same element in place as Shin changes state and re-wrote the
+ * label from a hardcoded English template, so the app rendered French and then
+ * reverted to "Shin: idle" on the first state change. Found by reading the
+ * aria-label off a real page in a browser, not by any assertion here.
+ *
+ * Both paths are pinned below, because fixing one and not the other is exactly
+ * the shape of the original defect.
+ * ------------------------------------------------------------------ */
+
+/** The little of an SVG element that `morphFace` actually touches. */
+function fakeFace(state = 'idle', who = 'deadpan') {
+  const attrs = new Map();
+  const classes = new Set([`face-${state}`]);
+  return {
+    dataset: { state, who },
+    classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c), has: (c) => classes.has(c) },
+    setAttribute: (k, v) => attrs.set(k, v),
+    getAttribute: (k) => attrs.get(k) ?? null,
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    // `morphFace` delegates to `animateFace`, which writes CSS custom
+    // properties for the timing. Stubbed rather than asserted: this file is
+    // about the label, and the animation has its own tests.
+    style: { setProperty() {}, removeProperty() {} },
+    addEventListener() {},
+    removeEventListener() {},
+    getBoundingClientRect: () => ({ width: 88, height: 88, top: 0, left: 0, right: 88, bottom: 88 }),
+    attrs,
+  };
+}
+
+test('a state change rewrites the label in the CURRENT language, not in English', async () => {
+  const { morphFace } = await import('../public/js/shin.js');
+  const fr = fakeFace('idle');
+  inLocale('fr', () => morphFace(fr, 'idle', 'walk'));
+  assert.equal(fr.getAttribute('aria-label'), 'Shin : passe ton tour');
+
+  const en = fakeFace('idle');
+  inLocale('en', () => morphFace(en, 'idle', 'walk'));
+  assert.equal(en.getAttribute('aria-label'), 'Shin: walk away');
+});
+
+test('no state change leaves a raw English state id on the element', async () => {
+  const { morphFace } = await import('../public/js/shin.js');
+  const { FACE_STATES } = await import('../public/js/face-art.js');
+  for (const state of FACE_STATES) {
+    const el = fakeFace('idle');
+    inLocale('fr', () => morphFace(el, 'idle', state));
+    const label = el.getAttribute('aria-label');
+    assert.ok(label, `no label written for ${state}`);
+    assert.ok(!label.includes(state) || state === 'idle',
+      `the raw id "${state}" reached a French screen reader: ${label}`);
+    assert.ok(label.startsWith('Shin :'), `French label lost its no-break space: ${label}`);
+  }
+});
+
+test('the render path and the update path agree, which is the defect that existed', async () => {
+  const { faceSvg, morphFace } = await import('../public/js/shin.js');
+  for (const loc of ['en', 'fr']) {
+    const rendered = inLocale(loc, () => faceSvg('walk', { who: 'deadpan' }));
+    const fromRender = rendered.match(/aria-label="([^"]*)"/)?.[1];
+    const el = fakeFace('idle');
+    inLocale(loc, () => morphFace(el, 'idle', 'walk'));
+    assert.equal(fromRender, el.getAttribute('aria-label'),
+      `${loc}: the face says one thing when drawn and another when it changes state`);
   }
 });
