@@ -159,12 +159,26 @@ measured: on the day this rule was written, three branches held 31 unmerged comm
 that would not merge cleanly, and the newest branch had already rebuilt work sitting on an older
 one. If a conflict appears, resolve it on `main` in the open.
 
-`origin` is `gitlab.com/shin3223636/shin`, private, and it is where `main` tracks. It carries a
-SECOND push URL at `github.com/xu826Jamin/shin`, and there is also a separate `github` remote for
-the same GitHub repo, so one `git push origin main` writes to BOTH hosts. That is deliberate
-backup, not a mistake, but it means a push is never only to GitLab. (Corrected 2026-09-07: this
-section used to say "one remote", which was false and would have made a push look narrower than
-it is.)
+`origin` is `gitlab.com/shin3223636/shin`, private, and it is where `main` tracks. **On Aurik's
+machine `origin` has NO second push URL, so `git push origin main` writes GitLab ONLY.** The
+mirror there is a separate remote, `github` at `github.com/Aurikology/shin`, and it is pushed
+explicitly. Two hosts means two pushes on that machine; check `git remote -v` and
+`git config --get-all remote.origin.pushurl` before assuming otherwise, because the answer
+differs per clone.
+
+Verifying a mirror: a configured remote is not evidence and neither is a green page. Proof is
+`git ls-remote <remote> refs/heads/main` against BOTH hosts returning the same SHA, re-run after
+the push.
+
+(Corrected 2026-09-13. This section previously claimed `origin` carried a second push URL at
+`github.com/xu826Jamin/shin` so that one push wrote both hosts. Measured on Aurik's machine that
+day: `remote.origin.pushurl` was unset, and `xu826Jamin/shin` answered `Repository not found` —
+it may exist and be private to Jamin, which his own clone would see and Aurik's cannot. The
+reachable mirror, `Aurikology/shin`, was 25 commits behind at `1fb914f` while GitLab was at
+`c324bff`. The claim had already been "Corrected 2026-09-07" once, from "one remote", so this is
+the second time this paragraph described a backup that was not the one in the config. If Jamin's
+clone does carry that second push URL, this paragraph is true THERE and false HERE, and saying
+which machine is the whole point.)
 
 Commits `[scope] description`. Never `--force`: Aurik can pull this. Multi-line messages through
 a file, never a shell heredoc, because a backslash does not survive the trip through `bash -c`.
