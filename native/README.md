@@ -226,21 +226,57 @@ Nothing below can run without the accounts, which do not exist yet. Order matter
 names what it needs from the one before it.
 
 **Apple / TestFlight:**
-1. Enroll in the Apple Developer Program (needs a $99 USD/year payment, an Apple ID, and takes
-   up to 48 hours for individual enrollment to clear).
-2. In App Store Connect, create a new app record: platform iOS, name (still the placeholder
-   until cleared), primary language, bundle id (must match `PRODUCT_BUNDLE_IDENTIFIER` in
+1. Enroll in the Apple Developer Program ($99 USD/year, an Apple ID, and a government ID for
+   identity verification). **Apple publishes no processing time.** The only number on its site
+   is "if you haven't received a membership confirmation within 24 hours of your purchase,
+   contact us", which is about the confirmation email and not about approval; Apple's own 2026
+   forum threads carry individual enrolments stuck three weeks and longer on identity checks.
+   The "up to 48 hours" this step used to state was unsourced and is corrected here (D-088's
+   sibling; `docs/decisions.md` of 2026-09-11 already said it right: "neither vendor states a
+   processing time"). Plan accordingly: this is the long pole and nobody here controls it.
+   Full packet, with sources: `docs/the-store-accounts-packet.md`.
+2. In App Store Connect, create a new app record: platform iOS, name, primary language,
+   bundle id (must match `PRODUCT_BUNDLE_IDENTIFIER` in
    `ios/App/App.xcodeproj/project.pbxproj` above), SKU (any unique string, e.g. the bundle id
    again).
+
+   > **STOP. Do not run this step with the placeholder.** Today that file reads
+   > `com.placeholder.pricecheck`, and so do `capacitor.config.json`, `build.gradle` and
+   > `strings.xml`. **A bundle id used once in App Store Connect cannot be reused on another
+   > account, and a TestFlight-only build is enough to burn it** — it does not need to reach the
+   > store. So the placeholder must never touch either console, not even as a test, or the real
+   > id is gone before the name is even chosen.
+   >
+   > Two other things set here are permanent and are set for the first time by this step. The
+   > **Developer Name** (the seller name shown to every customer) is fixed at the first app
+   > record and cannot be edited afterwards; on the individual enrolment path that is your
+   > personal legal name, publicly, forever. And the app **name** is gated on the CIPO trademark
+   > search (beta-plan item 5) plus `CLAUDE.md` hard rule 1, "no name in public until it is
+   > cleared" — and `docs/decisions.md` already records that "Shin Ramen" is dead as a name.
+   >
+   > Order that avoids the dead end: clear the name, set the real bundle id in all four files,
+   > THEN create the record.
 3. In Xcode (see the iOS build section above), Product > Archive, then Distribute App >
    App Store Connect > Upload. This needs the signing identity from the iOS prerequisites.
-4. Back in App Store Connect, under TestFlight, add the six testers by email as **Internal
-   Testers** (no App Review needed for internal testing) once the build finishes processing.
+4. Back in App Store Connect, under TestFlight, add the six testers as **Internal Testers**
+   (no App Review needed for internal testing) once the build finishes processing.
+   **An internal tester is not just an email address.** Apple requires internal testers to be
+   users on your App Store Connect team holding Account Holder, Admin, App Manager, Developer
+   or Marketing. Six family testers on the internal track means six people added as users on
+   the developer account. The alternative is external testing, which takes plain emails but
+   adds Beta App Review. This step used to read "add the six testers by email", which hid the
+   whole decision.
 5. Each tester gets an email invite; they install the **TestFlight** app first, then accept.
 
 **Google / Play internal track:**
-1. Enroll in the Play Console (one-time $25 USD, a Google account, near-instant for personal
-   accounts, longer if Google asks for identity verification).
+1. Enroll in the Play Console (one-time $25 USD, a Google account). **Personal accounts now
+   require a government-ID review and device verification through the Play Console mobile app;
+   the "near-instant" this step used to state describes the signup as it was before November
+   2023 and is corrected here.** No processing time is published. The $25 is not refunded if
+   verification fails, so make the name on your ID, the name on the card and the name in the
+   form match before paying. Note also that the 12-testers-for-14-continuous-days requirement
+   gates PRODUCTION access for personal accounts created after 2023-11-13; it does not gate the
+   internal track, which is what the six-person beta uses.
 2. Create a new app in Play Console: name (placeholder until cleared), default language,
    app or game, free or paid (free), fill the required declarations (content rating
    questionnaire, data safety form, target audience -- these ask real questions about what the
