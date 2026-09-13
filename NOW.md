@@ -66,6 +66,40 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## The eval stops reporting one number and starts saying which stage failed, 2026-09-13 night
+
+The eval could not tell *"the cascade never surfaced the right row"* from *"the row was there and
+the pick chose wrong"*. Those have opposite fixes — one is catalogue and query, the other is prompt
+and model — and both showed up as a single wrong answer, so the number could not direct any work.
+`identify/eval/metrics.ts` splits them. **104 tests to 119**, typecheck clean, no pre-existing test
+edited.
+
+**It immediately found something. Cascade recall@1 is 38/40, not 40/40** — the first number this
+eval has ever produced that is not perfect, and it is REAL: real catalogue, real three-query
+cascades. recall@3 and recall@10 are both 40/40, so the retrieval ceiling is intact and **two rows
+are being carried by the pick pass rather than by retrieval**, at cascade rank 2: `0065633132115`
+General Mills Cinnamon Toast Crunch 354g, a **size-pair**, and `0055498027121` Krinos Feta 200g,
+plain. Under the old single number both were invisible, because the answer still shipped correct.
+
+That matters beyond tidiness: those two ship correct only because the pick rescues them, and in a
+dry run the pick is an **oracle handed the expected code**. A real model may not rescue them. So the
+40/40 end-to-end is the ceiling, not a forecast, and the runner now says so in its own output before
+printing it.
+
+**The report also prints what it cannot measure**, rather than burying it in a comment: every
+manifest row is in the catalogue by construction, so there is **no negative set**, and the
+false-positive rate is not low — it is unmeasured. That is precisely why the `not_in_catalogue`
+branch fires zero times, which was the measured reason item 23's visual search was held.
+
+Also added: MRR rather than mAP (one correct row per photo makes mAP the same number under a
+misleading name), a **Wilson interval printed beside top-1** so nobody quotes a point estimate that
+40 photos cannot support, per-bucket slicing, and two failure classes beyond the five asked for —
+`size_question_override` and `pick_error` — because both are reachable branches of `identify.ts` and
+calling either `pick_wrong` would send blame to the wrong stage.
+
+One source file changed, additively: `union` in `identify/src/identify.ts` is exported rather than
+copied, so recall is measured over the exact candidate list production builds.
+
 ## The CanLII survey ran, and the design rule it tested survives, 2026-09-13 night
 
 A Gemini Deep Research run in his browser closed the gap file 37 named and could not fill: nobody

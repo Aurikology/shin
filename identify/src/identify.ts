@@ -504,8 +504,14 @@ function pinnedSize(
  *
  * Ten is the cap, because ten is what the pick pass is asked to read and a
  * longer list is tokens spent on rows nobody will choose.
+ *
+ * Exported 2026-09-13 for the eval's stage split, and exported rather than
+ * copied on purpose: cascade recall is "was the right row in THIS list", so a
+ * second implementation of the merge in the runner would drift from the real one
+ * and quietly report recall for a candidate set production never built. The
+ * eval calls it on the same three results it watched go past the lookup.
  */
-function union(results: readonly CatalogueResult[]): CatalogueResult {
+export function union(results: readonly CatalogueResult[]): CatalogueResult {
   const BAND_RANK = { confident: 2, ambiguous: 1, miss: 0 } as const;
 
   const byCode = new Map<string, CatalogueCandidate>();

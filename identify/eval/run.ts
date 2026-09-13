@@ -36,7 +36,22 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 
-import { IdentifyStage, type CatalogueLookup, type CatalogueResult, type IdentifyOutcome } from '../src/identify.ts';
+import {
+  IdentifyStage,
+  union,
+  type CatalogueLookup,
+  type CatalogueResult,
+  type IdentifyOutcome,
+} from '../src/identify.ts';
+import {
+  ATTRIBUTIONS,
+  attribute,
+  pct,
+  summarise,
+  summariseByKind,
+  type StageMetrics,
+  type StageObservation,
+} from './metrics.ts';
 import {
   Identifier,
   type IdentifiedFields,
@@ -326,6 +341,144 @@ function parseSize(
   return { value: net.value, unit: net.unit, count, unitSize: unitSize.value };
 }
 
+/* ==========================================================================
+ * THE PROBE: watching the stages from outside identify/src.
+ *
+ * Added 2026-09-13. The problem it solves: `IdentifyOutcome` tells you what
+ * shipped and nothing about how. It does not carry the candidate set the cascade
+ * produced, whether the pick pass fired, what the pick itself chose, or whether
+ * a barcode short-circuited the whole text path. Without those four facts a
+ * wrong answer is one undifferentiated thing, and "the row was never retrieved"
+ * and "the row was retrieved and the second model call picked another" get the
+ * same row in the report despite needing opposite work.
+ *
+ * It reads them from the two seams the eval already owns rather than by changing
+ * a type `app/server.ts` consumes: the `CatalogueLookup` it hands the stage, and
+ * the `Identifier` it hands the stage. Every query and every pick goes through
+ * this file on its way in and out, so nothing has to be inferred.
+ *
+ * Rows run strictly sequentially (`pass()` awaits each one), so a single mutable
+ * "current row" probe is safe; it is deliberately not a map keyed by row,
+ * because that would quietly keep working if the loop ever went concurrent and
+ * start attributing one row's queries to another.
+ * ========================================================================== */
+
+interface Probe {
+  /** Lookups carrying a `gtin`, i.e. the barcode short-circuit's own query. */
+  gtinQueries: number;
+  /** ...of which resolved to at least one row, which is what short-circuits. */
+  gtinHits: number;
+  /** The three text queries' results, in the order they came back. */
+  cascade: CatalogueResult[];
+  pickFired: boolean;
+  pickErrored: boolean;
+  pickRows: readonly PickCandidateRow[] | null;
+  pickedIndex: number | null;
+}
+
+function newProbe(): Probe {
+  return {
+    gtinQueries: 0,
+    gtinHits: 0,
+    cascade: [],
+    pickFired: false,
+    pickErrored: false,
+    pickRows: null,
+    pickedIndex: null,
+  };
+}
+
+function probingLookup(inner: CatalogueLookup, current: () => Probe | null): CatalogueLookup {
+  return async (query) => {
+    const result = await inner(query);
+    const p = current();
+    if (p) {
+      if (query.gtin != null) {
+        p.gtinQueries += 1;
+        if (result.candidates.length > 0) p.gtinHits += 1;
+      } else {
+        p.cascade.push(result);
+      }
+    }
+    return result;
+  };
+}
+
+/**
+ * What the probe saw, turned into the row the metrics read.
+ *
+ * The candidate set is `union()` imported from identify.ts and applied to the
+ * very results this probe watched, not a re-implementation: recall has to be
+ * about the list production actually built.
+ */
+function observationOf(
+  row: ManifestRow,
+  outcome: IdentifyOutcome,
+  probe: Probe,
+): StageObservation | null {
+  // A row with no expected code (a loose-produce slot) has no right answer to
+  // be found or missed, so it is not a cascade success, a cascade failure, or
+  // anything else the split can honestly say a word about.
+  if (row.code == null) return null;
+  const shortCircuit = probe.gtinHits > 0 && probe.cascade.length === 0;
+  const cascadeCodes = probe.cascade.length
+    ? union(probe.cascade).candidates.map((c) => c.code)
+    : [];
+  const pickedCode =
+    probe.pickedIndex !== null && probe.pickRows
+      ? (probe.pickRows.find((r) => r.index === probe.pickedIndex)?.code ?? null)
+      : null;
+  return {
+    code: row.code,
+    kind: row.kind,
+    outcome: outcome.kind,
+    chosenCode: outcome.kind === 'identified' ? outcome.chosen.code : null,
+    barcodeShortCircuit: shortCircuit,
+    cascadeRan: probe.cascade.length > 0,
+    cascadeCodes,
+    pickFired: probe.pickFired,
+    pickErrored: probe.pickErrored,
+    pickedCode,
+  };
+}
+
+/**
+ * The real Identifier, with the pick call observed on the way past.
+ *
+ * A subclass for the same reason `FakeIdentifier` is one: `IdentifyStage`'s
+ * constructor takes an `Identifier` and that class has `#private` fields, so
+ * only a subclass satisfies it. `read()` is untouched; `pick()` calls straight
+ * through to the real one and records what went in and what came back.
+ */
+class RecordingIdentifier extends Identifier {
+  readonly #probe: () => Probe | null;
+
+  constructor(probe: () => Probe | null) {
+    super();
+    this.#probe = probe;
+  }
+
+  override async pick(
+    productPng: Uint8Array,
+    candidates: readonly PickCandidateRow[],
+    tier: Tier,
+  ): Promise<PickReading> {
+    const p = this.#probe();
+    if (p) {
+      p.pickFired = true;
+      p.pickRows = candidates;
+    }
+    try {
+      const reading = await super.pick(productPng, candidates, tier);
+      if (p) p.pickedIndex = reading.pick.chosen_index;
+      return reading;
+    } catch (err) {
+      if (p) p.pickErrored = true;
+      throw err;
+    }
+  }
+}
+
 // ------------------------------------------------------ fake model, --dry-run
 //
 // A subclass, not a plain object: IdentifyStage's constructor takes an
@@ -344,14 +497,16 @@ function parseSize(
 // a ceiling on the real model's number, not a stand-in for it.
 class FakeIdentifier extends Identifier {
   readonly #row: ManifestRow;
+  readonly #probe: () => Probe | null;
 
-  constructor(row: ManifestRow) {
+  constructor(row: ManifestRow, probe: () => Probe | null = () => null) {
     // A fake key skips the SDK's credential resolution outright (apiKey set
     // means the lazy chain never runs), so construction never touches the
     // network or the credential chain -- and both overrides below never call
     // the real client, so the client field this builds is never used either.
     super('fake-key-dry-run');
     this.#row = row;
+    this.#probe = probe;
   }
 
   async read(): Promise<ModelReading> {
@@ -381,8 +536,17 @@ class FakeIdentifier extends Identifier {
     return { product, tag: null, model: 'fake:dry-run', ms: 0 };
   }
 
-  async pick(_productPng: Uint8Array, candidates: readonly PickCandidateRow[]): Promise<PickReading> {
+  override async pick(
+    _productPng: Uint8Array,
+    candidates: readonly PickCandidateRow[],
+  ): Promise<PickReading> {
     const match = candidates.find((c) => c.code === this.#row.code);
+    const p = this.#probe();
+    if (p) {
+      p.pickFired = true;
+      p.pickRows = candidates;
+      p.pickedIndex = match?.index ?? null;
+    }
     return {
       pick:
         match != null
@@ -478,6 +642,12 @@ interface RowResult {
    * left for whoever owns that decision.
    */
   usage: TokenUsage | null;
+  /**
+   * The stage split (2026-09-13): what the cascade produced and what the pick
+   * did with it, watched through the probe above. Null for a row carrying no
+   * expected code, which the split cannot say anything about.
+   */
+  obs: StageObservation | null;
 }
 
 // `passes` only exists on the 'identified' arm (lane A landed it while this
@@ -539,8 +709,8 @@ async function run(): Promise<void> {
     return;
   }
 
-  const { results, pending } = await pass(args, rows, lookup, args.tier);
-  report(args, results, pending);
+  const { results, pending, pendingByKind } = await pass(args, rows, lookup, args.tier);
+  report(args, results, pending, pendingByKind);
 }
 
 /**
@@ -553,16 +723,19 @@ async function pass(
   rows: readonly ManifestRow[],
   lookup: CatalogueLookup,
   tier: Tier,
-): Promise<{ results: RowResult[]; pending: number }> {
+): Promise<{ results: RowResult[]; pending: number; pendingByKind: Record<string, number> }> {
   // One real Identifier and one IdentifyStage shared across every row, same
   // as production would use one per process. The fake model needs to know
   // which row it is answering for, so dry-run builds a fresh one per row
   // instead (cheap; it makes no I/O of its own).
-  const sharedModel = args.dryRun ? null : new Identifier();
-  const sharedStage = sharedModel ? new IdentifyStage(lookup, sharedModel) : null;
+  let probe: Probe | null = null;
+  const watched = probingLookup(lookup, () => probe);
+  const sharedModel = args.dryRun ? null : new RecordingIdentifier(() => probe);
+  const sharedStage = sharedModel ? new IdentifyStage(watched, sharedModel) : null;
 
   const results: RowResult[] = [];
   let pending = 0;
+  const pendingByKind: Record<string, number> = {};
 
   for (const row of rows) {
     // Item 14b's produce and tech slots: manifest.json already carries the
@@ -572,6 +745,7 @@ async function pass(
     // manifest entry can sit here without breaking the run for everyone else.
     if (!existsSync(evalPath(row.file))) {
       pending += 1;
+      pendingByKind[row.kind] = (pendingByKind[row.kind] ?? 0) + 1;
       console.log(`PENDING  ${row.code ?? '(no code)'}  ${row.kind}  no photo yet at ${row.file}`);
       continue;
     }
@@ -586,7 +760,9 @@ async function pass(
     }
 
     const bytes = readFileSync(evalPath(row.file));
-    const stage = sharedStage ?? new IdentifyStage(lookup, new FakeIdentifier(row));
+    probe = newProbe();
+    const stage =
+      sharedStage ?? new IdentifyStage(watched, new FakeIdentifier(row, () => probe));
     const started = Date.now();
     const outcome = await stage.fromCrop(bytes, null, tier, 100);
     const ms = Date.now() - started;
@@ -617,10 +793,11 @@ async function pass(
       failure: outcome.kind === 'unreadable' ? outcome.failure : null,
       pin: pinLabel(outcome),
       usage: outcome.reading?.usage ?? null,
+      obs: observationOf(row, outcome, probe),
     });
   }
 
-  return { results, pending };
+  return { results, pending, pendingByKind };
 }
 
 function pad(s: string, n: number): string {
@@ -633,7 +810,189 @@ function percentile(sortedMs: readonly number[], p: number): number {
   return sortedMs[idx];
 }
 
-function report(args: Args, results: RowResult[], pending = 0): void {
+/* ==========================================================================
+ * THE STAGE SPLIT REPORT.
+ *
+ * Everything below prints the two stages separately, because end-to-end top-1
+ * cannot tell "the catalogue cascade never surfaced the right row" from "the row
+ * was surfaced and the pick pass chose another", and those two have opposite
+ * fixes: one is a catalogue-and-query problem, the other a prompt-and-model one.
+ * ========================================================================== */
+
+function interval(m: StageMetrics): string {
+  return `[${(m.top1Interval.low * 100).toFixed(1)}%, ${(m.top1Interval.high * 100).toFixed(1)}%]`;
+}
+
+function reportStages(
+  args: Args,
+  results: readonly RowResult[],
+  pendingByKind: Record<string, number>,
+): StageMetrics | null {
+  const obs = results.map((r) => r.obs).filter((o): o is StageObservation => o !== null);
+  console.log('');
+  console.log('================ STAGE SPLIT ================');
+  if (obs.length === 0) {
+    console.log('no scoreable row carried an expected code, so nothing can be split.');
+    return null;
+  }
+
+  /*
+   * PROVENANCE, first, because a number whose provenance the reader cannot see
+   * is worse than no number.
+   *
+   * In --dry-run the FakeIdentifier returns a perfect reading of the manifest's
+   * own answer and its pick() is an ORACLE: it points at whichever candidate
+   * carries the expected code. So the cascade numbers below are REAL -- they are
+   * the live catalogue answering real queries built from a perfect label read,
+   * which is the retrieval ceiling. The pick numbers are NOT: an oracle that
+   * already knows the answer measures nothing about a model that does not.
+   */
+  if (args.dryRun) {
+    console.log('DRY RUN PROVENANCE:');
+    console.log('  cascade recall / MRR : REAL. Real catalogue, real queries, from a perfect label read.');
+    console.log('                         This is the retrieval CEILING, not what a real model would get.');
+    console.log('  pick precision       : NOT MEANINGFUL. The dry-run pick is an oracle that is handed the');
+    console.log('                         expected code, so it is 100% by construction and measures nothing.');
+    console.log('  end-to-end top-1     : the ceiling too, for the same reason.');
+  }
+  if (args.fakeCatalogue) {
+    console.log('--fake-catalogue: the cascade numbers below are the manifest graded against itself. Not results.');
+  }
+
+  const m = summarise(obs);
+  console.log('');
+  console.log(`scored rows: ${m.scored}`);
+  console.log(
+    `end-to-end top-1: ${m.top1}/${m.scored} (${pct(m.top1, m.scored)})  95% Wilson ${interval(m)}`,
+  );
+  console.log(
+    `  n=${m.scored} is small. The interval, not the point estimate, is what this sample supports.`,
+  );
+  console.log(
+    `barcode short-circuit: ${m.barcodeShortCircuit}/${m.scored} (${pct(m.barcodeShortCircuit, m.scored)}) -- excluded from every cascade and pick figure below`,
+  );
+  console.log('');
+  console.log(`cascade (denominator ${m.cascade.denominator}: rows where the three-query cascade actually ran)`);
+  console.log(`  recall@1 : ${m.cascade.recall1}/${m.cascade.denominator} (${pct(m.cascade.recall1, m.cascade.denominator)})`);
+  console.log(`  recall@3 : ${m.cascade.recall3}/${m.cascade.denominator} (${pct(m.cascade.recall3, m.cascade.denominator)})`);
+  console.log(`  recall@10: ${m.cascade.recall10}/${m.cascade.denominator} (${pct(m.cascade.recall10, m.cascade.denominator)})  <- the retrieval ceiling: no pick can beat this`);
+  console.log(`  MRR      : ${m.cascade.mrr.toFixed(4)}  (reciprocal rank, not mAP: one correct row per photo makes mAP the same number under a misleading name)`);
+  console.log('');
+  console.log(
+    `pick precision: ${m.pick.precision === null ? 'n/a' : pct(m.pick.correct, m.pick.denominator)} (${m.pick.correct}/${m.pick.denominator})`,
+  );
+  console.log(
+    '  denominator = the right row WAS in the candidate set AND the pick fired and returned.',
+  );
+  console.log(
+    '  a scan where pass one settled and the pick never ran is not a pick success and is not counted.',
+  );
+
+  console.log('');
+  console.log('failure attribution');
+  for (const a of ATTRIBUTIONS) {
+    if (a === 'correct') continue;
+    console.log(`  ${pad(a, 24)}${m.attribution[a]}`);
+  }
+  const failures = obs.filter((o) => attribute(o) !== 'correct');
+  if (failures.length === 0) {
+    console.log('  (no failures in this run)');
+  } else {
+    for (const o of failures) {
+      const rank = o.cascadeCodes.indexOf(o.code);
+      console.log(
+        `  ${pad(o.code, 15)}${pad(o.kind, 12)}${pad(attribute(o), 24)}rank ${rank === -1 ? 'absent' : rank + 1}  shipped ${o.chosenCode ?? '(none)'}`,
+      );
+    }
+  }
+
+  /*
+   * The rows the cascade did NOT rank first and that shipped correct anyway.
+   *
+   * These are the difference between recall@1 and top-1, and in a dry run they
+   * are the rows the ORACLE rescued -- which means they are exactly the rows at
+   * risk the moment a real model takes the oracle's place. Printed because a
+   * 100% top-1 sitting on a 95% recall@1 is not the same thing as a 100% top-1
+   * sitting on a 100% recall@1, and nothing else in the report says which it is.
+   */
+  const rescued = obs.filter(
+    (o) =>
+      !o.barcodeShortCircuit &&
+      o.chosenCode === o.code &&
+      o.cascadeCodes.indexOf(o.code) > 0,
+  );
+  console.log('');
+  console.log(
+    `carried by the pick pass: ${rescued.length} (cascade did not rank the right row first; the answer still shipped correct)`,
+  );
+  for (const o of rescued) {
+    console.log(
+      `  ${pad(o.code, 15)}${pad(o.kind, 12)}cascade rank ${o.cascadeCodes.indexOf(o.code) + 1}`,
+    );
+  }
+
+  console.log('');
+  console.log('by bucket');
+  console.log(
+    pad('kind', 13) +
+      pad('rows', 6) +
+      pad('top1', 12) +
+      pad('r@1', 10) +
+      pad('r@3', 10) +
+      pad('r@10', 10) +
+      pad('MRR', 8) +
+      pad('pick', 10),
+  );
+  for (const [kind, k] of summariseByKind(obs)) {
+    console.log(
+      pad(kind, 13) +
+        pad(String(k.scored), 6) +
+        pad(`${k.top1}/${k.scored}`, 12) +
+        pad(`${k.cascade.recall1}/${k.cascade.denominator}`, 10) +
+        pad(`${k.cascade.recall3}/${k.cascade.denominator}`, 10) +
+        pad(`${k.cascade.recall10}/${k.cascade.denominator}`, 10) +
+        pad(k.cascade.mrr.toFixed(3), 8) +
+        pad(k.pick.precision === null ? 'n/a' : `${k.pick.correct}/${k.pick.denominator}`, 10),
+    );
+  }
+  for (const [kind, n] of Object.entries(pendingByKind).sort()) {
+    console.log(
+      pad(kind, 13) + pad(String(n), 6) + 'PENDING: manifest slots with no photo yet. Neither a success nor a failure.',
+    );
+  }
+
+  /*
+   * THE GAP, printed rather than commented, because a limitation that lives only
+   * in the source is a limitation nobody reading the number will ever see.
+   */
+  console.log('');
+  console.log('WHAT THIS EVAL STRUCTURALLY CANNOT MEASURE');
+  console.log(
+    '  Every manifest row is in the catalogue by construction, so there is NO negative set:',
+  );
+  console.log(
+    '  no photo here is of a product the catalogue does not carry. The false-positive rate --',
+  );
+  console.log(
+    '  how often an absent product is confidently named as some other row -- is therefore not',
+  );
+  console.log(
+    `  low, it is UNMEASURED, and that is exactly why the 'not_in_catalogue' branch fired ${m.notInCatalogue} time(s)`,
+  );
+  console.log(
+    '  in this run. Closing it needs photos of products deliberately absent from the catalogue,',
+  );
+  console.log('  which no number in this report can substitute for.');
+
+  return m;
+}
+
+function report(
+  args: Args,
+  results: RowResult[],
+  pending = 0,
+  pendingByKind: Record<string, number> = {},
+): void {
   console.log(
     pad('code', 15) +
       pad('kind', 12) +
@@ -698,6 +1057,8 @@ function report(args: Args, results: RowResult[], pending = 0): void {
     console.log(`pending (manifest slot, no photo yet): ${pending}`);
   }
 
+  const stages = reportStages(args, results, pendingByKind);
+
   // A --fake-catalogue run writes NO results file. Its accuracy numbers are the
   // manifest graded against itself, so the only thing a saved artifact could do
   // is get quoted later as though it meant something. This repo has already had
@@ -730,6 +1091,20 @@ function report(args: Args, results: RowResult[], pending = 0): void {
           p95Ms: percentile(times, 95),
           pending,
         },
+        /*
+         * The stage split, saved so the interval travels with the number. A
+         * point estimate off 40 photos quoted without its interval is the exact
+         * misreading this section exists to prevent, so the JSON carries
+         * `top1Interval` next to `top1` rather than leaving it on stdout.
+         */
+        stages,
+        stageNotes: {
+          dryRunPickIsAnOracle: args.dryRun,
+          cascadeNumbersReal: !args.fakeCatalogue,
+          negativeSet:
+            'none: every manifest row is in the catalogue by construction, so the false-positive rate is structurally unmeasurable here.',
+        },
+        pendingByKind,
         results,
       },
       null,
