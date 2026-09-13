@@ -142,6 +142,20 @@ render path and the update path AGREE, which is the shape of the defect rather t
 `identify/test/eval-run.test.ts` imports the runner, so a syntax error in the script that chooses
 the model tiers now fails `npm test` at 1 fail where the same break previously left 96 pass.
 
+**D-093, found by asking where ELSE a language had been baked in.** The 39 committed face SVGs
+rooted an English `aria-label` into every file. They never reached a shopper, because nothing
+links them, but they sit under `public/` so the server serves them and the wrapper bundles them.
+They now carry identity (`data-who`, `data-state`, a `title` of the two identifiers AVATAR.md
+defines as the artist interface) and no language; the accessible NAME belongs to the embedder,
+which looks it up in both languages. The existing test compared each file to the module byte for
+byte and would have passed just as happily with both sides wrong, and did — so the new guard
+reads the BYTES ON DISK.
+
+**Two occurrences of one shape in one day earns build standard 6:** a language is looked up where
+the reader is, never baked in where the thing is made. The test that catches it is not "the label
+is right" — it is that the render path and the update path AGREE, and for a generated file, the
+bytes rather than the generator.
+
 **Still not done, and named rather than hidden:** every number about model cost and accuracy,
 because there is no key; the Grok adapter, never executed; and the French register wants a human
 speaker's read, starting with `Gardés` for Saved, which appears in eighteen keys plus the nav bar.
