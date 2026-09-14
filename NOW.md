@@ -164,7 +164,15 @@ only files whose committed versions were unchanged from the green run; but the g
 stopped the push did not, because it printed the tally and carried on. The check that gates a push
 runs on the committed tree, and a red tally stops the push, whatever its cause turns out to be.
 
-**Unpushed at time of writing (second batch):** `f8346fa`, `0af801f`, `b828b6b`, and the docs commit. Push follows under his "push everything and continue working", GitLab first, GitHub
+**One more, mine, before the push:** `b828b6b` went into history without its `FAMILIES` table. Moving the
+word file from `identify/` to `catalogue/` I rewrote its header paragraph with a script that cut to the
+next blank comment line, and that line was inside the NEXT comment, so the table between them went
+with it; every package check went red and the commit had already been made. Rebuilt from the lane's
+own specification and the twelve tests that pin its words, re-measured on the real catalogue (`06781901`
+rank 1 again, Cherry Coke `variantAgrees` false), committed on top. Never commit on a `;` after a check;
+the check's exit code is the gate.
+
+**Unpushed at time of writing (second batch):** `f8346fa`, `0af801f`, `b828b6b`, the docs commit, and the fix. Push follows under his "push everything and continue working", GitLab first, GitHub
 only if GitLab accepts, `ls-remote` on both as the proof.
 
 ## Client-side parsing looked like a way round the wall, and is not, 2026-09-13 night

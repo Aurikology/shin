@@ -28,7 +28,42 @@
  * function, no imports of its own), which is not the same as importing the
  * catalogue service; `identify.ts`'s header rule that the catalogue arrives
  * as a function still holds for everything that touches a database.
+ */
+
+/**
+ * One family per idea, every spelling the catalogue or a can uses for it, in
+ * English and French, folded below before anything is compared.
  *
+ * `words` are matched as phrases against the row's names; `categoryHints` are
+ * whole words looked for inside the row's shelf tags, and only the zero family
+ * has them, because "diet" is a shelf the catalogue files things under and a
+ * can may print the idea as nothing more than "calorie-free". Light is its own
+ * family and never zero: a light cola still has sugar in it. A flavour with no
+ * family behind it is matched literally, so an unlisted one still works, it
+ * just does not cross the language line.
+ */
+const FAMILIES: readonly { readonly words: readonly string[]; readonly categoryHints?: readonly string[] }[] = [
+  {
+    words: [
+      'zero', 'zero sugar', 'zero calorie', 'sugar free', 'no sugar', 'calorie free', 'diet',
+      'zéro', 'zéro sucre', 'sans sucre', 'sans calories', 'diète',
+    ],
+    categoryHints: ['diet', 'zero', 'sugar free', 'no sugar', 'sans sucre', 'artificially sweetened'],
+  },
+  { words: ['light', 'lite', 'léger', 'légère'] },
+  { words: ['caffeine free', 'no caffeine', 'decaf', 'decaffeinated', 'sans caféine', 'décaféiné', 'décaféinée'] },
+  { words: ['cherry', 'cerise'] },
+  { words: ['vanilla', 'vanille'] },
+  { words: ['lime', 'citron vert', 'limette'] },
+  { words: ['lemon', 'citron'] },
+  { words: ['orange'] },
+  { words: ['raspberry', 'framboise'] },
+  { words: ['strawberry', 'fraise'] },
+  { words: ['peach', 'pêche'] },
+  { words: ['mango', 'mangue'] },
+];
+
+/**
  * "Cherry flavoured" and "Cherry" name the same can, and "Zero Sugar" is
  * already one phrase in the family above, so a leftover "sugar" or "flavoured"
  * that the row does not happen to repeat must not be what defeats a match. Only
