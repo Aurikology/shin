@@ -133,12 +133,45 @@ typecheck green, then push.
 
 Jamin, 2026-09-14: *"we can simply have a notion page or a google docs pagae that claude updates
 with as it goes"*. The page is Notion, `Shin: who is working on what`
-(https://app.notion.com/p/3db09fb15fcf8155bc04ef261e4e1d9c). Before the first edit of a task:
-fetch it, and if a line under **Working on now** covers the same part of the app, tell the person
-or take other work. Then add your own line (who, machine, what in plain words, which parts,
-start time). When you push, move the line to **Finished**. A session with no Notion access says
-so to its human at the start rather than skipping silently: an unread page reports "clear" when it
-is not. The page is for intent; `git pull` before starting and small pushes still carry the code.
+(https://app.notion.com/p/3db09fb15fcf8155bc04ef261e4e1d9c). Jamin, same day: *"what if both of
+us try to work on the same proejct, what if one project claims a project and doesn't update, how
+does a claude session know another claude session is working"*. The answers, as rules:
+
+**What reaches whom.** Aurik's sessions run on another Claude account: live messages
+(`SendMessage`) and the PC/Mac mailbox never reach them. The only things every session shares are
+**GitLab** (the code) and **this page** (intent and questions). The humans carry decisions. No
+session is ever woken by the page; it is read at the moments below, so write for a reader who
+arrives later.
+
+1. **Start.** `git pull`, then fetch the page. Read **Needs attention** first: a question to you,
+   or main broken. Then **Working on now**.
+2. **Claim.** Add a line: `who · machine · what · parts of the app · started · updated`. Re-fetch
+   once after writing: if another line on the same part has an earlier `started`, yours yields
+   (delete your line, take other work, tell your human). Different parts of the app, just work.
+3. **Stay alive.** Refresh `updated` at every push and at least every hour of work. Push small:
+   each piece that passes tests, never a day of unpushed changes. A pushed piece is visible to
+   everyone; an unpushed one exists only on your machine.
+4. **Stale.** A line with no `updated` for 3 hours is stale. To work on its part, write a question
+   under Needs attention and tell your human, who asks the owner's human. After 24 hours with no
+   answer, take it over: edit the line to `taken over by <you>, stale since <time>`. The owner's
+   unpushed work is theirs to merge when they come back; the later pusher resolves conflicts.
+5. **Needing another session's changes.** Ask it to push, never take them: never copy files from
+   another working copy, never commit another session's files. Ask under Needs attention (Aurik's
+   sessions) or by `SendMessage` after a fresh `ListAgents` plus the mailbox (Jamin's own
+   machines). It answers by pushing at its next green point, or with when it will.
+6. **Stop.** On push, move the line to **Finished**. Stopping with unpushed work: set the line to
+   `paused · unpushed on <machine> · what is left`. A crashed session's line goes stale by rule 4.
+7. **Main broken.** Whoever finds tests red on main writes it at the top of Needs attention. Fix
+   it if it is small and yours to understand; revert another person's commit only if its author
+   has not answered in 3 hours, and say so on the page.
+8. **One working copy per session.** Two sessions on one machine never edit the same folder: the
+   second clones its own copy (still on `main`, no branches). The beta server on the Mac is
+   restarted only by a Mac session, after checking no one else's uncommitted work is in its tree.
+9. **Humans decide:** taking over before 24 hours, deleting anyone's work, changing these rules or
+   a shared status file's meaning, anything involving a secret.
+
+A session with no Notion access says so to its human at the start rather than skipping silently:
+an unread page reports "clear" when it is not.
 
 ## BETA DATA (reading what testers did, from any machine)
 
