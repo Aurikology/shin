@@ -72,6 +72,14 @@ import { recordAccess } from './src/access-log.ts';
 import { handleAdmin } from './src/admin.ts';
 import { recordShutterRequest, saveShutterFrame } from './src/shutter-log.ts';
 import { savePhoto, sweepPhotos } from './src/photos.ts';
+import {
+  groundedModule,
+  keepGroundedForOwner,
+  markGroundedShown,
+  sweepGrounded,
+  type Grounded,
+  type GroundedWire,
+} from './src/grounded-record.ts';
 import { dailyLatency } from './src/latency.ts';
 
 const PUBLIC_DIR = fileURLToPath(new URL('./public/', import.meta.url));
@@ -940,6 +948,62 @@ async function modelOnce(): Promise<Identifier> {
 }
 
 /**
+ * One grounded lookup, described without naming Google.
+ *
+ * Two methods and no more, because there are exactly two places in this file
+ * where a Grounded Result is allowed to appear: a barcode the catalogue does
+ * not know, and the price sheet's separate section. The photo route is
+ * deliberately not one of them.
+ *
+ * `forDevice` is on every call rather than on the provider, and that is the
+ * whole shape of the thing. Google's terms say a Grounded Result is shown only
+ * to the end user who submitted the prompt, so the device that asked travels
+ * with the request and is sealed into the box that comes back; `toWire` throws
+ * if anybody later asks for that box on behalf of a different one.
+ */
+export interface GroundedProvider {
+  readonly name: string;
+  lookupBarcode(gtin: string, forDevice: string): Promise<Grounded<unknown> | null>;
+  lookupPrice(query: { text?: string; gtin?: string }, forDevice: string): Promise<Grounded<unknown> | null>;
+}
+
+let groundedTestDouble: GroundedProvider | null = null;
+
+/**
+ * TEST ONLY, the same seam and for the same reason as
+ * `setIdentifierForTests`: there is no Google key on this machine, and a test
+ * that needed one would be a test that never runs.
+ */
+export function setGroundedForTests(fake: GroundedProvider | null): void {
+  groundedTestDouble = fake;
+}
+
+/**
+ * The grounded provider, or null.
+ *
+ * NULL IS AN ANSWER, NOT AN ERROR, and every caller below is written that way:
+ * it renders its non-grounded half and says nothing at all about Google. That
+ * is the same shape `photoTestDouble` has and the same shape the catalogue
+ * has -- this server comes up and answers on a machine that has none of them.
+ *
+ * It is null on every machine until somebody turns it on deliberately with
+ * `SHIN_GROUNDED=on`, because a search that fires by default is a bill that
+ * arrives by default.
+ */
+function groundedOnce(): GroundedProvider | null {
+  if (groundedTestDouble) return groundedTestDouble;
+  if ((process.env.SHIN_GROUNDED ?? '').trim().toLowerCase() !== 'on') return null;
+  /*
+   * There is no live implementation to hand back yet: the module that builds
+   * one is `identify/src/grounded.ts`, owned by another lane this session. The
+   * seam, the routes and the retention are all here and all tested against a
+   * double, so landing that module is a one-line change here and nothing else
+   * anywhere.
+   */
+  return null;
+}
+
+/**
  * What the catalogue says a barcode is, in the shape the price engine takes.
  *
  * Added 2026-09-14 after the founder's phone showed `/api/identify` naming a
@@ -1554,6 +1618,44 @@ export const server = createServer(async (req, res) => {
   };
 
   /**
+   * The ONE place a Grounded Result is turned into a response body, anywhere
+   * in this repo.
+   *
+   * It is one function rather than three lines repeated per route because
+   * every rule Google's terms put on this text is enforced on the way out, and
+   * a second copy of these four lines is a second place one of them can be
+   * dropped:
+   *
+   *   - `toWire` throws on a cross-user request and on an anonymous device,
+   *     which is "shown only to the end user who submitted the prompt" as a
+   *     runtime check rather than as a convention;
+   *   - `toWire` also throws when Google's rendered Search Suggestions are
+   *     missing, which the terms require to be displayed verbatim alongside
+   *     the result;
+   *   - `markGroundedShown` runs HERE and nowhere else, so the 1 in that
+   *     column means a response carrying this text actually left the server.
+   *     Everything still marked 0 an hour later was seen by nobody and is
+   *     reaped, which is what makes the interim rule impossible to forget.
+   *
+   * A THROW IS NOT AN ERROR TO THE PERSON. It is logged and the non-grounded
+   * half of the answer goes out exactly as it would have if Google were not
+   * configured at all. The repo's first priority is that the app always
+   * answers; a licence check that turns a verdict into a 500 would trade that
+   * away for nothing.
+   */
+  const answerWithGrounded = <T>(base: object, box: Grounded<T>, device: string, scanId: number | null): void => {
+    let wire: GroundedWire<T>;
+    try {
+      wire = groundedModule().toWire(box, device);
+    } catch (err) {
+      logError({ where: 'grounded.wire', deviceId: device, scanId, err });
+      return json(200, base);
+    }
+    markGroundedShown(scanId);
+    return json(200, { ...base, grounded: wire });
+  };
+
+  /**
    * The answer to a body over the cap.
    *
    * DRAIN FIRST, THEN ANSWER, and that order was measured rather than reasoned.
@@ -1851,7 +1953,45 @@ export const server = createServer(async (req, res) => {
        * scan the log could not record has no id, and a client holding a made-up
        * one would file a rating against a row that does not exist.
        */
-      return json(200, scanId === null ? answer : { ...answer, scanId });
+      const identified = scanId === null ? answer : { ...answer, scanId };
+
+      /*
+       * ONE GROUNDED BARCODE LOOKUP, ON A MISS, FOR A DEVICE WE CAN NAME.
+       *
+       * A CATALOGUE HIT IS UNCHANGED and never asks Google. The catalogue
+       * settles identity in 0.2 ms against five million rows, it costs
+       * nothing, and its answer is ours to keep; spending a search on a
+       * question already answered would be paying for a slower copy.
+       *
+       * AN ANONYMOUS DEVICE GETS NO LOOKUP AT ALL, and this is the line that
+       * needed reading twice. `UNATTRIBUTED` is one shared bucket, which is
+       * the honest reading of "we do not know who this is" everywhere else in
+       * this file. It is the wrong shape for this one thing: "the end user who
+       * submitted the prompt" has no referent in a bucket, so there is nobody
+       * the result could lawfully be shown to and nobody whose chat history it
+       * could lawfully join. So the search is never made rather than made and
+       * then withheld -- not asking is the only version that cannot leak.
+       *
+       * BARCODE ONLY. A text miss is a search term somebody typed, and the
+       * price route is where a typed query gets its grounded half.
+       */
+      const grounded = groundedOnce();
+      if (grounded && !answer.product && gtin && device !== UNATTRIBUTED) {
+        try {
+          const box = await grounded.lookupBarcode(gtin, device);
+          if (box) {
+            // Stored before it is served, and marked unshown by the store. If
+            // the response never leaves, the reaper takes it within the hour.
+            if (scanId !== null) keepGroundedForOwner(scanId, device, box);
+            return answerWithGrounded(identified, box, device, scanId);
+          }
+        } catch (err) {
+          // The identification still goes out. See `answerWithGrounded`.
+          logError({ where: 'grounded.identify', deviceId: device, scanId, err });
+        }
+      }
+
+      return json(200, identified);
     }
 
     /*
@@ -2192,6 +2332,47 @@ export const server = createServer(async (req, res) => {
           verdictSellers: priced.confidence.distinctSellers,
         });
       }
+
+      /*
+       * GOOGLE'S ANSWER SITS BESIDE OURS. IT IS NEVER MIXED INTO IT.
+       *
+       * `grounded` is a SIBLING KEY of the response body: never inside
+       * `evidence`, never an entry in `offers`, never one of `alternatives`.
+       * Two separate reasons, and both of them are load-bearing.
+       *
+       * The terms are the first. A Grounded Result is never cached, analysed
+       * or learned from, and it is shown only to the person who asked. Every
+       * one of those three is broken the moment a grounded price is an element
+       * of a list this repo sorts, averages, stores or ships in an offline
+       * pack. Keeping it out of the arithmetic is not a style choice; it is the
+       * condition that makes showing it lawful at all.
+       *
+       * The verdict is the second. The good/fair/high call is arithmetic over
+       * price evidence we can account for, per this repo's first priority, and
+       * `price/src/verdict.ts` is untouched by any of this. A number from a
+       * search folded into that set would move a verdict by a route nobody
+       * could audit afterwards.
+       *
+       * So the client renders two sections and the server never pretends they
+       * are one list.
+       */
+      const pricedDevice =
+        typeof q.deviceId === 'string' && q.deviceId.trim() !== '' ? q.deviceId.trim() : UNATTRIBUTED;
+      const groundedPrice = groundedOnce();
+      if (groundedPrice && pricedDevice !== UNATTRIBUTED) {
+        try {
+          const box = await groundedPrice.lookupPrice({ text: query.text, gtin: query.gtin }, pricedDevice);
+          if (box) {
+            const forScan = Number.isInteger(pricedScan) && pricedScan > 0 ? pricedScan : null;
+            if (forScan !== null) keepGroundedForOwner(forScan, pricedDevice, box);
+            return answerWithGrounded(priced, box, pricedDevice, forScan);
+          }
+        } catch (err) {
+          // The verdict still goes out, whole and unchanged.
+          logError({ where: 'grounded.price', deviceId: pricedDevice, scanId: scanForLog, err });
+        }
+      }
+
       return json(200, priced);
     }
 
@@ -2877,7 +3058,36 @@ const SCAN_DB = process.env.SHIN_SCANS ?? fileURLToPath(new URL('./data/scans.db
  * not copied yet, which every development machine in this project is, while a
  * path whose folder is not there is always a typo or an unmounted disk.
  */
+/**
+ * THE FREE TIER IS A TRAINING PIPELINE, AND A USER'S PHOTOGRAPH MUST NEVER
+ * REACH IT.
+ *
+ * Google's free tier trains on what is sent to it. That is a fine trade for
+ * the eval, which uses a free key against public photographs of products on
+ * shelves, and it is not a trade anybody made on behalf of the person who
+ * pointed their phone at their own kitchen counter. The two keys differ by one
+ * environment variable, the eval and the server run from the same tree, and
+ * the mistake is one shell away in both directions.
+ *
+ * SO IT IS A REFUSAL TO START RATHER THAN A WARNING, checked here beside the
+ * database guard and for the same reason it gives: this server must not come
+ * up half-working. A warning on a machine that has been running for a week is
+ * a line nobody scrolls back to, and the damage is not recoverable once a
+ * photograph has been sent.
+ *
+ * Stated in `startupProblems`' own shape (a sentence naming the fix, all
+ * problems reported together) but kept in this file rather than in
+ * `startup.ts`, because it is a fact about a model vendor rather than about a
+ * path on a disk, and `startup.ts` is a pure file about the machine.
+ */
+function geminiTierProblem(env: NodeJS.ProcessEnv = process.env): string | null {
+  if ((env.SHIN_GEMINI_TIER ?? '').trim().toLowerCase() !== 'free') return null;
+  return 'SHIN_GEMINI_TIER is set to free, and Google trains on everything sent to a free key, so Shin will not serve a shopper\'s photograph through it. Use a paid key here and keep the free one for the eval.';
+}
+
 const problems = startupProblems();
+const tierProblem = geminiTierProblem();
+if (tierProblem) problems.push(tierProblem);
 if (problems.length > 0) {
   for (const problem of problems) console.error(problem);
   console.error('Shin did not start. Nothing was changed on disk.');
@@ -2928,6 +3138,21 @@ server.listen(PORT, () => {
     const result = sweepPhotos();
     if (result.deleted > 0) {
       console.log(`Deleted ${result.deleted} photo(s) older than the retention window (before ${result.cutoff}).`);
+    }
+    /*
+     * GROUNDED RETENTION JOINS THE TIMER THAT ALREADY EXISTS. One timer, two
+     * sweeps. A second `setInterval` would be a second thing that can be
+     * removed, left unscheduled by a refactor, or forgotten on a machine where
+     * only one of them got wired, and the failure would be silent: text
+     * sitting past the two years Google's terms allow, with nothing on any
+     * screen to say so. `grounded-retention.test.ts` reads this closure out of
+     * the source and fails if either call leaves it.
+     */
+    const g = sweepGrounded();
+    if (g.cleared > 0 || g.interimCleared > 0) {
+      console.log(
+        `Cleared ${g.cleared} grounded result(s) past two years (before ${g.cutoff}) and ${g.interimCleared} never shown to anybody.`,
+      );
     }
   };
   sweep();

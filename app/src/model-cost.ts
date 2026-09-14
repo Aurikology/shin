@@ -83,3 +83,137 @@ export function estimatedCostCents(
   // column somebody will SUM.
   return Math.round(per * calls * 10_000) / 10_000;
 }
+
+/* ===================== WHAT THE CALL ACTUALLY REPORTED ===================== */
+
+/*
+ * EVERYTHING ABOVE MULTIPLIES A LIST PRICE BY A COUNT OF CALLS. Nothing in it
+ * has ever looked at a token, which was fine while the only consumer was a
+ * fixed crop with a fixed prompt: the same picture at the same size every
+ * time, so calls were a decent proxy for tokens.
+ *
+ * That stops being true with Gemini. Thinking is a setting, the prompt grows,
+ * the search tool fires or does not, and two calls to the same model on the
+ * same day can differ by an order of magnitude. Google hands the real numbers
+ * back on every response, so the estimate can stop being an estimate for the
+ * part that is measured. What is below prices what the call said it used.
+ *
+ * THINKING TOKENS BILL AT THE OUTPUT RATE. `thoughtsTokenCount` is reported
+ * separately from `candidatesTokenCount` and it is easy to read the separation
+ * as a separate, cheaper line. It is not: they are both output. A cost figure
+ * that drops thinking is wrong by however much thinking was on, which on a
+ * reasoning model is most of the bill and looks entirely plausible.
+ *
+ * A MISSING COUNT IS NULL AND NEVER ZERO, the same rule `estimatedCostCents`
+ * keeps for a call that never reached the model. A response that carried no
+ * usage block is a call nobody measured; writing 0 would be a claim it was
+ * free.
+ */
+
+/** USD per million tokens, in and out. */
+export interface ModelRate {
+  readonly input: number;
+  readonly output: number;
+}
+
+/**
+ * PUBLISHED LIST PRICES, TYPED IN AND NEVER BILLED, restated here because this
+ * package imports nothing from `identify/` (see `scans.ts`'s note on the same
+ * trade) and `identify/src/providers/gemini.ts` exports the same two rows for
+ * a table in `provider.ts` that does not hold them yet.
+ *
+ * WORTH A DIARY ENTRY, and it is `gemini.ts`'s warning repeated because this
+ * is now a second copy of it: both rates are documented as DOUBLING on
+ * 2027-01-01. A figure quoted from this table after that date is wrong by
+ * exactly 2x and will look completely plausible.
+ */
+export const MODEL_RATES_USD_PER_MTOK: Readonly<Record<string, ModelRate>> = {
+  'gemini-3.5-flash-lite': { input: 0.3, output: 2.5 },
+  'gemini-3.8-flash': { input: 0.75, output: 3.75 },
+};
+
+/** The usage block, in Google's own field names so nothing is renamed on the way in. */
+export interface TokenUsage {
+  readonly promptTokenCount?: number | null;
+  readonly candidatesTokenCount?: number | null;
+  /** Reasoning tokens. Billed at the OUTPUT rate, not a rate of their own. */
+  readonly thoughtsTokenCount?: number | null;
+}
+
+/** How many grounded searches a month are free before anything is charged. */
+export const SEARCH_FREE_PER_MONTH = 5_000;
+
+/** USD per 1,000 grounded search queries once the free allowance is gone. */
+export const SEARCH_USD_PER_1000 = 14;
+
+function count(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+/** Cents, to four decimal places, the same resolution the estimate above uses. */
+function cents(usd: number): number {
+  return Math.round(usd * 100 * 10_000) / 10_000;
+}
+
+/**
+ * What the tokens on one response cost, in cents, or null when the response
+ * carried no usable usage block or the model is not in the table.
+ *
+ * An unknown model is null rather than zero for the reason `provider.ts`
+ * already states about its own price table: every consumer prints a null as
+ * unknown, and that is the safe direction.
+ */
+export function tokenCostCents(
+  model: string,
+  usage: TokenUsage | null | undefined,
+  rates: Readonly<Record<string, ModelRate>> = MODEL_RATES_USD_PER_MTOK,
+): number | null {
+  const rate = rates[model];
+  if (!rate || !usage) return null;
+  const input = count(usage.promptTokenCount);
+  const candidates = count(usage.candidatesTokenCount);
+  const thoughts = count(usage.thoughtsTokenCount);
+  if (input === null && candidates === null && thoughts === null) return null;
+  const output = (candidates ?? 0) + (thoughts ?? 0);
+  return cents(((input ?? 0) * rate.input + output * rate.output) / 1_000_000);
+}
+
+/**
+ * What `queries` grounded searches cost, in cents, given how many this account
+ * has already made this calendar month.
+ *
+ * THE FREE ALLOWANCE IS A MONTHLY BUCKET, NOT A DISCOUNT PER CALL, so the
+ * answer depends on where in the month the call lands: the 5,000th search is
+ * free and the 5,001st is not. `alreadyThisMonth` is the caller's count
+ * because this file has no meter in it and should not grow one; a caller that
+ * does not know passes 0 and gets the optimistic figure, which is why the
+ * argument is named for what it is rather than defaulted silently.
+ */
+export function searchCostCents(queries: number, alreadyThisMonth = 0): number {
+  const asked = Number.isFinite(queries) && queries > 0 ? Math.floor(queries) : 0;
+  const used = Number.isFinite(alreadyThisMonth) && alreadyThisMonth > 0 ? Math.floor(alreadyThisMonth) : 0;
+  const stillFree = Math.max(0, SEARCH_FREE_PER_MONTH - used);
+  const billable = Math.max(0, asked - stillFree);
+  return cents((billable * SEARCH_USD_PER_1000) / 1_000);
+}
+
+/**
+ * One call's whole cost: its tokens plus whatever searching it did.
+ *
+ * Null only when there was nothing measured at all. A call that reported
+ * tokens and no searches is its token cost; a call that reported searches and
+ * no usable token block is its search cost, because a partial measurement is
+ * still a measurement and is closer to the truth than an unknown.
+ */
+export function realCostCents(
+  model: string,
+  usage: TokenUsage | null | undefined,
+  searchQueries = 0,
+  alreadyThisMonth = 0,
+  rates: Readonly<Record<string, ModelRate>> = MODEL_RATES_USD_PER_MTOK,
+): number | null {
+  const tokens = tokenCostCents(model, usage, rates);
+  const asked = Number.isFinite(searchQueries) && searchQueries > 0 ? Math.floor(searchQueries) : 0;
+  if (tokens === null && asked === 0) return null;
+  return Math.round(((tokens ?? 0) + searchCostCents(asked, alreadyThisMonth)) * 10_000) / 10_000;
+}

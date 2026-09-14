@@ -310,6 +310,76 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
       addColumnIfMissing(db, 'scan', 'exact_at', 'TEXT');
     },
   },
+  {
+    version: 9,
+    name: 'grounded results kept per owner, and the two price preferences',
+    apply(db) {
+      /*
+       * THE GROUNDED COLUMNS. Everything about why they exist, and why the
+       * retention window is a constant rather than a setting, is in
+       * `grounded-record.ts`, which is the only file that reads or writes
+       * `grounded_json`. Three columns and not one JSON blob because two of
+       * them are read by a sweep that must not parse text to decide anything.
+       *
+       * `grounded_at` IS THE FETCH TIME AND NOT `scanned_at`, which is the
+       * whole reason it is a column of its own next to a table that already
+       * records when the person scanned. The two-year clock in Google's terms
+       * runs from when we received the Grounded Result, so a scan taken today
+       * and re-priced in a year starts a new clock in a year, and reusing
+       * `scanned_at` would have expired it on arrival.
+       *
+       * `grounded_shown` is 0 on every write and 1 only from
+       * `markGroundedShown`, which the server calls from the one helper that
+       * builds a response carrying a grounded block. It is therefore a record
+       * that an answer left the server, and the hour-old reaper reads it to
+       * find text no end user was ever shown.
+       *
+       * NULLABLE, like every column added after the first release. A row
+       * written before today has no grounded text, which is exactly what a
+       * null says.
+       */
+      addColumnIfMissing(db, 'scan', 'grounded_json', 'TEXT');
+      addColumnIfMissing(db, 'scan', 'grounded_at', 'TEXT');
+      addColumnIfMissing(db, 'scan', 'grounded_shown', 'INTEGER');
+      /*
+       * Both sweeps ask the same question -- which rows still hold text, and
+       * how old is it -- on a table that grows with every scan a beta makes.
+       * Indexed on the pair they filter on so the daily pass does not read
+       * every row a device has ever written to find the handful past their
+       * date.
+       */
+      db.exec('CREATE INDEX IF NOT EXISTS scan_grounded_age ON scan(grounded_shown, grounded_at);');
+
+      /*
+       * THE FIRST PER-DEVICE PREFERENCE, AND THEREFORE THE FIRST PREFERENCE
+       * STORE. Checked before it was written: `admin.ts` holds `device_person`
+       * in a separate people database, and that table answers one question
+       * only, which invite link a device came through. It is attribution, not
+       * preference, it is read-only to the app, and it lives in a file the app
+       * opens read-only. There was no preference store in this repo, so this
+       * is one.
+       *
+       * A TABLE AND NOT TWO MORE COLUMNS ON `scan`. A preference is a fact
+       * about a device that outlives any one scan; putting it on the scan row
+       * would write today's setting onto a thousand rows and leave "what is it
+       * set to now" as a query for the newest row, which is wrong the moment a
+       * row fails to write.
+       *
+       * TEN AND TEN ARE THE DEFAULTS, in the column declarations rather than
+       * in a reader, so a row inserted by anything at all gets them. They are
+       * percentages: how far under a reference price counts as good, and how
+       * far over counts as high.
+       */
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS device_preference (
+          device_id      TEXT PRIMARY KEY,
+          good_under_pct REAL NOT NULL DEFAULT 10,
+          high_over_pct  REAL NOT NULL DEFAULT 10,
+          updated_at     TEXT NOT NULL
+        ) STRICT;
+      `);
+    },
+  },
 ];
 
 /** What `schema_version` says this database is at. 0 means nothing has run. */

@@ -385,6 +385,99 @@ export interface ScanRow {
   exact_accuracy: number | null;
   exact_at: string | null;
   user_id: string | null;
+  /*
+   * THE GROUNDED COLUMNS, migration 9, and note which one is missing.
+   *
+   * `grounded_at` and `grounded_shown` are facts ABOUT a Grounded Result: when
+   * it was fetched and whether it ever reached the person who asked. Anything
+   * may read those.
+   *
+   * `grounded_json` -- the text itself -- is deliberately not on this type,
+   * and that is not an oversight to be tidied up later. `getScan` is a
+   * `SELECT *` used by the rating and correction routes, and the moment the
+   * text is a typed field on the row every one of those callers can hand a
+   * Grounded Result to somebody who is not its owner by passing the row along.
+   * Google's terms say it is shown only to the end user who submitted the
+   * prompt, so the only file that names that column is
+   * `grounded-record.ts`, which reads it through a row type of its own and
+   * checks `device_id` before it writes.
+   */
+  grounded_at: string | null;
+  grounded_shown: number | null;
+}
+
+/**
+ * The two price percentages, per device. Migration 9's `device_preference`.
+ *
+ * Ten and ten are the defaults and they live in the column declarations, so
+ * this reader never invents them: a device with no row gets the same two
+ * numbers a fresh insert would, and there is one place to change them.
+ */
+export interface Preferences {
+  readonly goodUnderPct: number;
+  readonly highOverPct: number;
+}
+
+export const DEFAULT_PREFERENCES: Preferences = { goodUnderPct: 10, highOverPct: 10 };
+
+interface PreferenceRow {
+  good_under_pct: number;
+  high_over_pct: number;
+}
+
+/**
+ * What this device has asked for, or the defaults. Never throws: a store that
+ * will not open is a device with no preferences, which is the same answer as a
+ * device that never set any.
+ */
+export function readPreferences(deviceId: string): Preferences {
+  const store = active ?? openScanStore();
+  try {
+    if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
+    const row = store.db
+      .prepare('SELECT good_under_pct, high_over_pct FROM device_preference WHERE device_id = ?')
+      .get(deviceId) as unknown as PreferenceRow | undefined;
+    if (!row) return DEFAULT_PREFERENCES;
+    return { goodUnderPct: row.good_under_pct, highOverPct: row.high_over_pct };
+  } catch (err) {
+    store.dropped += 1;
+    store.droppedWhy = err instanceof Error ? err.message : String(err);
+    return DEFAULT_PREFERENCES;
+  }
+}
+
+/**
+ * Sets one or both percentages for a device. Never throws; returns whether the
+ * row is now what was asked for.
+ *
+ * A key left `undefined` keeps whatever is stored, the same distinction
+ * `ScanPatch` makes, so a screen that offers one slider cannot silently reset
+ * the other one to a default.
+ */
+export function writePreferences(
+  deviceId: string,
+  patch: { goodUnderPct?: number; highOverPct?: number },
+  now: Date = new Date(),
+): boolean {
+  const store = active ?? openScanStore();
+  try {
+    if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
+    const current = readPreferences(deviceId);
+    const good = Number.isFinite(patch.goodUnderPct) ? Number(patch.goodUnderPct) : current.goodUnderPct;
+    const high = Number.isFinite(patch.highOverPct) ? Number(patch.highOverPct) : current.highOverPct;
+    store.db
+      .prepare(
+        `INSERT INTO device_preference (device_id, good_under_pct, high_over_pct, updated_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT (device_id) DO UPDATE SET good_under_pct = excluded.good_under_pct,
+           high_over_pct = excluded.high_over_pct, updated_at = excluded.updated_at`,
+      )
+      .run(deviceId, good, high, now.toISOString());
+    return true;
+  } catch (err) {
+    store.dropped += 1;
+    store.droppedWhy = err instanceof Error ? err.message : String(err);
+    return false;
+  }
 }
 
 /**
