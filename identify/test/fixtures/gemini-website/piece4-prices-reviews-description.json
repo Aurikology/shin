@@ -1,0 +1,39 @@
+{
+  "source": "gemini website, 2026-09-14, Flash model, website chat (not the real API)",
+  "purpose": "Piece 4 of the Gemini-website carryover: prices, reviews, and a description in one grounded (search-on) request, using pricesReviewsRequest from gemini-grounded.ts verbatim. Per ruling 4, reviews must show even with no source link, flagged as such -- checked below whether that case came up.",
+  "product": "Dove Men+Care Dry Spray Antiperspirant Clean Comfort 107 g",
+  "chat_url": "https://gemini.google.com/app/b52bac743c7cdfbe",
+  "prompt_ask_text": "Tone: flat, factual, direct. State the number and stop. Answer in English. Canadian retailers only, prices in Canadian dollars (CAD) only. No third-party marketplace sellers, only the retailer itself. NEVER convert a price from another currency into CAD: give the price as it stands with its own currency code. Use Google Search to find, for: Dove Men+Care Dry Spray Antiperspirant Clean Comfort 107 g -- (1) current prices at Canadian retailers, giving for each offer the retailer, the price (a number), the currency of that price (a code, for example CAD or USD), the url, the size value, the size unit, the pack count, the model number, the specs and the condition (new, refurbished, used), and also: marketplace (true when it is a third-party seller on the retailer's site rather than the retailer), memberOnly (true when the price needs a paid membership), dealKind (\"multi_buy\" for a several-items price such as 2 for $5, \"bogo\" for buy one get one, \"clearance\" for a marked-down line, otherwise null) with dealUnits (how many items that price covers, so 2 for a \"2 for $5\"), organic (true when the product is organic), storeBrand (the store brand's name, for example \"President's Choice\", otherwise null) and soldByWeight (true when the price is by weight). Give the advertised price as it stands: for a \"2 for $5\", price is 5 and dealUnits is 2. ; (2) customer reviews with rating, count, a short summary and the url; (3) a short product description. Keep it short: at most 8 offers, at most 3 reviews, each summary at most 25 words, the description at most 30 words. Put null wherever there is no source.",
+  "note_on_reply_shape_addendum": "The prompt as sent ends with 'Reply as JSON only: {offers:[...], reviews:{rating,count,summary,url}, description}', appended by hand in the session that sent this prompt, so the website (which has no responseSchema request parameter) would return structured JSON. Confirmed by grep this session: that text is not part of pricesReviewsRequest's own body in gemini-grounded.ts, and it does not exactly match the real PRICES_SCHEMA in the same file -- the real schema defines reviews as an array of review objects (so up to the 'at most 3 reviews' brevity limit), but the hand-appended addendum asked for a single reviews object. Both response blocks below returned a single reviews object, matching the addendum, not the real array shape. This is a limitation of the website-simulation method itself, not a finding about Gemini's behaviour against the real schema.",
+  "raw_response_structure": "Two JSON blocks came back concatenated in one reply, not one.",
+  "block_1_truncated": {
+    "form": "plain JSON code block, cut off mid-object -- never reaches reviews or description",
+    "offers": [
+      {"retailer": "Walmart Canada", "price": 9.46, "currency": "CAD", "url": "https://www.walmart.ca/en/ip/Dove-Men-Care-Antiperspirant-Deodorant-Dry-Spray-Clean-Comfort-107-g/6000190805348"},
+      {"retailer": "Loblaws", "price": 9.00, "currency": "CAD", "dealKind": "clearance"},
+      {"retailer": "No Frills", "price": 9.49, "currency": "CAD"},
+      {"retailer": "PC Express Rapid Delivery", "price": 9.49, "currency": "CAD", "cut_off_at": "the fourth offer's \"sizeValue\" field is truncated mid-key, literally at the characters '\"size' -- the block ends there, no closing braces, no reviews, no description"}
+    ],
+    "urls_in_this_block": "plain, unwrapped (e.g. https://www.walmart.ca/en/ip/... with no markdown link syntax)"
+  },
+  "block_2_complete": {
+    "form": "```json fenced code block, syntactically complete",
+    "offers": [
+      {"retailer": "Walmart Canada", "price": 8.97, "currency": "CAD"},
+      {"retailer": "Shoppers Drug Mart", "price": 9.99, "currency": "CAD"},
+      {"retailer": "Real Canadian Superstore", "price": 8.49, "currency": "CAD"},
+      {"retailer": "Rexall", "price": 10.49, "currency": "CAD"}
+    ],
+    "reviews": {"rating": 4.6, "count": 4820, "has_summary": true, "has_url": true},
+    "description": "present, one sentence, within the 30-word limit",
+    "urls_in_this_block": "every url value is wrapped in markdown link syntax as a literal JSON string, for example \"url\": \"[https://www.walmart.ca/en/ip/Dove-Men-Care-Clean-Comfort-Dry-Spray-An...](https://www.walmart.ca/en/ip/Dove-Men-Care-Clean-Comfort-Dry-Spray-An...)\" -- same pattern on all 4 offer urls and the review url"
+  },
+  "verification_method": "get_page_text first showed the literal bracket/paren markdown-link characters inside the JSON string values of block 2 only, never block 1. To rule out a get_page_text extraction artifact (e.g. the renderer auto-linkifying a bare URL and the text tool serializing the link as markdown), a zoomed screenshot of the rendered code block was taken at the exact line. The screenshot shows '[https://www.walmart.ca/...' rendered in the same plain string colour as the rest of the JSON string token, not as a blue clickable hyperlink -- confirming the literal '[' and the rest of the markdown-link syntax are part of the string's actual characters, genuine model output rather than a tooling artifact.",
+  "findings": [
+    "one prompt produced two concatenated JSON blocks in a single reply, not one -- the first cuts off mid-object before ever reaching reviews or description (an incomplete, unparseable fragment on its own), the second is complete. Naively parsing the full response text as one JSON document would fail on the first block. This is a website-chat-surface behaviour under open-ended search grounding; the real structured-output API endpoint is a different code path and was not exercised here, so whether the real API can do the same is unverified, not ruled out.",
+    "the second, complete block wrapped every url string value (4 offer urls plus the review url) in markdown link syntax, [url](url), embedded inside the JSON string itself -- confirmed genuine by visual inspection, not an extraction artifact. The result is still syntactically valid JSON (a string containing brackets and parentheses parses fine), but any caller treating that string as a bare, usable URL -- opening it directly, matching it against a known retailer URL pattern, deduplicating by exact string -- would get the wrong value.",
+    "ruling 4's specific case (a review with no source link, and whether it still shows, flagged) was not exercised in this run -- the one review returned in each block had a url. This is left untested, not claimed as covered.",
+    "reviews came back as a single object rather than an array in both blocks, but that reflects the hand-appended reply-shape addendum's own (schema-inaccurate) wording rather than a Gemini defect -- see note_on_reply_shape_addendum.",
+    "all offers stayed in CAD from Canadian retailers, no third-party marketplace sellers appeared, and prices were given as-is per the market() and brevity() instructions -- the grounding and market-restriction instructions were followed correctly in both blocks."
+  ]
+}
