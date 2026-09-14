@@ -112,6 +112,16 @@ read of the sentences the review judged rather than cited. **Later:** his word, 
 decimal key for french"*: D-104 closed, the French pad shows `,` and `4,99 $`, the buffer and parser
 unchanged; both pad hosts rendered and pressed through a fresh server.
 
+**Late, two things his to know.** (1) The gate that printed and pushed anyway did it twice today
+(D-105); it is now `~/bin/shin-gate.sh`, an exit code, build standard 7, and on its first run it
+held a red push back. (2) Jamin pushed `ccbd0cc`, unfinished Gemini grounded-price code, red on
+typecheck in identify and app by its own message, wired into the server, with a *good / reasonable
+/ bad* gauge over search-grounded retailer prices. **Asked, Aurik ruled: revert it on main now**
+(`b19ad75`); nothing is lost, and the decision row carries Jamin's position verbatim and the two
+questions it lands again behind: the Gemini terms that made search-derived prices a contract kill,
+and hard rule 2 on tier words. Main is green again on all five packages and both remotes match.
+One flake seen on the way (D-106, a fixed port in a server test).
+
 **The consent revert, by hand, on his ruling:** `app/src/consent.ts` and `store.js` default to
 off; the consent screen's switches start off; `api.js` no longer sends `lat`/`lon`; the 2026-09-13
 copy for the intro, photo and location lines is back in both languages; Jamin's footer (what is
