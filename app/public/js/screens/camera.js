@@ -2609,6 +2609,9 @@ export default {
       // press, so it is the picture the verdict later shows, not a later
       // re-grab of a feed that has already moved on.
       scanThumb = captureThumb(video, cam.dataset.camera === 'live');
+      // The shutter log (2026-09-13): the whole frame goes to the server now,
+      // and every request this press causes carries its id (api.js beginShutter).
+      ctx.api.beginShutter?.(video);
       // With the eye running, the shutter also takes the real capture: a short
       // burst, the sharpest frame of it, cropped to what was found. It replaces
       // the thumbnail above when it lands, which is a frame or two later and

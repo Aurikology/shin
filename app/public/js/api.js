@@ -110,9 +110,56 @@ function inviteFromLink() {
  * (fr), which is what a table lookup wants. Two headers rather than making the
  * server parse one, because a parse is a place to be wrong.
  */
+/**
+ * The shutter log. Each shutter press gets an id; the whole camera frame is
+ * sent to the server at the press, and every request after it carries the id
+ * until the next press, so the server keeps what the camera saw next to
+ * exactly what it answered (app/src/shutter-log.ts). Added 2026-09-13.
+ */
+let shutterId = null;
+
+function newShutterId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const hex = [...Array(32)].map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20)}`;
+}
+
+/** Call at the shutter press with the live video element. Never throws. */
+export function beginShutter(video) {
+  shutterId = newShutterId();
+  const id = shutterId;
+  const takenAt = new Date().toISOString();
+  try {
+    const width = video?.videoWidth ?? 0;
+    const height = video?.videoHeight ?? 0;
+    if (!width || !height || !globalThis.document) return id;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(video, 0, 0, width, height);
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      try {
+        const frame = await blobToBase64(blob);
+        await fetch(`${BASE}/api/shutter/frame`, {
+          method: 'POST',
+          headers: headers({ 'content-type': 'application/json' }),
+          body: JSON.stringify({ id, frame, width, height, takenAt }),
+        });
+      } catch (err) {
+        console.error('shutter frame not sent:', err);
+      }
+    }, 'image/jpeg', 0.92);
+  } catch (err) {
+    console.error('shutter frame not captured:', err);
+  }
+  return id;
+}
+
 function headers(extra = {}) {
   const h = { ...extra };
   if (INVITE_CODE) h['x-shin-invite'] = INVITE_CODE;
+  if (shutterId) h['x-shin-shutter'] = shutterId;
   h['x-shin-locale'] = localeTag();
   h['x-shin-lang'] = locale();
   return h;

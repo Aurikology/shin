@@ -64,6 +64,7 @@ import { INVITE_EXEMPT, INVITE_HEADER, INVITE_REFUSAL, inviteAllows, inviteRequi
 import { logError } from './src/errlog.ts';
 import { listenProblem, startupProblems } from './src/startup.ts';
 import { estimatedCostCents } from './src/model-cost.ts';
+import { recordShutterRequest, saveShutterFrame } from './src/shutter-log.ts';
 import { savePhoto, sweepPhotos } from './src/photos.ts';
 import { dailyLatency } from './src/latency.ts';
 
@@ -749,6 +750,9 @@ async function identify(query: {
  */
 const MAX_PHOTO_BODY_BYTES = 3 * 1024 * 1024;
 
+/** A whole camera frame for the shutter log, base64 in JSON: a 4K JPEG fits. */
+const MAX_SHUTTER_FRAME_BYTES = 16 * 1024 * 1024;
+
 /**
  * Is this actually an image, checked on the bytes rather than on a header.
  *
@@ -1406,6 +1410,10 @@ export const server = createServer(async (req, res) => {
     return;
   }
 
+  // Before any route reads the body: a request carrying a shutter press id is
+  // copied, sent and returned, into that press's folder (src/shutter-log.ts).
+  recordShutterRequest(req, res, url.pathname);
+
   const json = (status: number, body: unknown) => {
     const payload = JSON.stringify(body);
     res.writeHead(status, {
@@ -1531,6 +1539,19 @@ export const server = createServer(async (req, res) => {
       if (!inviteAllows(req.headers[INVITE_HEADER])) {
         return json(401, { error: INVITE_REFUSAL });
       }
+    }
+
+    if (url.pathname === '/api/shutter/frame') {
+      if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      const body = await readBody(req, MAX_SHUTTER_FRAME_BYTES);
+      if (body === TOO_LARGE) return refuseTooLarge(MAX_SHUTTER_FRAME_BYTES);
+      const status = saveShutterFrame(body);
+      if (status === 204) {
+        res.writeHead(204, { 'cache-control': 'no-store' });
+        res.end();
+        return;
+      }
+      return json(status, { error: status === 404 ? 'the shutter log is off' : 'frame not saved' });
     }
 
     if (url.pathname === '/api/catalogue') return json(200, await catalogue());
