@@ -38,6 +38,12 @@ app/public/js/vendor/
 
 # Local SQLite runtime state (plus its -shm/-wal lock files). Rebuilt by the app.
 app/data/
+# identify/data/ is runtime state like the three above: spend-cap.json (the daily
+# dollar cap's store, identify/src/cap.ts) and a gaps.db that the eval runner leaves
+# behind when run from that directory. Nothing in it is tracked and nothing in it can
+# be rebuilt from git, which is the same reason app/data/ is here. Added 2026-09-14
+# after a gaps.db showed up untracked and un-ignored in a lane's git status.
+identify/data/
 
 # The Mac beta server's own settings, filled in from mac/config.env.example. It
 # holds the Cloudflare tunnel connector token and the beta invite code, so it is
