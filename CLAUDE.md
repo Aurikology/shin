@@ -129,6 +129,17 @@ nobody's yes** (Jamin, 2026-09-14: *"aurik does not need to approve before i pus
 need to approve his push, neither of us actrually read the code"*). Pull first, tests and
 typecheck green, then push.
 
+## WHO IS WORKING ON WHAT (every session, every machine)
+
+Jamin, 2026-09-14: *"we can simply have a notion page or a google docs pagae that claude updates
+with as it goes"*. The page is Notion, `Shin: who is working on what`
+(https://app.notion.com/p/3db09fb15fcf8155bc04ef261e4e1d9c). Before the first edit of a task:
+fetch it, and if a line under **Working on now** covers the same part of the app, tell the person
+or take other work. Then add your own line (who, machine, what in plain words, which parts,
+start time). When you push, move the line to **Finished**. A session with no Notion access says
+so to its human at the start rather than skipping silently: an unread page reports "clear" when it
+is not. The page is for intent; `git pull` before starting and small pushes still carry the code.
+
 ## BETA DATA (reading what testers did, from any machine)
 
 The beta server runs on Jamin's worker Mac behind `https://relay.anjiawenda.com`. Everything
