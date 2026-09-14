@@ -335,6 +335,20 @@ test('every French renderer produces a non-empty sentence for its own code', () 
     retailerCount: 4, cheapestCents: 1299, cheapestSeller: 'Best Buy',
     lowCents: 500, highCents: 900, clusterLowCents: 600, clusterHighCents: 700, basis: 'sold',
     lowestCents: 400, lowestObservedOn: '2026-08-01', typicalCents: 700,
+    // The rest of `LineCode`: the thin-evidence line, the confidence
+    // sentences, the shortfalls, the basis clauses, the refusals and the
+    // disagreements. One bag of every fact name any renderer reads, because
+    // this test asks one question of all of them at once. Per-code fixtures
+    // with the English sentence beside each, and the assertions that need
+    // them, live in test/prose-coverage.test.mjs.
+    amountCents: 350, dearestSeller: 'Sobeys', dearestCents: 900, sellerCount: 2,
+    unitCents: 50, unitLabel: '100g',
+    pointCount: 6, spanDays: 300, oldestAgeDays: 2, ageDays: 5,
+    count: 2, droppedCount: 1, totalCount: 4, needed: 3,
+    category: 'tech', categoryLabel: 'New tech', kinds: ['list'],
+    label: 'Kraft Dinner 225g', why: 'A recorded decision, in English.',
+    text: 'a confidence reason nobody mapped', ratio: 3.76,
+    readings: [{ amountCents: 399, currency: 'CAD', seller: 'No Frills', observedAt: '2026-09-03' }],
   };
   for (const code of prose.FRENCH_CODES) {
     const out = inLocale('fr', () => prose.render({ shape: 'single', fragments: [{ code, facts }] }, 'FALLBACK'));

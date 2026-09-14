@@ -32,24 +32,137 @@
  *      bug to a French speaker and it can change what the sentence claims. So
  *      the unit of fallback is the sentence, never the fragment.
  *
- * WHAT IS COVERED TODAY is the nine verdict-line codes in
- * `spine/src/categories.ts` -- the sentences under a verdict, which are the
- * ones a shopper actually reads in the aisle. The confidence, refusal,
- * shortfall and disagreement codes are NOT covered yet and fall back to
- * English by rule 3, which is visible and correct rather than silent. Adding
- * one is adding a row to RENDERERS below.
+ * WHAT IS COVERED TODAY is EVERY member of `LineCode`: the nine verdict-line
+ * codes in `spine/src/categories.ts`, the ten fragments of the thin-evidence
+ * line, the five confidence sentences, the ten shortfall fragments, the six
+ * basis fragments, the ten refusals and the two disagreements. It started at
+ * nine, and the gap was not theoretical: a French shopper was shown "Could not
+ * work out what this is. Scan the barcode, or type the model number." in
+ * English on a live refusal sheet, because refusals were the half nobody had
+ * written. `test/prose-coverage.test.mjs` now reads the union out of
+ * `spine/src/contract.ts` and fails the day the spine grows a code this file
+ * has not learned, so the gap cannot silently reopen.
  *
  * MONEY IS FORMATTED BY `cad`, the same function every other number on the
- * screen goes through, and NOT re-punctuated for French. Canadian French
- * writes "4,99 $" and this writes "$4.99" in both languages, deliberately: the
- * price in this sentence sits directly under the same price set in 44px by the
- * verdict sheet, and two spellings of one number on one card is a worse defect
- * than one Anglicised spelling. Changing the app's money format is a real
- * decision about every surface at once, not a side effect of this file.
+ * screen goes through, and `cad` is itself locale-aware: it writes "$4.99" in
+ * English and "4,99 $" (with a non-breaking space) in French. Nothing here
+ * re-punctuates a number on its own, and nothing here may: one spelling of one
+ * amount per screen is the whole point, and the place that decides it is
+ * `shin.js`.
+ *
+ * TIER WORDS ARE NOT AVAILABLE TO EVERY CODE. A refusal, a shortfall, a basis
+ * clause and a confidence sentence are all statements about the EVIDENCE, and
+ * none of them has graded a price. So none of them may reach for "bon prix",
+ * "aubaine", "cher" or any other word that sounds like a verdict, because a
+ * French reader would hear a call the English never made. The coverage test
+ * asserts their absence code by code.
  */
 
 import { locale } from './lib/locale.js';
 import { cad } from './shin.js';
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * The small amount of French grammar these sentences need.
+ *
+ * Every one of these exists because the fact it reads is RAW, which is the
+ * contract's own rule: a count arrives as a number and the language decides
+ * where its plural falls, a date arrives as ISO and the language decides how a
+ * day is written, a category arrives as a code and the language owns its name.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * The French plural 's'.
+ *
+ * French pluralises at TWO, not at one: "0 jour", "1 jour", "2 jours". English
+ * pluralises everything that is not exactly one, which is why the contract
+ * forbids a `..._singular` code and passes the count instead.
+ */
+function s(n) {
+  return Number(n) >= 2 ? 's' : '';
+}
+
+/**
+ * The five categories, named in French, with the gender and number the verbs
+ * after them have to agree with.
+ *
+ * The spine sends `category` (the raw `CategoryId`) beside `categoryLabel`
+ * (its English prose name) on every fragment that needs one, precisely so this
+ * table can exist. `categoryLabel` is the fallback for a category code added
+ * after this build, and it is English on purpose: a wrong French name for a
+ * category is worse than a right English one.
+ */
+const CATEGORIES = {
+  grocery: { inline: "l'épicerie", title: "L'épicerie", plural: false },
+  tech: { inline: 'la techno', title: 'La techno', plural: false },
+  used: { inline: "l'usagé", title: "L'usagé", plural: false },
+  furniture: { inline: 'les meubles', title: 'Les meubles', plural: true },
+  produce: { inline: 'les fruits et légumes', title: 'Les fruits et légumes', plural: true },
+};
+
+/** The category's name inside a sentence: "le prix ... et l'épicerie bouge ...". */
+function categoryInline(f) {
+  return CATEGORIES[f.category]?.inline ?? f.categoryLabel;
+}
+
+/** The category's name starting a sentence. */
+function categoryTitle(f) {
+  return CATEGORIES[f.category]?.title ?? f.categoryLabel;
+}
+
+/** A verb agreeing with the category: "l'épicerie bouge", "les meubles bougent". */
+function categoryVerb(f, singular, plural) {
+  return CATEGORIES[f.category]?.plural ? plural : singular;
+}
+
+/**
+ * The kinds of price, which arrive as the contract's own `PriceKind` codes so
+ * that each language can name them. English joins them with " and "; French
+ * joins with " et ".
+ */
+const KINDS = {
+  regular: 'des prix courants',
+  promotional: 'des prix en promotion',
+  asking: 'des prix demandés',
+  sold: 'des prix de vente',
+  list: 'des prix de liste',
+};
+
+const MONTHS = [
+  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+];
+
+/**
+ * An ISO day, written the way a Quebec reader writes one: "3 septembre", and
+ * "1er septembre" on the first of the month, which is the one ordinal French
+ * still spells out. An unparseable date comes back untouched rather than
+ * guessed at.
+ */
+function day(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso ?? ''));
+  if (m === null) return String(iso ?? '');
+  const month = MONTHS[Number(m[2]) - 1];
+  if (month === undefined) return String(iso ?? '');
+  const d = Number(m[3]);
+  return `${d === 1 ? '1er' : d} ${month}`;
+}
+
+/** One shopper's reading: the amount, the shop and the day it was seen. */
+function readingsOf(f) {
+  const rows = Array.isArray(f.readings) ? f.readings : [];
+  return rows.map((r) => `${cad(r?.amountCents)} chez ${r?.seller} le ${day(r?.observedAt)}`);
+}
+
+/**
+ * "the only price we have" / "what every seller charges", chosen by a count.
+ *
+ * One clause, two English wordings over the SAME number, which is why the
+ * spine sends `sellerCount` rather than splitting the code. French makes the
+ * same choice on the same count.
+ */
+function solePrice(f) {
+  return Number(f.sellerCount) === 1 ? "le seul prix que j'ai" : 'ce que tous les vendeurs demandent';
+}
 
 /**
  * The French renderers, keyed by `LineCode`.
@@ -92,6 +205,134 @@ const RENDERERS = {
   /* --- les meubles --- */
   own_price_history_single_seller: (f) =>
     `Un seul marchand, alors c'est comparé à son propre historique: aussi bas que ${cad(f.lowestCents)} le ${f.lowestObservedOn}, d'habitude autour de ${cad(f.typicalCents)}. Tu regardes ${cad(f.askingCents)}.`,
+
+  /* --- la ligne des preuves minces, `price/src/verdict.ts`.
+   * Quatre fragments au plus, collés par une espace. Ce sont des lignes de
+   * verdict: l'anglais y dit "cheapest" et "on sale", alors le français peut
+   * dire "le moins cher" et "en solde". Rien d'autre ici n'a le droit. --- */
+  asking_below_sole_price: (f) => `${cad(f.askingCents)}, c'est moins que ${solePrice(f)}.`,
+  asking_below_range: (f) => `${cad(f.askingCents)}, c'est dans le bas de la fourchette.`,
+  asking_equals_sole_price: (f) => `${cad(f.askingCents)}, c'est exactement ${solePrice(f)}.`,
+  asking_within_range: (f) => `${cad(f.askingCents)}, c'est à peu près ce que les autres demandent.`,
+  asking_above_sole_price: (f) => `${cad(f.askingCents)}, c'est plus que ${solePrice(f)}.`,
+  asking_above_range: (f) => `${cad(f.askingCents)}, c'est dans le haut de la fourchette.`,
+  sole_price_matched_at_seller: (f) => `${f.seller} l'a aussi à ${cad(f.amountCents)}.`,
+  cheapest_and_dearest_sellers: (f) =>
+    `${f.cheapestSeller} l'a à ${cad(f.cheapestCents)}, ${f.dearestSeller} à ${cad(f.dearestCents)}.`,
+  /* `unitLabel` est "100g" ou "100ml", un symbole d'unité et non de la prose,
+   * alors il traverse tel quel, comme en anglais. */
+  unit_price: (f) => `Ça fait ${cad(f.unitCents)} par ${f.unitLabel}.`,
+  cheaper_on_promotion_at_seller: (f) => `${f.seller} l'a en solde à ${cad(f.amountCents)}.`,
+
+  /* --- la confiance. Ces phrases parlent de la PREUVE et n'ont jugé aucun
+   * prix, alors aucun mot de palier n'y entre. "À peine assez" et non "juste
+   * assez": "juste" en français d'ici veut dire correct autant que de justesse,
+   * et c'est exactement l'ambiguïté qu'un mot de palier introduirait. --- */
+  confidence_minimum_met_only: (f) =>
+    `À peine assez pour répondre: ${f.pointCount} prix chez ${f.sellerCount} vendeur${s(f.sellerCount)}.`,
+  confidence_newest_price_age: (f) =>
+    `Le prix le plus récent a ${f.ageDays} jour${s(f.ageDays)}.`,
+  confidence_history_span_exact_match: (f) =>
+    `${f.pointCount} prix étalés sur ${f.spanDays} jour${s(f.spanDays)} de l'historique de ce marchand, et le produit correspond à coup sûr.`,
+  confidence_fresh_across_sellers_exact_match: (f) =>
+    `${f.pointCount} prix chez ${f.sellerCount} vendeur${s(f.sellerCount)}, aucun plus vieux que ${f.oldestAgeDays} jour${s(f.oldestAgeDays)}, et le produit correspond à coup sûr.`,
+  confidence_price_count_across_sellers: (f) =>
+    `${f.pointCount} prix chez ${f.sellerCount} vendeur${s(f.sellerCount)}.`,
+
+  /* --- les manques, en minuscules: la forme `shortfall_list` les colle avec
+   * "; " et met la majuscule elle-même, exactement comme en anglais. --- */
+  shortfall_lone_claims_held_back: (f) =>
+    `${f.count} prix saisi${s(f.count)} ${Number(f.count) >= 2 ? 'sont retenus' : 'est retenu'} pour l'instant, trop loin du reste pour le publier sur la parole d'une seule personne`,
+  shortfall_uncorroborated_typed_prices: (f) =>
+    `${f.count} prix saisi${s(f.count)} ${Number(f.count) >= 2 ? 'ne sont pas comptés' : "n'est pas compté"} ici, parce que personne d'autre n'a encore vu ${Number(f.count) >= 2 ? 'ces étiquettes' : 'cette étiquette'}`,
+  shortfall_newest_price_older_than_category: (f) =>
+    `le prix le plus récent que j'ai a ${f.ageDays} jour${s(f.ageDays)}, et ${categoryInline(f)} ${categoryVerb(f, 'bouge', 'bougent')} plus vite que ça`,
+  shortfall_some_prices_too_old_to_count: (f) =>
+    `${f.droppedCount} prix sur ${f.totalCount} ${Number(f.droppedCount) >= 2 ? 'sont trop vieux' : 'est trop vieux'} pour compter`,
+  shortfall_fewer_points_than_category_needs: (f) =>
+    `${f.pointCount} prix, alors que ${categoryInline(f)} en ${categoryVerb(f, 'demande', 'demandent')} d'habitude ${f.needed}`,
+  shortfall_fewer_sellers_than_category_needs: (f) =>
+    `${f.sellerCount} vendeur${s(f.sellerCount)}, alors que ${categoryInline(f)} en ${categoryVerb(f, 'demande', 'demandent')} d'habitude ${f.needed}`,
+  shortfall_prices_may_be_two_products: () =>
+    "les prix trouvés s'écartent assez pour que ce soit plus qu'un seul produit",
+  shortfall_no_comparable_price_kinds: (f) => {
+    const kinds = (Array.isArray(f.kinds) ? f.kinds : []).map((k) => KINDS[k] ?? k);
+    // No kinds is a malformed fragment, not a sentence with nothing in it.
+    // The empty string takes the whole thing back to English, by rule 3.
+    if (kinds.length === 0) return '';
+    return `les seuls prix que quelqu'un publie pour ça, ce sont ${kinds.join(' et ')}, et ça ne fait pas une comparaison`;
+  },
+  shortfall_newest_price_past_tolerance: (f) =>
+    `le prix le plus récent que j'ai a ${f.ageDays} jour${s(f.ageDays)}, au-delà de ce que ${categoryInline(f)} ${categoryVerb(f, 'tolère', 'tolèrent')}`,
+  shortfall_only_the_asking_seller_has_prices: () =>
+    "tous les prix que j'ai viennent de ce même magasin, alors c'est comparé à son propre historique plutôt qu'à qui que ce soit d'autre",
+
+  /* --- la base de la confiance, venue de `price/src/verdict.ts`. Des bouts de
+   * phrase, pas des phrases. --- */
+  basis_single_seller: () => 'un seul vendeur',
+  basis_sellers_agree_on_range: (f) =>
+    `${f.sellerCount} vendeur${s(f.sellerCount)} ${Number(f.sellerCount) >= 2 ? "s'entendent" : "s'entend"} sur la fourchette`,
+  basis_newest_price_over_three_weeks: () => 'le prix le plus récent a plus de trois semaines',
+  basis_only_sale_prices: () => 'seulement des prix en solde pour comparer',
+  basis_matched_by_name_not_barcode: () => 'un vendeur apparié par le nom, pas par le code-barres',
+  /**
+   * L'ALARME, et la seule entrée de cette table qui ne traduit rien.
+   *
+   * `contract.ts` le dit: ce code ne doit jamais sortir dans une charge utile,
+   * et `spine/test/structured-prose.test.ts` échoue s'il sort. Il porte
+   * l'anglais mot pour mot sur `facts.text` pour que l'aller-retour tienne
+   * quand même. Le rendre en français voudrait dire inventer la phrase, alors
+   * il rend l'anglais tel quel: une phrase anglaise visible est un signal, une
+   * phrase française inventée n'en est pas un. La réparation est un vrai code
+   * dans le contrat, jamais une traduction ici.
+   *
+   * Sans ce texte il ne reste rien du tout à dire, alors la chaîne vide part
+   * et `render` rend la phrase anglaise complète. Inventer une formule vague
+   * à la place effacerait l'alarme, ce qui est le contraire du but.
+   */
+  basis_reason_not_yet_coded: (f) => (typeof f.text === 'string' ? f.text : ''),
+
+  /* --- les refus. Le résultat le plus fréquent, et celui qui a été pris en
+   * flagrant délit d'anglais sur un écran français. Aucun mot de palier: un
+   * refus n'a jugé aucun prix. --- */
+  refusal_no_price_source_available: () => "Aucune source de prix ne répond en ce moment.",
+  refusal_identity_unresolved: () =>
+    "Je n'ai pas pu déterminer ce que c'est. Scanne le code-barres, ou écris le numéro de modèle.",
+  /* `why` est une décision consignée, écrite en anglais dans `categories.ts`.
+   * Elle traverse telle quelle, comme le nom d'un marchand ou le "limit 8"
+   * d'une circulaire: c'est de la donnée de source, et la traduire est le
+   * problème du fichier qui l'écrit, pas de cette phrase-ci. */
+  refusal_category_not_served: (f) =>
+    `${categoryTitle(f)}, ce n'est pas quelque chose que Shin peut chiffrer pour l'instant. ${f.why}`,
+  refusal_identity_below_floor: (f) =>
+    `Je ne suis pas assez certain que ce soit le bon. Ce qui s'en approchait le plus, c'est « ${f.label} ». Choisis le bon et Shin va le chiffrer.`,
+  refusal_no_price_for_product: (f) => `Rien n'a de prix pour « ${f.label} » en ce moment.`,
+  refusal_asking_price_missing: () =>
+    "J'ai trouvé des comparaisons, mais aucun prix pour la chose devant toi. Pointe l'étiquette.",
+  refusal_asking_price_unreadable: () =>
+    "Ce prix-là ne se lit pas comme un nombre. Réécris-le avec un point pour la décimale.",
+  refusal_all_prices_future_dated: () =>
+    "Tous les prix trouvés sont datés plus tard qu'aujourd'hui, alors il n'y a encore rien à quoi comparer.",
+  /* Les deux seules phrases de refus qui portent des faits, et tout ce
+   * qu'elles disent EST le relevé: le montant, le magasin, le jour. Sans
+   * relevé il n'y a pas de phrase, alors la chaîne vide renvoie à l'anglais
+   * plutôt que d'annoncer qu'une personne a vu quelque chose d'innommé. */
+  refusal_one_shopper_report: (f) => {
+    const r = readingsOf(f)[0];
+    if (r === undefined) return '';
+    return `Une personne a vu ${r}. Personne d'autre n'a encore donné de prix à ça, alors il n'y a rien pour le vérifier.`;
+  },
+  refusal_several_unconfirmed_reports: (f) => {
+    const rows = readingsOf(f);
+    if (rows.length === 0) return '';
+    return `Des gens ont écrit ${rows.join(', et ')}. Personne n'a vu ces étiquettes-là deux fois, alors il n'y a rien pour les vérifier.`;
+  },
+
+  /* --- les désaccords. Deux nombres plutôt qu'une moyenne qui mentirait. --- */
+  disagreement_wide_spread: (f) =>
+    `Les prix pour la même chose vont de ${cad(f.lowCents)} à ${cad(f.highCents)} en ce moment. C'est un écart de ${String(f.ratio).replace('.', ',')}x, alors il n'y a pas un seul prix exact à donner.`,
+  disagreement_promotion_not_store: (f) =>
+    `L'écart ici, c'est la promotion et non le magasin: ${cad(f.promotionalCents)} en solde contre ${cad(f.regularCents)} régulier, ça fait une différence de ${String(f.ratio).replace('.', ',')}x sur la même boîte.`,
 };
 
 /** Is this thing shaped like the contract's `StructuredText`? */
