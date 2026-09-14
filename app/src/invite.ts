@@ -7,11 +7,11 @@
  * it. Without this, the first scanner that finds the host can spend the model
  * budget. A shared code stops that. It is a bouncer, not a login.
  *
- * WHAT IT IS NOT. It is not authentication: six people share one string, the
- * string is compiled into the wrapper, and anybody who has the app has it.
- * Nothing downstream may treat a request that passed this check as belonging
- * to a particular person, and nothing does: the device id is still the only
- * identity in the product and it is still a random UUID with no claim attached.
+ * WHAT IT IS NOT. It is not authentication: a link can be forwarded, and
+ * anybody who has it has the code. Since 2026-09-14 each code carries the name
+ * of the person it was handed to (see `inviteCodes`), and the access log and
+ * the device table record that name as "whose link this came through", which
+ * is all it is. The device id is still the product's identity.
  *
  * OFF WHEN THE VARIABLE IS UNSET, and that is the whole reason the check can
  * ship today without a flag day. `SHIN_INVITE_CODE` unset or empty means every
@@ -43,26 +43,51 @@ export const INVITE_HEADER = 'x-shin-invite';
  * sides) costs an hour every time.
  */
 export function inviteRequired(env: NodeJS.ProcessEnv = process.env): string | null {
-  const code = env.SHIN_INVITE_CODE?.trim();
-  return code ? code : null;
+  const codes = inviteCodes(env);
+  return codes.length > 0 ? codes[0].code : null;
 }
 
 /**
- * Whether a request carrying this header value may proceed.
+ * Every code this server accepts, each with the name of the person it was
+ * given to.
  *
- * Returns true when no code is configured, which is the local-development and
- * test case and is the only reason this is safe to add to every route at once.
+ * NAMED CODES, added 2026-09-14 on the founder's ask for a link for Aurik
+ * 'so i knows whos who'. One shared string could not say whose scan a scan
+ * was. `SHIN_INVITES` is `name:code,name:code`; the original
+ * `SHIN_INVITE_CODE` still works and is named 'family', so the link already
+ * on the family's phones keeps opening. This is still a bouncer, not a login:
+ * a name here is who a link was handed to, not proof of who is holding it.
  */
-export function inviteAllows(sent: unknown, env: NodeJS.ProcessEnv = process.env): boolean {
-  const required = inviteRequired(env);
-  if (required === null) return true;
-  if (typeof sent !== 'string') return false;
+export function inviteCodes(env: NodeJS.ProcessEnv = process.env): { name: string; code: string }[] {
+  const out: { name: string; code: string }[] = [];
+  const shared = env.SHIN_INVITE_CODE?.trim();
+  if (shared) out.push({ name: 'family', code: shared });
+  for (const part of (env.SHIN_INVITES ?? '').split(',')) {
+    const i = part.indexOf(':');
+    if (i <= 0) continue;
+    const name = part.slice(0, i).trim();
+    const code = part.slice(i + 1).trim();
+    if (name && code) out.push({ name, code });
+  }
+  return out;
+}
+
+/** The name behind the code a request sent, or null when it matches none. */
+export function inviteWho(sent: unknown, env: NodeJS.ProcessEnv = process.env): string | null {
+  if (typeof sent !== 'string') return null;
   const a = Buffer.from(sent.trim(), 'utf8');
-  const b = Buffer.from(required, 'utf8');
-  // timingSafeEqual throws on a length mismatch, so the length is compared
-  // first and does leak. A length is not the secret.
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+  for (const { name, code } of inviteCodes(env)) {
+    const b = Buffer.from(code, 'utf8');
+    // timingSafeEqual throws on a length mismatch, so the length is compared
+    // first and does leak. A length is not the secret.
+    if (a.length === b.length && timingSafeEqual(a, b)) return name;
+  }
+  return null;
+}
+
+export function inviteAllows(sent: unknown, env: NodeJS.ProcessEnv = process.env): boolean {
+  if (inviteRequired(env) === null) return true;
+  return inviteWho(sent, env) !== null;
 }
 
 /**

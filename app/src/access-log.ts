@@ -16,6 +16,8 @@
 import { appendFile } from 'node:fs';
 import { join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { inviteWho } from './invite.ts';
+import { notePerson } from './admin.ts';
 
 export function accessLogPath(env: NodeJS.ProcessEnv = process.env): string {
   return env.SHIN_ACCESS_LOG?.trim() || join(env.SHIN_DATA_DIR?.trim() || join(process.cwd(), 'data'), 'access.log');
@@ -38,10 +40,13 @@ export function recordAccess(req: IncomingMessage, res: ServerResponse, env: Nod
         country: h['cf-ipcountry'] ?? null,
         ua: h['user-agent'] ?? null,
         invite: Boolean(h['x-shin-invite']),
+        who: inviteWho(h['x-shin-invite'], env),
         shutter: h['x-shin-shutter'] ?? null,
         referer: h.referer ?? null,
       });
       appendFile(accessLogPath(env), line + '\n', () => {});
+      const deviceId = new URL(req.url ?? '/', 'http://x').searchParams.get('deviceId');
+      notePerson(deviceId, inviteWho(h['x-shin-invite'], env), env);
     } catch {
       // Dropped, never thrown.
     }
