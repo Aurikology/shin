@@ -436,7 +436,7 @@ const RENDERERS = {
   refusal_asking_price_missing: () =>
     "J'ai trouvé des comparaisons, mais aucun prix pour la chose devant toi. Pointe l'étiquette.",
   refusal_asking_price_unreadable: () =>
-    "Ce prix-là ne se lit pas comme un nombre. Réécris-le avec un point pour la décimale.",
+    "Ce prix-là ne se lit pas comme un nombre. Réécris-le avec une virgule pour la décimale.",
   refusal_all_prices_future_dated: () =>
     "Tous les prix trouvés sont datés plus tard qu'aujourd'hui, alors il n'y a encore rien à quoi comparer.",
   /* Les deux seules phrases de refus qui portent des faits, et tout ce

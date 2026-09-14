@@ -32,6 +32,7 @@ import {
   keypadHtml,
   pricePadDisplay,
   parsePadPrice,
+  padAmountHtml,
   productLabel,
   candidateRow,
 } from '../public/js/screens/camera.js';
@@ -376,6 +377,46 @@ test('the typed price is shown with a ghosted remainder, never a fake number', (
   // A leading decimal is typed as "0." by the key handler, but the display must
   // not invent a whole number if it ever arrives without one.
   assert.equal(pricePadDisplay('.5'), '0.5<span class="ghosted">0</span>');
+});
+
+/* ------------------------------------------------------------------ *
+ * The decimal the reader sees. The buffer holds "." for both languages and
+ * the parser never changes; the KEY and the DISPLAY follow the locale, so a
+ * French reader types a comma into a price that already prints as 4,99 $.
+ * ------------------------------------------------------------------ */
+
+const localeCell = new Map();
+globalThis.localStorage ??= {
+  getItem: (k) => (localeCell.has(k) ? localeCell.get(k) : null),
+  setItem: (k, val) => localeCell.set(k, String(val)),
+  removeItem: (k) => localeCell.delete(k),
+};
+function inLocale(id, fn) {
+  const before = globalThis.localStorage.getItem('shin.locale');
+  globalThis.localStorage.setItem('shin.locale', id);
+  try { return fn(); } finally {
+    if (before === null) globalThis.localStorage.removeItem('shin.locale');
+    else globalThis.localStorage.setItem('shin.locale', before);
+  }
+}
+
+test('in French the decimal key shows a comma and still writes a point into the buffer', () => {
+  const fr = inLocale('fr', () => keypadHtml());
+  assert.ok(fr.includes('data-pad="."'), 'the handler reads data-pad="." and that must not change');
+  assert.ok(fr.includes('data-pad=".">,</button>'), 'the French key label is not a comma');
+  const en = inLocale('en', () => keypadHtml());
+  assert.ok(en.includes('data-pad=".">.</button>'), 'the English key label is not a point');
+});
+
+test('the French display writes 4,99 with the mark after, the English $4.99 with the mark before', () => {
+  assert.equal(inLocale('fr', () => pricePadDisplay('4.99')), '4,99');
+  assert.equal(inLocale('fr', () => pricePadDisplay('')), '<span class="ghosted">0,00</span>');
+  assert.equal(inLocale('fr', () => pricePadDisplay('4')), '4<span class="ghosted">,00</span>');
+  assert.equal(inLocale('en', () => pricePadDisplay('4.99')), '4.99');
+  assert.equal(inLocale('fr', () => padAmountHtml('4.99')), '4,99<span class="amount-cur amount-cur-after">$</span>');
+  assert.equal(inLocale('en', () => padAmountHtml('4.99')), '<span class="amount-cur">$</span>4.99');
+  // The parser is the same number either way: the separator is how a number is written, not what it is.
+  assert.equal(inLocale('fr', () => parsePadPrice('4.99')), 499);
 });
 
 test('the pad buffer reads back as cents, or as nothing at all', () => {

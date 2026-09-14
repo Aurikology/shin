@@ -1564,6 +1564,8 @@
   padding: 2px 0;
 }
 .padsheet .amount-cur { font-size: 20px; color: var(--ink-faint); font-weight: 700; }
+/* French writes the mark after the digits (4,99 $), with the same breath of space cad() keeps. */
+.padsheet .amount-cur-after { margin-left: 5px; }
 .padsheet .amount .ghosted { color: var(--ink-faint); opacity: .45; }
 
 /* Row 43: "% off" / "N for $" recompute the unit price the pad will judge,

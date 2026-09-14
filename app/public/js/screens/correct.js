@@ -38,7 +38,7 @@ import { escapeHtml, on } from '../lib/dom.js';
  * `whole || '0'` guard -- so typing ".5" here rendered ".50" and on the
  * camera "0.50". One component, two hosts, and the copy was the worse one.
  */
-import { keypadHtml, pricePadDisplay } from './camera.js';
+import { keypadHtml, padAmountHtml } from './camera.js';
 import { storagePersists } from '../lib/persistence.js';
 import { t } from '../ui-strings.js';
 
@@ -145,7 +145,7 @@ export default {
                  </div>`
               : `
           <div class="amount" role="status" aria-label="${escapeHtml(t('correct_price_typed'))}">
-            <span class="amount-cur">$</span>${pricePadDisplay(typed)}
+            ${padAmountHtml(typed)}
           </div>
 
           <label class="seller">
@@ -224,7 +224,7 @@ export default {
         else if (typed.includes('.') && typed.split('.')[1].length >= 2) { /* two decimals is a price */ }
         else typed += k;
         const amt = root.querySelector('.amount');
-        if (amt) amt.innerHTML = `<span class="amount-cur">$</span>${pricePadDisplay(typed)}`;
+        if (amt) amt.innerHTML = padAmountHtml(typed);
         paintGate();
         return;
       }

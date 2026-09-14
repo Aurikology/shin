@@ -1234,11 +1234,35 @@ function searchCandidateSheet(items, query) {
  * as a real number.
  */
 function pricePadDisplay(typed) {
-  if (!typed) return '<span class="ghosted">0.00</span>';
+  const sep = padSeparator();
+  if (!typed) return `<span class="ghosted">0${sep}00</span>`;
   const [whole, frac] = typed.split('.');
   return frac === undefined
-    ? `${whole || '0'}<span class="ghosted">.00</span>`
-    : `${whole || '0'}.${frac}${frac.length === 1 ? '<span class="ghosted">0</span>' : ''}`;
+    ? `${whole || '0'}<span class="ghosted">${sep}00</span>`
+    : `${whole || '0'}${sep}${frac}${frac.length === 1 ? '<span class="ghosted">0</span>' : ''}`;
+}
+
+/**
+ * The decimal separator the reader sees. The pad buffer itself always holds
+ * "." (parsePadPrice and the key handler never change), because the buffer is
+ * a number and the separator is a way of writing one; a French reader typing
+ * a price sees the comma every French price on this screen already uses, and
+ * the French refusal for an unreadable price can honestly say "virgule".
+ */
+function padSeparator() {
+  return locale() === 'fr' ? ',' : '.';
+}
+
+/**
+ * The amount line above the keypad, currency mark and digits in the reader's
+ * order: "$4.99" in English, "4,99 $" in French, the same order `cad()` prints
+ * everywhere else. Both pad hosts paint it from here so they cannot disagree.
+ */
+function padAmountHtml(typed) {
+  const digits = pricePadDisplay(typed);
+  return locale() === 'fr'
+    ? `${digits}<span class="amount-cur amount-cur-after">$</span>`
+    : `<span class="amount-cur">$</span>${digits}`;
 }
 
 /**
@@ -1279,14 +1303,16 @@ function pricePadDisplay(typed) {
  *   confirm key carries `data-act="pad-confirm"` and `.key-confirm`.
  */
 function keypadHtml({ confirm = false, canConfirm = false, confirmLabel = t('cam_price_it') } = {}) {
-  const key = (char, extra = '') =>
-    `<button type="button" class="btn btn--key" data-pad="${char}"${extra}>${char}</button>`;
+  // `label` is what the key shows; `data-pad` is what the handler reads. They
+  // differ for one key only: the decimal, which reads "," in French.
+  const key = (char, extra = '', label = char) =>
+    `<button type="button" class="btn btn--key" data-pad="${char}"${extra}>${label}</button>`;
   return `
         <div class="keypad">
           ${['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((k) => key(k)).join('')}
         </div>
         <div class="keypad keypad-bottom${confirm ? '' : ' keypad-bottom-3'}">
-          ${key('.')}
+          ${key('.', '', padSeparator())}
           ${key('0')}
           ${key('⌫', ` aria-label="${escapeHtml(t('cam_delete_last_digit'))}"`)}
           ${confirm
@@ -1493,7 +1519,7 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null, shop = n
             : ''
         }
         ${padShopRow(shop, shopAllowed)}
-        <div class="amount pad-amount"><span class="amount-cur">$</span>${pricePadDisplay(typed)}</div>
+        <div class="amount pad-amount">${padAmountHtml(typed)}</div>
         <p class="pad-effective" data-pad-effective${effLabel ? '' : ' hidden'}>${effLabel}</p>
         <div class="pad-mods" role="group" aria-label="${escapeHtml(t('cam_price_modifiers'))}">
           <button type="button" class="modbtn${modifier?.kind === 'percent' ? ' on' : ''}" data-modtoggle="percent">${escapeHtml(t('cam_percent_off_suffix'))}</button>
@@ -1865,7 +1891,7 @@ export { isThinReason };
  * renders the same digits and reads them back differently is the same
  * duplication one layer down.
  */
-export { keypadHtml, pricePadDisplay, parsePadPrice };
+export { keypadHtml, pricePadDisplay, parsePadPrice, padAmountHtml, padSeparator };
 
 /*
  * Exported 2026-09-13 with the leaf/parent swap rule. `cheaperList` is a pure
@@ -2617,7 +2643,7 @@ export default {
 
     function paintPad() {
       const amountEl = slot.querySelector('.pad-amount');
-      if (amountEl) amountEl.innerHTML = `<span class="amount-cur">$</span>${pricePadDisplay(padBuffer)}`;
+      if (amountEl) amountEl.innerHTML = padAmountHtml(padBuffer);
       paintPadEffective();
     }
 

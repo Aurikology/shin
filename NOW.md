@@ -106,9 +106,11 @@ committed tree). Both are in `docs/decisions.md`; the push rule is in his global
 `aria-checked="false"` with the approved copy in both languages, `/api/consent` for a never-asked
 device answers `photos false, location false`, the French verdict sheet reads *"Devant toi, c'est
 4,99 $"*. **Tests: app 722, spine 223, identify 155, catalogue 133, price 157; 0 fail.** Open after
-tonight: the API key (his call, not tonight); the pad's `.` key against French commas; the English
+tonight: the API key (his call, not tonight); the English
 leaf label under French headings; `(limit 8)` as recorded shelf text; a native French speaker's
-read of the sentences the review judged rather than cited.
+read of the sentences the review judged rather than cited. **Later:** his word, *"fix the pad
+decimal key for french"*: D-104 closed, the French pad shows `,` and `4,99 $`, the buffer and parser
+unchanged; both pad hosts rendered and pressed through a fresh server.
 
 **The consent revert, by hand, on his ruling:** `app/src/consent.ts` and `store.js` default to
 off; the consent screen's switches start off; `api.js` no longer sends `lat`/`lon`; the 2026-09-13
