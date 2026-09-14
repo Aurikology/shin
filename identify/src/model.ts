@@ -32,6 +32,7 @@ import { loadDotEnv } from './env.ts';
 import {
   addUsage,
   classifyProviderError,
+  withFallback,
   type CacheHint,
   type Provider,
   type ProviderRequest,
@@ -39,6 +40,7 @@ import {
   type TokenUsage,
 } from './provider.ts';
 import { AnthropicProvider, anthropicClient, type MessagesClient } from './providers/anthropic.ts';
+import { GeminiProvider } from './providers/gemini.ts';
 import { XaiProvider } from './providers/xai.ts';
 
 /**
@@ -299,7 +301,7 @@ function cacheEnabled(): boolean {
 }
 
 /*
- * CHEAP-FIRST ESCALATION. Off by default.
+ * CHEAP-FIRST ESCALATION. Off by default on Anthropic, ON by default on Gemini.
  *
  * When basic's extract pass comes back saying `low` about itself, run the
  * extract once more on the pro model and keep that answer instead. The pick pass
@@ -311,8 +313,29 @@ function cacheEnabled(): boolean {
  * invoice does not care why a request was sent. If the escalated call fails for
  * any reason the first answer stands, because priority 1 is always answer.
  */
+/*
+ * WHY THE DEFAULT DEPENDS ON THE PROVIDER (2026-09-14, the founder's ruling
+ * that identification runs cheap and re-runs on the bigger model only when the
+ * cheap answer says `low` about itself).
+ *
+ * On Gemini the cheap model IS the plan: `providers/gemini.ts` maps the basic
+ * tier to `gemini-3.5-flash-lite` and the pro tier to `gemini-3.8-flash`, so
+ * escalation is the second half of a ruling whose first half is already in the
+ * model table, and shipping only the first half would be shipping a cheaper
+ * answer with nothing catching the ones it got wrong. On Anthropic nothing was
+ * ruled and nothing changes: the flag stays off unless it is set, and an
+ * environment that has never heard of Gemini sends exactly the calls it sent
+ * yesterday.
+ *
+ * `SHIN_MODEL_ESCALATE` still wins in BOTH directions, which is why this reads
+ * the variable itself instead of calling `envFlag`: `envFlag` cannot tell "not
+ * set" from "set to 0", and here those have to mean different things.
+ */
 function escalationEnabled(): boolean {
-  return envFlag('SHIN_MODEL_ESCALATE');
+  const raw = process.env.SHIN_MODEL_ESCALATE?.trim().toLowerCase();
+  if (raw === undefined || raw === '') return geminiSelected();
+  if (raw === '0' || raw === 'false' || raw === 'no' || raw === 'off') return false;
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
 }
 
 const spend = { day: '', calls: 0 };
@@ -784,13 +807,45 @@ function arrange(
   return { system: SHARED_SYSTEM, user: instruction + payload, cache: 'after_image' };
 }
 
+/** True when the environment has actually asked for Gemini. Read in two places, so it is written once. */
+function geminiSelected(): boolean {
+  return process.env.SHIN_MODEL_PROVIDER?.trim().toLowerCase() === 'gemini';
+}
+
 /**
  * Which provider is behind the seam. `anthropic` unless explicitly told
  * otherwise, so an unset environment is today's behaviour exactly.
+ *
+ * THE GEMINI BRANCH, 2026-09-14. Two conditions, not one: the environment has
+ * to name Gemini AND a `GEMINI_API_KEY` has to exist. Named with no key returns
+ * the Anthropic provider completely unchanged, byte for byte, because a machine
+ * that has the setting and not the secret is a machine mid-rollout and the
+ * worst thing to hand it is a provider that refuses every scan. There is no
+ * warning logged on that path on purpose: it would fire once per call.
+ *
+ * WHY THE KEYS ARE NOT SHARED. `apiKey` here is, and always has been, the
+ * ANTHROPIC key (`Identifier`'s constructor takes one and passes it straight
+ * through). It is not handed to `GeminiProvider`, which reads `GEMINI_API_KEY`
+ * for itself. Crossing the two would send one vendor's secret to the other,
+ * which is both an authentication failure and a disclosure.
+ *
+ * WHY THE FALLBACK. Priority 1 is always answer. A Gemini outage with a working
+ * Claude path sitting right there must not become a refusal, and `withFallback`
+ * already knows the two failures a second vendor must never be asked about
+ * (`spend_cap_reached`, `unreadable_photo`).
  */
 export function makeProvider(apiKey?: string): Provider {
   const named = process.env.SHIN_MODEL_PROVIDER?.trim().toLowerCase();
   if (named === 'xai') return new XaiProvider({ apiKey });
+  if (named === 'gemini') {
+    const geminiKey = process.env.GEMINI_API_KEY?.trim();
+    if (geminiKey) {
+      return withFallback(
+        new GeminiProvider({ apiKey: geminiKey }),
+        new AnthropicProvider(anthropicClient(apiKey)),
+      );
+    }
+  }
   return new AnthropicProvider(anthropicClient(apiKey));
 }
 

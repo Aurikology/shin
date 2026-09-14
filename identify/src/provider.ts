@@ -29,6 +29,7 @@
  */
 
 import type { FailureClass } from './model.ts';
+import type { Grounded } from './grounded.ts';
 
 export type MediaType = 'image/png' | 'image/jpeg';
 
@@ -72,6 +73,42 @@ export interface ProviderRequest {
   readonly maxOutputTokens: number;
   readonly signal: AbortSignal;
   readonly cache?: CacheHint;
+  /**
+   * Whether Google Search grounding was asked for. Optional and defaulting to
+   * absent, so every request written before 2026-09-14 still means exactly
+   * what it meant: no search tool, ordinary model output, no rules about where
+   * the answer may be stored.
+   */
+  readonly grounding?: Grounding;
+}
+
+/**
+ * Off, or the Google Search tool.
+ *
+ * The two values are not a preference, they are two different licences over
+ * the answer that comes back: see the header of `grounded.ts`.
+ */
+export type Grounding = 'none' | 'google_search';
+
+/**
+ * A provider that can run a grounded call, kept OUT of `Provider` on purpose.
+ *
+ * This is a separate interface rather than a second method on `Provider`
+ * because of what `ProviderResponse<Grounded<T>>` means: `.value` is a sealed
+ * box, not a `T`. Every existing consumer of a provider answer is typed on
+ * `T` -- `Identifier.#send` in `model.ts` parses one, `identify/src/identify.ts`
+ * reads its fields -- so if a grounded answer were ever routed into the
+ * identification pipeline, the COMPILER stops it at the first field access
+ * rather than a reviewer stopping it at a pull request. That is the whole
+ * reason for the split, and it is also why `Provider` and every test written
+ * against it are untouched by this addition.
+ */
+export interface GroundedProvider {
+  readonly name: string;
+  sendGrounded<T>(
+    request: ProviderRequest & { readonly grounding: 'google_search' },
+    forDevice: string,
+  ): Promise<ProviderResponse<Grounded<T>>>;
 }
 
 /**
@@ -286,6 +323,21 @@ export const LIST_PRICES_USD_PER_MTOK: Readonly<Record<string, ModelPrice>> = {
   'claude-opus-5': { input: 5, output: 25 },
   'claude-sonnet-5': { input: 2, output: 10 },
   'claude-haiku-4-5': { input: 1, output: 5 },
+  /*
+   * Gemini, from ai.google.dev/gemini-api/docs/pricing read 2026-09-14. The
+   * rows live here rather than beside the adapter because `costUsd` below
+   * reads this one table and nothing else: a model absent from it costs
+   * `null`, which every caller prints as unknown. That is the safe direction
+   * and it is where xAI still sits, but it means a Gemini scan would have
+   * reported no cost at all while the whole point of the switch is knowing
+   * what it costs.
+   *
+   * BOTH RATES DOUBLE ON 2027-01-01 and nothing automatic re-checks that.
+   * 3.8 Flash goes to 1.50 in / 7.50 out; whoever reads this line before the
+   * date is the mechanism.
+   */
+  'gemini-3.5-flash-lite': { input: 0.3, output: 2.5 },
+  'gemini-3.8-flash': { input: 0.75, output: 3.75 },
 };
 
 export const CACHE_READ_MULTIPLIER = 0.1;
