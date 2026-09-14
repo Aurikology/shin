@@ -21,6 +21,14 @@ import type { DatabaseSync } from 'node:sqlite';
 import { toVecBlob } from './schema.ts';
 import { recordGap, activeGapLog } from './gaps.ts';
 import type { Embedder } from './embed.ts';
+/*
+ * The one word-family table, read by both sides of D-099 so that the rank here
+ * and the guard in the identify stage cannot drift apart. It lives in
+ * `identify/` because that package deliberately imports nothing from this one;
+ * the file itself is a leaf with no imports of its own, so nothing but the table
+ * crosses. `app/server.ts` already reaches across packages the same way.
+ */
+import { variantCarriedBy, variantTokens } from './variant-words.ts';
 
 /** RRF's damping constant. 60 is the value from the original paper. */
 const RRF_K = 60;
@@ -695,22 +703,23 @@ function brandAgreesWith(row: Row, query: SearchQuery): boolean | null {
  * does it, because variants come hyphenated and compounded and
  * "Cherry-flavoured" must answer to "cherry". Accent folded so that a query
  * reading "Cerise" reaches a row spelling it "cerise".
+ *
+ * A token is answered by its whole family and not only by itself, added
+ * 2026-09-14: the rule and the word list are `catalogue/src/variant-words.ts`,
+ * which the guard on the other side reads too. The row this signal was built
+ * for writes its zero as "calorie-free" and carries `en:diet-cola-soft-drink`,
+ * so a model reading the can's own "Zero Sugar" agreed with nothing. The
+ * category path is read for that family only, and for the same reason the names
+ * are read in all three languages: which field records the fact is an accident
+ * of whoever typed the row in.
  */
 function variantAgreesWith(row: Row, query: SearchQuery): boolean | null {
-  const wanted = foldVariant(query.variant ?? '')
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean);
-  if (wanted.length === 0) return null;
+  if (variantTokens(query.variant).length === 0) return null;
 
   // The same three fields the pick pass is now shown, so that the rank and the
   // second opinion are answering the question off identical evidence.
-  const text = foldVariant([row.name, row.name_fr ?? '', row.generic_name ?? ''].join(' '));
-  return wanted.every((token) => text.includes(token));
-}
-
-/** Lower-cased and stripped of accents, so "Cerise" and "cerise" are one word. */
-function foldVariant(s: string): string {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const text = [row.name, row.name_fr ?? '', row.generic_name ?? ''].join(' ');
+  return variantCarriedBy(query.variant, text, pathOf(row));
 }
 
 /**

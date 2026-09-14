@@ -55,8 +55,18 @@ class HashEmbedder implements Embedder {
 const PLAIN = '06731906';
 const CHERRY = '06781901';
 const VANILLA = '06781902';
+/* The three rows the word families were added for, 2026-09-14. Kept out of the
+   default fixture so the ranking tests above still rank the same three rows. */
+const SHELF = '06781903';
+const LIGHT = '06781904';
+const FR_ONLY = '06781905';
 
-async function fixture() {
+/**
+ * @param extra rows in the same shape, appended. A row may carry its own
+ * category path as a tenth column; the default is the empty path every row in
+ * the base fixture has.
+ */
+async function fixture(extra: (string | number | null)[][] = []) {
   const db = openCatalogue(':memory:');
   const insert = db.prepare(`
     INSERT INTO product (code, name, name_en, name_fr, generic_name, brands, quantity,
@@ -76,8 +86,8 @@ async function fixture() {
     [VANILLA, 'Coke Zero Vanilla', 'Coke Zero Vanilla', null, 'Cola saveur vanille',
       'Coca-Cola', '355 ml', 355, 'ml'],
   ];
-  for (const r of rows) {
-    insert.run(r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], '[]', null, '[]', 1, 'test');
+  for (const r of [...rows, ...extra]) {
+    insert.run(r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9] ?? '[]', null, '[]', 1, 'test');
   }
   rebuildFts(db);
   rebuildCategories(db);
@@ -135,11 +145,11 @@ test('the flavour is read out of the generic name too', async () => {
 
 test('a multi-word flavour needs every word', async () => {
   const cat = await fixture();
-  const r = await cat.search({ text: 'Coca-Cola Coke Zero Cherry', variant: 'Zero Sugar Cherry', limit: 5 });
+  const r = await cat.search({ text: 'Coca-Cola Coke Zero Cherry', variant: 'Cherry Lime', limit: 5 });
 
-  // The cherry row says cherry and never says zero; the plain row says zero and
-  // never says cherry. Neither carries all three, and a rule that took "any
-  // word" would have lifted both.
+  // The cherry row says cherry and never says lime; the plain row says neither.
+  // Neither carries both, and a rule that took "any word" would have lifted the
+  // cherry row on half a flavour.
   assert.equal(signalOf(r.candidates, CHERRY), false);
   assert.equal(signalOf(r.candidates, PLAIN), false);
 });
@@ -171,4 +181,83 @@ test('a flavour that disagrees costs a row nothing it would otherwise have had',
     pinned.candidates.map((c) => c.code),
     baseline.candidates.map((c) => c.code),
   );
+});
+
+/* -------------------------------------------------------------------------
+ * The word families, 2026-09-14. D-099 left the guard working only for the
+ * transcription nobody's model is most likely to produce: the can says "Zero
+ * Sugar", the row says "calorie-free", and a literal all-tokens check made them
+ * disagree. `catalogue/src/variant-words.ts` is the one table both sides read.
+ * ------------------------------------------------------------------------- */
+
+test('the can prints "Zero Sugar" and the row spells it "calorie-free", and they are one thing', async () => {
+  const cat = await fixture();
+  const r = await cat.search({ text: 'Coca-Cola Zero Sugar Cherry', variant: 'Cherry Zero Sugar', limit: 5 });
+
+  // This is the exact pair the defect is about, in the exact words a model
+  // reading the can would use. Before the families it was false here.
+  assert.equal(signalOf(r.candidates, CHERRY), true, '"calorie-free" answers to "zero sugar"');
+  // The plain can has the zero and not the cherry, which is still a disagreement.
+  assert.equal(signalOf(r.candidates, PLAIN), false);
+});
+
+test('a row whose only zero is the shelf it sits on still answers to zero', async () => {
+  // Nothing in this row's three names says zero, diet or calorie. The catalogue
+  // recorded the fact as a category instead, which is where a quarter of these
+  // rows keep it.
+  const cat = await fixture([
+    [SHELF, 'Cherry cola', 'Cherry cola', null, null, 'Coca-Cola', '355 ml', 355, 'ml',
+      '["en:beverages","en:diet-sodas"]'],
+  ]);
+  const r = await cat.search({ text: 'Coca-Cola Zero Sugar Cherry', variant: 'Cherry Zero Sugar', limit: 6 });
+
+  assert.equal(signalOf(r.candidates, SHELF), true, 'en:diet-sodas is the row saying zero');
+});
+
+test('a cherry cola with no zero anywhere is not a zero cherry cola', async () => {
+  // 06772408 in the real catalogue: "Cherry Coke", the sugared one, sitting
+  // beside the can we want. The flavour agrees and the rest of the variant does
+  // not, and that is the whole job.
+  const cat = await fixture([
+    [SHELF, 'Cherry Coke', 'Cherry Coke', null, null, 'Coca-Cola', '355 ml', 355, 'ml'],
+  ]);
+  const r = await cat.search({ text: 'Coca-Cola Zero Sugar Cherry', variant: 'Cherry Zero Sugar', limit: 6 });
+
+  assert.equal(signalOf(r.candidates, SHELF), false, 'nothing here says zero, in any spelling or on any shelf');
+});
+
+test('light is not zero, in either direction', async () => {
+  const cat = await fixture([
+    [LIGHT, 'Cola light', 'Cola light', 'Cola légère', null, 'Coca-Cola', '355 ml', 355, 'ml'],
+  ]);
+
+  // A light cola and a zero-sugar cola are different claims on the pack. They
+  // are their own family precisely so that one never answers for the other.
+  const asZero = await cat.search({ text: 'Coca-Cola Zero Sugar', variant: 'Zero Sugar', limit: 6 });
+  assert.equal(signalOf(asZero.candidates, LIGHT), false);
+
+  const asLight = await cat.search({ text: 'Coca-Cola light', variant: 'Light', limit: 6 });
+  assert.equal(signalOf(asLight.candidates, LIGHT), true, 'the row says light in both names');
+});
+
+test('a row that names the flavour only in French answers to the English word', async () => {
+  const cat = await fixture([
+    [FR_ONLY, 'Cola', 'Cola', 'Cola cerise', null, 'Coca-Cola', '355 ml', 355, 'ml'],
+  ]);
+  const r = await cat.search({ text: 'Coca-Cola Cherry', variant: 'Cherry', limit: 6 });
+
+  // Before the families this needed the model to read the French word off an
+  // English can. The pair is the table's whole contribution here.
+  assert.equal(signalOf(r.candidates, FR_ONLY), true, '"cerise" answers to "cherry"');
+});
+
+test('a flavour with no family behind it is still matched literally', async () => {
+  const cat = await fixture();
+  const r = await cat.search({ text: 'Coca-Cola Coke Zero Vanilla', variant: 'Vanilla', limit: 5 });
+
+  // The vanilla row says "vanille" in its generic name and nothing else does,
+  // so the pair carries it and the two plain rows stay wrong.
+  assert.equal(signalOf(r.candidates, VANILLA), true);
+  assert.equal(signalOf(r.candidates, PLAIN), false);
+  assert.equal(signalOf(r.candidates, CHERRY), false);
 });

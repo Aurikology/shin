@@ -275,3 +275,98 @@ test('the variant is pinned on the two queries that name a product and on neithe
   assert.equal(queries[1].variant, 'Cherry', 'q2 unpins the size, not the flavour');
   assert.equal(queries[2].variant, undefined, 'q3 pins nothing at all, by design');
 });
+
+/* -------------------------------------------------------------------------
+ * THE WORDS THE CAN ACTUALLY PRINTS, 2026-09-14.
+ *
+ * The guard above only fires when the variant the model read is spelled the way
+ * the catalogue spelled it. The can in the defect photograph says "Zero Sugar",
+ * which is the transcription to expect, and the row it belongs to says
+ * "calorie-free" and sits on `en:diet-cola-soft-drink`. Literally, those two
+ * disagree, and the guard stopped helping on the likelier reading of the two.
+ * `catalogue/src/variant-words.ts` is the one word table both this file and the
+ * catalogue's ranking read.
+ * ------------------------------------------------------------------------- */
+
+/** 06772408, the sugared Cherry Coke sitting beside the can we want. */
+const CHERRY_REGULAR = candidate({
+  code: '06772408',
+  name: 'Cherry Coke',
+  brands: 'Coca-Cola',
+  signals: { similarity: 0.88, brandAgrees: true, sizeAgrees: true },
+});
+
+test('"Zero Sugar" off the can and "calorie-free" in the row are one thing', () => {
+  // The exact words a model reading that can would report. Before the word
+  // families this returned false and pass one settled on the plain can again.
+  assert.equal(variantForcesPick('Cherry Zero Sugar', [PLAIN, CHERRY]), true);
+  // And the leader already being the right can still settles, as it must.
+  assert.equal(variantForcesPick('Cherry Zero Sugar', [CHERRY, PLAIN]), false);
+});
+
+test('a sugared cherry cola is not a zero cherry cola', () => {
+  // Half the variant agrees and the half that separates the two cans does not,
+  // so this candidate is not something to force a second look for.
+  assert.equal(variantForcesPick('Cherry Zero Sugar', [PLAIN, CHERRY_REGULAR]), false);
+  // With the real can in the list as well, the guard fires for that one.
+  assert.equal(variantForcesPick('Cherry Zero Sugar', [CHERRY_REGULAR, CHERRY]), true);
+});
+
+test('a row whose only zero is the shelf it sits on carries the variant', () => {
+  // Nothing in this row's names says zero. The catalogue recorded the fact as a
+  // category instead, which is where a quarter of these rows keep it.
+  const shelf = candidate({
+    code: 'C3',
+    name: 'Cherry cola',
+    brands: 'Coca-Cola',
+    categoryPath: ['en:beverages', 'en:diet-sodas'],
+  });
+  assert.equal(variantForcesPick('Cherry Zero Sugar', [PLAIN, shelf]), true);
+
+  // A shelf that merely starts with the same letters is not that shelf.
+  const notDiet = candidate({
+    code: 'C2',
+    name: 'Cherry cola',
+    brands: 'Coca-Cola',
+    categoryPath: ['en:beverages', 'en:dietary-supplements'],
+  });
+  assert.equal(variantForcesPick('Cherry Zero Sugar', [PLAIN, notDiet]), false);
+});
+
+test('the French word answers to the English one, and the English can be the query', () => {
+  const frOnly = candidate({ code: 'C1', name: 'Cola', nameFr: 'Cola cerise', brands: 'Coca-Cola' });
+  // "Cerise" reaching a row spelling it "cerise" was already true. What is new
+  // is a model reading an English can reaching a row named only in French.
+  assert.equal(variantForcesPick('Cherry', [PLAIN, frOnly]), true);
+});
+
+test('light is not zero, and a flavour nobody carries is still nobody', () => {
+  const light = candidate({ code: 'L1', name: 'Cola light', nameFr: 'Cola legere', brands: 'Coca-Cola' });
+  const plainCola = candidate({ code: 'L2', name: 'Cola', brands: 'Coca-Cola' });
+
+  // A light cola and a zero-sugar cola are different claims on the pack, so one
+  // never stands in for the other.
+  assert.equal(variantForcesPick('Zero Sugar', [plainCola, light]), false);
+  // Its own family still works in its own right.
+  assert.equal(variantForcesPick('Light', [plainCola, light]), true);
+  // And a flavour word with no family behind it is matched as it always was.
+  assert.equal(variantForcesPick('Vanilla', [PLAIN, CHERRY]), false);
+});
+
+test('D-099 in the words the can prints: the sugared cherry can no longer settles', async () => {
+  const model = fakeModel({
+    variant: 'Cherry Zero Sugar',
+    front_text: ['Coca-Cola', 'Zero Sugar', 'Cherry', '355 mL'],
+  });
+  const stage = new IdentifyStage(
+    async () => ({ band: 'confident', candidates: [CHERRY_REGULAR, CHERRY], ring: null, matchedBy: 'hybrid' }),
+    model,
+  );
+  const outcome = await stage.fromCrop(new Uint8Array(), null, 'pro', 100);
+
+  // The leader is the right flavour and the wrong can, which is the hardest
+  // version of this defect: the flavour alone would have settled it.
+  assert.equal(model.picks, 1, 'the leader carries the cherry and not the zero, so this is not settled');
+  assert.equal(outcome.kind, 'identified');
+  if (outcome.kind === 'identified') assert.equal(outcome.passes, 2);
+});

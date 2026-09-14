@@ -24,6 +24,7 @@ import {
 import { spendCapRefusalMessage } from './cap.ts';
 import { capByPick, deriveConfidence, LEAD_CLEAR, type Confidence } from './confidence.ts';
 import { gtinFrom } from './gtin.ts';
+import { foldVariantText, variantCarriedBy, variantTokens } from '../../catalogue/src/variant-words.ts';
 
 export type { FailureClass } from './model.ts';
 
@@ -528,7 +529,9 @@ export class IdentifyStage {
  * can, and a row carrying only "zero sugar" is precisely the row this exists to
  * stop settling on. Accent folded because the row that names the variant is
  * often the French one, and "Coca-cola cerise" is the reason the pick pass is
- * now shown `name_fr` at all.
+ * now shown `name_fr` at all. A token is answered by its family as well as by
+ * itself (`catalogue/src/variant-words.ts`), because the catalogue spells one shelf six ways
+ * and "zero" is written "calorie-free" on the exact row this was built to find.
  *
  * Exported for its own tests: this is a decision about two lists of words and it
  * is worth being able to ask it without a stage, a model and a catalogue.
@@ -537,35 +540,33 @@ export function variantForcesPick(
   variant: string | null,
   candidates: readonly CatalogueCandidate[],
 ): boolean {
-  const wanted = variantTokens(variant);
-  if (wanted.length === 0) return false;
+  if (variantTokens(variant).length === 0) return false;
 
   const [best, ...rest] = candidates;
   if (!best) return false;
-  if (carriesVariant(best, wanted)) return false;
-  return rest.some((c) => carriesVariant(c, wanted));
-}
-
-/** Lower-cased and stripped of accents, so "Cerise" and "cerise" are one word. */
-function foldVariantText(s: string): string {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-}
-
-function variantTokens(variant: string | null): string[] {
-  if (!variant) return [];
-  return foldVariantText(variant).split(/[^a-z0-9]+/).filter(Boolean);
+  if (carriesVariant(best, variant)) return false;
+  return rest.some((c) => carriesVariant(c, variant));
 }
 
 /**
- * Everything the row knows that could name a flavour, read as one string.
+ * Everything the row knows that could name a flavour, read as one string, plus
+ * the shelf it sits on.
  *
  * Substring rather than whole-word, matching what `brandAgreesWith` already does
  * on the catalogue side, because a variant is printed hyphenated and compounded
  * as often as not: "Cherry-flavoured" has to answer to "cherry".
+ *
+ * The category path joined the evidence on 2026-09-14, with the word families in
+ * `catalogue/src/variant-words.ts`. The row this whole guard is about spells its zero
+ * "calorie-free" in the name and `en:diet-cola-soft-drink` on the shelf, so a
+ * model transcribing the can's own "Zero Sugar" found the variant in neither
+ * name and the guard quietly stopped firing on the likelier reading of the two.
+ * The catalogue side asks the identical question off the identical evidence, so
+ * the rank and the guard cannot disagree about what a row says.
  */
-function carriesVariant(c: CatalogueCandidate, wanted: readonly string[]): boolean {
-  const text = foldVariantText([c.name, c.nameFr ?? '', c.genericName ?? ''].join(' '));
-  return wanted.every((token) => text.includes(token));
+function carriesVariant(c: CatalogueCandidate, variant: string | null): boolean {
+  const text = [c.name, c.nameFr ?? '', c.genericName ?? ''].join(' ');
+  return variantCarriedBy(variant, text, c.categoryPath ?? []);
 }
 
 /**
