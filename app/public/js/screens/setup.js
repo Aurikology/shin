@@ -19,6 +19,18 @@ import { wireRadioGroup } from '../lib/radiogroup.js';
 import { storagePersists } from '../lib/persistence.js';
 import { t } from '../ui-strings.js';
 
+/** The four offered percentages. Defined in store.js, beside the two defaults. */
+const PCT_CHOICES = store.LINE_CHOICES;
+
+function pctButton(side, n, chosen) {
+  const on = n === chosen;
+  return `
+    <button type="button" class="pct${on ? ' on' : ''}" role="radio"
+            aria-checked="${on}" data-line="${side}" data-pct="${n}">
+      ${escapeHtml(t('setup_lines_percent', { n: String(n) }))}
+    </button>`;
+}
+
 export default {
   id: 'setup',
   title: 'Pick your Shin',
@@ -26,6 +38,8 @@ export default {
 
   render(root, ctx) {
     const current = store.get().personality ?? null;
+    const underPct = store.get().lineUnderPct ?? 10;
+    const overPct = store.get().lineOverPct ?? 10;
     // Every listener on this screen goes on the persistent `#screen` element,
     // which outlives the screen. Before this, none of them came off again, so
     // camera -> setup -> camera -> setup left two live setup handlers on one
@@ -56,6 +70,43 @@ export default {
           ${escapeHtml(t('setup_promise'))}
         </p>
 
+        ${/*
+           * The user's two lines, asked here because they are what the price
+           * line's three zones are NAMED after and a zone with no number
+           * behind it is a zone Shin picked. The founder's ask, 2026-09-14:
+           * how far below the middle of what was found is worth it, and how
+           * far above is past what they will pay. Ten and ten to start, so
+           * skipping this screen is a complete answer rather than a blank.
+           *
+           * Same shape as the attitude picker above, deliberately: a
+           * radiogroup, `wireRadioGroup` for arrow keys, the chosen button
+           * carrying `.on` and `aria-checked`. A second interaction pattern
+           * on the one screen the user meets first is a cost with nothing on
+           * the other side of it.
+           *
+           * The QUESTIONS avoid "under the usual" and "over the usual", and
+           * the French avoids "au-dessus du prix", because all three are on
+           * the grading-word ban list that guards hard rule 2. The strings
+           * and the reasoning are in ui-strings.js beside them.
+           */ ''}
+        <section class="lines">
+          <h2>${escapeHtml(t('setup_lines_heading'))}</h2>
+
+          <p class="line-q" id="line-under-q">${escapeHtml(t('setup_lines_under_q'))}</p>
+          <div class="pcts" role="radiogroup" aria-labelledby="line-under-q"
+               aria-label="${escapeHtml(t('setup_lines_under_group'))}">
+            ${PCT_CHOICES.map((n) => pctButton('under', n, underPct)).join('')}
+          </div>
+
+          <p class="line-q" id="line-over-q">${escapeHtml(t('setup_lines_over_q'))}</p>
+          <div class="pcts" role="radiogroup" aria-labelledby="line-over-q"
+               aria-label="${escapeHtml(t('setup_lines_over_group'))}">
+            ${PCT_CHOICES.map((n) => pctButton('over', n, overPct)).join('')}
+          </div>
+
+          <p class="fineprint">${escapeHtml(t('setup_lines_note'))}</p>
+        </section>
+
         ${
           /*
            * The error state this screen was missing, and the only one it can
@@ -76,9 +127,32 @@ export default {
 
     // The group promised arrow keys in its ARIA and had none, and Tab stopped
     // on all three faces instead of entering the group once. lib/radiogroup.js.
-    wireRadioGroup(root.querySelector('[role="radiogroup"]'), { signal: ac.signal });
+    // Every group on this screen, not just the first. Before the two lines
+    // were added there was exactly one radiogroup and `querySelector` was the
+    // same thing as `querySelectorAll`; it stopped being, silently, and the
+    // two new groups would have promised arrow keys in their ARIA and had
+    // none. Same bug lib/radiogroup.js was written to fix in the first place.
+    for (const group of root.querySelectorAll('[role="radiogroup"]')) {
+      wireRadioGroup(group, { signal: ac.signal });
+    }
 
     on(root, 'click', (e) => {
+      const pct = e.target.closest('[data-pct]');
+      if (pct) {
+        const n = Number(pct.dataset.pct);
+        // Stored under the name the price line reads, so the zone the user
+        // just moved is the zone they see on the next scan. Nothing else on
+        // this screen changes; there is no preview here because there is no
+        // scan yet to preview against.
+        store.update(pct.dataset.line === 'under' ? { lineUnderPct: n } : { lineOverPct: n });
+        const row = pct.closest('[role="radiogroup"]');
+        for (const el of row.querySelectorAll('.pct')) {
+          const chosen = el === pct;
+          el.classList.toggle('on', chosen);
+          el.setAttribute('aria-checked', String(chosen));
+        }
+        return;
+      }
       const pick = e.target.closest('[data-who]');
       if (pick) {
         setPersonality(pick.dataset.who);

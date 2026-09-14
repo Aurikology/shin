@@ -1,0 +1,359 @@
+/**
+ * The Gemini grounded block: the ONLY file in public/js that reads inside the
+ * `grounded` wire.
+ *
+ * WHY THE "ONLY" MATTERS. When Shin's own price sources have nothing, the
+ * server asks Gemini, and Gemini answers from a Google Search. What comes
+ * back is a Grounded Result under the Gemini API terms
+ * (https://ai.google.dev/gemini-api/terms, eff. 2026-03-23), and the display
+ * rules there are a contract rather than a preference. Keeping every read of
+ * that wire in one file is what makes the contract checkable: a reviewer can
+ * read this file and know that nothing else in the client reformats a
+ * grounded price, re-sorts a grounded list, or attaches anything of ours to a
+ * grounded link. Everything downstream of here is handed plain, already
+ * extracted values (see `price-line.js`, which never sees the wire at all).
+ *
+ * THE FOUR TERMS THIS FILE IS SHAPED BY, each quoted and then answered:
+ *
+ * 1. "will not modify, or intersperse any other content with, the Grounded
+ *    Results or Search Suggestions"
+ *    -> Every field below is written with `textContent`, in the order the
+ *       wire gave it. There is no `.sort`, no `.slice`, no `cad()`, no
+ *       `Intl.NumberFormat` anywhere in this file. A price renders as the
+ *       exact bytes Gemini returned. Re-sorting cheapest-first, or turning
+ *       "4.49" into "$4.49", is "modify" -- it changes what the reader is
+ *       told the search said.
+ *    -> "intersperse" is answered as DOM STRUCTURE, not as good intentions:
+ *       Shin's own sentences (the section heading, the no-link heads-up) are
+ *       SIBLINGS of `[data-grounded]`, never children of it. The root holds
+ *       wire content and nothing else, so the separation survives a later
+ *       edit by someone who has not read this header.
+ *
+ * 2. "will not place any interstitial content between any Link or Search
+ *    Suggestions and the associated destination page, redirect end users away
+ *    from the destination pages, or minimize, remove, or otherwise inhibit
+ *    the full and complete display of any destination page"
+ *    -> An anchor takes the wire's `url` verbatim into `href`. No appended
+ *       query parameter, no `utm_`, no affiliate `tag=`, no `/r/` redirect
+ *       hop, no `target` interstitial, no iframe, no confirm-before-you-leave
+ *       sheet. `test/grounded-client.test.mjs` greps this file for each of
+ *       those shapes, because the tempting version of every one of them is a
+ *       one-line change.
+ *
+ * 3. "you will not track whether those interactions were specifically with a
+ *    given Search Suggestion or Grounded Result... including any specific
+ *    Link"
+ *    -> The root carries `data-no-track`, and `track.js`'s document-level tap
+ *       listener returns on any ancestor with that attribute, as its first
+ *       statement. Nothing in this subtree carries `data-act`, which is the
+ *       other thing that listener reads. Screen-level events still fire: that
+ *       the result screen was open is ours to know, which link was pressed is
+ *       not.
+ *
+ * 4. Search Suggestions must be shown with every grounded answer.
+ *    -> This is the one Google REQUIRES rather than merely permits, so it is
+ *       the one enforced hardest here: with no `suggestionsHtml`, this file
+ *       renders NOTHING AT ALL and the caller shows no grounded section. A
+ *       half-rendered block that kept the prices and dropped the suggestions
+ *       is the failure most likely to cost the key, so the only safe default
+ *       is to lose the whole feature for that answer instead.
+ *    -> `suggestionsHtml` is this file's single `innerHTML` assignment, and
+ *       its right-hand side is the wire's value with no method call on it. It
+ *       is Google's own rendered HTML; escaping it or rebuilding it from its
+ *       parts would be "modify". That is the one and only place in this
+ *       client where unescaped remote HTML is assigned, and it is why the
+ *       rest of the file is so strict: everything else is `textContent`, so
+ *       the exception is visible rather than lost among others.
+ *
+ * NOT TRANSLATED AFTER THE FACT, and this is a deliberate exception to the
+ * rule that every Shin string has French. The server asks Gemini for the
+ * reader's language, so a French reader's grounded block arrives in French
+ * from Google. Running it back through a translation once it is here would be
+ * "modify" under term 1. So: Shin's sentences AROUND the block are translated
+ * (they live in `ui-strings.js`), and the block's own words are whatever
+ * Google sent, in whatever language Google sent them. Written down here
+ * rather than left silent, because the French coverage test cannot see an
+ * absence it was never told about.
+ *
+ * THE HEADS-UP ON A MISSING LINK is the founder's own call, 2026-09-14: "we
+ * will accept all answers gemini gives, just give a heads up that something
+ * doesn't have a link". So a `hasLink === false` offer or review is still
+ * shown, in its wire position, with its price and its words intact. The
+ * heads-up is a short plain sentence of Shin's, and by term 1 it goes OUTSIDE
+ * the root with the rest of Shin's sentences.
+ */
+
+import { t } from './ui-strings.js';
+import { priceLine } from './price-line.js';
+
+/**
+ * The document to build in. Defaulted rather than imported so the tests can
+ * hand in a minimal stand-in: this app carries zero runtime dependencies by
+ * decision (see `test/sheet.test.mjs`'s header), so there is no jsdom to
+ * mount, and a renderer that can only run in a browser is a renderer nothing
+ * checks.
+ */
+const docOf = (opts) => opts.doc ?? globalThis.document;
+
+/** A text node's worth of value, with nullish rendered as empty. */
+const str = (value) => (value === null || value === undefined ? '' : String(value));
+
+function el(doc, tag, className) {
+  const node = doc.createElement(tag);
+  if (className) node.setAttribute('class', className);
+  return node;
+}
+
+/**
+ * One field of the wire, as text, in place.
+ *
+ * `textContent` and never `innerHTML`: a retailer name or a review summary
+ * from a search result is remote text, and this is also the line that makes
+ * "will not modify" true field by field. No trimming, no casing, no currency
+ * formatting; the bytes Gemini sent are the bytes rendered.
+ */
+function field(doc, parent, className, value) {
+  const text = str(value);
+  if (text === '') return null;
+  const node = el(doc, 'span', className);
+  node.textContent = text;
+  parent.appendChild(node);
+  return node;
+}
+
+/**
+ * The destination link for one grounded row, or plain text when there is none.
+ *
+ * `href` is assigned the wire's value and nothing else. There is deliberately
+ * no helper between the wire and this assignment: a `linkFor()` that "just
+ * normalises" a URL is exactly how an affiliate tag gets added eighteen
+ * months from now by somebody who never read term 2.
+ */
+function linkOrText(doc, row, item, label) {
+  const text = str(label);
+  if (item.hasLink === true && typeof item.url === 'string' && item.url !== '') {
+    const a = doc.createElement('a');
+    a.setAttribute('href', item.url);
+    a.setAttribute('rel', 'noopener');
+    a.textContent = text;
+    row.appendChild(a);
+    return a;
+  }
+  const span = el(doc, 'span', 'g-name');
+  span.textContent = text;
+  row.appendChild(span);
+  return span;
+}
+
+/**
+ * The root: wire content only, in wire order, and the thing `track.js` refuses
+ * to look inside.
+ *
+ * Exported so the tests can assert on it directly rather than digging it out
+ * of the section, and so a future caller that wants the block without Shin's
+ * chrome cannot be tempted to reach into this file's internals for it.
+ */
+export function groundedRoot(grounded, opts = {}) {
+  if (!grounded || grounded.kind !== 'grounded') return null;
+  const block = grounded.block;
+  if (!block) return null;
+  // Term 4. No suggestions, no block: see the header. This is the check that
+  // has to stay even when it feels like it is throwing away a good answer.
+  const suggestionsHtml = grounded.suggestionsHtml;
+  if (typeof suggestionsHtml !== 'string' || suggestionsHtml === '') return null;
+
+  const doc = docOf(opts);
+  const root = el(doc, 'div', 'grounded');
+  root.setAttribute('data-grounded', '');
+  root.setAttribute('data-no-track', '');
+  // Not a landmark of Shin's own: the block is one quoted answer, and giving
+  // it a role with an accessible name would mean putting one of our words on
+  // it, which is the heading's job and the heading is outside.
+  if (grounded.fetchedAt) root.setAttribute('data-fetched-at', str(grounded.fetchedAt));
+  if (grounded.forDevice) root.setAttribute('data-for-device', str(grounded.forDevice));
+
+  if (typeof block.description === 'string' && block.description !== '') {
+    const p = el(doc, 'p', 'g-description');
+    p.textContent = block.description;
+    root.appendChild(p);
+  }
+
+  const offers = Array.isArray(block.offers) ? block.offers : [];
+  if (offers.length > 0) {
+    const list = el(doc, 'ol', 'g-offers');
+    // A plain `for`, walking the array as it arrived. Not `.map`, not
+    // `.sort`, not `.slice`: the order on screen is the order Google
+    // returned, and a reviewer can see that from the loop itself.
+    for (let i = 0; i < offers.length; i += 1) {
+      const offer = offers[i];
+      const row = el(doc, 'li', 'g-offer');
+      linkOrText(doc, row, offer, offer.retailer);
+      // The price exactly as returned. `cad()` is not imported into this file
+      // and must not be: "$4.49" where Gemini said "4.49 CAD" is a modified
+      // Grounded Result, however much nicer it looks beside our own prices.
+      field(doc, row, 'g-price', offer.price);
+      field(doc, row, 'g-pack', offer.packCount);
+      field(doc, row, 'g-size', offer.sizeValue);
+      field(doc, row, 'g-unit', offer.sizeUnit);
+      list.appendChild(row);
+    }
+    root.appendChild(list);
+  }
+
+  const reviews = Array.isArray(block.reviews) ? block.reviews : [];
+  if (reviews.length > 0) {
+    const list = el(doc, 'ol', 'g-reviews');
+    for (let i = 0; i < reviews.length; i += 1) {
+      const review = reviews[i];
+      const row = el(doc, 'li', 'g-review');
+      linkOrText(doc, row, review, review.source);
+      field(doc, row, 'g-rating', review.rating);
+      field(doc, row, 'g-count', review.count);
+      field(doc, row, 'g-summary', review.summary);
+      list.appendChild(row);
+    }
+    root.appendChild(list);
+  }
+
+  /*
+   * Google's own rendered HTML, assigned whole.
+   *
+   * THE SINGLE `innerHTML` IN THIS FILE, and the test asserts both halves of
+   * that sentence: exactly one assignment, and its right-hand side is the
+   * bare wire value with no method call on it. `escapeHtml(suggestionsHtml)`
+   * would show a reader the markup instead of the suggestions;
+   * `suggestionsHtml.replace(...)` or `.trim()` would be "modify" and would
+   * also be the first step of the change that eventually strips the
+   * attribution. There is no safe-looking version of touching this string.
+   */
+  const suggestions = el(doc, 'div', 'g-suggestions');
+  suggestions.innerHTML = suggestionsHtml;
+  root.appendChild(suggestions);
+
+  return root;
+}
+
+/**
+ * Which rows have no link, as plain labels for Shin to mention OUTSIDE the
+ * root.
+ *
+ * This is the only place the wire is read for Shin's own prose, and it reads
+ * exactly two things: whether a link is absent, and the name of the row it is
+ * absent from. The name is needed because "one of these has no link" over six
+ * rows is not a heads-up, it is a puzzle.
+ */
+function missingLinks(block) {
+  const out = [];
+  const offers = Array.isArray(block.offers) ? block.offers : [];
+  for (let i = 0; i < offers.length; i += 1) {
+    if (offers[i].hasLink === false) out.push(str(offers[i].retailer));
+  }
+  const reviews = Array.isArray(block.reviews) ? block.reviews : [];
+  for (let i = 0; i < reviews.length; i += 1) {
+    if (reviews[i].hasLink === false) out.push(str(reviews[i].source));
+  }
+  return out;
+}
+
+/**
+ * Everything the result screen shows for a grounded answer: Shin's heading,
+ * the untouched block, Shin's heads-up, and the price line.
+ *
+ * THE ORDER OF THE CHILDREN IS THE COMPLIANCE STORY. Heading first, then the
+ * root, then Shin's sentences, then the price line. Nothing of Shin's is ever
+ * appended INTO `root`, and there is no code path here that could: `root` is
+ * finished by `groundedRoot` before this function has a string of its own.
+ *
+ * The price line is outside the root for the same reason, and for a second
+ * one: it carries Shin's zone words, which are the user's own settings put
+ * into English or French. Those are our words about the user's line, not
+ * Google's words about a price.
+ *
+ * @param {object} grounded  the `grounded` member of a priced payload
+ * @param {object} [opts]
+ * @param {object} [opts.doc]  document to build in
+ * @param {object} [opts.shelfLabel]  the scanned item's own quantity-and-price
+ *   label, e.g. "6 x 355 mL, $4.49". Shin's own item, from Shin's own data,
+ *   so Shin formats it; it is passed IN rather than built here.
+ */
+export function groundedSection(grounded, opts = {}) {
+  const root = groundedRoot(grounded, opts);
+  if (!root) return null;
+
+  const doc = docOf(opts);
+  /*
+   * A section of its own, never a continuation of Shin's own price list.
+   * Two sections, never one list: a reader has to be able to see which
+   * numbers came from Shin's sources and which came from a Google search,
+   * and a single merged list makes that unanswerable. It is also term 1
+   * again, from the other side: merging our rows into Google's list is
+   * interspersing our content with a Grounded Result.
+   */
+  const section = el(doc, 'section', 'grounded-section');
+  section.setAttribute('aria-label', t('grounded_heading'));
+
+  const heading = el(doc, 'h3', 'grounded-heading');
+  heading.textContent = t('grounded_heading');
+  section.appendChild(heading);
+
+  section.appendChild(root);
+
+  const absent = missingLinks(grounded.block);
+  if (absent.length > 0) {
+    const list = el(doc, 'ul', 'grounded-nolink');
+    for (let i = 0; i < absent.length; i += 1) {
+      const li = el(doc, 'li', null);
+      li.textContent = t('grounded_no_link', { name: absent[i] });
+      list.appendChild(li);
+    }
+    section.appendChild(list);
+  }
+
+  /*
+   * The price line, drawn from the wire's own verdict.
+   *
+   * EVERY POSITION IS READ, NEVER COMPUTED. Working out where a grounded
+   * price sits on a scale is this app analysing a Grounded Result, which is
+   * what term 1 forbids; the server did that arithmetic and sent the answers,
+   * and the client's whole job here is to draw them. So the values below are
+   * lifted across one for one and handed to `price-line.js`, which has no
+   * knowledge of the grounded wire and cannot reach back into it.
+   */
+  const verdict = grounded.block.verdict;
+  if (verdict) {
+    const line = priceLine({
+      median: verdict.median,
+      unitLabel: verdict.unitLabel,
+      span: verdict.span,
+      ticks: verdict.ticks,
+      goodBoundary: verdict.goodBoundary,
+      badBoundary: verdict.badBoundary,
+      shelf: verdict.shelf,
+      points: verdict.points,
+      excluded: verdict.excluded,
+      shelfLabel: opts.shelfLabel ?? null,
+    }, { doc });
+    if (line) section.appendChild(line);
+  }
+
+  return section;
+}
+
+/**
+ * Put the section into a container the screen already rendered.
+ *
+ * The screens in this app build HTML strings and assign them once; this block
+ * cannot be built that way, because building it as a string would mean
+ * escaping (modify) or concatenating (an `innerHTML` with the wire inside a
+ * template, which is both a second `innerHTML` and an injection). So the
+ * screen leaves an empty, marked container in its template and calls this
+ * after the assignment. Returns the section, or null when there was nothing
+ * to show, so a caller can hide its own surroundings.
+ */
+export function mountGrounded(container, grounded, opts = {}) {
+  if (!container) return null;
+  const section = groundedSection(grounded, { ...opts, doc: opts.doc ?? container.ownerDocument ?? globalThis.document });
+  if (!section) return null;
+  container.appendChild(section);
+  return section;
+}

@@ -116,6 +116,12 @@ export default {
     /* Read once per render, like `theme` above it, so the markup and the tick
        cannot disagree with each other inside one paint. */
     const chosenLocale = locale();
+    /* The user's two lines, read once per render for the same reason. The
+       four offered values live in store.js beside their defaults, so setup
+       and this screen can never drift apart on what is on offer. */
+    const PCT_CHOICES = store.LINE_CHOICES;
+    const underPct = store.get().lineUnderPct ?? 10;
+    const overPct = store.get().lineOverPct ?? 10;
 
     /**
      * Item 8d. The "Your ratings" section's zero-count caption has no
@@ -188,6 +194,40 @@ export default {
               ${THEMES.map(
                 (th) => `<button type="button" class="btn seg-o${th.id === theme ? ' on' : ''}"
                           role="radio" aria-checked="${th.id === theme}" data-theme="${th.id}">${escapeHtml(t(th.key))}</button>`,
+              ).join('')}
+            </div>
+          </div>
+
+          <!--
+            The user's two lines, item added 2026-09-14. Setup asks them once;
+            this is where they get changed, which is what setup's own fineprint
+            promises ("Both changeable any time on the You page") and a promise
+            with no control behind it is a defect, not a caption.
+
+            Built as two more .seg radiogroups, the same control the theme row
+            one block up already uses. These are the numbers the price line's
+            three zones are NAMED after, and that is why they are the user's
+            setting rather than a constant: "under your line" is a statement
+            about a boundary this person chose. Nothing here grades a price.
+          -->
+          <div class="setting">
+            <span class="setting-t" id="you-under-l">${escapeHtml(t('setup_lines_under_group'))}</span>
+            <div class="seg" role="radiogroup" aria-labelledby="you-under-l">
+              ${PCT_CHOICES.map(
+                (n) => `<button type="button" class="btn seg-o${n === underPct ? ' on' : ''}"
+                          role="radio" aria-checked="${n === underPct}" data-line="under" data-pct="${n}"
+                          >${escapeHtml(t('setup_lines_percent', { n: String(n) }))}</button>`,
+              ).join('')}
+            </div>
+          </div>
+
+          <div class="setting">
+            <span class="setting-t" id="you-over-l">${escapeHtml(t('setup_lines_over_group'))}</span>
+            <div class="seg" role="radiogroup" aria-labelledby="you-over-l">
+              ${PCT_CHOICES.map(
+                (n) => `<button type="button" class="btn seg-o${n === overPct ? ' on' : ''}"
+                          role="radio" aria-checked="${n === overPct}" data-line="over" data-pct="${n}"
+                          >${escapeHtml(t('setup_lines_percent', { n: String(n) }))}</button>`,
               ).join('')}
             </div>
           </div>
@@ -490,6 +530,20 @@ export default {
     });
 
     on(root, 'click', (e) => {
+      // The two lines. Repainted in place like the attitude and the theme:
+      // nothing else on this screen reads them, so there is no reason to
+      // re-render a page the user is in the middle of scrolling.
+      const pct = e.target.closest('[data-pct]');
+      if (pct) {
+        const n = Number(pct.dataset.pct);
+        store.update(pct.dataset.line === 'under' ? { lineUnderPct: n } : { lineOverPct: n });
+        for (const el of pct.closest('[role="radiogroup"]').querySelectorAll('.seg-o')) {
+          const picked = el === pct;
+          el.classList.toggle('on', picked);
+          el.setAttribute('aria-checked', String(picked));
+        }
+        return;
+      }
       const who = e.target.closest('[data-who]');
       if (who) {
         setPersonality(who.dataset.who);

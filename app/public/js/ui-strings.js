@@ -233,12 +233,70 @@ const EN = {
   removed_for_good: 'for good',
   removed_days_left: (f) => `${f.n} day${f.n === '1' ? '' : 's'} left`,
 
+  /* ------------------------------------------ the Gemini grounded section
+   * EVERY STRING HERE IS RENDERED OUTSIDE THE GROUNDED BLOCK, never inside
+   * it. The Gemini API terms (eff. 2026-03-23) say we will not "intersperse
+   * any other content with" a Grounded Result, and `grounded.js` answers that
+   * as DOM structure: these are siblings of `[data-grounded]`, never its
+   * children. A test asserts no string from this file appears as text inside
+   * that root, so moving one of these in fails loudly.
+   *
+   * The block's own words are NOT translated. The server asks Gemini for the
+   * reader's language, so a French reader's block arrives in French from
+   * Google; translating it once it is back here would be "modify". The
+   * exception is written down in grounded.js's header too, because a silent
+   * absence is what the coverage test cannot see. */
+  grounded_heading: 'Found by Google',
+  /* The founder, 2026-09-14: "we will accept all answers gemini gives, just
+     give a heads up that something doesn't have a link". The row still
+     shows, in its own position, with its price intact; this is the heads-up,
+     and it names which row so it is a heads-up and not a puzzle. */
+  grounded_no_link: (f) => `No link for this one: ${f.name}`,
+
+  /* ------------------------------------------------------- the price line
+   * The zone words name the range the USER set. They are never Shin's
+   * reading of the price: "good", "fair", "high", "a deal", "over the usual"
+   * and "under the usual" are all banned outside a real verdict. */
+  priceline_label: 'Price line',
+  priceline_zone_under: 'under your line',
+  priceline_zone_middle: 'in the middle',
+  priceline_zone_over: 'over your line',
+  priceline_tick_middle: 'middle',
+  priceline_caption: (f) => `Per ${f.unit}, ${f.n} prices found`,
+  priceline_you_under: (f) => `your price, ${f.pct}% under the middle of ${f.n} prices`,
+  priceline_you_middle: (f) => `your price, in the middle of ${f.n} prices`,
+  priceline_you_over: (f) => `your price, ${f.pct}% over the middle of ${f.n} prices`,
+  priceline_merged: (f) => `${f.n} prices`,
+  priceline_excluded: (f) => `${f.n} left out`,
+
   /* --------------------------------------------------------------- the setup */
   setup_title: 'Pick your Shin',
-  setup_kicker: 'One question, then the camera',
+  /* Was "One question, then the camera" until the two lines below were added
+     on 2026-09-14. A kicker that promises one question over three is a small
+     lie the user catches within four seconds of reading it. */
+  setup_kicker: 'Two quick things, then the camera',
   setup_heading: 'Which Shin do you want?',
   setup_promise: 'Changeable any time. The attitude changes the words and never the number.',
   setup_start: 'Start scanning',
+
+  /* ------------------------------------------------- the user's two lines
+   * The founder's ask, 2026-09-14: how far under is worth it, and how far
+   * over is too much. Those are his words for the INTENT and they are not
+   * the words on the screen, because "under the usual" and "over the usual"
+   * are both on the grading-word ban list that test/refusal-swaps.test.mjs
+   * keeps (hard rule 2, Competition Act s.74.01(1)(b)). So the question is
+   * asked about the middle of what was found and about the user's own line,
+   * which is what it actually is: a boundary the user sets, not Shin's
+   * reading of a price. Same reason the French says "sous le milieu" and
+   * "au-dessus du milieu" rather than anything with "prix" next to it:
+   * "au-dessus du prix" is on the list and "au-dessus" alone is not. */
+  setup_lines_heading: 'Where are your two lines?',
+  setup_lines_under_q: 'How far below the middle counts as under your line?',
+  setup_lines_over_q: 'How far above the middle counts as over your line?',
+  setup_lines_under_group: 'Your line below the middle',
+  setup_lines_over_group: 'Your line above the middle',
+  setup_lines_note: 'Ten and ten to start. Both changeable any time on the You page.',
+  setup_lines_percent: (f) => `${f.n}%`,
 
   /* --------------------------------------------------------------- the share */
   share_on_the_tag_caps: 'ON THE TAG',
@@ -531,12 +589,52 @@ const FR = {
   removed_for_good: 'pour de bon',
   removed_days_left: (f) => `${f.n} jour${f.n === '1' ? '' : 's'} restant${f.n === '1' ? '' : 's'}`,
 
+  /* --------------------------------------- la section trouvée par Google
+   * Tout ce qui suit s'affiche A COTE du bloc de Google, jamais dedans. Voir
+   * l'en-tete de grounded.js: les conditions de l'API Gemini interdisent
+   * d'intercaler notre contenu dans un resultat ancre, et la structure du DOM
+   * est la reponse a cette phrase.
+   *
+   * Le bloc lui-meme n'est PAS traduit ici: le serveur demande a Gemini la
+   * langue du lecteur, donc il arrive deja en francais. Le retraduire apres
+   * coup serait le "modifier". */
+  grounded_heading: 'Trouvé par Google',
+  grounded_no_link: (f) => `Pas de lien pour celui-ci : ${f.name}`,
+
+  /* ------------------------------------------------------- la ligne des prix
+   * Les mots des zones nomment la limite que l'UTILISATEUR a fixee. Jamais
+   * l'avis de Shin sur le prix: "cher", "bon prix", "aubaine", "rabais",
+   * "salé", "élevé", "vol", "au-dessus du prix" et "en dessous du prix" sont
+   * tous interdits hors d'un vrai verdict. D'ou "sous le milieu" et
+   * "au-dessus du milieu": "au-dessus" seul n'est pas sur la liste, c'est
+   * "au-dessus du prix" qui l'est. */
+  priceline_label: 'Ligne des prix',
+  priceline_zone_under: 'sous ta limite',
+  priceline_zone_middle: 'au milieu',
+  priceline_zone_over: 'au-dessus de ta limite',
+  priceline_tick_middle: 'milieu',
+  priceline_caption: (f) => `Par ${f.unit}, ${f.n} prix trouvés`,
+  priceline_you_under: (f) => `ton prix, ${f.pct} % sous le milieu de ${f.n} prix`,
+  priceline_you_middle: (f) => `ton prix, au milieu de ${f.n} prix`,
+  priceline_you_over: (f) => `ton prix, ${f.pct} % au-dessus du milieu de ${f.n} prix`,
+  priceline_merged: (f) => `${f.n} prix`,
+  priceline_excluded: (f) => `${f.n} écartés`,
+
   /* ----------------------------------------------------------- la mise en route */
   setup_title: 'Choisis ton Shin',
-  setup_kicker: 'Une question, puis la caméra',
+  setup_kicker: 'Deux petites choses, puis la caméra',
   setup_heading: 'Quel Shin veux-tu?',
   setup_promise: 'Modifiable n’importe quand. L’attitude change les mots et jamais le chiffre.',
   setup_start: 'Commencer à scanner',
+
+  /* ------------------------------------------------- les deux limites de l'utilisateur */
+  setup_lines_heading: 'Où sont tes deux limites?',
+  setup_lines_under_q: 'Combien sous le milieu compte comme sous ta limite?',
+  setup_lines_over_q: 'Combien au-dessus du milieu compte comme au-dessus de ta limite?',
+  setup_lines_under_group: 'Ta limite sous le milieu',
+  setup_lines_over_group: 'Ta limite au-dessus du milieu',
+  setup_lines_note: 'Dix et dix pour commencer. Les deux se changent n’importe quand sur la page Toi.',
+  setup_lines_percent: (f) => `${f.n} %`,
 
   /* ----------------------------------------------------------- le partage */
   share_on_the_tag_caps: 'SUR L’ÉTIQUETTE',

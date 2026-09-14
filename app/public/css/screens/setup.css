@@ -118,3 +118,58 @@
 .atts-row .att { min-height: 64px; padding: 10px 14px; gap: 12px; }
 .atts-row .att-t b { font-size: 15px; }
 .atts-row .att-t span { font-size: 12.5px; }
+
+/* --------------------------------------------------- the user's two lines --
+ *
+ * Two rows of four percentages, asked once here and changeable on the You
+ * page. They are the numbers the price line's three zones are NAMED after, so
+ * they are a first decision like the attitude above and get the same weight
+ * of control rather than a slider tucked into a settings list.
+ */
+.lines { margin-top: var(--s-5); }
+
+.lines h2 {
+  margin: 0 0 var(--s-2);
+  font-family: var(--f-display);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+}
+
+.line-q {
+  margin: var(--s-4) 0 var(--s-2);
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--ink-muted);
+}
+
+.pcts { display: flex; gap: var(--s-2); }
+
+.pct {
+  /* Four across a 390px screen with the page's own side padding, each one
+     still clearing the 48px tap floor in both directions. */
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: var(--tap);
+  padding: 0 4px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-sm);
+  color: var(--ink-muted);
+  font-family: var(--f-ui);
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: var(--figures);
+  cursor: pointer;
+}
+
+/* The chosen one is marked by fill AND by weight AND by the border, never by
+   colour alone: the same rule the price line's zone words follow. */
+.pct.on {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+  font-weight: 800;
+}
+
+.pct:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }

@@ -1,0 +1,415 @@
+/*
+ * The Gemini grounded section and the price line.
+ *
+ * TWO THINGS THIS FILE IS NOT ALLOWED TO DO, and they are contract terms
+ * rather than taste. The Gemini API terms (eff. 2026-03-23) say we will not
+ * "minimize, remove, or otherwise inhibit the full and complete display" of a
+ * Grounded Result or its Search Suggestions, and will not "intersperse any
+ * other content with" them. In CSS that means:
+ *
+ *   1. Nothing inside `[data-grounded]` is ever `display:none`, `height:0`,
+ *      `max-height` with `overflow:hidden`, `opacity:0`, `visibility:hidden`,
+ *      clipped, faded out at an edge, or collapsed behind a "show more". A
+ *      grounded block is shown whole or not at all. There is no truncation
+ *      here and there must not be one added: a two-line clamp on a review
+ *      summary is exactly the "minimize" the term names.
+ *   2. Nothing of ours is painted INTO that subtree. No `::before` with
+ *      `content`, no background watermark, no overlay. `grounded.js` keeps
+ *      Shin's sentences outside the root in the DOM, and this file does not
+ *      put them back in through a pseudo-element.
+ *
+ * Everything is built from tokens.css, so light and dark come for free: the
+ * light palette is a media query over the same custom properties, and a
+ * hard-coded colour here would be a light-mode bug nobody sees until a tester
+ * opens the app outdoors.
+ */
+
+/* ------------------------------------------------- the section around it -- */
+
+.grounded-section {
+  /* Its own section, visibly separate from Shin's own price list above it.
+     Two sections, never one list: the reader has to be able to tell which
+     numbers came from Shin's sources and which came from a Google search. The
+     rule is a hairline and real space, not a colour difference, because the
+     distinction has to survive a monochrome screenshot. */
+  margin-top: var(--s-5);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--hairline);
+}
+
+.grounded-heading {
+  margin: 0 0 var(--s-3);
+  font-family: var(--f-ui);
+  font-size: var(--t-row-size);
+  font-weight: var(--t-row-weight);
+  color: var(--ink);
+}
+
+/* Shin's heads-up about a row with no link. Outside the root, below it, in
+   Shin's own muted register so it reads as a note and not as part of the
+   answer. The founder's call: the row still shows, this just says so. */
+.grounded-nolink {
+  margin: var(--s-3) 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--s-1);
+  font-size: var(--t-body-size);
+  color: var(--ink-muted);
+}
+
+/* ----------------------------------------------------- the block itself -- */
+
+.grounded {
+  display: grid;
+  gap: var(--s-3);
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-leading);
+  color: var(--ink);
+}
+
+.grounded .g-description {
+  margin: 0;
+  color: var(--ink);
+}
+
+.grounded .g-offers,
+.grounded .g-reviews {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--s-2);
+}
+
+.grounded .g-offer,
+.grounded .g-review {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  /* The gap is what separates "6", "355" and "mL" on screen. It is spacing and
+     not content: `grounded.js` writes each wire field into its own span with
+     `textContent` and never invents a separator glyph between them, because an
+     invented "x" between two numbers is a claim about how they relate. */
+  gap: var(--s-1) var(--s-2);
+  min-height: var(--tap);
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface);
+  border-radius: var(--r-sm);
+}
+
+.grounded .g-offer a,
+.grounded .g-review a,
+.grounded .g-name {
+  /* A tap target that clears 48px on its own, so a link near the edge of a
+     row is not a near miss. No interstitial, no confirmation: the link goes
+     where the wire said, in one tap. */
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.grounded .g-price {
+  font-variant-numeric: var(--figures);
+  font-weight: 700;
+}
+
+.grounded .g-pack,
+.grounded .g-size,
+.grounded .g-unit,
+.grounded .g-rating,
+.grounded .g-count {
+  color: var(--ink-muted);
+  font-variant-numeric: var(--figures);
+}
+
+.grounded .g-summary {
+  /* Full width on its own line, and NOT clamped. A `-webkit-line-clamp` here
+     would be the "minimize... the full and complete display" the terms name,
+     and it is the single most tempting edit in this file. */
+  flex: 1 0 100%;
+  color: var(--ink-muted);
+}
+
+.grounded .g-suggestions {
+  /* Google's own rendered markup, given room and left alone. No overrides on
+     its descendants: restyling a Search Suggestion chip is modifying it, and
+     Google ships this block already styled for exactly this reason. */
+  margin-top: var(--s-2);
+}
+
+/* ------------------------------------------------------- the price line -- */
+
+.priceline-chart {
+  margin-top: var(--s-5);
+  /* Room above and below the track for two rows of labels plus the scanned
+     item's own row underneath them. */
+  padding: 68px 0 212px;
+  position: relative;
+}
+
+.pl-zones {
+  position: relative;
+  height: 14px;
+  /* NOT `overflow: hidden`, which is what the first version used to round the
+     band's ends. It clipped every zone word out of the picture: the words
+     were in the DOM, so the DOM measurement said three zones had three words,
+     and the 390px screenshot showed three coloured rectangles and nothing
+     else. The ends are rounded on the end zones instead. */
+  overflow: visible;
+  display: flex;
+}
+
+.pl-zone:first-child  { border-radius: 999px 0 0 999px; }
+.pl-zone:last-child   { border-radius: 0 999px 999px 0; }
+
+.pl-zone {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pl-zone[data-zone='under_your_line'] { background: color-mix(in srgb, var(--good) 45%, var(--surface)); }
+.pl-zone[data-zone='middle']          { background: var(--raised); }
+.pl-zone[data-zone='over_your_line']  { background: color-mix(in srgb, var(--walk) 45%, var(--surface)); }
+
+/*
+ * THE WORD, NOT THE COLOUR, IS WHAT NAMES THE ZONE.
+ *
+ * The band is 14px tall, which is not enough for readable type, so each
+ * zone's word sits just above its own band rather than inside it. It is real
+ * text in the DOM either way: a shopper with a red-green deficiency, outdoors,
+ * holding the phone at arm's length, is this app's normal reader and not an
+ * edge case. If these ever stop fitting, the fix is to stack them, never to
+ * drop them and leave three coloured rectangles.
+ */
+.pl-zone-word {
+  /* Under its own band, centred on it, below the tick labels. Above the band
+     is where the store labels go, and a word up there collided with them. */
+  position: absolute;
+  top: 44px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  white-space: nowrap;
+  font-family: var(--f-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--ink-muted);
+}
+
+.pl-ticks {
+  position: relative;
+  height: 0;
+}
+
+.pl-tick {
+  position: absolute;
+  top: 2px;
+  width: 1px;
+  height: 8px;
+  background: var(--hairline);
+}
+
+.pl-tick-label {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 10px;
+  font-variant-numeric: var(--figures);
+  color: var(--ink-faint);
+}
+
+.pl-track {
+  position: relative;
+  height: 0;
+}
+
+.pl-marker {
+  position: absolute;
+  top: -20px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pl-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ink);
+  /* A ring in the page's own ground colour, so a dot that lands on top of a
+     zone boundary still reads as one dot rather than as part of the band. */
+  box-shadow: 0 0 0 2px var(--ground);
+}
+
+/*
+ * SIZE IS WHAT MAKES THE SCANNED ITEM'S DOT THE SCANNED ITEM'S DOT.
+ *
+ * Not colour on its own, for the same reason the zones carry words. It is
+ * more than twice the diameter of a store dot, which is a difference that
+ * survives a greyscale screenshot, a sunlit screen and a colour deficiency.
+ * The brand colour on top of that is a second, redundant signal rather than
+ * the signal.
+ */
+.pl-dot-big {
+  width: 20px;
+  height: 20px;
+  background: var(--brand);
+  box-shadow: 0 0 0 3px var(--ground);
+}
+
+/* The short leader line from a dot out to its own label, so a label pushed to
+   one side is still unambiguously attached to the dot it belongs to. */
+.pl-leader {
+  width: 1px;
+  height: 10px;
+  background: var(--hairline);
+}
+
+.pl-label {
+  white-space: nowrap;
+  /* Explicit, so the box height is the same number the layout was solved
+     against rather than whatever the font happens to give. */
+  line-height: 1.2;
+  font-size: 11px;
+  font-variant-numeric: var(--figures);
+  color: var(--ink-muted);
+}
+
+/* Above and below alternate, left to right, which is what buys the room for
+   quantity on every dot at 390px. layoutMarkers() in price-line.js decides
+   which side each one gets and guarantees no two on a side overlap. */
+/* The leader is LONGER above the line than below it. The dot has to stay on
+   the band (that is what makes it a dot on this chart), so the only way to
+   lift the label clear of the scanned item's much larger dot is to lengthen
+   what joins them. Measured at 375px, where the shorter version had the big
+   dot sitting on a store label. */
+.pl-marker.pl-above { flex-direction: column-reverse; top: -60px; }
+.pl-marker.pl-above .pl-leader { height: 36px; }
+.pl-marker.pl-below { top: 50px; }
+
+/*
+ * The scanned item: a positioned dot, and a label row that spans the chart.
+ *
+ * Measured, not guessed. Centring this label on its dot the way a store
+ * label is centred on its own ran 65px off a 390px screen and collided with
+ * a store label, because this is the longest string on the chart. So the row
+ * is full width and wraps, the dot keeps its position, and a leader joins
+ * them. Nothing is dropped: the quantity and the reading are both still on
+ * the one label the founder's rule most cares about.
+ */
+.pl-marker.pl-shelf {
+  /* Below BOTH label rows, not between them. The 390px render pass measured
+     this row colliding with the "below" store labels when it sat at 30px:
+     the row spans the full chart, so it intersects every marker horizontally
+     and only vertical separation keeps it clear. The leader below is long
+     for the same reason, joining the dot on the line down to this row. */
+  top: 118px;
+  left: 0;
+  right: 0;
+  transform: none;
+  display: block;
+}
+
+.pl-marker.pl-shelf .pl-dot-big,
+.pl-marker.pl-shelf .pl-leader {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.pl-marker.pl-shelf .pl-dot-big { top: -135px; }
+.pl-marker.pl-shelf .pl-leader { top: -117px; height: 115px; }
+
+.pl-shelf-label {
+  display: block;
+  padding: 0 var(--s-2);
+  text-align: center;
+  /* Wrapping, unlike a store label. Two short lines on the phone beat one
+     line that leaves the screen. */
+  white-space: normal;
+  line-height: 1.3;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.pl-merged {
+  /* A cluster marker. It expands rather than hiding anything: the quantities
+     are one tap away, never dropped.
+     The BOX is short and the TAP AREA is not. A 48px-tall button here pushed
+     the scanned item's row 30px further down the chart (measured at 390px),
+     which is real vertical budget spent on empty space inside a control. So
+     the visible chip is 30px and ::after below stretches the hit area past
+     the 48px floor this repo checks. */
+  position: relative;
+  min-height: 30px;
+  padding: 0 var(--s-2);
+  background: none;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-sm);
+  color: var(--ink-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pl-merged::after {
+  /* The tap area, invisible. Outside the grounded root, so a pseudo-element
+     is allowed here in a way it is not inside the block. */
+  content: '';
+  position: absolute;
+  inset: -9px -8px;
+}
+
+.pl-cluster[hidden] {
+  /* `display: grid` below outranks the browser's own `[hidden]` rule, so the
+     cluster painted itself over the scanned item's row while still reporting
+     hidden. Caught in the 390px screenshot, invisible to a DOM check. */
+  display: none;
+}
+
+.pl-cluster {
+  margin: var(--s-1) 0 0;
+  padding: var(--s-2);
+  list-style: none;
+  background: var(--raised);
+  border-radius: var(--r-sm);
+  display: grid;
+  gap: var(--s-1);
+  font-size: 11px;
+  color: var(--ink);
+}
+
+.pl-caption,
+.pl-excluded {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin: 0;
+  font-size: var(--t-body-size);
+  color: var(--ink-muted);
+}
+
+.pl-caption { bottom: 18px; }
+.pl-excluded { bottom: 0; font-size: 11px; color: var(--ink-faint); }
+
+/* 375x575 is the other size this repo checks. Less vertical room, so the
+   label rows tighten; nothing is removed, because a dot without its quantity
+   is the thing the founder's second sentence rules out. */
+@media (max-height: 600px) {
+  /* Only the chart's outer padding tightens. The marker offsets stay put:
+     an earlier version raised `.pl-above` here to save a few pixels and put
+     the scanned item's dot straight on top of a store label, which the 375px
+     render pass caught and the 390px one did not. Vertical room is worth
+     less than a label nobody can read. */
+  .priceline-chart { padding: 66px 0 204px; }
+}

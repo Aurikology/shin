@@ -25,6 +25,26 @@ const EMPTY = {
    * number without ever changing the number.
    */
   personality: null,
+  /**
+   * The user's two lines, in percent, asked on the setup screen and changeable
+   * on the You page. Added 2026-09-14 on the founder's ask: how far below the
+   * middle of what was found is worth it, and how far above is past what they
+   * will pay.
+   *
+   * THEY ARE THE USER'S, NOT SHIN'S, and that distinction is the whole reason
+   * they exist as stored settings rather than as constants. The price line's
+   * three zones are named after these numbers ("under your line", "in the
+   * middle", "over your line"), which is what keeps those words a statement
+   * about a boundary the user set instead of a grading of the price. A hard
+   * rule 2 problem (Competition Act s.74.01(1)(b)) is solved here, in the data
+   * model, rather than in a renderer that has to remember to be careful.
+   *
+   * Ten and ten because the founder named those two numbers as the defaults,
+   * not because anything has been measured about them. When something has,
+   * that is a reason to change the default and a reason to say so.
+   */
+  lineUnderPct: 10,
+  lineOverPct: 10,
   /** Stage 07: save and watch is the primary action, so this is the real state. */
   watchlist: [],
   /** Every verdict ever shown, which is what stage 12 reads back. */
@@ -287,6 +307,18 @@ function persist() {
     // watchlist is survivable; refusing to run is not.
   }
 }
+
+/**
+ * The percentages offered for `lineUnderPct` and `lineOverPct`.
+ *
+ * Here rather than on a screen because two screens ask for them (setup asks
+ * once, You changes them afterwards) and a second copy of this array is a
+ * second copy that goes stale. Four buttons rather than a slider or a number
+ * pad: a slider at 390 px is a control nobody lands the value they meant on,
+ * and a pad asks a person in an aisle to invent a figure. 10 sits second so
+ * the default is not at the end of the row, where it would read as a floor.
+ */
+export const LINE_CHOICES = [5, 10, 15, 20];
 
 export function get() {
   return state;

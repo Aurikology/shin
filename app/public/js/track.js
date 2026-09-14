@@ -216,6 +216,30 @@ if (hasBrowser) {
   document.addEventListener('click', (e) => {
     const target = e.target instanceof Element ? e.target : null;
     if (!target) return;
+    /*
+     * THE ONE REGION THIS LISTENER MUST NOT SEE, and it is a contract rather
+     * than a preference. Google's Gemini API terms for Grounded Results
+     * (eff. 2026-03-23) say we "will not track whether those interactions
+     * were specifically with a given Search Suggestion or Grounded Result...
+     * including any specific Link". This listener's whole job is to record
+     * which element was tapped, by label, tag and class, which is exactly
+     * that. `grounded.js` stamps `data-no-track` on the root of the block it
+     * renders and puts nothing of Shin's own inside it, so one ancestor
+     * check covers every offer row, every review and Google's own rendered
+     * Search Suggestions in a single statement.
+     *
+     * IT IS DELIBERATELY THE FIRST THING AFTER THE NULL CHECK, before the
+     * `[data-act]` lookup below. A guard that runs after the label has been
+     * computed still leaks the label into a closure and, worse, invites a
+     * later refactor to move the `track()` call above it. A test in
+     * `test/grounded-client.test.mjs` asserts this guard's source index is
+     * LOWER than the `[data-act]` lookup's, so a refactor that quietly
+     * demotes it fails even though both lines are still present.
+     *
+     * Screen-level events (`screen_view`, `visibility`) are untouched: they
+     * record that a screen was open, never which link on it was pressed.
+     */
+    if (target.closest('[data-no-track]')) return;
     const actionEl = target.closest('[data-act]');
     const linkish = target.closest('button, a, [role="button"]');
     const label =

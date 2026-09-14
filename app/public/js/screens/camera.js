@@ -39,6 +39,7 @@ import { submitCorrection } from '../corrections.js';
 import { identifyOffline } from '../offline-aisle.js';
 import { track } from '../track.js';
 import { refreshCell } from '../geocell.js';
+import { mountGrounded } from '../grounded.js';
 
 /**
  * The camera states in which the docked face is faded out by `camera.css`.
@@ -644,6 +645,54 @@ let ctxApi = null;
  * three genuinely different ways a person can arrive at the same product, and
  * only one of them fires per scan.
  */
+/**
+ * The empty container the Gemini block is mounted into.
+ *
+ * It is empty on purpose. Every other block on this sheet is built as an HTML
+ * string and assigned with `innerHTML`, and the grounded block is the one
+ * thing that cannot be: escaping it would show a reader Google's markup
+ * instead of Google's Search Suggestions, and concatenating it unescaped into
+ * this template would put remote HTML into the same `innerHTML` as everything
+ * else on the sheet. So `grounded.js` builds real nodes, `textContent` for
+ * every field and exactly one `innerHTML` for Google's own rendered markup,
+ * and this slot is where they go.
+ *
+ * TWO SECTIONS, NEVER ONE LIST. Shin's own prices are the `provenance` list
+ * above; this sits below it as a separate section with its own heading. A
+ * reader has to be able to tell which numbers came from Shin's sources and
+ * which came from a Google search, and a merged list makes that
+ * unanswerable. It is also the "will not intersperse" term from the other
+ * side: folding our rows into Google's would be exactly that.
+ */
+function groundedSlot() {
+  return '<div data-grounded-slot></div>';
+}
+
+/**
+ * Mount the grounded block, if the payload carried one.
+ *
+ * Called right after every `slot.innerHTML = verdictSheet(...)`, because the
+ * container only exists once that assignment has happened. Nothing is awaited
+ * and nothing is fetched: the block arrived with the verdict, so this is pure
+ * rendering and it cannot delay the answer.
+ *
+ * `shelfLabel` is the scanned item's own quantity and price, formatted by
+ * Shin from Shin's own data. It is passed IN rather than worked out inside
+ * `price-line.js`, and it is the founder's rule applied to the large dot as
+ * well as the small ones: "there also needs to be measures in place that
+ * label each dot on the graph with its actrual quantity". The quantity comes
+ * from the identity label, which is where this app already carries a pack
+ * size; when an identity has none, the label is still the item and its price,
+ * which is the most this client honestly knows.
+ */
+function fillGrounded(slot, v) {
+  const container = slot.querySelector('[data-grounded-slot]');
+  if (!container) return;
+  mountGrounded(container, v.grounded, {
+    shelfLabel: `${v.identity?.label ?? ''}, ${cad(v.askingCents)}`,
+  });
+}
+
 function codeOf(v, scenario) {
   return v?.identity?.gtin ?? scenario?.scannedGtin ?? scenario?.gtin ?? null;
 }
@@ -745,6 +794,7 @@ function verdictSheet(v, scenario, thumb, acked = false) {
         ${spreadRail(v)}
         ${disagreeShort ? `<p class="disagree">${escapeHtml(disagreeShort)}</p>` : ''}
         ${provenance(v.comparisonSet, v.askingCents)}
+        ${groundedSlot()}
         ${cheaperSlot(codeOf(v, scenario))}
         <details class="why">
           <summary>${escapeHtml(t('cam_why'))}</summary>
@@ -3049,6 +3099,9 @@ export default {
         store.recordVerdict(result, { text: item.text, askingCents, thumb: scanThumb });
         if (result.kind === 'verdict') {
           slot.innerHTML = verdictSheet(result, item, scanThumb);
+          // The Gemini block, if the payload carried one. Synchronous: it
+          // arrived with the verdict, so there is nothing to wait for.
+          fillGrounded(slot, result);
           // Not awaited: the verdict is the answer and must not wait on a
           // second lookup. The swaps land in the half detent, below the fold,
           // whenever they arrive.
@@ -3641,6 +3694,9 @@ export default {
         // the repaint.
         const prevDetent = slot.querySelector('.sheet')?.dataset.detent;
         slot.innerHTML = verdictSheet(v, last.scenario, last.thumb ?? null, !wasSaved);
+        // Rebuilt from scratch by the save, so the grounded block has to be
+        // mounted again for the same reason the swaps have to be refetched.
+        fillGrounded(slot, v);
         // The sheet was rebuilt from scratch by the save, so the swaps have to
         // be fetched again: they live in the markup that was just replaced.
         void fillCheaper(slot, codeOf(v, last.scenario), v.askingCents);
