@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  mac/launchd/com.shin.checker.plist
+
+  The deploy checker (mac/deploy/checker.mjs). launchd starts it every 30 s;
+  a lock stops overlapping runs, and the script backs off by itself after
+  network failures and does nothing at all once stopped. See mac/DEPLOY.md.
+
+  Install:
+    cp mac/launchd/com.shin.checker.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.shin.checker.plist
+  Stop:
+    launchctl bootout gui/$(id -u)/com.shin.checker
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.shin.checker</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/node</string>
+        <string>/Users/worker/shin/mac/deploy/checker.mjs</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/worker/.shin-deploy</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/worker/.local/bin</string>
+        <key>HOME</key>
+        <string>/Users/worker</string>
+    </dict>
+
+    <key>StartInterval</key>
+    <integer>30</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/worker/.shin-deploy/logs/checker.launchd.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/worker/.shin-deploy/logs/checker.launchd.log</string>
+</dict>
+</plist>
