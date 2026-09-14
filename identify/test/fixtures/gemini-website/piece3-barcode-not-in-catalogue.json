@@ -1,0 +1,27 @@
+{
+  "source": "gemini website, 2026-09-14, Flash model, website chat (not the real API)",
+  "purpose": "Piece 3 of the Gemini-website carryover: a barcode Shin's own catalogue does not have, looked up with search on, using barcodeLookupRequest's exact production wording verbatim, with no manual JSON-reply addendum added (unlike pieces 4 and 5) -- to see what the website does with the real prompt text exactly as the code sends it.",
+  "barcode": "0067000008191",
+  "barcode_provenance": "a real scan from tonight's shutter capture (UPCE format, deviceId f05068d8-ea0c-425e-9a1a-90aeac3e66e8, two barcode_read events at 2026-09-14T04:00:45.843Z and 04:00:58.021Z), not a made-up number",
+  "catalogue_miss_confirmed": "SELECT count(*) FROM product WHERE code = '0067000008191' against the real catalogue at ~/shin-data/catalogue.db returned 0 -- confirmed absent, not assumed",
+  "chat_url": "https://gemini.google.com/app/83df3bc0dcb8ad91",
+  "prompt_ask_text": "Tone: flat, factual, direct. State the number and stop. Answer in English. Canadian retailers only, prices in Canadian dollars (CAD) only. No third-party marketplace sellers, only the retailer itself. NEVER convert a price from another currency into CAD: give the price as it stands with its own currency code. Use Google Search to identify the product with barcode 0067000008191. Give its name, its brand and its size, and for EACH of those three facts the source link that establishes it (null if there is none). Keep it short: at most 8 offers, at most 3 reviews, each summary at most 25 words, the description at most 30 words. Put null wherever there is no source.",
+  "gemini_result": {
+    "name": null,
+    "name_source": null,
+    "brand": null,
+    "brand_source": null,
+    "size": null,
+    "size_source": null,
+    "description": "No public record found for barcode 0067000008191.",
+    "offers_count": 0,
+    "reviews_count": 0
+  },
+  "search_citations_shown": false,
+  "findings": [
+    "a barcode genuinely absent from Shin's own catalogue was also not resolvable through a plain Google Search grounding call -- Gemini declined every field (name, brand, size all null) rather than guessing, and said outright no public record was found. This is a real, honest 'unknown' result, not a hallucinated product -- matching the null-if-no-source instruction working as intended on a genuinely hard case.",
+    "no search citation chip or source link appeared anywhere in the response, consistent with the model reporting it found nothing to cite.",
+    "the response included 'Offers: 0' and 'Reviews: 0' sections that barcodeLookupRequest's own real schema (BARCODE_SCHEMA: name, brand, size, sources only) never asks for -- these leaked in from the brevity() prompt fragment's wording ('at most 8 offers, at most 3 reviews...'), which is shared verbatim across barcodeLookupRequest and pricesReviewsRequest even though offers/reviews are irrelevant to a barcode-only ask. On the real API this is harmless because the responseSchema constrains the output shape regardless of what the prompt text says; on the website's freeform chat, with no schema enforcement, the mismatch became visible in the answer's own structure. Worth listing in piece 1 as a prompt-reuse inconsistency the real schema mechanism papers over.",
+    "this run deliberately sent no manual 'reply as JSON only' addendum (unlike pieces 4 and 5), to see what the truly verbatim production prompt text produces on its own -- the answer came back as formatted prose/markdown, not JSON. This confirms that getting JSON-shaped output from the website depends on either the prompt asking for it explicitly (as pieces 2 and 6's prompts do) or a manual addendum standing in for the real API's schema parameter (as pieces 4 and 5 needed) -- barcodeLookupRequest's own wording does neither, so a website simulation of it alone does not produce directly comparable JSON. This is a limitation of the simulation method for this specific prompt, not a finding about the real API (which always gets JSON via its schema parameter, a mechanism the website chat has no equivalent of)."
+  ]
+}
