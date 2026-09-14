@@ -91,7 +91,7 @@ const EMPTY = {
    * default" from "touched and left this way", which the switches still let
    * anyone turn off.
    */
-  consent: { photos: true, location: true, updatedAt: null },
+  consent: { photos: false, location: false, updatedAt: null },
   /**
    * Whether the first-launch consent screen (item 6b) has been shown and
    * acted on. Separate from `seenIntro`: the attitude picker and the consent
@@ -167,7 +167,7 @@ function migrate(s) {
   const buzz = s.buzz !== false;
   /**
    * A state saved before item 6 has no `consent` at all, or a malformed one;
-   * both read as `EMPTY.consent`, the on default (2026-09-14), rather than as
+   * both read as `EMPTY.consent`, the off default (his ruling 2026-09-14), rather than as
    * an explicit off -- a device that never actually recorded a choice runs on
    * the default, same as a device that has never called `/api/consent`. A
    * device that DID record a choice (its `consent` object has a real

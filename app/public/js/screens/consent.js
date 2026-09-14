@@ -1,13 +1,11 @@
 /**
- * Item 6b: the first-launch consent screen. Photos and location, ON by
- * default since 2026-09-14 (the founder's word, "build everything for
- * collecting EVERYTHING"), each its own explanation right beside its own
- * switch, and a Continue that works whether either is left on or switched
- * off -- the screen must be fully usable and dismissible either way, because
- * turning one off is a correct outcome of a screen that worked, not a state
- * to be argued out of. This is a notice with switches now, not an opt-in
- * form: the words above the switches say what is already being kept, and the
- * switches are how someone holds either one back.
+ * Item 6b: the first-launch consent screen. Photos and location, off by
+ * default (Aurik's ruling of 2026-09-14 over the one-push "on by default" of
+ * the same morning; see app/src/consent.ts), each its own opt-in with its own
+ * explanation right beside it, and a Continue that works whether or not
+ * either is turned on -- the screen must be fully usable and dismissible with
+ * both left off, because leaving them off is a correct outcome of a screen
+ * that worked, not a state to be argued out of.
  *
  * WHY THIS IS A SEPARATE SCREEN AND NOT A THIRD QUESTION FOLDED INTO SETUP.
  * `setup.js`'s own header draws a hard line between "which Shin" (a
@@ -66,7 +64,7 @@ export default {
               <p class="fineprint">${escapeHtml(say('consent_photos_desc'))}</p>
             </div>
             <button type="button" class="switch" data-consent="photos" role="switch"
-                    aria-checked="true" aria-label="${escapeHtml(t('consent_photos'))}"></button>
+                    aria-checked="false" aria-label="${escapeHtml(t('consent_photos'))}"></button>
           </div>
           <div class="ilist-row consent-row">
             <div class="consent-text">
@@ -74,7 +72,7 @@ export default {
               <p class="fineprint">${escapeHtml(say('consent_location_desc'))}</p>
             </div>
             <button type="button" class="switch" data-consent="location" role="switch"
-                    aria-checked="true" aria-label="${escapeHtml(t('consent_location'))}"></button>
+                    aria-checked="false" aria-label="${escapeHtml(t('consent_location'))}"></button>
           </div>
         </div>
 
@@ -100,11 +98,10 @@ export default {
         btn.classList.toggle('on', c[key]);
       }
     }
-    // Both toggles start ON and stay on until this device's own store says
-    // otherwise; painted from `store.consent()` rather than trusted to the
-    // `true` written into the markup above, which is only ever the honest
-    // first-launch default (2026-09-14) and never the last word for a device
-    // that has actually touched a switch since.
+    // Both toggles start off and stay off until this device's own store says
+    // otherwise (a re-run of this screen after a reset, say); painted from
+    // `store.consent()` rather than trusted to the `false` written into the
+    // markup above, which is only ever the honest first-launch default.
     paint();
 
     on(root, 'click', (e) => {

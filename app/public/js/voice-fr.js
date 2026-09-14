@@ -443,15 +443,15 @@ export const LINES_FR = {
   cam_cheaper_failed: {
     deadpan: () => "Je n'ai pas pu vérifier s'il y en avait un moins cher.",
     warm: () => "Je n'ai pas pu vérifier s'il y en avait un moins cher là. Ça vaut un autre essai.",
-    blunt: () => "Pas pu vérifier pour un moins cher.",
+    blunt: () => "Pas pu chercher un moins cher.",
   },
   /* La même panne, sur une feuille qui n'a rien jugé. Voir la version
      anglaise: "moins cher" est une soustraction contre un nombre que le
      verdict vient de trancher, et sur un refus ce nombre n'existe pas. Celle-ci
      dit la panne sans rien affirmer sur le prix. */
   cam_cheaper_none: {
-    deadpan: () => "Rien de moins cher avec un prix dessus.",
-    warm: () => "J'ai cherché quelque chose de moins cher avec un prix dessus et il n'y a rien pour l'instant.",
+    deadpan: () => "Rien de moins cher qui a un prix.",
+    warm: () => "J'ai cherché quelque chose de moins cher qui a un prix et il n'y a rien pour l'instant.",
     blunt: () => "Rien de moins cher avec un prix.",
   },
   cam_similar_none: {
@@ -460,9 +460,9 @@ export const LINES_FR = {
     blunt: () => "Rien de semblable avec un prix.",
   },
   cam_similar_failed: {
-    deadpan: () => "Je n'ai pas pu vérifier s'il y avait quelque chose de semblable avec un prix.",
-    warm: () => "Je n'ai pas pu vérifier s'il y avait quelque chose de semblable avec un prix là. Ça vaut un autre essai.",
-    blunt: () => "Pas pu vérifier pour quelque chose de semblable avec un prix.",
+    deadpan: () => "Je n'ai pas pu vérifier s'il y a quelque chose de semblable qui a un prix.",
+    warm: () => "Je n'ai pas pu vérifier s'il y a quelque chose de semblable qui a un prix là. Ça vaut un autre essai.",
+    blunt: () => "Pas pu chercher quelque chose de semblable qui a un prix.",
   },
 
   cam_notthis_offer: {
@@ -471,14 +471,14 @@ export const LINES_FR = {
     blunt: () => "Le mauvais? Il y en avait d'autres.",
   },
   cam_notthis_prompt: {
-    deadpan: (f) => `Tout ce que j'ai trouvé pour "${f.query}".`,
-    warm: (f) => `Voici tout ce que j'ai trouvé pour "${f.query}". Choisis le bon et je vais donner le prix de celui-là à la place.`,
-    blunt: (f) => `Tout, pour "${f.query}". Choisis-en un.`,
+    deadpan: (f) => `Tout ce que j'ai trouvé pour « ${f.query} ».`,
+    warm: (f) => `Voici tout ce que j'ai trouvé pour « ${f.query} ». Choisis le bon et je vais donner le prix de celui-là à la place.`,
+    blunt: (f) => `Tout, pour « ${f.query} ». Choisis-en un.`,
   },
   cam_notthis_empty: {
-    deadpan: (f) => `C'est la seule chose que j'ai pour "${f.query}".`,
-    warm: (f) => `C'est vraiment la seule chose que j'ai pour "${f.query}", alors la première réponse n'était pas un choix parmi plusieurs.`,
-    blunt: (f) => `Un seul. "${f.query}" te donne ça et rien d'autre.`,
+    deadpan: (f) => `C'est la seule chose que j'ai pour « ${f.query} ».`,
+    warm: (f) => `C'est vraiment la seule chose que j'ai pour « ${f.query} », alors la première réponse n'était pas un choix parmi plusieurs.`,
+    blunt: (f) => `Un seul. « ${f.query} » te donne ça et rien d'autre.`,
   },
   cam_notthis_keep: {
     deadpan: () => "La première réponse tient",
@@ -486,9 +486,9 @@ export const LINES_FR = {
     blunt: () => "Correct. La première.",
   },
   cam_text_no_match: {
-    deadpan: (f) => `Rien dans ce qu'on a appris à Shin ne correspond à "${f.query}".`,
-    warm: (f) => `Je n'ai rien trouvé que je connais qui corresponde à "${f.query}". Essaie le code-barres, ou un ou deux mots différents.`,
-    blunt: (f) => `"${f.query}" ne correspond à rien que je connais.`,
+    deadpan: (f) => `Rien dans ce qu'on a appris à Shin ne correspond à « ${f.query} ».`,
+    warm: (f) => `Je n'ai rien trouvé que je connais qui corresponde à « ${f.query} ». Essaie le code-barres, ou un ou deux mots différents.`,
+    blunt: (f) => `« ${f.query} » ne correspond à rien que je connais.`,
   },
   cam_notthis_failed: {
     deadpan: () => "Je n'ai pas pu retourner regarder.",
@@ -739,19 +739,19 @@ export const LINES_FR = {
    * consent.ts et store.js, et les interrupteurs ci-dessous les ferment
    * encore pour qui le veut. */
   consent_intro: {
-    deadpan: () => "Chaque scan est écrit: le produit et le prix que tu as vu, toujours, et utilisé pour entraîner Shin et répondre à d'autres personnes qui scannent la même chose. Deux autres choses ci-dessous sont aussi ouvertes tant que tu ne les fermes pas.",
-    warm: () => "Chaque scan est écrit: ce que tu as scanné et le prix que tu as vu, toujours, et ça aide à entraîner Shin et à répondre à d'autres personnes qui scannent la même chose ensuite. Deux autres choses ci-dessous sont ouvertes aussi, tant que tu ne les fermes pas.",
-    blunt: () => "Chaque scan est consigné: produit et prix, toujours, utilisé pour entraîner Shin et répondre à d'autres personnes. Deux autres choses ci-dessous sont ouvertes par défaut.",
+    deadpan: () => "Chaque scan est écrit: le produit et le prix que tu as vu, toujours, pour que la prochaine personne qui le scanne obtienne une réponse. Deux autres choses sont fermées tant que tu ne les ouvres pas.",
+    warm: () => "Chaque scan est écrit: ce que tu as scanné et le prix que tu as vu, toujours, pour que la prochaine personne qui scanne la même chose obtienne une réponse elle aussi. Deux autres choses ci-dessous sont fermées tant que tu ne les ouvres pas.",
+    blunt: () => "Chaque scan est consigné: produit et prix, toujours. Deux autres choses ci-dessous sont fermées par défaut.",
   },
   consent_photos_desc: {
-    deadpan: () => "Garde chaque image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et pour que Shin puisse en apprendre. Ouvert par défaut, et gardé pour de bon à moins qu'une limite soit fixée plus tard. Fermé, une image est lue une fois pour répondre au scan et n'est pas gardée. Le risque: une photo gardée peut montrer ce qui se trouve autour de toi.",
-    warm: () => "Garde chaque image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et que ça aide à entraîner Shin. C'est ouvert par défaut et gardé pour de bon, pas effacé après un nombre de jours fixe, à moins qu'une limite soit fixée plus tard. Ferme-le et une image n'est lue qu'une fois, pour répondre à ce scan, puis elle est partie. Le risque, c'est qu'une photo gardée peut montrer tout ce qu'il y avait d'autre autour de toi.",
-    blunt: () => "Garde chaque photo, liée au scan, gardée indéfiniment par défaut. Utilisée pour vérifier les réponses et entraîner Shin. Fermé: lue une fois, pas gardée. Risque: une photo gardée peut montrer ce qui est près de toi.",
+    deadpan: () => "Garde l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard. Fermé, l'image est lue une fois pour répondre au scan et n'est pas gardée. Le risque: une photo gardée peut montrer ce qui se trouve autour de toi.",
+    warm: () => "Garde l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard. Fermé, l'image n'est lue qu'une fois, pour répondre à ce scan, puis elle est partie. Le risque, c'est qu'une photo gardée peut montrer tout ce qu'il y avait d'autre autour de toi.",
+    blunt: () => "Garde la photo, liée au scan, pour qu'une mauvaise réponse puisse être vérifiée. Fermé: lue une fois, pas gardée. Risque: une photo gardée peut montrer ce qui est près de toi.",
   },
   consent_location_desc: {
-    deadpan: () => "Garde ta position exacte au moment de chaque scan, en plus de la zone approximative d'environ un kilomètre, pour qu'un prix puisse être associé à un magasin proche et que Shin puisse apprendre d'où les choses sont vendues. Ouvert par défaut. Ton téléphone retient aussi quel magasin tu as choisi dans chaque zone, pour arrêter de te le demander; cette liste reste sur le téléphone jusqu'à ce que tu fermes ça. Fermé, aucune position n'est gardée. Le risque: ta position exacte dit précisément où tu magasines, pas juste approximativement.",
-    warm: () => "Garde ta position exacte au moment de chaque scan, avec la zone approximative d'environ un kilomètre, pour qu'un prix puisse être associé au magasin près duquel tu étais et que ça aide Shin à apprendre d'où les choses sont vendues. C'est ouvert par défaut; ton téléphone retient aussi quel magasin tu as choisi dans chaque zone, comme ça il ne te le redemande pas, et cette liste reste sur le téléphone jusqu'à ce que tu fermes ça. Fermé, rien sur l'endroit où tu es n'est gardé. Le risque, c'est que ta position exacte, pas juste une zone approximative, dit précisément où tu magasines.",
-    blunt: () => "Garde ta position exacte et la zone approximative pour chaque scan. Ouvert par défaut. Le téléphone retient quel magasin tu as choisi où, reste sur le téléphone, effacé quand tu fermes ça. Fermé: rien de gardé. Risque: la position exacte dit précisément où tu magasines.",
+    deadpan: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact, pour qu'un prix puisse être associé à un magasin proche. Ton téléphone retient aussi quel magasin tu as choisi dans chaque zone, pour arrêter de te le demander. Cette liste ne quitte jamais le téléphone et elle disparaît quand tu fermes ça. Fermé, aucune position n'est gardée. Le risque: même une zone approximative réduit l'endroit où tu magasines.",
+    warm: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact, pour qu'un prix puisse être associé au magasin près duquel tu étais. Ton téléphone retient aussi quel magasin tu as choisi dans chaque zone, comme ça il ne te le redemande pas. Cette liste reste sur le téléphone, n'est jamais envoyée nulle part, et elle est effacée dès que tu fermes ça. Fermé, rien sur l'endroit où tu es n'est gardé. Le risque, c'est que même une zone approximative dit quelque chose sur l'endroit où tu magasines.",
+    blunt: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact. Ton téléphone retient quel magasin tu as choisi où, pour arrêter de demander. Ça reste sur le téléphone. Effacé quand tu fermes ça. Fermé: rien de gardé. Risque: même une zone approximative réduit l'endroit où tu magasines.",
   },
   you_ratings_none: {
     deadpan: () => "Aucune pour l'instant. Un pouce sur n'importe quel verdict compte ici.",

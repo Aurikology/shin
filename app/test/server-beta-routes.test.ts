@@ -151,29 +151,38 @@ test('a client that reports nothing about itself writes nulls, not empty strings
 
 /* ------------------- 6c and 11, consent gates the location --------------- */
 
-test('consent defaults to everything, for a device that has never been asked', async () => {
-  // Changed 2026-09-14 on the founder's word: a device with no row reads the
-  // same as a device that answered yes to both, per consent.ts's own header.
+test('consent defaults to nothing, for a device that has never been asked', async () => {
+  // His ruling of 2026-09-14 (docs/decisions.md, "Consent is off until
+  // answered"): a device with no row reads the same as a device that answered
+  // no to both, per consent.ts's own header.
   const res = await get('/api/consent?deviceId=d-consent-new');
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { photos: true, location: true, updatedAt: null });
+  assert.deepEqual(await res.json(), { photos: false, location: false, updatedAt: null });
 });
 
-test('a cell is written for a device that never touched consent, because the default is on', async () => {
-  const id = await scanOnce('d-default-on', '&cell=43.2609,-79.9192&storeId=node/1&storeName=Somewhere');
+test('no cell is written for a device that never touched consent, because the default is off', async () => {
+  const id = await scanOnce('d-default-off', '&cell=43.2609,-79.9192&storeId=node/1&storeName=Somewhere');
   const row = getScan(id)!;
-  assert.equal(row.cell, '43.26,-79.92', 'a location was not kept, though nobody opted out');
-  assert.equal(row.store_id, 'node/1');
-  assert.equal(row.store_name, 'Somewhere');
-});
-
-test('a cell sent by a device that has explicitly opted out is not written down', async () => {
-  await post('/api/consent', { deviceId: 'd-nolocation', photos: false, location: false });
-  const id = await scanOnce('d-nolocation', '&cell=43.2609,-79.9192&storeId=node/1&storeName=Somewhere');
-  const row = getScan(id)!;
-  assert.equal(row.cell, null, 'a location was kept after an explicit opt-out');
+  assert.equal(row.cell, null, 'a location was kept for a device that never said yes');
   assert.equal(row.store_id, null);
   assert.equal(row.store_name, null);
+});
+
+test('the exact position is never written, consent or not, even when a client sends it', async () => {
+  // The cell stays coarse by design (2026-09-13, reaffirmed 2026-09-14). An
+  // older client, or one push of this app, sent lat/lon beside the cell; the
+  // server is the half that has to hold the line against either.
+  await post('/api/consent', { deviceId: 'd-exact', photos: false, location: true });
+  const id = await scanOnce(
+    'd-exact',
+    '&cell=43.2609,-79.9192&lat=43.26091&lon=-79.91923&accuracy=12.5&locatedAt=2026-09-14T12:00:00.000Z',
+  );
+  const row = getScan(id)!;
+  assert.equal(row.cell, '43.26,-79.92', 'the coarse cell is the one location fact kept, and it was not');
+  assert.equal(row.exact_lat, null, 'an exact latitude was written down');
+  assert.equal(row.exact_lon, null);
+  assert.equal(row.exact_accuracy, null);
+  assert.equal(row.exact_at, null);
 });
 
 test('after consent, the cell is written, and it is written coarse', async () => {
@@ -189,41 +198,18 @@ test('after consent, the cell is written, and it is written coarse', async () =>
   assert.equal(row.store_name, 'Somewhere');
 });
 
-/* ------------------- task item 3, the exact reading alongside it --------- */
-
-test('with location consent, the exact position lands on the scan row too', async () => {
-  await post('/api/consent', { deviceId: 'd-exact', photos: false, location: true });
+test('without location consent, neither the cell nor the exact position is written', async () => {
+  await post('/api/consent', { deviceId: 'd-exact-off', photos: false, location: false });
   const id = await scanOnce(
-    'd-exact',
+    'd-exact-off',
     '&cell=43.2609,-79.9192&lat=43.26091&lon=-79.91923&accuracy=12.5&locatedAt=2026-09-14T12:00:00.000Z',
   );
   const row = getScan(id)!;
-  assert.equal(row.cell, '43.26,-79.92');
-  assert.equal(row.exact_lat, 43.26091);
-  assert.equal(row.exact_lon, -79.91923);
-  assert.equal(row.exact_accuracy, 12.5);
-  assert.equal(row.exact_at, '2026-09-14T12:00:00.000Z');
-});
-
-test('without location consent, the exact position is not written even when sent', async () => {
-  const id = await scanOnce(
-    'd-exact-off',
-    '&lat=43.26091&lon=-79.91923&accuracy=12.5&locatedAt=2026-09-14T12:00:00.000Z',
-  );
-  await post('/api/consent', { deviceId: 'd-exact-off', photos: false, location: false });
-  const id2 = await scanOnce(
-    'd-exact-off',
-    '&lat=43.26091&lon=-79.91923&accuracy=12.5&locatedAt=2026-09-14T12:00:00.000Z',
-  );
-  // The first scan predates the explicit opt-out and, under the new default,
-  // still keeps the exact reading; the second, after an explicit no, must not.
-  const before = getScan(id)!;
-  assert.equal(before.exact_lat, 43.26091);
-  const after = getScan(id2)!;
-  assert.equal(after.exact_lat, null, 'an exact position was kept after consent was withdrawn');
-  assert.equal(after.exact_lon, null);
-  assert.equal(after.exact_accuracy, null);
-  assert.equal(after.exact_at, null);
+  assert.equal(row.cell, null);
+  assert.equal(row.exact_lat, null);
+  assert.equal(row.exact_lon, null);
+  assert.equal(row.exact_accuracy, null);
+  assert.equal(row.exact_at, null);
 });
 
 test('a lone coordinate with no partner is never written', async () => {

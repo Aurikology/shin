@@ -1462,15 +1462,16 @@ function telemetryFrom(source: URLSearchParams | Record<string, unknown>): {
  * The cell is snapped onto the kilometre grid by `parseCell` before it can be
  * returned, so what is stored is coarse whether or not the client coarsened it.
  *
- * THE EXACT FIX, added migration 8, 2026-09-14. `exact` carries what the
- * device's own GPS read before it was snapped to the cell: latitude,
- * longitude, the OS's own accuracy figure, and when the reading was taken.
- * Gated by the exact same consent check as the cell, because it is the same
- * consent question ("may we keep where you are") answered at higher
- * precision, not a second question. A device that sent a cell but no exact
- * reading (no OS permission, or an older client) gets nulls for these four and
- * the cell as before -- the two halves are independent on the wire and only
- * share the one gate.
+ * THE EXACT READING IS NEVER WRITTEN. Migration 8 (2026-09-14) added four
+ * columns for the GPS point the cell was snapped from, and for one push this
+ * function filled them under the same consent gate as the cell. Aurik ruled
+ * the same day for the design he approved on 2026-09-13: the kilometre-wide
+ * cell is the one location fact kept, never the exact spot, which is also
+ * what the consent screen tells the reader. So the four come back null here
+ * whatever a client sends, old client or new, and the columns stay in the
+ * schema empty rather than being dropped, because a migration that removes a
+ * column is a second decision this ruling did not ask for. `exactRaw` is
+ * still accepted so the call sites and an older client need no change.
  */
 function locationFor(
   deviceId: string,
@@ -1507,31 +1508,16 @@ function locationFor(
   // null) and a missing JSON field (`undefined`) both have to read as absent
   // here, not as a reading of 0,0 -- HARD RULE 3 in the agent repo governs
   // measurements the same way: a value not taken is null, not a default.
-  const num = (value: unknown): number | null => {
-    if (value === null || value === undefined || value === '') return null;
-    const n = Number(value);
-    return Number.isFinite(n) ? n : null;
-  };
-  // A timestamp is kept only when it actually parses as one -- HARD RULE 3 in
-  // the agent repo governs here too: a reading with no honest time is not
-  // given the server's own arrival time as a stand-in for the OS's.
-  const at = (value: unknown): string | null => {
-    if (typeof value !== 'string' || value.trim() === '') return null;
-    const parsed = Date.parse(value);
-    return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
-  };
-  const lat = num(exactRaw.lat);
-  const lon = num(exactRaw.lon);
+  // Read and dropped on purpose, see the header: the exact point is not kept.
+  void exactRaw;
   return {
     cell: cell?.text ?? null,
     storeId: text(storeIdRaw),
     storeName: text(storeNameRaw),
-    // Both coordinates or neither: a lone latitude with no longitude names no
-    // point on earth and is not a partial fact worth keeping.
-    exactLat: lat !== null && lon !== null ? lat : null,
-    exactLon: lat !== null && lon !== null ? lon : null,
-    exactAccuracy: lat !== null && lon !== null ? num(exactRaw.accuracy) : null,
-    exactAt: lat !== null && lon !== null ? at(exactRaw.at) : null,
+    exactLat: null,
+    exactLon: null,
+    exactAccuracy: null,
+    exactAt: null,
   };
 }
 

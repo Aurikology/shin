@@ -190,9 +190,8 @@ test('the conditions of the call are on the row, and the cost is an estimate not
 });
 
 test('a photo is not kept when the device has explicitly opted out', async () => {
-  // Photos default ON (2026-09-14): a device that never called /api/consent
-  // would have its photo kept, so this test opts out first to exercise the
-  // refusal path rather than a default that no longer applies to it.
+  // Photos default OFF (his ruling 2026-09-14): opting out explicitly here
+  // exercises the written-no path, which is a different row from no row.
   await postJson('/api/consent', { deviceId: 'p-9a-no', photos: false, location: false });
   useModel(answeringClient(READING));
   const res = await postPhoto({ deviceId: 'p-9a-no' });
@@ -200,13 +199,12 @@ test('a photo is not kept when the device has explicitly opted out', async () =>
   assert.equal(getScan(scanId)!.photo_path, null, 'a photograph was kept after an explicit opt-out');
 });
 
-test('a photo is kept for a device that never touched consent, because photos default on', async () => {
+test('a photo is not kept for a device that never touched consent, because photos default off', async () => {
   useModel(answeringClient(READING));
-  const res = await postPhoto({ deviceId: 'p-default-on' });
+  const res = await postPhoto({ deviceId: 'p-default-off' });
   const { scanId } = (await res.json()) as { scanId: number };
   const row = getScan(scanId)!;
-  assert.ok(row.photo_path, 'a photograph was not kept, though nobody opted out');
-  assert.ok(photoExists(row.photo_path!), 'the row claims a file that is not on disk');
+  assert.equal(row.photo_path, null, 'a photograph was kept for a device that never said yes');
 });
 
 test('and it is kept, keyed by the scan id, once the device has', async () => {

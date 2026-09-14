@@ -1309,19 +1309,19 @@ const LINES_EN = {
    * what is actually kept, not a smaller, friendlier version of it.
    */
   consent_intro: {
-    deadpan: () => 'Every scan is written down: the product and the price you saw, always, and used to train Shin and to answer other shoppers who scan the same thing. Two more things below are also on unless you turn them off.',
-    warm: () => 'Every scan gets written down, what you scanned and the price you saw, always, and it helps train Shin and answer other shoppers who scan the same thing next. Two more things below are on too, unless you switch them off.',
-    blunt: () => 'Every scan is logged: product and price, always, used to train Shin and answer other shoppers. Two more things below are on by default.',
+    deadpan: () => 'Every scan is written down: the product and the price you saw, always, so the next person who scans it gets an answer. Two more things are off unless you turn them on.',
+    warm: () => 'Every scan gets written down: what you scanned and the price you saw, always, so the next person who scans the same thing gets an answer too. Two more things below are off unless you switch them on.',
+    blunt: () => 'Every scan is logged: product and price, always. Two more things below are off by default.',
   },
   consent_photos_desc: {
-    deadpan: () => 'Keeps every picture from a photo scan, tied to that scan, so a wrong answer can be checked later and Shin can learn from it. On by default, and kept for good unless whoever runs this sets a time limit later. Off, a picture is read once to answer the scan and is not kept. The risk: a kept photo can show what is near you in the shot.',
-    warm: () => 'Keeps every picture from a photo scan, tied to that scan, so a wrong answer can be checked later and it can help train Shin. It is on by default and kept for good, not deleted after any set number of days, unless a limit gets set later. Turn it off and a picture is only read once, to answer that scan, then it is gone. The risk is that a kept photo can show whatever else was in the shot around you.',
-    blunt: () => 'Keeps every photo, tied to the scan, kept indefinitely by default. Used to check answers and train Shin. Off: read once, not kept. Risk: a kept photo can show what is near you.',
+    deadpan: () => 'Keeps the picture from a photo scan, tied to that scan, so a wrong answer can be checked later. Off, the picture is read once to answer the scan and is not kept. The risk: a kept photo can show what is near you in the shot.',
+    warm: () => 'Keeps the picture from a photo scan, tied to that scan, so a wrong answer can be checked later. Off, the picture is only read once, to answer that scan, and then it is gone. The risk is that a kept photo can show whatever else was in the shot around you.',
+    blunt: () => 'Keeps the photo, tied to the scan, so a wrong answer can be checked. Off: read once, not kept. Risk: a kept photo can show what is near you.',
   },
   consent_location_desc: {
-    deadpan: () => 'Keeps your exact position at the moment of each scan, plus the rough kilometre-wide area, so a price can be matched to a nearby store and Shin can learn from where things are priced. On by default. Your phone also remembers which shop you picked in each area, so it stops asking; that list stays on the phone until you switch this off. Off, no location is kept at all. The risk: your exact position says precisely where you shop, not just roughly.',
-    warm: () => 'Keeps your exact position at the moment of each scan, along with the rough kilometre-wide area, so a price can be matched to the store you were at and it can help Shin learn from where things are priced. It is on by default; your phone also remembers which shop you picked in each area, so it does not have to ask again, and that list stays on the phone until you turn this off. Off, nothing about where you are is kept. The risk is that your exact position, not just a rough area, says precisely where you shop.',
-    blunt: () => 'Keeps your exact position and the rough area for every scan. On by default. Phone remembers which shop you picked where, stays on the phone, deleted when you switch this off. Off: nothing kept. Risk: exact position says precisely where you shop.',
+    deadpan: () => 'Keeps a rough area, about a kilometre wide, never your exact spot, so a price can be matched to a nearby store. Your phone also remembers which shop you picked in each area, so it stops asking. That list never leaves the phone and it goes when you switch this off. Off, no location is kept at all. The risk: even a rough area narrows down where you shop.',
+    warm: () => 'Keeps a rough area, about a kilometre wide, never your exact spot, so a price can be matched to the store you were near. Your phone also remembers which shop you picked in each area, so it does not have to ask you again. That list stays on the phone, is never sent anywhere, and is deleted the moment you switch this off. Off, nothing about where you are is kept. The risk is that even a rough area says something about where you shop.',
+    blunt: () => 'Keeps a rough area, about a kilometre wide, never your exact spot. Your phone remembers which shop you picked where, so it stops asking. Stays on the phone. Deleted when you switch this off. Off: nothing kept. Risk: even a rough area narrows down where you shop.',
   },
   /**
    * Item 8d: the You screen's rated-count row. Shin's own voice, same family

@@ -12,20 +12,24 @@
  * shelf has not thereby withdrawn where the shelf is, and the reverse is more
  * obviously true. They are two columns and two questions on the screen.
  *
- * BOTH DEFAULT ON, AND THE DEFAULT IS NO ROW. Changed 2026-09-14 on his word,
- * "build everything for collecting EVERYTHING": a device that has never
- * answered reads exactly the same as a device that answered yes: photos true,
- * location true, updatedAt null. The `updatedAt` is what separates them for
- * anybody who needs to know, and nothing in the server does. Turning a toggle
- * OFF is what writes a row now; leaving both alone writes nothing and keeps
- * everything, which is the opt-out this file enforces.
+ * BOTH DEFAULT OFF, AND THE DEFAULT IS NO ROW. A device that has never
+ * answered reads photos false, location false, updatedAt null, the same as a
+ * device that answered no; the `updatedAt` is what separates them for anybody
+ * who needs to know, and nothing in the server does. Turning a toggle ON is
+ * what writes a row; leaving both alone writes nothing and keeps nothing but
+ * the scan row itself, which is never optional, consent or not.
  *
- * WHAT THIS MEANS FOR THE PRODUCT, said plainly because the privacy notice has
- * to say it and it must be true: the scan row, the photograph and the coarse
- * and exact location are all kept by default, all of it to train Shin's
- * models and to answer other shoppers pointed at the same thing (the vision
- * doc's own sentence). The two toggles are the only way to hold either of the
- * last two back; the scan row itself is never optional, consent or not.
+ * THE RULING, 2026-09-14, because the two founders said opposite things on
+ * the same day and this file is where the answer has to live. Jamin: "build
+ * everything for collecting NOTHING", and for one push this read on by
+ * default with the exact GPS position beside the cell. Aurik, asked which
+ * stands for the beta, chose the design he approved on 2026-09-13: off until
+ * answered, the coarse cell only, no exact position stored. The privacy notice
+ * on the consent screen says "off unless you turn them on" and "never your
+ * exact spot", and with this file it is true. Migration 8's exact columns stay
+ * in the schema and stay empty; `server.ts`'s `locationFor` writes null into
+ * them whatever the client sends. What IS kept when a toggle is on is still
+ * used to train Shin and to answer other shoppers, and the footer says so.
  *
  * NO HISTORY TABLE. Only the current answer is stored. A log of when somebody
  * said no is still something kept about a person who said keep nothing, and
@@ -50,12 +54,11 @@ export interface Consent {
 }
 
 /**
- * Everything agreed to. Both the default for a device with no row and the
- * answer on any failure to read one, per the header above: a read that fails
- * must fail the same way an unanswered device reads, and an unanswered device
- * is kept by default now.
+ * Nothing agreed to. Both the default for a device with no row and the answer
+ * on any failure to read one: a read that fails must fail the same way an
+ * unanswered device reads, and an unanswered device keeps nothing.
  */
-const EVERYTHING: Consent = { photos: true, location: true, updatedAt: null };
+const NOTHING: Consent = { photos: false, location: false, updatedAt: null };
 
 interface ConsentRow {
   photos: number;
@@ -77,19 +80,19 @@ interface ConsentRow {
  */
 export function readConsent(deviceId: string): Consent {
   const id = deviceId?.trim();
-  if (!id) return EVERYTHING;
+  if (!id) return NOTHING;
   const store = activeScanStore() ?? openScanStore();
   try {
     if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
     const row = store.db
       .prepare('SELECT photos, location, updated_at FROM consent WHERE device_id = ?')
       .get(id) as unknown as ConsentRow | undefined;
-    if (!row) return EVERYTHING;
+    if (!row) return NOTHING;
     return { photos: row.photos === 1, location: row.location === 1, updatedAt: row.updated_at };
   } catch (err) {
     store.dropped += 1;
     store.droppedWhy = err instanceof Error ? err.message : String(err);
-    return EVERYTHING;
+    return NOTHING;
   }
 }
 

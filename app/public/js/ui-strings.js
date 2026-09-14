@@ -466,7 +466,7 @@ const FR = {
   cam_rate_range: (f) => `${f.low} à ${f.high} ${f.market}`,
   cam_rate_to: (f) => `${f.low} à ${f.high}`,
   cam_seller_count: (f) => `${f.n} marchand${f.n === '1' ? '' : 's'}`,
-  cam_rail_alt: (f) => `Les prix trouvés vont de ${f.low} à ${f.high}. Tu regardes ${f.asking}.`,
+  cam_rail_alt: (f) => `Les prix trouvés vont de ${f.low} à ${f.high}. Devant toi, c'est ${f.asking}.`,
   cam_delete_last_digit: 'Effacer le dernier chiffre',
   cam_price_modifiers: 'Modificateurs de prix',
   cam_cancel_scan: 'Annuler et revenir au viseur',
