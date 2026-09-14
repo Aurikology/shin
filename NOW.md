@@ -66,6 +66,89 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## The no-comparison refusal, the flavour word, and the French that was not there, 2026-09-14
+
+**State:** `main` merged with Jamin's five pushes of the day (the pushes crossed twice; each time a
+`--no-ff` merge on `main`, never a force), both remotes verified equal by `ls-remote` at `d0c2012`
+after the second merge. Three more commits since, unpushed at time of writing (see the end).
+**Tests: app 680, spine 212, price 157, identify 149, catalogue 123; 0 fail; typecheck clean in all
+five.**
+
+**His sentence, 2026-09-14:** *"if the item is overpriced say that it is. if there is no comparison
+say that it is expensive and there is no comparison, we can offer another item for this that is
+worth their money but not identical. also there should be a feature where the user can manually add
+the price in and name it. this should also run if we cannot identify it."*
+
+What ships, and the one word that does not:
+- **Overpriced is said** when it is measured: the verdict path is unchanged (`walk_away` for Kraft
+  Dinner at $2.99, p50 27 ms yesterday).
+- **"Expensive" without a comparison does not ship.** Hard rule 2, Competition Act s.74.01(1)(b),
+  and `docs/plan-always-a-price.md` section 3 all say the same thing: a tier word is a number in
+  disguise and there is no number. The refusal says *no comparison, so I cannot call it*, and then
+  hands over the substitute, which is the half that was always useful.
+- **A priced substitute under a thin refusal** landed yesterday; today the lane finished its last
+  variant, `cam_similar_failed` (six variants), for the case where the swaps lookup itself fails on a
+  refusal, so the verdict sentence about "cheaper" things never appears on a sheet that judged nothing.
+  A test sweeps both no-comparison keys x 2 locales x 3 personalities against the forbidden list.
+- **Name it and price it** landed yesterday (`What is it? (optional)` on the pad, `label` on the
+  observation), and runs on every refusal including "could not identify".
+
+**The failure branch had never been seen in a browser, so it was rendered, and it found two things.**
+Driving the text route through the real delegated handler at 390x844 with `/api/alternatives` made
+to fail: the box read the right sentence in both languages. Above it the refusal still said *"Here
+is something similar that has a price on it."* That is **D-101**, fixed the same hour: the promise
+line carries `data-swap-promise` and `fillCheaper` removes it when the answer is empty or the call
+throws. Re-rendered after: promise gone, failure sentence kept, both locales.
+
+The second thing was worse. In `fr-CA` the refusal detail read *"Could not work out what this is.
+Scan the barcode, or type the model number."* in English. **D-100:** the spine emits every sentence
+as code plus facts (52 codes, all round-tripping), and `prose.js` renders **9** of them in French.
+The 2026-09-13 report called item 31 done on the strength of the verdict headline. Every refusal
+detail, confidence line, shortfall, basis and asking-versus-range sentence fell back to English for a
+French reader. A lane is writing the 43, with a test that reads the `LineCode` union out of
+`spine/src/contract.ts` and fails the moment the two sets differ.
+
+**D-099, his Cherry Coke Zero, is built and measured on the catalogue, not on a photograph.**
+The plain can `06731906` is named *Coke Zero*; the cherry one `06781901` is named
+*Cherry-flavoured calorie-free cola* (`name_fr` *Coca-cola cerise*). A transcription of brand
+Coca-Cola, name Coke Zero, variant Cherry matched the plain row on more tokens, and nothing treated
+the flavour word as special: `pickRows` never showed the pick model `name_fr` or `generic_name`.
+Three additive changes (`6376c4d`): identify refuses to settle on a leader that lacks the variant
+tokens while another candidate carries them; the pick model sees the two other names; the catalogue
+gains `variantAgrees` beside brand and size, and `app/server.ts` forwards the word (without that line
+the catalogue half was dead at the consumer, which the lane could not see from its package).
+Measured on the real 212,340 rows with brand and 355 ml pinned: without the variant, plain first
+and cherry-zero fifth; with it, the cherry rows first and second; with the likelier transcription
+*Coca-Cola Zero Sugar Cherry*, `06781901` first. Band stays `ambiguous` in all three, so the pick
+pass runs. **Still open inside D-099:** the pick model has to tell *Cherry Coke* from
+*Cherry-flavoured calorie-free cola* with no "zero" in the second name, and no photograph has been
+run, because there is still no key on this machine. The shutter frame on the Mac is the test.
+
+**What Jamin changed today that Aurik has not ruled on** (his commits `d0a1c2e`, `338ddc6`,
+`3942df3`, `a5bc9c9`; read, merged, not reverted, because they are his lanes and this file is where
+the disagreement goes):
+1. **Consent defaults flipped to ON, including the exact position.** `app/src/consent.ts` now reads
+   `EVERYTHING = { photos: true, location: true }` for a device that never answered, and `api.js`
+   sends `lat`/`lon` with each scan when the toggle is on. The approved copy from 09-13 said the
+   cell stays coarse, the usual-shop memory lives on the phone only, and *"Off, no location is kept
+   at all."* The new copy says *"Keeps your exact position at the moment of each scan... On by
+   default."* His word for it: *"build everything for collecting EVERYTHING"*. `notes/catch-up.md`
+   itself says this must become privacy-by-default before public launch (Law 25). Two founders,
+   two rulings on the same screen; the beta testers see Jamin's.
+2. **"Pushing needs nobody's approval, either direction"** is in `CLAUDE.md` on his word. Aurik's
+   standing rule in his global instructions is the opposite. Today's pushes were under Aurik's own
+   "push everything", so nothing here relied on the new rule.
+3. **A Notion heartbeat hook runs after every tool call in every session** (`.claude/hooks/
+   notion-heartbeat.mjs`, local file only, no network) and the coordination page must be refreshed
+   every 20 minutes. The page is not shared with Aurik's Notion account (fetch 404, search finds
+   nothing), so this session could not comply and said so rather than pretend.
+4. The catch-up's to-do for Aurik: pull; get his own invite link and the data token from Jamin
+   privately (never in the repo); connect Notion once the page is shared; check the data window.
+
+**Unpushed at time of writing:** `6376c4d` (D-099), `afa2b1f` (D-101), and the docs commit this
+section rides in. Push follows under his "push everything and continue working", GitLab first, GitHub
+only if GitLab accepts, `ls-remote` on both as the proof.
+
 ## Client-side parsing looked like a way round the wall, and is not, 2026-09-13 night
 
 **His words:** *"look into the client side parsing route."* `research/price-sources/40-client-side-extraction.md`.
