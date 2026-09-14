@@ -152,6 +152,21 @@ export interface BarcodeFacts {
  * version of this file asked for retailer, price and url only, which made
  * every comparison of a 6 x 355 mL against a 2 L a comparison of two unrelated
  * numbers.
+ *
+ * THE LAST EIGHT FIELDS EXIST SO THE GAUGE CAN REFUSE AN OFFER HONESTLY.
+ * `../gauge.ts` puts an offer on the line only when it is a price the shopper
+ * could actually pay for the thing in their hand, and each of these answers
+ * one of the four item rules the founder picked on 2026-09-14: is it in CAD,
+ * is it the retailer selling or a seller on the retailer's site, does it need
+ * a membership, is it the same store brand, is it organic, is it sold by
+ * weight, and is the price advertised per item or per several. Asking for
+ * them is shaping the ask, which is allowed; every one of them is a fact the
+ * listing itself states, not a judgment of the price.
+ *
+ * ASKED FOR RATHER THAN INFERRED. This app cannot look at a retailer name and
+ * decide "that one is a marketplace" afterwards, because deciding anything
+ * about a Grounded Result on our side is the analysis the terms forbid. The
+ * question goes in the request or it does not get answered.
  */
 export interface PriceOffer {
   readonly retailer: string;
@@ -163,6 +178,21 @@ export interface PriceOffer {
   readonly modelNumber: string | null;
   readonly specs: string | null;
   readonly condition: string | null;
+  /** The currency the price is actually in, as a code. Never converted, by this app or by Gemini. */
+  readonly currency: string | null;
+  /** A seller on the retailer's site rather than the retailer itself. */
+  readonly marketplace: boolean | null;
+  /** Needs a paid membership, so it is not a price every shopper can pay. */
+  readonly memberOnly: boolean | null;
+  /** 'multi_buy', 'bogo' or 'clearance'. An internal name: the word for it grades a price and never reaches a screen. */
+  readonly dealKind: string | null;
+  /** How many items a multi-item price covers, so 2 in a 2 for $5. */
+  readonly dealUnits: number | null;
+  readonly organic: boolean | null;
+  /** The store brand's name, e.g. "President's Choice", or null for a name brand. */
+  readonly storeBrand: string | null;
+  /** Priced by weight at the till, which is why a total with no weight cannot be placed. */
+  readonly soldByWeight: boolean | null;
 }
 
 export interface ProductReview {
@@ -188,13 +218,46 @@ export interface PricesReviewsDescription {
  * Result for the same end user.
  */
 export interface VerdictFigures {
-  readonly median: number;
-  readonly percent: number;
-  readonly label: 'good' | 'fair' | 'high';
-  readonly n: number;
-  readonly shelfPosition: number;
-  readonly zoneBoundaries: { readonly good: number; readonly high: number };
-  readonly points: readonly { readonly retailer: string; readonly position: number }[];
+  readonly usable: boolean;
+  readonly median?: number;
+  readonly percent?: number;
+  /*
+   * `zone`, not `label`, and neutral values. This interface said
+   * `label: 'good' | 'fair' | 'high'` until 2026-09-14; those are grading
+   * words, hard rule 2 forbids an unmeasured performance claim, and the
+   * founder ruled the same morning that the line names the range the shopper
+   * set rather than Shin's opinion of the price. See the schema below.
+   */
+  readonly zone?: 'under_your_line' | 'middle' | 'over_your_line';
+  readonly n?: number;
+  readonly dimension?: string | null;
+  readonly unitLabel?: string | null;
+  readonly shelfPosition?: number;
+  readonly shelfLabel?: string;
+  /* Two flat numbers on the gauge's 0 to 100 line, its own neutral names. */
+  readonly zoneUnderBoundary?: number;
+  readonly zoneOverBoundary?: number;
+  readonly points?: readonly {
+    readonly retailer: string;
+    readonly position: number;
+    readonly url?: string | null;
+    readonly label?: string;
+  }[];
+  /* Where all four adopted item rules surface: a member-only price, a US
+     listing, a marketplace seller, a different brand kind. `code` travels;
+     the note is English and a French reader needs the same fact. */
+  readonly excluded?: readonly {
+    readonly retailer: string;
+    readonly code: string;
+    readonly note?: string;
+    readonly label?: string | null;
+    readonly url?: string | null;
+  }[];
+  readonly ticks?: readonly {
+    readonly pct: number;
+    readonly position: number;
+    readonly label?: string;
+  }[];
 }
 
 /* --------------------------------------------------------------- the asks */
@@ -216,10 +279,25 @@ function voice(reader: Reader): string {
     : 'Tone: flat, factual, direct. State the number and stop. Answer in English.';
 }
 
+/**
+ * The market, asked for as narrowly as the request can put it.
+ *
+ * THIS IS THE FIRST LINE OF DEFENCE, NOT THE ONLY ONE. `../gauge.ts` still
+ * drops anything that comes back in another currency or from a marketplace
+ * seller, with the codes `not_cad` and `marketplace`, because a model that
+ * was asked for Canadian retailers will still sometimes answer with a US
+ * listing and a price that looks like dollars. Asking narrowly here costs
+ * nothing and removes most of the work from the second line.
+ *
+ * "NEVER CONVERT" IS SAID OUT LOUD, to Gemini as well as in our own code. An
+ * exchange rate is a guess about a number the shopper would actually be
+ * charged, and a converted price that arrived already converted is worse than
+ * a US price we can label, because nothing downstream can tell it was a guess.
+ */
 function market(reader: Reader): string {
   return reader === 'fr'
-    ? 'Detaillants canadiens seulement, prix en dollars canadiens (CAD) seulement.'
-    : 'Canadian retailers only, prices in Canadian dollars (CAD) only.';
+    ? "Detaillants canadiens seulement, prix en dollars canadiens (CAD) seulement. Pas de vendeurs tiers sur une place de marche, seulement le detaillant lui-meme. Ne convertis JAMAIS un prix d'une autre devise en CAD : donne le prix tel quel avec le code de sa devise."
+    : 'Canadian retailers only, prices in Canadian dollars (CAD) only. No third-party marketplace sellers, only the retailer itself. NEVER convert a price from another currency into CAD: give the price as it stands with its own currency code.';
 }
 
 function brevity(reader: Reader): string {
@@ -264,6 +342,14 @@ const PRICES_SCHEMA = {
           modelNumber: { type: ['string', 'null'] },
           specs: { type: ['string', 'null'] },
           condition: { type: ['string', 'null'] },
+          currency: { type: ['string', 'null'] },
+          marketplace: { type: ['boolean', 'null'] },
+          memberOnly: { type: ['boolean', 'null'] },
+          dealKind: { type: ['string', 'null'], enum: ['multi_buy', 'bogo', 'clearance', null] },
+          dealUnits: { type: ['number', 'null'] },
+          organic: { type: ['boolean', 'null'] },
+          storeBrand: { type: ['string', 'null'] },
+          soldByWeight: { type: ['boolean', 'null'] },
         },
         required: [
           'retailer',
@@ -275,6 +361,14 @@ const PRICES_SCHEMA = {
           'modelNumber',
           'specs',
           'condition',
+          'currency',
+          'marketplace',
+          'memberOnly',
+          'dealKind',
+          'dealUnits',
+          'organic',
+          'storeBrand',
+          'soldByWeight',
         ],
       },
     },
@@ -296,29 +390,91 @@ const PRICES_SCHEMA = {
   required: ['offers', 'reviews', 'description'],
 };
 
+/*
+ * THE SHAPE `identify/src/gauge.ts` ACTUALLY RETURNS, and nothing else.
+ *
+ * This schema is the `response_format` Gemini must answer in, which makes it
+ * the narrowest point in the verdict path: a field missing from here cannot
+ * reach a screen however carefully the Python computes it.
+ *
+ * REWRITTEN 2026-09-14, for two reasons that were both live defects.
+ *
+ * It demanded `label` as one of `good` / `fair` / `high`. Those are grading
+ * words. Hard rule 2 (Competition Act s.74.01(1)(b), no performance claim
+ * without adequate and proper testing) and four test files forbid them
+ * outside a real verdict, and Gemini's prices are not verified, sized or
+ * dated the way the spine requires before it says walk away. The founder's
+ * ruling the same morning was that the line names the range the SHOPPER set,
+ * so the field is `zone` and its values are neutral: the shelf price is under
+ * their line, in the middle, or over their line. Shin states no opinion about
+ * the price, so there is no claim to substantiate.
+ *
+ * It also described a shape the gauge does not produce: no `zone`, no
+ * `unitLabel`, no `excluded`, no `ticks`, and `zoneBoundaries: {good, high}`
+ * where the gauge emits two flat numbers. `excluded` is how all four of the
+ * adopted item rules express themselves (a member-only price, a US listing, a
+ * marketplace seller, a different brand kind), so with it missing from this
+ * schema not one of them could have reached a tester.
+ */
 const VERDICT_SCHEMA = {
   type: 'object',
   properties: {
+    usable: { type: 'boolean' },
     median: { type: 'number' },
     percent: { type: 'number' },
-    label: { type: 'string', enum: ['good', 'fair', 'high'] },
+    /* Neutral by construction. See the header above: no grading word may be
+       asked for here, because a word asked for is a word that comes back. */
+    zone: { type: 'string', enum: ['under_your_line', 'middle', 'over_your_line'] },
     n: { type: 'number' },
+    dimension: { type: ['string', 'null'] },
+    unitLabel: { type: ['string', 'null'] },
     shelfPosition: { type: 'number' },
-    zoneBoundaries: {
-      type: 'object',
-      properties: { good: { type: 'number' }, high: { type: 'number' } },
-      required: ['good', 'high'],
-    },
+    shelfLabel: { type: 'string' },
+    zoneUnderBoundary: { type: 'number' },
+    zoneOverBoundary: { type: 'number' },
     points: {
       type: 'array',
       items: {
         type: 'object',
-        properties: { retailer: { type: 'string' }, position: { type: 'number' } },
+        properties: {
+          retailer: { type: 'string' },
+          position: { type: 'number' },
+          url: { type: ['string', 'null'] },
+          label: { type: 'string' },
+        },
         required: ['retailer', 'position'],
       },
     },
+    /* The four adopted item rules live here. `code` is what travels, because
+       the note is English and a French reader needs the same fact. */
+    excluded: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          retailer: { type: 'string' },
+          code: { type: 'string' },
+          note: { type: 'string' },
+          label: { type: ['string', 'null'] },
+          url: { type: ['string', 'null'] },
+        },
+        required: ['retailer', 'code'],
+      },
+    },
+    ticks: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          pct: { type: 'number' },
+          position: { type: 'number' },
+          label: { type: 'string' },
+        },
+        required: ['pct', 'position'],
+      },
+    },
   },
-  required: ['median', 'percent', 'label', 'n', 'shelfPosition', 'zoneBoundaries', 'points'],
+  required: ['usable'],
 };
 
 /** A catalogue miss: we have the code and nothing else. */
@@ -354,8 +510,8 @@ export function pricesReviewsRequest(
   const described = [product.brand, product.name, product.size].filter(Boolean).join(' ');
   const ask =
     reader === 'fr'
-      ? `Utilise la recherche Google pour trouver, pour : ${described} -- (1) les prix actuels chez des detaillants canadiens, avec pour chaque offre le detaillant, le prix (nombre, CAD), l'URL, la valeur du format, l'unite du format, le nombre d'unites par paquet, le numero de modele, les specifications et l'etat (neuf, reconditionne, occasion) ; (2) les avis clients avec la note, le nombre d'avis, un resume court et l'URL ; (3) une courte description du produit.`
-      : `Use Google Search to find, for: ${described} -- (1) current prices at Canadian retailers, giving for each offer the retailer, the price (a number, CAD), the url, the size value, the size unit, the pack count, the model number, the specs and the condition (new, refurbished, used); (2) customer reviews with rating, count, a short summary and the url; (3) a short product description.`;
+      ? `Utilise la recherche Google pour trouver, pour : ${described} -- (1) les prix actuels chez des detaillants canadiens, avec pour chaque offre le detaillant, le prix (nombre), la devise du prix (code, par exemple CAD ou USD), l'URL, la valeur du format, l'unite du format, le nombre d'unites par paquet, le numero de modele, les specifications et l'etat (neuf, reconditionne, occasion), et aussi : marketplace (vrai si c'est un vendeur tiers sur le site du detaillant plutot que le detaillant), memberOnly (vrai si le prix exige une adhesion payante), dealKind ("multi_buy" pour un prix a plusieurs articles comme 2 pour 5 $, "bogo" pour un achete un recu un, "clearance" pour une liquidation, sinon null) avec dealUnits (le nombre d'articles couverts, donc 2 pour "2 pour 5 $"), organic (vrai si le produit est biologique), storeBrand (le nom de la marque maison, par exemple "President's Choice", sinon null) et soldByWeight (vrai si le prix est au poids). Donne le prix affiche tel quel : pour un "2 pour 5 $", price vaut 5 et dealUnits vaut 2. ; (2) les avis clients avec la note, le nombre d'avis, un resume court et l'URL ; (3) une courte description du produit.`
+      : `Use Google Search to find, for: ${described} -- (1) current prices at Canadian retailers, giving for each offer the retailer, the price (a number), the currency of that price (a code, for example CAD or USD), the url, the size value, the size unit, the pack count, the model number, the specs and the condition (new, refurbished, used), and also: marketplace (true when it is a third-party seller on the retailer's site rather than the retailer), memberOnly (true when the price needs a paid membership), dealKind ("multi_buy" for a several-items price such as 2 for $5, "bogo" for buy one get one, "clearance" for a marked-down line, otherwise null) with dealUnits (how many items that price covers, so 2 for a "2 for $5"), organic (true when the product is organic), storeBrand (the store brand's name, for example "President's Choice", otherwise null) and soldByWeight (true when the price is by weight). Give the advertised price as it stands: for a "2 for $5", price is 5 and dealUnits is 2. ; (2) customer reviews with rating, count, a short summary and the url; (3) a short product description.`;
   return {
     model,
     images: [],

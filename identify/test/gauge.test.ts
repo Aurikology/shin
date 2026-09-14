@@ -148,7 +148,9 @@ test('L, mL and fl oz all land on one volume line', () => {
 test('an offer with no size is listed separately instead of placed', () => {
   const g = usable(computeGauge(shelf(4, 100, 'g'), [offer('A', 4, 100, 'g'), offer('NoSize', 9.99, null, null)]));
   assert.equal(g.n, 1);
-  assert.deepEqual(g.excluded, [{ retailer: 'NoSize', note: 'no size or different dimension' }]);
+  assert.deepEqual(g.excluded, [
+    { retailer: 'NoSize', code: 'no_size', note: 'no size given', label: '$9.99', url: null },
+  ]);
   assert.deepEqual(g.points.map((p) => p.retailer), ['A']);
 });
 
@@ -156,7 +158,9 @@ test('a volume offer never lands on a mass line', () => {
   const g = usable(computeGauge(shelf(4, 100, 'g'), [offer('A', 4.4, 100, 'g'), offer('Vol', 3, 100, 'mL')]));
   assert.equal(g.n, 1);
   assert.equal(g.dimension, 'mass');
-  assert.deepEqual(g.excluded, [{ retailer: 'Vol', note: 'no size or different dimension' }]);
+  assert.deepEqual(g.excluded, [
+    { retailer: 'Vol', code: 'different_dimension', note: 'measured a different way', label: '100 mL · $3.00', url: null },
+  ]);
   assert.equal(g.percent, -9.090909090909099);
   assert.equal(g.zone, 'middle');
 });
@@ -166,7 +170,9 @@ test('when every offer is excluded there is no median, so there is no verdict', 
   assert.equal(g.usable, false);
   assert.equal(g.usable === false && g.dimension, 'mass');
   assert.equal(g.usable === false && g.unitLabel, '100 g');
-  assert.deepEqual(g.excluded, [{ retailer: 'Vol', note: 'no size or different dimension' }]);
+  assert.deepEqual(g.excluded, [
+    { retailer: 'Vol', code: 'different_dimension', note: 'measured a different way', label: '100 mL · $3.00', url: null },
+  ]);
 });
 
 test('at the default 10 and 10 the boundaries sit at 16.67 and 83.33', () => {
