@@ -91,6 +91,38 @@ client-side finding.
 index with 120 days of price history cannot be built by a content script, so the script is probably
 the display surface and the index is Honey's own infrastructure.
 
+## The price capture proved through the real server, both sides of the consent gate, 2026-09-13 night
+
+The feature had been verified by source and by rendering the card; **nobody had ever posted an
+observation through the running server and read it back.** Done now, against a scratch scan database
+(`SHIN_SCANS` pointed at a temp file) so the real scan log was never written to.
+
+An unresolved scan (a barcode the catalogue does not hold), then a correction carrying a price and a
+shop and **no product code**, answered `{"stored":true,"observation":true,"scanId":N}`. Read back
+from the database:
+
+- **consent OFF** — `typed_price_cents: 499`, and `cell`, `store_id`, `store_name` all **null**.
+- **consent ON** — `typed_price_cents: 1299`, `cell 43.26,-79.87`, `store_id node/442755688`,
+  `store_name Metro`.
+
+Which is exactly the design on both sides: the price is kept either way, because a price with no shop
+is still worth recording, and the location is kept only when the shopper said it may be. The gate is
+not a comment; it was watched refusing.
+
+**Two things the attempt turned up on the way.**
+
+The observation path fires on the scan's OWN resolution, not on what the body omits:
+`const code = str(c.code) ?? scanRow?.resolved_code ?? null`. So a correction against a scan that
+DID resolve takes the ordinary path and needs a seller, which is right. It also means the
+observation path is reached only when identification genuinely failed.
+
+And **the text route resolves almost anything**. `?text=qqzzxx nonexistent thing zzz` came back with
+a product, resolved on the word "thing", and wrote a `resolved_code` to the scan. Not a defect on
+its own — fuzzy matching is the point of that route, and the band and confidence still govern what a
+shopper is shown — but it means the price-capture path will in practice be reached through barcodes
+and photos rather than through typed text, and it is worth knowing before anyone concludes the
+capture is rarely used.
+
 ## Working the unblocked backlog, and two things it turned up, 2026-09-13 night
 
 **A concern I raised myself does not survive checking.** I worried the app asks the OS for location
