@@ -124,8 +124,10 @@ no network unless named, no server left running (kill by PID), tests plus typech
 package, report files changed / before-after counts / what it could not verify. A lane report is
 producer evidence; the row moves only after the boss checks at the consumer (`/api/...` on the
 running server, the CLI against the real database, a real photo through the real route). Lanes
-run in parallel only on disjoint files; re-check `origin/main` before every commit. Push needs
-Aurik's explicit yes, every time.
+run in parallel only on disjoint files; re-check `origin/main` before every commit. **Push needs
+nobody's yes** (Jamin, 2026-09-14: *"aurik does not need to approve before i push, neither do i
+need to approve his push, neither of us actrually read the code"*). Pull first, tests and
+typecheck green, then push.
 
 ## REPO MAP
 
