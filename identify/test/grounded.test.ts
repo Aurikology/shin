@@ -103,7 +103,17 @@ test('the set of files that import grounded.ts equals a written allowlist', () =
   // from matching a rule about `grounded.ts`.
   const IMPORTS_GROUNDED = /from\s+['"][^'"]*\/grounded\.ts['"]/;
   const found = ALL_CODE.filter((p) => IMPORTS_GROUNDED.test(read(p)));
+  // Sorted, because the left side is. A new entry goes in its sorted place.
   assert.deepEqual(found.sort(), [
+    /*
+     * Added 2026-09-14 when this test caught it, which is the test working
+     * rather than the test being wrong. `app/src/grounded-record.ts` is the
+     * one thing that writes a Grounded Result to disk, so it needs
+     * `historyText`, the door built for exactly that. It is on the list
+     * because somebody read it and decided, which is the only way anything
+     * gets on this list.
+     */
+    'app/src/grounded-record.ts',
     'identify/src/provider.ts',
     'identify/src/providers/gemini-grounded.ts',
     'identify/test/grounded-types.ts',

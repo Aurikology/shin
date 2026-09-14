@@ -152,39 +152,59 @@ test('no tools field is ever sent, because an ungrounded answer is the whole poi
   assert.ok(!JSON.stringify(body).includes('google_search'));
 });
 
-test('the body is the Interactions shape the adapter assumes, image before text, system first', async () => {
+/*
+ * REWRITTEN 2026-09-14, and the reason is worth keeping.
+ *
+ * This test first shipped asserting `input_image`, a top-level
+ * `thinking_level`, and an `input` of two role-tagged turns. All three were
+ * this adapter's own guesses, written from a reverted file rather than from
+ * Google, and the test pinned them faithfully. Then the reference was actually
+ * read (ai.google.dev/api/interactions-api and the image-understanding page)
+ * and all three were wrong: the part type is `image`, the thinking level and
+ * the resolution live inside `generation_config`, and `system_instruction` is
+ * a top-level string beside a flat `input`.
+ *
+ * A test holds a claim still. It cannot tell you the claim was true. That is
+ * what the documentation is for, and it is why every assumption in the
+ * adapter's header carries the date it was checked.
+ */
+test('the body is the Interactions shape Google documents, image before text', async () => {
   const transport = fakeTransport({ text: answer() });
   await new GeminiProvider({ apiKey: 'k', transport, baseUrl: BASE }).send(request());
 
   const body = transport.calls[0].body;
   assert.equal(body.model, 'gemini-3.8-flash');
-  assert.equal(body.thinking_level, 'low');
+  // `system_instruction` is its own top-level string, not a turn inside `input`.
+  assert.equal(body.system_instruction, 'shared prefix');
+  const gen = body.generation_config as Record<string, unknown>;
+  assert.equal(gen.thinking_level, 'low');
+  assert.equal(gen.media_resolution, 'media_resolution_medium');
+  assert.equal(body.thinking_level, undefined, 'the thinking level must not also sit at the top level');
   assert.deepEqual(body.response_format, {
     type: 'text',
     mime_type: 'application/json',
     schema: { type: 'OBJECT' },
   });
 
-  const input = body.input as { role: string; content: Record<string, unknown>[] }[];
+  const input = body.input as Record<string, unknown>[];
+  // A FLAT array of parts, not role-tagged turns. Render order is still
+  // load-bearing: `model.ts`'s cache lever needs the pass-specific instruction
+  // to sit AFTER the image.
   assert.equal(input.length, 2);
-  assert.equal(input[0].role, 'system');
-  assert.equal(input[0].content[0].text, 'shared prefix');
-  assert.equal(input[1].role, 'user');
-  // Render order is load-bearing: `model.ts`'s cache lever needs the
-  // pass-specific instruction to sit AFTER the image.
-  assert.equal(input[1].content[0].type, 'input_image');
-  assert.equal(input[1].content[0].mime_type, 'image/jpeg');
-  assert.equal(input[1].content[0].data, Buffer.from([0xff, 0xd8, 0xff, 0xe0]).toString('base64'));
-  assert.equal(input[1].content[0].resolution, 'medium');
-  assert.equal(input[1].content[1].type, 'text');
-  assert.equal(input[1].content[1].text, 'the pass-specific instruction');
+  assert.equal(input[0].type, 'image');
+  assert.equal(input[0].mime_type, 'image/jpeg');
+  assert.equal(input[0].data, Buffer.from([0xff, 0xd8, 0xff, 0xe0]).toString('base64'));
+  assert.equal(input[0].resolution, undefined, 'the resolution hint belongs in generation_config');
+  assert.equal(input[1].type, 'text');
+  assert.equal(input[1].text, 'the pass-specific instruction');
 });
 
 test('SHIN_GEMINI_THINKING overrides the thinking level', async () => {
   await withEnv('SHIN_GEMINI_THINKING', 'high', async () => {
     const transport = fakeTransport({ text: answer() });
     await new GeminiProvider({ apiKey: 'k', transport, baseUrl: BASE }).send(request());
-    assert.equal(transport.calls[0].body.thinking_level, 'high');
+    const gen = transport.calls[0].body.generation_config as Record<string, unknown>;
+    assert.equal(gen.thinking_level, 'high');
   });
 });
 

@@ -79,12 +79,16 @@
  *      answer is the LAST `model_output` step, whose `content[]` entries carry
  *      `text`. Anything else in the list (a `thought` step, for instance) is
  *      read for nothing.
- *   9. USAGE is `usageMetadata.promptTokenCount` /
- *      `.candidatesTokenCount` / `.thoughtsTokenCount`, with a cache read count
- *      at `.cachedContentTokenCount`. Thinking tokens are folded into
- *      `outputTokens` because they bill at the OUTPUT rate; reporting them
- *      separately, or dropping them, would under-report the bill by exactly the
- *      thinking budget. There is assumed to be NO cache-WRITE count on this
+ *   9. USAGE is `usage.total_input_tokens` / `.total_output_tokens` /
+ *      `.total_thought_tokens` / `.total_cached_tokens`, CORRECTED 2026-09-14
+ *      against ai.google.dev/api/interactions-api. This adapter first shipped
+ *      with `usageMetadata.promptTokenCount` and its siblings, which are the
+ *      legacy generateContent names and would have parsed as absent on every
+ *      call, reporting a null cost forever. The legacy names are still read as
+ *      a fallback. Thinking tokens bill at the OUTPUT rate and are added to
+ *      output, because `TokenUsage` has no third bucket and a consumer that
+ *      did not learn about one would under-report by the whole thinking
+ *      budget. There is assumed to be NO cache-WRITE count on this
  *      path (Gemini's context caching is an explicitly created resource, not an
  *      automatic breakpoint), so `cacheCreationTokens` is always null here:
  *      absence, never a zero, which is the convention `provider.ts`'s
@@ -181,6 +185,18 @@ export function geminiModelFor(model: string): string {
 }
 
 /** Assumption 7. Anything the environment says is passed through untouched: this file does not police Google's enum. */
+/**
+ * How many tokens one image may cost. Gemini 3's levels are roughly 280, 560
+ * and 1120 tokens per image, a fourfold spread for the same photograph, so
+ * this is the cheapest cost lever in the adapter. `medium` because the crop
+ * arriving here is already tight: the eye cropped to the product before this
+ * was called, so the extra detail `high` buys is mostly the shelf behind it.
+ */
+function mediaResolution(): string {
+  const named = process.env.SHIN_GEMINI_MEDIA_RESOLUTION?.trim().toLowerCase();
+  return named || 'media_resolution_medium';
+}
+
 function thinkingLevel(): string {
   return process.env.SHIN_GEMINI_THINKING?.trim() || 'low';
 }
@@ -356,18 +372,22 @@ export function forGeminiSchema(schema: unknown): unknown {
 
 interface GeminiBody {
   model: string;
+  system_instruction: string;
   input: unknown[];
   response_format: unknown;
-  thinking_level: string;
+  generation_config: { thinking_level: string; media_resolution: string };
 }
 
 function bodyFor(request: ProviderRequest, model: string): GeminiBody {
   const imageParts = request.images.map((image) => ({
-    type: 'input_image',
+    // `image`, not `input_image`. Read off Google's own reference and the image
+    // understanding page on 2026-09-14, whose REST example is verbatim
+    // `{"type": "image", "data": "...", "mime_type": "image/jpeg"}`. This
+    // adapter said `input_image` until that was checked, which is a request
+    // that would have failed on first contact and on every call after it.
+    type: 'image',
     mime_type: image.mediaType,
     data: Buffer.from(image.bytes).toString('base64'),
-    // Assumption 5: medium, because the crop arriving here is already tight.
-    resolution: 'medium',
   }));
 
   // The text goes AFTER the image, exactly as in the Anthropic and xAI
@@ -383,16 +403,26 @@ function bodyFor(request: ProviderRequest, model: string): GeminiBody {
   // does not. See the header.
   return {
     model,
-    input: [
-      { role: 'system', content: [{ type: 'text', text: request.system }] },
-      { role: 'user', content: userContent },
-    ],
+    // A TOP-LEVEL STRING, not a role-tagged turn inside `input`. The reference
+    // lists `system_instruction` as its own field and `input` as "Content,
+    // array of Content, array of Step, or string"; the roles this adapter used
+    // to wrap around both were an invention. Checked 2026-09-14.
+    system_instruction: request.system,
+    input: userContent,
     response_format: {
       type: 'text',
       mime_type: 'application/json',
       schema: forGeminiSchema(request.schema.schema),
     },
-    thinking_level: thinkingLevel(),
+    // Both of these live INSIDE `generation_config`, and the resolution hint is
+    // `media_resolution` on the request rather than `resolution` on the image
+    // part. Same reference, same date. `media_resolution` is what decides the
+    // per-image token cost, so getting it wrong is a silent bill rather than a
+    // loud failure, which is the worse of the two.
+    generation_config: {
+      thinking_level: thinkingLevel(),
+      media_resolution: mediaResolution(),
+    },
   };
 }
 
@@ -425,6 +455,7 @@ interface StepLike {
 
 interface InteractionsBody {
   steps?: unknown;
+  usage?: Record<string, unknown>;
   usageMetadata?: Record<string, unknown>;
   usage_metadata?: Record<string, unknown>;
   model?: unknown;
@@ -515,7 +546,9 @@ function readAnswer<T>(raw: string, model: string, provider: string): ProviderRe
   const echoed = lower(parsed.model) ? String(parsed.model) : lower(parsed.modelVersion) ? String(parsed.modelVersion) : null;
   return {
     value,
-    usage: usageOf(parsed.usageMetadata ?? parsed.usage_metadata),
+    // `usage` is this surface's own name for it; the other two are the legacy
+    // envelope, kept as a fallback because nothing here has seen a real one yet.
+    usage: usageOf(parsed.usage ?? parsed.usageMetadata ?? parsed.usage_metadata),
     provider,
     // The model asked for stands in when the response does not echo one, which
     // is every fake transport in this package's tests.
@@ -528,10 +561,27 @@ function usageOf(usage: Record<string, unknown> | undefined): TokenUsage {
   if (!usage) {
     return { inputTokens: null, outputTokens: null, cacheReadTokens: null, cacheCreationTokens: null };
   }
-  const candidates = num(usage.candidatesTokenCount);
-  const thoughts = num(usage.thoughtsTokenCount);
+  /*
+   * THE INTERACTIONS API COUNTS ARE NOT generateContent'S COUNTS.
+   *
+   * This adapter read `promptTokenCount` / `candidatesTokenCount` /
+   * `thoughtsTokenCount` until 2026-09-14, which are the LEGACY names. On this
+   * surface the reference gives `total_input_tokens`, `total_output_tokens`,
+   * `total_thought_tokens`, `total_cached_tokens` and `total_tokens`, on a
+   * `usage` object rather than `usageMetadata`. Every one of the old names
+   * would have parsed as absent, so every Gemini call would have reported a
+   * null cost while the whole point of the switch is knowing what it costs.
+   * That is a failure that looks like working software, which is why it is
+   * written out here rather than fixed quietly.
+   *
+   * The legacy names are still read as a fallback, because a null cost is
+   * worse than a cost read off whichever shape actually arrives, and because
+   * nothing here has yet seen a real response from either surface.
+   */
+  const candidates = num(usage.total_output_tokens) ?? num(usage.candidatesTokenCount);
+  const thoughts = num(usage.total_thought_tokens) ?? num(usage.thoughtsTokenCount);
   return {
-    inputTokens: num(usage.promptTokenCount),
+    inputTokens: num(usage.total_input_tokens) ?? num(usage.promptTokenCount),
     // Assumption 9: thinking tokens bill at the OUTPUT rate, so they are output
     // as far as any cost figure is concerned. Added rather than reported apart,
     // because `TokenUsage` has no third bucket and inventing one would mean
@@ -539,7 +589,7 @@ function usageOf(usage: Record<string, unknown> | undefined): TokenUsage {
     // under-report by the whole thinking budget. Null stays null: a response
     // that reported neither count must not come back as a measured zero.
     outputTokens: candidates === null && thoughts === null ? null : (candidates ?? 0) + (thoughts ?? 0),
-    cacheReadTokens: num(usage.cachedContentTokenCount),
+    cacheReadTokens: num(usage.total_cached_tokens) ?? num(usage.cachedContentTokenCount),
     // Assumption 9: no cache-write count on this path. Null, never zero: zero
     // would claim a measurement this adapter never took.
     cacheCreationTokens: null,
