@@ -32,6 +32,7 @@ import { loadDotEnv } from './env.ts';
 import {
   addUsage,
   classifyProviderError,
+  withFallback,
   type CacheHint,
   type Provider,
   type ProviderRequest,
@@ -40,6 +41,7 @@ import {
 } from './provider.ts';
 import { AnthropicProvider, anthropicClient, type MessagesClient } from './providers/anthropic.ts';
 import { XaiProvider } from './providers/xai.ts';
+import { GeminiProvider } from './providers/gemini.ts';
 
 /**
  * Still exported from here, 2026-09-13.
@@ -787,10 +789,35 @@ function arrange(
 /**
  * Which provider is behind the seam. `anthropic` unless explicitly told
  * otherwise, so an unset environment is today's behaviour exactly.
+ *
+ * GEMINI IS THE ONE NAME THAT CARRIES A FALLBACK (2026-09-14). His word was
+ * to switch, not to risk an outage becoming a refusal: "we will accept all
+ * answers gemini gives" is a statement about trusting the answer, not about
+ * having no plan for the call failing to arrive at all, and priority 1 here
+ * is always answer. So `SHIN_MODEL_PROVIDER=gemini` with a key present
+ * builds `withFallback(gemini, anthropic)`: Gemini runs first, and any
+ * failure -- an outage, a timeout, a malformed answer -- falls through to
+ * the Claude path in the SAME call, before `model.ts`'s own retry-and-cap
+ * policy ever sees a final error. `xai` carries no such fallback because
+ * nothing asked for one; only Gemini's switch came with the instruction to
+ * keep Claude standing behind it.
+ *
+ * WITH NO KEY, THIS IS THE ANTHROPIC PATH, UNCHANGED. `SHIN_MODEL_PROVIDER=
+ * gemini` with `GEMINI_API_KEY` absent never constructs a `GeminiProvider`
+ * at all -- there is nothing to fall back FROM, and attempting a call with no
+ * key would just be `classifyProviderError`'s existing "no credentials"
+ * branch spending a network round trip to learn what `apiKey` already knows.
+ * So an environment with the provider named but no key sends exactly the
+ * request it sent before Gemini existed, byte for byte.
  */
-function makeProvider(apiKey?: string): Provider {
+export function makeProvider(apiKey?: string): Provider {
   const named = process.env.SHIN_MODEL_PROVIDER?.trim().toLowerCase();
   if (named === 'xai') return new XaiProvider({ apiKey });
+  if (named === 'gemini') {
+    const geminiKey = process.env.GEMINI_API_KEY?.trim();
+    if (geminiKey) return withFallback(new GeminiProvider({ apiKey: geminiKey }), new AnthropicProvider(anthropicClient(apiKey)));
+    return new AnthropicProvider(anthropicClient(apiKey));
+  }
   return new AnthropicProvider(anthropicClient(apiKey));
 }
 
