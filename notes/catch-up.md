@@ -9,6 +9,59 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-14, later: test Notion from Aurik's side (Jamin's worker Mac session)
+
+### To do: Aurik (and his Claude), about 10 minutes
+
+The goal is to prove your Claude can read and write the shared Notion page, because from now on
+that page is how your sessions and Jamin's talk, and soon how you ask the Mac to put your pushes
+live. Your Claude walks you through it:
+
+1. **Pull**, so this file and the latest rules are on your machine.
+2. **Check you can open the page yourself** in Notion: `Shin: who is working on what`,
+   https://app.notion.com/p/3db09fb15fcf8155bc04ef261e4e1d9c. If Notion says you have no access,
+   ask Jamin to share it with your Notion account (Share, then invite your email, "Can edit").
+3. **Connect Notion to your Claude.** In the Claude app or claude.ai: Settings, Connectors,
+   Notion, Connect, and allow access to that page. In Claude Code, run `/mcp` and check Notion
+   is listed and connected. (This is your own connection. The Mac has a separate key of its own;
+   you never need it.)
+4. **Read test.** Your Claude fetches the page and tells you, in plain words, what is under
+   **Needs attention** and **Working on now**. If it cannot find the page or its tools have no
+   Notion in them, step 3 did not take; stop there and tell Jamin.
+5. **Write test.** Your Claude adds exactly this line under **Needs attention**, with the real
+   time:
+   `to jamin · from aurik · <YYYY-MM-DD HH:MM UTC> · Notion test from Aurik's machine: reading and writing work`
+   It must add the line with an edit that leaves every other line alone (never rewrite the
+   whole page: Jamin's sessions and the Mac edit it too). Then it fetches the page again and
+   confirms the line is there.
+6. **Round trip.** A session on Jamin's side answers on the same line with ` → seen <time>`.
+   Once your Claude sees that, delete the line. That proves both directions work.
+7. **Reminder check.** Make any small edit in the repo with Claude Code, without touching Notion
+   first. Claude should get a reminder to update the Notion page (a check that ships in the repo
+   and runs every time your Claude does something). If no reminder appears, tell Jamin: your
+   Claude Code may not be loading the repo's settings.
+
+### Coming soon: asking the Mac to put your push live (do not use until it appears)
+
+Being built on the Mac now. **Wait until the page has a section called `Mac server` with a
+`Status:` line** before relying on it; until then, pushes do not go live on their own.
+
+- The Mac reads the page every 5 minutes, day and night. Post `start checking · from aurik ·
+  <time>` under **Requests to the Mac** and it reads every minute, dropping back to 5 minutes
+  after 60 minutes with nothing new from you.
+- After you push: `deploy · from aurik · <time> · <commit short or latest> · <what changed>`.
+  The Mac tests that exact code in a separate copy, puts it live only if tests pass, checks the
+  live server answers on it, and posts every step (seen, queue position, tests, restart, live
+  check, done or failed) in the `Mac log`. Failed tests leave the old version running.
+- If someone else's deploy is running, yours joins the **Queue** and the log says so.
+  `hold · from <who> · <time> · <reason>` makes deploys wait (expires after 1 hour unless
+  refreshed); `release` ends it. Naming an older commit rolls back and pins it until a newer push.
+- Nothing waits on a silent person: a request you posted still runs if you go quiet.
+
+### Read by
+
+---
+
 ## 2026-09-14 (Jamin's worker Mac session, Jamin at the keyboard)
 
 ### To do: Aurik
