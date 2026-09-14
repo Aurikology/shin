@@ -160,7 +160,9 @@ export interface ManifestRow {
   readonly name: string | null;
   readonly size: string | null;
   // 'produce' and 'tech' added 2026-09-11, item 14b of the beta build plan:
-  // 20 slots of each, manifest.json rows already there, photo files not.
+  // 20 slots of each, manifest.json rows already there, photo files not. The
+  // tech twenty were re-selected and photographed on 2026-09-14; the produce
+  // twenty are a refusal test and stay without photos on purpose.
   // Loose produce carries no barcode by design (item 20's own point), so a
   // produce row's `code`/`brand`/`category` are legitimately null rather than
   // a placeholder waiting on a lookup.
@@ -176,12 +178,15 @@ export interface ManifestRow {
    * answer; scoring them as a refusal test asks the one question the eval could
    * not previously ask at all.
    *
-   * The twenty `kind: 'tech'` rows stay `'identify'` and stay PENDING. Their
-   * codes are placeholders absent from the catalogue and from both Open Facts
-   * APIs (D-096), but re-pointing them is an answer-key change, and an answer
-   * key edited by whoever is holding the file is how an eval starts measuring
-   * what it can pass. The runner says so out loud instead -- see
-   * `checkAnswerKey` below.
+   * The twenty `kind: 'tech'` rows stay `'identify'` and, since 2026-09-14, they
+   * carry photos. They used to be placeholders: twenty codes absent from the
+   * catalogue and from both Open Facts APIs, so that every one of them would
+   * have scored `cascade_miss` by construction the day a photo landed (D-096).
+   * They were re-selected from the catalogue's own Open Products Facts rows, by
+   * the same buckets and the same recorded reasoning as the first forty, and
+   * `README-selection.md` carries the bucket list, the licence and the source
+   * URL of every photograph. `checkAnswerKey` below is what caught the
+   * placeholders and it still runs on any row that has no photo yet.
    */
   readonly expect: Expectation;
   readonly category: string | null;

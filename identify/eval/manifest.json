@@ -120,6 +120,426 @@
     "category": "en:extruded-cereals"
   },
   {
+    "code": "0012511472313",
+    "file": "photos/0012511472313.jpg",
+    "brand": "Wholesome",
+    "name": "Organic Blue Agave",
+    "size": "480 mL",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:agave-syrups"
+  },
+  {
+    "code": "0012511474416",
+    "file": "photos/0012511474416.jpg",
+    "brand": "Wholesome",
+    "name": "Organic Blue Agave",
+    "size": "900 mL",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:agave-syrups"
+  },
+  {
+    "code": "0017082117274",
+    "file": "photos/0017082117274.jpg",
+    "brand": "Jack Link's",
+    "name": "Original Beef Jerky",
+    "size": "80 g",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:beef-jerkies"
+  },
+  {
+    "code": "0017082707253",
+    "file": "photos/0017082707253.jpg",
+    "brand": "Jack Link's",
+    "name": "Original Beef Jerky",
+    "size": "230 g",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:beef-jerkies"
+  },
+  {
+    "code": "0022314010117",
+    "file": "photos/0022314010117.jpg",
+    "brand": "Clément Faugier",
+    "name": "Crème de Marrons de l'Ardèche",
+    "size": "85 g",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:chestnut-spreads"
+  },
+  {
+    "code": "0022314015174",
+    "file": "photos/0022314015174.jpg",
+    "brand": "Clément Faugier",
+    "name": "Crème de Marrons de L'Ardèche",
+    "size": "250 g",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "fr:chataigne-d-ardeche"
+  },
+  {
+    "code": "0025293002180",
+    "file": "photos/0025293002180.jpg",
+    "brand": "Silk",
+    "name": "Almond",
+    "size": "946 mL",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:almond-based-drinks"
+  },
+  {
+    "code": "0025293001503",
+    "file": "photos/0025293001503.jpg",
+    "brand": "Silk",
+    "name": "Almond",
+    "size": "1.89 L",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:Fortified Almond Beverage"
+  },
+  {
+    "code": "0031200025715",
+    "file": "photos/0031200025715.jpg",
+    "brand": "Ocean Spray",
+    "name": "Original Cranberry Cocktail",
+    "size": "739 mL",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:cranberry-juices"
+  },
+  {
+    "code": "0031200445261",
+    "file": "photos/0031200445261.jpg",
+    "brand": "Ocean Spray",
+    "name": "Original Cranberry Cocktail",
+    "size": "1.89 l",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:cranberry-juices"
+  },
+  {
+    "code": "0041390001109",
+    "file": "photos/0041390001109.jpg",
+    "brand": "Kikkoman",
+    "name": "Soy Sauce",
+    "size": "15 ml",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:Undefined"
+  },
+  {
+    "code": "0041390001055",
+    "file": "photos/0041390001055.jpg",
+    "brand": "Kikkoman",
+    "name": "Soy Sauce",
+    "size": "296ml",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "fr:sauces-au-soja-salees"
+  },
+  {
+    "code": "0056200762163",
+    "file": "photos/0056200762163.jpg",
+    "brand": "French's",
+    "name": "Classic Yellow mustard",
+    "size": "225ml",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:groceries"
+  },
+  {
+    "code": "0041500007007",
+    "file": "photos/0041500007007.jpg",
+    "brand": "French's",
+    "name": "Classic Yellow Mustard",
+    "size": "226gm/bottle",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:yellow-mustards"
+  },
+  {
+    "code": "0043646201288",
+    "file": "photos/0043646201288.jpg",
+    "brand": "Maille",
+    "name": "Dijon Originale Mustard",
+    "size": "213 g",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:dijon-mustards"
+  },
+  {
+    "code": "0043646242052",
+    "file": "photos/0043646242052.jpg",
+    "brand": "Maille",
+    "name": "Dijon Originale Mustard",
+    "size": "800 ml",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:groceries"
+  },
+  {
+    "code": "0048001353664",
+    "file": "photos/0048001353664.jpg",
+    "brand": "Hellmann's",
+    "name": "Real Mayonnaise",
+    "size": "11.5 FL OZ (340ml)",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:mayonnaises"
+  },
+  {
+    "code": "0048001213487",
+    "file": "photos/0048001213487.jpg",
+    "brand": "Hellmann's",
+    "name": "REAL MAYONNAISE",
+    "size": "30 Fl oz (887 ml)",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:mayonnaises"
+  },
+  {
+    "code": "0048500001554",
+    "file": "photos/0048500001554.jpg",
+    "brand": "Tropicana",
+    "name": "Jus d'orange",
+    "size": "946 ml",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:orange-juices"
+  },
+  {
+    "code": "0048500201633",
+    "file": "photos/0048500201633.jpg",
+    "brand": "Tropicana",
+    "name": "Jus d'orange",
+    "size": "1,65 L",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:squeezed-orange-juices"
+  },
+  {
+    "code": "0055000031318",
+    "file": "photos/0055000031318.jpg",
+    "brand": "Nestlé",
+    "name": "Nesquik",
+    "size": "700 ml",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:chocolate-syrup"
+  },
+  {
+    "code": "0055000406529",
+    "file": "photos/0055000406529.jpg",
+    "brand": "Nestlé",
+    "name": "Nesquik",
+    "size": "1,36 kg",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "fr:poudre-chocolat-canada"
+  },
+  {
+    "code": "0055000205580",
+    "file": "photos/0055000205580.jpg",
+    "brand": "Häagen-Dazs",
+    "name": "Strawberry Ice Cream",
+    "size": "450 mL",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:ice-cream-tubs"
+  },
+  {
+    "code": "0055000681834",
+    "file": "photos/0055000681834.jpg",
+    "brand": "Häagen-Dazs",
+    "name": "Strawberry Ice Cream",
+    "size": "500 ml",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:ice-cream-tubs"
+  },
+  {
+    "code": "0055577101100",
+    "file": "photos/0055577101100.jpg",
+    "brand": "Quaker",
+    "name": "Quick Oats",
+    "size": "1kg",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:quick-oats"
+  },
+  {
+    "code": "0055577331002",
+    "file": "photos/0055577331002.jpg",
+    "brand": "Quaker",
+    "name": "Quick oats",
+    "size": "5.16kg",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:rolled-oats"
+  },
+  {
+    "code": "0055712100142",
+    "file": "photos/0055712100142.jpg",
+    "brand": "Weetabix",
+    "name": "Whole Grain Cereal",
+    "size": "400 g",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:extruded-cereals"
+  },
+  {
+    "code": "0628154490203",
+    "file": "photos/0628154490203.jpg",
+    "brand": "Weetabix",
+    "name": "Whole Grain Cereal",
+    "size": "24 x 55 g",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:breakfast-cereals"
+  },
+  {
+    "code": "0055742366914",
+    "file": "photos/0055742366914.jpg",
+    "brand": "Compliments",
+    "name": "100% Pure Organic Maple Syrup",
+    "size": "375 mL",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:amber-maple-syrups"
+  },
+  {
+    "code": "0055742503807",
+    "file": "photos/0055742503807.jpg",
+    "brand": "Compliments",
+    "name": "100% Pure Organic Maple Syrup",
+    "size": "500 mL",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:amber-maple-syrups"
+  },
+  {
+    "code": "0055742539462",
+    "file": "photos/0055742539462.jpg",
+    "brand": "Compliments",
+    "name": "Smooth Peanut Butter",
+    "size": "500 g",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:peanut-butters"
+  },
+  {
+    "code": "0055742348378",
+    "file": "photos/0055742348378.jpg",
+    "brand": "Compliments",
+    "name": "Smooth Peanut Butter",
+    "size": "1kg",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:peanut-butters"
+  },
+  {
+    "code": "0056200762170",
+    "file": "photos/0056200762170.jpg",
+    "brand": "French's",
+    "name": "Classic Yellow Prepared Mustard",
+    "size": "400 ml",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:groceries-condiments-sauces-mustards"
+  },
+  {
+    "code": "0056200824861",
+    "file": "photos/0056200824861.jpg",
+    "brand": "French's",
+    "name": "Classic Yellow Prepared Mustard",
+    "size": "830ml",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:grocery-condiments-sauces-mustards"
+  },
+  {
+    "code": "0056600782518",
+    "file": "photos/0056600782518.jpg",
+    "brand": "Reese's",
+    "name": "Reese's Pieces",
+    "size": "230 g",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:confectioneries"
+  },
+  {
+    "code": "0056600793743",
+    "file": "photos/0056600793743.jpg",
+    "brand": "Reese's",
+    "name": "Reese's Pieces",
+    "size": "800 g",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:confectioneries"
+  },
+  {
+    "code": "0056600793217",
+    "file": "photos/0056600793217.jpg",
+    "brand": "Reese's",
+    "name": "Peanut Butter Cups",
+    "size": "46 g",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:peanut-butter-cups"
+  },
+  {
+    "code": "0056600392229",
+    "file": "photos/0056600392229.jpg",
+    "brand": "Reese's",
+    "name": "Peanut Butter Cups",
+    "size": "226 g",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:chocolate-candies"
+  },
+  {
+    "code": "0056800162677",
+    "file": "photos/0056800162677.jpg",
+    "brand": "Activia",
+    "name": "Activia",
+    "size": "650g",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:dairy-desserts"
+  },
+  {
+    "code": "0056800250473",
+    "file": "photos/0056800250473.jpg",
+    "brand": "Activia",
+    "name": "ACTIVIA",
+    "size": "24x 100g",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:bifidus-yogurts"
+  },
+  {
+    "code": "0057000015992",
+    "file": "photos/0057000015992.jpg",
+    "brand": "Heinz",
+    "name": "Yellow Mustard",
+    "size": "375 mL",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:groceries"
+  },
+  {
+    "code": "0057000036355",
+    "file": "photos/0057000036355.jpg",
+    "brand": "Heinz",
+    "name": "Yellow Mustard",
+    "size": "380 mL",
+    "kind": "size-pair",
+    "expect": "identify",
+    "category": "en:groceries"
+  },
+  {
     "code": "0060383007621",
     "file": "photos/0060383007621.jpg",
     "brand": "no name",
@@ -160,6 +580,146 @@
     "category": "en:colombian-coffees"
   },
   {
+    "code": "0055742346022",
+    "file": "photos/0055742346022.jpg",
+    "brand": "Compliments",
+    "name": "Strawberry Cereal Bars",
+    "size": "300 g",
+    "kind": "store-brand",
+    "expect": "identify",
+    "category": "en:strawberry-cereal-bars"
+  },
+  {
+    "code": "0055742356823",
+    "file": "photos/0055742356823.jpg",
+    "brand": "compliments",
+    "name": "SOYA SAUCE",
+    "size": "450 ml",
+    "kind": "store-brand",
+    "expect": "identify",
+    "category": "en:groceries"
+  },
+  {
+    "code": "0055742357912",
+    "file": "photos/0055742357912.jpg",
+    "brand": "Compliments",
+    "name": "Fettucine",
+    "size": "900g",
+    "kind": "store-brand",
+    "expect": "identify",
+    "category": "en:spaghetti"
+  },
+  {
+    "code": "0055742358902",
+    "file": "photos/0055742358902.jpg",
+    "brand": "Compliments • Sobeys",
+    "name": "Cocoa",
+    "size": "250g",
+    "kind": "store-brand",
+    "expect": "identify",
+    "category": "en:cocoa-powders"
+  },
+  {
+    "code": "0055742374025",
+    "file": "photos/0055742374025.jpg",
+    "brand": "Compliments",
+    "name": "Salt-Free Cut Green Beans",
+    "size": "398 mL",
+    "kind": "store-brand",
+    "expect": "identify",
+    "category": "en:canned-green-beans"
+  },
+  {
+    "code": "0055742507898",
+    "file": "photos/0055742507898.jpg",
+    "brand": "Compliments",
+    "name": "Sauce poutine",
+    "size": "398 ml",
+    "kind": "store-brand",
+    "expect": "identify",
+    "category": "fr:sauces-poutine"
+  },
+  {
+    "code": "0055742509427",
+    "file": "photos/0055742509427.jpg",
+    "brand": "Compliments",
+    "name": "biscuits Graham au miel",
+    "size": "408 g",
+    "kind": "store-brand",
+    "expect": "identify",
+    "category": "en:biscuits"
+  },
+  {
+    "code": "0055742520774",
+    "file": "photos/0055742520774.jpg",
+    "brand": "Compliments",
+    "name": "Regular instant oatmeal",
+    "size": "336 g",
+    "kind": "store-brand",
+    "expect": "identify",
+    "category": "en:oat-groats"
+  },
+  {
+    "code": "0055742521153",
+    "file": "photos/0055742521153.jpg",
+    "brand": "Compliments",
+    "name": "Salt-Free Small Peas",
+    "size": "398 mL",
+    "kind": "store-brand",
+    "expect": "identify",
+    "category": "en:canned-peas"
+  },
+  {
+    "code": "0055742522297",
+    "file": "photos/0055742522297.jpg",
+    "brand": "Compliments",
+    "name": "100% Peach Juice & Purée Blend",
+    "size": "1 L",
+    "kind": "store-brand",
+    "expect": "identify",
+    "category": "en:juices-and-nectars"
+  },
+  {
+    "code": "0055742528381",
+    "file": "photos/0055742528381.jpg",
+    "brand": "Compliments",
+    "name": "Chocolate chip cookies",
+    "size": "300 g",
+    "kind": "store-brand",
+    "expect": "identify",
+    "category": "en:chocolate-chip-cookies"
+  },
+  {
+    "code": "0055742528411",
+    "file": "photos/0055742528411.jpg",
+    "brand": "Compliments",
+    "name": "Oatmeal raisin cookies",
+    "size": "300 g",
+    "kind": "store-brand",
+    "expect": "identify",
+    "category": "en:oatmeal-cookies"
+  },
+  {
+    "code": "0055742531299",
+    "file": "photos/0055742531299.jpg",
+    "brand": "Compliments",
+    "name": "Fruit Punch Flavour Zaz",
+    "size": "48 mL",
+    "kind": "store-brand",
+    "expect": "identify",
+    "category": "en:flavors"
+  },
+  {
+    "code": "0055742536652",
+    "file": "photos/0055742536652.jpg",
+    "brand": "Compliments",
+    "name": "Natural Peanut Butter",
+    "size": "1 kg",
+    "kind": "store-brand",
+    "expect": "identify",
+    "category": "en:nut-butters"
+  },
+  {
     "code": "0018627102564",
     "file": "photos/0018627102564.jpg",
     "brand": "Kashi",
@@ -198,6 +758,146 @@
     "kind": "multipack",
     "expect": "identify",
     "category": "en:fruit-juices"
+  },
+  {
+    "code": "0018627102557",
+    "file": "photos/0018627102557.jpg",
+    "brand": "Kashi 🇺🇸Solana Beach California",
+    "name": "Chocolate Chip Chia 7-Grain & Quinoa bars. \nMade in 🇨🇦 from domestic & impotant ingredients. Prepared for…",
+    "size": "5 x 40 g",
+    "kind": "multipack",
+    "expect": "identify",
+    "category": "en:cereal-bars"
+  },
+  {
+    "code": "0018627102571",
+    "file": "photos/0018627102571.jpg",
+    "brand": "Kashi",
+    "name": "Honey Oat Flax",
+    "size": "5 x 40g  •  200g Net",
+    "kind": "multipack",
+    "expect": "identify",
+    "category": "en:Whole Grains & Fiber"
+  },
+  {
+    "code": "0018627104858",
+    "file": "photos/0018627104858.jpg",
+    "brand": "Kashi 🇺🇸Solana Beach California",
+    "name": "Cherry Dark Chocolate, Chewy whole-grain bars",
+    "size": "5 bars / barres 175 g",
+    "kind": "multipack",
+    "expect": "identify",
+    "category": "en:shelf-stable-sweet-snacks"
+  },
+  {
+    "code": "0057000613280",
+    "file": "photos/0057000613280.jpg",
+    "brand": "Heinz",
+    "name": "Heinz Tomato Ketchup",
+    "size": "1 x 1.25 L",
+    "kind": "multipack",
+    "expect": "identify",
+    "category": "en:groceries"
+  },
+  {
+    "code": "0059527651592",
+    "file": "photos/0059527651592.jpg",
+    "brand": "Taste Of Nature",
+    "name": "Brazil Nut, Organic Snack bars",
+    "size": "5 x 32 g,  Net wt: 160 g",
+    "kind": "multipack",
+    "expect": "identify",
+    "category": "en:Snack Bars"
+  },
+  {
+    "code": "0059800516419",
+    "file": "photos/0059800516419.jpg",
+    "brand": "Kit Kat",
+    "name": "KitKat Mega (2 bars)",
+    "size": "73 g",
+    "kind": "multipack",
+    "expect": "identify",
+    "category": "en:chocolate-biscuity-bars"
+  },
+  {
+    "code": "0060383105686",
+    "file": "photos/0060383105686.jpg",
+    "brand": "No name",
+    "name": "chunk light tuna packed in water",
+    "size": "170 g",
+    "kind": "multipack",
+    "expect": "identify",
+    "category": "en:tuna-in-water"
+  },
+  {
+    "code": "0060383371609",
+    "file": "photos/0060383371609.jpg",
+    "brand": "no name",
+    "name": "flaked light tuna packed in water",
+    "size": "120 g",
+    "kind": "multipack",
+    "expect": "identify",
+    "category": "en:canned-tunas"
+  },
+  {
+    "code": "0063100479954",
+    "file": "photos/0063100479954.jpg",
+    "brand": "Maple Leaf",
+    "name": "Poulet effiloché",
+    "size": "700 g (2x350 g)",
+    "kind": "multipack",
+    "expect": "identify",
+    "category": "fr:Viande blanche de poulet"
+  },
+  {
+    "code": "0063348005946",
+    "file": "photos/0063348005946.jpg",
+    "brand": "Dare",
+    "name": "Bear paws",
+    "size": null,
+    "kind": "multipack",
+    "expect": "identify",
+    "category": "en:biscuits"
+  },
+  {
+    "code": "0063348006943",
+    "file": "photos/0063348006943.jpg",
+    "brand": "Dare",
+    "name": "Bear Paws Chocolate Chip",
+    "size": "6 packs 240g",
+    "kind": "multipack",
+    "expect": "identify",
+    "category": "en:chocolate-chip-cookies"
+  },
+  {
+    "code": "0063667502010",
+    "file": "photos/0063667502010.jpg",
+    "brand": "Natura",
+    "name": "Natura Soya bio Vanilla",
+    "size": "3x200ml",
+    "kind": "multipack",
+    "expect": "identify",
+    "category": "en:soy-based-drinks"
+  },
+  {
+    "code": "0064042555744",
+    "file": "photos/0064042555744.jpg",
+    "brand": "Leclerc Praeventia 🇨🇦",
+    "name": "70% Chocolate chips & Banana Mini Cookies",
+    "size": "7 x 30 g, Net  210 g.",
+    "kind": "multipack",
+    "expect": "identify",
+    "category": "en:chocolate-biscuits"
+  },
+  {
+    "code": "0064100111332",
+    "file": "photos/0064100111332.jpg",
+    "brand": "Pringles",
+    "name": "Original potato chips 148g pack",
+    "size": "1",
+    "kind": "multipack",
+    "expect": "identify",
+    "category": "fr:snaks-canada"
   },
   {
     "code": "0005220400060",
@@ -400,6 +1100,706 @@
     "category": "en:chickens"
   },
   {
+    "code": "0064597009556",
+    "file": "photos/0064597009556.jpg",
+    "brand": "Labonté",
+    "name": "Maple syrup",
+    "size": "250ml",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:maple-syrups"
+  },
+  {
+    "code": "0009800800056",
+    "file": "photos/0009800800056.jpg",
+    "brand": "nutella",
+    "name": "nutella & GO! with Breadsticks",
+    "size": "52 g (1.8 OZ)",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:hazelnut-butters"
+  },
+  {
+    "code": "0012009012168",
+    "file": "photos/0012009012168.jpg",
+    "brand": "A&W",
+    "name": "Chef d'oeuf™avec fromage sur muffin anglais",
+    "size": "192 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "fr:fromage-cheddar-fondu"
+  },
+  {
+    "code": "0013087245950",
+    "file": "photos/0013087245950.jpg",
+    "brand": "Oakrun Farm",
+    "name": "Gâteau double chocolat",
+    "size": "1 kg",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:chocolate-cakes"
+  },
+  {
+    "code": "0014100084761",
+    "file": "photos/0014100084761.jpg",
+    "brand": "Pepperidge Farm",
+    "name": "Goldfish Cheddar",
+    "size": "28 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:small-crackers"
+  },
+  {
+    "code": "0014100170945",
+    "file": "photos/0014100170945.jpg",
+    "brand": "Pepperidge farm",
+    "name": "Goldfish Cheese Trio",
+    "size": "200 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:crackers-appetizers"
+  },
+  {
+    "code": "0084253269254",
+    "file": "photos/0084253269254.jpg",
+    "brand": "Dream",
+    "name": "Non Dairy Coconut Beverage Chocolate",
+    "size": "946 mL",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:coconut-milks-and-creams"
+  },
+  {
+    "code": "0016571951580",
+    "file": "photos/0016571951580.jpg",
+    "brand": "Sparkling Ice",
+    "name": "Cherry Limeade Sparkling Ice",
+    "size": "503 mL",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:sodas"
+  },
+  {
+    "code": "0017082881656",
+    "file": "photos/0017082881656.jpg",
+    "brand": "Lorissa's Kitchen",
+    "name": "Ginger Teriyaki Tender Cuts of Chicken Breast",
+    "size": "63 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:dried-meats"
+  },
+  {
+    "code": "0018627100997",
+    "file": "photos/0018627100997.jpg",
+    "brand": "Kashi Company",
+    "name": "Dark Chocolate, Almond & Sea Salt Chia Granola Bars",
+    "size": "175 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:cereal-bars"
+  },
+  {
+    "code": "0018627102601",
+    "file": "photos/0018627102601.jpg",
+    "brand": "Kashi 🇺🇸Solana Beach California",
+    "name": "Variety: Chocolate Chip Chia & Honey Oat Flax 7-Grain with Quinoa bars.",
+    "size": "40 g ",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "fr:barres-croquantes-aux-7-grains-quinoa"
+  },
+  {
+    "code": "0018627597490",
+    "file": "photos/0018627597490.jpg",
+    "brand": "Kashi 🇺🇸Solana Beach California",
+    "name": "Toasted Berry Crisp, GO LEAN Cereal.",
+    "size": "400 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:breakfast-cereals"
+  },
+  {
+    "code": "0018627597513",
+    "file": "photos/0018627597513.jpg",
+    "brand": "Kashi Organic 🇺🇸Solana Beach California",
+    "name": "Whole Wheat Cinnamon Harvest",
+    "size": "460 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:organic-whole-wheat-cereal-biscuits"
+  },
+  {
+    "code": "00109031",
+    "file": "photos/00109031.jpg",
+    "brand": "Trader Joe's",
+    "name": "Crispy Crunchy Oatmeal Raisin Cookies",
+    "size": "510 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:raisin-cookies"
+  },
+  {
+    "code": "0021438002176",
+    "file": "photos/0021438002176.jpg",
+    "brand": "Societe",
+    "name": "Roquefort",
+    "size": "7 oz",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:roquefort-cheeses"
+  },
+  {
+    "code": "0021908509587",
+    "file": "photos/0021908509587.jpg",
+    "brand": "Larabar",
+    "name": "Coconut Cream Crème A La Noix De Coco",
+    "size": "48 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:bodybuilding-supplements"
+  },
+  {
+    "code": "0024463063075",
+    "file": "photos/0024463063075.jpg",
+    "brand": "Huy Fong",
+    "name": "Sambal Oelek pâte de chili fraîche broyé",
+    "size": "227 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:groceries"
+  },
+  {
+    "code": "0025293001008",
+    "file": "photos/0025293001008.jpg",
+    "brand": "Silk Canada",
+    "name": "Original Almond Lactose & Dairy-free",
+    "size": "1.89 L",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "fr:boissons-aux-amandes"
+  },
+  {
+    "code": "0025293001886",
+    "file": "photos/0025293001886.jpg",
+    "brand": "Silk",
+    "name": "Almond",
+    "size": "1.89 L",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:almond-based-drinks"
+  },
+  {
+    "code": "0025293600713",
+    "file": "photos/0025293600713.jpg",
+    "brand": "Silk",
+    "name": "Soy Protein",
+    "size": "1.89 L",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:soy-based-drinks"
+  },
+  {
+    "code": "0025293600751",
+    "file": "photos/0025293600751.jpg",
+    "brand": "Silk",
+    "name": "Soy Chocolate Fortified Beverage",
+    "size": "1.89 L",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:chocolate-soy-based-drinks"
+  },
+  {
+    "code": "0028029260168",
+    "file": "photos/0028029260168.jpg",
+    "brand": "Trident seafoods",
+    "name": "Filets de Goberge de l'Alaska pour sandwiches",
+    "size": "1,6 kg",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "fr:filets-poisson-enrobe-de-chapelure"
+  },
+  {
+    "code": "00259255",
+    "file": "photos/00259255.jpg",
+    "brand": "Trader Joe's",
+    "name": "Buttermilk pancake & baking mix",
+    "size": "907g, 32 OZ",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:Préparations pour pancakes"
+  },
+  {
+    "code": "0030000012000",
+    "file": "photos/0030000012000.jpg",
+    "brand": "Quaker Oats",
+    "name": "Quick 1-Minute Oats",
+    "size": "42 Oz / 1.19 kg",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:rolled-oats"
+  },
+  {
+    "code": "0031146250301",
+    "file": "photos/0031146250301.jpg",
+    "brand": "Nongshim",
+    "name": "Bowl Noodles Spicy Kimchi Flavour",
+    "size": "86 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:instant-noodles"
+  },
+  {
+    "code": "0031200043573",
+    "file": "photos/0031200043573.jpg",
+    "brand": "Ocean Spray",
+    "name": "Canneberges Sèches",
+    "size": "18 oz / 510 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:dried-cranberries"
+  },
+  {
+    "code": "0031689326600",
+    "file": "photos/0031689326600.jpg",
+    "brand": "Mehadrin",
+    "name": "Medjool Dates",
+    "size": "2 lb",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:medjool-dates"
+  },
+  {
+    "code": "03084953",
+    "file": "photos/03084953.jpg",
+    "brand": "Sicilia",
+    "name": "Lemon Juice",
+    "size": "118ml",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:lemon-juice"
+  },
+  {
+    "code": "0037466014630",
+    "file": "photos/0037466014630.jpg",
+    "brand": "Lindt",
+    "name": "Intense Dark Chocolate",
+    "size": "100 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:extra-fine-dark-chocolates"
+  },
+  {
+    "code": "0037466018898",
+    "file": "photos/0037466018898.jpg",
+    "brand": "Lindt",
+    "name": "EXCELLENCE 70% CACAO DARK-NOIR Dark chocolate",
+    "size": "100 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:dark-chocolates"
+  },
+  {
+    "code": "0037466019871",
+    "file": "photos/0037466019871.jpg",
+    "brand": "Lindt",
+    "name": "Swiss Milk Chocolate with whole roasted hazelnuts",
+    "size": "100 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:milk-chocolates-with-hazelnuts"
+  },
+  {
+    "code": "0037466022031",
+    "file": "photos/0037466022031.jpg",
+    "brand": "Lindt",
+    "name": "Lindt Excellence Caramel Croquant",
+    "size": "100g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:milk-chocolate-with-caramel"
+  },
+  {
+    "code": "0037466038612",
+    "file": "photos/0037466038612.jpg",
+    "brand": "Lindt EXCELLENCE",
+    "name": "SEA SALT DARK CHOCOLATE",
+    "size": "100 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:dark-chocolates-with-fleur-de-sel"
+  },
+  {
+    "code": "0037466041339",
+    "file": "photos/0037466041339.jpg",
+    "brand": "Lindt",
+    "name": "SUPREME DARK 90% CACAO",
+    "size": "100 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:dark-chocolate-bar-with-more-than-70-cocoa"
+  },
+  {
+    "code": "0037466064376",
+    "file": "photos/0037466064376.jpg",
+    "brand": "Lindt",
+    "name": "EXCELLENCE CARAMEL & SEA SALT DARK NOIR",
+    "size": "100 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:dark-chocolate-with-caramel"
+  },
+  {
+    "code": "0037466082714",
+    "file": "photos/0037466082714.jpg",
+    "brand": "Lindt",
+    "name": "Swiss Classic Milk Chocolate",
+    "size": "300 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:milk-chocolates"
+  },
+  {
+    "code": "0039978305466",
+    "file": "photos/0039978305466.jpg",
+    "brand": "Bob's red Mill",
+    "name": "Levure alimentaire",
+    "size": "226g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:nutritional-yeast"
+  },
+  {
+    "code": "0040822027090",
+    "file": "photos/0040822027090.jpg",
+    "brand": "Sabra",
+    "name": "Supremely Spicy Hummus",
+    "size": "283 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:hummus"
+  },
+  {
+    "code": "0041138007004",
+    "file": "photos/0041138007004.jpg",
+    "brand": "Was",
+    "name": "Light Rye Cracker",
+    "size": "270g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:rye-breads"
+  },
+  {
+    "code": "0041138007042",
+    "file": "photos/0041138007042.jpg",
+    "brand": "wasa",
+    "name": "Sourdough Rye",
+    "size": "275 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:crispbreads"
+  },
+  {
+    "code": "0041143029336",
+    "file": "photos/0041143029336.jpg",
+    "brand": "Sun Maid",
+    "name": "Raisins",
+    "size": "907g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:raisins"
+  },
+  {
+    "code": "0041390050039",
+    "file": "photos/0041390050039.jpg",
+    "brand": "Kikkoman",
+    "name": "Japanese Style Bread Crumbs",
+    "size": "227 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:panko"
+  },
+  {
+    "code": "0042272000715",
+    "file": "photos/0042272000715.jpg",
+    "brand": "Amy's",
+    "name": "Burrito Cheddar Cheese",
+    "size": "6.0 oz",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:heat-eat"
+  },
+  {
+    "code": "0047495491555",
+    "file": "photos/0047495491555.jpg",
+    "brand": "Nature's Bakery",
+    "name": "Fig Bar Raspberry",
+    "size": "57 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:bars"
+  },
+  {
+    "code": "0048500001783",
+    "file": "photos/0048500001783.jpg",
+    "brand": "Tropicana",
+    "name": "Tropicana Orange Juice Homestyle 1.89L",
+    "size": null,
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:beverages"
+  },
+  {
+    "code": "0048500018347",
+    "file": "photos/0048500018347.jpg",
+    "brand": "Tropicana",
+    "name": "tropicana",
+    "size": "250ml",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:orange-juices"
+  },
+  {
+    "code": "0048500201619",
+    "file": "photos/0048500201619.jpg",
+    "brand": "Tropicana",
+    "name": "Jus d'orange à 100%",
+    "size": "1,65 L",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:squeezed-orange-juices"
+  },
+  {
+    "code": "0082666440048",
+    "file": "photos/0082666440048.jpg",
+    "brand": "Popchips disney",
+    "name": "POPchips white cheddar",
+    "size": "113 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:licensed-products"
+  },
+  {
+    "code": "0050200012976",
+    "file": "photos/0050200012976.jpg",
+    "brand": "SunnyD",
+    "name": "Tangy Original SunnyD",
+    "size": "500 mL",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:sweetened-beverages"
+  },
+  {
+    "code": "0051500025918",
+    "file": "photos/0051500025918.jpg",
+    "brand": "Smucker's",
+    "name": "Raspberry Jam",
+    "size": "500ml",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:raspberry-jams"
+  },
+  {
+    "code": "0051500410424",
+    "file": "photos/0051500410424.jpg",
+    "brand": "FIVE ROSES",
+    "name": "ALL PURPOSE FLOUR WHITE",
+    "size": "2500 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:cereal-flours"
+  },
+  {
+    "code": "0059000016597",
+    "file": "photos/0059000016597.jpg",
+    "brand": "Robin Hood",
+    "name": "Unbleached All Purpose Flour",
+    "size": "2.5 kg",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:wheat-flours"
+  },
+  {
+    "code": "0051500710173",
+    "file": "photos/0051500710173.jpg",
+    "brand": "Adams",
+    "name": "Peanut Butter",
+    "size": "500g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:nut-butters"
+  },
+  {
+    "code": "0051500750056",
+    "file": "photos/0051500750056.jpg",
+    "brand": "Jif",
+    "name": "Creamy Peanut Butter",
+    "size": "1kg",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:creamy-peanut-butters"
+  },
+  {
+    "code": "0051651092869",
+    "file": "photos/0051651092869.jpg",
+    "brand": "MaraNatha",
+    "name": "Beurre d'amandes",
+    "size": "737g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "fr:amandes-grillees-broyees-a-sec"
+  },
+  {
+    "code": "0051651293716",
+    "file": "photos/0051651293716.jpg",
+    "brand": "MaraNatha",
+    "name": "Tartinade aux amandes et au Chocolat noir",
+    "size": "795 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "fr:tartinade-amandes-et-chocolat-noir"
+  },
+  {
+    "code": "0054300009591",
+    "file": "photos/0054300009591.jpg",
+    "brand": "Frank",
+    "name": "Marshmallows",
+    "size": "250 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:marshmallows"
+  },
+  {
+    "code": "0055000132152",
+    "file": "photos/0055000132152.jpg",
+    "brand": "Nescafe",
+    "name": "Instant Coffee",
+    "size": "475 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:Plant-based-foods-and-beverages-beverages-food-plant-based-foods-coffee-instant-beverages"
+  },
+  {
+    "code": "0055000139045",
+    "file": "photos/0055000139045.jpg",
+    "brand": "Nestlé",
+    "name": "Nesquik Cocoa",
+    "size": "540 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:instant-chocolate-powders"
+  },
+  {
+    "code": "0055000173971",
+    "file": "photos/0055000173971.jpg",
+    "brand": "Nestea",
+    "name": "Thé vert au ginseng et au miel",
+    "size": "695 ml",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:teas"
+  },
+  {
+    "code": "0055144424397",
+    "file": "photos/0055144424397.jpg",
+    "brand": "Les Aliments Johnvince",
+    "name": "Graines de lin moulues",
+    "size": "280g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:brown-flax-seeds"
+  },
+  {
+    "code": "0064420006332",
+    "file": "photos/0064420006332.jpg",
+    "brand": "Sealtest par Natrel",
+    "name": "Low fat sour cream",
+    "size": "500 ml",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:compound-dairy-creams"
+  },
+  {
+    "code": "0055415700151",
+    "file": "photos/0055415700151.jpg",
+    "brand": "Coeur de palmiers ",
+    "name": "Coeur de palmier",
+    "size": "398 ml",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:hearts-of-palm"
+  },
+  {
+    "code": "0055577102053",
+    "file": "photos/0055577102053.jpg",
+    "brand": "Quaker",
+    "name": "One Minute Oats",
+    "size": "900g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:oat"
+  },
+  {
+    "code": "0055577102459",
+    "file": "photos/0055577102459.jpg",
+    "brand": "Quaker",
+    "name": "Oat Bran",
+    "size": "625 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:oat-groats"
+  },
+  {
+    "code": "0055577104095",
+    "file": "photos/0055577104095.jpg",
+    "brand": "Aunt Jemima",
+    "name": "Complete Pancakes Preparation",
+    "size": "905 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:cooking-helpersdessert-mixespancake-mixespancake-mixespastries-mixes"
+  },
+  {
+    "code": "0055577105313",
+    "file": "photos/0055577105313.jpg",
+    "brand": "Quaker",
+    "name": "Harvest Crunch Granola Cereal Original",
+    "size": "560 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:mueslis"
+  },
+  {
+    "code": "0055577105320",
+    "file": "photos/0055577105320.jpg",
+    "brand": "QUAKER",
+    "name": "Harvest Crunch Granola Cereal - Raisin Almond",
+    "size": "600g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "fr:Cereales-granola"
+  },
+  {
+    "code": "0055577105665",
+    "file": "photos/0055577105665.jpg",
+    "brand": "Quaker",
+    "name": "Oatmeal Squares",
+    "size": "500 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:extruded-cereals"
+  },
+  {
+    "code": "0055577105948",
+    "file": "photos/0055577105948.jpg",
+    "brand": "Aunt Jemima",
+    "name": "Lite 50% less calories than original syrup",
+    "size": "750 g",
+    "kind": "plain",
+    "expect": "identify",
+    "category": "en:syrups"
+  },
+  {
     "code": null,
     "file": "photos/produce-01.jpg",
     "brand": null,
@@ -600,203 +2000,203 @@
     "category": null
   },
   {
-    "code": "0000048050500",
-    "file": "photos/tech-01.jpg",
-    "brand": "MSI",
-    "name": "GS66 11UG-264RU Stealth",
-    "size": null,
-    "kind": "tech",
-    "expect": "identify",
-    "category": "en:laptops"
-  },
-  {
-    "code": "0000021378652",
-    "file": "photos/tech-02.jpg",
+    "code": "0190198067067",
+    "file": "photos/0190198067067.jpg",
     "brand": "Apple",
-    "name": "iPhone 13 Pro",
+    "name": "iPhone 7 noir 32Go",
     "size": null,
     "kind": "tech",
     "expect": "identify",
-    "category": "en:smartphones"
+    "category": "en:iphone-smartphones"
   },
   {
-    "code": "0036725229914",
-    "file": "photos/tech-03.jpg",
+    "code": "0190198450715",
+    "file": "photos/0190198450715.jpg",
+    "brand": "Apple",
+    "name": "iPhone 8 64gb",
+    "size": null,
+    "kind": "tech",
+    "expect": "identify",
+    "category": "en:phones"
+  },
+  {
+    "code": "0194252705872",
+    "file": "photos/0194252705872.jpg",
+    "brand": "Apple",
+    "name": "iPhone 13 128 Go Minuit",
+    "size": null,
+    "kind": "tech",
+    "expect": "identify",
+    "category": "fr:telephone-intelligent"
+  },
+  {
+    "code": "0045496885595",
+    "file": "photos/0045496885595.jpg",
+    "brand": "Nintendo",
+    "name": "Nintendo Switch 2 avec code de téléchargement de Mario Kart World",
+    "size": null,
+    "kind": "tech",
+    "expect": "identify",
+    "category": "en:video-game-consoles"
+  },
+  {
+    "code": "0045496321529",
+    "file": "photos/0045496321529.jpg",
+    "brand": "Nintendo",
+    "name": "Switch 2 + Mario Kart World",
+    "size": "1732g",
+    "kind": "tech",
+    "expect": "identify",
+    "category": "en:handheld-game-consoles"
+  },
+  {
+    "code": "9341694630298",
+    "file": "photos/9341694630298.jpg",
+    "brand": "J.Burrows",
+    "name": "65W GaN Wall Charger",
+    "size": null,
+    "kind": "tech",
+    "expect": "identify",
+    "category": "en:usb-c-chargers"
+  },
+  {
+    "code": "9341109762149",
+    "file": "photos/9341109762149.jpg",
+    "brand": "Anko",
+    "name": "iPhone 15 Pro Max Case Clear",
+    "size": null,
+    "kind": "tech",
+    "expect": "identify",
+    "category": "en:phone-cases"
+  },
+  {
+    "code": "4056232736534",
+    "file": "photos/4056232736534.jpg",
+    "brand": "Silvercrest",
+    "name": "Casque audio",
+    "size": null,
+    "kind": "tech",
+    "expect": "identify",
+    "category": "fr:casque-audio"
+  },
+  {
+    "code": "4008496773510",
+    "file": "photos/4008496773510.jpg",
+    "brand": "Varta",
+    "name": "LCD plug charger",
+    "size": null,
+    "kind": "tech",
+    "expect": "identify",
+    "category": "fr:chargeur"
+  },
+  {
+    "code": "0887276301266",
+    "file": "photos/0887276301266.jpg",
     "brand": "Samsung",
-    "name": "55\" 1080p LED HDTV",
+    "name": "Samsung Galaxy S10",
     "size": null,
     "kind": "tech",
     "expect": "identify",
-    "category": "en:tvs"
+    "category": "en:android-smartphones"
   },
   {
-    "code": "0000000041645",
-    "file": "photos/tech-04.jpg",
-    "brand": "Verbatim",
-    "name": "Multimedia Headset",
+    "code": "8806095269061",
+    "file": "photos/8806095269061.jpg",
+    "brand": "Samsung",
+    "name": "Galaxy Tab A9",
     "size": null,
     "kind": "tech",
     "expect": "identify",
-    "category": "en:headphones-headsets"
+    "category": "en:tablet-computers"
   },
   {
-    "code": "0000051775186",
-    "file": "photos/tech-05.jpg",
-    "brand": "CHERRY",
-    "name": "19\" compact PC keyboard PS/2",
+    "code": "0889842796049",
+    "file": "photos/0889842796049.jpg",
+    "brand": "Microsoft",
+    "name": "Microsoft Surface Pro 8 Precesseur 11e Gen Intel Core i5 16Go RAM 256 Go Graphite",
+    "size": null,
+    "kind": "tech",
+    "expect": "identify",
+    "category": "en:computers"
+  },
+  {
+    "code": "0889842772685",
+    "file": "photos/0889842772685.jpg",
+    "brand": "Microsoft",
+    "name": "Clavier signature avec Stylet Mince 2",
     "size": null,
     "kind": "tech",
     "expect": "identify",
     "category": "en:keyboards"
   },
   {
-    "code": "0000100388855",
-    "file": "photos/tech-06.jpg",
-    "brand": "Samsung",
-    "name": "LS27F350FHLXZX",
-    "size": null,
-    "kind": "tech",
-    "expect": "identify",
-    "category": "en:computer-monitors"
-  },
-  {
-    "code": "0036725730052",
-    "file": "photos/tech-07.jpg",
-    "brand": "Samsung",
-    "name": "Q1 Ultra Tablet PC",
-    "size": null,
-    "kind": "tech",
-    "expect": "identify",
-    "category": "en:tablets"
-  },
-  {
-    "code": "0003200804515",
-    "file": "photos/tech-08.jpg",
-    "brand": "HP",
-    "name": "Z Turbo Drive 1TB TLC Z8 G4 SSD Kit",
-    "size": null,
-    "kind": "tech",
-    "expect": "identify",
-    "category": "en:internal-solid-state-drives"
-  },
-  {
-    "code": "0000000130912",
-    "file": "photos/tech-09.jpg",
-    "brand": "HP",
-    "name": "Smart Tank 7305 All-in-One Printer",
-    "size": null,
-    "kind": "tech",
-    "expect": "identify",
-    "category": "en:multifunction-printers"
-  },
-  {
-    "code": "0000000058865",
-    "file": "photos/tech-10.jpg",
-    "brand": "Intellinet",
-    "name": "Cat5e, UTP, 0.25m",
-    "size": null,
-    "kind": "tech",
-    "expect": "identify",
-    "category": "en:networking-cables"
-  },
-  {
-    "code": "0012300052313",
-    "file": "photos/tech-11.jpg",
-    "brand": "Thrustmaster",
-    "name": "GPX Lightback Ferrari F1 Edition",
-    "size": null,
-    "kind": "tech",
-    "expect": "identify",
-    "category": "en:gaming-controllers"
-  },
-  {
-    "code": "0000000002776",
-    "file": "photos/tech-12.jpg",
-    "brand": "Seagate",
-    "name": "1500GB 3.5\" SATA II",
-    "size": null,
-    "kind": "tech",
-    "expect": "identify",
-    "category": "en:internal-hard-drives"
-  },
-  {
-    "code": "0000000185608",
-    "file": "photos/tech-13.jpg",
-    "brand": "HP",
-    "name": "LaserJet Pro 4002dw Printer",
-    "size": null,
-    "kind": "tech",
-    "expect": "identify",
-    "category": "en:laser-printers"
-  },
-  {
-    "code": "0011411205717",
-    "file": "photos/tech-14.jpg",
-    "brand": "QNAP",
-    "name": "TS-EC879U-RP 10Gbit/s 4x3TB",
-    "size": null,
-    "kind": "tech",
-    "expect": "identify",
-    "category": "en:nas-storage-servers"
-  },
-  {
-    "code": "0000001839340",
-    "file": "photos/tech-15.jpg",
-    "brand": "Samsung",
-    "name": "8GB DDR3 1600MHz",
-    "size": null,
-    "kind": "tech",
-    "expect": "identify",
-    "category": "en:memory-modules"
-  },
-  {
-    "code": "0023424322435",
-    "file": "photos/tech-16.jpg",
-    "brand": "Verbatim",
-    "name": "CD-RW 700MB 80Min 32x UltraSpeed JC 10pk",
-    "size": null,
-    "kind": "tech",
-    "expect": "identify",
-    "category": "en:blank-cds"
-  },
-  {
-    "code": "0001975305558",
-    "file": "photos/tech-17.jpg",
-    "brand": "Lenovo",
-    "name": "ThinkStation P3 Tower",
-    "size": null,
-    "kind": "tech",
-    "expect": "identify",
-    "category": "en:pcs-workstations"
-  },
-  {
-    "code": "0033584171415",
-    "file": "photos/tech-18.jpg",
-    "brand": "OtterBox",
-    "name": "Commuter Case",
-    "size": null,
-    "kind": "tech",
-    "expect": "identify",
-    "category": "en:mobile-phone-cases"
-  },
-  {
-    "code": "0000000367820",
-    "file": "photos/tech-19.jpg",
+    "code": "0027075311312",
+    "file": "photos/0027075311312.jpg",
     "brand": "Ricoh",
-    "name": "Toner Type 1220D Black",
+    "name": "Ricoh GR IV",
     "size": null,
     "kind": "tech",
     "expect": "identify",
-    "category": "en:toner-cartridges"
+    "category": "fr:appareil-photo"
   },
   {
-    "code": "0000004780113",
-    "file": "photos/tech-20.jpg",
-    "brand": "Epson",
-    "name": "Ink Cart light magenta 220ml f SP9500",
-    "size": "220 mL",
+    "code": "0840080502083",
+    "file": "photos/0840080502083.jpg",
+    "brand": "blink",
+    "name": "Caméra de sécurité à piles",
+    "size": null,
     "kind": "tech",
     "expect": "identify",
-    "category": "en:ink-cartridges"
+    "category": "fr:camera-de-securite"
+  },
+  {
+    "code": "0065030812122",
+    "file": "photos/0065030812122.jpg",
+    "brand": "StarTech.com",
+    "name": "VGA cables",
+    "size": null,
+    "kind": "tech",
+    "expect": "identify",
+    "category": "fr:cable-vga"
+  },
+  {
+    "code": "0811071032223",
+    "file": "photos/0811071032223.jpg",
+    "brand": "AfterShokz",
+    "name": "AfterShokz Aeropex Solar Red",
+    "size": null,
+    "kind": "tech",
+    "expect": "identify",
+    "category": "fr:casque-audio-a-conduction-osseuse-sans-fil"
+  },
+  {
+    "code": "0193575000923",
+    "file": "photos/0193575000923.jpg",
+    "brand": "Google",
+    "name": "Nest Mini 2. Generation",
+    "size": null,
+    "kind": "tech",
+    "expect": "identify",
+    "category": "en:speakers"
+  },
+  {
+    "code": "0753759207175",
+    "file": "photos/0753759207175.jpg",
+    "brand": "Garmin",
+    "name": "Edge 530",
+    "size": null,
+    "kind": "tech",
+    "expect": "identify",
+    "category": "fr:ordinateur-de-velo"
+  },
+  {
+    "code": "3660619407491",
+    "file": "photos/3660619407491.jpg",
+    "brand": "Seagate",
+    "name": "Expansion 5 To",
+    "size": null,
+    "kind": "tech",
+    "expect": "identify",
+    "category": "en:external-hard-drive"
   }
 ]
