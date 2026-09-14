@@ -1344,3 +1344,58 @@ cited as a scraping precedent.
 **Reverses if:** all three of the register row's conditions land together — a named retailer serving
 or permitting, a named approved app or written store guidance, and a measured in-budget fetch from a
 real device. Any one alone reopens nothing.
+
+## A substitute is the same leaf, then one step up and labelled, never a shelf
+**Date:** 2026-09-13 · **Status:** active
+
+**His words:** *"if there are gala apples Shin needs to compare prices with other gala apples in
+other stores. however if there are no gala apples it can offer similar item of honey crisp apples at
+nearby locations."* Asked what counts as a substitute, he chose: **leaf category first; one step up
+to the parent only if the leaf is empty; a parent-level swap labelled as looser so the shopper can
+tell.**
+
+This is the decision D-036 has been open for since 2026-09-07. The ring offered Stem Ginger Oat
+Cookies as a cheaper swap for organic tortilla chips because both carried `en:whole-grains` — *"the
+word 'cheaper' doing the lying, since it implies 'instead of this'."* D-068 capped shelf-sized tags
+at 1,000 members and then stopped, on purpose: *"deciding what counts as a substitute is the product
+call D-036 says needs the founder."* It has him now.
+
+The rule, as code will hold it: the ring is drawn on `leaf_category`, the last tag in
+`category_path`, never on an arbitrary tag. `en:apples` pairs Gala with Honeycrisp. If the leaf
+yields nothing, the parent — the tag immediately before it — is tried **once**, and never the
+grandparent. `MAX_RING_TAG` applies at both levels. Every returned swap carries `ring: 'leaf' |
+'parent'`, and the app labels a parent-ring swap as looser; a swap with no `ring` field is treated as
+leaf and never as looser, because looser is the thing that needs an explicit signal. A product with
+no leaf gets no swaps. Produce is not special-cased: `en:apples` → `en:fruits` is exactly his
+example, and the rule must produce it naturally.
+
+**Reverses if:** the beta's testers report parent-ring swaps as wrong often enough that the label is
+not doing its job, in which case the parent step is removed and only the leaf remains; or the
+catalogue's leaf tags prove too coarse for a category Shin serves (a leaf that is itself a shelf), in
+which case that category gets no swaps rather than a looser rule.
+
+## Produce becomes the beta's test case, on the condition already written for it
+**Date:** 2026-09-13 · **Status:** active
+
+Produce is refused today — `category_unsupported` — and the refusal records its own reversal:
+*"Crowdsourced shelf-price volume in one city reaching the point where a produce item has two
+independent reports more often than not."* The rule also records the fact that decides the whole
+question: *"Shopper-reported shelf prices are the only source here, not a supplement to one."*
+
+Asked whether to pursue it, he chose **yes: make produce the beta's test case.** So the beta is
+sited for that measurement — testers in one city, at the same stores, so a second report can arrive
+from a neighbour rather than a crawler — and the count that matters is how often a produce item
+reaches two independent reports. Produce captures already land as observations through the
+price-on-every-refusal flow, so nothing new is recorded; what changes is that the number is watched.
+Produce is promoted on the thresholds the rule already holds (4 points, 3 distinct sellers, 3 days)
+the day the condition is met, and not before.
+
+Two facts that follow, stated so they are not rediscovered. First, this makes the beta's *siting* a
+product decision: six testers in three cities cannot meet this condition; six in one city might.
+Second, the 20 produce rows in `identify/eval/manifest.json` carry `code: null` correctly and are the
+eval's negative set (D-096), which is a different job from this one and should not be confused with
+it.
+
+**Reverses if:** the beta runs its course in one city and produce items reach two independent
+reports less often than not, in which case the refusal stands with a measured number under it
+instead of an argument, which is what the reversal condition asked for.

@@ -91,6 +91,48 @@ client-side finding.
 index with 120 days of price history cannot be built by a content script, so the script is probably
 the display surface and the index is Honey's own infrastructure.
 
+## Gala offers Honeycrisp, and the decision D-036 waited six days for is made, 2026-09-13 night
+
+**His words:** *"if there are gala apples Shin needs to compare prices with other gala apples in other
+stores. however if there are no gala apples it can offer similar item of honey crisp apples at nearby
+locations."* Two decisions when asked: a substitute is the **same leaf, then one step up and labelled**,
+never a shelf; and **produce becomes the beta's test case** on the reversal condition its own rule
+already carries (one city, a produce item reaching two independent reports more often than not).
+
+**The alternatives feature already existed and was switched off** by D-036 — ginger oat cookies as a
+cheaper swap for tortilla chips, both `en:whole-grains`, *"the word 'cheaper' doing the lying"*. D-068
+capped shelf-sized tags and then stopped on purpose, because what counts as a substitute needed the
+founder. The walk it declined to write is written: `chooseRingTag` consults only the leaf and its
+parent, never a middle tag, and a test asserts the probe is never even asked about one.
+
+**Two corrections from the live catalogue, not from argument.** 33,633 Canadian rows. 951 (2.83%) end
+in a junk tag (`en:groceries`, `en:open-beauty-facts`) after the true leaf — the naive rule would have
+labelled a perfect match as looser, D-036 inverted — so trailing non-kinds are stripped first. And
+1,807 rows (5.4%) end in a genuine kind of 1,001–1,500 members (`en:candies` 1,104, `en:breads` 1,373,
+`en:cheeses` 1,251) that the 1,000 cap treated as shelves, so every candy, bread and cheese got no swap.
+`MAX_RING_TAG` is 1,500, with the boundary named: between `en:cheeses` and `en:confectioneries` (2,030).
+Final rule over the live catalogue: **83.8% leaf, 5.0% parent, 11.2% none** — eligibility, not priced
+swaps.
+
+**The client owns the wording.** Every swap carries `ring`; the app labels a parent swap looser in both
+locales, a swap with no `ring` is never looser, and the English looser sentence one lane put in `line`
+was removed so the shopper is not told twice. The raw taxonomy id (`en:apples`) reached the badge in the
+first render and is humanised (`Apples`) — matching `labelForTag` so heading and badge spell a category
+one way on one sheet. Badge in the UI face at 12.5px, contrast 5.88, per FLAWS item 6: mono uppercase
+stays for the measurement.
+
+**A verification lesson that cost two wrong diagnoses, kept because it will recur.** I twice declared
+the lane's CSS broken from a render whose fixture lacked the production wrapper (`<div class="cheaper"
+data-cheaper>`); every rule scoped under `.cheaper` failed to match and I was measuring the old styling.
+The lane's answer — *"I cannot reproduce your diagnosis; the most likely cause is your harness"* — was
+right. A render fixture must carry the production wrapper or it tests a page that does not exist.
+
+**D-097, filed before the feature was enabled so a tester does not find it:** `line` and the heading are
+English server prose — *"$5.99 at Metro, seen 2026-09-12."* under a French badge. The spine's fix from
+this morning (code plus facts, client renders) one package over. A contract change, not a rider.
+
+**catalogue 88 → 113, app 604 → 628.**
+
 ## The price capture proved through the real server, both sides of the consent gate, 2026-09-13 night
 
 The feature had been verified by source and by rendering the card; **nobody had ever posted an
