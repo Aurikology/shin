@@ -86,6 +86,45 @@ export class AnthropicProvider implements Provider {
  * block makes the cacheable prefix exactly "system + image", and anything
  * pass-specific after it is outside the cached span by construction.
  */
+/**
+ * The live API refuses some JSON Schema bounds inside `output_config`
+ * ("For 'array' type, property 'maxItems' is not supported", first real call,
+ * 2026-09-13). Drop them from the copy sent to Anthropic only; the schemas in
+ * model.ts keep them, and the parsed answer is still checked there.
+ */
+const UNSUPPORTED_BOUNDS = new Set([
+  'maxItems', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum',
+  'multipleOf', 'minLength', 'maxLength',
+]);
+
+function forStructuredOutput(schema: unknown): unknown {
+  if (Array.isArray(schema)) return schema.map(forStructuredOutput);
+  if (schema === null || typeof schema !== 'object') return schema;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (UNSUPPORTED_BOUNDS.has(key)) continue;
+    if (key === 'minItems' && typeof value === 'number' && value > 1) continue;
+    // Property names are data, not keywords: never strip a field called "maximum".
+    out[key] = key === 'properties' && value && typeof value === 'object'
+      ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, forStructuredOutput(v)]))
+      : forStructuredOutput(value);
+  }
+  // A nullable enum written as `type: ['string','null']` is refused ("Enum value
+  // 'g' does not match declared type"), so it goes as anyOf [enum, null].
+  if (Array.isArray(out.type) && out.type.includes('null') && Array.isArray(out.enum)) {
+    const { type, enum: values, description, ...rest } = out;
+    const nonNull = (type as unknown[]).filter((t) => t !== 'null');
+    return {
+      ...(description === undefined ? {} : { description }),
+      anyOf: [
+        { ...rest, type: nonNull.length === 1 ? nonNull[0] : nonNull, enum: (values as unknown[]).filter((v) => v !== null) },
+        { type: 'null' },
+      ],
+    };
+  }
+  return out;
+}
+
 function bodyFor(request: ProviderRequest): Anthropic.MessageCreateParamsNonStreaming {
   const images = request.images.map((image, i) => {
     const block = {
@@ -111,8 +150,9 @@ function bodyFor(request: ProviderRequest): Anthropic.MessageCreateParamsNonStre
     output_config: {
       format: {
         type: 'json_schema' as const,
-        name: request.schema.name,
-        schema: request.schema.schema,
+        // No `name` here: the live API refuses it ("output_config.format.name:
+        // Extra inputs are not permitted", first real call, 2026-09-13).
+        schema: forStructuredOutput(request.schema.schema),
       },
     },
     messages: [{ role: 'user', content }],
