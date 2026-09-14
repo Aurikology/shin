@@ -43,6 +43,13 @@
  * `spine/src/contract.ts` and fails the day the spine grows a code this file
  * has not learned, so the gap cannot silently reopen.
  *
+ * THE SPINE IS NOT THE ONLY PRODUCER. `catalogue/src/alternatives.ts` writes
+ * the cheaper-swap rows and the heading over them, in the same
+ * `{ shape, fragments }` shape and with its own closed union of codes, and
+ * those were the other English sentences reaching a French screen verbatim.
+ * They render here too, from a second table (`ALT_RENDERERS`) for the reason
+ * written above it, through the same `render` and the same fallback rules.
+ *
  * MONEY IS FORMATTED BY `cad`, the same function every other number on the
  * screen goes through, and `cad` is itself locale-aware: it writes "$4.99" in
  * English and "4,99 $" (with a non-breaking space) in French. Nothing here
@@ -120,7 +127,11 @@ function categoryVerb(f, singular, plural) {
  * joins with " et ".
  */
 const KINDS = {
-  regular: 'des prix courants',
+  /* "prix régulier" and not "prix courant": the app says "prix régulier"
+   * everywhere else (the verdict lines just above, ui-strings), and in Quebec
+   * usage "prix courant" is the going rate in a market rather than the
+   * non-promotional price on a shelf tag, which is what `regular` means here. */
+  regular: 'des prix réguliers',
   promotional: 'des prix en promotion',
   asking: 'des prix demandés',
   sold: 'des prix de vente',
@@ -147,6 +158,25 @@ function day(iso) {
   return `${d === 1 ? '1er' : d} ${month}`;
 }
 
+/**
+ * The same day with its year: "7 mai 2026".
+ *
+ * `day()` alone is right where the ENGLISH beside it also drops the year, which
+ * is what the shopper-report refusals do ("on 3 September"). Two sentences
+ * carry a full date instead, the furniture own-history line and a swap's "Seen
+ * 4 September 2026", and in both the year is the fact that stops a price
+ * observed two years ago reading as this week's. Dropping it in French only
+ * would make the French claim more than the English does.
+ *
+ * An unparseable date comes back exactly as `day()` left it, untouched rather
+ * than guessed at.
+ */
+function dayYear(iso) {
+  const written = day(iso);
+  const m = /^(\d{4})-\d{2}-\d{2}/.exec(String(iso ?? ''));
+  return m === null || written === String(iso ?? '') ? written : `${written} ${m[1]}`;
+}
+
 /** One shopper's reading: the amount, the shop and the day it was seen. */
 function readingsOf(f) {
   const rows = Array.isArray(f.readings) ? f.readings : [];
@@ -165,6 +195,85 @@ function solePrice(f) {
 }
 
 /**
+ * The small numbers this file ever spells as a word.
+ *
+ * `problemCount` is the one fact that arrives as a number and is written in
+ * letters on both sides ("Three problems", "Trois problèmes"), because it
+ * counts the clauses of the sentence it opens rather than pricing anything. A
+ * count outside this table falls back to the digit, which reads a little worse
+ * and never reads wrong.
+ */
+const NUMBER_WORDS = ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six'];
+
+function counted(n) {
+  return NUMBER_WORDS[Number(n)] ?? String(n);
+}
+
+/**
+ * What a PLU code means, in French.
+ *
+ * `pluMeaning` crosses as the English word because the PLU standard's own
+ * table is English; a French screen naming the fruit in English inside an
+ * otherwise French sentence is the same defect this whole file exists for, one
+ * word wide. Unknown meanings pass through in English rather than being
+ * guessed at.
+ */
+const PLU_MEANINGS = {
+  bananas: 'bananes',
+};
+
+/**
+ * Why a whole category is declined, keyed by `CategoryReasonCode`.
+ *
+ * A SEPARATE TABLE FROM `RENDERERS`, because these are not `LineCode`s.
+ * `spine/src/contract.ts` says so outright: a `LineCode` is one sentence a
+ * renderer emits, and a `CategoryReasonCode` names a standing decision
+ * recorded in `categories.ts` whose English wording is owned by that file and
+ * changes when the call is revisited. Mixing them would also break
+ * `test/prose-coverage.test.mjs`, which asserts `FRENCH_CODES` is EXACTLY the
+ * `LineCode` union, neither short nor long.
+ *
+ * Each entry rebuilds the recorded reason from `whyFacts`. It says what the
+ * English says and nothing more: a translation that adds a claim is a second
+ * decision nobody recorded. A code with no entry here leaves `facts.why`
+ * standing, in English, which is complete and true.
+ */
+const CATEGORY_REASONS = {
+  /*
+   * Produce. The English, `categories.ts`:
+   *
+   *   "Three problems stack and none of them is solved by a better feed. A PLU
+   *    names a category rather than a product (4011 has meant "bananas" since
+   *    1990), package formats break unit comparison, and the public series
+   *    measures underlying inflation rather than what is on the shelf this
+   *    week. Shopper-reported shelf prices are the only source here, not a
+   *    supplement to one."
+   *
+   * Same three clauses, same order, same conclusion. "Signalés par les
+   * clients" and not "par les acheteurs": the primary user is a window
+   * shopper and has bought nothing.
+   */
+  produce_no_shelf_price_source: (w) => {
+    /* Rule 3, one layer in. A fact that is not there takes the REASON back to
+     * the recorded English paragraph, not the whole refusal: the frame around
+     * it ("ce n'est pas quelque chose que Shin peut chiffrer") is built from
+     * the category alone and is still right. */
+    for (const key of ['problemCount', 'plu', 'pluMeaning', 'pluInUseSince']) {
+      if (w[key] === undefined || w[key] === null) return '';
+    }
+    const opening = counted(w.problemCount);
+    return `${opening.charAt(0).toUpperCase()}${opening.slice(1)} problèmes `
+    + "s'additionnent, et aucun ne se règle avec une meilleure source de données. "
+    + `Un code PLU nomme une catégorie plutôt qu'un produit (${w.plu} veut dire `
+    + `« ${PLU_MEANINGS[w.pluMeaning] ?? w.pluMeaning} » depuis ${w.pluInUseSince}), `
+    + 'les formats d\'emballage cassent la comparaison à poids égal, et les séries '
+    + "publiques mesurent l'inflation de fond plutôt que ce qui est en tablette "
+    + 'cette semaine. Les prix en tablette signalés par les clients sont la seule '
+    + 'source ici, et non un complément à une autre.';
+  },
+};
+
+/**
  * The French renderers, keyed by `LineCode`.
  *
  * Each takes the fragment's raw facts and returns a sentence. Cents arrive as
@@ -178,33 +287,38 @@ function solePrice(f) {
 const RENDERERS = {
   /* --- l'epicerie, categories.ts --- */
   regular_price_at_sole_store: (f) =>
-    `Le prix régulier est de ${cad(f.regularCents)} au seul magasin qui l'a. Tu regardes ${cad(f.askingCents)}.`,
+    `Le prix régulier est de ${cad(f.regularCents)} au seul magasin qui l'a. Devant toi, c'est ${cad(f.askingCents)}.`,
   regular_price_across_stores: (f) =>
-    `Le prix régulier tourne autour de ${cad(f.regularCents)} dans ${f.storeCount} magasins. Tu regardes ${cad(f.askingCents)}.`,
+    `Le prix régulier tourne autour de ${cad(f.regularCents)} dans ${f.storeCount} magasins. Devant toi, c'est ${cad(f.askingCents)}.`,
   all_prices_are_capped_promotions: (f) =>
-    `Tous les prix que j'ai pour ça sont des promotions limitées, alors il n'y a rien ici que je peux honnêtement appeler un prix courant. Tu regardes ${cad(f.askingCents)}.`,
+    `Tous les prix que j'ai pour ça sont des promotions limitées, alors il n'y a rien ici que je peux honnêtement appeler un prix courant. Devant toi, c'est ${cad(f.askingCents)}.`,
   no_regular_price_only_promotions: (f) =>
-    `Aucun prix régulier en tablette trouvé, tout ce qui suit est une promotion. Tu regardes ${cad(f.askingCents)}.`,
+    `Aucun prix régulier trouvé en tablette, tout ce qui suit est une promotion. Devant toi, c'est ${cad(f.askingCents)}.`,
   best_promotion_this_week: (f) =>
     `Cette semaine c'est ${cad(f.promotionalCents)} chez ${f.seller}${f.limit ? ` (${f.limit})` : ''}.`,
-  no_promotion_this_week: () => "Rien en promotion nulle part où je peux voir cette semaine.",
+  no_promotion_this_week: () => "Rien en promotion nulle part cette semaine, d'après ce que je vois.",
 
   /* --- la techno --- */
   cheapest_of_retailers_carrying_it: (f) =>
-    `${f.retailerCount} détaillants l'ont. Le moins cher est ${cad(f.cheapestCents)} chez ${f.cheapestSeller}. Tu regardes ${cad(f.askingCents)}.`,
+    `${f.retailerCount} détaillants l'ont. Le moins cher est ${cad(f.cheapestCents)} chez ${f.cheapestSeller}. Devant toi, c'est ${cad(f.askingCents)}.`,
 
   /* --- l'usage.
    * `basis` est un fait et non deux codes, exactement pour la raison que le
    * contrat donne: la clause qu'il choisit est une mise en garde sur la preuve,
    * et une langue est libre de la placer ailleurs dans la phrase. */
   comparable_listings_range: (f) =>
-    `Les annonces comparables vont de ${cad(f.lowCents)} à ${cad(f.highCents)}, et se regroupent entre ${cad(f.clusterLowCents)} et ${cad(f.clusterHighCents)}. Tu regardes ${cad(f.askingCents)}. Ce sont ${
+    `Les annonces comparables vont de ${cad(f.lowCents)} à ${cad(f.highCents)}, et se regroupent entre ${cad(f.clusterLowCents)} et ${cad(f.clusterHighCents)}. Devant toi, c'est ${cad(f.askingCents)}. Ce sont ${
       f.basis === 'sold' ? "les prix auxquels ces articles se sont vraiment vendus" : "des prix demandés, pas des ventes, et les vendeurs commencent haut"
     }.`,
 
   /* --- les meubles --- */
+  /* "vendeur" et non "marchand": c'est le mot que tout le reste de ce fichier
+   * emploie pour la même idée, et deux mots pour une seule chose sur un écran
+   * se lisent comme deux choses différentes. La date passe par `dayYear()`:
+   * elle arrivait en ISO brut ("2026-05-07") au milieu d'une phrase française,
+   * et l'anglais en porte l'année, alors le français la garde aussi. */
   own_price_history_single_seller: (f) =>
-    `Un seul marchand, alors c'est comparé à son propre historique: aussi bas que ${cad(f.lowestCents)} le ${f.lowestObservedOn}, d'habitude autour de ${cad(f.typicalCents)}. Tu regardes ${cad(f.askingCents)}.`,
+    `Un seul vendeur, alors c'est comparé à son propre historique: aussi bas que ${cad(f.lowestCents)} le ${dayYear(f.lowestObservedOn)}, d'habitude autour de ${cad(f.typicalCents)}. Devant toi, c'est ${cad(f.askingCents)}.`,
 
   /* --- la ligne des preuves minces, `price/src/verdict.ts`.
    * Quatre fragments au plus, collés par une espace. Ce sont des lignes de
@@ -241,10 +355,15 @@ const RENDERERS = {
 
   /* --- les manques, en minuscules: la forme `shortfall_list` les colle avec
    * "; " et met la majuscule elle-même, exactement comme en anglais. --- */
+  /* "prix entré" et non "prix saisi", dans ces deux phrases seulement. "Saisir"
+   * en français d'ici veut d'abord dire prendre ou confisquer, et ces deux
+   * phrases parlent d'un prix retenu ou pas compté, ce qui rend l'autre sens
+   * du mot très lisible au mauvais endroit. "La saisie au clavier" reste ce
+   * qu'elle est ailleurs: c'est le geste, pas le prix. */
   shortfall_lone_claims_held_back: (f) =>
-    `${f.count} prix saisi${s(f.count)} ${Number(f.count) >= 2 ? 'sont retenus' : 'est retenu'} pour l'instant, trop loin du reste pour le publier sur la parole d'une seule personne`,
+    `${f.count} prix entré${s(f.count)} ${Number(f.count) >= 2 ? 'sont retenus' : 'est retenu'} pour l'instant, trop loin du reste pour ${Number(f.count) >= 2 ? 'les' : 'le'} publier sur la parole d'une seule personne`,
   shortfall_uncorroborated_typed_prices: (f) =>
-    `${f.count} prix saisi${s(f.count)} ${Number(f.count) >= 2 ? 'ne sont pas comptés' : "n'est pas compté"} ici, parce que personne d'autre n'a encore vu ${Number(f.count) >= 2 ? 'ces étiquettes' : 'cette étiquette'}`,
+    `${f.count} prix entré${s(f.count)} ${Number(f.count) >= 2 ? 'ne sont pas comptés' : "n'est pas compté"} ici, parce que personne d'autre n'a encore vu ${Number(f.count) >= 2 ? 'ces étiquettes' : 'cette étiquette'}`,
   shortfall_newest_price_older_than_category: (f) =>
     `le prix le plus récent que j'ai a ${f.ageDays} jour${s(f.ageDays)}, et ${categoryInline(f)} ${categoryVerb(f, 'bouge', 'bougent')} plus vite que ça`,
   shortfall_some_prices_too_old_to_count: (f) =>
@@ -298,12 +417,19 @@ const RENDERERS = {
   refusal_no_price_source_available: () => "Aucune source de prix ne répond en ce moment.",
   refusal_identity_unresolved: () =>
     "Je n'ai pas pu déterminer ce que c'est. Scanne le code-barres, ou écris le numéro de modèle.",
-  /* `why` est une décision consignée, écrite en anglais dans `categories.ts`.
-   * Elle traverse telle quelle, comme le nom d'un marchand ou le "limit 8"
-   * d'une circulaire: c'est de la donnée de source, et la traduire est le
-   * problème du fichier qui l'écrit, pas de cette phrase-ci. */
-  refusal_category_not_served: (f) =>
-    `${categoryTitle(f)}, ce n'est pas quelque chose que Shin peut chiffrer pour l'instant. ${f.why}`,
+  /* La raison arrive maintenant en deux exemplaires: `why`, le paragraphe
+   * anglais consigné dans `spine/src/categories.ts`, et `whyCode` plus
+   * `whyFacts`, la même décision en code et en chiffres bruts. Un code connu
+   * se réécrit en français ci-dessous; un code inconnu, ou pas de code du
+   * tout, laisse passer l'anglais, qui est complet et vrai. C'était la
+   * dernière phrase de l'app qui atteignait un lecteur francophone en
+   * anglais: le cadre se traduisait et 350 caractères de prose anglaise
+   * traversaient au complet. */
+  refusal_category_not_served: (f) => {
+    const rebuild = CATEGORY_REASONS[f.whyCode];
+    const reason = (typeof rebuild === 'function' ? rebuild(f.whyFacts ?? {}) : '') || f.why;
+    return `${categoryTitle(f)}, ce n'est pas quelque chose que Shin peut chiffrer pour l'instant. ${reason}`;
+  },
   refusal_identity_below_floor: (f) =>
     `Je ne suis pas assez certain que ce soit le bon. Ce qui s'en approchait le plus, c'est « ${f.label} ». Choisis le bon et Shin va le chiffrer.`,
   refusal_no_price_for_product: (f) => `Rien n'a de prix pour « ${f.label} » en ce moment.`,
@@ -332,8 +458,194 @@ const RENDERERS = {
   disagreement_wide_spread: (f) =>
     `Les prix pour la même chose vont de ${cad(f.lowCents)} à ${cad(f.highCents)} en ce moment. C'est un écart de ${String(f.ratio).replace('.', ',')}x, alors il n'y a pas un seul prix exact à donner.`,
   disagreement_promotion_not_store: (f) =>
-    `L'écart ici, c'est la promotion et non le magasin: ${cad(f.promotionalCents)} en solde contre ${cad(f.regularCents)} régulier, ça fait une différence de ${String(f.ratio).replace('.', ',')}x sur la même boîte.`,
+    `L'écart ici, c'est la promotion et non le magasin: ${cad(f.promotionalCents)} en solde contre ${cad(f.regularCents)} régulier, ça fait une différence de ${String(f.ratio).replace('.', ',')}x sur le même article.`,
 };
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * THE SWAP SENTENCES. D-097, client half.
+ *
+ * `catalogue/src/alternatives.ts` writes the cheaper-alternative rows and the
+ * heading over them, and both used to reach the glass as finished English:
+ * "$5.99 at Metro, seen 2026-09-12." and "Cheaper Peanut butters", printed
+ * verbatim under a French badge that had just said "Même genre de chose". The
+ * catalogue now ships `structuredLine` on every alternative and
+ * `alternativesHeadingStructured` beside the heading, in the same
+ * `{ shape, fragments }` shape the spine uses, and these are their French.
+ *
+ * A SECOND TABLE, NOT MORE ROWS IN `RENDERERS`. The codes above are the
+ * spine's `LineCode` union and `test/prose-coverage.test.mjs` asserts the
+ * French table is EXACTLY that union, neither short nor long, by reading
+ * `contract.ts` off disk. A swap code is not a verdict sentence and does not
+ * belong to that union; the catalogue keeps its own closed union
+ * (`AlternativeLineCode`) for precisely the reason its file explains. Two
+ * producers, two unions, two tables, one `render`.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * The major allergens, named in French, keyed by the raw Open Food Facts tag.
+ *
+ * The tag is what crosses the wire ("en:tree-nuts"), on purpose: "tree nuts"
+ * is one locale's answer to it and "fruits à coque" is another's, and a
+ * sentence built from the English name could only ever be the English name
+ * with a French frame around it.
+ *
+ * A TAG WITH NO ENTRY KEEPS THE ENGLISH-DERIVED NAME rather than being
+ * dropped or guessed at. OFF's allergen field is contributor-entered and holds
+ * hundreds of distinct tags, most of them rare and some of them not allergen
+ * names at all; inventing French for one would be the app making up a fact
+ * about a package. The fourteen below are the ones Canadian and EU labelling
+ * law actually names, which is where the volume is.
+ */
+const ALLERGENS_FR = {
+  'en:gluten': 'gluten',
+  'en:milk': 'lait',
+  'en:eggs': 'œufs',
+  'en:nuts': 'fruits à coque',
+  'en:tree-nuts': 'fruits à coque',
+  'en:peanuts': 'arachides',
+  'en:soybeans': 'soja',
+  'en:fish': 'poisson',
+  'en:crustaceans': 'crustacés',
+  'en:molluscs': 'mollusques',
+  'en:celery': 'céleri',
+  'en:mustard': 'moutarde',
+  'en:sesame-seeds': 'graines de sésame',
+  'en:sulphur-dioxide-and-sulphites': 'anhydride sulfureux et sulfites',
+  'en:lupin': 'lupin',
+};
+
+/** The English-derived name, which is `allergenName` in the catalogue. */
+function allergenNameEn(tag) {
+  return String(tag).toLowerCase().replace(/^[a-z]{2}:/, '').replace(/-/g, ' ');
+}
+
+function allergenNameFr(tag) {
+  return ALLERGENS_FR[String(tag).toLowerCase()] ?? allergenNameEn(tag);
+}
+
+/** A list of tags as a readable run of names, or '' when there is nothing to name. */
+function allergenList(tags) {
+  const rows = Array.isArray(tags) ? tags.filter((t) => typeof t === 'string' && t.trim()) : [];
+  return rows.map(allergenNameFr).join(', ');
+}
+
+/**
+ * Where the price was seen, as a French clause ready to drop into a sentence.
+ *
+ * THE UNKNOWN CASE IS WHY THE `place` FACT EXISTS. English says "at a store
+ * that reported this price", which is a whole clause rather than a name, so a
+ * structured line carrying the clause as a string would have been exactly as
+ * untranslatable as the finished sentence was. What crosses instead is the
+ * KIND of place plus the names, and each language writes its own clause.
+ *
+ * It returns the preposition too ("chez Metro", "dans un magasin ..."), which
+ * the English does not: English uses "at" for all three, and French does not.
+ * "Chez" takes a name and cannot take "un magasin", so the unknown case gets
+ * "dans" and the sentence stays grammatical.
+ *
+ * A kind this file does not know returns '' and the whole sentence falls back
+ * to English, by rule 3: a swap row with no source on it reads as unsourced
+ * rather than as sourced differently, which is false.
+ */
+function placeFr(place) {
+  if (!place || typeof place !== 'object') return '';
+  if (place.kind === 'store' && typeof place.name === 'string' && place.name) {
+    return place.city ? `chez ${place.name}, ${place.city}` : `chez ${place.name}`;
+  }
+  if (place.kind === 'seller' && typeof place.seller === 'string' && place.seller) {
+    return `chez ${place.seller}`;
+  }
+  if (place.kind === 'unknown') return 'dans un magasin qui a signalé ce prix';
+  return '';
+}
+
+/**
+ * The category the swaps were drawn from, as it reads mid-sentence.
+ *
+ * NO FRENCH CATEGORY NAME EXISTS TO REACH FOR, and that is a known limit
+ * rather than an oversight: the catalogue stores one taxonomy id per category
+ * and it is the English one, which is why `humaniseTag` in
+ * `screens/camera.js` carries the same paragraph. The `label` fact is that id
+ * humanised ("Peanut butters"); the `tag` beside it is the identity a real
+ * French dictionary would one day be keyed on. Until there is one, the honest
+ * rendering is the English words we actually have, lower-cased because they
+ * sit inside a French sentence rather than starting one.
+ *
+ * The tag is humanised here rather than imported from `screens/camera.js`:
+ * that module imports this one, and a cycle between a screen and the sentence
+ * table would make the load order of a renderer depend on which screen the app
+ * opened first.
+ */
+function leafLabel(f) {
+  const label = typeof f.label === 'string' && f.label.trim() ? f.label.trim() : '';
+  const fromTag = typeof f.tag === 'string'
+    ? f.tag.trim().toLowerCase().replace(/^[a-z]{2}:/, '').replace(/-/g, ' ').trim()
+    : '';
+  const name = label || fromTag;
+  return name ? `${name.charAt(0).toLowerCase()}${name.slice(1)}` : '';
+}
+
+/**
+ * The French swap sentences, keyed by `AlternativeLineCode`.
+ *
+ * "Moins cher" appears in the two HEADING codes and nowhere else in this file.
+ * That is a tier word, and it is allowed here for the one reason the ban has:
+ * the heading sits over a list the catalogue produced by comparing two prices,
+ * so the comparison was actually made. It is never allowed on the refusal
+ * path, and it cannot leak there: a refusal passes its own heading into
+ * `cheaperList` and these renderers are not reached (screens/camera.js,
+ * `fillCheaper`).
+ */
+const ALT_RENDERERS = {
+  alt_unit_price_cheaper: (f) => {
+    const place = placeFr(f.place);
+    if (!place) return '';
+    return `${cad(f.unitCents)} par ${f.perQuantity} ${f.perUnit} ${place}, contre ${cad(f.originalUnitCents)}.`;
+  },
+  alt_ticket_price_cheaper: (f) => {
+    const place = placeFr(f.place);
+    if (!place) return '';
+    return `${cad(f.amountCents)} ${place}, contre ${cad(f.originalAmountCents)}.`;
+  },
+  alt_sizes_may_differ: () => 'Les formats peuvent différer.',
+  alt_seen_on: (f) => `Vu le ${dayYear(f.observedAt)}.`,
+  /* Decision 40: printed, never filtered, and never turned into a safety
+   * claim. "Notés" and not "aucun allergène": a tag list is a list of what was
+   * found, not a certificate of what is absent, and the English is careful
+   * about that in exactly the same way. */
+  alt_allergens_not_recorded: () =>
+    "Les allergènes ne sont pas notés pour l'un des deux. Vérifie l'emballage.",
+  alt_allergens_no_difference: () => 'Aucune différence dans les allergènes notés.',
+  /* Deux-points plutôt qu'un verbe suivi d'une liste: "ajoute du lait, des
+   * fruits à coque" demanderait le bon article pour chaque nom, et les noms
+   * viennent d'une table ouverte où le genre n'est pas connu. */
+  alt_allergens_added: (f) => {
+    const names = allergenList(f.added);
+    return names ? `Ajoute: ${names}.` : '';
+  },
+  alt_allergens_removed: (f) => {
+    const names = allergenList(f.removed);
+    return names ? `Retire: ${names}.` : '';
+  },
+  alternatives_cheaper_in_leaf: (f) => {
+    const leaf = leafLabel(f);
+    return leaf ? `Moins cher: ${leaf}` : 'Des options moins chères';
+  },
+  alternatives_none_priced: () => 'Aucune option moins chère que je peux chiffrer',
+};
+
+/**
+ * The renderer for a code, from whichever table owns it.
+ *
+ * Own properties only. A fragment's `code` is a string off the wire, and
+ * `RENDERERS['constructor']` is a function on `Object.prototype` that the
+ * `typeof fn === 'function'` gate below would let through.
+ */
+function rendererFor(code) {
+  if (Object.hasOwn(RENDERERS, code)) return RENDERERS[code];
+  if (Object.hasOwn(ALT_RENDERERS, code)) return ALT_RENDERERS[code];
+  return undefined;
+}
 
 /** Is this thing shaped like the contract's `StructuredText`? */
 function usable(structured) {
@@ -358,7 +670,7 @@ export function render(structured, english) {
 
   const parts = [];
   for (const f of structured.fragments) {
-    const fn = RENDERERS[f.code];
+    const fn = rendererFor(f.code);
     // Rule 3: one missing renderer drops the whole sentence back to English.
     if (typeof fn !== 'function') return english;
     let out;
@@ -407,5 +719,19 @@ export function renderLines(structuredLines, englishLines) {
   return english.map((line, i) => render(structuredLines[i], line));
 }
 
-/** Exported for test/prose.test.mjs. Not for a screen to read. */
+/** Exported for test/prose-coverage.test.mjs. Not for a screen to read. */
 export const FRENCH_CODES = Object.keys(RENDERERS);
+
+/**
+ * The swap codes, kept OUT of `FRENCH_CODES` on purpose.
+ *
+ * `prose-coverage.test.mjs` asserts `FRENCH_CODES` equals the spine's
+ * `LineCode` union exactly, in both directions, which is what makes it able to
+ * go red the day the spine grows a code nobody has translated. A swap code in
+ * that list would read as a code the spine can send and cannot, so it gets its
+ * own export and its own test (`prose-alternatives.test.mjs`).
+ */
+export const ALT_FRENCH_CODES = Object.keys(ALT_RENDERERS);
+
+/** Exported for the same test. Not for a screen to read. */
+export const CATEGORY_REASON_CODES = Object.keys(CATEGORY_REASONS);

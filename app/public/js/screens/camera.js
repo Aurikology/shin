@@ -508,10 +508,17 @@ function swapRow(a) {
   // the allergen caveat; an earlier version of this row appended the
   // allergen note a second time, which read as two different warnings
   // about one fact.
+  //
+  // THE SENTENCE IS STILL THE CATALOGUE'S, D-097 only changed what it is
+  // made of. `a.line` is finished English and was printed verbatim under
+  // this French badge; `a.structuredLine` is the same sentence as codes
+  // plus raw facts, and `renderProse` writes it in the reader's language
+  // or hands back `a.line` unchanged when it cannot. No rule about what
+  // counts as cheaper moved into this screen.
   return `<div class="swap swap-${ring}" data-ring="${ring}">
               <span class="swap-ring">${escapeHtml(label)}</span>
               <b>${escapeHtml(displayName(a.product))}</b>
-              <span>${escapeHtml(a.line)}</span>
+              <span>${escapeHtml(renderProse(a.structuredLine, a.line))}</span>
             </div>`;
 }
 
@@ -582,8 +589,16 @@ async function fillCheaper(root, code, askingCents, opts = {}) {
        fallback for a heading the server failed to send: the server's heading
        names a leaf category with the word "cheaper" in front of it, which is a
        true sentence under a verdict and a claim resting on nothing under a
-       refusal. When the caller supplies one it wins outright. */
-    box.innerHTML = cheaperList(opts.heading ?? r.heading, r.alternatives, opts);
+       refusal. When the caller supplies one it wins outright.
+
+       With no heading from the caller the server's own is used, and it goes
+       through `renderProse` first: `r.heading` is finished English ("Cheaper
+       Peanut butters") and `r.structuredHeading` is the same heading as a code
+       and raw facts (D-097). The refusal path never reaches that call, which
+       is what keeps the word "cheaper" off a sheet that judged nothing, in
+       French as much as in English. */
+    const heading = opts.heading ?? renderProse(r.structuredHeading, r.heading);
+    box.innerHTML = cheaperList(heading, r.alternatives, opts);
     // The refusal's own line ends "here is something similar that has a price
     // on it", written before this lookup answered. With nothing to hand over
     // the sentence above the box would be breaking its promise in the same

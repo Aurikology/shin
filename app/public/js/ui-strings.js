@@ -562,7 +562,11 @@ const FR = {
   cam_at_seller: (f) => `chez ${f.seller}`,
   cam_rail_you: 'toi',
   cam_in_market: (f) => `${f.market}, ${f.sellers}`,
-  cam_no_tag_typed: 'aucune étiquette écrite',
+  // "Aucun prix entré" et non "aucune étiquette écrite": personne n'écrit une
+  // étiquette, elle est déjà sur la tablette. Ce qui manque, c'est le prix que
+  // la personne n'a pas entré. L'anglais dit "no tag typed" et parle du même
+  // geste, mais le raccourci ne passe pas en français.
+  cam_no_tag_typed: 'aucun prix entré',
   cam_less: (f) => `${f.amount} de moins`,
   kind_regular: 'régulier',
   kind_promotional: 'en promotion',

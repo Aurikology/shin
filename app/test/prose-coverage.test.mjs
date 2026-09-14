@@ -178,6 +178,23 @@ const CASES = [
     facts: { lowestCents: 9900, lowestObservedOn: '2026-05-07', typicalCents: 10050, currency: 'CAD', askingCents: 11900 },
     english:
       'Only one seller, so this is against its own history: as low as $99.00 on 2026-05-07, usually about $100.50. You are looking at $119.00.',
+    /*
+     * THE ONE CASE WHERE THE DIGIT STREAMS LEGITIMATELY DIFFER, and it is
+     * written out rather than waived.
+     *
+     * The English prints the raw ISO day, "2026-05-07", in the middle of its
+     * own sentence. French writes a day in words, "7 mai 2026", which is what
+     * `day()` exists for and what every other date in this file already does.
+     * The same three numbers are in both (day, month, year) and the month is
+     * a word in one of them, so the CONCATENATED streams cannot match however
+     * carefully the sentence is written.
+     *
+     * Pinning the French stream keeps the assertion real rather than
+     * switching it off: every price in the sentence still has to survive, and
+     * a dropped or invented number still fails. Only the date is allowed to
+     * be re-spelled, and this is the list of digits that re-spelling produces.
+     */
+    frenchDigits: '9900' + '72026' + '10050' + '11900',
   },
 
   /* ── the thin-evidence line, four fragments joined with a space ── */
@@ -392,6 +409,31 @@ const CASES = [
     english:
       'Fresh produce is not something Shin can price yet. Shopper-reported shelf prices are the only source here.',
   },
+  /*
+   * THE SAME REFUSAL AS THE ENGINE ACTUALLY SENDS IT. The case above is the
+   * old shape and is kept deliberately: it is what an older server answers,
+   * it carries no `whyCode`, and it proves the English `why` still comes
+   * through whole. This one carries the code and the raw facts, and the
+   * paragraph below is byte for byte `CATEGORY_RULES.produce.unsupported.why`
+   * from `spine/src/categories.ts`.
+   *
+   * It was the last sentence in the app reaching a French reader in English:
+   * the frame translated and 350 characters of recorded English reasoning
+   * crossed verbatim underneath it.
+   */
+  {
+    code: 'refusal_category_not_served',
+    facts: {
+      category: 'produce',
+      categoryLabel: 'Fresh produce',
+      why:
+        'Three problems stack and none of them is solved by a better feed. A PLU names a category rather than a product (4011 has meant "bananas" since 1990), package formats break unit comparison, and the public series measures underlying inflation rather than what is on the shelf this week. Shopper-reported shelf prices are the only source here, not a supplement to one.',
+      whyCode: 'produce_no_shelf_price_source',
+      whyFacts: { problemCount: 3, plu: '4011', pluMeaning: 'bananas', pluInUseSince: 1990 },
+    },
+    english:
+      'Fresh produce is not something Shin can price yet. Three problems stack and none of them is solved by a better feed. A PLU names a category rather than a product (4011 has meant "bananas" since 1990), package formats break unit comparison, and the public series measures underlying inflation rather than what is on the shelf this week. Shopper-reported shelf prices are the only source here, not a supplement to one.',
+  },
   {
     code: 'refusal_identity_below_floor',
     facts: { label: 'Canon EOS R6' },
@@ -511,7 +553,7 @@ test('every number the English sentence shows survives into the French one', () 
     // reshaped count or an invented number all fail here.
     assert.equal(
       digits(out),
-      digits(c.english),
+      c.frenchDigits ?? digits(c.english),
       `${c.code} does not carry the same numbers as its English:\n  en: ${c.english}\n  fr: ${out}`,
     );
   }
@@ -534,6 +576,83 @@ test('a fragment whose list of facts is missing goes back to English, not to a v
       assert.equal(out, 'ENGLISH', `${code} invented a sentence out of no facts: ${out}`);
     }
   }
+});
+
+/* ------------------------------------------------------------------ *
+ * 2b. A DECLINED CATEGORY SAYS WHY IN FRENCH, from the code and the raw
+ *     numbers, and says why in English for a code it has not been taught.
+ *
+ * `refusal_category_not_served` passed every assertion above while still
+ * failing a French reader, because one of its FACTS was the English: `why` is
+ * a paragraph of recorded reasoning owned by `spine/src/categories.ts` and the
+ * client could only pass it through. The spine now ships `whyCode` and the raw
+ * `whyFacts` that paragraph interpolates beside it.
+ *
+ * The fallback half is the one that must not rot. A category declined next
+ * year will arrive with a code this file has never seen, and the only correct
+ * answer then is the English paragraph, whole.
+ * ------------------------------------------------------------------ */
+
+const PRODUCE_FACTS = {
+  category: 'produce',
+  categoryLabel: 'Fresh produce',
+  why: 'Three problems stack. 4011 has meant bananas since 1990.',
+  whyFacts: { problemCount: 3, plu: '4011', pluMeaning: 'bananas', pluInUseSince: 1990 },
+};
+
+/** The refusal, rendered in French, with whatever `whyCode` is handed in. */
+function produceRefusal(whyCode) {
+  const facts = whyCode === undefined ? PRODUCE_FACTS : { ...PRODUCE_FACTS, whyCode };
+  return inFrench(() =>
+    prose.render(
+      { shape: 'single', fragments: [{ code: 'refusal_category_not_served', facts }] },
+      'FALLBACK',
+    ),
+  );
+}
+
+test('a declined category rebuilds its recorded reason in French from the raw facts', () => {
+  const out = produceRefusal('produce_no_shelf_price_source');
+  assert.notEqual(out, 'FALLBACK', 'the refusal fell back instead of rendering');
+  assert.ok(!out.includes(PRODUCE_FACTS.why), `the English paragraph came through:\n${out}`);
+  // The two numbers the paragraph states. A PLU is an identifier and a year is
+  // a year; neither is translated, and neither may be dropped.
+  assert.ok(out.includes('4011'), `the PLU did not survive into French:\n${out}`);
+  assert.ok(out.includes('1990'), `the year did not survive into French:\n${out}`);
+  // The count is written in letters on both sides ("Three problems"), so the
+  // digit 3 must NOT appear. It counts the clauses of its own sentence.
+  assert.ok(!/\b3\b/.test(out), `the problem count was written as a digit:\n${out}`);
+  assert.ok(out.includes('bananes'), `the PLU's meaning stayed in English:\n${out}`);
+  assert.ok(!out.includes('bananas'), `the English word is still on the screen:\n${out}`);
+  assert.ok(!out.includes('undefined'), `a missing fact reached the screen:\n${out}`);
+});
+
+test('a reason code this client has not been taught leaves the English standing', () => {
+  // Both shapes of "not taught": a code from a category declined after this
+  // build shipped, and no code at all from a server that predates the field.
+  for (const whyCode of ['bakery_no_shelf_price_source', undefined]) {
+    const out = produceRefusal(whyCode);
+    assert.ok(
+      out.includes(PRODUCE_FACTS.why),
+      `${String(whyCode)}: the recorded English reason was dropped rather than passed through:\n${out}`,
+    );
+    // The frame around it is still French: the sentence it is embedded in is
+    // built from the category alone and does not depend on the reason.
+    assert.ok(out.includes('Shin'), `${String(whyCode)}: the frame is gone too:\n${out}`);
+    assert.ok(!out.startsWith('Fresh produce is'), `${String(whyCode)}: the whole sentence went English:\n${out}`);
+  }
+});
+
+test('a known reason code with no facts under it falls back rather than inventing one', () => {
+  const facts = { ...PRODUCE_FACTS, whyCode: 'produce_no_shelf_price_source', whyFacts: {} };
+  const out = inFrench(() =>
+    prose.render(
+      { shape: 'single', fragments: [{ code: 'refusal_category_not_served', facts }] },
+      'FALLBACK',
+    ),
+  );
+  assert.ok(out.includes(PRODUCE_FACTS.why), `a reason was written out of no facts:\n${out}`);
+  assert.ok(!out.includes('undefined'), `a missing fact reached the screen:\n${out}`);
 });
 
 /* ------------------------------------------------------------------ *

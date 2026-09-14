@@ -21,7 +21,11 @@ import { RecordedSource } from '../spine/src/sources/recorded.ts';
 import { CATEGORY_RULES } from '../spine/src/categories.ts';
 import type { ProductIdentity, SpineQuery } from '../spine/src/contract.ts';
 import { categoryFor } from './src/category-map.ts';
-import { alternativesFor, alternativesHeading } from '../catalogue/src/alternatives.ts';
+import {
+  alternativesFor,
+  alternativesHeading,
+  alternativesHeadingStructured,
+} from '../catalogue/src/alternatives.ts';
 import type { Candidate } from '../catalogue/src/search.ts';
 /*
  * TYPES ONLY, AND THE VALUES ARRIVE BY DYNAMIC IMPORT BELOW.
@@ -141,13 +145,33 @@ let catalogueWhyNot = 'not attempted yet';
  * Exported for app/test/cheaper-rings.test.mjs, which hands it a row carrying
  * the new fields and asserts the body came back identical. A passthrough is
  * exactly the kind of claim that is true until somebody adds a `.map`.
+ *
+ * `structuredHeading` is D-097's half of the same idea one level up: `heading`
+ * is a finished English sentence ("Cheaper Peanut butters") and the client
+ * printed it verbatim under a French badge, so the catalogue's
+ * `alternativesHeadingStructured` ships the same heading as a code plus raw
+ * facts and `app/public/js/prose.js` writes it in the reader's language.
+ * `heading` is untouched and is still what a client falls back to.
+ *
+ * IT DEFAULTS TO NULL RATHER THAN BEING REQUIRED, because two of the three
+ * call sites below have no structured heading to send: "the catalogue is not
+ * attached" and "we have not seen this one" are this route's own sentences
+ * about its own state, not the catalogue's judgement about a category, and
+ * inventing a code for them here would put the server back in the business of
+ * writing prose the client cannot re-say.
  */
-export function alternativesPayload<T>(
+export function alternativesPayload<T, H = unknown>(
   catalogueUp: boolean,
   heading: string,
   alternatives: readonly T[],
-): { catalogueUp: boolean; heading: string; alternatives: readonly T[] } {
-  return { catalogueUp, heading, alternatives };
+  structuredHeading: H | null = null,
+): {
+  catalogueUp: boolean;
+  heading: string;
+  structuredHeading: H | null;
+  alternatives: readonly T[];
+} {
+  return { catalogueUp, heading, structuredHeading, alternatives };
 }
 
 export function setCatalogueForTests(fake: { byGtin(code: string): unknown } | null): void {
@@ -2756,7 +2780,12 @@ export const server = createServer(async (req, res) => {
       }
 
       const alternatives = await alternativesFor(catalogueDb, original, askingCents, lookupPrices);
-      return json(200, alternativesPayload(true, alternativesHeading(original, alternatives.length), alternatives));
+      return json(200, alternativesPayload(
+        true,
+        alternativesHeading(original, alternatives.length),
+        alternatives,
+        alternativesHeadingStructured(original, alternatives.length),
+      ));
     }
 
     /*

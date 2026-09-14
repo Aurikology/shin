@@ -429,6 +429,35 @@ test('the server does not fabricate a ring for a catalogue build that has none',
   assert.equal('ring' in overTheWire.alternatives[0], false);
 });
 
+test('the body carries the structured heading beside the English one, untouched', () => {
+  // D-097. `heading` is a finished English sentence and the client printed it
+  // verbatim under a French badge; the catalogue now writes the same heading
+  // as a code plus raw facts, and this route forwards it the same way it
+  // forwards a row: whole, unnamed, and uninterpreted.
+  const structured = {
+    shape: 'single',
+    fragments: [{
+      code: 'alternatives_cheaper_in_leaf',
+      facts: { tag: 'en:apples', label: 'Apples', count: 2 },
+    }],
+  };
+  const body = alternativesPayload(true, 'Cheaper Apples', [LEAF], structured);
+  assert.equal(body.heading, 'Cheaper Apples', 'the English heading moved');
+  assert.deepEqual(body.structuredHeading, structured);
+  assert.deepEqual(JSON.parse(JSON.stringify(body)).structuredHeading, structured,
+    'the structured heading did not survive the wire');
+});
+
+test('a route with no structured heading sends null, and never invents a code', () => {
+  // The two answers this route writes itself: "the catalogue is not attached"
+  // and "we have not seen this one". Neither is the catalogue's judgement
+  // about a category, and a code invented here would put the server back in
+  // the business of writing prose the client cannot re-say.
+  const body = alternativesPayload(false, 'The catalogue is not attached, so nothing was looked up.', []);
+  assert.equal(body.structuredHeading, null);
+  assert.equal('structuredHeading' in body, true, 'the client cannot tell absent from unsent');
+});
+
 test('the body is the same object graph whatever fields a row carries', () => {
   // The route must not be readable as "knows about alternatives". It takes a
   // heading and an array and returns them; the day somebody adds a `.map` here
