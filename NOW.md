@@ -91,6 +91,47 @@ client-side finding.
 index with 120 days of price history cannot be built by a content script, so the script is probably
 the display surface and the index is Honey's own infrastructure.
 
+## Working the unblocked backlog, and two things it turned up, 2026-09-13 night
+
+**A concern I raised myself does not survive checking.** I worried the app asks the OS for location
+outside the shop shortlist. Both callers are consent-gated — `main.js:91` is
+`if (store.consent().location)` and `consent-actions.js` fires only when the toggle is switched ON,
+which is the right moment to ask, not a leak. The brief's rule was wrong and the code is better than
+the instruction. Recorded because a flag withdrawn is worth as much as a flag raised.
+
+**D-094 proved at the consumer, both directions.** `GET /api/stores?cell=43.2537:-79.9208`, the
+format this app shipped with, returns **400** — the failure every call it ever made would have hit.
+The server's own grid returns **200 with three real OpenStreetMap shops**. That route had never once
+answered successfully before tonight. One Overpass request, not a load test.
+
+**And the first real answer raises a question for him.** Downtown Hamilton returned a supermarket, a
+brewery and a beauty bar. The query is `nwr["shop"]` — anything tagged a shop. Defensible, since a
+beauty bar sells barcoded goods, but `out center 60` means a dense area could list sixty, and the
+sharper risk is the reverse: **anything not tagged `shop` is invisible**, so a Shoppers Drug Mart
+mapped as `amenity=pharmacy` would simply not appear to the shopper standing in it. The "No shop"
+row keeps that safe rather than wrong. Narrowing or broadening the query are opposite failure modes
+and it is his call, on more than one city's worth of evidence.
+
+**A seam test, because D-094's lesson generalises.** `app/test/wire-seam.test.mjs`: where the client
+encodes and the server parses, something must run the two against each other. It reads the server's
+predicates out of its own source rather than restating them, so a guard that changes shape fails
+here instead of passing against a copy of a rule that no longer exists. Four tests; the price seam
+holds and is now pinned.
+
+**D-096: plan item 14b cannot be executed as written.** "Add 20 produce and 20 tech photos" reads
+like an afternoon of fetching. **All 20 tech codes are absent from the catalogue and from both Open
+Facts APIs** — placeholders carrying a brand, a name and a category, so nothing about the file
+suggests they are invented. If photos appeared, all 20 would score as `cascade_miss` by
+construction, and the new stage split would blame retrieval for a cascade that was working. The
+catalogue holds 648 tech-looking rows, so the item is achievable after the products are re-selected
+— a different job from the one the plan describes. The 20 produce rows are a separate matter and
+not a defect: `code: null` is correct for loose produce, and they are the closest thing this eval
+has to the **negative set** the stage split reported it structurally lacks.
+
+**Every screen walked again** at 390x844 and 375x575 in French after a day of heavy change: the same
+four decorative camera elements as this morning, identical in English, no page errors. The language
+switch driven through the UI: en-CA to Français, live, and it survives a reload. **1,092 tests pass** (app 604, spine 212, price 157, identify 119).
+
 ## The shop a shopper is standing in, asked once instead of every time, 2026-09-13 night
 
 **His words:** *"can we allow shin to use their location and then asses instead of them having to
