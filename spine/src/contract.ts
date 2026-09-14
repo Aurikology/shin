@@ -192,6 +192,42 @@ export type LineCode =
   /** The gap is a promotion against a regular price, not one store against another. */
   | 'disagreement_promotion_not_store';
 
+/**
+ * Why a whole category is declined, as a CODE rather than as the recorded
+ * English.
+ *
+ * Its own union and not a `LineCode`, because these are not sentences the spine
+ * writes. Each one names a decision recorded in `categories.ts`, whose prose is
+ * a paragraph of reasoning rather than a line of copy, and whose wording is
+ * owned by that file and changes when the decision is revisited. A `LineCode`
+ * is keyed one-to-one to a sentence a renderer emits; this is keyed to a
+ * standing call.
+ *
+ * It rides on `refusal_category_not_served` as the `whyCode` fact, beside the
+ * unchanged English `why` and the raw `whyFacts` the paragraph interpolates.
+ * That was the last sentence a French reader still got in English: the frame
+ * translated and the recorded reason passed through verbatim.
+ *
+ * THE CLIENT IS NOT DONE WHEN THIS FILE IS. `app/public/js/prose.js` needs one
+ * renderer per code here, keyed off `facts.whyCode` inside its existing
+ * `refusal_category_not_served` entry, and it must keep falling back to
+ * `facts.why` for a code it has not been taught. That is the app's lane, not
+ * this package's, and adding a member here without that entry means a French
+ * reader sees the English paragraph again.
+ *
+ * Named for MEANING, exactly like `LineCode`. Never for the English wording.
+ */
+export type CategoryReasonCode =
+  /**
+   * Produce. A PLU names a category rather than a product, package formats
+   * break unit comparison, and the public price series measures inflation
+   * rather than this week's shelf, so the only source that could answer is
+   * shoppers reporting the shelf themselves.
+   *
+   * Facts: `problemCount`, `plu`, `pluMeaning`, `pluInUseSince`.
+   */
+  'produce_no_shelf_price_source';
+
 /** One code and the raw values its sentence interpolates. */
 export interface TextFragment {
   readonly code: LineCode;

@@ -126,14 +126,23 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
     return refuse(
       'category_unsupported',
       `${rule.label} is not something Shin can price yet. ${rule.unsupported.why}`,
-      // `category` is the raw code and is what a French renderer keys on; the
-      // label and the recorded `why` travel beside it because both are English
-      // prose owned by `categories.ts`, and translating a recorded decision is
-      // that file's problem, not this sentence's.
+      // `category` is the raw code and is what a French renderer keys on. The
+      // label and the recorded `why` travel beside it as English prose owned by
+      // `categories.ts`.
+      //
+      // `why` used to be the whole answer, and it was the last thing in this
+      // package that reached a French reader in English: the frame translated
+      // and a 350-character English paragraph came through it verbatim. So the
+      // same call now also ships as `whyCode` plus the raw `whyFacts` that
+      // paragraph interpolates, and a renderer that knows the code rebuilds the
+      // reason instead of passing ours on. `why` stays exactly as it was, and is
+      // still the fallback for a code a client has not been taught.
       say('refusal_category_not_served', {
         category: identity.category,
         categoryLabel: rule.label,
         why: rule.unsupported.why,
+        whyCode: rule.unsupported.whyCode,
+        whyFacts: rule.unsupported.whyFacts,
       }),
       identity,
       [],

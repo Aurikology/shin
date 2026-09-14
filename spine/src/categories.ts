@@ -21,7 +21,9 @@
 
 import type {
   CategoryId,
+  CategoryReasonCode,
   Disagreement,
+  Fact,
   PriceKind,
   PricePoint,
   StructuredText,
@@ -58,8 +60,25 @@ export interface JudgeOutput {
 export interface CategoryRule {
   readonly id: CategoryId;
   readonly label: string;
-  /** Set when we decline the whole category. Carries why, and what reverses it. */
-  readonly unsupported?: { readonly why: string; readonly reversedBy: string };
+  /**
+   * Set when we decline the whole category. Carries why, and what reverses it.
+   *
+   * `why` and `reversedBy` are English prose owned by this file, written for a
+   * reader deciding whether the call still holds. `whyCode` and `whyFacts` are
+   * the same call as a code plus the raw numbers the paragraph interpolates,
+   * and they exist because the refusal sentence ships to a French client:
+   * `spine.ts` puts all three on `refusal_category_not_served`, the frame
+   * translates, and a renderer keyed on `whyCode` can rebuild the reason in its
+   * own language instead of passing the English through. Both are required, so
+   * a new declined category cannot be added without one.
+   */
+  readonly unsupported?: {
+    readonly why: string;
+    readonly whyCode: CategoryReasonCode;
+    /** Raw. Counts as numbers, years as numbers, codes as the source spells them. */
+    readonly whyFacts: Readonly<Record<string, Fact>>;
+    readonly reversedBy: string;
+  };
   /** Below this, identity is not good enough to price against. */
   readonly identityFloor: number;
   /** Kinds that count toward the minimums. `list` is never in here. */
@@ -538,6 +557,16 @@ const PRODUCE: CategoryRule = {
   label: 'Fresh produce',
   unsupported: {
     why: 'Three problems stack and none of them is solved by a better feed. A PLU names a category rather than a product (4011 has meant "bananas" since 1990), package formats break unit comparison, and the public series measures underlying inflation rather than what is on the shelf this week. Shopper-reported shelf prices are the only source here, not a supplement to one.',
+    whyCode: 'produce_no_shelf_price_source',
+    // Every number the paragraph above states, raw, so a renderer writes the
+    // same reason in its own grammar rather than translating ours. `plu` is a
+    // string because it is an identifier printed as four digits, not a quantity.
+    whyFacts: {
+      problemCount: 3,
+      plu: '4011',
+      pluMeaning: 'bananas',
+      pluInUseSince: 1990,
+    },
     reversedBy:
       'Crowdsourced shelf-price volume in one city reaching the point where a produce item has two independent reports more often than not. That is band 2.3, and produce is the first thing promoted if it survives.',
   },
