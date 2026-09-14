@@ -19,7 +19,7 @@ import { openGapLog } from '../src/gaps.ts';
 import { mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { Catalogue, labelForTag } from '../src/search.ts';
+import { Catalogue, labelForTag, chooseRingTag, MAX_RING_TAG } from '../src/search.ts';
 import type { Embedder } from '../src/embed.ts';
 
 /**
@@ -294,15 +294,17 @@ test('a category too big to be a kind of thing is not a ring', async () => {
       size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
   // One umbrella tag with more members than the ceiling, and nothing narrower.
-  for (let i = 0; i < 1200; i += 1) {
+  // Sized off MAX_RING_TAG rather than a literal: this fixture held 1,200 rows
+  // and stopped being over the line the day the cap moved to 1,500 (2026-09-13).
+  for (let i = 0; i < MAX_RING_TAG + 200; i += 1) {
     insert.run(`8${String(i).padStart(12, '0')}`, `Thing ${i}`, `Thing ${i}`, null, null, null,
       null, null, '["en:beverages"]', 'en:beverages', '[]', 1, 'test');
   }
   rebuildCategories(db);
   const cat = new Catalogue(db, new HashEmbedder());
 
-  // Three rows from a shelf of 1,200 unrelated things is not "here are other
-  // ones like it", it is the app having lost the plot.
+  // Three rows from a shelf of that many unrelated things is not "here are
+  // other ones like it", it is the app having lost the plot.
   assert.equal(cat.ring(['en:beverages'], 3), null);
 });
 
@@ -312,18 +314,21 @@ test('a mixed-case tag whose combined size crosses the cap is skipped by both pr
     INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
       size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
-  // Two spellings of the same tag, each under the cap alone (600 < 1000) but
-  // over it once rebuildCategories folds them into one row (1200 > 1000).
-  // This is the shape the fold is FOR: en:Beverages/en:beverages sat at
-  // 2/4,114 in the real catalogue. If the ring's size check (#tagSize) and
-  // its membership SELECT ever read different casings of `tag`, this tag
-  // would pass the size check on the small half and come back as a
-  // 1,200-member "ring" -- the exact failure MAX_RING_TAG exists to stop.
-  for (let i = 0; i < 600; i += 1) {
+  // Two spellings of the same tag, each under the cap alone but over it once
+  // rebuildCategories folds them into one row. Both halves are derived from
+  // MAX_RING_TAG so the relationship survives the cap moving -- it moved to
+  // 1,500 on 2026-09-13 and the old literal 600/600 quietly stopped crossing
+  // anything. This is the shape the fold is FOR: en:Beverages/en:beverages sat
+  // at 2/4,114 in the real catalogue. If the ring's size check (#tagSize) and
+  // its membership SELECT ever read different casings of `tag`, this tag would
+  // pass the size check on the small half and come back as a ring of both
+  // halves -- the exact failure MAX_RING_TAG exists to stop.
+  const HALF = Math.ceil((MAX_RING_TAG + 100) / 2);
+  for (let i = 0; i < HALF; i += 1) {
     insert.run(`7${String(i).padStart(12, '0')}`, `Thing ${i}`, `Thing ${i}`, null, null, null,
       null, null, '["en:beverages"]', 'en:beverages', '[]', 1, 'test');
   }
-  for (let i = 0; i < 600; i += 1) {
+  for (let i = 0; i < HALF; i += 1) {
     insert.run(`6${String(i).padStart(12, '0')}`, `Other ${i}`, `Other ${i}`, null, null, null,
       null, null, '["en:Beverages"]', 'en:Beverages', '[]', 1, 'test');
   }
@@ -331,8 +336,8 @@ test('a mixed-case tag whose combined size crosses the cap is skipped by both pr
   const cat = new Catalogue(db, new HashEmbedder());
 
   // A product whose own path carries the capitalised spelling must still be
-  // refused a ring here: the fold means there are really 1,200 members, not
-  // 600, and no arbitrary three of them are "other beverages".
+  // refused a ring here: the fold means there are really HALF * 2 members, not
+  // HALF, and no arbitrary three of them are "other beverages".
   assert.equal(cat.ring(['en:Beverages'], 3), null);
 });
 
@@ -730,4 +735,337 @@ test('a pinned size lifts the sibling that agrees with it above the one that doe
   });
   const codes = unpinned.candidates.map((c) => c.code);
   assert.ok(codes.includes('0061200016741') && codes.includes('0061200018585'), 'both sizes must survive an unpinned query');
+});
+
+/*
+ * ============================================================================
+ * THE TWO-LEVEL RING (2026-09-13). D-036's other half, and the walk D-068
+ * declined to write.
+ *
+ * Aurik's rule, in his words: "if there are gala apples Shin needs to compare
+ * prices with other gala apples in other stores. however if there are no gala
+ * apples it can offer similar item of honey crisp apples at nearby locations."
+ * Asked where it stops: leaf first, ONE step up to the parent if the leaf is
+ * empty, and a parent swap labelled as looser.
+ *
+ * chooseRingTag is tested against hand-built probes rather than a database
+ * because the thing under test is the WALK -- which positions in the path get
+ * asked about, and in what order -- and a db fixture would prove the SQL
+ * instead. The db-backed tests below it check that Catalogue wires the same
+ * rule to real rows.
+ * ============================================================================
+ */
+
+const APPLES = ['en:plant-based-foods', 'en:fruits', 'en:apples', 'en:gala-apples'];
+
+/**
+ * Probes over a plain tag -> member-count map, recording every tag they were
+ * asked about. The recording is the point of several tests below: proving a
+ * tag came back unused is weaker than proving it was never consulted.
+ */
+function probesOf(sizes: Record<string, number>) {
+  const asked: string[] = [];
+  return {
+    asked,
+    probes: {
+      size: (tag: string) => {
+        asked.push(tag);
+        return sizes[tag] ?? 0;
+      },
+      hasNeighbour: (tag: string) => (sizes[tag] ?? 0) > 0,
+    },
+  };
+}
+
+test('the ring is the leaf when the leaf has somebody in it', () => {
+  // Other Gala apples exist, so Gala apples is the answer and nothing wider is
+  // even considered. This is the first half of the sentence the rule came from.
+  const { probes, asked } = probesOf({ 'en:gala-apples': 6, 'en:apples': 400 });
+  assert.deepEqual(chooseRingTag(APPLES, probes), {
+    tag: 'en:gala-apples',
+    level: 'leaf',
+    distanceOut: 0,
+  });
+  assert.deepEqual(asked, ['en:gala-apples'], 'the parent was consulted for nothing');
+});
+
+test('an empty leaf steps up exactly one, to the parent, and says that is where it is', () => {
+  // No other Gala in the store, so a Honeycrisp from en:apples -- the second
+  // half of the same sentence. The level is what lets the screen call it looser.
+  const { probes } = probesOf({ 'en:gala-apples': 0, 'en:apples': 12 });
+  assert.deepEqual(chooseRingTag(APPLES, probes), {
+    tag: 'en:apples',
+    level: 'parent',
+    distanceOut: 1,
+  });
+});
+
+test('an empty leaf and an empty parent is nothing, never the grandparent', () => {
+  /*
+   * THE LOAD-BEARING REFUSAL. en:fruits is full and one step further out, and
+   * the old outward walk would have taken it: "here are some fruits" offered
+   * for a Gala apple. Two levels is the whole rule, so the answer is silence.
+   *
+   * NEGATIVE-TESTED 2026-09-13 by restoring the old outward loop over the whole
+   * path in chooseRingTag: this test fails with en:fruits returned as the ring,
+   * which is the failure it exists to catch.
+   */
+  const { probes, asked } = probesOf({
+    'en:gala-apples': 0,
+    'en:apples': 0,
+    'en:fruits': 40,
+    'en:plant-based-foods': 15226,
+  });
+  assert.equal(chooseRingTag(APPLES, probes), null);
+  assert.ok(!asked.includes('en:fruits'), 'the grandparent was consulted at all');
+});
+
+test('a parent as wide as a shelf is refused too, not just a leaf', () => {
+  // The cap is not a leaf-only rule. A parent over MAX_RING_TAG is a shelf of
+  // the whole shop and an empty answer beats three arbitrary rows from it.
+  const { probes } = probesOf({ 'en:gala-apples': 0, 'en:apples': MAX_RING_TAG + 1 });
+  assert.equal(chooseRingTag(APPLES, probes), null);
+});
+
+test('a leaf over the cap does not launder itself through its parent', () => {
+  // A leaf this big was never a leaf. Its parent is wider still, so the cap
+  // catches that too -- but assert it rather than assume it.
+  const { probes } = probesOf({
+    'en:gala-apples': MAX_RING_TAG + 1,
+    'en:apples': MAX_RING_TAG + 1,
+  });
+  assert.equal(chooseRingTag(APPLES, probes), null);
+});
+
+test('no path, or a path of one tag, gets no ring at all', () => {
+  // Rule 4: nothing is inferred. With a single tag there is no parent to step
+  // to and no hierarchy saying the tag is a kind of thing rather than a shelf.
+  const { probes, asked } = probesOf({ 'en:apples': 6, 'en:beverages': 4114 });
+  assert.equal(chooseRingTag([], probes), null);
+  assert.equal(chooseRingTag(['en:apples'], probes), null);
+  assert.deepEqual(asked, [], 'a one-tag path was probed instead of refused outright');
+});
+
+test('D-036 CANNOT HAPPEN: a tag in the middle of the path is never the ring', () => {
+  /*
+   * THE DEFECT ITSELF. Organic tortilla chips were offered Stem Ginger Oat
+   * Cookies as a cheaper swap because both carry `en:whole-grains`. That tag is
+   * nobody's leaf -- it sits in the MIDDLE of the chips' path -- and the old
+   * walk climbed to it once the narrow tags came back empty. "Cheaper" implies
+   * "instead of this", and over that tag it was a lie.
+   *
+   * Here the only tag the two products share is the one with 800 members, well
+   * under MAX_RING_TAG, so the cap alone does NOT save this case: D-068 closed
+   * the shelf-sized version and left this one open. Only the position rule
+   * closes it. The assertion on `asked` is the strong form -- en:whole-grains
+   * is not merely rejected, it is never a question.
+   */
+  const CHIPS = ['en:groceries', 'en:whole-grains', 'en:snacks', 'en:tortilla-chips'];
+  const { probes, asked } = probesOf({
+    'en:tortilla-chips': 0, // the only chips in the store is the one being asked about
+    'en:snacks': 0, // nothing priced at the parent either
+    'en:whole-grains': 800, // where the ginger oat cookies live. Under the cap.
+  });
+  assert.equal(chooseRingTag(CHIPS, probes), null, 'the cookies were offered again');
+  assert.ok(
+    !asked.includes('en:whole-grains'),
+    'the tag that produced D-036 was consulted as a possible ring',
+  );
+});
+
+test('the walk lower-cases both levels, so a stray capital cannot split membership', () => {
+  // product_category is written lower-cased and category_path is not. If the
+  // parent step read the raw casing it would miss its own tag; see the
+  // mixed-case cap test above for what that costs at the leaf.
+  const { probes } = probesOf({ 'en:gala-apples': 0, 'en:apples': 12 });
+  assert.deepEqual(chooseRingTag(['en:Fruits', 'en:Apples', 'en:Gala-Apples'], probes), {
+    tag: 'en:apples',
+    level: 'parent',
+    distanceOut: 1,
+  });
+});
+
+test('the ring a search returns carries which level produced it', async () => {
+  // The contract the app needs: `ring` and `ringTag` on the returned ring, not
+  // a distanceOut a screen has to interpret.
+  const cat = await fixture();
+  const ring = cat.ring(ORANGE_PATH, 3, '1000000000002');
+  assert.ok(ring, 'expected a ring');
+  assert.equal(ring.ring, 'leaf');
+  assert.equal(ring.ringTag, 'en:oranges');
+  assert.equal(ring.ringTag, ring.tag, 'the two names disagreed about one tag');
+});
+
+test('a real catalogue with an empty leaf answers from the parent, labelled parent', () => {
+  /*
+   * The db-backed half: same rule, real rows, so the wiring is checked and not
+   * just the decision function. One lonely Gala nobody else shares, two other
+   * apples one step up.
+   */
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  const GALA = ['en:fruits', 'en:apples', 'en:gala-apples'];
+  const HONEY = ['en:fruits', 'en:apples', 'en:honeycrisp-apples'];
+  insert.run('G1', 'Gala Apple', 'Gala Apple', null, null, null, null, null,
+    JSON.stringify(GALA), 'en:gala-apples', '[]', 1, 'test');
+  insert.run('H1', 'Honeycrisp Apple', 'Honeycrisp Apple', null, null, null, null, null,
+    JSON.stringify(HONEY), 'en:honeycrisp-apples', '[]', 1, 'test');
+  insert.run('H2', 'Ambrosia Apple', 'Ambrosia Apple', null, null, null, null, null,
+    JSON.stringify(HONEY), 'en:honeycrisp-apples', '[]', 1, 'test');
+  rebuildCategories(db);
+  const cat = new Catalogue(db, new HashEmbedder());
+
+  const ring = cat.ring(GALA, 3, 'G1');
+  assert.ok(ring, 'no other Gala should widen to apples, not go silent');
+  assert.equal(ring.ring, 'parent');
+  assert.equal(ring.ringTag, 'en:apples');
+  assert.equal(ring.distanceOut, 1);
+  assert.equal(ring.members.length, 2);
+});
+
+/*
+ * ============================================================================
+ * TRAILING NON-KIND TAGS, AND THE CAP AT 1,500 (2026-09-13).
+ *
+ * Both come from one measurement against the live catalogue.db, over the 33,633
+ * Canadian rows that carry a category path. The counts live in the constants'
+ * own comments in search.ts so they can be re-run rather than argued with.
+ * ============================================================================
+ */
+
+test('a junk trailing tag is stripped, so the true leaf is called a leaf', () => {
+  /*
+   * 951 rows (2.83%) end in a tag that is not a product kind: en:groceries 832
+   * plus 41 capitalised, en:open-beauty-facts 62, en:non-food-products 8,
+   * en:open-products-facts 7. A real stored path reads
+   * en:sauces > en:mayonnaises > en:Groceries.
+   *
+   * D-036 INVERTED IS THE FAILURE THIS PREVENTS. Without the strip the cap
+   * refuses the huge en:groceries, the walk steps to en:mayonnaises -- the true
+   * leaf, a perfect match -- and hands back ring:'parent', which the client
+   * then announces as a looser swap. A good swap sold as a bad one is the same
+   * bug as a bad swap sold as a good one: the label not describing the row.
+   */
+  const MAYO = ['en:sauces', 'en:mayonnaises', 'en:Groceries'];
+  const { probes } = probesOf({
+    'en:mayonnaises': 40,
+    'en:sauces': 900,
+    'en:groceries': 30000,
+  });
+  assert.deepEqual(chooseRingTag(MAYO, probes), {
+    tag: 'en:mayonnaises',
+    level: 'leaf',
+    distanceOut: 0,
+  });
+});
+
+test('the parent after a strip is the tag before the true leaf, not the junk one', () => {
+  // With en:mayonnaises empty the step up is en:sauces. If the strip only
+  // skipped the junk tag at probe time rather than removing it, the parent
+  // would come out as en:mayonnaises and the ring would be a leaf wearing the
+  // parent label -- the same mismatch, one position along.
+  const MAYO = ['en:sauces', 'en:mayonnaises', 'en:groceries'];
+  const { probes } = probesOf({ 'en:mayonnaises': 0, 'en:sauces': 900 });
+  assert.deepEqual(chooseRingTag(MAYO, probes), {
+    tag: 'en:sauces',
+    level: 'parent',
+    distanceOut: 1,
+  });
+});
+
+test('every junk spelling is stripped, capitals and source markers alike', () => {
+  // The measured set, each one as it is actually stored. en:open-* is matched
+  // by prefix because the source markers arrive as a family whenever a sibling
+  // project is loaded, and enumerating them one at a time rots.
+  const { probes } = probesOf({ 'en:mayonnaises': 40, 'en:sauces': 900 });
+  for (const junk of [
+    'en:Groceries',
+    'en:groceries',
+    'en:non-food-products',
+    'en:open-beauty-facts',
+    'en:open-products-facts',
+    'en:Open-products-facts',
+    'en:open-pet-food-facts',
+  ]) {
+    assert.deepEqual(
+      chooseRingTag(['en:sauces', 'en:mayonnaises', junk], probes),
+      { tag: 'en:mayonnaises', level: 'leaf', distanceOut: 0 },
+      `${junk} survived the strip`,
+    );
+  }
+});
+
+test('several junk tags stacked on the end are all stripped', () => {
+  // en:open-products-facts sitting behind en:Groceries is a real export shape.
+  const { probes } = probesOf({ 'en:mayonnaises': 40, 'en:sauces': 900 });
+  assert.deepEqual(
+    chooseRingTag(['en:sauces', 'en:mayonnaises', 'en:Groceries', 'en:open-products-facts'], probes),
+    { tag: 'en:mayonnaises', level: 'leaf', distanceOut: 0 },
+  );
+});
+
+test('a path that is ONLY junk gets no ring at all', () => {
+  /*
+   * Nothing is left after the strip, so nothing was ever said about what the
+   * product IS. That is rule 4's case reached by a different road, and the
+   * answer is the same: silence, not the widest tag that happens to be there.
+   */
+  const { probes, asked } = probesOf({ 'en:groceries': 30000, 'en:open-products-facts': 900 });
+  assert.equal(chooseRingTag(['en:groceries'], probes), null);
+  assert.equal(chooseRingTag(['en:Groceries', 'en:open-products-facts'], probes), null);
+  assert.deepEqual(asked, [], 'a path of pure junk was probed instead of refused outright');
+});
+
+test('a junk tag in the MIDDLE of a path is left where it is', () => {
+  /*
+   * The strip is trailing-only on purpose. A non-kind tag mid-path is neither
+   * the leaf nor the parent, so the position rule already ignores it; removing
+   * it there would pull the parent one step further out and invent a wider ring
+   * than the source data describes. Here the parent stays en:groceries-adjacent
+   * nonsense rather than becoming en:sauces.
+   */
+  const { probes } = probesOf({ 'en:mayonnaises': 0, 'en:groceries': 40, 'en:sauces': 900 });
+  assert.deepEqual(chooseRingTag(['en:sauces', 'en:groceries', 'en:mayonnaises'], probes), {
+    tag: 'en:groceries',
+    level: 'parent',
+    distanceOut: 1,
+  });
+});
+
+test('the cap admits a real kind of thing at the size cheeses actually is', () => {
+  /*
+   * THE 1,000 -> 1,500 MOVE, AS THE TWO CASES THAT DECIDED IT.
+   *
+   * 3,113 rows (9.3%) end in a tag over the old thousand, and the band from
+   * 1,001 to 1,500 is 1,807 of them (5.4%): en:candies 1,104, en:cheeses 1,251,
+   * en:breads 1,373. Those are kinds of thing a shopper says out loud, and at a
+   * thousand every candy, bread and cheese got no swap at all.
+   *
+   * Above 1,500 the names stop being kinds: en:confectioneries 2,030,
+   * en:cereals-and-their-products 2,737, en:beverages 3,850, en:snacks 6,582,
+   * en:plant-based-foods 11,599. The line is drawn between the two lists.
+   */
+  const { probes } = probesOf({ 'en:cheeses': 1251, 'en:dairies': 4000 });
+  assert.deepEqual(chooseRingTag(['en:dairies', 'en:cheeses'], probes), {
+    tag: 'en:cheeses',
+    level: 'leaf',
+    distanceOut: 0,
+  });
+
+  // And the first name on the other side of the line is still refused.
+  const wide = probesOf({ 'en:confectioneries': 2030, 'en:sugary-snacks': 6000 });
+  assert.equal(chooseRingTag(['en:sugary-snacks', 'en:confectioneries'], wide.probes), null);
+});
+
+test('the cap is exactly 1500: at it is a ring, one over it is not', () => {
+  // The boundary itself, so a future edit to the number has to come here and
+  // say so rather than sliding past a fixture that only tested far from it.
+  assert.equal(MAX_RING_TAG, 1500);
+  const at = probesOf({ 'en:breads': MAX_RING_TAG, 'en:cereals': 9000 });
+  assert.equal(chooseRingTag(['en:cereals', 'en:breads'], at.probes)?.tag, 'en:breads');
+  const over = probesOf({ 'en:breads': MAX_RING_TAG + 1, 'en:cereals': 9000 });
+  assert.equal(chooseRingTag(['en:cereals', 'en:breads'], over.probes), null);
 });

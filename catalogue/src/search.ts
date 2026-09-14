@@ -117,9 +117,179 @@ const FLOOR_SIM = 0.72;
  * Measured on the loaded catalogue: 6,591 tags, median size 1, and the ones that
  * name something a shopper would recognise run 5 (fresh oranges) to 325 (peanut
  * butters). The next tier up is not a kind of thing at all: beverages 4,114,
- * snacks 7,252, plant based foods 15,226. A thousand sits in the gap.
+ * snacks 7,252, plant based foods 15,226. A thousand sat in the gap.
+ *
+ * RAISED FROM 1,000 TO 1,500 ON 2026-09-13, because a thousand was cutting
+ * through the middle of the real distribution rather than through the gap in it.
+ * Re-measured against catalogue.db over the 33,633 Canadian rows that carry a
+ * category path: 3,113 of them (9.3%) end in a tag above the old thousand, and
+ * they do not all deserve to be there.
+ *
+ *   1,001-1,500   1,807 rows (5.4%)   en:candies 1,104, en:breads 1,373,
+ *                                     en:cheeses 1,251
+ *   1,501-3,000     626 rows          en:confectioneries 2,030,
+ *                                     en:cereals-and-their-products 2,737
+ *   3,001+          680 rows          en:beverages 3,850, en:snacks 6,582,
+ *                                     en:plant-based-foods 11,599
+ *
+ * The first band is the argument. Candies, breads and cheeses are kinds of
+ * thing a shopper would say out loud, and at a thousand every candy, bread and
+ * cheese in the catalogue got no swap at all -- D-068's cap protecting them from
+ * their own category. The second and third bands are shelves by any reading.
+ * 1,500 is the line between "en:cheeses" and "en:confectioneries", named here by
+ * tag so the next person can re-run the count and argue with the data rather
+ * than with the number.
  */
-export const MAX_RING_TAG = 1000;
+export const MAX_RING_TAG = 1500;
+
+/**
+ * Trailing tags that are not a kind of thing, stripped before the leaf is read.
+ *
+ * MEASURED 2026-09-13 over the same 33,633 Canadian rows with a category path:
+ * 951 of them (2.83%) END in one of these, which means the tag a shopper would
+ * recognise is sitting one position further in than `leaf_category` says.
+ *
+ *   en:groceries              832   (plus en:Groceries 41, same tag, stray caps)
+ *   en:open-beauty-facts       62   source markers, not categories
+ *   en:non-food-products        8
+ *   en:open-products-facts      7   (both casings)
+ *
+ * A stored path really reads: en:sauces > en:mayonnaises > en:Groceries.
+ *
+ * WHY THIS IS NOT LEFT TO THE CAP. Without the strip, en:groceries is refused
+ * for being shelf-sized, the walk steps to en:mayonnaises -- the TRUE leaf, a
+ * perfect match -- and labels it `parent`, which the client then announces as a
+ * looser swap. That is D-036 inverted: not a bad swap sold as good, but a good
+ * swap sold as bad, and it is the same failure of the label not describing the
+ * row. The cap cannot fix it because the cap's answer is always "not this one",
+ * never "this was never a leaf".
+ *
+ * Kept as a short named list, not a heuristic, because every entry is a fact
+ * about Open Food Facts' own export rather than a guess about language. The
+ * `en:open-` prefix covers the source markers as a family (open-beauty-facts,
+ * open-products-facts, open-pet-food-facts) since they arrive whenever a
+ * sibling project is loaded and enumerating them one by one rots.
+ */
+export const NON_KIND_TRAILING_TAGS: readonly string[] = ['en:groceries', 'en:non-food-products'];
+
+/** Source markers rather than categories. See NON_KIND_TRAILING_TAGS. */
+const NON_KIND_TRAILING_PREFIX = 'en:open-';
+
+/** Whether a tag is a trailing marker rather than a kind of thing. Lower-cased first. */
+function isNonKindTag(tag: string): boolean {
+  const t = tag.toLowerCase();
+  return NON_KIND_TRAILING_TAGS.includes(t) || t.startsWith(NON_KIND_TRAILING_PREFIX);
+}
+
+/**
+ * Which of the two permitted rings an answer came from.
+ *
+ * `leaf` is the product's own kind: other Gala apples, other creamy peanut
+ * butters. `parent` is one step wider and is a WEAKER claim -- a Honeycrisp
+ * offered because we have no other Gala -- so anything showing a parent-ring
+ * row has to say so. There is no third value on purpose; see chooseRingTag.
+ */
+export type RingLevel = 'leaf' | 'parent';
+
+/** The tag a ring was drawn at, and which of the two levels it is. */
+export interface RingChoice {
+  /** Lower-cased, as `product_category.tag` stores it. */
+  readonly tag: string;
+  readonly level: RingLevel;
+  /** 0 for the leaf, 1 for the parent. Kept for the screen's "steps out" wording. */
+  readonly distanceOut: number;
+}
+
+/** The two questions the walk asks about a tag. Supplied by whoever owns the db. */
+export interface RingProbes {
+  /**
+   * How many products carry this tag. Only ever compared against MAX_RING_TAG,
+   * so an implementation may stop counting at MAX_RING_TAG + 1.
+   */
+  readonly size: (tag: string) => number;
+  /** Whether any product other than the one being answered about carries this tag. */
+  readonly hasNeighbour: (tag: string) => boolean;
+}
+
+/**
+ * WHICH RING, AND THE REASON THERE ARE ONLY TWO. (D-036, D-068.)
+ *
+ * Aurik, 2026-09-13, deciding what counts as a substitute: "if there are gala
+ * apples Shin needs to compare prices with other gala apples in other stores.
+ * however if there are no gala apples it can offer similar item of honey crisp
+ * apples at nearby locations." Asked where that stops, he chose: the leaf
+ * first; ONE step up to the parent only if the leaf yields nothing; and a
+ * parent-level swap labelled as looser so the shopper knows.
+ *
+ * So this walks exactly two positions in `category_path`, never a third:
+ *
+ *   - path[len-1], the leaf -- the same tag as `leaf_category`. `en:apples`
+ *     pairs a Gala with a Honeycrisp, which is the whole ask.
+ *   - path[len-2], the parent, and only when the leaf came back empty.
+ *
+ * TRAILING NON-KINDS ARE STRIPPED FIRST (2026-09-13, measured: 2.83% of rows).
+ * `en:sauces > en:mayonnaises > en:Groceries` has `en:Groceries` recorded as its
+ * leaf, which is not a kind of thing and not what the shopper is holding. After
+ * the strip the leaf is `en:mayonnaises` and the parent is `en:sauces`, which is
+ * what both of them always were. See NON_KIND_TRAILING_TAGS for why this is not
+ * left to the cap: the cap would refuse the junk tag and then mislabel the real
+ * leaf as a parent, reporting a perfect match as a looser one.
+ *
+ * WHAT THIS REPLACES is a loop from the leaf outward to index 0 that `continue`d
+ * past any tag over the cap and kept going. That loop could land on ANY tag in
+ * the path, including one sitting in the middle of it, and that is the shape of
+ * D-036: tortilla chips and Stem Ginger Oat Cookies share `en:whole-grains`,
+ * which is nobody's leaf -- it is a mid-path tag the old walk was free to climb
+ * to once the narrow tags came back empty. "Cheaper" then means "instead of
+ * this", and it was lying. A mid-path tag can no longer be a ring at all.
+ *
+ * MAX_RING_TAG applies at BOTH levels, not just the leaf. A parent that turns
+ * out to be a shelf of the whole shop returns nothing rather than a bad swap:
+ * an empty answer is the honest one, and D-068 already settled that trade.
+ *
+ * A one-element path gets nothing. With a single tag there is no parent to step
+ * to and no hierarchy to say the tag is a leaf rather than a shelf, and the
+ * decision above is a decision about a path. Nothing is inferred from a bare
+ * tag; an empty `category_path` is the same case for the same reason.
+ */
+export function chooseRingTag(
+  categoryPath: readonly string[],
+  probes: RingProbes,
+): RingChoice | null {
+  /*
+   * Strip the trailing markers BEFORE anything reads a leaf. Only from the end:
+   * a non-kind tag sitting in the middle of a path is not the leaf and not the
+   * parent, so the position rule already ignores it, and removing it there would
+   * shift the parent inward by one and quietly invent a wider ring than the
+   * source data describes.
+   */
+  let end = categoryPath.length;
+  while (end > 0 && isNonKindTag(categoryPath[end - 1])) end -= 1;
+
+  // Fewer than two real tags is not a path, and rule 4 gives it no ring. A path
+  // that was ENTIRELY markers lands here too, at end === 0, which is right: it
+  // never said what the thing was.
+  if (end < 2) return null;
+
+  // product.category_path keeps whatever casing the source data carried, but
+  // product_category is written lower-cased (schema.ts, rebuildCategories) so
+  // that 522 case-variant spellings collapse into one row each instead of
+  // splitting membership across the index. Lowered ONCE here so that both
+  // probes and the caller's later SELECT all read the identical string: a
+  // size check on one casing and a membership check on another is exactly how
+  // a 1,600-member tag passes itself off as an 800-member ring.
+  const levels: readonly { tag: string; level: RingLevel; distanceOut: number }[] = [
+    { tag: categoryPath[end - 1].toLowerCase(), level: 'leaf', distanceOut: 0 },
+    { tag: categoryPath[end - 2].toLowerCase(), level: 'parent', distanceOut: 1 },
+  ];
+
+  for (const level of levels) {
+    if (probes.size(level.tag) > MAX_RING_TAG) continue;
+    if (!probes.hasNeighbour(level.tag)) continue;
+    return level;
+  }
+  return null;
+}
 
 export type Band = 'confident' | 'ambiguous' | 'miss';
 
@@ -176,8 +346,26 @@ export interface NeighbourRing {
   readonly tag: string;
   /** Human-facing, already stripped of the language prefix and hyphens. */
   readonly label: string;
-  /** 0 is the item's own leaf category; each step out is one wider. */
+  /**
+   * 0 is the item's own leaf category; 1 is its parent. Nothing else is
+   * reachable now that chooseRingTag walks two positions and no more.
+   */
   readonly distanceOut: number;
+  /**
+   * WHICH RING PRODUCED THIS, ADDED 2026-09-13 WITH THE TWO-LEVEL WALK.
+   *
+   * 'leaf' is other things of the same kind. 'parent' is one step wider and is
+   * a looser claim -- the Honeycrisp offered because there is no other Gala --
+   * and a screen showing it MUST say so. The field exists so that it can: a
+   * parent-ring row presented as though it were a leaf-ring row is D-036 with
+   * a smaller radius.
+   */
+  readonly ring: RingLevel;
+  /**
+   * The tag the ring came from. The same value as `tag`, under the name the
+   * Alternative rows also use, so one screen reading both reads one name.
+   */
+  readonly ringTag: string;
   readonly members: readonly Candidate[];
 }
 
@@ -707,12 +895,14 @@ export class Catalogue {
   /**
    * The neighbour ring (decision 27).
    *
-   * Walks the category path from the most specific tag outward, stopping at the
-   * first ring that has enough members to be worth showing. The tag it stopped
-   * at is returned, because the screen has to say which ring this is: "we do not
-   * have that one, here are other oranges" is a different sentence from "here
-   * are other fruits", and showing the second while saying the first is the kind
-   * of small lie that costs the whole product's credibility.
+   * Drawn at the leaf, or at the parent if the leaf has nobody in it, and
+   * nowhere else -- see chooseRingTag for why there is no third step. The tag
+   * it stopped at comes back WITH which of the two levels it was, because the
+   * screen has to say which ring this is: "we do not have that one, here are
+   * other oranges" is a different sentence from "here are other fruits", and
+   * showing the second while saying the first is the kind of small lie that
+   * costs the whole product's credibility. `ring` is that distinction as a
+   * field, so no screen has to infer it from `distanceOut`.
    */
   ring(categoryPath: readonly string[], want: number, exclude?: string): NeighbourRing | null {
     const found = this.#ringTag(categoryPath, exclude);
@@ -731,6 +921,8 @@ export class Catalogue {
       tag: found.tag,
       label: labelForTag(found.tag),
       distanceOut: found.distanceOut,
+      ring: found.level,
+      ringTag: found.tag,
       members: rows.map((r) =>
         rowToCandidate(
           r,
@@ -742,7 +934,7 @@ export class Catalogue {
   }
 
   /**
-   * The tag the ring would be drawn at, and how far out it is, without paying
+   * The tag the ring would be drawn at, and which level it is, without paying
    * for its members.
    *
    * Split out of `ring` on 2026-09-09 so that RANKING can ask the same question
@@ -750,47 +942,40 @@ export class Catalogue {
    * membership rule: if these two ever disagreed, a result could be reordered
    * by a ring the screen then refused to name.
    */
-  #ringTag(categoryPath: readonly string[], exclude?: string): { tag: string; distanceOut: number } | null {
-    for (let i = categoryPath.length - 1; i >= 0; i -= 1) {
-      // product.category_path keeps whatever casing the source data carried,
-      // but product_category is written lower-cased (schema.ts,
-      // rebuildCategories) so that 522 case-variant spellings collapse into
-      // one row each instead of splitting membership across the index. Both
-      // probes against product_category below -- #tagSize's count and the
-      // membership SELECT -- read this same `tag`, lowered once here, so
-      // neither can drift out of step with the other: #tagSize is also
-      // memoized per tag string for the life of this worker, and memoizing a
-      // wrong case would stick until restart. labelForTag lower-cases its own
-      // input again before presenting it, so passing the canonical form here
-      // rather than the raw path entry changes nothing about what is shown.
-      const tag = categoryPath[i].toLowerCase();
-
-      // A tag this big is not a kind of thing, it is a shelf of the whole shop,
-      // and three arbitrary rows from it read as the app having lost the plot.
-      // The measured split is clean: the tags that name something a shopper
-      // would recognise run from 5 members (fresh oranges) to a few hundred
-      // (peanut butters, kombuchas), and the next ones up are "beverages" at
-      // 4,114 and "plant based foods" at 15,226. Asking for a Pink Lady apple
-      // and being shown three beverages is the failure this prevents.
-      if (this.#tagSize(tag) > MAX_RING_TAG) continue;
-      // Membership is a path question, not a leaf question. Matching on the leaf
-      // is the version that looks right and never widens: nothing has "citrus"
-      // as its deepest tag, so the wider ring would always come back empty.
-      //
-      // One honest neighbour at the right level beats three at the wrong one.
-      // "We do not have that one, here is the other orange we have" is true;
-      // widening to "here are some fruits" to reach a quota is not.
-      const hit = this.#db
-        .prepare(
-          `SELECT 1 AS found
-           FROM product_category pc
-           JOIN product p ON p.rowid = pc.rowid_ref
-           WHERE pc.tag = ? AND p.code != ?
-           LIMIT 1`,
-        ).get(tag, exclude ?? '') as { found: number } | undefined;
-      if (hit) return { tag, distanceOut: categoryPath.length - 1 - i };
-    }
-    return null;
+  #ringTag(categoryPath: readonly string[], exclude?: string): RingChoice | null {
+    /*
+     * THE WALK ITSELF NOW LIVES IN chooseRingTag, AND IT IS TWO LEVELS DEEP.
+     *
+     * What used to be here was a loop from the leaf outward to index 0 that
+     * skipped any tag over the cap and kept climbing. That is how a mid-path
+     * tag like `en:whole-grains` -- nobody's leaf -- became a ring and paired
+     * ginger oat cookies with tortilla chips (D-036). It is now unreachable:
+     * only path[len-1] and path[len-2] are ever asked about.
+     *
+     * This method supplies the two probes and nothing else, so the RANKING
+     * caller and the heading caller still ask one question and get one answer
+     * (D-018). #tagSize stays memoized per worker, which is why the lowering
+     * happens once inside chooseRingTag rather than at each call site.
+     */
+    return chooseRingTag(categoryPath, {
+      size: (tag) => this.#tagSize(tag),
+      /*
+       * Membership is a path question, not a leaf question: a row is IN
+       * `en:citrus` if `en:citrus` appears anywhere in its path, which is what
+       * product_category stores. Matching the parent against other rows' LEAF
+       * would always come back empty, because nothing has "citrus" as its
+       * deepest tag, and the parent step would be dead code that looked alive.
+       */
+      hasNeighbour: (tag) =>
+        this.#db
+          .prepare(
+            `SELECT 1 AS found
+             FROM product_category pc
+             JOIN product p ON p.rowid = pc.rowid_ref
+             WHERE pc.tag = ? AND p.code != ?
+             LIMIT 1`,
+          ).get(tag, exclude ?? '') !== undefined,
+    });
   }
 
   /**

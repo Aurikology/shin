@@ -27,8 +27,8 @@
  */
 
 import type { DatabaseSync } from 'node:sqlite';
-import { MAX_RING_TAG } from './search.ts';
-import type { Candidate } from './search.ts';
+import { MAX_RING_TAG, chooseRingTag } from './search.ts';
+import type { Candidate, RingLevel } from './search.ts';
 
 export interface PricedProduct {
   readonly code: string;
@@ -119,6 +119,23 @@ export interface Alternative {
    * conclusion, positive or negative, is drawn from that emptiness.
    */
   readonly allergenNote: 'compared' | 'not-recorded';
+  /**
+   * WHICH RING THIS SWAP CAME FROM, ADDED 2026-09-13.
+   *
+   * 'leaf' is the same kind of thing: another Gala apple, another creamy peanut
+   * butter, and "cheaper" means "instead of this" without qualification.
+   * 'parent' is one step wider -- a Honeycrisp offered because the store has no
+   * other Gala -- and it is a LOOSER claim that has to be labelled as one.
+   *
+   * THIS FIELD IS THE SIGNAL AND THE CLIENT IS THE VOICE (ruled 2026-09-13).
+   * `line` says nothing about the level, deliberately: the badge per row and the
+   * sentence over an all-parent list are rendered from this field in both
+   * locales in app/public/js/ui-strings.js. Anything reading a swap must decide
+   * from `ring`, never by pattern-matching `line`.
+   */
+  readonly ring: RingLevel;
+  /** The category tag this swap was drawn from. See chooseRingTag. */
+  readonly ringTag: string;
   /** The exact sentence to show. Written here so no screen can improvise one. */
   readonly line: string;
 }
@@ -325,32 +342,55 @@ export async function alternativesFor(
   lookup: PriceLookup,
 ): Promise<Alternative[]> {
   const path = original.categoryPath;
-  if (path.length === 0) return [];
-  // Lower-cased: product_category.tag is written lower-case (schema.ts,
-  // rebuildCategories), and category_path on the row is not. Without this the
-  // WHERE pc.tag = ?2 probe below silently matches less than it should
-  // whenever the original product's own path carries any stray capital.
-  const tag = path[path.length - 1].toLowerCase();
   /*
-   * THE SAME CAP THE RING OBEYS, WHICH THIS PATH SKIPPED. `search.ts` refuses
-   * to draw a neighbour ring from a tag over MAX_RING_TAG members, and says
-   * why: a tag that big is not a kind of thing, it is a shelf of the whole
-   * shop. The alternatives query read `product_category` directly and never
-   * asked. That is the mechanism under D-036 -- the one populated result the
-   * store could produce offered ginger oat cookies as a cheaper swap for
-   * tortilla chips, both `en:whole-grains`, a tag broad enough to pair
-   * anything with anything. The word "cheaper" implies "instead of this",
-   * and over a shelf-sized tag it lies.
+   * THE SAME WALK THE NEIGHBOUR RING USES, WHICH CLOSES THE OTHER HALF OF D-036.
    *
-   * Counted the way the ring counts, capped at MAX_RING_TAG + 1 so a huge tag
-   * costs a bounded scan rather than a true count. An empty list is the
-   * answer, not a narrower tag: walking inward is a product decision about
-   * what counts as a substitute, and it is still the founder's (D-036).
+   * D-068 gave this path MAX_RING_TAG so a shelf-sized tag returns nothing, and
+   * deliberately stopped there: what counts as a substitute was a product call
+   * and it needed the founder. It has him now (2026-09-13) and the rule is
+   * chooseRingTag's -- leaf first, ONE step up to the parent if the leaf is
+   * empty, never further, with the cap applying at both levels.
+   *
+   * What this buys the shopper is the thing that was asked for: other Gala
+   * apples when there are other Gala apples, and a Honeycrisp only when there
+   * are not, carrying `ring: 'parent'` so the client can say so. What it forecloses
+   * is D-036 -- `en:whole-grains` is nobody's leaf and nobody's parent-of-a-leaf
+   * for tortilla chips, so it can no longer pair them with ginger oat cookies
+   * however many priced rows it holds.
+   *
+   * Both probes go through product_category, counted the way the ring counts
+   * and bounded at MAX_RING_TAG + 1 so a huge tag costs a bounded scan rather
+   * than a true count. Casing is chooseRingTag's job, once, for both probes and
+   * the SELECT below -- see its comment on why splitting that is a bug.
    */
-  const members = db
-    .prepare(`SELECT count(*) AS n FROM (SELECT 1 FROM product_category WHERE tag = ? LIMIT ${MAX_RING_TAG + 1})`)
-    .get(tag) as { n: number };
-  if (members.n > MAX_RING_TAG) return [];
+  const chosen = chooseRingTag(path, {
+    size: (t) =>
+      (db
+        .prepare(
+          `SELECT count(*) AS n FROM (SELECT 1 FROM product_category WHERE tag = ? LIMIT ${MAX_RING_TAG + 1})`,
+        )
+        .get(t) as { n: number }).n,
+    /*
+     * A neighbour here has to be one this query could actually offer, not just
+     * any row carrying the tag: same source (item 19a, pet food is not a swap
+     * for human food) and sold in Canada, which are the two filters the SELECT
+     * below applies anyway. Probing without them would let a leaf that holds
+     * only unreachable rows claim the ring and swallow the parent step, which
+     * is the "no gala apples" case failing silently rather than widening.
+     */
+    hasNeighbour: (t) =>
+      db
+        .prepare(
+          `SELECT 1 AS found
+             FROM product_category pc
+             JOIN product p ON p.rowid = pc.rowid_ref
+            WHERE pc.tag = ? AND p.code <> ? AND p.sold_in_canada = 1 AND p.source = ?
+            LIMIT 1`,
+        )
+        .get(t, original.code, original.source) !== undefined,
+  });
+  if (!chosen) return [];
+  const tag = chosen.tag;
 
   const sized = original.sizeValue !== null && original.sizeUnit !== null;
   const minSize = sized ? original.sizeValue! / SIZE_RATIO : 0;
@@ -526,11 +566,24 @@ export async function alternativesFor(
       addedAllergens: added,
       removedAllergens: removed,
       allergenNote,
+      ring: chosen.level,
+      ringTag: tag,
       // The sentence, written once, here. A measurement and a source, and
       // nothing about how it tastes. The weaker comparison says it is weaker
       // in the sentence itself rather than being dropped. The date is not
       // decoration: it is what stops a price observed in 2024 reading as
       // today's.
+      // The sentence, written once, here. A measurement and a source, and
+      // nothing about how it tastes. The weaker comparison says it is weaker
+      // in the sentence itself rather than being dropped. The date is not
+      // decoration: it is what stops a price observed in 2024 reading as
+      // today's.
+      //
+      // NO LOOSER/PARENT WORDING LIVES HERE, RULED 2026-09-13. A parent-ring
+      // swap is announced by the CLIENT, from `ring` below, in both locales
+      // (app/public/js/ui-strings.js). A sentence here as well would say it
+      // twice, and English-only server prose is what this repo moved away from
+      // the same day: the server emits facts, the client renders words.
       line: comparable
         ? `${formatCents(unitCents!)} per ${per} at ${storeClause}, ` +
           `against ${formatCents(originalUnit!)}. ${seenClause} ` +
@@ -552,6 +605,11 @@ export async function alternativesFor(
  * Names the category the swap is drawn from, for the same reason the neighbour
  * ring names its own level: "cheaper peanut butters" is a claim a shopper can
  * check, and "cheaper alternatives" is one they cannot.
+ *
+ * IT NAMES THE ORIGINAL'S OWN LEAF, AND DOES NOT KNOW ABOUT PARENT RINGS. That
+ * was tried on 2026-09-13 as a third argument and ruled out the same day: the
+ * client already handles the all-looser case itself, from `ring` on the rows,
+ * in both locales. Two authorities on one heading is how they drift apart.
  */
 export function alternativesHeading(original: Candidate, count: number): string {
   if (count === 0) return 'No cheaper option we can price';

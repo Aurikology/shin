@@ -494,3 +494,191 @@ test('a cheaper pet-food snack is not offered as an alternative to a human snack
     'a pet food product was offered as a cheaper alternative to a human snack',
   );
 });
+
+/*
+ * ============================================================================
+ * LEAF FIRST, ONE STEP UP, AND THE ROW SAYS WHICH (2026-09-13).
+ *
+ * D-068 gave this path MAX_RING_TAG and stopped, on purpose: the shelf-sized
+ * tag was the lie it could remove without a product decision, and what counts
+ * as a substitute needed the founder. His answer, in his words: "if there are
+ * gala apples Shin needs to compare prices with other gala apples in other
+ * stores. however if there are no gala apples it can offer similar item of
+ * honey crisp apples at nearby locations" -- leaf first, one step up to the
+ * parent if the leaf is empty, never further, and the parent swap labelled as
+ * looser.
+ *
+ * The walk itself is tested in search.test.ts against hand-built probes. What
+ * these check is that the SWAP path uses that walk and carries its answer.
+ * ============================================================================
+ */
+
+/** A produce fixture, because Gala -> Honeycrisp is the case the rule came from. */
+const GALA = ['en:plant-based-foods', 'en:fruits', 'en:apples', 'en:gala-apples'];
+const HONEY = ['en:plant-based-foods', 'en:fruits', 'en:apples', 'en:honeycrisp-apples'];
+
+function produceFixture(rows: readonly [string, string, string[]][]) {
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  for (const [code, name, path] of rows) {
+    insert.run(code, name, name, null, null, null, 500, 'g',
+      JSON.stringify(path), path[path.length - 1], '[]', 1, 'openfoodfacts');
+  }
+  rebuildFts(db);
+  rebuildCategories(db);
+  return db;
+}
+
+test('other Gala apples are the swap while there are other Gala apples', async () => {
+  // The first half of the founder's sentence. A leaf ring needs no qualifier,
+  // so the row must NOT carry the looser wording.
+  const db = produceFixture([
+    ['GALA1', 'Gala Apples 500 g', GALA],
+    ['GALA2', 'Other Gala Apples 500 g', GALA],
+    ['HON1', 'Honeycrisp Apples 500 g', HONEY],
+  ]);
+  const gala = candidate({ code: 'GALA1', categoryPath: GALA, leafCategory: 'en:gala-apples' });
+  const alts = await alternativesFor(db, gala, 800, lookupOf({ GALA2: 400, HON1: 200 }));
+
+  assert.equal(alts.length, 1, 'a Honeycrisp was offered while another Gala was on the shelf');
+  assert.equal(alts[0].product.code, 'GALA2');
+  assert.equal(alts[0].ring, 'leaf');
+  assert.equal(alts[0].ringTag, 'en:gala-apples');
+  // `line` never mentions the level, at either level -- see the parent test
+  // below for the ruling. A leaf swap is simply the unqualified sentence.
+  assert.ok(!/same kind|wider|looser/i.test(alts[0].line), `wording leaked into: ${alts[0].line}`);
+});
+
+test('with no other Gala the swap is a Honeycrisp, marked parent and said out loud', async () => {
+  /*
+   * The second half of the same sentence, and the reason `ring` exists at all.
+   * A Honeycrisp is a fair offer here and a dishonest one if it is presented as
+   * another Gala, so the row carries the level. It does NOT carry the words:
+   * ruled 2026-09-13, the client renders the badge and the all-looser sentence
+   * from `ring`, in both locales, and a second announcement from the server
+   * would say it twice in English only.
+   */
+  const db = produceFixture([
+    ['GALA1', 'Gala Apples 500 g', GALA],
+    ['HON1', 'Honeycrisp Apples 500 g', HONEY],
+  ]);
+  const gala = candidate({ code: 'GALA1', categoryPath: GALA, leafCategory: 'en:gala-apples' });
+  const alts = await alternativesFor(db, gala, 800, lookupOf({ HON1: 400 }));
+
+  assert.equal(alts.length, 1, 'the one step up did not happen');
+  assert.equal(alts[0].product.code, 'HON1');
+  assert.equal(alts[0].ring, 'parent');
+  assert.equal(alts[0].ringTag, 'en:apples', 'the parent tag is not the one named');
+  // The ruling, asserted as an absence: the level is a field, not prose. A
+  // parent swap's sentence reads exactly like a leaf swap's.
+  assert.ok(
+    !/same kind|wider|looser|instead/i.test(alts[0].line),
+    `the server announced the level in words: ${alts[0].line}`,
+  );
+});
+
+test('the heading names the original own leaf tag, and knows nothing about levels', async () => {
+  /*
+   * A third argument carrying the ring was tried on 2026-09-13 and ruled out
+   * the same day: the client already renders the all-looser case itself from
+   * `ring` on the rows. Two authorities on one heading is how they drift apart,
+   * so this one stays exactly what it was and names the original's own leaf.
+   */
+  const gala = candidate({ code: 'GALA1', categoryPath: GALA, leafCategory: 'en:gala-apples' });
+  assert.equal(alternativesHeading(gala, 2), 'Cheaper Gala apples');
+  assert.equal(alternativesHeading(gala, 0), 'No cheaper option we can price');
+});
+
+test('an empty leaf and an empty parent offers nothing, never the grandparent', async () => {
+  /*
+   * en:fruits holds a priced pear, one step further out than the rule allows.
+   * The old outward walk would have taken it and called a pear a cheaper apple.
+   *
+   * NEGATIVE-TESTED 2026-09-13 by restoring the outward loop over the whole
+   * path in chooseRingTag: this test goes red with the pear offered, which is
+   * exactly what the two-level rule exists to refuse.
+   */
+  const PEAR = ['en:plant-based-foods', 'en:fruits', 'en:pears'];
+  const db = produceFixture([
+    ['GALA1', 'Gala Apples 500 g', GALA],
+    ['PEAR1', 'Bartlett Pears 500 g', PEAR],
+  ]);
+  const gala = candidate({ code: 'GALA1', categoryPath: GALA, leafCategory: 'en:gala-apples' });
+  const alts = await alternativesFor(db, gala, 800, lookupOf({ PEAR1: 300 }));
+  assert.deepEqual(alts, [], 'a pear was offered as a cheaper apple');
+});
+
+test('a parent as wide as a shelf offers nothing rather than a bad swap', async () => {
+  /*
+   * The cap at the PARENT level, which is the new half of it. The leaf is
+   * empty, so the walk steps up -- and finds a tag holding more than
+   * MAX_RING_TAG rows, which is a shelf of the whole shop and not a kind of
+   * thing. An empty answer beats three arbitrary rows from it (D-068).
+   */
+  const rows: [string, string, string[]][] = [['GALA1', 'Gala Apples 500 g', GALA]];
+  for (let i = 0; i <= MAX_RING_TAG; i += 1) {
+    rows.push([`AP${i}`, `Apple thing ${i} 500 g`, ['en:plant-based-foods', 'en:fruits', 'en:apples']]);
+  }
+  const db = produceFixture(rows);
+  const gala = candidate({ code: 'GALA1', categoryPath: GALA, leafCategory: 'en:gala-apples' });
+  const alts = await alternativesFor(db, gala, 800, lookupOf({ AP0: 300, AP1: 300 }));
+  assert.deepEqual(alts, [], 'a shelf-sized parent produced swaps');
+});
+
+test('a product with a one-tag path, or none, gets no alternatives', async () => {
+  // Rule 4: nothing is inferred. A single tag has no parent to step to and no
+  // hierarchy saying it is a kind of thing rather than a shelf.
+  const db = produceFixture([
+    ['LONE1', 'Lone Thing 500 g', ['en:apples']],
+    ['LONE2', 'Other Lone Thing 500 g', ['en:apples']],
+  ]);
+  const lone = candidate({ code: 'LONE1', categoryPath: ['en:apples'], leafCategory: 'en:apples' });
+  assert.deepEqual(await alternativesFor(db, lone, 800, lookupOf({ LONE2: 300 })), []);
+
+  const none = candidate({ code: 'LONE1', categoryPath: [], leafCategory: null });
+  assert.deepEqual(await alternativesFor(db, none, 800, lookupOf({ LONE2: 300 })), []);
+});
+
+test('D-036 ITSELF: ginger oat cookies can no longer be a cheaper tortilla chip', async () => {
+  /*
+   * THE DEFECT, AS A TEST. The one populated result the running app could
+   * produce offered Stem Ginger Oat Cookies as a cheaper swap for organic
+   * tortilla chips. Both carry `en:whole-grains` and nothing else about them
+   * agrees. "Cheaper" implies "instead of this" and it was lying.
+   *
+   * The cap alone does not save this case and never did: `en:whole-grains` here
+   * holds three rows, far under MAX_RING_TAG, so D-068's fix passes it straight
+   * through. What stops it is POSITION -- `en:whole-grains` is nobody's leaf and
+   * nobody's parent-of-a-leaf here, it sits in the middle of both paths, and a
+   * mid-path tag is no longer a ring that can be drawn at all.
+   *
+   * The chips' own leaf and parent are both empty of priced neighbours, so the
+   * honest answer is no alternatives, and that is now the answer.
+   */
+  const CHIPS = ['en:groceries', 'en:whole-grains', 'en:snacks', 'en:tortilla-chips'];
+  const COOKIES = ['en:groceries', 'en:whole-grains', 'en:biscuits', 'en:oat-cookies'];
+  const db = produceFixture([
+    ['CHIP1', 'Organic Tortilla Chips 500 g', CHIPS],
+    ['COOK1', 'Stem Ginger Oat Cookies 500 g', COOKIES],
+    ['COOK2', 'Other Oat Cookies 500 g', COOKIES],
+  ]);
+  const chips = candidate({
+    code: 'CHIP1',
+    categoryPath: CHIPS,
+    leafCategory: 'en:tortilla-chips',
+  });
+
+  const alts = await alternativesFor(db, chips, 800, lookupOf({ COOK1: 200, COOK2: 200 }));
+  assert.deepEqual(alts, [], 'the ginger oat cookies came back');
+
+  // And the shared tag really is narrow enough that the cap would have let it
+  // through -- otherwise this test would be re-proving D-068 instead of D-036.
+  const shared = db
+    .prepare('SELECT count(*) AS n FROM product_category WHERE tag = ?')
+    .get('en:whole-grains') as { n: number };
+  assert.ok(shared.n > 1, 'the fixture never shared the tag at all');
+  assert.ok(shared.n <= MAX_RING_TAG, 'the cap, not the position rule, is what refused this');
+});
