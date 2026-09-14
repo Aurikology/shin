@@ -78,7 +78,8 @@ restarts) would need Jamin to approve a key for your computer, and nothing today
 
 **Collecting everything testers do** (Jamin: *"build everything for collecting EVERYTHING"*):
 photos and location saved by default, every tap, screen and abandoned scan, and a privacy notice
-that says so. Built on the Mac on 2026-09-14; see the git log for its commit. **Before any public
+that says so. Also: exact location beside the rough area, the barcode frame kept, torch and
+typed-search use, and the reader's failures reported. Built and live on 2026-09-14. **Before any public
 launch** this has to become privacy-by-default (Quebec's Law 25); fine for the family beta.
 
 **What went wrong today, so it is not repeated:** the beta server serves the app straight from
@@ -86,11 +87,19 @@ the Mac's working folder, and a half-finished edit there (a screen importing a f
 exist yet) took the app down for a while. That is why each session gets its own copy of the repo,
 and why a separate live copy is being built.
 
-### Not live yet, as of 2026-09-14 04:30 UTC
+### Live as of 2026-09-14 04:27 UTC (checked through the public address, not assumed)
 
-- The named links and the data window are in the code but the server has not restarted onto
-  them; until then the data routes answer "closed beta". The Mac session restarts it once the
-  collection work passes its tests, and updates the Notion page when it has.
+- Server restarted onto all of the above. Checked live: a request with Aurik's link is let in and
+  recorded as `aurik`; the family link still opens; no link is refused; the data window lists
+  tables with the token and refuses a wrong one; batched events are stored; the 8-digit can
+  barcode `0067000008191` now finds its product. The checks left a test phone named
+  `verify-mac-0914` in the data (recorded under `aurik`); ignore it.
+- The collection work is commit `d0a1c2e`. **Its commit title is wrong** (it repeats the title of
+  the catch-up commit before it, a slip while committing); its content is the collection work,
+  20 app files. App tests 649 of 649 pass, typecheck clean.
+- **One thing to look at:** that can barcode is named "Cherry-flavoured calorie-free cola" in the
+  catalogue, while the photo of the same can was identified as Coke Zero 355 mL. Either the can
+  was Cherry Coke Zero or the catalogue row is wrong.
 - **Planned, not built:** a separate live copy of the server on the Mac that updates only from
   GitLab after tests pass, so nobody's half-finished edit can reach testers.
 
