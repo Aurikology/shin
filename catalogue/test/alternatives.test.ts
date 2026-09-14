@@ -12,7 +12,17 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openCatalogue, rebuildFts, rebuildCategories } from '../src/schema.ts';
 import { MAX_RING_TAG } from '../src/search.ts';
-import { alternativesFor, alternativesHeading, type PricedProduct } from '../src/alternatives.ts';
+import {
+  alternativesFor,
+  alternativesHeading,
+  alternativesHeadingStructured,
+  type Alternative,
+  type AlternativeFact,
+  type AlternativeFragment,
+  type AlternativeLineCode,
+  type AlternativeStructuredText,
+  type PricedProduct,
+} from '../src/alternatives.ts';
 import type { Candidate } from '../src/search.ts';
 
 const PB = ['en:spreads', 'en:nut-butters', 'en:peanut-butters'];
@@ -681,4 +691,333 @@ test('D-036 ITSELF: ginger oat cookies can no longer be a cheaper tortilla chip'
     .get('en:whole-grains') as { n: number };
   assert.ok(shared.n > 1, 'the fixture never shared the tag at all');
   assert.ok(shared.n <= MAX_RING_TAG, 'the cap, not the position rule, is what refused this');
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// D-097: THE ROUND TRIP.
+//
+// Every sentence this file's engine can produce, rebuilt from its code and its
+// facts, asserted byte-for-byte against the English the engine shipped.
+//
+// The defect is that `line` and `alternativesHeading` are finished English and
+// the app prints both verbatim, so a French shopper reads English money and
+// English words under a French badge. `alternatives.ts` now carries a code
+// plus raw facts beside each of them. This block is what makes that claim true
+// rather than aspirational, and it is the same mechanism the spine's
+// `structured-prose.test.ts` already runs:
+//
+//   1. `renderEnglish` below is a RENDERER. It takes a code and facts and
+//      writes English, exactly the way `app/public/js/prose.js` will take the
+//      same code and the same facts and write French.
+//   2. `roundTrip` drives the REAL engine and asserts the re-rendered
+//      `structuredLine` equals the `line` the engine itself produced.
+//   3. The last test asserts every member of `AlternativeLineCode` was
+//      actually exercised. A code nobody produced is a code nobody has proved,
+//      and a renderer written against it would be guessing.
+//
+// IF A SENTENCE DOES NOT ROUND-TRIP, ITS FACTS ARE INCOMPLETE. The fix is the
+// facts, never a looser assertion: a `match` here would pass while a French
+// screen dropped a seller's name, and nothing would be red.
+//
+// The renderer also polices the FACTS THEMSELVES. A fact that arrives as
+// "$5.99" round-trips into English perfectly and is useless to every other
+// locale, so `str()` rejects pre-formatted money outright.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Every code any scenario below produced, for the coverage test. */
+const seenCodes = new Set<AlternativeLineCode>();
+
+function num(f: AlternativeFragment, key: string): number {
+  const v = f.facts[key];
+  assert.equal(typeof v, 'number', `${f.code}.${key} must be a raw number, got ${JSON.stringify(v)}`);
+  return v as number;
+}
+
+function str(f: AlternativeFragment, key: string): string {
+  const v = f.facts[key];
+  assert.equal(typeof v, 'string', `${f.code}.${key} must be a string, got ${JSON.stringify(v)}`);
+  // The whole point of the change. Money crosses as cents and the locale
+  // formats it; a fact carrying "$5.99" has already picked a language and a
+  // currency on the client's behalf.
+  assert.ok(!/[$]/.test(v as string), `${f.code}.${key} carries pre-formatted money: ${v as string}`);
+  return v as string;
+}
+
+function tagList(f: AlternativeFragment, key: string): readonly string[] {
+  const v = f.facts[key];
+  assert.ok(Array.isArray(v), `${f.code}.${key} must be an array, got ${JSON.stringify(v)}`);
+  const list = v as readonly AlternativeFact[];
+  assert.ok(list.length > 0, `${f.code}.${key} is empty, so the fragment should not exist`);
+  return list.map((t) => {
+    assert.equal(typeof t, 'string', `${f.code}.${key} must hold raw tags`);
+    // Raw tags, not rendered names: "en:tree-nuts" is the identity a French
+    // dictionary is keyed on, "tree nuts" is one locale's answer to it.
+    assert.match(t as string, /^[a-z]{2}:/, `${f.code}.${key} must hold prefixed tags, got ${t as string}`);
+    return t as string;
+  });
+}
+
+function obj(f: AlternativeFragment, key: string): Record<string, AlternativeFact> {
+  const v = f.facts[key];
+  assert.ok(v !== null && typeof v === 'object' && !Array.isArray(v), `${f.code}.${key} must be an object`);
+  return v as Record<string, AlternativeFact>;
+}
+
+/** The English of `formatCents`. Cents in, dollars out, rounding at the edge. */
+function money(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+const ENGLISH_MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/** The English of `formatSeenDate`, rewritten here rather than imported. */
+function englishDate(iso: string): string {
+  const [year, month, day] = iso.slice(0, 10).split('-').map(Number);
+  return `${day} ${ENGLISH_MONTHS[month - 1]} ${year}`;
+}
+
+/** The English of `allergenName`. */
+function englishAllergen(tag: string): string {
+  return tag.toLowerCase().replace(/^[a-z]{2}:/, '').replace(/-/g, ' ');
+}
+
+/**
+ * The English of `storeClauseFor`, written from the `place` fact alone.
+ *
+ * This is the half of the sentence that could not have been translated even if
+ * everything else had been: "a store that reported this price" is an English
+ * clause, not a name, and a structured line that shipped the clause as a
+ * string would be exactly as stuck as `line` is.
+ */
+function englishPlace(place: Record<string, AlternativeFact>): string {
+  const kind = place.kind;
+  switch (kind) {
+    case 'store': {
+      const name = place.name;
+      assert.equal(typeof name, 'string', 'a store place must name the store');
+      const city = place.city;
+      assert.ok(city === null || typeof city === 'string', 'city must be a string or null');
+      return city ? `${name as string}, ${city as string}` : (name as string);
+    }
+    case 'seller': {
+      const seller = place.seller;
+      assert.equal(typeof seller, 'string', 'a seller place must name the seller');
+      return seller as string;
+    }
+    case 'unknown':
+      return 'a store that reported this price';
+    default:
+      throw new Error(`no English for place kind ${JSON.stringify(kind)}`);
+  }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// THE ENGLISH RENDERER. One arm per code, and the compiler enforces the set:
+// `never` in the default arm means a new `AlternativeLineCode` fails to
+// compile here until somebody writes its words.
+// ───────────────────────────────────────────────────────────────────────────
+
+function renderEnglish(f: AlternativeFragment): string {
+  seenCodes.add(f.code);
+  switch (f.code) {
+    case 'alt_unit_price_cheaper':
+      return (
+        `${money(num(f, 'unitCents'))} per ${num(f, 'perQuantity')} ${str(f, 'perUnit')} ` +
+        `at ${englishPlace(obj(f, 'place'))}, against ${money(num(f, 'originalUnitCents'))}.`
+      );
+    case 'alt_ticket_price_cheaper':
+      return (
+        `${money(num(f, 'amountCents'))} at ${englishPlace(obj(f, 'place'))}, ` +
+        `against ${money(num(f, 'originalAmountCents'))}.`
+      );
+    case 'alt_sizes_may_differ':
+      return 'Sizes may differ.';
+    case 'alt_seen_on':
+      return `Seen ${englishDate(str(f, 'observedAt'))}.`;
+    case 'alt_allergens_not_recorded':
+      return 'Allergens not recorded for one of these. Check the packaging.';
+    case 'alt_allergens_no_difference':
+      return 'No difference in the allergens recorded.';
+    case 'alt_allergens_added':
+      return `Adds ${tagList(f, 'added').map(englishAllergen).join(', ')}.`;
+    case 'alt_allergens_removed':
+      return `Removes ${tagList(f, 'removed').map(englishAllergen).join(', ')}.`;
+    case 'alternatives_cheaper_in_leaf': {
+      const label = f.facts.label;
+      num(f, 'count');
+      assert.ok(label === null || typeof label === 'string', 'label must be a string or null');
+      // `tag` rides along as the identity a real dictionary is keyed on, and
+      // is null exactly when `label` is.
+      assert.equal(f.facts.tag === null, label === null, 'tag and label must be absent together');
+      return `Cheaper ${label === null ? 'options' : (label as string)}`;
+    }
+    case 'alternatives_none_priced':
+      return 'No cheaper option we can price';
+    default: {
+      const missed: never = f.code;
+      throw new Error(`no English for code ${missed as string}`);
+    }
+  }
+}
+
+/** The two shapes, which is the only thing a locale has to re-decide. */
+function render(t: AlternativeStructuredText): string {
+  const parts = t.fragments.map(renderEnglish);
+  switch (t.shape) {
+    case 'single':
+      assert.equal(parts.length, 1, 'a `single` text must hold exactly one fragment');
+      return parts[0];
+    case 'sentences':
+      return parts.join(' ');
+    default: {
+      const missed: never = t.shape;
+      throw new Error(`no rendering for shape ${missed as string}`);
+    }
+  }
+}
+
+/** Asserts the structured form and the shipped English are one thing. */
+function roundTrip(alts: readonly Alternative[], what: string): readonly Alternative[] {
+  assert.ok(alts.length > 0, `${what}: the scenario produced no alternative to round-trip`);
+  for (const a of alts) {
+    assert.equal(render(a.structuredLine), a.line, `${what}: structuredLine does not rebuild line`);
+  }
+  return alts;
+}
+
+test('D-097: every alternative rebuilds its own English line from code and facts', async () => {
+  const db = fixture();
+
+  // Unit basis, both lists recorded and identical. The commonest row.
+  roundTrip(await alternativesFor(db, original, 800, lookupOf({ B: 500 })), 'unit, no allergen difference');
+
+  // Unit basis, the alternative adds an allergen the original did not have.
+  roundTrip(await alternativesFor(db, original, 800, lookupOf({ C: 600 })), 'unit, allergen added');
+
+  // Unit basis, the alternative drops one the original had. The same fixture
+  // pair the "removes" test above uses, read from the other side.
+  const nutty = candidate({ code: 'C', sizeValue: 750, allergens: ['en:peanuts', 'en:nuts'] });
+  roundTrip(await alternativesFor(db, nutty, 1500, lookupOf({ A: 600, B: 600 })), 'unit, allergen removed');
+
+  // Unit basis, one side has no tags at all, which this data cannot tell apart
+  // from never having been checked.
+  roundTrip(await alternativesFor(db, original, 800, lookupOf({ H: 500 })), 'unit, allergens not recorded');
+
+  // Ticket basis, which is 82% of the catalogue and carries the extra caveat.
+  const unsized = candidate({ code: 'A', sizeValue: null, sizeUnit: null });
+  roundTrip(await alternativesFor(db, unsized, 800, lookupOf({ B: 100 })), 'ticket basis');
+
+  // The three place kinds, which is where the untranslatable clause lived.
+  roundTrip(
+    await alternativesFor(db, original, 800, lookupOf({
+      B: { amountCents: 500, seller: 'openprices', joinMethod: 'gtin', storeName: 'Fortinos', storeCity: 'Kingston' },
+    })),
+    'place: a resolved store with a city',
+  );
+  roundTrip(
+    await alternativesFor(db, original, 800, lookupOf({
+      B: { amountCents: 500, seller: 'openprices', joinMethod: 'gtin', storeName: 'Fortinos', storeCity: null },
+    })),
+    'place: a resolved store with no city',
+  );
+  roundTrip(
+    await alternativesFor(db, original, 800, lookupOf({
+      B: { amountCents: 500, seller: 'walmart.ca', joinMethod: 'name', storeName: null, storeCity: null },
+    })),
+    'place: a seller a shopper can visit',
+  );
+  roundTrip(
+    await alternativesFor(db, original, 800, lookupOf({
+      B: { amountCents: 500, seller: 'somenewfeed', joinMethod: 'name', storeName: null, storeCity: null },
+    })),
+    'place: nothing we can name',
+  );
+
+  // A date that is not the fixture default, so the month table is exercised
+  // rather than agreed with.
+  roundTrip(
+    await alternativesFor(db, original, 800, lookupOf({
+      B: { amountCents: 500, observedAt: '2025-08-28' },
+    })),
+    'a date from another year',
+  );
+});
+
+test('D-097: a millilitre product round-trips its own unit, not grams', async () => {
+  /*
+   * `perUnit` is a fact rather than a word, and every row in the main fixture
+   * is grams, so without this the "ml" branch would ship unexercised and a
+   * French renderer would be guessing at the one value it has never seen.
+   */
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  const OILS = ['en:groceries', 'en:vegetable-oils', 'en:olive-oils'];
+  for (const [code, name] of [['OIL1', 'Olive Oil 750 ml'], ['OIL2', 'Store Olive Oil 750 ml']]) {
+    insert.run(code, name, name, null, null, null, 750, 'ml',
+      JSON.stringify(OILS), 'en:olive-oils', '[]', 1, 'openfoodfacts');
+  }
+  rebuildFts(db);
+  rebuildCategories(db);
+
+  const oil = candidate({
+    code: 'OIL1', sizeValue: 750, sizeUnit: 'ml',
+    categoryPath: OILS, leafCategory: 'en:olive-oils',
+  });
+  const alts = roundTrip(await alternativesFor(db, oil, 1200, lookupOf({ OIL2: 600 })), 'millilitres');
+  assert.match(alts[0].line, /per 100 ml/, 'the fixture stopped being a millilitre one');
+});
+
+test('D-097: the heading rebuilds from its own code and facts too', () => {
+  assert.equal(render(alternativesHeadingStructured(original, 2)), alternativesHeading(original, 2));
+  assert.equal(render(alternativesHeadingStructured(original, 0)), alternativesHeading(original, 0));
+
+  // The tag is the identity; the label is the English fallback for a locale
+  // with no word for it yet, which is every locale on day one.
+  const heading = alternativesHeadingStructured(original, 2).fragments[0];
+  assert.equal(heading.facts.tag, 'en:peanut-butters');
+  assert.equal(heading.facts.label, 'Peanut butters');
+  assert.equal(heading.facts.count, 2);
+
+  // An empty category path is the case the English spells "options". The
+  // client is handed null and picks its own word rather than being given one.
+  const pathless = candidate({ code: 'A', categoryPath: [] });
+  const bare = alternativesHeadingStructured(pathless, 2).fragments[0];
+  assert.equal(bare.facts.tag, null);
+  assert.equal(bare.facts.label, null);
+  assert.equal(render(alternativesHeadingStructured(pathless, 2)), alternativesHeading(pathless, 2));
+});
+
+/*
+ * COVERAGE. A code nobody produced is a code nobody has proved.
+ *
+ * The map is typed `Record<AlternativeLineCode, true>`, so adding a code to the
+ * union and not to this list fails to COMPILE, and producing no scenario for
+ * one fails this TEST. Both halves are needed: the first stops a code being
+ * forgotten here, the second stops it being listed here and never emitted.
+ *
+ * Must stay the last test in this file: it reads what the tests above put in
+ * `seenCodes`.
+ */
+const EVERY_CODE: Record<AlternativeLineCode, true> = {
+  alt_unit_price_cheaper: true,
+  alt_ticket_price_cheaper: true,
+  alt_sizes_may_differ: true,
+  alt_seen_on: true,
+  alt_allergens_not_recorded: true,
+  alt_allergens_no_difference: true,
+  alt_allergens_added: true,
+  alt_allergens_removed: true,
+  alternatives_cheaper_in_leaf: true,
+  alternatives_none_priced: true,
+};
+
+test('D-097: every code the union declares was actually produced by a scenario', () => {
+  const missing = Object.keys(EVERY_CODE).filter((c) => !seenCodes.has(c as AlternativeLineCode));
+  assert.deepEqual(missing, [], `codes with no scenario behind them: ${missing.join(', ')}`);
 });

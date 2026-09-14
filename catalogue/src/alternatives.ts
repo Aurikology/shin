@@ -27,8 +27,115 @@
  */
 
 import type { DatabaseSync } from 'node:sqlite';
-import { MAX_RING_TAG, chooseRingTag } from './search.ts';
+import { MAX_RING_TAG, chooseRingTag, labelForTag } from './search.ts';
 import type { Candidate, RingLevel } from './search.ts';
+
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE STRUCTURED SHAPE. D-097.
+ *
+ * `line` below is a finished English sentence and the app prints it verbatim,
+ * so a French shopper reads English money and English words under a French
+ * badge. The fix is the spine's, already proved there: keep the English string
+ * byte-for-byte AND emit a code plus RAW facts beside it, so the client writes
+ * the sentence in the reader's language.
+ *
+ * THESE TYPES MIRROR `spine/src/contract.ts` (`StructuredText`, `TextFragment`,
+ * `say`, `fragment`) AND ARE DELIBERATELY NOT IMPORTED FROM IT. Two reasons,
+ * both structural rather than stylistic. First, `catalogue` has no dependency
+ * on `spine` in either direction today and adding one to borrow four type
+ * aliases would couple two packages' builds for nothing. Second, the spine's
+ * `LineCode` is a closed union of VERDICT sentences, and its round-trip test
+ * asserts every member of it is produced by the spine engine; a swap code
+ * added there would be a code no spine scenario can exercise, which breaks the
+ * one mechanism that makes the spine's own codes trustworthy. A swap is not a
+ * verdict, so it gets its own closed union here, policed by its own
+ * round-trip test in `test/alternatives.test.ts`.
+ *
+ * If the two shapes ever have to become one, the merge is a new shared package
+ * both import, never one package reaching into the other.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+
+/** Raw values only. Cents as numbers, dates as ISO, tags as tags. Never formatted. */
+export type AlternativeFact =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly AlternativeFact[]
+  | { readonly [key: string]: AlternativeFact };
+
+/**
+ * Every sentence an alternative's `line` or its heading can be built from.
+ * Closed on purpose: a renderer switching over this union fails to compile
+ * when a code is added and nobody has written its words, which is the whole
+ * point of the mechanism.
+ */
+export type AlternativeLineCode =
+  // ── the saving, one of two bases ──────────────────────────────────────
+  /** Both sides have a size in the same unit, so the honest per-100 comparison. */
+  | 'alt_unit_price_cheaper'
+  /** One side has no recorded size, so the price on the tag. Weaker, and says so. */
+  | 'alt_ticket_price_cheaper'
+  /** The caveat that rides with a ticket comparison, never with a unit one. */
+  | 'alt_sizes_may_differ'
+  // ── the date. Decision 42: a price is never presented as "now". ───────
+  | 'alt_seen_on'
+  // ── allergens. Decision 40: printed, never filtered. ──────────────────
+  /** One side's list was empty or unreadable, so no conclusion is drawn. */
+  | 'alt_allergens_not_recorded'
+  /** Both lists were readable and nothing changed between them. */
+  | 'alt_allergens_no_difference'
+  /** Tags this alternative has that the original did not. */
+  | 'alt_allergens_added'
+  /** Tags the original had that this one does not. */
+  | 'alt_allergens_removed'
+  // ── the heading over the list ─────────────────────────────────────────
+  /** Names the leaf the swaps were drawn from, so the claim is checkable. */
+  | 'alternatives_cheaper_in_leaf'
+  /** Nothing cheaper that we can put a price on. */
+  | 'alternatives_none_priced';
+
+/** One code and the raw values its sentence interpolates. */
+export interface AlternativeFragment {
+  readonly code: AlternativeLineCode;
+  readonly facts: Readonly<Record<string, AlternativeFact>>;
+}
+
+/**
+ * How a renderer turns fragments into one string. Two shapes, both the spine's:
+ *
+ * - `single`     exactly one fragment, rendered on its own.
+ * - `sentences`  fragments rendered and joined with a single space.
+ *
+ * The spine's third shape, `shortfall_list`, has no producer here and is left
+ * out rather than declared unused: an unreachable arm in the client's switch
+ * is an arm nobody can test.
+ */
+export type AlternativeTextShape = 'single' | 'sentences';
+
+/** A sentence the client can build in its own language. */
+export interface AlternativeStructuredText {
+  readonly shape: AlternativeTextShape;
+  readonly fragments: readonly AlternativeFragment[];
+}
+
+/** One code plus its raw facts. The unit every renderer is keyed on. */
+function fragment(
+  code: AlternativeLineCode,
+  facts: Readonly<Record<string, AlternativeFact>> = {},
+): AlternativeFragment {
+  return { code, facts };
+}
+
+/** A whole text that is one fragment, which is what a heading always is. */
+function say(
+  code: AlternativeLineCode,
+  facts: Readonly<Record<string, AlternativeFact>> = {},
+): AlternativeStructuredText {
+  return { shape: 'single', fragments: [fragment(code, facts)] };
+}
 
 export interface PricedProduct {
   readonly code: string;
@@ -138,6 +245,22 @@ export interface Alternative {
   readonly ringTag: string;
   /** The exact sentence to show. Written here so no screen can improvise one. */
   readonly line: string;
+  /**
+   * THE SAME SENTENCE AS FACTS, ADDED FOR D-097. Codes plus raw values, so a
+   * client can write it in the reader's language instead of printing the
+   * English above under a French badge.
+   *
+   * `line` stays byte-for-byte what it was and is still the fallback: this
+   * field is additive and nothing was taken away. The two cannot drift,
+   * because `test/alternatives.test.ts` renders this field back into English
+   * with its own renderer and asserts the result EQUALS `line`, for every
+   * alternative every scenario in that file produces.
+   *
+   * Money in here is cents and is never formatted. A fact that arrives as
+   * "$5.99" round-trips into English perfectly and is useless to every other
+   * locale, which is exactly the bug being fixed.
+   */
+  readonly structuredLine: AlternativeStructuredText;
 }
 
 /** Sizes must be within this ratio to be a fair swap. A 2 kg sack is not an alternative to a 200 g box. */
@@ -152,17 +275,15 @@ function unitCentsOf(amountCents: number, sizeValue: number): number {
   return (amountCents / sizeValue) * 100;
 }
 
-/**
- * Must match search.ts's labelForTag exactly, or the same tag renders two
- * different ways on one screen. Lower-cased FIRST: the prefix regex only
- * recognises a lower-case prefix, so a tag stored "En:cosmetic-products"
- * never had its prefix stripped under the old order. Only the first letter
- * is capitalised, never every word, per search.ts's own comment on this.
+/*
+ * `labelForTag` is IMPORTED from search.ts above rather than copied here.
+ * This file used to carry a byte-identical private copy, under a comment
+ * saying it "must match search.ts's labelForTag exactly, or the same tag
+ * renders two different ways on one screen". A comment is not a mechanism:
+ * the two copies had already been edited once each, and D-097 needs the tag
+ * label to be the same string in the English heading and in the structured
+ * heading's `label` fact. One function, one answer.
  */
-function labelForTag(tag: string): string {
-  const label = tag.toLowerCase().replace(/^[a-z]{2}:/, '').replace(/-/g, ' ');
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
 
 /**
  * An allergen name as it reads mid-sentence ("Adds milk, tree nuts."), not as
@@ -246,6 +367,30 @@ function storeClauseFor(price: PricedProduct): string {
   return 'a store that reported this price';
 }
 
+/**
+ * The same three cases as `storeClauseFor`, as facts instead of English.
+ *
+ * The fallback case is the reason this exists at all: "a store that reported
+ * this price" is a whole English clause sitting in the middle of the sentence,
+ * so a structured line that carried the clause as a string would be exactly as
+ * untranslatable as `line` is. What the client gets instead is the KIND of
+ * place plus the names, and it writes its own clause.
+ *
+ * The gate is `storeClauseFor`'s, deliberately duplicated rather than derived:
+ * both halves of the conjunction are load-bearing for the reasons written
+ * above it, and the round-trip test asserts the two agree on every row it
+ * produces, which is a stronger guarantee than sharing a line of code would be.
+ */
+function placeFactFor(price: PricedProduct): AlternativeFact {
+  if (price.joinMethod === 'gtin' && price.storeName !== null) {
+    return { kind: 'store', name: price.storeName, city: price.storeCity };
+  }
+  if (SELLERS_A_SHOPPER_CAN_VISIT.has(price.seller)) {
+    return { kind: 'seller', seller: price.seller };
+  }
+  return { kind: 'unknown' };
+}
+
 /*
  * Not every "allergen tag" is the name of an allergen.
  *
@@ -319,6 +464,33 @@ function allergenSentence(
   if (removed.length > 0) parts.push(`Removes ${removed.map(allergenName).join(', ')}.`);
   if (parts.length === 0) return 'No difference in the allergens recorded.';
   return parts.join(' ');
+}
+
+/**
+ * `allergenSentence` as fragments. Same four states, same order, and the tags
+ * go across RAW.
+ *
+ * Raw tags, not the names `allergenName` produces, because "en:tree-nuts" is
+ * the identity and "tree nuts" is one locale's rendering of it. A French
+ * screen needs "fruits a coque", which it can only reach from the tag. The
+ * English renderer in the test applies `allergenName` itself, which is what
+ * proves the tag carries everything the sentence needed.
+ *
+ * The added and removed fragments are two fragments rather than one with both
+ * lists, because the original joins them with a space only when both are
+ * present, which is precisely what the `sentences` shape means.
+ */
+function structuredAllergens(
+  note: 'compared' | 'not-recorded',
+  added: readonly string[],
+  removed: readonly string[],
+): AlternativeFragment[] {
+  if (note === 'not-recorded') return [fragment('alt_allergens_not_recorded')];
+  const parts: AlternativeFragment[] = [];
+  if (added.length > 0) parts.push(fragment('alt_allergens_added', { added: [...added] }));
+  if (removed.length > 0) parts.push(fragment('alt_allergens_removed', { removed: [...removed] }));
+  if (parts.length === 0) return [fragment('alt_allergens_no_difference')];
+  return parts;
 }
 
 /**
@@ -591,6 +763,49 @@ export async function alternativesFor(
         : `${formatCents(price.amountCents)} at ${storeClause}, ` +
           `against ${formatCents(originalPriceCents)}. Sizes may differ. ${seenClause} ` +
           allergenSentence(allergenNote, added, removed),
+      /*
+       * THE SAME SENTENCE AS FACTS. D-097. Built from the same locals the
+       * string above is built from, in the same order, so the two say one
+       * thing by construction and the round-trip test keeps them saying it.
+       *
+       * `shape` is `sentences`, not `single`. The line is two or three or four
+       * sentences joined by one space, and `sentences` is the spine's existing
+       * name for exactly that. A `single` shape would have forced one code per
+       * whole line, which is two bases times four allergen states, and the
+       * client would have to write eight near-identical French sentences that
+       * cannot be reused anywhere. Splitting at the full stop is what makes
+       * "seen on this date" and "adds these allergens" translatable ONCE.
+       *
+       * `unitCents` and `originalUnitCents` can be fractional: they are a
+       * division, and the English renderer's `(cents / 100).toFixed(2)` is
+       * where the rounding happens. They are still cents, and still raw. A
+       * locale rounds at its own formatter, never here.
+       */
+      structuredLine: {
+        shape: 'sentences',
+        fragments: comparable
+          ? [
+              fragment('alt_unit_price_cheaper', {
+                unitCents: unitCents!,
+                originalUnitCents: originalUnit!,
+                perQuantity: 100,
+                perUnit: r.size_unit === 'ml' ? 'ml' : 'g',
+                place: placeFactFor(price),
+              }),
+              fragment('alt_seen_on', { observedAt: price.observedAt }),
+              ...structuredAllergens(allergenNote, added, removed),
+            ]
+          : [
+              fragment('alt_ticket_price_cheaper', {
+                amountCents: price.amountCents,
+                originalAmountCents: originalPriceCents,
+                place: placeFactFor(price),
+              }),
+              fragment('alt_sizes_may_differ'),
+              fragment('alt_seen_on', { observedAt: price.observedAt }),
+              ...structuredAllergens(allergenNote, added, removed),
+            ],
+      },
     });
   }
 
@@ -615,4 +830,38 @@ export function alternativesHeading(original: Candidate, count: number): string 
   if (count === 0) return 'No cheaper option we can price';
   const tag = original.categoryPath[original.categoryPath.length - 1];
   return `Cheaper ${tag ? labelForTag(tag) : 'options'}`;
+}
+
+/**
+ * The same heading as facts. D-097.
+ *
+ * A SECOND FUNCTION, NOT A SECOND RETURN FIELD. `app/server.ts` passes
+ * `alternativesHeading(...)`'s result straight into `alternativesPayload`,
+ * whose `heading` parameter is a `string`; widening the return to an object
+ * would break that call site, and this lane does not own that file. Adding an
+ * export beside it costs the app one extra call when it is ready for it and
+ * costs it nothing until then.
+ *
+ * `label` is carried BESIDE `tag` even though it is derived from it. The tag is
+ * the identity and is what a French dictionary would be keyed on; the label is
+ * the English fallback for a locale that has no word for this tag yet, which is
+ * every locale on day one. A client with no entry for "en:peanut-butters"
+ * prints the label rather than the raw tag, and a shopper sees "peanut butters"
+ * rather than "en:peanut-butters".
+ *
+ * `label` is null exactly when `tag` is, which is the empty-category-path case
+ * the English above spells "options". The client decides its own word for that
+ * rather than being handed one.
+ */
+export function alternativesHeadingStructured(
+  original: Candidate,
+  count: number,
+): AlternativeStructuredText {
+  if (count === 0) return say('alternatives_none_priced');
+  const tag = original.categoryPath[original.categoryPath.length - 1];
+  return say('alternatives_cheaper_in_leaf', {
+    tag: tag ?? null,
+    label: tag ? labelForTag(tag) : null,
+    count,
+  });
 }
