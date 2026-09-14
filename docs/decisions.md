@@ -1465,3 +1465,124 @@ PRICE LIST OR AVERAGED INTO A VERDICT"*, held *"on this one scan's own row, neve
 block is display-only (nothing stored, nothing scored, no tier word) and it typechecks; then it is
 a `git revert` of the revert plus a green gate.
 
+## Gemini for identification, and grounded prices display-only
+
+2026-09-14. Aurik: *"we will be swithcing to gemini. read the gemini documents. it is really good
+but it has so many legal rules we need to build around. Shin will adopt this."* Adopted. The
+decisions behind it are Jamin's three documents of the same day, `docs/plan-gemini.md`,
+`docs/gemini-work-list.md` (83 items) and `docs/the-gemini-tree.md`.
+
+**Why.** Measured on Jamin's phone, 2026-09-14: **7 of 7 price requests refused, 9 of 30 barcodes
+absent from the catalogue**, photo picks choosing a European variant or a brandless "Water", and
+Claude refusing 4 of 15 photographs. Shin's own sources answer a minority of real scans. That is
+the number this reverses, and it is why the switch is worth its legal surface.
+
+**THE ONE DISTINCTION THE WHOLE BUILD RESTS ON.** Gemini returns two categorically different kinds
+of output and the difference is a contract, not a preference.
+
+*Ungrounded* output, a plain model call with no search tool, is **ordinary model output**. It is
+storable in the shared catalogue exactly as today's Claude answers are, carries no display rules,
+and has no terms surface at all. This is the half that replaces Claude and fixes the measured
+failure, and it is deliberately built first.
+
+*Grounded Results*, where the `google_search` tool was on, are governed by
+https://ai.google.dev/gemini-api/terms (eff. 2026-03-23; identical wording in the Google Cloud
+Service Specific Terms section (k), mod. 2026-07-29, so there is no Vertex-side escape):
+*"You will not ... cache, frame, syndicate, resell, analyze, train on, or otherwise learn from
+Grounded Results or Search Suggestions"*; *"will only display the Grounded Results with the
+associated Search Suggestion(s) to the end user who submitted the prompt"*; *"will not modify, or
+intersperse any other content with"* them; *"will not track whether those interactions were
+specifically with a given Search Suggestion or Grounded Result"*. Two carve-outs make the design
+possible: the text may be stored *"for up to two (2) years ... in chat history of an end user of
+your application only for the purpose of allowing that end user to view their chat history"*, and
+it may be resubmitted *"to obtain a refined or improved Grounded Result to display to the end
+user"* with undisplayed interim results deleted.
+
+**So the architecture is the rule.** `identify/src/grounded.ts` holds an opaque `Grounded<T>` box
+whose payload lives off the object in a module-private WeakMap: it cannot reach any parameter typed
+`string`, which is every write in `scans.ts`, `price/src/store.ts` and `catalogue/src/load.ts`; its
+`toJSON` and `toString` throw, so it cannot ride out inside a response body or be concatenated with
+a Shin sentence; and `seal()` deep-freezes the payload, so a re-sort throws at runtime, which is
+what a type cannot do. One door in, three doors out, and a test that the door count is one.
+
+**Six rulings taken the same day, all Aurik's:**
+1. **The key.** A **free** Gemini key on the PC, used only on the 200 public Open Food Facts eval
+   photographs: no user data, no grounding (the free tier has none), no cost. Jamin's **paid** key
+   goes in the Mac's `mac/config.env` for live traffic, because the free tier trains on what it is
+   sent and a tester's photograph must never reach it. The server refuses to start if it sees a key
+   marked free.
+2. **Scope.** Everything, built in the legal order: identification, then the guard, then grounded
+   prices, reviews and the price line.
+3. **Reviews.** Gemini's reviews ship, and `docs/the-beta-build-plan.md` item 30 is amended (see
+   the next decision below).
+4. **The twelve awkward item kinds** (plan-gemini section 7): the four that reach beta testers,
+   being sold by weight, store brands, deals and member prices, and marketplace or US listings kept
+   off the line. The other eight stay written and unbuilt.
+5. **The words on the price line.** The zones name the range **the user set**, never Shin's judgment
+   of the price: "under your line", "in the middle", "over your line". Hard rule 2 is untouched and
+   the four ban-list tests pass unchanged. See the next decision below for why this mattered.
+6. **Models.** Cheap first, escalate on doubt: `gemini-3.5-flash-lite` on every photograph (about
+   0.3 cents), `gemini-3.8-flash` only when the cheap model reports low confidence. One env var
+   changes it. 3.8 Flash doubles in price on 2027-01-01 and nothing automatic re-checks that.
+
+**What is still open and does not block building, but blocks relying on it:** a legal review
+(work-list item 7); Google's written answer on whether rendering structured grounded fields in
+Shin's own layout counts as *"modify"* (item 6, unasked, and the one that could force a redesign);
+and whether the terms' 18-or-older clause reaches end users or only the developer (item 5).
+
+**Reverses if:** Google answers item 6 in a way the layout cannot satisfy, or a legal review finds
+the per-user display route does not hold, in which case identification stays and the grounded half
+comes out. Ungrounded identification survives either way, because it is not a Grounded Result.
+
+
+## The price line speaks the shopper's own range, never Shin's opinion
+
+2026-09-14. The reverted grounded build (`ccbd0cc`) labelled a shelf price **good / reasonable /
+bad** against the median of prices Google's search found. Two of this repo's own rules point the
+other way. Hard rule 2, which `CLAUDE.md` says cannot be overridden by chat and is added only by
+Aurik: *"No savings claim until it is measured. Competition Act s.74.01(1)(b) requires adequate and
+proper testing before a performance claim is published."* And `docs/plan-always-a-price.md` section
+3, enforced by four test files, allows *good, fair, high, walk away, deal, cheaper* only under a
+real verdict. Gemini's prices are not verified, sized or dated the way the spine requires before it
+says *walk away*.
+
+Asked, Aurik chose the reading that dissolves the conflict rather than bending either rule:
+**the zone words name the range the shopper themself set.** They pick two percentages once (how far
+under the usual price is worth it, how far over is too much; defaults 10 and 10). The line then says
+where the shelf price falls inside **their** range, over prices Google found, with "6 prices found"
+under it and never the word "factually". Shin states no opinion about the price at all, so there is
+no performance claim to substantiate, and the ban-list tests pass unchanged rather than being scoped
+around.
+
+This is also what Jamin asked for in his own words: *"ask the user what their range for a bad,
+resonable and good price is as an average above or below the price and then we tell the user based
+on their preference."*
+
+The fixed function returns **neutral zone codes** (`under_your_line`, `middle`, `over_your_line`)
+and the client turns a code into words, so the grading vocabulary cannot leak back in through the
+server or through a translation.
+
+**Reverses if:** Aurik amends hard rule 2 himself, which is the only way those words come back.
+
+
+## Gemini's reviews ship, and beta plan item 30 is amended
+
+2026-09-14. `docs/the-beta-build-plan.md` item 30 says a review is *"shown only when a licensed
+source has a row; nothing generated"*. Gemini's reviews are generated from search, so the two
+collide head on; it is work-list item 4. Asked, Aurik ruled **Gemini reviews win** and item 30 is
+amended to read, in substance: a licensed source's row, **or** a Gemini review shown with its source
+link and Google's Search Suggestions, in its own labelled block, never merged into a licensed
+source's number.
+
+The amendment is recorded here rather than by editing `docs/the-beta-build-plan.md`, because that
+document is Jamin's and a session does not rewrite a founder's file to win an argument in it. He is
+told in `notes/catch-up.md` and on the Notion page.
+
+**The reason item 30 existed still holds** and is kept: a rating invented by a model is worthless.
+What makes a Gemini review acceptable is that it carries a source link and a rating attributed to
+that source. A review that comes back with no link is shown with the heads-up Jamin asked for
+(*"just give a heads up that something doesn't have a link"*) and is never presented as a number
+Shin stands behind.
+
+**Reverses if:** Jamin disagrees, since item 30 is his line and this amends it.
+
