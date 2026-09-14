@@ -19,13 +19,16 @@
  * retention sweep below a few lines instead of a directory walk with a date
  * parser in it.
  *
- * NINETY DAYS, then gone. The number is `SHIN_PHOTO_RETENTION_DAYS` and
- * defaults to 90 because that is what plan item 39d says and what the privacy
- * statement will say. It is an environment variable rather than a constant so
- * that the sentence on the privacy screen and the behaviour of the server can
- * be changed together by the person who approves the wording, without a
- * deploy. A value that will not parse falls back to 90 rather than to zero:
- * misreading the setting must never delete everything.
+ * KEPT FOREVER BY DEFAULT, changed 2026-09-14 on the founder's word ("build
+ * everything for collecting EVERYTHING"), which retired plan item 39d's ninety
+ * days. `SHIN_PHOTO_RETENTION_DAYS` unset, blank, zero or unparseable all mean
+ * "never sweep": `retentionDays` returns `null` rather than a number, and
+ * `sweepPhotos` reads that as its signal to do nothing and say so. It is still
+ * an environment variable rather than a constant, for the same reason it
+ * always was: the day somebody wants a real window back, it is a deploy
+ * setting a value, not a code change. A NEGATIVE number is treated the same as
+ * unset (keep forever) rather than as "sweep everything now" -- a typo must
+ * never delete a beta's whole photo record.
  *
  * THE SWEEP IS TESTABLE WITHOUT WAITING NINETY DAYS. `sweepPhotos` takes the
  * clock. Nothing in it sleeps, polls, or reads the wall clock except through
@@ -44,16 +47,25 @@ import { fileURLToPath } from 'node:url';
 import { activeScanStore, openScanStore, updateScan } from './scans.ts';
 import { logError } from './errlog.ts';
 
-export const DEFAULT_RETENTION_DAYS = 90;
+/**
+ * Retired 2026-09-14 alongside the ninety-day default it named. Kept as an
+ * alias so nothing that imported it for the old default breaks at the module
+ * boundary; nothing in this file reads it any more.
+ */
+export const DEFAULT_RETENTION_DAYS = null;
 
-/** How long a photograph is kept, in days. See the header on why it is a variable. */
-export function retentionDays(env: NodeJS.ProcessEnv = process.env): number {
+/**
+ * How long a photograph is kept, in days, or `null` for forever.
+ *
+ * `null` is unset, blank, zero, negative, or anything that will not parse as
+ * a positive number -- every one of those means "keep forever" now, per the
+ * header above. Only a genuine positive number turns the sweep on at all.
+ */
+export function retentionDays(env: NodeJS.ProcessEnv = process.env): number | null {
   const raw = env.SHIN_PHOTO_RETENTION_DAYS;
-  if (raw === undefined || raw.trim() === '') return DEFAULT_RETENTION_DAYS;
+  if (raw === undefined || raw.trim() === '') return null;
   const n = Number(raw);
-  // Above zero, because 0 would mean "delete on the next sweep", which is a
-  // thing somebody might want and is not a thing a typo should achieve.
-  return Number.isFinite(n) && n > 0 ? n : DEFAULT_RETENTION_DAYS;
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 /**
@@ -110,8 +122,10 @@ export interface SweepResult {
   readonly deleted: number;
   /** Rows whose `photo_path` was cleared. */
   readonly cleared: number;
-  /** The moment before which a photo is too old to keep. */
-  readonly cutoff: string;
+  /** The moment before which a photo is too old to keep, or null when nothing is. */
+  readonly cutoff: string | null;
+  /** True when retention is unset and this call looked at nothing on purpose. */
+  readonly keptForever: boolean;
 }
 
 interface AgedRow {
@@ -137,9 +151,17 @@ interface AgedRow {
  *
  * NEVER THROWS. It runs at start and on a timer, where the only thing a throw
  * could do is take down a server that was otherwise fine.
+ *
+ * DOES NOTHING WHEN RETENTION IS UNSET. `retentionDays` returning `null` means
+ * forever, and "forever" is not a very long cutoff, it is no cutoff: this
+ * returns immediately with `keptForever: true` and never opens the database
+ * looking for rows to age out, because there is no age that qualifies.
  */
 export function sweepPhotos(now: Date = new Date(), env: NodeJS.ProcessEnv = process.env): SweepResult {
   const days = retentionDays(env);
+  if (days === null) {
+    return { considered: 0, deleted: 0, cleared: 0, cutoff: null, keptForever: true };
+  }
   const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
   const store = activeScanStore() ?? openScanStore();
   let deleted = 0;
@@ -152,7 +174,7 @@ export function sweepPhotos(now: Date = new Date(), env: NodeJS.ProcessEnv = pro
       .all(cutoff) as unknown as AgedRow[];
   } catch (err) {
     logError({ where: 'photos.sweep', err });
-    return { considered: 0, deleted: 0, cleared: 0, cutoff };
+    return { considered: 0, deleted: 0, cleared: 0, cutoff, keptForever: false };
   }
 
   for (const row of rows) {
@@ -167,7 +189,7 @@ export function sweepPhotos(now: Date = new Date(), env: NodeJS.ProcessEnv = pro
     }
     if (updateScan(row.id, { photoPath: null })) cleared += 1;
   }
-  return { considered: rows.length, deleted, cleared, cutoff };
+  return { considered: rows.length, deleted, cleared, cutoff, keptForever: false };
 }
 
 /** Whether a stored photo is still on disk. Test and inspection helper. */

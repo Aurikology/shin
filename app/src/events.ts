@@ -22,13 +22,19 @@
  * wants to GROUP BY a field in there, that field becomes a column and this
  * comment is wrong.
  *
- * WHAT MUST NEVER GO IN A PAYLOAD, and it is a rule rather than a caution
- * because this table is the easiest place in the product to leak into: no
- * coordinates (the coarse cell only, and only with consent), no photo bytes,
- * no email, no name, no free text a person typed except a price and a shop
- * name they chose to send. The privacy statement in plan item 6a describes
- * what is kept, and an event payload that goes past it makes that statement
- * false without anybody editing it.
+ * WHAT MAY GO IN A PAYLOAD, changed 2026-09-14 on the founder's word ("build
+ * everything for collecting EVERYTHING"): coordinates and free text a person
+ * typed are no longer refused here. Until today this list forbade both,
+ * because the client had no legitimate way to send either one; that is no
+ * longer true. `track.js` records the exact position alongside typed search
+ * text, including text typed and then abandoned, because both are input this
+ * product now trains its models and answers other shoppers from, the same
+ * reason `consent.ts` defaults both toggles on. The one thing still refused is
+ * a photo's own bytes: those belong in the photos folder behind the photo
+ * consent flag (`photos.ts`) or nowhere, never as base64 in this table, so
+ * that deleting a photo on the retention sweep (when one is configured) or on
+ * request actually removes it rather than leaving a copy sitting in an event
+ * payload nothing sweeps.
  *
  * NEVER THROWS, the same contract `scans.ts` keeps and for the same reason: a
  * camera loop that cannot write down what it just did must still answer the

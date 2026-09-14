@@ -284,6 +284,32 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
       db.exec('CREATE INDEX IF NOT EXISTS device_user_user ON device_user(user_id);');
     },
   },
+  {
+    version: 8,
+    name: 'exact location alongside the coarse cell',
+    apply(db) {
+      /*
+       * Founder's word, 2026-09-14: "build everything for collecting
+       * EVERYTHING". `cell` (migration 6) is the kilometre grid square,
+       * coarse by construction and the only thing `stores.ts` will ever read
+       * back. These four columns are the reading it was snapped from: the
+       * latitude and longitude the device's own GPS reported, the accuracy
+       * the OS attached to that reading, and when it was taken -- kept
+       * alongside the cell rather than instead of it, because the cell is
+       * still what a shop lookup matches against and the exact fix is what
+       * training and answering other shoppers wants.
+       *
+       * Nullable, like every column in migration 2's complete scan record:
+       * written only when location consent is on (default true, see
+       * `consent.ts`) and the OS actually granted a position, never a zero
+       * standing in for "nobody measured this".
+       */
+      addColumnIfMissing(db, 'scan', 'exact_lat', 'REAL');
+      addColumnIfMissing(db, 'scan', 'exact_lon', 'REAL');
+      addColumnIfMissing(db, 'scan', 'exact_accuracy', 'REAL');
+      addColumnIfMissing(db, 'scan', 'exact_at', 'TEXT');
+    },
+  },
 ];
 
 /** What `schema_version` says this database is at. 0 means nothing has run. */

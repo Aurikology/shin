@@ -28,6 +28,10 @@ import * as shin from './shin.js';
 import { flushCorrections } from './corrections.js';
 import { primeOfflineAisle } from './offline-aisle.js';
 import { refreshCell } from './geocell.js';
+// Everything the client does, collected. Side-effect import: track.js arms
+// its own app_open event, screen_view listener, tap capture, visibility and
+// error listeners the moment it loads, per its own header.
+import './track.js';
 
 import camera from './screens/camera.js';
 import setup from './screens/setup.js';

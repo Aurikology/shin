@@ -1264,20 +1264,20 @@ const LINES_EN = {
    * Shown while `getUserMedia` is in flight; swapped for the real idle
    * content the instant it resolves either way.
    *
-   * REWRITTEN 2026-09-11 (item 6e). The line this replaced said "your camera
-   * stays on your phone, only the price ever leaves it," which was true the
-   * day it was written and stopped being true the day the photo route
-   * shipped: `identifyPhoto` in api.js sends the picture itself, as base64,
-   * to be read. What is still true, and what this line says instead: a
-   * barcode read never sends a picture, only the decoded code, and a photo
-   * scan's picture is kept on the server afterward only when Photos is on
-   * (item 6, the consent screen and the You screen's withdrawal toggle) --
-   * otherwise it is read once, to answer this scan, and not retained. ---
+   * REWRITTEN 2026-09-11 (item 6e), REWRITTEN AGAIN 2026-09-14. The 2026-09-11
+   * line said a barcode read never sends a picture, only the decoded code,
+   * which was true that day and stopped being true the day a barcode read
+   * started sending the live camera frame the same way a shutter press always
+   * has (task item 5, camera.js's `onBarcode`, api.js's own `beginShutter`).
+   * What this line says now is the current, larger truth: every scan sends a
+   * picture, always, and what happens to it afterward is what Photos governs
+   * -- kept for the identify route's own copy, or not, but the frame itself
+   * reaches the server on both routes regardless of that toggle.
    */
   cam_privacy_line: {
-    deadpan: () => 'A barcode never sends a picture, only the code. A photo is sent to be read, and kept afterward only if Photos is on.',
-    warm: () => 'Scanning a barcode never sends a picture, just the code. A photo scan sends the picture so I can read it, and I only keep it afterward if you have Photos turned on.',
-    blunt: () => 'Barcode: no picture sent. Photo: sent to be read, kept only if Photos is on.',
+    deadpan: () => 'Every scan sends a picture: the frame the camera saw at that moment, always. A photo scan keeps that picture afterward only if Photos is on; a barcode read logs its frame either way.',
+    warm: () => 'Every scan sends a picture now, the frame the camera was looking at right then, always. A photo scan keeps that picture afterward only if you have Photos turned on; a barcode read logs its frame regardless.',
+    blunt: () => 'Every scan sends a picture, always. Photo: kept if Photos is on. Barcode: frame logged either way.',
   },
   /*
    * Item 6: the consent screen's own copy, and the You screen's withdrawal
@@ -1287,21 +1287,31 @@ const LINES_EN = {
    * below say the same thing in close to the same words on purpose -- the
    * opposite intent from a verdict line, and the same intent the existing
    * data paragraph on the You screen was written with.
+   *
+   * REWRITTEN 2026-09-14 on the founder's word, "build everything for
+   * collecting EVERYTHING," and the vision doc's own sentence that all of a
+   * user's scanned data trains Shin's models and answers other shoppers. The
+   * previous copy said photos and location were "off unless you turn them
+   * on"; both now default on, same as `consent.ts` and `store.js`, and the
+   * switches below still turn them off for anyone who wants that. Saying
+   * "off by default" while shipping "on by default" is exactly the gap this
+   * whole pass exists to close -- this screen has to be an honest notice of
+   * what is actually kept, not a smaller, friendlier version of it.
    */
   consent_intro: {
-    deadpan: () => 'Every scan is written down: the product and the price you saw, always, so the next person who scans it gets an answer. Two more things are off unless you turn them on.',
-    warm: () => 'Every scan gets written down: what you scanned and the price you saw, always, so the next person who scans the same thing gets an answer too. Two more things below are off unless you switch them on.',
-    blunt: () => 'Every scan is logged: product and price, always. Two more things below are off by default.',
+    deadpan: () => 'Every scan is written down: the product and the price you saw, always, and used to train Shin and to answer other shoppers who scan the same thing. Two more things below are also on unless you turn them off.',
+    warm: () => 'Every scan gets written down, what you scanned and the price you saw, always, and it helps train Shin and answer other shoppers who scan the same thing next. Two more things below are on too, unless you switch them off.',
+    blunt: () => 'Every scan is logged: product and price, always, used to train Shin and answer other shoppers. Two more things below are on by default.',
   },
   consent_photos_desc: {
-    deadpan: () => 'Keeps the picture from a photo scan, tied to that scan, so a wrong answer can be checked later. Off, the picture is read once to answer the scan and is not kept. The risk: a kept photo can show what is near you in the shot.',
-    warm: () => 'Keeps the picture from a photo scan, tied to that scan, so a wrong answer can be checked later. Off, the picture is only read once, to answer that scan, and then it is gone. The risk is that a kept photo can show whatever else was in the shot around you.',
-    blunt: () => 'Keeps the photo, tied to the scan, so a wrong answer can be checked. Off: read once, not kept. Risk: a kept photo can show what is near you.',
+    deadpan: () => 'Keeps every picture from a photo scan, tied to that scan, so a wrong answer can be checked later and Shin can learn from it. On by default, and kept for good unless whoever runs this sets a time limit later. Off, a picture is read once to answer the scan and is not kept. The risk: a kept photo can show what is near you in the shot.',
+    warm: () => 'Keeps every picture from a photo scan, tied to that scan, so a wrong answer can be checked later and it can help train Shin. It is on by default and kept for good, not deleted after any set number of days, unless a limit gets set later. Turn it off and a picture is only read once, to answer that scan, then it is gone. The risk is that a kept photo can show whatever else was in the shot around you.',
+    blunt: () => 'Keeps every photo, tied to the scan, kept indefinitely by default. Used to check answers and train Shin. Off: read once, not kept. Risk: a kept photo can show what is near you.',
   },
   consent_location_desc: {
-    deadpan: () => 'Keeps a rough area, about a kilometre wide, never your exact spot, so a price can be matched to a nearby store. Your phone also remembers which shop you picked in each area, so it stops asking. That list never leaves the phone and it goes when you switch this off. Off, no location is kept at all. The risk: even a rough area narrows down where you shop.',
-    warm: () => 'Keeps a rough area, about a kilometre wide, never your exact spot, so a price can be matched to the store you were near. Your phone also remembers which shop you picked in each area, so it does not have to ask you again. That list stays on the phone, is never sent anywhere, and is deleted the moment you switch this off. Off, nothing about where you are is kept. The risk is that even a rough area says something about where you shop.',
-    blunt: () => 'Keeps a rough area, about a kilometre wide, never your exact spot. Your phone remembers which shop you picked where, so it stops asking. Stays on the phone. Deleted when you switch this off. Off: nothing kept. Risk: even a rough area narrows down where you shop.',
+    deadpan: () => 'Keeps your exact position at the moment of each scan, plus the rough kilometre-wide area, so a price can be matched to a nearby store and Shin can learn from where things are priced. On by default. Your phone also remembers which shop you picked in each area, so it stops asking; that list stays on the phone until you switch this off. Off, no location is kept at all. The risk: your exact position says precisely where you shop, not just roughly.',
+    warm: () => 'Keeps your exact position at the moment of each scan, along with the rough kilometre-wide area, so a price can be matched to the store you were at and it can help Shin learn from where things are priced. It is on by default; your phone also remembers which shop you picked in each area, so it does not have to ask again, and that list stays on the phone until you turn this off. Off, nothing about where you are is kept. The risk is that your exact position, not just a rough area, says precisely where you shop.',
+    blunt: () => 'Keeps your exact position and the rough area for every scan. On by default. Phone remembers which shop you picked where, stays on the phone, deleted when you switch this off. Off: nothing kept. Risk: exact position says precisely where you shop.',
   },
   /**
    * Item 8d: the You screen's rated-count row. Shin's own voice, same family
@@ -1319,16 +1329,28 @@ const LINES_EN = {
    * The You screen's own copy of the data paragraph, item 6e's replacement
    * for "Everything stays on this device," which stopped being true the day
    * the photo route and the hosted tunnel (plan item 1) shipped.
+   *
+   * REWRITTEN AGAIN 2026-09-14, same reason as `cam_privacy_line` above: a
+   * barcode read now sends its camera frame too (task item 5), so "a barcode
+   * never sends a picture" is no longer a sentence this screen can say.
    */
   you_data_intro: {
-    deadpan: () => 'Every scan is written down: the product and the price you saw, always. A barcode never sends a picture, only the decoded code.',
-    warm: () => 'Every scan gets written down, the product and the price you saw, always. Scanning a barcode never sends a picture, just the code.',
-    blunt: () => 'Every scan is logged: product and price, always. Barcode scans never send a picture.',
+    deadpan: () => 'Every scan is written down: the product and the price you saw, always, plus the camera frame from that moment, used to train Shin and answer other shoppers.',
+    warm: () => 'Every scan gets written down, the product and the price you saw, always, along with the camera frame from that moment, and it helps train Shin and answer other shoppers.',
+    blunt: () => 'Every scan is logged: product, price, and the camera frame, always. Used to train Shin and answer other shoppers.',
   },
+  /*
+   * REWRITTEN 2026-09-14. "Only this app and the person running it can see
+   * any of this" stopped being the whole truth the day collecting everything
+   * became the point: what is collected is also used to answer other
+   * shoppers and to train Shin, which is a use beyond "seen by the app and
+   * whoever runs it." This says what actually happens instead of the
+   * narrower, more reassuring claim.
+   */
   consent_footer: {
-    deadpan: () => 'Only this app and the person running it can see any of this. Change either choice any time on the You page.',
-    warm: () => 'Only this app and the person running it can see any of this, and you can change either choice any time from the You page.',
-    blunt: () => 'Only this app and whoever runs it sees this. Change it any time on the You page.',
+    deadpan: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Shin, and the person running it can see it too. Change either choice any time on the You page.',
+    warm: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Shin, and the person running it can see it as well. You can change either choice any time from the You page.',
+    blunt: () => 'This app keeps it, uses it to answer other shoppers and train Shin. Change it any time on the You page.',
   },
 };
 

@@ -189,11 +189,24 @@ test('the conditions of the call are on the row, and the cost is an estimate not
   assert.equal(row.model_cost_cents, 0.68);
 });
 
-test('a photo is not kept when the device has not consented', async () => {
+test('a photo is not kept when the device has explicitly opted out', async () => {
+  // Photos default ON (2026-09-14): a device that never called /api/consent
+  // would have its photo kept, so this test opts out first to exercise the
+  // refusal path rather than a default that no longer applies to it.
+  await postJson('/api/consent', { deviceId: 'p-9a-no', photos: false, location: false });
   useModel(answeringClient(READING));
   const res = await postPhoto({ deviceId: 'p-9a-no' });
   const { scanId } = (await res.json()) as { scanId: number };
-  assert.equal(getScan(scanId)!.photo_path, null, 'a photograph was kept without consent');
+  assert.equal(getScan(scanId)!.photo_path, null, 'a photograph was kept after an explicit opt-out');
+});
+
+test('a photo is kept for a device that never touched consent, because photos default on', async () => {
+  useModel(answeringClient(READING));
+  const res = await postPhoto({ deviceId: 'p-default-on' });
+  const { scanId } = (await res.json()) as { scanId: number };
+  const row = getScan(scanId)!;
+  assert.ok(row.photo_path, 'a photograph was not kept, though nobody opted out');
+  assert.ok(photoExists(row.photo_path!), 'the row claims a file that is not on disk');
 });
 
 test('and it is kept, keyed by the scan id, once the device has', async () => {
@@ -218,10 +231,14 @@ test('withdrawing photo consent stops the next one being kept', async () => {
 });
 
 /*
- * PLAN ITEM 39d. The clock is injected, so this proves the shipped function
- * rather than a copy of its arithmetic, and it runs in milliseconds.
+ * PLAN ITEM 39d, RETIRED 2026-09-14. Collecting everything means photos are
+ * kept forever unless SHIN_PHOTO_RETENTION_DAYS names a real window, so the
+ * old "ninety days by default" test now sets that window explicitly rather
+ * than relying on a default that no longer sweeps at all. The clock is still
+ * injected, so this proves the shipped function rather than a copy of its
+ * arithmetic, and it still runs in milliseconds.
  */
-test('a photograph past ninety days is deleted and its path is cleared', async () => {
+test('a photograph past a configured retention window is deleted and its path is cleared', async () => {
   await postJson('/api/consent', { deviceId: 'p-39d', photos: true, location: false });
   useModel(answeringClient(READING));
   const res = await postPhoto({ deviceId: 'p-39d' });
@@ -229,19 +246,43 @@ test('a photograph past ninety days is deleted and its path is cleared', async (
   const kept = getScan(scanId)!.photo_path!;
   assert.ok(photoExists(kept));
 
-  // Eighty-nine days on: still inside the window, still there.
-  const soon = new Date(Date.now() + 89 * 24 * 60 * 60 * 1000);
-  assert.equal(sweepPhotos(soon).deleted, 0);
-  assert.ok(photoExists(kept), 'a photo was deleted a day early');
+  process.env.SHIN_PHOTO_RETENTION_DAYS = '90';
+  try {
+    // Eighty-nine days on: still inside the window, still there.
+    const soon = new Date(Date.now() + 89 * 24 * 60 * 60 * 1000);
+    assert.equal(sweepPhotos(soon).deleted, 0);
+    assert.ok(photoExists(kept), 'a photo was deleted a day early');
 
-  // Ninety-one days on: gone from disk and gone from the row.
-  const later = new Date(Date.now() + 91 * 24 * 60 * 60 * 1000);
-  const result = sweepPhotos(later);
-  assert.ok(result.deleted >= 1);
-  assert.ok(!photoExists(kept), 'the file outlived the retention window');
-  assert.equal(getScan(scanId)!.photo_path, null, 'the row still claims a file that is gone');
-  // The scan itself survives. The photograph is the part with a date on it.
-  assert.equal(getScan(scanId)!.kind, 'photo');
+    // Ninety-one days on: gone from disk and gone from the row.
+    const later = new Date(Date.now() + 91 * 24 * 60 * 60 * 1000);
+    const result = sweepPhotos(later);
+    assert.ok(result.deleted >= 1);
+    assert.ok(!photoExists(kept), 'the file outlived the retention window');
+    assert.equal(getScan(scanId)!.photo_path, null, 'the row still claims a file that is gone');
+    // The scan itself survives. The photograph is the part with a date on it.
+    assert.equal(getScan(scanId)!.kind, 'photo');
+  } finally {
+    delete process.env.SHIN_PHOTO_RETENTION_DAYS;
+  }
+});
+
+test('with no retention window set, a photo is never swept, however far the clock runs', async () => {
+  await postJson('/api/consent', { deviceId: 'p-39d-forever', photos: true, location: false });
+  useModel(answeringClient(READING));
+  const res = await postPhoto({ deviceId: 'p-39d-forever' });
+  const { scanId } = (await res.json()) as { scanId: number };
+  const kept = getScan(scanId)!.photo_path!;
+  assert.ok(photoExists(kept));
+
+  delete process.env.SHIN_PHOTO_RETENTION_DAYS;
+  // A thousand days out. Forever means forever, not a long default.
+  const farFuture = new Date(Date.now() + 1000 * 24 * 60 * 60 * 1000);
+  const result = sweepPhotos(farFuture);
+  assert.equal(result.deleted, 0);
+  assert.equal(result.considered, 0);
+  assert.equal(result.keptForever, true);
+  assert.ok(photoExists(kept), 'a photo was swept with no retention window configured');
+  assert.equal(getScan(scanId)!.photo_path, kept);
 });
 
 test('the retention window is a setting, so the privacy wording and the behaviour move together', async () => {
