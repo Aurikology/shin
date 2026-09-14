@@ -1435,3 +1435,33 @@ only if GitLab accepts, `ls-remote` on both hosts as the proof. Delete still nee
 in his global instructions the same evening. **Reverses if:** either founder asks; the global rule
 is the default it falls back to.
 
+## The unfinished grounded-price provider comes off main until it is green and the two questions are settled
+
+2026-09-14, late. Jamin pushed `ccbd0cc`, *"unfinished Gemini provider code, pushed as is on
+Jamin's word"*: a Google-Search-grounded lookup of Canadian retailer prices and reviews per scan
+(`identify/src/providers/gemini-grounded.ts`) with a gauge that labels the shelf price *good*,
+*reasonable* or *bad* against them (`gauge.ts`), wired into `app/server.ts`. By its own message:
+typecheck red in identify and app, 6 tests failing, the Mac stage deploy red on every later commit.
+Asked, Aurik ruled: **revert it on main now**; it comes back when it typechecks and after the
+founders settle what it raises.
+
+**Jamin's position, from the file's header and the server's comment, kept verbatim in the
+reverted commit:** the grounded block is *"SHOWN AS ITS OWN SEPARATE BLOCK, NEVER MIXED INTO A
+PRICE LIST OR AVERAGED INTO A VERDICT"*, held *"on this one scan's own row, never in
+`catalogue.db`"*, and the terms clause was read and followed as he understands it.
+
+**What has to be settled before it lands again, in writing, by both:**
+1. **The contract.** QUEUE.md's kill of search-derived prices stands on the Gemini API terms (eff.
+   2026-03-23) and the Cloud Service Specific Terms §(k): Grounded Results may not be cached,
+   analyzed, trained on or otherwise learned from. Writing the listings to a scan row and computing
+   a gauge over them is storing and analyzing; showing them once, unaltered, with Google's search
+   suggestions, is what the terms allow. The decision *"'Never live search' stops being a
+   measurement and becomes a contract"* is the one this has to answer to.
+2. **Hard rule 2.** *good / reasonable / bad* are tier words, and the gauge produces them from
+   listings Shin has not verified, sized or dated the way the spine requires before it says
+   *walk away*. Plan section 3 allows those words only under a real verdict.
+
+**Reverses if:** the two founders sign off on both points, or the code is reshaped so the grounded
+block is display-only (nothing stored, nothing scored, no tier word) and it typechecks; then it is
+a `git revert` of the revert plus a green gate.
+
