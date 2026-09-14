@@ -254,9 +254,12 @@ test('the hint tells two branches of one chain apart, and is never coordinates',
   assert.equal(hintFor({}), '');
 });
 
+// Changed 2026-09-14: this asserted the bare `nwr["shop"]`, which is the thing
+// that was wrong. The kinds are asserted in stores-relevance.test.mjs; what is
+// left here is the part that did not change.
 test('the query asks for nodes, ways and relations around the cell centre', () => {
   const q = overpassQuery(parseCell('43.26,-79.92'));
-  assert.match(q, /nwr\["shop"\]/);
+  assert.match(q, /nwr\["shop"~/);
   assert.match(q, /around:\d+,43.26,-79.92/);
   assert.match(q, /out center/);
 });

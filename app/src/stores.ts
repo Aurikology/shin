@@ -50,6 +50,72 @@ const SEARCH_RADIUS_M = 1200;
 /** At most three, because the screen offers three. Plan item 11b. */
 export const STORES_OFFERED = 3;
 
+/**
+ * The shop kinds a price can be filed against.
+ *
+ * WHY A LIST AND NOT `["shop"]`. The bare tag was asking OpenStreetMap for
+ * every retail premises within a kilometre, which in downtown Hamilton came
+ * back as five car repair shops, four hairdressers, three beauty salons and a
+ * shoe shop, and in downtown Montreal as nineteen clothes shops before the
+ * second supermarket. Sixty is the ceiling the answer is cut at, so the noise
+ * was not merely untidy: it was pushing real grocers off the end of the list
+ * the shopper gets shown.
+ *
+ * The question this list answers is "which STORE are you standing in with a
+ * grocery or a gadget in your hand". Everything here sells something Shin
+ * prices. A hair salon does not, so a hair salon is not a wrong answer to
+ * offer, it is a wasted row.
+ *
+ * `mall` is deliberately absent: a mall is the building around the shop, and
+ * naming it files a price against "CF Fairview" instead of against the
+ * supermarket inside it.
+ */
+export const SHOP_KINDS: readonly string[] = [
+  // Food.
+  'supermarket', 'convenience', 'greengrocer', 'butcher', 'bakery', 'deli',
+  // In real use (one live Montreal row, 2026-09-14) even though the wiki steers
+  // taggers to supermarket or convenience; a corner grocery is a store.
+  'grocery',
+  'frozen_food', 'health_food', 'dairy', 'seafood', 'confectionery', 'farm',
+  'alcohol', 'beverages',
+  // Everything under one roof, which is where a lot of groceries are bought.
+  'department_store', 'general', 'variety_store', 'wholesale', 'kiosk',
+  // Pharmacy without a dispensary. Shoppers and Jean Coutu sell groceries, and
+  // OSM splits them: `shop=chemist` when there is no pharmacist,
+  // `amenity=pharmacy` when there is. Shin needs both and they are tagged in
+  // two different keys, which is the other half of why the old query missed.
+  'chemist',
+  // Tech, because the other thing that gets scanned is a gadget.
+  'electronics', 'computer', 'mobile_phone', 'hifi', 'appliance',
+  // Hardware, pet food.
+  'hardware', 'doityourself', 'pet',
+];
+
+/**
+ * The two kinds that are not tagged `shop` at all.
+ *
+ * `amenity=pharmacy` is the big one: every Jean Coutu, Uniprix and Pharmaprix
+ * in the Montreal cell is tagged this way and none of them were reachable by a
+ * query on `shop`. `amenity=marketplace` is the public market, where produce
+ * has a price and a place.
+ */
+export const AMENITY_KINDS: readonly string[] = ['pharmacy', 'marketplace'];
+
+/**
+ * What OSM calls this place, if it is a place Shin should offer, else null.
+ *
+ * One function so that the query, the filter and the hint cannot drift apart:
+ * a value added to the list above is asked for, kept, and namable in the same
+ * edit.
+ */
+function kindOf(tags: Record<string, string> | undefined): string | null {
+  const shop = tags?.shop;
+  if (shop && SHOP_KINDS.includes(shop)) return shop;
+  const amenity = tags?.amenity;
+  if (amenity && AMENITY_KINDS.includes(amenity)) return amenity;
+  return null;
+}
+
 export interface CoarseCell {
   /** The canonical text, always two decimal places: what gets stored. */
   readonly text: string;
@@ -118,6 +184,10 @@ function metresBetween(aLat: number, aLon: number, bLat: number, bLon: number): 
  * how much it helps somebody standing outside one: a street address, then the
  * neighbourhood, then what OSM calls the shop. Never the coordinates, because
  * this string goes on a screen and into a scan row.
+ *
+ * The last rung reads `kindOf` rather than `tags.shop`, because a pharmacy
+ * carries no `shop` tag at all and "Guardian" with a blank line under it is
+ * the row this whole change exists to stop being blank.
  */
 export function hintFor(tags: Record<string, string>): string {
   const number = tags['addr:housenumber'];
@@ -125,10 +195,10 @@ export function hintFor(tags: Record<string, string>): string {
   if (street) return number ? `${number} ${street}` : street;
   const place = tags['addr:suburb'] ?? tags['addr:neighbourhood'] ?? tags['addr:city'];
   if (place) return place;
-  const shop = tags.shop;
+  const kind = kindOf(tags);
   // "convenience" reads better as "convenience store" and "supermarket" does
   // not; OSM's values are single words and only some of them are nouns.
-  if (shop) return shop === 'convenience' ? 'convenience store' : shop.replace(/_/g, ' ');
+  if (kind) return kind === 'convenience' ? 'convenience store' : kind.replace(/_/g, ' ');
   return '';
 }
 
@@ -153,6 +223,12 @@ interface OverpassElement {
  *
  * UNNAMED SHOPS ARE DROPPED. OSM has plenty of them, and "which shop are you
  * in" answered with a blank line is worse than answered with a shorter list.
+ *
+ * SO IS ANYTHING THAT IS NOT A KIND SHIN PRICES, even though the query already
+ * asks for the list. The filter is repeated here because this function is the
+ * one a fixture, a cached body or a future change of query all flow through,
+ * and a brewery reaching the screen because the query was edited and this was
+ * not is the cheapest bug in the world to prevent.
  */
 export function parseOverpass(body: string, cell: CoarseCell): NearbyStore[] {
   let parsed: unknown;
@@ -169,6 +245,7 @@ export function parseOverpass(body: string, cell: CoarseCell): NearbyStore[] {
     const tags = raw?.tags;
     const name = tags?.name?.trim();
     if (!name) continue;
+    if (!kindOf(tags)) continue;
     const lat = raw.lat ?? raw.center?.lat;
     const lon = raw.lon ?? raw.center?.lon;
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
@@ -190,9 +267,22 @@ export function parseOverpass(body: string, cell: CoarseCell): NearbyStore[] {
  * asking only for nodes finds the corner shops and misses the Loblaws.
  * `out center` gives one coordinate per element whatever its geometry, which
  * is the only thing the distance sort needs.
+ *
+ * TWO STATEMENTS IN A UNION, because the kinds Shin needs live under two
+ * different keys: most are `shop=...` and a pharmacy is `amenity=pharmacy`.
+ * One regex per key is far shorter on the wire than one statement per value,
+ * and it is anchored with `^` and `$` so that `shop=car_parts` cannot answer a
+ * request for `farm`.
+ *
+ * The radius, the ten second ceiling and the sixty element cap are unchanged.
+ * The cap is why the filtering matters: the old query filled all sixty slots
+ * in a city centre and the noise was crowding out the grocers.
  */
 export function overpassQuery(cell: CoarseCell): string {
-  return `[out:json][timeout:10];nwr["shop"](around:${SEARCH_RADIUS_M},${cell.lat},${cell.lon});out center 60;`;
+  const where = `around:${SEARCH_RADIUS_M},${cell.lat},${cell.lon}`;
+  const shops = `nwr["shop"~"^(${SHOP_KINDS.join('|')})$"](${where});`;
+  const amenities = `nwr["amenity"~"^(${AMENITY_KINDS.join('|')})$"](${where});`;
+  return `[out:json][timeout:10];(${shops}${amenities});out center 60;`;
 }
 
 /**
