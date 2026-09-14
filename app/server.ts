@@ -902,56 +902,39 @@ let photoTestDouble: { model?: Identifier; lookup?: CatalogueLookup } | null = n
 async function modelOnce(): Promise<Identifier> {
   if (photoTestDouble?.model) return photoTestDouble.model;
   if (!photoModel) {
-    const [{ Identifier }, { withSpendCap }, { loadDotEnv }] = await Promise.all([
+    const [{ Identifier, makeProvider }, { withSpendCapProvider }, { loadDotEnv }] = await Promise.all([
       import('../identify/src/model.ts'),
       import('../identify/src/cap.ts'),
       import('../identify/src/env.ts'),
     ]);
     /*
-     * THE SDK IS RESOLVED THROUGH `identify`, AND IT HAS TO BE.
+     * THE PROVIDER THE SETTING NAMES, NOT AN ANTHROPIC CLIENT BUILT BY HAND.
      *
-     * `@anthropic-ai/sdk` is installed in `identify/node_modules` and nowhere
-     * else, which is this repo's arrangement (CLAUDE.md: each package installs
-     * its own dependencies) and is the reason the type imports at the top of
-     * this file are types only. A bare `import('@anthropic-ai/sdk')` from here
-     * resolves from `app/` and fails with ERR_MODULE_NOT_FOUND; checked on
-     * 2026-09-11 rather than assumed. `model.ts`'s own static import works
-     * because the specifier is resolved relative to the file that wrote it.
+     * Until 2026-09-14 this function resolved `@anthropic-ai/sdk` out of
+     * `identify/node_modules` by path and constructed the client itself, which
+     * meant `SHIN_MODEL_PROVIDER` reached every caller in the repo EXCEPT the
+     * live photo route: the one route that actually answers a shopper. That is
+     * work-list item 14, and it is why the Gemini switch had to start here.
      *
-     * So the package is located from `identify`'s own directory and imported
-     * by path. It is one line of indirection, and the alternative is either a
-     * dependency duplicated into `app/package.json` (a second copy of an SDK,
-     * free to drift from the one the identify package is tested against) or an
-     * uncapped model client, which is the thing being fixed.
+     * `makeProvider` owns the SDK import now (it is `model.ts`'s own static
+     * import, resolved relative to the file that wrote it, which is why the
+     * path indirection this replaces was needed at all) and owns the choice
+     * between Anthropic, Gemini with a Claude fallback, and xAI.
      *
-     * A FAILURE HERE IS LOUD. If the SDK cannot be found, this throws, the
+     * A FAILURE HERE IS LOUD. If a provider cannot be built, this throws, the
      * photo route classifies it like any other model failure, and the scan row
      * says so. It must never fall back to a bare `new Identifier()`, because
      * that is an uncapped client arriving silently through the one code path
      * written to prevent it.
-     */
-    const { createRequire } = await import('node:module');
-    const { pathToFileURL } = await import('node:url');
-    const fromIdentify = createRequire(fileURLToPath(new URL('../identify/package.json', import.meta.url)));
-    const sdk = await import(pathToFileURL(fromIdentify.resolve('@anthropic-ai/sdk')).href);
-    const Anthropic = (sdk.default ?? sdk.Anthropic) as new (options: { maxRetries: number }) => unknown;
-
-    /*
-     * `loadDotEnv` by hand, because passing a client turns off the
-     * constructor's own call to it (`if (!apiKey && !client) loadDotEnv()`).
-     * Without this line the key would stop being read from the environment
-     * file the moment the cap was wired, which is the kind of thing that looks
-     * like the cap breaking the beta.
      *
-     * `maxRetries: 0` is copied from `model.ts`'s own construction and is load
-     * bearing twice over: that file runs its own two-attempt policy, so an SDK
-     * retrying underneath it would mean the visible policy is not the one that
-     * runs, and every hidden retry would be a call that spends without the cap
-     * ever being asked.
+     * `loadDotEnv` by hand, because passing a provider turns off the
+     * constructor's own call to it (`if (!apiKey && !client && !provider)`).
+     * Without this line the key stops being read from the environment file the
+     * moment the cap is wired, which looks exactly like the cap breaking the
+     * beta.
      */
     loadDotEnv();
-    const client = new Anthropic({ maxRetries: 0 }) as MessagesClient;
-    photoModel = new Identifier(undefined, withSpendCap(client));
+    photoModel = new Identifier(undefined, undefined, withSpendCapProvider(makeProvider()));
   }
   return photoModel;
 }

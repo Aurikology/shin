@@ -114,6 +114,73 @@ export interface Provider {
 }
 
 /**
+ * The failures a second vendor cannot fix, and must not be asked about.
+ *
+ * `spend_cap_reached` is the sharp one: the cap exists to stop the day's
+ * spending, and a fallback that fires on it would spend a SECOND vendor's
+ * money the moment the first one's budget ran out, which is the cap doing the
+ * opposite of its job. `unreadable_photo` is the cheap one: a picture of a
+ * thumb is a picture of a thumb at both vendors, and falling back doubles the
+ * bill on precisely the scan that was never going to answer.
+ */
+const NO_SECOND_VENDOR: ReadonlySet<FailureClass> = new Set<FailureClass>([
+  'spend_cap_reached',
+  'unreadable_photo',
+]);
+
+/**
+ * Tries `primary`; on a failure a second vendor could plausibly answer, tries
+ * `fallback` instead. Added 2026-09-14 for the Gemini switch (`docs/decisions.md`,
+ * "Gemini for identification, and grounded prices display-only"). Aurik's words:
+ * "we will be swithcing to gemini" -- with no instruction to let a Gemini outage
+ * become a refusal when the Claude path is sitting right there, and this app's
+ * own priority 1 says the same thing: always answer.
+ *
+ * WHOLE-CALL FALLBACK, NOT PER-ATTEMPT. `model.ts`'s `#send` already retries a
+ * retryable failure once against the SAME provider before this is ever reached,
+ * so by the time `send` here sees an error the primary has had its shot.
+ * Falling back at that point, rather than interleaving retries across two
+ * vendors, keeps `model.ts`'s retry policy the only thing deciding how many
+ * times any ONE vendor is asked.
+ *
+ * A vendor swap changes what answered, and `ProviderResponse` already carries
+ * `provider` and `model` for exactly this: a scan answered by the fallback says
+ * so in its own row rather than pretending to be a Gemini answer that happened
+ * to run on Claude's model id.
+ *
+ * NOT a class, because there is no state to keep and a function value is
+ * simpler for a test to build without importing a class twice under two names.
+ */
+export function withFallback(primary: Provider, fallback: Provider): Provider {
+  return {
+    name: primary.name + '+fallback:' + fallback.name,
+    async send<T>(request: ProviderRequest): Promise<ProviderResponse<T>> {
+      try {
+        return await primary.send<T>(request);
+      } catch (primaryErr) {
+        if (NO_SECOND_VENDOR.has(classifyProviderError(primaryErr))) throw primaryErr;
+        try {
+          return await fallback.send<T>(request);
+        } catch (fallbackErr) {
+          // The fallback's own failure is the one that matters: it is the last
+          // thing that actually happened, and it is what `model.ts`'s `classify`
+          // and retry policy have to react to. The primary's error is not
+          // swallowed silently -- it goes to the log, because a Gemini outage
+          // that never surfaces anywhere is the "an outage looks like bad
+          // photos" confusion `classifyProviderError` exists to prevent, just
+          // moved one layer up.
+          console.error(
+            primary.name + ' failed, and the fallback ' + fallback.name + ' also failed:',
+            primaryErr,
+          );
+          throw fallbackErr;
+        }
+      }
+    },
+  };
+}
+
+/**
  * A failure a provider adapter raised on its own account, already classed.
  *
  * Separate from `ModelCallError` so that `provider.ts` needs no runtime import

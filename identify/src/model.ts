@@ -788,7 +788,7 @@ function arrange(
  * Which provider is behind the seam. `anthropic` unless explicitly told
  * otherwise, so an unset environment is today's behaviour exactly.
  */
-function makeProvider(apiKey?: string): Provider {
+export function makeProvider(apiKey?: string): Provider {
   const named = process.env.SHIN_MODEL_PROVIDER?.trim().toLowerCase();
   if (named === 'xai') return new XaiProvider({ apiKey });
   return new AnthropicProvider(anthropicClient(apiKey));
