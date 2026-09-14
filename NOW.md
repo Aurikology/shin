@@ -146,7 +146,25 @@ the disagreement goes):
    privately (never in the repo); connect Notion once the page is shared; check the data window.
 
 **Unpushed at time of writing:** `6376c4d` (D-099), `afa2b1f` (D-101), and the docs commit this
-section rides in. Push follows under his "push everything and continue working", GitLab first, GitHub
+section rides in.
+
+**Later the same day, after the first push.** D-100 closed (`f8346fa`): all 52 codes render in French,
+`prose-coverage.test.mjs` holds the two sets equal. Reading the French sheet after that green check
+found D-103, the small English words the codes never covered ("at Metro", "you", "promotional",
+"$4.44 less", the disagreement line rendered raw), and D-102, a heading over an empty swaps box;
+both closed in `0af801f`. D-099 got its second half (`b828b6b`): "Zero Sugar" on the can now matches
+"calorie-free" and `en:diet-sodas` in the catalogue through one word-family table both sides read;
+the zero can moved from rank 7 to rank 1 on the real catalogue. Six French sentences the prose lane
+was least sure of, for a French speaker: *fourchette* for a price band; *À peine assez pour répondre*;
+*prix saisi*; *l'usagé* for the used category; *Une personne a vu*; *sur la même boîte*.
+
+**A lesson from this afternoon, mine.** The first push went out while `app` read 686 tests, 1 fail.
+The red was a lane's in-flight `prose.js` on disk, not the committed tree, and the failing test read
+only files whose committed versions were unchanged from the green run; but the guard that should have
+stopped the push did not, because it printed the tally and carried on. The check that gates a push
+runs on the committed tree, and a red tally stops the push, whatever its cause turns out to be.
+
+**Unpushed at time of writing (second batch):** `f8346fa`, `0af801f`, `b828b6b`, and the docs commit. Push follows under his "push everything and continue working", GitLab first, GitHub
 only if GitLab accepts, `ls-remote` on both as the proof.
 
 ## Client-side parsing looked like a way round the wall, and is not, 2026-09-13 night
