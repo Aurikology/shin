@@ -66,6 +66,58 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## "Do everything but fund the API key", and his two rulings, 2026-09-14 evening
+
+**His words:** *"do everything but fund the api key."* Asked the two questions the morning left
+open, he ruled: **consent is off until answered, the cell stays coarse, no exact position is
+stored** (his 2026-09-13 design, over Jamin's *"collect EVERYTHING"* of the same morning), and
+**pushing green work in Shin needs nobody's yes** (Jamin's rule, adopted; the gate is the
+committed tree). Both are in `docs/decisions.md`; the push rule is in his global instructions too.
+
+**Six lanes, all Opus, disjoint packages, each verified here before its commit:**
+- **spine** (`c55bed1`): the produce refusal carries `whyCode: produce_no_shelf_price_source` and
+  raw facts (`problemCount 3`, PLU `4011`, bananas, 1990) beside its unchanged English paragraph,
+  so the last English tail on a French refusal can be rebuilt from facts. `PricePoint.limit`
+  ("limit 8") is recorded shelf text, not spine prose, left alone.
+- **catalogue** (`6cc4573`): D-097's producer half. Every swap carries `structuredLine` and the
+  heading has a structured twin; the English is byte-identical and a test reproduces it from the
+  facts for every scenario. The stray second `labelForTag` copy is gone.
+- **identify/eval** (`85ed230`): D-096 closed with 20 real tech codes from the catalogue, and the
+  set is **200 photos** (was 40; 4.8 MB, CC BY-SA, attributed per file). Dry run: top-1 195/200,
+  recall@1 179/200, MRR 0.9255, five real cascade misses. Still a ceiling, not a score: no key.
+- **app/stores** (`83e291d`): the shop shortlist asks Overpass for an allow-list of 29 retail
+  `shop` values plus `amenity=pharmacy|marketplace`. Live, same cells: Hamilton 0 pharmacies and
+  19 non-retail rows before, 11 pharmacies and 0 non-retail after; Montreal 0/38 before, 10/0
+  after. `shop=grocery` added on one measured Montreal row.
+- **Quebec French review** (read-only, OQLF and Usito cited): *fourchette*, *à peine assez*,
+  *l'usagé* and *une personne* stand, with fiches; *prix saisi* becomes *prix entré*; *sur la même
+  boîte* becomes *sur le même article*; and eleven more findings, the largest being *"Tu regardes
+  4,99 $"* (a calque, seven renderers) becoming *"Devant toi, c'est 4,99 $"*, a raw ISO date in
+  one renderer, *prix courants* vs *régulier*, and *"avec un prix dessus"*. Applied in the client
+  lane below and in `voice-fr.js` by hand. One thing it found that is not French: the French
+  refusal for an unreadable price tells the reader to use a *point* as the decimal while every
+  French price on screen uses a comma; the pad hardcodes `.`. A pad decision, open.
+- **app client lane** (`9769fc3`): the ten swap codes and the produce reason in French,
+  `server.ts` passing `structuredHeading`, `swapRow` reading the structured line, and the review's
+  prose.js fixes. Read off a page in `fr-CA`: *"0,44 $ par 100 g chez Fortinos, Kingston, contre
+  0,80 $. Vu le 28 août 2025."* **D-097 closed.** The leaf label stays the English taxonomy word.
+
+**Verified through a fresh server after the consent commit (`e9b577b`):** both consent switches
+`aria-checked="false"` with the approved copy in both languages, `/api/consent` for a never-asked
+device answers `photos false, location false`, the French verdict sheet reads *"Devant toi, c'est
+4,99 $"*. **Tests: app 722, spine 223, identify 155, catalogue 133, price 157; 0 fail.** Open after
+tonight: the API key (his call, not tonight); the pad's `.` key against French commas; the English
+leaf label under French headings; `(limit 8)` as recorded shelf text; a native French speaker's
+read of the sentences the review judged rather than cited.
+
+**The consent revert, by hand, on his ruling:** `app/src/consent.ts` and `store.js` default to
+off; the consent screen's switches start off; `api.js` no longer sends `lat`/`lon`; the 2026-09-13
+copy for the intro, photo and location lines is back in both languages; Jamin's footer (what is
+kept is used to answer other shoppers and to train Shin) and his camera line (every scan sends a
+frame to be read) stay, because they are true under either default. `server.ts`'s `locationFor`
+writes null into the exact columns whatever a client sends, so an old client cannot reopen the
+door; migration 8's columns stay, empty. The route tests say so now.
+
 ## The no-comparison refusal, the flavour word, and the French that was not there, 2026-09-14
 
 **State:** `main` merged with Jamin's five pushes of the day (the pushes crossed twice; each time a

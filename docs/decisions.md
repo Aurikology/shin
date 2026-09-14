@@ -1399,3 +1399,39 @@ it.
 **Reverses if:** the beta runs its course in one city and produce items reach two independent
 reports less often than not, in which case the refusal stands with a measured number under it
 instead of an argument, which is what the reversal condition asked for.
+
+## Consent is off until answered, and the cell stays coarse: his ruling over the one-push "everything"
+
+2026-09-14. Two founders said opposite things on the same screen on the same day. Jamin, on his
+Mac session: *"build everything for collecting EVERYTHING"*, and commit `d0a1c2e` shipped both
+toggles on by default for a device that never answered, the exact GPS position beside the coarse
+cell on every scan (migration 8), and consent copy saying so. Aurik, asked the same evening which
+stands for the beta, chose the design he approved on 2026-09-13: **off until answered, the
+kilometre-wide cell only, no exact position stored, the usual-shop memory on the phone.**
+
+What changed back: `app/src/consent.ts` and `store.js` default to `photos: false, location: false`;
+the consent screen's switches start off; `api.js` no longer sends `lat`/`lon`; `server.ts`'s
+`locationFor` writes null into the exact columns whatever a client sends, so an old client cannot
+re-open the door. Migration 8's columns stay in the schema, empty. The 2026-09-13 copy for the
+intro, the photo line and the location line is back in both languages ("never your exact spot",
+"off unless you turn them on"). Kept from Jamin's pass, because they are true under either
+default: the footer that says what is kept is used to answer other shoppers and to train Shin,
+and the camera line that every scan sends a frame to be read.
+
+**Why:** a beta tester's phone is the first place the privacy notice is read, and a notice that
+says "off by default" over a build that keeps everything is the gap Law 25 is written about;
+Jamin's own catch-up says privacy-by-default has to hold before public launch, and this makes it
+hold from the first tester. **Reverses if:** the founders decide together, in writing, that the beta
+is an opt-out collection with a notice that says exactly that; then `consent.ts` is the one file to
+flip and the copy follows it.
+
+## Push green work freely, in Shin only
+
+2026-09-14. Jamin wrote *"pushing needs nobody's approval, either direction"* into `CLAUDE.md`;
+Aurik's standing rule everywhere else is an explicit yes per push. Asked, Aurik adopted Jamin's
+rule for this repo: a session pushes each piece that passes the gate on the COMMITTED tree
+(typecheck and tests in every touched package, a nonzero exit stops the push), GitLab first, GitHub
+only if GitLab accepts, `ls-remote` on both hosts as the proof. Delete still needs his yes. Recorded
+in his global instructions the same evening. **Reverses if:** either founder asks; the global rule
+is the default it falls back to.
+
