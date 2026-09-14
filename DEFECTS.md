@@ -129,8 +129,9 @@ humans, the loop is decoration and every mechanism failed at once. Two columns, 
 | D-102 | 2026-09-14 | **A heading over nothing.** Under a refusal whose swaps lookup answered with zero rows, the box showed *"Similar things that are priced"* and then blank, which reads as a list still loading. `cheaperList` returned the heading alone for an empty list, and `fillCheaper`'s own comment promised "one quiet line" for that case. Seen live through the real server, both locales. | **Agent**, Fable, rendering the identified-but-unpriced path after the cofounder's `9074ab2`. | **Closed 2026-09-14** (0af801f). An empty answer renders one sentence of Shin's own, per path (`cam_cheaper_none` under a verdict, `cam_similar_none` under a refusal, six variants each); the refusal path passes `emptyKey` beside `failKey` and `heading`. Re-rendered: *"Rien de semblable n'a de prix pour l'instant."* Tests: the quiet sentence, no heading over nothing, no empty box, the refusal key in the absence sweep. |
 | D-103 | 2026-09-14 | **The French verdict sheet still mixed in English after D-100.** With all 52 codes rendering, the same `fr-CA` Kraft Dinner sheet read *"4,99 $ at Metro"*, *"YOU"* on the rail, *"promotional"*, *"regular"*, *"4,44 $ less"*, and the disagreement line *"Prices for the same thing run $0.55 to $1.47 right now."* (English money included); the going-rate card read *"at"*, *"in"*, *"no tag typed"*. Hardcoded English in `camera.js` templates, and `v.disagreement.detail` rendered raw while the confidence line beside it went through `renderProse`. Build standard 6 in this file already names the rule. | **Agent**, Fable, reading the French sheet after the prose commit instead of stopping at the green check. | **Closed 2026-09-14** (0af801f). The disagreement renders from its `structuredDetail`; the small words are `ui-strings` keys in both tables (`cam_at_seller`, `cam_rail_you`, `cam_less`, `kind_*`, `cam_in_market`, `cam_no_tag_typed`). Re-rendered: *"4,99 $ chez Metro"*, *"TOI"*, *"en promotion"*, *"4,44 $ de moins"*, *"Les prix pour la même chose vont de 0,55 $ à 1,47 $ en ce moment."* Still English on purpose: *"(limit 8)"*, the retailer's own record text in `PricePoint.limit`. |
 | D-104 | 2026-09-14 | **The French pad asked for a point.** Every French price on screen prints as `4,99 $`, the pad's decimal key printed `.`, the amount above it printed `$4.99` with the mark in front, and the French refusal for an unreadable price said *"Réécris-le avec un point pour la décimale."* Build standard 6 (a language is looked up where the reader is) held for every sentence and not for the one key the reader presses. | **Agent**, the Quebec French review lane, reading `prose.js` against `camera.js`'s pad. | **Closed 2026-09-14.** The buffer keeps `.` and `parsePadPrice` is unchanged (a separator is how a number is written, not what it is); the key's label, the display and the mark's position follow the locale from one `padAmountHtml` both pad hosts paint. Rendered through a fresh server, keys pressed: French camera pad key `,`, amount `4,99 $`; correction pad key `,`, amount `12,50 $`; English unchanged. The sentence now says *virgule*. |
+| D-105 | 2026-09-14 | **The push gate printed the red and pushed anyway, twice in one day.** Afternoon: `app` read 686 tests, 1 fail (a lane's in-flight file) and the push went out. Evening: `app GATE exit 2` (typecheck red after a merge) printed on the line above `GITLAB: accepted`. Both times the gate was a shell chain that echoed a tally and carried on; `set -e` did not fire because the check sat inside an `&&` list. A gate that prints is not a gate. | **Agent**, Fable, reading its own push log. | **Closed 2026-09-14** as a mechanism, not a habit: `~/bin/shin-gate.sh` runs typecheck and tests in every package that differs from `origin/main` (plus what origin changed, since a merge carries red in without touching the local diff), on the committed tree only, and exits nonzero on the first red; the push command runs only after it. Build standard 7 below. |
 
-Counts so far: **104 defects, 56 found by humans, 45 by an agent reading code against a claim or walking
+Counts so far: **105 defects, 56 found by humans, 46 by an agent reading code against a claim or walking
 the screen, 3 by a test, 1 by the eval harness.**
 
 **D-050 to D-081 moved by five on 2026-09-09, for the same reason D-040 to D-044 moved by seven the
@@ -279,6 +280,16 @@ wrote them -- a pairwise comparison of generator to output cannot tell correct a
 consistently wrong, which is exactly how 39 files stayed wrong through a green suite.
 
 ---
+
+
+**7. A gate is an exit code, never a printed tally.** Earned by D-105, the same failure twice in one
+day: a push chain that ran the checks, echoed the numbers and pushed regardless, once past a red
+test and once past a red typecheck. The rule: whatever decides a push (or a deploy, or a merge)
+runs on the COMMITTED tree, includes every package the merge brought in as well as every package
+the local diff touched, and stops on the first nonzero exit before the push command can start;
+the tally is for the human reading the log afterwards, not for the machine deciding. On this
+machine that is `~/bin/shin-gate.sh`; a session that pushes without it is doing the thing this
+standard exists to stop.
 
 ## Not defects, and they are not filed here
 
