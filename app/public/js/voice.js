@@ -788,6 +788,16 @@ const LINES_EN = {
    * `cam_cheaper_failed` above is untouched, byte for byte, because the
    * verdict path is not what changed.
    */
+  cam_cheaper_none: {
+    deadpan: () => 'Nothing cheaper that I can put a price on.',
+    warm: () => 'I looked for something cheaper with a price on it and there is nothing yet.',
+    blunt: () => 'Nothing cheaper with a price.',
+  },
+  cam_similar_none: {
+    deadpan: () => 'Nothing similar has a price on it yet.',
+    warm: () => 'I looked for something similar with a price on it and there is nothing yet.',
+    blunt: () => 'Nothing similar with a price.',
+  },
   cam_similar_failed: {
     deadpan: () => 'I could not check for something similar with a price on it.',
     warm: () => 'I could not check for something similar with a price on it just now. Worth another try.',

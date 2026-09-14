@@ -449,6 +449,16 @@ export const LINES_FR = {
      anglaise: "moins cher" est une soustraction contre un nombre que le
      verdict vient de trancher, et sur un refus ce nombre n'existe pas. Celle-ci
      dit la panne sans rien affirmer sur le prix. */
+  cam_cheaper_none: {
+    deadpan: () => "Rien de moins cher avec un prix dessus.",
+    warm: () => "J'ai cherché quelque chose de moins cher avec un prix dessus et il n'y a rien pour l'instant.",
+    blunt: () => "Rien de moins cher avec un prix.",
+  },
+  cam_similar_none: {
+    deadpan: () => "Rien de semblable n'a de prix pour l'instant.",
+    warm: () => "J'ai cherché quelque chose de semblable avec un prix dessus et il n'y a rien pour l'instant.",
+    blunt: () => "Rien de semblable avec un prix.",
+  },
   cam_similar_failed: {
     deadpan: () => "Je n'ai pas pu vérifier s'il y avait quelque chose de semblable avec un prix.",
     warm: () => "Je n'ai pas pu vérifier s'il y avait quelque chose de semblable avec un prix là. Ça vaut un autre essai.",

@@ -261,6 +261,17 @@ const EN = {
   share_export_failed_text: 'The image would not export, and the text version is above:',
   share_export_failed: 'The image would not export here. The text version is above.',
   share_at_seller: (f) => `at ${f.seller}`,
+  // The verdict sheet's own small words. Seen in English on a French sheet
+  // 2026-09-14: "at Metro", "you" on the rail, "promotional", "$4.44 less".
+  cam_at_seller: (f) => `at ${f.seller}`,
+  cam_rail_you: 'you',
+  cam_in_market: (f) => `${f.market}, ${f.sellers}`,
+  cam_no_tag_typed: 'no tag typed',
+  cam_less: (f) => `${f.amount} less`,
+  kind_regular: 'regular',
+  kind_promotional: 'promotional',
+  kind_asking: 'asking',
+  kind_sold: 'sold',
   share_range: (f) => `${f.low} to ${f.high}`,
   share_card_alt: (f) => `Shin card. ${f.word}. ${f.label}. On the tag ${f.asking}. Elsewhere ${f.elsewhere}.`,
 
@@ -548,6 +559,15 @@ const FR = {
   share_export_failed_text: 'L’image n’a pas pu être exportée, et la version texte est au-dessus :',
   share_export_failed: 'L’image n’a pas pu être exportée ici. La version texte est au-dessus.',
   share_at_seller: (f) => `chez ${f.seller}`,
+  cam_at_seller: (f) => `chez ${f.seller}`,
+  cam_rail_you: 'toi',
+  cam_in_market: (f) => `${f.market}, ${f.sellers}`,
+  cam_no_tag_typed: 'aucune étiquette écrite',
+  cam_less: (f) => `${f.amount} de moins`,
+  kind_regular: 'régulier',
+  kind_promotional: 'en promotion',
+  kind_asking: 'demandé',
+  kind_sold: 'vendu',
   share_range: (f) => `${f.low} à ${f.high}`,
   share_card_alt: (f) => `Carte Shin. ${f.word}. ${f.label}. Sur l’étiquette ${f.asking}. Ailleurs ${f.elsewhere}.`,
 

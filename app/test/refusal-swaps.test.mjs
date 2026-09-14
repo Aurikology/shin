@@ -199,7 +199,7 @@ test('the absence rule can actually see a grading word', () => {
  * was pricing this against something. What the sentence is about matters less
  * than the sheet it is read on.
  */
-const NO_COMPARISON_KEYS = ['refuse_thin_swaps', 'cam_similar_failed'];
+const NO_COMPARISON_KEYS = ['refuse_thin_swaps', 'cam_similar_failed', 'cam_similar_none'];
 
 test('every no-comparison line grades nothing, in all three personalities and both locales', () => {
   const bad = [];
@@ -364,6 +364,11 @@ test('the refusal path asks for them with its own heading, not the server\'s', (
     call.slice(0, 300),
     /heading: t\('cam_similar_priced'\)/,
     'the server heading is "Cheaper <leaf>", which is a claim about a number this sheet never judged',
+  );
+  assert.match(
+    call.slice(0, 300),
+    /emptyKey: 'cam_similar_none'/,
+    'an empty answer would fall back to the verdict wording, which says "cheaper"',
   );
   assert.match(
     call.slice(0, 300),

@@ -282,7 +282,7 @@ function spreadRail(v) {
       <i class="rail-you${outside ? ' out' : ''}" style="left:${at(v.askingCents)}"></i>
       <span class="rail-lo" style="left:${at(lowCents)}">${cad(lowCents)}</span>
       <span class="rail-hi" style="left:${at(highCents)}">${cad(highCents)}</span>
-      <span class="rail-me" style="left:${at(v.askingCents)}">you</span>
+      <span class="rail-me" style="left:${at(v.askingCents)}">${escapeHtml(t('cam_rail_you'))}</span>
     </div>`;
 }
 
@@ -372,8 +372,8 @@ function provenance(points, askingCents) {
       const delta = isCheapest ? askingCents - p.amountCents : null;
       return `<div${isCheapest ? ' class="prov-best"' : ''}>
         <b>${escapeHtml(p.seller)}</b>
-        <span>${cad(p.amountCents)} &middot; ${p.observedAt.slice(5)} &middot; ${p.kind}${p.limit ? ` (${p.limit})` : ''}${
-          delta !== null && delta > 0 ? ` &middot; ${cad(delta)} less` : ''
+        <span>${cad(p.amountCents)} &middot; ${p.observedAt.slice(5)} &middot; ${escapeHtml(t('kind_' + p.kind))}${p.limit ? ` (${escapeHtml(p.limit)})` : ''}${
+          delta !== null && delta > 0 ? ` &middot; ${escapeHtml(t('cam_less', { amount: cad(delta) }))}` : ''
         }</span>
       </div>`;
     })
@@ -545,7 +545,11 @@ function swapRow(a) {
 function cheaperList(heading, alternatives, opts = {}) {
   const rows = swapsByRing(alternatives);
   const head = `<p class="detail">${escapeHtml(heading)}</p>`;
-  if (rows.length === 0) return head;
+  // A heading over nothing reads as a list still loading. Seen live 2026-09-14
+  // under a refusal: "Similar things that are priced" and then blank. The
+  // sentence is Shin's and it is per path, because the verdict's version may
+  // say "cheaper" and the refusal's never can.
+  if (rows.length === 0) return `<p class="detail">${escapeHtml(say(opts.emptyKey ?? 'cam_cheaper_none'))}</p>`;
   const allLooser = rows.every((a) => ringOf(a) === 'parent');
   return `
       ${head}
@@ -675,7 +679,9 @@ function verdictSheet(v, scenario, thumb, acked = false) {
   // technique as the produce refusal's "Why". The remainder, plus the
   // confidence line, fold behind that same disclosure rather than being
   // dropped outright: real evidence, just not owed to every reader.
-  const disagreeFull = v.disagreement ? v.disagreement.detail : '';
+  // Rendered in the reader's language from the code and facts beside it; the
+  // English is the fallback, exactly as the confidence line does.
+  const disagreeFull = v.disagreement ? renderProse(v.disagreement.structuredDetail, v.disagreement.detail) : '';
   const disagreeCut = disagreeFull.indexOf('. ');
   const disagreeShort = disagreeCut === -1 ? disagreeFull : disagreeFull.slice(0, disagreeCut + 1);
   const disagreeRest = disagreeCut === -1 ? '' : disagreeFull.slice(disagreeCut + 2);
@@ -703,7 +709,7 @@ function verdictSheet(v, scenario, thumb, acked = false) {
 
         <div class="priceline">
           <span class="price">${cad(v.askingCents)}</span>
-          <span class="sub">${source ? `at ${source}<br>` : ''}${goingRateRange(v)}</span>
+          <span class="sub">${source ? `${escapeHtml(t('cam_at_seller', { seller: source }))}<br>` : ''}${goingRateRange(v)}</span>
         </div>
 
         <div class="confrow">
@@ -1532,9 +1538,9 @@ function goingRateCard(refusal, item) {
         <h2 class="vword" style="font-size:20px">${escapeHtml(t('cam_going_rate'))}</h2>
         <div class="priceline">
           <span class="price sm">${range}</span>
-          <span class="sub">${cheapest ? `at ${escapeHtml(cheapest.seller)}<br>` : ''}in ${mkt}, ${sellerWord}</span>
+          <span class="sub">${cheapest ? `${escapeHtml(t('cam_at_seller', { seller: cheapest.seller }))}<br>` : ''}${escapeHtml(t('cam_in_market', { market: mkt, sellers: sellerWord }))}</span>
         </div>
-        <p class="itemname">${escapeHtml(label)} &middot; no tag typed</p>
+        <p class="itemname">${escapeHtml(label)} &middot; ${escapeHtml(t('cam_no_tag_typed'))}</p>
         <div class="actions actions-primary">
           <button type="button" class="pill solid wide" data-act="pad-reopen">${escapeHtml(t('cam_tell_me_the_price'))}</button>
         </div>
@@ -3035,6 +3041,7 @@ export default {
             heading: t('cam_similar_priced'),
             allLooserKey: 'cam_swap_all_looser_ref',
             failKey: 'cam_similar_failed',
+            emptyKey: 'cam_similar_none',
           });
         }
         setState('result');

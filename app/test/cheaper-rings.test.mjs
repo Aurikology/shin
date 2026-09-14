@@ -39,6 +39,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { cheaperList, ringOf, humaniseTag } from '../public/js/screens/camera.js';
+import { say } from '../public/js/voice.js';
 import { t, TABLES } from '../public/js/ui-strings.js';
 
 /* ------------------------------------------------------------------ *
@@ -319,9 +320,21 @@ test('one leaf row is enough to stop the whole-list qualifier', () => {
 });
 
 test('an empty list is still one quiet sentence and no empty box', () => {
-  const html = inLocale('en', () => cheaperList('No cheaper option we can price', []));
-  assert.ok(html.includes('No cheaper option we can price'));
-  assert.ok(!html.includes('class="prov"'), `an empty box was drawn:\n${html}`);
+  /* 2026-09-14: the sentence is Shin's own now, not the heading. A heading
+     over nothing was seen live under a refusal and read as a list still
+     loading; the heading names what WOULD be listed, and with nothing to
+     list the honest line is that there is nothing. Per path, because the
+     verdict may say "cheaper" and the refusal never can. */
+  const html = inLocale('en', () => cheaperList('Cheaper apples', []));
+  assert.ok(html.includes(say('cam_cheaper_none')), `the quiet sentence is missing:
+${html}`);
+  assert.ok(!html.includes('Cheaper apples'), `a heading was drawn over nothing:
+${html}`);
+  assert.ok(!html.includes('class="prov"'), `an empty box was drawn:
+${html}`);
+  const ref = inLocale('en', () => cheaperList('Similar things that are priced', [], { emptyKey: 'cam_similar_none' }));
+  assert.ok(ref.includes(say('cam_similar_none')), `the refusal path fell back to the verdict wording:
+${ref}`);
 });
 
 /* ------------------------------------------------------------------ *
