@@ -9,6 +9,64 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-14, later (Aurik's PC, Fable session)
+
+### The revert, which Jamin should hear from Aurik and not from a commit log
+
+`ccbd0cc`, the unfinished Gemini provider, was **reverted on main** (`b19ad75`). It was red on
+typecheck in `identify` and `app` and six tests were failing, by its own commit message, and the Mac
+deployer blocks on those, so every commit after it would have been undeployable. Nothing is lost:
+the code is one `git show` away, and the clean half of it is back in `main` today.
+
+Aurik ruled the revert. The reasoning and Jamin's own position, quoted from the file headers, are in
+`docs/decisions.md` under "The unfinished grounded-price provider comes off main until it is green
+and the two questions are settled".
+
+### Gemini is adopted. What changed today
+
+Aurik: *"we will be swithcing to gemini... it has so many legal rules we need to build around. Shin
+will adopt this."* The three Gemini documents were read end to end and are now built against. Six
+rulings, all his, in `docs/decisions.md` under "Gemini for identification, and grounded prices
+display-only":
+
+1. A **free** Gemini key on his PC for the eval only (public Open Food Facts photographs, no user
+   data, no grounding); Jamin's **paid** key still goes in `mac/config.env` for live traffic.
+2. Everything, built in the legal order: identification, then the guard, then grounded prices.
+3. **Gemini reviews ship, and beta plan item 30 is amended** (work-list item 4, his call). Recorded
+   in the decision log rather than by editing `docs/the-beta-build-plan.md`, which is Jamin's file.
+4. Of the twelve awkward item kinds, the four that reach beta testers.
+5. **The price line's words name the range the shopper set, never Shin's opinion of the price.**
+   `good / reasonable / bad` do not ship: they are tier words, hard rule 2 forbids an unmeasured
+   performance claim, and four test files enforce it. The function returns neutral zone codes.
+6. Models: `gemini-3.5-flash-lite` by default, `gemini-3.8-flash` only on low confidence.
+
+### What is built and pushed
+
+- The live photo route **now uses the provider the setting names**. It never did: `modelOnce` built
+  an Anthropic client by hand, so `SHIN_MODEL_PROVIDER` reached every caller except the one route
+  that answers a shopper. That is work-list item 14 and it is why the switch had to start there.
+- `identify/src/providers/gemini.ts` on the **Interactions API**, key in the `x-goog-api-key`
+  header, no tools, cheap-first with escalation.
+- `identify/src/grounded.ts`: the guard. A Grounded Result is an opaque box whose payload lives off
+  the object, so it cannot reach a database write, cannot be JSON-stringified into a response body,
+  cannot be spliced into a Shin sentence, and cannot be re-sorted. Eleven tests, four shown red by
+  breaking the code.
+- `identify/src/gauge.ts`: the fixed Python Gemini runs, its TypeScript twin, and the code-match
+  check. Python and the twin agree over 20 cases with zero mismatches.
+- `app/src/grounded-record.ts`: the per-user row, the two-year sweep, and an interim reaper that is
+  time-driven so nobody has to remember to delete anything.
+- `app/server.ts` **refuses to start** if it sees `SHIN_GEMINI_TIER=free`.
+
+### For Jamin
+
+- **The paid key** in `mac/config.env` as `GEMINI_API_KEY` is still the gate on everything live
+  (work-list item 1). Nothing calls Gemini until it exists.
+- **The Notion page is still not shared with Aurik's account** (it 404s for him), so his sessions
+  cannot read it and say so rather than assuming nobody else is working.
+- Aurik still needs **his invite link and the data token**, privately.
+- Two questions are yours: whether the item-30 amendment is acceptable, and whether a legal review
+  happens before build, before launch, or not at all (work-list item 7).
+
 ## 2026-09-14, later: test Notion from Aurik's side (Jamin's worker Mac session)
 
 ### To do: Aurik (and his Claude), about 10 minutes
