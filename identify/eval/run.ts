@@ -36,6 +36,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 
+import { loadDotEnv } from '../src/env.ts';
 import {
   IdentifyStage,
   union,
@@ -100,7 +101,13 @@ export interface Args {
    * the cells, price each half at the right model's rate, and divide. Never
    * quote a top-1 from a run carrying this flag.
    */
-  fakeCatalogue: boolean;
+  fakeCatalogue: boolean;  /**
+   * Milliseconds to wait between rows. Zero for a paid key; a free one is
+   * rate limited to a handful of requests a minute and needs a few thousand.
+   * A flag and not a constant because the right number is a property of the
+   * key, not of this file.
+   */
+  readonly delayMs: number;
 }
 
 export function parseArgs(argv: readonly string[]): Args {
@@ -112,6 +119,7 @@ export function parseArgs(argv: readonly string[]): Args {
   let providers = ['anthropic'];
   let tiers: Tier[] = ['basic', 'pro'];
   let fakeCatalogue = false;
+  let delayMs = 0;
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--tier') {
@@ -128,6 +136,10 @@ export function parseArgs(argv: readonly string[]): Args {
       dryRun = true;
     } else if (a === '--matrix') {
       matrix = true;
+    } else if (a === '--delay-ms') {
+      const v = Number(argv[(i += 1)]);
+      if (!Number.isFinite(v) || v < 0) throw new Error('--delay-ms must be zero or more');
+      delayMs = v;
     } else if (a === '--fake-catalogue') {
       fakeCatalogue = true;
     } else if (a === '--providers') {
@@ -142,7 +154,7 @@ export function parseArgs(argv: readonly string[]): Args {
       throw new Error(`unrecognised argument: ${a}`);
     }
   }
-  return { tier, limit, only, dryRun, matrix, providers, tiers, fakeCatalogue };
+  return { tier, limit, only, dryRun, matrix, providers, tiers, fakeCatalogue , delayMs };
 }
 
 // ---------------------------------------------------------------- manifest
@@ -735,6 +747,17 @@ function freeTierAcknowledged(): boolean {
 
 async function hasCredentials(): Promise<boolean> {
   /*
+   * Read the repo-root .env FIRST. The Identifier constructor does this for
+   * itself, but it runs after this check, and on the Anthropic path the gap
+   * was invisible because the SDK resolves credentials from disk on its own.
+   * Gemini has no SDK doing that: the adapter reads one environment variable.
+   * So without this line the preflight asks about a variable nothing has
+   * populated and refuses a run it could have made, which is what happened on
+   * the first real attempt, 2026-09-14.
+   */
+  loadDotEnv();
+
+  /*
    * Gemini resolves nothing lazily and has no SDK here to ask: the adapter
    * reads GEMINI_API_KEY and sends it in a header. So the check is the
    * presence of the key, and it is deliberately not a call, because a
@@ -1006,6 +1029,13 @@ async function pass(
     if (row.name === null && row.brand === null && row.code === null) {
       console.log(`SKIP     ${row.file}  has a photo but no recorded answer (name/brand/code all null)`);
       continue;
+    }
+
+    // Pace, before the work rather than after it, so the gap is between the
+    // END of one call and the START of the next rather than between two
+    // starts: what a rate limit counts is arrivals.
+    if (!args.dryRun && args.delayMs > 0 && results.length > 0) {
+      await new Promise((resolve) => setTimeout(resolve, args.delayMs));
     }
 
     const bytes = readFileSync(evalPath(row.file));

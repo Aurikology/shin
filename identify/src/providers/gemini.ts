@@ -186,15 +186,33 @@ export function geminiModelFor(model: string): string {
 
 /** Assumption 7. Anything the environment says is passed through untouched: this file does not police Google's enum. */
 /**
- * How many tokens one image may cost. Gemini 3's levels are roughly 280, 560
- * and 1120 tokens per image, a fourfold spread for the same photograph, so
- * this is the cheapest cost lever in the adapter. `medium` because the crop
- * arriving here is already tight: the eye cropped to the product before this
- * was called, so the extra detail `high` buys is mostly the shelf behind it.
+ * A FLOOR ON THE TIME BETWEEN REQUESTS, for a rate-limited key.
+ *
+ * Measured 2026-09-14 on a free key: pacing the EVAL between rows was not
+ * enough, because a row makes two calls (extract, then pick) back to back and
+ * the free tier counts arrivals, not rows. Every pick came back 429 while
+ * every extract succeeded, which reads in a log like a broken second pass and
+ * is really a throughput limit.
+ *
+ * So the gate lives here, at the one place that sees every request whoever
+ * made it, rather than in a caller that only knows about its own loop. It is
+ * module scope on purpose: two `GeminiProvider` instances in one process share
+ * one key and therefore share one quota.
+ *
+ * Off unless `SHIN_GEMINI_MIN_INTERVAL_MS` is set, so a paid key pays nothing
+ * for a free key's problem.
  */
-function mediaResolution(): string {
-  const named = process.env.SHIN_GEMINI_MEDIA_RESOLUTION?.trim().toLowerCase();
-  return named || 'media_resolution_medium';
+let nextAllowedAt = 0;
+
+async function waitForSlot(): Promise<void> {
+  const gap = Number(process.env.SHIN_GEMINI_MIN_INTERVAL_MS ?? 0);
+  if (!Number.isFinite(gap) || gap <= 0) return;
+  const now = Date.now();
+  const waitMs = Math.max(0, nextAllowedAt - now);
+  // Reserve the slot BEFORE awaiting, so two concurrent callers queue behind
+  // each other instead of both reading the same `now` and both going at once.
+  nextAllowedAt = Math.max(now, nextAllowedAt) + gap;
+  if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
 }
 
 function thinkingLevel(): string {
@@ -251,6 +269,7 @@ export class GeminiProvider implements Provider {
   }
 
   async send<T>(request: ProviderRequest): Promise<ProviderResponse<T>> {
+    await waitForSlot();
     // Classed as a client error and not an outage, for the same reason
     // `classifyProviderError` already has that branch for the other two
     // vendors: our empty environment is our misconfiguration, and calling it
@@ -375,7 +394,7 @@ interface GeminiBody {
   system_instruction: string;
   input: unknown[];
   response_format: unknown;
-  generation_config: { thinking_level: string; media_resolution: string };
+  generation_config: { thinking_level: string };
 }
 
 function bodyFor(request: ProviderRequest, model: string): GeminiBody {
@@ -415,14 +434,18 @@ function bodyFor(request: ProviderRequest, model: string): GeminiBody {
       schema: forGeminiSchema(request.schema.schema),
     },
     // Both of these live INSIDE `generation_config`, and the resolution hint is
-    // `media_resolution` on the request rather than `resolution` on the image
-    // part. Same reference, same date. `media_resolution` is what decides the
-    // per-image token cost, so getting it wrong is a silent bill rather than a
-    // loud failure, which is the worse of the two.
-    generation_config: {
-      thinking_level: thinkingLevel(),
-      media_resolution: mediaResolution(),
-    },
+    // The reference names a `media_resolution` setting; a real call refuses it
+    // everywhere it could go. The documentation and the running service do not
+    // agree, and the running service is the one that answers.
+    // `thinking_level` only. `media_resolution` was here until a real call
+    // answered `400 Unknown parameter 'media_resolution' at 'generation_config'`
+    // on 2026-09-14; it was also refused on the image part and at the top
+    // level, so it is not a parameter this surface takes at all, whatever the
+    // image-understanding page says about Gemini 3 resolution levels. Removed
+    // rather than moved. The crop this app sends is already tight, so the
+    // default is the right size anyway, and a measured 1,110 input tokens for
+    // an 18 KB photograph says the default is doing the economical thing.
+    generation_config: { thinking_level: thinkingLevel() },
   };
 }
 

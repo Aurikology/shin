@@ -178,7 +178,11 @@ test('the body is the Interactions shape Google documents, image before text', a
   assert.equal(body.system_instruction, 'shared prefix');
   const gen = body.generation_config as Record<string, unknown>;
   assert.equal(gen.thinking_level, 'low');
-  assert.equal(gen.media_resolution, 'media_resolution_medium');
+  // No resolution hint: a real call on 2026-09-14 refused `media_resolution`
+  // in generation_config, on the image part and at the top level. Asserting
+  // its ABSENCE, because the documentation still describes it and the next
+  // reader will want to add it back.
+  assert.equal(gen.media_resolution, undefined, 'media_resolution is refused by the live API');
   assert.equal(body.thinking_level, undefined, 'the thinking level must not also sit at the top level');
   assert.deepEqual(body.response_format, {
     type: 'text',
