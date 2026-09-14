@@ -253,7 +253,17 @@ export async function attachEye(video, surfaces, handlers = {}) {
      * (an old offline cache or the browser's own module map). A query string is
      * a different URL to both.
      */
-    report('import', err);
+    // What a plain fetch of the same file gets, so the report says whether the
+    // file is unreachable from this phone or arrives and will not run.
+    let probe = null;
+    try {
+      const res = await fetch('/js/eye.js', { cache: 'no-store' });
+      const text = await res.text();
+      probe = `status ${res.status} type ${res.headers.get('content-type')} bytes ${text.length} sw ${Boolean(navigator.serviceWorker?.controller)}`;
+    } catch (fetchErr) {
+      probe = `fetch failed: ${fetchErr}`;
+    }
+    report('import', `${err} | probe: ${probe}`);
     try {
       mod = await import(`/js/eye.js?fresh=${Date.now()}`);
       report('import-retry-worked', null);
