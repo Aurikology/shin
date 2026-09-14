@@ -1228,6 +1228,61 @@
 .cheaper { margin-top: 14px; }
 .cheaper .detail { margin: 0 0 6px; }
 
+/* The swap rows, and the one thing this block has to make visible: a swap
+   drawn from the leaf category is a substitute, and one drawn from the parent
+   is a wider claim. The badge sits ABOVE the name so it is read on the way in
+   rather than after the price has already been believed, and a looser row
+   carries a rule down its left edge so the distinction survives being seen
+   rather than read.
+
+   ONE COLUMN, NOT A SPAN ACROSS .prov's TWO, and the first version of this got
+   it wrong. `.prov div` is a two-column grid (the seller, then its data
+   right-aligned opposite) and this block asked for `grid-column: 1 / -1` on
+   the badge alone to break out of it. Rendered at 390 it did not: the badge
+   sat in column 1 with the product name beside it and the price line orphaned
+   below, and a name that wrapped to two lines pushed the price around.
+
+   A swap row is not a two-column row that happens to have a header. It is a
+   stack -- what kind of swap this is, what the thing is, what it costs -- and
+   the honest way to say that is to give the row its own single-column
+   template rather than to keep .prov's and fight it one child at a time. Every
+   child then gets a full-width row of its own, left edges aligned, whatever
+   any of them wraps to. */
+.cheaper .prov div.swap {
+  grid-template-columns: 1fr;
+  gap: 3px;
+}
+/* .prov span right-aligns its data against the seller opposite. There is
+   nothing opposite in a stack, so every child aligns left with the rest. */
+.cheaper .prov div.swap > * {
+  text-align: left;
+  min-width: 0;
+}
+/* THE UI FACE, SENTENCE CASE, and it is a rule rather than a preference:
+   NOW.md 2026-09-10, "Section headings are sentence case in the UI face; mono
+   uppercase stays reserved for a measurement (FLAWS item 6 wins)." The badge
+   was inheriting .prov's mono and adding uppercase, which put a LABEL in the
+   typeface this app reserves for measurements -- so "same kind of thing" and
+   "$0.44 per 100 g" read as the same kind of claim. The product name and the
+   price line stay mono; they are the measurement. The weight here is the
+   attitude picker's hint text (setup.css `.att-t span`), which is what a
+   subordinate line looks like everywhere else in this app. */
+.cheaper .prov div.swap .swap-ring {
+  font-family: var(--f-ui);
+  font-size: 12.5px;
+  line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-muted);
+  opacity: 1;
+}
+.cheaper .prov div.swap-parent {
+  border-left: 2px solid color-mix(in srgb, currentColor 45%, transparent);
+  padding-left: 8px;
+}
+.cheaper .swap-all-looser { opacity: .88; }
+
 /* --------------------------------------------------------------- controls */
 
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }

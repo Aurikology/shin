@@ -111,6 +111,31 @@ const EN = {
   cam_refused_word: 'Refused',
   cam_refused_sentence: 'Refused.',
   cam_standin_note: 'This asking price is a stated stand-in, not a tag anyone read.',
+
+  /* ------------------------------------------------- the cheaper-swap rings
+   *
+   * D-036, in its own words: "it is the word 'cheaper' doing the lying, since
+   * it implies 'instead of this'." These five keys are what makes it stop
+   * lying. The catalogue looks on the leaf category first and steps ONE level
+   * up to the parent when the leaf is empty; a leaf swap really is "instead of
+   * this", and a parent swap is a wider shelf and has to say so on the row.
+   *
+   * CHROME AND NOT VOICE, deliberately, and it is a close call. These read as
+   * Shin qualifying his own answer, which is the voice.js side of the line.
+   * But the qualifier is the row's label -- the thing that decides whether a
+   * price means "instead of this" -- and a label that got shorter when you
+   * picked Blunt would be the personality picker editing how honest the app
+   * is. The bubble above the sheet has an attitude; the badge on the row that
+   * says how wide the claim is does not get one. */
+  cam_swap_same: 'Same kind of thing',
+  cam_swap_same_in: (f) => `Same kind of thing: ${f.tag}`,
+  /* "Looser" first and the reason second, because a row is skimmed left to
+     right and the qualifier has to survive being read alone. */
+  cam_swap_looser: 'Looser swap: one category up',
+  cam_swap_looser_in: (f) => `Looser swap: one category up, in ${f.tag}`,
+  /* Printed above the rows when every row is a parent swap, because the
+     server's heading still names the original's own shelf. */
+  cam_swap_all_looser: 'Nothing cheaper on this exact shelf. These are one category up, so they are not quite the same kind of thing.',
   cam_standins_caption: 'Stand-ins until the camera can read the item',
   cam_list_failed: 'Could not load the list just now.',
   cam_verdict_right_q: 'Was this verdict right?',
@@ -380,6 +405,17 @@ const FR = {
   cam_refused_word: 'Refusé',
   cam_refused_sentence: 'Refusé.',
   cam_standin_note: 'Ce prix demandé est un substitut déclaré, pas une étiquette que quelqu’un a lue.',
+
+  /* --------------------------------------------- les anneaux de substitution
+   *
+   * Meme partage qu'en anglais: une substitution de la meme sorte, et une
+   * substitution d'une categorie au-dessus, qui doit se declarer comme plus
+   * large. L'espace insecable avant le deux-points suit face_label. */
+  cam_swap_same: 'Même sorte de chose',
+  cam_swap_same_in: (f) => `Même sorte de chose : ${f.tag}`,
+  cam_swap_looser: 'Substitution plus large : une catégorie au-dessus',
+  cam_swap_looser_in: (f) => `Substitution plus large : une catégorie au-dessus, dans ${f.tag}`,
+  cam_swap_all_looser: 'Rien de moins cher sur cette tablette-là. Ceux-ci viennent d’une catégorie au-dessus, donc ce n’est pas tout à fait la même sorte de chose.',
   cam_standins_caption: 'Des substituts, le temps que la caméra puisse lire l’article',
   cam_list_failed: 'La liste n’a pas pu être chargée pour l’instant.',
   cam_verdict_right_q: 'Ce verdict était-il juste?',

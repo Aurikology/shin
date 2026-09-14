@@ -398,11 +398,153 @@ function cheaperSlot(code) {
 }
 
 /**
+ * WHICH RING A SWAP CAME FROM, and the one rule that matters here.
+ *
+ * The catalogue looks for a cheaper thing on the leaf category first, and
+ * steps ONE level up to the parent when the leaf has nothing. Those two are
+ * not the same claim. A leaf swap is a substitute: Gala for Honeycrisp, and
+ * "cheaper" means "instead of this". A parent swap is one category wider, and
+ * the shopper has to be told, because D-036 is exactly this -- "it is the word
+ * `cheaper` doing the lying, since it implies `instead of this`".
+ *
+ * MISSING IS LEAF, NEVER PARENT. An older catalogue build answers with no
+ * `ring` at all, and the two ways to read that absence are not symmetric.
+ * Reading it as parent would print "looser" over rows that are not, which
+ * makes the qualifier meaningless on the rows that need it. Reading it as leaf
+ * leaves those rows saying exactly what they said before this change, which is
+ * the state D-036 already describes and does not make worse. Looser is the
+ * claim that needs an explicit signal, so only an explicit 'parent' earns it.
+ */
+function ringOf(a) {
+  return a && a.ring === 'parent' ? 'parent' : 'leaf';
+}
+
+/**
+ * A category tag as a shopper would read it. "en:apples" is "Apples".
+ *
+ * D-011's shape is a raw internal code reaching the glass, and `ringTag` is a
+ * raw Open Food Facts taxonomy id: "en:apples", "en:dried-fruits",
+ * "en:cereals-and-their-products". Nobody standing in an aisle reads those,
+ * and a badge whose whole job is to say how wide a claim is cannot spend its
+ * credibility on looking like a database dump.
+ *
+ * THIS IS `labelForTag` FROM `catalogue/src/alternatives.ts`, ON PURPOSE, and
+ * that file's own comment says why it has to be: "Must match search.ts's
+ * labelForTag exactly, or the same tag renders two different ways on one
+ * screen." The same is true one layer out. The heading above these rows is
+ * the server's `alternativesHeading`, which runs a tag through that function
+ * to produce "Cheaper apples"; a badge under it rendering the SAME tag as
+ * "Apples" in one case and "Dried Fruits" in another would be two spellings of
+ * one category on one sheet. So: lower-cased FIRST (the prefix regex only
+ * recognises a lower-case prefix), any two-letter language prefix stripped,
+ * hyphens to spaces, and only the first letter capitalised, never every word.
+ *
+ * NO FRENCH, AND IT IS A KNOWN LIMIT RATHER THAN AN OVERSIGHT. The catalogue
+ * stores one taxonomy id per category and it is the English one; there is no
+ * French label in the row to reach for. Rendering the humanised English id in
+ * both locales is the honest version of that -- it is what we actually have --
+ * and inventing a French category name on the client would be the app making
+ * up a fact about the catalogue. When the catalogue carries a translated
+ * label, this function grows a locale argument and nothing else moves.
+ *
+ * Returns '' for anything that humanises to nothing ("en:", "-", whitespace),
+ * which is what makes the caller fall back to the untagged label instead of
+ * printing a dangling colon.
+ */
+function humaniseTag(tag) {
+  if (typeof tag !== 'string') return '';
+  const label = tag.trim().toLowerCase().replace(/^[a-z]{2}:/, '').replace(/-/g, ' ').trim();
+  return label ? label.charAt(0).toUpperCase() + label.slice(1) : '';
+}
+
+/**
+ * Leaf swaps first, parent swaps after, and within a ring the server's order
+ * is kept exactly.
+ *
+ * Two partitions rather than a comparator: `Array.prototype.sort` is required
+ * to be stable now, but a comparator that returns 0 for same-ring pairs states
+ * the within-ring order as an incidental property of the sort rather than as
+ * the rule. Filtering twice says it outright and cannot be wrong.
+ */
+function swapsByRing(alternatives) {
+  const rows = Array.isArray(alternatives) ? alternatives : [];
+  return [
+    ...rows.filter((a) => ringOf(a) === 'leaf'),
+    ...rows.filter((a) => ringOf(a) === 'parent'),
+  ];
+}
+
+/**
+ * One swap row: the ring it came from, the product, and the server's sentence.
+ *
+ * The ring label goes FIRST and spans the row, above the name, because its job
+ * is to be read before the price is. A qualifier under a number has already
+ * lost: the number was believed on the way past it.
+ *
+ * The tag is printed when the catalogue named one, because "one category up"
+ * is a shape and "one category up, in Biscuits" is something a shopper can
+ * check, and it goes through `humaniseTag` on the way: what arrives is
+ * "en:biscuits". When the field is absent, or humanises to nothing, the
+ * untagged label still lands -- the looser claim cannot depend on an optional
+ * string, and an empty tag must not leave a dangling colon on the row.
+ */
+function swapRow(a) {
+  const ring = ringOf(a);
+  const tag = humaniseTag(a.ringTag);
+  const label = ring === 'parent'
+    ? (tag ? t('cam_swap_looser_in', { tag }) : t('cam_swap_looser'))
+    : (tag ? t('cam_swap_same_in', { tag }) : t('cam_swap_same'));
+  // Name and the server's sentence, and nothing else. The sentence
+  // already carries the seller, the price, the date it was seen and
+  // the allergen caveat; an earlier version of this row appended the
+  // allergen note a second time, which read as two different warnings
+  // about one fact.
+  return `<div class="swap swap-${ring}" data-ring="${ring}">
+              <span class="swap-ring">${escapeHtml(label)}</span>
+              <b>${escapeHtml(displayName(a.product))}</b>
+              <span>${escapeHtml(a.line)}</span>
+            </div>`;
+}
+
+/**
+ * The whole cheaper block as a string, heading included.
+ *
+ * Pure and exported so `app/test/cheaper-rings.test.mjs` can render it for
+ * real, the same trade `price-only.test.mjs` and `shops.test.mjs` already
+ * make: the ordering rule and the two labels are the feature, and the only
+ * way to hold them is to render and look.
+ *
+ * The heading is the server's and is escaped here. It was interpolated raw
+ * until this change; it is server-written text either way, and a heading that
+ * names a category is not a place to keep an exception.
+ *
+ * WHEN EVERY ROW IS A PARENT SWAP the block says so above the rows as well.
+ * The server's heading names the ORIGINAL's own leaf category ("Cheaper
+ * tortilla chips"), which is true of the shelf it looked at and false of every
+ * row under it once the leaf came back empty. The row badges alone would leave
+ * that heading standing unqualified over a list that contradicts it.
+ */
+function cheaperList(heading, alternatives) {
+  const rows = swapsByRing(alternatives);
+  const head = `<p class="detail">${escapeHtml(heading)}</p>`;
+  if (rows.length === 0) return head;
+  const allLooser = rows.every((a) => ringOf(a) === 'parent');
+  return `
+      ${head}
+      ${allLooser ? `<p class="detail swap-all-looser">${escapeHtml(t('cam_swap_all_looser'))}</p>` : ''}
+      <div class="prov">
+        ${rows.map(swapRow).join('')}
+      </div>`;
+}
+
+/**
  * Paints the swaps into the slot the sheet left for them.
  *
  * The row sentence is the server's, printed as written. The rule about what
  * counts as cheaper lives in the catalogue package, and a screen that
  * paraphrases it is a second place that can be wrong about the same thing.
+ * What this screen DOES decide is how wide a claim each row is making, which
+ * is a presentation question about `ring` and belongs nowhere else.
  *
  * An empty result still says something, in one quiet line, because "there is
  * nothing cheaper we can price" and "we did not look" are different facts and
@@ -414,27 +556,7 @@ async function fillCheaper(root, code, askingCents) {
   try {
     const r = await ctxApi.alternatives({ code, askingCents });
     if (!box.isConnected) return;
-    if (!r.alternatives.length) {
-      box.innerHTML = `<p class="detail">${r.heading}</p>`;
-      return;
-    }
-    box.innerHTML = `
-      <p class="detail">${r.heading}</p>
-      <div class="prov">
-        ${r.alternatives
-          .map(
-            // Name and the server's sentence, and nothing else. The sentence
-            // already carries the seller, the price, the date it was seen and
-            // the allergen caveat; an earlier version of this row appended the
-            // allergen note a second time, which read as two different warnings
-            // about one fact.
-            (a) => `<div>
-              <b>${escapeHtml(displayName(a.product))}</b>
-              <span>${escapeHtml(a.line)}</span>
-            </div>`,
-          )
-          .join('')}
-      </div>`;
+    box.innerHTML = cheaperList(r.heading, r.alternatives);
   } catch {
     // A lookup that threw is not "there is nothing cheaper". Saying so, rather
     // than leaving the placeholder sentence up forever, which would read as a
@@ -1569,6 +1691,17 @@ export { isThinReason };
  * duplication one layer down.
  */
 export { keypadHtml, pricePadDisplay, parsePadPrice };
+
+/*
+ * Exported 2026-09-13 with the leaf/parent swap rule. `cheaperList` is a pure
+ * string builder over the alternatives the server returned, and the two things
+ * it must never get wrong -- a parent swap labelled as a plain substitute, and
+ * a swap with NO ring labelled as looser -- are only holdable by rendering
+ * them. `ringOf` travels with it because "missing is leaf" is the rule, not an
+ * implementation detail of the renderer, and `humaniseTag` because a raw
+ * "en:apples" on the glass is D-011's shape. See app/test/cheaper-rings.test.mjs.
+ */
+export { cheaperList, ringOf, humaniseTag };
 
 /* ------------------------------------------------------------------ screen */
 

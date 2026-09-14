@@ -122,6 +122,31 @@ let catalogueWhyNot = 'not attempted yet';
  * The routing, the category verdict, the scan write, the telemetry columns and
  * the response shape are all the shipped code in the tests that use it.
  */
+/**
+ * The /api/alternatives response body, built in one place.
+ *
+ * GENERIC OVER THE ROW ON PURPOSE, and that is the whole point of the
+ * function. The catalogue decides what an alternative is and what is written
+ * on it; this route decides nothing. `ring` and `ringTag` -- the leaf/parent
+ * distinction the verdict sheet labels a looser swap with -- arrive on the row
+ * and leave on the row, and a `T` the server never names cannot be narrowed,
+ * reshaped or picked apart on the way through. Equally it cannot be INVENTED:
+ * an older catalogue build that sends no `ring` produces a response with no
+ * `ring`, and the client's rule (missing is leaf, never looser) is the one
+ * place that absence is interpreted.
+ *
+ * Exported for app/test/cheaper-rings.test.mjs, which hands it a row carrying
+ * the new fields and asserts the body came back identical. A passthrough is
+ * exactly the kind of claim that is true until somebody adds a `.map`.
+ */
+export function alternativesPayload<T>(
+  catalogueUp: boolean,
+  heading: string,
+  alternatives: readonly T[],
+): { catalogueUp: boolean; heading: string; alternatives: readonly T[] } {
+  return { catalogueUp, heading, alternatives };
+}
+
 export function setCatalogueForTests(fake: { byGtin(code: string): unknown } | null): void {
   fastLookup = fake;
   catalogueWhyNot = fake ? 'a test double' : 'not attempted yet';
@@ -2480,11 +2505,7 @@ export const server = createServer(async (req, res) => {
       const askingCents = Math.round(askingRaw);
 
       if (!fastLookup || !catalogueDb) {
-        return json(200, {
-          catalogueUp: false,
-          heading: 'The catalogue is not attached, so nothing was looked up.',
-          alternatives: [],
-        });
+        return json(200, alternativesPayload(false, 'The catalogue is not attached, so nothing was looked up.', []));
       }
 
       // byGtin, not a bespoke code lookup: it already tries the UPC-A and
@@ -2492,19 +2513,11 @@ export const server = createServer(async (req, res) => {
       // the product" is exactly the ambiguity that exists to resolve.
       const original = fastLookup.byGtin(code) as Candidate | null;
       if (!original) {
-        return json(200, {
-          catalogueUp: true,
-          heading: 'We have not seen this one.',
-          alternatives: [],
-        });
+        return json(200, alternativesPayload(true, 'We have not seen this one.', []));
       }
 
       const alternatives = await alternativesFor(catalogueDb, original, askingCents, lookupPrices);
-      return json(200, {
-        catalogueUp: true,
-        heading: alternativesHeading(original, alternatives.length),
-        alternatives,
-      });
+      return json(200, alternativesPayload(true, alternativesHeading(original, alternatives.length), alternatives));
     }
 
     /*
