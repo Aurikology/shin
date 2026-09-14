@@ -20,6 +20,10 @@ written here he can read. Nothing goes in that he should not see.
 **More than one session works in this tree at once.** Assume another agent is mid-write in a
 directory you are not looking at.
 
+**At session start, read `notes/catch-up.md`.** Tell your human, in plain words, every **To do**
+under their name and what changed on any day whose **Read by** does not list them, then add them
+there. A session that changes something the other person must know or do adds it to that file.
+
 ## PRIORITY ORDER
 
 1. **Always answer; the confidence carries the doubt.** His words, 2026-09-05: *"The worst thing
