@@ -749,6 +749,38 @@ function rowToCandidate(
   };
 }
 
+/**
+ * The eight-digit UPC-E form of a twelve-digit UPC-A, or null when the code
+ * has none. Number system 0 or 1 only; the four standard zero-suppression
+ * patterns. Exported for the test that pins the Coke Zero can.
+ */
+export function upcEOf(upca: string): string | null {
+  if (!/^[01]\d{11}$/.test(upca)) return null;
+  const ns = upca[0];
+  const m = upca.slice(1, 6);
+  const p = upca.slice(6, 11);
+  const check = upca[11];
+  let body: string | null = null;
+  if (/^\d\d[012]00$/.test(m) && /^00\d{3}$/.test(p)) body = m.slice(0, 2) + p.slice(2) + m[2];
+  else if (/^\d{3}00$/.test(m) && /^000\d\d$/.test(p)) body = m.slice(0, 3) + p.slice(3) + '3';
+  else if (/^\d{4}0$/.test(m) && /^0000\d$/.test(p)) body = m.slice(0, 4) + p[4] + '4';
+  else if (/^0000[5-9]$/.test(p)) body = m + p[4];
+  return body ? ns + body + check : null;
+}
+
+/** The twelve-digit UPC-A a printed eight-digit UPC-E stands for, or null. */
+export function upcAOf(upce: string): string | null {
+  if (!/^[01]\d{7}$/.test(upce)) return null;
+  const [ns, d, check] = [upce[0], upce.slice(1, 7), upce[7]];
+  const last = Number(d[5]);
+  let body: string;
+  if (last <= 2) body = d.slice(0, 2) + d[5] + '0000' + d.slice(2, 5);
+  else if (last === 3) body = d.slice(0, 3) + '00000' + d.slice(3, 5);
+  else if (last === 4) body = d.slice(0, 4) + '00000' + d[4];
+  else body = d.slice(0, 5) + '0000' + d[5];
+  return ns + body + check;
+}
+
 export class Catalogue {
   readonly #db: DatabaseSync;
   readonly #tagSizes = new Map<string, number>();
@@ -766,6 +798,15 @@ export class Catalogue {
     // and retailers publish both. Trying the padded and stripped forms costs
     // two indexed lookups and avoids a false "we have never seen this".
     const forms = new Set([normalized, normalized.padStart(13, '0'), normalized.replace(/^0+/, '')]);
+    // And the eight-digit UPC-E a small can prints, which the catalogue keeps
+    // as printed while the reader hands over the expanded UPC-A. Found
+    // 2026-09-14 on a Coke Zero can: 0067000008191 missed, 06781901 is the row.
+    const upce = upcEOf(normalized.replace(/^0+(?=\d{12}$)/, '').padStart(12, '0'));
+    if (upce) forms.add(upce);
+    if (/^[01]\d{7}$/.test(normalized)) {
+      const upca = upcAOf(normalized);
+      if (upca) { forms.add(upca); forms.add(upca.padStart(13, '0')); }
+    }
     for (const form of forms) {
       if (!form) continue;
       const row = this.#db

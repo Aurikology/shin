@@ -243,10 +243,23 @@ export async function storedVersion(scope) {
  * check itself failed (offline, server down), which is not the same as
  * false: null means "don't know", false means "known stale".
  */
+/**
+ * The family invite, which every /api/ call must carry. The pack fetches were
+ * written before the invite gate and sent none, so on the beta server the
+ * offline pack answered 401 and never downloaded (seen 2026-09-14 in the
+ * access log). Read from where api.js stores it rather than imported, so this
+ * file keeps running before the rest of the app has loaded.
+ */
+function inviteHeaders() {
+  let code = globalThis.window?.SHIN_INVITE_CODE ?? null;
+  try { code = code ?? localStorage.getItem('shin-invite'); } catch { /* storage blocked */ }
+  return code ? { 'x-shin-invite': code } : {};
+}
+
 export async function checkForUpdate(scope, versionUrl) {
   const stored = await storedVersion(scope);
   try {
-    const res = await fetch(versionUrl);
+    const res = await fetch(versionUrl, { headers: inviteHeaders() });
     if (!res.ok) return { upToDate: null, remoteVersion: null, storedVersion: stored };
     const info = await res.json();
     return {
@@ -271,7 +284,7 @@ export async function checkForUpdate(scope, versionUrl) {
 export async function primePack(scope, fileUrl, version) {
   let db;
   try {
-    const res = await fetch(fileUrl);
+    const res = await fetch(fileUrl, { headers: inviteHeaders() });
     if (!res.ok) return false;
     const buffer = await res.arrayBuffer();
     parsePack(buffer); // throws before anything is written if corrupt

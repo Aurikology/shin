@@ -246,10 +246,23 @@ export async function attachEye(video, surfaces, handlers = {}) {
   try {
     mod = await import('/js/eye.js');
   } catch (err) {
-    // The bundle did not load. The screen keeps its own camera and its own
-    // fixed reticle, which is what it had before any of this existed.
+    /*
+     * Once more under a fresh address. Seen 2026-09-14 on an iPhone (Chrome,
+     * WebKit): "Importing a module script failed" with no request for the file
+     * ever reaching the server, so whatever failed was a copy held on the phone
+     * (an old offline cache or the browser's own module map). A query string is
+     * a different URL to both.
+     */
     report('import', err);
-    return inert();
+    try {
+      mod = await import(`/js/eye.js?fresh=${Date.now()}`);
+      report('import-retry-worked', null);
+    } catch (err2) {
+      // The bundle did not load. The screen keeps its own camera and its own
+      // fixed reticle, which is what it had before any of this existed.
+      report('import-retry', err2);
+      return inert();
+    }
   }
 
   /*
