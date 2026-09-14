@@ -12,6 +12,7 @@
  *   node .claude/hooks/selftest.mjs
  */
 import { classify } from "./no-blind-git-add.mjs";
+import { decide } from "./notion-heartbeat.mjs";
 
 const CASES = [
   // [tool, command, expected verdict, note]
@@ -48,9 +49,36 @@ for (const [tool, cmd, expected, note] of CASES) {
 }
 
 console.log(`no-blind-git-add: ${pass}/${CASES.length}`);
+// notion-heartbeat: [tool, command, state, minutes since start, reminds?, note]
+const M = 60_000;
+const T0 = 1_000_000_000;
+const HB = [
+  ["Edit", "", null, 0, true, "first edit with no Notion write: claim first"],
+  ["Read", "", null, 0, false, "reading never reminds"],
+  ["Bash", "git status --short", null, 0, false, "read-only shell never reminds"],
+  ["Edit", "", { lastNotion: T0, lastNag: null }, 19, false, "19 minutes: still fresh"],
+  ["Edit", "", { lastNotion: T0, lastNag: null }, 20, true, "20 minutes: refresh"],
+  ["Bash", "git commit -F m.txt -- a.ts", { lastNotion: T0, lastNag: null }, 45, true, "a commit counts as work"],
+  ["Edit", "", { lastNotion: T0, lastNag: T0 + 21 * M }, 24, false, "reminded 3 minutes ago: quiet"],
+  ["Bash", "git pull && git push origin main", { lastNotion: T0, lastNag: T0 + 9 * M }, 10, true, "push always reminds, even inside the nag gap"],
+  ["Bash", "git push origin main", { lastNotion: T0 + 9 * M, lastNag: null }, 10, false, "Notion written a minute before the push"],
+  ["mcp__claude_ai_Notion__notion-update-page", "", null, 0, false, "a Notion write is recorded, not reminded"],
+  ["mcp__notion__notion-fetch", "", null, 0, false, "a Notion read is not a write and not work"],
+];
+let hbPass = 0;
+for (const [tool, cmd, state, mins, reminds, note] of HB) {
+  const got = decide(tool, cmd, state, T0 + mins * M).message !== null;
+  if (got === reminds) hbPass += 1;
+  else failures.push(`  notion-heartbeat ${tool} ${cmd} at ${mins} min: expected ${reminds}, got ${got}  (${note})`);
+}
+const afterWrite = decide("mcp__claude_ai_Notion__notion-update-page", "", null, T0).state;
+if (afterWrite.lastNotion === T0) hbPass += 1;
+else failures.push("  notion-heartbeat: a Notion write did not record its time");
+console.log(`notion-heartbeat: ${hbPass}/${HB.length + 1}`);
 if (failures.length) {
   console.log("FAILURES:");
   console.log(failures.join("\n"));
   process.exit(1);
 }
+
 console.log("all green. Now fire it live, both ways, before believing it.");

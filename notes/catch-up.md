@@ -52,7 +52,8 @@ restarts) would need Jamin to approve a key for your computer, and nothing today
 - **Coordination between sessions.** Your Claude and Jamin's run on different accounts and cannot
   message each other. The only things all sessions share are GitLab and the Notion page. So:
   claim a line on the page before editing; the later claim on the same part of the app gives way;
-  refresh the line's time at every push and hourly; a line quiet for 3 hours is stale and can be
+  re-read the page and refresh the line's time every 20 minutes and at every push (a reminder
+  built into the repo nudges the session when it is overdue); a line quiet for 1 hour is stale and can be
   taken over after 24 hours with no answer; to get another session's unpushed work, ask it to
   push (under Needs attention on the page), never copy its files; stopping with unpushed work
   means marking the line paused; one working copy of the repo per session. Full list: `CLAUDE.md`.

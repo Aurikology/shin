@@ -152,10 +152,12 @@ arrives later.
 2. **Claim.** Add a line: `who · machine · what · parts of the app · started · updated`. Re-fetch
    once after writing: if another line on the same part has an earlier `started`, yours yields
    (delete your line, take other work, tell your human). Different parts of the app, just work.
-3. **Stay alive.** Refresh `updated` at every push and at least every hour of work. Push small:
-   each piece that passes tests, never a day of unpushed changes. A pushed piece is visible to
-   everyone; an unpushed one exists only on your machine.
-4. **Stale.** A line with no `updated` for 3 hours is stale. To work on its part, write a question
+3. **Stay alive: every 20 minutes** (Jamin, 2026-09-14: *"it should be updateing every 20
+   minutes"*). While working, re-read the page (Needs attention first) and refresh your line's
+   `updated`, at least every 20 minutes and at every push. `.claude/hooks/notion-heartbeat.mjs`
+   reminds the session when it edits, commits or pushes past that; it cannot remind an idle
+   session. Push small: each piece that passes tests. An unpushed piece exists only on your machine.
+4. **Stale.** A line with no `updated` for 1 hour is stale. To work on its part, write a question
    under Needs attention and tell your human, who asks the owner's human. After 24 hours with no
    answer, take it over: edit the line to `taken over by <you>, stale since <time>`. The owner's
    unpushed work is theirs to merge when they come back; the later pusher resolves conflicts.
