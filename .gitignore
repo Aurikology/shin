@@ -45,6 +45,19 @@ app/data/
 # after a gaps.db showed up untracked and un-ignored in a lane's git status.
 identify/data/
 
+# A ROOT-LEVEL data/, which is a different thing from the four above: it is
+# written when a tool that expects to run inside its own package is run from
+# the repo root instead (data/gaps.db, 2026-09-14). Ignored rather than
+# deleted, because the tool is the thing to fix and a stray database is not
+# worth losing; ignored rather than left loose, because the next blanket
+# `git add` would otherwise pick it up, which is the failure the no-blind-add
+# hook exists to prevent and this line makes impossible.
+/data/
+
+# Eval output. A run's numbers belong in NOW.md and in a commit message where
+# somebody reads them, not as a JSON file that quietly accumulates one per run.
+identify/eval/results/
+
 # The Mac beta server's own settings, filled in from mac/config.env.example. It
 # holds the Cloudflare tunnel connector token and the beta invite code, so it is
 # a credential file and not a config file, whatever its extension says. The
