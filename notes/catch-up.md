@@ -97,9 +97,8 @@ and why a separate live copy is being built.
 - The collection work is commit `d0a1c2e`. **Its commit title is wrong** (it repeats the title of
   the catch-up commit before it, a slip while committing); its content is the collection work,
   20 app files. App tests 649 of 649 pass, typecheck clean.
-- **One thing to look at:** that can barcode is named "Cherry-flavoured calorie-free cola" in the
-  catalogue, while the photo of the same can was identified as Coke Zero 355 mL. Either the can
-  was Cherry Coke Zero or the catalogue row is wrong.
+- **Bug found:** the can was a Cherry Coke Zero (Jamin). The barcode found it correctly; the
+  photo said plain Coke Zero, dropping the flavour. Logged as D-099 in `DEFECTS.md`, not yet fixed.
 - **Planned, not built:** a separate live copy of the server on the Mac that updates only from
   GitLab after tests pass, so nobody's half-finished edit can reach testers.
 
