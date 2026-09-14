@@ -674,6 +674,10 @@ function verdictSheet(v, scenario, thumb, acked = false) {
   return `
     <section class="sheet verdict" data-tier="${v.tier}" data-conf="${conf.level}" data-detent="peek" aria-live="polite" tabindex="-1">
       ${grabber()}
+      ${/* The labelled way back at landing (2026-09-14). Done sits at the full
+           detent, which a sheet that opened on its own after a barcode read
+           has not reached. */ ''}
+      ${backButton()}
 
       <div class="sheet-peek">
         <div class="sheet-head">
@@ -1034,7 +1038,10 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
   return `
     <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite" tabindex="-1">
       ${grabber()}
-      ${isCategory ? backButton() : ''}
+      ${/* Every refusal, not only the category one (2026-09-14): a barcode
+           read lands here with no shutter press, and a sheet whose only way
+           back is an untaught drag traps the shopper away from the camera. */ ''}
+      ${backButton()}
       <div class="sheet-peek">
         <div class="sheet-head">
           ${shinSay('unknown', titleKey, titleFacts, { size: 'face-verdict' })}
@@ -2015,6 +2022,12 @@ export default {
        photo route underneath a barcode already being resolved. Cleared by
        `reset()`, which is every path back to idle. */
     let barcodeInFlight = false;
+    /** The code the current scan came from, when a barcode started it. */
+    let scanBarcode = null;
+    /** `{ value, at }` for the code a scan the shopper left was about; see the eye's onBarcode. */
+    let leftBarcode = null;
+    /** How long the code just left stays quiet. Long enough to aim and press the shutter. */
+    const REREAD_QUIET_MS = 10000;
     /** D-026's caller, started once below. The teardown `startCaptureQueue`
         returns, held so the render's own cleanup can call it. */
     let stopCaptureQueue = () => {};
@@ -2035,6 +2048,18 @@ export default {
     }, {
       onBarcode: (read) => {
         if (dead || cam.dataset.state !== 'idle') return;
+        /*
+         * The code the shopper just backed out of, still in frame, is not a
+         * new scan (2026-09-14). Without this, going back to the camera read
+         * the same barcode again within a few frames and dropped them onto
+         * the same answer, so a barcoded product could never reach the
+         * shutter. Any other code reads at once, and this one reads again
+         * after the quiet.
+         */
+        if (leftBarcode && sameCode(read.value, leftBarcode.value) && Date.now() - leftBarcode.at < REREAD_QUIET_MS) {
+          return;
+        }
+        leftBarcode = null;
         onBarcode(read);
       },
       onTorch: (on) => { if (!dead) setTorch(on); },
@@ -2374,6 +2399,7 @@ export default {
       // capture landing in the same window defers to the code. `reset()`
       // lowers it again on the way back to idle.
       barcodeInFlight = true;
+      scanBarcode = read.value;
       clearTimeout(hintTimer);
       clearTimeout(torchAckTimer);
       coachKey = null;
@@ -3208,6 +3234,8 @@ export default {
       // to remove.
       coachKey = null;
       barcodeInFlight = false;
+      if (scanBarcode) leftBarcode = { value: scanBarcode, at: Date.now() };
+      scanBarcode = null;
       eye?.clearSelection?.();
       setState('idle');
       showInitialIdleContent();
