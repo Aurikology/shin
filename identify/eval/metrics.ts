@@ -23,9 +23,32 @@
  */
 
 /**
+ * What the manifest says a correct answer to this row LOOKS LIKE.
+ *
+ * Added 2026-09-14. Until now every row had the same shape of correct answer --
+ * "name this exact catalogue code" -- because every row in the manifest is in
+ * the catalogue by construction. That made the false-positive rate not low but
+ * UNMEASURED, and it is the number that decides whether this thing can be
+ * trusted to say "I don't know" instead of confidently naming the wrong jar.
+ *
+ *   'identify'  the catalogue holds this product and naming it is the win.
+ *   'refuse'    the catalogue does NOT hold this product, and the win is that
+ *               Shin declines to name one. Loose produce (D-096: the twenty
+ *               `code: null` rows -- Banana, Gala Apple, Roma Tomato) is the
+ *               real-world version of this: there is no barcode, there is no
+ *               catalogue row, and the only correct answer is a refusal.
+ *
+ * The two are scored by DIFFERENT metrics and share no denominator. A refuse row
+ * has no expected code, so it is not a cascade success, a cascade failure, or a
+ * pick anything; putting it in the top-1 denominator would quietly deflate every
+ * retrieval number in the report.
+ */
+export type Expectation = 'identify' | 'refuse';
+
+/**
  * Why a row did not end with the right code on top.
  *
- * The first five are the classes the split was asked for. The last two are not
+ * The first five are the classes the split was asked for. The next two are not
  * inventions either: both are reachable branches of `identify.ts`'s `fromCrop`
  * that none of the five describe, and both print as 0 in a dry run.
  *
@@ -38,6 +61,17 @@
  *                           `fromCrop` fell back to pass one's ranking, which
  *                           was wrong. Not the model choosing badly -- it never
  *                           chose.
+ *
+ * `false_positive` is the one class that belongs to the negative set and it is
+ * the only one here that can occur on a row with no expected code:
+ *
+ *   false_positive          the manifest said REFUSE -- there is no catalogue
+ *                           row for this thing -- and Shin named a catalogue row
+ *                           anyway, with enough confidence to put it on the
+ *                           screen as the answer. This is the failure the whole
+ *                           negative set exists to count, and it is strictly
+ *                           worse than any miss above: a miss says "try again",
+ *                           a false positive prices the wrong product.
  */
 export type Attribution =
   | 'correct'
@@ -47,7 +81,8 @@ export type Attribution =
   | 'settled_wrong'
   | 'size_question_override'
   | 'pick_error'
-  | 'unreadable';
+  | 'unreadable'
+  | 'false_positive';
 
 export const ATTRIBUTIONS: readonly Attribution[] = [
   'correct',
@@ -58,6 +93,7 @@ export const ATTRIBUTIONS: readonly Attribution[] = [
   'size_question_override',
   'pick_error',
   'unreadable',
+  'false_positive',
 ];
 
 /**
@@ -69,12 +105,28 @@ export const ATTRIBUTIONS: readonly Attribution[] = [
  * or whether the barcode short-circuited.
  */
 export interface StageObservation {
-  /** The manifest's answer. Rows with no expected code are never scored. */
-  readonly code: string;
+  /**
+   * The manifest's answer. Null on a `refuse` row, where there IS no right code
+   * and the right answer is that nothing gets named -- not on an `identify` row,
+   * which the runner refuses to observe at all without one.
+   */
+  readonly code: string | null;
+  /** Which kind of correct answer this row has. See `Expectation`. */
+  readonly expect: Expectation;
   readonly kind: string;
   readonly outcome: 'identified' | 'not_in_catalogue' | 'unreadable';
   /** The code that actually shipped, or null when nothing was identified. */
   readonly chosenCode: string | null;
+  /**
+   * The band on the shipped answer, null when nothing was identified.
+   *
+   * Only the negative set reads this, and it reads it for one reason: decision
+   * 17 means `fromCrop` answers 'identified' even when it is unsure, with a low
+   * band and non-empty alternates, which the route renders as the
+   * identity_unsure screen rather than as "this is your product". Counting that
+   * as a confident naming would score Shin's own hedge as a false positive.
+   */
+  readonly confidenceBand: 'high' | 'medium' | 'low' | null;
   /**
    * `gtinFrom` validated a barcode off the photo AND the catalogue resolved it,
    * so the text cascade never ran at all. These rows are excluded from cascade
@@ -99,7 +151,56 @@ export function rankOf(codes: readonly string[], code: string): number | null {
   return i === -1 ? null : i + 1;
 }
 
+/**
+ * Did this run NAME a catalogue product to the person holding the phone?
+ *
+ * The whole negative set turns on this one predicate, so it is written out
+ * rather than inlined. Three of `fromCrop`'s outcomes are refusals and one is
+ * not:
+ *
+ *   'not_in_catalogue'  decision 22, the explicit "we know what it is and we do
+ *                       not carry it". The branch this eval was built to make
+ *                       fire at all.
+ *   'unreadable'        no answer was given. Not a good scan, but nothing was
+ *                       named, so nothing was named WRONG.
+ *   'identified' + low band + no confident pick
+ *                       decision 17 / the contract's section 3: unsure is
+ *                       expressed as an identification with a low band and
+ *                       alternates, and the route turns that into the
+ *                       identity_unsure screen. A hedge is not a claim.
+ *   'identified', anything else
+ *                       a claim. On a refuse row, a FALSE one.
+ *
+ * Note what is deliberately NOT a get-out: naming the wrong row confidently is a
+ * false positive whether or not the candidate list was any good, and a pick pass
+ * that chose an index is a confident pick even if the six-signal band came out
+ * low -- the pick capped the band, it did not abstain.
+ */
+export function namedACatalogueRow(o: StageObservation): boolean {
+  if (o.outcome !== 'identified') return false;
+  if (o.chosenCode === null) return false;
+  if (o.confidenceBand === 'low' && o.pickedCode === null) return false;
+  return true;
+}
+
 export function attribute(o: StageObservation): Attribution {
+  /*
+   * The negative set is scored first and separately, because every test below
+   * this line asks "was the expected code found", and a refuse row has no
+   * expected code to find. Falling through would attribute a correct refusal as
+   * `cascade_miss` -- blaming retrieval for working exactly as intended.
+   */
+  if (o.expect === 'refuse') return namedACatalogueRow(o) ? 'false_positive' : 'correct';
+  /*
+   * An `identify` row with no expected code is a manifest bug, and the dangerous
+   * version of it is silent: `chosenCode === o.code` would be null === null and
+   * score a SPURIOUS 'correct' the moment the outcome carried no chosen code.
+   * The runner filters these out before they reach here; this is the second
+   * lock, and it is loud on purpose.
+   */
+  if (o.code === null) {
+    throw new Error("an expect:'identify' observation reached attribute() with a null code");
+  }
   if (o.chosenCode !== null && o.chosenCode === o.code) return 'correct';
   if (o.outcome === 'unreadable') return 'unreadable';
   // A short-circuited row that is still wrong means the catalogue answered a
@@ -168,7 +269,64 @@ export interface PickMetrics {
   readonly precision: number | null;
 }
 
+/**
+ * The negative set: how often Shin knows that it does NOT know.
+ *
+ * THE DENOMINATOR IS THE WHOLE POINT. It is refuse rows that were actually
+ * RUN -- a manifest slot whose photo does not exist yet never reaches the stage,
+ * never produces an observation, and so is not in here at all. It stays PENDING
+ * and counts as nothing: not a refusal, not a false positive, not a trial. A
+ * false-positive rate that quietly counted unphotographed slots as successes
+ * would read as a perfect score for a test that never ran, which is the exact
+ * failure mode this block was added to prevent.
+ *
+ * Every rate is `number | null`, null at a zero denominator, and the report must
+ * print the null rather than a 0% computed from nothing.
+ */
+export interface NegativeMetrics {
+  /** Refuse rows that had a photo and were run. Zero today: see the report. */
+  readonly scored: number;
+  /** Refuse rows where a catalogue product was named anyway. */
+  readonly falsePositives: number;
+  readonly correctRefusals: number;
+  /** Null at a zero denominator. Never print 0% from 0/0. */
+  readonly falsePositiveRate: number | null;
+  readonly correctRefusalRate: number | null;
+  /** Wilson on the false-positive proportion, null at a zero denominator. */
+  readonly falsePositiveInterval: Interval | null;
+  /** HOW the correct refusals refused, because the three are not equivalent. */
+  readonly refusedBy: {
+    /** Decision 22: knew what it was, said we do not carry it. The good one. */
+    readonly notInCatalogue: number;
+    /** No answer at all. A refusal, but it refuses everything equally. */
+    readonly unreadable: number;
+    /** Decision 17's identity_unsure screen: candidates shown, none claimed. */
+    readonly unsureNoConfidentPick: number;
+  };
+}
+
+export function summariseNegative(obs: readonly StageObservation[]): NegativeMetrics {
+  const rows = obs.filter((o) => o.expect === 'refuse');
+  const named = rows.filter(namedACatalogueRow);
+  const refused = rows.filter((o) => !namedACatalogueRow(o));
+  const n = rows.length;
+  return {
+    scored: n,
+    falsePositives: named.length,
+    correctRefusals: refused.length,
+    falsePositiveRate: n === 0 ? null : named.length / n,
+    correctRefusalRate: n === 0 ? null : refused.length / n,
+    falsePositiveInterval: n === 0 ? null : wilson(named.length, n),
+    refusedBy: {
+      notInCatalogue: refused.filter((o) => o.outcome === 'not_in_catalogue').length,
+      unreadable: refused.filter((o) => o.outcome === 'unreadable').length,
+      unsureNoConfidentPick: refused.filter((o) => o.outcome === 'identified').length,
+    },
+  };
+}
+
 export interface StageMetrics {
+  /** `expect:'identify'` rows only. A refuse row has no top-1 to be part of. */
   readonly scored: number;
   readonly top1: number;
   readonly top1Interval: Interval;
@@ -177,14 +335,27 @@ export interface StageMetrics {
   readonly notInCatalogue: number;
   readonly cascade: CascadeMetrics;
   readonly pick: PickMetrics;
+  /** Over ALL rows, positive and negative: the only field that mixes them. */
   readonly attribution: Record<Attribution, number>;
+  /** The negative set, scored on its own denominator. */
+  readonly negative: NegativeMetrics;
 }
 
 export function summarise(obs: readonly StageObservation[]): StageMetrics {
-  const scored = obs.length;
-  const top1 = obs.filter((o) => o.chosenCode !== null && o.chosenCode === o.code).length;
+  /*
+   * THE PARTITION, 2026-09-14. Everything from here to `attribution` is about
+   * finding an expected code, so it runs over `expect:'identify'` rows only.
+   * Leaving refuse rows in would put twenty rows with no right answer into the
+   * top-1 denominator and drag every retrieval number in the report down by a
+   * third for a reason that has nothing to do with retrieval.
+   */
+  const positives = obs.filter(
+    (o): o is StageObservation & { code: string } => o.expect === 'identify' && o.code !== null,
+  );
+  const scored = positives.length;
+  const top1 = positives.filter((o) => o.chosenCode !== null && o.chosenCode === o.code).length;
 
-  const cascadePool = obs.filter((o) => o.cascadeRan && !o.barcodeShortCircuit);
+  const cascadePool = positives.filter((o) => o.cascadeRan && !o.barcodeShortCircuit);
   const ranks = cascadePool.map((o) => rankOf([...o.cascadeCodes], o.code));
   const within = (k: number) => ranks.filter((r) => r !== null && r <= k).length;
   const mrr =
@@ -192,7 +363,7 @@ export function summarise(obs: readonly StageObservation[]): StageMetrics {
       ? 0
       : ranks.reduce<number>((sum, r) => sum + (r === null ? 0 : 1 / r), 0) / cascadePool.length;
 
-  const pickPool = obs.filter(
+  const pickPool = positives.filter(
     (o) =>
       !o.barcodeShortCircuit &&
       o.pickFired &&
@@ -217,8 +388,8 @@ export function summarise(obs: readonly StageObservation[]): StageMetrics {
     top1,
     top1Interval: wilson(top1, scored),
     top3,
-    barcodeShortCircuit: obs.filter((o) => o.barcodeShortCircuit).length,
-    notInCatalogue: obs.filter((o) => o.outcome === 'not_in_catalogue').length,
+    barcodeShortCircuit: positives.filter((o) => o.barcodeShortCircuit).length,
+    notInCatalogue: positives.filter((o) => o.outcome === 'not_in_catalogue').length,
     cascade: {
       denominator: cascadePool.length,
       recall1: within(1),
@@ -232,6 +403,7 @@ export function summarise(obs: readonly StageObservation[]): StageMetrics {
       precision: pickPool.length === 0 ? null : pickCorrect / pickPool.length,
     },
     attribution,
+    negative: summariseNegative(obs),
   };
 }
 

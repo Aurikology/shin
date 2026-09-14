@@ -46,9 +46,11 @@ import {
 import {
   ATTRIBUTIONS,
   attribute,
+  namedACatalogueRow,
   pct,
   summarise,
   summariseByKind,
+  type Expectation,
   type StageMetrics,
   type StageObservation,
 } from './metrics.ts';
@@ -145,8 +147,14 @@ export function parseArgs(argv: readonly string[]): Args {
 
 // ---------------------------------------------------------------- manifest
 
-interface ManifestRow {
-  readonly code: string;
+export interface ManifestRow {
+  /**
+   * Null on a refuse row. Declared `string` until 2026-09-14, which was simply
+   * untrue -- the twenty produce rows have carried `code: null` since they were
+   * added, and every read site in this file already guarded with `== null`. The
+   * type was the last place still asserting the manifest was all barcodes.
+   */
+  readonly code: string | null;
   readonly file: string;
   readonly brand: string | null;
   readonly name: string | null;
@@ -157,11 +165,46 @@ interface ManifestRow {
   // produce row's `code`/`brand`/`category` are legitimately null rather than
   // a placeholder waiting on a lookup.
   readonly kind: 'plain' | 'size-pair' | 'store-brand' | 'multipack' | 'produce' | 'tech';
+  /**
+   * THE NEGATIVE-SET CONTRACT (2026-09-14). What a correct answer to this row
+   * looks like: `'identify'` means name this code, `'refuse'` means name NOTHING.
+   *
+   * The twenty `kind: 'produce'` rows carry `'refuse'`. D-096 records why: they
+   * have `code: null` by design, loose produce has no barcode and no catalogue
+   * row, and they are already the closest thing this eval has to a negative set.
+   * Photographing them as a retrieval test would ask a question with no right
+   * answer; scoring them as a refusal test asks the one question the eval could
+   * not previously ask at all.
+   *
+   * The twenty `kind: 'tech'` rows stay `'identify'` and stay PENDING. Their
+   * codes are placeholders absent from the catalogue and from both Open Facts
+   * APIs (D-096), but re-pointing them is an answer-key change, and an answer
+   * key edited by whoever is holding the file is how an eval starts measuring
+   * what it can pass. The runner says so out loud instead -- see
+   * `checkAnswerKey` below.
+   */
+  readonly expect: Expectation;
   readonly category: string | null;
 }
 
 function loadManifest(args: Args): ManifestRow[] {
-  const all = JSON.parse(readFileSync(evalPath('manifest.json'), 'utf8')) as ManifestRow[];
+  const raw = JSON.parse(readFileSync(evalPath('manifest.json'), 'utf8')) as ManifestRow[];
+  /*
+   * `expect` is required in the file and every row carries it. This normalises
+   * anyway rather than trusting the cast above, because the failure of a missing
+   * `expect` is silent and asymmetric: undefined !== 'refuse', so a refuse row
+   * that lost its field would be scored as an identify row against a null code,
+   * which `attribute()` now throws on. Defaulting from the presence of a code is
+   * the same rule the file itself follows.
+   */
+  const all: ManifestRow[] = raw.map((r) => {
+    const expect: Expectation =
+      r.expect === 'identify' || r.expect === 'refuse' ? r.expect : r.code == null ? 'refuse' : 'identify';
+    if (expect === 'identify' && r.code == null) {
+      throw new Error(`manifest row ${r.file} expects an identification but carries no code`);
+    }
+    return { ...r, expect };
+  });
   let rows = all;
   if (args.only) rows = rows.filter((r) => r.code === args.only);
   if (args.limit) rows = rows.slice(0, args.limit);
@@ -416,10 +459,18 @@ function observationOf(
   outcome: IdentifyOutcome,
   probe: Probe,
 ): StageObservation | null {
-  // A row with no expected code (a loose-produce slot) has no right answer to
-  // be found or missed, so it is not a cascade success, a cascade failure, or
-  // anything else the split can honestly say a word about.
-  if (row.code == null) return null;
+  /*
+   * UNTIL 2026-09-14 THIS LINE READ `if (row.code == null) return null;` and the
+   * comment said a row with no expected code has no right answer to be found or
+   * missed. The first half was true and the conclusion was wrong. A loose-produce
+   * row has no right CODE, and it has a very definite right ANSWER: don't name
+   * one. Dropping the row here is what made the false-positive rate unmeasurable
+   * -- not because the data was missing, but because the runner threw it away.
+   *
+   * What is still true is that an `identify` row with no code cannot be scored
+   * at all, and that one really does get dropped.
+   */
+  if (row.expect === 'identify' && row.code == null) return null;
   const shortCircuit = probe.gtinHits > 0 && probe.cascade.length === 0;
   const cascadeCodes = probe.cascade.length
     ? union(probe.cascade).candidates.map((c) => c.code)
@@ -430,9 +481,13 @@ function observationOf(
       : null;
   return {
     code: row.code,
+    expect: row.expect,
     kind: row.kind,
     outcome: outcome.kind,
     chosenCode: outcome.kind === 'identified' ? outcome.chosen.code : null,
+    // Read off the outcome, not re-derived: the band that reaches the screen is
+    // the one the negative set has to judge, including the pick's cap.
+    confidenceBand: outcome.kind === 'identified' ? outcome.confidence.band : null,
     barcodeShortCircuit: shortCircuit,
     cascadeRan: probe.cascade.length > 0,
     cascadeCodes,
@@ -495,7 +550,7 @@ class RecordingIdentifier extends Identifier {
 // for the expected code, if any -- so a dry run measures what the catalogue
 // cascade and the pick-selection logic can do given a perfect read, which is
 // a ceiling on the real model's number, not a stand-in for it.
-class FakeIdentifier extends Identifier {
+export class FakeIdentifier extends Identifier {
   readonly #row: ManifestRow;
   readonly #probe: () => Probe | null;
 
@@ -510,6 +565,39 @@ class FakeIdentifier extends Identifier {
   }
 
   async read(): Promise<ModelReading> {
+    /*
+     * NOTHING TO READ IS A READING (2026-09-14).
+     *
+     * A refuse row whose brand, name and code are ALL null is a photograph of a
+     * thing the manifest cannot describe. The echo below would turn that into a
+     * `front_text` of `[]` and a product of nulls anyway, but writing it out is
+     * the point: the fake must never invent a brand or a name for a row that
+     * carries none, because the negative set's whole question is what happens
+     * when there is nothing to go on. `fromCrop` sees an empty `readAs` and
+     * returns `unreadable`, which is the honest outcome for an unlabelled thing.
+     */
+    if (this.#row.expect === 'refuse' && !this.#row.brand && !this.#row.name && !this.#row.code) {
+      return {
+        product: {
+          front_text: [],
+          barcode_digits: null,
+          brand: null,
+          name: null,
+          variant: null,
+          size_value: null,
+          size_unit: null,
+          count: null,
+          category: null,
+          language_seen: null,
+          alternates: [],
+          self_confidence: 'low',
+          uncertainty: 'dry-run: manifest row carries no brand, name or code to echo',
+        },
+        tag: null,
+        model: 'fake:dry-run',
+        ms: 0,
+      };
+    }
     // Filled the way a real reading would: `size_value` is the per-unit
     // number off the label (100 for "4 x 100 g"), `count` is the N, and
     // fromCrop's own `pinnedSize` multiplies them back to the net when it
@@ -540,6 +628,43 @@ class FakeIdentifier extends Identifier {
     _productPng: Uint8Array,
     candidates: readonly PickCandidateRow[],
   ): Promise<PickReading> {
+    /*
+     * A DRY RUN MUST NOT BE ABLE TO MANUFACTURE A PASSING NEGATIVE SET.
+     *
+     * The oracle below works by looking for `this.#row.code` among the
+     * candidates. On a refuse row that code is null, nothing matches, and the
+     * oracle would abstain -- handing back `chosen_index: null`, low confidence,
+     * which `namedACatalogueRow` reads as a correct refusal. Every produce row
+     * would then score as a refusal, the false-positive rate would print 0%, and
+     * the number would be a property of this class rather than of the product.
+     *
+     * There is no honest oracle for a refuse row: the oracle's entire basis is
+     * knowing the right answer, and here the right answer is "no row", which is
+     * not a thing that can be pointed at in a candidate list. So it does not
+     * abstain. It takes the cascade's top candidate at medium confidence -- the
+     * PESSIMISTIC substitute -- which scores as a false positive whenever the
+     * cascade returned anything at all. That number is not a measurement either,
+     * and the report says so in as many words; what it cannot do is flatter.
+     */
+    if (this.#row.expect === 'refuse') {
+      const top = candidates[0];
+      const p2 = this.#probe();
+      if (p2) {
+        p2.pickFired = true;
+        p2.pickRows = candidates;
+        p2.pickedIndex = top?.index ?? null;
+      }
+      return {
+        pick: {
+          chosen_index: top?.index ?? null,
+          confidence: 'medium',
+          why: 'dry-run: no oracle exists for a refuse row, so the cascade top is taken rather than a refusal manufactured',
+          size_question: null,
+        },
+        model: 'fake:dry-run',
+        ms: 0,
+      };
+    }
     const match = candidates.find((c) => c.code === this.#row.code);
     const p = this.#probe();
     if (p) {
@@ -606,6 +731,8 @@ async function hasCredentials(): Promise<boolean> {
 
 interface RowResult {
   code: string | null;
+  /** 'identify' or 'refuse'. Refuse rows are never in the top-1 denominator. */
+  expect: Expectation;
   kind: ManifestRow['kind'];
   category: string | null;
   expectedBrand: string | null;
@@ -674,6 +801,64 @@ function pinLabel(outcome: IdentifyOutcome): string {
   return p.size_value !== null ? `${p.size_value}${p.size_unit ?? ''}` : '';
 }
 
+/* ==========================================================================
+ * IS THE ANSWER KEY ITSELF STILL TRUE? (2026-09-14, D-096)
+ *
+ * A PENDING row asserts nothing, which is why the runner can carry forty of them
+ * without breaking anyone's run -- and it is also why nobody noticed that twenty
+ * of them point at products that do not exist. All twenty `tech` codes are
+ * absent from the 212,340-row catalogue and from both Open Facts APIs; each one
+ * carries a brand, a name and a category, so nothing in the file suggests they
+ * are placeholders. The consequence is not "cannot fetch": if photos ever
+ * landed, all twenty would score `cascade_miss` BY CONSTRUCTION, and the stage
+ * split would send whoever read it to fix a cascade that was working perfectly.
+ *
+ * So the runner checks, and says so itself. A defect row is a thing somebody has
+ * to go and read; a line in the output is a thing the next person cannot miss.
+ * It uses the lookup the run already holds -- no second catalogue connection,
+ * and no network -- and it runs with `probe` unset, so none of these queries
+ * land in a row's stage observation.
+ * ========================================================================== */
+
+interface AnswerKeyCheck {
+  /** PENDING rows carrying a code, i.e. rows this can say anything about. */
+  readonly checked: number;
+  /** ...of which the catalogue does not hold. An unusable answer key. */
+  readonly absent: number;
+  readonly absentSample: readonly string[];
+  /** Set when the catalogue could not be asked at all. Then `absent` is 0. */
+  readonly error: string | null;
+}
+
+async function checkAnswerKey(
+  rows: readonly ManifestRow[],
+  lookup: CatalogueLookup,
+): Promise<AnswerKeyCheck> {
+  const pendingWithCodes = rows.filter(
+    (r): r is ManifestRow & { code: string } => r.code != null && !existsSync(evalPath(r.file)),
+  );
+  const absent: string[] = [];
+  try {
+    for (const r of pendingWithCodes) {
+      const hit = await lookup({ gtin: r.code, limit: 1 });
+      if (hit.candidates.length === 0) absent.push(r.code);
+    }
+  } catch (err) {
+    return {
+      checked: pendingWithCodes.length,
+      absent: 0,
+      absentSample: [],
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+  return {
+    checked: pendingWithCodes.length,
+    absent: absent.length,
+    absentSample: absent.slice(0, 3),
+    error: null,
+  };
+}
+
 async function run(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
 
@@ -709,8 +894,9 @@ async function run(): Promise<void> {
     return;
   }
 
+  const answerKey = await checkAnswerKey(rows, lookup);
   const { results, pending, pendingByKind } = await pass(args, rows, lookup, args.tier);
-  report(args, results, pending, pendingByKind);
+  report(args, results, pending, pendingByKind, answerKey);
 }
 
 /**
@@ -780,6 +966,7 @@ async function pass(
 
     results.push({
       code: row.code,
+      expect: row.expect,
       kind: row.kind,
       category: row.category,
       expectedBrand: row.brand,
@@ -827,6 +1014,7 @@ function reportStages(
   args: Args,
   results: readonly RowResult[],
   pendingByKind: Record<string, number>,
+  answerKey: AnswerKeyCheck | null,
 ): StageMetrics | null {
   const obs = results.map((r) => r.obs).filter((o): o is StageObservation => o !== null);
   console.log('');
@@ -854,6 +1042,10 @@ function reportStages(
     console.log('  pick precision       : NOT MEANINGFUL. The dry-run pick is an oracle that is handed the');
     console.log('                         expected code, so it is 100% by construction and measures nothing.');
     console.log('  end-to-end top-1     : the ceiling too, for the same reason.');
+    console.log('  negative set         : PLUMBING, NOT MEASUREMENT. There is no oracle for a row whose right');
+    console.log('                         answer is "name nothing", so the dry-run pick takes the cascade top');
+    console.log('                         rather than manufacturing a refusal. Every number in the NEGATIVE SET');
+    console.log('                         block below shows that the path runs; none of them is a rate.');
   }
   if (args.fakeCatalogue) {
     console.log('--fake-catalogue: the cascade numbers below are the manifest graded against itself. Not results.');
@@ -861,7 +1053,12 @@ function reportStages(
 
   const m = summarise(obs);
   console.log('');
-  console.log(`scored rows: ${m.scored}`);
+  console.log(`scored rows: ${m.scored}  (expect:'identify' only; the negative set has its own block below)`);
+  if (m.scored === 0) {
+    console.log(
+      "  no expect:'identify' row was scored, so every retrieval figure below is over an empty denominator.",
+    );
+  }
   console.log(
     `end-to-end top-1: ${m.top1}/${m.scored} (${pct(m.top1, m.scored)})  95% Wilson ${interval(m)}`,
   );
@@ -899,9 +1096,13 @@ function reportStages(
     console.log('  (no failures in this run)');
   } else {
     for (const o of failures) {
-      const rank = o.cascadeCodes.indexOf(o.code);
+      // A false_positive row has no expected code, so it has no rank -- there is
+      // nothing it could have been ranked at. Printing 'absent' there would read
+      // as a retrieval miss, which is the one thing it is not.
+      const rank = o.code === null ? null : o.cascadeCodes.indexOf(o.code);
+      const rankLabel = rank === null ? 'no expected row' : rank === -1 ? 'rank absent' : `rank ${rank + 1}`;
       console.log(
-        `  ${pad(o.code, 15)}${pad(o.kind, 12)}${pad(attribute(o), 24)}rank ${rank === -1 ? 'absent' : rank + 1}  shipped ${o.chosenCode ?? '(none)'}`,
+        `  ${pad(o.code ?? '(no code)', 15)}${pad(o.kind, 12)}${pad(attribute(o), 24)}${pad(rankLabel, 17)}shipped ${o.chosenCode ?? '(none)'}`,
       );
     }
   }
@@ -916,7 +1117,9 @@ function reportStages(
    * sitting on a 100% recall@1, and nothing else in the report says which it is.
    */
   const rescued = obs.filter(
-    (o) =>
+    (o): o is StageObservation & { code: string } =>
+      o.expect === 'identify' &&
+      o.code !== null &&
       !o.barcodeShortCircuit &&
       o.chosenCode === o.code &&
       o.cascadeCodes.indexOf(o.code) > 0,
@@ -944,6 +1147,9 @@ function reportStages(
       pad('pick', 10),
   );
   for (const [kind, k] of summariseByKind(obs)) {
+    // A bucket made entirely of refuse rows has no top-1 and no recall; it is
+    // reported in the NEGATIVE SET block instead of as a row of zeroes here.
+    if (k.scored === 0 && k.negative.scored > 0) continue;
     console.log(
       pad(kind, 13) +
         pad(String(k.scored), 6) +
@@ -965,24 +1171,114 @@ function reportStages(
    * THE GAP, printed rather than commented, because a limitation that lives only
    * in the source is a limitation nobody reading the number will ever see.
    */
+  /* ------------------------------------------------------------------ negative set
+   *
+   * "Does Shin know what it is" is not answerable today: the image catalogue is
+   * empty (D-098) and no real model has ever run here. "Does Shin know when it
+   * does NOT know" is answerable, and this block is where it gets answered.
+   */
+  const neg = m.negative;
+  const refusePending = pendingByKind['produce'] ?? 0;
   console.log('');
-  console.log('WHAT THIS EVAL STRUCTURALLY CANNOT MEASURE');
+  console.log('================ NEGATIVE SET: does Shin know when it does not know? ================');
   console.log(
-    '  Every manifest row is in the catalogue by construction, so there is NO negative set:',
+    `  refuse rows scored (had a photo): ${neg.scored}      refuse slots still PENDING (no photo): ${refusePending}`,
   );
   console.log(
-    '  no photo here is of a product the catalogue does not carry. The false-positive rate --',
+    '  a refuse row is correct when NOTHING is named: not_in_catalogue, unreadable, or an unsure',
+  );
+  console.log('  band with no confident pick. Naming any catalogue row is a false positive.');
+  console.log('');
+  if (neg.scored === 0) {
+    /*
+     * THE ZERO-DENOMINATOR RULE, and the reason it is a branch and not a format
+     * string: 0/0 rendered as "0.0%" is the most flattering lie this report
+     * could tell, because a false-positive rate of zero is exactly what a
+     * working refusal path looks like.
+     */
+    console.log('  false-positive rate : NOT COMPUTED -- denominator is 0, and 0/0 is not 0%.');
+    console.log('  correct-refusal rate: NOT COMPUTED -- same denominator.');
+  } else {
+    console.log(
+      `  false-positive rate : ${pct(neg.falsePositives, neg.scored)} (${neg.falsePositives}/${neg.scored})` +
+        (neg.falsePositiveInterval
+          ? `  95% Wilson [${(neg.falsePositiveInterval.low * 100).toFixed(1)}%, ${(neg.falsePositiveInterval.high * 100).toFixed(1)}%]`
+          : ''),
+    );
+    console.log(
+      `  correct-refusal rate: ${pct(neg.correctRefusals, neg.scored)} (${neg.correctRefusals}/${neg.scored})`,
+    );
+    console.log(
+      `  refused by           : not_in_catalogue ${neg.refusedBy.notInCatalogue}, unreadable ${neg.refusedBy.unreadable}, unsure-no-pick ${neg.refusedBy.unsureNoConfidentPick}`,
+    );
+    const fps = obs.filter((o) => o.expect === 'refuse' && namedACatalogueRow(o));
+    for (const o of fps) {
+      console.log(
+        `    FALSE POSITIVE  ${pad(o.kind, 12)}named ${o.chosenCode ?? '(none)'} at band ${o.confidenceBand ?? 'n/a'}`,
+      );
+    }
+    if (args.dryRun) {
+      console.log('');
+      console.log('  DRY RUN: the two rates above are PLUMBING, NOT MEASUREMENT. No model was asked anything;');
+      console.log('  the fake pick takes the cascade top on a refuse row precisely so a dry run cannot');
+      console.log('  manufacture a clean negative set. Do not quote either number.');
+    }
+  }
+
+  /*
+   * THE GAP, printed rather than commented, because a limitation that lives only
+   * in the source is a limitation nobody reading the number will ever see.
+   */
+  console.log('');
+  console.log('WHERE THE NEGATIVE SET ACTUALLY STANDS');
+  console.log(
+    `  The negative set now EXISTS in the manifest: ${neg.scored + refusePending} rows carry expect:'refuse', the twenty`,
   );
   console.log(
-    '  how often an absent product is confidently named as some other row -- is therefore not',
+    '  loose-produce slots that have no barcode and no catalogue row (D-096). So the false-positive',
   );
   console.log(
-    `  low, it is UNMEASURED, and that is exactly why the 'not_in_catalogue' branch fired ${m.notInCatalogue} time(s)`,
+    `  rate is DEFINED -- and it is still UNMEASURED, because ${refusePending} of those rows hold no photo.`,
   );
   console.log(
-    '  in this run. Closing it needs photos of products deliberately absent from the catalogue,',
+    '  The change from yesterday is the honest one and it is not a number: the eval could not ask',
   );
-  console.log('  which no number in this report can substitute for.');
+  console.log(
+    '  the question before and can now, so what is missing is photographs and a key, not a metric.',
+  );
+  console.log(
+    `  Until they land: the 'not_in_catalogue' branch fired ${m.notInCatalogue} time(s) on the positive set, which is`,
+  );
+  console.log('  what you would expect from rows that are all in the catalogue by construction.');
+
+  /*
+   * AND WHETHER THE ANSWER KEY IS STILL TRUE. D-096 lives in DEFECTS.md, which
+   * is a file somebody has to go and read; this is the same fact where the
+   * number is.
+   */
+  if (answerKey) {
+    console.log('');
+    if (answerKey.error !== null) {
+      console.log(
+        `  ANSWER KEY UNCHECKED: the catalogue could not be asked about the ${answerKey.checked} PENDING coded row(s) (${answerKey.error}).`,
+      );
+    } else if (answerKey.absent > 0) {
+      console.log(
+        `  ANSWER KEY BROKEN (D-096): ${answerKey.absent} of ${answerKey.checked} PENDING rows carry a code the catalogue does NOT hold` +
+          `${answerKey.absentSample.length ? ` (e.g. ${answerKey.absentSample.join(', ')})` : ''} --`,
+      );
+      console.log(
+        '  if photos landed tomorrow every one of them would score cascade_miss by construction, blaming a',
+      );
+      console.log(
+        '  cascade that is working. Those rows need re-selecting from the catalogue before they are shot.',
+      );
+    } else if (answerKey.checked > 0) {
+      console.log(
+        `  answer key: all ${answerKey.checked} PENDING coded rows resolve in the catalogue; they are photo-ready.`,
+      );
+    }
+  }
 
   return m;
 }
@@ -992,9 +1288,11 @@ function report(
   results: RowResult[],
   pending = 0,
   pendingByKind: Record<string, number> = {},
+  answerKey: AnswerKeyCheck | null = null,
 ): void {
   console.log(
     pad('code', 15) +
+      pad('expect', 10) +
       pad('kind', 12) +
       pad('outcome', 15) +
       pad('top1', 6) +
@@ -1005,6 +1303,7 @@ function report(
   for (const r of results) {
     console.log(
       pad(r.code ?? '(no code)', 15) +
+        pad(r.expect, 10) +
         pad(r.kind, 12) +
         pad(r.outcome, 15) +
         pad(r.top1 ? 'yes' : 'no', 6) +
@@ -1014,9 +1313,20 @@ function report(
     );
   }
 
-  const n = results.length;
-  const top1n = results.filter((r) => r.top1).length;
-  const top3n = results.filter((r) => r.top3).length;
+  /*
+   * THE TOP-1 DENOMINATOR IS THE POSITIVE SET ONLY (2026-09-14).
+   *
+   * A refuse row cannot score top-1 -- there is no code for it to be top-1 of --
+   * so leaving it in `n` would deflate top-1 by however many produce photos
+   * exist, and the deflation would look like a retrieval regression. The rows
+   * still cost a model call each, so `n` stays whole for cost and timing below.
+   */
+  const idResults = results.filter((r) => r.expect === 'identify');
+  const n = idResults.length;
+  const calls = results.length;
+  const refuseScored = results.length - n;
+  const top1n = idResults.filter((r) => r.top1).length;
+  const top3n = idResults.filter((r) => r.top3).length;
   const unreadable = results.filter((r) => r.outcome === 'unreadable').length;
   const withPasses = results.filter((r) => r.passes !== undefined);
   const pass2n = withPasses.filter((r) => r.passes === 2).length;
@@ -1038,14 +1348,18 @@ function report(
   const costNote = args.dryRun
     ? '$0 (dry-run: no model calls made)'
     : args.tier === 'pro'
-      ? `~$${(n * SONNET_COST_PER_CALL + pickCost).toFixed(4)} (${n} extract calls + ${pickCalls} pick calls, both at model.ts's $0.0068/call estimate)`
+      ? // `calls`, not `n`: a refuse row is outside the top-1 denominator but it
+        // is not free -- it makes the same extract call as any other photo.
+        `~$${(calls * SONNET_COST_PER_CALL + pickCost).toFixed(4)} (${calls} extract calls + ${pickCalls} pick calls, both at model.ts's $0.0068/call estimate)`
       : `extract cost unknown (no published basic/haiku figure in model.ts); ${pickCalls} pick calls (always Sonnet 5) ~$${pickCost.toFixed(4)}`;
 
   console.log('');
-  console.log(`rows: ${n}  tier: ${args.tier}  dry-run: ${args.dryRun}`);
-  console.log(`top-1: ${top1n}/${n} (${((top1n / n) * 100).toFixed(1)}%)`);
-  console.log(`top-3: ${top3n}/${n} (${((top3n / n) * 100).toFixed(1)}%)`);
-  console.log(`unreadable: ${unreadable}/${n}`);
+  console.log(
+    `rows run: ${calls}  (identify ${n}, refuse ${refuseScored})  tier: ${args.tier}  dry-run: ${args.dryRun}`,
+  );
+  console.log(`top-1: ${top1n}/${n} (${pct(top1n, n)})   <- expect:'identify' rows only`);
+  console.log(`top-3: ${top3n}/${n} (${pct(top3n, n)})`);
+  console.log(`unreadable: ${unreadable}/${calls}`);
   console.log(
     withPasses.length
       ? `pass-2 rate: ${pass2n}/${withPasses.length} (${((pass2n / withPasses.length) * 100).toFixed(1)}%)`
@@ -1057,7 +1371,7 @@ function report(
     console.log(`pending (manifest slot, no photo yet): ${pending}`);
   }
 
-  const stages = reportStages(args, results, pendingByKind);
+  const stages = reportStages(args, results, pendingByKind, answerKey);
 
   // A --fake-catalogue run writes NO results file. Its accuracy numbers are the
   // manifest graded against itself, so the only thing a saved artifact could do
@@ -1081,7 +1395,10 @@ function report(
         tier: args.tier,
         dryRun: args.dryRun,
         summary: {
+          rowsRun: calls,
+          /** `expect:'identify'` rows: the denominator top1/top3 are over. */
           rows: n,
+          refuseRowsScored: refuseScored,
           top1: top1n,
           top3: top3n,
           unreadable,
@@ -1102,7 +1419,14 @@ function report(
           dryRunPickIsAnOracle: args.dryRun,
           cascadeNumbersReal: !args.fakeCatalogue,
           negativeSet:
-            'none: every manifest row is in the catalogue by construction, so the false-positive rate is structurally unmeasurable here.',
+            "defined and unmeasured: the twenty loose-produce rows now carry expect:'refuse', so a false " +
+            'positive has a definition and a denominator, but none of them holds a photo yet. The rate is ' +
+            'null, not zero.',
+          // Saved as a flag and not only as a sentence, so anything reading this
+          // file later can refuse to plot the rate rather than having to parse
+          // prose to find out it is plumbing.
+          negativeSetMeasured: !args.dryRun && (stages?.negative.scored ?? 0) > 0,
+          answerKey,
         },
         pendingByKind,
         results,

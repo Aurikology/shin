@@ -18,6 +18,8 @@ import assert from 'node:assert/strict';
 
 import {
   attribute,
+  namedACatalogueRow,
+  summariseNegative,
   rankOf,
   summarise,
   summariseByKind,
@@ -27,9 +29,11 @@ import {
 
 function obs(over: Partial<StageObservation> & { code: string }): StageObservation {
   return {
+    expect: 'identify',
     kind: 'plain',
     outcome: 'identified',
     chosenCode: null,
+    confidenceBand: 'high',
     barcodeShortCircuit: false,
     cascadeRan: true,
     cascadeCodes: [],
@@ -233,4 +237,166 @@ test('a row scoring top-1 is never also counted as a failure', () => {
     .filter(([k]) => k !== 'correct')
     .reduce((a, [, v]) => a + v, 0);
   assert.equal(m.top1 + failures, m.scored);
+});
+
+/* ==========================================================================
+ * THE NEGATIVE SET (2026-09-14).
+ *
+ * "Image verification to see if SHIN knows what it is" cannot be measured here:
+ * the image catalogue holds 0 of 212,340 rows (D-098) and no real model has ever
+ * run. What CAN be measured is whether Shin knows when it does NOT know, and
+ * until today the eval could not ask that at all -- every manifest row was in
+ * the catalogue by construction, so the false-positive rate was not low, it was
+ * undefined.
+ *
+ * These fixtures are hand-built for the same reason the five above are: there is
+ * no run that contains a false positive to capture, because there is no photo of
+ * a product the catalogue does not carry. A metric that only works on data that
+ * does not exist yet has to be tested against data that does not exist yet.
+ * ========================================================================== */
+
+/** A refuse row. No code, no right answer except "name nothing". */
+function refuse(over: Partial<StageObservation> = {}): StageObservation {
+  return {
+    code: null,
+    expect: 'refuse',
+    kind: 'produce',
+    outcome: 'not_in_catalogue',
+    chosenCode: null,
+    confidenceBand: null,
+    barcodeShortCircuit: false,
+    cascadeRan: true,
+    cascadeCodes: ['X', 'Y'],
+    pickFired: false,
+    pickErrored: false,
+    pickedCode: null,
+    ...over,
+  };
+}
+
+/** Decision 22 fired: knew what it was, said we do not carry it. The good one. */
+const REFUSED_NOT_IN_CATALOGUE = refuse();
+
+/** Nothing legible. Still a refusal: nothing was named, so nothing was named wrong. */
+const REFUSED_UNREADABLE = refuse({ outcome: 'unreadable' });
+
+/**
+ * Decision 17's identity_unsure screen: an 'identified' outcome carrying a low
+ * band and no confident pick is how the contract expresses "unsure", and the
+ * route renders it as candidates rather than as an answer. A hedge is not a
+ * claim, so this is a refusal too -- and getting this wrong would score Shin's
+ * own honesty as a false positive.
+ */
+const REFUSED_UNSURE = refuse({
+  outcome: 'identified',
+  chosenCode: 'X',
+  confidenceBand: 'low',
+  pickFired: true,
+  pickedCode: null,
+});
+
+/** The failure the whole negative set exists to count: a banana priced as ketchup. */
+const FALSELY_NAMED = refuse({
+  outcome: 'identified',
+  chosenCode: 'X',
+  confidenceBand: 'high',
+  pickFired: true,
+  pickedCode: 'X',
+});
+
+test('a refuse row that named a catalogue row anyway is a false_positive', () => {
+  assert.equal(attribute(FALSELY_NAMED), 'false_positive');
+  assert.equal(namedACatalogueRow(FALSELY_NAMED), true);
+});
+
+test('a confident pick is a claim even when the six-signal band came out low', () => {
+  // The pick CAPS the band, it does not abstain. A low band with a chosen index
+  // is still a product on the screen, and calling it a refusal would be the
+  // cheapest way to make this number look good.
+  const lowBandButPicked = refuse({
+    outcome: 'identified',
+    chosenCode: 'X',
+    confidenceBand: 'low',
+    pickFired: true,
+    pickedCode: 'X',
+  });
+  assert.equal(attribute(lowBandButPicked), 'false_positive');
+});
+
+test('the three shapes of refusal all score correct, and none is a cascade_miss', () => {
+  // The dangerous wrong answer here is `cascade_miss`: a refuse row has no
+  // expected code, so the old code path would have blamed retrieval for working
+  // exactly as intended.
+  for (const o of [REFUSED_NOT_IN_CATALOGUE, REFUSED_UNREADABLE, REFUSED_UNSURE]) {
+    assert.equal(attribute(o), 'correct');
+    assert.equal(namedACatalogueRow(o), false);
+  }
+});
+
+test('the false-positive rate counts the false positive and uses only scored refuse rows', () => {
+  const m = summarise([
+    ...FIVE,
+    REFUSED_NOT_IN_CATALOGUE,
+    REFUSED_UNREADABLE,
+    REFUSED_UNSURE,
+    FALSELY_NAMED,
+  ]);
+  assert.equal(m.negative.scored, 4);
+  assert.equal(m.negative.falsePositives, 1);
+  assert.equal(m.negative.correctRefusals, 3);
+  assert.equal(m.negative.falsePositiveRate, 0.25);
+  assert.equal(m.negative.correctRefusalRate, 0.75);
+  assert.equal(m.attribution.false_positive, 1);
+  assert.deepEqual(m.negative.refusedBy, {
+    notInCatalogue: 1,
+    unreadable: 1,
+    unsureNoConfidentPick: 1,
+  });
+});
+
+test('refuse rows stay out of every positive denominator', () => {
+  // The regression this guards: twenty produce photos landing and silently
+  // dragging top-1 down by a third, which would read as a retrieval failure.
+  const positivesOnly = summarise(FIVE);
+  const mixed = summarise([...FIVE, REFUSED_NOT_IN_CATALOGUE, FALSELY_NAMED]);
+  assert.equal(mixed.scored, positivesOnly.scored);
+  assert.equal(mixed.top1, positivesOnly.top1);
+  assert.equal(mixed.cascade.denominator, positivesOnly.cascade.denominator);
+  assert.equal(mixed.pick.denominator, positivesOnly.pick.denominator);
+  assert.equal(mixed.notInCatalogue, 0, 'a refuse row refusing is not a positive-set not_in_catalogue');
+});
+
+test('a refuse row with no photo is not in the denominator at all', () => {
+  /*
+   * PENDING counts as NOTHING. The runner never reaches the stage for a manifest
+   * slot with no photo, so no observation exists and the row cannot reach here.
+   * The failure being guarded is the tempting alternative: counting an
+   * unphotographed slot as a refusal, which would print a perfect negative-set
+   * score for a test that never ran.
+   */
+  const oneScored = summarise([...FIVE, FALSELY_NAMED]);
+  assert.equal(oneScored.negative.scored, 1);
+  assert.equal(oneScored.negative.falsePositiveRate, 1);
+  // ...and the other nineteen produce slots, having no photo, are simply absent.
+  assert.equal(oneScored.negative.correctRefusals, 0);
+});
+
+test('a zero denominator yields a null rate, never a 0% computed from nothing', () => {
+  // This is today's actual state: twenty refuse rows in the manifest, zero
+  // photos. 0/0 rendered as "0.0%" would be the most flattering lie the report
+  // could tell, because a working refusal path looks exactly like a 0% rate.
+  const m = summarise(FIVE);
+  assert.equal(m.negative.scored, 0);
+  assert.equal(m.negative.falsePositiveRate, null);
+  assert.equal(m.negative.correctRefusalRate, null);
+  assert.equal(m.negative.falsePositiveInterval, null);
+  assert.equal(summariseNegative([]).falsePositiveRate, null);
+});
+
+test("an expect:'identify' row with no code throws rather than scoring a silent correct", () => {
+  // null === null would have made this a top-1. Loud beats plausible.
+  assert.throws(
+    () => attribute(refuse({ expect: 'identify' })),
+    /null code/,
+  );
 });

@@ -74,3 +74,136 @@ test('flag order does not change the parse', () => {
   const b = parseArgs(['--limit', '3', '--tier', 'basic', '--dry-run']);
   assert.deepEqual(a, b);
 });
+
+/* ==========================================================================
+ * THE MANIFEST'S NEGATIVE-SET CONTRACT, and the dry run's honesty about it.
+ *
+ * Added 2026-09-14 with `expect`. These assertions are about data rather than
+ * code, which is unusual and deliberate: `manifest.json` is the answer key, an
+ * answer key is exactly the file that gets edited quietly, and a wrong `expect`
+ * has no symptom at all -- a produce row flipped to 'identify' does not crash,
+ * it just removes the false-positive rate from the report and nobody notices.
+ * ========================================================================== */
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+import { FakeIdentifier, type ManifestRow } from '../eval/run.ts';
+import type { PickCandidateRow } from '../src/model.ts';
+
+const MANIFEST = JSON.parse(
+  readFileSync(fileURLToPath(new URL('../eval/manifest.json', import.meta.url)), 'utf8'),
+) as ManifestRow[];
+
+test("every manifest row declares what a correct answer looks like", () => {
+  for (const r of MANIFEST) {
+    assert.ok(
+      r.expect === 'identify' || r.expect === 'refuse',
+      `${r.file} carries expect=${String(r.expect)}`,
+    );
+  }
+});
+
+test('the twenty loose-produce rows ARE the negative set, and nothing else is', () => {
+  // D-096: produce has no barcode, so it has no catalogue row, so the only
+  // correct answer is a refusal. Photographing these as a retrieval test asks a
+  // question with no right answer.
+  const refuse = MANIFEST.filter((r) => r.expect === 'refuse');
+  assert.equal(refuse.length, 20);
+  for (const r of refuse) {
+    assert.equal(r.kind, 'produce', `${r.file} is a refuse row but not produce`);
+    assert.equal(r.code, null, `${r.file} is a refuse row carrying a code`);
+  }
+  assert.equal(MANIFEST.filter((r) => r.kind === 'produce').length, 20);
+});
+
+test("every expect:'identify' row carries a code to be identified as", () => {
+  // Without a code there is nothing to be right about, and `attribute()` would
+  // be comparing null to null.
+  for (const r of MANIFEST.filter((r) => r.expect === 'identify')) {
+    assert.ok(r.code, `${r.file} expects an identification but has no code`);
+  }
+});
+
+test('the tech rows stay expect:\'identify\', because re-pointing them is an answer-key change', () => {
+  // D-096 records that all twenty tech codes are absent from the catalogue and
+  // from both Open Facts APIs. That makes the answer key broken, not the
+  // expectation wrong: they are real products the catalogue SHOULD hold. The
+  // runner says so in its own output rather than the manifest being quietly
+  // re-scoped to make the report look clean.
+  const tech = MANIFEST.filter((r) => r.kind === 'tech');
+  assert.equal(tech.length, 20);
+  for (const r of tech) assert.equal(r.expect, 'identify');
+});
+
+/* ------------------------------------------------ the dry run cannot fake a pass */
+
+function row(over: Partial<ManifestRow> = {}): ManifestRow {
+  return {
+    code: null,
+    file: 'photos/produce-01.jpg',
+    brand: null,
+    name: null,
+    size: null,
+    kind: 'produce',
+    expect: 'refuse',
+    category: null,
+    ...over,
+  };
+}
+
+const CANDIDATES: readonly PickCandidateRow[] = [
+  { index: 0, code: 'X', brand: 'Heinz', name: 'Tomato Ketchup', size: '750 mL', category: null },
+  { index: 1, code: 'Y', brand: 'Heinz', name: 'Tomato Ketchup', size: '1.5 L', category: null },
+];
+
+test('the dry-run fake invents no product for a row with no brand, name or code', async () => {
+  // The fake echoes the manifest's answer back. A refuse row that HAS no answer
+  // must therefore echo nothing -- not a plausible brand, which is precisely the
+  // behaviour the negative set exists to catch in a real model.
+  const reading = await new FakeIdentifier(row()).read();
+  assert.deepEqual(reading.product.front_text, []);
+  assert.equal(reading.product.brand, null);
+  assert.equal(reading.product.name, null);
+  assert.equal(reading.product.barcode_digits, null);
+  assert.equal(reading.product.self_confidence, 'low');
+  // fromCrop builds `readAs` from brand+name+variant; empty means 'unreadable',
+  // which is a refusal, which is the honest outcome for an unlabelled thing.
+  assert.equal([reading.product.brand, reading.product.name].filter(Boolean).join(' '), '');
+});
+
+test('a produce row with a name still echoes the name, because that is what a camera would see', async () => {
+  // Not everything on the negative set is unreadable. A banana IS legible; what
+  // makes it a refuse row is that no catalogue row exists for it. Blanking the
+  // name here would test the wrong thing -- an unreadable photo instead of a
+  // readable product that is absent from the catalogue.
+  const reading = await new FakeIdentifier(row({ name: 'Banana' })).read();
+  assert.equal(reading.product.name, 'Banana');
+  assert.deepEqual(reading.product.front_text, ['Banana']);
+});
+
+test('the dry-run pick CANNOT manufacture a refusal on a refuse row', async () => {
+  /*
+   * THE TRAP THIS CLOSES. The oracle works by finding `row.code` among the
+   * candidates. On a refuse row that code is null, nothing matches, and the
+   * oracle would abstain -- which scores as a correct refusal. Every produce row
+   * would refuse, the false-positive rate would print 0%, and the number would be
+   * a property of this class rather than of the product.
+   *
+   * So it takes the cascade top instead: pessimistic, still not a measurement,
+   * but incapable of flattering.
+   */
+  const reading = await new FakeIdentifier(row({ name: 'Banana' })).pick(
+    new Uint8Array(),
+    CANDIDATES,
+  );
+  assert.equal(reading.pick.chosen_index, 0);
+  assert.notEqual(reading.pick.chosen_index, null);
+  assert.match(reading.pick.why, /no oracle/);
+});
+
+test('the oracle still works for an identify row, so the ceiling number is unchanged', async () => {
+  const reading = await new FakeIdentifier(
+    row({ code: 'Y', expect: 'identify', name: 'Tomato Ketchup', brand: 'Heinz' }),
+  ).pick(new Uint8Array(), CANDIDATES);
+  assert.equal(reading.pick.chosen_index, 1);
+});

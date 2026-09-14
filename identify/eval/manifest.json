@@ -6,6 +6,7 @@
     "name": "Tomato Ketchup",
     "size": "750 mL",
     "kind": "size-pair",
+    "expect": "identify",
     "category": "en:groceries"
   },
   {
@@ -15,6 +16,7 @@
     "name": "Tomato Ketchup",
     "size": "1.5 litre",
     "kind": "size-pair",
+    "expect": "identify",
     "category": "en:groceries"
   },
   {
@@ -24,6 +26,7 @@
     "name": "Tomato Ketchup",
     "size": "375 mL",
     "kind": "size-pair",
+    "expect": "identify",
     "category": "en:tomato-ketchup"
   },
   {
@@ -33,6 +36,7 @@
     "name": "Tomato Ketchup",
     "size": "1 l",
     "kind": "size-pair",
+    "expect": "identify",
     "category": "en:groceries"
   },
   {
@@ -42,6 +46,7 @@
     "name": "Mini Eggs",
     "size": "90g",
     "kind": "size-pair",
+    "expect": "identify",
     "category": "en:eggs"
   },
   {
@@ -51,6 +56,7 @@
     "name": "Mini Eggs",
     "size": "151g",
     "kind": "size-pair",
+    "expect": "identify",
     "category": "en:chocolate-eggs"
   },
   {
@@ -60,6 +66,7 @@
     "name": "Corn Flakes",
     "size": "1, 340 grams",
     "kind": "size-pair",
+    "expect": "identify",
     "category": "en:corn-flakes"
   },
   {
@@ -69,6 +76,7 @@
     "name": "Corn Flakes",
     "size": "760g",
     "kind": "size-pair",
+    "expect": "identify",
     "category": "en:corn-flakes"
   },
   {
@@ -78,6 +86,7 @@
     "name": "Lemon-Lime Soda",
     "size": "355ml",
     "kind": "size-pair",
+    "expect": "identify",
     "category": "en:sodas"
   },
   {
@@ -87,6 +96,7 @@
     "name": "Lemon-Lime Soda",
     "size": "2 L",
     "kind": "size-pair",
+    "expect": "identify",
     "category": "en:sweetened-beverages"
   },
   {
@@ -96,6 +106,7 @@
     "name": "Cinnamon Toast Crunch",
     "size": "354 Grams",
     "kind": "size-pair",
+    "expect": "identify",
     "category": "en:extruded-cereals"
   },
   {
@@ -105,6 +116,7 @@
     "name": "Cinnamon Toast Crunch",
     "size": "591 g",
     "kind": "size-pair",
+    "expect": "identify",
     "category": "en:extruded-cereals"
   },
   {
@@ -114,6 +126,7 @@
     "name": "crunchy peanut butter",
     "size": "1 kg",
     "kind": "store-brand",
+    "expect": "identify",
     "category": "en:crunchy-peanut-butters"
   },
   {
@@ -123,6 +136,7 @@
     "name": "Natural Spring Water",
     "size": "500 mL",
     "kind": "store-brand",
+    "expect": "identify",
     "category": "en:unsweetened-beverages"
   },
   {
@@ -132,6 +146,7 @@
     "name": "Medium cheddar cheese",
     "size": "450 g",
     "kind": "store-brand",
+    "expect": "identify",
     "category": "en:cheddar-cheese"
   },
   {
@@ -141,6 +156,7 @@
     "name": "Coffee Kirkland",
     "size": "1.36kg",
     "kind": "store-brand",
+    "expect": "identify",
     "category": "en:colombian-coffees"
   },
   {
@@ -150,6 +166,7 @@
     "name": "Oat Grain with Quinoa Bars",
     "size": "5 x 40 g.  Net: 200 g",
     "kind": "multipack",
+    "expect": "identify",
     "category": "en:cereal-bars"
   },
   {
@@ -159,6 +176,7 @@
     "name": "Danette Dessert Laitier Au Chocolat",
     "size": "4 x 100 g",
     "kind": "multipack",
+    "expect": "identify",
     "category": "en:creamy-puddings"
   },
   {
@@ -168,6 +186,7 @@
     "name": "Perogies Variety 4-pack",
     "size": "2 kg",
     "kind": "multipack",
+    "expect": "identify",
     "category": "en:frozen-perogies-variety-pack"
   },
   {
@@ -177,6 +196,7 @@
     "name": "Fruit Medley",
     "size": "5 x 200 mL",
     "kind": "multipack",
+    "expect": "identify",
     "category": "en:fruit-juices"
   },
   {
@@ -186,6 +206,7 @@
     "name": "Raw Organic Honey",
     "size": "500 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:honeys"
   },
   {
@@ -195,6 +216,7 @@
     "name": "Roasted Pine Nut Hummus",
     "size": "283 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:hummus"
   },
   {
@@ -204,6 +226,7 @@
     "name": "100 % Whole Wheat Loaf",
     "size": "800 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:breads"
   },
   {
@@ -213,6 +236,7 @@
     "name": "Kombucha au gingembre",
     "size": "355 ml",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:kombuchas"
   },
   {
@@ -222,6 +246,7 @@
     "name": "Chocolate IsaPro Plant-Based Protein",
     "size": "969 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:protein-powders"
   },
   {
@@ -231,6 +256,7 @@
     "name": "Cap'n Crunch's Crunch Berries",
     "size": "360 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:breakfast-cereals"
   },
   {
@@ -240,6 +266,7 @@
     "name": "Chips",
     "size": "50 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:potato-crisps"
   },
   {
@@ -249,6 +276,7 @@
     "name": "Organic Spearmint",
     "size": "30 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:teas"
   },
   {
@@ -258,6 +286,7 @@
     "name": "Chessmen Butter Cookies",
     "size": "206 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:biscuits"
   },
   {
@@ -267,6 +296,7 @@
     "name": "The Original Ranch Fat Free Condiment & Dressing",
     "size": "473 ml",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:salad-dressings"
   },
   {
@@ -276,6 +306,7 @@
     "name": "Fruit Snacks",
     "size": "22 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:confectioneries"
   },
   {
@@ -285,6 +316,7 @@
     "name": "Peanuts Barbercue",
     "size": "190 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:peanuts"
   },
   {
@@ -294,6 +326,7 @@
     "name": "Cheezies",
     "size": "70g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:corn-chips"
   },
   {
@@ -303,6 +336,7 @@
     "name": "Feta Cheese",
     "size": "200 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:cheeses"
   },
   {
@@ -312,6 +346,7 @@
     "name": "Baya Halloumi",
     "size": "170 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:cheeses"
   },
   {
@@ -321,6 +356,7 @@
     "name": "Préparation pour Scones Écossais à l’avoine et aux raisins",
     "size": "567 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:flours"
   },
   {
@@ -330,6 +366,7 @@
     "name": "Breton flax & sea salt crackers",
     "size": "135 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:crackers-appetizers"
   },
   {
@@ -339,6 +376,7 @@
     "name": "Masala Festive Pack Authentic Indian Noodles",
     "size": "70 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:instant-noodles"
   },
   {
@@ -348,6 +386,7 @@
     "name": "Yoplait Crémeux vanille",
     "size": "650 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:yogurts"
   },
   {
@@ -357,6 +396,7 @@
     "name": "Bol poulet, Sésame et brocoli",
     "size": "281 g",
     "kind": "plain",
+    "expect": "identify",
     "category": "en:chickens"
   },
   {
@@ -366,6 +406,7 @@
     "name": "Banana",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -375,6 +416,7 @@
     "name": "Gala Apple",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -384,6 +426,7 @@
     "name": "Roma Tomato",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -393,6 +436,7 @@
     "name": "English Cucumber",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -402,6 +446,7 @@
     "name": "Green Bell Pepper",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -411,6 +456,7 @@
     "name": "Red Onion",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -420,6 +466,7 @@
     "name": "Russet Potato",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -429,6 +476,7 @@
     "name": "Iceberg Lettuce",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -438,6 +486,7 @@
     "name": "Broccoli Crown",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -447,6 +496,7 @@
     "name": "Carrots (loose)",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -456,6 +506,7 @@
     "name": "Navel Orange",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -465,6 +516,7 @@
     "name": "Avocado (Hass)",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -474,6 +526,7 @@
     "name": "Green Grapes (seedless)",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -483,6 +536,7 @@
     "name": "Strawberries (loose)",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -492,6 +546,7 @@
     "name": "Yellow Onion",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -501,6 +556,7 @@
     "name": "Garlic Bulb",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -510,6 +566,7 @@
     "name": "Sweet Potato",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -519,6 +576,7 @@
     "name": "Cauliflower",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -528,6 +586,7 @@
     "name": "Celery Stalk",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -537,6 +596,7 @@
     "name": "Lemon",
     "size": null,
     "kind": "produce",
+    "expect": "refuse",
     "category": null
   },
   {
@@ -546,6 +606,7 @@
     "name": "GS66 11UG-264RU Stealth",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:laptops"
   },
   {
@@ -555,6 +616,7 @@
     "name": "iPhone 13 Pro",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:smartphones"
   },
   {
@@ -564,6 +626,7 @@
     "name": "55\" 1080p LED HDTV",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:tvs"
   },
   {
@@ -573,6 +636,7 @@
     "name": "Multimedia Headset",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:headphones-headsets"
   },
   {
@@ -582,6 +646,7 @@
     "name": "19\" compact PC keyboard PS/2",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:keyboards"
   },
   {
@@ -591,6 +656,7 @@
     "name": "LS27F350FHLXZX",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:computer-monitors"
   },
   {
@@ -600,6 +666,7 @@
     "name": "Q1 Ultra Tablet PC",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:tablets"
   },
   {
@@ -609,6 +676,7 @@
     "name": "Z Turbo Drive 1TB TLC Z8 G4 SSD Kit",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:internal-solid-state-drives"
   },
   {
@@ -618,6 +686,7 @@
     "name": "Smart Tank 7305 All-in-One Printer",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:multifunction-printers"
   },
   {
@@ -627,6 +696,7 @@
     "name": "Cat5e, UTP, 0.25m",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:networking-cables"
   },
   {
@@ -636,6 +706,7 @@
     "name": "GPX Lightback Ferrari F1 Edition",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:gaming-controllers"
   },
   {
@@ -645,6 +716,7 @@
     "name": "1500GB 3.5\" SATA II",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:internal-hard-drives"
   },
   {
@@ -654,6 +726,7 @@
     "name": "LaserJet Pro 4002dw Printer",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:laser-printers"
   },
   {
@@ -663,6 +736,7 @@
     "name": "TS-EC879U-RP 10Gbit/s 4x3TB",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:nas-storage-servers"
   },
   {
@@ -672,6 +746,7 @@
     "name": "8GB DDR3 1600MHz",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:memory-modules"
   },
   {
@@ -681,6 +756,7 @@
     "name": "CD-RW 700MB 80Min 32x UltraSpeed JC 10pk",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:blank-cds"
   },
   {
@@ -690,6 +766,7 @@
     "name": "ThinkStation P3 Tower",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:pcs-workstations"
   },
   {
@@ -699,6 +776,7 @@
     "name": "Commuter Case",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:mobile-phone-cases"
   },
   {
@@ -708,6 +786,7 @@
     "name": "Toner Type 1220D Black",
     "size": null,
     "kind": "tech",
+    "expect": "identify",
     "category": "en:toner-cartridges"
   },
   {
@@ -717,6 +796,7 @@
     "name": "Ink Cart light magenta 220ml f SP9500",
     "size": "220 mL",
     "kind": "tech",
+    "expect": "identify",
     "category": "en:ink-cartridges"
   }
 ]
