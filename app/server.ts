@@ -64,6 +64,7 @@ import { INVITE_EXEMPT, INVITE_HEADER, INVITE_REFUSAL, inviteAllows, inviteRequi
 import { logError } from './src/errlog.ts';
 import { listenProblem, startupProblems } from './src/startup.ts';
 import { estimatedCostCents } from './src/model-cost.ts';
+import { recordAccess } from './src/access-log.ts';
 import { recordShutterRequest, saveShutterFrame } from './src/shutter-log.ts';
 import { savePhoto, sweepPhotos } from './src/photos.ts';
 import { dailyLatency } from './src/latency.ts';
@@ -1412,6 +1413,7 @@ export const server = createServer(async (req, res) => {
 
   // Before any route reads the body: a request carrying a shutter press id is
   // copied, sent and returned, into that press's folder (src/shutter-log.ts).
+  recordAccess(req, res);
   recordShutterRequest(req, res, url.pathname);
 
   const json = (status: number, body: unknown) => {

@@ -22,16 +22,16 @@
  *    because pack.js already stores it in IndexedDB with a version it checks.
  *    Two copies with two expiry rules is how a phone ends up answering from a
  *    pack nobody can account for.
- * 3. Everything else same-origin is served from cache first and refreshed in
- *    the background. The app is small and versioned by this file's CACHE name;
- *    a person who is online gets the new copy on their next load, and a person
+ * 3. Everything else same-origin is fetched from the network first and cached;
+ *    the cache answers only when the network does not (see the fetch handler);
+ *    a person who is online always gets the current copy, and a person
  *    who is not gets the one that works.
  * 4. A navigation offline falls back to the cached page rather than the
  *    browser's error page, because the app has something useful to do with no
  *    signal and the browser's page does not.
  */
 
-const CACHE = 'shin-shell-v2';
+const CACHE = 'shin-shell-v3';
 
 /*
  * The one file that must be there before the first offline load, because
@@ -81,19 +81,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  /*
+   * Network first, cache when there is no network. Was cache first until
+   * 2026-09-14, when a family phone kept running a copy of the app from before
+   * two fixes (the invite read from the link, and the barcode reader surviving
+   * a slow download) for several loads after both were live: every API call it
+   * made was refused and nothing it scanned reached the server. On the beta the
+   * code changes daily, so a stale copy is the common case, not the offline
+   * aisle. Offline still gets the cached copy.
+   */
   event.respondWith(
-    caches.match(req).then((hit) => {
-      // Served from cache, refreshed behind the reader's back. The refresh is
-      // deliberately not awaited and deliberately not allowed to fail loudly:
-      // being offline is the normal case this whole file is written for.
-      const live = fetch(req)
-        .then((res) => {
-          if (res && res.ok) void put(req, res.clone());
-          return res;
-        })
-        .catch(() => null);
-      return hit ?? live.then((res) => res ?? Response.error());
-    }),
+    fetch(req)
+      .then((res) => {
+        if (res && res.ok) void put(req, res.clone());
+        return res;
+      })
+      .catch(() => caches.match(req).then((hit) => hit ?? Response.error())),
   );
 });
 

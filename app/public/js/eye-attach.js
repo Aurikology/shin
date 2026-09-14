@@ -38,6 +38,9 @@
  * is handed another.
  */
 
+import { postEvent } from './api.js';
+import { getDeviceId } from './device.js';
+
 /** How far the box must move before the reticle bothers, as a fraction of the frame. */
 const SNAP = 0.045;
 /** How much of the new box each update takes. Low enough to settle, high enough to keep up. */
@@ -208,12 +211,44 @@ export async function attachEye(video, surfaces, handlers = {}) {
     el.style.setProperty('--code-progress', String(Math.min(1, mark.frames / mark.needed)));
   };
 
+  /*
+   * Every fall back to the plain camera is reported to the server, with the
+   * step and the browser's own error. Added 2026-09-14: on a family iPhone the
+   * barcode never read and the shutter sent nothing, which is exactly what the
+   * plain camera does, and every catch below swallowed the reason. Degrading
+   * stays the normal case; degrading without anybody learning why does not.
+   */
+  const report = (stage, err) => {
+    void postEvent({
+      deviceId: getDeviceId().id,
+      type: stage === 'live' ? 'eye_live' : 'eye_trouble',
+      payload: {
+        stage,
+        error: err ? String(err?.stack ?? err).slice(0, 1500) : null,
+        ua: navigator.userAgent,
+        secure: globalThis.isSecureContext ?? null,
+        offscreen: typeof OffscreenCanvas !== 'undefined',
+        wasm: typeof WebAssembly !== 'undefined',
+        video: { w: video?.videoWidth ?? null, h: video?.videoHeight ?? null },
+      },
+    });
+  };
+  const onLoopError = (e) => {
+    if (dead.value || loopErrors >= 3) return;
+    loopErrors += 1;
+    report('loop', e?.reason ?? e?.error ?? e?.message ?? e);
+  };
+  let loopErrors = 0;
+  globalThis.addEventListener?.('unhandledrejection', onLoopError);
+  globalThis.addEventListener?.('error', onLoopError);
+
   let mod;
   try {
     mod = await import('/js/eye.js');
-  } catch {
+  } catch (err) {
     // The bundle did not load. The screen keeps its own camera and its own
     // fixed reticle, which is what it had before any of this existed.
+    report('import', err);
     return inert();
   }
 
@@ -259,13 +294,18 @@ export async function attachEye(video, surfaces, handlers = {}) {
         onCoach: (key) => { if (!dead.value) handlers.onCoach?.(key); },
         onCapture: (crop, detection) => { if (!dead.value) handlers.onCapture?.(crop, detection); },
         onTorch: (on) => { if (!dead.value) handlers.onTorch?.(on); },
-        onTrouble: (message) => { if (!dead.value) handlers.onTrouble?.(message); },
+        onTrouble: (message) => {
+          report('trouble', message);
+          if (!dead.value) handlers.onTrouble?.(message);
+        },
       },
     });
     await camera.start();
-  } catch {
+    report('live', null);
+  } catch (err) {
     // Permission denied, no camera, or the stream would not start. Same
     // outcome as no bundle: the screen is the screen it always was.
+    report(camera ? 'start' : 'construct', err);
     try { camera?.stop(); } catch { /* nothing to stop */ }
     return inert();
   }
@@ -280,6 +320,8 @@ export async function attachEye(video, surfaces, handlers = {}) {
     clearSelection: () => camera.clearSelection(),
     stop: () => {
       dead.value = true;
+      globalThis.removeEventListener?.('unhandledrejection', onLoopError);
+      globalThis.removeEventListener?.('error', onLoopError);
       try { camera.stop(); } catch { /* already gone */ }
     },
   };
