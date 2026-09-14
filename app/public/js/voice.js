@@ -241,6 +241,38 @@ const LINES_EN = {
     warm: () => 'I would rather not say yet',
     blunt: () => 'Not enough. Ask me later.',
   },
+  /**
+   * The thin refusal, when there is a priced substitute to put under it.
+   * 2026-09-14.
+   *
+   * THE ONE WORD THIS LINE MAY NOT SAY. The brief for the feature was "if
+   * there is no comparison say that it is expensive and there is no
+   * comparison". The first half of that cannot ship. "Expensive" with no
+   * comparison behind it is a price claim resting on nothing, which hard rule
+   * 2 forbids and which the Competition Act s.74.01(1)(b) calls a
+   * representation about an ordinary price with no adequate basis. The file
+   * header's own promise is the same rule in smaller letters: the attitude
+   * changes the words and never the number, and a tier word IS a number in
+   * disguise.
+   *
+   * docs/plan-always-a-price.md section 3 draws the same line for the whole
+   * system: only a real verdict may say good, fair, high, walk away, deal or
+   * cheaper. This answer has no comparison set, so it is a reference, and a
+   * reference says what it rests on and stops.
+   *
+   * So the line states two facts and hands over: there is nothing to compare
+   * this to, so Shin will not call it, and here is a thing beside it that a
+   * price is actually known for. THE SUBSTITUTE CARRIES THE VALUE, not the
+   * adjective. Rendered only when `/api/alternatives` came back with rows; a
+   * refusal with nothing under it keeps `refuse_thin` alone, because this line
+   * promises something and an empty box underneath it would break the promise
+   * in the same breath.
+   */
+  refuse_thin_swaps: {
+    deadpan: () => 'No comparison for this one, so I cannot call it. Here is something similar that has a price on it.',
+    warm: () => 'There is no comparison for this one yet, so I am not going to call it. Here is something similar that does have a price on it, in case it helps.',
+    blunt: () => 'No comparison. No call. Here is something similar that has a price.',
+  },
   /** The evidence line under a refusal, when something was found but not enough. */
   refuse_evidence_some: {
     deadpan: () => 'What I did find, which was not enough to call it.',

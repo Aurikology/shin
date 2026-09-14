@@ -164,6 +164,15 @@ export const LINES_FR = {
     warm: () => "Je préfère ne pas me prononcer encore",
     blunt: () => "Pas assez. Redemande plus tard.",
   },
+  /* Le refus mince quand il y a un substitut avec un prix à mettre dessous.
+     Même règle qu'en anglais, et c'est la règle dure 2: sans comparaison,
+     aucun mot de palier. Pas de prix jugé, pas d'adjectif. Le substitut porte
+     la valeur, pas la phrase. */
+  refuse_thin_swaps: {
+    deadpan: () => "Aucune comparaison pour celui-là, donc je ne peux pas me prononcer. Voici quelque chose de semblable qui a un prix.",
+    warm: () => "Il n'y a pas encore de comparaison pour celui-là, donc je ne me prononcerai pas. Voici quelque chose de semblable qui a un prix, au cas où ça aiderait.",
+    blunt: () => "Pas de comparaison. Je ne me prononce pas. Voici quelque chose de semblable qui a un prix.",
+  },
   refuse_evidence_some: {
     deadpan: () => "Ce que j'ai trouvé, et ce n'était pas assez pour trancher.",
     warm: () => "Voici ce que j'ai trouvé. C'était juste pas assez pour trancher.",

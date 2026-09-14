@@ -1625,6 +1625,39 @@
   outline-offset: var(--ring-offset, 3px);
   border-color: currentColor;
 }
+
+/* "What is it?", the optional name on a pad with no identity behind it
+   (2026-09-14). Full width and stacked, unlike the 60px modifier spinner
+   above: this takes a product name, not two digits, and a label that sat
+   inline would push the field to a width nobody can read a brand in.
+   var(--tap) tall for the same reason every other control on this sheet is:
+   it is tapped one-handed in an aisle. It is OPTIONAL and looks it -- no
+   asterisk, no required styling, and the confirm key never consults it. */
+.padsheet .pad-name { margin-top: 10px; }
+.padsheet .pad-name label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ink-muted);
+  text-align: left;
+}
+.padsheet .pad-name input {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--hairline);
+  background: var(--raised);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  font-size: 15px;
+}
+.padsheet .pad-name input:focus-visible {
+  outline: var(--ring-width, 2px) solid currentColor;
+  outline-offset: var(--ring-offset, 3px);
+  border-color: currentColor;
+}
 /* Two grids, not one: 1-9 above, then the bottom row (., 0, backspace,
    confirm) so the confirm key reads as the keypad's own key, USAGE A1
    0:13.4, not a separate button below it.

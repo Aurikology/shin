@@ -392,9 +392,16 @@ function provenance(points, askingCents) {
  * Nothing at all is drawn without a barcode, because the lookup is keyed on one
  * and an empty box that could never fill is worse than no box.
  */
-function cheaperSlot(code) {
+function cheaperSlot(code, placeholder = null) {
   if (!code) return '';
-  return `<div class="cheaper" data-cheaper><p class="detail">Looking for a cheaper one&hellip;</p></div>`;
+  /* The waiting line, and the refusal path supplies its own. The default says
+     "cheaper", which is arithmetic against the number the verdict above it has
+     already judged; a refusal has judged nothing, so it passes its own heading
+     in and the rows land underneath it when they arrive. */
+  const wait = placeholder === null
+    ? 'Looking for a cheaper one&hellip;'
+    : escapeHtml(placeholder);
+  return `<div class="cheaper" data-cheaper><p class="detail">${wait}</p></div>`;
 }
 
 /**
@@ -523,15 +530,24 @@ function swapRow(a) {
  * tortilla chips"), which is true of the shelf it looked at and false of every
  * row under it once the leaf came back empty. The row badges alone would leave
  * that heading standing unqualified over a list that contradicts it.
+ *
+ * `opts.allLooserKey` REPLACES THAT LINE ON A SHEET WITH NO COMPARISON ON IT,
+ * and the default is the verdict's own wording, byte for byte, so nothing on
+ * the verdict path moves. docs/plan-always-a-price.md section 3: "cheaper" is
+ * arithmetic against a number the sheet has already judged, and on a refusal
+ * there is no such number, so the refusal path passes `cam_swap_all_looser_ref`
+ * and a heading of its own. The ROWS are identical on both paths: "Same kind
+ * of thing" and "Looser swap" say how wide a claim is, which is true whether
+ * or not anything was judged.
  */
-function cheaperList(heading, alternatives) {
+function cheaperList(heading, alternatives, opts = {}) {
   const rows = swapsByRing(alternatives);
   const head = `<p class="detail">${escapeHtml(heading)}</p>`;
   if (rows.length === 0) return head;
   const allLooser = rows.every((a) => ringOf(a) === 'parent');
   return `
       ${head}
-      ${allLooser ? `<p class="detail swap-all-looser">${escapeHtml(t('cam_swap_all_looser'))}</p>` : ''}
+      ${allLooser ? `<p class="detail swap-all-looser">${escapeHtml(t(opts.allLooserKey ?? 'cam_swap_all_looser'))}</p>` : ''}
       <div class="prov">
         ${rows.map(swapRow).join('')}
       </div>`;
@@ -550,13 +566,18 @@ function cheaperList(heading, alternatives) {
  * nothing cheaper we can price" and "we did not look" are different facts and
  * silence would read as the second.
  */
-async function fillCheaper(root, code, askingCents) {
+async function fillCheaper(root, code, askingCents, opts = {}) {
   const box = root.querySelector('[data-cheaper]');
   if (!box || !code || typeof askingCents !== 'number') return;
   try {
     const r = await ctxApi.alternatives({ code, askingCents });
     if (!box.isConnected) return;
-    box.innerHTML = cheaperList(r.heading, r.alternatives);
+    /* `opts.heading` is the refusal path's own heading and it is NOT a
+       fallback for a heading the server failed to send: the server's heading
+       names a leaf category with the word "cheaper" in front of it, which is a
+       true sentence under a verdict and a claim resting on nothing under a
+       refusal. When the caller supplies one it wins outright. */
+    box.innerHTML = cheaperList(opts.heading ?? r.heading, r.alternatives, opts);
   } catch {
     // A lookup that threw is not "there is nothing cheaper". Saying so, rather
     // than leaving the placeholder sentence up forever, which would read as a
@@ -886,6 +907,41 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
   const isThin = isThinReason(r.reason);
   const isModelDown = MODEL_DOWN_REASONS.has(r.reason);
 
+  /*
+   * A PRICED SUBSTITUTE UNDER A REFUSAL THAT COULD NOT CALL THE PRICE.
+   * 2026-09-14, and it is the founder's own sentence made safe:
+   *
+   *   "if there is no comparison say that it is expensive and there is no
+   *    comparison, we can offer another item for this that is worth their
+   *    money but not identical."
+   *
+   * The second half ships and the first half cannot. "Expensive" with no
+   * comparison behind it is a price representation with no adequate basis,
+   * which hard rule 2 forbids outright; `refuse_thin_swaps` in voice.js has
+   * the whole reasoning. What is left is the part that was always the useful
+   * part: Shin will not call this one, and here is a thing beside it that
+   * somebody has actually priced. The substitute carries the value.
+   *
+   * BOTH CONDITIONS ARE REAL, neither is defensive coding:
+   *
+   * - **A code.** `/api/alternatives` is keyed on a barcode. Without one there
+   *   is no query to send, so the box could never fill and drawing it would be
+   *   a promise the sheet cannot keep.
+   * - **An asking price.** The catalogue's rule for what counts as an
+   *   alternative is "priced below what you are being asked", so with no
+   *   asking price there is no cut-off and the rows would mean nothing.
+   *
+   * ONLY THE THIN REFUSALS. The other reasons are a different failure: no
+   * identity and unsure-which-one do not know what the swaps would be swaps
+   * FOR, and an unsupported category has already said it will not price this
+   * kind of thing at all, so offering substitutes in it contradicts the
+   * sentence directly above them.
+   */
+  const swapsOffered = isThin
+    && !!opts.swapCode
+    && typeof opts.askingCents === 'number'
+    && Number.isFinite(opts.askingCents);
+
   const titleKey = isCategory
     ? 'refuse_category'
     : isUnsure
@@ -924,9 +980,16 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
   // one. The barcode and typing it still work.") -- both stating the same two
   // facts, what happened and what still works, in almost the same words. The
   // per-class line already carries both; this line only repeated them.
-  const mine = isCategory || isThin || isModelDown
-    ? ''
-    : `<p class="said">${say(isUnsure ? 'refuse_unsure_why' : 'refuse_unknown_why')}</p>`;
+  //
+  // The thin refusal gets one, and only when there is something to hand over.
+  // `refuse_thin_swaps` ends by pointing at the rows below it, so rendering it
+  // over an empty box would be the line breaking its own promise in the same
+  // breath; with no swaps the refusal stands exactly as it did.
+  const mine = swapsOffered
+    ? `<p class="said">${say('refuse_thin_swaps')}</p>`
+    : isCategory || isThin || isModelDown
+      ? ''
+      : `<p class="said">${say(isUnsure ? 'refuse_unsure_why' : 'refuse_unknown_why')}</p>`;
 
   // USAGE.md section 4 ("the single action, by reason") and section 7 ("on a
   // refusal: one action only... there is no share and no watch on a refusal")
@@ -992,6 +1055,15 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
         ${r.evidenceNote
           ? `<details class="why"><summary>${escapeHtml(t('cam_why'))}</summary><p class="detail">${escapeHtml(r.evidenceNote)}</p></details>`
           : ''}
+        ${/*
+             Below the fold, the same place the verdict keeps it, and for the
+             same reason: the rows arrive after the sheet does, so the reflow
+             lands on a part of the sheet nobody is reading yet. The sheet is
+             still `data-tier="unknown"` with no share and no watch, which is
+             what docs/plan-always-a-price.md section 3 requires of an answer
+             that carries no tier -- this adds a reference to a refusal, it
+             does not turn one into a verdict. */ ''}
+        ${swapsOffered ? cheaperSlot(opts.swapCode, t('cam_similar_priced')) : ''}
       </div>
     </section>`;
 }
@@ -1303,7 +1375,45 @@ function storePickerSheet(shops, chosenId = null) {
     </section>`;
 }
 
-function pricePadSheet(item, typed = '', modifier = null, thumb = null, shop = null, shopAllowed = false) {
+/**
+ * "What is it?", on the pad that has no identity behind it. 2026-09-14.
+ *
+ * OPTIONAL, AND THE PRICE NEVER WAITS ON IT. The founder's words are "there
+ * should be a feature where the user can manually add the price in and name
+ * it", and the order of those two matters: an empty field still files the
+ * price, `pad-confirm` is gated on the number alone, and nothing here can
+ * block a shopper who is standing in an aisle and only wants the number down.
+ *
+ * WHY IT IS WORTH A FIELD AT ALL, WHICH IS NOT A UI ARGUMENT. An unidentified
+ * observation has NO KEY. It carries no barcode and no product id, so
+ * `correctionsFor` can never match it, it can never become a price point, and
+ * it can never join the comparison set for the thing it was actually about.
+ * It hangs off `scan.typed_price_cents` and stops there. A typed name is the
+ * first key that row has ever had: the only handle a later pass has for
+ * rejoining "$4.99 at Metro on 14 September" to a product, whether that pass
+ * is a person reading Past scans or a matcher run over the corpus.
+ * docs/plan-always-a-price.md's rung (a) "only unconfirmed shopper prices" is
+ * exactly where a name-plus-price lands once it can be rejoined. Without the
+ * name the number is a fact about nothing.
+ *
+ * A plain text input, not a search. The type-it route already exists for
+ * "match me against the corpus" and it produces a verdict; this one is a note
+ * on a record, matched by nobody today, and dressing it as a lookup would
+ * promise a result it does not return.
+ */
+function padNameField(on, typedLabel) {
+  if (!on) return '';
+  return `
+        <div class="pad-name">
+          <label>${escapeHtml(t('cam_what_is_it'))}
+            <input type="text" data-obs-label autocomplete="off" enterkeyhint="done"
+                   placeholder="${escapeHtml(t('cam_what_is_it_hint'))}"
+                   value="${escapeHtml(typedLabel)}">
+          </label>
+        </div>`;
+}
+
+function pricePadSheet(item, typed = '', modifier = null, thumb = null, shop = null, shopAllowed = false, typedLabel = '') {
   const typedCents = parsePadPrice(typed);
   const effCents = effectivePriceCents(typedCents, modifier);
   const canConfirm = (effCents ?? 0) > 0;
@@ -1322,6 +1432,7 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null, shop = n
           ${thumbImg(thumb)}
         </div>
         <p class="itemname">${escapeHtml(item.text)}</p>
+        ${padNameField(!!item.observationOnly, typedLabel)}
         ${
           item.notThisQuery
             ? `<button type="button" class="pad-textbtn notthis" data-act="notthis">${escapeHtml(
@@ -1428,7 +1539,17 @@ function goingRateCard(refusal, item) {
  * price in this app (`4,99 $` in French, and never re-implemented here), and
  * the caption under it says in chrome what the bubble says in Shin's voice.
  */
-function observationCard(cents, seller, thumb = null) {
+/*
+ * `name` IS WHAT THE SHOPPER TYPED, AND NOTHING ELSE. It is not a resolved
+ * identity and must never read as one: the card still says `data-tier`
+ * "unknown", still carries no verdict word, no share and no watch. It only
+ * replaces "No name for it", which is the honest caption when nobody said
+ * anything and a false one the moment somebody did. Escaped like everything
+ * else that reaches `innerHTML` here: this is the one string on the card a
+ * person typed, which is the class of input that got a `<img src=x onerror>`
+ * onto a refusal sheet on 2026-09-08.
+ */
+function observationCard(cents, seller, thumb = null, name = null) {
   return `
     <section class="sheet observed" data-tier="unknown" data-conf="reading" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
@@ -1444,7 +1565,9 @@ function observationCard(cents, seller, thumb = null) {
         <div class="priceline">
           <span class="price sm">${cad(cents)}</span>
         </div>
-        <p class="itemname">${escapeHtml(t('cam_no_name_for_it'))}${seller ? ` &middot; ${escapeHtml(seller)}` : ''}</p>
+        <p class="itemname">${escapeHtml(
+          typeof name === 'string' && name.trim() ? name.trim() : t('cam_no_name_for_it'),
+        )}${seller ? ` &middot; ${escapeHtml(seller)}` : ''}</p>
       </div>
     </section>`;
 }
@@ -2335,6 +2458,13 @@ export default {
     let padBuffer = '';
     let padItem = null;
     let padModifier = null;
+    /* What the shopper typed into "What is it?", held here rather than read off
+       the DOM at confirm time. A modifier toggle repaints the whole pad from
+       `padHtml`, so a name kept only in the input would vanish the moment
+       somebody tapped "% off" -- the same class of bug the shop row's own
+       comment describes. Empty string, never null: it is rendered straight
+       back into `value`. */
+    let padLabel = '';
     /* The shortlist as it was last rendered, so a tap on a row resolves to the
        shop object that built it rather than to the row's own text. */
     let shopList = [];
@@ -2455,6 +2585,7 @@ export default {
         scanThumb,
         shops.chosenFor(),
         shops.locationAllowed(),
+        padLabel,
       );
     }
 
@@ -2462,6 +2593,7 @@ export default {
       padItem = item;
       padBuffer = '';
       padModifier = null;
+      padLabel = '';
       setState('asking');
       slot.innerHTML = padHtml();
       mounted();
@@ -2539,16 +2671,33 @@ export default {
      * type and the photograph is one they did not choose to keep. The photo
      * half was already decided at capture time, in the server's own
      * `keepPhoto` check, and is none of this function's business.
+     *
+     * THE TYPED NAME IS THE ONLY KEY THIS ROW WILL EVER HAVE, added
+     * 2026-09-14, and that is why the field above it exists -- not because the
+     * card looks better with a name on it. An unidentified observation carries
+     * no code and no product id, so it can never become a price point and
+     * never joins the comparison set for the thing it was about:
+     * `correctionsFor` matches on a code or a product id and would never read
+     * it back. It lands on `scan.typed_price_cents` and stops. A name typed by
+     * the person who was standing in front of it is the first handle anything
+     * later has for rejoining that number to a product, and rung (a) of
+     * docs/plan-always-a-price.md ("only unconfirmed shopper prices") is
+     * exactly where it lands when that rejoin exists.
+     *
+     * Empty stays null rather than becoming "", because the server reads
+     * `str(c.label) ?? scanRow?.resolved_label` and an empty string is a
+     * value: it would shadow a label a later pass managed to resolve.
      */
     function recordObservation(cents) {
       const seller = sellerNow();
+      const typedName = padLabel.trim();
       submitCorrection({
         // No code and no product id, said explicitly rather than by omission.
         // This is the whole shape of the thing: a price about a scan, not
         // about a product, because nobody could say what the product was.
         code: null,
         productId: null,
-        label: null,
+        label: typedName || null,
         category: padItem?.category ?? null,
         amountCents: cents,
         seller,
@@ -2556,7 +2705,7 @@ export default {
         kind: 'regular',
         scanId: lastScanId,
       });
-      slot.innerHTML = observationCard(cents, seller, scanThumb);
+      slot.innerHTML = observationCard(cents, seller, scanThumb, typedName || null);
       buzz(14);
       setState('result');
       mounted();
@@ -2736,10 +2885,27 @@ export default {
           slot.innerHTML = goingRateCard(result, item);
         } else {
           lastKeepable = keepableFrom(result, item, askingCents, isThinReason(result.reason));
+          /* The code the swaps would be swaps FOR, on a refusal that resolved
+             an identity but could not settle the price. Null on every other
+             reason, which is what stops the sheet drawing a box that could
+             never fill. */
+          const swapCode = isThinReason(result.reason) ? codeOf(result, item) : null;
           slot.innerHTML = refusalSheet(result, item, supportedCategories, lastKeepable, {
             priceRoute: lastScanId !== null,
+            swapCode,
+            askingCents,
           });
           playRefusalLanding(slot);
+          /* Not awaited, exactly as on the verdict path: the refusal is the
+             answer and must not wait on a second lookup. It is also the whole
+             of "we can offer another item for this" -- with no rows the
+             refusal stands as it did before today. `fillCheaper` finds no box
+             and does nothing when `swapCode` or the price is missing, so the
+             two guards cannot disagree. */
+          void fillCheaper(slot, swapCode, askingCents, {
+            heading: t('cam_similar_priced'),
+            allLooserKey: 'cam_swap_all_looser_ref',
+          });
         }
         setState('result');
         mounted();
@@ -3312,6 +3478,11 @@ export default {
     }, { signal: listeners.signal });
 
     root.addEventListener('input', (e) => {
+      /* "What is it?", kept in the screen's own state as it is typed. Nothing
+         is repainted: the field is already showing what was typed, and a
+         repaint here would take the caret with it. */
+      const nameInput = e.target.closest('[data-obs-label]');
+      if (nameInput) { padLabel = nameInput.value; return; }
       const modInput = e.target.closest('[data-mod-value]');
       if (!modInput || !padModifier) return;
       const n = Number.parseFloat(modInput.value);

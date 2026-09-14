@@ -136,6 +136,24 @@ const EN = {
   /* Printed above the rows when every row is a parent swap, because the
      server's heading still names the original's own shelf. */
   cam_swap_all_looser: 'Nothing cheaper on this exact shelf. These are one category up, so they are not quite the same kind of thing.',
+  /*
+   * THE SAME TWO LINES AGAIN, FOR A SHEET WITH NO COMPARISON ON IT.
+   *
+   * docs/plan-always-a-price.md section 3: only a real verdict may use the
+   * words good, fair, high, walk away, deal or cheaper. Everything else is a
+   * reference, and a reference states what it rests on without grading it.
+   * The two keys above are arithmetic under a verdict -- "cheaper" there means
+   * cheaper than the number the sheet just judged -- and there is no such
+   * number on a refusal. The server's own heading ("Cheaper tortilla chips")
+   * is skipped for the same reason and replaced by the first of these.
+   *
+   * Chrome, not voice: a heading and a caption, no first person, and the same
+   * words whichever attitude is picked.
+   */
+  cam_similar_priced: 'Similar things that are priced',
+  cam_swap_all_looser_ref: 'Nothing on this exact shelf. These are one category up, so they are not quite the same kind of thing.',
+  cam_what_is_it: 'What is it? (optional)',
+  cam_what_is_it_hint: 'Kraft Dinner, 225 g',
   cam_standins_caption: 'Stand-ins until the camera can read the item',
   cam_list_failed: 'Could not load the list just now.',
   cam_verdict_right_q: 'Was this verdict right?',
@@ -416,6 +434,13 @@ const FR = {
   cam_swap_looser: 'Substitution plus large : une catégorie au-dessus',
   cam_swap_looser_in: (f) => `Substitution plus large : une catégorie au-dessus, dans ${f.tag}`,
   cam_swap_all_looser: 'Rien de moins cher sur cette tablette-là. Ceux-ci viennent d’une catégorie au-dessus, donc ce n’est pas tout à fait la même sorte de chose.',
+  /* Les deux mêmes lignes, pour une feuille sans comparaison dessus. Voir la
+     version anglaise: une référence dit sur quoi elle s’appuie sans donner de
+     note. */
+  cam_similar_priced: 'Des choses semblables qui ont un prix',
+  cam_swap_all_looser_ref: 'Rien sur cette tablette-là. Ceux-ci viennent d’une catégorie au-dessus, donc ce n’est pas tout à fait la même sorte de chose.',
+  cam_what_is_it: 'C’est quoi? (facultatif)',
+  cam_what_is_it_hint: 'Kraft Dinner, 225 g',
   cam_standins_caption: 'Des substituts, le temps que la caméra puisse lire l’article',
   cam_list_failed: 'La liste n’a pas pu être chargée pour l’instant.',
   cam_verdict_right_q: 'Ce verdict était-il juste?',
