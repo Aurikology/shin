@@ -105,6 +105,8 @@ export class BarcodeScanner {
   #lastFired: { value: string; at: number } | null = null;
   /** Set when the reader stopped answering at all. See `scan`. */
   #wedged = false;
+  /** Set once the WebAssembly has arrived and answered its first read. See `scan`. */
+  #loaded = false;
 
   constructor(options: ScannerOptions = {}) {
     this.#framesToConfirm = options.framesToConfirm ?? 3;
@@ -125,7 +127,9 @@ export class BarcodeScanner {
    */
   async warm(): Promise<void> {
     if (!this.#ready) {
-      this.#ready = readBarcodes(new ImageData(1, 1), { formats: ['EAN13'] }).catch(() => null);
+      this.#ready = readBarcodes(new ImageData(1, 1), { formats: ['EAN13'] })
+        .catch(() => null)
+        .then(() => { this.#loaded = true; });
     }
     await this.#ready;
   }
@@ -141,6 +145,21 @@ export class BarcodeScanner {
     // another promise that will not settle. Answering null immediately keeps
     // the frame loop alive and costs nothing.
     if (this.#wedged) return null;
+
+    /*
+     * Not loaded yet means skip this frame, never decode it. Found on a real
+     * phone 2026-09-14: the ceiling below used to include the module download,
+     * so a reader that took more than a second and a half to arrive over a
+     * phone connection (it is a megabyte, fetched alongside the detector's
+     * seven) was declared wedged on the very first frame and read nothing for
+     * the rest of the visit. Reproduced in headless Chrome by holding the
+     * .wasm back three seconds: a barcode in frame for thirty seconds, never
+     * read. The frame loop keeps running while this answers null.
+     */
+    if (!this.#loaded) {
+      void this.warm();
+      return null;
+    }
 
     let results: ReadResult[];
     try {

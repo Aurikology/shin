@@ -31,7 +31,7 @@
  *    signal and the browser's page does not.
  */
 
-const CACHE = 'shin-shell-v1';
+const CACHE = 'shin-shell-v2';
 
 /*
  * The one file that must be there before the first offline load, because
