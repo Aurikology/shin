@@ -1242,9 +1242,9 @@ const LINES_EN = {
     blunt: () => 'Keeps the photo, tied to the scan, so a wrong answer can be checked. Off: read once, not kept. Risk: a kept photo can show what is near you.',
   },
   consent_location_desc: {
-    deadpan: () => 'Keeps a rough area, about a kilometre wide, never your exact spot, so a price can be matched to a nearby store. Off, no location is kept at all. The risk: even a rough area narrows down where you shop.',
-    warm: () => 'Keeps a rough area, about a kilometre wide, never your exact spot, so a price can be matched to the store you were near. Off, nothing about where you are is kept. The risk is that even a rough area says something about where you shop.',
-    blunt: () => 'Keeps a rough area, about a kilometre wide, never your exact spot. Off: nothing kept. Risk: even a rough area narrows down where you shop.',
+    deadpan: () => 'Keeps a rough area, about a kilometre wide, never your exact spot, so a price can be matched to a nearby store. Your phone also remembers which shop you picked in each area, so it stops asking. That list never leaves the phone and it goes when you switch this off. Off, no location is kept at all. The risk: even a rough area narrows down where you shop.',
+    warm: () => 'Keeps a rough area, about a kilometre wide, never your exact spot, so a price can be matched to the store you were near. Your phone also remembers which shop you picked in each area, so it does not have to ask you again. That list stays on the phone, is never sent anywhere, and is deleted the moment you switch this off. Off, nothing about where you are is kept. The risk is that even a rough area says something about where you shop.',
+    blunt: () => 'Keeps a rough area, about a kilometre wide, never your exact spot. Your phone remembers which shop you picked where, so it stops asking. Stays on the phone. Deleted when you switch this off. Off: nothing kept. Risk: even a rough area narrows down where you shop.',
   },
   /**
    * Item 8d: the You screen's rated-count row. Shin's own voice, same family

@@ -714,9 +714,9 @@ export const LINES_FR = {
     blunt: () => "Garde la photo, liée au scan, pour qu'une mauvaise réponse puisse être vérifiée. Fermé: lue une fois, pas gardée. Risque: une photo gardée peut montrer ce qui est près de toi.",
   },
   consent_location_desc: {
-    deadpan: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact, pour qu'un prix puisse être associé à un magasin proche. Fermé, aucune position n'est gardée. Le risque: même une zone approximative réduit l'endroit où tu magasines.",
-    warm: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact, pour qu'un prix puisse être associé au magasin près duquel tu étais. Fermé, rien sur l'endroit où tu es n'est gardé. Le risque, c'est que même une zone approximative dit quelque chose sur l'endroit où tu magasines.",
-    blunt: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact. Fermé: rien de gardé. Risque: même une zone approximative réduit l'endroit où tu magasines.",
+    deadpan: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact, pour qu'un prix puisse être associé à un magasin proche. Ton téléphone retient aussi quel magasin tu as choisi dans chaque zone, pour arrêter de te le demander. Cette liste ne quitte jamais le téléphone et elle disparaît quand tu fermes ça. Fermé, aucune position n'est gardée. Le risque: même une zone approximative réduit l'endroit où tu magasines.",
+    warm: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact, pour qu'un prix puisse être associé au magasin près duquel tu étais. Ton téléphone retient aussi quel magasin tu as choisi dans chaque zone, comme ça il ne te le redemande pas. Cette liste reste sur le téléphone, n'est jamais envoyée nulle part, et elle est effacée dès que tu fermes ça. Fermé, rien sur l'endroit où tu es n'est gardé. Le risque, c'est que même une zone approximative dit quelque chose sur l'endroit où tu magasines.",
+    blunt: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact. Ton téléphone retient quel magasin tu as choisi où, pour arrêter de demander. Ça reste sur le téléphone. Effacé quand tu fermes ça. Fermé: rien de gardé. Risque: même une zone approximative réduit l'endroit où tu magasines.",
   },
   you_ratings_none: {
     deadpan: () => "Aucune pour l'instant. Un pouce sur n'importe quel verdict compte ici.",
