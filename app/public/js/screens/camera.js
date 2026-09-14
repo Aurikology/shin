@@ -580,7 +580,13 @@ async function fillCheaper(root, code, askingCents, opts = {}) {
        true sentence under a verdict and a claim resting on nothing under a
        refusal. When the caller supplies one it wins outright. */
     box.innerHTML = cheaperList(opts.heading ?? r.heading, r.alternatives, opts);
+    // The refusal's own line ends "here is something similar that has a price
+    // on it", written before this lookup answered. With nothing to hand over
+    // the sentence above the box would be breaking its promise in the same
+    // breath, so it goes, and the thin refusal stands as it did before swaps.
+    if (!Array.isArray(r.alternatives) || r.alternatives.length === 0) dropSwapPromise(root);
   } catch {
+    dropSwapPromise(root);
     // A lookup that threw is not "there is nothing cheaper". Saying so, rather
     // than leaving the placeholder sentence up forever, which would read as a
     // search still running.
@@ -595,6 +601,15 @@ async function fillCheaper(root, code, askingCents, opts = {}) {
       box.innerHTML = `<p class="detail">${escapeHtml(say(opts.failKey ?? 'cam_cheaper_failed'))}</p>`;
     }
   }
+}
+
+/**
+ * Removes the refusal's "here is something similar" line once the swaps it
+ * pointed at turn out not to exist. Rendered on the refusal path only, so on
+ * a verdict sheet there is nothing to find and this is a no-op.
+ */
+function dropSwapPromise(root) {
+  for (const el of root.querySelectorAll('[data-swap-promise]')) el.remove();
 }
 
 /** Set once when the screen renders, so the two helpers above can reach the API. */
@@ -995,7 +1010,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
   // over an empty box would be the line breaking its own promise in the same
   // breath; with no swaps the refusal stands exactly as it did.
   const mine = swapsOffered
-    ? `<p class="said">${say('refuse_thin_swaps')}</p>`
+    ? `<p class="said" data-swap-promise>${say('refuse_thin_swaps')}</p>`
     : isCategory || isThin || isModelDown
       ? ''
       : `<p class="said">${say(isUnsure ? 'refuse_unsure_why' : 'refuse_unknown_why')}</p>`;

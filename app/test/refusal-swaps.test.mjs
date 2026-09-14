@@ -243,6 +243,35 @@ test('the no-comparison line is spoken only when there is actually something to 
   );
 });
 
+test('the promise is taken back when the swaps it pointed at do not arrive', () => {
+  /* Seen in a browser, 2026-09-14, both locales: the sheet said "here is
+     something similar that has a price on it" and the box under it said "I
+     could not check for something similar". The line is written before the
+     lookup answers, so the only honest shape is one the lookup can undo. */
+  const withSwaps = refusalSheet(refusal(THIN), null, [], null, OPTS);
+  assert.match(
+    withSwaps,
+    /<p class="said" data-swap-promise>/,
+    'the promise line has no handle, so nothing can remove it when the box comes back empty or the call fails',
+  );
+  const fill = CAMERA.slice(CAMERA.indexOf('async function fillCheaper('), CAMERA.indexOf('function dropSwapPromise('));
+  assert.match(
+    fill,
+    /r\.alternatives\.length === 0\) dropSwapPromise\(root\)/,
+    'an empty answer leaves the promise standing over an empty box',
+  );
+  assert.match(
+    fill.slice(fill.indexOf('} catch {')),
+    /dropSwapPromise\(root\)/,
+    'a failed lookup leaves the promise standing over the failure sentence',
+  );
+  assert.match(
+    CAMERA,
+    /function dropSwapPromise\(root\) \{\s*for \(const el of root\.querySelectorAll\('\[data-swap-promise\]'\)\) el\.remove\(\);/,
+    'the remover and the handle disagree on the attribute name',
+  );
+});
+
 /* ------------------------------------------------------------------ *
  * The heading. "Cheaper <leaf>" is arithmetic, and there is none here.
  * ------------------------------------------------------------------ */
