@@ -709,7 +709,41 @@ export class FakeIdentifier extends Identifier {
 // @anthropic-ai/sdk@0.124.0 (identify/package.json's pinned major) and could
 // be renamed on a future bump; failure of any kind here is treated as "no
 // credentials" rather than "assume yes," per the same must-never-spend rule.
+/**
+ * Which vendor this run would actually call, read the same way `makeProvider`
+ * reads it, so the preflight cannot check one vendor's credentials while the
+ * run spends another's.
+ */
+function providerNamed(): string {
+  return process.env.SHIN_MODEL_PROVIDER?.trim().toLowerCase() || 'anthropic';
+}
+
+/**
+ * THE FREE TIER IS ALLOWED HERE AND NOWHERE ELSE.
+ *
+ * Google's free tier trains on everything sent to it, and has no Google Search
+ * grounding at all. Both of those make it exactly right for this file and
+ * exactly wrong for the app: every photograph in `identify/eval/photos` is a
+ * public Open Food Facts image that nobody's camera took, so there is no user
+ * data to train on and no grounded answer to mishandle. `app/server.ts`
+ * refuses to start when it sees this variable, which is the other half of the
+ * same rule: a tester's photograph must never reach a free key.
+ */
+function freeTierAcknowledged(): boolean {
+  return process.env.SHIN_GEMINI_TIER?.trim().toLowerCase() === 'free';
+}
+
 async function hasCredentials(): Promise<boolean> {
+  /*
+   * Gemini resolves nothing lazily and has no SDK here to ask: the adapter
+   * reads GEMINI_API_KEY and sends it in a header. So the check is the
+   * presence of the key, and it is deliberately not a call, because a
+   * preflight that spends is not a preflight.
+   */
+  if (providerNamed() === 'gemini') {
+    return Boolean(process.env.GEMINI_API_KEY?.trim());
+  }
+
   try {
     const client = new Anthropic({ maxRetries: 0 }) as unknown as {
       apiKey: string | null;
@@ -871,11 +905,35 @@ async function run(): Promise<void> {
   // is N full passes over the manifest, so it is the LAST mode that should be
   // allowed to discover a missing key halfway through. --dry-run is the only
   // way past it, exactly as before.
+  if (!args.dryRun && providerNamed() === 'gemini') {
+    if (!freeTierAcknowledged()) {
+      console.error(
+        'Refusing to run: SHIN_MODEL_PROVIDER=gemini without SHIN_GEMINI_TIER. Set it to `free` for a\n' +
+          'free key (the only place in this repo a free key is allowed, because every photo here is a\n' +
+          'public Open Food Facts image and the free tier trains on what it is sent), or to `paid`.',
+      );
+      process.exit(1);
+    }
+    if (process.env.SHIN_GEMINI_TIER?.trim().toLowerCase() === 'free') {
+      console.log(
+        'Free-tier Gemini key: Google may train on these requests. Every photograph in this manifest is\n' +
+          'a public Open Food Facts image, so there is no user data in this run. The server refuses to\n' +
+          'start with this variable set.',
+      );
+    }
+  }
+
   if (!args.dryRun) {
     const ok = await hasCredentials();
     if (!ok) {
+      const vendor = providerNamed() === 'gemini' ? 'Gemini' : 'Anthropic';
+      const how =
+        providerNamed() === 'gemini'
+          ? 'set GEMINI_API_KEY (a free key is fine here and only here)'
+          : 'set ANTHROPIC_API_KEY or sign in';
       console.error(
-        'No Anthropic credentials found on this machine, so the eval cannot call the real API; run with --dry-run instead.',
+        `No ${vendor} credentials found on this machine, so the eval cannot call the real API; ` +
+          `${how}, or run with --dry-run instead.`,
       );
       process.exit(1);
     }
