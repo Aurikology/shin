@@ -9,6 +9,49 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-14, evening (Jamin's Mac)
+
+### What Jamin is building next, so Aurik hears it before the commits arrive
+
+Jamin is starting a new session on his Mac to work through the Gemini pieces that until now waited
+on a real Gemini connection. There is still no paid key (his ruling 1 in "Twelve rulings on the
+Gemini branch, answered together"), so every test runs by driving the Gemini website
+(`gemini.google.com/app`) by hand in Chrome, the way the nine website tests in
+`docs/the-gemini-tree.md` were produced. The seven pieces:
+
+1. The request and response shapes, stood in for by hand, with a record of what the website cannot
+   prove and only a real key can.
+2. Identifying a product from a photo, without search.
+3. Looking up a barcode the catalogue does not have, with search.
+4. Prices, reviews and a product description in one searched request; reviews shown even with no
+   link, flagged.
+5. The price line resubmission with code execution, checking that the code Gemini runs is Shin's
+   own fixed function and not one it wrote.
+6. Image resolution: low, medium and high compared on real photos for quality and cost, nothing
+   decided.
+7. Trusting a read only when several camera frames agree, never by calling the model twice.
+
+**First, no code.** The session starts by writing down how it will do each piece: which agents it
+launches, how it prompts Gemini, how it reads the answers, and how it turns them into data Shin's
+code and tests can use. Jamin reviews that before anything is built.
+
+**What it will not land without both of you.** Anything that stores or scores search-derived prices
+waits on the two points Aurik's revert names (Google's terms on storing and analysing grounded
+results, and tier words), and nothing inside `identify/src/model.ts` lands without Aurik's own yes
+(Jamin's ruling 3 is his go-ahead, not Aurik's). The session builds on what Aurik's sessions
+already landed today (the request body, `gauge.ts`, the item rules, the grounded block and the
+price line) and follows Aurik's ruling that the line names the shopper's own range with neutral
+zone codes, not good, reasonable or bad. Only green commits are pushed, in small pieces.
+
+### To do
+
+- **Aurik:** say on the Notion page (Needs attention) if any of the seven pieces collides with
+  work you have in flight, or if you want the `model.ts` branch done differently.
+
+### Read by
+
+---
+
 ## 2026-09-14, later (Aurik's PC, Fable session)
 
 ### The revert, which Jamin should hear from Aurik and not from a commit log
