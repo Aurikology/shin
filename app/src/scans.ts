@@ -281,6 +281,17 @@ export interface ScanInput {
   readonly cell?: string | null;
   readonly storeId?: string | null;
   readonly storeName?: string | null;
+  /**
+   * The exact reading the cell was snapped from. Migration 8, 2026-09-14.
+   * Written only alongside `cell` (same consent, same gate in `locationFor`),
+   * never on its own: a device that has not consented to location gets none
+   * of the four, and a device that has but whose OS declined to hand back a
+   * position also gets none, because there was nothing to write down.
+   */
+  readonly exactLat?: number | null;
+  readonly exactLon?: number | null;
+  readonly exactAccuracy?: number | null;
+  readonly exactAt?: string | null;
   /** Null until accounts exist. Plan item 12. */
   readonly userId?: string | null;
 }
@@ -369,6 +380,10 @@ export interface ScanRow {
   cell: string | null;
   store_id: string | null;
   store_name: string | null;
+  exact_lat: number | null;
+  exact_lon: number | null;
+  exact_accuracy: number | null;
+  exact_at: string | null;
   user_id: string | null;
 }
 
@@ -388,8 +403,8 @@ export function recordScan(input: ScanInput): number | null {
     const result = store.db
       .prepare(
         `INSERT INTO scan (device_id, kind, query_text, resolved_code, resolved_label, confidence, source, outcome, failure_class, corrected_code, scanned_at, category,
-                           model_json, model_cost_cents, app_version, platform, latency_ms, cell, store_id, store_name, user_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                           model_json, model_cost_cents, app_version, platform, latency_ms, cell, store_id, store_name, exact_lat, exact_lon, exact_accuracy, exact_at, user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         input.deviceId,
@@ -411,6 +426,10 @@ export function recordScan(input: ScanInput): number | null {
         input.cell ?? null,
         input.storeId ?? null,
         input.storeName ?? null,
+        input.exactLat ?? null,
+        input.exactLon ?? null,
+        input.exactAccuracy ?? null,
+        input.exactAt ?? null,
         input.userId ?? null,
       );
     return Number(result.lastInsertRowid);

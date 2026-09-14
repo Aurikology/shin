@@ -698,40 +698,53 @@ export const LINES_FR = {
     warm: () => "Voici ce avec quoi je peux t'aider à la place.",
     blunt: () => "Je donne un prix à ça, à la place.",
   },
+  /* RÉÉCRIT 2026-09-14, même raison que la version anglaise (voice.js): un
+   * scan de code-barres envoie maintenant sa propre image de caméra aussi
+   * (tâche 5), donc "un code-barres n'envoie jamais d'image" n'est plus vrai. */
   cam_privacy_line: {
-    deadpan: () => "Un code-barres n'envoie jamais d'image, seulement le code. Une photo est envoyée pour être lue, et gardée ensuite seulement si Photos est ouvert.",
-    warm: () => "Scanner un code-barres n'envoie jamais d'image, juste le code. Un scan par photo envoie l'image pour que je puisse la lire, et je ne la garde ensuite que si tu as ouvert Photos.",
-    blunt: () => "Code-barres: aucune image envoyée. Photo: envoyée pour être lue, gardée seulement si Photos est ouvert.",
+    deadpan: () => "Chaque scan envoie une image: le cadre que la caméra voyait à ce moment, toujours. Un scan par photo garde cette image ensuite seulement si Photos est ouvert; un code-barres consigne son image dans tous les cas.",
+    warm: () => "Chaque scan envoie maintenant une image, le cadre que la caméra regardait à ce moment, toujours. Un scan par photo garde cette image ensuite seulement si tu as ouvert Photos; un code-barres consigne son image dans tous les cas.",
+    blunt: () => "Chaque scan envoie une image, toujours. Photo: gardée si Photos est ouvert. Code-barres: image consignée dans tous les cas.",
   },
+  /* RÉÉCRIT 2026-09-14 sur la parole du fondateur, "tout construire pour tout
+   * collecter": photos et position sont maintenant ouverts par défaut, comme
+   * consent.ts et store.js, et les interrupteurs ci-dessous les ferment
+   * encore pour qui le veut. */
   consent_intro: {
-    deadpan: () => "Chaque scan est écrit: le produit et le prix que tu as vu, toujours, pour que la prochaine personne qui le scanne obtienne une réponse. Deux autres choses sont fermées tant que tu ne les ouvres pas.",
-    warm: () => "Chaque scan est écrit: ce que tu as scanné et le prix que tu as vu, toujours, pour que la prochaine personne qui scanne la même chose obtienne une réponse elle aussi. Deux autres choses ci-dessous sont fermées tant que tu ne les ouvres pas.",
-    blunt: () => "Chaque scan est consigné: produit et prix, toujours. Deux autres choses ci-dessous sont fermées par défaut.",
+    deadpan: () => "Chaque scan est écrit: le produit et le prix que tu as vu, toujours, et utilisé pour entraîner Shin et répondre à d'autres personnes qui scannent la même chose. Deux autres choses ci-dessous sont aussi ouvertes tant que tu ne les fermes pas.",
+    warm: () => "Chaque scan est écrit: ce que tu as scanné et le prix que tu as vu, toujours, et ça aide à entraîner Shin et à répondre à d'autres personnes qui scannent la même chose ensuite. Deux autres choses ci-dessous sont ouvertes aussi, tant que tu ne les fermes pas.",
+    blunt: () => "Chaque scan est consigné: produit et prix, toujours, utilisé pour entraîner Shin et répondre à d'autres personnes. Deux autres choses ci-dessous sont ouvertes par défaut.",
   },
   consent_photos_desc: {
-    deadpan: () => "Garde l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard. Fermé, l'image est lue une fois pour répondre au scan et n'est pas gardée. Le risque: une photo gardée peut montrer ce qui se trouve autour de toi.",
-    warm: () => "Garde l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard. Fermé, l'image n'est lue qu'une fois, pour répondre à ce scan, puis elle est partie. Le risque, c'est qu'une photo gardée peut montrer tout ce qu'il y avait d'autre autour de toi.",
-    blunt: () => "Garde la photo, liée au scan, pour qu'une mauvaise réponse puisse être vérifiée. Fermé: lue une fois, pas gardée. Risque: une photo gardée peut montrer ce qui est près de toi.",
+    deadpan: () => "Garde chaque image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et pour que Shin puisse en apprendre. Ouvert par défaut, et gardé pour de bon à moins qu'une limite soit fixée plus tard. Fermé, une image est lue une fois pour répondre au scan et n'est pas gardée. Le risque: une photo gardée peut montrer ce qui se trouve autour de toi.",
+    warm: () => "Garde chaque image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et que ça aide à entraîner Shin. C'est ouvert par défaut et gardé pour de bon, pas effacé après un nombre de jours fixe, à moins qu'une limite soit fixée plus tard. Ferme-le et une image n'est lue qu'une fois, pour répondre à ce scan, puis elle est partie. Le risque, c'est qu'une photo gardée peut montrer tout ce qu'il y avait d'autre autour de toi.",
+    blunt: () => "Garde chaque photo, liée au scan, gardée indéfiniment par défaut. Utilisée pour vérifier les réponses et entraîner Shin. Fermé: lue une fois, pas gardée. Risque: une photo gardée peut montrer ce qui est près de toi.",
   },
   consent_location_desc: {
-    deadpan: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact, pour qu'un prix puisse être associé à un magasin proche. Ton téléphone retient aussi quel magasin tu as choisi dans chaque zone, pour arrêter de te le demander. Cette liste ne quitte jamais le téléphone et elle disparaît quand tu fermes ça. Fermé, aucune position n'est gardée. Le risque: même une zone approximative réduit l'endroit où tu magasines.",
-    warm: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact, pour qu'un prix puisse être associé au magasin près duquel tu étais. Ton téléphone retient aussi quel magasin tu as choisi dans chaque zone, comme ça il ne te le redemande pas. Cette liste reste sur le téléphone, n'est jamais envoyée nulle part, et elle est effacée dès que tu fermes ça. Fermé, rien sur l'endroit où tu es n'est gardé. Le risque, c'est que même une zone approximative dit quelque chose sur l'endroit où tu magasines.",
-    blunt: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact. Ton téléphone retient quel magasin tu as choisi où, pour arrêter de demander. Ça reste sur le téléphone. Effacé quand tu fermes ça. Fermé: rien de gardé. Risque: même une zone approximative réduit l'endroit où tu magasines.",
+    deadpan: () => "Garde ta position exacte au moment de chaque scan, en plus de la zone approximative d'environ un kilomètre, pour qu'un prix puisse être associé à un magasin proche et que Shin puisse apprendre d'où les choses sont vendues. Ouvert par défaut. Ton téléphone retient aussi quel magasin tu as choisi dans chaque zone, pour arrêter de te le demander; cette liste reste sur le téléphone jusqu'à ce que tu fermes ça. Fermé, aucune position n'est gardée. Le risque: ta position exacte dit précisément où tu magasines, pas juste approximativement.",
+    warm: () => "Garde ta position exacte au moment de chaque scan, avec la zone approximative d'environ un kilomètre, pour qu'un prix puisse être associé au magasin près duquel tu étais et que ça aide Shin à apprendre d'où les choses sont vendues. C'est ouvert par défaut; ton téléphone retient aussi quel magasin tu as choisi dans chaque zone, comme ça il ne te le redemande pas, et cette liste reste sur le téléphone jusqu'à ce que tu fermes ça. Fermé, rien sur l'endroit où tu es n'est gardé. Le risque, c'est que ta position exacte, pas juste une zone approximative, dit précisément où tu magasines.",
+    blunt: () => "Garde ta position exacte et la zone approximative pour chaque scan. Ouvert par défaut. Le téléphone retient quel magasin tu as choisi où, reste sur le téléphone, effacé quand tu fermes ça. Fermé: rien de gardé. Risque: la position exacte dit précisément où tu magasines.",
   },
   you_ratings_none: {
     deadpan: () => "Aucune pour l'instant. Un pouce sur n'importe quel verdict compte ici.",
     warm: () => "Aucune pour l'instant, mais un pouce sur n'importe quel verdict lance le compte.",
     blunt: () => "Aucune. Évalues-en un.",
   },
+  /* RÉÉCRIT 2026-09-14, même raison que cam_privacy_line: un code-barres
+   * envoie maintenant aussi son image de caméra. */
   you_data_intro: {
-    deadpan: () => "Chaque scan est écrit: le produit et le prix que tu as vu, toujours. Un code-barres n'envoie jamais d'image, seulement le code décodé.",
-    warm: () => "Chaque scan est écrit, le produit et le prix que tu as vu, toujours. Scanner un code-barres n'envoie jamais d'image, juste le code.",
-    blunt: () => "Chaque scan est consigné: produit et prix, toujours. Les scans de code-barres n'envoient jamais d'image.",
+    deadpan: () => "Chaque scan est écrit: le produit et le prix que tu as vu, toujours, avec l'image de la caméra à ce moment, utilisé pour entraîner Shin et répondre à d'autres personnes.",
+    warm: () => "Chaque scan est écrit, le produit et le prix que tu as vu, toujours, avec l'image de la caméra à ce moment, et ça aide à entraîner Shin et à répondre à d'autres personnes.",
+    blunt: () => "Chaque scan est consigné: produit, prix et image de la caméra, toujours. Utilisé pour entraîner Shin et répondre à d'autres personnes.",
   },
+  /* RÉÉCRIT 2026-09-14: "seuls cette application et la personne qui la fait
+   * tourner peuvent voir ça" n'était plus toute la vérité une fois que tout
+   * collecter est devenu le but; ce qui est collecté sert aussi à répondre à
+   * d'autres personnes et à entraîner Shin. */
   consent_footer: {
-    deadpan: () => "Seuls cette application et la personne qui la fait tourner peuvent voir tout ça. Change l'un ou l'autre des choix n'importe quand sur la page Toi.",
-    warm: () => "Seuls cette application et la personne qui la fait tourner peuvent voir tout ça, et tu peux changer l'un ou l'autre des choix n'importe quand depuis la page Toi.",
-    blunt: () => "Seuls cette application et la personne qui la fait tourner voient ça. Change-le n'importe quand sur la page Toi.",
+    deadpan: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Shin, et la personne qui la fait tourner peut le voir aussi. Change l'un ou l'autre des choix n'importe quand sur la page Toi.",
+    warm: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Shin, et la personne qui la fait tourner peut le voir aussi. Tu peux changer l'un ou l'autre des choix n'importe quand depuis la page Toi.",
+    blunt: () => "Cette application garde ça, l'utilise pour répondre à d'autres personnes et entraîner Shin. Change-le n'importe quand sur la page Toi.",
   },
 };
 

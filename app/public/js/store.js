@@ -76,13 +76,22 @@ const EMPTY = {
    */
   buzz: true,
   /**
-   * Item 6: photos and location, each off until the person turns it on.
+   * Item 6: photos and location. Changed 2026-09-14 on the founder's word,
+   * "build everything for collecting EVERYTHING": both default ON now,
+   * mirroring `app/src/consent.ts`'s own default for a device with no row.
+   * This is the client's cached copy of that same decision, painted on the
+   * consent screen before any network round trip and read by `api.js`
+   * between round trips; the server's own default is what actually governs
+   * what gets kept, and stays in sync with this one by construction (both
+   * changed together, same day, same reason).
+   *
    * `updatedAt` is the timestamp item 6c asks for ("store each choice per
-   * device with a timestamp"); it is null until the first choice is made, so
-   * a screen can tell "never asked" from "asked and left off", which read the
-   * same on every boolean-only design this field replaces.
+   * device with a timestamp"); it is null until the person actually acts on
+   * the consent screen, so a screen can tell "never touched, running on the
+   * default" from "touched and left this way", which the switches still let
+   * anyone turn off.
    */
-  consent: { photos: false, location: false, updatedAt: null },
+  consent: { photos: true, location: true, updatedAt: null },
   /**
    * Whether the first-launch consent screen (item 6b) has been shown and
    * acted on. Separate from `seenIntro`: the attitude picker and the consent
@@ -156,7 +165,15 @@ function migrate(s) {
     : { ...EMPTY.market };
   /** A state saved before this pass has no `buzz` at all; that reads as on. */
   const buzz = s.buzz !== false;
-  /** A state saved before item 6 has no `consent` at all, or a malformed one; both read as the off default, never as on. */
+  /**
+   * A state saved before item 6 has no `consent` at all, or a malformed one;
+   * both read as `EMPTY.consent`, the on default (2026-09-14), rather than as
+   * an explicit off -- a device that never actually recorded a choice runs on
+   * the default, same as a device that has never called `/api/consent`. A
+   * device that DID record a choice (its `consent` object has a real
+   * `updatedAt`) keeps exactly what it recorded, on or off, regardless of
+   * where the default sits today.
+   */
   const consent = s.consent && typeof s.consent === 'object'
     ? { photos: s.consent.photos === true, location: s.consent.location === true, updatedAt: s.consent.updatedAt ?? null }
     : { ...EMPTY.consent };
@@ -603,8 +620,8 @@ export function setConsent(patch) {
   update((s) => ({
     ...s,
     consent: {
-      photos: patch.photos !== undefined ? !!patch.photos : (s.consent?.photos ?? false),
-      location: patch.location !== undefined ? !!patch.location : (s.consent?.location ?? false),
+      photos: patch.photos !== undefined ? !!patch.photos : (s.consent?.photos ?? true),
+      location: patch.location !== undefined ? !!patch.location : (s.consent?.location ?? true),
       updatedAt: new Date().toISOString(),
     },
   }));

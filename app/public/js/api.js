@@ -9,7 +9,7 @@
 
 import { getDeviceId } from './device.js';
 import { APP_VERSION } from './version.js';
-import { currentCell } from './geocell.js';
+import { currentCell, currentExact } from './geocell.js';
 import { consent } from './store.js';
 import { locale, localeTag } from './lib/locale.js';
 
@@ -25,6 +25,15 @@ import { locale, localeTag } from './lib/locale.js';
  * `SHIN_API_BASE` and `SHIN_INVITE_CODE`; nothing here has been told what the
  * wrapper actually calls it, so this is this file's own assumption, named as
  * one. Absent, it is `'web'`, which is true for every build that exists today.
+ *
+ * `lat`/`lon`/`accuracy`/`locatedAt` ride alongside `cell`, added 2026-09-14
+ * (task item 3, the founder's word on collecting everything): the coarse cell
+ * used to be the only location fact a scan carried, and now the exact reading
+ * `geocell.js`'s `currentExact()` holds goes too, under the identical consent
+ * check and the identical staleness rule, so a scan that gets a cell now gets
+ * the point it was snapped from as well. `server.ts`'s own `locationFor`
+ * checks consent again before writing either one down; this file sending the
+ * fields is not the thing that makes them stored.
  */
 function identifyExtras() {
   const extras = {
@@ -40,6 +49,13 @@ function identifyExtras() {
   if (consent().location) {
     const cell = currentCell();
     if (cell) extras.cell = cell;
+    const exact = currentExact();
+    if (exact) {
+      extras.lat = exact.lat;
+      extras.lon = exact.lon;
+      if (exact.accuracy !== null) extras.accuracy = exact.accuracy;
+      extras.locatedAt = exact.at;
+    }
   }
   return extras;
 }
@@ -529,6 +545,26 @@ export function postConsent({ deviceId, photos, location }) {
  */
 export function postEvent({ deviceId, type, payload }) {
   return postSoft('/api/event', { deviceId, type, payload: payload ?? {} }, { stored: false });
+}
+
+/**
+ * Flushes a batch of `track.js` events. `keepalive: true` is the whole reason
+ * this is not `postSoft` calling `/api/events/batch`: keeping the request
+ * alive past a page being hidden or unloaded is exactly what `track.js`'s own
+ * header explains it needs `sendBeacon` cannot give it (no custom header, so
+ * no `x-shin-invite`, so a beacon is refused 401 on every gated beta build).
+ * Resolves to whether the server took the batch; never throws, matching every
+ * other function on this file that a background queue depends on.
+ */
+export function postEventsBatch(events) {
+  return fetch(`${BASE}/api/events/batch`, {
+    method: 'POST',
+    headers: headers({ 'content-type': 'application/json' }),
+    keepalive: true,
+    body: JSON.stringify({ events }),
+  })
+    .then((res) => res.ok)
+    .catch(() => false);
 }
 
 /* -------------------------------------------------------------- item 11: stores */

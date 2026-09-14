@@ -274,14 +274,18 @@ test('the p95 is a latency something actually took, never an interpolation', () 
 
 /* -------------------------------- 39d, retention ------------------------- */
 
-test('retention is ninety days unless the environment says otherwise', () => {
-  assert.equal(retentionDays({}), DEFAULT_RETENTION_DAYS);
-  assert.equal(DEFAULT_RETENTION_DAYS, 90);
+test('retention is forever unless the environment names a real number of days', () => {
+  // Changed 2026-09-14: collecting everything means photos are kept by
+  // default, so unset, blank, zero and negative all mean "never sweep" now,
+  // not "assume ninety days". DEFAULT_RETENTION_DAYS is retired to null.
+  assert.equal(DEFAULT_RETENTION_DAYS, null);
+  assert.equal(retentionDays({}), null);
   assert.equal(retentionDays({ SHIN_PHOTO_RETENTION_DAYS: '30' }), 30);
-  // A typo must never mean "delete everything on the next sweep".
-  assert.equal(retentionDays({ SHIN_PHOTO_RETENTION_DAYS: 'ninety' }), 90);
-  assert.equal(retentionDays({ SHIN_PHOTO_RETENTION_DAYS: '0' }), 90);
-  assert.equal(retentionDays({ SHIN_PHOTO_RETENTION_DAYS: '-5' }), 90);
+  // A typo must never mean "delete everything on the next sweep": it means
+  // keep forever, same as never setting it at all.
+  assert.equal(retentionDays({ SHIN_PHOTO_RETENTION_DAYS: 'ninety' }), null);
+  assert.equal(retentionDays({ SHIN_PHOTO_RETENTION_DAYS: '0' }), null);
+  assert.equal(retentionDays({ SHIN_PHOTO_RETENTION_DAYS: '-5' }), null);
 });
 
 /* --------------------------------- 10, events ---------------------------- */

@@ -371,14 +371,23 @@ test('nothing that counts visits ever reaches the wire', async () => {
   assert.match(wire, /\bstoreName:\s*entry\./, 'the shop name is not on the wire at all');
 });
 
-test('the shortlist is the only thing that asks the OS for a position', async () => {
-  // Item 4: "Never ask for the OS location permission except in response to
-  // the shopper actually opening the shortlist." Checked by source, the way
-  // price-only.test.mjs checks the click wiring, because the closure this
-  // lives in has no DOM here to mount.
+test('the camera screen and the shortlist both ask the OS for a position, and both gate it on consent', async () => {
+  // Item 4 used to read "Never ask for the OS location permission except in
+  // response to the shopper actually opening the shortlist." REVERSED
+  // 2026-09-14, task item 3, on the founder's word ("build everything for
+  // collecting EVERYTHING"): the camera screen now asks too, on its own
+  // first render, because most sessions are barcode scans that never open
+  // the shortlist at all, and a permission never asked is a position never
+  // collected. Checked by source, the way price-only.test.mjs checks the
+  // click wiring, because the closure this lives in has no DOM here to mount.
   const { readFileSync } = await import('node:fs');
   const camera = readFileSync(new URL('../public/js/screens/camera.js', import.meta.url), 'utf8');
-  assert.ok(!camera.includes('refreshCell'), 'camera.js asks the OS for a position directly');
+  assert.ok(camera.includes('refreshCell'), 'camera.js no longer asks the OS for a position on its own');
+  assert.match(
+    camera,
+    /consent\(\)\.location\)\s*void refreshCell\(\)/,
+    'the camera screen asks for a position without checking location consent first',
+  );
   assert.ok(camera.includes("act === 'pad-shop'"), 'the shop row is not wired to anything');
   assert.ok(camera.includes('openShopPicker'), 'the shortlist has no opener');
 

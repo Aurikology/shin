@@ -8,24 +8,24 @@
  * privacy theatre, so `keepPhoto` and `keepLocation` are exported here and the
  * routes ask them before a photo or a cell reaches the disk.
  *
- * TWO SEPARATE ANSWERS, never one. A person who will let us keep the
- * photograph of a shelf has not thereby agreed to let us keep where the shelf
- * is, and the reverse is more obviously true. They are two columns and two
- * questions on the screen.
+ * TWO SEPARATE ANSWERS, never one. A person who withdraws the photograph of a
+ * shelf has not thereby withdrawn where the shelf is, and the reverse is more
+ * obviously true. They are two columns and two questions on the screen.
  *
- * BOTH DEFAULT OFF, AND THE DEFAULT IS NO ROW. A device that has never
- * answered reads exactly the same as a device that answered no: photos false,
- * location false, updatedAt null. The `updatedAt` is what separates them for
- * anybody who needs to know, and nothing in the server does.
+ * BOTH DEFAULT ON, AND THE DEFAULT IS NO ROW. Changed 2026-09-14 on his word,
+ * "build everything for collecting EVERYTHING": a device that has never
+ * answered reads exactly the same as a device that answered yes: photos true,
+ * location true, updatedAt null. The `updatedAt` is what separates them for
+ * anybody who needs to know, and nothing in the server does. Turning a toggle
+ * OFF is what writes a row now; leaving both alone writes nothing and keeps
+ * everything, which is the opt-out this file enforces.
  *
- * WHAT IS STILL KEPT WHEN BOTH ARE OFF, said plainly because the privacy
- * screen has to say it and it must be true: the scan row itself. What was
- * asked, what came back, when, and the random device id. That is the product
- * (the free-tier meter, the crawler queue, the answer rate all read it) and it
- * is what the truthful data statement in plan item 6a describes. The two
- * toggles govern the photograph and the place, which are the two things a
- * person would reasonably not want kept and neither of which the product
- * needs.
+ * WHAT THIS MEANS FOR THE PRODUCT, said plainly because the privacy notice has
+ * to say it and it must be true: the scan row, the photograph and the coarse
+ * and exact location are all kept by default, all of it to train Shin's
+ * models and to answer other shoppers pointed at the same thing (the vision
+ * doc's own sentence). The two toggles are the only way to hold either of the
+ * last two back; the scan row itself is never optional, consent or not.
  *
  * NO HISTORY TABLE. Only the current answer is stored. A log of when somebody
  * said no is still something kept about a person who said keep nothing, and
@@ -35,8 +35,9 @@
  * Lives in the scan database rather than one of its own for the same reason
  * the ratings and the events do: it is read on the same requests that write
  * scans, one file is one backup, and a consent flag in a second file that
- * failed to open would fail OPEN, which is the one direction a consent check
- * must never fail.
+ * failed to open would fail OPEN -- and open now means kept, which is the
+ * direction that matters while the beta is family-only and the founder's own
+ * word governs what a missing answer means.
  */
 
 import { activeScanStore, openScanStore } from './scans.ts';
@@ -48,8 +49,13 @@ export interface Consent {
   readonly updatedAt: string | null;
 }
 
-/** Nothing agreed to, which is both the default and the answer on any failure. */
-const NOTHING: Consent = { photos: false, location: false, updatedAt: null };
+/**
+ * Everything agreed to. Both the default for a device with no row and the
+ * answer on any failure to read one, per the header above: a read that fails
+ * must fail the same way an unanswered device reads, and an unanswered device
+ * is kept by default now.
+ */
+const EVERYTHING: Consent = { photos: true, location: true, updatedAt: null };
 
 interface ConsentRow {
   photos: number;
@@ -60,29 +66,30 @@ interface ConsentRow {
 /**
  * What this device has agreed to.
  *
- * NEVER THROWS, AND FAILS CLOSED. A database that will not open, a row that
- * will not read, a device id that is empty: every one of them answers
- * "nothing agreed to". That is the opposite of how the rest of this package
- * treats a failed read (a scan store that will not open still answers the
- * person in front of it) and the difference is deliberate: the cost of
- * wrongly answering "no consent" is a photo not kept, and the cost of wrongly
- * answering "consent" is a photo kept that somebody asked us not to keep.
+ * NEVER THROWS, AND FAILS TOWARD KEEPING. A database that will not open, a row
+ * that will not read, a device id that is empty: every one of them answers
+ * "everything agreed to", which is what an unanswered device already reads as
+ * per the header above. This matches how the rest of this package treats a
+ * failed read (a scan store that will not open still answers the person in
+ * front of it) rather than opposing it the way the old off-by-default version
+ * did: there is no longer a direction where failing is the safer guess, so the
+ * read fails the same way silence does.
  */
 export function readConsent(deviceId: string): Consent {
   const id = deviceId?.trim();
-  if (!id) return NOTHING;
+  if (!id) return EVERYTHING;
   const store = activeScanStore() ?? openScanStore();
   try {
     if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
     const row = store.db
       .prepare('SELECT photos, location, updated_at FROM consent WHERE device_id = ?')
       .get(id) as unknown as ConsentRow | undefined;
-    if (!row) return NOTHING;
+    if (!row) return EVERYTHING;
     return { photos: row.photos === 1, location: row.location === 1, updatedAt: row.updated_at };
   } catch (err) {
     store.dropped += 1;
     store.droppedWhy = err instanceof Error ? err.message : String(err);
-    return NOTHING;
+    return EVERYTHING;
   }
 }
 

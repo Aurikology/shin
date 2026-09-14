@@ -37,6 +37,8 @@ import { locale } from '../lib/locale.js';
 import { render as renderProse, renderLines } from '../prose.js';
 import { submitCorrection } from '../corrections.js';
 import { identifyOffline } from '../offline-aisle.js';
+import { track } from '../track.js';
+import { refreshCell } from '../geocell.js';
 
 /**
  * The camera states in which the docked face is faded out by `camera.css`.
@@ -1713,6 +1715,19 @@ export default {
     // The two sheet-filling helpers above sit outside this method because the
     // sheet builders do, and they need the same API this render was handed.
     ctxApi = ctx.api;
+    /*
+     * Item 11a, the other half. `main.js` already warms the cell on app start
+     * when location consent carries over from an earlier session; this covers
+     * the case that misses, which is most of them -- a fresh install (consent
+     * now defaults on, so this is the very first ask) and a session where
+     * consent was switched on from the You screen and the camera was already
+     * open. The camera screen is also the one place in the app "why is Shin
+     * asking for my location" has an obvious answer on screen, which is the
+     * only reason a permission prompt is ever the right moment to fire one.
+     * Never awaited: a slow or denied OS prompt must not hold up the
+     * viewfinder (same rule main.js states for its own call).
+     */
+    if (store.consent().location) void refreshCell();
     root.innerHTML = `
       <div class="cam" data-state="idle">
         <!-- FLAWS.md item 12: every other screen has an h1 and this one had no
@@ -1820,6 +1835,23 @@ export default {
      */
     let lastScanId = null;
     let dead = false;
+    // When the eye or the plain camera actually went live, for "ms since
+    // camera start" on a barcode read (track.js). Null until one of the two
+    // `attachEye(...).then` branches below sets it, and a barcode read before
+    // either lands (never observed, kept here rather than assumed away) reads
+    // as an honest null instead of a negative number.
+    let cameraStartedAt = null;
+    // When the type-it route is open with nothing submitted yet, so that
+    // leaving it (cancel, Escape, or navigating away entirely) can be told
+    // apart from submitting it. Set true by the `typeit` action, set false by
+    // either the submit handler or the abandonment check in `reset()` --
+    // never both, so a submission is never double-counted as an abandonment.
+    let typedSearchPending = false;
+    // The moment `cam.dataset.state` last changed, so a scan left mid-way
+    // (backgrounded, or the screen torn down by navigation) can report how
+    // long the person spent in whatever state they left it in. Set from
+    // inside `setState` itself, which is the one place a transition is known.
+    let stateEnteredAt = Date.now();
     // Item 10: router.go re-renders into the same rootEl on every
     // navigation, but rootEl itself is never replaced, only its innerHTML.
     // Every one of this render's own root.addEventListener calls below used
@@ -1895,6 +1927,7 @@ export default {
           // and having something to say means the nudge is not the thing
           // wrong with this frame.
           clearTimeout(hintTimer);
+          track('coaching_line_shown', { key });
           dockSay('asking', COACH_LINES[key], {}, 'nudge-arrive');
         } else {
           showAimHint();
@@ -1921,6 +1954,8 @@ export default {
       eye = e;
       if (e.live) {
         cam.dataset.camera = 'live';
+        cameraStartedAt = Date.now();
+        track('camera_live', { drawn: false });
         showInitialIdleContent();
         return;
       }
@@ -1930,6 +1965,8 @@ export default {
         // No camera is not a broken app. The drawn shelf carries the same layout
         // so every control stays exactly where it is.
         cam.dataset.camera = s ? 'live' : 'drawn';
+        cameraStartedAt = Date.now();
+        track(s ? 'camera_live' : 'camera_drawn', { drawn: !s });
         showInitialIdleContent();
       });
     });
@@ -1996,6 +2033,7 @@ export default {
      * the tab order and in the accessibility tree together.
      */
     function setState(next) {
+      if (cam.dataset.state !== next) stateEnteredAt = Date.now();
       cam.dataset.state = next;
       const sheetUp = next === 'result' || next === 'choosing' || next === 'asking' || next === 'texting';
       if (camBar) camBar.inert = sheetUp;
@@ -2011,6 +2049,29 @@ export default {
       const marks = root.querySelector('.frame-marks');
       if (marks) marks.inert = next !== 'idle';
       parkDockedFace(FACE_HIDDEN_IN.has(next));
+    }
+
+    /**
+     * A scan started and never finished: task item 4's `scan_abandoned`. Read
+     * `cam.dataset.state` rather than keeping a separate flag, because that
+     * field is already the one thing every exit path (`reset`, this screen's
+     * own teardown, backgrounding) can look at without threading a second
+     * piece of state through all of them.
+     *
+     * `idle` AND `result` ARE BOTH EXCLUDED. `idle` is a finished or
+     * never-started scan; `result` is the one non-idle state that already
+     * carries an answer -- the identify verdict is on screen -- so closing it
+     * (the done button, or `reset`'s other callers) is a finished scan, not
+     * an abandoned one. Task item 4 asks for "mid-scan without an
+     * answer/action", and by `result` the answer has already arrived.
+     * Everything else (`framing`, `reading`, `choosing`, `asking`,
+     * `texting`) is a scan with no answer yet -- the `reason` says which door
+     * it left through.
+     */
+    function trackScanAbandonedIfMidScan(reason) {
+      const state = cam.dataset.state;
+      if (!state || state === 'idle' || state === 'result') return;
+      track('scan_abandoned', { state, reason, msElapsed: Date.now() - stateEnteredAt });
     }
 
     /**
@@ -2187,6 +2248,20 @@ export default {
       clearTimeout(torchAckTimer);
       coachKey = null;
       scanThumb = captureThumb(video, cam.dataset.camera === 'live');
+      // The shutter log's own pattern (shoot(), 2026-09-13), now on a barcode
+      // read too: the whole frame goes to the server the same way a shutter
+      // press's frame does, and every request this read causes carries the id
+      // (server.ts's recordShutterRequest), so a barcode scan leaves a frame
+      // on the server the same as a photo scan does. Collecting everything
+      // means a barcode read is no longer the one path that leaves nothing
+      // behind but the decoded code.
+      ctx.api.beginShutter?.(video);
+      track('barcode_read', {
+        value: read.value,
+        format: read.format,
+        frames: read.frames,
+        msSinceCameraStart: cameraStartedAt === null ? null : Date.now() - cameraStartedAt,
+      });
       dockSay('thinking', 'reading', {}, 'think-dots');
       setState('framing');
 
@@ -2238,6 +2313,7 @@ export default {
       // Read fine, and we do not have it. Decision 22's sentence, not a failure
       // of the camera and not shown as one.
       setState('choosing');
+      track('candidates_shown', { source: 'barcode_miss', count: scenarios.length });
       slot.innerHTML = candidateSheet(scenarios);
       mounted();
     }
@@ -2308,6 +2384,7 @@ export default {
     function setTorch(on) {
       torchOn = on;
       cam.dataset.torch = on ? 'on' : 'off';
+      track('torch', { on });
       root.querySelector('.torch-btn')?.setAttribute('aria-pressed', String(on));
       clearTimeout(torchAckTimer);
       if (on && camShinEl && cam.dataset.state === 'idle') {
@@ -2396,6 +2473,7 @@ export default {
     async function reopenCandidates() {
       const query = padItem?.notThisQuery;
       if (!query) return;
+      track('not_this', { query });
       const from = padItem;
       let found;
       try {
@@ -2428,6 +2506,7 @@ export default {
           return { code: c.code, label: row.label, category, meta: row.meta };
         });
       setState('choosing');
+      track('candidates_shown', { source: 'not_this', count: notThisResults.length, query });
       slot.innerHTML = searchCandidateSheet(notThisResults, query);
       mounted();
     }
@@ -2542,6 +2621,7 @@ export default {
      */
     function recordObservation(cents) {
       const seller = sellerNow();
+      track('correction', { code: null, amountCents: cents, seller, scanId: lastScanId, kind: 'observation' });
       submitCorrection({
         // No code and no product id, said explicitly rather than by omission.
         // This is the whole shape of the thing: a price about a scan, not
@@ -2637,6 +2717,7 @@ export default {
       // no crop to send.
       setTimeout(() => {
         if (dead) return;
+        track('candidates_shown', { source: 'shutter_no_eye', count: scenarios.length });
         slot.innerHTML = candidateSheet(scenarios);
         setState('choosing');
         // The bottom bar has just slid away and taken the shutter the user
@@ -2856,6 +2937,7 @@ export default {
           return { code: c.code, label: row.label || t('cam_unlabelled_item'), meta: row.meta };
         });
         setState('choosing');
+        track('candidates_shown', { source: 'photo', count: mapped.length });
         slot.innerHTML = searchCandidateSheet(mapped, readAs);
         mounted();
         return;
@@ -2930,6 +3012,16 @@ export default {
     }
 
     function reset() {
+      // Leaving the type-it route with nothing submitted is an abandoned
+      // typed search, task item 4's own phrase: "typed search text including
+      // text typed then abandoned". Read before `slot.innerHTML` below wipes
+      // the field that holds it.
+      if (typedSearchPending) {
+        const abandonedText = (slot.querySelector('[data-textroute-input]')?.value ?? '').trim();
+        track('typed_search', { text: abandonedText, abandoned: true });
+        typedSearchPending = false;
+      }
+      trackScanAbandonedIfMidScan('reset');
       gen++; // Voids any in-flight proceed() continuation, including a photo capture's.
       slot.innerHTML = '';
       last = null;
@@ -2957,12 +3049,14 @@ export default {
       if (pick) {
         const id = pick.dataset.pick;
         if (id === '__none') {
+          track('candidate_pick', { id, wrong: true });
           // An honest unknown. The engine is asked a question it cannot answer
           // rather than the app faking the refusal, so the refusal on screen is
           // the engine's own.
           openPad({ text: 'a thing shin has never seen', category: 'grocery' });
           return;
         }
+        track('candidate_pick', { id, wrong: false });
         const item = scenarios.find((s) => s.id === id);
         if (item) openPad(item);
         return;
@@ -3003,6 +3097,7 @@ export default {
 
       const back = e.target.closest('[data-act="notthis-back"]');
       if (back) {
+        track('not_this_back', {});
         // Straight back to the pad on the item that was already picked. The
         // buffer is deliberately not cleared: a shopper who had typed half a
         // price, looked at the list and decided the first answer was right
@@ -3016,6 +3111,7 @@ export default {
       const pickCode = e.target.closest('[data-pick-code]');
       if (pickCode) {
         const chosen = notThisResults.find((c) => c.code === pickCode.dataset.pickCode);
+        track('candidate_pick', { code: pickCode.dataset.pickCode, found: !!chosen });
         if (chosen) {
           /*
            * A pick from this list is a different product, so it starts a fresh
@@ -3173,6 +3269,7 @@ export default {
       // Row 17, 88, 89, take: the second route out of a no-identity refusal.
       if (act === 'typeit') {
         setState('texting');
+        typedSearchPending = true;
         slot.innerHTML = textRouteSheet();
         // The one sheet where a specific control is the obvious landing: the
         // whole route is "type the name", and the field is the route.
@@ -3213,6 +3310,7 @@ export default {
       if (act === 'keepit' && lastKeepable) {
         const k = lastKeepable;
         lastKeepable = null; // One tap. A second would be a second witness that does not exist.
+        track('correction', { code: k.code, amountCents: k.askingCents, seller: k.seller, kind: 'keepit' });
         submitCorrection({
           code: k.code,
           productId: k.productId,
@@ -3326,6 +3424,13 @@ export default {
       e.preventDefault();
       const text = (form.querySelector('[data-textroute-input]')?.value ?? '').trim();
       if (!text) return;
+      // Typed search text, submitted. Kept whole: events.ts's own header now
+      // allows free text a person typed, on the founder's word that
+      // everything collected trains Shin's models and answers other
+      // shoppers, and a typed name is exactly the input that decides whether
+      // the catalogue match below was worth building.
+      typedSearchPending = false;
+      track('typed_search', { text, abandoned: false });
 
       /*
        * The hand-priced shelf is asked FIRST, and that ordering is the whole
@@ -3574,7 +3679,20 @@ export default {
       setDetent(sheet, next);
     }, { signal: listeners.signal });
 
+    // Backgrounded mid-scan: the tab was hidden (switched app, locked the
+    // phone, answered a call) while a scan was open with no answer yet.
+    // `{ signal: listeners.signal }` ties this to the same teardown as every
+    // other listener above, so a screen change removes it along with them
+    // rather than leaking one listener per camera mount.
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) trackScanAbandonedIfMidScan('backgrounded');
+    }, { signal: listeners.signal });
+
     return () => {
+      // Leaving the camera screen entirely (navigated elsewhere) while a scan
+      // was open with no answer yet. Before `dead = true` and the rest of
+      // teardown so `cam.dataset.state` is still whatever it was left in.
+      trackScanAbandonedIfMidScan('left_screen');
       dead = true;
       listeners.abort();
       unsub();

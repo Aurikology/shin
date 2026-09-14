@@ -269,7 +269,11 @@ test('a stable barcode raises the guard, and reset() is what lowers it', () => {
   const opening = CAMERA.slice(onBarcodeStart, onBarcodeStart + 400);
   assert.match(opening, /barcodeInFlight = true;/, 'onBarcode does not raise the guard near the top of the function');
   const resetStart = CAMERA.indexOf('function reset() {');
-  const resetFn = CAMERA.slice(resetStart, resetStart + 800);
+  // 1200, not 800: task item 4 (2026-09-14) added abandonment tracking ahead
+  // of `barcodeInFlight = false;` in this function (an abandoned typed search
+  // and `scan_abandoned`, both read state before `slot.innerHTML` wipes it),
+  // which pushed this line further into the function than the old window.
+  const resetFn = CAMERA.slice(resetStart, resetStart + 1200);
   assert.match(resetFn, /barcodeInFlight = false;/, 'reset() does not lower the guard');
 });
 

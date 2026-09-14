@@ -65,6 +65,7 @@ import { logError } from './src/errlog.ts';
 import { listenProblem, startupProblems } from './src/startup.ts';
 import { estimatedCostCents } from './src/model-cost.ts';
 import { recordAccess } from './src/access-log.ts';
+import { handleAdmin } from './src/admin.ts';
 import { recordShutterRequest, saveShutterFrame } from './src/shutter-log.ts';
 import { savePhoto, sweepPhotos } from './src/photos.ts';
 import { dailyLatency } from './src/latency.ts';
@@ -1207,6 +1208,25 @@ async function identifyPhoto(
 const MAX_JSON_BODY_BYTES = 8 * 1024;
 
 /**
+ * `POST /api/events/batch`'s own door, sized for what it actually carries:
+ * up to `MAX_EVENTS_PER_BATCH` events at up to `MAX_EVENT_PAYLOAD_BYTES`
+ * (events.ts, 4 KiB) each, plus the type string and JSON overhead per item.
+ * 200 * 4 KiB is 800 KiB in the worst case; 1 MiB leaves room for that
+ * without being large enough to invite anything the per-event caps below do
+ * not already refuse.
+ */
+const MAX_EVENTS_BATCH_BODY_BYTES = 1024 * 1024;
+
+/**
+ * `track.js`'s own `BATCH_SIZE` is 150, sent per flush; this is the server's
+ * independent ceiling, not a mirror of the client's, because the client's
+ * number is free to change without this door changing shape underneath it.
+ * Anything past this many events in one request is silently truncated, the
+ * same "never a 500 over a log line" contract `/api/event` states above.
+ */
+const MAX_EVENTS_PER_BATCH = 200;
+
+/**
  * The body was bigger than the route accepts. A value rather than a throw,
  * because `price/src/corrections.ts` states the contract this file works
  * under: a phone correcting a price must never be able to take the server
@@ -1354,26 +1374,84 @@ function telemetryFrom(source: URLSearchParams | Record<string, unknown>): {
  *
  * THE REFUSAL IS HERE AND NOWHERE ELSE, which is plan item 6c's second half:
  * "the server refuses to keep a location when the flag is absent". A device
- * that has not said yes gets three nulls, whatever it sent, and the sending is
- * not an error worth answering with -- a client built before the consent
- * screen shipped is exactly the case this has to be silent about.
+ * that has not said yes gets nulls across the board, whatever it sent, and the
+ * sending is not an error worth answering with -- a client built before the
+ * consent screen shipped is exactly the case this has to be silent about.
  *
  * The cell is snapped onto the kilometre grid by `parseCell` before it can be
  * returned, so what is stored is coarse whether or not the client coarsened it.
+ *
+ * THE EXACT FIX, added migration 8, 2026-09-14. `exact` carries what the
+ * device's own GPS read before it was snapped to the cell: latitude,
+ * longitude, the OS's own accuracy figure, and when the reading was taken.
+ * Gated by the exact same consent check as the cell, because it is the same
+ * consent question ("may we keep where you are") answered at higher
+ * precision, not a second question. A device that sent a cell but no exact
+ * reading (no OS permission, or an older client) gets nulls for these four and
+ * the cell as before -- the two halves are independent on the wire and only
+ * share the one gate.
  */
 function locationFor(
   deviceId: string,
   cellRaw: unknown,
   storeIdRaw: unknown,
   storeNameRaw: unknown,
-): { cell: string | null; storeId: string | null; storeName: string | null } {
-  const none = { cell: null, storeId: null, storeName: null };
+  exactRaw: { lat?: unknown; lon?: unknown; accuracy?: unknown; at?: unknown } = {},
+): {
+  cell: string | null;
+  storeId: string | null;
+  storeName: string | null;
+  exactLat: number | null;
+  exactLon: number | null;
+  exactAccuracy: number | null;
+  exactAt: string | null;
+} {
+  const none = {
+    cell: null,
+    storeId: null,
+    storeName: null,
+    exactLat: null,
+    exactLon: null,
+    exactAccuracy: null,
+    exactAt: null,
+  };
   if (deviceId === UNATTRIBUTED) return none;
   if (!keepLocation(deviceId)) return none;
   const cell = parseCell(typeof cellRaw === 'string' ? cellRaw : null);
   const text = (value: unknown): string | null =>
     typeof value === 'string' && value.trim() !== '' ? value.trim().slice(0, 120) : null;
-  return { cell: cell?.text ?? null, storeId: text(storeIdRaw), storeName: text(storeNameRaw) };
+  // Absent is null, never zero: `Number(null)` and `Number('')` are both `0`,
+  // which for a coordinate is a real place (the Gulf of Guinea) rather than
+  // "not sent". A missing query parameter (`URLSearchParams.get` returning
+  // null) and a missing JSON field (`undefined`) both have to read as absent
+  // here, not as a reading of 0,0 -- HARD RULE 3 in the agent repo governs
+  // measurements the same way: a value not taken is null, not a default.
+  const num = (value: unknown): number | null => {
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  };
+  // A timestamp is kept only when it actually parses as one -- HARD RULE 3 in
+  // the agent repo governs here too: a reading with no honest time is not
+  // given the server's own arrival time as a stand-in for the OS's.
+  const at = (value: unknown): string | null => {
+    if (typeof value !== 'string' || value.trim() === '') return null;
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
+  };
+  const lat = num(exactRaw.lat);
+  const lon = num(exactRaw.lon);
+  return {
+    cell: cell?.text ?? null,
+    storeId: text(storeIdRaw),
+    storeName: text(storeNameRaw),
+    // Both coordinates or neither: a lone latitude with no longitude names no
+    // point on earth and is not a partial fact worth keeping.
+    exactLat: lat !== null && lon !== null ? lat : null,
+    exactLon: lat !== null && lon !== null ? lon : null,
+    exactAccuracy: lat !== null && lon !== null ? num(exactRaw.accuracy) : null,
+    exactAt: lat !== null && lon !== null ? at(exactRaw.at) : null,
+  };
 }
 
 export const server = createServer(async (req, res) => {
@@ -1537,6 +1615,9 @@ export const server = createServer(async (req, res) => {
      * When SHIN_INVITE_CODE is unset this is a function call that returns true,
      * which is why it can sit in front of every route from today.
      */
+    // Read-only data for the team, behind its own token (src/admin.ts).
+    if (url.pathname.startsWith('/api/admin/')) return handleAdmin(req, res, url);
+
     if (url.pathname.startsWith('/api/') && !INVITE_EXEMPT.includes(url.pathname)) {
       if (!inviteAllows(req.headers[INVITE_HEADER])) {
         return json(401, { error: INVITE_REFUSAL });
@@ -1596,6 +1677,12 @@ export const server = createServer(async (req, res) => {
         url.searchParams.get('cell'),
         url.searchParams.get('storeId'),
         url.searchParams.get('storeName'),
+        {
+          lat: url.searchParams.get('lat'),
+          lon: url.searchParams.get('lon'),
+          accuracy: url.searchParams.get('accuracy'),
+          at: url.searchParams.get('locatedAt'),
+        },
       );
       const answer = await identify({
         gtin,
@@ -1675,6 +1762,10 @@ export const server = createServer(async (req, res) => {
           cell: where.cell,
           storeId: where.storeId,
           storeName: where.storeName,
+          exactLat: where.exactLat,
+          exactLon: where.exactLon,
+          exactAccuracy: where.exactAccuracy,
+          exactAt: where.exactAt,
         });
         scanForLog = scanId;
         /*
@@ -1873,7 +1964,12 @@ export const server = createServer(async (req, res) => {
 
       const photoStarted = Date.now();
       const telemetry = telemetryFrom(p);
-      const where = locationFor(device, p.cell, p.storeId, p.storeName);
+      const where = locationFor(device, p.cell, p.storeId, p.storeName, {
+        lat: p.lat,
+        lon: p.lon,
+        accuracy: p.accuracy,
+        at: p.locatedAt,
+      });
       const answer = await identifyPhoto(image, tier, sharpness, device === UNATTRIBUTED ? null : device);
       const photoMs = Date.now() - photoStarted;
 
@@ -1948,6 +2044,10 @@ export const server = createServer(async (req, res) => {
         cell: where.cell,
         storeId: where.storeId,
         storeName: where.storeName,
+        exactLat: where.exactLat,
+        exactLon: where.exactLon,
+        exactAccuracy: where.exactAccuracy,
+        exactAt: where.exactAt,
       });
       scanForLog = scanId;
 
@@ -2403,11 +2503,14 @@ export const server = createServer(async (req, res) => {
     /*
      * The event log's door. Plan item 10.
      *
-     * ONE EVENT PER REQUEST, not a batch, and that is a decision worth stating
-     * because a batch is the obvious next request. Six testers on a home
-     * network are nowhere near the volume that makes batching worth the
-     * partial-failure semantics it brings, and the client already has a queue
-     * for the aisle-with-no-signal case that it can drain one at a time.
+     * ONE EVENT PER REQUEST HERE, a batch on the door below. Six testers on a
+     * home network were nowhere near the volume that made batching worth the
+     * partial-failure semantics it brings, and this route is kept exactly as
+     * it was for the handful of direct callers that still fire one event at a
+     * time (`consent-actions.js`, `eye-attach.js`). `track.js`, added
+     * 2026-09-14 to collect everything the client does, is a different shape
+     * of caller -- app opens, every tap, screen views -- and forcing that
+     * through one request per event would be a request per tap.
      *
      * A DROPPED EVENT IS A 200 WITH `stored: false`, never a 500. Logging is
      * ours; the person's request was fine, and a client that treats a failed
@@ -2430,6 +2533,62 @@ export const server = createServer(async (req, res) => {
       if ('why' in payload) return json(400, { error: payload.why });
       const id = recordEvent({ deviceId, type, payload: e.payload });
       return json(200, id === null ? { stored: false } : { stored: true });
+    }
+
+    /*
+     * The event log's other door: `track.js`'s queue, flushed every five
+     * seconds and on every tab hide. Up to `MAX_EVENTS_PER_BATCH` events in
+     * one request, each one exactly the shape `/api/event` above takes one
+     * of, and each one still runs through `recordEvent` and `serialisePayload`
+     * one at a time -- there is no bulk insert here, only one request instead
+     * of two hundred.
+     *
+     * PARTIAL FAILURE IS THE NORMAL CASE AND IS NOT AN ERROR. A batch is a
+     * bundle of independent facts, not a transaction: one event with a bad
+     * shape (a client bug, a future field this build does not know) must never
+     * cost the other hundred and ninety-nine their place in the log. The
+     * per-event cap on `MAX_JSON_BODY_BYTES` style refusals is not applied
+     * per-item either, for the same reason `recordEvent` itself never throws --
+     * a malformed item is silently skipped rather than answered with detail
+     * that would have to be matched back to a position in an array nothing
+     * client-side keeps an index into.
+     *
+     * THE BODY CAP IS SIZED FOR THE BATCH, not for one event: two hundred
+     * events at up to four kilobytes of payload each (`events.ts`'s own cap)
+     * is 800 KB in the worst case, so the door is a full megabyte rather than
+     * the 8 KiB every other JSON route takes.
+     */
+    if (url.pathname === '/api/events/batch') {
+      if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      const body = await readBody(req, MAX_EVENTS_BATCH_BODY_BYTES);
+      if (body === TOO_LARGE) return refuseTooLarge(MAX_EVENTS_BATCH_BODY_BYTES);
+      if (body === null || typeof body !== 'object') {
+        return json(400, { error: 'body did not parse as JSON' });
+      }
+      const events = (body as Record<string, unknown>).events;
+      if (!Array.isArray(events)) return json(400, { error: 'events must be an array' });
+      const batch = events.slice(0, MAX_EVENTS_PER_BATCH);
+      let stored = 0;
+      let dropped = 0;
+      for (const raw of batch) {
+        if (!raw || typeof raw !== 'object') { dropped += 1; continue; }
+        const e = raw as Record<string, unknown>;
+        const deviceId = typeof e.deviceId === 'string' ? e.deviceId.trim() : '';
+        const type = typeof e.type === 'string' ? e.type.trim() : '';
+        if (deviceId === '' || type === '') { dropped += 1; continue; }
+        deviceForLog = deviceId;
+        const payload = serialisePayload(e.payload);
+        if ('why' in payload) { dropped += 1; continue; }
+        const id = recordEvent({
+          deviceId,
+          type,
+          payload: e.payload,
+          createdAt: typeof e.createdAt === 'string' ? e.createdAt : undefined,
+        });
+        if (id === null) dropped += 1;
+        else stored += 1;
+      }
+      return json(200, { stored, dropped, received: events.length });
     }
 
     /*

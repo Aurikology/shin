@@ -1,11 +1,29 @@
 /**
  * Item 11a: a neighbourhood-level cell, about one kilometre, computed on the
- * phone. Never raw coordinates, on this file's own account: `cellFor` takes a
- * latitude and longitude in and returns a snapped grid id out, and nothing in
- * this module keeps, logs, or exposes the input pair once that call returns.
- * `currentCell()` (what everything else in this app is allowed to read) never
- * hands back anything finer than the cell string itself.
+ * phone. `cellFor` takes a latitude and longitude in and returns a snapped
+ * grid id out, for `/api/stores` and for anywhere a scan's rough
+ * neighbourhood is wanted without the exact point.
  *
+ * THIS FILE ALSO KEEPS THE EXACT READING NOW, changed 2026-09-14 on the
+ * founder's word ("build everything for collecting EVERYTHING") and the
+ * vision doc's own sentence that all of a user's scanned data trains Shin's
+ * models and answers other shoppers. Until today this header said the exact
+ * pair was never kept past the `cellFor` call that snapped it; that was true
+ * of this module then and is not true of it now. `currentExact()` hands back
+ * the same reading `currentCell()` is built from -- latitude, longitude,
+ * accuracy, and when it was taken -- for `api.js` to attach to a scan
+ * alongside the cell, gated the same way the cell always was: only ever read
+ * with location consent on, and only ever sent to the server, which itself
+ * re-checks consent (`locationFor` in server.ts) before writing either one
+ * down. Nothing changed about *when* a position is asked for or *whether* a
+ * scan needs one; what changed is that this module stops throwing away the
+ * two numbers it already has once it has snapped them.
+ *
+ * `cellFor` is unaffected. It answers "what cell does this snap to" and
+ * knows nothing of the exact-reading cache below it; the cell string alone is
+ * still what a caller who never asks for `currentExact()` ever sees.
+ *
+
  * WHY A GRID AND NOT A ROUNDED COORDINATE. Rounding a coordinate to three
  * decimal places still names a point, just a coarser one, and two phones a
  * few metres apart on either side of a rounding boundary round to two
@@ -78,14 +96,16 @@ export function cellFor(lat, lon) {
  */
 const STALE_MS = 30 * 60 * 1000;
 
-let cached = null; // { cell, at } | null
+let cached = null; // { cell, lat, lon, accuracy, at } | null
 
 /**
- * Asks the OS for a position and caches the cell it snaps to. Never called
+ * Asks the OS for a position and caches the cell it snaps to, and now the
+ * exact reading alongside it (see the file header, 2026-09-14). Never called
  * automatically and never called without location consent already on: the
- * caller (the consent screen turning the toggle on, or app start when consent
- * was already on from a previous launch) is what gates this, because asking
- * the OS for a position is itself the thing consent is about.
+ * caller (the consent screen turning the toggle on, app start when consent
+ * was already on from a previous launch, or the camera screen on its first
+ * render, task item 3) is what gates this, because asking the OS for a
+ * position is itself the thing consent is about.
  *
  * Resolves to the cell on success and to `null` on any failure (permission
  * denied, no `navigator.geolocation`, a timeout) -- never throws, because a
@@ -98,7 +118,15 @@ export function refreshCell() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const cell = cellFor(pos.coords.latitude, pos.coords.longitude);
-        cached = cell ? { cell, at: Date.now() } : null;
+        cached = cell
+          ? {
+              cell,
+              lat: pos.coords.latitude,
+              lon: pos.coords.longitude,
+              accuracy: Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : null,
+              at: Date.now(),
+            }
+          : null;
         resolve(cell);
       },
       () => resolve(null),
@@ -118,6 +146,21 @@ export function currentCell() {
   if (!cached) return null;
   if (Date.now() - cached.at > STALE_MS) return null;
   return cached.cell;
+}
+
+/**
+ * The exact reading behind the current cell, or `null` on the same staleness
+ * rule `currentCell()` uses -- one cache, one freshness check, so the two
+ * never disagree about whether a reading is still good. `api.js` reads this
+ * to send latitude, longitude, accuracy, and the time of the reading
+ * alongside the cell; nothing here decides whether that is allowed, because
+ * that decision is consent's, checked before this is ever called and again
+ * on the server before either number is written down.
+ */
+export function currentExact() {
+  if (!cached) return null;
+  if (Date.now() - cached.at > STALE_MS) return null;
+  return { lat: cached.lat, lon: cached.lon, accuracy: cached.accuracy, at: new Date(cached.at).toISOString() };
 }
 
 /** Test-only: drops the cached reading so a suite can start clean. */
