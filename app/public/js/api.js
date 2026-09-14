@@ -62,8 +62,31 @@ const BASE = globalThis.window?.SHIN_API_BASE ?? '';
  * added to every function below by hand and forgotten on the next one. Read
  * once for the same reason `BASE` is: the wrapper sets it before this module
  * loads and it does not change under a running page.
+ *
+ * The browser beta has no wrapper, so the family link carries the code
+ * instead: https://<host>/#invite=<code>. The first visit stores it on the
+ * phone and wipes it from the address bar; later visits read it back.
+ * Added 2026-09-13 for the family beta on the Mac.
  */
-const INVITE_CODE = globalThis.window?.SHIN_INVITE_CODE ?? null;
+const INVITE_CODE = globalThis.window?.SHIN_INVITE_CODE ?? inviteFromLink();
+
+function inviteFromLink() {
+  const w = globalThis.window;
+  if (!w?.location) return null;
+  const KEY = 'shin-invite';
+  const match = /(?:^#|&)invite=([^&]+)/.exec(w.location.hash ?? '');
+  try {
+    if (match) {
+      const code = decodeURIComponent(match[1]);
+      w.localStorage?.setItem(KEY, code);
+      w.history?.replaceState?.(null, '', w.location.pathname + w.location.search);
+      return code;
+    }
+    return w.localStorage?.getItem(KEY) ?? null;
+  } catch {
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+}
 
 /**
  * What language the person on the other end of this request is reading.
