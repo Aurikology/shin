@@ -45,7 +45,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ModelCallError, type MessagesClient } from './model.ts';
-import type { Provider, ProviderRequest, ProviderResponse } from './provider.ts';
 import { loadDotEnv } from './env.ts';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -200,28 +199,6 @@ export function withSpendCap(client: MessagesClient, opts?: SpendCapOptions): Me
         }
         return client.messages.create(body, options);
       },
-    },
-  };
-}
-
-/**
- * The same dollar cap, wrapped around a `Provider` instead of a
- * `MessagesClient`. Added 2026-09-14 for the Gemini switch: removing the
- * Anthropic bypass in `app/server.ts` means the live photo route no longer
- * has an Anthropic-shaped client sitting at the boundary to wrap -- it holds
- * a `Provider`, built by `model.ts`'s own `makeProvider`, which may be
- * Anthropic, Gemini-with-fallback, or (in a test) a fake. `withSpendCap`
- * above still exists unchanged for anything that still constructs its
- * `Identifier` the old way; this is the seam the live route uses now.
- */
-export function withSpendCapProvider(provider: Provider, opts?: SpendCapOptions): Provider {
-  return {
-    name: provider.name,
-    async send<T>(request: ProviderRequest): Promise<ProviderResponse<T>> {
-      if (!reserveSpend(estimatedCostCad(), opts)) {
-        throw new ModelCallError('spend_cap_reached', spendCapRefusalMessage());
-      }
-      return provider.send<T>(request);
     },
   };
 }

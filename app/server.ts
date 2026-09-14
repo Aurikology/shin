@@ -44,13 +44,7 @@ import type {
   CatalogueResult,
   IdentifyOutcome,
 } from '../identify/src/identify.ts';
-import type { FailureClass, Identifier, Tier } from '../identify/src/model.ts';
-import {
-  groundedBarcodeLookup,
-  groundedPricesAndReviews,
-  type GroundedBarcodeAnswer,
-  type GroundedPricesAndReviews,
-} from '../identify/src/providers/gemini-grounded.ts';
+import type { FailureClass, Identifier, MessagesClient, Tier } from '../identify/src/model.ts';
 import { lookupPrices } from '../price/src/lookup.ts';
 import { recordCorrection } from '../price/src/corrections.ts';
 import { ATTRIBUTION } from './src/attribution.ts';
@@ -524,28 +518,6 @@ interface Identified {
   /** False when the catalogue process is not running. The screen must not read this as a miss. */
   readonly catalogueUp: boolean;
   readonly ms: number;
-  /**
-   * What Gemini's grounded Google Search said the barcode is, when our own
-   * catalogue has no row for it. Added 2026-09-14 (build step 3). Undefined
-   * when this was never a gtin-only miss (a text search, or a hit); null
-   * when it was one but Gemini is not configured or the call failed --
-   * either way the client's existing "we do not have this" copy still shows,
-   * and this is additional information beside it, never a replacement for
-   * it. NEVER WRITTEN TO THE CATALOGUE: this is per-request, per-user
-   * grounded content (Google's terms), so it lives only on the response and
-   * on this one scan's own row, never in `catalogue.db`.
-   */
-  readonly groundedIdentity?: GroundedBarcodeAnswer | null;
-  /**
-   * Canadian prices and reviews Gemini's grounded search found, when this
-   * app's own price sources have nothing to say (build step 5) or after a
-   * photo identification (build step 4). SHOWN AS ITS OWN SEPARATE BLOCK,
-   * NEVER MIXED INTO A PRICE LIST OR AVERAGED INTO A VERDICT -- see
-   * `gemini-grounded.ts`'s header for the terms clause this follows.
-   * Undefined when not attempted; null when attempted and Gemini had
-   * nothing or was not configured.
-   */
-  readonly groundedPrices?: GroundedPricesAndReviews | null;
 }
 
 function offline(ms: number): Identified {
@@ -930,47 +902,56 @@ let photoTestDouble: { model?: Identifier; lookup?: CatalogueLookup } | null = n
 async function modelOnce(): Promise<Identifier> {
   if (photoTestDouble?.model) return photoTestDouble.model;
   if (!photoModel) {
-    const [{ Identifier, makeProvider }, { withSpendCapProvider }, { loadDotEnv }] = await Promise.all([
+    const [{ Identifier }, { withSpendCap }, { loadDotEnv }] = await Promise.all([
       import('../identify/src/model.ts'),
       import('../identify/src/cap.ts'),
       import('../identify/src/env.ts'),
     ]);
     /*
-     * THE BYPASS IS GONE, 2026-09-14. Until today this function built its own
-     * Anthropic client by hand -- resolving `@anthropic-ai/sdk` through
-     * `identify`'s own `node_modules` with `createRequire` and constructing
-     * `new Anthropic(...)` directly -- which meant `SHIN_MODEL_PROVIDER` was
-     * read by every test and by `model.ts`'s own default construction, but
-     * never by the live photo route. `makeProvider`, `model.ts`'s own seam
-     * (exported 2026-09-14 for exactly this call site), already contains the
-     * SDK-resolution concern: it is `model.ts` calling `anthropicClient()`
-     * from `providers/anthropic.ts`, a module reached through the SAME
-     * `import('../identify/src/model.ts')` this function already does, so
-     * Node resolves `@anthropic-ai/sdk` relative to THAT file's own location
-     * (inside `identify/`) rather than relative to `app/server.ts`. The
-     * hand-built client existed only because this function used to import
-     * the SDK directly from `app/`'s own module graph, which is the one
-     * resolution path that fails; going through `model.ts` was always the
-     * fix, and it is also what lets `SHIN_MODEL_PROVIDER=gemini` reach this
-     * route at all.
+     * THE SDK IS RESOLVED THROUGH `identify`, AND IT HAS TO BE.
      *
-     * `loadDotEnv` is still called by hand, for the same reason the old code
-     * called it by hand: passing a `provider` turns off `Identifier`'s own
-     * `loadDotEnv` call the same way passing a `client` used to
-     * (`if (!apiKey && !client && !provider) loadDotEnv()`), and the key (or
-     * `GEMINI_API_KEY`) has to be in `process.env` before `makeProvider` reads
-     * it.
+     * `@anthropic-ai/sdk` is installed in `identify/node_modules` and nowhere
+     * else, which is this repo's arrangement (CLAUDE.md: each package installs
+     * its own dependencies) and is the reason the type imports at the top of
+     * this file are types only. A bare `import('@anthropic-ai/sdk')` from here
+     * resolves from `app/` and fails with ERR_MODULE_NOT_FOUND; checked on
+     * 2026-09-11 rather than assumed. `model.ts`'s own static import works
+     * because the specifier is resolved relative to the file that wrote it.
      *
-     * A FAILURE HERE IS STILL LOUD. If `model.ts` cannot be imported, or the
-     * SDK it resolves cannot be found, this throws, the photo route
-     * classifies it like any other model failure, and the scan row says so.
-     * It must never fall back to a bare `new Identifier()`, because that is
-     * an uncapped provider arriving silently through the one code path
-     * written to prevent it -- so the cap wraps the provider, never the
-     * other way around.
+     * So the package is located from `identify`'s own directory and imported
+     * by path. It is one line of indirection, and the alternative is either a
+     * dependency duplicated into `app/package.json` (a second copy of an SDK,
+     * free to drift from the one the identify package is tested against) or an
+     * uncapped model client, which is the thing being fixed.
+     *
+     * A FAILURE HERE IS LOUD. If the SDK cannot be found, this throws, the
+     * photo route classifies it like any other model failure, and the scan row
+     * says so. It must never fall back to a bare `new Identifier()`, because
+     * that is an uncapped client arriving silently through the one code path
+     * written to prevent it.
+     */
+    const { createRequire } = await import('node:module');
+    const { pathToFileURL } = await import('node:url');
+    const fromIdentify = createRequire(fileURLToPath(new URL('../identify/package.json', import.meta.url)));
+    const sdk = await import(pathToFileURL(fromIdentify.resolve('@anthropic-ai/sdk')).href);
+    const Anthropic = (sdk.default ?? sdk.Anthropic) as new (options: { maxRetries: number }) => unknown;
+
+    /*
+     * `loadDotEnv` by hand, because passing a client turns off the
+     * constructor's own call to it (`if (!apiKey && !client) loadDotEnv()`).
+     * Without this line the key would stop being read from the environment
+     * file the moment the cap was wired, which is the kind of thing that looks
+     * like the cap breaking the beta.
+     *
+     * `maxRetries: 0` is copied from `model.ts`'s own construction and is load
+     * bearing twice over: that file runs its own two-attempt policy, so an SDK
+     * retrying underneath it would mean the visible policy is not the one that
+     * runs, and every hidden retry would be a call that spends without the cap
+     * ever being asked.
      */
     loadDotEnv();
-    photoModel = new Identifier(undefined, undefined, withSpendCapProvider(makeProvider()));
+    const client = new Anthropic({ maxRetries: 0 }) as MessagesClient;
+    photoModel = new Identifier(undefined, withSpendCap(client));
   }
   return photoModel;
 }
