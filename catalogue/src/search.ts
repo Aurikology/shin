@@ -338,6 +338,16 @@ export interface Candidate {
     readonly rrf: number;
     readonly brandAgrees: boolean | null;
     readonly sizeAgrees: boolean | null;
+    /**
+     * D-099. Does any of this row's three names carry the pinned variant?
+     *
+     * `null` when the caller pinned no variant, like the two flags above.
+     * Optional rather than required because `alternatives.ts` builds a candidate
+     * of its own for a row it never searched for, and a field it has no answer
+     * to is not worth reaching into that file to write `null` into. Every
+     * candidate this file returns carries it.
+     */
+    readonly variantAgrees?: boolean | null;
   };
 }
 
@@ -373,6 +383,16 @@ export interface SearchQuery {
   readonly text?: string;
   readonly gtin?: string;
   readonly brand?: string;
+  /**
+   * The flavour or edition word off the pack, e.g. "Cherry" (D-099, 2026-09-14).
+   *
+   * Its own field rather than more words in `text` for the reason the defect
+   * records: in `text` the variant is one token among five and loses to whatever
+   * row repeats more of the other four, which is how a Cherry Coke Zero came
+   * back as a plain Coke Zero. Asked separately it is the one question that
+   * separates two cans of the same drink.
+   */
+  readonly variant?: string;
   /** In the catalogue's base units, grams or millilitres. */
   readonly sizeValue?: number;
   readonly sizeUnit?: string;
@@ -660,6 +680,40 @@ function brandAgreesWith(row: Row, query: SearchQuery): boolean | null {
 }
 
 /**
+ * Does this row carry the variant the caller pinned? Null when none was pinned.
+ *
+ * D-099. All three names are read, not just `name`, because which of them
+ * carries the flavour is a property of whoever typed the row in: the cherry can
+ * is "Cherry-flavoured calorie-free cola" in English and "Coca-cola cerise" in
+ * French, and the plain can beside it is "Coke Zero" in one name and nothing in
+ * the others. Reading only `name` asks the question of the one field that
+ * happens not to answer it.
+ *
+ * Every token has to be there, because a multi-word variant names one product:
+ * a row carrying "zero sugar" out of "Zero Sugar Cherry" is the row this exists
+ * to hold back. Substring rather than whole word, exactly as `brandAgreesWith`
+ * does it, because variants come hyphenated and compounded and
+ * "Cherry-flavoured" must answer to "cherry". Accent folded so that a query
+ * reading "Cerise" reaches a row spelling it "cerise".
+ */
+function variantAgreesWith(row: Row, query: SearchQuery): boolean | null {
+  const wanted = foldVariant(query.variant ?? '')
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  if (wanted.length === 0) return null;
+
+  // The same three fields the pick pass is now shown, so that the rank and the
+  // second opinion are answering the question off identical evidence.
+  const text = foldVariant([row.name, row.name_fr ?? '', row.generic_name ?? ''].join(' '));
+  return wanted.every((token) => text.includes(token));
+}
+
+/** Lower-cased and stripped of accents, so "Cerise" and "cerise" are one word. */
+function foldVariant(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+/**
  * Does this row carry the size the caller pinned? Null when none was pinned.
  *
  * Within 5%: pack sizes are printed rounded and "500 ml" and "0.5 L" should not
@@ -712,10 +766,26 @@ function sizeAgreesWith(row: Row, query: SearchQuery): boolean | null {
 const PIN_AGREES = 1;
 const PIN_UNKNOWN = 0;
 
+/*
+ * D-099 added the variant to this tier, on the pattern the comment above sets
+ * out and for the same reason. A flavour that AGREES is evidence for a row, so
+ * it lifts. A flavour that disagrees costs nothing, because the row may simply
+ * never have had its French name or its description filled in, and three
+ * quarters of this catalogue is missing one field or another. Demoting on a
+ * silence would punish the sparse rows, which is the failure the size tier
+ * already learned once.
+ *
+ * Summed rather than ranked ahead of the size, because the two pins answer
+ * different questions and a row that agrees on both is better than a row that
+ * agrees on either. Still absolute: no score below can cross a tier.
+ */
 function pinTier(row: Row, query: SearchQuery): number {
-  return sizeAgreesWith(row, query) === true && brandAgreesWith(row, query) !== false
-    ? PIN_AGREES
-    : PIN_UNKNOWN;
+  const sizeTier =
+    sizeAgreesWith(row, query) === true && brandAgreesWith(row, query) !== false
+      ? PIN_AGREES
+      : PIN_UNKNOWN;
+  const variantTier = variantAgreesWith(row, query) === true ? PIN_AGREES : PIN_UNKNOWN;
+  return sizeTier + variantTier;
 }
 
 function rowToCandidate(
@@ -725,6 +795,7 @@ function rowToCandidate(
 ): Candidate {
   const brandAgrees = brandAgreesWith(row, query);
   const sizeAgrees = sizeAgreesWith(row, query);
+  const variantAgrees = variantAgreesWith(row, query);
 
   return {
     code: row.code,
@@ -745,7 +816,7 @@ function rowToCandidate(
     novaGroup: row.nova_group,
     additivesN: row.additives_n,
     ingredientsText: row.ingredients_text,
-    signals: { ...signals, brandAgrees, sizeAgrees },
+    signals: { ...signals, brandAgrees, sizeAgrees, variantAgrees },
   };
 }
 
@@ -815,7 +886,16 @@ export class Catalogue {
       if (row) {
         return rowToCandidate(
           row,
-          { textRank: null, vectorRank: null, bm25: null, similarity: 1, rrf: 1, brandAgrees: null, sizeAgrees: null },
+          {
+            textRank: null,
+            vectorRank: null,
+            bm25: null,
+            similarity: 1,
+            rrf: 1,
+            brandAgrees: null,
+            sizeAgrees: null,
+            variantAgrees: null,
+          },
           {},
         );
       }
@@ -967,7 +1047,16 @@ export class Catalogue {
       members: rows.map((r) =>
         rowToCandidate(
           r,
-          { textRank: null, vectorRank: null, bm25: null, similarity: null, rrf: 0, brandAgrees: null, sizeAgrees: null },
+          {
+            textRank: null,
+            vectorRank: null,
+            bm25: null,
+            similarity: null,
+            rrf: 0,
+            brandAgrees: null,
+            sizeAgrees: null,
+            variantAgrees: null,
+          },
           {},
         ),
       ),
@@ -1231,6 +1320,7 @@ export class Catalogue {
             rrf: m.rrf,
             brandAgrees: null,
             sizeAgrees: null,
+            variantAgrees: null,
           },
           query,
         ),

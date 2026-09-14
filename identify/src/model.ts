@@ -500,6 +500,18 @@ export interface PickCandidateRow {
   readonly code: string;
   readonly brand: string | null;
   readonly name: string;
+  /**
+   * The row's other names, added 2026-09-14 for D-099. Optional because most
+   * rows carry neither, and a row whose second name repeats `name` is sent
+   * without them: see `pickRows`, which is the only thing that fills these in.
+   *
+   * They exist because `name` is not reliably where a flavour is written down.
+   * The cherry can is "Cherry-flavoured calorie-free cola" in English and
+   * "Coca-cola cerise" in French, and a pick pass shown only the first has no
+   * way to tell it from the plain can sitting next to it in the list.
+   */
+  readonly nameFr?: string | null;
+  readonly genericName?: string | null;
   readonly size: string | null;
   readonly category: string | null;
 }
@@ -650,6 +662,10 @@ packaging style, category, or general appearance is not a match. If no row
 matches the printed text, chosen_index is null. Answering null is a correct and
 expected answer; a wrong row is worse than no row.
 
+A row carries brand, name, size and category, and some rows also carry nameFr,
+the row's French name, and genericName, a short description. Read all of them as
+one row: a flavour or edition word is often printed in only one of the names.
+
 When more than one row could be the product, prefer the row whose size matches
 the net quantity printed on the pack.
 
@@ -728,6 +744,10 @@ Choose a row only if the text printed on the packaging matches that row. Matchin
 packaging style, category, or general appearance is not a match. If no row
 matches the printed text, chosen_index is null. Answering null is a correct and
 expected answer; a wrong row is worse than no row.
+
+A row carries brand, name, size and category, and some rows also carry nameFr,
+the row's French name, and genericName, a short description. Read all of them as
+one row: a flavour or edition word is often printed in only one of the names.
 
 When more than one row could be the product, prefer the row whose size matches
 the net quantity printed on the pack.
@@ -913,6 +933,10 @@ export class Identifier {
       code: c.code,
       brand: c.brand,
       name: c.name,
+      // Copied through only when the caller supplied them, so a row with no
+      // second name is sent as the same five keys it always was.
+      ...(c.nameFr != null ? { nameFr: c.nameFr } : {}),
+      ...(c.genericName != null ? { genericName: c.genericName } : {}),
       size: c.size,
       category: c.category,
     }));

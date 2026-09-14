@@ -31,6 +31,18 @@ export type { FailureClass } from './model.ts';
 export interface CatalogueCandidate {
   readonly code: string;
   readonly name: string;
+  /**
+   * The row's other names, added 2026-09-14 for D-099.
+   *
+   * Optional because this interface is structural and every caller that built a
+   * candidate before today built one without them; the catalogue has always
+   * returned both. They are here because the English name is not reliably where
+   * a variant is written down: the cherry can's English name is
+   * "Cherry-flavoured calorie-free cola" and its French one is "Coca-cola
+   * cerise", and a reader that only ever looks at `name` cannot see the second.
+   */
+  readonly nameFr?: string | null;
+  readonly genericName?: string | null;
   readonly brands: string | null;
   readonly quantity: string | null;
   readonly sizeValue: number | null;
@@ -41,6 +53,8 @@ export interface CatalogueCandidate {
     readonly similarity: number | null;
     readonly brandAgrees: boolean | null;
     readonly sizeAgrees: boolean | null;
+    /** D-099. Optional for the same reason the two names above are. */
+    readonly variantAgrees?: boolean | null;
   };
 }
 
@@ -56,6 +70,16 @@ export interface CatalogueLookup {
     text?: string;
     gtin?: string;
     brand?: string;
+    /**
+     * The flavour or edition word off the pack, passed as its own field rather
+     * than left buried in `text` (D-099, 2026-09-14).
+     *
+     * In `text` it is one more token among five and it loses to whichever row
+     * happens to repeat more of the others. As a field the catalogue can ask the
+     * one question that actually separates two cans of the same drink: does this
+     * row say cherry anywhere, in either language.
+     */
+    variant?: string;
     sizeValue?: number;
     sizeUnit?: string;
     limit?: number;
@@ -301,13 +325,25 @@ export class IdentifyStage {
       queries.push({
         text: q1Text.slice(0, 300),
         brand: p.brand ?? undefined,
+        variant: p.variant ?? undefined,
         sizeValue: pinned.value ?? undefined,
         sizeUnit: pinned.unit ?? undefined,
         limit: 10,
       });
     }
     if (q2Text) {
-      queries.push({ text: q2Text.slice(0, 300), brand: p.brand ?? undefined, limit: 10 });
+      /*
+       * q2 drops the variant from the TEXT on purpose and still pins it as a
+       * signal. The text is deliberately loose here so the size siblings come
+       * back as a set; the variant is not a size, and a row that contradicts the
+       * flavour was never one of those siblings.
+       */
+      queries.push({
+        text: q2Text.slice(0, 300),
+        brand: p.brand ?? undefined,
+        variant: p.variant ?? undefined,
+        limit: 10,
+      });
     }
     if (q3Text) {
       queries.push({ text: q3Text.slice(0, 300), limit: 10 });
@@ -372,8 +408,17 @@ export class IdentifyStage {
      *
      * Fewer than two candidates and there is nothing to pick between, so the
      * second call would be spending money to re-read a decision already made.
+     *
+     * The third condition arrived with D-099 and it only ever REMOVES a settle,
+     * never adds one: see `variantForcesPick`. The band and the lead are
+     * untouched, because both were right about what they measure and neither of
+     * them measures flavour.
      */
-    const settled = result.band === 'confident' && lead !== null && lead > LEAD_CLEAR;
+    const settled =
+      result.band === 'confident' &&
+      lead !== null &&
+      lead > LEAD_CLEAR &&
+      !variantForcesPick(p.variant, result.candidates);
     if (settled || result.candidates.length < 2) return pass1;
 
     let picked;
@@ -456,6 +501,74 @@ export class IdentifyStage {
 }
 
 /**
+ * SHOULD THE VARIANT WORD OVERRULE A SETTLED PASS ONE? (D-099, 2026-09-14)
+ *
+ * A Cherry Coke Zero photographed on a phone came back as plain Coke Zero. The
+ * two rows are one word apart and that word was in the query: pass 1 built
+ * "Coca-Cola Coke Zero Cherry", and the plain row repeats three of those words
+ * while the cherry row's English name, "Cherry-flavoured calorie-free cola",
+ * says neither "coke" nor "zero". More matched tokens won, the band came back
+ * confident, the lead was clear, and pass 1 settled on the wrong can without
+ * ever paying for a second look.
+ *
+ * The variant is the ONE signal that separates two cans of the same drink. So
+ * when the model read a variant, and the leader does not carry it while some
+ * other candidate does, this is not a settled answer: it is exactly the
+ * "confidently the wrong one of two near identical products" case the pick pass
+ * was added for. Forcing the pick is the whole of what this does. It never
+ * reorders anything, because ranking belongs to the catalogue and the choice
+ * between two rows that both look right belongs to the pass that can see the
+ * photograph.
+ *
+ * Nobody carrying the variant leaves the behaviour exactly as it was. There is
+ * nothing to prefer, and a second vision call to confirm a conclusion already
+ * reached is money spent on nothing.
+ *
+ * ALL the tokens, not any of them: "Zero Sugar Cherry" is three words naming one
+ * can, and a row carrying only "zero sugar" is precisely the row this exists to
+ * stop settling on. Accent folded because the row that names the variant is
+ * often the French one, and "Coca-cola cerise" is the reason the pick pass is
+ * now shown `name_fr` at all.
+ *
+ * Exported for its own tests: this is a decision about two lists of words and it
+ * is worth being able to ask it without a stage, a model and a catalogue.
+ */
+export function variantForcesPick(
+  variant: string | null,
+  candidates: readonly CatalogueCandidate[],
+): boolean {
+  const wanted = variantTokens(variant);
+  if (wanted.length === 0) return false;
+
+  const [best, ...rest] = candidates;
+  if (!best) return false;
+  if (carriesVariant(best, wanted)) return false;
+  return rest.some((c) => carriesVariant(c, wanted));
+}
+
+/** Lower-cased and stripped of accents, so "Cerise" and "cerise" are one word. */
+function foldVariantText(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+function variantTokens(variant: string | null): string[] {
+  if (!variant) return [];
+  return foldVariantText(variant).split(/[^a-z0-9]+/).filter(Boolean);
+}
+
+/**
+ * Everything the row knows that could name a flavour, read as one string.
+ *
+ * Substring rather than whole-word, matching what `brandAgreesWith` already does
+ * on the catalogue side, because a variant is printed hyphenated and compounded
+ * as often as not: "Cherry-flavoured" has to answer to "cherry".
+ */
+function carriesVariant(c: CatalogueCandidate, wanted: readonly string[]): boolean {
+  const text = foldVariantText([c.name, c.nameFr ?? '', c.genericName ?? ''].join(' '));
+  return wanted.every((token) => text.includes(token));
+}
+
+/**
  * The size to pin against the catalogue, which is not always the size the
  * label reads (found and left unfixed by D-082, closed here 2026-09-09).
  *
@@ -528,6 +641,12 @@ export function union(results: readonly CatalogueResult[]): CatalogueResult {
           similarity: maxOrNull(seen.signals.similarity, c.signals.similarity),
           brandAgrees: bestFlag(seen.signals.brandAgrees, c.signals.brandAgrees),
           sizeAgrees: bestFlag(seen.signals.sizeAgrees, c.signals.sizeAgrees),
+          // Merged like the other two, and merged at all so that q3, which pins
+          // no variant, cannot erase what q1 established about the same row.
+          variantAgrees: bestFlag(
+            seen.signals.variantAgrees ?? null,
+            c.signals.variantAgrees ?? null,
+          ),
         },
       });
     }
@@ -591,18 +710,41 @@ function bestFlag(a: boolean | null, b: boolean | null): boolean | null {
   return null;
 }
 
-/** The rows as the pick pass sees them: what is printed on a pack, nothing else. */
+/**
+ * The rows as the pick pass sees them: what is printed on a pack, nothing else.
+ *
+ * D-099 added the other two names. The pick pass was shown `name` alone, so on
+ * the cherry can it was handed a row reading "Cherry-flavoured calorie-free
+ * cola" beside one reading "Coke Zero" and could not see that the first row's
+ * French name is "Coca-cola cerise". It was being asked to tell two cans apart
+ * with the one field that does not distinguish them.
+ *
+ * Only when they are there and only when they say something `name` does not: a
+ * row whose French name is its English name is two more strings of tokens per
+ * row, ten rows per call, buying nothing.
+ */
 function pickRows(candidates: readonly CatalogueCandidate[]): PickCandidateRow[] {
   return candidates.map((c, index) => ({
     index,
     code: c.code,
     brand: c.brands,
     name: c.name,
+    ...(addsToName(c.nameFr, c.name) ? { nameFr: c.nameFr } : {}),
+    ...(addsToName(c.genericName, c.name) ? { genericName: c.genericName } : {}),
     size:
       c.quantity ??
       (c.sizeValue !== null ? `${c.sizeValue}${c.sizeUnit ?? ''}` : null),
     category: c.categoryPath.at(-1) ?? null,
   }));
+}
+
+/** Is this second name worth the tokens, or is it the first one again? */
+function addsToName(other: string | null | undefined, name: string): other is string {
+  return (
+    typeof other === 'string' &&
+    other.trim() !== '' &&
+    foldVariantText(other).trim() !== foldVariantText(name).trim()
+  );
 }
 
 /**

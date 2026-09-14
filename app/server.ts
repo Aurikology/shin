@@ -985,6 +985,9 @@ function photoLookup(
         text: q.text,
         brand: q.brand,
         sizeValue: q.sizeValue,
+        // D-099: the flavour word rides on its own so the catalogue can rank a
+        // row that carries it above one that only shares the brand and size.
+        variant: q.variant,
         sizeUnit: q.sizeUnit,
         limit,
         vectors: vectorsOn,
