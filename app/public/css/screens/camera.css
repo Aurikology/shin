@@ -1915,6 +1915,10 @@
   cursor: pointer;
 }
 .sheet-close:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+/* The verdict and every refusal carry the close since 2026-09-14; keep the
+   head's thumbnail and bubble clear of it. */
+.sheet.verdict .sheet-head,
+.sheet.refusal .sheet-head { padding-right: 40px; }
 
 /* -------------------------------------------------------------- text route */
 

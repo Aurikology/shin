@@ -42,6 +42,18 @@ export interface SpineDeps {
   readonly sources: readonly PriceSource[];
   /** Optional hook so a refusal can quote why a recorded identity was doubted. */
   readonly identityNote?: (identityId: string) => string | undefined;
+  /**
+   * What the product catalogue says a barcode is, asked only when no price
+   * source recognised the query. Optional so the engine stays free of the
+   * catalogue database: the server hands it a lookup, tests hand it a fake.
+   *
+   * WHY IT EXISTS (2026-09-14). A barcode no price source holds a row for used
+   * to come back "Could not work out what this is", even after `/api/identify`
+   * had named the product from the same code. That is a gap in our prices
+   * reported as a failure to know the product. docs/plan-always-a-price.md,
+   * step "the catalogue tells the price engine what the barcode is".
+   */
+  readonly catalogueIdentity?: (query: SpineQuery) => Promise<ProductIdentity | null>;
 }
 
 /**
@@ -95,7 +107,7 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
   }
 
   // 1. Identity, before anything else touches a number.
-  const identity = await resolveIdentity(query, usableSources);
+  const identity = await resolveIdentity(query, usableSources, deps.catalogueIdentity);
   if (identity === null) {
     return refuse(
       'no_identity',
@@ -819,6 +831,7 @@ function thinAnswer(
 async function resolveIdentity(
   query: SpineQuery,
   sources: readonly PriceSource[],
+  catalogueIdentity?: SpineDeps['catalogueIdentity'],
 ): Promise<ProductIdentity | null> {
   const eligible = query.category
     ? sources.filter((s) => s.categories.includes(query.category!))
@@ -851,6 +864,20 @@ async function resolveIdentity(
    * it. Nothing here invents an identity; if the words resolve nothing either,
    * the answer is still null and the refusal above still stands.
    */
+  /*
+   * The catalogue, by barcode, before the words retry below. A code the
+   * catalogue holds is an exact answer to "what is this"; the words retry can
+   * only offer a near match by name. The phone's two cases of 2026-09-14
+   * (Kirkland water by barcode, the photo route's "Water" row by its code)
+   * both land here: no price source had a row for either code.
+   *
+   * A lookup that throws is a miss, the same rule the sources get above.
+   */
+  if (query.gtin && catalogueIdentity) {
+    const fromCatalogue = await catalogueIdentity(query).catch(() => null);
+    if (fromCatalogue) return fromCatalogue;
+  }
+
   if (query.gtin && query.text) {
     const byWords = await Promise.all(
       eligible.map((s) => s.identify({ ...query, gtin: undefined }).catch(() => null)),
