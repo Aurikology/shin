@@ -768,6 +768,31 @@ const LINES_EN = {
     warm: () => 'I could not check for a cheaper one just now. Worth another try.',
     blunt: () => 'Could not check for a cheaper one.',
   },
+  /**
+   * THE SAME FAILURE, ON A SHEET THAT JUDGED NOTHING. 2026-09-14.
+   *
+   * The key above is correct under a verdict and wrong under a refusal, and
+   * the difference is not what the sentence is ABOUT but what the shopper is
+   * reading it ON. "Cheaper" there is arithmetic against the number the
+   * verdict just settled. On a thin refusal there is no such number, so the
+   * word arrives on a sheet whose entire point is that nothing could be
+   * compared, and docs/plan-always-a-price.md section 3 forbids it there
+   * whatever the sentence was trying to say. A person skimming a failed
+   * lookup does not parse "could not check for a cheaper one" as a statement
+   * about a search; they read that Shin was pricing this against something.
+   *
+   * So this one reports the same failure and makes no claim at all: a search
+   * for something similar that has a price on it, which did not answer. No
+   * tier word, no comparison, and no implication that one was in progress.
+   *
+   * `cam_cheaper_failed` above is untouched, byte for byte, because the
+   * verdict path is not what changed.
+   */
+  cam_similar_failed: {
+    deadpan: () => 'I could not check for something similar with a price on it.',
+    warm: () => 'I could not check for something similar with a price on it just now. Worth another try.',
+    blunt: () => 'Could not check for something similar with a price.',
+  },
 
   /*
    * "Not this?", added 2026-09-08 when the ranked search finally got a caller.

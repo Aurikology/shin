@@ -445,6 +445,15 @@ export const LINES_FR = {
     warm: () => "Je n'ai pas pu vérifier s'il y en avait un moins cher là. Ça vaut un autre essai.",
     blunt: () => "Pas pu vérifier pour un moins cher.",
   },
+  /* La même panne, sur une feuille qui n'a rien jugé. Voir la version
+     anglaise: "moins cher" est une soustraction contre un nombre que le
+     verdict vient de trancher, et sur un refus ce nombre n'existe pas. Celle-ci
+     dit la panne sans rien affirmer sur le prix. */
+  cam_similar_failed: {
+    deadpan: () => "Je n'ai pas pu vérifier s'il y avait quelque chose de semblable avec un prix.",
+    warm: () => "Je n'ai pas pu vérifier s'il y avait quelque chose de semblable avec un prix là. Ça vaut un autre essai.",
+    blunt: () => "Pas pu vérifier pour quelque chose de semblable avec un prix.",
+  },
 
   cam_notthis_offer: {
     deadpan: () => "Pas celui-là?",

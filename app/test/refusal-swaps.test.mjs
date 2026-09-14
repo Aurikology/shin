@@ -187,15 +187,31 @@ test('the absence rule can actually see a grading word', () => {
   assert.match(textOf('<p>That is cheaper</p>'), boundaried('cheaper'));
 });
 
-test('the no-comparison line grades nothing, in all three personalities and both locales', () => {
+/**
+ * Every line this feature puts on a sheet that judged nothing.
+ *
+ * `refuse_thin_swaps` is the sentence over the swaps. `cam_similar_failed` is
+ * the sentence INSTEAD of them, when the lookup threw, and it is on this list
+ * for a reason worth writing down: it is a sentence about a SEARCH, not about
+ * a price, and it was still wrong. The default it replaces reads "I could not
+ * check for a cheaper one", and a shopper skimming that on a refusal does not
+ * parse it as a statement about a request that failed -- they read that Shin
+ * was pricing this against something. What the sentence is about matters less
+ * than the sheet it is read on.
+ */
+const NO_COMPARISON_KEYS = ['refuse_thin_swaps', 'cam_similar_failed'];
+
+test('every no-comparison line grades nothing, in all three personalities and both locales', () => {
   const bad = [];
   for (const id of ['en', 'fr']) {
     inLocale(id, () => {
-      for (const who of PERSONALITIES.map((p) => p.id)) {
-        const line = say('refuse_thin_swaps', {}, who);
-        assert.ok(line, `refuse_thin_swaps/${id}/${who} is empty; a missing key is silent on the screen`);
-        for (const word of GRADING_WORDS[id]) {
-          if (boundaried(word).test(line)) bad.push(`${id}/${who}: "${word}" in ${JSON.stringify(line)}`);
+      for (const key of NO_COMPARISON_KEYS) {
+        for (const who of PERSONALITIES.map((p) => p.id)) {
+          const line = say(key, {}, who);
+          assert.ok(line, `${key}/${id}/${who} is empty; a missing key is silent on the screen`);
+          for (const word of GRADING_WORDS[id]) {
+            if (boundaried(word).test(line)) bad.push(`${key} ${id}/${who}: "${word}" in ${JSON.stringify(line)}`);
+          }
         }
       }
     });
@@ -324,6 +340,32 @@ test('the refusal path asks for them with its own heading, not the server\'s', (
     call.slice(0, 300),
     /allLooserKey: 'cam_swap_all_looser_ref'/,
     'the all-looser note would fall back to the verdict wording, which says "cheaper"',
+  );
+  assert.match(
+    call.slice(0, 300),
+    /failKey: 'cam_similar_failed'/,
+    'a lookup that threw would fall back to cam_cheaper_failed, which puts the word on a sheet that judged nothing',
+  );
+});
+
+test('the verdict path keeps its own failure line, byte for byte', () => {
+  // The refusal got a second sentence; the verdict was not asked to change.
+  // `cam_cheaper_failed` is correct under a number that was actually settled.
+  for (const id of ['en', 'fr']) {
+    inLocale(id, () => {
+      for (const who of PERSONALITIES.map((p) => p.id)) {
+        assert.notEqual(
+          say('cam_cheaper_failed', {}, who),
+          say('cam_similar_failed', {}, who),
+          `${id}/${who}: the two failure lines collapsed into one, so one of the two paths is now saying the wrong thing`,
+        );
+      }
+    });
+  }
+  assert.match(
+    CAMERA,
+    /say\(opts\.failKey \?\? 'cam_cheaper_failed'\)/,
+    'the default is no longer the verdict line, so every caller that passes no key changed behaviour',
   );
 });
 

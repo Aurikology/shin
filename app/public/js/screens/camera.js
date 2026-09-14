@@ -582,8 +582,15 @@ async function fillCheaper(root, code, askingCents, opts = {}) {
     // A lookup that threw is not "there is nothing cheaper". Saying so, rather
     // than leaving the placeholder sentence up forever, which would read as a
     // search still running.
+    //
+    // `opts.failKey` is the refusal path's own version of that sentence, and
+    // it is here for the same reason `opts.heading` is: the default says
+    // "cheaper", which is arithmetic against a number the verdict above it
+    // settled, and on a refusal there is no such number. The sentence is about
+    // the SEARCH either way, but a shopper skimming a failed lookup on a sheet
+    // that judged nothing reads it as a comparison that was under way.
     if (box.isConnected) {
-      box.innerHTML = `<p class="detail">${escapeHtml(say('cam_cheaper_failed'))}</p>`;
+      box.innerHTML = `<p class="detail">${escapeHtml(say(opts.failKey ?? 'cam_cheaper_failed'))}</p>`;
     }
   }
 }
@@ -2905,6 +2912,7 @@ export default {
           void fillCheaper(slot, swapCode, askingCents, {
             heading: t('cam_similar_priced'),
             allLooserKey: 'cam_swap_all_looser_ref',
+            failKey: 'cam_similar_failed',
           });
         }
         setState('result');
