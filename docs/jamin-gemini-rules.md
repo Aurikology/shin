@@ -102,5 +102,11 @@ Jamin as a point. When the cleanup is done, record it in `notes/catch-up.md`.
 - A Claude fallback stood behind Gemini (removed 2026-09-15, commit 3ef4cc8). Rule 7.
 - The 2026-09-14 revert of the search half and the CLAUDE.md lines "No walls except law" and "Real
   feed from day one, never live search" block on legal grounds. Rule 5.
+- Aurik's 2026-09-14 ruling that the price line never says good, reasonable or bad (neutral zone
+  codes, enforced by four test files). Jamin's words: *"we tell the user based on their preference,
+  this is factrually a bad, resonable or good price"*.
+- `identify/src/grounded.ts`, the guard that makes a search result impossible to write to a
+  database or stringify into a response, and the two-year reaper in `app/src/grounded-record.ts`.
+  Rules 4 and 5.
 - docs/plan-gemini.md sections 4.3 and 9 (a second request for the math, Claude fallback, "a test
   proves no grounded result is written") and docs/gemini-work-list.md items built on them.
