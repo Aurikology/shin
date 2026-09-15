@@ -26,7 +26,9 @@ Jamin as a point. When the cleanup is done, record it in `notes/catch-up.md`.
    also sent to gemini."* And 2026-09-15: *"the image and barcode should not be part of the same
    scan. the barcode can be read and the info fed to gemini which would be a much cheaper api call
    than sending an image."* The phone reads the barcode itself and Gemini gets the digits as text.
-   The photo goes to Gemini only on a photo scan, when there is no barcode.
+   The photo goes to Gemini only on a photo scan, when there is no barcode. And: *"the barcode
+   should not be auto read, there should be a scan the barcode button"*. No automatic barcode
+   detection; the user taps a "Scan barcode" button.
 3. **The price does not come from Shin.** *"THE PRICE SHOULD NOT COME FROM US."* Shin's own price
    database, price engine and "cheaper" lookups are not the answer source.
 4. **Record everything.** *"we will record EVERYTHING that happens when the user interacts with the
