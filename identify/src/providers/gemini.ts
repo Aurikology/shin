@@ -185,36 +185,6 @@ export function geminiModelFor(model: string): string {
 }
 
 /** Assumption 7. Anything the environment says is passed through untouched: this file does not police Google's enum. */
-/**
- * A FLOOR ON THE TIME BETWEEN REQUESTS, for a rate-limited key.
- *
- * Measured 2026-09-14 on a free key: pacing the EVAL between rows was not
- * enough, because a row makes two calls (extract, then pick) back to back and
- * the free tier counts arrivals, not rows. Every pick came back 429 while
- * every extract succeeded, which reads in a log like a broken second pass and
- * is really a throughput limit.
- *
- * So the gate lives here, at the one place that sees every request whoever
- * made it, rather than in a caller that only knows about its own loop. It is
- * module scope on purpose: two `GeminiProvider` instances in one process share
- * one key and therefore share one quota.
- *
- * Off unless `SHIN_GEMINI_MIN_INTERVAL_MS` is set, so a paid key pays nothing
- * for a free key's problem.
- */
-let nextAllowedAt = 0;
-
-async function waitForSlot(): Promise<void> {
-  const gap = Number(process.env.SHIN_GEMINI_MIN_INTERVAL_MS ?? 0);
-  if (!Number.isFinite(gap) || gap <= 0) return;
-  const now = Date.now();
-  const waitMs = Math.max(0, nextAllowedAt - now);
-  // Reserve the slot BEFORE awaiting, so two concurrent callers queue behind
-  // each other instead of both reading the same `now` and both going at once.
-  nextAllowedAt = Math.max(now, nextAllowedAt) + gap;
-  if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
-}
-
 function thinkingLevel(): string {
   return process.env.SHIN_GEMINI_THINKING?.trim() || 'low';
 }
@@ -269,7 +239,6 @@ export class GeminiProvider implements Provider {
   }
 
   async send<T>(request: ProviderRequest): Promise<ProviderResponse<T>> {
-    await waitForSlot();
     // Classed as a client error and not an outage, for the same reason
     // `classifyProviderError` already has that branch for the other two
     // vendors: our empty environment is our misconfiguration, and calling it

@@ -38,6 +38,7 @@ import {
   type ProviderRequest,
   type ProviderResponse,
   type TokenUsage,
+  waitForSlot,
 } from './provider.ts';
 import { AnthropicProvider, anthropicClient, type MessagesClient } from './providers/anthropic.ts';
 import { GeminiProvider } from './providers/gemini.ts';
@@ -1034,6 +1035,11 @@ export class Identifier {
     request: PassRequest,
     clockMs = envInt('SHIN_MODEL_TIMEOUT_MS', TIMEOUT_MS),
   ): Promise<ProviderResponse<T>> {
+    // BEFORE the clock, never inside it. A rate-limit wait charged against the
+    // request's own timeout aborts the request it was meant to protect; see
+    // `waitForSlot`'s own header for the run that proved it.
+    await waitForSlot();
+
     const attempts = Math.max(1, envInt('SHIN_MODEL_ATTEMPTS', MAX_ATTEMPTS));
     const timeoutMs = clockMs;
     let spent = 0;
