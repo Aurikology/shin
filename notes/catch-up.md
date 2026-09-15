@@ -9,6 +9,53 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-15, later (Jamin's PC): the nine-rules sweep
+
+### To do
+
+- **Aurik:** two of these are not on the "known contradictions already found" list below.
+  Rule 2, the camera still auto-reads a barcode with no button gate. Rule 7, `makeProvider`
+  in `identify/src/model.ts` silently answers with Claude whenever `SHIN_MODEL_PROVIDER` is
+  unset or misconfigured, with no warning logged, on purpose. Everything else here is one of
+  the already-known contradictions, checked directly against the code on this pull and
+  confirmed still live, not yet fixed.
+
+### What changed
+
+A full sweep of the code (not the docs) against Jamin's nine rules in
+`docs/jamin-gemini-rules.md`, done from a fresh pull.
+
+- **Rule 1, one call per scan:** still two. `/api/identify/photo` calls Gemini once for the
+  product; a separate client request, `/api/price`, calls Gemini again for price and reviews.
+- **Rule 3, the price does not come from Shin:** `/api/price` still calls Shin's own price
+  engine for the verdict first, and only attaches a Gemini grounded price as a second, separate
+  field. `server.ts` says this is on purpose: "Google's answer sits beside ours. It is never
+  mixed into it."
+- **Rule 4, record everything:** the phone's price request (`camera.js`, the call to
+  `ctx.api.price`) still never sends a scan id, so the server still has nowhere to keep what the
+  phone actually showed the user.
+- **Rule 5, legal marks and never blocks:** `identify/src/grounded.ts`'s guard still makes a
+  grounded result impossible to store, by design, because of Google's terms.
+- **Rule 6, always an answer:** same cause as rule 3. Shin's own engine can still answer "don't
+  know" on a scan Gemini could have priced, because Gemini is attached as a supplement rather
+  than the source.
+- **Rule 2, no auto barcode read (new):** the camera still reads a barcode the instant one is in
+  frame, no "Scan barcode" button gate. Its own comment says so: "it reads a barcode without
+  anybody pressing anything."
+- **Rule 7, Claude never takes over (new):** the `withFallback` wrapper being removed
+  (commit `3ef4cc8`) is not the whole picture. `makeProvider` falls back to `AnthropicProvider`
+  whenever the provider env var is unset, misspelled, or named `gemini` with no key present.
+  Checked live: this machine's `.env` has it unset right now.
+- A stale comment in `app/server.ts` still describes a "Gemini with a Claude fallback" choice
+  that `model.ts`'s own header three lines away says was removed 2026-09-15.
+
+Rule 8, the key only for live phone testing, checked clean: every test referencing
+`GEMINI_API_KEY` uses a fake string or asserts its absence.
+
+### Read by
+
+---
+
 ## 2026-09-15, early morning (Jamin's Mac): HIGHEST PRIORITY
 
 ### To do
