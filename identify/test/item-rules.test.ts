@@ -555,11 +555,22 @@ test('the four rules left the Python source fixed, self-contained and free of gr
  * was computed and then dropped at the wire.
  * ------------------------------------------------------------------ */
 
-test('the verdict schema asks for no grading word, in either language', () => {
-  const src = readFileSync(
+/**
+ * The adapter's source, with CRLF normalised away. The slices below hunt for
+ * a newline-brace-semicolon-newline delimiter that does not exist in a file
+ * checked out with CRLF endings, so without this the slice ran to end-of-file
+ * and swept the whole adapter -- including an ordinary comment containing
+ * "cheap" -- instead of the schema literal. D-110.
+ */
+function groundedSource(): string {
+  return readFileSync(
     new URL('../src/providers/gemini-grounded.ts', import.meta.url),
     'utf8',
-  );
+  ).replace(/\r\n/g, '\n');
+}
+
+test('the verdict schema asks for no grading word, in either language', () => {
+  const src = groundedSource();
   const start = src.indexOf('const VERDICT_SCHEMA');
   assert.ok(start > 0, 'VERDICT_SCHEMA is gone, so this test is guarding nothing');
   const schema = src.slice(start, src.indexOf('\n};\n', start));
@@ -576,10 +587,7 @@ test('the verdict schema asks for no grading word, in either language', () => {
 });
 
 test('the verdict schema carries the fields the four item rules travel in', () => {
-  const src = readFileSync(
-    new URL('../src/providers/gemini-grounded.ts', import.meta.url),
-    'utf8',
-  );
+  const src = groundedSource();
   const start = src.indexOf('const VERDICT_SCHEMA');
   const schema = src.slice(start, src.indexOf('\n};\n', start));
   // `excluded` is how a member-only price, a US listing, a marketplace seller
