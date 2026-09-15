@@ -9,6 +9,124 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-15, later (Jamin's PC): the nine-rules sweep
+
+### To do
+
+- **Aurik:** two of these are not on the "known contradictions already found" list below.
+  Rule 2, the camera still auto-reads a barcode with no button gate. Rule 7, `makeProvider`
+  in `identify/src/model.ts` silently answers with Claude whenever `SHIN_MODEL_PROVIDER` is
+  unset or misconfigured, with no warning logged, on purpose. Everything else here is one of
+  the already-known contradictions, checked directly against the code on this pull and
+  confirmed still live, not yet fixed.
+
+### What changed
+
+A full sweep of the code (not the docs) against Jamin's nine rules in
+`docs/jamin-gemini-rules.md`, done from a fresh pull.
+
+- **Rule 1, one call per scan:** still two. `/api/identify/photo` calls Gemini once for the
+  product; a separate client request, `/api/price`, calls Gemini again for price and reviews.
+- **Rule 3, the price does not come from Shin:** `/api/price` still calls Shin's own price
+  engine for the verdict first, and only attaches a Gemini grounded price as a second, separate
+  field. `server.ts` says this is on purpose: "Google's answer sits beside ours. It is never
+  mixed into it."
+- **Rule 4, record everything:** the phone's price request (`camera.js`, the call to
+  `ctx.api.price`) still never sends a scan id, so the server still has nowhere to keep what the
+  phone actually showed the user.
+- **Rule 5, legal marks and never blocks:** `identify/src/grounded.ts`'s guard still makes a
+  grounded result impossible to store, by design, because of Google's terms.
+- **Rule 6, always an answer:** same cause as rule 3. Shin's own engine can still answer "don't
+  know" on a scan Gemini could have priced, because Gemini is attached as a supplement rather
+  than the source.
+- **Rule 2, no auto barcode read (new):** the camera still reads a barcode the instant one is in
+  frame, no "Scan barcode" button gate. Its own comment says so: "it reads a barcode without
+  anybody pressing anything."
+- **Rule 7, Claude never takes over (new):** the `withFallback` wrapper being removed
+  (commit `3ef4cc8`) is not the whole picture. `makeProvider` falls back to `AnthropicProvider`
+  whenever the provider env var is unset, misspelled, or named `gemini` with no key present.
+  Checked live: this machine's `.env` has it unset right now.
+- A stale comment in `app/server.ts` still describes a "Gemini with a Claude fallback" choice
+  that `model.ts`'s own header three lines away says was removed 2026-09-15.
+
+Rule 8, the key only for live phone testing, checked clean: every test referencing
+`GEMINI_API_KEY` uses a fake string or asserts its absence.
+
+### Read by
+
+---
+
+## 2026-09-15, early morning (Jamin's Mac): HIGHEST PRIORITY
+
+### To do
+
+- **Aurik:** Jamin asks you to perform a cleanup of this repo for anything that goes against his
+  Gemini rules in `docs/jamin-gemini-rules.md`. Those rules now outrank everything else here. Fix
+  each contradiction to match them, or raise it with Jamin as a point if you think it should not
+  change. The file lists the contradictions already found. Then build Gemini so it never calls twice,
+  fix the pricing, and send the image of the object in one prompt that returns its details and the
+  price math as discussed the night of the switch (a barcode scan sends only the digits, from a Scan
+  barcode button).
+
+### What changed
+
+- Jamin set nine rules for Shin's Gemini path, in his own words, as the highest priority in the
+  repo: one Gemini call per scan returns the product, prices, reviews and the price math; a
+  barcode scan sends only the digits as text and a photo scan sends the image; prices never come from Shin's own data; everything a user does in the app
+  is recorded; legal issues are marked as issues and never block a feature; every scan ends with an
+  answer; Claude does not take over from Gemini; the Gemini key is used only for live phone tests;
+  the decisions from the night of the switch rank highest.
+- The Gemini search half is back on main (09b86ec), the Claude fallback is removed (3ef4cc8), and
+  the Mac's live server runs with Gemini on. Jamin's first two phone scans showed Shin saying it did
+  not know the price and nothing saved. Nothing further is being built on the Mac.
+
+### Read by
+
+---
+
+## 2026-09-14, evening (Jamin's Mac)
+
+### What Jamin is building next, so Aurik hears it before the commits arrive
+
+Jamin is starting a new session on his Mac to work through the Gemini pieces that until now waited
+on a real Gemini connection. There is still no paid key (his ruling 1 in "Twelve rulings on the
+Gemini branch, answered together"), so every test runs by driving the Gemini website
+(`gemini.google.com/app`) by hand in Chrome, the way the nine website tests in
+`docs/the-gemini-tree.md` were produced. The seven pieces:
+
+1. The request and response shapes, stood in for by hand, with a record of what the website cannot
+   prove and only a real key can.
+2. Identifying a product from a photo, without search.
+3. Looking up a barcode the catalogue does not have, with search.
+4. Prices, reviews and a product description in one searched request; reviews shown even with no
+   link, flagged.
+5. The price line resubmission with code execution, checking that the code Gemini runs is Shin's
+   own fixed function and not one it wrote.
+6. Image resolution: low, medium and high compared on real photos for quality and cost, nothing
+   decided.
+7. Trusting a read only when several camera frames agree, never by calling the model twice.
+
+**First, no code.** The session starts by writing down how it will do each piece: which agents it
+launches, how it prompts Gemini, how it reads the answers, and how it turns them into data Shin's
+code and tests can use. Jamin reviews that before anything is built.
+
+**What it will not land without both of you.** Anything that stores or scores search-derived prices
+waits on the two points Aurik's revert names (Google's terms on storing and analysing grounded
+results, and tier words), and nothing inside `identify/src/model.ts` lands without Aurik's own yes
+(Jamin's ruling 3 is his go-ahead, not Aurik's). The session builds on what Aurik's sessions
+already landed today (the request body, `gauge.ts`, the item rules, the grounded block and the
+price line) and follows Aurik's ruling that the line names the shopper's own range with neutral
+zone codes, not good, reasonable or bad. Only green commits are pushed, in small pieces.
+
+### To do
+
+- **Aurik:** say on the Notion page (Needs attention) if any of the seven pieces collides with
+  work you have in flight, or if you want the `model.ts` branch done differently.
+
+### Read by
+
+---
+
 ## 2026-09-14, later (Aurik's PC, Fable session)
 
 ### The revert, which Jamin should hear from Aurik and not from a commit log

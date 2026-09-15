@@ -51,12 +51,12 @@
  *       not.
  *
  * 4. Search Suggestions must be shown with every grounded answer.
- *    -> This is the one Google REQUIRES rather than merely permits, so it is
- *       the one enforced hardest here: with no `suggestionsHtml`, this file
- *       renders NOTHING AT ALL and the caller shows no grounded section. A
- *       half-rendered block that kept the prices and dropped the suggestions
- *       is the failure most likely to cost the key, so the only safe default
- *       is to lose the whole feature for that answer instead.
+ *    -> They are shown whenever they arrive. REVERSED 2026-09-15: this file
+ *       used to render NOTHING when they were missing. Jamin that day: "don't
+ *       prevent something from functioning just because of legal issues", and
+ *       "Having a response that is not checked is infinitely better than...
+ *       told the app doesn't know". So a block with no suggestions now renders
+ *       its prices and reviews without them. A terms crossing, left working.
  *    -> `suggestionsHtml` is this file's single `innerHTML` assignment, and
  *       its right-hand side is the wire's value with no method call on it. It
  *       is Google's own rendered HTML; escaping it or rebuilding it from its
@@ -157,10 +157,9 @@ export function groundedRoot(grounded, opts = {}) {
   if (!grounded || grounded.kind !== 'grounded') return null;
   const block = grounded.block;
   if (!block) return null;
-  // Term 4. No suggestions, no block: see the header. This is the check that
-  // has to stay even when it feels like it is throwing away a good answer.
-  const suggestionsHtml = grounded.suggestionsHtml;
-  if (typeof suggestionsHtml !== 'string' || suggestionsHtml === '') return null;
+  // Term 4, reversed 2026-09-15: suggestions shown when present, and their
+  // absence no longer costs the answer. See the header.
+  const suggestionsHtml = typeof grounded.suggestionsHtml === 'string' ? grounded.suggestionsHtml : '';
 
   const doc = docOf(opts);
   const root = el(doc, 'div', 'grounded');
@@ -171,6 +170,24 @@ export function groundedRoot(grounded, opts = {}) {
   // it, which is the heading's job and the heading is outside.
   if (grounded.fetchedAt) root.setAttribute('data-fetched-at', str(grounded.fetchedAt));
   if (grounded.forDevice) root.setAttribute('data-for-device', str(grounded.forDevice));
+
+  /*
+   * A barcode the catalogue did not know, named by the search: one row per
+   * fact (name, brand, size), each linked to the page that states it when
+   * there is one. Added 2026-09-15 with the barcode lookup going live.
+   */
+  const facts = Array.isArray(block.facts) ? block.facts : [];
+  if (facts.length > 0) {
+    const list = el(doc, 'ul', 'g-facts');
+    for (let i = 0; i < facts.length; i += 1) {
+      const fact = facts[i];
+      const row = el(doc, 'li', 'g-fact');
+      row.setAttribute('data-field', str(fact.field));
+      linkOrText(doc, row, fact, fact.value);
+      list.appendChild(row);
+    }
+    root.appendChild(list);
+  }
 
   if (typeof block.description === 'string' && block.description !== '') {
     const p = el(doc, 'p', 'g-description');
@@ -226,9 +243,14 @@ export function groundedRoot(grounded, opts = {}) {
    * also be the first step of the change that eventually strips the
    * attribution. There is no safe-looking version of touching this string.
    */
-  const suggestions = el(doc, 'div', 'g-suggestions');
-  suggestions.innerHTML = suggestionsHtml;
-  root.appendChild(suggestions);
+  if (suggestionsHtml !== '') {
+    const suggestions = el(doc, 'div', 'g-suggestions');
+    suggestions.innerHTML = suggestionsHtml;
+    root.appendChild(suggestions);
+  }
+
+  // A block with nothing in it at all is not an answer to show.
+  if (root.childNodes && root.childNodes.length === 0) return null;
 
   return root;
 }
@@ -251,6 +273,10 @@ function missingLinks(block) {
   const reviews = Array.isArray(block.reviews) ? block.reviews : [];
   for (let i = 0; i < reviews.length; i += 1) {
     if (reviews[i].hasLink === false) out.push(str(reviews[i].source));
+  }
+  const facts = Array.isArray(block.facts) ? block.facts : [];
+  for (let i = 0; i < facts.length; i += 1) {
+    if (facts[i].hasLink === false) out.push(str(facts[i].value));
   }
   return out;
 }
@@ -296,6 +322,17 @@ export function groundedSection(grounded, opts = {}) {
   heading.textContent = t('grounded_heading');
   section.appendChild(heading);
 
+  /*
+   * NOT CHECKED, said once, above the block. Jamin, 2026-09-15: an answer
+   * that is not checked is better than none, so it shows, labelled. The
+   * server marks every search block `checked: false`.
+   */
+  if (grounded.block.checked === false) {
+    const note = el(doc, 'p', 'grounded-unchecked');
+    note.textContent = t('grounded_unchecked');
+    section.appendChild(note);
+  }
+
   section.appendChild(root);
 
   const absent = missingLinks(grounded.block);
@@ -321,19 +358,29 @@ export function groundedSection(grounded, opts = {}) {
    */
   const verdict = grounded.block.verdict;
   if (verdict) {
+    /*
+     * The gauge's own names. This call passed `goodBoundary` and
+     * `badBoundary` until 2026-09-15, which `price-line.js` stopped reading
+     * on 2026-09-14, so every grounded line drew one undivided zone.
+     */
     const line = priceLine({
       median: verdict.median,
       unitLabel: verdict.unitLabel,
       span: verdict.span,
       ticks: verdict.ticks,
-      goodBoundary: verdict.goodBoundary,
-      badBoundary: verdict.badBoundary,
+      zoneUnderBoundary: verdict.zoneUnderBoundary,
+      zoneOverBoundary: verdict.zoneOverBoundary,
       shelf: verdict.shelf,
       points: verdict.points,
       excluded: verdict.excluded,
-      shelfLabel: opts.shelfLabel ?? null,
+      shelfLabel: opts.shelfLabel ?? verdict.shelfLabel ?? null,
     }, { doc });
     if (line) section.appendChild(line);
+    if (line && verdict.sizeAssumed === true) {
+      const note = el(doc, 'p', 'grounded-size-assumed');
+      note.textContent = t('grounded_size_assumed');
+      section.appendChild(note);
+    }
   }
 
   return section;

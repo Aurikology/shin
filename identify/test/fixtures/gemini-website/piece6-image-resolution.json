@@ -1,0 +1,44 @@
+{
+  "source": "gemini website, 2026-09-14, Flash model, website chat (not the real API)",
+  "purpose": "Piece 6 of the Gemini-website carryover: does image resolution change identification quality, and roughly how (quality and rough cost only, per ruling 12 -- deciding nothing here).",
+  "prompt_ask_text": "What exact product is this? Give JSON only: {name, brand, variant, sizeValue, sizeUnit, netQuantityText}. Use null for anything not actually visible in the photo, never guess a size or a variant you cannot read.",
+  "note_on_resolution_stand_in": "The website's upload UI has no resolution control (checked, not assumed) -- confirmed by opening the upload menu and file-input controls directly. So each pixel size is a separate uploaded copy of the same source photo in a separate chat, standing in for gemini.ts's resolution hint parameter, not a request parameter. This is the same stand-in approach used in piece 5's file-upload delivery, flagged here again explicitly.",
+  "note_on_pixel_choice": "The method doc originally suggested scaling long-edge pixel size by the square root of the documented token targets (280/560/1120 tok, since image tokens roughly scale with pixel area) relative to a medium crop already sent earlier. That reference size was not available to check against in this session, so the sizes actually used below are the token-target numbers themselves taken directly as long-edge pixel sizes (280px/560px/1120px) -- a simpler approximation, not the sqrt-scaled one, and labelled as such. The real, uncompressed native photo (1920px long edge) was also sent in piece 2/7 and is included here as a fourth data point.",
+  "source_photo": "~/shin-data/shutter/704cd55a-2a4a-4954-9d9e-4e66ba43e01f/frame.jpg (native 1080x1920, the same frame used as piece 2/7's first frame)",
+  "runs": [
+    {
+      "label": "native (untouched upload, 1920px long edge)",
+      "chat_url": "https://gemini.google.com/app/378368d8ea677e9f",
+      "file_size_kb": 504,
+      "gemini_result": {"name": "Natural Spring Water", "brand": "Kirkland Signature", "variant": null, "sizeValue": null, "sizeUnit": null, "netQuantityText": null},
+      "quality": "correct name and brand"
+    },
+    {
+      "label": "high (1120px long edge)",
+      "chat_url": "https://gemini.google.com/app/65cea20d0bbad3dc",
+      "file_size_kb": 140,
+      "gemini_result": {"name": "Natural Spring Water", "brand": "Kirkland Signature", "variant": null, "sizeValue": null, "sizeUnit": null, "netQuantityText": null},
+      "quality": "correct name and brand, matches native exactly"
+    },
+    {
+      "label": "medium (560px long edge)",
+      "chat_url": "https://gemini.google.com/app/9533a1e93bc5fb8e",
+      "file_size_kb": 43,
+      "gemini_result": {"name": null, "brand": null, "variant": null, "sizeValue": null, "sizeUnit": null, "netQuantityText": null},
+      "quality": "everything null, including brand, which every other run (even barcode-only crops in piece 2) got right"
+    },
+    {
+      "label": "low (280px long edge)",
+      "chat_url": "https://gemini.google.com/app/e61518a58e634c7c",
+      "file_size_kb": 13,
+      "gemini_result": {"name": null, "brand": null, "variant": null, "sizeValue": null, "sizeUnit": null, "netQuantityText": null},
+      "quality": "everything null"
+    }
+  ],
+  "findings": [
+    "a sharp quality threshold between 560px and 1120px long edge for this specific photo and label: at 1120px and above, the read is complete and correct; at 560px and below, the model declines everything rather than guessing (correct behaviour for the null-if-unreadable instruction, but a real quality cliff, not a gentle degradation).",
+    "at low resolutions the model lost brand identification too, not just the finer name/variant text -- the label's brand text needs less resolution than its product-name text in principle, but here both dropped out together between 1120px and 560px.",
+    "rough cost: file size scaled from 13 KB (280px) to 504 KB (native) roughly with the square of long-edge pixels, consistent with gemini.ts's own assumption that resolution cost scales with pixel area; this file-size proxy is the only cost signal available through the website, since the website shows no per-image token count anywhere in the UI (a genuine gap for piece 1's list, not filled here).",
+    "no conclusion is drawn here about which resolution Shin's real pipeline should request -- per ruling 12, this is quality and rough cost only, decided by nobody in this session."
+  ]
+}

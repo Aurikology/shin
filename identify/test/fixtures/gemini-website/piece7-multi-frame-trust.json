@@ -1,0 +1,25 @@
+{
+  "source": "gemini website, 2026-09-14, Flash model, website chat (not the real API)",
+  "purpose": "Piece 7 of the Gemini-website carryover: does trust come from agreement across several real camera frames of the same item, never from a second model call re-asking the same chat (ruling 11). Reuses piece 2's four-frame run rather than firing new prompts, since piece 2 already sent the piece-2 prompt once per frame in four separate chats.",
+  "ruling_11_compliance": "each frame was a brand-new chat (see piece2-photo-identification.json chat_urls) -- no frame's result was produced by asking Gemini to confirm or re-check a previous answer in the same thread. Agreement is read across four independent reads, not manufactured by re-querying.",
+  "photo_group": "GTIN 0096619321841, four real frames from tonight's shutter capture, same physical item, ground truth: name 'Natural spring water', brand 'Kirkland Signature', 500 mL (see piece2-photo-identification.json for the full ground-truth record and per-frame photo content)",
+  "field_agreement": {
+    "brand": {
+      "agreement": "4 of 4 frames said 'Kirkland Signature'",
+      "verdict": "full agreement, matches ground truth -- trustworthy"
+    },
+    "name": {
+      "agreement": "2 of 4 frames said 'Natural Spring Water' (matches ground truth), 2 of 4 said null",
+      "verdict": "not a disagreement in the sense of contradictory answers -- the two null frames were crops (barcode/recycling-text close-ups) where the product-name text was not in the photographed area at all. No frame asserted a wrong name. Trusting the two frames that did read a name, given the other two frankly declined rather than guessed, is a reasonable read of 'agreement' here: nothing contradicts the majority answer, some frames simply had nothing to read."
+    },
+    "sizeValue/sizeUnit/netQuantityText": {
+      "agreement": "4 of 4 frames said null",
+      "verdict": "full agreement on 'unreadable from these photos' -- consistent, but consistently missing information, not evidence the size is unknowable in general (the catalogue GTIN lookup has it; the photos alone do not)."
+    }
+  },
+  "findings": [
+    "the real multi-frame case here never produced a genuine field-level contradiction (e.g. one frame saying 'Kirkland Signature' and another saying a different brand) -- disagreement in this run was entirely of the shape 'some frames had the text, some frames' crop did not include it', which agreement-across-frames handles correctly by trusting whichever frames had the data, without needing a second model call to adjudicate.",
+    "this run does not exercise the harder case ruling 11 is really about -- two frames that both had the relevant text in view but read it differently. That case did not occur in tonight's four-frame group and is left open as an untested scenario, not claimed as covered.",
+    "practical implication for the app: a multi-frame capture flow benefits from combining fields across frames (take the name from whichever frame has it, not requiring every frame to agree on every field), rather than requiring unanimous non-null answers before trusting a read."
+  ]
+}

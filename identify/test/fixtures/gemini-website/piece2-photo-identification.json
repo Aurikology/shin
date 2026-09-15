@@ -1,0 +1,51 @@
+{
+  "source": "gemini website, 2026-09-14, Flash model, website chat (not the real API)",
+  "purpose": "Piece 2 of the Gemini-website carryover: photo identification with no search tool asked for (the website's own search chip may still appear; noted if it did). Prompt matches Shin's extract-pass fields, not the loose wording used in the prior T2/T3 tests.",
+  "prompt_ask_text": "What exact product is this? Give JSON only: {name, brand, variant, sizeValue, sizeUnit, netQuantityText}. Use null for anything not actually visible in the photo, never guess a size or a variant you cannot read.",
+  "photo_group": "GTIN 0096619321841, four real frames from tonight's shutter capture (~/shin-data/shutter), same physical item photographed from different angles moving the phone around it, exactly as the app's own capture flow would produce",
+  "ground_truth": {
+    "source": "~/shin-data/shutter/704cd55a-2a4a-4954-9d9e-4e66ba43e01f/2026-09-14T04-35-06-624Z-identify.json, a real catalogue GTIN lookup (matchedBy: gtin, band: confident)",
+    "code": "0096619321841",
+    "name": "Natural spring water",
+    "brands": "Kirkland Signature",
+    "quantity": "500mL",
+    "sizeValue": 500,
+    "sizeUnit": "ml"
+  },
+  "frames": [
+    {
+      "frame_id": "704cd55a-2a4a-4954-9d9e-4e66ba43e01f",
+      "photo_content": "front of the bottle, brand+name text legible, no size text visible in this crop",
+      "chat_url": "https://gemini.google.com/app/378368d8ea677e9f",
+      "search_chip_appeared": false,
+      "gemini_result": {"name": "Natural Spring Water", "brand": "Kirkland Signature", "variant": null, "sizeValue": null, "sizeUnit": null, "netQuantityText": null}
+    },
+    {
+      "frame_id": "78cd3b8e-c09b-4c59-8b30-238a2726bdfd",
+      "photo_content": "barcode label close-up, includes the item's own printed name text at the edge of frame",
+      "chat_url": "https://gemini.google.com/app/9aeddcef3de73edd",
+      "search_chip_appeared": false,
+      "gemini_result": {"name": "Natural Spring Water", "brand": "Kirkland Signature", "variant": null, "sizeValue": null, "sizeUnit": null, "netQuantityText": null}
+    },
+    {
+      "frame_id": "98928a62-0141-4303-ad96-222f841b3f6a",
+      "photo_content": "hand holding the bottle, barcode visible, no product name text visible in this crop",
+      "chat_url": "https://gemini.google.com/app/035b19f3d6dbb5ed",
+      "search_chip_appeared": false,
+      "gemini_result": {"name": null, "brand": "Kirkland Signature", "variant": null, "sizeValue": null, "sizeUnit": null, "netQuantityText": null}
+    },
+    {
+      "frame_id": "9c90ab27-7db7-4faa-ade4-165c7e7ea207",
+      "photo_content": "barcode + recycling text close-up, no product name text visible in this crop",
+      "chat_url": "https://gemini.google.com/app/30e7e5eb19a7278d",
+      "search_chip_appeared": false,
+      "gemini_result": {"name": null, "brand": "Kirkland Signature", "variant": null, "sizeValue": null, "sizeUnit": null, "netQuantityText": null}
+    }
+  ],
+  "findings": [
+    "brand: 4 of 4 frames correct against ground truth (Kirkland Signature), including the two frames where the model gave name:null -- brand was legible on the label in every frame, name text was not.",
+    "name: 2 of 4 frames correct (Natural Spring Water, matching ground truth's 'Natural spring water' up to case), 2 of 4 frames returned null rather than guessing -- in both null cases, the actual product-name text was outside the photographed crop (barcode/recycling-text close-ups). This is the null-for-unreadable instruction working as asked, not a disagreement to average away.",
+    "sizeValue/sizeUnit/netQuantityText: null in all 4 of 4 frames, despite the real product having a printed '500 mL' on its label. None of the four real shutter frames used here happened to have that text inside the photographed crop. This means a photo-only extract pass, at least from this app's real capture angles, frequently cannot recover size on its own -- consistent with why the app also matches by barcode against the catalogue rather than relying on the photo alone for size.",
+    "no search chip or grounded citation appeared on any of the four frames, confirming the ungrounded-prompt request stayed ungrounded on the website UI for this prompt style."
+  ]
+}

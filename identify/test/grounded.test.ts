@@ -116,6 +116,8 @@ test('the set of files that import grounded.ts equals a written allowlist', () =
     'app/src/grounded-record.ts',
     'identify/src/provider.ts',
     'identify/src/providers/gemini-grounded.ts',
+    // Added 2026-09-15: the adapter's own test opens the boxes it seals with `toWire`, and nothing else.
+    'identify/test/gemini-grounded.test.ts',
     'identify/test/grounded-types.ts',
     'identify/test/grounded.test.ts',
   ]);
@@ -203,9 +205,19 @@ test('an anonymous device is refused by both seal and toWire', () => {
   assert.throws(() => historyText(box, ANONYMOUS_DEVICE), GroundedOwnership);
 });
 
-test('seal refuses an answer that arrived with no Search Suggestions', () => {
-  assert.throws(() => seal(envelope(OFFERS, { suggestionsHtml: '' })), GroundedLeak);
-  assert.throws(() => seal(envelope(OFFERS, { suggestionsHtml: '   ' })), GroundedLeak);
+/*
+ * REVERSED 2026-09-15. This test used to require the refusal. Jamin's ruling
+ * that day ("don't prevent something from functioning just because of legal
+ * issues") turned a missing Search Suggestions widget from a lost answer into
+ * an answer shown without it.
+ */
+test('seal accepts an answer that arrived with no Search Suggestions, and it still reaches its owner', () => {
+  for (const suggestionsHtml of ['', '   ']) {
+    const box = seal(envelope(OFFERS, { suggestionsHtml }));
+    const wire = toWire(box, DEVICE_A);
+    assert.equal(wire.suggestionsHtml, suggestionsHtml);
+    assert.equal(wire.block.offers.length, 2);
+  }
 });
 
 /* --------------------------------------------------------- 8: will not modify */

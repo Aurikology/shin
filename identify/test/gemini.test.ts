@@ -31,7 +31,6 @@ import { ProviderError } from '../src/provider.ts';
 import {
   GeminiProvider,
   MAX_INLINE_IMAGE_BYTES,
-  forGeminiSchema,
   geminiModelFor,
   type GeminiTransport,
 } from '../src/providers/gemini.ts';
@@ -81,14 +80,17 @@ function fakeTransport(
 function answer(over: Record<string, unknown> = {}): string {
   return JSON.stringify({
     steps: [
-      { type: 'thought', content: [{ type: 'text', text: 'looking at the label' }] },
+      { type: 'thought', signature: 'sig', summary: [{ type: 'text', text: 'looking at the label' }] },
       { type: 'model_output', content: [{ type: 'text', text: JSON.stringify({ brand: 'Acme' }) }] },
     ],
-    usageMetadata: {
-      promptTokenCount: 2_600,
-      candidatesTokenCount: 180,
-      thoughtsTokenCount: 320,
-      cachedContentTokenCount: 2_459,
+    status: 'completed',
+    // The spec's `Usage` names (https://ai.google.dev/static/api/interactions.openapi.json, 2026-09-15).
+    usage: {
+      total_input_tokens: 2_600,
+      total_output_tokens: 180,
+      total_thought_tokens: 320,
+      total_cached_tokens: 2_459,
+      total_tokens: 3_100,
     },
     ...over,
   });
@@ -153,56 +155,97 @@ test('no tools field is ever sent, because an ungrounded answer is the whole poi
 });
 
 /*
- * REWRITTEN 2026-09-14, and the reason is worth keeping.
+ * REWRITTEN TWICE, and the second time is the one worth keeping.
  *
- * This test first shipped asserting `input_image`, a top-level
- * `thinking_level`, and an `input` of two role-tagged turns. All three were
- * this adapter's own guesses, written from a reverted file rather than from
- * Google, and the test pinned them faithfully. Then the reference was actually
- * read (ai.google.dev/api/interactions-api and the image-understanding page)
- * and all three were wrong: the part type is `image`, the thinking level and
- * the resolution live inside `generation_config`, and `system_instruction` is
- * a top-level string beside a flat `input`.
+ * 2026-09-14 this test pinned `generation_config.media_resolution` and an
+ * uppercase schema, both read off the docs and never sent. 2026-09-15 the
+ * phone's first real call came back HTTP 400: "Unknown parameter
+ * 'media_resolution' at 'generation_config'". The OpenAPI spec
+ * (https://ai.google.dev/static/api/interactions.openapi.json, read
+ * 2026-09-15) has no such member of GenerationConfig; the resolution is
+ * `resolution` on the image part. This test now pins the spec's shape, field
+ * by field, and asserts the rejected field is absent so it cannot come back.
  *
- * A test holds a claim still. It cannot tell you the claim was true. That is
- * what the documentation is for, and it is why every assumption in the
- * adapter's header carries the date it was checked.
+ * A test holds a claim still. It cannot tell you the claim was true.
  */
-test('the body is the Interactions shape Google documents, image before text', async () => {
+test('the body is the Interactions shape the OpenAPI spec documents, image before text', async () => {
   const transport = fakeTransport({ text: answer() });
   await new GeminiProvider({ apiKey: 'k', transport, baseUrl: BASE }).send(request());
 
   const body = transport.calls[0].body;
-  assert.equal(body.model, 'gemini-3.8-flash');
-  // `system_instruction` is its own top-level string, not a turn inside `input`.
+  assert.deepEqual(Object.keys(body).sort(), [
+    'generation_config',
+    'input',
+    'model',
+    'response_format',
+    'store',
+    'system_instruction',
+  ]);
   assert.equal(body.system_instruction, 'shared prefix');
-  const gen = body.generation_config as Record<string, unknown>;
-  assert.equal(gen.thinking_level, 'low');
-  // No resolution hint: a real call on 2026-09-14 refused `media_resolution`
-  // in generation_config, on the image part and at the top level. Asserting
-  // its ABSENCE, because the documentation still describes it and the next
-  // reader will want to add it back.
-  assert.equal(gen.media_resolution, undefined, 'media_resolution is refused by the live API');
-  assert.equal(body.thinking_level, undefined, 'the thinking level must not also sit at the top level');
+  assert.equal(body.store, false);
+  assert.deepEqual(body.generation_config, { thinking_level: 'low' });
+  assert.ok(!JSON.stringify(body).includes('media_resolution'), 'the field Google rejected is back');
   assert.deepEqual(body.response_format, {
     type: 'text',
     mime_type: 'application/json',
-    schema: { type: 'OBJECT' },
+    // Plain JSON Schema, passed through untranslated.
+    schema: { type: 'object' },
   });
 
   const input = body.input as Record<string, unknown>[];
-  // A FLAT array of parts, not role-tagged turns. Render order is still
-  // load-bearing: `model.ts`'s cache lever needs the pass-specific instruction
-  // to sit AFTER the image.
   assert.equal(input.length, 2);
+  assert.deepEqual(Object.keys(input[0]).sort(), ['data', 'mime_type', 'resolution', 'type']);
   assert.equal(input[0].type, 'image');
   assert.equal(input[0].mime_type, 'image/jpeg');
   assert.equal(input[0].data, Buffer.from([0xff, 0xd8, 0xff, 0xe0]).toString('base64'));
-  assert.equal(input[0].resolution, undefined, 'the resolution hint belongs in generation_config');
-  assert.equal(input[1].type, 'text');
-  assert.equal(input[1].text, 'the pass-specific instruction');
+  assert.equal(input[0].resolution, 'medium');
+  assert.deepEqual(input[1], { type: 'text', text: 'the pass-specific instruction' });
 });
 
+test('the resolution and thinking level are only ever sent as values the spec enumerates', async () => {
+  for (const [raw, expected] of [
+    ['high', 'high'],
+    ['MEDIA_RESOLUTION_LOW', 'low'],
+    ['ultra_high', 'ultra_high'],
+    ['enormous', 'medium'],
+  ] as const) {
+    await withEnv('SHIN_GEMINI_MEDIA_RESOLUTION', raw, async () => {
+      const transport = fakeTransport({ text: answer() });
+      await new GeminiProvider({ apiKey: 'k', transport, baseUrl: BASE }).send(request());
+      assert.equal((transport.calls[0].body.input as Record<string, unknown>[])[0].resolution, expected);
+    });
+  }
+  await withEnv('SHIN_GEMINI_THINKING', 'thoughtful', async () => {
+    const transport = fakeTransport({ text: answer() });
+    await new GeminiProvider({ apiKey: 'k', transport, baseUrl: BASE }).send(request());
+    assert.deepEqual(transport.calls[0].body.generation_config, { thinking_level: 'low' });
+  });
+});
+
+test('a nullable schema travels as plain JSON Schema, type arrays and all', async () => {
+  const schema = {
+    type: 'object',
+    additionalProperties: false,
+    properties: { brand: { type: ['string', 'null'] }, unit: { type: ['string', 'null'], enum: ['g', 'ml', null] } },
+    required: ['brand', 'unit'],
+  };
+  const transport = fakeTransport({ text: answer() });
+  await new GeminiProvider({ apiKey: 'k', transport, baseUrl: BASE }).send(
+    request({ schema: { name: 'product_identity', schema } }),
+  );
+  assert.deepEqual((transport.calls[0].body.response_format as { schema: unknown }).schema, schema);
+});
+
+test('a failed interaction with no answer is malformed, and carries Google\'s own error text', async () => {
+  const transport = fakeTransport({
+    text: JSON.stringify({ status: 'failed', steps: [], errors: [{ code: 'internal', message: 'boom' }] }),
+  });
+  await assert.rejects(
+    new GeminiProvider({ apiKey: 'k', transport, baseUrl: BASE }).send(request()),
+    (err: unknown) =>
+      err instanceof ProviderError && err.failure === 'model_malformed' && /failed: internal: boom/.test(err.message),
+  );
+});
 test('SHIN_GEMINI_THINKING overrides the thinking level', async () => {
   await withEnv('SHIN_GEMINI_THINKING', 'high', async () => {
     const transport = fakeTransport({ text: answer() });
@@ -232,50 +275,6 @@ test('SHIN_GEMINI_MODEL overrides every tier with one id', async () => {
   });
 });
 
-test('a nullable string becomes an uppercase type plus nullable, and additionalProperties is dropped', () => {
-  assert.deepEqual(
-    forGeminiSchema({ type: ['string', 'null'], description: 'the brand' }),
-    { type: 'STRING', description: 'the brand', nullable: true },
-  );
-  assert.deepEqual(
-    forGeminiSchema({ type: 'object', additionalProperties: false, properties: { a: { type: 'integer' } } }),
-    { type: 'OBJECT', properties: { a: { type: 'INTEGER' } } },
-  );
-});
-
-test('a nullable enum drops the null member and says nullable instead', () => {
-  assert.deepEqual(
-    forGeminiSchema({ type: ['string', 'null'], enum: ['g', 'ml', null] }),
-    { type: 'STRING', enum: ['g', 'ml'], nullable: true },
-  );
-});
-
-test('nesting is translated all the way down, and a property literally named type survives', () => {
-  const translated = forGeminiSchema({
-    type: 'object',
-    properties: {
-      // A field called `type` is DATA. If the walker read property names as
-      // keywords this would come back uppercased into nonsense.
-      type: { type: ['string', 'null'] },
-      alternates: {
-        type: 'array',
-        items: { type: 'object', properties: { name: { type: 'string' } }, additionalProperties: false },
-      },
-    },
-  }) as Record<string, unknown>;
-
-  assert.deepEqual(translated, {
-    type: 'OBJECT',
-    properties: {
-      type: { type: 'STRING', nullable: true },
-      alternates: {
-        type: 'ARRAY',
-        items: { type: 'OBJECT', properties: { name: { type: 'STRING' } } },
-      },
-    },
-  });
-});
-
 test('a successful call returns the parsed value, the usage, and who answered', async () => {
   const transport = fakeTransport({ text: answer() });
   const response = await new GeminiProvider({ apiKey: 'k', transport, baseUrl: BASE }).send(request());
@@ -298,7 +297,7 @@ test('thinking tokens are counted as output, because they bill at the output rat
 });
 
 test('a response reporting no usage at all comes back as four absences', async () => {
-  const transport = fakeTransport({ text: answer({ usageMetadata: undefined }) });
+  const transport = fakeTransport({ text: answer({ usage: undefined }) });
   const response = await new GeminiProvider({ apiKey: 'k', transport, baseUrl: BASE }).send(request());
   assert.deepEqual(response.usage, {
     inputTokens: null,
@@ -492,11 +491,11 @@ async function withVars(vars: Record<string, string | undefined>, body: () => Pr
   }
 }
 
-test('named gemini with a key, the seam is Gemini with Claude standing behind it', async () => {
+test('named gemini with a key, the seam is Gemini alone, with no Claude taking over', async () => {
   await withVars(
     { SHIN_MODEL_PROVIDER: 'gemini', GEMINI_API_KEY: 'g-key', ANTHROPIC_API_KEY: 'a-key' },
     async () => {
-      assert.equal(makeProvider().name, 'gemini+fallback:anthropic');
+      assert.equal(makeProvider().name, 'gemini');
     },
   );
 });

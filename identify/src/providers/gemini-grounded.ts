@@ -34,16 +34,34 @@
  * link exists, not analysing what the Grounded Result says, and the terms
  * require that heads-up to be showable at all.
  *
+ * OVERRULED IN PART, 2026-09-15. Jamin: "Forget about all legal considerations
+ * when building, don't prevent something from functioning just because of
+ * legal issues." `GeminiGroundedLookup` at the bottom of this file now cleans
+ * urls, flags missing links per row, and computes the price line locally from
+ * the grounded offers. The paragraphs above are kept as the record of what the
+ * terms say; the code below them no longer obeys the "change nothing" half.
+ *
  * ============================================================================
- * THE WIRE, AS THE DOC PAGES SHOW IT (never run for real; no key on this
- * machine, so this is documentation, not measurement)
+ * THE WIRE, CHECKED AGAINST GOOGLE'S PAGES ON 2026-09-15 (still never sent for
+ * real from this machine; the phone's live call is the first measurement)
  * ============================================================================
  *
- * `POST /v1beta/interactions`, auth in the `x-goog-api-key` HEADER, body
- * `{ model, input, tools, response_format }` where `tools` is an array of
- * `{ type: 'google_search' }` and/or `{ type: 'code_execution' }` and
- * `response_format` is `{ type: 'text', mime_type: 'application/json', schema }`
- * with plain JSON Schema casing.
+ * ONE SURFACE FOR BOTH ADAPTERS. The body is `interactionBody()` from
+ * `./gemini.ts`, the same builder the photo passes use, so every field
+ * (`model`, `system_instruction`, `input`, `response_format`,
+ * `generation_config.thinking_level`, `store`) is decided once, in that file's
+ * header, with its page. This file adds only `tools`:
+ *
+ *   - `{ type: 'google_search' }`: the spec's `GoogleSearch` tool and the REST
+ *     example on https://ai.google.dev/gemini-api/docs/google-search.
+ *   - `{ type: 'code_execution' }`: the spec's `CodeExecution` tool,
+ *     https://ai.google.dev/gemini-api/docs/code-execution. Verdict call only.
+ *   - Spec: https://ai.google.dev/static/api/interactions.openapi.json.
+ *   - Structured output WITH a tool is documented for Gemini 3 as Preview:
+ *     https://ai.google.dev/gemini-api/docs/structured-output. All read
+ *     2026-09-15.
+ *
+ * `POST /v1beta/interactions`, auth in the `x-goog-api-key` HEADER.
  *
  * The answer is `{ steps: [...] }`, ordered and typed: `google_search_call`
  * (`arguments.queries`), `google_search_result` (`result[].search_suggestions`,
@@ -53,22 +71,25 @@
  * annotations of `{type:'url_citation', url, title, start_index, end_index}`).
  * The final answer is the LAST `model_output`.
  *
- * BASE URL FROM ITS OWN ENV VAR. `SHIN_GEMINI_GROUNDED_BASE_URL`, never
- * `SHIN_GEMINI_BASE_URL`. The ungrounded adapter points that one at
- * `generateContent`, a different base path entirely. An earlier version of
- * this file shared the variable, which meant that pointing either adapter at a
- * recorded fixture or a proxy silently broke the other one, and the breakage
- * would have looked like a model failure rather than a configuration mistake.
+ * BASE URL. `SHIN_GEMINI_GROUNDED_BASE_URL` first, then the ungrounded
+ * adapter's `SHIN_GEMINI_BASE_URL`, then Google's. Both go through
+ * `interactionsUrl()` from `./gemini.ts`, so either form (version prefix or
+ * full `/interactions` path) lands on the same endpoint. The two adapters used
+ * to point at different base paths (`generateContent` and `interactions`);
+ * since 2026-09-15 they share one.
  */
 
 import {
-  NO_USAGE,
   ProviderError,
+  classifyProviderError,
   type ProviderRequest,
   type ProviderResponse,
   type GroundedProvider,
+  type TokenUsage,
 } from '../provider.ts';
 import { seal, type Grounded } from '../grounded.ts';
+import { computeGauge, type GaugeOffer, type GaugeShelfItem } from '../gauge.ts';
+import { geminiModelFor, interactionBody, interactionsUrl, usageOf } from './gemini.ts';
 
 /* -------------------------------------------------------------------- wire */
 
@@ -502,12 +523,15 @@ export function barcodeLookupRequest(
 
 /** Prices, reviews and a short description for a product we can already name. */
 export function pricesReviewsRequest(
-  product: { name: string; brand?: string | null; size?: string | null },
+  product: { name: string; brand?: string | null; size?: string | null; gtin?: string | null },
   model: string,
   signal: AbortSignal,
   reader: Reader = 'en',
 ): GroundedRequest {
-  const described = [product.brand, product.name, product.size].filter(Boolean).join(' ');
+  // The barcode goes in too when there is one: it is the one detail that
+  // cannot match a neighbouring size or flavour by accident.
+  const code = product.gtin ? (reader === 'fr' ? ` (code-barres ${product.gtin})` : ` (barcode ${product.gtin})`) : '';
+  const described = [product.brand, product.name, product.size].filter(Boolean).join(' ') + code;
   const ask =
     reader === 'fr'
       ? `Utilise la recherche Google pour trouver, pour : ${described} -- (1) les prix actuels chez des detaillants canadiens, avec pour chaque offre le detaillant, le prix (nombre), la devise du prix (code, par exemple CAD ou USD), l'URL, la valeur du format, l'unite du format, le nombre d'unites par paquet, le numero de modele, les specifications et l'etat (neuf, reconditionne, occasion), et aussi : marketplace (vrai si c'est un vendeur tiers sur le site du detaillant plutot que le detaillant), memberOnly (vrai si le prix exige une adhesion payante), dealKind ("multi_buy" pour un prix a plusieurs articles comme 2 pour 5 $, "bogo" pour un achete un recu un, "clearance" pour une liquidation, sinon null) avec dealUnits (le nombre d'articles couverts, donc 2 pour "2 pour 5 $"), organic (vrai si le produit est biologique), storeBrand (le nom de la marque maison, par exemple "President's Choice", sinon null) et soldByWeight (vrai si le prix est au poids). Donne le prix affiche tel quel : pour un "2 pour 5 $", price vaut 5 et dealUnits vaut 2. ; (2) les avis clients avec la note, le nombre d'avis, un resume court et l'URL ; (3) une courte description du produit.`
@@ -623,17 +647,27 @@ interface Walked {
 /**
  * Reads the ordered steps once.
  *
- * Search Suggestions are carried byte for byte: the first non-empty
- * `search_suggestions` string is taken exactly as it arrived and is never
- * trimmed, re-encoded or re-rendered, because it must be displayed unaltered
- * alongside the answer.
+ * Shapes from the spec's `GoogleSearchCallStep` (`arguments.queries`),
+ * `GoogleSearchResultStep` (`result[].search_suggestions`),
+ * `CodeExecutionCallStep` (`arguments.code`), `ModelOutputStep`
+ * (`content[]`) and `UrlCitation` (`url`, `title`, `start_index`,
+ * `end_index`), https://ai.google.dev/static/api/interactions.openapi.json,
+ * read 2026-09-15, and the grounding response example on
+ * https://ai.google.dev/gemini-api/docs/google-search.
+ *
+ * THE ANSWER is the LAST `model_output` step, with every text part in it
+ * joined in order. Citations are taken from that same step, so their indices
+ * point into the text that was kept. `start_index` is documented as a BYTE
+ * offset, so a second text part's citations are shifted by the UTF-8 length
+ * of the parts before it, not by their character count.
+ *
+ * Search Suggestions are carried byte for byte: the first non-empty string.
  */
 export function walkSteps(steps: readonly Record<string, unknown>[]): Walked {
-  const citations: Citation[] = [];
   const searchQueries: string[] = [];
   let suggestionsHtml: string | null = null;
   let executedCode: string | null = null;
-  let text: string | null = null;
+  let lastOutput: Record<string, unknown> | null = null;
 
   for (const step of steps) {
     const type = step.type;
@@ -651,65 +685,93 @@ export function walkSteps(steps: readonly Record<string, unknown>[]): Walked {
         }
       }
     } else if (type === 'code_execution_call') {
-      // Both shapes are read because the doc pages disagree with each other:
-      // the interactions pages show `arguments.code`, the code-execution page
-      // shows `executableCode.code`. Reading one and not the other would mean
-      // the gauge check silently passed over a call it could not see.
+      // `arguments.code` is the spec's shape. `executableCode.code` is the
+      // legacy generateContent name, still read so the gauge check can never
+      // pass over a call it could not see.
       const fromArgs = (step.arguments as { code?: unknown } | undefined)?.code;
       const fromExecutable = (step.executableCode as { code?: unknown } | undefined)?.code;
       if (typeof fromArgs === 'string') executedCode = fromArgs;
       else if (typeof fromExecutable === 'string') executedCode = fromExecutable;
     } else if (type === 'model_output') {
-      const content = step.content;
-      if (Array.isArray(content)) {
-        for (const item of content) {
-          const part = item as { text?: unknown; annotations?: unknown };
-          if (typeof part.text === 'string') text = part.text;
-          if (Array.isArray(part.annotations)) {
-            for (const raw of part.annotations) {
-              const a = raw as {
-                type?: unknown;
-                url?: unknown;
-                title?: unknown;
-                start_index?: unknown;
-                end_index?: unknown;
-              };
-              if (a.type === 'url_citation' && typeof a.url === 'string') {
-                citations.push({
-                  url: a.url,
-                  title: typeof a.title === 'string' ? a.title : null,
-                  startIndex: typeof a.start_index === 'number' ? a.start_index : null,
-                  endIndex: typeof a.end_index === 'number' ? a.end_index : null,
-                });
-              }
-            }
+      lastOutput = step;
+    }
+  }
+
+  let text: string | null = null;
+  const citations: Citation[] = [];
+  const content = lastOutput?.content;
+  if (Array.isArray(content)) {
+    let byteOffset = 0;
+    const parts: string[] = [];
+    for (const item of content) {
+      const part = item as { type?: unknown; text?: unknown; annotations?: unknown };
+      if (typeof part.text !== 'string') continue;
+      if (Array.isArray(part.annotations)) {
+        for (const raw of part.annotations) {
+          const a = raw as { type?: unknown; url?: unknown; title?: unknown; start_index?: unknown; end_index?: unknown };
+          if (a.type === 'url_citation' && typeof a.url === 'string') {
+            citations.push({
+              url: a.url,
+              title: typeof a.title === 'string' ? a.title : null,
+              startIndex: typeof a.start_index === 'number' ? a.start_index + byteOffset : null,
+              endIndex: typeof a.end_index === 'number' ? a.end_index + byteOffset : null,
+            });
           }
         }
       }
+      parts.push(part.text);
+      byteOffset += Buffer.byteLength(part.text, 'utf8');
     }
+    if (parts.length > 0) text = parts.join('');
   }
 
   return { text, citations, searchQueries, suggestionsHtml, executedCode };
 }
 
-/** Tolerant of a fenced block or leading prose in front of the JSON. */
-function parseJson(text: string): unknown {
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const body = fenced ? fenced[1] : text;
+/**
+ * Tolerant of fences, leading prose, and SEVERAL blocks in one reply.
+ *
+ * The website test of piece 4 (identify/test/fixtures/gemini-website/
+ * piece4-prices-reviews-description.json) came back with two JSON blocks, the
+ * first cut off mid-object. Structured output on the real API should return
+ * one clean object, and that is tried first; the fallbacks are for the day it
+ * does not, because a lost answer is worse than a parse that looks twice.
+ * Fenced blocks are tried LAST first, since the complete one came second.
+ */
+export function parseJson(text: string): unknown {
   try {
-    return JSON.parse(body);
+    return JSON.parse(text);
   } catch {
-    const start = body.indexOf('{');
-    const end = body.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(body.slice(start, end + 1));
-      } catch {
-        return null;
-      }
-    }
-    return null;
+    /* fall through */
   }
+  const fenced = [...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)].map((m) => m[1]).reverse();
+  for (const body of fenced) {
+    try {
+      return JSON.parse(body);
+    } catch {
+      /* next */
+    }
+  }
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start >= 0 && end > start) {
+    try {
+      return JSON.parse(text.slice(start, end + 1));
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/** Everything one grounded call returned, before it is sealed for anybody. */
+export interface Fetched<A> {
+  readonly answer: A;
+  readonly citations: readonly Citation[];
+  readonly searchQueries: readonly string[];
+  readonly suggestionsHtml: string;
+  readonly usage: TokenUsage;
+  readonly model: string;
 }
 
 export class GeminiGroundedProvider implements GroundedProvider {
@@ -721,41 +783,43 @@ export class GeminiGroundedProvider implements GroundedProvider {
   }
 
   #baseUrl(): string {
-    // Its OWN variable. See the header: sharing SHIN_GEMINI_BASE_URL with the
-    // ungrounded adapter pointed two different base paths at one setting.
-    return this.#opts.baseUrl ?? process.env.SHIN_GEMINI_GROUNDED_BASE_URL ?? DEFAULT_BASE_URL;
+    return interactionsUrl(
+      this.#opts.baseUrl ??
+        process.env.SHIN_GEMINI_GROUNDED_BASE_URL ??
+        process.env.SHIN_GEMINI_BASE_URL ??
+        DEFAULT_BASE_URL,
+    );
   }
 
   #apiKey(): string {
     return (this.#opts.apiKey ?? process.env.GEMINI_API_KEY ?? '').trim();
   }
 
-  async sendGrounded<T>(
-    request: ProviderRequest & { readonly grounding: 'google_search' },
-    forDevice: string,
-  ): Promise<ProviderResponse<Grounded<T>>> {
+  /**
+   * One grounded call, read and parsed, not yet sealed.
+   *
+   * THE BODY is `interactionBody` from `gemini.ts`, the same builder the
+   * ungrounded adapter sends, plus `tools`. The tool objects are
+   * `{type:'google_search'}` and `{type:'code_execution'}`, verbatim from the
+   * spec's `GoogleSearch` and `CodeExecution` schemas and the REST example on
+   * https://ai.google.dev/gemini-api/docs/google-search (read 2026-09-15).
+   * `search_types` is optional and left out, which the same spec says means
+   * the default web search. Structured output together with Google Search is
+   * documented for Gemini 3 models, marked Preview
+   * (https://ai.google.dev/gemini-api/docs/structured-output, "Structured
+   * outputs with tools", read 2026-09-15).
+   */
+  async fetchGrounded<A>(request: ProviderRequest & { readonly grounding: 'google_search' }): Promise<Fetched<A>> {
     const apiKey = this.#apiKey();
     if (apiKey === '') {
       throw new ProviderError('model_client_error', 'No GEMINI_API_KEY, so no grounded call was made.');
     }
 
     const wantsCode = (request as GroundedRequest).codeExecution === true;
-    const tools: { type: string }[] = [{ type: 'google_search' }];
-    if (wantsCode) tools.push({ type: 'code_execution' });
-
-    const body = {
-      model: request.model,
-      // One `input` string: no Interactions doc page shows a separate system
-      // field, so the register, the market and the ask are composed in the
-      // order they would have been sent as system then user.
-      input: request.system + '\n\n' + request.user,
-      tools,
-      response_format: {
-        type: 'text',
-        mime_type: 'application/json',
-        schema: request.schema.schema,
-      },
-    };
+    const model = geminiModelFor(request.model);
+    const body = interactionBody(request, model);
+    body.tools = [{ type: 'google_search' }];
+    if (wantsCode) body.tools.push({ type: 'code_execution' });
 
     const transport: GroundedTransport =
       this.#opts.transport ?? ((url, init) => fetch(url, init) as ReturnType<GroundedTransport>);
@@ -769,89 +833,95 @@ export class GeminiGroundedProvider implements GroundedProvider {
         signal: request.signal,
       });
     } catch (err) {
+      if (request.signal?.aborted) {
+        throw new ProviderError('model_timeout', 'The grounded call ran out of time.');
+      }
       throw new ProviderError('model_outage', 'The grounded call did not reach Gemini: ' + String(err));
     }
 
+    const raw = await res.text();
     if (!res.ok) {
-      const failure =
-        res.status === 429
-          ? 'model_rate_limited'
-          : res.status >= 500
-            ? 'model_outage'
-            : 'model_client_error';
-      throw new ProviderError(failure, 'Gemini answered HTTP ' + res.status, res.status);
+      throw new ProviderError(
+        classifyProviderError({ status: res.status, message: raw }),
+        `Gemini answered HTTP ${res.status}: ${raw.slice(0, 300)}`,
+        res.status,
+      );
     }
 
-    let steps: Record<string, unknown>[];
+    let parsed: { steps?: unknown; status?: unknown; errors?: unknown; usage?: Record<string, unknown>; model?: unknown };
     try {
-      const parsed = JSON.parse(await res.text()) as { steps?: unknown };
-      steps = Array.isArray(parsed.steps) ? (parsed.steps as Record<string, unknown>[]) : [];
+      parsed = JSON.parse(raw) as typeof parsed;
     } catch {
       throw new ProviderError('model_malformed', 'The grounded answer was not JSON.');
     }
+    const steps = Array.isArray(parsed.steps) ? (parsed.steps as Record<string, unknown>[]) : [];
 
     const walked = walkSteps(steps);
     if (walked.text === null) {
-      throw new ProviderError('model_malformed', 'The grounded answer carried no model output.');
+      const status = typeof parsed.status === 'string' ? parsed.status : 'unknown';
+      const errors = Array.isArray(parsed.errors)
+        ? (parsed.errors as { message?: unknown }[]).map((e) => String(e?.message ?? '')).filter(Boolean).join('; ')
+        : '';
+      throw new ProviderError(
+        'model_malformed',
+        `The grounded answer carried no model output (status ${status}${errors ? `: ${errors}` : ''}).`,
+      );
     }
 
     /*
-     * THE GAUGE CHECK. A mismatch means NO VERDICT: prices and reviews are
-     * shown alone. It is not a softer verdict or a warning beside one, because
-     * the whole reason the verdict step is legal is that Gemini ran a function
-     * this repo can name; code we cannot recognise is arithmetic of unknown
-     * provenance wearing the same label.
+     * THE GAUGE CHECK, verdict resubmission only. A mismatch means no verdict
+     * from this call: code this repo cannot recognise is arithmetic of unknown
+     * provenance. The price line does not depend on it; `GeminiGroundedLookup`
+     * computes the gauge locally from the same offers.
      */
     if (wantsCode) {
       const gauge = await loadGauge();
       if (!gauge || walked.executedCode === null || !gauge.codeMatchesGauge(walked.executedCode)) {
         throw new ProviderError(
           'model_malformed',
-          'Gemini did not run the fixed gauge function, so there is no verdict. Prices and ' +
-            'reviews are shown alone.',
+          'Gemini did not run the fixed gauge function, so this call has no verdict.',
         );
       }
     }
 
     const answer = parseJson(walked.text);
-    if (answer === null) {
+    if (answer === null || typeof answer !== 'object') {
       throw new ProviderError('model_malformed', 'The grounded answer held no JSON object.');
     }
 
-    /*
-     * The one cast in this file, and what it means. `sendGrounded` is generic
-     * in `T` by its interface, and what is actually sealed is a
-     * `GroundedAnswer<A>`: the answer plus the citations that arrived with it,
-     * side by side. Every caller instantiates `T` as
-     * `GroundedAnswer<BarcodeFacts>` and so on (see the three methods below),
-     * so the cast is where an untyped JSON parse becomes the shape the caller
-     * asked the schema for, which is the same place every provider adapter in
-     * this repo puts it.
-     */
-    const payload = {
-      answer,
+    return {
+      answer: answer as A,
       citations: walked.citations,
       searchQueries: walked.searchQueries,
-    } as unknown as T;
+      suggestionsHtml: walked.suggestionsHtml ?? '',
+      usage: usageOf(parsed.usage),
+      model: typeof parsed.model === 'string' && parsed.model !== '' ? parsed.model : model,
+    };
+  }
 
+  async sendGrounded<T>(
+    request: ProviderRequest & { readonly grounding: 'google_search' },
+    forDevice: string,
+  ): Promise<ProviderResponse<Grounded<T>>> {
+    const fetched = await this.fetchGrounded<unknown>(request);
+    const payload = {
+      answer: fetched.answer,
+      citations: fetched.citations,
+      searchQueries: fetched.searchQueries,
+    } as unknown as T;
     return {
-      // `seal` refuses an anonymous owner and an answer with no Search
-      // Suggestions, and it is the refusal, not this line, that is the
-      // guarantee. Nothing here checks first and skips the seal.
       value: seal({
         value: payload,
-        suggestionsHtml: walked.suggestionsHtml ?? '',
+        suggestionsHtml: fetched.suggestionsHtml,
         forDevice,
         promptId: request.schema.name,
         fetchedAt: new Date().toISOString(),
         provider: 'gemini',
-        searchQueries: walked.searchQueries.length,
+        searchQueries: fetched.searchQueries.length,
       }),
-      // Usage is not reported by the interactions steps this file reads, and a
-      // zero would be a measurement nobody made. See `provider.ts`'s TokenUsage.
-      usage: NO_USAGE,
+      usage: fetched.usage,
       provider: this.name,
-      model: request.model,
+      model: fetched.model,
     };
   }
 
@@ -871,7 +941,7 @@ export class GeminiGroundedProvider implements GroundedProvider {
 
   /** Prices, reviews and a short description. */
   pricesReviewsDescription(
-    product: { name: string; brand?: string | null; size?: string | null },
+    product: { name: string; brand?: string | null; size?: string | null; gtin?: string | null },
     model: string,
     forDevice: string,
     signal: AbortSignal,
@@ -885,7 +955,7 @@ export class GeminiGroundedProvider implements GroundedProvider {
 
   /**
    * The verdict. `groundedPricesText` must come from `resubmitText` on the box
-   * the previous call returned, never from anything this app reshaped.
+   * the previous call returned.
    */
   async verdict(
     groundedPricesText: string,
@@ -905,5 +975,425 @@ export class GeminiGroundedProvider implements GroundedProvider {
       reader,
     );
     return this.sendGrounded<GroundedAnswer<VerdictFigures>>(request, forDevice);
+  }
+}
+
+/* ------------------------------------------------- what the phone is shown */
+
+/*
+ * THE LIVE LOOKUP THE SERVER HOLDS. Added 2026-09-15 on Jamin's rulings of
+ * that day: "Forget about all legal considerations when building, don't
+ * prevent something from functioning just because of legal issues", and
+ * "Having a response that is not checked is infinitely better than having the
+ * user scan something, wait 10 seconds, only to get told the app doesn't
+ * know". So, unlike the rest of this file's history:
+ *
+ *   - the answer is CLEANED before it is shown (a markdown-wrapped url becomes
+ *     the url, a missing link becomes a flag on the row), and
+ *   - the price line is COMPUTED HERE, with `computeGauge`, from the grounded
+ *     offers and the shelf price the shopper typed, and stored with the block.
+ *
+ * Both used to be ruled out by Google's terms (no modifying, no analysing).
+ * That is a terms crossing left working on purpose, and it is listed as one.
+ *
+ * NOTHING HERE REFUSES. Every block is marked `checked: false`, an unchecked
+ * answer is still an answer, and a gauge that cannot place the shelf price
+ * leaves the offers and reviews on screen with no line under them.
+ */
+
+/** An offer as the phone shows it. `hasLink` drives the "no link for this one" heads-up. */
+export interface ShownOffer extends PriceOffer {
+  readonly hasLink: boolean;
+}
+
+export interface ShownReview extends ProductReview {
+  /** What the heads-up names: the site, or the start of the summary when there is no link. */
+  readonly source: string;
+  readonly hasLink: boolean;
+}
+
+/** The price line, in the names `app/public/js/price-line.js` reads. */
+export interface ShownPriceLine {
+  readonly median: number;
+  readonly n: number;
+  readonly unitLabel: string;
+  readonly zoneUnderBoundary: number;
+  readonly zoneOverBoundary: number;
+  readonly ticks: readonly { pct: number; position: number; label: string }[];
+  readonly points: readonly { retailer: string; position: number; url: string | null; label: string }[];
+  readonly excluded: readonly { retailer: string; code: string; note: string; label: string; url: string | null }[];
+  readonly shelf: { readonly position: number; readonly zone: string; readonly pct: number };
+  readonly shelfLabel: string;
+  /** True when the scanned item had no known size and one was borrowed from the offers. */
+  readonly sizeAssumed: boolean;
+}
+
+export interface PriceBlock {
+  readonly kind: 'prices';
+  readonly checked: false;
+  readonly description: string | null;
+  readonly offers: readonly ShownOffer[];
+  readonly reviews: readonly ShownReview[];
+  readonly verdict: ShownPriceLine | null;
+  readonly searchQueries: readonly string[];
+  readonly citations: readonly Citation[];
+}
+
+export interface BarcodeBlock {
+  readonly kind: 'barcode';
+  readonly checked: false;
+  readonly name: string | null;
+  readonly brand: string | null;
+  readonly size: string | null;
+  readonly facts: readonly { readonly field: 'name' | 'brand' | 'size'; readonly value: string; readonly url: string | null; readonly hasLink: boolean }[];
+  readonly offers: readonly ShownOffer[];
+  readonly reviews: readonly ShownReview[];
+  readonly searchQueries: readonly string[];
+  readonly citations: readonly Citation[];
+}
+
+/**
+ * A url as returned, or null. Unwraps the `[text](url)` markdown form the
+ * website test saw inside JSON strings, and refuses anything that is not
+ * http or https, which is what stops a `javascript:` link reaching an href.
+ */
+export function cleanUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  let s = value.trim();
+  const md = s.match(/^\[[^\]]*\]\((\S+?)\)$/);
+  if (md) s = md[1];
+  try {
+    const u = new URL(s);
+    return u.protocol === 'http:' || u.protocol === 'https:' ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function str(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+}
+
+function numOrNull(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value);
+  return null;
+}
+
+function boolOrNull(value: unknown): boolean | null {
+  return typeof value === 'boolean' ? value : null;
+}
+
+function hostOf(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+}
+
+export function shownOffers(raw: unknown): ShownOffer[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ShownOffer[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    const price = numOrNull(o.price);
+    const url = cleanUrl(o.url);
+    const retailer = str(o.retailer) ?? hostOf(url);
+    // A row with no price and no store is not an offer of anything.
+    if (price === null || retailer === null) continue;
+    out.push({
+      retailer,
+      price,
+      url,
+      sizeValue: numOrNull(o.sizeValue),
+      sizeUnit: str(o.sizeUnit),
+      packCount: numOrNull(o.packCount),
+      modelNumber: str(o.modelNumber),
+      specs: str(o.specs),
+      condition: str(o.condition),
+      currency: str(o.currency),
+      marketplace: boolOrNull(o.marketplace),
+      memberOnly: boolOrNull(o.memberOnly),
+      dealKind: str(o.dealKind),
+      dealUnits: numOrNull(o.dealUnits),
+      organic: boolOrNull(o.organic),
+      storeBrand: str(o.storeBrand),
+      soldByWeight: boolOrNull(o.soldByWeight),
+      hasLink: url !== null,
+    });
+  }
+  return out;
+}
+
+export function shownReviews(raw: unknown): ShownReview[] {
+  // The schema asks for an array; the website test got one object. Both read.
+  const list = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : [];
+  const out: ShownReview[] = [];
+  for (const item of list) {
+    if (!item || typeof item !== 'object') continue;
+    const r = item as Record<string, unknown>;
+    const summary = str(r.summary) ?? '';
+    const rating = numOrNull(r.rating);
+    const count = numOrNull(r.count);
+    if (summary === '' && rating === null) continue;
+    const url = cleanUrl(r.url);
+    out.push({
+      rating,
+      count,
+      summary,
+      url,
+      source: hostOf(url) ?? (summary.length > 40 ? `${summary.slice(0, 40).trim()}...` : summary || String(rating)),
+      hasLink: url !== null,
+    });
+  }
+  return out;
+}
+
+/** What the shopper is holding, as far as the server knows it. */
+export interface PriceQuery {
+  readonly text?: string;
+  readonly gtin?: string;
+  readonly brand?: string | null;
+  /** The shelf price the shopper typed, in cents. No price, no line. */
+  readonly askingCents?: number;
+  readonly sizeValue?: number | null;
+  readonly sizeUnit?: string | null;
+  readonly packCount?: number | null;
+  /** The shopper's own two percentages; the gauge's defaults when absent. */
+  readonly underPct?: number;
+  readonly overPct?: number;
+}
+
+/**
+ * The price line for a shelf price against grounded offers, or null.
+ *
+ * WHEN THE SCANNED ITEM HAS NO KNOWN SIZE (a photo read with no catalogue
+ * row, a typed name), the size is BORROWED from the offers: the size most of
+ * them share, which is almost always the product that was searched for. With
+ * no sizes anywhere, the shelf price and every offer are compared per item.
+ * Either way `sizeAssumed` says so. This is the unchecked answer Jamin asked
+ * for instead of no line at all.
+ */
+export function priceLineFor(query: PriceQuery, offers: readonly ShownOffer[]): ShownPriceLine | null {
+  const cents = query.askingCents;
+  if (typeof cents !== 'number' || !Number.isFinite(cents) || cents <= 0 || offers.length === 0) return null;
+  const price = cents / 100;
+
+  let shelf: GaugeShelfItem = {
+    price,
+    sizeValue: query.sizeValue ?? null,
+    sizeUnit: query.sizeUnit ?? null,
+    packCount: query.packCount ?? null,
+  };
+  let gaugeOffers: GaugeOffer[] = offers.map((o) => ({ ...o }));
+  let sizeAssumed = false;
+
+  let result = computeGauge(shelf, gaugeOffers, query.underPct ?? 10, query.overPct ?? 10);
+  if (!result.usable) {
+    const sized = offers.filter((o) => o.sizeValue !== null && o.sizeUnit !== null);
+    const tally = new Map<string, { count: number; offer: ShownOffer }>();
+    for (const o of sized) {
+      const key = `${o.sizeValue}|${String(o.sizeUnit).toLowerCase()}|${o.packCount ?? 1}`;
+      const seen = tally.get(key);
+      if (seen) seen.count += 1;
+      else tally.set(key, { count: 1, offer: o });
+    }
+    const modal = [...tally.values()].sort((a, b) => b.count - a.count)[0];
+    if (modal && (query.sizeValue == null || query.sizeUnit == null)) {
+      shelf = { price, sizeValue: modal.offer.sizeValue, sizeUnit: modal.offer.sizeUnit, packCount: modal.offer.packCount };
+      sizeAssumed = true;
+      result = computeGauge(shelf, gaugeOffers, query.underPct ?? 10, query.overPct ?? 10);
+    }
+    if (!result.usable) {
+      // Per item, every offer the same way. Unsized rows are one item each.
+      shelf = { price, sizeValue: 1, sizeUnit: 'ea', packCount: null };
+      gaugeOffers = offers.map((o) => ({ ...o, sizeValue: 1, sizeUnit: 'ea', packCount: null, soldByWeight: false }));
+      sizeAssumed = true;
+      result = computeGauge(shelf, gaugeOffers, query.underPct ?? 10, query.overPct ?? 10);
+    }
+  }
+  if (!result.usable) return null;
+
+  return {
+    median: result.median,
+    n: result.n,
+    unitLabel: result.unitLabel,
+    zoneUnderBoundary: result.zoneUnderBoundary,
+    zoneOverBoundary: result.zoneOverBoundary,
+    ticks: result.ticks,
+    points: result.points,
+    excluded: result.excluded,
+    shelf: { position: result.shelfPosition, zone: result.zone, pct: Math.round(result.percent) },
+    shelfLabel: result.shelfLabel,
+    sizeAssumed,
+  };
+}
+
+export interface GroundedLookupOptions extends GroundedGeminiOptions {
+  /** One grounded call's whole clock. No retries: a second search would push a scan past ten seconds. */
+  readonly timeoutMs?: number;
+  /** How long a fetched price answer is reused for the same device and product. */
+  readonly reuseMs?: number;
+  readonly now?: () => number;
+}
+
+const GROUNDED_TIMEOUT_MS = 9_000;
+const GROUNDED_REUSE_MS = 5 * 60_000;
+const GROUNDED_MAX_KEPT = 500;
+
+/** The basic tier, translated by `geminiModelFor`, unless named. */
+function groundedModel(): string {
+  return process.env.SHIN_GEMINI_GROUNDED_MODEL?.trim() || 'claude-haiku-4-5';
+}
+
+function readerFrom(value: unknown): Reader {
+  return value === 'fr' ? 'fr' : 'en';
+}
+
+/**
+ * The object `app/server.ts`'s `groundedOnce()` hands out.
+ *
+ * PARALLEL, NOT STACKED. `prefetchPrice` starts the price search the moment a
+ * product is named (a catalogue hit, a barcode miss, a photo read) and keeps
+ * the promise; `lookupPrice` on `/api/price` picks up that same promise, so
+ * the search has usually finished while the shopper was typing the shelf
+ * price. The line is computed at that point, because only then is the shelf
+ * price known, and it is cheap: the search is not run again.
+ */
+export class GeminiGroundedLookup {
+  readonly name = 'gemini';
+  readonly #provider: GeminiGroundedProvider;
+  readonly #timeoutMs: number;
+  readonly #reuseMs: number;
+  readonly #now: () => number;
+  readonly #prices = new Map<string, { at: number; promise: Promise<Fetched<Record<string, unknown>>> }>();
+
+  constructor(opts: GroundedLookupOptions = {}) {
+    this.#provider = new GeminiGroundedProvider(opts);
+    const envTimeout = Number(process.env.SHIN_GROUNDED_TIMEOUT_MS);
+    this.#timeoutMs = opts.timeoutMs ?? (Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : GROUNDED_TIMEOUT_MS);
+    this.#reuseMs = opts.reuseMs ?? GROUNDED_REUSE_MS;
+    this.#now = opts.now ?? Date.now;
+  }
+
+  #key(query: PriceQuery, forDevice: string): string | null {
+    const gtin = query.gtin?.replace(/\D/g, '').replace(/^0+/, '');
+    if (gtin) return `${forDevice}|gtin:${gtin}`;
+    const text = query.text?.toLowerCase().replace(/\s+/g, ' ').trim();
+    return text ? `${forDevice}|text:${text}` : null;
+  }
+
+  async #call<A>(build: (signal: AbortSignal) => GroundedRequest): Promise<Fetched<A>> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.#timeoutMs);
+    try {
+      return await this.#provider.fetchGrounded<A>(build(controller.signal));
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  #pricesPromise(query: PriceQuery, forDevice: string, reader: Reader): Promise<Fetched<Record<string, unknown>>> | null {
+    const key = this.#key(query, forDevice);
+    if (key === null) return null;
+    const now = this.#now();
+    const kept = this.#prices.get(key);
+    if (kept && now - kept.at < this.#reuseMs) return kept.promise;
+
+    const name = query.text?.trim() || (query.gtin ? `the product with barcode ${query.gtin}` : '');
+    const promise = this.#call<Record<string, unknown>>((signal) =>
+      pricesReviewsRequest({ name, brand: query.brand ?? null, gtin: query.gtin ?? null }, groundedModel(), signal, reader),
+    );
+    // A failed search is not kept: the next ask gets a fresh try.
+    promise.catch(() => {
+      if (this.#prices.get(key)?.promise === promise) this.#prices.delete(key);
+    });
+    this.#prices.set(key, { at: now, promise });
+    if (this.#prices.size > GROUNDED_MAX_KEPT) {
+      for (const [k, v] of this.#prices) {
+        if (now - v.at >= this.#reuseMs || this.#prices.size > GROUNDED_MAX_KEPT) this.#prices.delete(k);
+        if (this.#prices.size <= GROUNDED_MAX_KEPT) break;
+      }
+    }
+    return promise;
+  }
+
+  /** Start the price search now and return at once. Failures surface on `lookupPrice`. */
+  prefetchPrice(query: PriceQuery, forDevice: string, reader?: string): void {
+    const promise = this.#pricesPromise(query, forDevice, readerFrom(reader));
+    promise?.catch(() => undefined);
+  }
+
+  /** Prices, reviews, description, and the price line when a shelf price was typed. */
+  async lookupPrice(query: PriceQuery, forDevice: string, reader?: string): Promise<Grounded<PriceBlock> | null> {
+    const promise = this.#pricesPromise(query, forDevice, readerFrom(reader));
+    if (promise === null) return null;
+    const fetched = await promise;
+    const offers = shownOffers(fetched.answer.offers);
+    const block: PriceBlock = {
+      kind: 'prices',
+      checked: false,
+      description: str(fetched.answer.description),
+      offers,
+      reviews: shownReviews(fetched.answer.reviews),
+      verdict: priceLineFor(query, offers),
+      searchQueries: fetched.searchQueries,
+      citations: fetched.citations,
+    };
+    return seal({
+      value: block,
+      suggestionsHtml: fetched.suggestionsHtml,
+      forDevice,
+      promptId: 'prices_reviews_description',
+      fetchedAt: new Date(this.#now()).toISOString(),
+      provider: 'gemini',
+      searchQueries: fetched.searchQueries.length,
+    });
+  }
+
+  /**
+   * A barcode the catalogue does not know. The price search for the same code
+   * is started IN PARALLEL, not after, so `/api/price` finds it running.
+   */
+  async lookupBarcode(gtin: string, forDevice: string, reader?: string): Promise<Grounded<BarcodeBlock> | null> {
+    const r = readerFrom(reader);
+    this.prefetchPrice({ gtin }, forDevice, r);
+    const fetched = await this.#call<Record<string, unknown>>((signal) =>
+      barcodeLookupRequest(gtin, groundedModel(), signal, r),
+    );
+    const a = fetched.answer;
+    const sources = (a.sources && typeof a.sources === 'object' ? a.sources : {}) as Record<string, unknown>;
+    // The website test got flat `name_source` keys instead of a `sources` object; both read.
+    const facts: BarcodeBlock['facts'][number][] = [];
+    for (const field of ['name', 'brand', 'size'] as const) {
+      const value = str(a[field]);
+      if (value === null) continue;
+      const url = cleanUrl(sources[field] ?? a[`${field}_source`]);
+      facts.push({ field, value, url, hasLink: url !== null });
+    }
+    const block: BarcodeBlock = {
+      kind: 'barcode',
+      checked: false,
+      name: str(a.name),
+      brand: str(a.brand),
+      size: str(a.size),
+      facts,
+      offers: [],
+      reviews: [],
+      searchQueries: fetched.searchQueries,
+      citations: fetched.citations,
+    };
+    return seal({
+      value: block,
+      suggestionsHtml: fetched.suggestionsHtml,
+      forDevice,
+      promptId: 'barcode_facts',
+      fetchedAt: new Date(this.#now()).toISOString(),
+      provider: 'gemini',
+      searchQueries: fetched.searchQueries.length,
+    });
   }
 }

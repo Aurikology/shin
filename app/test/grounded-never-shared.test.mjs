@@ -140,7 +140,7 @@ test('no export, admin view, summary or offline pack carries a grounded result',
 
 /* ------------------------- the photo path is ungrounded ------------------ */
 
-test('the photo route never asks Google, because the photo path is the storable one', () => {
+test('the photo route serves no grounded block, because the photo path is the storable one', () => {
   /*
    * The photo route is the one that produces an answer this repo keeps: it
    * writes `model_json`, it feeds the catalogue, and its output is ordinary
@@ -152,9 +152,18 @@ test('the photo route never asks Google, because the photo path is the storable 
   const start = src.indexOf("url.pathname === '/api/identify/photo'");
   const end = src.indexOf("url.pathname === '/api/price'");
   assert.ok(start > 0 && end > start, 'the photo and price handlers moved; re-read this file');
-  const handler = src.slice(start, end);
-  assert.ok(!handler.includes('groundedOnce'), 'the photo route reaches for a grounded provider');
+  const handler = code(src.slice(start, end));
+  /*
+   * CHANGED 2026-09-15. The route may now START the price search
+   * (`prefetchPrice`), so the search runs while the shopper types the shelf
+   * price (Jamin: keep the wait short). What still holds is the point of this
+   * test: nothing grounded is served from here or written into `model_json`;
+   * the answer arrives on `/api/price`.
+   */
   assert.ok(!handler.includes('answerWithGrounded'), 'the photo route serves a grounded block');
+  assert.ok(!/lookupPrice\s*\(|lookupBarcode\s*\(/.test(handler), 'the photo route waits on a grounded answer');
+  const modelJson = handler.slice(handler.indexOf('const modelJson'), handler.indexOf('const reachedModel'));
+  assert.ok(!/grounded/i.test(modelJson), 'model_json names a grounded result');
 });
 
 test('toWire is called in exactly one place in the repo', () => {
@@ -266,11 +275,20 @@ test('the verdict itself is untouched by whether Google answered', async () => {
       body: JSON.stringify({ gtin: '0068100084245', deviceId, askingCents: 499 }),
     }).then((r) => r.json());
 
-  // An anonymous device gets no grounded lookup at all: there is no end user
-  // to show it to. Everything else about the answer is identical.
+  /*
+   * CHANGED 2026-09-15. An anonymous device used to get no grounded lookup at
+   * all. Jamin's ruling that day removed that gate ("don't prevent something
+   * from functioning just because of legal issues"), so it now gets one,
+   * sealed for that single request. What this test still holds is the other
+   * half: our verdict is the same answer either way.
+   */
   const withGoogle = await ask('device-A');
-  const without = await ask('');
-  assert.ok(!('grounded' in without), 'an anonymous device was served a grounded result');
+  const anonymous = await ask('');
+  assert.equal(anonymous.grounded?.kind, 'grounded', 'an anonymous device got no grounded answer');
+  assert.match(anonymous.grounded.forDevice, /^unattributed-request-/);
+  assert.notEqual(anonymous.grounded.forDevice, 'unattributed');
+  const without = { ...anonymous };
+  delete without.grounded;
   delete withGoogle.grounded;
   // Two calls milliseconds apart, so the one field that is a clock is dropped
   // from both rather than frozen: what is being asserted is that the verdict

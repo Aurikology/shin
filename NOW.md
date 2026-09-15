@@ -5,6 +5,15 @@ narrative.*
 
 ---
 
+## HIGHEST PRIORITY, set by him 2026-09-15: his Gemini rules, and a repo cleanup against them
+
+Read `docs/jamin-gemini-rules.md` first; it outranks everything below and every other doc. Two
+jobs: (1) Aurik performs a cleanup of the repo for anything that contradicts those rules (Jamin's
+ask); (2) then Aurik rebuilds the Gemini path as one call per scan (barcode scan: digits as text, no image;
+photo scan: the image), product, prices, reviews and price math out, nothing priced from Shin's own data, everything recorded.
+
+---
+
 ## Active, set by him 2026-09-11 evening: the beta build plan, code done by Sunday night
 
 **His words:** *"build a plan to build all of the items listed that are not assigned to aurik.

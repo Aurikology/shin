@@ -1586,3 +1586,57 @@ Shin stands behind.
 
 **Reverses if:** Jamin disagrees, since item 30 is his line and this amends it.
 
+
+## Twelve rulings on the Gemini branch, answered together
+
+2026-09-14. The Gemini tree (`docs/the-gemini-tree.md`) named 13 leaves only Jamin could decide.
+Asked to go through them, he ruled on 12 in one pass (Aurik's own agreement on the branch inside
+`identify/src/model.ts` still needs Aurik himself, not Jamin, to say yes; Jamin's "yes" here is his
+own go-ahead to build toward it, not Aurik's answer).
+
+1. **No paid key yet. All testing runs through Claude in Chrome operating the Gemini website**
+   (`gemini.google.com/app`), the same way the nine website tests already behind this branch were
+   produced. The paid-key leaf in the tree stands; this is how the branch gets exercised before it
+   exists, not a replacement for it.
+2. **Zero-data-retention approval: seek it, but build assuming it is refused.** Added as a to-do in
+   `docs/gemini-work-list.md` item 10 rather than left as an open question.
+3. **The branch inside `identify/src/model.ts`: go ahead.** Jamin's own yes to building it; Aurik's
+   agreement, since the file is his, is still a separate ask.
+4. **Beta plan item 30, resolved the other way from the transparency instinct:** *"we don't have to
+   push for super transparency when it makes our product worse, we just have to give a way for the
+   user to know where our info comes from."* Reviews show even when a source is not present; the
+   no-link heads-up already decided for prices (above) is the mechanism, extended to reviews. This
+   loosens the earlier reading ("a review with no link is shown with the heads-up... never presented
+   as a number Shin stands behind") only in that a missing link no longer has to suppress the
+   review, just flag it.
+5. **The leftover uncommitted code: reuse what can be used**, the "rework" avenue in the tree, not
+   a clean rewrite and not a straight commit of what is there.
+6. **Legal review: before launch**, not before build and not skipped.
+7. **The drafted consent wording naming Gemini and the 30-day retention: his call, delegated.**
+   *"you decide"* — a session's own reading ships unless a later pass finds a problem with it.
+8. **The 18-or-older clause: a Terms of Service checkbox, not an age gate.** *"just put in our terms
+   and services that you need to be 18+, if the user checks that, then we don't have any
+   liability."* This does not wait on Google's written answer to item 5 in the tree (whether the
+   clause reaches end users): a ToS checkbox is Shin's own liability position regardless of what
+   Google's clause turns out to mean, so it is built now rather than held. Google's answer to item 5
+   still matters for whether Shin also needs to gate the API call itself, which a checkbox does not
+   settle.
+9. **Filming a real answer is allowed:** *"we will show the real answers in the videos, we are not
+   showing the answers to users, we are just showing what we see on an app."* The distinction Jamin
+   draws is not in the tree's own reading of the terms (which treats "shown to anyone but the person
+   who asked" as the line) and should be checked against the terms' actual wording, not assumed, the
+   next time this is touched.
+10. **Shin's own prices are not shown anywhere for now, until enough is collected**, which makes
+    the two-verdict-unification question in the tree moot rather than answered: there is only one
+    verdict on screen while this holds.
+11. **A single ungrounded read is never trusted immediately, and never checked by calling the model
+    a second time.** *"there can be measures in place but definitely not calling the ai a second
+    time, we can scan multiple frames to ensure they all match up."* The check is agreement across
+    multiple camera frames of the same item, not a repeat API call.
+12. **Image resolution: measure it, don't pick it.** Test the three resolution levels against real
+    return quality, weigh the cost difference, and keep the door open to offering a lower resolution
+    on a lower-priced Shin tier. Not decided today; decided by a test that has not been run.
+
+**Reverses if:** any individual ruling above is revisited by Jamin himself; ruling 3 also reverses,
+for its own part, if Aurik declines to agree once asked.
+

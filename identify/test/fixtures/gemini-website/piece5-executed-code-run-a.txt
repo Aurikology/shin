@@ -1,0 +1,240 @@
+def gauge(shelf, offers, under_pct, over_pct):
+import math
+MASS_TO_G = {"g": 1.0, "kg": 1000.0, "lb": 453.59237, "oz": 28.349523125}
+VOLUME_TO_ML = {"ml": 1.0, "l": 1000.0, "floz": 29.5735295625}
+COUNT_UNITS = {"each", "ea", "unit", "units", "count"}
+EXCLUSION_NOTES = {
+"no_size": "no size given",
+"different_dimension": "measured a different way",
+"unknown_weight": "sold by weight, with no weight given",
+"member_only": "needs a paid membership",
+"marketplace": "sold by a marketplace seller, not by the retailer",
+"not_cad": "priced in another currency",
+"different_brand_kind": "a different brand",
+"different_organic": "organic and non-organic are not the same product",
+}
+
+def dim_and_base(size_value, size_unit):
+if size_value is None or size_unit is None:
+return None, None
+u = str(size_unit).strip().lower().replace(" ", "")
+if u in MASS_TO_G:
+return "mass", size_value * MASS_TO_G[u]
+if u in VOLUME_TO_ML:
+return "volume", size_value * VOLUME_TO_ML[u]
+if u in COUNT_UNITS:
+return "count", size_value
+return None, None
+
+def total_size(size_value, size_unit, pack_count):
+dim, base = dim_and_base(size_value, size_unit)
+if dim is None:
+return None, None
+return dim, base * (pack_count or 1)
+
+def unit_price(price, dim, total):
+if dim is None or total is None or total <= 0:
+return None
+if dim == "count":
+return price / total
+return price / total * 100
+
+def unit_label(dim):
+if dim == "mass":
+return "100 g"
+if dim == "volume":
+return "100 mL"
+if dim == "count":
+return "item"
+return None
+
+def currency_of(o):
+c = o.get("currency")
+if c is None:
+return "CAD"
+c = str(c).strip().upper()
+if c == "":
+return "CAD"
+return c
+
+def brand_key(x):
+b = x.get("storeBrand")
+if b is None:
+return None
+b = str(b).strip().lower()
+if b == "":
+return None
+return b
+
+def effective_price(o):
+kind = o.get("dealKind")
+if kind == "multi_buy":
+units = o.get("dealUnits")
+if units and units > 1:
+return o["price"] / units
+return o["price"]
+if kind == "bogo":
+return o["price"] / 2
+return o["price"]
+
+def money(price, currency):
+if currency == "CAD":
+return "$" + format(price, ".2f")
+return format(price, ".2f") + " " + currency
+
+def qty_label(size_value, size_unit, pack_count, price, currency):
+if size_value is None or size_unit is None:
+return money(price, currency)
+if pack_count and pack_count > 1:
+qty = str(pack_count) + " x " + format(size_value, "g") + " " + str(size_unit)
+else:
+qty = format(size_value, "g") + " " + str(size_unit)
+return qty + " · " + money(price, currency)
+
+def deal_suffix(o, currency):
+kind = o.get("dealKind")
+if kind == "multi_buy":
+units = o.get("dealUnits")
+if units and units > 1:
+return " (" + format(units, "g") + " for " + money(o["price"], currency) + ")"
+return ""
+if kind == "bogo":
+return " (buy one get one)"
+return ""
+
+def offer_label(o):
+currency = currency_of(o)
+return qty_label(o.get("sizeValue"), o.get("sizeUnit"), o.get("packCount"), effective_price(o), currency) + deal_suffix(o, currency)
+
+shelf_dim, shelf_total = total_size(shelf.get("sizeValue"), shelf.get("sizeUnit"), shelf.get("packCount"))
+shelf_unit_price = unit_price(shelf["price"], shelf_dim, shelf_total)
+shelf_label = qty_label(shelf.get("sizeValue"), shelf.get("sizeUnit"), shelf.get("packCount"), shelf["price"], "CAD")
+shelf_brand = brand_key(shelf)
+shelf_organic = bool(shelf.get("organic"))
+
+def exclusion_of(o, dim, total, up):
+if currency_of(o) != "CAD":
+return "not_cad"
+if o.get("marketplace"):
+return "marketplace"
+if o.get("memberOnly"):
+return "member_only"
+if brand_key(o) != shelf_brand:
+return "different_brand_kind"
+if bool(o.get("organic")) != shelf_organic:
+return "different_organic"
+if dim is None or total is None or total <= 0:
+if o.get("soldByWeight"):
+return "unknown_weight"
+return "no_size"
+if shelf_dim is None or dim != shelf_dim:
+return "different_dimension"
+if up is None:
+return "no_size"
+return None
+
+in_band = []
+excluded = []
+
+for o in offers:
+dim, total = total_size(o.get("sizeValue"), o.get("sizeUnit"), o.get("packCount"))
+up = unit_price(effective_price(o), dim, total)
+code = exclusion_of(o, dim, total, up)
+if code is not None:
+excluded.append({
+"retailer": o["retailer"],
+"code": code,
+"note": EXCLUSION_NOTES[code],
+"label": offer_label(o),
+"url": o.get("url"),
+})
+continue
+in_band.append({
+"retailer": o["retailer"],
+"unitPrice": up,
+"url": o.get("url"),
+"label": offer_label(o),
+})
+
+if len(in_band) == 0 or shelf_dim is None or shelf_unit_price is None:
+return {
+"usable": False,
+"dimension": shelf_dim,
+"unitLabel": unit_label(shelf_dim),
+"excluded": excluded,
+}
+
+prices = [x["unitPrice"] for x in in_band]
+n = len(prices)
+sp = sorted(prices)
+if n % 2 == 1:
+median = sp[n // 2]
+else:
+median = (sp[n // 2 - 1] + sp[n // 2]) / 2
+
+def pct_of(price):
+if median == 0:
+return 0.0
+return (price - median) / median * 100
+
+store_pcts = [pct_of(p) for p in prices]
+shelf_pct = pct_of(shelf_unit_price)
+all_abs = [abs(p) for p in store_pcts] + [abs(shelf_pct)]
+span = max(max(all_abs), 1.5 * under_pct, 1.5 * over_pct)
+span = math.ceil(span / 5) * 5
+if span <= 0:
+span = 5
+
+def position_of(pct):
+return 50 + pct / span * 50
+
+under_boundary = 50 - under_pct / span * 50
+over_boundary = 50 + over_pct / span * 50
+tick_step = 10 if span > 30 else 5
+ticks = []
+t = -span
+while t <= span:
+if t == 0:
+tlabel = "middle"
+elif t > 0:
+tlabel = "+" + str(t) + "%"
+else:
+tlabel = str(t) + "%"
+ticks.append({"pct": t, "position": position_of(t), "label": tlabel})
+t += tick_step
+
+if shelf_pct <= -under_pct:
+zone = "under_your_line"
+elif shelf_pct > over_pct:
+zone = "over_your_line"
+else:
+zone = "middle"
+
+return {
+"usable": True,
+"median": median,
+"percent": shelf_pct,
+"zone": zone,
+"n": n,
+"dimension": shelf_dim,
+"unitLabel": unit_label(shelf_dim),
+"shelfPosition": position_of(shelf_pct),
+"shelfLabel": shelf_label,
+"zoneUnderBoundary": under_boundary,
+"zoneOverBoundary": over_boundary,
+"points": [{"retailer": x["retailer"], "position": position_of(pct), "url": x.get("url"), "label": x["label"]} for x, pct in zip(in_band, store_pcts)],
+"excluded": excluded,
+"ticks": ticks,
+}
+
+shelf = {"price": 9.99, "sizeValue": 107, "sizeUnit": "g", "packCount": 1}
+offers = [
+{"retailer": "Walmart Canada", "price": 9.46, "currency": "CAD", "sizeValue": 107, "sizeUnit": "g", "packCount": 1},
+{"retailer": "Loblaws", "price": 9.00, "currency": "CAD", "sizeValue": 107, "sizeUnit": "g", "packCount": 1, "dealKind": "clearance"},
+{"retailer": "No Frills", "price": 9.49, "currency": "CAD", "sizeValue": 107, "sizeUnit": "g", "packCount": 1}
+]
+under_pct = 10
+over_pct = 10
+
+result = gauge(shelf, offers, under_pct, over_pct)
+print(result)

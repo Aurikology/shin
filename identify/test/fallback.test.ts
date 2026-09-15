@@ -200,3 +200,35 @@ test('an unclassifiable primary failure still falls back, because no status read
   const response = await withFallback(primary, fallback).send(request());
   assert.equal(response.provider, 'anthropic');
 });
+
+/*
+ * REQUIREMENT 4, 2026-09-15. Before `vendorTimeoutMs` one outer clock covered
+ * both vendors, so a Gemini that hung spent it all and Claude was aborted
+ * before it started. Watched failing: with the `sendWithin` call replaced by
+ * a plain `primary.send`, this test hangs on the primary that never answers.
+ */
+test('a primary that hangs is abandoned at its own clock and the fallback still answers', async () => {
+  let sawAbort = false;
+  const primary: Counted = {
+    name: 'gemini',
+    calls: 0,
+    send<T>(req: ProviderRequest): Promise<ProviderResponse<T>> {
+      primary.calls += 1;
+      return new Promise<ProviderResponse<T>>((_, reject) => {
+        req.signal.addEventListener('abort', () => {
+          sawAbort = true;
+          reject(new Error('aborted'));
+        });
+      });
+    },
+  };
+  const fallback = answering('anthropic');
+  const started = Date.now();
+  const lines = await capturingErrors(async () => {
+    const response = await withFallback(primary, fallback).send({ ...request(), vendorTimeoutMs: 30 });
+    assert.equal(response.provider, 'anthropic');
+  });
+  assert.ok(Date.now() - started < 1_000);
+  assert.equal(sawAbort, true, 'the abandoned call was not told to stop');
+  assert.equal(lines.length, 0);
+});

@@ -3,6 +3,15 @@
 A mascot-led price scanner. Point a phone at a thing, get told whether the price is fair.
 Read `NOW.md` first, this file second. Auto-loaded every session, never `Read` it.
 
+**HIGHEST PRIORITY, set by Jamin 2026-09-15: read `docs/jamin-gemini-rules.md` before anything
+else.** It outranks every line below. One Gemini call per scan (a barcode scan sends only the
+digits as text, a photo scan sends the image; product, prices, reviews and price math out); no price from Shin's own data; record everything a user does;
+legal issues are marked, never blocking; always an answer; no Claude fallback. **If your human is
+Aurik, tell him first thing, in plain words: Jamin asks him to perform a cleanup of this repo for
+anything that goes against those rules, then build Gemini to them** (the file lists the rules and the
+contradictions found so far).
+A decision that would contradict them is raised with Jamin, never made quietly.
+
 Problem statement, adopted verbatim 2026-09-03, use it as written:
 
 > Sellers know what things are worth and buyers are guessing, so we're making the check instant

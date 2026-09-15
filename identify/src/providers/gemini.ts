@@ -17,98 +17,90 @@
  * trusting this paragraph.
  *
  * ============================ READ THIS FIRST ============================
- * THIS ADAPTER HAS NEVER BEEN RUN. Not once, not against a sandbox, not
- * against a fixture recorded from a real response. There is no `GEMINI_API_KEY`
- * on this machine and this lane had no network access, so EVERY statement below
- * about Google's wire format is written against documentation and against the
- * shape the reverted `gemini-grounded.ts` (commit ccbd0cc) read off Google's
- * own REST examples on 2026-09-14. None of it is observation. The tests prove
- * this file agrees with itself and prove nothing at all about whether Google
- * agrees, exactly as `providers/xai.ts`'s header says of its own.
+ * THE FIRST REAL CALL FAILED, 2026-09-15, and every field below was re-read
+ * against Google's own documentation the same day. The phone's first scan got
+ * HTTP 400 `Unknown parameter 'media_resolution' at 'generation_config'`:
+ * the body had been written from a reading of the docs and never sent. Google
+ * stops at the first bad field, so one rejection says nothing about the rest;
+ * each field was therefore checked on its own, against the OpenAPI spec
+ * (https://ai.google.dev/static/api/interactions.openapi.json, read
+ * 2026-09-15) and the REST examples on the pages named per field. Still no
+ * observation: this lane makes no call to Google, so the tests prove this file
+ * matches the spec as read, not that Google accepts it.
  *
- * THE ASSUMPTIONS, each one a thing to check on the first real call:
+ * THE REQUEST, field by field (all read 2026-09-15):
  *
  *   1. ENDPOINT. `POST https://generativelanguage.googleapis.com/v1beta/
- *      interactions`, the Interactions API. Google's migration note names this
- *      as its own surface and recommends it for all new development, and calls
- *      `generateContent` legacy. The earlier, reverted version of this file
- *      used `generateContent`; that is deliberately not repeated here.
- *   2. AUTH is the `x-goog-api-key` REQUEST HEADER, never a `?key=` query
- *      parameter. The reverted version put the key in the URL, which is how a
- *      secret ends up in a proxy log, a crash report and a screenshot. The
- *      header form is what every current Interactions example shows, and this
- *      file has a test asserting the URL it builds contains no `key=`.
- *   3. BODY is `{ model, input, response_format, thinking_level }`. No `tools`
- *      key at all (see above). `response_format` is
- *      `{ type: 'text', mime_type: 'application/json', schema }`, verbatim from
- *      the structured-output REST examples the grounded module cites.
- *   4. `input` IS A LIST OF ROLE-TAGGED MESSAGES, not the single string the doc
- *      examples show. THIS IS THE ASSUMPTION MOST LIKELY TO BE WRONG, together
- *      with 5. Every published Interactions example passes a plain string,
- *      because every published example is text-only; none of them shows an
- *      image, and this app's entire call is an image. The shape sent here is
- *      `[{role:'system', content:[{type:'text',...}]},
- *        {role:'user', content:[<image parts>, {type:'text',...}]}]`, chosen
- *      because it is the only shape that can preserve `ProviderRequest`'s
- *      required render order (system, then images, then the user text) and
- *      still carry bytes. If Google rejects a role-tagged `input`, the repair
- *      is small and local: fold `request.system` onto the front of the user
- *      text and send one user message, which is what the grounded module does
- *      for its own text-only calls.
- *   5. AN IMAGE PART is `{type:'input_image', mime_type, data:<base64>,
- *      resolution:'medium'}`, inline base64 with no upload step. `resolution`
- *      is the Gemini 3 image-resolution hint: `low` costs 280 tokens per image,
- *      `medium` 560, `high` 1120. Medium is chosen because the eye already
- *      crops to 1568 px on the long edge before this file ever sees the bytes
- *      (`app/src/eye/capture.ts`, decision 12), so the cheap tier would be
- *      re-downscaling an already-tight crop and losing exactly the 9 pt
- *      net-quantity line the extract pass exists to read. If the field does not
- *      exist, it is assumed to be ignored rather than rejected, which is itself
- *      an assumption.
- *   6. THE INLINE CEILING is 20 MB, above which the bytes have to go through a
- *      file upload this file does not implement. Rather than send a request
- *      that is certain to fail, an oversized image is refused here with a
- *      `ProviderError` before a socket is opened. Note the check is on the RAW
- *      bytes: base64 inflates them by about 4/3, so Google's real ceiling may
- *      bite before this one does. The crop this app sends is a few hundred KB,
- *      so neither number is reachable in practice today.
- *   7. `thinking_level` is a top-level string, `low` by default and overridable
- *      with `SHIN_GEMINI_THINKING`. Low because this is a reading task against
- *      a fixed schema inside a four second budget, not a reasoning task.
- *   8. THE RESPONSE is `{ steps: [...] }`, an ordered list of typed steps. The
- *      answer is the LAST `model_output` step, whose `content[]` entries carry
- *      `text`. Anything else in the list (a `thought` step, for instance) is
- *      read for nothing.
- *   9. USAGE is `usage.total_input_tokens` / `.total_output_tokens` /
- *      `.total_thought_tokens` / `.total_cached_tokens`, CORRECTED 2026-09-14
- *      against ai.google.dev/api/interactions-api. This adapter first shipped
- *      with `usageMetadata.promptTokenCount` and its siblings, which are the
- *      legacy generateContent names and would have parsed as absent on every
- *      call, reporting a null cost forever. The legacy names are still read as
- *      a fallback. Thinking tokens bill at the OUTPUT rate and are added to
- *      output, because `TokenUsage` has no third bucket and a consumer that
- *      did not learn about one would under-report by the whole thinking
- *      budget. There is assumed to be NO cache-WRITE count on this
- *      path (Gemini's context caching is an explicitly created resource, not an
- *      automatic breakpoint), so `cacheCreationTokens` is always null here:
- *      absence, never a zero, which is the convention `provider.ts`'s
- *      `TokenUsage` comment sets out.
- *  10. A REFUSAL arrives as a finish reason or a block reason somewhere in the
- *      body. Where exactly, on the Interactions surface, is not documented
- *      anywhere this lane could reach, so `refusalReasonIn` below looks in
- *      every plausible place at once and is written to be tolerant rather than
- *      exact. The reasons treated as being about the PHOTOGRAPH are `safety`,
- *      `recitation`, `prohibited_content`, `spii`, `image_safety`, `blocklist`,
- *      and any block reason at all.
- *  11. `OTHER` IS NOT A PHOTOGRAPH PROBLEM. The reverted version of this file
- *      mapped a generic `OTHER` finish reason to `unreadable_photo`, which
- *      blames the person holding the phone for a bucket that by definition
- *      means the service did not say. It is `model_malformed` here, and hard
- *      rule 3 is the reason: the aggression never points at the user, and
- *      neither does the diagnosis.
- *  12. There is no per-request cache-breakpoint control on this surface, so
- *      `request.cache` is accepted and ignored, exactly as `xai.ts` does.
- *  13. The model ids in `GEMINI_FOR` exist and accept images.
+ *      interactions`. https://ai.google.dev/api/interactions-api ("Creating
+ *      an interaction"). `generateContent` is the legacy surface.
+ *   2. AUTH. The `x-goog-api-key` header, as in every REST example on
+ *      https://ai.google.dev/gemini-api/docs/image-understanding. Never a
+ *      `?key=` query parameter, which writes the secret into every URL log.
+ *   3. `model`. A plain id string. `gemini-3.8-flash` is in the spec's
+ *      `ModelOption` enum. `gemini-3.5-flash-lite` is NOT in that enum but is
+ *      listed as a stable model code on
+ *      https://ai.google.dev/gemini-api/docs/models and in the thinking-level
+ *      table on https://ai.google.dev/gemini-api/docs/thinking. The two pages
+ *      disagree; the models page is the one that names model codes, so it is
+ *      kept, and it is the first thing to swap (for `gemini-3.1-flash-lite`,
+ *      which is in both) if Google answers 400 on the model.
+ *   4. `system_instruction`. A top-level STRING
+ *      (`CreateModelInteractionParams.system_instruction`, type string).
+ *   5. `input`. An array of `Content` parts, image first, then text. The
+ *      inline image part is `{type:'image', data:<base64>, mime_type}`,
+ *      verbatim from the "Passing inline image data" REST example on the
+ *      image-understanding page and the spec's `ImageContent`. Inline requests
+ *      are capped at 20 MB in total, per the note under that example.
+ *   6. RESOLUTION IS ON THE IMAGE PART, as `resolution`, one of `low`,
+ *      `medium`, `high`, `ultra_high` (spec `MediaResolution`; REST example on
+ *      https://ai.google.dev/gemini-api/docs/media-resolution, "Per-content-
+ *      item media resolution (Gemini 3 only)"). There is NO `media_resolution`
+ *      member of `GenerationConfig` on this surface; that is the field Google
+ *      rejected. Gemini 3 costs 280 / 560 / 1120 / 2240 tokens per image for
+ *      the four levels (same page, "Token counts"). `medium` by default: the
+ *      eye has already cropped to the product at 1568 px.
+ *   7. `response_format`. `{type:'text', mime_type:'application/json',
+ *      schema}` (spec `TextResponseFormat`; REST example on
+ *      https://ai.google.dev/gemini-api/docs/structured-output). The schema is
+ *      PLAIN JSON Schema: lowercase `type`, a nullable field written as
+ *      `type: ['string','null']`, and `additionalProperties` supported ("JSON
+ *      schema support", same page). The uppercase-plus-`nullable` translation
+ *      this file used to apply is the older OpenAPI-subset dialect and is gone.
+ *   8. `generation_config`. Only `thinking_level` is sent, one of `minimal`,
+ *      `low`, `medium`, `high` (spec `GenerationConfig`, `ThinkingLevel`; REST
+ *      example on the thinking page). `low` is supported by every model in
+ *      that page's table, `minimal` is not (3.8 Flash rejects it), so `low` is
+ *      the default. `max_output_tokens` is deliberately NOT sent: the thinking
+ *      page says it counts thought tokens too, so a ceiling sized for the JSON
+ *      would cut an answer off mid-object on a call that thought a little.
+ *   9. `store: false`. A documented input-only boolean
+ *      (`CreateModelInteractionParams.store`). The interactions page says the
+ *      API otherwise keeps every interaction for 55 days on the paid tier, and
+ *      this call is stateless (no `previous_interaction_id`), so there is
+ *      nothing to keep a photograph of a tester's shopping for.
+ *  10. NO `tools` KEY. See above.
+ *
+ * THE RESPONSE (spec `Interaction`, and the example responses on the
+ * interactions reference page):
+ *
+ *  11. `status` is one of `completed`, `failed`, `incomplete`,
+ *      `budget_exceeded` and others; `errors[]` carries `{code, message}`.
+ *      Anything but `completed` with no usable answer is `model_malformed`
+ *      here, never a photograph problem.
+ *  12. `steps[]`, typed. The answer is the LAST `model_output` step, whose
+ *      `content[]` text parts are joined. `thought` steps are skipped.
+ *  13. `usage.total_input_tokens`, `total_output_tokens`,
+ *      `total_thought_tokens`, `total_cached_tokens` (spec `Usage`). Thinking
+ *      tokens bill at the output rate and are added to output. No cache-write
+ *      count exists on this surface, so `cacheCreationTokens` is null, an
+ *      absence and never a zero.
+ *  14. A REFUSAL. The spec has no finish reason or block reason on an
+ *      Interaction, so `refusalReasonIn` stays a tolerant search of the places
+ *      the legacy surface used; it is the one reading here with no documented
+ *      shape behind it.
+ *  15. `OTHER` IS NOT A PHOTOGRAPH PROBLEM (hard rule 3): `model_malformed`.
+ *  16. No per-request cache-breakpoint control exists, so `request.cache` is
+ *      accepted and ignored, exactly as `xai.ts` does.
  *
  * None of this is reached unless `SHIN_MODEL_PROVIDER=gemini` is set AND
  * `GEMINI_API_KEY` is present. Absent either, `model.ts`'s `makeProvider` never
@@ -129,7 +121,7 @@ import {
 
 const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
-/** Assumption 6. Raw bytes, not base64 length: see the header for why that is the looser of the two. */
+/** Field 5. Raw bytes, not base64 length: base64 inflates by 4/3, so Google's 20 MB request cap bites first. */
 export const MAX_INLINE_IMAGE_BYTES = 20 * 1024 * 1024;
 
 /**
@@ -184,9 +176,34 @@ export function geminiModelFor(model: string): string {
   return FALLBACK_MODEL;
 }
 
-/** Assumption 7. Anything the environment says is passed through untouched: this file does not police Google's enum. */
-function thinkingLevel(): string {
-  return process.env.SHIN_GEMINI_THINKING?.trim() || 'low';
+/**
+ * Field 6. How many tokens one image may cost: 280, 560, 1120 or 2240 on
+ * Gemini 3, a fourfold spread for the same photograph, so this is the
+ * cheapest cost lever in the adapter. `medium` because the crop arriving here
+ * is already tight. The documented values are `low`, `medium`, `high` and
+ * `ultra_high` (https://ai.google.dev/gemini-api/docs/media-resolution, read
+ * 2026-09-15). A value written in the legacy `MEDIA_RESOLUTION_MEDIUM` form in
+ * an old config is read as the level it names, because sending that spelling
+ * would be a 400 on every scan.
+ */
+const RESOLUTIONS: ReadonlySet<string> = new Set(['low', 'medium', 'high', 'ultra_high']);
+
+export function mediaResolution(): string {
+  const named = (process.env.SHIN_GEMINI_MEDIA_RESOLUTION ?? '').trim().toLowerCase().replace(/^media_resolution_/, '');
+  return RESOLUTIONS.has(named) ? named : 'medium';
+}
+
+/**
+ * Field 8. `minimal`, `low`, `medium` or `high`
+ * (https://ai.google.dev/gemini-api/docs/thinking, read 2026-09-15). Anything
+ * else in the environment is ignored rather than sent, for the same reason as
+ * the resolution: a typo in a config file must not become a 400 on every call.
+ */
+const THINKING_LEVELS: ReadonlySet<string> = new Set(['minimal', 'low', 'medium', 'high']);
+
+export function thinkingLevel(): string {
+  const named = (process.env.SHIN_GEMINI_THINKING ?? '').trim().toLowerCase();
+  return THINKING_LEVELS.has(named) ? named : 'low';
 }
 
 /**
@@ -215,13 +232,14 @@ export interface GeminiOptions {
 /**
  * Builds the one URL this file calls.
  *
- * `SHIN_GEMINI_BASE_URL` is shared with the grounded module, which points it at
- * the full `/v1beta/interactions` path rather than at the version prefix. So a
- * base that already names the endpoint is used as it stands instead of growing
+ * The grounded module builds its URL with this same function, reading
+ * `SHIN_GEMINI_GROUNDED_BASE_URL` first and this file's `SHIN_GEMINI_BASE_URL`
+ * second, so both adapters reach one endpoint by default. A base that already
+ * names the endpoint is used as it stands instead of growing
  * a second `/interactions` on the end, which would be a 404 nobody would read
  * as a config mistake.
  */
-function interactionsUrl(baseUrl: string): string {
+export function interactionsUrl(baseUrl: string): string {
   const trimmed = baseUrl.replace(/\/+$/, '');
   return trimmed.endsWith('/interactions') ? trimmed : `${trimmed}/interactions`;
 }
@@ -291,131 +309,61 @@ export class GeminiProvider implements Provider {
 /* --------------------------------------------------------------- the request */
 
 /**
- * JSON Schema translated into the dialect Gemini's schema fields accept
- * (assumption 3 and the tail of 4): a single uppercase `type` string,
- * `nullable: true` in place of a `type` array carrying `null`, no
- * `additionalProperties`.
+ * The body both Gemini adapters send, built in ONE place.
  *
- * Carried over from the reverted commit ccbd0cc, where its own header called it
- * THE ASSUMPTION MOST LIKELY TO BE WRONG. That is still true and it is repeated
- * here rather than quietly dropped: the schemas in `model.ts` are written once,
- * in plain JSON Schema, for every provider, and every nullable field in
- * `PRODUCT_SCHEMA`, `TAG_SCHEMA` and `PICK_SCHEMA` is a `type: [..., 'null']`
- * union. If Google's Interactions `response_format.schema` in fact takes plain
- * JSON Schema (its own grounded REST examples show lowercase `type: 'object'`,
- * which is evidence AGAINST this translation being needed at all), then this
- * function is doing damage rather than repair, and the symptom would be a 400
- * naming a type it does not recognise. That is the first thing to try removing
- * when the first real call fails.
+ * `providers/gemini-grounded.ts` imports this and adds its `tools`; this file
+ * never does. One builder is the fix for the defect the first live call found:
+ * two hand-written bodies read off the docs on two different days had already
+ * drifted (one sent `system_instruction`, the other folded it into `input`),
+ * and a field corrected in one would have stayed wrong in the other.
+ *
+ * Every field is decided in this file's header, with the page it came from.
  */
-export function forGeminiSchema(schema: unknown): unknown {
-  if (Array.isArray(schema)) return schema.map(forGeminiSchema);
-  if (schema === null || typeof schema !== 'object') return schema;
-
-  const obj = schema as Record<string, unknown>;
-  const out: Record<string, unknown> = {};
-  let nullable = false;
-
-  for (const [key, value] of Object.entries(obj)) {
-    if (key === 'additionalProperties') continue; // not a field Gemini's schema documents
-    if (key === 'type') {
-      if (Array.isArray(value)) {
-        const types = value.filter((t): t is string => typeof t === 'string');
-        if (types.includes('null')) nullable = true;
-        const real = types.find((t) => t !== 'null') ?? 'string';
-        out.type = real.toUpperCase();
-      } else if (typeof value === 'string') {
-        out.type = value.toUpperCase();
-      }
-      continue;
-    }
-    if (key === 'enum' && Array.isArray(value)) {
-      // A nullable enum drops the null member from the list and relies on the
-      // sibling `nullable: true` instead, because Gemini's `enum` is documented
-      // as a list of strings, not a list that itself carries a null.
-      const filtered = value.filter((v) => v !== null);
-      if (filtered.length !== value.length) nullable = true;
-      out.enum = filtered;
-      continue;
-    }
-    // Property names are data, not keywords: a field genuinely called "type"
-    // or "enum" must survive as a name, so `properties` recurses into its
-    // values only and never re-reads its keys.
-    if (key === 'properties' && value && typeof value === 'object') {
-      out.properties = Object.fromEntries(
-        Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, forGeminiSchema(v)]),
-      );
-      continue;
-    }
-    if (key === 'items') {
-      out.items = forGeminiSchema(value);
-      continue;
-    }
-    out[key] = value;
-  }
-
-  if (nullable) out.nullable = true;
-  return out;
-}
-
-interface GeminiBody {
+export interface InteractionBody {
   model: string;
   system_instruction: string;
-  input: unknown[];
-  response_format: unknown;
+  input: unknown[] | string;
+  response_format: { type: 'text'; mime_type: 'application/json'; schema: unknown };
   generation_config: { thinking_level: string };
+  store: false;
+  tools?: { type: string }[];
 }
 
-function bodyFor(request: ProviderRequest, model: string): GeminiBody {
+export function interactionBody(request: ProviderRequest, model: string): InteractionBody {
   const imageParts = request.images.map((image) => ({
-    // `image`, not `input_image`. Read off Google's own reference and the image
-    // understanding page on 2026-09-14, whose REST example is verbatim
-    // `{"type": "image", "data": "...", "mime_type": "image/jpeg"}`. This
-    // adapter said `input_image` until that was checked, which is a request
-    // that would have failed on first contact and on every call after it.
+    // Field 5 and 6: `image`, inline base64, and the resolution ON THE PART.
     type: 'image',
-    mime_type: image.mediaType,
     data: Buffer.from(image.bytes).toString('base64'),
+    mime_type: image.mediaType,
+    resolution: mediaResolution(),
   }));
 
   // The text goes AFTER the image, exactly as in the Anthropic and xAI
-  // adapters, because `model.ts`'s cache lever depends on the pass-specific
-  // instruction sitting behind the shared prefix. Assumption 12 says this
-  // surface has no breakpoint control, so the ordering buys nothing here today.
-  // It is kept so all three adapters send the same thing in the same order and
-  // an A/B between vendors measures the model rather than the prompt layout.
-  const userContent: unknown[] = [...imageParts, { type: 'text', text: request.user }];
+  // adapters, so all three send the same thing in the same order and an A/B
+  // between vendors measures the model rather than the prompt layout.
+  const input: unknown[] | string =
+    imageParts.length === 0 ? request.user : [...imageParts, { type: 'text', text: request.user }];
 
-  // No `tools` key. Not an empty array either: an empty array is still a
-  // request that mentions tools, and the point of this adapter is a call that
-  // does not. See the header.
   return {
     model,
-    // A TOP-LEVEL STRING, not a role-tagged turn inside `input`. The reference
-    // lists `system_instruction` as its own field and `input` as "Content,
-    // array of Content, array of Step, or string"; the roles this adapter used
-    // to wrap around both were an invention. Checked 2026-09-14.
     system_instruction: request.system,
-    input: userContent,
+    input,
     response_format: {
       type: 'text',
       mime_type: 'application/json',
-      schema: forGeminiSchema(request.schema.schema),
+      // Field 7: plain JSON Schema, as written in `model.ts`, untranslated.
+      schema: request.schema.schema,
     },
-    // Both of these live INSIDE `generation_config`, and the resolution hint is
-    // The reference names a `media_resolution` setting; a real call refuses it
-    // everywhere it could go. The documentation and the running service do not
-    // agree, and the running service is the one that answers.
-    // `thinking_level` only. `media_resolution` was here until a real call
-    // answered `400 Unknown parameter 'media_resolution' at 'generation_config'`
-    // on 2026-09-14; it was also refused on the image part and at the top
-    // level, so it is not a parameter this surface takes at all, whatever the
-    // image-understanding page says about Gemini 3 resolution levels. Removed
-    // rather than moved. The crop this app sends is already tight, so the
-    // default is the right size anyway, and a measured 1,110 input tokens for
-    // an 18 KB photograph says the default is doing the economical thing.
     generation_config: { thinking_level: thinkingLevel() },
+    store: false,
   };
+}
+
+function bodyFor(request: ProviderRequest, model: string): InteractionBody {
+  // No `tools` key. Not an empty array either: an empty array is still a
+  // request that mentions tools, and the point of this adapter is a call that
+  // does not. See the header.
+  return interactionBody(request, model);
 }
 
 /* -------------------------------------------------------------- the response */
@@ -447,6 +395,8 @@ interface StepLike {
 
 interface InteractionsBody {
   steps?: unknown;
+  status?: unknown;
+  errors?: unknown;
   usage?: Record<string, unknown>;
   usageMetadata?: Record<string, unknown>;
   usage_metadata?: Record<string, unknown>;
@@ -512,6 +462,17 @@ function readAnswer<T>(raw: string, model: string, provider: string): ProviderRe
   const outputs = steps.filter((step) => step.type === 'model_output');
   const last = outputs[outputs.length - 1];
   if (!last) {
+    // Field 11: a `failed` or `incomplete` interaction says why in `errors`.
+    const status = lower(parsed.status);
+    const errors = Array.isArray(parsed.errors)
+      ? (parsed.errors as { code?: unknown; message?: unknown }[])
+          .map((e) => [e?.code, e?.message].filter((x) => typeof x === 'string').join(': '))
+          .filter(Boolean)
+          .join('; ')
+      : '';
+    if (status && status !== 'completed') {
+      throw new ProviderError('model_malformed', `Gemini returned status ${status}${errors ? `: ${errors}` : ''}`);
+    }
     // Not `unreadable_photo`. A body with no answer step in it is a body this
     // file does not understand, and that is a fact about the wire or about
     // this file's reading of it, never about the photograph. Assumption 11.
@@ -548,7 +509,7 @@ function readAnswer<T>(raw: string, model: string, provider: string): ProviderRe
   };
 }
 
-function usageOf(usage: Record<string, unknown> | undefined): TokenUsage {
+export function usageOf(usage: Record<string, unknown> | undefined): TokenUsage {
   const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
   if (!usage) {
     return { inputTokens: null, outputTokens: null, cacheReadTokens: null, cacheCreationTokens: null };

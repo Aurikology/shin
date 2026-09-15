@@ -10,6 +10,7 @@
  */
 
 import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { extname, join, normalize as normalizePath, sep } from 'node:path';
@@ -961,10 +962,43 @@ async function modelOnce(): Promise<Identifier> {
  * with the request and is sealed into the box that comes back; `toWire` throws
  * if anybody later asks for that box on behalf of a different one.
  */
+export interface GroundedPriceQuery {
+  readonly text?: string;
+  readonly gtin?: string;
+  readonly brand?: string | null;
+  /** The shelf price typed, so the lookup can place it on a line. */
+  readonly askingCents?: number;
+  readonly sizeValue?: number | null;
+  readonly sizeUnit?: string | null;
+  readonly packCount?: number | null;
+}
+
 export interface GroundedProvider {
   readonly name: string;
   lookupBarcode(gtin: string, forDevice: string): Promise<Grounded<unknown> | null>;
-  lookupPrice(query: { text?: string; gtin?: string }, forDevice: string): Promise<Grounded<unknown> | null>;
+  lookupPrice(query: GroundedPriceQuery, forDevice: string): Promise<Grounded<unknown> | null>;
+  /**
+   * Start the price search now, answer nothing. Added 2026-09-15 so a scan's
+   * search runs WHILE the shopper reads the answer and types the shelf price,
+   * instead of after (Jamin: keep the wait short). Optional: a double without
+   * it just searches when the price is asked for.
+   */
+  prefetchPrice?(query: GroundedPriceQuery, forDevice: string): void;
+}
+
+/**
+ * Who a grounded answer is sealed for.
+ *
+ * A device that sent no id used to get no grounded lookup at all, because
+ * "the end user who submitted the prompt" had no referent in the shared
+ * unattributed bucket. Jamin, 2026-09-15: "don't prevent something from
+ * functioning just because of legal issues". So an anonymous request gets an
+ * owner of its own, for that one request: the box can be opened on the way
+ * out of this response and by nobody else, and nothing is kept against the
+ * shared bucket's scan rows.
+ */
+function groundedOwner(device: string): string {
+  return device === UNATTRIBUTED ? `unattributed-request-${randomUUID()}` : device;
 }
 
 let groundedTestDouble: GroundedProvider | null = null;
@@ -990,17 +1024,53 @@ export function setGroundedForTests(fake: GroundedProvider | null): void {
  * `SHIN_GROUNDED=on`, because a search that fires by default is a bill that
  * arrives by default.
  */
+let groundedLive: GroundedProvider | null = null;
+
 function groundedOnce(): GroundedProvider | null {
   if (groundedTestDouble) return groundedTestDouble;
-  if ((process.env.SHIN_GROUNDED ?? '').trim().toLowerCase() !== 'on') return null;
-  /*
-   * There is no live implementation to hand back yet: the module that builds
-   * one is `identify/src/grounded.ts`, owned by another lane this session. The
-   * seam, the routes and the retention are all here and all tested against a
-   * double, so landing that module is a one-line change here and nothing else
-   * anywhere.
-   */
-  return null;
+  if (!groundedWanted()) return null;
+  groundedLive ??= liveGrounded();
+  return groundedLive;
+}
+
+/**
+ * ON WITH GEMINI, 2026-09-15. The search half runs whenever
+ * `SHIN_MODEL_PROVIDER=gemini` and a `GEMINI_API_KEY` is set, which is the
+ * brief's own switch (docs/plan-gemini.md sections 1 and 9), or when
+ * `SHIN_GROUNDED=on` with a key. `SHIN_GROUNDED=off` turns it off either way.
+ * No key, no search: there is nothing to call.
+ */
+function groundedWanted(): boolean {
+  const flag = (process.env.SHIN_GROUNDED ?? '').trim().toLowerCase();
+  if (flag === 'off') return false;
+  if (!(process.env.GEMINI_API_KEY ?? '').trim()) return false;
+  return flag === 'on' || (process.env.SHIN_MODEL_PROVIDER ?? '').trim().toLowerCase() === 'gemini';
+}
+
+/**
+ * The live lookup, loaded on first use so a server that never searches never
+ * loads the adapter. The methods wait for the import; `prefetchPrice` starts
+ * it and returns at once.
+ */
+function liveGrounded(): GroundedProvider {
+  type Lookup = import('../identify/src/providers/gemini-grounded.ts').GeminiGroundedLookup;
+  let loaded: Promise<Lookup> | null = null;
+  const lookup = (): Promise<Lookup> =>
+    (loaded ??= import('../identify/src/providers/gemini-grounded.ts').then((m) => new m.GeminiGroundedLookup()));
+  return {
+    name: 'gemini',
+    async lookupBarcode(gtin, forDevice) {
+      return (await lookup()).lookupBarcode(gtin, forDevice) as Promise<Grounded<unknown> | null>;
+    },
+    async lookupPrice(query, forDevice) {
+      return (await lookup()).lookupPrice(query, forDevice) as Promise<Grounded<unknown> | null>;
+    },
+    prefetchPrice(query, forDevice) {
+      lookup()
+        .then((l) => l.prefetchPrice(query, forDevice))
+        .catch((err) => logError({ where: 'grounded.prefetch', deviceId: forDevice, scanId: null, err }));
+    },
+  };
 }
 
 /**
@@ -1164,6 +1234,43 @@ interface PhotoAnswer extends Identified {
 
 const sizeText = (c: { sizeValue: number | null; sizeUnit: string | null; quantity?: string | null }): string | null =>
   c.sizeValue !== null && c.sizeUnit ? `${c.sizeValue} ${c.sizeUnit}` : (c.quantity ?? null);
+
+/**
+ * The answer shown when nothing is checked, 2026-09-15.
+ *
+ * `label` is what the screen names the product as and what the price pad is
+ * opened with. `checked: false` is the whole of the difference from an
+ * identified answer: lower certainty changes the label, never whether an
+ * answer shows.
+ */
+interface UncheckedAnswer {
+  readonly checked: false;
+  readonly source: 'photo' | 'search';
+  readonly label: string;
+  readonly brand: string | null;
+  readonly name: string | null;
+  readonly size: string | null;
+  readonly gtin: string | null;
+}
+
+function uncheckedFromPhoto(answer: PhotoAnswer): UncheckedAnswer | null {
+  const label = (answer.readAs ?? '').trim();
+  if (!label) return null;
+  return { checked: false, source: 'photo', label, brand: null, name: label, size: null, gtin: null };
+}
+
+function uncheckedFromBarcode(block: unknown, gtin: string): object {
+  const b = (block ?? {}) as { kind?: unknown; name?: unknown; brand?: unknown; size?: unknown };
+  const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
+  const name = str(b.name);
+  if (b.kind !== 'barcode' || !name) return {};
+  const brand = str(b.brand);
+  const size = str(b.size);
+  const fold = (x: string) => x.toLowerCase();
+  const label = [brand && !fold(name).includes(fold(brand)) ? brand : null, name, size].filter(Boolean).join(' ');
+  const unchecked: UncheckedAnswer = { checked: false, source: 'search', label, brand, name, size, gtin };
+  return { unchecked };
+}
 
 /**
  * Run one photo through identification and turn the outcome into an answer.
@@ -1643,7 +1750,13 @@ export const server = createServer(async (req, res) => {
    * answers; a licence check that turns a verdict into a 500 would trade that
    * away for nothing.
    */
-  const answerWithGrounded = <T>(base: object, box: Grounded<T>, device: string, scanId: number | null): void => {
+  const answerWithGrounded = <T>(
+    base: object,
+    box: Grounded<T>,
+    device: string,
+    scanId: number | null,
+    extra?: (block: unknown) => object,
+  ): void => {
     let wire: GroundedWire<T>;
     try {
       wire = groundedModule().toWire(box, device);
@@ -1652,7 +1765,7 @@ export const server = createServer(async (req, res) => {
       return json(200, base);
     }
     markGroundedShown(scanId);
-    return json(200, { ...base, grounded: wire });
+    return json(200, { ...base, ...(extra ? extra(wire.block) : {}), grounded: wire });
   };
 
   /**
@@ -1956,34 +2069,46 @@ export const server = createServer(async (req, res) => {
       const identified = scanId === null ? answer : { ...answer, scanId };
 
       /*
-       * ONE GROUNDED BARCODE LOOKUP, ON A MISS, FOR A DEVICE WE CAN NAME.
+       * THE SEARCH HALF, 2026-09-15 (docs/plan-gemini.md sections 1 and 9).
        *
-       * A CATALOGUE HIT IS UNCHANGED and never asks Google. The catalogue
-       * settles identity in 0.2 ms against five million rows, it costs
-       * nothing, and its answer is ours to keep; spending a search on a
-       * question already answered would be paying for a slower copy.
+       * A CATALOGUE HIT IS UNCHANGED: identity comes from the catalogue, and
+       * the only new thing is that the price search for that product starts
+       * now, in the background, so it is ready or nearly ready by the time the
+       * shelf price is typed. Nothing waits on it here.
        *
-       * AN ANONYMOUS DEVICE GETS NO LOOKUP AT ALL, and this is the line that
-       * needed reading twice. `UNATTRIBUTED` is one shared bucket, which is
-       * the honest reading of "we do not know who this is" everywhere else in
-       * this file. It is the wrong shape for this one thing: "the end user who
-       * submitted the prompt" has no referent in a bucket, so there is nobody
-       * the result could lawfully be shown to and nobody whose chat history it
-       * could lawfully join. So the search is never made rather than made and
-       * then withheld -- not asking is the only version that cannot leak.
+       * A BARCODE MISS asks Google what the code is, and the answer goes out
+       * as an UNCHECKED identification rather than "we do not have it". Jamin:
+       * "Having a response that is not checked is infinitely better than
+       * having the user scan something, wait 10 seconds, only to get told the
+       * app doesn't know". The price search for the same code starts in
+       * parallel inside `lookupBarcode`, not after it.
        *
-       * BARCODE ONLY. A text miss is a search term somebody typed, and the
-       * price route is where a typed query gets its grounded half.
+       * A device with no id gets the same, sealed for this one request (see
+       * `groundedOwner`). That used to be a terms gate; it is not any more.
        */
       const grounded = groundedOnce();
-      if (grounded && !answer.product && gtin && device !== UNATTRIBUTED) {
+      if (grounded && answer.product) {
+        const p = answer.product;
+        grounded.prefetchPrice?.(
+          {
+            text: [p.brands?.split(',')[0]?.trim(), p.name].filter(Boolean).join(' '),
+            gtin: gtin ?? (/^\d{8,14}$/.test(p.code) ? p.code : undefined),
+            sizeValue: p.sizeValue,
+            sizeUnit: p.sizeUnit,
+          },
+          device,
+        );
+      }
+      if (grounded && !answer.product && gtin) {
+        const owner = groundedOwner(device);
         try {
-          const box = await grounded.lookupBarcode(gtin, device);
+          const box = await grounded.lookupBarcode(gtin, owner);
           if (box) {
+            const kept = scanId !== null && owner === device ? scanId : null;
             // Stored before it is served, and marked unshown by the store. If
             // the response never leaves, the reaper takes it within the hour.
-            if (scanId !== null) keepGroundedForOwner(scanId, device, box);
-            return answerWithGrounded(identified, box, device, scanId);
+            if (kept !== null) keepGroundedForOwner(kept, owner, box);
+            return answerWithGrounded(identified, box, owner, kept, (block) => uncheckedFromBarcode(block, gtin));
           }
         } catch (err) {
           // The identification still goes out. See `answerWithGrounded`.
@@ -2279,7 +2404,48 @@ export const server = createServer(async (req, res) => {
         },
       });
 
-      return json(200, scanId === null ? answer : { ...answer, scanId });
+      /*
+       * NEVER "WE DO NOT KNOW" WHEN THE MODEL READ SOMETHING, 2026-09-15.
+       *
+       * A photo the catalogue cannot match used to end on a refusal sheet
+       * saying what we read and that we do not have it. Jamin: "Having a
+       * response that is not checked is infinitely better than having the
+       * user scan something, wait 10 seconds, only to get told the app doesn't
+       * know". So whatever the model read goes back as `unchecked`, the screen
+       * shows it as the answer with a "not checked" label, and pricing goes on
+       * from there. The same holds when the catalogue is down, and when a
+       * later pass failed after the reading was made.
+       *
+       * The price search starts here, in parallel with the shopper reading the
+       * answer and typing the price, never after. This route still serves no
+       * grounded block itself: the search's answer arrives on `/api/price`.
+       */
+      const photoGrounded = groundedOnce();
+      const unchecked = !answer.product && answer.readAs ? uncheckedFromPhoto(answer) : null;
+      if (unchecked) {
+        recordEvent({
+          deviceId: device,
+          type: 'unchecked_answer',
+          payload: { scanId, source: 'photo', failure: answer.failure, readAs: answer.readAs },
+        });
+      }
+      if (photoGrounded && (answer.product || unchecked)) {
+        const p = answer.product;
+        photoGrounded.prefetchPrice?.(
+          p
+            ? {
+                text: [p.brands?.split(',')[0]?.trim(), p.name].filter(Boolean).join(' '),
+                gtin: /^\d{8,14}$/.test(p.code) ? p.code : undefined,
+                sizeValue: p.sizeValue,
+                sizeUnit: p.sizeUnit,
+              }
+            : { text: unchecked?.label },
+          device,
+        );
+      }
+
+      const photoBody = unchecked ? { ...answer, unchecked } : answer;
+      return json(200, scanId === null ? photoBody : { ...photoBody, scanId });
     }
 
     if (url.pathname === '/api/price') {
@@ -2359,13 +2525,30 @@ export const server = createServer(async (req, res) => {
       const pricedDevice =
         typeof q.deviceId === 'string' && q.deviceId.trim() !== '' ? q.deviceId.trim() : UNATTRIBUTED;
       const groundedPrice = groundedOnce();
-      if (groundedPrice && pricedDevice !== UNATTRIBUTED) {
+      if (groundedPrice && (query.text || query.gtin)) {
+        const owner = groundedOwner(pricedDevice);
+        // The catalogue's size for a known barcode, so the line compares per
+        // 100 g or per item with the real pack rather than a borrowed one.
+        const row = query.gtin && fastLookup ? ((fastLookup.byGtin(query.gtin) ?? null) as Candidate | null) : null;
+        const sizeValue = typeof q.sizeValue === 'number' ? q.sizeValue : (row?.sizeValue ?? null);
+        const sizeUnit = typeof q.sizeUnit === 'string' ? q.sizeUnit : (row?.sizeUnit ?? null);
         try {
-          const box = await groundedPrice.lookupPrice({ text: query.text, gtin: query.gtin }, pricedDevice);
+          const box = await groundedPrice.lookupPrice(
+            {
+              text: query.text,
+              gtin: query.gtin,
+              askingCents: query.askingCents,
+              sizeValue,
+              sizeUnit,
+            },
+            // The prefetch was filed under the device, so a named device
+            // reuses it; an anonymous request searches under its own owner.
+            owner,
+          );
           if (box) {
-            const forScan = Number.isInteger(pricedScan) && pricedScan > 0 ? pricedScan : null;
-            if (forScan !== null) keepGroundedForOwner(forScan, pricedDevice, box);
-            return answerWithGrounded(priced, box, pricedDevice, forScan);
+            const forScan = Number.isInteger(pricedScan) && pricedScan > 0 && owner === pricedDevice ? pricedScan : null;
+            if (forScan !== null) keepGroundedForOwner(forScan, owner, box);
+            return answerWithGrounded(priced, box, owner, forScan);
           }
         } catch (err) {
           // The verdict still goes out, whole and unchanged.

@@ -8,16 +8,16 @@ Nothing on this list is started on purpose. Leftover code from a build that was 
 
 ## A. Decisions and permissions (people, not code)
 
-1. Jamin creates a Gemini API key with billing on (paid tier) at Google AI Studio and puts it in the Mac's `mac/config.env` as `GEMINI_API_KEY`. Not in any repo. [2.4]
+1. Jamin creates a Gemini API key with billing on (paid tier) at Google AI Studio and puts it in the Mac's `mac/config.env` as `GEMINI_API_KEY`. Not in any repo. [2.4] Until this exists, decided 2026-09-14: test every branch of this work through Claude in Chrome operating gemini.google.com/app, the same way as the nine website tests already behind this branch. **Key is in, 2026-09-15, and that website rule still stands for everything but the phone.** Jamin's words: *"Make sure not to use the api key for things like building code etc because you can use claude in chrome to control gemini. Only use the api for live testing on the phone."* So building, fixture recording, the eval run, and any branch test still go through gemini.google.com/app; the key is spent only by the server answering a real phone. Paid tier, his word 2026-09-15. Moved into the worker Mac's `mac/config.env` with `SHIN_MODEL_PROVIDER=gemini` and the server restarted the same day. **First real call failed the same night:** Gemini returned 400 *"Unknown parameter 'media_resolution' at 'generation_config'"* (the request shape in `identify/src/providers/gemini.ts` was never sent to the real API), and the scan was answered at the Claude cost, 0.23 cents. Fixed and the search half re-landed the same night (09b86ec, Jamin's rulings: legal never takes a mechanism down; every scan ends with an answer). Switch back on, live server on 09b86ec; the next phone scan is the first real test.
 2. Decide which of the 12 other item rules to adopt: sold by weight, store brands, loads/doses/sheets, deals and member prices, deposits/fees/shipping/tax, marketplace and US listings, fixed-price items, medicines and formula, used and collectible, local shops, editions and bundles, local price differences. [7]
-3. Aurik agrees, since the build plan names him owner of `identify/src/model.ts` and the provider interface (`docs/the-beta-build-plan.md:250`, item I9; lane rule "never model.ts" near line 263).
-4. Resolve the conflict with beta build plan item 30 (`docs/the-beta-build-plan.md:163`): reviews "only when a licensed source has a row; nothing generated". Gemini reviews are generated from search. Update that item or drop Gemini reviews.
-5. Confirm whether Google's "18 years of age or older" rule reaches app users or only the developer. [2.4]
+3. Aurik agrees, since the build plan names him owner of `identify/src/model.ts` and the provider interface (`docs/the-beta-build-plan.md:250`, item I9; lane rule "never model.ts" near line 263). Jamin's own go-ahead to build toward this is given, 2026-09-14; Aurik's own agreement is still a separate, unasked question.
+4. Resolve the conflict with beta build plan item 30 (`docs/the-beta-build-plan.md:163`): reviews "only when a licensed source has a row; nothing generated". Gemini reviews are generated from search. Decided 2026-09-14: reviews show even with no source present, flagged the same way an unsourced price fact is flagged; update item 30's text to match (`docs/decisions.md`, "Twelve rulings on the Gemini branch").
+5. Confirm whether Google's "18 years of age or older" rule reaches app users or only the developer. [2.4] Decided 2026-09-14: build a Terms of Service checkbox now regardless of the answer ("if the user checks that, then we don't have any liability"); Google's answer still separately decides whether the API call itself also needs gating.
 6. Ask Google whether rendering structured grounded fields in Shin's own layout counts as "modify"; ask for written permission if needed. [2.3]
 7. Legal review before anything relies on storing grounded data. [2.1]
 8. Look up the real paid-tier rate limits for the chosen models in Google AI Studio (Google no longer publishes them on the rate-limits page).
 9. Pick the models: identification (3.5 Flash-Lite or 3.8 Flash), grounded search, code execution. Note 3.8 Flash doubles in price on 2027-01-01. Stable ids today: gemini-3.8-flash, 3.7-flash, 3.6-flash, 3.5-flash, 3.5-flash-lite, 3.1-flash-lite. [3]
-10. Decide whether a zero-data-retention approval is wanted (approval-gated per project; not automatic on the Gemini API).
+10. Seek a zero-data-retention approval from Google (approval-gated per project; not automatic on the Gemini API); decided 2026-09-14, build assuming it is refused (`docs/decisions.md`, "Twelve rulings on the Gemini branch").
 
 ## B. Talking to Gemini
 
@@ -31,7 +31,8 @@ Nothing on this list is started on purpose. Leftover code from a build that was 
 18. Instructions on every request: Shin's voice, user's language (English or French), Canadian stores and CAD only, short lengths, fixed JSON layout. [2.3]
 19. Verdict request: resubmit the grounded prices plus the shelf price and the user's thresholds with the code execution tool on, asking Gemini to run Shin's fixed function unchanged. [4.3]
 20. Check that the code Gemini executed (`executableCode.code`) matches Shin's function; if not, no verdict. [4.3]
-21. Set image resolution for photos (Gemini 3: low 280, medium 560, high 1120 tokens per image) and keep requests under the 20 MB inline limit; send jpeg, png, webp or heic.
+21. Set image resolution for photos (Gemini 3: low 280, medium 560, high 1120 tokens per image) and keep requests under the 20 MB inline limit; send jpeg, png, webp or heic. Decided 2026-09-14: not picked by guess; test all three levels against real return quality and cost, and keep the option of offering a lower resolution on a lower-priced Shin tier.
+21b. Trust rule for an ungrounded read (barcode-to-photo pairing or a bare photo identification): decided 2026-09-14, never trusted on one frame and never re-checked by a second model call; the check is agreement across multiple camera frames of the same item.
 22. Set the thinking level per request (`thinkingLevel`; thinking tokens bill at the output rate).
 23. Confirm with a real call whether image input and Google Search work together in one request (not stated in Google's docs). If not, identification and search stay two calls.
 24. Handle Gemini errors: 429 rate or quota, 401, 403, 503, and safety blocks (`safety`, `recitation`, `prohibited_content`, `spii`), each falling back or showing a plain message.
@@ -121,7 +122,7 @@ Nothing on this list is started on purpose. Leftover code from a build that was 
 
 ## Leftover code (not asked for)
 
-Uncommitted in the Mac's `~/shin`, never pushed, not live. Jamin decides whether it is kept or deleted.
+Uncommitted in the Mac's `~/shin`, never pushed, not live. Decided 2026-09-14: reuse what can be used, rather than a clean rewrite or a straight commit as is (`docs/decisions.md`, "Twelve rulings on the Gemini branch") — the provider seam and fallback wrapper match this plan's shape and carry forward; `gemini.ts` (legacy API, key in the URL) does not and should not; `gemini-grounded.ts` needs rebuilding to the Interactions API shape and to call Shin's fixed verdict function instead of asking Gemini to write its own.
 
 - Changed: `app/server.ts` (photo route uses `makeProvider`; imports grounded functions but never calls them), `identify/src/cap.ts` (spend cap for providers), `identify/src/model.ts` (Gemini branch in `makeProvider`), `identify/src/provider.ts` (fallback wrapper).
 - New: `identify/src/providers/gemini.ts` (never run; legacy API, key in the URL, 2.5 models), `gemini-grounded.ts` (Interactions API; verdict does not use the fixed function or its check; size fields never requested), `gauge.ts` (the verdict function and code check), `gauge-variant.ts` (tech variants; used nowhere, no tests), tests `gemini.test.ts`, `gemini-grounded.test.ts`, `gauge.test.ts`.
