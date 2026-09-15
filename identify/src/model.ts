@@ -32,7 +32,6 @@ import { loadDotEnv } from './env.ts';
 import {
   addUsage,
   classifyProviderError,
-  withFallback,
   type CacheHint,
   type Provider,
   type ProviderRequest,
@@ -830,22 +829,17 @@ function geminiSelected(): boolean {
  * for itself. Crossing the two would send one vendor's secret to the other,
  * which is both an authentication failure and a disclosure.
  *
- * WHY THE FALLBACK. Priority 1 is always answer. A Gemini outage with a working
- * Claude path sitting right there must not become a refusal, and `withFallback`
- * already knows the two failures a second vendor must never be asked about
- * (`spend_cap_reached`, `unreadable_photo`).
+ * NO CLAUDE BEHIND GEMINI, 2026-09-15. Jamin: *"claude should not be taking
+ * over"*. With Gemini named and keyed, Gemini alone answers; a Gemini failure
+ * surfaces as its own failure instead of a Claude answer. `withFallback` stays
+ * in provider.ts, unused here, so putting Claude back is one line.
  */
 export function makeProvider(apiKey?: string): Provider {
   const named = process.env.SHIN_MODEL_PROVIDER?.trim().toLowerCase();
   if (named === 'xai') return new XaiProvider({ apiKey });
   if (named === 'gemini') {
     const geminiKey = process.env.GEMINI_API_KEY?.trim();
-    if (geminiKey) {
-      return withFallback(
-        new GeminiProvider({ apiKey: geminiKey }),
-        new AnthropicProvider(anthropicClient(apiKey)),
-      );
-    }
+    if (geminiKey) return new GeminiProvider({ apiKey: geminiKey });
   }
   return new AnthropicProvider(anthropicClient(apiKey));
 }

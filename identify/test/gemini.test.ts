@@ -491,11 +491,11 @@ async function withVars(vars: Record<string, string | undefined>, body: () => Pr
   }
 }
 
-test('named gemini with a key, the seam is Gemini with Claude standing behind it', async () => {
+test('named gemini with a key, the seam is Gemini alone, with no Claude taking over', async () => {
   await withVars(
     { SHIN_MODEL_PROVIDER: 'gemini', GEMINI_API_KEY: 'g-key', ANTHROPIC_API_KEY: 'a-key' },
     async () => {
-      assert.equal(makeProvider().name, 'gemini+fallback:anthropic');
+      assert.equal(makeProvider().name, 'gemini');
     },
   );
 });
