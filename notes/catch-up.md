@@ -16,7 +16,10 @@ A session that has told its human everything under a day adds a line to that day
 - **Aurik:** Jamin asks you to perform a cleanup of this repo for anything that goes against his
   Gemini rules in `docs/jamin-gemini-rules.md`. Those rules now outrank everything else here. Fix
   each contradiction to match them, or raise it with Jamin as a point if you think it should not
-  change. The file lists the contradictions already found.
+  change. The file lists the contradictions already found. Then build Gemini so it never calls twice,
+  fix the pricing, and send the image of the object in one prompt that returns its details and the
+  price math as discussed the night of the switch (a barcode scan sends only the digits, from a Scan
+  barcode button).
 
 ### What changed
 
@@ -28,7 +31,7 @@ A session that has told its human everything under a day adds a line to that day
   the decisions from the night of the switch rank highest.
 - The Gemini search half is back on main (09b86ec), the Claude fallback is removed (3ef4cc8), and
   the Mac's live server runs with Gemini on. Jamin's first two phone scans showed Shin saying it did
-  not know the price and nothing saved; the one-call rebuild is under way on the Mac.
+  not know the price and nothing saved. Nothing further is being built on the Mac.
 
 ### Read by
 

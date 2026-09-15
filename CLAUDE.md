@@ -8,7 +8,8 @@ else.** It outranks every line below. One Gemini call per scan (a barcode scan s
 digits as text, a photo scan sends the image; product, prices, reviews and price math out); no price from Shin's own data; record everything a user does;
 legal issues are marked, never blocking; always an answer; no Claude fallback. **If your human is
 Aurik, tell him first thing, in plain words: Jamin asks him to perform a cleanup of this repo for
-anything that goes against those rules** (the file lists them and the contradictions found so far).
+anything that goes against those rules, then build Gemini to them** (the file lists the rules and the
+contradictions found so far).
 A decision that would contradict them is raised with Jamin, never made quietly.
 
 Problem statement, adopted verbatim 2026-09-03, use it as written:
