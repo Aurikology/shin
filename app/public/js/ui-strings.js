@@ -252,6 +252,11 @@ const EN = {
      shows, in its own position, with its price intact; this is the heads-up,
      and it names which row so it is a heads-up and not a puzzle. */
   grounded_no_link: (f) => `No link for this one: ${f.name}`,
+  /* 2026-09-15, Jamin: "Having a response that is not checked is infinitely
+     better than... told the app doesn't know". The label, not a refusal. */
+  grounded_unchecked: 'From a web search. Not checked by Shin.',
+  grounded_size_assumed: 'Size not known, so this compares at the size most stores listed.',
+  cam_unchecked_answer: (f) => `Best match, not checked: ${f.label}`,
 
   /* ------------------------------------------------------- the price line
    * The zone words name the range the USER set. They are never Shin's
@@ -600,6 +605,9 @@ const FR = {
    * coup serait le "modifier". */
   grounded_heading: 'Trouvé par Google',
   grounded_no_link: (f) => `Pas de lien pour celui-ci : ${f.name}`,
+  grounded_unchecked: 'Trouvé par une recherche web. Pas vérifié par Shin.',
+  grounded_size_assumed: 'Format inconnu, donc la comparaison se fait au format que la plupart des magasins affichent.',
+  cam_unchecked_answer: (f) => `Meilleure correspondance, pas vérifiée : ${f.label}`,
 
   /* ------------------------------------------------------- la ligne des prix
    * Les mots des zones nomment la limite que l'UTILISATEUR a fixee. Jamais

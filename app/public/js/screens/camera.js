@@ -688,8 +688,11 @@ function groundedSlot() {
 function fillGrounded(slot, v) {
   const container = slot.querySelector('[data-grounded-slot]');
   if (!container) return;
+  const label = v.identity?.label;
   mountGrounded(container, v.grounded, {
-    shelfLabel: `${v.identity?.label ?? ''}, ${cad(v.askingCents)}`,
+    // A refusal can arrive with no identity and no price; the gauge's own
+    // label for the item is used then, rather than ", $NaN".
+    shelfLabel: label && Number.isFinite(v.askingCents) ? `${label}, ${cad(v.askingCents)}` : null,
   });
 }
 
@@ -1133,10 +1136,14 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
           ${shinSay('unknown', titleKey, titleFacts, { size: 'face-verdict' })}
         </div>
         ${mine}
+        ${/* 2026-09-15: an unchecked answer is still the answer, shown first. */ ''}
+        ${scenario?.unchecked && scenario?.text
+          ? `<p class="said unchecked-answer">${escapeHtml(t('cam_unchecked_answer', { label: scenario.text }))}</p>`
+          : ''}
         <p class="detail">${escapeHtml(isCategory ? categoryShort : renderProse(r.structuredDetail, r.detail))}</p>
         ${repairBlock}
         ${priceRouteBtn(opts.priceRoute)}
-        <p class="itemname">${escapeHtml(r.identity ? r.identity.label : t('cam_no_confident_match'))} &middot; ${
+        <p class="itemname">${escapeHtml(r.identity ? r.identity.label : scenario?.unchecked && scenario?.text ? scenario.text : t('cam_no_confident_match'))} &middot; ${
           /*
            * `refusalLabel` restates the reason as a full sentence, e.g.
            * "Refused. The photo reader took too long." -- exactly the fact
@@ -1157,6 +1164,10 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
         ${r.evidenceNote
           ? `<details class="why"><summary>${escapeHtml(t('cam_why'))}</summary><p class="detail">${escapeHtml(r.evidenceNote)}</p></details>`
           : ''}
+        ${/* The search's prices and reviews, on a refusal too (2026-09-15):
+             our own engine refusing for want of sellers must not hide what the
+             search found. Still its own section, below Shin's evidence. */ ''}
+        ${groundedSlot()}
         ${/*
              Below the fold, the same place the verdict keeps it, and for the
              same reason: the rows arrive after the sheet does, so the reflow
@@ -2629,6 +2640,23 @@ export default {
        * slice of that same catalogue, so it cannot know better. Asking it there
        * would only spend time to be told the same thing.
        */
+      /*
+       * 2026-09-15: a code the catalogue does not know, NAMED BY A WEB SEARCH,
+       * goes on to be priced as that name, labelled unchecked. Jamin: "Having
+       * a response that is not checked is infinitely better than having the
+       * user scan something, wait 10 seconds, only to get told the app
+       * doesn't know".
+       */
+      if (id && !id.product && id.unchecked?.label) {
+        return {
+          id: null,
+          text: id.unchecked.label,
+          category: id.category ?? null,
+          gtin: code,
+          unchecked: true,
+        };
+      }
+
       if (id && id.catalogueUp && !id.product) return null;
 
       if (id?.product) {
@@ -3124,6 +3152,8 @@ export default {
             swapCode,
             askingCents,
           });
+          // What the web search found, on the refusal too.
+          fillGrounded(slot, result);
           playRefusalLanding(slot);
           /* Not awaited, exactly as on the verdict path: the refusal is the
              answer and must not wait on a second lookup. It is also the whole
@@ -3228,6 +3258,25 @@ export default {
       if (id?.failure === 'offline') {
         void enqueuePhotoCapture(crop);
         showPhotoRefusal('no_source_response', say('cam_photo_offline'));
+        return;
+      }
+
+      /*
+       * 2026-09-15: whatever the model read is the answer when the catalogue
+       * cannot match it, labelled unchecked, and it goes straight on to the
+       * price like any other identity. Never "we do not have it" when there is
+       * a reading to show.
+       */
+      if (!id?.product && id?.unchecked?.label) {
+        track('unchecked_answer', { source: 'photo' });
+        openPad({
+          id: null,
+          text: id.unchecked.label,
+          category: id.category ?? null,
+          gtin: null,
+          unchecked: true,
+          notThisQuery: null,
+        });
         return;
       }
 

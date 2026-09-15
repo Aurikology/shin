@@ -363,17 +363,57 @@ test('grounded.js assigns innerHTML exactly once, and assigns the wire value wit
   );
 });
 
-test('with no Search Suggestions the whole block refuses to render, rather than rendering without them', async () => {
+/*
+ * REVERSED 2026-09-15. This test used to require that a block with no Search
+ * Suggestions render nothing. Jamin's ruling that day ("don't prevent
+ * something from functioning just because of legal issues") made the answer
+ * outrank the term, so the prices and reviews now render without them.
+ */
+test('with no Search Suggestions the block still renders its prices and reviews, with no empty suggestions box', async () => {
   for (const missing of [undefined, null, '', 0]) {
     const wire = WIRE();
     wire.suggestionsHtml = missing;
     const { root } = await renderRoot(wire);
-    assert.equal(
-      root,
-      null,
-      'a grounded block rendered with no Search Suggestions in it. Showing them is the term Google REQUIRES rather than merely permits, so losing the whole answer is the correct failure and keeping the prices is not.',
-    );
+    assert.ok(root, 'a grounded block with no Search Suggestions was thrown away');
+    assert.equal(root.querySelectorAll('.g-offer').length, 3);
+    assert.equal(root.querySelector('.g-suggestions'), null);
   }
+});
+
+test('the price line gets the gauge zone edges, the unchecked label and the borrowed-size note sit outside the root', async () => {
+  const wire = WIRE();
+  wire.block.checked = false;
+  wire.block.verdict.sizeAssumed = true;
+  const { section } = await renderSection(wire);
+  const zones = section.querySelectorAll('.pl-zone');
+  assert.ok((zones[0].getAttribute('style') ?? '').includes('width:37.5%'), 'the under-your-line zone ignored zoneUnderBoundary');
+  const root = section.querySelector('[data-grounded]');
+  const unchecked = section.querySelector('.grounded-unchecked');
+  assert.ok(unchecked, 'an unchecked block carried no label saying so');
+  assert.ok(section.querySelector('.grounded-size-assumed'));
+  assert.ok(!root.querySelectorAll('p').some((p) => p === unchecked), 'the label is inside the root');
+});
+
+test('a barcode block names the product fact by fact, and a fact with no link gets the heads-up', async () => {
+  const wire = WIRE();
+  wire.block = {
+    kind: 'barcode',
+    checked: false,
+    name: 'Tidewater Citrus Soda',
+    facts: [
+      { field: 'name', value: 'Tidewater Citrus Soda', url: 'https://tidewater.example.ca/p', hasLink: true },
+      { field: 'size', value: '2 L', url: null, hasLink: false },
+    ],
+    offers: [],
+    reviews: [],
+  };
+  const { section } = await renderSection(wire);
+  const facts = section.querySelectorAll('.g-fact');
+  assert.equal(facts.length, 2);
+  assert.equal(facts[0].querySelector('a').getAttribute('href'), 'https://tidewater.example.ca/p');
+  const nolink = section.querySelector('.grounded-nolink').childNodes;
+  assert.equal(nolink.length, 1);
+  assert.match(nolink[0].textContent, /2 L/);
 });
 
 /* =========================================================== the caching = */
@@ -562,10 +602,12 @@ test('the verdict sheet actually reaches the grounded block', () => {
   assert.match(camera, /import \{ mountGrounded \} from '\.\.\/grounded\.js';/);
   assert.match(camera, /data-grounded-slot/, 'the sheet has no container to mount into.');
   // Both mount sites: the scan itself, and the repaint the save does.
+  // Three since 2026-09-15: the refusal sheet mounts it too, so a refusal
+  // for want of sellers still shows what the web search found.
   assert.equal(
     (camera.match(/(?<!function )fillGrounded\(slot, \w+\);/g) ?? []).length,
-    2,
-    'one of the two verdictSheet renders no longer mounts the grounded block, so saving an item makes the Gemini answer disappear.',
+    3,
+    'one of the three sheet renders (the verdict, its repaint on save, the refusal) no longer mounts the grounded block.',
   );
   // Two sections, never one list: the grounded slot sits outside provenance().
   assert.ok(

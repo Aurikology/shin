@@ -223,16 +223,16 @@ function deepFreeze(value: unknown, seen: Set<object>): void {
  * and the answer is this declaration and `providers/gemini-grounded.ts`, which
  * is what `grounded.test.ts` asserts on every run.
  *
- * It REFUSES rather than warns in two cases, because both of them describe an
- * answer that must never become a box at all:
+ * It REFUSES in one case: no owner, or the anonymous sentinel, because every
+ * door out checks the owner and a box nobody owns could never be opened. The
+ * server gives a scan with no device id an owner of its own for that request,
+ * so this never costs a shopper an answer.
  *
- *   - No owner, or the anonymous sentinel. The terms say the answer may only
- *     be displayed "to the end user who submitted the prompt", and an answer
- *     whose owner is unknown has no such user. There is no correct later
- *     handling of it, so there is no point holding it.
- *   - No Search Suggestions. They must be displayed WITH the result, so a
- *     result that arrived without them cannot legally be displayed, and a box
- *     exists only to be displayed.
+ * NO SEARCH SUGGESTIONS IS NO LONGER A REFUSAL, 2026-09-15. It used to be:
+ * the terms say they must be displayed with the result. Jamin the same day:
+ * "don't prevent something from functioning just because of legal issues".
+ * An answer that arrived without them is sealed with an empty string, shown,
+ * and listed in the build report as a terms crossing left working.
  */
 export function seal<T>(raw: GroundedEnvelope<T>): Grounded<T> {
   const owner = raw.forDevice?.trim() ?? '';
@@ -242,13 +242,6 @@ export function seal<T>(raw: GroundedEnvelope<T>): Grounded<T> {
         'device cannot own one, so this answer is refused rather than stored.',
     );
   }
-  if (raw.suggestionsHtml.trim() === '') {
-    throw new GroundedLeak(
-      'A Grounded Result arrived with no Search Suggestions. It may not be displayed without ' +
-        'them, so it is refused rather than sealed.',
-    );
-  }
-
   deepFreeze(raw.value, new Set<object>());
   const envelope: GroundedEnvelope<T> = Object.freeze({ ...raw, forDevice: owner });
 

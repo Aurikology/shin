@@ -80,6 +80,15 @@ export interface ProviderRequest {
    * the answer may be stored.
    */
   readonly grounding?: Grounding;
+  /**
+   * The first vendor's own clock inside a `withFallback` pair, in ms. Added
+   * 2026-09-15. Without it one outer clock covered both vendors, so a slow
+   * Gemini used up the whole allowance and the Claude fallback was aborted
+   * before it began: it could only ever rescue a FAST failure. With it, the
+   * primary is abandoned at this mark and the fallback gets what is left of the
+   * outer clock. Ignored by a provider that is not a pair.
+   */
+  readonly vendorTimeoutMs?: number;
 }
 
 /**
@@ -193,7 +202,7 @@ export function withFallback(primary: Provider, fallback: Provider): Provider {
     name: primary.name + '+fallback:' + fallback.name,
     async send<T>(request: ProviderRequest): Promise<ProviderResponse<T>> {
       try {
-        return await primary.send<T>(request);
+        return await sendWithin<T>(primary, request, request.vendorTimeoutMs);
       } catch (primaryErr) {
         if (NO_SECOND_VENDOR.has(classifyProviderError(primaryErr))) throw primaryErr;
         try {
@@ -215,6 +224,31 @@ export function withFallback(primary: Provider, fallback: Provider): Provider {
       }
     },
   };
+}
+
+/** One vendor's attempt with its own clock, still honouring the caller's signal. */
+async function sendWithin<T>(
+  provider: Provider,
+  request: ProviderRequest,
+  ms: number | undefined,
+): Promise<ProviderResponse<T>> {
+  if (ms === undefined || !Number.isFinite(ms) || ms <= 0) return provider.send<T>(request);
+  const controller = new AbortController();
+  const onOuterAbort = () => controller.abort();
+  request.signal.addEventListener('abort', onOuterAbort, { once: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new ProviderError('model_timeout', `${provider.name} gave no answer in ${ms} ms`));
+    }, ms);
+  });
+  try {
+    return await Promise.race([provider.send<T>({ ...request, signal: controller.signal }), expired]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+    request.signal.removeEventListener('abort', onOuterAbort);
+  }
 }
 
 /**
