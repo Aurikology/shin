@@ -21,8 +21,8 @@ A session that has told its human everything under a day adds a line to that day
 ### What changed
 
 - Jamin set nine rules for Shin's Gemini path, in his own words, as the highest priority in the
-  repo: one Gemini call per scan returns the product, prices, reviews and the price math; the
-  barcode goes to Gemini; prices never come from Shin's own data; everything a user does in the app
+  repo: one Gemini call per scan returns the product, prices, reviews and the price math; a
+  barcode scan sends only the digits as text and a photo scan sends the image; prices never come from Shin's own data; everything a user does in the app
   is recorded; legal issues are marked as issues and never block a feature; every scan ends with an
   answer; Claude does not take over from Gemini; the Gemini key is used only for live phone tests;
   the decisions from the night of the switch rank highest.

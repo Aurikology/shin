@@ -9,8 +9,8 @@ narrative.*
 
 Read `docs/jamin-gemini-rules.md` first; it outranks everything below and every other doc. Two
 jobs: (1) Aurik performs a cleanup of the repo for anything that contradicts those rules (Jamin's
-ask); (2) the Gemini path is rebuilt as one call per scan, image and barcode in, product, prices,
-reviews and price math out, nothing priced from Shin's own data, everything recorded.
+ask); (2) the Gemini path is rebuilt as one call per scan (barcode scan: digits as text, no image;
+photo scan: the image), product, prices, reviews and price math out, nothing priced from Shin's own data, everything recorded.
 
 ---
 

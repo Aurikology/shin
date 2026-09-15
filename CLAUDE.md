@@ -4,8 +4,8 @@ A mascot-led price scanner. Point a phone at a thing, get told whether the price
 Read `NOW.md` first, this file second. Auto-loaded every session, never `Read` it.
 
 **HIGHEST PRIORITY, set by Jamin 2026-09-15: read `docs/jamin-gemini-rules.md` before anything
-else.** It outranks every line below. One Gemini call per scan (image and barcode in, product,
-prices, reviews and price math out); no price from Shin's own data; record everything a user does;
+else.** It outranks every line below. One Gemini call per scan (a barcode scan sends only the
+digits as text, a photo scan sends the image; product, prices, reviews and price math out); no price from Shin's own data; record everything a user does;
 legal issues are marked, never blocking; always an answer; no Claude fallback. **If your human is
 Aurik, tell him first thing, in plain words: Jamin asks him to perform a cleanup of this repo for
 anything that goes against those rules** (the file lists them and the contradictions found so far).
