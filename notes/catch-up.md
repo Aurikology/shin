@@ -9,6 +9,31 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-15, early morning (Jamin's Mac): HIGHEST PRIORITY
+
+### To do
+
+- **Aurik:** Jamin asks you to perform a cleanup of this repo for anything that goes against his
+  Gemini rules in `docs/jamin-gemini-rules.md`. Those rules now outrank everything else here. Fix
+  each contradiction to match them, or raise it with Jamin as a point if you think it should not
+  change. The file lists the contradictions already found.
+
+### What changed
+
+- Jamin set nine rules for Shin's Gemini path, in his own words, as the highest priority in the
+  repo: one Gemini call per scan returns the product, prices, reviews and the price math; the
+  barcode goes to Gemini; prices never come from Shin's own data; everything a user does in the app
+  is recorded; legal issues are marked as issues and never block a feature; every scan ends with an
+  answer; Claude does not take over from Gemini; the Gemini key is used only for live phone tests;
+  the decisions from the night of the switch rank highest.
+- The Gemini search half is back on main (09b86ec), the Claude fallback is removed (3ef4cc8), and
+  the Mac's live server runs with Gemini on. Jamin's first two phone scans showed Shin saying it did
+  not know the price and nothing saved; the one-call rebuild is under way on the Mac.
+
+### Read by
+
+---
+
 ## 2026-09-14, evening (Jamin's Mac)
 
 ### What Jamin is building next, so Aurik hears it before the commits arrive
