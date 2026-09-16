@@ -75,7 +75,43 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
-## Seven of ten grounded searches came back with no price at all, 2026-09-16
+## The price harness exists now, and it found the thing that matters most, 2026-09-16
+
+`identify/eval/price-truth.ts`, new. The eval beside it measures whether the product was
+IDENTIFIED; nothing measured whether the number under it is TRUE, which is the product. Ground truth
+is `spine/data/observations.json` -- seven products priced by hand off public Canadian pages on
+2026-09-03, seller by seller, in cents, promotions marked. Small and real. Nothing grounded is
+written to disk: counts and medians are computed in memory and printed.
+
+**Coverage 6/7.** Six of the seven got at least one Canadian price. **This corrects the section
+below**, which read seven-of-ten with no price and drew that from a sample of obscure catalogue rows
+(a Neilson creamer, an Italissima noodle, a Massimo panettone). Coverage tracks how prominent the
+product is, not how the question is asked: mainstream products answer, obscure catalogue rows do
+not. Both numbers are real; the earlier conclusion was drawn too wide from the narrower one.
+
+**D-113, and it is the one to fix before a tester sees a price.** Kraft Dinner 225g came back at
+**+473%**: one Walmart offer of $9.97 against a hand-priced truth of $1.74, carrying confident
+metadata -- `sizeValue 225 g`, `packCount 1`, `dealKind clearance`. So it is not a pack-size mix-up
+that the unit scaling would catch. It is simply wrong, and it arrived alone.
+
+`computeGauge` took the median of one offer, which is that offer, and drew a line reading
+`under_your_line` at **-83%** -- an ordinary $1.74 presented to the shopper as far below the going
+rate. **Shin's own engine has guarded this since the pilot**: `LONE_CLAIM_FLOOR = 0.5` and
+`LONE_CLAIM_CEILING = 2.5` reject a lone claim outside half to two-and-a-half times the going rate
+(`spine/src/spine.ts:921-922`, applied at `:1130`). The grounded gauge has no floor, no ceiling and
+no minimum offer count.
+
+Not fixed tonight on purpose: the shape of the guard is a product decision -- refuse a line under N
+offers, port the lone-claim band across, or both -- and it is Aurik's. **It also bears on the third
+raised point:** the engine rules 3 and 6 would retire is the one that already has this guard.
+
+Also closed: **D-112**, the eval refusing a paid key with a message telling the reader to use a paid
+key. Found by doing what the message said.
+
+Error figures elsewhere in that run (Tide +9%, oranges -8%) mix model error with thirteen days of
+real price drift and cannot separate them. Coverage and the lone-offer failure do not depend on
+drift, which is why they are the two to read.
+## Seven of ten grounded searches came back with no price at all -- CORRECTED BELOW, the sample was skewed, 2026-09-16
 
 Measured on Jamin's grounding key, ten real calls, no retries. This was not what was being looked
 for -- the question was whether a barcode-only ask yields fewer offers than one carrying text -- and

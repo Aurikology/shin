@@ -741,8 +741,21 @@ function providerNamed(): string {
  * refuses to start when it sees this variable, which is the other half of the
  * same rule: a tester's photograph must never reach a free key.
  */
+/**
+ * The tier has been NAMED, either way. D-112, 2026-09-16.
+ *
+ * This used to return true only for `free`, while the refusal it gates printed
+ * "Set it to `free` ... or to `paid`". So a paid key -- the only kind that can
+ * ground, and therefore the only kind that can measure the thing the eval exists
+ * to measure -- was refused by a message telling the reader to do what it had
+ * just rejected. Found by doing exactly what the message said.
+ *
+ * The point of the variable is that the run states which kind of key it is
+ * spending before it spends it, not that the answer is `free`.
+ */
 function freeTierAcknowledged(): boolean {
-  return process.env.SHIN_GEMINI_TIER?.trim().toLowerCase() === 'free';
+  const tier = process.env.SHIN_GEMINI_TIER?.trim().toLowerCase();
+  return tier === 'free' || tier === 'paid';
 }
 
 async function hasCredentials(): Promise<boolean> {
