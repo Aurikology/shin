@@ -733,6 +733,8 @@ export class GeminiGroundedProvider implements GroundedProvider {
         fetchedAt: new Date().toISOString(),
         provider: 'gemini',
         searchQueries: fetched.searchQueries.length,
+        model: fetched.model,
+        usage: fetched.usage,
       }),
       usage: fetched.usage,
       provider: this.name,
@@ -1208,6 +1210,10 @@ export class GeminiGroundedLookup {
       fetchedAt: new Date(this.#now()).toISOString(),
       provider: 'gemini',
       searchQueries: fetched.searchQueries.length,
+      // What the call cost, carried so the app can price it without ever
+      // touching what came back. Rule 4.
+      model: fetched.model,
+      usage: fetched.usage,
     });
   }
 
@@ -1270,6 +1276,8 @@ export class GeminiGroundedLookup {
       fetchedAt: new Date(this.#now()).toISOString(),
       provider: 'gemini',
       searchQueries: fetched.searchQueries.length,
+      model: fetched.model,
+      usage: fetched.usage,
     });
   }
 }

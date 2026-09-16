@@ -86,6 +86,8 @@
  * this file fails safe: `seal` would stop refusing anonymous scans, which is
  * why this is stated here rather than left to be noticed.
  */
+import type { TokenUsage } from './provider.ts';
+
 export const ANONYMOUS_DEVICE = 'unattributed';
 
 /** A Grounded Result reached somewhere it is not allowed to go. */
@@ -122,6 +124,23 @@ export interface GroundedEnvelope<T> {
   readonly fetchedAt: string;
   readonly provider: 'gemini';
   readonly searchQueries: number;
+  /**
+   * The model id the request named, e.g. `gemini-3.5-flash-lite`. Needed to
+   * price the call at all, since the two models in use bill at different
+   * rates, and needed for a second reason: a cost figure with no model beside
+   * it cannot be compared with one taken after the model changed.
+   */
+  readonly model: string;
+  /**
+   * What the call spent, as the provider reported it. MEASUREMENT OF OUR OWN
+   * REQUEST, not analysis of a Grounded Result -- the same argument
+   * `provenanceOf` already makes for counting searches, and it holds at least
+   * as plainly here: a token count describes the size of our envelope and says
+   * nothing whatever about what any Link or Suggestion contained, which is the
+   * clause that matters. Rule 4 asks that everything be recorded, and what a
+   * scan cost is part of everything.
+   */
+  readonly usage: TokenUsage | null;
 }
 
 /** What crosses to the one device that asked. `block` is the frozen original. */
@@ -363,9 +382,7 @@ export function discard<T>(box: Grounded<T>): void {
  * Suggestion or Link anybody interacted with, which is the clause that matters
  * here.
  */
-export function provenanceOf<T>(
-  box: Grounded<T>,
-): { forDevice: string; fetchedAt: string; promptId: string; provider: 'gemini'; searchQueries: number } {
+export function provenanceOf<T>(box: Grounded<T>): GroundedProvenance {
   const envelope = envelopeOf(box);
   return {
     forDevice: envelope.forDevice,
@@ -373,5 +390,23 @@ export function provenanceOf<T>(
     promptId: envelope.promptId,
     provider: envelope.provider,
     searchQueries: envelope.searchQueries,
+    model: envelope.model,
+    usage: envelope.usage,
   };
+}
+
+/**
+ * What a caller may know about a grounded call without being able to read one
+ * word of what came back. Named as a type because it now has a consumer --
+ * `app/server.ts` prices the call from it -- and an inline shape that two
+ * packages both depend on is a shape that drifts.
+ */
+export interface GroundedProvenance {
+  readonly forDevice: string;
+  readonly fetchedAt: string;
+  readonly promptId: string;
+  readonly provider: 'gemini';
+  readonly searchQueries: number;
+  readonly model: string;
+  readonly usage: TokenUsage | null;
 }

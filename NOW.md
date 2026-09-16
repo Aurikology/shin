@@ -75,6 +75,45 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## Rule 4: what a scan costs is recorded now, not estimated, 2026-09-16
+
+Jamin's rule 4 is *"we will record EVERYTHING that happens when the user interacts with the app
+which was asked for multiple times but never done."* What a call cost was one of the parts nobody
+was keeping, and after D-117 the functions to work it out finally worked, so this closes the loop.
+
+**Three new columns on `scan`, migration 10:** `grounded_cost_cents`, `grounded_model`,
+`grounded_queries`. Written by `keepGroundedForOwner`, which already had the box and the row.
+
+**They do NOT overwrite `model_cost_cents`,** and the distinction matters: that column holds
+`estimatedCostCents`, a flat per-tier figure typed into a table and charged identically whatever the
+vendor did, for the IDENTIFICATION call. These three are the grounded PRICE search, measured from
+what Google reported. A scan makes both calls, and collapsing them would destroy the ability to say
+which half costs what -- which is the exact question the flash-lite-versus-flash decision turns on.
+
+**REAL and not INTEGER**, asserted by a test: one call costs 0.2238 of a cent, and an integer column
+would have recorded every scan as free. That is D-117's mistake one layer down and it was designed
+out rather than discovered.
+
+**The recorded figure is a FLOOR, said here rather than found later.** `alreadyThisMonth` is passed
+as 0 because this repo has no meter for how many grounded searches a month has used, and the first
+5,000 are free. `grounded_queries` beside it is what a real meter would be built from.
+
+**Not analysis of a Grounded Result**, and the argument is the one `provenanceOf` already makes for
+counting searches: every figure describes OUR request and OUR bill. A token count is the size of the
+envelope, never a fact about any Link or Suggestion in it. The cost columns also outlive
+`grounded_json`'s two-year clock on purpose, so a cost history survives the reaper.
+
+**D-118 fell out of building it.** `app/tsconfig.json` does not typecheck `test/`, so when
+`GroundedModule` gained a fourth method, three test doubles silently stopped implementing it, the
+typechecker stayed clean, and 804 tests passed -- because the caller catches, so the missing method
+just wrote nulls. The stubs are fixed and the new tests assert real numbers; **adding `test/**` to
+the include is the real fix and is deliberately left for its own pass**, because it would compile
+about forty never-compiled files at once.
+
+**Counted:** app 810 pass / 0 fail, identify 293 / 0, spine 223 / 0, typecheck clean in all three.
+**Still never run against a live key**, so no real cost has been recorded yet -- what exists is the
+path, proven on fixtures.
+
 ## What the better model would actually cost: 1.83x, and that is a fifth of a cent, 2026-09-16
 
 **The 2.5x figure quoted earlier today was wrong** and it was the number the model decision was

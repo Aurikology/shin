@@ -69,7 +69,16 @@
 
 import { activeScanStore, openScanStore } from './scans.ts';
 import { logError } from './errlog.ts';
-import { discard, historyText, toWire, type Grounded, type GroundedWire } from '../../identify/src/grounded.ts';
+import {
+  discard,
+  historyText,
+  provenanceOf,
+  toWire,
+  type Grounded,
+  type GroundedProvenance,
+  type GroundedWire,
+} from '../../identify/src/grounded.ts';
+import { realCostCents } from './model-cost.ts';
 
 /*
  * THE BOX ITSELF IS ANOTHER PACKAGE'S. `identify/src/grounded.ts` owns the
@@ -90,6 +99,12 @@ export interface GroundedModule {
   /** The only text that may be written to disk. */
   historyText<T>(box: Grounded<T>, owner: string): string;
   discard<T>(box: Grounded<T>): void;
+  /**
+   * The metadata-only door: who asked, when, which model, what it spent. It
+   * cannot reach one word of what came back, which is why it is safe to call
+   * on the way to a database write.
+   */
+  provenanceOf<T>(box: Grounded<T>): GroundedProvenance;
 }
 
 /**
@@ -112,7 +127,7 @@ export const GROUNDED_INTERIM_MINUTES = 60;
 
 /* ------------------------------ the doors seam --------------------------- */
 
-const REAL_DOORS: GroundedModule = { toWire, historyText, discard };
+const REAL_DOORS: GroundedModule = { toWire, historyText, discard, provenanceOf };
 
 let moduleForTests: GroundedModule | null = null;
 
@@ -179,6 +194,39 @@ export function keepGroundedForOwner(
      */
     const text = groundedModule().historyText(box, owner);
     /*
+     * WHAT THE CALL COST, RECORDED RATHER THAN ESTIMATED. Rule 4, and the one
+     * part of a scan nobody was keeping.
+     *
+     * `provenanceOf` reads the envelope and cannot reach the answer, so this
+     * is measurement of our own request on the way past -- the same argument
+     * that door already makes for counting searches. Nothing here describes a
+     * Link or a Suggestion.
+     *
+     * `alreadyThisMonth` is 0, which makes this the OPTIMISTIC figure: the
+     * first 5,000 grounded searches in a calendar month are free, and this
+     * file has no meter for how many have gone. `searchCostCents` names the
+     * argument for exactly that reason. So a recorded cost is a floor, and the
+     * `grounded_queries` column beside it is what a real meter would be built
+     * from later. Said here rather than discovered from a suspiciously low
+     * total.
+     */
+    let costCents: number | null = null;
+    let model: string | null = null;
+    let queries: number | null = null;
+    try {
+      const provenance = groundedModule().provenanceOf(box);
+      model = provenance.model || null;
+      queries = Number.isInteger(provenance.searchQueries) ? provenance.searchQueries : null;
+      costCents = realCostCents(provenance.model, provenance.usage, provenance.searchQueries, 0);
+    } catch (err) {
+      /*
+       * A cost we could not read must never cost the shopper their history.
+       * The text is the point of this function; the three columns beside it
+       * are telemetry and a null in them is an honest absence.
+       */
+      logError({ where: 'grounded.cost', scanId, deviceId: owner, err });
+    }
+    /*
      * `grounded_at` IS THE FETCH TIME AND NEVER `scanned_at`. A scan re-priced
      * a year after it was taken starts its own two-year clock, because the
      * clock the term sets runs from when we received the Grounded Result.
@@ -188,8 +236,12 @@ export function keepGroundedForOwner(
      * actually writes, so there is no window between them.
      */
     const result = store.db
-      .prepare('UPDATE scan SET grounded_json = ?, grounded_at = ?, grounded_shown = 0 WHERE id = ? AND device_id = ?')
-      .run(text, now.toISOString(), scanId, owner);
+      .prepare(
+        'UPDATE scan SET grounded_json = ?, grounded_at = ?, grounded_shown = 0, ' +
+          'grounded_cost_cents = ?, grounded_model = ?, grounded_queries = ? ' +
+          'WHERE id = ? AND device_id = ?',
+      )
+      .run(text, now.toISOString(), costCents, model, queries, scanId, owner);
     return Number(result.changes) > 0;
   } catch (err) {
     store.dropped += 1;

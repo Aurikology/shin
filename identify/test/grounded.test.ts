@@ -166,6 +166,8 @@ function envelope<T>(value: T, over: Partial<GroundedEnvelope<T>> = {}): Grounde
     promptId: 'prices_reviews_description',
     fetchedAt: '2026-09-14T12:00:00.000Z',
     provider: 'gemini',
+    model: 'gemini-3.5-flash-lite',
+    usage: null,
     searchQueries: 2,
     ...over,
   };

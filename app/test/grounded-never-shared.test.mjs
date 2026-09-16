@@ -203,6 +203,17 @@ const fakeModule = {
     return box.text;
   },
   discard() {},
+  provenanceOf() {
+    return {
+      forDevice: 'device-A',
+      fetchedAt: '2026-09-16T00:00:00.000Z',
+      promptId: 'prices_reviews_description',
+      provider: 'gemini',
+      searchQueries: 0,
+      model: 'gemini-3.5-flash-lite',
+      usage: null,
+    };
+  },
 };
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-grounded-'));

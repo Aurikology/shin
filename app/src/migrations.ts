@@ -380,6 +380,47 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
       `);
     },
   },
+  {
+    version: 10,
+    name: 'what a grounded call cost, recorded rather than estimated',
+    apply(db) {
+      /*
+       * RULE 4, AND THE ONLY PART OF A SCAN NOBODY WAS KEEPING.
+       *
+       * `model_cost_cents` already exists and is NOT this. That column holds
+       * `estimatedCostCents` -- a flat per-tier figure typed into
+       * `model-cost.ts` and charged identically whatever the vendor did. It is
+       * an estimate of the IDENTIFICATION call and it is not measured.
+       *
+       * These three are the grounded PRICE search, measured from what Google
+       * actually reported: the model that answered, the tokens it billed, and
+       * how many searches it ran. Separate columns rather than overwriting the
+       * estimate, because a scan makes both calls and collapsing them would
+       * lose the ability to say which half costs what -- which is the exact
+       * question the flash-lite-versus-flash decision turns on.
+       *
+       * WHY THIS IS NOT ANALYSIS OF A GROUNDED RESULT: every figure here
+       * describes OUR request and OUR bill. A token count is the size of the
+       * envelope, not a fact about any Link or Suggestion inside it, and
+       * `grounded.ts`'s `provenanceOf` already makes exactly this argument for
+       * counting searches. Nothing here can be joined back to content: the
+       * text lives in `grounded_json` under its own two-year clock and these
+       * columns outlive it on purpose, so a cost history survives the reaper.
+       *
+       * REAL AND NOT INTEGER for the cents, because one call costs a fraction
+       * of one cent -- 0.2238 of a cent on flash-lite for a typical answer --
+       * and an integer column would record every scan as costing zero, which
+       * is the same class of mistake as D-117 one layer down.
+       *
+       * Nullable like every column added after the first release. A scan that
+       * made no grounded call has no grounded cost, and that is what a null
+       * says; a zero would be a measurement.
+       */
+      addColumnIfMissing(db, 'scan', 'grounded_cost_cents', 'REAL');
+      addColumnIfMissing(db, 'scan', 'grounded_model', 'TEXT');
+      addColumnIfMissing(db, 'scan', 'grounded_queries', 'INTEGER');
+    },
+  },
 ];
 
 /** What `schema_version` says this database is at. 0 means nothing has run. */
