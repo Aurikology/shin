@@ -22,15 +22,15 @@ Nothing on this list is started on purpose. Leftover code from a build that was 
 ## B. Talking to Gemini
 
 11. Build on the Interactions API (Google: "we recommend the Interactions API for all new development"; generateContent is "legacy"), with the `@google/genai` SDK or plain REST. Key in the `x-goog-api-key` header, never in the URL.
-12. A Gemini provider that fits the existing `Provider` interface (`identify/src/provider.ts:111`) and is chosen by `makeProvider` (`identify/src/model.ts:807`) when `SHIN_MODEL_PROVIDER=gemini` and the key is set.
-13. Fallback to the Claude path when a Gemini call fails, and unchanged Claude behaviour when there is no key.
+12. A Gemini provider that fits the existing `Provider` interface (`identify/src/provider.ts:111`) and is chosen by `makeProvider` (`identify/src/model.ts:839`, line corrected 2026-09-15 — was `:807`) when `SHIN_MODEL_PROVIDER=gemini` and the key is set.
+13. **Superseded by rule 7** ("Claude does not take over"): no Claude fallback when a Gemini call fails after being selected (`identify/src/model.ts:829-833`, "NO CLAUDE BEHIND GEMINI, 2026-09-15"). Built as a startup refusal instead when the provider is named with no key — see item 81. Unchanged Claude behaviour when `SHIN_MODEL_PROVIDER` is genuinely unset stands, and is not a fallback in this sense: Gemini was never selected (`makeProvider`, `identify/src/model.ts:839-845`).
 14. Make the live photo route use the provider `makeProvider` chooses; today `modelOnce` (`app/server.ts:906`) builds an Anthropic client by hand, so the provider setting is ignored there.
 15. Ungrounded photo identification (no search tool): product name, brand, size value, size unit, pack count, category, whether it is a spec-variant product, model number and specs when visible. Structured output. Storable.
 16. Grounded barcode lookup for a barcode not in the catalogue: product name, brand, size, with source links per fact. [8]
 17. Grounded prices and reviews request: per offer retailer, price CAD, url, size value, size unit, pack count, model number, specs, condition; reviews rating, count, short summary, url. Nothing else. [4.1]
 18. Instructions on every request: Shin's voice, user's language (English or French), Canadian stores and CAD only, short lengths, fixed JSON layout. [2.3]
-19. Verdict request: resubmit the grounded prices plus the shelf price and the user's thresholds with the code execution tool on, asking Gemini to run Shin's fixed function unchanged. [4.3]
-20. Check that the code Gemini executed (`executableCode.code`) matches Shin's function; if not, no verdict. [4.3]
+19. **Done differently, locally.** No resubmission request is wired. `computeGauge` (`identify/src/gauge.ts:437`) runs synchronously inside `priceLineFor` (`identify/src/providers/gemini-grounded.ts:1180`), called from `lookupPrice` (`:1331`, used at `:1342`) — the same process, no second Gemini call. `verdictResubmissionRequest` (`identify/src/providers/gemini-grounded.ts:602`) and `GeminiGroundedProvider.verdict` (`:960`) exist in the file but have no production caller; only `identify/test/gemini-grounded.test.ts` and the fixture `identify/test/fixtures/gemini-website/piece5-verdict-resubmission.json` call them. Rule 1 ("one Gemini call per scan") forbids the design this item described. [4.3]
+20. **Done differently, locally.** `codeMatchesGauge` (`identify/src/gauge.ts:810`) does this comparison but has no production caller either, since nothing sends the function to Gemini to execute in production; `priceLineFor` uses the local `computeGauge` result directly and unchecked against any executed code. [4.3]
 21. Set image resolution for photos (Gemini 3: low 280, medium 560, high 1120 tokens per image) and keep requests under the 20 MB inline limit; send jpeg, png, webp or heic. Decided 2026-09-14: not picked by guess; test all three levels against real return quality and cost, and keep the option of offering a lower resolution on a lower-priced Shin tier.
 21b. Trust rule for an ungrounded read (barcode-to-photo pairing or a bare photo identification): decided 2026-09-14, never trusted on one frame and never re-checked by a second model call; the check is agreement across multiple camera frames of the same item.
 22. Set the thinking level per request (`thinkingLevel`; thinking tokens bill at the output rate).
@@ -41,7 +41,7 @@ Nothing on this list is started on purpose. Leftover code from a build that was 
 
 ## C. The fixed verdict function
 
-27. Write the function Gemini runs: median, percent from median, span, positions 0 to 100, zone boundaries, ticks, shelf label. [4.3]
+27. **Done differently, locally.** Written as both `GAUGE_PYTHON_SOURCE` (`identify/src/gauge.ts:567`, the text meant for Gemini's sandbox, unused in production) and `computeGauge` (`identify/src/gauge.ts:437`, the TypeScript twin that is what actually runs, on real grounded prices, inside `priceLineFor`). Median, percent from median, span, positions 0 to 100, zone boundaries, ticks, shelf zone code. [4.3]
 28. Unit conversion inside it: kg, lb, oz to g; L, fl oz to mL; pack count multiplies; per 100 g, per 100 mL, per item. All sizes count. [5]
 29. Offers with no size or a different dimension are excluded from the line and returned as a separate list. [5]
 30. Tech variant handling inside it: same model and price-relevant specs and same condition only; other variants returned with their spec difference and price difference; other conditions returned separately. [6]
@@ -116,7 +116,7 @@ Nothing on this list is started on purpose. Leftover code from a build that was 
 ## J. Docs and records
 
 80. `mac/config.env` example and setup notes: `GEMINI_API_KEY`, `SHIN_MODEL_PROVIDER`, `SHIN_GEMINI_MODEL`, paid tier only.
-81. Add the decision to `docs/decisions.md`, including the fallback entry the leftover `provider.ts` cites but that is not there.
+81. **Rewritten as a rule 7 entry.** Add to `docs/decisions.md`: rule 7 ("Claude does not take over") is built as a startup refusal, not a runtime fallback. `geminiKeyProblem` (`app/server.ts:3358-3360`) refuses to start the server when `SHIN_MODEL_PROVIDER=gemini` and `GEMINI_API_KEY` is empty, naming the missing secret; it joins `startupProblems()`, and `app/server.ts:3371` calls `process.exit(1)` when any startup problem is present. `makeProvider` (`identify/src/model.ts:839-845`) documents that a genuinely unset `SHIN_MODEL_PROVIDER` still returns the Anthropic provider unchanged — that is Claude being the correct provider, not a fallback behind Gemini. A Gemini call that fails after being selected does not fall back to Claude either (`identify/src/model.ts:829-833`).
 82. Update `DEFECTS.md`: D-099 (photo drops the flavour or variant) and D-024 (missing key on the photo path) once fixed; D-096 and D-098 bear on tech identification.
 83. Update `notes/catch-up.md` and the Notion page for Aurik.
 

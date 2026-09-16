@@ -12,7 +12,7 @@ Status: **decided in principle, build stopped part way** (see "Build state" at t
 
 Decisions that follow from it:
 
-- Gemini with Grounding with Google Search replaces Claude for barcode misses and photo identification. The Claude path stays as the fallback when a Gemini call fails or no key is set.
+- Gemini with Grounding with Google Search replaces Claude for barcode misses and photo identification. Rule 7 ("Claude does not take over," `docs/jamin-gemini-rules.md`) means no Claude fallback: with `SHIN_MODEL_PROVIDER=gemini` set and no `GEMINI_API_KEY`, the server refuses to start rather than falling back to Claude (`geminiKeyProblem`, `app/server.ts:3357`, exits at `:3371`), and a Gemini call that fails after being selected surfaces as its own failure rather than a Claude answer (`identify/src/model.ts:833-836`). A genuinely unset `SHIN_MODEL_PROVIDER` is a different case, not covered by rule 7: Gemini was never asked for, so the unchanged Claude path is the correct provider, not a fallback behind it (`makeProvider`, `identify/src/model.ts:838-845`).
 - Barcode first. The camera recommends pointing at the barcode; with no barcode, it moves to a photo and coaches framing.
 - Every Gemini answer is accepted. Anything without a source link gets a short heads-up ("no link for this"), and is still used.
 - Reviews come from Gemini (rating, count, short summary, links).
@@ -108,20 +108,25 @@ Jamin: *"ask the user what their range for a bad, resonable and good price is as
 
 ### 4.3 Who does the math
 
-Our server computing a median from grounded prices would be "analyze". So the verdict uses the allowed resubmission: a second Gemini request resubmits the grounded prices, the shelf price and the user's thresholds with the **code execution** tool on (https://ai.google.dev/gemini-api/docs/code-execution: supported on Gemini 3 Flash models, combinable with Google Search, no extra fee). Jamin: *"gemini can simply calculate something like the median and each step away from the median is a percentage determined by an algorithm and all prices are placed on the line"*.
+Our server computing a median from grounded prices would be "analyze". The plan as written here called this out and proposed the allowed resubmission carve-out: a second Gemini request would resubmit the grounded prices, the shelf price and the user's thresholds with the **code execution** tool on. **That second request was never wired.** Rule 1 ("one Gemini call per scan," `docs/jamin-gemini-rules.md`) forbids the design this section used to describe, and it was never built to run in production anyway: `verdictResubmissionRequest` (`identify/src/providers/gemini-grounded.ts:602`) and `GeminiGroundedProvider.verdict` (`:960`) exist in the file but have no production caller — only `identify/test/gemini-grounded.test.ts` and the fixture `identify/test/fixtures/gemini-website/piece5-verdict-resubmission.json` call them.
 
-Shin writes one fixed function; Gemini runs it unchanged:
+The math runs LOCALLY instead, in `identify/src/gauge.ts`'s `computeGauge` (`:437`), called from `priceLineFor` (`identify/src/providers/gemini-grounded.ts:1180`), which `lookupPrice` (`:1331`) calls at `:1342` and which `app/server.ts:2536` wires into the live price route. This is an acknowledged crossing of the §2.1 "analyze" term above, left working under rule 5 ("legal issues mark, never block"): nothing here blocks the price line, and the resulting block is marked `checked: false` rather than withheld. `identify/src/providers/gemini-grounded.ts:780-784` documents the crossing directly: "the price line is COMPUTED HERE, with `computeGauge` ... Both used to be ruled out by Google's terms (no modifying, no analysing). That is a terms crossing left working on purpose, and it is listed as one."
 
-1. median of the store prices (after unit scaling, section 5)
-2. `pct = (price - median) / median * 100` for every store price and the shelf price
-3. `span = max(max |pct|, 1.5 * good, 1.5 * bad)`, rounded up to the next 5
+`gauge.ts`'s own file header (`:8-13`) still says `computeGauge` "MUST NEVER BE RUN ON A REAL GROUNDED PRICE" and describes production as running `GAUGE_PYTHON_SOURCE` inside Gemini's sandbox — that header is now stale against the wiring above, which runs `computeGauge` on real grounded offers on every priced scan. Not fixed here: this doc only covers `docs/plan-gemini.md` and `docs/gemini-work-list.md`; the header belongs to whichever lane owns `gauge.ts`.
+
+Jamin: *"gemini can simply calculate something like the median and each step away from the median is a percentage determined by an algorithm and all prices are placed on the line"*. **The eight-step algorithm below is accurate to what `computeGauge` actually does** (`identify/src/gauge.ts:437-556`; numbered 0 to 8 in the file's own docstring at `:46-66`), with two corrections against drift:
+
+0. Reduce every offer to its effective price per item (a "2 for $5" prices at $2.50 each, a buy-one-get-one at half), then scale every offer and the shelf item to one base unit per dimension (mass to g, volume to mL, count stays each; pack count multiplies), to a unit price: per 100 g, per 100 mL, or per item.
+1. median of those unit prices (after unit scaling, section 5)
+2. `pct = (unit price - median) / median * 100` for every offer and for the shelf price
+3. `span = ceil(max(max |pct|, 1.5 * under, 1.5 * over) / 5) * 5`
 4. `position = 50 + pct / span * 50` (0 to 100, median at 50)
-5. good boundary `= 50 - good / span * 50`, bad boundary `= 50 + bad / span * 50`
+5. zone boundaries at `50 - under / span * 50` and `50 + over / span * 50`
 6. ticks every 5% (every 10% when span > 30), labelled "-10%", "middle", "+10%"
-7. shelf label: good if `pct <= -good`, bad if `pct > bad`, else reasonable
-8. for tech variants, the price difference of each other variant
+7. **corrected**: the zone CODE the shelf price falls in — `under_your_line`, `middle`, or `over_your_line` (`identify/src/gauge.ts:539`), never the words good, reasonable or bad. The old text here said "good if `pct <= -good`, bad if `pct > bad`, else reasonable," which is the wording Aurik's 2026-09-14 ruling reverted (see `docs/jamin-gemini-rules.md`'s "known contradictions"); the client turns a code into words, this function never does.
+8. **corrected**: every offer not on the line is returned in `excluded` with a stable code saying why (wrong currency, marketplace, member-only, different brand, different organic, no size, different dimension, unknown weight). The old text here said "for tech variants, the price difference of each other variant" — that is a different step that does not exist in `computeGauge`. Tech-variant price differences live in a separate file, `identify/src/gauge-variant.ts`, which has no caller outside its own test (`identify/test/gauge-variant.test.ts`; verified by grep, nothing in `identify/src` or `app/server.ts` imports it). Section 6's tech-variant design is not built.
 
-Gemini returns all of these as JSON. Shin's only check: the code Gemini actually executed is our function (compare the returned code text). If it differs, show prices and reviews without a verdict. The function is unit-tested locally with fake numbers: one store, all prices equal, an outlier, multipack, oz to g, mixed L and mL, missing size, mass vs volume mismatch.
+Shin's only check on a real resubmission, if one is ever wired: the code Gemini actually executed is our function (`codeMatchesGauge`, `identify/src/gauge.ts:810`). That function exists today but, like the resubmission it checks, has no production caller. The function is unit-tested locally with fake numbers: one store, all prices equal, an outlier, multipack, oz to g, mixed L and mL, missing size, mass vs volume mismatch.
 
 Where our own sources have prices, the existing arithmetic verdict runs on those and is shown in its own section with the same line.
 
@@ -191,7 +196,7 @@ Jamin asked whether other items need rules. Proposed handling, awaiting his pick
 
 ## 9. Implementation shape
 
-- New provider behind `SHIN_MODEL_PROVIDER=gemini` with `GEMINI_API_KEY` and `SHIN_GEMINI_MODEL`; with no key, today's Claude path is unchanged; a failed Gemini call falls back to Claude.
+- New provider behind `SHIN_MODEL_PROVIDER=gemini` with `GEMINI_API_KEY` and `SHIN_GEMINI_MODEL`. Rule 7 ("Claude does not take over"): with `SHIN_MODEL_PROVIDER=gemini` and no `GEMINI_API_KEY`, the server refuses to start, naming the missing secret (`geminiKeyProblem`, `app/server.ts:3357`, which joins `startupProblems()` and exits at `:3371`) — no key-less Claude fallback and no silent boot into a broken provider. A genuinely unset `SHIN_MODEL_PROVIDER` is not this case: Gemini was never selected, so the unchanged Claude path is the correct provider (`makeProvider`, `identify/src/model.ts:838-845`), not a fallback behind it. And a Gemini call that fails after being selected does not fall back to Claude either (`identify/src/model.ts:833-836`, "NO CLAUDE BEHIND GEMINI, 2026-09-15").
 - The live photo route must use the provider chosen by `makeProvider` (today `app/server.ts` passes an Anthropic client directly, so the provider setting is ignored there).
 - Respect the existing daily call cap and spend cap; log model cost per call.
 - A test proves no grounded result is written to the catalogue, the price database, or anything served to other users.
