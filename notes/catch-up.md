@@ -33,7 +33,12 @@ A session that has told its human everything under a day adds a line to that day
   line at all.
 - **Jamin, the two things only you can send are still outstanding** from 09-15: the data token
   (`SHIN_ADMIN_TOKEN` is still unset in every scope here) and a paid key that can ground. Neither
-  moved today, and both still block the same things.
+  moved today, and both still block the same things. **The key got more important tonight.** Shin
+  searches for prices on the cheapest model Google sells, and that now looks like the reason seven
+  of ten searches found no price at all. Asked the same question in the browser, the cheap model
+  returned an empty answer for Tide and the better one returned two Canadian shops; the obscure
+  cream that had returned nothing twice came back with Loblaws and No Frills. Changing it is one
+  environment variable. Proving it at the API rather than in a browser needs your key.
 - **Aurik:** the guard has NOT been seen on a phone. The three screens -- one offer, two, three --
   have not been photographed, and `DEFECTS.md` records that twenty-two of the first thirty defects
   were found by looking at a rendered screen. No row moves on this until that runs.
