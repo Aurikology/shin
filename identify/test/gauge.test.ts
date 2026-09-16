@@ -25,10 +25,22 @@ import {
   computeGauge,
   codeMatchesGauge,
   GAUGE_PYTHON_SOURCE,
+  LONE_CLAIM_CEILING,
+  LONE_CLAIM_FLOOR,
   type GaugeOffer,
   type GaugeShelfItem,
   type GaugeUsable,
 } from '../src/gauge.ts';
+/**
+ * IMPORTED IN THE TEST ONLY, NEVER IN THE RUNTIME. `spine.ts` pulls a
+ * database-backed module graph behind it that the identify package has no
+ * reason to load, so the two numbers are copied there and pinned here. A test
+ * can afford the import; a scan cannot.
+ */
+import {
+  LONE_CLAIM_CEILING as SPINE_LONE_CLAIM_CEILING,
+  LONE_CLAIM_FLOOR as SPINE_LONE_CLAIM_FLOOR,
+} from '../../spine/src/spine.ts';
 
 /** Narrows and fails loudly, so a wrong `usable` does not read as a wrong number twenty lines later. */
 function usable(result: ReturnType<typeof computeGauge>): GaugeUsable {
@@ -44,17 +56,24 @@ function shelf(price: number, sizeValue: number | null, sizeUnit: string | null,
   return { price, sizeValue, sizeUnit, packCount: packCount ?? null };
 }
 
-test('one store still places a line, with that store sitting at the middle it defines', () => {
-  const g = usable(computeGauge(shelf(4.99, 500, 'g'), [{ retailer: 'Loblaws', price: 3.99, url: 'u1', sizeValue: 500, sizeUnit: 'g' }]));
-  assert.equal(g.n, 1);
-  assert.equal(g.median, 0.798); // $3.99 per 500 g is $0.798 per 100 g
-  assert.equal(g.percent, 25.06265664160402);
-  assert.equal(g.zone, 'over_your_line');
-  assert.equal(g.shelfPosition, 91.77109440267336);
-  assert.equal(g.points[0].position, 50, 'the only price IS the median');
-  assert.equal(g.shelfLabel, '500 g · $4.99');
-  assert.equal(g.points[0].label, '500 g · $3.99');
-  assert.equal(g.unitLabel, '100 g');
+test('one store is not a middle, so it places no line at all, D-113', () => {
+  /**
+   * THIS TEST ASSERTED THE OPPOSITE UNTIL 2026-09-16, and the numbers it
+   * pinned were real: n 1, median 0.798, percent 25.06265664160402, zone
+   * 'over_your_line', shelfPosition 91.77109440267336, and the single point
+   * at position 50 because "the only price IS the median".
+   *
+   * That last sentence is the defect. A median of one offer is that offer, so
+   * the percentage measures the shopper's price against the single claim
+   * being tested and then calls the result a middle. Measured in the wild:
+   * one Walmart offer of $9.97 against a hand-priced $1.74 rendered as 83%
+   * under the middle of 1 prices. A test asserting a behaviour is a record of
+   * a decision, not evidence the decision was right; this records it changing.
+   */
+  const g = computeGauge(shelf(4.99, 500, 'g'), [{ retailer: 'Loblaws', price: 3.99, url: 'u1', sizeValue: 500, sizeUnit: 'g' }]);
+  assert.equal(g.usable, false);
+  assert.equal(g.usable === false && g.reason, 'single_offer');
+  assert.equal(g.usable === false && g.unitLabel, '100 g', 'the unit is still known, so the offer can still be shown');
 });
 
 test('identical unit prices collapse to the middle without dividing by zero', () => {
@@ -70,38 +89,55 @@ test('identical unit prices collapse to the middle without dividing by zero', ()
   assert.ok(g.points.every((p) => Number.isFinite(p.position)), 'no infinity and no NaN anywhere');
 });
 
-test('a median of zero does not produce an infinity or a NaN', () => {
-  // A giveaway, or a scraped price of 0. The percentage is undefined, so
-  // every point collapses to the middle rather than to Infinity.
-  const g = usable(computeGauge(shelf(0, 100, 'g'), [offer('A', 0, 100, 'g')]));
-  assert.equal(g.median, 0);
-  assert.equal(g.percent, 0);
-  assert.equal(g.zone, 'middle');
-  assert.equal(g.shelfPosition, 50);
-  assert.ok(Number.isFinite(g.percent) && Number.isFinite(g.shelfPosition));
+test('a price of zero is not a price, so it never reaches the median at all', () => {
+  /**
+   * THIS TEST ASSERTED SOMETHING ELSE UNTIL 2026-09-16: that a median of zero
+   * collapsed every point to the middle rather than dividing by zero and
+   * producing an Infinity. That arithmetic is still in `computeGauge` and
+   * still correct -- it is simply no longer reachable from an offer, because
+   * an offer price now has to be a usable amount before anything is read off
+   * it.
+   *
+   * "A giveaway, or a scraped price of 0" was the old comment, and the second
+   * half is the point: a scraped zero is not a giveaway, it is a parse
+   * failure wearing a price's clothes. Placing it would put a dot at the far
+   * end of the line and drag the median toward it.
+   */
+  const g = computeGauge(shelf(0, 100, 'g'), [offer('A', 0, 100, 'g'), offer('B', 0, 100, 'g')]);
+  assert.equal(g.usable, false);
+  assert.equal(g.usable === false && g.reason, 'no_offers_on_line');
+  assert.deepEqual(g.excluded.map((e) => e.code), ['unusable_price', 'unusable_price']);
+  assert.equal(g.excluded[0].note, 'no usable price given');
 });
 
-test('an outlier balloons the span and compresses everyone else, which is the design', () => {
-  // This is asserted rather than smoothed away. Step 3 takes the largest
-  // absolute percent, so one $20 seller among three near $5 stretches the
-  // scale to +/-295 and squeezes the rest against the middle.
+test('an offer outside the lone-claim band is held off the line, D-113', () => {
+  /**
+   * THIS TEST ASSERTED THE OPPOSITE UNTIL 2026-09-16, under the name "an
+   * outlier balloons the span and compresses everyone else, which is the
+   * design". Its numbers were real and are kept here because they state the
+   * old behaviour better than a sentence could: with $20 among three sellers
+   * near $5 the span stretched to +/-295, points[0] sat at 49.00299102691924
+   * instead of 36.66666666666666, the outlier sat at 99.51811232967763, and
+   * the zone boundaries squeezed to 48.30508474576271 and 51.69491525423729.
+   *
+   * The consequence is what changed the decision. A single wrong price does
+   * not merely sit at the far end: it drags every honest price onto the
+   * midline, so a line of real disagreement is rendered as consensus. $20
+   * against a leave-one-out median of $5 is 4.0x, outside the 2.5x ceiling,
+   * so it is now held and named rather than placed.
+   */
   const near = [offer('A', 4.8, 100, 'g'), offer('B', 5, 100, 'g'), offer('C', 5.2, 100, 'g')];
   const withOutlier = usable(computeGauge(shelf(5, 100, 'g'), [...near, offer('D', 20, 100, 'g')]));
   const without = usable(computeGauge(shelf(5, 100, 'g'), near));
 
-  assert.equal(withOutlier.median, 5.1);
-  assert.equal(withOutlier.points[0].position, 49.00299102691924);
-  assert.equal(withOutlier.points[3].position, 99.51811232967763, 'the outlier sits near the far end');
-  assert.equal(without.points[0].position, 36.66666666666666);
-  assert.ok(
-    Math.abs(withOutlier.points[0].position - 50) < Math.abs(without.points[0].position - 50),
-    'the same $4.80 seller is pulled toward the middle by the presence of the outlier',
-  );
-  // The zone boundaries are squeezed too: the user's 10 percent is a much
-  // smaller slice of a 295 point span.
-  assert.equal(withOutlier.zoneUnderBoundary, 48.30508474576271);
-  assert.equal(withOutlier.zoneOverBoundary, 51.69491525423729);
-  assert.equal(without.zoneUnderBoundary, 16.66666666666667);
+  assert.equal(withOutlier.points.length, 3, 'the outlier is not on the line');
+  assert.deepEqual(withOutlier.excluded.map((e) => [e.retailer, e.code]), [['D', 'lone_claim']]);
+  assert.equal(withOutlier.median, without.median, 'and it never entered the median');
+  assert.equal(withOutlier.points[0].position, without.points[0].position, 'the honest prices are no longer compressed');
+  assert.equal(withOutlier.zoneUnderBoundary, without.zoneUnderBoundary);
+  assert.equal(withOutlier.confidence, 'thin', 'a held claim is a reason to call the line thin');
+  assert.deepEqual(withOutlier.shortfalls.map((x) => x.code), ['claim_held']);
+  assert.equal(without.confidence, 'ok');
 });
 
 test('a multipack is priced by its total volume, not by the can', () => {
@@ -146,17 +182,17 @@ test('L, mL and fl oz all land on one volume line', () => {
 });
 
 test('an offer with no size is listed separately instead of placed', () => {
-  const g = usable(computeGauge(shelf(4, 100, 'g'), [offer('A', 4, 100, 'g'), offer('NoSize', 9.99, null, null)]));
-  assert.equal(g.n, 1);
+  const g = usable(computeGauge(shelf(4, 100, 'g'), [offer('A', 4, 100, 'g'), offer('B', 4, 100, 'g'), offer('NoSize', 9.99, null, null)]));
+  assert.equal(g.n, 2);
   assert.deepEqual(g.excluded, [
     { retailer: 'NoSize', code: 'no_size', note: 'no size given', label: '$9.99', url: null },
   ]);
-  assert.deepEqual(g.points.map((p) => p.retailer), ['A']);
+  assert.deepEqual(g.points.map((p) => p.retailer), ['A', 'B']);
 });
 
 test('a volume offer never lands on a mass line', () => {
-  const g = usable(computeGauge(shelf(4, 100, 'g'), [offer('A', 4.4, 100, 'g'), offer('Vol', 3, 100, 'mL')]));
-  assert.equal(g.n, 1);
+  const g = usable(computeGauge(shelf(4, 100, 'g'), [offer('A', 4.4, 100, 'g'), offer('B', 4.4, 100, 'g'), offer('Vol', 3, 100, 'mL')]));
+  assert.equal(g.n, 2);
   assert.equal(g.dimension, 'mass');
   assert.deepEqual(g.excluded, [
     { retailer: 'Vol', code: 'different_dimension', note: 'measured a different way', label: '100 mL · $3.00', url: null },
@@ -189,11 +225,11 @@ test('the two edges are decided the same way every time: under is inclusive, ove
   // -10 with a 10 percent under line falls INSIDE it; +10 with a 10 percent
   // over line does NOT. One of the two has to own the boundary and this is
   // the one that does, pinned here so it cannot drift silently.
-  const under = usable(computeGauge(shelf(9, 100, 'g'), [offer('A', 10, 100, 'g')]));
+  const under = usable(computeGauge(shelf(9, 100, 'g'), [offer('A', 10, 100, 'g'), offer('B', 10, 100, 'g')]));
   assert.equal(under.percent, -10);
   assert.equal(under.zone, 'under_your_line');
 
-  const over = usable(computeGauge(shelf(11, 100, 'g'), [offer('A', 10, 100, 'g')]));
+  const over = usable(computeGauge(shelf(11, 100, 'g'), [offer('A', 10, 100, 'g'), offer('B', 10, 100, 'g')]));
   assert.equal(over.percent, 10);
   assert.equal(over.zone, 'middle');
   assert.equal(over.shelfPosition, 83.33333333333333);
@@ -225,7 +261,7 @@ test('count units price per item and never per gram', () => {
 });
 
 test('ticks step by 5 under a span of 30 and by 10 above it', () => {
-  const small = usable(computeGauge(shelf(9, 100, 'g'), [offer('A', 10, 100, 'g')]));
+  const small = usable(computeGauge(shelf(9, 100, 'g'), [offer('A', 10, 100, 'g'), offer('B', 10, 100, 'g')]));
   assert.deepEqual(small.ticks.map((t) => t.pct), [-15, -10, -5, 0, 5, 10, 15]);
   assert.equal(small.ticks[3].label, 'middle');
   assert.equal(small.ticks[0].position, 0);
@@ -245,9 +281,9 @@ test('no zone code is ever a word that grades the price', () => {
   // this asserts that they cannot come back through this function.
   const banned = /\b(good|fair|high|higher|deal|cheap|cheaper|expensive|bad|reasonable|steal|bargain|low)\b/i;
   const cases = [
-    computeGauge(shelf(9, 100, 'g'), [offer('A', 10, 100, 'g')]),
-    computeGauge(shelf(11, 100, 'g'), [offer('A', 10, 100, 'g')]),
-    computeGauge(shelf(20, 100, 'g'), [offer('A', 10, 100, 'g')]),
+    computeGauge(shelf(9, 100, 'g'), [offer('A', 10, 100, 'g'), offer('B', 10, 100, 'g')]),
+    computeGauge(shelf(11, 100, 'g'), [offer('A', 10, 100, 'g'), offer('B', 10, 100, 'g')]),
+    computeGauge(shelf(20, 100, 'g'), [offer('A', 10, 100, 'g'), offer('B', 10, 100, 'g')]),
     computeGauge(shelf(4, 100, 'g'), [offer('Vol', 3, 100, 'mL')]),
   ];
   for (const g of cases) assert.doesNotMatch(JSON.stringify(g), banned, `a grading word reached the output: ${JSON.stringify(g)}`);
@@ -286,4 +322,73 @@ test('the code check passes the real source, survives reformatting, and fails an
   assert.equal(codeMatchesGauge(null), false);
   assert.equal(codeMatchesGauge(undefined), false);
   assert.equal(codeMatchesGauge('def gauge(shelf, offers, under_pct, over_pct):\n    return None'), false);
+});
+
+/* ------------------------------------------------------------------ D-113 */
+
+test('D-113: the measured lone Walmart claim draws no line at all', () => {
+  /**
+   * THE REGRESSION TEST THE DEFECT NEVER HAD, and every number in it was
+   * measured rather than invented. A real grounded search for Kraft Dinner
+   * 225 g on 2026-09-16 returned exactly one offer -- Walmart, $9.97, with
+   * confident metadata: sizeValue 225 g, packCount 1, dealKind clearance. So
+   * it is not a pack-size mix-up that the unit scaling would have caught. The
+   * hand-priced truth for that box, read off public Canadian pages on
+   * 2026-09-03, is $1.74.
+   *
+   * What the shopper saw: "225 g x $1.74, your price, 83% under the middle of
+   * 1 prices". An ordinary price, presented as far below the going rate,
+   * because the median of one offer is that offer.
+   *
+   * Note `clearance` is deliberately neither divided nor excluded here --
+   * whether a clearance price belongs on a line at all is a separate open
+   * question. This test asserts only that one offer is not a middle.
+   */
+  const g = computeGauge(shelf(1.74, 225, 'g'), [
+    { retailer: 'Walmart', price: 9.97, url: null, sizeValue: 225, sizeUnit: 'g', packCount: 1, dealKind: 'clearance' },
+  ]);
+  assert.equal(g.usable, false, 'one offer must not produce a verdict');
+  assert.equal(g.usable === false && g.reason, 'single_offer');
+  assert.equal(g.usable === false && g.excluded.length, 0, 'the offer is not excluded, it is simply not a middle');
+});
+
+test('the lone-claim band has not drifted from the spine engine it was taken from', () => {
+  // The numbers live in two packages on purpose. This is what stops them
+  // becoming two different numbers without anyone noticing.
+  assert.equal(LONE_CLAIM_FLOOR, SPINE_LONE_CLAIM_FLOOR);
+  assert.equal(LONE_CLAIM_CEILING, SPINE_LONE_CLAIM_CEILING);
+});
+
+test('a held claim is named to the reader rather than silently dropped', () => {
+  // Rule 6's shape: the price still reaches the shopper, in the labelled
+  // list, with a note saying why it is not on the line.
+  const g = usable(computeGauge(shelf(5, 100, 'g'), [
+    offer('A', 5, 100, 'g'),
+    offer('B', 5.1, 100, 'g'),
+    offer('C', 4.9, 100, 'g'),
+    offer('Wrong', 40, 100, 'g'),
+  ]));
+  const held = g.excluded.filter((e) => e.code === 'lone_claim');
+  assert.equal(held.length, 1);
+  assert.equal(held[0].retailer, 'Wrong');
+  assert.equal(held[0].note, 'far from the other prices found');
+  assert.equal(held[0].label, '100 g · $40.00', 'the reader can still see what the held price actually was');
+});
+
+test('when every price disagrees with every other, none is held and the disagreement is named', () => {
+  /**
+   * The spine's rule, carried across: the hold can never empty the set
+   * (`spine/src/spine.ts:417`). Three prices a factor of ten apart are not
+   * one outlier among friends, they are three sources that do not agree, and
+   * dropping all three would leave the shopper with nothing at all.
+   */
+  const g = usable(computeGauge(shelf(5, 100, 'g'), [
+    offer('A', 1, 100, 'g'),
+    offer('B', 10, 100, 'g'),
+    offer('C', 100, 100, 'g'),
+  ]));
+  assert.equal(g.points.length, 3, 'nothing was dropped');
+  assert.equal(g.excluded.length, 0);
+  assert.equal(g.confidence, 'thin');
+  assert.deepEqual(g.shortfalls.map((x) => x.code), ['spread_unresolved']);
 });

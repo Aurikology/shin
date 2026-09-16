@@ -67,6 +67,7 @@ test('an offer carrying none of the new fields behaves exactly as it did before'
   const bare = usable(
     computeGauge(shelf({ price: 4.99, sizeValue: 500, sizeUnit: 'g' }), [
       offer({ retailer: 'Loblaws', price: 3.99, url: 'u1', sizeValue: 500, sizeUnit: 'g' }),
+      offer({ retailer: 'Metro', price: 3.99, url: 'u2', sizeValue: 500, sizeUnit: 'g' }),
     ]),
   );
   const spelledOut = usable(
@@ -88,6 +89,7 @@ test('an offer carrying none of the new fields behaves exactly as it did before'
           dealKind: null,
           dealUnits: null,
         }),
+        offer({ retailer: 'Metro', price: 3.99, url: 'u2', sizeValue: 500, sizeUnit: 'g' }),
       ],
     ),
   );
@@ -159,10 +161,11 @@ test('a non-organic shelf item keeps the organic price off its line too, not onl
   const g = usable(
     computeGauge(shelf({ price: 3.99, sizeValue: 1, sizeUnit: 'lb', soldByWeight: true }), [
       offer({ retailer: 'Plain A', price: 3.49, sizeValue: 1, sizeUnit: 'lb', soldByWeight: true }),
+      offer({ retailer: 'Plain C', price: 3.49, sizeValue: 1, sizeUnit: 'lb', soldByWeight: true }),
       offer({ retailer: 'Organic B', price: 7.49, sizeValue: 1, sizeUnit: 'lb', organic: true, soldByWeight: true }),
     ]),
   );
-  assert.equal(g.n, 1);
+  assert.equal(g.n, 2);
   assert.equal(g.median, 0.7694132950252228);
   assert.equal(g.percent, 14.32664756446991);
   assert.equal(g.zone, 'over_your_line');
@@ -178,12 +181,13 @@ test('against a name brand, a store brand is listed off the line rather than pla
   const g = usable(
     computeGauge(shelf({ price: 5.49, sizeValue: 750, sizeUnit: 'mL' }), [
       offer({ retailer: 'Metro', price: 5.99, sizeValue: 750, sizeUnit: 'mL' }),
+      offer({ retailer: 'Sobeys', price: 5.99, sizeValue: 750, sizeUnit: 'mL' }),
       offer({ retailer: 'Loblaws', price: 3.49, sizeValue: 750, sizeUnit: 'mL', storeBrand: "President's Choice" }),
       offer({ retailer: 'Walmart', price: 2.97, sizeValue: 750, sizeUnit: 'mL', storeBrand: 'Great Value' }),
     ]),
   );
-  assert.equal(g.n, 1);
-  assert.equal(g.median, 0.7986666666666666, 'the median is Metro alone; the two store brands never entered it');
+  assert.equal(g.n, 2);
+  assert.equal(g.median, 0.7986666666666666, 'the median is the two name brands; the two store brands never entered it');
   assert.equal(g.percent, -8.347245409015024);
   assert.deepEqual(retailersOf(g.excluded), ['Loblaws', 'Walmart']);
   assert.deepEqual(codesOf(g.excluded), ['different_brand_kind', 'different_brand_kind']);
@@ -416,6 +420,7 @@ test('when every offer is excluded there is still no verdict, and the list still
 /** One offer per code, so nothing can be added to the list without being swept. */
 const EVERY_CODE = computeGauge(shelf({ price: 4, sizeValue: 100, sizeUnit: 'g' }), [
   offer({ retailer: 'On the line', price: 4, sizeValue: 100, sizeUnit: 'g' }),
+  offer({ retailer: 'Also on the line', price: 4, sizeValue: 100, sizeUnit: 'g' }),
   offer({ retailer: 'Not CAD', price: 4, sizeValue: 100, sizeUnit: 'g', currency: 'USD' }),
   offer({ retailer: 'Marketplace', price: 4, sizeValue: 100, sizeUnit: 'g', marketplace: true }),
   offer({ retailer: 'Member', price: 4, sizeValue: 100, sizeUnit: 'g', memberOnly: true }),
@@ -428,7 +433,7 @@ const EVERY_CODE = computeGauge(shelf({ price: 4, sizeValue: 100, sizeUnit: 'g' 
 
 test('one offer per code produces all eight of them, in the order the offers arrived', () => {
   const g = usable(EVERY_CODE);
-  assert.equal(g.n, 1);
+  assert.equal(g.n, 2);
   assert.deepEqual(codesOf(g.excluded), [
     'not_cad',
     'marketplace',
@@ -604,6 +609,7 @@ test('the price line carries the fields the four item rules travel in', () => {
     { askingCents: 299, sizeValue: 500, sizeUnit: 'g' },
     shownOffers([
       { retailer: 'Loblaws', price: 3.49, url: null, sizeValue: 500, sizeUnit: 'g' },
+      { retailer: 'Metro', price: 3.49, url: null, sizeValue: 500, sizeUnit: 'g' },
       { retailer: 'Costco', price: 1.99, url: null, sizeValue: 500, sizeUnit: 'g', memberOnly: true },
       { retailer: 'Target', price: 2.1, url: null, sizeValue: 500, sizeUnit: 'g', currency: 'USD' },
     ]),

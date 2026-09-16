@@ -75,6 +75,48 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## D-113 is closed: one price is no longer a verdict, 2026-09-16
+
+**Aurik's ruling: both guards, not either.** Reading the code showed that was not belt-and-braces
+but necessary. `isLoneClaim` measures a price against a leave-one-out median (the spine's own shape,
+`spine.ts:1099-1131`), so at one offer there is nothing to be an outlier FROM and the band cannot
+fire at all. The band catches the n>=2 case; the minimum-offer rule catches the n=1 case that was
+the one actually measured.
+
+**What a shopper sees now.** At one offer: the offer, the reviews and the description, and the
+sentence *"Only one price found, so there is no middle to compare against."* No line, no zone word,
+no percentage. At two, or where a claim was held: the line, plus a sentence saying what it rests on.
+At three or more with nothing held: unchanged. The offers never disappear -- only the verdict does,
+which is the reading of rule 6 this rests on and the one point to put to Jamin first.
+
+**Ported from the engine rule 3 would retire**, and the argument for why that is allowed: a
+plausibility band is not a price source. Every number still comes from Gemini's offers;
+`isLoneClaim` reads only those offers, compares them only against each other, produces no price of
+its own, and can do nothing but move one into a labelled list. Shin's price database and engine are
+not consulted. The hold can never empty the set (`spine.ts:417`, carried across deliberately).
+
+**Three defects were found while closing it, D-114 to D-116, and two of the three were found by
+tests that already existed.** The band as specified held an honest price at two offers (a 12-pack
+against a 2 L bottle is a legitimate 2.1x spread); the new confidence flag was called `'low'`, which
+the grading-word ban forbids; and the ban sweep turns out to reach only five selectors, so both new
+sentences were initially unswept. The full write-ups are in `DEFECTS.md`.
+
+**Counted:** 4 source files and 4 test files changed. identify 287 pass / 0 fail, spine 223 / 0,
+app 795 / 0, typecheck clean in all three. **Fifteen existing tests failed on the first run and
+that was the signal, not the noise** -- thirteen of them used one offer as a minimal fixture and
+were given a second at the same unit price, so no measured expectation had to be re-typed. Three
+were genuinely about the old behaviour and were inverted with their old numbers preserved in a
+comment, including one named *"a single offer is still a line, never a refusal"*, written by a lane
+on 2026-09-15 in the commit that turned the search on, one day before anyone measured what a single
+grounded offer is worth.
+
+**NOT VERIFIED, and this is the honest limit of tonight.** Nothing here has been run against a live
+Gemini key, and nothing has been seen on a phone. Rule 8 restricts the key to live phone testing, so
+the guard was checked against the recorded D-113 numbers and against stubbed wire fixtures, never
+against a real search. **The three screens -- one offer, two offers, three offers -- have not been
+photographed, and `DEFECTS.md` records that twenty-two of the first thirty defects were found by
+looking at a rendered screen.** That check is outstanding and no row should move on it until it runs.
+
 ## The price harness exists now, and it found the thing that matters most, 2026-09-16
 
 `identify/eval/price-truth.ts`, new. The eval beside it measures whether the product was

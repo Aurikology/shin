@@ -357,6 +357,34 @@ export function groundedSection(grounded, opts = {}) {
    * knowledge of the grounded wire and cannot reach back into it.
    */
   const verdict = grounded.block.verdict;
+  /*
+   * NO LINE IS AN ANSWER TOO, D-113.
+   *
+   * Until 2026-09-16 a null verdict rendered nothing at all, so a shopper who
+   * had just waited for a search saw offers and no explanation of why the
+   * line they had seen on a previous scan was missing. Worse, the case that
+   * produced the null most often was a SINGLE offer, which before that date
+   * did not produce a null at all: it drew a full line off a median of one
+   * price, and told the shopper an ordinary $1.74 was 83% under the going
+   * rate because one Walmart row said $9.97.
+   *
+   * The sentence is about the evidence, never about Shin's ignorance. The
+   * offers, the reviews and the description are all already on screen above
+   * it, which is what "always an answer" is protecting.
+   */
+  if (!verdict) {
+    const reason = grounded.block.noLineReason;
+    const key =
+      reason === 'single_offer' ? 'grounded_no_line_single'
+      : reason === 'no_shelf_size' ? 'grounded_no_line_size'
+      : reason === 'no_offers_on_line' ? 'grounded_no_line_none'
+      : null;
+    if (key !== null) {
+      const note = el(doc, 'p', 'grounded-no-line');
+      note.textContent = t(key);
+      section.appendChild(note);
+    }
+  }
   if (verdict) {
     /*
      * The gauge's own names. This call passed `goodBoundary` and
@@ -379,6 +407,21 @@ export function groundedSection(grounded, opts = {}) {
     if (line && verdict.sizeAssumed === true) {
       const note = el(doc, 'p', 'grounded-size-assumed');
       note.textContent = t('grounded_size_assumed');
+      section.appendChild(note);
+    }
+    /*
+     * A line drawn on two prices, or on a set one claim was held out of, is
+     * still a line -- but it is not the same line as one drawn on eight, and
+     * saying so is the difference between an answer and a claim. The codes
+     * are read off the server's own shortfall list; the sentence is this
+     * client's, so it can be said in French.
+     */
+    if (line && verdict.confidence === 'thin') {
+      const codes = Array.isArray(verdict.shortfalls) ? verdict.shortfalls.map((x) => x && x.code) : [];
+      const note = el(doc, 'p', 'grounded-line-thin');
+      note.textContent = codes.indexOf('claim_held') !== -1
+        ? t('grounded_line_held')
+        : t('grounded_line_thin', { n: String(verdict.n) });
       section.appendChild(note);
     }
   }

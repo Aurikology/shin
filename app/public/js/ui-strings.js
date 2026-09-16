@@ -263,6 +263,14 @@ const EN = {
      better than... told the app doesn't know". The label, not a refusal. */
   grounded_unchecked: 'From a web search. Not checked by Shin.',
   grounded_size_assumed: 'Size not known, so this compares at the size most stores listed.',
+  /* Why there is no price line. Each one states what the evidence was, never
+   * that Shin does not know: the offers, the reviews and the description are
+   * all still on screen above these sentences. D-113. */
+  grounded_no_line_single: 'Only one price found, so there is no middle to compare against.',
+  grounded_no_line_none: 'No price that could be compared came back for this one.',
+  grounded_no_line_size: 'No size given for this one, so the prices cannot be lined up.',
+  grounded_line_thin: (f) => `From ${f.n} prices, so the middle is rough.`,
+  grounded_line_held: 'One price was too far from the others to place.',
   cam_unchecked_answer: (f) => `Best match, not checked: ${f.label}`,
 
   /* ------------------------------------------------------- the price line
@@ -618,6 +626,11 @@ const FR = {
   grounded_no_link: (f) => `Pas de lien pour celui-ci : ${f.name}`,
   grounded_unchecked: 'Trouvé par une recherche web. Pas vérifié par Shin.',
   grounded_size_assumed: 'Format inconnu, donc la comparaison se fait au format que la plupart des magasins affichent.',
+  grounded_no_line_single: "Un seul prix trouvé, donc il n'y a pas de milieu pour comparer.",
+  grounded_no_line_none: 'Aucun prix comparable trouvé pour celui-ci.',
+  grounded_no_line_size: 'Aucun format donné pour celui-ci, donc les prix ne peuvent pas être alignés.',
+  grounded_line_thin: (f) => `À partir de ${f.n} prix, donc le milieu est approximatif.`,
+  grounded_line_held: 'Un prix était trop éloigné des autres pour être placé.',
   cam_unchecked_answer: (f) => `Meilleure correspondance, pas vérifiée : ${f.label}`,
 
   /* ------------------------------------------------------- la ligne des prix

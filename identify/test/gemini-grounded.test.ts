@@ -204,10 +204,21 @@ test('REQUIREMENT 2: offers with no sizes anywhere are still compared, per item'
   assert.equal(line.shelf.zone, 'under_your_line');
 });
 
-test('a single offer is still a line, never a refusal', () => {
+test('a single offer draws no line, and the offer itself is still shown, D-113', () => {
+  /**
+   * THIS TEST ASSERTED THE OPPOSITE UNTIL 2026-09-16, under the name "a
+   * single offer is still a line, never a refusal". It was written on
+   * 2026-09-15 in the commit that turned the grounded search on, one day
+   * before anyone measured what a single grounded offer is actually worth.
+   *
+   * It read rule 6 -- always an answer -- as "always a LINE". Measured, that
+   * reading produced a $9.97 Walmart claim against a hand-priced $1.74 and
+   * told the shopper they were 83% under the going rate. The answer survives;
+   * the line is what goes. The offer, the reviews and the description are all
+   * still returned to the caller, which is what rule 6 is protecting.
+   */
   const line = priceLineFor({ askingCents: 900 }, shownOffers([{ retailer: 'A', price: 9, url: null }]));
-  assert.ok(line);
-  assert.equal(line.n, 1);
+  assert.equal(line, null, 'one price is not a middle');
 });
 
 test('no shelf price typed means no line, and the offers are still there to show', () => {

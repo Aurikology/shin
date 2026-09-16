@@ -562,7 +562,19 @@ test('the zone words and the large dot reading name the user\'s line, never a gr
       section.querySelector('.pl-caption').textContent,
       section.querySelector('.grounded-heading').textContent,
       section.querySelector('.grounded-nolink').textContent,
+      /*
+       * D-113's two new sentences. They are absent from THIS fixture, which
+       * draws a full line, so they are collected from a second render below
+       * as well -- but they are named here so that the next person adding a
+       * selector to this list finds them already in it.
+       */
+      ...[...section.querySelectorAll('.grounded-no-line')].map((n) => n.textContent),
+      ...[...section.querySelectorAll('.grounded-line-thin')].map((n) => n.textContent),
     ];
+    // The no-line sentences, rendered for real, in the same locale.
+    const noLine = NO_LINE_WIRE('single_offer');
+    const { section: bare } = await renderSection(noLine, {});
+    for (const n of [...bare.querySelectorAll('.grounded-no-line')]) words.push(n.textContent);
     for (const line of words) {
       for (const word of BANNED[id]) {
         if (boundaried(word).test(line)) bad.push(`${id}: "${word}" in ${JSON.stringify(line)}`);
@@ -632,4 +644,46 @@ test('the mini DOM this file relies on actually reports a failure', () => {
   doc.addEventListener('click', () => { seen += 1; }, { capture: true });
   click(inner);
   assert.equal(seen, 1, 'a capture-phase listener on the document never fired, so the tap tests never exercised track.js at all.');
+});
+
+/* ------------------------------------------------------------------ D-113 */
+
+/** The same wire with no line on it, and a stated reason there is none. */
+const NO_LINE_WIRE = (reason) => {
+  const wire = WIRE();
+  return {
+    ...wire,
+    block: { ...wire.block, verdict: null, noLineReason: reason },
+  };
+};
+
+test('a scan with only one price says so, instead of showing nothing where the line was', async () => {
+  /*
+   * D-113. Before 2026-09-16 a single grounded offer drew a FULL line off a
+   * median of one price -- the measured case rendered an ordinary $1.74 as
+   * "83% under the middle of 1 prices". The line is now withheld, and this
+   * asserts the shopper is told why rather than being left with offers and a
+   * gap where the chart had been on the previous scan.
+   */
+  const { section } = await renderSection(NO_LINE_WIRE('single_offer'), {});
+  const note = section.querySelector('.grounded-no-line');
+  assert.ok(note, 'no line and no sentence either, which is the silence this defect is about');
+  assert.match(note.textContent, /only one price found/i);
+  assert.equal(section.querySelector('.pl-caption'), null, 'no line may be drawn from a single price');
+  // Rule 6: the answer survives, only the verdict goes.
+  assert.ok(section.querySelectorAll('.g-offer').length > 0, 'the offers are still on screen');
+});
+
+test('each reason for having no line gets its own sentence, never a shrug', async () => {
+  const seen = new Set();
+  for (const reason of ['single_offer', 'no_shelf_size', 'no_offers_on_line']) {
+    const { section } = await renderSection(NO_LINE_WIRE(reason), {});
+    const note = section.querySelector('.grounded-no-line');
+    assert.ok(note, `no sentence for ${reason}`);
+    seen.add(note.textContent);
+  }
+  assert.equal(seen.size, 3, 'three different causes must not collapse into one sentence');
+  for (const line of seen) {
+    assert.doesNotMatch(line, /shin (does not|doesn't) know|unknown|error/i, 'rule 6: never tell the shopper the app does not know');
+  }
 });

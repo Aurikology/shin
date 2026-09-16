@@ -91,7 +91,13 @@ import {
   type TokenUsage,
 } from '../provider.ts';
 import { seal, type Grounded } from '../grounded.ts';
-import { computeGauge, type GaugeOffer, type GaugeShelfItem } from '../gauge.ts';
+import {
+  computeGauge,
+  type GaugeConfidence,
+  type GaugeNoLineReason,
+  type GaugeOffer,
+  type GaugeShelfItem,
+} from '../gauge.ts';
 import { geminiModelFor, interactionBody, interactionsUrl, usageOf } from './gemini.ts';
 
 /* -------------------------------------------------------------------- wire */
@@ -213,6 +219,14 @@ export interface PriceOffer {
   readonly dealKind: string | null;
   /** How many items a multi-item price covers, so 2 in a 2 for $5. */
   readonly dealUnits: number | null;
+  /**
+   * WHEN THE PRICE WAS SEEN, as the source gives it. NOTHING READS THIS YET
+   * and no rule is written against it. It is requested now because a field
+   * has to survive the trip before staleness can ever be reasoned about, and
+   * because it costs one more key in a request that is already being made --
+   * never a second call, which rule 1 forbids.
+   */
+  readonly observedAt: string | null;
   readonly organic: boolean | null;
   /** The store brand's name, e.g. "President's Choice", or null for a name brand. */
   readonly storeBrand: string | null;
@@ -329,6 +343,7 @@ const PRICES_SCHEMA = {
           memberOnly: { type: ['boolean', 'null'] },
           dealKind: { type: ['string', 'null'], enum: ['multi_buy', 'bogo', 'clearance', null] },
           dealUnits: { type: ['number', 'null'] },
+          observedAt: { type: ['string', 'null'] },
           organic: { type: ['boolean', 'null'] },
           storeBrand: { type: ['string', 'null'] },
           soldByWeight: { type: ['boolean', 'null'] },
@@ -348,6 +363,7 @@ const PRICES_SCHEMA = {
           'memberOnly',
           'dealKind',
           'dealUnits',
+          'observedAt',
           'organic',
           'storeBrand',
           'soldByWeight',
@@ -412,8 +428,8 @@ export function pricesReviewsRequest(
         : `the product with barcode ${product.gtin}`;
   const ask =
     reader === 'fr'
-      ? `Utilise la recherche Google pour identifier ${subject}, puis trouve, pour ce meme produit -- (1) son nom, sa marque et son format, et pour CHACUN de ces trois faits le lien de la source qui l'etablit (null s'il n'y en a pas) ; (2) les prix actuels chez des detaillants canadiens, avec pour chaque offre le detaillant, le prix (nombre), la devise du prix (code, par exemple CAD ou USD), l'URL, la valeur du format, l'unite du format, le nombre d'unites par paquet, le numero de modele, les specifications et l'etat (neuf, reconditionne, occasion), et aussi : marketplace (vrai si c'est un vendeur tiers sur le site du detaillant plutot que le detaillant), memberOnly (vrai si le prix exige une adhesion payante), dealKind ("multi_buy" pour un prix a plusieurs articles comme 2 pour 5 $, "bogo" pour un achete un recu un, "clearance" pour une liquidation, sinon null) avec dealUnits (le nombre d'articles couverts, donc 2 pour "2 pour 5 $"), organic (vrai si le produit est biologique), storeBrand (le nom de la marque maison, par exemple "President's Choice", sinon null) et soldByWeight (vrai si le prix est au poids). Donne le prix affiche tel quel : pour un "2 pour 5 $", price vaut 5 et dealUnits vaut 2. ; (3) les avis clients avec la note, le nombre d'avis, un resume court et l'URL ; (4) une courte description du produit.`
-      : `Use Google Search to identify ${subject}, then find, for that same product -- (1) its name, its brand and its size, and for EACH of those three facts the source link that establishes it (null if there is none); (2) current prices at Canadian retailers, giving for each offer the retailer, the price (a number), the currency of that price (a code, for example CAD or USD), the url, the size value, the size unit, the pack count, the model number, the specs and the condition (new, refurbished, used), and also: marketplace (true when it is a third-party seller on the retailer's site rather than the retailer), memberOnly (true when the price needs a paid membership), dealKind ("multi_buy" for a several-items price such as 2 for $5, "bogo" for buy one get one, "clearance" for a marked-down line, otherwise null) with dealUnits (how many items that price covers, so 2 for a "2 for $5"), organic (true when the product is organic), storeBrand (the store brand's name, for example "President's Choice", otherwise null) and soldByWeight (true when the price is by weight). Give the advertised price as it stands: for a "2 for $5", price is 5 and dealUnits is 2. ; (3) customer reviews with rating, count, a short summary and the url; (4) a short product description.`;
+      ? `Utilise la recherche Google pour identifier ${subject}, puis trouve, pour ce meme produit -- (1) son nom, sa marque et son format, et pour CHACUN de ces trois faits le lien de la source qui l'etablit (null s'il n'y en a pas) ; (2) les prix actuels chez des detaillants canadiens, avec pour chaque offre le detaillant, le prix (nombre), la devise du prix (code, par exemple CAD ou USD), l'URL, la valeur du format, l'unite du format, le nombre d'unites par paquet, le numero de modele, les specifications et l'etat (neuf, reconditionne, occasion), et aussi : marketplace (vrai si c'est un vendeur tiers sur le site du detaillant plutot que le detaillant), memberOnly (vrai si le prix exige une adhesion payante), dealKind ("multi_buy" pour un prix a plusieurs articles comme 2 pour 5 $, "bogo" pour un achete un recu un, "clearance" pour une liquidation, sinon null) avec dealUnits (le nombre d'articles couverts, donc 2 pour "2 pour 5 $"), organic (vrai si le produit est biologique), storeBrand (le nom de la marque maison, par exemple "President's Choice", sinon null) et soldByWeight (vrai si le prix est au poids), et observedAt (la date a laquelle ce prix a ete publie ou vu pour la derniere fois, au format AAAA-MM-JJ, ou null si la page ne le dit pas). Donne le prix affiche tel quel : pour un "2 pour 5 $", price vaut 5 et dealUnits vaut 2. ; (3) les avis clients avec la note, le nombre d'avis, un resume court et l'URL ; (4) une courte description du produit.`
+      : `Use Google Search to identify ${subject}, then find, for that same product -- (1) its name, its brand and its size, and for EACH of those three facts the source link that establishes it (null if there is none); (2) current prices at Canadian retailers, giving for each offer the retailer, the price (a number), the currency of that price (a code, for example CAD or USD), the url, the size value, the size unit, the pack count, the model number, the specs and the condition (new, refurbished, used), and also: marketplace (true when it is a third-party seller on the retailer's site rather than the retailer), memberOnly (true when the price needs a paid membership), dealKind ("multi_buy" for a several-items price such as 2 for $5, "bogo" for buy one get one, "clearance" for a marked-down line, otherwise null) with dealUnits (how many items that price covers, so 2 for a "2 for $5"), organic (true when the product is organic), storeBrand (the store brand's name, for example "President's Choice", otherwise null) and soldByWeight (true when the price is by weight), and observedAt (the date that price was published or last seen, as YYYY-MM-DD, or null when the page does not say). Give the advertised price as it stands: for a "2 for $5", price is 5 and dealUnits is 2. ; (3) customer reviews with rating, count, a short summary and the url; (4) a short product description.`;
   return {
     model,
     images: [],
@@ -813,6 +829,10 @@ export interface ShownPriceLine {
   readonly shelfLabel: string;
   /** True when the scanned item had no known size and one was borrowed from the offers. */
   readonly sizeAssumed: boolean;
+  /** 'thin' when the line rests on two prices, or on a set one claim was held out of. */
+  readonly confidence: GaugeConfidence;
+  /** What the line is short of, named. The client renders its own sentence per code. */
+  readonly shortfalls: readonly { code: string; note: string }[];
 }
 
 export interface PriceBlock {
@@ -822,6 +842,13 @@ export interface PriceBlock {
   readonly offers: readonly ShownOffer[];
   readonly reviews: readonly ShownReview[];
   readonly verdict: ShownPriceLine | null;
+  /**
+   * WHY `verdict` is null, when it is. Without this the phone cannot tell
+   * "only one price found" from "no size given" from "nothing comparable
+   * came back", so it said nothing at all and the shopper was left staring
+   * at offers with no explanation.
+   */
+  readonly noLineReason: GaugeNoLineReason | null;
   readonly searchQueries: readonly string[];
   readonly citations: readonly Citation[];
 }
@@ -906,6 +933,7 @@ export function shownOffers(raw: unknown): ShownOffer[] {
       memberOnly: boolOrNull(o.memberOnly),
       dealKind: str(o.dealKind),
       dealUnits: numOrNull(o.dealUnits),
+      observedAt: str(o.observedAt),
       organic: boolOrNull(o.organic),
       storeBrand: str(o.storeBrand),
       soldByWeight: boolOrNull(o.soldByWeight),
@@ -965,8 +993,24 @@ export interface PriceQuery {
  * for instead of no line at all.
  */
 export function priceLineFor(query: PriceQuery, offers: readonly ShownOffer[]): ShownPriceLine | null {
+  return priceGaugeFor(query, offers).line;
+}
+
+/**
+ * The line AND, when there is none, the reason there is none.
+ *
+ * `priceLineFor` above is the older, narrower door and stays because most
+ * callers want only the line. This one exists because a null verdict was
+ * arriving at the phone carrying nothing, and "no price line" has three
+ * genuinely different causes that need three different sentences.
+ */
+export function priceGaugeFor(
+  query: PriceQuery,
+  offers: readonly ShownOffer[],
+): { line: ShownPriceLine | null; reason: GaugeNoLineReason | null } {
   const cents = query.askingCents;
-  if (typeof cents !== 'number' || !Number.isFinite(cents) || cents <= 0 || offers.length === 0) return null;
+  if (typeof cents !== 'number' || !Number.isFinite(cents) || cents <= 0) return { line: null, reason: 'no_shelf_size' };
+  if (offers.length === 0) return { line: null, reason: 'no_offers_on_line' };
   const price = cents / 100;
 
   let shelf: GaugeShelfItem = {
@@ -979,6 +1023,14 @@ export function priceLineFor(query: PriceQuery, offers: readonly ShownOffer[]): 
   let sizeAssumed = false;
 
   let result = computeGauge(shelf, gaugeOffers, query.underPct ?? 10, query.overPct ?? 10);
+  /**
+   * BORROWING A SIZE CANNOT CONJURE A SECOND PRICE. The ladder below exists
+   * for offers that could not be compared, and re-running it on a lone offer
+   * would just spend two more passes arriving at the same refusal -- with the
+   * risk that a per-item fallback quietly draws the one-offer line this guard
+   * is here to prevent. So the single-offer case leaves immediately.
+   */
+  if (!result.usable && result.reason === 'single_offer') return { line: null, reason: 'single_offer' };
   if (!result.usable) {
     const sized = offers.filter((o) => o.sizeValue !== null && o.sizeUnit !== null);
     const tally = new Map<string, { count: number; offer: ShownOffer }>();
@@ -1002,20 +1054,25 @@ export function priceLineFor(query: PriceQuery, offers: readonly ShownOffer[]): 
       result = computeGauge(shelf, gaugeOffers, query.underPct ?? 10, query.overPct ?? 10);
     }
   }
-  if (!result.usable) return null;
+  if (!result.usable) return { line: null, reason: result.reason };
 
   return {
-    median: result.median,
-    n: result.n,
-    unitLabel: result.unitLabel,
-    zoneUnderBoundary: result.zoneUnderBoundary,
-    zoneOverBoundary: result.zoneOverBoundary,
-    ticks: result.ticks,
-    points: result.points,
-    excluded: result.excluded,
-    shelf: { position: result.shelfPosition, zone: result.zone, pct: Math.round(result.percent) },
-    shelfLabel: result.shelfLabel,
-    sizeAssumed,
+    line: {
+      median: result.median,
+      n: result.n,
+      unitLabel: result.unitLabel,
+      zoneUnderBoundary: result.zoneUnderBoundary,
+      zoneOverBoundary: result.zoneOverBoundary,
+      ticks: result.ticks,
+      points: result.points,
+      excluded: result.excluded,
+      shelf: { position: result.shelfPosition, zone: result.zone, pct: Math.round(result.percent) },
+      shelfLabel: result.shelfLabel,
+      sizeAssumed,
+      confidence: result.confidence,
+      shortfalls: result.shortfalls,
+    },
+    reason: null,
   };
 }
 
@@ -1131,13 +1188,15 @@ export class GeminiGroundedLookup {
     if (promise === null) return null;
     const fetched = await promise;
     const offers = shownOffers(fetched.answer.offers);
+    const gauged = priceGaugeFor(query, offers);
     const block: PriceBlock = {
       kind: 'prices',
       checked: false,
       description: str(fetched.answer.description),
       offers,
       reviews: shownReviews(fetched.answer.reviews),
-      verdict: priceLineFor(query, offers),
+      verdict: gauged.line,
+      noLineReason: gauged.reason,
       searchQueries: fetched.searchQueries,
       citations: fetched.citations,
     };

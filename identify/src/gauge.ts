@@ -140,6 +140,14 @@
  */
 
 /** Mass, volume and count never mix on one line: 500 g and 500 mL are not comparable quantities. */
+/**
+ * `spine/src/money.ts` is a zero-import leaf module, so this pulls in nothing
+ * behind it. Named for cents because that is what the spine deals in; the
+ * predicate itself is "a finite number above zero" and is unit-agnostic,
+ * which is what the gauge needs for a price in dollars.
+ */
+import { isUsableAmount } from '../../spine/src/money.ts';
+
 export type GaugeDimension = 'mass' | 'volume' | 'count';
 
 /**
@@ -162,7 +170,17 @@ export type GaugeExclusionCode =
   | 'marketplace'
   | 'not_cad'
   | 'different_brand_kind'
-  | 'different_organic';
+  | 'different_organic'
+  /**
+   * Held off the line for sitting outside the lone-claim band, D-113. A fact
+   * about how far the offer is from the others, never a reading of whether
+   * its price is right: this code says the number could not be checked
+   * against anything, not that it is wrong.
+   */
+  | 'lone_claim'
+  /** The price field was not a usable amount at all: absent, zero, negative or not a number. */
+  | 'unusable_price';
+
 
 /**
  * How a multi-item price is advertised, so the effective per-item price can
@@ -210,6 +228,13 @@ export interface GaugeOffer extends GaugeSize {
   readonly dealKind?: GaugeDealKind | string | null;
   /** The count in a "n for $x", so 2 in a 2 for $5. Ignored unless `dealKind` is 'multi_buy'. */
   readonly dealUnits?: number | null;
+  /**
+   * When the price was seen, as the source gave it. NOTHING READS THIS YET.
+   * It is here so that "the gauge cannot even express staleness" stops being
+   * true: a date has to survive the trip before any rule can be written
+   * against it. Adding a rule that uses it is a separate decision.
+   */
+  readonly observedAt?: string | null;
 }
 
 export interface GaugeTick {
@@ -242,6 +267,34 @@ export interface GaugeExcluded {
   readonly url: string | null;
 }
 
+/**
+ * Something the line is short of, named rather than hidden. Carried BESIDE
+ * the answer instead of replacing it: the shopper still sees the line, and
+ * the sentence under it says what it rests on. Lifted in shape from the
+ * spine's `Shortfall`, which is the same idea on the other side of the app.
+ */
+export type GaugeShortfallCode = 'thin_evidence' | 'claim_held' | 'spread_unresolved';
+
+export interface GaugeShortfall {
+  readonly code: GaugeShortfallCode;
+  /** English, and a function of `code` alone. Translate from the code, never from this. */
+  readonly note: string;
+}
+
+/**
+ * How much the line rests on. A flag the client renders its own sentence
+ * from, never a word shown as-is. Deliberately two values and not a
+ * calibrated score: nothing here has been calibrated, and a number would
+ * imply it had been.
+ *
+ * IT IS 'thin' AND NOT 'low' because the grading-word sweep in
+ * `app/test/refusal-swaps.test.mjs` bans "low", and rightly: this field
+ * travels in the same JSON as the price, where "low" reads as a claim about
+ * the price rather than about the evidence. 'thin' can only describe the
+ * evidence. The sweep caught this, which is what it is for.
+ */
+export type GaugeConfidence = 'thin' | 'ok';
+
 export interface GaugeUsable {
   readonly usable: true;
   readonly median: number;
@@ -257,6 +310,8 @@ export interface GaugeUsable {
   readonly points: readonly GaugePoint[];
   readonly excluded: readonly GaugeExcluded[];
   readonly ticks: readonly GaugeTick[];
+  readonly confidence: GaugeConfidence;
+  readonly shortfalls: readonly GaugeShortfall[];
 }
 
 export interface GaugeUnusable {
@@ -264,7 +319,16 @@ export interface GaugeUnusable {
   readonly dimension: GaugeDimension | null;
   readonly unitLabel: '100 g' | '100 mL' | 'item' | null;
   readonly excluded: readonly GaugeExcluded[];
+  /**
+   * WHY there is no line, so the client can say which of three different
+   * things happened. Before this existed all three arrived as a null verdict
+   * and the phone could not tell "only one price found" from "no size given",
+   * so it said nothing at all.
+   */
+  readonly reason: GaugeNoLineReason;
 }
+
+export type GaugeNoLineReason = 'single_offer' | 'no_offers_on_line' | 'no_shelf_size';
 
 export type GaugeResult = GaugeUsable | GaugeUnusable;
 
@@ -294,6 +358,8 @@ const EXCLUSION_NOTES: Record<GaugeExclusionCode, string> = {
   not_cad: 'priced in another currency',
   different_brand_kind: 'a different brand',
   different_organic: 'organic and non-organic are not the same product',
+  lone_claim: 'far from the other prices found',
+  unusable_price: 'no usable price given',
 };
 
 function dimAndBase(sizeValue: number | null, sizeUnit: string | null): readonly [GaugeDimension, number] | readonly [null, null] {
@@ -422,6 +488,125 @@ function medianOf(values: readonly number[]): number {
 }
 
 /**
+ * THE LONE-CLAIM BAND, ported from Shin's own engine, D-113.
+ *
+ * `spine/src/spine.ts:921-922` has held these two numbers since the pilot and
+ * the grounded path had neither. A grounded search for Kraft Dinner 225 g
+ * returned ONE Walmart offer of $9.97 against a hand-priced truth of $1.74,
+ * carrying confident metadata; the median of one offer is that offer, and an
+ * ordinary price was drawn for the shopper as 83% below the going rate.
+ *
+ * They are DESIGN DEFAULTS, NOT MEASUREMENTS -- spine says so about itself
+ * and the same caveat travels with them here. Low is tighter than high on
+ * purpose: a fake low price is the direction that sends someone on a trip.
+ *
+ * Pinned against spine's own constants by a test-only import, so that the two
+ * drifting apart fails a build instead of going unnoticed. They are copied
+ * rather than imported at runtime because `spine.ts` pulls a database-backed
+ * module graph behind it that this package has no reason to load.
+ */
+export const LONE_CLAIM_FLOOR = 0.5;
+export const LONE_CLAIM_CEILING = 2.5;
+
+const SHORTFALL_NOTES: Record<GaugeShortfallCode, string> = {
+  thin_evidence: 'only two prices found, so the middle is rough',
+  claim_held: 'one price was too far from the others to place',
+  spread_unresolved: 'the prices found disagree too much to say which is typical',
+};
+
+interface BandEntry {
+  retailer: string;
+  unitPrice: number;
+  url: string | null;
+  label: string;
+}
+
+/**
+ * The median of every unit price EXCEPT the one being judged.
+ *
+ * Leave-one-out, and that is the whole point: `spine.ts:1099-1131` computes
+ * its baseline the same way, because a claim compared against a set that
+ * includes itself is compared partly against itself. At one offer there is
+ * nothing left to be an outlier FROM, so this returns null and the band
+ * cannot fire -- which is exactly why the band alone does not close D-113,
+ * and why a minimum-offer rule sits beside it.
+ */
+function leaveOneOutReference(index: number, unitPrices: readonly number[]): number | null {
+  const others = unitPrices.filter((_, i) => i !== index);
+  if (others.length < 1) return null;
+  return medianOf(others);
+}
+
+/** Mirrors `spine.ts:1130`. A reference of zero gives no ratio to test against. */
+function isLoneClaim(unitPrice: number, reference: number): boolean {
+  if (!(reference > 0)) return false;
+  return unitPrice < reference * LONE_CLAIM_FLOOR || unitPrice > reference * LONE_CLAIM_CEILING;
+}
+
+/**
+ * Hold back offers outside the band -- BUT THE HOLD CAN NEVER EMPTY THE SET.
+ *
+ * This is `spine.ts:417` carried across verbatim in spirit:
+ *   `vetted = held.length === 0 ? comparison : comparison.filter(...)`
+ * When every offer is a lone claim of every other, they disagree with each
+ * other rather than one of them being odd, and dropping them all would leave
+ * the shopper with nothing. So the set comes back whole with the disagreement
+ * NAMED instead. That is the mechanism that lets a plausibility guard live
+ * under a rule that says there is always an answer.
+ */
+function applyClaimHold(inBand: readonly BandEntry[]): {
+  kept: BandEntry[];
+  held: BandEntry[];
+  spreadUnresolved: boolean;
+} {
+  /**
+   * THE BAND NEEDS THREE OFFERS BEFORE IT MAY HOLD ANYTHING, and this was
+   * found by a test rather than reasoned out: a 12-pack of 355 mL cans at
+   * $8.99 against a 2 L bottle at $2.00 is a 2.1x spread between two honest
+   * prices, and at two offers the band held the bottle.
+   *
+   * At two offers, leave-one-out compares each price against the SINGLE other
+   * price, so "which of these two is the odd one" has no answer -- whichever
+   * is cheaper is always a lone claim of the dearer one past a 2x gap, and
+   * format spread alone clears 2x routinely. The spine never had this problem
+   * because its baseline is a median of many vouched points, not one.
+   *
+   * So below three, both prices stand and the line is marked thin instead.
+   */
+  if (inBand.length < 3) return { kept: [...inBand], held: [], spreadUnresolved: false };
+  const prices = inBand.map((x) => x.unitPrice);
+  const held: BandEntry[] = [];
+  const kept: BandEntry[] = [];
+  for (let i = 0; i < inBand.length; i += 1) {
+    const reference = leaveOneOutReference(i, prices);
+    if (reference !== null && isLoneClaim(prices[i], reference)) held.push(inBand[i]);
+    else kept.push(inBand[i]);
+  }
+  if (kept.length === 0) return { kept: [...inBand], held: [], spreadUnresolved: true };
+  return { kept, held, spreadUnresolved: false };
+}
+
+/**
+ * What the line rests on, as a flag plus named shortfalls.
+ *
+ * Deliberately NOT spine's `confidenceOf`: that one is uncalibrated by its
+ * own admission and works on evidence classes this side of the app does not
+ * have (witnesses, seller identity, observation dates). This says only the
+ * three things that are actually knowable here.
+ */
+function confidenceOf(
+  keptCount: number,
+  heldCount: number,
+  spreadUnresolved: boolean,
+): { band: GaugeConfidence; shortfalls: GaugeShortfall[] } {
+  const shortfalls: GaugeShortfall[] = [];
+  if (keptCount === 2) shortfalls.push({ code: 'thin_evidence', note: SHORTFALL_NOTES.thin_evidence });
+  if (heldCount > 0) shortfalls.push({ code: 'claim_held', note: SHORTFALL_NOTES.claim_held });
+  if (spreadUnresolved) shortfalls.push({ code: 'spread_unresolved', note: SHORTFALL_NOTES.spread_unresolved });
+  return { band: shortfalls.length > 0 ? 'thin' : 'ok', shortfalls };
+}
+
+/**
  * The TypeScript twin, FOR LOCAL PROOF AGAINST FAKE NUMBERS ONLY.
  *
  * *** NEVER CALL THIS ON A REAL GROUNDED PRICE. *** Doing so would be this
@@ -463,6 +648,10 @@ export function computeGauge(
     total: number | null,
     unitPrice: number | null,
   ): GaugeExclusionCode | null => {
+    // Before any other question about the offer: a price that is absent,
+    // zero, negative or not a number cannot be placed, and letting one reach
+    // the median poisons every other dot on the line.
+    if (!isUsableAmount(offer.price)) return 'unusable_price';
     if (currencyOf(offer) !== 'CAD') return 'not_cad';
     if (offer.marketplace) return 'marketplace';
     if (offer.memberOnly) return 'member_only';
@@ -482,7 +671,7 @@ export function computeGauge(
     return null;
   };
 
-  const inBand: { retailer: string; unitPrice: number; url: string | null; label: string }[] = [];
+  const inBand: BandEntry[] = [];
   const excluded: GaugeExcluded[] = [];
 
   for (const o of offers) {
@@ -503,12 +692,36 @@ export function computeGauge(
 
   // Nothing on the line means there is no median to take, so there is no
   // verdict: the caller shows prices and reviews alone, the same handling a
-  // code mismatch gets.
-  if (inBand.length === 0 || shelfDim === null || shelfUnitPrice === null) {
-    return { usable: false, dimension: shelfDim, unitLabel: unitLabelOf(shelfDim), excluded };
+  // code mismatch gets. The three ways of having no line are now told apart,
+  // because the phone has to say a different sentence for each.
+  if (shelfDim === null || shelfUnitPrice === null) {
+    return { usable: false, dimension: shelfDim, unitLabel: unitLabelOf(shelfDim), excluded, reason: 'no_shelf_size' };
+  }
+  if (inBand.length === 0) {
+    return { usable: false, dimension: shelfDim, unitLabel: unitLabelOf(shelfDim), excluded, reason: 'no_offers_on_line' };
   }
 
-  const prices = inBand.map((x) => x.unitPrice);
+  const { kept, held, spreadUnresolved } = applyClaimHold(inBand);
+  for (const h of held) {
+    excluded.push({ retailer: h.retailer, code: 'lone_claim', note: EXCLUSION_NOTES.lone_claim, label: h.label, url: h.url });
+  }
+
+  /**
+   * D-113, THE HALF THE BAND CANNOT CATCH. At one offer the median IS that
+   * offer, every percentage is measured against the claim itself, and the
+   * line says the shopper is far from a middle that does not exist. There is
+   * no arithmetic that fixes this, because there is no second number.
+   *
+   * The offers, reviews and description are all still shown -- only the LINE
+   * is withheld, and `reason` lets the phone say why. That is a statement
+   * about the evidence, not a confession that Shin does not know.
+   */
+  if (kept.length < 2) {
+    return { usable: false, dimension: shelfDim, unitLabel: unitLabelOf(shelfDim), excluded, reason: 'single_offer' };
+  }
+
+  const { band: confidence, shortfalls } = confidenceOf(kept.length, held.length, spreadUnresolved);
+  const prices = kept.map((x) => x.unitPrice);
   const mid = medianOf(prices);
   // A median of zero (a giveaway, or a scraped price of 0) makes the
   // percentage undefined. Collapsing every point to the middle is the only
@@ -548,9 +761,11 @@ export function computeGauge(
     shelfLabel,
     zoneUnderBoundary,
     zoneOverBoundary,
-    points: inBand.map((x, i) => ({ retailer: x.retailer, position: positionOf(storePcts[i]), url: x.url, label: x.label })),
+    points: kept.map((x, i) => ({ retailer: x.retailer, position: positionOf(storePcts[i]), url: x.url, label: x.label })),
     excluded,
     ticks,
+    confidence,
+    shortfalls,
   };
 }
 
