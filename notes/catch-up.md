@@ -29,6 +29,18 @@ A session that has told its human everything under a day adds a line to that day
   3. **Gemini as the price source**, which orphans 2,294 lines and 380 tests. Possibly the narrowest
      of the three: your ruling 10 already says Shin's own prices are not shown until enough are
      collected, so what is in dispute is deletion versus dark.
+- **Jamin, two things only you can send.** (1) **The data token.** Your 09-15 to-do says to send
+  Aurik his invite link and the data token; the invite link arrived by email on 09-14 and the
+  token did not. Checked tonight: `SHIN_ADMIN_TOKEN` is unset in every scope on Aurik's machine,
+  it is in no email, and `GET /api/admin/tables` on the relay answers 401 as it should. The relay
+  itself is up (200 in 0.29 s), so this is the only thing between Aurik and the beta data.
+  (2) **A grounded call needs your paid key.** Measured tonight on Aurik's free key: an
+  UNGROUNDED image identification succeeds, and the same key answers HTTP 429 `exceeded your
+  current quota` on a grounded search 450 ms in. So grounding has no free quota -- it is not the
+  key being exhausted, the two were separated by running one of each. That matters because the
+  one-call merge below has never been sent to Google: whether identity + offers + reviews fit in
+  2,600 output tokens is reasoned, not measured, and a truncated array returns nothing for the
+  whole scan. The first grounded run has to happen where the paid key is, which is your Mac.
 - **Jamin:** two of your rules contradict each other and one contradicts itself. Rule 2 wants
   barcodes because they are cheaper than an image and forbids reading them automatically, which
   sends the default path back to the shutter. Rule 7 and rule 6 cannot both hold the moment a
