@@ -1726,3 +1726,83 @@ kept dark.
 **Reverses if:** Jamin answers any of the three, or a legal review reads Google's terms differently
 from `identify/src/grounded.ts:4-19`. Point 2 additionally reverses only the way its own decision
 says it does: Aurik amending hard rule 2 himself.
+
+## D-113 is closed with a guard, and six points come out of it rather than being built
+
+**Aurik's ruling, 2026-09-16:** both guards, not either -- the lone-claim band ported from
+`spine.ts:921-922` AND no verdict line under two offers. Built and pushed (`d91c37f`). What follows
+is what was NOT built, and why each is Jamin's call rather than a session's.
+
+**The measurement that forced it.** A real grounded search for Kraft Dinner 225 g returned one
+Walmart offer of $9.97 carrying confident metadata against a hand-priced truth of $1.74.
+`computeGauge` took the median of one offer, which is that offer, and the phone rendered *"225 g,
+$1.74, your price, 83% under the middle of 1 prices"*. An ordinary price sold to a shopper as a
+steal. That is D-113, and at the offer counts actually measured (1, 1 and 2 across the three
+products that returned any Canadian price at all) it is the normal case rather than an edge one.
+
+**1. The outlier behaviour, against a sentence Jamin has already written down as settled.**
+`docs/walkthrough/gauge-math.md`, pushed 2026-09-16, states: *"one extreme unit price inflates the
+span for every other point on the same line, so a single outlier compresses the rest of the gauge
+toward the middle instead of being clipped or hidden. That is the formula exactly as specified, and
+the test suite for this arithmetic asserts that compression directly rather than smoothing it away."*
+The guard clips it. The doc is not wrong about what the code did -- `gauge.ts:125-129` said the same
+thing and `gauge.test.ts` asserted it -- but the sentence was written before the $9.97 case was
+measured. The consequence the old behaviour has that neither text names: an outlier does not merely
+sit at the far end, it drags every honest price onto the midline, so a line of real disagreement is
+rendered as consensus.
+
+**2. Withholding the line at one offer, against rule 6.** *"Having a repsonse that is not checked is
+infinitly better than having the user scan something, wait 10 seconds, only to get told the app
+doesn't know."* The reading this was built on: the ANSWER survives and only the VERDICT goes. The
+offers, the reviews and the description are all still on screen; what is withheld is the line, the
+zone word and the percentage, replaced by *"Only one price found, so there is no middle to compare
+against."* That is a statement about the evidence, not a confession of ignorance. The precedent is
+Jamin's own engine: `spine.ts:417` holds a bad claim back but can never empty the set. **This is the
+load-bearing reading of his own rule and he should confirm it**, because if he reads rule 6 as
+"always a LINE" then D-113 has no fix that satisfies it.
+
+**3. Rule 3 versus porting spine logic.** *"THE PRICE SHOULD NOT COME FROM US."* The argument, stated
+precisely: **a plausibility band is not a price source.** Every number on the line still comes from
+Gemini's grounded offers. `isLoneClaim` reads only those offers, compares them only against each
+other (leave-one-out), produces no price of its own, and can do exactly one thing -- move an offer
+into a labelled excluded list. Shin's price database and price engine are not consulted at any point.
+Rule 3 governs WHERE THE NUMBER COMES FROM; this governs WHICH OF GEMINI'S OWN NUMBERS AGREE WITH
+EACH OTHER. D-113's own row made the same observation from the other direction: the engine rules 3
+and 6 would retire is the one that already had this guard.
+
+**4. `gauge.ts`'s header is factually false, and it is legal-flavoured.** `gauge.ts:427-431` states:
+*"NEVER CALL THIS ON A REAL GROUNDED PRICE. Doing so would be this app analyzing a Grounded Result,
+which Google's grounding terms forbid ... this function's only callers are `test/gauge.test.ts` and
+`test/item-rules.test.ts`."* Production calls it on real grounded offers at
+`gemini-grounded.ts:981`, `:995` and `:1002`. Verified directly. Under rule 5 this **marks and never
+blocks**, so nothing stopped and nothing is waiting on it. But the crossing became permanent when the
+sandbox path was deleted for rule 1, and whether that deletion was meant to carry this consequence is
+Jamin's call, not a session's. Same family as D-111.
+
+**5. Deleting `GAUGE_PYTHON_SOURCE` and `codeMatchesGauge`**, about 250 lines whose stated purpose was
+proving Gemini ran unmodified arithmetic. The guard was added to the TypeScript twin only, so the two
+texts in that file now genuinely disagree, with a test still asserting the unused one is intact. The
+proof those functions provided is already gone in practice -- there is no second call left to verify --
+but the deletion should be SEEN rather than inferred from a diff, so it was not done.
+
+**6. Excluding `clearance` prices from the line.** `effectivePriceOf` (`gauge.ts:390-397`) neither
+divides nor excludes them, and the $9.97 offer carried `dealKind: 'clearance'`. Leaving the arithmetic
+alone is right -- inventing a divisor for a promotion nobody parsed puts a dot at a price that does not
+exist -- but whether a clearance price belongs on the line at all is a product question. It is a
+genuine trade rather than a fix: excluding them reduces offer count, and offer count is already the
+scarce thing.
+
+**Also recorded, and not a point for Jamin because it is already fixed: two people were holding different facts about the same number.** `photo-identification.md` item 8
+stated the 200-photo eval "used a stand-in ... never a real model call". True when written; there are
+now three real runs, the latest 148/200 = 74.0% top-1. The cause was an ignore rule hiding
+`identify/eval/results/` on every machine but one. Fixed in `6576137`, and logged here because the
+failure mode -- a `.gitignore` line silently producing a documentation contradiction -- will recur.
+
+**Three defects were found while building the guard, D-114 to D-116, two of them by tests that already
+existed.** The band as specified held an honest price at two offers; the new confidence flag was called
+`'low'`, which the grading-word ban forbids; and that ban sweep turns out to reach only five hardcoded
+selectors.
+
+**Reverses if:** Jamin answers any of the six, or a measured run shows the guard suppressing the line
+on scans where the offers were in fact sound. Point 2 is the one to answer first: every other point
+assumes the line may sometimes be withheld.

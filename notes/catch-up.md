@@ -9,6 +9,59 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-16 (Aurik's PC): the price guard is in, and the eval stops being invisible
+
+### To do
+
+- **Jamin, one question ahead of the other five.** Aurik built a guard so that ONE grounded price no
+  longer produces a verdict line. Measured case: a single Walmart offer of $9.97 against a
+  hand-priced $1.74 told the shopper their ordinary price was *"83% under the middle of 1 prices"*.
+  The guard withholds the LINE and keeps the ANSWER -- offers, reviews and description all still
+  show, with the sentence *"Only one price found, so there is no middle to compare against."*
+  **Does that satisfy your rule 6 for you?** If you read "always an answer" as "always a line", then
+  the defect has no fix that satisfies it and Aurik needs to hear that. Everything else below assumes
+  a line may sometimes be withheld.
+- **Jamin, five more points, written up in `docs/decisions.md` under "D-113 is closed with a guard,
+  and six points come out of it rather than being built".** Short version: (1) your pushed
+  `gauge-math.md` calls the outlier behaviour *"exactly as specified"*, and the guard clips it -- the
+  sentence predates the measurement; (2) rule 3 says the price is not ours, and the argument for the
+  guard is that a plausibility band is not a price source, since every number still comes from your
+  offers and the band only moves one into a labelled list; (3) `gauge.ts`'s header claims production
+  never runs it on a grounded price, and production runs it three times per scan -- rule 5 says that
+  marks and never blocks, so nothing stopped; (4) about 250 lines of Python proof are now dead and
+  deleting them should be seen rather than inferred; (5) whether a `clearance` price belongs on the
+  line at all.
+- **Jamin, the two things only you can send are still outstanding** from 09-15: the data token
+  (`SHIN_ADMIN_TOKEN` is still unset in every scope here) and a paid key that can ground. Neither
+  moved today, and both still block the same things.
+- **Aurik:** the guard has NOT been seen on a phone. The three screens -- one offer, two, three --
+  have not been photographed, and `DEFECTS.md` records that twenty-two of the first thirty defects
+  were found by looking at a rendered screen. No row moves on this until that runs.
+
+### What changed
+
+- **D-113 closed, both guards** (`d91c37f`). A price more than 2.5x away from, or less than half of,
+  the median of the OTHER prices found is held off the line and named to the reader rather than
+  placed. Below two prices there is no line at all. The hold can never empty the set, which is the
+  rule carried over from Shin's own engine so that there is always something to show.
+- **Three new defects while building it, D-114 to D-116, two caught by tests that already existed.**
+  The band as first written held an HONEST price -- a 12 x 355 mL case against a 2 L bottle is a 2.1x
+  spread between two real prices -- so it now needs three prices before it may hold anything. The new
+  confidence flag was called "low", which is on the banned grading-word list. And that ban sweep only
+  checks five places on the screen, so both new sentences were initially unchecked by it.
+- **The 200-photo eval was real all along and nobody outside this machine could see it** (`6576137`).
+  Three runs against a real model exist; the latest is 148 of 200 correct, 74.0%. They were hidden by
+  an ignore rule, which is why a walkthrough doc still said the eval had never made a real model
+  call. That paragraph is corrected in place, the ignore now covers dry runs only, and the three real
+  runs are tracked.
+- **Both remotes carry all of it.** GitHub was two commits behind at the start of the session and is
+  now level; `git ls-remote` on both returns the same commit.
+
+### Read by
+
+
+---
+
 ## 2026-09-15, night (Aurik's PC): the nine-rules cleanup, four built and three raised
 
 ### To do
