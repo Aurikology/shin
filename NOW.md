@@ -75,6 +75,41 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## Seven of ten grounded searches came back with no price at all, 2026-09-16
+
+Measured on Jamin's grounding key, ten real calls, no retries. This was not what was being looked
+for -- the question was whether a barcode-only ask yields fewer offers than one carrying text -- and
+that question turned out to be the wrong one.
+
+| asked | offers |
+| --- | --- |
+| Kraft Dinner (gtin + text) | 1, Walmart |
+| Coca-Cola Classic 2L | 1, Loblaws |
+| Cheerios Original 570g | 2, Loblaws and Metro |
+| Tide Original 2.72L | **0** |
+| Neilson creamer, Massimo Pandoro, Italissima noodles -- barcode only AND gtin + text, six calls | **0** |
+
+**The ask form is not the variable.** The three obscure catalogue rows returned zero offers whether
+asked by code alone or by code plus name, so the earlier one-observation guess (barcode-only yields
+no offers) is retired. What separates them is how findable the product's Canadian retail price is:
+three mainstream products returned 1, 1 and 2 offers, and one mainstream product returned none.
+
+**Identity is not the problem; price is.** The same calls that found no offers still named the
+product -- *Neilson 5% Dairy Cream*, *Pandoro Panettone* -- and often carried a description. Gemini
+knows what the thing is. It frequently cannot say what it costs in Canada.
+
+**Where this lands, and it is not a small place.** Jamin's rules 3 and 6 together make Gemini the
+price and retire Shin's own engine. On this sample the grounded search has no price to give seven
+times in ten, and gives one or two when it does -- against a price line that wants several before it
+means anything. Rule 6 is *"always an answer"*; this is the measurement that says the proposed
+source cannot supply one most of the time. It is evidence for the third raised point in
+`docs/decisions.md`, which until now rested on the cost of deleting 380 tests rather than on whether
+the replacement works.
+
+**Hold it loosely: n = 10**, one session, one key, no retries, arbitrary asking prices, and all ten
+finished inside the 9 s timeout so nothing was cut off. It is a signal worth a real run, not a law.
+The honest next step is the 200-photo eval pointed at the grounded path, which now has a key that
+can run it.
 ## The one-call merge met Google for the first time, and it holds, 2026-09-16
 
 Jamin sent a Gemini credential that can ground (the free key in this repo's `.env` cannot: it

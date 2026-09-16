@@ -1700,6 +1700,13 @@ bystander. That orphans `spine/src/spine.ts`, `spine/src/contract.ts` and `price
 2,294 lines and 380 tests across 32 files — and `SCOREBOARD.md`'s coverage number stops measuring
 anything.
 
+**Measured 2026-09-16, and it changes this point from a cost argument into an evidence one.** Ten
+real grounded searches on Jamin's own grounding key returned no offers at all seven times, and one
+or two offers the other three; identity and description came back either way. If Gemini is the price
+and Shin's engine is retired, most scans on this sample have no price to show -- which is rule 6
+answering rule 3 in the negative. n = 10, one session, no retries: a signal for a real run, not a
+law. `NOW.md` carries the table.
+
 The disagreement may be narrower than it looks. Ruling 10 of 2026-09-14 already says *"Shin's own
 prices are not shown anywhere for now, until enough is collected."* The display path is therefore
 already dormant, and what is actually in dispute is whether the engine and its tests are deleted or
