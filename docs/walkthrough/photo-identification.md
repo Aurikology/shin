@@ -54,13 +54,26 @@ it (2026-09-15); none of it is carried forward from memory or from a plan alone.
    whatsoever about whether xAI agrees." It also carries no published price figures anywhere in
    the app's own cost tables, so any Grok-answered photograph would report an unknown cost rather
    than a number.
-8. A set of two hundred product photographs was run through the identification logic as an
-   accuracy check, and it reported a very high top-1 figure. That run used a stand-in that simply
-   echoes back the correct answer for each photograph from an answer key, never a real model call,
-   and its own summary calls the result "a ceiling, not a score" for exactly that reason: it proves
-   the surrounding catalogue search and merging logic can find the right row when the reading of
-   the photograph is perfect, and it says nothing about whether any of the three vendors above can
-   actually produce that reading from a real picture.
+8. **SUPERSEDED 2026-09-16, and the correction is the point of the entry.** This paragraph read:
+   a set of two hundred product photographs was run as an accuracy check and reported a very high
+   top-1 figure, but that run used a stand-in echoing the correct answer from an answer key, never
+   a real model call, so the number was "a ceiling, not a score".
+
+   All of that was true when it was written, and it is no longer the current state. **Three real
+   runs exist**, all carrying `"dryRun": false`: 2026-09-14 (1/200 -- every call timed out at the
+   3,500 ms extract clock), 2026-09-15 (125/200, with the pick pass timing out 43 times), and
+   **2026-09-16: top-1 148/200 = 74.0%, 95% interval 67.5% to 79.6%**, the first run where both
+   passes completed at scale. Attribution on that run: 32 cascade misses, 5 pick wrong, 7 pick
+   null, 7 pick error, 1 unreadable, 0 false positives.
+
+   **Why this doc said otherwise is worth more than the correction.** `identify/eval/results/` was
+   gitignored as a whole directory, so the real runs existed on one machine and were invisible on
+   every other. The ignore rule has been narrowed to dry runs only and the three real runs are now
+   tracked. Two people were holding different facts about the same number, and neither was careless.
+
+   Two things the old paragraph said that still stand: the DRY-RUN figure remains a ceiling rather
+   than a score, and the false-positive rate is still unmeasured -- the 20 loose-produce rows marked
+   `expect: 'refuse'` hold no photographs, so `falsePositiveRate` is null.
 9. One specific claim of success is on record even so: a session working from the physical Mac
    server on 2026-09-14 recorded that photo identification worked end to end on a real device, one
    named example taking about 9.5 seconds. That entry sits, in the same day's running log, before

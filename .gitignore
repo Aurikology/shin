@@ -54,9 +54,19 @@ identify/data/
 # hook exists to prevent and this line makes impossible.
 /data/
 
-# Eval output. A run's numbers belong in NOW.md and in a commit message where
-# somebody reads them, not as a JSON file that quietly accumulates one per run.
-identify/eval/results/
+# Eval output, DRY RUNS ONLY. The rule below was written whole-directory and the
+# reason it gave still holds for dry runs: they accumulate one per run and their
+# numbers are a ceiling rather than a score, so they belong in NOW.md and in a
+# commit message where somebody reads them.
+#
+# IT WAS TOO WIDE FOR THE REAL RUNS, and that had a cost. Three runs against a
+# real model exist -- 2026-09-14, -15 and -16, the last of them 148/200 top-1 --
+# and because this line hid the whole directory, a walkthrough doc written on a
+# different machine states that the eval "used a stand-in ... never a real model
+# call". That is a contradiction between two people about the same number, and
+# it was caused by an ignore rule rather than by anyone being wrong. Real runs
+# are few, they are evidence, and they are now tracked.
+identify/eval/results/*dry-run.json
 
 # The Mac beta server's own settings, filled in from mac/config.env.example. It
 # holds the Cloudflare tunnel connector token and the beta invite code, so it is
