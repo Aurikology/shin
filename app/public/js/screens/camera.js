@@ -1989,7 +1989,7 @@ export default {
      */
     if (store.consent().location) void refreshCell();
     root.innerHTML = `
-      <div class="cam" data-state="idle">
+      <div class="cam" data-state="idle" data-mode="photo">
         <!-- FLAWS.md item 12: every other screen has an h1 and this one had no
              heading element at all, so a screen reader's heading list skipped
              the app's main surface entirely and router.js has nothing to move
@@ -2040,6 +2040,29 @@ export default {
              because that is what it has always been saying. -->
         <div class="cam-shin" data-slot="cam-shin"></div>
 
+        <!--
+          RULE 2, 2026-09-15: "the barcode should not be auto read, there
+          should be a scan the barcode button", and "the image and barcode
+          should not be part of the same scan".
+
+          So the two are two modes, not one pipeline, and the shopper says
+          which. Photo is the default and is exactly the behaviour that was
+          always there. Barcode arms the decoder and swaps the shutter for its
+          own button -- nothing decodes in photo mode at all (see the gate in
+          src/eye/camera.ts).
+
+          It sits in the band between the docked face and the bar rather than
+          in the bar: the bar holds three controls at a 44px gap already at the
+          thumb-target floor, and a fourth would shrink the shutter or the nav
+          labels. Idle only, like everything else in this band.
+        -->
+        <div class="cam-mode" role="group" aria-label="${escapeHtml(t('cam_mode_picker'))}">
+          <button type="button" class="cam-mode-btn" data-act="scan-mode" data-mode="photo"
+                  aria-pressed="true">${escapeHtml(t('cam_mode_photo'))}</button>
+          <button type="button" class="cam-mode-btn" data-act="scan-mode" data-mode="barcode"
+                  aria-pressed="false">${escapeHtml(t('cam_mode_barcode'))}</button>
+        </div>
+
         <div class="sheet-slot"></div>
 
         <!-- The two nav destinations now say their own names. The aria-labels
@@ -2055,7 +2078,13 @@ export default {
             <span class="nav-badge" hidden></span>
             <span class="nav-label" aria-hidden="true">${escapeHtml(t('nav_saved'))}</span>
           </button>
+          <!-- The middle of the bar is ONE control with two faces, never two
+               controls side by side: setScanMode hides the other outright, so
+               it leaves the tab order and the accessibility tree along with
+               the pixels. The bar still holds three things and the
+               cam-bar-h token is unchanged. -->
           <button type="button" class="shutter" data-act="shoot" aria-label="${escapeHtml(t('cam_shutter'))}"></button>
+          <button type="button" class="scan-code-btn" data-act="scan-barcode" hidden>${escapeHtml(t('cam_scan_barcode'))}</button>
           <button type="button" class="nav-btn" data-act="you" aria-label="${escapeHtml(t('nav_you'))}">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
@@ -2165,10 +2194,34 @@ export default {
     let barcodeInFlight = false;
     /** The code the current scan came from, when a barcode started it. */
     let scanBarcode = null;
-    /** `{ value, at }` for the code a scan the shopper left was about; see the eye's onBarcode. */
-    let leftBarcode = null;
-    /** How long the code just left stays quiet. Long enough to aim and press the shutter. */
-    const REREAD_QUIET_MS = 10000;
+    /*
+     * `leftBarcode` and `REREAD_QUIET_MS` were DELETED here, 2026-09-15.
+     *
+     * They were a ten-second quiet window on the code the shopper had just
+     * backed out of, and they only ever existed because the camera read
+     * whatever was in front of it: come back to the viewfinder with the same
+     * package still in frame and it re-read it within a few frames and dropped
+     * the shopper on the same answer they had just left.
+     *
+     * Rule 2 removes the cause. A read now happens only when "Scan the
+     * barcode" is pressed, so the same code in frame does nothing at all until
+     * the shopper asks for it -- and when they do ask for it, having just
+     * looked at it, they mean it. A quiet window would now be the app refusing
+     * a button press, which is the opposite defect.
+     */
+    /**
+     * WHICH KIND OF SCAN THE SHOPPER IS SET UP FOR: 'photo' or 'barcode'.
+     *
+     * Rule 2: the two are not the same scan. Photo is the default because it
+     * is the one that works on anything; barcode is the cheap path the shopper
+     * chooses when the package has a code on it, and choosing it is what arms
+     * the decoder. Mirrored onto `cam.dataset.mode` for the CSS.
+     */
+    let scanMode = 'photo';
+    /** The "reading" acknowledgement after a barcode press, so it can be taken back down. */
+    let scanPressTimer = null;
+    /** How long that acknowledgement stands before the aim hint comes back. */
+    const SCAN_PRESS_ACK_MS = 6000;
     /** D-026's caller, started once below. The teardown `startCaptureQueue`
         returns, held so the render's own cleanup can call it. */
     let stopCaptureQueue = () => {};
@@ -2187,20 +2240,19 @@ export default {
       reticle: root.querySelector('.reticle'),
       marks: root.querySelector('.frame-marks'),
     }, {
+      /*
+       * A read can now only arrive because the shopper pressed "Scan the
+       * barcode": the eye does not hand a frame to zxing until `scanBarcode()`
+       * has armed it, and it disarms itself the moment a read fires. So there
+       * is no unsolicited read left to filter, and the quiet window that used
+       * to sit here is gone with its cause (see the note by `scanMode`).
+       *
+       * The idle gate stays. It is not about unsolicited reads -- it is the
+       * ordinary "a sheet is up, this screen is busy" guard every handler in
+       * this render has.
+       */
       onBarcode: (read) => {
         if (dead || cam.dataset.state !== 'idle') return;
-        /*
-         * The code the shopper just backed out of, still in frame, is not a
-         * new scan (2026-09-14). Without this, going back to the camera read
-         * the same barcode again within a few frames and dropped them onto
-         * the same answer, so a barcoded product could never reach the
-         * shutter. Any other code reads at once, and this one reads again
-         * after the quiet.
-         */
-        if (leftBarcode && sameCode(read.value, leftBarcode.value) && Date.now() - leftBarcode.at < REREAD_QUIET_MS) {
-          return;
-        }
-        leftBarcode = null;
         onBarcode(read);
       },
       onTorch: (on) => { if (!dead) setTorch(on); },
@@ -2328,6 +2380,33 @@ export default {
      * actually says the thing: this subtree is not interactive right now, in
      * the tab order and in the accessibility tree together.
      */
+    /**
+     * RULE 2's mode switch, 2026-09-15.
+     *
+     * Writes one dataset field for the CSS and flips `hidden` on the two
+     * middle controls, because `hidden` is the primitive that takes a button
+     * out of the tab order and the accessibility tree as well as off the
+     * screen -- the same reasoning as the `inert` in `setState` below. A
+     * shutter that is invisible but Tab-reachable in barcode mode would be the
+     * frame-marks defect again.
+     *
+     * Switching modes does NOT arm anything. Arming is the button press, and
+     * only the button press; switching back to photo leaves nothing armed
+     * because the eye disarms on the read and on `clearSelection`.
+     */
+    function setScanMode(next) {
+      scanMode = next === 'barcode' ? 'barcode' : 'photo';
+      cam.dataset.mode = scanMode;
+      const barcode = scanMode === 'barcode';
+      const shutter = root.querySelector('.shutter');
+      const scanBtn = root.querySelector('.scan-code-btn');
+      if (shutter) shutter.hidden = barcode;
+      if (scanBtn) scanBtn.hidden = !barcode;
+      for (const b of root.querySelectorAll('[data-act="scan-mode"]')) {
+        b.setAttribute('aria-pressed', String(b.dataset.mode === scanMode));
+      }
+    }
+
     function setState(next) {
       if (cam.dataset.state !== next) stateEnteredAt = Date.now();
       cam.dataset.state = next;
@@ -2344,6 +2423,11 @@ export default {
        */
       const marks = root.querySelector('.frame-marks');
       if (marks) marks.inert = next !== 'idle';
+      // The mode toggle sits outside `.cam-bar`, so the `inert` above does not
+      // reach it, and CSS hides it by opacity in exactly the way the
+      // frame-marks defect was about. Same primitive, same reason.
+      const mode = root.querySelector('.cam-mode');
+      if (mode) mode.inert = next !== 'idle';
       parkDockedFace(FACE_HIDDEN_IN.has(next));
     }
 
@@ -2542,6 +2626,7 @@ export default {
       barcodeInFlight = true;
       scanBarcode = read.value;
       clearTimeout(hintTimer);
+      clearTimeout(scanPressTimer);
       clearTimeout(torchAckTimer);
       coachKey = null;
       scanThumb = captureThumb(video, cam.dataset.camera === 'live');
@@ -3025,6 +3110,7 @@ export default {
     function shoot() {
       if (cam.dataset.state !== 'idle') return;
       clearTimeout(hintTimer);
+      clearTimeout(scanPressTimer);
       clearTimeout(torchAckTimer);
       coachKey = null;
       setState('framing');
@@ -3432,6 +3518,7 @@ export default {
         typedSearchPending = false;
       }
       trackScanAbandonedIfMidScan('reset');
+      clearTimeout(scanPressTimer);
       gen++; // Voids any in-flight proceed() continuation, including a photo capture's.
       slot.innerHTML = '';
       last = null;
@@ -3445,16 +3532,24 @@ export default {
       // to remove.
       coachKey = null;
       barcodeInFlight = false;
-      if (scanBarcode) leftBarcode = { value: scanBarcode, at: Date.now() };
+      // Nothing is remembered about the code just left any more: with rule
+      // 2's button there is no unsolicited re-read of the code still in frame
+      // to suppress. See the note by `scanMode`.
       scanBarcode = null;
+      // Drops the eye's pick AND any arming the shopper walked away from, so
+      // coming back to the viewfinder is never mid-read.
       eye?.clearSelection?.();
       setState('idle');
       showInitialIdleContent();
-      // The sheet that had focus has just been deleted. Back to the shutter,
-      // which is where the viewfinder's own attention is and the one control a
-      // returning user wants next -- otherwise focus falls to `body` and the
-      // next Tab starts again from the top of the document.
-      root.querySelector('.shutter')?.focus({ preventScroll: true });
+      // The sheet that had focus has just been deleted. Back to whichever of
+      // the two middle controls this mode is showing -- the shutter in photo
+      // mode, the barcode button in barcode mode -- which is where the
+      // viewfinder's own attention is and the one control a returning user
+      // wants next. Otherwise focus falls to `body` and the next Tab starts
+      // again from the top of the document. Never the hidden one: `hidden`
+      // makes `focus()` a no-op and focus would fall to `body` anyway.
+      root.querySelector(scanMode === 'barcode' ? '.scan-code-btn' : '.shutter')
+        ?.focus({ preventScroll: true });
     }
 
     root.addEventListener('click', (e) => {
@@ -3613,6 +3708,38 @@ export default {
       }
 
       if (act === 'shoot') { shoot(); return; }
+      /*
+       * RULE 2. The two branches the owner's ruling turns on.
+       *
+       * `scan-mode` only changes what the bar shows; it never reads anything.
+       * `scan-barcode` is the ONLY thing in this app that can cause a barcode
+       * to be decoded -- `eye.scanBarcode()` arms exactly one read in the eye,
+       * which disarms itself again as soon as that read fires.
+       */
+      if (act === 'scan-mode') { setScanMode(btn.dataset.mode); return; }
+      if (act === 'scan-barcode') {
+        if (cam.dataset.state !== 'idle') return;
+        track('barcode_scan_pressed', {});
+        eye?.scanBarcode?.();
+        buzz(8);
+        /*
+         * A press with no acknowledgement is a press the shopper repeats. The
+         * docked face carries it, in place, the same way the shutter's press
+         * is carried -- and the same face is put back to the aim hint if the
+         * code never resolves, because "reading" left up forever is a lie
+         * about what the camera is doing. The eye stays armed either way: the
+         * shopper can keep aiming and it will still read when it lands.
+         */
+        clearTimeout(hintTimer);
+        clearTimeout(scanPressTimer);
+        dockSay('thinking', 'reading', {}, 'think-dots');
+        scanPressTimer = setTimeout(() => {
+          if (dead || cam.dataset.state !== 'idle') return;
+          showAimHint();
+          armHintEscalation();
+        }, SCAN_PRESS_ACK_MS);
+        return;
+      }
       if (act === 'watchlist') { ctx.go('watchlist'); return; }
       if (act === 'you') { ctx.go('you'); return; }
       if (act === 'torch') { requestTorch(!torchOn); return; }
@@ -4124,6 +4251,7 @@ export default {
       stopCamera(stream);
       stopCaptureQueue();
       clearTimeout(hintTimer);
+      clearTimeout(scanPressTimer);
       clearTimeout(torchAckTimer);
     };
   },

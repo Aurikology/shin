@@ -8,17 +8,22 @@
  * and turns the torch on by itself in a dim aisle (decision 11).
  *
  * The barcode reader and the detector run at different rates on purpose. Barcode
- * decoding is the cheap one and the one that ends the session fastest, so it
- * gets every frame it can have. Detection is heavier and only feeds a box the
- * user looks at, so it runs slower and nobody notices.
+ * decoding is the cheap one and the one that ends the session fastest, so once
+ * it has been asked for it gets every frame it can have. Detection is heavier
+ * and only feeds a box the user looks at, so it runs slower and nobody notices.
+ *
+ * RULE 2, 2026-09-15: IT IS ASKED FOR. The decode used to run unconditionally
+ * and a code that merely crossed the frame ended the session. It is now gated
+ * on `#barcodeWanted`, which only `scanBarcode()` raises -- the screen's "Scan
+ * the barcode" button. In photo mode zxing is handed nothing at all.
  *
  * THE GUIDANCE SYSTEM, added on top of that loop and ordered by cost to the
  * user. Everything the camera can do about a bad shot, it does silently, and it
  * only speaks once it has run out of its own moves:
  *
- *   1. It reads a barcode every frame, and reports the read while it is still
- *      accumulating, so the mark on screen fills rather than the answer
- *      arriving from nowhere (`onCode`).
+ *   1. Once the shopper has asked for a barcode, it reads every frame, and
+ *      reports the read while it is still accumulating, so the mark on screen
+ *      fills rather than the answer arriving from nowhere (`onCode`).
  *   2. It keeps every object it found rather than the best one, so the user can
  *      tap the one they meant (`select`). Decision 9 promised that tap; this is
  *      where it becomes reachable.
@@ -148,6 +153,17 @@ export class Camera {
   #lastCodeKey = '';
   /** Set when the torch itself is what is blowing the label out, so it is not re-lit into the same glare. */
   #torchBlocked = false;
+  /**
+   * RULE 2, 2026-09-15: nothing is read unless it was asked for.
+   *
+   * The loop used to decode every frame and emit the first stable read, which
+   * meant a code that merely crossed the frame ended the session on its own.
+   * The owner's ruling is that a barcode is a thing the shopper chooses to
+   * scan, so the decode is gated on this flag, raised only by `scanBarcode()`
+   * (the "Scan the barcode" button) and lowered again the moment a read fires.
+   * False here is the whole of photo mode: zxing is never handed a frame.
+   */
+  #barcodeWanted = false;
 
   constructor(options: CameraOptions) {
     this.#video = options.video;
@@ -187,6 +203,8 @@ export class Camera {
 
   stop(): void {
     this.#running = false;
+    // An arming that outlived the screen would read on the next start.
+    this.#barcodeWanted = false;
     this.#scanner.reset();
     this.#gate.reset();
     this.#coach.reset();
@@ -224,10 +242,32 @@ export class Camera {
     this.#gate.reset();
   }
 
+  /**
+   * The shopper asked for a barcode to be read. Rule 2's only door in.
+   *
+   * Idempotent and cheap: it arms the decode, and `#tick` disarms it again as
+   * soon as a read fires, so one press buys one read rather than a window of
+   * reading. Calling it while already armed keeps it armed, which is what a
+   * second press on a code that has not resolved yet should do.
+   */
+  scanBarcode(): void {
+    this.#barcodeWanted = true;
+  }
+
+  /** Whether a read has been asked for and not yet delivered. For the button's own state. */
+  get barcodeWanted(): boolean {
+    return this.#barcodeWanted;
+  }
+
   /** Drops a pick. For leaving the screen or coming back to idle, not for frames. */
   clearSelection(): void {
     this.#pinned = null;
     this.#coach.silence();
+    // Coming back to idle drops an unfulfilled arming with the pick. A press
+    // the shopper walked away from is not a standing request to read whatever
+    // is in front of the phone when they come back.
+    this.#barcodeWanted = false;
+    this.#scanner.reset();
   }
 
   async setTorch(on: boolean): Promise<boolean> {
@@ -309,14 +349,27 @@ export class Camera {
     const frame = this.#frameToImageData();
     if (!frame) return;
 
-    // Barcode first, every frame. Decision 15: it is truth, and it ends the
-    // session faster than anything else can.
-    const read = await this.#scanner.scan(frame);
-    if (read) {
-      this.#emitCode(null);
-      this.#emitCoach(null);
-      this.#events.onBarcode(read);
-      return;
+    /*
+     * THE GATE. Rule 2, 2026-09-15.
+     *
+     * Decision 15 still holds -- a stable read is truth and ends the session
+     * fastest -- but the owner's ruling is that it may only happen when it was
+     * asked for. So the decode itself is behind `#barcodeWanted`: in photo mode
+     * zxing is never handed a frame at all (it is not merely ignored, it is not
+     * run), and in barcode mode it runs only between the button press and the
+     * read it produces. Nothing fires unbidden.
+     */
+    if (this.#barcodeWanted) {
+      const read = await this.#scanner.scan(frame);
+      if (read) {
+        // One press, one read. Disarmed before the event so a handler that
+        // synchronously re-arms (a second press mid-flight) is not undone here.
+        this.#barcodeWanted = false;
+        this.#emitCode(null);
+        this.#emitCoach(null);
+        this.#events.onBarcode(read);
+        return;
+      }
     }
 
     // The in-progress read, every frame, because the mark is only useful if it
