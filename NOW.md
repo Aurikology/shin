@@ -75,6 +75,49 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## The zero-offer problem looks like the MODEL, not the prompt and not obscurity, 2026-09-16
+
+Seven of ten grounded calls returned no price. The protocol in
+`research/2026-09-16-grounded-yield.md` -- written and committed BEFORE the run -- named three
+candidate causes: the prompt, product obscurity, and Canada. **The cause appears to be a fourth
+one that protocol did not list: the model tier.**
+
+Production runs its grounded price search on the CHEAPEST tier. `gemini-grounded.ts:1093` defaults
+to `'claude-haiku-4-5'`, which `gemini.ts:141` maps to `gemini-3.5-flash-lite`.
+
+Same prompt, same browser, same session, three products (rule 8's method, Claude in Chrome on
+gemini.google.com, never the API):
+
+| product | production API, flash-lite | web Flash-Lite | web Pro |
+| --- | --- | --- | --- |
+| Kraft Dinner 225 g | 1 offer, Walmart $9.97 | not run | **4 offers** |
+| Tide Original 2.72 L | **0** | the literal text `1` | **2 offers** |
+| Neilson 5% cream (obscure) | **0**, both ask forms | not run | **2 offers** |
+
+**Obscurity is dead as an explanation**, and that is the conclusion this run can actually carry:
+the obscure catalogue row that returned nothing under both ask forms returned Loblaws $3.50 and
+No Frills $4.24 here, with the market clause still in the prompt. The clause cannot be suppressing
+what it just let through. The prompt is dead too, on the same evidence -- it was identical in every
+cell; only the model moved.
+
+**It also corroborates D-113 sideways.** Pro's four Kraft offers are $2.27, $2.49, $2.99 and
+$21.49-for-twelve: per 100 g, median 1.06. The API's lone $9.97 is 4.43 per 100 g, more than four
+times that and outside the new 2.5x ceiling -- so the guard would have held it and the three honest
+prices would have drawn the line. $9.97 was not a pack-size confusion. It was wrong, and better
+prices were available to the same search on a better model.
+
+**Hold it loosely, and the caveats are in the research note in full.** The web app is not the
+grounding API; n is 3; the flash-lite `1` is one observation and may be a UI artefact; the cream
+answer drifted to a "5% dairy creamer" 1 L, so it counts as "found Canadian offers" and not as a
+correct identification; and nothing here measures whether any returned price is CORRECT.
+
+**The next step is cheap and blocked on Jamin, not on work.** `SHIN_GEMINI_GROUNDED_MODEL` is
+already an environment variable, so pointing it at `gemini-3.8-flash` and re-running
+`identify/eval/price-truth.ts` over the seven hand-priced products would answer this at the API
+instead of in a browser. That needs a paid key -- one of the two things only he can send. The trade
+is roughly 2.5x the token cost per scan ($0.30/$2.50 against $0.75/$3.75 per million,
+`model-cost.ts:130-133`) against a path that currently returns nothing usable on most scans.
+
 ## D-113 is closed: one price is no longer a verdict, 2026-09-16
 
 **Aurik's ruling: both guards, not either.** Reading the code showed that was not belt-and-braces
