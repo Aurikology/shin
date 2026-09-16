@@ -136,7 +136,42 @@ test('the screen renders a scan-barcode control and a photo/barcode toggle', () 
   // 44px gap has no room for.
   const bar = between(SCREEN, '<div class="cam-bar">', '</div>\n      </div>', '.cam-bar');
   assert.equal((bar.match(/data-act="/g) ?? []).length, 4, 'the bottom bar no longer holds exactly watchlist, shutter, scan-barcode, you');
-  assert.match(bar, /data-act="scan-barcode" hidden/, 'the barcode button is not hidden in the default photo mode');
+  /*
+   * BARCODE IS THE DEFAULT, Aurik's call 2026-09-15, so it is the SHUTTER that
+   * starts hidden. A barcode that hits the local catalogue costs no model call
+   * at all, against a photo's image call plus the grounded search, and the old
+   * photo default made the free path cost two taps and the paid one cost one.
+   *
+   * The default is spelled in three places that can drift apart -- the face in
+   * the bar, the pressed half of the toggle, and `scanMode` -- so all three are
+   * pinned here. `setScanMode(scanMode)` runs once at render to make the markup
+   * obey the variable; these assert the markup already agrees with it, so there
+   * is no visible swap on the first paint.
+   *
+   * Matched on a whitespace-collapsed copy rather than with a regex carrying
+   * escapes: the markup wraps these attributes across lines and an escape in a
+   * generated test file is one heredoc away from becoming a real newline.
+   */
+  const flat = SCREEN.replace(/\s+/g, ' ');
+  const barFlat = bar.replace(/\s+/g, ' ');
+  assert.ok(
+    barFlat.includes('class="shutter"') && /class="shutter"[^>]*hidden/.test(barFlat),
+    'the shutter is not hidden, so the default is no longer barcode',
+  );
+  assert.ok(
+    !/data-act="scan-barcode"[^>]*hidden/.test(barFlat),
+    'the barcode button is hidden, so the default reverted to photo',
+  );
+  assert.ok(
+    flat.includes('data-mode="barcode" aria-pressed="true"'),
+    'the toggle does not show Barcode as the pressed half',
+  );
+  assert.ok(
+    flat.includes('data-mode="photo" aria-pressed="false"'),
+    'the toggle still shows Photo as the pressed half',
+  );
+  assert.ok(flat.includes("let scanMode = 'barcode';"), 'the state variable still starts on photo');
+  assert.ok(flat.includes('setScanMode(scanMode);'), 'nothing drives the markup off the variable at render');
 });
 
 test('the click dispatch wires scan-barcode to the eye and scan-mode to the swap', () => {

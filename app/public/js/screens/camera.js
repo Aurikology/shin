@@ -2058,9 +2058,9 @@ export default {
         -->
         <div class="cam-mode" role="group" aria-label="${escapeHtml(t('cam_mode_picker'))}">
           <button type="button" class="cam-mode-btn" data-act="scan-mode" data-mode="photo"
-                  aria-pressed="true">${escapeHtml(t('cam_mode_photo'))}</button>
+                  aria-pressed="false">${escapeHtml(t('cam_mode_photo'))}</button>
           <button type="button" class="cam-mode-btn" data-act="scan-mode" data-mode="barcode"
-                  aria-pressed="false">${escapeHtml(t('cam_mode_barcode'))}</button>
+                  aria-pressed="true">${escapeHtml(t('cam_mode_barcode'))}</button>
         </div>
 
         <div class="sheet-slot"></div>
@@ -2083,8 +2083,8 @@ export default {
                it leaves the tab order and the accessibility tree along with
                the pixels. The bar still holds three things and the
                cam-bar-h token is unchanged. -->
-          <button type="button" class="shutter" data-act="shoot" aria-label="${escapeHtml(t('cam_shutter'))}"></button>
-          <button type="button" class="scan-code-btn" data-act="scan-barcode" hidden>${escapeHtml(t('cam_scan_barcode'))}</button>
+          <button type="button" class="shutter" data-act="shoot" aria-label="${escapeHtml(t('cam_shutter'))}" hidden></button>
+          <button type="button" class="scan-code-btn" data-act="scan-barcode">${escapeHtml(t('cam_scan_barcode'))}</button>
           <button type="button" class="nav-btn" data-act="you" aria-label="${escapeHtml(t('nav_you'))}">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
@@ -2212,12 +2212,30 @@ export default {
     /**
      * WHICH KIND OF SCAN THE SHOPPER IS SET UP FOR: 'photo' or 'barcode'.
      *
-     * Rule 2: the two are not the same scan. Photo is the default because it
-     * is the one that works on anything; barcode is the cheap path the shopper
-     * chooses when the package has a code on it, and choosing it is what arms
-     * the decoder. Mirrored onto `cam.dataset.mode` for the CSS.
+     * Rule 2: the two are not the same scan. Mirrored onto `cam.dataset.mode`.
+     *
+     * BARCODE IS THE DEFAULT, on Aurik's call 2026-09-15, reversing the photo
+     * default this screen shipped with earlier the same day. A barcode scan
+     * that hits the local catalogue costs NO model call at all -- it is a
+     * SQLite lookup over 212,340 rows -- against a photo's image call of about
+     * 1,066 image tokens plus the grounded search. Measured photo latency on
+     * the free key was 9,032 ms against a beta that promises seven seconds.
+     * Leaving photo in front made the free path cost two taps and the
+     * expensive one cost one, which is rule 2's own cost argument pointing
+     * backwards. It also restores what Jamin asked for the night of the
+     * switch: "Shin should be recommending the user to search barcodes and if
+     * it doesn't have a barcode, it should search the image."
+     *
+     * This does NOT arm the decoder. Rule 2 is untouched: `#barcodeWanted`
+     * stays false until "Scan the barcode" is pressed, so the default decides
+     * which face the bar shows, never whether zxing reads unbidden.
+     *
+     * The cost is real and it lands on produce, which has no barcode at all
+     * (20 of the eval set's 220 rows) and is the class the beta was pointed
+     * at. Those shoppers pay one extra tap per visit until the chosen mode is
+     * remembered across renders, which is not built.
      */
-    let scanMode = 'photo';
+    let scanMode = 'barcode';
     /** The "reading" acknowledgement after a barcode press, so it can be taken back down. */
     let scanPressTimer = null;
     /** How long that acknowledgement stands before the aim hint comes back. */
@@ -2406,6 +2424,14 @@ export default {
         b.setAttribute('aria-pressed', String(b.dataset.mode === scanMode));
       }
     }
+
+    /*
+     * Run once so the default lives in ONE place. The markup above spells the
+     * same mode out, because a face that appears and then swaps is a flash the
+     * shopper sees; this call is what makes the two agree, and what sets
+     * `cam.dataset.mode`, which nothing set until the first press.
+     */
+    setScanMode(scanMode);
 
     function setState(next) {
       if (cam.dataset.state !== next) stateEnteredAt = Date.now();
