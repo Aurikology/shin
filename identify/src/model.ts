@@ -815,14 +815,30 @@ function geminiSelected(): boolean {
 
 /**
  * Which provider is behind the seam. `anthropic` unless explicitly told
- * otherwise, so an unset environment is today's behaviour exactly.
+ * otherwise, so an unset environment is today's behaviour exactly. An unset
+ * `SHIN_MODEL_PROVIDER` never asked for Gemini in the first place, so
+ * Anthropic here is the correct provider, not a fallback standing behind one.
  *
- * THE GEMINI BRANCH, 2026-09-14. Two conditions, not one: the environment has
- * to name Gemini AND a `GEMINI_API_KEY` has to exist. Named with no key returns
- * the Anthropic provider completely unchanged, byte for byte, because a machine
- * that has the setting and not the secret is a machine mid-rollout and the
- * worst thing to hand it is a provider that refuses every scan. There is no
- * warning logged on that path on purpose: it would fire once per call.
+ * THE GEMINI BRANCH, 2026-09-15, REVISED. Named with no key used to return
+ * the Anthropic provider completely unchanged, byte for byte, reasoned as: a
+ * machine that has the setting and not the secret is a machine mid-rollout,
+ * and the worst thing to hand it is a provider that refuses every scan. That
+ * reasoning is superseded. Jamin's rule 7 is *"claude should not be taking
+ * over"* -- and a silent fall-through to Anthropic when Gemini was explicitly
+ * named is exactly Claude taking over, invisibly and billed to a different
+ * account. So this now throws instead, naming the missing secret.
+ *
+ * WHY THE THROW DOESN'T STRAND A MACHINE MID-ROLLOUT. The worry above was
+ * real but is now handled one layer up: `geminiKeyProblem` in
+ * `app/server.ts` (joined into `startupProblems()` there) checks this exact
+ * condition before the port ever opens, and exits 1 with one sentence naming
+ * the fix if it is found. A machine in that state never boots, so it never
+ * gets the chance to serve a shopper a scan at all -- there is no live
+ * request for this throw to interrupt in the app. Verified by the boss on a
+ * live run: exit 1, one sentence, nothing served. This function's throw is
+ * the same guard for every other caller (the eval runner, tests, anything
+ * that builds a provider directly) that does not go through that startup
+ * check.
  *
  * WHY THE KEYS ARE NOT SHARED. `apiKey` here is, and always has been, the
  * ANTHROPIC key (`Identifier`'s constructor takes one and passes it straight
@@ -841,6 +857,9 @@ export function makeProvider(apiKey?: string): Provider {
   if (named === 'gemini') {
     const geminiKey = process.env.GEMINI_API_KEY?.trim();
     if (geminiKey) return new GeminiProvider({ apiKey: geminiKey });
+    throw new Error(
+      'SHIN_MODEL_PROVIDER is set to gemini but GEMINI_API_KEY is empty or missing, so there is no provider to build; Claude does not take over.',
+    );
   }
   return new AnthropicProvider(anthropicClient(apiKey));
 }
