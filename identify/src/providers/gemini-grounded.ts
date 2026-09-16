@@ -1,16 +1,17 @@
 /**
  * The only file in this repo that calls `seal()`.
  *
- * Gemini's Google Search grounding, plus the code-execution step that refines
- * grounded prices into a verdict. Everything it returns is a sealed
+ * Gemini's Google Search grounding: ONE grounded call per scan, which returns
+ * the product, its prices, its reviews and its description together (rule 1,
+ * `docs/jamin-gemini-rules.md`). Everything it returns is a sealed
  * `Grounded<T>` from `../grounded.ts`, which is where the licence, the quoted
  * terms and the reasoning behind the box all live. Read that header first.
  *
  * WHY THIS IS A SEPARATE FILE FROM `gemini.ts`. `gemini.ts` implements the
  * vendor-neutral `Provider` for the plain vision identification passes
  * (extract and pick) and has no notion of tools at all. Everything here needs
- * Google Search grounding, sometimes code execution, and a JSON schema, in the
- * same request. `Provider.send` was never shaped for that, and more
+ * Google Search grounding and a JSON schema in the same request.
+ * `Provider.send` was never shaped for that, and more
  * importantly its answer is a plain `T` that the identification pipeline is
  * free to store: a grounded answer is not, and `GroundedProvider` exists so
  * the compiler keeps the two apart.
@@ -55,7 +56,9 @@
  *   - `{ type: 'google_search' }`: the spec's `GoogleSearch` tool and the REST
  *     example on https://ai.google.dev/gemini-api/docs/google-search.
  *   - `{ type: 'code_execution' }`: the spec's `CodeExecution` tool,
- *     https://ai.google.dev/gemini-api/docs/code-execution. Verdict call only.
+ *     https://ai.google.dev/gemini-api/docs/code-execution. Wired but never
+ *     asked for since the verdict resubmission was deleted on 2026-09-15; no
+ *     request this app builds sets `codeExecution`.
  *   - Spec: https://ai.google.dev/static/api/interactions.openapi.json.
  *   - Structured output WITH a tool is documented for Gemini 3 as Preview:
  *     https://ai.google.dev/gemini-api/docs/structured-output. All read
@@ -117,9 +120,10 @@ export interface GroundedGeminiOptions {
  * API needs that the vendor-neutral request has no word for.
  *
  * `codeExecution` is here rather than on `ProviderRequest` because code
- * execution is not grounding: it is a second tool that only the verdict
- * resubmission turns on, and putting it in the shared seam would offer it to
- * every ungrounded caller that has no use for it.
+ * execution is not grounding: it is a second tool, and putting it in the
+ * shared seam would offer it to every ungrounded caller that has no use for
+ * it. Nothing sets it today -- the verdict resubmission that did is gone --
+ * and it is kept because it is a property of this wire, not of a caller.
  */
 export interface GroundedRequest extends ProviderRequest {
   readonly grounding: 'google_search';
@@ -229,57 +233,6 @@ export interface PricesReviewsDescription {
   readonly description: string | null;
 }
 
-/**
- * The refined verdict, every number of it computed by Gemini's own code
- * execution running the FIXED function in `gauge.ts`.
- *
- * This app never runs a median or a percent difference over a grounded price.
- * That is the refinement carve-out being used as written: Gemini analyses its
- * own Grounded Result in a subsequent prompt to produce a refined Grounded
- * Result for the same end user.
- */
-export interface VerdictFigures {
-  readonly usable: boolean;
-  readonly median?: number;
-  readonly percent?: number;
-  /*
-   * `zone`, not `label`, and neutral values. This interface said
-   * `label: 'good' | 'fair' | 'high'` until 2026-09-14; those are grading
-   * words, hard rule 2 forbids an unmeasured performance claim, and the
-   * founder ruled the same morning that the line names the range the shopper
-   * set rather than Shin's opinion of the price. See the schema below.
-   */
-  readonly zone?: 'under_your_line' | 'middle' | 'over_your_line';
-  readonly n?: number;
-  readonly dimension?: string | null;
-  readonly unitLabel?: string | null;
-  readonly shelfPosition?: number;
-  readonly shelfLabel?: string;
-  /* Two flat numbers on the gauge's 0 to 100 line, its own neutral names. */
-  readonly zoneUnderBoundary?: number;
-  readonly zoneOverBoundary?: number;
-  readonly points?: readonly {
-    readonly retailer: string;
-    readonly position: number;
-    readonly url?: string | null;
-    readonly label?: string;
-  }[];
-  /* Where all four adopted item rules surface: a member-only price, a US
-     listing, a marketplace seller, a different brand kind. `code` travels;
-     the note is English and a French reader needs the same fact. */
-  readonly excluded?: readonly {
-    readonly retailer: string;
-    readonly code: string;
-    readonly note?: string;
-    readonly label?: string | null;
-    readonly url?: string | null;
-  }[];
-  readonly ticks?: readonly {
-    readonly pct: number;
-    readonly position: number;
-    readonly label?: string;
-  }[];
-}
 
 /* --------------------------------------------------------------- the asks */
 
@@ -327,7 +280,22 @@ function brevity(reader: Reader): string {
     : 'Keep it short: at most 8 offers, at most 3 reviews, each summary at most 25 words, the description at most 30 words. Put null wherever there is no source.';
 }
 
-const BARCODE_SCHEMA = {
+/*
+ * ONE SCHEMA, BECAUSE THERE IS ONE CALL (rule 1, Jamin: "one gemini call will
+ * return the object, the price, the reviews, etc.").
+ *
+ * The identity half -- `name`, `brand`, `size` and a source link per fact --
+ * used to be a schema of its own, `barcode_facts`, asked for by a second
+ * grounded call that ran beside the price search on every catalogue miss.
+ * Merged in here 2026-09-15: the model is already searching for this exact
+ * product to price it, so naming it costs three short strings and three urls
+ * in the same answer rather than a whole second search.
+ *
+ * `sources` is per fact rather than one flat list for the reason it always
+ * was: a flat list cannot say WHICH fact had no source, and the "no link for
+ * this one" heads-up is per row.
+ */
+const PRICES_SCHEMA = {
   type: 'object',
   properties: {
     name: { type: ['string', 'null'] },
@@ -342,13 +310,6 @@ const BARCODE_SCHEMA = {
       },
       required: ['name', 'brand', 'size'],
     },
-  },
-  required: ['name', 'brand', 'size', 'sources'],
-};
-
-const PRICES_SCHEMA = {
-  type: 'object',
-  properties: {
     offers: {
       type: 'array',
       items: {
@@ -408,229 +369,76 @@ const PRICES_SCHEMA = {
     },
     description: { type: ['string', 'null'] },
   },
-  required: ['offers', 'reviews', 'description'],
+  required: ['name', 'brand', 'size', 'sources', 'offers', 'reviews', 'description'],
 };
 
-/*
- * THE SHAPE `identify/src/gauge.ts` ACTUALLY RETURNS, and nothing else.
+/**
+ * THE ONE GROUNDED CALL A SCAN MAKES.
  *
- * This schema is the `response_format` Gemini must answer in, which makes it
- * the narrowest point in the verdict path: a field missing from here cannot
- * reach a screen however carefully the Python computes it.
+ * RULE 1, Jamin, `docs/jamin-gemini-rules.md`: "one gemini call will return
+ * the object, the price, the reviews, etc." One prompt, never two.
  *
- * REWRITTEN 2026-09-14, for two reasons that were both live defects.
+ * WHAT THIS REPLACED. Until 2026-09-15 a catalogue miss cost three grounded
+ * searches: `barcodeLookupRequest` asked what the code was, a price search was
+ * fired beside it, and `/api/price` awaited a third. All three were the same
+ * product being searched for, so the identity ask is now the first clause of
+ * this prompt and `GeminiGroundedLookup` derives both the barcode block and
+ * the price block from the single answer.
  *
- * It demanded `label` as one of `good` / `fair` / `high`. Those are grading
- * words. Hard rule 2 (Competition Act s.74.01(1)(b), no performance claim
- * without adequate and proper testing) and four test files forbid them
- * outside a real verdict, and Gemini's prices are not verified, sized or
- * dated the way the spine requires before it says walk away. The founder's
- * ruling the same morning was that the line names the range the SHOPPER set,
- * so the field is `zone` and its values are neutral: the shelf price is under
- * their line, in the middle, or over their line. Shin states no opinion about
- * the price, so there is no claim to substantiate.
+ * THE SUBJECT. With a name, the product is described by brand, name and size,
+ * with the barcode appended when there is one: the code is the one detail
+ * that cannot match a neighbouring size or flavour by accident. With no name
+ * at all -- a catalogue miss, which is the case this merge exists for -- the
+ * subject IS the barcode, and clause (1) is what turns it into a product.
  *
- * It also described a shape the gauge does not produce: no `zone`, no
- * `unitLabel`, no `excluded`, no `ticks`, and `zoneBoundaries: {good, high}`
- * where the gauge emits two flat numbers. `excluded` is how all four of the
- * adopted item rules express themselves (a member-only price, a US listing, a
- * marketplace seller, a different brand kind), so with it missing from this
- * schema not one of them could have reached a tester.
+ * `maxOutputTokens` is 2600 rather than the price-only 2000: the identity half
+ * is three short strings and three urls, and an answer cut off mid-array is an
+ * answer with no prices in it.
  */
-const VERDICT_SCHEMA = {
-  type: 'object',
-  properties: {
-    usable: { type: 'boolean' },
-    median: { type: 'number' },
-    percent: { type: 'number' },
-    /* Neutral by construction. See the header above: no grading word may be
-       asked for here, because a word asked for is a word that comes back. */
-    zone: { type: 'string', enum: ['under_your_line', 'middle', 'over_your_line'] },
-    n: { type: 'number' },
-    dimension: { type: ['string', 'null'] },
-    unitLabel: { type: ['string', 'null'] },
-    shelfPosition: { type: 'number' },
-    shelfLabel: { type: 'string' },
-    zoneUnderBoundary: { type: 'number' },
-    zoneOverBoundary: { type: 'number' },
-    points: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          retailer: { type: 'string' },
-          position: { type: 'number' },
-          url: { type: ['string', 'null'] },
-          label: { type: 'string' },
-        },
-        required: ['retailer', 'position'],
-      },
-    },
-    /* The four adopted item rules live here. `code` is what travels, because
-       the note is English and a French reader needs the same fact. */
-    excluded: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          retailer: { type: 'string' },
-          code: { type: 'string' },
-          note: { type: 'string' },
-          label: { type: ['string', 'null'] },
-          url: { type: ['string', 'null'] },
-        },
-        required: ['retailer', 'code'],
-      },
-    },
-    ticks: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          pct: { type: 'number' },
-          position: { type: 'number' },
-          label: { type: 'string' },
-        },
-        required: ['pct', 'position'],
-      },
-    },
-  },
-  required: ['usable'],
-};
-
-/** A catalogue miss: we have the code and nothing else. */
-export function barcodeLookupRequest(
-  gtin: string,
-  model: string,
-  signal: AbortSignal,
-  reader: Reader = 'en',
-): GroundedRequest {
-  const ask =
-    reader === 'fr'
-      ? `Utilise la recherche Google pour identifier le produit portant le code-barres ${gtin}. Donne son nom, sa marque et son format, et pour CHACUN de ces trois faits le lien de la source qui l'etablit (null s'il n'y en a pas).`
-      : `Use Google Search to identify the product with barcode ${gtin}. Give its name, its brand and its size, and for EACH of those three facts the source link that establishes it (null if there is none).`;
-  return {
-    model,
-    images: [],
-    system: [voice(reader), market(reader)].join(' '),
-    user: [ask, brevity(reader)].join(' '),
-    schema: { name: 'barcode_facts', schema: BARCODE_SCHEMA },
-    maxOutputTokens: 800,
-    signal,
-    grounding: 'google_search',
-  };
-}
-
-/** Prices, reviews and a short description for a product we can already name. */
 export function pricesReviewsRequest(
   product: { name: string; brand?: string | null; size?: string | null; gtin?: string | null },
   model: string,
   signal: AbortSignal,
   reader: Reader = 'en',
 ): GroundedRequest {
-  // The barcode goes in too when there is one: it is the one detail that
-  // cannot match a neighbouring size or flavour by accident.
+  const named = (product.name ?? '').trim() !== '';
   const code = product.gtin ? (reader === 'fr' ? ` (code-barres ${product.gtin})` : ` (barcode ${product.gtin})`) : '';
   const described = [product.brand, product.name, product.size].filter(Boolean).join(' ') + code;
+  const subject =
+    named || !product.gtin
+      ? described
+      : reader === 'fr'
+        ? `le produit portant le code-barres ${product.gtin}`
+        : `the product with barcode ${product.gtin}`;
   const ask =
     reader === 'fr'
-      ? `Utilise la recherche Google pour trouver, pour : ${described} -- (1) les prix actuels chez des detaillants canadiens, avec pour chaque offre le detaillant, le prix (nombre), la devise du prix (code, par exemple CAD ou USD), l'URL, la valeur du format, l'unite du format, le nombre d'unites par paquet, le numero de modele, les specifications et l'etat (neuf, reconditionne, occasion), et aussi : marketplace (vrai si c'est un vendeur tiers sur le site du detaillant plutot que le detaillant), memberOnly (vrai si le prix exige une adhesion payante), dealKind ("multi_buy" pour un prix a plusieurs articles comme 2 pour 5 $, "bogo" pour un achete un recu un, "clearance" pour une liquidation, sinon null) avec dealUnits (le nombre d'articles couverts, donc 2 pour "2 pour 5 $"), organic (vrai si le produit est biologique), storeBrand (le nom de la marque maison, par exemple "President's Choice", sinon null) et soldByWeight (vrai si le prix est au poids). Donne le prix affiche tel quel : pour un "2 pour 5 $", price vaut 5 et dealUnits vaut 2. ; (2) les avis clients avec la note, le nombre d'avis, un resume court et l'URL ; (3) une courte description du produit.`
-      : `Use Google Search to find, for: ${described} -- (1) current prices at Canadian retailers, giving for each offer the retailer, the price (a number), the currency of that price (a code, for example CAD or USD), the url, the size value, the size unit, the pack count, the model number, the specs and the condition (new, refurbished, used), and also: marketplace (true when it is a third-party seller on the retailer's site rather than the retailer), memberOnly (true when the price needs a paid membership), dealKind ("multi_buy" for a several-items price such as 2 for $5, "bogo" for buy one get one, "clearance" for a marked-down line, otherwise null) with dealUnits (how many items that price covers, so 2 for a "2 for $5"), organic (true when the product is organic), storeBrand (the store brand's name, for example "President's Choice", otherwise null) and soldByWeight (true when the price is by weight). Give the advertised price as it stands: for a "2 for $5", price is 5 and dealUnits is 2. ; (2) customer reviews with rating, count, a short summary and the url; (3) a short product description.`;
+      ? `Utilise la recherche Google pour identifier ${subject}, puis trouve, pour ce meme produit -- (1) son nom, sa marque et son format, et pour CHACUN de ces trois faits le lien de la source qui l'etablit (null s'il n'y en a pas) ; (2) les prix actuels chez des detaillants canadiens, avec pour chaque offre le detaillant, le prix (nombre), la devise du prix (code, par exemple CAD ou USD), l'URL, la valeur du format, l'unite du format, le nombre d'unites par paquet, le numero de modele, les specifications et l'etat (neuf, reconditionne, occasion), et aussi : marketplace (vrai si c'est un vendeur tiers sur le site du detaillant plutot que le detaillant), memberOnly (vrai si le prix exige une adhesion payante), dealKind ("multi_buy" pour un prix a plusieurs articles comme 2 pour 5 $, "bogo" pour un achete un recu un, "clearance" pour une liquidation, sinon null) avec dealUnits (le nombre d'articles couverts, donc 2 pour "2 pour 5 $"), organic (vrai si le produit est biologique), storeBrand (le nom de la marque maison, par exemple "President's Choice", sinon null) et soldByWeight (vrai si le prix est au poids). Donne le prix affiche tel quel : pour un "2 pour 5 $", price vaut 5 et dealUnits vaut 2. ; (3) les avis clients avec la note, le nombre d'avis, un resume court et l'URL ; (4) une courte description du produit.`
+      : `Use Google Search to identify ${subject}, then find, for that same product -- (1) its name, its brand and its size, and for EACH of those three facts the source link that establishes it (null if there is none); (2) current prices at Canadian retailers, giving for each offer the retailer, the price (a number), the currency of that price (a code, for example CAD or USD), the url, the size value, the size unit, the pack count, the model number, the specs and the condition (new, refurbished, used), and also: marketplace (true when it is a third-party seller on the retailer's site rather than the retailer), memberOnly (true when the price needs a paid membership), dealKind ("multi_buy" for a several-items price such as 2 for $5, "bogo" for buy one get one, "clearance" for a marked-down line, otherwise null) with dealUnits (how many items that price covers, so 2 for a "2 for $5"), organic (true when the product is organic), storeBrand (the store brand's name, for example "President's Choice", otherwise null) and soldByWeight (true when the price is by weight). Give the advertised price as it stands: for a "2 for $5", price is 5 and dealUnits is 2. ; (3) customer reviews with rating, count, a short summary and the url; (4) a short product description.`;
   return {
     model,
     images: [],
     system: [voice(reader), market(reader)].join(' '),
     user: [ask, brevity(reader)].join(' '),
     schema: { name: 'prices_reviews_description', schema: PRICES_SCHEMA },
-    maxOutputTokens: 2000,
+    maxOutputTokens: 2600,
     signal,
     grounding: 'google_search',
   };
 }
 
-/**
- * THE GAUGE, WHICH THIS FILE DOES NOT WRITE.
+/*
+ * THE SECOND CALL IS GONE, 2026-09-15.
  *
- * `../gauge.ts` exports `GAUGE_PYTHON_SOURCE` and `codeMatchesGauge`, and it
- * belongs to another lane. Asking Gemini to write its own Python on every call
- * was the defect in the earlier version of this file: there was nothing fixed
- * to check the executed code against, so "the model did the arithmetic" and
- * "the model did some arithmetic" were the same observation.
- *
- * WHY THE SPECIFIER IS IN A CONSTANT rather than written inline. A literal
- * `import('../gauge.ts')` is resolved by the compiler, so this package would
- * not typecheck at all until that file lands, and this lane would then be
- * blocked on another lane's file or tempted to invent its own Python, which is
- * the exact defect above. Held in a variable, the specifier is loaded at
- * runtime and the name is still written here once, literally, so the day
- * `gauge.ts` appears this works with no edit. Until then `loadGauge` returns
- * null and the verdict request REFUSES to be built. It never falls back to
- * asking Gemini to improvise.
+ * `verdictResubmissionRequest`, `VERDICT_SCHEMA`, `loadGauge` and
+ * `GeminiGroundedProvider.verdict` used to live here: a code-execution
+ * resubmission that handed the grounded prices back to Gemini and asked it to
+ * run the fixed Python in `../gauge.ts` over them. Nothing in the app ever
+ * called it -- `GeminiGroundedLookup` computes the line locally with
+ * `computeGauge` from the same offers, see `priceLineFor` below -- and it was
+ * the only code in this repo capable of making a second grounded call for one
+ * scan, which rule 1 forbids. `../gauge.ts` itself is untouched and live: the
+ * arithmetic was never the dead part, the resubmission was.
  */
-const GAUGE_MODULE = '../gauge.ts';
-
-interface GaugeModule {
-  readonly GAUGE_PYTHON_SOURCE: string;
-  codeMatchesGauge(code: string): boolean;
-}
-
-let gaugeCache: GaugeModule | null | undefined;
-
-export async function loadGauge(): Promise<GaugeModule | null> {
-  if (gaugeCache !== undefined) return gaugeCache;
-  try {
-    const loaded = (await import(GAUGE_MODULE)) as Partial<GaugeModule>;
-    gaugeCache =
-      typeof loaded.GAUGE_PYTHON_SOURCE === 'string' && typeof loaded.codeMatchesGauge === 'function'
-        ? (loaded as GaugeModule)
-        : null;
-  } catch {
-    gaugeCache = null;
-  }
-  return gaugeCache;
-}
-
-/**
- * The verdict resubmission: the refinement carve-out, used as written.
- *
- * It resubmits the grounded prices (via `resubmitText` on the caller's side,
- * which is the only legal way that text leaves its box), the shelf price the
- * user typed and the user's own two percentages, with `code_execution` on, and
- * asks Gemini to run the FIXED function from `gauge.ts` rather than any code it
- * writes itself. `sendGrounded` then checks what it actually ran.
- */
-export async function verdictResubmissionRequest(
-  groundedPricesText: string,
-  shelfPriceCad: number,
-  thresholds: { goodPct: number; highPct: number },
-  model: string,
-  signal: AbortSignal,
-  reader: Reader = 'en',
-): Promise<GroundedRequest> {
-  const gauge = await loadGauge();
-  if (!gauge) {
-    throw new ProviderError(
-      'model_client_error',
-      'The fixed gauge function (identify/src/gauge.ts) is not present, so there is no verified ' +
-        'code for Gemini to run. No verdict is asked for: prices and reviews are shown alone.',
-    );
-  }
-  const ask =
-    reader === 'fr'
-      ? `Voici des prix trouves par recherche Google : ${groundedPricesText}. Le prix en magasin est ${shelfPriceCad} CAD. Les seuils de l'utilisateur sont ${thresholds.goodPct} % et ${thresholds.highPct} %. Execute EXACTEMENT la fonction Python ci-dessous, sans la modifier, et appelle-la avec ces valeurs. Retourne son resultat.`
-      : `Here are prices found by Google Search: ${groundedPricesText}. The shelf price is ${shelfPriceCad} CAD. The user's thresholds are ${thresholds.goodPct}% and ${thresholds.highPct}%. Run EXACTLY the Python function below, unmodified, and call it with those values. Return its result.`;
-  return {
-    model,
-    images: [],
-    system: [voice(reader), market(reader)].join(' '),
-    user: [ask, gauge.GAUGE_PYTHON_SOURCE].join('\n\n'),
-    schema: { name: 'verdict_figures', schema: VERDICT_SCHEMA },
-    maxOutputTokens: 1200,
-    signal,
-    grounding: 'google_search',
-    codeExecution: true,
-  };
-}
 
 /* ------------------------------------------------------------- the adapter */
 
@@ -869,21 +677,12 @@ export class GeminiGroundedProvider implements GroundedProvider {
     }
 
     /*
-     * THE GAUGE CHECK, verdict resubmission only. A mismatch means no verdict
-     * from this call: code this repo cannot recognise is arithmetic of unknown
-     * provenance. The price line does not depend on it; `GeminiGroundedLookup`
-     * computes the gauge locally from the same offers.
+     * NO GAUGE CHECK HERE ANY MORE, 2026-09-15. It guarded the verdict
+     * resubmission, which was the only caller that ever set `codeExecution`
+     * and is gone (see "THE SECOND CALL IS GONE" above). The price line is
+     * computed locally by `priceLineFor`, from the same offers, with the same
+     * `computeGauge`, so nothing downstream lost a check.
      */
-    if (wantsCode) {
-      const gauge = await loadGauge();
-      if (!gauge || walked.executedCode === null || !gauge.codeMatchesGauge(walked.executedCode)) {
-        throw new ProviderError(
-          'model_malformed',
-          'Gemini did not run the fixed gauge function, so this call has no verdict.',
-        );
-      }
-    }
-
     const answer = parseJson(walked.text);
     if (answer === null || typeof answer !== 'object') {
       throw new ProviderError('model_malformed', 'The grounded answer held no JSON object.');
@@ -925,7 +724,13 @@ export class GeminiGroundedProvider implements GroundedProvider {
     };
   }
 
-  /** A catalogue miss. */
+  /**
+   * A catalogue miss, read for its identity half only.
+   *
+   * Same request as `pricesReviewsDescription` since the merge -- there is one
+   * prompt now -- and the narrower `BarcodeFacts` is a subset of what comes
+   * back, so a caller that wants the name and nothing else is typed for it.
+   */
   lookupBarcode(
     gtin: string,
     model: string,
@@ -934,7 +739,7 @@ export class GeminiGroundedProvider implements GroundedProvider {
     reader: Reader = 'en',
   ): Promise<ProviderResponse<Grounded<GroundedAnswer<BarcodeFacts>>>> {
     return this.sendGrounded<GroundedAnswer<BarcodeFacts>>(
-      barcodeLookupRequest(gtin, model, signal, reader),
+      pricesReviewsRequest({ name: '', gtin }, model, signal, reader),
       forDevice,
     );
   }
@@ -953,29 +758,11 @@ export class GeminiGroundedProvider implements GroundedProvider {
     );
   }
 
-  /**
-   * The verdict. `groundedPricesText` must come from `resubmitText` on the box
-   * the previous call returned.
+  /*
+   * There is no `verdict()` here any more. It resubmitted the grounded prices
+   * for a second call and nothing ever called it; the line is computed from
+   * the first answer by `priceLineFor`. See "THE SECOND CALL IS GONE" above.
    */
-  async verdict(
-    groundedPricesText: string,
-    shelfPriceCad: number,
-    thresholds: { goodPct: number; highPct: number },
-    model: string,
-    forDevice: string,
-    signal: AbortSignal,
-    reader: Reader = 'en',
-  ): Promise<ProviderResponse<Grounded<GroundedAnswer<VerdictFigures>>>> {
-    const request = await verdictResubmissionRequest(
-      groundedPricesText,
-      shelfPriceCad,
-      thresholds,
-      model,
-      signal,
-      reader,
-    );
-    return this.sendGrounded<GroundedAnswer<VerdictFigures>>(request, forDevice);
-  }
 }
 
 /* ------------------------------------------------- what the phone is shown */
@@ -1256,12 +1043,17 @@ function readerFrom(value: unknown): Reader {
 /**
  * The object `app/server.ts`'s `groundedOnce()` hands out.
  *
- * PARALLEL, NOT STACKED. `prefetchPrice` starts the price search the moment a
- * product is named (a catalogue hit, a barcode miss, a photo read) and keeps
+ * ONE SEARCH PER SCAN, HELD AS A PROMISE. `prefetchPrice` starts it the moment
+ * a product is named (a catalogue hit, a barcode miss, a photo read) and keeps
  * the promise; `lookupPrice` on `/api/price` picks up that same promise, so
  * the search has usually finished while the shopper was typing the shelf
  * price. The line is computed at that point, because only then is the shelf
  * price known, and it is cheap: the search is not run again.
+ *
+ * `lookupBarcode` reads the SAME promise for the identity of a code the
+ * catalogue does not know. It used to run a search of its own beside the
+ * prefetched one, which made a catalogue miss cost three searches of one
+ * product; rule 1 says one.
  */
 export class GeminiGroundedLookup {
   readonly name = 'gemini';
@@ -1303,7 +1095,13 @@ export class GeminiGroundedLookup {
     const kept = this.#prices.get(key);
     if (kept && now - kept.at < this.#reuseMs) return kept.promise;
 
-    const name = query.text?.trim() || (query.gtin ? `the product with barcode ${query.gtin}` : '');
+    /*
+     * An empty name is not a hole to paper over any more: the merged prompt
+     * takes the barcode as its subject and identifies the product itself
+     * (clause 1), in the reader's own language. The English sentence this used
+     * to splice in went out unchanged to a French reader.
+     */
+    const name = query.text?.trim() ?? '';
     const promise = this.#call<Record<string, unknown>>((signal) =>
       pricesReviewsRequest({ name, brand: query.brand ?? null, gtin: query.gtin ?? null }, groundedModel(), signal, reader),
     );
@@ -1355,15 +1153,33 @@ export class GeminiGroundedLookup {
   }
 
   /**
-   * A barcode the catalogue does not know. The price search for the same code
-   * is started IN PARALLEL, not after, so `/api/price` finds it running.
+   * A barcode the catalogue does not know, named by THE SAME ONE CALL that
+   * prices it.
+   *
+   * ONE SEARCH, NOT THREE. This used to fire `prefetchPrice` and then run a
+   * second grounded call of its own for the name, and `/api/price` awaited a
+   * third promise; a single catalogue miss cost three searches of the same
+   * product. Rule 1: "one gemini call will return the object, the price, the
+   * reviews, etc." So the identity is read out of `#pricesPromise`'s answer,
+   * and `/api/price` later awaits that same cached promise -- by then already
+   * settled -- instead of starting anything.
+   *
+   * WHY THE OFFERS AND REVIEWS ARE NOT COPIED ONTO THIS BLOCK even though
+   * they are now sitting in the same answer. `app/public/js/grounded.js`
+   * renders `block.offers` and `block.reviews` for ANY block, without looking
+   * at `kind`, so a barcode block carrying them would draw the same offer list
+   * on the identify answer and again on the verdict sheet's price block. The
+   * price block is the one that has to keep them: the price line's points and
+   * the "no link for this one" heads-up are computed from exactly that array.
+   * So the identity block stays identity, which also leaves its wire shape
+   * byte-identical to the one `app/server.ts` already reads. Nothing is lost:
+   * the offers reach the screen through `/api/price`, from this same fetch.
    */
   async lookupBarcode(gtin: string, forDevice: string, reader?: string): Promise<Grounded<BarcodeBlock> | null> {
     const r = readerFrom(reader);
-    this.prefetchPrice({ gtin }, forDevice, r);
-    const fetched = await this.#call<Record<string, unknown>>((signal) =>
-      barcodeLookupRequest(gtin, groundedModel(), signal, r),
-    );
+    const promise = this.#pricesPromise({ gtin }, forDevice, r);
+    if (promise === null) return null;
+    const fetched = await promise;
     const a = fetched.answer;
     const sources = (a.sources && typeof a.sources === 'object' ? a.sources : {}) as Record<string, unknown>;
     // The website test got flat `name_source` keys instead of a `sources` object; both read.
@@ -1381,6 +1197,7 @@ export class GeminiGroundedLookup {
       brand: str(a.brand),
       size: str(a.size),
       facts,
+      // Deliberately empty. See the note on this method.
       offers: [],
       reviews: [],
       searchQueries: fetched.searchQueries,

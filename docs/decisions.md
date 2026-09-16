@@ -1640,3 +1640,89 @@ own go-ahead to build toward it, not Aurik's answer).
 **Reverses if:** any individual ruling above is revisited by Jamin himself; ruling 3 also reverses,
 for its own part, if Aurik declines to agree once asked.
 
+
+## Three of Jamin's nine rules are raised as points rather than built
+
+2026-09-15. `docs/jamin-gemini-rules.md` says it outranks everything in this repo, and its own
+instruction is that each contradiction is *"either fixed to match this file or, if it should not be,
+raised with Jamin as a point."* Seven contradictions were live on Jamin's sweep of the same day.
+Four are being built (rules 1, 2, 4's plumbing and 7, plus the doc cleanup). These three are raised.
+
+**1. The grounded guard is not a wall around rule 4. It is what makes rule 4 legal.**
+
+Rule 4 is *"we will record EVERYTHING."* Jamin's known-contradictions list names
+`identify/src/grounded.ts` and the two-year reaper in `app/src/grounded-record.ts` as obstacles to
+it. They are the opposite. Google's terms, quoted verbatim at `identify/src/grounded.ts:4-19` from
+the 2026-03-23 Gemini API terms, forbid caching or analyzing Grounded Results — **and in the same
+breath permit** storing the text *"for up to two (2) years ... in chat history of an end user of
+your application only for the purpose of allowing that end user to view their chat history."*
+`GROUNDED_RETENTION_DAYS = 730` is that clause's own number, and `grounded-record.ts:96-99` says so.
+Deleting the guard does not unlock recording; it removes the one mechanism that makes recording
+permitted, and the penalty falls on the API key the whole product now runs on.
+
+There is one genuine conflict inside rule 4, and it is narrow: §2.2 of `docs/plan-gemini.md` quotes
+*"you will not track whether those interactions were specifically with a given Search Suggestion or
+Grounded Result."* So "record every tap" cannot include taps inside the grounded block. That is a
+region-scoped exclusion, already built (`e683150`), not a reason to remove anything.
+
+One weakness in this argument, stated rather than left for Jamin to find. The clause forbids caching
+**and** analyzing in one sentence, and Shin already crosses the analyzing half deliberately:
+`computeGauge` takes a median of Google's prices on our own server on every priced scan, and
+`gemini-grounded.ts:780-784` says so out loud -- *"a terms crossing left working on purpose, and it is
+listed as one"* -- taken under Jamin's own rule 5. So the honest position is not "the guard keeps us
+compliant". It is that one half of the clause is already knowingly crossed, and deleting the guard would
+add a second breach on top of the first rather than being the first. (Two other headers still deny the
+crossing they sit beside: D-111.)
+
+Cost if this is overruled anyway, counted rather than estimated: 2 source files (709 lines), 5 test
+files, 48 runtime tests, 5 compile-time `@ts-expect-error` assertions, 3 migration columns, and 6
+call sites in `app/server.ts`.
+
+**2. The tier words.** Jamin: *"we tell the user based on their preference, this is factrually a
+bad, resonable or good price."* Aurik's ruling of 2026-09-14, *"The price line speaks the shopper's
+own range, never Shin's opinion"*, dissolved that conflict rather than bending either rule, and its
+stated reversal condition is exact: *"Aurik amends hard rule 2 himself, which is the only way those
+words come back."* Hard rule 2 rests on Competition Act s.74.01(1)(b), which requires adequate and
+proper testing before a performance claim is published; Gemini's prices are not verified, sized or
+dated the way the spine requires before it says *walk away*.
+
+Cost if overruled: the `GaugeZone` type and its 12 consumers, the `VERDICT_SCHEMA` enum at
+`identify/src/providers/gemini-grounded.ts:448`, both embedded Python sources, the CSS selectors,
+the `ui-strings.js` setup copy, and the grading-word sweep across 5 to 6 test files — roughly 1,600
+individual word checks.
+
+A correction worth carrying: six places in this repo say the ban is *"enforced by four test files"*
+and not one of them names the four. Five files actually enforce it, six if `grounded-client.test.mjs`
+counts, and that one copies the word list instead of importing it.
+
+**3. Gemini as the price source.** Rules 3 and 6 together make Gemini the answer and Shin's engine a
+bystander. That orphans `spine/src/spine.ts`, `spine/src/contract.ts` and `price/src/verdict.ts` —
+2,294 lines and 380 tests across 32 files — and `SCOREBOARD.md`'s coverage number stops measuring
+anything.
+
+**Measured 2026-09-16, and it changes this point from a cost argument into an evidence one.** Ten
+real grounded searches on Jamin's own grounding key returned no offers at all seven times, and one
+or two offers the other three; identity and description came back either way. If Gemini is the price
+and Shin's engine is retired, most scans on this sample have no price to show -- which is rule 6
+answering rule 3 in the negative. n = 10, one session, no retries: a signal for a real run, not a
+law. `NOW.md` carries the table.
+
+The disagreement may be narrower than it looks. Ruling 10 of 2026-09-14 already says *"Shin's own
+prices are not shown anywhere for now, until enough is collected."* The display path is therefore
+already dormant, and what is actually in dispute is whether the engine and its tests are deleted or
+kept dark.
+
+**Two places where Jamin's rules fight each other**, recorded rather than resolved:
+
+- **Rule 2 against itself.** It argues for barcodes because they are *"a much cheaper api call than
+  sending an image"* and in the same rule forbids reading them automatically. With auto-read gone,
+  the default path for a shopper holding a barcoded product is the shutter, which is the expensive
+  image call. The mode toggle being built keeps the cheap path one tap away, but the tension is real.
+- **Rule 7 against rule 6.** *"Claude should not be taking over"* and *"always an answer"* cannot
+  both hold the moment a Gemini call fails. The startup refusal being built resolves only the
+  keyless case. The failed-call case is already live and unresolved: `app/server.ts:2546` swallows a
+  grounded failure and serves the verdict alone.
+
+**Reverses if:** Jamin answers any of the three, or a legal review reads Google's terms differently
+from `identify/src/grounded.ts:4-19`. Point 2 additionally reverses only the way its own decision
+says it does: Aurik amending hard rule 2 himself.

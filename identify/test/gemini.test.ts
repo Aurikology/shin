@@ -500,13 +500,16 @@ test('named gemini with a key, the seam is Gemini alone, with no Claude taking o
   );
 });
 
-test('named gemini with NO key, the seam is Anthropic unchanged, byte for byte', async () => {
-  // A machine with the setting and not the secret is a machine mid-rollout, and
-  // the worst thing to hand it is a provider that refuses every scan.
+test('named gemini with NO key throws instead of Claude taking over', async () => {
+  // Rule 7: "claude should not be taking over." A silent fall-through to
+  // Anthropic when Gemini was explicitly named is Claude taking over
+  // invisibly. `app/server.ts`'s `geminiKeyProblem` stops a machine in this
+  // state from booting at all, so this throw is the guard for every other
+  // caller that does not go through that startup check.
   await withVars(
     { SHIN_MODEL_PROVIDER: 'gemini', GEMINI_API_KEY: undefined, ANTHROPIC_API_KEY: 'a-key' },
     async () => {
-      assert.equal(makeProvider().name, 'anthropic');
+      assert.throws(() => makeProvider(), /GEMINI_API_KEY/);
     },
   );
 });

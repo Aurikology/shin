@@ -197,6 +197,37 @@ const NO_SECOND_VENDOR: ReadonlySet<FailureClass> = new Set<FailureClass>([
  * NOT a class, because there is no state to keep and a function value is
  * simpler for a test to build without importing a class twice under two names.
  */
+/**
+ * A FLOOR ON THE TIME BETWEEN REQUESTS, for a rate-limited key.
+ *
+ * WHY IT IS HERE AND NOT IN THE ADAPTER, which is where it was first put and
+ * where it did real damage. `model.ts` wraps every provider call in a clock
+ * (3,500 ms to read, 3,000 ms to pick). A wait inside `send` is a wait inside
+ * that clock, so a six second gap against a three and a half second budget
+ * aborted the request before it was ever sent: a 200-photo run came back 199
+ * unreadable and top-1 of 1/200, which reads like a catastrophic model and was
+ * entirely self-inflicted. Measured 2026-09-14.
+ *
+ * Waiting is SCHEDULING, and scheduling happens before the stopwatch starts.
+ * `#send` awaits this, then starts the clock.
+ *
+ * Module scope on purpose: two providers in one process share one key and
+ * therefore share one quota. Off unless `SHIN_MODEL_MIN_INTERVAL_MS` is set,
+ * so a paid key pays nothing for a free key's problem.
+ */
+let nextAllowedAt = 0;
+
+export async function waitForSlot(): Promise<void> {
+  const gap = Number(process.env.SHIN_MODEL_MIN_INTERVAL_MS ?? 0);
+  if (!Number.isFinite(gap) || gap <= 0) return;
+  const now = Date.now();
+  const waitMs = Math.max(0, nextAllowedAt - now);
+  // Reserve the slot BEFORE awaiting, so two callers queue behind each other
+  // rather than both reading the same `now` and both going at once.
+  nextAllowedAt = Math.max(now, nextAllowedAt) + gap;
+  if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
+}
+
 export function withFallback(primary: Provider, fallback: Provider): Provider {
   return {
     name: primary.name + '+fallback:' + fallback.name,

@@ -270,3 +270,72 @@ test('the voice key has a fallback that still refuses to judge', () => {
     }
   }
 });
+
+/* ------------------------ what the price body carries -------------------- */
+
+/**
+ * ONE SCAN, ONE GROUNDED SEARCH, AND ONE VERDICT WRITTEN DOWN. 2026-09-15.
+ *
+ * The price body the camera sends had exactly five keys -- text, gtin,
+ * category, askingCents, askingSeller -- and two things on the server were
+ * guarded on keys that were not among them:
+ *
+ *   `scanId`, without which `/api/price` never wrote `verdict_tier`,
+ *   `verdict_confidence` or `verdict_sellers` onto the scan, so three columns
+ *   were always NULL and the feature had never run;
+ *
+ *   `priceQuery`, the exact query the identify route had already started a
+ *   grounded search under, without which `/api/price` started a SECOND search
+ *   on every scan and the shopper waited on it.
+ *
+ * Both are closure-local in camera.js's `render(root, ctx)`, which this app
+ * has no DOM to mount, so both are checked by source -- the convention
+ * `shutter-race.test.mjs` states and the same one the click wiring above uses.
+ *
+ * CRLF IS NORMALISED FIRST. This was D-110 in another file: a slice that hunts
+ * for an LF-delimited marker finds nothing on a CRLF checkout, `indexOf`
+ * returns -1, and the slice silently becomes the whole file -- at which point
+ * every `includes` below passes for the wrong reason. Normalising is one line
+ * and it is the difference between this suite being evidence and being
+ * decoration.
+ */
+const CAMERA_LF = CAMERA.replace(/\r\n/g, '\n');
+
+/** The object literal handed to `ctx.api.price`, and nothing either side of it. */
+const PRICE_BODY = (() => {
+  const start = CAMERA_LF.indexOf('const result = await ctx.api.price({');
+  assert.notEqual(start, -1, 'the camera no longer calls ctx.api.price with an object literal');
+  const end = CAMERA_LF.indexOf('clearTimeout(slowTimer)', start);
+  assert.ok(end > start, 'the price call and its timer were separated; re-read proceed() in camera.js');
+  return CAMERA_LF.slice(start, end);
+})();
+
+test('the price body carries the scan id, which is what lets the verdict be written down', () => {
+  assert.match(PRICE_BODY, /\bscanId:\s*lastScanId\b/, 'the price body sends no scanId');
+  /*
+   * `undefined`, never null. JSON.stringify drops an undefined key entirely,
+   * and the server's guard is `Number.isInteger`: a null would travel the
+   * whole way and be refused at the far end, which is a request carrying a
+   * field that can only ever fail.
+   */
+  assert.match(PRICE_BODY, /\bscanId:\s*lastScanId\s*\?\?\s*undefined\b/, 'a missing scan is sent as something other than undefined');
+  assert.ok(!/scanId:\s*lastScanId\s*\?\?\s*null/.test(PRICE_BODY), 'a null scan id is sent instead of nothing');
+});
+
+test('the price body hands back the query the server already searched under', () => {
+  assert.match(PRICE_BODY, /\bpriceQuery:\s*lastPriceQuery\s*\?\?\s*undefined\b/, 'the echoed query is not handed back');
+  /*
+   * HANDED BACK, NOT REBUILT. If this ever becomes `productLabel(...)` or any
+   * other locally-computed string, the key the server files its search under
+   * and the key it collects by stop being the same string and the second
+   * search is back.
+   */
+  assert.ok(!/priceQuery:\s*\{/.test(PRICE_BODY), 'the camera builds its own priceQuery instead of echoing the server\'s');
+});
+
+test('both are cleared with the scan they belong to, never carried into the next one', () => {
+  const reset = CAMERA_LF.slice(CAMERA_LF.indexOf('function reset('), CAMERA_LF.indexOf('setState(\'idle\')', CAMERA_LF.indexOf('function reset(')));
+  assert.ok(reset.length > 0 && reset.length < 4000, 'reset() was not sliced; re-read camera.js');
+  assert.match(reset, /lastScanId = null;/);
+  assert.match(reset, /lastPriceQuery = null;/, 'the previous aisle\'s query survives a reset');
+});

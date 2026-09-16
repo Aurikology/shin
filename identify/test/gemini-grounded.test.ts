@@ -15,7 +15,6 @@ import assert from 'node:assert/strict';
 import {
   GeminiGroundedLookup,
   GeminiGroundedProvider,
-  barcodeLookupRequest,
   cleanUrl,
   parseJson,
   priceLineFor,
@@ -112,7 +111,7 @@ test('the grounded body is the shared Interactions body plus tools, with the mod
 test('usage is read from the spec names, not reported as unknown', async () => {
   const transport = fake([{ text: interaction(JSON.stringify(DOVE)) }]);
   const out = await new GeminiGroundedProvider({ apiKey: KEY, transport }).fetchGrounded(
-    barcodeLookupRequest('079400450828', 'claude-haiku-4-5', new AbortController().signal),
+    pricesReviewsRequest({ name: '', gtin: '079400450828' }, 'claude-haiku-4-5', new AbortController().signal),
   );
   assert.equal(out.usage.inputTokens, 900);
   assert.equal(out.model, 'gemini-3.5-flash-lite');
@@ -125,7 +124,7 @@ test('a failed interaction carries Google\'s own error text', async () => {
   ]);
   await assert.rejects(
     new GeminiGroundedProvider({ apiKey: KEY, transport }).fetchGrounded(
-      barcodeLookupRequest('1', 'claude-haiku-4-5', new AbortController().signal),
+      pricesReviewsRequest({ name: '', gtin: '1' }, 'claude-haiku-4-5', new AbortController().signal),
     ),
     /status failed: search unavailable/,
   );
@@ -135,7 +134,7 @@ test('an HTTP error is classified and quoted, not swallowed', async () => {
   const transport = fake([{ ok: false, status: 400, text: '{"error":{"message":"Unknown parameter"}}' }]);
   await assert.rejects(
     new GeminiGroundedProvider({ apiKey: KEY, transport }).fetchGrounded(
-      barcodeLookupRequest('1', 'claude-haiku-4-5', new AbortController().signal),
+      pricesReviewsRequest({ name: '', gtin: '1' }, 'claude-haiku-4-5', new AbortController().signal),
     ),
     /HTTP 400: .*Unknown parameter/,
   );
@@ -256,34 +255,113 @@ test('a failed search is not kept, so the next ask tries again', async () => {
   assert.equal(transport.calls.length, 2);
 });
 
-test('a barcode lookup gives per-fact links and starts the price search in parallel', async () => {
-  const facts = {
-    name: 'Dove Men+Care Dry Spray Clean Comfort',
-    brand: 'Dove',
-    size: '107 g',
-    sources: { name: '[w](https://www.walmart.ca/dove)', brand: 'https://dove.com', size: null },
-  };
-  // Routed by what was asked, since the two searches go out in either order.
-  const calls: Call[] = [];
-  const transport = (async (url, init) => {
-    const body = JSON.parse(init.body) as Record<string, unknown>;
-    calls.push({ url, headers: init.headers, body });
-    const asksPrices = JSON.stringify(body.response_format).includes('offers');
-    const text = interaction(JSON.stringify(asksPrices ? DOVE : facts));
-    return { ok: true, status: 200, text: async () => text };
-  }) as GroundedTransport & { calls: Call[] };
-  transport.calls = calls;
+/* ------------------------------------------------------------ rule 1: one call */
+
+const FACTS = {
+  name: 'Dove Men+Care Dry Spray Clean Comfort',
+  brand: 'Dove',
+  size: '107 g',
+  sources: { name: '[w](https://www.walmart.ca/dove)', brand: 'https://dove.com', size: null },
+};
+
+/** Identity and prices in one answer, which is what the merged schema asks for. */
+const NAMED_DOVE = { ...FACTS, ...DOVE };
+
+test('RULE 1: a barcode miss is ONE call -- the identity and the prices come from the same search', async () => {
+  const transport = fake([{ text: interaction(JSON.stringify(NAMED_DOVE)) }]);
   const lookup = new GeminiGroundedLookup({ apiKey: KEY, transport });
+
   const box = await lookup.lookupBarcode('079400450828', 'device-A');
   assert.ok(box);
+  assert.equal(transport.calls.length, 1, 'the barcode miss cost more than one grounded call');
+
   const block = toWire(box, 'device-A').block as BarcodeBlock;
   assert.equal(block.kind, 'barcode');
   assert.equal(block.name, 'Dove Men+Care Dry Spray Clean Comfort');
   assert.deepEqual(block.facts.map((f) => [f.field, f.hasLink]), [['name', true], ['brand', true], ['size', false]]);
-  // Both searches went out without the price one waiting for the barcode one.
-  assert.equal(transport.calls.length, 2);
-  await lookup.lookupPrice({ gtin: '079400450828', askingCents: 899 }, 'device-A');
-  assert.equal(transport.calls.length, 2, 'the price search was not reused');
+  // Identity only: the offers belong to the price block, which owns the line
+  // and the missing-link heads-up. See the note on `lookupBarcode`.
+  assert.deepEqual(block.offers, []);
+  assert.deepEqual(block.reviews, []);
+
+  // The one request asked for both halves at once.
+  const asked = JSON.stringify(transport.calls[0].body.response_format);
+  assert.ok(asked.includes('offers'), 'the single call did not ask for prices');
+  assert.ok(asked.includes('sources'), 'the single call did not ask for the identity sources');
+
+  // `/api/price` picks up that same settled promise. Still one call.
+  const priced = await lookup.lookupPrice({ gtin: '079400450828', askingCents: 899 }, 'device-A');
+  assert.equal(transport.calls.length, 1, 'the price ask started a second search');
+  assert.ok(priced);
+  const priceBlock = toWire(priced, 'device-A').block as PriceBlock;
+  assert.equal(priceBlock.offers.length, 4);
+  assert.ok(priceBlock.verdict);
+});
+
+test('the one call is the whole answer: when it fails, the identity fails with the prices', async () => {
+  // The real cost of rule 1, asserted rather than discovered on a phone: there
+  // is no second search left to carry the name when the search does not land.
+  const transport = fake([{ ok: false, status: 503, text: 'busy' }]);
+  const lookup = new GeminiGroundedLookup({ apiKey: KEY, transport });
+  await assert.rejects(lookup.lookupBarcode('079400450828', 'device-A'), /HTTP 503/);
+  assert.equal(transport.calls.length, 1);
+});
+
+/* ---------------------------------------------------------- the merged ask */
+
+function askFor(product: { name: string; brand?: string | null; size?: string | null; gtin?: string | null }, reader?: 'en' | 'fr') {
+  const req = pricesReviewsRequest(product, 'claude-haiku-4-5', new AbortController().signal, reader);
+  return { req, user: req.user as string, system: req.system as string };
+}
+
+test('the merged prompt asks for identity, prices, reviews and description in ONE ask, in English', () => {
+  const { req, user, system } = askFor({ name: '', gtin: '079400450828' });
+  assert.match(user, /identify the product with barcode 079400450828/);
+  assert.match(user, /its name, its brand and its size/);
+  assert.match(user, /the source link that establishes it/);
+  assert.match(user, /current prices at Canadian retailers/);
+  assert.match(user, /customer reviews with rating, count/);
+  assert.match(user, /a short product description/);
+  assert.match(system, /Answer in English/);
+  assert.equal(req.schema.name, 'prices_reviews_description');
+  // The identity half is three short strings and three urls on top of the prices.
+  assert.equal(req.maxOutputTokens, 2600);
+});
+
+test('the merged prompt is complete in French too, barcode subject included', () => {
+  const { user, system } = askFor({ name: '', gtin: '079400450828' }, 'fr');
+  assert.match(user, /identifier le produit portant le code-barres 079400450828/);
+  assert.match(user, /son nom, sa marque et son format/);
+  assert.match(user, /le lien de la source qui l'etablit/);
+  assert.match(user, /les prix actuels chez des detaillants canadiens/);
+  assert.match(user, /les avis clients avec la note/);
+  assert.match(user, /une courte description du produit/);
+  assert.match(system, /Reponds en francais/);
+  // Not one English word spliced into the French ask, which is how the old
+  // "the product with barcode X" subject reached a French reader.
+  assert.ok(!user.includes('the product with barcode'), 'an English subject went out to a French reader');
+});
+
+test('a product that already has a name is described by it, with the barcode as the tiebreaker', () => {
+  const en = askFor({ name: 'Men+Care Dry Spray', brand: 'Dove', size: '107 g', gtin: '079400450828' }).user;
+  assert.match(en, /identify Dove Men\+Care Dry Spray 107 g \(barcode 079400450828\)/);
+  const fr = askFor({ name: 'Men+Care Dry Spray', brand: 'Dove', size: '107 g', gtin: '079400450828' }, 'fr').user;
+  assert.match(fr, /identifier Dove Men\+Care Dry Spray 107 g \(code-barres 079400450828\)/);
+  const noCode = askFor({ name: 'Men+Care Dry Spray', brand: 'Dove' }).user;
+  assert.ok(!noCode.includes('barcode'), 'a barcode was invented for a product that has none');
+});
+
+test('the merged schema demands the identity fields beside the price fields', () => {
+  const schema = pricesReviewsRequest({ name: 'x' }, 'claude-haiku-4-5', new AbortController().signal).schema.schema as {
+    required: string[];
+    properties: Record<string, { required?: string[] }>;
+  };
+  assert.deepEqual(schema.required, ['name', 'brand', 'size', 'sources', 'offers', 'reviews', 'description']);
+  // Per fact, not one flat list: the heads-up has to name WHICH fact had no source.
+  assert.deepEqual(schema.properties.sources.required, ['name', 'brand', 'size']);
+  for (const field of ['name', 'brand', 'size', 'offers', 'reviews', 'description']) {
+    assert.ok(schema.properties[field], `${field} is not in the merged schema`);
+  }
 });
 
 test('no key is an error, never a call', async () => {

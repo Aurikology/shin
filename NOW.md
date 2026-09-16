@@ -75,6 +75,183 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## The price harness exists now, and it found the thing that matters most, 2026-09-16
+
+`identify/eval/price-truth.ts`, new. The eval beside it measures whether the product was
+IDENTIFIED; nothing measured whether the number under it is TRUE, which is the product. Ground truth
+is `spine/data/observations.json` -- seven products priced by hand off public Canadian pages on
+2026-09-03, seller by seller, in cents, promotions marked. Small and real. Nothing grounded is
+written to disk: counts and medians are computed in memory and printed.
+
+**Coverage 6/7.** Six of the seven got at least one Canadian price. **This corrects the section
+below**, which read seven-of-ten with no price and drew that from a sample of obscure catalogue rows
+(a Neilson creamer, an Italissima noodle, a Massimo panettone). Coverage tracks how prominent the
+product is, not how the question is asked: mainstream products answer, obscure catalogue rows do
+not. Both numbers are real; the earlier conclusion was drawn too wide from the narrower one.
+
+**D-113, and it is the one to fix before a tester sees a price.** Kraft Dinner 225g came back at
+**+473%**: one Walmart offer of $9.97 against a hand-priced truth of $1.74, carrying confident
+metadata -- `sizeValue 225 g`, `packCount 1`, `dealKind clearance`. So it is not a pack-size mix-up
+that the unit scaling would catch. It is simply wrong, and it arrived alone.
+
+`computeGauge` took the median of one offer, which is that offer, and drew a line reading
+`under_your_line` at **-83%** -- an ordinary $1.74 presented to the shopper as far below the going
+rate. **Shin's own engine has guarded this since the pilot**: `LONE_CLAIM_FLOOR = 0.5` and
+`LONE_CLAIM_CEILING = 2.5` reject a lone claim outside half to two-and-a-half times the going rate
+(`spine/src/spine.ts:921-922`, applied at `:1130`). The grounded gauge has no floor, no ceiling and
+no minimum offer count.
+
+Not fixed tonight on purpose: the shape of the guard is a product decision -- refuse a line under N
+offers, port the lone-claim band across, or both -- and it is Aurik's. **It also bears on the third
+raised point:** the engine rules 3 and 6 would retire is the one that already has this guard.
+
+Also closed: **D-112**, the eval refusing a paid key with a message telling the reader to use a paid
+key. Found by doing what the message said.
+
+Error figures elsewhere in that run (Tide +9%, oranges -8%) mix model error with thirteen days of
+real price drift and cannot separate them. Coverage and the lone-offer failure do not depend on
+drift, which is why they are the two to read.
+## Seven of ten grounded searches came back with no price at all -- CORRECTED BELOW, the sample was skewed, 2026-09-16
+
+Measured on Jamin's grounding key, ten real calls, no retries. This was not what was being looked
+for -- the question was whether a barcode-only ask yields fewer offers than one carrying text -- and
+that question turned out to be the wrong one.
+
+| asked | offers |
+| --- | --- |
+| Kraft Dinner (gtin + text) | 1, Walmart |
+| Coca-Cola Classic 2L | 1, Loblaws |
+| Cheerios Original 570g | 2, Loblaws and Metro |
+| Tide Original 2.72L | **0** |
+| Neilson creamer, Massimo Pandoro, Italissima noodles -- barcode only AND gtin + text, six calls | **0** |
+
+**The ask form is not the variable.** The three obscure catalogue rows returned zero offers whether
+asked by code alone or by code plus name, so the earlier one-observation guess (barcode-only yields
+no offers) is retired. What separates them is how findable the product's Canadian retail price is:
+three mainstream products returned 1, 1 and 2 offers, and one mainstream product returned none.
+
+**Identity is not the problem; price is.** The same calls that found no offers still named the
+product -- *Neilson 5% Dairy Cream*, *Pandoro Panettone* -- and often carried a description. Gemini
+knows what the thing is. It frequently cannot say what it costs in Canada.
+
+**Where this lands, and it is not a small place.** Jamin's rules 3 and 6 together make Gemini the
+price and retire Shin's own engine. On this sample the grounded search has no price to give seven
+times in ten, and gives one or two when it does -- against a price line that wants several before it
+means anything. Rule 6 is *"always an answer"*; this is the measurement that says the proposed
+source cannot supply one most of the time. It is evidence for the third raised point in
+`docs/decisions.md`, which until now rested on the cost of deleting 380 tests rather than on whether
+the replacement works.
+
+**Hold it loosely: n = 10**, one session, one key, no retries, arbitrary asking prices, and all ten
+finished inside the 9 s timeout so nothing was cut off. It is a signal worth a real run, not a law.
+The honest next step is the 200-photo eval pointed at the grounded path, which now has a key that
+can run it.
+## The one-call merge met Google for the first time, and it holds, 2026-09-16
+
+Jamin sent a Gemini credential that can ground (the free key in this repo's `.env` cannot: it
+answers HTTP 429 `exceeded your current quota` on a grounded search while an ungrounded image
+identification on the SAME key succeeds -- one of each was run, so the two are separated and it is
+grounding that has no free quota, not the key being spent).
+
+**What was unverified until now.** Lane B merged two grounded prompts into one at 2,600 output
+tokens and that number was reasoned from the added payload, never measured. A truncated answer cuts
+the JSON mid-array and the whole scan returns nothing.
+
+**It does not truncate.** A barcode lookup on `0068100084245` came back in 2,883 ms with identity
+populated -- *Kraft Smooth Peanut Butter / Kraft / 1 KG* -- 3 fact rows and 4 search queries. A full
+price query on a fresh device came back in 4,600 ms with an offer (Walmart, 9.97 CAD), a review, a
+description and a computed verdict line, and the offer carried all eighteen fields including the
+four item-rule ones (`marketplace`, `memberOnly`, `dealKind`, `organic`, `storeBrand`,
+`soldByWeight`). `computeGauge` therefore ran on real grounded offers for the first time.
+
+**One search per scan is real, not inferred.** After the barcode lookup, `lookupPrice` on the same
+device returned in **1 ms** -- it collected the cached promise instead of starting a second search.
+That is what rules 1 and 4 were built for, now measured against Google rather than a double.
+
+**Latency: 2,883 and 4,600 ms.** Comfortably inside the beta's seven-second promise, and a different
+world from the free key's 9,032 / 43,965 ms.
+
+**One observation to carry, from two calls and therefore not a law.** The barcode-only lookup
+returned identity and **zero offers**; the query carrying text, gtin, asking price and size returned
+offers. Since the merge makes ONE answer serve both halves, a catalogue-miss scan that asks with the
+code alone may hand the shopper a name and no price line. Worth a wider run before it is believed,
+and worth knowing before a tester meets it.
+
+**Not stored.** The credential was used in-process only and written nowhere: where a secret lives is
+Aurik's call, and it arrived in a chat transcript, so it should be rotated once a permanent key is
+placed.
+## Jamin's nine rules: four built, three raised, and the search that was running twice, 2026-09-15
+
+**State:** `main` at the five commits below, both remotes verified equal by `ls-remote`. **Tests: app
+797 (792 pass, 5 skipped), identify 283, spine 223, price 157, catalogue 133; 0 fail; typecheck clean
+in all five; `shin-gate.sh --all` exit 0.**
+
+Jamin pushed 19 commits and set `docs/jamin-gemini-rules.md` above everything else in the repo. His
+sweep found seven contradictions still live. **Four are built and three are raised as points**, which
+is what his own file asks for when a contradiction should not be fixed. Run as five lanes on disjoint
+packages, every lane's diff reviewed here and every row checked at the consumer before it moved.
+
+**Rule 1, one call per scan.** A barcode miss was making **three** grounded calls, not the two the
+plan assumed: `lookupBarcode`, a `prefetchPrice` fired inside it, and `lookupPrice`. The two request
+builders are merged into one prompt returning identity, offers, reviews and description together, and
+`lookupBarcode` now shares the promise the price route later awaits. **One call.** Counted by
+transport invocations, not inferred. The photo path is still two and that is said plainly rather than
+rounded down: one ungrounded read and one grounded search. Making it one would mean putting the image
+into the grounded request, which the guard forbids and which Google has not confirmed works.
+
+**The search was running twice on every scan, and nobody had noticed.** The prefetch is cached under
+`${device}|gtin:…` or `|text:…`. The phone sent neither a device id nor a scan id on `/api/price`, so
+`groundedOwner()` minted a fresh uuid per request and the key never matched. Sending the device id
+alone would not have fixed it: the server keyed on brand + name, the phone sent `productLabel()`,
+which drops the brand when the name already starts with it and appends the quantity. It only ever
+worked by accident, when the code matched 8-14 digits and the gtin branch won. The identify routes
+now echo the exact query they prefetched under and the phone returns it verbatim.
+
+**Rule 4's plumbing.** The scan id was already on the client and was simply never put in the body.
+**Verified at the consumer:** a real identify on a live server returned `scanId 24` with its
+`priceQuery` echoed; a real `/api/price` carrying both wrote `verdict_tier='walk_away'`,
+`verdict_confidence='low'`, `verdict_sellers=4`, read back out of `scans.db`. Those three columns have
+been uniformly NULL until today. **What this turns on:** `/api/price` now writes to the scan store in
+production for the first time, so `dropInterimGroundedFor`, `historyText`, `grounded_at` and the
+two-year reaper all start running on real traffic; and nothing outside `migrations.ts` and `scans.ts`
+names those columns, so the exposure is `SELECT *` -- every export, admin listing and summary built on
+`allScans()` starts carrying three values it has only ever seen as null.
+
+**Rule 7.** `makeProvider` threw nothing and quietly returned Claude whenever Gemini was named with no
+key; Jamin's sweep found this machine's `.env` in exactly that state. It throws now, and a machine in
+that state refuses to start rather than answering scans with a model nobody asked for -- driven for
+real, exit 1, one sentence, normal boot still 200. An inconsistency it creates is recorded rather than
+smoothed: `xai` with no key still fails at `read()` time as a `ModelCallError`, so the same category of
+mistake now fails at two different phases.
+
+**Rule 2.** zxing ran at the top of every frame and fired with no gate. A Photo | Barcode toggle now
+gates it; in photo mode nothing scans for codes at all. **Walked in a browser** at 390x844 and 375x575
+in both locales through the real consent gate: the toggle is 44px, exactly one middle face is ever
+visible, *"Scanner le code-barres"* fits at 228px without wrapping, and nothing overflows.
+
+**The docs.** `plan-gemini.md` §4.3 described a second Gemini call for the price maths that was
+written and never wired; rule 1 has now made it unwireable. Two of its eight algorithm steps had
+drifted from the code and are corrected against it.
+
+**Two Gemini questions answered by a real call, both against me.** `resolution` on the image part is
+accepted -- my `970017a` removed `media_resolution` after a 400 and concluded the field did not exist
+on this surface; Jamin's spelling and placement were right. And plain lowercase JSON Schema is
+accepted, so the uppercase translation I argued for was never needed. I had called it "confirmed
+live"; it was not, my one call never varied it. Proof the adapter was really on the wire: pointing
+`SHIN_GEMINI_BASE_URL` at a dead port turns the same row unreadable in 235 ms against 9,032 ms
+answering correctly. Third latency sample: **9,032 ms**. The beta's 7-second promise is not free-tier
+weather.
+
+**Three rules raised, not built** (`docs/decisions.md`, "Three of Jamin's nine rules are raised as
+points"): the grounded guard, the tier words, and Gemini as the price source. Each carries its cost
+counted rather than guessed, and point 1 carries its own weakness out loud -- Shin already crosses the
+*analysing* half of the same Google clause on purpose (D-111).
+
+**Open, and Aurik's:** the barcode tap cost (0 taps before, 2 then 1 now, while a photo stays at 1 --
+rule 2's own economics now point at the expensive path); whether `msSinceCameraStart` is renamed;
+and that one failed search now loses the identity **and** the prices, where a failure used to leave
+the name on screen. That is what rule 1 costs and it cuts against rule 6. A test pins it.
+
 ## "Do everything but fund the API key", and his two rulings, 2026-09-14 evening
 
 **His words:** *"do everything but fund the api key."* Asked the two questions the morning left

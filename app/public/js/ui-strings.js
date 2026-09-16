@@ -177,6 +177,13 @@ const EN = {
   cam_torch: 'Torch',
   cam_this: 'this',
   cam_shutter: 'Scan what you are pointing at',
+  /* Rule 2, 2026-09-15. The camera no longer reads a barcode by itself, so the
+     two ways to scan are a mode the shopper picks, and the barcode one has its
+     own button where the shutter would be. */
+  cam_mode_photo: 'Photo',
+  cam_mode_barcode: 'Barcode',
+  cam_mode_picker: 'What to scan',
+  cam_scan_barcode: 'Scan the barcode',
 
   /* ------------------------------------------------------------- the consent */
   consent_kicker: 'Before your first scan',
@@ -538,6 +545,10 @@ const FR = {
   cam_torch: 'Lampe',
   cam_this: 'ça',
   cam_shutter: 'Scanner ce que tu pointes',
+  cam_mode_photo: 'Photo',
+  cam_mode_barcode: 'Code-barres',
+  cam_mode_picker: 'Quoi scanner',
+  cam_scan_barcode: 'Scanner le code-barres',
 
   /* ----------------------------------------------------------- le consentement */
   consent_kicker: 'Avant ton premier scan',

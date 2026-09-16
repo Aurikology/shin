@@ -338,6 +338,11 @@ export async function attachEye(video, surfaces, handlers = {}) {
     /** The manual shutter, which stays the override however good the auto one gets. */
     capture: () => camera.capture(),
     setTorch: (on) => camera.setTorch(on),
+    /**
+     * Rule 2's button, from the outside. Nothing decodes until this is called.
+     * One press arms one read; the eye disarms itself the moment it fires.
+     */
+    scanBarcode: () => camera.scanBarcode(),
     /** The tap. Index into the boxes last drawn, 0 being the one already framed. */
     select: (index) => camera.select(index),
     clearSelection: () => camera.clearSelection(),
@@ -354,6 +359,9 @@ export async function attachEye(video, surfaces, handlers = {}) {
       live: false,
       capture: async () => {},
       setTorch: async () => false,
+      // Present so a tap on the barcode button of a screen whose eye never
+      // started is a no-op rather than a TypeError in the click handler.
+      scanBarcode: () => {},
       select: () => {},
       clearSelection: () => {},
       stop: () => { dead.value = true; },

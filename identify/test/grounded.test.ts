@@ -114,6 +114,15 @@ test('the set of files that import grounded.ts equals a written allowlist', () =
      * gets on this list.
      */
     'app/src/grounded-record.ts',
+    /*
+     * Added 2026-09-16, read and decided rather than waved through. The price
+     * harness opens boxes with `toWire` to count offers and compare medians
+     * against the hand-priced pilot, and it is the only way to find out whether
+     * the number a shopper sees is true. It PERSISTS NOTHING: every figure is
+     * computed in memory and printed, so no Grounded Result reaches disk. That
+     * the arithmetic happens on our side at all is the crossing D-111 records.
+     */
+    'identify/eval/price-truth.ts',
     'identify/src/provider.ts',
     'identify/src/providers/gemini-grounded.ts',
     // Added 2026-09-15: the adapter's own test opens the boxes it seals with `toWire`, and nothing else.

@@ -38,7 +38,21 @@
   --cam-bar-h: calc(132px + env(safe-area-inset-bottom));
   --dock-h: 60px;
   --dock-gap: 14px;
-  --dock-band-bottom: calc(var(--cam-bar-h) + var(--dock-gap) + var(--dock-h));
+  /*
+   * RULE 2's mode toggle, 2026-09-15, added to the BOTTOM BAND rather than to
+   * the bar. `--cam-bar-h` is deliberately untouched: the bar still holds
+   * three controls at a 44px gap and a fourth would have to come out of the
+   * shutter or the nav labels. The toggle is a strip of its own between the
+   * bar and the docked face, so it is the band that grows, and everything
+   * measured off `--dock-band-bottom` (the dock, the reticle, the focus wash)
+   * moves up together in this one edit instead of being left behind.
+   *
+   * 44px is the tap floor, same as D-050's; 10px is the gap to the bar.
+   */
+  --cam-mode-h: 44px;
+  --cam-mode-gap: 10px;
+  --cam-mode-band: calc(var(--cam-mode-h) + var(--cam-mode-gap));
+  --dock-band-bottom: calc(var(--cam-bar-h) + var(--cam-mode-band) + var(--dock-gap) + var(--dock-h));
   /* The free space between the two bands, centred. With T = top band bottom
      and D = the bottom band's total height, the midpoint of (T, 100% - D) is
      50% + (T - D) / 2. Holds at every height, tall or 575, because it is the
@@ -413,7 +427,8 @@
   position: absolute;
   z-index: 4;
   left: 50%;
-  bottom: calc(var(--cam-bar-h) + var(--dock-gap));
+  /* Above the mode toggle, which is now the first thing over the bar. */
+  bottom: calc(var(--cam-bar-h) + var(--cam-mode-band) + var(--dock-gap));
   transform: translateX(-50%);
   width: min(300px, calc(100% - 32px));
   color: #fff;
@@ -470,6 +485,78 @@
   animation: camEyeGlance 5200ms ease-in-out infinite;
   animation-delay: 1400ms;
 }
+
+/* --------------------------------------------------- the scan mode toggle */
+/*
+ * RULE 2, 2026-09-15: "the barcode should not be auto read, there should be a
+ * scan the barcode button", and "the image and barcode should not be part of
+ * the same scan".
+ *
+ * Two modes, one of them chosen, rather than one pipeline doing both. A
+ * segmented control because that is what a two-way exclusive choice is, and
+ * the exclusivity has to be visible: whichever half is lit is the only thing
+ * the shutter position will do.
+ *
+ * It is its own strip between the docked face and the bar (see
+ * `--cam-mode-band`), not a fourth control in the bar. Same forced white as
+ * `.cam-shin` above and for the same reason: the ground under it is the feed,
+ * which is literal black in both themes, so the theme's own ink tokens would
+ * flip out from under it.
+ */
+.cam-mode {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  bottom: calc(var(--cam-bar-h) + var(--cam-mode-gap));
+  transform: translateX(-50%);
+  height: var(--cam-mode-h);
+  display: flex;
+  align-items: stretch;
+  padding: 3px;
+  border-radius: 999px;
+  /* Its own card, so the two words never sit directly on a pale shelf. Same
+     trick as the bar's gradient: one paint, no blur, nothing read back from
+     the video. */
+  background: rgba(0, 0, 0, .56);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22);
+  transition: opacity 120ms linear, transform var(--t-rise) var(--ease-land);
+}
+.cam-mode-btn {
+  /* The tap floor is the strip's own height minus its 3px padding either
+     side; the horizontal padding is what actually makes these comfortable. */
+  min-width: 96px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, .72);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  cursor: pointer;
+  transition: background 140ms linear, color 140ms linear;
+}
+/* The chosen half. White fill rather than brand pink: the brand pink in this
+   bottom band is the shutter's ring and it means "this is the thing that
+   fires", which the toggle is not. */
+.cam-mode-btn[aria-pressed="true"] {
+  background: #fff;
+  color: #10131A;
+}
+.cam-mode-btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+/* Gone with the docked face whenever a sheet has risen: the mode is a
+   viewfinder decision and there is no viewfinder while a sheet is up. It also
+   rides the bar's own slide out on the verdict so the two do not separate. */
+.cam[data-state="choosing"] .cam-mode,
+.cam[data-state="asking"] .cam-mode,
+.cam[data-state="reading"] .cam-mode,
+.cam[data-state="texting"] .cam-mode,
+.cam[data-state="framing"] .cam-mode,
+.cam[data-state="result"] .cam-mode { opacity: 0; pointer-events: none; }
+.cam[data-state="result"] .cam-mode,
+.cam[data-state="choosing"] .cam-mode { transform: translateX(-50%) translateY(140%); }
 
 /* -------------------------------------------------------------- bottom bar */
 
@@ -567,6 +654,43 @@
   animation: shutterSweep 900ms linear infinite;
 }
 @keyframes shutterSweep { to { transform: rotate(360deg); } }
+
+/*
+ * RULE 2's own button, standing where the shutter stands in barcode mode.
+ *
+ * Deliberately NOT a round white disc. The shutter's shape is a promise --
+ * "this takes a picture" -- and this button does something else with the
+ * shopper's frame and their money: it is the cheap read. A labelled pill says
+ * what it is, and the two can never be pressed by mistake for each other
+ * because only one of them is in the DOM's flow at a time (`hidden`, set in
+ * camera.js's setScanMode).
+ *
+ * Height is pinned to the shutter's own so the bar's vertical rhythm and
+ * `--cam-bar-h` are untouched by the swap.
+ */
+.scan-code-btn {
+  min-height: var(--shutter);
+  padding: 0 26px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #10131A;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  max-width: 260px;
+  cursor: pointer;
+  flex: none;
+  box-shadow: 0 0 0 4px var(--brand), 0 0 0 9px rgba(229, 22, 94, .22);
+  transition: transform var(--t-shutter) var(--ease-land), box-shadow var(--t-shutter) linear;
+}
+.scan-code-btn:active { transform: scale(.96); box-shadow: 0 0 0 4px var(--brand), 0 0 0 16px rgba(229, 22, 94, 0); }
+.scan-code-btn:focus-visible { outline: 3px solid #fff; outline-offset: 6px; }
+/* `hidden` is the mode switch's primitive (it leaves the tab order and the
+   accessibility tree with the pixels). Pinned here because the app's own
+   reset sets `display: block` on everything and would undo it. */
+.scan-code-btn[hidden], .shutter[hidden] { display: none; }
 
 /*
  * Named, not guessed at. Two 44px circles either side of the shutter carrying
@@ -2070,7 +2194,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .sheet, .price { animation: none; }
-  .reticle, .cam-bar, .cam-shin, .sheet-half, .sheet-full { transition: none; }
+  .reticle, .cam-bar, .cam-shin, .cam-mode, .cam-mode-btn, .scan-code-btn, .sheet-half, .sheet-full { transition: none; }
   /* The nav press keeps its pill, which is information (where the thumb
      landed), and loses the scale, which is decoration. */
   .nav-btn { transition: none; }

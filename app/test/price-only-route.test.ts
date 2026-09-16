@@ -202,3 +202,74 @@ test('a correction that DOES name a product is unaffected by any of this', async
   assert.equal(body.observation, undefined, 'a real correction was reported as an observation');
   assert.equal(getScan(scanId)!.typed_price_cents, 399);
 });
+
+/* ------------------- the verdict as it was shown, written down ----------- */
+
+/**
+ * THE OTHER HALF OF `scanId` ON A PRICE BODY, 2026-09-15.
+ *
+ * `/api/price` has written `verdict_tier`, `verdict_confidence` and
+ * `verdict_sellers` onto the named scan since plan item 9d, and until today it
+ * had never once run in production: the guard is `Number.isInteger(scanId)`,
+ * and the phone's price body had exactly five keys with no `scanId` among
+ * them. Three columns that were always NULL, and a feature nobody could tell
+ * was off by reading either side of it.
+ *
+ * The three cases below are the whole of the guard: a body that names a scan,
+ * a body that does not, and an answer that was a refusal rather than a
+ * verdict. Asserted against the response's OWN tier and band rather than
+ * against literals, because the verdict is a function of price evidence whose
+ * age moves every day -- a hardcoded `walk_away` here would be a test that
+ * fails on a Tuesday for a reason that has nothing to do with this code.
+ */
+
+/** The hand-recorded product the spine can actually reach a verdict about. */
+const PRICEABLE = 'Kraft Dinner Original Macaroni & Cheese 225g';
+
+test('a price body naming a scan writes the verdict as it was shown onto that row', async () => {
+  const scanId = await unidentifiedScan('d-verdict');
+  const { body } = await post('/api/price', { scanId, text: PRICEABLE, askingCents: 499 });
+  assert.equal(
+    body.kind,
+    'verdict',
+    'the spine could not price the hand-recorded product; check spine/data/observations.json',
+  );
+
+  const row = getScan(scanId)!;
+  assert.equal(row.verdict_tier, body.tier, 'the tier on the row is not the tier that was shown');
+  const confidence = body.confidence as { band: string; distinctSellers: number };
+  assert.equal(row.verdict_confidence, confidence.band);
+  assert.equal(row.verdict_sellers, confidence.distinctSellers);
+});
+
+test('a price body with no scan prices the thing and writes nothing', async () => {
+  /*
+   * The catalogue screen does exactly this, and it must stay a 200 with a
+   * verdict and no write anywhere. The scan row used here is a bystander: it
+   * is created, left unnamed by the price call, and asserted to be untouched.
+   */
+  const bystander = await unidentifiedScan('d-noscan');
+  const { status, body } = await post('/api/price', { text: PRICEABLE, askingCents: 499 });
+  assert.equal(status, 200);
+  assert.equal(body.kind, 'verdict');
+
+  const row = getScan(bystander)!;
+  assert.equal(row.verdict_tier, null);
+  assert.equal(row.verdict_confidence, null);
+  assert.equal(row.verdict_sellers, null);
+});
+
+test('a refusal writes nothing, because there was no verdict to show', async () => {
+  const scanId = await unidentifiedScan('d-refused');
+  const { body } = await post('/api/price', {
+    scanId,
+    text: 'a thing nobody has ever priced by hand',
+    askingCents: 499,
+  });
+  assert.equal(body.kind, 'refusal', 'the fixture reached a verdict, so this asserts nothing');
+
+  const row = getScan(scanId)!;
+  assert.equal(row.verdict_tier, null, 'a refusal was written onto the row as a verdict');
+  assert.equal(row.verdict_confidence, null);
+  assert.equal(row.verdict_sellers, null);
+});

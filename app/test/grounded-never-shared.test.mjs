@@ -368,3 +368,86 @@ test('the server refuses to start on a free Gemini key', async () => {
     /* the OS will take it */
   }
 });
+
+test('the server refuses to start on gemini with no key, rather than half-working', async () => {
+  /*
+   * ONE VARIABLE SHORT OF A WORKING SERVER IS THE DANGEROUS STATE, and it is
+   * dangerous precisely because it does not fail at boot: the provider is
+   * chosen per call, deep in `identify/src/model.ts`, so a key-less gemini
+   * machine comes up, serves every screen, and then either answers with
+   * Anthropic -- billed elsewhere, and the opposite of what whoever set that
+   * variable asked for -- or refuses every scan with the same nothing a bad
+   * photo gives. Neither is visible from outside until a shopper is standing
+   * in an aisle.
+   *
+   * So it is a refusal to start, beside the free-tier guard above and in the
+   * same shape: one sentence naming the fix, before the port is opened.
+   */
+  const p = await freePort();
+  const sandbox = mkdtempSync(join(tmpdir(), 'shin-gemini-nokey-'));
+  const env = {
+    ...process.env,
+    PORT: String(p),
+    SHIN_MODEL_PROVIDER: 'gemini',
+    SHIN_SCANS: join(sandbox, 'scans.db'),
+    SHIN_CORRECTIONS: join(sandbox, 'corrections.db'),
+    SHIN_CATALOGUE: join(sandbox, 'no-catalogue.db'),
+  };
+  // Deleted rather than blanked, so a machine that really does have a key in
+  // its environment cannot make this test pass by accident.
+  delete env.GEMINI_API_KEY;
+  delete env.SHIN_GEMINI_TIER;
+  const child = spawn(process.execPath, ['server.ts'], { cwd: APP_DIR, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  let stderr = '';
+  child.stderr.on('data', (d) => {
+    stderr += String(d);
+  });
+  let exit;
+  try {
+    exit = await new Promise((resolve, reject) => {
+      const fail = setTimeout(() => reject(new Error('the server did not exit in 20 seconds')), 20_000);
+      child.on('exit', (codeOut) => {
+        clearTimeout(fail);
+        resolve(codeOut);
+      });
+      child.on('error', reject);
+    });
+  } finally {
+    child.kill();
+  }
+  assert.equal(exit, 1, 'gemini with no key came up anyway');
+  assert.match(stderr, /GEMINI_API_KEY/);
+  // Both halves of the fix, because the person reading this has two ways out
+  // and the sentence has to say so.
+  assert.match(stderr, /SHIN_MODEL_PROVIDER/);
+  assert.match(stderr, /Nothing was changed on disk/);
+  try {
+    rmSync(sandbox, { recursive: true, force: true });
+  } catch {
+    /* the OS will take it */
+  }
+});
+
+test('a key that is there is not inspected, and anthropic is untouched by the guard', async () => {
+  /*
+   * The negative. This guard must refuse exactly one configuration -- gemini
+   * named, key absent -- and nothing else, or it becomes a second reason a
+   * working machine will not start. Checked in-process against the same
+   * source the guard is written in, because spawning two more servers to
+   * assert that they came up is twenty seconds for two booleans.
+   */
+  const src = code(read('app/server.ts'));
+  const start = src.indexOf('function geminiKeyProblem');
+  assert.ok(start > 0, 'the gemini key guard is gone');
+  const fn = src.slice(start, src.indexOf('\n}', start));
+  // Guarded on the provider FIRST: a machine that never named gemini must
+  // never be asked whether it has a Gemini key.
+  assert.ok(
+    fn.indexOf('SHIN_MODEL_PROVIDER') < fn.indexOf('GEMINI_API_KEY'),
+    'the key is looked at before the provider, so an Anthropic machine can be refused over a Gemini key',
+  );
+  // Present and non-empty is the whole claim. A guard that made a network call
+  // before the port opens would be a boot that can fail on somebody else's DNS.
+  assert.ok(!/fetch|http|request/i.test(fn), 'the startup guard reaches the network');
+  assert.ok(fn.includes('return null'), 'the guard has no passing path');
+});

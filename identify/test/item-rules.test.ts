@@ -38,6 +38,7 @@ import {
   type GaugeShelfItem,
   type GaugeUsable,
 } from '../src/gauge.ts';
+import { priceLineFor, shownOffers } from '../src/providers/gemini-grounded.ts';
 
 /** Narrows and fails loudly, so a wrong `usable` does not read as a wrong number twenty lines later. */
 function usable(result: GaugeResult): GaugeUsable {
@@ -545,24 +546,44 @@ test('the four rules left the Python source fixed, self-contained and free of gr
 });
 
 /* ------------------------------------------------------------------ *
- * The narrowest point in the verdict path.
+ * The narrowest point, which moved on 2026-09-15.
  *
- * VERDICT_SCHEMA is the `response_format` Gemini must answer in, so a word
- * asked for there is a word that comes back, and a field missing from there
- * cannot reach a screen however carefully the Python computes it. It carried
- * `label: 'good' | 'fair' | 'high'` until 2026-09-14 and described a shape the
- * gauge does not return, which meant every one of the four adopted item rules
- * was computed and then dropped at the wire.
+ * It used to be VERDICT_SCHEMA: the `response_format` of a second, code-
+ * executing grounded call that turned the prices into a verdict. That call
+ * was dead (nothing in the app ever reached it) and rule 1 forbids a second
+ * call for one scan, so it and its schema are gone, and the two tests that
+ * guarded that schema went with them.
+ *
+ * TWO NARROW POINTS REPLACE IT, and both are live:
+ *   - PRICES_SCHEMA, now the ONLY `response_format` this app ever sends, so a
+ *     grading word asked for there is still a word that comes back; and
+ *   - `priceLineFor`, which is where `computeGauge`'s `excluded` rows and its
+ *     neutral `zone` actually reach a screen. A field missing there is a rule
+ *     computed and dropped, which is what the old test was really about.
  * ------------------------------------------------------------------ */
 
-test('the verdict schema asks for no grading word, in either language', () => {
-  const src = readFileSync(
+/**
+ * The adapter's source, with CRLF normalised away. The slices below hunt for
+ * a newline-brace-semicolon-newline delimiter that does not exist in a file
+ * checked out with CRLF endings, so without this the slice ran to end-of-file
+ * and swept the whole adapter -- including an ordinary comment containing
+ * "cheap" -- instead of the schema literal. D-110.
+ */
+function groundedSource(): string {
+  return readFileSync(
     new URL('../src/providers/gemini-grounded.ts', import.meta.url),
     'utf8',
-  );
-  const start = src.indexOf('const VERDICT_SCHEMA');
-  assert.ok(start > 0, 'VERDICT_SCHEMA is gone, so this test is guarding nothing');
-  const schema = src.slice(start, src.indexOf('\n};\n', start));
+  ).replace(/\r\n/g, '\n');
+}
+
+test('the one schema this app sends asks for no grading word, in either language', () => {
+  const src = groundedSource();
+  const start = src.indexOf('const PRICES_SCHEMA');
+  assert.ok(start > 0, 'PRICES_SCHEMA is gone, so this test is guarding nothing');
+  const end = src.indexOf('\n};\n', start);
+  assert.ok(end > start, 'the schema literal has no end delimiter: the slice would sweep the whole file');
+  const schema = src.slice(start, end);
+  assert.ok(schema.length < 4000, 'the slice swept past the schema literal');
   // The same list the rest of this file sweeps, read off disk so the two
   // cannot drift, and the same boundaried matcher, which treats the quote
   // around a schema enum value as the boundary it is.
@@ -570,22 +591,27 @@ test('the verdict schema asks for no grading word, in either language', () => {
     assert.doesNotMatch(
       schema,
       boundaried(word),
-      `VERDICT_SCHEMA asks Gemini to answer with "${word}", and a word asked for is a word that comes back`,
+      `PRICES_SCHEMA asks Gemini to answer with "${word}", and a word asked for is a word that comes back`,
     );
   }
 });
 
-test('the verdict schema carries the fields the four item rules travel in', () => {
-  const src = readFileSync(
-    new URL('../src/providers/gemini-grounded.ts', import.meta.url),
-    'utf8',
-  );
-  const start = src.indexOf('const VERDICT_SCHEMA');
-  const schema = src.slice(start, src.indexOf('\n};\n', start));
+test('the price line carries the fields the four item rules travel in', () => {
   // `excluded` is how a member-only price, a US listing, a marketplace seller
-  // and a different brand kind all reach a reader. Without it in the schema
-  // they are computed and dropped.
-  assert.match(schema, /excluded:/, 'the item rules have no way onto the wire');
-  assert.match(schema, /code:/, 'an exclusion without a code cannot be said in French');
-  assert.match(schema, /zone:/, 'the zone the shopper set has no way onto the wire');
+  // and a different brand kind all reach a reader. Without it on the line they
+  // are computed and dropped.
+  const line = priceLineFor(
+    { askingCents: 299, sizeValue: 500, sizeUnit: 'g' },
+    shownOffers([
+      { retailer: 'Loblaws', price: 3.49, url: null, sizeValue: 500, sizeUnit: 'g' },
+      { retailer: 'Costco', price: 1.99, url: null, sizeValue: 500, sizeUnit: 'g', memberOnly: true },
+      { retailer: 'Target', price: 2.1, url: null, sizeValue: 500, sizeUnit: 'g', currency: 'USD' },
+    ]),
+  );
+  assert.ok(line, 'no line at all, so no rule reached anybody');
+  const codes = line.excluded.map((e) => e.code).sort();
+  assert.deepEqual(codes, ['member_only', 'not_cad']);
+  for (const e of line.excluded) assert.ok(e.code !== '', 'an exclusion without a code cannot be said in French');
+  // The zone the shopper set, in the gauge's own neutral words.
+  assert.ok(['under_your_line', 'middle', 'over_your_line'].includes(line.shelf.zone));
 });
