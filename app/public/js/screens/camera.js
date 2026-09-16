@@ -2314,11 +2314,25 @@ export default {
         // be read, so the two can never disagree about what was photographed.
         lastCrop = crop;
         thumbFromCrop(crop).then((url) => { if (!dead && url) scanThumb = url; });
-        // Decision 15: a stable barcode already answers. Auto-capture is off
-        // (below), so this only ever fires off the manual shutter, which
-        // itself will not fire while a barcode is already being handled --
-        // this guard is the belt for the narrow window where both can start
-        // within the same tick.
+        /*
+         * NOT IN BARCODE MODE, 2026-09-15. A barcode lives on the BACK of the
+         * package, so the frame that reads one is a photograph of the back --
+         * the least identifiable side there is. Sending it to be identified
+         * would spend an image call to be told nothing.
+         *
+         * Nothing routes here in barcode mode today: the shutter is hidden, and
+         * `autoCapture` is passed false in eye-attach.js. But `Camera`'s own
+         * default is `options.autoCapture ?? TRUE` (app/src/eye/camera.ts), so
+         * the only thing standing between barcode mode and an unbidden crop of
+         * the back of a box is one `?? false` in another file. That is an
+         * accident of two unrelated settings, not an invariant, so the
+         * invariant is written down here where the crop is consumed.
+         */
+        if (scanMode !== 'photo') return;
+        // Decision 15: a stable barcode already answers. The manual shutter
+        // will not fire while a barcode is already being handled -- this guard
+        // is the belt for the narrow window where both can start within the
+        // same tick.
         if (barcodeInFlight) return;
         void handlePhotoCapture(crop);
       },

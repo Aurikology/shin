@@ -250,3 +250,22 @@ test('the toggle and the barcode button are styled, and the bar height token is 
   // 44px is D-050's tap floor and the reason this strip is that tall.
   assert.match(CSS, /--cam-mode-h: 44px;/, 'the mode toggle is under the 44px tap floor');
 });
+
+test('a crop is never identified while the shopper is scanning a barcode', () => {
+  /*
+   * A barcode is on the BACK of the package, so the frame that reads one is a
+   * photograph of the back. Identifying it would spend an image call to be told
+   * nothing. Today nothing routes a crop here in barcode mode -- the shutter is
+   * hidden and eye-attach passes autoCapture false -- but Camera's own default
+   * is `options.autoCapture ?? true`, so that is two unrelated settings agreeing,
+   * not an invariant. This pins the invariant at the point the crop is consumed.
+   */
+  const onCapture = between(SCREEN, 'onCapture: (crop) => {', '      },', 'the onCapture handler');
+  assert.ok(
+    onCapture.includes("if (scanMode !== 'photo') return;"),
+    'onCapture does not check the scan mode, so a crop taken in barcode mode could be identified',
+  );
+  const modeGuard = onCapture.indexOf("scanMode !== 'photo'");
+  const handOff = onCapture.indexOf('handlePhotoCapture(crop)');
+  assert.ok(modeGuard > -1 && handOff > modeGuard, 'the mode guard does not precede the hand-off to the identifier');
+});
