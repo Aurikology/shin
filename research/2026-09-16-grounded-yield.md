@@ -217,8 +217,17 @@ on any work here.
 Cost is the reason this was never the default and the reason it is a decision
 rather than a fix: flash-lite is $0.30/$2.50 per million tokens and
 `gemini-3.8-flash` is $0.75/$3.75, both doubling 2027-01-01
-(`app/src/model-cost.ts:130-133`). Roughly 2.5x the token cost per scan, against
-a path that currently returns nothing usable on most scans. The search-query
-charge of $0.014 per query past the free 5,000/month does not change with the
-model.
+(`app/src/model-cost.ts:130-133`). The search-query charge of $0.014 per query
+past the free 5,000/month does not change with the model.
+
+**CORRECTED the same day, after the cost functions were repaired (D-117).** The
+line above originally read "roughly 2.5x the token cost per scan". That was the
+ratio of the two INPUT rates, and it is not what a call costs. Priced over a
+realistic call -- 2,459 input tokens for a 1568 px crop, 600 output for a whole
+answer -- flash-lite is **0.2238 cents** and `gemini-3.8-flash` is **0.4094
+cents**: **1.83x**, because the input and output rates do not scale together and
+this mix is mostly output. In absolute terms the upgrade is **about a fifth of a
+cent per scan**. That is a materially different decision from the one 2.5x
+suggested, which is the reason the correction is written here rather than edited
+in silently.
 

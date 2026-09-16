@@ -75,6 +75,36 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## What the better model would actually cost: 1.83x, and that is a fifth of a cent, 2026-09-16
+
+**The 2.5x figure quoted earlier today was wrong** and it was the number the model decision was
+about to be made on. It came from comparing the two INPUT rates. Priced properly over a realistic
+call -- 2,459 input tokens for a 1568 px crop, 600 output for a whole prices-and-reviews answer:
+
+| model | tokens, cents per call |
+| --- | --- |
+| `gemini-3.5-flash-lite` (today) | **0.2238** |
+| `gemini-3.8-flash` | **0.4094** |
+
+**1.83x, not 2.5x**, because input and output rates do not scale by the same factor and this mix is
+mostly output. In absolute terms the upgrade costs **about a fifth of a cent per scan** in tokens,
+and the search charge does not change with the model at all: it is $14 per thousand queries past a
+free 5,000 a month, and one grounded price search ran four queries.
+
+**D-117, and it is why no such figure existed before.** `app/src/model-cost.ts` was reading token
+counts by names the adapter stopped sending on 2026-09-14 -- it wanted `promptTokenCount`, the
+adapter emits `inputTokens`. The shapes share no field, so every grounded call would have priced as
+NULL. It never showed because `tokenCostCents`, `searchCostCents` and `realCostCents` had zero
+callers in the whole repo, tests included. `gemini.ts:517-528` warns about this exact failure in its
+own file -- *"a failure that looks like working software"* -- and the warning did not travel one
+package over. Fixed, with nine tests, including one pinning both usage shapes to the same number.
+
+**Still not wired to production**, said plainly: the functions are correct now and nothing calls
+them. `scans.ts` already has the `model_cost_cents` column to receive it, and `provenanceOf`
+(`identify/src/grounded.ts:366`) is the metadata-only door built for exactly this and still without
+a caller. Carrying the model id and `usage` through the grounded envelope into that door is the
+remaining step, and it is queued rather than claimed.
+
 ## The zero-offer problem looks like the MODEL, not the prompt and not obscurity, 2026-09-16
 
 Seven of ten grounded calls returned no price. The protocol in

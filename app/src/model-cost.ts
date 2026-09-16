@@ -132,11 +132,40 @@ export const MODEL_RATES_USD_PER_MTOK: Readonly<Record<string, ModelRate>> = {
   'gemini-3.8-flash': { input: 0.75, output: 3.75 },
 };
 
-/** The usage block, in Google's own field names so nothing is renamed on the way in. */
+/**
+ * One call's token counts, in EITHER of the two shapes that actually exist.
+ *
+ * D-117. This interface held only the three legacy `*TokenCount` names until
+ * 2026-09-16, and nothing in the repo ever called the functions below, so the
+ * mismatch never showed: the grounded adapter stopped emitting those names on
+ * 2026-09-14 and emits `inputTokens` / `outputTokens` instead
+ * (`identify/src/provider.ts:133`, filled by `gemini.ts`'s `usageOf`). Wiring
+ * a real grounded response into `tokenCostCents` would have found every field
+ * absent and reported NULL for every call, which is the same failure
+ * `identify/src/providers/gemini.ts:517-528` warns about in its own words --
+ * "a failure that looks like working software" -- reproduced one package over,
+ * in the code whose whole job is knowing what a call cost.
+ *
+ * Both shapes are accepted rather than one being migrated, for the reason that
+ * file gives for its own fallback: a null cost is worse than a cost read off
+ * whichever shape actually arrives.
+ *
+ * THE TWO SHAPES COUNT THINKING DIFFERENTLY and that is the trap in here.
+ * `outputTokens` ALREADY has the thinking tokens added into it (`gemini.ts`'s
+ * assumption 9). The legacy `candidatesTokenCount` does NOT -- it needs
+ * `thoughtsTokenCount` added to it. Summing all of them would bill the
+ * thinking budget twice.
+ */
 export interface TokenUsage {
+  /** The current shape, from `identify/src/provider.ts`. */
+  readonly inputTokens?: number | null;
+  /** The current shape. Thinking tokens are ALREADY INCLUDED in this number. */
+  readonly outputTokens?: number | null;
+  /** Legacy, pre-2026-09-14. */
   readonly promptTokenCount?: number | null;
+  /** Legacy. Does NOT include reasoning tokens; `thoughtsTokenCount` is separate. */
   readonly candidatesTokenCount?: number | null;
-  /** Reasoning tokens. Billed at the OUTPUT rate, not a rate of their own. */
+  /** Legacy reasoning tokens. Billed at the OUTPUT rate, not a rate of their own. */
   readonly thoughtsTokenCount?: number | null;
 }
 
@@ -170,12 +199,18 @@ export function tokenCostCents(
 ): number | null {
   const rate = rates[model];
   if (!rate || !usage) return null;
-  const input = count(usage.promptTokenCount);
+  // The current shape first, the legacy names as the fallback, exactly the
+  // order `gemini.ts`'s `usageOf` reads them in.
+  const input = count(usage.inputTokens) ?? count(usage.promptTokenCount);
+  const already = count(usage.outputTokens);
   const candidates = count(usage.candidatesTokenCount);
   const thoughts = count(usage.thoughtsTokenCount);
-  if (input === null && candidates === null && thoughts === null) return null;
-  const output = (candidates ?? 0) + (thoughts ?? 0);
-  return cents(((input ?? 0) * rate.input + output * rate.output) / 1_000_000);
+  // `outputTokens` carries thinking inside it; the legacy pair does not, so it
+  // is summed and this one is taken as it stands. Adding both would bill the
+  // thinking budget twice.
+  const output = already !== null ? already : candidates === null && thoughts === null ? null : (candidates ?? 0) + (thoughts ?? 0);
+  if (input === null && output === null) return null;
+  return cents(((input ?? 0) * rate.input + (output ?? 0) * rate.output) / 1_000_000);
 }
 
 /**
