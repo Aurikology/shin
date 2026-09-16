@@ -75,6 +75,40 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## The one-call merge met Google for the first time, and it holds, 2026-09-16
+
+Jamin sent a Gemini credential that can ground (the free key in this repo's `.env` cannot: it
+answers HTTP 429 `exceeded your current quota` on a grounded search while an ungrounded image
+identification on the SAME key succeeds -- one of each was run, so the two are separated and it is
+grounding that has no free quota, not the key being spent).
+
+**What was unverified until now.** Lane B merged two grounded prompts into one at 2,600 output
+tokens and that number was reasoned from the added payload, never measured. A truncated answer cuts
+the JSON mid-array and the whole scan returns nothing.
+
+**It does not truncate.** A barcode lookup on `0068100084245` came back in 2,883 ms with identity
+populated -- *Kraft Smooth Peanut Butter / Kraft / 1 KG* -- 3 fact rows and 4 search queries. A full
+price query on a fresh device came back in 4,600 ms with an offer (Walmart, 9.97 CAD), a review, a
+description and a computed verdict line, and the offer carried all eighteen fields including the
+four item-rule ones (`marketplace`, `memberOnly`, `dealKind`, `organic`, `storeBrand`,
+`soldByWeight`). `computeGauge` therefore ran on real grounded offers for the first time.
+
+**One search per scan is real, not inferred.** After the barcode lookup, `lookupPrice` on the same
+device returned in **1 ms** -- it collected the cached promise instead of starting a second search.
+That is what rules 1 and 4 were built for, now measured against Google rather than a double.
+
+**Latency: 2,883 and 4,600 ms.** Comfortably inside the beta's seven-second promise, and a different
+world from the free key's 9,032 / 43,965 ms.
+
+**One observation to carry, from two calls and therefore not a law.** The barcode-only lookup
+returned identity and **zero offers**; the query carrying text, gtin, asking price and size returned
+offers. Since the merge makes ONE answer serve both halves, a catalogue-miss scan that asks with the
+code alone may hand the shopper a name and no price line. Worth a wider run before it is believed,
+and worth knowing before a tester meets it.
+
+**Not stored.** The credential was used in-process only and written nowhere: where a secret lives is
+Aurik's call, and it arrived in a chat transcript, so it should be rotated once a permanent key is
+placed.
 ## Jamin's nine rules: four built, three raised, and the search that was running twice, 2026-09-15
 
 **State:** `main` at the five commits below, both remotes verified equal by `ls-remote`. **Tests: app
