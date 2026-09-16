@@ -75,6 +75,78 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## Jamin's nine rules: four built, three raised, and the search that was running twice, 2026-09-15
+
+**State:** `main` at the five commits below, both remotes verified equal by `ls-remote`. **Tests: app
+797 (792 pass, 5 skipped), identify 283, spine 223, price 157, catalogue 133; 0 fail; typecheck clean
+in all five; `shin-gate.sh --all` exit 0.**
+
+Jamin pushed 19 commits and set `docs/jamin-gemini-rules.md` above everything else in the repo. His
+sweep found seven contradictions still live. **Four are built and three are raised as points**, which
+is what his own file asks for when a contradiction should not be fixed. Run as five lanes on disjoint
+packages, every lane's diff reviewed here and every row checked at the consumer before it moved.
+
+**Rule 1, one call per scan.** A barcode miss was making **three** grounded calls, not the two the
+plan assumed: `lookupBarcode`, a `prefetchPrice` fired inside it, and `lookupPrice`. The two request
+builders are merged into one prompt returning identity, offers, reviews and description together, and
+`lookupBarcode` now shares the promise the price route later awaits. **One call.** Counted by
+transport invocations, not inferred. The photo path is still two and that is said plainly rather than
+rounded down: one ungrounded read and one grounded search. Making it one would mean putting the image
+into the grounded request, which the guard forbids and which Google has not confirmed works.
+
+**The search was running twice on every scan, and nobody had noticed.** The prefetch is cached under
+`${device}|gtin:…` or `|text:…`. The phone sent neither a device id nor a scan id on `/api/price`, so
+`groundedOwner()` minted a fresh uuid per request and the key never matched. Sending the device id
+alone would not have fixed it: the server keyed on brand + name, the phone sent `productLabel()`,
+which drops the brand when the name already starts with it and appends the quantity. It only ever
+worked by accident, when the code matched 8-14 digits and the gtin branch won. The identify routes
+now echo the exact query they prefetched under and the phone returns it verbatim.
+
+**Rule 4's plumbing.** The scan id was already on the client and was simply never put in the body.
+**Verified at the consumer:** a real identify on a live server returned `scanId 24` with its
+`priceQuery` echoed; a real `/api/price` carrying both wrote `verdict_tier='walk_away'`,
+`verdict_confidence='low'`, `verdict_sellers=4`, read back out of `scans.db`. Those three columns have
+been uniformly NULL until today. **What this turns on:** `/api/price` now writes to the scan store in
+production for the first time, so `dropInterimGroundedFor`, `historyText`, `grounded_at` and the
+two-year reaper all start running on real traffic; and nothing outside `migrations.ts` and `scans.ts`
+names those columns, so the exposure is `SELECT *` -- every export, admin listing and summary built on
+`allScans()` starts carrying three values it has only ever seen as null.
+
+**Rule 7.** `makeProvider` threw nothing and quietly returned Claude whenever Gemini was named with no
+key; Jamin's sweep found this machine's `.env` in exactly that state. It throws now, and a machine in
+that state refuses to start rather than answering scans with a model nobody asked for -- driven for
+real, exit 1, one sentence, normal boot still 200. An inconsistency it creates is recorded rather than
+smoothed: `xai` with no key still fails at `read()` time as a `ModelCallError`, so the same category of
+mistake now fails at two different phases.
+
+**Rule 2.** zxing ran at the top of every frame and fired with no gate. A Photo | Barcode toggle now
+gates it; in photo mode nothing scans for codes at all. **Walked in a browser** at 390x844 and 375x575
+in both locales through the real consent gate: the toggle is 44px, exactly one middle face is ever
+visible, *"Scanner le code-barres"* fits at 228px without wrapping, and nothing overflows.
+
+**The docs.** `plan-gemini.md` §4.3 described a second Gemini call for the price maths that was
+written and never wired; rule 1 has now made it unwireable. Two of its eight algorithm steps had
+drifted from the code and are corrected against it.
+
+**Two Gemini questions answered by a real call, both against me.** `resolution` on the image part is
+accepted -- my `970017a` removed `media_resolution` after a 400 and concluded the field did not exist
+on this surface; Jamin's spelling and placement were right. And plain lowercase JSON Schema is
+accepted, so the uppercase translation I argued for was never needed. I had called it "confirmed
+live"; it was not, my one call never varied it. Proof the adapter was really on the wire: pointing
+`SHIN_GEMINI_BASE_URL` at a dead port turns the same row unreadable in 235 ms against 9,032 ms
+answering correctly. Third latency sample: **9,032 ms**. The beta's 7-second promise is not free-tier
+weather.
+
+**Three rules raised, not built** (`docs/decisions.md`, "Three of Jamin's nine rules are raised as
+points"): the grounded guard, the tier words, and Gemini as the price source. Each carries its cost
+counted rather than guessed, and point 1 carries its own weakness out loud -- Shin already crosses the
+*analysing* half of the same Google clause on purpose (D-111).
+
+**Open, and Aurik's:** the barcode tap cost (0 taps before, 2 then 1 now, while a photo stays at 1 --
+rule 2's own economics now point at the expensive path); whether `msSinceCameraStart` is renamed;
+and that one failed search now loses the identity **and** the prices, where a failure used to leave
+the name on screen. That is what rule 1 costs and it cuts against rule 6. A test pins it.
+
 ## "Do everything but fund the API key", and his two rulings, 2026-09-14 evening
 
 **His words:** *"do everything but fund the api key."* Asked the two questions the morning left

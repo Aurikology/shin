@@ -9,6 +9,72 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-15, night (Aurik's PC): the nine-rules cleanup, four built and three raised
+
+### To do
+
+- **Jamin:** three of your nine rules reverse a ruling Aurik made on 09-14, and one of them is a
+  contract with Google rather than a preference. They are written up in `docs/decisions.md` under
+  "Three of Jamin's nine rules are raised as points rather than built", with the cost of each
+  counted rather than guessed. Short version:
+  1. **The grounded guard is what makes rule 4 legal, not what blocks it.** The same clause that
+     forbids caching grounded results permits keeping their text for two years in that user's own
+     history, and `GROUNDED_RETENTION_DAYS = 730` is that clause's own number. Deleting the guard
+     does not unlock "record everything"; it removes the permission. Aurik's own argument carries
+     its weakness out loud: Shin already crosses the *analysing* half of that same sentence on
+     purpose, and says so at `gemini-grounded.ts:780-784`.
+  2. **The tier words** ("factually a bad, reasonable or good price") against hard rule 2 and
+     Competition Act s.74.01(1)(b). That decision names its own reversal condition and it is Aurik
+     amending hard rule 2 himself.
+  3. **Gemini as the price source**, which orphans 2,294 lines and 380 tests. Possibly the narrowest
+     of the three: your ruling 10 already says Shin's own prices are not shown until enough are
+     collected, so what is in dispute is deletion versus dark.
+- **Jamin:** two of your rules contradict each other and one contradicts itself. Rule 2 wants
+  barcodes because they are cheaper than an image and forbids reading them automatically, which
+  sends the default path back to the shutter. Rule 7 and rule 6 cannot both hold the moment a
+  Gemini call fails. Neither is fixed; both are recorded.
+
+### What changed
+
+Four of the seven live contradictions on your sweep are built, and the cleanup of the two planning
+docs is done. Every row below was checked by Aurik at the consumer, not accepted on an agent's word.
+
+- **Rule 1, one call per scan.** A barcode miss was making **three** grounded calls, not two:
+  `lookupBarcode`, a `prefetchPrice` fired inside it, and `lookupPrice`. The two request builders are
+  merged into one prompt that returns identity, offers, reviews and description together. A barcode
+  miss is now **one** call. The photo path is still two (one ungrounded read, one grounded search) and
+  that is stated plainly rather than claimed: making it one would mean sending the image into the
+  grounded request, which the guard forbids and which Google has not confirmed works.
+- **Rule 4's plumbing.** The phone never sent a scan id, so nothing the phone showed could be
+  recorded. It does now. Separately, the grounded search had been **running twice per scan** because
+  the prefetch cache key never matched: the server keyed on brand + name, the phone sent a different
+  string. The server now echoes the exact query it prefetched under. Proof: a real scan on a live
+  server wrote `verdict_tier`, `verdict_confidence` and `verdict_sellers` into the scan row, three
+  columns that have been uniformly NULL until today.
+- **Rule 7.** `makeProvider` no longer hands the scan to Claude when Gemini is named with no key --
+  it throws. And a machine in that state now refuses to start, naming the fix, instead of booting and
+  answering every scan with a model nobody asked for.
+- **Rule 2**, the "Scan barcode" button, in the same pass.
+- **The docs.** `plan-gemini.md` section 4.3 described a second Gemini call for the price maths. That
+  call was written and never wired, and rule 1 has now made it unwireable, so it is deleted and the
+  section says the maths runs locally. Two of its eight algorithm steps had drifted from the code and
+  are corrected against it.
+
+**One thing rule 1 costs, so it is not discovered on a phone:** a failed search now loses the product
+identity AND the prices. Before, a failed price search still left the name on screen. That cuts
+against rule 6, and a test pins it.
+
+**Two questions your Gemini adapter answered today**, both in your favour and both previously resting
+on documentation alone. A real call on the free key confirms that `resolution` on the image part is
+accepted (Aurik's earlier commit had removed `media_resolution` after a 400 and concluded the field
+did not exist on this surface -- your spelling and placement were right), and that plain lowercase
+JSON Schema is accepted, so the uppercase translation Aurik had argued for was not needed. Third
+latency sample: 9,032 ms.
+
+### Read by
+
+---
+
 ## 2026-09-15, later (Jamin's PC): the nine-rules sweep
 
 ### To do
