@@ -2215,10 +2215,17 @@ export default {
      * Rule 2: the two are not the same scan. Mirrored onto `cam.dataset.mode`.
      *
      * BARCODE IS THE DEFAULT, on Aurik's call 2026-09-15, reversing the photo
-     * default this screen shipped with earlier the same day. A barcode scan
-     * that hits the local catalogue costs NO model call at all -- it is a
-     * SQLite lookup over 212,340 rows -- against a photo's image call of about
-     * 1,066 image tokens plus the grounded search. Measured photo latency on
+     * default this screen shipped with earlier the same day.
+     *
+     * CORRECTED the same day, because the first version of this comment said a
+     * barcode scan costs no model call at all and that is not true. What it
+     * skips is the IMAGE, not the call. Identification on a catalogue hit is a
+     * SQLite read over 212,340 rows and reaches nobody, but the price and
+     * reviews are a grounded Gemini search either way (`prefetchPrice`,
+     * app/server.ts), because the verdict needs prices whatever named the
+     * product. So: a barcode scan is ONE grounded call carrying no image; a
+     * photo is TWO, one of them about 1,066 image tokens. Half the calls and
+     * none of the image tokens is the real saving. Measured photo latency on
      * the free key was 9,032 ms against a beta that promises seven seconds.
      * Leaving photo in front made the free path cost two taps and the
      * expensive one cost one, which is rule 2's own cost argument pointing
