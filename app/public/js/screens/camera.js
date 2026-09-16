@@ -2094,6 +2094,24 @@ export default {
      * price against the last aisle's photo.
      */
     let lastScanId = null;
+    /*
+     * THE PRICE QUERY THE SERVER ALREADY STARTED A SEARCH UNDER. 2026-09-15.
+     *
+     * `/api/identify` and `/api/identify/photo` both begin the price search in
+     * the background the moment they name a product, filed under the exact
+     * `{ text, gtin }` they echo back here. `/api/price` collects that search
+     * by rebuilding the same key, so this object has to travel back untouched.
+     *
+     * Rebuilding it here instead is what used to happen and it is the defect:
+     * `productLabel()` drops the brand when the name already begins with it
+     * and appends the pack size, so the two strings differed and every scan
+     * paid for a second search that the shopper then waited on.
+     *
+     * Same lifecycle as `lastScanId`, and cleared by `reset()` with it for the
+     * same reason: the previous aisle's query would collect the previous
+     * aisle's search.
+     */
+    let lastPriceQuery = null;
     let dead = false;
     // When the eye or the plain camera actually went live, for "ms since
     // camera start" on a barcode read (track.js). Null until one of the two
@@ -2628,6 +2646,9 @@ export default {
         // answer was: a refused identification is exactly the case the
         // price route below exists for.
         if (Number.isInteger(id?.scanId)) lastScanId = id.scanId;
+        // The query the server already started a price search under. Held
+        // exactly as it arrived; see `lastPriceQuery`.
+        lastPriceQuery = id?.priceQuery ?? null;
       } catch {
         id = null; // No signal. The aisle this app was built for.
       }
@@ -3119,6 +3140,27 @@ export default {
           // Always, when there is a price to attribute. The store being
           // judged must never land inside its own comparison set.
           askingSeller: askingCents !== undefined ? (item.askingSeller ?? undefined) : undefined,
+          /*
+           * THE SCAN THIS PRICE IS ABOUT. 2026-09-15.
+           *
+           * Held since the identify call and never sent until now, which is
+           * why the verdict as it was shown -- tier, confidence band, distinct
+           * sellers -- was never written onto the scan row: the server's write
+           * is guarded on this field and the field was never in the body.
+           *
+           * `undefined` rather than null when there is no scan, because
+           * JSON.stringify drops an undefined key entirely and the server's
+           * guard is `Number.isInteger`: a null would travel and be refused,
+           * an absent key never travels at all. A price asked about something
+           * nobody scanned is an ordinary case (the catalogue screen does it).
+           */
+          scanId: lastScanId ?? undefined,
+          /*
+           * And the query the server already started a search under, handed
+           * back byte-for-byte so `/api/price` collects that search instead of
+           * starting a second one. See `lastPriceQuery`.
+           */
+          priceQuery: lastPriceQuery ?? undefined,
         });
         clearTimeout(slowTimer);
         if (dead || myGen !== gen) return;
@@ -3249,6 +3291,9 @@ export default {
         // answer was: a refused identification is exactly the case the
         // price route below exists for.
         if (Number.isInteger(id?.scanId)) lastScanId = id.scanId;
+        // The query the server already started a price search under. Held
+        // exactly as it arrived; see `lastPriceQuery`.
+        lastPriceQuery = id?.priceQuery ?? null;
       } catch (err) {
         console.error('photo identify failed:', err);
         id = { product: null, failure: 'offline' };
@@ -3392,6 +3437,7 @@ export default {
       last = null;
       lastKeepable = null;
       lastScanId = null;
+      lastPriceQuery = null;
       scanThumb = null;
       // A pick belongs to the scan that has just ended. Carrying it into the
       // next one would frame whatever happens to overlap the old rectangle,
@@ -3840,6 +3886,9 @@ export default {
           // answer was: a refused identification is exactly the case the
           // price route below exists for.
           if (Number.isInteger(id?.scanId)) lastScanId = id.scanId;
+          // The query the server already started a price search under. Held
+          // exactly as it arrived; see `lastPriceQuery`.
+          lastPriceQuery = id?.priceQuery ?? null;
           if (id.catalogueUp && id.product) {
             typed = {
               id: id.product.code,

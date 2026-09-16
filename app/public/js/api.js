@@ -234,9 +234,29 @@ async function getSoft(path, fallback) {
   }
 }
 
-/** Returns a Verdict or a Refusal. Both are success. */
+/**
+ * Returns a Verdict or a Refusal. Both are success.
+ *
+ * THE DEVICE ID IS ATTACHED HERE, NOT BY THE CALLER, 2026-09-15.
+ *
+ * `identify`, `identifyPhoto`, `scans` and `search` all send it and this one
+ * did not, which read as a privacy nicety and was a bug: `/api/identify` and
+ * `/api/identify/photo` start the price search in the background filed under
+ * the device that asked, and `/api/price` picks that search up by the same
+ * key. A price body with no device is a different owner every time, so the
+ * started search was never the one collected -- every scan paid for two
+ * searches instead of one, and the second one made the shopper wait.
+ *
+ * In here rather than in each screen for the reason `identify` gives: a screen
+ * that forgets is a screen that silently doubles the bill, and there is no
+ * outward sign of it on any glass.
+ *
+ * The caller still wins. A body that names its own `deviceId` (the catalogue
+ * screen pricing something nobody scanned) keeps it.
+ */
 export function price(query) {
-  return post('/api/price', query);
+  const device = getDeviceId()?.id;
+  return post('/api/price', device ? { deviceId: device, ...query } : query);
 }
 
 /**

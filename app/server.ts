@@ -2066,7 +2066,37 @@ export const server = createServer(async (req, res) => {
        * scan the log could not record has no id, and a client holding a made-up
        * one would file a rating against a row that does not exist.
        */
-      const identified = scanId === null ? answer : { ...answer, scanId };
+      /*
+       * THE EXACT QUERY THE SEARCH WAS STARTED UNDER, ECHOED TO THE CLIENT.
+       * 2026-09-15.
+       *
+       * The prefetch below files its search under a key built from this
+       * object's `gtin` and `text`, and `/api/price` collects it by building
+       * that key again. Until now the client built the price body's `text`
+       * itself, out of the product label it was showing, and the two strings
+       * agreed only by accident -- so the collection missed and the scan paid
+       * for a second search it then waited on.
+       *
+       * Echoing the object removes the agreement problem instead of restating
+       * it: there is one string, this one, and the client hands it straight
+       * back. A client that does not send it still works exactly as before
+       * (`/api/price` falls back to `text`/`gtin` off the body), which is what
+       * keeps an app already on somebody's phone working.
+       */
+      const priceQuery: GroundedPriceQuery | null = answer.product
+        ? {
+            text: [answer.product.brands?.split(',')[0]?.trim(), answer.product.name].filter(Boolean).join(' '),
+            gtin: gtin ?? (/^\d{8,14}$/.test(answer.product.code) ? answer.product.code : undefined),
+            sizeValue: answer.product.sizeValue,
+            sizeUnit: answer.product.sizeUnit,
+          }
+        : null;
+
+      const identified = {
+        ...answer,
+        ...(scanId === null ? {} : { scanId }),
+        ...(priceQuery ? { priceQuery } : {}),
+      };
 
       /*
        * THE SEARCH HALF, 2026-09-15 (docs/plan-gemini.md sections 1 and 9).
@@ -2087,18 +2117,7 @@ export const server = createServer(async (req, res) => {
        * `groundedOwner`). That used to be a terms gate; it is not any more.
        */
       const grounded = groundedOnce();
-      if (grounded && answer.product) {
-        const p = answer.product;
-        grounded.prefetchPrice?.(
-          {
-            text: [p.brands?.split(',')[0]?.trim(), p.name].filter(Boolean).join(' '),
-            gtin: gtin ?? (/^\d{8,14}$/.test(p.code) ? p.code : undefined),
-            sizeValue: p.sizeValue,
-            sizeUnit: p.sizeUnit,
-          },
-          device,
-        );
-      }
+      if (grounded && priceQuery) grounded.prefetchPrice?.(priceQuery, device);
       if (grounded && !answer.product && gtin) {
         const owner = groundedOwner(device);
         try {
@@ -2429,23 +2448,34 @@ export const server = createServer(async (req, res) => {
           payload: { scanId, source: 'photo', failure: answer.failure, readAs: answer.readAs },
         });
       }
-      if (photoGrounded && (answer.product || unchecked)) {
-        const p = answer.product;
-        photoGrounded.prefetchPrice?.(
-          p
-            ? {
-                text: [p.brands?.split(',')[0]?.trim(), p.name].filter(Boolean).join(' '),
-                gtin: /^\d{8,14}$/.test(p.code) ? p.code : undefined,
-                sizeValue: p.sizeValue,
-                sizeUnit: p.sizeUnit,
-              }
-            : { text: unchecked?.label },
-          device,
-        );
-      }
+      /*
+       * THE EXACT QUERY THE SEARCH WAS STARTED UNDER, echoed on the way out
+       * for the same reason `/api/identify` echoes it: the prefetch files its
+       * search under a key built from these two strings and `/api/price`
+       * collects it by building that key again, so the client hands this
+       * object straight back rather than rebuilding a string that has to
+       * happen to match. Nothing about it is a search RESULT -- it is the
+       * question, not the answer, and this route still serves no answer.
+       */
+      const chosen = answer.product;
+      const priceQuery: GroundedPriceQuery | null = chosen
+        ? {
+            text: [chosen.brands?.split(',')[0]?.trim(), chosen.name].filter(Boolean).join(' '),
+            gtin: /^\d{8,14}$/.test(chosen.code) ? chosen.code : undefined,
+            sizeValue: chosen.sizeValue,
+            sizeUnit: chosen.sizeUnit,
+          }
+        : unchecked?.label
+          ? { text: unchecked.label }
+          : null;
+      if (photoGrounded && priceQuery) photoGrounded.prefetchPrice?.(priceQuery, device);
 
       const photoBody = unchecked ? { ...answer, unchecked } : answer;
-      return json(200, scanId === null ? photoBody : { ...photoBody, scanId });
+      return json(200, {
+        ...photoBody,
+        ...(scanId === null ? {} : { scanId }),
+        ...(priceQuery ? { priceQuery } : {}),
+      });
     }
 
     if (url.pathname === '/api/price') {
@@ -2464,6 +2494,28 @@ export const server = createServer(async (req, res) => {
        */
       const pricedScan = Number(q.scanId);
       if (Number.isInteger(pricedScan) && pricedScan > 0) scanForLog = pricedScan;
+      /*
+       * THE QUERY THE IDENTIFY ROUTE ALREADY STARTED A SEARCH UNDER.
+       * 2026-09-15.
+       *
+       * Optional, read field by field, and it reaches NOTHING but the search.
+       * The verdict below is computed from `query` exactly as it always was:
+       * a client-supplied object that could move a good/fair/high call would
+       * be a route around the price engine, and this is not one.
+       *
+       * Field by field rather than spread, because this arrives off the wire:
+       * a body echoing `{ priceQuery: { askingCents: 1 } }` must not be able
+       * to put a key of its choosing into the object handed to the lookup.
+       */
+      const echo = q.priceQuery && typeof q.priceQuery === 'object' ? (q.priceQuery as Record<string, unknown>) : null;
+      const echoed = echo
+        ? {
+            text: typeof echo.text === 'string' && echo.text.trim() !== '' ? echo.text : undefined,
+            gtin: typeof echo.gtin === 'string' && echo.gtin.trim() !== '' ? echo.gtin : undefined,
+            sizeValue: typeof echo.sizeValue === 'number' ? echo.sizeValue : null,
+            sizeUnit: typeof echo.sizeUnit === 'string' ? echo.sizeUnit : null,
+          }
+        : null;
       const query: SpineQuery = {
         text: typeof q.text === 'string' ? q.text : undefined,
         gtin: typeof q.gtin === 'string' ? q.gtin : undefined,
@@ -2525,18 +2577,29 @@ export const server = createServer(async (req, res) => {
       const pricedDevice =
         typeof q.deviceId === 'string' && q.deviceId.trim() !== '' ? q.deviceId.trim() : UNATTRIBUTED;
       const groundedPrice = groundedOnce();
-      if (groundedPrice && (query.text || query.gtin)) {
+      /*
+       * THE ECHO WINS, and that is the whole of the one-search-per-scan fix:
+       * these two strings are what the cache key is built from, so they have
+       * to be byte-for-byte the ones the prefetch used. `query.text` is the
+       * label the client was SHOWING, which drops the brand when the name
+       * already starts with it and carries the pack size -- a different
+       * string, a different key, a second search.
+       */
+      const searchText = echoed?.text ?? query.text;
+      const searchGtin = echoed?.gtin ?? query.gtin;
+      if (groundedPrice && (searchText || searchGtin)) {
         const owner = groundedOwner(pricedDevice);
         // The catalogue's size for a known barcode, so the line compares per
         // 100 g or per item with the real pack rather than a borrowed one.
-        const row = query.gtin && fastLookup ? ((fastLookup.byGtin(query.gtin) ?? null) as Candidate | null) : null;
-        const sizeValue = typeof q.sizeValue === 'number' ? q.sizeValue : (row?.sizeValue ?? null);
-        const sizeUnit = typeof q.sizeUnit === 'string' ? q.sizeUnit : (row?.sizeUnit ?? null);
+        const row = searchGtin && fastLookup ? ((fastLookup.byGtin(searchGtin) ?? null) as Candidate | null) : null;
+        const sizeValue =
+          typeof q.sizeValue === 'number' ? q.sizeValue : (echoed?.sizeValue ?? row?.sizeValue ?? null);
+        const sizeUnit = typeof q.sizeUnit === 'string' ? q.sizeUnit : (echoed?.sizeUnit ?? row?.sizeUnit ?? null);
         try {
           const box = await groundedPrice.lookupPrice(
             {
-              text: query.text,
-              gtin: query.gtin,
+              text: searchText,
+              gtin: searchGtin,
               askingCents: query.askingCents,
               sizeValue,
               sizeUnit,
@@ -3268,9 +3331,40 @@ function geminiTierProblem(env: NodeJS.ProcessEnv = process.env): string | null 
   return 'SHIN_GEMINI_TIER is set to free, and Google trains on everything sent to a free key, so Shin will not serve a shopper\'s photograph through it. Use a paid key here and keep the free one for the eval.';
 }
 
+/**
+ * A MACHINE HALFWAY THROUGH THE SWITCH TO GEMINI IS THE DANGEROUS STATE.
+ *
+ * `SHIN_MODEL_PROVIDER=gemini` with no `GEMINI_API_KEY` is one environment
+ * variable short of a working server, and the shape of the failure is what
+ * makes it worth refusing to start over: the provider selection happens per
+ * call, deep inside `identify/src/model.ts`, so a key-less gemini machine does
+ * not fail at boot. It comes up, answers `/api/health`, serves every screen,
+ * and then either quietly answers with Anthropic -- which is the OPPOSITE of
+ * what the person setting that variable asked for, and is billed to a
+ * different account -- or, once the provider throws instead of falling back,
+ * refuses every single scan with the same nothing that a bad photo gives.
+ * Both are invisible from outside, and the second is invisible until a shopper
+ * is standing in an aisle.
+ *
+ * So it is checked here, with the free-tier guard and the database guard, in
+ * `startupProblems`' own shape: one sentence naming the fix, reported with
+ * everything else that is wrong rather than instead of it.
+ *
+ * NOT A CHECK ON THE KEY'S VALIDITY. This file cannot know whether a key
+ * works, and a guard that pretended to would have to make a network call
+ * before the port opens. Present and non-empty is the whole claim.
+ */
+function geminiKeyProblem(env: NodeJS.ProcessEnv = process.env): string | null {
+  if ((env.SHIN_MODEL_PROVIDER ?? '').trim().toLowerCase() !== 'gemini') return null;
+  if ((env.GEMINI_API_KEY ?? '').trim() !== '') return null;
+  return 'SHIN_MODEL_PROVIDER is set to gemini and GEMINI_API_KEY is empty, so every scan would fail or be answered by a model nobody asked for. Set GEMINI_API_KEY, or unset SHIN_MODEL_PROVIDER to go back to Anthropic.';
+}
+
 const problems = startupProblems();
 const tierProblem = geminiTierProblem();
 if (tierProblem) problems.push(tierProblem);
+const keyProblem = geminiKeyProblem();
+if (keyProblem) problems.push(keyProblem);
 if (problems.length > 0) {
   for (const problem of problems) console.error(problem);
   console.error('Shin did not start. Nothing was changed on disk.');
