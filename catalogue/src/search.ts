@@ -728,10 +728,65 @@ function variantAgreesWith(row: Row, query: SearchQuery): boolean | null {
  * Within 5%: pack sizes are printed rounded and "500 ml" and "0.5 L" should not
  * read as different products (decision 19).
  */
+/**
+ * A pinned size in the catalogue's own base units, or null when it cannot be.
+ *
+ * D-122, 2026-09-17. `SearchQuery.sizeValue`'s doc comment says "in the
+ * catalogue's base units, grams or millilitres" and NOTHING ENFORCED IT. The
+ * only caller that pins a size is identify.ts's cascade, whose `pinnedSize`
+ * hands through whatever unit the model read off the pack -- "1.89 L" arrives
+ * as `{value: 1.89, unit: 'l'}`. The old `sizeAgreesWith` compared
+ * `query.sizeUnit === row.size_unit` as raw strings, so that query met a row
+ * stored as `{1890, 'ml'}`, failed the string test, and returned null.
+ *
+ * NULL IS NOT "DISAGREES", IT IS "NO OPINION", so `pinTier` left the row in the
+ * UNKNOWN tier and the size pin -- the entire mechanism D-082 built to separate
+ * two rows published under word-for-word the same name -- silently did nothing.
+ * Measured on the eval manifest: 30 of the 178 rows carrying a size print it in
+ * a non-base unit (13 l, 12 kg, 4 oz, 1 l-against-grams), so roughly one sized
+ * row in six was pinning into a no-op.
+ *
+ * Converting here rather than in identify.ts because the invariant is this
+ * file's to state and this file's to defend: a caller reading a label cannot be
+ * asked to know what unit the loader happened to normalise to, and the comment
+ * on `sizeValue` has been promising this conversion for as long as it has
+ * existed.
+ *
+ * `oz` is the US fluid/avoirdupois ounce at 28.3495 g. It is listed because four
+ * eval rows print one and the catalogue stores them in grams; a mass ounce
+ * against a millilitre row still returns null, which is the honest answer.
+ */
+const SIZE_UNIT_BASE: Readonly<Record<string, { base: 'g' | 'ml'; factor: number }>> = {
+  g: { base: 'g', factor: 1 },
+  gram: { base: 'g', factor: 1 },
+  grams: { base: 'g', factor: 1 },
+  kg: { base: 'g', factor: 1000 },
+  mg: { base: 'g', factor: 0.001 },
+  lb: { base: 'g', factor: 453.592 },
+  oz: { base: 'g', factor: 28.3495 },
+  ml: { base: 'ml', factor: 1 },
+  cl: { base: 'ml', factor: 10 },
+  dl: { base: 'ml', factor: 100 },
+  l: { base: 'ml', factor: 1000 },
+  litre: { base: 'ml', factor: 1000 },
+  liter: { base: 'ml', factor: 1000 },
+};
+
+export function toBaseSize(
+  value: number | null | undefined,
+  unit: string | null | undefined,
+): { value: number; base: 'g' | 'ml' } | null {
+  if (value == null || !Number.isFinite(value) || value <= 0 || unit == null) return null;
+  const spec = SIZE_UNIT_BASE[unit.trim().toLowerCase()];
+  if (!spec) return null;
+  return { value: value * spec.factor, base: spec.base };
+}
+
 function sizeAgreesWith(row: Row, query: SearchQuery): boolean | null {
-  return query.sizeValue && row.size_value && query.sizeUnit === row.size_unit
-    ? Math.abs(row.size_value - query.sizeValue) / query.sizeValue <= 0.05
-    : null;
+  const q = toBaseSize(query.sizeValue, query.sizeUnit);
+  const r = toBaseSize(row.size_value, row.size_unit);
+  if (!q || !r || q.base !== r.base) return null;
+  return Math.abs(r.value - q.value) / q.value <= 0.05;
 }
 
 /**

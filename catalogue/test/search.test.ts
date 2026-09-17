@@ -200,6 +200,52 @@ test('size agreement is reported when the query carries a size', async () => {
   assert.equal(twoKg?.signals.sizeAgrees, false);
 });
 
+test('a size read off the label in litres or kilos still agrees with a row stored in base units', async () => {
+  /*
+   * THE PIN WAS A NO-OP ON ONE SIZED ROW IN SIX. D-122, 2026-09-17.
+   *
+   * `sizeAgreesWith` used to compare `query.sizeUnit === row.size_unit` as raw
+   * strings. The loader normalises every row to grams or millilitres, and the
+   * only caller that pins a size is identify.ts's cascade, which forwards
+   * whatever unit the vision model read off the pack -- "1 kg", "1.89 L". Those
+   * never string-matched 'g' or 'ml', so the comparison returned null, `pinTier`
+   * read null as "no opinion", and D-082's whole mechanism for separating two
+   * rows published under word-for-word the same name silently did nothing.
+   *
+   * Written against the same 1 kg / 2 kg pair the test above uses, because that
+   * pair is the exact case the pin exists for: the names are identical strings
+   * and the size is the only thing that can tell them apart.
+   */
+  const cat = await fixture();
+  const r = await cat.search({ text: 'Kraft Smooth Peanut Butter', sizeValue: 1, sizeUnit: 'kg' });
+  const oneKg = r.candidates.find((c) => c.code === '0068100084245');
+  const twoKg = r.candidates.find((c) => c.code === '0068100084276');
+  assert.equal(oneKg?.signals.sizeAgrees, true, 'one kilo is a thousand grams');
+  assert.equal(twoKg?.signals.sizeAgrees, false, 'and two kilos is not');
+  assert.equal(r.candidates[0]?.code, '0068100084245', 'the agreeing row leads on a tier no score may cross');
+});
+
+test('a millilitre query and a litre query are the same question', async () => {
+  const cat = await fixture();
+  const ml = await cat.search({ text: 'Kraft Smooth Peanut Butter', sizeValue: 1000, sizeUnit: 'g' });
+  const kg = await cat.search({ text: 'Kraft Smooth Peanut Butter', sizeValue: 1, sizeUnit: 'kg' });
+  assert.deepEqual(
+    kg.candidates.map((c) => c.code),
+    ml.candidates.map((c) => c.code),
+    'the unit the label happens to print must not change the answer',
+  );
+});
+
+test('a mass pinned against a volume row is unknown, not a disagreement', async () => {
+  // Grams and millilitres are different questions, and the honest answer to a
+  // question that was not asked is null. Returning false here would demote a row
+  // for a mismatch that is an artefact of how the pack prints its net contents.
+  const cat = await fixture();
+  const r = await cat.search({ text: 'Kraft Smooth Peanut Butter', sizeValue: 1000, sizeUnit: 'ml' });
+  const oneKg = r.candidates.find((c) => c.code === '0068100084245');
+  assert.equal(oneKg?.signals.sizeAgrees, null);
+});
+
 test('brand agreement is reported, and disagreement is not silent', async () => {
   const cat = await fixture();
   const r = await cat.search({ text: 'granola', brand: 'Kraft' });
