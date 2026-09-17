@@ -434,10 +434,36 @@ interface Probe {
   pickErrored: boolean;
   pickRows: readonly PickCandidateRow[] | null;
   pickedIndex: number | null;
+  /**
+   * WHY THE PICK FAILED, not merely that it did.
+   *
+   * `pickErrored` was a bare boolean until 2026-09-17, and that cost two
+   * sessions of guesswork: a timeout, a 4xx naming a schema it could not
+   * parse, and a spend cap all landed here identically. The 09-15 run errored
+   * on 195 of 195 picks and nothing recorded which of those it was, so the
+   * cause had to be inferred from the SHAPE of a latency distribution.
+   *
+   * `ModelCallError` and `ProviderError` both carry a `failure` class already,
+   * and `ProviderError` carries the HTTP status. Throwing that away at the
+   * catch was the whole defect.
+   */
+  pickFailure: string | null;
+  pickStatus: number | null;
+  pickAttempts: number | null;
+  /**
+   * The pick call's own wall time, separate from the row's. Without it the
+   * pick's latency can only be had by subtracting a guessed extract time from
+   * the row total, which is how the 3,000 ms clock had to be diagnosed.
+   */
+  pickMs: number | null;
 }
 
 function newProbe(): Probe {
   return {
+    pickFailure: null,
+    pickStatus: null,
+    pickAttempts: null,
+    pickMs: null,
     gtinQueries: 0,
     gtinHits: 0,
     cascade: [],
@@ -511,6 +537,20 @@ function observationOf(
     pickFired: probe.pickFired,
     pickErrored: probe.pickErrored,
     pickedCode,
+    pickFailure: probe.pickFailure,
+    pickStatus: probe.pickStatus,
+    pickAttempts: probe.pickAttempts,
+    pickMs: probe.pickMs,
+    /*
+     * THE INDEX THE MODEL NAMED, kept apart from `pickedCode`. A null code has
+     * two completely different causes that were indistinguishable until now:
+     * the model answered `null` on purpose -- which `PICK_SYSTEM` calls "a
+     * correct and expected answer", since a wrong row is worse than no row --
+     * or it named an index that was not in the rows it was given. The first is
+     * the feature working; the second is a defect.
+     */
+    pickedIndex: probe.pickedIndex,
+    pickRowCount: probe.pickRows?.length ?? null,
   };
 }
 
@@ -540,12 +580,31 @@ class RecordingIdentifier extends Identifier {
       p.pickFired = true;
       p.pickRows = candidates;
     }
+    const startedAt = Date.now();
     try {
       const reading = await super.pick(productPng, candidates, tier);
-      if (p) p.pickedIndex = reading.pick.chosen_index;
+      if (p) {
+        p.pickedIndex = reading.pick.chosen_index;
+        p.pickMs = Date.now() - startedAt;
+      }
       return reading;
     } catch (err) {
-      if (p) p.pickErrored = true;
+      if (p) {
+        p.pickErrored = true;
+        p.pickMs = Date.now() - startedAt;
+        /*
+         * Both error classes carry the failure class; only `ProviderError`
+         * carries a status and only `ModelCallError` counts attempts. Read
+         * defensively rather than by instanceof, because this runner must not
+         * fail on an error shape it did not expect -- an unrecorded reason is
+         * the thing being fixed, so an unreadable one is recorded as its own
+         * string rather than dropped.
+         */
+        const e = err as { failure?: unknown; status?: unknown; attempts?: unknown; name?: unknown };
+        p.pickFailure = typeof e.failure === 'string' ? e.failure : `unclassified:${String(e.name ?? typeof err)}`;
+        p.pickStatus = typeof e.status === 'number' ? e.status : null;
+        p.pickAttempts = typeof e.attempts === 'number' ? e.attempts : null;
+      }
       throw err;
     }
   }
@@ -1493,6 +1552,38 @@ function report(
   mkdirSync(evalPath('results'), { recursive: true });
   const date = new Date().toISOString().slice(0, 10);
   const outFile = evalPath(`results/${date}${args.dryRun ? "-dry-run" : ""}.json`);
+  /*
+   * THE KNOBS THAT MOVE THESE NUMBERS, SAVED BESIDE THEM.
+   *
+   * Every value here is read per call from the environment, so two runs of the
+   * same code on the same catalogue can differ and nothing in the file said
+   * why. That is not hypothetical: the 09-15 run's p50 of 9,996 ms was read for
+   * two days as slow model latency and as evidence that a later change had
+   * improved things. It was neither. 182 of its 195 errored rows sit in one
+   * 9,750-10,250 ms band, which is `SHIN_MODEL_MIN_INTERVAL_MS` pacing at about
+   * five seconds times two calls a row. An operator's variable, never recorded,
+   * misread as an engineering result.
+   *
+   * NO SECRETS. Only whether a key is present, never any part of its value.
+   */
+  const env = process.env;
+  const knobs = {
+    provider: env.SHIN_MODEL_PROVIDER ?? null,
+    extractTimeoutMs: env.SHIN_MODEL_TIMEOUT_MS ?? null,
+    pickTimeoutMs: env.SHIN_MODEL_PICK_TIMEOUT_MS ?? null,
+    minIntervalMs: env.SHIN_MODEL_MIN_INTERVAL_MS ?? null,
+    attempts: env.SHIN_MODEL_ATTEMPTS ?? null,
+    escalate: env.SHIN_MODEL_ESCALATE ?? null,
+    usageCapture: env.SHIN_MODEL_USAGE ?? null,
+    promptCache: env.SHIN_MODEL_PROMPT_CACHE ?? null,
+    pickModel: env.SHIN_MODEL_PICK ?? null,
+    maxTokensExtract: env.SHIN_MODEL_MAX_TOKENS_EXTRACT ?? null,
+    maxTokensPick: env.SHIN_MODEL_MAX_TOKENS_PICK ?? null,
+    geminiKeyPresent: Boolean(env.GEMINI_API_KEY),
+    anthropicKeyPresent: Boolean(env.ANTHROPIC_API_KEY),
+    xaiKeyPresent: Boolean(env.XAI_API_KEY),
+    nodeVersion: process.version,
+  };
   writeFileSync(
     outFile,
     JSON.stringify(
@@ -1500,6 +1591,8 @@ function report(
         date,
         tier: args.tier,
         dryRun: args.dryRun,
+        /** See `knobs` above: the environment this run was produced under. */
+        knobs,
         summary: {
           rowsRun: calls,
           /** `expect:'identify'` rows: the denominator top1/top3 are over. */
@@ -1534,6 +1627,17 @@ function report(
           negativeSetMeasured: !args.dryRun && (stages?.negative.scored ?? 0) > 0,
           answerKey,
         },
+        /*
+         * WHY THE PICKS THAT FAILED, FAILED. Counted here so the answer is in
+         * the file rather than in whoever next writes a script over `results`.
+         * An empty object means no pick threw, which is a different and much
+         * better thing than an absent field.
+         */
+        pickFailures: results.reduce<Record<string, number>>((acc, r) => {
+          const why = r.obs?.pickFailure;
+          if (typeof why === 'string') acc[why] = (acc[why] ?? 0) + 1;
+          return acc;
+        }, {}),
         pendingByKind,
         results,
       },

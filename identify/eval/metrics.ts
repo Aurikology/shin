@@ -143,6 +143,34 @@ export interface StageObservation {
   readonly pickErrored: boolean;
   /** The code the pick itself chose; null when it abstained or never ran. */
   readonly pickedCode: string | null;
+  /**
+   * WHY the pick failed, from the error's own `failure` class, with the HTTP
+   * status where the error carried one. Null when the pick did not throw.
+   *
+   * Added 2026-09-17. Until then `pickErrored` was a bare boolean and a
+   * timeout, a 4xx naming an unparseable schema and a spend cap were one
+   * value. The 09-15 run errored on 195 of 195 picks with no record of which,
+   * so the cause had to be inferred from the shape of a latency histogram --
+   * twice, by two separate investigations. That is the cost this field exists
+   * to stop paying.
+   */
+  readonly pickFailure?: string | null;
+  readonly pickStatus?: number | null;
+  /** How many API calls the pick actually spent before giving up. */
+  readonly pickAttempts?: number | null;
+  /** The pick call's OWN wall time, so its latency need not be inferred by subtraction. */
+  readonly pickMs?: number | null;
+  /**
+   * The index the model named, kept apart from `pickedCode`. A null code has
+   * two unrelated causes that were indistinguishable before this: the model
+   * answered `null` deliberately, which `PICK_SYSTEM` calls "a correct and
+   * expected answer" because a wrong row is worse than no row, or it named an
+   * index that was not among the rows it was given. The first is the feature
+   * working and the second is a defect.
+   */
+  readonly pickedIndex?: number | null;
+  /** How many candidate rows the pick was offered, so an out-of-range index is visible as one. */
+  readonly pickRowCount?: number | null;
 }
 
 /** 1-based position of `code` in `codes`, or null when it is absent. */
