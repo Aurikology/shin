@@ -43,6 +43,7 @@ import {
   sweepGrounded,
   type Grounded,
   type GroundedModule,
+  type GroundedWire,
 } from '../src/grounded-record.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-grounded-retention-'));
@@ -57,10 +58,12 @@ interface FakeBox {
   text: string;
 }
 const fakeModule: GroundedModule = {
-  toWire(box, requestedBy) {
+  toWire<T>(box: Grounded<T>, requestedBy: string): GroundedWire<T> {
     const b = box as unknown as FakeBox;
     if (b.owner !== requestedBy) throw new Error('cross-user request');
-    return { kind: 'grounded', forDevice: requestedBy, fetchedAt: 'T', block: {}, suggestionsHtml: '<div></div>' };
+    // `block` is the frozen original and is generic; a fake has no real one,
+    // so the empty object is asserted into place rather than widening the door.
+    return { kind: 'grounded', forDevice: requestedBy, fetchedAt: 'T', block: {} as T, suggestionsHtml: '<div></div>' };
   },
   historyText(box, owner) {
     const b = box as unknown as FakeBox;

@@ -17,5 +17,17 @@
    * only if server.ts imported it. Anything in src that nothing imports yet -- a route
    * written before it is registered, for instance -- was silently never compiled, and the
    * command still printed a clean result. Verified 2026-09-05: all of src typechecks. */
-  "include": ["server.ts", "src/**/*.ts", "scripts/**/*.mjs"]
+  /* The test directory was added to the include on 2026-09-16, D-118. Until then the tests were
+   * not typechecked at all, and the cost of that was demonstrated rather than argued: the
+   * `GroundedModule` interface gained a fourth method, three test doubles silently stopped
+   * implementing it, `npm run typecheck` stayed clean and all 804 tests passed, because the caller
+   * catches and a missing method merely wrote nulls. Turning this on surfaced FOUR errors in
+   * total, not the sweeping breakage that was feared: two fakes returning a block typed as the
+   * empty object where the door is generic, one fake usage block missing two of its four fields,
+   * and one `store.db` read without narrowing.
+   *
+   * THE 45 .mjs TESTS ARE STILL UNCHECKED, and so is the scripts entry below: without `allowJs`,
+   * a .mjs glob in this list matches nothing and checks nothing, so that entry has been inert
+   * since it was written. Turning `allowJs` on is a separate pass with its own fallout. */
+"include": ["server.ts", "src/**/*.ts", "test/**/*.ts", "scripts/**/*.mjs"]
 }

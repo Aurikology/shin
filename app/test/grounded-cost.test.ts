@@ -22,12 +22,14 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
+import type { TokenUsage } from '../../identify/src/provider.ts';
 import { openScanStore, recordScan } from '../src/scans.ts';
 import {
   keepGroundedForOwner,
   setGroundedModuleForTests,
   type Grounded,
   type GroundedModule,
+  type GroundedWire,
 } from '../src/grounded-record.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-grounded-cost-'));
@@ -36,15 +38,17 @@ interface FakeBox {
   owner: string;
   text: string;
   model: string;
-  usage: { inputTokens: number | null; outputTokens: number | null } | null;
+  usage: TokenUsage | null;
   searchQueries: number;
 }
 
 const fakeModule: GroundedModule = {
-  toWire(box, requestedBy) {
+  toWire<T>(box: Grounded<T>, requestedBy: string): GroundedWire<T> {
     const b = box as unknown as FakeBox;
     if (b.owner !== requestedBy) throw new Error('cross-user request');
-    return { kind: 'grounded', forDevice: requestedBy, fetchedAt: 'T', block: {}, suggestionsHtml: '<div></div>' };
+    // `block` is the frozen original and is generic; a fake has no real one,
+    // so the empty object is asserted into place rather than widening the door.
+    return { kind: 'grounded', forDevice: requestedBy, fetchedAt: 'T', block: {} as T, suggestionsHtml: '<div></div>' };
   },
   historyText(box, owner) {
     const b = box as unknown as FakeBox;
@@ -72,7 +76,7 @@ const box = (over: Partial<FakeBox> = {}): Grounded<unknown> =>
     owner: 'device-A',
     text: 'the answer',
     model: 'gemini-3.5-flash-lite',
-    usage: { inputTokens: 2459, outputTokens: 600 },
+    usage: { inputTokens: 2459, outputTokens: 600, cacheReadTokens: null, cacheCreationTokens: null },
     searchQueries: 4,
     ...over,
   }) as unknown as Grounded<unknown>;

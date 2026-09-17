@@ -94,6 +94,9 @@ test('a database written before the column existed gains it, and still reads', (
   old.close();
 
   const store = openScanStore(path);
+  // Narrowed rather than asserted non-null: a store that would not open is a
+  // real failure of this test's subject, and it should say so here.
+  assert.ok(store.db, `the scan store would not open: ${store.droppedWhy}`);
   const cols = (store.db.prepare('PRAGMA table_info(scan)').all() as { name: string }[]).map((c) => c.name);
   assert.ok(cols.includes('category'), 'the column was not added to an existing table');
 
