@@ -9,6 +9,81 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-17 (Aurik's PC): Aurik wants competitive alternatives, not just matches — and it collides with rules 1 and 3
+
+### What Aurik wants, in his words
+
+*"not only does shin find matching products, it should also find competitive alternatives. This
+can be anywhere from recommending non organics for an organic product scan: non organic spinach
+for 2 dollar less, or tech products: buy the used version for 200 dollars less. or: buy the new
+model for 200 dollars more"*
+
+### What changed
+
+Nothing built. This is a rule-9 raise: *"If a decision in the near future wants to contradict
+this, bring up those points."* No decision has been made.
+
+**The feature already exists and it is dead, not a foundation.** `catalogue/src/alternatives.ts`
+(867 lines, decisions 38-42) is wired to a live route, `GET /api/alternatives` in `app/server.ts`
+around line 3158, with a full round-trip test suite in `catalogue/test/alternatives.test.ts`
+(1023 lines). It cannot return anything today. The route needs a `code` (barcode) and a price,
+looks the product up, then calls `lookupPrices` in `price/src/lookup.ts`, which reads
+`price/data/prices.db`'s `observation` table on `WHERE code IN (...) AND code IS NOT NULL`.
+Counted directly against the live file: **10 rows, 0 with a code.** They're the Walmart rows from
+the 2026-09-08 crawl that PerimeterX blocked before anything joined. An empty list is the
+documented correct answer on this route, so nothing has ever flagged it as broken. This is D-119's
+shape (`DEFECTS.md`) one layer up — same ten rows, same zero joins, different source class.
+`price/src/lookup.ts`'s own header still claims *"the table it reads is 896 rows today"* — that
+number was real once (`docs/decisions.md`, the Walmart sitemap crawl measurement), it just isn't
+anymore. Logged as D-121.
+
+**The route is barcode-only.** No `code`, no query — 400. A photo scan has no barcode. Aurik's
+whole ask is framed around scanning a product and being offered alternatives, and two of his three
+examples are photo-shaped (an organic spinach scan, a physical item in hand), so the one entry
+point this feature has today can't be reached from the case he's describing.
+
+**Two of his three examples break the feature's own design on purpose, not by oversight.**
+Decision 38 in `alternatives.ts`'s header: an alternative is *"something a shopper could actually
+buy instead, which is a category-and-unit-price question, not a vector one"* — same category,
+same unit, strictly lower price, nothing else. Organic → non-organic cheaper fits that exactly.
+Used/refurbished at $200 less does not: there's no condition axis in the catalogue (it holds
+new-product identity rows), and the one adapter that could price a used item, `SoldComps`
+(`spine/src/sources/soldcomps.ts`), is written and has never been run against a real key —
+`QUEUE.md` row 1.4b, still `queued`. "Buy the newer model for $200 more" doesn't fit the design at
+all: recommending an upgrade is a different question from "is the thing in your hand a steal or a
+ripoff," which is the frame the whole app verdict is built on.
+
+**The conflict is rules 1 and 3 in `docs/jamin-gemini-rules.md`.** Rule 3: *"THE PRICE SHOULD NOT
+COME FROM US."* Shin's own price database, price engine and "cheaper" lookups are named
+specifically as not the answer source — and `alternatives.ts` is exactly that: a local catalogue
+query against Shin's own price table. Rule 1: *"one gemini call will return the object, the price,
+the reviews, etc."* — one prompt, never two. A real alternatives feature can't be a local query
+under rule 3; it has to come out of the same Gemini call's output under rule 1, which means
+growing that call's schema, not adding a second call.
+
+### For Jamin
+
+Rule 9 says a decision that would contradict last night's rules gets raised with you first, not
+made quietly. These aren't ranked and none of them is decided:
+
+1. Does the one-call Gemini schema grow a fourth field for alternatives, alongside object, price
+   and reviews — or does alternatives stay out of that call entirely?
+2. Is "buy the new model for $200 more" in scope at all? It's a different product than the one
+   scanned, not a cheaper way to buy the same thing — does that fit inside the verdict frame, or
+   is it a different feature?
+3. Does the used/refurbished axis (his "$200 less, used") justify actually running `QUEUE.md`
+   1.4b — SoldComps against ebay.ca, budgeted 10 of the monthly 100 requests — to find out if it
+   can answer at all, given the catalogue has no condition axis today?
+4. `alternatives.ts` is a local catalogue query end to end. Under rule 3, can that code ship as
+   the alternatives feature in any form, or does every path here have to become "ask Gemini,"
+   same as price?
+5. His examples are photo-shaped but the only entry point today needs a barcode. Does alternatives
+   need to work off a photo-only scan with no barcode at all?
+
+### Read by
+
+---
+
 ## 2026-09-16 (Aurik's PC): the price guard is in, and the eval stops being invisible
 
 ### To do
