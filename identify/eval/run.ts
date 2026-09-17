@@ -64,6 +64,7 @@ import {
   type Tier,
 } from '../src/model.ts';
 import { LIST_PRICES_USD_PER_MTOK, addUsage, costUsd, NO_USAGE, type TokenUsage } from '../src/provider.ts';
+import { geminiModelFor } from '../src/providers/gemini.ts';
 import { grokModelFor } from '../src/providers/xai.ts';
 
 import { openCatalogueReadOnly } from '../../catalogue/src/schema.ts';
@@ -1709,6 +1710,18 @@ function modelsFor(provider: string, tier: Tier): { extract: string; pick: strin
   // reads.
   const pick = process.env.SHIN_MODEL_PICK?.trim() || 'claude-sonnet-5';
   if (provider === 'xai') return { extract: grokModelFor(extract), pick: grokModelFor(pick) };
+  /*
+   * GEMINI MUST BE TRANSLATED TOO, and its absence here was D-120.
+   *
+   * `costUsd` prices by MODEL ID against one table. xAI was translated on the
+   * line above and Gemini was not, so every Gemini cell carried the Claude id,
+   * found the Claude row, and was billed at Claude's rates -- $1/$5 per Mtok
+   * instead of flash-lite's $0.30/$2.50. The matrix therefore reported the two
+   * providers as costing EXACTLY the same, to the cent, which is the one
+   * answer that makes a cost comparison useless, and it is the table someone
+   * would read to decide whether to run identification on Claude.
+   */
+  if (provider === 'gemini') return { extract: geminiModelFor(extract), pick: geminiModelFor(pick) };
   return { extract, pick };
 }
 
