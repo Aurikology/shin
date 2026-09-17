@@ -75,6 +75,30 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## A price source that could answer nothing was calling itself healthy, 2026-09-16
+
+D-119. `ObservedSource` said `ok` whenever its database opened, while `prices()` matches on the
+barcode -- so a row with no code is invisible to it. `price/data/prices.db` holds **ten
+observations and none of them has a code**: the Walmart rows from the 2026-09-08 crawl, stopped by
+the rate block before anything was joined. The source answered every query with nothing and
+reported itself fine, which is verbatim the failure `sources/source.ts:26-30` warns about.
+
+It now counts joined rows at open and refuses with a reason. Checked against the real file, not a
+fixture:
+
+> `price/data/prices.db holds 10 observations and none of them is joined to a catalogue product,
+> so every lookup by barcode returns nothing`
+
+"no rows yet" and "rows nobody joined" are deliberately two different sentences, because they have
+two different fixes.
+
+**This adds no prices, and that is the point.** Under rule 3 this source is truth-set data and
+never a shopper's answer. Its value is that every measurement built on top of a silent source would
+have been wrong in a way nothing would have flagged. **The joiner is still not written** and is not
+claimed: joining ten rows nobody is allowed to show is motion, not progress.
+
+spine 226 pass / 0 fail, typecheck clean.
+
 ## Rule 4: what a scan costs is recorded now, not estimated, 2026-09-16
 
 Jamin's rule 4 is *"we will record EVERYTHING that happens when the user interacts with the app

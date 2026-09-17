@@ -719,3 +719,42 @@ test('walmart.ca sets no sellerId: the name is already a specific merchant', asy
   assert.equal(points[0].seller, 'walmart.ca');
   assert.equal(points[0].sellerId, undefined);
 });
+
+/* ------------------------------ an adapter that cannot serve says so ------ */
+
+test('a database whose rows were never joined reports UNAVAILABLE, not ok', () => {
+  /*
+   * THE FAILURE `source.ts` WARNS ABOUT, reproduced from the real thing.
+   * `prices()` matches on the barcode, so a row with no code can never be
+   * returned by anything. A file full of such rows answered every query with
+   * nothing while `available()` said `ok`, and a reader of the status line
+   * could not tell that from "this product has no prices".
+   *
+   * Measured on this machine 2026-09-16: price/data/prices.db holds ten
+   * observations, none with a code -- the Walmart rows from the 2026-09-08
+   * crawl, which hit the rate block before anything was joined.
+   */
+  const path = join(DIR, 'fixture-unjoined-only.db');
+  buildDb(path, DDL_WITHOUT_STORE_COLUMNS, [UNJOINED_ROW]);
+  const check = new ObservedSource(path).available();
+
+  assert.equal(check.ok, false, 'a source that can serve nothing reported itself healthy');
+  assert.match(check.ok === false ? check.reason : '', /none of them is joined/);
+  // The count is in the sentence, because "1 row, none joined" and "no rows at
+  // all" are two different problems with two different fixes.
+  assert.match(check.ok === false ? check.reason : '', /1 observations/);
+});
+
+test('an empty database says it is empty, which is a different sentence', () => {
+  const path = join(DIR, 'fixture-empty.db');
+  buildDb(path, DDL_WITHOUT_STORE_COLUMNS, []);
+  const check = new ObservedSource(path).available();
+  assert.equal(check.ok, false);
+  assert.match(check.ok === false ? check.reason : '', /no observations yet/);
+});
+
+test('one joined row is enough to be available, because one row can be served', () => {
+  // The threshold is "can this answer anything at all", never a quality bar.
+  const check = source().available();
+  assert.equal(check.ok, true);
+});

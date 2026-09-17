@@ -286,6 +286,10 @@ export class ObservedSource implements PriceSource {
   #path: string;
   #hasStoreOsm = false;
   #hasStoreName = false;
+  /** Rows this source can actually serve: an observation with no code is invisible to . */
+  #joinedRows = 0;
+  /** Every row, joined or not, so the status line can tell an empty file from an unjoined one. */
+  #totalRows = 0;
   /** Explains a reduced identity confidence, keyed by the ProductIdentity.id it was set on. */
   #notes = new Map<string, string>();
 
@@ -300,6 +304,36 @@ export class ObservedSource implements PriceSource {
       );
       this.#hasStoreOsm = cols.has('store_osm');
       this.#hasStoreName = cols.has('store_name');
+      /*
+       * HOW MANY ROWS THIS SOURCE CAN ACTUALLY SERVE, counted once at open.
+       *
+       * `prices()` below only ever returns rows whose `code` is set, because
+       * it matches on the barcode. A database full of rows that were never
+       * joined to a catalogue product therefore answers every single query
+       * with nothing, while `available()` said `ok` -- which is the exact
+       * failure `source.ts` warns about two doors up: an adapter that is
+       * reachable and silent is indistinguishable from a category that has no
+       * prices.
+       *
+       * Measured on this machine 2026-09-16: `price/data/prices.db` holds ten
+       * observations and NOT ONE of them has a code. The ten are the Walmart
+       * rows from the 2026-09-08 crawl, which stopped at the rate block before
+       * anything was joined. So this source has been reporting itself healthy
+       * and serving nothing, and a reader of the status line had no way to
+       * tell that from "no prices exist for this product".
+       *
+       * Counted at open rather than per query: it is one cheap count against
+       * an indexed column, the file is opened read-only, and a number that
+       * changes under a running process would make the status line say
+       * different things at different moments for the same database.
+       */
+      const joined = this.#db.prepare('SELECT COUNT(*) AS n FROM observation WHERE code IS NOT NULL').get() as unknown as
+        | { n: number }
+        | undefined;
+      this.#joinedRows = Number(joined?.n ?? 0);
+      this.#totalRows = Number(
+        (this.#db.prepare('SELECT COUNT(*) AS n FROM observation').get() as unknown as { n: number } | undefined)?.n ?? 0,
+      );
     } catch (e) {
       this.#db = null;
       this.#openError = e instanceof Error ? e.message : String(e);
@@ -309,6 +343,23 @@ export class ObservedSource implements PriceSource {
   available(): SourceAvailability {
     if (this.#db === null) {
       return { ok: false, reason: this.#openError ?? `could not open ${this.#path}` };
+    }
+    /*
+     * A DATABASE THIS SOURCE CANNOT SERVE FROM IS NOT AVAILABLE, and saying so
+     * is the whole point. The reason names both numbers so a reader can tell
+     * the two very different situations apart: an empty file that nobody has
+     * crawled into yet, and a file with real rows in it that were never joined
+     * to a product. The second is the one that looked like working software.
+     */
+    if (this.#joinedRows === 0) {
+      return this.#totalRows === 0
+        ? { ok: false, reason: `${this.#path} holds no observations yet` }
+        : {
+            ok: false,
+            reason:
+              `${this.#path} holds ${this.#totalRows} observations and none of them is joined to a ` +
+              'catalogue product, so every lookup by barcode returns nothing',
+          };
     }
     return { ok: true };
   }
