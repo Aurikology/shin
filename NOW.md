@@ -75,6 +75,69 @@ The data-source column feeds P1 and goes first. No single competitor study exist
 appears scattered across 17 files, with `research/2026-09-03-research-memo.md` the fullest.
 Every claim carries a source (the product's page, store listing, job posting, engineering blog);
 anything else goes in as unknown.
+## The 74% is mostly NOT the model reading photos, and the eval is now blocked on the key, 2026-09-17
+
+**Three lanes took the 200-photo eval apart. The headline is that "74% right" is a misleading
+summary of what is wrong.** Of the 52 failures: **32 are retrieval** -- the catalogue never
+surfaced the product -- **7 are the pick pass erroring**, 7 are the pick *deliberately abstaining*
+(which `PICK_SYSTEM` calls a correct answer, because a wrong row is worse than no row), 5 are the
+model genuinely choosing wrong, and 1 photo was unreadable.
+
+**Every one of the 200 expected products is in the catalogue.** All 32 cascade misses resolve under
+their exact code, checked by direct query. **Loading Icecat would recover zero rows here**,
+including all 20 tech rows, which are already present. This is a ranking problem, not a coverage
+problem, and no new data is needed to work on it.
+
+**The retrieval ceiling is 167 of 200 (83.5%).** recall@10 is 164 of 196 plus 3 barcode
+short-circuits. 148 sits 19 below it, and fixes to ranking and to the pick compete for the SAME 19
+rows -- they do not add to 32.
+
+**The 125 to 148 improvement was entirely the pick pass, and the latency story was wrong.** On
+09-15 the pick errored on 195 of 195 -- not the "43 times" this repo has been saying, including in
+a doc correction written yesterday; 43 was only the rows that were also wrong. And the p50 drop
+from 9,996 ms to 3,568 ms was **not a code change**: 182 of those 195 rows sit in one
+9,750-10,250 ms band, which is `SHIN_MODEL_MIN_INTERVAL_MS` pacing at about five seconds times two
+calls a row. An operator's environment variable, never recorded, read for two days as an
+engineering result. Retrieval did not improve between those runs; recall@1 actually fell, 121 to 117.
+
+**Both of those readings are now impossible to repeat**: `run.ts` records the pick's failure class,
+status, attempts and its own latency, plus a `knobs` block naming the environment every run was
+produced under.
+
+### The run Aurik authorised could not be completed, and that is the finding
+
+Two pilots on the free key, 18 rows, with the pick clock raised to 4,500 ms as planned:
+
+| pilot | pacing | result |
+| --- | --- | --- |
+| 12 rows | none | 12 unreadable: **9 `model_rate_limited`** (569-715 ms), 3 `model_timeout` |
+| 6 rows | 5,000 ms | 6 unreadable: **5 `model_rate_limited`**, 1 `model_timeout` |
+
+**The free key is rate-limited and pacing does not fix it.** Nine of twelve calls were rejected in
+under a second. Running the full 200 would have bought 200 fast rejections, so it was stopped at 18
+rather than spending the quota to learn the same thing again.
+
+This retroactively explains 09-15: its five-second pacing was not slowness, it was **what made that
+run possible at all**. And it leaves the pick-timeout hypothesis untested -- the extract pass now
+fails before the pick is ever reached.
+
+**So the photo eval joins the price harness in waiting on the same thing: the paid key from Jamin.**
+That ask has been outstanding since 09-15 and this is the third measurement it now blocks.
+
+### What can still be done without it
+
+Retrieval is 32 of the 52 failures and needs **no key at all** -- the cascade is catalogue queries
+against a local database. That is the largest single bucket and the only one currently workable.
+
+`identify/eval/zone-truth.ts` also landed, grading the price VERDICT rather than the median. It
+reports honestly that the truth set is too thin: **5 cases, all of which correctly refuse to draw a
+line.** Leave-one-out on two regular points leaves one offer and the D-113 guard fires, and
+`navel-oranges-3lb` carries no size field at all. **One thing it did catch:** in a fenced
+sensitivity pass, the lone-claim band moved a shopper across a zone boundary -- holding a $0.55 promo
+shifted the median from $1.25 to $1.625 and moved the verdict from `over_your_line` to `middle`.
+That is the first recorded case of the D-113 guard CHANGING a verdict rather than withholding one,
+and it should be looked at before the band is treated as free.
+
 ## A price source that could answer nothing was calling itself healthy, 2026-09-16
 
 D-119. `ObservedSource` said `ok` whenever its database opened, while `prices()` matches on the
