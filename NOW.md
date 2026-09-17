@@ -80,7 +80,7 @@ anything else goes in as unknown.
 **Three lanes took the 200-photo eval apart. The headline is that "74% right" is a misleading
 summary of what is wrong.** Of the 52 failures: **32 are retrieval** -- the catalogue never
 surfaced the product -- **7 are the pick pass erroring**, 7 are the pick *deliberately abstaining*
-(which `PICK_SYSTEM` calls a correct answer, because a wrong row is worse than no row), 5 are the
+(these are FAILURES, not wins -- see the correction below), 5 are the
 model genuinely choosing wrong, and 1 photo was unreadable.
 
 **Every one of the 200 expected products is in the catalogue.** All 32 cascade misses resolve under
@@ -137,6 +137,53 @@ sensitivity pass, the lone-claim band moved a shopper across a zone boundary -- 
 shifted the median from $1.25 to $1.625 and moved the verdict from `over_your_line` to `middle`.
 That is the first recorded case of the D-113 guard CHANGING a verdict rather than withholding one,
 and it should be looked at before the band is treated as free.
+
+## What "74%" counts as a win, corrected 2026-09-17
+
+**This file said 7 abstentions were scored as correct answers. They are not, and they never were.**
+`metrics.ts:233` checks `chosenCode === o.code` BEFORE it looks at the pick at all, so a row only
+reaches the `pick_null` bucket by having already failed that test. All 7 are failures. The claim
+that `PICK_SYSTEM` counts an abstention as a win was prose written about the pick prompt's intent,
+never checked against the scorer, and it was repeated to Aurik before it was checked.
+
+**The real leak runs the other way and is smaller: 3 rows.** Reading the predicate
+`namedACatalogueRow` against all 200 rows rather than one bucket, **24** rows made no confident
+claim (band `low` AND `pickedCode` null) -- not 7. Twenty of those are wrong and sit under
+`cascade_miss`; one is the unreadable row; and **three** have a `chosenCode` that happens to equal
+the true code (`06746102`, `0041390001055`, `0055653688006`) and are counted inside the 148.
+Whether that is a leak or a correct answer is a real question, not a bug: Shin did display the
+right product. It only reads as a leak if "correct" is defined as a CONFIDENT naming.
+
+**Four candidate definitions of the number, each computed against `results/2026-09-16.json`:**
+
+| definition | 09-16 score | what 90% needs |
+| --- | --- | --- |
+| (a) today's headline, top1/rowsRun | **148/200, 74.0%** | 180/200 |
+| (b) strict: correct NAMED row, hedges are failures | **145/200, 72.5%** | 180/200, a 35-row gap |
+| (c) shopper-facing, incl. the 20 negatives | **not computable** | 198/220 |
+| (d) false-claim rate, (200 - 31)/200 | **169/200, 84.5%** | false claims 31 -> 20 |
+
+(c) is unmeasurable because `negative.scored` is 0: the 20 produce rows have no photos, and
+`metrics.ts:319-355` counts a pending row as nothing rather than as a trial. Bounded, it is 67.3%
+(0/20 negatives right) to 76.4% (20/20). **Even a perfect negative set reaches only 168/220**, so
+under (c) 90% needs the negative set built AND top1 at about 178/200.
+
+**The warning that goes with (d), stated before anyone picks it.** (d) counts an honest hedge as a
+non-miss, which is right from the shopper's side -- a hedge is not a lie. But it means **a system
+that refuses everything scores well on it.** (d) is also the ONLY one of the four that does not
+bind against the 167/200 retrieval ceiling, because a cascade miss that hedges honestly is not a
+false claim. So (d) is the definition under which 90% is reachable WITHOUT the product getting
+better at finding products. That is not a reason to reject it; it is the reason it must not be
+adopted quietly.
+
+**The 1 unreadable photo is genuinely unreadable**, checked by opening it: `0012009012168.jpg`,
+400x270, an A&W egg sandwich crop with no packaging, brand or text in frame. Not a harness bug.
+**The 20 pending rows are a grocery trip, not code** -- loose produce with no barcode, named in
+`identify/eval/manifest.json` as `produce-01` to `produce-20`.
+
+**No scoring code was changed.** Which definition is the headline is Aurik's ruling.
+
+---
 
 ## A price source that could answer nothing was calling itself healthy, 2026-09-16
 
