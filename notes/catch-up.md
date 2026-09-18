@@ -9,6 +9,108 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-18 (Aurik's PC): your pricing-engine package, and the one question it forces
+
+### What changed
+
+Nothing built. Your `Shin_Gemini_Pricing_Engine.zip` (f828606) was read end to end and checked
+against the code. It raises one structural question that should be answered before more work goes
+into either path.
+
+**What the package gets right first, because three of these are things this repo has been missing
+or has already bled on.**
+
+- **No estimated price anywhere.** `pricing_summary` carries the shelf price the user typed,
+  `observed_low`, `observed_high`, and a count of relevant offers. There is no `estimated_price`,
+  no `fair_price`, no model guess. That is rule 3 held exactly, and it is stricter than the
+  architecture document this was written from.
+- **A condition axis** -- new, sealed, like_new, refurbished, used, damaged -- with its own
+  confidence and evidence. This repo has none. It is also exactly the axis Aurik asked for on
+  09-17 ("buy the used version for 200 dollars less"), which the entry below records as
+  unsupported. Your package answers that ask.
+- **Advertised pricing structure preserved.** `2 for $5` becomes price 5 with quantity_covered 2;
+  member prices carry a flag; `$20/kg` keeps its unit. **This is D-113's cause, fixed at the
+  source.** D-113 was one grounded offer of $9.97 for a 225 g box of Kraft Dinner whose real price
+  is $1.74, which drew a line telling the shopper their ordinary price was 83% under the middle. A
+  multipack or a per-unit price read as a single ticket is that shape. Shin catches it downstream
+  today with a guard that withholds the line; your rule stops it being wrong in the first place.
+- **Marketplace separated from direct retailer**, which this repo does not distinguish at all.
+
+### The question: does Gemini identify the product, or does the catalogue?
+
+**This is not two competing ideas. Your package is the rule-1 fix for the photo path, and this
+repo has openly not done it.** `NOW.md` says so in those words: the barcode path is one call now,
+and *"the photo path is still two and that is said plainly rather than rounded down: one
+ungrounded read and one grounded search."*
+
+Traced in the code today, a photo scan runs:
+
+    POST /api/identify/photo -> IdentifyStage.fromCrop -> the model reads the crop, then
+                                SHIN'S OWN CATALOGUE ranks candidates and picks one
+    POST /api/price          -> groundedPrice.lookupPrice -> Gemini searches for offers
+
+Identification is Shin's local catalogue. Gemini only prices. Your package has Gemini do both in
+one call, with search as the identifier: barcode first, confirmed against the image.
+
+**What follows if your version wins, counted rather than guessed:**
+
+1. **The 200-photo eval measures the catalogue cascade and nothing else.** Its whole vocabulary --
+   recall@1/@3/@10, cascade_miss, pick precision -- describes ranking rows in Shin's database. If
+   Gemini identifies, that harness measures a component no longer on the critical path, **and
+   there is no harness at all for the new one.** Aurik set a target of 180 of 200 on 09-17. Under
+   your design that target measures the wrong thing.
+2. **Cost moves from near zero to per scan.** The cascade is a local query and is free. Grounded
+   search is $14 per thousand queries past 5,000 free a month, and one observed grounded price
+   search used FOUR queries. That is about 1,250 scans a month free, then roughly 5.6 cents a
+   scan, which is about twenty-five times the token cost of the call itself. Identification
+   through search adds queries on top, so treat 5.6 as a floor rather than an estimate.
+3. **The catalogue does not become useless** and nobody should read this as delete it. It still
+   holds category, size and variant discrimination, and the alternatives feature, and it answers
+   with no key and no network. The question is whether it is the IDENTIFIER or a cross-check.
+
+**One thing may decide it for us.** `NOW.md` records why the photo path was left at two calls:
+*"Making it one would mean putting the image into the grounded request, which the guard forbids
+and which Google has not confirmed works."* Your `scan_prompt.md` sends the image and enables
+Google Search in the same request. If that combination does not work on the API, the one-call
+photo design is not buildable yet and the question answers itself for now.
+
+### Three places your own files disagree with something you said
+
+1. **Unit pricing.** `PRICING_GUIDE.md`: *"Do not calculate normalized unit prices unless
+   explicitly required."* On 2026-09-14 you said *"everything should be scaled down or up to a
+   spcific unit. natrually a 4l will be cheaper than a 1l but thats fine."* Shin's price line is
+   built on normalising. These are opposite instructions and the line cannot follow both.
+2. **Canada.** `GEMINI_SYSTEM.md`: *"Use the market supplied dynamically by Shin. Do not assume
+   Canada."* The catalogue is 124,120 Canadian rows with a `sold_in_canada` column, the eval set
+   is Canadian, and the retailers are Canadian. Global is a bigger product than the one that
+   exists -- worth saying whether that is the intent now or later.
+3. **Grounded results.** Your `README.md` warns not to assume grounded output can be *"persisted,
+   analyzed, ranked, blended, or reused for arbitrary purposes"* and says to check the terms. That
+   is the CAUTIOUS side of the exact argument where your rules 4 and 5 took the other side, and
+   where Aurik was told a legal issue marks and never blocks. D-111 is still open on this. Your
+   README moves the position, and it would help to know whether that is deliberate.
+
+### For Jamin
+
+Numbered so they can be answered one at a time. None of them is decided.
+
+1. **Does Gemini become the identifier, or does the catalogue stay the identifier and Gemini
+   price?** Everything else here depends on this one.
+2. **Have you confirmed that an image plus Google Search grounding works in a single Gemini
+   request?** If not, that is the first measurement, and it needs the paid key outstanding since
+   09-15.
+3. **If Gemini identifies, what replaces the 200-photo eval?** Accuracy would have to be measured
+   against live search results rather than catalogue rows: a different harness and a different
+   truth set.
+4. **Is roughly 5.6 cents a scan past 1,250 scans a month acceptable**, or does the catalogue stay
+   in front as the free path with Gemini used only on a miss?
+5. **Unit pricing: normalise, or preserve as advertised?**
+6. **Is the global-market instruction the intent now, or after Canada?**
+
+### Read by
+
+---
+
 ## 2026-09-17 (Aurik's PC): Aurik wants competitive alternatives, not just matches — and it collides with rules 1 and 3
 
 ### What Aurik wants, in his words
