@@ -82,6 +82,8 @@ export interface CatalogueLookup {
      */
     variant?: string;
     sizeValue?: number;
+    /** A second admissible reading of the same pack; see `pinnedSize`. D-126. */
+    sizeValueAlt?: number;
     sizeUnit?: string;
     limit?: number;
   }): Promise<CatalogueResult>;
@@ -328,6 +330,7 @@ export class IdentifyStage {
         brand: p.brand ?? undefined,
         variant: p.variant ?? undefined,
         sizeValue: pinned.value ?? undefined,
+        sizeValueAlt: pinned.alt ?? undefined,
         sizeUnit: pinned.unit ?? undefined,
         limit: 10,
       });
@@ -599,9 +602,9 @@ function carriesVariant(c: CatalogueCandidate, variant: string | null): boolean 
  */
 function pinnedSize(
   p: IdentifiedFields,
-): { value: number | null; unit: IdentifiedFields['size_unit'] } {
+): { value: number | null; alt: number | null; unit: IdentifiedFields['size_unit'] } {
   if (p.size_unit === 'ea') {
-    return { value: p.size_value ?? p.count, unit: 'ea' };
+    return { value: p.size_value ?? p.count, alt: null, unit: 'ea' };
   }
   if (
     p.count !== null &&
@@ -609,9 +612,27 @@ function pinnedSize(
     p.size_value !== null &&
     (p.size_unit === 'g' || p.size_unit === 'kg' || p.size_unit === 'ml' || p.size_unit === 'l')
   ) {
-    return { value: p.size_value * p.count, unit: p.size_unit };
+    /*
+     * D-126. The net reading leads, because the catalogue really does store
+     * net for a multipack -- measured, 3,488 of 3,533 rows that state an
+     * explicit "N x M" pack, 98.7%. That convention was never the problem.
+     *
+     * The problem is one layer up: the LABEL prints both numbers, and
+     * `size_value` may already BE the net. Multiplying it then double-counts
+     * -- a 200 g box of bars read as 200 g with ten bars pins 2,000 g -- and
+     * a wrong pin is worse than none, because `pinTier` rewards whatever
+     * matches and sorts the wrong sibling up. Measured on the 2026-09-16 run,
+     * multipacks were the worst kind in the eval by a distance: 38.9% right
+     * against 75 to 89% for every other kind, and the recorded pins are wrong
+     * in BOTH directions -- 40 g pinned against a 200 g pack, 2,000 g pinned
+     * against another 200 g pack.
+     *
+     * So both readings travel and the catalogue agrees with either. Nothing
+     * here learns which the label meant; it stops pretending it knows.
+     */
+    return { value: p.size_value * p.count, alt: p.size_value, unit: p.size_unit };
   }
-  return { value: p.size_value, unit: p.size_unit };
+  return { value: p.size_value, alt: null, unit: p.size_unit };
 }
 
 /**

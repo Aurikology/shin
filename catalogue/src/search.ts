@@ -404,6 +404,23 @@ export interface SearchQuery {
   /** In the catalogue's base units, grams or millilitres. */
   readonly sizeValue?: number;
   readonly sizeUnit?: string;
+  /**
+   * A SECOND admissible reading of the same pack, in the same unit. D-126.
+   *
+   * A multipack label prints two true numbers -- "200 g" for the box AND
+   * "5 x 40 g" for what is in it -- and a reader cannot always tell which of
+   * them the `size_value` it extracted refers to. The caller used to resolve
+   * that by always multiplying by the count, which turns a coin flip into an
+   * assertion: when it guesses wrong the pin does not merely fail, it sorts
+   * the WRONG sibling to the top, because `pinTier` rewards whatever matches.
+   *
+   * So the caller may hand over both readings and this file agrees with
+   * EITHER. Two siblings can then both clear the pin, which is the honest
+   * outcome when the evidence genuinely does not separate them -- the pin
+   * goes back to being a filter and stops being a wrong answer with a
+   * confident sort behind it.
+   */
+  readonly sizeValueAlt?: number;
   readonly limit?: number;
   /**
    * Whether to run the vector arm at all. Default true.
@@ -826,10 +843,15 @@ export function toBaseSize(
 }
 
 function sizeAgreesWith(row: Row, query: SearchQuery): boolean | null {
-  const q = toBaseSize(query.sizeValue, query.sizeUnit);
   const r = toBaseSize(row.size_value, row.size_unit);
-  if (!q || !r || q.base !== r.base) return null;
-  return Math.abs(r.value - q.value) / q.value <= 0.05;
+  if (!r) return null;
+  const readings = [query.sizeValue, query.sizeValueAlt]
+    .map((v) => toBaseSize(v, query.sizeUnit))
+    .filter((q): q is { value: number; base: 'g' | 'ml' } => q !== null && q.base === r.base);
+  if (readings.length === 0) return null;
+  // Either reading agreeing is agreement: see `sizeValueAlt`. Both are the
+  // same pack, and nothing here knows which number the label meant.
+  return readings.some((q) => Math.abs(r.value - q.value) / q.value <= 0.05);
 }
 
 /**

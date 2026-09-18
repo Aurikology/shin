@@ -547,6 +547,58 @@ test('a multipack reading pins the net (size_value * count), not the unit size, 
   }
 });
 
+test('a multipack pins the net AND keeps the unit reading, because the label printed both', async () => {
+  /*
+   * D-126, 2026-09-18. The test above pins that the NET leads, and that stays
+   * true: measured, 3,488 of the 3,533 catalogue rows stating an explicit
+   * "N x M" pack store net, 98.7%. The convention was never the problem.
+   *
+   * The problem is that the LABEL prints both numbers and the extract returns
+   * one `size_value` without saying which it read. Multiplying unconditionally
+   * double-counts whenever that number was already the net -- a 200 g box of
+   * bars read as 200 g with a count of ten pins 2,000 g -- and a wrong pin is
+   * worse than none, because `pinTier` rewards whatever matches and sorts the
+   * wrong sibling up. Multipacks were the worst kind in the 2026-09-16 eval by
+   * a distance, 38.9% against 75 to 89%, with recorded pins wrong in both
+   * directions.
+   */
+  const { lookup, queries } = recordingLookup(() => ({
+    band: 'miss',
+    candidates: [candidate('A', 0.5)],
+    ring: null,
+    matchedBy: 'hybrid',
+  }));
+
+  const stage = new IdentifyStage(
+    lookup,
+    fakeModel({ brand: 'Danone', name: 'Danette', size_value: 100, size_unit: 'g', count: 4 }),
+  );
+  await stage.fromCrop(new Uint8Array(), null, 'pro', 100);
+
+  assert.equal(queries[0].sizeValue, 400, 'the net still leads');
+  assert.equal(queries[0].sizeValueAlt, 100, 'and the unit reading travels beside it');
+  assert.equal(queries[0].sizeUnit, 'g');
+});
+
+test('a single item carries no alternate reading, because there is no second number', async () => {
+  // The alternate exists only where a label genuinely prints two sizes. A plain
+  // 500 g jar has one, and inventing an alternate there would widen the pin for
+  // nothing.
+  const { lookup, queries } = recordingLookup(() => ({
+    band: 'miss',
+    candidates: [candidate('A', 0.5)],
+    ring: null,
+    matchedBy: 'hybrid',
+  }));
+  const stage = new IdentifyStage(
+    lookup,
+    fakeModel({ brand: 'Acme', name: 'Widget', size_value: 500, size_unit: 'g', count: 1 }),
+  );
+  await stage.fromCrop(new Uint8Array(), null, 'pro', 100);
+  assert.equal(queries[0].sizeValue, 500);
+  assert.equal(queries[0].sizeValueAlt, undefined, 'no second number was printed, so none is pinned');
+});
+
 test('a 12 ea reading pins count as the size when the label gave no size of its own', async () => {
   const { lookup, queries } = recordingLookup(() => ({
     band: 'miss',

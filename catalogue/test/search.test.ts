@@ -225,6 +225,54 @@ test('a size read off the label in litres or kilos still agrees with a row store
   assert.equal(r.candidates[0]?.code, '0068100084245', 'the agreeing row leads on a tier no score may cross');
 });
 
+test('either reading of a multipack label clears the pin, and a third size still does not', async () => {
+  /*
+   * D-126, 2026-09-18. A multipack label prints two true numbers -- the box's
+   * net and the count times the unit -- and the extract returns ONE size plus a
+   * count without saying which of the two its number was. identify.ts used to
+   * resolve that by always multiplying, which is a coin flip stated as a fact:
+   * when it lands wrong the pin does not merely fail, `pinTier` rewards the row
+   * that matches the wrong number and sorts that sibling to the top.
+   *
+   * Measured on the 2026-09-16 eval, multipacks were the worst kind by a
+   * distance -- 38.9% right against 75 to 89% for every other kind -- and the
+   * recorded pins are wrong in BOTH directions: 40 g pinned against a 200 g
+   * pack, and 2,000 g pinned against another 200 g pack.
+   *
+   * THE SECOND HALF OF THIS TEST IS THE IMPORTANT HALF. Accepting either
+   * reading must not turn the pin into a filter that passes everything: a row
+   * whose size matches NEITHER number still has to disagree, or the mechanism
+   * has been widened into uselessness rather than made honest.
+   */
+  const cat = await fixture();
+
+  // The 2 kg row read as '1 kg x 2': the net reading leads, the per-unit is alt.
+  const net = await cat.search({
+    text: 'Kraft Smooth Peanut Butter',
+    sizeValue: 2, sizeValueAlt: 1, sizeUnit: 'kg',
+  });
+  assert.equal(
+    net.candidates.find((c) => c.code === '0068100084276')?.signals.sizeAgrees, true,
+    'the net reading agrees',
+  );
+  assert.equal(
+    net.candidates.find((c) => c.code === '0068100084245')?.signals.sizeAgrees, true,
+    'and so does the per-unit one -- nothing here knows which the label meant',
+  );
+
+  // Neither 5 kg nor 10 kg is on the shelf, so nothing may clear the pin.
+  const wrong = await cat.search({
+    text: 'Kraft Smooth Peanut Butter',
+    sizeValue: 10, sizeValueAlt: 5, sizeUnit: 'kg',
+  });
+  for (const code of ['0068100084245', '0068100084276']) {
+    assert.equal(
+      wrong.candidates.find((c) => c.code === code)?.signals.sizeAgrees, false,
+      `${code} matches neither reading and must still disagree`,
+    );
+  }
+});
+
 test('a millilitre query and a litre query are the same question', async () => {
   const cat = await fixture();
   const ml = await cat.search({ text: 'Kraft Smooth Peanut Butter', sizeValue: 1000, sizeUnit: 'g' });
