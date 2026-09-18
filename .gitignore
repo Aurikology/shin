@@ -74,3 +74,12 @@ identify/eval/results/*dry-run.json
 # .env rules above do not catch it: they match a file named .env, and this one
 # is named config.env.
 mac/config.env
+
+# The cross-language harness's throwaway index. `crosslang-eval.ts` builds a
+# one-language copy of the catalogue to query with the OTHER language, which is
+# the only leak-free retrieval measurement available offline. It lands in
+# catalogue/ rather than catalogue/data/, so the rule above does not catch it,
+# and it is EIGHTY MEGABYTES: a single blanket `git add` would put it in the
+# history permanently. Found untracked and un-ignored 2026-09-18, the same way
+# identify/data/ was found on 2026-09-14.
+catalogue/crosslang-work.db
