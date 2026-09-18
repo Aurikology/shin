@@ -5,6 +5,73 @@ narrative.*
 
 ---
 
+## BLOCKING QUESTION, 2026-09-18: does Gemini identify the product, or does the catalogue?
+
+**Jamin pushed `Shin_Gemini_Pricing_Engine.zip` (f828606): GEMINI_SYSTEM.md, PRICING_GUIDE.md,
+scan_prompt.md, response_schema.json.** It is the rule-1 fix for the photo path, which this file
+already admits is two calls. **Until it is answered, retrieval work has an unknown payoff**, and
+that is why it sits above everything else here.
+
+Traced in code 2026-09-18, a photo scan runs `/api/identify/photo` -> `IdentifyStage.fromCrop`,
+where the model reads the crop and then **Shin's own catalogue ranks and picks**, then
+`/api/price` -> `groundedPrice.lookupPrice` for offers. **Identification is local; Gemini only
+prices.** Jamin's package has Gemini do both in one call, with search as the identifier.
+
+If his version wins: the 200-photo eval measures the cascade and nothing else, so **the 180/200
+target would be measuring a component off the critical path, and no harness exists for the
+replacement**; cost moves from free to about **5.6 cents a scan past ~1,250 scans a month** (one
+observed grounded search used four queries at $14/1,000), a floor rather than an estimate.
+
+**One fact may settle it without a decision.** Making the photo path one call means putting the
+image INTO the grounded request, which the guard forbids and which Google has not confirmed
+works. `scan_prompt.md` does exactly that. If the API refuses it, the design is not buildable yet.
+Six numbered questions are with Jamin in `notes/catch-up.md` (2026-09-18).
+
+**Credit where it is due, because three of these are gaps here:** his schema has NO estimated
+price at all (rule 3 held more strictly than the document it came from), it carries a **condition
+axis** this repo lacks entirely, and it preserves advertised pricing structure -- `2 for $5` as
+price 5, quantity 2 -- which is **D-113's cause fixed at the source** rather than guarded
+downstream.
+
+---
+
+## The 90% target, and what actually blocks it, 2026-09-18
+
+**Aurik's ruling 2026-09-17: the headline is definition (b), strict -- a confidently NAMED correct
+row, hedges counted as failures. 145/200 today. Target 180/200.**
+
+**The blocker is bilingual, and it is not a ranking problem.** 82% of Canadian catalogue rows
+carry a name in ONE language only (58,565 French-only, 42,734 English-only, 19,723 both).
+Photograph the face the catalogue does not hold and the query shares no token with the target, so
+no ordering of candidates can be correct. Measured leak-free, a language flip costs about 33
+points of recall@10.
+
+**A correction that matters: the cross-language backfill does NOT move this number.** It ships
+(292bcb1) and it earns its place for real shoppers, but it will move the 200-photo eval by **at
+most one row** -- only 20 of the 200 expected products are single-language at all, and that run's
+query text equals the catalogue row on 200/200, so the eval contains no language flip to fix. It
+is insurance against a case the current eval structurally cannot produce. Getting to 180/200 has
+to come from somewhere else.
+
+**A second correction, so nobody rebuilds on it:** `cascadeNumbersReal: true` in a dry-run result
+means only `!args.fakeCatalogue` -- the real database was queried. It does NOT mean the dry run is
+a valid proxy for a real photo run. The dry run's query text IS the answer key (manifest name and
+brand equal the catalogue row's on 200/200), so it scores 195/200 and cannot detect a paraphrase
+or a language change. **Do not measure retrieval changes with it.** The only honest offline shape
+is leak-free: index one language, query with the other.
+
+**What nobody can answer yet, and the work in flight.** No run records what the model actually
+READ off the photograph, so every account of the 32 cascade misses -- including both of this
+week's -- is inferred from index properties rather than observed. Two investigations disagreed and
+neither could adjudicate. Recording the reading is in progress in `identify/eval/`; `readAs` and
+`ModelReading` already exist on `IdentifyOutcome` and are simply dropped in `observationOf`.
+
+**Shipped toward this on 2026-09-17/18:** D-122 (the size pin was inert on one sized row in six;
+recall@1 173->179, 8 rows improved, none worsened), D-123 (bm25 weights were positional and
+unchecked), and the cross-language derived-name column with a real FTS migration.
+
+---
+
 ## HIGHEST PRIORITY, set by him 2026-09-15: his Gemini rules, and a repo cleanup against them
 
 Read `docs/jamin-gemini-rules.md` first; it outranks everything below and every other doc. Two
