@@ -534,9 +534,52 @@ interface Row {
   ingredients_text: string | null;
 }
 
+/*
+ * The columns a candidate is built from -- and therefore the columns that can
+ * reach a shopper's screen.
+ *
+ * `name_derived` is NOT here and must never be. It is machine-derived
+ * cross-language text that exists so a French query can match an English-only
+ * row (crosslang.ts); it is in product_fts, it is matched on, and it is not the
+ * product's name. Keeping it out of this list is the mechanism that keeps it off
+ * the screen, and test/crosslang.test.ts fails if it ever appears.
+ */
 const SELECT_COLS = `code, name, name_en, name_fr, brands, quantity, size_value,
   size_unit, category_path, leaf_category, allergens, sold_in_canada, source,
   generic_name, nutriscore_grade, nova_group, additives_n, ingredients_text`;
+
+/**
+ * What each indexed column is worth to bm25.
+ *
+ * bm25() takes its weights POSITIONALLY and does not check how many it got: give
+ * a five-column index four weights and SQLite silently scores the fifth at 1.0,
+ * with no error, no warning, and no way to notice from the outside. The original
+ * literal `bm25(product_fts, 4.0, 4.0, 2.0, 1.0)` was exactly that trap waiting
+ * for the next column. So the weights are named here and the vector is built
+ * from the index's ACTUAL column list at query time.
+ *
+ * `name_derived` is weighted 1.0, below every real name. It is a machine
+ * alignment, not the label: it should be able to rescue a row nothing else can
+ * reach, and it should never outrank a row whose real name matched.
+ */
+const FTS_WEIGHTS: Readonly<Record<string, number>> = {
+  name_en: 4.0,
+  name_fr: 4.0,
+  name: 4.0,
+  brands: 2.0,
+  leaf_category: 1.0,
+  name_derived: 1.0,
+};
+
+/** Reads the index's real column order and returns the bm25 weight list for it. */
+function ftsWeights(db: DatabaseSync): number[] {
+  const cols = (db.prepare('PRAGMA table_info(product_fts)').all() as unknown as { name: string }[])
+    .map((r) => r.name);
+  // An unknown column scores 1.0 rather than throwing: a throwaway index built
+  // by the evaluation harness is a legitimate shape, and a search that refuses
+  // to run is worse than one column mis-weighted.
+  return cols.map((c) => FTS_WEIGHTS[c] ?? 1.0);
+}
 
 /**
  * Strips "en:" and hyphens so a tag can be shown to a person (decision 27).
@@ -920,10 +963,13 @@ export class Catalogue {
   readonly #db: DatabaseSync;
   readonly #tagSizes = new Map<string, number>();
   readonly #embedder: Embedder;
+  /** Read once at construction: the index's column list cannot change under a live connection. */
+  readonly #ftsWeights: number[];
 
   constructor(db: DatabaseSync, embedder: Embedder) {
     this.#db = db;
     this.#embedder = embedder;
+    this.#ftsWeights = ftsWeights(db);
   }
 
   /** Exact barcode lookup. Decision 15: a barcode is truth, so it short-circuits. */
@@ -1044,7 +1090,7 @@ export class Catalogue {
     const rows = this.#db
       .prepare(
         `SELECT ${SELECT_COLS.split(', ').map((c) => `p.${c.trim()}`).join(', ')},
-                bm25(product_fts, 4.0, 4.0, 2.0, 1.0) AS score
+                bm25(product_fts, ${this.#ftsWeights.join(', ')}) AS score
          FROM product_fts f
          JOIN product p ON p.rowid = f.rowid
          WHERE product_fts MATCH ?${clause}

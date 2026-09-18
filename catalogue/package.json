@@ -18,6 +18,9 @@
     "load": "node src/load.ts",
     "embed": "node src/embed-all.ts",
     "search": "node src/cli.ts",
+    "lexicon": "node src/build-lexicon.ts src/lexicon-fr-en.json",
+    "backfill:derived": "node src/backfill-derived.ts",
+    "eval:crosslang": "node src/crosslang-eval.ts",
     "test": "node --test \"test/**/*.test.ts\"",
     "typecheck": "node ../spine/node_modules/typescript/bin/tsc --noEmit -p tsconfig.json"
   },

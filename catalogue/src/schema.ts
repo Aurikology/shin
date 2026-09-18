@@ -67,6 +67,35 @@ export interface ProductRow {
   readonly ingredients_text: string | null;
 }
 
+/**
+ * The columns of `product_fts`, IN ORDER, and the single place that order is
+ * written down.
+ *
+ * It is exported because bm25 takes its weights positionally, so a caller that
+ * hardcodes four weights against a five-column index is not an error anybody
+ * sees -- SQLite silently gives the unnamed column weight 1.0 and the query
+ * keeps working, slightly wrong, forever. Verified: bm25() accepts any number of
+ * weight arguments, too few or too many, without complaint. search.ts builds its
+ * weight vector from this list rather than from a literal, so adding a column
+ * here cannot quietly re-weight the index.
+ *
+ * `name_derived` is machine-derived cross-language text (crosslang.ts). It is in
+ * the INDEX and deliberately not in SELECT_COLS, so it can be matched on and
+ * never displayed.
+ *
+ * WHY `name` IS NOT IN THIS LIST. 28,038 rows (3,098 of them Canadian) have no
+ * name_en and no name_fr -- their only name is in `name` -- and measured against
+ * the live index, 96.9% of them cannot be found by their own name text. The
+ * obvious fix is to index `name`. Measured, it is the wrong one: `name` is a
+ * verbatim copy of whichever language column exists on 184,302 rows and carries
+ * text distinct from both on ZERO rows. Indexing it would double the term
+ * frequency of 184,302 rows that already work, to rescue 28,038 that do not --
+ * which is exactly the churn a previous measurement saw (5 rows improved, 2
+ * worsened, one losing 8 ranks). Those 28,038 rows are given to name_derived
+ * instead, under derived_source 'name-only'. Same rescue, no duplication.
+ */
+export const FTS_COLUMNS = ['name_en', 'name_fr', 'brands', 'leaf_category', 'name_derived'] as const;
+
 const DDL = `
 CREATE TABLE IF NOT EXISTS product (
   code           TEXT PRIMARY KEY,
@@ -107,7 +136,15 @@ CREATE TABLE IF NOT EXISTS product (
   nutriscore_grade TEXT,
   nova_group       INTEGER,
   additives_n      INTEGER,
-  ingredients_text TEXT
+  ingredients_text TEXT,
+  /*
+   * Cross-language retrieval text, and which mechanism produced it. Machine-
+   * derived, indexed, NEVER displayed -- crosslang.ts says why at length. Also
+   * listed in addMissingColumns, because a catalogue built before today reaches
+   * this table through ALTER rather than through this statement.
+   */
+  name_derived     TEXT,
+  derived_source   TEXT
 ) STRICT;
 
 CREATE INDEX IF NOT EXISTS product_leaf ON product(leaf_category);
@@ -139,7 +176,7 @@ CREATE INDEX IF NOT EXISTS product_category_tag ON product_category(tag);
  * "Céréales" and decision 20 says that must still land on the right row.
  */
 CREATE VIRTUAL TABLE IF NOT EXISTS product_fts USING fts5(
-  name_en, name_fr, brands, leaf_category,
+  ${FTS_COLUMNS.join(', ')},
   content='product',
   content_rowid='rowid',
   tokenize="unicode61 remove_diacritics 2"
@@ -187,6 +224,9 @@ export function openCatalogue(path: string): DatabaseSync {
      )`,
   );
   addMissingColumns(db);
+  // Must follow addMissingColumns: an external-content FTS over a column the
+  // content table does not have yet fails on rebuild, not on create.
+  migrateFts(db);
   return db;
 }
 
@@ -231,10 +271,50 @@ function addMissingColumns(db: DatabaseSync): void {
     ['nova_group', 'INTEGER'],
     ['additives_n', 'INTEGER'],
     ['ingredients_text', 'TEXT'],
+    // Cross-language retrieval text and its provenance. See crosslang.ts: the
+    // derived name is indexed and NEVER displayed, and derived_source records
+    // which mechanism produced it so no claim in this database is unattributed.
+    ['name_derived', 'TEXT'],
+    ['derived_source', 'TEXT'],
   ];
   for (const [name, type] of wanted) {
     if (!have.has(name)) db.exec(`ALTER TABLE product ADD COLUMN ${name} ${type}`);
   }
+}
+
+/**
+ * Brings an existing `product_fts` up to the current column list, or leaves it alone.
+ *
+ * THIS IS THE MIGRATION THE `IF NOT EXISTS` ABOVE CANNOT BE.
+ * `CREATE VIRTUAL TABLE IF NOT EXISTS product_fts` does nothing at all to a
+ * database that already has a `product_fts` -- which is every database anybody
+ * has already built. Change the column list in FTS_COLUMNS and the DDL will
+ * happily run, report success, and leave every existing catalogue on the OLD
+ * index, silently missing the new column for the rest of its life. That is the
+ * exact failure addMissingColumns was written for, one table over, and it is the
+ * defect class this repo logs most often: a migration that no-ops and says
+ * nothing.
+ *
+ * So the columns are READ BACK and compared. A mismatch drops the index and
+ * rebuilds it, which on 212,340 rows is seconds, and is the only correct answer:
+ * an FTS5 column list cannot be ALTERed.
+ *
+ * Returns true when it actually rebuilt, so a caller can say so out loud.
+ */
+export function migrateFts(db: DatabaseSync): boolean {
+  const actual = (db.prepare('PRAGMA table_info(product_fts)').all() as unknown as { name: string }[])
+    .map((r) => r.name);
+  const wanted = [...FTS_COLUMNS];
+  if (actual.length === wanted.length && actual.every((c, i) => c === wanted[i])) return false;
+  db.exec('DROP TABLE IF EXISTS product_fts');
+  db.exec(
+    `CREATE VIRTUAL TABLE product_fts USING fts5(
+       ${wanted.join(', ')},
+       content='product', content_rowid='rowid',
+       tokenize="unicode61 remove_diacritics 2")`,
+  );
+  rebuildFts(db);
+  return true;
 }
 
 /** Rebuilds the full-text index from the product table. Cheap; run after any bulk load. */
