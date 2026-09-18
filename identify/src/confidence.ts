@@ -103,6 +103,43 @@ export function capByPick(c: Confidence, pick: ConfidenceBand): Confidence {
   return { band, score, because: reasonFor(c.signals, band, pick), signals: c.signals };
 }
 
+/**
+ * Caps an already-derived confidence because the pick pass NEVER RAN.
+ *
+ * D-125. A row only reaches the pick when pass one did NOT settle it -- not
+ * confident, or without a clear lead over the runner-up. On every path where
+ * the pick answers, `capByPick` lets its opinion hold the number down. On the
+ * path where the pick THROWS, `identify.ts` ships pass one's answer with pass
+ * one's confidence and no cap at all, so the rows that lost their tie-breaker
+ * are exactly the rows nothing lowers.
+ *
+ * Measured on the 2026-09-16 run of the 200-photo eval: of the 23 answers that
+ * shipped in the `high` band and were WRONG, **12 had an errored pick** -- 52%,
+ * against 12% of the 137 that shipped high and were right. Half of Shin's
+ * confidently wrong answers were rows whose discriminating step did not run.
+ *
+ * NOT `capByPick(c, 'medium')`, and the difference is the sentence the shopper
+ * reads. That call would route through `reasonFor`'s pickCapped branch and say
+ * "more than one product matched the print on the pack" -- a claim about what
+ * the second look SAW. It saw nothing; it failed. Reporting a failure as an
+ * observation is the same class of lie this file exists to prevent.
+ *
+ * The answer itself is untouched. Rule 6 is always an answer, and decision 19's
+ * correction of 2026-09-05 removed the refusal here on purpose. What changes is
+ * only what Shin claims to know about it.
+ */
+export function capByUnrunPick(c: Confidence): Confidence {
+  const cap = PICK_CAP.medium;
+  if (c.score <= cap) return c;
+  const band: ConfidenceBand = cap >= HIGH ? 'high' : cap >= MEDIUM ? 'medium' : 'low';
+  return {
+    band,
+    score: cap,
+    because: 'A second check on the pack did not finish, so this is the likelier one rather than a confirmed match.',
+    signals: c.signals,
+  };
+}
+
 export function deriveConfidence(s: ConfidenceSignals): Confidence {
   // A resolved barcode is not scored, it is answered. Every other signal is a
   // way of guessing at what the barcode would have told us.

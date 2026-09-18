@@ -390,6 +390,46 @@ test('a pick that fails on the wire loses the improvement, never the scan', asyn
   }
 });
 
+test('a pick that fails on the wire also loses the confidence it would have capped', async () => {
+  /*
+   * D-125. The test above pins that the ANSWER survives a thrown pick, which is
+   * rule 6 and is not changing. This one pins the other half: what Shin CLAIMS
+   * about that answer.
+   *
+   * A row only reaches the pick when pass one did not settle it, so a thrown
+   * pick leaves exactly the ambiguous rows with nothing holding their number
+   * down. Measured on the 2026-09-16 eval: 12 of the 23 answers that shipped in
+   * the high band and were WRONG had an errored pick, against 12% of the 137
+   * that shipped high and were right.
+   */
+  const model = fakeModel({}, new Error('the pick timed out'));
+  const stage = new IdentifyStage(async () => nearIdentical(), model);
+  const outcome = await stage.fromCrop(new Uint8Array(), null, 'pro', 100);
+
+  assert.equal(outcome.kind, 'identified');
+  if (outcome.kind !== 'identified') return;
+
+  assert.equal(outcome.chosen.code, 'C1', 'the answer is untouched: rule 6 still holds');
+  assert.equal(outcome.passes, 1);
+  assert.notEqual(outcome.confidence.band, 'high', 'a row whose tie-breaker never ran may not ship as high');
+  assert.ok(
+    outcome.confidence.score <= 0.75,
+    `capped to the medium ceiling, got ${outcome.confidence.score}`,
+  );
+
+  /*
+   * THE SENTENCE IS THE POINT, not just the band. capByPick(c, 'medium') would
+   * have produced the same number with the words "more than one product matched
+   * the print on the pack" -- a claim about what the second look SAW. It saw
+   * nothing. Reporting a failure as an observation is the lie this guards.
+   */
+  assert.ok(
+    !/matched the print/i.test(outcome.confidence.because),
+    `the reason must not claim the pick observed anything: ${outcome.confidence.because}`,
+  );
+  assert.match(outcome.confidence.because, /did not finish/i);
+});
+
 test('the words the model answers in become the number the confidence expects', async () => {
   const result: CatalogueResult = {
     band: 'confident',

@@ -22,7 +22,7 @@ import {
   type Tier,
 } from './model.ts';
 import { spendCapRefusalMessage } from './cap.ts';
-import { capByPick, deriveConfidence, LEAD_CLEAR, type Confidence } from './confidence.ts';
+import { capByPick, capByUnrunPick, deriveConfidence, LEAD_CLEAR, type Confidence } from './confidence.ts';
 import { gtinFrom } from './gtin.ts';
 import { foldVariantText, variantCarriedBy, variantTokens } from '../../catalogue/src/variant-words.ts';
 
@@ -433,8 +433,15 @@ export class IdentifyStage {
        * the exact behaviour his 2026-09-05 correction removed. The failure is
        * not swallowed silently in any way that matters, because the answer that
        * ships is pass one's, with pass one's confidence and `passes: 1`.
+       *
+       * BUT THE CONFIDENCE IS CAPPED, D-125. Only the ANSWER is unchanged.
+       * Every row that reaches the pick is one pass one did not settle, so a
+       * thrown pick leaves precisely the ambiguous rows with nothing holding
+       * their number down. Measured on the 2026-09-16 eval, 12 of the 23
+       * wrong answers that shipped in the high band had an errored pick,
+       * against 12% of the ones that shipped high and were right.
        */
-      return pass1;
+      return { ...pass1, confidence: capByUnrunPick(pass1.confidence) };
     }
 
     const chosenIndex = picked.pick.chosen_index;
