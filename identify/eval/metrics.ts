@@ -97,6 +97,62 @@ export const ATTRIBUTIONS: readonly Attribution[] = [
 ];
 
 /**
+ * What the model said it saw, recorded verbatim rather than re-derived from
+ * index properties after the fact.
+ *
+ * Added 2026-09-18. Until now a `cascade_miss` was explained by guessing at
+ * the query from the outcome's other fields, and two separate investigations
+ * guessed differently and had no way to settle it, because nothing recorded
+ * what the model actually read off the photograph. `readAs` is exactly the
+ * text the cascade searched with -- `[brand, name, variant].filter(Boolean)
+ * .join(' ')`, the same formula `identify.ts`'s `fromCrop` builds its q1 query
+ * from -- so a saved run can be re-read later and asked "was this findable in
+ * the language the model read it in" without a new model call.
+ */
+export interface RecordedReading {
+  /** `[brand, name, variant].filter(Boolean).join(' ').trim()`. Can be `''`; see `StageObservation.captureStatus`. */
+  readonly readAs: string;
+  readonly brand: string | null;
+  readonly name: string | null;
+  readonly variant: string | null;
+  /** The model's own claim about which language(s) it read off the pack. */
+  readonly languageSeen: 'en' | 'fr' | 'both' | null;
+  /** The model id that produced this reading, e.g. `'fake:dry-run'` in a dry run. */
+  readonly model: string;
+  readonly ms: number;
+  /** Set when a barcode legible in the photo resolved in the catalogue. Null otherwise. */
+  readonly barcodeFromPhoto: string | null;
+}
+
+/**
+ * Whether a reading exists to report on, and if not, WHY not -- three
+ * genuinely different events that this repo has already logged multiple
+ * defects (D-117, D-118, D-119) of the shape "a field reporting nothing looks
+ * identical to a feature with nothing to report."
+ *
+ *   'not_attempted'  no vision call was made at all. Decision 15: a barcode
+ *                    short-circuits straight to a catalogue-by-code lookup
+ *                    (`identify.ts`'s `fromBarcode`) and the model is never
+ *                    asked anything. There is no reading to have missed.
+ *   'call_failed'    a vision call was made and threw -- rate limit, outage,
+ *                    a malformed answer, a spend cap -- before any structured
+ *                    fields existed (`identify.ts:221`'s catch). An attempt
+ *                    was made and produced nothing usable.
+ *   'captured'       the model answered and `reading` below is populated.
+ *                    `reading.readAs` can still be `''`: that is the
+ *                    `unreadable_photo` branch, where the call succeeded and
+ *                    the model genuinely found nothing on the label. That is
+ *                    "captured, and the capture was empty," a different fact
+ *                    from either line above, and it is why `captureStatus`
+ *                    and `reading` are two fields rather than one.
+ *
+ * Optional because every result file written before 2026-09-18 has neither
+ * field at all -- `undefined` there means "not recorded in this run", which is
+ * itself a fourth, honest value distinct from all three above.
+ */
+export type CaptureStatus = 'not_attempted' | 'call_failed' | 'captured';
+
+/**
  * One row as the runner watched it, not as the outcome described it.
  *
  * `chosenCode` is what shipped; everything else is the machinery underneath,
@@ -171,6 +227,19 @@ export interface StageObservation {
   readonly pickedIndex?: number | null;
   /** How many candidate rows the pick was offered, so an out-of-range index is visible as one. */
   readonly pickRowCount?: number | null;
+  /**
+   * See `CaptureStatus`. `undefined` on any result file written before
+   * 2026-09-18 -- read that as "not recorded in this run", never as
+   * `'not_attempted'`, which is a different, positive claim about what
+   * happened.
+   */
+  readonly captureStatus?: CaptureStatus;
+  /**
+   * The reading itself, present only when `captureStatus === 'captured'`.
+   * `null` for `'not_attempted'` and `'call_failed'`, and `undefined` on a
+   * pre-2026-09-18 result file, same rule as `captureStatus`.
+   */
+  readonly reading?: RecordedReading | null;
 }
 
 /** 1-based position of `code` in `codes`, or null when it is absent. */

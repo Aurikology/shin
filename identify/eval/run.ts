@@ -51,10 +51,13 @@ import {
   pct,
   summarise,
   summariseByKind,
+  type CaptureStatus,
   type Expectation,
+  type RecordedReading,
   type StageMetrics,
   type StageObservation,
 } from './metrics.ts';
+import { classifyCascadeMiss, type CatalogueRowNames, type MissClass } from './language.ts';
 import {
   Identifier,
   type IdentifiedFields,
@@ -424,7 +427,7 @@ function parseSize(
  * start attributing one row's queries to another.
  * ========================================================================== */
 
-interface Probe {
+export interface Probe {
   /** Lookups carrying a `gtin`, i.e. the barcode short-circuit's own query. */
   gtinQueries: number;
   /** ...of which resolved to at least one row, which is what short-circuits. */
@@ -459,7 +462,7 @@ interface Probe {
   pickMs: number | null;
 }
 
-function newProbe(): Probe {
+export function newProbe(): Probe {
   return {
     pickFailure: null,
     pickStatus: null,
@@ -475,7 +478,7 @@ function newProbe(): Probe {
   };
 }
 
-function probingLookup(inner: CatalogueLookup, current: () => Probe | null): CatalogueLookup {
+export function probingLookup(inner: CatalogueLookup, current: () => Probe | null): CatalogueLookup {
   return async (query) => {
     const result = await inner(query);
     const p = current();
@@ -492,13 +495,65 @@ function probingLookup(inner: CatalogueLookup, current: () => Probe | null): Cat
 }
 
 /**
+ * Turn a `ModelReading` into the plain data `StageObservation` carries.
+ *
+ * `readAs` is recomputed here rather than read off the outcome, because only
+ * `not_in_catalogue` carries a `readAs` field on the outcome itself --
+ * `identified` and `unreadable` do not. Recomputing with the exact formula
+ * `identify.ts:282` uses (`[brand, name, variant].filter(Boolean).join(' ')`)
+ * gives every outcome kind the same field instead of three different ones.
+ */
+function recordedReadingOf(reading: ModelReading): RecordedReading {
+  const p = reading.product;
+  return {
+    readAs: [p.brand, p.name, p.variant].filter(Boolean).join(' ').trim(),
+    brand: p.brand,
+    name: p.name,
+    variant: p.variant,
+    languageSeen: p.language_seen,
+    model: reading.model,
+    ms: reading.ms,
+    barcodeFromPhoto: reading.barcodeFromPhoto ?? null,
+  };
+}
+
+/**
+ * `captureStatus`/`reading` from an `IdentifyOutcome`, without touching
+ * `identify/src`. See `CaptureStatus` in `metrics.ts` for what each value
+ * means and why they must stay distinguishable.
+ *
+ * The whole thing rests on one runtime fact, checked directly rather than
+ * trusted from the type: `outcome.reading` is `null` at RUNTIME on both the
+ * barcode short-circuit (`fromBarcode`, decision 15 -- no model call at all)
+ * and the caught-error branch of `fromCrop` (a model call was attempted and
+ * threw), even though `IdentifyOutcome`'s `not_in_catalogue` variant types
+ * `reading` as non-nullable -- `identify.ts`'s own barcode-miss branch casts
+ * a literal `null` through `as unknown as ModelReading` to satisfy exactly
+ * that type. Reading the value instead of the type is what makes this safe.
+ *
+ * Which of the two null cases applies is decided by `outcome.kind`: only
+ * `fromCrop`'s catch block can produce `kind: 'unreadable'` with a null
+ * reading (a real attempt that failed); every other kind's null reading comes
+ * from `fromBarcode`, which never calls the model in the first place.
+ */
+export function captureOf(outcome: IdentifyOutcome): {
+  captureStatus: CaptureStatus;
+  reading: RecordedReading | null;
+} {
+  const reading = outcome.reading as ModelReading | null;
+  if (reading) return { captureStatus: 'captured', reading: recordedReadingOf(reading) };
+  if (outcome.kind === 'unreadable') return { captureStatus: 'call_failed', reading: null };
+  return { captureStatus: 'not_attempted', reading: null };
+}
+
+/**
  * What the probe saw, turned into the row the metrics read.
  *
  * The candidate set is `union()` imported from identify.ts and applied to the
  * very results this probe watched, not a re-implementation: recall has to be
  * about the list production actually built.
  */
-function observationOf(
+export function observationOf(
   row: ManifestRow,
   outcome: IdentifyOutcome,
   probe: Probe,
@@ -552,6 +607,7 @@ function observationOf(
      */
     pickedIndex: probe.pickedIndex,
     pickRowCount: probe.pickRows?.length ?? null,
+    ...captureOf(outcome),
   };
 }
 
@@ -1176,6 +1232,105 @@ function interval(m: StageMetrics): string {
   return `[${(m.top1Interval.low * 100).toFixed(1)}%, ${(m.top1Interval.high * 100).toFixed(1)}%]`;
 }
 
+/**
+ * THE READING-BASED CASCADE-MISS SPLIT (2026-09-18).
+ *
+ * For every `cascade_miss` row, was the product findable in the language the
+ * model read it in? Two prior investigations tried to answer this by
+ * inferring the query from index properties after a run and reached
+ * different conclusions with no way to adjudicate. `StageObservation.reading`
+ * now carries the actual reading, so this asks the catalogue directly:
+ * `classifyCascadeMiss` (`language.ts`) compares the read language against
+ * the expected code's own `name_en`/`name_fr`/`name`/`name_derived`.
+ *
+ * Exported so `analyze-results.ts` can run the identical classification over
+ * a saved JSON file -- offline, on a run that predates this field entirely --
+ * without duplicating the query or the print format.
+ */
+export function reportCascadeMissLanguage(
+  obs: readonly StageObservation[],
+  opts: { fakeCatalogue?: boolean; dbPath?: string } = {},
+): void {
+  console.log('');
+  console.log('================ CASCADE MISSES BY READ LANGUAGE ================');
+  const misses = obs.filter(
+    (o): o is StageObservation & { code: string } => o.code !== null && attribute(o) === 'cascade_miss',
+  );
+  if (misses.length === 0) {
+    console.log('  (no cascade_miss rows in this run)');
+    return;
+  }
+  if (opts.fakeCatalogue) {
+    console.log(
+      '  --fake-catalogue: skipped. The manifest is graded against itself, so there is no real catalogue row to compare a reading against.',
+    );
+    return;
+  }
+
+  const dbPath = opts.dbPath ?? evalPath('../../catalogue/data/catalogue.db');
+  let rows = new Map<string, CatalogueRowNames>();
+  try {
+    const db = openCatalogueReadOnly(dbPath);
+    try {
+      /*
+       * `name_derived` is a column added after some catalogue.db builds
+       * already existed, and `openCatalogueReadOnly` runs no DDL or migration
+       * by design (it is the serving door, not the loader). Asking for a
+       * column the file does not have would fail the whole query rather than
+       * degrade one field, so presence is checked first and the column is
+       * only named when it exists -- confirmed necessary in practice: this
+       * repo's current catalogue.db predates it.
+       */
+      const cols = new Set(
+        (db.prepare('PRAGMA table_info(product)').all() as unknown as { name: string }[]).map((c) => c.name),
+      );
+      const hasNameDerived = cols.has('name_derived');
+      if (!hasNameDerived) {
+        console.log(
+          '  NOTE: this catalogue.db predates the name_derived column; every row below is classified without it.',
+        );
+      }
+      const codes = [...new Set(misses.map((o) => o.code))];
+      const placeholders = codes.map(() => '?').join(',');
+      const found = db
+        .prepare(
+          `SELECT code, name, name_en, name_fr, ${hasNameDerived ? 'name_derived' : 'NULL AS name_derived'} FROM product WHERE code IN (${placeholders})`,
+        )
+        .all(...codes) as unknown as CatalogueRowNames[];
+      rows = new Map(found.map((r) => [r.code, r]));
+    } finally {
+      db.close();
+    }
+  } catch (err) {
+    console.log(
+      `  COULD NOT OPEN catalogue.db read-only (${err instanceof Error ? err.message : String(err)});`,
+    );
+    console.log('  every row below is UNDETERMINED for that reason -- not measured as zero.');
+  }
+
+  const counts: Record<MissClass, number> = { ranking: 0, cross_language: 0, undetermined: 0 };
+  const verdicts = misses.map((o) => {
+    const verdict = classifyCascadeMiss(o.captureStatus, o.reading, rows.get(o.code) ?? null);
+    counts[verdict.classification] += 1;
+    return { o, verdict };
+  });
+  const notRecorded = misses.filter((o) => o.captureStatus === undefined).length;
+
+  console.log(`  ${misses.length} cascade_miss row(s)`);
+  console.log(`    ranking (row held the read language)         : ${counts.ranking}`);
+  console.log(`    cross-language (row held only the other one) : ${counts.cross_language}`);
+  console.log(`    undetermined                                 : ${counts.undetermined}`);
+  if (notRecorded > 0) {
+    console.log(
+      `  ${notRecorded} of ${misses.length} carry no reading at all: not recorded in this run (predates this field), not a zero.`,
+    );
+  }
+  console.log('');
+  for (const { o, verdict } of verdicts) {
+    console.log(`  ${pad(o.code, 15)}${pad(o.kind, 12)}${pad(verdict.classification, 16)}${verdict.reason}`);
+  }
+}
+
 function reportStages(
   args: Args,
   results: readonly RowResult[],
@@ -1272,6 +1427,8 @@ function reportStages(
       );
     }
   }
+
+  reportCascadeMissLanguage(obs, { fakeCatalogue: args.fakeCatalogue });
 
   /*
    * The rows the cascade did NOT rank first and that shipped correct anyway.
