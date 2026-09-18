@@ -46,6 +46,29 @@ Photograph the face the catalogue does not hold and the query shares no token wi
 no ordering of candidates can be correct. Measured leak-free, a language flip costs about 33
 points of recall@10.
 
+**Corrected 2026-09-18, later the same day: that reading was argued from the MANIFEST, and the manifest is
+the answer key.** Scoring the REAL 09-16 run by what language the catalogue holds for each expected row:
+
+| catalogue holds | rows | true code off the candidate list | accuracy |
+| --- | --- | --- | --- |
+| bilingual | 136 | 11.0% | **78.7%** |
+| **French only** | **45** | **35.6%** | **57.8%** |
+| English only | 15 | 6.7% | 80.0% |
+
+**French-only rows fail retrieval at 3.2x the bilingual rate and land 21 points less accurate.** Those
+queries came from a model reading photographs, not from the manifest, so this split is not leaked.
+
+**What is NOT established, said before anyone builds on it.** That language is the CAUSE -- French-only
+rows may be harder for other reasons (thinner catalogue data, more obscure products), and this is a
+correlation in 45 rows. And that the backfill RECOVERS them: applied to the live catalogue on 09-18, it
+gives cross-language text to 23 of those 45 rows and to **12 of the 33 off-list rows**; the other 21 get
+nothing. Twelve is a ceiling on what it could rescue, not a gain. **The gain itself cannot be measured
+without a keyed run**, because the only offline query text available is the manifest's, which is the
+answer key.
+
+---
+
+**The original 09-18 reading, kept because the reasoning behind it is still right about the eval's shape:**
 **A correction that matters: the cross-language backfill does NOT move this number.** It ships
 (292bcb1) and it earns its place for real shoppers, but it will move the 200-photo eval by **at
 most one row** -- only 20 of the 200 expected products are single-language at all, and that run's

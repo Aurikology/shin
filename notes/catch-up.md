@@ -9,6 +9,55 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-18 (Aurik's PC): the catalogue on your Mac needs one command run against it
+
+### To do
+
+- **Jamin, one command on the machine that serves the beta.** A cross-language fix shipped today, and
+  **the code alone does nothing** -- it needs a one-off pass over the catalogue database, which is
+  gitignored and so does not travel with the commit. On the Mac, in `catalogue/`:
+
+      npm run backfill:derived
+
+  It is offline and deterministic: no network, no key, no translation service (rule 8). It took under a
+  minute here. Back the database up first; `catalogue.db` is not recoverable from the repo.
+  Without it the beta server keeps the old four-column index and every claim below is inert on your
+  machine. `openCatalogue` will migrate the COLUMNS on open, but it will not fill them.
+
+### What changed
+
+**Why it matters, measured on the real 200-photo run rather than argued.** Scoring each row by what
+language the catalogue holds for the product that was photographed:
+
+| catalogue holds | rows | true row missing from the shortlist | got it right |
+| --- | --- | --- | --- |
+| both languages | 136 | 11.0% | 78.7% |
+| **French only** | **45** | **35.6%** | **57.8%** |
+| English only | 15 | 6.7% | 80.0% |
+
+French-only rows fail retrieval at over three times the bilingual rate and land 21 points less accurate.
+Photograph the face the catalogue does not hold and the query shares no word with the target.
+
+**What the pass did here, verified by querying the database afterwards rather than trusting its own
+output:** 55,908 rows given a derived name, index rebuilt to five columns, and **28,038 rows that were
+invisible to search entirely are now findable** -- their only name sat in a column the index never
+covered. The iPhone 8 row is the checkable example: `MATCH "iphone"` did not return it before and does
+now.
+
+**What it does NOT do, stated so nobody reports it as a win.** It gives cross-language text to 23 of the
+45 French-only rows in the eval and to 12 of the 33 rows whose true product never reached the shortlist.
+The other 21 get nothing. Twelve is a CEILING on what it could rescue, not a gain, and the gain itself
+cannot be measured without a real keyed run -- the only offline query text available is the eval
+manifest's, which is copied from the catalogue and so is the answer key.
+
+**A derived name is never shown to anyone.** It lives in its own column with its provenance beside it,
+is indexed for matching only, and a test fails if it ever reaches a response. It is a machine alignment,
+not the product's name.
+
+### Read by
+
+---
+
 ## 2026-09-18 (Aurik's PC): your pricing-engine package, and the one question it forces
 
 ### What changed
