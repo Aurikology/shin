@@ -10,20 +10,59 @@
  *
  * WHAT IT DOES. Every INTERVAL seconds: `git ls-remote` for the branch head (no
  * local writes, one round trip). When the head moved, fetches, then prints one line
- * per new commit whose author name or email matches WATCH_AUTHOR (default `aurik`),
- * with any comms/messages files that commit touched. Commits by anyone else are
- * silent: they are this side's own.
+ * per new commit by SOMEONE OTHER THAN this machine's git user (see `watcherFor`),
+ * with any comms/messages files that commit touched. Your own commits are silent:
+ * you already know about those.
  *
- * ENV. WATCH_AUTHOR (regex, case-insensitive), INTERVAL (seconds, default 30),
+ * ENV. WATCH_AUTHOR (regex, case-insensitive; overrides the derived default with
+ * a positive match), INTERVAL (seconds, default 30),
  * REMOTE (origin), BRANCH (main), SINCE (start from this commit instead of the
  * current remote head; for testing), ONCE=1 (one pass, then exit; for testing).
  */
 import { execFileSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 
 const REMOTE = process.env.REMOTE || "origin";
 const BRANCH = process.env.BRANCH || "main";
 const INTERVAL = Math.max(5, Number(process.env.INTERVAL) || 30) * 1000;
-const WHO = new RegExp(process.env.WATCH_AUTHOR || "aurik", "i");
+/**
+ * Whose commits are worth announcing.
+ *
+ * WHO "THE OTHER PERSON" IS, IS DERIVED RATHER THAN HARDCODED. This defaulted to
+ * the literal `aurik`, which is right on Jamin's machine and backwards on
+ * Aurik's: run there it watched for Aurik's own pushes and stayed silent on
+ * Jamin's — the exact opposite of the job. The default is now everyone except
+ * this machine's `git config user.name`, so one script is correct on both sides
+ * with no configuration, and WATCH_AUTHOR still overrides with a positive match.
+ *
+ * A plain lowercase substring, not a regex built from a person's name: a name is
+ * data, and turning data into a pattern means escaping it correctly forever.
+ * "Does the author line contain my first name" is the whole question.
+ *
+ * With no user.name configured it announces EVERYTHING rather than nothing. A
+ * watcher that says too much gets noticed and fixed; one that says nothing looks
+ * exactly like a quiet day — which is how the Windows entry-point bug below
+ * survived.
+ */
+export function watcherFor(watchAuthor, me) {
+  if (watchAuthor) {
+    const re = new RegExp(watchAuthor, "i");
+    return (nameEmail) => re.test(nameEmail);
+  }
+  const first = (me || "").trim().split(/\s+/)[0].toLowerCase();
+  if (!first) return () => true;
+  return (nameEmail) => !nameEmail.toLowerCase().includes(first);
+}
+
+function meName() {
+  try {
+    return execFileSync("git", ["config", "user.name"], { encoding: "utf8" }).trim();
+  } catch {
+    return "";
+  }
+}
+
+const WHO = watcherFor(process.env.WATCH_AUTHOR, meName());
 const ONCE = process.env.ONCE === "1";
 const MAX_LINES = 8;
 
@@ -34,12 +73,16 @@ const remoteHead = () => git("ls-remote", REMOTE, `refs/heads/${BRANCH}`).split(
 
 /** Pure: turn `git log` output into the lines to print. */
 export function linesFor(logText, who = WHO) {
+  const match = typeof who === "function" ? who : (t) => who.test(t);
   const out = [];
   for (const rec of logText.split("\x1e").map((r) => r.trim()).filter(Boolean)) {
     const [sha, name, email, subject, ...files] = rec.split("\n");
-    if (!who.test(`${name} ${email}`)) continue;
+    if (!match(`${name} ${email}`)) continue;
     const comms = files.filter((f) => f.startsWith("comms/messages/"));
-    out.push(`AURIK ${sha.slice(0, 7)} ${subject}` + (comms.length ? `  [message: ${comms.join(", ")}]` : ""));
+    // The AUTHOR's own name, never a hardcoded one. This said "AURIK" on every
+    // line, so run from Aurik's machine it announced Jamin's pushes as Aurik's.
+    const label = ((name || "?").trim().split(/\s+/)[0] || "?").toUpperCase();
+    out.push(`${label} ${sha.slice(0, 7)} ${subject}` + (comms.length ? `  [message: ${comms.join(", ")}]` : ""));
   }
   return out;
 }
@@ -65,7 +108,7 @@ async function main() {
         git("fetch", "--quiet", REMOTE, BRANCH);
         const lines = linesFor(newCommits(last, head));
         for (const l of lines.slice(0, MAX_LINES)) console.log(l);
-        if (lines.length > MAX_LINES) console.log(`AURIK ... and ${lines.length - MAX_LINES} more commits`);
+        if (lines.length > MAX_LINES) console.log(`... and ${lines.length - MAX_LINES} more commits`);
         last = head;
       }
     } catch (e) {
@@ -78,4 +121,19 @@ async function main() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+/*
+ * `pathToFileURL`, not a hand-built `file://` string.
+ *
+ * THIS GUARD COULD NEVER FIRE ON WINDOWS, so the watcher did nothing at all on
+ * Aurik's machine: it started, matched nothing, and exited 0. Silent success and
+ * a dead script are the same thing from the outside, which is why it went
+ * unnoticed.
+ *
+ * `process.argv[1]` there is `C:\dev\shin-main\scripts\comms-watch.mjs`, so the
+ * concatenation gives `file://C:\dev\...` while `import.meta.url` is
+ * `file:///C:/dev/...` — a different number of slashes, a drive letter the URL
+ * form escapes, and backslashes it turns into forward ones. Three reasons it can
+ * never be equal, none of which show up on a Mac, where the two forms happen to
+ * coincide.
+ */
+if (import.meta.url === pathToFileURL(process.argv[1]).href) main();

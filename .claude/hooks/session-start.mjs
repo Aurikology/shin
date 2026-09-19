@@ -2,9 +2,8 @@
 /**
  * session-start -- does rule 1 automatically, instead of hoping a session remembers.
  *
- * WHY. CLAUDE.md's WHO IS WORKING ON WHAT rule 1: *"Start. `git pull`, then read
- * `comms/`: messages to you (`comms/messages/*-to-<you>-*` and `*-to-all-*`),
- * then claims (`comms/claims/`). A message to you comes first."* Nothing
+ * WHY. CLAUDE.md's WHO IS WORKING ON WHAT rule 1: *"Start. `git pull`, then
+ * fetch the page. Read Needs attention first ... Then Working on now."* Nothing
  * enforced it. The repo has had a hook for rule 3 since 2026-09-14 and none for
  * rule 1 -- and rule 1 is the one that decides whether a session ever learns
  * what happened while it was away.
@@ -13,11 +12,16 @@
  * for five days, and two of them were fixed within the hour once somebody
  * finally read them.
  *
- * WHAT IT READS. `comms/`, the channel Jamin made the default on 2026-09-19 in
- * place of the Notion page. Messages addressed to this machine's git user or to
- * `all`, then the claims, then any catch-up.md entry still missing a Read by
- * line -- that file is the older channel and is still where the long handovers
- * live, so it is reported last rather than dropped.
+ * WHAT IT READS, AND WHAT IT CANNOT. The board is the Notion page `Shin: who is
+ * working on what` (Jamin moved it to GitLab and back within an hour on
+ * 2026-09-19, e1a0f12 then 0184951; the page won). This hook CANNOT read the
+ * board: it does no network, so it says so out loud rather than leaving a
+ * session believing rule 1 has been done for it.
+ *
+ * What it can read is everything on disk: `comms/` messages addressed to this
+ * machine's git user or to `all`, then `comms/claims/`, then any catch-up.md
+ * entry still missing a Read by line. Those are the side channel Jamin kept
+ * alongside the board, and the long handovers still live in catch-up.md.
  *
  * WHAT IT DOES NOT DO, deliberately:
  *   - No network. No `git fetch`. A session must not wait on the network to
@@ -125,8 +129,13 @@ function main() {
   const firstName = name ? name.split(/\s+/)[0] : null;
   const parts = [];
 
-  parts.push('SESSION START (.claude/hooks/session-start.mjs). CLAUDE.md rule 1 says to pull and read');
-  parts.push('comms/ before doing anything; comms/ has been read for you. Nothing here was marked read.');
+  parts.push('SESSION START (.claude/hooks/session-start.mjs). CLAUDE.md rule 1: pull, then read the');
+  parts.push('board — Needs attention first, then Working on now.');
+  parts.push('');
+  parts.push('**THE BOARD IS THE NOTION PAGE `Shin: who is working on what`, and this hook CANNOT read');
+  parts.push('it.** No network, on purpose: a session must not wait on the network to start. Fetch it');
+  parts.push('yourself before you edit anything. What follows is only what can be read from disk —');
+  parts.push('the GitLab side channel, which Jamin keeps alongside the board (0184951).');
   parts.push('');
 
   const behind = behindCount();
@@ -162,9 +171,10 @@ function main() {
   }
 
   parts.push('');
-  parts.push('- **Rule 2: write comms/claims/<name>.md and PUSH it before your first edit.** If an');
-  parts.push('  earlier claim covers the same part, yours gives way. Two sessions edited the same path');
-  parts.push('  on 2026-09-17/18 because this step did not exist yet.');
+  parts.push('- **Rule 2: claim before your first edit, on the BOARD** — a line under Working on now');
+  parts.push('  naming the parts of the app you are about to touch, then re-fetch: if another line on');
+  parts.push('  the same part started earlier, yours yields. Two sessions edited the same path on');
+  parts.push('  2026-09-17/18 because nobody claimed. comms/claims/ mirrors it on the side channel.');
 
   // 3. catch-up.md last: the older channel, still where long handovers live.
   const unread = unreadCatchUp(firstName);
