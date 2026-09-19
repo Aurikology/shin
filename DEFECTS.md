@@ -350,6 +350,15 @@ Required: an optimisation's failure degrades and says so on stderr. If a promise
 it has no business being able to end the process; give it a `catch` at the point it is created,
 not at some caller that does not exist.
 
+There is also a net, added 2026-09-19 with this standard: `app/server.ts` registers an
+`unhandledRejection` handler that logs through `logError` and keeps serving. It is an admission
+that there will be a third instance, not a licence to skip the two rules above -- every rejection
+reaching it is still a defect to find and fix at its source. `uncaughtException` is deliberately
+NOT caught beside it: a rejected promise is a value, an escaped throw is a wrecked stack, and
+serving on from the second is how a crash becomes corrupt data. `app/test/process-net.test.mjs`
+guards all three of those choices at the source, and says in its own header that it is a source
+check and not a behaviour one.
+
 ## Not defects, and they are not filed here
 
 These came out of the same walkthrough and are absences rather than faults. They are listed once,
