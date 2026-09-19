@@ -31,12 +31,52 @@ const raw = (lines) =>
     setTimeout(() => { socket.destroy(); resolve({ reply, errored: false }); }, 2000);
   });
 
+/**
+ * Is the server still there?
+ *
+ * THIS USED TO CONFLATE "DEAD" WITH "BUSY", and the whole file's verdict
+ * rode on it. It was one `fetch` with a 2,000 ms timeout, and every failure
+ * -- refused, timed out, anything -- returned false, which these tests read
+ * as "the server died on that request".
+ *
+ * `node --test` runs test FILES in parallel, and this is the only file in the
+ * package that boots a real server and talks to it over a socket. Under the
+ * full suite the machine is loaded, a reply takes longer than two seconds,
+ * and four tests report a death that never happened. Measured 2026-09-19:
+ * five of five pass running this file alone and the whole app suite passes
+ * at `--test-concurrency=1`, while the default parallel run fails four.
+ *
+ * THE TWO STATES ARE DISTINGUISHABLE and the fix is to distinguish them
+ * rather than to raise the timeout and hope. A process that is gone REFUSES
+ * the connection, at once and every time -- ECONNREFUSED, or ECONNRESET on
+ * Windows. A process that is merely busy accepts and answers late. So a
+ * refusal is death, and a slow answer is retried inside a budget generous
+ * enough that only a real death can exhaust it.
+ *
+ * A test that fails when the machine is busy is worse than no test: it
+ * teaches everyone to read red as noise, and the next real death reads the
+ * same as this one did.
+ */
+const ALIVE_BUDGET_MS = 20_000;
 const alive = async () => {
-  try {
-    const res = await fetch(`http://127.0.0.1:${PORT}/api/categories`, { signal: AbortSignal.timeout(2000) });
-    return res.ok;
-  } catch {
-    return false;
+  const deadline = Date.now() + ALIVE_BUDGET_MS;
+  for (;;) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${PORT}/api/categories`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      return res.ok;
+    } catch (err) {
+      // Nothing is listening: that is the death these tests exist to catch,
+      // and it is immediate and permanent, so report it without waiting.
+      const code = err?.cause?.code ?? err?.code;
+      if (code === 'ECONNREFUSED' || code === 'ECONNRESET') return false;
+      // Anything else is 'no answer yet'. Only the budget running out is a
+      // verdict, and 20 s of silence from a live server is not a thing a
+      // loaded laptop does.
+      if (Date.now() >= deadline) return false;
+      await new Promise((r) => setTimeout(r, 200));
+    }
   }
 };
 
