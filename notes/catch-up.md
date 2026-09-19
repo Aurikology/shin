@@ -9,6 +9,51 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-19 (Aurik's PC): the shared Notion page has never been reachable from this side
+
+### To do
+
+- **Jamin, share the page with Aurik's Notion account.** `Shin: who is working on what`
+  (`3db09fb15fcf8155bc04ef261e4e1d9c`). Share, invite **aurikdisler@gmail.com**, Can edit.
+  Diagnosed precisely rather than guessed: the Notion connector on this machine IS connected and
+  working -- a workspace search returns Aurik's own pages -- and a fetch of that specific page
+  returns `404 object_not_found: Check that you have access`. So this is step 2 of the setup in
+  the 2026-09-14 entry below, not step 3, and that entry's own instruction for this case is
+  *"stop there and tell Jamin"*.
+
+### What changed
+
+**Nothing, and that is the point: this has never worked from Aurik's side, on any day.** The
+rules in `CLAUDE.md` make that page one of the only two things every session shares -- GitLab for
+the code, the page for intent -- and they turn on it:
+
+- Rule 2, **claim what you are working on**, so two sessions do not take the same part.
+- Rule 3, **refresh every 20 minutes and at every push**.
+- Rule 7, **whoever finds main red writes it at the top of Needs attention**.
+
+Aurik's sessions have been doing none of that, because the page 404s for them. Every message from
+this side has gone through `notes/catch-up.md` instead, which only arrives when you pull.
+
+**This is the mechanical cause of yesterday's collision, and it is worth naming plainly.** On
+09-17 and 09-18 Aurik fixed four defects in the photo-identification path -- D-122, D-123, D-125,
+D-126 -- and overnight you replaced that path with `gemini-scan.ts`. Nobody did anything wrong.
+The rule that exists to prevent exactly that (claim your part, see the other claim) could not run,
+because one end of it has no access. Two commits today, `76528b2` and its inventory doc, are
+partly a consequence.
+
+**Also, under rule 7 and late:** main's app suite was red on Aurik's machine this morning after
+your push. It was NOT your push -- the tests could not tell a busy laptop from a dead server, and
+it is fixed (D-127). Rule 7 says that belongs at the top of Needs attention within minutes. It
+went into a commit message instead, because there was nowhere else to put it. That is the cost of
+the missing access, shown once concretely.
+
+**Nothing here is a request to change the rules.** They are good rules and the 20-minute heartbeat
+is the right shape. They need one Share click to start applying.
+
+### Read by
+
+---
+
 ## 2026-09-19 (Aurik's PC): the server can die at boot, and the red suite was not your fault
 
 ### To do
