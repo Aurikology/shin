@@ -590,8 +590,10 @@ export default {
         if (setLocale(localeOpt.dataset.locale)) ctx.replace('you');
         return;
       }
+      // `closest` walks up to <html>, and choosing a theme sets data-theme on <html>.
+      // Without the `root.contains` check every later tap on this screen matched it.
       const themeOpt = e.target.closest('[data-theme]');
-      if (themeOpt) {
+      if (themeOpt && root.contains(themeOpt)) {
         const next = themeOpt.dataset.theme;
         if (next === 'system') delete document.documentElement.dataset.theme;
         else document.documentElement.dataset.theme = next;

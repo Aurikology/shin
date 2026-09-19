@@ -216,6 +216,40 @@
 }
 
 /*
+ * The Photos and Location switches. `.switch` had no rule anywhere, so both drew
+ * as 16x6px grey bars that looked the same on and off: they toggled and saved,
+ * and nobody could tell. Same look as the welcome flow's `.onb-switch`.
+ */
+.switch {
+  position: relative;
+  flex: 0 0 52px;
+  width: 52px;
+  height: 32px;
+  padding: 0;
+  background: var(--raised);
+  border: 1.5px solid var(--hairline);
+  border-radius: 16px;
+  cursor: pointer;
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--ink-muted);
+  transition: transform var(--t-face) var(--ease-land);
+}
+.switch.on { background: var(--brand); border-color: var(--brand); }
+.switch.on::after { background: var(--brand-ink); transform: translateX(20px); }
+.switch:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .switch::after { transition: none; }
+}
+
+/*
  * `.pback` was here: the word "Back" as a 12px mono uppercase link above the
  * kicker on four screens. It read as a label rather than a control and it was
  * the smallest target on each of them. It is `.pbk` in shell.css now, a 44px
