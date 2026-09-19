@@ -584,62 +584,6 @@ function cheaperList(heading, alternatives, opts = {}) {
 }
 
 /**
- * Paints the swaps into the slot the sheet left for them.
- *
- * The row sentence is the server's, printed as written. The rule about what
- * counts as cheaper lives in the catalogue package, and a screen that
- * paraphrases it is a second place that can be wrong about the same thing.
- * What this screen DOES decide is how wide a claim each row is making, which
- * is a presentation question about `ring` and belongs nowhere else.
- *
- * An empty result still says something, in one quiet line, because "there is
- * nothing cheaper we can price" and "we did not look" are different facts and
- * silence would read as the second.
- */
-async function fillCheaper(root, code, askingCents, opts = {}) {
-  const box = root.querySelector('[data-cheaper]');
-  if (!box || !code || typeof askingCents !== 'number') return;
-  try {
-    const r = await ctxApi.alternatives({ code, askingCents });
-    if (!box.isConnected) return;
-    /* `opts.heading` is the refusal path's own heading and it is NOT a
-       fallback for a heading the server failed to send: the server's heading
-       names a leaf category with the word "cheaper" in front of it, which is a
-       true sentence under a verdict and a claim resting on nothing under a
-       refusal. When the caller supplies one it wins outright.
-
-       With no heading from the caller the server's own is used, and it goes
-       through `renderProse` first: `r.heading` is finished English ("Cheaper
-       Peanut butters") and `r.structuredHeading` is the same heading as a code
-       and raw facts (D-097). The refusal path never reaches that call, which
-       is what keeps the word "cheaper" off a sheet that judged nothing, in
-       French as much as in English. */
-    const heading = opts.heading ?? renderProse(r.structuredHeading, r.heading);
-    box.innerHTML = cheaperList(heading, r.alternatives, opts);
-    // The refusal's own line ends "here is something similar that has a price
-    // on it", written before this lookup answered. With nothing to hand over
-    // the sentence above the box would be breaking its promise in the same
-    // breath, so it goes, and the thin refusal stands as it did before swaps.
-    if (!Array.isArray(r.alternatives) || r.alternatives.length === 0) dropSwapPromise(root);
-  } catch {
-    dropSwapPromise(root);
-    // A lookup that threw is not "there is nothing cheaper". Saying so, rather
-    // than leaving the placeholder sentence up forever, which would read as a
-    // search still running.
-    //
-    // `opts.failKey` is the refusal path's own version of that sentence, and
-    // it is here for the same reason `opts.heading` is: the default says
-    // "cheaper", which is arithmetic against a number the verdict above it
-    // settled, and on a refusal there is no such number. The sentence is about
-    // the SEARCH either way, but a shopper skimming a failed lookup on a sheet
-    // that judged nothing reads it as a comparison that was under way.
-    if (box.isConnected) {
-      box.innerHTML = `<p class="detail">${escapeHtml(say(opts.failKey ?? 'cam_cheaper_failed'))}</p>`;
-    }
-  }
-}
-
-/**
  * Removes the refusal's "here is something similar" line once the swaps it
  * pointed at turn out not to exist. Rendered on the refusal path only, so on
  * a verdict sheet there is nothing to find and this is a no-op.
@@ -3695,10 +3639,6 @@ export default {
           // The Gemini block, if the payload carried one. Synchronous: it
           // arrived with the verdict, so there is nothing to wait for.
           fillGrounded(slot, result);
-          // Not awaited: the verdict is the answer and must not wait on a
-          // second lookup. The swaps land in the half detent, below the fold,
-          // whenever they arrive.
-          void fillCheaper(slot, codeOf(result, item), result.askingCents);
           // Row 83: the verdict landing, once, right here.
           buzz(16);
         } else if (result.reason === 'no_asking_price') {
@@ -3720,18 +3660,6 @@ export default {
           // What the web search found, on the refusal too.
           fillGrounded(slot, result);
           playRefusalLanding(slot);
-          /* Not awaited, exactly as on the verdict path: the refusal is the
-             answer and must not wait on a second lookup. It is also the whole
-             of "we can offer another item for this" -- with no rows the
-             refusal stands as it did before today. `fillCheaper` finds no box
-             and does nothing when `swapCode` or the price is missing, so the
-             two guards cannot disagree. */
-          void fillCheaper(slot, swapCode, askingCents, {
-            heading: t('cam_similar_priced'),
-            allLooserKey: 'cam_swap_all_looser_ref',
-            failKey: 'cam_similar_failed',
-            emptyKey: 'cam_similar_none',
-          });
         }
         setState('result');
         mounted();
@@ -4362,9 +4290,6 @@ export default {
         // Rebuilt from scratch by the save, so the grounded block has to be
         // mounted again for the same reason the swaps have to be refetched.
         fillGrounded(slot, v);
-        // The sheet was rebuilt from scratch by the save, so the swaps have to
-        // be fetched again: they live in the markup that was just replaced.
-        void fillCheaper(slot, codeOf(v, last.scenario), v.askingCents);
         const nextSheet = slot.querySelector('.sheet');
         if (nextSheet && prevDetent) setDetent(nextSheet, prevDetent);
         // Same repaint-under-the-press as the modifier toggles: the save button

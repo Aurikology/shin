@@ -22,11 +22,6 @@ import { RecordedSource } from '../spine/src/sources/recorded.ts';
 import { CATEGORY_RULES } from '../spine/src/categories.ts';
 import type { ProductIdentity, SpineQuery } from '../spine/src/contract.ts';
 import { categoryFor } from './src/category-map.ts';
-import {
-  alternativesFor,
-  alternativesHeading,
-  alternativesHeadingStructured,
-} from '../catalogue/src/alternatives.ts';
 import type { Candidate } from '../catalogue/src/search.ts';
 import { countryCodeOf, marketFromLocation, marketPromptFields } from '../catalogue/src/market.ts';
 import { normalizeStoreType } from '../catalogue/src/product-kind.ts';
@@ -58,7 +53,6 @@ import type { GroundedTransport } from '../identify/src/providers/gemini-grounde
 import type { AnswerBlock, GeminiRun, ScanType } from '../identify/src/providers/gemini-scan.ts';
 import { sealScanAnswer } from '../identify/src/providers/gemini-grounded.ts';
 import { chargeSpend, usdCentsToCad, type SpendDecision } from '../identify/src/cap.ts';
-import { lookupPrices } from '../price/src/lookup.ts';
 import { recordCorrection } from '../price/src/corrections.ts';
 import { ATTRIBUTION } from './src/attribution.ts';
 import { packScope, packVersion, servePack } from './src/pack-route.ts';
@@ -157,50 +151,6 @@ let catalogueWhyNot = 'not attempted yet';
  * The routing, the category verdict, the scan write, the telemetry columns and
  * the response shape are all the shipped code in the tests that use it.
  */
-/**
- * The /api/alternatives response body, built in one place.
- *
- * GENERIC OVER THE ROW ON PURPOSE, and that is the whole point of the
- * function. The catalogue decides what an alternative is and what is written
- * on it; this route decides nothing. `ring` and `ringTag` -- the leaf/parent
- * distinction the verdict sheet labels a looser swap with -- arrive on the row
- * and leave on the row, and a `T` the server never names cannot be narrowed,
- * reshaped or picked apart on the way through. Equally it cannot be INVENTED:
- * an older catalogue build that sends no `ring` produces a response with no
- * `ring`, and the client's rule (missing is leaf, never looser) is the one
- * place that absence is interpreted.
- *
- * Exported for app/test/cheaper-rings.test.mjs, which hands it a row carrying
- * the new fields and asserts the body came back identical. A passthrough is
- * exactly the kind of claim that is true until somebody adds a `.map`.
- *
- * `structuredHeading` is D-097's half of the same idea one level up: `heading`
- * is a finished English sentence ("Cheaper Peanut butters") and the client
- * printed it verbatim under a French badge, so the catalogue's
- * `alternativesHeadingStructured` ships the same heading as a code plus raw
- * facts and `app/public/js/prose.js` writes it in the reader's language.
- * `heading` is untouched and is still what a client falls back to.
- *
- * IT DEFAULTS TO NULL RATHER THAN BEING REQUIRED, because two of the three
- * call sites below have no structured heading to send: "the catalogue is not
- * attached" and "we have not seen this one" are this route's own sentences
- * about its own state, not the catalogue's judgement about a category, and
- * inventing a code for them here would put the server back in the business of
- * writing prose the client cannot re-say.
- */
-export function alternativesPayload<T, H = unknown>(
-  catalogueUp: boolean,
-  heading: string,
-  alternatives: readonly T[],
-  structuredHeading: H | null = null,
-): {
-  catalogueUp: boolean;
-  heading: string;
-  structuredHeading: H | null;
-  alternatives: readonly T[];
-} {
-  return { catalogueUp, heading, structuredHeading, alternatives };
-}
 
 export function setCatalogueForTests(fake: { byGtin(code: string): unknown } | null): void {
   fastLookup = fake;
@@ -3360,92 +3310,6 @@ export const server = createServer(async (req, res) => {
       const daysRaw = Number(url.searchParams.get('days') ?? '7');
       const days = Number.isFinite(daysRaw) && daysRaw > 0 ? Math.min(Math.floor(daysRaw), 90) : 7;
       return json(200, { days, latency: dailyLatency(days) });
-    }
-
-    /*
-     * Cheaper same-category alternatives for a product, given the price the
-     * shopper is being asked to pay.
-     *
-     * GET, matching /api/identify: this is a lookup with two simple scalar
-     * inputs (a code and a price), it changes nothing, and a GET is what a
-     * scan screen can fire straight from a query string and retry safely,
-     * the same reasoning /api/identify already gives for its own shape.
-     *
-     * An empty list is a 200 with the heading, not a 404 and not an error --
-     * the same rule /api/price documents above: a refusal to name a cheaper
-     * option is a correct answer, and a client that treats an empty list as
-     * failure will retry around it exactly the way a client retrying a
-     * refused verdict would.
-     *
-     * No timeout wrapper, unlike /api/identify and /api/search: this route
-     * never reaches `searchService` (the worker) or the network. `byGtin`,
-     * the `product_category` query inside `alternativesFor`, and the price
-     * lookup are all synchronous, in-process, indexed reads with no scan that
-     * grows unbounded the way a fallen-through vector search does, so there
-     * is nothing here the identify()/search() timeout exists to guard against.
-     */
-    if (url.pathname === '/api/alternatives') {
-      const code = url.searchParams.get('code')?.trim();
-      const askingRaw = Number(url.searchParams.get('askingCents') ?? '');
-      if (!code || !Number.isFinite(askingRaw) || askingRaw <= 0) {
-        return json(400, { error: 'code and askingCents (a positive number of cents) are required' });
-      }
-      const askingCents = Math.round(askingRaw);
-
-      if (!fastLookup || !catalogueDb) {
-        return json(200, alternativesPayload(false, 'The catalogue is not attached, so nothing was looked up.', []));
-      }
-
-      // byGtin, not a bespoke code lookup: it already tries the UPC-A and
-      // EAN-13 forms of the same code, and "a barcode or a code identifying
-      // the product" is exactly the ambiguity that exists to resolve.
-      const original = fastLookup.byGtin(code) as Candidate | null;
-      if (!original) {
-        return json(200, alternativesPayload(true, 'We have not seen this one.', []));
-      }
-
-      // Items 18 and 19. The market comes from the user's location as sent by the
-      // phone (country, region, currency query parameters), never assumed; with
-      // none sent it is the unknown market. `mode` is validation or switching.
-      /*
-       * THE PRICE DATABASE IS OPTIONAL AND THIS ROUTE MUST NOT DIE WITH IT.
-       * D-130, from Jamin's 2026-09-14 phone test: on the Mac the configured
-       * prices.db does not exist, `lookupPrices` throws SQLITE_CANTOPEN, and
-       * the shopper gets a 500 where this route's own contract promises a
-       * 200. His words: it "should fail soft".
-       *
-       * It is the contract two comments above this one -- an empty list is a
-       * 200 with a heading, because a refusal to name a cheaper option is a
-       * correct answer -- and rule 6, always an answer. A cheaper-options
-       * panel is a bonus on top of a verdict the shopper already has; it has
-       * no business turning their scan into an error.
-       *
-       * The catch is DELIBERATELY NARROW in what it claims. It does not
-       * pretend nothing happened: the failure is logged with the code, and
-       * the shopper is told we could not look rather than told there is
-       * nothing cheaper. Those are the two different facts `camera.js`'s own
-       * comment says must never be collapsed into one silence.
-       */
-      let alternatives;
-      try {
-        alternatives = await alternativesFor(catalogueDb, original, askingCents, lookupPrices, {
-          market: marketFromLocation({
-            country: url.searchParams.get('country'),
-            region: url.searchParams.get('region'),
-            currency: url.searchParams.get('currency'),
-          }),
-          mode: url.searchParams.get('mode') === 'switching' ? 'switching' : 'validation',
-        });
-      } catch (err) {
-        logError({ where: '/api/alternatives', deviceId: null, err });
-        return json(200, alternativesPayload(true, 'We could not look for cheaper options just now.', []));
-      }
-      return json(200, alternativesPayload(
-        true,
-        alternativesHeading(original, alternatives.length),
-        alternatives,
-        alternativesHeadingStructured(original, alternatives.length),
-      ));
     }
 
     /*

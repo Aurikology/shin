@@ -86,7 +86,7 @@ test('with no shop picked no shop is sent, and a provider that throws never brea
   }
 });
 
-test('the chosen region and country code ride on every scan route and on alternatives (rows 14, 15)', async () => {
+test('the chosen region and country code ride on every scan route (rows 14, 15)', async () => {
   store.setMarket('Canada', 'CAD', 'CA');
   store.setRegion('Ontario');
   try {
@@ -106,13 +106,6 @@ test('the chosen region and country code ride on every scan route and on alterna
     calls.length = 0;
     await api.price({ text: 'x' });
     assert.equal(JSON.parse(calls[0].init.body).region, 'Ontario', 'the price route lost the region');
-
-    calls.length = 0;
-    await api.alternatives({ code: '0123456789012', askingCents: 499 });
-    const alt = new URL(calls[0].url, 'http://x');
-    assert.equal(alt.searchParams.get('country'), 'CA', 'alternatives lost the country');
-    assert.equal(alt.searchParams.get('region'), 'Ontario', 'alternatives lost the region');
-    assert.equal(alt.searchParams.get('currency'), 'CAD');
 
     store.setRegion('');
     calls.length = 0;

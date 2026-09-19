@@ -384,31 +384,6 @@ export function search({ text, limit = 5 }) {
   return get(`/api/search?${params.toString()}`);
 }
 
-/**
- * The cheaper same-category swaps for a product at a given asking price.
- *
- * Three at most, and the server writes each row's sentence: the rule about what
- * counts as cheaper (same category, comparable size, lower price per unit, a
- * seller with a real price) lives in the catalogue package and this client is
- * not allowed to have an opinion about it. Allergen differences come back on
- * the row and are printed, never used to hide one.
- *
- * A missing catalogue and a product we have never seen both come back 200 with
- * an empty list and a sentence saying which, because neither is an error and a
- * screen that treats them as one starts retrying around them.
- */
-export function alternatives({ code, askingCents }) {
-  const params = new URLSearchParams({ code, askingCents: String(askingCents) });
-  // The market rides along so the server compares like with like (same country,
-  // region when known, same currency). Only what the user chose is sent: with no
-  // market chosen nothing goes and the server calls it unknown, never Canada.
-  const ctx = scanContext();
-  if (ctx.countryCode) params.set('country', ctx.countryCode);
-  if (ctx.region) params.set('region', ctx.region);
-  if (ctx.currency) params.set('currency', ctx.currency);
-  return get(`/api/alternatives?${params.toString()}`);
-}
-
 export function catalogue() {
   return get('/api/catalogue');
 }
