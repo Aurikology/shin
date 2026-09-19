@@ -152,8 +152,8 @@ detent. Save is the decided primary act and the only entry to the return loop, s
 to reach it costs saves for nothing, and the peek is where the user is already looking. The label
 is keyed by tier: Save it on a good price, Watch it on fair and walk away, because telling someone
 to watch a price that is already good is telling them to wait for no reason. Correct it and Share
-sit at half, in that order, because a wrong verdict is worse than no verdict and correction is the
-only action that exists on every outcome including a refusal.
+sit at half, in that order, because correction is the only action that exists on every outcome
+including a refusal.
 
 **Reverses if:** the button at peek is mis-tapped while reading, which would show up as saves
 immediately followed by an unsave.
@@ -1646,37 +1646,7 @@ for its own part, if Aurik declines to agree once asked.
 2026-09-15. `docs/jamin-gemini-rules.md` says it outranks everything in this repo, and its own
 instruction is that each contradiction is *"either fixed to match this file or, if it should not be,
 raised with Jamin as a point."* Seven contradictions were live on Jamin's sweep of the same day.
-Four are being built (rules 1, 2, 4's plumbing and 7, plus the doc cleanup). These three are raised.
-
-**1. The grounded guard is not a wall around rule 4. It is what makes rule 4 legal.**
-
-Rule 4 is *"we will record EVERYTHING."* Jamin's known-contradictions list names
-`identify/src/grounded.ts` and the two-year reaper in `app/src/grounded-record.ts` as obstacles to
-it. They are the opposite. Google's terms, quoted verbatim at `identify/src/grounded.ts:4-19` from
-the 2026-03-23 Gemini API terms, forbid caching or analyzing Grounded Results — **and in the same
-breath permit** storing the text *"for up to two (2) years ... in chat history of an end user of
-your application only for the purpose of allowing that end user to view their chat history."*
-`GROUNDED_RETENTION_DAYS = 730` is that clause's own number, and `grounded-record.ts:96-99` says so.
-Deleting the guard does not unlock recording; it removes the one mechanism that makes recording
-permitted, and the penalty falls on the API key the whole product now runs on.
-
-There is one genuine conflict inside rule 4, and it is narrow: §2.2 of `docs/plan-gemini.md` quotes
-*"you will not track whether those interactions were specifically with a given Search Suggestion or
-Grounded Result."* So "record every tap" cannot include taps inside the grounded block. That is a
-region-scoped exclusion, already built (`e683150`), not a reason to remove anything.
-
-One weakness in this argument, stated rather than left for Jamin to find. The clause forbids caching
-**and** analyzing in one sentence, and Shin already crosses the analyzing half deliberately:
-`computeGauge` takes a median of Google's prices on our own server on every priced scan, and
-`gemini-grounded.ts:780-784` says so out loud -- *"a terms crossing left working on purpose, and it is
-listed as one"* -- taken under Jamin's own rule 5. So the honest position is not "the guard keeps us
-compliant". It is that one half of the clause is already knowingly crossed, and deleting the guard would
-add a second breach on top of the first rather than being the first. (Two other headers still deny the
-crossing they sit beside: D-111.)
-
-Cost if this is overruled anyway, counted rather than estimated: 2 source files (709 lines), 5 test
-files, 48 runtime tests, 5 compile-time `@ts-expect-error` assertions, 3 migration columns, and 6
-call sites in `app/server.ts`.
+Four are being built (rules 1, 2, 4's plumbing and 7, plus the doc cleanup). These two are raised.
 
 **2. The tier words.** Jamin: *"we tell the user based on their preference, this is factrually a
 bad, resonable or good price."* Aurik's ruling of 2026-09-14, *"The price line speaks the shopper's

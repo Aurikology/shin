@@ -17,16 +17,14 @@ Useful to the user. Easy to use. Visually appealing. A change that serves none i
    mock, scold, or blame the person holding the phone. "They are robbing you" is fine. "You got
    fooled" is not.
 2. **No savings claims.** No "$X a year" copy anywhere. No "you saved" totals.
-3. **The good/fair/high call is arithmetic.** `verdict()` in `src/catalogue.js` decides. Nothing
-   else decides, and no copy contradicts it.
-4. **Nothing counts up, ever.** A price appears whole. Typewriter text is fine. Ticking numbers are
+3. **Nothing counts up, ever.** A price appears whole. Typewriter text is fine. Ticking numbers are
    not.
-5. **A refusal never shakes, never buzzes, and never goes red.** It is grey and it gets one slow
+4. **A refusal never shakes, never buzzes, and never goes red.** It is grey and it gets one slow
    blink. Red means the price is bad.
-6. **The brand colour is never a verdict.** It is the shutter ring and the boot wordmark only.
-7. **No em dashes in any generated text**, code comments included. Use a comma, a full stop, or
+5. **The brand colour is never a verdict.** It is the shutter ring and the boot wordmark only.
+6. **No em dashes in any generated text**, code comments included. Use a comma, a full stop, or
    parentheses.
-8. **No app name anywhere in the UI.** The boot screen shows the mascot face and the words
+7. **No app name anywhere in the UI.** The boot screen shows the mascot face and the words
    PRICE CHECK. Nothing else names the product.
 
 ## Stack

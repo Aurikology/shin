@@ -28,9 +28,8 @@ Four facts set every answer below. They are not preamble. Each one kills mechani
    hard rule 3 forbids. Any Shin mechanic has to pay for something a second party can confirm, and
    the pool of confirmable behaviours is far smaller than Duolingo's.
 
-2. **A wrong verdict is worse than no verdict** (`CLAUDE.md`, priority 1). A reward that raises the
-   rate of bad rows raises the rate of wrong verdicts. That makes a corrupting mechanic not merely
-   risky but a direct hit on the product's only value.
+2. A reward that raises the rate of bad rows raises the rate of wrong verdicts. That makes a
+   corrupting mechanic not merely risky but a direct hit on the product's only value.
 
 3. **The primary user is a window shopper and the measure is browse frequency, never purchase
    frequency** (`CLAUDE.md`). This kills every mechanic priced against a purchase, and it also
@@ -38,10 +37,8 @@ Four facts set every answer below. They are not preamble. Each one kills mechani
    the scan meter.
 
 4. **The pilot's state is the budget.** The engine answers 2 of 7 items, there is no vision model,
-   there is no crowd price layer, and there is no per-item re-query source
-   (`docs/decisions.md`, "Real feed from day one, never live search";
-   `pages/shin-walkthrough.html`, stage 06). A mechanic whose input is a price Shin can re-check
-   has no input today.
+   and there is no crowd price layer (`pages/shin-walkthrough.html`, stage 06). A mechanic whose
+   input is a price Shin can re-check has no input today.
 
 **The rule the founder set on approving the brief, verbatim:** *"we are not trying to copy duolingo
 or any other app, we are taking inspiration that applies to us."* Every kept mechanic below carries

@@ -5,6 +5,20 @@ standing rule in this repo.** Where anything else disagrees, this file wins, and
 a defect to clean up. A future decision that would contradict any rule here is not made quietly:
 the session raises the exact points of conflict with Jamin first.
 
+**The Google Doc outranks every older note, and an older note that contradicts it is deleted.**
+His words, 2026-09-19: *"i've made many decisions in the google doc that will contradict the
+decisions in this repo. I want you to get rid of all the previous lines that contradict the google
+doc and make a statement that all contradictions that are found in the future that are between the
+google doc and a note made before the writing of the google doc will result in the note being
+deleted."* The Google Doc is "Shin Full Walkthrough" (docs.google.com/document/d/
+1f_p8XkoHygvAqOuG3tujYgencsh2OwEGFgvo2HTPjzg), created 2026-09-16; its decisions are carried in
+`docs/walkthrough/jamin-notes-2026-09-17.md` and "Walkthrough rulings" below. Any line in this
+repo written before 2026-09-16 that contradicts it is deleted when found, not kept, not annotated,
+not raised: delete it and name the deletion in the commit message. A contradiction with something
+written on or after 2026-09-16 is raised with him, not deleted. Descriptions of what the code does
+today are not notes of intent; a mismatch there is a build gap (`docs/beta-gaps-2026-09-19.md`).
+The first sweep ran 2026-09-19.
+
 ## The high-priority task
 
 Jamin, 2026-09-15: *"sort through all items on this repo to make sure all insturctions are up to
@@ -26,9 +40,7 @@ Jamin as a point. When the cleanup is done, record it in `notes/catch-up.md`.
    also sent to gemini."* And 2026-09-15: *"the image and barcode should not be part of the same
    scan. the barcode can be read and the info fed to gemini which would be a much cheaper api call
    than sending an image."* The phone reads the barcode itself and Gemini gets the digits as text.
-   The photo goes to Gemini only on a photo scan, when there is no barcode. And: *"the barcode
-   should not be auto read, there should be a scan the barcode button"*. No automatic barcode
-   detection; the user taps a "Scan barcode" button.
+   The photo goes to Gemini only on a photo scan, when there is no barcode.
 3. **The price does not come from Shin.** *"THE PRICE SHOULD NOT COME FROM US."* Shin's own price
    database, price engine and "cheaper" lookups are not the answer source.
 4. **Record everything.** *"we will record EVERYTHING that happens when the user interacts with the

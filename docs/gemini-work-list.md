@@ -23,18 +23,18 @@ Nothing on this list is started on purpose. Leftover code from a build that was 
 
 11. Build on the Interactions API (Google: "we recommend the Interactions API for all new development"; generateContent is "legacy"), with the `@google/genai` SDK or plain REST. Key in the `x-goog-api-key` header, never in the URL.
 12. A Gemini provider that fits the existing `Provider` interface (`identify/src/provider.ts:111`) and is chosen by `makeProvider` (`identify/src/model.ts:839`, line corrected 2026-09-15 — was `:807`) when `SHIN_MODEL_PROVIDER=gemini` and the key is set.
-13. **Superseded by rule 7** ("Claude does not take over"): no Claude fallback when a Gemini call fails after being selected (`identify/src/model.ts:829-833`, "NO CLAUDE BEHIND GEMINI, 2026-09-15"). Built as a startup refusal instead when the provider is named with no key — see item 81. Unchanged Claude behaviour when `SHIN_MODEL_PROVIDER` is genuinely unset stands, and is not a fallback in this sense: Gemini was never selected (`makeProvider`, `identify/src/model.ts:839-845`).
+13. **Superseded by rule 7** ("Claude does not take over"): no Claude fallback when a Gemini call fails after being selected (`identify/src/model.ts:829-833`, "NO CLAUDE BEHIND GEMINI, 2026-09-15"). Built as a startup refusal instead when the provider is named with no key — see item 81.
 14. Make the live photo route use the provider `makeProvider` chooses; today `modelOnce` (`app/server.ts:906`) builds an Anthropic client by hand, so the provider setting is ignored there.
 15. Ungrounded photo identification (no search tool): product name, brand, size value, size unit, pack count, category, whether it is a spec-variant product, model number and specs when visible. Structured output. Storable.
 16. Grounded barcode lookup for a barcode not in the catalogue: product name, brand, size, with source links per fact. [8]
-17. Grounded prices and reviews request: per offer retailer, price CAD, url, size value, size unit, pack count, model number, specs, condition; reviews rating, count, short summary, url. Nothing else. [4.1]
-18. Instructions on every request: Shin's voice, user's language (English or French), Canadian stores and CAD only, short lengths, fixed JSON layout. [2.3]
+17. Grounded prices and reviews request: per offer retailer, price, url, size value, size unit, pack count, model number, specs, condition; reviews rating, count, short summary, url. Nothing else. [4.1]
+18. Instructions on every request: Shin's voice, user's language, short lengths, fixed JSON layout. [2.3]
 19. **Done differently, locally.** No resubmission request is wired. `computeGauge` (`identify/src/gauge.ts:437`) runs synchronously inside `priceLineFor` (`identify/src/providers/gemini-grounded.ts:1180`), called from `lookupPrice` (`:1331`, used at `:1342`) — the same process, no second Gemini call. `verdictResubmissionRequest` (`identify/src/providers/gemini-grounded.ts:602`) and `GeminiGroundedProvider.verdict` (`:960`) exist in the file but have no production caller; only `identify/test/gemini-grounded.test.ts` and the fixture `identify/test/fixtures/gemini-website/piece5-verdict-resubmission.json` call them. Rule 1 ("one Gemini call per scan") forbids the design this item described. [4.3]
 20. **Done differently, locally.** `codeMatchesGauge` (`identify/src/gauge.ts:810`) does this comparison but has no production caller either, since nothing sends the function to Gemini to execute in production; `priceLineFor` uses the local `computeGauge` result directly and unchecked against any executed code. [4.3]
 21. Set image resolution for photos (Gemini 3: low 280, medium 560, high 1120 tokens per image) and keep requests under the 20 MB inline limit; send jpeg, png, webp or heic. Decided 2026-09-14: not picked by guess; test all three levels against real return quality and cost, and keep the option of offering a lower resolution on a lower-priced Shin tier.
 21b. Trust rule for an ungrounded read (barcode-to-photo pairing or a bare photo identification): decided 2026-09-14, never trusted on one frame and never re-checked by a second model call; the check is agreement across multiple camera frames of the same item.
 22. Set the thinking level per request (`thinkingLevel`; thinking tokens bill at the output rate).
-23. Confirm with a real call whether image input and Google Search work together in one request (not stated in Google's docs). If not, identification and search stay two calls.
+23. Confirm with a real call whether image input and Google Search work together in one request (not stated in Google's docs).
 24. Handle Gemini errors: 429 rate or quota, 401, 403, 503, and safety blocks (`safety`, `recitation`, `prohibited_content`, `spii`), each falling back or showing a plain message.
 25. Read citations and link each fact to its source; flag every fact, price and review with no link. [1]
 26. Read Search Suggestions (Google's rendered HTML) from every grounded answer and pass them to the client unmodified, up to 5. [2.2]
@@ -50,11 +50,7 @@ Nothing on this list is started on purpose. Leftover code from a build that was 
 
 ## D. Rules from Google's terms, as code
 
-33. Never write a grounded result into the catalogue, the price database, or anything served to other users; a test that proves it. [2.1]
-34. Store grounded answer text only on that user's own scan record (for example the scan's model JSON), kept at most 2 years, then deleted. [2.1]
 35. On a barcode miss, ask for a front photo and store the ungrounded identification paired with the barcode in the catalogue. [2.1]
-36. Delete interim grounded answers that were not shown, once the verdict answer exists. [2.1]
-37. Exclude taps inside the Gemini section and on its links from tap tracking; today `track.js` tracks every click (`app/public/js/track.js:216-220`) and has no exclusion mechanism. [2.2]
 38. Links open directly: no redirect route, no affiliate tag, no interstitial, no in-app frame. [2.2]
 39. Our own prices and Gemini's prices in separate sections, never one list. [2.2]
 40. Review the consent screen wording (`app/src/consent.ts`) for Gemini and Google's 30-day storage of grounded prompts.

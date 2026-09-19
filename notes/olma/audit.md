@@ -120,8 +120,6 @@ Ninety rows. Screen letters map to the inventory above.
 
 | # | Screen | Element | What it does | User need | Verdict | Reason | Shin's version |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 9 | Home Market | Country row, pre-filled to Canada with a flag | Scopes verdicts to a market | A verdict against local prices | take | The person is in a Canadian aisle. Without a named market, "above what it goes for" has no referent and Shin's whole judgment is unanchored. | New: home market row in You, pre-filled, one tap to change |
-| 10 | Home Market | Currency row, pre-filled to Canadian dollars | Puts every number in the user's money | Not converting currency while standing up | take | The tag in front of the user is in one currency; the comparable set has to be shown in the same one or the user does arithmetic in an aisle. | Same row |
 | 11 | Home Market | Explainer, "Verdicts are based on what this product should cost where you shop." | Names the basis of the judgment | Knowing what the verdict is measured against | take | Shin's first priority is that a wrong verdict is worse than none, and a verdict whose basis is unnamed cannot be checked by the person holding the phone. | One line above the provenance list, component 8 |
 
 ### E. How It Works (screen 7)

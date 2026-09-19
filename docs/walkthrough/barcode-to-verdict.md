@@ -10,9 +10,7 @@ from memory or from a planning document alone without also checking the running 
 1. The camera feed runs the whole time the scan screen is open.
 2. A background process tries to read a barcode out of every single frame, automatically,
    continuously, with nothing pressed by the user. Confirmed directly in the code: this is still
-   the case today. This conflicts with what he said on 2026-09-15, that there should be no
-   automatic reading at all, only a "scan barcode" button the user taps to start it. That button
-   does not exist yet; the automatic version is still what runs.
+   the case today.
 3. A single frame's read is never acted on by itself. The same digits have to be read the same
    way across several frames in a row before the app trusts it. Reason: one frame at a bad angle
    or with glare can misread a digit, and acting on a wrong digit means confidently naming the
@@ -29,11 +27,8 @@ from memory or from a planning document alone without also checking the running 
    can fire it the instant a barcode is confirmed, and so a request shaped this way is cacheable
    later.
 6. The server checks its own product list first, a table it owns with over five million rows, to
-   see if this exact barcode is already known to it.
-   **Open decision, not resolved by anything read:** he said the price should never come from
-   Shin's own data. Right now, if this table has the barcode, the product's identity (name,
-   brand, size) comes from this table, not from Gemini. It is not settled whether "the price"
-   meant only the price number, or also this identity lookup.
+   see if this exact barcode is already known to it. Right now, if this table has the barcode,
+   the product's identity (name, brand, size) comes from this table, not from Gemini.
 7. If Shin's own table has the barcode:
    - The scan is logged: which device, what was scanned, what it matched to, how it was
      matched, whether it succeeded, how long it took.
@@ -56,10 +51,6 @@ from memory or from a planning document alone without also checking the running 
    requirement:
    - A tone instruction, always included: *"Tone: flat, factual, direct. State the number and
      stop. Answer in English."* (Or the French equivalent, if the phone is set to French.)
-   - A market restriction, always included: *"Canadian retailers only, prices in Canadian
-     dollars (CAD) only. No third-party marketplace sellers, only the retailer itself. NEVER
-     convert a price from another currency into CAD: give the price as it stands with its own
-     currency code."*
    - The actual question, with the scanned digits dropped in, word for word: *"Use Google
      Search to identify the product with barcode [the digits]. Give its name, its brand and its
      size, and for EACH of those three facts the source link that establishes it (null if there
@@ -73,7 +64,7 @@ from memory or from a planning document alone without also checking the running 
      null for each of those three facts. Google's live web search is turned on for this request.
 
    **The exact request sent for the price and reviews call, fired at the same time.** Same tone
-   and market sentences as above. Its actual question: *"Use Google Search to find, for: [brand]
+   sentence as above. Its actual question: *"Use Google Search to find, for: [brand]
    [name] [size] (barcode [digits]), (1) current prices at Canadian retailers, giving for each
    offer the retailer, the price, the currency, the url, the size, the pack count, the model
    number, specs, and condition, and also whether it's a marketplace seller, needs a membership,
@@ -94,8 +85,7 @@ from memory or from a planning document alone without also checking the running 
    or blending it with anything else, and may only show it back to the exact person who asked.
    So the moment that answer lands in the app's code, it is wrapped so that turning it into
    plain text, saving it to a database, or splicing it into another value does not just misbehave,
-   it breaks the program outright. This is deliberate: rather than trust people to remember a
-   rule, the code is built so breaking the rule crashes.
+   it breaks the program outright.
 
 ## Getting a price verdict once the shopper types the shelf price
 
@@ -109,31 +99,17 @@ from memory or from a planning document alone without also checking the running 
       permanently saved onto the scan record as "the verdict as shown."
     - Completely separately, a new request asks Gemini to search the web for this product's
       Canadian prices and reviews, wrapped the same unsaveable, uncombinable way as above.
-    Stated directly in the code as deliberate, for two named reasons: Google's rules forbid
-    mixing a search-backed answer into anything the app calculates or sorts, and separately,
-    Shin wants its own good/fair/high judgment to depend only on evidence it can point back to
-    later, never a number pulled from an outside search nobody can re-check. So the two answers
-    are shown in two separate sections on screen, and the code makes them structurally unable to
-    merge into one list.
-    **Open decision:** this means Shin is still running its own separate pricing engine at the
-    same time as Gemini's, not instead of it. Whether that still counts as "the price coming
-    from us" under his rule, or whether Shin's own engine is meant to be retired once Gemini is
-    live, is not settled anywhere read.
+    So the two answers are shown in two separate sections on screen, and the code makes them
+    structurally unable to merge into one list.
 11. For the median and percent-from-median math he described, there are two different,
     disagreeing versions of how it is actually computed, and this is a live contradiction, not
     an outdated plan versus a current one:
-    - **The documented rule** says Shin's server must never do this math itself, because
-      computing a median from Gemini's search results counts as the forbidden "analyzing." The
-      intended fix, on paper: send the raw prices back to Gemini a third time, along with the
-      shelf price, the user's thresholds, and the literal, exact code of the math function, and
-      ask Gemini to run that exact code itself using a feature that actually executes code, then
-      return only the resulting numbers, never the source prices.
     - **What actually runs**, verified directly in the code that produces what reaches the
-      screen: none of that. The server pulls the raw prices straight out of Gemini's answer and
-      runs the identical median and percentage math itself, in its own plain code, no third
-      Gemini call involved. The third-call, code-execution version does exist in the codebase,
-      but only as a side check confirming Gemini would have run the correct math if asked; it
-      does not produce what is shown.
+      screen: the server pulls the raw prices straight out of Gemini's answer and runs the
+      identical median and percentage math itself, in its own plain code, no third Gemini call
+      involved. The third-call, code-execution version does exist in the codebase, but only as a
+      side check confirming Gemini would have run the correct math if asked; it does not produce
+      what is shown.
 
     **The exact math, whichever side runs it.** It is one function that does the following, in
     order:

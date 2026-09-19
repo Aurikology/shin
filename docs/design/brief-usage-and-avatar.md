@@ -83,8 +83,7 @@ starts from what this one writes.
   `C:\Users\xujam\AppData\Local\Microsoft\WinGet\Packages\yt-dlp.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-N-124716-g054dffd133-win64-gpl\bin\`.
 - **Decisions already made**, in `docs/decisions.md`, that this pass does not reopen without new
   evidence: the verdict is a face; the button after the verdict is save, not buy; the attitude is
-  the user's choice from three; produce is out of v1; real feed, never live search; the
-  hard rules in `CLAUDE.md`.
+  the user's choice from three; produce is out of v1; the hard rules in `CLAUDE.md`.
 - **The prior research** on competitors is in `pages/shin-walkthrough.html` and
   `pages/shin-hard-dozen.html`. Yuka is analysed there. OLMA is not, anywhere in the repo.
 

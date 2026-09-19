@@ -33,9 +33,7 @@ re-opening the file it describes.
    because of a hard rule that cannot be changed by chat conversation alone: a Canadian law,
    Competition Act section 74.01(1)(b), forbids making a performance or savings claim to a
    consumer without adequate and proper testing behind it first, and Gemini's search-found prices
-   are not tested or dated the way this app's own verified price records are. The decision log
-   records the resolution chosen instead: **the two numbers stay, but they name the shopper's own
-   range rather than Shin handing down an opinion.** The zones the shopper eventually sees are
+   are not tested or dated the way this app's own verified price records are. The zones the shopper eventually sees are
    worded "under your line," "in the middle" and "over your line," never "good," "bad," "cheap,"
    "reasonable" or any translation of those words, and four separate test files in this codebase
    exist specifically to catch a banned word like that leaking back in.

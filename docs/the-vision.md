@@ -58,11 +58,7 @@ that literally wastes the users time."* And on the accuracy-first posture the fi
 invented on its own: *"You also created your own rules and said that accuracy is the most
 important thing. When in reality, its not and it impeeds so much of our design."*
 
-The order of evidence: a fresh price on this exact thing at a named store; the same thing in
-another size; an outside barcode lookup; public price statistics for the category and province
-scaled to the size; our own average for the category; last, an estimate labelled as an estimate.
-The good/fair/high call is arithmetic on how many sellers, how fresh, how close the match; never
-a model's opinion. Every answer says what it rests on.
+Every answer says what it rests on.
 
 Not yet known: whether removing the thresholds on 2026-09-05 changed anything. Coverage on the
 seven pilot items was 2 of 7 before and after, and seven items cannot tell "supply is the cap"
@@ -73,8 +69,8 @@ with the old gates on and off.
 
 His words, 2026-09-05: *"I believe almost everything olma did is correct except they didn't
 integrate our barcode and cateloge system."* A competitor already shipping this is validation.
-What is ours: a barcode read on every preview frame for free, the catalogue lookup before any
-model is called, and the corrections and history that OLMA does not keep.
+What is ours: a barcode read on every preview frame for free, and the corrections and history
+that OLMA does not keep.
 
 His tier design as he stated it (2026-09-05) is the standing design until he changes it, with
 his note: *"The specifics of this system are very open to changes, anything can be changed if

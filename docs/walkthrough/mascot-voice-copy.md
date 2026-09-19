@@ -150,12 +150,12 @@ broken-output fallback, the three attitude cells) applies to French exactly as i
 because it is the same code path with one more level of lookup in front of it.
 
 The file's own header states three deliberate choices behind the French text: it targets Canadian
-French rather than the French of France, because the product's market is Canada and the
-vocabulary follows the grocery aisle rather than the dictionary (naming, for example, "rabais" and
-"en solde" for a discount, "magasiner" for the act of shopping); it uses the informal "tu" form
-throughout rather than the formal "vous", on the stated reasoning that a Quebec consumer app
-trying to sound like a person standing beside the shopper does not address them the way a bank
-would; and every one of the three attitudes had to survive translation as a distinct voice rather
+French, and the vocabulary follows the grocery aisle rather than the dictionary (naming, for
+example, "rabais" and "en solde" for a discount, "magasiner" for the act of shopping); it uses the
+informal "tu" form throughout rather than the formal "vous", on the stated reasoning that a
+consumer app trying to sound like a person standing beside the shopper does not address them the
+way a bank would; and every one of the three attitudes had to survive translation as a distinct
+voice rather
 than collapsing into one, with the file's own comment noting that anywhere the three English
 variants of a line came out closer together in French than they are in English, that is named in
 this lane's own report rather than shipped silently as if it were not a change.

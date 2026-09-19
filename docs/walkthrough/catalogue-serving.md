@@ -381,9 +381,7 @@ rule applies to a product once it has actually been matched.** This step
 looks at which of the underlying source databases the matched product came
 from, together with its own stored category tags, and maps that onto one of
 five kinds the pricing engine understands. It is written to return "we don't
-know" rather than guess whenever the mapping is not confident, because
-mapping a product to the wrong pricing rule is treated as worse than
-refusing to price it at all. Some of its rules are stated as deliberately
+know" rather than guess whenever the mapping is not confident. Some of its rules are stated as deliberately
 provisional rather than settled: pet food and personal-care products are
 currently priced under the same rule as ordinary packaged groceries, on the
 stated reasoning that both are barcoded, shelf-stocked, and discounted on

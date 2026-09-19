@@ -156,7 +156,7 @@ because six of the seven are exceptions and the seventh is the rule.
 
 ## The root
 
-**Every price at every major Canadian chain, in every store, live; every purchase a person makes,
+**Every price at every major chain, in every store, live; every purchase a person makes,
 itemised, arriving on its own; and a promise backed by money that a Shin user never pays above
 the fair line.**
 *Kind: all kinds. Moves: every figure. From: the moonshot, its one sentence, 2026-09-06.*
@@ -913,7 +913,7 @@ what the app is for, a path per kind.*
     - The money that share is worth, from the bill and not from the rate card. **Shown by:**
       two months of bills compared.
 
-- **WALL: a reader trained on Canadian shelves and receipts, small and fast enough to run on
+- **WALL: a reader trained on shelves and receipts, small and fast enough to run on
   the phone.** A company our size cannot train it. Its children are the way around it, which
   is the corrections and the scans becoming the training signal. *Kind: all kinds. Moves: what
   each payer leaves after the store's cut and the model bill. From: the moonshot, fifth wall.*
@@ -1000,9 +1000,8 @@ what the app is for, a path per kind.*
       (looked at by: the flow walked with each path forced in turn)
     · **How it looks:** one set of states across every path, so the app never looks like four
       different apps (looked at by: each path walked and the screens compared)
-    · **What happens behind the glass:** one function every screen calls, which tries
-      barcode, catalogue, photo and online search in that order and stops at the first
-      answer (looked at by: each path forced to fail in turn, and the next one tried)
+    · **What happens behind the glass:** one function every screen calls (looked at by: each
+      path forced to fail in turn, and the next one tried)
     · **What it costs:** this step is free by itself; it only ever spends what the path it
       picks spends (looked at by: the calls counted at this step alone, expecting none)
     · **What we are allowed to do:** does not apply: this step moves data between paths
@@ -1829,8 +1828,7 @@ says fair or not and where cheaper; what the app is for, always answer.*
     statistic is a decision, read against its own guarantee; the moonshot, the reserve and the
     tier's price, his and unset; moves: payers per hundred downloads)*
 
-- **The good, fair or high call, which is arithmetic on how many sellers, how fresh and how
-  close the match, and never a model's opinion.** *Kind: all kinds. Moves: the share answered
+- **The good, fair or high call.** *Kind: all kinds. Moves: the share answered
   from real prices on the thing itself. From: what the app is for, always answer.*
     · **What the person sees:** one word they can act on in an aisle, before any explanation
       (looked at by: the word recalled correctly after a two-second look)
@@ -1844,9 +1842,6 @@ says fair or not and where cheaper; what the app is for, always answer.*
       (looked at by: the calls and the outcomes counted together, reported as a sentence)
     · **What it costs:** the card is what a person acts on, so its cost is the share of
       answers that produce no action at all (looked at by: the share acted on, counted)
-    · **What we are allowed to do:** the call is arithmetic on prices already held, never a
-      model guessing at a person from their scans (looked at by: the inputs behind one
-      verdict read back, all three drawn from stored prices)
     · **Who runs it when it breaks:** a verdict that starts disagreeing with real shelves is a
       drift nobody notices without a check (looked at by: the hand-priced set re-run on a
       schedule, and the disagreement count watched)
@@ -1867,9 +1862,6 @@ says fair or not and where cheaper; what the app is for, always answer.*
     for, always answer; moves: the share answered from real prices on the thing itself)*
     **Shown by:** one band changed, and every place a verdict is shown updated by that one
     change rather than by a separate fix made to each.
-  - It never asks a reader for the verdict, only for what the thing is. *(from: what the app
-    is for, its one kept rule; moves: the share answered from real prices on the thing itself)*
-    **Shown by:** the code path read: no model call on the way to a verdict.
   - Every band is checked against the hand-priced items before it moves. *(from: the fault
     list, the running score; moves: corrections per hundred verdicts)*
     - The set the bands are checked against. **Shown by:** the set, at the size it is meant to
@@ -2787,17 +2779,6 @@ how it ships, its stages.*
   - What comes back is a price observation with a store and a date on it. *(from: what the app
     is for, supply is the engine; moves: the share answered from real prices on the thing
     itself)* **Shown by:** the correction found in the record with its store and date.
-  - It works with the signal off, because the aisle is the worst place for signal, so a real
-    correction is never lost to a dead network. *(from: the moonshot, offline looks synced as
-    harvest; moves: the share answered from real prices on the thing itself)* [the sending up
-    is built where it answers with no signal]
-    - The correction saved on the phone first. **Shown by:** the network off, a correction
-      made, and it visible on the phone.
-    - It sent when the signal returns, without the person doing anything. **Shown by:** signal
-      restored, and the correction found in the record.
-    - The same correction sent twice landing once. **Shown by:** a resend forced, and the
-      record counted.
-
 - **What a person has scanned, saved and watched is theirs, in the app, and worth opening for
   its own sake.** *Kind: all kinds. Moves: return in week two. From: what the app is for, use
   makes it better.*
@@ -2992,10 +2973,6 @@ how it ships, its stages.*
       nothing on screen asks it. *(from: the fault list, a finished route nothing calls,
       2026-09-05)* **Shown by:** a scan walked to the point where a cheaper option should
       appear, and whether it does.
-    - A barcode still answering with the network off, since both halves of that path already
-      exist and no screen starts them. *(from: the fault list, the offline aisle finished on
-      both sides and reached by neither, 2026-09-05)* **Shown by:** the network turned off, a
-      known barcode scanned, and whether the name appears.
     - The list of finished pieces, and the list of callers, checked by walking the app rather
       than by reading the code. **Shown by:** the two lists compared, then the walk itself
       recorded.
@@ -5050,61 +5027,6 @@ decision; the moonshot, it works with no signal.*
       - A way for a reviewer to open the app without a real phone number, since a reviewer is
         not a real user. **Shown by:** the app opened using only what was handed to
         reviewers.
-
-- **It answers with no signal in the store, from a small slice carried on the phone, and what
-  happened offline is sent up when the signal returns.** The slice is prices only and small
-  because a phone app cannot hold gigabytes (his constraint, 2026-09-05). *Kind: packaged and
-  tech at chain retail. Moves: answered from real prices on the thing itself. From: the
-  moonshot, it works with no signal.*
-    · **What the person sees:** the same answers in a basement, with nothing to turn on
-      (looked at by: a scan in aeroplane mode by somebody who has not seen the app)
-    · **How it looks and sounds:** whether the answer reads the same offline as it does
-      online, or visibly becomes a lesser thing (looked at by: the same screen compared with
-      the network on and then off)
-    · **What happens behind the glass:** a lookup against rows already sitting on the handset
-      instead of a call to a server (looked at by: the network turned off mid-scan and the
-      answer still arriving)
-    · **What it costs:** the download itself costs a person their data allowance (looked at
-      by: the megabytes, measured on a real phone)
-    · **What we are allowed to do:** prices sitting on a person's phone without their signal
-      on, and how long they are kept before they are refreshed or dropped (looked at by: the
-      slice's age on a phone, read against the data policy)
-    · **Who runs it when it breaks:** a slice that goes stale on a phone that has not been on
-      wifi for a week (looked at by: the age of the slice on a phone, read)
-    · **What it feeds back:** nothing while the phone is offline; what was missed is only as
-      good as the queue that catches it later (looked at by: the queue compared against what
-      the person actually scanned)
-    · **Does not apply:** how it reaches people, since a cache is never shown to anyone; it is
-      felt as speed in a basement, never seen on a page
-  - A small slice, prices only, sized for what this person is likely to scan, and chosen per
-    person, which is where the survey and the history earn their keep. *(from: his constraint,
-    2026-09-05, that a phone cannot hold gigabytes; moves: answered from real prices on the
-    thing itself)*
-    - What goes in it: this person's likely scans, prices only, not the shelf, and what is
-      deliberately left out. **Shown by:** the size on disk, on a real phone.
-    - How it is chosen per person. **Shown by:** two people getting two different slices.
-    - Getting it onto the handset and keeping it current.
-      - The first download, sized so it does not cost a person their data. **Shown by:** the
-        megabytes, measured on a real phone.
-      - Updating it without downloading it again. **Shown by:** the bytes moved on a day's
-        update.
-      - It answering a code it has never been asked for before, once it is installed. **Shown
-        by:** a phone in aeroplane mode answering a code it has never seen before.
-    - What it says when the answer is not in it. **Shown by:** an unknown code scanned with
-      the network off.
-  - A screen actually calls it, which is the half that has been missing. *(from: the fault
-    list, the offline shelf no screen reaches, 2026-09-05; moves: answered from real prices on
-    the thing itself)* **Shown by:** the network turned off and a known code answered.
-  - It refreshes on wifi, quietly. *(from: the moonshot, the offline pack; moves: answered
-    from real prices on the thing itself)* **Shown by:** a refresh happening on wifi with
-    nobody asking.
-  - What happened while offline is sent up when the signal returns. *(from: the moonshot,
-    offline looks synced as harvest; moves: answered from real prices on the thing itself)*
-    - The queue on the phone. **Shown by:** three offline actions, all present after a restart
-      of the app.
-    - Sending without the person doing anything. **Shown by:** signal restored, and the rows
-      appearing.
-    - The same thing sent twice landing once. **Shown by:** a resend forced.
 
 - **Under a second on a phone (untested target), which is not the same as under a second on a
   laptop.** *Kind: all kinds. Moves: return in week two. From: what the app is for, fast

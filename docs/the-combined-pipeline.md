@@ -71,11 +71,6 @@ Best Buy set was rejected before confidence was ever computed. With the gate gon
 a cheerful "3 sellers" on screen. `confidenceOf` now normalises too. Removing a check can promote
 the thing behind it from dead code to the user's only number.
 
-**The one thing kept.** The direction of the verdict is computed from numbers here, never asked
-of a model. Telling somebody a price is good when it is not is the only mistake on the screen
-that makes them spend money, and the only one they cannot undo by looking again. A model writes
-the sentence about a decision arithmetic has already made.
-
 ---
 
 ## 2. The pipeline, stage by stage
@@ -173,8 +168,8 @@ The yardstick is a **national typical range**, computed from stored observations
 window, never an average, promotions kept separate. This is a database query, not a search, and
 it answers in milliseconds.
 
-The verdict word is arithmetic against that range. The confidence is computed from seller count,
-age, and whether the join was by barcode or by name.
+The confidence is computed from seller count, age, and whether the join was by barcode or by
+name.
 
 A written sentence arrives from the model a moment later and replaces the fast local one. OLMA
 does exactly this, and the frames show the swap happening inside a single quarter second. It is

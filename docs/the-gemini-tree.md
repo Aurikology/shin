@@ -80,8 +80,8 @@ barcode, it should search the image. shin should guide the user to frame the ima
 [docs/plan-gemini.md §1]*
 
 This redraws the existing "It knows what the thing is" branch for the one change decided
-2026-09-14: Gemini takes over a barcode miss and any photo identification, with Claude kept
-standing behind it. The barcode-first flow, the catalogue, and the classifier that already exist
+2026-09-14: Gemini takes over a barcode miss and any photo identification. The barcode-first
+flow, the catalogue, and the classifier that already exist
 are named where this branch touches them and are not redrawn here.
 
 - **Barcode is recommended first, before a photo is ever asked for.** *Kind: all kinds. Moves:
@@ -267,9 +267,6 @@ are named where this branch touches them and are not redrawn here.
     once to the asking user the way a barcode-miss lookup is, never stored in the catalogue.
     Rejected for shared storage, untested: no document calls for a second paid photo call when
     the ungrounded one already answers.
-  · ⇄ avenue: Claude, ungrounded, the existing path. Needs nothing new; it already runs. Limited
-    to whatever Claude's own measured accuracy is (this section's own fallback node). Kept as the
-    fallback, not dropped, tested today as the live path (see the Claude fallback node below).
   · ⇄ avenue: asking the person to type the name. Needs one field, which already exists. Limited
     to a photo that also fails; slower for a person already holding the item up to the camera, so
     not the first resort. Not tested here, since a photo is tried first.
@@ -294,13 +291,9 @@ are named where this branch touches them and are not redrawn here.
     say either way. Website test pending: none of the collected consumer-website tests sent an
     image alongside a search-grounded prompt in the same turn; the barcode tests were text only
     and the photo test carried no search tool. **Buildable. Shown by:** one real API call with
-    both, read for grounding metadata in the reply; if it fails or returns no grounding,
-    identification and any grounded search stay two calls, which every other node here already
-    assumes. [item 23]
-  - wiring: the live photo route must call whichever provider the switch builds, not a hand-built
-    client, or none of this reaches Gemini regardless of what is built here. Written, uncommitted,
-    with a finding against it. [waits on: the Claude fallback node below, which carries this
-    evidence fully and is not repeated here]
+    both, read for grounding metadata in the reply. [item 23]
+  - wiring: the live photo route must call the Gemini provider directly, not a hand-built
+    client, or none of this reaches Gemini regardless of what is built here.
 
 - **Framing coaching keeps a photo readable before it is sent, and tech is coached differently
   from everything else.** *Kind: all kinds; tech's target is the box label or spec sticker
@@ -369,45 +362,6 @@ are named where this branch touches them and are not redrawn here.
     question before any price search fires. [item 49]
   - The two prompts' wording, written once each. **Shown by:** both questions read by somebody who
     has not seen the app and answered correctly on the first try. [item 59]
-
-- **When Gemini cannot answer, Claude answers instead, and the record says which one did.** *Kind:
-  all kinds. Moves: answered from real prices on the thing itself, and where it cannot, answered
-  from something weaker, since an outage becoming a refusal would move nothing and always-answer
-  is priority 1. From: "the Claude path stays as the fallback when a Gemini call fails or no key
-  is set" [docs/plan-gemini.md §1]; work-list item 13.*
-    · **What the person sees:** no visible difference; a fallback-answered scan looks the same as
-      a Gemini-answered one.
-    · **How it looks and sounds:** does not apply, the switch is invisible by design.
-    · **What it costs and earns:** a failed Gemini call is not spent twice; the whole call falls
-      back once, after Gemini's own retry policy has already had its shot, rather than the two
-      vendors' retries interleaving.
-    · **What we are allowed to do:** does not apply, the fallback decision carries no grounded
-      content.
-    · **Who runs it when it breaks:** whoever reads the response's own record of which vendor and
-      model actually answered, written specifically so a fallback answer is never logged as a
-      Gemini one that happened to run on Claude's model.
-    · **What it feeds back:** how often the fallback fires is itself worth watching, since a high
-      rate means Gemini is effectively not the identification path at all.
-    · **How it reaches people:** does not apply.
-  - Written and unit-tested: the whole-call fallback and the gemini branch of the provider switch
-    build a Gemini-then-Claude chain when the environment names Gemini and a key is present, and
-    the unchanged Anthropic path otherwise. Written, uncommitted: both files sit modified and
-    unstaged, never pushed. **Shown by:** its own test suite, which disagrees with itself, 182 of
-    188 identify tests passing, 6 failing on an old response shape, typecheck carrying 4 errors.
-    [identify/src/provider.ts, withFallback; identify/src/model.ts, lines 807-820, both opened
-    2026-09-14; docs/gemini-work-list.md, "Leftover code," a same-day inventory][item 13]
-  - **Finding against this level:** the client the switch actually builds for Gemini targets the
-    older REST endpoint on older models, not the newer API the rest of the plan assumes, and sends
-    the API key as part of the request address rather than in a header, which is exactly what the
-    plan says never to do. So the one piece of Gemini identification wired all the way to the live
-    photo route today runs through the wrong client, and pointing it at the right one is unbuilt.
-    Not his, not blocked outside: a same-day build mistake, buildable in one pass once noticed.
-    [identify/src/model.ts, the import at the top of the gemini branch; identify/src/providers/
-    gemini.ts, the request URL at line 181; both opened 2026-09-14][waits on: the connection: the Interactions API, with the key in a header, never a URL]
-  - The live photo route itself now calls the provider switch instead of hand-building a client,
-    closing the exact gap this branch exists to close. Written, uncommitted, same state as above.
-    [app/server.ts, modelOnce at line 906, opened 2026-09-14][item 14][waits on: the live photo
-    route fixed to call the provider switch]
 
 ---
 
@@ -535,8 +489,8 @@ that every one of the seven either shapes or reads.
     empty case then hands off to the next rung of the evidence ladder (Shin's own arithmetic
     verdict, item 47, a different branch), not to a refusal.
 
-- **Instructions on every request: Shin's voice, the user's language, Canadian stores and CAD
-  only, short lengths, a fixed JSON layout.** *Kind: all kinds. Moves: what each payer leaves
+- **Instructions on every request: Shin's voice, the user's language, short lengths, a fixed
+  JSON layout.** *Kind: all kinds. Moves: what each payer leaves
   after the store's cut and the model bill. From: plan-gemini.md §2.3, and Jamin, "can we frame
   gemini to respond in a certain way."* [item 18]
     · **What the person sees:** an answer that reads like Shin, in the language they set up in,
@@ -565,9 +519,6 @@ that every one of the seven either shapes or reads.
     what makes the app usable for a French-Canadian install rather than a workaround)* **Shown
     by:** the same product asked about in both languages, the JSON layout identical, the prose
     fields in the requested language.
-  - Canadian stores and CAD only, no US or international listings unless separately labelled
-    marketplace (plan-gemini.md §7.6, not yet adopted). **Shown by:** a product sold in both
-    countries returning only Canadian retailers in the main list.
   - Short lengths and the fixed JSON layout, so the client never parses free text.
     **Shown by:** the returned JSON validated against the same schema on ten different products
     without a parse failure.
@@ -618,36 +569,6 @@ that every one of the seven either shapes or reads.
     will be weak the same way; what would separate them is a real API response's `annotations`
     checked against the same facts. **Shown by:** the seven chats' text, already collected.
     [gemini-web-tests.md, T1a, T1b, T4, T6, T7, T8, T9, 2026-09-14]
-
-- **STANDING RULE: Search Suggestions accompany every grounded answer, shown unmodified, up to
-  five.** *Kind: all kinds. Moves: answered from real prices on the thing itself, since losing
-  the key over a terms breach would end this whole subtree, not only this one screen. From:
-  Google's terms (ai.google.dev/gemini-api/terms, read 2026-09-14): Search Suggestions must
-  accompany grounded results; and ai.google.dev/gemini-api/docs/grounding, read 2026-09-14,
-  which names the field `google_search_result.search_suggestions`, an HTML snippet, on the
-  Interactions API (the older `generateContent` calls the same widget
-  `searchEntryPoint.renderedContent`).* [item 26]
-    · **What the person sees:** the suggestion chips under every grounded answer, tapping one
-      opens google.com (looked at by: the chips present on a real grounded screen)
-    · **How it looks and sounds:** rendered exactly as Google returns the HTML, never
-      restyled into Shin's own chip design, since the terms forbid modifying a Search
-      Suggestion (looked at by: the rendered markup diffed against the raw HTML returned)
-    · **What it costs and earns:** nothing extra; the HTML rides in the same response
-    · **What we are allowed to do:** this is the one Google requires rather than merely
-      permits; dropping it is the terms violation most likely to cost the key (looked at by:
-      every grounded response checked for a non-empty suggestions field before it ships)
-    · **Who runs it when it breaks:** a grounded answer with a missing or empty
-      `search_suggestions` field is a stop-and-flag case, since showing the answer without it
-      breaches the rule Google actually wrote (looked at by: the missing-field count, watched)
-    · **What it feeds back:** nothing pooled, same restriction as the parent call
-    · **How it reaches people:** does not apply: this is a compliance element, not a marketing
-      moment
-  Enforced by the render path refusing to show a grounded price, review or description block
-  unless a `search_suggestions` payload is attached to the same response. What catches a
-  breach: an automated check on every deployed build that opens one real grounded response and
-  fails if suggestions are absent, run by a session that did not write the render code (rule
-  17-equivalent for this rule). **Not buildable in the ordinary sense** because it is enforced
-  from now on, not built once.
 
 - **The thinking level set for this request.** *Kind: all kinds. Moves: what each payer leaves
   after the store's cut and the model bill, since thinking tokens bill at the output rate.
@@ -703,14 +624,13 @@ that every one of the seven either shapes or reads.
       itself a signal to move the model or the cap (looked at by: an error-kind count read
       weekly)
     · **How it reaches people:** does not apply: an error is not a moment worth filming
-  - 429 (rate or quota): retried once with backoff, then falls back to the Claude path built in
-    section 7. *(moves: answered from real prices on the thing itself)* **Shown by:** a 429
-    forced and the same scan completing through the fallback.
+  - 429 (rate or quota): retried once with backoff. *(moves: answered from real prices on the
+    thing itself)* **Shown by:** a 429 forced.
   - 401 or 403 (the key itself): no retry; recorded and surfaced as the key problem it is,
     cross-referenced to section 7's key node rather than duplicated. **Shown by:** a revoked
     test key producing the stop-and-report path, not a silent empty answer.
-  - 503 (service unavailable): retried once, then the same fallback as 429. **Shown by:** the
-    same forced-error test as the 429 case.
+  - 503 (service unavailable): retried once, as 429. **Shown by:**
+    the same forced-error test as the 429 case.
   - A safety block (`safety`, `recitation`, `prohibited_content`, `spii`): no retry of the same
     prompt, since retrying an unchanged prompt against the same block wastes a call; shown as
     "blocked outside" with what lifts it named per case (a differently framed request, or
@@ -815,26 +735,10 @@ verdict kept beside it rather than merged into it.
     · **What we are allowed to do:** this is the entire reason the step exists rather than a
       median computed on our own server, covered in its own child below
     · **Who runs it when it breaks:** a mismatch between the code Gemini says it ran and Shin's
-      function must fail closed to "no verdict", never to a silently different number (looked
-      at by: the mismatch forced with an edited function, and the fallback traced)
-    · **What it feeds back:** nothing from this step is stored past the person's own scan
-      record, since its inputs are grounded prices (looked at by: a search of the shared
-      catalogue and price pool for any row sourced to this step, expecting none)
+      function is marked for review, never shown to the user and never silently swapped for a
+      different number (looked at by: the mismatch forced with an edited function, and the
+      marking traced)
     · **How it reaches people:** does not apply
-  · **⇄ avenues for who does the math on grounded prices:**
-    · our own server computing the median directly: blocked outside, since touching grounded
-      prices with our own code is "analyze" under the terms [plan-gemini.md §2.1, §4.3]
-    · a free-form Gemini answer stating the verdict itself: rejected, since the good/fair/bad
-      call would then be a model's opinion, which the vision's own rule forbids ("never a
-      model's opinion", §1) [plan-gemini.md §2.3]
-    · **chosen: Gemini running Shin's fixed function inside its code-execution sandbox**, under
-      the terms' allowance to resubmit grounded text "for the purpose of ... obtain[ing] a
-      refined or improved Grounded Result to display to the end user" [plan-gemini.md §2.1,
-      §4.3], with the constraint that interim answers are never used for anything else and any
-      undisplayed one is deleted
-    · Google's written permission, asked for once there is traction: would lift the first
-      avenue's block outright and let the math run on our own server instead. Not asked yet.
-      [plan-gemini.md §10]
   - The function itself, run unchanged every time: median of the store prices, percent each
     price sits from the median, a span sized to the widest deviation or 1.5 times either
     threshold (whichever is larger), rounded up to the next 5, position on a 0-to-100 line with
@@ -1429,435 +1333,6 @@ Gemini web-test file's remaining entries beyond T1a/T1b, which bear on identific
 (section 1's branch) rather than the result screen and were not read in full to stay inside this
 section's scope.
 
-## 5. It stays inside Google's terms
-*Kind: all kinds. Moves: answered from real prices on the thing itself (the key that answers this
-figure is the thing every rule below protects; a breach found by Google switches it off, the same
-reasoning the tree already applies to the key itself). From: https://ai.google.dev/gemini-api/terms,
-read 2026-09-14; Jamin, 2026-09-14, "research geminis terms for what our app is trying todo."*
-
-Twelve things below, and the wiring that makes them hold everywhere at once rather than once per
-route. If all of them existed, nothing would still be missing for Gemini to be used the way its
-own terms allow, for as long as the key keeps working.
-
-- **One shared guard sits between every Gemini response and everywhere it might go, so a rule
-  below is enforced once rather than reimplemented, and forgotten, in every route that touches
-  a grounded answer.** *Moves: answered from real prices on the thing itself. From: rule 8 of
-  the tree rules (a level of pieces needs a wiring child); plan-gemini.md section 9, "a test
-  proves no grounded result is written to the catalogue, the price database, or anything served
-  to other users."*
-    · **What the person sees:** does not apply: this is what stands between the routes, never a
-      screen
-    · **How it looks and sounds:** does not apply
-    · **What happens behind the glass:** one function receives every grounded response before any
-      route touches it, and hands back only what that route is allowed to do with it: render to
-      this user, write to this user's own scan record, or neither; nothing downstream gets the
-      raw response directly
-    · **What it costs:** the cost of building one guard instead of trusting each of several
-      routes to remember the same rule; cheap next to the cost of one route missing it
-    · **What we are allowed to do:** this is the mechanism that makes every rule below actually
-      hold, rather than hold only where somebody remembered to write it
-    · **Who runs it when it breaks:** a route bypassing the guard is a code-review finding, not a
-      runtime one, so it is caught by the test below rather than by a person watching logs
-    · **What it feeds back:** does not apply
-    · **How it reaches people:** does not apply
-    - **STANDING RULE: no grounded response reaches a database write, a shared cache, or another
-      user's screen except through this one guard.** Enforced by routing every Gemini call
-      through it and nowhere else; caught by the test named below failing when a route is added
-      that skips it. **Shown by:** a new route written on purpose to skip the guard and write a
-      grounded field into the catalogue, and the test below failing on it.
-
-- **A grounded result is never written into the catalogue, the price database, or anything served
-  to a user other than the one who asked, and a test proves it rather than a review of the
-  code.** [item 33] *Moves: answered from real prices on the thing itself. From:
-  https://ai.google.dev/gemini-api/terms, read 2026-09-14, "You will not... cache, frame,
-  syndicate, resell, analyze, train on, or otherwise learn from Grounded Results or Search
-  Suggestions."*
-    · **What the person sees:** does not apply: a person never sees the difference between a
-      stored and an unstored answer, only that their own scan still shows it
-    · **How it looks and sounds:** does not apply
-    · **What happens behind the glass:** the guard above refuses any write path from a grounded
-      response into the catalogue table, the price database, or the alternatives index; only the
-      ungrounded identification (name, brand, size, description, without the search tool) may
-      reach those, since it is ordinary model output and not a Grounded Result
-      (plan-gemini.md section 2.1)
-    · **What it costs:** nothing beyond building the guard once
-    · **What we are allowed to do:** this is the rule itself, quoted above
-    · **Who runs it when it breaks:** whoever is paged when the test below goes red
-    · **What it feeds back:** does not apply: the whole point is that nothing here feeds the
-      shared catalogue
-    · **How it reaches people:** does not apply
-    - The test: write a grounded response through the guard toward the catalogue on purpose, and
-      confirm it is refused rather than silently dropped. **Shown by:** the test run by a
-      session that did not write it (tree rule 17), failing red before the guard exists and
-      green after, per the standing-rule test discipline the repo already applies (a check is
-      not a check until it has gone red).
-    - The same test, aimed at the price database and at a second user's own scan record, since
-      "anything served to other users" is three separate destinations, not one. **Shown by:**
-      three failing attempts, one per destination, each caught by name.
-
-- **The text of a grounded answer is stored only on the scan record of the user who asked for it,
-  for at most two years, and is deleted after.** [item 34] *Moves: answered from real prices on
-  the thing itself. From: https://ai.google.dev/gemini-api/terms, read 2026-09-14, "You may copy
-  and store, for up to two (2) years, the text of the Grounded Result(s)... in chat history of an
-  end user of your application only for the purpose of allowing that end user to view their chat
-  history."*
-    · **What the person sees:** their own past scans still show the answer they were given, for
-      up to two years; nothing about a two-year cutoff is shown to them proactively
-    · **How it looks and sounds:** does not apply beyond what the scan history already looks like
-    · **What happens behind the glass:** grounded text is written into that scan's own
-      `model_json` field on the existing scan table (`app/src/scans.ts`, `model_json` column,
-      one row per device per scan), never into a table another user's query can reach
-    · **What it costs:** nothing beyond ordinary storage; the retention sweep below is the real
-      cost, a recurring job rather than a one-time write
-    · **What we are allowed to do:** this is the rule itself, quoted above; storing past two
-      years or in any other table is the violation
-    · **Who runs it when it breaks:** whoever is paged when the sweep below misses its schedule
-      or the age check finds a row past two years
-    · **What it feeds back:** does not apply: this is retention, not learning
-    · **How it reaches people:** does not apply
-    - The retention sweep does not exist yet (`app/src/events.ts` names one only for photos, "the
-      retention sweep (when one is configured)"); building it for the scan table's grounded
-      fields is new work, not a rewiring of something already running. **Shown by:** a scan row
-      backdated past two years in a test database, the sweep run once, and the grounded field
-      cleared while the rest of the row (kind, outcome, price data) stays.
-    - **STANDING RULE: no grounded field on any scan row is older than two years.** Enforced by
-      the sweep above running on a written schedule; caught by an age check on the newest sweep
-      run crossing the two-year ceiling, the same shape as the shelf-freshness standing rule
-      already in this tree's first branch. **Shown by:** the age of the oldest remaining
-      grounded field, read after a sweep, never past two years.
-
-- **A grounded answer that was fetched but never shown to the person (an interim result during
-  the resubmission the verdict step uses) is deleted once the final, shown answer exists.**
-  [item 36] *Moves: answered from real prices on the thing itself. From:
-  https://ai.google.dev/gemini-api/terms, read 2026-09-14, permitting temporary storage "for the
-  purpose of resubmitting the text of the Grounded Result in a subsequent prompt... as long as
-  [undisplayed interim results] are deleted."*
-    · **What the person sees:** only the final price line and store list, never the first
-      grounded prices-and-reviews answer that got resubmitted with the shelf price and
-      thresholds for the verdict step (plan-gemini.md section 4.3)
-    · **How it looks and sounds:** does not apply
-    · **What happens behind the glass:** the first grounded answer is held only in memory for the
-      resubmission and is never written to the scan row; only the final verdict's fields are
-      written, once, per item 34 above
-    · **What it costs:** nothing beyond the verdict request itself
-    · **What we are allowed to do:** this is the rule itself, quoted above; writing the interim
-      answer anywhere durable is the violation, even briefly
-    · **Who runs it when it breaks:** whoever reviews the guard's code, since this is a "never
-      happens" rather than a "happens and gets cleaned up"
-    · **What it feeds back:** does not apply
-    · **How it reaches people:** does not apply
-    - **STANDING RULE: the interim grounded answer used only to build the verdict request never
-      reaches durable storage.** Enforced by keeping it in a request-scoped variable only, never
-      passed to the scan-write function; caught by a test that fails if the interim answer's
-      distinct fields (the pre-verdict prices-and-reviews JSON) ever appear in what gets written.
-      **Shown by:** the write call inspected for the interim answer's shape, absent, on a
-      resubmission traced end to end.
-
-- **No tap inside the Gemini section of the result screen, or on any of its links, is recorded by
-  Shin's tap tracking.** [item 37] *Moves: answered from real prices on the thing itself. From:
-  https://ai.google.dev/gemini-api/terms, read 2026-09-14, "you will not track whether those
-  interactions were specifically with a given Search Suggestion or Grounded Result."*
-    · **What the person sees:** does not apply: an untracked tap looks identical to a tracked one
-    · **How it looks and sounds:** does not apply
-    · **What happens behind the glass:** today one capture-phase listener on `document`
-      (`app/public/js/track.js`, the click handler starting around line 216) records every click
-      by walking up to the nearest `[data-act]`, button, link, or role="button" and has no
-      exclusion of any kind; this section's job is to give it one
-    · **What it costs:** nothing beyond building the exclusion once
-    · **What we are allowed to do:** this is the rule itself, quoted above; "screen-level events
-      are fine" (plan-gemini.md section 2.2), so the exclusion is scoped to elements, not to the
-      whole result screen
-    · **Who runs it when it breaks:** whoever reviews a new element added inside the Gemini
-      section without the exclusion marker
-    · **What it feeds back:** does not apply: the whole point is that this feeds nothing back
-    · **How it reaches people:** does not apply
-    - The exclusion does not exist today; it is new work, not a toggle on something already
-      built. A wrapping container or attribute (for example a `data-no-track` region) marks the
-      whole Gemini section and its store links, and the click handler's closest-match walk stops
-      counting once it finds that marker on the way up. **Shown by:** a tap inside the Gemini
-      section and a tap on a store link, neither producing a tracked event, while a tap
-      elsewhere on the same screen still does.
-    - **STANDING RULE: any new element placed inside the Gemini section inherits the exclusion
-      automatically, since a marker on the container rather than on each child cannot be
-      forgotten per element.** Enforced by scoping the exclusion to the container, not to a list
-      of elements maintained by hand; caught by the same test above, re-run whenever a new
-      element is added to that section. **Shown by:** a newly added element inside the section,
-      untracked without anyone having to remember to mark it individually.
-
-- **Every link into a store, whether from the price line, the store list, or a review, opens the
-  destination directly: no affiliate tag, no redirect through Shin's own server, no interstitial
-  screen, no in-app frame.** [item 38] *Moves: answered from real prices on the thing itself.
-  From: https://ai.google.dev/gemini-api/terms, read 2026-09-14, "will not place any interstitial
-  content between any Link or Search Suggestions and the associated destination page, redirect
-  end users away from the destination pages, or minimize, remove, or otherwise inhibit the full
-  and complete display of any destination page."*
-    · **What the person sees:** a tap that leaves Shin entirely and lands on the store's own page,
-      the same as tapping any ordinary link
-    · **How it looks and sounds:** no "leaving Shin" screen, no loading screen of Shin's own
-      between the tap and the destination
-    · **What happens behind the glass:** the link's `href` is Gemini's returned URL, used as is;
-      nothing wraps it in a redirect route the way an affiliate link normally would
-    · **What it costs:** this rule is also what rules out affiliate income from any Gemini-found
-      link (plan-gemini.md section 2.2, item 3), so it is a real, named cost against the money
-      figures, not a free rule; affiliate income stays possible only on Shin's own, non-Gemini
-      sources
-    · **What we are allowed to do:** this is the rule itself, quoted above
-    · **Who runs it when it breaks:** whoever reviews a new link-rendering path added anywhere
-      near the Gemini section
-    · **What it feeds back:** does not apply
-    · **How it reaches people:** does not apply beyond section 4's own tap-opens-directly node,
-      which this rule is the reason for (waits on section 4, "tapping a store dot opens its link
-      directly, untracked")
-    - **STANDING RULE: a Gemini-sourced link is never passed through Shin's own redirect or
-      affiliate-tagging code path, even by accident of shared link-rendering components.**
-      Enforced by keeping Gemini's links on a separate rendering path from Shin's own affiliate
-      links, never a shared component with a flag; caught by a test that inspects the rendered
-      `href` for a Gemini-sourced link and fails if it points anywhere but the returned URL.
-      **Shown by:** a rendered Gemini link's `href` read directly from the page and matching
-      Gemini's returned URL exactly, byte for byte.
-
-- **Shin's own prices and Gemini's prices are never merged into one list; each stays in its own
-  section, and nothing recomputes across the two.** [item 39] *Moves: answered from real prices
-  on the thing itself. From: https://ai.google.dev/gemini-api/terms, read 2026-09-14, the
-  no-modify and no-intersperse rule; plan-gemini.md section 2.2, item 2, "Our own prices and
-  Gemini's prices sit in separate sections, not one merged list."*
-    · **What the person sees:** two visually separate price lines when both exist, never one line
-      with a mix of our-source and Gemini-source dots (waits on section 4, "the result screen
-      puts the pieces below into one screen")
-    · **How it looks and sounds:** a heading distinguishes the two sections
-    · **What happens behind the glass:** the two verdicts (our own arithmetic, and Gemini's
-      code-execution result) are computed and rendered independently; nothing takes a dot from
-      one and a boundary from the other
-    · **What it costs:** does not apply beyond the rendering already covered in section 4
-    · **What we are allowed to do:** this is the rule itself; a merged line would be
-      "intermingling" a Grounded Result with other content, which is the modify-and-intersperse
-      rule read plainly
-    · **Who runs it when it breaks:** whoever reviews the render function if it is ever changed
-      to take both verdicts as one input
-    · **What it feeds back:** does not apply
-    · **How it reaches people:** does not apply
-    - **Shown by:** a scan with prices from both kinds of source, on screen at once, and a test
-      that fails if the two verdicts' fields are ever passed into the same render call.
-
-- **Every grounded answer is shaped only by what Shin asks for in the request (voice, language,
-  store region, currency, structure), and nothing about the answer is rewritten, trimmed, or
-  retold once it comes back.** *Moves: answered from real prices on the thing itself. From:
-  https://ai.google.dev/gemini-api/terms, read 2026-09-14, "will not modify, or intersperse any
-  other content with, the Grounded Results"; plan-gemini.md section 2.3, "the rules stop changes
-  after the answer returns, not instructions in the request."*
-    · **What the person sees:** the store names, prices and review summaries exactly as Gemini
-      wrote them, in Shin's chosen layout but never Shin's chosen words
-    · **How it looks and sounds:** Shin's voice shapes the request (plan-gemini.md item 18); it
-      never shapes the response text after the fact
-    · **What happens behind the glass:** the request carries every instruction (language, region,
-      currency, JSON shape) once, before the call; the response is rendered field for field,
-      never string-processed beyond fitting it into a layout
-    · **What it costs:** does not apply beyond the request cost already priced in section 3
-    · **What we are allowed to do:** this is the boundary the terms actually draw: shaping the
-      ask is allowed, editing the answer is not, and it is genuinely unsettled whether rendering
-      the returned structured fields inside Shin's own layout crosses that line at all (see the
-      blocked-outside node below on exactly this question)
-    · **Who runs it when it breaks:** whoever reviews a change to the render layer that starts
-      altering returned text rather than positioning it
-    · **What it feeds back:** does not apply
-    · **How it reaches people:** does not apply
-    - **STANDING RULE: nothing downstream of the guard is permitted to call a string method on a
-      grounded text field other than the ones needed to fit it into the page (truncation for
-      display, never rewording).** Enforced at the guard, which returns grounded text as opaque
-      display strings rather than as data a renderer is free to reassemble; caught by a test that
-      fails if any grounded field is concatenated with Shin-authored text into one sentence.
-      **Shown by:** the render code for a grounded field reviewed and shown to only ever place it
-      whole, never inside a template string built with Shin's own words around it.
-
-- **Google's Search Suggestions accompany every grounded answer, full stop, with no code path
-  that can render the rest of a grounded answer while dropping them.** *Moves: answered from
-  real prices on the thing itself. From: https://ai.google.dev/gemini-api/terms, read
-  2026-09-14, Search Suggestions must accompany grounded results.* This is the compliance side
-  of section 4's rendering node (waits on section 4, "Google's Search Suggestions render
-  unmodified beneath every grounded answer").
-    · **What we are allowed to do:** the terms make this mandatory, not optional styling, so the
-      guard refuses to hand a route the price or review fields of a grounded answer without also
-      handing it the suggestions field from the same response
-    · **Does not apply:** what the person sees, how it looks and sounds, what happens behind the
-      glass beyond the guard's own refusal, what it costs, who runs it when it breaks beyond
-      the guard's own review, what it feeds back, and how it reaches people, since all of those
-      are covered on section 4's own node for this and repeating them here would be the
-      duplication rule 9 exists to prevent
-    - **STANDING RULE: the guard returns the price and review fields and the suggestions field
-      of one grounded response as one unit, never separable by a caller.** Enforced by the
-      guard's own return type having no way to ask for one without the other; caught by a test
-      that tries to render price fields alone and fails to compile or throws. **Shown by:** a
-      route written on purpose to drop the suggestions field, refused by the guard's own shape
-      rather than by a person remembering to check.
-
-- **Gemini is called only through the paid tier, and only with a paid-tier key, since the free
-  tier both trains Google's own products on what is sent and does not offer Grounding with
-  Google Search at all for the current models.** *Moves: answered from real prices on the thing
-  itself. From: https://ai.google.dev/gemini-api/terms, read 2026-09-14, free-tier content "used
-  to improve Google products and services"; https://ai.google.dev/gemini-api/docs/pricing, read
-  2026-09-14, Grounding with Google Search "Not available" on the free tier for the current 3.x
-  models; https://ai.google.dev/gemini-api/terms, "You may use only Paid Services when making
-  API Clients available to users in the European Economic Area, Switzerland, or the United
-  Kingdom."*
-    · **What the person sees:** does not apply: which tier answered them is invisible
-    · **How it looks and sounds:** does not apply
-    · **What happens behind the glass:** the key Jamin creates (a separate, "his" item outside
-      this branch) is a paid-tier key; nothing in this branch calls a free-tier endpoint, since
-      grounded search is simply absent there for the models in play
-    · **What it costs:** the paid tier's per-token and per-search rates, already priced in
-      section 3
-    · **What we are allowed to do:** this is the rule itself; using a free-tier key for any user
-      anywhere would both leak testers' data into Google's own training and be structurally
-      unable to ground at all
-    · **Who runs it when it breaks:** whoever holds the key notices a 403 the moment a call is
-      attempted against a free-tier project, since grounding requests would simply fail rather
-      than silently downgrade
-    · **What it feeds back:** does not apply
-    · **How it reaches people:** does not apply
-    - **STANDING RULE: no Shin user in the European Economic Area, Switzerland, or the United
-      Kingdom is served by anything but the paid tier.** Since the whole deployment already runs
-      on one paid key with no free-tier path, this is currently satisfied by construction rather
-      than by a region check; it becomes a real check the day any region-specific routing is
-      added. **Shown by:** the deployment's single Gemini configuration read, and it names the
-      paid tier, with no branch anywhere that would route a European request differently.
-
-- **The consent screen tells the person that Gemini is used and that Google keeps grounded
-  prompts and their output for 30 days.** [item 40] *Moves: answered from real prices on the
-  thing itself. From: https://ai.google.dev/gemini-api/terms, read 2026-09-14, "Google stores
-  grounded prompts and output for 30 days"; gemini-work-list.md item 40.*
-    · **What the person sees:** a line in the existing consent screen naming Gemini and the
-      30-day figure, alongside the photo and location toggles already there
-      (`app/src/consent.ts`, `readConsent` around line 78, `writeConsent` around line 106)
-    · **How it looks and sounds:** matches the plain, direct wording the rest of that screen
-      already uses; not a new dense paragraph
-    · **What happens behind the glass:** this is wording only; Gemini use itself is not a new
-      toggle, since the existing default-everything-on consent already covers what Shin itself
-      keeps (the two-year scan record), and this line covers what Google separately keeps for 30
-      days on Google's own side
-    · **What it costs:** nothing beyond the writing and Jamin's read of it
-    · **What we are allowed to do:** naming a real, sourced fact about a third party's own
-      retention is exactly the kind of statement HARD RULE 1 requires be sourced, not omitted
-    · **Who runs it when it breaks:** whoever reviews new consent copy before it ships, same as
-      any other consent wording
-    · **What it feeds back:** does not apply
-    · **How it reaches people:** does not apply
-    - A draft line naming Gemini and the 30-day figure, written in one pass. **Shown by:** the
-      line read by somebody who has not seen the app, correctly stating that Google, not Shin,
-      holds that 30-day copy.
-    - **HIS:** whether the drafted wording is the wording that ships, since consent and privacy
-      language on this repo's own precedent is not finalised without him reading it. *(from:
-      the-tree.md's own precedent, "HIS: the privacy wording," §9 of the moonshot tree)*
-
-- **Whether Google's 18-or-older clause reaches Shin's own end users is blocked outside, filed
-  once, at item 5's own leaf in section 9 below [waits on: Asking Google for written
-  permission]. What is not settled even once that answer comes back: whether Shin needs an age
-  gate it does not have today.** [item 5] *Moves: answered from real prices on the thing itself.
-  From: https://ai.google.dev/gemini-api/terms, read 2026-09-14, "You must be 18 years of age or
-  older to use the APIs"; gemini-work-list.md item 5, "Confirm whether Google's 18 years of age
-  or older rule reaches app users or only the developer."*
-    · **What the person sees:** does not apply: this is a reading of a contract clause, before
-      anything a person would see is decided
-    · **How it looks and sounds:** does not apply
-    · **What happens behind the glass:** does not apply until the answer is known
-    · **What it costs:** does not apply
-    · **What we are allowed to do:** the clause reads only "to use the APIs," which is more
-      naturally the developer, but Shin's end users are the ones whose prompts and photos
-      actually reach the API on their behalf, which is the reading that would put an age gate on
-      Shin's own side if Google confirms it
-    · **Who runs it when it breaks:** does not apply
-    · **What it feeds back:** does not apply
-    · **How it reaches people:** does not apply
-    - **HIS:** whether Shin needs an age gate it does not have today, undecided because it depends
-      on an answer Google has not yet given at item 5's own leaf; still his to decide once that
-      answer lands, not admitted as a separate question to Google.
-
-- **HIS: legal review before anything in this plan depends on storing grounded data, since a
-  reading of a contract is not legal advice.** [item 7] *Moves: answered from real prices on the
-  thing itself. From: plan-gemini.md's own header, "This is a reading of a contract, not legal
-  advice"; gemini-work-list.md item 7.*
-    · **What we are allowed to do:** every standing rule in this section is this session's own
-      reading of Google's published terms, not a lawyer's; the reading may be wrong in ways only
-      a review would catch, and the item exists precisely to say so rather than let the reading
-      stand in for one
-    · **Does not apply:** what the person sees, how it looks and sounds, what happens behind the
-      glass, what it costs, who runs it when it breaks, what it feeds back, how it reaches
-      people, since this item is a decision about whether to trust the rest of this branch at
-      all, not a piece of the product
-    - **HIS:** whether a legal review happens before build, before launch, or not at all, and who
-      does it; nobody but Jamin can commission one.
-
-- **BLOCKED OUTSIDE: whether rendering Gemini's returned structured fields inside Shin's own page
-  layout counts as "modifying" the Grounded Result under the terms.** [item 6] Lifts on Google's
-  written answer, asked once there is traction (plan-gemini.md section 2.1, "Written permission...
-  Worth asking Google once there is traction"). *Moves: answered from real prices on the thing
-  itself. From: https://ai.google.dev/gemini-api/terms, read 2026-09-14, "Unless permitted by
-  Google in writing, you: (1) will not modify... the Grounded Results"; plan-gemini.md section
-  2.3, "Whether filling our own layout with those fields counts as modifying is not settled by
-  the terms; it is a far safer reading than rewording."*
-    · **What the person sees:** does not apply: the current reading (fields placed as returned,
-      never reworded) is already what section 4 builds, so nothing on screen changes while this
-      is unresolved
-    · **How it looks and sounds:** does not apply, same reason
-    · **What happens behind the glass:** the guard above already implements the safer reading
-      regardless of how this resolves, so this block does not stop anything from being built; it
-      only leaves open whether the safer reading was ever necessary
-    · **What it costs:** the cost of writing and defending against the stricter reading, which
-      Google's written answer could remove
-    · **What we are allowed to do:** this is the block itself
-    · **Who runs it when it breaks:** does not apply until an answer exists
-    · **What it feeds back:** does not apply
-    · **How it reaches people:** does not apply
-    - **BLOCKED OUTSIDE:** what lifts it is a written answer from Google, asked for once the app
-      has real traction (plan-gemini.md section 2.1). Until then, the safer reading (structured
-      fields placed, not reworded, per section 4 and the shaping-not-editing node above) is what
-      ships, so this block does not stop anything from being built, only from being simplified
-      later.
-
-- **Sharing a grounded answer with anyone but the person who asked for it, in a screenshot, a
-  share card, or a marketing video, runs into the same rule as everything else in this section:
-  a Grounded Result may be shown only to the end user who submitted the prompt.** *Moves:
-  installs per video, and answered from real prices on the thing itself. From:
-  https://ai.google.dev/gemini-api/terms, read 2026-09-14, "will only display the Grounded
-  Results... to the end user who submitted the prompt."* This is the compliance side of section
-  4's own finding (waits on section 4, "how this reaches people: the price line is the single
-  most filmable moment... and filming it runs straight into the rule that a Grounded Result may
-  be shown only to the person who asked").
-    · **What we are allowed to do:** the block, the two avenues that avoid it (a fabricated demo
-      line, or filming the own-source line instead), and the one avenue that could remove it (a
-      written request to Google) are all worked out on section 4's node; this node is the
-      standing rule they answer to, not a second telling of the same finding
-    · **What the person sees:** does not apply: the same screen-facing behaviour as the Search
-      Suggestions node above, not repeated here per rule 9
-    · **How it looks and sounds:** does not apply, same reason
-    · **What it costs and earns:** does not apply, same reason
-    · **Who runs it when it breaks:** does not apply, same reason: whoever is named on section
-      4's own node
-    · **What it feeds back:** does not apply, same reason
-    · **How it reaches people:** does not apply, same reason: this is the compliance rule behind
-      section 4's own filmable-moment finding, not a second telling of it
-    - **STANDING RULE: no build, share, or export feature ever takes a real grounded answer as
-      its input; a demo or marketing feature that shows a price line uses only fabricated or
-      own-source data.** Enforced by the guard refusing to hand a grounded response to anything
-      tagged as a share or export path; caught by a test that tries exactly that and is refused.
-      **Shown by:** a share-card feature built against a real grounded response, refused by the
-      guard, and the same feature succeeding when pointed at fabricated or own-source data
-      instead.
-    - **BLOCKED OUTSIDE:** what lifts the stricter reading is Google's written permission, the
-      same ask named on section 4's own node, not asked as of 2026-09-14.
-
----
-
-Placed: items 5, 6, 7, 33, 34, 36, 37, 38, 39, 40, plus the un-numbered paid-tier and Europe
-rules from plan-gemini.md section 2.4 and the answer-shaping and Search-Suggestions-mandatory
-rules from section 2.2, all sourced directly to Google's terms since no work-list item number
-covers them on their own. The share-card and screenshot topic is written here as the standing
-rule Google's terms impose, cross-referenced (rule 9) to section 4's node, which carries the
-actual finding and its avenues, rather than repeated. Not placed here: items 1 to 4, 8 to 32,
-41 to 83, which belong to other branches (permissions and the key itself, the request and
-provider code, the verdict function, users' price range, server routes, the camera screen, tests,
-and docs), and the twelve proposed item-kind rules in plan-gemini.md section 7, which are
-explicitly awaiting Jamin's pick and are not Google-terms items at all.
-
 ---
 
 ## 6. It learns from what people tell it
@@ -2219,35 +1694,6 @@ which is what `makeProvider` actually calls.
     `identify/src/model.ts:816` (opened this pass) and `app/server.ts` grepped for any call
     reaching it, finding none.
 
-- **Falling back to the Claude path when a Gemini call fails, and changing nothing when there
-  is no key.** *Kind: all kinds. Moves: answered from real prices on the thing itself, since
-  the founding rule here is always answer, never a Gemini outage becoming a refusal. From:
-  gemini-work-list.md item 13; the leftover code's own header comment, dated 2026-09-14, citing
-  this app's and this repo's own priority 1.* [item 13]
-    · **What the person sees:** an answer either way; which vendor produced it is invisible
-      (looked at by: a forced Gemini outage still producing a normal-looking result)
-    · **How it looks and sounds:** does not apply beyond the answer itself, which looks the same
-      regardless of source
-    · **What it costs and earns:** a fallback call is a second call paid for on top of the
-      failed first one, so a flaky Gemini connection is a real cost, not only a reliability
-      question (looked at by: fallback calls counted against the spend cap, section 9 below)
-    · **What we are allowed to do:** no restriction; falling back to a different vendor raises
-      no question the single-vendor path did not already answer
-    · **Who runs it when it breaks:** a fallback that itself fails (Claude also down) is the
-      existing Claude-outage case, unchanged by anything here
-    · **What it feeds back:** the fallback rate itself is a signal Gemini is degraded, worth
-      watching alongside the error-kind count in section 2
-    · **How it reaches people:** does not apply
-  - **Written, uncommitted, no caller**: `withFallback` tries the primary and, on any failure,
-    tries the fallback, once, after `model.ts`'s own retry policy has already had its shot
-    against the primary alone, so retries are never interleaved across two vendors. With
-    `SHIN_MODEL_PROVIDER=gemini` and `GEMINI_API_KEY` unset, `makeProvider` never constructs a
-    `GeminiProvider` at all and sends exactly the pre-Gemini Anthropic request, byte for byte.
-    Never "exists": uncommitted, not yet reached by a caller in the running app. **Shown by:**
-    the source read at the cited lines, and `app/server.ts` grepped for any call reaching this
-    code, finding none. [`identify/src/provider.ts`, `identify/src/model.ts`, comment block
-    above `makeProvider`, both opened 2026-09-14]
-
 - **What happens when the connection itself fails: 429, 401, 403, 503, at the level of the call
   Gemini's provider makes, before section 2's per-request user message is ever written.** *Kind:
   all kinds. Moves: answered from real prices on the thing itself. From: Google's docs
@@ -2255,16 +1701,16 @@ which is what `makeProvider` actually calls.
     · **What the person sees:** does not apply directly; this is the layer under the message the
       person actually sees (built in section 2)
     · **How it looks and sounds:** does not apply
-    · **What it costs and earns:** a retry-before-fallback policy (rule inherited from the
-      fallback node above) means every 429 or 503 can cost up to two calls before an answer
-      arrives (looked at by: calls-per-scan counted on a day with real errors)
+    · **What it costs and earns:** a retry policy means every 429 or 503 can cost up to two
+      calls to the same provider before an answer arrives (looked at by: calls-per-scan counted
+      on a day with real errors)
     · **What we are allowed to do:** no restriction
     · **Who runs it when it breaks:** 401 and 403 are account-level, routed to a stop-and-report
       rather than retried, since retrying with the same bad key only spends a round trip to
       relearn what is already known
     · **What it feeds back:** the error-kind count referenced in section 2
     · **How it reaches people:** does not apply
-  **Buildable.** Shown by: each of the four codes forced in a test and the fallback or
+  **Buildable.** Shown by: each of the four codes forced in a test and the retry or
   stop-and-report path confirmed, cross-referenced to section 2's user-facing handling of the
   same codes rather than duplicating it.
 
@@ -2294,7 +1740,7 @@ which is what `makeProvider` actually calls.
   the store's cut and the model bill. From: gemini-work-list.md item 51; plan-gemini.md §3
   (5,000 free search requests a month shared across Gemini 3.x, then $14 per 1,000).* [item 51]
     · **What the person sees:** does not apply directly; a cap that trips shows as the
-      always-answer fallback path (Claude, or the weaker evidence rungs), never a raw refusal
+      always-answer path, never a raw refusal
     · **How it looks and sounds:** does not apply
     · **What it costs and earns:** the cap exists to put a ceiling on exactly this figure
       (looked at by: the day's total spend read against the cap, every day)
@@ -2622,19 +2068,6 @@ which is what `makeProvider` actually calls.
   · ⇄ avenue: **rework**, keeping the provider seam and fallback wrapper (which match this plan's section 9 shape) but rewriting `gemini-grounded.ts` to the Interactions API shape (section 8's first leaf) and dropping or redoing `gauge.ts`/`gauge-variant.ts` against the fixed verdict function's actual spec (section C, not drawn in this branch). Needs the same two answers as keep, plus the rewrite itself. Limited by how much of the existing work the rewrite can actually reuse, unmeasured. Not tested.
   · ⇄ avenue: **delete**, and start section B and C fresh once Aurik and the item-30 question are both answered. Needs only those two answers. Limits: throws away a working provider interface and fallback wrapper that already match the plan's shape, at zero present cost since none of it is committed or live. Not tested, since it is his call.
   - **HIS:** keep, rework, or delete. [item 2's neighbour in the work list, unnumbered "Leftover code" section]
-
-- **Asking Google for written permission, where the terms leave a real question open.** *Kind: all kinds. Moves: none (a permission gate); indirectly, answered from real prices on the thing itself, since a "no" here forces the ungrounded-only fallback in section 2.3. From: docs/plan-gemini.md section 2.3, "Whether filling our own layout with those fields counts as modifying is not settled by the terms"; section 2.1, "Written permission... Worth asking Google once there is traction."; docs/gemini-work-list.md item 6.*
-    · **What the person sees:** does not apply until Google answers
-    · **How it looks and sounds:** does not apply, same reason
-    · **What it costs and earns:** does not apply: sending a written request costs nothing
-      beyond the time to write it
-    · **What we are allowed to do:** this whole leaf is that dimension; nothing else on it applies until Google answers
-    · **Who runs it when it breaks:** whoever sends the request; a non-answer or a "no" is "blocked outside", not a wall, since it is someone else's policy standing in the way
-    · **What it feeds back:** the answer decides whether section H's result screen renders grounded fields into Shin's own layout (current plan) or must show Google's own unmodified output
-    · **How it reaches people:** does not apply: the answer changes what section H can render, not this leaf itself
-  - **BLOCKED OUTSIDE:** ask Google in writing whether rendering structured grounded fields (name, price, size, links) inside Shin's own screen layout counts as "modify" under the display rules, since this waits on Google's reply; what lifts it is that reply, in writing. [item 6]
-  - **BLOCKED OUTSIDE:** ask Google in writing whether the "18 years of age or older" clause reaches API end users or only the developer, same reason. [item 5]
-
 
 ---
 

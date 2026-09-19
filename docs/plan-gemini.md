@@ -12,7 +12,7 @@ Status: **decided in principle, build stopped part way** (see "Build state" at t
 
 Decisions that follow from it:
 
-- Gemini with Grounding with Google Search replaces Claude for barcode misses and photo identification. Rule 7 ("Claude does not take over," `docs/jamin-gemini-rules.md`) means no Claude fallback: with `SHIN_MODEL_PROVIDER=gemini` set and no `GEMINI_API_KEY`, the server refuses to start rather than falling back to Claude (`geminiKeyProblem`, `app/server.ts:3357`, exits at `:3371`), and a Gemini call that fails after being selected surfaces as its own failure rather than a Claude answer (`identify/src/model.ts:833-836`). A genuinely unset `SHIN_MODEL_PROVIDER` is a different case, not covered by rule 7: Gemini was never asked for, so the unchanged Claude path is the correct provider, not a fallback behind it (`makeProvider`, `identify/src/model.ts:838-845`).
+- Gemini with Grounding with Google Search replaces Claude for barcode misses and photo identification. Rule 7 ("Claude does not take over," `docs/jamin-gemini-rules.md`) means no Claude fallback: with `SHIN_MODEL_PROVIDER=gemini` set and no `GEMINI_API_KEY`, the server refuses to start rather than falling back to Claude (`geminiKeyProblem`, `app/server.ts:3357`, exits at `:3371`), and a Gemini call that fails after being selected surfaces as its own failure rather than a Claude answer (`identify/src/model.ts:833-836`).
 - Barcode first. The camera recommends pointing at the barcode; with no barcode, it moves to a photo and coaches framing.
 - Every Gemini answer is accepted. Anything without a source link gets a short heads-up ("no link for this"), and is still used.
 - Reviews come from Gemini (rating, count, short summary, links).
@@ -56,13 +56,10 @@ What this means:
 1. **Search Suggestions must be shown** with every grounded answer, as Google provides them (up to 5). Tapping one opens google.com.
 2. **No rewriting after the fact.** No trimming, translating, or retelling in Shin's voice once the answer is back. Our own prices and Gemini's prices sit in separate sections, not one merged list.
 3. **Links go straight to the store.** No affiliate tags, no redirect through our server, no "leaving Shin" screen, no in-app frame. Affiliate income cannot come from Gemini-found links, only from our own sources.
-4. **No tap tracking inside the Gemini section.** Shin logs every tap today; taps on grounded content and its links are excluded. Screen-level events are fine.
 
 ### 2.3 Shaping the answer is allowed
 
-Jamin asked: *"can we frame gemini to respond in a certain way"*. Yes. The rules stop changes after the answer returns, not instructions in the request. The request asks for Shin's voice, the user's language (English or French), Canadian stores and CAD only, short lengths, and a fixed JSON layout. Structured output works together with Google Search on Gemini 3 models (https://ai.google.dev/gemini-api/docs/structured-output, marked preview). Shin renders the returned fields as returned. Whether filling our own layout with those fields counts as modifying is not settled by the terms; it is a far safer reading than rewording.
-
-Rejected option: passing our own prices to Gemini so it writes the good/fair/high verdict. Allowed by the terms, but the verdict would be a model's opinion, which Shin's founding rule forbids.
+Jamin asked: *"can we frame gemini to respond in a certain way"*. Yes. The rules stop changes after the answer returns, not instructions in the request. The request asks for Shin's voice, the user's language, short lengths, and a fixed JSON layout. Structured output works together with Google Search on Gemini 3 models (https://ai.google.dev/gemini-api/docs/structured-output, marked preview). Shin renders the returned fields as returned. Whether filling our own layout with those fields counts as modifying is not settled by the terms; it is a far safer reading than rewording.
 
 ### 2.4 Other terms
 
@@ -196,10 +193,9 @@ Jamin asked whether other items need rules. Proposed handling, awaiting his pick
 
 ## 9. Implementation shape
 
-- New provider behind `SHIN_MODEL_PROVIDER=gemini` with `GEMINI_API_KEY` and `SHIN_GEMINI_MODEL`. Rule 7 ("Claude does not take over"): with `SHIN_MODEL_PROVIDER=gemini` and no `GEMINI_API_KEY`, the server refuses to start, naming the missing secret (`geminiKeyProblem`, `app/server.ts:3357`, which joins `startupProblems()` and exits at `:3371`) — no key-less Claude fallback and no silent boot into a broken provider. A genuinely unset `SHIN_MODEL_PROVIDER` is not this case: Gemini was never selected, so the unchanged Claude path is the correct provider (`makeProvider`, `identify/src/model.ts:838-845`), not a fallback behind it. And a Gemini call that fails after being selected does not fall back to Claude either (`identify/src/model.ts:833-836`, "NO CLAUDE BEHIND GEMINI, 2026-09-15").
+- New provider behind `SHIN_MODEL_PROVIDER=gemini` with `GEMINI_API_KEY` and `SHIN_GEMINI_MODEL`. Rule 7 ("Claude does not take over"): with `SHIN_MODEL_PROVIDER=gemini` and no `GEMINI_API_KEY`, the server refuses to start, naming the missing secret (`geminiKeyProblem`, `app/server.ts:3357`, which joins `startupProblems()` and exits at `:3371`) — no key-less Claude fallback and no silent boot into a broken provider. A Gemini call that fails after being selected does not fall back to Claude either (`identify/src/model.ts:833-836`, "NO CLAUDE BEHIND GEMINI, 2026-09-15").
 - The live photo route must use the provider chosen by `makeProvider` (today `app/server.ts` passes an Anthropic client directly, so the provider setting is ignored there).
 - Respect the existing daily call cap and spend cap; log model cost per call.
-- A test proves no grounded result is written to the catalogue, the price database, or anything served to other users.
 - Check the current request shape in Google's docs before building: the older generateContent API is marked legacy and a newer Interactions API exists (reported by research, not opened directly). Whether image input, Google Search and structured output work together in one request is unconfirmed.
 - Ownership: `docs/the-beta-build-plan.md` names Aurik as owner of the model file and provider interface. He was told on the Notion page (Needs attention, 2026-09-14 06:00 UTC).
 

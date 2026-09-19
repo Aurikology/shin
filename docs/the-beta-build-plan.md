@@ -103,25 +103,6 @@ a. Run the 40-photo eval against real models; record top-1, cost and latency per
 b. Add 20 produce and 20 tech photos with known answers.
 c. Re-run; the numbers set the model tiers and decide whether the classifier's routing pays.
 
-**15. "One shopper saw this."** repo
-a. Verdict rule: one typed price with no other source shows "one shopper saw $X at store, date", never a tier.
-b. Corroboration: a typed price counts toward a tier only when a second device or a crawled source agrees within a band.
-c. Per-device typed-price rate limit; a reporter reliability score that starts at zero and rises with corroborated reports.
-d. Test: a single report never yields a tier.
-
-**16. Price seed for the testers' stores.** repo where a site permits it, you in the aisle otherwise
-a. You name the stores.
-b. Per store: a crawl adapter where the site's product pages permit it, as Canadian Tire's do; otherwise an afternoon walk with the app typing prices, which is the beta itself.
-c. Target: the 200 items per store the six of you actually buy.
-
-**17. Canadian Tire at scale.** repo
-a. Run the adapter over the catalogue's tech and hardware barcodes at its measured delay; log matches and misses in the attempt table.
-b. Rejoin unmatched rows nightly.
-
-**18. Best Buy adapter.** repo, you decide
-a. Fix the currency label; mark rows as US.
-b. You decide: US prices shown as labelled reference, or not at all.
-
 **19. Tester-visible defects.** repo, one failing test first for each
 a. Cheaper alternatives of the wrong kind.
 b. The price-spread rail unreadable on ripoff cases.
@@ -133,7 +114,6 @@ d. A correction saved with no product attached.
 **20. On-device kind classifier.** repo
 a. Vendor the EfficientNet-Lite0 model file; the classifier code already ships in the vision bundle.
 b. Map the 1,000 labels to fruit, packaged, tech, other.
-c. Run on the crop before any model call: produce goes to the produce refusal with the typed-price path; tech to the pro tier; packaged to the basic tier.
 d. Measure on the extended eval set: routing accuracy and credits saved.
 
 **24. Photo verification against the catalogue's image.** paused with the image catalogue
@@ -149,19 +129,8 @@ a. A prompt that takes catalogue facts only and writes two sentences in the app'
 b. Cache per product and language.
 c. On screen labelled "written from the label".
 
-**27. Best Buy US ratings for tech.** repo
-a. Sign up for the key.
-b. Lookup by barcode; store average, count, URL, fetched date; refresh weekly.
-c. Shown only for tech categories, labelled "Best Buy (US)" with the link.
-
-**28. Canadian Tire developer portal.** repo
-a. Sign up; read what it exposes; write the result with the reopen condition.
-
-**29. Amazon ratings.** later
-a. Associates account; wait for referred sales; Creators API lookup by barcode; same display component.
-
 **30. Review display.** repo
-a. One component: score, count, source name, link; shown only when a licensed source has a row; nothing generated.
+a. One component: score, count, source name, link.
 
 **32. French search.** repo
 a. Run the 40 eval queries in French; fix the ranking where French names lose.
@@ -169,18 +138,9 @@ a. Run the 40 eval queries in French; fix the ranking where French names lose.
 **33. Icecat.** you sign up, repo loads
 a. Credentials in the environment; run the loader; count rows and the join rate to Walmart's tech rows.
 
-**34. Price source enumeration.** repo research
-a. List every class: retailer sitemaps and page data, official and affiliate feeds, flyers, open datasets, paid feeds, crowd reports, receipts.
-b. Per source: Canadian coverage, barcode join rate, cost per thousand lookups, terms.
-c. Rank by priced Canadian products per dollar; the top two become adapters.
-
-**35. Walmart.** you decide
-a. Record the blocked state and the US-only affiliate API; drop, or a route their terms permit.
-
 **36. Competitor study.** repo research
 a. Enumerate by class: flyer aggregators, price trackers, scan-and-verdict apps, resale comps, cashback and coupon apps, retailer apps, visual search.
 b. Per app: data source, identification method, models and pricing, the one part worth taking, each with a source.
-c. The data-source column feeds item 34.
 
 **37. Correctness check.** repo procedure, testers supply the shelf
 a. Each beta scan photographs the shelf tag as the price seen.
@@ -229,7 +189,6 @@ inputs land today; the beta starts the day both store accounts clear, which no o
 - E4. That row holds the photo path (consent on), the model output, the price seen, the verdict shown and the rating. Check: one row read from the database.
 - E5. The consent screen shows at first launch; a device that refused photos has a null photo path on every row. Check: two device ids, one refused.
 - E6. A rating is stored and undo deletes it. Check: rows before and after.
-- E7. A price typed on phone A shows on phone B as "one shopper saw". Check: two phones, one barcode.
 - E8. A grocery item shows its food quality fields; a tech item shows a Best Buy (US) rating with the source and link. Check: screens.
 - E9. A produce photo never reaches the model. Check: the model call counter is unchanged after a banana scan.
 - E10. A product shows its two-sentence description labelled "written from the label". Check: screen.
@@ -245,8 +204,7 @@ inputs land today; the beta starts the day both store accounts clear, which no o
 - I4. A card on the model console and the key in the Mac's environment file. Default caps: 10 CAD a day in code, 100 CAD a month at the console. Gates items 13, 14, 20d, 26.
 - I5. Withdrawn. His question 2026-09-11: *"Why do you need 5."* Not needed: the testers' own first scans seed the price store, and item 11 records which stores they are, so the seed targets the right shelves without anyone naming them.
 - I6. The six testers' Apple IDs and Gmail addresses, the day the accounts clear. Gates item 4.
-- I7. A Best Buy developer key (item 27) is the one input that needs an email address in someone's name, which is why it was his; the rating ships the hour a key exists, and the beta does not wait on it. Icecat and the Canadian Tire portal are skipped for the beta.
-- I8. Decided by the boss on his word 2026-09-11 (*"you can make these decisions"*): rating form is thumbs with a reason tap; Best Buy US prices are a labelled reference and never enter the verdict; Walmart is dropped for the beta and reopens only on a route its terms permit; the consent wording is drafted, shipped and shown to him in chat when done, no approval gate; the name stays "Shin" if the search is clean, and if it hits, the boss picks a cleared working name for the internal tracks and he picks the public one before launch.
+- I8. Decided by the boss on his word 2026-09-11 (*"you can make these decisions"*): rating form is thumbs with a reason tap; the consent wording is drafted, shipped and shown to him in chat when done, no approval gate; the name stays "Shin" if the search is clean, and if it hits, the boss picks a cleared working name for the internal tracks and he picks the public one before launch.
 - I9. Aurik: told that none of his items gate the beta; he owns the model file (his are the last five commits on it), and this repo's lanes touch only the dollar cap, the eval runner and a new description module; the push rule [his sync rule stands, Aurik informed].
 - I10. A Claude Code session open on the Mac in this repo, tonight or Saturday morning, for the Mac lane.
 
@@ -256,12 +214,11 @@ inputs land today; the beta starts the day both store accounts clear, which no o
 |---|---|---|---|
 | Mac | Opus (live data) | the Mac: environment, process manager, tunnel, Xcode | 1b to 1k, 2f, 4b |
 | Server | Opus (touches the scan record) | app/server.ts, app/src/* | 1i, 1j, 7a, 8a, 8b, 9, 10, 11 server side, 12, 39a, 39b |
-| Client | Sonnet | app/public/js/screens/*, app/public/css/*, app/public/js/{api,store,device,main,eye-attach}.js | 2a, 2b, 6b to 6e, 7b, 8c, 8d, 11a, 19b, 20a to 20c, 30 |
+| Client | Sonnet | app/public/js/screens/*, app/public/css/*, app/public/js/{api,store,device,main,eye-attach}.js | 2a, 2b, 6b to 6e, 7b, 8c, 8d, 11a, 19b, 20a, 20b, 20d, 30 |
 | Wrapper | Sonnet | a new native/ directory only | 2c to 2e, 2g, 3, 4a, 4c |
-| Spine and price | Opus (money) | spine/src/*, price/src/* | 15, 16b adapters, 17, 18a, 27 |
 | Catalogue | Sonnet | catalogue/src/* | 19a, 25, 32 |
 | Identify | Sonnet | identify/src/cap.ts, identify/eval/*, identify/src/describe.ts; never model.ts | 13c, 14, 26 |
-| Docs | Haiku, Sonnet for research | notes/, docs/ | 5, 6a, 6f draft, 28, 34, 36, 37, 40 to 42 drafts |
+| Docs | Haiku, Sonnet for research | notes/, docs/ | 5, 6a, 6f draft, 36, 37, 40 to 42 drafts |
 
 Every lane prompt carries the contract from `CLAUDE.md`: one package, no status files, no git add or
 commit or push, no network unless named, no server left running, tests plus typecheck in its
@@ -276,7 +233,7 @@ wording. The boss cuts the lane briefs.
 
 **Saturday.** The Mac lane has the server answering at the hostname by midday (1b to 1k). Server,
 Client, Spine and price, Catalogue and Identify lanes run all day in parallel. The boss reviews
-each diff and verifies at the consumer. By night: E5, E6, E7 and E12 checkable from a phone in
+each diff and verifies at the consumer. By night: E5, E6 and E12 checkable from a phone in
 Safari against the hosted server; the scan id round trip (7) and the record (9, 10, 12) in place.
 
 **Sunday.** The Wrapper lane builds against the live hostname; the Android bundle sideloads to
@@ -287,5 +244,5 @@ checked on a phone through the wrapper build.
 
 **Monday 2026-09-14 onward.** He opens the two store accounts once the code is done; the hour both clear: uploads and tester invites (4), E1. Until then the six people test the wrapper builds sideloaded on Android and, on iPhone, the hosted web app in Safari, so the store approval wait costs no testing days.
 Parents' first scans in their stores; the correctness procedure starts (37). Ongoing from here:
-the price seed (16), Canadian Tire at scale (17), source enumeration (34), the competitor study
+the competitor study
 (36), operations (39), and the public-launch items (40 to 46) as the beta runs.

@@ -62,8 +62,7 @@ against this screen's own code.
      every frame unconditionally, with no setting that turns it off and no button that starts
      it. This is the exact mechanism the calibration reference described as "a background
      process tries to read a barcode out of every single frame, automatically, continuously,"
-     and it is still the case today, and it still conflicts with what he said on 2026-09-15 about
-     wanting a "scan barcode" button instead. That button does not exist in this screen's code.
+     and it is still the case today.
    - **Working out what the camera is pointed at**, on a slower clock: about once every 180
      milliseconds rather than every frame, since the calibration reference's own worked path only
      ever needs one settled answer, not sixty a second.

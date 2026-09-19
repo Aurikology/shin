@@ -67,7 +67,7 @@ can start immediately no matter who else is working.
 
 ---
 
-## Wave 1. Four lanes, nothing depends on anything
+## Wave 1. Three lanes, nothing depends on anything
 
 ### Lane 1. Real prices reach the app
 **Delivers:** the app answers from the 896 collected prices instead of the seven hand-written ones.
@@ -88,16 +88,6 @@ most-missed searches and barcodes, counted rather than listed.
 **Proved by:** a nonsense search produces a row; a hundred nonsense searches produce a count, not a
 hundred rows; the catalogue's 29 tests pass.
 **Size:** small.
-
-### Lane 3. The aisle works with no signal
-**Delivers:** a barcode is named on the phone with the network off.
-**Builds:** serving the compressed slice with a version stamp the phone can check cheaply; on the
-phone, keeping it in the browser's permanent storage rather than the small preference store,
-searching it directly, and asking it before asking the server; a weekly refresh that never blocks a
-scan; and a line on screen saying a price still needs a signal.
-**Proved by:** load the app, turn the network off, scan a known barcode, get the product name. With
-the network on, the answer is identical.
-**Size:** large.
 
 ### Lane 4. Does meaning search earn its place
 **Delivers:** an answer on the four query shapes that were never tested, and a recommendation.
@@ -249,7 +239,6 @@ exist is removed rather than left to be discovered.
 | --- | --- | --- | --- |
 | 1 | 1 Real prices | `spine/src/sources/observed.ts` (new), `spine/src/sources/registry.ts`, `price/src/store.ts`, `spine/test/observed.test.ts` (new) | `spine/src/spine.ts`, `spine/src/contract.ts`, `price/src/verdict.ts` |
 | 1 | 2 Miss log | `catalogue/src/gaps.ts` (new), `catalogue/src/gaps-report.ts` (new), `catalogue/src/search.ts`, `catalogue/test/gaps.test.ts` (new) | `catalogue/src/schema.ts` |
-| 1 | 3 Offline aisle | `app/server.ts`, `app/public/js/pack.js` (new), `app/public/js/api.js`, `app/public/js/screens/camera.js` | `catalogue/src/export-pack.ts` |
 | 1 | 4 Meaning shapes | `catalogue/src/vector-shapes.ts` (new) | everything, read-only, both databases read-only |
 | 2 | 5 Scan record | `app/server.ts`, `app/src/scans.ts` (new), `app/public/js/store.js`, `app/public/js/api.js` | lane 3's output |
 | 2 | 6 Routing | `catalogue/src/search.ts`, `app/src/category-map.ts`, `app/src/routing.ts` (new) | lane 5's store |

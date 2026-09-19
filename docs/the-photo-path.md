@@ -75,10 +75,6 @@ Clocks: extract ≤ 3,500 ms, pick ≤ 3,000 ms, both overridable; `BUDGET_MS.ph
 behind it; two vision calls cannot fit it. Re-measured once a key exists, and the decision
 entry carries the reverses-if.
 
-Models: extract on the tier's model (basic Haiku 4.5, pro Sonnet 5); **pick on Sonnet 5 for
-both tiers** (`SHIN_MODEL_PICK` overrides), because the pick is where the precision comes from
-and it is one call per scan that did not settle on pass one.
-
 ## 3. The lane contract (interfaces that do not move during the build)
 
 - `IdentifyStage` constructor `(lookup: CatalogueLookup, model = new Identifier())` and
@@ -123,63 +119,3 @@ and it is one call per scan that did not settle on pass one.
 - `node identify/eval/run.ts` prints a top-1 number. That number, not this document, decides
   whether the parked items come back.
 
-## 6. The model call: cost, ceilings, and the decision for the founders' meeting
-
-*Written 2026-09-09 for the meeting. State as of f6fbfca.*
-
-**Where it stands.** Everything in sections 2 to 5 is built, tested with fake models, walked at
-390 px with the real eye, and checked on the running server. The eval set is forty Open Food
-Facts photos and the dry run, a perfect reading handed to the catalogue, is 40 of 40. No photo
-has gone through the real model, because this machine has no Anthropic key. Aurik set up the
-console on 2026-09-09 and chose not to add a card yet. The real top-1 is the number that
-decides whether the parked items (image embeddings, a tag detector, web search on a miss) ever
-come back, and nothing moves it except a measurement.
-
-**Three ways to get the measurement.**
-1. Fund the console with prepaid credit. Five dollars is the minimum buy and is about eight
-   full eval runs. The key goes in repo-root `.env`, which git already ignores; nothing else
-   changes.
-2. A key from the cofounder's account, if it already has billing. Same file, same runner, and
-   the runner prints cost per run so both founders see the spend.
-3. Wait. The photo path ships unmeasured, and the prompts, the 3,500 / 3,000 ms clocks and the
-   pick pass were all set without evidence. The first real shopper becomes the measurement.
-
-**The ceiling is whatever is loaded.** Prepaid credit stops calls at zero unless auto-reload is
-turned on. The console also offers a monthly spend limit on the organization, a second ceiling
-independent of the balance.
-
-**Ceilings in the code, below that.**
-
-| Limit | Where | Worst-case spend |
-|---|---|---|
-| 2,000 model calls per process per UTC day | `SHIN_MODEL_DAILY_CALLS`, identify | about $14 a day on Sonnet 5 |
-| 30 photos per device per rolling 10 minutes | `POST /api/identify/photo` | about $0.04 per device per 10 minutes |
-| Pick pass only when pass one cannot settle it | identify | one or two calls per scan |
-| Extract 3,500 ms, pick 3,000 ms, one retry on 429 / 5xx only | identify | a timeout is not billed twice |
-
-Lowering the daily cap is one environment variable: at 200 calls the server cannot spend more
-than about $1.40 a day.
-
-**Per unit**, from the repo's own measured token count for a 1568 px crop (about 2,459 image
-tokens) at Sonnet 5's $2 / $10 per million:
-
-| Item | Cost |
-|---|---|
-| One extract call, Sonnet 5 (pro tier) | about $0.007 |
-| One pick call, Sonnet 5 (both tiers) | about $0.007 |
-| One scan, worst case, pro tier | about $0.014 |
-| One extract call, Haiku 4.5 (basic tier) | about $0.002 |
-| The forty-photo eval, one run, pro tier | about $0.60 |
-| Five dollars of credit | about 8 eval runs, or about 350 worst-case scans |
-
-**What the first run buys.** `node identify/eval/run.ts --tier pro` prints top-1, top-3, the
-unreadable count, the pass-2 rate, p50 / p95 latency and the measured cost, and writes
-`identify/eval/results/<date>.json`. One run before any prompt tuning; then `--tier basic` to
-see what Haiku loses. The decision entry "Live photo recognition is load-bearing" carries the
-reverses-if: if the real top-1 stays under the floor the eval sets after the pick pass, the
-photo path is demoted to a suggestion and the barcode stays the only identity.
-
-**Questions for the meeting.**
-- Fund it, borrow it, or wait, and who owns the key.
-- What top-1 is the floor for shipping the photo path to a real shopper.
-- Whether the daily cap should sit at 2,000 calls or lower for the beta.

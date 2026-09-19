@@ -15,18 +15,11 @@ said its state was unverified.
 
 ## Why this math cannot run on Shin's own server at all
 
-Google's rules for a search-backed answer say the app may not "cache, frame, syndicate, resell,
-analyze, train on, or otherwise learn from Grounded Results." Taking a median of prices that a
-grounded search returned, on Shin's own server, in Shin's own code, is analysis under that
-sentence. The same rules allow the grounded material to be handed back to Gemini "to obtain a
-refined or improved Grounded Result to display to the end user," and the arithmetic below is built
-to be exactly that: a third network request to Gemini, after the identification call and the
+A third network request to Gemini exists in the codebase, after the identification call and the
 price-and-reviews call already covered elsewhere, that carries the raw prices Gemini just found,
 the shelf price the shopper typed, and the shopper's own two personal thresholds, together with
 the literal, runnable text of one function, and asks Gemini to execute that function inside its
-own code-running sandbox and hand back only the numbers it produced. Shin's own server never sees
-a median it computed from a grounded price under this design; it only ever sees a median Gemini
-says it computed, from code it can prove ran.
+own code-running sandbox and hand back only the numbers it produced.
 
 Two separate versions of that one function exist side by side in the codebase: a Python version,
 kept as one long fixed block of text, which is the literal thing sent to Gemini's code-running

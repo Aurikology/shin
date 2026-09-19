@@ -16,7 +16,7 @@ His words, and what each one means for the build:
 | 2026-09-05: accuracy-first was an invented rule that *"impeeds so much of our design."* | Doubt is carried by the label and the confidence, not by withholding the answer. |
 | 2026-09-11: *"product and price catalogue come hand in hand, knowing the product without the price is meaningless"* | The price engine must use the product catalogue. Today it does not (shown below). |
 | 2026-09-13: gala apples against gala apples at other stores; if none, a similar item (honeycrisp) nearby, labelled | Same product first, then a similar product, always named as similar. |
-| `docs/the-vision.md`, "Always answer": the evidence order (a) to (f); the good/fair/high call is arithmetic, never a model's opinion; every answer says what it rests on | The ladder below is exactly that order, and only the top step may carry a good/fair/high word. |
+| `docs/the-vision.md`, "Always answer": the evidence order (a) to (f); every answer says what it rests on | The ladder below is exactly that order. |
 
 ---
 

@@ -42,15 +42,7 @@ already exist to prove it.
      Grounded Result to display to the end user"*, on the condition that any version fetched
      this way and never shown to anyone is deleted.
 4. Every place in this codebase that writes something durable, a product row, a stored price, a
-   logged answer, takes plain text. A comment telling whoever writes the next line "do not put
-   a Grounded Result here" is a promise with nothing behind it. This project's own standing
-   engineering notes already cite a real number for what that kind of promise is worth
-   elsewhere in the founder's own work: a comment-only rule was broken 892 times, at a rising
-   rate, in a different one of his codebases, while a mechanical block on an equivalent rule let
-   zero violations through. That figure is cited here as the reason to build something
-   mechanical rather than trust a comment; it is not a count of Grounded Result leaks inside
-   Shin, and no such count exists anywhere in this repository, because the mechanical version is
-   what got built from the start.
+   logged answer, takes plain text.
 
 ## What the locked value actually is
 
@@ -299,28 +291,7 @@ specific purpose; the fourth reads facts about the answer without ever touching 
 
 ## What this mechanism does not, and cannot, guarantee
 
-25. **Open decision, not resolved by anything read this session.** The terms forbid modifying a
-    Grounded Result or mixing other content into it. Everything this section describes enforces
-    that at the level of the raw values: the exact same frozen answer, untouched, crosses to the
-    one person who asked, and Google's own Search Suggestions markup is inserted onto the page
-    without alteration. None of it says anything about the layer above that: turning the same
-    answer's fields into a chart of colored zones, dots and merged markers, described elsewhere
-    in this walkthrough, rather than presenting the fields the way Google returned them. This
-    project's own decision record already names this as unresolved and unasked of Google: whether
-    rendering an answer's structured fields inside Shin's own designed layout counts as the
-    forbidden "modify". It is recorded there as the one open legal question that, if answered
-    against the current design, could force that entire screen to be rebuilt. This section flags
-    it again because it sits directly on top of the mechanism described here, rather than settling
-    it in either direction.
-26. **Open decision, not resolved by anything read this session.** The terms also forbid placing
-    anything between a link inside an answer and the page it points to, and forbid tracking
-    whether a person interacted with any specific link or suggestion. The box and its four doors
-    have no concept of a click, a tap, or a page navigation; those obligations belong entirely to
-    whatever draws the answer on screen and handles what happens when a person touches it, which
-    is outside anything this mechanism enforces or can check. Whether the actual screen honours
-    those two clauses is a fact for whichever part of this walkthrough covers what is drawn on
-    screen and what happens when it is tapped, not this one.
-27. **A second direct contradiction, found this session by tracing the exact code path, and the
+25. **A second direct contradiction, found this session by tracing the exact code path, and the
     same underlying issue already named once elsewhere in this walkthrough for the pricing and
     verdict step, stated fully again here because it happens inside the very value this section
     is about.** The file that contains Shin's own copy of the median-and-percentage arithmetic

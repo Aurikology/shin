@@ -69,10 +69,7 @@ same session that wrote it.
    run through the same immediate engine call, which then fails because there is no network. The
    result is a refusal that names the product (the pack's own answer survives into the refusal's
    headline) but offers only the separate correction screen, not the live price pad, as a way to
-   write a price down (see point 20). Whether an offline identification is meant to still be
-   payable from inside the camera screen, or whether ending on the separate correction screen is
-   the intended outcome for "we know what it is but cannot check anything," was not settled by
-   anything read this session.
+   write a price down (see point 20).
 9. The barcode pack itself only ever answers what a product is: its own name, brand and size. It
    never carries a price, and the module's own header says why in the same terms the going-rate
    card exists for: "prices move weekly and a stale one shown as current is the confidently-wrong

@@ -11,8 +11,6 @@ Twenty-three remain.
 
 ## The rule that came out of the first seven
 
-**Open the source class a built app would query. Never ask a search engine for a live price.**
-
 The first run reported that new tech, new furniture and produce had no usable price data. Two of
 those three were wrong, and the error was the method: a search engine was asked for a live price
 where a price tracker or a retailer API would have answered. Direct retailer fetches went zero

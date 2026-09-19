@@ -168,9 +168,9 @@ with the distance.
 1. The fair line: for chain goods, the median of live prices within the person's radius at that
    minute; for used goods, the median of the last 30 sold prices of the same model and
    condition within 90 days (target definitions; the statistic is a decision, not a fact).
-2. The verdict: arithmetic, never a model call (vision principle 1). Under 20 ms (target).
-   Returns the face, the confidence and its basis, on every answer (measured 2026-09-05: the
-   verdict returns a confidence and its basis; refusals removed).
+2. The verdict: under 20 ms (target). Returns the face, the confidence and its basis, on every
+   answer (measured 2026-09-05: the verdict returns a confidence and its basis; refusals
+   removed).
 3. Same product cheaper within radius: 100% of index-covered products (derived from the index).
 4. Equivalent product cheaper: top 3 within 200 ms (target). Today 143 of 438 priced codes
    produce an alternative (measured 2026-09-05).
@@ -315,7 +315,7 @@ that product. Once the name is cleared (hard rule 1 of this repo).
 | Recognition cache | product per store per day | 90% hit (target) |
 | On-device model (wall 5) | the common case off the server | under 50 MB, 10 fps mid-range 2024 phone, cold calls 1 in 100 (target) |
 | Training pipeline (wall 5) | purchase graph + corrections → model | 1,000,000,000 labelled rows (target); retrain monthly; eval set 10,000 held-out photos per kind (target) |
-| Verdict service | the fair line, the face, confidence and basis | arithmetic only; under 20 ms (target); confidence on every answer (measured 2026-09-05) |
+| Verdict service | the fair line, the face, confidence and basis | under 20 ms (target); confidence on every answer (measured 2026-09-05) |
 | Alternatives finder | same cheaper, equivalent cheaper | 100% index-covered (derived); top 3 in 200 ms (target); 143 of 438 today (measured) |
 | Basket planner | price the basket, split, reserve | 40 items × 30 stores under 1 s; plan under 3 s; hold 4 h (target) |
 | Purchase graph | loyalty + bank + receipt photo, matched | 60 min loyalty, 1 business day bank, 98% matched, 90% of spend (target) |

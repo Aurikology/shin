@@ -12,6 +12,15 @@ anything that goes against those rules, then build Gemini to them** (the file li
 contradictions found so far).
 A decision that would contradict them is raised with Jamin, never made quietly.
 
+**The Google Doc wins over every older note, and the older note is deleted.** Jamin, 2026-09-19:
+*"all contradictions that are found in the future that are between the google doc and a note made
+before the writing of the google doc will result in the note being deleted."* The doc is "Shin Full
+Walkthrough" (created 2026-09-16), carried in `docs/walkthrough/jamin-notes-2026-09-17.md` and
+the "Walkthrough rulings" in `docs/jamin-gemini-rules.md`. Found a line written before 2026-09-16
+that contradicts it? Delete it (this file included) and name it in the commit message. A clash
+with anything written on or after 2026-09-16 goes to Jamin. Code that does the old thing is a build
+gap (`docs/beta-gaps-2026-09-19.md`), not a note.
+
 Problem statement, adopted verbatim 2026-09-03, use it as written:
 
 > Sellers know what things are worth and buyers are guessing, so we're making the check instant
@@ -37,9 +46,9 @@ there. A session that changes something the other person must know or do adds it
 
 1. **Always answer; the confidence carries the doubt.** His words, 2026-09-05: *"The worst thing
    this app can do is tell people it doesn't know because that literally wastes the users time."*
-   The good/fair/high call is arithmetic, never asked of a model. (The previous line here, "a
-   wrong verdict is worse than no verdict", was written by Claude on 2026-09-03 with no words of
-   his behind it; he named it as not his on 2026-09-06 and it is retired.)
+   (The previous line here, "a wrong verdict is worse than no verdict", was written by Claude on
+   2026-09-03 with no words of his behind it; he named it as not his on 2026-09-06 and it is
+   retired.)
 2. **Ship or kill.** A pass that does neither is the failure mode this project dies of.
 3. **Speed**, never traded for the first two.
 
@@ -63,7 +72,7 @@ Added only by him.
 
 ## HOW WE WORK
 
-- **No walls except law.** Nothing is final because an earlier session decided it. Every
+- **No walls.** Nothing is final because an earlier session decided it. Every
   negative call is written with the condition that reverses it.
 - **Re-entry costs new evidence, never a new opinion.** A killed item comes back only when
   something outside this repo changed. That is what makes "nothing is final" compatible with
@@ -75,9 +84,6 @@ Added only by him.
 - **The channel is short-form video.** That is the objective function, not defensibility.
 - **The primary user is a window shopper**, not a buyer. Browse frequency, never purchase
   frequency.
-- **Real feed from day one, never live search.** The 2026-09-03 pilot failed on method, not on
-  the market: asking a search engine for a live price fails where opening a price tracker or a
-  retailer API succeeds.
 
 ## COMMUNICATION RULES
 
