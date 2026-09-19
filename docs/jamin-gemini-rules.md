@@ -190,14 +190,22 @@ to them. The user's own inputs and verdict are not Gemini output. Paid tier: pro
 by Google to improve products. Under rule 5 these are marks, not blocks. The terms page itself
 names no penalty; suspension language sits in the Google APIs terms, not re-read here.
 
-**Open points for him** (rule 9 raise, each with the default a session uses until he answers):
-1. *"The barcode will not be sent to shins servers as of now"* against *"The only thing the server
-   will do is call gemini"* and *"save... the users' picture or barcode"*. A phone cannot hold the
-   Gemini key safely, so the digits pass through the server. Default: the server receives them,
-   calls Gemini, records them.
-2. The Welcome screens include *"Join over 10,000 smart shoppers"* with a 4.8 rating and reviews,
-   and savings figures ($15 in 3 days, $180 in 30). Before launch there are no such users. Default:
-   build the screens with real counts that show nothing until they exist; marked, not blocked.
-3. The one-call photo scan puts the image inside a grounded request, not yet confirmed to work
-   (Aurik's question 2) and still waiting on the paid key.
-4. About 5.6 cents a scan past roughly 1,250 scans a month (Aurik's question 4) is unanswered.
+**Four points raised with him, all DECIDED 2026-09-18.** His words: *"go with the defaults for
+all four."*
+1. **The barcode goes through Shin's server.** His note *"The barcode will not be sent to shins
+   servers as of now"* sat against *"The only thing the server will do is call gemini"* and
+   *"save... the users' picture or barcode"*. A phone cannot hold the Gemini key safely, so the
+   server receives the digits, calls Gemini, and records them.
+2. **No invented social proof in onboarding.** The Welcome screens' *"Join over 10,000 smart
+   shoppers"*, 4.8 rating, reviews and savings figures ($15 in 3 days, $180 in 30) are built with
+   real counts that stay hidden until they exist. Marked, not blocked.
+3. **The photo scan is built as one call** (image plus grounded search, rule 1) and is the first
+   thing measured when the paid key arrives. If the API refuses that combination, it is raised
+   with him, not quietly split into two calls.
+4. **The per-scan cost is accepted.** About 5.6 cents a scan past roughly 1,250 scans a month
+   (Aurik's question 4). No catalogue-first free path in front of Gemini, per *"The server will
+   not check shins own product list for now."*
+
+His suggested edits were all in the first tab and are accepted in the doc (his word, 2026-09-18).
+A re-read of the whole doc after he accepted them came back byte-identical to the first read, so
+the verbatim notes file already holds them.

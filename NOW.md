@@ -11,7 +11,7 @@ narrative.*
 call gemini."* The catalogue *"will not be in use until more user data comes in."* Also answered
 there: global now, units normalised with originals kept, alternatives in scope, barcodes read from
 every frame with a "Scan barcode" button, no offline, no browser product, no Claude inside Shin.
-All of it, and four points still open: `docs/jamin-gemini-rules.md`, "Walkthrough rulings". Read
+All of it, and the four points he then decided (defaults, 2026-09-18): `docs/jamin-gemini-rules.md`, "Walkthrough rulings". Read
 that before the question below, which stays as the record of why it was asked.
 
 ## BLOCKING QUESTION, 2026-09-18: does Gemini identify the product, or does the catalogue?
