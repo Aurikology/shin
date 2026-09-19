@@ -42,6 +42,15 @@ import type { Sighting } from './votes.ts';
  * module produces. See `scan`.
  */
 const DECODE_CEILING_MS = 1500;
+/**
+ * How many consecutive never-settling decodes declare the module dead. D-128.
+ *
+ * Three, and the number is a trade stated rather than tuned: a dead module
+ * leaks one unsettled promise per attempt, so this is the ceiling on that
+ * leak, while one or two slow frames on a cold phone no longer end scanning
+ * for the visit.
+ */
+const WEDGE_STRIKES = 3;
 
 export const RETAIL_FORMATS = [
   'EAN13',
@@ -98,6 +107,18 @@ export class BarcodeScanner {
   #ready: Promise<unknown> | null = null;
   /** Set when the reader stopped answering at all. See `scan`. */
   #wedged = false;
+  /**
+   * Consecutive decodes that hit the ceiling without ever settling. D-128.
+   *
+   * ONE SLOW DECODE IS NOT A DEAD MODULE, and this used to treat them as the
+   * same thing: the first timeout latched `#wedged`, nothing ever cleared it,
+   * and barcode scanning was over for the visit. The ceiling is generous on a
+   * laptop (a 960px frame decodes in about 45 ms) and is not generous on a
+   * cold mid-range phone, or in a backgrounded tab where timers are throttled
+   * and the main thread is starved. Those are ordinary conditions, and the
+   * shopper's recovery was to leave the screen and come back.
+   */
+  #strikes = 0;
   /** Set once the WebAssembly has arrived and answered its first read. See `scan`. */
   #loaded = false;
 
@@ -182,8 +203,7 @@ export class BarcodeScanner {
       const timeout = new Promise<null>((resolve) => {
         timer = setTimeout(() => resolve(null), DECODE_CEILING_MS);
       });
-      const decoded = await Promise.race([
-        readBarcodes(frame, {
+      const decoding = readBarcodes(frame, {
           formats: [...RETAIL_FORMATS],
           // A barcode on a shelf is curved, angled, and half in shadow. These cost
           // milliseconds and are the difference between reading a real shelf and
@@ -192,15 +212,40 @@ export class BarcodeScanner {
           tryRotate: true,
           tryInvert: true,
           tryDownscale: true,
-          maxNumberOfSymbols: 4,
-        }),
-        timeout,
-      ]);
+        maxNumberOfSymbols: 4,
+      });
+      const decoded = await Promise.race([decoding, timeout]);
       clearTimeout(timer);
       if (decoded === null) {
-        this.#wedged = true;
+        /*
+         * D-128. The race lost, and the two reasons it can lose are not the
+         * same fault. A module Emscripten aborted never settles AT ALL -- that
+         * is the failure this whole race exists for, and the one that must end
+         * in a wedge, because awaiting it forever stops the frame loop and
+         * takes the camera down with it. A module that is merely slow settles
+         * LATE.
+         *
+         * So the outstanding promise is not abandoned: it is watched. If it
+         * ever comes back, that is proof of life, and it clears the strikes and
+         * the wedge. Its result is dropped -- the frame it describes is long
+         * gone and `votes.ts` decides on many frames anyway -- so this buys
+         * evidence, never a stale sighting.
+         */
+        void decoding.then(
+          () => { this.#strikes = 0; this.#wedged = false; },
+          () => { this.#strikes = 0; this.#wedged = false; },
+        );
+        /*
+         * Strikes, not one shot. A truly dead module leaks one unsettled
+         * promise per attempt, so this cannot be unbounded -- WEDGE_STRIKES is
+         * the ceiling on that leak and the reason this is a small number.
+         */
+        this.#strikes += 1;
+        if (this.#strikes >= WEDGE_STRIKES) this.#wedged = true;
         return null;
       }
+      // A decode that landed inside the ceiling is proof the module answers.
+      this.#strikes = 0;
       results = decoded;
     } catch {
       return null;
