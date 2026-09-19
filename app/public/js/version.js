@@ -11,4 +11,4 @@
  * Update this string when a build pass changes user-visible behaviour, same
  * rule BUILD_STAMP always carried.
  */
-export const APP_VERSION = '2026-09-11.1';
+export const APP_VERSION = '2026-09-19.1';

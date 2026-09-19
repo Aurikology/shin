@@ -1,10 +1,11 @@
 /**
  * You. Settings, and the honest account of what Shin can and cannot do.
  *
- * The coverage number here is measured by asking the engine to price every item
- * it knows, not by counting rows. A shelf count looks like coverage and is not:
- * the app once told people it could answer for seven things when it could answer
- * for two, which is overstating itself by 3.5x.
+ * There is no "what Shin can price" list any more. It counted the seven items
+ * that were priced by hand, which stopped being what Shin can answer the day a
+ * scan became one Gemini call for any product: "4 of 7" was a claim about a
+ * catalogue the scan no longer reads. The scan-log block below is what is left
+ * of the honest account, and it counts what was actually asked.
  *
  * GAMIFICATION.md rules what is on this page: no streak, no badges, no
  * leaderboard, no saved-money tally. The weekly line (mechanic M16) reads the
@@ -171,13 +172,6 @@ export default {
                 ${rowCheck()}
               </button>`,
             ).join('')}
-          </div>
-        </section>
-
-        <section class="block">
-          <h2 class="sect-h">${escapeHtml(t('you_can_answer_h'))}</h2>
-          <div class="coverage" data-coverage aria-live="polite" aria-busy="true">
-            <p class="fineprint">${escapeHtml(say('you_coverage_loading'))}</p>
           </div>
         </section>
 
@@ -449,42 +443,6 @@ export default {
     for (const g of root.querySelectorAll('[role="radiogroup"]')) {
       wireRadioGroup(g, { signal: ac.signal });
     }
-
-    ctx.api.catalogue().then((c) => {
-      const box = root.querySelector('[data-coverage]');
-      if (!box) return;
-      const refused = c.items.length - c.answerableCount;
-      box.setAttribute('aria-busy', 'false');
-      /*
-       * The headline was a 44px numeral, which is the size DESIGN.md section 2
-       * gives a price. This is a stat about the product's own data gaps, not a
-       * price and not a score, so it is a row that states a fact like every
-       * other row on this page. The fact is unchanged; only its volume is.
-       */
-      box.innerHTML = `
-        <div class="ilist">
-          <div class="ilist-row">
-            <span class="ilist-l">${escapeHtml(t('you_can_price'))}</span>
-            <span class="ilist-v">${c.answerableCount} ${escapeHtml(t('of'))} ${c.items.length}</span>
-          </div>
-        </div>
-        <p class="fineprint">${escapeHtml(say('you_coverage_refused', { refused: String(refused) }))}</p>
-        <div class="covlist">
-          ${c.items
-            .map(
-              (i) => `<div class="covrow">
-                <span>${escapeHtml(i.label)}</span>
-                <span class="${i.answerable ? 'yes' : 'no'}">${escapeHtml(i.answerable ? t('you_row_can_answer') : t('you_row_refuses'))}</span>
-              </div>`,
-            )
-            .join('')}
-        </div>`;
-    }).catch(() => {
-      const box = root.querySelector('[data-coverage]');
-      if (!box) return;
-      box.setAttribute('aria-busy', 'false');
-      box.innerHTML = `<p class="fineprint">${escapeHtml(say('you_coverage_failed'))}</p>`;
-    });
 
     /*
      * The scan log, read back.
