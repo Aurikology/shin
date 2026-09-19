@@ -3494,14 +3494,39 @@ export const server = createServer(async (req, res) => {
       // Items 18 and 19. The market comes from the user's location as sent by the
       // phone (country, region, currency query parameters), never assumed; with
       // none sent it is the unknown market. `mode` is validation or switching.
-      const alternatives = await alternativesFor(catalogueDb, original, askingCents, lookupPrices, {
-        market: marketFromLocation({
-          country: url.searchParams.get('country'),
-          region: url.searchParams.get('region'),
-          currency: url.searchParams.get('currency'),
-        }),
-        mode: url.searchParams.get('mode') === 'switching' ? 'switching' : 'validation',
-      });
+      /*
+       * THE PRICE DATABASE IS OPTIONAL AND THIS ROUTE MUST NOT DIE WITH IT.
+       * D-130, from Jamin's 2026-09-14 phone test: on the Mac the configured
+       * prices.db does not exist, `lookupPrices` throws SQLITE_CANTOPEN, and
+       * the shopper gets a 500 where this route's own contract promises a
+       * 200. His words: it "should fail soft".
+       *
+       * It is the contract two comments above this one -- an empty list is a
+       * 200 with a heading, because a refusal to name a cheaper option is a
+       * correct answer -- and rule 6, always an answer. A cheaper-options
+       * panel is a bonus on top of a verdict the shopper already has; it has
+       * no business turning their scan into an error.
+       *
+       * The catch is DELIBERATELY NARROW in what it claims. It does not
+       * pretend nothing happened: the failure is logged with the code, and
+       * the shopper is told we could not look rather than told there is
+       * nothing cheaper. Those are the two different facts `camera.js`'s own
+       * comment says must never be collapsed into one silence.
+       */
+      let alternatives;
+      try {
+        alternatives = await alternativesFor(catalogueDb, original, askingCents, lookupPrices, {
+          market: marketFromLocation({
+            country: url.searchParams.get('country'),
+            region: url.searchParams.get('region'),
+            currency: url.searchParams.get('currency'),
+          }),
+          mode: url.searchParams.get('mode') === 'switching' ? 'switching' : 'validation',
+        });
+      } catch (err) {
+        logError({ where: '/api/alternatives', deviceId: null, err });
+        return json(200, alternativesPayload(true, 'We could not look for cheaper options just now.', []));
+      }
       return json(200, alternativesPayload(
         true,
         alternativesHeading(original, alternatives.length),

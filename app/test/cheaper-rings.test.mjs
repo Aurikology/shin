@@ -467,3 +467,38 @@ test('the body is the same object graph whatever fields a row carries', () => {
   assert.deepEqual(alternativesPayload(false, 'h', []).alternatives, []);
   assert.equal(alternativesPayload(false, 'h', []).catalogueUp, false);
 });
+
+test('a price database that will not open answers 200 and says we could not look', () => {
+  /*
+   * D-130, from Jamin's 2026-09-14 phone test: on the Mac the configured
+   * prices.db does not exist, `lookupPrices` throws SQLITE_CANTOPEN, and the
+   * shopper's scan turns into a 500 where this route's own contract promises a
+   * 200. His words: it "should fail soft".
+   *
+   * THIS IS A SOURCE CHECK AND NOT A BEHAVIOUR CHECK, said plainly. Every test
+   * that boots this server points SHIN_CATALOGUE at a no-catalogue.db, so the
+   * route returns "the catalogue is not attached" long before it reaches the
+   * price lookup -- there is no fixture in this package that gets far enough
+   * to throw. Building one means a real catalogue with a real row and a
+   * working fast lookup, which is a bigger job than the fix and is not done
+   * here.
+   *
+   * What this guards is that the catch is not deleted, that it answers 200
+   * rather than an error, and that it says WE COULD NOT LOOK rather than
+   * claiming there is nothing cheaper. camera.js's own comment is why that
+   * last one matters: "'there is nothing cheaper we can price' and 'we did not
+   * look' are different facts and silence would read as the second."
+   */
+  const source = readFileSync(new URL('../server.ts', import.meta.url), 'utf8');
+  const route = source.slice(source.indexOf("url.pathname === '/api/alternatives'"));
+  const block = route.slice(0, route.indexOf("url.pathname === '/api/attribution'"));
+
+  assert.match(block, /try \{/, 'the price lookup has to be guarded; it reads a file that may not exist');
+  assert.match(block, /logError\(\{ where: '\/api\/alternatives'/, 'a swallowed failure is worse than a 500');
+  assert.match(
+    block,
+    /catch[\s\S]*return json\(200,/,
+    'rule 6: the shopper still gets an answer, and this route documents 200 as the refusal',
+  );
+  assert.match(block, /could not look/i, 'not "nothing cheaper" -- that is the other fact, and it is not true here');
+});
