@@ -1,0 +1,200 @@
+#!/usr/bin/env node
+/**
+ * session-start -- does rule 1 automatically, instead of hoping a session remembers.
+ *
+ * WHY. CLAUDE.md's WHO IS WORKING ON WHAT rule 1: *"Start. `git pull`, then
+ * fetch the page. Read Needs attention first ... Then Working on now."* Nothing
+ * enforced it. The repo has had a hook for rule 3 since 2026-09-14 and none for
+ * rule 1 -- and rule 1 is the one that decides whether a session ever learns
+ * what happened while it was away.
+ *
+ * Measured cost of that gap: six items Jamin wrote on 2026-09-14 went unread
+ * for five days, and two of them were fixed within the hour once somebody
+ * finally read them.
+ *
+ * WHAT IT READS, AND WHAT IT CANNOT. The board is the Notion page `Shin: who is
+ * working on what` (Jamin moved it to GitLab and back within an hour on
+ * 2026-09-19, e1a0f12 then 0184951; the page won). This hook CANNOT read the
+ * board: it does no network, so it says so out loud rather than leaving a
+ * session believing rule 1 has been done for it.
+ *
+ * What it can read is everything on disk: `comms/` messages addressed to this
+ * machine's git user or to `all`, then `comms/claims/`, then any catch-up.md
+ * entry still missing a Read by line. Those are the side channel Jamin kept
+ * alongside the board, and the long handovers still live in catch-up.md.
+ *
+ * WHAT IT DOES NOT DO, deliberately:
+ *   - No network. No `git fetch`. A session must not wait on the network to
+ *     start, and `scripts/comms-watch.mjs` already covers being told about a
+ *     push. The behind-count is labelled "as of the last fetch" because that is
+ *     what it is; a stale number presented as current is worse than no number.
+ *   - No writing. It never deletes a message or marks anything read. Under the
+ *     rules the reader deletes a message once it is settled, and a hook cannot
+ *     know whether the human was actually told.
+ *   - It never blocks. Any internal error exits 0 silently, the same rule
+ *     notion-heartbeat.mjs follows: a reminder that wedges a session is worse
+ *     than no reminder.
+ */
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
+
+/** Catch-up days to look back through. Older than this is history, not a handover. */
+const RECENT_DAYS = 6;
+
+const root = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+
+function quiet(fn, fallback) {
+  try {
+    return fn();
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Which side of the conversation this machine is, as `comms/` spells it.
+ *
+ * The filename convention is `jamin` | `aurik` | `all`, so the git user's first
+ * name is matched against those rather than used raw. Unknown means every
+ * message is shown: over-reporting is the safe direction here.
+ */
+function whoAmI() {
+  const name = quiet(
+    () => execFileSync('git', ['config', 'user.name'], { cwd: root, encoding: 'utf8' }).trim(),
+    '',
+  );
+  const first = (name.split(/\s+/)[0] || '').toLowerCase();
+  return { name: name || null, tag: first === 'jamin' || first === 'aurik' ? first : null };
+}
+
+/** Commits behind the LAST-FETCHED origin/main. Never fetches. */
+function behindCount() {
+  const out = quiet(
+    () => execFileSync('git', ['rev-list', '--count', 'HEAD..origin/main'], { cwd: root, encoding: 'utf8' }),
+    null,
+  );
+  const n = out === null ? NaN : Number(out.trim());
+  return Number.isFinite(n) ? n : null;
+}
+
+function listDir(rel) {
+  return quiet(() => readdirSync(join(root, rel)), []);
+}
+
+function firstLine(rel, file) {
+  const text = quiet(() => readFileSync(join(root, rel, file), 'utf8'), '');
+  for (const line of text.split(/\r?\n/)) {
+    const t = line.replace(/^#+\s*/, '').trim();
+    if (t) return t;
+  }
+  return '(empty)';
+}
+
+/** catch-up.md entries, newest first, that carry no Read by line for this user. */
+function unreadCatchUp(firstName) {
+  const text = quiet(() => readFileSync(join(root, 'notes', 'catch-up.md'), 'utf8'), null);
+  if (text === null) return [];
+  const lines = text.split(/\r?\n/);
+  const out = [];
+  let cur = null;
+  for (const line of lines) {
+    const head = /^##\s+(\d{4}-\d{2}-\d{2})(.*)$/.exec(line);
+    if (head) {
+      if (cur) out.push(cur);
+      cur = { title: `${head[1]}${head[2]}`, body: [] };
+      continue;
+    }
+    if (cur) cur.body.push(line);
+  }
+  if (cur) out.push(cur);
+
+  return out.slice(0, RECENT_DAYS).filter((e) => {
+    if (!firstName) return true;
+    let inRead = false;
+    const read = [];
+    for (const l of e.body) {
+      if (/^###\s+/.test(l)) {
+        inRead = /^###\s+Read by\s*$/i.test(l);
+        continue;
+      }
+      if (inRead) read.push(l);
+    }
+    return !read.join(' ').toLowerCase().includes(firstName.toLowerCase());
+  });
+}
+
+function main() {
+  const { name, tag } = whoAmI();
+  const firstName = name ? name.split(/\s+/)[0] : null;
+  const parts = [];
+
+  parts.push('SESSION START (.claude/hooks/session-start.mjs). CLAUDE.md rule 1: pull, then read the');
+  parts.push('board — Needs attention first, then Working on now.');
+  parts.push('');
+  parts.push('**THE BOARD IS THE NOTION PAGE `Shin: who is working on what`, and this hook CANNOT read');
+  parts.push('it.** No network, on purpose: a session must not wait on the network to start. Fetch it');
+  parts.push('yourself before you edit anything. What follows is only what can be read from disk —');
+  parts.push('the GitLab side channel, which Jamin keeps alongside the board (0184951).');
+  parts.push('');
+
+  const behind = behindCount();
+  if (behind === null) {
+    parts.push('- Behind origin/main: unknown (no origin/main ref). PULL BEFORE YOU START.');
+  } else if (behind > 0) {
+    parts.push(`- **${behind} commit(s) behind origin/main as of the LAST FETCH.** No fetch ran here`);
+    parts.push('  (this hook does no network). Pull before you start; the other side pushes often.');
+  } else {
+    parts.push('- Level with origin/main as of the last fetch. No fetch ran this session.');
+  }
+
+  // 1. Messages first, as the rule says.
+  const msgs = listDir('comms/messages').filter((f) => f.endsWith('.md'));
+  const mine = msgs.filter((f) => !tag || f.includes(`-to-${tag}-`) || f.includes('-to-all-'));
+  parts.push('');
+  if (mine.length === 0) {
+    parts.push(`- No messages in comms/messages for ${tag ?? 'you'} or all.`);
+  } else {
+    parts.push(`- **${mine.length} message(s) for ${tag ?? 'you'}/all** (a message to you comes first):`);
+    for (const f of mine.sort()) parts.push(`  - ${f} — ${firstLine('comms/messages', f)}`);
+    parts.push('  The reader deletes a message once it is settled, so leave it until it is.');
+  }
+
+  // 2. Then claims, so this session does not take a part someone else holds.
+  const claims = listDir('comms/claims').filter((f) => f.endsWith('.md'));
+  parts.push('');
+  if (claims.length === 0) {
+    parts.push('- No open claims in comms/claims.');
+  } else {
+    parts.push(`- **${claims.length} open claim(s)** — check none covers the part you are about to touch:`);
+    for (const f of claims.sort()) parts.push(`  - ${f} — ${firstLine('comms/claims', f)}`);
+  }
+
+  parts.push('');
+  parts.push('- **Rule 2: claim before your first edit, on the BOARD** — a line under Working on now');
+  parts.push('  naming the parts of the app you are about to touch, then re-fetch: if another line on');
+  parts.push('  the same part started earlier, yours yields. Two sessions edited the same path on');
+  parts.push('  2026-09-17/18 because nobody claimed. comms/claims/ mirrors it on the side channel.');
+
+  // 3. catch-up.md last: the older channel, still where long handovers live.
+  const unread = unreadCatchUp(firstName);
+  if (unread.length > 0) {
+    parts.push('');
+    parts.push(`- Also ${unread.length} notes/catch-up.md entr(y/ies) with no Read by line for`);
+    parts.push(`  ${firstName ?? 'this machine'} (the older channel; comms/ is the default now):`);
+    for (const e of unread) parts.push(`  - ${e.title.trim()}`);
+  }
+
+  process.stdout.write(
+    JSON.stringify({
+      hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: parts.join('\n') },
+    }),
+  );
+}
+
+try {
+  main();
+} catch {
+  // Never wedge a session over a reminder.
+}
+process.exit(0);
