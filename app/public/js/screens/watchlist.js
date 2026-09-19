@@ -109,7 +109,7 @@ export function detailModal(w, match) {
     const facts = { asking: money(v.askingCents), usual: money(v.spread.medianCents) };
 
     return html`
-      <div class="pmodal" data-act="modal">
+      <div class="pmodal" data-act="modal" data-pmodal="scan">
         <div class="pmodal-card" data-tier="${v.tier}" tabindex="-1">
           ${raw(faceBlock(tierOf(v.tier).face, { size: 'face-verdict' }))}
           <h2>${wordFor(v.tier)}</h2>
@@ -132,7 +132,7 @@ export function detailModal(w, match) {
     day: ago(w.savedAt),
   };
   return html`
-    <div class="pmodal" data-act="modal">
+    <div class="pmodal" data-act="modal" data-pmodal="record">
       <div class="pmodal-card" data-tier="fair" tabindex="-1">
         ${raw(faceBlock('idle', { size: 'face-verdict' }))}
         <h2>${w.label}</h2>

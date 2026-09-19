@@ -107,7 +107,7 @@ export function detail(h) {
     const facts = { asking: money(v.askingCents), usual: money(v.spread.medianCents) };
 
     return html`
-      <div class="pmodal" data-act="modal">
+      <div class="pmodal" data-act="modal" data-pmodal="verdict">
         <div class="pmodal-card" data-tier="${v.tier}" tabindex="-1">
           ${raw(faceBlock(tierOf(v.tier).face, { size: 'face-verdict' }))}
           <h2>${wordFor(v.tier)}</h2>
@@ -129,7 +129,7 @@ export function detail(h) {
   if (h.result?.kind === 'gemini') {
     const conf = confidenceOf(h.result);
     return html`
-      <div class="pmodal" data-act="modal">
+      <div class="pmodal" data-act="modal" data-pmodal="answer">
         <div class="pmodal-card" data-tier="unknown" tabindex="-1">
           ${raw(faceBlock('unknown', { size: 'face-verdict' }))}
           <h2>${geminiWordFor(h)}</h2>
@@ -143,7 +143,7 @@ export function detail(h) {
 
   const r = h.result;
   return html`
-    <div class="pmodal" data-act="modal">
+    <div class="pmodal" data-act="modal" data-pmodal="refusal">
       <div class="pmodal-card" data-tier="unknown" tabindex="-1">
         ${raw(faceBlock('unknown', { size: 'face-verdict' }))}
         <h2>${refusalLabel(r?.reason)}</h2>

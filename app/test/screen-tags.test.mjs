@@ -202,6 +202,200 @@ test('nothing else draws a full-page or modal surface without a tag', () => {
   }
 });
 
+/* ---------------------- every surface a template builds has exactly one tag of its own */
+
+/*
+ * The checks above find a sheet by the one word in `class="sheet name"`, so a sheet
+ * with two class names (`sheet verdict gemini`) slipped past them and borrowed a
+ * neighbour's tag, and a modal with a new variant did the same. This section reads
+ * EVERY template that builds a sheet, a modal (.pmodal), a toast or the render
+ * failure page, and for each height the surface can reach asks which registry
+ * selectors would match the element it draws. Exactly one may. It fails when none
+ * does (no tag), when two do (shared), and when two surfaces end up with one tag.
+ */
+
+/** A selector split at spaces and combinators that sit outside [] and (). */
+function compounds(sel) {
+  const out = [];
+  let depth = 0;
+  let cur = '';
+  for (const ch of sel) {
+    if (ch === '[' || ch === '(') depth += 1;
+    if (ch === ']' || ch === ')') depth -= 1;
+    if (depth === 0 && /[\s>+~]/.test(ch)) { if (cur) out.push(cur); cur = ''; continue; }
+    cur += ch;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+const NOT_GROUP = /:not\(((?:[^()]|\([^()]*\))*)\)/g;
+
+/** Whether one compound selector (classes, attributes, :not) matches an element's facts. */
+function compoundMatches(part, el) {
+  for (const m of part.matchAll(NOT_GROUP)) if (compoundMatches(m[1], el)) return false;
+  let rest = part.replace(NOT_GROUP, '');
+  for (const m of rest.matchAll(/\[([\w-]+)(?:="([^"]*)")?\]/g)) {
+    if (!el.attrs.has(m[1])) return false;
+    const v = el.attrs.get(m[1]);
+    // null is a value filled in at run time: it can be anything, so it cannot rule the selector out.
+    if (m[2] !== undefined && v !== null && v !== m[2]) return false;
+  }
+  rest = rest.replace(/\[[^\]]*\]/g, '');
+  for (const m of rest.matchAll(/\.([\w-]+)/g)) if (!el.classes.has(m[1])) return false;
+  return true;
+}
+
+/** Whether every class and attribute a descendant compound names is somewhere in the template's text. */
+function namesInText(part, text) {
+  const bare = part.replace(NOT_GROUP, '');
+  const words = [...bare.matchAll(/\.([\w-]+)/g)].map((m) => m[1]);
+  for (const m of bare.matchAll(/\[([\w-]+)/g)) words.push(m[1]);
+  return words.every((w) => new RegExp(`(^|[^\\w-])${w}(?![\\w-])`).test(text));
+}
+
+/** The opening tag that a `class="..."` at `at` belongs to, skipping over ${...} so an arrow's > never ends it. */
+function openingTag(src, at) {
+  const start = src.lastIndexOf('<', at);
+  let depth = 0;
+  for (let i = start; i < src.length; i += 1) {
+    const c = src[i];
+    if (c === '$' && src[i + 1] === '{') { depth += 1; i += 1; continue; }
+    if (depth > 0) { if (c === '{') depth += 1; else if (c === '}') depth -= 1; continue; }
+    if (c === '>') return src.slice(start, i + 1);
+  }
+  return src.slice(start);
+}
+
+/** The classes and attributes a template gives its element. A ${...} value is null: known only at run time. */
+function elementOf(tag) {
+  const flat = tag.replace(/\$\{(?:[^{}]|\{[^{}]*\})*\}/g, '\u0001');
+  const cls = /\bclass="([^"]*)"/.exec(flat)?.[1] ?? '';
+  const attrs = new Map();
+  for (const m of flat.replace(/^<\w+/, '').matchAll(/([A-Za-z][\w:-]*)(?:="([^"]*)")?/g)) {
+    if (m[1] === 'class') continue;
+    attrs.set(m[1], m[2] === undefined ? '' : m[2].includes('\u0001') ? null : m[2]);
+  }
+  return { classes: new Set(cls.split(/\s+/).filter(Boolean)), attrs, literal: !cls.includes('\u0001') };
+}
+
+/** Every template in the screens and the router that builds a sheet, modal, toast or error page. */
+function surfaceTemplates() {
+  const dir = fileURLToPath(new URL('screens/', JS));
+  const files = readdirSync(dir).filter((f) => f.endsWith('.js')).map((f) => ({ name: `screens/${f}`, src: readFileSync(`${dir}${f}`, 'utf8').replace(/\r\n/g, '\n') }));
+  files.push({ name: 'router.js', src: readJs('router.js') });
+  const found = [];
+  for (const { name, src } of files) {
+    const route = /^ {2}id:\s*'([\w-]+)'/m.exec(src)?.[1] ?? null;
+    for (const m of src.matchAll(/class="(?:sheet|pmodal|toast|screen-error)(?:\s[^"]*)?"/g)) {
+      const el = elementOf(openingTag(src, m.index));
+      const root = [...el.classes][0] ?? '';
+      const text = root === 'sheet' ? src.slice(m.index, src.indexOf('</section>', m.index) + 10) : src.slice(m.index, m.index + 2000);
+      found.push({ name, route, el, root, text, label: `${name} <${[...el.classes].join(' ')}>` });
+    }
+  }
+  return found;
+}
+
+/** The registry entries that name this element at this height: whole-selector matches, else descendant matches. */
+function tagsNaming(t, height, tags = entries) {
+  const own = tags.filter(([, e]) => e.sel && (e.route === t.route || e.route === '*'));
+  const el = height ? { ...t.el, attrs: new Map([...t.el.attrs, ['data-detent', height]]) } : t.el;
+  const names = ([, e]) => { const cs = compounds(e.sel); return cs[0].includes(`.${t.root}`) && compoundMatches(cs[0], el) ? cs : null; };
+  const direct = own.filter((row) => names(row)?.length === 1);
+  if (direct.length) return direct;
+  return own.filter((row) => { const cs = names(row); return cs && cs.length > 1 && cs.slice(1).every((c) => namesInText(c, t.text)); });
+}
+
+/** Height each sheet can reach: its own sections say so, the way camera.js maxDetent does. */
+function heightsOf(t) {
+  if (t.root !== 'sheet') return [null];
+  return ['peek', ...(t.text.includes('class="sheet-half"') ? ['half'] : []), ...(t.text.includes('class="sheet-full"') ? ['full'] : [])];
+}
+
+test('every sheet, modal and toast a screen builds has exactly one tag of its own, at every height', () => {
+  const templates = surfaceTemplates();
+  assert.ok(templates.length >= 20, `expected the whole set of surfaces (13 camera sheets, a toast, 5 modals, the error page), found ${templates.length} templates`);
+  const owner = new Map();
+  for (const t of templates) {
+    assert.ok(t.el.literal, `${t.label}: the class list is built at run time, so no selector can be checked against it`);
+    for (const h of heightsOf(t)) {
+      const who = `${t.label} at ${h ?? 'its one height'}`;
+      const named = tagsNaming(t, h);
+      assert.ok(named.length >= 1, `${who} has no tag of its own: no selector in screen-tags.js names it. Add one (and its row in docs/screen-tags.md), and narrow any older tag that would also match.`);
+      assert.equal(named.length, 1, `${who} is named by ${named.map(([tag]) => tag).join(' and ')}: two tags for one surface. Narrow the older one with :not(...).`);
+      const tag = named[0][0];
+      assert.ok(!owner.has(tag), `${tag} is the tag of both ${owner.get(tag)} and ${who}`);
+      owner.set(tag, who);
+    }
+  }
+});
+
+test('the guard sees the answer sheet, the failure sheet and every modal variant', () => {
+  // Guard the guard: it must find these, and map each to the tag the owner was told about.
+  const byLabel = new Map(surfaceTemplates().map((t) => [t.label, t]));
+  const tagOf = (label, h) => tagsNaming(byLabel.get(label), h).map(([tag]) => tag);
+  assert.deepEqual(['peek', 'half', 'full'].map((h) => tagOf('screens/camera.js <sheet verdict gemini>', h)[0]), ['a87', 'a88', 'a89']);
+  assert.deepEqual(tagOf('screens/camera.js <sheet refusal gemini-failed>', 'peek'), ['a90']);
+  assert.deepEqual(['peek', 'half', 'full'].map((h) => tagOf('screens/camera.js <sheet verdict>', h)[0]), ['a38', 'a39', 'a40']);
+  const modals = surfaceTemplates().filter((t) => t.root === 'pmodal');
+  assert.equal(modals.length, 5, 'expected three past-scan modals and two saved-item modals');
+  assert.deepEqual(modals.map((t) => tagsNaming(t, null).map(([tag]) => tag)), [['a61'], ['a91'], ['a62'], ['a56'], ['a57']]);
+});
+
+test('a sheet class the registry cannot name is caught, and so is a tag two surfaces share', () => {
+  // A stand-in for a new sheet that nobody tagged: it must resolve to nothing.
+  const ghost = { name: 'screens/camera.js', route: 'camera', root: 'sheet', text: '<section class="sheet ghost"></section>', el: elementOf('<section class="sheet ghost" data-tier="unknown">') };
+  assert.equal(tagsNaming(ghost, 'peek').length, 0);
+  // The answer sheet against the registry as it was before the :not() narrowing: two tags name it.
+  const gemini = surfaceTemplates().find((t) => t.label === 'screens/camera.js <sheet verdict gemini>');
+  const loosened = entries.map(([tag, e]) => [tag, { ...e, sel: e.sel?.replace(':not(.gemini)', '') }]);
+  assert.ok(tagsNaming(gemini, 'peek', loosened).length >= 2, 'the loosened registry should name the answer sheet twice');
+});
+
+test('no template draws an overlay-shaped class the guard does not know', () => {
+  const PARTS = new Set(['sheet', 'sheet-peek', 'sheet-half', 'sheet-full', 'sheet-head', 'sheet-close', 'sheet-slot', 'toast', 'toast-slot', 'toast-undo', 'pmodal', 'pmodal-card', 'pmodal-meta', 'pmodal-conf', 'pmodal-note']);
+  const SHAPE = /(^|-)(sheet|modal|pmodal|dialog|overlay|banner|popover|toast|scrim|drawer|snackbar|lightbox|backdrop|tooltip|coachmark)(-|$)/;
+  const dir = fileURLToPath(JS);
+  const hits = [];
+  const walk = (d, rel = '') => {
+    for (const ent of readdirSync(d, { withFileTypes: true })) {
+      if (ent.isDirectory()) { if (!['vendor', 'chunks'].includes(ent.name)) walk(`${d}${ent.name}/`, `${rel}${ent.name}/`); continue; }
+      if (!ent.name.endsWith('.js')) continue;
+      const src = readFileSync(`${d}${ent.name}`, 'utf8');
+      const lists = [...src.matchAll(/class="([^"]*)"|setAttribute\('class', '([^']*)'\)|className = '([^']*)'|classList\.add\('([^']*)'/g)].map((m) => m[1] ?? m[2] ?? m[3] ?? m[4]);
+      for (const list of lists) {
+        for (const token of list.replace(/\$\{[^}]*\}/g, ' ').split(/\s+/).filter(Boolean)) {
+          if (SHAPE.test(token) && !PARTS.has(token)) hits.push(`${rel}${ent.name}: "${token}"`);
+        }
+      }
+    }
+  };
+  walk(dir);
+  assert.deepEqual(hits, [], `a class that looks like a sheet, modal, banner, dialog or overlay is drawn and the guard has no rule for it. Tag it (and read the rules at the top of docs/screen-tags.md), then add its parts to PARTS here: ${hits.join('; ')}`);
+});
+
+test('nothing draws on document.body, so the badge watching #screen sees every visible surface', () => {
+  const dir = fileURLToPath(JS);
+  const ALLOWED = new Set(['screen-tag-badge.js', 'share.js']); // the badge itself, and share.js's download anchor that is removed at once
+  const hits = [];
+  const walk = (d) => {
+    for (const ent of readdirSync(d, { withFileTypes: true })) {
+      if (ent.isDirectory()) { if (!['vendor', 'chunks'].includes(ent.name)) walk(`${d}${ent.name}/`); continue; }
+      if (!ent.name.endsWith('.js') || ALLOWED.has(ent.name)) continue;
+      const src = readFileSync(`${d}${ent.name}`, 'utf8');
+      if (/document\.body\.(appendChild|append|prepend|insertBefore|insertAdjacent\w+|innerHTML)/.test(src)) hits.push(ent.name);
+    }
+  };
+  walk(dir);
+  assert.deepEqual(hits, [], `${hits.join(', ')} adds to document.body, which the tag badge does not watch: a surface there would show a wrong tag. Mount it inside #screen, or widen the observer in screen-tag-badge.js.`);
+  // And the page itself holds one container, the no-script notice and a hidden live region, nothing else.
+  const page = read(new URL('../public/index.html', import.meta.url)).replace(/<!--[\s\S]*?-->/g, '');
+  const body = page.slice(page.indexOf('<body>'));
+  const boxes = [...body.replace(/<noscript>[\s\S]*?<\/noscript>/, '').matchAll(/<(div|main|section|aside|dialog|nav|header|footer)\b[^>]*>/g)].map((m) => m[0]);
+  assert.deepEqual(boxes, ['<div class="device">', '<main id="screen" role="main">', '<div id="route-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true">'], 'index.html now holds a visible element outside #screen, which the tag badge does not watch');
+});
+
 /* -------------------------------------------- selectors still match their own file */
 
 test('every selector names only classes and attributes its file still contains', () => {
@@ -257,10 +451,14 @@ test('a route with no entry gets no tag, which the badge draws as a?', () => {
 test('a sheet over the camera wins, and a modal over a list wins', () => {
   const on = (...sels) => (s) => sels.includes(s);
   const id = (route, m) => SCREEN_TAGS[pickTag(route, m)].id;
-  assert.equal(id('camera', on('.sheet.verdict[data-detent="half"]', '.cam[data-state="idle"][data-mode="photo"]')), 'camera.verdict.half');
-  assert.equal(id('camera', on('.sheet.refusal[data-detent="peek"]', '.sheet.refusal[data-needs-connection]')), 'camera.needsconnection');
-  assert.equal(id('watchlist', on('.pmodal', '.pmodal .pmodal-conf', '.empty')), 'watchlist.detail.scan');
-  assert.equal(id('pastscans', on('.pmodal', '.list-state [data-act="retry"]')), 'pastscans.detail.refusal');
+  assert.equal(id('camera', on('.sheet.verdict:not(.gemini)[data-detent="half"]', '.cam[data-state="idle"][data-mode="photo"]')), 'camera.verdict.half');
+  assert.equal(id('camera', on('.sheet.refusal.gemini-failed', '.cam[data-state="idle"][data-mode="photo"]')), 'camera.gemini.failed');
+  assert.equal(id('camera', on('.sheet.verdict.gemini[data-detent="full"]', '.toast[data-toast]')), 'camera.verdict.toast');
+  assert.equal(id('camera', on('.sheet.verdict.gemini[data-detent="half"]', '.sheet.gemini[data-detent="half"] [data-gem-history]')), 'camera.gemini.history');
+  assert.equal(id('camera', on('.sheet.refusal[data-needs-connection]', '.cam[data-state="idle"][data-mode="photo"]')), 'camera.needsconnection');
+  assert.equal(id('watchlist', on('.pmodal[data-pmodal="scan"]', '.empty')), 'watchlist.detail.scan');
+  assert.equal(id('pastscans', on('.pmodal[data-pmodal="refusal"]', '.list-state [data-act="retry"]')), 'pastscans.detail.refusal');
+  assert.equal(id('pastscans', on('.pmodal[data-pmodal="answer"]', '.empty')), 'pastscans.detail.answer');
 });
 
 /* ------------------------------------------------------------- the switch and badge */

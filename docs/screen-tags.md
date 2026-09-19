@@ -8,6 +8,9 @@ Every page, screen, sheet, modal and overlay has a short permanent tag, so a rep
 - Tags run a1 to aN with no gaps. A screen that is deleted keeps its row and is marked `retired: true` in the registry.
 - A tag can be a whole screen, a state of one (empty, error), a sheet over the camera, a modal, or an overlay. A sheet that opens in stages has one tag per stage.
 - To add one: add an entry at the bottom of `screen-tags.js` (with `route`, and a `sel` selector when the screen shares a route), add its row here, and run the tests. The test fails until both are done.
+- Every sheet, modal and toast a screen builds must resolve to exactly one tag of its own, at every height it can reach. The test reads each template in `js/screens/`, works out which selectors match it, and fails when one matches none, when two surfaces end up with the same tag, or when a new overlay-shaped class (banner, dialog, overlay, popover and so on) appears that the test does not know.
+- When a new sheet reuses the class of an older one (as the answer sheet reused `sheet verdict`), narrow the older selectors with `:not(...)` in the same change.
+- The badge watches `#screen` only. Nothing in the app draws a visible element on `document.body`; the test fails if a new one appears.
 
 ## Turning the badge on
 
@@ -136,6 +139,20 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | a85 | Savings Overview (recently scanned, measured savings) | You, tap Savings overview. Or ?s=savings. | `app/public/js/screens/savings.js` |
 | a86 | Savings Overview, nothing scanned yet | Open Savings overview on a device with no scan history. | `app/public/js/screens/savings.js` |
 
+### Surfaces found without a tag of their own (2026-09-19)
+
+The answer sheet used to show the verdict tags a38 to a40 and its could-not-answer sheet used a42. Those tags now exclude the newer sheets, so each surface shows exactly one tag.
+
+| Tag | Name | How to reach it | File |
+| --- | --- | --- | --- |
+| a87 | Answer sheet, first look (headline and figures) | A scan Shin answers from the price search. This is where the answer sheet lands, including the not fully confident version. | `app/public/js/screens/camera.js` |
+| a88 | Answer sheet, half open (sources, other options, correct it) | Answer sheet, tap or drag the grabber up once. | `app/public/js/screens/camera.js` |
+| a89 | Answer sheet, fully open (thumbs, Done) | Answer sheet, tap or drag the grabber up twice. | `app/public/js/screens/camera.js` |
+| a90 | Answer sheet, could not answer (Try again) | A scan whose price lookup did not come back, had nothing to price, or came back with nothing to show. Try again repeats that scan. | `app/public/js/screens/camera.js` |
+| a91 | Past scan detail, an answer (read only) | Past scans, tap a row that was an answer from the price search. | `app/public/js/screens/pastscans.js` |
+| a92 | Where do you shop, region step | Where do you shop, pick a country that has regions to name. The region list appears under the country list. | `app/public/js/screens/market.js` |
+| a93 | Where do you shop, no country matches the search | Where do you shop, type something in the search box that no country matches. | `app/public/js/screens/market.js` |
+
 ## Not tagged, with reason
 
 | What | Why it has no tag |
@@ -158,3 +175,10 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | Route announcement live region | Invisible, for screen readers. |
 | identify/, spine/, price/, catalogue/ and native/ folders | Server, data and native-wrapper code with no screens of their own; the wrapper loads this same app. |
 | docs/design and other repo documents | Markdown notes in the repo, not app pages. Only the four HTML files in pages/ are tagged (a77 to a80). |
+| Answer sheet sections (searched offers and reviews, the price line with its marks and merged-label list, other options) | Inline sections of the half open stage, a88, that appear and vanish inside it; nothing else on screen changes. The earlier-prices chart has its own tag, a82, because it was tagged before this rule was written down. |
+| Answer sheet, not fully confident version | The same sheet with a different face and one extra line, so it shares a87 to a89, the way verdict tiers share a38 to a40. |
+| Refusal from a spend cap, a rate limit or an outage | The reader-down refusal with its own sentence through the same sheet, so it shares a42 and a43. |
+| Welcome camera-denied note (under the permission switches) | One inline sentence that appears on a24 after the phone says no; the screen does not change. |
+| Savings Overview pending line (no measured savings published) | An inline line inside a85, the way the empty line is inside it; nothing else on the page changes. |
+| Share status line (saved to downloads, could not export) | One line under the card on a73 or a74; the screen does not change. |
+| The vision library's script tag (js/chunks, js/vendor) | Third-party code adds an invisible script element to the page body; it draws nothing a person can see. |
