@@ -88,9 +88,11 @@ const EMPTY = {
    * OLMA audit rows 9, 10, 78: the market a verdict is judged against. Changes
    * nothing in the engine today (build pass 2026-09-04); it is the basis line
    * every verdict names, so it is stored and read by `market()` for the camera
-   * side to pick up later. Pre-filled Canada/CAD, matching mockups.html screen 40.
+   * side to pick up later. Empty until the user chooses one: Shin is global (Jamin,
+   * 2026-09-17 walkthrough), so nothing assumes a country. An empty market is sent
+   * to Gemini as "unknown" (lib/scan-body.js sends only what the user chose).
    */
-  market: { country: 'Canada', currency: 'CAD' },
+  market: { country: '', currency: '' },
   /**
    * OLMA audit row 75, screen 34: a deleted scan or an unwatched item, kept
    * thirty days and restorable in one tap. `kind` is `'scan'` (from `history`)

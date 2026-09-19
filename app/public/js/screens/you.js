@@ -304,7 +304,7 @@ export default {
             </button>
             <button type="button" class="ilist-row" data-act="market">
               <span class="ilist-l">${escapeHtml(t('you_market'))}</span>
-              <span class="ilist-v">${escapeHtml(countryLabel(market.country))}</span>
+              <span class="ilist-v">${escapeHtml(market.country ? countryLabel(market.country) : t('you_market_unset'))}</span>
               ${rowChevron()}
             </button>
             <button type="button" class="ilist-row" data-act="welcome">
