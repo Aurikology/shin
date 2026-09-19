@@ -4,9 +4,11 @@
  * member prices, and marketplace or non-CAD listings.
  *
  * EVERY NUMBER IN THIS FILE WAS MEASURED, NOT TYPED, the same way as in
- * `gauge.test.ts`: `GAUGE_PYTHON_SOURCE` was run in a real CPython 3.14.0
- * interpreter over the identical input and the TypeScript twin was compared
- * to that run with `deepStrictEqual`. Seventeen cases, seventeen exact
+ * `gauge.test.ts`: the fixed Python source `src/gauge.ts` used to send into
+ * Gemini's sandbox (retired 2026-09-19, see that file's header) was run in a
+ * real CPython 3.14.0 interpreter over the identical input and the
+ * TypeScript twin was compared to that run with `deepStrictEqual`. Seventeen
+ * cases, seventeen exact
  * matches, and the cases here are a subset of that run. This is spelled out
  * because a previous session hand-typed an expected line for this function
  * and it was wrong, and a hand-typed expectation proves only that two guesses
@@ -18,8 +20,7 @@
  * header.
  *
  * WHAT THE LAST TEST IN THIS FILE IS FOR. Every exclusion code and every note
- * is swept against the grading-word list in `app/test/refusal-swaps.test.mjs`,
- * READ OFF DISK rather than copied, so the two cannot drift apart. An
+ * is swept against the grading-word list `gradingWords()` below carries. An
  * exclusion says a neutral fact about an offer and never a reading of its
  * price, and "deal" is itself on that list, which is why `dealKind` is an
  * internal field name and no rendered string uses the word.
@@ -28,10 +29,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import {
   computeGauge,
-  GAUGE_PYTHON_SOURCE,
   type GaugeExcluded,
   type GaugeOffer,
   type GaugeResult,
@@ -497,47 +496,49 @@ test('the note is a function of the code alone, so a client holding only the cod
   }
 });
 
-test('the Python and the TypeScript carry the same note for the same code', () => {
-  // Parsed out of the fixed source rather than trusted: the two tables run on
-  // opposite sides of a network call and are kept in lockstep by hand.
-  const block = GAUGE_PYTHON_SOURCE.match(/EXCLUSION_NOTES = \{([\s\S]*?)\n {4}\}/);
-  assert.ok(block, 'EXCLUSION_NOTES was not found in the Python source');
-  const fromPython = new Map<string, string>();
-  for (const m of block[1].matchAll(/"([a-z_]+)": "([^"]*)"/g)) fromPython.set(m[1], m[2]);
-  assert.equal(fromPython.size, 6, 'six codes in the Python table');
-  assert.ok(!fromPython.has('member_only') && !fromPython.has('marketplace'), 'those two are marks now, not exclusions');
-
-  for (const e of EVERY_CODE.excluded) {
-    assert.equal(e.note, fromPython.get(e.code), `${e.code}: the two languages disagree about what the note says`);
-  }
-  assert.deepEqual(
-    [...fromPython.keys()].sort(),
-    [...new Set(codesOf(EVERY_CODE.excluded))].sort(),
-    'a code exists in one language and not the other',
-  );
-});
-
 /**
- * The grading-word list, read off `app/test/refusal-swaps.test.mjs` rather
- * than copied into this file, so the two cannot drift.
+ * The grading-word list.
+ *
+ * Copied here 2026-09-19 from `app/test/refusal-swaps.test.mjs`'s own
+ * `GRADING_WORDS`, which this file used to read off disk so the two could not
+ * drift. That file was deleted the same day: its whole subject, the
+ * refusal-path substitute offer, went with `fillCheaper`
+ * (`app/public/js/screens/camera.js`), which the server can no longer trigger
+ * (every scan is one Gemini call now). This sweep is about `computeGauge`'s
+ * own exclusion codes and notes, never about that retired feature, so the
+ * list moves here rather than disappearing with the file it borrowed it from.
+ *
+ * "au-dessus" ON ITS OWN IS NOT ON THE LIST, and leaving it off is a decision
+ * rather than an oversight. The French for a parent swap is "une catégorie
+ * au-dessus": one category up, a statement about how WIDE a claim is, not
+ * about whether a price is high. What is forbidden is the price reading,
+ * "au-dessus du prix", so that is what is listed.
  */
 function gradingWords(): string[] {
-  const path = join(import.meta.dirname, '..', '..', 'app', 'test', 'refusal-swaps.test.mjs');
-  const src = readFileSync(path, 'utf8');
-  const block = src.match(/const GRADING_WORDS = \{([\s\S]*?)\n\};/);
-  assert.ok(block, `no GRADING_WORDS block in ${path}: the sweep below would have proven nothing`);
-  return [...block[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  const GRADING_WORDS = {
+    en: [
+      'good', 'fair', 'high', 'higher', 'walk away', 'deal', 'cheap', 'cheaper',
+      'expensive', 'overpriced', 'steal', 'steep', 'bargain', 'rip-off', 'ripoff',
+      'robbery', 'over the usual', 'under the usual',
+    ],
+    fr: [
+      'cher', 'chère', 'chers', 'chères', 'bon prix', 'aubaine', 'salé', 'salée',
+      'élevé', 'élevée', 'rabais', 'vol', 'volent', 'laisse faire',
+      'au-dessus du prix', 'en dessous du prix',
+    ],
+  };
+  return [...GRADING_WORDS.en, ...GRADING_WORDS.fr];
 }
 
 /** The same boundaried matcher that file uses, so "prononcer" is not a hit on "cher". */
 const boundaried = (word: string) =>
   new RegExp(`(^|[^\\p{L}])${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}])`, 'iu');
 
-test('the sweep can actually see a grading word, and really read the list off disk', () => {
-  // A canary. A list that failed to parse, or a regex that matched nothing,
-  // would pass the sweep below while proving nothing at all about it.
+test('the sweep can actually see a grading word', () => {
+  // A canary. A list that was empty, or a regex that matched nothing, would
+  // pass the sweep below while proving nothing at all about it.
   const words = gradingWords();
-  assert.ok(words.length >= 25, `only ${words.length} grading words parsed; the block was not read properly`);
+  assert.ok(words.length >= 25, `only ${words.length} grading words, expected the full list`);
   for (const canary of ['deal', 'cheap', 'expensive', 'cher', 'aubaine']) {
     assert.ok(words.includes(canary), `"${canary}" missing: the parse dropped part of the list`);
   }
@@ -547,17 +548,14 @@ test('the sweep can actually see a grading word, and really read the list off di
 
 test('no exclusion code and no note grades a price, in either language', () => {
   // Hard rule 2 and the founder's 2026-09-14 ruling. An exclusion says a
-  // neutral fact about an offer. The codes and notes here, the Python's own
-  // table, and every label these rules render are all swept.
+  // neutral fact about an offer. The codes, notes and every label these
+  // rules render are all swept.
   const words = gradingWords();
   const strings: string[] = [];
   for (const e of EVERY_CODE.excluded) strings.push(e.code, e.note, e.label, e.retailer);
   // The two marks travel as codes on the points and are swept the same way.
   for (const p of usable(EVERY_CODE).points) strings.push(...p.marks);
   strings.push('members only', 'marketplace seller', 'only one price found, so the middle is that price');
-  const block = GAUGE_PYTHON_SOURCE.match(/EXCLUSION_NOTES = \{([\s\S]*?)\n {4}\}/);
-  assert.ok(block);
-  for (const m of block[1].matchAll(/"([a-z_]+)": "([^"]*)"/g)) strings.push(m[1], m[2]);
 
   // The two suffixes the multi-item rule renders, which are the strings most
   // at risk of reaching for the banned word.
@@ -575,20 +573,6 @@ test('no exclusion code and no note grades a price, in either language', () => {
     }
   }
   assert.ok(strings.length > 30, 'the sweep swept almost nothing, which is not a pass');
-});
-
-test('the four rules left the Python source fixed, self-contained and free of grading words', () => {
-  assert.match(GAUGE_PYTHON_SOURCE, /^def gauge\(shelf, offers, under_pct, over_pct\):/);
-  assert.doesNotMatch(GAUGE_PYTHON_SOURCE, /\b(random|time|datetime|requests|urllib|os|numpy|pandas)\b/);
-  // The sandbox salts string hashing per process, so a label or an order that
-  // came out of iterating a dict or a set would differ between two calls for
-  // the same product while still passing `codeMatchesGauge`. That defect was
-  // found in this file on 2026-09-14; these tables are indexed only.
-  assert.doesNotMatch(GAUGE_PYTHON_SOURCE, /for .* in (EXCLUSION_NOTES|MASS_TO_G|VOLUME_TO_ML|COUNT_UNITS)\b/);
-  assert.doesNotMatch(GAUGE_PYTHON_SOURCE, /\.(keys|values|items)\(\)/);
-  // No exchange rate anywhere: a converted price is a guess about a number the
-  // shopper would actually be charged.
-  assert.doesNotMatch(GAUGE_PYTHON_SOURCE, /\b(rate|convert|exchange|fx)\b/i);
 });
 
 /* ------------------------------------------------------------------ *

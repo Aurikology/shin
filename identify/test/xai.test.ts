@@ -14,7 +14,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ModelCallError, Identifier, resetModelSpend } from '../src/model.ts';
 import { ProviderError } from '../src/provider.ts';
 import { XaiProvider, grokModelFor, type XaiTransport } from '../src/providers/xai.ts';
 
@@ -186,39 +185,3 @@ test('a Claude model id is translated, an explicit override wins, and nothing un
   }
 });
 
-test('selected by env, the xAI provider carries model.ts\'s whole policy unchanged', async () => {
-  const before = process.env.SHIN_MODEL_PROVIDER;
-  process.env.SHIN_MODEL_PROVIDER = 'xai';
-  resetModelSpend();
-  try {
-    // A 429 then an answer: proof that the retry policy, the clock and the cap
-    // are model.ts's and apply to a provider it has never heard of.
-    let calls = 0;
-    const transport = (async () => {
-      calls += 1;
-      if (calls === 1) return { ok: false, status: 429, async text() { return 'slow down'; } };
-      return { ok: true, status: 200, async text() { return ANSWER; } };
-    }) as XaiTransport;
-
-    const id = new Identifier(undefined, undefined, new XaiProvider({ apiKey: 'k', transport }));
-    const reading = await id.read(new Uint8Array(), null, 'basic');
-    assert.equal(calls, 2, 'one retry, exactly as on the Anthropic path');
-    assert.equal((reading.product as unknown as { brand: string }).brand, 'Acme');
-  } finally {
-    if (before === undefined) delete process.env.SHIN_MODEL_PROVIDER;
-    else process.env.SHIN_MODEL_PROVIDER = before;
-    resetModelSpend();
-  }
-});
-
-test('a hard outage through the xAI provider still arrives as a ModelCallError, not a raw throw', async () => {
-  resetModelSpend();
-  const transport = fakeTransport({ ok: false, status: 500, text: 'boom' });
-  const id = new Identifier(undefined, undefined, new XaiProvider({ apiKey: 'k', transport }));
-  await assert.rejects(
-    id.read(new Uint8Array(), null, 'basic'),
-    (e: unknown) => e instanceof ModelCallError && e.failure === 'model_outage',
-  );
-  assert.equal(transport.calls.length, 2, 'a 5xx gets exactly one more try, from this provider too');
-  resetModelSpend();
-});

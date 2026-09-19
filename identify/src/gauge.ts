@@ -3,35 +3,33 @@
  * household, anything sold by mass, volume or count), in two languages that
  * must stay identical.
  *
- * WHY THIS FILE IS SHAPED SO STRANGELY, and it is the whole reason it exists:
+ * WHY THIS FILE ONCE RAN ITS ARITHMETIC ON GEMINI'S SIDE OF THE NETWORK CALL.
  * Google's Grounding with Google Search terms forbid us to "cache, frame,
  * syndicate, resell, analyze, train on, or otherwise learn from Grounded
  * Results". Taking a median of prices Google's search returned, on our own
- * server, is analysis. The same terms allow grounded text to be resubmitted
- * "to obtain a refined or improved Grounded Result to display to the end
- * user". So the arithmetic below runs inside GEMINI'S OWN code-execution
- * sandbox, on Gemini's side of the network call, never here.
+ * server, is analysis. The original design sent a fixed Python source
+ * (`GAUGE_PYTHON_SOURCE`) into Gemini's own code-execution sandbox and
+ * verified the code it actually ran (`codeMatchesGauge`) before trusting a
+ * verdict computed there.
  *
- * That gives three artifacts in this file that must agree:
+ * OVERRULED 2026-09-15, Jamin: "Forget about all legal considerations when
+ * building, don't prevent something from functioning just because of legal
+ * issues" (see `providers/gemini-grounded.ts`'s header). The sandbox
+ * resubmission was deleted as the one thing in this repo capable of a second
+ * grounded call per scan (rule 1 forbids that on its own), and
+ * `GeminiGroundedLookup` now calls `computeGauge` directly, in this process,
+ * on real grounded offers. `GAUGE_PYTHON_SOURCE` and `codeMatchesGauge` went
+ * with the resubmission they served; removed 2026-09-19, no live caller
+ * remained (only `test/gauge.test.ts` and `test/item-rules.test.ts` still
+ * read them, to prove properties of a script nothing executes anymore).
  *
- *   1. `GAUGE_PYTHON_SOURCE` -- the exact Python text Gemini is asked to run,
- *      unchanged, as one fixed constant. Fixed, not generated per call, so
- *      that there is something stable to compare against afterwards.
- *   2. `computeGauge` -- a TypeScript twin of that Python.
- *      *** IT MUST NEVER BE RUN ON A REAL GROUNDED PRICE. ***
- *      *** RUNNING IT ON A GROUNDED PRICE WOULD BE THIS APP ANALYZING A ***
- *      *** GROUNDED RESULT, THE ONE THING THE TERMS FORBID. ***
- *      It exists ONLY so the algorithm can be proven against fake numbers in
- *      `test/gauge.test.ts` before it is ever trusted inside a prompt.
- *   3. `codeMatchesGauge` -- a whitespace-insensitive comparison of the code
- *      Gemini actually executed against `GAUGE_PYTHON_SOURCE`. A mismatch
- *      means NO VERDICT AT ALL: the caller shows prices and reviews alone.
- *
- * The two implementations are kept in lockstep BY HAND, not generated from
- * one source, because they run on opposite sides of a network call. Every
- * numeric expectation in the test file was produced by actually running the
- * Python and compared against the TypeScript, because a previous session
- * hand-typed an expected line and it was wrong.
+ * `computeGauge` is the one surviving implementation now: a TypeScript
+ * function called live, from `priceGaugeFor` in `providers/gemini-grounded.ts`,
+ * on the same grounded offers a scan renders. Every numeric expectation in
+ * `test/gauge.test.ts` was produced by actually running the retired Python
+ * source and compared against this TypeScript, because a previous session
+ * hand-typed an expected line and it was wrong; that history is why the
+ * comparison languages differ, even though only one of them still runs.
  *
  * WHY THE ZONES CARRY CODES AND NOT WORDS. The founder's ruling, 2026-09-14:
  * the words on the zones name the range the USER set, never Shin's judgment
@@ -482,8 +480,8 @@ function effectivePriceOf(offer: GaugeOffer): number {
  * Never converted. A currency with a well-known symbol prints it; any other
  * prints its own code after the number so nobody reads it as dollars. An unknown
  * currency (null) prints the legacy bare dollar sign and claims nothing more.
- * Twin of `money` in GAUGE_PYTHON_SOURCE and of `formatMoney` in
- * catalogue/src/market.ts: the symbol table is the same one.
+ * Twin of `formatMoney` in catalogue/src/market.ts: the symbol table is the
+ * same one.
  */
 const SYMBOLS: Readonly<Record<string, string>> = {
   CAD: '$', USD: '$', AUD: '$', NZD: '$', EUR: '€', GBP: '£', JPY: '¥',
@@ -678,13 +676,11 @@ function confidenceOf(
 }
 
 /**
- * The TypeScript twin, FOR LOCAL PROOF AGAINST FAKE NUMBERS ONLY.
- *
- * *** NEVER CALL THIS ON A REAL GROUNDED PRICE. *** Doing so would be this
- * app analyzing a Grounded Result, which Google's grounding terms forbid.
- * Production runs `GAUGE_PYTHON_SOURCE` inside Gemini's sandbox and verifies
- * it afterwards with `codeMatchesGauge`; this function's only callers are
- * `test/gauge.test.ts` and `test/item-rules.test.ts`.
+ * The gauge arithmetic. Called live, on real grounded offers, from
+ * `priceGaugeFor` in `providers/gemini-grounded.ts` -- see this file's header
+ * for the 2026-09-15 ruling that put it there. `test/gauge.test.ts` and
+ * `test/item-rules.test.ts` prove it against fake numbers first; they are not
+ * its only callers.
  *
  * `underPct` and `overPct` are the two percentages the USER set, both
  * defaulting to 10. They are not named for any judgment of the price,
@@ -836,291 +832,3 @@ export function computeGauge(
   };
 }
 
-/**
- * The literal text sent to Gemini's code_execution tool and run there
- * unchanged. One exported constant so that the caller, this file's twin, and
- * `codeMatchesGauge` all read the same string: a prompt that asked Gemini to
- * write fresh Python each call, which is what the reverted version did, left
- * nothing fixed to compare against and so left the check unwireable.
- *
- * Standard library only, nothing installed, deterministic, and well inside
- * the sandbox's 30 second limit.
- */
-export const GAUGE_PYTHON_SOURCE = `def gauge(shelf, offers, under_pct, over_pct):
-    import math
-    MASS_TO_G = {"g": 1.0, "kg": 1000.0, "lb": 453.59237, "oz": 28.349523125}
-    VOLUME_TO_ML = {"ml": 1.0, "l": 1000.0, "floz": 29.5735295625}
-    COUNT_UNITS = {"each", "ea", "unit", "units", "count"}
-    EXCLUSION_NOTES = {
-        "no_size": "no size given",
-        "different_dimension": "measured a different way",
-        "unknown_weight": "sold by weight, with no weight given",
-        "not_cad": "priced in another currency",
-        "different_brand_kind": "a different brand",
-        "different_organic": "organic and non-organic are not the same product",
-    }
-
-    def dim_and_base(size_value, size_unit):
-        if size_value is None or size_unit is None:
-            return None, None
-        u = str(size_unit).strip().lower().replace(" ", "")
-        if u in MASS_TO_G:
-            return "mass", size_value * MASS_TO_G[u]
-        if u in VOLUME_TO_ML:
-            return "volume", size_value * VOLUME_TO_ML[u]
-        if u in COUNT_UNITS:
-            return "count", size_value
-        return None, None
-
-    def total_size(size_value, size_unit, pack_count):
-        dim, base = dim_and_base(size_value, size_unit)
-        if dim is None:
-            return None, None
-        return dim, base * (pack_count or 1)
-
-    def unit_price(price, dim, total):
-        if dim is None or total is None or total <= 0:
-            return None
-        if dim == "count":
-            return price / total
-        return price / total * 100
-
-    def unit_label(dim):
-        if dim == "mass":
-            return "100 g"
-        if dim == "volume":
-            return "100 mL"
-        if dim == "count":
-            return "item"
-        return None
-
-    def clean_currency(c):
-        if c is None:
-            return None
-        c = str(c).strip().upper()
-        if c == "":
-            return None
-        return c
-
-    def reference_currency():
-        given = clean_currency(shelf.get("currency"))
-        if given is not None:
-            return given
-        counts = {}
-        for o in offers:
-            c = clean_currency(o.get("currency"))
-            if c is not None:
-                counts[c] = counts.get(c, 0) + 1
-        best = None
-        n = 0
-        for c in counts:
-            if counts[c] > n:
-                best = c
-                n = counts[c]
-        return best
-
-    reference = reference_currency()
-
-    def currency_of(o):
-        c = clean_currency(o.get("currency"))
-        if c is None:
-            return reference
-        return c
-
-    def brand_key(x):
-        b = x.get("storeBrand")
-        if b is None:
-            return None
-        b = str(b).strip().lower()
-        if b == "":
-            return None
-        return b
-
-    def effective_price(o):
-        kind = o.get("dealKind")
-        if kind == "multi_buy":
-            units = o.get("dealUnits")
-            if units and units > 1:
-                return o["price"] / units
-            return o["price"]
-        if kind == "bogo":
-            return o["price"] / 2
-        return o["price"]
-
-    SYMBOLS = {"CAD": "$", "USD": "$", "AUD": "$", "NZD": "$", "EUR": "\\u20ac", "GBP": "\\u00a3", "JPY": "\\u00a5"}
-
-    def money(price, currency):
-        if currency is None:
-            return "$" + format(price, ".2f")
-        symbol = SYMBOLS.get(currency) if currency == reference else None
-        if symbol is not None:
-            return symbol + format(price, ".2f")
-        return format(price, ".2f") + " " + currency
-
-    def qty_label(size_value, size_unit, pack_count, price, currency):
-        if size_value is None or size_unit is None:
-            return money(price, currency)
-        if pack_count and pack_count > 1:
-            qty = str(pack_count) + " x " + format(size_value, "g") + " " + str(size_unit)
-        else:
-            qty = format(size_value, "g") + " " + str(size_unit)
-        return qty + " · " + money(price, currency)
-
-    def deal_suffix(o, currency):
-        kind = o.get("dealKind")
-        if kind == "multi_buy":
-            units = o.get("dealUnits")
-            if units and units > 1:
-                return " (" + format(units, "g") + " for " + money(o["price"], currency) + ")"
-            return ""
-        if kind == "bogo":
-            return " (buy one get one)"
-        return ""
-
-    def offer_label(o):
-        currency = currency_of(o)
-        return qty_label(o.get("sizeValue"), o.get("sizeUnit"), o.get("packCount"), effective_price(o), currency) + deal_suffix(o, currency)
-
-    shelf_dim, shelf_total = total_size(shelf.get("sizeValue"), shelf.get("sizeUnit"), shelf.get("packCount"))
-    shelf_unit_price = unit_price(shelf["price"], shelf_dim, shelf_total)
-    shelf_label = qty_label(shelf.get("sizeValue"), shelf.get("sizeUnit"), shelf.get("packCount"), shelf["price"], reference)
-    shelf_brand = brand_key(shelf)
-    shelf_organic = bool(shelf.get("organic"))
-
-    def exclusion_of(o, dim, total, up):
-        own = currency_of(o)
-        if own is not None and reference is not None and own != reference:
-            return "not_cad"
-        if brand_key(o) != shelf_brand:
-            return "different_brand_kind"
-        if bool(o.get("organic")) != shelf_organic:
-            return "different_organic"
-        if dim is None or total is None or total <= 0:
-            if o.get("soldByWeight"):
-                return "unknown_weight"
-            return "no_size"
-        if shelf_dim is None or dim != shelf_dim:
-            return "different_dimension"
-        if up is None:
-            return "no_size"
-        return None
-
-    in_band = []
-    excluded = []
-
-    for o in offers:
-        dim, total = total_size(o.get("sizeValue"), o.get("sizeUnit"), o.get("packCount"))
-        up = unit_price(effective_price(o), dim, total)
-        code = exclusion_of(o, dim, total, up)
-        if code is not None:
-            excluded.append({
-                "retailer": o["retailer"],
-                "code": code,
-                "note": EXCLUSION_NOTES[code],
-                "label": offer_label(o),
-                "url": o.get("url"),
-            })
-            continue
-        marks = []
-        if o.get("memberOnly"):
-            marks.append("member_only")
-        if o.get("marketplace"):
-            marks.append("marketplace")
-        in_band.append({
-            "retailer": o["retailer"],
-            "unitPrice": up,
-            "url": o.get("url"),
-            "label": offer_label(o),
-            "marks": marks,
-        })
-
-    if len(in_band) == 0 or shelf_dim is None or shelf_unit_price is None:
-        return {
-            "usable": False,
-            "dimension": shelf_dim,
-            "unitLabel": unit_label(shelf_dim),
-            "excluded": excluded,
-        }
-
-    prices = [x["unitPrice"] for x in in_band]
-    n = len(prices)
-    sp = sorted(prices)
-    if n % 2 == 1:
-        median = sp[n // 2]
-    else:
-        median = (sp[n // 2 - 1] + sp[n // 2]) / 2
-
-    def pct_of(price):
-        if median == 0:
-            return 0.0
-        return (price - median) / median * 100
-
-    store_pcts = [pct_of(p) for p in prices]
-    shelf_pct = pct_of(shelf_unit_price)
-    all_abs = [abs(p) for p in store_pcts] + [abs(shelf_pct)]
-    span = max(max(all_abs), 1.5 * under_pct, 1.5 * over_pct)
-    span = math.ceil(span / 5) * 5
-    if span <= 0:
-        span = 5
-
-    def position_of(pct):
-        return 50 + pct / span * 50
-
-    under_boundary = 50 - under_pct / span * 50
-    over_boundary = 50 + over_pct / span * 50
-    tick_step = 10 if span > 30 else 5
-    ticks = []
-    t = -span
-    while t <= span:
-        if t == 0:
-            tlabel = "middle"
-        elif t > 0:
-            tlabel = "+" + str(t) + "%"
-        else:
-            tlabel = str(t) + "%"
-        ticks.append({"pct": t, "position": position_of(t), "label": tlabel})
-        t += tick_step
-
-    if shelf_pct <= -under_pct:
-        zone = "under_your_line"
-    elif shelf_pct > over_pct:
-        zone = "over_your_line"
-    else:
-        zone = "middle"
-
-    return {
-        "usable": True,
-        "median": median,
-        "percent": shelf_pct,
-        "zone": zone,
-        "n": n,
-        "dimension": shelf_dim,
-        "unitLabel": unit_label(shelf_dim),
-        "shelfPosition": position_of(shelf_pct),
-        "shelfLabel": shelf_label,
-        "zoneUnderBoundary": under_boundary,
-        "zoneOverBoundary": over_boundary,
-        "points": [{"retailer": x["retailer"], "position": position_of(pct), "url": x.get("url"), "label": x["label"], "marks": x["marks"]} for x, pct in zip(in_band, store_pcts)],
-        "excluded": excluded,
-        "ticks": ticks,
-    }`;
-
-/**
- * Whitespace-insensitive equality between the code Gemini's
- * code_execution step actually ran and `GAUGE_PYTHON_SOURCE`.
- *
- * Byte equality is too strict a bar for a model that may reindent or change
- * line endings while leaving the logic alone, and what this check is for is
- * catching a model that changed the ARITHMETIC. Every run of whitespace
- * collapses to nothing before comparing, so `a  =  1` matches `a=1` while
- * `a = 1.1` does not match `a = 1`.
- *
- * On any mismatch the caller returns no verdict at all and shows prices and
- * reviews alone. There is no partial credit here: an algorithm we cannot
- * prove ran is an algorithm that did not run.
- */
-export function codeMatchesGauge(executedCode: string | null | undefined): boolean {
-  if (!executedCode) return false;
-  const normalize = (s: string) => s.replace(/\s+/g, '');
-  return normalize(executedCode) === normalize(GAUGE_PYTHON_SOURCE);
-}

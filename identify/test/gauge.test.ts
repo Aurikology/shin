@@ -23,8 +23,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   computeGauge,
-  codeMatchesGauge,
-  GAUGE_PYTHON_SOURCE,
   LONE_CLAIM_CEILING,
   LONE_CLAIM_FLOOR,
   type GaugeOffer,
@@ -359,37 +357,6 @@ test('no zone code is ever a word that grades the price', () => {
     cases.filter((g) => g.usable).map((g) => (g as GaugeUsable).zone),
     ['under_your_line', 'middle', 'over_your_line'],
   );
-});
-
-test('the Python source is fixed, self-contained and free of grading words too', () => {
-  assert.match(GAUGE_PYTHON_SOURCE, /^def gauge\(shelf, offers, under_pct, over_pct\):/);
-  assert.match(GAUGE_PYTHON_SOURCE, /"under_your_line"/);
-  assert.match(GAUGE_PYTHON_SOURCE, /"over_your_line"/);
-  // Standard library only, nothing installed, nothing nondeterministic: the
-  // sandbox installs no packages and two calls for one product must return
-  // one scale.
-  assert.doesNotMatch(GAUGE_PYTHON_SOURCE, /\b(random|time|datetime|requests|urllib|os|numpy|pandas)\b/);
-  assert.match(GAUGE_PYTHON_SOURCE, /import math/);
-});
-
-test('the code check passes the real source, survives reformatting, and fails anything else', () => {
-  assert.equal(codeMatchesGauge(GAUGE_PYTHON_SOURCE), true);
-
-  // Reindented, re-line-ended, and padded. The point of the check is catching
-  // changed ARITHMETIC, not changed layout.
-  assert.equal(codeMatchesGauge(`   ${GAUGE_PYTHON_SOURCE.replace(/\n/g, '\r\n')}  \n\n`), true);
-  assert.equal(codeMatchesGauge(GAUGE_PYTHON_SOURCE.replace(/ {4}/g, '\t')), true);
-
-  // One digit changed is a different algorithm and gets no verdict.
-  assert.equal(codeMatchesGauge(GAUGE_PYTHON_SOURCE.replace('* 100', '* 1000')), false);
-  assert.equal(codeMatchesGauge(GAUGE_PYTHON_SOURCE.replace('453.59237', '453.6')), false);
-  // A model that quietly swapped the median for a mean.
-  assert.equal(codeMatchesGauge(GAUGE_PYTHON_SOURCE.replace('median = sp[n // 2]', 'median = sum(sp) / n')), false);
-  assert.equal(codeMatchesGauge(GAUGE_PYTHON_SOURCE + '\nprint(1)'), false);
-  assert.equal(codeMatchesGauge(''), false);
-  assert.equal(codeMatchesGauge(null), false);
-  assert.equal(codeMatchesGauge(undefined), false);
-  assert.equal(codeMatchesGauge('def gauge(shelf, offers, under_pct, over_pct):\n    return None'), false);
 });
 
 /* ------------------------------------------------------------------ D-113 */

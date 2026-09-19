@@ -4,9 +4,9 @@
  * `node --test` never opens this file (its name is not `*.test.ts`). `tsc` does,
  * because `identify/tsconfig.json` includes `test/**\/*.ts`, and that is the
  * whole mechanism: every `@ts-expect-error` below is an assertion that the line
- * under it IS an error. If a box ever becomes assignable to a scan write, a
- * price-store write or an identification field, the directive stops being used
- * and TypeScript reports "Unused '@ts-expect-error' directive", which turns
+ * under it IS an error. If a box ever becomes assignable to a scan write or a
+ * price-store write, the directive stops being used and TypeScript reports
+ * "Unused '@ts-expect-error' directive", which turns
  * `npm run typecheck` red. The check therefore fails in the direction that
  * matters: it breaks when the guard breaks, not when the guard holds.
  *
@@ -25,7 +25,6 @@
  */
 
 import type { Grounded } from '../src/grounded.ts';
-import type { IdentifiedFields } from '../src/model.ts';
 import type { ScanInput, ScanPatch } from '../../app/src/scans.ts';
 import type { ObservationRow } from '../../price/src/store.ts';
 
@@ -42,10 +41,6 @@ export const scanModelJson: ScanInput['modelJson'] = box;
 /* A price-store write. The price spine never sees a grounded value at all. */
 // @ts-expect-error a Grounded Result may not be written to the price store
 export const observationSeller: ObservationRow['seller'] = box;
-
-/* The identification pipeline. A grounded answer is not an identification. */
-// @ts-expect-error a Grounded Result may not become an identified field
-export const identifiedBrand: IdentifiedFields['brand'] = box;
 
 /* And the reverse direction: nothing structural can pose as a box. */
 // @ts-expect-error only seal() can produce a Grounded value
