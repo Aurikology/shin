@@ -28,6 +28,13 @@ import {
   alternativesHeadingStructured,
 } from '../catalogue/src/alternatives.ts';
 import type { Candidate } from '../catalogue/src/search.ts';
+import { marketFromLocation } from '../catalogue/src/market.ts';
+import {
+  createUserCatalogue,
+  probeCatalogue,
+  recordUserScan,
+  type UserCatalogue,
+} from '../catalogue/src/user-catalogue.ts';
 /*
  * TYPES ONLY, AND THE VALUES ARRIVE BY DYNAMIC IMPORT BELOW.
  *
@@ -46,6 +53,10 @@ import type {
   IdentifyOutcome,
 } from '../identify/src/identify.ts';
 import type { FailureClass, Identifier, MessagesClient, Tier } from '../identify/src/model.ts';
+import type { GroundedTransport } from '../identify/src/providers/gemini-grounded.ts';
+import type { AnswerBlock, GeminiRun, ScanType } from '../identify/src/providers/gemini-scan.ts';
+import { sealScanAnswer } from '../identify/src/providers/gemini-grounded.ts';
+import { estimatedCostCad, reserveSpend } from '../identify/src/cap.ts';
 import { lookupPrices } from '../price/src/lookup.ts';
 import { recordCorrection } from '../price/src/corrections.ts';
 import { ATTRIBUTION } from './src/attribution.ts';
@@ -55,7 +66,11 @@ import {
   getScan,
   lastAnsweredScan,
   openScanStore,
+  DEFAULT_PREFERENCES,
+  markGeminiMath,
+  readPreferences,
   recentCategories,
+  recordGeminiCall,
   recordScan,
   updateScan,
   type ScanKind,
@@ -72,6 +87,7 @@ import { estimatedCostCents } from './src/model-cost.ts';
 import { recordAccess } from './src/access-log.ts';
 import { handleAdmin } from './src/admin.ts';
 import { recordShutterRequest, saveShutterFrame } from './src/shutter-log.ts';
+import { saveShelfFrame, MAX_SHELF_FRAME_BYTES } from './src/shelf.ts';
 import { savePhoto, sweepPhotos } from './src/photos.ts';
 import {
   groundedModule,
@@ -973,19 +989,6 @@ export interface GroundedPriceQuery {
   readonly packCount?: number | null;
 }
 
-export interface GroundedProvider {
-  readonly name: string;
-  lookupBarcode(gtin: string, forDevice: string): Promise<Grounded<unknown> | null>;
-  lookupPrice(query: GroundedPriceQuery, forDevice: string): Promise<Grounded<unknown> | null>;
-  /**
-   * Start the price search now, answer nothing. Added 2026-09-15 so a scan's
-   * search runs WHILE the shopper reads the answer and types the shelf price,
-   * instead of after (Jamin: keep the wait short). Optional: a double without
-   * it just searches when the price is asked for.
-   */
-  prefetchPrice?(query: GroundedPriceQuery, forDevice: string): void;
-}
-
 /**
  * Who a grounded answer is sealed for.
  *
@@ -1001,75 +1004,451 @@ function groundedOwner(device: string): string {
   return device === UNATTRIBUTED ? `unattributed-request-${randomUUID()}` : device;
 }
 
-let groundedTestDouble: GroundedProvider | null = null;
-
-/**
- * TEST ONLY, the same seam and for the same reason as
- * `setIdentifierForTests`: there is no Google key on this machine, and a test
- * that needed one would be a test that never runs.
- */
-export function setGroundedForTests(fake: GroundedProvider | null): void {
-  groundedTestDouble = fake;
-}
-
-/**
- * The grounded provider, or null.
+/*
+ * ===========================================================================
+ * THE ONE GEMINI CALL A SCAN MAKES (beta gap items 1 to 6, 12 and 14).
+ * ===========================================================================
  *
- * NULL IS AN ANSWER, NOT AN ERROR, and every caller below is written that way:
- * it renders its non-grounded half and says nothing at all about Google. That
- * is the same shape `photoTestDouble` has and the same shape the catalogue
- * has -- this server comes up and answers on a machine that has none of them.
+ * Jamin, 2026-09-16 to 09-19: "The server will not check shins own product
+ * list for now. The only thing the server will do is call gemini." One call
+ * returns the product, the prices, the reviews AND the price math against the
+ * user's own thresholds (`identify/src/providers/gemini-scan.ts`, and the
+ * prompt in `Shin_Gemini_Pricing_Engine/`). Shin never shows its own price
+ * math, and Claude is not used anywhere on this path.
  *
- * It is null on every machine until somebody turns it on deliberately with
- * `SHIN_GROUNDED=on`, because a search that fires by default is a bill that
- * arrives by default.
+ * WHAT THIS REPLACED: `IdentifyStage` and the Claude identifier on the photo
+ * route, the catalogue lookup in front of Gemini on the barcode route, a
+ * prefetched grounded search that `/api/price` collected, and `computeGauge`
+ * run over the offers. The catalogue code is untouched and stays in the repo;
+ * it is simply not consulted for a scan's answer. `/api/search` and the
+ * catalogue screens still use it.
+ *
+ * `/api/price` no longer runs Shin's price engine either: it returns the
+ * answer the scan already holds (the same one call), or makes that one call
+ * when nobody scanned first.
  */
-let groundedLive: GroundedProvider | null = null;
 
-function groundedOnce(): GroundedProvider | null {
-  if (groundedTestDouble) return groundedTestDouble;
-  if (!groundedWanted()) return null;
-  groundedLive ??= liveGrounded();
-  return groundedLive;
+type ScanModule = typeof import('../identify/src/providers/gemini-scan.ts');
+let scanModule: Promise<ScanModule> | null = null;
+const geminiScanModule = (): Promise<ScanModule> =>
+  (scanModule ??= import('../identify/src/providers/gemini-scan.ts'));
+
+let geminiTransportDouble: GroundedTransport | null = null;
+
+/**
+ * TEST ONLY. There is no Gemini key on a build machine and rule 8 says the key
+ * is for live phone testing alone, so every test hands the real request
+ * builder and the real reader a recorded reply through this seam.
+ */
+export function setGeminiTransportForTests(transport: GroundedTransport | null): void {
+  geminiTransportDouble = transport;
+  scanned.clear();
 }
 
 /**
- * ON WITH GEMINI, 2026-09-15. The search half runs whenever
- * `SHIN_MODEL_PROVIDER=gemini` and a `GEMINI_API_KEY` is set, which is the
- * brief's own switch (docs/plan-gemini.md sections 1 and 9), or when
- * `SHIN_GROUNDED=on` with a key. `SHIN_GROUNDED=off` turns it off either way.
- * No key, no search: there is nothing to call.
+ * The daily spend cap still stands in front of every Gemini call that spends
+ * money (identify/src/cap.ts, Jamin's earlier call). A recorded transport
+ * spends nothing, so it is not counted, unless a test installs a guard of its
+ * own here to prove the cap trips.
  */
-function groundedWanted(): boolean {
-  const flag = (process.env.SHIN_GROUNDED ?? '').trim().toLowerCase();
-  if (flag === 'off') return false;
-  if (!(process.env.GEMINI_API_KEY ?? '').trim()) return false;
-  return flag === 'on' || (process.env.SHIN_MODEL_PROVIDER ?? '').trim().toLowerCase() === 'gemini';
+let spendGuardDouble: (() => boolean) | null = null;
+export function setSpendGuardForTests(guard: (() => boolean) | null): void {
+  spendGuardDouble = guard;
+}
+function spendGuardFor(): () => boolean {
+  if (spendGuardDouble) return spendGuardDouble;
+  if (geminiTransportDouble) return () => true;
+  return () => reserveSpend(estimatedCostCad());
+}
+
+interface ScannedEntry {
+  readonly at: number;
+  readonly device: string;
+  readonly scanId: number | null;
+  readonly callId: number | null;
+  readonly run: GeminiRun;
+  readonly block: AnswerBlock;
 }
 
 /**
- * The live lookup, loaded on first use so a server that never searches never
- * loads the adapter. The methods wait for the import; `prefetchPrice` starts
- * it and returns at once.
+ * The answers held between the scan and the price sheet, so the price sheet
+ * shows the SAME one call instead of making another. Keyed by scan id and by
+ * device plus barcode or name; a restart loses them, and `/api/price` then
+ * makes the one call for that scan.
  */
-function liveGrounded(): GroundedProvider {
-  type Lookup = import('../identify/src/providers/gemini-grounded.ts').GeminiGroundedLookup;
-  let loaded: Promise<Lookup> | null = null;
-  const lookup = (): Promise<Lookup> =>
-    (loaded ??= import('../identify/src/providers/gemini-grounded.ts').then((m) => new m.GeminiGroundedLookup()));
+const scanned = new Map<string, ScannedEntry>();
+const SCANNED_TTL_MS = 30 * 60_000;
+const SCANNED_MAX = 500;
+
+function scannedKeys(device: string, scanId: number | null, gtin?: string, text?: string): string[] {
+  const keys: string[] = [];
+  if (scanId !== null) keys.push(`${device}|id:${scanId}`);
+  const digits = gtin?.replace(/\D/g, '').replace(/^0+/, '');
+  if (digits) keys.push(`${device}|gtin:${digits}`);
+  const words = text?.toLowerCase().replace(/\s+/g, ' ').trim();
+  if (words) keys.push(`${device}|text:${words}`);
+  return keys;
+}
+
+function rememberScan(entry: ScannedEntry, keys: string[]): void {
+  for (const k of keys) scanned.set(k, entry);
+  if (scanned.size > SCANNED_MAX) {
+    const now = Date.now();
+    for (const [k, v] of scanned) {
+      if (now - v.at >= SCANNED_TTL_MS || scanned.size > SCANNED_MAX) scanned.delete(k);
+      if (scanned.size <= SCANNED_MAX) break;
+    }
+  }
+}
+
+function recallScan(device: string, scanId: number | null, gtin?: string, text?: string): ScannedEntry | null {
+  const now = Date.now();
+  for (const k of scannedKeys(device, scanId, gtin, text)) {
+    const found = scanned.get(k);
+    if (found && now - found.at < SCANNED_TTL_MS) return found;
+  }
+  return null;
+}
+
+/** The hidden math checks still running. Awaited only by tests. */
+const backgroundChecks = new Set<Promise<void>>();
+export function settleBackgroundChecks(): Promise<void> {
+  return Promise.all([...backgroundChecks]).then(() => undefined);
+}
+
+/**
+ * ITEM 15. What every scan teaches the user catalogue. Jamin: user data builds
+ * the catalogue, taken with a grain of salt. The catalogue is FED here and never
+ * consulted to answer the scan: this runs after the answer is built, on the next
+ * turn of the event loop, and nothing it does is awaited by the request.
+ *
+ * The user catalogue is its own small file (catalogue/src/user-catalogue.ts) so
+ * the read-only catalogue connection stays read-only. The read-only catalogue is
+ * consulted only here, after the response, to attach the user's data to a product
+ * it already holds (closest size when two exist); an unmatched scan becomes a new
+ * user-sourced, untrusted entry.
+ */
+const USER_CATALOGUE_PATH =
+  process.env.SHIN_USER_CATALOGUE ?? fileURLToPath(new URL('./data/user-catalogue.db', import.meta.url));
+let userCatalogue: UserCatalogue | null = null;
+export function setUserCatalogueForTests(uc: UserCatalogue | null): void {
+  userCatalogue = uc;
+}
+
+function scheduleCatalogueFeed(
+  run: GeminiRun,
+  named: { label: string; brand: string | null; name: string | null; size: string | null } | null,
+  a: CompleteArgs,
+  scanId: number | null,
+): void {
+  if (named === null) return; // Gemini identified nothing: there is no product to add
+  const task = new Promise<void>((resolve) => {
+    setImmediate(() => {
+      try {
+        // The model number rides in the raw answer; ReadAnswer does not carry it. A
+        // model number is what identifies tech, which is compared by model and spec.
+        let model: string | null = null;
+        try {
+          const raw = JSON.parse(run.answerText ?? '') as { product?: { model?: unknown } };
+          model = typeof raw.product?.model === 'string' && raw.product.model.trim() !== '' ? raw.product.model.trim() : null;
+        } catch {
+          /* a repaired or partial answer has no readable model; the entry is still made */
+        }
+        const result = recordUserScan(
+          {
+            gtin: a.kind === 'barcode' ? (a.gtin ?? null) : null,
+            name: named.name ?? named.label,
+            brand: named.brand,
+            quantity: named.size,
+            kind: model ? 'tech' : null,
+            model,
+            storeName: a.where.storeName,
+            priceCents: a.shelfPriceCents,
+            market: marketFromLocation({ country: a.context.market ?? null, currency: a.context.currency ?? null }),
+            scanId: scanId === null ? null : String(scanId),
+          },
+          {
+            log: (userCatalogue ??= createUserCatalogue(USER_CATALOGUE_PATH)),
+            probe: catalogueDb ? probeCatalogue(catalogueDb) : null,
+          },
+        );
+        if (result.outcome === 'dropped') {
+          logError({ where: 'catalogue.feed', deviceId: a.device, scanId, err: new Error(result.reason ?? 'dropped') });
+        }
+      } catch (err) {
+        logError({ where: 'catalogue.feed', deviceId: a.device, scanId, err });
+      }
+      resolve();
+    });
+  });
+  backgroundChecks.add(task);
+  void task.finally(() => backgroundChecks.delete(task));
+}
+
+/**
+ * ITEM 14. After the answer has gone out, re-run the arithmetic Gemini claims
+ * to have done and mark the stored call if it disagrees. Never shown, never
+ * waited on, and it can only ever write a mark.
+ */
+function scheduleMathCheck(mod: ScanModule, run: GeminiRun, callId: number | null, device: string, scanId: number | null): void {
+  const task = new Promise<void>((resolve) => {
+    setImmediate(() => {
+      try {
+        const check = mod.checkMath(run.answer, run.thresholds);
+        if (callId !== null) {
+          markGeminiMath(callId, !check.checked ? 'unchecked' : check.mismatches.length > 0 ? 'mismatch' : 'ok', check.mismatches);
+        }
+      } catch (err) {
+        logError({ where: 'gemini.math_check', deviceId: device, scanId, err });
+      }
+      resolve();
+    });
+  });
+  backgroundChecks.add(task);
+  void task.finally(() => backgroundChecks.delete(task));
+}
+
+/** The user's lines: the request's own, else what this device saved on the server, else the default range. */
+function thresholdsFor(mod: ScanModule, raw: unknown, device: string) {
+  const sent = mod.readThresholds(raw);
+  if (sent.source === 'user') return sent;
+  if (device !== UNATTRIBUTED) {
+    const saved = readPreferences(device);
+    if (saved !== DEFAULT_PREFERENCES) {
+      return { underPct: saved.goodUnderPct, overPct: saved.highOverPct, source: 'user' as const };
+    }
+  }
+  return sent;
+}
+
+interface ScanContext {
+  readonly market?: string | null;
+  readonly currency?: string | null;
+  readonly language?: string | null;
+  readonly userInput?: string | null;
+}
+
+function contextFrom(get: (key: string) => unknown): ScanContext {
+  const text = (v: unknown): string | null =>
+    typeof v === 'string' && v.trim() !== '' && v.length <= 80 ? v.trim() : null;
   return {
-    name: 'gemini',
-    async lookupBarcode(gtin, forDevice) {
-      return (await lookup()).lookupBarcode(gtin, forDevice) as Promise<Grounded<unknown> | null>;
+    market: text(get('market')) ?? text(get('country')),
+    currency: text(get('currency')),
+    language: text(get('language')) ?? text(get('lang')),
+    userInput: text(get('userInput')),
+  };
+}
+
+interface CompleteArgs {
+  readonly device: string;
+  readonly kind: ScanType;
+  readonly gtin?: string;
+  readonly text?: string;
+  readonly image?: Buffer;
+  readonly imageMediaType?: string;
+  readonly sharpness?: number;
+  readonly shelfPriceCents: number | null;
+  readonly thresholdsRaw: unknown;
+  readonly context: ScanContext;
+  readonly telemetry: ReturnType<typeof telemetryFrom>;
+  readonly where: ReturnType<typeof locationFor>;
+  readonly startedAt: number;
+  /** The scan row that already exists (a price call after a restart); no second row is written. */
+  readonly existingScanId?: number | null;
+  /** False on `/api/price`: it must not write a second row for a scan that has one. */
+  readonly writeScanRow: boolean;
+}
+
+interface Completed {
+  readonly mod: ScanModule;
+  readonly run: GeminiRun;
+  readonly block: AnswerBlock;
+  readonly label: { label: string; brand: string | null; name: string | null; size: string | null } | null;
+  readonly scanId: number | null;
+  readonly callId: number | null;
+  readonly ms: number;
+}
+
+/**
+ * The one sentence a person sees when the answer is a refusal Shin can explain. Only a spent budget has one: taking the photo again cannot help then, so that sentence must survive the route.
+ */
+function whyNot(c: Pick<Completed, 'run'>): string {
+  return c.run.failure === 'spend_cap_reached' ? (c.run.failureMessage ?? '') : '';
+}
+
+/**
+ * THE ONE CALL, and everything that has to happen because it was made: the
+ * scan row, the whole request and response stored (item 12), the answer held
+ * for the price sheet, the hidden math check scheduled (item 14). Never
+ * throws at the person: `runGeminiScan` returns a marked run for every failure.
+ */
+async function completeGeminiScan(a: CompleteArgs): Promise<Completed> {
+  const mod = await geminiScanModule();
+  const thresholds = thresholdsFor(mod, a.thresholdsRaw, a.device);
+  const run = await mod.runGeminiScan(
+    {
+      kind: a.kind,
+      barcode: a.kind === 'barcode' ? (a.gtin ?? null) : null,
+      text: a.kind === 'text' ? (a.text ?? null) : null,
+      image: a.kind === 'photo' && a.image ? { bytes: a.image, mediaType: a.imageMediaType ?? 'image/jpeg' } : null,
+      sharpness: a.sharpness ?? null,
+      shelfPriceCents: a.shelfPriceCents,
+      thresholds,
+      market: a.context.market ?? null,
+      currency: a.context.currency ?? null,
+      language: a.context.language ?? null,
+      userInput: a.kind === 'barcode' && a.text ? a.text : (a.context.userInput ?? null),
     },
-    async lookupPrice(query, forDevice) {
-      return (await lookup()).lookupPrice(query, forDevice) as Promise<Grounded<unknown> | null>;
+    {
+      deviceId: a.device,
+      ...(geminiTransportDouble ? { transport: geminiTransportDouble } : {}),
+      spendGuard: spendGuardFor(),
     },
-    prefetchPrice(query, forDevice) {
-      lookup()
-        .then((l) => l.prefetchPrice(query, forDevice))
-        .catch((err) => logError({ where: 'grounded.prefetch', deviceId: forDevice, scanId: null, err }));
+  );
+  const block = mod.toAnswerBlock(run);
+  const named = mod.labelOf(run);
+  const label = named ?? (a.kind === 'barcode' && a.gtin ? { label: a.gtin, brand: null, name: null, size: null } : null);
+  const ms = Date.now() - a.startedAt;
+
+  let scanId: number | null = a.existingScanId ?? null;
+  if (a.writeScanRow) {
+    scanId = recordScan({
+      deviceId: a.device,
+      kind: a.kind as ScanKind,
+      // What was asked, never what came back: the digits, the typed name, or
+      // for a photo what Gemini read it as.
+      query: a.kind === 'barcode' ? (a.gtin ?? '') : a.kind === 'text' ? (a.text ?? '') : (named?.label ?? ''),
+      resolvedCode: a.kind === 'barcode' ? (a.gtin ?? null) : null,
+      resolvedLabel: named?.label ?? null,
+      confidence: run.answer?.overallConfidence ?? null,
+      source: 'gemini',
+      category: null,
+      outcome: label ? 'answered' : 'refused',
+      failureClass: run.failure,
+      modelJson: JSON.stringify({
+        readAs: label?.label ?? null,
+        failureMessage: run.failureMessage ?? null,
+        model: run.model,
+        family: run.family,
+        via: run.via,
+        parseStatus: run.parseStatus,
+        lowConfidence: run.lowConfidence,
+        confidenceReasons: run.confidenceReasons,
+        searchQueries: run.searchQueries.length,
+        inputTokens: run.usage.inputTokens,
+        outputTokens: run.usage.outputTokens,
+        shelfPriceSent: run.shelfPriceCents !== null,
+        thresholds: run.thresholds,
+      }),
+      modelCostCents: null,
+      appVersion: a.telemetry.appVersion,
+      platform: a.telemetry.platform,
+      latencyMs: ms,
+      cell: a.where.cell,
+      storeId: a.where.storeId,
+      storeName: a.where.storeName,
+      exactLat: a.where.exactLat,
+      exactLon: a.where.exactLon,
+      exactAccuracy: a.where.exactAccuracy,
+      exactAt: a.where.exactAt,
+    });
+  }
+
+  const callId = recordGeminiCall({
+    scanId,
+    deviceId: a.device,
+    model: run.model,
+    family: run.family,
+    via: run.via,
+    scanType: run.scanType,
+    ms: run.ms,
+    requestJson: run.requestJson,
+    systemText: run.systemText,
+    promptText: run.promptText,
+    inputRef: run.inputRef,
+    thresholdsJson: JSON.stringify(run.thresholds),
+    shelfPriceCents: run.shelfPriceCents,
+    responseRaw: run.responseRaw,
+    answerText: run.answerText,
+    httpStatus: run.httpStatus,
+    parseStatus: run.parseStatus,
+    failureClass: run.failure,
+    inputTokens: run.usage.inputTokens,
+    outputTokens: run.usage.outputTokens,
+    searchQueries: run.searchQueries.length,
+    billingBasis: run.family === '2.5' ? 'per_prompt' : 'per_query',
+    lowConfidence: run.lowConfidence,
+    // Grounded with Google Search: the terms are a mark, never a block (rule 5).
+    grounded: true,
+  });
+
+  const entry: ScannedEntry = { at: Date.now(), device: a.device, scanId, callId, run, block };
+  rememberScan(entry, scannedKeys(a.device, scanId, a.gtin, a.text ?? label?.label));
+  scheduleMathCheck(mod, run, callId, a.device, scanId);
+  scheduleCatalogueFeed(run, named, a, scanId);
+
+  recordEvent({
+    deviceId: a.device,
+    type: 'model_call',
+    payload: {
+      scanId,
+      tier: null,
+      model: run.model,
+      family: run.family,
+      passes: 1,
+      failure: run.failure,
+      reachedModel: run.failure !== 'model_client_error',
+      parseStatus: run.parseStatus,
+      lowConfidence: run.lowConfidence,
+      searchQueries: run.searchQueries.length,
+      costCents: null,
+      ms: run.ms,
     },
+  });
+  return { mod, run, block, label, scanId, callId, ms };
+}
+
+/**
+ * The grounded wire for the answer. `toWire` is the normal door; if it refuses
+ * for any reason the same block goes out in the same shape anyway, because an
+ * answer with a "not fully confident" mark beats no answer (rule 6) and a
+ * terms check is a mark, never a block (rule 5).
+ */
+function wireFor(c: Pick<Completed, 'block' | 'run' | 'scanId'>, owner: string, device: string): GroundedWire<unknown> {
+  const fetchedAt = new Date().toISOString();
+  let wire: GroundedWire<unknown>;
+  try {
+    const box = sealScanAnswer({
+      value: c.block as unknown,
+      suggestionsHtml: c.run.suggestionsHtml,
+      forDevice: owner,
+      promptId: 'scan_answer',
+      fetchedAt,
+      provider: 'gemini',
+      searchQueries: c.run.searchQueries.length,
+      model: c.run.model,
+      usage: c.run.usage,
+    });
+    // Stored for the device's history when the device is named, before it is served.
+    if (c.scanId !== null && owner === device && device !== UNATTRIBUTED) keepGroundedForOwner(c.scanId, owner, box);
+    wire = groundedModule().toWire(box, owner) as GroundedWire<unknown>;
+  } catch (err) {
+    logError({ where: 'grounded.wire', deviceId: owner, scanId: c.scanId, err });
+    wire = { kind: 'grounded', forDevice: owner, fetchedAt, block: c.block, suggestionsHtml: c.run.suggestionsHtml };
+  }
+  markGroundedShown(c.scanId);
+  return wire;
+}
+
+/** The fields every scan answer carries about the model that answered and how sure it is. */
+function answerMarks(c: Pick<Completed, 'run'>) {
+  return {
+    model: c.run.model,
+    modelFamily: c.run.family,
+    lowConfidence: c.run.lowConfidence,
+    confidenceReasons: c.run.confidenceReasons,
+    parseStatus: c.run.parseStatus,
+    failure: c.run.failure,
   };
 }
 
@@ -1725,50 +2104,6 @@ export const server = createServer(async (req, res) => {
   };
 
   /**
-   * The ONE place a Grounded Result is turned into a response body, anywhere
-   * in this repo.
-   *
-   * It is one function rather than three lines repeated per route because
-   * every rule Google's terms put on this text is enforced on the way out, and
-   * a second copy of these four lines is a second place one of them can be
-   * dropped:
-   *
-   *   - `toWire` throws on a cross-user request and on an anonymous device,
-   *     which is "shown only to the end user who submitted the prompt" as a
-   *     runtime check rather than as a convention;
-   *   - `toWire` also throws when Google's rendered Search Suggestions are
-   *     missing, which the terms require to be displayed verbatim alongside
-   *     the result;
-   *   - `markGroundedShown` runs HERE and nowhere else, so the 1 in that
-   *     column means a response carrying this text actually left the server.
-   *     Everything still marked 0 an hour later was seen by nobody and is
-   *     reaped, which is what makes the interim rule impossible to forget.
-   *
-   * A THROW IS NOT AN ERROR TO THE PERSON. It is logged and the non-grounded
-   * half of the answer goes out exactly as it would have if Google were not
-   * configured at all. The repo's first priority is that the app always
-   * answers; a licence check that turns a verdict into a 500 would trade that
-   * away for nothing.
-   */
-  const answerWithGrounded = <T>(
-    base: object,
-    box: Grounded<T>,
-    device: string,
-    scanId: number | null,
-    extra?: (block: unknown) => object,
-  ): void => {
-    let wire: GroundedWire<T>;
-    try {
-      wire = groundedModule().toWire(box, device);
-    } catch (err) {
-      logError({ where: 'grounded.wire', deviceId: device, scanId, err });
-      return json(200, base);
-    }
-    markGroundedShown(scanId);
-    return json(200, { ...base, ...(extra ? extra(wire.block) : {}), grounded: wire });
-  };
-
-  /**
    * The answer to a body over the cap.
    *
    * DRAIN FIRST, THEN ANSWER, and that order was measured rather than reasoned.
@@ -1902,6 +2237,26 @@ export const server = createServer(async (req, res) => {
       return json(status, { error: status === 404 ? 'the shutter log is off' : 'frame not saved' });
     }
 
+    /*
+     * Continuous shelf capture (item 16, 2026-09-17): a picture of what the
+     * camera sees while it is open, stored and NOT sent to any model. Photo
+     * consent is checked inside `saveShelfFrame`, and the phone checks it too.
+     * Behind the invite check above like every /api/ route.
+     */
+    if (url.pathname === '/api/shelf/frame') {
+      if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      const cap = Math.ceil(MAX_SHELF_FRAME_BYTES * 1.4);
+      const body = await readBody(req, cap);
+      if (body === TOO_LARGE) return refuseTooLarge(cap);
+      const saved = saveShelfFrame(body);
+      if (saved.status === 204) {
+        res.writeHead(204, { 'cache-control': 'no-store' });
+        res.end();
+        return;
+      }
+      return json(saved.status, { error: saved.error ?? 'frame not saved' });
+    }
+
     if (url.pathname === '/api/catalogue') return json(200, await catalogue());
     if (url.pathname === '/api/categories') return json(200, categories());
     if (url.pathname === '/api/scenarios') return json(200, scenarios());
@@ -1916,226 +2271,131 @@ export const server = createServer(async (req, res) => {
      * identity outright.
      */
     if (url.pathname === '/api/identify') {
-      const gtin = url.searchParams.get('gtin') ?? undefined;
-      // Trimmed, as `/api/search` trims `q`: `?text=%20%20` used to pass the
-      // presence guard, run a real search on whitespace, and write a refused
-      // scan row that dragged the identity rate down for nothing.
-      const text = url.searchParams.get('text')?.trim() || undefined;
-      if (!gtin && !text) return json(400, { error: 'gtin or text is required' });
-      const sizeValue = Number(url.searchParams.get('sizeValue') ?? '');
-      const device = url.searchParams.get('deviceId')?.trim() || UNATTRIBUTED;
-      deviceForLog = device;
       /*
-       * ON A QUERY STRING RATHER THAN A BODY, and it is the one place this
-       * lane's contract had to be read rather than copied. The contract names
-       * `appVersion`, `platform` and `cell` as "client-sent telemetry fields on
-       * identify bodies"; this identify route is a GET and has no body, by a
-       * deliberate decision above (a barcode read fires it with no body and it
-       * is cacheable later). So the same three names arrive as query
-       * parameters here and in the body on the photo route, which is the only
-       * reading that leaves both routes as they are.
+       * A BARCODE (or a typed name) IS ONE GEMINI CALL, NOTHING ELSE.
+       * Beta gap items 1, 2, 3 and 6. Jamin: "The server will not check shins
+       * own product list for now. The only thing the server will do is call
+       * gemini." The barcode goes to Gemini as text digits, never an image
+       * (rule 2). The catalogue is not consulted for the answer; its code stays
+       * in the repo for `/api/search` and for when user data has built it up.
+       *
+       * GET carries the request in the query string, and the shelf price and
+       * the user's lines travel as `shelfPriceCents` and `thresholds` (one JSON
+       * parameter, the object exactly as the client store holds it). POST
+       * carries the same names in a JSON body. Neither is required: a missing
+       * shelf price still gets an answer, a missing `thresholds` gets the
+       * default range (or this device's saved lines).
+       *
+       * THE ANSWER ALWAYS COMES BACK, marked when it is not fully confident:
+       * `lowConfidence` and `confidenceReasons`, and `failure` when Gemini gave
+       * nothing at all. It carries the same block `/api/price` will serve, in
+       * `grounded.block`: identity, offers, reviews and Gemini's own verdict.
        */
+      let posted: Record<string, unknown> | null = null;
+      if (req.method === 'POST') {
+        const body = await readBody(req);
+        if (body === TOO_LARGE) return refuseTooLarge();
+        if (body === null || typeof body !== 'object') return json(400, { error: 'body did not parse as JSON' });
+        posted = body as Record<string, unknown>;
+      }
+      const pick = (key: string): unknown => (posted ? posted[key] : (url.searchParams.get(key) ?? undefined));
+      const pickText = (key: string): string | undefined => {
+        const v = pick(key);
+        return typeof v === 'string' ? v : undefined;
+      };
+      const gtin = pickText('gtin')?.trim() || undefined;
+      // Trimmed, as `/api/search` trims `q`: `?text=%20%20` is not a query.
+      const text = pickText('text')?.trim() || undefined;
+      if (!gtin && !text) return json(400, { error: 'gtin or text is required' });
+      const device = pickText('deviceId')?.trim() || UNATTRIBUTED;
+      deviceForLog = device;
       const identifyStarted = Date.now();
-      const telemetry = telemetryFrom(url.searchParams);
-      const where = locationFor(
-        device,
-        url.searchParams.get('cell'),
-        url.searchParams.get('storeId'),
-        url.searchParams.get('storeName'),
-        {
-          lat: url.searchParams.get('lat'),
-          lon: url.searchParams.get('lon'),
-          accuracy: url.searchParams.get('accuracy'),
-          at: url.searchParams.get('locatedAt'),
-        },
-      );
-      const answer = await identify({
-        gtin,
-        text,
-        brand: url.searchParams.get('brand') ?? undefined,
-        sizeValue: Number.isFinite(sizeValue) && sizeValue > 0 ? sizeValue : undefined,
-        sizeUnit: url.searchParams.get('sizeUnit') ?? undefined,
-        /*
-         * The same id the scan is filed under, which is what makes the prior
-         * this device's own rather than everybody's. An unattributed scan
-         * routes on the unattributed history, which is the honest reading of
-         * "we do not know who this is": it is one bucket, it is disclosed on
-         * the answer like any other route, and it never reaches across to a
-         * device that did identify itself.
-         */
-        deviceId: device,
+      const telemetry = telemetryFrom(posted ?? url.searchParams);
+      const where = locationFor(device, pick('cell'), pick('storeId'), pick('storeName'), {
+        lat: pick('lat'),
+        lon: pick('lon'),
+        accuracy: pick('accuracy'),
+        at: pick('locatedAt'),
       });
 
-      /*
-       * One row per scan, written here and nowhere else.
-       *
-       * HERE, because this is the act: a person pointed at a thing and asked
-       * what it is. Pricing is a second question about an answer they already
-       * have, and writing a row there too would count one scan twice and make
-       * every rate depend on how far down the screen somebody got.
-       *
-       * WHAT 'answered' MEANS ON THIS ROW is that the catalogue NAMED the
-       * thing, not that anybody was given a price. The two numbers are far
-       * apart (three products can be priced in a store, measured 2026-09-05)
-       * and `scan-summary.ts` never calls this one the answer rate without the
-       * word identity in front of it.
-       *
-       * A scan whose catalogue was not attached is not recorded at all: it is
-       * a fact about this machine's setup, and mixing it into the answer rate
-       * would report a missing file as a product that could not be identified.
-       */
-      let scanId: number | null = null;
-      if (answer.catalogueUp) {
-        scanId = recordScan({
-          deviceId: device,
-          kind: (gtin ? 'barcode' : 'text') as ScanKind,
-          query: gtin ?? text ?? '',
-          resolvedCode: answer.product?.code ?? null,
-          resolvedLabel: answer.product?.name ?? null,
-          source: answer.matchedBy,
-          outcome: answer.product ? 'answered' : 'refused',
-          /*
-           * What the app decided this was, so the next scan can be routed. It
-           * is category-map.ts's verdict on the product's own tags, taken at
-           * the moment it was made; null when it would not name a kind, and a
-           * null is skipped by the reader rather than counted as a vote.
-           */
-          category: answer.category,
-          /*
-           * WHY IT WAS REFUSED, 2026-09-08.
-           *
-           * The beta readiness audit's point: a bare 'refused' cannot tell an
-           * outage from a photo nobody could have read, so a beta spent inside
-           * one would look like a beta full of bad photographs. This route only
-           * ever produces one of them: the catalogue answered and did not have
-           * the thing. The model-side classes reach this column from the vision
-           * path (identify/src/model.ts's FailureClass), which has no route yet.
-           */
-          failureClass: answer.product ? null : 'not_in_catalogue',
-          /*
-           * The conditions the answer was produced under. Plan item 9e.
-           *
-           * The latency is measured here and not on the client, because what
-           * this column has to be comparable against is other rows in the same
-           * column; a phone's own stopwatch includes a network the server
-           * cannot see and varies by handset. The client's round trip is a
-           * different and also useful number, and it belongs in the event log.
-           */
-          appVersion: telemetry.appVersion,
-          platform: telemetry.platform,
-          latencyMs: Date.now() - identifyStarted,
-          cell: where.cell,
-          storeId: where.storeId,
-          storeName: where.storeName,
-          exactLat: where.exactLat,
-          exactLon: where.exactLon,
-          exactAccuracy: where.exactAccuracy,
-          exactAt: where.exactAt,
+      let completed: Completed;
+      try {
+        const mod = await geminiScanModule();
+        completed = await completeGeminiScan({
+          device,
+          kind: gtin ? 'barcode' : 'text',
+          gtin,
+          text,
+          shelfPriceCents: mod.readShelfPriceCents(pick('shelfPriceCents')),
+          thresholdsRaw: pick('thresholds'),
+          context: contextFrom(pick),
+          telemetry,
+          where,
+          startedAt: identifyStarted,
+          writeScanRow: true,
         });
-        scanForLog = scanId;
-        /*
-         * Which source answered, as an event. Plan item 10b's server half.
-         * One line per identify, so a week of rows says how often the barcode
-         * path settled it outright and how often the catalogue was asked to
-         * search, which is the number that decides whether the vision path is
-         * worth its cost.
-         */
-        recordEvent({
-          deviceId: device,
-          type: answer.product ? 'source_used' : 'refusal',
-          payload: {
-            scanId,
-            kind: gtin ? 'barcode' : 'text',
-            matchedBy: answer.matchedBy,
-            reason: answer.product ? null : 'not_in_catalogue',
-            ms: Date.now() - identifyStarted,
-          },
+      } catch (err) {
+        // Only reachable if the scan module itself cannot load or the request
+        // could not be built. Still an answer: marked, and nothing thrown at the person.
+        logError({ where: 'gemini.identify', deviceId: device, scanId: null, err });
+        return json(200, {
+          product: null,
+          matchedBy: 'none',
+          band: 'miss',
+          catalogueUp: false,
+          failure: 'model_client_error',
+          reason: 'model_client_error',
+          lowConfidence: true,
+          confidenceReasons: ['no_answer:model_client_error'],
         });
       }
+      scanForLog = completed.scanId;
 
-      /*
-       * THE SCAN ID GOES BACK WITH THE ANSWER. Plan item 7a.
-       *
-       * It is what lets a rating, a correction and a typed price attach to the
-       * exact scan they are about instead of being matched back to one by
-       * guessing from the device and the product code. The guess is still
-       * there as a fallback (`lastAnsweredScan`, on the correction route) and
-       * it is still the only thing a client built before today can use.
-       *
-       * ABSENT WHEN THE WRITE DROPPED, never zero and never a placeholder. A
-       * scan the log could not record has no id, and a client holding a made-up
-       * one would file a rating against a row that does not exist.
-       */
-      /*
-       * THE EXACT QUERY THE SEARCH WAS STARTED UNDER, ECHOED TO THE CLIENT.
-       * 2026-09-15.
-       *
-       * The prefetch below files its search under a key built from this
-       * object's `gtin` and `text`, and `/api/price` collects it by building
-       * that key again. Until now the client built the price body's `text`
-       * itself, out of the product label it was showing, and the two strings
-       * agreed only by accident -- so the collection missed and the scan paid
-       * for a second search it then waited on.
-       *
-       * Echoing the object removes the agreement problem instead of restating
-       * it: there is one string, this one, and the client hands it straight
-       * back. A client that does not send it still works exactly as before
-       * (`/api/price` falls back to `text`/`gtin` off the body), which is what
-       * keeps an app already on somebody's phone working.
-       */
-      const priceQuery: GroundedPriceQuery | null = answer.product
+      const label = completed.label;
+      const scanId = completed.scanId;
+      const priceQuery: GroundedPriceQuery | null = label
+        ? { text: label.name ? label.label : undefined, gtin }
+        : gtin
+          ? { gtin }
+          : null;
+      const unchecked = label
         ? {
-            text: [answer.product.brands?.split(',')[0]?.trim(), answer.product.name].filter(Boolean).join(' '),
-            gtin: gtin ?? (/^\d{8,14}$/.test(answer.product.code) ? answer.product.code : undefined),
-            sizeValue: answer.product.sizeValue,
-            sizeUnit: answer.product.sizeUnit,
+            checked: false,
+            source: 'search',
+            label: label.label,
+            brand: label.brand,
+            name: label.name,
+            size: label.size,
+            gtin: gtin ?? null,
           }
         : null;
-
-      const identified = {
-        ...answer,
+      if (unchecked) {
+        recordEvent({
+          deviceId: device,
+          type: 'unchecked_answer',
+          payload: { scanId, source: gtin ? 'barcode' : 'text', failure: completed.run.failure, readAs: label?.label ?? null },
+        });
+      }
+      const wire = wireFor(completed, groundedOwner(device), device);
+      return json(200, {
+        // Shin's own product list is not consulted, so there is never a catalogue product here.
+        product: null,
+        matchedBy: 'none',
+        band: 'miss',
+        category: null,
+        categoryWhy: whyNot(completed),
+        ring: null,
+        otherCandidates: 0,
+        route: null,
+        catalogueUp: false,
+        ms: completed.ms,
+        reason: unchecked ? 'unchecked' : (completed.run.failure ?? 'identity_unsure'),
         ...(scanId === null ? {} : { scanId }),
         ...(priceQuery ? { priceQuery } : {}),
-      };
-
-      /*
-       * THE SEARCH HALF, 2026-09-15 (docs/plan-gemini.md sections 1 and 9).
-       *
-       * A CATALOGUE HIT IS UNCHANGED: identity comes from the catalogue, and
-       * the only new thing is that the price search for that product starts
-       * now, in the background, so it is ready or nearly ready by the time the
-       * shelf price is typed. Nothing waits on it here.
-       *
-       * A BARCODE MISS asks Google what the code is, and the answer goes out
-       * as an UNCHECKED identification rather than "we do not have it". Jamin:
-       * "Having a response that is not checked is infinitely better than
-       * having the user scan something, wait 10 seconds, only to get told the
-       * app doesn't know". The price search for the same code starts in
-       * parallel inside `lookupBarcode`, not after it.
-       *
-       * A device with no id gets the same, sealed for this one request (see
-       * `groundedOwner`). That used to be a terms gate; it is not any more.
-       */
-      const grounded = groundedOnce();
-      if (grounded && priceQuery) grounded.prefetchPrice?.(priceQuery, device);
-      if (grounded && !answer.product && gtin) {
-        const owner = groundedOwner(device);
-        try {
-          const box = await grounded.lookupBarcode(gtin, owner);
-          if (box) {
-            const kept = scanId !== null && owner === device ? scanId : null;
-            // Stored before it is served, and marked unshown by the store. If
-            // the response never leaves, the reaper takes it within the hour.
-            if (kept !== null) keepGroundedForOwner(kept, owner, box);
-            return answerWithGrounded(identified, box, owner, kept, (block) => uncheckedFromBarcode(block, gtin));
-          }
-        } catch (err) {
-          // The identification still goes out. See `answerWithGrounded`.
-          logError({ where: 'grounded.identify', deviceId: device, scanId, err });
-        }
-      }
-
-      return json(200, identified);
+        ...(unchecked ? { unchecked } : {}),
+        ...answerMarks(completed),
+        grounded: wire,
+      });
     }
 
     /*
@@ -2304,85 +2564,45 @@ export const server = createServer(async (req, res) => {
         accuracy: p.accuracy,
         at: p.locatedAt,
       });
-      const answer = await identifyPhoto(image, tier, sharpness, device === UNATTRIBUTED ? null : device);
-      const photoMs = Date.now() - photoStarted;
-
       /*
-       * WHAT THE MODEL ACTUALLY SAID, kept whole. Plan item 9b.
-       *
-       * Until now the candidates never left the server and only the chosen
-       * label was written down, which means the one question worth asking
-       * about a wrong identification -- was the right row in the list and did
-       * we pick the wrong one, or was it never in the list at all -- could not
-       * be answered from the record at all. Those are opposite defects with
-       * opposite fixes (the ranker, or the catalogue), and telling them apart
-       * needs the list.
-       *
-       * WHAT IS NOT IN IT: the image, in any form. This is a JSON column in a
-       * database that gets backed up nightly to a laptop, and a photograph
-       * belongs in the photos folder behind the consent flag or nowhere.
+       * A PHOTO IS ONE GEMINI CALL: the image, the grounded search and the price
+       * math in a single request (rule 1). No Claude, no catalogue lookup, no
+       * second pass. The shelf price and the user's lines ride in this body
+       * (`shelfPriceCents`, `thresholds`) so the verdict comes back inside the
+       * same answer. `tier` is still read from old clients and ignored: the
+       * model is picked per scan by `modelForScan` (2.5 and 3.x side by side).
        */
-      const modelJson = JSON.stringify({
-        readAs: answer.readAs,
-        matchedBy: answer.matchedBy,
-        band: answer.band,
-        confidence: answer.confidence,
-        reason: answer.reason,
-        failure: answer.failure,
-        passes: answer.passes,
-        chosen: answer.product ? { code: answer.product.code, name: answer.product.name } : null,
-        otherCandidates: answer.otherCandidates,
-        candidates: answer.candidates,
-        sizeQuestion: answer.sizeQuestion,
-        ring: answer.ring,
-        route: answer.route,
-        tier,
-        sharpness,
-      });
-
-      /*
-       * A call that never reached the model cost nothing, and `reachedModel`
-       * is how that is said rather than assumed. The two failure classes that
-       * are decided before the request goes out are the spend cap and a photo
-       * the local checks rejected; everything else, including a timeout and an
-       * outage, was a call that was made and may well be billed.
-       */
-      const reachedModel = answer.failure !== 'spend_cap_reached';
-
-      /*
-       * One row per call, the same rule `/api/identify` states: this is the
-       * act, and pricing is a second question about an answer somebody already
-       * has. Unlike that route, this one records even when the catalogue is
-       * not attached, because the model failure classes are facts about US and
-       * a beta run inside an outage has to be readable afterwards -- which is
-       * the whole reason `failure_class` exists.
-       */
-      const scanId = recordScan({
-        deviceId: device,
-        kind: 'photo' as ScanKind,
-        // What was READ, not what was matched. A row whose query is the
-        // catalogue's own name for the product cannot be used afterwards to
-        // ask why the match was wrong.
-        query: answer.readAs ?? '',
-        resolvedCode: answer.product?.code ?? null,
-        resolvedLabel: answer.product?.name ?? null,
-        source: answer.matchedBy,
-        outcome: answer.product ? 'answered' : 'refused',
-        category: answer.category,
-        failureClass: answer.failure,
-        modelJson,
-        modelCostCents: estimatedCostCents(tier, answer.passes, reachedModel),
-        appVersion: telemetry.appVersion,
-        platform: telemetry.platform,
-        latencyMs: photoMs,
-        cell: where.cell,
-        storeId: where.storeId,
-        storeName: where.storeName,
-        exactLat: where.exactLat,
-        exactLon: where.exactLon,
-        exactAccuracy: where.exactAccuracy,
-        exactAt: where.exactAt,
-      });
+      let completed: Completed;
+      try {
+        const mod = await geminiScanModule();
+        completed = await completeGeminiScan({
+          device,
+          kind: 'photo',
+          image,
+          imageMediaType: imageKind(image) === 'png' ? 'image/png' : 'image/jpeg',
+          sharpness,
+          shelfPriceCents: mod.readShelfPriceCents(p.shelfPriceCents),
+          thresholdsRaw: p.thresholds,
+          context: contextFrom((key) => p[key]),
+          telemetry,
+          where,
+          startedAt: photoStarted,
+          writeScanRow: true,
+        });
+      } catch (err) {
+        logError({ where: 'gemini.photo', deviceId: device, scanId: null, err });
+        return json(200, {
+          product: null,
+          matchedBy: 'none',
+          band: 'miss',
+          catalogueUp: false,
+          failure: 'model_client_error',
+          reason: 'model_client_error',
+          lowConfidence: true,
+          confidenceReasons: ['no_answer:model_client_error'],
+        });
+      }
+      const scanId = completed.scanId;
       scanForLog = scanId;
 
       /*
@@ -2407,78 +2627,61 @@ export const server = createServer(async (req, res) => {
         }
       }
 
-      // The server half of the event log, plan item 10b: a model call was
-      // made, at what tier, over how many passes, and what it cost by estimate.
-      recordEvent({
-        deviceId: device,
-        type: 'model_call',
-        payload: {
-          scanId,
-          tier,
-          passes: answer.passes,
-          failure: answer.failure,
-          reachedModel,
-          costCents: estimatedCostCents(tier, answer.passes, reachedModel),
-          ms: photoMs,
-        },
-      });
-
-      /*
-       * NEVER "WE DO NOT KNOW" WHEN THE MODEL READ SOMETHING, 2026-09-15.
-       *
-       * A photo the catalogue cannot match used to end on a refusal sheet
-       * saying what we read and that we do not have it. Jamin: "Having a
-       * response that is not checked is infinitely better than having the
-       * user scan something, wait 10 seconds, only to get told the app doesn't
-       * know". So whatever the model read goes back as `unchecked`, the screen
-       * shows it as the answer with a "not checked" label, and pricing goes on
-       * from there. The same holds when the catalogue is down, and when a
-       * later pass failed after the reading was made.
-       *
-       * The price search starts here, in parallel with the shopper reading the
-       * answer and typing the price, never after. This route still serves no
-       * grounded block itself: the search's answer arrives on `/api/price`.
-       */
-      const photoGrounded = groundedOnce();
-      const unchecked = !answer.product && answer.readAs ? uncheckedFromPhoto(answer) : null;
+      const label = completed.label;
+      const priceQuery: GroundedPriceQuery | null = label ? { text: label.label } : null;
+      const unchecked = label
+        ? { checked: false, source: 'photo', label: label.label, brand: label.brand, name: label.name, size: label.size, gtin: null }
+        : null;
       if (unchecked) {
         recordEvent({
           deviceId: device,
           type: 'unchecked_answer',
-          payload: { scanId, source: 'photo', failure: answer.failure, readAs: answer.readAs },
+          payload: { scanId, source: 'photo', failure: completed.run.failure, readAs: label?.label ?? null },
         });
       }
-      /*
-       * THE EXACT QUERY THE SEARCH WAS STARTED UNDER, echoed on the way out
-       * for the same reason `/api/identify` echoes it: the prefetch files its
-       * search under a key built from these two strings and `/api/price`
-       * collects it by building that key again, so the client hands this
-       * object straight back rather than rebuilding a string that has to
-       * happen to match. Nothing about it is a search RESULT -- it is the
-       * question, not the answer, and this route still serves no answer.
-       */
-      const chosen = answer.product;
-      const priceQuery: GroundedPriceQuery | null = chosen
-        ? {
-            text: [chosen.brands?.split(',')[0]?.trim(), chosen.name].filter(Boolean).join(' '),
-            gtin: /^\d{8,14}$/.test(chosen.code) ? chosen.code : undefined,
-            sizeValue: chosen.sizeValue,
-            sizeUnit: chosen.sizeUnit,
-          }
-        : unchecked?.label
-          ? { text: unchecked.label }
-          : null;
-      if (photoGrounded && priceQuery) photoGrounded.prefetchPrice?.(priceQuery, device);
-
-      const photoBody = unchecked ? { ...answer, unchecked } : answer;
+      const wire = wireFor(completed, groundedOwner(device), device);
       return json(200, {
-        ...photoBody,
+        product: null,
+        matchedBy: 'none',
+        band: 'miss',
+        category: null,
+        categoryWhy: whyNot(completed),
+        ring: null,
+        otherCandidates: 0,
+        route: null,
+        catalogueUp: false,
+        ms: completed.ms,
+        passes: 1,
+        candidates: [],
+        confidence: null,
+        sizeQuestion: null,
+        readAs: label?.label ?? null,
+        reason: unchecked ? 'unchecked' : (completed.run.failure ?? 'identity_unsure'),
         ...(scanId === null ? {} : { scanId }),
         ...(priceQuery ? { priceQuery } : {}),
+        ...(unchecked ? { unchecked } : {}),
+        ...answerMarks(completed),
+        grounded: wire,
       });
     }
 
     if (url.pathname === '/api/price') {
+      /*
+       * THE PRICE SHEET SHOWS THE SAME ONE CALL THE SCAN MADE. Beta gap items
+       * 2 and 3. Shin's own price engine is not run here any more (Jamin: "Shin
+       * will not run its own pricing system"), and no median, placement or
+       * verdict is computed on this server: they are Gemini's, inside the
+       * answer the scan already holds. The body's `scanId` and `priceQuery`
+       * (echoed by the scan) find that answer; when there is none (a server
+       * restart, or a price asked about something nobody scanned) this route
+       * makes the one call itself.
+       *
+       * `askingCents` (or `shelfPriceCents`) and `thresholds` are read only for
+       * that fallback call. If the scan was made without a shelf price, the
+       * answer has no placement for it and says so (`shelfPriceLate`); a
+       * second call to add one would break "one call per scan", which is
+       * Jamin's call to change, not this route's.
+       */
       if (req.method !== 'POST') return json(405, { error: 'POST only' });
       const body = await readBody(req);
       if (body === TOO_LARGE) return refuseTooLarge();
@@ -2486,140 +2689,69 @@ export const server = createServer(async (req, res) => {
         return json(400, { error: 'body did not parse as JSON' });
       }
       const q = body as Record<string, unknown>;
-      /*
-       * Noted before the work, not after, so that a failure inside the pricing
-       * is logged against the scan it was about. An assignment after the call
-       * only ever runs when nothing went wrong, which is the one case the
-       * error log does not need (plan item 39a).
-       */
       const pricedScan = Number(q.scanId);
-      if (Number.isInteger(pricedScan) && pricedScan > 0) scanForLog = pricedScan;
-      /*
-       * THE QUERY THE IDENTIFY ROUTE ALREADY STARTED A SEARCH UNDER.
-       * 2026-09-15.
-       *
-       * Optional, read field by field, and it reaches NOTHING but the search.
-       * The verdict below is computed from `query` exactly as it always was:
-       * a client-supplied object that could move a good/fair/high call would
-       * be a route around the price engine, and this is not one.
-       *
-       * Field by field rather than spread, because this arrives off the wire:
-       * a body echoing `{ priceQuery: { askingCents: 1 } }` must not be able
-       * to put a key of its choosing into the object handed to the lookup.
-       */
+      const scanKnown = Number.isInteger(pricedScan) && pricedScan > 0;
+      if (scanKnown) scanForLog = pricedScan;
       const echo = q.priceQuery && typeof q.priceQuery === 'object' ? (q.priceQuery as Record<string, unknown>) : null;
-      const echoed = echo
-        ? {
-            text: typeof echo.text === 'string' && echo.text.trim() !== '' ? echo.text : undefined,
-            gtin: typeof echo.gtin === 'string' && echo.gtin.trim() !== '' ? echo.gtin : undefined,
-            sizeValue: typeof echo.sizeValue === 'number' ? echo.sizeValue : null,
-            sizeUnit: typeof echo.sizeUnit === 'string' ? echo.sizeUnit : null,
-          }
-        : null;
-      const query: SpineQuery = {
-        text: typeof q.text === 'string' ? q.text : undefined,
-        gtin: typeof q.gtin === 'string' ? q.gtin : undefined,
-        category: q.category as SpineQuery['category'],
-        askingCents: typeof q.askingCents === 'number' ? q.askingCents : undefined,
-        askingSeller: typeof q.askingSeller === 'string' ? q.askingSeller : undefined,
-        asOf: typeof q.asOf === 'string' ? q.asOf : undefined,
-      };
-      // A refusal is a 200. It is a correct answer, and any client that treats
-      // it as an error will start retrying around the one safety mechanism here.
-      const priced = await priceIt(query, { ...defaultDeps(), catalogueIdentity: catalogueIdentityForPrice });
-
-      /*
-       * THE VERDICT AS IT WAS SHOWN, written onto the scan it belongs to.
-       * Plan item 9d.
-       *
-       * AS SHOWN, not as recomputable, and that is the entire reason this is a
-       * column rather than a query. A verdict is a function of the price
-       * evidence at one moment, and the evidence moves every time the crawler
-       * runs. Re-deriving next week what a tester saw today answers a different
-       * question from the one they will be asked about.
-       *
-       * The scan id is optional on this body: a price lookup can be asked
-       * about a product nobody scanned (the catalogue screen does exactly
-       * that), and a body without one prices the thing and writes nothing.
-       * A refusal writes nothing either, because there was no verdict to show.
-       */
-      if (Number.isInteger(pricedScan) && pricedScan > 0 && priced.kind === 'verdict') {
-        updateScan(pricedScan, {
-          verdictTier: priced.tier,
-          verdictConfidence: priced.confidence.band,
-          verdictSellers: priced.confidence.distinctSellers,
-        });
+      const textOf = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() !== '' ? v : undefined);
+      const searchText = textOf(echo?.text) ?? textOf(q.text);
+      const searchGtin = textOf(echo?.gtin) ?? textOf(q.gtin);
+      if (!searchText && !searchGtin && !scanKnown) {
+        // A refusal is a 200 here, as it always was on this route: it is a
+        // correct answer about the input, and a client that treats it as an
+        // error retries around it.
+        return json(200, { kind: 'gemini', reason: 'nothing_to_price', lowConfidence: true, confidenceReasons: ['no_query'] });
       }
-
-      /*
-       * GOOGLE'S ANSWER SITS BESIDE OURS. IT IS NEVER MIXED INTO IT.
-       *
-       * `grounded` is a SIBLING KEY of the response body: never inside
-       * `evidence`, never an entry in `offers`, never one of `alternatives`.
-       * Two separate reasons, and both of them are load-bearing.
-       *
-       * The terms are the first. A Grounded Result is never cached, analysed
-       * or learned from, and it is shown only to the person who asked. Every
-       * one of those three is broken the moment a grounded price is an element
-       * of a list this repo sorts, averages, stores or ships in an offline
-       * pack. Keeping it out of the arithmetic is not a style choice; it is the
-       * condition that makes showing it lawful at all.
-       *
-       * The verdict is the second. The good/fair/high call is arithmetic over
-       * price evidence we can account for, per this repo's first priority, and
-       * `price/src/verdict.ts` is untouched by any of this. A number from a
-       * search folded into that set would move a verdict by a route nobody
-       * could audit afterwards.
-       *
-       * So the client renders two sections and the server never pretends they
-       * are one list.
-       */
       const pricedDevice =
         typeof q.deviceId === 'string' && q.deviceId.trim() !== '' ? q.deviceId.trim() : UNATTRIBUTED;
-      const groundedPrice = groundedOnce();
-      /*
-       * THE ECHO WINS, and that is the whole of the one-search-per-scan fix:
-       * these two strings are what the cache key is built from, so they have
-       * to be byte-for-byte the ones the prefetch used. `query.text` is the
-       * label the client was SHOWING, which drops the brand when the name
-       * already starts with it and carries the pack size -- a different
-       * string, a different key, a second search.
-       */
-      const searchText = echoed?.text ?? query.text;
-      const searchGtin = echoed?.gtin ?? query.gtin;
-      if (groundedPrice && (searchText || searchGtin)) {
-        const owner = groundedOwner(pricedDevice);
-        // The catalogue's size for a known barcode, so the line compares per
-        // 100 g or per item with the real pack rather than a borrowed one.
-        const row = searchGtin && fastLookup ? ((fastLookup.byGtin(searchGtin) ?? null) as Candidate | null) : null;
-        const sizeValue =
-          typeof q.sizeValue === 'number' ? q.sizeValue : (echoed?.sizeValue ?? row?.sizeValue ?? null);
-        const sizeUnit = typeof q.sizeUnit === 'string' ? q.sizeUnit : (echoed?.sizeUnit ?? row?.sizeUnit ?? null);
+      deviceForLog = pricedDevice;
+      const owner = groundedOwner(pricedDevice);
+
+      let answered: Pick<Completed, 'block' | 'run' | 'scanId'> | null = recallScan(
+        pricedDevice,
+        scanKnown ? pricedScan : null,
+        searchGtin,
+        searchText,
+      );
+      if (!answered) {
+        const priceStarted = Date.now();
+        // A scan row that exists and is this device's is attached to, not duplicated.
+        const row = scanKnown ? getScan(pricedScan) : null;
+        const attach = row !== null && row.device_id === pricedDevice;
         try {
-          const box = await groundedPrice.lookupPrice(
-            {
-              text: searchText,
-              gtin: searchGtin,
-              askingCents: query.askingCents,
-              sizeValue,
-              sizeUnit,
-            },
-            // The prefetch was filed under the device, so a named device
-            // reuses it; an anonymous request searches under its own owner.
-            owner,
-          );
-          if (box) {
-            const forScan = Number.isInteger(pricedScan) && pricedScan > 0 && owner === pricedDevice ? pricedScan : null;
-            if (forScan !== null) keepGroundedForOwner(forScan, owner, box);
-            return answerWithGrounded(priced, box, owner, forScan);
-          }
+          const mod = await geminiScanModule();
+          answered = await completeGeminiScan({
+            device: pricedDevice,
+            kind: searchGtin ? 'barcode' : 'text',
+            gtin: searchGtin,
+            text: searchText,
+            shelfPriceCents: mod.readShelfPriceCents(q.askingCents ?? q.shelfPriceCents),
+            thresholdsRaw: q.thresholds,
+            context: contextFrom((key) => q[key]),
+            telemetry: telemetryFrom(q),
+            where: locationFor(pricedDevice, q.cell, q.storeId, q.storeName),
+            startedAt: priceStarted,
+            existingScanId: attach ? pricedScan : null,
+            writeScanRow: !attach,
+          });
         } catch (err) {
-          // The verdict still goes out, whole and unchanged.
-          logError({ where: 'grounded.price', deviceId: pricedDevice, scanId: scanForLog, err });
+          logError({ where: 'gemini.price', deviceId: pricedDevice, scanId: scanForLog, err });
+          return json(200, {
+            kind: 'gemini',
+            failure: 'model_client_error',
+            lowConfidence: true,
+            confidenceReasons: ['no_answer:model_client_error'],
+          });
         }
       }
-
-      return json(200, priced);
+      const asked = (await geminiScanModule()).readShelfPriceCents(q.askingCents ?? q.shelfPriceCents);
+      return json(200, {
+        kind: 'gemini',
+        ...(answered.scanId === null ? {} : { scanId: answered.scanId }),
+        ...answerMarks(answered),
+        shelfPriceLate: asked !== null && answered.run.shelfPriceCents === null,
+        grounded: wireFor(answered, owner, pricedDevice),
+      });
     }
 
     /*
@@ -3175,7 +3307,17 @@ export const server = createServer(async (req, res) => {
         return json(200, alternativesPayload(true, 'We have not seen this one.', []));
       }
 
-      const alternatives = await alternativesFor(catalogueDb, original, askingCents, lookupPrices);
+      // Items 18 and 19. The market comes from the user's location as sent by the
+      // phone (country, region, currency query parameters), never assumed; with
+      // none sent it is the unknown market. `mode` is validation or switching.
+      const alternatives = await alternativesFor(catalogueDb, original, askingCents, lookupPrices, {
+        market: marketFromLocation({
+          country: url.searchParams.get('country'),
+          region: url.searchParams.get('region'),
+          currency: url.searchParams.get('currency'),
+        }),
+        mode: url.searchParams.get('mode') === 'switching' ? 'switching' : 'validation',
+      });
       return json(200, alternativesPayload(
         true,
         alternativesHeading(original, alternatives.length),
@@ -3357,7 +3499,7 @@ function geminiTierProblem(env: NodeJS.ProcessEnv = process.env): string | null 
 function geminiKeyProblem(env: NodeJS.ProcessEnv = process.env): string | null {
   if ((env.SHIN_MODEL_PROVIDER ?? '').trim().toLowerCase() !== 'gemini') return null;
   if ((env.GEMINI_API_KEY ?? '').trim() !== '') return null;
-  return 'SHIN_MODEL_PROVIDER is set to gemini and GEMINI_API_KEY is empty, so every scan would fail or be answered by a model nobody asked for. Set GEMINI_API_KEY, or unset SHIN_MODEL_PROVIDER to go back to Anthropic.';
+  return 'SHIN_MODEL_PROVIDER is set to gemini and GEMINI_API_KEY is empty, so every scan would fail. Set GEMINI_API_KEY; Gemini is the only provider a scan uses and Claude does not take over.';
 }
 
 const problems = startupProblems();

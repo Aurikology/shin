@@ -169,7 +169,7 @@ test('confirming an observation never asks the pricing engine for a verdict', ()
 
 test('skipping an observation does not ask for a going rate either', () => {
   const at = CAMERA.indexOf(`act === 'pad-skip'`);
-  const block = CAMERA.slice(at, at + 500);
+  const block = CAMERA.slice(at, at + 1000);
   const guard = block.indexOf('observationOnly');
   assert.notEqual(guard, -1, 'skip would ask the engine for a range it has no comparison set for');
   assert.ok(guard < block.indexOf('proceed(padItem, undefined)'));

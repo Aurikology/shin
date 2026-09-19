@@ -260,8 +260,12 @@ test('a queued offline photo renders under no_source_response with the app-voice
 test('onCapture sends the crop through identifyPhoto, gated on there being no stable barcode', () => {
   const onCapture = CAMERA.slice(CAMERA.indexOf('onCapture: (crop) => {'), CAMERA.indexOf('}).then((e) => {'));
   assert.match(onCapture, /if \(barcodeInFlight\) return;/, 'a stable barcode does not defer to the photo route');
-  assert.match(onCapture, /void handlePhotoCapture\(crop\);/, 'the crop is never sent to be identified');
+  assert.match(onCapture, /handlePhotoCapture\(crop\);/, 'the crop is never sent to be identified');
 });
+
+// Item 10 (2026-09-17): the price is asked at scan time, so the crop waits in
+// the pending scan and `resolvePhoto` sends it once the pad is done.
+const PHOTO_FN = () => CAMERA.slice(CAMERA.indexOf('async function resolvePhoto'), CAMERA.indexOf('function showPhotoRefusal'));
 
 test('a stable barcode raises the guard, and reset() is what lowers it', () => {
   const onBarcodeStart = CAMERA.indexOf('async function onBarcode(read) {');
@@ -273,26 +277,36 @@ test('a stable barcode raises the guard, and reset() is what lowers it', () => {
   // of `barcodeInFlight = false;` in this function (an abandoned typed search
   // and `scan_abandoned`, both read state before `slot.innerHTML` wipes it),
   // which pushed this line further into the function than the old window.
-  const resetFn = CAMERA.slice(resetStart, resetStart + 1200);
+  const resetFn = CAMERA.slice(resetStart, resetStart + 2200);
   assert.match(resetFn, /barcodeInFlight = false;/, 'reset() does not lower the guard');
 });
 
-test('an identified photo reuses openPad and productLabel rather than a second copy of the typed route', () => {
-  const fn = CAMERA.slice(CAMERA.indexOf('async function handlePhotoCapture'), CAMERA.indexOf('function showPhotoRefusal'));
+test('a photo asks its price first, then resolvePhoto sends the crop with it', () => {
+  const start = CAMERA.indexOf('function handlePhotoCapture');
+  assert.notEqual(start, -1, 'handlePhotoCapture moved or was renamed');
+  const head = CAMERA.slice(start, CAMERA.indexOf('async function resolvePhoto'));
+  assert.match(head, /askPriceFirst\(\{ kind: 'photo', crop \}\)/, 'the photo does not ask the price before identifying');
+  assert.doesNotMatch(head, /identifyPhoto/, 'the photo is identified before the price is asked');
+  assert.match(PHOTO_FN(), /identifyPhoto\(crop\.blob, \{[^}]*shelfPriceCents/, 'the typed price does not ride in the photo request');
+});
+
+test('an identified photo reuses proceed and productLabel rather than a second copy of the typed route', () => {
+  const fn = PHOTO_FN();
   assert.match(fn, /id\?\.product && id\.band !== 'low'/, 'the identified branch is not gated on the band');
-  assert.match(fn, /openPad\(\{/, 'the identified branch does not open the price pad');
+  assert.match(fn, /proceed\(\{/, 'the identified branch does not go on to the answer');
+  assert.doesNotMatch(fn, /openPad\(/, 'the identified branch asks the price a second time');
   assert.match(fn, /text: productLabel\(id\.product\)/, 'the identified branch does not reuse productLabel');
   assert.doesNotMatch(fn, /function productLabel/, 'productLabel was redefined instead of reused');
 });
 
 test('unsure candidates go to searchCandidateSheet, the same picker "not this?" uses', () => {
-  const fn = CAMERA.slice(CAMERA.indexOf('async function handlePhotoCapture'), CAMERA.indexOf('function showPhotoRefusal'));
+  const fn = PHOTO_FN();
   assert.match(fn, /Array\.isArray\(id\?\.candidates\) && id\.candidates\.length/);
   assert.match(fn, /searchCandidateSheet\(mapped, readAs\)/);
 });
 
 test('a failure with no product and no candidates never falls through silently', () => {
-  const fn = CAMERA.slice(CAMERA.indexOf('async function handlePhotoCapture'), CAMERA.indexOf('function showPhotoRefusal'));
+  const fn = PHOTO_FN();
   // Every exit either shows a photo refusal or opens the pad or shows the
   // candidate sheet; there is no path that returns having painted nothing.
   const showRefusalCalls = fn.split('showPhotoRefusal(').length - 1;
@@ -300,7 +314,7 @@ test('a failure with no product and no candidates never falls through silently',
 });
 
 test('an offline answer enqueues the crop through the eye\'s own queue', () => {
-  const fn = CAMERA.slice(CAMERA.indexOf('async function handlePhotoCapture'), CAMERA.indexOf('function showPhotoRefusal'));
+  const fn = PHOTO_FN();
   assert.match(fn, /void enqueuePhotoCapture\(crop\);/);
   const enqueueFn = CAMERA.slice(CAMERA.indexOf('async function enqueuePhotoCapture'), CAMERA.indexOf('function reset() {'));
   assert.match(enqueueFn, /mod\.enqueue\(\{/, 'the offline capture is not written to the durable queue');
@@ -309,10 +323,10 @@ test('an offline answer enqueues the crop through the eye\'s own queue', () => {
 
 test('the barcode path is untouched: a stable barcode still resolves through ctx.api.identify, never the photo route', () => {
   const onBarcodeFn = CAMERA.slice(CAMERA.indexOf('async function onBarcode(read)'), CAMERA.indexOf('async function catalogueLookup'));
-  assert.match(onBarcodeFn, /catalogueLookup\(read\.value\)/);
+  assert.match(onBarcodeFn, /catalogueLookup\(code, cents\)/);
   assert.doesNotMatch(onBarcodeFn, /identifyPhoto/, 'the barcode path was wired to the photo route');
   const catalogueLookupFn = CAMERA.slice(CAMERA.indexOf('async function catalogueLookup'), CAMERA.indexOf('/** Brand, name and size, without'));
-  assert.match(catalogueLookupFn, /ctx\.api\.identify\(\{ gtin: code \}\)/);
+  assert.match(catalogueLookupFn, /ctx\.api\.identify\(\{ gtin: code, shelfPriceCents \}\)/);
 });
 
 test('startCaptureQueue is imported and started once, with a send that answers through identifyPhoto', () => {

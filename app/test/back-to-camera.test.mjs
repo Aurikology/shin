@@ -168,15 +168,16 @@ test('a read cannot arrive without the shopper having pressed the button', () =>
     'the screen never calls the eye\'s scanBarcode(), so the button cannot arm a read',
   );
 
-  // The eye half: the decode itself is behind the flag that call raises.
+  // The eye half (2026-09-17, replacing the press-to-decode gate): frames are
+  // decoded and voted on every tick, but a READ is emitted from exactly one
+  // place, the button's `scanBarcode()`, and never from the frame loop.
   const eyeSrc = readFileSync(
     fileURLToPath(new URL('../src/eye/camera.ts', import.meta.url)),
     'utf8',
   ).replace(/\r\n/g, '\n');
   const tick = between(eyeSrc, 'async #tick()', '/** The pick, if the detectors', '#tick()');
-  const gate = tick.indexOf('if (this.#barcodeWanted)');
-  const scan = tick.indexOf('this.#scanner.scan(frame)');
-  assert.notEqual(gate, -1, 'the decode is not gated at all: every frame is read unprompted again');
-  assert.notEqual(scan, -1, 'the decode call moved or was renamed');
-  assert.ok(gate < scan, 'the gate is not ahead of the decode, so zxing still runs unasked');
+  assert.equal(tick.includes('onBarcode('), false, 'the frame loop emits a read on its own again');
+  const press = between(eyeSrc, '  scanBarcode(): boolean {', '  /** Photo mode passes false', 'scanBarcode()');
+  assert.ok(press.includes('this.#events.onBarcode(read)'), 'the press no longer emits the read');
+  assert.equal((eyeSrc.match(/this\.#events\.onBarcode\(/g) ?? []).length, 1, 'a second place emits reads');
 });

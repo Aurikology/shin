@@ -22,6 +22,30 @@ import { clearChosen } from './shops.js';
  * fire-and-forget, so the very next scan already has a cell to attach rather
  * than waiting for a stale reading to expire.
  */
+/**
+ * Continue on the first-launch screen: writes down what the person saw and
+ * left in place, defaults included, with a timestamp, locally and on the
+ * server. Photos are on by default (2026-09-19, `app/src/consent.ts`), so a
+ * person who taps Continue without touching anything has answered by leaving
+ * the switch alone, and that answer is a fact the record should hold with the
+ * time it was given, not an absence of a row. Same local-first, best-effort
+ * order as `toggleConsent`; nothing here can change what a switch says.
+ */
+export function confirmConsent(api) {
+  const current = store.consent();
+  const next = store.setConsent({ photos: current.photos, location: current.location });
+  const device = getDeviceId();
+  if (device?.id) {
+    void api.postConsent({ deviceId: device.id, photos: next.photos, location: next.location });
+    void api.postEvent({
+      deviceId: device.id,
+      type: 'consent change',
+      payload: { photos: next.photos, location: next.location, via: 'continue' },
+    });
+  }
+  return next;
+}
+
 export function toggleConsent(api, key) {
   const before = store.consent();
   const next = store.setConsent({ [key]: !before[key] });

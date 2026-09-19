@@ -616,10 +616,12 @@ test('the verdict sheet actually reaches the grounded block', () => {
   // Both mount sites: the scan itself, and the repaint the save does.
   // Three since 2026-09-15: the refusal sheet mounts it too, so a refusal
   // for want of sellers still shows what the web search found.
+  // Four since 2026-09-19: the Gemini answer sheet, which is what `/api/price`
+  // now returns, mounts its own block the same way.
   assert.equal(
     (camera.match(/(?<!function )fillGrounded\(slot, \w+\);/g) ?? []).length,
-    3,
-    'one of the three sheet renders (the verdict, its repaint on save, the refusal) no longer mounts the grounded block.',
+    4,
+    'one of the four sheet renders (the Gemini answer, the verdict, its repaint on save, the refusal) no longer mounts the grounded block.',
   );
   // Two sections, never one list: the grounded slot sits outside provenance().
   assert.ok(

@@ -39,10 +39,12 @@ process.env.SHIN_PHOTOS = join(dir, 'photos');
 process.env.PORT = '0';
 delete process.env.SHIN_INVITE_CODE;
 
-const { server, setIdentifierForTests } = await import('../server.ts');
+process.env.GEMINI_API_KEY = 'test-key-never-sent';
+const { server, setIdentifierForTests, setGeminiTransportForTests, setSpendGuardForTests } = await import('../server.ts');
+const { fakeTransport } = await import('./gemini-double.ts');
 const { Identifier, ModelCallError } = await import('../../identify/src/model.ts');
 const { spendCapRefusalMessage } = await import('../../identify/src/cap.ts');
-const { openScanStore, getScan, allScans } = await import('../src/scans.ts');
+const { openScanStore, getScan, allScans, geminiCallsForScan } = await import('../src/scans.ts');
 const { photoExists, sweepPhotos } = await import('../src/photos.ts');
 const { readEvents } = await import('../src/events.ts');
 import type { MessagesClient } from '../../identify/src/model.ts';
@@ -57,6 +59,8 @@ before(async () => {
 
 after(async () => {
   setIdentifierForTests(null);
+  setGeminiTransportForTests(null);
+  setSpendGuardForTests(null);
   await new Promise<void>((r) => server.close(() => r()));
   try {
     rmSync(dir, { recursive: true, force: true });
@@ -123,8 +127,15 @@ const HIT: CatalogueLookup = async () => ({
   matchedBy: 'hybrid',
 });
 
-const useModel = (client: MessagesClient, lookup: CatalogueLookup = HIT) =>
-  setIdentifierForTests({ model: new Identifier('test-key-not-used', client), lookup });
+const useModel = (_client?: MessagesClient, _lookup: CatalogueLookup = HIT) => {
+  setSpendGuardForTests(null);
+  setGeminiTransportForTests(fakeTransport().transport);
+};
+/** The day's budget is spent: the guard in front of the call says no. */
+const useSpentBudget = () => {
+  setGeminiTransportForTests(fakeTransport().transport);
+  setSpendGuardForTests(() => false);
+};
 
 /** A real 1x1 PNG, so the magic-byte check is reading a genuine header. */
 const PNG_1x1 = Buffer.from(
@@ -156,42 +167,46 @@ test('the photo response carries the id of the row it just wrote', async () => {
   useModel(answeringClient(READING));
   const res = await postPhoto({ deviceId: 'p-7a', appVersion: '0.1.0', platform: 'android' });
   assert.equal(res.status, 200);
-  const seen = (await res.json()) as { scanId?: number; product: { code: string } | null };
-  assert.ok(seen.product);
+  const seen = (await res.json()) as { scanId?: number; unchecked: { name: string } | null };
+  assert.ok(seen.unchecked, 'Gemini named nothing');
   assert.ok(typeof seen.scanId === 'number', 'the photo response carried no scanId');
   assert.equal(getScan(seen.scanId!)!.kind, 'photo');
 });
 
-test('what the model said is kept whole, candidates and all', async () => {
-  useModel(answeringClient(READING));
+test('what Gemini said is kept whole, on the row that points at the scan', async () => {
+  useModel();
   const res = await postPhoto({ deviceId: 'p-9b' });
   const { scanId } = (await res.json()) as { scanId: number };
   const row = getScan(scanId)!;
+  assert.equal(row.source, 'gemini');
   assert.ok(row.model_json, 'the model output was not written down');
   const model = JSON.parse(row.model_json!) as Record<string, unknown>;
-  assert.equal(model.readAs, 'Kraft Dinner');
-  assert.equal((model.chosen as { code: string }).code, '0068100084245');
-  assert.equal(model.tier, 'basic');
-  assert.ok('candidates' in model, 'the candidate list, which never used to leave the server, is still not kept');
-  assert.ok('confidence' in model);
+  assert.match(String(model.readAs), /^Kraft Dinner Original/);
   // The image is not in there. This column is backed up nightly to a laptop.
   assert.ok(!JSON.stringify(model).includes(PNG_1x1.toString('base64').slice(0, 20)));
+  const stored = geminiCallsForScan(scanId);
+  assert.equal(stored.length, 1);
+  assert.match(String(stored[0].response_raw), /Kraft Dinner Original/);
+  assert.ok(!stored[0].request_json.includes(PNG_1x1.toString('base64').slice(0, 20)), 'raw image bytes were stored');
 });
 
-test('the conditions of the call are on the row, and the cost is an estimate not a zero', async () => {
-  useModel(answeringClient(READING));
-  const res = await postPhoto({ deviceId: 'p-9e', appVersion: '0.2.0', platform: 'ios', tier: 'pro' });
+test('the conditions of the call are on the row', async () => {
+  useModel();
+  const res = await postPhoto({ deviceId: 'p-9e', appVersion: '0.2.0', platform: 'ios' });
   const { scanId } = (await res.json()) as { scanId: number };
   const row = getScan(scanId)!;
   assert.equal(row.app_version, '0.2.0');
   assert.equal(row.platform, 'ios');
   assert.equal(typeof row.latency_ms, 'number');
-  assert.equal(row.model_cost_cents, 0.68);
+  // No per-call cost figure is written: no sourced 2.5 token rate exists in
+  // this repo. The tokens, the search count and the billing basis are on the
+  // Gemini call row, so a cost can be derived, not guessed.
+  assert.equal(geminiCallsForScan(scanId)[0].input_tokens, 1000);
 });
 
 test('a photo is not kept when the device has explicitly opted out', async () => {
-  // Photos default OFF (his ruling 2026-09-14): opting out explicitly here
-  // exercises the written-no path, which is a different row from no row.
+  // Photos default ON (2026-09-19): opting out explicitly here exercises the
+  // written-no path, which is a different row from no row, and must win.
   await postJson('/api/consent', { deviceId: 'p-9a-no', photos: false, location: false });
   useModel(answeringClient(READING));
   const res = await postPhoto({ deviceId: 'p-9a-no' });
@@ -199,12 +214,16 @@ test('a photo is not kept when the device has explicitly opted out', async () =>
   assert.equal(getScan(scanId)!.photo_path, null, 'a photograph was kept after an explicit opt-out');
 });
 
-test('a photo is not kept for a device that never touched consent, because photos default off', async () => {
+test('a photo is kept for a device that never touched consent, because photos default on', async () => {
+  // Changed 2026-09-19 (beta gap item 13): photos are saved by default and the
+  // switch on the consent screen is the opt-out. The opt-out test above is the
+  // other half; each fails if the default moves.
   useModel(answeringClient(READING));
-  const res = await postPhoto({ deviceId: 'p-default-off' });
+  const res = await postPhoto({ deviceId: 'p-default-on' });
   const { scanId } = (await res.json()) as { scanId: number };
   const row = getScan(scanId)!;
-  assert.equal(row.photo_path, null, 'a photograph was kept for a device that never said yes');
+  assert.equal(row.photo_path, `${scanId}.png`, 'a photograph was not kept for a device that never said no');
+  assert.ok(photoExists(row.photo_path!), 'the row claims a file that is not on disk');
 });
 
 test('and it is kept, keyed by the scan id, once the device has', async () => {
@@ -302,42 +321,38 @@ test('the retention window is a setting, so the privacy wording and the behaviou
  * construction and is named in this file's header as uncheckable here.
  */
 test('a spent budget keeps its own sentence instead of becoming "take it again"', async () => {
-  useModel(cappedClient());
+  useSpentBudget();
   const res = await postPhoto({ deviceId: 'p-cap' });
   assert.equal(res.status, 200);
   const seen = (await res.json()) as { failure: string; categoryWhy: string; scanId: number };
   assert.equal(seen.failure, 'spend_cap_reached');
-  // Not flattened into the generic photo refusal on the way out. Taking the
-  // photo again cannot work when the budget is spent, so the sentence that
-  // says so has to survive this route.
   assert.equal(seen.categoryWhy, spendCapRefusalMessage());
   assert.ok(!/closer/i.test(seen.categoryWhy));
 });
 
-test('a capped scan records as capped, and is charged nothing', async () => {
-  useModel(cappedClient());
+test('a capped scan records as capped, is charged nothing, and never reaches Gemini', async () => {
+  const t = fakeTransport();
+  setGeminiTransportForTests(t.transport);
+  setSpendGuardForTests(() => false);
   const res = await postPhoto({ deviceId: 'p-cap-row' });
   const { scanId } = (await res.json()) as { scanId: number };
   const row = getScan(scanId)!;
-  assert.equal(row.outcome, 'refused');
-  // The real class, not a generic refusal. A beta spent inside a cap must not
-  // read back as a beta full of unreadable photographs.
   assert.equal(row.failure_class, 'spend_cap_reached');
-  // Nothing reached the model, so nothing is recorded as spent. A 0 would be a
-  // measurement; null is the absence of one.
   assert.equal(row.model_cost_cents, null);
+  assert.equal(t.calls.length, 0, 'a spent budget still sent a request to Gemini');
 });
 
-test('the server writes a model_call event carrying the tier, the passes and the estimate', async () => {
-  useModel(answeringClient(READING));
+test('the server writes a model_call event carrying the model, the family and the one pass', async () => {
+  useModel();
   await postPhoto({ deviceId: 'p-event' });
   const rows = readEvents({ deviceId: 'p-event' });
   const call = rows.find((r) => r.type === 'model_call');
   assert.ok(call, 'no model_call event was written');
-  const payload = JSON.parse(call!.payload!) as { tier: string; passes: number; costCents: number | null };
-  assert.equal(payload.tier, 'basic');
+  const payload = JSON.parse(call!.payload!) as { model: string; family: string; passes: number; failure: string | null };
+  assert.match(payload.model, /^gemini-/);
+  assert.ok(['2.5', '3.x'].includes(payload.family));
   assert.equal(payload.passes, 1);
-  assert.equal(payload.costCents, 0.23);
+  assert.equal(payload.failure, null);
 });
 
 test('nothing in this file dropped a scan', () => {

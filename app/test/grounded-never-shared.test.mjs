@@ -225,7 +225,9 @@ process.env.PORT = '0';
 delete process.env.SHIN_INVITE_CODE;
 delete process.env.SHIN_GEMINI_TIER;
 
-const { server, setGroundedForTests } = await import('../server.ts');
+process.env.GEMINI_API_KEY = 'test-key-never-sent';
+const { server, setGeminiTransportForTests } = await import('../server.ts');
+const { fakeTransport } = await import('./gemini-double.ts');
 const { setGroundedModuleForTests } = await import('../src/grounded-record.ts');
 
 let port = 0;
@@ -234,27 +236,9 @@ before(async () => {
   if (!server.listening) await new Promise((r) => server.once('listening', () => r()));
   port = server.address().port;
   setGroundedModuleForTests(fakeModule);
-  setGroundedForTests({
-    name: 'fake',
-    async lookupBarcode(_gtin, forDevice) {
-      return { owner: forDevice, text: `${MARKER} history` };
-    },
-    async lookupPrice(_query, forDevice) {
-      return { owner: forDevice, text: `${MARKER} history` };
-    },
-  });
+  setGeminiTransportForTests(fakeTransport().transport);
 });
 
-after(async () => {
-  setGroundedForTests(null);
-  setGroundedModuleForTests(null);
-  await new Promise((r) => server.close(() => r()));
-  try {
-    rmSync(dir, { recursive: true, force: true });
-  } catch {
-    /* Windows keeps the sqlite file locked; the OS will take it. */
-  }
-});
 
 test('a price answer carries the grounded block as a sibling, never inside the evidence', async () => {
   const res = await fetch(`http://127.0.0.1:${port}/api/price`, {
@@ -265,6 +249,7 @@ test('a price answer carries the grounded block as a sibling, never inside the e
   const body = await res.json();
   assert.equal(res.status, 200);
   assert.equal(body.grounded?.kind, 'grounded', 'the grounded block is not at the top level of the answer');
+  assert.ok(!JSON.stringify(body.grounded.block ?? '').includes('undefined'));
   assert.equal(body.grounded.forDevice, 'device-A');
   // The terms require Google's rendered Search Suggestions to travel with the
   // result, verbatim. An empty one is a result that may not be displayed.
@@ -306,6 +291,9 @@ test('the verdict itself is untouched by whether Google answered', async () => {
   // is the same answer, not that time stood still.
   delete withGoogle.producedAt;
   delete without.producedAt;
+  // Each call is its own scan row now, so its id is the one field that is a counter.
+  delete withGoogle.scanId;
+  delete without.scanId;
   assert.deepEqual(withGoogle, without);
 });
 
@@ -461,4 +449,17 @@ test('a key that is there is not inspected, and anthropic is untouched by the gu
   // before the port opens would be a boot that can fail on somebody else's DNS.
   assert.ok(!/fetch|http|request/i.test(fn), 'the startup guard reaches the network');
   assert.ok(fn.includes('return null'), 'the guard has no passing path');
+});
+
+// A test, not an after() hook: the sync tests above finish while this file is still awaiting its imports,
+// and node then runs a late-registered after() before the socket tests have started.
+test('the server is closed and the temp directory removed', async () => {
+  setGeminiTransportForTests(null);
+  setGroundedModuleForTests(null);
+  await new Promise((r) => server.close(() => r()));
+  try {
+    rmSync(dir, { recursive: true, force: true });
+  } catch {
+    /* Windows keeps the sqlite file locked; the OS will take it. */
+  }
 });

@@ -391,6 +391,25 @@
   transform-origin: left center;
   transition: transform 120ms linear;
 }
+/*
+ * Every barcode in view gets a mark (item 8, 2026-09-17). The ones the button
+ * will NOT send are drawn dimmer and thinner, dashed so they read as "seen, not
+ * chosen" without colour alone; the focused one (the leader of the vote, the
+ * one the button sends) is the solid, brighter mark above. When it holds a
+ * majority and the button is up (`is-ready`) it also glows, so the mark and the
+ * button read as one thing.
+ */
+.code-mark:not(.is-focus) {
+  border-width: 1px;
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, .7);
+  box-shadow: none;
+}
+.code-mark:not(.is-focus) i { display: none; }
+.code-mark.is-focus.is-ready {
+  border-width: 3px;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, .28), 0 0 14px 2px var(--good-bright);
+}
 
 /* Nothing drawn over the feed survives the shutter. From the moment the frame
    freezes, the picture is taken and an alternative object is no longer an
@@ -691,6 +710,11 @@
    accessibility tree with the pixels). Pinned here because the app's own
    reset sets `display: block` on everything and would undo it. */
 .scan-code-btn[hidden], .shutter[hidden] { display: none; }
+/* In barcode mode the button is hidden until the vote earns it (item 7). Its
+   place is kept, so the two nav buttons do not slide together and apart every
+   time a code comes into and out of view. visibility hides it from the pointer,
+   the tab order and the accessibility tree along with the pixels. */
+.cam[data-mode="barcode"] .scan-code-btn[hidden] { display: block; visibility: hidden; pointer-events: none; }
 
 /*
  * Named, not guessed at. Two 44px circles either side of the shutter carrying

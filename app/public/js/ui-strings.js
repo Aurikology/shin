@@ -35,10 +35,13 @@
  */
 
 import { locale, DEFAULT_LOCALE } from './lib/locale.js';
+import { ONB_EN, ONB_FR } from './onboarding-strings.js';
 
 export { locale, setLocale, LOCALES, localeTag, applyLang } from './lib/locale.js';
 
 const EN = {
+  /* The onboarding flow's text, in its own file (onboarding-strings.js). */
+  ...ONB_EN,
   /* ---------------------------------------------------------- shell and nav */
   app_name: 'Shin',
   nav_saved: 'Saved',
@@ -110,6 +113,14 @@ const EN = {
   cam_show_more: 'Show more',
   cam_refused_word: 'Refused',
   cam_refused_sentence: 'Refused.',
+  /* The Gemini answer sheet. The middle price and the shelf label are the
+     model's own values handed in as text; nothing here works out a price. */
+  cam_gem_not_confident: 'Not fully confident',
+  cam_gem_median: (f) => `Middle price: ${f.median} per ${f.unit}`,
+  cam_gem_median_bare: (f) => `Middle price: ${f.median}`,
+  cam_gem_shelf: (f) => `Shelf price: ${f.label}`,
+  cam_gem_answered_word: 'Answered',
+  cam_gem_failed_word: 'No answer',
   cam_standin_note: 'This asking price is a stated stand-in, not a tag anyone read.',
 
   /* ------------------------------------------------- the cheaper-swap rings
@@ -184,6 +195,13 @@ const EN = {
   cam_mode_barcode: 'Barcode',
   cam_mode_picker: 'What to scan',
   cam_scan_barcode: 'Scan the barcode',
+  // The torch setting on the You screen (item 11).
+  you_torch_group: 'Torch',
+  you_torch_auto: 'Auto',
+  you_torch_off: 'Off',
+  you_torch_level: 'Switch on below this brightness',
+  you_torch_hint: 'A lower setting waits until it is darker. It starts at the level Shin uses.',
+  you_torch_off_hint: 'The torch stays off, and the camera says when it is too dark to read.',
 
   /* ------------------------------------------------------------- the consent */
   consent_kicker: 'Before your first scan',
@@ -401,6 +419,11 @@ const EN = {
   you_delete_body_device: 'Device id',
   you_report: 'Report a wrong price',
   you_report_fastest: 'Fastest fix',
+  /* The Developer row at the bottom of You: the switch for the screen tag badge
+     (js/screen-tag-badge.js). Chrome for the owner, so no attitude variants. */
+  dev_heading: 'Developer',
+  dev_tags: 'Show screen tags',
+  dev_tags_caption: 'A small tag such as a12 in the top corner of every screen, so a screen can be named in a message. Off for everyone else.',
   you_build: 'Build',
   you_build_note: '· hand-set in main.js, not read from a running server.',
   you_can_price: 'Products Shin can price',
@@ -446,6 +469,8 @@ const EN = {
 };
 
 const FR = {
+  /* Le texte de l'accueil, dans son propre fichier (onboarding-strings.js). */
+  ...ONB_FR,
   /* ------------------------------------------------------- coquille et menu */
   app_name: 'Shin',
   nav_saved: 'Gardés',
@@ -511,6 +536,12 @@ const FR = {
   cam_show_more: 'Voir plus',
   cam_refused_word: 'Refusé',
   cam_refused_sentence: 'Refusé.',
+  cam_gem_not_confident: 'Pas tout à fait sûr',
+  cam_gem_median: (f) => `Prix du milieu : ${f.median} par ${f.unit}`,
+  cam_gem_median_bare: (f) => `Prix du milieu : ${f.median}`,
+  cam_gem_shelf: (f) => `Prix en rayon : ${f.label}`,
+  cam_gem_answered_word: 'Répondu',
+  cam_gem_failed_word: 'Pas de réponse',
   cam_standin_note: 'Ce prix demandé est un substitut déclaré, pas une étiquette que quelqu’un a lue.',
 
   /* --------------------------------------------- les anneaux de substitution
@@ -557,6 +588,12 @@ const FR = {
   cam_mode_barcode: 'Code-barres',
   cam_mode_picker: 'Quoi scanner',
   cam_scan_barcode: 'Scanner le code-barres',
+  you_torch_group: 'Lampe',
+  you_torch_auto: 'Auto',
+  you_torch_off: 'Éteinte',
+  you_torch_level: 'Allumer sous cette luminosité',
+  you_torch_hint: "Un réglage plus bas attend qu'il fasse plus sombre. Il part du niveau que Shin utilise.",
+  you_torch_off_hint: "La lampe reste éteinte, et la caméra dit quand il fait trop sombre pour lire.",
 
   /* ----------------------------------------------------------- le consentement */
   consent_kicker: 'Avant ton premier scan',
@@ -753,6 +790,9 @@ const FR = {
   you_delete_body_device: 'Identifiant de l’appareil',
   you_report: 'Signaler un prix erroné',
   you_report_fastest: 'La correction la plus rapide',
+  dev_heading: 'Développeur',
+  dev_tags: 'Afficher les étiquettes d’écran',
+  dev_tags_caption: 'Une petite étiquette comme a12 dans le coin de chaque écran, pour pouvoir nommer un écran dans un message. Désactivé pour tout le monde.',
   you_build: 'Version',
   you_build_note: '· inscrite à la main dans main.js, pas lue d’un serveur en marche.',
   you_can_price: 'Produits auxquels Shin peut donner un prix',

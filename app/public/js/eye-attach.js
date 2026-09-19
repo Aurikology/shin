@@ -188,27 +188,43 @@ export async function attachEye(video, surfaces, handlers = {}) {
    * jump, because a screen that leaps to an answer with no cause looks like a
    * misfire even when it is right.
    */
-  const paintCode = (mark, fw, fh) => {
+  /*
+   * EVERY barcode in view, not the largest (item 8, 2026-09-17): "The barcodes
+   * that can be identified on screen should all be highlighted in the preview as
+   * a guide for the user", and the one the button will send "should be displayed
+   * differently so the user can differentiate". So one mark per code, and the
+   * focused one carries `is-focus` (its own look in camera.css), plus `is-ready`
+   * once it has a majority and the button is up. Marks are pooled and hidden
+   * rather than removed, so a code leaving and returning does not churn the DOM.
+   */
+  const paintCodes = (list, fw, fh) => {
     if (!marks || dead.value) return;
-    let el = marks.querySelector('.code-mark');
-    if (!mark) {
-      if (el) el.hidden = true;
-      return;
+    const pool = marks.querySelectorAll('.code-mark');
+    for (let i = 0; i < Math.max(list.length, pool.length); i += 1) {
+      let el = pool[i];
+      if (!el && i < list.length) {
+        el = document.createElement('div');
+        el.className = 'code-mark';
+        el.setAttribute('aria-hidden', 'true');
+        el.innerHTML = '<i></i>';
+        marks.appendChild(el);
+      }
+      if (!el) continue;
+      const mark = list[i];
+      if (!mark) {
+        el.hidden = true;
+        continue;
+      }
+      const p = project(mark.box, fw, fh);
+      el.hidden = false;
+      el.classList.toggle('is-focus', Boolean(mark.focused));
+      el.classList.toggle('is-ready', Boolean(mark.confirmed));
+      el.style.left = `${p.left}%`;
+      el.style.top = `${p.top}%`;
+      el.style.width = `${Math.max(56, p.width)}px`;
+      el.style.height = `${Math.max(28, p.height)}px`;
+      el.style.setProperty('--code-progress', String(mark.total ? Math.min(1, mark.frames / mark.total) : 0));
     }
-    if (!el) {
-      el = document.createElement('div');
-      el.className = 'code-mark';
-      el.setAttribute('aria-hidden', 'true');
-      el.innerHTML = '<i></i>';
-      marks.appendChild(el);
-    }
-    const p = project(mark.box, fw, fh);
-    el.hidden = false;
-    el.style.left = `${p.left}%`;
-    el.style.top = `${p.top}%`;
-    el.style.width = `${Math.max(56, p.width)}px`;
-    el.style.height = `${Math.max(28, p.height)}px`;
-    el.style.setProperty('--code-progress', String(Math.min(1, mark.frames / mark.needed)));
   };
 
   /*
@@ -301,6 +317,9 @@ export async function attachEye(video, surfaces, handlers = {}) {
       detectorModelUrl: hasModel ? modelUrl : undefined,
       autoCapture: handlers.autoCapture ?? false,
       autoZoom: handlers.autoZoom ?? true,
+      // The user's torch setting and the starting mode, read by the screen.
+      torch: handlers.torch,
+      barcodeMode: handlers.barcodeMode ?? true,
       events: {
         onBarcode: (read) => { if (!dead.value) handlers.onBarcode?.(read); },
         onBoxes: (boxes, fw, fh) => {
@@ -309,11 +328,14 @@ export async function attachEye(video, surfaces, handlers = {}) {
           paintAlts(boxes, fw, fh);
           handlers.onBoxes?.(boxes);
         },
-        onCode: (mark, fw, fh) => {
+        onBarcodes: (list, fw, fh) => {
           if (dead.value) return;
-          paintCode(mark, fw, fh);
-          handlers.onCode?.(mark);
+          paintCodes(list, fw, fh);
+          handlers.onBarcodes?.(list);
         },
+        // The vote has a winner, or has lost it. The screen shows or hides its
+        // "Scan barcode" button on this; nothing is sent until it is pressed.
+        onBarcodeReady: (ready) => { if (!dead.value) handlers.onBarcodeReady?.(ready); },
         onCoach: (key) => { if (!dead.value) handlers.onCoach?.(key); },
         onCapture: (crop, detection) => { if (!dead.value) handlers.onCapture?.(crop, detection); },
         onTorch: (on) => { if (!dead.value) handlers.onTorch?.(on); },
@@ -339,10 +361,14 @@ export async function attachEye(video, surfaces, handlers = {}) {
     capture: () => camera.capture(),
     setTorch: (on) => camera.setTorch(on),
     /**
-     * Rule 2's button, from the outside. Nothing decodes until this is called.
-     * One press arms one read; the eye disarms itself the moment it fires.
+     * The button's press, from the outside. Sends the digits of the code the
+     * vote has settled on through `onBarcode`; false when there is none. The
+     * eye never sends a read any other way.
      */
     scanBarcode: () => camera.scanBarcode(),
+    /** Barcode mode decodes every frame; photo mode never runs the decoder. */
+    setBarcodeMode: (on) => camera.setBarcodeMode(on),
+    setTorchSetting: (setting) => camera.setTorchSetting(setting),
     /** The tap. Index into the boxes last drawn, 0 being the one already framed. */
     select: (index) => camera.select(index),
     clearSelection: () => camera.clearSelection(),
@@ -361,7 +387,9 @@ export async function attachEye(video, surfaces, handlers = {}) {
       setTorch: async () => false,
       // Present so a tap on the barcode button of a screen whose eye never
       // started is a no-op rather than a TypeError in the click handler.
-      scanBarcode: () => {},
+      scanBarcode: () => false,
+      setBarcodeMode: () => {},
+      setTorchSetting: () => {},
       select: () => {},
       clearSelection: () => {},
       stop: () => { dead.value = true; },

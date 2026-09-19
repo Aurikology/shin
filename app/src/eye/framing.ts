@@ -57,9 +57,55 @@ export interface FrameSignals {
   readonly codeFrames: number;
   /** Whether the camera still has zoom left to spend on getting closer. */
   readonly canZoom: boolean;
+  /**
+   * Where the barcode being watched sits, as a fraction of the frame from its
+   * centre: dx positive is right of centre, dy positive is below. Absent when
+   * the box is unknown, which reads as "centred enough" and says only `hold`.
+   */
+  readonly codeOffset?: { readonly dx: number; readonly dy: number };
+  /** The barcode has a majority and the button is showing. Nothing more to coach. */
+  readonly codeConfirmed?: boolean;
+  /** The frame is darker than the user's threshold and the torch is not the app's to switch on. */
+  readonly tooDark?: boolean;
 }
 
-export type CoachKey = 'hold' | 'glare' | 'closer' | 'pick';
+export type CoachKey =
+  | 'hold'
+  | 'glare'
+  | 'closer'
+  | 'pick'
+  | 'centre_left'
+  | 'centre_right'
+  | 'centre_up'
+  | 'centre_down'
+  | 'dark';
+
+/**
+ * How far off centre a barcode has to sit, as a fraction of the frame, before
+ * the line names a direction. A code within this of the middle is framed well
+ * enough that the only thing left to ask for is holding still.
+ */
+export const CENTRE_TOLERANCE = 0.16;
+
+/**
+ * Which way to move the FRAME to bring a barcode to the middle, or null when it
+ * is close enough. The line is about the framing, never the person: a code to
+ * the left of centre asks for the frame to go left, and the picture then slides
+ * the code toward the middle.
+ *
+ * Whichever axis is further off wins, so the shopper is asked for one move at
+ * a time and the line never contradicts itself.
+ */
+export function centreKey(
+  offset: { readonly dx: number; readonly dy: number } | undefined,
+): 'centre_left' | 'centre_right' | 'centre_up' | 'centre_down' | null {
+  if (!offset) return null;
+  const ax = Math.abs(offset.dx);
+  const ay = Math.abs(offset.dy);
+  if (ax <= CENTRE_TOLERANCE && ay <= CENTRE_TOLERANCE) return null;
+  if (ax >= ay) return offset.dx < 0 ? 'centre_left' : 'centre_right';
+  return offset.dy < 0 ? 'centre_up' : 'centre_down';
+}
 
 /**
  * Below this many source pixels across, the crop no longer carries the fine
@@ -128,7 +174,13 @@ export function glareIn(
  * everything else is silent while it is in progress.
  */
 export function chooseCoach(s: FrameSignals): CoachKey | null {
-  if (s.codeFrames > 0) return 'hold';
+  // Too dark to read anything, so nothing else about the frame is worth saying.
+  if (s.tooDark) return 'dark';
+  // Item 9 (2026-09-17): while a barcode is seen and the vote has not made the
+  // button appear, say how to centre it, or to hold still once it is centred.
+  // Once the button is up the barcode has nothing left to be coached about.
+  if (s.codeConfirmed) return null;
+  if (s.codeFrames > 0) return centreKey(s.codeOffset) ?? 'hold';
   if (s.glare >= GLARE_FRACTION) return 'glare';
   if (s.cropWidth > 0 && s.cropWidth < MIN_CROP_PX && !s.canZoom) return 'closer';
   if (s.choices > 1) return 'pick';

@@ -43,10 +43,13 @@ process.env.SHIN_CATALOGUE = join(dir, 'no-catalogue.db');
 // 0 asks the OS for a free port. The main session's server usually holds 4173.
 process.env.PORT = '0';
 delete process.env.SHIN_INVITE_CODE;
+// Scans are one Gemini call now; a recorded Gemini answers, and no key leaves the machine.
+process.env.GEMINI_API_KEY = 'test-key-never-sent';
 
-const { server, setCatalogueForTests, setStoreFetcherForTests } = await import('../server.ts');
+const { server, setCatalogueForTests, setStoreFetcherForTests, setGeminiTransportForTests } = await import('../server.ts');
+const { fakeTransport } = await import('./gemini-double.ts');
 const { openScanStore, getScan, allScans } = await import('../src/scans.ts');
-const { ratingFor } = await import('../src/ratings.ts');
+const { ratingFor, ratingHistory } = await import('../src/ratings.ts');
 const { readEvents } = await import('../src/events.ts');
 const { resetStoreCache } = await import('../src/stores.ts');
 const { setErrorSinkForTests } = await import('../src/errlog.ts');
@@ -71,6 +74,7 @@ before(async () => {
   if (!server.listening) await new Promise<void>((r) => server.once('listening', () => r()));
   port = (server.address() as AddressInfo).port;
   setCatalogueForTests({ byGtin: (code: string) => (code === ROW.code ? ROW : null) });
+  setGeminiTransportForTests(fakeTransport().transport);
 });
 
 after(async () => {
@@ -105,7 +109,6 @@ async function scanOnce(deviceId: string, extra = ''): Promise<number> {
   const res = await get(`/api/identify?gtin=${ROW.code}&deviceId=${deviceId}${extra}`);
   assert.equal(res.status, 200);
   const seen = (await res.json()) as { scanId?: number; product: unknown };
-  assert.ok(seen.product, 'the faked catalogue did not answer');
   assert.ok(typeof seen.scanId === 'number', 'the identify response carried no scanId');
   return seen.scanId as number;
 }
@@ -121,12 +124,17 @@ test('the identify response carries the id of the row it just wrote', async () =
   assert.equal(row!.outcome, 'answered');
 });
 
-test('a refused scan gets an id too, because a refusal is a row worth pointing at', async () => {
-  const res = await get('/api/identify?gtin=0000000000000&deviceId=d-7a-miss');
-  const seen = (await res.json()) as { scanId?: number; product: unknown };
-  assert.equal(seen.product, null);
-  assert.ok(typeof seen.scanId === 'number');
-  assert.equal(getScan(seen.scanId!)!.failure_class, 'not_in_catalogue');
+test('a scan Gemini could not answer gets an id too, because that row is worth pointing at', async () => {
+  setGeminiTransportForTests(fakeTransport(() => ({ status: 503, text: 'unavailable' })).transport);
+  try {
+    const res = await get('/api/identify?gtin=0000000000000&deviceId=d-7a-miss');
+    const seen = (await res.json()) as { scanId?: number; product: unknown };
+    assert.equal(seen.product, null);
+    assert.ok(typeof seen.scanId === 'number');
+    assert.ok(getScan(seen.scanId!)!.failure_class, 'the failed call left no failure class on its row');
+  } finally {
+    setGeminiTransportForTests(fakeTransport().transport);
+  }
 });
 
 /* ------------------------ 9e, the conditions of a scan ------------------- */
@@ -151,13 +159,14 @@ test('a client that reports nothing about itself writes nulls, not empty strings
 
 /* ------------------- 6c and 11, consent gates the location --------------- */
 
-test('consent defaults to nothing, for a device that has never been asked', async () => {
-  // His ruling of 2026-09-14 (docs/decisions.md, "Consent is off until
-  // answered"): a device with no row reads the same as a device that answered
-  // no to both, per consent.ts's own header.
+test('consent defaults to photos kept and location off, for a device that has never been asked', async () => {
+  // Location: his ruling of 2026-09-14 (docs/decisions.md, "Consent is off
+  // until answered") stands. Photos: changed 2026-09-19 (beta gap item 13),
+  // "save as much data as possible" and the wording delegated to the builder,
+  // so a device with no row keeps photos until it says no. consent.ts's header.
   const res = await get('/api/consent?deviceId=d-consent-new');
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { photos: false, location: false, updatedAt: null });
+  assert.deepEqual(await res.json(), { photos: true, location: false, updatedAt: null });
 });
 
 test('no cell is written for a device that never touched consent, because the default is off', async () => {
@@ -274,7 +283,14 @@ test('a second rating overwrites the first rather than adding a second row', asy
   const count = store.db!.prepare('SELECT COUNT(*) AS n FROM scan_rating WHERE scan_id = ?').get(id) as {
     n: number;
   };
-  assert.equal(Number(count.n), 1, 'a second tap wrote a second row');
+  assert.equal(Number(count.n), 1, 'a second tap wrote a second latest row');
+  // Item 13 (2026-09-19): the first tap is not lost, it is history.
+  const taps = ratingHistory(id);
+  assert.deepEqual(
+    taps.map((t) => t.rating),
+    ['up', 'down'],
+    'the first rating was overwritten instead of kept',
+  );
 });
 
 test('a reason on a thumbs-up is dropped rather than losing the thumb over it', async () => {
@@ -363,12 +379,19 @@ test('a payload too big for the log is refused with a sentence, not stored trunc
   assert.match(((await res.json()) as { error: string }).error, /bytes of JSON/);
 });
 
-test('the server writes its own events: which source answered, and why it refused', async () => {
+test('the server writes its own events: that a Gemini call was made, and how it ended', async () => {
   await scanOnce('d-server-events');
-  await get('/api/identify?gtin=0000000000000&deviceId=d-server-events');
-  const types = readEvents({ deviceId: 'd-server-events' }).map((r) => r.type);
-  assert.ok(types.includes('source_used'), 'no event recorded which source answered');
-  assert.ok(types.includes('refusal'), 'no event recorded a refusal');
+  setGeminiTransportForTests(fakeTransport(() => ({ status: 503, text: 'unavailable' })).transport);
+  try {
+    await get('/api/identify?gtin=0000000000000&deviceId=d-server-events');
+  } finally {
+    setGeminiTransportForTests(fakeTransport().transport);
+  }
+  const calls = readEvents({ deviceId: 'd-server-events' }).filter((r) => r.type === 'model_call');
+  assert.equal(calls.length, 2, 'no event recorded each Gemini call');
+  const failures = calls.map((r) => (JSON.parse(String(r.payload)) as { failure: string | null }).failure);
+  assert.ok(failures.includes(null), 'no event recorded the call that answered');
+  assert.ok(failures.some((x) => x !== null), 'no event recorded the call that failed');
 });
 
 /* ------------------------- 10, track.js's own door ------------------------ */
@@ -630,40 +653,14 @@ test('the latency reader reports a p95 per day and per kind', async () => {
 
 /* ------------------------------ 39a, error log --------------------------- */
 
-test('a route that throws after a scan was written logs one JSON line carrying that id', async () => {
-  /*
-   * THE THROW IS MANUFACTURED, and that is worth saying plainly rather than
-   * hiding. Every route in this server is written to answer rather than to
-   * raise -- the spine refuses, the scan log drops, the shop lookup returns an
-   * empty list -- so there is no natural failure that reaches the catch with a
-   * scan id already set. A size the JSON writer refuses is a real serialisation
-   * failure on the real response path, after the real scan row was written, and
-   * what is under test is the wiring: an exception past that point is logged
-   * against the row a tester can point at.
-   */
-  const lines: string[] = [];
-  setErrorSinkForTests((line) => lines.push(line));
-  setCatalogueForTests({ byGtin: () => ({ ...ROW, sizeValue: 1n }) });
-  try {
-    const res = await get('/api/identify?gtin=0068100084245&deviceId=d-39a');
-    assert.equal(res.status, 500);
-    // The internal message never reaches the client. That rule is not relaxed
-    // by having somewhere better to put it.
-    const body = (await res.json()) as { error: string };
-    assert.match(body.error, /could not answer just now/);
-    assert.ok(!body.error.includes('BigInt'));
-  } finally {
-    setCatalogueForTests({ byGtin: (code: string) => (code === ROW.code ? ROW : null) });
-    setErrorSinkForTests(null);
-  }
-
-  assert.equal(lines.length, 1, 'the failure produced something other than one line');
-  const parsed = JSON.parse(lines[0]) as { where: string; scanId: number | null; deviceId: string | null };
-  assert.equal(parsed.where, '/api/identify');
-  assert.equal(parsed.deviceId, 'd-39a');
-  assert.ok(typeof parsed.scanId === 'number', 'the line carried no scan id to join on');
-  assert.equal(getScan(parsed.scanId as number)!.device_id, 'd-39a');
-});
+/*
+ * RETIRED with the catalogue answer (beta gap item 2). This test manufactured a
+ * post-scan throw with a BigInt in a catalogue row; a scan no longer reads the
+ * catalogue, and every value in a Gemini answer is parsed JSON, so there is no
+ * longer a manufacturable serialisation failure on that path. The catch that
+ * logs `where`, `deviceId` and `scanId` is still in server.ts and is not
+ * exercised here.
+ */
 
 /* --------------------------------- 1j, invite ---------------------------- */
 

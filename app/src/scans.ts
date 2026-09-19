@@ -800,3 +800,162 @@ export function allScans(store: ScanStore): ScanRow[] {
   if (!store.db) return [];
   return store.db.prepare('SELECT * FROM scan ORDER BY id ASC').all() as unknown as ScanRow[];
 }
+
+/* --------------------------------------------- every Gemini call, stored whole */
+
+/**
+ * ITEM 12 (docs/beta-gaps-2026-09-19.md), Jamin's rule 4: every Gemini request
+ * and its full response, linked to the scan and to the model that answered.
+ * The table is migration 12. `requestJson` carries the body as sent with image
+ * bytes replaced by a hash-and-size stub; the photo itself is stored only under
+ * the consent flag, elsewhere.
+ */
+export interface GeminiCallRecord {
+  readonly scanId: number | null;
+  readonly deviceId: string;
+  readonly model: string;
+  readonly family: string;
+  readonly via: string;
+  readonly scanType: string;
+  readonly requestedAt?: string;
+  readonly ms: number | null;
+  readonly requestJson: string;
+  readonly systemText: string | null;
+  readonly promptText: string;
+  readonly inputRef: string | null;
+  readonly thresholdsJson: string | null;
+  readonly shelfPriceCents: number | null;
+  readonly responseRaw: string | null;
+  readonly answerText: string | null;
+  readonly httpStatus: number | null;
+  readonly parseStatus: string | null;
+  readonly failureClass: string | null;
+  readonly inputTokens: number | null;
+  readonly outputTokens: number | null;
+  readonly searchQueries: number | null;
+  /** 'per_prompt' on 2.5 (search bills per grounded prompt), 'per_query' on 3.x. */
+  readonly billingBasis: string;
+  readonly lowConfidence: boolean;
+  /** Used Google Search: a mark for the grounded-results terms, never a block. */
+  readonly grounded: boolean;
+}
+
+export interface GeminiCallRow {
+  readonly id: number;
+  readonly scan_id: number | null;
+  readonly device_id: string;
+  readonly model: string;
+  readonly model_family: string;
+  readonly model_via: string;
+  readonly scan_type: string;
+  readonly request_json: string;
+  readonly system_text: string | null;
+  readonly prompt_text: string;
+  readonly input_ref: string | null;
+  readonly thresholds_json: string | null;
+  readonly shelf_price_cents: number | null;
+  readonly response_raw: string | null;
+  readonly answer_text: string | null;
+  readonly http_status: number | null;
+  readonly parse_status: string | null;
+  readonly failure_class: string | null;
+  readonly input_tokens: number | null;
+  readonly output_tokens: number | null;
+  readonly search_queries: number | null;
+  readonly billing_basis: string | null;
+  readonly low_confidence: number;
+  readonly grounded: number;
+  readonly math_check: string;
+  readonly math_mismatches: string | null;
+  readonly math_checked_at: string | null;
+}
+
+/** Never throws. Null when the write dropped, which is counted like any other dropped write. */
+export function recordGeminiCall(r: GeminiCallRecord): number | null {
+  const store = active ?? openScanStore();
+  try {
+    if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
+    const result = store.db
+      .prepare(
+        `INSERT INTO gemini_call (scan_id, device_id, model, model_family, model_via, scan_type, requested_at, ms,
+                                  request_json, system_text, prompt_text, input_ref, thresholds_json, shelf_price_cents,
+                                  response_raw, answer_text, http_status, parse_status, failure_class,
+                                  input_tokens, output_tokens, search_queries, billing_basis, low_confidence, grounded)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        r.scanId,
+        r.deviceId,
+        r.model,
+        r.family,
+        r.via,
+        r.scanType,
+        r.requestedAt ?? new Date().toISOString(),
+        r.ms,
+        r.requestJson,
+        r.systemText,
+        r.promptText,
+        r.inputRef,
+        r.thresholdsJson,
+        r.shelfPriceCents,
+        r.responseRaw,
+        r.answerText,
+        r.httpStatus,
+        r.parseStatus,
+        r.failureClass,
+        r.inputTokens,
+        r.outputTokens,
+        r.searchQueries,
+        r.billingBasis,
+        r.lowConfidence ? 1 : 0,
+        r.grounded ? 1 : 0,
+      );
+    return Number(result.lastInsertRowid);
+  } catch (err) {
+    store.dropped += 1;
+    store.droppedWhy = err instanceof Error ? err.message : String(err);
+    return null;
+  }
+}
+
+/**
+ * ITEM 14. The background pass writes its verdict on the stored call: 'ok',
+ * 'mismatch' (with the differences) or 'unchecked' (no math to check). A
+ * mismatch row carries `input_ref` and `prompt_text` already, which is what
+ * "marks the scan with its input and the exact prompt" means here.
+ */
+export function markGeminiMath(
+  callId: number,
+  check: 'ok' | 'mismatch' | 'unchecked',
+  mismatches: readonly unknown[] | null,
+  now: Date = new Date(),
+): boolean {
+  const store = active ?? openScanStore();
+  try {
+    if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
+    const result = store.db
+      .prepare('UPDATE gemini_call SET math_check = ?, math_mismatches = ?, math_checked_at = ? WHERE id = ?')
+      .run(check, mismatches ? JSON.stringify(mismatches) : null, now.toISOString(), callId);
+    return Number(result.changes) > 0;
+  } catch (err) {
+    store.dropped += 1;
+    store.droppedWhy = err instanceof Error ? err.message : String(err);
+    return false;
+  }
+}
+
+/** The calls made for one scan, oldest first. Test and inspection helper. */
+export function geminiCallsForScan(scanId: number): GeminiCallRow[] {
+  const store = active ?? openScanStore();
+  if (!store.db) return [];
+  return store.db.prepare('SELECT * FROM gemini_call WHERE scan_id = ? ORDER BY id ASC').all(scanId) as unknown as GeminiCallRow[];
+}
+
+/** Every call whose math check found a mismatch, newest first. The review list item 14 exists to build. */
+export function geminiMathMismatches(limit = 100): GeminiCallRow[] {
+  const store = active ?? openScanStore();
+  if (!store.db) return [];
+  return store.db
+    .prepare("SELECT * FROM gemini_call WHERE math_check = 'mismatch' ORDER BY id DESC LIMIT ?")
+    .all(limit) as unknown as GeminiCallRow[];
+}

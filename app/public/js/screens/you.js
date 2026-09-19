@@ -43,6 +43,7 @@ import { toggleConsent } from '../consent-actions.js';
 import { t } from '../ui-strings.js';
 import { LOCALES, locale, setLocale } from '../lib/locale.js';
 import { countryLabel } from './market.js';
+import { tagsOn, setTagsOn } from '../screen-tag-badge.js';
 
 /**
  * Item 6d: the delete-my-data path. An email link is enough for the beta
@@ -122,6 +123,13 @@ export default {
     const PCT_CHOICES = store.LINE_CHOICES;
     const underPct = store.get().lineUnderPct ?? 10;
     const overPct = store.get().lineOverPct ?? 10;
+    /* The torch setting (item 11). An unknown stored mode reads as auto, the
+       behaviour the app had before this was a setting. */
+    const torchMode = store.get().torchMode === 'off' ? 'off' : 'auto';
+    const torchLevel = Math.min(
+      store.TORCH_RANGE.max,
+      Math.max(store.TORCH_RANGE.min, Number(store.get().torchThreshold) || store.TORCH_RANGE.start),
+    );
 
     /**
      * Item 8d. The "Your ratings" section's zero-count caption has no
@@ -233,6 +241,35 @@ export default {
           </div>
 
           <!--
+            The torch (item 11, 2026-09-17), in his words: "This should be a
+            setting the user can do. They should have the option to set the
+            torch to automatically turn on at a certain brightness level (we
+            can give a slider and the slide starts at our default brightness
+            level). Or, they can have it not automatically turn on which in that
+            case, we will give prompts on screen for when its too dark".
+            Two modes and a slider that only means something in the first. The
+            camera reads both when it mounts.
+          -->
+          <div class="setting">
+            <span class="setting-t" id="you-torch-l">${escapeHtml(t('you_torch_group'))}</span>
+            <div class="seg" role="radiogroup" aria-labelledby="you-torch-l">
+              ${['auto', 'off'].map(
+                (m) => `<button type="button" class="btn seg-o${m === torchMode ? ' on' : ''}"
+                          role="radio" aria-checked="${m === torchMode}" data-torch="${m}"
+                          >${escapeHtml(t(m === 'auto' ? 'you_torch_auto' : 'you_torch_off'))}</button>`,
+              ).join('')}
+            </div>
+          </div>
+          <div class="setting setting-stack" data-torch-slider${torchMode === 'auto' ? '' : ' hidden'}>
+            <label class="setting-t" for="you-torch-level">${escapeHtml(t('you_torch_level'))}</label>
+            <input type="range" id="you-torch-level" data-torch-level
+                   min="${store.TORCH_RANGE.min}" max="${store.TORCH_RANGE.max}" step="1" value="${torchLevel}"
+                   aria-describedby="you-torch-hint">
+            <p class="fineprint" id="you-torch-hint">${escapeHtml(t('you_torch_hint'))}</p>
+          </div>
+          <p class="fineprint" data-torch-offhint${torchMode === 'off' ? '' : ' hidden'}>${escapeHtml(t('you_torch_off_hint'))}</p>
+
+          <!--
             The language row, item 31. Built as the same inset grouped list the
             attitude picker above it is: one .ilist that is a radiogroup, one
             .ilist-row per option, each carrying rowCheck() for the tick.
@@ -268,6 +305,10 @@ export default {
             <button type="button" class="ilist-row" data-act="market">
               <span class="ilist-l">${escapeHtml(t('you_market'))}</span>
               <span class="ilist-v">${escapeHtml(countryLabel(market.country))}</span>
+              ${rowChevron()}
+            </button>
+            <button type="button" class="ilist-row" data-act="welcome">
+              <span class="ilist-l">${escapeHtml(t('onb_replay_row'))}</span>
               ${rowChevron()}
             </button>
           </div>
@@ -355,6 +396,19 @@ export default {
           </div>
         </section>
 
+        ${/* Developer row: a tool for the owner. The switch shows an On/Off word because
+             a bare switch has no styling in this stylesheet (see the buzz row above,
+             which does the same). Off means no badge element exists at all. */ ''}
+        <section class="block">
+          <h2 class="sect-h">${escapeHtml(t('dev_heading'))}</h2>
+          <div class="ilist">
+            <button type="button" class="ilist-row" data-tags-switch role="switch" aria-checked="false">
+              <span class="ilist-l">${escapeHtml(t('dev_tags'))}</span><span class="ilist-v" data-tags-v></span>
+            </button>
+          </div>
+          <p class="fineprint">${escapeHtml(t('dev_tags_caption'))}</p>
+        </section>
+
         <p class="fineprint buildline">${escapeHtml(t('you_build'))} ${escapeHtml(
           ctx.build ?? t('unknown'),
         )} ${escapeHtml(t('you_build_note'))}</p>
@@ -395,6 +449,16 @@ export default {
       }
     }
     paintConsent();
+
+    /** The Developer row's switch, painted from the badge's own state, never from the last tap. */
+    function paintTags() {
+      const row = root.querySelector('[data-tags-switch]');
+      if (!row) return;
+      const isOn = tagsOn();
+      row.setAttribute('aria-checked', String(isOn));
+      row.querySelector('[data-tags-v]').textContent = isOn ? t('on') : t('off');
+    }
+    paintTags();
 
     // Both attitude and theme are radio groups whose ARIA promised arrow keys.
     for (const g of root.querySelectorAll('[role="radiogroup"]')) {
@@ -529,7 +593,31 @@ export default {
       if (box) box.innerHTML = `<p class="fineprint">${escapeHtml(say('you_scanlog_failed'))}</p>`;
     });
 
+    // The torch slider: stored as it moves. The camera reads it on mount.
+    on(root, 'input', (e) => {
+      const level = e.target.closest?.('[data-torch-level]');
+      if (!level) return;
+      const n = Math.min(store.TORCH_RANGE.max, Math.max(store.TORCH_RANGE.min, Math.round(Number(level.value))));
+      if (Number.isFinite(n)) store.update({ torchThreshold: n });
+    }, ac.signal);
+
     on(root, 'click', (e) => {
+      // The torch mode. Shows the slider only for auto, in place.
+      const torch = e.target.closest('[data-torch]');
+      if (torch) {
+        const mode = torch.dataset.torch === 'off' ? 'off' : 'auto';
+        store.update({ torchMode: mode });
+        for (const el of torch.closest('[role="radiogroup"]').querySelectorAll('.seg-o')) {
+          const picked = el === torch;
+          el.classList.toggle('on', picked);
+          el.setAttribute('aria-checked', String(picked));
+        }
+        const slider = root.querySelector('[data-torch-slider]');
+        const offHint = root.querySelector('[data-torch-offhint]');
+        if (slider) slider.hidden = mode !== 'auto';
+        if (offHint) offHint.hidden = mode !== 'off';
+        return;
+      }
       // The two lines. Repainted in place like the attitude and the theme:
       // nothing else on this screen reads them, so there is no reason to
       // re-render a page the user is in the middle of scrolling.
@@ -585,6 +673,11 @@ export default {
         paintBuzz();
         return;
       }
+      if (e.target.closest('[data-tags-switch]')) {
+        setTagsOn(!tagsOn());
+        paintTags();
+        return;
+      }
       const consentBtn = e.target.closest('[data-consent]');
       if (consentBtn) {
         toggleConsent(ctx.api, consentBtn.dataset.consent);
@@ -596,6 +689,9 @@ export default {
       // No branch for data-act="you": the bar marks it as the current page, and
       // pressing the page you are on must not push a second entry for it.
       if (e.target.closest('[data-act="market"]')) { ctx.go('market'); return; }
+      // Watch the welcome again: opt-in, unlimited. `replay` is what tells the
+      // onboarding screen to change nothing it does not have to (onboarding-flow.js).
+      if (e.target.closest('[data-act="welcome"]')) { ctx.go('onboarding', { replay: 1 }); return; }
       if (e.target.closest('[data-act="report"]')) ctx.go('correct', {});
     }, ac.signal);
 

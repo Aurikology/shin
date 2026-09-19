@@ -27,6 +27,7 @@ import { faceBlock, cad, confidenceOf, dotsHtml, tierOf, sellerOf, animateFace, 
 import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { attachEye, startCaptureQueue } from '../eye-attach.js';
+import { startShelfCapture } from '../eye-shelf.js';
 import { escapeHtml } from '../lib/dom.js';
 import { rowCheck } from '../lib/pagebar.js';
 import { wireRadioGroup } from '../lib/radiogroup.js';
@@ -40,6 +41,11 @@ import { identifyOffline } from '../offline-aisle.js';
 import { track } from '../track.js';
 import { refreshCell } from '../geocell.js';
 import { mountGrounded } from '../grounded.js';
+// The Gemini answer's headline values, lifted out of the wire in grounded.js,
+// the only file that reads inside it.
+import { geminiReading } from '../grounded.js';
+import { geminiWordFor } from '../shin.js';
+import { getDeviceId } from '../device.js';
 
 /**
  * The camera states in which the docked face is faded out by `camera.css`.
@@ -66,6 +72,13 @@ const COACH_LINES = {
   glare: 'cam_glare',
   closer: 'cam_closer',
   pick: 'cam_pick_one',
+  // Items 9 and 11 (2026-09-17): centre the barcode, and too dark to read
+  // (only ever produced when the torch setting is off).
+  centre_left: 'cam_centre_left',
+  centre_right: 'cam_centre_right',
+  centre_up: 'cam_centre_up',
+  centre_down: 'cam_centre_down',
+  dark: 'cam_too_dark',
 };
 
 /* ------------------------------------------------------------------ camera */
@@ -1182,6 +1195,154 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
 }
 
 /**
+ * The whole sheet for a scan with no connection (beta gap item 21): one title,
+ * one plain sentence, no product name, no price, no action that could answer
+ * from what the phone holds. The back button and the drag down are the way out.
+ */
+/**
+ * THE GEMINI ANSWER (beta gaps item 3, 2026-09-19).
+ *
+ * `/api/price` now answers a scan with one Gemini answer, `{ kind: 'gemini',
+ * ...marks, grounded }`, and never with a `verdict`. Until this sheet existed a
+ * good answer fell into the refusal branch and the shopper saw a refusal for
+ * it, on the app's main screen.
+ *
+ * SHIN COMPUTES AND SHOWS NO PRICE MATH HERE (rule 6 of the beta gaps list).
+ * The headline word is Gemini's own zone code for the shelf price against the
+ * user's lines, put into words by the same three strings the price line uses
+ * (`priceline_zone_*`, which say "your line" and never grade the price). The
+ * middle price and the shelf label are Gemini's values handed in as text by
+ * `geminiReading`; there is no `cad()`, no percentage and no comparison in this
+ * function. The offers, reviews, alternatives and the price line itself are the
+ * grounded block, mounted by `fillGrounded` exactly as the verdict sheet
+ * mounts it. The catalogue is not consulted for an answer, so this sheet has
+ * no swaps slot and `fillCheaper` never runs on it.
+ *
+ * NO WATCH AND NO SHARE. Both need an identity id and a usual price in cents,
+ * which the verdict carried and this answer does not (and Shin may not work
+ * one out from Gemini's numbers). A sheet that offered them would offer two
+ * buttons that could only do nothing.
+ */
+const GEMINI_ZONE_KEY = {
+  under_your_line: 'priceline_zone_under',
+  middle: 'priceline_zone_middle',
+  over_your_line: 'priceline_zone_over',
+};
+
+/** The thumbs pair for the Gemini answer sheet; the verdict sheet keeps its own copy of the same markup. */
+function thumbsBlock() {
+  return `<div class="thumbs" role="group" aria-label="${escapeHtml(t('cam_verdict_right_q'))}">
+          <button type="button" class="thumb" data-act="thumbs-up" aria-label="${escapeHtml(t('cam_looks_right'))}">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3zm0 0 4.5-8a2 2 0 0 1 2 2.2L12.5 9H19a2 2 0 0 1 2 2.4l-1.4 7A2 2 0 0 1 17.6 20H9a2 2 0 0 1-2-2v-7z"/></svg>
+          </button>
+          <button type="button" class="thumb" data-act="thumbs-down" aria-label="${escapeHtml(t('cam_looks_wrong'))}">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3zm0 0-4.5 8a2 2 0 0 1-2-2.2l1-5.8H5a2 2 0 0 1-2-2.4l1.4-7A2 2 0 0 1 6.4 4H15a2 2 0 0 1 2 2v7z"/></svg>
+          </button>
+        </div>`;
+}
+
+/**
+ * Whether this Gemini reply is a failure to answer rather than an answer.
+ * `failure` is the server's own code (a call that did not come back), the
+ * `nothing_to_price` reason is a request with nothing to look up, and a block
+ * with nothing to show is the same thing to the person holding the phone. An
+ * answer marked "not fully confident" is NOT a failure: it still shows.
+ */
+function geminiFailed(result) {
+  if (!result || result.kind !== 'gemini') return false;
+  if (result.failure || result.reason === 'nothing_to_price') return true;
+  return !geminiReading(result.grounded).hasContent;
+}
+
+function geminiSheet(result, item, thumb) {
+  const g = geminiReading(result.grounded);
+  const unsure = result.lowConfidence === true || g.lowConfidence;
+  const conf = confidenceOf({ ...result, failure: null, reason: undefined, lowConfidence: unsure });
+  const zoneKey = g.zone ? GEMINI_ZONE_KEY[g.zone] : null;
+  const name = g.name ?? item?.text ?? '';
+  // The headline is Gemini's word on the user's scale; with no shelf price to
+  // place there is no zone, and the product's name leads instead.
+  const headline = zoneKey ? t(zoneKey) : (name || t('cam_gem_answered_word'));
+  const medianLine = g.median === null
+    ? ''
+    : escapeHtml(g.unitLabel === null
+      ? t('cam_gem_median_bare', { median: g.median })
+      : t('cam_gem_median', { median: g.median, unit: g.unitLabel }));
+  const shelfLine = g.shelfLabel === null ? '' : escapeHtml(t('cam_gem_shelf', { label: g.shelfLabel }));
+  const lines = [medianLine, shelfLine].filter(Boolean).join('<br>');
+  const reasons = Array.isArray(result.confidenceReasons) ? result.confidenceReasons : g.confidenceReasons;
+
+  return `
+    <section class="sheet verdict gemini" data-kind="gemini" data-tier="unknown" data-zone="${escapeHtml(g.zone ?? '')}" data-conf="${conf.level}" data-conf-reasons="${escapeHtml(reasons.join(' '))}" data-detent="peek" aria-live="polite" tabindex="-1">
+      ${grabber()}
+      ${backButton()}
+
+      <div class="sheet-peek">
+        <div class="sheet-head">
+          ${shinSay(unsure ? 'unknown' : 'idle', unsure ? 'gem_unsure' : 'gem_answer', {}, { size: 'face-verdict', tier: 'unknown' })}
+          ${thumbImg(thumb)}
+        </div>
+        <h2 class="vword${zoneKey ? '' : ' small'}" data-gemini-headline>${escapeHtml(headline)}</h2>
+        ${lines ? `<div class="priceline"><span class="sub" data-gemini-figures>${lines}</span></div>` : ''}
+        ${unsure ? `<div class="confrow"><span class="conf-label" data-not-confident>${escapeHtml(conf.label)}</span></div>` : ''}
+        ${zoneKey && name ? `<p class="itemname">${escapeHtml(name)}</p>` : ''}
+      </div>
+
+      <div class="sheet-half">
+        ${groundedSlot()}
+        <div class="actions">
+          <button type="button" class="pill ghost" data-act="correct">${escapeHtml(t('cam_correct_it'))}</button>
+        </div>
+      </div>
+
+      <div class="sheet-full">
+        ${thumbsBlock()}
+        <div class="toast-slot" data-toast-slot></div>
+        <button type="button" class="pill solid wide done-btn" data-act="cancel-scan">${escapeHtml(t('done'))}</button>
+      </div>
+    </section>`;
+}
+
+/**
+ * The state for a Gemini reply that did not carry an answer. Plain and kind:
+ * one line in the mascot's voice, one way to try again, never the raw code and
+ * never the refusal sheet's "could not price this" wording, because nothing was
+ * refused. It is the needs-connection sheet's shape (peek only), so it lands
+ * on a control the shopper can reach.
+ */
+function geminiFailureSheet(result, item) {
+  const key = result.reason === 'nothing_to_price' ? 'gem_nothing' : 'gem_failed';
+  return `
+    <section class="sheet refusal gemini-failed" data-kind="gemini" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite" tabindex="-1" data-gemini-failed>
+      <span class="grabber" aria-hidden="true"></span>
+      ${backButton()}
+      <div class="sheet-peek">
+        <div class="sheet-head">
+          ${shinSay('unknown', key, {}, { size: 'face-verdict' })}
+        </div>
+        ${item?.text ? `<p class="itemname">${escapeHtml(item.text)}</p>` : ''}
+        <div class="actions actions-primary">
+          <button type="button" class="pill solid" data-act="gem-retry">${escapeHtml(t('try_again'))}</button>
+        </div>
+      </div>
+    </section>`;
+}
+
+export function needsConnectionSheet() {
+  return `
+    <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite" tabindex="-1" data-needs-connection>
+      ${grabber()}
+      ${backButton()}
+      <div class="sheet-peek">
+        <div class="sheet-head">
+          ${shinSay('unknown', 'cam_needs_connection', {}, { size: 'face-verdict' })}
+        </div>
+        <p class="detail">${escapeHtml(say('cam_offline_no_price'))}</p>
+      </div>
+    </section>`;
+}
+
+/**
  * AVATAR.md row 36: the refusal's landing is `verdict-land` at 340ms, then
  * `slow-blink`, never the shake/buzz/red a normal miss might otherwise get.
  * Called right after a refusal sheet's markup is mounted, on its own face.
@@ -1910,6 +2071,8 @@ function photoCandidateLabel(c) {
    tier-red, and that nothing focusable is hidden behind `aria-hidden`.
    Exporting these changes nothing about how the screen itself calls them. */
 export { verdictSheet, refusalSheet, pricePadSheet, goingRateCard, workingSheet, textRouteSheet };
+// The Gemini answer, its plain failure state, and the one test that tells them apart.
+export { geminiSheet, geminiFailureSheet, geminiFailed };
 
 /* The shop shortlist joins them 2026-09-13, same reason: `padShopRow` and
    `storePickerSheet` are pure string builders, so app/test/shops.test.mjs can
@@ -2084,7 +2247,10 @@ export default {
                the pixels. The bar still holds three things and the
                cam-bar-h token is unchanged. -->
           <button type="button" class="shutter" data-act="shoot" aria-label="${escapeHtml(t('cam_shutter'))}" hidden></button>
-          <button type="button" class="scan-code-btn" data-act="scan-barcode">${escapeHtml(t('cam_scan_barcode'))}</button>
+          <!-- Hidden until a majority of the last second or two of frames agree
+               on one barcode (item 7, 2026-09-17); showBarcodeButton() is the
+               only thing that reveals it. Pressing it sends the digits only. -->
+          <button type="button" class="scan-code-btn" data-act="scan-barcode" hidden>${escapeHtml(t('cam_scan_barcode'))}</button>
           <button type="button" class="nav-btn" data-act="you" aria-label="${escapeHtml(t('nav_you'))}">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
@@ -2194,6 +2360,10 @@ export default {
     let barcodeInFlight = false;
     /** The code the current scan came from, when a barcode started it. */
     let scanBarcode = null;
+    /** The code the eye's vote has settled on (the button is showing for it), or null. */
+    let barcodeReady = null;
+    /** The shelf price typed at scan time, in cents, or null when skipped or not yet asked. Cleared by `reset()`. */
+    let scanShelfCents = null;
     /*
      * `leftBarcode` and `REREAD_QUIET_MS` were DELETED here, 2026-09-15.
      *
@@ -2243,10 +2413,8 @@ export default {
      * remembered across renders, which is not built.
      */
     let scanMode = 'barcode';
-    /** The "reading" acknowledgement after a barcode press, so it can be taken back down. */
+    /** Retained for the clears below; the press itself now starts the scan at once (no "reading" wait to take back). */
     let scanPressTimer = null;
-    /** How long that acknowledgement stands before the aim hint comes back. */
-    const SCAN_PRESS_ACK_MS = 6000;
     /** D-026's caller, started once below. The teardown `startCaptureQueue`
         returns, held so the render's own cleanup can call it. */
     let stopCaptureQueue = () => {};
@@ -2265,16 +2433,21 @@ export default {
       reticle: root.querySelector('.reticle'),
       marks: root.querySelector('.frame-marks'),
     }, {
+      // Item 11: the user's torch setting, read now; changing it on the You
+      // screen takes effect the next time this screen mounts.
+      torch: { mode: store.get().torchMode, threshold: store.get().torchThreshold },
+      barcodeMode: scanMode === 'barcode',
+      // Item 7: the vote has a winner (or lost it). Shows the button; sends nothing.
+      onBarcodeReady,
       /*
-       * A read can now only arrive because the shopper pressed "Scan the
-       * barcode": the eye does not hand a frame to zxing until `scanBarcode()`
-       * has armed it, and it disarms itself the moment a read fires. So there
-       * is no unsolicited read left to filter, and the quiet window that used
-       * to sit here is gone with its cause (see the note by `scanMode`).
+       * A read can only arrive because the shopper pressed "Scan barcode": the
+       * eye decodes every frame and votes, and tells the screen when a code has
+       * a majority (`onBarcodeReady`, which only shows the button), but it emits
+       * `onBarcode` from `scanBarcode()` alone, the button's press. So there is
+       * no unsolicited read to filter and results never pop up on their own.
        *
-       * The idle gate stays. It is not about unsolicited reads -- it is the
-       * ordinary "a sheet is up, this screen is busy" guard every handler in
-       * this render has.
+       * The idle gate stays: the ordinary "a sheet is up, this screen is busy"
+       * guard every handler in this render has.
        */
       onBarcode: (read) => {
         if (dead || cam.dataset.state !== 'idle') return;
@@ -2344,6 +2517,7 @@ export default {
         cameraStartedAt = Date.now();
         track('camera_live', { drawn: false });
         showInitialIdleContent();
+        startShelf();
         return;
       }
       startCamera(video).then((s) => {
@@ -2368,6 +2542,26 @@ export default {
       if (dead) { stop(); return; }
       stopCaptureQueue = stop;
     });
+
+    /*
+     * Continuous shelf capture (item 16, 2026-09-17): while the viewfinder is
+     * idle and photo consent is on, a cropped picture of what the camera sees
+     * is stored on the server every few seconds. Storage only, no model call;
+     * throttled and consent-gated in src/eye/shelf.ts, and it stands down the
+     * moment a scan, pad or answer is on screen. Started once the eye is
+     * live, stopped with the screen.
+     */
+    let stopShelfCapture = () => {};
+    const startShelf = () => {
+      startShelfCapture({
+        video,
+        isBusy: () => cam.dataset.state !== 'idle',
+        consentOn: () => store.consent().photos === true,
+      }).then((h) => {
+        if (dead) { h.stop(); return; }
+        stopShelfCapture = () => h.stop();
+      });
+    };
 
     ctx.api.scenarios()
       .then((d) => { scenarios = d.items; })
@@ -2438,12 +2632,43 @@ export default {
       cam.dataset.mode = scanMode;
       const barcode = scanMode === 'barcode';
       const shutter = root.querySelector('.shutter');
-      const scanBtn = root.querySelector('.scan-code-btn');
       if (shutter) shutter.hidden = barcode;
-      if (scanBtn) scanBtn.hidden = !barcode;
+      // The barcode button is shown by the vote and by nothing else (item 7).
+      // Photo mode never shows it, and switching mode drops any winner.
+      if (!barcode) barcodeReady = null;
+      paintBarcodeButton();
+      syncDecoding();
       for (const b of root.querySelectorAll('[data-act="scan-mode"]')) {
         b.setAttribute('aria-pressed', String(b.dataset.mode === scanMode));
       }
+    }
+
+    /**
+     * Whether the eye is decoding frames: only in barcode mode and only at idle.
+     * A sheet, a pad or an answer on screen means nobody is aiming, and the
+     * decode is the heaviest thing the loop does, so it stands down while a scan
+     * is under way (item 16's "never slowing the scan" holds for this too).
+     */
+    function syncDecoding() {
+      const idle = !cam.dataset.state || cam.dataset.state === 'idle';
+      eye?.setBarcodeMode?.(scanMode === 'barcode' && idle);
+    }
+
+    /** The button is visible exactly when the vote has a winner, at idle, in barcode mode. */
+    function paintBarcodeButton() {
+      const btn = root.querySelector('.scan-code-btn');
+      if (!btn) return;
+      const idle = !cam.dataset.state || cam.dataset.state === 'idle';
+      btn.hidden = !(scanMode === 'barcode' && idle && barcodeReady);
+    }
+
+    /** The eye's vote settled on a code, or lost it. Never sends anything by itself. */
+    function onBarcodeReady(ready) {
+      if (dead) return;
+      const was = Boolean(barcodeReady);
+      barcodeReady = ready;
+      paintBarcodeButton();
+      if (ready && !was) track('barcode_button_shown', { format: ready.format, frames: ready.frames });
     }
 
     /*
@@ -2470,6 +2695,8 @@ export default {
        */
       const marks = root.querySelector('.frame-marks');
       if (marks) marks.inert = next !== 'idle';
+      paintBarcodeButton();
+      syncDecoding();
       // The mode toggle sits outside `.cam-bar`, so the `inert` above does not
       // reach it, and CSS hides it by opacity in exactly the way the
       // frame-marks defect was about. Same primitive, same reason.
@@ -2542,7 +2769,9 @@ export default {
       const label = h.result?.identity?.label ?? h.query?.text ?? t('cam_that_item');
       const sellerName = h.result ? sellerOf(h.result) : null;
       const centsRaw = h.query?.askingCents ?? (h.result?.kind === 'verdict' ? h.result.askingCents : undefined);
-      const word = h.result?.kind === 'verdict' ? wordFor(h.result.tier) : t('cam_refused_word');
+      const word = h.result?.kind === 'verdict'
+        ? wordFor(h.result.tier)
+        : h.result?.kind === 'gemini' ? geminiWordFor(h) : t('cam_refused_word');
       return {
         item: label,
         seller: sellerName || '',
@@ -2691,6 +2920,49 @@ export default {
         frames: read.frames,
         msSinceCameraStart: cameraStartedAt === null ? null : Date.now() - cameraStartedAt,
       });
+      // THE SHELF PRICE IS ASKED NOW, before anything is identified (item 10,
+      // 2026-09-17): "asking the user for the price as soon as they scan instead
+      // of waiting for a product identification first. This way, the price can
+      // get sent to gemini along with the rest of the prompt." The scan request
+      // is sent when the pad is confirmed or skipped (`submitScanPrice`), and it
+      // carries the price. Skipping still gets an answer.
+      askPriceFirst({ kind: 'barcode', code: read.value });
+    }
+
+    /**
+     * The pad, opened at scan time with nothing identified yet. The item on it
+     * is only a caption (the digits, or "what you photographed"); the scan
+     * request itself waits on the pad so the price can ride in it.
+     */
+    function askPriceFirst(pending) {
+      scanShelfCents = null;
+      openPad({
+        id: null,
+        text: pending.kind === 'barcode' ? pending.code : t('cam_what_you_photographed'),
+        category: null,
+        gtin: pending.kind === 'barcode' ? pending.code : null,
+        notThisQuery: null,
+        pendingScan: pending,
+      });
+    }
+
+    /**
+     * The pad was confirmed (`cents`) or skipped (`null`) on a pending scan:
+     * NOW the scan request goes out, carrying the price when there is one.
+     */
+    function submitScanPrice(cents) {
+      const pending = padItem?.pendingScan;
+      if (!pending) return;
+      scanShelfCents = typeof cents === 'number' && cents > 0 ? cents : null;
+      track('scan_price_at_scan', { typed: scanShelfCents !== null, kind: pending.kind });
+      if (pending.kind === 'barcode') void resolveBarcode(pending.code, scanShelfCents);
+      else void resolvePhoto(pending.crop, scanShelfCents);
+    }
+
+    /** The barcode's identification and answer, once the price question is settled. */
+    async function resolveBarcode(code, cents) {
+      const myGen = ++gen;
+      slot.innerHTML = '';
       dockSay('thinking', 'reading', {}, 'think-dots');
       setState('framing');
 
@@ -2713,11 +2985,25 @@ export default {
          * holding the product. Nothing threw and nothing logged, which is why
          * it survived the commit that was meant to turn this path on.
          */
-        found = await catalogueLookup(read.value);
+        found = await catalogueLookup(code, cents);
       } catch {
         found = null;
       }
-      if (dead) return;
+      // Cancelled (reset bumps `gen`) while the lookup was out: paint nothing.
+      if (dead || myGen !== gen) return;
+
+      /*
+       * No connection (beta gap item 21, his word "the app will not be usable
+       * offline"): say so, in one plain sentence, and stop. Nothing is named
+       * and nothing is sent on to be priced. `offline-aisle.js` says why.
+       */
+      if (found?.needsConnection) {
+        slot.innerHTML = needsConnectionSheet();
+        playRefusalLanding(slot);
+        setState('result');
+        mounted();
+        return;
+      }
 
       if (found) {
         /*
@@ -2735,7 +3021,9 @@ export default {
          * judge barcode-grade certainty for a guess, which is the same error
          * pointing the other way and the worse of the two.
          */
-        proceed({ ...found, scannedGtin: read.value }, null);
+        // The price the shopper typed at scan time, or none (skipped, which
+        // still gets the going-rate answer). Never asked a second time.
+        proceed({ ...found, scannedGtin: code }, cents ?? undefined);
         return;
       }
 
@@ -2754,7 +3042,7 @@ export default {
      * attached, so the app still demonstrates itself on a machine that does not
      * have the 3.47 GB file sitting next to it.
      */
-    async function catalogueLookup(code) {
+    async function catalogueLookup(code, shelfPriceCents) {
       /*
        * The priced shelf first, for the same reason the typed route asks it
        * first: a product somebody has actually recorded a price for produces a
@@ -2773,7 +3061,7 @@ export default {
        */
       let id = null;
       try {
-        id = await ctx.api.identify({ gtin: code });
+        id = await ctx.api.identify({ gtin: code, shelfPriceCents });
         // The row the server just wrote for this scan. Kept whatever the
         // answer was: a refused identification is exactly the case the
         // price route below exists for.
@@ -2822,7 +3110,14 @@ export default {
         };
       }
 
-      return identifyOffline(code);
+      /*
+       * 2026-09-19 (beta gap item 21): no request that reached the server means
+       * no answer. `identifyOffline` no longer looks anything up; it returns
+       * the "needs a connection" marker, and only when the request itself
+       * failed. A server that DID answer without a product is not a missing
+       * connection and falls through to the candidate sheet as before.
+       */
+      return id === null ? identifyOffline(code) : null;
     }
 
     function sameCode(a, b) {
@@ -2994,7 +3289,19 @@ export default {
       );
     }
 
-    function openPad(item) {
+    function openPad(item, { force = false } = {}) {
+      /*
+       * The price was already asked at scan time (item 10). An identity that
+       * turns up later (a candidate picked, a typed name resolved) is priced
+       * with THAT number instead of asking a second time. A skipped price
+       * (`null`) opens the pad as it always did, so the going-rate card's
+       * "tell me the price" and a typed route still work. `pendingScan` items
+       * ARE the scan-time ask, and observation-only ones are their own route.
+       */
+      if (!force && !item.pendingScan && !item.observationOnly && scanShelfCents !== null) {
+        proceed(item, scanShelfCents);
+        return;
+      }
       padItem = item;
       padBuffer = '';
       padModifier = null;
@@ -3298,9 +3605,32 @@ export default {
         clearTimeout(slowTimer);
         if (dead || myGen !== gen) return;
         step = 2; // Event: the response has actually arrived.
-        last = { result, scenario: item, thumb: scanThumb };
-        store.recordVerdict(result, { text: item.text, askingCents, thumb: scanThumb });
-        if (result.kind === 'verdict') {
+        last = { result, scenario: item, thumb: scanThumb, askingCents };
+        /* A Gemini answer is stored with two plain facts on its row, so past
+           scans, the weekly line and the good-find state never open the answer
+           to learn them: whether it answered, and Gemini's own zone code. */
+        store.recordVerdict(result, {
+          text: item.text,
+          askingCents,
+          thumb: scanThumb,
+          ...(result.kind === 'gemini'
+            ? { answered: !geminiFailed(result), zone: geminiReading(result.grounded).zone }
+            : {}),
+        });
+        if (result.kind === 'gemini') {
+          /* THE ANSWER THIS ROUTE NOW GIVES. Never the refusal sheet, and
+             never `fillCheaper`: the catalogue is not consulted for an answer,
+             so any alternatives are the ones inside Gemini's own block. */
+          lastKeepable = null;
+          if (geminiFailed(result)) {
+            slot.innerHTML = geminiFailureSheet(result, item);
+            playRefusalLanding(slot);
+          } else {
+            slot.innerHTML = geminiSheet(result, item, scanThumb);
+            fillGrounded(slot, result);
+            buzz(16);
+          }
+        } else if (result.kind === 'verdict') {
           slot.innerHTML = verdictSheet(result, item, scanThumb);
           // The Gemini block, if the payload carried one. Synchronous: it
           // arrived with the verdict, so there is nothing to wait for.
@@ -3392,10 +3722,10 @@ export default {
      * Four outcomes, and each one gets its own screen rather than a shared
      * guess:
      *
-     *   identity, band not low   the same flow the typed route takes once
-     *                            `ctx.api.identify` finds a product --
-     *                            `openPad`, not `proceed` directly, because a
-     *                            photo carries no typed price either.
+     *   identity, band not low   `proceed` with the price the shopper gave at
+     *                            scan time (item 10, 2026-09-17), or none if
+     *                            they skipped it; the pad is no longer asked
+     *                            after identification.
      *   candidates                `searchCandidateSheet`, the same picker
      *                            "not this?" already uses, so choosing among
      *                            photo candidates feels like the choice it
@@ -3410,8 +3740,15 @@ export default {
      * what stops a slow photo answer from painting over a scan the shopper
      * has already left.
      */
-    async function handlePhotoCapture(crop) {
+    function handlePhotoCapture(crop) {
       if (dead || barcodeInFlight) return;
+      // The price is asked first (item 10); the crop waits in the pending scan
+      // and is sent, with the price, by `resolvePhoto` once the pad is done.
+      askPriceFirst({ kind: 'photo', crop });
+    }
+
+    /** The photo's identification and answer, once the price question is settled. */
+    async function resolvePhoto(crop, cents) {
       const myGen = ++gen;
       setState('reading');
       slot.innerHTML = workingSheet(t('cam_what_you_photographed'), 0);
@@ -3419,7 +3756,7 @@ export default {
 
       let id;
       try {
-        id = await ctx.api.identifyPhoto(crop.blob, { sharpness: crop.sharpness });
+        id = await ctx.api.identifyPhoto(crop.blob, { sharpness: crop.sharpness, shelfPriceCents: cents ?? undefined });
         // The row the server just wrote for this scan. Kept whatever the
         // answer was: a refused identification is exactly the case the
         // price route below exists for.
@@ -3447,14 +3784,16 @@ export default {
        */
       if (!id?.product && id?.unchecked?.label) {
         track('unchecked_answer', { source: 'photo' });
-        openPad({
+        // Straight on to the price with the number asked at scan time; the
+        // pad is not shown a second time (item 10).
+        proceed({
           id: null,
           text: id.unchecked.label,
           category: id.category ?? null,
           gtin: null,
           unchecked: true,
           notThisQuery: null,
-        });
+        }, cents ?? undefined);
         return;
       }
 
@@ -3487,16 +3826,15 @@ export default {
       }
 
       if (id?.product && id.band !== 'low') {
-        // The typed route's own flow, reused rather than copied: an identity
-        // with no typed price yet goes to the pad, exactly as it does when a
-        // typed name resolves to a catalogue product.
-        openPad({
+        // The price was asked at scan time (item 10), so an identity goes
+        // straight on to the answer with it instead of to a second pad.
+        proceed({
           id: id.product.code,
           text: productLabel(id.product),
           category: id.category,
           gtin: id.product.code,
           notThisQuery: null,
-        });
+        }, cents ?? undefined);
         return;
       }
 
@@ -3572,6 +3910,8 @@ export default {
       lastKeepable = null;
       lastScanId = null;
       lastPriceQuery = null;
+      scanShelfCents = null;
+      barcodeReady = null;
       scanThumb = null;
       // A pick belongs to the scan that has just ended. Carrying it into the
       // next one would frame whatever happens to overlap the old rectangle,
@@ -3756,35 +4096,27 @@ export default {
 
       if (act === 'shoot') { shoot(); return; }
       /*
-       * RULE 2. The two branches the owner's ruling turns on.
+       * The two branches the barcode flow turns on (item 7, 2026-09-17).
        *
-       * `scan-mode` only changes what the bar shows; it never reads anything.
-       * `scan-barcode` is the ONLY thing in this app that can cause a barcode
-       * to be decoded -- `eye.scanBarcode()` arms exactly one read in the eye,
-       * which disarms itself again as soon as that read fires.
+       * `scan-mode` only changes what the bar shows. `scan-barcode` is the
+       * button the vote reveals: it asks the eye for the digits of the code the
+       * last second or two of frames agreed on, and that is the only way a
+       * barcode ever leaves the eye. The eye emits `onBarcode` synchronously
+       * from this call, so the scan flow starts below in `onBarcode`.
        */
       if (act === 'scan-mode') { setScanMode(btn.dataset.mode); return; }
       if (act === 'scan-barcode') {
         if (cam.dataset.state !== 'idle') return;
         track('barcode_scan_pressed', {});
-        eye?.scanBarcode?.();
+        const sent = eye?.scanBarcode?.();
+        if (!sent) {
+          // The code left the frame between the vote and the press. Nothing
+          // was sent, and the button has no code to stand for any more.
+          barcodeReady = null;
+          paintBarcodeButton();
+          return;
+        }
         buzz(8);
-        /*
-         * A press with no acknowledgement is a press the shopper repeats. The
-         * docked face carries it, in place, the same way the shutter's press
-         * is carried -- and the same face is put back to the aim hint if the
-         * code never resolves, because "reading" left up forever is a lie
-         * about what the camera is doing. The eye stays armed either way: the
-         * shopper can keep aiming and it will still read when it lands.
-         */
-        clearTimeout(hintTimer);
-        clearTimeout(scanPressTimer);
-        dockSay('thinking', 'reading', {}, 'think-dots');
-        scanPressTimer = setTimeout(() => {
-          if (dead || cam.dataset.state !== 'idle') return;
-          showAimHint();
-          armHintEscalation();
-        }, SCAN_PRESS_ACK_MS);
         return;
       }
       if (act === 'watchlist') { ctx.go('watchlist'); return; }
@@ -3820,6 +4152,8 @@ export default {
          * so, which is the honest whole of what happened.
          */
         if (padItem?.observationOnly) { recordObservation(cents); return; }
+        // The scan-time ask (item 10): the request goes out now, carrying it.
+        if (padItem?.pendingScan) { submitScanPrice(cents); return; }
         proceed(padItem, cents);
         return;
       }
@@ -3831,6 +4165,9 @@ export default {
            comparison set here, so skipping the price leaves literally nothing
            to show -- which is the viewfinder. */
         if (padItem?.observationOnly) { reset(); return; }
+        // Skipped at scan time: the request still goes out, with no price, and
+        // still gets an answer (the going-rate card at worst).
+        if (padItem?.pendingScan) { submitScanPrice(null); return; }
         proceed(padItem, undefined);
         return;
       }
@@ -3851,7 +4188,7 @@ export default {
         });
         return;
       }
-      if (act === 'pad-reopen' && last?.scenario) { openPad(last.scenario); return; }
+      if (act === 'pad-reopen' && last?.scenario) { openPad(last.scenario, { force: true }); return; }
 
       // Row 17, 88, 89, take: the second route out of a no-identity refusal.
       if (act === 'typeit') {
@@ -3976,11 +4313,33 @@ export default {
         mounted('[data-act="watch"]');
         return;
       }
+      /* The scan a thumb is about, for a Gemini answer: the id the answer
+         carries, else the one the scan was opened under. A verdict has none
+         and its thumbs stay the local signal they were. */
+      const ratedScan = last?.result?.kind === 'gemini'
+        ? (Number.isInteger(last.result.scanId) ? last.result.scanId : lastScanId)
+        : null;
+      if (act === 'gem-retry' && last?.scenario) {
+        // The same scan again: `proceed` sends the same scan id, so the server
+        // recalls or re-asks under the row that already exists.
+        void proceed(last.scenario, last.askingCents);
+        return;
+      }
       if (act === 'thumbs-up' || act === 'thumbs-down') {
         // The one-tap correctness signal (DESIGN.md section 4, full detent).
         // GAMIFICATION.md M12 / OLMA audit rows 64, 65, take: it earns
         // nothing and writes nothing but this local signal. Row 35's toast
         // acknowledges the tap, Undo live for four seconds.
+        //
+        // On a Gemini answer the thumb is also kept against its scan id, on
+        // the phone and on the server (item 13: every rating is kept). Not
+        // awaited and never thrown: a rating is feedback about an answer that
+        // is already on screen.
+        if (Number.isInteger(ratedScan)) {
+          const rating = act === 'thumbs-up' ? 'up' : 'down';
+          store.recordRating({ scanId: ratedScan, rating });
+          void ctx.api.postScanRating?.({ deviceId: getDeviceId()?.id, scanId: ratedScan, rating });
+        }
         btn.parentElement.querySelectorAll('.thumb').forEach((t) => t.classList.remove('picked'));
         btn.classList.add('picked');
         const toastSlot = btn.closest('.sheet-full')?.querySelector('[data-toast-slot]');
@@ -3992,6 +4351,10 @@ export default {
         return;
       }
       if (act === 'thumbs-undo') {
+        if (Number.isInteger(ratedScan)) {
+          store.deleteRating(ratedScan);
+          void ctx.api.deleteScanRating?.({ deviceId: getDeviceId()?.id, scanId: ratedScan });
+        }
         const toastSlot = btn.closest('[data-toast-slot]');
         btn.closest('.sheet-full')?.querySelectorAll('.thumb').forEach((t) => t.classList.remove('picked'));
         if (toastSlot) { clearTimeout(toastSlot._timer); toastSlot.innerHTML = ''; }
@@ -4297,6 +4660,7 @@ export default {
       eye?.stop();
       stopCamera(stream);
       stopCaptureQueue();
+      stopShelfCapture();
       clearTimeout(hintTimer);
       clearTimeout(scanPressTimer);
       clearTimeout(torchAckTimer);

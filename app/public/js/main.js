@@ -34,6 +34,7 @@ import { refreshCell } from './geocell.js';
 import './track.js';
 
 import camera from './screens/camera.js';
+import onboarding from './screens/onboarding.js';
 import setup from './screens/setup.js';
 import consent from './screens/consent.js';
 import watchlist from './screens/watchlist.js';
@@ -44,8 +45,9 @@ import pastscans from './screens/pastscans.js';
 import removed from './screens/removed.js';
 import market from './screens/market.js';
 import licences from './screens/licences.js';
+import { firstScreen, replayUrlFor } from './onboarding-flow.js';
 
-for (const s of [camera, setup, consent, watchlist, correct, share, you, pastscans, removed, market, licences]) {
+for (const s of [camera, onboarding, setup, consent, watchlist, correct, share, you, pastscans, removed, market, licences]) {
   router.register(s);
 }
 
@@ -77,13 +79,18 @@ startThemeColourSync();
  * still land on consent rather than skip it -- the flag this checks is its
  * own, never folded into `seenIntro`, for exactly that reason.
  */
-function firstScreen() {
-  const s = store.get();
-  if (!s.seenIntro) return 'setup';
-  if (!s.consentSeen) return 'consent';
-  return 'camera';
-}
-const first = firstScreen();
+/**
+ * The order itself lives in onboarding-flow.js so a test can hold it: the
+ * welcome flow once (Jamin's Welcome screen tab), then setup, then consent,
+ * then the camera. Each of the four has its own flag and none is folded into
+ * another.
+ */
+const first = firstScreen(store.get());
+/* `?onboarding=1` replays the welcome once, for someone who has finished it
+   already; the flow module decides, and the URL is rewritten so a reload does
+   not start it again. First-run behaviour above is untouched. */
+const replayUrl = replayUrlFor(location.search, store.get());
+if (replayUrl) history.replaceState({}, '', replayUrl);
 router.start(document.getElementById('screen'), { store, api, shin, build: BUILD_STAMP }, first);
 
 /* Item 11a: if location consent already carries over from an earlier

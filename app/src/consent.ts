@@ -12,12 +12,17 @@
  * shelf has not thereby withdrawn where the shelf is, and the reverse is more
  * obviously true. They are two columns and two questions on the screen.
  *
- * BOTH DEFAULT OFF, AND THE DEFAULT IS NO ROW. A device that has never
- * answered reads photos false, location false, updatedAt null, the same as a
- * device that answered no; the `updatedAt` is what separates them for anybody
- * who needs to know, and nothing in the server does. Turning a toggle ON is
- * what writes a row; leaving both alone writes nothing and keeps nothing but
- * the scan row itself, which is never optional, consent or not.
+ * PHOTOS DEFAULT ON, LOCATION DEFAULT OFF, AND THE DEFAULT IS NO ROW. Changed
+ * 2026-09-19 for photos only (beta gap item 13). Jamin, 2026-09-17: "Shin
+ * should try to save as much data as possible: the users' picture or
+ * barcode...", and he delegated the consent wording ("you decide"). A device
+ * that has never answered therefore reads photos TRUE, location false,
+ * updatedAt null; a device that answered no reads photos false with a real
+ * `updatedAt`, and that written no is never overridden by the default. The
+ * screen says the default out loud and offers one plain switch to turn it
+ * off (`voice.js` `consent_photos_desc`, `voice-fr.js`, and `store.js` mirror
+ * this line). Location is untouched: still off until turned on, coarse cell
+ * only, as ruled below; nobody has asked to move it.
  *
  * THE RULING, 2026-09-14, because the two founders said opposite things on
  * the same day and this file is where the answer has to live. Jamin: "build
@@ -54,11 +59,17 @@ export interface Consent {
 }
 
 /**
- * Nothing agreed to. Both the default for a device with no row and the answer
- * on any failure to read one: a read that fails must fail the same way an
- * unanswered device reads, and an unanswered device keeps nothing.
+ * Nothing agreed to. The answer on any failure to read a row, and for a
+ * device with no id: a read that fails could be hiding a written no, so it
+ * fails toward keeping less, the direction that can never break an opt-out.
  */
 const NOTHING: Consent = { photos: false, location: false, updatedAt: null };
+
+/**
+ * What a device with no row reads as: photos kept, location not. See the
+ * header. Exported so the tests and the client mirror name one value.
+ */
+export const DEFAULT_CONSENT: Consent = { photos: true, location: false, updatedAt: null };
 
 interface ConsentRow {
   photos: number;
@@ -69,14 +80,11 @@ interface ConsentRow {
 /**
  * What this device has agreed to.
  *
- * NEVER THROWS, AND FAILS TOWARD KEEPING. A database that will not open, a row
- * that will not read, a device id that is empty: every one of them answers
- * "everything agreed to", which is what an unanswered device already reads as
- * per the header above. This matches how the rest of this package treats a
- * failed read (a scan store that will not open still answers the person in
- * front of it) rather than opposing it the way the old off-by-default version
- * did: there is no longer a direction where failing is the safer guess, so the
- * read fails the same way silence does.
+ * NEVER THROWS. A device with no row reads `DEFAULT_CONSENT`. A database that
+ * will not open, a row that will not read, or a device id that is empty reads
+ * `NOTHING` instead: an unreadable row could be a written opt-out, and keeping
+ * a photograph somebody told us not to keep is the one error here that cannot
+ * be undone, while a photograph not kept is one scan's evidence lost.
  */
 export function readConsent(deviceId: string): Consent {
   const id = deviceId?.trim();
@@ -87,7 +95,7 @@ export function readConsent(deviceId: string): Consent {
     const row = store.db
       .prepare('SELECT photos, location, updated_at FROM consent WHERE device_id = ?')
       .get(id) as unknown as ConsentRow | undefined;
-    if (!row) return NOTHING;
+    if (!row) return DEFAULT_CONSENT;
     return { photos: row.photos === 1, location: row.location === 1, updatedAt: row.updated_at };
   } catch (err) {
     store.dropped += 1;

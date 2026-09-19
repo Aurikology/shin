@@ -447,3 +447,50 @@ export function mountGrounded(container, grounded, opts = {}) {
   container.appendChild(section);
   return section;
 }
+
+/**
+ * What the Gemini answer sheet's headline needs from the wire, lifted out as
+ * plain values so `camera.js` never reads inside `grounded`.
+ *
+ * THIS IS A READ, NEVER A COMPUTATION (beta gaps, rule 6: the price does not
+ * come from Shin, and Shin shows no price math it made itself). The zone is the
+ * code Gemini put on the shelf price against the user's own lines, the median
+ * and its unit are the ones Gemini stated, and the shelf label is Gemini's own
+ * "quantity and price as sold". Nothing here adds, divides, compares or rounds;
+ * a number is turned into text with `String` and no more.
+ *
+ * `hasContent` mirrors the one condition `groundedRoot` uses to decline to
+ * render (no facts, description, offers, reviews or suggestions), so the sheet
+ * can choose its plain "no answer" state without building DOM to find out.
+ */
+const ZONES = ['under_your_line', 'middle', 'over_your_line'];
+
+export function geminiReading(grounded) {
+  const empty = {
+    hasContent: false, zone: null, median: null, unitLabel: null,
+    shelfLabel: null, name: null, lowConfidence: false, confidenceReasons: [],
+  };
+  if (!grounded || grounded.kind !== 'grounded' || !grounded.block) return empty;
+  const block = grounded.block;
+  const has = (list) => Array.isArray(list) && list.length > 0;
+  const hasContent = has(block.facts)
+    || (typeof block.description === 'string' && block.description !== '')
+    || has(block.offers)
+    || has(block.reviews)
+    || (typeof grounded.suggestionsHtml === 'string' && grounded.suggestionsHtml !== '');
+  const verdict = block.verdict ?? null;
+  const zone = verdict && verdict.shelf && ZONES.indexOf(verdict.shelf.zone) !== -1 ? verdict.shelf.zone : null;
+  const median = verdict && typeof verdict.median === 'number' ? String(verdict.median) : null;
+  const unitLabel = verdict && typeof verdict.unitLabel === 'string' && verdict.unitLabel !== '' ? verdict.unitLabel : null;
+  const shelfLabel = verdict && typeof verdict.shelfLabel === 'string' && verdict.shelfLabel !== '' ? verdict.shelfLabel : null;
+  return {
+    hasContent,
+    zone,
+    median,
+    unitLabel,
+    shelfLabel,
+    name: typeof block.name === 'string' && block.name !== '' ? block.name : null,
+    lowConfidence: block.lowConfidence === true,
+    confidenceReasons: Array.isArray(block.confidenceReasons) ? block.confidenceReasons : [],
+  };
+}

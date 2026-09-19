@@ -1,11 +1,15 @@
 /**
- * Item 6b: the first-launch consent screen. Photos and location, off by
- * default (Aurik's ruling of 2026-09-14 over the one-push "on by default" of
- * the same morning; see app/src/consent.ts), each its own opt-in with its own
- * explanation right beside it, and a Continue that works whether or not
- * either is turned on -- the screen must be fully usable and dismissible with
- * both left off, because leaving them off is a correct outcome of a screen
- * that worked, not a state to be argued out of.
+ * Item 6b: the first-launch consent screen. Photos are ON by default and
+ * location is OFF by default (photos changed 2026-09-19, beta gap item 13:
+ * Jamin asked for as much user data as possible and delegated this wording;
+ * location stays Aurik's 2026-09-14 ruling; see app/src/consent.ts). Each is
+ * its own switch with its own explanation right beside it, the photo line
+ * saying plainly that it is on and how to turn it off, and a Continue that
+ * works whatever the switches say -- the screen must be fully usable and
+ * dismissible with either one flipped, because either outcome is a correct
+ * outcome of a screen that worked, not a state to be argued out of. No
+ * "are you sure", no guilt copy, no extra tap to opt out: the switch is the
+ * whole opt-out.
  *
  * WHY THIS IS A SEPARATE SCREEN AND NOT A THIRD QUESTION FOLDED INTO SETUP.
  * `setup.js`'s own header draws a hard line between "which Shin" (a
@@ -37,7 +41,7 @@ import { say } from '../voice.js';
 import * as store from '../store.js';
 import { escapeHtml, on } from '../lib/dom.js';
 import { storagePersists } from '../lib/persistence.js';
-import { toggleConsent } from '../consent-actions.js';
+import { confirmConsent, toggleConsent } from '../consent-actions.js';
 import { t } from '../ui-strings.js';
 
 export default {
@@ -64,7 +68,7 @@ export default {
               <p class="fineprint">${escapeHtml(say('consent_photos_desc'))}</p>
             </div>
             <button type="button" class="switch" data-consent="photos" role="switch"
-                    aria-checked="false" aria-label="${escapeHtml(t('consent_photos'))}"></button>
+                    aria-checked="${store.consent().photos}" aria-label="${escapeHtml(t('consent_photos'))}"></button>
           </div>
           <div class="ilist-row consent-row">
             <div class="consent-text">
@@ -98,10 +102,9 @@ export default {
         btn.classList.toggle('on', c[key]);
       }
     }
-    // Both toggles start off and stay off until this device's own store says
-    // otherwise (a re-run of this screen after a reset, say); painted from
-    // `store.consent()` rather than trusted to the `false` written into the
-    // markup above, which is only ever the honest first-launch default.
+    // Photos start on and location starts off until this device's own store
+    // says otherwise (a re-run of this screen after a reset, say); painted
+    // from `store.consent()`, the same values the server's default reads as.
     paint();
 
     on(root, 'click', (e) => {
@@ -112,6 +115,7 @@ export default {
         return;
       }
       if (e.target.closest('[data-act="go"]')) {
+        confirmConsent(ctx.api);
         store.setConsentSeen();
         ctx.replace('camera');
       }

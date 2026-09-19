@@ -644,3 +644,35 @@ button.ilist-row { cursor: pointer; }
   margin: 0 0 12px;
 }
 .noscript p { margin: 0 0 10px; color: var(--ink-muted); font-size: 15px; line-height: 1.5; }
+
+/*
+ * The developer screen tag (js/screen-tag-badge.js). Not in the markup at all
+ * unless tags are switched on (?tags=1, or the switch at the bottom of You), so
+ * a real user never gets this element.
+ *
+ * Fixed to the top right, in the safe area, above every sheet and modal. Low
+ * contrast on purpose, readable rather than loud: a dark chip with dim light text
+ * reads over both a live camera feed and a cream page, which no single theme
+ * token would. It never takes a tap (pointer-events none) and it has no
+ * transition or animation of any kind: it is seen constantly and only ever
+ * changes its text.
+ */
+.screen-tag {
+  position: fixed;
+  z-index: 2147483647;
+  top: calc(env(safe-area-inset-top, 0px) + 4px);
+  right: calc(env(safe-area-inset-right, 0px) + 6px);
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, .5);
+  color: rgba(255, 255, 255, .72);
+  font: 600 10px/1.2 var(--f-mono);
+  letter-spacing: .02em;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* On a wide window the app is a 420px column in the middle; keep the tag on it. */
+@media (min-width: 520px) {
+  .screen-tag { right: calc(50vw - 210px + 6px); }
+}

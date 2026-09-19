@@ -22,7 +22,7 @@
  * `faceBlock`, `dotsHtml`, `shinSay`).
  */
 
-import { faceSvg, faceBlock, shinSay, cad, sellerOf, confidenceOf, dotsHtml, tierOf } from '../shin.js';
+import { faceSvg, faceBlock, shinSay, cad, sellerOf, confidenceOf, dotsHtml, tierOf, geminiWordFor } from '../shin.js';
 import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { escapeHtml, html, raw, ago, on } from '../lib/dom.js';
@@ -119,6 +119,27 @@ export function detail(h) {
       </div>`;
   }
 
+  /*
+   * A Gemini answer, reopened. The stored row keeps two plain facts beside it
+   * (`query.answered`, `query.zone`, written when the answer landed), so the
+   * heading is the word the sheet headlined it with and the wire is never
+   * opened here. It is not a refusal and must not be headed as one.
+   */
+  if (h.result?.kind === 'gemini') {
+    const conf = confidenceOf(h.result);
+    return html`
+      <div class="pmodal" data-act="modal">
+        <div class="pmodal-card" data-tier="unknown" tabindex="-1">
+          ${raw(faceBlock('unknown', { size: 'face-verdict' }))}
+          <h2>${geminiWordFor(h)}</h2>
+          <p class="pmodal-meta">${h.query?.text ?? t('past_scans_unknown_item')} · ${ago(h.at)}</p>
+          ${raw(conf.label ? html`<p class="pmodal-conf">${conf.label}</p>` : '')}
+          <p class="pmodal-note">${say('read_only_note')}</p>
+          <button type="button" class="linky" data-act="close-detail">${t('close')}</button>
+        </div>
+      </div>`;
+  }
+
   const r = h.result;
   return html`
     <div class="pmodal" data-act="modal">
@@ -182,7 +203,9 @@ export default {
         // default -- escapeHtml is not idempotent.
         const facts = last ? {
           item: last.result?.identity?.label ?? last.query?.text ?? t('past_scans_that_one'),
-          verdict: isVerdict ? wordFor(last.result.tier) : 'refused',
+          verdict: isVerdict
+            ? wordFor(last.result.tier)
+            : last.result?.kind === 'gemini' ? geminiWordFor(last) : 'refused',
         } : {};
         return shinSay(face, 'pastscans_callback', facts, { size: 64, anim: 'idle-breath' });
       }

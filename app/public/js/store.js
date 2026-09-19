@@ -45,6 +45,16 @@ const EMPTY = {
    */
   lineUnderPct: 10,
   lineOverPct: 10,
+  /**
+   * The torch setting (item 11, 2026-09-17): 'auto' lights the shelf itself once
+   * the frame is darker than `torchThreshold`; 'off' never does and the camera
+   * says on screen when it is too dark. The threshold is a mean luminance on a
+   * 0 to 255 scale and starts at Shin's own default (src/eye/torch.ts,
+   * DEFAULT_TORCH_THRESHOLD), so a user who never opens the setting gets the
+   * behaviour the app already had.
+   */
+  torchMode: 'auto',
+  torchThreshold: 52,
   /** Stage 07: save and watch is the primary action, so this is the real state. */
   watchlist: [],
   /** Every verdict ever shown, which is what stage 12 reads back. */
@@ -111,7 +121,7 @@ const EMPTY = {
    * default" from "touched and left this way", which the switches still let
    * anyone turn off.
    */
-  consent: { photos: false, location: false, updatedAt: null },
+  consent: { photos: true, location: false, updatedAt: null },
   /**
    * Whether the first-launch consent screen (item 6b) has been shown and
    * acted on. Separate from `seenIntro`: the attitude picker and the consent
@@ -194,8 +204,16 @@ function migrate(s) {
    * `updatedAt`) keeps exactly what it recorded, on or off, regardless of
    * where the default sits today.
    */
+  /* 2026-09-19: photos default ON (app/src/consent.ts DEFAULT_CONSENT). A saved
+     object with no `updatedAt` never recorded a choice, so its `photos: false`
+     is the old default and not a no; it reads as the current default. One
+     with an `updatedAt` keeps exactly what the person recorded. */
   const consent = s.consent && typeof s.consent === 'object'
-    ? { photos: s.consent.photos === true, location: s.consent.location === true, updatedAt: s.consent.updatedAt ?? null }
+    ? {
+        photos: s.consent.updatedAt ? s.consent.photos === true : EMPTY.consent.photos,
+        location: s.consent.location === true,
+        updatedAt: s.consent.updatedAt ?? null,
+      }
     : { ...EMPTY.consent };
   const consentSeen = s.consentSeen === true;
   const ratings = Array.isArray(s.ratings) ? s.ratings : [];
@@ -319,6 +337,15 @@ function persist() {
  * the default is not at the end of the row, where it would read as a floor.
  */
 export const LINE_CHOICES = [5, 10, 15, 20];
+
+/**
+ * The torch slider's range and its starting point (item 11). These three are
+ * the same numbers as TORCH_THRESHOLD_MIN, TORCH_THRESHOLD_MAX and
+ * DEFAULT_TORCH_THRESHOLD in src/eye/torch.ts, which the browser cannot import
+ * without loading the whole eye; test/torch-setting.test.mjs pins the two
+ * copies equal, so they cannot drift.
+ */
+export const TORCH_RANGE = { min: 10, max: 120, start: 52 };
 
 export function get() {
   return state;
@@ -458,7 +485,10 @@ export function weeklyStats() {
     const at = Date.parse(h.at);
     return Number.isFinite(at) && at >= cutoff;
   });
-  const callable = recent.filter((h) => h.result?.kind === 'verdict').length;
+  // A Gemini answer counts when it had something to show: `answered` was
+  // written onto the row's query when the answer landed, so this never opens
+  // the answer itself.
+  const callable = recent.filter((h) => h.result?.kind === 'verdict' || (h.result?.kind === 'gemini' && h.query?.answered === true)).length;
   return { scanned: recent.length, callable };
 }
 
@@ -475,7 +505,9 @@ export function goodFindThisWeek() {
   const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
   return state.history.some((h) => {
     const at = Date.parse(h.at);
-    return Number.isFinite(at) && at >= cutoff && h.result?.tier === 'good';
+    // A Gemini answer whose shelf price landed under the user's own line is a
+    // good find too; `zone` is Gemini's code, copied onto the row, never made here.
+    return Number.isFinite(at) && at >= cutoff && (h.result?.tier === 'good' || h.query?.zone === 'under_your_line');
   });
 }
 

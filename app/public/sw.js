@@ -1,27 +1,25 @@
 /*
  * The offline shell.
  *
- * WHY THIS EXISTS, and it is not "because apps have one". The offline pack put
- * 122,101 products on the phone so a scan in a dead aisle still gets a name.
- * That was half a feature, and the missing half was invisible until the whole
- * thing was walked with the network cut: the barcode reader fetches its
- * WebAssembly every time the camera mounts, the app's own JavaScript is fetched
- * on every load, and with no signal none of it arrives. The screen then says
- * "No barcode there" while pointed straight at a barcode, which is the worst
- * kind of wrong answer this product can give: confident, specific, and about
- * something it never actually looked at. A pack the app cannot start to read is
- * not an offline aisle.
+ * WHY THIS EXISTS, and it is not "because apps have one". With the network cut
+ * the barcode reader cannot fetch its WebAssembly, the app's own JavaScript is
+ * fetched on every load, and none of it arrives, so the app must still OPEN and
+ * say something true rather than show the browser's error page. Since
+ * 2026-09-19 (beta gap item 21, Jamin: "For now, the app will not be usable
+ * offline") what it says is that it needs a connection: this file opens the
+ * shell and nothing else. It never answers a scan.
  *
  * THE RULES, and each one is a decision rather than a default:
  *
  * 1. Nothing under /api/ is ever cached or ever served from cache. Prices are
  *    the whole product and a stale price shown as current is the failure this
  *    system exists to prevent. Offline, an API call fails, and failing is
- *    correct: the screens already know what to say about it.
- * 2. /api/pack is not cached here either, even though it is a big static file,
- *    because pack.js already stores it in IndexedDB with a version it checks.
- *    Two copies with two expiry rules is how a phone ends up answering from a
- *    pack nobody can account for.
+ *    correct: the screens say they need a connection. This is the rule that
+ *    keeps the service worker from answering a scan, and `test/offline-
+ *    needs-connection.test.mjs` runs this file to hold it.
+ * 2. Only GET, same-origin requests are looked at at all. A POST (a scan, a
+ *    rating, an event) is never intercepted, so it cannot be answered from a
+ *    cache.
  * 3. Everything else same-origin is fetched from the network first and cached;
  *    the cache answers only when the network does not (see the fetch handler);
  *    a person who is online always gets the current copy, and a person
@@ -31,7 +29,9 @@
  *    signal and the browser's page does not.
  */
 
-const CACHE = 'shin-shell-v3';
+// v4 (2026-09-19): drops every earlier cache, which held the offline pack's
+// module graph. The name change is the whole mechanism (see `activate`).
+const CACHE = 'shin-shell-v4';
 
 /*
  * The one file that must be there before the first offline load, because

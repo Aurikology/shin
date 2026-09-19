@@ -42,7 +42,9 @@ process.env.SHIN_CATALOGUE = join(dir, 'no-catalogue.db');
 // server is usually already sitting on 4173.
 process.env.PORT = '0';
 
-const { server, setIdentifierForTests } = await import('../server.ts');
+process.env.GEMINI_API_KEY = 'test-key-never-sent';
+const { server, setIdentifierForTests, setGeminiTransportForTests } = await import('../server.ts');
+const { fakeTransport } = await import('./gemini-double.ts');
 const { Identifier } = await import('../../identify/src/model.ts');
 const { openScanStore, allScans } = await import('../src/scans.ts');
 import type { MessagesClient } from '../../identify/src/model.ts';
@@ -57,6 +59,7 @@ before(async () => {
 
 after(async () => {
   setIdentifierForTests(null);
+  setGeminiTransportForTests(null);
   await new Promise<void>((r) => server.close(() => r()));
   try {
     rmSync(dir, { recursive: true, force: true });
@@ -136,8 +139,8 @@ const HIT: CatalogueLookup = async () => ({
   matchedBy: 'hybrid',
 });
 
-const useModel = (client: MessagesClient, lookup: CatalogueLookup = HIT) =>
-  setIdentifierForTests({ model: new Identifier('test-key-not-used', client), lookup });
+/** A photo scan is one Gemini call now; a recorded Gemini answers where the recorded Identifier stood. */
+const useModel = (_client?: MessagesClient, _lookup: CatalogueLookup = HIT) => setGeminiTransportForTests(fakeTransport().transport);
 
 /* ------------------------------ fixtures ------------------------------- */
 
@@ -165,24 +168,17 @@ const photoRows = () => allScans(openScanStore()).filter((r) => r.kind === 'phot
 
 /* ------------------------------- the tests ------------------------------ */
 
-test('a PNG the model reads and the catalogue has comes back as a product', async () => {
-  useModel(answeringClient(READING));
+test('a PNG Gemini reads comes back as an unchecked answer, from the one call', async () => {
+  const t = fakeTransport();
+  setGeminiTransportForTests(t.transport);
   const res = await postPhoto({ image: PNG_1x1.toString('base64'), sharpness: 80, deviceId: 'png-device' });
   assert.equal(res.status, 200);
-  const seen = (await res.json()) as Record<string, never> & {
-    product: { code: string; name: string } | null;
-    reason: string;
-    passes: number;
-    failure: string | null;
-    readAs: string;
-  };
-  assert.ok(seen.product, 'the route answered with no product');
-  assert.equal(seen.product.code, '0068100084245');
-  assert.equal(seen.reason, 'identified');
-  assert.equal(seen.passes, 1);
+  const seen = (await res.json()) as { product: unknown; unchecked: { name: string } | null; failure: string | null; reason: string };
+  assert.equal(seen.product, null, 'a catalogue product answered a photo scan');
+  assert.equal(seen.unchecked?.name, 'Kraft Dinner Original');
+  assert.equal(seen.reason, 'unchecked');
   assert.equal(seen.failure, null);
-  // The reading, not the catalogue's name for it.
-  assert.equal(seen.readAs, 'Kraft Dinner');
+  assert.equal(t.calls.length, 1, 'a photo scan must be exactly one Gemini call');
 });
 
 test('the scan row for that call is one row, kind photo, outcome answered', async () => {
@@ -190,16 +186,16 @@ test('the scan row for that call is one row, kind photo, outcome answered', asyn
   assert.equal(rows.length, 1, 'a photo call wrote something other than exactly one row');
   assert.equal(rows[0].outcome, 'answered');
   assert.equal(rows[0].failure_class, null);
-  assert.equal(rows[0].resolved_code, '0068100084245');
-  assert.equal(rows[0].query_text, 'Kraft Dinner');
+  assert.equal(rows[0].source, 'gemini');
+  assert.match(rows[0].query_text ?? '', /^Kraft Dinner Original/);
 });
 
 test('a JPEG payload is accepted, not just a PNG', async () => {
-  useModel(answeringClient(READING));
+  useModel();
   const res = await postPhoto({ image: JPEG.toString('base64'), deviceId: 'jpeg-device' });
   assert.equal(res.status, 200);
-  const seen = (await res.json()) as { product: unknown };
-  assert.ok(seen.product, 'a JPEG was refused where a PNG was accepted');
+  const seen = (await res.json()) as { unchecked: unknown };
+  assert.ok(seen.unchecked, 'a JPEG was refused where a PNG was accepted');
 });
 
 test('a body over the 3 MiB cap is refused with a 413', async () => {
@@ -218,19 +214,12 @@ test('a body under the cap that is not JSON is a 400, not a 413 and not a 500', 
 });
 
 test('base64 that is not an image is refused before a model call is spent', async () => {
-  useModel(
-    {
-      messages: {
-        create: async () => {
-          throw new Error('the route reached the model for something that is not an image');
-        },
-      },
-    },
-    HIT,
-  );
+  const t = fakeTransport();
+  setGeminiTransportForTests(t.transport);
   const res = await postPhoto({ image: Buffer.from('hello there').toString('base64') });
   assert.equal(res.status, 400);
   assert.match(((await res.json()) as { error: string }).error, /PNG or a JPEG/);
+  assert.equal(t.calls.length, 0, 'the route reached Gemini for something that is not an image');
 });
 
 test('a missing image field is a 400', async () => {
@@ -240,16 +229,27 @@ test('a missing image field is a 400', async () => {
 });
 
 test('a model that times out is a 200 carrying the class, never a 500', async () => {
-  useModel(abortingClient());
-  const res = await postPhoto({ image: PNG_1x1.toString('base64'), sharpness: 90, deviceId: 'timeout-device' });
-  assert.equal(res.status, 200, 'a model failure reached the client as a server error');
-  const seen = (await res.json()) as { product: unknown; failure: string; reason: string; categoryWhy: string };
-  assert.equal(seen.product, null);
-  assert.equal(seen.failure, 'model_timeout');
-  assert.equal(seen.reason, 'model_timeout');
-  // Hard rule 3: the sentence is about the photograph and the repair, never
-  // about our timeouts.
-  assert.doesNotMatch(seen.categoryWhy, /timeout|model|rate limit/i);
+  process.env.SHIN_GEMINI_TIMEOUT_MS = '25';
+  setGeminiTransportForTests(
+    (_url, init) =>
+      new Promise((_resolve, reject) => {
+        init.signal!.addEventListener('abort', () => reject(new Error('the request was aborted')));
+      }),
+  );
+  try {
+    const res = await postPhoto({ image: PNG_1x1.toString('base64'), sharpness: 90, deviceId: 'timeout-device' });
+    assert.equal(res.status, 200, 'a model failure reached the client as a server error');
+    const seen = (await res.json()) as { product: unknown; failure: string; reason: string; categoryWhy: string; lowConfidence: boolean };
+    assert.equal(seen.product, null);
+    assert.equal(seen.failure, 'model_timeout');
+    assert.equal(seen.reason, 'model_timeout');
+    assert.equal(seen.lowConfidence, true);
+    // Hard rule 3: the sentence is about the photograph and the repair, never
+    // about our timeouts.
+    assert.doesNotMatch(seen.categoryWhy, /timeout|model|rate limit/i);
+  } finally {
+    delete process.env.SHIN_GEMINI_TIMEOUT_MS;
+  }
 });
 
 test('the timed-out call is logged with failure_class model_timeout', async () => {

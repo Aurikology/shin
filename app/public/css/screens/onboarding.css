@@ -1,0 +1,281 @@
+/*
+ * Onboarding, Jamin's Welcome screen tab drawn in Shin's own look.
+ *
+ * Built only from the tokens every other screen uses (surface, hairline, brand,
+ * the two type families, the radius and spacing scales), so it reads as Shin and
+ * not as the app whose pages he started from. The chosen option is marked by
+ * fill AND weight AND a drawn tick, never by colour alone, the same rule the
+ * price line's zone words and the setup percentages follow.
+ *
+ * NOT VERIFIED IN A BROWSER: this file was written without one open, so layout,
+ * spacing and contrast are unchecked by eye. The structure follows setup.css
+ * and shell.css, which are.
+ */
+
+.onb { min-height: 100%; }
+
+/* ------------------------------------------------------------ top row -- */
+.onb-top {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--tap);
+  margin-bottom: var(--s-3);
+}
+
+.onb-back,
+.onb-back-gap {
+  flex: 0 0 var(--tap);
+  width: var(--tap);
+  height: var(--tap);
+}
+
+.onb-back {
+  display: grid;
+  place-items: center;
+  margin-left: calc(var(--s-3) * -1);
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font-family: var(--f-ui);
+  font-size: 22px;
+  cursor: pointer;
+}
+.onb-back:focus-visible { outline: 2px solid var(--ink); outline-offset: -4px; border-radius: var(--r-sm); }
+
+.onb-skip {
+  flex: 0 0 auto;
+  min-height: var(--tap);
+  font-size: 14px;
+}
+
+.onb-bar {
+  flex: 1 1 auto;
+  height: 6px;
+  background: var(--raised);
+  border-radius: 3px;
+  overflow: hidden;
+}
+/* The fill is full width and scaled from the left, so it animates on transform
+   alone: `width` would re-run layout on every frame. */
+.onb-bar > i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--brand);
+  border-radius: 3px;
+  transform-origin: left center;
+  transition: transform var(--t-rise) var(--ease-land);
+}
+.onb-bar-wide { margin: var(--s-4) 0; height: 10px; border-radius: 5px; }
+
+/* --------------------------------------------------------------- body -- */
+.onb-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  flex: 1 1 auto;
+  padding-top: var(--s-3);
+}
+
+.onb-welcome .onb-body,
+.onb-info .onb-body,
+.onb-trial .onb-body {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.onb-face { color: var(--ink); line-height: 0; }
+
+.onb .onb-brand {
+  font-family: var(--f-display);
+  font-size: 44px;
+  letter-spacing: .04em;
+}
+.onb-brand i { color: var(--brand); font-style: normal; }
+
+.onb-sub,
+.onb-note {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.4;
+  color: var(--ink-muted);
+}
+.onb-note { font-family: var(--f-mono); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+
+.onb-hint { margin: calc(var(--s-2) * -1) 0 0; font-size: 14px; color: var(--ink-faint); }
+
+/* ------------------------------------------------------------ options -- */
+.onb-opts { display: flex; flex-direction: column; gap: 10px; }
+
+.onb-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 60px;
+  padding: 12px 16px;
+  text-align: left;
+  background: var(--surface);
+  border: 1.5px solid var(--hairline);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  font-size: 16px;
+  cursor: pointer;
+  transition: border-color var(--t-face) var(--ease-land),
+              background var(--t-face) var(--ease-land);
+}
+@media (hover: hover) and (pointer: fine) {
+  .onb-opt:hover { border-color: var(--ink-faint); }
+}
+.onb-opt:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.onb-opt-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.onb-opt-text b { font-weight: 600; }
+.onb-opt-text small { font-size: 13px; color: var(--ink-muted); }
+
+.onb-tick { flex: 0 0 20px; width: 20px; height: 20px; }
+.onb-opt .onb-tick { opacity: 0; }
+
+.onb-opt.on {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+.onb-opt.on .onb-opt-text b { font-weight: 800; }
+.onb-opt.on .onb-opt-text small { color: var(--brand-ink); }
+.onb-opt.on .onb-tick { opacity: 1; }
+
+/* ---------------------------------------------------- slider and stepper -- */
+.onb-big {
+  margin: var(--s-5) 0 var(--s-3);
+  font-family: var(--f-display);
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -.03em;
+  font-variant-numeric: var(--figures);
+  text-align: center;
+}
+.onb-big small { display: block; font-family: var(--f-ui); font-size: 14px; font-weight: 600; letter-spacing: 0; color: var(--ink-muted); }
+
+.onb-range {
+  width: 100%;
+  height: var(--tap);
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
+.onb-stepper { display: flex; align-items: center; justify-content: center; gap: var(--s-4); }
+.onb-stepper .onb-big { margin: var(--s-5) 0; }
+.onb-round {
+  flex: 0 0 var(--tap);
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1.5px solid var(--hairline);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  font-size: 24px;
+  cursor: pointer;
+}
+.onb-round:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.onb-status { margin: 0; text-align: center; color: var(--ink-muted); }
+
+/* ------------------------------------------------------------- lists -- */
+.onb-list,
+.onb-rows,
+.onb-reviews { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-3); }
+
+.onb-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  font-size: 16px;
+}
+.onb-list .onb-tick { color: var(--brand); }
+
+/* the preparing checklist: each tick appears as its row completes */
+.onb-prep li .onb-tick { opacity: 0; transform: scale(.6); transition: opacity var(--t-face) var(--ease-land), transform var(--t-face) var(--ease-land); }
+.onb-prep li.done .onb-tick { opacity: 1; transform: none; }
+.onb-prep li:not(.done) { color: var(--ink-muted); }
+
+.onb-rows li { display: flex; justify-content: space-between; padding: 14px 16px; background: var(--surface); border-radius: var(--r-md); }
+.onb-reviews li { padding: 14px 16px; background: var(--surface); border-radius: var(--r-md); }
+.onb-rating { margin: 0; font-family: var(--f-display); font-size: 22px; font-weight: 700; }
+
+/* ------------------------------------------------- compare and chart -- */
+.onb-compare { display: flex; flex-direction: column; gap: var(--s-3); }
+.onb-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1.5px solid var(--hairline);
+  border-radius: var(--r-md);
+}
+.onb-card b { font-family: var(--f-display); font-size: 19px; }
+.onb-card span { color: var(--ink-muted); }
+.onb-card-with { border-color: var(--brand); }
+
+.onb-chart { width: 100%; height: auto; }
+.onb-line-without { stroke: var(--ink-faint); }
+.onb-line-with { stroke: var(--brand); }
+.onb-key { display: flex; align-items: center; gap: var(--s-2); margin: 0; font-size: 14px; }
+.onb-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ink-faint); }
+.onb-dot-with { background: var(--brand); }
+
+/* --------------------------------------------------------- permissions -- */
+.onb-perm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+}
+.onb-switch {
+  position: relative;
+  flex: 0 0 52px;
+  width: 52px;
+  height: 32px;
+  background: var(--raised);
+  border: 1.5px solid var(--hairline);
+  border-radius: 16px;
+  cursor: pointer;
+}
+.onb-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--ink-muted);
+  transition: transform var(--t-face) var(--ease-land);
+}
+.onb-switch.on { background: var(--brand); border-color: var(--brand); }
+.onb-switch.on::after { background: var(--brand-ink); transform: translateX(20px); }
+.onb-switch:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.onb-perm-note { margin: 0; }
+
+.onb-notnow { display: block; margin: var(--s-2) auto 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .onb-bar > i,
+  .onb-switch::after,
+  .onb-prep li .onb-tick { transition: none; }
+}

@@ -679,6 +679,14 @@ export function cad(cents) {
  * a judgement and never makes one.
  */
 export function confidenceOf(result) {
+  /* A Gemini answer carries no seller count to draw dots from, so it gets the
+     model's own mark and no dots: "not fully confident" when it said so, and a
+     plain solid fill when it did not. A failed answer is the refusal band. */
+  if (result && result.kind === 'gemini' && !result.failure && result.reason === undefined) {
+    return result.lowConfidence === true
+      ? { level: 'thin', dots: 0, label: t('cam_gem_not_confident') }
+      : { level: 'sure', dots: 0, label: '' };
+  }
   if (!result || result.kind !== 'verdict') {
     return { level: 'refuses', dots: 0, label: t('conf_no_price') };
   }
@@ -698,6 +706,24 @@ export function confidenceOf(result) {
   if (band === 'high') return { level: 'certain', dots: 4, label: t('conf_certain', { sellers }) };
   if (band === 'medium') return { level: 'sure', dots: 3, label: t('conf_sure', { sellers }) };
   return { level: 'thin', dots: 2, label: t('conf_thin', { sellers }) };
+}
+
+const ZONE_WORD_KEY = {
+  under_your_line: 'priceline_zone_under',
+  middle: 'priceline_zone_middle',
+  over_your_line: 'priceline_zone_over',
+};
+
+/**
+ * The word for a history row whose answer was Gemini's, in the same words the
+ * sheet headlined it with. `zone` and `answered` were copied onto the row's
+ * `query` when the answer landed (Gemini's own code, never worked out here), so
+ * this reads two stored fields and the wire itself is never opened.
+ */
+export function geminiWordFor(entry) {
+  const zone = entry && entry.query ? entry.query.zone : null;
+  if (typeof zone === 'string' && ZONE_WORD_KEY[zone]) return t(ZONE_WORD_KEY[zone]);
+  return entry && entry.query && entry.query.answered === true ? t('cam_gem_answered_word') : t('cam_gem_failed_word');
 }
 
 /** The four confidence dots, filled left to right. */

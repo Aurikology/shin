@@ -36,7 +36,10 @@ process.env.SHIN_CATALOGUE = join(dir, 'no-catalogue.db');
 process.env.PORT = '0';
 delete process.env.SHIN_INVITE_CODE;
 
-const { server, setCatalogueForTests } = await import('../server.ts');
+process.env.GEMINI_API_KEY = 'test-key-never-sent';
+const { server, setCatalogueForTests, setGeminiTransportForTests } = await import('../server.ts');
+const { fakeTransport } = await import('./gemini-double.ts');
+const { geminiCallsForScan } = await import('../src/scans.ts');
 const { getScan } = await import('../src/scans.ts');
 
 let port = 0;
@@ -58,10 +61,12 @@ before(async () => {
   if (!server.listening) await new Promise<void>((r) => server.once('listening', () => r()));
   port = (server.address() as AddressInfo).port;
   setCatalogueForTests({ byGtin: (code: string) => (code === ROW.code ? ROW : null) });
+  setGeminiTransportForTests(fakeTransport().transport);
 });
 
 after(async () => {
   setCatalogueForTests(null);
+  setGeminiTransportForTests(null);
   await new Promise<void>((r) => server.close(() => r()));
   try {
     rmSync(dir, { recursive: true, force: true });
@@ -83,13 +88,14 @@ async function post(path: string, body: unknown) {
 
 /**
  * A scan row whose identification FAILED, which is the row this whole feature
- * hangs a price on. A gtin the faked catalogue does not know produces exactly
- * that: a real row, a real id, and no resolved code on it.
+ * hangs a price on. A typed search produces exactly that: a real row, a real
+ * id, and no resolved code on it (a barcode scan now records the digits it
+ * read, so it is no longer the fixture).
  */
 async function unidentifiedScan(deviceId: string): Promise<number> {
-  const res = await fetch(`${base()}/api/identify?gtin=9999999999999&deviceId=${deviceId}`);
+  const res = await fetch(`${base()}/api/identify?text=${encodeURIComponent('something nobody named')}&deviceId=${deviceId}`);
   const seen = (await res.json()) as { scanId?: number };
-  assert.ok(typeof seen.scanId === 'number', 'identify wrote no scan row for a miss');
+  assert.ok(typeof seen.scanId === 'number', 'identify wrote no scan row');
   return seen.scanId as number;
 }
 
@@ -223,53 +229,37 @@ test('a correction that DOES name a product is unaffected by any of this', async
  * fails on a Tuesday for a reason that has nothing to do with this code.
  */
 
-/** The hand-recorded product the spine can actually reach a verdict about. */
-const PRICEABLE = 'Kraft Dinner Original Macaroni & Cheese 225g';
-
-test('a price body naming a scan writes the verdict as it was shown onto that row', async () => {
+test('a price body naming a scan attaches to that scan: its Gemini call is linked to the row, and no Shin verdict is written onto it', async () => {
   const scanId = await unidentifiedScan('d-verdict');
-  const { body } = await post('/api/price', { scanId, text: PRICEABLE, askingCents: 499 });
-  assert.equal(
-    body.kind,
-    'verdict',
-    'the spine could not price the hand-recorded product; check spine/data/observations.json',
-  );
-
+  // A fresh double clears the answer the scan held, so the price call has to make its own.
+  const t = fakeTransport();
+  setGeminiTransportForTests(t.transport);
+  const { body } = await post('/api/price', { scanId, deviceId: 'd-verdict', text: 'something nobody named', askingCents: 499 });
+  assert.equal(body.kind, 'gemini');
+  assert.equal(t.calls.length, 1, 'a price call is one Gemini call');
+  assert.equal(geminiCallsForScan(scanId).length, 2, 'the scan holds its own call and the price call, both linked to it');
   const row = getScan(scanId)!;
-  assert.equal(row.verdict_tier, body.tier, 'the tier on the row is not the tier that was shown');
-  const confidence = body.confidence as { band: string; distinctSellers: number };
-  assert.equal(row.verdict_confidence, confidence.band);
-  assert.equal(row.verdict_sellers, confidence.distinctSellers);
+  assert.equal(row.verdict_tier, null, 'Shin wrote a verdict of its own onto the row');
+  assert.equal(row.verdict_confidence, null);
+  assert.equal(row.verdict_sellers, null);
 });
 
-test('a price body with no scan prices the thing and writes nothing', async () => {
-  /*
-   * The catalogue screen does exactly this, and it must stay a 200 with a
-   * verdict and no write anywhere. The scan row used here is a bystander: it
-   * is created, left unnamed by the price call, and asserted to be untouched.
-   */
+test('a price body with no scan prices the thing and writes nothing to any scan row', async () => {
   const bystander = await unidentifiedScan('d-noscan');
-  const { status, body } = await post('/api/price', { text: PRICEABLE, askingCents: 499 });
+  setGeminiTransportForTests(fakeTransport().transport);
+  const { status, body } = await post('/api/price', { text: 'Kraft Dinner Original 225 g', askingCents: 499 });
   assert.equal(status, 200);
-  assert.equal(body.kind, 'verdict');
-
+  assert.equal(body.kind, 'gemini');
   const row = getScan(bystander)!;
   assert.equal(row.verdict_tier, null);
-  assert.equal(row.verdict_confidence, null);
-  assert.equal(row.verdict_sellers, null);
+  assert.equal(geminiCallsForScan(bystander).length, 1, 'a call for another question was linked to a bystander scan (it should hold only its own)');
 });
 
-test('a refusal writes nothing, because there was no verdict to show', async () => {
-  const scanId = await unidentifiedScan('d-refused');
-  const { body } = await post('/api/price', {
-    scanId,
-    text: 'a thing nobody has ever priced by hand',
-    askingCents: 499,
-  });
-  assert.equal(body.kind, 'refusal', 'the fixture reached a verdict, so this asserts nothing');
-
-  const row = getScan(scanId)!;
-  assert.equal(row.verdict_tier, null, 'a refusal was written onto the row as a verdict');
-  assert.equal(row.verdict_confidence, null);
-  assert.equal(row.verdict_sellers, null);
+test('a price body that names nothing is a marked answer, not a Gemini call', async () => {
+  const t = fakeTransport();
+  setGeminiTransportForTests(t.transport);
+  const { status, body } = await post('/api/price', { askingCents: 499 });
+  assert.equal(status, 200);
+  assert.equal(body.reason, 'nothing_to_price');
+  assert.equal(t.calls.length, 0, 'an empty question spent a Gemini call');
 });

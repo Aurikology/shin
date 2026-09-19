@@ -900,6 +900,33 @@ const LINES_EN = {
     blunt: () => 'My own sources did not answer. Try me again.',
   },
   /**
+   * The Gemini answer sheet's four spoken lines (2026-09-19). None carries a
+   * number or a fact: the price words on that sheet are the model's own and go
+   * in the sheet, never in Shin's mouth. The two failure lines are kind and
+   * retryable, and never say "refused": nothing was refused, the answer did
+   * not come.
+   */
+  gem_answer: {
+    deadpan: () => 'Here is what I found.',
+    warm: () => 'Here is what I found for you.',
+    blunt: () => 'Found this.',
+  },
+  gem_unsure: {
+    deadpan: () => 'My best read, and I am not fully confident in it.',
+    warm: () => 'This is my best read, though I am not fully confident in it.',
+    blunt: () => 'Best read. Not fully sure.',
+  },
+  gem_failed: {
+    deadpan: () => 'I could not get an answer just now. Try me again.',
+    warm: () => 'I could not get an answer just now. That is on my side, and another try often works.',
+    blunt: () => 'No answer this time. Try me again.',
+  },
+  gem_nothing: {
+    deadpan: () => 'I had nothing to look up. Try the scan again.',
+    warm: () => 'I did not have enough to look up. Give the scan another go.',
+    blunt: () => 'Nothing to look up. Scan again.',
+  },
+  /**
    * The offline aisle's own ending, added 2026-09-07 when the pack landed.
    *
    * Its sibling above is for sources that did not answer; this one is for the
@@ -910,13 +937,22 @@ const LINES_EN = {
    * It arrived inline on the refusal sheet and was moved here with the six, so
    * the three tones apply to it like everything else a shopper reads.
    */
+  /*
+   * REWRITTEN 2026-09-19 (beta gap item 21). Jamin: "For now, the app will not
+   * be usable offline." The pack that named the product with no signal is no
+   * longer consulted, so this line no longer says the phone knows what the
+   * thing is. It says one thing: Shin needs a connection. `cam_needs_connection`
+   * is its title.
+   */
+  cam_needs_connection: {
+    deadpan: () => 'I need a connection for this',
+    warm: () => 'I need a connection to look this up',
+    blunt: () => 'No connection',
+  },
   cam_offline_no_price: {
-    deadpan: () =>
-      'No signal, so I am working off what this phone already had. That tells me what it is and never what it costs, because prices move every week and a stale one is worse than none. Ask me again where there is a bar of signal.',
-    warm: () =>
-      'No signal, so this is what the phone already had saved. It is enough to name the thing, never enough to price it -- prices move every week and a stale one would mislead you. Catch me again with a bar of signal.',
-    blunt: () =>
-      'No signal. The phone knows what this is. It cannot know what it costs, and a stale price is worse than none.',
+    deadpan: () => 'Shin needs an internet connection to look anything up, so I cannot answer this scan. Scan it again once you are connected.',
+    warm: () => 'Shin needs an internet connection to look this up, so I have nothing to tell you yet. Scan it again once you are connected.',
+    blunt: () => 'Shin needs a connection to answer. Connect, then scan again.',
   },
   /*
    * --- the photo route's own six, added with the photo path
@@ -1228,6 +1264,42 @@ const LINES_EN = {
     warm: () => 'I can see a few things. Tap the one you mean.',
     blunt: () => 'Several here. Tap yours.',
   },
+  /*
+   * --- the centre-it lines (item 9, 2026-09-17). Said while a barcode is in
+   * view and the vote has not put the button up yet. Aimed at the FRAMING,
+   * never the person: the code is somewhere, the frame should go there. One
+   * axis at a time, the one it is furthest off. Gone once the button shows. ---
+   */
+  cam_centre_left: {
+    deadpan: () => 'Barcode is left of centre. Aim a little left.',
+    warm: () => 'I can see the barcode, it is left of centre. Aim a little left.',
+    blunt: () => 'Barcode is left. Aim left.',
+  },
+  cam_centre_right: {
+    deadpan: () => 'Barcode is right of centre. Aim a little right.',
+    warm: () => 'I can see the barcode, it is right of centre. Aim a little right.',
+    blunt: () => 'Barcode is right. Aim right.',
+  },
+  cam_centre_up: {
+    deadpan: () => 'Barcode is above centre. Aim a little higher.',
+    warm: () => 'I can see the barcode, it is above centre. Aim a little higher.',
+    blunt: () => 'Barcode is high. Aim up.',
+  },
+  cam_centre_down: {
+    deadpan: () => 'Barcode is below centre. Aim a little lower.',
+    warm: () => 'I can see the barcode, it is below centre. Aim a little lower.',
+    blunt: () => 'Barcode is low. Aim down.',
+  },
+  /**
+   * Too dark to read, said only when the torch setting is off (item 11): with
+   * auto on, the app is already lighting the shelf and says nothing. About the
+   * light, not about the person holding the phone.
+   */
+  cam_too_dark: {
+    deadpan: () => 'Too dark to read here. It needs more light.',
+    warm: () => 'It is quite dark here. I need more light to read this.',
+    blunt: () => 'Too dark. More light.',
+  },
   /**
    * --- torch acknowledged, one short line, then back to whichever hint was
    * already showing. State idle, no animation of its own. ---
@@ -1298,25 +1370,26 @@ const LINES_EN = {
    * opposite intent from a verdict line, and the same intent the existing
    * data paragraph on the You screen was written with.
    *
-   * REWRITTEN 2026-09-14 on the founder's word, "build everything for
-   * collecting EVERYTHING," and the vision doc's own sentence that all of a
-   * user's scanned data trains Shin's models and answers other shoppers. The
-   * previous copy said photos and location were "off unless you turn them
-   * on"; both now default on, same as `consent.ts` and `store.js`, and the
-   * switches below still turn them off for anyone who wants that. Saying
-   * "off by default" while shipping "on by default" is exactly the gap this
-   * whole pass exists to close -- this screen has to be an honest notice of
-   * what is actually kept, not a smaller, friendlier version of it.
+   * REWRITTEN 2026-09-19 (beta gap item 13; the founder delegated this
+   * wording, "you decide", and asked for as much user data as possible).
+   * PHOTOS ARE KEPT BY DEFAULT and location is off by default, same as
+   * `consent.ts` and `store.js`. The photo line states the default first, in
+   * plain words, and gives the one way out right beside it: the switch below
+   * it. No "are you sure", no guilt copy, no second screen to leave. Saying
+   * "off by default" while shipping "on by default" is the gap an earlier
+   * pass closed and this one must not reopen: the line has to be an honest
+   * notice of what is kept, so any change to a default changes it here, in
+   * `voice-fr.js`, and in `consent.ts` the same day.
    */
   consent_intro: {
-    deadpan: () => 'Every scan is written down: the product and the price you saw, always, so the next person who scans it gets an answer. Two more things are off unless you turn them on.',
-    warm: () => 'Every scan gets written down: what you scanned and the price you saw, always, so the next person who scans the same thing gets an answer too. Two more things below are off unless you switch them on.',
-    blunt: () => 'Every scan is logged: product and price, always. Two more things below are off by default.',
+    deadpan: () => 'Every scan is written down: the product and the price you saw, always, so the next person who scans it gets an answer. Photos from photo scans are kept unless you switch them off below. Location is kept only if you switch it on.',
+    warm: () => 'Every scan gets written down: what you scanned and the price you saw, always, so the next person who scans the same thing gets an answer too. Photos from photo scans are kept unless you switch them off below, and location is kept only if you switch it on.',
+    blunt: () => 'Every scan is logged: product and price, always. Photos are kept unless you switch them off. Location is kept only if you switch it on.',
   },
   consent_photos_desc: {
-    deadpan: () => 'Keeps the picture from a photo scan, tied to that scan, so a wrong answer can be checked later. Off, the picture is read once to answer the scan and is not kept. The risk: a kept photo can show what is near you in the shot.',
-    warm: () => 'Keeps the picture from a photo scan, tied to that scan, so a wrong answer can be checked later. Off, the picture is only read once, to answer that scan, and then it is gone. The risk is that a kept photo can show whatever else was in the shot around you.',
-    blunt: () => 'Keeps the photo, tied to the scan, so a wrong answer can be checked. Off: read once, not kept. Risk: a kept photo can show what is near you.',
+    deadpan: () => 'On until you switch it off. Keeps the picture from a photo scan, tied to that scan, so a wrong answer can be checked later and Shin can learn from it. Switched off, the picture is read once to answer the scan and is not kept. The risk: a kept photo can show what is near you in the shot.',
+    warm: () => 'On until you switch it off. Keeps the picture from a photo scan, tied to that scan, so a wrong answer can be checked later and Shin can learn from it. Switched off, the picture is only read once, to answer that scan, and then it is gone. The risk is that a kept photo can show whatever else was in the shot around you.',
+    blunt: () => 'On until you switch it off. Keeps the photo, tied to the scan, so a wrong answer can be checked. Off: read once, not kept. Risk: a kept photo can show what is near you.',
   },
   consent_location_desc: {
     deadpan: () => 'Keeps a rough area, about a kilometre wide, never your exact spot, so a price can be matched to a nearby store. Your phone also remembers which shop you picked in each area, so it stops asking. That list never leaves the phone and it goes when you switch this off. Off, no location is kept at all. The risk: even a rough area narrows down where you shop.',

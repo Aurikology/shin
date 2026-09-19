@@ -16,14 +16,15 @@
  * EAN-only would have meant the produce section silently never scanning, which
  * looks identical to a camera that is not working.
  *
- * WHY A HOLD BEFORE FIRING. Decision 4 auto-advances with no confirm tap, which
- * is only safe if the read is right. A single frame can decode a barcode from a
- * neighbouring product on the shelf as the camera sweeps past. Requiring the
- * same value on several frames inside a short window costs a fraction of a
- * second and removes that whole class of wrong answer.
+ * WHY A VOTE BEFORE THE BUTTON. A single frame can decode a barcode from a
+ * neighbouring product on the shelf as the camera sweeps past. This file only
+ * reads frames (`read`); `votes.ts` asks for the same value on a majority of
+ * the last second or two before the "Scan barcode" button is allowed to show,
+ * and the press, never the decode, is what sends anything anywhere (2026-09-17).
  */
 
 import { readBarcodes, prepareZXingModule, type ReadResult } from 'zxing-wasm/reader';
+import type { Sighting } from './votes.ts';
 
 /**
  * Every symbology a shopper can point a phone at in a Canadian shop.
@@ -73,7 +74,7 @@ export interface Reading {
 }
 
 export interface StableRead extends Reading {
-  /** How many consecutive frames agreed. */
+  /** How many frames of the vote window agreed when the button was pressed. */
   readonly frames: number;
 }
 
@@ -89,28 +90,18 @@ function extractGtin(text: string, format: string): string {
 }
 
 export interface ScannerOptions {
-  /** Frames that must agree before a read is reported. Decision 4's hold. */
-  readonly framesToConfirm?: number;
-  /** How long agreeing frames stay valid, in ms. */
-  readonly windowMs?: number;
   /** Where the .wasm sits when served. */
   readonly wasmUrl?: string;
 }
 
 export class BarcodeScanner {
-  readonly #framesToConfirm: number;
-  readonly #windowMs: number;
-  #recent: { value: string; at: number; box: Reading['box'] }[] = [];
   #ready: Promise<unknown> | null = null;
-  #lastFired: { value: string; at: number } | null = null;
   /** Set when the reader stopped answering at all. See `scan`. */
   #wedged = false;
   /** Set once the WebAssembly has arrived and answered its first read. See `scan`. */
   #loaded = false;
 
   constructor(options: ScannerOptions = {}) {
-    this.#framesToConfirm = options.framesToConfirm ?? 3;
-    this.#windowMs = options.windowMs ?? 900;
     if (options.wasmUrl) {
       prepareZXingModule({
         overrides: { locateFile: () => options.wasmUrl as string },
@@ -135,12 +126,16 @@ export class BarcodeScanner {
   }
 
   /**
-   * Reads one frame and returns a value only once it has been confirmed.
+   * Decodes one frame and returns every barcode on it, or null when no decode
+   * happened at all (module still loading, or wedged).
    *
-   * Returns null on every frame that does not complete a hold, which is most of
-   * them. The caller can draw the in-progress box from `peek()` without acting.
+   * The difference between `[]` and `null` is the whole of item 7's vote: an
+   * empty array is a frame that was read and had no code, which counts AGAINST
+   * a code that appears on some frames and not others; null is a frame that was
+   * never looked at, which counts for nothing. Nothing is confirmed or emitted
+   * here: `BarcodeVote` (votes.ts) decides that, and a press acts on it.
    */
-  async scan(frame: ImageData): Promise<StableRead | null> {
+  async read(frame: ImageData): Promise<Sighting[] | null> {
     // Once the module is wedged it never recovers, and every further call adds
     // another promise that will not settle. Answering null immediately keeps
     // the frame loop alive and costs nothing.
@@ -211,66 +206,19 @@ export class BarcodeScanner {
       return null;
     }
 
-    const now = Date.now();
-    this.#recent = this.#recent.filter((r) => now - r.at <= this.#windowMs);
-
-    const valid = results.filter((r) => r.isValid !== false && r.text);
-    if (valid.length === 0) return null;
-
-    // With several codes in frame, the largest is the one being pointed at.
-    // A neighbouring product's barcode caught at the edge is always smaller.
-    const chosen = valid
-      .map((r) => ({ r, area: boxOf(r)?.width ?? 0 }))
-      .sort((a, b) => b.area - a.area)[0].r;
-
-    const value = extractGtin(chosen.text, String(chosen.format));
-    if (!value) return null;
-
-    this.#recent.push({ value, at: now, box: boxOf(chosen) });
-    const agreeing = this.#recent.filter((r) => r.value === value).length;
-    if (agreeing < this.#framesToConfirm) return null;
-
-    // Do not fire the same code twice in a row while it stays in frame; the user
-    // has already been advanced and re-firing would fight their next action.
-    if (this.#lastFired && this.#lastFired.value === value && now - this.#lastFired.at < 4000) {
-      return null;
+    // EVERY valid code on the frame, not the largest. Item 8: each barcode in
+    // view is tracked and drawn, and which one the button sends is the vote's
+    // decision over many frames, never one frame's opinion about size.
+    const out: Sighting[] = [];
+    for (const r of results) {
+      if (r.isValid === false || !r.text) continue;
+      const value = extractGtin(r.text, String(r.format));
+      if (!value) continue;
+      out.push({ value, format: String(r.format), box: boxOf(r) });
     }
-    this.#lastFired = { value, at: now };
-    this.#recent = [];
-
-    return { value, format: String(chosen.format), box: boxOf(chosen), frames: agreeing };
+    return out;
   }
 
-  /**
-   * The value currently accumulating agreement, and where it sits in frame.
-   *
-   * This is what the viewfinder draws its barcode mark from, and the mark is
-   * the reason the box is carried through `#recent` at all. A scanner that
-   * says nothing until it is certain leaves the user with no idea the app
-   * wanted a barcode, no idea it is nearly there, and no explanation when the
-   * screen suddenly jumps to an answer. Reporting the in-progress read turns
-   * all three into one mark that fills up.
-   *
-   * The box returned is the most recent sighting of the leading value rather
-   * than the first, because the mark has to sit where the code is now.
-   */
-  peek(): { value: string; frames: number; needed: number; box: Reading['box'] } | null {
-    const now = Date.now();
-    const live = this.#recent.filter((r) => now - r.at <= this.#windowMs);
-    if (live.length === 0) return null;
-    const counts = new Map<string, number>();
-    for (const r of live) counts.set(r.value, (counts.get(r.value) ?? 0) + 1);
-    const [value, frames] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
-    let box: Reading['box'] = null;
-    for (const r of live) if (r.value === value && r.box) box = r.box;
-    return { value, frames, needed: this.#framesToConfirm, box };
-  }
-
-  /** Clears the hold. Call when the user backs out, so a stale read cannot fire. */
-  reset(): void {
-    this.#recent = [];
-    this.#lastFired = null;
-  }
 }
 
 function boxOf(r: ReadResult): Reading['box'] {

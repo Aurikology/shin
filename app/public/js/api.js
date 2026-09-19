@@ -10,8 +10,9 @@
 import { getDeviceId } from './device.js';
 import { APP_VERSION } from './version.js';
 import { currentCell } from './geocell.js';
-import { consent } from './store.js';
+import { consent, get as storeState } from './store.js';
 import { locale, localeTag } from './lib/locale.js';
+import { thresholdsFrom, shelfPriceOf } from './lib/scan-body.js';
 
 /**
  * The three facts every identify body carries, per the fixed contract: an
@@ -256,7 +257,11 @@ async function getSoft(path, fallback) {
  */
 export function price(query) {
   const device = getDeviceId()?.id;
-  return post('/api/price', device ? { deviceId: device, ...query } : query);
+  // The user's own lines ride on every scan request (2026-09-17), the price
+  // call included. Nothing is sent when they have none set; the caller wins.
+  const thresholds = thresholdsFrom(storeState());
+  const withLines = thresholds ? { thresholds, ...query } : query;
+  return post('/api/price', device ? { deviceId: device, ...withLines } : withLines);
 }
 
 /**
@@ -276,9 +281,17 @@ export function price(query) {
  * have no fair way to price that kind of thing. `categoryWhy` is the sentence
  * for it, already written in words a person can read.
  */
-export function identify({ gtin, text, brand, sizeValue, sizeUnit } = {}) {
+export function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPriceCents } = {}) {
   const params = new URLSearchParams();
   if (gtin) params.set('gtin', gtin);
+  /* The shelf price, asked at scan time so it rides in the one call
+     (2026-09-17). Absent when the shopper skipped it: skipping still gets an
+     answer. `thresholds` is the user's own lines, exactly as the store holds
+     them; this is a GET, so the object travels as JSON in one parameter. */
+  const shelf = shelfPriceOf(shelfPriceCents);
+  if (shelf !== undefined) params.set('shelfPriceCents', String(shelf));
+  const thresholds = thresholdsFrom(storeState());
+  if (thresholds) params.set('thresholds', JSON.stringify(thresholds));
   if (text) params.set('text', text);
   if (brand) params.set('brand', brand);
   if (sizeValue) params.set('sizeValue', String(sizeValue));
@@ -467,7 +480,7 @@ async function blobToBase64(blob) {
  * looked and said no" from "the request never arrived", and only the second is
  * worth trying again.
  */
-export async function identifyPhoto(blob, { sharpness, deviceId, tier } = {}) {
+export async function identifyPhoto(blob, { sharpness, deviceId, tier, shelfPriceCents } = {}) {
   const body = {};
   try {
     body.image = await blobToBase64(blob);
@@ -476,6 +489,11 @@ export async function identifyPhoto(blob, { sharpness, deviceId, tier } = {}) {
     return { product: null, failure: 'offline' };
   }
   if (typeof sharpness === 'number') body.sharpness = sharpness;
+  // Same two facts every scan request carries; see lib/scan-body.js.
+  const shelf = shelfPriceOf(shelfPriceCents);
+  if (shelf !== undefined) body.shelfPriceCents = shelf;
+  const thresholds = thresholdsFrom(storeState());
+  if (thresholds) body.thresholds = thresholds;
   if (tier) body.tier = tier;
   const device = deviceId ?? getDeviceId()?.id;
   if (device) body.deviceId = device;
@@ -533,13 +551,13 @@ export function deleteScanRating({ deviceId, scanId }) {
  * The server's record of this device's consent, so a screen can show what is
  * actually on file rather than only what this phone last wrote (a reinstall,
  * or a second device under the same beta invite, could disagree). Both flags
- * default to `false` on any failure, matching the route's own stated default,
- * so a screen that cannot reach the server shows the same off-by-default state
- * item 6b requires rather than guessing consent was ever given.
+ * default to the route's own default on any failure (photos kept, location
+ * off, `app/src/consent.ts` DEFAULT_CONSENT), so a screen that cannot reach the
+ * server shows the same state the server would.
  */
 export function getConsent(deviceId) {
   const params = new URLSearchParams({ deviceId });
-  return getSoft(`/api/consent?${params.toString()}`, { photos: false, location: false, updatedAt: null });
+  return getSoft(`/api/consent?${params.toString()}`, { photos: true, location: false, updatedAt: null });
 }
 
 /** Writes this device's consent choice. Quiet on failure: the local copy (store.js) is the source of truth the app itself reads from. */
@@ -585,4 +603,36 @@ export function postEventsBatch(events) {
 export function stores(cell) {
   const params = new URLSearchParams({ cell });
   return getSoft(`/api/stores?${params.toString()}`, { stores: [] });
+}
+
+/* --------------------------------------------------- item 16: shelf capture */
+
+/**
+ * One picture of what the camera sees, sent to be stored. Nothing is asked of
+ * the server but a place to keep it: no model runs on it, and nothing on the
+ * screen waits for or shows the outcome.
+ *
+ * Resolves to whether the server kept it; never throws, like every other
+ * background sender here. The caller (eye-shelf.js) has already checked the
+ * photo consent and the server checks it again.
+ */
+export function uploadShelfFrame({ frame, width, height, takenAt }) {
+  const device = getDeviceId()?.id;
+  if (!device || !frame) return Promise.resolve(false);
+  const extras = identifyExtras();
+  return fetch(`${BASE}/api/shelf/frame`, {
+    method: 'POST',
+    headers: headers({ 'content-type': 'application/json' }),
+    body: JSON.stringify({
+      deviceId: device,
+      frame,
+      width,
+      height,
+      takenAt,
+      appVersion: extras.appVersion,
+      ...(extras.cell ? { cell: extras.cell } : {}),
+    }),
+  })
+    .then((res) => res.status === 204 || res.ok)
+    .catch(() => false);
 }

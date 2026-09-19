@@ -421,6 +421,115 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
       addColumnIfMissing(db, 'scan', 'grounded_queries', 'INTEGER');
     },
   },
+  {
+    version: 11,
+    name: 'every rating kept, not only the latest',
+    apply(db) {
+      /*
+       * Beta gap item 13, his word 2026-09-17: "all user data should be
+       * recorded", and a rating is the one thing here that is the person's own
+       * reading of an answer. `scan_rating` (migration 3) has the scan id as its
+       * primary key, so a second tap replaced the first and the first was gone
+       * for good. That table STAYS, unchanged, as the LATEST rating per scan:
+       * every existing reader (`ratingFor`, `ratingCounts`, the profile screen)
+       * asks "what is this scan's rating now" and keeps getting the same
+       * answer. This is the history beside it, one row per tap, written by
+       * `ratings.ts` in the same transaction as the latest.
+       *
+       * `undone_at` is set, never a delete, when the person taps undo inside
+       * the four-second window: the tap happened and the retraction happened,
+       * and both are worth knowing. The latest table still loses its row on an
+       * undo, which is what undo means to every reader of it.
+       *
+       * Additive only. Existing latest ratings are copied in as the first
+       * history row of their scan so the history is complete from the day it
+       * exists; `NOT EXISTS` makes the copy a no-op on a re-run.
+       */
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS scan_rating_history (
+          id        INTEGER PRIMARY KEY,
+          scan_id   INTEGER NOT NULL,
+          device_id TEXT NOT NULL,
+          rating    TEXT NOT NULL CHECK (rating IN ('up', 'down')),
+          reason    TEXT,
+          rated_at  TEXT NOT NULL,
+          undone_at TEXT,
+          user_id   TEXT
+        ) STRICT;
+      `);
+      db.exec('CREATE INDEX IF NOT EXISTS scan_rating_history_scan ON scan_rating_history(scan_id, id);');
+      db.exec('CREATE INDEX IF NOT EXISTS scan_rating_history_device ON scan_rating_history(device_id, rated_at);');
+      db.exec(`
+        INSERT INTO scan_rating_history (scan_id, device_id, rating, reason, rated_at, user_id)
+        SELECT scan_id, device_id, rating, reason, rated_at, user_id FROM scan_rating
+        WHERE NOT EXISTS (SELECT 1 FROM scan_rating_history h WHERE h.scan_id = scan_rating.scan_id);
+      `);
+    },
+  },
+  {
+    version: 12,
+    name: 'every Gemini request and response stored whole, and the hidden math check',
+    apply(db) {
+      /*
+       * Beta gap items 12 and 14, Jamin's rule 4 ("we will record EVERYTHING"):
+       * until now a scan row kept a derived summary of what Gemini said, so a
+       * wrong answer could not be traced to the exact prompt that produced it.
+       *
+       * One row per Gemini call, linked to the scan and to the model that
+       * answered. `request_json` is the body as sent with the image bytes
+       * replaced by a stub (hash and size), because the photo itself lives in
+       * the photos folder only with consent; `prompt_text` is the exact
+       * user-turn prompt; `response_raw` is the whole HTTP reply as received.
+       * `input_ref` is the barcode digits or the image reference, which is what
+       * a mismatch is marked with.
+       *
+       * `math_check` is the hidden re-check of Gemini's arithmetic: 'pending'
+       * until the background pass has run, then 'ok', 'mismatch' or
+       * 'unchecked' (the answer carried no math). Nothing here is ever shown to
+       * a user. `grounded` marks a call that used Google Search: a mark for the
+       * grounded-results terms, never a block (rule 5).
+       *
+       * `scan_id` is NULL when the scan log dropped its own write; the call is
+       * kept anyway. Additive only.
+       */
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS gemini_call (
+          id              INTEGER PRIMARY KEY,
+          scan_id         INTEGER,
+          device_id       TEXT NOT NULL,
+          model           TEXT NOT NULL,
+          model_family    TEXT NOT NULL,
+          model_via       TEXT NOT NULL,
+          scan_type       TEXT NOT NULL,
+          requested_at    TEXT NOT NULL,
+          ms              INTEGER,
+          request_json    TEXT NOT NULL,
+          system_text     TEXT,
+          prompt_text     TEXT NOT NULL,
+          input_ref       TEXT,
+          thresholds_json TEXT,
+          shelf_price_cents INTEGER,
+          response_raw    TEXT,
+          answer_text     TEXT,
+          http_status     INTEGER,
+          parse_status    TEXT,
+          failure_class   TEXT,
+          input_tokens    INTEGER,
+          output_tokens   INTEGER,
+          search_queries  INTEGER,
+          billing_basis   TEXT,
+          low_confidence  INTEGER NOT NULL DEFAULT 0,
+          grounded        INTEGER NOT NULL DEFAULT 0,
+          math_check      TEXT NOT NULL DEFAULT 'pending',
+          math_mismatches TEXT,
+          math_checked_at TEXT
+        ) STRICT;
+      `);
+      db.exec('CREATE INDEX IF NOT EXISTS gemini_call_scan ON gemini_call(scan_id);');
+      db.exec('CREATE INDEX IF NOT EXISTS gemini_call_math ON gemini_call(math_check);');
+      db.exec('CREATE INDEX IF NOT EXISTS gemini_call_model ON gemini_call(model, requested_at);');
+    },
+  },
 ];
 
 /** What `schema_version` says this database is at. 0 means nothing has run. */

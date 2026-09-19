@@ -34,6 +34,7 @@
 import { escapeHtml } from './lib/dom.js';
 import { t } from './ui-strings.js';
 import { applyLang } from './lib/locale.js';
+import { mountTags, refreshTag } from './screen-tag-badge.js';
 
 const routes = new Map();
 let current = null;
@@ -292,11 +293,16 @@ function paint(id, params, restore = false) {
   const page = scroller();
   if (page) page.scrollTop = restore ? (scrollTops.get(id) ?? 0) : 0;
 
+  /* The developer screen tag, set here for every screen so no screen has to. Sheets
+     and modals that open later are caught by the observer in screen-tag-badge.js. */
+  refreshTag();
+
   window.dispatchEvent(new CustomEvent('shin:navigated', { detail: { id, params } }));
 }
 
 export function start(root, base, fallbackId) {
   rootEl = root;
+  mountTags(root);
   ctxBase = base;
   window.addEventListener('popstate', () => {
     const q = new URLSearchParams(location.search);

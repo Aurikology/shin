@@ -28,7 +28,9 @@ process.env.SHIN_CATALOGUE = join(dir, 'no-catalogue.db');
 process.env.PORT = '0';
 delete process.env.SHIN_INVITE_CODE;
 
-const { server, setCatalogueForTests } = await import('../server.ts');
+process.env.GEMINI_API_KEY = 'test-key-never-sent';
+const { server, setCatalogueForTests, setGeminiTransportForTests } = await import('../server.ts');
+const { fakeTransport, goodAnswer, httpBody } = await import('./gemini-double.ts');
 
 let port = 0;
 
@@ -66,8 +68,17 @@ before(async () => {
   setCatalogueForTests({ byGtin: (code: string) => ROWS[code] ?? null });
 });
 
+let seenCalls: Array<{ body: Record<string, unknown> }> = [];
+function gemini(reply?: Parameters<typeof fakeTransport>[0]) {
+  const t = fakeTransport(reply);
+  seenCalls = t.calls;
+  setGeminiTransportForTests(t.transport);
+}
+const promptOf = (i: number) => JSON.stringify(seenCalls[i].body.input);
+
 after(async () => {
   setCatalogueForTests(null);
+  setGeminiTransportForTests(null);
   await new Promise<void>((r) => server.close(() => r()));
   try {
     rmSync(dir, { recursive: true, force: true });
@@ -85,7 +96,19 @@ async function price(body: unknown) {
   return { status: res.status, body: (await res.json()) as Record<string, any> };
 }
 
-test('the barcode read of the Kirkland bottle is priced as that product, not "could not work out what this is"', async () => {
+/*
+ * THE SHAPE OF THE BUG, NOW. The catalogue is no longer asked to name anything
+ * (beta gap item 2): the price call hands Gemini the code and the text it was
+ * given, in ONE call, and the name on the sheet is Gemini's. What must still
+ * never happen is a price call that drops the identity it was handed and
+ * answers "could not work out what this is".
+ */
+test('the barcode read of the Kirkland bottle is priced as that product, with its code and words in the one call', async () => {
+  gemini(() => ({
+    text: httpBody(
+      JSON.stringify(goodAnswer({ product: { ...(goodAnswer().product as object), name: 'Natural spring water', brand: 'Kirkland Signature', size: '500 mL' } })),
+    ),
+  }));
   const { status, body } = await price({
     text: 'Kirkland Signature Natural spring water 500mL',
     gtin: '0096619321841',
@@ -93,14 +116,16 @@ test('the barcode read of the Kirkland bottle is priced as that product, not "co
     askingCents: null,
   });
   assert.equal(status, 200);
-  assert.notEqual(body.reason, 'no_identity', `still refused as no identity: ${body.detail}`);
-  assert.equal(body.identity?.gtin, '0096619321841');
-  assert.match(String(body.identity?.label), /Kirkland Signature/);
-  assert.match(String(body.identity?.label), /Natural spring water/);
-  assert.doesNotMatch(String(body.detail), /Could not work out what this is/);
+  assert.equal(seenCalls.length, 1, 'a price call is one Gemini call');
+  assert.match(promptOf(0), /0096619321841/, 'the code the client sent never reached Gemini');
+  assert.match(promptOf(0), /Kirkland Signature Natural spring water 500mL/, 'the words the client sent never reached Gemini');
+  assert.notEqual(body.reason, 'no_identity');
+  assert.equal(body.grounded.block.name, 'Natural spring water');
+  assert.equal(body.grounded.block.brand, 'Kirkland Signature');
 });
 
 test('the photo route\'s "Water" pick, priced with its code, is named too', async () => {
+  gemini(() => ({ text: httpBody(JSON.stringify(goodAnswer({ product: { ...(goodAnswer().product as object), name: 'Water', brand: null } }))) }));
   const { status, body } = await price({
     text: 'Water',
     gtin: '0055297000189',
@@ -108,12 +133,16 @@ test('the photo route\'s "Water" pick, priced with its code, is named too', asyn
     askingCents: 200,
   });
   assert.equal(status, 200);
-  assert.notEqual(body.reason, 'no_identity', `still refused as no identity: ${body.detail}`);
-  assert.equal(body.identity?.gtin, '0055297000189');
-  assert.equal(body.identity?.label, 'Water');
+  assert.match(promptOf(0), /0055297000189/);
+  assert.notEqual(body.reason, 'no_identity');
+  assert.equal(body.grounded.block.name, 'Water');
 });
 
-test('a code the catalogue does not hold is still an honest no identity', async () => {
-  const { body } = await price({ gtin: '0000000000017', category: 'grocery', askingCents: 200 });
-  assert.equal(body.reason, 'no_identity');
+test('a code Gemini cannot place is still an answer, marked low confidence, never an identity refusal', async () => {
+  gemini(() => ({ text: httpBody('I could not identify this barcode.') }));
+  const { status, body } = await price({ gtin: '0000000000017', category: 'grocery', askingCents: 200 });
+  assert.equal(status, 200);
+  assert.notEqual(body.reason, 'no_identity');
+  assert.equal(body.lowConfidence, true);
+  assert.equal(seenCalls.length, 1);
 });
