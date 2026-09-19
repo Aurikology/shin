@@ -28,6 +28,7 @@ import * as shin from './shin.js';
 import { flushCorrections } from './corrections.js';
 import { primeOfflineAisle } from './offline-aisle.js';
 import { refreshCell } from './geocell.js';
+import { APP_VERSION } from './version.js';
 // Everything the client does, collected. Side-effect import: track.js arms
 // its own app_open event, screen_view listener, tap capture, visibility and
 // error listeners the moment it loads, per its own header.
@@ -53,11 +54,12 @@ for (const s of [camera, onboarding, setup, consent, watchlist, correct, share, 
 }
 
 /**
- * The simplest honest version route (build pass 2026-09-04): hand-set here,
- * labelled as such on the You page, rather than read from a server endpoint
- * that does not exist yet. Update this string when this pass's code changes.
+ * The version the You page prints. It is version.js's APP_VERSION and nothing
+ * else: this used to be a second hand-set string here, it sat at 2026-09-06.1
+ * while version.js moved to 2026-09-11.1, and testers were shown the older one.
+ * Two hand-set copies of one fact drift; one cannot.
  */
-export const BUILD_STAMP = '2026-09-06.1';
+export const BUILD_STAMP = APP_VERSION;
 
 /* Theme: three states, and no button in the chrome for it. The switch lives on
    the You screen, because it is a setting and not a primary act. */
