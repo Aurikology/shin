@@ -27,3 +27,11 @@ interpret?)"
   it read from)?
 
 **Constraint that still applies:** one Gemini call per scan.
+
+## P2 · The Continue button on the welcome screens works no matter what (2026-09-19)
+
+**His words:** "the continue button in the welcome screen works no matter what"
+
+**What is known:** nothing beyond his words. Not investigated. It is not yet stated which screens or
+what "no matter what" means (for example a question left unanswered, or a step that needs a choice),
+so that is the first thing to settle when this item is picked up.
