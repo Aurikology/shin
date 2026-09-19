@@ -218,6 +218,30 @@ rebuild changes that default, and until then `SHIN_GEMINI_MODEL=gemini-2.5-flash
 Any cost figure must bill 2.5 per prompt, not per query. The paid-key test runs 2.5 and a 3.x model
 side by side on the same scans; 3.x replaces 2.5 only if that test says so.
 
+**Gemini 2.5 cannot enforce the answer shape while searching (found 2026-09-18).**
+ai.google.dev/gemini-api/docs/structured-output: combining a response schema with Google Search
+*"is available only to Gemini 3 series models."* On 2.5 the one call asks for JSON in the prompt
+text and the server parses it, repairing or marking a malformed answer (never failing the scan,
+rule 6); `Shin_Gemini_Pricing_Engine/README.md` step 6 (request application/json with the schema)
+only works on 3.x. The paid-key test counts the share of 2.5 answers that do not parse; a high
+share is the "testing says otherwise" that moves the default to 3.x. The search tool is
+`google_search`; `google_search_retrieval`, which the ChatGPT conversation behind the package
+quotes, is the old Gemini 1.5 name.
+
+**The ChatGPT conversation behind the package** (chatgpt.com/share/6aae0849-ec04-83e9-b41f-83ba3726bd6c,
+read 2026-09-18) disagrees with his rulings in three places; his rulings win:
+1. It says *"you should not design the system around 'system functionality taking absolute
+   precedence over API restrictions.'"* His ruling above is the opposite.
+2. It says *"I would not make Gemini responsible for price math that your backend can
+   deterministically perform."* His rule: Gemini does the math, the server only checks it in
+   the background and marks mismatches. The engineering point stands as a risk (a model can get
+   arithmetic wrong), and the background check is the answer to it.
+3. `PRICING_GUIDE.md`: *"Do not calculate normalized unit prices unless explicitly required."*
+   His ruling: convert to Shin's comparison units and keep the advertised original. Both fields.
+The package also asks Gemini for no median, threshold or verdict at all, so as written it is not
+yet the one call rule 1 describes: the price math has to be added to `scan_prompt.md` and
+`response_schema.json`, with the user's thresholds and shelf price in the scan context.
+
 **Asked, not decided: a better model to identify photos and 2.5 to search.** That is two calls per
 photo scan, against rule 1. Barcode scans are unaffected (Gemini gets the digits and needs no
 seeing). Raised with him 2026-09-18; until he answers, rule 1 holds: one call on 2.5.
