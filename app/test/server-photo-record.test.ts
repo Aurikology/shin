@@ -10,19 +10,18 @@
  * photo comes through, which is everything plan item 9 added and none of which
  * that file was written to know about.
  *
- * THE MODEL DOUBLE IS A REAL `Identifier` with a fake `MessagesClient`, the
- * way `identify/test/model.test.ts` and `photo-route.test.ts` both build one,
- * so the timeout, the retry policy and the failure classification under test
- * are the real ones rather than a second implementation written here.
+ * THE MODEL DOUBLE GOES IN THROUGH `setGeminiTransportForTests`, the way
+ * `photo-route.test.ts` builds one, so the timeout, the retry policy and the
+ * failure classification under test are the real ones rather than a second
+ * implementation written here.
  *
  * WHAT THIS FILE CANNOT CHECK, said rather than skipped: the spend cap being
- * WIRED. `modelOnce` builds the capped client only when there is no test
- * double, because a double is the thing that replaces it, and the real path
- * needs the Anthropic SDK and a key. What is checked here is the half that can
- * be: a `spend_cap_reached` failure coming back from a model travels out of
- * this route with its own sentence and its own failure class, rather than
- * being flattened into "that photo could not be read" -- which is what the cap
- * is for, since taking the photo again cannot work when the budget is spent.
+ * WIRED against a real model. The real path needs the Gemini SDK and a key.
+ * What is checked here is the half that can be: a `spend_cap_reached` failure
+ * coming back from a model travels out of this route with its own sentence
+ * and its own failure class, rather than being flattened into "that photo
+ * could not be read" -- which is what the cap is for, since taking the photo
+ * again cannot work when the budget is spent.
  */
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -40,15 +39,13 @@ process.env.PORT = '0';
 delete process.env.SHIN_INVITE_CODE;
 
 process.env.GEMINI_API_KEY = 'test-key-never-sent';
-const { server, setIdentifierForTests, setGeminiTransportForTests, setSpendGuardForTests } = await import('../server.ts');
+const { server, setGeminiTransportForTests, setSpendGuardForTests } = await import('../server.ts');
 const { fakeTransport } = await import('./gemini-double.ts');
-const { Identifier, ModelCallError } = await import('../../identify/src/model.ts');
 const { spendCapRefusalMessage } = await import('../../identify/src/cap.ts');
 const { openScanStore, getScan, allScans, geminiCallsForScan } = await import('../src/scans.ts');
 const { photoExists, sweepPhotos } = await import('../src/photos.ts');
 const { readEvents } = await import('../src/events.ts');
 import type { MessagesClient } from '../../identify/src/model.ts';
-import type { CatalogueLookup } from '../../identify/src/identify.ts';
 
 let port = 0;
 
@@ -58,7 +55,6 @@ before(async () => {
 });
 
 after(async () => {
-  setIdentifierForTests(null);
   setGeminiTransportForTests(null);
   setSpendGuardForTests(null);
   await new Promise<void>((r) => server.close(() => r()));
@@ -97,37 +93,7 @@ function answeringClient(payload: unknown): MessagesClient {
   };
 }
 
-/** What the wrapped client throws once today's dollar cap is spent. */
-function cappedClient(): MessagesClient {
-  return {
-    messages: {
-      create: async () => {
-        throw new ModelCallError('spend_cap_reached', spendCapRefusalMessage());
-      },
-    },
-  };
-}
-
-const HIT: CatalogueLookup = async () => ({
-  band: 'confident',
-  candidates: [
-    {
-      code: '0068100084245',
-      name: 'Kraft Dinner Original',
-      brands: 'Kraft',
-      quantity: '225 g',
-      sizeValue: 225,
-      sizeUnit: 'g',
-      categoryPath: [],
-      allergens: [],
-      signals: { similarity: 0.92, brandAgrees: true, sizeAgrees: true },
-    },
-  ],
-  ring: null,
-  matchedBy: 'hybrid',
-});
-
-const useModel = (_client?: MessagesClient, _lookup: CatalogueLookup = HIT) => {
+const useModel = (_client?: MessagesClient) => {
   setSpendGuardForTests(null);
   setGeminiTransportForTests(fakeTransport().transport);
 };

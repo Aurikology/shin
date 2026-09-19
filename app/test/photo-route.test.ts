@@ -12,15 +12,10 @@
  * IMPORTED RATHER THAN SPAWNED, which is the one difference from
  * `body-cap.test.mjs`. The single thing that cannot be real here is the vision
  * call: there is no API key on this machine, so a test that made one would be
- * a test that never runs. `setIdentifierForTests` is how the double gets in,
- * and a child process cannot be handed an object. Everything else on the path
- * -- the body reader, the cap, the magic-byte check, the rate limit, the
+ * a test that never runs. `setGeminiTransportForTests` is how the double gets
+ * in, and a child process cannot be handed an object. Everything else on the
+ * path -- the body reader, the cap, the magic-byte check, the rate limit, the
  * outcome mapping and the scan row -- is the shipped code.
- *
- * THE MODEL DOUBLE IS A REAL `Identifier` with a fake `MessagesClient`, the way
- * `identify/test/model.test.ts` builds one, so the timeout, the retry policy
- * and the failure classification under test are the real ones rather than a
- * second implementation of them written here.
  *
  * Both stores are pointed at temp files BEFORE the modules load, because each
  * resolves its path once at import.
@@ -43,12 +38,10 @@ process.env.SHIN_CATALOGUE = join(dir, 'no-catalogue.db');
 process.env.PORT = '0';
 
 process.env.GEMINI_API_KEY = 'test-key-never-sent';
-const { server, setIdentifierForTests, setGeminiTransportForTests } = await import('../server.ts');
+const { server, setGeminiTransportForTests } = await import('../server.ts');
 const { fakeTransport } = await import('./gemini-double.ts');
-const { Identifier } = await import('../../identify/src/model.ts');
 const { openScanStore, allScans } = await import('../src/scans.ts');
 import type { MessagesClient } from '../../identify/src/model.ts';
-import type { CatalogueLookup } from '../../identify/src/identify.ts';
 
 let port = 0;
 
@@ -58,7 +51,6 @@ before(async () => {
 });
 
 after(async () => {
-  setIdentifierForTests(null);
   setGeminiTransportForTests(null);
   await new Promise<void>((r) => server.close(() => r()));
   try {
@@ -119,28 +111,8 @@ function abortingClient(): MessagesClient {
   };
 }
 
-/** One row the catalogue "has", carrying the signals confidence reads. */
-const HIT: CatalogueLookup = async () => ({
-  band: 'confident',
-  candidates: [
-    {
-      code: '0068100084245',
-      name: 'Kraft Dinner Original',
-      brands: 'Kraft',
-      quantity: '225 g',
-      sizeValue: 225,
-      sizeUnit: 'g',
-      categoryPath: [],
-      allergens: [],
-      signals: { similarity: 0.92, brandAgrees: true, sizeAgrees: true },
-    },
-  ],
-  ring: null,
-  matchedBy: 'hybrid',
-});
-
 /** A photo scan is one Gemini call now; a recorded Gemini answers where the recorded Identifier stood. */
-const useModel = (_client?: MessagesClient, _lookup: CatalogueLookup = HIT) => setGeminiTransportForTests(fakeTransport().transport);
+const useModel = (_client?: MessagesClient) => setGeminiTransportForTests(fakeTransport().transport);
 
 /* ------------------------------ fixtures ------------------------------- */
 
