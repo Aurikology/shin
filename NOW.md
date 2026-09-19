@@ -5,6 +5,15 @@ narrative.*
 
 ---
 
+## ANSWERED by Jamin in the walkthrough doc, 2026-09-16/17: Gemini identifies
+
+*"The server will not check shins own product list for now. The only thing the server will do is
+call gemini."* The catalogue *"will not be in use until more user data comes in."* Also answered
+there: global now, units normalised with originals kept, alternatives in scope, barcodes read from
+every frame with a "Scan barcode" button, no offline, no browser product, no Claude inside Shin.
+All of it, and four points still open: `docs/jamin-gemini-rules.md`, "Walkthrough rulings". Read
+that before the question below, which stays as the record of why it was asked.
+
 ## BLOCKING QUESTION, 2026-09-18: does Gemini identify the product, or does the catalogue?
 
 **Jamin pushed `Shin_Gemini_Pricing_Engine.zip` (f828606): GEMINI_SYSTEM.md, PRICING_GUIDE.md,

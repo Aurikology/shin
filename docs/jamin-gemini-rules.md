@@ -112,3 +112,92 @@ Jamin as a point. When the cleanup is done, record it in `notes/catch-up.md`.
   Rules 4 and 5.
 - docs/plan-gemini.md sections 4.3 and 9 (a second request for the math, Claude fallback, "a test
   proves no grounded result is written") and docs/gemini-work-list.md items built on them.
+
+## Walkthrough rulings, 2026-09-16/17 (his notes and comments on the Google Doc walkthrough)
+
+His text, verbatim and complete: `docs/walkthrough/jamin-notes-2026-09-17.md`. These are newer
+than rules 1 to 9 and, where they differ, they win (rule 9: the newer word of the founder is the
+one raised against, not the older). Read the verbatim file; the lines below say what changes, not
+everything he said. His standing note on every tab: *"when i state a problem and give examples,
+don't assume those examples are the only aspects of the problem, they are just one of many."*
+
+**Precedence, stated outright.** *"nothing should hold higher precedency than the words of the
+founder."* Order: his words, then the system working, then Gemini's terms. *"Breaking the rule
+should never crash the system. No rule is ever more important than the correct functionality of our
+system."* An answer shown with a "we are not fully confident in this answer" mark beats no answer.
+Guard machinery built around a Gemini term he never prioritised (the grounded wrapper is his
+example, not the only one) is cost to remove, not a safeguard to keep.
+
+**Rule 2 is replaced for barcodes.** Old: no automatic detection, a button starts the read. New:
+the phone reads barcodes from every frame, continuously, and never stops watching until the user
+presses "Scan barcode". Every barcode in view is highlighted; the one the button will send is drawn
+differently. On-screen prompts coach centring. The button appears once a majority of frames over
+1 to 2 seconds agree; the frame history works like a shift register, so pointing at a different
+barcode moves the focus. Only the digits go to Gemini, never the image.
+
+**The server only calls Gemini.** *"The server will not check shins own product list for now."*
+This answers Aurik's blocking question of 2026-09-18 (`notes/catch-up.md`, question 1): Gemini
+identifies; the catalogue is not the identifier and *"will not be in use until more user data
+comes in."* One call returns product, prices, reviews and the price math (rule 1, restated).
+
+**Global, now.** *"Shin will work for all locations accross the world in all languages."* Answers
+Aurik's question 6. Same-country prices compare; the same product across countries does not, with
+exceptions (provinces that differ, EU countries that match). Prompting Gemini for those
+constraints *"will need further deisgn"*.
+
+**Price asked up front.** He proposes asking the shelf price at scan time so it rides in the one
+Gemini prompt. The user's good, bad and great thresholds are *"crucial and non negotiable"*.
+
+**Shin never shows its own price math.** A hidden check may recompute Gemini's math; a mismatch
+marks that scan (image or digits plus the exact prompt) for later review. Never shown.
+
+**Record as much as possible.** Photo or barcode, typed price, location, store, the user's own
+good-deal verdict (their scale, so it is their interpretation, not Gemini's output), and later a
+median back-computed from their verdict and price (*"needs further design"*). Anything not recorded
+today *"should prompt a review of the data collection system."* He also asks whether the camera
+can continuously send crops of everything in view, especially shelf tags (price, name and item in
+one frame), to be saved.
+
+**User data builds the catalogue.** A scan matching a catalogue product attaches to it, to the
+closest quantity where two sizes exist; units convert to Shin's comparison units with the original
+kept; user data is never fully trusted; an unknown product becomes a new entry; near-duplicate
+incoming products must be grouped. The same product is also stored per store type (his
+"branches"). Tech is not compared by weight (answers the unit half of Aurik's question 5).
+
+**Alternatives are in scope, with constraints.** Cheaper and competing options: non-organic for
+organic, used for new, the newer model for more. Two modes: validation (is this a good price, where
+a farm or used price is useful evidence) and alternatives (would they actually switch, where a
+supermarket shopper will not take a farm product and a new-item buyer will not take used). Bulk
+buys need a constraint. Answers Aurik's alternatives questions 1, 2 and 5 in principle.
+
+**Onboarding.** The Welcome screen UI tab: Cal AI's 33 onboarding screens with his replacement text,
+built in Shin's design language. Separately: screens that ask where and what the user shops, their
+good, bad and great ranges, and location.
+
+**Scope cuts.** *"Shin will not run inside a browser, it only runs inside a browser for testing
+purposes."* *"For now, the app will not be usable offline."* *"Claude should currently not be used
+anywhere inside shin."* Torch: a user setting, auto-on at a brightness set by a slider, or off with
+an on-screen "too dark" prompt.
+
+**Gemini's terms, read 2026-09-18 at ai.google.dev/gemini-api/terms.** Both earlier readings were
+half right because the terms treat two kinds of output differently. Ordinary model output has no
+"do not modify" or "do not store" clause. Output grounded with Google Search does: *"will not
+modify, or intersperse any other content with, the Grounded Results or Search Suggestions"*, and
+*"will not... cache, frame, syndicate, resell, analyze, train on, or otherwise learn from Grounded
+Results"*, with storage allowed up to two years only to evaluate and optimise, in chat history, or
+to resubmit in a later prompt. Shin's prices come from grounded search, so the strict half applies
+to them. The user's own inputs and verdict are not Gemini output. Paid tier: prompts are not used
+by Google to improve products. Under rule 5 these are marks, not blocks. The terms page itself
+names no penalty; suspension language sits in the Google APIs terms, not re-read here.
+
+**Open points for him** (rule 9 raise, each with the default a session uses until he answers):
+1. *"The barcode will not be sent to shins servers as of now"* against *"The only thing the server
+   will do is call gemini"* and *"save... the users' picture or barcode"*. A phone cannot hold the
+   Gemini key safely, so the digits pass through the server. Default: the server receives them,
+   calls Gemini, records them.
+2. The Welcome screens include *"Join over 10,000 smart shoppers"* with a 4.8 rating and reviews,
+   and savings figures ($15 in 3 days, $180 in 30). Before launch there are no such users. Default:
+   build the screens with real counts that show nothing until they exist; marked, not blocked.
+3. The one-call photo scan puts the image inside a grounded request, not yet confirmed to work
+   (Aurik's question 2) and still waiting on the paid key.
+4. About 5.6 cents a scan past roughly 1,250 scans a month (Aurik's question 4) is unanswered.
