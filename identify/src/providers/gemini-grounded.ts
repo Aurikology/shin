@@ -974,6 +974,8 @@ export interface PriceQuery {
   readonly text?: string;
   readonly gtin?: string;
   readonly brand?: string | null;
+  /** The currency the shelf price is in: the shopper's own market, never assumed. Null when unknown. */
+  readonly currency?: string | null;
   /** The shelf price the shopper typed, in cents. No price, no line. */
   readonly askingCents?: number;
   readonly sizeValue?: number | null;
@@ -1020,6 +1022,7 @@ export function priceGaugeFor(
     sizeValue: query.sizeValue ?? null,
     sizeUnit: query.sizeUnit ?? null,
     packCount: query.packCount ?? null,
+    currency: query.currency ?? null,
   };
   let gaugeOffers: GaugeOffer[] = offers.map((o) => ({ ...o }));
   let sizeAssumed = false;
@@ -1044,13 +1047,13 @@ export function priceGaugeFor(
     }
     const modal = [...tally.values()].sort((a, b) => b.count - a.count)[0];
     if (modal && (query.sizeValue == null || query.sizeUnit == null)) {
-      shelf = { price, sizeValue: modal.offer.sizeValue, sizeUnit: modal.offer.sizeUnit, packCount: modal.offer.packCount };
+      shelf = { price, sizeValue: modal.offer.sizeValue, sizeUnit: modal.offer.sizeUnit, packCount: modal.offer.packCount, currency: query.currency ?? null };
       sizeAssumed = true;
       result = computeGauge(shelf, gaugeOffers, query.underPct ?? 10, query.overPct ?? 10);
     }
     if (!result.usable) {
       // Per item, every offer the same way. Unsized rows are one item each.
-      shelf = { price, sizeValue: 1, sizeUnit: 'ea', packCount: null };
+      shelf = { price, sizeValue: 1, sizeUnit: 'ea', packCount: null, currency: query.currency ?? null };
       gaugeOffers = offers.map((o) => ({ ...o, sizeValue: 1, sizeUnit: 'ea', packCount: null, soldByWeight: false }));
       sizeAssumed = true;
       result = computeGauge(shelf, gaugeOffers, query.underPct ?? 10, query.overPct ?? 10);
@@ -1280,4 +1283,15 @@ export class GeminiGroundedLookup {
       usage: fetched.usage,
     });
   }
+}
+
+/**
+ * THE ONE DOOR the scan route seals its answer through. The scan is one Gemini
+ * call now (beta gap item 2), so its answer has to go into a sealed box like
+ * any other grounded text; the rule that only this adapter calls `seal` (see
+ * identify/test/grounded.test.ts) is kept by making this the caller instead of
+ * app/server.ts.
+ */
+export function sealScanAnswer<T>(raw: Parameters<typeof seal<T>>[0]): Grounded<T> {
+  return seal<T>(raw);
 }

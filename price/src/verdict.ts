@@ -43,6 +43,8 @@
  * price beside an old one was reported as stale and penalised for it.
  */
 
+import { unitPriceCents } from '../../catalogue/src/units.ts';
+
 export type PriceKind = 'regular' | 'promotional';
 
 export interface Observation {
@@ -172,23 +174,28 @@ export function money(cents: number): string {
  * unit first, and anything unrecognised is treated as grams, which is what the
  * old fallthrough did and what the feeds actually send.
  */
-const UNIT_SCALE: Record<string, { per: number; label: string }> = {
-  // Per one item: no scaling at all.
-  ea: { per: 1, label: 'each' },
-  g: { per: 100, label: '100 g' },
-  ml: { per: 100, label: '100 ml' },
-  // A size given in kilograms or litres is 1000 base units, so per 100 base
-  // units is the price divided by ten times the number on the pack.
-  kg: { per: 0.1, label: '100 g' },
-  l: { per: 0.1, label: '100 ml' },
-};
-
+/*
+ * ITEM 20, 2026-09-19. The table that used to live here (`UNIT_SCALE`) is now
+ * `catalogue/src/units.ts`, the one conversion the alternatives read as well, so
+ * the verdict and the alternatives cannot disagree about a kilogram again.
+ * `catalogue/test/units-markets.test.ts` drives this very `judge` against that
+ * table for every unit this file used to know (ea, g, ml, kg, l).
+ *
+ * THE UNKNOWN-UNIT CASE CHANGED, ON PURPOSE. The old body treated any unit it did
+ * not recognise as GRAMS ("what the feeds actually send"). A pack of "12 sheets"
+ * or "2 kit" then printed a price per 100 g, a confident number about a quantity
+ * nobody measured, and calibration outranks completeness in this repo. An
+ * unrecognised unit now gives NO unit price (`unit` is null, so `unitCents` and
+ * `unitLabel` are null) and the verdict rests on the shelf-price band as it does
+ * when no size is recorded at all. The table also knows more spellings than the
+ * old one (oz, lb, fl oz, litre, kilogram, count...), so a size the old code
+ * mislabelled as grams is now converted properly rather than dropped.
+ * Reverses if a feed is found sending a unit that means grams and is not in the
+ * table: add it there, once.
+ */
 function unitOf(cents: number, sizeValue: number, sizeUnit: string) {
-  const scale = UNIT_SCALE[sizeUnit.trim().toLowerCase()] ?? UNIT_SCALE.g;
-  return {
-    unitCents: (cents / sizeValue) * scale.per,
-    unitLabel: scale.label,
-  };
+  const per = unitPriceCents(cents, sizeValue, sizeUnit);
+  return per === null ? null : { unitCents: per.unitCents, unitLabel: per.label };
 }
 
 /**

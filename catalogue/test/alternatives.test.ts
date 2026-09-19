@@ -24,6 +24,7 @@ import {
   type PricedProduct,
 } from '../src/alternatives.ts';
 import type { Candidate } from '../src/search.ts';
+import { marketFromLocation } from '../src/market.ts';
 
 const PB = ['en:spreads', 'en:nut-butters', 'en:peanut-butters'];
 
@@ -255,10 +256,22 @@ test('never more than three, and the biggest saving leads', async () => {
   }
 });
 
-test('a product not sold in Canada is not an alternative here', async () => {
+// ITEM 19. This used to be "not sold in Canada is not an alternative", a filter
+// every caller got whether or not they were in Canada. The catalogue's country
+// flag now applies only when the market the caller names has a flag (Canada does).
+test('a product not sold in the user\'s market is not an alternative there', async () => {
+  const db = fixture();
+  const alts = await alternativesFor(db, original, 800, lookupOf({ G: 100 }), {
+    market: marketFromLocation({ country: 'CA' }),
+  });
+  assert.equal(alts.length, 0);
+});
+
+test('with no market named, nothing is filtered by country and the row says it was not checked', async () => {
   const db = fixture();
   const alts = await alternativesFor(db, original, 800, lookupOf({ G: 100 }));
-  assert.equal(alts.length, 0);
+  assert.equal(alts.length, 1, 'no market is not Canada: G is not dropped for lacking a Canadian flag');
+  assert.equal(alts[0].marketVerified, false);
 });
 
 test('without a size the answer is the ticket price, never silence', async () => {

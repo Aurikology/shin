@@ -814,10 +814,9 @@ function geminiSelected(): boolean {
 }
 
 /**
- * Which provider is behind the seam. `anthropic` unless explicitly told
- * otherwise, so an unset environment is today's behaviour exactly. An unset
- * `SHIN_MODEL_PROVIDER` never asked for Gemini in the first place, so
- * Anthropic here is the correct provider, not a fallback standing behind one.
+ * Which provider is behind the seam. Gemini, unless the eval runner names xAI.
+ * Changed 2026-09-19: an unset `SHIN_MODEL_PROVIDER` used to build Anthropic, and
+ * Jamin's word is that Claude is not used anywhere inside Shin (see the body).
  *
  * THE GEMINI BRANCH, 2026-09-15, REVISED. Named with no key used to return
  * the Anthropic provider completely unchanged, byte for byte, reasoned as: a
@@ -853,15 +852,21 @@ function geminiSelected(): boolean {
  */
 export function makeProvider(apiKey?: string): Provider {
   const named = process.env.SHIN_MODEL_PROVIDER?.trim().toLowerCase();
+  // The eval runner names xAI on purpose. Nothing else can be named.
   if (named === 'xai') return new XaiProvider({ apiKey });
-  if (named === 'gemini') {
-    const geminiKey = process.env.GEMINI_API_KEY?.trim();
-    if (geminiKey) return new GeminiProvider({ apiKey: geminiKey });
-    throw new Error(
-      'SHIN_MODEL_PROVIDER is set to gemini but GEMINI_API_KEY is empty or missing, so there is no provider to build; Claude does not take over.',
-    );
-  }
-  return new AnthropicProvider(anthropicClient(apiKey));
+  /*
+   * GEMINI IS THE DEFAULT AND THE ONLY OTHER CHOICE, 2026-09-19. Jamin: "Claude
+   * should currently not be used anywhere inside shin." The Anthropic default
+   * that stood here is REMOVED, not hidden behind a setting: an unset or
+   * unknown `SHIN_MODEL_PROVIDER` builds Gemini, and a missing key is a loud
+   * error rather than a quiet answer from another vendor. The live scan routes
+   * no longer build a provider at all (`gemini-scan.ts` makes their one call).
+   */
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  if (geminiKey) return new GeminiProvider({ apiKey: geminiKey });
+  throw new Error(
+    'GEMINI_API_KEY is empty or missing, so there is no provider to build; Gemini is the only provider and Claude does not take over.',
+  );
 }
 
 /**
@@ -877,7 +882,7 @@ export class Identifier {
    * `client` is still an Anthropic-shaped `MessagesClient`, unchanged, because
    * every existing test and `cap.ts`'s `withSpendCap` wrapper builds one. Given
    * one, it is wrapped in the Anthropic adapter; given none, the provider named
-   * by `SHIN_MODEL_PROVIDER` (default `anthropic`) is built. `provider` is the
+   * by `SHIN_MODEL_PROVIDER` (default Gemini) is built. `provider` is the
    * new door: a caller that has its own adapter hands it straight in.
    */
   constructor(apiKey?: string, client?: MessagesClient, provider?: Provider) {

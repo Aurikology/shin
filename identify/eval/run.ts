@@ -692,7 +692,14 @@ export class FakeIdentifier extends Identifier {
     // means the lazy chain never runs), so construction never touches the
     // network or the credential chain -- and both overrides below never call
     // the real client, so the client field this builds is never used either.
-    super('fake-key-dry-run');
+    // An inert provider is handed in because a bare constructor now builds
+    // Gemini (no Claude default, 2026-09-19) and needs a key this never has.
+    super('fake-key-dry-run', undefined, {
+      name: 'dry-run',
+      send: async () => {
+        throw new Error('the dry-run fake never calls a provider');
+      },
+    });
     this.#row = row;
     this.#probe = probe;
   }

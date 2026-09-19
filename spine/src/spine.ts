@@ -620,7 +620,27 @@ function canonicalSellers(points: readonly PricePoint[]): Map<string, string> {
  * shortfall by definition; a set that clears a category's bar never gets here.
  */
 /**
+ * ITEM 19. The currency a comparison set is in, read off the price points
+ * themselves. This used to be the literal 'CAD' written into every amount
+ * fragment of the thin-evidence sentence, so a price in any other currency was
+ * labelled Canadian dollars on its way to the screen. Nothing is converted: a set
+ * is in the currency of its points, and where a set somehow holds more than one
+ * the most common is named (a point's currency is a plain string now, so a mixed
+ * set can be built; the comparison rules, not this label, decide what to do
+ * about one).
+ */
+export function currencyOfPoints(points: readonly { readonly currency: string }[]): string {
+  const counts = new Map<string, number>();
+  for (const p of points) counts.set(p.currency, (counts.get(p.currency) ?? 0) + 1);
+  let best = '';
+  let n = 0;
+  for (const [c, k] of counts) if (k > n) { best = c; n = k; }
+  return best;
+}
+
+/**
  * The thin-evidence sentence as codes and raw facts.
+ * (Takes the currency as a parameter, item 19: `currencyOfPoints` above supplies it.)
  *
  * RE-DERIVED HERE RATHER THAN EMITTED WHERE THE WORDS ARE CHOSEN, and that is a
  * compromise worth naming. `price/src/verdict.ts` composes that string out of
@@ -644,7 +664,7 @@ function canonicalSellers(points: readonly PricePoint[]): Map<string, string> {
  * `thinAnswer` -- so the derivation is proven total against the shape rather
  * than against today's reachable subset of it.
  */
-export function thinStructuredLine(judged: ThinJudgement, askingCents: number): StructuredText {
+export function thinStructuredLine(judged: ThinJudgement, askingCents: number, currency: string): StructuredText {
   const basis = judged.regular ?? judged.promotional;
   // Unreachable: a null basis is one of the two cases that return a null tier,
   // and the caller returns before this on a null tier. Guarded, not assumed.
@@ -661,38 +681,38 @@ export function thinStructuredLine(judged: ThinJudgement, askingCents: number): 
       ? soleprice
         ? fragment('asking_below_sole_price', {
             askingCents,
-            currency: 'CAD',
+            currency,
             sellerCount: basis.sellerCount,
           })
-        : fragment('asking_below_range', { askingCents, currency: 'CAD' })
+        : fragment('asking_below_range', { askingCents, currency })
       : judged.tier === 'fair'
         ? soleprice
           ? fragment('asking_equals_sole_price', {
               askingCents,
-              currency: 'CAD',
+              currency,
               sellerCount: basis.sellerCount,
             })
-          : fragment('asking_within_range', { askingCents, currency: 'CAD' })
+          : fragment('asking_within_range', { askingCents, currency })
         : soleprice
           ? fragment('asking_above_sole_price', {
               askingCents,
-              currency: 'CAD',
+              currency,
               sellerCount: basis.sellerCount,
             })
-          : fragment('asking_above_range', { askingCents, currency: 'CAD' });
+          : fragment('asking_above_range', { askingCents, currency });
 
   const compare = soleprice
     ? fragment('sole_price_matched_at_seller', {
         seller: basis.cheapestSeller,
         amountCents: basis.cheapestCents,
-        currency: 'CAD',
+        currency,
       })
     : fragment('cheapest_and_dearest_sellers', {
         cheapestSeller: basis.cheapestSeller,
         cheapestCents: basis.cheapestCents,
         dearestSeller: basis.dearestSeller,
         dearestCents: basis.dearestCents,
-        currency: 'CAD',
+        currency,
       });
 
   const fragments: TextFragment[] = [head, compare];
@@ -703,7 +723,7 @@ export function thinStructuredLine(judged: ThinJudgement, askingCents: number): 
     fragments.push(
       fragment('unit_price', {
         unitCents: basis.unitCents,
-        currency: 'CAD',
+        currency,
         unitLabel: basis.unitLabel,
       }),
     );
@@ -714,7 +734,7 @@ export function thinStructuredLine(judged: ThinJudgement, askingCents: number): 
       fragment('cheaper_on_promotion_at_seller', {
         seller: judged.promotional.cheapestSeller,
         amountCents: judged.promotional.cheapestCents,
-        currency: 'CAD',
+        currency,
       }),
     );
   }
@@ -816,7 +836,7 @@ function thinAnswer(
     askingSource: askingSeller ?? 'given',
     tier: judged.tier === 'high' ? 'walk_away' : judged.tier,
     lines: [judged.line],
-    structuredLines: [thinStructuredLine(judged, askingCents)],
+    structuredLines: [thinStructuredLine(judged, askingCents, currencyOfPoints(basis))],
     comparisonSet: basis,
     pointCount: basis.length,
     oldestObservedAt: observed[0],

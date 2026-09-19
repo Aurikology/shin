@@ -492,6 +492,35 @@ test('a gtin with observations returns points', async () => {
   assert.ok(points.every((p) => p.sourceId === 'observed'));
 });
 
+test('a point carries the currency its row was stored in, and a file with no currency column says CAD only as a legacy assumption', async () => {
+  const path = join(DIR, 'fixture-currency.db');
+  buildDb(path, DDL_WITHOUT_STORE_COLUMNS, FIXTURE_ROWS);
+  const writable = new DatabaseSync(path);
+  writable.prepare("UPDATE observation SET currency = 'USD' WHERE seller_sku = 'op-1'").run();
+  writable.close();
+  const src = new ObservedSource(path);
+  const identity = await src.identify({ gtin: GTIN_JOINED_CODE, category: 'grocery' });
+  const points = await src.prices(identity!);
+  const bySku = new Map(points.map((p) => [p.amountCents, p.currency]));
+  assert.equal(bySku.get(449), 'USD', 'the row stored as USD came out as USD, not stamped CAD');
+  assert.equal(bySku.get(349), 'CAD');
+
+  // An older file with no currency column at all: the one place 'CAD' is written.
+  const legacy = join(DIR, 'fixture-no-currency.db');
+  const db = new DatabaseSync(legacy);
+  db.exec(DDL_WITHOUT_STORE_COLUMNS.replace(/currency\s+TEXT NOT NULL DEFAULT 'CAD',/, ''));
+  db.prepare(
+    `INSERT INTO observation (code, seller, seller_sku, seller_name, seller_brand, price_cents, kind, join_method, seen_on)
+     VALUES (?, 'openprices', 'op-9', 'PC Thins Whole Grain Round Buns', 'Blue Menu', 500, 'regular', 'gtin', '2026-08-01')`,
+  ).run(GTIN_JOINED_CODE);
+  db.close();
+  const old = new ObservedSource(legacy);
+  const oldId = await old.identify({ gtin: GTIN_JOINED_CODE, category: 'grocery' });
+  const oldPoints = await old.prices(oldId!);
+  assert.equal(oldPoints.length, 1);
+  assert.equal(oldPoints[0].currency, 'CAD');
+});
+
 test('a gtin with no observations returns nothing', async () => {
   const src = source();
   const identity = await src.identify({ gtin: '9999999999999', category: 'grocery' });

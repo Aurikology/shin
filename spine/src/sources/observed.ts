@@ -107,6 +107,8 @@ interface Row {
   readonly store_name: string | null;
   /** The identity key for a physical shop, e.g. "WAY/120689533". Null until the migration runs and tags it. */
   readonly store_osm: string | null;
+  /** The currency the row was recorded in. Null only for a file older than the column. */
+  readonly currency: string | null;
 }
 
 /** Printed as the seller for an openprices row with no `store_osm` yet. Never a real store's name. */
@@ -286,6 +288,8 @@ export class ObservedSource implements PriceSource {
   #path: string;
   #hasStoreOsm = false;
   #hasStoreName = false;
+  /** The observation table stores each row's own currency; an older file may not have the column. */
+  #hasCurrency = false;
   /** Rows this source can actually serve: an observation with no code is invisible to . */
   #joinedRows = 0;
   /** Every row, joined or not, so the status line can tell an empty file from an unjoined one. */
@@ -304,6 +308,7 @@ export class ObservedSource implements PriceSource {
       );
       this.#hasStoreOsm = cols.has('store_osm');
       this.#hasStoreName = cols.has('store_name');
+      this.#hasCurrency = cols.has('currency');
       /*
        * HOW MANY ROWS THIS SOURCE CAN ACTUALLY SERVE, counted once at open.
        *
@@ -391,9 +396,10 @@ export class ObservedSource implements PriceSource {
   #selectList(): string {
     const nameCol = this.#hasStoreName ? 'store_name' : 'NULL AS store_name';
     const osmCol = this.#hasStoreOsm ? 'store_osm' : 'NULL AS store_osm';
+    const currencyCol = this.#hasCurrency ? 'currency' : 'NULL AS currency';
     return `code, seller, seller_name, seller_brand, price_cents, kind,
              unit_price_cents, unit_label, join_method, seen_on, url,
-             ${nameCol}, ${osmCol}`;
+             ${nameCol}, ${osmCol}, ${currencyCol}`;
   }
 
   #identifyByGtin(db: DatabaseSync, gtin: string, category: CategoryId | undefined): ProductIdentity | null {
@@ -470,7 +476,14 @@ export class ObservedSource implements PriceSource {
       seller: sellerOf(row),
       sellerId: sellerIdOf(row),
       amountCents: row.price_cents,
-      currency: 'CAD',
+      /*
+       * The row's own stored currency. A file older than that column has none
+       * and the rows sampled for the brand note above were Canadian shops. That
+       * is UNVERIFIED for every row, so 'CAD' here is a legacy assumption about
+       * that one old file, kept until it is migrated, and never applies to a
+       * file that has the column.
+       */
+      currency: row.currency ?? 'CAD',
       kind: row.kind,
       observedAt: row.seen_on,
       sourceId: this.id,

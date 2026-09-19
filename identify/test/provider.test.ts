@@ -419,14 +419,18 @@ test('every model the tier tables can name has a row in the price table', () => 
   }
 });
 
-test('the default provider is anthropic, so an unset environment changes nothing', async () => {
-  await withEnv({}, async () => {
+test('the default provider is Gemini and there is no Claude default: an unset environment builds Gemini, or throws', async () => {
+  // Beta gap item 1, Jamin 2026-09-19: "Claude should currently not be used
+  // anywhere inside shin." This test failed before the change (it asserted an
+  // Anthropic default) and fails again if the Anthropic default comes back.
+  await withEnv({ GEMINI_API_KEY: 'g-key-for-construction-only', ANTHROPIC_API_KEY: 'a-key' }, async () => {
     assert.equal(process.env.SHIN_MODEL_PROVIDER, undefined);
-    // A fake key keeps the SDK's credential chain from running at all; the
-    // point of the assertion is that construction picks the Anthropic adapter
-    // without a network call or an explicit opt-in.
-    const id = new Identifier('fake-key-for-construction-only');
-    assert.ok(id instanceof Identifier);
+    const { makeProvider } = await import('../src/model.ts');
+    assert.equal(makeProvider('a-key').name, 'gemini');
+  });
+  await withEnv({ GEMINI_API_KEY: '', ANTHROPIC_API_KEY: 'a-key' }, async () => {
+    const { makeProvider } = await import('../src/model.ts');
+    assert.throws(() => makeProvider('a-key'), /GEMINI_API_KEY/, 'an Anthropic key must not turn into an answer from Claude');
   });
 });
 

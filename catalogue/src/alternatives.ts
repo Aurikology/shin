@@ -29,6 +29,16 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { MAX_RING_TAG, chooseRingTag, labelForTag } from './search.ts';
 import type { Candidate, RingLevel } from './search.ts';
+import { comparesOnUnitPrice, kindOfSource } from './product-kind.ts';
+import {
+  evaluateConstraints,
+  type AlternativeMode,
+  type AlternativeSubject,
+  type ConstraintLabel,
+  type UserConstraintPrefs,
+} from './alternative-modes.ts';
+import { UNKNOWN_MARKET, formatMoney, samePriceBasis, type Market } from './market.ts';
+import { sameFamily, sqlBaseValue, sqlFamily, toComparison, unitPriceCents } from './units.ts';
 
 /*
  * ─────────────────────────────────────────────────────────────────────────
@@ -141,6 +151,14 @@ export interface PricedProduct {
   readonly code: string;
   /** Cents. The number a shopper would pay at this seller today. */
   readonly amountCents: number;
+  /**
+   * ISO 4217 code the price is in, when the feed says. Item 19: a price is never
+   * converted, so it is compared only with a price in the user's own currency, and
+   * a price with no stated currency is trusted only where the catalogue's own
+   * market flag vouches for it (see `priceUsableIn`). Optional so every existing
+   * feed keeps working; absent means "not stated", never "Canadian".
+   */
+  readonly currency?: string | null;
   /**
    * Who took the price, not always who sells it. "walmart.ca" is a real
    * seller and is shown as one. "openprices" is the name of the database
@@ -261,6 +279,31 @@ export interface Alternative {
    * locale, which is exactly the bug being fixed.
    */
   readonly structuredLine: AlternativeStructuredText;
+  /**
+   * ITEM 18. Which of the two modes this list was built for. 'validation' keeps
+   * evidence a shopper would not switch to (a bulk pack, a farm) and marks it;
+   * 'switching' drops it. See alternative-modes.ts.
+   */
+  readonly mode: AlternativeMode;
+  /** ITEM 18. The constraint marks on this row, empty when none applied. */
+  readonly labels: readonly ConstraintLabel[];
+  /**
+   * ITEM 19. The currency this row's prices are in: the price's own when it stated
+   * one, else the market's. Null only when neither is known (the legacy no-market
+   * call). Never the result of a conversion.
+   */
+  readonly currency: string | null;
+  /**
+   * ITEM 19. False when the market could not be checked against this row: the
+   * caller gave no market, or the price stated no currency. The row is still
+   * offered (an answer with a mark beats none) and the caller marks it.
+   */
+  readonly marketVerified: boolean;
+  /**
+   * ITEM 20. The pack size exactly as the catalogue holds it. The unit price above
+   * is in Shin's comparison unit; this is the original, kept beside it.
+   */
+  readonly originalSize: { readonly value: number; readonly unit: string } | null;
 }
 
 /** Sizes must be within this ratio to be a fair swap. A 2 kg sack is not an alternative to a 200 g box. */
@@ -270,9 +313,66 @@ const MIN_SAVING = 0.05;
 
 const MAX_CONSIDERED = 60;
 
-function unitCentsOf(amountCents: number, sizeValue: number): number {
-  // Per 100 base units, matching how Canadian shelf tags print unit prices.
-  return (amountCents / sizeValue) * 100;
+/**
+ * ITEM 18 and 19. What a caller may say about the request. Every field is
+ * optional so the existing four-argument call keeps compiling and behaving.
+ *
+ * `mode` omitted is 'validation', which is the legacy behaviour (name everything
+ * cheaper, drop nothing for being a bulk pack). The scan screen that offers a
+ * swap the user would really take passes 'switching'.
+ *
+ * `market` omitted is the UNKNOWN market: no country filter, no currency check,
+ * every row marked `marketVerified: false`. It is deliberately not Canada.
+ */
+export interface AlternativesOptions {
+  readonly mode?: AlternativeMode;
+  readonly market?: Market;
+  readonly user?: UserConstraintPrefs;
+}
+
+/**
+ * The catalogue's own per-country facts. It records ONE country: `sold_in_canada`,
+ * set from Open Food Facts' country tags. A market with no column here is not
+ * filtered by country (the catalogue cannot say where else a product is sold), and
+ * its rows are only ever offered on a price that states the market's currency.
+ * Adding a column for another country is one entry here.
+ */
+const MARKET_COLUMN: Readonly<Record<string, string>> = { CA: 'sold_in_canada' };
+
+function marketFilterSql(market: Market, alias: string): string {
+  const col = market.country === null ? undefined : MARKET_COLUMN[market.country];
+  return col ? `AND ${alias}.${col} = 1` : '';
+}
+
+function marketVouchedByCatalogue(market: Market): boolean {
+  return market.country !== null && MARKET_COLUMN[market.country] !== undefined;
+}
+
+/**
+ * Whether a price may be set against the user's own price. Never converts.
+ * Stated currency must equal the market's; an unstated currency counts only where
+ * the catalogue's own flag vouches for the market; an unknown market checks
+ * nothing (and the row is then marked unverified by the caller).
+ */
+function priceUsableIn(price: PricedProduct, market: Market): boolean {
+  if (market.currency === null) return true;
+  if (price.currency) return samePriceBasis(price.currency, market.currency);
+  return marketVouchedByCatalogue(market);
+}
+
+function subjectOf(c: { sizeValue: number | null; sizeUnit: string | null; source: string }): AlternativeSubject {
+  const kind = kindOfSource(c.source);
+  return {
+    kind,
+    condition: 'unknown',
+    storeType: 'unknown',
+    // Tech's weight is never a comparison basis, so it is never a bulk signal either.
+    size: comparesOnUnitPrice(kind) ? toComparison(c.sizeValue, c.sizeUnit) : null,
+    membershipRequired: null,
+    distanceKm: null,
+    attributes: null,
+    relation: null,
+  };
 }
 
 /*
@@ -294,8 +394,9 @@ function allergenName(tag: string): string {
   return tag.toLowerCase().replace(/^[a-z]{2}:/, '').replace(/-/g, ' ');
 }
 
-function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+/** Item 19: money prints in the currency it is in, never assumed to be dollars. */
+function formatCents(cents: number, currency: string | null = null): string {
+  return formatMoney(cents, currency);
 }
 
 const MONTH_NAMES = [
@@ -512,7 +613,12 @@ export async function alternativesFor(
   original: Candidate,
   originalPriceCents: number,
   lookup: PriceLookup,
+  options: AlternativesOptions = {},
 ): Promise<Alternative[]> {
+  const mode: AlternativeMode = options.mode ?? 'validation';
+  const market: Market = options.market ?? UNKNOWN_MARKET;
+  const userPrefs: UserConstraintPrefs = options.user ?? {};
+  const marketSql = (alias: string) => marketFilterSql(market, alias);
   const path = original.categoryPath;
   /*
    * THE SAME WALK THE NEIGHBOUR RING USES, WHICH CLOSES THE OTHER HALF OF D-036.
@@ -545,8 +651,9 @@ export async function alternativesFor(
     /*
      * A neighbour here has to be one this query could actually offer, not just
      * any row carrying the tag: same source (item 19a, pet food is not a swap
-     * for human food) and sold in Canada, which are the two filters the SELECT
-     * below applies anyway. Probing without them would let a leaf that holds
+     * for human food) and sold in the user's market (item 19: the catalogue's own
+     * country flag where it has one, no filter where it does not), which are the
+     * two filters the SELECT below applies anyway. Probing without them would let a leaf that holds
      * only unreachable rows claim the ring and swallow the parent step, which
      * is the "no gala apples" case failing silently rather than widening.
      */
@@ -556,7 +663,7 @@ export async function alternativesFor(
           `SELECT 1 AS found
              FROM product_category pc
              JOIN product p ON p.rowid = pc.rowid_ref
-            WHERE pc.tag = ? AND p.code <> ? AND p.sold_in_canada = 1 AND p.source = ?
+            WHERE pc.tag = ? AND p.code <> ? ${marketSql('p')} AND p.source = ?
             LIMIT 1`,
         )
         .get(t, original.code, original.source) !== undefined,
@@ -564,9 +671,25 @@ export async function alternativesFor(
   if (!chosen) return [];
   const tag = chosen.tag;
 
-  const sized = original.sizeValue !== null && original.sizeUnit !== null;
-  const minSize = sized ? original.sizeValue! / SIZE_RATIO : 0;
-  const maxSize = sized ? original.sizeValue! * SIZE_RATIO : 0;
+  /*
+   * ITEM 20. The size is converted to Shin's comparison unit (grams, millilitres,
+   * items) once, here, by the same table the verdict reads (units.ts). Before
+   * this, the size window and the "same unit" test both compared RAW numbers with
+   * raw unit strings, so 2 kg and 500 g were "different units", and a kg row
+   * priced "per 100 g" was a thousand times over.
+   *
+   * TECH IS NEVER COMPARED BY WEIGHT (Jamin: "tech products have weight specs but
+   * cannot be compared based on that"): a tech original has no unit-price basis
+   * whatever its recorded size, so its rows fall to the ticket comparison.
+   */
+  const originalKind = kindOfSource(original.source);
+  const originalQty = comparesOnUnitPrice(originalKind)
+    ? toComparison(original.sizeValue, original.sizeUnit)
+    : null;
+  const sized = originalQty !== null;
+  const minSize = sized ? originalQty.baseValue / SIZE_RATIO : 0;
+  const maxSize = sized ? originalQty.baseValue * SIZE_RATIO : 0;
+  const originalSubject = subjectOf(original);
 
   /*
    * When the original has a size, prefer same-unit comparable-size rows but do
@@ -581,14 +704,14 @@ export async function alternativesFor(
               p.generic_name, p.nutriscore_grade, p.nova_group, p.additives_n,
               p.ingredients_text,
               CASE WHEN ?1 = 1
-                     AND p.size_unit = ?4
-                     AND p.size_value BETWEEN ?5 AND ?6
+                     AND ${sqlFamily('p.size_unit')} = ?4
+                     AND ${sqlBaseValue('p.size_value', 'p.size_unit')} BETWEEN ?5 AND ?6
                    THEN 0 ELSE 1 END AS rank_bucket
        FROM product_category pc
        JOIN product p ON p.rowid = pc.rowid_ref
        WHERE pc.tag = ?2
          AND p.code <> ?3
-         AND p.sold_in_canada = 1
+         ${marketSql('p')}
          /*
           * ITEM 19a. A category tag is Open Food Facts' own taxonomy, shared
           * across the sibling projects with no wall between them: pet food and
@@ -609,7 +732,7 @@ export async function alternativesFor(
     sized ? 1 : 0,
     tag,
     original.code,
-    original.sizeUnit,
+    originalQty?.family ?? null,
     minSize,
     maxSize,
     MAX_CONSIDERED,
@@ -640,8 +763,10 @@ export async function alternativesFor(
   const prices = await lookup(rows.map((r) => r.code));
   if (prices.size === 0) return [];
 
-  const originalUnit =
-    original.sizeValue !== null ? unitCentsOf(originalPriceCents, original.sizeValue) : null;
+  const originalPer = originalQty
+    ? unitPriceCents(originalPriceCents, original.sizeValue, original.sizeUnit)
+    : null;
+  const originalUnit = originalPer?.unitCents ?? null;
   const originalAllergens = new Set(readableAllergens(original.allergens));
   const originalAllergensReadable = allAllergensReadable(original.allergens);
 
@@ -651,22 +776,51 @@ export async function alternativesFor(
     if (!price) continue;
 
     /*
-     * Unit price when both sides have a size and the same unit, ticket price
-     * otherwise. The fallback is where four products in five now get an answer
-     * instead of nothing.
+     * ITEM 19. A price is compared only with a price in the user's own currency,
+     * and nothing is ever converted. A row whose price cannot be checked against
+     * the market is dropped when the market is known, kept and marked when it is
+     * not (an answer with a mark beats none).
      */
-    const comparable =
-      originalUnit !== null &&
-      r.size_value !== null &&
-      r.size_value > 0 &&
-      r.size_unit === original.sizeUnit;
+    if (!priceUsableIn(price, market)) continue;
+    const rowCurrency = price.currency ?? market.currency ?? null;
+    const marketVerified =
+      market.currency !== null &&
+      (price.currency ? samePriceBasis(price.currency, market.currency) : marketVouchedByCatalogue(market));
+
+    /*
+     * Unit price when both sides have a size in the same family (grams with
+     * kilograms, millilitres with litres, ounces with grams), ticket price
+     * otherwise. Both are converted to Shin's comparison unit first (item 20).
+     * The fallback is where four products in five now get an answer instead of
+     * nothing.
+     */
+    const rowQty = comparesOnUnitPrice(originalKind)
+      ? toComparison(r.size_value, r.size_unit)
+      : null;
+    const rowPer = rowQty ? unitPriceCents(price.amountCents, r.size_value, r.size_unit) : null;
+    const comparable = originalPer !== null && rowPer !== null && sameFamily(originalQty, rowQty);
 
     const basis: SavingBasis = comparable ? 'unit' : 'ticket';
-    const unitCents = comparable ? unitCentsOf(price.amountCents, r.size_value) : null;
+    const unitCents = comparable ? rowPer!.unitCents : null;
     const cheaperBy = comparable
       ? (originalUnit! - unitCents!) / originalUnit!
       : (originalPriceCents - price.amountCents) / originalPriceCents;
     if (cheaperBy < MIN_SAVING) continue;
+
+    /*
+     * ITEM 18. The same constraint set the Gemini path uses, run over this row.
+     * The catalogue knows a pack size and a source, not a store type or a
+     * condition, so in practice only the bulk constraint can speak here; the rest
+     * see unknowns and allow. In 'switching' an excluded row is not offered; in
+     * 'validation' it is kept and carries its labels.
+     */
+    const constraintResult = evaluateConstraints({
+      mode,
+      original: originalSubject,
+      candidate: subjectOf({ sizeValue: r.size_value, sizeUnit: r.size_unit, source: r.source }),
+      user: userPrefs,
+    });
+    if (!constraintResult.allowed) continue;
 
     const storedAllergens: string[] = JSON.parse(r.allergens) as string[];
     const theirAllergens = readableAllergens(storedAllergens);
@@ -693,7 +847,8 @@ export async function alternativesFor(
         ? [...originalAllergens].filter((a) => !theirAllergens.includes(a))
         : [];
 
-    const per = r.size_unit === 'ml' ? '100 ml' : '100 g';
+    // Shin's comparison unit for this row's family: "100 g", "100 ml" or "each".
+    const per = rowPer ? rowPer.label : '100 g';
     const product: Candidate = {
       code: r.code,
       name: r.name,
@@ -757,11 +912,11 @@ export async function alternativesFor(
       // twice, and English-only server prose is what this repo moved away from
       // the same day: the server emits facts, the client renders words.
       line: comparable
-        ? `${formatCents(unitCents!)} per ${per} at ${storeClause}, ` +
-          `against ${formatCents(originalUnit!)}. ${seenClause} ` +
+        ? `${formatCents(unitCents!, rowCurrency)} per ${per} at ${storeClause}, ` +
+          `against ${formatCents(originalUnit!, rowCurrency)}. ${seenClause} ` +
           allergenSentence(allergenNote, added, removed)
-        : `${formatCents(price.amountCents)} at ${storeClause}, ` +
-          `against ${formatCents(originalPriceCents)}. Sizes may differ. ${seenClause} ` +
+        : `${formatCents(price.amountCents, rowCurrency)} at ${storeClause}, ` +
+          `against ${formatCents(originalPriceCents, rowCurrency)}. Sizes may differ. ${seenClause} ` +
           allergenSentence(allergenNote, added, removed),
       /*
        * THE SAME SENTENCE AS FACTS. D-097. Built from the same locals the
@@ -788,8 +943,9 @@ export async function alternativesFor(
               fragment('alt_unit_price_cheaper', {
                 unitCents: unitCents!,
                 originalUnitCents: originalUnit!,
-                perQuantity: 100,
-                perUnit: r.size_unit === 'ml' ? 'ml' : 'g',
+                perQuantity: rowPer!.perQuantity,
+                perUnit: rowPer!.baseUnit,
+                currency: rowCurrency,
                 place: placeFactFor(price),
               }),
               fragment('alt_seen_on', { observedAt: price.observedAt }),
@@ -799,6 +955,7 @@ export async function alternativesFor(
               fragment('alt_ticket_price_cheaper', {
                 amountCents: price.amountCents,
                 originalAmountCents: originalPriceCents,
+                currency: rowCurrency,
                 place: placeFactFor(price),
               }),
               fragment('alt_sizes_may_differ'),
@@ -806,6 +963,11 @@ export async function alternativesFor(
               ...structuredAllergens(allergenNote, added, removed),
             ],
       },
+      mode,
+      labels: constraintResult.labels,
+      currency: rowCurrency,
+      marketVerified,
+      originalSize: rowQty ? rowQty.original : r.size_value !== null && r.size_unit ? { value: r.size_value, unit: r.size_unit } : null,
     });
   }
 

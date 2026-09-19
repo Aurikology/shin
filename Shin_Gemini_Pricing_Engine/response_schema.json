@@ -1,0 +1,631 @@
+{
+  "type": "object",
+  "properties": {
+    "scan": {
+      "type": "object",
+      "properties": {
+        "scan_type": {
+          "type": "string"
+        },
+        "barcode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "market": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "currency": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "scan_type",
+        "barcode",
+        "market",
+        "currency"
+      ]
+    },
+    "product": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "brand": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "variant": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "size": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pack_count": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "identification_confidence": {
+          "type": "number"
+        },
+        "identification_evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sources": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "brand": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "model": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "variant": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "size": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "barcode": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "name",
+            "brand",
+            "model",
+            "variant",
+            "size",
+            "barcode"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "brand",
+        "model",
+        "variant",
+        "size",
+        "pack_count",
+        "description",
+        "identification_confidence",
+        "identification_evidence",
+        "sources"
+      ]
+    },
+    "condition": {
+      "type": "object",
+      "properties": {
+        "classification": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "classification",
+        "confidence",
+        "evidence"
+      ]
+    },
+    "offers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "retailer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "price": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "advertised_price_text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pack_count": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "quantity_covered": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "model_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "specs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "condition": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "marketplace_status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "membership_required": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "multi_buy": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "bogo": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "organic": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "store_brand": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "sold_by_weight": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "price_unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_support": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size_value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "size_unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unit_price": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "in_median": {
+            "type": "boolean"
+          },
+          "exclusion_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pct_vs_median": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "position": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "retailer",
+          "price",
+          "currency",
+          "url",
+          "advertised_price_text",
+          "size",
+          "pack_count",
+          "quantity_covered",
+          "model_number",
+          "specs",
+          "condition",
+          "marketplace_status",
+          "membership_required",
+          "multi_buy",
+          "bogo",
+          "organic",
+          "store_brand",
+          "sold_by_weight",
+          "price_unit",
+          "source_support",
+          "size_value",
+          "size_unit",
+          "unit_price",
+          "in_median",
+          "exclusion_reason",
+          "pct_vs_median",
+          "position"
+        ]
+      }
+    },
+    "reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "review_count": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "rating",
+          "review_count",
+          "summary",
+          "url"
+        ]
+      }
+    },
+    "pricing_summary": {
+      "type": "object",
+      "properties": {
+        "shelf_price": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "shelf_currency": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "observed_low": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "observed_high": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "relevant_offer_count": {
+          "type": "integer"
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "shelf_price",
+        "shelf_currency",
+        "observed_low",
+        "observed_high",
+        "relevant_offer_count",
+        "notes"
+      ]
+    },
+    "uncertainty": {
+      "type": "object",
+      "properties": {
+        "overall_confidence": {
+          "type": "number"
+        },
+        "missing_information": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "conflicts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "overall_confidence",
+        "missing_information",
+        "conflicts"
+      ]
+    },
+    "price_verdict": {
+      "type": "object",
+      "properties": {
+        "verdict_available": {
+          "type": "boolean"
+        },
+        "no_verdict_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "comparison_unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "median_unit_price": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "offers_in_median": {
+          "type": "integer"
+        },
+        "span_pct": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "zone_under_boundary": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "zone_over_boundary": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "shelf": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "unit_price": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "pct_vs_median": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "position": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "zone": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "under_your_line",
+                "middle",
+                "over_your_line",
+                null
+              ]
+            },
+            "label": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "unit_price",
+            "pct_vs_median",
+            "position",
+            "zone",
+            "label"
+          ]
+        },
+        "thresholds_used": {
+          "type": "object",
+          "properties": {
+            "under_pct": {
+              "type": "number"
+            },
+            "over_pct": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "under_pct",
+            "over_pct"
+          ]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "thin",
+            "ok"
+          ]
+        },
+        "size_assumed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "verdict_available",
+        "no_verdict_reason",
+        "comparison_unit",
+        "median_unit_price",
+        "offers_in_median",
+        "span_pct",
+        "zone_under_boundary",
+        "zone_over_boundary",
+        "shelf",
+        "thresholds_used",
+        "confidence",
+        "size_assumed"
+      ]
+    }
+  },
+  "required": [
+    "scan",
+    "product",
+    "condition",
+    "offers",
+    "reviews",
+    "pricing_summary",
+    "uncertainty",
+    "price_verdict"
+  ]
+}

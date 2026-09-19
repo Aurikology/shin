@@ -213,13 +213,20 @@ export interface GaugeSize {
 
 export interface GaugeShelfItem extends GaugeSize {
   readonly price: number;
+  /**
+   * ITEM 19. The currency the shelf price is in: the user's market currency, from
+   * their location. Offers are compared against it and never converted. Absent
+   * means the market is unknown, and the reference falls to the currency most of
+   * the offers state; it is never assumed to be any one country's.
+   */
+  readonly currency?: string | null;
 }
 
 export interface GaugeOffer extends GaugeSize {
   readonly retailer: string;
   readonly price: number;
   readonly url: string | null;
-  /** What the price is in. Absent means CAD, which is what the request asked for. */
+  /** What the price is in (ISO 4217). Absent means not stated, never a currency; comparison must be against the user's market currency and is never converted. */
   readonly currency?: string | null;
   /** A seller on the retailer's site rather than the retailer. */
   readonly marketplace?: boolean | null;
@@ -394,17 +401,40 @@ function unitLabelOf(dim: GaugeDimension | null): '100 g' | '100 mL' | 'item' | 
   return null;
 }
 
-/**
- * Absent currency is CAD, because that is what the request asked for and
- * because the alternative is excluding every offer that came back from a
- * model that did not fill the field in. An offer that SAYS it is something
- * else is taken at its word.
- */
-function currencyOf(offer: GaugeOffer): string {
-  const c = offer.currency;
-  if (c === null || c === undefined) return 'CAD';
+function cleanCurrency(c: unknown): string | null {
+  if (c === null || c === undefined) return null;
   const t = String(c).trim().toUpperCase();
-  return t === '' ? 'CAD' : t;
+  return t === '' ? null : t;
+}
+
+/**
+ * ITEM 19. The currency every offer is compared against: the shelf's own (the
+ * user's market currency) when it was given, else the one most of the offers
+ * state, first named winning a tie. Never a country's default: with nothing
+ * given and nothing stated it is null, and nothing is then excluded on currency.
+ */
+function referenceCurrency(shelf: GaugeShelfItem, offers: readonly GaugeOffer[]): string | null {
+  const given = cleanCurrency(shelf.currency);
+  if (given !== null) return given;
+  const counts = new Map<string, number>();
+  for (const o of offers) {
+    const c = cleanCurrency(o.currency);
+    if (c !== null) counts.set(c, (counts.get(c) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  let n = 0;
+  for (const [c, k] of counts) if (k > n) { best = c; n = k; }
+  return best;
+}
+
+/**
+ * An offer that SAYS what currency it is in is taken at its word. One that does
+ * not is taken to be in the reference currency, because the alternative is
+ * excluding every offer that came back from a model that did not fill the field
+ * in. Null only when there is neither a stated currency nor a reference.
+ */
+function currencyOf(offer: GaugeOffer, reference: string | null): string | null {
+  return cleanCurrency(offer.currency) ?? reference;
 }
 
 /** A name brand is the ABSENCE of a store brand, so both sides normalise to null. */
@@ -430,9 +460,20 @@ function effectivePriceOf(offer: GaugeOffer): number {
   return offer.price;
 }
 
-/** Never converted. A non-CAD amount is printed with its own code beside it so nobody reads it as dollars. */
-function money(price: number, currency: string): string {
-  return currency === 'CAD' ? `$${price.toFixed(2)}` : `${price.toFixed(2)} ${currency}`;
+/**
+ * Never converted. A currency with a well-known symbol prints it; any other
+ * prints its own code after the number so nobody reads it as dollars. An unknown
+ * currency (null) prints the legacy bare dollar sign and claims nothing more.
+ * Twin of `money` in GAUGE_PYTHON_SOURCE and of `formatMoney` in
+ * catalogue/src/market.ts: the symbol table is the same one.
+ */
+const SYMBOLS: Readonly<Record<string, string>> = {
+  CAD: '$', USD: '$', AUD: '$', NZD: '$', EUR: '€', GBP: '£', JPY: '¥',
+};
+function money(price: number, currency: string | null, reference: string | null): string {
+  if (currency === null) return `$${price.toFixed(2)}`;
+  const symbol = currency === reference ? SYMBOLS[currency] : undefined;
+  return symbol ? `${symbol}${price.toFixed(2)}` : `${price.toFixed(2)} ${currency}`;
 }
 
 /**
@@ -451,11 +492,12 @@ function qtyLabel(
   sizeUnit: string | null,
   packCount: number | null | undefined,
   price: number,
-  currency: string,
+  currency: string | null,
+  reference: string | null,
 ): string {
-  if (sizeValue === null || sizeUnit === null) return money(price, currency);
+  if (sizeValue === null || sizeUnit === null) return money(price, currency, reference);
   const qty = packCount && packCount > 1 ? `${packCount} x ${formatG(sizeValue)} ${sizeUnit}` : `${formatG(sizeValue)} ${sizeUnit}`;
-  return `${qty} · ${money(price, currency)}`;
+  return `${qty} · ${money(price, currency, reference)}`;
 }
 
 /**
@@ -463,21 +505,21 @@ function qtyLabel(
  * claims the shopper pays $2.50 at the register when the offer is 2 for $5.
  * No word here grades the price: "2 for $5.00" is what the shelf tag says.
  */
-function dealSuffix(offer: GaugeOffer, currency: string): string {
+function dealSuffix(offer: GaugeOffer, currency: string | null, reference: string | null): string {
   const kind = offer.dealKind;
   if (kind === 'multi_buy') {
     const units = offer.dealUnits;
-    return units && units > 1 ? ` (${formatG(units)} for ${money(offer.price, currency)})` : '';
+    return units && units > 1 ? ` (${formatG(units)} for ${money(offer.price, currency, reference)})` : '';
   }
   if (kind === 'bogo') return ' (buy one get one)';
   return '';
 }
 
-function offerLabel(offer: GaugeOffer): string {
-  const currency = currencyOf(offer);
+function offerLabel(offer: GaugeOffer, reference: string | null): string {
+  const currency = currencyOf(offer, reference);
   return (
-    qtyLabel(offer.sizeValue, offer.sizeUnit, offer.packCount, effectivePriceOf(offer), currency) +
-    dealSuffix(offer, currency)
+    qtyLabel(offer.sizeValue, offer.sizeUnit, offer.packCount, effectivePriceOf(offer), currency, reference) +
+    dealSuffix(offer, currency, reference)
   );
 }
 
@@ -627,8 +669,9 @@ export function computeGauge(
 ): GaugeResult {
   const [shelfDim, shelfTotal] = totalSize(shelf);
   const shelfUnitPrice = unitPriceOf(shelf.price, shelfDim, shelfTotal);
-  // The shelf price is what the shopper is looking at, in the store, in CAD.
-  const shelfLabel = qtyLabel(shelf.sizeValue, shelf.sizeUnit, shelf.packCount, shelf.price, 'CAD');
+  // The shelf price is what the shopper is looking at, in the store, in their own market's currency.
+  const reference = referenceCurrency(shelf, offers);
+  const shelfLabel = qtyLabel(shelf.sizeValue, shelf.sizeUnit, shelf.packCount, shelf.price, reference, reference);
   const shelfBrand = brandKey(shelf);
   const shelfOrganic = Boolean(shelf.organic);
 
@@ -652,7 +695,8 @@ export function computeGauge(
     // zero, negative or not a number cannot be placed, and letting one reach
     // the median poisons every other dot on the line.
     if (!isUsableAmount(offer.price)) return 'unusable_price';
-    if (currencyOf(offer) !== 'CAD') return 'not_cad';
+    const own = currencyOf(offer, reference);
+    if (own !== null && reference !== null && own !== reference) return 'not_cad';
     if (offer.marketplace) return 'marketplace';
     if (offer.memberOnly) return 'member_only';
     if (brandKey(offer) !== shelfBrand) return 'different_brand_kind';
@@ -679,14 +723,14 @@ export function computeGauge(
     const up = unitPriceOf(effectivePriceOf(o), dim, total);
     const code = exclusionOf(o, dim, total, up);
     if (code !== null) {
-      excluded.push({ retailer: o.retailer, code, note: EXCLUSION_NOTES[code], label: offerLabel(o), url: o.url });
+      excluded.push({ retailer: o.retailer, code, note: EXCLUSION_NOTES[code], label: offerLabel(o, reference), url: o.url });
       continue;
     }
     inBand.push({
       retailer: o.retailer,
       unitPrice: up as number,
       url: o.url,
-      label: offerLabel(o),
+      label: offerLabel(o, reference),
     });
   }
 
@@ -829,13 +873,37 @@ export const GAUGE_PYTHON_SOURCE = `def gauge(shelf, offers, under_pct, over_pct
             return "item"
         return None
 
-    def currency_of(o):
-        c = o.get("currency")
+    def clean_currency(c):
         if c is None:
-            return "CAD"
+            return None
         c = str(c).strip().upper()
         if c == "":
-            return "CAD"
+            return None
+        return c
+
+    def reference_currency():
+        given = clean_currency(shelf.get("currency"))
+        if given is not None:
+            return given
+        counts = {}
+        for o in offers:
+            c = clean_currency(o.get("currency"))
+            if c is not None:
+                counts[c] = counts.get(c, 0) + 1
+        best = None
+        n = 0
+        for c in counts:
+            if counts[c] > n:
+                best = c
+                n = counts[c]
+        return best
+
+    reference = reference_currency()
+
+    def currency_of(o):
+        c = clean_currency(o.get("currency"))
+        if c is None:
+            return reference
         return c
 
     def brand_key(x):
@@ -858,9 +926,14 @@ export const GAUGE_PYTHON_SOURCE = `def gauge(shelf, offers, under_pct, over_pct
             return o["price"] / 2
         return o["price"]
 
+    SYMBOLS = {"CAD": "$", "USD": "$", "AUD": "$", "NZD": "$", "EUR": "\\u20ac", "GBP": "\\u00a3", "JPY": "\\u00a5"}
+
     def money(price, currency):
-        if currency == "CAD":
+        if currency is None:
             return "$" + format(price, ".2f")
+        symbol = SYMBOLS.get(currency) if currency == reference else None
+        if symbol is not None:
+            return symbol + format(price, ".2f")
         return format(price, ".2f") + " " + currency
 
     def qty_label(size_value, size_unit, pack_count, price, currency):
@@ -889,12 +962,13 @@ export const GAUGE_PYTHON_SOURCE = `def gauge(shelf, offers, under_pct, over_pct
 
     shelf_dim, shelf_total = total_size(shelf.get("sizeValue"), shelf.get("sizeUnit"), shelf.get("packCount"))
     shelf_unit_price = unit_price(shelf["price"], shelf_dim, shelf_total)
-    shelf_label = qty_label(shelf.get("sizeValue"), shelf.get("sizeUnit"), shelf.get("packCount"), shelf["price"], "CAD")
+    shelf_label = qty_label(shelf.get("sizeValue"), shelf.get("sizeUnit"), shelf.get("packCount"), shelf["price"], reference)
     shelf_brand = brand_key(shelf)
     shelf_organic = bool(shelf.get("organic"))
 
     def exclusion_of(o, dim, total, up):
-        if currency_of(o) != "CAD":
+        own = currency_of(o)
+        if own is not None and reference is not None and own != reference:
             return "not_cad"
         if o.get("marketplace"):
             return "marketplace"

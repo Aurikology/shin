@@ -52,7 +52,10 @@ function offer(extra: Partial<GaugeOffer> & { retailer: string; price: number })
 }
 
 function shelf(extra: Partial<GaugeShelfItem> & { price: number }): GaugeShelfItem {
-  return { sizeValue: null, sizeUnit: null, packCount: null, ...extra };
+  // These fixtures are Canadian shopping, so their shelf STATES its market's
+  // currency. The gauge no longer assumes one (item 19): it used to read an
+  // absent currency as CAD, which is what these tests silently leaned on.
+  return { sizeValue: null, sizeUnit: null, packCount: null, currency: 'CAD', ...extra };
 }
 
 const codesOf = (entries: readonly GaugeExcluded[]) => entries.map((e) => e.code);
@@ -314,9 +317,49 @@ test('a US price is excluded and never converted', () => {
   assert.equal(notCad[0].label, '1 each · 14.99 USD', 'the amount is shown with its own currency, never behind a dollar sign');
   assert.doesNotMatch(notCad[0].label, /\$/, 'a dollar sign on a US amount is the misreading this rule exists to prevent');
   assert.equal(notCad[0].note, 'priced in another currency');
-  // An absent currency is CAD, which is what the request asked for, so
-  // Home Depot is on the line beside the one that said CAD outright.
+  // An absent currency takes the reference currency, which here is the shelf's
+  // own (CAD), so Home Depot is on the line beside the one that said CAD outright.
   assert.deepEqual(retailersOf(g.points), ['Canadian Tire', 'Home Depot']);
+});
+
+test('a euro shelf prints the euro symbol, and a US price is still excluded under its own code', () => {
+  const g = usable(
+    computeGauge(shelf({ price: 4.5, sizeValue: 1, sizeUnit: 'each', currency: 'EUR' }), [
+      offer({ retailer: 'Shop A', price: 4.2, sizeValue: 1, sizeUnit: 'each', currency: 'EUR' }),
+      offer({ retailer: 'Shop B', price: 4.8, sizeValue: 1, sizeUnit: 'each' }),
+      offer({ retailer: 'Shop US', price: 3.99, sizeValue: 1, sizeUnit: 'each', currency: 'USD' }),
+    ]),
+  );
+  assert.equal(g.shelfLabel, '1 each · €4.50', 'the shopper’s own currency prints its own symbol');
+  assert.deepEqual(retailersOf(g.excluded.filter((e) => e.code === 'not_cad')), ['Shop US']);
+  assert.deepEqual(retailersOf(g.points), ['Shop A', 'Shop B']);
+  const us = g.excluded.find((e) => e.retailer === 'Shop US');
+  assert.equal(us?.label, '1 each · 3.99 USD','a foreign amount carries its code, never a dollar sign');
+});
+
+test('a dollar shelf in the US excludes a Canadian price, because neither market is the default', () => {
+  const g = usable(
+    computeGauge(shelf({ price: 5, sizeValue: 1, sizeUnit: 'each', currency: 'USD' }), [
+      offer({ retailer: 'Shop A', price: 4.5, sizeValue: 1, sizeUnit: 'each', currency: 'USD' }),
+      offer({ retailer: 'Shop B', price: 5.5, sizeValue: 1, sizeUnit: 'each' }),
+      offer({ retailer: 'Shop CA', price: 6.5, sizeValue: 1, sizeUnit: 'each', currency: 'CAD' }),
+    ]),
+  );
+  assert.deepEqual(retailersOf(g.excluded.filter((e) => e.code === 'not_cad')), ['Shop CA']);
+  const ca = g.excluded.find((e) => e.retailer === 'Shop CA');
+  assert.equal(ca?.label, '1 each · 6.50 CAD');
+});
+
+test('with no market at all nothing is excluded on currency and the legacy dollar sign prints', () => {
+  const g = usable(
+    computeGauge(shelf({ price: 5, sizeValue: 1, sizeUnit: 'each', currency: null }), [
+      offer({ retailer: 'Shop A', price: 4.5, sizeValue: 1, sizeUnit: 'each' }),
+      offer({ retailer: 'Shop B', price: 5.5, sizeValue: 1, sizeUnit: 'each' }),
+      offer({ retailer: 'Shop C', price: 6, sizeValue: 1, sizeUnit: 'each' }),
+    ]),
+  );
+  assert.deepEqual(g.excluded, []);
+  assert.equal(g.shelfLabel, '1 each · $5.00');
 });
 
 test('a marketplace seller is excluded, because it is not the retailer selling', () => {
@@ -606,7 +649,7 @@ test('the price line carries the fields the four item rules travel in', () => {
   // and a different brand kind all reach a reader. Without it on the line they
   // are computed and dropped.
   const line = priceLineFor(
-    { askingCents: 299, sizeValue: 500, sizeUnit: 'g' },
+    { askingCents: 299, sizeValue: 500, sizeUnit: 'g', currency: 'CAD' },
     shownOffers([
       { retailer: 'Loblaws', price: 3.49, url: null, sizeValue: 500, sizeUnit: 'g' },
       { retailer: 'Metro', price: 3.49, url: null, sizeValue: 500, sizeUnit: 'g' },

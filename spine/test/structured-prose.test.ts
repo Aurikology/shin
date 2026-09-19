@@ -1005,7 +1005,7 @@ test('the thin line rebuilds byte-for-byte across every shape it has', () => {
       ...(c.size ?? {}),
     });
     assert.notEqual(judged.tier, null, `${c.name}: fixture must produce a tier`);
-    assert.equal(render(thinStructuredLine(judged, c.shelfCents)), judged.line, `thin line: ${c.name}`);
+    assert.equal(render(thinStructuredLine(judged, c.shelfCents, 'CAD')), judged.line, `thin line: ${c.name}`);
   }
 
   // The unit-price fixture is only worth anything if it actually produced one.
@@ -1019,6 +1019,24 @@ test('the thin line rebuilds byte-for-byte across every shape it has', () => {
     now,
   }).regular;
   assert.ok(band !== null && band.unitCents !== null, 'a pack size must produce a unit price');
+});
+
+test('item 19: the thin line carries the currency it is given, on every amount, never a hardcoded CAD', () => {
+  const judged = thinJudge({
+    shelfCents: 880,
+    observations: [
+      { seller: 'A', amountCents: 350, kind: 'regular', observedAt: '2026-09-01', preTax: true },
+      { seller: 'B', amountCents: 900, kind: 'regular', observedAt: '2026-09-01', preTax: true },
+      { seller: 'C', amountCents: 199, kind: 'promotional', observedAt: '2026-09-01', preTax: true },
+    ],
+    sizeValue: 1000,
+    sizeUnit: 'g',
+    now: new Date('2026-09-02T00:00:00Z'),
+  });
+  const line = thinStructuredLine(judged, 880, 'EUR');
+  const withMoney = line.fragments.filter((f) => 'currency' in f.facts);
+  assert.ok(withMoney.length >= 4, 'the fixture must exercise amounts, a unit price and a promotion');
+  for (const f of withMoney) assert.equal(f.facts.currency, 'EUR', `${f.code} still says another currency`);
 });
 
 test("the mapping of price/'s confidence reasons is total", () => {

@@ -33,7 +33,8 @@
 
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
+import { createUserCatalogue, recordUserScan, type UserCatalogue, type UserScanInput } from './user-catalogue.ts';
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS gap (
@@ -149,6 +150,45 @@ function classify(input: { gtin?: string; queryText?: string }): GapKey {
 }
 
 /**
+ * ITEM 15. The human-review log above is kept, and a miss now ALSO creates a
+ * catalogue entry, marked user-sourced and untrusted, where the user catalogue
+ * (user-catalogue.ts) groups it with near-duplicates and holds it per store type.
+ * Jamin: "if a product doesn't exist in our catalogue then a user scan will add a
+ * new item to the catalogue ... taken with a grain of salt and not fully trusted".
+ *
+ * The user catalogue is a sibling file of the gap log (`user-catalogue.db` beside
+ * `gaps.db`), so a test or a deployment that points the gap log somewhere gets
+ * the entries there too and never writes into the default location by accident.
+ * `SHIN_USER_CATALOGUE` overrides it.
+ *
+ * A typed query too short to be a product name (under three characters) and no
+ * barcode is not an entry: it is a keystroke, and stays in the review log only.
+ */
+const userCatalogues = new WeakMap<GapLog, UserCatalogue>();
+
+function userCatalogueFor(log: GapLog): UserCatalogue {
+  let uc = userCatalogues.get(log);
+  if (!uc) {
+    const path = process.env.SHIN_USER_CATALOGUE
+      ?? (log.path === ':memory:' ? ':memory:' : join(dirname(log.path), 'user-catalogue.db'));
+    uc = createUserCatalogue(path);
+    userCatalogues.set(log, uc);
+  }
+  return uc;
+}
+
+function autoCreateFromMiss(log: GapLog, input: { gtin?: string; queryText?: string; scan?: UserScanInput }): void {
+  const gtin = input.scan?.gtin ?? input.gtin;
+  const name = input.scan?.name ?? input.queryText;
+  const hasName = (name?.trim().length ?? 0) >= 3;
+  if (!gtin?.trim() && !hasName) return;
+  recordUserScan(
+    { ...input.scan, gtin, name: hasName ? name : null, bare: input.scan?.name ? false : true },
+    { log: userCatalogueFor(log), probe: null },
+  );
+}
+
+/**
  * Records one miss, rolling it into an existing finding when the same
  * barcode or text has been seen before.
  *
@@ -157,8 +197,24 @@ function classify(input: { gtin?: string; queryText?: string }): GapKey {
  * as cleanly. Every failure path here, including no log ever having opened,
  * lands in the same catch and is counted rather than raised.
  */
-export function recordGap(input: { gtin?: string; queryText?: string; note?: string }): void {
+export function recordGap(input: {
+  gtin?: string;
+  queryText?: string;
+  note?: string;
+  /**
+   * Item 15. What the scan that missed knows about the product (Gemini's answer,
+   * the typed price, the store). When present it fills the new user-sourced entry;
+   * when absent the entry is built from the barcode or the query text alone and is
+   * marked bare.
+   */
+  scan?: UserScanInput;
+}): void {
   const log = active ?? openGapLog();
+  try {
+    autoCreateFromMiss(log, input);
+  } catch {
+    // Item 15's entry is on top of the log and never instead of it or a reason it fails.
+  }
   try {
     if (!log.db) throw new Error(log.droppedWhy || 'gap log is not open');
     const { kind, key, gtin, queryText } = classify(input);

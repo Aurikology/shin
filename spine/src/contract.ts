@@ -340,7 +340,13 @@ export interface PricePoint {
    */
   readonly sellerId?: string;
   readonly amountCents: number;
-  readonly currency: 'CAD';
+  /**
+   * ISO 4217 code of the amount, as the source stated it. Never converted, and
+   * never assumed: this used to be the literal type 'CAD', which made every
+   * adapter stamp Canadian dollars whether or not the source said so. A source
+   * that does not state a currency has to say what it knows about its own data.
+   */
+  readonly currency: string;
   readonly kind: PriceKind;
   /** ISO date. Staleness is checked against this, never against fetch time. */
   readonly observedAt: string;
