@@ -300,10 +300,54 @@ export interface RunOutcome {
   readonly manifest: LoadedManifest;
 }
 
+/**
+ * Takes `limit` rows SPREAD ACROSS KINDS, not the first `limit` in the file.
+ *
+ * This was `pool.slice(0, limit)`, and the manifest is grouped by kind, so a
+ * pilot took one kind and nothing else: `--limit 40` returned 40 `size-pair`
+ * rows and reported a per-kind table with a single line in it. Caught by
+ * running the harness and reading its output, which the unit tests could not
+ * do -- they assert the scorer, not the sample.
+ *
+ * It matters because of WHEN a limit gets used. Nobody limits a free dry run;
+ * a limit is what the first keyed pilot will use, to check the thing works
+ * before spending the allowance on 200 rows. A pilot drawn from one kind
+ * reports that kind's parse rate and identification accuracy as if they were
+ * the product's, and the 2.5-versus-3.x decision is meant to rest on those
+ * numbers. Cheap to get wrong, expensive to notice late.
+ *
+ * Round-robin over kinds in first-seen order, keeping each kind's own order,
+ * so the selection is deterministic and a rerun with the same limit picks the
+ * same rows. Where a limit cannot divide evenly the earlier kinds get the
+ * spare row, which is arbitrary and is only required to be stable.
+ */
+export function stratify<T extends { readonly kind: string }>(rows: readonly T[], limit: number): T[] {
+  if (limit >= rows.length) return [...rows];
+  const byKind = new Map<string, T[]>();
+  for (const r of rows) {
+    const bucket = byKind.get(r.kind);
+    if (bucket) bucket.push(r);
+    else byKind.set(r.kind, [r]);
+  }
+  const queues = [...byKind.values()];
+  const out: T[] = [];
+  for (let i = 0; out.length < limit; i++) {
+    let tookAny = false;
+    for (const q of queues) {
+      if (i >= q.length) continue;
+      out.push(q[i] as T);
+      tookAny = true;
+      if (out.length === limit) break;
+    }
+    if (!tookAny) break;
+  }
+  return out;
+}
+
 export async function runAll(args: Args, manifest: LoadedManifest, opts: RunOneOptions, env: NodeJS.ProcessEnv = process.env): Promise<RunOutcome> {
   let pool = manifest.runnable;
   if (args.kind) pool = pool.filter((r) => r.kind === args.kind);
-  if (args.limit !== null) pool = pool.slice(0, args.limit);
+  if (args.limit !== null) pool = stratify(pool, args.limit);
 
   const scored: ScoredRow[] = [];
   let cursor = { index: 0, row: pool[0] };
