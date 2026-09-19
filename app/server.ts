@@ -9,7 +9,7 @@
  * in here, it is in the wrong place.
  */
 
-import { createServer } from 'node:http';
+import { createServer, type IncomingMessage } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
@@ -57,7 +57,7 @@ import type { FailureClass, Identifier, MessagesClient, Tier } from '../identify
 import type { GroundedTransport } from '../identify/src/providers/gemini-grounded.ts';
 import type { AnswerBlock, GeminiRun, ScanType } from '../identify/src/providers/gemini-scan.ts';
 import { sealScanAnswer } from '../identify/src/providers/gemini-grounded.ts';
-import { chargeSpend, estimatedCostCad, type SpendDecision } from '../identify/src/cap.ts';
+import { chargeSpend, usdCentsToCad, type SpendDecision } from '../identify/src/cap.ts';
 import { lookupPrices } from '../price/src/lookup.ts';
 import { recordCorrection } from '../price/src/corrections.ts';
 import { ATTRIBUTION } from './src/attribution.ts';
@@ -81,11 +81,12 @@ import { keepLocation, keepPhoto, readConsent, writeConsent } from './src/consen
 import { deleteRating, isRating, isRatingReason, rateScan, scanExists } from './src/ratings.ts';
 import { recordEvent, serialisePayload } from './src/events.ts';
 import { parseCell, storesNear, type StoreFetcher } from './src/stores.ts';
-import { INVITE_EXEMPT, INVITE_HEADER, INVITE_REFUSAL, inviteAllows, inviteRequired } from './src/invite.ts';
+import { INVITE_EXEMPT, INVITE_HEADER, INVITE_REFUSAL, inviteAllows, inviteRequired, inviteWho } from './src/invite.ts';
+import { KeyedLimiter, addressWindows, clientAddress, codeWindows } from './src/rate-limit.ts';
 import { logError } from './src/errlog.ts';
 import { markScan } from './src/scan-marks.ts';
 import { listenProblem, startupProblems } from './src/startup.ts';
-import { estimatedCostCents } from './src/model-cost.ts';
+import { estimatedCostCents, groundedScanCapChargeUsdCents } from './src/model-cost.ts';
 import { recordAccess } from './src/access-log.ts';
 import { handleAdmin } from './src/admin.ts';
 import { recordShutterRequest, saveShutterFrame } from './src/shutter-log.ts';
@@ -865,6 +866,34 @@ function photoRateAllows(deviceId: string): boolean {
 }
 
 /**
+ * The ceiling on the calls that cost money, per invite code and per network address.
+ *
+ * Applied at every place a Gemini call is about to be made (`/api/identify`, the photo route and
+ * the price route when it has no stored answer to serve), and NOT on the ones that cost nothing:
+ * health, search, corrections, a price sheet served from a scan already held. See
+ * `src/rate-limit.ts` for the numbers and for what this is and is not. A refusal is a 429 with a
+ * `Retry-After`, sent before any Gemini call is made and before anything is counted against the
+ * dollar cap. The limiters are built once so their counts outlive a request; tests replace them
+ * through `resetPaidCallLimitersForTests`.
+ */
+let codeLimiter = new KeyedLimiter(codeWindows());
+let addressLimiter = new KeyedLimiter(addressWindows());
+export function resetPaidCallLimitersForTests(env: NodeJS.ProcessEnv = process.env): void {
+  codeLimiter = new KeyedLimiter(codeWindows(env));
+  addressLimiter = new KeyedLimiter(addressWindows(env));
+}
+
+function paidCallRefusal(req: IncomingMessage): { retryAfterSeconds: number } | null {
+  // When no code is required (a laptop, the suite) every caller is the one bucket "open".
+  const who = inviteWho(req.headers[INVITE_HEADER]) ?? 'open';
+  const byCode = codeLimiter.check(`code:${who}`);
+  if (!byCode.allowed) return { retryAfterSeconds: byCode.retryAfterSeconds };
+  const byAddress = addressLimiter.check(`ip:${clientAddress(req.headers, req.socket.remoteAddress)}`);
+  if (!byAddress.allowed) return { retryAfterSeconds: byAddress.retryAfterSeconds };
+  return null;
+}
+
+/**
  * The model, built once and lazily.
  *
  * Lazily because constructing it reads credentials and loads an SDK, and this
@@ -1078,7 +1107,7 @@ export function setSpendGuardForTests(guard: SpendGuard | null): void {
 function spendGuardFor(): SpendGuard {
   if (spendGuardDouble) return spendGuardDouble;
   if (geminiTransportDouble) return () => true;
-  return () => chargeSpend(estimatedCostCad());
+  return () => chargeSpend(usdCentsToCad(groundedScanCapChargeUsdCents()));
 }
 
 /**
@@ -2287,6 +2316,21 @@ export const server = createServer(async (req, res) => {
     res.end(payload);
   };
 
+  // The refusal for `paidCallRefusal`: nothing has been sent to Google and nothing counted against the cap.
+  const tooManyCalls = (retryAfterSeconds: number) => {
+    res.writeHead(429, {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      'retry-after': String(retryAfterSeconds),
+    });
+    res.end(
+      JSON.stringify({
+        error: 'That is a lot of lookups in a short time. Give it a few minutes and try again.',
+        retryAfterSeconds,
+      }),
+    );
+  };
+
   /**
    * The answer to a body over the cap.
    *
@@ -2501,6 +2545,9 @@ export const server = createServer(async (req, res) => {
         accuracy: pick('accuracy'),
         at: pick('locatedAt'),
       });
+
+      const limitedIdentify = paidCallRefusal(req);
+      if (limitedIdentify) return tooManyCalls(limitedIdentify.retryAfterSeconds);
 
       let completed: Completed;
       try {
@@ -2756,6 +2803,9 @@ export const server = createServer(async (req, res) => {
        * same answer. `tier` is still read from old clients and ignored: the
        * model is picked per scan by `modelForScan` (2.5 and 3.x side by side).
        */
+      const limitedPhoto = paidCallRefusal(req);
+      if (limitedPhoto) return tooManyCalls(limitedPhoto.retryAfterSeconds);
+
       let completed: Completed;
       try {
         const mod = await geminiScanModule();
@@ -2898,6 +2948,8 @@ export const server = createServer(async (req, res) => {
         searchText,
       );
       if (!answered) {
+        const limitedPrice = paidCallRefusal(req);
+        if (limitedPrice) return tooManyCalls(limitedPrice.retryAfterSeconds);
         const priceStarted = Date.now();
         // A scan row that exists and is this device's is attached to, not duplicated.
         const row = scanKnown ? getScan(pricedScan) : null;

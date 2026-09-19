@@ -252,3 +252,28 @@ export function realCostCents(
   if (tokens === null && asked === 0) return null;
   return Math.round(((tokens ?? 0) + searchCostCents(asked, alreadyThisMonth)) * 10_000) / 10_000;
 }
+
+/**
+ * What the daily dollar cap charges for ONE grounded scan, before the call is made, in US cents.
+ *
+ * The cap used to charge 0.68 US cents a call, the price of a Claude identification with no search
+ * in it. A Gemini scan is a grounded search, and one measured search used four queries: at the
+ * paid rate that is 5.6 cents of search on top of about 0.22 cents of tokens (both figures from the
+ * commit messages of `eeb8e15` and `a0bc8e4` and `NOW.md`, one observation, not an average). So the
+ * old charge undercounted the paid-rate cost by roughly eight times and the cap would have let
+ * about eight times the money out before it moved.
+ *
+ * DELIBERATELY THE PAID RATE. The first 5,000 searches a month are free, so inside that allowance a
+ * scan really costs only its tokens and this over-charges. That is the safe direction for a cap, as
+ * `cap.ts` says of its own estimate: it trips sooner than the spend justifies, never later. The
+ * soft cap only marks and logs; only the hard ceiling refuses. `SHIN_PHOTO_DAILY_CAP_CAD` moves both.
+ */
+export const ASSUMED_QUERIES_PER_GROUNDED_SCAN = 4;
+export const ASSUMED_TOKEN_CENTS_PER_GROUNDED_SCAN = 0.2238;
+
+export function groundedScanCapChargeUsdCents(): number {
+  return (
+    ASSUMED_TOKEN_CENTS_PER_GROUNDED_SCAN +
+    searchCostCents(ASSUMED_QUERIES_PER_GROUNDED_SCAN, SEARCH_FREE_PER_MONTH)
+  );
+}

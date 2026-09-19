@@ -1776,3 +1776,32 @@ selectors.
 **Reverses if:** Jamin answers any of the six, or a measured run shows the guard suppressing the line
 on scans where the offers were in fact sound. Point 2 is the one to answer first: every other point
 assumes the line may sometimes be withheld.
+
+## Calls that cost money are limited per invite code and per address, and the cap charges the search fee
+**Date:** 2026-09-19 · **Status:** active
+
+**Why.** Asked by Jamin whether a hacker is limited in API calls. Before this, the live Gemini routes
+(`/api/identify`, `/api/price`, the photo route) had no per-caller limit at all. The one per-device
+ceiling sat on the older photo route and keys on a device id the caller supplies, so rotating it
+defeats it. The dollar cap was the only backstop, and it charged 0.68 US cents a call, the price of a
+Claude identification with no search, while one measured grounded scan used four search queries
+(5.6 cents at the paid rate, one observation, a floor). At that charge the CAD 100 hard ceiling
+would have let about eight times the money out before it moved.
+
+**What was built.** `app/src/rate-limit.ts`: 200 calls per 10 minutes and 1,500 a day per invite code,
+90 per 10 minutes and 600 a day per network address (`cf-connecting-ip` behind the tunnel, else the
+socket address), each overridable with `SHIN_RATE_CODE_PER_10MIN`, `SHIN_RATE_CODE_PER_DAY`,
+`SHIN_RATE_IP_PER_10MIN`, `SHIN_RATE_IP_PER_DAY`. A refusal is a 429 with `Retry-After`, sent before
+any Gemini call and before anything is counted against the cap. The price route counts only when it
+has no stored answer to serve. The cap now charges `groundedScanCapChargeUsdCents()`: 4 queries at the
+paid rate plus 0.2238 cents of tokens, 5.8238 US cents. Tests: `app/test/paid-call-limits.test.ts`, the
+three route tests confirmed red with the gate disabled.
+
+**Limits of it, stated.** In memory, one process, forgotten on restart. The address header is
+forgeable by anyone who reaches the port without going through the tunnel, so the port must not be
+reachable except through it. The charge is the paid rate, so inside the free 5,000 searches a month it
+over-charges (the safe direction): the soft cap of CAD 10 now marks and logs from about 127 scans a
+day, and the hard ceiling of CAD 100 refuses at about 1,270. Neither number is Jamin's decision yet.
+
+**Reverses if:** a real tester is refused (raise the numbers), or Jamin wants the cap denominated in
+measured spend after the call rather than a paid-rate estimate before it.

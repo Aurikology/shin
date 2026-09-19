@@ -236,6 +236,11 @@ export function estimatedCostCad(): number {
   return ESTIMATED_COST_USD_PER_CALL * APPROXIMATE_USD_TO_CAD;
 }
 
+/** US cents to CAD at the same fixed approximate rate the rest of this file uses. */
+export function usdCentsToCad(usdCents: number): number {
+  return (usdCents / 100) * APPROXIMATE_USD_TO_CAD;
+}
+
 /**
  * The sentence shown when the HARD runaway ceiling stops a call (the soft cap
  * never shows one). Hard rule 3: the aggression points at the price, the store,
