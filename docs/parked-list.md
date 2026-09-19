@@ -35,3 +35,13 @@ interpret?)"
 **What is known:** nothing beyond his words. Not investigated. It is not yet stated which screens or
 what "no matter what" means (for example a question left unanswered, or a step that needs a choice),
 so that is the first thing to settle when this item is picked up.
+
+## P3 · A guided tour of the interface after the welcome (2026-09-19)
+
+**His words:** "when the users first finish the welcome, there should be things that pop up thrughout
+the ui that guide the user through the ui"
+
+**What is known:** nothing beyond his words. Not investigated. Open, to settle when picked up: which
+screens and controls get a pop-up, whether the tour runs once or can be replayed (the welcome itself
+can be replayed in the beta), and how it is skipped. Any pop-up it adds is a surface and needs its own
+screen tag.
