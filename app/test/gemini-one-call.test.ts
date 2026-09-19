@@ -243,6 +243,54 @@ test('a wrong median is marked in the background with the input and the exact pr
   assert.equal(geminiCallsForScan(ok.body.scanId)[0].math_check, 'ok', 'a correct answer was marked');
 });
 
+test('dollar mode: the hidden check recomputes the zone from the typed price, and marks a wrong one or a skip (item 14)', async () => {
+  // Median 3.00 per 100 g on a 225 g shelf is 6.75 at the shelf's size; typed 9.00 is 2.25 over, past the bad line of 2.
+  const withZone = (zone: string) => () => ({
+    text: httpBody(
+      JSON.stringify(
+        goodAnswer({
+          price_verdict: {
+            ...(goodAnswer().price_verdict as object),
+            shelf: { unit_price: 4, pct_vs_median: 33.3, position: 90, zone, label: 'x' },
+          },
+        }),
+      ),
+    ),
+  });
+  const lines = JSON.stringify({ unit: 'amount', great: 3, good: 1.5, bad: 2 });
+  const q = (device: string, extra: Record<string, string> = {}) =>
+    new URLSearchParams({ gtin: '0068100084245', deviceId: device, shelfPriceCents: '900', thresholds: lines, ...extra }).toString();
+
+  install(withZone('middle'));
+  const wrong = await identify(q('dollar-wrong', { currency: 'CAD' }));
+  await settleBackgroundChecks();
+  const wrongRow = geminiCallsForScan(wrong.body.scanId)[0];
+  assert.equal(wrongRow.math_check, 'mismatch');
+  assert.match(String(wrongRow.math_mismatches), /shelf\.zone/);
+  assert.equal(wrongRow.input_ref, '0068100084245', 'the mismatch carries the digits');
+  assert.match(wrongRow.prompt_text, /DOLLAR AMOUNTS/, 'and the exact prompt');
+  assert.doesNotMatch(JSON.stringify(wrong.body), /math_check|mismatch/, 'the hidden check leaked into the answer');
+
+  install(withZone('over_your_line'));
+  const right = await identify(q('dollar-right', { currency: 'CAD' }));
+  await settleBackgroundChecks();
+  assert.equal(geminiCallsForScan(right.body.scanId)[0].math_check, 'ok');
+
+  // No currency on the request: the typed price cannot be tied to Gemini's CAD, so it is skipped and marked, not guessed.
+  install(withZone('middle'));
+  const noCurrency = await identify(q('dollar-nocur'));
+  await settleBackgroundChecks();
+  const skippedRow = geminiCallsForScan(noCurrency.body.scanId)[0];
+  assert.equal(skippedRow.math_check, 'partial');
+  assert.match(String(skippedRow.math_mismatches), /user_currency_unknown/);
+
+  // No typed price: skipped and marked as well.
+  install(withZone('middle'));
+  const noPrice = await identify(new URLSearchParams({ gtin: '0068100084245', deviceId: 'dollar-noprice', thresholds: lines, currency: 'CAD' }).toString());
+  await settleBackgroundChecks();
+  assert.match(String(geminiCallsForScan(noPrice.body.scanId)[0].math_mismatches), /no_shelf_price/);
+});
+
 test('an unparseable 2.5 answer is still an answer, marked not fully confident, never a thrown error (item 5)', async () => {
   reply = () => ({ text: httpBody('I am sorry, here is some prose and {"product": {"name": "broken') });
   install(reply);

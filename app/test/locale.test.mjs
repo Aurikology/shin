@@ -308,7 +308,7 @@ test('a code this build does know is rendered in French, with its numbers intact
   assert.notEqual(out, english, 'a code with a French renderer still came back English');
   // The VALUE survives; the punctuation is expected to change. This assertion
   // used to demand the literal `$4.99` inside a French sentence, which was
-  // correct only while `cad()` was English-only, and became the wrong
+  // correct only while the CAD-only helper was English-only, and became the wrong
   // expectation the day money learned French -- D-002's shape, a test asserting
   // a behaviour the product had deliberately moved past. What actually matters
   // is that no digit is invented or lost between the two languages.
@@ -366,41 +366,41 @@ test('every French renderer produces a non-empty sentence for its own code', () 
  * ------------------------------------------------------------------ */
 
 test('French money is 4,99 $ and English money is $4.99, from the same cents', async () => {
-  const { cad } = await import('../public/js/shin.js');
-  assert.equal(inLocale('en', () => cad(499)), '$4.99');
-  assert.equal(inLocale('fr', () => cad(499)), '4,99 $');
+  const { money } = await import('../public/js/lib/money.js');
+  assert.equal(inLocale('en', () => money(499, 'CAD')), '$4.99');
+  assert.equal(inLocale('fr', () => money(499, 'CAD')), '4,99 $');
 });
 
 test('the space in French money is NO-BREAK, so a line never wraps before the dollar sign', async () => {
-  const { cad } = await import('../public/js/shin.js');
-  const fr = inLocale('fr', () => cad(499));
+  const { money } = await import('../public/js/lib/money.js');
+  const fr = inLocale('fr', () => money(499, 'CAD'));
   assert.ok(fr.includes(' '), `expected a no-break space, got ${JSON.stringify(fr)}`);
   assert.ok(!fr.includes(' $'), 'a plain space would let the amount wrap away from its symbol');
 });
 
 test('the formatter reshapes punctuation and never a digit', async () => {
-  const { cad } = await import('../public/js/shin.js');
+  const { money } = await import('../public/js/lib/money.js');
   // The promise voice.js makes about the attitude, made here about the locale:
   // 4,99 $ and $4.99 are the same 499 cents, and a formatter gets no opinion.
   for (const cents of [0, 5, 99, 100, 499, 1999, 123456, -499]) {
-    const en = inLocale('en', () => cad(cents));
-    const fr = inLocale('fr', () => cad(cents));
+    const en = inLocale('en', () => money(cents, 'CAD'));
+    const fr = inLocale('fr', () => money(cents, 'CAD'));
     const digitsOf = (s) => s.replace(/[^0-9]/g, '');
     assert.equal(digitsOf(en), digitsOf(fr), `${cents} lost or gained a digit: ${en} vs ${fr}`);
   }
 });
 
 test('a negative keeps its sign in front in both languages', async () => {
-  const { cad } = await import('../public/js/shin.js');
-  assert.equal(inLocale('en', () => cad(-499)), '-$4.99');
-  assert.equal(inLocale('fr', () => cad(-499)), '-4,99 $');
+  const { money } = await import('../public/js/lib/money.js');
+  assert.equal(inLocale('en', () => money(-499, 'CAD')), '-$4.99');
+  assert.equal(inLocale('fr', () => money(-499, 'CAD')), '-4,99 $');
 });
 
 test('a non-number is still the dash in both languages, because a formatter never throws', async () => {
-  const { cad } = await import('../public/js/shin.js');
+  const { money } = await import('../public/js/lib/money.js');
   for (const bad of [null, undefined, NaN, Infinity, 'x']) {
-    assert.equal(inLocale('en', () => cad(bad)), '--');
-    assert.equal(inLocale('fr', () => cad(bad)), '--');
+    assert.equal(inLocale('en', () => money(bad, 'CAD')), '--');
+    assert.equal(inLocale('fr', () => money(bad, 'CAD')), '--');
   }
 });
 

@@ -14,7 +14,7 @@
  *   - it is the same product: the same barcode digits, or the same name once
  *     accents, case, punctuation and spacing are taken out.
  * Prices are never converted between currencies; the chart shows the numbers
- * the person typed, formatted by the caller in the market's own currency.
+ * the person typed, formatted by the caller with lib/money.js.
  */
 
 /** A name reduced to what is left when accents, case, punctuation and spacing are ignored. */
@@ -91,24 +91,4 @@ export function historyChartHtml(points, { format, heading, alt } = {}) {
           </svg>
           <p class="pricehist-range"><span data-hist-lo>${esc(fmt(lo))}</span><span data-hist-hi>${esc(fmt(hi))}</span></p>
         </section>`;
-}
-
-/**
- * Money in the market's own currency, never converted. A valid ISO 4217 code
- * formats through Intl in the reader's language; anything else (no market
- * chosen, an unknown code) shows the plain number with two decimals and no
- * symbol, because a wrong symbol on a right number is worse than none.
- */
-export function formatMoney(cents, currency, localeTag) {
-  if (typeof cents !== 'number' || !Number.isFinite(cents)) return '--';
-  const amount = cents / 100;
-  const code = typeof currency === 'string' ? currency.trim().toUpperCase() : '';
-  if (/^[A-Z]{3}$/.test(code)) {
-    try {
-      return new Intl.NumberFormat(localeTag || undefined, { style: 'currency', currency: code }).format(amount);
-    } catch {
-      /* an unknown code: fall through to the plain number */
-    }
-  }
-  return amount.toFixed(2);
 }

@@ -50,12 +50,12 @@
  * They render here too, from a second table (`ALT_RENDERERS`) for the reason
  * written above it, through the same `render` and the same fallback rules.
  *
- * MONEY IS FORMATTED BY `cad`, the same function every other number on the
- * screen goes through, and `cad` is itself locale-aware: it writes "$4.99" in
+ * MONEY IS FORMATTED BY `money`, the same function every other number on the
+ * screen goes through, and `money` is itself locale-aware: it writes "$4.99" in
  * English and "4,99 $" (with a non-breaking space) in French. Nothing here
  * re-punctuates a number on its own, and nothing here may: one spelling of one
  * amount per screen is the whole point, and the place that decides it is
- * `shin.js`.
+ * `lib/money.js`.
  *
  * TIER WORDS ARE NOT AVAILABLE TO EVERY CODE. A refusal, a shortfall, a basis
  * clause and a confidence sentence are all statements about the EVIDENCE, and
@@ -66,7 +66,7 @@
  */
 
 import { locale } from './lib/locale.js';
-import { cad } from './shin.js';
+import { money } from './lib/money.js';
 
 /* ──────────────────────────────────────────────────────────────────────────
  * The small amount of French grammar these sentences need.
@@ -180,7 +180,7 @@ function dayYear(iso) {
 /** One shopper's reading: the amount, the shop and the day it was seen. */
 function readingsOf(f) {
   const rows = Array.isArray(f.readings) ? f.readings : [];
-  return rows.map((r) => `${cad(r?.amountCents)} chez ${r?.seller} le ${day(r?.observedAt)}`);
+  return rows.map((r) => `${money(r?.amountCents, r?.currency)} chez ${r?.seller} le ${day(r?.observedAt)}`);
 }
 
 /**
@@ -277,7 +277,7 @@ const CATEGORY_REASONS = {
  * The French renderers, keyed by `LineCode`.
  *
  * Each takes the fragment's raw facts and returns a sentence. Cents arrive as
- * integers and go through `cad`; counts arrive as numbers and are pluralised
+ * integers and go through `money`; counts arrive as numbers and are pluralised
  * on French's own boundaries, which is why the spine lane's contract forbids a
  * code that encodes an English singular/plural split.
  *
@@ -287,27 +287,27 @@ const CATEGORY_REASONS = {
 const RENDERERS = {
   /* --- l'epicerie, categories.ts --- */
   regular_price_at_sole_store: (f) =>
-    `Le prix régulier est de ${cad(f.regularCents)} au seul magasin qui l'a. Devant toi, c'est ${cad(f.askingCents)}.`,
+    `Le prix régulier est de ${money(f.regularCents, f.currency)} au seul magasin qui l'a. Devant toi, c'est ${money(f.askingCents, f.currency)}.`,
   regular_price_across_stores: (f) =>
-    `Le prix régulier tourne autour de ${cad(f.regularCents)} dans ${f.storeCount} magasins. Devant toi, c'est ${cad(f.askingCents)}.`,
+    `Le prix régulier tourne autour de ${money(f.regularCents, f.currency)} dans ${f.storeCount} magasins. Devant toi, c'est ${money(f.askingCents, f.currency)}.`,
   all_prices_are_capped_promotions: (f) =>
-    `Tous les prix que j'ai pour ça sont des promotions limitées, alors il n'y a rien ici que je peux honnêtement appeler un prix courant. Devant toi, c'est ${cad(f.askingCents)}.`,
+    `Tous les prix que j'ai pour ça sont des promotions limitées, alors il n'y a rien ici que je peux honnêtement appeler un prix courant. Devant toi, c'est ${money(f.askingCents, f.currency)}.`,
   no_regular_price_only_promotions: (f) =>
-    `Aucun prix régulier trouvé en tablette, tout ce qui suit est une promotion. Devant toi, c'est ${cad(f.askingCents)}.`,
+    `Aucun prix régulier trouvé en tablette, tout ce qui suit est une promotion. Devant toi, c'est ${money(f.askingCents, f.currency)}.`,
   best_promotion_this_week: (f) =>
-    `Cette semaine c'est ${cad(f.promotionalCents)} chez ${f.seller}${f.limit ? ` (${f.limit})` : ''}.`,
+    `Cette semaine c'est ${money(f.promotionalCents, f.currency)} chez ${f.seller}${f.limit ? ` (${f.limit})` : ''}.`,
   no_promotion_this_week: () => "Rien en promotion nulle part cette semaine, d'après ce que je vois.",
 
   /* --- la techno --- */
   cheapest_of_retailers_carrying_it: (f) =>
-    `${f.retailerCount} détaillants l'ont. Le moins cher est ${cad(f.cheapestCents)} chez ${f.cheapestSeller}. Devant toi, c'est ${cad(f.askingCents)}.`,
+    `${f.retailerCount} détaillants l'ont. Le moins cher est ${money(f.cheapestCents, f.currency)} chez ${f.cheapestSeller}. Devant toi, c'est ${money(f.askingCents, f.currency)}.`,
 
   /* --- l'usage.
    * `basis` est un fait et non deux codes, exactement pour la raison que le
    * contrat donne: la clause qu'il choisit est une mise en garde sur la preuve,
    * et une langue est libre de la placer ailleurs dans la phrase. */
   comparable_listings_range: (f) =>
-    `Les annonces comparables vont de ${cad(f.lowCents)} à ${cad(f.highCents)}, et se regroupent entre ${cad(f.clusterLowCents)} et ${cad(f.clusterHighCents)}. Devant toi, c'est ${cad(f.askingCents)}. Ce sont ${
+    `Les annonces comparables vont de ${money(f.lowCents, f.currency)} à ${money(f.highCents, f.currency)}, et se regroupent entre ${money(f.clusterLowCents, f.currency)} et ${money(f.clusterHighCents, f.currency)}. Devant toi, c'est ${money(f.askingCents, f.currency)}. Ce sont ${
       f.basis === 'sold' ? "les prix auxquels ces articles se sont vraiment vendus" : "des prix demandés, pas des ventes, et les vendeurs commencent haut"
     }.`,
 
@@ -318,25 +318,25 @@ const RENDERERS = {
    * elle arrivait en ISO brut ("2026-05-07") au milieu d'une phrase française,
    * et l'anglais en porte l'année, alors le français la garde aussi. */
   own_price_history_single_seller: (f) =>
-    `Un seul vendeur, alors c'est comparé à son propre historique: aussi bas que ${cad(f.lowestCents)} le ${dayYear(f.lowestObservedOn)}, d'habitude autour de ${cad(f.typicalCents)}. Devant toi, c'est ${cad(f.askingCents)}.`,
+    `Un seul vendeur, alors c'est comparé à son propre historique: aussi bas que ${money(f.lowestCents, f.currency)} le ${dayYear(f.lowestObservedOn)}, d'habitude autour de ${money(f.typicalCents, f.currency)}. Devant toi, c'est ${money(f.askingCents, f.currency)}.`,
 
   /* --- la ligne des preuves minces, `price/src/verdict.ts`.
    * Quatre fragments au plus, collés par une espace. Ce sont des lignes de
    * verdict: l'anglais y dit "cheapest" et "on sale", alors le français peut
    * dire "le moins cher" et "en solde". Rien d'autre ici n'a le droit. --- */
-  asking_below_sole_price: (f) => `${cad(f.askingCents)}, c'est moins que ${solePrice(f)}.`,
-  asking_below_range: (f) => `${cad(f.askingCents)}, c'est dans le bas de la fourchette.`,
-  asking_equals_sole_price: (f) => `${cad(f.askingCents)}, c'est exactement ${solePrice(f)}.`,
-  asking_within_range: (f) => `${cad(f.askingCents)}, c'est à peu près ce que les autres demandent.`,
-  asking_above_sole_price: (f) => `${cad(f.askingCents)}, c'est plus que ${solePrice(f)}.`,
-  asking_above_range: (f) => `${cad(f.askingCents)}, c'est dans le haut de la fourchette.`,
-  sole_price_matched_at_seller: (f) => `${f.seller} l'a aussi à ${cad(f.amountCents)}.`,
+  asking_below_sole_price: (f) => `${money(f.askingCents, f.currency)}, c'est moins que ${solePrice(f)}.`,
+  asking_below_range: (f) => `${money(f.askingCents, f.currency)}, c'est dans le bas de la fourchette.`,
+  asking_equals_sole_price: (f) => `${money(f.askingCents, f.currency)}, c'est exactement ${solePrice(f)}.`,
+  asking_within_range: (f) => `${money(f.askingCents, f.currency)}, c'est à peu près ce que les autres demandent.`,
+  asking_above_sole_price: (f) => `${money(f.askingCents, f.currency)}, c'est plus que ${solePrice(f)}.`,
+  asking_above_range: (f) => `${money(f.askingCents, f.currency)}, c'est dans le haut de la fourchette.`,
+  sole_price_matched_at_seller: (f) => `${f.seller} l'a aussi à ${money(f.amountCents, f.currency)}.`,
   cheapest_and_dearest_sellers: (f) =>
-    `${f.cheapestSeller} l'a à ${cad(f.cheapestCents)}, ${f.dearestSeller} à ${cad(f.dearestCents)}.`,
+    `${f.cheapestSeller} l'a à ${money(f.cheapestCents, f.currency)}, ${f.dearestSeller} à ${money(f.dearestCents, f.currency)}.`,
   /* `unitLabel` est "100g" ou "100ml", un symbole d'unité et non de la prose,
    * alors il traverse tel quel, comme en anglais. */
-  unit_price: (f) => `Ça fait ${cad(f.unitCents)} par ${f.unitLabel}.`,
-  cheaper_on_promotion_at_seller: (f) => `${f.seller} l'a en solde à ${cad(f.amountCents)}.`,
+  unit_price: (f) => `Ça fait ${money(f.unitCents, f.currency)} par ${f.unitLabel}.`,
+  cheaper_on_promotion_at_seller: (f) => `${f.seller} l'a en solde à ${money(f.amountCents, f.currency)}.`,
 
   /* --- la confiance. Ces phrases parlent de la PREUVE et n'ont jugé aucun
    * prix, alors aucun mot de palier n'y entre. "À peine assez" et non "juste
@@ -456,9 +456,9 @@ const RENDERERS = {
 
   /* --- les désaccords. Deux nombres plutôt qu'une moyenne qui mentirait. --- */
   disagreement_wide_spread: (f) =>
-    `Les prix pour la même chose vont de ${cad(f.lowCents)} à ${cad(f.highCents)} en ce moment. C'est un écart de ${String(f.ratio).replace('.', ',')}x, alors il n'y a pas un seul prix exact à donner.`,
+    `Les prix pour la même chose vont de ${money(f.lowCents, f.currency)} à ${money(f.highCents, f.currency)} en ce moment. C'est un écart de ${String(f.ratio).replace('.', ',')}x, alors il n'y a pas un seul prix exact à donner.`,
   disagreement_promotion_not_store: (f) =>
-    `L'écart ici, c'est la promotion et non le magasin: ${cad(f.promotionalCents)} en solde contre ${cad(f.regularCents)} régulier, ça fait une différence de ${String(f.ratio).replace('.', ',')}x sur le même article.`,
+    `L'écart ici, c'est la promotion et non le magasin: ${money(f.promotionalCents, f.currency)} en solde contre ${money(f.regularCents, f.currency)} régulier, ça fait une différence de ${String(f.ratio).replace('.', ',')}x sur le même article.`,
 };
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -600,12 +600,12 @@ const ALT_RENDERERS = {
   alt_unit_price_cheaper: (f) => {
     const place = placeFr(f.place);
     if (!place) return '';
-    return `${cad(f.unitCents)} par ${f.perQuantity} ${f.perUnit} ${place}, contre ${cad(f.originalUnitCents)}.`;
+    return `${money(f.unitCents, f.currency)} par ${f.perQuantity} ${f.perUnit} ${place}, contre ${money(f.originalUnitCents, f.currency)}.`;
   },
   alt_ticket_price_cheaper: (f) => {
     const place = placeFr(f.place);
     if (!place) return '';
-    return `${cad(f.amountCents)} ${place}, contre ${cad(f.originalAmountCents)}.`;
+    return `${money(f.amountCents, f.currency)} ${place}, contre ${money(f.originalAmountCents, f.currency)}.`;
   },
   alt_sizes_may_differ: () => 'Les formats peuvent différer.',
   alt_seen_on: (f) => `Vu le ${dayYear(f.observedAt)}.`,

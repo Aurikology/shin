@@ -69,7 +69,7 @@ export const TRACK_INSET = 16;
  * a `/ 100` sprinkled through nine call sites, and the ninth one gets missed.
  *
  * This is NOT computing a position. The position is Gemini's; the only thing
- * happening here is a change of units, the same way `cad()` turns cents into
+ * happening here is a change of units, the same way `money()` turns cents into
  * dollars without deciding what the price is.
  *
  * Added 2026-09-14 after the two halves were built against two different

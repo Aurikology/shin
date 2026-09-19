@@ -28,6 +28,7 @@ import { readFileSync } from 'node:fs';
 
 import { refusalSheet, observationCard } from '../public/js/screens/camera.js';
 import { say } from '../public/js/voice.js';
+import * as store from '../public/js/store.js';
 
 const CAMERA = readFileSync(new URL('../public/js/screens/camera.js', import.meta.url), 'utf8');
 const CORRECTIONS = readFileSync(new URL('../public/js/corrections.js', import.meta.url), 'utf8');
@@ -198,10 +199,26 @@ test('the scan id reaches the wire, and is cleared when the scan ends', () => {
 
 /* ------------------------------------------------------------- the card */
 
+/** Run `fn` with the user's market set to `country`/`currency`, then clear it. */
+function inMarket(country, currency, fn) {
+  store.setMarket(country, currency);
+  try {
+    return fn();
+  } finally {
+    store.setMarket('', '');
+  }
+}
+
 test('the card shows the price and says it cannot be judged', () => {
-  const html = observationCard(499, '');
+  const html = inMarket('Canada', 'CAD', () => observationCard(499, ''));
   assert.match(html, /\$4\.99/, 'the card does not show the price it claims to have written down');
   assert.ok(html.includes(say('price_only_recorded', { price: '$4.99', seller: '' })));
+});
+
+test('with no market chosen the card shows the plain number, never a currency symbol', () => {
+  const html = observationCard(499, '');
+  assert.match(html, /4\.99/);
+  assert.ok(!/\$\s*4\.99/.test(html), `a dollar sign was assumed for a user with no market: ${html}`);
 });
 
 test('the card is never a verdict, in any of its parts', () => {
@@ -231,10 +248,10 @@ test('the card names the shop when there is one and invents nothing when there i
 /* -------------------------------------------------------------- both locales */
 
 test('the card renders in French, with the same number and no English left in it', () => {
-  const en = inLocale('en', () => observationCard(499, 'Metro'));
-  const fr = inLocale('fr', () => observationCard(499, 'Metro'));
+  const en = inMarket('Canada', 'CAD', () => inLocale('en', () => observationCard(499, 'Metro')));
+  const fr = inMarket('Canada', 'CAD', () => inLocale('fr', () => observationCard(499, 'Metro')));
 
-  // cad() is locale-aware and is not re-implemented by this card.
+  // money() is locale-aware and is not re-implemented by this card.
   assert.match(en, /\$4\.99/, 'the English card lost its price formatting');
   assert.match(fr, /4,99\s*\$/, `the French card did not use the French money format: ${fr}`);
   assert.match(fr, /Metro/, 'the shop did not survive the crossing into French');

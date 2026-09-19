@@ -25,6 +25,8 @@
  * shops there.
  */
 
+import { REGION_ROWS } from './regions.js';
+
 const COUNTRY_ROWS = `
 AD|EUR|Andorra|Andorre|
 AE|AED|United Arab Emirates|Émirats arabes unis|aux
@@ -395,89 +397,14 @@ export function searchCountries(query, lang = 'en') {
 
 /* ------------------------------------------------------------------ regions */
 
-/**
- * Regions for the countries where a region can change what a price means:
- * provinces and territories, states, and so on. CODE|English|French (French is
- * omitted when it is the same). The table extends by adding a country key; a
- * country with no entry has no region step and its region stays unknown.
- * The catalogue side (`catalogue/src/market.ts`) has its own list of countries
- * whose regions are known to price differently, which is a hint for Gemini and
+/*
+ * The region table itself is data and lives in `lib/regions.js` (first-level
+ * subdivisions for the countries where a region can change what a price means).
+ * A country with no entry has no region step and its region stays unknown. The
+ * two per-country flags that become the prompt hints (`regionMatters`, the
+ * EU/EEA bloc) are in the same file and are read by `catalogue/src/market.ts`,
  * a separate question from which regions the picker can name.
  */
-const REGION_ROWS = {
-  CA: `AB|Alberta
-BC|British Columbia|Colombie-Britannique
-MB|Manitoba
-NB|New Brunswick|Nouveau-Brunswick
-NL|Newfoundland and Labrador|Terre-Neuve-et-Labrador
-NS|Nova Scotia|Nouvelle-Écosse
-NT|Northwest Territories|Territoires du Nord-Ouest
-NU|Nunavut
-ON|Ontario
-PE|Prince Edward Island|Île-du-Prince-Édouard
-QC|Quebec|Québec
-SK|Saskatchewan
-YT|Yukon`,
-  US: `AL|Alabama
-AK|Alaska
-AZ|Arizona
-AR|Arkansas
-CA|California|Californie
-CO|Colorado
-CT|Connecticut
-DE|Delaware
-DC|District of Columbia|District de Columbia
-FL|Florida|Floride
-GA|Georgia|Géorgie
-HI|Hawaii|Hawaï
-ID|Idaho
-IL|Illinois
-IN|Indiana
-IA|Iowa
-KS|Kansas
-KY|Kentucky
-LA|Louisiana|Louisiane
-ME|Maine
-MD|Maryland
-MA|Massachusetts
-MI|Michigan
-MN|Minnesota
-MS|Mississippi
-MO|Missouri
-MT|Montana
-NE|Nebraska
-NV|Nevada
-NH|New Hampshire
-NJ|New Jersey
-NM|New Mexico|Nouveau-Mexique
-NY|New York
-NC|North Carolina|Caroline du Nord
-ND|North Dakota|Dakota du Nord
-OH|Ohio
-OK|Oklahoma
-OR|Oregon
-PA|Pennsylvania|Pennsylvanie
-RI|Rhode Island
-SC|South Carolina|Caroline du Sud
-SD|South Dakota|Dakota du Sud
-TN|Tennessee
-TX|Texas
-UT|Utah
-VT|Vermont
-VA|Virginia|Virginie
-WA|Washington
-WV|West Virginia|Virginie-Occidentale
-WI|Wisconsin
-WY|Wyoming`,
-  AU: `ACT|Australian Capital Territory|Territoire de la capitale australienne
-NSW|New South Wales|Nouvelle-Galles du Sud
-NT|Northern Territory|Territoire du Nord
-QLD|Queensland
-SA|South Australia|Australie-Méridionale
-TAS|Tasmania|Tasmanie
-VIC|Victoria
-WA|Western Australia|Australie-Occidentale`,
-};
 
 /** @type {Readonly<Record<string, readonly { code: string, en: string, fr: string }[]>>} */
 export const REGIONS = Object.freeze(

@@ -18,7 +18,7 @@
  * 1. "will not modify, or intersperse any other content with, the Grounded
  *    Results or Search Suggestions"
  *    -> Every field below is written with `textContent`, in the order the
- *       wire gave it. There is no `.sort`, no `.slice`, no `cad()`, no
+ *       wire gave it. There is no `.sort`, no `.slice`, no `money()`, no
  *       `Intl.NumberFormat` anywhere in this file. A price renders as the
  *       exact bytes Gemini returned. Re-sorting cheapest-first, or turning
  *       "4.49" into "$4.49", is "modify" -- it changes what the reader is
@@ -205,7 +205,7 @@ export function groundedRoot(grounded, opts = {}) {
       const offer = offers[i];
       const row = el(doc, 'li', 'g-offer');
       linkOrText(doc, row, offer, offer.retailer);
-      // The price exactly as returned. `cad()` is not imported into this file
+      // The price exactly as returned. `money()` is not imported into this file
       // and must not be: "$4.49" where Gemini said "4.49 CAD" is a modified
       // Grounded Result, however much nicer it looks beside our own prices.
       field(doc, row, 'g-price', offer.price);

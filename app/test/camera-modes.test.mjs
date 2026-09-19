@@ -31,7 +31,8 @@ function between(text, from, to, what) {
 }
 
 const { scanContextFrom } = await import('../public/js/lib/scan-body.js');
-const { priorPrices, historyChartHtml, formatMoney, normaliseName } = await import('../public/js/lib/price-history.js');
+const { priorPrices, historyChartHtml, normaliseName } = await import('../public/js/lib/price-history.js');
+const { money } = await import('../public/js/lib/money.js');
 
 const calls = [];
 globalThis.fetch = async (url, init = {}) => {
@@ -153,14 +154,14 @@ test('no Canada default and no CAD-only formatting on the going rate cards', () 
 });
 
 test('money is the market currency, never converted, and the plain number when the currency is unknown', () => {
-  assert.equal(formatMoney(499, 'EUR', 'en-CA').includes('4.99'), true);
-  assert.ok(/€/.test(formatMoney(499, 'EUR', 'en-CA')), 'a euro price is not shown in euros');
-  assert.ok(/£/.test(formatMoney(1250, 'GBP', 'en-GB')));
-  assert.equal(formatMoney(499, '', 'en'), '4.99', 'no market must show the plain number');
-  assert.equal(formatMoney(499, 'ZZ', 'en'), '4.99', 'a malformed code must show the plain number');
-  assert.equal(formatMoney(NaN, 'EUR', 'en'), '--');
+  assert.equal(money(499, 'EUR', 'en-CA').includes('4.99'), true);
+  assert.ok(/€/.test(money(499, 'EUR', 'en-CA')), 'a euro price is not shown in euros');
+  assert.ok(/£/.test(money(1250, 'GBP', 'en-GB')));
+  assert.equal(money(499, '', 'en'), '4.99', 'no market must show the plain number');
+  assert.equal(money(499, 'ZZ', 'en'), '4.99', 'a malformed code must show the plain number');
+  assert.equal(money(NaN, 'EUR', 'en'), '--');
   // Same cents, different currency: only the symbol moves, the amount never does.
-  assert.ok(formatMoney(1000, 'JPY', 'en').includes('10') && !formatMoney(1000, 'JPY', 'en').includes('1,000'));
+  assert.ok(money(1000, 'JPY', 'en').includes('10') && !money(1000, 'JPY', 'en').includes('1,000'));
 });
 
 /* --------------------------------------------------------- W33: price history */

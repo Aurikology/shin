@@ -36,7 +36,6 @@ import {
   recordUserScan,
   type UserCatalogue,
 } from '../catalogue/src/user-catalogue.ts';
-import { verdictFromZone } from '../catalogue/src/implied-reference.ts';
 /*
  * TYPES ONLY, AND THE VALUES ARRIVE BY DYNAMIC IMPORT BELOW.
  *
@@ -1209,13 +1208,11 @@ function scheduleCatalogueFeed(
             priceCents: a.shelfPriceCents,
             market: marketOfContext(a.context),
             scanId: scanId === null ? null : String(scanId),
-            // Audit rows 39 and 21: the offers and reviews Gemini returned are kept with the
-            // entry (untrusted, with this scan id), and the verdict is the zone Gemini placed the
-            // price in against this user's own lines, for the back-computed median. Neither is
-            // ever read to answer a scan.
+            // Audit row 39: the offers and reviews Gemini returned are kept with the entry
+            // (untrusted, with this scan id) and never read to answer a scan. No verdict is
+            // stored here: Gemini's zone is Gemini's own answer, and the median back-computed
+            // from users (audit row 21) reads only the user's own rating and typed price.
             deviceId: a.device,
-            verdict: verdictFromZone(run.answer?.verdict?.shelf?.zone),
-            verdictSource: 'zone',
             offers: (run.answer?.offers ?? []).map((o) => ({
               retailer: o.retailer,
               price: o.price,
@@ -1248,13 +1245,26 @@ function scheduleCatalogueFeed(
  * to have done and mark the stored call if it disagrees. Never shown, never
  * waited on, and it can only ever write a mark.
  */
-function scheduleMathCheck(mod: ScanModule, run: GeminiRun, callId: number | null, device: string, scanId: number | null): void {
+function scheduleMathCheck(
+  mod: ScanModule,
+  run: GeminiRun,
+  callId: number | null,
+  device: string,
+  scanId: number | null,
+  currency: string | null,
+): void {
   const task = new Promise<void>((resolve) => {
     setImmediate(() => {
       try {
-        const check = mod.checkMath(run.answer, run.thresholds);
+        // Dollar mode needs what the user typed and their currency; both are already known here.
+        const check = mod.checkMath(run.answer, run.thresholds, { shelfPriceCents: run.shelfPriceCents, currency });
         if (callId !== null) {
-          markGeminiMath(callId, !check.checked ? 'unchecked' : check.mismatches.length > 0 ? 'mismatch' : 'ok', check.mismatches);
+          // 'partial' is a check whose dollar zone was skipped (no typed price, another currency,
+          // no shelf size): the reasons ride in the mismatches column, and it is not a mismatch.
+          if (!check.checked) markGeminiMath(callId, 'unchecked', null);
+          else if (check.mismatches.length > 0) markGeminiMath(callId, 'mismatch', check.mismatches);
+          else if (check.skipped.length > 0) markGeminiMath(callId, 'partial', check.skipped);
+          else markGeminiMath(callId, 'ok', null);
         }
       } catch (err) {
         logError({ where: 'gemini.math_check', deviceId: device, scanId, err });
@@ -1517,7 +1527,7 @@ async function completeGeminiScan(a: CompleteArgs): Promise<Completed> {
 
   const entry: ScannedEntry = { at: Date.now(), device: a.device, scanId, callId, run, block };
   rememberScan(entry, scannedKeys(a.device, scanId, a.gtin, a.text ?? label?.label));
-  scheduleMathCheck(mod, run, callId, a.device, scanId);
+  scheduleMathCheck(mod, run, callId, a.device, scanId, a.context.currency ?? null);
   scheduleCatalogueFeed(run, named, a, scanId);
 
   recordEvent({

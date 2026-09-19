@@ -484,8 +484,9 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
        * a mismatch is marked with.
        *
        * `math_check` is the hidden re-check of Gemini's arithmetic: 'pending'
-       * until the background pass has run, then 'ok', 'mismatch' or
-       * 'unchecked' (the answer carried no math). Nothing here is ever shown to
+       * until the background pass has run, then 'ok', 'mismatch', 'partial'
+       * (nothing disagreed but the dollar-mode zone was skipped, reasons in
+       * `math_mismatches`) or 'unchecked' (the answer carried no math). Nothing here is ever shown to
        * a user. `grounded` marks a call that used Google Search: a mark for the
        * grounded-results terms, never a block (rule 5).
        *

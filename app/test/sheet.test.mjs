@@ -36,6 +36,7 @@ import {
   productLabel,
   candidateRow,
 } from '../public/js/screens/camera.js';
+import { setMarket } from '../public/js/store.js';
 
 /* ----------------------------------------------------------------- fixtures */
 
@@ -413,8 +414,18 @@ test('the French display writes 4,99 with the mark after, the English $4.99 with
   assert.equal(inLocale('fr', () => pricePadDisplay('')), '<span class="ghosted">0,00</span>');
   assert.equal(inLocale('fr', () => pricePadDisplay('4')), '4<span class="ghosted">,00</span>');
   assert.equal(inLocale('en', () => pricePadDisplay('4.99')), '4.99');
-  assert.equal(inLocale('fr', () => padAmountHtml('4.99')), '4,99<span class="amount-cur amount-cur-after">$</span>');
-  assert.equal(inLocale('en', () => padAmountHtml('4.99')), '<span class="amount-cur">$</span>4.99');
+  const inCad = (fn) => { setMarket('Canada', 'CAD'); try { return fn(); } finally { setMarket('', ''); } };
+  assert.equal(inCad(() => inLocale('fr', () => padAmountHtml('4.99'))), '4,99<span class="amount-cur amount-cur-after">$</span>');
+  assert.equal(inCad(() => inLocale('en', () => padAmountHtml('4.99'))), '<span class="amount-cur">$</span>4.99');
+  // No market chosen: no mark at all, never an assumed dollar. A euro market: its own mark.
+  assert.equal(inLocale('en', () => padAmountHtml('4.99')), '4.99');
+  setMarket('France', 'EUR');
+  try {
+    assert.equal(inLocale('en', () => padAmountHtml('4.99')), '<span class="amount-cur">€</span>4.99');
+    assert.ok(!inLocale('fr', () => padAmountHtml('4.99')).includes('$'), 'a euro market painted a dollar sign on the pad');
+  } finally {
+    setMarket('', '');
+  }
   // The parser is the same number either way: the separator is how a number is written, not what it is.
   assert.equal(inLocale('fr', () => parsePadPrice('4.99')), 499);
 });

@@ -20,8 +20,6 @@ import { personality, say } from './voice.js';
 import { FLAGS } from './flags.js';
 import { escapeHtml } from './lib/dom.js';
 import { t } from './ui-strings.js';
-import { locale } from './lib/locale.js';
-import { market } from './store.js';
 import { FACE_SETS, faceInner, faceParts } from './face-art.js';
 
 /**
@@ -627,94 +625,6 @@ export function updateShinSay(el, state, key, facts, anim, who) {
 export function sellerOf(result) {
   const s = result?.askingSource;
   return typeof s === 'string' && s && s !== 'given' ? s : null;
-}
-
-/**
- * Money, from cents, written the way the reader's language writes money.
- *
- * English Canada writes `$4.99`. French Canada writes `4,99 $` -- comma for the
- * decimal, the symbol AFTER the number, and a no-break space between them so a
- * line never wraps between the amount and its dollar sign. That is not a
- * stylistic preference: `$4.99` in French copy reads as an English price quoted
- * inside a French sentence, which is exactly the tell that the translation was
- * done by a machine.
- *
- * The DIGITS ARE NEVER TOUCHED. This function reshapes punctuation and nothing
- * else. It does not round, convert, or alter a single value, for the same
- * reason `voice.js` promises the attitude changes the words and never the
- * number: the price is the product, and a formatter is not allowed an opinion
- * about it. `4,99 $` and `$4.99` are the same 499 cents.
- *
- * This mirrors `cad()` in `spine/src/money.ts`, which stays English-only and
- * unchanged on purpose. The server's English sentences are the FALLBACK the
- * client renders when a line has no French renderer, and they are asserted byte
- * for byte by `spine/test/structured-prose.test.ts`. Localising money there
- * would break that net to fix a string the French path does not use.
- */
-export function cad(cents) {
-  if (typeof cents !== 'number' || !Number.isFinite(cents)) return '--';
-  const sign = cents < 0 ? '-' : '';
-  const abs = Math.abs(Math.round(cents));
-  const whole = Math.floor(abs / 100);
-  const frac = String(abs % 100).padStart(2, '0');
-  // Guarded: this module is imported by tests that load no DOM, and `locale()`
-  // reads stored settings. A formatter must never be the thing that throws.
-  let loc = 'en';
-  try {
-    loc = locale();
-  } catch {
-    loc = 'en';
-  }
-  if (loc === 'fr') return `${sign}${whole},${frac}\u00A0$`;
-  return `${sign}$${whole}.${frac}`;
-}
-
-/** Currencies whose mark is a symbol; every other currency prints its code after the number. */
-const CURRENCY_MARK = { CAD: '$', USD: '$', AUD: '$', NZD: '$', EUR: '\u20AC', GBP: '\u00A3', JPY: '\u00A5' };
-
-/**
- * Money in the currency it is in, written the way the reader's language writes
- * money. `cad()` above is this with no currency: a bare dollar sign, no claim
- * about which dollar. With a currency the mark follows it: `$4.99` and
- * `4,99 $` for the dollars, `\u20AC4.99` and `4,99 \u20AC` for euros, and for a
- * currency with no well-known symbol the code after the number (`1500.00 INR`)
- * so nobody reads rupees as dollars. The digits are never touched and nothing
- * is converted (audit rows 14, 34: nothing here is Canada-only).
- */
-export function money(cents, currency = null) {
-  const code = typeof currency === 'string' ? currency.trim().toUpperCase() : '';
-  if (code === '') return cad(cents);
-  if (typeof cents !== 'number' || !Number.isFinite(cents)) return '--';
-  const mark = CURRENCY_MARK[code];
-  if (mark === '$') return cad(cents);
-  const sign = cents < 0 ? '-' : '';
-  const abs = Math.abs(Math.round(cents));
-  const whole = Math.floor(abs / 100);
-  const frac = String(abs % 100).padStart(2, '0');
-  let loc = 'en';
-  try {
-    loc = locale();
-  } catch {
-    loc = 'en';
-  }
-  const shown = loc === 'fr' ? `${whole},${frac}` : `${whole}.${frac}`;
-  if (loc === 'fr') return `${sign}${shown}\u00A0${mark ?? code}`;
-  return mark ? `${sign}${mark}${shown}` : `${sign}${shown}\u00A0${code}`;
-}
-
-/**
- * An amount in the currency of the market the user chose, or a bare dollar sign
- * when none is chosen (a fresh user has no country and none is assumed). What
- * the client uses wherever it used `cad()` for a price the user is looking at.
- */
-export function marketMoney(cents) {
-  let currency = '';
-  try {
-    currency = market().currency;
-  } catch {
-    currency = '';
-  }
-  return money(cents, currency);
 }
 
 /**

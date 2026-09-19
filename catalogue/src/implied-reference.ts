@@ -1,16 +1,39 @@
 /**
- * A median back-computed from users' own verdicts. Audit row 21.
+ * What users' own ratings say about the shelf prices they typed. Audit row 21.
  *
  * Jamin, 2026-09-17: "afterwards we can compute what the median price ... based on
  * their scale of a good deal and the price they inputted", which he marked "needs
- * further design". This is the minimal version, decided 2026-09-19:
+ * further design". Decided 2026-09-19, corrected the same day.
  *
- *   For one product (a `ref`: a catalogue code or a user entry) in one country and
- *   currency, when there are AT LEAST 5 rated scans from AT LEAST 3 devices:
- *     - the median shelf price among scans the user rated good or great, and
- *     - the median shelf price among scans the user rated bad,
- *   are stored as one `implied_reference` row. A 'fair' verdict counts toward the
- *   five and the three, and toward neither median.
+ * WHY THIS WAS REWRITTEN. The first version read a "verdict" that was the zone
+ * Gemini placed the price in against the user's own lines. That is Gemini's median
+ * read back through the user's thresholds, so the "implied" median was the answer
+ * feeding itself. This version reads NOTHING Gemini said: not its zone, not its
+ * verdict text, not its median. Its only inputs are (1) the rating the person gave
+ * the scan and (2) the shelf price the person typed.
+ *
+ * WHAT A RATING CAN SAY. A rating (app/src/ratings.ts) is a thumb, up or down, with
+ * an optional reason on a thumb-down from a closed list: wrong product, wrong price,
+ * no price, too slow. It answers "was that answer any good", NOT "is this a good
+ * deal". So this file cannot honestly compute a good-deal or bad-deal price, and it
+ * does not pretend to: a thumbs-up on "this is a high price" is a person agreeing the
+ * app was right, not a person calling the price good. The deal-opinion median Jamin
+ * asked for needs a way for the person to say how the price strikes them on their
+ * own scale; when the app has that, this is where it plugs in.
+ *
+ * WHAT THE NUMBER MEANS. For one product (a `ref`: a catalogue code or a user entry)
+ * in one country and currency, when there are AT LEAST 5 rated scans from AT LEAST 3
+ * devices (the device that gave the rating), one `implied_reference` row holds:
+ *   - `up_median_cents`: the median shelf price the person typed on scans whose
+ *     answer they gave a thumbs-up. "The prices typed by people who accepted the
+ *     app's answer for this product", so a product match a person confirmed. It is
+ *     a typical typed shelf price, not a fair price and not a market median;
+ *   - `up_scans`, `down_scans`: how many scans were thumbed up and thumbed down;
+ *   - `wrong_product_scans`: thumbs-down scans whose reason was wrong product, a
+ *     sign the scan may be attached to the wrong product. These are never in the
+ *     median (a thumbs-down carries no median at all).
+ * The rating counted is the latest standing one (`scan_rating`): a tap that was
+ * undone is not a rating, and a person who tapped up and then down counts as down.
  *
  * WHAT IT IS NOT. It is never shown to a user, never used to answer a scan (the
  * server does not check Shin's own product list; the catalogue is fed by scans and
@@ -18,29 +41,51 @@
  * `trusted = 0`, and nothing here sets trusted to 1. Prices of different currencies
  * or countries are never blended: the group is (ref, country, currency).
  *
- * A KNOWN LIMIT, kept on the row rather than hidden: while the only verdicts are
- * the zone Gemini placed a price in against the user's own lines, the "implied"
- * median is largely Gemini's median read back through the user's thresholds, not an
- * independent measurement. `zone_verdict_scans` counts how many of the rated scans
- * were that kind, so a reader can tell it from a median made of people's own taps.
- *
  * Run it: `npm run implied-reference` from the catalogue package, or
- * `node src/implied-reference.ts [path-to-user-catalogue.db]`.
+ * `node src/implied-reference.ts [path-to-user-catalogue.db] [path-to-scans.db]`
+ * (the scan store holds the ratings; default `SHIN_SCANS` or `data/scans.db`).
  */
 
+import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
-import { createUserCatalogue, type UserCatalogue } from './user-catalogue.ts';
+import { createUserCatalogue, deviceKeyOf, type UserCatalogue } from './user-catalogue.ts';
 
 /** At least this many rated scans, from at least this many devices, before a row is written. */
 export const MIN_RATED_SCANS = 5;
 export const MIN_DEVICES = 3;
 
-/** The zone Gemini returns against the user's own lines, read as the verdict on their scale. */
-export function verdictFromZone(zone: string | null | undefined): 'good' | 'fair' | 'bad' | null {
-  if (zone === 'under_your_line') return 'good';
-  if (zone === 'middle') return 'fair';
-  if (zone === 'over_your_line') return 'bad';
-  return null;
+/** One person's standing rating of one scan, as `scan_rating` keeps it. */
+export interface StandingRating {
+  readonly scanId: string;
+  readonly deviceId: string;
+  readonly rating: 'up' | 'down';
+  readonly reason: string | null;
+}
+
+/**
+ * Reads the standing ratings from a scan store file, read-only. Returns an error string and
+ * no ratings when the file cannot be read; never throws.
+ */
+export function readStandingRatings(scansPath: string): { ratings: StandingRating[]; error: string | null } {
+  let db: DatabaseSync | null = null;
+  try {
+    db = new DatabaseSync(scansPath, { readOnly: true });
+    const rows = db
+      .prepare(`SELECT scan_id, device_id, rating, reason FROM scan_rating WHERE rating IN ('up', 'down')`)
+      .all() as unknown as { scan_id: number | string; device_id: string; rating: 'up' | 'down'; reason: string | null }[];
+    return {
+      ratings: rows.map((r) => ({ scanId: String(r.scan_id), deviceId: String(r.device_id), rating: r.rating, reason: r.reason })),
+      error: null,
+    };
+  } catch (err) {
+    return { ratings: [], error: err instanceof Error ? err.message : String(err) };
+  } finally {
+    try {
+      db?.close();
+    } catch {
+      /* nothing to close */
+    }
+  }
 }
 
 /** The median of a list, or null when it is empty. The mean of the two middle values for an even count. */
@@ -57,11 +102,11 @@ export interface ImpliedReference {
   readonly currency: string;
   readonly ratedScans: number;
   readonly devices: number;
-  readonly goodMedianCents: number | null;
-  readonly goodScans: number;
-  readonly badMedianCents: number | null;
-  readonly badScans: number;
-  readonly zoneVerdictScans: number;
+  /** Median typed shelf price over thumbs-up scans; null when none. Not a fair price. */
+  readonly upMedianCents: number | null;
+  readonly upScans: number;
+  readonly downScans: number;
+  readonly wrongProductScans: number;
 }
 
 export interface ComputeResult {
@@ -78,31 +123,53 @@ interface RatedRow {
   country: string | null;
   currency: string | null;
   price_cents: number;
-  device_key: string | null;
-  verdict: string;
-  verdict_source: string | null;
+  scan_id: string;
+}
+
+/** An observation joined to the standing rating of its scan. */
+interface JoinedRow extends RatedRow {
+  rating: 'up' | 'down';
+  reason: string | null;
+  /** The one-way key of the device that GAVE the rating. */
+  rater: string;
 }
 
 /**
- * Recomputes every implied reference from the observations. Idempotent: a group is
- * rewritten from all of its rated scans each run, and a group that has fallen below
- * the bar keeps no stale row. Never throws.
+ * Recomputes every implied reference from the observations and the standing ratings.
+ * Idempotent: a group is rewritten from all of its rated scans each run, and a group
+ * that has fallen below the bar keeps no stale row. Never throws.
+ *
+ * `ratings` are the person's own ratings (see `readStandingRatings`); the observation
+ * contributes only the price the person typed and where it was. Nothing Gemini said is
+ * read: an observation whose scan has no rating is not a rated scan.
  */
-export function computeImpliedReferences(log: UserCatalogue, now: Date = new Date()): ComputeResult {
+export function computeImpliedReferences(
+  log: UserCatalogue,
+  ratings: readonly StandingRating[],
+  now: Date = new Date(),
+): ComputeResult {
   try {
     if (!log.db) throw new Error(log.droppedWhy || 'user catalogue is not open');
     const db = log.db;
-    const rows = db
+    const byScan = new Map<string, StandingRating>();
+    for (const r of ratings) byScan.set(r.scanId, r);
+    const observed = db
       .prepare(
         `SELECT COALESCE(CASE WHEN product_id IS NOT NULL THEN 'u:' || product_id END, 'c:' || catalogue_code) AS ref,
-                country, currency, price_cents, device_key, verdict, verdict_source
+                country, currency, price_cents, scan_id
            FROM user_observation
-          WHERE verdict IS NOT NULL AND price_cents IS NOT NULL AND price_cents > 0
+          WHERE scan_id IS NOT NULL AND price_cents IS NOT NULL AND price_cents > 0
             AND (product_id IS NOT NULL OR catalogue_code IS NOT NULL)`,
       )
       .all() as unknown as RatedRow[];
+    const rows: JoinedRow[] = [];
+    for (const o of observed) {
+      const rated = byScan.get(String(o.scan_id));
+      const rater = rated ? deviceKeyOf(rated.deviceId) : null;
+      if (rated && rater) rows.push({ ...o, rating: rated.rating, reason: rated.reason, rater });
+    }
 
-    const groups = new Map<string, { ref: string; country: string; currency: string; rows: RatedRow[] }>();
+    const groups = new Map<string, { ref: string; country: string; currency: string; rows: JoinedRow[] }>();
     for (const r of rows) {
       const country = r.country ?? '';
       const currency = r.currency ?? '';
@@ -118,33 +185,32 @@ export function computeImpliedReferences(log: UserCatalogue, now: Date = new Dat
     try {
       db.exec('DELETE FROM implied_reference');
       const insert = db.prepare(
-        `INSERT INTO implied_reference (ref, country, currency, rated_scans, devices, good_median_cents, good_scans,
-           bad_median_cents, bad_scans, zone_verdict_scans, source, trusted, computed_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?, 'user_derived', 0, ?)`,
+        `INSERT INTO implied_reference (ref, country, currency, rated_scans, devices, up_median_cents, up_scans,
+           down_scans, wrong_product_scans, source, trusted, computed_at)
+         VALUES (?,?,?,?,?,?,?,?,?, 'user_derived', 0, ?)`,
       );
       for (const g of groups.values()) {
-        const devices = new Set(g.rows.map((r) => r.device_key).filter((d): d is string => d !== null)).size;
+        const devices = new Set(g.rows.map((r) => r.rater)).size;
         if (g.rows.length < MIN_RATED_SCANS || devices < MIN_DEVICES) {
           tooThin += 1;
           continue;
         }
-        const good = g.rows.filter((r) => r.verdict === 'good' || r.verdict === 'great').map((r) => r.price_cents);
-        const bad = g.rows.filter((r) => r.verdict === 'bad').map((r) => r.price_cents);
+        const up = g.rows.filter((r) => r.rating === 'up').map((r) => r.price_cents);
+        const down = g.rows.filter((r) => r.rating === 'down');
         const ref: ImpliedReference = {
           ref: g.ref,
           country: g.country,
           currency: g.currency,
           ratedScans: g.rows.length,
           devices,
-          goodMedianCents: median(good),
-          goodScans: good.length,
-          badMedianCents: median(bad),
-          badScans: bad.length,
-          zoneVerdictScans: g.rows.filter((r) => r.verdict_source === 'zone').length,
+          upMedianCents: median(up),
+          upScans: up.length,
+          downScans: down.length,
+          wrongProductScans: down.filter((r) => r.reason === 'wrong_product').length,
         };
         insert.run(
-          ref.ref, ref.country, ref.currency, ref.ratedScans, ref.devices, ref.goodMedianCents, ref.goodScans,
-          ref.badMedianCents, ref.badScans, ref.zoneVerdictScans, now.toISOString(),
+          ref.ref, ref.country, ref.currency, ref.ratedScans, ref.devices, ref.upMedianCents, ref.upScans,
+          ref.downScans, ref.wrongProductScans, now.toISOString(),
         );
         written.push(ref);
       }
@@ -175,11 +241,10 @@ export function impliedReferences(log: UserCatalogue): (ImpliedReference & { sou
     currency: String(r.currency),
     ratedScans: Number(r.rated_scans),
     devices: Number(r.devices),
-    goodMedianCents: r.good_median_cents === null ? null : Number(r.good_median_cents),
-    goodScans: Number(r.good_scans),
-    badMedianCents: r.bad_median_cents === null ? null : Number(r.bad_median_cents),
-    badScans: Number(r.bad_scans),
-    zoneVerdictScans: Number(r.zone_verdict_scans),
+    upMedianCents: r.up_median_cents === null ? null : Number(r.up_median_cents),
+    upScans: Number(r.up_scans),
+    downScans: Number(r.down_scans),
+    wrongProductScans: Number(r.wrong_product_scans),
     source: String(r.source),
     trusted: Number(r.trusted),
   }));
@@ -187,17 +252,25 @@ export function impliedReferences(log: UserCatalogue): (ImpliedReference & { sou
 
 function main(): void {
   const path = process.argv[2] ?? process.env.SHIN_USER_CATALOGUE ?? 'data/user-catalogue.db';
+  const scansPath = process.argv[3] ?? process.env.SHIN_SCANS ?? 'data/scans.db';
   const log = createUserCatalogue(path);
-  const result = computeImpliedReferences(log);
+  const rated = readStandingRatings(scansPath);
+  if (rated.error) {
+    console.error(`Could not read ratings from ${scansPath}: ${rated.error}`);
+    process.exitCode = 1;
+    return;
+  }
+  const result = computeImpliedReferences(log, rated.ratings);
   if (result.error) {
     console.error(`Could not compute: ${result.error}`);
     process.exitCode = 1;
     return;
   }
-  console.log(`Implied references in ${path}: ${result.written.length} written, ${result.tooThin} group(s) too thin (need ${MIN_RATED_SCANS} rated scans from ${MIN_DEVICES} devices).`);
+  console.log(`Implied references in ${path} from ${rated.ratings.length} standing rating(s) in ${scansPath}: ${result.written.length} written, ${result.tooThin} group(s) too thin (need ${MIN_RATED_SCANS} rated scans from ${MIN_DEVICES} devices).`);
+  console.log('Each median is the typed shelf price on thumbs-up scans. It is not a good-deal price: a thumb says whether the answer was any good.');
   for (const r of result.written) {
     console.log(
-      `${r.ref} ${r.country || '-'} ${r.currency || '-'}: good/great median ${r.goodMedianCents ?? 'none'} (${r.goodScans}), bad median ${r.badMedianCents ?? 'none'} (${r.badScans}), ${r.devices} devices, ${r.zoneVerdictScans} of ${r.ratedScans} verdicts are zone placements`,
+      `${r.ref} ${r.country || '-'} ${r.currency || '-'}: thumbs-up median ${r.upMedianCents ?? 'none'} (${r.upScans} up), ${r.downScans} down (${r.wrongProductScans} wrong product), ${r.devices} devices`,
     );
   }
 }

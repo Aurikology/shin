@@ -89,15 +89,28 @@ export const CURRENCY_OF_COUNTRY: Readonly<Record<string, string>> = Object.free
   ),
 );
 
-/** Countries whose own regions are known to price differently. A hint for the prompt, not a rule. */
-const REGIONS_PRICE_DIFFERENTLY: ReadonlySet<string> = new Set([
+/**
+ * The per-country flag `regionMatters`: countries whose own regions are known to
+ * price differently. A hint for the prompt, not a rule. The data is
+ * `REGION_MATTERS` in `app/public/js/lib/regions.js` (the region table's own
+ * file); this copy is what the server reads, and
+ * `catalogue/test/regions-flags.test.ts` fails if the two disagree.
+ */
+export const REGIONS_PRICE_DIFFERENTLY: ReadonlySet<string> = new Set([
   'CA', 'US', 'AU', 'IN', 'CN', 'BR', 'MX', 'DE', 'RU', 'ID',
+  'AR', 'CL', 'CO', 'CH', 'ES', 'FR', 'PT', 'GB', 'MY', 'NG', 'PK',
 ]);
 
-/** EU member states, the standing example of countries that can price alike. A hint, not a rule. */
-const EU: ReadonlySet<string> = new Set([
+/**
+ * The per-country cross-border flag: the EU member states and the three EEA
+ * countries outside it, the standing example of countries that can price alike.
+ * A hint, not a rule, and only between two members that share a currency. Same
+ * arrangement as above: `CROSS_BORDER_BLOCS` in `regions.js` is the data.
+ */
+export const EU_EEA: ReadonlySet<string> = new Set([
   'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT',
   'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE',
+  'IS', 'LI', 'NO',
 ]);
 
 /** What a phone or a settings screen can tell us about where the user is. */
@@ -187,7 +200,7 @@ export type Comparability =
   | 'same_country'
   /** Different countries: prices do not compare, whatever the product. */
   | 'different_country'
-  /** Different countries that may price alike (both in the EU). Gemini decides, and marks it. */
+  /** Different countries that may price alike (both in the EU or EEA, same currency). Gemini decides, and marks it. */
   | 'possibly_alike'
   /** One side's country is unknown. Nothing is claimed either way. */
   | 'unknown';
@@ -216,7 +229,7 @@ export function comparability(a: Market, b: Market): ComparabilityJudgement {
       (a.region === null || b.region === null || a.region.toLowerCase() !== b.region.toLowerCase());
     return { comparability: 'same_country', regionMatters, sameCurrency };
   }
-  if (EU.has(a.country) && EU.has(b.country) && sameCurrency) {
+  if (EU_EEA.has(a.country) && EU_EEA.has(b.country) && sameCurrency) {
     return { comparability: 'possibly_alike', regionMatters: false, sameCurrency };
   }
   return { comparability: 'different_country', regionMatters: false, sameCurrency };
@@ -237,7 +250,7 @@ export function marketPromptFields(market: Market): Record<string, string> {
     REGION_MATTERS_HINT:
       market.country === null ? 'unknown' : REGIONS_PRICE_DIFFERENTLY.has(market.country) ? 'yes' : 'no',
     CROSS_BORDER_HINT:
-      market.country !== null && EU.has(market.country) && market.currency === 'EUR'
+      market.country !== null && EU_EEA.has(market.country) && market.currency === 'EUR'
         ? 'possibly_alike'
         : market.country === null
           ? 'unknown'

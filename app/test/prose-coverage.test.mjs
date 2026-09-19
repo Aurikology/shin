@@ -32,7 +32,7 @@
  *
  * The money assertion is worth naming on its own: French money here is
  * "4,99 $", so a `$` sitting in front of a digit anywhere in a French sentence
- * means `cad()` was bypassed and a raw English amount was interpolated.
+ * means `money()` was bypassed and a raw English amount was interpolated.
  */
 
 import { test } from 'node:test';
@@ -538,7 +538,7 @@ test('no French sentence leaks a missing fact, an em dash, or English money', ()
     assert.ok(!out.includes('undefined'), `${c.code} put a missing fact on the screen: ${out}`);
     assert.ok(!out.includes('NaN'), `${c.code} put NaN on the screen: ${out}`);
     assert.ok(!out.includes('—'), `${c.code} uses an em dash: ${out}`);
-    // French money is "4,99 $". A "$" in front of a digit means `cad()` was
+    // French money is "4,99 $". A "$" in front of a digit means `money()` was
     // bypassed and an English amount was interpolated raw.
     assert.ok(!/\$\s*\d/.test(out), `${c.code} writes money the English way: ${out}`);
   }

@@ -21,7 +21,7 @@
  * `savingsView` is pure so test/savings.test.mjs can run it in Node.
  */
 
-import { cad } from '../shin.js';
+import { money } from '../lib/money.js';
 import * as store from '../store.js';
 import { escapeHtml, ago, on } from '../lib/dom.js';
 import { pageBar, backButton, goBack } from '../lib/pagebar.js';
@@ -79,7 +79,7 @@ export function savingsHtml(view) {
     ? `<div class="ilist">${view.recent.map((r) => `
         <div class="ilist-row" data-savings-row>
           <span class="ilist-l">${escapeHtml(r.label)}<br><small>${escapeHtml(ago(r.at) ?? '')}</small></span>
-          <span class="ilist-v">${escapeHtml(r.cents === null ? t('past_scans_no_price') : cad(r.cents))}</span>
+          <span class="ilist-v">${escapeHtml(r.cents === null ? t('past_scans_no_price') : money(r.cents))}</span>
         </div>`).join('')}</div>`
     : `<p class="fineprint" data-savings="empty">${escapeHtml(t('savings_recent_empty'))}</p>`;
   return `${top}

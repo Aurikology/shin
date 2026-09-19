@@ -57,6 +57,22 @@ import { UNKNOWN_MARKET } from './market.ts';
 import { kindOfSource, normalizeStoreType, type ProductKind, type StoreType } from './product-kind.ts';
 import { parseQuantity, sameFamily, toComparison, unitPriceCents, type ComparisonQuantity } from './units.ts';
 
+const IMPLIED_REFERENCE_DDL = `CREATE TABLE IF NOT EXISTS implied_reference (
+  ref                 TEXT NOT NULL,
+  country             TEXT NOT NULL,
+  currency            TEXT NOT NULL,
+  rated_scans         INTEGER NOT NULL,
+  devices             INTEGER NOT NULL,
+  up_median_cents     REAL,
+  up_scans            INTEGER NOT NULL,
+  down_scans          INTEGER NOT NULL,
+  wrong_product_scans INTEGER NOT NULL,
+  source              TEXT NOT NULL DEFAULT 'user_derived',
+  trusted             INTEGER NOT NULL DEFAULT 0,
+  computed_at         TEXT NOT NULL,
+  PRIMARY KEY (ref, country, currency)
+) STRICT;`;
+
 const DDL = `
 CREATE TABLE IF NOT EXISTS user_product (
   id          INTEGER PRIMARY KEY,
@@ -160,33 +176,36 @@ CREATE TABLE IF NOT EXISTS user_review (
 CREATE INDEX IF NOT EXISTS user_review_ref ON user_review(ref);
 CREATE INDEX IF NOT EXISTS user_review_scan ON user_review(scan_id);
 
--- The median shelf price back-computed from users' own verdicts (audit row 21),
--- computed by implied-reference.ts. Derived from user data, so it is marked
--- source = 'user_derived' and trusted = 0. Never shown, never used to answer a scan.
-CREATE TABLE IF NOT EXISTS implied_reference (
-  ref                TEXT NOT NULL,
-  country            TEXT NOT NULL,
-  currency           TEXT NOT NULL,
-  rated_scans        INTEGER NOT NULL,
-  devices            INTEGER NOT NULL,
-  good_median_cents  REAL,
-  good_scans         INTEGER NOT NULL,
-  bad_median_cents   REAL,
-  bad_scans          INTEGER NOT NULL,
-  zone_verdict_scans INTEGER NOT NULL,
-  source             TEXT NOT NULL DEFAULT 'user_derived',
-  trusted            INTEGER NOT NULL DEFAULT 0,
-  computed_at        TEXT NOT NULL,
-  PRIMARY KEY (ref, country, currency)
-) STRICT;
+-- What users' own thumbs say about a product's typed shelf price (audit row 21),
+-- computed by implied-reference.ts from the user's rating of the scan and the shelf
+-- price they typed, and from nothing Gemini said. Derived from user data, so it is
+-- marked source = 'user_derived' and trusted = 0. Never shown, never used to answer
+-- a scan. The rating is up or down (was the answer any good), NOT a deal opinion, so
+-- nothing here is a good-deal or bad-deal price: see implied-reference.ts.
+${IMPLIED_REFERENCE_DDL}
 `;
 
 /** Columns added after the first release; a file made before them gets them at open. */
 const LATE_COLUMNS: readonly { table: string; column: string; decl: string }[] = [
   { table: 'user_observation', column: 'device_key', decl: 'TEXT' },
+  // Legacy, no longer written or read: these held Gemini's zone read back as a "verdict",
+  // which made the implied reference circular. Kept only so an old file still opens.
   { table: 'user_observation', column: 'verdict', decl: 'TEXT' },
   { table: 'user_observation', column: 'verdict_source', decl: 'TEXT' },
 ];
+
+/**
+ * The implied_reference table is derived and rebuilt from scratch by every run, so a file
+ * that still has the first shape (good and bad medians, zone counts) is dropped and made
+ * again in the new one. No observation is touched.
+ */
+function migrateImpliedReference(db: DatabaseSync): void {
+  const have = db.prepare('PRAGMA table_info(implied_reference)').all() as unknown as { name: string }[];
+  if (have.some((c) => c.name === 'good_median_cents' || c.name === 'zone_verdict_scans')) {
+    db.exec('DROP TABLE implied_reference');
+    db.exec(IMPLIED_REFERENCE_DDL);
+  }
+}
 
 function addLateColumns(db: DatabaseSync): void {
   for (const { table, column, decl } of LATE_COLUMNS) {
@@ -228,6 +247,7 @@ export function createUserCatalogue(path: string): UserCatalogue {
     db.exec('PRAGMA journal_mode = WAL');
     db.exec(DDL);
     addLateColumns(db);
+    migrateImpliedReference(db);
   } catch (err) {
     db = null;
     droppedWhy = err instanceof Error ? err.message : String(err);
@@ -318,13 +338,6 @@ export interface UserScanInput {
   readonly bare?: boolean;
   /** Who scanned. Stored only as a one-way key, so devices can be counted and never named. */
   readonly deviceId?: string | null;
-  /**
-   * The user's verdict on this price, on their own scale: 'great', 'good', 'fair' or 'bad'.
-   * `verdictSource` says where it came from: 'zone' (Gemini's placement against the user's
-   * own lines) or 'user' (a rating the person gave). Feeds the implied reference only.
-   */
-  readonly verdict?: string | null;
-  readonly verdictSource?: 'zone' | 'user' | null;
   /** The offers Gemini returned with this scan. Kept untrusted with the scan id (audit row 39). */
   readonly offers?: readonly UserOfferInput[];
   /** The reviews Gemini returned with this scan. Kept untrusted with the scan id. */
@@ -352,8 +365,6 @@ const MAX_OFFERS_PER_SCAN = 25;
 const MAX_REVIEWS_PER_SCAN = 10;
 const MAX_TEXT = 2000;
 
-const VERDICTS = new Set(['great', 'good', 'fair', 'bad']);
-
 function clip(s: string | null | undefined): string | null {
   return typeof s === 'string' && s !== '' ? s.slice(0, MAX_TEXT) : null;
 }
@@ -363,7 +374,7 @@ function finiteOrNull(n: number | null | undefined): number | null {
 }
 
 /** One-way, so the catalogue can count devices without holding anybody's id. */
-function deviceKeyOf(deviceId: string | null | undefined): string | null {
+export function deviceKeyOf(deviceId: string | null | undefined): string | null {
   const id = deviceId?.trim();
   return id ? createHash('sha256').update(id).digest('hex').slice(0, 16) : null;
 }
@@ -644,18 +655,17 @@ function recordObservation(
   const cents = o.scan.priceCents;
   const price = typeof cents === 'number' && Number.isFinite(cents) && cents > 0 ? Math.round(cents) : null;
   const per = price !== null && !o.tech && o.qty ? unitPriceCents(price, o.qty.original.value, o.qty.original.unit) : null;
-  const verdict = typeof o.scan.verdict === 'string' && VERDICTS.has(o.scan.verdict) ? o.scan.verdict : null;
   db.prepare(
     `INSERT INTO user_observation (product_id, catalogue_code, store_type, store_name, country, region, currency,
        price_cents, orig_value, orig_unit, base_value, base_unit, unit_price_cents, unit_label, observed_at, scan_id, trusted,
-       device_key, verdict, verdict_source)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?)`,
+       device_key)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)`,
   ).run(
     target.productId, target.code, o.storeType, o.scan.storeName ?? null, o.market.country, o.market.region,
     o.market.currency, price, o.qty?.original.value ?? null, o.qty?.original.unit ?? null,
     o.qty?.baseValue ?? null, o.qty?.baseUnit ?? null, per?.unitCents ?? null, per?.label ?? null,
     o.now, o.scan.scanId ?? null,
-    deviceKeyOf(o.scan.deviceId), verdict, verdict === null ? null : (o.scan.verdictSource ?? null),
+    deviceKeyOf(o.scan.deviceId),
   );
   // Audit row 39: the offers and reviews Gemini returned ride along, untrusted, with the scan id.
   for (const offer of (o.scan.offers ?? []).slice(0, MAX_OFFERS_PER_SCAN)) {

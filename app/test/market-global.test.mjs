@@ -71,7 +71,7 @@ test('regions exist for Canada and the US, and the table extends by country code
   assert.equal(c.findRegion('CA', 'Ontario')?.code, 'ON');
   assert.equal(c.findRegion('CA', 'Québec')?.en, 'Quebec');
   assert.equal(c.findRegion('CA', 'Texas'), null, 'a US state must not resolve inside Canada');
-  assert.deepEqual(c.regionsOf('JP'), [], 'a country with no region table has no region step');
+  assert.deepEqual(c.regionsOf('KZ'), [], 'a country with no region table has no region step');
   assert.ok(Object.keys(c.REGIONS).length >= 3, 'the region table shrank');
 });
 

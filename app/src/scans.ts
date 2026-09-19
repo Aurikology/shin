@@ -920,13 +920,15 @@ export function recordGeminiCall(r: GeminiCallRecord): number | null {
 
 /**
  * ITEM 14. The background pass writes its verdict on the stored call: 'ok',
- * 'mismatch' (with the differences) or 'unchecked' (no math to check). A
- * mismatch row carries `input_ref` and `prompt_text` already, which is what
- * "marks the scan with its input and the exact prompt" means here.
+ * 'mismatch' (with the differences), 'partial' (nothing disagreed, but the dollar
+ * zone could not be run; the skip reasons are in the mismatches column, and it is
+ * not a mismatch) or 'unchecked' (no math to check). A mismatch row carries
+ * `input_ref` and `prompt_text` already, which is what "marks the scan with its
+ * input and the exact prompt" means here.
  */
 export function markGeminiMath(
   callId: number,
-  check: 'ok' | 'mismatch' | 'unchecked',
+  check: 'ok' | 'mismatch' | 'partial' | 'unchecked',
   mismatches: readonly unknown[] | null,
   now: Date = new Date(),
 ): boolean {

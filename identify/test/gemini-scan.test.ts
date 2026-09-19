@@ -171,11 +171,74 @@ test('three ranges and a unit are read, 30 percent is allowed, and an older clie
   assert.equal(readThresholds({ unit: 'percent', good: -4 }).source, 'default');
 });
 
-test('dollar mode reaches the prompt as amounts and the hidden check leaves the zone numbers alone', () => {
+test('dollar mode reaches the prompt as amounts and, with no typed price, the hidden check skips the zone', () => {
   const t = readThresholds({ unit: 'amount', great: 3, good: 1.5, bad: 2 });
   const p = buildRequestBody({ ...scan, thresholds: t }, modelForScan(on('2.5'), NO_ENV)).prompt.user;
   assert.match(p, /Unit: DOLLAR AMOUNTS/);
   assert.match(p, /Great range: 3 or more below the median/);
   assert.doesNotMatch(p, /Good range: [\d.]+%/);
   assert.equal(checkMath(parsed(), { ...t, underPct: 20, overPct: 20 }).mismatches.length, 0, 'zone numbers were checked against a percent that is not the user\'s');
+});
+
+/*
+ * Dollar mode, item 14. The fixture answer: median 3.00 per 100 g in CAD, a 225 g shelf, so the
+ * median at the shelf's size is 3.00 x 2.25 = 6.75. The user's lines: good 1.50 below, bad 2.00 above.
+ * A typed price of 6.00 is 0.75 under (middle), 5.00 is 1.75 under (under_your_line), 9.00 is 2.25
+ * over (over_your_line). The shelf unit price is the typed price over 2.25 (hundreds of grams).
+ */
+const DOLLARS = readThresholds({ unit: 'amount', great: 3, good: 1.5, bad: 2 });
+function shelfAnswer(typed: number, zone: string | null, extra: Record<string, unknown> = {}, verdict: Record<string, unknown> = {}) {
+  return parsed({
+    price_verdict: {
+      ...(goodAnswer().price_verdict as object),
+      shelf: { unit_price: Math.round((typed / 2.25) * 1000) / 1000, pct_vs_median: 0, position: 50, zone, label: 'x' },
+      ...verdict,
+    },
+    ...extra,
+  });
+}
+const ctx = (cents: number | null, currency: string | null = 'CAD') => ({ shelfPriceCents: cents, currency });
+
+test('dollar mode: the zone is recomputed from Gemini\'s median, the typed price and the dollar lines, and a match passes', () => {
+  for (const [typed, zone] of [[6, 'middle'], [5, 'under_your_line'], [9, 'over_your_line']] as const) {
+    const r = checkMath(shelfAnswer(typed, zone), DOLLARS, ctx(typed * 100));
+    assert.deepEqual(r.mismatches, [], `${typed} stated ${zone}`);
+    assert.deepEqual(r.skipped, [], `${typed} was skipped though every input was there`);
+  }
+});
+
+test('dollar mode: a zone that does not follow from the median and the typed price is marked like percent mode marks it', () => {
+  const r = checkMath(shelfAnswer(9, 'middle'), DOLLARS, ctx(900));
+  assert.deepEqual(r.mismatches, [{ field: 'shelf.zone', stated: 'middle', recomputed: 'over_your_line' }]);
+  const under = checkMath(shelfAnswer(5, 'over_your_line'), DOLLARS, ctx(500));
+  assert.deepEqual(under.mismatches.map((m) => [m.field, m.stated, m.recomputed]), [['shelf.zone', 'over_your_line', 'under_your_line']]);
+  // The comparison unit "item" needs no size: median 3.00 an item, typed 5.00 is 2.00 over, bad is more than 2.00 over.
+  const item = { comparison_unit: 'item', median_unit_price: 3, shelf: { unit_price: 5, pct_vs_median: 66, position: 90, zone: 'over_your_line', label: 'x' } };
+  const edge = checkMath(parsed({ price_verdict: { ...(goodAnswer().price_verdict as object), ...item } }), DOLLARS, ctx(500));
+  assert.deepEqual(edge.mismatches, [], 'exactly on the bad line is inside the rounding band, so either zone passes');
+  const clear = checkMath(parsed({ price_verdict: { ...(goodAnswer().price_verdict as object), ...item, shelf: { ...item.shelf, unit_price: 6, zone: 'middle' } } }), DOLLARS, ctx(600));
+  assert.equal(clear.mismatches.length, 1, '3.00 over the median at one item, stated middle, is over');
+});
+
+test('dollar mode: each input that is missing skips the zone with its reason and never guesses or passes it', () => {
+  const skipped = (r: ReturnType<typeof checkMath>) => r.skipped.map((s) => s.reason);
+  assert.deepEqual(skipped(checkMath(shelfAnswer(9, 'middle'), DOLLARS, ctx(null))), ['no_shelf_price']);
+  assert.deepEqual(skipped(checkMath(shelfAnswer(9, 'middle'), DOLLARS)), ['no_shelf_price']);
+  assert.deepEqual(skipped(checkMath(shelfAnswer(9, 'middle'), DOLLARS, ctx(900, 'USD'))), ['currency_differs'], 'a typed price in USD against a CAD answer');
+  assert.deepEqual(skipped(checkMath(shelfAnswer(9, 'middle'), DOLLARS, ctx(900, null))), ['user_currency_unknown']);
+  const eur = shelfAnswer(9, 'middle', { pricing_summary: { shelf_price: 9, shelf_currency: 'EUR' } });
+  assert.deepEqual(skipped(checkMath(eur, DOLLARS, ctx(900))), ['currency_differs'], 'Gemini read the shelf in another currency');
+  assert.deepEqual(skipped(checkMath(shelfAnswer(9, null), DOLLARS, ctx(900))), ['no_stated_shelf_zone']);
+  const noSize = parsed({ price_verdict: { ...(goodAnswer().price_verdict as object), shelf: { unit_price: null, pct_vs_median: 0, position: 50, zone: 'middle', label: 'x' } } });
+  assert.deepEqual(skipped(checkMath(noSize, DOLLARS, ctx(900))), ['shelf_size_unknown']);
+  for (const r of [checkMath(shelfAnswer(9, 'middle'), DOLLARS, ctx(null)), checkMath(shelfAnswer(9, 'middle'), DOLLARS, ctx(900, 'USD'))]) {
+    assert.deepEqual(r.mismatches, [], 'a skipped zone must not be reported as a mismatch');
+  }
+});
+
+test('dollar mode still checks the median and the count, and percent mode is unchanged by the new context', () => {
+  const badMedian = checkMath(shelfAnswer(6, 'middle', {}, { median_unit_price: 9 }), DOLLARS, ctx(600));
+  assert.ok(badMedian.mismatches.some((m) => m.field === 'median_unit_price'));
+  assert.deepEqual(checkMath(parsed(), DEFAULT_THRESHOLDS, ctx(900, 'USD')).mismatches, [], 'percent mode ignores the dollar context');
+  assert.deepEqual(checkMath(parsed(), DEFAULT_THRESHOLDS, ctx(900, 'USD')).skipped, []);
 });

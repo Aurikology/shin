@@ -23,7 +23,7 @@
  *   comparison set. That is a build standard earned by the same bug twice.
  */
 
-import { faceBlock, cad, confidenceOf, dotsHtml, tierOf, sellerOf, animateFace, shinSay, updateShinSay } from '../shin.js';
+import { faceBlock, confidenceOf, dotsHtml, tierOf, sellerOf, animateFace, shinSay, updateShinSay } from '../shin.js';
 import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { attachEye, startCaptureQueue } from '../eye-attach.js';
@@ -34,8 +34,9 @@ import { wireRadioGroup } from '../lib/radiogroup.js';
 import { t } from '../ui-strings.js';
 import * as shops from '../shops.js';
 import { countryLabel, countryIn } from './market.js';
-import { locale, localeTag } from '../lib/locale.js';
-import { priorPrices, historyChartHtml, formatMoney } from '../lib/price-history.js';
+import { locale } from '../lib/locale.js';
+import { priorPrices, historyChartHtml } from '../lib/price-history.js';
+import { money, currencyMark } from '../lib/money.js';
 import { render as renderProse, renderLines } from '../prose.js';
 import { submitCorrection } from '../corrections.js';
 import { identifyOffline } from '../offline-aisle.js';
@@ -229,29 +230,13 @@ function effectivePriceCents(typedCents, modifier) {
   return typedCents;
 }
 
-/**
- * A price in the market's own currency (row 34), never converted. The currency
- * is what the user's market holds (`store.market().currency`); with none chosen
- * or a code Intl does not know, the plain number is shown. Used by the going
- * rate cards, which used to print every price as Canadian dollars.
- */
-function money(cents) {
-  let currency = '';
-  try {
-    currency = store.market().currency || '';
-  } catch {
-    currency = '';
-  }
-  return formatMoney(cents, currency, localeTag());
-}
-
 /** The labelled effective price under the pad, e.g. "$5.00 after 20% off". */
 function modifierLabel(typedCents, modifier) {
   if (typedCents == null || !modifier) return '';
   const eff = effectivePriceCents(typedCents, modifier);
   if (eff === null || eff === typedCents) return '';
-  if (modifier.kind === 'percent') return `${cad(eff)} after ${modifier.pct}% off`;
-  return `${cad(eff)} each`;
+  if (modifier.kind === 'percent') return `${money(eff)} after ${modifier.pct}% off`;
+  return `${money(eff)} each`;
 }
 
 /**
@@ -306,13 +291,13 @@ function spreadRail(v) {
 
   return `
     <div class="rail" role="img"
-         aria-label="${escapeHtml(t('cam_rail_alt', { low: cad(lowCents), high: cad(highCents), asking: cad(v.askingCents) }))}">
+         aria-label="${escapeHtml(t('cam_rail_alt', { low: money(lowCents), high: money(highCents), asking: money(v.askingCents) }))}">
       <span class="rail-track"></span>
       <span class="rail-band" style="left:${at(lowCents)};width:${pct(highCents) - pct(lowCents)}%"></span>
       ${marks}
       <i class="rail-you${outside ? ' out' : ''}" style="left:${at(v.askingCents)}"></i>
-      <span class="rail-lo" style="left:${at(lowCents)}">${cad(lowCents)}</span>
-      <span class="rail-hi" style="left:${at(highCents)}">${cad(highCents)}</span>
+      <span class="rail-lo" style="left:${at(lowCents)}">${money(lowCents)}</span>
+      <span class="rail-hi" style="left:${at(highCents)}">${money(highCents)}</span>
       <span class="rail-me" style="left:${at(v.askingCents)}">${escapeHtml(t('cam_rail_you'))}</span>
     </div>`;
 }
@@ -723,7 +708,7 @@ function fillGrounded(slot, v) {
   mountGrounded(container, v.grounded, {
     // A refusal can arrive with no identity and no price; the gauge's own
     // label for the item is used then, rather than ", $NaN".
-    shelfLabel: label && Number.isFinite(v.askingCents) ? `${label}, ${cad(v.askingCents)}` : null,
+    shelfLabel: label && Number.isFinite(v.askingCents) ? `${label}, ${money(v.askingCents)}` : null,
   });
 }
 
@@ -751,8 +736,8 @@ function verdictSheet(v, scenario, thumb, acked = false) {
   // (AVATAR.md section 2) is met: delighted or angry, with the tier's own
   // word and colour unchanged, per the coordinator's Chrome-walk note.
   const face = acked ? 'pleased' : intenseFaceFor(v, tierOf(v.tier).face, conf, source);
-  const facts = { asking: cad(v.askingCents), usual: cad(v.spread.medianCents) };
-  const watchFacts = { asking: cad(v.askingCents), seller: source, day: 'today' };
+  const facts = { asking: money(v.askingCents), usual: money(v.spread.medianCents) };
+  const watchFacts = { asking: money(v.askingCents), seller: source, day: 'today' };
   const intenseKey = face === 'delighted' ? 'verdict_steal' : face === 'angry' ? 'verdict_ripoff' : null;
   // avatar-presence.md's opening rule: Shin is always a face and a speech
   // bubble, one component, never a heading of the screen's own. The tier
@@ -806,7 +791,7 @@ function verdictSheet(v, scenario, thumb, acked = false) {
         <h2 class="vword">${wordFor(v.tier)}</h2>
 
         <div class="priceline">
-          <span class="price">${cad(v.askingCents)}</span>
+          <span class="price">${money(v.askingCents)}</span>
           <span class="sub">${source ? `${escapeHtml(t('cam_at_seller', { seller: source }))}<br>` : ''}${goingRateRange(v)}</span>
         </div>
 
@@ -1230,7 +1215,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
  * user's lines, put into words by the same three strings the price line uses
  * (`priceline_zone_*`, which say "your line" and never grade the price). The
  * middle price and the shelf label are Gemini's values handed in as text by
- * `geminiReading`; there is no `cad()`, no percentage and no comparison in this
+ * `geminiReading`; there is no `money()`, no percentage and no comparison in this
  * function. The offers, reviews, alternatives and the price line itself are the
  * grounded block, mounted by `fillGrounded` exactly as the verdict sheet
  * mounts it. The catalogue is not consulted for an answer, so this sheet has
@@ -1335,7 +1320,7 @@ function geminiSheet(result, item, thumb, earlier = []) {
         ${groundedSlot()}
         ${alternativesBlock(g.alternatives)}
         ${(() => {
-          const chart = historyChartHtml(earlier, { format: money, heading: t('cam_hist_heading'), alt: t('cam_hist_alt', { n: String(Array.isArray(earlier) ? earlier.length : 0) }) });
+          const chart = historyChartHtml(earlier, { format: (c) => money(c), heading: t('cam_hist_heading'), alt: t('cam_hist_alt', { n: String(Array.isArray(earlier) ? earlier.length : 0) }) });
           return chart ? `<div class="gem-hist" data-gem-history>${chart}</div>` : '';
         })()}
         <div class="actions">
@@ -1430,7 +1415,7 @@ function candidateSheet(items) {
             .map(
               (i) => `<button type="button" class="cand" data-pick="${i.id}">
                 <span class="cand-name">${escapeHtml(i.text)}</span>
-                <span class="cand-meta">${cad(i.askingCents)}${i.askingSeller ? ` &middot; ${i.askingSeller}` : ''}${
+                <span class="cand-meta">${money(i.askingCents)}${i.askingSeller ? ` &middot; ${i.askingSeller}` : ''}${
                   i.observed ? '' : ' &middot; stand-in'
                 }</span>
               </button>`,
@@ -1525,14 +1510,18 @@ function padSeparator() {
 
 /**
  * The amount line above the keypad, currency mark and digits in the reader's
- * order: "$4.99" in English, "4,99 $" in French, the same order `cad()` prints
- * everywhere else. Both pad hosts paint it from here so they cannot disagree.
+ * order: "$4.99" in English, "4,99 $" in French, the same order `money()` prints
+ * everywhere else. The mark is the user's market currency's own (`currencyMark`);
+ * with no market chosen there is no mark and the pad shows the digits alone.
+ * Both pad hosts paint it from here so they cannot disagree.
  */
 function padAmountHtml(typed) {
   const digits = pricePadDisplay(typed);
+  const mark = escapeHtml(currencyMark());
+  if (mark === '') return digits;
   return locale() === 'fr'
-    ? `${digits}<span class="amount-cur amount-cur-after">$</span>`
-    : `<span class="amount-cur">$</span>${digits}`;
+    ? `${digits}<span class="amount-cur amount-cur-after">${mark}</span>`
+    : `<span class="amount-cur">${mark}</span>${digits}`;
 }
 
 /**
@@ -1900,7 +1889,7 @@ function goingRateCard(refusal, item) {
  * `refuses` is that distinction in the markup: Shin is not turning the shopper
  * away, Shin is taking a note.
  *
- * The price is the biggest thing on it, formatted by `cad()` like every other
+ * The price is the biggest thing on it, formatted by `money()` like every other
  * price in this app (`4,99 $` in French, and never re-implemented here), and
  * the caption under it says in chrome what the bubble says in Shin's voice.
  */
@@ -1920,7 +1909,7 @@ function observationCard(cents, seller, thumb = null, name = null) {
       <span class="grabber" aria-hidden="true"></span>
       <div class="sheet-peek">
         <div class="sheet-head">
-          ${shinSay('pleased', 'price_only_recorded', { price: cad(cents), seller: seller || '' }, {
+          ${shinSay('pleased', 'price_only_recorded', { price: money(cents), seller: seller || '' }, {
             size: 'face-ack',
             anim: 'pleased-nod',
           })}
@@ -1928,7 +1917,7 @@ function observationCard(cents, seller, thumb = null, name = null) {
         </div>
         <h2 class="vword" style="font-size:20px">${escapeHtml(t('cam_price_written_down'))}</h2>
         <div class="priceline">
-          <span class="price sm">${cad(cents)}</span>
+          <span class="price sm">${money(cents)}</span>
         </div>
         <p class="itemname">${escapeHtml(
           typeof name === 'string' && name.trim() ? name.trim() : t('cam_no_name_for_it'),
@@ -2859,7 +2848,7 @@ export default {
       return {
         item: label,
         seller: sellerName || '',
-        asking: typeof centsRaw === 'number' ? cad(centsRaw) : '',
+        asking: typeof centsRaw === 'number' ? money(centsRaw) : '',
         word,
       };
     }
@@ -4371,7 +4360,7 @@ export default {
           head.innerHTML = shinSay(
             'pleased',
             'keep_it_ack',
-            { asking: cad(k.askingCents), seller: k.seller, day: 'today' },
+            { asking: money(k.askingCents), seller: k.seller, day: 'today' },
             { size: 'face-ack', anim: 'pleased-nod' },
           );
         }

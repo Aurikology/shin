@@ -547,6 +547,8 @@ export interface ReadAnswer {
   readonly reviews: readonly { rating: number | null; count: number | null; summary: string; url: string | null }[];
   readonly verdict: ReadVerdict | null;
   readonly overallConfidence: number | null;
+  /** The currency Gemini says the shelf price is in (`pricing_summary.shelf_currency`), upper-cased, or null. Read for the hidden check only. */
+  readonly shelfCurrency: string | null;
   /** Gemini's alternatives, read tolerantly. A bad or missing section is marked here and never fails the scan. */
   readonly alternatives: ReadAlternatives;
 }
@@ -672,6 +674,8 @@ export interface ReadOffer {
   readonly raw: Record<string, unknown>;
   readonly retailer: string | null;
   readonly price: number | null;
+  /** The currency Gemini gave this offer, upper-cased, or null. Read for the hidden check only. */
+  readonly currency: string | null;
   readonly unitPrice: number | null;
   readonly inMedian: boolean;
   readonly exclusionReason: string | null;
@@ -703,6 +707,7 @@ export function readAnswer(value: Record<string, unknown> | null): ReadAnswer | 
       raw: r,
       retailer: s(r.retailer),
       price: n(r.price),
+      currency: s(r.currency)?.toUpperCase() ?? null,
       unitPrice: n(r.unit_price),
       inMedian: r.in_median === true,
       exclusionReason: s(r.exclusion_reason),
@@ -751,6 +756,7 @@ export function readAnswer(value: Record<string, unknown> | null): ReadAnswer | 
         }
       : null,
     overallConfidence: n(rec(value.uncertainty).overall_confidence),
+    shelfCurrency: s(rec(value.pricing_summary).shelf_currency)?.toUpperCase() ?? null,
     alternatives: readAlternatives(value.alternatives),
   };
 }
@@ -1197,10 +1203,26 @@ export interface MathMismatch {
   readonly recomputed: number | string | boolean | null;
 }
 
+/** A part of the check that was left out, and why. A skip is a mark, never a guess and never a pass. */
+export interface MathSkip {
+  readonly field: string;
+  readonly reason: string;
+}
+
 export interface MathCheck {
   /** False when the answer carried no math at all, so there was nothing to check. */
   readonly checked: boolean;
   readonly mismatches: readonly MathMismatch[];
+  /** Parts of the check that could not be run (dollar mode: no shelf price, another currency, no size). */
+  readonly skipped: readonly MathSkip[];
+}
+
+/** What the hidden check knows beyond Gemini's answer: what the user typed, and the user's currency. */
+export interface MathContext {
+  /** The shelf price the user typed, in the currency's minor unit; null or absent when they typed none. */
+  readonly shelfPriceCents?: number | null;
+  /** The user's currency (ISO code) as the scan request carried it; null or absent when unknown. */
+  readonly currency?: string | null;
 }
 
 function medianOf(values: readonly number[]): number {
@@ -1217,10 +1239,17 @@ const close = (stated: number, computed: number, abs: number, rel: number): bool
  * returned, with the user's own thresholds. Never shown to anyone: its only
  * output is a mark on the stored call, so a wrong answer can be found later
  * along with the exact prompt. Tolerances allow for rounding, not for error.
+ *
+ * Dollar mode (`thresholds.unit === 'amount'`) is checked from three things Shin
+ * does hold: Gemini's own median, the shelf price the user typed (`ctx`), and the
+ * user's dollar amounts. The zone is recomputed in money at the shelf's size and
+ * a mismatch is marked the same way percent mode marks one. A part that cannot be
+ * run (no typed price, a currency that differs or is unknown, no way to get the
+ * shelf's size) is listed in `skipped` with its reason: never guessed, never a pass.
  */
-export function checkMath(answer: ReadAnswer | null, thresholds: Thresholds): MathCheck {
+export function checkMath(answer: ReadAnswer | null, thresholds: Thresholds, ctx: MathContext = {}): MathCheck {
   const v = answer?.verdict ?? null;
-  if (!answer || !v) return { checked: false, mismatches: [] };
+  if (!answer || !v) return { checked: false, mismatches: [], skipped: [] };
   const out: MathMismatch[] = [];
   const onLine = answer.offers.filter((o) => o.inMedian && o.unitPrice !== null && o.unitPrice > 0);
   const median = onLine.length >= 2 ? medianOf(onLine.map((o) => o.unitPrice as number)) : null;
@@ -1229,7 +1258,7 @@ export function checkMath(answer: ReadAnswer | null, thresholds: Thresholds): Ma
   if (!v.available && onLine.length >= 2 && v.noVerdictReason !== 'no_shelf_size') {
     out.push({ field: 'verdict_available', stated: false, recomputed: true });
   }
-  if (median === null || !v.available) return { checked: true, mismatches: out };
+  if (median === null || !v.available) return { checked: true, mismatches: out, skipped: [] };
 
   if (v.offersInMedian !== null && v.offersInMedian !== onLine.length) {
     out.push({ field: 'offers_in_median', stated: v.offersInMedian, recomputed: onLine.length });
@@ -1237,11 +1266,14 @@ export function checkMath(answer: ReadAnswer | null, thresholds: Thresholds): Ma
   if (v.median === null || !close(v.median, median, 0.005, 0.005)) {
     out.push({ field: 'median_unit_price', stated: v.median, recomputed: median });
   }
-  /* Dollar mode: the zone, position and span numbers rest on percents Gemini derived
-     from the user's amounts and the size, which Shin does not hold, so they are left
-     unchecked rather than checked against a guess. The median and the count above are
-     still checked. */
-  if (thresholds.unit === 'amount') return { checked: true, mismatches: out };
+  /* Dollar mode: the zone is recomputed in money from Gemini's median, the typed shelf
+     price and the user's amounts. The position and span numbers rest on percents Gemini
+     derived itself and are not checked in this mode. */
+  if (thresholds.unit === 'amount') {
+    const dollar = checkDollarZone(answer, v, thresholds, ctx);
+    if (dollar.mismatch) out.push(dollar.mismatch);
+    return { checked: true, mismatches: out, skipped: dollar.skip ? [dollar.skip] : [] };
+  }
   const pctOf = (price: number): number => (median === 0 ? 0 : ((price - median) / median) * 100);
   const shelfPct = v.shelf && v.shelf.unitPrice !== null ? pctOf(v.shelf.unitPrice) : null;
   const allAbs = [...onLine.map((o) => Math.abs(pctOf(o.unitPrice as number))), ...(shelfPct === null ? [] : [Math.abs(shelfPct)])];
@@ -1274,5 +1306,60 @@ export function checkMath(answer: ReadAnswer | null, thresholds: Thresholds): Ma
       out.push({ field: `offer.position:${o.retailer ?? '?'}`, stated: o.position, recomputed: want });
     }
   }
-  return { checked: true, mismatches: out };
+  return { checked: true, mismatches: out, skipped: [] };
+}
+
+/**
+ * The dollar-mode half of the hidden check. The thresholds are money per item at the
+ * shelf's size (`great`, `good`, `bad`), so the median has to be put at that size:
+ * median unit price times the size in comparison units. The size is 1 when the
+ * comparison unit is "item", and otherwise the typed shelf price over Gemini's own
+ * shelf unit price (price / (price per 100 g) = hundreds of grams). Then the shelf's
+ * distance from that median, in money, is placed on the user's lines exactly as the
+ * percent mode places a percent: at or below minus the good amount is under the line,
+ * above the bad amount is over it, otherwise middle.
+ *
+ * Rounding: Gemini rounds its unit prices, and the size here is derived from a rounded
+ * one, so a shelf price within 1 percent of the median (at least one cent) of a line is
+ * not called wrong on either side of it. That band is rounding, not error.
+ */
+function checkDollarZone(
+  answer: ReadAnswer,
+  v: ReadVerdict,
+  thresholds: Thresholds,
+  ctx: MathContext,
+): { mismatch: MathMismatch | null; skip: MathSkip | null } {
+  const skip = (reason: string) => ({ mismatch: null, skip: { field: 'shelf.zone', reason } });
+  const a = thresholds.amounts;
+  if (!a) return skip('no_dollar_amounts');
+  const cents = ctx.shelfPriceCents;
+  if (typeof cents !== 'number' || !Number.isFinite(cents) || cents <= 0) return skip('no_shelf_price');
+  if (!v.shelf || v.shelf.zone === null) return skip('no_stated_shelf_zone');
+  if (v.median === null || !(v.median > 0)) return skip('no_stated_median');
+
+  // Same currency only: the typed price is in the user's currency, and so must Gemini's be.
+  const user = ctx.currency?.trim().toUpperCase() || null;
+  if (user === null) return skip('user_currency_unknown');
+  const theirs = new Set(
+    [answer.shelfCurrency, ...answer.offers.filter((o) => o.inMedian).map((o) => o.currency)].filter((c): c is string => c !== null),
+  );
+  if (theirs.size === 0) return skip('gemini_currency_unstated');
+  if ([...theirs].some((c) => c !== user)) return skip('currency_differs');
+
+  const price = cents / 100;
+  let sizeUnits: number;
+  if (v.comparisonUnit?.trim().toLowerCase() === 'item') {
+    sizeUnits = 1;
+  } else if (v.shelf.unitPrice !== null && v.shelf.unitPrice > 0) {
+    sizeUnits = price / v.shelf.unitPrice;
+  } else {
+    return skip('shelf_size_unknown');
+  }
+  const medianAtSize = v.median * sizeUnits;
+  const zoneAt = (diff: number): string => (diff <= -a.good ? 'under_your_line' : diff > a.bad ? 'over_your_line' : 'middle');
+  const diff = price - medianAtSize;
+  const eps = Math.max(0.01, 0.01 * medianAtSize);
+  const allowed = new Set([zoneAt(diff), zoneAt(diff - eps), zoneAt(diff + eps)]);
+  if (allowed.has(v.shelf.zone)) return { mismatch: null, skip: null };
+  return { mismatch: { field: 'shelf.zone', stated: v.shelf.zone, recomputed: zoneAt(diff) }, skip: null };
 }
