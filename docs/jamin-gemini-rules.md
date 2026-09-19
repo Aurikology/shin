@@ -217,6 +217,10 @@ a month against about 1,250. Default model id `gemini-2.5-flash`. The code today
 rebuild changes that default, and until then `SHIN_GEMINI_MODEL=gemini-2.5-flash` overrides it.
 Any cost figure must bill 2.5 per prompt, not per query. The paid-key test runs 2.5 and a 3.x model
 side by side on the same scans; 3.x replaces 2.5 only if that test says so.
+**Both models are tested in the beta itself**, his words 2026-09-19: *"both models should be
+tested for the beta."* The beta build can run either model per scan, records which one answered,
+and reports them side by side (right product, searches, tokens, cost, seconds, answers that did
+not parse). The server needs both model ids configured, not one override.
 
 **Gemini 2.5 cannot enforce the answer shape while searching (found 2026-09-18).**
 ai.google.dev/gemini-api/docs/structured-output: combining a response schema with Google Search
