@@ -83,3 +83,6 @@ mac/config.env
 # history permanently. Found untracked and un-ignored 2026-09-18, the same way
 # identify/data/ was found on 2026-09-14.
 catalogue/crosslang-work.db
+
+# Account credentials, never in the repo (hard rule: no secrets committed)
+*@gmail.com.txt
