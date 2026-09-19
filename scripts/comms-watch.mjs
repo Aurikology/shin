@@ -2,8 +2,8 @@
 /**
  * comms-watch: prints one line when the other person pushes to GitLab.
  *
- * WHY. Jamin, 2026-09-19: GitLab is the default channel between his sessions and
- * Aurik's (CLAUDE.md, WHO IS WORKING ON WHAT). Nothing wakes a session when a push
+ * WHY. Jamin, 2026-09-19, wanted to be told when Aurik pushes or leaves a message on
+ * GitLab (the board itself stays on Notion, CLAUDE.md WHO IS WORKING ON WHAT). Nothing wakes a session when a push
  * lands, and polling with a model costs credits every time. This does the polling
  * with git alone, so it costs nothing, and prints only when there is something to
  * read, so a session that runs it in the background is woken only then.

@@ -150,52 +150,49 @@ typecheck green, then push.
 
 ## WHO IS WORKING ON WHAT (every session, every machine)
 
-Jamin, 2026-09-19: *"set it up so the default communication is now gitlab and not notion"*. Until
-then the shared board was the Notion page `Shin: who is working on what`; it had a
-five-day hole where Aurik's sessions could not read it at all, and its workspace runs out of
-free writes on 2026-09-22. GitLab is the one thing every session on every account already
-reads and writes, so the board now lives in the repo, in `comms/` (see `comms/README.md`).
+Jamin, 2026-09-14: *"we can simply have a notion page or a google docs pagae that claude updates
+with as it goes"*. The page is Notion, `Shin: who is working on what`
+(https://app.notion.com/p/3db09fb15fcf8155bc04ef261e4e1d9c). Jamin, same day: *"what if both of
+us try to work on the same proejct, what if one project claims a project and doesn't update, how
+does a claude session know another claude session is working"*. The answers, as rules:
 
 **What reaches whom.** Aurik's sessions run on another Claude account: live messages
-(`SendMessage`) and the PC/Mac mailbox never reach them. What every session shares is **GitLab**.
-The humans carry decisions. No session is woken by a push; `scripts/comms-watch.mjs` is a free
-poll (no model calls) that a session can run in the background to be told when the other side
-pushes. Write for a reader who arrives later.
+(`SendMessage`) and the PC/Mac mailbox never reach them. The only things every session shares are
+**GitLab** (the code) and **this page** (intent and questions). The humans carry decisions. No
+session is ever woken by the page; it is read at the moments below, so write for a reader who
+arrives later.
 
-1. **Start.** `git pull`, then read `comms/`: messages to you (`comms/messages/*-to-<you>-*` and
-   `*-to-all-*`), then claims (`comms/claims/`). A message to you comes first.
-2. **Claim.** Write `comms/claims/<name>.md`: `who · machine · what · parts of the app · started`.
-   Commit and push it before the first edit. If another claim covers the same part and started
-   earlier (`git log` on its file), yours gives way: delete it and pick other work.
-3. **Alive means pushing.** Liveness is read from `git log`, not from a line to refresh. Push
-   small: each piece that passes tests. An unpushed piece exists only on your machine.
-4. **Stale.** A claim whose owner has pushed nothing for 1 hour is stale. To work on its part,
-   leave a message to the owner and tell your human. After 24 hours with no answer, take it over:
-   edit the claim to `taken over by <you>, stale since <time>`. The owner's unpushed work is
-   theirs to merge when they come back; the later pusher resolves conflicts.
+1. **Start.** `git pull`, then fetch the page. Read **Needs attention** first: a question to you,
+   or main broken. Then **Working on now**.
+2. **Claim.** Add a line: `who · machine · what · parts of the app · started · updated`. Re-fetch
+   once after writing: if another line on the same part has an earlier `started`, yours yields
+   (delete your line, take other work, tell your human). Different parts of the app, just work.
+3. **Stay alive: every 20 minutes** (Jamin, 2026-09-14: *"it should be updateing every 20
+   minutes"*). While working, re-read the page (Needs attention first) and refresh your line's
+   `updated`, at least every 20 minutes and at every push. `.claude/hooks/notion-heartbeat.mjs`
+   reminds the session when it edits, commits or pushes past that; it cannot remind an idle
+   session. Push small: each piece that passes tests. An unpushed piece exists only on your machine.
+4. **Stale.** A line with no `updated` for 1 hour is stale. To work on its part, write a question
+   under Needs attention and tell your human, who asks the owner's human. After 24 hours with no
+   answer, take it over: edit the line to `taken over by <you>, stale since <time>`. The owner's
+   unpushed work is theirs to merge when they come back; the later pusher resolves conflicts.
 5. **Needing another session's changes.** Ask it to push, never take them: never copy files from
-   another working copy, never commit another session's files. Leave a message (Aurik's
-   sessions), or `SendMessage` after a fresh `ListAgents` plus the mailbox (Jamin's own machines).
-6. **Stop.** Delete your claim in the last commit of the work. Stopping with unpushed work: edit
-   the claim to `paused · unpushed on <machine> · what is left`.
-7. **Main broken.** Whoever finds tests red on main leaves a message to `all` at once. Fix it if it
-   is small and yours to understand; revert another person's commit only if its author has not
-   answered in 3 hours, and say so in a message.
+   another working copy, never commit another session's files. Ask under Needs attention (Aurik's
+   sessions) or by `SendMessage` after a fresh `ListAgents` plus the mailbox (Jamin's own
+   machines). It answers by pushing at its next green point, or with when it will.
+6. **Stop.** On push, move the line to **Finished**. Stopping with unpushed work: set the line to
+   `paused · unpushed on <machine> · what is left`. A crashed session's line goes stale by rule 4.
+7. **Main broken.** Whoever finds tests red on main writes it at the top of Needs attention. Fix
+   it if it is small and yours to understand; revert another person's commit only if its author
+   has not answered in 3 hours, and say so on the page.
 8. **One working copy per session.** Two sessions on one machine never edit the same folder: the
    second clones its own copy (still on `main`, no branches). The beta server on the Mac is
    restarted only by a Mac session, after checking no one else's uncommitted work is in its tree.
 9. **Humans decide:** taking over before 24 hours, deleting anyone's work, changing these rules or
    a shared status file's meaning, anything involving a secret.
 
-**Messages.** One file per message, `comms/messages/YYYY-MM-DD-HHMM-<from>-to-<to>-<slug>.md`,
-with `<from>` and `<to>` one of `jamin`, `aurik`, `all`. The first line is the ask or the finding.
-The reader deletes the file when it is settled; git keeps the history. A commit message is also
-read, but anything that needs an answer goes in a file.
-
-**Notion is no longer the default.** The old page stays as history and as the Mac's deploy board:
-the Mac reads deploy requests from it and writes its status and log there. A push to `main`
-deploys on its own, so nothing needs a request line. Do not use the page for claims or
-questions; the Mac cannot be trusted to keep writing there after 2026-09-22.
+A session with no Notion access says so to its human at the start rather than skipping silently:
+an unread page reports "clear" when it is not.
 
 ## BETA DATA (reading what testers did, from any machine)
 
