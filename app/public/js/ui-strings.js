@@ -197,17 +197,13 @@ const EN = {
   cam_search: 'Search',
   cam_torch: 'Torch',
   cam_this: 'this',
-  cam_shutter: 'Scan what you are pointing at',
-  /* Rule 2, 2026-09-15. The camera no longer reads a barcode by itself, so the
-     two ways to scan are a mode the shopper picks, and the barcode one has its
-     own button where the shutter would be. */
-  /* W30, 2026-09-19: his three modes, in his words. The photo scan is the Price
-     Tag mode now (the picture is a shelf tag); the key keeps its name because
-     the scan path under it is still the photo path. */
-  cam_mode_photo: 'Price Tag',
-  cam_mode_barcode: 'Scan Barcode',
+  /* 2026-09-19: the camera screen has no mode tabs. These three are the
+     accessible names of its three icon buttons: the shutter (a photo, sent as a
+     shelf tag, W30's Price Tag hint), the barcode button below, and the
+     keyboard button (W30's Manual Search, a typed name). `cam_mode_manual`
+     keeps its name because tests and history know it by it. */
+  cam_shutter: 'Take a photo',
   cam_mode_manual: 'Manual Search',
-  cam_mode_picker: 'What to scan',
   /* Row 25: validation or switching, chosen by the user on the price pad. */
   cam_alt_group: 'What do you want from this scan?',
   cam_alt_validation: 'Is this a good price?',
@@ -658,16 +654,13 @@ const FR = {
   cam_search: 'Chercher',
   cam_torch: 'Lampe',
   cam_this: 'ça',
-  cam_shutter: 'Scanner ce que tu pointes',
-  cam_mode_photo: 'Étiquette',
-  cam_mode_barcode: 'Code-barres',
+  cam_shutter: 'Prendre une photo',
   cam_mode_manual: 'Recherche manuelle',
   cam_alt_group: 'Que veux-tu de ce scan?',
   cam_alt_validation: 'Est-ce un bon prix?',
   cam_alt_switching: 'Trouve-moi mieux',
   cam_hist_heading: 'Tes prix précédents',
   cam_hist_alt: (f) => `Tes ${f.n} derniers prix pour cet article, du plus ancien au plus récent.`,
-  cam_mode_picker: 'Quoi scanner',
   cam_scan_barcode: 'Scanner le code-barres',
   you_torch_group: 'Lampe',
   you_torch_auto: 'Auto',

@@ -97,7 +97,7 @@ test('the ready signal only reports; it never sends anything', () => {
   const emit = between(EYE, '  #emitBarcodes(): void {', '  /**\n   * The torch, and the case', '#emitBarcodes');
   assert.ok(emit.includes('this.#events.onBarcodeReady?.('), 'the vote has no way to tell the screen it has a winner');
   assert.ok(!emit.includes('onBarcode('), '#emitBarcodes emits a read, which is the auto-pop-up defect');
-  const ready = between(SCREEN, '    function onBarcodeReady(ready) {', '    function setState(next) {', 'onBarcodeReady');
+  const ready = between(SCREEN, '    function onBarcodeReady(ready) {', '    /**\n     * The barcode button pressed with no code', 'onBarcodeReady');
   assert.ok(!/onBarcode\(|proceed\(|identify/.test(ready), 'showing the button also starts a scan');
 });
 
@@ -120,34 +120,31 @@ test('both the live handle and the inert one carry scanBarcode', () => {
 
 /* ----------------------------------------------------------- 4. the button */
 
-test('the screen renders a scan-barcode control and a photo/barcode toggle', () => {
+/*
+ * 2026-09-19: the mode tabs are gone. The barcode button is always on the
+ * camera beside the shutter, so the old "starts hidden, the vote shows it"
+ * tests are replaced by their honest successors: it is never hidden, the vote
+ * lights it, and pressing it with nothing read answers instead of doing nothing.
+ * The rest of the camera-screen wiring is in camera-icons.test.mjs.
+ */
+
+test('the screen renders a scan-barcode control and no mode toggle', () => {
   assert.match(SCREEN, /data-act="scan-barcode"/, 'there is no scan-barcode control at all');
   assert.match(SCREEN, /class="scan-code-btn"/, 'the barcode control is not its own distinct button');
-  assert.match(SCREEN, /data-act="scan-mode" data-mode="photo"/, 'there is no photo half of the mode toggle');
-  assert.match(SCREEN, /data-act="scan-mode" data-mode="barcode"/, 'there is no barcode half of the mode toggle');
-  // The bar keeps exactly its three positions: the two nav buttons and one
-  // middle control with two faces. A fourth control in .cam-bar is what the
-  // 44px gap has no room for.
+  assert.ok(!/data-act="scan-mode"|data-mode=/.test(SCREEN), 'a scan-mode toggle is back');
   const bar = between(SCREEN, '<div class="cam-bar">', '</div>\n      </div>', '.cam-bar');
-  assert.equal((bar.match(/data-act="/g) ?? []).length, 4, 'the bottom bar no longer holds exactly watchlist, shutter, scan-barcode, you');
-  const flat = SCREEN.replace(/\s+/g, ' ');
-  const barFlat = bar.replace(/\s+/g, ' ');
-  assert.ok(/class="shutter"[^>]*hidden/.test(barFlat), 'the shutter is not hidden, so the default is no longer barcode');
-  assert.ok(flat.includes('data-mode="barcode" aria-pressed="true"'), 'the toggle does not show Barcode as the pressed half');
-  assert.ok(flat.includes('data-mode="photo" aria-pressed="false"'), 'the toggle still shows Photo as the pressed half');
-  assert.ok(flat.includes("let scanMode = 'barcode';"), 'the state variable no longer starts on barcode');
-  assert.ok(flat.includes('setScanMode(scanMode);'), 'nothing drives the markup off the variable at render');
+  assert.equal((bar.match(/data-act="/g) ?? []).length, 5, 'the bottom bar no longer holds exactly watchlist, scan-barcode, shoot, manual-search, you');
 });
 
-test('the barcode button starts HIDDEN and only the vote shows it', () => {
+test('the barcode button is never hidden, and only the vote lights it', () => {
   const bar = between(SCREEN, '<div class="cam-bar">', '</div>\n      </div>', '.cam-bar').replace(/\s+/g, ' ');
-  assert.ok(/data-act="scan-barcode" hidden>/.test(bar), 'the button is on screen before any barcode has been voted for');
-  const paint = between(SCREEN, '    function paintBarcodeButton() {', '    /** The eye\'s vote settled', 'paintBarcodeButton');
-  assert.ok(paint.includes("btn.hidden = !(scanMode === 'barcode' && idle && barcodeReady);"),
-    'the button shows for something other than a settled vote in barcode mode at idle');
-  const raises = SCREEN.match(/\.scan-code-btn'\)[^\n]*\.hidden = false|btn\.hidden = false/g) ?? [];
-  assert.equal(raises.length, 0, 'something un-hides the button without going through the vote');
-  assert.ok(!SCREEN.includes('scanBtn.hidden = !barcode'), 'setScanMode shows the button for the mode alone again');
+  assert.ok(/data-act="scan-barcode" aria-label="[^"]*">/.test(bar), 'the barcode button is not a plain always-present button');
+  assert.ok(!/data-act="scan-barcode"[^>]*hidden/.test(bar), 'the barcode button starts hidden again');
+  const paint = between(SCREEN, '    function paintBarcodeButton() {', '    /**\n     * The eye\'s vote settled', 'paintBarcodeButton');
+  assert.ok(paint.includes("btn.classList.toggle('is-ready', idle && Boolean(barcodeReady));"),
+    'the button lights for something other than a settled vote at idle');
+  const raises = SCREEN.match(/\.scan-code-btn'\)[^\n]*\.hidden = |btn\.hidden = /g) ?? [];
+  assert.equal(raises.length, 0, 'something hides or shows the button by hand instead of the vote lighting it');
 });
 
 test('the eye handler wires the vote to the button', () => {
@@ -156,34 +153,36 @@ test('the eye handler wires the vote to the button', () => {
     'the attach layer drops the ready signal');
 });
 
-test('the click dispatch wires scan-barcode to the eye and scan-mode to the swap', () => {
+test('the click dispatch wires scan-barcode to the eye, and only at idle', () => {
   const dispatch = between(SCREEN, "      if (act === 'shoot') { shoot(); return; }", "      if (act === 'pad-shop')", 'the click dispatch');
   assert.match(dispatch, /if \(act === 'scan-barcode'\)/, 'scan-barcode has no branch, so the button does nothing');
   assert.match(dispatch, /eye\?\.scanBarcode\?\.\(\)/, 'the branch never asks the eye for the settled code');
-  assert.match(dispatch, /if \(act === 'scan-mode'\) \{\s+setScanMode\(/, 'the toggle is not wired to setScanMode');
+  assert.ok(!/scan-mode|setScanMode/.test(dispatch), 'the dispatch still knows the mode toggle');
   assert.match(dispatch, /cam\.dataset\.state !== 'idle'/,
     'the barcode button fires while a sheet is up, underneath an answer already on screen');
 });
 
-test('setScanMode swaps one control for the other and never sends a read', () => {
-  const fn = between(SCREEN, '    function setScanMode(next) {', '    /**\n     * Whether the eye is decoding', 'setScanMode');
-  assert.match(fn, /shutter\.hidden = barcode;/, 'the shutter stays reachable in barcode mode');
-  assert.match(fn, /paintBarcodeButton\(\)/, 'the barcode button is not re-evaluated on a mode change');
-  assert.match(fn, /aria-pressed/, 'the toggle never says which half is chosen');
-  assert.doesNotMatch(fn, /scanBarcode\(\)/, 'changing mode sends a read');
-  const decoding = between(SCREEN, '    function syncDecoding() {', '    /** The button is visible exactly', 'syncDecoding');
-  assert.ok(decoding.includes("scanMode === 'barcode' && idle"), 'the decoder runs in photo mode or during a scan');
+test('the eye decodes at idle and stands down otherwise, with no mode in the way', () => {
+  const decoding = between(SCREEN, '    function syncDecoding() {', '    /** The barcode button is always there', 'syncDecoding');
+  assert.ok(decoding.includes('eye?.setBarcodeMode?.(idle);'), 'the decoder is gated on something other than idle');
+  assert.ok(!/scanMode|setScanMode/.test(SCREEN), 'a scan mode is back');
+  assert.ok(SCREEN.includes('barcodeMode: true,'), 'the eye no longer starts decoding');
 });
 
 /* ---------------------------------------------------------- 5. the strings */
 
-const NEW_KEYS = ['cam_scan_barcode', 'cam_mode_photo', 'cam_mode_barcode', 'cam_mode_picker'];
+// The three accessible names of the camera's icon buttons (the barcode button
+// keeps `cam_scan_barcode`, the shutter `cam_shutter`, the keyboard button
+// `cam_mode_manual`).
+const NEW_KEYS = ['cam_scan_barcode', 'cam_shutter', 'cam_mode_manual'];
+// Where the French table opens: its own `cam_shutter`.
+const FR_MARK = "cam_shutter: 'Prendre une photo'";
 
-test('every new key is in BOTH string tables', () => {
+test('every icon label key is in BOTH string tables', () => {
   // The locale id is `fr`, not `fr-CA`. The two tables are one file, split at
   // the French one's own opening; each key is asserted in its own half so a
   // key present twice in EN and never in FR cannot pass.
-  const frAt = STRINGS.indexOf("cam_shutter: 'Scanner ce que tu pointes'");
+  const frAt = STRINGS.indexOf(FR_MARK);
   assert.notEqual(frAt, -1, 'the French table moved; this file can no longer tell the two halves apart');
   const en = STRINGS.slice(0, frAt);
   const fr = STRINGS.slice(frAt);
@@ -194,59 +193,63 @@ test('every new key is in BOTH string tables', () => {
 });
 
 test('the French strings are French, not the English ones copied across', () => {
-  const frAt = STRINGS.indexOf("cam_shutter: 'Scanner ce que tu pointes'");
+  const frAt = STRINGS.indexOf(FR_MARK);
   const fr = STRINGS.slice(frAt);
   assert.match(fr, /cam_scan_barcode: 'Scanner le code-barres'/, 'the barcode button has no French');
-  assert.match(fr, /cam_mode_barcode: 'Code-barres'/, 'the barcode mode label has no French');
-  // cam_mode_photo is deliberately 'Photo' in both: it is the same word.
+  assert.match(fr, /cam_mode_manual: 'Recherche manuelle'/, 'the keyboard button has no French');
 });
 
-test('the screen reads the new keys through t(), not as literals', () => {
+test('the screen reads the icon label keys through t(), not as literals', () => {
   for (const key of NEW_KEYS) {
     assert.ok(SCREEN.includes(`t('${key}')`), `${key} is rendered as a hardcoded string instead of translated`);
+  }
+  // The tab labels are gone with the tabs: a string nobody renders is a string
+  // somebody will translate for nothing.
+  for (const gone of ['cam_mode_photo', 'cam_mode_barcode', 'cam_mode_picker']) {
+    assert.ok(!STRINGS.includes(`${gone}:`), `${gone} is still in the string tables with no tab to label`);
   }
 });
 
 /* -------------------------------------------------------------- 6. the CSS */
 
-test('the toggle and the barcode button are styled, and the bar height token is untouched', () => {
-  assert.match(CSS, /^\.cam-mode \{/m, 'the mode toggle has no styling');
+test('the barcode and keyboard buttons are styled, and the bar height token is untouched', () => {
   assert.match(CSS, /^\.scan-code-btn \{/m, 'the barcode button has no styling');
+  assert.match(CSS, /^\.type-btn \{/m, 'the keyboard button has no styling');
+  assert.ok(!/\.cam-mode|\[data-mode/.test(CSS), 'the mode tab styling is back');
   assert.match(
     CSS,
     /--cam-bar-h: calc\(132px \+ env\(safe-area-inset-bottom\)\);/,
     'the bar height token changed -- the reticle and the dock are both measured against it',
   );
-  // The toggle's own strip is folded into the band the reticle is measured
-  // off, so the two cannot drift apart.
-  assert.match(CSS, /--cam-mode-band: calc\(var\(--cam-mode-h\) \+ var\(--cam-mode-gap\)\);/,
-    'the toggle has no measured height, so the dock band does not know it is there');
-  assert.match(CSS, /--dock-band-bottom: calc\(var\(--cam-bar-h\) \+ var\(--cam-mode-band\)/,
-    'the dock band does not account for the toggle, so the docked face sits on top of it');
-  // 44px is D-050's tap floor and the reason this strip is that tall.
-  assert.match(CSS, /--cam-mode-h: 44px;/, 'the mode toggle is under the 44px tap floor');
-  // Its place is kept while hidden, or the nav buttons slide together and apart.
-  assert.match(CSS, /\.cam\[data-mode="barcode"\] \.scan-code-btn\[hidden\] \{ display: block; visibility: hidden;/,
-    'the hidden barcode button gives its place away, so the bar jumps when a code comes into view');
+  // The tab strip's band went with the tabs, so the dock band is the bar, the
+  // gap and the dock, and nothing else.
+  assert.match(CSS, /--dock-band-bottom: calc\(var\(--cam-bar-h\) \+ var\(--dock-gap\) \+ var\(--dock-h\)\);/,
+    'the dock band no longer matches the bar plus the docked face');
+  // The lit state of the barcode button, in place of the old show and hide.
+  assert.match(CSS, /\.scan-code-btn\.is-ready \{/, 'the button has no lit look for a settled vote');
 });
 
-test('a crop is never identified while the shopper is scanning a barcode', () => {
+test('a crop is never identified unless a shutter press asked for it', () => {
   /*
    * A barcode is on the BACK of the package, so the frame that reads one is a
    * photograph of the back. Identifying it would spend an image call to be told
-   * nothing. Today nothing routes a crop here in barcode mode -- the shutter is
-   * hidden and eye-attach passes autoCapture false -- but Camera's own default
-   * is `options.autoCapture ?? true`, so that is two unrelated settings agreeing,
-   * not an invariant. This pins the invariant at the point the crop is consumed.
+   * nothing. Nothing routes an unbidden crop here today -- eye-attach passes
+   * autoCapture false -- but Camera's own default is `options.autoCapture ??
+   * true`, so that is one setting in another file, not an invariant. This pins
+   * the invariant at the point the crop is consumed: shoot() enters `framing`
+   * before it asks the eye for the capture.
    */
   const onCapture = between(SCREEN, 'onCapture: (crop) => {', '      },', 'the onCapture handler');
   assert.ok(
-    onCapture.includes("if (scanMode !== 'photo') return;"),
-    'onCapture does not check the scan mode, so a crop taken in barcode mode could be identified',
+    onCapture.includes("if (cam.dataset.state !== 'framing') return;"),
+    'onCapture does not check that a shutter press is under way, so an unbidden crop could be identified',
   );
-  const modeGuard = onCapture.indexOf("scanMode !== 'photo'");
+  const guard = onCapture.indexOf("cam.dataset.state !== 'framing'");
   const handOff = onCapture.indexOf('handlePhotoCapture(crop)');
-  assert.ok(modeGuard > -1 && handOff > modeGuard, 'the mode guard does not precede the hand-off to the identifier');
+  assert.ok(guard > -1 && handOff > guard, 'the guard does not precede the hand-off to the identifier');
+  const shoot = between(SCREEN, '    function shoot() {', '    /*\n     * Row 47, 48, 49, take', 'shoot');
+  assert.ok(shoot.indexOf("setState('framing')") > -1 && shoot.indexOf("setState('framing')") < shoot.indexOf('eye.capture()'),
+    'shoot() no longer enters framing before it takes the capture, so the guard above would drop every photo');
 });
 
 /* ---------------------------------------- 7. every code in view is drawn */

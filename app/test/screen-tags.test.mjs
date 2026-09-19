@@ -400,7 +400,7 @@ test('nothing draws on document.body, so the badge watching #screen sees every v
 
 test('every selector names only classes and attributes its file still contains', () => {
   for (const [tag, e] of entries) {
-    if (!e.sel) continue;
+    if (!e.sel || e.retired) continue;
     const src = read(new URL(e.file, REPO));
     const classes = [...e.sel.matchAll(/\.([A-Za-z][\w-]*)/g)].map((m) => m[1]);
     for (const c of classes) {
@@ -421,7 +421,7 @@ test('every selector names only classes and attributes its file still contains',
 
 test('with only its own selector present, every entry is the one chosen', () => {
   for (const [tag, e] of entries) {
-    if (e.route === null) continue;
+    if (e.route === null || e.retired) continue;
     const route = e.route === '*' ? 'camera' : e.route;
     const got = pickTag(route, (sel) => sel === e.sel);
     assert.equal(got, tag, `${tag} (${e.id}) was not chosen when its own selector matched; got ${got}`);
@@ -442,6 +442,13 @@ test('with nothing matching, a route falls back to its own first entry, never an
 test('a render failure page outranks whatever the screen underneath was', () => {
   assert.equal(SCREEN_TAGS[pickTag('camera', () => true)].id, 'screen-error');
   assert.equal(SCREEN_TAGS[pickTag('you', (s) => s === '.screen-error')].id, 'screen-error');
+});
+
+test('a retired tag keeps its number and is never chosen', () => {
+  const tags = { a1: { route: 'r' }, a2: { route: 'r', sel: '.x', rank: 9, retired: true } };
+  assert.equal(pickTag('r', () => true, tags), 'a1', 'a retired tag was chosen');
+  assert.equal(SCREEN_TAGS.a81.retired, true, 'the Manual Search mode tag is no longer marked retired');
+  assert.equal(pickTag('camera', (sel) => sel === SCREEN_TAGS.a81.sel), 'a32', 'a camera that shows no mode still lands on a retired tag');
 });
 
 test('a route with no entry gets no tag, which the badge draws as a?', () => {

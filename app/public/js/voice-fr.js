@@ -754,6 +754,11 @@ export const LINES_FR = {
     warm: () => "Il fait assez sombre ici. Il me faut plus de lumière pour lire ça.",
     blunt: () => "Trop sombre. Plus de lumière.",
   },
+  cam_no_barcode: {
+    deadpan: () => "Aucun code-barres lu pour l'instant. Pointe-en un et tiens-le là.",
+    warm: () => "Je n'ai pas encore lu de code-barres. Pointe-m'en un et tiens-le là.",
+    blunt: () => "Pas de code-barres. Pointe-en un. Tiens.",
+  },
   cam_torch_on: {
     deadpan: () => "Lampe allumée.",
     warm: () => "Lampe allumée, ça devrait aider.",

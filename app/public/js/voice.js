@@ -1301,6 +1301,16 @@ const LINES_EN = {
     blunt: () => 'Too dark. More light.',
   },
   /**
+   * The barcode button pressed with no code read yet (2026-09-19: the button
+   * is always there now, so it can be pressed before the frames agree). Says
+   * what to do next, never what the person did wrong.
+   */
+  cam_no_barcode: {
+    deadpan: () => 'No barcode read yet. Point at one and hold it there.',
+    warm: () => 'I have not read a barcode yet. Point me at one and hold it there.',
+    blunt: () => 'No barcode yet. Point at one. Hold.',
+  },
+  /**
    * --- torch acknowledged, one short line, then back to whichever hint was
    * already showing. State idle, no animation of its own. ---
    */
