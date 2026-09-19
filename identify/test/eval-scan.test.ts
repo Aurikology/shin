@@ -39,6 +39,7 @@ import {
 import { GROUNDING, costReport, defaultEstimates, estimateCost, tokenRate } from '../eval/scan-cost.ts';
 import {
   RESULT_PREFIX,
+  stratify,
   dryVariant,
   loadManifest,
   parseArgs,
@@ -381,4 +382,43 @@ test('the perturbation schedule is deterministic and produces an unparsable, a z
   assert.equal(dryVariant(0, REFUSE_ROW).kind, 'no-name');
   assert.equal(interpretText(dryVariant(3, ROW).text).status, 'failed');
   assert.equal(readAnswer(interpretText(dryVariant(0, ROW).text).value)?.product.name, 'Tomato Ketchup');
+});
+
+test('a limited pilot is spread across kinds, not the first N rows of one', () => {
+  /*
+   * `--limit` used to be `pool.slice(0, limit)`, and the manifest is grouped by
+   * kind, so `--limit 40` returned 40 size-pair rows and printed a per-kind
+   * table with one line in it. Found by RUNNING the harness and reading the
+   * report; no unit test could have caught it, because they assert the scorer
+   * and not the sample.
+   *
+   * It matters because of when a limit is used. Nobody limits a free dry run --
+   * a limit is what the first KEYED pilot uses, to check the thing works before
+   * spending the allowance on 200 rows. A pilot drawn from one kind reports that
+   * kind's parse rate and accuracy as if they were the product's, and the
+   * 2.5-versus-3.x decision is meant to rest on exactly those numbers.
+   */
+  const rows = [
+    ...Array.from({ length: 10 }, (_, i) => ({ kind: 'size-pair', id: `s${i}` })),
+    ...Array.from({ length: 10 }, (_, i) => ({ kind: 'plain', id: `p${i}` })),
+    ...Array.from({ length: 4 }, (_, i) => ({ kind: 'tech', id: `t${i}` })),
+  ];
+
+  const six = stratify(rows, 6);
+  assert.equal(six.length, 6);
+  assert.deepEqual(
+    [...new Set(six.map((r) => r.kind))].sort(),
+    ['plain', 'size-pair', 'tech'],
+    'every kind present in the pool has to appear in the pilot',
+  );
+
+  // Deterministic: a rerun at the same limit picks the same rows, or two pilots
+  // cannot be compared with each other.
+  assert.deepEqual(stratify(rows, 6).map((r) => r.id), six.map((r) => r.id));
+
+  // A limit at or past the pool is the whole pool, unreordered.
+  assert.deepEqual(stratify(rows, 99).map((r) => r.id), rows.map((r) => r.id));
+
+  // A kind smaller than its share does not stall the round robin or short the total.
+  assert.equal(stratify(rows, 20).length, 20);
 });
