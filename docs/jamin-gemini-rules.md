@@ -206,6 +206,22 @@ all four."*
    (Aurik's question 4). No catalogue-first free path in front of Gemini, per *"The server will
    not check shins own product list for now."*
 
+**Model: Gemini 2.5 by default, DECIDED 2026-09-18.** His words: *"lets make the default gemini
+2.5 for now and we will switch to a better model if our testing says otherwise."* Why, from
+ai.google.dev/gemini-api/docs/pricing read 2026-09-18: 2.5 bills search grounding per grounded
+PROMPT (*"1,500 RPD (free...), then $35 / 1,000 grounded prompts"*), 3.x per search QUERY (*"5,000
+free search requests per month... then $14 per 1,000 requests"*). One observed scan ran four
+queries: 5.6 cents on 3.x against 3.5 cents on 2.5, and 2.5's free allowance is about 45,000 scans
+a month against about 1,250. Default model id `gemini-2.5-flash`. The code today maps to
+`gemini-3.5-flash-lite` / `gemini-3.8-flash` (`identify/src/providers/gemini.ts`); the one-call
+rebuild changes that default, and until then `SHIN_GEMINI_MODEL=gemini-2.5-flash` overrides it.
+Any cost figure must bill 2.5 per prompt, not per query. The paid-key test runs 2.5 and a 3.x model
+side by side on the same scans; 3.x replaces 2.5 only if that test says so.
+
+**Asked, not decided: a better model to identify photos and 2.5 to search.** That is two calls per
+photo scan, against rule 1. Barcode scans are unaffected (Gemini gets the digits and needs no
+seeing). Raised with him 2026-09-18; until he answers, rule 1 holds: one call on 2.5.
+
 His suggested edits were all in the first tab and are accepted in the doc (his word, 2026-09-18).
 A re-read of the whole doc after he accepted them came back byte-identical to the first read, so
 the verbatim notes file already holds them.
