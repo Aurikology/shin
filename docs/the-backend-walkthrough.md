@@ -66,36 +66,6 @@ Around that door, four things that are not optional:
 
 ---
 
-## Part 6. The verdict
-
-**The biggest disconnect in the system is here.**
-
-The app answers prices from a hand-written file of **seven products**. The real price data,
-**896 observations**, sits in a different database nothing in the app has ever read. 874 came from
-a free open feed, 22 from Walmart, none from Canadian Tire, whose reader was built and never run.
-
-There is also a **second price judge**, written against that real database, complete, tested, and
-called by nothing. Two judges, two stores, and the app uses the small hand-written one of each.
-
-**The first real build is connecting them.** One piece of code that reads the real observations and
-hands them to the judge the app already uses, in the shape it already expects. That turns seven
-priceable products into several hundred.
-
-**What has to be built around it.**
-
-- **The range query.** A national typical range over a recency window, never an average, sale
-  prices kept separate from everyday ones. The data already records which is which: 644 everyday,
-  252 promotional.
-- **The freshness rule, load-bearing rather than cosmetic.** Those prices run from 2020 to today
-  and **only 75 were seen this year**. 524 are from 2025, 284 from 2024. A price that old is not
-  evidence about today's shelf and the confidence must say so.
-- **Confidence from count, age, and how the match was made.** 782 matched by barcode, 14 by name.
-  A name match deserves less confidence, and that is already recorded per row.
-- **The judged store never sits inside its own comparison.** Already handled. Including it makes
-  every answer read "fair" and nothing looks broken.
-
----
-
 ## Part 7. What arrives after the verdict
 
 Comparable stores and cheaper options land after the verdict and never hold it up.
