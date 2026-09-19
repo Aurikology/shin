@@ -9,8 +9,9 @@ exact barcode -> exact model -> exact product + brand + size ->
 strong variant match -> broader family match.
 
 ## RETAIL VS MARKETPLACE
-Direct retailer and marketplace offers are separate categories.
-Do not silently combine them.
+Direct retailer and marketplace offers are separate categories, and each
+offer says which it is. In `price_verdict` both count: a marketplace
+offer is marked as one, never presented as the retailer's own.
 
 ## CONDITION
 Keep new, sealed, refurbished, used, damaged, and unknown separate.

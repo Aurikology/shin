@@ -56,24 +56,92 @@ function shelf(price: number, sizeValue: number | null, sizeUnit: string | null,
   return { price, sizeValue, sizeUnit, packCount: packCount ?? null };
 }
 
-test('one store is not a middle, so it places no line at all, D-113', () => {
+test('one offer is the median, and the line says it is one seller\'s price', () => {
   /**
-   * THIS TEST ASSERTED THE OPPOSITE UNTIL 2026-09-16, and the numbers it
-   * pinned were real: n 1, median 0.798, percent 25.06265664160402, zone
-   * 'over_your_line', shelfPosition 91.77109440267336, and the single point
-   * at position 50 because "the only price IS the median".
+   * THIS TEST ASSERTED THE OPPOSITE FROM 2026-09-16 TO 2026-09-19 (D-113: one
+   * store is not a middle, no line), and BEFORE 2026-09-16 it asserted what it
+   * asserts again now. The numbers were run through `GAUGE_PYTHON_SOURCE` in
+   * local CPython and match: n 1, median 0.798, percent 25.06265664160402,
+   * zone 'over_your_line', shelfPosition 91.77109440267336, the single point
+   * at position 50 because the only price IS the median.
    *
-   * That last sentence is the defect. A median of one offer is that offer, so
-   * the percentage measures the shopper's price against the single claim
-   * being tested and then calls the result a middle. Measured in the wild:
-   * one Walmart offer of $9.97 against a hand-priced $1.74 rendered as 83%
-   * under the middle of 1 prices. A test asserting a behaviour is a record of
-   * a decision, not evidence the decision was right; this records it changing.
+   * The owner's ruling, 2026-09-19: "the one price becomes the median". D-113's
+   * measured case (one Walmart offer of $9.97 against a hand-priced $1.74,
+   * drawn as 83% under the middle of 1 prices) is not denied; the answer to it
+   * is the `one_offer` shortfall and a confidence of 'thin', not a withheld
+   * line. A test asserting a behaviour is a record of a decision, not evidence
+   * the decision was right; this records it changing back.
    */
-  const g = computeGauge(shelf(4.99, 500, 'g'), [{ retailer: 'Loblaws', price: 3.99, url: 'u1', sizeValue: 500, sizeUnit: 'g' }]);
+  const g = usable(computeGauge(shelf(4.99, 500, 'g'), [{ retailer: 'Loblaws', price: 3.99, url: 'u1', sizeValue: 500, sizeUnit: 'g' }]));
+  assert.equal(g.n, 1);
+  assert.equal(g.median, 0.798);
+  assert.equal(g.percent, 25.06265664160402);
+  assert.equal(g.zone, 'over_your_line');
+  assert.equal(g.shelfPosition, 91.77109440267336);
+  assert.equal(g.points.length, 1);
+  assert.equal(g.points[0].position, 50, 'the only price is the middle');
+  assert.equal(g.confidence, 'thin');
+  assert.deepEqual(g.shortfalls, [{ code: 'one_offer', note: 'only one price found, so the middle is that price' }]);
+});
+
+test('no offers at all is still no line, and says so', () => {
+  const g = computeGauge(shelf(4.99, 500, 'g'), []);
   assert.equal(g.usable, false);
-  assert.equal(g.usable === false && g.reason, 'single_offer');
-  assert.equal(g.usable === false && g.unitLabel, '100 g', 'the unit is still known, so the offer can still be shown');
+  assert.equal(g.usable === false && g.reason, 'no_offers_on_line');
+  assert.equal(g.usable === false && g.unitLabel, '100 g');
+});
+
+test('a member price counts in the median and carries the mark, it is not excluded', () => {
+  // Measured in local CPython: median 5, the member price at position 100.
+  const g = usable(computeGauge(shelf(5, 100, 'g'), [
+    offer('A', 4, 100, 'g'),
+    { ...offer('Costco', 6, 100, 'g'), memberOnly: true },
+    offer('B', 5, 100, 'g'),
+  ]));
+  assert.equal(g.n, 3);
+  assert.equal(g.median, 5);
+  assert.deepEqual(g.excluded, [], 'a membership is a mark, not a reason to leave the price out');
+  const member = g.points.find((p) => p.retailer === 'Costco');
+  assert.deepEqual(member?.marks, ['member_only']);
+  assert.equal(member?.position, 100);
+  assert.deepEqual(g.points.filter((p) => p.retailer !== 'Costco').map((p) => p.marks), [[], []]);
+});
+
+test('a marketplace seller counts in the median and carries the mark, it is not excluded', () => {
+  const g = usable(computeGauge(shelf(5, 100, 'g'), [
+    offer('A', 4, 100, 'g'),
+    { ...offer('Seller', 6, 100, 'g'), marketplace: true },
+    offer('B', 5, 100, 'g'),
+  ]));
+  assert.equal(g.n, 3);
+  assert.equal(g.median, 5);
+  assert.deepEqual(g.excluded, []);
+  assert.deepEqual(g.points.find((p) => p.retailer === 'Seller')?.marks, ['marketplace']);
+});
+
+test('an offer that is both members only and a marketplace seller carries both marks, member first', () => {
+  const g = usable(computeGauge(shelf(5, 100, 'g'), [
+    { ...offer('Both', 5, 100, 'g'), memberOnly: true, marketplace: true },
+    offer('A', 5, 100, 'g'),
+  ]));
+  assert.deepEqual(g.points[0].marks, ['member_only', 'marketplace']);
+});
+
+test('a lone member-only offer is a line: the median is that one price, marked, and thin', () => {
+  const g = usable(computeGauge(shelf(5, 100, 'g'), [{ ...offer('Costco', 4, 100, 'g'), memberOnly: true }]));
+  assert.equal(g.n, 1);
+  assert.deepEqual(g.points[0].marks, ['member_only']);
+  assert.deepEqual(g.shortfalls.map((x) => x.code), ['one_offer']);
+});
+
+test('another currency and a missing size are still left out, and the rest still make the line', () => {
+  const g = usable(computeGauge({ ...shelf(5, 100, 'g'), currency: 'CAD' }, [
+    offer('A', 5, 100, 'g'),
+    { ...offer('US', 3, 100, 'g'), currency: 'USD' },
+    offer('NoSize', 4, null, null),
+  ]));
+  assert.equal(g.n, 1);
+  assert.deepEqual(g.excluded.map((e) => [e.retailer, e.code]), [['US', 'not_cad'], ['NoSize', 'no_size']]);
 });
 
 test('identical unit prices collapse to the middle without dividing by zero', () => {
@@ -326,8 +394,14 @@ test('the code check passes the real source, survives reformatting, and fails an
 
 /* ------------------------------------------------------------------ D-113 */
 
-test('D-113: the measured lone Walmart claim draws no line at all', () => {
+test('D-113: the measured lone Walmart claim draws a line, marked as one seller\'s price', () => {
   /**
+   * WHAT THIS ASSERTS CHANGED ON 2026-09-19 (owner: "the one price becomes the
+   * median"). It used to assert that no line is drawn. It now asserts the
+   * line is drawn AND that it is marked: confidence 'thin' and the `one_offer`
+   * shortfall, so the shopper is told the "middle" is one seller's price. The
+   * case below is unchanged from the one that motivated the old rule.
+   *
    * THE REGRESSION TEST THE DEFECT NEVER HAD, and every number in it was
    * measured rather than invented. A real grounded search for Kraft Dinner
    * 225 g on 2026-09-16 returned exactly one offer -- Walmart, $9.97, with
@@ -342,14 +416,15 @@ test('D-113: the measured lone Walmart claim draws no line at all', () => {
    *
    * Note `clearance` is deliberately neither divided nor excluded here --
    * whether a clearance price belongs on a line at all is a separate open
-   * question. This test asserts only that one offer is not a middle.
+   * question. This test asserts only that one offer is a line and is marked.
    */
-  const g = computeGauge(shelf(1.74, 225, 'g'), [
+  const g = usable(computeGauge(shelf(1.74, 225, 'g'), [
     { retailer: 'Walmart', price: 9.97, url: null, sizeValue: 225, sizeUnit: 'g', packCount: 1, dealKind: 'clearance' },
-  ]);
-  assert.equal(g.usable, false, 'one offer must not produce a verdict');
-  assert.equal(g.usable === false && g.reason, 'single_offer');
-  assert.equal(g.usable === false && g.excluded.length, 0, 'the offer is not excluded, it is simply not a middle');
+  ]));
+  assert.equal(g.n, 1);
+  assert.equal(g.confidence, 'thin', 'one seller\'s price is never called a sound middle');
+  assert.deepEqual(g.shortfalls.map((x) => x.code), ['one_offer']);
+  assert.equal(g.excluded.length, 0, 'the offer is not excluded');
 });
 
 test('the lone-claim band has not drifted from the spine engine it was taken from', () => {

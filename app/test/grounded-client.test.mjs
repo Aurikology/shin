@@ -124,7 +124,11 @@ async function renderRoot(wire = WIRE()) {
 
 async function renderSection(wire = WIRE(), opts = {}) {
   const doc = makeDocument();
-  const restore = installBrowser({ doc, storage: makeStorage() });
+  const storage = makeStorage();
+  // The reader's language lives in the page's own storage, which exists only
+  // for the length of a render, so it is chosen here and not by `setLocale`.
+  if (opts.locale) storage.setItem('shin.locale', opts.locale);
+  const restore = installBrowser({ doc, storage });
   try {
     const { groundedSection } = await import('../public/js/grounded.js');
     return { doc, section: groundedSection(wire, { doc, ...opts }) };
@@ -555,7 +559,7 @@ test('the zone words and the large dot reading name the user\'s line, never a gr
   const bad = [];
   for (const id of ['en', 'fr']) {
     setLocale(id);
-    const { section } = await renderSection(WIRE(), { shelfLabel: '6 x 355 mL, $6.19' });
+    const { section } = await renderSection(WIRE(), { locale: id, shelfLabel: '6 x 355 mL, $6.19' });
     const words = [
       ...section.querySelectorAll('.pl-zone-word').map((n) => n.textContent),
       ...section.querySelectorAll('.pl-label').map((n) => n.textContent),
@@ -572,8 +576,8 @@ test('the zone words and the large dot reading name the user\'s line, never a gr
       ...[...section.querySelectorAll('.grounded-line-thin')].map((n) => n.textContent),
     ];
     // The no-line sentences, rendered for real, in the same locale.
-    const noLine = NO_LINE_WIRE('single_offer');
-    const { section: bare } = await renderSection(noLine, {});
+    const noLine = NO_LINE_WIRE('no_offers_on_line');
+    const { section: bare } = await renderSection(noLine, { locale: id });
     for (const n of [...bare.querySelectorAll('.grounded-no-line')]) words.push(n.textContent);
     for (const line of words) {
       for (const word of BANNED[id]) {
@@ -663,33 +667,90 @@ const NO_LINE_WIRE = (reason) => {
   };
 };
 
-test('a scan with only one price says so, instead of showing nothing where the line was', async () => {
+/** The same wire with one price on the line: a median of one, marked as one seller's. */
+const ONE_PRICE_WIRE = () => {
+  const wire = WIRE();
+  return {
+    ...wire,
+    block: {
+      ...wire.block,
+      verdict: {
+        ...wire.block.verdict,
+        median: '4.49 CAD',
+        n: 1,
+        shelf: { position: 50, zone: 'middle', pct: 0 },
+        points: [{ retailer: 'Northfield Grocers', position: 50, price: '4.49 CAD', label: '6 x 355 mL, $4.49', marks: [] }],
+        excluded: [],
+      },
+    },
+  };
+};
+
+test('a scan with only one price draws a line and says it is one seller\'s price', async () => {
   /*
-   * D-113. Before 2026-09-16 a single grounded offer drew a FULL line off a
-   * median of one price -- the measured case rendered an ordinary $1.74 as
-   * "83% under the middle of 1 prices". The line is now withheld, and this
-   * asserts the shopper is told why rather than being left with offers and a
-   * gap where the chart had been on the previous scan.
+   * D-113 withheld the line for a single offer; the owner reversed it on
+   * 2026-09-19 ("the one price becomes the median"). The line is drawn, and
+   * the shopper is told that the middle is that one price, in place of a
+   * caption about "1 prices".
    */
-  const { section } = await renderSection(NO_LINE_WIRE('single_offer'), {});
-  const note = section.querySelector('.grounded-no-line');
-  assert.ok(note, 'no line and no sentence either, which is the silence this defect is about');
-  assert.match(note.textContent, /only one price found/i);
-  assert.equal(section.querySelector('.pl-caption'), null, 'no line may be drawn from a single price');
-  // Rule 6: the answer survives, only the verdict goes.
-  assert.ok(section.querySelectorAll('.g-offer').length > 0, 'the offers are still on screen');
+  const { setLocale } = await import('../public/js/ui-strings.js');
+  for (const [id, note, caption] of [
+    ['en', 'Only one price found, so the middle is that price.', 'Per 100 mL, one price found'],
+    ['fr', 'Un seul prix trouvé, donc le milieu est ce prix.', 'Par 100 mL, un seul prix trouvé'],
+  ]) {
+    setLocale(id);
+    const { section } = await renderSection(ONE_PRICE_WIRE(), { locale: id, shelfLabel: '6 x 355 mL, $4.49' });
+    assert.equal(section.querySelector('.grounded-no-line'), null, `${id}: a single price is not a reason to withhold the line`);
+    assert.equal(section.querySelector('.pl-caption').textContent, caption, `${id}: the caption counts one price in the singular`);
+    assert.equal(section.querySelector('.grounded-line-thin').textContent, note, `${id}: one price was not marked as one seller's price`);
+    assert.ok(section.querySelectorAll('.g-offer').length > 0, 'the offers are still on screen');
+  }
+  setLocale('en');
+});
+
+test('a members-only or marketplace price is marked on its dot and on the list, outside the Google root', async () => {
+  const { setLocale } = await import('../public/js/ui-strings.js');
+  const wire = WIRE();
+  wire.block.offers[1] = { ...wire.block.offers[1], memberOnly: true };
+  wire.block.offers[2] = { ...wire.block.offers[2], marketplace: true };
+  wire.block.verdict.points[1] = { ...wire.block.verdict.points[1], marks: ['member_only'] };
+  wire.block.verdict.points[2] = { ...wire.block.verdict.points[2], marks: ['marketplace'] };
+  for (const [id, labels, listed] of [
+    ['en', ['4 L, $6.99 · members only', '6 x 355 mL, $5.25 · marketplace seller'],
+      ['Members only: Ridgeway Market', 'Marketplace seller: Quarry Provisions']],
+    ['fr', ['4 L, $6.99 · réservé aux membres', '6 x 355 mL, $5.25 · vendeur de la place de marché'],
+      ['Réservé aux membres : Ridgeway Market', 'Vendeur de la place de marché : Quarry Provisions']],
+  ]) {
+    setLocale(id);
+    const { section } = await renderSection(wire, { locale: id, shelfLabel: '6 x 355 mL, $6.19' });
+    const dots = section.querySelectorAll('.pl-label').map((n) => n.textContent);
+    for (const l of labels) assert.ok(dots.includes(l), `${id}: no dot labelled ${JSON.stringify(l)}, got ${JSON.stringify(dots)}`);
+    assert.ok(dots.includes('6 x 355 mL, $4.49'), `${id}: an unmarked price gained a mark`);
+    const list = section.querySelector('.grounded-marks');
+    assert.ok(list, `${id}: the marked offers are not listed`);
+    assert.deepEqual([...list.querySelectorAll('li')].map((n) => n.textContent), listed, `${id}: the list of marked offers is wrong`);
+    // Shin's own text, never inside Google's no-track block.
+    assert.equal(list.closest('[data-no-track]'), null, 'the marks went inside the Google-owned block');
+  }
+  setLocale('en');
+  // Nothing marked, no list: an unmarked wire adds nothing.
+  const { section: plain } = await renderSection(WIRE(), {});
+  assert.equal(plain.querySelector('.grounded-marks'), null);
 });
 
 test('each reason for having no line gets its own sentence, never a shrug', async () => {
   const seen = new Set();
-  for (const reason of ['single_offer', 'no_shelf_size', 'no_offers_on_line']) {
+  for (const reason of ['no_shelf_size', 'no_offers_on_line']) {
     const { section } = await renderSection(NO_LINE_WIRE(reason), {});
     const note = section.querySelector('.grounded-no-line');
     assert.ok(note, `no sentence for ${reason}`);
     seen.add(note.textContent);
   }
-  assert.equal(seen.size, 3, 'three different causes must not collapse into one sentence');
+  assert.equal(seen.size, 2, 'two different causes must not collapse into one sentence');
   for (const line of seen) {
     assert.doesNotMatch(line, /shin (does not|doesn't) know|unknown|error/i, 'rule 6: never tell the shopper the app does not know');
   }
+  // The retired reason says nothing, and does not draw a sentence off a stale wire.
+  const { section: stale } = await renderSection(NO_LINE_WIRE('single_offer'), {});
+  assert.equal(stale.querySelector('.grounded-no-line'), null);
 });

@@ -190,14 +190,22 @@ function vShelf(price: number): VariantShelfItem {
   return { price, model: V_MODEL, specs: V_SPECS, condition: 'new' };
 }
 
-test('one offer of the exact variant is not a middle, so it places no line at all, D-113', () => {
-  // The same defect `gauge.ts` closed: a median of one offer is that offer,
-  // so a lone spec-variant match must not be allowed to draw a "your price is
-  // N% from the middle" line against itself.
-  const g = computeVariantGauge(vShelf(999), [vOffer('Best Buy', 949)]);
+test('one offer of the exact variant is the median, marked as one seller\'s price', () => {
+  // Changed 2026-09-19, same ruling as `gauge.test.ts` ("the one price becomes
+  // the median"): this asserted no line at all under D-113. Now the line is
+  // drawn at that one price and the `one_offer` shortfall says so.
+  const g = usable(computeVariantGauge(vShelf(999), [vOffer('Best Buy', 949)]));
+  assert.equal(g.n, 1);
+  assert.equal(g.median, 949);
+  assert.equal(g.confidence, 'thin');
+  assert.deepEqual(g.shortfalls, [{ code: 'one_offer', note: 'only one price found, so the middle is that price' }]);
+  assert.equal(g.excluded.length, 0, 'the offer is not excluded');
+});
+
+test('no offer of the exact variant is still no line', () => {
+  const g = computeVariantGauge(vShelf(999), []);
   assert.equal(g.usable, false);
-  assert.equal(g.usable === false && g.reason, 'single_offer');
-  assert.equal(g.usable === false && g.excluded.length, 0, 'the offer is not excluded, it is simply not a middle');
+  assert.equal(g.usable === false && g.reason, 'no_offers_on_line');
 });
 
 test('an unusable price cannot be placed anywhere, checked before the model comparison', () => {

@@ -17,6 +17,7 @@ import {
   GeminiGroundedProvider,
   cleanUrl,
   parseJson,
+  priceGaugeFor,
   priceLineFor,
   pricesReviewsRequest,
   shownOffers,
@@ -204,21 +205,24 @@ test('REQUIREMENT 2: offers with no sizes anywhere are still compared, per item'
   assert.equal(line.shelf.zone, 'under_your_line');
 });
 
-test('a single offer draws no line, and the offer itself is still shown, D-113', () => {
+test('a single offer draws a line, marked as one seller\'s price, and no offers still draws none', () => {
   /**
-   * THIS TEST ASSERTED THE OPPOSITE UNTIL 2026-09-16, under the name "a
-   * single offer is still a line, never a refusal". It was written on
-   * 2026-09-15 in the commit that turned the grounded search on, one day
-   * before anyone measured what a single grounded offer is actually worth.
-   *
-   * It read rule 6 -- always an answer -- as "always a LINE". Measured, that
-   * reading produced a $9.97 Walmart claim against a hand-priced $1.74 and
-   * told the shopper they were 83% under the going rate. The answer survives;
-   * the line is what goes. The offer, the reviews and the description are all
-   * still returned to the caller, which is what rule 6 is protecting.
+   * THIS TEST ASSERTED THE OPPOSITE FROM 2026-09-16 TO 2026-09-19 (D-113: a
+   * single offer draws no line), and before that it asserted this, under the
+   * name "a single offer is still a line, never a refusal". The owner's ruling
+   * on 2026-09-19 ("the one price becomes the median") puts it back, with the
+   * mark the first version lacked: the D-113 case (a $9.97 Walmart claim
+   * against a hand-priced $1.74, told to the shopper as 83% under the going
+   * rate) is now answered by `one_offer` and a thin confidence, not by
+   * withholding the line.
    */
   const line = priceLineFor({ askingCents: 900 }, shownOffers([{ retailer: 'A', price: 9, url: null }]));
-  assert.equal(line, null, 'one price is not a middle');
+  assert.ok(line, 'one price is the median');
+  assert.equal(line.n, 1);
+  assert.equal(line.median, 9);
+  assert.equal(line.confidence, 'thin');
+  assert.deepEqual(line.shortfalls.map((x) => x.code), ['one_offer']);
+  assert.deepEqual(priceGaugeFor({ askingCents: 900 }, []), { line: null, reason: 'no_offers_on_line' });
 });
 
 test('no shelf price typed means no line, and the offers are still there to show', () => {

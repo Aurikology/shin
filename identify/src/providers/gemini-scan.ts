@@ -1034,7 +1034,7 @@ export interface GeminiPriceLine {
   readonly zoneUnderBoundary: number | null;
   readonly zoneOverBoundary: number | null;
   readonly ticks: readonly [];
-  readonly points: readonly { retailer: string; position: number; url: string | null; label: string }[];
+  readonly points: readonly { retailer: string; position: number; url: string | null; label: string; marks: readonly ('member_only' | 'marketplace')[] }[];
   readonly excluded: readonly { retailer: string; code: string; note: string; label: string; url: string | null }[];
   readonly shelf: { readonly position: number; readonly zone: string; readonly pct: number } | null;
   readonly shelfLabel: string;
@@ -1086,7 +1086,7 @@ function shownFrom(o: ReadOffer): AnswerBlock['offers'][number] | null {
   };
 }
 
-const NO_LINE_CODES = new Set(['single_offer', 'no_offers_on_line', 'no_shelf_size']);
+const NO_LINE_CODES = new Set(['no_offers_on_line', 'no_shelf_size']);
 
 /**
  * The phone's block, built from Gemini's own numbers. There is NO arithmetic
@@ -1128,6 +1128,8 @@ export function toAnswerBlock(run: GeminiRun): AnswerBlock {
           position: x.o.position as number,
           url: x.shown!.url,
           label: s(x.o.raw.advertised_price_text) ?? String(x.shown!.price),
+          // Copied from what the offer says about itself, as the gauge does. They stay on the line.
+          marks: [...(x.shown!.memberOnly ? ['member_only' as const] : []), ...(x.shown!.marketplace ? ['marketplace' as const] : [])],
         })),
       excluded: offers
         .filter((o) => !o.inMedian)
@@ -1252,10 +1254,11 @@ export function checkMath(answer: ReadAnswer | null, thresholds: Thresholds, ctx
   if (!answer || !v) return { checked: false, mismatches: [], skipped: [] };
   const out: MathMismatch[] = [];
   const onLine = answer.offers.filter((o) => o.inMedian && o.unitPrice !== null && o.unitPrice > 0);
-  const median = onLine.length >= 2 ? medianOf(onLine.map((o) => o.unitPrice as number)) : null;
+  // One offer is a verdict now (its median is that price); only none is not.
+  const median = onLine.length >= 1 ? medianOf(onLine.map((o) => o.unitPrice as number)) : null;
 
-  if (v.available && onLine.length < 2) out.push({ field: 'verdict_available', stated: true, recomputed: false });
-  if (!v.available && onLine.length >= 2 && v.noVerdictReason !== 'no_shelf_size') {
+  if (v.available && onLine.length < 1) out.push({ field: 'verdict_available', stated: true, recomputed: false });
+  if (!v.available && onLine.length >= 1 && v.noVerdictReason !== 'no_shelf_size') {
     out.push({ field: 'verdict_available', stated: false, recomputed: true });
   }
   if (median === null || !v.available) return { checked: true, mismatches: out, skipped: [] };

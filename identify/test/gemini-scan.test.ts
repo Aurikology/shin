@@ -158,6 +158,89 @@ test('the hidden math check passes a consistent answer and flags a wrong median 
   assert.equal(checkMath(null, DEFAULT_THRESHOLDS).checked, false);
 });
 
+/**
+ * One offer in the median, as Gemini's answer reads under the scan prompt's PRICE MATH after
+ * 2026-09-19: the median is that one price, so the span is 1.5 times the range (15), the offer
+ * sits at 50, and the boundaries are 50 -/+ 10/15*50.
+ */
+function oneOfferAnswer(verdict: Record<string, unknown> = {}, offerOver: Record<string, unknown> = {}): Record<string, unknown> {
+  const base = goodAnswer();
+  const first = (base.offers as Record<string, unknown>[])[0];
+  return goodAnswer({
+    offers: [{ ...first, unit_price: 3, price: 3, pct_vs_median: 0, position: 50, in_median: true, ...offerOver }],
+    price_verdict: {
+      ...(base.price_verdict as object),
+      offers_in_median: 1,
+      median_unit_price: 3,
+      span_pct: 15,
+      zone_under_boundary: 16.667,
+      zone_over_boundary: 83.333,
+      confidence: 'thin',
+      ...verdict,
+    },
+  });
+}
+
+test('the hidden math check accepts one offer as a verdict, and still flags none as one (one price is the median)', () => {
+  const ok = checkMath(parsed(oneOfferAnswer()), DEFAULT_THRESHOLDS);
+  assert.equal(ok.checked, true);
+  assert.deepEqual(ok.mismatches, [], 'a correct one-offer verdict was logged as a mismatch');
+  const refused = checkMath(parsed(oneOfferAnswer({ verdict_available: false, no_verdict_reason: 'no_offers_on_line' })), DEFAULT_THRESHOLDS);
+  assert.ok(
+    refused.mismatches.some((m) => m.field === 'verdict_available' && m.stated === false && m.recomputed === true),
+    'a refusal at one offer is now the wrong answer, and the check must say so',
+  );
+  const none = checkMath(parsed(oneOfferAnswer({}, { in_median: false, unit_price: null, position: null, pct_vs_median: null })), DEFAULT_THRESHOLDS);
+  assert.ok(
+    none.mismatches.some((m) => m.field === 'verdict_available' && m.stated === true && m.recomputed === false),
+    'a verdict with no offer in the median is still a mismatch',
+  );
+});
+
+test('a members-only and a marketplace offer stay in the median and reach the phone marked', async () => {
+  const base = goodAnswer();
+  const offers = (base.offers as Record<string, unknown>[]).map((o, i) =>
+    i === 0 ? { ...o, membership_required: true } : i === 2 ? { ...o, marketplace_status: 'marketplace' } : o,
+  );
+  const t = fakeTransport(() => ({ text: httpBody(JSON.stringify(goodAnswer({ offers }))) }));
+  const run = await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: t.transport });
+  const block = toAnswerBlock(run) as unknown as {
+    verdict: { n: number; points: { retailer: string; marks: string[] }[]; excluded: unknown[] };
+  };
+  assert.equal(block.verdict.n, 3);
+  assert.deepEqual(block.verdict.excluded, [], 'neither offer was left out');
+  assert.deepEqual(block.verdict.points.map((p) => [p.retailer, p.marks]), [
+    ['Alpha Market', ['member_only']],
+    ['Beta Foods', []],
+    ['Gamma Grocer', ['marketplace']],
+  ]);
+  assert.deepEqual(checkMath(run.answer, DEFAULT_THRESHOLDS).mismatches, [], 'the marked offers are in the recomputed median too');
+});
+
+test('a one-offer answer reaches the phone as a verdict, and none as no line', async () => {
+  const one = fakeTransport(() => ({ text: httpBody(JSON.stringify(oneOfferAnswer())) }));
+  const oneBlock = toAnswerBlock(await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: one.transport })) as unknown as {
+    verdict: { n: number; median: number; confidence: string } | null;
+    noLineReason: string | null;
+  };
+  assert.equal(oneBlock.verdict?.n, 1);
+  assert.equal(oneBlock.verdict?.median, 3);
+  assert.equal(oneBlock.verdict?.confidence, 'thin');
+  assert.equal(oneBlock.noLineReason, null);
+  const none = fakeTransport(() => ({
+    text: httpBody(JSON.stringify(goodAnswer({
+      offers: [],
+      price_verdict: { ...(goodAnswer().price_verdict as object), verdict_available: false, no_verdict_reason: 'no_offers_on_line', median_unit_price: null, offers_in_median: 0 },
+    }))),
+  }));
+  const noneBlock = toAnswerBlock(await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: none.transport })) as unknown as {
+    verdict: unknown;
+    noLineReason: string | null;
+  };
+  assert.equal(noneBlock.verdict, null);
+  assert.equal(noneBlock.noLineReason, 'no_offers_on_line');
+});
+
 test('three ranges and a unit are read, 30 percent is allowed, and an older client still works (item 44, W9)', () => {
   const t = readThresholds({ unit: 'percent', great: 30, good: 15, bad: 25 });
   assert.deepEqual([t.greatPct, t.underPct, t.overPct, t.unit, t.source], [30, 15, 25, 'percent', 'user']);
