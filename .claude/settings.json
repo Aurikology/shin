@@ -53,6 +53,18 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Reading notes/catch-up.md"
+          }
+        ]
+      }
     ]
   }
 }
