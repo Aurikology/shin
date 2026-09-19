@@ -143,6 +143,11 @@ export function chosenShop() {
   return chosen;
 }
 
+// Every scan request carries the shop's name and kind word, so the one Gemini
+// call knows what kind of store the user is in (alternatives, item 18). The
+// getter is registered here, not imported there, to keep api.js free of a cycle.
+api.setScanShopProvider?.(() => chosen);
+
 /** The name to file a price under, or '' -- the shape `recordCorrection` wants. */
 export function chosenName() {
   return chosen?.name ?? '';

@@ -28,7 +28,8 @@ import {
   alternativesHeadingStructured,
 } from '../catalogue/src/alternatives.ts';
 import type { Candidate } from '../catalogue/src/search.ts';
-import { marketFromLocation } from '../catalogue/src/market.ts';
+import { countryCodeOf, marketFromLocation, marketPromptFields } from '../catalogue/src/market.ts';
+import { normalizeStoreType } from '../catalogue/src/product-kind.ts';
 import {
   createUserCatalogue,
   probeCatalogue,
@@ -1226,6 +1227,17 @@ interface ScanContext {
   readonly currency?: string | null;
   readonly language?: string | null;
   readonly userInput?: string | null;
+  /** Province, state or similar, when the client knows it. */
+  readonly region?: string | null;
+  /**
+   * The shop the user picked, as the client held it: the name and OpenStreetMap's
+   * own kind word ("supermarket", "convenience store"). Only the TYPE derived
+   * from them reaches the prompt; the name does not.
+   */
+  readonly storeName?: string | null;
+  readonly storeHint?: string | null;
+  /** An explicit alternatives mode, if a client ever sends one. */
+  readonly mode?: string | null;
 }
 
 function contextFrom(get: (key: string) => unknown): ScanContext {
@@ -1236,6 +1248,30 @@ function contextFrom(get: (key: string) => unknown): ScanContext {
     currency: text(get('currency')),
     language: text(get('language')) ?? text(get('lang')),
     userInput: text(get('userInput')),
+    region: text(get('region')),
+    storeName: text(get('storeName')),
+    storeHint: text(get('storeHint')),
+    mode: text(get('mode')),
+  };
+}
+
+/**
+ * ITEMS 18 AND 19, what the one scan call carries about the user beyond the
+ * product. The market is the user's own (their chosen market, with an ISO code
+ * when the name is one we know), never defaulted: an unrecognised country is the
+ * unknown market and the prompt says so. The store type is read from the shop's
+ * OpenStreetMap kind word first (it is a real tag) and its name second.
+ */
+function userContextFor(ctx: ScanContext, shelfPriceCents: number | null, mod: ScanModule) {
+  const market = marketFromLocation({ country: countryCodeOf(ctx.market), region: ctx.region ?? null, currency: ctx.currency ?? null });
+  const byHint = normalizeStoreType(ctx.storeHint);
+  const storeType = byHint !== 'other' && byHint !== 'unknown' ? byHint : normalizeStoreType(ctx.storeName);
+  return {
+    marketFields: marketPromptFields(market),
+    alternatives: {
+      mode: mod.alternativesModeFor(shelfPriceCents, ctx.mode),
+      storeType: storeType === 'unknown' ? null : storeType,
+    },
   };
 }
 
@@ -1298,6 +1334,7 @@ async function completeGeminiScan(a: CompleteArgs): Promise<Completed> {
       currency: a.context.currency ?? null,
       language: a.context.language ?? null,
       userInput: a.kind === 'barcode' && a.text ? a.text : (a.context.userInput ?? null),
+      ...userContextFor(a.context, a.shelfPriceCents, mod),
     },
     {
       deviceId: a.device,
@@ -1339,6 +1376,9 @@ async function completeGeminiScan(a: CompleteArgs): Promise<Completed> {
         outputTokens: run.usage.outputTokens,
         shelfPriceSent: run.shelfPriceCents !== null,
         thresholds: run.thresholds,
+        // How the alternatives section arrived (ok, empty, partial, missing): a bad one is marked, never silent.
+        alternatives: run.answer?.alternatives.status ?? 'missing',
+        alternativesDropped: run.answer?.alternatives.dropped.length ?? 0,
       }),
       modelCostCents: null,
       appVersion: a.telemetry.appVersion,

@@ -468,7 +468,7 @@ const ZONES = ['under_your_line', 'middle', 'over_your_line'];
 export function geminiReading(grounded) {
   const empty = {
     hasContent: false, zone: null, median: null, unitLabel: null,
-    shelfLabel: null, name: null, lowConfidence: false, confidenceReasons: [],
+    shelfLabel: null, name: null, lowConfidence: false, confidenceReasons: [], alternatives: [],
   };
   if (!grounded || grounded.kind !== 'grounded' || !grounded.block) return empty;
   const block = grounded.block;
@@ -492,5 +492,36 @@ export function geminiReading(grounded) {
     name: typeof block.name === 'string' && block.name !== '' ? block.name : null,
     lowConfidence: block.lowConfidence === true,
     confidenceReasons: Array.isArray(block.confidenceReasons) ? block.confidenceReasons : [],
+    alternatives: alternativesReading(block.alternatives),
   };
+}
+
+/**
+ * Gemini's alternatives (item 18), lifted out as plain rows for the sheet. A
+ * READ, never a computation: the price is the text Gemini returned for it and
+ * nothing here parses, compares or converts it. A row with no name or no price
+ * text is skipped rather than drawn half empty, and anything that is not a list
+ * is no alternatives at all: there is no section then, and nothing is said about
+ * it. At most five, in the order the answer gave them.
+ */
+function alternativesReading(list) {
+  if (!Array.isArray(list)) return [];
+  const text = (v) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
+  const rows = [];
+  for (let i = 0; i < list.length && rows.length < 5; i += 1) {
+    const a = list[i];
+    if (!a || typeof a !== 'object') continue;
+    const name = text(a.name);
+    const price = text(a.priceText);
+    if (name === null || price === null) continue;
+    rows.push({
+      name,
+      brand: text(a.brand),
+      kind: text(a.kind) ?? 'other',
+      reason: text(a.reason),
+      store: text(a.storeName),
+      price,
+    });
+  }
+  return rows;
 }

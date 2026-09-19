@@ -1254,6 +1254,31 @@ function geminiFailed(result) {
   return !geminiReading(result.grounded).hasContent;
 }
 
+const GEMINI_ALT_KINDS = ['same_product', 'substitute', 'used_copy', 'newer_model', 'other'];
+
+/**
+ * Gemini's alternatives (beta gap item 18), a plain list under the answer: the
+ * name, why it is an alternative, and its price as Gemini returned it. Every
+ * word and figure is the model's; Shin adds no price math here, and a row whose
+ * reason is missing falls back to a plain sentence for its kind. NO SECTION AT
+ * ALL when there are none, not an empty heading.
+ */
+function alternativesBlock(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return '';
+  const items = rows.map((a) => {
+    const kind = GEMINI_ALT_KINDS.indexOf(a.kind) === -1 ? 'other' : a.kind;
+    const named = a.brand && !a.name.toLowerCase().includes(a.brand.toLowerCase()) ? `${a.brand} ${a.name}` : a.name;
+    const why = [a.reason ?? t(`gem_alt_kind_${kind}`), a.store ? t('gem_alt_at', { store: a.store }) : null]
+      .filter(Boolean)
+      .join(', ');
+    return `<li class="gem-alt" data-gem-alt><span class="gem-alt-name">${escapeHtml(named)}</span><span class="gem-alt-price">${escapeHtml(a.price)}</span><span class="gem-alt-why">${escapeHtml(why)}</span></li>`;
+  });
+  return `<section class="gem-alts" data-gemini-alternatives aria-label="${escapeHtml(t('gem_alt_heading'))}">
+          <h3 class="gem-alts-heading">${escapeHtml(t('gem_alt_heading'))}</h3>
+          <ul class="gem-alt-list">${items.join('')}</ul>
+        </section>`;
+}
+
 function geminiSheet(result, item, thumb) {
   const g = geminiReading(result.grounded);
   const unsure = result.lowConfidence === true || g.lowConfidence;
@@ -1290,6 +1315,7 @@ function geminiSheet(result, item, thumb) {
 
       <div class="sheet-half">
         ${groundedSlot()}
+        ${alternativesBlock(g.alternatives)}
         <div class="actions">
           <button type="button" class="pill ghost" data-act="correct">${escapeHtml(t('cam_correct_it'))}</button>
         </div>
@@ -3684,30 +3710,16 @@ export default {
            act on it: the same class of fault as D-011. */
         console.error('scan failed:', err);
         /*
-         * The name survives the failure. `item.offline` means the barcode was
-         * answered off the pack on this phone, with the network already down,
-         * so this refusal is that scan's expected ending and not a surprise --
-         * and the one thing worth saying is the thing we do know. Naming the
-         * product here is the whole reason the pack is on the phone; dropping
-         * it into "no confident match", which is what an unset identity prints,
-         * would throw away the answer at the last step.
-         *
-         * It is passed on every path, not just the offline one. Whatever the
-         * price call was going to do, the app always knew what it was pricing.
+         * A PRICE CALL THAT THROWS IS THE SAME KIND, RETRYABLE STATE the Gemini
+         * failure variants use (rule 6, always an answer), never the refusal
+         * sheet: nothing was refused, the answer did not come, and the refusal
+         * wording ("could not price this") says something untrue. The name
+         * survives (`item.text` is what the app knew it was pricing, offline
+         * included), and `last` is set to THIS scan so "Try again" repeats it
+         * and not whichever scan the shopper made before.
          */
-        slot.innerHTML = refusalSheet(
-          {
-            kind: 'refusal',
-            reason: 'no_source_response',
-            detail: item.offline ? say('cam_offline_no_price') : say('cam_sources_failed'),
-            identity: item.text ? { label: item.text } : null,
-            evidence: [],
-          },
-          item,
-          supportedCategories,
-          null,
-          { priceRoute: lastScanId !== null },
-        );
+        last = { result: { kind: 'gemini', failure: 'model_outage' }, scenario: item, thumb: scanThumb, askingCents };
+        slot.innerHTML = geminiFailureSheet(last.result, item);
         playRefusalLanding(slot);
         setState('result');
         mounted();

@@ -121,6 +121,16 @@ const EN = {
   cam_gem_shelf: (f) => `Shelf price: ${f.label}`,
   cam_gem_answered_word: 'Answered',
   cam_gem_failed_word: 'No answer',
+  /* The alternatives list under the Gemini answer. Each row's name, reason and
+     price are the model's own words, shown as returned; these are only the
+     heading and the fallback reason for a row the model gave none for. */
+  gem_alt_heading: 'Other options',
+  gem_alt_at: (f) => `at ${f.store}`,
+  gem_alt_kind_same_product: 'The same product, sold elsewhere',
+  gem_alt_kind_substitute: 'A similar product',
+  gem_alt_kind_used_copy: 'A used copy',
+  gem_alt_kind_newer_model: 'A newer model',
+  gem_alt_kind_other: 'Another option',
   cam_standin_note: 'This asking price is a stated stand-in, not a tag anyone read.',
 
   /* ------------------------------------------------- the cheaper-swap rings
@@ -542,6 +552,13 @@ const FR = {
   cam_gem_shelf: (f) => `Prix en rayon : ${f.label}`,
   cam_gem_answered_word: 'Répondu',
   cam_gem_failed_word: 'Pas de réponse',
+  gem_alt_heading: 'Autres choix',
+  gem_alt_at: (f) => `chez ${f.store}`,
+  gem_alt_kind_same_product: 'Le même produit, vendu ailleurs',
+  gem_alt_kind_substitute: 'Un produit semblable',
+  gem_alt_kind_used_copy: 'Un exemplaire d’occasion',
+  gem_alt_kind_newer_model: 'Un modèle plus récent',
+  gem_alt_kind_other: 'Une autre option',
   cam_standin_note: 'Ce prix demandé est un substitut déclaré, pas une étiquette que quelqu’un a lue.',
 
   /* --------------------------------------------- les anneaux de substitution

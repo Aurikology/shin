@@ -98,6 +98,34 @@ export function marketFromLocation(loc: UserLocation | null | undefined): Market
   return { country, region: clean(loc?.region), currency, derivedFrom: 'user_location' };
 }
 
+/**
+ * English country names to ISO 3166-1 alpha-2, for a client that stores the name
+ * the user picked ("Canada", "United States") and not the code. Only names this
+ * table knows resolve; anything else is null, which is the unknown market and is
+ * never guessed. The client keeps sending the name in English whatever its
+ * language (`app/public/js/screens/market.js`).
+ */
+const COUNTRY_CODE_OF_NAME: Readonly<Record<string, string>> = {
+  canada: 'CA', 'united states': 'US', 'united states of america': 'US', usa: 'US', mexico: 'MX',
+  'united kingdom': 'GB', uk: 'GB', 'great britain': 'GB', ireland: 'IE', france: 'FR', germany: 'DE',
+  spain: 'ES', italy: 'IT', netherlands: 'NL', belgium: 'BE', portugal: 'PT', austria: 'AT',
+  finland: 'FI', greece: 'GR', luxembourg: 'LU', switzerland: 'CH', sweden: 'SE', norway: 'NO',
+  denmark: 'DK', poland: 'PL', 'czech republic': 'CZ', czechia: 'CZ', hungary: 'HU', romania: 'RO',
+  australia: 'AU', 'new zealand': 'NZ', japan: 'JP', 'south korea': 'KR', china: 'CN',
+  'hong kong': 'HK', taiwan: 'TW', singapore: 'SG', india: 'IN', indonesia: 'ID', thailand: 'TH',
+  vietnam: 'VN', philippines: 'PH', malaysia: 'MY', 'united arab emirates': 'AE', 'saudi arabia': 'SA',
+  israel: 'IL', turkey: 'TR', 'south africa': 'ZA', nigeria: 'NG', egypt: 'EG', kenya: 'KE',
+  brazil: 'BR', argentina: 'AR', chile: 'CL', colombia: 'CO', peru: 'PE',
+};
+
+/** A two-letter code as given, or an English country name resolved through the table. Null when neither. */
+export function countryCodeOf(text: string | null | undefined): string | null {
+  const t = clean(text);
+  if (t === null) return null;
+  if (/^[A-Za-z]{2}$/.test(t)) return t.toUpperCase();
+  return COUNTRY_CODE_OF_NAME[t.toLowerCase()] ?? null;
+}
+
 export type Comparability =
   /** Same country: prices compare, subject to the region hint below. */
   | 'same_country'

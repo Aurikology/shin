@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { openCatalogue, rebuildFts, rebuildCategories } from '../src/schema.ts';
 import { alternativesFor, type PricedProduct } from '../src/alternatives.ts';
 import type { Candidate } from '../src/search.ts';
-import { comparability, formatMoney, marketFromLocation, marketPromptFields, samePriceBasis, UNKNOWN_MARKET } from '../src/market.ts';
+import { comparability, countryCodeOf, formatMoney, marketFromLocation, marketPromptFields, samePriceBasis, UNKNOWN_MARKET } from '../src/market.ts';
 import { parseQuantity, sqlBaseValue, toComparison, unitPriceCents } from '../src/units.ts';
 import { judge } from '../../price/src/verdict.ts';
 
@@ -175,6 +175,17 @@ test('market: derived from the user\'s location, never defaulted', () => {
   assert.deepEqual(marketFromLocation(null), UNKNOWN_MARKET);
   assert.equal(marketFromLocation({}).currency, null, 'no location is not Canadian dollars');
   assert.equal(marketFromLocation({ country: 'Canada' }).country, null, 'not an ISO code is not guessed');
+});
+
+test('market: the country a user picked by name resolves to its code, and an unknown name stays unknown (item 19)', () => {
+  assert.equal(countryCodeOf('Canada'), 'CA');
+  assert.equal(countryCodeOf('united states'), 'US');
+  assert.equal(countryCodeOf('France'), 'FR');
+  assert.equal(countryCodeOf('de'), 'DE');
+  assert.equal(countryCodeOf('Atlantis'), null, 'a name the table does not know is not guessed');
+  assert.equal(countryCodeOf(null), null);
+  assert.equal(countryCodeOf('  '), null);
+  assert.equal(marketFromLocation({ country: countryCodeOf('Germany') }).currency, 'EUR');
 });
 
 test('market: same country compares, different countries do not, EU can, unknown claims nothing', () => {

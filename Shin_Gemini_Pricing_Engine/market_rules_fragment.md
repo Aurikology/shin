@@ -1,7 +1,11 @@
 # MARKET AND CURRENCY RULES: FRAGMENT FOR scan_prompt.md
 
-Built for beta-gaps item 19 (2026-09-19). A new file and a fragment: the owner of
-`scan_prompt.md` places it under `## USER MARKET`. The catalogue side that derives
+MERGED into `scan_prompt.md` (section MARKET RULES) on 2026-09-19. That file is
+the live text; this copy is history and is never sent to Gemini. Edit the live
+file, not this one.
+
+Built for beta-gaps item 19 (2026-09-19). It was a fragment, placed under
+`## USER MARKET`. The catalogue side that derives
 the market is `catalogue/src/market.ts` (`marketFromLocation`, `comparability`),
 and it fills the placeholders below from the user's location. It is never
 defaulted: no location means the unknown market, and the placeholders say so.

@@ -138,6 +138,40 @@ export function readShelfPriceCents(raw: unknown): number | null {
 
 export type ScanType = 'photo' | 'barcode' | 'text';
 
+/* ------------------------------------------------------------ alternatives */
+
+/**
+ * The two jobs an alternative can do (`docs/beta-gaps-2026-09-19.md` item 18).
+ * `validation`: the user is judging a price they are already looking at, so a
+ * farm or used price is useful evidence. `switching`: the user is choosing
+ * between shops or products, so only what they would really accept.
+ */
+export type AlternativesMode = 'validation' | 'switching';
+
+/**
+ * HOW THE APP KNOWS WHICH MODE. The scan carries no explicit intent today, so
+ * it is read from the one fact that separates the two: a shelf price. A price
+ * typed at scan time means the user has a specific item in hand at a specific
+ * price and is asking whether it is a good one (validation). No price means they
+ * have chosen nothing yet and are looking across products and shops (switching).
+ * An explicit `mode` on the request, if a client ever sends one, wins.
+ */
+export function alternativesModeFor(shelfPriceCents: number | null | undefined, explicit?: unknown): AlternativesMode {
+  if (explicit === 'validation' || explicit === 'switching') return explicit;
+  return typeof shelfPriceCents === 'number' && shelfPriceCents > 0 ? 'validation' : 'switching';
+}
+
+/** What the prompt's alternatives section needs about the user. Every field but the mode may be unknown. */
+export interface AlternativesContext {
+  readonly mode: AlternativesMode;
+  /** One of the store types of `catalogue/src/product-kind.ts`, or null when the shop is not known. */
+  readonly storeType?: string | null;
+  readonly condition?: 'new' | 'used' | 'refurbished' | null;
+  readonly maxTravelKm?: number | null;
+  readonly hasMembership?: boolean | null;
+  readonly requiredAttributes?: readonly string[] | null;
+}
+
 export interface ScanInput {
   readonly kind: ScanType;
   /** Digits, for a barcode scan. The image is NEVER sent with them. */
@@ -152,6 +186,16 @@ export interface ScanInput {
   readonly currency?: string | null;
   readonly language?: string | null;
   readonly userInput?: string | null;
+  /** The alternatives section's context. Absent means validation with nothing else known. */
+  readonly alternatives?: AlternativesContext;
+  /**
+   * The values for the market rules' placeholders (`MARKET_COUNTRY_OR_UNKNOWN`,
+   * `MARKET_REGION_OR_UNKNOWN`, `MARKET_CURRENCY_OR_UNKNOWN`, `REGION_MATTERS_HINT`,
+   * `CROSS_BORDER_HINT`), built from the user's location by
+   * `marketPromptFields` in `catalogue/src/market.ts`. Anything absent is the
+   * word "unknown": a market is never defaulted.
+   */
+  readonly marketFields?: Readonly<Record<string, string>>;
 }
 
 /* ------------------------------------------------------------ the package */
@@ -231,7 +275,21 @@ export function buildScanPrompt(input: ScanInput, family: ModelFamily): BuiltPro
         'It must have exactly this shape (a type list such as string|null means that kind of value or null; ' +
         'an array holds zero or more of the element shown; "(or null)" means the whole object may be null):\n' +
         JSON.stringify(skeleton(e.schema));
+  const alt: AlternativesContext = input.alternatives ?? { mode: alternativesModeFor(input.shelfPriceCents) };
+  const mf = input.marketFields ?? {};
+  const known = (v: string | null | undefined, none: string): string => (v && v.trim() !== '' ? v.trim() : none);
   const user = fill(e.template, {
+    MARKET_COUNTRY_OR_UNKNOWN: known(mf.MARKET_COUNTRY_OR_UNKNOWN, 'unknown'),
+    MARKET_REGION_OR_UNKNOWN: known(mf.MARKET_REGION_OR_UNKNOWN, 'unknown'),
+    MARKET_CURRENCY_OR_UNKNOWN: known(mf.MARKET_CURRENCY_OR_UNKNOWN, 'unknown'),
+    REGION_MATTERS_HINT: known(mf.REGION_MATTERS_HINT, 'unknown'),
+    CROSS_BORDER_HINT: known(mf.CROSS_BORDER_HINT, 'unknown'),
+    ALTERNATIVES_MODE: alt.mode,
+    USER_STORE_TYPE_OR_UNKNOWN: known(alt.storeType, 'unknown'),
+    USER_CONDITION_OR_UNKNOWN: known(alt.condition, 'unknown'),
+    USER_MAX_TRAVEL_KM_OR_NULL: typeof alt.maxTravelKm === 'number' && Number.isFinite(alt.maxTravelKm) ? String(alt.maxTravelKm) : 'null',
+    USER_HAS_MEMBERSHIP_OR_NULL: typeof alt.hasMembership === 'boolean' ? String(alt.hasMembership) : 'null',
+    USER_REQUIRED_ATTRIBUTES_OR_NONE: alt.requiredAttributes && alt.requiredAttributes.length ? alt.requiredAttributes.join(', ') : 'none',
     SCAN_TYPE: input.kind,
     BARCODE_OR_NULL: input.barcode?.trim() || 'null',
     MARKET: input.market?.trim() || NOT_STATED,
@@ -434,6 +492,125 @@ export interface ReadAnswer {
   readonly reviews: readonly { rating: number | null; count: number | null; summary: string; url: string | null }[];
   readonly verdict: ReadVerdict | null;
   readonly overallConfidence: number | null;
+  /** Gemini's alternatives, read tolerantly. A bad or missing section is marked here and never fails the scan. */
+  readonly alternatives: ReadAlternatives;
+}
+
+/**
+ * How the `alternatives` section arrived, so a bad answer is marked and not silent.
+ *   ok       every row was usable (and there is at least one)
+ *   empty    Gemini returned an empty list, which is a correct answer
+ *   partial  some rows were unusable and dropped, the rest are kept
+ *   missing  the section was absent or not a list: no alternatives, the scan still answers
+ */
+export type AlternativesStatus = 'ok' | 'empty' | 'partial' | 'missing';
+
+export interface ReadAlternative {
+  readonly name: string;
+  readonly brand: string | null;
+  readonly kind: 'same_product' | 'substitute' | 'used_copy' | 'newer_model' | 'other';
+  /** Gemini's one sentence on why this is an alternative, in the user's language. Null when it gave none. */
+  readonly reason: string | null;
+  readonly storeName: string | null;
+  readonly storeType: string | null;
+  readonly condition: 'new' | 'used' | 'refurbished' | 'unknown';
+  /** The price as Gemini returned it, ready to read out. Shin does no arithmetic on it. */
+  readonly priceText: string;
+  readonly currency: string | null;
+  /** The pack size as advertised, joined into text. Null when Gemini gave none. */
+  readonly size: string | null;
+  readonly url: string | null;
+  readonly attributes: readonly string[];
+  readonly notes: readonly string[];
+}
+
+export interface ReadAlternatives {
+  readonly status: AlternativesStatus;
+  readonly items: readonly ReadAlternative[];
+  /** Rows that could not be used, one entry each, so a bad answer is counted. */
+  readonly dropped: readonly { readonly index: number; readonly reason: string }[];
+}
+
+export const MAX_ALTERNATIVES = 5;
+const ALT_KINDS: ReadonlySet<string> = new Set(['same_product', 'substitute', 'used_copy', 'newer_model', 'other']);
+const ALT_CONDITIONS: ReadonlySet<string> = new Set(['new', 'used', 'refurbished']);
+
+/** A price the way it is read out, from an integer in the currency's minor unit. Formatting only. */
+function priceTextFromMinor(minor: number, currency: string | null): string {
+  if (currency !== null && /^[A-Za-z]{3}$/.test(currency)) {
+    try {
+      const fmt = new Intl.NumberFormat('en', { style: 'currency', currency: currency.toUpperCase() });
+      const digits = fmt.resolvedOptions().maximumFractionDigits ?? 2;
+      return fmt.format(minor / 10 ** digits);
+    } catch {
+      /* an unknown code: fall through to the plain form */
+    }
+  }
+  return `${(minor / 100).toFixed(2)}${currency ? ` ${currency}` : ''}`;
+}
+
+function strList(v: unknown): string[] {
+  return arr(v)
+    .filter((x): x is string => typeof x === 'string' && x.trim() !== '')
+    .map((x) => x.trim());
+}
+
+/**
+ * Reads the `alternatives` section of Gemini's answer. NEVER THROWS, whatever it
+ * is given. A row with no name or no price is dropped and counted; a missing or
+ * non-list section is marked `missing` and yields none; more than five rows are
+ * cut to five. A price is kept as Gemini wrote it (`price_text`), and only when
+ * that is absent is one written from `price_cents`, as text, never as a number
+ * Shin then reasons about.
+ */
+export function readAlternatives(raw: unknown): ReadAlternatives {
+  let list: unknown[] | null = null;
+  if (Array.isArray(raw)) list = raw;
+  else if (raw && typeof raw === 'object') {
+    const inner = (raw as { alternatives?: unknown; items?: unknown }).alternatives ?? (raw as { items?: unknown }).items;
+    if (Array.isArray(inner)) list = inner;
+  }
+  if (list === null) return { status: 'missing', items: [], dropped: [] };
+  if (list.length === 0) return { status: 'empty', items: [], dropped: [] };
+
+  const items: ReadAlternative[] = [];
+  const dropped: { index: number; reason: string }[] = [];
+  list.forEach((row, index) => {
+    try {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) return void dropped.push({ index, reason: 'not an object' });
+      const r = row as Record<string, unknown>;
+      const name = s(r.name);
+      if (name === null) return void dropped.push({ index, reason: 'no name' });
+      const currency = s(r.currency)?.toUpperCase() ?? null;
+      const minor = n(r.price_cents);
+      const priceText = s(r.price_text) ?? (minor !== null && minor > 0 ? priceTextFromMinor(minor, currency) : null);
+      if (priceText === null) return void dropped.push({ index, reason: 'no usable price' });
+      if (items.length >= MAX_ALTERNATIVES) return; // more than five is cut to five, which is not a bad row
+      const kind = s(r.kind);
+      const cond = s(r.condition)?.toLowerCase() ?? '';
+      const size = rec(r.size);
+      const sizeValue = n(size.value);
+      const sizeUnit = s(size.unit);
+      items.push({
+        name,
+        brand: s(r.brand),
+        kind: kind !== null && ALT_KINDS.has(kind) ? (kind as ReadAlternative['kind']) : 'other',
+        reason: s(r.reason),
+        storeName: s(r.store_name),
+        storeType: s(r.store_type),
+        condition: ALT_CONDITIONS.has(cond) ? (cond as 'new' | 'used' | 'refurbished') : 'unknown',
+        priceText,
+        currency,
+        size: sizeValue !== null ? `${sizeValue}${sizeUnit ? ` ${sizeUnit}` : ''}` : null,
+        url: cleanUrl(r.url),
+        attributes: strList(r.attributes),
+        notes: strList(r.constraint_notes),
+      });
+    } catch {
+      dropped.push({ index, reason: 'unreadable row' });
+    }
+  });
+  return { status: dropped.length > 0 ? 'partial' : 'ok', items, dropped };
 }
 
 export interface ReadOffer {
@@ -519,6 +696,7 @@ export function readAnswer(value: Record<string, unknown> | null): ReadAnswer | 
         }
       : null,
     overallConfidence: n(rec(value.uncertainty).overall_confidence),
+    alternatives: readAlternatives(value.alternatives),
   };
 }
 
@@ -764,6 +942,13 @@ export interface AnswerBlock extends Omit<PriceBlock, 'verdict' | 'offers'> {
   readonly parseStatus: ParseStatus;
   /** True when a shelf price was sent with the scan; false means the verdict has no placement for it. */
   readonly shelfPriceSent: boolean;
+  /**
+   * Gemini's alternatives, as it returned them, at most five, best first. Empty
+   * when there are none. NEVER part of the median or the verdict; Shin adds no
+   * price math to them. `alternativesStatus` says how the section arrived.
+   */
+  readonly alternatives: readonly ReadAlternative[];
+  readonly alternativesStatus: AlternativesStatus;
 }
 
 export interface GeminiPriceLine {
@@ -921,6 +1106,8 @@ export function toAnswerBlock(run: GeminiRun): AnswerBlock {
     confidenceReasons: run.confidenceReasons,
     parseStatus: run.parseStatus,
     shelfPriceSent: run.shelfPriceCents !== null,
+    alternatives: a?.alternatives.items ?? [],
+    alternativesStatus: a?.alternatives.status ?? 'missing',
   };
 }
 

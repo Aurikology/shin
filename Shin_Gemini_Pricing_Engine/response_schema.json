@@ -409,6 +409,165 @@
         ]
       }
     },
+    "alternatives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "same_product",
+              "substitute",
+              "used_copy",
+              "newer_model",
+              "other"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "store_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "store_type": {
+            "type": "string",
+            "enum": [
+              "supermarket",
+              "big_box",
+              "pharmacy",
+              "warehouse_club",
+              "convenience",
+              "farm",
+              "farmers_market",
+              "specialty",
+              "online_retailer",
+              "online_marketplace",
+              "other",
+              "unknown"
+            ]
+          },
+          "condition": {
+            "type": "string",
+            "enum": [
+              "new",
+              "used",
+              "refurbished",
+              "unknown"
+            ]
+          },
+          "price_text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "price_cents": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "value": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "unit": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "value",
+              "unit"
+            ]
+          },
+          "unit_price_cents": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "membership_required": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "distance_km": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "attributes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "constraint_notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "brand",
+          "kind",
+          "reason",
+          "store_name",
+          "store_type",
+          "condition",
+          "price_text",
+          "price_cents",
+          "currency",
+          "size",
+          "unit_price_cents",
+          "membership_required",
+          "distance_km",
+          "attributes",
+          "url",
+          "constraint_notes"
+        ]
+      }
+    },
     "pricing_summary": {
       "type": "object",
       "properties": {
@@ -624,6 +783,7 @@
     "condition",
     "offers",
     "reviews",
+    "alternatives",
     "pricing_summary",
     "uncertainty",
     "price_verdict"

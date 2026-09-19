@@ -12,7 +12,29 @@ import { APP_VERSION } from './version.js';
 import { currentCell } from './geocell.js';
 import { consent, get as storeState } from './store.js';
 import { locale, localeTag } from './lib/locale.js';
-import { thresholdsFrom, shelfPriceOf } from './lib/scan-body.js';
+import { thresholdsFrom, shelfPriceOf, scanContextFrom } from './lib/scan-body.js';
+
+/**
+ * The shop the user has picked, held by shops.js. It registers a getter here at
+ * load (shops.js already imports this file, so this direction adds no import
+ * cycle). Absent, no shop rides on the scan and the server reads the store type
+ * as unknown.
+ */
+let shopProvider = null;
+export function setScanShopProvider(fn) {
+  shopProvider = typeof fn === 'function' ? fn : null;
+}
+
+/** Where and how the user shops, for the one Gemini call: see lib/scan-body.js. */
+function scanContext() {
+  let shop = null;
+  try {
+    shop = shopProvider ? shopProvider() : null;
+  } catch {
+    shop = null;
+  }
+  return scanContextFrom({ market: storeState()?.market, language: localeTag(), shop });
+}
 
 /**
  * The three facts every identify body carries, per the fixed contract: an
@@ -260,7 +282,7 @@ export function price(query) {
   // The user's own lines ride on every scan request (2026-09-17), the price
   // call included. Nothing is sent when they have none set; the caller wins.
   const thresholds = thresholdsFrom(storeState());
-  const withLines = thresholds ? { thresholds, ...query } : query;
+  const withLines = { ...scanContext(), ...(thresholds ? { thresholds } : {}), ...query };
   return post('/api/price', device ? { deviceId: device, ...withLines } : withLines);
 }
 
@@ -292,6 +314,7 @@ export function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPriceCen
   if (shelf !== undefined) params.set('shelfPriceCents', String(shelf));
   const thresholds = thresholdsFrom(storeState());
   if (thresholds) params.set('thresholds', JSON.stringify(thresholds));
+  for (const [k, v] of Object.entries(scanContext())) params.set(k, String(v));
   if (text) params.set('text', text);
   if (brand) params.set('brand', brand);
   if (sizeValue) params.set('sizeValue', String(sizeValue));
@@ -494,6 +517,7 @@ export async function identifyPhoto(blob, { sharpness, deviceId, tier, shelfPric
   if (shelf !== undefined) body.shelfPriceCents = shelf;
   const thresholds = thresholdsFrom(storeState());
   if (thresholds) body.thresholds = thresholds;
+  Object.assign(body, scanContext());
   if (tier) body.tier = tier;
   const device = deviceId ?? getDeviceId()?.id;
   if (device) body.deviceId = device;

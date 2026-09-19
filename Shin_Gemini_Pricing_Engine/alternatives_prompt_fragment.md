@@ -1,8 +1,11 @@
 # ALTERNATIVES: FRAGMENT FOR scan_prompt.md
 
-Built for beta-gaps item 18 (2026-09-19). This is a new file and a fragment, not
-part of the live prompt: the owner of `scan_prompt.md` places it, and adds the
-`alternatives` array to `response_schema.json`. The catalogue side that reads the
+MERGED into `scan_prompt.md` (section ALTERNATIVES) and `response_schema.json`
+(`alternatives`) on 2026-09-19. Those two files are the live text; this copy is
+history and is never sent to Gemini. Edit the live files, not this one.
+
+Built for beta-gaps item 18 (2026-09-19). This was a fragment, not
+part of the live prompt. The catalogue side that reads the
 answer is `catalogue/src/alternative-modes.ts` (`parseAlternativesAnswer`), which
 accepts the snake_case names below and repairs or drops a bad row instead of
 failing the scan.

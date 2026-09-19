@@ -58,6 +58,47 @@
   color: var(--ink-muted);
 }
 
+/* --------------------------------------- the alternatives under the answer -- */
+
+/* A plain list: name and price on one line, the reason under it. Gemini's own
+   words and figures, so nothing here is styled as a verdict. */
+.gem-alts {
+  margin-top: var(--s-5);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--hairline);
+}
+
+.gem-alts-heading {
+  margin: 0 0 var(--s-3);
+  font-family: var(--f-ui);
+  font-size: var(--t-row-size);
+  font-weight: var(--t-row-weight);
+  color: var(--ink);
+}
+
+.gem-alt-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--s-3);
+  font-size: var(--t-body-size);
+  color: var(--ink);
+}
+
+.gem-alt-name {
+  font-weight: var(--t-row-weight);
+}
+
+.gem-alt-price {
+  margin-left: var(--s-2);
+}
+
+.gem-alt-why {
+  display: block;
+  color: var(--ink-muted);
+}
+
 /* ----------------------------------------------------- the block itself -- */
 
 .grounded {

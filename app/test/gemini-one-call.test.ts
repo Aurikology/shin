@@ -290,3 +290,73 @@ test('a spent daily budget answers with its own sentence, marked, and sends noth
   await identify('gtin=0068100084245&deviceId=cap-a');
   assert.equal(calls.length, 1, 'the guard was still tripped after it was lifted');
 });
+
+/* ---------------------------------------------- items 18 and 19: the wire -- */
+
+const ALT_ROW = {
+  name: 'Store-brand macaroni',
+  brand: 'No Name',
+  kind: 'substitute',
+  reason: 'Not the same brand, two dollars less.',
+  store_name: 'Beta Foods',
+  store_type: 'supermarket',
+  condition: 'new',
+  price_text: '$1.99',
+  price_cents: 199,
+  currency: 'CAD',
+  size: { value: 225, unit: 'g' },
+  unit_price_cents: null,
+  membership_required: false,
+  distance_km: null,
+  attributes: [],
+  url: null,
+  constraint_notes: [],
+};
+
+test('alternatives travel the wire: the request carries mode, store type and market, and the answer carries the list (items 18, 19)', async () => {
+  install(() => ({ text: httpBody(JSON.stringify(goodAnswer({ alternatives: [ALT_ROW] }))) }));
+  const q = new URLSearchParams({
+    gtin: '0068100084245',
+    deviceId: 'alt-a',
+    shelfPriceCents: '449',
+    market: 'France',
+    currency: 'EUR',
+    storeName: 'Some Shop',
+    storeHint: 'supermarket',
+  });
+  const { body } = await identify(q.toString());
+  assert.equal(calls.length, 1, 'alternatives cost a second call');
+  const asked = userTurn(calls[0]);
+  assert.match(asked, /Mode for this scan: validation/, 'a scan with a shelf price is a validation');
+  assert.match(asked, /Where the user shops \(store type, if known\): supermarket/);
+  assert.match(asked, /Country: FR/, 'the market did not come from the user\'s chosen country');
+  assert.match(asked, /Currency: EUR/);
+  assert.match(asked, /Cross-border hint from Shin: possibly_alike/);
+  assert.doesNotMatch(asked, /Some Shop/, 'the shop name went to Gemini; only its type should');
+  const alts = body.grounded.block.alternatives;
+  assert.equal(alts.length, 1, 'the alternatives did not reach the answer the phone gets');
+  assert.equal(alts[0].priceText, '$1.99');
+  assert.equal(body.grounded.block.alternativesStatus, 'ok');
+  const row = getScan(body.scanId) as any;
+  assert.equal(JSON.parse(row.model_json).alternatives, 'ok', 'how the section arrived is not recorded on the scan');
+});
+
+test('with no shelf price it is switching, and with nothing about the user the market is unknown, never Canada (items 18, 19)', async () => {
+  await identify('gtin=0068100084245&deviceId=alt-b');
+  const asked = userTurn(calls[0]);
+  assert.match(asked, /Mode for this scan: switching/);
+  assert.match(asked, /Country: unknown/);
+  assert.match(asked, /Currency: unknown/);
+  assert.match(asked, /Where the user shops \(store type, if known\): unknown/);
+});
+
+test('a broken alternatives section still answers the scan, marked, in one call (rule 6)', async () => {
+  install(() => ({ text: httpBody(JSON.stringify(goodAnswer({ alternatives: 'not a list' }))) }));
+  const { status, body } = await identify('gtin=0068100084245&deviceId=alt-c');
+  assert.equal(status, 200);
+  assert.equal(calls.length, 1);
+  assert.equal(body.grounded.block.alternatives.length, 0);
+  assert.equal(body.grounded.block.alternativesStatus, 'missing');
+  assert.equal(body.grounded.block.verdict.median, 3, 'the answer was lost with the alternatives');
+  assert.equal(body.lowConfidence, false);
+});
