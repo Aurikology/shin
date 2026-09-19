@@ -52,6 +52,8 @@ export function pickTag(routeId, matches, tags = SCREEN_TAGS) {
   let bestRank = -Infinity;
   for (const [tag, e] of Object.entries(tags)) {
     if (e.route !== routeId && e.route !== '*') continue;
+    // A retired tag (screen-tags.js rule 1) keeps its number and never matches.
+    if (e.retired) continue;
     if (e.route === routeId && first === null) first = tag;
     if (e.sel) {
       let hit = false;
@@ -132,7 +134,7 @@ function watch() {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['data-screen', 'data-state', 'data-mode', 'data-camera', 'data-detent', 'hidden', 'aria-busy'],
+    attributeFilter: ['data-screen', 'data-state', 'data-camera', 'data-detent', 'hidden', 'aria-busy'],
   });
 }
 

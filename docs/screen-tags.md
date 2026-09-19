@@ -63,9 +63,9 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 
 | Tag | Name | How to reach it | File |
 | --- | --- | --- | --- |
-| a32 | Camera, barcode mode (where the app opens) | Cold start once setup and consent are done. Or tap Barcode on the mode switch. | `app/public/js/screens/camera.js` |
-| a33 | Camera, barcode found, Scan barcode button showing | In barcode mode, hold a barcode in the frame until the reader agrees on it. | `app/public/js/screens/camera.js` |
-| a34 | Camera, Price Tag mode (shutter button) | Tap Price Tag on the mode switch above the shutter. | `app/public/js/screens/camera.js` |
+| a32 | Camera (where the app opens) | Cold start once setup and consent are done. Or ?s=camera. The barcode, camera and keyboard buttons are all showing; there are no mode tabs. | `app/public/js/screens/camera.js` |
+| a33 | Camera, barcode found, barcode button lit | Hold a barcode in the frame until the reader agrees on it; the barcode button gets a pink ring. | `app/public/js/screens/camera.js` |
+| a34 | Camera at rest (photo button) | The camera with nothing under way. Formerly Price Tag mode; the camera button now always takes the price tag photo. | `app/public/js/screens/camera.js` |
 | a35 | Camera with no live feed (drawn shelf instead) | Camera permission denied, no camera on the device, a private window, or a desktop without one. | `app/public/js/screens/camera.js` |
 | a36 | Camera, frame frozen while Shin reads it | Just after the shutter or Scan barcode button, before any sheet rises. | `app/public/js/screens/camera.js` |
 | a37 | Working sheet, the three-step wait | After a scan is identified and the price request is under way. The x cancels. | `app/public/js/screens/camera.js` |
@@ -84,7 +84,7 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | a50 | Which shop are you in? (store picker) | Price pad, tap the shop row. | `app/public/js/screens/camera.js` |
 | a51 | Price written down card (price saved with no verdict) | Refusal sheet, tap the price-only button, type a price (and a name if you like), confirm. | `app/public/js/screens/camera.js` |
 | a52 | Type what it is (name the item) | Refusal sheet, tap Type what it is. | `app/public/js/screens/camera.js` |
-| a81 | Camera, Manual Search mode (no viewfinder control) | Tap Manual Search on the mode switch. The name field opens at once as a52; close it and this is what is left. | `app/public/js/screens/camera.js` |
+| a81 | Retired: Camera, Manual Search mode | Gone 2026-09-19 with the mode tabs. The keyboard button opens the name field as a52. | `app/public/js/screens/camera.js` |
 | a82 | Answer sheet with your earlier prices (price history chart) | Half open answer sheet for an item you have scanned with a typed price at least twice before. Absent otherwise. | `app/public/js/screens/camera.js` |
 | a83 | Price pad with the good-price or better-buy choice | The price pad right after a scan (barcode, Price Tag or Manual Search). Flip between Is this a good price and Find a better buy. | `app/public/js/screens/camera.js` |
 

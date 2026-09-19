@@ -2201,6 +2201,43 @@ function locationFor(
   };
 }
 
+/*
+ * THE NET UNDER BUILD STANDARD 9, and the reason it is a net and not a rule.
+ *
+ * Node 24 exits the process on an unhandled rejection. This server has died
+ * that way twice, in two places that have nothing to do with each other:
+ * 2026-09-08, `new URL` on a malformed `Host` header, thrown on the first line
+ * of an async handler outside the try that answers everything else; and D-129,
+ * 2026-09-19, a boot-time `warm` pre-load missing a 5,000 ms deadline and
+ * rejecting a promise nothing in the repo awaits. Both ended the same way: the
+ * server gone for everybody, no body, no second packet.
+ *
+ * Each was fixed where it happened, and each fix was right. This is the
+ * admission that there will be a third. A shopper-facing server has exactly
+ * one failure mode worse than answering badly, and that is not answering, so
+ * the default of dying is the wrong default here -- rule 6's 'always an
+ * answer' cannot hold on a process that is not running.
+ *
+ * IT LOGS LOUDLY AND IT DOES NOT HIDE ANYTHING. Every rejection that reaches
+ * here is a real defect that still has to be found and fixed at its source;
+ * this only decides that the shopper in an aisle is not the one who pays for
+ * it. The line goes through the same `logError` every other fault uses, so it
+ * lands in the same place people already read.
+ *
+ * `uncaughtException` is deliberately NOT caught alongside it. A synchronous
+ * throw that escaped every try leaves the process in a state nothing here can
+ * reason about, and continuing to serve from it is how a crash becomes
+ * corrupt data. A rejected promise is a value; an escaped exception is a
+ * wrecked stack, and the two do not deserve the same answer.
+ */
+process.on('unhandledRejection', (reason) => {
+  logError({
+    where: 'process.unhandledRejection',
+    err: reason,
+    detail: { survived: true, standard: 9 },
+  });
+});
+
 export const server = createServer(async (req, res) => {
   /*
    * THE HOST HEADER IS NOT PARSED, AND THAT IS THE FIX RATHER THAN THE

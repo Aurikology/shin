@@ -271,11 +271,13 @@ function voice(reader: Reader): string {
  * The market, asked for as narrowly as the request can put it.
  *
  * THIS IS THE FIRST LINE OF DEFENCE, NOT THE ONLY ONE. `../gauge.ts` still
- * drops anything that comes back in another currency or from a marketplace
- * seller, with the codes `not_cad` and `marketplace`, because a model that
- * was asked for Canadian retailers will still sometimes answer with a US
- * listing and a price that looks like dollars. Asking narrowly here costs
- * nothing and removes most of the work from the second line.
+ * drops anything that comes back in another currency, with the code
+ * `not_cad`, because a model that was asked for Canadian retailers will still
+ * sometimes answer with a US listing and a price that looks like dollars.
+ * Asking narrowly here costs nothing and removes most of the work from the
+ * second line. A marketplace seller is no longer asked to be left out (owner,
+ * 2026-09-19): it is asked to be MARKED, and the gauge keeps it on the line
+ * with that mark.
  *
  * "NEVER CONVERT" IS SAID OUT LOUD, to Gemini as well as in our own code. An
  * exchange rate is a guess about a number the shopper would actually be
@@ -284,8 +286,8 @@ function voice(reader: Reader): string {
  */
 function market(reader: Reader): string {
   return reader === 'fr'
-    ? "Detaillants canadiens seulement, prix en dollars canadiens (CAD) seulement. Pas de vendeurs tiers sur une place de marche, seulement le detaillant lui-meme. Ne convertis JAMAIS un prix d'une autre devise en CAD : donne le prix tel quel avec le code de sa devise."
-    : 'Canadian retailers only, prices in Canadian dollars (CAD) only. No third-party marketplace sellers, only the retailer itself. NEVER convert a price from another currency into CAD: give the price as it stands with its own currency code.';
+    ? "Detaillants canadiens seulement, prix en dollars canadiens (CAD) seulement. Un vendeur tiers sur une place de marche est accepte : marque-le comme tel. Ne convertis JAMAIS un prix d'une autre devise en CAD : donne le prix tel quel avec le code de sa devise."
+    : 'Canadian retailers only, prices in Canadian dollars (CAD) only. A third-party marketplace seller is accepted: mark it as one. NEVER convert a price from another currency into CAD: give the price as it stands with its own currency code.';
 }
 
 function brevity(reader: Reader): string {
@@ -825,13 +827,13 @@ export interface ShownPriceLine {
   readonly zoneUnderBoundary: number;
   readonly zoneOverBoundary: number;
   readonly ticks: readonly { pct: number; position: number; label: string }[];
-  readonly points: readonly { retailer: string; position: number; url: string | null; label: string }[];
+  readonly points: readonly { retailer: string; position: number; url: string | null; label: string; marks: readonly string[] }[];
   readonly excluded: readonly { retailer: string; code: string; note: string; label: string; url: string | null }[];
   readonly shelf: { readonly position: number; readonly zone: string; readonly pct: number };
   readonly shelfLabel: string;
   /** True when the scanned item had no known size and one was borrowed from the offers. */
   readonly sizeAssumed: boolean;
-  /** 'thin' when the line rests on two prices, or on a set one claim was held out of. */
+  /** 'thin' when the line rests on one or two prices, or on a set one claim was held out of. */
   readonly confidence: GaugeConfidence;
   /** What the line is short of, named. The client renders its own sentence per code. */
   readonly shortfalls: readonly { code: string; note: string }[];
@@ -1028,14 +1030,6 @@ export function priceGaugeFor(
   let sizeAssumed = false;
 
   let result = computeGauge(shelf, gaugeOffers, query.underPct ?? 10, query.overPct ?? 10);
-  /**
-   * BORROWING A SIZE CANNOT CONJURE A SECOND PRICE. The ladder below exists
-   * for offers that could not be compared, and re-running it on a lone offer
-   * would just spend two more passes arriving at the same refusal -- with the
-   * risk that a per-item fallback quietly draws the one-offer line this guard
-   * is here to prevent. So the single-offer case leaves immediately.
-   */
-  if (!result.usable && result.reason === 'single_offer') return { line: null, reason: 'single_offer' };
   if (!result.usable) {
     const sized = offers.filter((o) => o.sizeValue !== null && o.sizeUnit !== null);
     const tally = new Map<string, { count: number; offer: ShownOffer }>();

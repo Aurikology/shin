@@ -1,8 +1,9 @@
 /**
  * W30, row 25, row 34 and W33 (docs/audit-google-doc-2026-09-19.md), 2026-09-19.
  *
- *   W30   three viewfinder modes (Scan Barcode, Price Tag, Manual Search); Price
- *         Tag sends `hint: 'price_tag'`; Manual Search is one Gemini text call.
+ *   W30   three scans (barcode, photo, typed name), icon buttons since 2026-09-19
+ *         with no mode tabs; the photo sends `hint: 'price_tag'`; the typed name
+ *         is one Gemini text call.
  *   25    the user flips validation and switching on the price pad; it rides as
  *         `mode`.
  *   34    no `|| 'Canada'`, and the going rate cards format in the market's own
@@ -87,36 +88,43 @@ test('the server reads the hint and turns it into a sentence for the prompt, and
   assert.ok(PROMPT.includes('shelf price tag, read the product'), 'scan_prompt.md lost its price tag line');
 });
 
-/* ------------------------------------------------------------------ the modes */
+/* ------------------------------------------------- the three scan buttons */
 
-test('the switcher has his three modes in his order, and manual opens the name field', () => {
-  const strip = between(CAMERA, '<div class="cam-mode"', '<div class="sheet-slot">', 'the mode strip').replace(/\s+/g, ' ');
-  const order = [...strip.matchAll(/data-mode="(\w+)"/g)].map((m) => m[1]);
-  assert.deepEqual(order, ['barcode', 'photo', 'manual']);
-  assert.ok(strip.includes("t('cam_mode_manual')"));
+// 2026-09-19: W30's three modes are no longer tabs to pick first. They are three
+// icon buttons that are always there (barcode, camera, keyboard); the scan
+// paths under them are unchanged. Icon wiring is in camera-icons.test.mjs.
+
+test('the keyboard button opens the name field', () => {
+  const bar = between(CAMERA, '<div class="cam-bar">', '</div>\n      </div>', 'the bar').replace(/\s+/g, ' ');
+  assert.ok(bar.includes('data-act="manual-search"') && bar.includes("t('cam_mode_manual')"), 'the keyboard button is gone or has lost its label');
   const fn = between(CAMERA, '    function openManualSearch() {', '    /**\n     * Whether the eye is decoding', 'openManualSearch');
   assert.ok(fn.includes('textRouteSheet()') && fn.includes("setState('texting')"), 'manual search no longer opens the name field');
-  assert.match(CAMERA, /if \(scanMode === 'manual'\) openManualSearch\(\);/, 'choosing Manual Search does not open it');
-  assert.ok(CAMERA.includes("scanMode = next === 'barcode' ? 'barcode' : next === 'manual' ? 'manual' : 'photo';"), 'setScanMode does not know manual');
+  assert.ok(fn.includes('manualSearch = true;'), 'opening the name field does not say it is a manual search, so the price is not asked first');
+  assert.match(CAMERA, /if \(act === 'manual-search'\) \{ openManualSearch\(\); return; \}/, 'the keyboard button does not open it');
 });
 
 test('manual search asks the price first, then sends the typed name as one text scan with it', () => {
-  assert.ok(CAMERA.includes("if (scanMode === 'manual') { askPriceFirst({ kind: 'text', text }); return; }"), 'a manual submit skips the price pad');
+  assert.ok(CAMERA.includes("if (manualSearch) { manualSearch = false; askPriceFirst({ kind: 'text', text }); return; }"), 'a manual submit skips the price pad');
   assert.ok(CAMERA.includes("else if (pending.kind === 'text') void runTypedSearch(pending.text, scanShelfCents, true);"), 'the pad does not send a text scan');
   const run = between(CAMERA, '    async function runTypedSearch(text, cents, asked) {', '    /* The sheet moves between three detents', 'runTypedSearch');
   assert.ok(run.includes('ctx.api.identify({ text, shelfPriceCents: cents ?? undefined })'), 'the typed name is not sent as a text identify carrying the price');
   assert.ok(run.includes('const priced = asked ? null : matchCatalogue'), 'manual search still asks the demo shelf before Gemini');
   assert.ok(run.includes('if (asked) proceed(typed, cents ?? undefined);'), 'the pad is asked a second time');
+  // The type-it route out of a refusal is the same field but NOT a manual search:
+  // it identifies first and asks the price after, as before.
+  const typeit = between(CAMERA, "      if (act === 'typeit') {", 'textRouteSheet();', 'typeit');
+  assert.ok(typeit.includes('manualSearch = false;'), 'the type-it route inherits a manual search and asks the price first');
 });
 
-test('Price Tag mode sends the hint, and only for a photo taken in that mode', () => {
+test('the photo scan sends the price tag hint, and only a photo does', () => {
   const fn = between(CAMERA, '    function submitScanPrice(cents) {', '    /** The barcode\'s identification', 'submitScanPrice');
-  assert.ok(fn.includes("pending.kind === 'photo' && scanMode === 'photo' ? { hint: 'price_tag' } : {}"), 'the price tag hint is gone or sent for other scans');
+  assert.ok(fn.includes("...(pending.kind === 'photo' ? { hint: 'price_tag' } : {}),"), 'the price tag hint is gone or sent for other scans');
   assert.ok(fn.includes('ctx.api.setScanIntent?.('), 'the intent is never handed to the api');
+  assert.ok(CAMERA.includes("askPriceFirst({ kind: 'photo', crop });"), 'the photo path no longer asks the price first');
 });
 
-test('the mode names are in both languages', () => {
-  const frAt = STRINGS.indexOf("cam_shutter: 'Scanner ce que tu pointes'");
+test('the icon names and the manual search label are in both languages', () => {
+  const frAt = STRINGS.indexOf("cam_shutter: 'Prendre une photo'");
   assert.notEqual(frAt, -1);
   const en = STRINGS.slice(0, frAt);
   const fr = STRINGS.slice(frAt);
@@ -124,9 +132,8 @@ test('the mode names are in both languages', () => {
     assert.ok(en.includes(`${key}:`), `${key} missing in English`);
     assert.ok(fr.includes(`${key}:`), `${key} missing in French`);
   }
-  assert.match(en, /cam_mode_photo: 'Price Tag'/);
-  assert.match(en, /cam_mode_barcode: 'Scan Barcode'/);
   assert.match(en, /cam_mode_manual: 'Manual Search'/);
+  assert.match(en, /cam_shutter: 'Take a photo'/);
 });
 
 /* ---------------------------------------------------------- row 25: the choice */

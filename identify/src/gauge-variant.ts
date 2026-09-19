@@ -48,12 +48,11 @@
  * offer is that offer, so an ordinary price got drawn as a full verdict line
  * against a "middle" that was really just itself -- measured in the wild as
  * one Walmart offer rendering as "83% under the middle of 1 prices" against a
- * hand-priced truth of $1.74. Nothing about that arithmetic is specific to
- * unit prices: the same one-offer median would happen here the day a
- * retailer's spec-variant search comes back with a single exact match, so the
- * guard is ported now rather than waited on until this file is wired and the
- * defect reappears under a new number. See `computeVariantGauge`'s own
- * comments for where each piece came from.
+ * hand-priced truth of $1.74. The band half of the guard is kept. The other
+ * half, withholding the line at one offer, was reversed by the owner on
+ * 2026-09-19 ("the one price becomes the median") and is reversed here the
+ * same way as in `gauge.ts`: one offer draws a line marked `one_offer`. See
+ * `computeVariantGauge`'s own comments for where each piece came from.
  */
 
 import type { GaugeZone, GaugeConfidence, GaugeShortfall, GaugeShortfallCode } from './gauge.ts';
@@ -183,9 +182,9 @@ export interface VariantGaugeUsable {
  * WHY there is no line, `gauge.ts`'s `GaugeNoLineReason` narrowed to what can
  * actually happen here. There is no shelf-size reason in this file -- a
  * spec-variant shelf item always has a model and a price, never a size to be
- * missing -- so only the two offer-count reasons carry over.
+ * missing -- so only the no-offers reason carries over.
  */
-export type VariantNoLineReason = 'single_offer' | 'no_offers_on_line';
+export type VariantNoLineReason = 'no_offers_on_line';
 
 export interface VariantGaugeUnusable {
   readonly usable: false;
@@ -237,6 +236,7 @@ export const LONE_CLAIM_FLOOR = 0.5;
 export const LONE_CLAIM_CEILING = 2.5;
 
 const SHORTFALL_NOTES: Record<GaugeShortfallCode, string> = {
+  one_offer: 'only one price found, so the middle is that price',
   thin_evidence: 'only two prices found, so the middle is rough',
   claim_held: 'one price was too far from the others to place',
   spread_unresolved: 'the prices found disagree too much to say which is typical',
@@ -321,6 +321,7 @@ function confidenceOf(
   spreadUnresolved: boolean,
 ): { band: GaugeConfidence; shortfalls: GaugeShortfall[] } {
   const shortfalls: GaugeShortfall[] = [];
+  if (keptCount === 1) shortfalls.push({ code: 'one_offer', note: SHORTFALL_NOTES.one_offer });
   if (keptCount === 2) shortfalls.push({ code: 'thin_evidence', note: SHORTFALL_NOTES.thin_evidence });
   if (heldCount > 0) shortfalls.push({ code: 'claim_held', note: SHORTFALL_NOTES.claim_held });
   if (spreadUnresolved) shortfalls.push({ code: 'spread_unresolved', note: SHORTFALL_NOTES.spread_unresolved });
@@ -414,17 +415,11 @@ export function computeVariantGauge(
   }
 
   /**
-   * D-113, THE HALF THE BAND CANNOT CATCH. At one offer the median IS that
-   * offer, every percentage is measured against the claim itself, and the
-   * line would say the shopper is far from a middle that does not exist.
-   * There is no arithmetic that fixes this, because there is no second
-   * number. The other-condition and other-variant lists are still returned --
-   * only the LINE is withheld.
+   * D-113 WITHHELD THE LINE HERE at one offer, because the median of one
+   * offer is that offer. The owner reversed it on 2026-09-19 ("the one price
+   * becomes the median"): the line is drawn and `confidenceOf` marks it
+   * `one_offer`, as in `gauge.ts`. Zero offers returned above.
    */
-  if (kept.length < 2) {
-    return { usable: false, otherConditions, otherVariants, excluded, reason: 'single_offer' };
-  }
-
   const { band: confidence, shortfalls } = confidenceOf(kept.length, held.length, spreadUnresolved);
   const prices = kept.map((x) => x.price);
   const mid = medianOf(prices);

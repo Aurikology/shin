@@ -197,17 +197,13 @@ const EN = {
   cam_search: 'Search',
   cam_torch: 'Torch',
   cam_this: 'this',
-  cam_shutter: 'Scan what you are pointing at',
-  /* Rule 2, 2026-09-15. The camera no longer reads a barcode by itself, so the
-     two ways to scan are a mode the shopper picks, and the barcode one has its
-     own button where the shutter would be. */
-  /* W30, 2026-09-19: his three modes, in his words. The photo scan is the Price
-     Tag mode now (the picture is a shelf tag); the key keeps its name because
-     the scan path under it is still the photo path. */
-  cam_mode_photo: 'Price Tag',
-  cam_mode_barcode: 'Scan Barcode',
+  /* 2026-09-19: the camera screen has no mode tabs. These three are the
+     accessible names of its three icon buttons: the shutter (a photo, sent as a
+     shelf tag, W30's Price Tag hint), the barcode button below, and the
+     keyboard button (W30's Manual Search, a typed name). `cam_mode_manual`
+     keeps its name because tests and history know it by it. */
+  cam_shutter: 'Take a photo',
   cam_mode_manual: 'Manual Search',
-  cam_mode_picker: 'What to scan',
   /* Row 25: validation or switching, chosen by the user on the price pad. */
   cam_alt_group: 'What do you want from this scan?',
   cam_alt_validation: 'Is this a good price?',
@@ -309,12 +305,18 @@ const EN = {
   grounded_size_assumed: 'Size not known, so this compares at the size most stores listed.',
   /* Why there is no price line. Each one states what the evidence was, never
    * that Shin does not know: the offers, the reviews and the description are
-   * all still on screen above these sentences. D-113. */
-  grounded_no_line_single: 'Only one price found, so there is no middle to compare against.',
+   * all still on screen above these sentences. D-113. (The single-price one
+   * went on 2026-09-19: one price now draws a line, and says so below.) */
   grounded_no_line_none: 'No price that could be compared came back for this one.',
   grounded_no_line_size: 'No size given for this one, so the prices cannot be lined up.',
+  grounded_line_one: 'Only one price found, so the middle is that price.',
   grounded_line_thin: (f) => `From ${f.n} prices, so the middle is rough.`,
   grounded_line_held: 'One price was too far from the others to place.',
+  /* The two marks an offer can carry and still count in the middle (owner,
+   * 2026-09-19: "it should just be marked as members only"). Both say a fact
+   * about the offer, never a reading of its price. */
+  grounded_mark_members: (f) => `Members only: ${f.name}`,
+  grounded_mark_marketplace: (f) => `Marketplace seller: ${f.name}`,
   cam_unchecked_answer: (f) => `Best match, not checked: ${f.label}`,
 
   /* ------------------------------------------------------- the price line
@@ -330,6 +332,14 @@ const EN = {
   priceline_you_under: (f) => `your price, ${f.pct}% under the middle of ${f.n} prices`,
   priceline_you_middle: (f) => `your price, in the middle of ${f.n} prices`,
   priceline_you_over: (f) => `your price, ${f.pct}% over the middle of ${f.n} prices`,
+  /* One price is a line too (2026-09-19), so these read "the one price found"
+     where the plural forms above would say "1 prices". */
+  priceline_caption_one: (f) => `Per ${f.unit}, one price found`,
+  priceline_you_under_one: (f) => `your price, ${f.pct}% under the one price found`,
+  priceline_you_middle_one: 'your price, in the middle of the one price found',
+  priceline_you_over_one: (f) => `your price, ${f.pct}% over the one price found`,
+  priceline_mark_members: 'members only',
+  priceline_mark_marketplace: 'marketplace seller',
   priceline_merged: (f) => `${f.n} prices`,
   priceline_excluded: (f) => `${f.n} left out`,
 
@@ -644,16 +654,13 @@ const FR = {
   cam_search: 'Chercher',
   cam_torch: 'Lampe',
   cam_this: 'ça',
-  cam_shutter: 'Scanner ce que tu pointes',
-  cam_mode_photo: 'Étiquette',
-  cam_mode_barcode: 'Code-barres',
+  cam_shutter: 'Prendre une photo',
   cam_mode_manual: 'Recherche manuelle',
   cam_alt_group: 'Que veux-tu de ce scan?',
   cam_alt_validation: 'Est-ce un bon prix?',
   cam_alt_switching: 'Trouve-moi mieux',
   cam_hist_heading: 'Tes prix précédents',
   cam_hist_alt: (f) => `Tes ${f.n} derniers prix pour cet article, du plus ancien au plus récent.`,
-  cam_mode_picker: 'Quoi scanner',
   cam_scan_barcode: 'Scanner le code-barres',
   you_torch_group: 'Lampe',
   you_torch_auto: 'Auto',
@@ -735,11 +742,13 @@ const FR = {
   grounded_no_link: (f) => `Pas de lien pour celui-ci : ${f.name}`,
   grounded_unchecked: 'Trouvé par une recherche web. Pas vérifié par Shin.',
   grounded_size_assumed: 'Format inconnu, donc la comparaison se fait au format que la plupart des magasins affichent.',
-  grounded_no_line_single: "Un seul prix trouvé, donc il n'y a pas de milieu pour comparer.",
   grounded_no_line_none: 'Aucun prix comparable trouvé pour celui-ci.',
   grounded_no_line_size: 'Aucun format donné pour celui-ci, donc les prix ne peuvent pas être alignés.',
+  grounded_line_one: 'Un seul prix trouvé, donc le milieu est ce prix.',
   grounded_line_thin: (f) => `À partir de ${f.n} prix, donc le milieu est approximatif.`,
   grounded_line_held: 'Un prix était trop éloigné des autres pour être placé.',
+  grounded_mark_members: (f) => `Réservé aux membres : ${f.name}`,
+  grounded_mark_marketplace: (f) => `Vendeur de la place de marché : ${f.name}`,
   cam_unchecked_answer: (f) => `Meilleure correspondance, pas vérifiée : ${f.label}`,
 
   /* ------------------------------------------------------- la ligne des prix
@@ -758,6 +767,12 @@ const FR = {
   priceline_you_under: (f) => `ton prix, ${f.pct} % sous le milieu de ${f.n} prix`,
   priceline_you_middle: (f) => `ton prix, au milieu de ${f.n} prix`,
   priceline_you_over: (f) => `ton prix, ${f.pct} % au-dessus du milieu de ${f.n} prix`,
+  priceline_caption_one: (f) => `Par ${f.unit}, un seul prix trouvé`,
+  priceline_you_under_one: (f) => `ton prix, ${f.pct} % de moins que le seul prix trouvé`,
+  priceline_you_middle_one: 'ton prix, au milieu du seul prix trouvé',
+  priceline_you_over_one: (f) => `ton prix, ${f.pct} % de plus que le seul prix trouvé`,
+  priceline_mark_members: 'réservé aux membres',
+  priceline_mark_marketplace: 'vendeur de la place de marché',
   priceline_merged: (f) => `${f.n} prix`,
   priceline_excluded: (f) => `${f.n} écartés`,
 

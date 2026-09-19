@@ -2206,7 +2206,7 @@ export default {
      */
     if (store.consent().location) void refreshCell();
     root.innerHTML = `
-      <div class="cam" data-state="idle" data-mode="photo">
+      <div class="cam" data-state="idle">
         <!-- FLAWS.md item 12: every other screen has an h1 and this one had no
              heading element at all, so a screen reader's heading list skipped
              the app's main surface entirely and router.js has nothing to move
@@ -2257,34 +2257,6 @@ export default {
              because that is what it has always been saying. -->
         <div class="cam-shin" data-slot="cam-shin"></div>
 
-        <!--
-          RULE 2, 2026-09-15: "the barcode should not be auto read, there
-          should be a scan the barcode button", and "the image and barcode
-          should not be part of the same scan".
-
-          So the two are two modes, not one pipeline, and the shopper says
-          which. Photo is the default and is exactly the behaviour that was
-          always there. Barcode arms the decoder and swaps the shutter for its
-          own button -- nothing decodes in photo mode at all (see the gate in
-          src/eye/camera.ts).
-
-          It sits in the band between the docked face and the bar rather than
-          in the bar: the bar holds three controls at a 44px gap already at the
-          thumb-target floor, and a fourth would shrink the shutter or the nav
-          labels. Idle only, like everything else in this band.
-        -->
-        <div class="cam-mode" role="group" aria-label="${escapeHtml(t('cam_mode_picker'))}">
-          <!-- W30, his three modes in his order: Scan Barcode, Price Tag (the
-               photo scan, pointed at a shelf tag) and Manual Search (a typed
-               name). The internal mode ids stay barcode, photo and manual. -->
-          <button type="button" class="cam-mode-btn" data-act="scan-mode" data-mode="barcode"
-                  aria-pressed="true">${escapeHtml(t('cam_mode_barcode'))}</button>
-          <button type="button" class="cam-mode-btn" data-act="scan-mode" data-mode="photo"
-                  aria-pressed="false">${escapeHtml(t('cam_mode_photo'))}</button>
-          <button type="button" class="cam-mode-btn" data-act="scan-mode" data-mode="manual"
-                  aria-pressed="false">${escapeHtml(t('cam_mode_manual'))}</button>
-        </div>
-
         <div class="sheet-slot"></div>
 
         <!-- The two nav destinations now say their own names. The aria-labels
@@ -2300,16 +2272,28 @@ export default {
             <span class="nav-badge" hidden></span>
             <span class="nav-label" aria-hidden="true">${escapeHtml(t('nav_saved'))}</span>
           </button>
-          <!-- The middle of the bar is ONE control with two faces, never two
-               controls side by side: setScanMode hides the other outright, so
-               it leaves the tab order and the accessibility tree along with
-               the pixels. The bar still holds three things and the
-               cam-bar-h token is unchanged. -->
-          <button type="button" class="shutter" data-act="shoot" aria-label="${escapeHtml(t('cam_shutter'))}" hidden></button>
-          <!-- Hidden until a majority of the last second or two of frames agree
-               on one barcode (item 7, 2026-09-17); showBarcodeButton() is the
-               only thing that reveals it. Pressing it sends the digits only. -->
-          <button type="button" class="scan-code-btn" data-act="scan-barcode" hidden>${escapeHtml(t('cam_scan_barcode'))}</button>
+          <!-- No mode to pick first (owner, 2026-09-19: "simply click the scan
+               button to scan barcode and photo button to take photo"). The
+               middle of the bar is three icon buttons, always there: the
+               barcode, the shutter and, smaller, the typed-name search. The
+               eye decodes every frame at idle either way, so the barcode
+               button only asks it for the code it has already voted on, and
+               nothing is sent until a button is pressed (rule 2 stands).
+               The barcode button gets the is-ready class while a vote has a winner. -->
+          <button type="button" class="scan-code-btn" data-act="scan-barcode" aria-label="${escapeHtml(t('cam_scan_barcode'))}">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3M8 8v8M12 8v8M16 8v8"/></svg>
+          </button>
+          <button type="button" class="shutter" data-act="shoot" aria-label="${escapeHtml(t('cam_shutter'))}">
+            <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </button>
+          <!-- W30's Manual Search, now a small keyboard button: it opens the
+               same typed-name field the type-it route uses. -->
+          <button type="button" class="type-btn" data-act="manual-search" aria-label="${escapeHtml(t('cam_mode_manual'))}">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>
+          </button>
           <button type="button" class="nav-btn" data-act="you" aria-label="${escapeHtml(t('nav_you'))}">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
@@ -2438,41 +2422,17 @@ export default {
      * looked at it, they mean it. A quiet window would now be the app refusing
      * a button press, which is the opposite defect.
      */
-    /**
-     * WHICH KIND OF SCAN THE SHOPPER IS SET UP FOR: 'photo' or 'barcode'.
-     *
-     * Rule 2: the two are not the same scan. Mirrored onto `cam.dataset.mode`.
-     *
-     * BARCODE IS THE DEFAULT, on Aurik's call 2026-09-15, reversing the photo
-     * default this screen shipped with earlier the same day.
-     *
-     * CORRECTED the same day, because the first version of this comment said a
-     * barcode scan costs no model call at all and that is not true. What it
-     * skips is the IMAGE, not the call. Identification on a catalogue hit is a
-     * SQLite read over 212,340 rows and reaches nobody, but the price and
-     * reviews are a grounded Gemini search either way (`prefetchPrice`,
-     * app/server.ts), because the verdict needs prices whatever named the
-     * product. So: a barcode scan is ONE grounded call carrying no image; a
-     * photo is TWO, one of them about 1,066 image tokens. Half the calls and
-     * none of the image tokens is the real saving. Measured photo latency on
-     * the free key was 9,032 ms against a beta that promises seven seconds.
-     * Leaving photo in front made the free path cost two taps and the
-     * expensive one cost one, which is rule 2's own cost argument pointing
-     * backwards. It also restores what Jamin asked for the night of the
-     * switch: "Shin should be recommending the user to search barcodes and if
-     * it doesn't have a barcode, it should search the image."
-     *
-     * This does NOT arm the decoder. Rule 2 is untouched: `#barcodeWanted`
-     * stays false until "Scan the barcode" is pressed, so the default decides
-     * which face the bar shows, never whether zxing reads unbidden.
-     *
-     * The cost is real and it lands on produce, which has no barcode at all
-     * (20 of the eval set's 220 rows) and is the class the beta was pointed
-     * at. Those shoppers pay one extra tap per visit until the chosen mode is
-     * remembered across renders, which is not built.
+    /*
+     * There is no scan mode any more (2026-09-19): the barcode button, the
+     * shutter and the keyboard button are all always there, and each one is its
+     * own scan. Rule 2 is untouched: the eye decodes at idle, but a read only
+     * leaves it when the barcode button is pressed. What survives of the old
+     * mode is this one flag, set when the keyboard button opens the name field,
+     * so the submit knows to ask the shelf price first (W30's Manual Search)
+     * where the type-it route out of a refusal identifies first.
      */
-    let scanMode = 'barcode';
-    /** Retained for the clears below; the press itself now starts the scan at once (no "reading" wait to take back). */
+    let manualSearch = false;
+    /** The line that answers a barcode press with nothing read, put back to the aim hint when it runs out; the scan clears it. */
     let scanPressTimer = null;
     /** D-026's caller, started once below. The teardown `startCaptureQueue`
         returns, held so the render's own cleanup can call it. */
@@ -2495,7 +2455,7 @@ export default {
       // Item 11: the user's torch setting, read now; changing it on the You
       // screen takes effect the next time this screen mounts.
       torch: { mode: store.get().torchMode, threshold: store.get().torchThreshold },
-      barcodeMode: scanMode === 'barcode',
+      barcodeMode: true,
       // Item 7: the vote has a winner (or lost it). Shows the button; sends nothing.
       onBarcodeReady,
       /*
@@ -2547,20 +2507,23 @@ export default {
         lastCrop = crop;
         thumbFromCrop(crop).then((url) => { if (!dead && url) scanThumb = url; });
         /*
-         * NOT IN BARCODE MODE, 2026-09-15. A barcode lives on the BACK of the
-         * package, so the frame that reads one is a photograph of the back --
-         * the least identifiable side there is. Sending it to be identified
-         * would spend an image call to be told nothing.
+         * ONLY A SHUTTER PRESS MAKES A CROP INTO A PHOTO SCAN, 2026-09-15,
+         * reworded 2026-09-19 when the scan modes went. A barcode lives on the
+         * BACK of the package, so the frame that reads one is a photograph of
+         * the back -- the least identifiable side there is. Sending it to be
+         * identified would spend an image call to be told nothing.
          *
-         * Nothing routes here in barcode mode today: the shutter is hidden, and
-         * `autoCapture` is passed false in eye-attach.js. But `Camera`'s own
-         * default is `options.autoCapture ?? TRUE` (app/src/eye/camera.ts), so
-         * the only thing standing between barcode mode and an unbidden crop of
-         * the back of a box is one `?? false` in another file. That is an
-         * accident of two unrelated settings, not an invariant, so the
-         * invariant is written down here where the crop is consumed.
+         * Nothing routes an unbidden crop here today: `autoCapture` is passed
+         * false in eye-attach.js. But `Camera`'s own default is
+         * `options.autoCapture ?? TRUE` (app/src/eye/camera.ts), so the only
+         * thing standing between the idle camera and a crop of the back of a
+         * box is one `?? false` in another file. That is an accident of two
+         * unrelated settings, not an invariant, so the invariant is written
+         * down here where the crop is consumed: `shoot()` puts the screen in
+         * `framing` before it asks the eye for the capture, and a crop that
+         * arrives in any other state was not asked for by that press.
          */
-        if (scanMode !== 'photo') return;
+        if (cam.dataset.state !== 'framing') return;
         // Decision 15: a stable barcode already answers. The manual shutter
         // will not fire while a barcode is already being handled -- this guard
         // is the belt for the narrow window where both can start within the
@@ -2650,6 +2613,79 @@ export default {
     const camBar = root.querySelector('.cam-bar');
 
     /**
+     * W30's Manual Search: the same name field the type-it route uses, opened by
+     * the keyboard button. Submitting it asks the shelf price first (with the
+     * validation or switching choice on the pad) and then sends the typed name
+     * as ONE Gemini text call, through `runTypedSearch`. Idle only.
+     */
+    function openManualSearch() {
+      if (cam.dataset.state !== 'idle') return;
+      setState('texting');
+      typedSearchPending = true;
+      manualSearch = true;
+      slot.innerHTML = textRouteSheet();
+      mounted('[data-textroute-input]');
+    }
+
+    /**
+     * Whether the eye is decoding frames: at idle, always. A sheet, a pad or an
+     * answer on screen means nobody is aiming, and the decode is the heaviest
+     * thing the loop does, so it stands down while a scan is under way (item
+     * 16's "never slowing the scan" holds for this too). The shutter's photo
+     * scan is not a decode either, so it stands down for that as well.
+     */
+    function syncDecoding() {
+      const idle = !cam.dataset.state || cam.dataset.state === 'idle';
+      eye?.setBarcodeMode?.(idle);
+    }
+
+    /** The barcode button is always there; it lights (`is-ready`) exactly when the vote has a winner, at idle. */
+    function paintBarcodeButton() {
+      const btn = root.querySelector('.scan-code-btn');
+      if (!btn) return;
+      const idle = !cam.dataset.state || cam.dataset.state === 'idle';
+      btn.classList.toggle('is-ready', idle && Boolean(barcodeReady));
+    }
+
+    /**
+     * The eye's vote settled on a code, or lost it. Never sends anything by
+     * itself. `barcode_button_shown` keeps its name because the watcher and the
+     * analytics already read it; it now means the button lit up, not appeared.
+     */
+    function onBarcodeReady(ready) {
+      if (dead) return;
+      const was = Boolean(barcodeReady);
+      barcodeReady = ready;
+      paintBarcodeButton();
+      if (ready && !was) track('barcode_button_shown', { format: ready.format, frames: ready.frames });
+    }
+
+    /**
+     * The barcode button pressed with no code settled to send. The old button
+     * only appeared once there was one, so this press had no precedent; the
+     * honest answer is the coaching line that says what to do, on the docked
+     * face where every other measured line already lands, and then the aim hint
+     * back. A measured line already on screen ("Barcode. Hold it there.", "Aim a
+     * little left") is about this very frame and names a better next step than a
+     * general one, so it is said again, visibly, instead of being talked over.
+     */
+    function sayNoBarcode() {
+      clearTimeout(scanPressTimer);
+      if (coachKey) {
+        dockSay('asking', COACH_LINES[coachKey], {}, 'nudge-arrive');
+        return;
+      }
+      clearTimeout(hintTimer);
+      track('coaching_line_shown', { key: 'no_barcode' });
+      dockSay('asking', 'cam_no_barcode', {}, 'nudge-arrive');
+      scanPressTimer = setTimeout(() => {
+        if (dead || cam.dataset.state !== 'idle' || coachKey) return;
+        showAimHint();
+        armHintEscalation();
+      }, 3500);
+    }
+
+    /**
      * The state, and with it whether the bottom bar is reachable at all.
      *
      * The bar slides away on `result` and `choosing` and is covered by the
@@ -2672,86 +2708,6 @@ export default {
      * actually says the thing: this subtree is not interactive right now, in
      * the tab order and in the accessibility tree together.
      */
-    /**
-     * RULE 2's mode switch, 2026-09-15.
-     *
-     * Writes one dataset field for the CSS and flips `hidden` on the two
-     * middle controls, because `hidden` is the primitive that takes a button
-     * out of the tab order and the accessibility tree as well as off the
-     * screen -- the same reasoning as the `inert` in `setState` below. A
-     * shutter that is invisible but Tab-reachable in barcode mode would be the
-     * frame-marks defect again.
-     *
-     * Switching modes does NOT arm anything. Arming is the button press, and
-     * only the button press; switching back to photo leaves nothing armed
-     * because the eye disarms on the read and on `clearSelection`.
-     */
-    function setScanMode(next) {
-      scanMode = next === 'barcode' ? 'barcode' : next === 'manual' ? 'manual' : 'photo';
-      cam.dataset.mode = scanMode;
-      const barcode = scanMode === 'barcode';
-      const shutter = root.querySelector('.shutter');
-      if (shutter) shutter.hidden = barcode;
-      // The barcode button is shown by the vote and by nothing else (item 7).
-      // Photo mode never shows it, and switching mode drops any winner.
-      if (!barcode) barcodeReady = null;
-      paintBarcodeButton();
-      syncDecoding();
-      for (const b of root.querySelectorAll('[data-act="scan-mode"]')) {
-        b.setAttribute('aria-pressed', String(b.dataset.mode === scanMode));
-      }
-    }
-
-    /**
-     * W30's Manual Search: the same name field the type-it route uses, opened by
-     * choosing the mode. Submitting it asks the shelf price first (with the
-     * validation or switching choice on the pad) and then sends the typed name
-     * as ONE Gemini text call, through `runTypedSearch`. Idle only.
-     */
-    function openManualSearch() {
-      if (cam.dataset.state !== 'idle') return;
-      setState('texting');
-      typedSearchPending = true;
-      slot.innerHTML = textRouteSheet();
-      mounted('[data-textroute-input]');
-    }
-
-    /**
-     * Whether the eye is decoding frames: only in barcode mode and only at idle.
-     * A sheet, a pad or an answer on screen means nobody is aiming, and the
-     * decode is the heaviest thing the loop does, so it stands down while a scan
-     * is under way (item 16's "never slowing the scan" holds for this too).
-     */
-    function syncDecoding() {
-      const idle = !cam.dataset.state || cam.dataset.state === 'idle';
-      eye?.setBarcodeMode?.(scanMode === 'barcode' && idle);
-    }
-
-    /** The button is visible exactly when the vote has a winner, at idle, in barcode mode. */
-    function paintBarcodeButton() {
-      const btn = root.querySelector('.scan-code-btn');
-      if (!btn) return;
-      const idle = !cam.dataset.state || cam.dataset.state === 'idle';
-      btn.hidden = !(scanMode === 'barcode' && idle && barcodeReady);
-    }
-
-    /** The eye's vote settled on a code, or lost it. Never sends anything by itself. */
-    function onBarcodeReady(ready) {
-      if (dead) return;
-      const was = Boolean(barcodeReady);
-      barcodeReady = ready;
-      paintBarcodeButton();
-      if (ready && !was) track('barcode_button_shown', { format: ready.format, frames: ready.frames });
-    }
-
-    /*
-     * Run once so the default lives in ONE place. The markup above spells the
-     * same mode out, because a face that appears and then swaps is a flash the
-     * shopper sees; this call is what makes the two agree, and what sets
-     * `cam.dataset.mode`, which nothing set until the first press.
-     */
-    setScanMode(scanMode);
-
     function setState(next) {
       if (cam.dataset.state !== next) stateEnteredAt = Date.now();
       cam.dataset.state = next;
@@ -2770,11 +2726,6 @@ export default {
       if (marks) marks.inert = next !== 'idle';
       paintBarcodeButton();
       syncDecoding();
-      // The mode toggle sits outside `.cam-bar`, so the `inert` above does not
-      // reach it, and CSS hides it by opacity in exactly the way the
-      // frame-marks defect was about. Same primitive, same reason.
-      const mode = root.querySelector('.cam-mode');
-      if (mode) mode.inert = next !== 'idle';
       parkDockedFace(FACE_HIDDEN_IN.has(next));
     }
 
@@ -3031,13 +2982,14 @@ export default {
        * WHAT THIS SCAN IS FOR, sent with every call it makes (api.js
        * `setScanIntent`). `mode` is the user's own pick on the pad (row 25),
        * or what they always got: validation with a price, switching without.
-       * `hint` is W30's Price Tag mode: the picture is a shelf tag, so Gemini
-       * reads the tag's name and price. Cleared by `reset()`.
+       * `hint` is W30's Price Tag hint, sent with every shutter photo (the
+       * camera button is the only photo route): the picture is a shelf tag, so
+       * Gemini reads the tag's name and price. Cleared by `reset()`.
        */
       const altMode = effectiveAlt(scanShelfCents);
       ctx.api.setScanIntent?.({
         mode: altMode,
-        ...(pending.kind === 'photo' && scanMode === 'photo' ? { hint: 'price_tag' } : {}),
+        ...(pending.kind === 'photo' ? { hint: 'price_tag' } : {}),
       });
       track('scan_price_at_scan', { typed: scanShelfCents !== null, kind: pending.kind, mode: altMode });
       if (pending.kind === 'barcode') void resolveBarcode(pending.code, scanShelfCents);
@@ -4018,22 +3970,19 @@ export default {
       barcodeInFlight = false;
       // Nothing is remembered about the code just left any more: with rule
       // 2's button there is no unsolicited re-read of the code still in frame
-      // to suppress. See the note by `scanMode`.
+      // to suppress. See the note by `manualSearch`.
       scanBarcode = null;
+      manualSearch = false;
       // Drops the eye's pick AND any arming the shopper walked away from, so
       // coming back to the viewfinder is never mid-read.
       eye?.clearSelection?.();
       setState('idle');
       showInitialIdleContent();
-      // The sheet that had focus has just been deleted. Back to whichever of
-      // the two middle controls this mode is showing -- the shutter in photo
-      // mode, the barcode button in barcode mode -- which is where the
-      // viewfinder's own attention is and the one control a returning user
-      // wants next. Otherwise focus falls to `body` and the next Tab starts
-      // again from the top of the document. Never the hidden one: `hidden`
-      // makes `focus()` a no-op and focus would fall to `body` anyway.
-      root.querySelector(scanMode === 'barcode' ? '.scan-code-btn' : '.shutter')
-        ?.focus({ preventScroll: true });
+      // The sheet that had focus has just been deleted. Back to the shutter,
+      // which is where the viewfinder's own attention is and the one control
+      // a returning user wants next. Otherwise focus falls to `body` and the
+      // next Tab starts again from the top of the document.
+      root.querySelector('.shutter')?.focus({ preventScroll: true });
     }
 
     root.addEventListener('click', (e) => {
@@ -4204,27 +4153,25 @@ export default {
       /*
        * The two branches the barcode flow turns on (item 7, 2026-09-17).
        *
-       * `scan-mode` only changes what the bar shows. `scan-barcode` is the
-       * button the vote reveals: it asks the eye for the digits of the code the
-       * last second or two of frames agreed on, and that is the only way a
-       * barcode ever leaves the eye. The eye emits `onBarcode` synchronously
-       * from this call, so the scan flow starts below in `onBarcode`.
+       * `scan-barcode` is the barcode button, always there: it asks the eye for
+       * the digits of the code the last second or two of frames agreed on, and
+       * that is the only way a barcode ever leaves the eye. The eye emits
+       * `onBarcode` synchronously from this call, so the scan flow starts below
+       * in `onBarcode`. With no settled code (or no eye) it answers with the
+       * coaching line instead of doing nothing. `manual-search` is the keyboard
+       * button and opens the name field.
        */
-      if (act === 'scan-mode') {
-        setScanMode(btn.dataset.mode);
-        // Manual Search has no viewfinder step: choosing it opens the name field.
-        if (scanMode === 'manual') openManualSearch();
-        return;
-      }
+      if (act === 'manual-search') { openManualSearch(); return; }
       if (act === 'scan-barcode') {
         if (cam.dataset.state !== 'idle') return;
         track('barcode_scan_pressed', {});
         const sent = eye?.scanBarcode?.();
         if (!sent) {
-          // The code left the frame between the vote and the press. Nothing
-          // was sent, and the button has no code to stand for any more.
+          // Nothing settled, or the code left the frame between the vote and
+          // the press. Nothing was sent; say what to do.
           barcodeReady = null;
           paintBarcodeButton();
+          sayNoBarcode();
           return;
         }
         buzz(8);
@@ -4305,6 +4252,7 @@ export default {
       if (act === 'typeit') {
         setState('texting');
         typedSearchPending = true;
+        manualSearch = false;
         slot.innerHTML = textRouteSheet();
         // The one sheet where a specific control is the obvious landing: the
         // whole route is "type the name", and the field is the route.
@@ -4502,7 +4450,7 @@ export default {
       track('typed_search', { text, abandoned: false });
       // Manual Search (W30): the shelf price is asked first, on the pad, and
       // the typed name then goes out as one Gemini text call carrying it.
-      if (scanMode === 'manual') { askPriceFirst({ kind: 'text', text }); return; }
+      if (manualSearch) { manualSearch = false; askPriceFirst({ kind: 'text', text }); return; }
       await runTypedSearch(text, null, false);
     }, { signal: listeners.signal });
 

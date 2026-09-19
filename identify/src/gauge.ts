@@ -71,13 +71,13 @@
  * other eight stay written in `docs/plan-gemini.md` section 7 and unbuilt.
  * ============================================================================
  *
- * ONE MECHANISM, NOT FOUR. Each rule below is a reason an offer is not on the
- * line, which is what `excluded` already means, so each one adds a code to
- * that one list instead of a parallel list of its own. A client that wants
- * "the member prices, listed separately" filters `excluded` on the code. The
- * code is what travels: the note beside it is English and the client has to
- * say it in French, so the note is a function of the code alone and never of
- * the offer, which is what makes the code a complete substitute for it.
+ * ONE MECHANISM, NOT FOUR. Each rule below that keeps an offer off the line
+ * adds a code to `excluded` instead of a parallel list of its own; the two
+ * that no longer keep it off (member prices, marketplace sellers) put a code
+ * in the point's `marks` instead. The code is what travels: the note beside
+ * it is English and the client has to say it in French, so the note is a
+ * function of the code alone and never of the offer, which is what makes the
+ * code a complete substitute for it.
  *
  * THE CODES ARE FACTS ABOUT THE OFFER AND NEVER A JUDGMENT OF THE PRICE.
  * `app/test/refusal-swaps.test.mjs` carries the list of words that grade a
@@ -107,20 +107,31 @@
  * 3. DEALS AND MEMBER PRICES. What a shopper compares is the effective price
  *    per item, so `dealKind` and `dealUnits` are divided out BEFORE any
  *    scaling: 2 for $5 places at $2.50, and the label still says what the
- *    till will charge. A MEMBER price is different in kind and goes off the
- *    line as `member_only`: a price that needs a membership the shopper may
- *    not have is not a price they can act on, and leaving it in the median
- *    moves the middle for everybody, including the shoppers who cannot reach
- *    it.
+ *    till will charge. A MEMBER price is on the line like any other and
+ *    carries the mark `member_only`. The owner's ruling, 2026-09-19: "there
+ *    should be no membership rule or any similar rule, it should just be
+ *    marked as members only". It used to go off the line, on the argument
+ *    that a price needing a membership the shopper may not have moves the
+ *    middle for shoppers who cannot reach it; he decided the mark answers
+ *    that and the exclusion does not belong.
  *
  * 4. MARKETPLACE SELLERS AND US LISTINGS. `marketplace` is a price from a
- *    seller on a retailer's site rather than from the retailer, and
- *    `currency` is what the price is actually in. Both are off the line
- *    (`marketplace`, `not_cad`) and neither is converted. AN EXCHANGE RATE IS
- *    A GUESS ABOUT A NUMBER THE SHOPPER WOULD ACTUALLY BE CHARGED, and Shin
- *    does not guess about money. The first line of defence is the request
- *    itself: `providers/gemini-grounded.ts` asks for Canadian retailers and
- *    CAD only, and these two codes are the second.
+ *    seller on a retailer's site rather than from the retailer. Same ruling,
+ *    same treatment: it is on the line and carries the mark `marketplace`.
+ *    `currency` is what the price is actually in, and THAT one is still off
+ *    the line (`not_cad`) and never converted. AN EXCHANGE RATE IS A GUESS
+ *    ABOUT A NUMBER THE SHOPPER WOULD ACTUALLY BE CHARGED, and Shin does not
+ *    guess about money. The first line of defence is the request itself:
+ *    `providers/gemini-grounded.ts` asks for Canadian retailers and CAD only,
+ *    and `not_cad` is the second. The marks are codes and not words, for the
+ *    reason the exclusion codes are: the client says them in its own language.
+ *
+ * 5. ONE OFFER IS A LINE. The owner, 2026-09-19: "the one price becomes the
+ *    median". With exactly one offer left the median is that offer, the line
+ *    is drawn, and the `one_offer` shortfall says so in plain words, so the
+ *    shopper reads it as one seller's price and not as a consensus. Zero
+ *    offers is still no line. This reverses the D-113 withholding that used
+ *    to sit here (see the note at the old check in `computeGauge`).
  *
  * A KNOWN AND ACCEPTED CONSEQUENCE of step 3: one extreme unit price
  * inflates `span` for every other point too, so an outlier compresses the
@@ -166,8 +177,6 @@ export type GaugeExclusionCode =
   | 'no_size'
   | 'different_dimension'
   | 'unknown_weight'
-  | 'member_only'
-  | 'marketplace'
   | 'not_cad'
   | 'different_brand_kind'
   | 'different_organic'
@@ -250,20 +259,30 @@ export interface GaugeTick {
   readonly label: string;
 }
 
+/**
+ * A fact about an offer that is ON the line and worth saying beside it: it
+ * needs a paid membership, or it is a marketplace seller's price. Codes, not
+ * words, so the client says them in its own language ("members only",
+ * "marketplace seller"). Neither moves the offer off the line.
+ */
+export type GaugeMark = 'member_only' | 'marketplace';
+
 export interface GaugePoint {
   readonly retailer: string;
   readonly position: number;
   readonly url: string | null;
   /** Quantity and price as sold, e.g. "6 x 355 mL · $4.49". Never the unit price, which only places the dot. */
   readonly label: string;
+  /** Empty for an ordinary offer. */
+  readonly marks: readonly GaugeMark[];
 }
 
 /**
  * One offer that is not on the line.
  *
- * `label` and `url` are here so the labelled lists a client shows (the member
- * prices, the listings in another currency) can be rendered off this one list
- * without a second mechanism carrying the same offers twice.
+ * `label` and `url` are here so the labelled lists a client shows (the
+ * listings in another currency) can be rendered off this one list without a
+ * second mechanism carrying the same offers twice.
  */
 export interface GaugeExcluded {
   readonly retailer: string;
@@ -280,7 +299,7 @@ export interface GaugeExcluded {
  * the sentence under it says what it rests on. Lifted in shape from the
  * spine's `Shortfall`, which is the same idea on the other side of the app.
  */
-export type GaugeShortfallCode = 'thin_evidence' | 'claim_held' | 'spread_unresolved';
+export type GaugeShortfallCode = 'one_offer' | 'thin_evidence' | 'claim_held' | 'spread_unresolved';
 
 export interface GaugeShortfall {
   readonly code: GaugeShortfallCode;
@@ -327,15 +346,16 @@ export interface GaugeUnusable {
   readonly unitLabel: '100 g' | '100 mL' | 'item' | null;
   readonly excluded: readonly GaugeExcluded[];
   /**
-   * WHY there is no line, so the client can say which of three different
-   * things happened. Before this existed all three arrived as a null verdict
-   * and the phone could not tell "only one price found" from "no size given",
-   * so it said nothing at all.
+   * WHY there is no line, so the client can say which of two different
+   * things happened. Before this existed both arrived as a null verdict and
+   * the phone could not tell "no size given" from "nothing comparable", so it
+   * said nothing at all. (A third, `single_offer`, went on 2026-09-19: one
+   * offer now draws a line, marked.)
    */
   readonly reason: GaugeNoLineReason;
 }
 
-export type GaugeNoLineReason = 'single_offer' | 'no_offers_on_line' | 'no_shelf_size';
+export type GaugeNoLineReason = 'no_offers_on_line' | 'no_shelf_size';
 
 export type GaugeResult = GaugeUsable | GaugeUnusable;
 
@@ -360,8 +380,6 @@ const EXCLUSION_NOTES: Record<GaugeExclusionCode, string> = {
   no_size: 'no size given',
   different_dimension: 'measured a different way',
   unknown_weight: 'sold by weight, with no weight given',
-  member_only: 'needs a paid membership',
-  marketplace: 'sold by a marketplace seller, not by the retailer',
   not_cad: 'priced in another currency',
   different_brand_kind: 'a different brand',
   different_organic: 'organic and non-organic are not the same product',
@@ -551,6 +569,7 @@ export const LONE_CLAIM_FLOOR = 0.5;
 export const LONE_CLAIM_CEILING = 2.5;
 
 const SHORTFALL_NOTES: Record<GaugeShortfallCode, string> = {
+  one_offer: 'only one price found, so the middle is that price',
   thin_evidence: 'only two prices found, so the middle is rough',
   claim_held: 'one price was too far from the others to place',
   spread_unresolved: 'the prices found disagree too much to say which is typical',
@@ -561,6 +580,15 @@ interface BandEntry {
   unitPrice: number;
   url: string | null;
   label: string;
+  marks: GaugeMark[];
+}
+
+/** Member first, then marketplace, so one offer always carries its marks in one order. */
+function marksOf(offer: GaugeOffer): GaugeMark[] {
+  const marks: GaugeMark[] = [];
+  if (offer.memberOnly) marks.push('member_only');
+  if (offer.marketplace) marks.push('marketplace');
+  return marks;
 }
 
 /**
@@ -642,6 +670,7 @@ function confidenceOf(
   spreadUnresolved: boolean,
 ): { band: GaugeConfidence; shortfalls: GaugeShortfall[] } {
   const shortfalls: GaugeShortfall[] = [];
+  if (keptCount === 1) shortfalls.push({ code: 'one_offer', note: SHORTFALL_NOTES.one_offer });
   if (keptCount === 2) shortfalls.push({ code: 'thin_evidence', note: SHORTFALL_NOTES.thin_evidence });
   if (heldCount > 0) shortfalls.push({ code: 'claim_held', note: SHORTFALL_NOTES.claim_held });
   if (spreadUnresolved) shortfalls.push({ code: 'spread_unresolved', note: SHORTFALL_NOTES.spread_unresolved });
@@ -679,11 +708,12 @@ export function computeGauge(
    * THE FIRST REASON WINS, and the order is fixed rather than incidental, so
    * that one offer yields exactly one code and the same offer always yields
    * the same one. The order runs from "the shopper cannot pay this price at
-   * all" (wrong currency, not the retailer, needs a membership) through "this
-   * is a price for a different product" (brand, organic) to "this price
-   * cannot be scaled" (size, dimension). A store-brand tin with no size is
-   * therefore `different_brand_kind`, because the brand is the reason it
-   * would not belong even if the size were there.
+   * all" (wrong currency) through "this is a price for a different product"
+   * (brand, organic) to "this price cannot be scaled" (size, dimension). A
+   * member price and a marketplace seller's price are not on this list: they
+   * stay on the line and are marked (`marksOf`). A store-brand tin with no
+   * size is therefore `different_brand_kind`, because the brand is the reason
+   * it would not belong even if the size were there.
    */
   const exclusionOf = (
     offer: GaugeOffer,
@@ -697,8 +727,6 @@ export function computeGauge(
     if (!isUsableAmount(offer.price)) return 'unusable_price';
     const own = currencyOf(offer, reference);
     if (own !== null && reference !== null && own !== reference) return 'not_cad';
-    if (offer.marketplace) return 'marketplace';
-    if (offer.memberOnly) return 'member_only';
     if (brandKey(offer) !== shelfBrand) return 'different_brand_kind';
     if (Boolean(offer.organic) !== shelfOrganic) return 'different_organic';
     if (dim === null || total === null || total <= 0) {
@@ -731,12 +759,13 @@ export function computeGauge(
       unitPrice: up as number,
       url: o.url,
       label: offerLabel(o, reference),
+      marks: marksOf(o),
     });
   }
 
   // Nothing on the line means there is no median to take, so there is no
   // verdict: the caller shows prices and reviews alone, the same handling a
-  // code mismatch gets. The three ways of having no line are now told apart,
+  // code mismatch gets. The two ways of having no line are told apart,
   // because the phone has to say a different sentence for each.
   if (shelfDim === null || shelfUnitPrice === null) {
     return { usable: false, dimension: shelfDim, unitLabel: unitLabelOf(shelfDim), excluded, reason: 'no_shelf_size' };
@@ -751,19 +780,13 @@ export function computeGauge(
   }
 
   /**
-   * D-113, THE HALF THE BAND CANNOT CATCH. At one offer the median IS that
-   * offer, every percentage is measured against the claim itself, and the
-   * line says the shopper is far from a middle that does not exist. There is
-   * no arithmetic that fixes this, because there is no second number.
-   *
-   * The offers, reviews and description are all still shown -- only the LINE
-   * is withheld, and `reason` lets the phone say why. That is a statement
-   * about the evidence, not a confession that Shin does not know.
+   * D-113 WITHHELD THE LINE HERE when one offer was left, because the median
+   * of one offer is that offer and a Kraft Dinner at $1.74 read as 83% under
+   * the going rate off a single $9.97 row. The owner reversed it on
+   * 2026-09-19 ("the one price becomes the median"): the line is drawn, and
+   * `confidenceOf` marks it `one_offer` so the client says it is one seller's
+   * price. Zero offers returned above and is still no line.
    */
-  if (kept.length < 2) {
-    return { usable: false, dimension: shelfDim, unitLabel: unitLabelOf(shelfDim), excluded, reason: 'single_offer' };
-  }
-
   const { band: confidence, shortfalls } = confidenceOf(kept.length, held.length, spreadUnresolved);
   const prices = kept.map((x) => x.unitPrice);
   const mid = medianOf(prices);
@@ -805,7 +828,7 @@ export function computeGauge(
     shelfLabel,
     zoneUnderBoundary,
     zoneOverBoundary,
-    points: kept.map((x, i) => ({ retailer: x.retailer, position: positionOf(storePcts[i]), url: x.url, label: x.label })),
+    points: kept.map((x, i) => ({ retailer: x.retailer, position: positionOf(storePcts[i]), url: x.url, label: x.label, marks: x.marks })),
     excluded,
     ticks,
     confidence,
@@ -832,8 +855,6 @@ export const GAUGE_PYTHON_SOURCE = `def gauge(shelf, offers, under_pct, over_pct
         "no_size": "no size given",
         "different_dimension": "measured a different way",
         "unknown_weight": "sold by weight, with no weight given",
-        "member_only": "needs a paid membership",
-        "marketplace": "sold by a marketplace seller, not by the retailer",
         "not_cad": "priced in another currency",
         "different_brand_kind": "a different brand",
         "different_organic": "organic and non-organic are not the same product",
@@ -970,10 +991,6 @@ export const GAUGE_PYTHON_SOURCE = `def gauge(shelf, offers, under_pct, over_pct
         own = currency_of(o)
         if own is not None and reference is not None and own != reference:
             return "not_cad"
-        if o.get("marketplace"):
-            return "marketplace"
-        if o.get("memberOnly"):
-            return "member_only"
         if brand_key(o) != shelf_brand:
             return "different_brand_kind"
         if bool(o.get("organic")) != shelf_organic:
@@ -1004,11 +1021,17 @@ export const GAUGE_PYTHON_SOURCE = `def gauge(shelf, offers, under_pct, over_pct
                 "url": o.get("url"),
             })
             continue
+        marks = []
+        if o.get("memberOnly"):
+            marks.append("member_only")
+        if o.get("marketplace"):
+            marks.append("marketplace")
         in_band.append({
             "retailer": o["retailer"],
             "unitPrice": up,
             "url": o.get("url"),
             "label": offer_label(o),
+            "marks": marks,
         })
 
     if len(in_band) == 0 or shelf_dim is None or shelf_unit_price is None:
@@ -1077,7 +1100,7 @@ export const GAUGE_PYTHON_SOURCE = `def gauge(shelf, offers, under_pct, over_pct
         "shelfLabel": shelf_label,
         "zoneUnderBoundary": under_boundary,
         "zoneOverBoundary": over_boundary,
-        "points": [{"retailer": x["retailer"], "position": position_of(pct), "url": x.get("url"), "label": x["label"]} for x, pct in zip(in_band, store_pcts)],
+        "points": [{"retailer": x["retailer"], "position": position_of(pct), "url": x.get("url"), "label": x["label"], "marks": x["marks"]} for x, pct in zip(in_band, store_pcts)],
         "excluded": excluded,
         "ticks": ticks,
     }`;

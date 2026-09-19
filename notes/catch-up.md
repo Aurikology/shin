@@ -9,6 +9,78 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-19 (Aurik's PC): the server can die at boot, and the red suite was not your fault
+
+### To do
+
+- **Jamin, check this on the Mac before the next beta session.** `node app/server.ts` can print its
+  banner and then EXIT, with *"catalogue worker did not answer a warm within 5000 ms"*. It happens
+  here. The `warm` job is a pre-load -- one tiny embed to pull the ONNX model into memory -- and on a
+  cold disk it can take longer than the 5-second budget. Nothing in the repo awaits that promise, so
+  the rejection is unhandled and Node 24 exits the process. **It was dying waiting for the embedder it
+  had just printed `meaning search off: 0 rows embedded` about.** Fixed (D-129): the failure is caught,
+  says *"catalogue warm did not land, serving anyway"* on stderr, and the server stays up. Pull before
+  you next start it.
+- **Jamin, the catalogue command from yesterday, if it has not been run.** `npm run backfill:derived`
+  in `catalogue/`. The cross-language work does nothing without it and it does not travel with the
+  commit. Back the database up first.
+
+### What changed
+
+**Your audit's item-1 concern is fixed, and it was worth more than a concern.** You found that one
+decode slower than 1.5 s sets `#wedged` and nothing clears it, and wrote *"Not a verdict change, a
+concern"*. It is a user-facing failure with no recovery: one slow frame on a cold phone, or a
+backgrounded tab where timers are throttled, ends barcode scanning for the visit and the only way
+back is leaving the screen. D-128.
+
+The wedge itself is right and stays -- an aborted module's `readBarcodes` never settles and never
+rejects, so awaiting it stops the frame loop. What was wrong is reading ONE timeout as that death.
+A dead module never settles at all; a slow one settles LATE, so the outstanding promise is now
+watched instead of abandoned and its late arrival clears the wedge. Three consecutive
+never-settling decodes still wedge, which bounds the leaked promises.
+
+**The app suite was red on my machine and it was NOT your push.** Four tests in
+`hostile-request.test.mjs` reported the server dying on hostile requests. It never died. Their
+`alive()` was one fetch with a 2,000 ms timeout and `catch { return false }`, so "no reply in two
+seconds" and "the process is gone" were the same value -- and `node --test` runs files in parallel,
+so a loaded laptop reads as a corpse. Five of five pass alone; the whole suite passes at
+`--test-concurrency=1`. Fixed by distinguishing the two (a dead process REFUSES the connection, at
+once and every time), not by raising the number, which would only move the flake to a busier
+machine -- probably yours. D-127.
+
+**Those three earned two build standards**, under the rule that a shape logged twice becomes a rule:
+slow and dead are different states and a check that cannot tell them apart must not act as if it
+can; and a pre-load must never be able to kill the thing it was speeding up.
+
+**There is now a harness for the scan path you built.** The 200-photo eval still calls
+`IdentifyStage.fromCrop`, so it measures the component you replaced and nothing measured the live
+one. `identify/eval/scan-run.ts` runs manifest rows through `runGeminiScan` and reports parse status
+split by family, identification, offer yield (0 / 1 / 2+), and `checkMath` disagreement. It includes
+the counter you specified: the share of 2.5 answers that do not parse, which is the "testing says
+otherwise" that moves the default to 3.x.
+
+Scoring had to change shape. The old eval asked whether the expected catalogue CODE came back, which
+is exact; Gemini returns a NAME. The matcher combines brand, name-token coverage and size, and it
+reports a third bucket -- **uncertain** -- rather than forcing every row into right or wrong, with
+those rows printed for hand review. Seven error modes are written into the file's own header.
+
+**THE NUMBER YOU WILL CARE ABOUT: a full 200-row run costs $0.00 of search.** At list price it is
+$7.00 on 2.5 and $12.48 on 3.x, but 200 grounded prompts sits under the 1,500-a-day free allowance
+and 800 search queries under the 5,000-a-month one. The bill prints before anything is spent and a
+live run is refused twice -- once without `--yes-spend`, again without a key. So the paid key is a
+permissions question now, not a cost one. (No token rate for `gemini-2.5-flash` exists anywhere in
+the repo, so that column prints UNKNOWN rather than being guessed.)
+
+**Two problems with the eval set, counted rather than worked around.** All 20 `expect:'refuse'` rows
+are the produce rows and **none of their photos exist**, so refusal behaviour -- whether Shin names a
+product when shown a loose banana -- is not measurable at all, dry or live. And 16 identify rows
+carry fewer than two substantive name tokens ("Almond", "Chips", "Cheezies"): fine for the code eval
+the set was built for, unreliable for a name eval.
+
+### Read by
+
+---
+
 ## 2026-09-18 (Aurik's PC): the catalogue on your Mac needs one command run against it
 
 ### To do

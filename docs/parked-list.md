@@ -45,3 +45,11 @@ the ui that guide the user through the ui"
 screens and controls get a pop-up, whether the tour runs once or can be replayed (the welcome itself
 can be replayed in the beta), and how it is skipped. Any pop-up it adds is a surface and needs its own
 screen tag.
+
+## P4 · Refine the price verdict screen (2026-09-19)
+
+**His words:** "refine the price verdict screen"
+
+**What is known:** nothing beyond his words. Not investigated. Open, to settle when picked up: what is
+wrong or missing on it today. The screen is the verdict sheet in the camera view (three heights:
+first look, half open, fully open), tagged a38 to a40 in `docs/screen-tags.md`.

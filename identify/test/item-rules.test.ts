@@ -264,38 +264,27 @@ test('an unparsed multi-item price leaves the price alone rather than inventing 
   assert.equal(g.points[2].position, 8.333333333333371);
 });
 
-test('a member price goes into its own labelled list and does not move the middle for everybody else', () => {
+test('a member price counts in the middle and is marked members only, it is not left out', () => {
+  // Changed 2026-09-19 on the owner's word ("there should be no membership
+  // rule or any similar rule, it should just be marked as members only").
+  // This asserted that the member price went into `excluded` and that the
+  // median of the other two was 1.299. Both numbers below are from
+  // `GAUGE_PYTHON_SOURCE` run in local CPython on these three offers.
   const offers = [
     offer({ retailer: 'Costco', price: 8.99, sizeValue: 1, sizeUnit: 'kg', memberOnly: true }),
     offer({ retailer: 'Metro', price: 13.49, sizeValue: 1, sizeUnit: 'kg' }),
     offer({ retailer: 'Loblaws', price: 12.49, sizeValue: 1, sizeUnit: 'kg' }),
   ];
   const g = usable(computeGauge(shelf({ price: 12.99, sizeValue: 1, sizeUnit: 'kg' }), offers));
-  assert.equal(g.n, 2);
-  assert.equal(g.median, 1.299);
-  assert.equal(g.percent, 0);
-  assert.deepEqual(g.excluded, [
-    { retailer: 'Costco', code: 'member_only', note: 'needs a paid membership', label: '1 kg · $8.99', url: null },
-  ]);
-
-  // The whole reason it is off the line, shown rather than asserted in prose:
-  // the same three offers with the membership taken off move the median.
-  const ifPayable = usable(
-    computeGauge(
-      shelf({ price: 12.99, sizeValue: 1, sizeUnit: 'kg' }),
-      offers.map((o) => ({ ...o, memberOnly: false })),
-    ),
-  );
-  assert.equal(ifPayable.n, 3);
-  assert.equal(ifPayable.median, 1.2489999999999999);
-  assert.notEqual(ifPayable.median, g.median, 'a price most shoppers cannot pay would have dragged the middle down');
-
-  // And the labelled list is a filter over the one `excluded` list, not a
-  // second mechanism carrying the same offers twice.
-  assert.deepEqual(
-    retailersOf(g.excluded.filter((e) => e.code === 'member_only')),
-    ['Costco'],
-  );
+  assert.equal(g.n, 3);
+  assert.equal(g.median, 1.2489999999999999);
+  assert.equal(g.percent, 4.003202562049644);
+  assert.deepEqual(g.excluded, []);
+  const costco = g.points.find((p) => p.retailer === 'Costco');
+  assert.deepEqual(costco?.marks, ['member_only']);
+  assert.equal(costco?.label, '1 kg · $8.99');
+  assert.equal(costco?.position, 3.295970109420878);
+  assert.deepEqual(g.points.filter((p) => p.marks.length > 0).map((p) => p.retailer), ['Costco'], 'only the member price carries a mark');
 });
 
 /* ------------------------------ rule 4: marketplace sellers and US listings */
@@ -306,7 +295,6 @@ test('a US price is excluded and never converted', () => {
       offer({ retailer: 'Canadian Tire', price: 26.99, sizeValue: 1, sizeUnit: 'each', currency: 'CAD' }),
       offer({ retailer: 'Home Depot', price: 23.99, sizeValue: 1, sizeUnit: 'each' }),
       offer({ retailer: 'Target US', price: 14.99, sizeValue: 1, sizeUnit: 'each', currency: 'usd' }),
-      offer({ retailer: 'Amazon Seller', price: 19.99, sizeValue: 1, sizeUnit: 'each', marketplace: true }),
     ]),
   );
   assert.equal(g.n, 2);
@@ -362,7 +350,10 @@ test('with no market at all nothing is excluded on currency and the legacy dolla
   assert.equal(g.shelfLabel, '1 each · $5.00');
 });
 
-test('a marketplace seller is excluded, because it is not the retailer selling', () => {
+test('a marketplace seller counts in the middle and is marked, it is not left out', () => {
+  // Changed 2026-09-19, same ruling as the member price above. It asserted n 2
+  // and the seller in `excluded`. The numbers are from `GAUGE_PYTHON_SOURCE`
+  // run in local CPython on these three offers.
   const g = usable(
     computeGauge(shelf({ price: 24.99, sizeValue: 1, sizeUnit: 'each' }), [
       offer({ retailer: 'Canadian Tire', price: 26.99, sizeValue: 1, sizeUnit: 'each' }),
@@ -370,25 +361,24 @@ test('a marketplace seller is excluded, because it is not the retailer selling',
       offer({ retailer: 'Amazon Seller', price: 19.99, sizeValue: 1, sizeUnit: 'each', marketplace: true }),
     ]),
   );
-  assert.equal(g.n, 2);
-  assert.ok(!retailersOf(g.points).includes('Amazon Seller'));
-  assert.deepEqual(g.excluded, [
-    {
-      retailer: 'Amazon Seller',
-      code: 'marketplace',
-      note: 'sold by a marketplace seller, not by the retailer',
-      label: '1 each · $19.99',
-      url: null,
-    },
-  ]);
+  assert.equal(g.n, 3);
+  assert.equal(g.median, 23.99);
+  assert.equal(g.percent, 4.168403501458942);
+  assert.deepEqual(g.excluded, []);
+  const seller = g.points.find((p) => p.retailer === 'Amazon Seller');
+  assert.deepEqual(seller?.marks, ['marketplace']);
+  assert.equal(seller?.label, '1 each · $19.99');
+  assert.equal(seller?.position, 8.315964985410588);
 });
 
 /* ----------------------------------------------------------- interactions */
 
 test('with several reasons available the first one wins, so an offer carries exactly one code', () => {
-  // The order is fixed in `exclusionOf`: cannot be paid, then a different
-  // product, then cannot be scaled. "Member and USD" is both; it comes back
-  // as not_cad alone. The store brand with no size is the brand, not the size.
+  // The order is fixed in `exclusionOf`: cannot be paid (wrong currency), then
+  // a different product, then cannot be scaled. "Member and USD" is both a
+  // member price and a US price; it comes back as not_cad alone (a member
+  // price alone would be on the line). The store brand with no size is the
+  // brand, not the size.
   const g = usable(
     computeGauge(
       shelf({ price: 6.49, sizeValue: 400, sizeUnit: 'g', organic: true }),
@@ -404,7 +394,6 @@ test('with several reasons available the first one wins, so an offer carries exa
           currency: 'USD',
         }),
         offer({ retailer: 'Store brand with no size', price: 2, storeBrand: 'no name', organic: true }),
-        offer({ retailer: 'Marketplace organic', price: 9, sizeValue: 400, sizeUnit: 'g', organic: true, marketplace: true }),
         offer({
           retailer: 'Two for five',
           price: 11,
@@ -433,7 +422,6 @@ test('with several reasons available the first one wins, so an offer carries exa
   assert.deepEqual(codesOf(g.excluded), [
     'not_cad',
     'different_brand_kind',
-    'marketplace',
     'unknown_weight',
     'different_dimension',
   ]);
@@ -474,13 +462,19 @@ const EVERY_CODE = computeGauge(shelf({ price: 4, sizeValue: 100, sizeUnit: 'g' 
   offer({ retailer: 'Unweighed', price: 4, soldByWeight: true }),
 ]);
 
-test('one offer per code produces all eight of them, in the order the offers arrived', () => {
+test('one offer per code produces all six of them, in the order the offers arrived', () => {
   const g = usable(EVERY_CODE);
-  assert.equal(g.n, 2);
+  // The marketplace and member offers are no longer among them: they are on
+  // the line beside the two plain offers, each carrying its mark.
+  assert.equal(g.n, 4);
+  assert.deepEqual(g.points.map((p) => [p.retailer, p.marks]), [
+    ['On the line', []],
+    ['Also on the line', []],
+    ['Marketplace', ['marketplace']],
+    ['Member', ['member_only']],
+  ]);
   assert.deepEqual(codesOf(g.excluded), [
     'not_cad',
-    'marketplace',
-    'member_only',
     'different_brand_kind',
     'different_organic',
     'no_size',
@@ -510,7 +504,8 @@ test('the Python and the TypeScript carry the same note for the same code', () =
   assert.ok(block, 'EXCLUSION_NOTES was not found in the Python source');
   const fromPython = new Map<string, string>();
   for (const m of block[1].matchAll(/"([a-z_]+)": "([^"]*)"/g)) fromPython.set(m[1], m[2]);
-  assert.equal(fromPython.size, 8, 'eight codes in the Python table');
+  assert.equal(fromPython.size, 6, 'six codes in the Python table');
+  assert.ok(!fromPython.has('member_only') && !fromPython.has('marketplace'), 'those two are marks now, not exclusions');
 
   for (const e of EVERY_CODE.excluded) {
     assert.equal(e.note, fromPython.get(e.code), `${e.code}: the two languages disagree about what the note says`);
@@ -557,6 +552,9 @@ test('no exclusion code and no note grades a price, in either language', () => {
   const words = gradingWords();
   const strings: string[] = [];
   for (const e of EVERY_CODE.excluded) strings.push(e.code, e.note, e.label, e.retailer);
+  // The two marks travel as codes on the points and are swept the same way.
+  for (const p of usable(EVERY_CODE).points) strings.push(...p.marks);
+  strings.push('members only', 'marketplace seller', 'only one price found, so the middle is that price');
   const block = GAUGE_PYTHON_SOURCE.match(/EXCLUSION_NOTES = \{([\s\S]*?)\n {4}\}/);
   assert.ok(block);
   for (const m of block[1].matchAll(/"([a-z_]+)": "([^"]*)"/g)) strings.push(m[1], m[2]);
@@ -645,9 +643,9 @@ test('the one schema this app sends asks for no grading word, in either language
 });
 
 test('the price line carries the fields the four item rules travel in', () => {
-  // `excluded` is how a member-only price, a US listing, a marketplace seller
-  // and a different brand kind all reach a reader. Without it on the line they
-  // are computed and dropped.
+  // `excluded` is how a US listing and a different brand kind reach a reader,
+  // and `marks` on the points is how a member-only price and a marketplace
+  // seller do. Without them on the line they are computed and dropped.
   const line = priceLineFor(
     { askingCents: 299, sizeValue: 500, sizeUnit: 'g', currency: 'CAD' },
     shownOffers([
@@ -659,7 +657,12 @@ test('the price line carries the fields the four item rules travel in', () => {
   );
   assert.ok(line, 'no line at all, so no rule reached anybody');
   const codes = line.excluded.map((e) => e.code).sort();
-  assert.deepEqual(codes, ['member_only', 'not_cad']);
+  assert.deepEqual(codes, ['not_cad']);
+  assert.deepEqual(
+    line.points.filter((p) => p.marks.length > 0).map((p) => [p.retailer, p.marks]),
+    [['Costco', ['member_only']]],
+    'the member price is on the line and marked, and reaches the client that way',
+  );
   for (const e of line.excluded) assert.ok(e.code !== '', 'an exclusion without a code cannot be said in French');
   // The zone the shopper set, in the gauge's own neutral words.
   assert.ok(['under_your_line', 'middle', 'over_your_line'].includes(line.shelf.zone));

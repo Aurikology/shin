@@ -262,7 +262,8 @@ export function groundedRoot(grounded, opts = {}) {
  * This is the only place the wire is read for Shin's own prose, and it reads
  * exactly two things: whether a link is absent, and the name of the row it is
  * absent from. The name is needed because "one of these has no link" over six
- * rows is not a heads-up, it is a puzzle.
+ * rows is not a heads-up, it is a puzzle. (`markedOffers` below is the other
+ * read, and reads the same way: two flags and a name.)
  */
 function missingLinks(block) {
   const out = [];
@@ -277,6 +278,24 @@ function missingLinks(block) {
   const facts = Array.isArray(block.facts) ? block.facts : [];
   for (let i = 0; i < facts.length; i += 1) {
     if (facts[i].hasLink === false) out.push(str(facts[i].value));
+  }
+  return out;
+}
+
+/**
+ * Which offers need a membership or come from a marketplace seller, as plain
+ * names and a string key, for Shin to say OUTSIDE the root, beside the
+ * no-link heads-up. Both kinds of offer still count in the middle (owner,
+ * 2026-09-19: "it should just be marked"); this is the mark on the list, and
+ * the price line carries the same mark on its dot. It reads one flag per
+ * kind and the retailer's name, nothing else, and adds nothing to the root.
+ */
+function markedOffers(block) {
+  const out = [];
+  const offers = Array.isArray(block.offers) ? block.offers : [];
+  for (let i = 0; i < offers.length; i += 1) {
+    if (offers[i].memberOnly === true) out.push({ key: 'grounded_mark_members', name: str(offers[i].retailer) });
+    if (offers[i].marketplace === true) out.push({ key: 'grounded_mark_marketplace', name: str(offers[i].retailer) });
   }
   return out;
 }
@@ -346,6 +365,17 @@ export function groundedSection(grounded, opts = {}) {
     section.appendChild(list);
   }
 
+  const marked = markedOffers(grounded.block);
+  if (marked.length > 0) {
+    const list = el(doc, 'ul', 'grounded-marks');
+    for (let i = 0; i < marked.length; i += 1) {
+      const li = el(doc, 'li', null);
+      li.textContent = t(marked[i].key, { name: marked[i].name });
+      list.appendChild(li);
+    }
+    section.appendChild(list);
+  }
+
   /*
    * The price line, drawn from the wire's own verdict.
    *
@@ -371,12 +401,15 @@ export function groundedSection(grounded, opts = {}) {
    * The sentence is about the evidence, never about Shin's ignorance. The
    * offers, the reviews and the description are all already on screen above
    * it, which is what "always an answer" is protecting.
+   *
+   * A single offer is no longer one of the reasons (owner, 2026-09-19: "the
+   * one price becomes the median"): it draws a line, and the thin note below
+   * says it is one price.
    */
   if (!verdict) {
     const reason = grounded.block.noLineReason;
     const key =
-      reason === 'single_offer' ? 'grounded_no_line_single'
-      : reason === 'no_shelf_size' ? 'grounded_no_line_size'
+      reason === 'no_shelf_size' ? 'grounded_no_line_size'
       : reason === 'no_offers_on_line' ? 'grounded_no_line_none'
       : null;
     if (key !== null) {
@@ -416,12 +449,16 @@ export function groundedSection(grounded, opts = {}) {
      * are read off the server's own shortfall list; the sentence is this
      * client's, so it can be said in French.
      */
-    if (line && verdict.confidence === 'thin') {
+    if (line && (verdict.confidence === 'thin' || verdict.n === 1)) {
       const codes = Array.isArray(verdict.shortfalls) ? verdict.shortfalls.map((x) => x && x.code) : [];
       const note = el(doc, 'p', 'grounded-line-thin');
-      note.textContent = codes.indexOf('claim_held') !== -1
-        ? t('grounded_line_held')
-        : t('grounded_line_thin', { n: String(verdict.n) });
+      // One price says it is ONE seller's price. Read off the count as well as
+      // the code, because the one-call scan path carries no shortfall list.
+      note.textContent = codes.indexOf('one_offer') !== -1 || verdict.n === 1
+        ? t('grounded_line_one')
+        : codes.indexOf('claim_held') !== -1
+          ? t('grounded_line_held')
+          : t('grounded_line_thin', { n: String(verdict.n) });
       section.appendChild(note);
     }
   }

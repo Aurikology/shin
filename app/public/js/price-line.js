@@ -116,9 +116,21 @@ export function labelWidth(text) {
  * a tap. Either way the quantity is never dropped: it is either on screen or
  * one tap away, and the tap is on Shin's own chart rather than on anything of
  * Google's.
+ *
+ * A price that needs a membership, or that a marketplace seller lists, still
+ * counts in the middle and says so beside its quantity ("6 x 355 mL, $4.49 ·
+ * members only"). The marks are codes off the wire, worded here in the
+ * reader's language; nothing is worked out from them.
  */
+const MARK_KEYS = { member_only: 'priceline_mark_members', marketplace: 'priceline_mark_marketplace' };
+
+function pointText(point) {
+  const marks = Array.isArray(point.marks) ? point.marks.filter((m) => m in MARK_KEYS) : [];
+  return [String(point.label ?? ''), ...marks.map((m) => t(MARK_KEYS[m]))].join(' · ');
+}
+
 function markerLabel(group, points) {
-  if (group.members.length === 1) return String(points[group.members[0]].label ?? '');
+  if (group.members.length === 1) return pointText(points[group.members[0]]);
   return t('priceline_merged', { n: String(group.members.length) });
 }
 
@@ -240,12 +252,14 @@ function zoneWord(code) {
  */
 function shelfReading(shelf, count) {
   const n = String(count);
+  // One price is a line too: "the one price found" and not "the middle of 1 prices".
+  const one = count === 1 ? '_one' : '';
   const pct = num(shelf && shelf.pct);
-  if (shelf && shelf.zone === 'middle') return t('priceline_you_middle', { n });
-  if (pct === null) return t('priceline_you_middle', { n });
+  if (shelf && shelf.zone === 'middle') return t(`priceline_you_middle${one}`, { n });
+  if (pct === null) return t(`priceline_you_middle${one}`, { n });
   const abs = String(Math.abs(pct));
-  if (shelf.zone === 'under_your_line' || pct < 0) return t('priceline_you_under', { pct: abs, n });
-  return t('priceline_you_over', { pct: abs, n });
+  if (shelf.zone === 'under_your_line' || pct < 0) return t(`priceline_you_under${one}`, { pct: abs, n });
+  return t(`priceline_you_over${one}`, { pct: abs, n });
 }
 
 /**
@@ -382,7 +396,7 @@ export function priceLine(spec, opts = {}) {
 
     if (group.members.length === 1) {
       const label = el(doc, 'span', 'pl-label');
-      label.textContent = String(points[group.members[0]].label ?? '');
+      label.textContent = pointText(points[group.members[0]]);
       marker.appendChild(label);
     } else {
       // Merged: a button, because it opens. It is Shin's own chart furniture
@@ -400,7 +414,7 @@ export function priceLine(spec, opts = {}) {
       open.setAttribute('hidden', '');
       for (const i of group.members) {
         const li = el(doc, 'li', null);
-        li.textContent = String(points[i].label ?? '');
+        li.textContent = pointText(points[i]);
         open.appendChild(li);
       }
       marker.appendChild(open);
@@ -471,7 +485,7 @@ export function priceLine(spec, opts = {}) {
   // "Per 100 mL, 6 prices found". Never the word "factually": it reads as a
   // claim about correctness that nothing here has measured, which is hard
   // rule 2 territory, and it is also not a word anyone says.
-  caption.textContent = t('priceline_caption', {
+  caption.textContent = t(points.length === 1 ? 'priceline_caption_one' : 'priceline_caption', {
     unit: String(spec.unitLabel ?? ''),
     n: String(points.length),
   });

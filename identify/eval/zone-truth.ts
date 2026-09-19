@@ -65,10 +65,11 @@
  * THE FOURTH OUTCOME.
  * ============================================================================
  * `computeGauge` can decline to draw a line at all, returning `usable: false`
- * with a reason of 'single_offer' | 'no_offers_on_line' | 'no_shelf_size'. A
- * refusal is NOT a wrong zone -- it is the gauge saying the evidence is too thin
- * to place a dot, which after D-113 is the correct behaviour. It gets its own
- * bucket and is never scored as an error.
+ * with a reason of 'no_offers_on_line' | 'no_shelf_size'. A refusal is NOT a
+ * wrong zone -- it is the gauge saying there is nothing to place a dot against.
+ * It gets its own bucket and is never scored as an error. ('single_offer' was a
+ * third reason until 2026-09-19; one offer now draws a line, so a truth set
+ * with one comparable point is scored like any other.)
  *
  * ============================================================================
  * UNITS: THE ONE ERROR THAT WOULD PRODUCE A CONFIDENT, COMPLETELY WRONG MATRIX.
@@ -101,7 +102,7 @@ const USABLE_KIND = 'regular';
 
 type Zone = 'under_your_line' | 'middle' | 'over_your_line';
 const ZONES: readonly Zone[] = ['under_your_line', 'middle', 'over_your_line'];
-type NoLine = 'single_offer' | 'no_offers_on_line' | 'no_shelf_size';
+type NoLine = 'no_offers_on_line' | 'no_shelf_size';
 
 interface TruthPoint {
   seller: string;
