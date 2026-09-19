@@ -160,7 +160,7 @@ test('the click dispatch wires scan-barcode to the eye and scan-mode to the swap
   const dispatch = between(SCREEN, "      if (act === 'shoot') { shoot(); return; }", "      if (act === 'pad-shop')", 'the click dispatch');
   assert.match(dispatch, /if \(act === 'scan-barcode'\)/, 'scan-barcode has no branch, so the button does nothing');
   assert.match(dispatch, /eye\?\.scanBarcode\?\.\(\)/, 'the branch never asks the eye for the settled code');
-  assert.match(dispatch, /if \(act === 'scan-mode'\) \{ setScanMode\(/, 'the toggle is not wired to setScanMode');
+  assert.match(dispatch, /if \(act === 'scan-mode'\) \{\s+setScanMode\(/, 'the toggle is not wired to setScanMode');
   assert.match(dispatch, /cam\.dataset\.state !== 'idle'/,
     'the barcode button fires while a sheet is up, underneath an answer already on screen');
 });

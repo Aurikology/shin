@@ -49,16 +49,45 @@ export const UNKNOWN_MARKET: Market = {
  * A missing country is not a bug: the market's currency is then null, and
  * anything that needs one asks the location for it (`location.currency`).
  */
-const CURRENCY_OF_COUNTRY: Readonly<Record<string, string>> = {
-  CA: 'CAD', US: 'USD', MX: 'MXN', GB: 'GBP', IE: 'EUR', FR: 'EUR', DE: 'EUR', ES: 'EUR',
-  IT: 'EUR', NL: 'EUR', BE: 'EUR', PT: 'EUR', AT: 'EUR', FI: 'EUR', GR: 'EUR', LU: 'EUR',
-  SK: 'EUR', SI: 'EUR', EE: 'EUR', LV: 'EUR', LT: 'EUR', MT: 'EUR', CY: 'EUR', HR: 'EUR',
-  CH: 'CHF', SE: 'SEK', NO: 'NOK', DK: 'DKK', PL: 'PLN', CZ: 'CZK', HU: 'HUF', RO: 'RON',
-  BG: 'BGN', AU: 'AUD', NZ: 'NZD', JP: 'JPY', KR: 'KRW', CN: 'CNY', HK: 'HKD', TW: 'TWD',
-  SG: 'SGD', IN: 'INR', ID: 'IDR', TH: 'THB', VN: 'VND', PH: 'PHP', MY: 'MYR', AE: 'AED',
-  SA: 'SAR', IL: 'ILS', TR: 'TRY', ZA: 'ZAR', NG: 'NGN', EG: 'EGP', KE: 'KES', BR: 'BRL',
-  AR: 'ARS', CL: 'CLP', CO: 'COP', PE: 'PEN',
+const COUNTRIES_OF_CURRENCY: Readonly<Record<string, string>> = {
+  AED: 'AE', AFN: 'AF', ALL: 'AL', AMD: 'AM', ANG: 'CW SX', AOA: 'AO', ARS: 'AR',
+  AUD: 'AU CC CX KI NF NR TV', AWG: 'AW', AZN: 'AZ', BAM: 'BA', BBD: 'BB', BDT: 'BD',
+  BHD: 'BH', BIF: 'BI', BMD: 'BM', BND: 'BN', BOB: 'BO', BRL: 'BR', BSD: 'BS', BTN: 'BT',
+  BWP: 'BW', BYN: 'BY', BZD: 'BZ', CAD: 'CA', CDF: 'CD', CHF: 'CH LI', CLP: 'CL', CNY: 'CN',
+  COP: 'CO', CRC: 'CR', CUP: 'CU', CVE: 'CV', CZK: 'CZ', DJF: 'DJ', DKK: 'DK FO GL', DOP: 'DO',
+  DZD: 'DZ', EGP: 'EG', ERN: 'ER', ETB: 'ET',
+  EUR: 'AD AT AX BE BG BL CY DE EE ES FI FR GF GP GR HR IE IT LT LU LV MC ME MF MQ MT NL PM PT RE SI SK SM VA XK YT',
+  FJD: 'FJ', FKP: 'FK', GBP: 'GB GG IM JE', GEL: 'GE', GHS: 'GH', GIP: 'GI', GMD: 'GM',
+  GNF: 'GN', GTQ: 'GT', GYD: 'GY', HKD: 'HK', HNL: 'HN', HTG: 'HT', HUF: 'HU', IDR: 'ID',
+  ILS: 'IL PS', INR: 'IN', IQD: 'IQ', IRR: 'IR', ISK: 'IS', JMD: 'JM', JOD: 'JO', JPY: 'JP',
+  KES: 'KE', KGS: 'KG', KHR: 'KH', KMF: 'KM', KPW: 'KP', KRW: 'KR', KWD: 'KW', KYD: 'KY',
+  KZT: 'KZ', LAK: 'LA', LBP: 'LB', LKR: 'LK', LRD: 'LR', LSL: 'LS', LYD: 'LY', MAD: 'EH MA',
+  MDL: 'MD', MGA: 'MG', MKD: 'MK', MMK: 'MM', MNT: 'MN', MOP: 'MO', MRU: 'MR', MUR: 'MU',
+  MVR: 'MV', MWK: 'MW', MXN: 'MX', MYR: 'MY', MZN: 'MZ', NAD: 'NA', NGN: 'NG', NIO: 'NI',
+  NOK: 'NO SJ', NPR: 'NP', NZD: 'CK NU NZ PN TK', OMR: 'OM', PAB: 'PA', PEN: 'PE', PGK: 'PG',
+  PHP: 'PH', PKR: 'PK', PLN: 'PL', PYG: 'PY', QAR: 'QA', RON: 'RO', RSD: 'RS', RUB: 'RU',
+  RWF: 'RW', SAR: 'SA', SBD: 'SB', SCR: 'SC', SDG: 'SD', SEK: 'SE', SGD: 'SG', SHP: 'SH',
+  SLE: 'SL', SOS: 'SO', SRD: 'SR', SSP: 'SS', STN: 'ST', SYP: 'SY', SZL: 'SZ', THB: 'TH',
+  TJS: 'TJ', TMT: 'TM', TND: 'TN', TOP: 'TO', TRY: 'TR', TTD: 'TT', TWD: 'TW', TZS: 'TZ',
+  UAH: 'UA', UGX: 'UG', USD: 'AS BQ EC FM GU IO MH MP PR PW SV TC TL US VG VI', UYU: 'UY',
+  UZS: 'UZ', VES: 'VE', VND: 'VN', VUV: 'VU', WST: 'WS', XAF: 'CF CG CM GA GQ TD',
+  XCD: 'AG AI DM GD KN LC MS VC', XOF: 'BF BJ CI GW ML NE SN TG', XPF: 'NC PF WF', YER: 'YE',
+  ZAR: 'ZA', ZMW: 'ZM', ZWG: 'ZW',
 };
+
+/**
+ * Every country in the world to its currency, built from the table above. Kept in
+ * step with the picker's own list (`app/public/js/lib/countries.js`) by
+ * `catalogue/test/market-global.test.ts`, which fails if either drops a country
+ * or disagrees about a currency. Bulgaria is EUR from 2026-01-01.
+ */
+export const CURRENCY_OF_COUNTRY: Readonly<Record<string, string>> = Object.freeze(
+  Object.fromEntries(
+    Object.entries(COUNTRIES_OF_CURRENCY).flatMap(([currency, codes]) =>
+      codes.split(' ').map((code) => [code, currency] as const),
+    ),
+  ),
+);
 
 /** Countries whose own regions are known to price differently. A hint for the prompt, not a rule. */
 const REGIONS_PRICE_DIFFERENTLY: ReadonlySet<string> = new Set([
@@ -95,7 +124,9 @@ export function marketFromLocation(loc: UserLocation | null | undefined): Market
   const explicit = clean(loc?.currency)?.toUpperCase() ?? null;
   const currency = explicit && /^[A-Z]{3}$/.test(explicit) ? explicit : country ? (CURRENCY_OF_COUNTRY[country] ?? null) : null;
   if (country === null && currency === null) return UNKNOWN_MARKET;
-  return { country, region: clean(loc?.region), currency, derivedFrom: 'user_location' };
+  // A region is a place inside a country. With no country it names nothing, so it
+  // stays unknown rather than travelling on its own.
+  return { country, region: country === null ? null : clean(loc?.region), currency, derivedFrom: 'user_location' };
 }
 
 /**
@@ -123,7 +154,32 @@ export function countryCodeOf(text: string | null | undefined): string | null {
   const t = clean(text);
   if (t === null) return null;
   if (/^[A-Za-z]{2}$/.test(t)) return t.toUpperCase();
-  return COUNTRY_CODE_OF_NAME[t.toLowerCase()] ?? null;
+  return COUNTRY_CODE_OF_NAME[t.toLowerCase()] ?? englishNameIndex().get(t.toLowerCase()) ?? null;
+}
+
+let namesIndex: Map<string, string> | null = null;
+
+/**
+ * English name to code for every country in the world, from the runtime's own
+ * region names. It is the fallback for a client that sends only a name the small
+ * table above does not know; a client that sends the code (the app does) never
+ * reaches it. Empty when the runtime has no `Intl.DisplayNames`, which is the
+ * unknown market, not a guess.
+ */
+function englishNameIndex(): Map<string, string> {
+  if (namesIndex) return namesIndex;
+  const index = new Map<string, string>();
+  try {
+    const names = new Intl.DisplayNames(['en'], { type: 'region' });
+    for (const code of Object.keys(CURRENCY_OF_COUNTRY)) {
+      const name = names.of(code);
+      if (name && name !== code) index.set(name.toLowerCase().replace(/’/g, "'"), code);
+    }
+  } catch {
+    /* no Intl.DisplayNames here */
+  }
+  namesIndex = index;
+  return index;
 }
 
 export type Comparability =

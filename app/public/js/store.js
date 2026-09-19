@@ -6,6 +6,9 @@
  * anything is asked of anyone.
  */
 
+import { PERCENT_CHOICES, rangePatch, unitPatch } from './lib/ranges.js';
+import { findCountry, findRegion } from './lib/countries.js';
+
 const KEY = 'shin.v1';
 
 /**
@@ -45,6 +48,25 @@ const EMPTY = {
    */
   lineUnderPct: 10,
   lineOverPct: 10,
+  /**
+   * The rest of the user's price ranges (2026-09-19, his good, bad and GREAT
+   * ranges, "crucial and non negotiable"). `lineUnderPct` above is the GOOD
+   * range and `lineOverPct` the BAD one; this is the deeper GREAT one, and the
+   * unit they are in. `lineUnit` is his Percentage (%) or Dollar Amount ($)
+   * choice; `lineAmounts` holds the dollar numbers apart from the percents, so
+   * flipping the unit never overwrites the other set. What each means, the
+   * choices and the defaults are in lib/ranges.js. Unmeasured starting points.
+   */
+  lineGreatPct: 20,
+  lineUnit: 'percent',
+  lineAmounts: { great: 2, good: 1, bad: 1 },
+  /**
+   * How aggressive the user wants deal alerts (his W14: Conservative 30%+,
+   * Recommended 20%+, Aggressive 10%+). A stored setting only. There is no alert
+   * system yet, so nothing reads it; `alertMinPct` is the number his option names.
+   */
+  alertStyle: null,
+  alertMinPct: null,
   /**
    * The torch setting (item 11, 2026-09-17): 'auto' lights the shelf itself once
    * the frame is darker than `torchThreshold`; 'off' never does and the camera
@@ -92,7 +114,7 @@ const EMPTY = {
    * 2026-09-17 walkthrough), so nothing assumes a country. An empty market is sent
    * to Gemini as "unknown" (lib/scan-body.js sends only what the user chose).
    */
-  market: { country: '', currency: '' },
+  market: { country: '', currency: '', code: '', region: '' },
   /**
    * OLMA audit row 75, screen 34: a deleted scan or an unwatched item, kept
    * thirty days and restorable in one tap. `kind` is `'scan'` (from `history`)
@@ -338,7 +360,7 @@ function persist() {
  * and a pad asks a person in an aisle to invent a figure. 10 sits second so
  * the default is not at the end of the row, where it would read as a floor.
  */
-export const LINE_CHOICES = [5, 10, 15, 20];
+export const LINE_CHOICES = [...PERCENT_CHOICES];
 
 /**
  * The torch slider's range and its starting point (item 11). These three are
@@ -362,6 +384,16 @@ export function update(patch) {
   state = typeof patch === 'function' ? patch(state) : { ...state, ...patch };
   persist();
   for (const fn of listeners) fn(state);
+}
+
+/** The user sets one of their three ranges (kind: 'great' | 'good' | 'bad') in the current unit. */
+export function setRange(kind, value) {
+  update(rangePatch(state, kind, value));
+}
+
+/** The Percentage (%) or Dollar Amount ($) toggle. */
+export function setRangeUnit(unit) {
+  update(unitPatch(unit));
 }
 
 export function reset() {
@@ -471,8 +503,35 @@ export function market() {
   return state.market ?? EMPTY.market;
 }
 
-export function setMarket(country, currency) {
-  update((s) => ({ ...s, market: { country, currency } }));
+/**
+ * Picks the country. `country` is the English name from `lib/countries.js` (the
+ * stored value is the same string on every phone and in every language),
+ * `currency` its ISO 4217 code, `code` its ISO 3166 code, which is looked up
+ * when a caller gives only the name. Picking a country clears the region
+ * unless it is the same country: a province of Canada is not a region of France.
+ */
+export function setMarket(country, currency, code = '') {
+  const found = findCountry(code) ?? findCountry(country);
+  update((s) => {
+    const same = (s.market?.country ?? '') === country;
+    return {
+      ...s,
+      market: { country, currency, code: found?.code ?? '', region: same ? (s.market?.region ?? '') : '' },
+    };
+  });
+}
+
+/**
+ * The region inside the chosen country (province, state), stored as its English
+ * name, or '' for "not chosen". A name the table does not know for this country
+ * is refused rather than stored: an unknown region stays unknown.
+ */
+export function setRegion(region) {
+  update((s) => {
+    const m = s.market ?? EMPTY.market;
+    const found = m.code || m.country ? findRegion(findCountry(m.code || m.country)?.code, region) : null;
+    return { ...s, market: { ...m, region: found ? found.en : '' } };
+  });
 }
 
 /**

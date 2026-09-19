@@ -114,11 +114,12 @@ function withFigures(figures, fn) {
 /* ------------------------------------------------------------ 1. his order */
 
 test('the flow is his numbered list, in his order', () => {
-  assert.deepEqual(STEPS.map((s) => s.n), Array.from({ length: 29 }, (_, i) => i + 1));
+  /* His 1 to 29, then his 31 ("Evaluating Deal..."); his 30 is the camera. */
+  assert.deepEqual(STEPS.map((s) => s.n), [...Array.from({ length: 29 }, (_, i) => i + 1), 31]);
   assert.deepEqual(STEPS.slice(0, 7).map((s) => s.id),
     ['welcome', 'promise', 'shops', 'frequency', 'priority', 'heard', 'tried']);
   assert.deepEqual(STEPS.slice(22).map((s) => s.id),
-    ['trial', 'permissions', 'plans', 'tip_scan', 'tip_eval', 'tip_fix', 'tip_accuracy']);
+    ['trial', 'permissions', 'plans', 'tip_scan', 'tip_eval', 'tip_fix', 'tip_accuracy', 'evaluating']);
 });
 
 test('today the walked steps are his list minus the figure steps and sign-in', () => {
@@ -347,14 +348,18 @@ test('the price range: a touched slider becomes the user\'s own line, an untouch
   assert.equal(trackedEvents('onboarding_answer').at(-1).payload.touched, true);
 });
 
-test('dollar mode is recorded and never written into the percentage line', () => {
+test('dollar mode is stored as dollar amounts with its unit and never written into the percentage line', () => {
   resetStore();
   const before = store.get().lineUnderPct ?? 10;
-  assert.equal(flow.applyThreshold({ store }, 'amount', 5, true), false);
-  assert.equal(store.get().lineUnderPct ?? 10, before);
+  assert.equal(flow.applyThreshold({ store }, 'amount', 5, true), true);
+  assert.equal(store.get().lineUnderPct ?? 10, before, 'a dollar figure must not become a percent');
+  assert.equal(store.get().lineUnit, 'amount');
+  assert.equal(store.get().lineAmounts.good, 5);
+  assert.equal(flow.applyThreshold({ store }, 'amount', 99, true), false, 'out of the slider range is refused');
   assert.equal(flow.applyThreshold({ store }, 'percent', 20, false), false);
   assert.equal(flow.applyThreshold({ store }, 'percent', 15, true), true);
   assert.equal(store.get().lineUnderPct, 15);
+  assert.equal(store.get().lineUnit, 'percent');
 });
 
 test('the monthly goal is recorded with whether the person moved it', async () => {

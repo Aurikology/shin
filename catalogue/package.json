@@ -20,6 +20,7 @@
     "search": "node src/cli.ts",
     "lexicon": "node src/build-lexicon.ts src/lexicon-fr-en.json",
     "backfill:derived": "node src/backfill-derived.ts",
+    "implied-reference": "node src/implied-reference.ts",
     "eval:crosslang": "node src/crosslang-eval.ts",
     "test": "node --test \"test/**/*.test.ts\"",
     "typecheck": "node ../spine/node_modules/typescript/bin/tsc --noEmit -p tsconfig.json"

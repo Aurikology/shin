@@ -592,10 +592,14 @@ test('the zone words and the large dot reading name the user\'s line, never a gr
 
 test('the setup screen asks for both lines and stores them where the price line reads them', async () => {
   const src = read('../public/js/screens/setup.js');
-  assert.match(src, /setup_lines_under_q/, 'the setup screen no longer asks how far below the middle counts.');
-  assert.match(src, /setup_lines_over_q/, 'the setup screen no longer asks how far above the middle counts.');
-  assert.match(src, /lineUnderPct/);
-  assert.match(src, /lineOverPct/);
+  /* Three ranges and a unit now: setup draws lib/range-picker.js, which asks the
+     three questions and stores them under the names the price line reads. */
+  const picker = read('../public/js/lib/range-picker.js');
+  assert.match(src, /rangePickerHtml/, 'the setup screen no longer draws the price ranges.');
+  assert.match(picker, /ranges_\$\{kind\}_q/, 'the picker no longer asks each range its question.');
+  const ranges = read('../public/js/lib/ranges.js');
+  assert.match(ranges, /lineUnderPct/);
+  assert.match(ranges, /lineOverPct/);
 
   const store = await import('../public/js/store.js');
   assert.equal(store.get().lineUnderPct, 10, 'the default stopped being ten, which is the number the founder named.');
@@ -605,8 +609,8 @@ test('the setup screen asks for both lines and stores them where the price line 
   // And the You page can change them, which is what setup's own fineprint
   // promises. A promise with no control behind it is a defect.
   const you = read('../public/js/screens/you.js');
-  assert.match(you, /data-line="under"/);
-  assert.match(you, /data-line="over"/);
+  assert.match(you, /rangePickerHtml\(store\.get\(\), 'you'\)/);
+  assert.match(you, /handleRangeClick/);
 });
 
 test('the verdict sheet actually reaches the grounded block', () => {

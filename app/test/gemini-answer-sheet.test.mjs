@@ -238,7 +238,7 @@ test('proceed has a gemini branch, ahead of the verdict and refusal branches', (
 });
 
 test('the gemini branch draws the answer or the failure state, never the refusal sheet', () => {
-  assert.match(branch, /geminiSheet\(result, item, scanThumb\)/, 'the answer sheet is not drawn');
+  assert.match(branch, /geminiSheet\(result, item, scanThumb, earlier\)/, 'the answer sheet is not drawn');
   assert.match(branch, /geminiFailureSheet\(result, item\)/, 'the failure state is not drawn');
   assert.match(branch, /geminiFailed\(result\)/);
   assert.match(branch, /fillGrounded\(slot, result\)/, 'the offers and reviews are not mounted');

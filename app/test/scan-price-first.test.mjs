@@ -36,13 +36,22 @@ function between(text, from, to, what) {
 
 const { thresholdsFrom, shelfPriceOf } = await import('../public/js/lib/scan-body.js');
 
-test('thresholds are the two fields the store holds, or nothing at all', () => {
-  assert.deepEqual(thresholdsFrom({ lineUnderPct: 15, lineOverPct: 20 }), { lineUnderPct: 15, lineOverPct: 20 });
+test('thresholds are the three ranges and their unit, or nothing at all', () => {
+  assert.deepEqual(
+    thresholdsFrom({ lineGreatPct: 30, lineUnderPct: 15, lineOverPct: 20 }),
+    { unit: 'percent', great: 30, good: 15, bad: 20 },
+    'his 30 percent must be sendable, with its unit',
+  );
   assert.equal(thresholdsFrom({}), undefined, 'a user with none set must send nothing');
   assert.equal(thresholdsFrom({ lineUnderPct: null, lineOverPct: 'x' }), undefined);
   assert.equal(thresholdsFrom(undefined), undefined);
-  // One set and one not: send what exists rather than inventing the other.
-  assert.deepEqual(thresholdsFrom({ lineUnderPct: 5 }), { lineUnderPct: 5 });
+  // One set and the rest not: send what exists rather than inventing the others.
+  assert.deepEqual(thresholdsFrom({ lineUnderPct: 5 }), { unit: 'percent', good: 5 });
+  // Dollar mode sends the dollar amounts and says so; the percents stay home.
+  assert.deepEqual(
+    thresholdsFrom({ lineUnit: 'amount', lineAmounts: { great: 3, good: 2, bad: 1 }, lineUnderPct: 15, lineOverPct: 20 }),
+    { unit: 'amount', great: 3, good: 2, bad: 1 },
+  );
 });
 
 test('a shelf price is whole positive cents or absent', () => {
@@ -61,12 +70,12 @@ const store = await import('../public/js/store.js');
 const api = await import('../public/js/api.js');
 
 test('identify carries the shelf price and the thresholds', async () => {
-  store.update({ lineUnderPct: 15, lineOverPct: 20 });
+  store.update({ lineGreatPct: 25, lineUnderPct: 15, lineOverPct: 20 });
   calls.length = 0;
   await api.identify({ gtin: '0123456789012', shelfPriceCents: 499 });
   const u = new URL(calls[0].url, 'http://x');
   assert.equal(u.searchParams.get('shelfPriceCents'), '499', 'the shelf price did not ride in the scan request');
-  assert.deepEqual(JSON.parse(u.searchParams.get('thresholds')), { lineUnderPct: 15, lineOverPct: 20 });
+  assert.deepEqual(JSON.parse(u.searchParams.get('thresholds')), { unit: 'percent', great: 25, good: 15, bad: 20 });
   assert.equal(u.searchParams.get('gtin'), '0123456789012');
 });
 
@@ -79,7 +88,7 @@ test('a skipped price sends no price and still sends the request', async () => {
 });
 
 test('a user with no thresholds sends none', async () => {
-  store.update({ lineUnderPct: undefined, lineOverPct: undefined });
+  store.update({ lineGreatPct: undefined, lineUnderPct: undefined, lineOverPct: undefined });
   calls.length = 0;
   await api.identify({ gtin: '0123456789012', shelfPriceCents: 100 });
   const u = new URL(calls[0].url, 'http://x');
@@ -88,13 +97,13 @@ test('a user with no thresholds sends none', async () => {
 });
 
 test('the photo request carries both too, in its body', async () => {
-  store.update({ lineUnderPct: 5, lineOverPct: 15 });
+  store.update({ lineGreatPct: 20, lineUnderPct: 5, lineOverPct: 15 });
   calls.length = 0;
   const blob = new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3])], { type: 'image/jpeg' });
   await api.identifyPhoto(blob, { sharpness: 0.5, shelfPriceCents: 249 });
   const body = JSON.parse(calls[0].init.body);
   assert.equal(body.shelfPriceCents, 249);
-  assert.deepEqual(body.thresholds, { lineUnderPct: 5, lineOverPct: 15 });
+  assert.deepEqual(body.thresholds, { unit: 'percent', great: 20, good: 5, bad: 15 });
   calls.length = 0;
   await api.identifyPhoto(blob, {});
   assert.equal('shelfPriceCents' in JSON.parse(calls[0].init.body), false, 'a skipped price was sent on the photo route');
@@ -102,14 +111,14 @@ test('the photo request carries both too, in its body', async () => {
 });
 
 test('the price call carries the thresholds and lets the caller win', async () => {
-  store.update({ lineUnderPct: 15, lineOverPct: 20 });
+  store.update({ lineGreatPct: 25, lineUnderPct: 15, lineOverPct: 20 });
   calls.length = 0;
   await api.price({ text: 'x' });
-  assert.deepEqual(JSON.parse(calls[0].init.body).thresholds, { lineUnderPct: 15, lineOverPct: 20 });
+  assert.deepEqual(JSON.parse(calls[0].init.body).thresholds, { unit: 'percent', great: 25, good: 15, bad: 20 });
   calls.length = 0;
-  await api.price({ text: 'x', thresholds: { lineUnderPct: 1, lineOverPct: 2 } });
-  assert.deepEqual(JSON.parse(calls[0].init.body).thresholds, { lineUnderPct: 1, lineOverPct: 2 });
-  store.update({ lineUnderPct: 10, lineOverPct: 10 });
+  await api.price({ text: 'x', thresholds: { unit: 'percent', good: 1, bad: 2 } });
+  assert.deepEqual(JSON.parse(calls[0].init.body).thresholds, { unit: 'percent', good: 1, bad: 2 });
+  store.update({ lineGreatPct: 20, lineUnderPct: 10, lineOverPct: 10 });
 });
 
 /* ------------------------------------------------ the flow, from the source */

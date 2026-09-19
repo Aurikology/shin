@@ -563,12 +563,8 @@ const NOT_SHOWN = [
   { file: 'watchlist.js', text: '.empty .face', why: 'A CSS descendant selector passed to querySelector, not a phrase anybody reads.' },
   { file: 'camera.js', text: 'NFKD', why: 'The Unicode normalisation form passed to String.normalize, a constant of the platform rather than a word.' },
   { file: 'camera.js', text: 'a thing shin has never seen', why: 'A query string sent to the engine on purpose, to make it produce its own honest refusal rather than the app faking one. It is a search term, not a label; translating it would change what is asked.' },
-  { file: 'market.js', text: 'United States', why: 'A STORED market value, not a shown one. market.js\'s MARKETS comment has the whole reasoning: the country is what store.market() writes and what a future comparison keys on, so it stays English in every language and country_us is what the row prints.' },
-  { file: 'market.js', text: 'United Kingdom', why: 'A stored market value that must not move with the language, the same as United States above it.' },
 
   { file: 'camera.js', text: 'Escape', why: 'A KeyboardEvent.key value compared against in the sheet key handler. A platform constant, the same string on a French keyboard.' },
-  { file: 'camera.js', text: 'Canada', why: 'The default market value when store.market() has none, and it is the STORED form, not the shown one. countryIn() is what puts it on screen.' },
-  { file: 'market.js', text: 'Canada', why: 'A stored market value, same reasoning as United States and United Kingdom above it.' },
   { file: 'share.js', text: 'toBlob gave nothing', why: 'The message of an Error thrown and caught inside the save path, so the console gets it. What the reader gets is share_export_failed.' },
 
   /* --- the registered screen titles ---
@@ -589,6 +585,7 @@ const NOT_SHOWN = [
   { file: 'pastscans.js', text: 'Past scans', why: 'The registered title, translated through past_scans. Same split.' },
   { file: 'removed.js', text: 'Recently removed', why: 'The registered title, translated through removed_title. Same split.' },
   { file: 'setup.js', text: 'Pick your Shin', why: 'The registered title, translated through setup_title. Same split.' },
+  { file: 'savings.js', text: 'Savings Overview', why: 'The registered title, translated through savings_title. Same split.' },
   { file: 'share.js', text: 'Share', why: 'The registered title, translated through share_title. Same split.' },
   { file: 'watchlist.js', text: 'Saved', why: 'The registered title, translated through saved_title. Same split.' },
   { file: 'you.js', text: 'You', why: 'The registered title, translated through you_title. Same split.' },

@@ -173,6 +173,14 @@
 .mkt-basis {
   margin-top: 2px;
 }
+/* The country search. 16px because mobile Safari zooms the page on anything
+   smaller when the field takes focus; the same reason `.seller .field` has it. */
+.mkt-search { display: block; margin: 4px 0 8px; }
+.mkt-q { width: 100%; font-size: 16px; }
+.mkt-now { margin: 0 0 8px; }
+.mkt-none { margin: 8px 0; }
+.mkt-regions { margin-top: 20px; }
+.mkt-regions .kicker { margin-bottom: 8px; }
 
 /*
  * The attribution line, and the reason it is underlined rather than merely

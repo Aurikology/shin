@@ -25,6 +25,17 @@ export function setScanShopProvider(fn) {
   shopProvider = typeof fn === 'function' ? fn : null;
 }
 
+/**
+ * What THIS scan is for, set by the camera when a scan goes out and cleared when
+ * it ends: the user's validation or switching choice and, in Price Tag mode, the
+ * hint that the picture is a shelf tag. Rides in `scanContext()` below, so the
+ * identify, photo and price calls all carry it. See lib/scan-body.js.
+ */
+let scanIntent = {};
+export function setScanIntent(intent) {
+  scanIntent = intent && typeof intent === 'object' ? { ...intent } : {};
+}
+
 /** Where and how the user shops, for the one Gemini call: see lib/scan-body.js. */
 function scanContext() {
   let shop = null;
@@ -33,7 +44,7 @@ function scanContext() {
   } catch {
     shop = null;
   }
-  return scanContextFrom({ market: storeState()?.market, language: localeTag(), shop });
+  return scanContextFrom({ market: storeState()?.market, language: localeTag(), shop, intent: scanIntent });
 }
 
 /**
@@ -388,6 +399,13 @@ export function search({ text, limit = 5 }) {
  */
 export function alternatives({ code, askingCents }) {
   const params = new URLSearchParams({ code, askingCents: String(askingCents) });
+  // The market rides along so the server compares like with like (same country,
+  // region when known, same currency). Only what the user chose is sent: with no
+  // market chosen nothing goes and the server calls it unknown, never Canada.
+  const ctx = scanContext();
+  if (ctx.countryCode) params.set('country', ctx.countryCode);
+  if (ctx.region) params.set('region', ctx.region);
+  if (ctx.currency) params.set('currency', ctx.currency);
   return get(`/api/alternatives?${params.toString()}`);
 }
 

@@ -185,8 +185,8 @@ const EN = {
   conf_certain: (f) => `Certain · ${f.sellers}`,
   conf_sure: (f) => `Fairly sure · ${f.sellers}`,
   conf_thin: (f) => `Thin · ${f.sellers}`,
-  cam_rate_single: (f) => `${f.price} ${f.market}, one seller`,
-  cam_rate_range: (f) => `${f.low} to ${f.high} ${f.market}`,
+  cam_rate_single: (f) => `${f.price}${f.market ? ` ${f.market}` : ''}, one seller`,
+  cam_rate_range: (f) => `${f.low} to ${f.high}${f.market ? ` ${f.market}` : ''}`,
   cam_rate_to: (f) => `${f.low} to ${f.high}`,
   cam_seller_count: (f) => `${f.n} seller${f.n === '1' ? '' : 's'}`,
   cam_rail_alt: (f) => `Prices found run ${f.low} to ${f.high}. You are looking at ${f.asking}.`,
@@ -201,9 +201,20 @@ const EN = {
   /* Rule 2, 2026-09-15. The camera no longer reads a barcode by itself, so the
      two ways to scan are a mode the shopper picks, and the barcode one has its
      own button where the shutter would be. */
-  cam_mode_photo: 'Photo',
-  cam_mode_barcode: 'Barcode',
+  /* W30, 2026-09-19: his three modes, in his words. The photo scan is the Price
+     Tag mode now (the picture is a shelf tag); the key keeps its name because
+     the scan path under it is still the photo path. */
+  cam_mode_photo: 'Price Tag',
+  cam_mode_barcode: 'Scan Barcode',
+  cam_mode_manual: 'Manual Search',
   cam_mode_picker: 'What to scan',
+  /* Row 25: validation or switching, chosen by the user on the price pad. */
+  cam_alt_group: 'What do you want from this scan?',
+  cam_alt_validation: 'Is this a good price?',
+  cam_alt_switching: 'Find a better buy',
+  /* W33: the user's own earlier prices for the same item. */
+  cam_hist_heading: 'Your earlier prices',
+  cam_hist_alt: (f) => `Your last ${f.n} prices for this item, oldest first.`,
   cam_scan_barcode: 'Scan the barcode',
   // The torch setting on the You screen (item 11).
   you_torch_group: 'Torch',
@@ -241,8 +252,13 @@ const EN = {
 
   /* -------------------------------------------------------------- the market */
   market_title: 'Where do you shop?',
-  market_kicker: 'Recorded, not yet part of the comparison',
-  market_caption: 'Does not change a verdict yet. Recorded for when it does.',
+  market_kicker: 'Where prices are compared',
+  market_caption: 'Sent with every scan, so prices are compared in the right place. Nothing is converted between currencies.',
+  market_search: 'Search countries',
+  market_none: 'No country matches that.',
+  market_region_kicker: 'Region, if it matters',
+  market_region_none: 'Not chosen',
+  market_region_caption: 'Optional. Prices can differ between provinces and states. Left unchosen, the region stays unknown.',
   market_sources_button: 'Prices and product details come from open data. See the sources and licences.',
   country_ca: 'Canada',
   country_us: 'United States',
@@ -346,6 +362,21 @@ const EN = {
   setup_lines_note: 'Ten and ten to start. Both changeable any time on the You page.',
   setup_lines_percent: (f) => `${f.n}%`,
 
+  /* The three ranges (2026-09-19). His words for the ranges are good, bad and
+     great, and they name boundaries the USER sets, so they are the user's own
+     labels, not Shin grading a price. Shin's own answer words are unchanged. */
+  ranges_heading: 'Set your price ranges',
+  ranges_unit_q: 'Measure them in',
+  ranges_unit_percent: 'Percentage (%)',
+  ranges_unit_amount: 'Dollar Amount ($)',
+  ranges_great_q: 'How far below the middle is a great price for you?',
+  ranges_good_q: 'How far below the middle is a good price for you?',
+  ranges_bad_q: 'How far above the middle is a bad price for you?',
+  ranges_pct: (f) => `${f.n}%`,
+  ranges_amt: (f) => `$${f.n}`,
+  ranges_note: 'A starting range, until you change it. Changeable any time on the You page.',
+  ranges_note_amount: 'Each amount is per item, against the middle price for the same size. Changeable any time on the You page.',
+
   /* --------------------------------------------------------------- the share */
   share_on_the_tag_caps: 'ON THE TAG',
   share_elsewhere_caps: 'ELSEWHERE',
@@ -413,6 +444,18 @@ const EN = {
   you_market: 'Market',
   you_market_unset: 'Not set',
   you_market_caption: 'Price verdicts are judged against typical prices in this market.',
+  you_savings: 'Savings overview',
+  /* The Savings Overview screen (his welcome screen 32). Total Saved and Monthly
+     Goal Progress draw only from a measured figure; savings_pending is what shows
+     until one exists, and it states no amount. */
+  savings_title: 'Savings Overview',
+  savings_total: 'Total Saved',
+  savings_goal: 'Monthly Goal Progress',
+  savings_recent: 'Recently Scanned',
+  savings_amt: (f) => `$${f.n}`,
+  savings_goal_of: (f) => `$${f.saved} of $${f.target}`,
+  savings_pending: 'Total Saved and Monthly Goal Progress show up here once a saving has been measured.',
+  savings_recent_empty: 'Nothing scanned yet.',
   you_ratings: 'Your ratings',
   you_ratings_rated: 'Verdicts you rated',
   you_ratings_none: 'None yet',
@@ -589,8 +632,8 @@ const FR = {
   conf_certain: (f) => `Certain · ${f.sellers}`,
   conf_sure: (f) => `Assez sûr · ${f.sellers}`,
   conf_thin: (f) => `Mince · ${f.sellers}`,
-  cam_rate_single: (f) => `${f.price} ${f.market}, un marchand`,
-  cam_rate_range: (f) => `${f.low} à ${f.high} ${f.market}`,
+  cam_rate_single: (f) => `${f.price}${f.market ? ` ${f.market}` : ''}, un marchand`,
+  cam_rate_range: (f) => `${f.low} à ${f.high}${f.market ? ` ${f.market}` : ''}`,
   cam_rate_to: (f) => `${f.low} à ${f.high}`,
   cam_seller_count: (f) => `${f.n} marchand${f.n === '1' ? '' : 's'}`,
   cam_rail_alt: (f) => `Les prix trouvés vont de ${f.low} à ${f.high}. Devant toi, c'est ${f.asking}.`,
@@ -602,8 +645,14 @@ const FR = {
   cam_torch: 'Lampe',
   cam_this: 'ça',
   cam_shutter: 'Scanner ce que tu pointes',
-  cam_mode_photo: 'Photo',
+  cam_mode_photo: 'Étiquette',
   cam_mode_barcode: 'Code-barres',
+  cam_mode_manual: 'Recherche manuelle',
+  cam_alt_group: 'Que veux-tu de ce scan?',
+  cam_alt_validation: 'Est-ce un bon prix?',
+  cam_alt_switching: 'Trouve-moi mieux',
+  cam_hist_heading: 'Tes prix précédents',
+  cam_hist_alt: (f) => `Tes ${f.n} derniers prix pour cet article, du plus ancien au plus récent.`,
   cam_mode_picker: 'Quoi scanner',
   cam_scan_barcode: 'Scanner le code-barres',
   you_torch_group: 'Lampe',
@@ -641,8 +690,13 @@ const FR = {
 
   /* ----------------------------------------------------------- le marché */
   market_title: 'Où magasines-tu?',
-  market_kicker: 'Noté, pas encore dans la comparaison',
-  market_caption: 'Ne change pas encore un verdict. Noté pour quand ça le fera.',
+  market_kicker: 'Là où les prix sont comparés',
+  market_caption: 'Envoyé avec chaque scan, pour comparer les prix au bon endroit. Rien n’est converti d’une devise à l’autre.',
+  market_search: 'Chercher un pays',
+  market_none: 'Aucun pays ne correspond.',
+  market_region_kicker: 'Région, si ça compte',
+  market_region_none: 'Non choisie',
+  market_region_caption: 'Facultatif. Les prix peuvent différer entre provinces et États. Sans choix, la région reste inconnue.',
   market_sources_button: 'Les prix et les détails de produits viennent de données ouvertes. Voir les sources et les licences.',
   country_ca: 'Canada',
   country_us: 'États-Unis',
@@ -721,6 +775,17 @@ const FR = {
   setup_lines_under_group: 'Ta limite sous le milieu',
   setup_lines_over_group: 'Ta limite au-dessus du milieu',
   setup_lines_note: 'Dix et dix pour commencer. Les deux se changent n’importe quand sur la page Toi.',
+  ranges_heading: 'Fixe tes fourchettes de prix',
+  ranges_unit_q: 'Les mesurer en',
+  ranges_unit_percent: 'Pourcentage (%)',
+  ranges_unit_amount: 'Montant en dollars ($)',
+  ranges_great_q: 'Combien sous le milieu est un excellent prix pour toi?',
+  ranges_good_q: 'Combien sous le milieu est un prix intéressant pour toi?',
+  ranges_bad_q: 'Combien au-dessus du milieu est un mauvais prix pour toi?',
+  ranges_pct: (f) => `${f.n} %`,
+  ranges_amt: (f) => `${f.n} $`,
+  ranges_note: 'Une fourchette de départ, jusqu’à ce que tu la changes. Modifiable n’importe quand sur la page Toi.',
+  ranges_note_amount: 'Chaque montant est par article, comparé au prix du milieu pour le même format. Modifiable n’importe quand sur la page Toi.',
   setup_lines_percent: (f) => `${f.n} %`,
 
   /* ----------------------------------------------------------- le partage */
@@ -792,6 +857,15 @@ const FR = {
   you_market: 'Marché',
   you_market_unset: 'Non défini',
   you_market_caption: 'Les verdicts de prix sont jugés par rapport aux prix typiques de ce marché.',
+  you_savings: 'Aperçu des économies',
+  savings_title: 'Aperçu des économies',
+  savings_total: 'Total économisé',
+  savings_goal: 'Progression de l’objectif mensuel',
+  savings_recent: 'Numérisés récemment',
+  savings_amt: (f) => `${f.n} $`,
+  savings_goal_of: (f) => `${f.saved} $ sur ${f.target} $`,
+  savings_pending: 'Le total économisé et la progression de l’objectif mensuel s’affichent ici une fois qu’une économie a été mesurée.',
+  savings_recent_empty: 'Rien de numérisé pour l’instant.',
   you_ratings: 'Tes évaluations',
   you_ratings_rated: 'Verdicts que tu as évalués',
   you_ratings_none: 'Aucune pour l’instant',

@@ -42,7 +42,8 @@ import { getDeviceId } from '../device.js';
 import { toggleConsent } from '../consent-actions.js';
 import { t } from '../ui-strings.js';
 import { LOCALES, locale, setLocale } from '../lib/locale.js';
-import { countryLabel } from './market.js';
+import { countryLabel, regionText } from './market.js';
+import { rangePickerHtml, handleRangeClick } from '../lib/range-picker.js';
 import { tagsOn, setTagsOn } from '../screen-tag-badge.js';
 
 /**
@@ -117,12 +118,6 @@ export default {
     /* Read once per render, like `theme` above it, so the markup and the tick
        cannot disagree with each other inside one paint. */
     const chosenLocale = locale();
-    /* The user's two lines, read once per render for the same reason. The
-       four offered values live in store.js beside their defaults, so setup
-       and this screen can never drift apart on what is on offer. */
-    const PCT_CHOICES = store.LINE_CHOICES;
-    const underPct = store.get().lineUnderPct ?? 10;
-    const overPct = store.get().lineOverPct ?? 10;
     /* The torch setting (item 11). An unknown stored mode reads as auto, the
        behaviour the app had before this was a setting. */
     const torchMode = store.get().torchMode === 'off' ? 'off' : 'auto';
@@ -218,26 +213,12 @@ export default {
             setting rather than a constant: "under your line" is a statement
             about a boundary this person chose. Nothing here grades a price.
           -->
+          <!-- Now three ranges (great, good, bad) and a Percentage or Dollar
+               Amount toggle, 2026-09-19. lib/range-picker.js draws them, the
+               same control setup uses. -->
           <div class="setting">
-            <span class="setting-t" id="you-under-l">${escapeHtml(t('setup_lines_under_group'))}</span>
-            <div class="seg" role="radiogroup" aria-labelledby="you-under-l">
-              ${PCT_CHOICES.map(
-                (n) => `<button type="button" class="btn seg-o${n === underPct ? ' on' : ''}"
-                          role="radio" aria-checked="${n === underPct}" data-line="under" data-pct="${n}"
-                          >${escapeHtml(t('setup_lines_percent', { n: String(n) }))}</button>`,
-              ).join('')}
-            </div>
-          </div>
-
-          <div class="setting">
-            <span class="setting-t" id="you-over-l">${escapeHtml(t('setup_lines_over_group'))}</span>
-            <div class="seg" role="radiogroup" aria-labelledby="you-over-l">
-              ${PCT_CHOICES.map(
-                (n) => `<button type="button" class="btn seg-o${n === overPct ? ' on' : ''}"
-                          role="radio" aria-checked="${n === overPct}" data-line="over" data-pct="${n}"
-                          >${escapeHtml(t('setup_lines_percent', { n: String(n) }))}</button>`,
-              ).join('')}
-            </div>
+            <span class="setting-t">${escapeHtml(t('ranges_heading'))}</span>
+            ${rangePickerHtml(store.get(), 'you')}
           </div>
 
           <!--
@@ -304,11 +285,15 @@ export default {
             </button>
             <button type="button" class="ilist-row" data-act="market">
               <span class="ilist-l">${escapeHtml(t('you_market'))}</span>
-              <span class="ilist-v">${escapeHtml(market.country ? countryLabel(market.country) : t('you_market_unset'))}</span>
+              <span class="ilist-v">${escapeHtml((market.country ? countryLabel(market.country) : t('you_market_unset')) + (regionText(market) ? `, ${regionText(market)}` : ''))}</span>
               ${rowChevron()}
             </button>
             <button type="button" class="ilist-row" data-act="welcome">
               <span class="ilist-l">${escapeHtml(t('onb_replay_row'))}</span>
+              ${rowChevron()}
+            </button>
+            <button type="button" class="ilist-row" data-act="savings">
+              <span class="ilist-l">${escapeHtml(t('you_savings'))}</span>
               ${rowChevron()}
             </button>
           </div>
@@ -621,17 +606,9 @@ export default {
       // The two lines. Repainted in place like the attitude and the theme:
       // nothing else on this screen reads them, so there is no reason to
       // re-render a page the user is in the middle of scrolling.
-      const pct = e.target.closest('[data-pct]');
-      if (pct) {
-        const n = Number(pct.dataset.pct);
-        store.update(pct.dataset.line === 'under' ? { lineUnderPct: n } : { lineOverPct: n });
-        for (const el of pct.closest('[role="radiogroup"]').querySelectorAll('.seg-o')) {
-          const picked = el === pct;
-          el.classList.toggle('on', picked);
-          el.setAttribute('aria-checked', String(picked));
-        }
-        return;
-      }
+      /* No `track` here: track.js already records every tap, and importing it
+         needs a real `screen`, which test/locale.test.mjs's stub does not have. */
+      if (handleRangeClick(e, root, { store }, 'you')) return;
       const who = e.target.closest('[data-who]');
       if (who) {
         setPersonality(who.dataset.who);
@@ -692,6 +669,7 @@ export default {
       // Watch the welcome again: opt-in, unlimited. `replay` is what tells the
       // onboarding screen to change nothing it does not have to (onboarding-flow.js).
       if (e.target.closest('[data-act="welcome"]')) { ctx.go('onboarding', { replay: 1 }); return; }
+      if (e.target.closest('[data-act="savings"]')) { ctx.go('savings'); return; }
       if (e.target.closest('[data-act="report"]')) ctx.go('correct', {});
     }, ac.signal);
 

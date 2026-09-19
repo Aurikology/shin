@@ -36,6 +36,7 @@ import {
   recordUserScan,
   type UserCatalogue,
 } from '../catalogue/src/user-catalogue.ts';
+import { verdictFromZone } from '../catalogue/src/implied-reference.ts';
 /*
  * TYPES ONLY, AND THE VALUES ARRIVE BY DYNAMIC IMPORT BELOW.
  *
@@ -57,7 +58,7 @@ import type { FailureClass, Identifier, MessagesClient, Tier } from '../identify
 import type { GroundedTransport } from '../identify/src/providers/gemini-grounded.ts';
 import type { AnswerBlock, GeminiRun, ScanType } from '../identify/src/providers/gemini-scan.ts';
 import { sealScanAnswer } from '../identify/src/providers/gemini-grounded.ts';
-import { estimatedCostCad, reserveSpend } from '../identify/src/cap.ts';
+import { chargeSpend, estimatedCostCad, type SpendDecision } from '../identify/src/cap.ts';
 import { lookupPrices } from '../price/src/lookup.ts';
 import { recordCorrection } from '../price/src/corrections.ts';
 import { ATTRIBUTION } from './src/attribution.ts';
@@ -83,6 +84,7 @@ import { recordEvent, serialisePayload } from './src/events.ts';
 import { parseCell, storesNear, type StoreFetcher } from './src/stores.ts';
 import { INVITE_EXEMPT, INVITE_HEADER, INVITE_REFUSAL, inviteAllows, inviteRequired } from './src/invite.ts';
 import { logError } from './src/errlog.ts';
+import { markScan } from './src/scan-marks.ts';
 import { listenProblem, startupProblems } from './src/startup.ts';
 import { estimatedCostCents } from './src/model-cost.ts';
 import { recordAccess } from './src/access-log.ts';
@@ -960,7 +962,19 @@ async function modelOnce(): Promise<Identifier> {
      * beta.
      */
     loadDotEnv();
-    photoModel = new Identifier(undefined, undefined, withSpendCapProvider(makeProvider()));
+    photoModel = new Identifier(
+      undefined,
+      undefined,
+      withSpendCapProvider(makeProvider(), {
+        // Past the soft cap the call still goes out; only a loud line says so. The hard ceiling still throws.
+        onOverCap: (d) =>
+          logError({
+            where: 'spend.over_cap',
+            err: new Error(d.allowed ? 'DAILY SPEND SOFT CAP EXCEEDED on the photo path' : 'DAILY SPEND HARD CEILING REACHED on the photo path'),
+            detail: { overCap: true, hardCeilingStopped: !d.allowed },
+          }),
+      }),
+    );
   }
   return photoModel;
 }
@@ -1047,19 +1061,47 @@ export function setGeminiTransportForTests(transport: GroundedTransport | null):
 }
 
 /**
- * The daily spend cap still stands in front of every Gemini call that spends
- * money (identify/src/cap.ts, Jamin's earlier call). A recorded transport
- * spends nothing, so it is not counted, unless a test installs a guard of its
- * own here to prove the cap trips.
+ * The daily spend cap stands in front of every Gemini call that spends money
+ * (identify/src/cap.ts, Jamin's earlier call), CHANGED 2026-09-19 (audit rows 16
+ * and 32): crossing the soft cap does NOT refuse a scan. The call goes out, the
+ * scan row gets `over_cap = 1` and a loud line is logged (see
+ * `flagOverCap`). Only the hard runaway ceiling (10 times the soft cap) returns
+ * a marked, kind, retryable answer instead of calling Gemini. A recorded
+ * transport spends nothing, so it is not counted, unless a test installs a guard
+ * of its own here (a plain `false` is the hard ceiling; `{ allowed: true, overCap:
+ * true }` is a soft crossing).
  */
-let spendGuardDouble: (() => boolean) | null = null;
-export function setSpendGuardForTests(guard: (() => boolean) | null): void {
+type SpendGuard = () => boolean | SpendDecision;
+let spendGuardDouble: SpendGuard | null = null;
+export function setSpendGuardForTests(guard: SpendGuard | null): void {
   spendGuardDouble = guard;
 }
-function spendGuardFor(): () => boolean {
+function spendGuardFor(): SpendGuard {
   if (spendGuardDouble) return spendGuardDouble;
   if (geminiTransportDouble) return () => true;
-  return () => reserveSpend(estimatedCostCad());
+  return () => chargeSpend(estimatedCostCad());
+}
+
+/**
+ * The loud line for a scan made past the daily soft cap, or stopped at the hard
+ * ceiling. Through the same `logError` every other server fault uses, so it is
+ * in the log a person reads, carrying the scan id. It marks and reports; it
+ * never refuses anything (his rule: always an answer).
+ */
+function flagOverCap(run: GeminiRun, device: string, scanId: number | null): void {
+  if (!run.overCap) return;
+  const stopped = run.failure === 'spend_cap_reached';
+  logError({
+    where: 'spend.over_cap',
+    deviceId: device,
+    scanId,
+    err: new Error(
+      stopped
+        ? 'DAILY SPEND HARD CEILING REACHED: this scan was NOT sent to Gemini and got a retryable answer'
+        : 'DAILY SPEND SOFT CAP EXCEEDED: this scan was answered and marked over_cap',
+    ),
+    detail: { overCap: true, hardCeilingStopped: stopped },
+  });
 }
 
 interface ScannedEntry {
@@ -1165,8 +1207,23 @@ function scheduleCatalogueFeed(
             model,
             storeName: a.where.storeName,
             priceCents: a.shelfPriceCents,
-            market: marketFromLocation({ country: a.context.market ?? null, currency: a.context.currency ?? null }),
+            market: marketOfContext(a.context),
             scanId: scanId === null ? null : String(scanId),
+            // Audit rows 39 and 21: the offers and reviews Gemini returned are kept with the
+            // entry (untrusted, with this scan id), and the verdict is the zone Gemini placed the
+            // price in against this user's own lines, for the back-computed median. Neither is
+            // ever read to answer a scan.
+            deviceId: a.device,
+            verdict: verdictFromZone(run.answer?.verdict?.shelf?.zone),
+            verdictSource: 'zone',
+            offers: (run.answer?.offers ?? []).map((o) => ({
+              retailer: o.retailer,
+              price: o.price,
+              unitPrice: o.unitPrice,
+              inMedian: o.inMedian,
+              raw: o.raw,
+            })),
+            reviews: (run.answer?.reviews ?? []).map((r) => ({ rating: r.rating, count: r.count, summary: r.summary, url: r.url })),
           },
           {
             log: (userCatalogue ??= createUserCatalogue(USER_CATALOGUE_PATH)),
@@ -1229,6 +1286,8 @@ interface ScanContext {
   readonly userInput?: string | null;
   /** Province, state or similar, when the client knows it. */
   readonly region?: string | null;
+  /** The ISO 3166-1 alpha-2 code of the market, sent beside the name so any country resolves. */
+  readonly countryCode?: string | null;
   /**
    * The shop the user picked, as the client held it: the name and OpenStreetMap's
    * own kind word ("supermarket", "convenience store"). Only the TYPE derived
@@ -1238,7 +1297,14 @@ interface ScanContext {
   readonly storeHint?: string | null;
   /** An explicit alternatives mode, if a client ever sends one. */
   readonly mode?: string | null;
+  /** What the picture shows: `price_tag` in the app's Price Tag mode (W30). */
+  readonly hint?: string | null;
 }
+
+/** The sentence a picture hint becomes in the prompt's "Additional user information". */
+const PICTURE_HINTS: Readonly<Record<string, string>> = {
+  price_tag: 'The image is a photo of a shelf price tag: read the product name and the price printed on the tag.',
+};
 
 function contextFrom(get: (key: string) => unknown): ScanContext {
   const text = (v: unknown): string | null =>
@@ -1249,9 +1315,11 @@ function contextFrom(get: (key: string) => unknown): ScanContext {
     language: text(get('language')) ?? text(get('lang')),
     userInput: text(get('userInput')),
     region: text(get('region')),
+    countryCode: text(get('countryCode')),
     storeName: text(get('storeName')),
     storeHint: text(get('storeHint')),
     mode: text(get('mode')),
+    hint: text(get('hint')),
   };
 }
 
@@ -1262,8 +1330,19 @@ function contextFrom(get: (key: string) => unknown): ScanContext {
  * unknown market and the prompt says so. The store type is read from the shop's
  * OpenStreetMap kind word first (it is a real tag) and its name second.
  */
+function marketOfContext(ctx: ScanContext) {
+  // The code the client sent wins; the name is the fallback for an older client.
+  // The region is read as sent: it only means something with a country, and
+  // `marketFromLocation` drops it otherwise. Unknown stays unknown.
+  return marketFromLocation({
+    country: countryCodeOf(ctx.countryCode) ?? countryCodeOf(ctx.market),
+    region: ctx.region ?? null,
+    currency: ctx.currency ?? null,
+  });
+}
+
 function userContextFor(ctx: ScanContext, shelfPriceCents: number | null, mod: ScanModule) {
-  const market = marketFromLocation({ country: countryCodeOf(ctx.market), region: ctx.region ?? null, currency: ctx.currency ?? null });
+  const market = marketOfContext(ctx);
   const byHint = normalizeStoreType(ctx.storeHint);
   const storeType = byHint !== 'other' && byHint !== 'unknown' ? byHint : normalizeStoreType(ctx.storeName);
   return {
@@ -1333,7 +1412,10 @@ async function completeGeminiScan(a: CompleteArgs): Promise<Completed> {
       market: a.context.market ?? null,
       currency: a.context.currency ?? null,
       language: a.context.language ?? null,
-      userInput: a.kind === 'barcode' && a.text ? a.text : (a.context.userInput ?? null),
+      userInput: [
+        a.kind === 'barcode' && a.text ? a.text : (a.context.userInput ?? null),
+        a.kind === 'photo' && a.context.hint ? (PICTURE_HINTS[a.context.hint] ?? null) : null,
+      ].filter(Boolean).join(' ') || null,
       ...userContextFor(a.context, a.shelfPriceCents, mod),
     },
     {
@@ -1393,6 +1475,17 @@ async function completeGeminiScan(a: CompleteArgs): Promise<Completed> {
       exactAt: a.where.exactAt,
     });
   }
+
+  // Audit row 20: the good-deal verdict is its own field on the scan row (the zone
+  // Gemini returned against the user's lines, and the lines used), not only
+  // derivable from the stored answer. Rows 16 and 32: `over_cap` marks a scan made
+  // past the daily soft cap, and a loud line says so. Neither can refuse anything.
+  markScan(scanId, {
+    verdictZone: run.answer?.verdict?.shelf?.zone ?? null,
+    verdictThresholdsJson: JSON.stringify(run.thresholds),
+    overCap: run.overCap,
+  });
+  flagOverCap(run, a.device, scanId);
 
   const callId = recordGeminiCall({
     scanId,
@@ -1489,6 +1582,10 @@ function answerMarks(c: Pick<Completed, 'run'>) {
     confidenceReasons: c.run.confidenceReasons,
     parseStatus: c.run.parseStatus,
     failure: c.run.failure,
+    // Past the daily soft cap: the answer is a real one, only marked. Never shown as a refusal.
+    overCap: c.run.overCap,
+    // The hard ceiling stopped the call: the answer is a kind "try again in a little while", and trying again is right.
+    retryable: c.run.failure === 'spend_cap_reached',
   };
 }
 

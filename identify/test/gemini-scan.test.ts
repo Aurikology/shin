@@ -62,10 +62,11 @@ test('the shelf price and the thresholds are in the prompt, and a missing range 
     choice,
   ).prompt.user;
   assert.match(withBoth, /4\.49/);
-  assert.match(withBoth, /15% below the median/);
-  assert.match(withBoth, /25% above the median/);
+  assert.match(withBoth, /Good range: 15% or more below the median/);
+  assert.match(withBoth, /Bad range: more than 25% above the median/);
   const bare = buildRequestBody({ ...scan, thresholds: DEFAULT_THRESHOLDS }, choice).prompt.user;
-  assert.match(bare, /10% below the median/);
+  assert.match(bare, /Good range: 10% or more below the median/);
+  assert.match(bare, /Great range: 20% or more below the median/);
   assert.match(bare, /default range/);
   assert.equal(readThresholds('{"lineUnderPct":5,"lineOverPct":30}').underPct, 5);
   assert.equal(readThresholds('not json').source, 'default');
@@ -110,11 +111,31 @@ test('runGeminiScan never throws: garbage text and an HTTP 503 both come back ma
   assert.equal(nokey.failure, 'model_client_error');
 });
 
-test('the spend guard stops the call before it is sent (rule: the cap stands)', async () => {
+// 2026-09-19 (audit rows 16 and 32): a guard that says `false` now means the HARD runaway
+// ceiling only; the soft cap is the next test and never stops a call.
+test('the spend guard stops the call before it is sent only at the hard ceiling', async () => {
   const t = fakeTransport();
   const run = await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: t.transport, spendGuard: () => false });
   assert.equal(run.failure, 'spend_cap_reached');
+  assert.equal(run.overCap, true);
+  assert.equal(run.lowConfidence, true, 'a stopped call is marked, never silent');
   assert.equal(t.calls.length, 0);
+});
+
+test('crossing the SOFT spend cap marks the run over_cap and still makes the call (always an answer)', async () => {
+  const t = fakeTransport();
+  const run = await runGeminiScan(scan, {
+    apiKey: 'k',
+    deviceId: 'x',
+    transport: t.transport,
+    spendGuard: () => ({ allowed: true, overCap: true }),
+  });
+  assert.equal(t.calls.length, 1, 'the soft cap refused a scan');
+  assert.equal(run.overCap, true);
+  assert.equal(run.failure, null);
+  assert.ok(run.answer, 'the scan came back without an answer');
+  const under = await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: fakeTransport().transport, spendGuard: () => true });
+  assert.equal(under.overCap, false);
 });
 
 test('the block shows Gemini\'s own median, not one recomputed from its offers (item 3)', async () => {
@@ -135,4 +156,26 @@ test('the hidden math check passes a consistent answer and flags a wrong median 
   const wrongLine = checkMath(parsed(), { underPct: 20, overPct: 20, source: 'user' });
   assert.ok(wrongLine.mismatches.length > 0, 'an answer computed on the wrong thresholds passed');
   assert.equal(checkMath(null, DEFAULT_THRESHOLDS).checked, false);
+});
+
+test('three ranges and a unit are read, 30 percent is allowed, and an older client still works (item 44, W9)', () => {
+  const t = readThresholds({ unit: 'percent', great: 30, good: 15, bad: 25 });
+  assert.deepEqual([t.greatPct, t.underPct, t.overPct, t.unit, t.source], [30, 15, 25, 'percent', 'user']);
+  assert.equal(readThresholds({ unit: 'percent', great: 5, good: 15 }).greatPct, 15, 'great is never shallower than good');
+  const old = readThresholds('{"lineUnderPct":5,"lineOverPct":30}');
+  assert.deepEqual([old.underPct, old.overPct, old.greatPct], [5, 30, 20]);
+  const d = readThresholds({ unit: 'amount', great: 3, good: 1.5, bad: 2 });
+  assert.equal(d.unit, 'amount');
+  assert.deepEqual(d.amounts, { great: 3, good: 1.5, bad: 2 });
+  assert.equal(readThresholds({ unit: 'amount' }).source, 'default', 'an amount unit with no amounts is the default range');
+  assert.equal(readThresholds({ unit: 'percent', good: -4 }).source, 'default');
+});
+
+test('dollar mode reaches the prompt as amounts and the hidden check leaves the zone numbers alone', () => {
+  const t = readThresholds({ unit: 'amount', great: 3, good: 1.5, bad: 2 });
+  const p = buildRequestBody({ ...scan, thresholds: t }, modelForScan(on('2.5'), NO_ENV)).prompt.user;
+  assert.match(p, /Unit: DOLLAR AMOUNTS/);
+  assert.match(p, /Great range: 3 or more below the median/);
+  assert.doesNotMatch(p, /Good range: [\d.]+%/);
+  assert.equal(checkMath(parsed(), { ...t, underPct: 20, overPct: 20 }).mismatches.length, 0, 'zone numbers were checked against a percent that is not the user\'s');
 });

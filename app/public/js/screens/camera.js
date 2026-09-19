@@ -34,7 +34,8 @@ import { wireRadioGroup } from '../lib/radiogroup.js';
 import { t } from '../ui-strings.js';
 import * as shops from '../shops.js';
 import { countryLabel, countryIn } from './market.js';
-import { locale } from '../lib/locale.js';
+import { locale, localeTag } from '../lib/locale.js';
+import { priorPrices, historyChartHtml, formatMoney } from '../lib/price-history.js';
 import { render as renderProse, renderLines } from '../prose.js';
 import { submitCorrection } from '../corrections.js';
 import { identifyOffline } from '../offline-aisle.js';
@@ -228,6 +229,22 @@ function effectivePriceCents(typedCents, modifier) {
   return typedCents;
 }
 
+/**
+ * A price in the market's own currency (row 34), never converted. The currency
+ * is what the user's market holds (`store.market().currency`); with none chosen
+ * or a code Intl does not know, the plain number is shown. Used by the going
+ * rate cards, which used to print every price as Canadian dollars.
+ */
+function money(cents) {
+  let currency = '';
+  try {
+    currency = store.market().currency || '';
+  } catch {
+    currency = '';
+  }
+  return formatMoney(cents, currency, localeTag());
+}
+
 /** The labelled effective price under the pad, e.g. "$5.00 after 20% off". */
 function modifierLabel(typedCents, modifier) {
   if (typedCents == null || !modifier) return '';
@@ -309,11 +326,12 @@ function spreadRail(v) {
  */
 function goingRateRange(v) {
   const { lowCents, highCents } = v.spread;
-  const mkt = countryIn(store.market().country || 'Canada');
+  const country = store.market().country;
+  const mkt = country ? countryIn(country) : '';
   if (lowCents === highCents || v.pointCount <= 1) {
-    return t('cam_rate_single', { price: cad(lowCents), market: mkt });
+    return t('cam_rate_single', { price: money(lowCents), market: mkt });
   }
-  return t('cam_rate_range', { low: cad(lowCents), high: cad(highCents), market: mkt });
+  return t('cam_rate_range', { low: money(lowCents), high: money(highCents), market: mkt });
 }
 
 /**
@@ -386,8 +404,8 @@ function provenance(points, askingCents) {
       const delta = isCheapest ? askingCents - p.amountCents : null;
       return `<div${isCheapest ? ' class="prov-best"' : ''}>
         <b>${escapeHtml(p.seller)}</b>
-        <span>${cad(p.amountCents)} &middot; ${p.observedAt.slice(5)} &middot; ${escapeHtml(t('kind_' + p.kind))}${p.limit ? ` (${escapeHtml(p.limit)})` : ''}${
-          delta !== null && delta > 0 ? ` &middot; ${escapeHtml(t('cam_less', { amount: cad(delta) }))}` : ''
+        <span>${money(p.amountCents)} &middot; ${p.observedAt.slice(5)} &middot; ${escapeHtml(t('kind_' + p.kind))}${p.limit ? ` (${escapeHtml(p.limit)})` : ''}${
+          delta !== null && delta > 0 ? ` &middot; ${escapeHtml(t('cam_less', { amount: money(delta) }))}` : ''
         }</span>
       </div>`;
     })
@@ -1279,7 +1297,7 @@ function alternativesBlock(rows) {
         </section>`;
 }
 
-function geminiSheet(result, item, thumb) {
+function geminiSheet(result, item, thumb, earlier = []) {
   const g = geminiReading(result.grounded);
   const unsure = result.lowConfidence === true || g.lowConfidence;
   const conf = confidenceOf({ ...result, failure: null, reason: undefined, lowConfidence: unsure });
@@ -1316,6 +1334,10 @@ function geminiSheet(result, item, thumb) {
       <div class="sheet-half">
         ${groundedSlot()}
         ${alternativesBlock(g.alternatives)}
+        ${(() => {
+          const chart = historyChartHtml(earlier, { format: money, heading: t('cam_hist_heading'), alt: t('cam_hist_alt', { n: String(Array.isArray(earlier) ? earlier.length : 0) }) });
+          return chart ? `<div class="gem-hist" data-gem-history>${chart}</div>` : '';
+        })()}
         <div class="actions">
           <button type="button" class="pill ghost" data-act="correct">${escapeHtml(t('cam_correct_it'))}</button>
         </div>
@@ -1739,7 +1761,22 @@ function padNameField(on, typedLabel) {
         </div>`;
 }
 
-function pricePadSheet(item, typed = '', modifier = null, thumb = null, shop = null, shopAllowed = false, typedLabel = '') {
+/**
+ * Row 25: the two-way choice on the price pad, validation or switching, made by
+ * the user. `mode` is the one showing as chosen. Only the scan-time pad carries
+ * it: a pad opened for anything else has no scan to send the choice with.
+ */
+function padAltChoice(mode) {
+  if (mode !== 'validation' && mode !== 'switching') return '';
+  const btn = (m) => `<button type="button" class="modbtn" data-alt-mode="${m}" aria-pressed="${mode === m}">${escapeHtml(t(`cam_alt_${m}`))}</button>`;
+  return `
+        <div class="pad-alt" role="group" aria-label="${escapeHtml(t('cam_alt_group'))}" data-pad-alt>
+          ${btn('validation')}
+          ${btn('switching')}
+        </div>`;
+}
+
+function pricePadSheet(item, typed = '', modifier = null, thumb = null, shop = null, shopAllowed = false, typedLabel = '', altMode = null) {
   const typedCents = parsePadPrice(typed);
   const effCents = effectivePriceCents(typedCents, modifier);
   const canConfirm = (effCents ?? 0) > 0;
@@ -1767,6 +1804,7 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null, shop = n
             : ''
         }
         ${padShopRow(shop, shopAllowed)}
+        ${padAltChoice(altMode)}
         <div class="amount pad-amount">${padAmountHtml(typed)}</div>
         <p class="pad-effective" data-pad-effective${effLabel ? '' : ' hidden'}>${effLabel}</p>
         <div class="pad-mods" role="group" aria-label="${escapeHtml(t('cam_price_modifiers'))}">
@@ -1804,9 +1842,10 @@ function goingRateCard(refusal, item) {
   // (two spellings of the same store). Falls back to `seller` for a point
   // that predates `sellerId`.
   const sellers = new Set(pts.map((p) => p.sellerId ?? p.seller)).size;
-  const mkt = countryIn(store.market().country || 'Canada');
+  const country = store.market().country;
+  const mkt = country ? countryIn(country) : '';
   const single = pts.length <= 1 || lo === hi;
-  const range = single ? cad(lo) : t('cam_rate_to', { low: cad(lo), high: cad(hi) });
+  const range = single ? money(lo) : t('cam_rate_to', { low: money(lo), high: money(hi) });
   const sellerWord = t('cam_seller_count', { n: String(sellers) });
   const cheapest = pts.slice().sort((a, b) => a.amountCents - b.amountCents)[0];
   const label = refusal.identity ? refusal.identity.label : (item?.text ?? t('cam_this'));
@@ -2246,10 +2285,15 @@ export default {
           labels. Idle only, like everything else in this band.
         -->
         <div class="cam-mode" role="group" aria-label="${escapeHtml(t('cam_mode_picker'))}">
-          <button type="button" class="cam-mode-btn" data-act="scan-mode" data-mode="photo"
-                  aria-pressed="false">${escapeHtml(t('cam_mode_photo'))}</button>
+          <!-- W30, his three modes in his order: Scan Barcode, Price Tag (the
+               photo scan, pointed at a shelf tag) and Manual Search (a typed
+               name). The internal mode ids stay barcode, photo and manual. -->
           <button type="button" class="cam-mode-btn" data-act="scan-mode" data-mode="barcode"
                   aria-pressed="true">${escapeHtml(t('cam_mode_barcode'))}</button>
+          <button type="button" class="cam-mode-btn" data-act="scan-mode" data-mode="photo"
+                  aria-pressed="false">${escapeHtml(t('cam_mode_photo'))}</button>
+          <button type="button" class="cam-mode-btn" data-act="scan-mode" data-mode="manual"
+                  aria-pressed="false">${escapeHtml(t('cam_mode_manual'))}</button>
         </div>
 
         <div class="sheet-slot"></div>
@@ -2654,7 +2698,7 @@ export default {
      * because the eye disarms on the read and on `clearSelection`.
      */
     function setScanMode(next) {
-      scanMode = next === 'barcode' ? 'barcode' : 'photo';
+      scanMode = next === 'barcode' ? 'barcode' : next === 'manual' ? 'manual' : 'photo';
       cam.dataset.mode = scanMode;
       const barcode = scanMode === 'barcode';
       const shutter = root.querySelector('.shutter');
@@ -2667,6 +2711,20 @@ export default {
       for (const b of root.querySelectorAll('[data-act="scan-mode"]')) {
         b.setAttribute('aria-pressed', String(b.dataset.mode === scanMode));
       }
+    }
+
+    /**
+     * W30's Manual Search: the same name field the type-it route uses, opened by
+     * choosing the mode. Submitting it asks the shelf price first (with the
+     * validation or switching choice on the pad) and then sends the typed name
+     * as ONE Gemini text call, through `runTypedSearch`. Idle only.
+     */
+    function openManualSearch() {
+      if (cam.dataset.state !== 'idle') return;
+      setState('texting');
+      typedSearchPending = true;
+      slot.innerHTML = textRouteSheet();
+      mounted('[data-textroute-input]');
     }
 
     /**
@@ -2964,7 +3022,7 @@ export default {
       scanShelfCents = null;
       openPad({
         id: null,
-        text: pending.kind === 'barcode' ? pending.code : t('cam_what_you_photographed'),
+        text: pending.kind === 'barcode' ? pending.code : pending.kind === 'text' ? pending.text : t('cam_what_you_photographed'),
         category: null,
         gtin: pending.kind === 'barcode' ? pending.code : null,
         notThisQuery: null,
@@ -2980,8 +3038,21 @@ export default {
       const pending = padItem?.pendingScan;
       if (!pending) return;
       scanShelfCents = typeof cents === 'number' && cents > 0 ? cents : null;
-      track('scan_price_at_scan', { typed: scanShelfCents !== null, kind: pending.kind });
+      /*
+       * WHAT THIS SCAN IS FOR, sent with every call it makes (api.js
+       * `setScanIntent`). `mode` is the user's own pick on the pad (row 25),
+       * or what they always got: validation with a price, switching without.
+       * `hint` is W30's Price Tag mode: the picture is a shelf tag, so Gemini
+       * reads the tag's name and price. Cleared by `reset()`.
+       */
+      const altMode = effectiveAlt(scanShelfCents);
+      ctx.api.setScanIntent?.({
+        mode: altMode,
+        ...(pending.kind === 'photo' && scanMode === 'photo' ? { hint: 'price_tag' } : {}),
+      });
+      track('scan_price_at_scan', { typed: scanShelfCents !== null, kind: pending.kind, mode: altMode });
       if (pending.kind === 'barcode') void resolveBarcode(pending.code, scanShelfCents);
+      else if (pending.kind === 'text') void runTypedSearch(pending.text, scanShelfCents, true);
       else void resolvePhoto(pending.crop, scanShelfCents);
     }
 
@@ -3189,6 +3260,14 @@ export default {
        comment describes. Empty string, never null: it is rendered straight
        back into `value`. */
     let padLabel = '';
+    /* Row 25: what the user chose on the pad, `validation` or `switching`, or
+       null while they have not touched the choice. With no choice the mode
+       follows the typed price exactly as it did before there was a choice:
+       validation once a shelf price is typed, switching while it is skipped. */
+    let padAlt = null;
+    function effectiveAlt(cents) {
+      return padAlt ?? (typeof cents === 'number' && cents > 0 ? 'validation' : 'switching');
+    }
     /* The shortlist as it was last rendered, so a tap on a row resolves to the
        shop object that built it rather than to the row's own text. */
     let shopList = [];
@@ -3212,6 +3291,11 @@ export default {
       // to take back, and neither of them parses to a price worth confirming.
       const clearBtn = slot.querySelector('[data-act="pad-clear"]');
       if (clearBtn) clearBtn.disabled = !padBuffer;
+      // The choice follows the typed price until the user flips it.
+      const shownAlt = effectiveAlt(effCents);
+      for (const b of slot.querySelectorAll('[data-alt-mode]')) {
+        b.setAttribute('aria-pressed', String(b.dataset.altMode === shownAlt));
+      }
       const effEl = slot.querySelector('[data-pad-effective]');
       if (effEl) {
         const label = modifierLabel(typedCents, padModifier);
@@ -3312,6 +3396,7 @@ export default {
         shops.chosenFor(),
         shops.locationAllowed(),
         padLabel,
+        padItem?.pendingScan ? effectiveAlt(effectivePriceCents(parsePadPrice(padBuffer), padModifier)) : null,
       );
     }
 
@@ -3332,6 +3417,7 @@ export default {
       padBuffer = '';
       padModifier = null;
       padLabel = '';
+      padAlt = null;
       setState('asking');
       slot.innerHTML = padHtml();
       mounted();
@@ -3632,6 +3718,12 @@ export default {
         if (dead || myGen !== gen) return;
         step = 2; // Event: the response has actually arrived.
         last = { result, scenario: item, thumb: scanThumb, askingCents };
+        /* W33: this user's own earlier prices for the same item, read BEFORE
+           this scan is written into history so it is not counted against itself. */
+        const earlier = priorPrices(store.get().history, {
+          gtin: item.scannedGtin ?? item.gtin ?? '',
+          names: [item.text, geminiReading(result.grounded).name].filter(Boolean),
+        });
         /* A Gemini answer is stored with two plain facts on its row, so past
            scans, the weekly line and the good-find state never open the answer
            to learn them: whether it answered, and Gemini's own zone code. */
@@ -3639,6 +3731,7 @@ export default {
           text: item.text,
           askingCents,
           thumb: scanThumb,
+          ...((item.scannedGtin ?? item.gtin) ? { gtin: item.scannedGtin ?? item.gtin } : {}),
           ...(result.kind === 'gemini'
             ? { answered: !geminiFailed(result), zone: geminiReading(result.grounded).zone }
             : {}),
@@ -3652,7 +3745,7 @@ export default {
             slot.innerHTML = geminiFailureSheet(result, item);
             playRefusalLanding(slot);
           } else {
-            slot.innerHTML = geminiSheet(result, item, scanThumb);
+            slot.innerHTML = geminiSheet(result, item, scanThumb, earlier);
             fillGrounded(slot, result);
             buzz(16);
           }
@@ -3923,6 +4016,9 @@ export default {
       lastScanId = null;
       lastPriceQuery = null;
       scanShelfCents = null;
+      padAlt = null;
+      // The scan is over: its mode and hint do not ride on the next one.
+      ctx.api.setScanIntent?.({});
       barcodeReady = null;
       scanThumb = null;
       // A pick belongs to the scan that has just ended. Carrying it into the
@@ -4050,6 +4146,15 @@ export default {
         return;
       }
 
+      // Row 25: the user flips validation and switching on the pad. Only the
+      // pressed states change, so a half-typed price and the caret stay put.
+      const altBtn = e.target.closest('[data-alt-mode]');
+      if (altBtn) {
+        padAlt = altBtn.dataset.altMode === 'switching' ? 'switching' : 'validation';
+        paintPadEffective();
+        return;
+      }
+
       const modToggle = e.target.closest('[data-modtoggle]');
       if (modToggle) {
         const kind = modToggle.dataset.modtoggle;
@@ -4116,7 +4221,12 @@ export default {
        * barcode ever leaves the eye. The eye emits `onBarcode` synchronously
        * from this call, so the scan flow starts below in `onBarcode`.
        */
-      if (act === 'scan-mode') { setScanMode(btn.dataset.mode); return; }
+      if (act === 'scan-mode') {
+        setScanMode(btn.dataset.mode);
+        // Manual Search has no viewfinder step: choosing it opens the name field.
+        if (scanMode === 'manual') openManualSearch();
+        return;
+      }
       if (act === 'scan-barcode') {
         if (cam.dataset.state !== 'idle') return;
         track('barcode_scan_pressed', {});
@@ -4401,6 +4511,25 @@ export default {
       // the catalogue match below was worth building.
       typedSearchPending = false;
       track('typed_search', { text, abandoned: false });
+      // Manual Search (W30): the shelf price is asked first, on the pad, and
+      // the typed name then goes out as one Gemini text call carrying it.
+      if (scanMode === 'manual') { askPriceFirst({ kind: 'text', text }); return; }
+      await runTypedSearch(text, null, false);
+    }, { signal: listeners.signal });
+
+    /**
+     * The typed name's identification, `asked` when the shelf price was already
+     * asked on the pad (`cents` is then the price or null for a skipped one, and
+     * the pad is not opened a second time). Not asked: the type-it route out of a
+     * refusal, which identifies first and opens the pad after, as before.
+     */
+    async function runTypedSearch(text, cents, asked) {
+      const myGen = asked ? ++gen : gen;
+      if (asked) {
+        setState('reading');
+        slot.innerHTML = workingSheet(text, 0);
+        mounted();
+      }
 
       /*
        * The hand-priced shelf is asked FIRST, and that ordering is the whole
@@ -4416,7 +4545,7 @@ export default {
        * product will keep once the priced set is thousands rather than seven.
        */
       let typed = null;
-      const priced = matchCatalogue(text, catalogueItems);
+      const priced = asked ? null : matchCatalogue(text, catalogueItems);
       if (priced) {
         typed = scenarios.find((s) => s.id === priced.id) ?? {
           text: priced.label,
@@ -4430,7 +4559,7 @@ export default {
        */
       if (!typed) {
         try {
-          const id = await ctx.api.identify({ text });
+          const id = await ctx.api.identify({ text, shelfPriceCents: cents ?? undefined });
           // The row the server just wrote for this scan. Kept whatever the
           // answer was: a refused identification is exactly the case the
           // price route below exists for.
@@ -4465,14 +4594,27 @@ export default {
               notThisQuery:
                 id.band === 'ambiguous' && id.otherCandidates > 0 ? text : null,
             };
+          } else if (asked && id?.unchecked?.label) {
+            // Whatever Gemini read is the answer when the catalogue has no
+            // match, labelled unchecked, as the photo and barcode routes do.
+            typed = {
+              id: null,
+              text: id.unchecked.label,
+              category: id.category ?? null,
+              gtin: null,
+              unchecked: true,
+              notThisQuery: null,
+            };
           }
         } catch {
           typed = null;
         }
       }
-      if (dead) return;
+      if (dead || (asked && myGen !== gen)) return;
       if (typed) {
-        openPad(typed);
+        // Asked on the pad already: price it with that number, never ask twice.
+        if (asked) proceed(typed, cents ?? undefined);
+        else openPad(typed);
         return;
       }
       // No match: the unsure refusal, the engine's own shape, never a fake
@@ -4494,7 +4636,7 @@ export default {
       playRefusalLanding(slot);
       setState('result');
       mounted();
-    }, { signal: listeners.signal });
+    }
 
     /* The sheet moves between three detents: peek, half, full. A drag of more
        than 40px moves one detent in that direction (downward past peek

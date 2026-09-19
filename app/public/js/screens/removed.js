@@ -13,7 +13,7 @@
  * further along. Every interpolation goes through `dom.js`'s `html` tag.
  */
 
-import { faceBlock, shinSay, cad } from '../shin.js';
+import { faceBlock, shinSay, marketMoney } from '../shin.js';
 import { say } from '../voice.js';
 import * as store from '../store.js';
 import { html, raw, agoDays, on } from '../lib/dom.js';
@@ -82,7 +82,7 @@ export function row(r, confirmKey) {
           <b class="row-title">${label}</b>
           <span class="row-sub">${t('removed_label')} ${agoDays(r.removedAt)} · ${t('removed_days_left', { n: String(left) })}</span>
         </span>
-        <span class="rrow-p money">${typeof cents === 'number' ? cad(cents) : '--'}</span>
+        <span class="rrow-p money">${typeof cents === 'number' ? marketMoney(cents) : '--'}</span>
       </div>
       <button type="button" class="rowdel rrow-restore" data-restore="${key}" data-fk="restore:${key}">
         ${raw(restoreGlyph())}

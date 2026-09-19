@@ -74,29 +74,72 @@ test('the call before the cap goes through', async () => {
   assert.equal(currentSpend(oneCall).cad, cost);
 });
 
-test('the call after the cap is refused, and it is a normal outcome for the caller to hand upward', async () => {
+// REWRITTEN 2026-09-19 (audit rows 16 and 32). This test used to pin "the call after
+// the cap is refused". His words, "No rule is ever more important than the correct
+// functionality of our system", now make crossing the SOFT cap a mark, not a refusal.
+test('the call after the soft cap is NOT refused: it goes out, is charged, and is reported over the cap', async () => {
   const opts = tempStore();
   const cost = estimatedCostCad();
-  const oneCall: SpendCapOptions = { ...opts, capCad: cost };
+  const seen: boolean[] = [];
+  const oneCall: SpendCapOptions = { ...opts, capCad: cost, onOverCap: (d) => seen.push(d.allowed) };
   const client = fakeClient();
   const wrapped = withSpendCap(client, oneCall);
 
   await wrapped.messages.create({} as never, undefined);
-  const err = await failure(() => wrapped.messages.create({} as never, undefined));
+  assert.deepEqual(seen, [], 'the call that fits the cap is not over it');
+  await wrapped.messages.create({} as never, undefined);
 
+  assert.equal(client.calls, 2, 'the soft cap crossed and the scan still went out');
+  assert.deepEqual(seen, [true], 'the crossing was reported once, as allowed');
+  assert.equal(currentSpend(oneCall).cad, cost * 2, 'spend past the soft cap is still counted');
+});
+
+test('the HARD ceiling is 10 times the soft cap by default and is the only refusal', async () => {
+  const opts = tempStore();
+  const cost = estimatedCostCad();
+  const soft: SpendCapOptions = { ...opts, capCad: cost };
+  assert.equal(currentSpend(soft).hardCapCad, cost * 10);
+
+  const client = fakeClient();
+  const wrapped = withSpendCap(client, soft);
+  for (let i = 0; i < 10; i += 1) await wrapped.messages.create({} as never, undefined);
+  assert.equal(client.calls, 10, 'ten calls fit under ten times the cap');
+
+  const err = await failure(() => wrapped.messages.create({} as never, undefined));
   assert.equal(err.failure, 'spend_cap_reached');
   assert.equal(err.message, spendCapRefusalMessage());
-  assert.equal(client.calls, 1, 'the refused call never reaches the real client');
-  assert.equal(currentSpend(oneCall).cad, cost, 'a refused call is never charged');
+  assert.equal(client.calls, 10, 'the refused call never reaches the real client');
+  assert.ok(Math.abs(currentSpend(soft).cad - cost * 10) < 1e-9, 'a refused call is never charged');
+});
+
+test('the hard ceiling can be named with SHIN_PHOTO_HARD_CAP_CAD, and never sits below the soft cap', () => {
+  const opts = tempStore();
+  const before = process.env.SHIN_PHOTO_HARD_CAP_CAD;
+  try {
+    process.env.SHIN_PHOTO_HARD_CAP_CAD = '25';
+    assert.equal(currentSpend({ ...opts, capCad: 1 }).hardCapCad, 25);
+    process.env.SHIN_PHOTO_HARD_CAP_CAD = '0.5';
+    assert.equal(currentSpend({ ...opts, capCad: 1 }).hardCapCad, 1, 'a ceiling under the cap would turn the ceiling into the cap');
+  } finally {
+    if (before === undefined) delete process.env.SHIN_PHOTO_HARD_CAP_CAD;
+    else process.env.SHIN_PHOTO_HARD_CAP_CAD = before;
+  }
+});
+
+test('the refusal at the hard ceiling is kind and says to try again', () => {
+  const message = spendCapRefusalMessage();
+  assert.match(message, /try again/i);
+  assert.ok(!/budget|spent|cost|bill/i.test(message), 'a retryable answer does not talk about billing');
 });
 
 test('the counter resets at the day boundary', () => {
   const opts = tempStore();
   const cost = estimatedCostCad();
-  const oneCall: SpendCapOptions = { ...opts, capCad: cost };
+  // Soft cap and hard ceiling both one call wide, so the second call is the refused one.
+  const oneCall: SpendCapOptions = { ...opts, capCad: cost, hardCapCad: cost };
 
   assert.equal(reserveSpend(cost, oneCall), true);
-  assert.equal(reserveSpend(cost, oneCall), false, 'the same day, the second call is refused');
+  assert.equal(reserveSpend(cost, oneCall), false, 'the same day, past the hard ceiling, the second call is refused');
 
   // A day that has already turned over, written directly to the store the
   // way yesterday's process would have left it -- not through resetSpendCap,

@@ -542,9 +542,12 @@
 }
 .cam-mode-btn {
   /* The tap floor is the strip's own height minus its 3px padding either
-     side; the horizontal padding is what actually makes these comfortable. */
-  min-width: 96px;
-  padding: 0 18px;
+     side; the horizontal padding is what actually makes these comfortable.
+     Three modes now (W30), so the strip is narrower per button to fit a
+     360px phone: unverified without a browser. */
+  min-width: 0;
+  padding: 0 12px;
+  white-space: nowrap;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -715,6 +718,21 @@
    time a code comes into and out of view. visibility hides it from the pointer,
    the tab order and the accessibility tree along with the pixels. */
 .cam[data-mode="barcode"] .scan-code-btn[hidden] { display: block; visibility: hidden; pointer-events: none; }
+/* Manual Search (W30) has no viewfinder control: the shutter keeps its place in
+   the bar, invisible and out of the tab order, so the two nav buttons stay put. */
+.cam[data-mode="manual"] .shutter { visibility: hidden; pointer-events: none; }
+
+/* Row 25: validation or switching, a small two-way choice on the price pad. It
+   reuses the modifier buttons' look. */
+.pad-alt { display: flex; gap: 8px; margin: 8px 0; }
+.pad-alt .modbtn[aria-pressed="true"] { background: var(--ink, #10131A); color: var(--bg, #fff); }
+
+/* W33: the user's own earlier prices, a plain line, no animation. */
+.pricehist { margin: 12px 0; }
+.pricehist-heading { font-size: 13px; font-weight: 600; margin: 0 0 4px; }
+.pricehist-svg { display: block; width: 100%; height: 48px; color: var(--ink, #10131A); }
+.pricehist-svg circle { fill: currentColor; }
+.pricehist-range { display: flex; justify-content: space-between; margin: 2px 0 0; font-size: 12px; opacity: .7; }
 
 /*
  * Named, not guessed at. Two 44px circles either side of the shutter carrying

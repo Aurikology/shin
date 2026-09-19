@@ -69,9 +69,9 @@ export const SCREEN_TAGS = {
   a26: { id: 'onboarding.tip_scan', title: 'Welcome tip: get the best scan', kind: 'screen', file: 'app/public/js/screens/onboarding.js', route: 'onboarding', sel: '[data-step="tip_scan"]', how: 'Welcome flow step 26.' },
   a27: { id: 'onboarding.tip_eval', title: 'Welcome tip: SHIN evaluates your item', kind: 'screen', file: 'app/public/js/screens/onboarding.js', route: 'onboarding', sel: '[data-step="tip_eval"]', how: 'Welcome flow step 27.' },
   a28: { id: 'onboarding.tip_fix', title: 'Welcome tip: adjust shelf price or store', kind: 'screen', file: 'app/public/js/screens/onboarding.js', route: 'onboarding', sel: '[data-step="tip_fix"]', how: 'Welcome flow step 28.' },
-  a29: { id: 'onboarding.tip_accuracy', title: 'Welcome tip: for highest accuracy (last welcome step)', kind: 'screen', file: 'app/public/js/screens/onboarding.js', route: 'onboarding', sel: '[data-step="tip_accuracy"]', how: 'Welcome flow step 29. Get started here hands over to setup or the camera.' },
+  a29: { id: 'onboarding.tip_accuracy', title: 'Welcome tip: for highest accuracy', kind: 'screen', file: 'app/public/js/screens/onboarding.js', route: 'onboarding', sel: '[data-step="tip_accuracy"]', how: 'Welcome flow step 29. Continue goes to Evaluating Deal (a84).' },
 
-  a30: { id: 'setup', title: 'Pick your Shin (attitude and your two price lines)', kind: 'screen', file: 'app/public/js/screens/setup.js', route: 'setup', how: 'First launch after the welcome flow, once. Or ?s=setup.' },
+  a30: { id: 'setup', title: 'Pick your Shin (attitude and your three price ranges)', kind: 'screen', file: 'app/public/js/screens/setup.js', route: 'setup', how: 'First launch after the welcome flow, once. Or ?s=setup.' },
   a31: { id: 'consent', title: 'Your data (photos and location switches)', kind: 'screen', file: 'app/public/js/screens/consent.js', route: 'consent', how: 'First launch after setup, once. Or ?s=consent.' },
 
   /* --------------------------------------------------------------------- camera */
@@ -79,7 +79,7 @@ export const SCREEN_TAGS = {
      the DOM, cam[data-state], cam[data-mode], cam[data-camera] and the sheet class. */
   a32: { id: 'camera.barcode', title: 'Camera, barcode mode (where the app opens)', kind: 'screen', file: 'app/public/js/screens/camera.js', route: 'camera', how: 'Cold start once setup and consent are done. Or tap Barcode on the mode switch.' },
   a33: { id: 'camera.barcode.ready', title: 'Camera, barcode found, Scan barcode button showing', kind: 'state', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.cam[data-state="idle"] .scan-code-btn:not([hidden])', rank: 20, how: 'In barcode mode, hold a barcode in the frame until the reader agrees on it.' },
-  a34: { id: 'camera.photo', title: 'Camera, photo mode (shutter button)', kind: 'state', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.cam[data-state="idle"][data-mode="photo"]', rank: 10, how: 'Tap Photo on the mode switch above the shutter.' },
+  a34: { id: 'camera.photo', title: 'Camera, Price Tag mode (shutter button)', kind: 'state', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.cam[data-state="idle"][data-mode="photo"]', rank: 10, how: 'Tap Price Tag on the mode switch above the shutter.' },
   a35: { id: 'camera.nofeed', title: 'Camera with no live feed (drawn shelf instead)', kind: 'state', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.cam[data-state="idle"][data-camera="drawn"]', rank: 30, how: 'Camera permission denied, no camera on the device, a private window, or a desktop without one.' },
   a36: { id: 'camera.framing', title: 'Camera, frame frozen while Shin reads it', kind: 'state', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.cam[data-state="framing"]', rank: 35, how: 'Just after the shutter or Scan barcode button, before any sheet rises.' },
   a37: { id: 'camera.working', title: 'Working sheet, the three-step wait', kind: 'sheet', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.sheet.working', rank: 40, how: 'After a scan is identified and the price request is under way. The x cancels.' },
@@ -135,6 +135,14 @@ export const SCREEN_TAGS = {
   a78: { id: 'page.walkthrough', title: 'Page: First Scan to Habit (walkthrough)', kind: 'static', file: 'pages/shin-walkthrough.html', route: null, how: 'Open the file. No badge is drawn.' },
   a79: { id: 'page.hard-dozen', title: 'Page: The Hard Dozen', kind: 'static', file: 'pages/shin-hard-dozen.html', route: null, how: 'Open the file. No badge is drawn.' },
   a80: { id: 'page.build-plan', title: 'Page: The Correcting Build', kind: 'static', file: 'pages/shin-build-plan.html', route: null, how: 'Open the file. No badge is drawn.' },
+
+  /* ------------------------------------------ added after the numbered launch list */
+  a81: { id: 'camera.manual', title: 'Camera, Manual Search mode (no viewfinder control)', kind: 'state', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.cam[data-state="idle"][data-mode="manual"]', rank: 10, how: 'Tap Manual Search on the mode switch. The name field opens at once as a52; close it and this is what is left.' },
+  a82: { id: 'camera.gemini.history', title: 'Answer sheet with your earlier prices (price history chart)', kind: 'state', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.sheet.gemini [data-gem-history]', rank: 42, how: 'Half open answer sheet for an item you have scanned with a typed price at least twice before. Absent otherwise.' },
+  a83: { id: 'camera.pricepad.choice', title: 'Price pad with the good-price or better-buy choice', kind: 'state', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.sheet.padsheet [data-pad-alt]', rank: 41, how: 'The price pad right after a scan (barcode, Price Tag or Manual Search). Flip between Is this a good price and Find a better buy.' },
+  a84: { id: 'onboarding.evaluating', title: 'Welcome: Evaluating Deal (progress bar, last welcome step)', kind: 'screen', file: 'app/public/js/screens/onboarding.js', route: 'onboarding', sel: '[data-step="evaluating"]', how: 'Welcome flow step 31, after the four tips. Get started here hands over to setup or the camera.' },
+  a85: { id: 'savings', title: 'Savings Overview (recently scanned, measured savings)', kind: 'screen', file: 'app/public/js/screens/savings.js', route: 'savings', how: 'You, tap Savings overview. Or ?s=savings.' },
+  a86: { id: 'savings.empty', title: 'Savings Overview, nothing scanned yet', kind: 'state', file: 'app/public/js/screens/savings.js', route: 'savings', sel: '[data-savings="empty"]', rank: 10, how: 'Open Savings overview on a device with no scan history.' },
 };
 
 /**
@@ -152,7 +160,7 @@ export const NOT_TAGGED = [
   { what: 'Consent, setup and market storage-not-kept line', why: 'One inline sentence added to a screen that is already tagged.' },
   { what: 'The list-screen "loading" state on Saved, Past scans, Recently removed', why: 'Coded but unreachable: phase is never set to loading. If a path that sets it is added, give it tags then.' },
   { what: 'Share with no scan to share', why: 'It redirects to the camera at once, so nobody lands on it.' },
-  { what: 'Onboarding replay (Watch the welcome again)', why: 'Runs the same 29 steps with ?replay=1, so a1 to a29 cover it.' },
+  { what: 'Onboarding replay (Watch the welcome again)', why: 'Runs the same 30 steps with ?replay=1, so a1 to a29 and a84 cover it.' },
   { what: 'Row-delete confirm state on Recently removed (Tap again)', why: 'A button changing its label, not a view.' },
   { what: 'The bottom page bar and the back button', why: 'Chrome on tagged screens, not screens.' },
   { what: 'The phone\'s own permission prompts (camera, location) and share sheet', why: 'Drawn by the operating system, not by this app; the app cannot tag them.' },

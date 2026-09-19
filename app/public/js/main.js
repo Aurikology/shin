@@ -45,9 +45,10 @@ import pastscans from './screens/pastscans.js';
 import removed from './screens/removed.js';
 import market from './screens/market.js';
 import licences from './screens/licences.js';
+import savings from './screens/savings.js';
 import { firstScreen, replayUrlFor } from './onboarding-flow.js';
 
-for (const s of [camera, onboarding, setup, consent, watchlist, correct, share, you, pastscans, removed, market, licences]) {
+for (const s of [camera, onboarding, setup, consent, watchlist, correct, share, you, pastscans, removed, market, licences, savings]) {
   router.register(s);
 }
 

@@ -8,7 +8,7 @@ const js = (p) => readFileSync(new URL(`../public/js/${p}`, import.meta.url), 'u
 
 test('a fresh store holds no market, so nothing assumes a country', () => {
   const src = js('store.js');
-  assert.match(src, /market: \{ country: '', currency: '' \}/);
+  assert.match(src, /market: \{ country: '', currency: '', code: '', region: '' \}/);
   assert.doesNotMatch(src, /market: \{ country: 'Canada'/);
 });
 

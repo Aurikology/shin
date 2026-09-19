@@ -30,8 +30,9 @@ import { wireRadioGroup } from '../lib/radiogroup.js';
 import { t, localeTag } from '../ui-strings.js';
 import {
   THRESHOLD, MONTHLY, realFigure, stepById, visibleSteps, nextStepId, prevStepId,
-  positionOf, recordAnswer, applyThreshold, finish, firstScreen, isReplay, endReplay,
+  positionOf, recordAnswer, applyThreshold, applyMode, applyAlertStyle, finish, firstScreen, isReplay, endReplay,
 } from '../onboarding-flow.js';
+import { say } from '../voice.js';
 
 const DEPS = { store, track };
 
@@ -153,8 +154,8 @@ function thresholdBody(answers, replay) {
   const cfg = THRESHOLD[mode];
   // On a replay the slider starts where the person's own line already is (the
   // live setting the price line reads), so walking through changes nothing.
-  const line = store.get().lineUnderPct;
-  const saved = replay && mode === 'percent' && Number.isFinite(line)
+  const line = mode === 'percent' ? store.get().lineUnderPct : store.get().lineAmounts?.good;
+  const saved = replay && Number.isFinite(line)
     ? Number(line) : Number(answers.dealThreshold);
   const start = Number.isFinite(saved) && saved >= cfg.min && saved <= cfg.max
     ? saved : (mode === 'percent' ? cfg.recommended : cfg.start);
@@ -194,6 +195,27 @@ function compareBody() {
       <div class="onb-card"><b>${escapeHtml(t('onb_compare_without'))}</b><span>${escapeHtml(t('onb_compare_without_sub'))}</span></div>
       <div class="onb-card onb-card-with"><b>${escapeHtml(t('onb_compare_with'))}</b><span>${escapeHtml(t('onb_compare_with_sub'))}</span></div>
     </div>`;
+}
+
+/**
+ * His screen 31, "Evaluating Deal...": a progress bar and "Comparing prices across
+ * local retailers...". It is a demo of the scan wait and states nothing about the
+ * product: the bar fills over the wait's own three stage lines (voice.js
+ * `working_step1` to `working_step3`, in the neutral voice because the person has
+ * not picked an attitude yet), and the only figure on it is the bar's own
+ * progress. No price, no saving, no percent saved.
+ */
+const EVAL_STAGES = ['working_step1', 'working_step2', 'working_step3'];
+
+function evaluatingBody() {
+  const rows = EVAL_STAGES.map((k) => `<li data-eval-stage>${TICK}<span>${escapeHtml(say(k, {}, 'deadpan'))}</span></li>`);
+  return `
+    <h1>${escapeHtml(t('onb_eval_title'))}</h1>
+    <div class="onb-bar onb-bar-wide" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+         aria-valuenow="0" data-eval-bar aria-label="${escapeHtml(t('onb_eval_title'))}"><i style="transform:scaleX(0)"></i></div>
+    <p class="onb-big" data-eval-pct aria-hidden="true">0%</p>
+    <p class="onb-status" role="status">${escapeHtml(t('onb_eval_status'))}</p>
+    <ul class="onb-list onb-prep">${rows.join('')}</ul>`;
 }
 
 const PREPARING = ['discount', 'stores', 'radius', 'history', 'tracker'];
@@ -240,6 +262,7 @@ function bodyFor(step, answers, replay) {
     case 'compare': return compareBody();
     case 'figure': return figureBody(step, answers);
     case 'preparing': return preparingBody();
+    case 'evaluating': return evaluatingBody();
     case 'signin': return signinBody();
     case 'trial': return trialBody();
     case 'permissions': return permissionsBody();
@@ -355,6 +378,25 @@ export default {
       });
     }
 
+    if (step.kind === 'evaluating') {
+      const rows = [...root.querySelectorAll('[data-eval-stage]')];
+      const bar = root.querySelector('[data-eval-bar]');
+      const out = root.querySelector('[data-eval-pct]');
+      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      /* One stage at a time; the bar is exactly the share of stages done. */
+      const paint = (done) => {
+        const pct = Math.round((done / rows.length) * 100);
+        bar.setAttribute('aria-valuenow', String(pct));
+        bar.querySelector('i').style.transform = `scaleX(${pct / 100})`;
+        out.textContent = `${pct}%`;
+      };
+      rows.forEach((r, i) => {
+        const finish = () => { r.classList.add('done'); paint(i + 1); };
+        if (reduced) finish();
+        else timers.push(setTimeout(finish, 700 + i * 800));
+      });
+    }
+
     /** Both switches show what is actually on record, never what was last tapped. */
     function paintPermissions() {
       const states = {
@@ -395,6 +437,10 @@ export default {
           }
         } else {
           recordAnswer(DEPS, step.id, step.key, id);
+          /* The Percentage / Dollar toggle and the alert style are settings too
+             (lib/ranges.js, store.js `alertStyle`): saved where the app reads them. */
+          if (step.key === 'dealThresholdMode') applyMode(DEPS, id);
+          if (step.key === 'alertStyle') applyAlertStyle(DEPS, id);
           for (const el of group.querySelectorAll('[data-opt]')) {
             const chosen = el === opt;
             el.classList.toggle('on', chosen);

@@ -29,7 +29,7 @@
  * `test/share-tokens.test.mjs`, which is what actually holds the two in step.
  */
 
-import { faceSvg, cad, confidenceOf, tierOf, sellerOf, SIZE_TOKENS } from '../shin.js';
+import { faceSvg, marketMoney, confidenceOf, tierOf, sellerOf, SIZE_TOKENS } from '../shin.js';
 import { wordFor, say } from '../voice.js';
 import { on } from '../lib/dom.js';
 import { t } from '../ui-strings.js';
@@ -495,15 +495,15 @@ export default {
       who: undefined,
       level: conf.level,
       word: wordFor(v.tier),
-      line: say(v.tier, { asking: cad(v.askingCents), usual: cad(v.spread.medianCents) }),
+      line: say(v.tier, { asking: marketMoney(v.askingCents), usual: marketMoney(v.spread.medianCents) }),
       label: v.identity.label,
-      askingText: cad(v.askingCents),
+      askingText: marketMoney(v.askingCents),
       askingSub: sellerOf(v) ? `${t('share_at_seller', { seller: sellerOf(v) })}` : '',
-      elsewhereText: cad(v.spread.medianCents),
+      elsewhereText: marketMoney(v.spread.medianCents),
       elsewhereSub:
         v.spread.lowCents === v.spread.highCents
           ? t('share_one_price_one_seller')
-          : t('share_range', { low: cad(v.spread.lowCents), high: cad(v.spread.highCents) }),
+          : t('share_range', { low: marketMoney(v.spread.lowCents), high: marketMoney(v.spread.highCents) }),
       confidence: conf.label.toUpperCase(),
       /* Uppercased so it sits in the label role beside the two price kickers
          and the confidence line, which is the role mono is reserved for. */

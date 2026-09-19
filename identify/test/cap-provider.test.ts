@@ -86,10 +86,11 @@ test('an uncapped day passes straight through and charges the call', async () =>
   assert.equal(currentSpend(opts).cad, estimatedCostCad());
 });
 
-test('a capped day throws spend_cap_reached and the provider is never called', async () => {
-  // A cap of zero is a day whose budget is already gone: the first call is past
-  // it, which is the state being tested without having to spend a thousand
-  // fake calls to reach it.
+// REWRITTEN 2026-09-19 (audit rows 16 and 32): only the HARD runaway ceiling refuses.
+test('a day past the hard ceiling throws spend_cap_reached and the provider is never called', async () => {
+  // Soft cap and hard ceiling both zero is a day already past the ceiling: the
+  // first call is refused, which is the state being tested without having to
+  // spend a thousand fake calls to reach it.
   const opts = tempStore(0);
   const provider = fakeProvider();
 
@@ -105,15 +106,25 @@ test('a capped day throws spend_cap_reached and the provider is never called', a
   assert.equal(provider.calls, 0, 'the cap was reached and the request went out anyway');
 });
 
-test('the call before the cap goes through and the one after it is refused', async () => {
-  // One call of headroom exactly, so the boundary itself is the thing measured
-  // rather than a number comfortably either side of it.
-  const opts = tempStore(estimatedCostCad());
+test('a call past the SOFT cap still goes through and is reported; the one past the HARD ceiling is refused', async () => {
+  // One call of headroom exactly under each line, so the boundaries themselves
+  // are what is measured rather than numbers comfortably either side of them.
+  const reported: boolean[] = [];
+  const opts: SpendCapOptions = {
+    ...tempStore(estimatedCostCad()),
+    hardCapCad: estimatedCostCad() * 2,
+    onOverCap: (d) => reported.push(d.allowed),
+  };
   const provider = fakeProvider();
   const capped = withSpendCapProvider(provider, opts);
 
   await capped.send(request());
   assert.equal(provider.calls, 1);
+  assert.deepEqual(reported, [], 'inside the soft cap nothing is reported');
+
+  await capped.send(request());
+  assert.equal(provider.calls, 2, 'past the soft cap the call still went out');
+  assert.deepEqual(reported, [true]);
 
   await assert.rejects(
     () => capped.send(request()),
@@ -123,5 +134,5 @@ test('the call before the cap goes through and the one after it is refused', asy
       return true;
     },
   );
-  assert.equal(provider.calls, 1, 'the second call was refused and still reached the provider');
+  assert.equal(provider.calls, 2, 'the third call was past the hard ceiling and still reached the provider');
 });

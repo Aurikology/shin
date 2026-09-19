@@ -95,13 +95,28 @@ export function modelForScan(deviceId: string, env: NodeJS.ProcessEnv = process.
  * (`lineUnderPct`, `lineOverPct` in `app/public/js/store.js`).
  */
 export interface Thresholds {
+  /**
+   * In percent mode (the default): `underPct` is the GOOD range (percent below the
+   * median) and `overPct` the BAD one (percent above), `greatPct` the deeper GREAT
+   * one. In dollar mode (`unit: 'amount'`) the user's three amounts are in
+   * `amounts` (money per item at the shelf's size) and the percent fields hold
+   * the default range only, unused by the prompt; the prompt has Gemini convert.
+   */
   readonly underPct: number;
   readonly overPct: number;
+  readonly greatPct?: number;
+  readonly unit?: 'percent' | 'amount';
+  readonly amounts?: { readonly great: number; readonly good: number; readonly bad: number } | null;
   /** 'user' when the request carried them, 'default' when the default range was used. */
   readonly source: 'user' | 'default';
 }
 
-export const DEFAULT_THRESHOLDS: Thresholds = { underPct: 10, overPct: 10, source: 'default' };
+export const DEFAULT_THRESHOLDS: Thresholds = { underPct: 10, overPct: 10, greatPct: 20, unit: 'percent', amounts: null, source: 'default' };
+
+function amountIn(value: unknown): number | null {
+  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  return typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 100000 ? n : null;
+}
 
 function pctIn(value: unknown): number | null {
   const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
@@ -125,10 +140,28 @@ export function readThresholds(raw: unknown): Thresholds {
   }
   if (!obj || typeof obj !== 'object') return DEFAULT_THRESHOLDS;
   const o = obj as Record<string, unknown>;
-  const under = pctIn(o.lineUnderPct ?? o.underPct ?? o.under);
-  const over = pctIn(o.lineOverPct ?? o.overPct ?? o.over);
-  if (under === null && over === null) return DEFAULT_THRESHOLDS;
-  return { underPct: under ?? DEFAULT_THRESHOLDS.underPct, overPct: over ?? DEFAULT_THRESHOLDS.overPct, source: 'user' };
+  const D = DEFAULT_THRESHOLDS;
+  /* The current shape is { unit, great, good, bad }, all three in `unit` (the
+     app's lib/scan-body.js). The store's own keys and the shorter names are still
+     read, as percents, so an older client keeps working. */
+  if (o.unit === 'amount') {
+    const great = amountIn(o.great);
+    const good = amountIn(o.good);
+    const bad = amountIn(o.bad);
+    if (great === null && good === null && bad === null) return DEFAULT_THRESHOLDS;
+    return {
+      underPct: D.underPct, overPct: D.overPct, greatPct: D.greatPct, unit: 'amount',
+      amounts: { great: great ?? 2, good: good ?? 1, bad: bad ?? 1 }, source: 'user',
+    };
+  }
+  const under = pctIn(o.good ?? o.lineUnderPct ?? o.underPct ?? o.under);
+  const over = pctIn(o.bad ?? o.lineOverPct ?? o.overPct ?? o.over);
+  const great = pctIn(o.great ?? o.lineGreatPct ?? o.greatPct);
+  if (under === null && over === null && great === null) return DEFAULT_THRESHOLDS;
+  const u = under ?? D.underPct;
+  return {
+    underPct: u, overPct: over ?? D.overPct, greatPct: Math.max(great ?? D.greatPct ?? 20, u), unit: 'percent', amounts: null, source: 'user',
+  };
 }
 
 export function readShelfPriceCents(raw: unknown): number | null {
@@ -249,6 +282,29 @@ function fill(template: string, values: Record<string, string>): string {
   return template.replace(/\{\{([A-Z0-9_]+)\}\}/g, (whole, key: string) => (key in values ? values[key] : whole));
 }
 
+/**
+ * The user's three ranges as the lines the prompt states. Percent mode names the
+ * numbers outright. Dollar mode names the amounts and the unit, and the prompt's
+ * price math (scan_prompt.md) tells Gemini how to turn them into percents.
+ */
+export function rangesText(t: Thresholds): string {
+  if (t.unit === 'amount' && t.amounts) {
+    const a = t.amounts;
+    return [
+      'Unit: DOLLAR AMOUNTS in the user\'s currency, per item at the shelf size (the shelf price against the median price for that same size).',
+      `Great range: ${a.great} or more below the median`,
+      `Good range: ${a.good} or more below the median`,
+      `Bad range: more than ${a.bad} above the median`,
+    ].join('\n');
+  }
+  return [
+    'Unit: PERCENT of the median.',
+    `Great range: ${t.greatPct ?? 20}% or more below the median`,
+    `Good range: ${t.underPct}% or more below the median`,
+    `Bad range: more than ${t.overPct}% above the median`,
+  ].join('\n');
+}
+
 export interface BuiltPrompt {
   readonly system: string;
   readonly user: string;
@@ -300,8 +356,7 @@ export function buildScanPrompt(input: ScanInput, family: ModelFamily): BuiltPro
       .filter(Boolean)
       .join(' ') || 'null',
     THRESHOLDS_SOURCE: t.source === 'user' ? "the user's own setting" : 'the default range, because the user has set none',
-    UNDER_PCT: String(t.underPct),
-    OVER_PCT: String(t.overPct),
+    RANGES_TEXT: rangesText(t),
     IMAGE_NOTE: imageNote,
     OUTPUT_FORMAT: output,
   });
@@ -735,6 +790,11 @@ export interface GeminiRun {
   readonly confidenceReasons: readonly string[];
   /** True when the phone must show the "not fully confident" mark. */
   readonly lowConfidence: boolean;
+  /**
+   * True when this call went out (or was stopped) past the daily soft spend cap.
+   * It is a mark on the scan and never a reason to refuse one.
+   */
+  readonly overCap: boolean;
 }
 
 export interface RunOptions {
@@ -747,11 +807,14 @@ export interface RunOptions {
   readonly now?: () => number;
   /**
    * The daily spend cap (identify/src/cap.ts). Called once, just before the
-   * call would go out, and only when a key is present. False means the day's
-   * budget is spent: no call is made, and the run comes back marked
-   * `spend_cap_reached` (an answer of a kind, never a throw).
+   * call would go out, and only when a key is present. A plain `false`, or
+   * `{ allowed: false }`, means the HARD runaway ceiling was hit: no call is
+   * made, and the run comes back marked `spend_cap_reached` (a kind, retryable
+   * answer, never a throw). Crossing only the SOFT cap does not refuse:
+   * `{ allowed: true, overCap: true }` lets the call go and marks the run
+   * `overCap` (audit rows 16 and 32: always an answer).
    */
-  readonly spendGuard?: () => boolean;
+  readonly spendGuard?: () => boolean | { readonly allowed: boolean; readonly overCap: boolean };
 }
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -800,6 +863,8 @@ export async function runGeminiScan(input: ScanInput, opts: RunOptions): Promise
     return finish({ failure: 'model_client_error', failureMessage: `The prompt could not be built: ${String(err)}` });
   }
 
+  let overCap = false;
+
   function finish(over: Partial<GeminiRun> & { failure?: FailureClass | null; failureMessage?: string | null }): GeminiRun {
     const parseStatus = over.parseStatus ?? 'none';
     const answer = over.answer ?? null;
@@ -830,6 +895,7 @@ export async function runGeminiScan(input: ScanInput, opts: RunOptions): Promise
       failureMessage: null,
       ...over,
       failure,
+      overCap,
       confidenceReasons: reasons,
       lowConfidence: reasons.length > 0,
     };
@@ -837,8 +903,11 @@ export async function runGeminiScan(input: ScanInput, opts: RunOptions): Promise
 
   const apiKey = (opts.apiKey ?? process.env.GEMINI_API_KEY ?? '').trim();
   if (apiKey === '') return finish({ failure: 'model_client_error', failureMessage: 'No GEMINI_API_KEY, so no call was made.' });
-  if (opts.spendGuard && !opts.spendGuard()) {
-    return finish({ failure: 'spend_cap_reached', failureMessage: spendCapRefusalMessage() });
+  if (opts.spendGuard) {
+    const verdict = opts.spendGuard();
+    const allowed = typeof verdict === 'boolean' ? verdict : verdict.allowed;
+    overCap = typeof verdict === 'boolean' ? !verdict : verdict.overCap;
+    if (!allowed) return finish({ failure: 'spend_cap_reached', failureMessage: spendCapRefusalMessage() });
   }
 
   const base =
@@ -1168,6 +1237,11 @@ export function checkMath(answer: ReadAnswer | null, thresholds: Thresholds): Ma
   if (v.median === null || !close(v.median, median, 0.005, 0.005)) {
     out.push({ field: 'median_unit_price', stated: v.median, recomputed: median });
   }
+  /* Dollar mode: the zone, position and span numbers rest on percents Gemini derived
+     from the user's amounts and the size, which Shin does not hold, so they are left
+     unchecked rather than checked against a guess. The median and the count above are
+     still checked. */
+  if (thresholds.unit === 'amount') return { checked: true, mismatches: out };
   const pctOf = (price: number): number => (median === 0 ? 0 : ((price - median) / median) * 100);
   const shelfPct = v.shelf && v.shelf.unitPrice !== null ? pctOf(v.shelf.unitPrice) : null;
   const allAbs = [...onLine.map((o) => Math.abs(pctOf(o.unitPrice as number))), ...(shelfPct === null ? [] : [Math.abs(shelfPct)])];

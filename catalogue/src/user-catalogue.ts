@@ -49,6 +49,7 @@
  */
 
 import { DatabaseSync } from 'node:sqlite';
+import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { Market } from './market.ts';
@@ -102,7 +103,10 @@ CREATE TABLE IF NOT EXISTS user_observation (
   unit_label       TEXT,
   observed_at      TEXT NOT NULL,
   scan_id          TEXT,
-  trusted          INTEGER NOT NULL DEFAULT 0
+  trusted          INTEGER NOT NULL DEFAULT 0,
+  device_key       TEXT,
+  verdict          TEXT,
+  verdict_source   TEXT
 ) STRICT;
 CREATE INDEX IF NOT EXISTS user_observation_product ON user_observation(product_id);
 CREATE INDEX IF NOT EXISTS user_observation_code    ON user_observation(catalogue_code);
@@ -117,7 +121,79 @@ CREATE TABLE IF NOT EXISTS user_branch (
   last_seen        TEXT NOT NULL,
   PRIMARY KEY (ref, store_type, country)
 ) STRICT;
+
+-- The offers and reviews Gemini returned with a scan (audit row 39), kept with
+-- the product the scan attached to and the scan that brought them. Untrusted
+-- like everything else here; nothing reads them to answer a scan.
+CREATE TABLE IF NOT EXISTS user_offer (
+  id             INTEGER PRIMARY KEY,
+  ref            TEXT NOT NULL,
+  product_id     INTEGER,
+  catalogue_code TEXT,
+  scan_id        TEXT,
+  source         TEXT NOT NULL DEFAULT 'gemini_scan',
+  trusted        INTEGER NOT NULL DEFAULT 0,
+  retailer       TEXT,
+  price          REAL,
+  unit_price     REAL,
+  in_median      INTEGER,
+  raw_json       TEXT NOT NULL,
+  observed_at    TEXT NOT NULL
+) STRICT;
+CREATE INDEX IF NOT EXISTS user_offer_ref ON user_offer(ref);
+CREATE INDEX IF NOT EXISTS user_offer_scan ON user_offer(scan_id);
+
+CREATE TABLE IF NOT EXISTS user_review (
+  id             INTEGER PRIMARY KEY,
+  ref            TEXT NOT NULL,
+  product_id     INTEGER,
+  catalogue_code TEXT,
+  scan_id        TEXT,
+  source         TEXT NOT NULL DEFAULT 'gemini_scan',
+  trusted        INTEGER NOT NULL DEFAULT 0,
+  rating         REAL,
+  review_count   INTEGER,
+  summary        TEXT,
+  url            TEXT,
+  observed_at    TEXT NOT NULL
+) STRICT;
+CREATE INDEX IF NOT EXISTS user_review_ref ON user_review(ref);
+CREATE INDEX IF NOT EXISTS user_review_scan ON user_review(scan_id);
+
+-- The median shelf price back-computed from users' own verdicts (audit row 21),
+-- computed by implied-reference.ts. Derived from user data, so it is marked
+-- source = 'user_derived' and trusted = 0. Never shown, never used to answer a scan.
+CREATE TABLE IF NOT EXISTS implied_reference (
+  ref                TEXT NOT NULL,
+  country            TEXT NOT NULL,
+  currency           TEXT NOT NULL,
+  rated_scans        INTEGER NOT NULL,
+  devices            INTEGER NOT NULL,
+  good_median_cents  REAL,
+  good_scans         INTEGER NOT NULL,
+  bad_median_cents   REAL,
+  bad_scans          INTEGER NOT NULL,
+  zone_verdict_scans INTEGER NOT NULL,
+  source             TEXT NOT NULL DEFAULT 'user_derived',
+  trusted            INTEGER NOT NULL DEFAULT 0,
+  computed_at        TEXT NOT NULL,
+  PRIMARY KEY (ref, country, currency)
+) STRICT;
 `;
+
+/** Columns added after the first release; a file made before them gets them at open. */
+const LATE_COLUMNS: readonly { table: string; column: string; decl: string }[] = [
+  { table: 'user_observation', column: 'device_key', decl: 'TEXT' },
+  { table: 'user_observation', column: 'verdict', decl: 'TEXT' },
+  { table: 'user_observation', column: 'verdict_source', decl: 'TEXT' },
+];
+
+function addLateColumns(db: DatabaseSync): void {
+  for (const { table, column, decl } of LATE_COLUMNS) {
+    const have = db.prepare(`PRAGMA table_info(${table})`).all() as unknown as { name: string }[];
+    if (!have.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
+  }
+}
 
 export interface UserCatalogue {
   readonly path: string;
@@ -151,6 +227,7 @@ export function createUserCatalogue(path: string): UserCatalogue {
     db = new DatabaseSync(path);
     db.exec('PRAGMA journal_mode = WAL');
     db.exec(DDL);
+    addLateColumns(db);
   } catch (err) {
     db = null;
     droppedWhy = err instanceof Error ? err.message : String(err);
@@ -239,6 +316,56 @@ export interface UserScanInput {
   readonly scanId?: string | null;
   /** True when all Shin has is a barcode or a typed query, with no product details from Gemini. */
   readonly bare?: boolean;
+  /** Who scanned. Stored only as a one-way key, so devices can be counted and never named. */
+  readonly deviceId?: string | null;
+  /**
+   * The user's verdict on this price, on their own scale: 'great', 'good', 'fair' or 'bad'.
+   * `verdictSource` says where it came from: 'zone' (Gemini's placement against the user's
+   * own lines) or 'user' (a rating the person gave). Feeds the implied reference only.
+   */
+  readonly verdict?: string | null;
+  readonly verdictSource?: 'zone' | 'user' | null;
+  /** The offers Gemini returned with this scan. Kept untrusted with the scan id (audit row 39). */
+  readonly offers?: readonly UserOfferInput[];
+  /** The reviews Gemini returned with this scan. Kept untrusted with the scan id. */
+  readonly reviews?: readonly UserReviewInput[];
+}
+
+export interface UserOfferInput {
+  readonly retailer?: string | null;
+  readonly price?: number | null;
+  readonly unitPrice?: number | null;
+  readonly inMedian?: boolean | null;
+  /** The offer object as Gemini gave it. */
+  readonly raw?: Record<string, unknown> | null;
+}
+
+export interface UserReviewInput {
+  readonly rating?: number | null;
+  readonly count?: number | null;
+  readonly summary?: string | null;
+  readonly url?: string | null;
+}
+
+/** The most offers and reviews kept from one scan, and the longest text kept: a bound, not a judgement. */
+const MAX_OFFERS_PER_SCAN = 25;
+const MAX_REVIEWS_PER_SCAN = 10;
+const MAX_TEXT = 2000;
+
+const VERDICTS = new Set(['great', 'good', 'fair', 'bad']);
+
+function clip(s: string | null | undefined): string | null {
+  return typeof s === 'string' && s !== '' ? s.slice(0, MAX_TEXT) : null;
+}
+
+function finiteOrNull(n: number | null | undefined): number | null {
+  return typeof n === 'number' && Number.isFinite(n) ? n : null;
+}
+
+/** One-way, so the catalogue can count devices without holding anybody's id. */
+function deviceKeyOf(deviceId: string | null | undefined): string | null {
+  const id = deviceId?.trim();
+  return id ? createHash('sha256').update(id).digest('hex').slice(0, 16) : null;
 }
 
 export type UserScanOutcome =
@@ -517,16 +644,40 @@ function recordObservation(
   const cents = o.scan.priceCents;
   const price = typeof cents === 'number' && Number.isFinite(cents) && cents > 0 ? Math.round(cents) : null;
   const per = price !== null && !o.tech && o.qty ? unitPriceCents(price, o.qty.original.value, o.qty.original.unit) : null;
+  const verdict = typeof o.scan.verdict === 'string' && VERDICTS.has(o.scan.verdict) ? o.scan.verdict : null;
   db.prepare(
     `INSERT INTO user_observation (product_id, catalogue_code, store_type, store_name, country, region, currency,
-       price_cents, orig_value, orig_unit, base_value, base_unit, unit_price_cents, unit_label, observed_at, scan_id, trusted)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)`,
+       price_cents, orig_value, orig_unit, base_value, base_unit, unit_price_cents, unit_label, observed_at, scan_id, trusted,
+       device_key, verdict, verdict_source)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?)`,
   ).run(
     target.productId, target.code, o.storeType, o.scan.storeName ?? null, o.market.country, o.market.region,
     o.market.currency, price, o.qty?.original.value ?? null, o.qty?.original.unit ?? null,
     o.qty?.baseValue ?? null, o.qty?.baseUnit ?? null, per?.unitCents ?? null, per?.label ?? null,
     o.now, o.scan.scanId ?? null,
+    deviceKeyOf(o.scan.deviceId), verdict, verdict === null ? null : (o.scan.verdictSource ?? null),
   );
+  // Audit row 39: the offers and reviews Gemini returned ride along, untrusted, with the scan id.
+  for (const offer of (o.scan.offers ?? []).slice(0, MAX_OFFERS_PER_SCAN)) {
+    db.prepare(
+      `INSERT INTO user_offer (ref, product_id, catalogue_code, scan_id, retailer, price, unit_price, in_median, raw_json, observed_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    ).run(
+      target.ref, target.productId, target.code, o.scan.scanId ?? null, clip(offer.retailer),
+      finiteOrNull(offer.price), finiteOrNull(offer.unitPrice),
+      offer.inMedian === null || offer.inMedian === undefined ? null : offer.inMedian ? 1 : 0,
+      JSON.stringify(offer.raw ?? {}).slice(0, 8000), o.now,
+    );
+  }
+  for (const review of (o.scan.reviews ?? []).slice(0, MAX_REVIEWS_PER_SCAN)) {
+    db.prepare(
+      `INSERT INTO user_review (ref, product_id, catalogue_code, scan_id, rating, review_count, summary, url, observed_at)
+       VALUES (?,?,?,?,?,?,?,?,?)`,
+    ).run(
+      target.ref, target.productId, target.code, o.scan.scanId ?? null, finiteOrNull(review.rating),
+      finiteOrNull(review.count) === null ? null : Math.round(review.count as number), clip(review.summary), clip(review.url), o.now,
+    );
+  }
   db.prepare(
     `INSERT INTO user_branch (ref, store_type, country, currency, obs_count, last_price_cents, last_seen)
      VALUES (?,?,?,?,1,?,?)

@@ -19,17 +19,8 @@ import { wireRadioGroup } from '../lib/radiogroup.js';
 import { storagePersists } from '../lib/persistence.js';
 import { t } from '../ui-strings.js';
 
-/** The four offered percentages. Defined in store.js, beside the two defaults. */
-const PCT_CHOICES = store.LINE_CHOICES;
-
-function pctButton(side, n, chosen) {
-  const on = n === chosen;
-  return `
-    <button type="button" class="pct${on ? ' on' : ''}" role="radio"
-            aria-checked="${on}" data-line="${side}" data-pct="${n}">
-      ${escapeHtml(t('setup_lines_percent', { n: String(n) }))}
-    </button>`;
-}
+import { rangePickerHtml, handleRangeClick } from '../lib/range-picker.js';
+import { track } from '../track.js';
 
 export default {
   id: 'setup',
@@ -38,8 +29,6 @@ export default {
 
   render(root, ctx) {
     const current = store.get().personality ?? null;
-    const underPct = store.get().lineUnderPct ?? 10;
-    const overPct = store.get().lineOverPct ?? 10;
     // Every listener on this screen goes on the persistent `#screen` element,
     // which outlives the screen. Before this, none of them came off again, so
     // camera -> setup -> camera -> setup left two live setup handlers on one
@@ -89,22 +78,11 @@ export default {
            * the grading-word ban list that guards hard rule 2. The strings
            * and the reasoning are in ui-strings.js beside them.
            */ ''}
+        ${/* Three ranges now (great, good, bad) and a Percentage or Dollar Amount
+             toggle, 2026-09-19: lib/range-picker.js draws it, You uses the same. */ ''}
         <section class="lines">
-          <h2>${escapeHtml(t('setup_lines_heading'))}</h2>
-
-          <p class="line-q" id="line-under-q">${escapeHtml(t('setup_lines_under_q'))}</p>
-          <div class="pcts" role="radiogroup" aria-labelledby="line-under-q"
-               aria-label="${escapeHtml(t('setup_lines_under_group'))}">
-            ${PCT_CHOICES.map((n) => pctButton('under', n, underPct)).join('')}
-          </div>
-
-          <p class="line-q" id="line-over-q">${escapeHtml(t('setup_lines_over_q'))}</p>
-          <div class="pcts" role="radiogroup" aria-labelledby="line-over-q"
-               aria-label="${escapeHtml(t('setup_lines_over_group'))}">
-            ${PCT_CHOICES.map((n) => pctButton('over', n, overPct)).join('')}
-          </div>
-
-          <p class="fineprint">${escapeHtml(t('setup_lines_note'))}</p>
+          <h2>${escapeHtml(t('ranges_heading'))}</h2>
+          ${rangePickerHtml(store.get(), 'setup')}
         </section>
 
         ${
@@ -137,22 +115,9 @@ export default {
     }
 
     on(root, 'click', (e) => {
-      const pct = e.target.closest('[data-pct]');
-      if (pct) {
-        const n = Number(pct.dataset.pct);
-        // Stored under the name the price line reads, so the zone the user
-        // just moved is the zone they see on the next scan. Nothing else on
-        // this screen changes; there is no preview here because there is no
-        // scan yet to preview against.
-        store.update(pct.dataset.line === 'under' ? { lineUnderPct: n } : { lineOverPct: n });
-        const row = pct.closest('[role="radiogroup"]');
-        for (const el of row.querySelectorAll('.pct')) {
-          const chosen = el === pct;
-          el.classList.toggle('on', chosen);
-          el.setAttribute('aria-checked', String(chosen));
-        }
-        return;
-      }
+      // The three ranges and their unit: stored under the names the price
+      // line reads, so what the user set is what the next scan is judged on.
+      if (handleRangeClick(e, root, { store, track }, 'setup')) return;
       const pick = e.target.closest('[data-who]');
       if (pick) {
         setPersonality(pick.dataset.who);

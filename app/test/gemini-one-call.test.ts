@@ -153,18 +153,32 @@ test('every Gemini request and the full response are stored, linked to the scan 
 });
 
 test('the shelf price and the user\'s thresholds go into the prompt; absent thresholds get the default range (item 6)', async () => {
-  const q = new URLSearchParams({ gtin: '5', deviceId: 'thr-a', shelfPriceCents: '449', thresholds: JSON.stringify({ lineUnderPct: 15, lineOverPct: 25 }) });
+  const q = new URLSearchParams({ gtin: '5', deviceId: 'thr-a', shelfPriceCents: '449', thresholds: JSON.stringify({ unit: 'percent', great: 30, good: 15, bad: 25 }) });
   await identify(q.toString());
   const p1 = userTurn(calls[0]);
   assert.match(p1, /4\.49/, 'the shelf price never reached Gemini');
-  assert.match(p1, /15% below the median/);
-  assert.match(p1, /25% above the median/);
+  assert.match(p1, /Unit: PERCENT/);
+  assert.match(p1, /Great range: 30% or more below the median/, 'his 30 percent must be expressible, and the great range must reach Gemini');
+  assert.match(p1, /Good range: 15% or more below the median/);
+  assert.match(p1, /Bad range: more than 25% above the median/);
   assert.match(p1, /the user's own setting/);
   await identify('gtin=5&deviceId=thr-b');
   const p2 = userTurn(calls[1]);
-  assert.match(p2, /10% below the median/);
+  assert.match(p2, /Good range: 10% or more below the median/);
+  assert.match(p2, /Great range: 20% or more below the median/);
   assert.match(p2, /default range/, 'a scan with no thresholds must say the default range was used, and must still carry one');
   assert.doesNotMatch(p2, /the user's own setting/);
+});
+
+test('dollar mode reaches Gemini as amounts with their unit, never as percents (item 44, W9)', async () => {
+  const q = new URLSearchParams({ gtin: '5', deviceId: 'thr-usd', shelfPriceCents: '449', thresholds: JSON.stringify({ unit: 'amount', great: 3, good: 1.5, bad: 2 }) });
+  await identify(q.toString());
+  const p = userTurn(calls[calls.length - 1]);
+  assert.match(p, /Unit: DOLLAR AMOUNTS/);
+  assert.match(p, /Great range: 3 or more below the median/);
+  assert.match(p, /Good range: 1\.5 or more below the median/);
+  assert.match(p, /Bad range: more than 2 above the median/);
+  assert.doesNotMatch(p, /Good range: [\d.]+%/, 'a dollar amount was printed as a percent');
 });
 
 test('the shelf price and thresholds ride a photo body too, and the image is sent with it (items 1, 6)', async () => {
@@ -172,14 +186,14 @@ test('the shelf price and thresholds ride a photo body too, and the image is sen
     image: PNG.toString('base64'),
     deviceId: 'photo-a',
     shelfPriceCents: 1299,
-    thresholds: { lineUnderPct: 5, lineOverPct: 20 },
+    thresholds: { unit: 'percent', great: 15, good: 5, bad: 20 },
   });
   assert.equal(status, 200);
   assert.equal(calls.length, 1, 'a photo scan must be one call');
   const parts = calls[0].body.input as any[];
   assert.ok(parts.some((p) => p.type === 'image'), 'the photo scan sent no image');
   assert.match(userTurn(calls[0]), /12\.99/);
-  assert.match(userTurn(calls[0]), /5% below the median/);
+  assert.match(userTurn(calls[0]), /Good range: 5% or more below the median/);
   assert.equal(body.unchecked.name, 'Kraft Dinner Original');
   const rows = geminiCallsForScan(body.scanId);
   assert.equal(rows.length, 1);

@@ -22,7 +22,7 @@
  * `faceBlock`, `dotsHtml`, `shinSay`).
  */
 
-import { faceSvg, faceBlock, shinSay, cad, sellerOf, confidenceOf, dotsHtml, tierOf, geminiWordFor } from '../shin.js';
+import { faceSvg, faceBlock, shinSay, marketMoney, sellerOf, confidenceOf, dotsHtml, tierOf, geminiWordFor } from '../shin.js';
 import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { escapeHtml, html, raw, ago, on } from '../lib/dom.js';
@@ -78,7 +78,7 @@ export function row(h) {
           <b class="row-title">${label}</b>
           <span class="row-sub">${sub}</span>
         </span>
-        <span class="prow-p">${typeof askingCents === 'number' ? cad(askingCents) : t('past_scans_no_price')}</span>
+        <span class="prow-p">${typeof askingCents === 'number' ? marketMoney(askingCents) : t('past_scans_no_price')}</span>
       </button>
       <button type="button" class="rowdel prow-del" data-remove="${h.id}" data-fk="del:${h.id}">
         ${raw(removeGlyph())}
@@ -103,7 +103,7 @@ export function detail(h) {
     const v = h.result;
     const conf = confidenceOf(v);
     const source = sellerOf(v);
-    const facts = { asking: cad(v.askingCents), usual: cad(v.spread.medianCents) };
+    const facts = { asking: marketMoney(v.askingCents), usual: marketMoney(v.spread.medianCents) };
 
     return html`
       <div class="pmodal" data-act="modal">

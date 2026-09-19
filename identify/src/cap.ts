@@ -1,6 +1,20 @@
 /**
  * The daily dollar cap on photo calls. Item 13c of the beta build plan.
  *
+ * CHANGED 2026-09-19 (audit rows 16 and 32). The cap no longer refuses a scan.
+ * Jamin: "No rule is ever more important than the correct functionality of our
+ * system", "per-scan cost is accepted", and a scan always gets an answer. So
+ * there are now TWO lines:
+ *   - the SOFT cap (default CAD 10, `SHIN_PHOTO_DAILY_CAP_CAD`): crossing it
+ *     never refuses. The call goes out, the spend is still counted, and the
+ *     caller is told `overCap: true` so the scan row carries an `over_cap` mark
+ *     and a loud line is logged;
+ *   - the HARD runaway ceiling (10 times the soft cap by default, overridable
+ *     with `SHIN_PHOTO_HARD_CAP_CAD`): only a loop gone wrong gets here. The call
+ *     is not made and the scan comes back as a marked, kind, retryable answer
+ *     (still HTTP 200, never a crash). It resets with the UTC day like the soft cap.
+ * Everything below that still says "cap" without saying which is the soft cap.
+ *
  * THIS IS NOT THE SAME CAP model.ts ALREADY HAS. `model.ts`'s `#send` refuses
  * once `SHIN_MODEL_DAILY_CALLS` calls (default 2,000) have gone out in a UTC
  * day -- a loop guard, in-memory, reset by a restart, and blind to the fact
@@ -52,11 +66,29 @@ const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 /** Overridable so a test never touches the real store or the real env var. */
 export interface SpendCapOptions {
+  /** The soft cap. Crossing it marks the scan; it never refuses one. */
   readonly capCad?: number;
+  /** The hard runaway ceiling. Default: 10 times the soft cap, or `SHIN_PHOTO_HARD_CAP_CAD`. */
+  readonly hardCapCad?: number;
   readonly storePath?: string;
+  /** Called (never awaited, never allowed to throw upward) each time a call is charged past the soft cap. */
+  readonly onOverCap?: (decision: SpendDecision) => void;
+}
+
+/** What one charge came to. `allowed: false` only at the hard ceiling. */
+export interface SpendDecision {
+  /** False only when the hard ceiling would be crossed: the call must not go out. */
+  readonly allowed: boolean;
+  /** True when this call is past the soft cap (whether or not it was allowed). */
+  readonly overCap: boolean;
+  readonly spentCad: number;
+  readonly capCad: number;
+  readonly hardCapCad: number;
 }
 
 const DEFAULT_CAP_CAD = 10;
+/** The hard ceiling is this many times the soft cap unless the environment names it. */
+export const HARD_CAP_MULTIPLE = 10;
 const DEFAULT_STORE_PATH = join(REPO_ROOT, 'identify', 'data', 'spend-cap.json');
 
 /*
@@ -89,10 +121,17 @@ function envFloat(name: string, fallback: number): number {
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
-function resolveOptions(opts?: SpendCapOptions): { capCad: number; storePath: string } {
+function resolveOptions(opts?: SpendCapOptions): { capCad: number; hardCapCad: number; storePath: string } {
   loadDotEnv();
+  const capCad = opts?.capCad ?? envFloat('SHIN_PHOTO_DAILY_CAP_CAD', DEFAULT_CAP_CAD);
+  // The ceiling can never sit below the soft cap: a misconfigured pair must not turn the ceiling into the cap.
+  const hardCapCad = Math.max(
+    capCad,
+    opts?.hardCapCad ?? envFloat('SHIN_PHOTO_HARD_CAP_CAD', capCad * HARD_CAP_MULTIPLE),
+  );
   return {
-    capCad: opts?.capCad ?? envFloat('SHIN_PHOTO_DAILY_CAP_CAD', DEFAULT_CAP_CAD),
+    capCad,
+    hardCapCad,
     storePath: opts?.storePath ?? process.env.SHIN_SPEND_CAP_STORE_PATH ?? DEFAULT_STORE_PATH,
   };
 }
@@ -134,14 +173,20 @@ function writeState(storePath: string, state: SpendCapState): void {
 }
 
 /** What has been spent today. For a health endpoint, and for tests. */
-export function currentSpend(opts?: SpendCapOptions): { day: string; cad: number; capCad: number } {
-  const { capCad, storePath } = resolveOptions(opts);
+export function currentSpend(opts?: SpendCapOptions): { day: string; cad: number; capCad: number; hardCapCad: number } {
+  const { capCad, hardCapCad, storePath } = resolveOptions(opts);
   const state = readState(storePath);
-  return { day: state.day, cad: state.cad, capCad };
+  return { day: state.day, cad: state.cad, capCad, hardCapCad };
 }
 
 /**
- * Charges `costCad` against today's cap, or refuses.
+ * Charges `costCad` against today's spend and says what that came to.
+ *
+ * Under the soft cap: allowed, not over. Past the soft cap and under the hard
+ * ceiling: STILL ALLOWED, charged, and `overCap` is true (audit rows 16 and
+ * 32: crossing the cap marks a scan, it never refuses one). Past the hard
+ * ceiling: not allowed and not charged, because that call will not be made.
+ * `onOverCap` (a loud log line in the server) fires for both over-cap cases.
  *
  * Reserve-then-spend: the charge is written to disk before the caller is
  * told to proceed, the same ordering model.ts's own `reserveCall` uses for
@@ -154,12 +199,30 @@ export function currentSpend(opts?: SpendCapOptions): { day: string; cad: number
  * proceed ordering is what it can do cheaply, not a claim of atomicity across
  * processes or restarts mid-call.
  */
-export function reserveSpend(costCad: number, opts?: SpendCapOptions): boolean {
-  const { capCad, storePath } = resolveOptions(opts);
+export function chargeSpend(costCad: number, opts?: SpendCapOptions): SpendDecision {
+  const { capCad, hardCapCad, storePath } = resolveOptions(opts);
   const state = readState(storePath);
-  if (state.cad + costCad > capCad) return false;
-  writeState(storePath, { day: state.day, cad: state.cad + costCad });
-  return true;
+  const after = state.cad + costCad;
+  let decision: SpendDecision;
+  if (after > hardCapCad) {
+    decision = { allowed: false, overCap: true, spentCad: state.cad, capCad, hardCapCad };
+  } else {
+    writeState(storePath, { day: state.day, cad: after });
+    decision = { allowed: true, overCap: after > capCad, spentCad: after, capCad, hardCapCad };
+  }
+  if (decision.overCap && opts?.onOverCap) {
+    try {
+      opts.onOverCap(decision);
+    } catch {
+      /* A logger must never turn a scan into a failure. */
+    }
+  }
+  return decision;
+}
+
+/** True unless the HARD ceiling stops the call. Crossing the soft cap is not a refusal. */
+export function reserveSpend(costCad: number, opts?: SpendCapOptions): boolean {
+  return chargeSpend(costCad, opts).allowed;
 }
 
 /** Back to zero, as if the day just turned over. A test uses this; nothing in production needs to. */
@@ -174,14 +237,14 @@ export function estimatedCostCad(): number {
 }
 
 /**
- * The sentence shown when a photo call is refused for spend, not for the
- * photo. Hard rule 3: the aggression points at the price, the store, or the
- * brand, never at the user, and this is not the user's problem to carry
- * either way -- it names the limit plainly and gives the one thing left to
- * do, the same way `docs/the-photo-path.md`'s existing refusals do.
+ * The sentence shown when the HARD runaway ceiling stops a call (the soft cap
+ * never shows one). Hard rule 3: the aggression points at the price, the store,
+ * or the brand, never at the user, and this is not the user's problem to carry
+ * either way. It is kind and retryable: the lookup could not be done just now,
+ * try again in a little while, and it does not talk about billing.
  */
 export function spendCapRefusalMessage(): string {
-  return "Today's photo budget is spent. Type the price in instead, or try again tomorrow.";
+  return 'Shin could not look this one up just now. Please try again in a little while, or type the price in.';
 }
 
 /**

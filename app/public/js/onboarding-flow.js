@@ -5,10 +5,11 @@
  * 2026-09-17.md, screens 1 to 33): Cal AI's welcome pages with his replacement
  * text on each, in his order, built in Shin's own look. `n` on each step below
  * is his line number in that tab, so the order can be checked against his page
- * by anyone. Screens 30 to 33 (the viewfinder, "Evaluating Deal", the savings
- * dashboard, the verdict page) are Cal AI's own product screens, not welcome
- * pages; in Shin those are the camera and its verdict sheet, which already
- * exist, so the flow ends at 29 and hands over to the app.
+ * by anyone. Screens 30, 32 and 33 (the viewfinder, the savings dashboard, the
+ * verdict page) are Cal AI's own product screens, not welcome pages; in Shin
+ * those are the camera, the Savings Overview (screens/savings.js, reached from
+ * You) and the verdict sheet. Screen 31, "Evaluating Deal...", is drawn here as a
+ * demo of the scan wait (step `evaluating`), so the flow ends at 31.
  *
  * NO DOM HERE. This file is the order, the visibility rules and the save path,
  * pure enough for test/onboarding.test.mjs to run in Node. The screen
@@ -37,6 +38,8 @@
  *    Pro, and the flow finishes whatever was tapped.
  */
 
+import { rangePatch, unitPatch } from './lib/ranges.js';
+
 /** What the app can actually do today. Flip a flag when the thing is built. */
 export const CAPABILITIES = Object.freeze({
   /** Sign in with Apple, Google or email. No account system exists. */
@@ -57,6 +60,7 @@ export const CAPABILITIES = Object.freeze({
  *   savings_timeline  { points: [{ days, saved }], source, measuredAt }            one or more
  *   goal_progress     { saved, source, measuredAt }
  *   goal_realistic    { value: true, source, measuredAt }
+ *   total_saved       { saved, source, measuredAt }             the Savings Overview's Total Saved
  */
 export const PUBLISHED_FIGURES = {};
 
@@ -75,6 +79,7 @@ const SHAPES = {
     && f.points.every((p) => p && isNum(p.days) && isNum(p.saved)),
   goal_progress: (f) => isNum(f.saved) && f.saved >= 0,
   goal_realistic: (f) => f.value === true,
+  total_saved: (f) => isNum(f.saved) && f.saved >= 0,
 };
 
 /**
@@ -130,6 +135,9 @@ export const STEPS = Object.freeze([
   { n: 27, id: 'tip_eval', kind: 'list', items: 3 },
   { n: 28, id: 'tip_fix', kind: 'list', items: 3 },
   { n: 29, id: 'tip_accuracy', kind: 'list', items: 3 },
+  /* His 31 (30 is the camera, which the flow hands over to): a demo of the scan
+     wait. The bar fills over the wait's own stage lines; it states no saving. */
+  { n: 31, id: 'evaluating', kind: 'evaluating', stages: 3 },
 ]);
 
 /** Whether a step is in the flow right now. */
@@ -170,9 +178,10 @@ export function positionOf(id, opts = {}) {
   return { index: list.findIndex((s) => s.id === id), total: list.length };
 }
 
-/** Which slider values each mode offers, and the recommended one (his: 20% OFF). */
+/** Which slider values each mode offers, and the recommended one (his: 20% OFF).
+    Up to 30, so his "Conservative 30%+" is a value a person can pick. */
 export const THRESHOLD = Object.freeze({
-  percent: { min: 5, max: 20, step: 5, recommended: 20 },
+  percent: { min: 5, max: 30, step: 5, recommended: 20 },
   /* His notes give no dollar default and no "recommended" for this mode, so
      none is claimed: the slider simply starts at 5. */
   amount: { min: 1, max: 20, step: 1, start: 5 },
@@ -268,16 +277,41 @@ export function endReplay({ track }, { skippedAt = null } = {}) {
 }
 
 /**
- * The percentage a person chose becomes the user's own line under the middle,
- * the existing setting the price line reads (store.js `lineUnderPct`). Only
- * when they touched the slider: an untouched default is not their choice and
- * must not overwrite the app's own default. Dollar mode has no home in the
- * price line yet, so it is recorded as an answer and touches nothing else.
+ * The number a person chose is their GOOD range ("what minimum discount makes an
+ * item a Good Deal for you"), in the unit they chose: a percent goes to
+ * `lineUnderPct`, a dollar amount to `lineAmounts.good`, and the unit is saved
+ * with it, so the next scan is judged on the scale they picked (lib/ranges.js).
+ * Only when they touched the slider: an untouched default is not their choice and
+ * must not overwrite the app's own default.
  */
 export function applyThreshold({ store }, mode, value, touched) {
-  if (mode !== 'percent' || !touched) return false;
-  if (!store.LINE_CHOICES.includes(value)) return false;
-  store.update({ lineUnderPct: value });
+  if (!touched || !Number.isFinite(value)) return false;
+  const unit = mode === 'amount' ? 'amount' : 'percent';
+  if (unit === 'amount') {
+    if (value < THRESHOLD.amount.min || value > THRESHOLD.amount.max) return false;
+  } else if (!store.LINE_CHOICES.includes(value)) {
+    return false;
+  }
+  const s = { ...store.get(), lineUnit: unit };
+  store.update({ ...unitPatch(unit), ...rangePatch(s, 'good', value) });
+  return true;
+}
+
+/** His Percentage (%) / Dollar Amount ($) toggle, saved the moment it is tapped. */
+export function applyMode({ store }, mode) {
+  store.update(unitPatch(mode === 'amount' ? 'amount' : 'percent'));
+}
+
+/**
+ * W14, how aggressive deal alerts should be. Stored as a setting and nothing
+ * more: there is no alert system, so nothing reads it yet. The number is the one
+ * his option names (Conservative 30%+, Recommended 20%+, Aggressive 10%+).
+ */
+export const ALERT_MIN_PCT = Object.freeze({ conservative: 30, recommended: 20, aggressive: 10 });
+
+export function applyAlertStyle({ store }, style) {
+  if (!Object.hasOwn(ALERT_MIN_PCT, style)) return false;
+  store.update({ alertStyle: style, alertMinPct: ALERT_MIN_PCT[style] });
   return true;
 }
 

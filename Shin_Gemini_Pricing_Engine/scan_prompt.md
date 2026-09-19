@@ -65,14 +65,21 @@ answer.
 ## USER INPUT
 Shelf price: {{SHELF_PRICE_OR_NULL}}
 Additional user information: {{USER_INPUT_OR_NULL}}
+(When the additional information says the image is a shelf price tag, read the product's name and its price from the tag itself; when the shelf price above is null, the price printed on the tag is the shelf price.)
 
 ## USER PRICE RANGE
-These are the user's own boundaries, set by the user, and they are
-authoritative for this scan ({{THRESHOLDS_SOURCE}}):
-Under line: {{UNDER_PCT}}% below the median
-Over line: {{OVER_PCT}}% above the median
-Use exactly these two numbers in the price math below. Never substitute
-your own.
+These are the user's own three ranges, set by the user, and they are
+authoritative for this scan ({{THRESHOLDS_SOURCE}}). The user judges a price on
+THEIR scale, not yours:
+{{RANGES_TEXT}}
+Use exactly these numbers in the price math below. Never substitute your own.
+The good range is what the price math calls the under number, the bad range is
+the over number, and the great range is the deeper one below the median.
+In dollar mode, first turn each amount into a percent: the median price for the
+shelf's size (median unit price times the shelf's size in the comparison unit)
+is the base, and percent = amount / that base * 100. Then use those percents as
+the under number, the over number and the great number everywhere below, and
+report them in `thresholds_used`. Never round an amount to make it fit.
 
 ## IMAGE
 {{IMAGE_NOTE}}
@@ -131,6 +138,10 @@ procedure. Shin shows your numbers as they stand.
    unknown, and then set `size_assumed` true). `shelf.zone` is
    "under_your_line" when its pct is at or below minus the under number,
    "over_your_line" when above the over number, otherwise "middle".
+   `shelf.grade` is the user's own reading of the shelf price on their three
+   ranges: "great" when its pct is at or below minus the great number, "good"
+   when at or below minus the under number but not great, "bad" when above the
+   over number, otherwise "middle" (null when there is no shelf price).
    `shelf.label` is the quantity and price as sold, e.g. "6 x 355 mL, 4.49".
 7. Positions for drawing: `span_pct` = the larger of the biggest absolute
    pct among the median offers and the shelf, 1.5 times the under number
@@ -139,7 +150,8 @@ procedure. Shin shows your numbers as they stand.
    and for `shelf`. `zone_under_boundary` = 50 - under / span_pct * 50 and
    `zone_over_boundary` = 50 + over / span_pct * 50.
 8. `confidence` is "thin" with only two median offers, otherwise "ok".
-   `thresholds_used` repeats the two numbers you used.
+   `thresholds_used` repeats the numbers you used as percents (`under_pct`,
+   `over_pct` and `great_pct`), the converted ones in dollar mode.
 Also set `uncertainty.overall_confidence` honestly: an answer you are not
 fully sure of is still returned, marked by a low number.
 

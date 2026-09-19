@@ -52,8 +52,8 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | a26 | Welcome tip: get the best scan | Welcome flow step 26. | `app/public/js/screens/onboarding.js` |
 | a27 | Welcome tip: SHIN evaluates your item | Welcome flow step 27. | `app/public/js/screens/onboarding.js` |
 | a28 | Welcome tip: adjust shelf price or store | Welcome flow step 28. | `app/public/js/screens/onboarding.js` |
-| a29 | Welcome tip: for highest accuracy (last welcome step) | Welcome flow step 29. Get started here hands over to setup or the camera. | `app/public/js/screens/onboarding.js` |
-| a30 | Pick your Shin (attitude and your two price lines) | First launch after the welcome flow, once. Or ?s=setup. | `app/public/js/screens/setup.js` |
+| a29 | Welcome tip: for highest accuracy | Welcome flow step 29. Continue goes to Evaluating Deal (a84). | `app/public/js/screens/onboarding.js` |
+| a30 | Pick your Shin (attitude and your three price ranges) | First launch after the welcome flow, once. Or ?s=setup. | `app/public/js/screens/setup.js` |
 | a31 | Your data (photos and location switches) | First launch after setup, once. Or ?s=consent. | `app/public/js/screens/consent.js` |
 
 ### Camera and verdict
@@ -62,7 +62,7 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | --- | --- | --- | --- |
 | a32 | Camera, barcode mode (where the app opens) | Cold start once setup and consent are done. Or tap Barcode on the mode switch. | `app/public/js/screens/camera.js` |
 | a33 | Camera, barcode found, Scan barcode button showing | In barcode mode, hold a barcode in the frame until the reader agrees on it. | `app/public/js/screens/camera.js` |
-| a34 | Camera, photo mode (shutter button) | Tap Photo on the mode switch above the shutter. | `app/public/js/screens/camera.js` |
+| a34 | Camera, Price Tag mode (shutter button) | Tap Price Tag on the mode switch above the shutter. | `app/public/js/screens/camera.js` |
 | a35 | Camera with no live feed (drawn shelf instead) | Camera permission denied, no camera on the device, a private window, or a desktop without one. | `app/public/js/screens/camera.js` |
 | a36 | Camera, frame frozen while Shin reads it | Just after the shutter or Scan barcode button, before any sheet rises. | `app/public/js/screens/camera.js` |
 | a37 | Working sheet, the three-step wait | After a scan is identified and the price request is under way. The x cancels. | `app/public/js/screens/camera.js` |
@@ -81,6 +81,9 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | a50 | Which shop are you in? (store picker) | Price pad, tap the shop row. | `app/public/js/screens/camera.js` |
 | a51 | Price written down card (price saved with no verdict) | Refusal sheet, tap the price-only button, type a price (and a name if you like), confirm. | `app/public/js/screens/camera.js` |
 | a52 | Type what it is (name the item) | Refusal sheet, tap Type what it is. | `app/public/js/screens/camera.js` |
+| a81 | Camera, Manual Search mode (no viewfinder control) | Tap Manual Search on the mode switch. The name field opens at once as a52; close it and this is what is left. | `app/public/js/screens/camera.js` |
+| a82 | Answer sheet with your earlier prices (price history chart) | Half open answer sheet for an item you have scanned with a typed price at least twice before. Absent otherwise. | `app/public/js/screens/camera.js` |
+| a83 | Price pad with the good-price or better-buy choice | The price pad right after a scan (barcode, Price Tag or Manual Search). Flip between Is this a good price and Find a better buy. | `app/public/js/screens/camera.js` |
 
 ### Saved, Past scans, Recently removed
 
@@ -129,6 +132,9 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | a78 | Page: First Scan to Habit (walkthrough) | Open the file. No badge is drawn. | `pages/shin-walkthrough.html` |
 | a79 | Page: The Hard Dozen | Open the file. No badge is drawn. | `pages/shin-hard-dozen.html` |
 | a80 | Page: The Correcting Build | Open the file. No badge is drawn. | `pages/shin-build-plan.html` |
+| a84 | Welcome: Evaluating Deal (progress bar, last welcome step) | Welcome flow step 31, after the four tips. Get started here hands over to setup or the camera. | `app/public/js/screens/onboarding.js` |
+| a85 | Savings Overview (recently scanned, measured savings) | You, tap Savings overview. Or ?s=savings. | `app/public/js/screens/savings.js` |
+| a86 | Savings Overview, nothing scanned yet | Open Savings overview on a device with no scan history. | `app/public/js/screens/savings.js` |
 
 ## Not tagged, with reason
 
@@ -144,7 +150,7 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | Consent, setup and market storage-not-kept line | One inline sentence added to a screen that is already tagged. |
 | The list-screen "loading" state on Saved, Past scans, Recently removed | Coded but unreachable: phase is never set to loading. If a path that sets it is added, give it tags then. |
 | Share with no scan to share | It redirects to the camera at once, so nobody lands on it. |
-| Onboarding replay (Watch the welcome again) | Runs the same 29 steps with ?replay=1, so a1 to a29 cover it. |
+| Onboarding replay (Watch the welcome again) | Runs the same 30 steps with ?replay=1, so a1 to a29 and a84 cover it. |
 | Row-delete confirm state on Recently removed (Tap again) | A button changing its label, not a view. |
 | The bottom page bar and the back button | Chrome on tagged screens, not screens. |
 | The phone's own permission prompts (camera, location) and share sheet | Drawn by the operating system, not by this app; the app cannot tag them. |

@@ -530,6 +530,31 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
       db.exec('CREATE INDEX IF NOT EXISTS gemini_call_model ON gemini_call(model, requested_at);');
     },
   },
+  {
+    version: 13,
+    name: 'the good-deal verdict as its own field, and the over-cap mark',
+    apply(db) {
+      /*
+       * Audit rows 20 and 16 and 32 (2026-09-19). Row 20: Jamin wants "whether it
+       * was a good deal" saved as data. Until now it was only derivable, from the
+       * thresholds plus the zone buried in `gemini_call.answer_text`. Now the scan
+       * row carries it as fields: `verdict_zone` is the zone Gemini returned for
+       * the shelf price against the user's own lines ('under_your_line', 'middle',
+       * 'over_your_line', NULL when there was no shelf price or no verdict), and
+       * `verdict_thresholds_json` is the thresholds that were used ({underPct,
+       * overPct, source}). Rows before this migration stay NULL: nothing is
+       * backfilled, because a backfill would be Shin's own reading of an old
+       * answer and not what was recorded that day.
+       *
+       * Rows 16 and 32: crossing the daily soft spend cap never refuses a scan any
+       * more. `over_cap` is 1 on a scan made past the soft cap (or stopped at the
+       * hard ceiling), 0 otherwise. Additive only.
+       */
+      addColumnIfMissing(db, 'scan', 'verdict_zone', 'TEXT');
+      addColumnIfMissing(db, 'scan', 'verdict_thresholds_json', 'TEXT');
+      addColumnIfMissing(db, 'scan', 'over_cap', 'INTEGER NOT NULL DEFAULT 0');
+    },
+  },
 ];
 
 /** What `schema_version` says this database is at. 0 means nothing has run. */

@@ -720,6 +720,19 @@
                 null
               ]
             },
+            "grade": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "great",
+                "good",
+                "middle",
+                "bad",
+                null
+              ]
+            },
             "label": {
               "type": [
                 "string",
@@ -742,6 +755,9 @@
               "type": "number"
             },
             "over_pct": {
+              "type": "number"
+            },
+            "great_pct": {
               "type": "number"
             }
           },

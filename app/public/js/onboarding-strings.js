@@ -191,6 +191,11 @@ export const ONB_EN = {
   onb_tip_accuracy_1: 'Scan the barcode',
   onb_tip_accuracy_2: 'Or take a photo of the shelf price tag',
   onb_tip_accuracy_3: 'Alternatively, search the product database',
+
+  /* 31: his "Evaluating Deal..." with a progress bar. The status line is his; the
+     stage lines under it are the scan wait's own (voice.js working_step1 to 3). */
+  onb_eval_title: 'Evaluating Deal...',
+  onb_eval_status: 'Comparing prices across local retailers...',
 };
 
 export const ONB_FR = {
@@ -345,4 +350,7 @@ export const ONB_FR = {
   onb_tip_accuracy_1: 'Scanne le code-barres',
   onb_tip_accuracy_2: 'Ou prends une photo de l’étiquette de prix',
   onb_tip_accuracy_3: 'Ou cherche dans la base de produits',
+
+  onb_eval_title: 'Évaluation de l’aubaine...',
+  onb_eval_status: 'Comparaison des prix chez les détaillants locaux...',
 };

@@ -23,7 +23,7 @@
  * interpolations were here.
  */
 
-import { faceSvg, faceBlock, shinSay, cad, animateFace, confidenceOf, dotsHtml, sellerOf, tierOf } from '../shin.js';
+import { faceSvg, faceBlock, shinSay, marketMoney, animateFace, confidenceOf, dotsHtml, sellerOf, tierOf } from '../shin.js';
 import { say, wordFor } from '../voice.js';
 import * as store from '../store.js';
 import { FLAGS } from '../flags.js';
@@ -61,8 +61,8 @@ export function row(w, history) {
 
   const delta = moved === null ? t('saved_no_usual')
     : moved === 0 ? t('saved_at_the_usual')
-    : cheaper ? `▼ ${cad(Math.abs(moved))} ${t('saved_under_usual')}`
-    : `▲ ${cad(moved)} ${t('saved_over_usual')}`;
+    : cheaper ? `▼ ${marketMoney(Math.abs(moved))} ${t('saved_under_usual')}`
+    : `▲ ${marketMoney(moved)} ${t('saved_over_usual')}`;
 
   // `data-fk` is the focus key the repainter finds this control by after a
   // full teardown. Built from the row's id, never its index, so it survives
@@ -78,7 +78,7 @@ export function row(w, history) {
           <span class="row-sub">${w.askingSeller ? `${w.askingSeller} · ` : ''}saved ${ago(w.savedAt)}</span>
         </span>
         <span class="wrow-p${cheaper ? ' good' : ''}">
-          ${cad(w.lastCents)}
+          ${marketMoney(w.lastCents)}
           <em>${delta}</em>
         </span>
       </button>
@@ -105,7 +105,7 @@ export function detailModal(w, match) {
     const v = match.result;
     const conf = confidenceOf(v);
     const source = sellerOf(v);
-    const facts = { asking: cad(v.askingCents), usual: cad(v.spread.medianCents) };
+    const facts = { asking: marketMoney(v.askingCents), usual: marketMoney(v.spread.medianCents) };
 
     return html`
       <div class="pmodal" data-act="modal">
@@ -127,7 +127,7 @@ export function detailModal(w, match) {
   const facts = {
     item: w.label,
     seller: w.askingSeller ?? '',
-    price: typeof w.lastCents === 'number' ? cad(w.lastCents) : '--',
+    price: typeof w.lastCents === 'number' ? marketMoney(w.lastCents) : '--',
     day: ago(w.savedAt),
   };
   return html`
@@ -215,7 +215,7 @@ export default {
         const facts = first ? {
           item: first.label,
           seller: first.askingSeller ?? '',
-          price: cad(first.lastCents),
+          price: marketMoney(first.lastCents),
           day: ago(first.savedAt),
         } : {};
         return shinSay(face, 'watchlist_callback', facts, { size: 64, anim: 'idle-breath' });
@@ -269,11 +269,11 @@ export default {
                    ${raw(faceBlock('nudging', { size: 'face-page' }))}
                    <div>
                      <b>${say('dropped', {
-                       asking: cad(dropped[0].lastCents),
+                       asking: marketMoney(dropped[0].lastCents),
                        seller: dropped[0].askingSeller ?? t('saved_the_seller'),
-                       usual: cad(dropped[0].usualCents),
+                       usual: marketMoney(dropped[0].usualCents),
                      })}</b>
-                     <span>${dropped[0].label}${t('saved_comma_under_the_usual')} ${cad(dropped[0].usualCents)}.</span>
+                     <span>${dropped[0].label}${t('saved_comma_under_the_usual')} ${marketMoney(dropped[0].usualCents)}.</span>
                    </div>
                  </div>`
               : '',
