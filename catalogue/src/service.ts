@@ -112,7 +112,38 @@ export function startCatalogueService(dbPath: string): CatalogueService {
     });
   }
 
-  const ready = send<{ warm: boolean; embedder: string }>({ kind: 'warm' }).then(() => undefined);
+  /*
+   * D-129. The warm job is a PRE-LOAD: worker.ts calls it "one tiny embed,
+   * purely to pull the ONNX model into memory before a person is waiting on
+   * it". Failing it should cost a slow first query. It was killing the
+   * server at boot instead.
+   *
+   * Loading an ONNX model off a cold disk can take longer than
+   * SEARCH_TIMEOUT_MS, so `send` rejects; NOTHING awaits `ready` -- the field
+   * is declared on the interface and has no consumer anywhere in the repo --
+   * so the rejection is unhandled and Node 24 exits the process. Measured on
+   * this machine 2026-09-19: `node app/server.ts` prints its banner, prints
+   * `meaning search off: 0 rows embedded`, and then dies on
+   * "catalogue worker did not answer a warm within 5000 ms".
+   *
+   * THE SERVER WAS DYING WAITING FOR A SUBSYSTEM IT HAD JUST TURNED OFF.
+   * With no rows embedded, meaning search does not run at all, so the model
+   * being warmed is one no query will use.
+   *
+   * This is the same unhandled-rejection death `app/test/hostile-request
+   * .test.mjs` was written for on 2026-09-08, in a second place: there a
+   * malformed Host header threw outside a try, here a pre-load misses a
+   * deadline. Both end with the process gone for everybody.
+   */
+  const ready = send<{ warm: boolean; embedder: string }>({ kind: 'warm' })
+    .then(() => undefined)
+    .catch((err: unknown) => {
+      // Named on stderr rather than swallowed: a warm that never lands means
+      // every first query pays the model load, and that is worth seeing.
+      console.error(
+        `catalogue warm did not land, serving anyway: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
 
   return {
     ready,
