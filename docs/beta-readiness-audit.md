@@ -2,9 +2,8 @@
 
 Date: 2026-09-08. Scope: every package (app, spine, price, catalogue, identify), the App
 Store and Google Play submission processes, and the project's own status files, checked
-against the founder's own bar for beta: all of a catalogue running into the hundreds of
-thousands of items identifiable, every screen working, and every process involved including
-both store submissions.
+against the founder's own bar for beta: every screen working, and every process involved
+including both store submissions.
 
 Method: read the real source of every package, ran every test suite directly, queried both
 live databases directly, and researched the two stores' current requirements from their own
@@ -43,22 +42,6 @@ sporting goods, and medical equipment all fall through to an explicit "we know w
 we cannot price it yet." This is a deliberate scope limit, not a bug, but it means a large
 share of what the catalogue can already name will not produce a verdict until the mapping is
 extended.
-
-## The vision identification path has never been tested against the real thing it depends on
-
-Every test for it fakes the model out; none sends a real photo through the real API and
-checks the answer against a known truth. A real search during this audit returned three
-distinct products with different barcodes scoring within three ten-thousandths of each other,
-exactly the kind of near-identical-variant confusion semantic matching exists to catch. That
-smarter matching mode is switched off in production for performance reasons: the server's own
-cutoff is 90,000 embedded rows, confirmed directly in code, while the real embedded count is
-718,662, about eight times past it. Production currently runs on keyword matching alone at
-exactly the scale where that is weakest.
-
-There is no timeout, no retry policy, and no spending cap anywhere in the code that calls the
-vision model. Every possible failure there, a rate limit, an outage, a malformed response, or
-a genuinely unreadable photo, is shown to the user as the identical message: the photo could
-not be read. An outage during a beta would look identical to bad user photos in the data.
 
 ## A fix the founder personally asked for was never wired into the app that ships
 
@@ -124,7 +107,5 @@ a current blocker, only a constraint on however it gets built.
    thousands of items," not the catalogue itself.
 4. The pricing philosophy the founder already corrected was never connected to the shipping
    app. This should be fixed regardless of scale, since it is already wrong today.
-5. The vision identification path is unverified at the accuracy level the founder is asking
-   for, and the mode built to handle near-identical products is off at current scale.
-6. The app's screens themselves are in good shape; the remaining gaps there are narrow and
+5. The app's screens themselves are in good shape; the remaining gaps there are narrow and
    named above, not structural.

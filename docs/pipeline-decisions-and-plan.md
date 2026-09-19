@@ -81,45 +81,6 @@ day, in chat, and is answered differently here.
     should not cost someone their session.
 14. **Only the crop leaves the device, never the full frame**, stated once on screen.
 
-### Identification
-
-15. **Barcode always beats the model.** A barcode is truth; a model is an opinion.
-16. **The model returns fields, not prose:** brand, product line, variant, size, unit, category,
-    and the alternates it considered.
-17. **Ranked candidates always exist, never a single guess.** Top one shown large, "not this?"
-    reveals the rest, permanently rather than only on failure. The pilot's worst failure was a
-    confident single wrong answer.
-18. **Confidence is derived in our own code, never the model's self-report.** **[reversal]**
-    Combine barcode presence, catalogue match score, brand agreement, size agreement, and the gap
-    between first and second candidate. Self-reported confidence is uncalibrated and the whole
-    product's credibility rests on this number.
-19. **Size and variant are identity.** 1L and 500ml never share a verdict. Unresolved size asks,
-    as two buttons.
-20. **French and English match to the same row, both directions.** Canadian packaging is bilingual.
-21. **Basic gets the same pipeline, only a smaller model.** Same schema, same candidates, same
-    confidence maths. A tier that feels broken does not sell the upgrade, it teaches people the
-    product does not work.
-22. **"We know what this is, we do not have it" is a different screen from "we do not know what
-    this is."** The engine already tells them apart with `no_source_response` against `no_identity`;
-    the screen is what is missing.
-
-### Catalogue
-
-23. **Open Food Facts for grocery identity**, retailer catalogues added per category as feeds land.
-24. **Hybrid retrieval: full text and vector embeddings, fused.** **[reversal, and the largest]**
-    Text alone misses paraphrase and partial brand names; vectors alone miss exact model numbers
-    and sizes. The cost is a native dependency; the benefit is the difference between "found it"
-    and "no results", which is the product.
-25. **A multilingual embedding model**, for the same reason as 20.
-26. **Three match bands, not two:** confident proceeds, ambiguous shows ranked candidates, miss
-    shows neighbours. Two bands force everything into a wrong bucket.
-27. **Neighbours widen in rings and the ring is named.** Other oranges before other citrus, citrus
-    before fruit, and the screen says which ring it fell back to.
-28. **Filter to Canada, keep the rest reachable.** An import or a traveller's item should resolve.
-29. **When our copy misses, hit the live source before declaring a miss.** Staleness is our problem.
-30. **A miss records the barcode and crop as a catalogue gap and tells the user they are the first
-    to scan it.** A failure becomes a contribution. Nothing typed enters the catalogue automatically.
-
 ### Price
 
 31. **Two independent sellers minimum before any verdict.**
@@ -191,24 +152,6 @@ something other than image count.
 
 Named libraries, not capabilities. Every stage lists the decisions it discharges.
 
-### Stage 1. The catalogue
-
-Everything downstream reads it. Nothing else starts until it answers.
-
-Open Food Facts, Canada-filtered, into SQLite. Two indexes over the same rows: **FTS5** (present in
-this machine's Node build, verified 2026-09-04) for exact and token matching, and **sqlite-vec**
-holding **voyage-4** embeddings of name, brand and category in both official languages. Queries
-fuse both rankings into three bands. On a miss, walk the category tree outward in rings and return
-the ring by name.
-
-Embedding cost: the catalogue is roughly four million tokens, voyage-4 is $0.06/M with 200M free
-tokens on signup, so the initial load and many rebuilds cost nothing.
-
-**Done when:** half a garbled French product name returns the right English row, and a product that
-does not exist returns named neighbours rather than nothing.
-
-*Discharges 20, 23, 24, 25, 26, 27, 28, 29, 30.*
-
 ### Stage 2. Barcode
 
 **zxing-wasm**, chosen over zbar-wasm because it explicitly carries DataBar, DataBar Expanded and
@@ -235,17 +178,6 @@ salient objects means two boxes and a tap.
 and a deliberately shaky shot still yields a sharp crop.
 
 *Discharges 1, 5, 6, 7, 8, 9, 11, 12, 14.*
-
-### Stage 4. Model identification
-
-One call, structured output, no prose. Haiku 4.5 on basic, Opus 5 on pro, identical schema and
-identical downstream handling. Confidence computed from five signals in our code. Ranked candidates
-always present; one shown, the rest one tap away. Unresolved size asks with two buttons.
-
-**Done when:** it names things in a kitchen correctly, and when it is wrong the right answer is the
-second row, one tap away.
-
-*Discharges 16, 17, 18, 19, 21, 22.*
 
 ### Stage 5. The shelf tag
 
@@ -276,10 +208,7 @@ anywhere on the page**: not in the markup, not in the structured data, not in th
 was built from. Searched for the exact code and it is absent.
 
 So the two sellers that decision 31 requires do not join the same way, and the second one can only
-be tied to a product by brand, name and size. That is not a detail of a feed, it is a rule the
-price stage has to hold: a source that joins by name may contribute an observation only when the
-catalogue's own search puts the match in its confident band, and every listing it refuses is kept
-as a recorded gap rather than dropped. Built that way in `price/src/sources.ts`.
+be tied to a product by brand, name and size. Built that way in `price/src/sources.ts`.
 
 **Done when:** the verdict fires for one category on real numbers, with the age of the oldest
 number on screen.

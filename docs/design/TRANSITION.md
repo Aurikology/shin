@@ -153,7 +153,6 @@ with the call. **Source** names where the instruction lives.
 | Share card, no download link | usage 7 item 3 | Built, 347 lines | Absent | Port, re-dress at the reserved 220px face. |
 | Thumbs on a verdict, rewarded with nothing | gamification, in v1 | Built | Absent | Port. |
 | Refusal: one action per reason, fixed sentence, no red, no shake, no buzz | usage 4 | Built | **Absent entirely.** No refusal exists in the prototype. | **Build.** See section 3. |
-| Candidate list when identity is unsure | drop-off 3 | Built | Absent | Port. |
 | What I can price, measured by asking the engine | refusal actions | Built | Absent | Port. |
 | Past scans, watchlist with badge, weekly line, "Shin was right" record-only | gamification, in v1 | Built | Absent | Port. |
 | Personality choice and setup | avatar contract | Built | Three personalities in the mascot lines, no chooser | Port the chooser. |

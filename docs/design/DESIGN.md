@@ -272,12 +272,6 @@ cards: `surface` at 16px radius, rows 52px with a 1px `hairline` divider inset 1
 chevron on rows that go somewhere, a tick on the chosen row of a picker. Section headings are
 sentence case in the UI face; mono uppercase stays reserved for a recorded measurement.
 
-**A list ON the camera is the same card one step up the ladder.** The candidate picker rides a
-sheet whose own fill is `surface`, so its card is `raised` and its rows are 56px, because a
-candidate row carries a name over a price and a seller. No chevron and no tick: its rows resolve
-in place rather than going somewhere. Everything else is the rule above. Added 2026-09-11, when
-the picker was eight separate cards with gaps and read as eight objects rather than one list.
-
 **Scan, identify and verdict are one surface.** The frame freezes in place, a reticle contracts
 onto what was found, and a sheet rises from the bottom over the frozen frame. The user never
 leaves the picture they took. Going back is a downward drag, not a back button.
@@ -299,8 +293,7 @@ the verdict, and the correction.
   own arithmetic, because the verdict is computed against the number displayed and never against
   an unshown intermediate.
 - **The work is a screen, not a spinner.** While Shin runs, the `thinking` face carries the named
-  step, in three: identifying the product, searching for prices, checking the sellers. The item
-  the user picked is echoed beside it. A downward drag aborts the run, and the repair action is
+  step. The item the user picked is echoed beside it. A downward drag aborts the run, and the repair action is
   live during the wait rather than only after the failure (OLMA audit rows 47, 48, 49, 50, all
   take). When the run ends in a refusal, **the step that came up empty is named in the refusal
   panel**, in provenance mono. This file had motion for the verdict arriving and nothing at all for
@@ -392,7 +385,7 @@ Added by the forty-screen list:
 18. **Asking price pad**, a large numeric keypad with a clear key, a percent-off key and a
     multi-buy key, each showing its own arithmetic. OLMA rows 38, 41, 42, 43, take and adapt,
     plus `USAGE.md` A1 0:13.4 and drop-off 5.
-19. **Working panel**, the `thinking` face over a named step that swaps three times, with the
+19. **Working panel**, the `thinking` face over a named step, with the
     picked item echoed beside it and a drag that aborts. OLMA rows 47, 48, 49, 50, take.
 20. **Identity chip**, under the reticle, carrying the resolved name and tappable as the
     wrong-item repair. `USAGE.md` A1 0:12.9, OLMA row 48.

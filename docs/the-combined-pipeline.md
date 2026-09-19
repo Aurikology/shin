@@ -3,12 +3,6 @@
 Written 2026-09-05 on his instruction: take OLMA's pipeline as the base, put the barcode and the
 catalogue in front of it, drop the accuracy-first posture, and describe the whole thing.
 
-His correction, which governs every line below:
-
-> *"You also created your own rules and said that accuracy is the most important thing. When in
-> reality, its not and it impeeds so much of our design. I believe almost everything olma did is
-> correct except they didn't integrate our barcode and cateloge system."*
-
 This file supersedes `docs/pipeline-decisions-and-plan.md` wherever the two disagree. That file
 stays as the record of what was decided and why, including the parts now reversed.
 
@@ -109,48 +103,6 @@ extracted and falls back to the keypad without ceremony.
 build: by the time the user taps Analyze, the product name is already on the next screen. The
 user's typing is the latency budget. Nothing is wasted.
 
-Order of attempts, cheapest first:
-
-1. **Barcode.** Exact. Done. Free, unmetered, no model, no server.
-2. **Catalogue.** Text from the photo into the hybrid index. Keyword and vector search fused by
-   rank position. Free, unmetered. Size and shape as measured 2026-09-05, after his reload:
-   **5,182,591 products, 3.6 GB**, of which icecat 4,972,252, openfoodfacts 122,154,
-   openbeautyfacts 48,943, openproductsfacts 26,948, openpetfoodfacts 12,294. Canadian rows
-   carrying a brand: 618,364, being icecat 494,513 and grocery 76,965. The `sold_in_canada` flag
-   has not been recomputed for the newly loaded rows.
-3. **Model read plus catalogue.** A vision model turns the crop into fields (brand, product line,
-   variant, size, unit, category) and those fields query the catalogue. This is the metered
-   photo search.
-4. **Online search.** Paid tier only, and only when the catalogue misses. Not a second opinion on
-   a hit.
-
-**The half-built half of that index, measured 2026-09-05 and worth knowing before trusting it.**
-The full text index covers all 5,182,591 rows. **The vector index covers 437,574.** Broken down:
-every one of the 122,154 grocery rows has a vector, as do all the beauty, products and pet food
-rows, but only 230,947 of 4,972,252 electronics rows do, which is 4.6%.
-
-So the semantic half of retrieval is complete for grocery and effectively absent for electronics.
-A photo of a laptop cable is matched on keywords alone. That is a real gap and it should be
-stated rather than papered over, but it is not the gap it first looks like: grocery, which is the
-lead category, is fully served.
-
-Checked rather than assumed: 4.97 million electronics rows do NOT drown grocery text queries.
-"orange juice", "peanut butter" and "milk chocolate" all return grocery rows in the top five,
-because the ranking favours short exact names over long electronics part descriptions. No source
-filter is needed for correctness on the text path.
-
-### Stage D. Verification, which is the step everybody skips
-
-Take the winning catalogue row's own product image and the user's crop, show a vision model both,
-and ask one question: same product, and if not, what differs.
-
-This is almost certainly what OLMA's "Verifying results" step is. It turns a ranking into a
-decision. Without it we ship a sorted list wearing the costume of an answer.
-
-If it says no, we do not fall back to the second-ranked row. The second row is usually a near
-duplicate of the first and fails the same way. We show the top candidate with a "not this?"
-affordance and let the user correct it, which is free and does not count against the meter.
-
 ### Stage E. The three named steps
 
 One connection held open, one event per stage. The client draws each payload as it lands.
@@ -201,7 +153,6 @@ His design, unchanged in shape:
 | Barcode | unlimited | unlimited |
 | Catalogue search | unlimited | unlimited |
 | Photo search | three a week | unlimited |
-| Online search on a catalogue miss | no | yes |
 | Priority | no | yes |
 
 A search counts only when it produced an identification the user accepted. Our own failures are

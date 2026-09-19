@@ -4,18 +4,6 @@ Researched 2026-09-05. Every number here came off the vendor's own page on that 
 row says otherwise, and the rows that could not be confirmed say so rather than carrying a
 plausible number. Sources are listed at the bottom so nothing here gets looked up twice.
 
-## The shape of the cost, before any vendor
-
-A catalogue lookup is one-time per distinct product. A price lookup is recurring per watched
-item, forever. A barcode's identity does not change; its price changes weekly. So the catalogue
-is the cheap half of the data problem and the price feed is the expensive half, and the
-$675/mo watched-item figure already derived in `notes/session-2026-09-03.md` is a price number,
-not a catalogue number.
-
-The whole cost argument below rests on caching an identity once and never paying for it again.
-That assumption is not yet verified against any vendor's terms. See "What would make this
-wrong", item 2.
-
 ## What is loaded, 2026-09-05
 
 Every free source that needs no account is now in the catalogue. Counts are read out of the
@@ -36,9 +24,8 @@ cosmetics are now searchable; Canada's are barely. Anyone reading the 211,846 as
 be wrong by two orders of magnitude in the categories these sources were added for.
 
 They are loaded whole rather than filtered to Canada because decision 28 says country is a
-column and not a load-time filter, and because a scan of an imported product should still be able
-to say what the thing is even when no Canadian price exists for it. The alternatives path already
-filters to Canada on its own, so cheaper-swap suggestions cannot wander offshore.
+column and not a load-time filter. The alternatives path already filters to Canada on its own,
+so cheaper-swap suggestions cannot wander offshore.
 
 What the export threw away, counted rather than glossed: 45,135 rows across the three files carry
 no product name in any language, so they can neither be shown nor matched. That is 34% of what
@@ -130,63 +117,6 @@ Open Icecat is the real find for the new-tech category, which the 2026-09-03 pil
 already named as the best-served of the five. It is brand-approved datasheets rather than
 crowd-entered rows, which is a higher grade of identity than anything else on this list.
 
-## Paid lookup APIs, for filling the misses
-
-Ordered by cost per thousand lookups at each vendor's best published tier.
-
-**Every per-1,000 figure in this table is derived, not quoted.** The vendors publish a monthly
-price and an included call count; the third column is the first divided by the second, by me, on
-2026-09-05. No vendor advertises a per-1,000 rate except UPCitemdb, whose published overage rate
-is in the notes below. The two UPCitemdb rows carry a second derivation on top: that vendor meters
-by day, not by month, so the monthly volume assumes 30 days at the full daily allowance. A month
-that does not use the full daily quota every day pays the same price for fewer lookups, which
-makes the real rate worse than the number shown.
-
-| Vendor | Best tier | Per 1,000 lookups (derived) | Entry tier | Claimed size |
-|---|---|---|---|---|
-| UPCitemdb | Pro, $699/mo, 150,000 lookups/day | $0.155 ($699 / 4,500,000) | Free, 100/day, no signup; Dev $99/mo for 20,000/day, which is $0.165 | Not published |
-| upcdatabase.org | Professional, $25/mo, 100,000 lookups | $0.25 ($25 / 100,000) | Free 100/mo; Hobbyist $2.50/mo for 1,000 | Not published |
-| EAN-Search | Gold, EUR 149/mo, 300,000 queries | EUR 0.497 (149 / 300,000) | Trial EUR 1 first month then EUR 9; Pro EUR 19/mo for 5,000 | 1.2 billion barcodes |
-| Go-UPC | Enterprise, $795/mo, 450,000 requests | $1.767 ($795 / 450,000) | Developer $74.95/mo for 5,000 | 500 million products |
-| Barcode Lookup | Enterprise, $949/mo, 500,000 calls | $1.898 ($949 / 500,000) | Starter $99/mo for 5,000 | Not published |
-
-The one rate a vendor states outright rather than leaving to arithmetic is UPCitemdb's overage:
-$0.04 per 100 lookups, which is $0.40 per 1,000, and $0.03 per 10 search calls, which is $3.00
-per 1,000. Overage is what gets paid past quota, so on any month that runs over, $0.40 is the
-real marginal rate rather than the $0.155 in the table.
-
-Two of these are worth more than their rank suggests.
-
-**UPCitemdb** is the cheapest at volume by a factor of ten against the two best-known vendors,
-and its free tier needs no signup at all, so it can be tested against a real miss list this week
-without a card.
-
-**Barcode Lookup** is the only one that is a catalogue and a price source in the same call. Its
-API takes a `Geo` parameter with `CA` as a value, and the response carries a `Stores` array with
-store name, price, currency and link. If those Canadian store prices are real and current, it
-collapses two of Shin's problems into one vendor, which would be worth paying five times the
-per-lookup rate for. It offers a free test account, so this is checkable before spending.
-
-## Quote-only, no published price
-
-- **GS1 Canada.** The authoritative Canadian source, and the only one where the data comes from
-  the brand owner rather than from a crowd or a scrape. Subscriber-based: a small-business
-  subscription starts at $26.25, and the service fee schedules scale by annual Canadian sales
-  revenue. The published fee schedule found is for product recall, not for catalogue access, so
-  the real number needs a call to 1.800.567.7084 ext. 3721.
-- **Verified by GS1.** The global registry that confirms a barcode is real and names its owner.
-  Batch and API access is enterprise and routes through the local GS1 office. It verifies
-  identity, it does not hand over a rich datasheet, so it is a trust layer rather than a
-  catalogue.
-- **Nutritionix.** Claims 92% coverage of US and Canadian groceries and 600,000+ UPCs, which is
-  the strongest Canadian grocery claim on this page. No self-serve tier. A third-party listing
-  says pricing starts at $1,850/mo; their own pricing page returned HTTP 402 to an automated
-  fetch, so that number is unconfirmed and should be treated as hearsay until they quote it.
-- **Syndigo, which acquired 1WorldSync in September 2025.** The CPG industry's own syndication
-  layer. No public price; third-party contract data puts the SMB average near $45,839/yr. Out
-  of range and out of shape for this stage.
-- **Full Icecat.** 40,000+ brands against Open Icecat's 600. Billed yearly, quote only.
-
 ## Retailer catalogues, which carry identity and live price together
 
 - **Best Buy developer API.** Free key, no card. More than one million current and historical
@@ -214,31 +144,6 @@ not caught by the share-alike; the table behind it may be. The cheap version of 
 structural rather than legal: keep OFF-derived rows in their own table, so that if share-alike
 does apply it applies to a table Shin could publish without giving away anything of its own.
 This needs a read before the catalogue carries anything proprietary, not before the next build.
-
-**2. Whether paid vendors permit caching.** Every per-lookup number above is a one-time cost only
-if an identity can be stored once and reused. Go-UPC's terms require deleting all product data on
-termination and forbid resale or redistribution, which does not settle whether an active
-subscriber may cache. If caching turns out to be forbidden, the cost becomes recurring per scan
-and the ranking on this page changes completely. Confirm in writing with whichever vendor is
-picked, before the first invoice.
-
-## Recommendation
-
-Buy nothing yet. In order:
-
-1. Grocery identity is already solved and already free. Nothing on this page improves it enough
-   to pay for.
-2. Extend on the free tier first: Open Beauty Facts and Open Products Facts as bulk loads, Open
-   Icecat for the tech category, a free Best Buy key for tech identity with live price, a free
-   eBay key for used comparables. That is five sources and zero dollars.
-3. Only then measure the miss rate on real scans, per category. The miss rate is the number that
-   decides whether anything gets bought, and it does not exist yet.
-4. When it does, the two to test are UPCitemdb's free tier, which needs no signup, and Barcode
-   Lookup's free test account, specifically to see whether its Canadian store prices are real.
-
-**Reverses if:** the measured miss rate is high in a category none of the free sources cover, or
-if Barcode Lookup's Canadian store prices check out, either of which turns a purchase from
-premature into obvious.
 
 ## What was not opened, so nobody assumes it was
 

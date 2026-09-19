@@ -171,8 +171,6 @@ Named per the brief. Every row applies to both scripts unless the row says other
 | # | Drop-off | What the user experiences | What the app does |
 | --- | --- | --- | --- |
 | 1 | **The permission prompt** | The system sheet lands before they have seen anything work | A one line primer 1.2s before the system prompt, on the surface the camera will fill, with the shutter relabelled `Allow camera` so the prompt is something they asked for. **If they deny**, the app does not nag and does not block: the drawn shelf fallback already in `camera.js` keeps every control in the same place, and the `Last screenshot` control is promoted to the shutter's position, because a denied camera makes the screenshot path the only path. One line: "No camera then. Screenshots work too." Never a wall, never a second ask in the same session. |
-| 2 | **Identification fails** (`no_identity`) | Nothing resolves. No barcode, or a barcode that matches nothing. | The reticle stops contracting and the hint becomes the repair: "No barcode I can read. Type what it is." A text field, not a list. In the aisle this is the loose-produce and no-tag-facing-out case, and it is common. |
-| 3 | **Identification is unsure** (`identity_unsure`) | Two products are close, the R6 case from the pilot | The candidate list, which is the one refusal that most often becomes a verdict. `voice.js` already carries the line: "The wrong match would price a different product, so pick it and I will." **A wrong verdict is worse than no verdict**, so this refuses rather than guessing the top match, even though guessing would be faster. Priority order, applied. |
 | 4 | **The item is not in the corpus** (`no_source_response`, `too_few_points`, `points_too_stale`) | Identity resolved, prices did not | The refusal script, section 4. The evidence Shin did find is shown under the sheet, and the line that must never change is the one already in `camera.js`: "That is a gap in what I have been taught, not a fact about the market." |
 | 5 | **The price tag is unreadable** | Glare, a tag for a different size, a multi-buy price like 4 for $5.00 | v1 never reads a tag, so this cannot fail silently: the user types the number. The pad carries one affordance for the multi-buy case, a `4 for` toggle that divides, shows its own arithmetic on screen, and labels the result as a unit price. **The verdict is computed against the number displayed, never against an unshown intermediate.** |
 | 6 | **The meter is at zero** | Cannot happen in v1 | There is no meter in v1, section 6. If the switch is ever flipped, the zero state is specified there. |
@@ -216,8 +214,6 @@ choice about how to feel and the user will pick the exit.
 
 | Reason | The one action | Why it is that one |
 | --- | --- | --- |
-| `no_identity` | Type what it is | The only repair. Nothing else is known. |
-| `identity_unsure` | Which one is it | The refusal most likely to become a verdict |
 | `category_unsupported` | What I can price | The honest answer to "why did this fail", measured by asking the engine to price everything it knows rather than counting rows, which `you.js` already does |
 | `no_source_response`, `too_few_points`, `points_too_stale`, `comparison_incoherent` | **Keep it** | Shin cannot price it and cannot promise it ever will. It can record what the user read, dated and attributed to a named seller. That is a thing it verifiably did, not a favour it asked for. |
 | `no_asking_price` | Tell me the price | This is the couch card, section 2, and it is not drawn as a refusal at all |
