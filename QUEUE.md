@@ -182,6 +182,7 @@ invented here.
 | **3.3 Shell** | `queued` | A save made on day one fires a correct notification days later on a device that was closed in between. | To be written in step 2, before any code. | Not applicable while queued. |
 | **3.4 Scoreboard** | `queued` | It produces a number for a week in which nobody looked at it. Ships every verdict logged with its comparison set, the weekly sampling job, and three day-one metrics: scans per user per week split by whether a purchase followed, watch rate, and distinct products over total scans. | To be written in step 2, before any code. | Not applicable while queued. |
 | **3.5 Shin himself** | `queued` | Recognisable in a friend's screenshot by someone who has not installed it. Three faces and the share card. Not a coding lane: this goes to a person or a design tool, and it is the most repeated asset in the product. | To be written in step 2, before any code. | Not applicable while queued. |
+| **3.6 All languages** | `queued` | His words, 2026-09-19: "shin should work for all languages". To be written before any code; the starting point is that scanning, the price search and every screen must work in any language, and the beta-gaps rule "Global, all languages. Nothing Canada-only in new code" is the constraint already on file. | To be written in step 2, before any code. | Not applicable while queued. |
 
 ---
 
