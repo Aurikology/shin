@@ -12,6 +12,30 @@ always give an answer. A judge that flags a wrong price leaves the user with a w
 This file is the replacement. It is built from the 200-row live run of 2026-09-16, not from any
 repository, because the evidence about what makes Shin wrong is in Shin's own results.
 
+## CORRECTION, 2026-09-20: the 148 baseline does not describe what is running now
+
+Checked in git rather than assumed. `identify/src/providers/gemini-scan.ts` and the whole
+`Shin_Gemini_Pricing_Engine/` package (`GEMINI_SYSTEM.md`, `PRICING_GUIDE.md`, `scan_prompt.md`,
+`response_schema.json`) **both first appear on 2026-09-19**, first commit `fdf9300`. The 200-row
+run scored 148 on **2026-09-16**, three days earlier, on a different implementation.
+
+Two consequences, and they change the order of work:
+
+1. **Section 2 below is not a demonstrated cause of those 148 numbers.** The schema whose field
+   order it criticises did not exist when that run happened. The criticism stands as a criticism of
+   **what runs today**, which is what matters going forward, but it is a hypothesis about the
+   current system and not the explanation of a past measurement. Stated plainly rather than quietly
+   fixed.
+2. **The engine now in the path has never produced a number.** Thirty-five design decisions
+   replaced the system that scored 148, and nobody has put the 200 photos through the replacement.
+   So the first action is not any lever in this file. **It is one baseline run on the current
+   engine**, because until that exists there is no number to improve and no way to tell whether the
+   replacement helped or hurt.
+
+Everything in section 1 remains true as a description of the failure *shape*, which is the durable
+finding: the model gets the brand family right and the variant wrong. Whether the new engine still
+does that is the first thing the baseline run will say.
+
 ## 1. Accuracy is not evenly lost. It is concentrated, and the shape names the cause
 
 Counted over all 200 rows of `identify/eval/results/2026-09-16.json`, `dryRun: false`, basic tier:
@@ -144,8 +168,11 @@ index. **Struck**: that needs the catalogue, which is out of the path by his rul
 ## 8. The order to run them
 
 Ordered by evidence strength and cost, cheapest and most certain first. One change per run, on the
-same 200 photos, against the 148 baseline.
+same 200 photos.
 
+0. **A baseline on the current engine**, which has never been measured. See the correction at the
+   top: the 148 belongs to an implementation replaced on 2026-09-19. Run this with temperature
+   already at 0, so the baseline itself is repeatable.
 1. **Temperature to 0.** Free, and until it is set no two runs measure the same thing.
 2. **Reorder the schema so reading precedes naming**, and add a verbatim text field.
 3. **Prompt the model to read flavour, net weight and pack count before naming.**
