@@ -75,9 +75,14 @@ The stated principle is that any answer beats no answer, which is the same princ
 `openadapt_ml/baselines/prompts.py:644-672`: candidate elements are rendered to the model as
 `[id] role: "name" @ (cx, cy)` next to the raw image, and
 `openadapt_ml/baselines/parser.py:490-502` maps the model's reply back to an id rather than
-re-parsing free text. Structurally identical to handing the model our top catalogue rows and
-asking which one, which is a far easier question than "what is this". Verified here by direct
-read.
+re-parsing free text. Verified here by direct read.
+
+**Struck 2026-09-19, same day.** This was written up as "hand the model our top catalogue rows and
+let it pick", which contradicts a ruling he has now made more than once and which was sitting in
+`NOW.md` when this scan was planned: *"The server will not check shins own product list for now.
+The only thing the server will do is call gemini"*, and the catalogue *"will not be in use until
+more user data comes in"*. There is no candidate list to number, so the mechanism has nothing to
+act on here. Kept in the record only because it becomes live again if the catalogue ever does.
 
 **A determinism cache keyed on the image itself.**
 `openadapt_ml/segmentation/frame_describer.py:493-502`: cache key is `md5(PNG bytes)[:12]` plus
@@ -158,9 +163,9 @@ thing on any secondary path.
 3. **Read `groundingSupports`.** Check that the price and the product name are actually carried by
    a cited span before either is shown confidently. Nobody in the read set does it, which is why it
    is worth doing.
-4. **Ask the model to choose, not to name**, whenever the catalogue returns candidates: number the
-   rows, send them with the image, take back an index. And key a cache on the image bytes so the
-   same photo cannot produce two different answers.
+4. **Key a cache on the image bytes** so the same photo cannot produce two different answers.
+   (The "number the candidate rows and let it pick" half of this item was struck the same day: it
+   assumed a catalogue that his ruling has taken out of the path. See the strike note above.)
 
 ## The one test that is not answerable by reading
 

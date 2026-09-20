@@ -32,12 +32,18 @@ rejected an image alongside a search tool, that run would have been 200 failures
 That is an outcome, not a reading, and it closes the question for good. `NOW.md` should lose the
 blocking question, and `docs/the-photo-path.md` should be marked as a dead design.
 
-## Settled 2: the search tool CAN share a request with your own function tools, and that is the
-unbuilt lever
+## Settled 2: the search tool CAN share a request with your own function tools, which we have no
+use for
 
-Today identification and the catalogue are separate steps. The alternative is to hand the model a
-function it may call, "look up my catalogue", in the same request as the photo and the web search,
-and let it consult our own data mid-answer.
+**Recommendation struck 2026-09-19, the same day it was written.** This section originally proposed
+handing Gemini a "look up my catalogue" function to call inside the grounded request. That
+contradicts a ruling he has made more than once, and which was in `NOW.md` when this scan was
+planned: *"The server will not check shins own product list for now. The only thing the server will
+do is call gemini"*, and the catalogue *"will not be in use until more user data comes in"*. With
+the catalogue out of the path there is no internal function worth exposing, so the finding below is
+a fact about the API with no action attached. It is kept because the day the catalogue returns,
+this is how it would be wired, and because the ADK restriction it turned up is worth knowing for
+any other tool we might ever add.
 
 - `strands-agents/harness-sdk` merges developer function tools and
   `genai.types.Tool(google_search=...)` into one `tools` list
@@ -54,9 +60,8 @@ and let it consult our own data mid-answer.
   (`packages/google/src/google-prepare-tools.ts:67-72`) governs **mixing function tools with
   provider tools**, which is exactly this combination.
 
-**Reading: mixing our own function tool with the search tool is a newer-model feature.** Worth one
-live test before any design rests on it, and it is the highest-value test available, because it
-would collapse identification, catalogue lookup and pricing into one grounded call.
+**Reading: mixing our own function tool with the search tool is a newer-model feature.** Not worth
+testing while nothing internal is being called.
 
 ## Settled 3: our 3.x-only schema gate is right, and batch one's doubt was wrong
 
@@ -126,14 +131,17 @@ and, more usefully, distinguishes a failed call from a rejected answer.
    `src/tools/evaluator.ts:622-671`). Still the single change that attacks all three complaints.
 4. **Read `groundingSupports`** before showing a price confidently. Across all nineteen repos read,
    nobody does this, including us.
-5. **Test the function-tool plus search-tool combination live**, on a 3.x model. If it works, the
-   catalogue stops being a separate step.
-6. **Keep the 3.x-only schema gate.** Do not act on three frameworks' silence.
+5. **Make the model transcribe the front-of-pack text before it names anything**, which the
+   2026-09-09 research pass already recommended and which costs nothing but prompt order. Pure
+   Gemini, no retrieval, and it attacks brand hallucination directly.
+6. **Key a cache on the image bytes**, so one photograph cannot yield two answers.
+7. **Keep the 3.x-only schema gate.** Do not act on three frameworks' silence.
 
-## The live tests, in priority order
+Everything above is a single-call Gemini change. Nothing here needs the catalogue, which is out of
+the path by his ruling.
 
-One request each, recorded either way:
+## The live test, now one
 
-1. Photo, search tool, and **our own function tool** together, on 3.x. The prize.
-2. Photo, search tool, and a response schema together, on 2.5. Settles the last open belief.
-3. The same two on the older model, as the control.
+Photo, search tool, and a response schema together, on a 2.5 model, with the same request on 3.x
+as the control. That settles the last open belief about the request shape. The function-tool test
+was struck with the catalogue.
