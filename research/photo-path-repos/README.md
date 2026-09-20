@@ -1,8 +1,9 @@
 # Nineteen repos read against the three things the photo path gets wrong
 
-*Batch one, eleven repos, is below. Batch two, eight framework repos, is in `README-batch2.md`
-and settles the questions batch one could only frame. Read batch two first if you want the
-answers, and note that it corrects two claims made below.*
+*Three batches, twenty-nine repos. Batch one, eleven applications, is below. Batch two, eight
+Gemini frameworks, is in `README-batch2.md` and settles what batch one could only frame, correcting
+two claims below. Batch three, nine agent frameworks, is in `README-batch3.md` and carries the
+final recommendation list. **Read `README-batch3.md` first.** Everything earlier is working.*
 
 Read 2026-09-19. Eleven external repos, one reader each, all working from `QUESTIONS.md`, plus
 `_ours.md` as the negative control read first so every finding below is a difference and not a
