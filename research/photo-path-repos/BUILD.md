@@ -98,6 +98,36 @@ outcome `unreadable`, which is a statement about the photograph.
 nothing, and it also stops a rate limit quietly counting as a wrong identification in every
 measurement.
 
+## How each run is read, decided before any of them are run
+
+His instruction, 2026-09-20: a test is designed and read as a statistician would, not as an
+ordinary reader. Everyday reading treats 148 becoming 153 as a result. On 200 rows it is noise,
+and acting on it ships a change that did nothing.
+
+The rules for every run in this file, fixed here so no threshold gets chosen after seeing an
+output:
+
+- **Paired, always.** Same 200 photos, same order, one variable changed, and **per-row outcomes
+  recorded, not just the total**. Compared unpaired, two rates on 200 rows at about 74 percent need
+  roughly a **17 row** swing before the difference means anything. Compared paired, only the rows
+  that flipped are counted, and about 30 flips needs a gap of **11** between the two directions.
+  Pairing buys more than any other choice here, and it is free if the runner writes per-row
+  outcomes.
+- **One change per run.** Two changes give one number and no attribution.
+- **The noise floor comes first.** Run item 0's configuration twice, unchanged, and record how far
+  the total moves on its own. Nothing smaller than that spread counts as an effect, whatever it
+  looks like. Pinning the temperature is what makes this floor small enough to be useful, which is
+  why it is item 0 and not item 5.
+- **Multipack is 18 rows and will lie loudest.** A subgroup that size carries about **plus or minus
+  4 rows** of pure chance, so 7 becoming 10 is nothing. Report it as a count, never as a percentage
+  alone, because "39 percent" hides that it is 7 of 18. This matters because multipack is the row
+  this plan predicts will move, and a prediction is exactly where a small sample fools you.
+- **Count the looks.** Five kinds times six changes is thirty comparisons, so about one will look
+  like a winner by luck. Decide in advance that the headline is the total, and treat the per-kind
+  numbers as description rather than evidence.
+- **The 200 are not a random sample of real scans.** A gain on them is a gain on them until
+  something outside the set agrees.
+
 ## 6. One knob per run in the eval runner
 
 `identify/eval/scan-run.ts` already takes knobs. Make each item above settable from the command line
