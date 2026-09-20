@@ -9,6 +9,61 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-20 (Jamin's PC): twenty-two scanner features landed in one commit, 553218e
+
+### To do
+
+- **Aurik, pull before you touch the scan path.** `553218e` changes `app/server.ts`,
+  `app/src/eye/*`, `identify/src/providers/*`, `app/public/js/*` and adds schema versions 15 and
+  16. Anything you have in flight on those files will conflict.
+- **Aurik, two rulings are worth your disagreement if you have one**, because they shape the cost
+  model: a repeat scan of a known barcode is now answered from a stored Gemini answer rather than a
+  new call, and a live Open Food Facts call is allowed for identity while our own imported copy of
+  that same data stays unconsulted. Both are in `docs/decisions.md` under "Nine rulings so the
+  competitor-survey build could start", each with the condition that reverses it.
+
+### What changed
+
+Ten open-source scanners were read in source (`docs/competitor-scanners-2026-09-19.md`, 278
+mechanisms we did not have). Twenty-two of them were chosen, specified with their dependencies
+(`docs/scanner-build-order-2026-09-19.md`), and built.
+
+**The camera path:** an absolute sharpness floor and a motion gate with a forced-capture escape, a
+second decode attempt with grayscale and contrast preprocessing, continuous autofocus and an
+explicit readiness wait, median-smoothed box tracking, an explicit busy flag with a dropped-frame
+count, and scene-change cancellation that can only cancel an unsent capture, never hide a paid
+answer.
+
+**The model call:** thinking level per model tier, a hardened response schema that counts unknown
+keys instead of ignoring them, the currency and plausibility guards moved onto the live path where
+a failing price is withheld rather than replaced, per-stage timings, grounding skipped only when
+nothing is searchable, and `price-verifier.ts`, which fetches one cited allowlisted retailer page
+and marks the scan when its price disagrees with Gemini's. It never changes what is shown.
+
+**The server:** check-digit validation before anything is spent, a persistent repeat-scan cache
+(identity forever, price six hours, background refresh after one hour), a live Open Food Facts
+lookup for identity only, background enrichment that writes beside the shown value and never over
+it, Gemini-path misses wired into the gap table, streaming payload-cap enforcement, same-origin
+enforcement that allows a missing Origin and refuses a mismatched one, and a demo scan route whose
+rows are marked so they can never count as real scans.
+
+**The client:** an in-flight guard, honest copy for each of the eight failure codes with a real
+countdown from the server's own retry-after header, iterative image shrinking, and a labelled demo
+scan before camera permission.
+
+**Two real defects fell out of writing the tests red first:** a spend-cap refusal was being cached
+as though it were Gemini's answer, poisoning later scans of that barcode, and the gap recorder
+checked a variable that always falls back to the barcode digits, so barcode misses never wrote a
+gap row.
+
+App suite 1087 to 1198, identify 229 to 248, both green, typecheck clean, run again from a separate
+session after the build agents reported. `npm start`, `dev` and `check` now build the camera bundle
+themselves, so a fresh checkout no longer has a dead camera.
+
+### Read by
+
+---
+
 ## 2026-09-19 (Aurik's PC): the shared Notion page has never been reachable from this side
 
 ### To do
@@ -407,9 +462,9 @@ made quietly. These aren't ranked and none of them is decided:
 
 ### Read by
 
-
----
-
+
+---
+
 ## 2026-09-15, night (Aurik's PC): the nine-rules cleanup, four built and three raised
 
 ### To do
