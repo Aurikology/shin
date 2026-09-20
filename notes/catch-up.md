@@ -9,6 +9,47 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-20 (Aurik's PC): the demo scan was on screen with no styling at all
+
+### To do
+
+- **Jamin, one question, and it is yours because it touches the verdict.** The demo scan answer
+  carries no price and no verdict: `DEMO_SAMPLE` in `app/server.ts` has a label, a brand, a name,
+  a size and a zone, and nothing else. So the card a person sees before granting camera permission
+  names a box of Kraft Dinner and stops. The client already draws a price line and a verdict line,
+  each badged, the moment the route sends `askingCents` and `verdictWord`; both are dead today. A
+  demo that shows no price does not demonstrate the thing the app is for, but inventing a price is
+  yours to allow, not mine to add, so nothing was added.
+
+### What changed
+
+**Item 19's demo shipped with seven class names and not one CSS rule**, so on the permissions step
+the link rendered as the browser's own grey button and the answer as two bare lines of text. It was
+the only place in the flow that looked like a default. Seen at 390 px in both themes before and
+after, not read off the source.
+
+It now uses the tokens the rest of onboarding uses: the link is quiet and underlined in the
+register the "Skip the rest" link already has, because "Continue" is the one committing action on
+that page; the answer is the same surface card with a hairline and a 16 px radius that the two
+permission rows are; the DEMO badge is mono, uppercase and filled, drawn as a marker rather than
+decoration. The rule that the badge repeats beside a price and a verdict is kept, with the inline
+copies sized down. Measured in the live DOM: 8.64 and 5.21 on the link, 6.71 and 4.68 on the badge
+(dark, light), 44 px tap target, no horizontal scroll.
+
+**And the card said "Kraft Kraft Dinner Original".** Brand and name were glued together, and most
+catalogue names already carry the brand. The route sends a written label and it is used now, with
+the glue kept only as a fallback and only when the name does not already start with the brand.
+Two tests hold it.
+
+App suite 1198 to 1200, 0 failures, typecheck clean, run after the dev server was stopped, because
+a live server holds the database and turns unrelated tests red.
+
+### Read by
+
+- Aurik, 2026-09-20.
+
+---
+
 ## 2026-09-20 (Jamin's PC): twenty-two scanner features landed in one commit, 553218e
 
 ### To do
@@ -61,6 +102,9 @@ session after the build agents reported. `npm start`, `dev` and `check` now buil
 themselves, so a fresh checkout no longer has a dead camera.
 
 ### Read by
+
+- Aurik, 2026-09-20. Told both to-dos: pulled before touching the scan path, and the two rulings
+  are with him to disagree with.
 
 ---
 
