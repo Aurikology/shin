@@ -26,7 +26,7 @@
  * Both stores are pointed at temp files BEFORE the modules load, because each
  * resolves its path once at import.
  */
-import { test, before, after } from 'node:test';
+import { test, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -35,6 +35,8 @@ import type { AddressInfo } from 'node:net';
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-beta-routes-'));
 process.env.SHIN_SCANS = join(dir, 'scans.db');
+process.env.SHIN_REPEAT_CACHE = join(dir, 'repeat-cache.db');
+process.env.SHIN_GAPS = join(dir, 'gaps.db');
 process.env.SHIN_CORRECTIONS = join(dir, 'corrections.db');
 process.env.SHIN_PHOTOS = join(dir, 'photos');
 // No catalogue: the lookup is faked. The file is missing inside a folder that
@@ -53,8 +55,20 @@ const { ratingFor, ratingHistory } = await import('../src/ratings.ts');
 const { readEvents } = await import('../src/events.ts');
 const { resetStoreCache } = await import('../src/stores.ts');
 const { setErrorSinkForTests } = await import('../src/errlog.ts');
+const { clearRepeatCacheForTests } = await import('../src/repeat-cache.ts');
 
 let port = 0;
+
+// This file reuses ROW.code (the same barcode) across most of its tests. Item
+// 1's repeat-scan cache is keyed on the barcode alone, so without this every
+// test after the first one scanning ROW.code would be silently answered from
+// the cache instead of making its own real (faked) Gemini call, which is
+// exactly the behaviour item 1 asks for on a REAL repeat scan but not the
+// behaviour any test here is trying to prove. Cleared before every test so
+// each one still starts from "never scanned before".
+beforeEach(() => {
+  clearRepeatCacheForTests();
+});
 
 /** One catalogue row, in the shape `identify()` reads off `byGtin`. */
 const ROW = {

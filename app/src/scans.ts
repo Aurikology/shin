@@ -65,6 +65,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { runMigrations } from './migrations.ts';
+import type { VerifyResult } from '../../identify/src/providers/price-verifier.ts';
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS scan (
@@ -120,7 +121,14 @@ export type FailureClass =
   | 'model_malformed'
   | 'model_client_error'
   | 'spend_cap_reached'
-  | 'not_in_catalogue';
+  | 'not_in_catalogue'
+  /**
+   * ITEM 2 (docs/scanner-build-order-2026-09-19.md section 2). A barcode that
+   * fails the GS1 check digit in every zero-pad form (`app/src/barcode.ts`,
+   * `canonicalGtin`) and is refused before Gemini is ever called, so it is
+   * never spent on a reading that could not have been trusted anyway.
+   */
+  | 'invalid_barcode';
 
 /*
  * `addColumnIfMissing` used to live here and now lives in `migrations.ts`,
@@ -294,6 +302,17 @@ export interface ScanInput {
   readonly exactAt?: string | null;
   /** Null until accounts exist. Plan item 12. */
   readonly userId?: string | null;
+  /**
+   * ITEM 19 (docs/scanner-build-order-2026-09-19.md section 19). True only
+   * for the fixed sample answer `/api/identify/demo` returns with no
+   * provider call. Defaults to false so every existing caller, which never
+   * heard of this field, writes a real row exactly as before. A demo row is
+   * still written (rule 4, "record everything" -- a demo is still an
+   * interaction), but it is marked at write time so no reader that computes
+   * a rate over real scans (`scan-summary.ts`, the free-tier meter) can
+   * count it without knowing to.
+   */
+  readonly isDemo?: boolean;
 }
 
 /**
@@ -404,6 +423,20 @@ export interface ScanRow {
    */
   grounded_at: string | null;
   grounded_shown: number | null;
+  // Item 19: 1 on the fixed sample answer, 0 on everything else. See ScanInput.isDemo.
+  is_demo: number;
+  /*
+   * ITEM 11 (docs/scanner-build-order-2026-09-19.md section 11), ruling 7
+   * (docs/decisions.md, "Nine rulings", 2026-09-19): a later, better answer
+   * from a background pass goes HERE, beside verdict_zone/typed_price_cents,
+   * never over them. `enriched_checked_at` moves on every background look,
+   * whether or not anything changed; `enriched_updated_at` moves only when
+   * the value actually changed. See `enrichScan`.
+   */
+  enriched_price_cents: number | null;
+  enriched_verdict_zone: string | null;
+  enriched_checked_at: string | null;
+  enriched_updated_at: string | null;
 }
 
 /**
@@ -496,8 +529,8 @@ export function recordScan(input: ScanInput): number | null {
     const result = store.db
       .prepare(
         `INSERT INTO scan (device_id, kind, query_text, resolved_code, resolved_label, confidence, source, outcome, failure_class, corrected_code, scanned_at, category,
-                           model_json, model_cost_cents, app_version, platform, latency_ms, cell, store_id, store_name, exact_lat, exact_lon, exact_accuracy, exact_at, user_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                           model_json, model_cost_cents, app_version, platform, latency_ms, cell, store_id, store_name, exact_lat, exact_lon, exact_accuracy, exact_at, user_id, is_demo)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         input.deviceId,
@@ -524,6 +557,7 @@ export function recordScan(input: ScanInput): number | null {
         input.exactAccuracy ?? null,
         input.exactAt ?? null,
         input.userId ?? null,
+        input.isDemo ? 1 : 0,
       );
     return Number(result.lastInsertRowid);
   } catch (err) {
@@ -649,8 +683,12 @@ export function weeklyCount(deviceId: string, now: Date = new Date()): number {
   try {
     if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
     const boundary = weekStartUtc(now);
+    // Item 19: a demo row never counts against a device's free tier, the
+    // same way a demo row never counts in scan-summary.ts's rates.
     const row = store.db
-      .prepare(`SELECT COUNT(*) as n FROM scan WHERE device_id = ? AND outcome = 'answered' AND scanned_at >= ?`)
+      .prepare(
+        `SELECT COUNT(*) as n FROM scan WHERE device_id = ? AND outcome = 'answered' AND scanned_at >= ? AND is_demo = 0`,
+      )
       .get(deviceId, boundary) as unknown as { n: number } | undefined;
     return row?.n ?? 0;
   } catch (err) {
@@ -868,6 +906,13 @@ export interface GeminiCallRow {
   readonly math_check: string;
   readonly math_mismatches: string | null;
   readonly math_checked_at: string | null;
+  readonly price_verify_check: string | null;
+  readonly price_verify_retailer: string | null;
+  readonly price_verify_url: string | null;
+  readonly price_verify_page_cents: number | null;
+  readonly price_verify_stated_cents: number | null;
+  readonly price_verify_reason: string | null;
+  readonly price_verify_checked_at: string | null;
 }
 
 /** Never throws. Null when the write dropped, which is counted like any other dropped write. */
@@ -938,6 +983,100 @@ export function markGeminiMath(
     const result = store.db
       .prepare('UPDATE gemini_call SET math_check = ?, math_mismatches = ?, math_checked_at = ? WHERE id = ?')
       .run(check, mismatches ? JSON.stringify(mismatches) : null, now.toISOString(), callId);
+    return Number(result.changes) > 0;
+  } catch (err) {
+    store.dropped += 1;
+    store.droppedWhy = err instanceof Error ? err.message : String(err);
+    return false;
+  }
+}
+
+/**
+ * Ruling 3 (docs/decisions.md, "Nine rulings so the competitor-survey build
+ * could start", 2026-09-19). The price verifier's own outcome, recorded
+ * beside the call it checked -- never shown, and never a second price the
+ * one already shown could be swapped for. Same shape as `markGeminiMath`
+ * above: never throws, a failed write is counted like any other dropped
+ * write, and it can only ever write a mark.
+ */
+export function markPriceVerification(callId: number, result: VerifyResult, now: Date = new Date()): boolean {
+  const store = active ?? openScanStore();
+  try {
+    if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
+    const updated = store.db
+      .prepare(
+        `UPDATE gemini_call
+           SET price_verify_check = ?, price_verify_retailer = ?, price_verify_url = ?,
+               price_verify_page_cents = ?, price_verify_stated_cents = ?, price_verify_reason = ?,
+               price_verify_checked_at = ?
+         WHERE id = ?`,
+      )
+      .run(result.outcome, result.retailer, result.url, result.pageCents, result.statedCents, result.reason, now.toISOString(), callId);
+    return Number(updated.changes) > 0;
+  } catch (err) {
+    store.dropped += 1;
+    store.droppedWhy = err instanceof Error ? err.message : String(err);
+    return false;
+  }
+}
+
+/**
+ * ITEM 11 (docs/scanner-build-order-2026-09-19.md section 11), ruling 7
+ * (docs/decisions.md, "Nine rulings", 2026-09-19): "Background enrichment
+ * writes beside the shown value, never over it. A later, better answer goes
+ * in its own column with its own timestamp, and the value the user was shown
+ * stays exactly as they saw it."
+ *
+ * This is the one function that writes `enriched_price_cents` /
+ * `enriched_verdict_zone`. It never touches `verdict_tier`, `verdict_zone`,
+ * `verdict_confidence`, `verdict_sellers` or `typed_price_cents` -- those are
+ * `updateScan`'s and `markScan`'s columns, and they hold exactly what the
+ * person was shown at scan time, unconditionally, forever.
+ *
+ * `enriched_checked_at` moves on every call, whether or not anything
+ * changed, so a background pass that looked and found nothing new is
+ * distinguishable from a scan nobody ever went back to check.
+ * `enriched_updated_at` moves only when a value in the patch differs from
+ * what is already recorded, the checked-versus-changed split
+ * `docs/scanner-build-order-2026-09-19.md` section 11 names in ha-wine-
+ * cellar's own `checked_at`/`updated_at` pair.
+ *
+ * A key left `undefined` in the patch is left alone, the same convention
+ * `ScanPatch` uses; there is no way to CLEAR an enriched value once written,
+ * because nothing in this product ever needs to un-learn one.
+ *
+ * Never throws. Returns false for a scan id that names no row, the same
+ * "the id was stale, not a bug" answer `updateScan` gives.
+ */
+export interface ScanEnrichment {
+  readonly priceCents?: number | null;
+  readonly verdictZone?: string | null;
+}
+
+export function enrichScan(scanId: number, patch: ScanEnrichment, now: Date = new Date()): boolean {
+  const store = active ?? openScanStore();
+  try {
+    if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
+    const current = store.db
+      .prepare('SELECT enriched_price_cents, enriched_verdict_zone FROM scan WHERE id = ?')
+      .get(scanId) as unknown as { enriched_price_cents: number | null; enriched_verdict_zone: string | null } | undefined;
+    if (!current) return false;
+
+    const priceChanged = patch.priceCents !== undefined && patch.priceCents !== current.enriched_price_cents;
+    const zoneChanged = patch.verdictZone !== undefined && patch.verdictZone !== current.enriched_verdict_zone;
+    const changed = priceChanged || zoneChanged;
+    const nowIso = now.toISOString();
+
+    const nextPrice = patch.priceCents !== undefined ? patch.priceCents : current.enriched_price_cents;
+    const nextZone = patch.verdictZone !== undefined ? patch.verdictZone : current.enriched_verdict_zone;
+
+    const result = store.db
+      .prepare(
+        `UPDATE scan SET enriched_price_cents = ?, enriched_verdict_zone = ?, enriched_checked_at = ?,
+           enriched_updated_at = CASE WHEN ? THEN ? ELSE enriched_updated_at END
+         WHERE id = ?`,
+      )
+      .run(nextPrice, nextZone, nowIso, changed ? 1 : 0, nowIso, scanId);
     return Number(result.changes) > 0;
   } catch (err) {
     store.dropped += 1;

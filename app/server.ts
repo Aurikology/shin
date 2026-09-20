@@ -34,18 +34,21 @@ import {
 import type { Tier } from '../identify/src/model.ts';
 import type { GroundedTransport } from '../identify/src/providers/gemini-grounded.ts';
 import type { AnswerBlock, GeminiRun, ScanType } from '../identify/src/providers/gemini-scan.ts';
-import { sealScanAnswer } from '../identify/src/providers/gemini-grounded.ts';
+import type { VerifierTransport } from '../identify/src/providers/price-verifier.ts';
+import { sealScanAnswer, cleanUrl } from '../identify/src/providers/gemini-grounded.ts';
 import { chargeSpend, usdCentsToCad, type SpendDecision } from '../identify/src/cap.ts';
 import { recordCorrection } from '../price/src/corrections.ts';
 import { ATTRIBUTION } from './src/attribution.ts';
 import { packScope, packVersion, servePack } from './src/pack-route.ts';
 import {
   correctScan,
+  enrichScan,
   getScan,
   lastAnsweredScan,
   openScanStore,
   DEFAULT_PREFERENCES,
   markGeminiMath,
+  markPriceVerification,
   readPreferences,
   recentCategories,
   recordGeminiCall,
@@ -53,6 +56,15 @@ import {
   updateScan,
   type ScanKind,
 } from './src/scans.ts';
+import { canonicalGtin } from './src/barcode.ts';
+import { lookupOpenFoodFacts } from './src/open-food-facts.ts';
+import {
+  claimRefresh,
+  recallCachedScan,
+  releaseRefresh,
+  rememberCachedScan,
+} from './src/repeat-cache.ts';
+import { recordGap } from '../catalogue/src/gaps.ts';
 import { summariseScans, UNATTRIBUTED } from './src/scan-summary.ts';
 import { keepLocation, keepPhoto, readConsent, writeConsent } from './src/consent.ts';
 import { deleteRating, isRating, isRatingReason, rateScan, scanExists } from './src/ratings.ts';
@@ -895,6 +907,15 @@ let scanModule: Promise<ScanModule> | null = null;
 const geminiScanModule = (): Promise<ScanModule> =>
   (scanModule ??= import('../identify/src/providers/gemini-scan.ts'));
 
+/**
+ * Loaded lazily, the same way `geminiScanModule` is, so a route that never
+ * verifies a price never pays to load the module that does it.
+ */
+type VerifierModule = typeof import('../identify/src/providers/price-verifier.ts');
+let verifierModule: Promise<VerifierModule> | null = null;
+const priceVerifierModule = (): Promise<VerifierModule> =>
+  (verifierModule ??= import('../identify/src/providers/price-verifier.ts'));
+
 let geminiTransportDouble: GroundedTransport | null = null;
 
 /**
@@ -905,6 +926,18 @@ let geminiTransportDouble: GroundedTransport | null = null;
 export function setGeminiTransportForTests(transport: GroundedTransport | null): void {
   geminiTransportDouble = transport;
   scanned.clear();
+}
+
+let verifierTransportDouble: VerifierTransport | null = null;
+
+/**
+ * TEST ONLY, same reason as `setGeminiTransportForTests`: no test may reach a
+ * real retailer page, so every test that exercises `schedulePriceVerify` hands
+ * it a recorded reply through this seam. Production gets the real `fetch`
+ * (see `schedulePriceVerify`), never this double.
+ */
+export function setVerifierTransportForTests(transport: VerifierTransport | null): void {
+  verifierTransportDouble = transport;
 }
 
 /**
@@ -1124,6 +1157,44 @@ function scheduleMathCheck(
   void task.finally(() => backgroundChecks.delete(task));
 }
 
+/**
+ * Ruling 3 (docs/decisions.md, "Nine rulings so the competitor-survey build
+ * could start", 2026-09-19): after the answer has gone out, fetch the one
+ * cited, allowlisted retailer page (if any) and mark whether it agrees with
+ * the price Gemini stated. A CHECK, never a second call to any model, and it
+ * NEVER changes what the person was already shown -- exactly `scheduleMathCheck`'s
+ * shape, above, for the same reason: never shown, never waited on, and it can
+ * only ever write a mark. `verifyPrice` itself decides there is nothing to
+ * verify (`not_verifiable`, the common case); this only decides whether the
+ * fetch is worth spending at all.
+ */
+function schedulePriceVerify(run: GeminiRun, callId: number | null, device: string, scanId: number | null): void {
+  if (callId === null) return; // nothing to mark the result on
+  const offers = run.answer?.offers ?? [];
+  if (offers.length === 0 || run.citations.length === 0) return; // verifyPrice would only ever say not_verifiable
+  const task = new Promise<void>((resolve) => {
+    setImmediate(() => {
+      priceVerifierModule()
+        .then((mod) =>
+          mod.verifyPrice(
+            offers.map((o) => ({ retailer: o.retailer, url: cleanUrl(o.raw.url), price: o.price })),
+            run.citations,
+            { transport: verifierTransportDouble ?? ((url, init) => fetch(url, init)) },
+          ),
+        )
+        .then((result) => {
+          markPriceVerification(callId, result);
+        })
+        .catch((err: unknown) => {
+          logError({ where: 'gemini.price_verify', deviceId: device, scanId, err });
+        })
+        .finally(resolve);
+    });
+  });
+  backgroundChecks.add(task);
+  void task.finally(() => backgroundChecks.delete(task));
+}
+
 /** The user's lines: the request's own, else what this device saved on the server, else the default range. */
 function thresholdsFor(mod: ScanModule, raw: unknown, device: string) {
   const sent = mod.readThresholds(raw);
@@ -1258,6 +1329,77 @@ function whyNot(c: Pick<Completed, 'run'>): string {
 async function completeGeminiScan(a: CompleteArgs): Promise<Completed> {
   const mod = await geminiScanModule();
   const thresholds = thresholdsFor(mod, a.thresholdsRaw, a.device);
+
+  /*
+   * ITEM 1 (docs/scanner-build-order-2026-09-19.md section 1), ruling 1
+   * (docs/decisions.md, "Nine rulings", 2026-09-19). A repeat scan of a
+   * barcode Shin already asked Gemini about is answered from that answer:
+   * zero further Gemini calls, not a second one. See `src/repeat-cache.ts`
+   * for the age policy (served under 6 hours, a background refresh past 1).
+   *
+   * Barcode scans only: a photo or a typed name has no stable key to cache
+   * against (rule 2's whole point is that a barcode is the one input Shin
+   * can key on without asking anybody).
+   */
+  if (a.kind === 'barcode' && a.gtin) {
+    const market = a.context.market ?? null;
+    const currency = a.context.currency ?? null;
+    const hit = recallCachedScan<GeminiRun, AnswerBlock>(a.gtin, market, currency);
+    if (hit) {
+      if (hit.needsRefresh && claimRefresh(a.gtin, market, currency)) {
+        // Tracked the same way `scheduleMathCheck`'s task is: never awaited by
+        // the request that triggered it, only by `settleBackgroundChecks` in
+        // a test, so a test can prove the refresh actually ran rather than
+        // guessing from a timeout.
+        const task = refreshCachedBarcode(a, mod, thresholds, market, currency, hit.scanId);
+        backgroundChecks.add(task);
+        void task.finally(() => backgroundChecks.delete(task));
+      }
+      const named = mod.labelOf(hit.run);
+      const label = named ?? { label: a.gtin, brand: null, name: null, size: null };
+      let scanId: number | null = a.existingScanId ?? hit.scanId;
+      if (a.writeScanRow) {
+        scanId = recordScan({
+          deviceId: a.device,
+          kind: 'barcode',
+          query: a.gtin,
+          resolvedCode: a.gtin,
+          resolvedLabel: named?.label ?? null,
+          confidence: hit.run.answer?.overallConfidence ?? null,
+          source: 'gemini_cache',
+          category: null,
+          outcome: named ? 'answered' : 'refused',
+          failureClass: hit.run.failure,
+          appVersion: a.telemetry.appVersion,
+          platform: a.telemetry.platform,
+          latencyMs: Date.now() - a.startedAt,
+          cell: a.where.cell,
+          storeId: a.where.storeId,
+          storeName: a.where.storeName,
+          exactLat: a.where.exactLat,
+          exactLon: a.where.exactLon,
+          exactAccuracy: a.where.exactAccuracy,
+          exactAt: a.where.exactAt,
+        });
+      }
+      return { mod, run: hit.run, block: hit.block, label, scanId, callId: null, ms: Date.now() - a.startedAt };
+    }
+  }
+
+  /*
+   * ITEM 6 (docs/scanner-build-order-2026-09-19.md section 6), ruling 5
+   * (docs/decisions.md, "Nine rulings", 2026-09-19): a LIVE Open Food Facts
+   * lookup, identity only, before the paid call. It never substitutes for
+   * the Gemini call and it never touches price: it only gives Gemini a head
+   * start, the same way a typed name already does through `userInput`.
+   */
+  const offHint =
+    a.kind === 'barcode' && a.gtin
+      ? await lookupOpenFoodFacts(a.gtin).then((off) =>
+          off ? `Open Food Facts identifies this barcode as: ${off.name}${off.brand ? ` by ${off.brand}` : ''}${off.size ? `, ${off.size}` : ''}.` : null,
+        )
+      : null;
+
   const run = await mod.runGeminiScan(
     {
       kind: a.kind,
@@ -1273,6 +1415,7 @@ async function completeGeminiScan(a: CompleteArgs): Promise<Completed> {
       userInput: [
         a.kind === 'barcode' && a.text ? a.text : (a.context.userInput ?? null),
         a.kind === 'photo' && a.context.hint ? (PICTURE_HINTS[a.context.hint] ?? null) : null,
+        offHint,
       ].filter(Boolean).join(' ') || null,
       ...userContextFor(a.context, a.shelfPriceCents, mod),
     },
@@ -1286,6 +1429,22 @@ async function completeGeminiScan(a: CompleteArgs): Promise<Completed> {
   const named = mod.labelOf(run);
   const label = named ?? (a.kind === 'barcode' && a.gtin ? { label: a.gtin, brand: null, name: null, size: null } : null);
   const ms = Date.now() - a.startedAt;
+
+  // ITEM 14 (docs/scanner-build-order-2026-09-19.md section 14). The gap
+  // table and report already exist and were wired only to catalogue-search
+  // misses; a Gemini-path miss is a finding too. Recorded here rather than
+  // after the scan row insert below, since both are about the same failure
+  // and neither depends on the other having run.
+  //
+  // Checked against `named`, NOT `label`: a barcode scan's `label` falls back
+  // to the digits themselves (a few lines up) so the rest of this function
+  // always has something to call the scan by, and that fallback would make
+  // `label` truthy on EVERY barcode miss, so a check against `label` here
+  // would never fire at all for the one kind of scan this item is mostly
+  // about.
+  if (!named && (a.gtin || a.text)) {
+    recordGap({ gtin: a.gtin, queryText: a.text, note: `gemini_miss:${run.failure ?? 'unknown'}` });
+  }
 
   let scanId: number | null = a.existingScanId ?? null;
   if (a.writeScanRow) {
@@ -1375,8 +1534,27 @@ async function completeGeminiScan(a: CompleteArgs): Promise<Completed> {
 
   const entry: ScannedEntry = { at: Date.now(), device: a.device, scanId, callId, run, block };
   rememberScan(entry, scannedKeys(a.device, scanId, a.gtin, a.text ?? label?.label));
+  // ITEM 1: every real barcode answer refreshes the persistent repeat-scan
+  // cache, so `checked_at` always reflects the most recent real call.
+  //
+  // EXCEPT a spend-cap refusal. `run.failure === 'spend_cap_reached'` means
+  // the hard ceiling stopped this scan before it ever reached Gemini (see
+  // `spendGuardFor`): it is Shin's own local refusal, never "Gemini's
+  // answer", and ruling 1 only ever asks for the latter to be cached.
+  // Caching it anyway would mean the one scan that happened to run while the
+  // daily cap was tripped gets served, marked as a cap refusal, to every
+  // OTHER device scanning the same barcode for up to six hours afterward,
+  // long after the cap has reset -- a local outage turned into a poisoned
+  // answer for everybody. A genuine Gemini-side failure (an outage, a parse
+  // miss) is different: the call really was made, that IS Gemini's answer
+  // for now, and the one-hour background refresh already exists to try
+  // again.
+  if (a.kind === 'barcode' && a.gtin && run.failure !== 'spend_cap_reached') {
+    rememberCachedScan(a.gtin, a.context.market ?? null, a.context.currency ?? null, run, block, scanId);
+  }
   scheduleMathCheck(mod, run, callId, a.device, scanId, a.context.currency ?? null);
   scheduleCatalogueFeed(run, named, a, scanId);
+  schedulePriceVerify(run, callId, a.device, scanId);
 
   recordEvent({
     deviceId: a.device,
@@ -1397,6 +1575,78 @@ async function completeGeminiScan(a: CompleteArgs): Promise<Completed> {
     },
   });
   return { mod, run, block, label, scanId, callId, ms };
+}
+
+/**
+ * ITEM 1's background half: the one Gemini call a cache hit older than one
+ * hour earns, run AFTER the cached answer has already gone out and never
+ * awaited by the request it was triggered from.
+ *
+ * NEVER TOUCHES `verdict_zone` / `verdict_thresholds_json` / `typed_price_
+ * cents` / `verdict_tier` -- it does not call `recordScan` or `markScan`, so
+ * the scan row the person already saw cannot move under this. What it CAN
+ * change: the repeat-scan cache itself (`rememberCachedScan`, so the NEXT
+ * hit is fresh), and, per ruling 7 (item 11), `enrichScan`'s columns on the
+ * scan row that was served from cache -- beside the shown value, never over
+ * it.
+ *
+ * Never throws at its caller: it is `void`d the moment it is started.
+ * Whatever goes wrong here is a missed refresh, not a broken scan.
+ */
+async function refreshCachedBarcode(
+  a: CompleteArgs,
+  mod: ScanModule,
+  thresholds: ReturnType<typeof thresholdsFor>,
+  market: string | null,
+  currency: string | null,
+  cachedScanId: number | null,
+): Promise<void> {
+  const gtin = a.gtin;
+  if (!gtin) return;
+  try {
+    const freshRun = await mod.runGeminiScan(
+      {
+        kind: 'barcode',
+        barcode: gtin,
+        text: null,
+        image: null,
+        sharpness: null,
+        shelfPriceCents: a.shelfPriceCents,
+        thresholds,
+        market,
+        currency,
+        language: a.context.language ?? null,
+        userInput: null,
+        ...userContextFor(a.context, a.shelfPriceCents, mod),
+      },
+      {
+        deviceId: a.device,
+        ...(geminiTransportDouble ? { transport: geminiTransportDouble } : {}),
+        spendGuard: spendGuardFor(),
+      },
+    );
+    // Same rule as the main path (see completeGeminiScan): a spend-cap
+    // refusal never reached Gemini and is not "Gemini's answer", so it must
+    // not overwrite a good cached one. The claim is released instead of kept,
+    // so the NEXT hit past the refresh age tries again rather than being
+    // silently stuck at `refreshing = 1` forever.
+    if (freshRun.failure === 'spend_cap_reached') {
+      releaseRefresh(gtin, market, currency);
+      return;
+    }
+    const freshBlock = mod.toAnswerBlock(freshRun);
+    rememberCachedScan(gtin, market, currency, freshRun, freshBlock, cachedScanId);
+    if (cachedScanId !== null) {
+      const median = freshRun.answer?.verdict?.median;
+      enrichScan(cachedScanId, {
+        priceCents: typeof median === 'number' ? Math.round(median * 100) : undefined,
+        verdictZone: freshRun.answer?.verdict?.shelf?.zone ?? null,
+      });
+    }
+  } catch (err) {
+    releaseRefresh(gtin, market, currency);
+    logError({ where: 'repeat_cache.refresh', deviceId: a.device, scanId: cachedScanId, err });
+  }
 }
 
 /**
@@ -1802,6 +2052,30 @@ process.on('unhandledRejection', (reason) => {
   });
 });
 
+/**
+ * ITEM 18 (docs/scanner-build-order-2026-09-19.md section 18): the routes
+ * the same-origin check runs in front of. The paid-call routes plus the demo
+ * route (item 19), which is the same shape of request even though it spends
+ * nothing -- not every `/api/` path, which would also gate corrections,
+ * consent and telemetry that a cross-site page calling on somebody's behalf
+ * is not the threat model for.
+ */
+const SCAN_ROUTES: ReadonlySet<string> = new Set([
+  '/api/identify',
+  '/api/identify/photo',
+  '/api/identify/demo',
+  '/api/price',
+]);
+
+/** ITEM 19's fixed sample answer. Never Gemini's; never billed. */
+const DEMO_SAMPLE = {
+  label: 'Kraft Dinner Original, 225 g',
+  brand: 'Kraft',
+  name: 'Kraft Dinner Original',
+  size: '225 g',
+  zone: 'middle',
+} as const;
+
 export const server = createServer(async (req, res) => {
   /*
    * THE HOST HEADER IS NOT PARSED, AND THAT IS THE FIX RATHER THAN THE
@@ -1841,6 +2115,18 @@ export const server = createServer(async (req, res) => {
   // copied, sent and returned, into that press's folder (src/shutter-log.ts).
   recordAccess(req, res);
   recordShutterRequest(req, res, url.pathname);
+
+  /*
+   * ITEM 18 (docs/scanner-build-order-2026-09-19.md section 18): the
+   * frame-embedding block. Set once, here, with `setHeader` rather than on
+   * every `res.writeHead(...)` call site: Node merges headers set this way
+   * into whatever a later `writeHead` sends, unless that call names the same
+   * header itself, and nothing in this file ever does. So every response
+   * this server sends, the camera page included, carries both, and the page
+   * that runs the camera can never be loaded inside someone else's frame.
+   */
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'none'");
 
   const json = (status: number, body: unknown) => {
     const payload = JSON.stringify(body);
@@ -1987,6 +2273,45 @@ export const server = createServer(async (req, res) => {
       }
     }
 
+    /*
+     * ITEM 18 (docs/scanner-build-order-2026-09-19.md section 18), ruling 8
+     * (docs/decisions.md, "Nine rulings", 2026-09-19): "A missing Origin
+     * header is allowed and marked; a wrong one is refused." Scoped to the
+     * scan endpoints named there, not every `/api/` route: those are the
+     * ones a page embedded somewhere else, or a cross-site script, would
+     * want to call on somebody's behalf.
+     *
+     * MISSING IS ALLOWED, NOT IGNORED. It is not refused because a native
+     * app wrapper can legitimately send no Origin at all (`api.js`'s own
+     * `platform` comment already accounts for a wrapper-set global) --
+     * refusing the absent case would break a real client to stop a
+     * hypothetical one. It is still MARKED: `access-log.ts`'s `recordAccess`
+     * (already called above, before this check runs) writes the Origin
+     * header verbatim, present or not, on every request including this one.
+     *
+     * A PRESENT AND MISMATCHED Origin is refused outright, per the ruling.
+     * The comparison is on `host` (hostname plus port), read directly off
+     * the request's own `Host` header as a string -- never parsed as a URL,
+     * the same caution this file's own top-of-request comment gives for why
+     * the request line is parsed against a placeholder base rather than the
+     * real Host.
+     */
+    if (SCAN_ROUTES.has(url.pathname)) {
+      const origin = req.headers.origin;
+      if (typeof origin === 'string' && origin) {
+        let originHost: string | null = null;
+        try {
+          originHost = new URL(origin).host;
+        } catch {
+          originHost = null;
+        }
+        const requestHost = typeof req.headers.host === 'string' ? req.headers.host : null;
+        if (originHost === null || requestHost === null || originHost !== requestHost) {
+          return json(403, { error: 'that origin is not allowed to call this route' });
+        }
+      }
+    }
+
     if (url.pathname === '/api/shutter/frame') {
       if (req.method !== 'POST') return json(405, { error: 'POST only' });
       const body = await readBody(req, MAX_SHUTTER_FRAME_BYTES);
@@ -2023,6 +2348,67 @@ export const server = createServer(async (req, res) => {
     if (url.pathname === '/api/catalogue') return json(200, await catalogue());
     if (url.pathname === '/api/categories') return json(200, categories());
     if (url.pathname === '/api/scenarios') return json(200, scenarios());
+
+    /*
+     * ITEM 19 (docs/scanner-build-order-2026-09-19.md section 19). A
+     * scripted demo scan: a fixed sample answer, no provider call, no cost.
+     * Built for the case nothing in this codebase answers today (failure.md
+     * D19): a person who has not granted camera permission yet, or a
+     * machine with no catalogue attached, has no way to see what a real scan
+     * result looks like.
+     *
+     * MARKED, NEVER COUNTED. C:\agent CLAUDE.md HARD RULE 3, "no fabricated
+     * evidence": a row that recorded this the way a real Gemini answer is
+     * recorded would be a log claiming an identification happened when none
+     * did. `isDemo: true` on the write is what keeps this compliant; every
+     * reader that computes a rate over real scans (`scan-summary.ts`'s
+     * `summariseScans`, `weeklyCount`) already excludes `is_demo` rows.
+     *
+     * The screen that shows this, and any on-screen "this is a demo" label,
+     * is client work (`app/public/js`) and belongs to another session; this
+     * route and the marked row are the whole of the server half.
+     */
+    if (url.pathname === '/api/identify/demo') {
+      let posted: Record<string, unknown> | null = null;
+      if (req.method === 'POST') {
+        const body = await readBody(req);
+        if (body === TOO_LARGE) return refuseTooLarge();
+        if (body !== null && typeof body === 'object') posted = body as Record<string, unknown>;
+      }
+      const deviceId =
+        (posted && typeof posted.deviceId === 'string' && posted.deviceId.trim()) ||
+        url.searchParams.get('deviceId')?.trim() ||
+        UNATTRIBUTED;
+      deviceForLog = deviceId;
+      const demoScanId = recordScan({
+        deviceId,
+        kind: 'text',
+        query: 'demo',
+        resolvedLabel: DEMO_SAMPLE.label,
+        outcome: 'answered',
+        source: 'demo',
+        isDemo: true,
+      });
+      scanForLog = demoScanId;
+      recordEvent({ deviceId, type: 'demo_scan_shown', payload: { scanId: demoScanId } });
+      return json(200, {
+        demo: true,
+        product: {
+          label: DEMO_SAMPLE.label,
+          brand: DEMO_SAMPLE.brand,
+          name: DEMO_SAMPLE.name,
+          size: DEMO_SAMPLE.size,
+        },
+        matchedBy: 'demo',
+        band: DEMO_SAMPLE.zone,
+        catalogueUp: false,
+        model: 'demo-sample-v1',
+        modelFamily: null,
+        lowConfidence: false,
+        confidenceReasons: [],
+        ...(demoScanId === null ? {} : { scanId: demoScanId }),
+      });
+    }
 
     /*
      * The real catalogue, in front of a user for the first time.
@@ -2066,10 +2452,10 @@ export const server = createServer(async (req, res) => {
         const v = pick(key);
         return typeof v === 'string' ? v : undefined;
       };
-      const gtin = pickText('gtin')?.trim() || undefined;
+      const rawGtin = pickText('gtin')?.trim() || undefined;
       // Trimmed, as `/api/search` trims `q`: `?text=%20%20` is not a query.
       const text = pickText('text')?.trim() || undefined;
-      if (!gtin && !text) return json(400, { error: 'gtin or text is required' });
+      if (!rawGtin && !text) return json(400, { error: 'gtin or text is required' });
       const device = pickText('deviceId')?.trim() || UNATTRIBUTED;
       deviceForLog = device;
       const identifyStarted = Date.now();
@@ -2080,6 +2466,55 @@ export const server = createServer(async (req, res) => {
         accuracy: pick('accuracy'),
         at: pick('locatedAt'),
       });
+
+      /*
+       * ITEM 2 (docs/scanner-build-order-2026-09-19.md section 2), ruling 2
+       * (docs/decisions.md, "Nine rulings", 2026-09-19). The check digit and
+       * the zero-pad normalization run BEFORE anything is spent: a barcode
+       * that cannot be made to check out in any padding is refused here,
+       * before the paid call, rather than sent to Gemini as a reading that
+       * could never have been trusted. `gtin` from this point on is the one
+       * canonical digit string ruling 2 requires; nothing later in this
+       * route ever sees the raw, unvalidated reading again.
+       */
+      const gtin = rawGtin ? canonicalGtin(rawGtin) ?? undefined : undefined;
+      if (rawGtin && !gtin) {
+        const invalidScanId = recordScan({
+          deviceId: device,
+          kind: 'barcode',
+          query: rawGtin,
+          outcome: 'refused',
+          failureClass: 'invalid_barcode',
+          appVersion: telemetry.appVersion,
+          platform: telemetry.platform,
+          latencyMs: Date.now() - identifyStarted,
+          cell: where.cell,
+          storeId: where.storeId,
+          storeName: where.storeName,
+          exactLat: where.exactLat,
+          exactLon: where.exactLon,
+          exactAccuracy: where.exactAccuracy,
+          exactAt: where.exactAt,
+        });
+        scanForLog = invalidScanId;
+        return json(200, {
+          product: null,
+          matchedBy: 'none',
+          band: 'miss',
+          category: null,
+          categoryWhy: '',
+          ring: null,
+          otherCandidates: 0,
+          route: null,
+          catalogueUp: false,
+          ms: Date.now() - identifyStarted,
+          reason: 'invalid_barcode',
+          failure: 'invalid_barcode',
+          lowConfidence: true,
+          confidenceReasons: ['no_answer:invalid_barcode'],
+          ...(invalidScanId === null ? {} : { scanId: invalidScanId }),
+        });
+      }
 
       const limitedIdentify = paidCallRefusal(req);
       if (limitedIdentify) return tooManyCalls(limitedIdentify.retryAfterSeconds);
@@ -2464,7 +2899,12 @@ export const server = createServer(async (req, res) => {
       const echo = q.priceQuery && typeof q.priceQuery === 'object' ? (q.priceQuery as Record<string, unknown>) : null;
       const textOf = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() !== '' ? v : undefined);
       const searchText = textOf(echo?.text) ?? textOf(q.text);
-      const searchGtin = textOf(echo?.gtin) ?? textOf(q.gtin);
+      // Item 2: canonicalized so this route's cache key (item 1) matches the
+      // one `/api/identify` wrote under. Falls back to the raw reading when
+      // it cannot be validated, rather than refusing: unlike `/api/identify`,
+      // this route has never refused a request over the shape of its input.
+      const rawSearchGtin = textOf(echo?.gtin) ?? textOf(q.gtin);
+      const searchGtin = rawSearchGtin ? (canonicalGtin(rawSearchGtin) ?? rawSearchGtin) : rawSearchGtin;
       if (!searchText && !searchGtin && !scanKnown) {
         // A refusal is a 200 here, as it always was on this route: it is a
         // correct answer about the input, and a client that treats it as an

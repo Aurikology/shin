@@ -461,3 +461,30 @@ test('a cache hint is accepted and ignored, because this surface is assumed to h
   await new GeminiProvider({ apiKey: 'k', transport, baseUrl: BASE }).send(request({ cache: 'after_image' }));
   assert.ok(!JSON.stringify(transport.calls[0].body).includes('cache'));
 });
+
+/*
+ * ITEM 22. Thinking level chosen per model tier, not one env-driven constant
+ * for every call. A lite model (the cheapest tier, `GEMINI_FOR['claude-haiku-4-5']`)
+ * gets the least thinking; a pro-named model gets the most; the flash tier
+ * already covered above keeps `low`. The env override still wins outright,
+ * over every tier, exactly as it already did before any tier existed.
+ */
+test('a lite-tier model gets the least thinking level, minimal', async () => {
+  const transport = fakeTransport({ text: answer() });
+  await new GeminiProvider({ apiKey: 'k', transport, baseUrl: BASE }).send(request({ model: 'gemini-3.5-flash-lite' }));
+  assert.equal((transport.calls[0].body.generation_config as Record<string, unknown>).thinking_level, 'minimal');
+});
+
+test('a pro-tier model gets the most thinking level, high', async () => {
+  const transport = fakeTransport({ text: answer() });
+  await new GeminiProvider({ apiKey: 'k', transport, baseUrl: BASE }).send(request({ model: 'gemini-3.9-pro' }));
+  assert.equal((transport.calls[0].body.generation_config as Record<string, unknown>).thinking_level, 'high');
+});
+
+test("SHIN_GEMINI_THINKING overrides a lite model's own tier default, not only the flash default", async () => {
+  await withEnv('SHIN_GEMINI_THINKING', 'medium', async () => {
+    const transport = fakeTransport({ text: answer() });
+    await new GeminiProvider({ apiKey: 'k', transport, baseUrl: BASE }).send(request({ model: 'gemini-3.5-flash-lite' }));
+    assert.equal((transport.calls[0].body.generation_config as Record<string, unknown>).thinking_level, 'medium');
+  });
+});

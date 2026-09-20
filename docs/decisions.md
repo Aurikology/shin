@@ -1805,3 +1805,73 @@ day, and the hard ceiling of CAD 100 refuses at about 1,270. Neither number is J
 
 **Reverses if:** a real tester is refused (raise the numbers), or Jamin wants the cap denominated in
 measured spend after the call rather than a paid-rate estimate before it.
+
+## Nine rulings so the competitor-survey build could start
+**Date:** 2026-09-19 · **Status:** active
+
+Jamin, asked to settle nine rule questions raised by `docs/scanner-build-order-2026-09-19.md`:
+*"build everything. Do what you think is best for your questions."* Each ruling below is mine under
+that instruction, not his words, and each is reversible by him at no cost because none of them is
+spent once. They are written here rather than in the build order so there is one place to reverse
+them from.
+
+**1. A cached Gemini answer is Gemini's answer, not Shin's price.** Rule 3 forbids Shin's own price
+database, price engine and cheaper lookups from being the answer source. A verbatim replay of what
+Gemini itself said about this exact barcode, carrying the timestamp of the call that produced it,
+has Gemini as its source and Shin only as the storage. Rule 1 forbids two calls for one scan; zero
+calls is not two. So: identity is cached with no expiry (a barcode's identity does not change), the
+price is cached for six hours and always shown with when it was checked, and a hit older than one
+hour triggers a background refresh. Cache key is the barcode plus market and currency, because the
+same barcode in another market is a different answer.
+**Reverses if:** he says a replayed price must never be shown without a fresh call, or a tester is
+shown a price that moved inside the six hours and minds.
+
+**2. The zero-padded barcode retry never re-hits Gemini.** It runs before the call, against the
+cache and Open Food Facts only, and exactly one canonical digit string is sent to Gemini.
+**Reverses if:** a measured miss rate shows the variant Gemini would have resolved is common enough
+to be worth a rule change he makes himself.
+
+**3. A page fetch is a check, not a call, and it never changes the number shown.** His own walkthrough
+ruling already says it: *"there can be measures in place but definitely not calling the ai a second
+time"*, and *"a hidden check may recompute Gemini's math; a mismatch marks that scan... for later
+review. Never shown."* So the verifier fetches only a host on the allowlist, only a URL the grounded
+search itself returned, records agreement or mismatch on the scan row, and leaves the displayed price
+exactly as Gemini gave it.
+**Reverses if:** the recorded mismatch rate is high enough that showing Gemini's number is knowingly
+showing a wrong one, which is a finding to take to him, not a change to make quietly.
+
+**4. A price that fails a guard is withheld, never replaced.** A number in the wrong currency or below
+a plausibility floor is not an unchecked answer, it is a different fact, and rule 6's "an unchecked
+answer beats no answer" does not reach it. The scan still answers: the product, the verdict and the
+reason the price could not be confirmed. Nothing is substituted, and the suppression is recorded.
+**Reverses if:** withholding turns out to be more confusing to a tester than showing the number with
+a warning.
+
+**5. Open Food Facts live is a third party; our imported copy of it is us.** The ruling *"the server
+will not check shins own product list for now"* names our own list. A live call to Open Food Facts is
+not our list, so it is allowed, and only for identity, never for price. The imported Open Food Facts
+table in `catalogue/` stays unconsulted on the scan path, because that one is ours.
+**Reverses if:** he reads the distinction as hairsplitting, in which case the live call goes too.
+
+**6. Grounding is skipped only when nothing is left to search for.** The short-circuit never means
+Shin's catalogue. It means two cases only: the whole answer came from cache, so there is no call at
+all, or the scan has no searchable identity whatsoever, where grounding spends money on an empty
+query. Every other scan grounds as it does today.
+**Reverses if:** measured spend shows grounding is affordable on every scan, in which case the gate is
+complexity for nothing.
+
+**7. Background enrichment writes beside the shown value, never over it.** A later, better answer goes
+in its own column with its own timestamp, and the value the user was shown stays exactly as they saw
+it. That is what "record everything" requires: what we showed, and what we later learned, both.
+**Reverses if:** the two-column shape makes the scan row unreadable for the thing it is for.
+
+**8. A missing Origin header is allowed and marked; a wrong one is refused.** A native wrapper can
+legitimately send no Origin, so refusing the absent case would break a real client to stop a
+hypothetical one. A present-and-mismatched Origin is refused outright.
+**Reverses if:** the marked count of origin-less requests turns out to be abuse rather than wrappers.
+
+**9. A scene change can cancel a request, never hide an answer.** Discarding happens before the call
+is sent. Once the one permitted call is spent, its answer is recorded and shown, because hiding a paid
+answer is both a waste and a thing the record would have to lie about.
+**Reverses if:** testers report answers arriving for products they have already walked away from,
+which is a UI problem to solve a different way.

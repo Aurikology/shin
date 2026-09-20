@@ -17,9 +17,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { identifyPhoto } from '../public/js/api.js';
+import { identify, identifyPhoto, identifyDemo, needsShrinking, nextShrinkScale, PHOTO_TARGET_BYTES } from '../public/js/api.js';
 import { say, refusalLabel } from '../public/js/voice.js';
-import { refusalSheet } from '../public/js/screens/camera.js';
+import { refusalSheet, retryCountdownLine } from '../public/js/screens/camera.js';
 
 const CAMERA = readFileSync(new URL('../public/js/screens/camera.js', import.meta.url), 'utf8');
 
@@ -122,6 +122,119 @@ test('identifyPhoto sends no sharpness or tier when neither was given', async ()
     const body = JSON.parse(calls[0].init.body);
     assert.equal('sharpness' in body, false);
     assert.equal('tier' in body, false);
+  } finally {
+    restoreFetch();
+  }
+});
+
+/* ------------------------------------------------------- item 9: retryAfterSeconds */
+
+test('identifyPhoto threads the server\'s own retryAfterSeconds through a 429, when it sent one', async () => {
+  stubFetch(async () => jsonResponse(429, { error: 'slow down', retryAfterSeconds: 12 }));
+  try {
+    const out = await identifyPhoto(crop(), { deviceId: 'd' });
+    assert.deepEqual(out, { product: null, failure: 'rate_limited', says: 'slow down', retryAfterSeconds: 12 });
+  } finally {
+    restoreFetch();
+  }
+});
+
+test('identifyPhoto adds no retryAfterSeconds key at all when the server sent none (413 or a bare 429)', async () => {
+  stubFetch(async () => jsonResponse(429, { error: 'slow down' }));
+  try {
+    const out = await identifyPhoto(crop(), { deviceId: 'd' });
+    assert.deepEqual(out, { product: null, failure: 'rate_limited', says: 'slow down' });
+    assert.equal('retryAfterSeconds' in out, false);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test('identifyPhoto never adds retryAfterSeconds to a 413: there is nothing to wait out', async () => {
+  stubFetch(async () => jsonResponse(413, { error: 'too big', retryAfterSeconds: 12 }));
+  try {
+    const out = await identifyPhoto(crop(), { deviceId: 'd' });
+    assert.equal('retryAfterSeconds' in out, false, 'a 413 sent a countdown, which the server never does, but this must not surface it either way');
+  } finally {
+    restoreFetch();
+  }
+});
+
+/* --------------------------------------------------------------- item 10: shrink */
+
+test('needsShrinking is false at and under the target, true only strictly over it', () => {
+  assert.equal(needsShrinking(PHOTO_TARGET_BYTES - 1), false);
+  assert.equal(needsShrinking(PHOTO_TARGET_BYTES), false);
+  assert.equal(needsShrinking(PHOTO_TARGET_BYTES + 1), true);
+  assert.equal(needsShrinking(0), false);
+});
+
+test('nextShrinkScale shrinks by the reference client\'s own 0.8x ratio, and keeps shrinking', () => {
+  const first = nextShrinkScale(1);
+  assert.equal(first, 0.8);
+  const second = nextShrinkScale(first);
+  assert.ok(second < first, 'a second pass did not shrink further');
+  assert.equal(second, 0.64);
+});
+
+test('identifyPhoto still answers with an oversized blob when the environment has no canvas: hard rule 1, never a lost scan', async () => {
+  // Node's test environment has neither createImageBitmap nor document, so
+  // shrinkPhotoBlob's own guard skips the redraw and hands the original blob
+  // back -- proving the skip path is safe, not that a real shrink ran (that
+  // needs a canvas, which this app deliberately never mocks; see the
+  // zero-runtime-dependency header above).
+  assert.equal(typeof globalThis.createImageBitmap, 'undefined', 'this test env unexpectedly has createImageBitmap; the skip path is not being exercised');
+  const oversized = new Blob([new Uint8Array(PHOTO_TARGET_BYTES + 1)], { type: 'image/png' });
+  stubFetch(async () => jsonResponse(200, { product: null }));
+  try {
+    const out = await identifyPhoto(oversized, { deviceId: 'd' });
+    assert.equal(calls.length, 1, 'an oversized photo with no canvas available never reached fetch at all');
+    assert.deepEqual(out, { product: null });
+  } finally {
+    restoreFetch();
+  }
+});
+
+/* -------------------------------------------------------------------- item 9: identify() */
+
+test('identify() answers a 429 with failure: rate_limited and the server\'s retryAfterSeconds, never a throw', async () => {
+  stubFetch(async () => jsonResponse(429, { error: 'slow down', retryAfterSeconds: 7 }));
+  try {
+    const out = await identify({ gtin: '0123456789012' });
+    assert.deepEqual(out, { product: null, failure: 'rate_limited', says: 'slow down', retryAfterSeconds: 7 });
+  } finally {
+    restoreFetch();
+  }
+});
+
+test('identify() still returns the plain body on an ordinary 200, unchanged', async () => {
+  stubFetch(async () => jsonResponse(200, { product: { code: 'x' }, band: 'confident' }));
+  try {
+    const out = await identify({ gtin: '0123456789012' });
+    assert.deepEqual(out, { product: { code: 'x' }, band: 'confident' });
+  } finally {
+    restoreFetch();
+  }
+});
+
+/* ---------------------------------------------------------------- item 19: demo */
+
+test('identifyDemo degrades to null when the demo route does not exist yet (getSoft, same as consent/rating/events)', async () => {
+  stubFetch(async () => jsonResponse(404, {}));
+  try {
+    const out = await identifyDemo();
+    assert.equal(out, null);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test('identifyDemo passes a real demo answer straight through', async () => {
+  const demo = { demo: true, model: 'deterministic-sample-v1', product: { code: 'd', name: 'Demo Thing', brand: 'Demo', size: '1 ea' }, category: 'demo', askingCents: 199, verdictWord: 'fair', band: 'confident' };
+  stubFetch(async () => jsonResponse(200, demo));
+  try {
+    const out = await identifyDemo();
+    assert.deepEqual(out, demo);
   } finally {
     restoreFetch();
   }
@@ -244,6 +357,63 @@ test('unreadable_photo renders under no_identity with its own sentence, not the 
 test('a queued offline photo renders under no_source_response with the app-voice offline sentence', () => {
   const html = refusalSheet(refusal('no_source_response', say('cam_photo_offline')), null, []);
   assert.ok(html.includes(say('cam_photo_offline')));
+});
+
+/* ------------------------------------------------- item 9: throttled refusals */
+
+// too_large and rate_limited (THROTTLE_REASONS in camera.js) are declined,
+// not a model failure and not the generic unknown refusal: their own title,
+// no second restated line, and the same "type what it is" repair the other
+// dead-ends already offer, per failure.md D9.5/D9.6.
+const THROTTLE_REASONS_TESTED = ['too_large', 'rate_limited'];
+
+test('too_large and rate_limited title the sheet "declined", never the generic unknown refusal', () => {
+  for (const reason of THROTTLE_REASONS_TESTED) {
+    const html = refusalSheet(refusal(reason, say(`cam_photo_${reason}`, {})), null, []);
+    assert.ok(html.includes(say('refuse_declined')), `${reason}: the sheet does not use the refuse_declined title`);
+    assert.ok(!html.includes(say('refuse_unknown')), `${reason}: fell back to the generic unknown-refusal title`);
+  }
+});
+
+test('too_large and rate_limited do not repeat the detail in a second said line', () => {
+  for (const reason of THROTTLE_REASONS_TESTED) {
+    const detail = say(`cam_photo_${reason}`, {});
+    const html = refusalSheet(refusal(reason, detail), null, []);
+    assert.ok(html.includes(detail), `${reason}: the detail sentence did not render at all`);
+    for (const who of ['deadpan', 'warm', 'blunt']) {
+      const retired = say('refuse_unknown_why', {}, who);
+      assert.ok(!html.includes(retired), `${reason}/${who}: a second generic line was appended beside the detail`);
+    }
+  }
+});
+
+test('too_large and rate_limited offer "type what it is", the same repair as no_identity and model-down', () => {
+  for (const reason of THROTTLE_REASONS_TESTED) {
+    const html = refusalSheet(refusal(reason, say(`cam_photo_${reason}`, {})), null, []);
+    const pills = html.split('class="pill').length - 1;
+    assert.equal(pills, 1, `${reason}: expected exactly one action`);
+    assert.match(html, /data-act="typeit"/, `${reason}: the repair is not the type-it route`);
+  }
+});
+
+test('a rate-limited refusal that carries a keepable price still offers Keep it, not type-it', () => {
+  const html = refusalSheet(refusal('rate_limited', say('cam_photo_rate_limited', {})), null, [], { cents: 199, shopId: 's1' });
+  assert.match(html, /data-act="keepit"/);
+});
+
+/* --------------------------------------------------------- retryCountdownLine */
+
+test('retryCountdownLine counts down from the server\'s own seconds, rounded up to a whole second', () => {
+  const line = retryCountdownLine(11.4);
+  assert.ok(line.includes('12s'), `expected a rounded-up 12s in: ${line}`);
+});
+
+test('retryCountdownLine with no usable number falls back to the localized line, never a hardcoded English placeholder', () => {
+  for (const bad of [null, undefined, NaN, 0, -3]) {
+    const line = retryCountdownLine(bad);
+    assert.ok(line.length > 0, `retryCountdownLine(${bad}) produced nothing`);
+    assert.doesNotMatch(line, /undefined|null|NaN/, `retryCountdownLine(${bad}) leaked a missing fact: ${line}`);
+  }
 });
 
 /* --------------------------------------------------------- camera.js wiring */

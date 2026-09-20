@@ -21,6 +21,8 @@ import { fakeTransport } from './gemini-double.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-paidlimit-'));
 process.env.SHIN_SCANS = join(dir, 'scans.db');
+process.env.SHIN_REPEAT_CACHE = join(dir, 'repeat-cache.db');
+process.env.SHIN_GAPS = join(dir, 'gaps.db');
 process.env.SHIN_CORRECTIONS = join(dir, 'corrections.db');
 process.env.SHIN_PHOTOS = join(dir, 'photos');
 process.env.SHIN_CATALOGUE = join(dir, 'no-catalogue.db');
@@ -34,6 +36,7 @@ delete process.env.SHIN_MODEL_PROVIDER;
 const { server, setGeminiTransportForTests, setSpendGuardForTests, setCatalogueForTests, setUserCatalogueForTests, settleBackgroundChecks, resetPaidCallLimitersForTests } =
   await import('../server.ts');
 const { openScanStore } = await import('../src/scans.ts');
+const { clearRepeatCacheForTests } = await import('../src/repeat-cache.ts');
 const { setErrorSinkForTests } = await import('../src/errlog.ts');
 const { createUserCatalogue } = await import('../../catalogue/src/user-catalogue.ts');
 const { KeyedLimiter, clientAddress } = await import('../src/rate-limit.ts');
@@ -86,6 +89,12 @@ beforeEach(() => {
   setErrorSinkForTests(() => {});
   delete process.env.SHIN_INVITES;
   limits({});
+  // Item 1's repeat-scan cache is keyed on the barcode alone, and this file
+  // reuses fixture barcodes across tests; without clearing, a test after the
+  // first to scan one would be served the cached answer instead of making
+  // its own call, which is item 1's real behaviour but not what these tests
+  // (written before the cache existed) are checking.
+  clearRepeatCacheForTests();
 });
 after(async () => {
   delete process.env.SHIN_INVITES;

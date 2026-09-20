@@ -167,6 +167,14 @@ export const ONB_EN = {
   onb_perm_location: 'Location access',
   onb_perm_location_sub: 'for store prices',
   onb_perm_camera_denied: 'Camera access was not allowed on this device.',
+  /* Item 19: a scripted demo scan, so a sample answer can be seen before
+     camera permission is granted. Chrome, not Shin: this screen carries none
+     of Shin's voice (see the file header on screens/onboarding.js), so the
+     badge and the fallback line are both plain labels, never a sentence in
+     the first person. */
+  onb_see_demo: 'See a demo scan',
+  onb_demo_badge: 'DEMO',
+  onb_demo_unavailable: 'The demo scan is not available yet.',
 
   /* 25 */
   onb_plans_title: 'Start your 3-day FREE trial to unlock unlimited scans',
@@ -328,6 +336,9 @@ export const ONB_FR = {
   onb_perm_location: 'Accès à la localisation',
   onb_perm_location_sub: 'pour les prix en magasin',
   onb_perm_camera_denied: 'L’accès à la caméra n’a pas été autorisé sur cet appareil.',
+  onb_see_demo: 'Voir un exemple de scan',
+  onb_demo_badge: 'DÉMO',
+  onb_demo_unavailable: 'L’exemple de scan n’est pas encore disponible.',
 
   onb_plans_title: 'Commence ton essai GRATUIT de 3 jours pour scanner sans limite',
   onb_plans_annual: '39,99 $ facturés par année',

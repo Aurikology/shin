@@ -218,6 +218,8 @@ const fakeModule = {
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-grounded-'));
 process.env.SHIN_SCANS = join(dir, 'scans.db');
+process.env.SHIN_REPEAT_CACHE = join(dir, 'repeat-cache.db');
+process.env.SHIN_GAPS = join(dir, 'gaps.db');
 process.env.SHIN_CORRECTIONS = join(dir, 'corrections.db');
 process.env.SHIN_PHOTOS = join(dir, 'photos');
 process.env.SHIN_CATALOGUE = join(dir, 'no-catalogue.db');

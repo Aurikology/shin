@@ -38,6 +38,7 @@ import { fileURLToPath } from 'node:url';
 import { classifyProviderError, type TokenUsage } from '../provider.ts';
 import type { FailureClass } from '../model.ts';
 import { spendCapRefusalMessage } from '../cap.ts';
+import { LONE_CLAIM_CEILING, LONE_CLAIM_FLOOR } from '../gauge.ts';
 import { interactionsUrl, mediaResolution, thinkingLevel, usageOf } from './gemini.ts';
 import {
   cleanUrl,
@@ -375,7 +376,26 @@ export interface RequestBody {
   generation_config?: { thinking_level: string };
 }
 
-export function buildRequestBody(input: ScanInput, choice: ModelChoice): { body: RequestBody; prompt: BuiltPrompt } {
+/**
+ * ITEM 7. Whether this scan carries anything a search could be spent on: a
+ * barcode, typed text, a typed name, or an actual photograph. Ruling 6
+ * (docs/decisions.md 2026-09-19): grounding is skipped only in this one case,
+ * "where a grounded query would be spent on nothing." Every other scan
+ * grounds exactly as before. Never Shin's own catalogue and never a cache
+ * check (a different item): only whether there is an identity to search for.
+ */
+export function hasSearchableIdentity(input: ScanInput): boolean {
+  if (input.barcode && input.barcode.trim() !== '') return true;
+  if (input.text && input.text.trim() !== '') return true;
+  if (input.userInput && input.userInput.trim() !== '') return true;
+  if (input.image && input.image.bytes && input.image.bytes.length > 0) return true;
+  return false;
+}
+
+export function buildRequestBody(
+  input: ScanInput,
+  choice: ModelChoice,
+): { body: RequestBody; prompt: BuiltPrompt; grounded: boolean } {
   const prompt = buildScanPrompt(input, choice.family);
   const parts: unknown[] =
     input.kind === 'photo' && input.image
@@ -389,18 +409,19 @@ export function buildRequestBody(input: ScanInput, choice: ModelChoice): { body:
           { type: 'text', text: prompt.user },
         ]
       : [{ type: 'text', text: prompt.user }];
+  const grounded = hasSearchableIdentity(input);
   const body: RequestBody = {
     model: choice.model,
     system_instruction: prompt.system,
     input: parts.length === 1 ? prompt.user : parts,
-    tools: [{ type: 'google_search' }],
+    tools: grounded ? [{ type: 'google_search' }] : [],
     store: false,
   };
   if (choice.family === '3.x') {
     body.response_format = { type: 'text', mime_type: 'application/json', schema: loadEngine().schema };
-    body.generation_config = { thinking_level: thinkingLevel() };
+    body.generation_config = { thinking_level: thinkingLevel(choice.model) };
   }
-  return { body, prompt };
+  return { body, prompt, grounded };
 }
 
 /** The request as it is stored: complete, with image bytes stood in for by their hash and size. */
@@ -489,9 +510,47 @@ export function repairJson(text: string): unknown {
   return null;
 }
 
+/**
+ * ITEM 17, the last-resort recovery, tried only for the model path that gets
+ * no schema at all (family '2.5': nothing forces its reply to be clean JSON,
+ * so it is the one path a stray wrapper actually reaches; a 3.x reply was
+ * sent a schema and is trusted to have honoured it). Two wrapper shapes,
+ * confirmed here to defeat both existing passes (the direct parse and the
+ * balanced-bracket repair above):
+ *
+ *   DOUBLE-ENCODED: the whole reply is a JSON STRING holding the JSON, not the
+ *   object itself. A direct parse succeeds structurally but yields a string,
+ *   which the object check above already rejects; there is no unescaped `{`
+ *   in the outer text for the balanced-bracket pass to find.
+ *
+ *   `text='...'` OR `text="..."`: a Python-repr-looking assignment around the
+ *   answer (WhiteChristmas, `backend/src/main.py:89-111`), for the one shape
+ *   of it that is not already recovered by the passes above.
+ *
+ * Whichever shape unwraps, the SAME three passes (direct parse, tolerant
+ * slice, balanced-bracket repair) are tried again on what came out. A no-op,
+ * returning null, on ordinary text: this never fires on an answer neither
+ * shape describes, and it costs nothing when the answer was clean already.
+ */
+export function stripWrapperArtifact(text: string): string | null {
+  const trimmed = text.trim();
+  try {
+    const direct = JSON.parse(trimmed);
+    if (typeof direct === 'string' && direct.trim() !== '') return direct;
+  } catch {
+    /* not double-encoded */
+  }
+  const wrapped = trimmed.match(/^text\s*=\s*(['"])([\s\S]*)\1\s*$/);
+  if (wrapped) return wrapped[2];
+  return null;
+}
+
 export type ParseStatus = 'clean' | 'repaired' | 'failed' | 'none';
 
-export function interpretText(text: string | null): { value: Record<string, unknown> | null; status: ParseStatus } {
+export function interpretText(
+  text: string | null,
+  family?: ModelFamily,
+): { value: Record<string, unknown> | null; status: ParseStatus } {
   if (text === null) return { value: null, status: 'none' };
   const trimmed = text.trim();
   try {
@@ -509,6 +568,27 @@ export function interpretText(text: string | null): { value: Record<string, unkn
   const repaired = repairJson(trimmed);
   if (repaired && typeof repaired === 'object' && !Array.isArray(repaired)) {
     return { value: repaired as Record<string, unknown>, status: 'repaired' };
+  }
+  if (family === '2.5') {
+    const unwrapped = stripWrapperArtifact(trimmed);
+    if (unwrapped !== null) {
+      try {
+        const direct2 = JSON.parse(unwrapped);
+        if (direct2 && typeof direct2 === 'object' && !Array.isArray(direct2)) {
+          return { value: direct2 as Record<string, unknown>, status: 'repaired' };
+        }
+      } catch {
+        /* fall through to the tolerant passes below */
+      }
+      const tolerant2 = parseJson(unwrapped);
+      if (tolerant2 && typeof tolerant2 === 'object' && !Array.isArray(tolerant2)) {
+        return { value: tolerant2 as Record<string, unknown>, status: 'repaired' };
+      }
+      const repaired2 = repairJson(unwrapped);
+      if (repaired2 && typeof repaired2 === 'object' && !Array.isArray(repaired2)) {
+        return { value: repaired2 as Record<string, unknown>, status: 'repaired' };
+      }
+    }
   }
   return { value: null, status: 'failed' };
 }
@@ -761,6 +841,166 @@ export function readAnswer(value: Record<string, unknown> | null): ReadAnswer | 
   };
 }
 
+/* -------------------------------------------------- item 17, schema re-check */
+
+export type SchemaViolationKind = 'unknown_key' | 'missing_required' | 'wrong_type' | 'too_many_items';
+
+export interface SchemaViolation {
+  readonly path: string;
+  readonly kind: SchemaViolationKind;
+  readonly detail: string;
+}
+
+type JsonSchemaNode = {
+  type?: string | string[];
+  properties?: Record<string, JsonSchemaNode>;
+  required?: string[];
+  items?: JsonSchemaNode;
+  maxItems?: number;
+  additionalProperties?: boolean;
+};
+
+function schemaTypes(node: JsonSchemaNode): string[] {
+  return Array.isArray(node.type) ? node.type : node.type ? [node.type] : [];
+}
+
+function matchesType(value: unknown, type: string): boolean {
+  if (type === 'null') return value === null;
+  if (type === 'array') return Array.isArray(value);
+  if (type === 'object') return value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (type === 'integer') return typeof value === 'number' && Number.isFinite(value);
+  if (type === 'number') return typeof value === 'number' && Number.isFinite(value);
+  if (type === 'string') return typeof value === 'string';
+  if (type === 'boolean') return typeof value === 'boolean';
+  return true;
+}
+
+/**
+ * ITEM 17. Re-validates the parsed object against `response_schema.json`,
+ * INDEPENDENTLY of whether the model was ever sent that schema (2.5 never is,
+ * and 3.x adhering to its own schema is not proof this file agrees with it).
+ * Every unknown key is counted rather than silently dropped, the way the
+ * plain readers above (`s`/`n`/`b`/`rec`) already silently drop one. Never
+ * throws, never used to refuse an answer (rule 6): its only output is a list,
+ * for the caller to record.
+ */
+export function validateAgainstSchema(value: unknown, schema: unknown, path = '$'): SchemaViolation[] {
+  const node = schema as JsonSchemaNode;
+  const types = schemaTypes(node);
+  const out: SchemaViolation[] = [];
+  if (types.length > 0 && !types.some((t) => matchesType(value, t))) {
+    out.push({ path, kind: 'wrong_type', detail: `expected ${types.join('|')}, got ${value === null ? 'null' : typeof value}` });
+    return out;
+  }
+  if (types.includes('object') && value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    const obj = value as Record<string, unknown>;
+    const props = node.properties ?? {};
+    if (node.additionalProperties === false) {
+      for (const key of Object.keys(obj)) {
+        if (!(key in props)) out.push({ path: `${path}.${key}`, kind: 'unknown_key', detail: key });
+      }
+    }
+    for (const key of node.required ?? []) {
+      if (!(key in obj)) out.push({ path: `${path}.${key}`, kind: 'missing_required', detail: key });
+    }
+    for (const [key, sub] of Object.entries(props)) {
+      if (key in obj) out.push(...validateAgainstSchema(obj[key], sub, `${path}.${key}`));
+    }
+  } else if (types.includes('array') && Array.isArray(value)) {
+    if (typeof node.maxItems === 'number' && value.length > node.maxItems) {
+      out.push({ path, kind: 'too_many_items', detail: `${value.length} items, more than ${node.maxItems}` });
+    }
+    if (node.items) {
+      value.forEach((item, i) => out.push(...validateAgainstSchema(item, node.items as JsonSchemaNode, `${path}[${i}]`)));
+    }
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------ item 4, guards */
+
+export type PriceSuppressionReason = 'currency_mismatch' | 'implausible_price';
+
+/** A price this file decided not to show, and why. Never silent (ruling 4, docs/decisions.md 2026-09-19). */
+export interface PriceSuppression {
+  readonly retailer: string | null;
+  readonly reason: PriceSuppressionReason;
+}
+
+/** What an offer is checked against: never Shin's own computed median, always Gemini's own. */
+export interface GuardReference {
+  readonly currency: string | null;
+  readonly median: number | null;
+}
+
+/**
+ * The one reference every guard call in this file builds from: Gemini's own
+ * shelf currency if it gave one, else the scan's own declared currency, never
+ * Shin's; Gemini's own stated median, never one Shin recomputed. Shared by
+ * `runGeminiScan` (to compute what to record) and `toAnswerBlock` (to compute
+ * what to show) so the two are never able to disagree on what a guard call means.
+ */
+export function guardReferenceFor(answer: ReadAnswer | null, scanCurrency: string | null): GuardReference {
+  return {
+    currency: (answer?.shelfCurrency ?? scanCurrency ?? null)?.trim().toUpperCase() || null,
+    median: answer?.verdict?.median ?? null,
+  };
+}
+
+/**
+ * ITEM 4. Two of the three live price guards (the third, the hidden math
+ * check, stays audit-only below -- `identify/test/gemini-scan.test.ts` "the
+ * block shows Gemini's own median, not one recomputed from its offers" is
+ * deliberate, and this function never touches the verdict). A price that
+ * fails either check is WITHHELD (its `price`/`unitPrice` become null, which
+ * drops it out of what `shownFrom` builds), never replaced with a guess, and
+ * the withholding is recorded rather than silent (ruling 4). Both checks are
+ * skipped, never guessed, when the reference itself is unknown: a null
+ * `reference.currency` or `reference.median` guards nothing.
+ *
+ *   CURRENCY: an offer whose stated currency does not match the reference
+ *   (Gemini's own shelf currency, or failing that the scan's own declared
+ *   currency -- never Shin's).
+ *
+ *   PLAUSIBILITY FLOOR: an offer whose unit price falls outside
+ *   `LONE_CLAIM_FLOOR`/`LONE_CLAIM_CEILING` of the reference median (the same
+ *   band `gauge.ts` already uses for the grounded-only flow), where the
+ *   reference is Gemini's own stated median, never one Shin computed.
+ */
+export function guardOffers(
+  offers: readonly ReadOffer[],
+  reference: GuardReference,
+): { readonly offers: readonly ReadOffer[]; readonly suppressed: readonly PriceSuppression[] } {
+  const suppressed: PriceSuppression[] = [];
+  const guarded = offers.map((o) => {
+    if (o.price === null) return o;
+    if (reference.currency !== null && o.currency !== null && o.currency !== reference.currency) {
+      suppressed.push({ retailer: o.retailer, reason: 'currency_mismatch' });
+      return { ...o, price: null, unitPrice: null };
+    }
+    if (
+      reference.median !== null &&
+      reference.median > 0 &&
+      o.unitPrice !== null &&
+      (o.unitPrice < reference.median * LONE_CLAIM_FLOOR || o.unitPrice > reference.median * LONE_CLAIM_CEILING)
+    ) {
+      suppressed.push({ retailer: o.retailer, reason: 'implausible_price' });
+      return { ...o, price: null, unitPrice: null };
+    }
+    return o;
+  });
+  return { offers: guarded, suppressed };
+}
+
+/* -------------------------------------------------------- item 20, latency */
+
+export interface StageLatency {
+  readonly promptBuildMs: number;
+  readonly requestMs: number;
+  readonly parseMs: number;
+  readonly validateMs: number;
+}
+
 /* ---------------------------------------------------------------- the run */
 
 export interface GeminiRun {
@@ -777,6 +1017,8 @@ export interface GeminiRun {
   readonly inputRef: string | null;
   readonly thresholds: Thresholds;
   readonly shelfPriceCents: number | null;
+  /** The scan's own declared currency, ISO code, upper-cased. Read for the live price guard only (item 4). */
+  readonly currency: string | null;
   /** The whole HTTP response body as received, or null when nothing came back. */
   readonly responseRaw: string | null;
   readonly httpStatus: number | null;
@@ -801,6 +1043,17 @@ export interface GeminiRun {
    * It is a mark on the scan and never a reason to refuse one.
    */
   readonly overCap: boolean;
+  /** ITEM 7. False only when the scan had no searchable identity at all (ruling 6). */
+  readonly grounded: boolean;
+  /** ITEM 14/4. Never shown, never used to withhold anything here: an audit mark only. */
+  readonly mathCheck: MathCheck;
+  /** ITEM 4. Every price this run withheld before the answer was built, and why. */
+  readonly priceSuppressions: readonly PriceSuppression[];
+  /** ITEM 20. Prompt build, the HTTP call, parsing and re-validation, alongside `ms` (the total). */
+  readonly stageMs: StageLatency;
+  /** ITEM 17. What the parsed object had that `response_schema.json` does not allow. */
+  readonly schemaViolations: readonly SchemaViolation[];
+  readonly unknownKeyCount: number;
 }
 
 export interface RunOptions {
@@ -851,6 +1104,23 @@ export async function runGeminiScan(input: ScanInput, opts: RunOptions): Promise
   const choice = modelForScan(opts.deviceId, env);
   const inputRef =
     input.kind === 'barcode' ? (input.barcode ?? null) : input.kind === 'text' ? (input.text ?? null) : null;
+  const grounded = hasSearchableIdentity(input);
+
+  // ITEM 20. Timestamps for the stage breakdown, set as each stage finishes.
+  // Any left null when `finish()` runs means that stage never happened, and
+  // reads as zero rather than a guess.
+  let tAfterBuild: number | null = null;
+  let tAfterRequest: number | null = null;
+  let tAfterParse: number | null = null;
+  let tAfterValidate: number | null = null;
+  function stageMsNow(): StageLatency {
+    return {
+      promptBuildMs: tAfterBuild !== null ? tAfterBuild - started : clock() - started,
+      requestMs: tAfterBuild !== null && tAfterRequest !== null ? tAfterRequest - tAfterBuild : 0,
+      parseMs: tAfterRequest !== null && tAfterParse !== null ? tAfterParse - tAfterRequest : 0,
+      validateMs: tAfterParse !== null && tAfterValidate !== null ? tAfterValidate - tAfterParse : 0,
+    };
+  }
 
   let requestJson = '{}';
   let systemText = '';
@@ -865,6 +1135,7 @@ export async function runGeminiScan(input: ScanInput, opts: RunOptions): Promise
     const rec2 = requestForRecord(body);
     requestJson = rec2.json;
     imageRef = rec2.imageRef;
+    tAfterBuild = clock();
   } catch (err) {
     return finish({ failure: 'model_client_error', failureMessage: `The prompt could not be built: ${String(err)}` });
   }
@@ -887,6 +1158,7 @@ export async function runGeminiScan(input: ScanInput, opts: RunOptions): Promise
       inputRef: inputRef ?? imageRef,
       thresholds,
       shelfPriceCents: input.shelfPriceCents ?? null,
+      currency: input.currency?.trim().toUpperCase() || null,
       responseRaw: null,
       httpStatus: null,
       answerText: null,
@@ -899,6 +1171,12 @@ export async function runGeminiScan(input: ScanInput, opts: RunOptions): Promise
       usage: { inputTokens: null, outputTokens: null, cacheReadTokens: null, cacheCreationTokens: null },
       ms: clock() - started,
       failureMessage: null,
+      grounded,
+      mathCheck: { checked: false, mismatches: [], skipped: [] },
+      priceSuppressions: [],
+      stageMs: stageMsNow(),
+      schemaViolations: [],
+      unknownKeyCount: 0,
       ...over,
       failure,
       overCap,
@@ -938,6 +1216,7 @@ export async function runGeminiScan(input: ScanInput, opts: RunOptions): Promise
         signal: controller.signal,
       });
       raw = await res.text();
+      tAfterRequest = clock();
     } catch (err) {
       const timedOut = controller.signal.aborted;
       return finish({
@@ -978,18 +1257,40 @@ export async function runGeminiScan(input: ScanInput, opts: RunOptions): Promise
       suggestionsHtml: walked.suggestionsHtml ?? '',
     });
   }
-  const read = interpretText(walked.text);
+  const read = interpretText(walked.text, choice.family);
+  tAfterParse = clock();
+
+  const answer = readAnswer(read.value);
+  // ITEM 4. Currency and plausibility, computed live, against Gemini's own
+  // stated reference -- never Shin's own math. `run.answer` stays the answer
+  // exactly as Gemini gave it (the hidden math check, item 14, and the eval
+  // harness both need Gemini's own numbers, unwithheld); `toAnswerBlock` is
+  // where a withheld price actually leaves what the phone is shown, applying
+  // this same guard again at display time (see its header).
+  const reference: GuardReference = guardReferenceFor(answer, input.currency ?? null);
+  const guardResult = answer ? guardOffers(answer.offers, reference) : { offers: [], suppressed: [] };
+  const mathCheck = checkMath(answer, thresholds, { shelfPriceCents: input.shelfPriceCents, currency: input.currency });
+  // ITEM 17. Independent of whether this model was ever sent the schema at all.
+  const schemaViolations = read.value !== null ? validateAgainstSchema(read.value, loadEngine().schema) : [];
+  const unknownKeyCount = schemaViolations.filter((v) => v.kind === 'unknown_key').length;
+  tAfterValidate = clock();
+
   return finish({
     responseRaw: raw,
     httpStatus: res.status,
     answerText: walked.text,
     parseStatus: read.status,
     parsed: read.value,
-    answer: readAnswer(read.value),
+    answer,
     citations: walked.citations,
     searchQueries: walked.searchQueries,
     suggestionsHtml: walked.suggestionsHtml ?? '',
     usage,
+    mathCheck,
+    priceSuppressions: guardResult.suppressed,
+    stageMs: stageMsNow(),
+    schemaViolations,
+    unknownKeyCount,
   });
 }
 
@@ -1096,7 +1397,13 @@ const NO_LINE_CODES = new Set(['no_offers_on_line', 'no_shelf_size']);
  * that disagrees with the offers is shown as stated).
  */
 export function toAnswerBlock(run: GeminiRun): AnswerBlock {
-  const a = run.answer;
+  const raw = run.answer;
+  // ITEM 4. The same guard `runGeminiScan` already recorded a suppression list
+  // for, applied again here at display time: this is the one place a withheld
+  // price actually leaves what the phone is shown. `run.answer` itself stays
+  // Gemini's own, unwithheld, for consumers that need its own numbers (the
+  // hidden math check, item 14, and the eval harness).
+  const a = raw ? { ...raw, offers: guardOffers(raw.offers, guardReferenceFor(raw, run.currency)).offers } : null;
   const offers = (a?.offers ?? []).map(shownFrom).filter((x): x is NonNullable<typeof x> => x !== null);
   const reviews: ShownReview[] = (a?.reviews ?? []).map((r) => ({
     rating: r.rating,

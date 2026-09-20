@@ -201,9 +201,25 @@ export function mediaResolution(): string {
  */
 const THINKING_LEVELS: ReadonlySet<string> = new Set(['minimal', 'low', 'medium', 'high']);
 
-export function thinkingLevel(): string {
+/**
+ * ITEM 22. Per model tier, not one constant for every 3.x call. `SHIN_GEMINI_THINKING`
+ * still wins outright whenever it names a valid level, exactly as before; only the
+ * DEFAULT now varies, by the model id this call actually configured. A lite tier
+ * (`gemini-3.5-flash-lite`) is the cheapest, so it gets the least thinking; a pro
+ * tier gets the most, on the same reasoning sugar-no-scanner-demo's
+ * `recognitionThinkingLevel` uses (`src/server/recognition.ts:124`): spend more
+ * reasoning only where a heavier tier is already paying more. A flash tier (today's
+ * only configured 3.x model, `GEMINI_FOR`'s two rows above) keeps `low`, the value
+ * every call sent before this split, so a call with no override and no tier change
+ * is unaffected.
+ */
+export function thinkingLevel(model?: string): string {
   const named = (process.env.SHIN_GEMINI_THINKING ?? '').trim().toLowerCase();
-  return THINKING_LEVELS.has(named) ? named : 'low';
+  if (THINKING_LEVELS.has(named)) return named;
+  const id = (model ?? '').trim().toLowerCase();
+  if (id.includes('lite')) return 'minimal';
+  if (id.includes('pro')) return 'high';
+  return 'low';
 }
 
 /**
@@ -354,7 +370,7 @@ export function interactionBody(request: ProviderRequest, model: string): Intera
       // Field 7: plain JSON Schema, as written in `model.ts`, untranslated.
       schema: request.schema.schema,
     },
-    generation_config: { thinking_level: thinkingLevel() },
+    generation_config: { thinking_level: thinkingLevel(model) },
     store: false,
   };
 }

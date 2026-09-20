@@ -1188,6 +1188,19 @@ const LINES_EN = {
     warm: () => 'Refused, because today’s photo reads are already used up.',
     blunt: () => 'Refused. Out of photo reads today.',
   },
+  /* Item 9's two route-declined codes (`THROTTLE_REASONS` in camera.js),
+     added the same way the four above were: the raw code reaching this
+     footer with no row is D-011's own failure mode. */
+  refusal_label_too_large: {
+    deadpan: () => 'Refused. That photo was too large to send.',
+    warm: () => 'Refused, because that photo was too large to send.',
+    blunt: () => 'Refused. Too large to send.',
+  },
+  refusal_label_rate_limited: {
+    deadpan: () => 'Refused. Too many scans right now.',
+    warm: () => 'Refused, because too many scans are going through right now.',
+    blunt: () => 'Refused. Too busy right now.',
+  },
 
   /**
    * --- the licences screen, two states ---
@@ -1445,6 +1458,48 @@ const LINES_EN = {
     warm: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Shin, and the person running it can see it as well. You can change either choice any time from the You page.',
     blunt: () => 'This app keeps it, uses it to answer other shoppers and train Shin. Change it any time on the You page.',
   },
+  /*
+   * Item 9, the two route-declined failures (`THROTTLE_REASONS` in camera.js).
+   * `refuse_declined` is the sheet's title, parallel to `refuse_unavailable`
+   * above it but for a request the route turned away before a model ever saw
+   * it, not a model that failed to answer.
+   */
+  refuse_declined: {
+    deadpan: () => 'That scan did not go through',
+    warm: () => 'That one did not go through',
+    blunt: () => 'Did not go through',
+  },
+  cam_photo_too_large: {
+    deadpan: () => 'That photo was still too large to send, even after shrinking it. The barcode and typing it still work.',
+    warm: () => 'That photo was too large to send, even after shrinking it, not your shot. The barcode or typing it will still get you an answer.',
+    blunt: () => 'Too large, even shrunk. Try the barcode or type it.',
+  },
+  /*
+   * Item 9's countdown detail line, shown on the same `refusalSheet` both
+   * routes already use for every other refusal, with a real countdown from
+   * the server's own `retryAfterSeconds` (`retryCountdownLine` in camera.js).
+   * `f.seconds` arrives already formatted ("12s"), and the fallback below is
+   * what a missing fact falls back to, never a hardcoded English string in
+   * the screen.
+   */
+  cam_scan_rate_limited: {
+    deadpan: (f) => `Scanning is busy right now. Try again in ${f.seconds}.`,
+    warm: (f) => `Scanning is a little backed up right now, not your shot. Try again in ${f.seconds}.`,
+    blunt: (f) => `Busy. Try again in ${f.seconds}.`,
+  },
+  /*
+   * Item 9's live-camera-screen half: `startCamera` in camera.js now tells a
+   * denied permission apart from no camera at all, the same classification
+   * `onboarding.js`'s `askCamera` already makes (its own copy is
+   * `onb_perm_camera_denied`, chrome rather than Shin's voice, since
+   * onboarding text carries none). This is the docked-face line for the
+   * screen itself, shown once, the same shape `cam_second_visit` uses.
+   */
+  cam_camera_denied: {
+    deadpan: () => 'Camera access was not allowed, so this is the drawn shelf instead.',
+    warm: () => 'I do not have camera access, so I am showing the drawn shelf instead. You can turn it back on in your phone settings.',
+    blunt: () => 'No camera access. Using the drawn shelf.',
+  },
 };
 
 /**
@@ -1588,6 +1643,15 @@ const BARE_EN = {
     deadpan: () => 'You have been here before.',
     warm: () => 'Good to see you again.',
     blunt: () => 'Back again.',
+  },
+  /* `retryCountdownLine` always supplies `f.seconds` itself, so this fallback
+     is only reached by voice.test.mjs's blanket `say(key, {}, id)` sweep --
+     kept anyway, same as every other bare row here, for the day a second
+     caller forgets to. */
+  cam_scan_rate_limited: {
+    deadpan: () => 'Scanning is busy right now.',
+    warm: () => 'Scanning is a little backed up right now, not your shot.',
+    blunt: () => 'Busy right now.',
   },
 };
 

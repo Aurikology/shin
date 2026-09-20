@@ -118,7 +118,11 @@ export function summariseScans(deviceId?: string, now: Date = new Date(), store?
   let rows: Row[];
   try {
     if (!s.db) throw new Error(s.droppedWhy || 'scan store is not open');
-    rows = s.db.prepare('SELECT device_id, kind, outcome, scanned_at FROM scan ORDER BY scanned_at ASC')
+    // Item 19: a demo row (`/api/identify/demo`) is excluded outright, never
+    // counted as a scan anywhere a rate is computed, including the profile
+    // screen's rates this function is the reader for.
+    rows = s.db
+      .prepare('SELECT device_id, kind, outcome, scanned_at FROM scan WHERE is_demo = 0 ORDER BY scanned_at ASC')
       .all() as unknown as Row[];
   } catch (err) {
     // The same contract the writer keeps: a log that cannot be read is counted,

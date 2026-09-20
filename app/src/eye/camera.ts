@@ -49,8 +49,17 @@ import {
   type Detection,
   type Box,
 } from './detector.ts';
-import { StabilityGate, sharpnessOf, burst, releaseAllBut, cropTo, type CropResult } from './capture.ts';
+import {
+  StabilityGate,
+  sharpnessOf,
+  burst,
+  releaseAllBut,
+  cropTo,
+  forcedCaptureDue,
+  type CropResult,
+} from './capture.ts';
 import { Coach, glareIn, zoomFor, type CoachKey } from './framing.ts';
+import { signatureOf, signatureDistance, SHELF_MIN_CHANGE } from './shelf.ts';
 
 /** One barcode in view, in source frame coordinates. */
 export interface BarcodeMark {
@@ -113,6 +122,70 @@ export interface CameraOptions {
 const DETECT_EVERY_MS = 180;
 
 /**
+ * How many animation frames `start()` waits for `videoWidth`/`videoHeight` to
+ * become real before giving up and starting the loop anyway. Copied from
+ * sugar-no-scanner-demo's own wait for its video ref (scanner-app.tsx:997):
+ * ten tries at one frame each, generous next to how fast a phone actually
+ * reports its first frame.
+ */
+const VIDEO_READY_TRIES = 10;
+
+/** Whether a video element has actually started producing frames. Item 13. */
+export function videoIsReady(video: { videoWidth: number; videoHeight: number }): boolean {
+  return video.videoWidth > 0 && video.videoHeight > 0;
+}
+
+/**
+ * Whether a track's own capabilities advertise continuous autofocus at all.
+ * Item 13, same "ask, do not assume" pattern as the zoom capability check
+ * below (`#readZoomCapability`).
+ */
+export function supportsContinuousFocus(caps: { focusMode?: readonly string[] } | null | undefined): boolean {
+  return !!caps?.focusMode?.includes('continuous');
+}
+
+/**
+ * Consecutive signature mismatches (against the burst's own first frame)
+ * needed before item 21 declares a scene change. Copied from sugar-no-
+ * scanner-demo's own debounce: one bad match alone is tolerated, so a single
+ * blurred frame mid-burst is not read as the shopper having moved on
+ * (scanner-app.tsx:869).
+ */
+const SCENE_CHANGE_STRIKES = 2;
+
+/**
+ * Whether a burst's frames show the shopper moved on before the shot was
+ * assembled. `signatures[0]` is the anchor (the scene the burst started in);
+ * each later signature is compared against IT, not against its neighbour, so
+ * a slow drift back toward the anchor still counts as having left it rather
+ * than resetting the streak by accident.
+ *
+ * Reuses `shelf.ts`'s own `signatureOf`/`signatureDistance` and its
+ * `SHELF_MIN_CHANGE` bar for "different enough to count as a new view",
+ * rather than a second threshold for the same question answered in the
+ * opposite direction (shelf.ts sends a new photo on change; this cancels one
+ * that has not gone out yet). Item 21.
+ */
+export function sceneChanged(
+  signatures: readonly (readonly number[])[],
+  threshold = SHELF_MIN_CHANGE,
+  strikesNeeded = SCENE_CHANGE_STRIKES,
+): boolean {
+  if (signatures.length < 2) return false;
+  const anchor = signatures[0];
+  let strikes = 0;
+  for (let i = 1; i < signatures.length; i += 1) {
+    if (signatureDistance(anchor, signatures[i]) >= threshold) {
+      strikes += 1;
+      if (strikes >= strikesNeeded) return true;
+    } else {
+      strikes = 0;
+    }
+  }
+  return false;
+}
+
+/**
  * How long a small object has to sit still before the camera zooms toward it.
  *
  * Long enough that a sweep across a shelf does not drag the lens along behind
@@ -141,17 +214,34 @@ export class Camera {
   readonly #scanner: BarcodeScanner;
   readonly #detector: ObjectDetector | null;
   readonly #gate = new StabilityGate();
+  /** Item 5: when the current single candidate first showed up. See `#tick()`. */
+  #gateOpenedAt: number | null = null;
   readonly #coach = new Coach();
   readonly #autoCapture: boolean;
   readonly #autoZoom: boolean;
 
   #stream: MediaStream | null = null;
   #running = false;
+  /** Set once the readiness wait in `start()` has seen a real frame. Item 13. */
+  #ready = false;
   #lastDetect = 0;
   #boxes: Detection[] = [];
   #darkSince: number | null = null;
   #torchOn = false;
-  #capturing = false;
+  /**
+   * Item 16. True while a capture (manual or auto) is assembling the burst
+   * and the crop. `#loop()`/`#tick()` already cannot run two ticks at once
+   * (the next `requestAnimationFrame` is only scheduled inside `.finally()`
+   * after `#tick()` fully resolves, camera.md A16.5), so the one real overlap
+   * this flag guards is the manual shutter (`capture()`), called from outside
+   * that chain entirely: a tick already in flight when it fires would
+   * otherwise still run a full decode/detect pass on a frame nobody wants.
+   */
+  #busy = false;
+  /** How many ticks item 16's busy flag has dropped. Telemetry for item 20. */
+  #framesDropped = 0;
+  /** How many captures item 21's scene-change check has cancelled before send. */
+  #capturesCancelled = 0;
   #scanCanvas: OffscreenCanvas | null = null;
   /** Source pixels per scan-frame pixel, so a barcode box can be reported in source space. */
   #scanScale = 1;
@@ -213,21 +303,51 @@ export class Camera {
     this.#video.srcObject = this.#stream;
     await this.#video.play();
     this.#readZoomCapability();
+    void this.#requestContinuousFocus();
 
     // Warmed before the first frame rather than on it: a module load during the
     // first second reads as the camera being broken (decision 1).
     void this.#scanner.warm();
     void this.#detector?.load();
 
+    // Item 13: `play()` resolving does not mean a frame exists yet. Without
+    // this wait the loop starts anyway and each tick individually discovers
+    // the frame isn't ready (`#frameToImageData()` returns null), which looks
+    // identical to a track that died after starting fine. This makes "not
+    // ready yet" explicit instead: `ready` stays false until a real frame
+    // shows up or the wait gives up.
+    await this.#waitUntilReady();
     this.#running = true;
     this.#loop();
   }
 
+  /** Whether the video element has actually started producing frames yet. */
+  get ready(): boolean {
+    return this.#ready;
+  }
+
+  /** Item 16: true while a capture is in flight and a tick would be dropped. */
+  get busy(): boolean {
+    return this.#busy;
+  }
+
+  /** Item 16: how many ticks have been dropped for arriving while busy. */
+  get framesDropped(): number {
+    return this.#framesDropped;
+  }
+
+  /** Item 21: how many captures were cancelled for a scene change before send. */
+  get capturesCancelled(): number {
+    return this.#capturesCancelled;
+  }
+
   stop(): void {
     this.#running = false;
+    this.#ready = false;
     // Frames from this visit must not vote in the next one.
     this.#vote.reset();
     this.#gate.reset();
+    this.#gateOpenedAt = null;
     this.#coach.reset();
     // Zoom is a property of the track, and the track is about to be stopped, so
     // this is belt and braces rather than necessary. It matters on the browsers
@@ -261,6 +381,7 @@ export class Camera {
     this.#boxes = orderByPin(this.#boxes, this.#pinned);
     this.#events.onBoxes(this.#boxes, this.#video.videoWidth, this.#video.videoHeight);
     this.#gate.reset();
+    this.#gateOpenedAt = null;
   }
 
   /**
@@ -343,6 +464,42 @@ export class Camera {
     this.#zoom = zoom.min;
   }
 
+  /**
+   * Item 13. Best effort, same as `setTorch`/`#applyZoom`: not every device
+   * exposes focus control, and a device that reports the capability and then
+   * refuses the constraint anyway is not this app's problem to surface, since
+   * the user never asked for continuous focus, the app decided it wanted it.
+   * Unlike torch/zoom, this runs before the loop, so the try/catch matters
+   * more here: a constraint that threw uncaught would stop `start()` and the
+   * camera would never come on at all.
+   */
+  async #requestContinuousFocus(): Promise<void> {
+    const track = this.#stream?.getVideoTracks()[0];
+    if (!track) return;
+    const caps = (track as unknown as { getCapabilities?: () => { focusMode?: string[] } }).getCapabilities?.();
+    if (!supportsContinuousFocus(caps)) return;
+    try {
+      await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as unknown as MediaTrackConstraintSet] });
+    } catch {
+      // Reported as capable and refused anyway, the same as zoom above.
+    }
+  }
+
+  /** Item 13: see `videoIsReady` and the comment in `start()`. */
+  async #waitUntilReady(): Promise<void> {
+    for (let i = 0; i < VIDEO_READY_TRIES; i += 1) {
+      if (videoIsReady(this.#video)) {
+        this.#ready = true;
+        return;
+      }
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+    // Never became ready inside the budget. The loop still starts, because a
+    // camera that never reports a size should not silently vanish, but
+    // `ready` stays false so a caller can tell that apart from a frame that
+    // simply came through blank later.
+  }
+
   async #applyZoom(next: number): Promise<void> {
     const track = this.#stream?.getVideoTracks()[0];
     if (!track || !this.#zoomCaps) return;
@@ -390,7 +547,10 @@ export class Camera {
   }
 
   async #tick(): Promise<void> {
-    if (this.#capturing) return;
+    if (this.#busy) {
+      this.#framesDropped += 1;
+      return;
+    }
     const frame = this.#frameToImageData();
     if (!frame) return;
 
@@ -457,10 +617,20 @@ export class Camera {
         // Decision 9: never auto-fire when there is more than one thing it could
         // be. Two boxes means the user taps, and the gate is held open.
         const sharp = sharpnessOf(frame);
-        if (this.#gate.update(target.box, sharp, sw)) {
+        // Item 5's forced-capture escape hatch. `#gateOpenedAt` marks when a
+        // single candidate first showed up, independent of the gate's own
+        // history (which resets on every drift or motion rejection): the
+        // clock is "how long has SOMETHING been waiting to be captured", not
+        // "how long has the gate been happy", so a shaky hand or a dim aisle
+        // cannot hold a scan open forever.
+        this.#gateOpenedAt ??= Date.now();
+        const settled = this.#gate.update(target.box, sharp, sw, frame);
+        if (settled || forcedCaptureDue(this.#gateOpenedAt, Date.now())) {
+          this.#gateOpenedAt = null;
           await this.#doCapture();
         }
       } else {
+        this.#gateOpenedAt = null;
         this.#gate.reset();
       }
     }
@@ -562,7 +732,7 @@ export class Camera {
   }
 
   #considerZoom(box: Box, sw: number, sh: number): void {
-    if (!this.#autoZoom || !this.#zoomCaps || this.#capturing) return;
+    if (!this.#autoZoom || !this.#zoomCaps || this.#busy) return;
     const now = Date.now();
     if (now - this.#zoomAt < ZOOM_COOLDOWN_MS) return;
     const next = zoomFor(this.#zoom, box, sw, sh, this.#zoomCaps);
@@ -608,14 +778,33 @@ export class Camera {
   }
 
   async #doCapture(): Promise<void> {
-    if (this.#capturing) return;
-    this.#capturing = true;
+    if (this.#busy) return;
+    this.#busy = true;
     this.#gate.reset();
+    this.#gateOpenedAt = null;
     this.#coach.silence();
     this.#emitCoach(null);
     try {
       const target = this.#boxes[0] ?? centreFallback(this.#video.videoWidth, this.#video.videoHeight);
       const frames = await burst(this.#video);
+
+      /*
+       * ITEM 21. Signatures of the burst in the order it was actually taken
+       * (`burst()` itself returns sharpest-first, so this re-sorts by `at`),
+       * checked BEFORE the crop and BEFORE `onCapture` fires. Nothing has
+       * gone out yet at this point, so declaring a scene change here is a
+       * cancellation, never a discard of an answer already paid for -- the
+       * ruling this item follows exactly. `onCapture`'s own contract (never
+       * silent, decision 8) is unaffected: this either fires it with a real
+       * crop or does not fire it at all, the same as any other failed burst.
+       */
+      const chronological = [...frames].sort((a, b) => a.at - b.at);
+      if (sceneChanged(chronological.map((f) => this.#signatureOfBitmap(f.bitmap)))) {
+        for (const f of frames) f.bitmap.close();
+        this.#capturesCancelled += 1;
+        return;
+      }
+
       const best = frames[0];
       releaseAllBut(frames, best);
       const crop = await cropTo(best, target.box);
@@ -624,8 +813,16 @@ export class Camera {
     } catch (err) {
       this.#events.onTrouble?.('The camera did not manage that shot. Try once more.');
     } finally {
-      this.#capturing = false;
+      this.#busy = false;
     }
+  }
+
+  /** A coarse signature of one burst frame, for item 21's scene-change check. */
+  #signatureOfBitmap(bitmap: ImageBitmap): number[] {
+    const canvas = new OffscreenCanvas(64, 48);
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+    ctx.drawImage(bitmap, 0, 0, 64, 48);
+    return signatureOf(ctx.getImageData(0, 0, 64, 48));
   }
 }
 

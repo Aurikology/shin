@@ -159,6 +159,11 @@ export const LINES_FR = {
     warm: () => "C'est de mon côté, pas ta photo. Le code-barres ou la saisie au clavier vont quand même te donner une réponse.",
     blunt: () => "Ma faute, pas ta photo. Essaie le code-barres ou écris-le.",
   },
+  refuse_declined: {
+    deadpan: () => "Ce scan n'est pas passé",
+    warm: () => "Celui-là n'est pas passé",
+    blunt: () => "Pas passé",
+  },
   refuse_thin: {
     deadpan: () => "Pas assez pour trancher",
     warm: () => "Je préfère ne pas me prononcer encore",
@@ -532,6 +537,16 @@ export const LINES_FR = {
     warm: () => "Il me faut une connexion pour chercher ça",
     blunt: () => "Pas de connexion",
   },
+  cam_scan_rate_limited: {
+    deadpan: (f) => `Le scan est occupé en ce moment. Réessaie dans ${f.seconds}.`,
+    warm: (f) => `Le scan est un peu engorgé en ce moment, pas de ta faute. Réessaie dans ${f.seconds}.`,
+    blunt: (f) => `Occupé. Réessaie dans ${f.seconds}.`,
+  },
+  cam_camera_denied: {
+    deadpan: () => "L'accès à la caméra n'a pas été autorisé, alors voici l'étalage dessiné à la place.",
+    warm: () => "Je n'ai pas accès à la caméra, alors je montre l'étalage dessiné à la place. Tu peux le réactiver dans les réglages de ton téléphone.",
+    blunt: () => "Pas d'accès à la caméra. J'utilise l'étalage dessiné.",
+  },
   cam_offline_no_price: {
     deadpan: () => "Shin a besoin d'une connexion internet pour chercher quoi que ce soit, alors je ne peux pas répondre à ce scan. Scanne-le de nouveau une fois connecté.",
     warm: () => "Shin a besoin d'une connexion internet pour chercher ça, alors je n'ai rien à te dire pour l'instant. Scanne-le de nouveau une fois connecté.",
@@ -551,6 +566,11 @@ export const LINES_FR = {
     deadpan: () => "On dirait des fruits ou des légumes frais. Je ne donne pas de prix à ça à partir d'une photo; écris plutôt le prix affiché.",
     warm: () => "On dirait des fruits ou des légumes frais, alors une photo ne te donnera pas de verdict là-dessus. Écris le prix affiché et je vais le noter.",
     blunt: () => "Des fruits et légumes. Pas de verdict par photo pour ça. Écris le prix.",
+  },
+  cam_photo_too_large: {
+    deadpan: () => "Cette photo était encore trop grosse à envoyer, même après l'avoir réduite. Le code-barres et la saisie au clavier fonctionnent encore.",
+    warm: () => "Cette photo était trop grosse à envoyer, même réduite, pas ta photo. Le code-barres ou la saisie au clavier vont quand même te donner une réponse.",
+    blunt: () => "Trop grosse, même réduite. Essaie le code-barres ou écris-le.",
   },
   cam_photo_model_timeout: {
     deadpan: () => "Le lecteur de photos a pris trop de temps sur celle-là. Le code-barres et la saisie au clavier fonctionnent encore.",
@@ -690,6 +710,16 @@ export const LINES_FR = {
     deadpan: () => "Refusé. Les lectures de photos d'aujourd'hui sont épuisées.",
     warm: () => "Refusé, parce que les lectures de photos d'aujourd'hui sont déjà épuisées.",
     blunt: () => "Refusé. Plus de lectures de photos aujourd'hui.",
+  },
+  refusal_label_too_large: {
+    deadpan: () => "Refusé. Cette photo était trop grosse à envoyer.",
+    warm: () => "Refusé, parce que cette photo était trop grosse à envoyer.",
+    blunt: () => "Refusé. Trop grosse à envoyer.",
+  },
+  refusal_label_rate_limited: {
+    deadpan: () => "Refusé. Trop de scans en ce moment.",
+    warm: () => "Refusé, parce que trop de scans passent en ce moment.",
+    blunt: () => "Refusé. Trop occupé en ce moment.",
   },
 
   licences_loading: {
@@ -947,5 +977,10 @@ export const BARE_FR = {
     deadpan: () => "Tu es déjà venu ici.",
     warm: () => "Content de te revoir.",
     blunt: () => "De retour.",
+  },
+  cam_scan_rate_limited: {
+    deadpan: () => "Le scan est occupé en ce moment.",
+    warm: () => "Le scan est un peu engorgé en ce moment, pas de ta faute.",
+    blunt: () => "Occupé en ce moment.",
   },
 };

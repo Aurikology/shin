@@ -24,6 +24,8 @@ import { fileURLToPath } from 'node:url';
 const dir = mkdtempSync(join(tmpdir(), 'shin-retry-'));
 process.env.SHIN_CORRECTIONS = join(dir, 'corrections.db');
 process.env.SHIN_SCANS = join(dir, 'scans.db');
+process.env.SHIN_REPEAT_CACHE = join(dir, 'repeat-cache.db');
+process.env.SHIN_GAPS = join(dir, 'gaps.db');
 
 const { recordCorrection } = await import('../../price/src/corrections.ts');
 const { openScanStore, recordScan, lastAnsweredScan, correctScan, allScans } = await import('../src/scans.ts');

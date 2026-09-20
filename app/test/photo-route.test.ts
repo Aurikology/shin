@@ -29,6 +29,8 @@ import type { AddressInfo } from 'node:net';
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-photo-route-'));
 process.env.SHIN_SCANS = join(dir, 'scans.db');
+process.env.SHIN_REPEAT_CACHE = join(dir, 'repeat-cache.db');
+process.env.SHIN_GAPS = join(dir, 'gaps.db');
 process.env.SHIN_CORRECTIONS = join(dir, 'corrections.db');
 // No catalogue. The lookup is faked, and attaching the real multi-gigabyte
 // file would make this the slowest suite in the repo for nothing.

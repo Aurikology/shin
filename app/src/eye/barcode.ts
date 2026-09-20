@@ -98,6 +98,71 @@ function extractGtin(text: string, format: string): string {
   return text.replace(/[^\d]/g, '');
 }
 
+/** A frame's raw bytes, typed loosely so this can be tested with no DOM at all. */
+export interface RawFrame {
+  readonly data: Uint8ClampedArray;
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * Grayscale plus a linear contrast stretch. Item 12's own preprocessing,
+ * tried only on the second, slower decode attempt: a shelf barcode is often
+ * photographed under uneven light, and none of zxing's own options
+ * (`tryHarder`, `tryRotate`, `tryInvert`, `tryDownscale`, `tryDenoise`) touch
+ * contrast at all.
+ *
+ * Grayscale reuses Rec. 601 luma, the same weights `capture.ts`'s `toGrey`
+ * uses, so a red label and a green one are not preprocessed to different
+ * effective contrast for no reason a shopper would recognise. The stretch
+ * maps the frame's OWN min-max range to 0-255 rather than a fixed formula, so
+ * a photo that is already high contrast is left almost alone and a flat,
+ * washed-out one gets the most correction.
+ */
+export function grayscaleContrast(frame: RawFrame): RawFrame {
+  const { data, width, height } = frame;
+  const n = width * height;
+  const luma = new Float32Array(n);
+  let min = 255;
+  let max = 0;
+  for (let i = 0, p = 0; i < n; i += 1, p += 4) {
+    const g = 0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2];
+    luma[i] = g;
+    if (g < min) min = g;
+    if (g > max) max = g;
+  }
+  const range = max - min;
+  const out = new Uint8ClampedArray(n * 4);
+  for (let i = 0, p = 0; i < n; i += 1, p += 4) {
+    // A flat frame (min === max) has nothing to stretch; leave it as the
+    // plain grayscale rather than dividing by zero into a blank image.
+    const v = range > 0 ? Math.round(((luma[i] - min) / range) * 255) : luma[i];
+    out[p] = v;
+    out[p + 1] = v;
+    out[p + 2] = v;
+    out[p + 3] = 255;
+  }
+  return { data: out, width, height };
+}
+
+/**
+ * Consecutive empty decodes before the slower, preprocessed retry runs, and
+ * how often it repeats: the counter resets the moment it fires (win or lose),
+ * so preprocessing runs on at most one frame in `PREPROCESS_AFTER_MISSES + 1`
+ * rather than on every frame from the first streak onward.
+ *
+ * Not measured. `votes.ts`'s own majority window wants five frames minimum
+ * before anything is confirmed (`VOTE_DEFAULTS.minFrames`); this reuses that
+ * number as the closest local anchor for "long enough to be worth the extra
+ * decode cost" that does not need a phone to pick.
+ */
+export const PREPROCESS_AFTER_MISSES = 5;
+
+/** Whether the miss streak has earned the slower, preprocessed retry. */
+export function shouldRetryWithPreprocessing(consecutiveMisses: number, threshold = PREPROCESS_AFTER_MISSES): boolean {
+  return consecutiveMisses >= threshold;
+}
+
 export interface ScannerOptions {
   /** Where the .wasm sits when served. */
   readonly wasmUrl?: string;
@@ -121,6 +186,8 @@ export class BarcodeScanner {
   #strikes = 0;
   /** Set once the WebAssembly has arrived and answered its first read. See `scan`. */
   #loaded = false;
+  /** Consecutive decoded (not skipped) frames that found nothing. Item 12. */
+  #misses = 0;
 
   constructor(options: ScannerOptions = {}) {
     if (options.wasmUrl) {
@@ -177,7 +244,46 @@ export class BarcodeScanner {
       return null;
     }
 
-    let results: ReadResult[];
+    const first = await this.#raceDecode(frame, FIRST_PASS_OPTIONS);
+    if (first === null) return null;
+    const out = toSightings(first);
+
+    if (out.length > 0) {
+      this.#misses = 0;
+      return out;
+    }
+
+    /*
+     * ITEM 12. A code that is really there but the first pass missed (poor
+     * contrast, uneven shelf light) is worth a second, slower try with
+     * preprocessing -- but only once normal decoding has kept missing for a
+     * streak, not on the ordinary empty frame. The ordinary empty frame,
+     * while the shopper is still sweeping the shelf for something to point
+     * at, is not a miss to fix, and doubling decode cost on every one of
+     * those is exactly the performance cost camera.md's own analysis warns
+     * about (A12.3). The streak resets the moment this fires, win or lose, so
+     * preprocessing runs on at most one frame in `PREPROCESS_AFTER_MISSES + 1`
+     * rather than on every frame once triggered.
+     */
+    this.#misses += 1;
+    if (!shouldRetryWithPreprocessing(this.#misses)) return out;
+    this.#misses = 0;
+
+    const pre = grayscaleContrast(frame);
+    const second = await this.#raceDecode(pre as unknown as ImageData, SECOND_PASS_OPTIONS);
+    if (second === null) return out;
+    const retried = toSightings(second);
+    return retried.length > 0 ? retried : out;
+  }
+
+  /**
+   * One decode, raced against `DECODE_CEILING_MS`, sharing the wedge-strike
+   * count with every other call this scanner makes. Both the first attempt
+   * and item 12's second attempt go through here, so a preprocessed retry
+   * that hangs is caught by the exact same dead-module recovery (D-128) as
+   * an ordinary frame, rather than needing its own copy of the race.
+   */
+  async #raceDecode(frame: ImageData, options: Parameters<typeof readBarcodes>[1]): Promise<ReadResult[] | null> {
     try {
       /*
        * The timeout is the whole point of this race, and it is here because of
@@ -203,17 +309,7 @@ export class BarcodeScanner {
       const timeout = new Promise<null>((resolve) => {
         timer = setTimeout(() => resolve(null), DECODE_CEILING_MS);
       });
-      const decoding = readBarcodes(frame, {
-          formats: [...RETAIL_FORMATS],
-          // A barcode on a shelf is curved, angled, and half in shadow. These cost
-          // milliseconds and are the difference between reading a real shelf and
-          // reading a flat test image.
-          tryHarder: true,
-          tryRotate: true,
-          tryInvert: true,
-          tryDownscale: true,
-        maxNumberOfSymbols: 4,
-      });
+      const decoding = readBarcodes(frame, options);
       const decoded = await Promise.race([decoding, timeout]);
       clearTimeout(timer);
       if (decoded === null) {
@@ -246,24 +342,43 @@ export class BarcodeScanner {
       }
       // A decode that landed inside the ceiling is proof the module answers.
       this.#strikes = 0;
-      results = decoded;
+      return decoded;
     } catch {
       return null;
     }
-
-    // EVERY valid code on the frame, not the largest. Item 8: each barcode in
-    // view is tracked and drawn, and which one the button sends is the vote's
-    // decision over many frames, never one frame's opinion about size.
-    const out: Sighting[] = [];
-    for (const r of results) {
-      if (r.isValid === false || !r.text) continue;
-      const value = extractGtin(r.text, String(r.format));
-      if (!value) continue;
-      out.push({ value, format: String(r.format), box: boxOf(r) });
-    }
-    return out;
   }
+}
 
+/**
+ * The first attempt's options, exactly as they were before item 12: a
+ * barcode on a shelf is curved, angled, and half in shadow, and these cost
+ * milliseconds that are the difference between reading a real shelf and
+ * reading a flat test image.
+ */
+const FIRST_PASS_OPTIONS = {
+  formats: [...RETAIL_FORMATS],
+  tryHarder: true,
+  tryRotate: true,
+  tryInvert: true,
+  tryDownscale: true,
+  maxNumberOfSymbols: 4,
+};
+
+/** Item 12's second attempt: the same robustness options, plus denoise, on a preprocessed frame. */
+const SECOND_PASS_OPTIONS = { ...FIRST_PASS_OPTIONS, tryDenoise: true };
+
+// EVERY valid code on the frame, not the largest. Item 8: each barcode in
+// view is tracked and drawn, and which one the button sends is the vote's
+// decision over many frames, never one frame's opinion about size.
+function toSightings(results: ReadResult[]): Sighting[] {
+  const out: Sighting[] = [];
+  for (const r of results) {
+    if (r.isValid === false || !r.text) continue;
+    const value = extractGtin(r.text, String(r.format));
+    if (!value) continue;
+    out.push({ value, format: String(r.format), box: boxOf(r) });
+  }
+  return out;
 }
 
 function boxOf(r: ReadResult): Reading['box'] {

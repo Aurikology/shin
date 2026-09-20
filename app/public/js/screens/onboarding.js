@@ -239,8 +239,41 @@ function permissionsBody() {
       <button type="button" class="onb-switch" role="switch" aria-checked="false" data-perm="${k}"
               aria-label="${escapeHtml(t(`onb_perm_${k}`))}"></button>
     </div>`;
+  // Item 19: a demo scan, reachable before camera permission is asked for
+  // real (docs/scanner-build-order-2026-09-19.md item 19). `data-demo-slot`
+  // is empty until tapped; the render() handler below fills it.
   return `<h1>${escapeHtml(t('onb_perm_title'))}</h1>${row('camera')}${row('location')}
-    <p class="fineprint onb-perm-note" role="status" hidden>${escapeHtml(t('onb_perm_camera_denied'))}</p>`;
+    <p class="fineprint onb-perm-note" role="status" hidden>${escapeHtml(t('onb_perm_camera_denied'))}</p>
+    <button type="button" class="onb-demo-link" data-act="see-demo">${escapeHtml(t('onb_see_demo'))}</button>
+    <div class="onb-demo-slot" data-demo-slot role="status"></div>`;
+}
+
+/**
+ * Item 19's own card: a scripted demo answer, always visibly marked as one
+ * wherever it carries a price or a verdict. Onboarding's own rule ("Figures
+ * show only when real", onboarding-flow.js) governs published marketing
+ * figures (shoppers, rating, reviews); a demo scan is a different kind of
+ * thing and does not go through that gate at all, because it is never claimed
+ * as real in the first place -- the badge is the claim's whole shape.
+ *
+ * `demo` is whatever `ctx.api.identifyDemo()` resolved to (SEAM: the exact
+ * server shape is not yet fixed; see api.js's own comment on `identifyDemo`).
+ * Pure and exported so the labelling rule is checked without a DOM.
+ */
+export function demoResultHtml(demo) {
+  const badge = `<span class="onb-demo-badge">${escapeHtml(t('onb_demo_badge'))}</span>`;
+  const name = demo?.product?.name ? escapeHtml(String(demo.product.name)) : '';
+  const brand = demo?.product?.brand ? escapeHtml(String(demo.product.brand)) : '';
+  const label = [brand, name].filter(Boolean).join(' ');
+  const priceCents = typeof demo?.askingCents === 'number' ? demo.askingCents : null;
+  const price = priceCents !== null ? `$${(priceCents / 100).toFixed(2)}` : null;
+  const verdict = demo?.verdictWord ? escapeHtml(String(demo.verdictWord)) : '';
+  return `<div class="onb-demo-card" data-demo-result>
+    ${badge}
+    ${label ? `<p class="onb-demo-item">${label}</p>` : ''}
+    ${price !== null ? `<p class="onb-demo-price">${badge} ${escapeHtml(price)}</p>` : ''}
+    ${verdict ? `<p class="onb-demo-verdict">${badge} ${verdict}</p>` : ''}
+  </div>`;
 }
 
 function trialBody() {
@@ -412,6 +445,21 @@ export default {
     }
     if (step.kind === 'permissions') paintPermissions();
 
+    /**
+     * Item 19: fetches the demo scan and paints it into the permissions
+     * step's own slot. `identifyDemo` degrades to `null` when the route is
+     * not there yet (api.js's `getSoft`), which is honest rather than
+     * something faked to fill the space -- the fallback line says so.
+     */
+    async function showDemo() {
+      const demoSlot = root.querySelector('[data-demo-slot]');
+      if (!demoSlot) return;
+      const demo = await ctx.api.identifyDemo?.();
+      if (ac.signal.aborted) return;
+      track('demo_scan_shown', { shown: Boolean(demo) });
+      demoSlot.innerHTML = demo ? demoResultHtml(demo) : `<p class="fineprint">${escapeHtml(t('onb_demo_unavailable'))}</p>`;
+    }
+
     on(root, 'input', (e) => {
       const range = e.target.closest('[data-range="threshold"]');
       if (!range) return;
@@ -495,6 +543,8 @@ export default {
         recordAnswer(DEPS, step.id, 'planInterest', 'none', {}, { eventOnly: replay });
         (replay ? endReplay : finish)(DEPS);
         leave(null);
+      } else if (act === 'see-demo') {
+        await showDemo();
       }
     }, ac.signal);
 

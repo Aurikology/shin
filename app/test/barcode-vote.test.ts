@@ -134,6 +134,50 @@ test('reset forgets everything, so a stale winner cannot be pressed on the next 
   assert.deepEqual(v.tracks(last), []);
 });
 
+/* ------------------------------------------- item 15, 2026-09-19: smoothing */
+
+test('a jittery box is smoothed toward the middle of its recent readings, not just the last frame', () => {
+  const v = new BarcodeVote();
+  const at = (x: number): Sighting => ({ value: '111', format: 'EAN13', box: { x, y: 100, width: 120, height: 40 } });
+  let t = 0;
+  // The true centre is 100; the last raw reading on its own is 140, a jump a
+  // single noisy zxing read produces on real hardware (votes.ts's own doc
+  // comment: the box used to be "where it was on the most recent frame").
+  for (const x of [100, 104, 96, 108, 92, 140]) {
+    v.push(t, [at(x)]);
+    t += 100;
+  }
+  const track = v.tracks(t)[0];
+  assert.ok(track.box, 'the track lost its box');
+  assert.notEqual(track.box!.x, 140, 'the reported box is exactly the last raw reading, nothing is smoothing it');
+  assert.ok(track.box!.x < 130, `smoothing barely moved the box off the last raw reading: ${track.box!.x}`);
+});
+
+test('one wild misread does not drag the smoothed box away from where the rest agree', () => {
+  const v = new BarcodeVote();
+  const at = (x: number): Sighting => ({ value: '111', format: 'EAN13', box: { x, y: 100, width: 120, height: 40 } });
+  let t = 0;
+  // Every reading sits near 100 except the very last, a misread that landed
+  // on a shelf-neighbour's code by pure geometry.
+  for (const x of [100, 101, 99, 100, 100, 500]) {
+    v.push(t, [at(x)]);
+    t += 100;
+  }
+  const track = v.tracks(t)[0];
+  assert.ok(track.box, 'the track lost its box');
+  assert.ok(
+    Math.abs(track.box!.x - 100) < 10,
+    `the outlier at x=500 pulled the smoothed box to ${track.box!.x}, an outlier was averaged in rather than rejected`,
+  );
+});
+
+test('a single sighting has nothing to smooth against and is reported as-is', () => {
+  const v = new BarcodeVote();
+  v.push(0, [{ value: '111', format: 'EAN13', box: { x: 250, y: 60, width: 80, height: 30 } }]);
+  const track = v.tracks(0)[0];
+  assert.deepEqual(track.box, { x: 250, y: 60, width: 80, height: 30 });
+});
+
 test('the vote has no way to emit a result by itself', () => {
   // The whole of "results never pop up on their own": this class exposes state
   // to be READ. No callback, no event, nothing that pushes.

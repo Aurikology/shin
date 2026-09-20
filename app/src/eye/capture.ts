@@ -71,6 +71,67 @@ export function sharpnessOf(source: ImageBitmap | HTMLVideoElement | ImageData):
   return sumSq / n - mean * mean;
 }
 
+/**
+ * Bytes to skip between samples when scoring motion. Copied from
+ * sugar-no-scanner-demo's strided pixel diff (scanner-app.tsx:914): a stride
+ * of 16 bytes is every 4th RGBA pixel, cheap enough to run every tick with no
+ * dedicated small canvas of its own the way their 96x72 sampling canvas is.
+ */
+const MOTION_STRIDE_BYTES = 16;
+
+/**
+ * Mean absolute difference at or above this counts as motion, item 5. Copied
+ * from sugar-no-scanner-demo's own motion gate (scanner-app.tsx:914).
+ */
+export const MOTION_THRESHOLD = 13;
+
+/**
+ * Mean absolute difference between two frames' raw bytes, sampled at a
+ * stride. 0 is identical, 255 is every sampled byte flipped from black to
+ * white. Mismatched dimensions score as no motion rather than throwing: a
+ * resize mid-session is not evidence the scene moved.
+ *
+ * Exported so `StabilityGate` and its own test can both call it without a
+ * second copy of the loop. Typed on a plain shape rather than `ImageData` so
+ * a test can hand it a fake frame with no DOM at all, the same reason
+ * `shelf.ts`'s `signatureOf` is typed this way.
+ */
+export function motionScore(
+  a: { data: Uint8ClampedArray; width: number; height: number },
+  b: { data: Uint8ClampedArray; width: number; height: number },
+  strideBytes = MOTION_STRIDE_BYTES,
+): number {
+  if (a.width !== b.width || a.height !== b.height) return 0;
+  const da = a.data;
+  const db = b.data;
+  const n = Math.min(da.length, db.length);
+  let sum = 0;
+  let count = 0;
+  for (let i = 0; i < n; i += strideBytes) {
+    sum += Math.abs(da[i] - db[i]);
+    count += 1;
+  }
+  return count === 0 ? 0 : sum / count;
+}
+
+/**
+ * How long the forced-capture escape hatch waits for the gate to settle on
+ * its own before firing anyway. Copied from sugar-no-scanner-demo's own wait
+ * (scanner-app.tsx:899): a scan must never hang forever on a shaky hand or a
+ * dim aisle, so this bypasses both the sharpness floor and the motion gate.
+ */
+export const FORCED_CAPTURE_MS = 1250;
+
+/**
+ * Whether the forced-capture escape hatch should fire: the gate has been
+ * open (a single candidate box has been on screen) for at least
+ * `FORCED_CAPTURE_MS` without ever settling on its own. `openedAt` is null
+ * when nothing has been waiting, which never forces a capture.
+ */
+export function forcedCaptureDue(openedAt: number | null, now: number, forcedMs = FORCED_CAPTURE_MS): boolean {
+  return openedAt !== null && now - openedAt >= forcedMs;
+}
+
 function toGrey(source: ImageBitmap | HTMLVideoElement | ImageData): {
   data: Float32Array;
   width: number;
@@ -180,29 +241,85 @@ export async function cropTo(
 }
 
 /**
+ * Absolute floor for sharpness, in the same units as `sharpnessOf()` (variance
+ * of the Laplacian). Below this a frame has almost no edges in it at all: a
+ * covered lens, a heavy defocus blur, a blank wall. `StabilityGate` used to
+ * compare sharpness only against the median of its own window, so a window
+ * that was uniformly this blurry still passed (item 5: "an entirely blurry
+ * window still passes" is exactly what a relative-only test cannot catch).
+ * sugar-no-scanner-demo's own floor is 4.1, but that is `luminanceEdgeScore`,
+ * a mean neighbour-luminance-difference score, a different formula on a
+ * different scale, and it does not transfer unit for unit; this number is
+ * picked instead to sit far below any frame with real texture in it, and it
+ * needs a real phone to confirm, the same as `SHELF_MIN_GAP_MS` next door in
+ * `shelf.ts`.
+ */
+export const MIN_ABSOLUTE_SHARPNESS = 5;
+
+/**
  * Whether the scene has settled enough to fire the shutter by itself (decision 6).
  *
- * Two conditions, both required: the box has stopped moving, and the frame is
- * sharp. Stillness alone fires on a steadily-held blurred frame; sharpness alone
- * fires mid-sweep on a lucky crisp frame of the wrong product.
+ * Three conditions, all required: the box has stopped moving, the raw pixels
+ * have stopped moving, and the frame is sharp in absolute terms as well as
+ * relative to its own window. Stillness alone fires on a steadily-held
+ * blurred frame; sharpness alone fires mid-sweep on a lucky crisp frame of
+ * the wrong product; and comparing sharpness only to the window's own median
+ * lets an entirely blurry window through, because every frame in it looks
+ * equally "stable" next to the others (item 5).
  */
 export class StabilityGate {
   #history: { box: Box; sharpness: number; at: number }[] = [];
+  /** The previous frame handed to `update()`, for the motion gate. Item 5. */
+  #lastFrame: { data: Uint8ClampedArray; width: number; height: number } | null = null;
   readonly #holdMs: number;
   readonly #driftTolerance: number;
+  readonly #minSharpness: number;
+  readonly #motionThreshold: number;
 
-  constructor(holdMs = 500, driftTolerance = 0.06) {
+  constructor(
+    holdMs = 500,
+    driftTolerance = 0.06,
+    minSharpness = MIN_ABSOLUTE_SHARPNESS,
+    motionThreshold = MOTION_THRESHOLD,
+  ) {
     this.#holdMs = holdMs;
     this.#driftTolerance = driftTolerance;
+    this.#minSharpness = minSharpness;
+    this.#motionThreshold = motionThreshold;
   }
 
-  /** Returns true the moment the scene has been stable and sharp for long enough. */
-  update(box: Box | null, sharpness: number, frameWidth: number): boolean {
+  /**
+   * Returns true the moment the scene has been stable and sharp for long
+   * enough. `frame` is optional: without it the motion gate is skipped and
+   * only the box-drift check runs, which is what every caller before item 5
+   * did.
+   */
+  update(
+    box: Box | null,
+    sharpness: number,
+    frameWidth: number,
+    frame?: { data: Uint8ClampedArray; width: number; height: number },
+  ): boolean {
     const now = Date.now();
     if (!box) {
       this.#history = [];
+      this.#lastFrame = null;
       return false;
     }
+
+    // Motion gate: a strided pixel diff against the previous frame catches a
+    // hand-shake or a sweep the detector's OWN box has not caught up to yet,
+    // which a drift check on that same box cannot see (item 5, copied from
+    // sugar-no-scanner-demo's motion gate, scanner-app.tsx:914).
+    if (frame) {
+      const moved = this.#lastFrame && motionScore(frame, this.#lastFrame) >= this.#motionThreshold;
+      this.#lastFrame = frame;
+      if (moved) {
+        this.#history = [];
+        return false;
+      }
+    }
+
     this.#history.push({ box, sharpness, at: now });
     this.#history = this.#history.filter((h) => now - h.at <= this.#holdMs);
     if (this.#history.length < 4) return false;
@@ -218,6 +335,10 @@ export class StabilityGate {
     );
     if (drifted) return false;
 
+    // Absolute floor first: an entirely blurry window has every frame equally
+    // soft, so the relative check below would wave it through on its own.
+    if (sharpness < this.#minSharpness) return false;
+
     // Sharpness is only comparable within a scene, so the test is relative: the
     // current frame must be at least as sharp as the median of the hold window.
     const scores = this.#history.map((h) => h.sharpness).sort((a, b) => a - b);
@@ -227,5 +348,6 @@ export class StabilityGate {
 
   reset(): void {
     this.#history = [];
+    this.#lastFrame = null;
   }
 }

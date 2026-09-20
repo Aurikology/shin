@@ -16,6 +16,8 @@ import { fakeTransport, goodAnswer, httpBody, type Call } from './gemini-double.
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-one-call-'));
 process.env.SHIN_SCANS = join(dir, 'scans.db');
+process.env.SHIN_REPEAT_CACHE = join(dir, 'repeat-cache.db');
+process.env.SHIN_GAPS = join(dir, 'gaps.db');
 process.env.SHIN_CORRECTIONS = join(dir, 'corrections.db');
 process.env.SHIN_PHOTOS = join(dir, 'photos');
 process.env.SHIN_CATALOGUE = join(dir, 'no-catalogue.db');
@@ -27,6 +29,7 @@ delete process.env.SHIN_MODEL_PROVIDER;
 
 const { server, setGeminiTransportForTests, setSpendGuardForTests, setCatalogueForTests, settleBackgroundChecks } = await import('../server.ts');
 const { getScan, geminiCallsForScan, openScanStore } = await import('../src/scans.ts');
+const { clearRepeatCacheForTests } = await import('../src/repeat-cache.ts');
 const { modelForScan } = await import('../../identify/src/providers/gemini-scan.ts');
 
 let port = 0;
@@ -48,6 +51,12 @@ before(async () => {
 beforeEach(() => {
   setSpendGuardForTests(null);
   install(reply);
+  // Item 1's repeat-scan cache is keyed on the barcode alone, and this file
+  // reuses the same fixture barcode across most of its tests; without
+  // clearing, a test after the first to scan one would be served the cached
+  // answer instead of making its own call, which is item 1's real behaviour
+  // but not what these tests (written before the cache existed) are checking.
+  clearRepeatCacheForTests();
 });
 after(async () => {
   setGeminiTransportForTests(null);
@@ -109,8 +118,8 @@ test('no Claude: the request goes to the Gemini endpoint with a Gemini model, an
 });
 
 test('2.5 asks for the JSON in the prompt text and sends no schema; 3.x sends the schema (item 5)', async () => {
-  await identify(`gtin=1&deviceId=${deviceOn('2.5', 'a')}`);
-  await identify(`gtin=2&deviceId=${deviceOn('3.x', 'b')}`);
+  await identify(`gtin=0000000000017&deviceId=${deviceOn('2.5', 'a')}`);
+  await identify(`gtin=0000000000024&deviceId=${deviceOn('3.x', 'b')}`);
   const [c25, c3] = calls;
   assert.match(String(c25.body.model), /2\.5/);
   assert.equal(c25.body.response_format, undefined, 'a response schema was sent together with google_search on 2.5');
@@ -124,7 +133,13 @@ test('2.5 asks for the JSON in the prompt text and sends no schema; 3.x sends th
 test('the model is picked deterministically per device, both are used, and the env override wins (item 4)', async () => {
   const a = deviceOn('2.5', 'det');
   const b = deviceOn('3.x', 'det');
-  for (const d of [a, b, a, b]) await identify(`gtin=9&deviceId=${d}`);
+  for (const d of [a, b, a, b]) {
+    // Item 1's repeat-scan cache is keyed on the barcode alone; this loop
+    // scans the same barcode four times on purpose (to prove per-device model
+    // routing), which the cache would otherwise turn into one real call.
+    clearRepeatCacheForTests();
+    await identify(`gtin=0000000000093&deviceId=${d}`);
+  }
   assert.deepEqual(
     calls.map((c) => String(c.body.model)),
     [modelForScan(a, {}).model, modelForScan(b, {}).model, modelForScan(a, {}).model, modelForScan(b, {}).model],
@@ -153,7 +168,7 @@ test('every Gemini request and the full response are stored, linked to the scan 
 });
 
 test('the shelf price and the user\'s thresholds go into the prompt; absent thresholds get the default range (item 6)', async () => {
-  const q = new URLSearchParams({ gtin: '5', deviceId: 'thr-a', shelfPriceCents: '449', thresholds: JSON.stringify({ unit: 'percent', great: 30, good: 15, bad: 25 }) });
+  const q = new URLSearchParams({ gtin: '0000000000055', deviceId: 'thr-a', shelfPriceCents: '449', thresholds: JSON.stringify({ unit: 'percent', great: 30, good: 15, bad: 25 }) });
   await identify(q.toString());
   const p1 = userTurn(calls[0]);
   assert.match(p1, /4\.49/, 'the shelf price never reached Gemini');
@@ -162,7 +177,11 @@ test('the shelf price and the user\'s thresholds go into the prompt; absent thre
   assert.match(p1, /Good range: 15% or more below the median/);
   assert.match(p1, /Bad range: more than 25% above the median/);
   assert.match(p1, /the user's own setting/);
-  await identify('gtin=5&deviceId=thr-b');
+  // Item 1's repeat-scan cache is keyed on the barcode alone; this test scans
+  // the same barcode twice on purpose, with a second device carrying no
+  // thresholds, to prove the SERVER'S default range rather than the cache's.
+  clearRepeatCacheForTests();
+  await identify('gtin=0000000000055&deviceId=thr-b');
   const p2 = userTurn(calls[1]);
   assert.match(p2, /Good range: 10% or more below the median/);
   assert.match(p2, /Great range: 20% or more below the median/);
@@ -171,7 +190,7 @@ test('the shelf price and the user\'s thresholds go into the prompt; absent thre
 });
 
 test('dollar mode reaches Gemini as amounts with their unit, never as percents (item 44, W9)', async () => {
-  const q = new URLSearchParams({ gtin: '5', deviceId: 'thr-usd', shelfPriceCents: '449', thresholds: JSON.stringify({ unit: 'amount', great: 3, good: 1.5, bad: 2 }) });
+  const q = new URLSearchParams({ gtin: '0000000000055', deviceId: 'thr-usd', shelfPriceCents: '449', thresholds: JSON.stringify({ unit: 'amount', great: 3, good: 1.5, bad: 2 }) });
   await identify(q.toString());
   const p = userTurn(calls[calls.length - 1]);
   assert.match(p, /Unit: DOLLAR AMOUNTS/);
@@ -216,7 +235,7 @@ test('the median and verdict shown are Gemini\'s own, even when they disagree wi
     ),
   });
   install(reply);
-  const { body } = await identify('gtin=3&deviceId=math-shown&shelfPriceCents=800');
+  const { body } = await identify('gtin=0000000000031&deviceId=math-shown&shelfPriceCents=800');
   const v = body.grounded.block.verdict;
   assert.equal(v.median, 7.77, 'Shin recomputed the median instead of showing Gemini\'s');
   assert.equal(v.shelf.zone, 'middle');
@@ -238,6 +257,11 @@ test('a wrong median is marked in the background with the input and the exact pr
   reply = undefined;
 
   install();
+  // Item 1's repeat-scan cache is keyed on the barcode alone; this test scans
+  // the same real barcode twice on purpose, once with a wrong median and once
+  // with a correct one, to prove the math check reacts to each -- which the
+  // cache would otherwise turn into one real call and one served answer.
+  clearRepeatCacheForTests();
   const ok = await identify('gtin=0068100084245&deviceId=math-good');
   await settleBackgroundChecks();
   assert.equal(geminiCallsForScan(ok.body.scanId)[0].math_check, 'ok', 'a correct answer was marked');
@@ -272,12 +296,18 @@ test('dollar mode: the hidden check recomputes the zone from the typed price, an
   assert.doesNotMatch(JSON.stringify(wrong.body), /math_check|mismatch/, 'the hidden check leaked into the answer');
 
   install(withZone('over_your_line'));
+  // Item 1's repeat-scan cache is keyed on the barcode alone; this test scans
+  // the same real barcode four times on purpose, each with a different
+  // Gemini reply, to prove the math check on each -- which the cache would
+  // otherwise turn into one real call and three served answers.
+  clearRepeatCacheForTests();
   const right = await identify(q('dollar-right', { currency: 'CAD' }));
   await settleBackgroundChecks();
   assert.equal(geminiCallsForScan(right.body.scanId)[0].math_check, 'ok');
 
   // No currency on the request: the typed price cannot be tied to Gemini's CAD, so it is skipped and marked, not guessed.
   install(withZone('middle'));
+  clearRepeatCacheForTests();
   const noCurrency = await identify(q('dollar-nocur'));
   await settleBackgroundChecks();
   const skippedRow = geminiCallsForScan(noCurrency.body.scanId)[0];
@@ -286,6 +316,7 @@ test('dollar mode: the hidden check recomputes the zone from the typed price, an
 
   // No typed price: skipped and marked as well.
   install(withZone('middle'));
+  clearRepeatCacheForTests();
   const noPrice = await identify(new URLSearchParams({ gtin: '0068100084245', deviceId: 'dollar-noprice', thresholds: lines, currency: 'CAD' }).toString());
   await settleBackgroundChecks();
   assert.match(String(geminiCallsForScan(noPrice.body.scanId)[0].math_mismatches), /no_shelf_price/);
@@ -307,7 +338,7 @@ test('an unparseable 2.5 answer is still an answer, marked not fully confident, 
 test('a Gemini outage is a marked 200 with the class, never a 500 and never a Claude answer (items 1, 5)', async () => {
   reply = () => ({ status: 503, text: 'unavailable' });
   install(reply);
-  const { status, body } = await identify('gtin=8&deviceId=outage-a');
+  const { status, body } = await identify('gtin=0000000000086&deviceId=outage-a');
   assert.equal(status, 200);
   assert.equal(body.lowConfidence, true);
   assert.ok(body.failure, 'the failure class was lost');

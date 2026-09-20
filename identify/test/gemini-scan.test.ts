@@ -325,3 +325,140 @@ test('dollar mode still checks the median and the count, and percent mode is unc
   assert.deepEqual(checkMath(parsed(), DEFAULT_THRESHOLDS, ctx(900, 'USD')).mismatches, [], 'percent mode ignores the dollar context');
   assert.deepEqual(checkMath(parsed(), DEFAULT_THRESHOLDS, ctx(900, 'USD')).skipped, []);
 });
+
+/*
+ * ITEM 7. Grounding is skipped in exactly one case (ruling 6, docs/decisions.md
+ * 2026-09-19): the scan has no searchable identity at all, where a grounded
+ * query would be spent on nothing. Every other scan, including a bare typed
+ * name or a bare photo, grounds exactly as before.
+ */
+test('grounding is skipped only when the scan has no searchable identity at all (item 7)', () => {
+  const choice = modelForScan(on('2.5'), NO_ENV);
+  const nothing = buildRequestBody({ kind: 'text' }, choice).body as unknown as Record<string, unknown>;
+  assert.deepEqual(nothing.tools, [], 'a scan with nothing to search for still spent a grounded query');
+  const barcode = buildRequestBody(scan, choice).body as unknown as Record<string, unknown>;
+  assert.deepEqual(barcode.tools, [{ type: 'google_search' }], 'a barcode scan lost its grounding');
+  const typed = buildRequestBody({ kind: 'text', text: 'kraft dinner' }, choice).body as unknown as Record<string, unknown>;
+  assert.deepEqual(typed.tools, [{ type: 'google_search' }]);
+  const typedInput = buildRequestBody({ kind: 'text', userInput: 'kraft dinner' }, choice).body as unknown as Record<string, unknown>;
+  assert.deepEqual(typedInput.tools, [{ type: 'google_search' }]);
+  const photo = buildRequestBody(
+    { kind: 'photo', image: { bytes: Buffer.from('89504e470d0a1a0a', 'hex'), mediaType: 'image/png' } },
+    choice,
+  ).body as unknown as Record<string, unknown>;
+  assert.deepEqual(photo.tools, [{ type: 'google_search' }]);
+});
+
+test('a scan with no searchable identity is marked ungrounded on the run, every other scan is marked grounded (item 7)', async () => {
+  const withId = fakeTransport();
+  const gotId = await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: withId.transport });
+  assert.equal(gotId.grounded, true);
+  const noId = fakeTransport();
+  const gotNone = await runGeminiScan({ kind: 'text' }, { apiKey: 'k', deviceId: 'x', transport: noId.transport });
+  assert.equal(gotNone.grounded, false);
+});
+
+/*
+ * ITEM 20. A stage breakdown carried alongside the single total that already
+ * exists (`ms`), never replacing it. Each stage is a non-negative number and
+ * the four stages never sum past the total the run already reports.
+ */
+test('the stage latency breakdown is carried alongside the total, and never sums past it (item 20)', async () => {
+  const t = fakeTransport();
+  const run = await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: t.transport });
+  const stage = run.stageMs;
+  assert.ok(stage, 'no stage breakdown was returned');
+  for (const [name, v] of Object.entries(stage)) assert.ok(typeof v === 'number' && v >= 0, `${name} was not a non-negative number`);
+  assert.ok(
+    stage.promptBuildMs + stage.requestMs + stage.parseMs + stage.validateMs <= run.ms + 1,
+    'the stages summed to more than the one total already reported',
+  );
+});
+
+/*
+ * ITEM 4. Two of the three live price guards (the math cross-check stays
+ * audit-only, per the item 3 test above: Gemini's own median is shown as
+ * stated, never recomputed). A withheld price is dropped from what the phone
+ * is shown, the rest of the answer still goes out, and the withholding is
+ * recorded rather than silent (ruling 4, docs/decisions.md 2026-09-19).
+ */
+test('an offer in the wrong currency is withheld from the phone, never replaced, and the suppression is recorded (item 4)', async () => {
+  const base = goodAnswer();
+  const offers = (base.offers as Record<string, unknown>[]).map((o, i) => (i === 0 ? { ...o, currency: 'USD' } : o));
+  const t = fakeTransport(() => ({ text: httpBody(JSON.stringify(goodAnswer({ offers }))) }));
+  const run = await runGeminiScan({ ...scan, currency: 'CAD' }, { apiKey: 'k', deviceId: 'x', transport: t.transport });
+  const block = toAnswerBlock(run);
+  assert.ok(!block.offers.some((o) => o.retailer === 'Alpha Market'), 'a USD offer against a CAD scan reached the phone');
+  assert.deepEqual(run.priceSuppressions, [{ retailer: 'Alpha Market', reason: 'currency_mismatch' }]);
+  assert.ok(run.answer && run.answer.product.name, 'the rest of the answer must still go out');
+});
+
+test("an offer far outside the plausibility band around Gemini's own stated median is withheld (item 4)", async () => {
+  const base = goodAnswer();
+  const offers = (base.offers as Record<string, unknown>[]).map((o, i) => (i === 1 ? { ...o, unit_price: 40, price: 40 } : o));
+  const t = fakeTransport(() => ({ text: httpBody(JSON.stringify(goodAnswer({ offers }))) }));
+  const run = await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: t.transport });
+  const block = toAnswerBlock(run);
+  assert.ok(!block.offers.some((o) => o.retailer === 'Beta Foods'), 'an implausible price reached the phone');
+  assert.deepEqual(run.priceSuppressions, [{ retailer: 'Beta Foods', reason: 'implausible_price' }]);
+});
+
+test('a guard with no reference to check against (no currency, no median) withholds nothing, never guesses (item 4)', async () => {
+  const base = goodAnswer();
+  const offers = (base.offers as Record<string, unknown>[]).map((o, i) => (i === 0 ? { ...o, currency: 'USD' } : o));
+  const noVerdict = {
+    ...goodAnswer({ offers }),
+    price_verdict: { ...(goodAnswer().price_verdict as object), verdict_available: false, median_unit_price: null, offers_in_median: 0 },
+  };
+  const t = fakeTransport(() => ({ text: httpBody(JSON.stringify(noVerdict)) }));
+  // No `currency` on the scan input either, so the reference currency is unknown too.
+  const run = await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: t.transport });
+  assert.deepEqual(run.priceSuppressions, [], 'a guard with nothing to check against invented a suppression');
+});
+
+/*
+ * ITEM 17. Re-validation is independent of whether the model was ever sent the
+ * schema (2.5 never is): every unknown key is counted, never silently dropped,
+ * and the count/list is recorded on the run rather than used to refuse the
+ * answer (rule 6, an unchecked answer beats no answer).
+ */
+test('a key the schema does not allow is counted and recorded, never silently dropped (item 17)', async () => {
+  const withExtra = goodAnswer({ product: { ...(goodAnswer().product as object), unexpected_field: 'nope' } });
+  const t = fakeTransport(() => ({ text: httpBody(JSON.stringify(withExtra)) }));
+  const run = await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: t.transport });
+  assert.equal(run.unknownKeyCount, 1);
+  assert.ok(run.schemaViolations.some((v) => v.kind === 'unknown_key' && v.detail === 'unexpected_field'));
+  assert.ok(run.answer, 'an unknown key must never refuse the rest of the answer');
+});
+
+test('more offers than the schema allows is counted as a violation, not silently truncated (item 17)', async () => {
+  const base = goodAnswer();
+  const one = (base.offers as Record<string, unknown>[])[0];
+  const many = Array.from({ length: 31 }, (_, i) => ({ ...one, retailer: `Store ${i}` }));
+  const t = fakeTransport(() => ({ text: httpBody(JSON.stringify(goodAnswer({ offers: many }))) }));
+  const run = await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: t.transport });
+  assert.ok(run.schemaViolations.some((v) => v.kind === 'too_many_items'));
+});
+
+/*
+ * ITEM 17, the recovery step. A doubly-encoded reply -- the whole answer is a
+ * JSON STRING holding the JSON, not the object itself -- is a known SDK
+ * malformation, confirmed here to defeat both existing passes (a direct parse
+ * yields a string, not an object; the balanced-bracket pass never runs because
+ * there is no unescaped `{` in the outer text). It is tried only on the
+ * schema-less path (family other than '3.x'): a 3.x reply was sent a schema
+ * and this file trusts that path's own adherence instead. Recovery never
+ * invents a field: one that was not in the reply comes back absent, not 0 or ''.
+ */
+test('a doubly-encoded reply is recovered on the schema-less path only, and no field is ever invented (item 17)', () => {
+  const inner = { product: { brand: 'Acme', name: 'Widget' } };
+  const doubled = JSON.stringify(JSON.stringify(inner));
+  const recovered = interpretText(doubled, '2.5');
+  assert.equal(recovered.status, 'repaired');
+  assert.deepEqual(recovered.value, inner);
+  assert.equal(interpretText(doubled, '3.x').status, 'failed', 'the schema-sent path got a recovery it was never asked for');
+  assert.equal(interpretText(doubled).status, 'failed', 'no family named defaults to the 3.x behaviour, not the lenient one');
+  const partial = JSON.stringify(JSON.stringify({ product: { brand: 'Acme' } }));
+  const answer = readAnswer(interpretText(partial, '2.5').value);
+  assert.equal(answer?.product.name, null, 'a field the reply never carried came back as something other than absent');
+});

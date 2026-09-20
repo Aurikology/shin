@@ -556,6 +556,75 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
       addColumnIfMissing(db, 'scan', 'over_cap', 'INTEGER NOT NULL DEFAULT 0');
     },
   },
+  {
+    version: 14,
+    name: 'the demo scan is marked, never counted as a real one',
+    apply(db) {
+      /*
+       * Item 19 (docs/scanner-build-order-2026-09-19.md section 19). A demo
+       * scan (`/api/identify/demo`, server.ts) returns a fixed sample answer
+       * with no provider call, and it still writes a row (rule 4, "record
+       * everything"), but every reader that computes a rate over real scans
+       * has to be able to tell it apart. A dedicated column rather than a
+       * reused value of `source`: `source` is free text nothing enforces,
+       * and a reader that does not know 'demo' is a value it must exclude
+       * would silently count it. `is_demo` is a column every existing
+       * `SELECT *` already sees.
+       */
+      addColumnIfMissing(db, 'scan', 'is_demo', 'INTEGER NOT NULL DEFAULT 0');
+    },
+  },
+  {
+    version: 15,
+    name: 'background enrichment writes beside the shown value',
+    apply(db) {
+      /*
+       * Item 11 (docs/scanner-build-order-2026-09-19.md section 11), ruling 7
+       * (docs/decisions.md, "Nine rulings", 2026-09-19): a later, better
+       * answer from a background pass (the repeat-scan cache's refresh, item
+       * 1) is written HERE, never into verdict_zone/typed_price_cents, which
+       * stay exactly what the person was shown. See scans.ts's `enrichScan`.
+       */
+      addColumnIfMissing(db, 'scan', 'enriched_price_cents', 'INTEGER');
+      addColumnIfMissing(db, 'scan', 'enriched_verdict_zone', 'TEXT');
+      addColumnIfMissing(db, 'scan', 'enriched_checked_at', 'TEXT');
+      addColumnIfMissing(db, 'scan', 'enriched_updated_at', 'TEXT');
+    },
+  },
+  {
+    version: 16,
+    name: 'the price verifier\'s mark, beside the call it checked',
+    apply(db) {
+      /*
+       * Ruling 3 (docs/decisions.md, "Nine rulings so the competitor-survey
+       * build could start", 2026-09-19): identify/src/providers/
+       * price-verifier.ts fetches the one cited, allowlisted retailer page
+       * (if any) and reports whether it agrees with the price Gemini stated.
+       * A CHECK, never a second call, and it never changes what a scan
+       * already showed -- this is where its answer is recorded, on the same
+       * `gemini_call` row `math_check` already marks, same shape.
+       *
+       * `price_verify_check` is 'agree', 'mismatch', 'unavailable' (the fetch
+       * itself failed, timed out, or returned something unusable) or
+       * 'not_verifiable' (no offer was both cited and on the allowlist, or no
+       * price could be read off the page) -- the last is the common case and
+       * not an error. `price_verify_retailer` and `price_verify_url` name the
+       * one page checked; `price_verify_page_cents` is what this file parsed
+       * off it, `price_verify_stated_cents` is what Gemini said, and
+       * `price_verify_reason` carries the free-text reason for anything short
+       * of an agreement. Nothing here is ever shown to a user. Wiring the
+       * call itself is app/server.ts's job (see `schedulePriceVerify`).
+       * Additive only.
+       */
+      addColumnIfMissing(db, 'gemini_call', 'price_verify_check', 'TEXT');
+      addColumnIfMissing(db, 'gemini_call', 'price_verify_retailer', 'TEXT');
+      addColumnIfMissing(db, 'gemini_call', 'price_verify_url', 'TEXT');
+      addColumnIfMissing(db, 'gemini_call', 'price_verify_page_cents', 'INTEGER');
+      addColumnIfMissing(db, 'gemini_call', 'price_verify_stated_cents', 'INTEGER');
+      addColumnIfMissing(db, 'gemini_call', 'price_verify_reason', 'TEXT');
+      addColumnIfMissing(db, 'gemini_call', 'price_verify_checked_at', 'TEXT');
+    },
+  },
 ];
 
 /** What `schema_version` says this database is at. 0 means nothing has run. */

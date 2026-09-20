@@ -60,6 +60,25 @@ import { getDeviceId } from '../device.js';
 const FACE_HIDDEN_IN = new Set(['choosing', 'asking', 'reading', 'texting', 'result']);
 
 /**
+ * Item 8's second half. The `cam.dataset.state !== 'idle'` guard already on
+ * `shoot()` and the barcode button stops a second request landing WHILE one
+ * is in flight; it does nothing once `reset()` has already put the state back
+ * to `idle`, and the very next tap was accepted immediately (failure.md
+ * D8.1/D8.5). This is the floor under that: no two captures start closer
+ * together than this, counted from the moment either one actually started.
+ */
+export const MIN_CAPTURE_INTERVAL_MS = 1200;
+
+/**
+ * Pure so the arithmetic is checked without a DOM: `lastCaptureAt` of 0 means
+ * nothing has been captured yet this screen, which always allows. `now` and
+ * `lastCaptureAt` are both `Date.now()`-shaped epoch milliseconds.
+ */
+export function captureAllowed(now, lastCaptureAt, minIntervalMs = MIN_CAPTURE_INTERVAL_MS) {
+  return lastCaptureAt === 0 || now - lastCaptureAt >= minIntervalMs;
+}
+
+/**
  * The four things the viewfinder is ever allowed to say, and the lines they map
  * to.
  *
@@ -91,9 +110,16 @@ const COACH_LINES = {
  * The fallback is not a placeholder for a missing feature. A denied permission,
  * a desktop with no camera and a private window are all normal, and the app has
  * to be the same app in all of them.
+ *
+ * Item 9: `stream` used to be the whole return value, so a denied permission and
+ * a machine with no camera at all were the same falsy value by the time the
+ * caller saw it (failure.md D9.1) -- both landed on the drawn shelf with
+ * nothing distinguishing them. `reason` names which one happened, the same
+ * three values `onboarding.js`'s `askCamera` already classifies
+ * (`'granted' | 'denied' | 'unavailable'`), read off `err.name` the same way.
  */
 async function startCamera(video) {
-  if (!navigator.mediaDevices?.getUserMedia) return false;
+  if (!navigator.mediaDevices?.getUserMedia) return { stream: false, reason: 'unavailable' };
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
@@ -101,9 +127,9 @@ async function startCamera(video) {
     });
     video.srcObject = stream;
     await video.play().catch(() => {});
-    return stream;
-  } catch {
-    return false;
+    return { stream, reason: 'granted' };
+  } catch (err) {
+    return { stream: false, reason: err && err.name === 'NotAllowedError' ? 'denied' : 'unavailable' };
   }
 }
 
@@ -877,6 +903,39 @@ const PHOTO_MODEL_FAILURE_LINES = {
 };
 
 /**
+ * Item 9. The two ways the ROUTE declines a request before a model is ever
+ * asked, as opposed to `MODEL_DOWN_REASONS` above (the model was asked and did
+ * not answer). Both used to fall through to `cam_photo_unreadable` -- an
+ * honest-miss line for what is actually a server-side throttle or a payload
+ * over the cap (failure.md D9.5) -- which is exactly the class of wrong
+ * answer hard rule 3 exists to stop: it reads as the shopper's photo being at
+ * fault. Kept apart from `MODEL_DOWN_REASONS` because `refusalSheet` below
+ * gives the two families the same treatment (a suppressed "said" line, since
+ * the per-class sentence already carries both halves) but a different title.
+ */
+const THROTTLE_REASONS = new Set(['too_large', 'rate_limited']);
+
+/**
+ * Item 9's countdown sentence, built from the server's own `retryAfterSeconds`
+ * (app/server.ts `tooManyCalls`, threaded through by api.js) rather than a
+ * guessed number -- the field already existed and nothing displayed it
+ * (failure.md D9.1). `seconds` null or non-positive means the header did not
+ * carry one; the line still answers (hard rule 1, always an answer), it just
+ * has no number to count down. Exported and pure so the sentence itself is
+ * checked without a DOM or a running timer; the interval that calls this once
+ * a second to paint a live countdown is glue, not logic, and is source-checked
+ * the way this file's other timers are.
+ */
+export function retryCountdownLine(seconds, who) {
+  const whole = typeof seconds === 'number' && Number.isFinite(seconds) ? Math.ceil(seconds) : null;
+  // No countdown to show: pass no fact at all. say()'s own MISSING_FACT
+  // detection then falls back to the localized BARE row for this key,
+  // instead of a hardcoded English placeholder living in a screen file.
+  const facts = whole && whole > 0 ? { seconds: `${whole}s` } : {};
+  return say('cam_scan_rate_limited', facts, who);
+}
+
+/**
  * What "Keep it" needs before it can be offered, or null.
  *
  * AVATAR.md section 3 row 39 gives the thin refusal exactly one action and
@@ -968,6 +1027,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
   const isNoIdentity = r.reason === 'no_identity';
   const isThin = isThinReason(r.reason);
   const isModelDown = MODEL_DOWN_REASONS.has(r.reason);
+  const isThrottled = THROTTLE_REASONS.has(r.reason);
 
   /*
    * A PRICED SUBSTITUTE UNDER A REFUSAL THAT COULD NOT CALL THE PRICE.
@@ -1010,9 +1070,11 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
       ? 'refuse_unsure'
       : isModelDown
         ? 'refuse_unavailable'
-        : isThin
-          ? 'refuse_thin'
-          : 'refuse_unknown';
+        : isThrottled
+          ? 'refuse_declined'
+          : isThin
+            ? 'refuse_thin'
+            : 'refuse_unknown';
   const titleFacts = isCategory ? { category } : {};
 
   // Row 8: a category refusal's detail is the engine's own paragraph, true
@@ -1049,7 +1111,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
   // breath; with no swaps the refusal stands exactly as it did.
   const mine = swapsOffered
     ? `<p class="said" data-swap-promise>${say('refuse_thin_swaps')}</p>`
-    : isCategory || isThin || isModelDown
+    : isCategory || isThin || isModelDown || isThrottled
       ? ''
       : `<p class="said">${say(isUnsure ? 'refuse_unsure_why' : 'refuse_unknown_why')}</p>`;
 
@@ -1079,7 +1141,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
              and the same button on every attitude. What Shin SAYS about it is
              keep_it_ack, which has all three. */
           ? `<button type="button" class="pill solid" data-act="keepit">${escapeHtml(t('cam_keep_it'))}</button>`
-          : isNoIdentity || isModelDown
+          : isNoIdentity || isModelDown || isThrottled
             ? `<button type="button" class="pill solid" data-act="typeit">${escapeHtml(t('cam_type_what_it_is'))}</button>`
             : `<button type="button" class="pill solid" data-act="correct">${escapeHtml(t('cam_tell_me_the_price'))}</button>`
       }</div>`;
@@ -1318,6 +1380,7 @@ export function needsConnectionSheet() {
       </div>
     </section>`;
 }
+
 
 /**
  * AVATAR.md row 36: the refusal's landing is `verdict-land` at 340ms, then
@@ -2332,6 +2395,11 @@ export default {
     let hintTimer = null;
     let torchAckTimer = null;
     let secondVisitShown = false;
+    /** Item 9: set once `startCamera` resolves to a denied permission, read
+        and cleared by `showInitialIdleContent`'s first paint so the docked
+        face says so exactly once, the same way `secondVisitShown` gates its
+        own one-time line. */
+    let cameraDenied = false;
     /* What the current refusal would keep, or null. Held here rather than read
        off the DOM because the price and the shop are facts about the scan, not
        about the markup, and a button cannot be trusted to carry money. */
@@ -2345,6 +2413,18 @@ export default {
        photo route underneath a barcode already being resolved. Cleared by
        `reset()`, which is every path back to idle. */
     let barcodeInFlight = false;
+    /** Item 8: epoch ms of the last capture that actually started (shutter or a
+        sent barcode read), or 0 before the first one this screen. Read by
+        `captureAllowed`. Deliberately NOT cleared by `reset()`: the gap this
+        closes is exactly the tap that lands the instant `reset()` puts the
+        state back to `idle` (failure.md D8.5), so the interval has to survive
+        the reset that would otherwise waive it. */
+    let lastCaptureAt = 0;
+    /** Item 9: the live countdown repainting a rate-limited refusal's own
+        detail line once a second, or null while none is showing. Cleared by
+        `reset()` and by this render's own teardown, same as every other timer
+        here. */
+    let retryCountdownTimer = null;
     /** The code the current scan came from, when a barcode started it. */
     let scanBarcode = null;
     /** The code the eye's vote has settled on (the button is showing for it), or null. */
@@ -2486,14 +2566,17 @@ export default {
         startShelf();
         return;
       }
-      startCamera(video).then((s) => {
+      startCamera(video).then(({ stream: s, reason }) => {
         if (dead) { stopCamera(s); return; }
         stream = s;
         // No camera is not a broken app. The drawn shelf carries the same layout
         // so every control stays exactly where it is.
         cam.dataset.camera = s ? 'live' : 'drawn';
         cameraStartedAt = Date.now();
-        track(s ? 'camera_live' : 'camera_drawn', { drawn: !s });
+        // Item 9: a denied permission and no-camera-at-all used to be one
+        // `camera_drawn` event; `reason` is now the one that says which.
+        track(s ? 'camera_live' : reason === 'denied' ? 'camera_denied' : 'camera_drawn', { drawn: !s, reason });
+        cameraDenied = !s && reason === 'denied';
         showInitialIdleContent();
       });
     });
@@ -2810,6 +2893,21 @@ export default {
      */
     function showInitialIdleContent() {
       if (!camShinEl || dead) return;
+      /* Item 9: a denied camera permission gets its own one-time line, ahead
+         of the second-visit callback and the aim hint, the same shape both of
+         those already use (fire once, then fall to the aim hint after six
+         seconds or the first shutter press). */
+      if (cameraDenied) {
+        cameraDenied = false;
+        dockSay('idle', 'cam_camera_denied', {}, 'idle-breath');
+        clearTimeout(hintTimer);
+        hintTimer = setTimeout(() => {
+          if (dead || cam.dataset.state !== 'idle') return;
+          showAimHint();
+          armHintEscalation();
+        }, 6000);
+        return;
+      }
       /* The other unprompted source. Same rule: ask first, and fall through
          to the aim hint (which is not unprompted, it is the resting state of
          a screen the user opened) if the budget is spent. */
@@ -2975,6 +3073,22 @@ export default {
       if (dead || myGen !== gen) return;
 
       /*
+       * Item 9: a real throttle, never shown as the offline sentence below.
+       * Checked first because a rate-limited response never carries
+       * `needsConnection`, `product` or `unchecked` either. Reuses the same
+       * refusal painter the photo route uses for its own rate limit
+       * (`showPhotoRefusal`), rather than a second sheet shape: one more
+       * `.sheet.refusal` variant is one more screen-tags.js entry to keep in
+       * step with docs/screen-tags.md, for a surface that reads identically
+       * either way.
+       */
+      if (found?.rateLimited) {
+        showPhotoRefusal('rate_limited', retryCountdownLine(found.retryAfterSeconds));
+        startRetryCountdown(found.retryAfterSeconds);
+        return;
+      }
+
+      /*
        * No connection (beta gap item 21, his word "the app will not be usable
        * offline"): say so, in one plain sentence, and stop. Nothing is named
        * and nothing is sent on to be priced. `offline-aisle.js` says why.
@@ -3053,6 +3167,18 @@ export default {
         lastPriceQuery = id?.priceQuery ?? null;
       } catch {
         id = null; // No signal. The aisle this app was built for.
+      }
+
+      /*
+       * Item 9: a real server throttle on the barcode route, not a dead
+       * connection. Before `identify()` carried its own 429/413 branch this
+       * had no failure field at all, so a rate limit here fell through to
+       * `id === null` below and was shown as "no connection" (failure.md
+       * D9.1/D9.5). Checked before the unchecked/product/offline branches
+       * because none of those fields exist on a throttled response.
+       */
+      if (id?.failure === 'rate_limited') {
+        return { rateLimited: true, retryAfterSeconds: id.retryAfterSeconds ?? null };
       }
 
       /*
@@ -3460,6 +3586,8 @@ export default {
 
     function shoot() {
       if (cam.dataset.state !== 'idle') return;
+      if (!captureAllowed(Date.now(), lastCaptureAt)) return;
+      lastCaptureAt = Date.now();
       clearTimeout(hintTimer);
       clearTimeout(scanPressTimer);
       clearTimeout(torchAckTimer);
@@ -3751,6 +3879,23 @@ export default {
       }
 
       /*
+       * Item 9. Both used to fall through to the generic `modelLine`/`no_identity`
+       * branches below and paint `cam_photo_unreadable` -- an honest miss on
+       * the PHOTO for what is actually the route declining the request before
+       * a model ever saw it (failure.md D9.5). `too_large` only still reaches
+       * here after item 10's own shrink-and-retry has already given up.
+       */
+      if (id?.failure === 'too_large') {
+        showPhotoRefusal('too_large', say('cam_photo_too_large'));
+        return;
+      }
+      if (id?.failure === 'rate_limited') {
+        showPhotoRefusal('rate_limited', retryCountdownLine(id.retryAfterSeconds));
+        startRetryCountdown(id.retryAfterSeconds);
+        return;
+      }
+
+      /*
        * 2026-09-15: whatever the model read is the answer when the catalogue
        * cannot match it, labelled unchecked, and it goes straight on to the
        * price like any other identity. Never "we do not have it" when there is
@@ -3836,6 +3981,34 @@ export default {
     }
 
     /**
+     * Item 9: the live half of the rate-limit countdown. `retryCountdownLine`
+     * (exported above) is the pure sentence; this is the glue that repaints it
+     * once a second against whichever refusal is currently on screen (the
+     * photo route's `.detail` paragraph or the barcode route's
+     * `[data-rate-limited] .detail`), so the number shown keeps agreeing with
+     * the server's own `retryAfterSeconds` rather than freezing at the value
+     * it arrived with. Stops itself at zero, and is cleared by `reset()` and
+     * by this render's own teardown like every other timer here.
+     */
+    function startRetryCountdown(seconds) {
+      clearInterval(retryCountdownTimer);
+      retryCountdownTimer = null;
+      const whole = typeof seconds === 'number' && Number.isFinite(seconds) ? Math.ceil(seconds) : 0;
+      if (whole <= 0) return;
+      let remaining = whole;
+      retryCountdownTimer = setInterval(() => {
+        remaining -= 1;
+        const el = slot.querySelector('.detail');
+        if (dead || !el || remaining < 0) {
+          clearInterval(retryCountdownTimer);
+          retryCountdownTimer = null;
+          return;
+        }
+        el.textContent = retryCountdownLine(remaining);
+      }, 1000);
+    }
+
+    /**
      * D-026's caller. `startCaptureQueue` hands back a `PendingCapture` (id,
      * blob, gtin, takenAt, note, attempts); `identifyPhoto` only needs the
      * blob, and the queue only needs to know whether to stop asking.
@@ -3878,6 +4051,8 @@ export default {
       }
       trackScanAbandonedIfMidScan('reset');
       clearTimeout(scanPressTimer);
+      clearInterval(retryCountdownTimer);
+      retryCountdownTimer = null;
       gen++; // Voids any in-flight proceed() continuation, including a photo capture's.
       slot.innerHTML = '';
       last = null;
@@ -4092,6 +4267,7 @@ export default {
       if (act === 'manual-search') { openManualSearch(); return; }
       if (act === 'scan-barcode') {
         if (cam.dataset.state !== 'idle') return;
+        if (!captureAllowed(Date.now(), lastCaptureAt)) return;
         track('barcode_scan_pressed', {});
         const sent = eye?.scanBarcode?.();
         if (!sent) {
@@ -4102,6 +4278,7 @@ export default {
           sayNoBarcode();
           return;
         }
+        lastCaptureAt = Date.now();
         buzz(8);
         return;
       }
@@ -4680,6 +4857,7 @@ export default {
       clearTimeout(hintTimer);
       clearTimeout(scanPressTimer);
       clearTimeout(torchAckTimer);
+      clearInterval(retryCountdownTimer);
     };
   },
 };

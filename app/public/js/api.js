@@ -313,8 +313,16 @@ export function price(query) {
  * `category` null is a fourth state and not a failure: we know the product and
  * have no fair way to price that kind of thing. `categoryWhy` is the sentence
  * for it, already written in words a person can read.
+ *
+ * Item 9: a fourth outcome, `failure: 'rate_limited'` (with `retryAfterSeconds`
+ * when the server sent one), for the server's own throttle. Before this, any
+ * non-2xx here threw through `get()`'s generic handling and was caught by
+ * `catalogueLookup`'s own bare `catch` in camera.js, which cannot tell a real
+ * throttle from a dead connection -- a barcode-route rate limit was shown as
+ * "no connection" (failure.md D9.1/D9.5). No 413 branch: this is a GET with no
+ * body, so the server has nothing to reject as too large.
  */
-export function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPriceCents } = {}) {
+export async function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPriceCents } = {}) {
   const params = new URLSearchParams();
   if (gtin) params.set('gtin', gtin);
   /* The shelf price, asked at scan time so it rides in the one call
@@ -339,7 +347,52 @@ export function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPriceCen
   const device = getDeviceId();
   if (device?.id) params.set('deviceId', device.id);
   for (const [k, v] of Object.entries(identifyExtras())) params.set(k, String(v));
-  return get(`/api/identify?${params.toString()}`);
+
+  // A network failure still throws unhandled here, exactly as `get()` leaves
+  // it: `catalogueLookup`'s own `catch` in camera.js is what turns that into
+  // "no connection", and that path is unchanged by this function's own 429
+  // branch below.
+  const res = await fetch(`${BASE}/api/identify?${params.toString()}`, { headers: headers() });
+  if (res.status === 429) {
+    const respBody = await res.json().catch(() => null);
+    const out = {
+      product: null,
+      failure: 'rate_limited',
+      says: respBody?.error ?? respBody?.says ?? null,
+    };
+    if (typeof respBody?.retryAfterSeconds === 'number') out.retryAfterSeconds = respBody.retryAfterSeconds;
+    return out;
+  }
+  if (!res.ok) throw new Error(`/api/identify returned ${res.status}`);
+  return res.json();
+}
+
+/**
+ * Item 19: a scripted demo scan, no provider call and no rate-limit charge,
+ * so someone can see the product work before granting camera permission
+ * (docs/scanner-build-order-2026-09-19.md item 19; failure.md D19).
+ *
+ * SEAM. `/api/identify/demo` is another session's to build. This asks for it
+ * in the shape failure.md's D19 analysis and the reference client both
+ * describe (a fixed sample tagged with the model name that produced it,
+ * `src/server/recognition.ts`'s `model:"deterministic-sample-v1"`):
+ *
+ *   { demo: true, model: 'deterministic-sample-v1',
+ *     product: { code, name, brand, size }, category,
+ *     askingCents, verdictWord, band }
+ *
+ * `demo: true` is the field this app's own hard rule 3 needs on the response
+ * (never let a canned answer look like a real one; the caller labels it on
+ * screen too) -- confirm the exact shape with whoever builds the route before
+ * relying on any field beyond that one.
+ *
+ * `getSoft` (above) is the same "may not exist yet" degrade this app already
+ * gives consent, rating, events and the store picker: a 404 today (the route
+ * not shipped) returns `null` rather than throwing into a screen that has
+ * nothing to do with it.
+ */
+export function identifyDemo() {
+  return getSoft('/api/identify/demo', null);
 }
 
 /**
@@ -460,6 +513,88 @@ export function sendCorrection(correction) {
  * those. Chunked so a multi-megabyte crop does not blow `String.fromCharCode`'s
  * argument limit.
  */
+/**
+ * Item 10: shrink an oversized capture instead of letting it fail outright.
+ *
+ * The eye's own crop (app/src/eye/capture.ts, out of this session's scope)
+ * resizes to a fixed pixel edge and always encodes losslessly -- a pixel
+ * target, not a byte-size one -- so a busy or large-format capture can still
+ * land here over the server's `MAX_PHOTO_BODY_BYTES` (app/server.ts, 3 MiB),
+ * and today that is a dead-end 413 (docs/scanner-build-order-2026-09-19.md
+ * item 10). `PHOTO_TARGET_BYTES` sits comfortably under that cap because the
+ * request also carries the base64 encoding (about 4/3 the blob's own bytes)
+ * plus the rest of the JSON body, so the blob itself has to land well under
+ * the wire cap, not right up against it.
+ */
+export const PHOTO_TARGET_BYTES = 2 * 1024 * 1024;
+/** The reference client's own ratio (docs/scanner-build-order-2026-09-19.md
+    item 10, "sugar-no-scanner-demo"): redraw at 0.8x and re-check. */
+export const PHOTO_SHRINK_FACTOR = 0.8;
+/** Below this scale a smaller photo would no longer show the product; give up
+    and let the existing 413 handling below be the honest last resort. */
+export const PHOTO_MIN_SCALE = 0.25;
+
+/** Pure: whether `bytes` needs another shrink pass. Exported so this is
+    checked without a canvas. */
+export function needsShrinking(bytes, targetBytes = PHOTO_TARGET_BYTES) {
+  return typeof bytes === 'number' && bytes > targetBytes;
+}
+
+/** Pure: the next scale to redraw at. Exported for the same reason. */
+export function nextShrinkScale(scale) {
+  return Math.round(scale * PHOTO_SHRINK_FACTOR * 1000) / 1000;
+}
+
+/**
+ * The one DOM-dependent step: redraw `blob` at `scale` and re-encode it.
+ * `captureThumb` in screens/camera.js takes the same `document.createElement
+ * ('canvas')` route and, by this app's own zero-runtime-dependency decision
+ * (test/photo-screen.test.mjs's header), is never exercised by a real canvas
+ * in this repo's test suite either -- only the pure arithmetic above is.
+ */
+async function redrawAtScale(blob, scale) {
+  const bitmap = await createImageBitmap(blob);
+  try {
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const g = canvas.getContext('2d');
+    g.drawImage(bitmap, 0, 0, w, h);
+    return await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
+  } finally {
+    bitmap.close?.();
+  }
+}
+
+/**
+ * Shrinks `blob` until it clears `targetBytes` or hits `PHOTO_MIN_SCALE`,
+ * whichever comes first. Never called on a blob that already fits (the
+ * caller checks `needsShrinking` first). Skips itself, and answers with the
+ * original blob, on a wrapper or an environment with no canvas -- hard rule
+ * 1, always an answer, over a scan lost to a missing browser API.
+ */
+async function shrinkPhotoBlob(blob, targetBytes = PHOTO_TARGET_BYTES) {
+  if (typeof createImageBitmap !== 'function' || typeof document?.createElement !== 'function') {
+    return blob;
+  }
+  let scale = 1;
+  let current = blob;
+  while (needsShrinking(current.size, targetBytes) && scale > PHOTO_MIN_SCALE) {
+    scale = nextShrinkScale(scale);
+    try {
+      const next = await redrawAtScale(blob, scale);
+      if (!next) break;
+      current = next;
+    } catch (err) {
+      console.error('could not shrink an oversized photo:', err);
+      break;
+    }
+  }
+  return current;
+}
+
 async function blobToBase64(blob) {
   const bytes = new Uint8Array(await blob.arrayBuffer());
   let binary = '';
@@ -494,12 +629,21 @@ async function blobToBase64(blob) {
  * 413 and 429 are answers here, never throws, for the reason `sendCorrection`'s
  * own comment gives: a caller building a queue on this has to tell "the server
  * looked and said no" from "the request never arrived", and only the second is
- * worth trying again.
+ * worth trying again. A 429 also carries `retryAfterSeconds` when the server
+ * sent one (`tooManyCalls`, app/server.ts), so a caller can show a real
+ * countdown instead of a bare refusal (item 9).
+ *
+ * Item 10: `blob` is shrunk here, before it is ever sent, when it is already
+ * over `PHOTO_TARGET_BYTES` -- comfortably under the server's own cap -- so an
+ * oversized capture gets a smaller re-encode instead of a wasted round trip
+ * that ends in 413. `failure: 'too_large'` below is what is left for the rare
+ * capture still too big once the shrink has hit its own floor.
  */
 export async function identifyPhoto(blob, { sharpness, deviceId, tier, shelfPriceCents } = {}) {
   const body = {};
   try {
-    body.image = await blobToBase64(blob);
+    const toSend = needsShrinking(blob?.size) ? await shrinkPhotoBlob(blob) : blob;
+    body.image = await blobToBase64(toSend);
   } catch (err) {
     console.error('photo could not be read for sending:', err);
     return { product: null, failure: 'offline' };
@@ -529,8 +673,14 @@ export async function identifyPhoto(blob, { sharpness, deviceId, tier, shelfPric
   }
 
   if (res.status === 413 || res.status === 429) {
-    const says = await res.json().then((b) => b?.error ?? b?.says ?? null).catch(() => null);
-    return { product: null, failure: res.status === 413 ? 'too_large' : 'rate_limited', says };
+    const respBody = await res.json().catch(() => null);
+    const says = respBody?.error ?? respBody?.says ?? null;
+    const out = { product: null, failure: res.status === 413 ? 'too_large' : 'rate_limited', says };
+    // Only a 429 carries a countdown; a 413 has nothing to wait out.
+    if (res.status === 429 && typeof respBody?.retryAfterSeconds === 'number') {
+      out.retryAfterSeconds = respBody.retryAfterSeconds;
+    }
+    return out;
   }
   if (!res.ok) {
     // A status this function was not built against. The crop is real and the

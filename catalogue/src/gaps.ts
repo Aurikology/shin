@@ -105,6 +105,13 @@ export function openGapLog(path: string = process.env.SHIN_GAPS ?? 'data/gaps.db
   try {
     if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
     db = new DatabaseSync(path);
+    // Added 2026-09-19 alongside item 14 (server.ts's Gemini-path miss now
+    // calls recordGap too, on top of the catalogue-search misses this log
+    // already took): many more writers can now land on this file inside one
+    // test run, and without a busy timeout a second writer arriving while
+    // another is mid-write gets SQLITE_BUSY immediately instead of a short
+    // wait. Same value repeat-cache.ts (item 1) uses for the same reason.
+    db.exec('PRAGMA busy_timeout = 5000');
     db.exec('PRAGMA journal_mode = WAL');
     db.exec(DDL);
   } catch (err) {

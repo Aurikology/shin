@@ -17,6 +17,8 @@ import { fakeTransport, type Call } from './gemini-double.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-market-wire-'));
 process.env.SHIN_SCANS = join(dir, 'scans.db');
+process.env.SHIN_REPEAT_CACHE = join(dir, 'repeat-cache.db');
+process.env.SHIN_GAPS = join(dir, 'gaps.db');
 process.env.SHIN_CORRECTIONS = join(dir, 'corrections.db');
 process.env.SHIN_PHOTOS = join(dir, 'photos');
 process.env.SHIN_CATALOGUE = join(dir, 'no-catalogue.db');
@@ -28,6 +30,7 @@ delete process.env.SHIN_MODEL_PROVIDER;
 
 const { server, setGeminiTransportForTests, setSpendGuardForTests, setCatalogueForTests, settleBackgroundChecks } = await import('../server.ts');
 const { openScanStore } = await import('../src/scans.ts');
+const { clearRepeatCacheForTests } = await import('../src/repeat-cache.ts');
 // The client module is plain JavaScript; a variable specifier keeps the type checker out of it.
 const clientUrl = (p: string) => new URL(`../public/js/${p}`, import.meta.url).href;
 const { scanContextFrom } = (await import(clientUrl('lib/scan-body.js'))) as any;
@@ -46,6 +49,12 @@ beforeEach(() => {
   const t = fakeTransport();
   calls = t.calls;
   setGeminiTransportForTests(t.transport);
+  // Item 1's repeat-scan cache is keyed on the barcode alone, and this file
+  // reuses fixture barcodes across tests; without clearing, a test after the
+  // first to scan one would be served the cached answer instead of making
+  // its own call, which is item 1's real behaviour but not what these tests
+  // (written before the cache existed) are checking.
+  clearRepeatCacheForTests();
 });
 after(async () => {
   await settleBackgroundChecks?.();

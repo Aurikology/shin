@@ -16,6 +16,8 @@ import { fakeTransport, httpBody } from './gemini-double.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-feed-'));
 process.env.SHIN_SCANS = join(dir, 'scans.db');
+process.env.SHIN_REPEAT_CACHE = join(dir, 'repeat-cache.db');
+process.env.SHIN_GAPS = join(dir, 'gaps.db');
 process.env.SHIN_CORRECTIONS = join(dir, 'corrections.db');
 process.env.SHIN_PHOTOS = join(dir, 'photos');
 process.env.SHIN_CATALOGUE = join(dir, 'no-catalogue.db');
@@ -29,6 +31,7 @@ delete process.env.SHIN_MODEL_PROVIDER;
 const { server, setGeminiTransportForTests, setSpendGuardForTests, setCatalogueForTests, setUserCatalogueForTests, settleBackgroundChecks } =
   await import('../server.ts');
 const { openScanStore } = await import('../src/scans.ts');
+const { clearRepeatCacheForTests } = await import('../src/repeat-cache.ts');
 const { createUserCatalogue } = await import('../../catalogue/src/user-catalogue.ts');
 
 let port = 0;
@@ -49,6 +52,12 @@ beforeEach(() => {
   setGeminiTransportForTests(fakeTransport().transport);
   uc = createUserCatalogue(':memory:');
   setUserCatalogueForTests(uc);
+  // Item 1's repeat-scan cache is keyed on the barcode alone, and this file
+  // reuses fixture barcodes across tests; without clearing, a test after the
+  // first to scan one would be served the cached answer instead of making
+  // its own call, which is item 1's real behaviour but not what these tests
+  // (written before the cache existed) are checking.
+  clearRepeatCacheForTests();
 });
 after(async () => {
   setGeminiTransportForTests(null);
@@ -93,6 +102,12 @@ test('no location sent means no country and no currency are stored, never Canada
 
 test('the same product scanned twice is one entry, not two', async () => {
   await identify('gtin=0068100084245&deviceId=feed-3');
+  // Item 1's repeat-scan cache is keyed on the barcode alone, and a cache hit
+  // returns before the catalogue-feed step runs at all (a cached answer
+  // writes no new observation). This test is proving catalogue dedup across
+  // two INDEPENDENT Gemini answers for the same product, not the cache, so
+  // the second scan is cleared to a fresh miss rather than served from cache.
+  clearRepeatCacheForTests();
   await identify('gtin=0068100084245&deviceId=feed-3');
   await settleBackgroundChecks();
   assert.equal(rows('SELECT id FROM user_product').length, 1);

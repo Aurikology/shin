@@ -8,7 +8,10 @@
     "node": ">=22.18"
   },
   "scripts": {
+    "build-eye": "node scripts/build-eye.mjs",
+    "prestart": "npm run build-eye",
     "start": "node server.ts",
+    "predev": "npm run build-eye",
     "dev": "node --watch server.ts",
     "stubs": "node scripts/make-stubs.mjs",
     "faces": "node scripts/build-faces.mjs",
@@ -17,7 +20,7 @@
     "typecheck": "node ../spine/node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
     "test": "node --test \"test/*.test.{ts,mjs}\"",
     "what-to-price": "node src/what-to-price.ts",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run build-eye && npm run typecheck && npm test"
   },
   "devDependencies": {
     "esbuild": "^0.28.2"

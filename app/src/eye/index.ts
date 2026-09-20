@@ -6,7 +6,16 @@
  * screens; it produces a barcode or a crop and stops.
  */
 
-export { BarcodeScanner, RETAIL_FORMATS, type Reading, type StableRead } from './barcode.ts';
+export {
+  BarcodeScanner,
+  RETAIL_FORMATS,
+  grayscaleContrast,
+  shouldRetryWithPreprocessing,
+  PREPROCESS_AFTER_MISSES,
+  type Reading,
+  type StableRead,
+  type RawFrame,
+} from './barcode.ts';
 export {
   ObjectDetector,
   salientBox,
@@ -21,10 +30,23 @@ export {
   releaseAllBut,
   sharpnessOf,
   StabilityGate,
+  motionScore,
+  forcedCaptureDue,
+  MIN_ABSOLUTE_SHARPNESS,
+  MOTION_THRESHOLD,
+  FORCED_CAPTURE_MS,
   type CropResult,
   type ScoredFrame,
 } from './capture.ts';
-export { Camera, type CameraEvents, type CameraOptions, type BarcodeMark } from './camera.ts';
+export {
+  Camera,
+  videoIsReady,
+  supportsContinuousFocus,
+  sceneChanged,
+  type CameraEvents,
+  type CameraOptions,
+  type BarcodeMark,
+} from './camera.ts';
 export { BarcodeVote, VOTE_DEFAULTS, type Sighting, type VoteTrack, type VoteOptions } from './votes.ts';
 export {
   decideTorch,

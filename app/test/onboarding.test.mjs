@@ -40,6 +40,7 @@ installBrowser({ doc, storage });
 const flow = await import('../public/js/onboarding-flow.js');
 const store = await import('../public/js/store.js');
 const screen = (await import('../public/js/screens/onboarding.js')).default;
+const { demoResultHtml } = await import('../public/js/screens/onboarding.js');
 const strings = await import('../public/js/onboarding-strings.js');
 const { t } = await import('../public/js/ui-strings.js');
 
@@ -578,4 +579,93 @@ test('a replay flag on a first run is ignored: the first run still finishes and 
   r.cleanup();
   assert.deepEqual(r.calls.at(-1), ['replace', 'setup']);
   assert.equal(store.get().onboarding.skippedAt, 'heard');
+});
+
+/* ------------------------------------------------------------- item 19: demo */
+
+/**
+ * A demo scan on the permissions step, so someone can see the product work
+ * before granting camera permission (docs/scanner-build-order-2026-09-19.md
+ * item 19; failure.md D19). `identifyDemo` is a SEAM: `/api/identify/demo`
+ * is another session's route to build, so it is stubbed here rather than
+ * hit for real, the same way `postConsent`/`postEvent` already are above.
+ *
+ * `render()`'s shared helper only stubs `[data-range="threshold"]`, and its
+ * `api` carries no `identifyDemo`, so this uses its own small render that
+ * adds both without touching the shared helper other tests in this file
+ * depend on.
+ */
+function renderPermissions(identifyDemo) {
+  const root = doc.createElement('div');
+  const cleanup = screen.render(root, {
+    params: { step: 'permissions' },
+    api: { postConsent() {}, postEvent() {}, identifyDemo },
+    go: () => {},
+    replace: () => {},
+  });
+  let slotHtml = '';
+  const demoSlot = {
+    get innerHTML() { return slotHtml; },
+    set innerHTML(v) { slotHtml = v; },
+  };
+  // paintPermissions() no-ops on a selector that resolves to null (`if (!el)
+  // continue;`), so only the demo slot needs a real stand-in here.
+  root.querySelector = (sel) => (sel === '[data-demo-slot]' ? demoSlot : null);
+  const listener = root.listeners.find((l) => l.type === 'click')?.fn;
+  return {
+    cleanup,
+    slot: () => slotHtml,
+    async seeDemo() {
+      await listener({ target: { closest: (sel) => (sel === '[data-act]' ? { dataset: { act: 'see-demo' } } : null) } });
+    },
+  };
+}
+
+const DEMO_ANSWER = {
+  demo: true,
+  model: 'deterministic-sample-v1',
+  product: { code: 'd', name: 'Demo Thing', brand: 'Demo Co', size: '1 ea' },
+  category: 'demo',
+  askingCents: 199,
+  verdictWord: 'fair',
+  band: 'confident',
+};
+
+test('the demo link paints a real demo answer, always badged as one', async () => {
+  const r = renderPermissions(async () => DEMO_ANSWER);
+  await r.seeDemo();
+  r.cleanup();
+  assert.match(r.slot(), /DEMO/, 'the demo card does not carry the demo badge at all');
+  assert.match(r.slot(), /Demo Co Demo Thing/);
+  assert.match(r.slot(), /\$1\.99/);
+});
+
+test('the price and the verdict never render without the demo badge beside them', () => {
+  const html = demoResultHtml(DEMO_ANSWER);
+  const priceLine = /<p class="onb-demo-price">([\s\S]*?)<\/p>/.exec(html);
+  const verdictLine = /<p class="onb-demo-verdict">([\s\S]*?)<\/p>/.exec(html);
+  assert.ok(priceLine, 'no price line rendered for a demo with an asking price');
+  assert.match(priceLine[1], /onb-demo-badge/, 'the price shows with no demo badge next to it');
+  assert.ok(verdictLine, 'no verdict line rendered for a demo with a verdict word');
+  assert.match(verdictLine[1], /onb-demo-badge/, 'the verdict shows with no demo badge next to it');
+});
+
+test('a demo with no price and no verdict still shows the top badge, and renders neither line', () => {
+  const html = demoResultHtml({ demo: true, product: { name: 'Thing' } });
+  assert.match(html, /onb-demo-badge/);
+  assert.doesNotMatch(html, /onb-demo-price/);
+  assert.doesNotMatch(html, /onb-demo-verdict/);
+});
+
+test('the demo link degrades honestly when the route does not exist yet, never a fabricated answer', async () => {
+  const r = renderPermissions(async () => null);
+  await r.seeDemo();
+  r.cleanup();
+  assert.ok(!r.slot().includes('onb-demo-badge'), 'a missing route painted a demo card anyway');
+  assert.match(r.slot(), new RegExp(t('onb_demo_unavailable')));
+});
+
+test('a demo card never leaks a missing fact onto the screen', () => {
+  const html = demoResultHtml({ demo: true, product: {} });
+  assert.doesNotMatch(html, /undefined|null|NaN/);
 });

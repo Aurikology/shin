@@ -29,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 
 import { TABLES } from '../public/js/ui-strings.js';
 import { LINES_FR } from '../public/js/voice-fr.js';
+import { captureAllowed } from '../public/js/screens/camera.js';
 
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
 const CAMERA = read('../public/js/screens/camera.js');
@@ -144,12 +145,17 @@ test('every icon button is at least 44px each way, and the keyboard one is the s
 // needs it fails on its own if the source it cuts from has moved.
 const runDispatch = (...args) => new Function(
   'act', 'cam', 'track', 'eye', 'paintBarcodeButton', 'sayNoBarcode', 'buzz', 'openManualSearch', 'shoot', 'btn', 'out',
+  'captureAllowed', 'lastCaptureAt',
   `let barcodeReady = { value: '0123456789012' };\ntry {\n${
     between(CAMERA, "      if (act === 'shoot') { shoot(); return; }", "      if (act === 'watchlist')", 'the click dispatch')
   }\n} finally { out.barcodeReady = barcodeReady; }`,
 )(...args);
 
-function press(act, { state = 'idle', sent = true, noEye = false } = {}) {
+// `lastCaptureAt` defaults to 0, which `captureAllowed` (item 8, the real
+// export, not a stub) treats as "nothing captured yet" and always allows;
+// these tests are about the barcode/eye wiring, not the throttle, so they
+// run as if the last capture was long enough ago.
+function press(act, { state = 'idle', sent = true, noEye = false, lastCaptureAt = 0 } = {}) {
   const log = [];
   const eye = noEye ? undefined : { scanBarcode: () => { log.push('eye.scanBarcode'); return sent; } };
   const out = {};
@@ -165,6 +171,8 @@ function press(act, { state = 'idle', sent = true, noEye = false } = {}) {
     () => log.push('shoot'),
     { dataset: { act } },
     out,
+    captureAllowed,
+    lastCaptureAt,
   );
   return { log, ready: out.barcodeReady };
 }
@@ -199,6 +207,23 @@ test('neither scan button fires under a sheet that is already up', () => {
     .includes("if (cam.dataset.state !== 'idle') return;"), 'the keyboard button opens over a sheet that is up');
   assert.ok(between(CAMERA, '    function shoot() {', '      clearTimeout(hintTimer);', 'shoot')
     .includes("if (cam.dataset.state !== 'idle') return;"), 'the shutter fires over a sheet that is up');
+});
+
+/*
+ * Item 8 (scanner-build-order-2026-09-19.md): a second scan request cannot
+ * fire while one is in flight, and there is a minimum interval between
+ * captures. The in-flight half is `cam.dataset.state !== 'idle'`, pinned
+ * above. This is the min-interval half, using the real exported
+ * `captureAllowed` (failure.md D8) rather than a stub, so a change to its
+ * arithmetic that breaks the guard breaks this test too.
+ */
+test('the barcode button is throttled by the same minimum interval as the shutter', () => {
+  const now = Date.now();
+  assert.deepEqual(press('scan-barcode', { lastCaptureAt: now }).log, [],
+    'a barcode press right after the last capture was not throttled');
+  assert.deepEqual(press('scan-barcode', { lastCaptureAt: 0 }).log,
+    ['track:barcode_scan_pressed', 'eye.scanBarcode', 'buzz'],
+    'lastCaptureAt of 0 (nothing captured yet) must still be allowed');
 });
 
 /* ------------------------------------------ 4. the answer to an empty press */

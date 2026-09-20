@@ -1,8 +1,10 @@
 {
   "type": "object",
+  "additionalProperties": false,
   "properties": {
     "scan": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "scan_type": {
           "type": "string"
@@ -35,6 +37,7 @@
     },
     "product": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "name": {
           "type": [
@@ -83,12 +86,14 @@
         },
         "identification_evidence": {
           "type": "array",
+          "maxItems": 10,
           "items": {
             "type": "string"
           }
         },
         "sources": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "name": {
               "type": [
@@ -152,6 +157,7 @@
     },
     "condition": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "classification": {
           "type": [
@@ -164,6 +170,7 @@
         },
         "evidence": {
           "type": "array",
+          "maxItems": 10,
           "items": {
             "type": "string"
           }
@@ -177,8 +184,10 @@
     },
     "offers": {
       "type": "array",
+      "maxItems": 30,
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "properties": {
           "retailer": {
             "type": [
@@ -236,6 +245,7 @@
           },
           "specs": {
             "type": "array",
+            "maxItems": 10,
             "items": {
               "type": "string"
             }
@@ -373,8 +383,10 @@
     },
     "reviews": {
       "type": "array",
+      "maxItems": 10,
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "properties": {
           "rating": {
             "type": [
@@ -411,8 +423,10 @@
     },
     "alternatives": {
       "type": "array",
+      "maxItems": 5,
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "properties": {
           "name": {
             "type": "string"
@@ -491,6 +505,7 @@
               "object",
               "null"
             ],
+            "additionalProperties": false,
             "properties": {
               "value": {
                 "type": [
@@ -530,6 +545,7 @@
           },
           "attributes": {
             "type": "array",
+            "maxItems": 10,
             "items": {
               "type": "string"
             }
@@ -542,6 +558,7 @@
           },
           "constraint_notes": {
             "type": "array",
+            "maxItems": 10,
             "items": {
               "type": "string"
             }
@@ -570,6 +587,7 @@
     },
     "pricing_summary": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "shelf_price": {
           "type": [
@@ -600,6 +618,7 @@
         },
         "notes": {
           "type": "array",
+          "maxItems": 10,
           "items": {
             "type": "string"
           }
@@ -616,18 +635,21 @@
     },
     "uncertainty": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "overall_confidence": {
           "type": "number"
         },
         "missing_information": {
           "type": "array",
+          "maxItems": 10,
           "items": {
             "type": "string"
           }
         },
         "conflicts": {
           "type": "array",
+          "maxItems": 10,
           "items": {
             "type": "string"
           }
@@ -641,6 +663,7 @@
     },
     "price_verdict": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "verdict_available": {
           "type": "boolean"
@@ -689,6 +712,7 @@
             "object",
             "null"
           ],
+          "additionalProperties": false,
           "properties": {
             "unit_price": {
               "type": [
@@ -750,6 +774,7 @@
         },
         "thresholds_used": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "under_pct": {
               "type": "number"

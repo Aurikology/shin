@@ -43,6 +43,13 @@ export function recordAccess(req: IncomingMessage, res: ServerResponse, env: Nod
         who: inviteWho(h['x-shin-invite'], env),
         shutter: h['x-shin-shutter'] ?? null,
         referer: h.referer ?? null,
+        // Item 18, ruling 8 (docs/decisions.md, "Nine rulings", 2026-09-19): a
+        // missing Origin is allowed and marked, never refused (a native
+        // wrapper may legitimately send none); the mark is this field. A
+        // present-and-mismatched Origin is refused outright at the route
+        // (server.ts), and the refused request still lands here with its own
+        // status code.
+        origin: h.origin ?? null,
       });
       appendFile(accessLogPath(env), line + '\n', () => {});
       const deviceId = new URL(req.url ?? '/', 'http://x').searchParams.get('deviceId');

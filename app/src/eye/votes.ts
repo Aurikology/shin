@@ -84,6 +84,47 @@ interface Entry {
   seen: Map<string, Sighting>;
 }
 
+/**
+ * How far a buffered box's centre may sit from the median box's centre,
+ * relative to the median box's own width, before it counts as an outlier
+ * rather than jitter. Item 15.
+ *
+ * WhiteChristmas's own smoothing averages buffered positions within 0.5m of
+ * a coordinate-sum-sorted median (ObjectTracker.cs:68-90; it considered a
+ * true Kalman filter and never built one either). There is no metric unit on
+ * a video frame, so the median box's own width stands in for it: a centre
+ * drifting less than half a barcode width from the recent middle is the
+ * ordinary jitter of a slightly-off zxing read, more than that is probably a
+ * different code, or a bad one.
+ */
+const OUTLIER_RADIUS = 0.5;
+
+/**
+ * A track's smoothed box: sort the recent sightings by the sum of their
+ * centre coordinates, take the middle one as the reference, and average only
+ * the boxes whose centre sits within `OUTLIER_RADIUS` box-widths of it. Item
+ * 15. `boxes` is already bounded and stale-evicted by `#prune()`'s own
+ * `windowMs` window (the same eviction `tracks()` already relies on for
+ * "recently enough to still be drawn"), so this needs no separate history
+ * buffer or cap of its own.
+ */
+function smoothedBox(boxes: readonly VoteBox[]): VoteBox | null {
+  if (boxes.length === 0) return null;
+  if (boxes.length === 1) return boxes[0];
+  const centred = boxes.map((b) => ({ b, cx: b.x + b.width / 2, cy: b.y + b.height / 2 }));
+  centred.sort((a, b) => a.cx + a.cy - (b.cx + b.cy));
+  const mid = centred[Math.floor(centred.length / 2)];
+  const radius = mid.b.width * OUTLIER_RADIUS;
+  const kept = centred.filter((c) => Math.hypot(c.cx - mid.cx, c.cy - mid.cy) <= radius);
+  const n = kept.length;
+  return {
+    x: kept.reduce((s, c) => s + c.b.x, 0) / n,
+    y: kept.reduce((s, c) => s + c.b.y, 0) / n,
+    width: kept.reduce((s, c) => s + c.b.width, 0) / n,
+    height: kept.reduce((s, c) => s + c.b.height, 0) / n,
+  };
+}
+
 export class BarcodeVote {
   readonly #windowMs: number;
   readonly #minSpanMs: number;
@@ -117,10 +158,17 @@ export class BarcodeVote {
 
     const count = new Map<string, number>();
     const last = new Map<string, { at: number; s: Sighting }>();
+    /** Item 15: every box seen for a value, in window order, for `smoothedBox`. */
+    const history = new Map<string, VoteBox[]>();
     for (const e of this.#entries) {
       for (const [value, s] of e.seen) {
         count.set(value, (count.get(value) ?? 0) + 1);
         last.set(value, { at: e.at, s });
+        if (s.box) {
+          const boxes = history.get(value);
+          if (boxes) boxes.push(s.box);
+          else history.set(value, [s.box]);
+        }
       }
     }
 
@@ -151,7 +199,7 @@ export class BarcodeVote {
       out.push({
         value,
         format: seenLast.s.format,
-        box: seenLast.s.box,
+        box: smoothedBox(history.get(value) ?? []),
         frames: n,
         total,
         focused,
