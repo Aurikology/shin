@@ -1,4 +1,8 @@
-# Eleven repos read against the three things the photo path gets wrong
+# Nineteen repos read against the three things the photo path gets wrong
+
+*Batch one, eleven repos, is below. Batch two, eight framework repos, is in `README-batch2.md`
+and settles the questions batch one could only frame. Read batch two first if you want the
+answers, and note that it corrects two claims made below.*
 
 Read 2026-09-19. Eleven external repos, one reader each, all working from `QUESTIONS.md`, plus
 `_ours.md` as the negative control read first so every finding below is a difference and not a

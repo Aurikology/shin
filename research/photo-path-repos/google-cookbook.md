@@ -129,7 +129,7 @@ open for the text case).
 - **Schema + search tool together, on which model:** not demonstrated by any executed cell in
   this repo. The one statement on this exact question is a documentation pointer, not code:
   `quickstarts/JSON_mode.ipynb` cell 26 ("Next Steps"), verbatim: *"Structured outputs with tools
-  (Google Search, Code Execution, etc.) — available with Gemini 3 models"*, linking out to
+  (Google Search, Code Execution, etc.) [em dash in original] available with Gemini 3 models"*, linking out to
   `https://ai.google.dev/gemini-api/docs/interactions/structured-output`. No cell in the notebook
   runs this combination -- it is a forward pointer to external docs, not a worked example. Read
   narrowly, this is **weak, partial confirmation of Shin's belief**: the repo asserts schema+tools
