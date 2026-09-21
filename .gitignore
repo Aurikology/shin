@@ -86,3 +86,6 @@ catalogue/crosslang-work.db
 
 # Account credentials, never in the repo (hard rule: no secrets committed)
 *@gmail.com.txt
+
+# Output of app/scripts/sheet-preview.mjs: generated previews, never committed.
+app/.sheet-preview/

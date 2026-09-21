@@ -1238,6 +1238,26 @@ const GEMINI_ZONE_KEY = {
   over_your_line: 'priceline_zone_over',
 };
 
+/*
+ * Gemini's zone, in the tier names the colour system already binds.
+ *
+ * `tokens.css` binds `--tier`, `--tier-bright` and `--tier-on` off
+ * `[data-tier]`, and `DESIGN.md` Law 2 is "hue for the judgment, fill for the
+ * confidence". This sheet hardcoded `data-tier="unknown"`, so after the Gemini
+ * rewrite every answer painted in the unknown grey and a good price, a fair
+ * one and a walk away were the same colour on the app's main screen. The zone
+ * was on the section the whole time, in `data-zone`, and nothing read it: no
+ * CSS rule and no JS anywhere keys on `data-tier` except the token bindings.
+ *
+ * No zone stays unknown, which is the honest answer: with no shelf price there
+ * is no judgment to give a hue to.
+ */
+const GEMINI_ZONE_TIER = {
+  under_your_line: 'good',
+  middle: 'fair',
+  over_your_line: 'walk_away',
+};
+
 /** The thumbs pair for the Gemini answer sheet; the verdict sheet keeps its own copy of the same markup. */
 function thumbsBlock() {
   return `<div class="thumbs" role="group" aria-label="${escapeHtml(t('cam_verdict_right_q'))}">
@@ -1307,7 +1327,7 @@ function geminiSheet(result, item, thumb, earlier = []) {
   const reasons = Array.isArray(result.confidenceReasons) ? result.confidenceReasons : g.confidenceReasons;
 
   return `
-    <section class="sheet verdict gemini" data-kind="gemini" data-tier="unknown" data-zone="${escapeHtml(g.zone ?? '')}" data-conf="${conf.level}" data-conf-reasons="${escapeHtml(reasons.join(' '))}" data-detent="peek" aria-live="polite" tabindex="-1">
+    <section class="sheet verdict gemini" data-kind="gemini" data-tier="${GEMINI_ZONE_TIER[g.zone] ?? 'unknown'}" data-zone="${escapeHtml(g.zone ?? '')}" data-conf="${conf.level}" data-conf-reasons="${escapeHtml(reasons.join(' '))}" data-detent="peek" aria-live="polite" tabindex="-1">
       ${grabber()}
       ${backButton()}
 

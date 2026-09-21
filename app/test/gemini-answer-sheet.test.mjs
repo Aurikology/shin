@@ -114,6 +114,37 @@ test('the headline is Gemini\'s own zone word, and each of the three zones reads
   assert.equal(new Set(words).size, 3, 'two different zones headline the same word');
 });
 
+test('each zone binds the tier its colour comes from, so the three do not paint the same', () => {
+  /*
+   * The regression this holds shut. `geminiSheet` hardcoded
+   * data-tier="unknown" while carrying the real zone in data-zone, and
+   * tokens.css binds --tier, --tier-bright and --tier-on off [data-tier]. So
+   * every Gemini answer painted in the unknown grey: a good price, a fair one
+   * and a walk away were the same colour on the app's main screen, against
+   * DESIGN.md Law 2. Seen at 390 px in both themes with
+   * `node scripts/sheet-preview.mjs`.
+   */
+  const tiers = [];
+  for (const [zone, tier] of [
+    ['under_your_line', 'good'],
+    ['middle', 'fair'],
+    ['over_your_line', 'walk_away'],
+  ]) {
+    const html = geminiSheet(answer({ zone }), ITEM, null);
+    const found = html.match(/<section class="sheet verdict gemini"[^>]*data-tier="([^"]*)"/);
+    assert.ok(found, `${zone}: no tier on the Gemini sheet`);
+    assert.equal(found[1], tier, `${zone}: bound to tier ${found[1]}`);
+    tiers.push(found[1]);
+  }
+  assert.equal(new Set(tiers).size, 3, 'two zones share a tier, so two verdicts share a colour');
+});
+
+test('with no zone there is no hue to claim, so the tier stays unknown', () => {
+  const html = geminiSheet(answer({ zone: null }), ITEM, null);
+  const found = html.match(/<section class="sheet verdict gemini"[^>]*data-tier="([^"]*)"/);
+  assert.equal(found?.[1], 'unknown', 'an answer with no shelf price claimed a verdict colour');
+});
+
 test('the middle price and the shelf label are shown as the model returned them', () => {
   const html = geminiSheet(answer({ median: 4.5 }), ITEM, null);
   // 4.5, not 4.50 and not $4.50: a formatter would have changed it.
