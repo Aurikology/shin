@@ -78,9 +78,10 @@ Measured accuracy on 200 real photographs: 148 correct. Multipacks 7 of 18, and 
 miss returns the right brand with the wrong variant. Of 160 high confidence answers 137 were
 right; of 24 low confidence answers 3 were right.
 
-One constraint that is not negotiable: a person opens the camera screen many times a day. Nothing
-a person sees that often should animate on arrival. If you propose an entrance animation for a
-frequently seen surface, you have to defend it.
+Two constraints that are not negotiable. A person opens the camera screen many times a day, and
+nothing seen that often should animate on arrival; if you propose an entrance animation for a
+frequently seen surface you have to defend it. And anything that enters must leave the way it
+came in, so a sheet that rises from the bottom leaves downward and never sideways.
 
 ## Four questions. Nothing else.
 
@@ -98,12 +99,38 @@ everything else and why, what an empty one looks like, what a single row looks l
 answer was confident and when it was not, what happens when the user removes one, and what the
 screen looks like with two rows versus forty. Then state the rule you invented for Saved and what
 it implies for Past scans, Recently removed, Savings, Market, Licences and the You page, which
-are the same shape.
+are the same shape. Say in particular what your rule does to the You page, which currently holds
+at least twenty three controls in a single scrolling view.
 
-**3. Wayfinding.** For each of the thirteen screens, answer four questions: where am I, where can
-I go from here, what is on this screen, and how do I get out. Name every screen that fails one of
-the four and say exactly how it fails. One or two lines per screen. This is the "hard to navigate"
-half of the complaint and neither of your previous answers touched it.
+**3. Navigation.** I traced the running code rather than asking you to guess. These are facts.
+
+- Getting from a cold start to one price answer takes **29 taps** if you walk the onboarding, or
+  5 if you find the skip.
+- Four screens have exactly one door in. Past scans and Recently removed can only be reached from
+  Saved. Savings and Market can only be reached from the You page. **Licences can only be reached
+  from Market**, and nothing on the You page leads to it.
+- The personality picker and the data consent screen have **no back control at all**. The only
+  way off either one is forward.
+- The correction screen always exits to the camera, including when you entered it from the You
+  page, so correcting a price silently moves you somewhere you did not come from.
+- The Savings screen draws the same three tab bar as Market and Licences, but its "You" tab does
+  nothing. The identical control works on the other two screens.
+- **Nine things move without anyone tapping.** Two of them change screen on a timer: 1400ms after
+  a correction saves, and 2000ms after the user taps keep it. The rest rewrite copy under the
+  user at 420ms, 800ms, 3500ms, 4000ms and 6000ms.
+- Two buttons are completely empty, with no icon and no text: the sheet grabber, and the small
+  shutter in the page bar.
+- One view has at least 23 controls in it: the You page. The price pad has at least 17. The
+  verdict sheet has 9.
+- Correcting a price is called four different things in four places: Fix Results, Tell me the
+  price, Tell Shin the price, and Report a wrong price. Going back to the camera is called six
+  different things. **The button that saves an answer has no fixed label at all**; its wording
+  changes with the verdict and with the chosen personality, so the same control is never twice
+  the same word.
+
+Pick the five of these that cost a person the most, rank them, and fix each one. For each fix say
+what it costs to make, and what is lost. Do not fix all of them and do not list the ones you are
+not fixing.
 
 **4. What could only be Shin.** Name one visual or interaction decision that follows from
 something true about this product and could not be lifted into a different app. Not a mascot, not
