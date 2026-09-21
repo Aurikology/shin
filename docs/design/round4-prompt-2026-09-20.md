@@ -73,6 +73,19 @@ Decide where a character belongs in your design and where it has to stay out of 
 think a character is the wrong idea, say so in two sentences, then design as though it exists,
 because it does.
 
+**There are no accounts.** Nobody logs in, nothing syncs, there is no password and no profile.
+Everything a person keeps lives on that one phone in that one browser, and clearing the browser
+loses it. Design around that, including whatever you decide the money moment is, because there is no
+account to attach a subscription to unless you introduce one and say what it costs the person.
+
+**Nothing watches a price over time.** A kept item is a record of what was true when they scanned
+it, not an alert. If you want the product to tell someone a price moved, say so and say what has to
+exist for that to be honest.
+
+**The person can say what counts as a good price to them.** A threshold, a percentage, a figure,
+whatever shape you give it. Decide whether that is worth asking for, when, and what the answer looks
+like once it exists.
+
 **Two languages ship, English and French.** The same sentence can be a third longer in one of them,
 so nothing may depend on a word fitting a space.
 
@@ -108,11 +121,12 @@ whole product: deciding what to point at, the camera, reading the thing, the sev
 waiting, typing the price, the answer arriving in each of its flavours (a good price, a bad price, a
 borderline one, a refusal, and the frequent case where the brand is right and the variant is
 uncertain), the case where the app has more than one guess and needs the person to pick between
-them, correcting a wrong answer, keeping something to look at later, the list of kept things,
-looking back at what you scanned before, sharing one, choosing which voice the character speaks in,
-agreeing to what the app collects, and whatever settings you decide the product is allowed to have.
-It also has to work in a badly lit aisle, so decide what the person does about that. If your design
-invents moments that are not in that list, specify those too.
+them, correcting a wrong answer, which has to name the shop it was seen in because a price with no
+shop attached is worthless, keeping something to look at later, the list of kept things, getting
+back something removed by mistake, looking back at what you scanned before, sharing one, choosing
+which voice the character speaks in, agreeing to what the app collects, and whatever settings you
+decide the product is allowed to have. It also has to work in a badly lit aisle, so decide what the
+person does about that. If your design invents moments that are not in that list, specify those too.
 
 **4. The interruptions.** The moments nobody asked for. This is the part that decides whether an app
 feels deliberate or cheap, and it is the part I am most interested in.
@@ -120,9 +134,11 @@ feels deliberate or cheap, and it is the part I am most interested in.
 At minimum: the very first time it is opened, the camera permission request and the state after it
 is refused, the moment the person hits whatever limit you designed and is asked to pay, the warning
 before that moment, coming back after two weeks away, the network dropping mid answer, an answer
-taking longer than it should, a scan being refused, and the moment the app has earned the right to
-ask the person for something, whether that is a review, a share, a referral or something else you
-decide it may ask for.
+taking longer than it should, a scan being refused, being told to wait a fixed number of seconds
+before scanning again because they went too fast, something breaking in a way that is nobody's
+fault and is not the network, and the moment the app has earned the right to ask the person for
+something, whether that is a review, a share, a referral or something else you decide it may ask
+for.
 
 For each of these, give the full specification below **plus three extra things**: what earns the
 right to interrupt, how many times it may appear before it never appears again, and what it looks
