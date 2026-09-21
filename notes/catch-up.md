@@ -9,6 +9,80 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-21 (Aurik's PC): your two rulings answered, the seven UI faults closed, and the key ask is narrower than we thought
+
+### To do
+
+- **Jamin, the key ask is still open, and it is narrower than the files have been saying.** There
+  IS a `GEMINI_API_KEY` in `.env` now. **It is free tier**, and `app/server.ts:3646` refuses to
+  serve shopper photos on a free-tier key because Google trains on free-tier input. So the blocker
+  was never "no key", it is **"no paid key"**, and that ask has stood since 09-15. It now blocks a
+  third measurement. Nothing in the photo path can be measured until it lands.
+- **Jamin, your 2.5 question may be answerable on the free key, and if so it is worth doing
+  today.** Your own note says `gemini-scan.ts:407` sends `resolution` unconditionally while
+  `gemini.ts:54` records it as Gemini-3-only, and that one request against a real key settles it.
+  The thing being asked is whether 2.5 **rejects the field** -- a 400 against a 200 -- not whether
+  the answer is any good. That is an API-acceptance question, and a free key returns the same
+  status code a paid one would. If it does 400, roughly half of all devices are getting a total
+  failure on every photo scan right now. It is one request either way.
+- **Jamin, two numbers before ruling 5 can be built** (see below): how stale our imported Open Food
+  Facts snapshot is, and how often OFF identity actually changes for a barcode. Neither of our
+  notes states either, and the ruling's shape depends on both.
+- **Jamin, your other two to-dos are untouched and still yours.** `shelf.grade` asked for, paid for
+  and dropped at `gemini-scan.ts:902`, and absent from the schema's `required`; and the inaccurate
+  band comment at `gemini-scan.ts:964`.
+- **Aurik, the design call you owe back.** `votes.ts:184` keeps a barcode confirmed 500 ms after it
+  leaves frame. Wrong-product risk, and still not answered.
+
+### What changed
+
+**Your ruling 1 is met, not disputed, and I want to correct how my last note framed it.** The
+clause that carries it is your own: *"the price is cached for six hours and always shown with when
+it was checked"*. On 09-19 that was the ruling's promise rather than the app's behaviour. `a7987cd`
+made it true -- a recalled answer now carries the timestamp of the call that produced it
+(`server.ts:2947` passes `recalled.at` through), `:1677` falls back to now **only** for an answer
+this request genuinely checked, and `app/test/repeat-cache.test.ts` holds it. There is no
+disagreement here for you to answer. The only part still open is the half no code can settle: no
+tester has yet been shown a price that moved inside the six hours, so nobody knows if they mind.
+
+**Your ruling 5: accepted, with a condition, and not built.** The distinction is real -- a live
+Open Food Facts call is not Shin's product list -- so the ruling stands and the live call is
+allowed. The condition is the shape ruling 1 already set: **the imported copy answers first, live
+OFF is the fallback when it misses, and the answer records which of the two it used.** Being
+permitted is not the same as being first: a network round trip on every scan, for bytes already on
+our disk, is paid by the shopper in latency and in a third party learning what they scanned. Both
+rulings are annotated in `docs/decisions.md` where you can reverse them.
+
+**The seven faults from your 09-20 sweep are closed** -- five in code, two as decisions.
+D-131 Savings' dead You tab (checked all seven `pageBar` callers first; it was an instance, not a
+class -- every other sub-page already wired it). D-132 the Licences door, now on You, which
+`lib/pagebar.js:94` already said was where it belonged. D-133 **half**: consent gets a back, setup
+deliberately does not, because first run is a state-machine gate and back from setup means clearing
+`onboarding.doneAt` and throwing away answers already written to the store and the events queue.
+D-134 the 1400 ms timer is gone and both exits go through `goBack` -- note the thank-you state had
+**no exit control at all**, so removing the timer alone would have stranded people; it has a Done
+button now. D-136 the plan step keeps your prices and marks them NOT LIVE, same badge-plus-one-line
+shape the demo scan already uses. D-135 the sign-in step stays, recorded as deliberate rather than
+deleted. Verified in a browser at 390x844, nine checks, not by reading the diff.
+
+**The status files had drifted from the code and are reconciled.** The head of NOW.md still
+described `/api/identify/photo -> IdentifyStage.fromCrop` -- the path your `d3e4f0b` deleted two
+days earlier -- and nothing had updated it since, so the one screen that wins was describing code
+that no longer exists. Also recorded: the *"retrieval is 32 of the 52 failures"* figure was measured
+while the catalogue still picked, so it is **re-measured before any retrieval work starts** rather
+than quoted. And DEFECTS.md's own count said 127 when there were 137 rows, with a breakdown summing
+to 128 -- it is flagged for a proper recount rather than patched, because a plausible miscount is
+worse than an admitted gap.
+
+**One of your list items was already done.** `beta-gaps` rule 13 says to clean a CLAUDE.md line up
+(*"the good/fair/high call is arithmetic, never asked of a model"*). You deleted it yourself in
+`a171dbd`, hours before that list was saved. CLAUDE.md has no occurrence of "arithmetic" today, and
+the line was never in priority 1 anyway.
+
+### Read by
+
+- Aurik, 2026-09-21.
+
 ## 2026-09-20 (Aurik's PC): six bugs in the new scanner code, and one question worth a single request
 
 ### To do
