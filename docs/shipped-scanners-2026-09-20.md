@@ -191,14 +191,26 @@ downloads the product database to the phone, without photos, because the databas
 Shin's rule 1 puts a live grounded Gemini call on the critical path of every scan that is not a
 cache hit, so a local database is not available to it and should not be chased.
 
-**Shin's own scan-to-answer time has never been measured.** It is not in `SCOREBOARD.md`, whose
-only columns are coverage and verdict counts, and it could not be measured on this machine, which
-has no Gemini key. Per-stage timings were added to the model call in `553218e`, so the
-instrumentation now exists and the number is one keyed run away.
+**CORRECTED 2026-09-21. The first version of this section said Shin's scan-to-answer time had
+never been measured. That was wrong, and wrong in the direction that matters.** It was written
+after checking `SCOREBOARD.md`, which carries only coverage and verdict counts, and generalising
+from its absence there without opening the eval results. It is measured, and it has been since
+2026-09-16.
 
-Three seconds is the bar the category has set. Whether Shin clears it is unknown, and "instant" is
-one of the six objectives the whole build order is justified against, so this is the cheapest
-missing measurement in the repo.
+`identify/eval/results/2026-09-16.json`, 200 real rows: **p50 3,568 ms, p95 4,834 ms**, fastest
+1,503 ms, slowest 7,280 ms.
+
+**So Shin does not clear the bar, and we already knew.** Yuka's recognition is described as about
+a second and reviewers put scan to score under three. Shin's median answer is 3.6 seconds and its
+slow tail is nearly 5. That is the identify stage on a keyed run, not the whole round trip a
+shopper feels, which also carries the camera, the upload and the render, so the real number is
+worse rather than better.
+
+"Instant" is one of the six objectives the whole build order is justified against. It is the one
+objective with a measurement already in the repo, and the measurement says it is failing. That is
+a far stronger finding than the missing one this section originally claimed, and the reason it
+was missed is worth keeping: a number living in an eval file that no status document reads is,
+for practical purposes, a number nobody has.
 
 Sources: [Scandit case study on Yuka](https://www.scandit.com/resources/case-studies/yuka/),
 [Yuka help, offline mode](https://help.yuka.io/l/en/article/uppz9huie0-how-activate-the-offline-mode)
@@ -212,7 +224,7 @@ Deliberately not ranked, and deliberately not started. Each says who has to deci
 | # | Candidate | Decides |
 | --- | --- | --- |
 | A | Price match as the action on a walk-away verdict: which banner matches whom, under what limit, shown at the till | Jamin, it changes the verdict |
-| B | Measure scan to answer against the category's three seconds, using the per-stage timings `553218e` added, and put the column in `SCOREBOARD.md` | nobody, it is a measurement, but it needs a Gemini key |
+| B | **Rewritten after the correction in section 5.** The measurement exists and says 3,568 ms at p50 against a category bar of about three seconds, so the work is not measuring, it is getting under the bar, and first putting the latency column into `SCOREBOARD.md` so a number nobody reads stops being a number nobody has | Aurik, it is a ranking question, not a measurement |
 | C | The screenshot test: can the verdict be read alone, in a phone frame, with no sound. This is the growth channel's actual requirement | Aurik, it is design |
 | D | Price history behind a scan, and what a watchlist is for if it never speaks | Jamin, alerts are a product surface |
 | E | Turn a scan Shin could not confidently name into an invitation to tell it, the way Yuka turns a database miss into a contribution | Jamin, it touches identity |
