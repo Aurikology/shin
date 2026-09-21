@@ -9,6 +9,69 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-20 (Aurik's PC): six bugs in the new scanner code, and one question worth a single request
+
+### To do
+
+- **Jamin, one check is worth more than everything else on this list, and it needs a key we do not
+  have.** `gemini-scan.ts:407` sends `resolution` on the image part unconditionally, but
+  `gemini.ts:54` records that per-item media resolution is documented as Gemini 3 only. If 2.5
+  rejects it, **every 2.5 photo scan returns a 400, and the model split sends about half of all
+  devices to 2.5.** One request against a real key settles it. Please run it before the next beta
+  session.
+- **Jamin, `shelf.grade` is asked for, paid for and then dropped.** `scan_prompt.md:145` tells
+  Gemini to return great / good / bad / middle against the shopper's three ranges, which is the
+  "factually a bad, reasonable or good price" you asked for and called non negotiable.
+  `readAnswer` (`gemini-scan.ts:902`) reads only `zone` and `label`, so it never reaches the phone
+  and "great" collapses into "under your line". It is also missing from the schema's `required`
+  list, so on 3.x the model may legitimately omit it. Surfacing it changes the verdict and touches
+  `Shin_Gemini_Pricing_Engine/response_schema.json`, so it is yours.
+- **Jamin, a comment in `gemini-scan.ts:964` is inaccurate and the difference costs a guard.** It
+  says the plausibility band is "the same band `gauge.ts` already uses". It is not: `gauge.ts:594`
+  deliberately uses a leave-one-out median and its own comment says that with the offer inside the
+  median "the band cannot fire". `gemini-scan.ts:1053` tests the offer against a median that
+  includes it. Fixing it means computing a median we own, which rule 3 forbids, so the question is
+  yours rather than a lane's.
+- **Aurik, one design call.** `votes.ts:184` keeps a barcode confirmed for 500 ms after it leaves
+  the frame, so swinging from one barcode to the next and pressing inside that half second sends
+  the first one's digits. It is a wrong-product risk. The fix is a choice about how recently the
+  leader must have been seen, not a defect with one right answer.
+
+### What changed
+
+Three lanes on disjoint files. Six bugs found, every one of them reproduced by a test that was red
+before it was green, and each one re-checked here by reverting the source and watching the red come
+back.
+
+**The photo path, in `identify/`.** A reply holding two unfenced JSON blocks took the truncated
+first one and served it as a repaired answer, so the shopper saw a draft with one offer and no
+price line while the real answer sat further down the same string; two complete blocks returned no
+answer at all, which rule 6 forbids. A price block with a null verdict and a null reason drew
+neither a line nor an explanation, which is the exact defect `grounded.js`'s own comment already
+records. And a retailer page saying `"price":"1,299.99"` was read as one dollar, so the verifier
+stamped correct scans as mismatches against a price nobody charges.
+
+**The capture path, in `app/src/eye/`.** `StabilityGate` could never settle, because the history
+was pruned to the samples inside the hold window and then asked whether the oldest survivor was
+older than it. Auto-capture is switched off in the shipped app, so this cost nobody anything yet;
+it was a trap for whoever turned it on. Live today, though: a scene-change cancellation fired
+neither event, and the screen has no stand-in timer by design (D-083), so pressing the shutter
+while turning away left the thinking dots up for good. A crop that threw also leaked its whole
+burst.
+
+**Price matching, new and wired to nothing.** `app/src/price-match.ts` holds the eleven Canadian
+banner policies with their sources. It produces no number, ever. It is inert until the question
+above is answered.
+
+App 1200 to 1241 tests, identify 248 to 252, both green, typecheck clean in both, run after all
+three lanes finished and again after merging your eight design commits.
+
+### Read by
+
+- Aurik, 2026-09-20.
+
+---
+
 ## 2026-09-20 (Aurik's PC): the other kind of competitor, read from outside
 
 ### To do
