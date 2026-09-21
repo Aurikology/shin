@@ -1,0 +1,889 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Saved, three directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=IBM+Plex+Mono:wght@400;600&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ---------------------------------------------------------------------------
+   Shin's real tokens, copied from app/public/css/tokens.css. Not re-picked.
+   --------------------------------------------------------------------------- */
+:root {
+  --ground: #0B0C0E;
+  --surface: #16181C;
+  --raised: #22262C;
+  --hairline: #2E333A;
+
+  --ink: #F7F5F2;
+  --ink-muted: #A5ADB8;
+  --ink-faint: #848D99;
+
+  --brand: #E5165E;
+
+  --good: #12B76A;        --good-bright: #38E08B;
+  --fair: #E8A020;        --fair-bright: #FFC24D;
+  --walk: #C23619;        --walk-bright: #FF6A45;
+  --unknown: #5E6770;     --unknown-bright: #93A0AC;
+
+  --f-display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+  --f-ui: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --r-sm: 8px; --r-md: 16px; --r-lg: 26px;
+  --pad: 18px; --tap: 48px;
+
+  --ease-land: cubic-bezier(.2, .8, .2, 1);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%; overflow-x: hidden;
+  background: #1c1c1e;
+  font-family: var(--f-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The phone. A list screen judged at desktop width tells you nothing about
+   whether it is crowded, so every variant renders in a 390px column. */
+#stage {
+  position: relative;
+  width: 390px;
+  max-width: 100vw;
+  /* A definite height, not a minimum: with only a minimum the column grows to
+     fit the list and the page bar walks off the bottom of the window. */
+  height: calc(100vh - 68px);
+  margin: 68px auto 0;
+  background: var(--ground);
+  color: var(--ink);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.screen { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+/* No desktop scrollbar: a 16px bar inside a 390px column is not there on the
+   phone and it changes how crowded the list reads. */
+.list-scroll {
+  flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.list-scroll::-webkit-scrollbar { display: none; }
+
+/* Page bar. Identical in all three so it is not one of the variables. */
+.pagebar {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; height: 72px; padding: 0 var(--pad) 12px;
+  border-top: 1px solid var(--hairline);
+  background: var(--ground);
+}
+.pagebar button {
+  min-width: var(--tap); height: var(--tap);
+  border: 0; background: transparent; cursor: pointer;
+  font-family: var(--f-ui); font-size: 13px; font-weight: 600;
+  color: var(--ink-faint);
+  border-radius: var(--r-sm);
+}
+.pagebar button[aria-current] { color: var(--ink); }
+.pagebar button:active { transform: scale(.97); }
+.pagebar .mini-shutter {
+  width: 44px; height: 44px; min-width: 44px; border-radius: 999px;
+  border: 3px solid var(--brand); background: transparent;
+  font-size: 0;
+}
+
+/* Faces, inlined from app/public/faces/deadpan/*.svg by the build script.
+   `color` sets the ink, which is what currentColor resolves to in the art. */
+.face { display: block; flex: 0 0 auto; }
+.face svg { display: block; width: 100%; height: 100%; }
+
+/* Row press feedback lands on pointer-down, never on release. */
+.pressable { transition: background-color 90ms ease-out, transform 90ms ease-out; }
+.pressable:active { transform: scale(.995); }
+
+/* Removal is the one motion on this screen with a job: it says where the row
+   went and where the rows below it landed. Transform and opacity only: the
+   removed row fades, then the rows under it are put back where they were and
+   released, so the gap closing is a translate rather than a height animation. */
+.leaving { transition: opacity 140ms ease-out, transform 160ms var(--ease-land); transform-origin: top center; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Detail sheet. Same in all three variants, so it is not a variable either.
+   Rises from the bottom, leaves downward, 220ms, ease-out.
+   --------------------------------------------------------------------------- */
+.sheet-scrim {
+  position: absolute; inset: 0; z-index: 40;
+  background: rgba(11, 12, 14, .66);
+  opacity: 0; transition: opacity 180ms ease-out;
+}
+.sheet-scrim[data-in] { opacity: 1; }
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 41;
+  background: var(--surface);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  border-top: 1px solid var(--hairline);
+  padding: 20px var(--pad) 28px;
+  transform: translateY(100%);
+  transition: transform 220ms var(--ease-land);
+}
+.sheet[data-in] { transform: translateY(0); }
+.sheet .face { width: 76px; height: 76px; margin: 0 auto 10px; }
+.sheet h2 { margin: 0 0 4px; font-family: var(--f-display); font-size: 30px; font-weight: 800; letter-spacing: -.02em; text-align: center; }
+.sheet .sheet-meta { margin: 0 0 2px; text-align: center; font-size: 15px; color: var(--ink-muted); }
+.sheet .sheet-prov { margin: 10px 0 18px; text-align: center; font-family: var(--f-mono); font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); }
+.sheet .sheet-close {
+  display: block; width: 100%; height: 52px; border: 0; border-radius: var(--r-md);
+  background: var(--raised); color: var(--ink);
+  font-family: var(--f-ui); font-size: 16px; font-weight: 600; cursor: pointer;
+}
+.sheet .sheet-close:active { transform: scale(.985); }
+
+/* ---------------------------------------------------------------------------
+   VARIANT 1 - Judgement
+   Axis: the verdict leads the row and the metadata recedes. Tall rows, no
+   chevron, the whole row is the target, hairlines instead of cards.
+   --------------------------------------------------------------------------- */
+.v1 .head { padding: 26px var(--pad) 20px; }
+.v1 .head h1 { margin: 0; font-family: var(--f-display); font-size: 28px; font-weight: 800; letter-spacing: -.02em; }
+.v1 .head p { margin: 4px 0 0; font-size: 14px; color: var(--ink-muted); }
+
+/* The remove control is positioned against its own row, not the list. Without
+   this every row's x lands in the same top corner and only one is visible. */
+.v1 .slot { position: relative; }
+.v1 .row {
+  position: relative; display: flex; gap: 14px; align-items: flex-start;
+  width: 100%; padding: 18px var(--pad) 18px;
+  border: 0; border-top: 1px solid var(--hairline);
+  background: transparent; color: inherit; text-align: left; cursor: pointer;
+  font-family: inherit;
+}
+.v1 .row:active { background: rgba(255,255,255,.03); }
+.v1 .verdict { flex: 0 0 106px; }
+.v1 .verdict b {
+  display: block; font-family: var(--f-display); font-size: 17px; font-weight: 800;
+  letter-spacing: -.01em; line-height: 1.12;
+}
+.v1 .row[data-tier="good"]    .verdict b { color: var(--good-bright); }
+.v1 .row[data-tier="fair"]    .verdict b { color: var(--fair-bright); }
+.v1 .row[data-tier="walk"]    .verdict b { color: var(--walk-bright); }
+.v1 .row[data-tier="unknown"] .verdict b { color: var(--unknown-bright); }
+.v1 .verdict .price {
+  display: block; margin-top: 6px;
+  font-family: var(--f-display); font-size: 24px; font-weight: 800;
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em; color: var(--ink);
+}
+.v1 .body { flex: 1 1 auto; min-width: 0; padding-right: 34px; }
+.v1 .body .name { display: block; font-size: 17px; font-weight: 600; line-height: 1.3; }
+.v1 .body .meta { display: block; margin-top: 5px; font-size: 13px; color: var(--ink-muted); }
+.v1 .body .delta { display: block; margin-top: 3px; font-size: 13px; color: var(--ink-faint); }
+.v1 .body .flag { display: block; margin-top: 5px; font-size: 13px; font-weight: 600; color: var(--ink-muted); }
+
+/* Low confidence: the verdict block goes quiet rather than the whole row
+   fading, and the reason is named instead of implied. */
+.v1 .row[data-conf="low"] .verdict b { color: var(--ink-faint); }
+.v1 .row[data-conf="low"] .verdict {
+  border-left: 2px solid var(--hairline); padding-left: 12px; margin-left: -14px;
+}
+.v1 .row[data-conf="low"] .verdict .price { color: var(--ink-muted); }
+
+.v1 .del {
+  position: absolute; top: 12px; right: 4px;
+  width: 44px; height: 44px; border: 0; background: transparent;
+  color: var(--ink-faint); font-size: 19px; line-height: 1; cursor: pointer;
+  border-radius: 999px;
+}
+.v1 .del:active { color: var(--ink); background: rgba(255,255,255,.05); }
+
+.v1 .undo {
+  position: absolute; left: var(--pad); right: var(--pad); bottom: 84px; z-index: 30;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 48px; padding: 0 14px;
+  border-radius: var(--r-md); background: var(--raised);
+  border: 1px solid var(--hairline);
+  font-size: 14px; color: var(--ink-muted);
+  transform: translateY(12px); opacity: 0;
+  transition: transform 180ms var(--ease-land), opacity 180ms ease-out;
+}
+.v1 .undo[data-in] { transform: translateY(0); opacity: 1; }
+.v1 .undo button {
+  border: 0; background: transparent; color: var(--ink);
+  font-family: var(--f-ui); font-size: 14px; font-weight: 700; cursor: pointer;
+  height: 44px; padding: 0 8px;
+}
+
+.v1 .empty { padding: 72px var(--pad) 0; text-align: center; }
+.v1 .empty .face { width: 96px; height: 96px; margin: 0 auto 8px; color: var(--unknown-bright); }
+.v1 .empty .ghost {
+  height: 96px; margin: 0 0 22px;
+  border: 1px dashed var(--hairline); border-radius: var(--r-md);
+}
+.v1 .empty h2 { margin: 0 0 6px; font-size: 16px; font-weight: 700; }
+.v1 .empty p { margin: 0 0 22px; font-size: 14px; color: var(--ink-muted); }
+.v1 .empty button {
+  height: var(--tap); padding: 0 22px; border: 0; border-radius: var(--r-md);
+  background: var(--brand); color: #fff;
+  font-family: var(--f-ui); font-size: 16px; font-weight: 600; cursor: pointer;
+}
+
+/* ---------------------------------------------------------------------------
+   VARIANT 2 - No containers
+   Axis: typography and a 4px hue bar carry everything. No surfaces, no
+   dividers, no cards. The price is the heaviest thing on the screen.
+   --------------------------------------------------------------------------- */
+.v2 .head { padding: 30px var(--pad) 26px; }
+.v2 .head h1 { margin: 0; font-family: var(--f-display); font-size: 34px; font-weight: 800; letter-spacing: -.03em; }
+
+.v2 .row {
+  position: relative; display: flex; align-items: center; gap: 14px;
+  width: 100%; padding: 0 var(--pad) 0 0;
+  margin: 0 0 24px; border: 0; background: transparent; color: inherit;
+  text-align: left; cursor: pointer; font-family: inherit;
+}
+.v2 .bar { flex: 0 0 4px; align-self: stretch; min-height: 62px; border-radius: 2px; }
+.v2 .row[data-tier="good"]    .bar { background: var(--good); }
+.v2 .row[data-tier="fair"]    .bar { background: var(--fair); }
+.v2 .row[data-tier="walk"]    .bar { background: var(--walk); }
+.v2 .row[data-tier="unknown"] .bar { background: var(--unknown); }
+.v2 .row[data-conf="low"] .bar { background: transparent; box-shadow: inset 0 0 0 1px var(--unknown-bright); }
+
+.v2 .body { flex: 1 1 auto; min-width: 0; padding-left: 14px; }
+.v2 .prov {
+  display: block; font-family: var(--f-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint);
+}
+.v2 .price {
+  display: block; margin-top: 2px;
+  font-family: var(--f-display); font-size: 32px; font-weight: 800;
+  font-variant-numeric: tabular-nums; letter-spacing: -.03em; line-height: 1.05;
+}
+.v2 .row[data-conf="low"] .price { color: var(--ink-muted); }
+.v2 .name { display: block; margin-top: 2px; font-size: 16px; color: var(--ink-muted); }
+.v2 .flag {
+  display: block; margin-top: 4px; font-family: var(--f-mono); font-size: 11px;
+  font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--fair-bright);
+}
+.v2 .row .face { width: 28px; height: 28px; color: var(--ink-muted); }
+
+/* The reveal is a state change, not a journey: it opens instantly. */
+.v2 .reveal { overflow: hidden; height: 0; }
+.v2 .reveal button {
+  display: block; height: 48px; padding: 0 var(--pad) 0 32px;
+  border: 0; background: transparent; color: var(--ink);
+  font-family: var(--f-ui); font-size: 16px; font-weight: 600; cursor: pointer;
+}
+.v2 .reveal button:active { color: var(--walk-bright); }
+
+.v2 .empty { padding: 90px var(--pad) 0; }
+.v2 .empty h2 { margin: 0 0 10px; font-family: var(--f-display); font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
+.v2 .empty button {
+  border: 0; background: transparent; padding: 14px 0; cursor: pointer;
+  font-family: var(--f-ui); font-size: 16px; color: var(--ink-muted);
+  text-decoration: underline; text-underline-offset: 4px;
+}
+
+/* ---------------------------------------------------------------------------
+   VARIANT 3 - Receipt stack
+   Axis: the day does the grouping. Rows return to a surface, an 8px verdict
+   edge anchors each one, the price sits right and the provenance is mono.
+   --------------------------------------------------------------------------- */
+.v3 .head { padding: 26px var(--pad) 14px; }
+.v3 .head h1 { margin: 0; font-family: var(--f-display); font-size: 28px; font-weight: 800; letter-spacing: -.02em; }
+.v3 .head .count { margin: 6px 0 0; font-family: var(--f-mono); font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); }
+
+.v3 .dayhead {
+  position: sticky; top: 0; z-index: 5;
+  height: 28px; display: flex; align-items: center;
+  padding: 0 var(--pad); background: var(--ground);
+  font-family: var(--f-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint);
+}
+
+.v3 .slot { position: relative; overflow: hidden; }
+.v3 .del {
+  position: absolute; top: 0; bottom: 0; right: 0; width: 72px;
+  border: 0; background: var(--walk); color: var(--ink);
+  font-size: 20px; line-height: 1; cursor: pointer;
+}
+.v3 .row {
+  position: relative; display: flex; align-items: center; gap: 12px;
+  width: 100%; min-height: 72px; padding: 12px var(--pad) 12px 0;
+  border: 0; border-bottom: 1px solid var(--hairline);
+  background: var(--surface); color: inherit; text-align: left; cursor: pointer;
+  font-family: inherit;
+  transform: translateX(0);
+  transition: transform 180ms var(--ease-land);
+}
+.v3 .slot[data-open] .row { transform: translateX(-72px); }
+.v3 .row:active { background: var(--raised); }
+.v3 .edge { flex: 0 0 8px; align-self: stretch; }
+.v3 .row[data-tier="good"]    .edge { background: var(--good); }
+.v3 .row[data-tier="fair"]    .edge { background: var(--fair); }
+.v3 .row[data-tier="walk"]    .edge { background: var(--walk); }
+.v3 .row[data-tier="unknown"] .edge { background: var(--unknown); }
+.v3 .row[data-conf="low"]     .edge { background: var(--unknown); }
+.v3 .body { flex: 1 1 auto; min-width: 0; padding-left: 10px; }
+.v3 .name { display: block; font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.v3 .sub {
+  display: block; margin-top: 4px; font-family: var(--f-mono); font-size: 11px;
+  font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* An unsure row takes a second line rather than truncating its provenance.
+   Uncertainty is the one thing in this list allowed to make a row taller. */
+.v3 .flag {
+  display: block; margin-top: 4px; font-family: var(--f-mono); font-size: 11px;
+  font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--fair-bright);
+}
+.v3 .price {
+  flex: 0 0 auto; font-family: var(--f-display); font-size: 22px; font-weight: 800;
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+}
+
+.v3 .empty { padding: 40px var(--pad) 0; }
+.v3 .empty .ghost {
+  display: flex; align-items: center; gap: 12px; height: 72px;
+  border: 1px dashed var(--hairline); border-radius: var(--r-sm);
+  padding: 0 14px; color: var(--ink-faint); font-size: 16px; font-weight: 600;
+}
+.v3 .empty .ghost span:first-child { width: 8px; height: 40px; background: var(--unknown); border-radius: 2px; }
+.v3 .empty p { margin: 18px 0 0; font-size: 14px; color: var(--ink-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .leaving, .v3 .row, .sheet, .sheet-scrim, .v1 .undo, .pressable { transition: none !important; }
+  .pressable:active { transform: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   The picker. Harness chrome, verbatim from the spec. Not a contestant.
+   --------------------------------------------------------------------------- */
+.proto-picker {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.82);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 8px 24px rgba(0, 0, 0, 0.24),
+    0 2px 6px rgba(0, 0, 0, 0.12);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.proto-picker-highlight {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  will-change: transform;
+}
+.proto-picker[data-ready] .proto-picker-highlight {
+  transition:
+    transform 250ms cubic-bezier(0.23, 1, 0.32, 1),
+    width 250ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .proto-picker[data-ready] .proto-picker-highlight { transition: none; }
+}
+.proto-picker-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font: inherit;
+  cursor: pointer;
+  transition: color 150ms ease-out;
+}
+.proto-picker-item:hover { color: rgba(255, 255, 255, 0.85); }
+.proto-picker-item:active { transform: scale(0.97); }
+.proto-picker-item:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.4); outline-offset: 2px; }
+.proto-picker-item[data-active] { color: #fff; }
+.proto-picker-divider { width: 1px; height: 16px; margin: 0 4px; background: rgba(255, 255, 255, 0.12); }
+.proto-picker-replay { padding: 0 10px; font-size: 14px; }
+.proto-picker[data-position="top"] { bottom: auto; top: 24px; }
+</style>
+</head>
+<body>
+
+<div id="stage"></div>
+
+<nav class="proto-picker" data-position="top" aria-label="Prototype variants">
+  <span class="proto-picker-highlight" aria-hidden="true"></span>
+  <button class="proto-picker-item" data-active aria-current="true">Judgement</button>
+  <button class="proto-picker-item">No containers</button>
+  <button class="proto-picker-item">Receipt stack</button>
+  <span class="proto-picker-divider" aria-hidden="true"></span>
+  <button class="proto-picker-item proto-picker-replay" aria-label="Reset the list (R)">&#8635;</button>
+</nav>
+
+<script>
+/* Shin's real faces, read off app/public/faces/deadpan/ by the build script. */
+const FACES = {
+  good:    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 88" role="img" data-who="deadpan" data-state="good"> <circle class="face-disc" cx="44" cy="44" r="40.5" fill="#DDF1FA"/> <g class="face-body"> <path d="M32 67 C27 70 22 73 19.2 76 A40.5 40.5 0 0 0 68.8 76 C66 73 61 70 56 67 Z" fill="#2BB5F0" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/> <path d="M37.30 70 L39.70 70 L42.20 77 L39.80 77 Z M48.30 70 L50.70 70 L48.20 77 L45.80 77 Z" fill="#F26B1D" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/> <rect x="38.5" y="75.5" width="11" height="7" rx="1.5" fill="#FFFFFF" stroke="currentColor" stroke-width="2"/> <path d="M40.30 77.4 h0.87 v3.2 h-0.87 Z M41.61 77.4 h0.44 v3.2 h-0.44 Z M42.48 77.4 h1.31 v3.2 h-1.31 Z M44.22 77.4 h0.44 v3.2 h-0.44 Z M45.09 77.4 h0.44 v3.2 h-0.44 Z M45.96 77.4 h0.87 v3.2 h-0.87 Z M47.26 77.4 h0.44 v3.2 h-0.44 Z" fill="#12233A"/> </g> <g class="face-head"> <ellipse cx="19.5" cy="48" rx="4" ry="5.4" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/> <ellipse cx="68.5" cy="48" rx="4" ry="5.4" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/> <path class="face-skull" d="M44 17 C59 17 68 30 68 46 C68 62 59 70.5 44 70.5 C29 70.5 20 62 20 46 C20 30 29 17 44 17 Z" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/> <path d="M21.6 44 C21.4 60 30 69 44 69 C34.5 64.5 28.5 55 28.4 44 C28.4 39.5 29.2 35.5 30.6 32.2 C25.4 35.6 21.9 39.4 21.6 44 Z" fill="#1E93C9"/> <g class="face-hat"> <path d="M24 29.5 C26 19 35 14.5 44 14.5 C53 14.5 62 19 64 29.5 C57 27 31 27 24 29.5 Z" fill="#F26B1D" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/> <path d="M44 14.5 L44 10.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/> <g> <path d="M34.5 9.5 Q44 5.5 53.5 9.5 Q44 13.5 34.5 9.5 Z" fill="#F26B1D" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/> <circle cx="44" cy="9.5" r="1.5" fill="#12233A"/> </g> </g> <g class="face-brows"><path d="M39.84 30.24 Q32.81 30.41 25.92 32.37 A1.13 1.13 0 0 1 26.08 34.63 Q33.06 33.80 40.16 34.76 A2.27 2.27 0 0 1 39.84 30.24 Z M47.84 34.76 Q54.81 35.59 61.92 34.63 A1.13 1.13 0 0 1 62.08 32.37 Q55.06 32.20 48.16 30.24 A2.27 2.27 0 0 1 47.84 34.76 Z" fill="currentColor"/></g> <g class="face-eyes"><ellipse cx="33.5" cy="47" rx="8.5" ry="9" fill="#FFFFFF"/> <circle cx="33.5" cy="47" r="4.6" fill="#12233A"/> <circle cx="35.20" cy="45.30" r="1.7" fill="#FFFFFF"/> <circle cx="30.10" cy="50.96" r="0.9" fill="#FFFFFF"/> <ellipse cx="33.5" cy="47" rx="8.5" ry="9" fill="none" stroke="currentColor" stroke-width="2.4"/> <ellipse cx="54.5" cy="47" rx="8.5" ry="9" fill="#FFFFFF"/> <circle cx="54.5" cy="47" r="4.6" fill="#12233A"/> <circle cx="56.20" cy="45.30" r="1.7" fill="#FFFFFF"/> <circle cx="51.10" cy="50.96" r="0.9" fill="#FFFFFF"/> <ellipse cx="54.5" cy="47" rx="8.5" ry="9" fill="none" stroke="currentColor" stroke-width="2.4"/></g> <g class="face-mouth"><rect x="42.3" y="63.30" width="3.4" height="3.6" rx=".8" fill="#FFFFFF" stroke="currentColor" stroke-width="1.6"/> <path d="M38 62 Q44 66.4 50 62" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" fill="none"/></g> </g> <g class="face-extras"></g> <circle class="face-ring" cx="44" cy="44" r="40.5" fill="none" stroke="currentColor" stroke-width="3"/> </svg>`,
+  fair:    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 88" role="img" data-who="deadpan" data-state="fair"> <circle class="face-disc" cx="44" cy="44" r="40.5" fill="#DDF1FA"/> <g class="face-body"> <path d="M32 67 C27 70 22 73 19.2 76 A40.5 40.5 0 0 0 68.8 76 C66 73 61 70 56 67 Z" fill="#2BB5F0" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/> <path d="M37.30 70 L39.70 70 L42.20 77 L39.80 77 Z M48.30 70 L50.70 70 L48.20 77 L45.80 77 Z" fill="#F26B1D" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/> <rect x="38.5" y="75.5" width="11" height="7" rx="1.5" fill="#FFFFFF" stroke="currentColor" stroke-width="2"/> <path d="M40.30 77.4 h0.87 v3.2 h-0.87 Z M41.61 77.4 h0.44 v3.2 h-0.44 Z M42.48 77.4 h1.31 v3.2 h-1.31 Z M44.22 77.4 h0.44 v3.2 h-0.44 Z M45.09 77.4 h0.44 v3.2 h-0.44 Z M45.96 77.4 h0.87 v3.2 h-0.87 Z M47.26 77.4 h0.44 v3.2 h-0.44 Z" fill="#12233A"/> </g> <g class="face-head"> <ellipse cx="19.5" cy="48" rx="4" ry="5.4" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/> <ellipse cx="68.5" cy="48" rx="4" ry="5.4" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/> <path class="face-skull" d="M44 17 C59 17 68 30 68 46 C68 62 59 70.5 44 70.5 C29 70.5 20 62 20 46 C20 30 29 17 44 17 Z" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/> <path d="M21.6 44 C21.4 60 30 69 44 69 C34.5 64.5 28.5 55 28.4 44 C28.4 39.5 29.2 35.5 30.6 32.2 C25.4 35.6 21.9 39.4 21.6 44 Z" fill="#1E93C9"/> <g class="face-hat"> <path d="M24 29.5 C26 19 35 14.5 44 14.5 C53 14.5 62 19 64 29.5 C57 27 31 27 24 29.5 Z" fill="#F26B1D" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/> <path d="M44 14.5 L44 10.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/> <g> <path d="M34.5 9.5 Q44 5.5 53.5 9.5 Q44 13.5 34.5 9.5 Z" fill="#F26B1D" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/> <circle cx="44" cy="9.5" r="1.5" fill="#12233A"/> </g> </g> <g class="face-brows"><path d="M40.00 31.73 Q33.00 31.40 26.00 32.87 A1.13 1.13 0 0 1 26.00 35.13 Q33.00 34.80 40.00 36.27 A2.27 2.27 0 0 1 40.00 31.73 Z M48.00 36.27 Q55.00 36.60 62.00 35.13 A1.13 1.13 0 0 1 62.00 32.87 Q55.00 33.20 48.00 31.73 A2.27 2.27 0 0 1 48.00 36.27 Z" fill="currentColor"/></g> <g class="face-eyes"><ellipse cx="33.5" cy="47" rx="8.5" ry="9" fill="#FFFFFF"/> <circle cx="33.5" cy="47" r="4.6" fill="#12233A"/> <circle cx="35.20" cy="45.30" r="1.7" fill="#FFFFFF"/> <circle cx="30.10" cy="50.96" r="0.9" fill="#FFFFFF"/> <ellipse cx="33.5" cy="47" rx="8.5" ry="9" fill="none" stroke="currentColor" stroke-width="2.4"/> <ellipse cx="54.5" cy="47" rx="8.5" ry="9" fill="#FFFFFF"/> <circle cx="54.5" cy="47" r="4.6" fill="#12233A"/> <circle cx="56.20" cy="45.30" r="1.7" fill="#FFFFFF"/> <circle cx="51.10" cy="50.96" r="0.9" fill="#FFFFFF"/> <ellipse cx="54.5" cy="47" rx="8.5" ry="9" fill="none" stroke="currentColor" stroke-width="2.4"/></g> <g class="face-mouth"><path d="M38 64 L50 64" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" fill="none"/></g> </g> <g class="face-extras"></g> <circle class="face-ring" cx="44" cy="44" r="40.5" fill="none" stroke="currentColor" stroke-width="3"/> </svg>`,
+  walk:    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 88" role="img" data-who="deadpan" data-state="walk"> <circle class="face-disc" cx="44" cy="44" r="40.5" fill="#DDF1FA"/> <g class="face-body"> <path d="M32 67 C27 70 22 73 19.2 76 A40.5 40.5 0 0 0 68.8 76 C66 73 61 70 56 67 Z" fill="#2BB5F0" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/> <path d="M37.30 70 L39.70 70 L42.20 77 L39.80 77 Z M48.30 70 L50.70 70 L48.20 77 L45.80 77 Z" fill="#F26B1D" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/> <rect x="38.5" y="75.5" width="11" height="7" rx="1.5" fill="#FFFFFF" stroke="currentColor" stroke-width="2"/> <path d="M40.30 77.4 h0.87 v3.2 h-0.87 Z M41.61 77.4 h0.44 v3.2 h-0.44 Z M42.48 77.4 h1.31 v3.2 h-1.31 Z M44.22 77.4 h0.44 v3.2 h-0.44 Z M45.09 77.4 h0.44 v3.2 h-0.44 Z M45.96 77.4 h0.87 v3.2 h-0.87 Z M47.26 77.4 h0.44 v3.2 h-0.44 Z" fill="#12233A"/> </g> <g class="face-head"> <ellipse cx="19.5" cy="48" rx="4" ry="5.4" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/> <ellipse cx="68.5" cy="48" rx="4" ry="5.4" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/> <path class="face-skull" d="M44 17 C59 17 68 30 68 46 C68 62 59 70.5 44 70.5 C29 70.5 20 62 20 46 C20 30 29 17 44 17 Z" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/> <path d="M21.6 44 C21.4 60 30 69 44 69 C34.5 64.5 28.5 55 28.4 44 C28.4 39.5 29.2 35.5 30.6 32.2 C25.4 35.6 21.9 39.4 21.6 44 Z" fill="#1E93C9"/> <g class="face-hat"> <path d="M24 29.5 C26 19 35 14.5 44 14.5 C53 14.5 62 19 64 29.5 C57 27 31 27 24 29.5 Z" fill="#F26B1D" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/> <path d="M44 14.5 L44 10.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/> <g> <path d="M34.5 9.5 Q44 5.5 53.5 9.5 Q44 13.5 34.5 9.5 Z" fill="#F26B1D" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/> <circle cx="44" cy="9.5" r="1.5" fill="#12233A"/> </g> </g> <g class="face-brows"><path d="M40.48 33.78 Q33.54 31.96 26.24 31.89 A1.13 1.13 0 0 1 25.76 34.11 Q32.83 35.28 39.52 38.22 A2.27 2.27 0 0 1 40.48 33.78 Z M48.00 36.27 Q55.00 36.60 62.00 35.13 A1.13 1.13 0 0 1 62.00 32.87 Q55.00 33.20 48.00 31.73 A2.27 2.27 0 0 1 48.00 36.27 Z" fill="currentColor"/></g> <g class="face-eyes"><ellipse cx="33.5" cy="47" rx="8.5" ry="9" fill="#FFFFFF"/> <circle cx="33.5" cy="47" r="4.6" fill="#12233A"/> <circle cx="35.20" cy="45.30" r="1.7" fill="#FFFFFF"/> <circle cx="30.10" cy="50.96" r="0.9" fill="#FFFFFF"/> <path d="M25.11 45.56 A8.5 9 0 0 1 41.89 45.56 Z" fill="#2BB5F0"/> <path d="M25.11 45.56 L41.89 45.56" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/> <ellipse cx="33.5" cy="47" rx="8.5" ry="9" fill="none" stroke="currentColor" stroke-width="2.4"/> <ellipse cx="54.5" cy="47" rx="8.5" ry="9" fill="#FFFFFF"/> <circle cx="54.5" cy="47" r="4.6" fill="#12233A"/> <circle cx="56.20" cy="45.30" r="1.7" fill="#FFFFFF"/> <circle cx="51.10" cy="50.96" r="0.9" fill="#FFFFFF"/> <path d="M46.11 45.56 A8.5 9 0 0 1 62.89 45.56 Z" fill="#2BB5F0"/> <path d="M46.11 45.56 L62.89 45.56" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/> <ellipse cx="54.5" cy="47" rx="8.5" ry="9" fill="none" stroke="currentColor" stroke-width="2.4"/></g> <g class="face-mouth"><path d="M38 65 L50 63" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" fill="none"/></g> </g> <g class="face-extras"></g> <circle class="face-ring" cx="44" cy="44" r="40.5" fill="none" stroke="currentColor" stroke-width="3"/> </svg>`,
+  unknown: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 88" role="img" data-who="deadpan" data-state="unknown"> <circle class="face-disc" cx="44" cy="44" r="40.5" fill="#DDF1FA"/> <g class="face-body"> <path d="M32 67 C27 70 22 73 19.2 76 A40.5 40.5 0 0 0 68.8 76 C66 73 61 70 56 67 Z" fill="#2BB5F0" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/> <path d="M37.30 70 L39.70 70 L42.20 77 L39.80 77 Z M48.30 70 L50.70 70 L48.20 77 L45.80 77 Z" fill="#F26B1D" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/> <rect x="38.5" y="75.5" width="11" height="7" rx="1.5" fill="#FFFFFF" stroke="currentColor" stroke-width="2"/> <path d="M40.30 77.4 h0.87 v3.2 h-0.87 Z M41.61 77.4 h0.44 v3.2 h-0.44 Z M42.48 77.4 h1.31 v3.2 h-1.31 Z M44.22 77.4 h0.44 v3.2 h-0.44 Z M45.09 77.4 h0.44 v3.2 h-0.44 Z M45.96 77.4 h0.87 v3.2 h-0.87 Z M47.26 77.4 h0.44 v3.2 h-0.44 Z" fill="#12233A"/> </g> <g class="face-head"> <ellipse cx="19.5" cy="48" rx="4" ry="5.4" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/> <ellipse cx="68.5" cy="48" rx="4" ry="5.4" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/> <path class="face-skull" d="M44 17 C59 17 68 30 68 46 C68 62 59 70.5 44 70.5 C29 70.5 20 62 20 46 C20 30 29 17 44 17 Z" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/> <path d="M21.6 44 C21.4 60 30 69 44 69 C34.5 64.5 28.5 55 28.4 44 C28.4 39.5 29.2 35.5 30.6 32.2 C25.4 35.6 21.9 39.4 21.6 44 Z" fill="#1E93C9"/> <g class="face-hat"> <path d="M24 29.5 C26 19 35 14.5 44 14.5 C53 14.5 62 19 64 29.5 C57 27 31 27 24 29.5 Z" fill="#F26B1D" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/> <path d="M44 14.5 L44 10.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/> <g> <path d="M34.5 9.5 Q44 5.5 53.5 9.5 Q44 13.5 34.5 9.5 Z" fill="#F26B1D" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/> <circle cx="44" cy="9.5" r="1.5" fill="#12233A"/> </g> </g> <g class="face-brows"><path d="M40.00 31.73 Q33.00 31.40 26.00 32.87 A1.13 1.13 0 0 1 26.00 35.13 Q33.00 34.80 40.00 36.27 A2.27 2.27 0 0 1 40.00 31.73 Z M48.00 36.27 Q55.00 36.60 62.00 35.13 A1.13 1.13 0 0 1 62.00 32.87 Q55.00 33.20 48.00 31.73 A2.27 2.27 0 0 1 48.00 36.27 Z" fill="currentColor"/></g> <g class="face-eyes"><ellipse cx="33.5" cy="47" rx="8.5" ry="9" fill="#FFFFFF"/> <circle cx="33.5" cy="47" r="4.6" fill="#12233A"/> <path d="M25.00 47.00 A8.5 9 0 0 1 42.00 47.00 Z" fill="#2BB5F0"/> <path d="M25.00 47.00 L42.00 47.00" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/> <ellipse cx="33.5" cy="47" rx="8.5" ry="9" fill="none" stroke="currentColor" stroke-width="2.4"/> <ellipse cx="54.5" cy="47" rx="8.5" ry="9" fill="#FFFFFF"/> <circle cx="54.5" cy="47" r="4.6" fill="#12233A"/> <path d="M46.00 47.00 A8.5 9 0 0 1 63.00 47.00 Z" fill="#2BB5F0"/> <path d="M46.00 47.00 L63.00 47.00" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/> <ellipse cx="54.5" cy="47" rx="8.5" ry="9" fill="none" stroke="currentColor" stroke-width="2.4"/></g> <g class="face-mouth"><path d="M39.5 64 L48.5 64" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" fill="none"/></g> </g> <g class="face-extras"></g> <circle class="face-ring" cx="44" cy="44" r="40.5" fill="none" stroke="currentColor" stroke-width="3"/> </svg>`,
+  asleep:  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 88" role="img" data-who="deadpan" data-state="asleep"> <circle class="face-disc" cx="44" cy="44" r="40.5" fill="#DDF1FA"/> <g class="face-body"> <path d="M32 67 C27 70 22 73 19.2 76 A40.5 40.5 0 0 0 68.8 76 C66 73 61 70 56 67 Z" fill="#2BB5F0" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/> <path d="M37.30 70 L39.70 70 L42.20 77 L39.80 77 Z M48.30 70 L50.70 70 L48.20 77 L45.80 77 Z" fill="#F26B1D" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/> <rect x="38.5" y="75.5" width="11" height="7" rx="1.5" fill="#FFFFFF" stroke="currentColor" stroke-width="2"/> <path d="M40.30 77.4 h0.87 v3.2 h-0.87 Z M41.61 77.4 h0.44 v3.2 h-0.44 Z M42.48 77.4 h1.31 v3.2 h-1.31 Z M44.22 77.4 h0.44 v3.2 h-0.44 Z M45.09 77.4 h0.44 v3.2 h-0.44 Z M45.96 77.4 h0.87 v3.2 h-0.87 Z M47.26 77.4 h0.44 v3.2 h-0.44 Z" fill="#12233A"/> </g> <g class="face-head" transform="translate(0 3) rotate(4 44 50)"> <ellipse cx="19.5" cy="48" rx="4" ry="5.4" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/> <ellipse cx="68.5" cy="48" rx="4" ry="5.4" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/> <path class="face-skull" d="M44 17 C59 17 68 30 68 46 C68 62 59 70.5 44 70.5 C29 70.5 20 62 20 46 C20 30 29 17 44 17 Z" fill="#2BB5F0" stroke="currentColor" stroke-width="3"/> <path d="M21.6 44 C21.4 60 30 69 44 69 C34.5 64.5 28.5 55 28.4 44 C28.4 39.5 29.2 35.5 30.6 32.2 C25.4 35.6 21.9 39.4 21.6 44 Z" fill="#1E93C9"/> <g class="face-hat"> <path d="M24 29.5 C26 19 35 14.5 44 14.5 C53 14.5 62 19 64 29.5 C57 27 31 27 24 29.5 Z" fill="#F26B1D" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/> <path d="M44 14.5 L44 10.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/> <g transform="rotate(22 44 10.5)"> <path d="M34.5 9.5 Q44 5.5 53.5 9.5 Q44 13.5 34.5 9.5 Z" fill="#F26B1D" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/> <circle cx="44" cy="9.5" r="1.5" fill="#12233A"/> </g> </g> <g class="face-brows"><path d="M40.00 33.73 Q33.00 33.40 26.00 34.87 A1.13 1.13 0 0 1 26.00 37.13 Q33.00 36.80 40.00 38.27 A2.27 2.27 0 0 1 40.00 33.73 Z M48.00 38.27 Q55.00 38.60 62.00 37.13 A1.13 1.13 0 0 1 62.00 34.87 Q55.00 35.20 48.00 33.73 A2.27 2.27 0 0 1 48.00 38.27 Z" fill="currentColor"/></g> <g class="face-eyes"><path d="M26.50 46 Q33.5 52.00 40.50 46" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/> <path d="M47.50 46 Q54.5 52.00 61.50 46" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></g> <g class="face-mouth"><path d="M40.5 65 L47.5 65" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" fill="none"/></g> </g> <g class="face-extras"><path d="M59.5 25.0 L66.0 25.0 L59.5 31.5 L66.0 31.5" stroke="currentColor" stroke-width="2.60" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M67.6 19.5 L71.4 19.5 L67.6 23.3 L71.4 23.3" stroke="currentColor" stroke-width="1.90" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g> <circle class="face-ring" cx="44" cy="44" r="40.5" fill="none" stroke="currentColor" stroke-width="3"/> </svg>`,
+};
+
+/* Sample rows carry exactly the fields the store keeps for a saved answer:
+   label, askingSeller, savedAt, lastCents, usualCents, plus the tier and the
+   confidence level from the verdict that produced it. Prices and sellers are
+   placeholder content for judging layout, not claims about any shop. */
+const ROWS = [
+  { id:'r1', label:'KitKat Milk Chocolate, 4 pack', seller:'Walmart',  day:'2 hours ago',  group:'Today',
+    last:499,  usual:569, tier:'good', conf:'low',  flag:'Check the variant' },
+  { id:'r2', label:'Clover Leaf Chunk Light Tuna 170g', seller:'Metro', day:'5 hours ago', group:'Today',
+    last:229,  usual:199, tier:'walk', conf:'high' },
+  { id:'r3', label:"Lay's Classic 235g", seller:'Loblaws', day:'yesterday', group:'Yesterday',
+    last:449,  usual:449, tier:'fair', conf:'high' },
+  { id:'r4', label:'Tide Original 2.72L', seller:'Costco', day:'yesterday', group:'Yesterday',
+    last:1699, usual:2149, tier:'good', conf:'high' },
+  { id:'r5', label:'Heinz Ketchup 1L', seller:'Walmart', day:'4 days ago', group:'Earlier',
+    last:599,  usual:null, tier:'unknown', conf:'high' },
+  { id:'r6', label:'Barilla Penne 454g', seller:'Metro', day:'5 days ago', group:'Earlier',
+    last:249,  usual:299, tier:'good', conf:'high' },
+  { id:'r7', label:'Cheerios 570g', seller:'Loblaws', day:'6 days ago', group:'Earlier',
+    last:749,  usual:629, tier:'walk', conf:'high' },
+  { id:'r8', label:'Dawn Ultra 638mL', seller:'Costco', day:'a week ago', group:'Earlier',
+    last:699,  usual:719, tier:'fair', conf:'high' },
+];
+
+/* The real deadpan words, from voice.js. They are two words, so the layout has
+   to hold two words rather than a convenient one. */
+const VERDICT_WORD = { good:'Take it', fair:'About right', walk:'Walk away', unknown:'Refused' };
+
+const money = (c) => '$' + (c / 100).toFixed(2);
+
+function deltaLine(r) {
+  if (r.usual === null) return 'no usual price yet';
+  const moved = r.last - r.usual;
+  if (moved === 0) return 'at the usual';
+  return moved < 0
+    ? '▼ ' + money(Math.abs(moved)) + ' under usual'
+    : '▲ ' + money(moved) + ' over usual';
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function faceFor(r) { return FACES[r.tier] || FACES.unknown; }
+
+function pagebar() {
+  return `
+    <nav class="pagebar" aria-label="Main">
+      <button type="button" aria-current="true">Saved</button>
+      <button type="button" class="mini-shutter" aria-label="Scan">Scan</button>
+      <button type="button">You</button>
+    </nav>`;
+}
+
+/* --- the detail sheet, shared by all three ------------------------------- */
+function openSheet(stage, r) {
+  const scrim = document.createElement('div');
+  scrim.className = 'sheet-scrim';
+  const sheet = document.createElement('div');
+  sheet.className = 'sheet';
+  sheet.setAttribute('role', 'dialog');
+  sheet.setAttribute('aria-modal', 'true');
+  sheet.innerHTML = `
+    <div class="face">${faceFor(r)}</div>
+    <h2>${esc(VERDICT_WORD[r.tier])}</h2>
+    <p class="sheet-meta">${esc(r.label)}</p>
+    <p class="sheet-meta">${esc(money(r.last))} &middot; ${esc(deltaLine(r))}</p>
+    <p class="sheet-prov">${esc(r.seller)} &middot; saved ${esc(r.day)}${r.conf === 'low' ? ' &middot; variant unsure' : ''}</p>
+    <button type="button" class="sheet-close">Close</button>`;
+  stage.appendChild(scrim);
+  stage.appendChild(sheet);
+  requestAnimationFrame(() => { scrim.setAttribute('data-in',''); sheet.setAttribute('data-in',''); });
+  const close = () => {
+    scrim.removeAttribute('data-in');
+    sheet.removeAttribute('data-in');
+    setTimeout(() => { scrim.remove(); sheet.remove(); }, 230);
+  };
+  scrim.addEventListener('click', close);
+  sheet.querySelector('.sheet-close').addEventListener('click', close);
+  sheet.querySelector('.sheet-close').focus();
+}
+
+/* Take a row out of the list. The row fades and settles back a touch, then the
+   rows beneath it are pinned to where they were and released, so the gap closes
+   as a translate. Nothing here animates a layout property. */
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+function collapse(el, done) {
+  const scope = el.closest('.list-scroll') || el.parentElement;
+  const slots = [...scope.querySelectorAll('.slot')];
+  const after = slots.slice(slots.indexOf(el) + 1);
+
+  if (REDUCED.matches) { el.remove(); if (done) done(); return; }
+
+  const wasAt = after.map((s) => s.getBoundingClientRect().top);
+
+  el.classList.add('leaving');
+  requestAnimationFrame(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'scale(.98)';
+  });
+
+  setTimeout(() => {
+    el.remove();
+    after.forEach((s, i) => {
+      const delta = wasAt[i] - s.getBoundingClientRect().top;
+      if (!delta) return;
+      s.style.transition = 'none';
+      s.style.transform = `translateY(${delta}px)`;
+      requestAnimationFrame(() => {
+        s.style.transition = 'transform 180ms var(--ease-land)';
+        s.style.transform = 'translateY(0)';
+        setTimeout(() => { s.style.transition = ''; s.style.transform = ''; }, 200);
+      });
+    });
+    if (done) done();
+  }, 160);
+}
+
+/* --- variant 1 ------------------------------------------------------------ */
+function renderV1(stage) {
+  let rows = ROWS.slice();
+  const screen = document.createElement('div');
+  screen.className = 'screen v1';
+  stage.appendChild(screen);
+
+  function paint() {
+    screen.innerHTML = rows.length ? `
+      <div class="list-scroll">
+        <header class="head">
+          <h1>Saved</h1>
+          <p>Things you decided to keep.</p>
+        </header>
+        ${rows.map((r) => `
+          <div class="slot" data-slot="${r.id}">
+            <button type="button" class="row pressable" data-open="${r.id}"
+                    data-tier="${r.tier}" data-conf="${r.conf}">
+              <span class="verdict">
+                <b>${esc(VERDICT_WORD[r.tier])}</b>
+                <span class="price">${esc(money(r.last))}</span>
+              </span>
+              <span class="body">
+                <span class="name">${esc(r.label)}</span>
+                ${r.flag ? `<span class="flag">${esc(r.flag)}</span>` : ''}
+                <span class="meta">${esc(r.seller)} &middot; saved ${esc(r.day)}</span>
+                <span class="delta">${esc(deltaLine(r))}</span>
+              </span>
+            </button>
+            <button type="button" class="del" data-del="${r.id}" aria-label="Remove ${esc(r.label)}">&times;</button>
+          </div>`).join('')}
+      </div>
+      ${pagebar()}`
+    : `
+      <div class="list-scroll">
+        <div class="empty">
+          <div class="face">${FACES.asleep}</div>
+          <div class="ghost"></div>
+          <h2>Nothing saved yet</h2>
+          <p>Keep an answer when you want to find it again.</p>
+          <button type="button" data-reset>Scan something</button>
+        </div>
+      </div>
+      ${pagebar()}`;
+  }
+  paint();
+
+  let undoTimer = null;
+  screen.addEventListener('click', (e) => {
+    const reset = e.target.closest('[data-reset]');
+    if (reset) { rows = ROWS.slice(); paint(); return; }
+
+    const del = e.target.closest('[data-del]');
+    if (del) {
+      const id = del.getAttribute('data-del');
+      const removed = rows.find((r) => r.id === id);
+      const index = rows.indexOf(removed);
+      const slot = screen.querySelector(`[data-slot="${id}"]`);
+      rows = rows.filter((r) => r.id !== id);
+      collapse(slot, () => { if (!rows.length) paint(); });
+
+      const old = screen.querySelector('.undo');
+      if (old) old.remove();
+      if (undoTimer) clearTimeout(undoTimer);
+      const bar = document.createElement('div');
+      bar.className = 'undo';
+      bar.innerHTML = `<span>Removed</span><button type="button">Undo</button>`;
+      screen.appendChild(bar);
+      requestAnimationFrame(() => bar.setAttribute('data-in',''));
+      bar.querySelector('button').addEventListener('click', () => {
+        rows.splice(index, 0, removed);
+        clearTimeout(undoTimer);
+        bar.remove();
+        paint();
+      });
+      undoTimer = setTimeout(() => {
+        bar.removeAttribute('data-in');
+        setTimeout(() => bar.remove(), 200);
+      }, 4000);
+      return;
+    }
+
+    const open = e.target.closest('[data-open]');
+    if (open) {
+      const r = rows.find((x) => x.id === open.getAttribute('data-open'));
+      if (r) openSheet(stage, r);
+    }
+  });
+}
+
+/* --- variant 2 ------------------------------------------------------------ */
+function renderV2(stage) {
+  let rows = ROWS.slice();
+  const screen = document.createElement('div');
+  screen.className = 'screen v2';
+  stage.appendChild(screen);
+
+  function paint() {
+    screen.innerHTML = rows.length ? `
+      <div class="list-scroll">
+        <header class="head"><h1>Saved</h1></header>
+        ${rows.map((r) => `
+          <div class="slot" data-slot="${r.id}">
+            <button type="button" class="row pressable" data-toggle="${r.id}"
+                    data-tier="${r.tier}" data-conf="${r.conf}">
+              <span class="bar"></span>
+              <span class="body">
+                <span class="prov">${esc(r.seller)} &middot; ${esc(r.day)}</span>
+                <span class="price">${esc(money(r.last))}</span>
+                <span class="name">${esc(r.label)}</span>
+                ${r.flag ? `<span class="flag">${esc(r.flag)}</span>` : ''}
+              </span>
+              <span class="face">${faceFor(r)}</span>
+            </button>
+            <div class="reveal" data-reveal="${r.id}">
+              <button type="button" data-open="${r.id}">Open</button>
+              <button type="button" data-del="${r.id}">Remove</button>
+            </div>
+          </div>`).join('')}
+      </div>
+      ${pagebar()}`
+    : `
+      <div class="list-scroll">
+        <div class="empty">
+          <h2>Nothing saved.</h2>
+          <button type="button" data-reset>Back to the camera</button>
+        </div>
+      </div>
+      ${pagebar()}`;
+  }
+  paint();
+
+  screen.addEventListener('click', (e) => {
+    const reset = e.target.closest('[data-reset]');
+    if (reset) { rows = ROWS.slice(); paint(); return; }
+
+    const del = e.target.closest('[data-del]');
+    if (del) {
+      const id = del.getAttribute('data-del');
+      rows = rows.filter((r) => r.id !== id);
+      collapse(screen.querySelector(`[data-slot="${id}"]`), () => { if (!rows.length) paint(); });
+      return;
+    }
+
+    const open = e.target.closest('[data-open]');
+    if (open) {
+      const r = rows.find((x) => x.id === open.getAttribute('data-open'));
+      if (r) openSheet(stage, r);
+      return;
+    }
+
+    const toggle = e.target.closest('[data-toggle]');
+    if (toggle) {
+      const id = toggle.getAttribute('data-toggle');
+      screen.querySelectorAll('.reveal').forEach((el) => {
+        if (el.getAttribute('data-reveal') !== id) el.style.height = '0px';
+      });
+      const panel = screen.querySelector(`[data-reveal="${id}"]`);
+      panel.style.height = panel.style.height && panel.style.height !== '0px' ? '0px' : '48px';
+    }
+  });
+}
+
+/* --- variant 3 ------------------------------------------------------------ */
+function renderV3(stage) {
+  let rows = ROWS.slice();
+  const screen = document.createElement('div');
+  screen.className = 'screen v3';
+  stage.appendChild(screen);
+
+  function groupsOf(list) {
+    const out = [];
+    list.forEach((r) => {
+      const last = out[out.length - 1];
+      if (last && last.name === r.group) last.rows.push(r);
+      else out.push({ name: r.group, rows: [r] });
+    });
+    return out;
+  }
+
+  function paint() {
+    screen.innerHTML = rows.length ? `
+      <div class="list-scroll">
+        <header class="head">
+          <h1>Saved</h1>
+          <p class="count">${rows.length} kept</p>
+        </header>
+        ${groupsOf(rows).map((g) => `
+          <div class="dayhead">${esc(g.name)}</div>
+          ${g.rows.map((r) => `
+            <div class="slot" data-slot="${r.id}">
+              <button type="button" class="del" data-del="${r.id}" aria-label="Remove ${esc(r.label)}">&times;</button>
+              <button type="button" class="row pressable" data-tap="${r.id}"
+                      data-tier="${r.tier}" data-conf="${r.conf}">
+                <span class="edge"></span>
+                <span class="body">
+                  <span class="name">${esc(r.label)}</span>
+                  <span class="sub">${esc(r.seller)} &middot; ${esc(deltaLine(r))}</span>
+                  ${r.conf === 'low' ? '<span class="flag">Variant unsure</span>' : ''}
+                </span>
+                <span class="price">${esc(money(r.last))}</span>
+              </button>
+            </div>`).join('')}`).join('')}
+      </div>
+      ${pagebar()}`
+    : `
+      <div class="list-scroll">
+        <header class="head"><h1>Saved</h1></header>
+        <div class="empty">
+          <div class="ghost"><span></span><span>Nothing kept yet</span></div>
+          <p>Keep an answer from a verdict and it lands here, under the day you saved it.</p>
+          <button type="button" data-reset style="margin-top:18px;height:48px;padding:0 22px;border:0;border-radius:16px;background:var(--raised);color:var(--ink);font-family:var(--f-ui);font-size:16px;font-weight:600;cursor:pointer;">Put them back</button>
+        </div>
+      </div>
+      ${pagebar()}`;
+  }
+  paint();
+
+  /* Swipe left to reveal the remove square; tapping the row does the same on a
+     pointer that cannot swipe, so the control is reachable either way. */
+  let startX = null, startSlot = null;
+  screen.addEventListener('pointerdown', (e) => {
+    const row = e.target.closest('.row');
+    if (!row) return;
+    startX = e.clientX;
+    startSlot = row.closest('.slot');
+  });
+  screen.addEventListener('pointerup', (e) => {
+    if (startX === null || !startSlot) { startX = null; startSlot = null; return; }
+    const dx = e.clientX - startX;
+    const slot = startSlot;
+    startX = null; startSlot = null;
+    if (dx < -24) { slot.setAttribute('data-open',''); return; }
+    if (dx > 24) { slot.removeAttribute('data-open'); return; }
+  });
+
+  screen.addEventListener('click', (e) => {
+    const reset = e.target.closest('[data-reset]');
+    if (reset) { rows = ROWS.slice(); paint(); return; }
+
+    const del = e.target.closest('[data-del]');
+    if (del) {
+      const id = del.getAttribute('data-del');
+      rows = rows.filter((r) => r.id !== id);
+      collapse(screen.querySelector(`[data-slot="${id}"]`), () => { if (!rows.length) paint(); });
+      return;
+    }
+
+    const tap = e.target.closest('[data-tap]');
+    if (tap) {
+      const slot = tap.closest('.slot');
+      if (slot.hasAttribute('data-open')) { slot.removeAttribute('data-open'); return; }
+      const anyOpen = screen.querySelector('.slot[data-open]');
+      if (anyOpen) { anyOpen.removeAttribute('data-open'); return; }
+      const r = rows.find((x) => x.id === tap.getAttribute('data-tap'));
+      if (r) openSheet(stage, r);
+    }
+  });
+}
+
+/* --- picker wiring, verbatim from the spec -------------------------------- */
+const variants = [renderV1, renderV2, renderV3];
+
+const stage = document.getElementById('stage');
+const picker = document.querySelector('.proto-picker');
+const highlight = picker.querySelector('.proto-picker-highlight');
+const items = [...picker.querySelectorAll('.proto-picker-item:not(.proto-picker-replay)')];
+const replay = picker.querySelector('.proto-picker-replay');
+let current = 0;
+
+function moveHighlight() {
+  const el = items[current];
+  highlight.style.width = el.offsetWidth + 'px';
+  highlight.style.transform = `translateX(${el.offsetLeft}px)`;
+}
+
+function mount(i) {
+  stage.innerHTML = '';
+  requestAnimationFrame(() => { variants[i](stage); });
+}
+
+function setActive(i) {
+  if (i < 0 || i >= variants.length) return;
+  current = i;
+  items.forEach((el, j) => {
+    el.toggleAttribute('data-active', j === i);
+    if (j === i) el.setAttribute('aria-current', 'true');
+    else el.removeAttribute('aria-current');
+  });
+  moveHighlight();
+  const url = new URL(location);
+  url.searchParams.set('v', i + 1);
+  history.replaceState(null, '', url);
+  mount(i);
+}
+
+items.forEach((el, i) => el.addEventListener('click', () => setActive(i)));
+replay?.addEventListener('click', () => mount(current));
+window.addEventListener('resize', moveHighlight);
+
+document.addEventListener('keydown', (e) => {
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const num = parseInt(e.key, 10);
+  if (num >= 1 && num <= variants.length) setActive(num - 1);
+  else if (e.key === 'ArrowRight') setActive((current + 1) % variants.length);
+  else if (e.key === 'ArrowLeft') setActive((current - 1 + variants.length) % variants.length);
+  else if (e.key === 'r' || e.key === 'R') mount(current);
+});
+
+setActive((parseInt(new URLSearchParams(location.search).get('v'), 10) || 1) - 1);
+requestAnimationFrame(() => requestAnimationFrame(() => picker.setAttribute('data-ready', '')));
+</script>
+</body>
+</html>
