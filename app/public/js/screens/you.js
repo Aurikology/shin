@@ -372,6 +372,14 @@ export default {
               <span class="ilist-v">${escapeHtml(t('you_report_fastest'))}</span>
               ${rowChevron()}
             </button>
+            ${/* The market picker held the app's only door to the licences, so
+                 attribution was reachable only by someone changing country.
+                 `lib/pagebar.js` already documents the licences screen as
+                 sitting under You; this is that written intent, wired. */ ''}
+            <button type="button" class="ilist-row" data-act="licences">
+              <span class="ilist-l">${escapeHtml(t('lic_title'))}</span>
+              ${rowChevron()}
+            </button>
           </div>
         </section>
 
@@ -630,6 +638,7 @@ export default {
       // onboarding screen to change nothing it does not have to (onboarding-flow.js).
       if (e.target.closest('[data-act="welcome"]')) { ctx.go('onboarding', { replay: 1 }); return; }
       if (e.target.closest('[data-act="savings"]')) { ctx.go('savings'); return; }
+      if (e.target.closest('[data-act="licences"]')) { ctx.go('licences'); return; }
       if (e.target.closest('[data-act="report"]')) ctx.go('correct', {});
     }, ac.signal);
 

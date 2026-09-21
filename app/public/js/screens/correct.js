@@ -32,6 +32,7 @@ import * as store from '../store.js';
 import { submitCorrection } from '../corrections.js';
 import * as shops from '../shops.js';
 import { escapeHtml, on } from '../lib/dom.js';
+import { goBack } from '../lib/pagebar.js';
 /*
  * The keypad, from the screen that owns it. This file had its own 3x4 grid
  * and its own `display()`, a verbatim copy of `pricePadDisplay` minus the
@@ -142,6 +143,9 @@ export default {
               ? `<div class="saved-note">
                    ${faceBlock('pleased', { size: 64 })}
                    <p>${say('correct_thanks')}</p>
+                   <div class="page-foot">
+                     <button type="button" class="cta" data-act="back">${escapeHtml(t('done'))}</button>
+                   </div>
                  </div>`
               : `
           <div class="amount" role="status" aria-label="${escapeHtml(t('correct_price_typed'))}">
@@ -258,11 +262,14 @@ export default {
         });
         saved = true;
         paint();
-        setTimeout(() => ctx.go('camera'), 1400);
         return;
       }
 
-      if (e.target.closest('[data-act="back"]')) ctx.go('camera');
+      // Back, not a fixed destination: this screen is reached from the camera
+      // and from a list, and `ctx.go('camera')` dropped a person correcting a
+      // saved item somewhere they had not come from. The thank-you state waits
+      // for this tap rather than leaving on a timer.
+      if (e.target.closest('[data-act="back"]')) goBack(ctx, 'camera');
     }, ac.signal);
 
     return () => ac.abort();

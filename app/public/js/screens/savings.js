@@ -112,6 +112,7 @@ export default {
       if (e.target.closest('[data-act="back"]')) { goBack(ctx, 'you'); return; }
       if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }
       if (e.target.closest('[data-act="watchlist"]')) { ctx.go('watchlist'); return; }
+      if (e.target.closest('[data-act="you"]')) { ctx.go('you'); return; }
     }, ac.signal);
     const unsub = store.subscribe(() => paint());
     return () => { unsub(); ac.abort(); };
