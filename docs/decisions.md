@@ -1898,3 +1898,18 @@ is sent. Once the one permitted call is spent, its answer is recorded and shown,
 answer is both a waste and a thing the record would have to lie about.
 **Reverses if:** testers report answers arriving for products they have already walked away from,
 which is a UI problem to solve a different way.
+
+## Git remotes differ per clone
+**Date:** 2026-09-21 · **Status:** active
+
+Moved out of CLAUDE.md on 2026-09-21 so the instruction file carries only the current rule. Measured the same day on Jamin's PC: `origin` pushes to both GitLab and `github.com/xu826Jamin/shin`, so the 2026-09-13 note below was true of Aurik's clone and not of this one, exactly as it predicted. **Reverses if** either clone's `git config --get-all remote.origin.pushurl` changes. The note, verbatim:
+
+(Corrected 2026-09-13. This section previously claimed `origin` carried a second push URL at
+`github.com/xu826Jamin/shin` so that one push wrote both hosts. Measured on Aurik's machine that
+day: `remote.origin.pushurl` was unset, and `xu826Jamin/shin` answered `Repository not found` —
+it may exist and be private to Jamin, which his own clone would see and Aurik's cannot. The
+reachable mirror, `Aurikology/shin`, was 25 commits behind at `1fb914f` while GitLab was at
+`c324bff`. The claim had already been "Corrected 2026-09-07" once, from "one remote", so this is
+the second time this paragraph described a backup that was not the one in the config. If Jamin's
+clone does carry that second push URL, this paragraph is true THERE and false HERE, and saying
+which machine is the whole point.)

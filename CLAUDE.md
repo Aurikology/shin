@@ -98,28 +98,19 @@ Added only by him.
 
 ## SELF-ITERATION PROTOCOL
 
-This repo improves as it goes. The mechanism is ACT's; the bar is the one ACT's own audit
-produced, because ACT's unfiltered version generated 28 standing instructions in 22 days and 58
-rules that had neither his words nor an incident behind them. Capture is cheap. Promotion is not.
+Capture is cheap; promotion is not.
 
 1. **Capture the same session, unasked**, one line in `memory/lessons.md`: date · what happened ·
-   his words verbatim · what it would change. Lessons are not loaded at session start. The
-   `self-improve` skill reads them when capturing.
+   his words verbatim · what it would change. Not loaded at session start; `self-improve` reads it.
 2. **A lesson becomes a standing instruction only after ignoring it has cost something recorded
-   twice**, and the entry quotes his words, states their scope, and cites both incidents. Hard
-   rules: him only.
-3. **Before writing prose, ask whether the learning has a mechanical trigger.** A rule that gates
-   a reflex (how a command gets typed) needs a hook or a deny rule; prose will not hold it. A
-   rule that gates a rare deliberate act survives as prose. Measured in the agent repo: a prose
-   rule was violated 892 times with the rate rising, while a deny list let zero through.
-4. **After touching a hook, run `node .claude/hooks/selftest.mjs`, then fire it live the same
-   session**, one command that must block and one that must pass. A green suite is not evidence:
-   it once read 39/39 while the hook it covered was wrongly blocking real work.
-5. **Skills grow with use.** A step kept because a run needed it goes into the skill the same
-   session. Each skill carries its own learnings log at the bottom.
+   twice**, quoting his words, their scope, and both incidents. Hard rules: him only.
+3. **A reflex needs a hook or a deny rule; prose will not hold it.** Prose survives only for rare
+   deliberate acts (measured elsewhere: a prose rule broken 892 times, a deny list zero).
+4. **After touching a hook, run `node .claude/hooks/selftest.mjs`, then fire it live**: one
+   command that must block, one that must pass. A green suite alone is not evidence.
+5. **Skills grow with use**, the same session, each with its own learnings log at the bottom.
 6. **Capture is not replan.** Re-fit the work only when he asks or `NOW.md` changes.
-7. **Ending a task needs no capture.** Zero lessons is a legitimate ending. Do not perform the
-   ritual emptily.
+7. **Ending a task needs no capture.**
 
 Homes: lesson → `memory/lessons.md` · procedure → `.claude/skills/*/SKILL.md` · product or
 strategy decision → `docs/decisions.md` · reflex → `.claude/hooks/` or the deny list in
@@ -156,66 +147,36 @@ with as it goes"*. The page is Notion, `Shin: who is working on what`
 us try to work on the same proejct, what if one project claims a project and doesn't update, how
 does a claude session know another claude session is working"*. The answers, as rules:
 
-**What reaches whom.** Aurik's sessions run on another Claude account: live messages
-(`SendMessage`) and the PC/Mac mailbox never reach them. The only things every session shares are
-**GitLab** (the code) and **this page** (intent and questions). The humans carry decisions. No
-session is ever woken by the page; it is read at the moments below, so write for a reader who
-arrives later.
+Aurik's sessions run on another Claude account, so `SendMessage` and the PC/Mac mailbox never
+reach them; **GitLab and this page are the only things every session shares.** No session is
+woken by the page, so write for a reader who arrives later. The page's top section carries the
+same nine rules; the binding details:
 
-1. **Start.** `git pull`, then fetch the page. Read **Needs attention** first: a question to you,
-   or main broken. Then **Working on now**.
-2. **Claim.** Add a line: `who · machine · what · parts of the app · started · updated`. Re-fetch
-   once after writing: if another line on the same part has an earlier `started`, yours yields
-   (delete your line, take other work, tell your human). Different parts of the app, just work.
-3. **Stay alive: every 20 minutes** (Jamin, 2026-09-14: *"it should be updateing every 20
-   minutes"*). While working, re-read the page (Needs attention first) and refresh your line's
-   `updated`, at least every 20 minutes and at every push. `.claude/hooks/notion-heartbeat.mjs`
-   reminds the session when it edits, commits or pushes past that; it cannot remind an idle
-   session. Push small: each piece that passes tests. An unpushed piece exists only on your machine.
-4. **Stale.** A line with no `updated` for 1 hour is stale. To work on its part, write a question
-   under Needs attention and tell your human, who asks the owner's human. After 24 hours with no
-   answer, take it over: edit the line to `taken over by <you>, stale since <time>`. The owner's
-   unpushed work is theirs to merge when they come back; the later pusher resolves conflicts.
-5. **Needing another session's changes.** Ask it to push, never take them: never copy files from
-   another working copy, never commit another session's files. Ask under Needs attention (Aurik's
-   sessions) or by `SendMessage` after a fresh `ListAgents` plus the mailbox (Jamin's own
-   machines). It answers by pushing at its next green point, or with when it will.
-6. **Stop.** On push, move the line to **Finished**. Stopping with unpushed work: set the line to
-   `paused · unpushed on <machine> · what is left`. A crashed session's line goes stale by rule 4.
-7. **Main broken.** Whoever finds tests red on main writes it at the top of Needs attention. Fix
-   it if it is small and yours to understand; revert another person's commit only if its author
-   has not answered in 3 hours, and say so on the page.
-8. **One working copy per session.** Two sessions on one machine never edit the same folder: the
-   second clones its own copy (still on `main`, no branches). The beta server on the Mac is
-   restarted only by a Mac session, after checking no one else's uncommitted work is in its tree.
-9. **Humans decide:** taking over before 24 hours, deleting anyone's work, changing these rules or
-   a shared status file's meaning, anything involving a secret.
+1. **Start:** `git pull`, fetch the page, read **Needs attention**, then **Working on now**.
+2. **Claim:** `who · machine · what · parts of the app · started · updated`. Re-fetch; an earlier
+   `started` on the same part wins and yours yields.
+3. **Every 20 minutes** (*"it should be updateing every 20 minutes"*) and at every push, re-read
+   and refresh `updated`. `.claude/hooks/notion-heartbeat.mjs` nudges. Push small, tested pieces.
+4. **Stale** after 1 hour: ask under Needs attention and tell your human; take over after 24
+   hours unanswered, marking the line. The owner's unpushed work stays theirs to merge.
+5. **Need another session's changes:** ask it to push. Never copy another working copy's files or
+   commit another session's files.
+6. **Stop:** pushed, move the line to **Finished**; unpushed, mark it `paused · unpushed on
+   <machine> · what is left`.
+7. **Main broken:** top of Needs attention. Revert another's commit only after 3 hours unanswered.
+8. **One working copy per session**; only a Mac session restarts the beta server, after checking
+   for others' uncommitted work.
+9. **Humans decide:** early takeovers, deleting anyone's work, changing these rules or a shared
+   status file's meaning, anything with a secret.
 
 A session with no Notion access says so to its human at the start rather than skipping silently:
 an unread page reports "clear" when it is not.
 
-## BETA DATA (reading what testers did, from any machine)
+## BETA DATA
 
-The beta server runs on Jamin's worker Mac behind `https://relay.anjiawenda.com`. Everything
-testers do lands there: `scans.db` (tables `scan`, `event`, ratings, consent), `people.db`
-(`device_person`: which device came through whose invite link, `jamin` / `aurik` / `family`),
-`access.log` (every request, with `who`), `shutter/<press id>/` (the full camera frame and every
-request and answer that press caused), and photos. Read it through the read-only admin routes
-with the token in your own shell as `SHIN_ADMIN_TOKEN` (never in the repo, never in a commit):
-
-```
-H="x-shin-admin: $SHIN_ADMIN_TOKEN"; B=https://relay.anjiawenda.com/api/admin
-curl -s -H "$H" $B/tables                                   # every table and column
-curl -s -H "$H" $B/sql --data "SELECT * FROM scan ORDER BY id DESC LIMIT 20"
-curl -s -H "$H" $B/sql --data "SELECT s.*, p.person FROM scan s LEFT JOIN people.device_person p USING (device_id)"
-curl -s -H "$H" $B/people                                   # device -> person
-curl -s -H "$H" "$B/access?since=2026-09-14T00:00&limit=200"
-curl -s -H "$H" $B/shutter?limit=20                         # presses, newest first
-curl -s -H "$H" "$B/file?path=shutter/<id>/frame.jpg" -o frame.jpg
-```
-
-The SQL route opens the database read-only; writes fail in SQLite. Up to 5,000 rows per query.
-Code: `app/src/admin.ts`. Named links: `SHIN_INVITES` in `mac/config.env` on the Mac.
+Everything testers do lands on the beta server behind `https://relay.anjiawenda.com`, readable
+through read-only admin routes with `SHIN_ADMIN_TOKEN` in your own shell (never in the repo).
+Tables, routes and example queries: the `beta-data` skill.
 
 ## REPO MAP
 
@@ -228,12 +189,9 @@ skills added 2026-09-08 (`wire-check` is it reachable, `screen-walk` walk it at 
 `negative-test` make the check prove it can fail) · `.claude/hooks/` one guard
 plus its selftest.
 
-**Each package installs its own dependencies.** `app/`, `spine/`, `price/`, `catalogue/` and
-`identify/` each carry a `package.json` and their own `node_modules`, and a fresh worktree has
-none of them. A missing install does not say so: `identify`'s tests failed with
-`Cannot find package '@anthropic-ai/sdk'` for as long as that worktree existed, and `app`'s
-`check` script could not run at all without `spine/node_modules` (D-043). Run `npm install` in the
-package before believing a red suite.
+**Each package installs its own dependencies** (`app/`, `spine/`, `price/`, `catalogue/`,
+`identify/`), and a fresh copy has none. A missing install does not say so (D-043): run
+`npm install` in the package before believing a red suite.
 
 `pages/` files are the sources for the four published web pages. Editing one does not change the
 published page; republishing is a separate step, and `republish-page` has the mechanics.
@@ -242,12 +200,9 @@ published page; republishing is a separate step, and `republish-page` has the me
 
 **NO BRANCHES.** His instruction, 2026-09-07: *"from now on, there will be no branches. For the
 way me and my partner are working, there is no purpose with branches and it just makes things
-more complex."* Two people, both trusted, both pushing: work goes on `main`, commit small, pull
-before you start and push when you stop. Never create a branch, never suggest one, and never
-answer a merge problem by proposing to isolate the work. The cost this removes is real and
-measured: on the day this rule was written, three branches held 31 unmerged commits and 6 files
-that would not merge cleanly, and the newest branch had already rebuilt work sitting on an older
-one. If a conflict appears, resolve it on `main` in the open.
+more complex."* Work goes on `main`, commit small, pull before you start, push when you stop.
+Never create or suggest a branch, never answer a merge problem by isolating the work (that day,
+three branches held 31 unmerged commits). Resolve conflicts on `main` in the open.
 
 `origin` is `gitlab.com/shin3223636/shin`, private, and it is where `main` tracks. **On Aurik's
 machine `origin` has NO second push URL, so `git push origin main` writes GitLab ONLY.** The
@@ -260,15 +215,10 @@ Verifying a mirror: a configured remote is not evidence and neither is a green p
 `git ls-remote <remote> refs/heads/main` against BOTH hosts returning the same SHA, re-run after
 the push.
 
-(Corrected 2026-09-13. This section previously claimed `origin` carried a second push URL at
-`github.com/xu826Jamin/shin` so that one push wrote both hosts. Measured on Aurik's machine that
-day: `remote.origin.pushurl` was unset, and `xu826Jamin/shin` answered `Repository not found` —
-it may exist and be private to Jamin, which his own clone would see and Aurik's cannot. The
-reachable mirror, `Aurikology/shin`, was 25 commits behind at `1fb914f` while GitLab was at
-`c324bff`. The claim had already been "Corrected 2026-09-07" once, from "one remote", so this is
-the second time this paragraph described a backup that was not the one in the config. If Jamin's
-clone does carry that second push URL, this paragraph is true THERE and false HERE, and saying
-which machine is the whole point.)
+**Jamin's PC clone differs** (measured 2026-09-21): `origin` pushes to GitLab AND
+`github.com/xu826Jamin/shin`, and a separate `github` remote points at the same GitHub repo.
+Which mirror a push reaches depends on the clone; say which machine. (History of this section's
+two earlier corrections: `docs/decisions.md`, "Git remotes differ per clone".)
 
 Commits `[scope] description`. Never `--force`: Aurik can pull this. Multi-line messages through
 a file, never a shell heredoc, because a backslash does not survive the trip through `bash -c`.
