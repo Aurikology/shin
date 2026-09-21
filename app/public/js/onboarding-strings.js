@@ -181,6 +181,13 @@ export const ONB_EN = {
   onb_plans_annual: '$39.99 billed annually',
   onb_plans_annual_sub: '($3.33/mo)',
   onb_plans_monthly: '$12.99/mo',
+  /* The plan step sells nothing: no billing exists, `store.js` never sets
+     `proUntil`, and the flow finishes whatever was tapped. Kept rather than
+     deleted (Aurik, 2026-09-21) so the shape of the product stays visible, and
+     marked so a tester cannot read the prices as real. Same two-part shape as
+     the demo scan above: a plain badge, and one plain line. */
+  onb_plans_badge: 'NOT LIVE',
+  onb_plans_stub: 'These prices are a placeholder. Nothing is charged, nothing is unlocked, and every plan finishes the same way.',
 
   /* 26 to 29 */
   onb_tip_scan_title: 'Get the best scan',
@@ -344,6 +351,8 @@ export const ONB_FR = {
   onb_plans_annual: '39,99 $ facturés par année',
   onb_plans_annual_sub: '(3,33 $/mois)',
   onb_plans_monthly: '12,99 $/mois',
+  onb_plans_badge: 'PAS ACTIF',
+  onb_plans_stub: 'Ces prix sont un espace réservé. Rien n’est facturé, rien n’est débloqué, et tous les forfaits se terminent de la même façon.',
 
   onb_tip_scan_title: 'Pour le meilleur scan',
   onb_tip_scan_1: 'Ne bouge pas',

@@ -320,7 +320,9 @@ function bodyFor(step, answers, replay) {
 function planOptions(answers) {
   const step = stepById('plans');
   return `<div class="onb-opts" role="radiogroup" aria-labelledby="onb-q">${
-    step.options.map((o) => optionHtml(step, o, answers[step.key] === o)).join('')}</div>`;
+    step.options.map((o) => optionHtml(step, o, answers[step.key] === o)).join('')}</div>
+    <p class="fineprint"><span class="onb-demo-badge">${escapeHtml(t('onb_plans_badge'))}</span> ${
+      escapeHtml(t('onb_plans_stub'))}</p>`;
 }
 
 /** The camera prompt, asked here on his word for screen 24, and stopped at once. */

@@ -42,6 +42,7 @@ import * as store from '../store.js';
 import { escapeHtml, on } from '../lib/dom.js';
 import { storagePersists } from '../lib/persistence.js';
 import { confirmConsent, toggleConsent } from '../consent-actions.js';
+import { backButton } from '../lib/pagebar.js';
 import { t } from '../ui-strings.js';
 
 export default {
@@ -55,6 +56,7 @@ export default {
     root.innerHTML = `
       <div class="page consent-page">
         <header class="page-head">
+          ${backButton()}
           <p class="kicker">${escapeHtml(t('consent_kicker'))}</p>
           <h1>${escapeHtml(t('consent_heading'))}</h1>
         </header>
@@ -118,6 +120,25 @@ export default {
         confirmConsent(ctx.api);
         store.setConsentSeen();
         ctx.replace('camera');
+        return;
+      }
+      /*
+       * Back to setup, and only that far. `setup.js` advances with
+       * `ctx.replace`, so there is no history entry behind this screen and
+       * `history.back()` would leave the app: the way back is to put the flag
+       * that routes `firstScreen` back the way it was. Nothing is lost doing
+       * it -- the attitude and the three ranges are written when they are
+       * tapped, not when Continue is pressed, so setup repaints with the
+       * person's own picks still selected.
+       *
+       * Deliberately NOT offered on setup itself. Going back from there means
+       * clearing `onboarding.doneAt` and replaying the whole welcome, which
+       * throws away answers `recordAnswer` has already put in the store AND in
+       * the events queue. Aurik's call, 2026-09-21: the cheap direction only.
+       */
+      if (e.target.closest('[data-act="back"]')) {
+        store.update({ seenIntro: false });
+        ctx.replace('setup');
       }
     }, ac.signal);
 

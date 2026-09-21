@@ -200,7 +200,7 @@ function thumbImg(thumb) {
  * teaches. Same icon and handler as the working sheet's own close,
  * `cancel-scan`, which already resets straight to the live viewfinder.
  */
-function backButton(label = t('back_to_camera_short')) {
+function backButton(label = t('back_to_camera')) {
   return `<button type="button" class="sheet-close" data-act="cancel-scan" aria-label="${escapeHtml(label)}">
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
   </button>`;
@@ -1143,7 +1143,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
           ? `<button type="button" class="pill solid" data-act="keepit">${escapeHtml(t('cam_keep_it'))}</button>`
           : isNoIdentity || isModelDown || isThrottled
             ? `<button type="button" class="pill solid" data-act="typeit">${escapeHtml(t('cam_type_what_it_is'))}</button>`
-            : `<button type="button" class="pill solid" data-act="correct">${escapeHtml(t('cam_tell_me_the_price'))}</button>`
+            : `<button type="button" class="pill solid" data-act="correct">${escapeHtml(t('cam_correct_it'))}</button>`
       }</div>`;
 
   return `
