@@ -217,7 +217,10 @@ test('no text on the verdict field is faded below what its tier can carry', () =
   // Text rules on the verdict surface. Icon-only controls are not here: they
   // are non-text graphics and answer to 3.0, not 4.5.
   const TEXT_RULES = [
-    '.because', '.sub', '.conf-label', '.itemname',
+    // `.gem-checked` is when the Gemini answer was checked, which shares
+    // `.conf-label`'s rule: both names are listed so the check survives the
+    // day somebody gives the timestamp a rule of its own.
+    '.because', '.sub', '.conf-label', '.gem-checked', '.itemname',
     '.rail-lo', '.rail-hi', '.rail-me', '.prov span', '.pill.ghost',
   ];
 

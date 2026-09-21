@@ -502,10 +502,22 @@ export function mountGrounded(container, grounded, opts = {}) {
  */
 const ZONES = ['under_your_line', 'middle', 'over_your_line'];
 
+/**
+ * The wire's `fetchedAt`, kept only if a clock can read it.
+ *
+ * Three ways it is not a time: absent, not a string, or a string
+ * `Date.parse` cannot make a number of. All three return null, and the caller
+ * renders nothing rather than a label with a hole in it.
+ */
+function checkedAt(value) {
+  if (typeof value !== 'string' || value === '') return null;
+  return Number.isFinite(Date.parse(value)) ? value : null;
+}
+
 export function geminiReading(grounded) {
   const empty = {
     hasContent: false, zone: null, median: null, unitLabel: null,
-    shelfLabel: null, name: null, lowConfidence: false, confidenceReasons: [], alternatives: [],
+    shelfLabel: null, name: null, fetchedAt: null, lowConfidence: false, confidenceReasons: [], alternatives: [],
   };
   if (!grounded || grounded.kind !== 'grounded' || !grounded.block) return empty;
   const block = grounded.block;
@@ -527,6 +539,20 @@ export function geminiReading(grounded) {
     unitLabel,
     shelfLabel,
     name: typeof block.name === 'string' && block.name !== '' ? block.name : null,
+    /*
+     * WHEN SHIN ASKED, and the one field here that is not Gemini's. Ruling 1
+     * (docs/decisions.md) lets a repeat scan of a known barcode be served from
+     * a stored answer on one condition: the price "is cached for six hours and
+     * ALWAYS SHOWN WITH WHEN IT WAS CHECKED". The wire has carried the time
+     * since the wire existed and only `data-fetched-at` ever read it, which is
+     * an attribute and not a sentence, so nothing on screen said it.
+     *
+     * A time Shin cannot read is no time at all: an unparseable or missing
+     * value comes back null and the sheet says nothing, because "checked
+     * unknown" is worse than silence. Nothing is computed from it here; the
+     * age is worked out where the sentence is built.
+     */
+    fetchedAt: checkedAt(grounded.fetchedAt),
     lowConfidence: block.lowConfidence === true,
     confidenceReasons: Array.isArray(block.confidenceReasons) ? block.confidenceReasons : [],
     alternatives: alternativesReading(block.alternatives),

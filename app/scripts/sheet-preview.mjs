@@ -54,7 +54,7 @@ const { geminiSheet, geminiFailureSheet } = await import('../public/js/screens/c
  * because rule 6 says the sheet shows the model's own bytes and a formatter
  * appearing here is a defect this preview should make visible.
  */
-function answer({ zone = 'over_your_line', median = 4.5, low = false, block = {}, top = {} } = {}) {
+function answer({ zone = 'over_your_line', median = 4.5, low = false, block = {}, top = {}, fetchedAt = '2026-09-19T12:00:00.000Z' } = {}) {
   return {
     kind: 'gemini',
     scanId: 41,
@@ -68,7 +68,7 @@ function answer({ zone = 'over_your_line', median = 4.5, low = false, block = {}
     grounded: {
       kind: 'grounded',
       forDevice: 'dev-1',
-      fetchedAt: '2026-09-19T12:00:00.000Z',
+      fetchedAt,
       block: {
         kind: 'prices',
         checked: false,
@@ -108,6 +108,17 @@ function answer({ zone = 'over_your_line', median = 4.5, low = false, block = {}
   };
 }
 
+/*
+ * Alternatives in the shape `alternativesReading` accepts (grounded.js:544):
+ * a name and a `priceText` are both required or the row is dropped, and at
+ * most five survive. The kinds are the five `GEMINI_ALT_KINDS`.
+ */
+const ALTS = [
+  { name: 'Citrus Soda', brand: 'Northfield', kind: 'same_product', priceText: '3.99', storeName: 'Eastway Market', reason: 'the same six pack, cheaper down the road' },
+  { name: 'Lemon Sparkling Water', brand: 'Northfield', kind: 'substitute', priceText: '2.49', storeName: 'Eastway Market', reason: null },
+  { name: 'Citrus Soda, 12 pack', brand: 'Northfield', kind: 'other', priceText: '7.49', storeName: null, reason: 'twice the cans for less than twice the price' },
+];
+
 const ITEM = { text: 'citrus soda', category: 'groceries' };
 
 /*
@@ -123,6 +134,26 @@ const STATES = [
   { id: 'low-confidence', title: 'Over your line, not fully confident', html: () => geminiSheet(answer({ zone: 'over_your_line', low: true }), ITEM, null) },
   { id: 'no-verdict', title: 'No shelf price, so no zone', html: () => geminiSheet(answer({ zone: null }), ITEM, null) },
   { id: 'long-name', title: 'A name long enough to wrap', html: () => geminiSheet(answer({ block: { name: 'Northfield Organic Sparkling Citrus Soda, Six Pack of 355 mL Cans, Limited Edition' } }), ITEM, null) },
+  /*
+   * The alternatives, which nobody has seen. They are the return loop in the
+   * one competitor with the numbers to prove it (shipped-scanners section 2b),
+   * and they live in `sheet-half`, one drag below the verdict, so the peek
+   * state is rendered beside the open one to show what a shopper gets before
+   * they drag.
+   */
+  { id: 'alternatives-peek', title: 'With alternatives, as it opens', detent: 'peek', html: () => geminiSheet(answer({ zone: 'over_your_line', block: { alternatives: ALTS } }), ITEM, null) },
+  { id: 'alternatives-half', title: 'With alternatives, dragged up', detent: 'half', html: () => geminiSheet(answer({ zone: 'over_your_line', block: { alternatives: ALTS } }), ITEM, null) },
+  /*
+   * WHEN IT WAS CHECKED, which ruling 1 requires on every answer served from
+   * the six-hour cache and which nothing rendered until now. A fixed date in
+   * the fixture is useless for this: it would read "2 d ago" and then "9 d
+   * ago" a week later, so the age is built from the clock at render time.
+   * Three hours is the interesting one, a repeat scan in the same afternoon.
+   */
+  { id: 'cached-hours-old', title: 'Served from the cache, three hours old', html: () => geminiSheet(answer({ zone: 'middle', fetchedAt: new Date(Date.now() - 3 * 3600e3).toISOString() }), ITEM, null) },
+  { id: 'cached-at-ceiling', title: 'Served from the cache, at the six-hour ceiling', html: () => geminiSheet(answer({ zone: 'over_your_line', fetchedAt: new Date(Date.now() - 6 * 3600e3 + 60e3).toISOString() }), ITEM, null) },
+  { id: 'checked-just-now', title: 'A fresh answer, checked just now', html: () => geminiSheet(answer({ zone: 'under_your_line', fetchedAt: new Date().toISOString() }), ITEM, null) },
+  { id: 'no-checked-time', title: 'No time on the wire, so no line', html: () => geminiSheet(answer({ zone: 'middle', fetchedAt: null }), ITEM, null) },
   { id: 'failure', title: 'The call failed', html: () => geminiFailureSheet({ kind: 'gemini', failure: 'model_client_error', reason: 'model_client_error' }, ITEM) },
   { id: 'nothing-to-price', title: 'Nothing to price', html: () => geminiFailureSheet({ kind: 'gemini', failure: 'nothing_to_price', reason: 'nothing_to_price' }, ITEM) },
 ];
@@ -183,7 +214,7 @@ html, body { margin: 0; height: 100%; background: var(--ground); }
 <p class="preview-note">Preview, fixture answer: ${state.title}</p>
 <div class="screen">
   <div class="cam" data-state="answered">
-    <div class="sheet-slot">${state.html()}</div>
+    <div class="sheet-slot">${state.html().replace('data-detent="peek"', `data-detent="${state.detent ?? 'peek'}"`)}</div>
   </div>
 </div>
 </body>

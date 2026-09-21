@@ -255,6 +255,111 @@ test('the reading lifted out of the wire copies values and works nothing out', (
   assert.doesNotMatch(body, /Math\.|toFixed|parseFloat|Number\(|Intl\.|\bcad\s*\(/, 'geminiReading does arithmetic or formatting on a price');
 });
 
+/* ================================================ when it was checked (D-1) == */
+
+/*
+ * Ruling 1, docs/decisions.md: a repeat scan of a known barcode may be
+ * answered from a stored answer because "a cached Gemini answer is Gemini's
+ * answer, not Shin's price" -- on the stated condition that the price "is
+ * cached for six hours and ALWAYS SHOWN WITH WHEN IT WAS CHECKED". Only the
+ * first half was built: `grounded.js` wrote the time into a `data-fetched-at`
+ * attribute and nothing rendered it, so a price up to six hours old was
+ * presented as a fresh verdict with nothing on screen saying otherwise.
+ *
+ * Every case below is a clock the sheet has to survive. NOT VERIFIED HERE, the
+ * same caveat this file opens with: that the line is legible and does not
+ * compete with the verdict word. That was looked at in
+ * `node scripts/sheet-preview.mjs`, state `cached-hours-old`.
+ */
+const AGO = (ms) => new Date(Date.now() - ms).toISOString();
+const checkedLine = (html) => {
+  const m = html.match(/<p class="conf-label gem-checked" data-gem-checked>([^<]*)<\/p>/);
+  return m ? m[1] : null;
+};
+
+test('a cached answer says how old it is, in the units ago() already uses', () => {
+  const threeHours = geminiSheet(answer({ top: { grounded: { ...answer().grounded, fetchedAt: AGO(3 * 3600e3) } } }), ITEM, null);
+  assert.equal(checkedLine(threeHours), t('cam_gem_checked', { when: '3 h ago' }));
+  const twelveMinutes = geminiSheet(answer({ top: { grounded: { ...answer().grounded, fetchedAt: AGO(12 * 60e3) } } }), ITEM, null);
+  assert.equal(checkedLine(twelveMinutes), t('cam_gem_checked', { when: '12 min ago' }));
+  // Six hours is the cache ceiling, so this is the oldest thing a shopper can
+  // ever be shown, and it is the case the ruling exists for.
+  const ceiling = geminiSheet(answer({ top: { grounded: { ...answer().grounded, fetchedAt: AGO(6 * 3600e3 - 1000) } } }), ITEM, null);
+  assert.equal(checkedLine(ceiling), t('cam_gem_checked', { when: '6 h ago' }));
+});
+
+test('a fresh answer says just now rather than counting zero minutes', () => {
+  const fresh = geminiSheet(answer({ top: { grounded: { ...answer().grounded, fetchedAt: AGO(2000) } } }), ITEM, null);
+  assert.equal(checkedLine(fresh), t('cam_gem_checked_now'));
+  assert.ok(!/\b0\b/.test(checkedLine(fresh)), `a fresh answer counted a zero: ${checkedLine(fresh)}`);
+});
+
+test('a clock skew never prints a time in the future', () => {
+  // A phone whose clock is behind the server's gets a fetchedAt that has not
+  // happened yet. "Checked in 3 hours" is nonsense on a price sheet.
+  const ahead = new Date(Date.now() + 3 * 3600e3).toISOString();
+  const html = geminiSheet(answer({ top: { grounded: { ...answer().grounded, fetchedAt: ahead } } }), ITEM, null);
+  assert.equal(checkedLine(html), t('cam_gem_checked_now'));
+  assert.ok(!/\bin \d/.test(html), 'the sheet printed a time in the future');
+});
+
+test('no time, and a time no clock can read, render nothing at all', () => {
+  for (const bad of [undefined, null, '', 'yesterday afternoon', '2026-13-45T99:00:00Z', 42, {}]) {
+    const g = { ...answer().grounded };
+    if (bad === undefined) delete g.fetchedAt;
+    else g.fetchedAt = bad;
+    const html = geminiSheet(answer({ top: { grounded: g } }), ITEM, null);
+    assert.equal(checkedLine(html), null, `a ${JSON.stringify(bad)} timestamp drew a line`);
+    assert.ok(!html.includes('data-gem-checked'), `a ${JSON.stringify(bad)} timestamp left the element behind`);
+    assert.ok(!html.toLowerCase().includes('checked unknown'), 'the sheet claimed a check at an unknown hour');
+    assert.equal(geminiReading(g).fetchedAt, null, `geminiReading kept an unreadable time: ${JSON.stringify(bad)}`);
+  }
+});
+
+test('the checked line is Shin\'s own sentence, outside the grounded root and with no price in it', () => {
+  const html = geminiSheet(answer({ top: { grounded: { ...answer().grounded, fetchedAt: AGO(3 * 3600e3) } } }), ITEM, null);
+  const line = checkedLine(html);
+  // Rule 6: the sheet shows the model's bytes. This line is a fact about when
+  // Shin asked, so it may not carry, reformat or recompute any figure of
+  // Gemini's.
+  assert.ok(!line.includes('4.49') && !line.includes('4.5'), `the checked line carried a price: ${line}`);
+  assert.ok(!line.includes('$'), `the checked line carried a currency mark: ${line}`);
+  // It sits in the peek, above the grounded slot, so a shopper reads it
+  // without dragging the sheet; the grounded root is mounted into the slot
+  // below and this is nowhere inside it.
+  assert.ok(html.indexOf('data-gem-checked') < html.indexOf('data-grounded-slot'),
+    'the checked line fell below the grounded slot, where nobody would see it before dragging');
+  // Hard rule 3: the aggression points at the price, never the user. This line
+  // is flat provenance and says nothing about the person holding the phone.
+  assert.doesNotMatch(line, /\byou\b|\byour\b/i, `the checked line addressed the user: ${line}`);
+});
+
+test('the checked line does not become the headline', () => {
+  const html = geminiSheet(answer({ top: { grounded: { ...answer().grounded, fetchedAt: AGO(3 * 3600e3) } } }), ITEM, null);
+  const headline = html.match(/<h2 class="vword[^"]*" data-gemini-headline>([^<]*)<\/h2>/);
+  assert.equal(headline[1], t('priceline_zone_over'), 'the verdict word changed');
+  // It takes the confidence line's rule, which is the measured provenance
+  // treatment on a tier field (test/tokens.test.mjs holds its opacity floor).
+  assert.match(html, /class="conf-label gem-checked"/);
+});
+
+test('when it was checked is said in French too', async () => {
+  const doc = makeDocument();
+  const restore = installBrowser({ doc, storage: makeStorage() });
+  try {
+    const strings = await import('../public/js/ui-strings.js');
+    strings.setLocale('fr');
+    const html = geminiSheet(answer({ top: { grounded: { ...answer().grounded, fetchedAt: AGO(3 * 3600e3) } } }), ITEM, null);
+    assert.equal(checkedLine(html), 'Vérifié il y a 3 h');
+    const fresh = geminiSheet(answer({ top: { grounded: { ...answer().grounded, fetchedAt: AGO(2000) } } }), ITEM, null);
+    assert.equal(checkedLine(fresh), 'Vérifié à l’instant');
+    for (const s of [checkedLine(html), checkedLine(fresh)]) assert.ok(!s.includes('—'), 'an em dash reached the sheet');
+    strings.setLocale('en');
+  } finally {
+    restore();
+  }
+});
+
 /* ================================================== the branch in the camera == */
 
 const camera = read('../public/js/screens/camera.js');

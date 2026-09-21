@@ -1311,6 +1311,18 @@ interface Completed {
   readonly scanId: number | null;
   readonly callId: number | null;
   readonly ms: number;
+  /*
+   * WHEN THE ANSWER WAS ACTUALLY MADE, or null when it was made by the call
+   * this request just paid for.
+   *
+   * Ruling 1 lets a repeat scan be served from a stored Gemini answer on one
+   * stated condition: the price is "always shown with when it was checked".
+   * `wireFor` stamped `new Date()` on every response, so a cache hit up to six
+   * hours old went out saying it was checked now. The client says so out loud
+   * since 2026-09-21 (`geminiCheckedLine`), which turned a silent staleness
+   * into a printed untruth, which is why this field exists.
+   */
+  readonly checkedAt: string | null;
 }
 
 /**
@@ -1382,7 +1394,7 @@ async function completeGeminiScan(a: CompleteArgs): Promise<Completed> {
           exactAt: a.where.exactAt,
         });
       }
-      return { mod, run: hit.run, block: hit.block, label, scanId, callId: null, ms: Date.now() - a.startedAt };
+      return { mod, run: hit.run, block: hit.block, label, scanId, callId: null, ms: Date.now() - a.startedAt, checkedAt: hit.checkedAt };
     }
   }
 
@@ -1574,7 +1586,7 @@ async function completeGeminiScan(a: CompleteArgs): Promise<Completed> {
       ms: run.ms,
     },
   });
-  return { mod, run, block, label, scanId, callId, ms };
+  return { mod, run, block, label, scanId, callId, ms, checkedAt: null };
 }
 
 /**
@@ -1655,8 +1667,14 @@ async function refreshCachedBarcode(
  * answer with a "not fully confident" mark beats no answer (rule 6) and a
  * terms check is a mark, never a block (rule 5).
  */
-function wireFor(c: Pick<Completed, 'block' | 'run' | 'scanId'>, owner: string, device: string): GroundedWire<unknown> {
-  const fetchedAt = new Date().toISOString();
+function wireFor(
+  c: Pick<Completed, 'block' | 'run' | 'scanId' | 'checkedAt'>,
+  owner: string,
+  device: string,
+): GroundedWire<unknown> {
+  // A replayed answer carries the time of the call that produced it; only an
+  // answer made by this request is checked now. See Completed.checkedAt.
+  const fetchedAt = c.checkedAt ?? new Date().toISOString();
   let wire: GroundedWire<unknown>;
   try {
     const box = sealScanAnswer({
@@ -2916,12 +2934,18 @@ export const server = createServer(async (req, res) => {
       deviceForLog = pricedDevice;
       const owner = groundedOwner(pricedDevice);
 
-      let answered: Pick<Completed, 'block' | 'run' | 'scanId'> | null = recallScan(
-        pricedDevice,
-        scanKnown ? pricedScan : null,
-        searchGtin,
-        searchText,
-      );
+      /*
+       * THE SECOND STALE PATH, and it is the one a tester hits first. This
+       * bridge holds an answer for 30 minutes so the price sheet shows the
+       * same call the scan made, and it has always known when that call
+       * happened (`ScannedEntry.at`). Nothing read it, so a sheet reopened 20
+       * minutes later said the price was checked now. The cache hit below was
+       * the same bug with a six hour ceiling instead of a thirty minute one.
+       */
+      const recalled = recallScan(pricedDevice, scanKnown ? pricedScan : null, searchGtin, searchText);
+      let answered: Pick<Completed, 'block' | 'run' | 'scanId' | 'checkedAt'> | null = recalled
+        ? { run: recalled.run, block: recalled.block, scanId: recalled.scanId, checkedAt: new Date(recalled.at).toISOString() }
+        : null;
       if (!answered) {
         const limitedPrice = paidCallRefusal(req);
         if (limitedPrice) return tooManyCalls(limitedPrice.retryAfterSeconds);

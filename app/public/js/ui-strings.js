@@ -121,6 +121,16 @@ const EN = {
   cam_gem_shelf: (f) => `Shelf price: ${f.label}`,
   cam_gem_answered_word: 'Answered',
   cam_gem_failed_word: 'No answer',
+  /* WHEN THE ANSWER WAS CHECKED (ruling 1, docs/decisions.md: a cached answer
+     may be served "for six hours and ALWAYS SHOWN WITH WHEN IT WAS CHECKED").
+     Shin's own fact about when Shin asked, never Gemini's bytes, so it is
+     chrome and lives here. `when` arrives already built by `ago()` in
+     lib/dom.js, which is where the units and the French word order are
+     decided; this key only carries the verb in front of it. Under a minute,
+     and a clock that says the answer is from the future, both take the bare
+     sentence rather than a number. */
+  cam_gem_checked: (f) => `Checked ${f.when}`,
+  cam_gem_checked_now: 'Checked just now',
   /* The alternatives list under the Gemini answer. Each row's name, reason and
      price are the model's own words, shown as returned; these are only the
      heading and the fallback reason for a row the model gave none for. */
@@ -606,6 +616,11 @@ const FR = {
   cam_gem_shelf: (f) => `Prix en rayon : ${f.label}`,
   cam_gem_answered_word: 'Répondu',
   cam_gem_failed_word: 'Pas de réponse',
+  /* `when` arrive deja construit par `ago()` ("il y a 3 h"), qui met la
+     preposition devant la ou l'anglais la met derriere. La phrase ci-dessous
+     n'ajoute que le verbe. */
+  cam_gem_checked: (f) => `Vérifié ${f.when}`,
+  cam_gem_checked_now: 'Vérifié à l’instant',
   gem_alt_heading: 'Autres choix',
   gem_alt_at: (f) => `chez ${f.store}`,
   gem_alt_kind_same_product: 'Le même produit, vendu ailleurs',

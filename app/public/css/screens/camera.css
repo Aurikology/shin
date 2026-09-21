@@ -1123,7 +1123,26 @@
  * is about them -- so it keeps the mono face DESIGN.md section 2 reserves for
  * exactly that: "seller names, dates, source counts, timestamps".
  */
-.conf-label {
+/*
+ * `.gem-checked` shares this rule on purpose rather than carrying a copy of
+ * it. When the Gemini answer was checked is provenance by the same definition
+ * DESIGN.md section 2 uses -- it lists "timestamps" beside source counts as
+ * what the mono face is reserved for -- and it sits on the same tier field as
+ * the confidence line, one line below it.
+ *
+ * COLOUR IS INHERITED, DELIBERATELY. The sheet is painted on --tier, so its
+ * text is --tier-on and the .88 is what test/tokens.test.mjs measures the four
+ * tiers at. A page ink here would be wrong in exactly the way the note further
+ * down this file records: --ink-faint is chosen against --ground and measured
+ * 1.63 on the walk field. Sharing the selector means the line cannot drift off
+ * a measured value later.
+ *
+ * THE TWO SELECTORS STAY ON ONE LINE. `test/tokens.test.mjs` finds a rule by
+ * matching a selector line with no newline in it, so splitting this across two
+ * lines would not fail the test, it would quietly drop both names out of the
+ * opacity floor check.
+ */
+.conf-label, .gem-checked {
   font-family: var(--f-mono);
   font-size: 10px;
   letter-spacing: .11em;

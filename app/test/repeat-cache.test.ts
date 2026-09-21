@@ -169,3 +169,44 @@ test('a spend-cap refusal is never cached as Gemini\'s answer', async () => {
   assert.equal(calls.length, 1, 'the spend-cap refusal was served back as a cached answer once the cap lifted');
   assert.notEqual(after2.body.failure, 'spend_cap_reached');
 });
+
+test('a cache hit is served with the time it was really checked, not the time it was replayed', async () => {
+  /*
+   * RULING 1's OWN CONDITION. It permits replaying a stored Gemini answer
+   * because "the price is cached for six hours and ALWAYS SHOWN WITH WHEN IT
+   * WAS CHECKED". `wireFor` stamped `new Date()` on every response, so the
+   * replay claimed it had just been checked. Harmless while nothing rendered
+   * the field; a printed untruth from the moment the sheet started saying
+   * "Checked just now" (2026-09-21).
+   */
+  const { calls, transport } = fakeTransport();
+  setGeminiTransportForTests(transport);
+  const first = await identify('gtin=0068100084245&deviceId=checked-a');
+  assert.equal(calls.length, 1);
+  const fresh = first.body.grounded?.fetchedAt;
+  assert.ok(typeof fresh === 'string', 'a fresh answer carried no fetchedAt at all');
+
+  // Re-stamp the row three hours back, inside the six hour ceiling so it is
+  // still served, and past the one hour mark so the refresh path runs too.
+  const hit = recallCachedScan('0068100084245', null, null)!;
+  assert.ok(hit, 'the first scan left no cache row to re-stamp');
+  const threeHoursAgo = new Date(Date.now() - (3 * 60 * 60_000));
+  rememberCachedScan('0068100084245', null, null, hit.run, hit.block, first.body.scanId, threeHoursAgo);
+
+  const replayed = await identify('gtin=0068100084245&deviceId=checked-b');
+  await settleBackgroundChecks();
+  const served = replayed.body.grounded?.fetchedAt;
+  assert.ok(typeof served === 'string', 'a replayed answer carried no fetchedAt');
+
+  const servedMs = Date.parse(served);
+  assert.ok(Number.isFinite(servedMs), `a replayed answer carried an unreadable fetchedAt: ${served}`);
+  // Within a second of the re-stamped time, and emphatically not "now".
+  assert.ok(
+    Math.abs(servedMs - threeHoursAgo.getTime()) < 1000,
+    `a three hour old cache hit was served as checked at ${served}`,
+  );
+  assert.ok(
+    Date.now() - servedMs > 60_000,
+    'a replayed answer claimed it had just been checked, which is what ruling 1 forbids',
+  );
+});

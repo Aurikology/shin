@@ -28,7 +28,7 @@ import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { attachEye, startCaptureQueue } from '../eye-attach.js';
 import { startShelfCapture } from '../eye-shelf.js';
-import { escapeHtml } from '../lib/dom.js';
+import { escapeHtml, ago } from '../lib/dom.js';
 import { rowCheck } from '../lib/pagebar.js';
 import { wireRadioGroup } from '../lib/radiogroup.js';
 import { t } from '../ui-strings.js';
@@ -1308,6 +1308,44 @@ function alternativesBlock(rows) {
         </section>`;
 }
 
+/**
+ * WHEN THE ANSWER WAS CHECKED, as one short sentence, or '' when there is
+ * nothing honest to say.
+ *
+ * Ruling 1 (docs/decisions.md) permits a repeat scan of a known barcode to be
+ * answered from a stored answer, and states the condition it is permitted
+ * under: the price "is cached for six hours and ALWAYS SHOWN WITH WHEN IT WAS
+ * CHECKED". That half was never built, so a shopper could be shown a price up
+ * to six hours old as though it had just been looked up. This is that half.
+ *
+ * It is Shin's own fact about when Shin asked, not one of Gemini's bytes, so
+ * it is a sentence of ours OUTSIDE the grounded root (grounded.js, term 1) and
+ * its words live in ui-strings.js.
+ *
+ * `ago` is lib/dom.js's, already used by past scans, saved and the watchlist,
+ * and it is the file that owns the units and the French word order. A second
+ * relative-time function would be a second set of thresholds to keep in step.
+ *
+ * THE THREE WAYS A CLOCK LIES, all of them answered here rather than in the
+ * string table:
+ *   - no time on the wire, or one no clock can parse: `geminiReading` already
+ *     turned both into null, and null renders nothing at all. Never "checked
+ *     unknown", which claims a check happened at an hour nobody knows.
+ *   - a time in the future, which a phone whose clock is behind the server's
+ *     produces routinely: it takes the bare "just now" sentence. `ago` would
+ *     clamp it to "0 min ago", and nothing here can ever print "in 3 hours".
+ *   - under a minute old, which is every fresh scan: the same bare sentence,
+ *     because "checked 0 min ago" is a worse way to say "just now".
+ */
+function geminiCheckedLine(fetchedAt) {
+  if (fetchedAt === null || fetchedAt === undefined) return '';
+  const at = Date.parse(fetchedAt);
+  if (!Number.isFinite(at)) return '';
+  const elapsed = Date.now() - at;
+  if (elapsed < 60000) return t('cam_gem_checked_now');
+  return t('cam_gem_checked', { when: ago(fetchedAt) });
+}
+
 function geminiSheet(result, item, thumb, earlier = []) {
   const g = geminiReading(result.grounded);
   const unsure = result.lowConfidence === true || g.lowConfidence;
@@ -1325,6 +1363,7 @@ function geminiSheet(result, item, thumb, earlier = []) {
   const shelfLine = g.shelfLabel === null ? '' : escapeHtml(t('cam_gem_shelf', { label: g.shelfLabel }));
   const lines = [medianLine, shelfLine].filter(Boolean).join('<br>');
   const reasons = Array.isArray(result.confidenceReasons) ? result.confidenceReasons : g.confidenceReasons;
+  const checked = geminiCheckedLine(g.fetchedAt);
 
   return `
     <section class="sheet verdict gemini" data-kind="gemini" data-tier="${GEMINI_ZONE_TIER[g.zone] ?? 'unknown'}" data-zone="${escapeHtml(g.zone ?? '')}" data-conf="${conf.level}" data-conf-reasons="${escapeHtml(reasons.join(' '))}" data-detent="peek" aria-live="polite" tabindex="-1">
@@ -1340,6 +1379,7 @@ function geminiSheet(result, item, thumb, earlier = []) {
         ${lines ? `<div class="priceline"><span class="sub" data-gemini-figures>${lines}</span></div>` : ''}
         ${unsure ? `<div class="confrow"><span class="conf-label" data-not-confident>${escapeHtml(conf.label)}</span></div>` : ''}
         ${zoneKey && name ? `<p class="itemname">${escapeHtml(name)}</p>` : ''}
+        ${checked ? `<p class="conf-label gem-checked" data-gem-checked>${escapeHtml(checked)}</p>` : ''}
       </div>
 
       <div class="sheet-half">
