@@ -18,6 +18,7 @@ import {
   readShelfPriceCents,
   readThresholds,
   repairJson,
+  blockStarts,
   runGeminiScan,
   toAnswerBlock,
   DEFAULT_THRESHOLDS,
@@ -461,4 +462,91 @@ test('a doubly-encoded reply is recovered on the schema-less path only, and no f
   const partial = JSON.stringify(JSON.stringify({ product: { brand: 'Acme' } }));
   const answer = readAnswer(interpretText(partial, '2.5').value);
   assert.equal(answer?.product.name, null, 'a field the reply never carried came back as something other than absent');
+});
+
+/*
+ * TWO JSON BLOCKS IN ONE REPLY. Not a hypothetical: the recorded website run
+ * (test/fixtures/gemini-website/piece4-prices-reviews-description.json) says
+ * "Two JSON blocks came back concatenated in one reply, not one", the first cut
+ * off mid-object and the second complete. `parseJson` already prefers the LAST
+ * FENCED block for exactly that reason, but an unfenced pair got neither of the
+ * two treatments: the balanced-bracket repair walked back into the TRUNCATED
+ * first block and returned it as the answer, so the shopper was shown the draft
+ * (one offer, no reviews, no verdict) while the complete answer sat further
+ * down the same string; and two complete unfenced blocks parsed to nothing at
+ * all, which is the one outcome rule 6 forbids.
+ */
+test('two JSON blocks in one reply: the complete LAST one is the answer, and neither case loses the reply', () => {
+  const cut = '{"product":{"name":"Dove Dry Spray"},"offers":[{"retailer":"Walmart","price":9.46},{"retailer":"No Frills"';
+  const whole =
+    '{"product":{"name":"Dove Men+Care Dry Spray Antiperspirant Clean Comfort 107 g"},' +
+    '"offers":[{"retailer":"Walmart","price":9.46,"in_median":true},{"retailer":"No Frills","price":8.99,"in_median":true}],' +
+    '"reviews":[{"rating":4.5,"review_count":12,"summary":"Holds up all day."}],' +
+    '"price_verdict":{"verdict_available":true,"median_unit_price":9.22,"offers_in_median":2}}';
+
+  const pair = interpretText(`${cut}\n${whole}`, '2.5');
+  assert.equal(pair.status, 'repaired');
+  const fromPair = readAnswer(pair.value);
+  assert.equal(fromPair?.product.name, 'Dove Men+Care Dry Spray Antiperspirant Clean Comfort 107 g', 'the truncated draft was returned instead of the complete answer');
+  assert.equal(fromPair?.offers.length, 2, 'the complete block\'s offers were lost to the truncated one');
+  assert.equal(fromPair?.reviews.length, 1, 'the reviews only the complete block carried were lost');
+  assert.equal(fromPair?.verdict?.median, 9.22, 'the price verdict only the complete block carried was lost');
+
+  const twoWhole = interpretText(`{"product":{"name":"a draft"}}\n${whole}`, '2.5');
+  assert.equal(twoWhole.status, 'repaired', 'two complete blocks came back as no answer at all');
+  assert.equal(readAnswer(twoWhole.value)?.offers.length, 2);
+
+  // The 3.x path was sent a schema, and this recovery must not change what a
+  // single clean object already does on either path.
+  assert.equal(interpretText(whole, '2.5').status, 'clean');
+  assert.equal(interpretText(whole, '3.x').status, 'clean');
+  assert.equal(readAnswer(interpretText(`{"product":{"name":"a draft"}}\n${whole}`, '3.x').value)?.offers.length, 2);
+
+  /* A PRETTY-PRINTED REPLY IS ONE BLOCK, however many `{` open a line in it.
+     Every array element and nested value in an indented answer also begins a
+     line, so a "last block wins" rule that counted those would answer a
+     truncated reply with its own last offer: worse than the reading this test
+     exists to fix, and silent. */
+  const pretty = JSON.stringify(JSON.parse(whole), null, 2);
+  assert.deepEqual(blockStarts(pretty), [0], 'a pretty-printed answer was read as several blocks');
+  const cutPretty = interpretText(pretty.slice(0, pretty.length - 40), '2.5');
+  assert.equal(cutPretty.status, 'repaired');
+  assert.equal(readAnswer(cutPretty.value)?.offers.length, 2, 'a truncated indented reply came back as one of its own offers');
+  assert.equal(readAnswer(cutPretty.value)?.product.name, 'Dove Men+Care Dry Spray Antiperspirant Clean Comfort 107 g');
+});
+
+/*
+ * NO LINE AND NO SENTENCE IS THE ONE THING THE BLOCK MAY NEVER BE.
+ * `app/public/js/grounded.js` prints its "why there is no line" note only for
+ * `no_shelf_size` or `no_offers_on_line`; a null reason with a null verdict
+ * draws nothing whatsoever, which is the defect that file's own comment
+ * records ("a shopper saw nothing where a line they had seen on a previous
+ * scan was missing"). Gemini can produce exactly that pair: `verdict_available`
+ * false with `no_verdict_reason` null, or `verdict_available` true with a null
+ * median. `no_verdict_reason` is nullable in response_schema.json and nothing
+ * makes the two fields agree, so the reader has to close it, not the model.
+ */
+test('a verdict that cannot be drawn always names a reason, so the phone is never given a blank (rule 6)', async () => {
+  const blank = async (verdict: Record<string, unknown>, shelfPriceCents: number | null) => {
+    const t = fakeTransport(() => ({
+      text: httpBody(JSON.stringify(goodAnswer({ price_verdict: { ...(goodAnswer().price_verdict as object), ...verdict } }))),
+    }));
+    return toAnswerBlock(
+      await runGeminiScan({ ...scan, shelfPriceCents }, { apiKey: 'k', deviceId: 'x', transport: t.transport }),
+    ) as unknown as { verdict: unknown; noLineReason: string | null };
+  };
+
+  const noReason = await blank({ verdict_available: false, no_verdict_reason: null, median_unit_price: null }, 499);
+  assert.equal(noReason.verdict, null);
+  assert.equal(noReason.noLineReason, 'no_offers_on_line', 'a verdict with no line and no reason left the phone with nothing to draw and nothing to say');
+
+  const availableButNoMedian = await blank({ verdict_available: true, no_verdict_reason: null, median_unit_price: null }, 499);
+  assert.equal(availableButNoMedian.verdict, null);
+  assert.equal(availableButNoMedian.noLineReason, 'no_offers_on_line');
+
+  // The two reasons already in use are unchanged.
+  const noPriceTyped = await blank({ verdict_available: false, no_verdict_reason: null, median_unit_price: null }, null);
+  assert.equal(noPriceTyped.noLineReason, 'no_shelf_size');
+  const stated = await blank({ verdict_available: false, no_verdict_reason: 'no_offers_on_line', median_unit_price: null }, 499);
+  assert.equal(stated.noLineReason, 'no_offers_on_line');
 });

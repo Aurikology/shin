@@ -545,7 +545,66 @@ export function stripWrapperArtifact(text: string): string | null {
   return null;
 }
 
+/**
+ * Where a SECOND top-level JSON object starts in one reply.
+ *
+ * The recorded website run (test/fixtures/gemini-website/
+ * piece4-prices-reviews-description.json) says "Two JSON blocks came back
+ * concatenated in one reply, not one", the first cut off mid-object and the
+ * second complete. `parseJson` already prefers the LAST fenced block for that
+ * reason; an unfenced pair had no such rule, so the balanced-bracket repair
+ * walked back into the TRUNCATED first block and returned it as the answer.
+ *
+ * A start counts only when it begins a line AND the last thing written before
+ * it is not `:`, `,` or `[`. The line test is what a concatenated block looks
+ * like; the second test is what keeps a PRETTY-PRINTED reply out, because in
+ * one of those every array element and nested value also opens at a line
+ * start. Without it, a pretty-printed answer cut off mid-object would come
+ * back as its own last offer, which is a far worse reading than the one this
+ * function exists to fix.
+ */
+export function blockStarts(text: string): number[] {
+  const starts: number[] = [];
+  let inStr = false;
+  let esc = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') {
+      inStr = true;
+      continue;
+    }
+    if (ch !== '{') continue;
+    let j = i - 1;
+    while (j >= 0 && /[ \t\r\n`]/.test(text[j])) j--;
+    if (j >= 0 && !text.slice(j + 1, i).includes('\n')) continue; // not at a line start
+    if (j >= 0 && (text[j] === ':' || text[j] === ',' || text[j] === '[')) continue; // a value or an element, not a block
+    starts.push(i);
+  }
+  return starts;
+}
+
 export type ParseStatus = 'clean' | 'repaired' | 'failed' | 'none';
+
+/** The three passes, in the order `interpretText` runs them, over one piece of text. */
+function readObject(text: string): Record<string, unknown> | null {
+  try {
+    const direct = JSON.parse(text);
+    if (direct && typeof direct === 'object' && !Array.isArray(direct)) return direct as Record<string, unknown>;
+  } catch {
+    /* fall through */
+  }
+  const tolerant = parseJson(text);
+  if (tolerant && typeof tolerant === 'object' && !Array.isArray(tolerant)) return tolerant as Record<string, unknown>;
+  const repaired = repairJson(text);
+  if (repaired && typeof repaired === 'object' && !Array.isArray(repaired)) return repaired as Record<string, unknown>;
+  return null;
+}
 
 export function interpretText(
   text: string | null,
@@ -560,6 +619,19 @@ export function interpretText(
     }
   } catch {
     /* fall through */
+  }
+  /* Two or more blocks in one reply: the LAST one is the answer and the ones
+     before it are drafts, the same rule `parseJson` already applies to fenced
+     blocks. Each block is cut at the next block's start so it can never
+     swallow the one after it. A reply with one block takes exactly the path
+     below, untouched. */
+  const starts = blockStarts(trimmed);
+  if (starts.length > 1) {
+    for (let i = starts.length - 1; i >= 0; i--) {
+      const end = i + 1 < starts.length ? starts[i + 1] : trimmed.length;
+      const value = readObject(trimmed.slice(starts[i], end));
+      if (value !== null) return { value, status: 'repaired' };
+    }
   }
   const tolerant = parseJson(trimmed);
   if (tolerant && typeof tolerant === 'object' && !Array.isArray(tolerant)) {
@@ -1458,8 +1530,15 @@ export function toAnswerBlock(run: GeminiRun): AnswerBlock {
     };
   } else if (v && v.noVerdictReason) {
     noLineReason = (NO_LINE_CODES.has(v.noVerdictReason) ? v.noVerdictReason : 'no_offers_on_line') as AnswerBlock['noLineReason'];
-  } else if (!run.shelfPriceCents) {
-    noLineReason = 'no_shelf_size';
+  } else {
+    /* NO LINE AND NO REASON IS THE ONE PAIR THE BLOCK MAY NEVER CARRY.
+       `app/public/js/grounded.js` prints its "why there is no line" note only
+       for these two codes, so a null reason beside a null verdict draws
+       nothing at all: the defect that file's own comment records. Gemini can
+       produce it (`verdict_available` false with a null `no_verdict_reason`,
+       or true with a null median: the schema makes neither field agree with
+       the other), so the reader closes it rather than the model. */
+    noLineReason = !run.shelfPriceCents ? 'no_shelf_size' : 'no_offers_on_line';
   }
 
   const facts: AnswerBlock['facts'][number][] = [];

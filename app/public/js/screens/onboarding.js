@@ -262,9 +262,21 @@ function permissionsBody() {
  */
 export function demoResultHtml(demo) {
   const badge = `<span class="onb-demo-badge">${escapeHtml(t('onb_demo_badge'))}</span>`;
-  const name = demo?.product?.name ? escapeHtml(String(demo.product.name)) : '';
-  const brand = demo?.product?.brand ? escapeHtml(String(demo.product.brand)) : '';
-  const label = [brand, name].filter(Boolean).join(' ');
+  /*
+   * The route already sends a written label ("Kraft Dinner Original, 225 g")
+   * and it is preferred over rebuilding one, because gluing brand to name
+   * printed "Kraft Kraft Dinner Original" on screen: most catalogue names
+   * carry the brand already. Brand is only prefixed when the name does not
+   * start with it, and only when there is no label to use.
+   */
+  const rawName = demo?.product?.name ? String(demo.product.name) : '';
+  const rawBrand = demo?.product?.brand ? String(demo.product.brand) : '';
+  const rawLabel = demo?.product?.label ? String(demo.product.label) : '';
+  const joined =
+    rawBrand && rawName && !rawName.toLowerCase().startsWith(rawBrand.toLowerCase())
+      ? `${rawBrand} ${rawName}`
+      : rawName || rawBrand;
+  const label = escapeHtml(rawLabel || joined);
   const priceCents = typeof demo?.askingCents === 'number' ? demo.askingCents : null;
   const price = priceCents !== null ? `$${(priceCents / 100).toFixed(2)}` : null;
   const verdict = demo?.verdictWord ? escapeHtml(String(demo.verdictWord)) : '';

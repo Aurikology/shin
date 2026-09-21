@@ -9,6 +9,150 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-20 (Aurik's PC): six bugs in the new scanner code, and one question worth a single request
+
+### To do
+
+- **Jamin, one check is worth more than everything else on this list, and it needs a key we do not
+  have.** `gemini-scan.ts:407` sends `resolution` on the image part unconditionally, but
+  `gemini.ts:54` records that per-item media resolution is documented as Gemini 3 only. If 2.5
+  rejects it, **every 2.5 photo scan returns a 400, and the model split sends about half of all
+  devices to 2.5.** One request against a real key settles it. Please run it before the next beta
+  session.
+- **Jamin, `shelf.grade` is asked for, paid for and then dropped.** `scan_prompt.md:145` tells
+  Gemini to return great / good / bad / middle against the shopper's three ranges, which is the
+  "factually a bad, reasonable or good price" you asked for and called non negotiable.
+  `readAnswer` (`gemini-scan.ts:902`) reads only `zone` and `label`, so it never reaches the phone
+  and "great" collapses into "under your line". It is also missing from the schema's `required`
+  list, so on 3.x the model may legitimately omit it. Surfacing it changes the verdict and touches
+  `Shin_Gemini_Pricing_Engine/response_schema.json`, so it is yours.
+- **Jamin, a comment in `gemini-scan.ts:964` is inaccurate and the difference costs a guard.** It
+  says the plausibility band is "the same band `gauge.ts` already uses". It is not: `gauge.ts:594`
+  deliberately uses a leave-one-out median and its own comment says that with the offer inside the
+  median "the band cannot fire". `gemini-scan.ts:1053` tests the offer against a median that
+  includes it. Fixing it means computing a median we own, which rule 3 forbids, so the question is
+  yours rather than a lane's.
+- **Aurik, one design call.** `votes.ts:184` keeps a barcode confirmed for 500 ms after it leaves
+  the frame, so swinging from one barcode to the next and pressing inside that half second sends
+  the first one's digits. It is a wrong-product risk. The fix is a choice about how recently the
+  leader must have been seen, not a defect with one right answer.
+
+### What changed
+
+Three lanes on disjoint files. Six bugs found, every one of them reproduced by a test that was red
+before it was green, and each one re-checked here by reverting the source and watching the red come
+back.
+
+**The photo path, in `identify/`.** A reply holding two unfenced JSON blocks took the truncated
+first one and served it as a repaired answer, so the shopper saw a draft with one offer and no
+price line while the real answer sat further down the same string; two complete blocks returned no
+answer at all, which rule 6 forbids. A price block with a null verdict and a null reason drew
+neither a line nor an explanation, which is the exact defect `grounded.js`'s own comment already
+records. And a retailer page saying `"price":"1,299.99"` was read as one dollar, so the verifier
+stamped correct scans as mismatches against a price nobody charges.
+
+**The capture path, in `app/src/eye/`.** `StabilityGate` could never settle, because the history
+was pruned to the samples inside the hold window and then asked whether the oldest survivor was
+older than it. Auto-capture is switched off in the shipped app, so this cost nobody anything yet;
+it was a trap for whoever turned it on. Live today, though: a scene-change cancellation fired
+neither event, and the screen has no stand-in timer by design (D-083), so pressing the shutter
+while turning away left the thinking dots up for good. A crop that threw also leaked its whole
+burst.
+
+**Price matching, new and wired to nothing.** `app/src/price-match.ts` holds the eleven Canadian
+banner policies with their sources. It produces no number, ever. It is inert until the question
+above is answered.
+
+App 1200 to 1241 tests, identify 248 to 252, both green, typecheck clean in both, run after all
+three lanes finished and again after merging your eight design commits.
+
+### Read by
+
+- Aurik, 2026-09-20.
+
+---
+
+## 2026-09-20 (Aurik's PC): the other kind of competitor, read from outside
+
+### To do
+
+- **Jamin, one finding is worth your time before anything else here.** Price matching is the
+  Canadian grocery behaviour, it is the whole of what Flipp and Reebee are for, and Shin says
+  nothing about it. No Frills, Real Canadian Superstore and Maxi match a competitor, four items a
+  transaction, digital or print ad shown at the till. Walmart Canada stopped matching competitors.
+  Metro, Food Basics, Sobeys and Costco never did. So on a walk-away verdict there is often a real
+  action Shin could hand back instead of a judgment, and the cheaper offer and its seller are
+  already inside the answer Gemini returns. It changes what the verdict says, so it is yours.
+  `docs/shipped-scanners-2026-09-20.md` section 1, with the policy table and the sources.
+- **Aurik, six candidates are listed unranked in section 6** and none was started, because the
+  ranking is his.
+
+### What changed
+
+A second competitor survey, with no overlap with the ten-repo one. That survey read source code,
+so it can only see how a scanner is engineered. This one reads the apps a Canadian shopper
+actually has installed (Flipp, Reebee, Yuka, ShopSavvy, Google Lens), which are all closed, so
+every claim carries a public link instead of a file and line, and the two places the sources
+disagree are written down rather than resolved.
+
+Four things it establishes. Price matching is a shipped competitor behaviour with no answer in
+this repo, and three separate rules already written here point at it. Yuka is cited twice in
+`docs/decisions.md` for strategy and never for mechanism; four of its mechanisms are visible from
+outside, and Shin already has one of them (Gemini's own alternatives, `camera.js:1275`). Google
+Lens now does identify-and-price in a physical store for free, so the part Shin shares with it is
+not the part worth competing on, and the verdict is. And the category answers in about three
+seconds while Shin's own scan-to-answer time has never been measured, which `553218e`'s per-stage
+timings now make a one-run question.
+
+Nothing was built off it. Section 6 lists the candidates and who decides each.
+
+### Read by
+
+- Aurik, 2026-09-20.
+
+---
+
+## 2026-09-20 (Aurik's PC): the demo scan was on screen with no styling at all
+
+### To do
+
+- **Jamin, one question, and it is yours because it touches the verdict.** The demo scan answer
+  carries no price and no verdict: `DEMO_SAMPLE` in `app/server.ts` has a label, a brand, a name,
+  a size and a zone, and nothing else. So the card a person sees before granting camera permission
+  names a box of Kraft Dinner and stops. The client already draws a price line and a verdict line,
+  each badged, the moment the route sends `askingCents` and `verdictWord`; both are dead today. A
+  demo that shows no price does not demonstrate the thing the app is for, but inventing a price is
+  yours to allow, not mine to add, so nothing was added.
+
+### What changed
+
+**Item 19's demo shipped with seven class names and not one CSS rule**, so on the permissions step
+the link rendered as the browser's own grey button and the answer as two bare lines of text. It was
+the only place in the flow that looked like a default. Seen at 390 px in both themes before and
+after, not read off the source.
+
+It now uses the tokens the rest of onboarding uses: the link is quiet and underlined in the
+register the "Skip the rest" link already has, because "Continue" is the one committing action on
+that page; the answer is the same surface card with a hairline and a 16 px radius that the two
+permission rows are; the DEMO badge is mono, uppercase and filled, drawn as a marker rather than
+decoration. The rule that the badge repeats beside a price and a verdict is kept, with the inline
+copies sized down. Measured in the live DOM: 8.64 and 5.21 on the link, 6.71 and 4.68 on the badge
+(dark, light), 44 px tap target, no horizontal scroll.
+
+**And the card said "Kraft Kraft Dinner Original".** Brand and name were glued together, and most
+catalogue names already carry the brand. The route sends a written label and it is used now, with
+the glue kept only as a fallback and only when the name does not already start with the brand.
+Two tests hold it.
+
+App suite 1198 to 1200, 0 failures, typecheck clean, run after the dev server was stopped, because
+a live server holds the database and turns unrelated tests red.
+
+### Read by
+
+- Aurik, 2026-09-20.
+
+---
+
 ## 2026-09-20 (Jamin's PC): twenty-two scanner features landed in one commit, 553218e
 
 ### To do
@@ -61,6 +205,9 @@ session after the build agents reported. `npm start`, `dev` and `check` now buil
 themselves, so a fresh checkout no longer has a dead camera.
 
 ### Read by
+
+- Aurik, 2026-09-20. Told both to-dos: pulled before touching the scan path, and the two rulings
+  are with him to disagree with.
 
 ---
 

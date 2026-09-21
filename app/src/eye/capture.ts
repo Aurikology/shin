@@ -321,7 +321,15 @@ export class StabilityGate {
     }
 
     this.#history.push({ box, sharpness, at: now });
-    this.#history = this.#history.filter((h) => now - h.at <= this.#holdMs);
+    // Keep ONE sample from beyond the hold window, not just the samples
+    // inside it. Evicting everything older than `holdMs` leaves the oldest
+    // survivor younger than `holdMs`, so the "has it held for the whole
+    // window" check below could only ever pass on a frame that landed
+    // exactly on the boundary: at 16ms between frames against a 500ms hold
+    // that never happens, and the gate never settles at all.
+    const oldest = this.#history.findIndex((h) => now - h.at <= this.#holdMs);
+    const keepFrom = oldest <= 0 ? 0 : oldest - 1;
+    if (keepFrom > 0) this.#history = this.#history.slice(keepFrom);
     if (this.#history.length < 4) return false;
     if (now - this.#history[0].at < this.#holdMs) return false;
 

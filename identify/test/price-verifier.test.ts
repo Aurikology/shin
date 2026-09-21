@@ -141,3 +141,36 @@ test('a page with no price at all is not_verifiable, and a transport failure or 
   assert.equal(timedOut.outcome, 'unavailable');
   assert.match(timedOut.reason ?? '', /timed out/);
 });
+
+/*
+ * A GROUPED THOUSANDS SEPARATOR MUST NOT BECOME A ONE DOLLAR PRICE. Canadian
+ * retailer pages write `"price":"1,299.99"` in their own JSON-LD, and both
+ * passes here mis-read it: `Number("1,299.99")` is NaN, so the structured pass
+ * fell through, and the bare `"price"` fragment then matched only the leading
+ * `1` and reported 100 cents. The page and Gemini agreed, and this file marked
+ * the scan a mismatch on the strength of a price nobody charges. The bare pass
+ * also took `19.99` out of `19.999` the same way. Every value is now read
+ * whole or not at all: a number this file cannot read whole is "no price
+ * found", never its first few digits.
+ */
+test('a price written with thousands separators is read whole, and a number this file cannot read whole is no price at all', () => {
+  const ld = (price: string) =>
+    `<script type="application/ld+json">{"@type":"Product","offers":{"price":"${price}","priceCurrency":"CAD"}}</script>`;
+  assert.equal(priceCentsInHtml(ld('1,299.99')), 129999, 'a grouped price came back as a different, plausible, wrong number');
+  assert.equal(priceCentsInHtml(ld('1299.99')), 129999);
+  assert.equal(priceCentsInHtml(ld('1 299,99')), null, 'a separator style this file does not read must be no price, never a guess');
+
+  assert.equal(priceCentsInHtml('<html>{"price":"1,299.99"}</html>'), 129999);
+  assert.equal(priceCentsInHtml('<html>{"price":"19.999"}</html>'), 2000, 'the whole number is read and rounded, never cut back to its first two decimals');
+  assert.equal(priceCentsInHtml('<html>{"price":"1 299,99"}</html>'), null, 'a price read off only part of the digits is worse than none');
+  assert.equal(priceCentsInHtml('<html>{"price":"CA$9.99"}</html>'), null, 'a price this file cannot read whole is no price at all');
+  assert.equal(priceCentsInHtml('<html>{"price":"9.99"}</html>'), 999);
+});
+
+test('a page whose stated price agrees only after the separators are read is agreement, not a mismatch', async () => {
+  const page = '<script type="application/ld+json">{"@type":"Product","offers":{"price":"1,299.99"}}</script>';
+  const big: VerifiableOffer = { retailer: 'Canadian Tire', url: 'https://www.canadiantire.ca/en/pdp/thing.html', price: 1299.99 };
+  const res = await verifyPrice([big], [{ url: big.url as string }], { transport: transportOf({ text: page }) });
+  assert.equal(res.outcome, 'agree');
+  assert.equal(res.pageCents, 129999);
+});

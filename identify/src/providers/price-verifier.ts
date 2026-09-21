@@ -126,6 +126,28 @@ const TIMEOUT_MS = 5_000;
  * (sugar-no-scanner-demo, `src/server/web-product-evidence.ts:249`) in spirit:
  * parse what the page's own structured data says, never guess at prose.
  */
+/**
+ * A price out of a page, as a number, or null.
+ *
+ * Retailer pages write grouped thousands in their own JSON-LD
+ * (`"price":"1,299.99"`), and `Number` reads that as NaN, so the structured
+ * pass fell through to the bare fragment below, which then matched the leading
+ * `1` and reported one dollar. A price this file cannot read WHOLE is no price
+ * at all: that is the difference between "not verifiable" and marking a scan a
+ * mismatch against a number nobody charges. Only the comma-grouped form is
+ * read; `1 299,99` is a separator style this file does not know, and guessing
+ * which of the two marks is the decimal one is exactly the guess it must not
+ * make.
+ */
+function priceAmount(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : null;
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  if (!/^\d{1,3}(?:,\d{3})*(?:\.\d+)?$|^\d+(?:\.\d+)?$/.test(text)) return null;
+  const amount = Number(text.replace(/,/g, ''));
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
 export function priceCentsInHtml(html: string): number | null {
   const blocks = html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
   for (const block of blocks) {
@@ -140,16 +162,18 @@ export function priceCentsInHtml(html: string): number | null {
       const offersField = (node as { offers?: unknown } | null)?.offers;
       const offerNodes = Array.isArray(offersField) ? offersField : offersField ? [offersField] : [];
       for (const offer of offerNodes) {
-        const price = (offer as { price?: unknown } | null)?.price;
-        const amount = typeof price === 'number' ? price : typeof price === 'string' && price.trim() !== '' ? Number(price) : null;
-        if (amount !== null && Number.isFinite(amount) && amount > 0) return Math.round(amount * 100);
+        const amount = priceAmount((offer as { price?: unknown } | null)?.price);
+        if (amount !== null) return Math.round(amount * 100);
       }
     }
   }
-  const plain = html.match(/"price"\s*:\s*"?(\d+(?:\.\d{2})?)"?/i);
+  // The whole value, up to the closing quote or the end of the JSON token, so
+  // a number this file cannot read whole comes back as no price rather than as
+  // whichever digits happened to match first.
+  const plain = html.match(/"price"\s*:\s*(?:"([^"]*)"|([^",}\s]+))/i);
   if (plain) {
-    const amount = Number(plain[1]);
-    if (Number.isFinite(amount) && amount > 0) return Math.round(amount * 100);
+    const amount = priceAmount(plain[1] ?? plain[2]);
+    if (amount !== null) return Math.round(amount * 100);
   }
   return null;
 }

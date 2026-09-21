@@ -114,3 +114,37 @@ test('a moving frame resets the gate even when the reported box has not drifted'
     assert.equal(movedDuringHold, false, 'a strided pixel diff over the motion threshold did not reset the gate');
   });
 });
+
+/**
+ * The hold window, at a real frame cadence. The tests above tick in 10ms
+ * steps against a 30ms hold, so every window boundary lands exactly on a
+ * sample. A camera does not: frames arrive every 16ms or so against a 500ms
+ * hold, and no sample ever lands exactly on the boundary. The gate has to
+ * settle anyway, or auto-capture is a shutter that never fires.
+ */
+test('a sharp, still window settles at a frame cadence that never lands on the window boundary', () => {
+  withFakeClock(16, (tick) => {
+    const gate = new StabilityGate(500, 0.06);
+    const plentySharp = MIN_ABSOLUTE_SHARPNESS + 50;
+    let settled = false;
+    // Two full seconds of a phone held still on a sharp label.
+    for (let i = 0; i < 125; i += 1) {
+      if (gate.update(box(), plentySharp, 1000)) settled = true;
+      tick();
+    }
+    assert.ok(settled, 'a still, sharp scene never settled: the hold window can only be met by a sample landing exactly on it');
+  });
+});
+
+test('the gate still waits out the whole hold before it settles', () => {
+  withFakeClock(16, (tick) => {
+    const gate = new StabilityGate(500, 0.06);
+    const plentySharp = MIN_ABSOLUTE_SHARPNESS + 50;
+    let settledAt = -1;
+    for (let i = 0; i < 125 && settledAt === -1; i += 1) {
+      if (gate.update(box(), plentySharp, 1000)) settledAt = i * 16;
+      tick();
+    }
+    assert.ok(settledAt >= 500, `the gate settled after only ${settledAt}ms of a 500ms hold`);
+  });
+});

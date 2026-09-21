@@ -57,6 +57,7 @@ import {
   cropTo,
   forcedCaptureDue,
   type CropResult,
+  type ScoredFrame,
 } from './capture.ts';
 import { Coach, glareIn, zoomFor, type CoachKey } from './framing.ts';
 import { signatureOf, signatureDistance, SHELF_MIN_CHANGE } from './shelf.ts';
@@ -784,9 +785,18 @@ export class Camera {
     this.#gateOpenedAt = null;
     this.#coach.silence();
     this.#emitCoach(null);
+    /*
+     * Held outside the try so the finally can free them on EVERY exit. The
+     * closes below cover the two paths that were thought of (the crop
+     * lands, the scene changed); a crop that throws went straight past them
+     * to the catch with the burst still held, and an `ImageBitmap` is real
+     * phone memory (`releaseAllBut`'s own comment). Closing twice is a
+     * no-op, so the existing closes stay where they are.
+     */
+    let frames: ScoredFrame[] = [];
     try {
       const target = this.#boxes[0] ?? centreFallback(this.#video.videoWidth, this.#video.videoHeight);
-      const frames = await burst(this.#video);
+      frames = await burst(this.#video);
 
       /*
        * ITEM 21. Signatures of the burst in the order it was actually taken
@@ -802,6 +812,14 @@ export class Camera {
       if (sceneChanged(chronological.map((f) => this.#signatureOfBitmap(f.bitmap)))) {
         for (const f of frames) f.bitmap.close();
         this.#capturesCancelled += 1;
+        // Silent about the CROP, never silent to the screen. The shutter
+        // handler in `screens/camera.js` is written against "the eye always
+        // yields a crop or reports trouble", and it paints the thinking dots
+        // the moment it is pressed: a cancellation that fires neither event
+        // leaves that press waiting for an answer that is never coming.
+        // Nothing has been sent, so this costs no paid call and hides no
+        // answer; it only ends the wait.
+        this.#events.onTrouble?.('The view changed before that shot was finished. Try once more.');
         return;
       }
 
@@ -813,6 +831,7 @@ export class Camera {
     } catch (err) {
       this.#events.onTrouble?.('The camera did not manage that shot. Try once more.');
     } finally {
+      for (const f of frames) f.bitmap.close();
       this.#busy = false;
     }
   }

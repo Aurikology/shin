@@ -665,6 +665,24 @@ test('the demo link degrades honestly when the route does not exist yet, never a
   assert.match(r.slot(), new RegExp(t('onb_demo_unavailable')));
 });
 
+test('the demo card prints the label the route sends, so the brand is not said twice', () => {
+  /* The live /api/identify/demo answer: a label that already contains the
+     brand, plus brand and name separately. Gluing brand to name printed
+     "Kraft Kraft Dinner Original" on the permissions step, seen at 390px. */
+  const html = demoResultHtml({
+    demo: true,
+    product: { label: 'Kraft Dinner Original, 225 g', brand: 'Kraft', name: 'Kraft Dinner Original', size: '225 g' },
+  });
+  assert.match(html, /Kraft Dinner Original, 225 g/);
+  assert.doesNotMatch(html, /Kraft Kraft/);
+});
+
+test('with no label, a name that already starts with the brand is not prefixed again', () => {
+  const html = demoResultHtml({ demo: true, product: { brand: 'Kraft', name: 'Kraft Dinner Original' } });
+  assert.doesNotMatch(html, /Kraft Kraft/);
+  assert.match(html, /Kraft Dinner Original/);
+});
+
 test('a demo card never leaks a missing fact onto the screen', () => {
   const html = demoResultHtml({ demo: true, product: {} });
   assert.doesNotMatch(html, /undefined|null|NaN/);

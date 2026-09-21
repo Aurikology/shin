@@ -274,6 +274,85 @@
 
 .onb-notnow { display: block; margin: var(--s-2) auto 0; }
 
+/* ------------------------------------------------------- the demo scan -- */
+/*
+ * Item 19's demo, on the permissions step. Its markup landed in 553218e with
+ * no rules at all, so the button rendered as the browser's own grey control
+ * and the result as two bare paragraphs: the one place in the whole flow that
+ * looked like a default. Seen at 390px in both themes before this was written.
+ *
+ * The link is quiet on purpose. `.cta` ("Continue") is the one committing
+ * action on this page, and shell.css says a page with two is wrong, so the
+ * demo reads as an aside in `.linky`'s register rather than a second button.
+ */
+.onb-demo-link {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: var(--s-2);
+  padding: 10px 0;
+  background: none;
+  border: 0;
+  color: var(--ink-muted);
+  font-family: var(--f-ui);
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.onb-demo-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: var(--r-sm); }
+.onb-demo-link[hidden] { display: none; }
+
+/* Empty until the demo is fetched, so it must take no space until then. */
+.onb-demo-slot:empty { display: none; }
+
+.onb-demo-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+}
+
+/*
+ * The badge is the whole of the claim that this is not a real answer, so it is
+ * drawn as a marker and never as decoration: mono, uppercase, its own fill. It
+ * repeats on the price and the verdict lines by the rule in onboarding.js
+ * ("marked wherever it carries a price or a verdict"), which is why the inline
+ * copies are sized down rather than removed.
+ */
+.onb-demo-badge {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  background: var(--raised);
+  border-radius: var(--r-sm);
+  color: var(--ink-muted);
+  font: 600 10px/1.4 var(--f-mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.onb-demo-item {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.onb-demo-price,
+.onb-demo-verdict {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0;
+}
+.onb-demo-price { font-family: var(--f-display); font-size: 22px; font-weight: 700; }
+.onb-demo-verdict { font-size: 15px; color: var(--ink-muted); }
+
 @media (prefers-reduced-motion: reduce) {
   .onb-bar > i,
   .onb-switch::after,
