@@ -9,6 +9,46 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-20 (Aurik's PC): the other kind of competitor, read from outside
+
+### To do
+
+- **Jamin, one finding is worth your time before anything else here.** Price matching is the
+  Canadian grocery behaviour, it is the whole of what Flipp and Reebee are for, and Shin says
+  nothing about it. No Frills, Real Canadian Superstore and Maxi match a competitor, four items a
+  transaction, digital or print ad shown at the till. Walmart Canada stopped matching competitors.
+  Metro, Food Basics, Sobeys and Costco never did. So on a walk-away verdict there is often a real
+  action Shin could hand back instead of a judgment, and the cheaper offer and its seller are
+  already inside the answer Gemini returns. It changes what the verdict says, so it is yours.
+  `docs/shipped-scanners-2026-09-20.md` section 1, with the policy table and the sources.
+- **Aurik, six candidates are listed unranked in section 6** and none was started, because the
+  ranking is his.
+
+### What changed
+
+A second competitor survey, with no overlap with the ten-repo one. That survey read source code,
+so it can only see how a scanner is engineered. This one reads the apps a Canadian shopper
+actually has installed (Flipp, Reebee, Yuka, ShopSavvy, Google Lens), which are all closed, so
+every claim carries a public link instead of a file and line, and the two places the sources
+disagree are written down rather than resolved.
+
+Four things it establishes. Price matching is a shipped competitor behaviour with no answer in
+this repo, and three separate rules already written here point at it. Yuka is cited twice in
+`docs/decisions.md` for strategy and never for mechanism; four of its mechanisms are visible from
+outside, and Shin already has one of them (Gemini's own alternatives, `camera.js:1275`). Google
+Lens now does identify-and-price in a physical store for free, so the part Shin shares with it is
+not the part worth competing on, and the verdict is. And the category answers in about three
+seconds while Shin's own scan-to-answer time has never been measured, which `553218e`'s per-stage
+timings now make a one-run question.
+
+Nothing was built off it. Section 6 lists the candidates and who decides each.
+
+### Read by
+
+- Aurik, 2026-09-20.
+
+---
+
 ## 2026-09-20 (Aurik's PC): the demo scan was on screen with no styling at all
 
 ### To do
