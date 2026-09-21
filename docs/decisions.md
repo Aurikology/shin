@@ -1826,6 +1826,17 @@ same barcode in another market is a different answer.
 **Reverses if:** he says a replayed price must never be shown without a fresh call, or a tester is
 shown a price that moved inside the six hours and minds.
 
+> **Its condition is now implemented and pinned, 2026-09-21.** The clause that carries this ruling
+> is *"always shown with when it was checked"*, and on 2026-09-19 that was the ruling's promise
+> rather than the app's behaviour. `a7987cd` closed it: a recalled answer carries the timestamp of
+> the call that produced it (`app/server.ts:2947` passes `recalled.at` through) and `:1677` falls
+> back to now **only** for an answer genuinely checked by this request, which is what that commit's
+> subject means by "the server stops lying about it". `app/test/repeat-cache.test.ts` holds it.
+> **Recorded because the catch-up note left this looking like an open disagreement and it is not
+> one:** the ruling was not overruled and did not need amending, it was met. What is still open is
+> only the second half of the reverse condition -- no tester has yet been shown a price that moved
+> inside the six hours, so nobody knows whether they mind.
+
 **2. The zero-padded barcode retry never re-hits Gemini.** It runs before the call, against the
 cache and Open Food Facts only, and exactly one canonical digit string is sent to Gemini.
 **Reverses if:** a measured miss rate shows the variant Gemini would have resolved is common enough
@@ -1852,6 +1863,18 @@ will not check shins own product list for now"* names our own list. A live call 
 not our list, so it is allowed, and only for identity, never for price. The imported Open Food Facts
 table in `catalogue/` stays unconsulted on the scan path, because that one is ours.
 **Reverses if:** he reads the distinction as hairsplitting, in which case the live call goes too.
+
+> **Aurik's answer, 2026-09-21: accepted, with a condition. Not built yet.** The distinction stands
+> -- a live call to Open Food Facts is not Shin's product list -- so the ruling is not reversed. The
+> condition is the shape ruling 1 already set: **the imported copy answers first, the live call is
+> the fallback when it misses, and the answer records which of the two it used.** A network round
+> trip on every scan for bytes already sitting on disk is a cost the shopper pays in latency and in
+> a third party learning what they scanned, and paying it when the local copy already has the row is
+> not something the ruling's own argument requires. The distinction being real is what makes the
+> live call permitted; it is not what makes it first.
+> **Open and needed before this is built:** how stale the imported snapshot is, and how often Open
+> Food Facts identity actually changes for a barcode. Neither note states either number. Asked of
+> Jamin in `notes/catch-up.md`, 2026-09-21.
 
 **6. Grounding is skipped only when nothing is left to search for.** The short-circuit never means
 Shin's catalogue. It means two cases only: the whole answer came from cache, so there is no call at

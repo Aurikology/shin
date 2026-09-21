@@ -5,6 +5,31 @@ narrative.*
 
 ---
 
+## SETTLED IN CODE, 2026-09-21: the catalogue no longer identifies, and two things below are now history
+
+**`d3e4f0b` (Jamin, 2026-09-19) retired the catalogue-pick identify pipeline** -- `identify.ts`,
+most of `model.ts`, `gauge.ts`'s dead sandbox-verification pair, the `/api/alternatives` route and
+the orphaned `identifyPhoto` in `server.ts`. The ruling recorded two sections below was executed.
+
+**So read the two sections below as the record of why the question was asked, not as state.** The
+2026-09-18 trace -- *"`/api/identify/photo` -> `IdentifyStage.fromCrop`, where the model reads the
+crop and then Shin's own catalogue ranks and picks"* -- no longer describes the code.
+`IdentifyStage` and `fromCrop` survive only as prose inside comments; `app/server.ts:893` reads
+"WHAT THIS REPLACED". Nothing had updated this file in the two days since, which is how the top of
+the one screen that wins came to describe a deleted path.
+
+**Consequence for retrieval, and it is the one that costs money if missed.** *"Retrieval is 32 of
+the 52 failures and needs no key at all"* was measured while the catalogue still picked. That is
+exactly the work the deletion removed from the critical path, so the figure describes a component
+that may no longer be on it. **Aurik's ruling, 2026-09-21: re-measure before building.** No
+retrieval work starts on the 32/52 number, and nobody should quote it as current.
+
+**The key blocker is narrower than this file says elsewhere.** A `GEMINI_API_KEY` now exists in
+`.env`. **It is free tier**, and `app/server.ts:3646` refuses to serve shopper photos on free tier
+because Google trains on free-tier input, so the photo path is still shut. The blocker is not "no
+key", it is **"no PAID key"**, and that ask to Jamin has stood since 2026-09-15. Everywhere below
+that says the measurement is waiting on "the key", read it as the paid one.
+
 ## ANSWERED by Jamin in the walkthrough doc, 2026-09-16/17: Gemini identifies
 
 *"The server will not check shins own product list for now. The only thing the server will do is

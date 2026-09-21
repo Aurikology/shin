@@ -724,10 +724,14 @@ async function identify(query: {
 
 /* ========================= THE PHOTO DOOR =========================
  *
- * `identify/src/identify.ts` has been written and tested since 2026-09-05 and
- * was imported by nothing (D-024, D-047). This is the import. The eye already
- * produces the right thing -- a burst-scored, object-cropped, 1568 px PNG --
- * and `camera.js` has been holding it as `lastCrop` and never sending it.
+ * The eye produces the right thing -- a burst-scored, object-cropped, 1568 px
+ * PNG -- and `camera.js` holds it as `lastCrop`. This is where it is sent.
+ *
+ * This paragraph used to say `identify/src/identify.ts` "has been written and
+ * tested since 2026-09-05 and was imported by nothing (D-024, D-047). This is
+ * the import." That file was deleted on 2026-09-19 (`d3e4f0b`) when the
+ * catalogue-pick identify pipeline was retired and Gemini became the
+ * identifier. Corrected 2026-09-21; see the head of NOW.md.
  *
  * Everything about WHAT the picture is stays in `identify/`. This file is only
  * allowed to move an answer, never to make one, which is the same constraint
