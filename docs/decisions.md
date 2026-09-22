@@ -1913,3 +1913,8 @@ reachable mirror, `Aurikology/shin`, was 25 commits behind at `1fb914f` while Gi
 the second time this paragraph described a backup that was not the one in the config. If Jamin's
 clone does carry that second push URL, this paragraph is true THERE and false HERE, and saying
 which machine is the whole point.)
+
+## The store listing goes out under the name Shin
+**Date:** 2026-09-22 · **Status:** active
+
+Jamin, 2026-09-22: *"we wwant to create the store listing under shin"*. Hard rule 1's condition is met: the CIPO search in the software classes was run 2026-09-04 and re-run 2026-09-11 (notes/trademark-search-2026-09-04.md, -09-11.md) with no live SHIN mark in Canadian classes 9 or 42, and the name was left as his call, which this is. Risks carried knowingly, not cleared: Nongshim's SHIN food marks (s.22 association on grocery shelves) and two live US class 42 design marks that transliterate to "Shin", one (Reg. 5082432) covering product-rating software. App Store and Play names must also be unique; that is checked when the record is created. **Reverses if** a store refuses the name, a demand letter arrives, or a trademark attorney advises against it before a US launch.
