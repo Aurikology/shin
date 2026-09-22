@@ -269,6 +269,22 @@
 .onb-switch.on { background: var(--brand); border-color: var(--brand); }
 .onb-switch.on::after { background: var(--brand-ink); transform: translateX(20px); }
 .onb-switch:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+/*
+ * D-140: the switch DRAWS at 52x32 and was only 32px high to the thumb, under
+ * the 44px minimum, measured in a real 390x844 viewport on 2026-09-22. It is
+ * the one control on the permission screen, which is now the first screen a
+ * fresh install sees, so the smallest target in the app was also the first.
+ * The hit area is grown to 44 and the switch still draws at 32: the pseudo
+ * element is invisible and outside the border box, so nothing moves on screen
+ * and the two rows keep their spacing. Not `height: 44px`, which would have
+ * stretched the pill itself and changed a control the welcome flow also draws.
+ */
+.onb-switch::before {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
+  /* Reaches past the pill without painting anything or catching a scroll. */
+}
 
 .onb-perm-note { margin: 0; }
 

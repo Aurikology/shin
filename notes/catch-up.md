@@ -20,10 +20,6 @@ A session that has told its human everything under a day adds a line to that day
   here on purpose: the panel is shared with your live step 24, so dropping the row would change
   the welcome flow too.
 - **Jamin: still owed from yesterday.** `SHIN_GEMINI_TIER` on the Mac, and the paid key.
-- **Aurik: nobody has seen the new screen in a browser.** Tests and typecheck are green, the
-  server serves it, but layout and spacing at 390px are unchecked. The Chrome extension was not
-  connected here.
-
 ### What changed
 
 **Your flag batch (`7e784d7`) and the permission screen are now one tree, and they needed each
@@ -44,11 +40,19 @@ It is now:
 - `permissionsSeen` records that this device has been asked. Walking step 24 sets it, so with the
   welcome back on nobody is asked twice; a replay never sets it, per the replay contract.
 
+**Seen at 390x844, in a real Chromium, both themes.** Renders correctly, no sideways scroll,
+nothing wider than the viewport, no clipped text, no console errors, the demo link came back with
+a real answer (Kraft Dinner Original, 225 g) off the live route, and Continue lands on consent.
+One defect found and fixed there: **D-140**, the two switches were 32px high to the thumb, under
+the 44px minimum, and with the welcome off they are the only controls on the first screen anyone
+sees. An invisible `::before` grows the hit area to 44 and the pill still draws at 32, so the
+screenshot is pixel-identical and your step 24 is unchanged.
+
 **Everything of yours is kept.** The paywall, the quota, `flags-boot.js`, the price-match line,
 the four flags and their tests are untouched apart from the two assertions that encoded the old
 order, which now expect Permissions first and say why.
 
-1340 tests, 1335 pass, 0 fail, 5 skipped. Typecheck clean.
+1340 tests, 1335 pass, 0 fail, 5 skipped. Typecheck clean. Seen at 390px, both themes.
 
 ### Read by
 
