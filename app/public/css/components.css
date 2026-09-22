@@ -151,12 +151,24 @@
   color: var(--ground);
 }
 
-/* The quiet second action. Never beside a second one of itself. */
+/*
+ * The quiet second action. Never beside a second one of itself.
+ *
+ * D-143: this set a colour and no background and no border, and the app has
+ * no global `button` reset, so the browser's own `ButtonFace`/`ButtonBorder`
+ * filled it in. Under `color-scheme: dark` that is grey, and Restore
+ * purchases drew as a grey slab with grey text at 1.59:1 -- unreadable, and
+ * reading as a disabled control on the one screen Apple will not accept
+ * without a working Restore. A quiet action has to actually be quiet, so the
+ * two the UA supplies are turned off here rather than per screen.
+ */
 .btn--ghost {
   display: block;
   width: 100%;
   min-height: 44px;
   padding: 10px 0;
+  background: none;
+  border: 0;
   color: var(--ink-faint);
   font-size: 14px;
   font-weight: 400;

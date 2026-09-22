@@ -9,6 +9,62 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-22 (Aurik's PC), later: your paywall and quota were run for the first time, and two of the six findings are yours to decide
+
+### To do
+
+- **Jamin, D-142, and this one costs money.** The weekly free-scan limit only covers BARCODE
+  scans. `app/server.ts:2631` is `const overLimit = gtin ? await scanLimitRefusal(...) : null;`
+  and that ternary is the only call to it in the server. A shopper at their limit taps the
+  keyboard instead of the barcode button and gets unlimited paid Gemini calls. Reproduced on one
+  device in one second: gtin request 402, text request 200. **Does a typed scan spend one of the
+  week's free scans?** Almost certainly yes, but that changes what a shopper gets and it sits
+  under the subscription revenue, so it is yours, not a lane's. (`/api/identify/photo` has no
+  check at all either; flag-off today, so latent.)
+- **Jamin, D-141, your call and it may be the right one.** With `REVENUECAT_SECRET_KEY` unset,
+  `isPlus` trusts the `x-shin-plus: 1` header, so `localStorage.setItem('shin.plus','1')` in
+  devtools grants Shin Plus: no purchase, no receipt, limit never fires. Your code names it a
+  beta seam and prints a startup warning, so this is logged rather than reported as a surprise.
+  Worth deciding before testers have the build, because it defeats the one thing the paywall
+  enforces.
+- **Jamin, D-139 still open** from the entry below: permissions and consent both carry the same
+  location switch, back to back.
+- **Jamin: still owed.** `SHIN_GEMINI_TIER` on the Mac, and the paid key.
+
+### What changed
+
+**A debugging lane now exists and this was its first run.** `.claude/agents/debugger.md`: the only
+lane that hunts defects, never builds, never commits, never picks a defect number. It walked the
+paywall at 390x844 in both themes and drove the quota against a real server.
+
+**Fixed here, D-143.** "Restore purchases" drew as an unreadable grey slab in dark mode, **1.59:1**.
+`.btn--ghost` set a colour and no background and no border, and the app has no global `button`
+reset, so the browser's own grey filled it in. One line each way; dark is now 5.82:1, light 5.06.
+It is the only user of that class and it had never been seen rendered, which is the whole point of
+walking a screen.
+
+**Also logged, not fixed:** D-144 the Terms and Privacy links still point at `.invalid` on a screen
+that is reachable today, D-145 `/api/quota` answers for any device id with no auth, and **D-146 the
+server never reads `.env`** -- no dotenv, no `--env-file`, and the "no key" startup warning is gated
+on `SHIN_MODEL_PROVIDER`, which nobody sets. That last one probably explains more than one "the key
+is set and it still refuses".
+
+**What was checked and found fine,** so nobody redoes it: both paywall states at 390px in both
+themes (no overflow, no clipped text, no tap target under 44px, no console errors), both prices
+come from the store rather than being hard-coded, plan selection and the buy loop work against a
+stubbed store, the OFF default for `SHIN_FREE_SCANS_PER_WEEK` really is off (verified at the
+consumer, not read off the code), and `/api/quota` agrees with the server's own count to the
+millisecond, including correctly not charging a shopper for our own failures.
+
+**Not verified:** a real barcode 402 landing on the paywall at the consumer. Both ends are proven,
+the hop between them is code-read only; it needs a phone or a printed barcode at a webcam.
+
+### Read by
+
+- Aurik, 2026-09-22.
+
+---
+
 ## 2026-09-22 (Aurik's PC): your MVP flag batch is merged, and the permission ask is back in the product
 
 ### To do
