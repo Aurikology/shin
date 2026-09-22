@@ -200,9 +200,15 @@ function thumbImg(thumb) {
  * labelled way back, not only the swipe-to-dismiss that nothing on screen
  * teaches. Same icon and handler as the working sheet's own close,
  * `cancel-scan`, which already resets straight to the live viewfinder.
+ *
+ * `act` exists because that is the right answer on a SCAN sheet and the wrong
+ * one on a sheet opened from another sheet. D-152: the shop picker is reached
+ * from the price pad, and its X ran `cancel-scan` like everywhere else, so
+ * dismissing the shop question threw away the price already typed and the
+ * whole scan with it. A sub-sheet passes its own act and goes back one step.
  */
-function backButton(label = t('back_to_camera')) {
-  return `<button type="button" class="sheet-close" data-act="cancel-scan" aria-label="${escapeHtml(label)}">
+function backButton(label = t('back_to_camera'), act = 'cancel-scan') {
+  return `<button type="button" class="sheet-close" data-act="${escapeHtml(act)}" aria-label="${escapeHtml(label)}">
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
   </button>`;
 }
@@ -1822,7 +1828,11 @@ function storePickerSheet(shops, chosenId = null) {
   return `
     <section class="sheet shopsheet" data-tier="unknown" data-conf="reading" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
-      ${backButton()}
+      ${/* D-152: back to the pad, not out of the scan. This sheet is the only
+            one opened from another sheet, and it is the only one whose X must
+            not discard what the shopper already typed. "No shop" below is the
+            way to answer the question without choosing one; this is the way to
+            leave it unanswered. */ backButton(t('nav_back'), 'shop-back')}
       <div class="sheet-peek">
         <div class="sheet-head">
           ${shinSay('asking', shops.length ? 'shop_pick_prompt' : 'shop_none_nearby', {}, { size: 64 })}
@@ -4461,6 +4471,10 @@ export default {
       // a location read, and it does so because the shopper asked which shop
       // they are in.
       if (act === 'pad-shop') { void openShopPicker(); return; }
+      /* D-152. `padHtml()` rebuilds from the live pad state, which this sheet
+         never touched, so the typed price, the modifier and the label all come
+         back as they were. Already in `asking`, so no state change. */
+      if (act === 'shop-back') { slot.innerHTML = padHtml(); mounted(); return; }
       if (act === 'pad-clear') { padBuffer = ''; paintPad(); return; }
       // The pad's own confirm key (USAGE A1 0:13.4): nothing submits until
       // this is pressed. No debounce, no auto-submit on a pause. Row 43:

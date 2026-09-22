@@ -2048,6 +2048,16 @@
   place-items: center;
   cursor: pointer;
 }
+/* The other half of D-050, whose keypad half was fixed and whose close was
+   not: it draws 30x30 and was 30x30 to the thumb. Same invisible reach as
+   `.iconbtn-inline` above. It is already absolutely positioned, so the 7px
+   costs no layout, and the verdict and refusal heads already hold 40px clear
+   of it. */
+.sheet-close::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+}
 .sheet-close:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 /* The verdict and every refusal carry the close since 2026-09-14; keep the
    head's thumbnail and bubble clear of it. */
@@ -2061,7 +2071,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
+  /* No vertical padding: it belongs to the input now, so the field itself is
+     tappable over the whole row rather than only over its text (D-153). */
+  padding: 0 14px;
   border-radius: var(--r-md);
   background: var(--raised);
   border: 1px solid var(--hairline);
@@ -2075,6 +2087,22 @@
   color: var(--ink);
   min-width: 0;
 }
+/*
+ * D-153: the field was 21px tall to the thumb. The row around it is 45 and
+ * looks entirely tappable, but that height is the FORM's padding, so a tap
+ * just above or below the text landed on the form and did nothing.
+ *
+ * The padding moves from the form to the input, which is the only way to give
+ * an input a bigger target: it cannot have a pseudo element, so the D-140
+ * trick does not apply here. A negative margin was tried first to hold the
+ * row at its old height and did not work -- measured, the row went 45 to 56,
+ * because a negative block margin on a centred flex item does not cancel the
+ * way it does in flow. So the form gives its vertical padding up instead and
+ * the input's own min-height replaces it: the row measures 46 against 45
+ * before, one pixel, and the field's text still centres because an input
+ * centres its value in a box taller than its line.
+ */
+.textroute-form input { min-height: 44px; }
 .textroute-form input::placeholder { color: var(--ink-faint); }
 /*
  * FLAWS.md item 3, the only `outline: none` in the codebase and the only
@@ -2094,6 +2122,7 @@
 }
 .textroute-form input:focus { outline: none; }
 .iconbtn-inline {
+  position: relative;
   flex: none;
   width: 30px; height: 30px;
   border-radius: 50%;
@@ -2108,6 +2137,16 @@
    ring on pink is not a ring. The one place on a sheet where the literal is the
    right answer for the same reason it is right over the feed -- the ground is
    not the theme's. */
+/* D-153: it draws 30x30 and was 30x30 to the thumb, under the 44 minimum, and
+   it is the only way to submit a typed name. The disc still draws at 30; the
+   hit area reaches 44 through a pseudo element that paints nothing. The 7px
+   it takes horizontally stays inside the form's own 10px gap, so it never
+   steals a tap from the field beside it. */
+.iconbtn-inline::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+}
 .iconbtn-inline:focus-visible {
   outline: var(--ring-width, 2px) solid #fff;
   outline-offset: var(--ring-offset, 3px);
