@@ -9,6 +9,67 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-22 (Aurik's PC), later still: the camera was swept, and the barcode button is sending photos
+
+### To do
+
+- **Jamin, D-147, read this one first.** Pressing the barcode button uploads a **full-resolution
+  1280x720 JPEG of whatever the camera is pointed at**, to the server's disk, **with photo consent
+  switched OFF**. `camera.js:3115` calls `beginShutter(video)` inside `onBarcode` with no
+  `FLAGS.photoId` guard and no consent read, and the server does not check either:
+  `saveShutterFrame` tests only `SHIN_SHUTTER_LOG !== 'off'`, so it is **on by default**. The
+  frame collection itself is yours and deliberate (your comment, 2026-09-13/17, "collecting
+  everything"), and it predates the flag. What is new is that `flags.js:43` now promises that with
+  `photoId` off the camera **"never sends a photo"**. It does, on the only scan button the MVP
+  leaves anyone. Proven with a file on disk, 28,913 bytes. **Two questions, both yours: does the
+  shutter log obey the photo switch, and does `photoId` off silence it?** Until one is answered
+  the flag file says something untrue about the build testers are about to get.
+- **Jamin, D-148, the same shape.** The shelf capture still streams a crop every 5 seconds, up to
+  40 a visit, gated only on `consent().photos` -- which **defaults to true** in both places. And
+  the Photos row on You still reads "Keeps the picture from a photo scan, tied to that scan": it
+  describes the one path that cannot run, while what it actually authorises is the barcode frame
+  and the shelf stream. The wording is a defect on its own even if both streams stay.
+- **Jamin, D-150.** On a keyless or misconfigured server, 100% of scans tell the tester *"That is
+  a gap in what I have been taught, not a fact about the market"* -- when the truth is
+  `model_client_error`, the call never left the building. There is no branch for that reason, so
+  it falls through to the no-match refusal. Needs a new line in voice.js in three personalities
+  and two locales, so it is not a one-liner.
+- **Aurik, D-151, wants a phone.** The "Point me at the barcode" line that `photoId` off promises
+  is pre-empted whenever the eye has a coaching hint (`sayNoBarcode` returns early on `coachKey`).
+  The lane only reached the promised line with the camera denied. Its frames were synthetic, so
+  how often a real aisle silences the eye is unknown.
+- **Still open from the entries below:** D-139 (location asked twice), D-141, D-142, D-144, D-146.
+
+### What changed
+
+**Fixed here, D-149.** A selected button on the price pad was **white on white in dark theme,
+1.09:1**, because `camera.css:669` ended `color: var(--bg, #fff)` and **`--bg` is defined nowhere
+in the app**. The fallback always won; light theme survived by luck. Now `var(--surface)`, the
+token that means this, with no fallback: an undefined token should fail visibly rather than hide
+behind a literal. Dark is 16.33:1, light 18.11.
+
+**Also logged, not fixed:** D-152 leaving the shop picker by the X throws away the typed price and
+the whole scan, D-153 three more sub-44px tap targets (the grabber at 86x24 is the main way to open
+any sheet), D-154 one button at 4.45:1, a hair under the floor.
+
+**What was checked and found FINE,** so nobody redoes it: the shutter button really is gone with
+`photoId` off, no dead photo affordance and no photo wording anywhere in the camera's visible text,
+`/api/identify/photo` never called once; **both pins hold under a hostile test** (a `fr-CA` phone
+with a stored US market still renders English, Canada, `$2.99` not `2,99 $`, and sends
+`market=Canada&currency=CAD&language=en-CA`); the live barcode path decodes and runs end to end in
+a real browser; no sideways scroll, nothing clipped, no console errors at 390px in both themes
+across five states.
+
+**Not verified, and the lane said so:** the Gemini answer sheet (a87/a88/a89) was never reached,
+because with no paid key every scan lands on the refusal sheet instead. Those three tags are still
+unphotographed at 390px. Nor was a real printed barcode through real optics.
+
+### Read by
+
+- Aurik, 2026-09-22.
+
+---
+
 ## 2026-09-22 (Aurik's PC), later: your paywall and quota were run for the first time, and two of the six findings are yours to decide
 
 ### To do

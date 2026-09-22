@@ -666,7 +666,13 @@
 /* Row 25: validation or switching, a small two-way choice on the price pad. It
    reuses the modifier buttons' look. */
 .pad-alt { display: flex; gap: 8px; margin: 8px 0; }
-.pad-alt .modbtn[aria-pressed="true"] { background: var(--ink, #10131A); color: var(--bg, #fff); }
+/* D-149: this read `color: var(--bg, #fff)` and `--bg` is defined nowhere in
+   the app, so the fallback always won. Light survived by luck (`--ink` is
+   near-black there); dark resolves `--ink` to #F7F5F2 and painted white text
+   on it, 1.09:1, illegible. `--surface` is the token that means "the colour
+   that sits under ink" and it is defined in both themes. No fallback: an
+   undefined token should fail visibly, not hide behind a literal. */
+.pad-alt .modbtn[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
 
 /* W33: the user's own earlier prices, a plain line, no animation. */
 .pricehist { margin: 12px 0; }
