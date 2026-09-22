@@ -8,5 +8,14 @@
     "cap:sync": "npm run sync && npx cap sync",
     "android:open": "npm run cap:sync && npx cap open android",
     "ios:open": "npm run cap:sync && npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor-mlkit/barcode-scanning": "^8.2.1",
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/camera": "^8.2.4",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
+    "@revenuecat/purchases-capacitor": "^13.6.0"
   }
 }

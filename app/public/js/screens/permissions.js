@@ -34,6 +34,7 @@ import { track } from '../track.js';
 import { escapeHtml, on } from '../lib/dom.js';
 import { t } from '../ui-strings.js';
 import { recordAnswer, firstScreen } from '../onboarding-flow.js';
+import { FLAGS } from '../flags.js';
 import { panelHtml, paintPanel, tapPermission, fillDemoSlot } from '../permissions-panel.js';
 
 const DEPS = { store, track };
@@ -84,11 +85,11 @@ export default {
         store.setPermissionsSeen();
         /* Where a launch would go now that this screen is answered. Asking
            the flow rather than naming a screen keeps the launch order in one
-           place (onboarding-flow.js), so setup and consent cannot be skipped
-           by arriving here. `onboarding: false` whatever the flag says: this
-           screen is downstream of the welcome flow either way, and Continue
-           must never bounce anyone back into it. */
-        ctx.replace(firstScreen(store.get(), { onboarding: false }));
+           place (onboarding-flow.js), so consent cannot be skipped by
+           arriving here. `onboarding: false` whatever the real flag says:
+           this screen is downstream of the welcome flow either way, and
+           Continue must never bounce anyone back into it. */
+        ctx.replace(firstScreen(store.get(), { ...FLAGS, onboarding: false }));
       }
     }, ac.signal);
 

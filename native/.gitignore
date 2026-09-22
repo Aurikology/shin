@@ -1,6 +1,10 @@
 # Node dependencies. Reinstalled with `npm install` in native/.
 node_modules/
 
+# RevenueCat's SDK keys for this machine. The committed file is
+# config/revenuecat.config.example.json; copy it and fill it in.
+config/revenuecat.config.json
+
 # Generated copy of app/public with the config script injected. Regenerated
 # by `npm run sync` (or `npm run cap:sync`). Never hand-edit this; edit
 # app/public (owned by the app lane) or scripts/sync-web.mjs instead.

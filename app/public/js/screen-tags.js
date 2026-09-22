@@ -157,7 +157,10 @@ export const SCREEN_TAGS = {
   a91: { id: 'pastscans.detail.answer', title: 'Past scan detail, an answer (read only)', kind: 'modal', file: 'app/public/js/screens/pastscans.js', route: 'pastscans', sel: '.pmodal[data-pmodal="answer"]', rank: 55, how: 'Past scans, tap a row that was an answer from the price search.' },
   a92: { id: 'market.region', title: 'Where do you shop, region step', kind: 'state', file: 'app/public/js/screens/market.js', route: 'market', sel: '.mkt-regions:not([hidden])', rank: 10, how: 'Where do you shop, pick a country that has regions to name. The region list appears under the country list.' },
   a93: { id: 'market.none', title: 'Where do you shop, no country matches the search', kind: 'state', file: 'app/public/js/screens/market.js', route: 'market', sel: '.mkt-none:not([hidden])', rank: 20, how: 'Where do you shop, type something in the search box that no country matches.' },
-  a94: { id: 'permissions', title: 'Camera and location permissions, on its own', kind: 'screen', file: 'app/public/js/screens/permissions.js', route: 'permissions', how: 'First launch when the welcome flow is switched off (FLAGS.onboarding false). Or ?s=permissions. Same panel as a24, which is the step inside the welcome flow.' },
+  a94: { id: 'paywall', title: 'Shin Plus (subscription screen)', kind: 'screen', file: 'app/public/js/screens/paywall.js', route: 'paywall', how: 'Scan past the weekly free limit, or ?s=paywall.' },
+  a95: { id: 'paywall.web', title: 'Shin Plus, in a browser (Subscribe in the app)', kind: 'state', file: 'app/public/js/screens/paywall.js', route: 'paywall', sel: '[data-pw-state="web"]', rank: 10, how: 'Open ?s=paywall in a plain browser, outside the phone app.' },
+  a96: { id: 'paywall.plans', title: 'Shin Plus, the two plans with store prices', kind: 'state', file: 'app/public/js/screens/paywall.js', route: 'paywall', sel: '[data-pw-state="plans"]', rank: 10, how: 'Open the subscription screen in the phone app with the store products set up.' },
+  a97: { id: 'permissions', title: 'Camera and location permissions, on its own', kind: 'screen', file: 'app/public/js/screens/permissions.js', route: 'permissions', how: 'First launch when the welcome flow is switched off (FLAGS.onboarding false). Or ?s=permissions. Same panel as a24, which is the step inside the welcome flow.' },
 };
 
 /**

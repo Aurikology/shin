@@ -230,17 +230,20 @@ test('the barcode button is throttled by the same minimum interval as the shutte
 
 const makeSay = (ctx) => new Function(
   'ctx',
-  `const { dockSay, track, COACH_LINES, showAimHint, armHintEscalation, cam, setTimeout, clearTimeout } = ctx;
+  `const { dockSay, track, COACH_LINES, showAimHint, armHintEscalation, cam, setTimeout, clearTimeout, FLAGS } = ctx;
    let scanPressTimer = null; let hintTimer = null; let dead = false; let coachKey = ctx.coachKey;
    ${between(CAMERA, '    function sayNoBarcode() {', '    /**\n     * The state, and with it', 'sayNoBarcode')}
    return sayNoBarcode;`,
 )(ctx);
 
-function harness({ coachKey = null, state = 'idle' } = {}) {
+function harness({ coachKey = null, state = 'idle', photoId = false } = {}) {
   const log = [];
   const timers = [];
   const ctx = {
     coachKey,
+    // FLAGS.photoId (2026-09-21): off in the MVP, where the line names the
+    // barcode as the only way in; on, it is the older "no barcode read yet".
+    FLAGS: { photoId },
     cam: { dataset: { state } },
     COACH_LINES: { hold: 'cam_hold_still' },
     dockSay: (...a) => log.push(['dockSay', a[0], a[1], a[3]]),
@@ -256,7 +259,10 @@ function harness({ coachKey = null, state = 'idle' } = {}) {
 test('with nothing read, the docked face says to point at a barcode, then the aim hint comes back', () => {
   const h = harness();
   h.say();
-  assert.deepEqual(h.log, [['track', 'coaching_line_shown', 'no_barcode'], ['dockSay', 'asking', 'cam_no_barcode', 'nudge-arrive']]);
+  assert.deepEqual(h.log, [['track', 'coaching_line_shown', 'no_barcode'], ['dockSay', 'asking', 'cam_point_barcode', 'nudge-arrive']]);
+  const on = harness({ photoId: true });
+  on.say();
+  assert.deepEqual(on.log[1], ['dockSay', 'asking', 'cam_no_barcode', 'nudge-arrive'], 'with the photo route on, the older line is gone');
   assert.equal(h.timers.length, 1, 'the line never gives way to the aim hint');
   h.timers[0].fn();
   assert.deepEqual(h.log.slice(2), [['showAimHint'], ['armHintEscalation']]);

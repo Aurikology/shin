@@ -39,6 +39,7 @@
  */
 
 import { rangePatch, unitPatch } from './lib/ranges.js';
+import { FLAGS } from './flags.js';
 
 /** What the app can actually do today. Flip a flag when the thing is built. */
 export const CAPABILITIES = Object.freeze({
@@ -195,20 +196,35 @@ export const MONTHLY = Object.freeze({ start: 100, min: 10, max: 1000, step: 10 
  * onboarding once, then the attitude and two lines (setup), then consent, then
  * the camera. Extracted from main.js so a test can hold the order.
  *
- * `onboarding: false` (main.js passes `FLAGS.onboarding`) drops the welcome
- * flow out of that order and puts the permission screen in its place. NOT the
- * same thing as skipping a step: the camera and location ask is step 24 INSIDE
- * the welcome flow, so switching the flow off used to take the ask with it.
- * screens/permissions.js is that step as a screen of its own, and this branch
- * is the whole of what puts it in front of a first launch. Everything after it
- * is unchanged, so setup and consent still happen, in the same order, once.
+ * WITH `FLAGS.onboarding` OFF the welcome flow and setup both drop out, and
+ * the order is Permissions, Consent, Camera.
+ *
+ * THE PERMISSION SCREEN IS IN THAT ORDER ON PURPOSE, and for one day it was
+ * not. The camera and location ask is step 24 INSIDE the welcome flow, so the
+ * first version of this branch took the ask off with the flow and a fresh
+ * install was never asked at all. screens/permissions.js is that step as a
+ * screen of its own, and this branch is the whole of what puts it in front of
+ * a first launch.
+ *
+ * IT KEEPS STEP 24's PLACE, in front of consent rather than behind it, because
+ * that is where it sits inside the flow and moving it was not asked for. Worth
+ * knowing when reading the two screens back to back: the location switch on
+ * this screen and the location switch on consent are the SAME switch (both go
+ * through consent-actions.js), so with the flow off they are two screens in a
+ * row carrying one question. Inside the flow twenty steps separated them, so
+ * this is visible in a way it was not before. Logged rather than fixed here:
+ * which screen owns that row is a product call, and the panel is shared with
+ * the live step 24.
  */
-export function firstScreen(s, { onboarding = true } = {}) {
-  if (onboarding) {
-    if (!s.onboarding?.doneAt) return 'onboarding';
-  } else if (!s.permissionsSeen) {
-    return 'permissions';
+export function firstScreen(s, flags = FLAGS) {
+  /* FLAGS.onboarding off (docs/mvp-plan.md): no welcome and no setup, so a
+     fresh install is asked for permissions, then consent, then the camera.
+     `seenIntro` is not consulted, which leaves the default voice in place. */
+  if (!flags.onboarding) {
+    if (!s.permissionsSeen) return 'permissions';
+    return s.consentSeen ? 'camera' : 'consent';
   }
+  if (!s.onboarding?.doneAt) return 'onboarding';
   if (!s.seenIntro) return 'setup';
   if (!s.consentSeen) return 'consent';
   return 'camera';

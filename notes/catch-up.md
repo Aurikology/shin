@@ -9,43 +9,50 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
-## 2026-09-21 (Aurik's PC), later still: the permission screen is out of onboarding, and the welcome flow now has a switch
+## 2026-09-22 (Aurik's PC): your MVP flag batch is merged, and the permission ask is back in the product
 
 ### To do
 
-- **Jamin: nothing new.** The two asks from the entry below still stand (set `SHIN_GEMINI_TIER`
-  on the Mac, and the paid key for the eval). This entry is a blocker of yours being cleared, not
-  a new one.
-- **Aurik: the screen has not been seen in a browser.** Tests and typecheck are green and the
-  server serves the module, but layout, spacing and the switches at 390px were looked at by
-  nobody. That is the one thing left on it.
+- **Jamin: one product call, D-139.** With the welcome off, the permission screen and the consent
+  screen are adjacent, and the location switch on each is the SAME switch (both go through
+  `consent-actions.js`). So a first launch is asked for location twice, on two screens in a row.
+  Inside the welcome flow twenty steps separated them. **Which screen owns that row?** Not fixed
+  here on purpose: the panel is shared with your live step 24, so dropping the row would change
+  the welcome flow too.
+- **Jamin: still owed from yesterday.** `SHIN_GEMINI_TIER` on the Mac, and the paid key.
+- **Aurik: nobody has seen the new screen in a browser.** Tests and typecheck are green, the
+  server serves it, but layout and spacing at 390px are unchecked. The Chrome extension was not
+  connected here.
 
 ### What changed
 
-**The blocker in finding 2 below is gone.** The camera and location ask was step 24 inside the
-welcome flow, so switching the flow off took it with it, which is why "make the permission screen
-first by turning onboarding off" could not work as written in `docs/mvp-plan.md`. It is now:
+**Your flag batch (`7e784d7`) and the permission screen are now one tree, and they needed each
+other.** `FLAGS.onboarding = false` shipped with `firstScreen` going Consent then Camera, which
+**dropped the camera and location ask out of the product entirely** (D-138). Not your oversight
+so much as an impossible ask: the screen did not exist. The ask is step 24 INSIDE the welcome
+flow, so no flag could have kept it. That is what yesterday's finding 2 was about.
 
-- `app/public/js/permissions-panel.js` -- the switches, the phone's own prompt, the denied note
-  and item 19's demo card, as one function. Both callers draw it, so they cannot drift. A test
-  fails if either one grows its own copy.
-- `app/public/js/screens/permissions.js` -- that panel as a registered screen (`?s=permissions`,
-  tag **a94**), with its own Continue and a `permissionsSeen` flag so it is asked once, ever.
-- `FLAGS.onboarding` in `app/public/js/flags.js`, **left TRUE**. False sends a first launch to the
-  permission screen instead of the welcome flow, then on through setup and consent to the camera
-  exactly as now. Flipping it is your call, and it is one line.
+It is now:
 
-**Nothing about today's behaviour changed.** The flag is on, the welcome flow still runs, step 24
-still draws the same panel it always did, and `firstScreen` with the flag on returns what it
-returned yesterday. 1301 tests pass (12 new), typecheck clean.
+- `permissions-panel.js` -- the two switches, the phone's own prompt, the denied note and the
+  demo card, as one function that step 24 and the new screen both draw. A test fails if either
+  grows its own copy.
+- `screens/permissions.js` -- that panel as a screen, **tag a97** (a94 was yours, the paywall;
+  tags are permanent so mine renumbered).
+- `firstScreen` with the flag off is now **Permissions, Consent, Camera**. The ask keeps step 24's
+  place, in front of consent, because that is where it sits inside the flow.
+- `permissionsSeen` records that this device has been asked. Walking step 24 sets it, so with the
+  welcome back on nobody is asked twice; a replay never sets it, per the replay contract.
 
-**What this does NOT do.** The other four flags your plan asks for (`photoId`, `languages`,
-`market`, and Savings, which is not already off whatever the plan says) are not built. This was
-the one that needed a screen built before a flag could mean anything.
+**Everything of yours is kept.** The paywall, the quota, `flags-boot.js`, the price-match line,
+the four flags and their tests are untouched apart from the two assertions that encoded the old
+order, which now expect Permissions first and say why.
+
+1340 tests, 1335 pass, 0 fail, 5 skipped. Typecheck clean.
 
 ### Read by
 
-- Aurik, 2026-09-21.
+- Aurik, 2026-09-22.
 
 ---
 

@@ -352,6 +352,15 @@ export default {
         recordAnswer(DEPS, step.id, 'monthlyGoal', monthly, { touched }, { eventOnly });
       } else if (step.kind === 'trial') {
         recordAnswer(DEPS, step.id, 'trialTapped', true, {}, { eventOnly: replay });
+      } else if (step.kind === 'permissions') {
+        /* The ask has now happened, inside the flow. `permissionsSeen` is what
+           stops screens/permissions.js asking a second time for the same
+           install, so walking step 24 has to set it: the flag means "this
+           device has been asked", not "that particular screen was shown".
+           Never on a replay, which flips nothing one-time by contract (see
+           REPLAY in onboarding-flow.js); a replay only happens after a first
+           run that already set it. */
+        if (!replay) store.setPermissionsSeen();
       }
     }
 

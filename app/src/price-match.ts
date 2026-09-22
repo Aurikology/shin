@@ -12,11 +12,10 @@
  *
  * WHAT THIS FILE DELIBERATELY IS NOT.
  *
- *   It is not wired. Nothing imports it, no route serves it, no screen reads
- *   it. Adding a line to the verdict is Jamin's call and it has not been made,
- *   so this ships inert and is switched on by somebody else, later, on his
- *   word. Deleting this file changes no behaviour, which is the test of the
- *   claim.
+ *   It is not the wiring. Jamin's MVP plan (docs/mvp-plan.md, 2026-09-21)
+ *   switched the line on; `price-match-line.ts` is the one caller, and it is
+ *   what puts `priceMatch` on a `/api/identify` answer. This file stays the
+ *   policy table and the yes/no.
  *
  *   It is not a price. Jamin's rule 3, verbatim: "THE PRICE SHOULD NOT COME
  *   FROM US." Nothing here produces, estimates, adjusts or infers an amount.

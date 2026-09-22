@@ -42,10 +42,36 @@ import { pageBar, rowChevron, rowCheck } from '../lib/pagebar.js';
 import { getDeviceId } from '../device.js';
 import { toggleConsent } from '../consent-actions.js';
 import { t } from '../ui-strings.js';
-import { LOCALES, locale, setLocale } from '../lib/locale.js';
+import { LOCALES, locale, setLocale, localePinned } from '../lib/locale.js';
 import { countryLabel, regionText } from './market.js';
 import { rangePickerHtml, handleRangeClick } from '../lib/range-picker.js';
 import { tagsOn, setTagsOn } from '../screen-tag-badge.js';
+import { FLAGS } from '../flags.js';
+import { MANAGE_URLS } from '../plus-config.js';
+import { platformOf } from '../purchases.js';
+
+/**
+ * "Manage subscription": the store's own subscriptions page for this phone.
+ * Inside the wrapper Capacitor says which store; in a browser the user agent
+ * is the only hint, and anything that is not an Apple device gets Google's.
+ */
+export function manageSubscriptionUrl(win = globalThis.window) {
+  const p = platformOf(win);
+  if (p === 'ios' || p === 'android') return MANAGE_URLS[p];
+  const ua = String(win?.navigator?.userAgent ?? '');
+  return /iPhone|iPad|iPod|Macintosh/.test(ua) ? MANAGE_URLS.ios : MANAGE_URLS.android;
+}
+
+/**
+ * The quota row's text, or '' for no row: Plus says so; a limit the server
+ * set says how many are left; no limit (null from the server) says nothing.
+ */
+export function quotaText(q) {
+  if (!q || typeof q !== 'object') return '';
+  if (q.plus === true) return t('you_plus_on');
+  if (!Number.isInteger(q.limit) || !Number.isInteger(q.remaining)) return '';
+  return t('you_scans_left', { remaining: String(Math.max(0, q.remaining)), limit: String(q.limit) });
+}
 
 /**
  * Item 6d: the delete-my-data path. An email link is enough for the beta
@@ -258,6 +284,7 @@ export default {
             lib/locale.js). An option that says "French" to somebody who cannot
             read English is an option they cannot use.
           -->
+          ${/* FLAGS.languages off pins English at boot (flags-boot.js), so no row. */ !localePinned() ? `
           <div class="setting setting-stack">
             <span class="setting-t" id="you-lang-l">${escapeHtml(t('you_language'))}</span>
           </div>
@@ -271,28 +298,43 @@ export default {
               </button>`,
             ).join('')}
           </div>
-          <p class="fineprint">${escapeHtml(t('you_language_caption'))}</p>
+          <p class="fineprint">${escapeHtml(t('you_language_caption'))}</p>` : ''}
 
           <div class="ilist">
             <button type="button" class="ilist-row" data-act="buzz" aria-pressed="${store.buzzOn()}">
               <span class="ilist-l">${escapeHtml(t('you_buzz'))}</span><span class="ilist-v" data-buzz-v></span>
             </button>
-            <button type="button" class="ilist-row" data-act="market">
+            ${/* FLAGS.market off pins Canada at boot, so no picker row. */ !store.marketPinned() ? `<button type="button" class="ilist-row" data-act="market">
               <span class="ilist-l">${escapeHtml(t('you_market'))}</span>
               <span class="ilist-v">${escapeHtml((market.country ? countryLabel(market.country) : t('you_market_unset')) + (regionText(market) ? `, ${regionText(market)}` : ''))}</span>
               ${rowChevron()}
-            </button>
-            <button type="button" class="ilist-row" data-act="welcome">
+            </button>` : ''}
+            ${/* FLAGS.onboarding off: no welcome to watch again. */ FLAGS.onboarding ? `<button type="button" class="ilist-row" data-act="welcome">
               <span class="ilist-l">${escapeHtml(t('onb_replay_row'))}</span>
               ${rowChevron()}
-            </button>
+            </button>` : ''}
             <button type="button" class="ilist-row" data-act="savings">
               <span class="ilist-l">${escapeHtml(t('you_savings'))}</span>
               ${rowChevron()}
             </button>
           </div>
           <p class="fineprint">${escapeHtml(t('you_buzz_caption'))}</p>
-          <p class="fineprint">${escapeHtml(t('you_market_caption'))}</p>
+          ${!store.marketPinned() ? `<p class="fineprint">${escapeHtml(t('you_market_caption'))}</p>` : ''}
+        </section>
+
+        ${/* Shin Plus (2026-09-21): this week's free scans from /api/quota, filled
+             after the paint and shown only when the server sets a limit, and the
+             store's own subscription page, which is the only place a
+             subscription is changed or cancelled. */ ''}
+        <section class="block" data-plus-block>
+          <h2 class="sect-h">${escapeHtml(t('paywall_title'))}</h2>
+          <div class="ilist">
+            <div class="ilist-row" data-quota-row hidden><span class="ilist-l" data-quota-text></span></div>
+            <a class="ilist-row" href="${escapeHtml(manageSubscriptionUrl())}" target="_blank" rel="noopener noreferrer" data-manage-sub>
+              <span class="ilist-l">${escapeHtml(t('you_manage_sub'))}</span>
+              ${rowChevron()}
+            </a>
+          </div>
         </section>
 
         <section class="block">
@@ -413,6 +455,17 @@ export default {
       if (row) row.setAttribute('aria-pressed', String(on));
     }
     paintBuzz();
+
+    /* This week's scans, from the server's own count. Never awaited: the page
+       is whole without it, and a failed fetch leaves the row out. */
+    void Promise.resolve(ctx.api?.quota?.()).then((q) => {
+      if (ac.signal.aborted) return;
+      const text = quotaText(q);
+      const row = root.querySelector('[data-quota-row]');
+      if (!row || !text) return;
+      row.querySelector('[data-quota-text]').textContent = text;
+      row.hidden = false;
+    }).catch(() => {});
 
     /**
      * Item 6d: the withdrawal toggles. `switch` mirrors `store.setConsent`'s

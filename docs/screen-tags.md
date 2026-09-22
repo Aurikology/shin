@@ -152,7 +152,10 @@ The answer sheet used to show the verdict tags a38 to a40 and its could-not-answ
 | a91 | Past scan detail, an answer (read only) | Past scans, tap a row that was an answer from the price search. | `app/public/js/screens/pastscans.js` |
 | a92 | Where do you shop, region step | Where do you shop, pick a country that has regions to name. The region list appears under the country list. | `app/public/js/screens/market.js` |
 | a93 | Where do you shop, no country matches the search | Where do you shop, type something in the search box that no country matches. | `app/public/js/screens/market.js` |
-| a94 | Camera and location permissions, on its own | First launch when the welcome flow is switched off (FLAGS.onboarding false). Or ?s=permissions. Same panel as a24, which is the step inside the welcome flow. | `app/public/js/screens/permissions.js` |
+| a94 | Shin Plus (subscription screen) | Scan past the weekly free limit, or ?s=paywall. | `app/public/js/screens/paywall.js` |
+| a95 | Shin Plus, in a browser (Subscribe in the app) | Open ?s=paywall in a plain browser, outside the phone app. | `app/public/js/screens/paywall.js` |
+| a96 | Shin Plus, the two plans with store prices | Open the subscription screen in the phone app with the store products set up. | `app/public/js/screens/paywall.js` |
+| a97 | Camera and location permissions, on its own | First launch when the welcome flow is switched off (FLAGS.onboarding false). Or ?s=permissions. Same panel as a24, which is the step inside the welcome flow. | `app/public/js/screens/permissions.js` |
 
 ## Not tagged, with reason
 

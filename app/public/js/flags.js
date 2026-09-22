@@ -30,21 +30,41 @@
  * is a real gap and it is tracked, but a state name in mono caps was never what
  * made it visible, so it is not a reason to keep printing one.
  */
-/**
- * `onboarding` is the third, and it is the other kind: on until somebody
- * decides otherwise, rather than off until something exists. docs/mvp-plan.md
- * asks for the welcome flow switched off for the MVP, and this is the switch
- * for it. False sends a first launch to the permission screen instead of the
- * welcome flow (onboarding-flow.js `firstScreen`), then on through setup and
- * consent to the camera as before. Off means hidden and not called, never
- * deleted: the flow, its answers and "Watch the welcome again" all still work
- * and `?s=onboarding` still opens it.
+/*
+ * THE MVP SWITCHES, 2026-09-21 (docs/mvp-plan.md, "What ships OFF"). Jamin's
+ * call the same day: keep what is built, switch off the welcome screen, photo
+ * identification and languages for now. Off means hidden and not called, never
+ * deleted: every one of these reverses by writing `true` here and nothing else.
  *
- * It is left TRUE here. Flipping it is the owner's call and a separate change
- * from building the screen the flip needs, which is what 2026-09-21 did.
+ * `onboarding`  the 30-step welcome and the setup screen after it. Off, a fresh
+ *               install goes Permissions -> Consent -> Camera and Shin keeps
+ *               its default voice (onboarding-flow.js `firstScreen`).
+ * `photoId`     the shutter and the photo route. Off, the camera has no photo
+ *               button, never sends a photo, and a press with no barcode read
+ *               says "Point me at the barcode" (screens/camera.js).
+ * `languages`   the French table and the language row. Off, the locale is
+ *               pinned to English whatever the phone asks for.
+ * `market`      the country picker. Off, the market is pinned to Canada, where
+ *               the testers are; barcode lookup is global already, so this is
+ *               one line to reverse.
+ *
+ * The last two become pins at boot (flags-boot.js, called from main.js); the
+ * first two are read where they decide, at call time.
+ *
+ * WHY `onboarding` OFF DOES NOT DROP THE PERMISSION ASK, and it did for a day.
+ * The camera and location ask was step 24 INSIDE the welcome flow, so the
+ * first version of this switch took it off with the flow: a fresh install went
+ * straight to Consent and was never asked. It is now screens/permissions.js, a
+ * screen of its own drawing the same panel step 24 draws (permissions-panel.js),
+ * and `firstScreen` puts it first when this flag is off. Turning the flag back
+ * on returns the ask to its place inside the flow and the standalone screen is
+ * simply not routed to.
  */
 export const FLAGS = {
   feed: false,
   placeholderLabels: false,
-  onboarding: true,
+  onboarding: false,
+  photoId: false,
+  languages: false,
+  market: false,
 };

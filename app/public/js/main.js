@@ -48,10 +48,16 @@ import removed from './screens/removed.js';
 import market from './screens/market.js';
 import licences from './screens/licences.js';
 import savings from './screens/savings.js';
-import { firstScreen, replayUrlFor } from './onboarding-flow.js';
-import { FLAGS } from './flags.js';
+import paywall from './screens/paywall.js';
+import { refreshPlus } from './purchases.js';
+import { applyFlags } from './flags-boot.js';
 
-for (const s of [camera, onboarding, permissions, setup, consent, watchlist, correct, share, you, pastscans, removed, market, licences, savings]) {
+/* The MVP switches (flags.js), before anything paints: English only and
+   Canada only while those two flags are off. */
+applyFlags();
+import { firstScreen, replayUrlFor } from './onboarding-flow.js';
+
+for (const s of [camera, onboarding, permissions, setup, consent, watchlist, correct, share, you, pastscans, removed, market, paywall, licences, savings]) {
   router.register(s);
 }
 
@@ -93,8 +99,8 @@ startThemeColourSync();
 /* `FLAGS.onboarding` false swaps the welcome flow for the permission screen
    (screens/permissions.js), which is that flow's own step 24 standing on its
    own: switching the flow off must not take the camera and location ask with
-   it. The rest of the order is untouched. */
-const first = firstScreen(store.get(), { onboarding: FLAGS.onboarding !== false });
+   it. The flow module reads the flags itself; this passes nothing. */
+const first = firstScreen(store.get());
 /* `?onboarding=1` replays the welcome once, for someone who has finished it
    already; the flow module decides, and the URL is rewritten so a reload does
    not start it again. First-run behaviour above is untouched. */
@@ -121,6 +127,12 @@ void flushCorrections();
    router, never awaited, and it waits for an idle moment of its own before it
    spends anything, because the viewfinder outranks it. */
 primeOfflineAisle();
+
+/* Shin Plus: inside the wrapper, ask the store whether the entitlement is
+   still active, so an expiry or a refund is seen without opening anything.
+   After the router and never awaited, like the three above; in a browser it
+   does nothing. */
+void refreshPlus();
 
 /*
  * The offline shell. Registered after the router for the same reason as the two

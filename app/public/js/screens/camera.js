@@ -48,6 +48,7 @@ import { mountGrounded } from '../grounded.js';
 import { geminiReading } from '../grounded.js';
 import { geminiWordFor } from '../shin.js';
 import { getDeviceId } from '../device.js';
+import { FLAGS } from '../flags.js';
 
 /**
  * The camera states in which the docked face is faded out by `camera.css`.
@@ -1271,6 +1272,56 @@ function thumbsBlock() {
 }
 
 /**
+ * The price-match line (docs/mvp-plan.md, "show this to the cashier"): the
+ * server's `priceMatch { store, line, conditions, seller, url }`, produced
+ * only when the scan carried both a store name and a shelf price. The line and
+ * the conditions are the server's words from app/src/price-match.ts, shown as
+ * they arrived; nothing is computed here. No block at all without a line.
+ */
+export function priceMatchBlock(pm) {
+  const text = (v) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
+  const line = text(pm?.line);
+  if (!line) return '';
+  const conditions = Array.isArray(pm.conditions)
+    ? pm.conditions.map(text).filter(Boolean)
+    : (text(pm.conditions) ? [text(pm.conditions)] : []);
+  const seller = text(pm.seller);
+  const url = text(pm.url);
+  const link = seller && url && /^https?:\/\//i.test(url)
+    ? `<a class="pm-seller" href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(seller)}</a>`
+    : (seller ? `<span class="pm-seller">${escapeHtml(seller)}</span>` : '');
+  return `<section class="pm" data-price-match aria-label="${escapeHtml(t('pm_heading'))}">
+          <h3 class="gem-alts-heading">${escapeHtml(t('pm_heading'))}</h3>
+          <p class="pm-line" data-pm-line>${escapeHtml(line)}</p>
+          ${link ? `<p class="detail">${link}</p>` : ''}
+          ${conditions.length ? `<ul class="pm-conditions">${conditions.map((c) => `<li>${escapeHtml(c)}</li>`).join('')}</ul>` : ''}
+        </section>`;
+}
+
+/**
+ * Whether an answer says it is cheaper elsewhere, which is when the one-tap
+ * "What did you do?" row shows (docs/mvp-plan.md, "Acts on it"). Two signals,
+ * both the server's and neither computed here: Gemini's own zone put the shelf
+ * price over the user's line, or the server found a cheaper offer a till here
+ * will match.
+ */
+export function saysCheaperElsewhere(zone, priceMatch) {
+  return zone === 'over_your_line' || Boolean(priceMatch && typeof priceMatch.line === 'string' && priceMatch.line.trim());
+}
+
+const OUTCOME_KEYS = ['bought_elsewhere', 'price_matched', 'bought_here', 'not_bought'];
+
+/** The one-tap outcome row. Each button posts its outcome once (api.js `postScanOutcome`). */
+export function outcomeRow() {
+  return `<div class="gem-outcome" role="group" aria-labelledby="gem-outcome-q" data-outcome-row>
+          <p class="detail" id="gem-outcome-q">${escapeHtml(t('outcome_q'))}</p>
+          <div class="gem-outcome-opts">
+            ${OUTCOME_KEYS.map((k) => `<button type="button" class="pill ghost" data-act="outcome" data-outcome="${k}" aria-pressed="false">${escapeHtml(t(`outcome_${k}`))}</button>`).join('')}
+          </div>
+        </div>`;
+}
+
+/**
  * Whether this Gemini reply is a failure to answer rather than an answer.
  * `failure` is the server's own code (a call that did not come back), the
  * `nothing_to_price` reason is a request with nothing to look up, and a block
@@ -1300,7 +1351,12 @@ function alternativesBlock(rows) {
     const why = [a.reason ?? t(`gem_alt_kind_${kind}`), a.store ? t('gem_alt_at', { store: a.store }) : null]
       .filter(Boolean)
       .join(', ');
-    return `<li class="gem-alt" data-gem-alt><span class="gem-alt-name">${escapeHtml(named)}</span><span class="gem-alt-price">${escapeHtml(a.price)}</span><span class="gem-alt-why">${escapeHtml(why)}</span></li>`;
+    /* The store's link beside the price when the row carried one (2026-09-21,
+       every price shows its store and its link). The href is the wire's value. */
+    const link = a.url
+      ? `<a class="gem-alt-link" href="${escapeHtml(a.url)}" target="_blank" rel="noopener">${escapeHtml(a.store ?? t('open'))}</a>`
+      : '';
+    return `<li class="gem-alt" data-gem-alt><span class="gem-alt-name">${escapeHtml(named)}</span><span class="gem-alt-price">${escapeHtml(a.price)}</span><span class="gem-alt-why">${escapeHtml(why)}</span>${link}</li>`;
   });
   return `<section class="gem-alts" data-gemini-alternatives aria-label="${escapeHtml(t('gem_alt_heading'))}">
           <h3 class="gem-alts-heading">${escapeHtml(t('gem_alt_heading'))}</h3>
@@ -1348,6 +1404,9 @@ function geminiCheckedLine(fetchedAt) {
 
 function geminiSheet(result, item, thumb, earlier = []) {
   const g = geminiReading(result.grounded);
+  // The server's price-match line (the camera puts the identify call's one on
+  // the result when the price answer carried none).
+  const priceMatch = result.priceMatch ?? null;
   const unsure = result.lowConfidence === true || g.lowConfidence;
   const conf = confidenceOf({ ...result, failure: null, reason: undefined, lowConfidence: unsure });
   const zoneKey = g.zone ? GEMINI_ZONE_KEY[g.zone] : null;
@@ -1384,6 +1443,8 @@ function geminiSheet(result, item, thumb, earlier = []) {
 
       <div class="sheet-half">
         ${groundedSlot()}
+        ${priceMatchBlock(priceMatch)}
+        ${saysCheaperElsewhere(g.zone, priceMatch) ? outcomeRow() : ''}
         ${alternativesBlock(g.alternatives)}
         ${(() => {
           const chart = historyChartHtml(earlier, { format: (c) => money(c), heading: t('cam_hist_heading'), alt: t('cam_hist_alt', { n: String(Array.isArray(earlier) ? earlier.length : 0) }) });
@@ -2373,6 +2434,10 @@ export default {
 
     const cam = root.querySelector('.cam');
     const slot = root.querySelector('.sheet-slot');
+    /* FLAGS.photoId off (docs/mvp-plan.md): no photo button. Taken out of the
+       live DOM rather than out of the template above, so the markup (and every
+       test that pins it) is exactly what switching the flag back on restores. */
+    if (!FLAGS.photoId) root.querySelector('.cam-bar .shutter')?.remove();
     const video = root.querySelector('.feed-video');
     const badge = root.querySelector('.nav-badge');
     const camShin = root.querySelector('.cam-shin');
@@ -2417,6 +2482,10 @@ export default {
      * aisle's search.
      */
     let lastPriceQuery = null;
+    /* The server's price-match line for this scan, off the identify response
+       (2026-09-21). Only there when the request carried a store name and a
+       shelf price. Shown on the answer as it arrived; see `priceMatchBlock`. */
+    let lastPriceMatch = null;
     let dead = false;
     // When the eye or the plain camera actually went live, for "ms since
     // camera start" on a barcode read (track.js). Null until one of the two
@@ -2647,7 +2716,9 @@ export default {
     // somebody, because it is the one place a queued crop can still become a
     // real answer. Started once per mount, torn down with the render's own
     // cleanup below.
-    startCaptureQueue(sendQueuedCapture).then((stop) => {
+    // FLAGS.photoId off: photos queued offline stay on the phone, unsent, until
+    // the flag is back on.
+    if (FLAGS.photoId) startCaptureQueue(sendQueuedCapture).then((stop) => {
       if (dead) { stop(); return; }
       stopCaptureQueue = stop;
     });
@@ -2764,7 +2835,9 @@ export default {
       }
       clearTimeout(hintTimer);
       track('coaching_line_shown', { key: 'no_barcode' });
-      dockSay('asking', 'cam_no_barcode', {}, 'nudge-arrive');
+      // With the photo route off there is no other way in, so the line names
+      // the one there is (docs/mvp-plan.md: "Point me at the barcode").
+      dockSay('asking', FLAGS.photoId ? 'cam_no_barcode' : 'cam_point_barcode', {}, 'nudge-arrive');
       scanPressTimer = setTimeout(() => {
         if (dead || cam.dataset.state !== 'idle' || coachKey) return;
         showAimHint();
@@ -3148,6 +3221,9 @@ export default {
         return;
       }
 
+      // The weekly free scans are used (402 scan_limit): the subscription screen.
+      if (found?.scanLimit) { openPaywall(found.scanLimit); return; }
+
       /*
        * No connection (beta gap item 21, his word "the app will not be usable
        * offline"): say so, in one plain sentence, and stop. Nothing is named
@@ -3224,7 +3300,7 @@ export default {
         if (Number.isInteger(id?.scanId)) lastScanId = id.scanId;
         // The query the server already started a price search under. Held
         // exactly as it arrived; see `lastPriceQuery`.
-        lastPriceQuery = id?.priceQuery ?? null;
+        lastPriceQuery = id?.priceQuery ?? null; lastPriceMatch = id?.priceMatch ?? null;
       } catch {
         id = null; // No signal. The aisle this app was built for.
       }
@@ -3240,6 +3316,9 @@ export default {
       if (id?.failure === 'rate_limited') {
         return { rateLimited: true, retryAfterSeconds: id.retryAfterSeconds ?? null };
       }
+      /* The weekly limit (2026-09-21): the server said no on purpose, so the
+         pack below must not answer instead. */
+      if (id?.failure === 'scan_limit') return { scanLimit: id };
 
       /*
        * Two ways to end up with nothing from the server, and the pack can help
@@ -3646,6 +3725,8 @@ export default {
 
     function shoot() {
       if (cam.dataset.state !== 'idle') return;
+      // FLAGS.photoId off: no photo is taken or sent, whatever called this.
+      if (!FLAGS.photoId) { sayNoBarcode(); return; }
       if (!captureAllowed(Date.now(), lastCaptureAt)) return;
       lastCaptureAt = Date.now();
       clearTimeout(hintTimer);
@@ -3818,6 +3899,9 @@ export default {
             slot.innerHTML = geminiFailureSheet(result, item);
             playRefusalLanding(slot);
           } else {
+            // The price-match line the identify call carried, onto the answer
+            // it belongs to, unless the price answer brought its own.
+            if (lastPriceMatch && !result.priceMatch) result.priceMatch = lastPriceMatch;
             slot.innerHTML = geminiSheet(result, item, scanThumb, earlier);
             fillGrounded(slot, result);
             buzz(16);
@@ -3904,6 +3988,8 @@ export default {
      */
     function handlePhotoCapture(crop) {
       if (dead || barcodeInFlight) return;
+      // FLAGS.photoId off: a crop is never turned into a photo scan.
+      if (!FLAGS.photoId) return;
       // The price is asked first (item 10); the crop waits in the pending scan
       // and is sent, with the price, by `resolvePhoto` once the pad is done.
       askPriceFirst({ kind: 'photo', crop });
@@ -3925,7 +4011,7 @@ export default {
         if (Number.isInteger(id?.scanId)) lastScanId = id.scanId;
         // The query the server already started a price search under. Held
         // exactly as it arrived; see `lastPriceQuery`.
-        lastPriceQuery = id?.priceQuery ?? null;
+        lastPriceQuery = id?.priceQuery ?? null; lastPriceMatch = id?.priceMatch ?? null;
       } catch (err) {
         console.error('photo identify failed:', err);
         id = { product: null, failure: 'offline' };
@@ -4111,6 +4197,17 @@ export default {
       }
     }
 
+    /**
+     * The scan after the weekly free ones (402 `scan_limit`, 2026-09-21): the
+     * scan is over, and the subscription screen opens with the server's own
+     * counts. Nothing was priced, so nothing is recorded as an answer.
+     */
+    function openPaywall(limit) {
+      track('scan_limit_hit', { limit: limit?.limit ?? null, used: limit?.used ?? null });
+      reset();
+      ctx.go('paywall', { limit: limit?.limit ?? undefined, used: limit?.used ?? undefined, resetsAt: limit?.resetsAt ?? undefined });
+    }
+
     function reset() {
       // Leaving the type-it route with nothing submitted is an abandoned
       // typed search, task item 4's own phrase: "typed search text including
@@ -4131,6 +4228,7 @@ export default {
       lastKeepable = null;
       lastScanId = null;
       lastPriceQuery = null;
+      lastPriceMatch = null;
       scanShelfCents = null;
       padAlt = null;
       // The scan is over: its mode and hint do not ride on the next one.
@@ -4157,7 +4255,8 @@ export default {
       // which is where the viewfinder's own attention is and the one control
       // a returning user wants next. Otherwise focus falls to `body` and the
       // next Tab starts again from the top of the document.
-      root.querySelector('.shutter')?.focus({ preventScroll: true });
+      // The barcode button when the shutter is not there (FLAGS.photoId off).
+      (root.querySelector('.shutter') ?? root.querySelector('.scan-code-btn'))?.focus({ preventScroll: true });
     }
 
     root.addEventListener('click', (e) => {
@@ -4558,6 +4657,20 @@ export default {
         void proceed(last.scenario, last.askingCents);
         return;
       }
+      if (act === 'outcome') {
+        // "What did you do?" after a cheaper-elsewhere answer: one tap, sent
+        // once, marked on the row. Not awaited and never thrown, like a thumb.
+        const outcome = btn.dataset.outcome;
+        const row = btn.closest('[data-outcome-row]');
+        if (row?.dataset.sent === '1') return;
+        if (row) row.dataset.sent = '1';
+        row?.querySelectorAll('[data-outcome]').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+        track('scan_outcome', { outcome, scanId: ratedScan });
+        if (Number.isInteger(ratedScan)) void ctx.api.postScanOutcome?.({ scanId: ratedScan, outcome });
+        const q = row?.querySelector('#gem-outcome-q');
+        if (q) q.textContent = t('outcome_noted');
+        return;
+      }
       if (act === 'thumbs-up' || act === 'thumbs-down') {
         // The one-tap correctness signal (DESIGN.md section 4, full detent).
         // GAMIFICATION.md M12 / OLMA audit rows 64, 65, take: it earns
@@ -4677,7 +4790,9 @@ export default {
           if (Number.isInteger(id?.scanId)) lastScanId = id.scanId;
           // The query the server already started a price search under. Held
           // exactly as it arrived; see `lastPriceQuery`.
-          lastPriceQuery = id?.priceQuery ?? null;
+          lastPriceQuery = id?.priceQuery ?? null; lastPriceMatch = id?.priceMatch ?? null;
+          // The weekly free scans are used (402 scan_limit): the subscription screen.
+          if (id?.failure === 'scan_limit') { openPaywall(id); return; }
           if (id.catalogueUp && id.product) {
             typed = {
               id: id.product.code,

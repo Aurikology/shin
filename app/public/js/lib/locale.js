@@ -28,6 +28,24 @@
 
 import { readSetting, writeSetting } from './persistence.js';
 
+/**
+ * The locale this build is pinned to, or null for "the person's choice".
+ * Set once at boot by flags-boot.js from FLAGS.languages; nothing else sets it.
+ * A pin rather than a flag read here, so the module stays importable on its own
+ * and the French tables keep being tested with the pin off.
+ */
+let pinned = null;
+
+/** Pins the locale (an id from LOCALES), or unpins it with null. An unknown id unpins. */
+export function pinLocale(id) {
+  pinned = typeof id === 'string' && LOCALES.some((l) => l.id === id) ? id : null;
+}
+
+/** Whether the locale is pinned, which is when the You screen offers no language row. */
+export function localePinned() {
+  return pinned !== null;
+}
+
 const KEY = 'shin.locale';
 
 /**
@@ -74,6 +92,10 @@ export function preferredLocale() {
 
 /** The locale in force right now: the stored choice, then the browser's, then English. */
 export function locale() {
+  /* A pinned locale wins over the stored choice and the phone's
+     (FLAGS.languages off, docs/mvp-plan.md: English only). The stored choice is
+     left where it is, so switching the flag back on restores it. */
+  if (pinned) return pinned;
   const stored = readSetting(KEY, null);
   if (isLocale(stored)) return stored;
   return preferredLocale() ?? DEFAULT_LOCALE;

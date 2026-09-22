@@ -204,13 +204,26 @@ test('the monthly goal status line is hidden unless it is measured', () => {
 
 /* ------------------------------------------------------------ 3. routing */
 
-test('first launch order: onboarding, setup, consent, camera', () => {
-  assert.equal(firstScreen({}), 'onboarding');
-  assert.equal(firstScreen({ onboarding: { answers: {} } }), 'onboarding', 'answers without a finish do not count');
-  assert.equal(firstScreen({ onboarding: { doneAt: 'x' } }), 'setup');
-  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, seenIntro: true }), 'consent');
-  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, seenIntro: true, consentSeen: true }), 'camera');
-  assert.equal(firstScreen({ onboarding: { skippedAt: 'x', doneAt: 'y' }, seenIntro: true, consentSeen: true }), 'camera');
+test('first launch order with the welcome switched off (the MVP default): permissions, consent, camera', () => {
+  /* FLAGS.onboarding is false (docs/mvp-plan.md): no welcome, no setup. The
+     camera and location ask is NOT dropped with the flow, which it was when
+     this switch first shipped: it is step 24 inside the flow, and
+     screens/permissions.js is that step standing on its own. */
+  assert.equal(firstScreen({}), 'permissions', 'a fresh install is asked for permissions first');
+  assert.equal(firstScreen({ onboarding: { answers: {} } }), 'permissions', 'a half-finished welcome does not bring it back');
+  assert.equal(firstScreen({ permissionsSeen: true }), 'consent', 'consent comes after the ask');
+  assert.equal(firstScreen({ permissionsSeen: true, seenIntro: false, consentSeen: true }), 'camera', 'setup is never asked for');
+  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, seenIntro: true, consentSeen: true, permissionsSeen: true }), 'camera');
+});
+
+test('first launch order with the welcome switched on: onboarding, setup, consent, camera', () => {
+  const on = { onboarding: true };
+  assert.equal(firstScreen({}, on), 'onboarding');
+  assert.equal(firstScreen({ onboarding: { answers: {} } }, on), 'onboarding', 'answers without a finish do not count');
+  assert.equal(firstScreen({ onboarding: { doneAt: 'x' } }, on), 'setup');
+  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, seenIntro: true }, on), 'consent');
+  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, seenIntro: true, consentSeen: true }, on), 'camera');
+  assert.equal(firstScreen({ onboarding: { skippedAt: 'x', doneAt: 'y' }, seenIntro: true, consentSeen: true }, on), 'camera');
 });
 
 test('main.js registers the screen and takes the first screen from the flow', () => {
@@ -218,11 +231,14 @@ test('main.js registers the screen and takes the first screen from the flow', ()
   assert.match(main, /import onboarding from '\.\/screens\/onboarding\.js'/);
   assert.match(main, /for \(const s of \[[^\]]*\bonboarding\b[^\]]*\]\)/);
   assert.match(main, /import \{ firstScreen, replayUrlFor \} from '\.\/onboarding-flow\.js'/);
-  assert.match(main, /firstScreen\(store\.get\(\), \{ onboarding: FLAGS\.onboarding !== false \}\)/);
+  assert.match(main, /firstScreen\(store\.get\(\)\)/);
   assert.equal(screen.id, 'onboarding');
 });
 
-test('Continue from the first step walks his order and ends at setup, on record', async () => {
+/* The flow below still runs whole (a replay, or FLAGS.onboarding back on).
+   With the welcome switched off, leaving it hands to what `firstScreen` says
+   next, which is consent: setup is switched off with it. */
+test('Continue from the first step walks his order and ends at consent, on record', async () => {
   resetStore();
   const seen = [];
   let id = null;
@@ -235,14 +251,15 @@ test('Continue from the first step walks his order and ends at setup, on record'
     const last = r.calls.at(-1);
     assert.equal(last[0], 'replace');
     if (last[1] !== 'onboarding') {
-      assert.equal(last[1], 'setup', 'a fresh install goes to setup after the flow');
+      assert.equal(last[1], 'consent', 'a fresh install goes to consent after the flow (setup is switched off)');
       break;
     }
     id = last[2].step;
   }
   assert.deepEqual(seen, visibleSteps().map((s) => s.id));
   assert.ok(store.get().onboarding.doneAt, 'finishing must be on record');
-  assert.equal(firstScreen(store.get()), 'setup');
+  assert.equal(firstScreen(store.get()), 'consent');
+  assert.equal(firstScreen(store.get(), { onboarding: true }), 'setup', 'with the welcome on, setup comes next');
   assert.ok(trackedTypes().includes('onboarding_done'));
 });
 
@@ -258,7 +275,11 @@ test('every step can be left with nothing chosen, and Skip leaves from any step'
   const r = render('heard');
   await r.click({ '[data-act]': { dataset: { act: 'skip' } } });
   r.cleanup();
-  assert.deepEqual(r.calls.at(-1), ['replace', 'setup']);
+  /* Setup is switched off with the welcome (FLAGS.onboarding), and skipping
+     out at step 6 means step 24 was never reached, so this device has not
+     been asked for camera and location yet: the standalone screen asks.
+     Somebody who walks as far as step 24 is not sent there (permissionsSeen). */
+  assert.deepEqual(r.calls.at(-1), ['replace', 'permissions']);
   assert.equal(store.get().onboarding.skippedAt, 'heard');
   assert.ok(trackedTypes().includes('onboarding_skip'));
 });
@@ -290,7 +311,9 @@ test('the paywall does not block: Continue and Not now both go on, and Pro is ne
   const b = render('plans');
   await b.click({ '[data-act]': { dataset: { act: 'notnow' } } });
   b.cleanup();
-  assert.deepEqual(b.calls.at(-1), ['replace', 'setup']);
+  /* Setup is off with the welcome, and this render jumps straight to step 25
+     without walking step 24, so the permission ask is still owed. */
+  assert.deepEqual(b.calls.at(-1), ['replace', 'permissions']);
   assert.equal(store.isPro(), false, 'nothing here may grant Pro');
   assert.equal(store.get().proUntil, null);
   const trial = render('trial');
@@ -403,6 +426,11 @@ function seedFinishedUser() {
   store.update({
     seenIntro: true,
     consentSeen: true,
+    /* Asked already: this device walked step 24 on its first run, which is
+       what `permissionsSeen` records. Without it a replay would end on the
+       standalone permission screen rather than the camera, which is right
+       for someone who has never been asked and wrong for this seed. */
+    permissionsSeen: true,
     personality: 'warm',
     lineUnderPct: 15,
     lineOverPct: 5,
@@ -468,8 +496,14 @@ test('a replay is opt-in: first-run behaviour is the same with or without the sw
   assert.equal(flow.isReplay({}, { onboarding: { doneAt: 'x' } }), false, 'nothing asked, nothing replays');
   assert.equal(flow.isReplay({ replay: '1' }, { onboarding: { doneAt: 'x' } }), true);
   assert.equal(flow.isReplay({ replay: 1 }, {}), false, 'an unfinished first run is not a replay');
-  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, seenIntro: true, consentSeen: true }), 'camera');
-  assert.equal(firstScreen({}), 'onboarding', 'a real new user still sees it once, automatically');
+  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, seenIntro: true, consentSeen: true, permissionsSeen: true }), 'camera');
+  assert.equal(firstScreen({}, { onboarding: true }), 'onboarding', 'with the welcome on, a real new user still sees it once, automatically');
+  /* With the welcome off, the camera and location ask is the first screen and
+     consent is the second. The ask is step 24 INSIDE the welcome flow, so
+     switching the flow off would otherwise drop it: screens/permissions.js is
+     that step standing on its own. */
+  assert.equal(firstScreen({}), 'permissions', 'with the welcome off, a real new user is asked for permissions first');
+  assert.equal(firstScreen({ permissionsSeen: true }), 'consent', 'and consent comes next');
 });
 
 test('a replay runs the whole flow in the same order and lands on the camera', async () => {
@@ -577,7 +611,10 @@ test('a replay flag on a first run is ignored: the first run still finishes and 
   const r = render('heard', { replay: 1 });
   await r.click({ '[data-act]': { dataset: { act: 'skip' } } });
   r.cleanup();
-  assert.deepEqual(r.calls.at(-1), ['replace', 'setup']);
+  /* Setup is off with the welcome, and a first run skipped at step 6 has not
+     reached the permission ask, so it lands there. Same as the skip test
+     above: the replay flag changed nothing about where a first run goes. */
+  assert.deepEqual(r.calls.at(-1), ['replace', 'permissions']);
   assert.equal(store.get().onboarding.skippedAt, 'heard');
 });
 

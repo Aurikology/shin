@@ -13,9 +13,11 @@
  *   1. There is one panel, not two. The welcome flow's step 24 and this screen
  *      draw the same switches from the same function, so a change to one is a
  *      change to both. A copy would pass every other test in this file.
- *   2. Switching the flow off puts the ask in front of a first launch, and
- *      changes nothing else about the order (setup, consent, camera, once each).
- *   3. The flag is still ON. Flipping it is the owner's call, not the build's.
+ *   2. Switching the flow off puts the ask in front of a first launch, before
+ *      consent, which is where step 24 sits inside the flow.
+ *   3. The flag is off, which is the state that routes here. Jamin shipped it
+ *      false on 2026-09-22 with no permission ask behind it; this is the half
+ *      that was missing.
  *   4. The two screens write the camera answer to one place, so the switch
  *      shows the same thing whichever one asked.
  *   5. Nothing here blocks: Continue works with both switches untouched.
@@ -119,32 +121,46 @@ test('onboarding.js no longer builds the permission step itself', () => {
 /* ------------------------------------- 2. the flow off puts the ask first */
 
 test('with the welcome flow off, a first launch lands on the permission ask', () => {
-  const off = { onboarding: false };
+  const off = { ...FLAGS, onboarding: false };
   assert.equal(firstScreen({}, off), 'permissions');
-  assert.equal(firstScreen({ permissionsSeen: true }, off), 'setup');
-  assert.equal(firstScreen({ permissionsSeen: true, seenIntro: true }, off), 'consent');
-  assert.equal(firstScreen({ permissionsSeen: true, seenIntro: true, consentSeen: true }, off), 'camera');
+  /* Setup goes off with the flow, so the ask is followed by consent and then
+     the camera. That is the order the shipped flag actually produces. */
+  assert.equal(firstScreen({ permissionsSeen: true }, off), 'consent');
+  assert.equal(firstScreen({ permissionsSeen: true, consentSeen: true }, off), 'camera');
+  // `seenIntro` is not consulted at all on this path.
+  assert.equal(firstScreen({ permissionsSeen: true, seenIntro: false, consentSeen: true }, off), 'camera');
+});
+
+test('the ask comes BEFORE consent, which is where step 24 sits inside the flow', () => {
+  const off = { ...FLAGS, onboarding: false };
+  assert.equal(firstScreen({}, off), 'permissions', 'consent first would leave the ask behind it');
+  assert.equal(firstScreen({ consentSeen: true }, off), 'permissions',
+    'answering consent must not excuse the permission ask');
 });
 
 test('with the flow on, nothing about the order changed, and the ask stays inside it', () => {
-  assert.equal(firstScreen({}), 'onboarding');
-  assert.equal(firstScreen({ onboarding: { doneAt: 'x' } }), 'setup');
+  const on = { ...FLAGS, onboarding: true };
+  assert.equal(firstScreen({}, on), 'onboarding');
+  assert.equal(firstScreen({ onboarding: { doneAt: 'x' } }, on), 'setup');
   // Never sent to the standalone screen while the flow is the one asking.
-  assert.notEqual(firstScreen({ onboarding: { doneAt: 'x' }, seenIntro: true, consentSeen: true }), 'permissions');
+  assert.notEqual(firstScreen({ onboarding: { doneAt: 'x' }, seenIntro: true, consentSeen: true }, on), 'permissions');
 });
 
-test('main.js registers the screen and reads the flag', () => {
+test('main.js registers the screen, and the flow module is what reads the flags', () => {
   const main = readJs('main.js');
   assert.match(main, /import permissions from '\.\/screens\/permissions\.js'/);
   assert.match(main, /for \(const s of \[[^\]]*\bpermissions\b[^\]]*\]\)/);
-  assert.match(main, /firstScreen\(store\.get\(\), \{ onboarding: FLAGS\.onboarding !== false \}\)/);
+  assert.match(main, /firstScreen\(store\.get\(\)\)/);
   assert.equal(screen.id, 'permissions');
 });
 
-/* ----------------------------------------------- 3. the flag is still on */
+/* ------------------------ 3. the flag that makes this screen the live one */
 
-test('the welcome flow is still switched ON: building the screen is not flipping the switch', () => {
-  assert.equal(FLAGS.onboarding, true);
+test('the welcome flow is OFF, which is the state that routes here', () => {
+  /* Shipped false on 2026-09-22 with no permission ask behind it, which is
+     the hole this screen fills. Back to true and the screen is simply not
+     routed to, while step 24 asks again from inside the flow. */
+  assert.equal(FLAGS.onboarding, false);
 });
 
 /* --------------------------------------- 4. one place for the camera answer */
@@ -178,7 +194,7 @@ test('Continue works with both switches untouched, and marks the screen seen onc
   await r.click(CONTINUE);
   r.cleanup();
   assert.equal(store.permissionsSeen(), true, 'Continue did not put the screen on record');
-  assert.deepEqual(r.calls.at(-1), ['replace', 'setup'], 'Continue must land where the launch order says next');
+  assert.deepEqual(r.calls.at(-1), ['replace', 'consent'], 'Continue must land where the launch order says next');
 });
 
 test('Continue never bounces back into the welcome flow, whatever the flag says', async () => {

@@ -509,7 +509,30 @@ export function daysLeft(removedAtIso) {
  * today.
  */
 export function market() {
-  return state.market ?? EMPTY.market;
+  const held = state.market ?? EMPTY.market;
+  /* A pinned market wins (FLAGS.market off, docs/mvp-plan.md: Canada, where
+     the testers are). A region already picked inside the pinned country is
+     kept; any other stored country is left untouched in the store, so
+     switching the flag back on restores it. */
+  if (marketPin) return { ...marketPin, region: held.code === marketPin.code ? (held.region ?? '') : '' };
+  return held;
+}
+
+/**
+ * The market this build is pinned to, or null for "the person's choice". Set
+ * once at boot by flags-boot.js from FLAGS.market; nothing else sets it.
+ */
+let marketPin = null;
+
+/** Pins the market to one country by ISO code ('CA'), or unpins it with null. */
+export function pinMarket(code) {
+  const found = code ? findCountry(code) : null;
+  marketPin = found ? Object.freeze({ country: found.en, currency: found.currency, code: found.code, region: '' }) : null;
+}
+
+/** Whether the market is pinned, which is when the You screen offers no picker row. */
+export function marketPinned() {
+  return marketPin !== null;
 }
 
 /**
