@@ -20,6 +20,7 @@
 @import url('/css/screens/share.css');
 @import url('/css/screens/you.css');
 @import url('/css/screens/licences.css');
+@import url('/css/screens/paywall.css');
 /* Not a screen of its own: the Gemini block and the price line live inside the
    camera's verdict sheet. Their own file anyway, because the display rules
    they answer are a contract and a reviewer needs one place to read them. */

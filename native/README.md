@@ -287,6 +287,27 @@ names what it needs from the one before it.
    once the release is live -- share that link with the testers, they open it on the test
    device and tap **Become a tester**, then install from the Play Store link it shows.
 
+## Shin Plus: RevenueCat (2026-09-21)
+
+`@revenuecat/purchases-capacitor` 13.6.0 is installed here. The web app reaches it through
+`window.Capacitor.registerPlugin('Purchases')`: `scripts/sync-web.mjs` copies Capacitor's browser
+build to `www/js/capacitor.js` and loads it before `main.js`, because `app/public` has no bundler.
+Code: `app/public/js/purchases.js`; names and URLs: `app/public/js/plus-config.js`.
+
+- Keys: copy `config/revenuecat.config.example.json` to `config/revenuecat.config.json`
+  (gitignored) and put the PUBLIC SDK keys in it (`appl_...`, `goog_...`). The sync refuses an
+  `sk_` secret key. With no key a platform shows no plans.
+- RevenueCat dashboard: entitlement `plus`; offering `default` with a monthly and an annual
+  package; products `shin_plus_monthly` and `shin_plus_yearly` in both stores. The app user id is
+  the device id every API call already sends, so the server can check a device's subscription.
+- Android: `npx cap sync android` was run on the Windows laptop 2026-09-21 and found the plugin.
+  Still to do: a Play build with Billing, the two subscriptions in Play Console.
+- iOS, on the Mac only: `cd native && npm install && npm run cap:sync` (runs `npx cap sync`, which
+  adds the plugin to the iOS project), then in Xcode add the In-App Purchase capability to the App
+  target, and create the two products in App Store Connect (Paid Applications Agreement first).
+- Terms and Privacy URLs on the subscription screen are placeholders in `plus-config.js` until
+  both are hosted.
+
 ## Test matrix (plan items 3a/2g), blank until run on a real phone
 
 Cannot be filled in from this session: no phone, no store account, no signed build exists yet.

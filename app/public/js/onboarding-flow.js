@@ -39,6 +39,7 @@
  */
 
 import { rangePatch, unitPatch } from './lib/ranges.js';
+import { FLAGS } from './flags.js';
 
 /** What the app can actually do today. Flip a flag when the thing is built. */
 export const CAPABILITIES = Object.freeze({
@@ -195,7 +196,11 @@ export const MONTHLY = Object.freeze({ start: 100, min: 10, max: 1000, step: 10 
  * onboarding once, then the attitude and two lines (setup), then consent, then
  * the camera. Extracted from main.js so a test can hold the order.
  */
-export function firstScreen(s) {
+export function firstScreen(s, flags = FLAGS) {
+  /* FLAGS.onboarding off (docs/mvp-plan.md): no welcome and no setup, so a
+     fresh install lands on Consent and then the camera. `seenIntro` is not
+     consulted, which leaves the default voice in place. */
+  if (!flags.onboarding) return s.consentSeen ? 'camera' : 'consent';
   if (!s.onboarding?.doneAt) return 'onboarding';
   if (!s.seenIntro) return 'setup';
   if (!s.consentSeen) return 'consent';

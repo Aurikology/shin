@@ -1,0 +1,54 @@
+/*
+ * Shin Plus, the subscription screen (screens/paywall.js).
+ *
+ * Built from the shared parts: the page head, the inset list (`.ilist`) for the
+ * two plans with the same tick the You screen's radio groups use, `.cta` for
+ * the one committing action and `.btn--ghost` for Restore. What is local is
+ * the close control's place, the spacing, and the two legal links.
+ *
+ * No verdict colour and no motion: a subscription is not a price judgment, and
+ * nothing here needs to move to be understood.
+ */
+
+.paywall-page .page-head { position: relative; }
+
+.pw-limit {
+  margin: var(--s-3) 0 var(--s-4);
+}
+
+.pw-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.pw-body .ilist { margin-bottom: var(--s-2); }
+
+/* The tick keeps its space on both rows so choosing one does not shift the
+   prices sideways; only the chosen plan shows it. */
+.pw-plan .ilist-v { margin-left: auto; }
+.pw-plan .ilist-k { visibility: hidden; }
+.pw-plan.on .ilist-k { visibility: visible; }
+
+.pw-inapp {
+  margin: 0;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 19px;
+  color: var(--ink);
+}
+
+.pw-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+  margin: var(--s-4) 0 0;
+  font-size: 14px;
+}
+
+.pw-legal a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink-muted);
+}

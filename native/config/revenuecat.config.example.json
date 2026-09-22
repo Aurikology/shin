@@ -1,0 +1,5 @@
+{
+  "_comment": "Copy this file to revenuecat.config.json (gitignored) and put RevenueCat's PUBLIC SDK keys in it: Project settings > API keys in the RevenueCat dashboard, one per app (appl_... for iOS, goog_... for Android). Never a secret key (sk_...). scripts/sync-web.mjs injects these as window.SHIN_RC_KEYS; app/public/js/purchases.js configures RevenueCat with them and with the device id as the app user id. RevenueCat side: entitlement 'plus', offering 'default', products shin_plus_monthly and shin_plus_yearly (app/public/js/plus-config.js). A missing or empty key means the subscription screen shows no plans on that platform.",
+  "ios": "",
+  "android": ""
+}

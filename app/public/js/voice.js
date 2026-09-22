@@ -1512,6 +1512,27 @@ const LINES_EN = {
     warm: () => 'I do not have camera access, so I am showing the drawn shelf instead. You can turn it back on in your phone settings.',
     blunt: () => 'No camera access. Using the drawn shelf.',
   },
+  /**
+   * The barcode button pressed with no code read, while FLAGS.photoId is off
+   * (docs/mvp-plan.md: "the mascot says Point me at the barcode"). With no
+   * photo route there is no other way in, so this names the one there is.
+   */
+  cam_point_barcode: {
+    deadpan: () => 'Point me at the barcode.',
+    warm: () => 'Point me at the barcode and hold it there.',
+    blunt: () => 'Barcode. Point me at it.',
+  },
+  /**
+   * The subscription screen, opened by the scan after the weekly free ones
+   * (docs/mvp-plan.md "Subscription"). Hard rule 2: no savings claim of any
+   * kind, so nothing here says what Plus is worth. Hard rule 3: nothing aimed
+   * at the person; the limit is a fact about the week, not about them.
+   */
+  paywall_say: {
+    deadpan: () => 'That is the free scans for this week. Plus takes the limit off.',
+    warm: () => 'That is all the free scans for this week. With Plus there is no limit.',
+    blunt: () => 'Free scans done for the week. Plus: no limit.',
+  },
 };
 
 /**

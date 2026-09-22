@@ -30,7 +30,32 @@
  * is a real gap and it is tracked, but a state name in mono caps was never what
  * made it visible, so it is not a reason to keep printing one.
  */
+/*
+ * THE MVP SWITCHES, 2026-09-21 (docs/mvp-plan.md, "What ships OFF"). Jamin's
+ * call the same day: keep what is built, switch off the welcome screen, photo
+ * identification and languages for now. Off means hidden and not called, never
+ * deleted: every one of these reverses by writing `true` here and nothing else.
+ *
+ * `onboarding`  the 30-step welcome and the setup screen after it. Off, a fresh
+ *               install goes Consent -> Camera and Shin keeps its default voice
+ *               (onboarding-flow.js `firstScreen`).
+ * `photoId`     the shutter and the photo route. Off, the camera has no photo
+ *               button, never sends a photo, and a press with no barcode read
+ *               says "Point me at the barcode" (screens/camera.js).
+ * `languages`   the French table and the language row. Off, the locale is
+ *               pinned to English whatever the phone asks for.
+ * `market`      the country picker. Off, the market is pinned to Canada, where
+ *               the testers are; barcode lookup is global already, so this is
+ *               one line to reverse.
+ *
+ * The last two become pins at boot (flags-boot.js, called from main.js); the
+ * first two are read where they decide, at call time.
+ */
 export const FLAGS = {
   feed: false,
   placeholderLabels: false,
+  onboarding: false,
+  photoId: false,
+  languages: false,
+  market: false,
 };

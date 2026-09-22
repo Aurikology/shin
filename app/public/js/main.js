@@ -47,9 +47,16 @@ import removed from './screens/removed.js';
 import market from './screens/market.js';
 import licences from './screens/licences.js';
 import savings from './screens/savings.js';
+import paywall from './screens/paywall.js';
+import { refreshPlus } from './purchases.js';
+import { applyFlags } from './flags-boot.js';
+
+/* The MVP switches (flags.js), before anything paints: English only and
+   Canada only while those two flags are off. */
+applyFlags();
 import { firstScreen, replayUrlFor } from './onboarding-flow.js';
 
-for (const s of [camera, onboarding, setup, consent, watchlist, correct, share, you, pastscans, removed, market, licences, savings]) {
+for (const s of [camera, onboarding, setup, consent, watchlist, correct, share, you, pastscans, removed, market, paywall, licences, savings]) {
   router.register(s);
 }
 
@@ -115,6 +122,12 @@ void flushCorrections();
    router, never awaited, and it waits for an idle moment of its own before it
    spends anything, because the viewfinder outranks it. */
 primeOfflineAisle();
+
+/* Shin Plus: inside the wrapper, ask the store whether the entitlement is
+   still active, so an expiry or a refund is seen without opening anything.
+   After the router and never awaited, like the three above; in a browser it
+   does nothing. */
+void refreshPlus();
 
 /*
  * The offline shell. Registered after the router for the same reason as the two

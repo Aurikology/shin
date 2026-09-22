@@ -10,7 +10,8 @@
 import { getDeviceId } from './device.js';
 import { APP_VERSION } from './version.js';
 import { currentCell } from './geocell.js';
-import { consent, get as storeState } from './store.js';
+import { consent, get as storeState, market as storeMarket } from './store.js';
+import { plusActive } from './purchases.js';
 import { locale, localeTag } from './lib/locale.js';
 import { thresholdsFrom, shelfPriceOf, scanContextFrom } from './lib/scan-body.js';
 
@@ -44,7 +45,9 @@ function scanContext() {
   } catch {
     shop = null;
   }
-  return scanContextFrom({ market: storeState()?.market, language: localeTag(), shop, intent: scanIntent });
+  // `storeMarket()`, not the raw stored field: with FLAGS.market off it is
+  // Canada, and the request has to say what the screen says.
+  return scanContextFrom({ market: storeMarket(), language: localeTag(), shop, intent: scanIntent });
 }
 
 /**
@@ -204,6 +207,17 @@ function headers(extra = {}) {
   if (shutterId) h['x-shin-shutter'] = shutterId;
   h['x-shin-locale'] = localeTag();
   h['x-shin-lang'] = locale();
+  /* The device on every request, as a header too (2026-09-21, the scan limit).
+     `deviceId` still rides in the query or body where it always has; the
+     server counts the weekly limit per device and accepts either. It is the
+     same id RevenueCat is configured with (purchases.js), so the server can
+     check a subscription against the device that asked. */
+  const device = getDeviceId()?.id;
+  if (device) h['x-shin-device'] = device;
+  /* Beta seam: a device whose store entitlement is active says so, and the
+     server skips the weekly limit for it. The server is meant to verify this
+     with RevenueCat by the device id above; until it does, this is trust. */
+  if (plusActive()) h['x-shin-plus'] = '1';
   return h;
 }
 
@@ -363,8 +377,49 @@ export async function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPr
     if (typeof respBody?.retryAfterSeconds === 'number') out.retryAfterSeconds = respBody.retryAfterSeconds;
     return out;
   }
+  if (res.status === 402) return scanLimitFrom(await res.json().catch(() => null));
   if (!res.ok) throw new Error(`/api/identify returned ${res.status}`);
   return res.json();
+}
+
+/**
+ * The weekly free scans are used up (2026-09-21, docs/mvp-plan.md
+ * "Subscription"). The server answers `/api/identify` with 402
+ * `{ error: "scan_limit", limit, used, resetsAt }`, and the camera opens the
+ * subscription screen on it. A shape, not a throw: this is the server saying
+ * no on purpose, and a throw here would be read as "no connection".
+ */
+export function scanLimitFrom(body) {
+  const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  return {
+    product: null,
+    failure: 'scan_limit',
+    limit: num(body?.limit),
+    used: num(body?.used),
+    resetsAt: typeof body?.resetsAt === 'string' ? body.resetsAt : null,
+  };
+}
+
+/**
+ * This device's weekly scans: `{ limit, used, remaining, resetsAt, plus }`,
+ * or null when the route cannot be reached. `limit` and `remaining` are null
+ * when the server sets no limit, and a screen then shows nothing about it.
+ */
+export function quota() {
+  return getSoft('/api/quota', null);
+}
+
+/**
+ * The one-tap "What did you do?" after an answer that found it cheaper
+ * elsewhere (docs/mvp-plan.md, "Acts on it"). Quiet on failure for the reason
+ * the rating is: it is feedback about an answer already on screen.
+ */
+export const OUTCOMES = Object.freeze(['bought_elsewhere', 'price_matched', 'bought_here', 'not_bought']);
+
+export function postScanOutcome({ scanId, outcome }) {
+  if (!Number.isInteger(scanId) || !OUTCOMES.includes(outcome)) return Promise.resolve({ stored: false });
+  const deviceId = getDeviceId()?.id;
+  return postSoft(`/api/scan/${scanId}/outcome`, { outcome, deviceId }, { stored: false });
 }
 
 /**

@@ -310,3 +310,8 @@
    different attitude does not shift the three labels sideways. */
 .atts-row .ilist-k { visibility: hidden; }
 .atts-row .att.on .ilist-k { visibility: visible; }
+
+/* The Shin Plus quota row starts hidden and is shown once /api/quota answers
+   with a limit. `.ilist-row`'s own `display: flex` outranks the browser's
+   `[hidden]` rule, so it is said here. */
+.ilist-row[hidden] { display: none; }

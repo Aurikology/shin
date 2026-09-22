@@ -43,6 +43,7 @@ import { escapeHtml, on } from '../lib/dom.js';
 import { storagePersists } from '../lib/persistence.js';
 import { confirmConsent, toggleConsent } from '../consent-actions.js';
 import { backButton } from '../lib/pagebar.js';
+import { FLAGS } from '../flags.js';
 import { t } from '../ui-strings.js';
 
 export default {
@@ -56,7 +57,8 @@ export default {
     root.innerHTML = `
       <div class="page consent-page">
         <header class="page-head">
-          ${backButton()}
+          ${/* FLAGS.onboarding off: this is the first screen, with no setup
+               behind it to go back to. */ FLAGS.onboarding ? backButton() : ''}
           <p class="kicker">${escapeHtml(t('consent_kicker'))}</p>
           <h1>${escapeHtml(t('consent_heading'))}</h1>
         </header>
@@ -136,7 +138,7 @@ export default {
        * throws away answers `recordAnswer` has already put in the store AND in
        * the events queue. Aurik's call, 2026-09-21: the cheap direction only.
        */
-      if (e.target.closest('[data-act="back"]')) {
+      if (e.target.closest('[data-act="back"]') && FLAGS.onboarding) {
         store.update({ seenIntro: false });
         ctx.replace('setup');
       }

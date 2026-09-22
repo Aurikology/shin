@@ -583,6 +583,10 @@ function alternativesReading(list) {
       kind: text(a.kind) ?? 'other',
       reason: text(a.reason),
       store: text(a.storeName),
+      /* The row's link as the wire carried it (2026-09-21: every price on
+         the answer shows its store and its link). Read, never built: only an
+         http(s) value, and never one the wire itself marked as having none. */
+      url: a.hasLink !== false && typeof a.url === 'string' && /^https?:\/\//i.test(a.url.trim()) ? a.url.trim() : null,
       price,
     });
   }

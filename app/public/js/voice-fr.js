@@ -863,6 +863,16 @@ export const LINES_FR = {
     warm: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Shin, et la personne qui la fait tourner peut le voir aussi. Tu peux changer l'un ou l'autre des choix n'importe quand depuis la page Toi.",
     blunt: () => "Cette application garde ça, l'utilise pour répondre à d'autres personnes et entraîner Shin. Change-le n'importe quand sur la page Toi.",
   },
+  cam_point_barcode: {
+    deadpan: () => "Pointe-moi vers le code-barres.",
+    warm: () => "Pointe-moi vers le code-barres et tiens-le là.",
+    blunt: () => "Code-barres. Pointe-moi dessus.",
+  },
+  paywall_say: {
+    deadpan: () => "Voilà les scans gratuits de la semaine. Plus enlève la limite.",
+    warm: () => "Ce sont tous les scans gratuits de cette semaine. Avec Plus, il n'y a pas de limite.",
+    blunt: () => "Scans gratuits finis pour la semaine. Plus: pas de limite.",
+  },
 };
 
 /**

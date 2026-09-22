@@ -68,6 +68,8 @@ import { recordGap } from '../catalogue/src/gaps.ts';
 import { summariseScans, UNATTRIBUTED } from './src/scan-summary.ts';
 import { keepLocation, keepPhoto, readConsent, writeConsent } from './src/consent.ts';
 import { deleteRating, isRating, isRatingReason, rateScan, scanExists } from './src/ratings.ts';
+import { deviceFromHeaders, entitlementStartupWarning, isScanOutcome, quotaFor, recordScanOutcome, scanLimitRefusal } from './src/scan-quota.ts';
+import { priceMatchLine } from './src/price-match-line.ts';
 import { recordEvent, serialisePayload } from './src/events.ts';
 import { parseCell, storesNear, type StoreFetcher } from './src/stores.ts';
 import { INVITE_EXEMPT, INVITE_HEADER, INVITE_REFUSAL, inviteAllows, inviteRequired, inviteWho } from './src/invite.ts';
@@ -2495,6 +2497,37 @@ export const server = createServer(async (req, res) => {
      * unmetered: it is the cheapest thing in the product and it settles
      * identity outright.
      */
+    /*
+     * The free-scan quota and what the shopper did after an answer
+     * (src/scan-quota.ts). The device is `?deviceId=` / body `deviceId`, or
+     * the `x-shin-device` header.
+     */
+    if (url.pathname === '/api/quota') {
+      if (req.method !== 'GET') return json(405, { error: 'GET only' });
+      const quotaDevice = url.searchParams.get('deviceId')?.trim() || deviceFromHeaders(req.headers) || '';
+      if (quotaDevice === '') return json(400, { error: 'deviceId is required' });
+      deviceForLog = quotaDevice;
+      return json(200, await quotaFor(quotaDevice, req.headers));
+    }
+    const outcomePath = /^\/api\/scan\/(\d+)\/outcome$/.exec(url.pathname);
+    if (outcomePath) {
+      if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      const body = await readBody(req);
+      if (body === TOO_LARGE) return refuseTooLarge();
+      if (body === null || typeof body !== 'object') return json(400, { error: 'body did not parse as JSON' });
+      const o = body as Record<string, unknown>;
+      const outcomeScan = Number(outcomePath[1]);
+      if (!scanExists(outcomeScan)) return json(404, { error: 'no scan with that id' });
+      scanForLog = outcomeScan;
+      if (!isScanOutcome(o.outcome)) {
+        return json(400, { error: "outcome must be 'bought_elsewhere', 'price_matched', 'bought_here' or 'not_bought'" });
+      }
+      const outcomeDevice = (typeof o.deviceId === 'string' ? o.deviceId.trim() : '') || deviceFromHeaders(req.headers);
+      if (outcomeDevice) deviceForLog = outcomeDevice;
+      const kept = recordScanOutcome(outcomeScan, outcomeDevice ?? null, o.outcome);
+      return json(200, kept ? { stored: true } : { stored: false, why: 'that outcome could not be written down' });
+    }
+
     if (url.pathname === '/api/identify') {
       /*
        * A BARCODE (or a typed name) IS ONE GEMINI CALL, NOTHING ELSE.
@@ -2532,7 +2565,7 @@ export const server = createServer(async (req, res) => {
       // Trimmed, as `/api/search` trims `q`: `?text=%20%20` is not a query.
       const text = pickText('text')?.trim() || undefined;
       if (!rawGtin && !text) return json(400, { error: 'gtin or text is required' });
-      const device = pickText('deviceId')?.trim() || UNATTRIBUTED;
+      const device = pickText('deviceId')?.trim() || deviceFromHeaders(req.headers) || UNATTRIBUTED;
       deviceForLog = device;
       const identifyStarted = Date.now();
       const telemetry = telemetryFrom(posted ?? url.searchParams);
@@ -2594,6 +2627,9 @@ export const server = createServer(async (req, res) => {
 
       const limitedIdentify = paidCallRefusal(req);
       if (limitedIdentify) return tooManyCalls(limitedIdentify.retryAfterSeconds);
+      // The weekly free-scan limit (src/scan-quota.ts), before anything is spent. Off unless set.
+      const overLimit = gtin ? await scanLimitRefusal(device, req.headers) : null;
+      if (overLimit) return json(402, overLimit);
 
       let completed: Completed;
       try {
@@ -2654,7 +2690,14 @@ export const server = createServer(async (req, res) => {
         });
       }
       const wire = wireFor(completed, groundedOwner(device), device);
+      // The cashier line (src/price-match-line.ts). The store name is read for this answer only, never kept past consent.
+      const priceMatch = priceMatchLine(
+        completed.block.offers,
+        pickText('storeName')?.trim() || where.storeName,
+        completed.mod.readShelfPriceCents(pick('shelfPriceCents')),
+      );
       return json(200, {
+        ...(priceMatch ? { priceMatch } : {}),
         // Shin's own product list is not consulted, so there is never a catalogue product here.
         product: null,
         matchedBy: 'none',
@@ -3777,6 +3820,8 @@ server.listen(PORT, () => {
       : `Scans are NOT being written down (${scans.droppedWhy}). Everything else still works.`,
   );
   if (inviteRequired()) console.log('An invite code is required on every API call.');
+  const plusWarning = entitlementStartupWarning();
+  if (plusWarning) console.warn(plusWarning);
 
   /*
    * PHOTO RETENTION. Plan item 39d.
