@@ -24,7 +24,6 @@
 import { faceSvg } from '../shin.js';
 import * as store from '../store.js';
 import { track } from '../track.js';
-import { toggleConsent } from '../consent-actions.js';
 import { escapeHtml, on } from '../lib/dom.js';
 import { wireRadioGroup } from '../lib/radiogroup.js';
 import { t, localeTag } from '../ui-strings.js';
@@ -33,6 +32,7 @@ import {
   positionOf, recordAnswer, applyThreshold, applyMode, applyAlertStyle, finish, firstScreen, isReplay, endReplay,
 } from '../onboarding-flow.js';
 import { say } from '../voice.js';
+import { panelHtml, paintPanel, tapPermission, fillDemoSlot } from '../permissions-panel.js';
 
 const DEPS = { store, track };
 
@@ -232,61 +232,12 @@ function signinBody() {
   return `<h1>${escapeHtml(t('onb_signin_title'))}</h1><div class="onb-opts">${btn('apple')}${btn('google')}${btn('email')}</div>`;
 }
 
-function permissionsBody() {
-  const row = (k) => `
-    <div class="onb-perm">
-      <span class="onb-opt-text"><b>${escapeHtml(t(`onb_perm_${k}`))}</b><small>${escapeHtml(t(`onb_perm_${k}_sub`))}</small></span>
-      <button type="button" class="onb-switch" role="switch" aria-checked="false" data-perm="${k}"
-              aria-label="${escapeHtml(t(`onb_perm_${k}`))}"></button>
-    </div>`;
-  // Item 19: a demo scan, reachable before camera permission is asked for
-  // real (docs/scanner-build-order-2026-09-19.md item 19). `data-demo-slot`
-  // is empty until tapped; the render() handler below fills it.
-  return `<h1>${escapeHtml(t('onb_perm_title'))}</h1>${row('camera')}${row('location')}
-    <p class="fineprint onb-perm-note" role="status" hidden>${escapeHtml(t('onb_perm_camera_denied'))}</p>
-    <button type="button" class="onb-demo-link" data-act="see-demo">${escapeHtml(t('onb_see_demo'))}</button>
-    <div class="onb-demo-slot" data-demo-slot role="status"></div>`;
-}
-
 /**
- * Item 19's own card: a scripted demo answer, always visibly marked as one
- * wherever it carries a price or a verdict. Onboarding's own rule ("Figures
- * show only when real", onboarding-flow.js) governs published marketing
- * figures (shoppers, rating, reviews); a demo scan is a different kind of
- * thing and does not go through that gate at all, because it is never claimed
- * as real in the first place -- the badge is the claim's whole shape.
- *
- * `demo` is whatever `ctx.api.identifyDemo()` resolved to (SEAM: the exact
- * server shape is not yet fixed; see api.js's own comment on `identifyDemo`).
- * Pure and exported so the labelling rule is checked without a DOM.
+ * Item 19's demo card, re-exported so the name this file has always published
+ * keeps working. It lives in permissions-panel.js now, with the rest of step
+ * 24, because the standalone permission screen draws the same card.
  */
-export function demoResultHtml(demo) {
-  const badge = `<span class="onb-demo-badge">${escapeHtml(t('onb_demo_badge'))}</span>`;
-  /*
-   * The route already sends a written label ("Kraft Dinner Original, 225 g")
-   * and it is preferred over rebuilding one, because gluing brand to name
-   * printed "Kraft Kraft Dinner Original" on screen: most catalogue names
-   * carry the brand already. Brand is only prefixed when the name does not
-   * start with it, and only when there is no label to use.
-   */
-  const rawName = demo?.product?.name ? String(demo.product.name) : '';
-  const rawBrand = demo?.product?.brand ? String(demo.product.brand) : '';
-  const rawLabel = demo?.product?.label ? String(demo.product.label) : '';
-  const joined =
-    rawBrand && rawName && !rawName.toLowerCase().startsWith(rawBrand.toLowerCase())
-      ? `${rawBrand} ${rawName}`
-      : rawName || rawBrand;
-  const label = escapeHtml(rawLabel || joined);
-  const priceCents = typeof demo?.askingCents === 'number' ? demo.askingCents : null;
-  const price = priceCents !== null ? `$${(priceCents / 100).toFixed(2)}` : null;
-  const verdict = demo?.verdictWord ? escapeHtml(String(demo.verdictWord)) : '';
-  return `<div class="onb-demo-card" data-demo-result>
-    ${badge}
-    ${label ? `<p class="onb-demo-item">${label}</p>` : ''}
-    ${price !== null ? `<p class="onb-demo-price">${badge} ${escapeHtml(price)}</p>` : ''}
-    ${verdict ? `<p class="onb-demo-verdict">${badge} ${verdict}</p>` : ''}
-  </div>`;
-}
+export { demoResultHtml } from '../permissions-panel.js';
 
 function trialBody() {
   return `${face('delighted', 120)}<h1>${escapeHtml(t('onb_trial_title'))}</h1>
@@ -310,7 +261,7 @@ function bodyFor(step, answers, replay) {
     case 'evaluating': return evaluatingBody();
     case 'signin': return signinBody();
     case 'trial': return trialBody();
-    case 'permissions': return permissionsBody();
+    case 'permissions': return panelHtml();
     case 'plans': return `<h1 id="onb-q">${escapeHtml(t('onb_plans_title'))}</h1>${planOptions(answers)}`;
     case 'list': return listBody(step);
     default: return '';
@@ -325,18 +276,6 @@ function planOptions(answers) {
       escapeHtml(t('onb_plans_stub'))}</p>`;
 }
 
-/** The camera prompt, asked here on his word for screen 24, and stopped at once. */
-async function askCamera() {
-  const md = typeof navigator !== 'undefined' ? navigator.mediaDevices : null;
-  if (!md?.getUserMedia) return 'unavailable';
-  try {
-    const stream = await md.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-    for (const tr of stream.getTracks()) tr.stop();
-    return 'granted';
-  } catch (err) {
-    return err && err.name === 'NotAllowedError' ? 'denied' : 'unavailable';
-  }
-}
 
 export default {
   id: 'onboarding',
@@ -444,35 +383,9 @@ export default {
       });
     }
 
-    /** Both switches show what is actually on record, never what was last tapped. */
-    function paintPermissions() {
-      const states = {
-        location: store.consent().location === true,
-        camera: answersNow().cameraPermission === 'granted',
-      };
-      for (const [key, isOn] of Object.entries(states)) {
-        const el = root.querySelector(`[data-perm="${key}"]`);
-        if (!el) continue;
-        el.setAttribute('aria-checked', String(isOn));
-        el.classList.toggle('on', isOn);
-      }
-    }
-    if (step.kind === 'permissions') paintPermissions();
-
-    /**
-     * Item 19: fetches the demo scan and paints it into the permissions
-     * step's own slot. `identifyDemo` degrades to `null` when the route is
-     * not there yet (api.js's `getSoft`), which is honest rather than
-     * something faked to fill the space -- the fallback line says so.
-     */
-    async function showDemo() {
-      const demoSlot = root.querySelector('[data-demo-slot]');
-      if (!demoSlot) return;
-      const demo = await ctx.api.identifyDemo?.();
-      if (ac.signal.aborted) return;
-      track('demo_scan_shown', { shown: Boolean(demo) });
-      demoSlot.innerHTML = demo ? demoResultHtml(demo) : `<p class="fineprint">${escapeHtml(t('onb_demo_unavailable'))}</p>`;
-    }
+    /* Step 24's switches, its camera prompt and its demo card all live in
+       permissions-panel.js, which screens/permissions.js draws too. */
+    if (step.kind === 'permissions') paintPanel(root);
 
     on(root, 'input', (e) => {
       const range = e.target.closest('[data-range="threshold"]');
@@ -528,18 +441,14 @@ export default {
 
       const perm = e.target.closest('[data-perm]');
       if (perm) {
-        if (perm.dataset.perm === 'location') {
-          const after = toggleConsent(ctx.api, 'location');
-          recordAnswer(DEPS, step.id, 'locationAllowed', after.location === true);
-        } else {
-          const result = await askCamera();
-          if (ac.signal.aborted) return;
-          recordAnswer(DEPS, step.id, 'cameraPermission', result);
-          const note = root.querySelector('.onb-perm-note');
-          if (note) note.hidden = result === 'granted';
-        }
+        await tapPermission(root, ctx, perm.dataset.perm, (key, value) => {
+          /* The camera prompt is awaited, so the screen can be gone by the
+             time the phone answers. Unchanged from before the extraction:
+             a step that was left records nothing. */
+          if (!ac.signal.aborted) recordAnswer(DEPS, step.id, key, value);
+        });
         if (ac.signal.aborted) return;
-        paintPermissions();
+        paintPanel(root);
         return;
       }
 
@@ -558,7 +467,7 @@ export default {
         (replay ? endReplay : finish)(DEPS);
         leave(null);
       } else if (act === 'see-demo') {
-        await showDemo();
+        await fillDemoSlot(root, ctx, { signal: ac.signal, track });
       }
     }, ac.signal);
 

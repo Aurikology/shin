@@ -218,7 +218,7 @@ test('main.js registers the screen and takes the first screen from the flow', ()
   assert.match(main, /import onboarding from '\.\/screens\/onboarding\.js'/);
   assert.match(main, /for \(const s of \[[^\]]*\bonboarding\b[^\]]*\]\)/);
   assert.match(main, /import \{ firstScreen, replayUrlFor \} from '\.\/onboarding-flow\.js'/);
-  assert.match(main, /firstScreen\(store\.get\(\)\)/);
+  assert.match(main, /firstScreen\(store\.get\(\), \{ onboarding: FLAGS\.onboarding !== false \}\)/);
   assert.equal(screen.id, 'onboarding');
 });
 

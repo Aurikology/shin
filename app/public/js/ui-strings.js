@@ -237,6 +237,13 @@ const EN = {
   consent_location: 'Location',
   consent_continue: 'Continue',
 
+  /* --------------------------------------------------------- the permissions */
+  /* The screen's own chrome. Everything else on it is the welcome flow's own
+     `onb_perm_*` and `onb_demo_*` keys, shared rather than copied, so the
+     wording cannot differ between the two places the panel is drawn. */
+  perm_title: 'Permissions',
+  perm_kicker: 'Before your first scan',
+
   /* ---------------------------------------------------------- the correction */
   correct_kicker: 'Teach Shin',
   correct_title: 'Tell Shin the price',
@@ -689,6 +696,10 @@ const FR = {
   consent_photos: 'Photos',
   consent_location: 'Localisation',
   consent_continue: 'Continuer',
+
+  /* ---------------------------------------------------------- les permissions */
+  perm_title: 'Autorisations',
+  perm_kicker: 'Avant ton premier scan',
 
   /* ----------------------------------------------------------- la correction */
   correct_kicker: 'Apprends à Shin',

@@ -579,6 +579,7 @@ const NOT_SHOWN = [
   { file: 'camera.js', text: 'Shin', why: 'The camera\'s registered title, and it is the app name: titleFor() in router.js has the reasoning for why this screen is titled after the app rather than after itself.' },
   { file: 'consent.js', text: 'Your data', why: 'The registered title. consent_title is what the tab and the announcement print; this literal is the screen\'s name in the source.' },
   { file: 'onboarding.js', text: 'Welcome', why: 'The registered title, translated through onb_title. Same split as every other screen.' },
+  { file: 'permissions.js', text: 'Permissions', why: 'The registered title, translated through perm_title. Same split as every other screen.' },
   { file: 'correct.js', text: 'Tell Shin the price', why: 'The registered title, translated through correct_title. Same split as every other screen.' },
   { file: 'licences.js', text: 'Where this comes from', why: 'The registered title, translated through lic_kicker. Same split.' },
   { file: 'market.js', text: 'Where do you shop?', why: 'The registered title, translated through market_title. Same split.' },

@@ -194,9 +194,21 @@ export const MONTHLY = Object.freeze({ start: 100, min: 10, max: 1000, step: 10 
  * The first screen a launch lands on. The order the app is used in:
  * onboarding once, then the attitude and two lines (setup), then consent, then
  * the camera. Extracted from main.js so a test can hold the order.
+ *
+ * `onboarding: false` (main.js passes `FLAGS.onboarding`) drops the welcome
+ * flow out of that order and puts the permission screen in its place. NOT the
+ * same thing as skipping a step: the camera and location ask is step 24 INSIDE
+ * the welcome flow, so switching the flow off used to take the ask with it.
+ * screens/permissions.js is that step as a screen of its own, and this branch
+ * is the whole of what puts it in front of a first launch. Everything after it
+ * is unchanged, so setup and consent still happen, in the same order, once.
  */
-export function firstScreen(s) {
-  if (!s.onboarding?.doneAt) return 'onboarding';
+export function firstScreen(s, { onboarding = true } = {}) {
+  if (onboarding) {
+    if (!s.onboarding?.doneAt) return 'onboarding';
+  } else if (!s.permissionsSeen) {
+    return 'permissions';
+  }
   if (!s.seenIntro) return 'setup';
   if (!s.consentSeen) return 'consent';
   return 'camera';

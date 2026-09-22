@@ -36,6 +36,7 @@ import './track.js';
 
 import camera from './screens/camera.js';
 import onboarding from './screens/onboarding.js';
+import permissions from './screens/permissions.js';
 import setup from './screens/setup.js';
 import consent from './screens/consent.js';
 import watchlist from './screens/watchlist.js';
@@ -48,8 +49,9 @@ import market from './screens/market.js';
 import licences from './screens/licences.js';
 import savings from './screens/savings.js';
 import { firstScreen, replayUrlFor } from './onboarding-flow.js';
+import { FLAGS } from './flags.js';
 
-for (const s of [camera, onboarding, setup, consent, watchlist, correct, share, you, pastscans, removed, market, licences, savings]) {
+for (const s of [camera, onboarding, permissions, setup, consent, watchlist, correct, share, you, pastscans, removed, market, licences, savings]) {
   router.register(s);
 }
 
@@ -88,7 +90,11 @@ startThemeColourSync();
  * then the camera. Each of the four has its own flag and none is folded into
  * another.
  */
-const first = firstScreen(store.get());
+/* `FLAGS.onboarding` false swaps the welcome flow for the permission screen
+   (screens/permissions.js), which is that flow's own step 24 standing on its
+   own: switching the flow off must not take the camera and location ask with
+   it. The rest of the order is untouched. */
+const first = firstScreen(store.get(), { onboarding: FLAGS.onboarding !== false });
 /* `?onboarding=1` replays the welcome once, for someone who has finished it
    already; the flow module decides, and the URL is rewritten so a reload does
    not start it again. First-run behaviour above is untouched. */

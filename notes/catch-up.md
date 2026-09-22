@@ -9,6 +9,46 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-21 (Aurik's PC), later still: the permission screen is out of onboarding, and the welcome flow now has a switch
+
+### To do
+
+- **Jamin: nothing new.** The two asks from the entry below still stand (set `SHIN_GEMINI_TIER`
+  on the Mac, and the paid key for the eval). This entry is a blocker of yours being cleared, not
+  a new one.
+- **Aurik: the screen has not been seen in a browser.** Tests and typecheck are green and the
+  server serves the module, but layout, spacing and the switches at 390px were looked at by
+  nobody. That is the one thing left on it.
+
+### What changed
+
+**The blocker in finding 2 below is gone.** The camera and location ask was step 24 inside the
+welcome flow, so switching the flow off took it with it, which is why "make the permission screen
+first by turning onboarding off" could not work as written in `docs/mvp-plan.md`. It is now:
+
+- `app/public/js/permissions-panel.js` -- the switches, the phone's own prompt, the denied note
+  and item 19's demo card, as one function. Both callers draw it, so they cannot drift. A test
+  fails if either one grows its own copy.
+- `app/public/js/screens/permissions.js` -- that panel as a registered screen (`?s=permissions`,
+  tag **a94**), with its own Continue and a `permissionsSeen` flag so it is asked once, ever.
+- `FLAGS.onboarding` in `app/public/js/flags.js`, **left TRUE**. False sends a first launch to the
+  permission screen instead of the welcome flow, then on through setup and consent to the camera
+  exactly as now. Flipping it is your call, and it is one line.
+
+**Nothing about today's behaviour changed.** The flag is on, the welcome flow still runs, step 24
+still draws the same panel it always did, and `firstScreen` with the flag on returns what it
+returned yesterday. 1301 tests pass (12 new), typecheck clean.
+
+**What this does NOT do.** The other four flags your plan asks for (`photoId`, `languages`,
+`market`, and Savings, which is not already off whatever the plan says) are not built. This was
+the one that needed a screen built before a flag could mean anything.
+
+### Read by
+
+- Aurik, 2026-09-21.
+
+---
+
 ## 2026-09-21 (Aurik's PC), later: the photo guard was failing open, and three things in the MVP plan are already answered by the code
 
 ### To do

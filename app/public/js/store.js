@@ -155,6 +155,14 @@ const EMPTY = {
    */
   consentSeen: false,
   /**
+   * Whether the camera-and-location permission screen (screens/permissions.js)
+   * has been shown and left. Its own flag for the same reason `consentSeen` is
+   * not folded into `seenIntro`: it is a third question, asked once, and while
+   * the welcome flow is on it is asked inside that flow instead, so an install
+   * can genuinely have answered one and not the other.
+   */
+  permissionsSeen: false,
+  /**
    * Item 8: the thumbs ratings this device has actually sent, keyed by scan
    * id so a repeat tap on the same verdict overwrites rather than piling up,
    * and so item 8d's rated-count row has something of its own to count that
@@ -240,6 +248,7 @@ function migrate(s) {
       }
     : { ...EMPTY.consent };
   const consentSeen = s.consentSeen === true;
+  const permissionsSeen = s.permissionsSeen === true;
   const ratings = Array.isArray(s.ratings) ? s.ratings : [];
   /* A state saved before the shop shortlist has no `shops` at all. Both halves
      are rebuilt defensively rather than trusted: this blob is on a device and
@@ -260,7 +269,7 @@ function migrate(s) {
       ? s.shops.lastByCell
       : {},
   };
-  return { ...s, history, watchlist, removed, market, buzz, consent, consentSeen, ratings, shops };
+  return { ...s, history, watchlist, removed, market, buzz, consent, consentSeen, permissionsSeen, ratings, shops };
 }
 
 /** Drops anything removed more than thirty days ago. Never throws, never loses anything early. */
@@ -759,6 +768,14 @@ export function consentSeen() {
 
 export function setConsentSeen() {
   update({ consentSeen: true });
+}
+
+export function permissionsSeen() {
+  return state.permissionsSeen === true;
+}
+
+export function setPermissionsSeen() {
+  update({ permissionsSeen: true });
 }
 
 /* --------------------------------------------------------------- ratings --- */
