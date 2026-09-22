@@ -9,6 +9,75 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-21 (Aurik's PC), later: the photo guard was failing open, and three things in the MVP plan are already answered by the code
+
+### To do
+
+- **Jamin / the Mac, set `SHIN_GEMINI_TIER` on the beta server now.** `db1b8d9` is deployed and
+  **the photo path refuses until you do.** That is deliberate and it is the fix, not a regression:
+  the guard meant to stop a shopper's photograph reaching Google's training pipeline only fired on
+  the exact string `free`, so an **unset** variable read as safe -- and unset is what every machine
+  here is, `.env` included. It was inert on precisely the machines it was written for. Undeclared
+  now means free and refuses; `paid` is the only thing that opens the door. Set it to `paid` if
+  that server holds a paid key, `free` if it does not. Either way the server boots and the barcode
+  and typed paths are untouched -- declaring `free` no longer bricks it, which is the other half of
+  why nobody ever declared it. Same principle you already settled for the eval half in D-112.
+- **Aurik still owes the `votes.ts:184` design call** (500 ms barcode linger, wrong-product risk),
+  and the paid-key ask stands for the eval.
+
+### What changed, and what it means for `docs/mvp-plan.md`
+
+Three findings from reading the code against your plan. Two of them save work, one is a blocker.
+
+**1. The thumbs up/down is already built, end to end. Do not build it.** `app/src/ratings.ts` has
+`rateScan`/`deleteRating`/`ratingFor`/`ratingHistory`/`ratingCounts`, keyed on `scanId` +
+`deviceId`, with a closed reason list for thumbs-down. Two tables written in one transaction:
+`scan_rating` (latest, `migrations.ts:168`) and `scan_rating_history` (append-only, every tap,
+`migrations.ts:449`). Routes `POST /api/scan-rating` and `/api/scan-rating/delete`
+(`server.ts:3242,3282`), firing a `thumbs` telemetry event. Client renders on **both** answer
+sheets -- the own-engine verdict (`camera.js:818`) and the Gemini sheet via `thumbsBlock()`
+(`camera.js:1262`, called at `:1398`) -- with an undo toast, and `you.js:309` shows the device's own
+counts. Votes key on `scan_id`, so they already join to the answer. **The only gap is aggregation
+across users:** nothing exports `ratingCounts` beyond one device's own profile view. That is a
+reporting job, not a feature.
+
+**2. The permission screen cannot become the first screen by switching onboarding off, because it
+lives inside onboarding.** This is the one blocker in the build order. It is not a standalone
+screen: it is step `n:24` of the welcome flow (`onboarding-flow.js:132`), rendered by
+`permissionsBody()`/`paintPermissions()` (`onboarding.js:235,313,460`) and coupled to onboarding's
+own render loop and a demo-scan fetch. Switch the welcome screen off and the permission ask goes
+with it. It has to be **extracted into its own registered screen first** -- a prerequisite for step
+1, not a consequence of it. Related: the consent screen is next in line, but it only asks
+photos/location as data toggles; it is not an OS permission prompt and never asks for camera
+access, which is deferred to the first shutter press (`main.js:17-20`).
+
+**3. Two smaller corrections.** *"Savings overview -- it's already off"* is not true:
+`screens/savings.js` is a complete registered screen (`main.js:49,52`) and `you.js:289-292` renders
+a live row whose handler at `:640` navigates to it. Nothing gates either today. And *"the country
+picker is one line to undo"* is half right -- flipping the default really is about one line
+(`store.js:117`), and the lookup genuinely does work worldwide because `scan-body.js:69-93` only
+forwards market strings into the prompt with no server-side branching, but *pinning* also means
+hiding a live picker screen and its You row, which is a second change.
+
+**Also worth knowing before step 4.** The free-scan counter wants "10 a week per phone, survives
+reinstall". `189eb83` built `KeyedLimiter`, but it keys on **invite code and network address**, in
+memory, reset on restart (`rate-limit.ts:11-13,81-94`). A `deviceId` exists and is threaded
+everywhere, but `rate-limit.ts:7-8` says it was deliberately rejected for money-relevant limits:
+*"the device id is whatever the phone says it is, so a script can send a new one every time."* So
+that counter is either a knowingly spoofable limit or real device attestation. It sits directly
+under the subscription revenue, so it is a founders' call rather than an implementation detail.
+
+**And the price-match line is not quite "a small job".** `priceMatchAdvice()`
+(`app/src/price-match.ts:541`) needs a competitor `offer.priceCents` and the shelf
+`bannerPriceCents`, neither of which is currently threaded through the verdict-rendering path in
+`camera.js`; it deliberately returns `messageKey`/`messageVars` with no English string, so it needs
+new copy in both locales; and its one unresolved provenance disagreement (the No Frills 7-day
+window) has to be surfaced or suppressed by the caller.
+
+### Read by
+
+- Aurik, 2026-09-21.
+
 ## 2026-09-21 (Aurik's PC): your two rulings answered, the seven UI faults closed, and the key ask is narrower than we thought
 
 ### To do
