@@ -9,6 +9,70 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-22 (Aurik's PC), evening: the server routes were swept, and one answer from you decides how bad six of them are
+
+### To do
+
+- **Jamin, one question, and it ranks above everything else on this list: is `SHIN_INVITE_CODE`
+  set on the beta Mac?** (D-164.) With it set, D-155 to D-159 are a closed-beta annoyance among
+  six testers who each got a link. **Unset, every one of them is open to anyone who can reach the
+  host.** It is unset in every scope on Aurik's machine and no route discloses it, so nobody here
+  can answer it. One line back from you settles the severity of six rows.
+- **Jamin, D-155, the worst of the sweep.** Any caller can **write another device's consent
+  record, including switching photo consent ON**. `server.ts:3451` takes `deviceId` from the body
+  and authenticates nothing. The damaging direction is not turning someone's consent off, it is
+  turning it on: `shelf.ts:79` gates frame storage on exactly that table, so forging a stranger's
+  row makes the server accept and keep their camera frames. This is the consent record Law 25
+  rests on.
+- **Jamin, D-160 and D-161, disk.** One client wrote **42 MB in 788 ms** through
+  `/api/shutter/frame` -- no rate cap, no per-device cap (the route carries no device id at all),
+  no disk guard. At that rate a 250 GB disk goes in about 80 minutes. And the shutter request log
+  writes **before** the invite gate, so an unauthenticated caller makes directories at ~589 a
+  second; a few hours of it makes your own `/api/admin/shutter` unusable, because it stats every
+  entry.
+- **Whoever runs the Mac, D-163.** `SHIN_DATA_DIR` does **not** control where shopper photos land
+  -- `photosDir` falls back to a path relative to the source file, unlike `shutterDir`. So **a
+  backup of `SHIN_DATA_DIR` contains no photos**, while the comment above that function says
+  photos live there precisely so the nightly backup copies them. Not fixed here on purpose: the
+  consistent fix relocates photos on any server that sets the variable, without migrating what is
+  already written.
+- **Still open from the entries below:** D-147/D-148 (the barcode button sending photos with
+  consent off), D-139, D-141, D-142, D-146, D-150.
+
+### What changed
+
+**`/api/admin/` is fine, and that was the first thing checked because it would have outranked
+everything.** Off unless `SHIN_ADMIN_TOKEN` is set, and unset every admin path answers 404 rather
+than advertising itself. Constant-time compare. Read-only by construction, not by inspecting SQL:
+`CREATE TABLE` gets "attempt to write a readonly database", `readfile()` gets "no such function",
+and both `?path=../../server.ts` and `?path=C:/Windows/win.ini` get "path must stay inside the data
+folder". Verified at the consumer in all three states.
+
+**Nothing was fixed this run,** which is the honest outcome: every finding is either a product
+call, an operations call, or waiting on the invite-code answer. Ten rows logged, D-155 to D-164.
+
+**What was checked and found FINE,** and this is the substantial half of the report: **no error
+leakage anywhere** -- not a stack trace, absolute path, SQL fragment, provider error string or
+internal id in any shopper-facing body across all 25 routes and their malformed variants; refusals
+are one plain sentence. `readBody` caps before accumulating, refuses a declared oversize without
+reading it, and answers rather than hangs on a **lying** content-length. Every hostile body tested
+(`[]`, `"string"`, `null`, `42`, `{{{`, 2000-deep nesting) answers a sentence and a correct status.
+**Nothing wedged the server:** 40 concurrent heavy requests, 10 slowloris half-open bodies, an
+absolute-form request line, a 20 MB refused body -- `/api/health` answered throughout and the
+process never died. The invite gate itself works as documented. Two claims were **refuted**:
+`/api/price` does not write onto another device's scan row, and `scan-rating/delete` returning true
+for a nonexistent id is deliberate.
+
+**Not verified:** anything on a real paid Gemini path, the Overpass outbound on `/api/stores` (the
+run was localhost-only by instruction), and real disk exhaustion -- the write rate was measured and
+the outcome extrapolated, not reproduced.
+
+### Read by
+
+- Aurik, 2026-09-22.
+
+---
+
 ## 2026-09-22 (Aurik's PC), later still: the camera was swept, and the barcode button is sending photos
 
 ### To do
