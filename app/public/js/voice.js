@@ -1017,6 +1017,18 @@ const LINES_EN = {
     blunt: () => 'Out of photo reads today. Try the barcode or type it.',
   },
   /**
+   * The photo path is off on this server because of the key it holds, and the
+   * shopper cannot fix that, so the line does not ask them to: it says photos
+   * are off here, that their picture was not sent anywhere, and what still
+   * works. "Not sent" is the part worth saying out loud -- it is the whole
+   * reason the route refused.
+   */
+  cam_photo_tier_unsafe: {
+    deadpan: () => 'Photos are off on this server, so yours was not sent anywhere. The barcode and typing it still work.',
+    warm: () => 'Photos are switched off on this server, so yours never left your phone. The barcode or typing it will still get you an answer.',
+    blunt: () => 'Photos are off here. Yours was not sent. Use the barcode or type it.',
+  },
+  /**
    * The last row of the stand-in candidate list, under "Something else". It
    * promises a refusal rather than pretending, which is the honest thing for a
    * list that cannot yet be produced by a camera.

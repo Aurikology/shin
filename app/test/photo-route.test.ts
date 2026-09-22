@@ -40,6 +40,10 @@ process.env.SHIN_CATALOGUE = join(dir, 'no-catalogue.db');
 process.env.PORT = '0';
 
 process.env.GEMINI_API_KEY = 'test-key-never-sent';
+// The photo route now declines on any machine that has not named the kind of
+// key it holds, so this harness names one. Nothing here reaches Google -- the
+// transport is a double -- but the route asks every machine the same question.
+process.env.SHIN_GEMINI_TIER = 'paid';
 const { server, setGeminiTransportForTests } = await import('../server.ts');
 const { fakeTransport } = await import('./gemini-double.ts');
 const { openScanStore, allScans } = await import('../src/scans.ts');

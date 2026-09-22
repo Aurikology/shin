@@ -41,6 +41,8 @@ process.env.PORT = '0';
 delete process.env.SHIN_INVITE_CODE;
 
 process.env.GEMINI_API_KEY = 'test-key-never-sent';
+// Named, because the photo route declines on an unnamed key. See photo-route.test.ts.
+process.env.SHIN_GEMINI_TIER = 'paid';
 const { server, setGeminiTransportForTests, setSpendGuardForTests } = await import('../server.ts');
 const { fakeTransport } = await import('./gemini-double.ts');
 const { spendCapRefusalMessage } = await import('../../identify/src/cap.ts');

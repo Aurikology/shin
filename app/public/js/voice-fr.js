@@ -592,6 +592,11 @@ export const LINES_FR = {
     warm: () => "Les lectures de photos d'aujourd'hui sont déjà épuisées, pas ta photo. Le code-barres ou la saisie au clavier vont quand même te donner une réponse.",
     blunt: () => "Plus de lectures de photos aujourd'hui. Essaie le code-barres ou écris-le.",
   },
+  cam_photo_tier_unsafe: {
+    deadpan: () => "Les photos sont désactivées sur ce serveur, donc la tienne n'a été envoyée nulle part. Le code-barres et la saisie au clavier fonctionnent encore.",
+    warm: () => "Les photos sont désactivées sur ce serveur, donc la tienne n'a jamais quitté ton téléphone. Le code-barres ou la saisie au clavier vont quand même te donner une réponse.",
+    blunt: () => "Les photos sont désactivées ici. La tienne n'a pas été envoyée. Utilise le code-barres ou écris-le.",
+  },
   cam_candidate_none: {
     deadpan: () => "Je vais presque certainement refuser",
     warm: () => "Je vais probablement devoir refuser celui-là",

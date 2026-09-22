@@ -773,6 +773,60 @@ function imageKind(bytes: Buffer): 'png' | 'jpeg' | null {
 }
 
 /**
+ * THE FREE TIER IS A TRAINING PIPELINE, AND A USER'S PHOTOGRAPH MUST NEVER
+ * REACH IT.
+ *
+ * Google's free tier trains on what is sent to it. That is a fine trade for
+ * the eval, which uses a free key against public photographs of products on
+ * shelves, and it is not a trade anybody made on behalf of the person who
+ * pointed their phone at their own kitchen counter. The two keys differ by one
+ * environment variable, the eval and the server run from the same tree, and
+ * the mistake is one shell away in both directions.
+ *
+ * UNDECLARED IS FREE. The first version of this guard fired only on the exact
+ * string `free`, so an unset variable read as safe -- and unset is what every
+ * machine in this project actually is, `.env` included, which made the guard
+ * inert on exactly the machines it was written for. A safety property whose
+ * default is "assume the safe case" is not a safety property, so the default
+ * is now the unsafe case and `paid` is the only thing that opens the door.
+ *
+ * AND DECLARING THE TRUTH MUST NOT BRICK THE SERVER, which is why this is no
+ * longer a refusal to start. A `free` machine that will not boot at all is a
+ * machine whose operator unsets the variable to get their work back, and the
+ * point of the variable, settled for the eval half in D-112, is that a run
+ * NAMES which kind of key it is spending before it spends it. So the server
+ * comes up, says what it is, and refuses at the one route that carries a
+ * photograph. The barcode and typed paths send digits and words, never an
+ * image (rule 2), so they are not the hazard and they keep working.
+ */
+type GeminiTier = 'paid' | 'free';
+
+function geminiTier(env: NodeJS.ProcessEnv = process.env): { tier: GeminiTier; declared: boolean } {
+  const raw = (env.SHIN_GEMINI_TIER ?? '').trim().toLowerCase();
+  if (raw === 'paid') return { tier: 'paid', declared: true };
+  return { tier: 'free', declared: raw === 'free' };
+}
+
+/**
+ * The sentence the photo route refuses with, or null when photographs may go.
+ *
+ * Two different sentences because they are two different mistakes and each has
+ * its own repair: a declared free key is a deliberate choice about which key
+ * is in the shell, an undeclared one is a machine that has never been asked.
+ * Neither claims to know whether the key is really free -- that is not
+ * knowable from here -- only what this server was told and what it does about
+ * being told nothing.
+ */
+function photoTierRefusal(env: NodeJS.ProcessEnv = process.env): string | null {
+  const { tier, declared } = geminiTier(env);
+  if (tier === 'paid') return null;
+  if (declared) {
+    return 'SHIN_GEMINI_TIER is set to free, and Google trains on everything sent to a free key, so Shin will not send a shopper\'s photograph through it. The barcode and typing it still work. Set SHIN_GEMINI_TIER=paid on a server holding a paid key, and keep the free one for the eval.';
+  }
+  return 'SHIN_GEMINI_TIER is not set, so this server does not know whether its Gemini key is free -- and Google trains on everything sent to a free key -- so it will not send a shopper\'s photograph. The barcode and typing it still work. Set SHIN_GEMINI_TIER to paid or free.';
+}
+
+/**
  * Thirty photo calls per device per rolling ten minutes.
  *
  * ONLY THIS ROUTE. A barcode is free and unlimited by design (it is the
@@ -2742,6 +2796,31 @@ export const server = createServer(async (req, res) => {
      */
     if (url.pathname === '/api/identify/photo') {
       if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      /*
+       * Before the body is read, so on a server that may not send photographs
+       * the photograph never enters this process at all.
+       *
+       * A 200 with a `failure` code rather than a 5xx, by this route's own
+       * rule above: `identifyPhoto` in `public/js/api.js` turns every status it
+       * was not built against into `offline`, and telling a shopper standing in
+       * an aisle with four bars that they are offline is the class of wrong
+       * answer hard rule 3 exists to stop. `says` carries the server's own
+       * sentence for whoever is reading a log or a curl.
+       */
+      const tierRefusal = photoTierRefusal();
+      if (tierRefusal) {
+        return json(200, {
+          product: null,
+          matchedBy: 'none',
+          band: 'miss',
+          catalogueUp: false,
+          failure: 'photo_tier_unsafe',
+          reason: 'photo_tier_unsafe',
+          lowConfidence: true,
+          confidenceReasons: ['no_answer:photo_tier_unsafe'],
+          says: tierRefusal,
+        });
+      }
       const body = await readBody(req, MAX_PHOTO_BODY_BYTES);
       if (body === TOO_LARGE) return refuseTooLarge(MAX_PHOTO_BODY_BYTES);
       if (body === null || typeof body !== 'object') {
@@ -3625,33 +3704,6 @@ const SCAN_DB = process.env.SHIN_SCANS ?? fileURLToPath(new URL('./data/scans.db
  * path whose folder is not there is always a typo or an unmounted disk.
  */
 /**
- * THE FREE TIER IS A TRAINING PIPELINE, AND A USER'S PHOTOGRAPH MUST NEVER
- * REACH IT.
- *
- * Google's free tier trains on what is sent to it. That is a fine trade for
- * the eval, which uses a free key against public photographs of products on
- * shelves, and it is not a trade anybody made on behalf of the person who
- * pointed their phone at their own kitchen counter. The two keys differ by one
- * environment variable, the eval and the server run from the same tree, and
- * the mistake is one shell away in both directions.
- *
- * SO IT IS A REFUSAL TO START RATHER THAN A WARNING, checked here beside the
- * database guard and for the same reason it gives: this server must not come
- * up half-working. A warning on a machine that has been running for a week is
- * a line nobody scrolls back to, and the damage is not recoverable once a
- * photograph has been sent.
- *
- * Stated in `startupProblems`' own shape (a sentence naming the fix, all
- * problems reported together) but kept in this file rather than in
- * `startup.ts`, because it is a fact about a model vendor rather than about a
- * path on a disk, and `startup.ts` is a pure file about the machine.
- */
-function geminiTierProblem(env: NodeJS.ProcessEnv = process.env): string | null {
-  if ((env.SHIN_GEMINI_TIER ?? '').trim().toLowerCase() !== 'free') return null;
-  return 'SHIN_GEMINI_TIER is set to free, and Google trains on everything sent to a free key, so Shin will not serve a shopper\'s photograph through it. Use a paid key here and keep the free one for the eval.';
-}
-
-/**
  * A MACHINE HALFWAY THROUGH THE SWITCH TO GEMINI IS THE DANGEROUS STATE.
  *
  * `SHIN_MODEL_PROVIDER=gemini` with no `GEMINI_API_KEY` is one environment
@@ -3681,8 +3733,6 @@ function geminiKeyProblem(env: NodeJS.ProcessEnv = process.env): string | null {
 }
 
 const problems = startupProblems();
-const tierProblem = geminiTierProblem();
-if (tierProblem) problems.push(tierProblem);
 const keyProblem = geminiKeyProblem();
 if (keyProblem) problems.push(keyProblem);
 if (problems.length > 0) {
@@ -3690,6 +3740,16 @@ if (problems.length > 0) {
   console.error('Shin did not start. Nothing was changed on disk.');
   process.exit(1);
 }
+
+/*
+ * Said at boot rather than only at the moment a shopper's photo is turned
+ * away, because whoever starts this server is the only person who can change
+ * the answer, and they are reading this screen now. It is not a problem in
+ * `startupProblems`' sense: the server is starting, and every path but one is
+ * whole.
+ */
+const tierRefusalAtBoot = photoTierRefusal();
+if (tierRefusalAtBoot) console.error(tierRefusalAtBoot);
 
 /*
  * A TAKEN PORT IS A SENTENCE, NOT A STACK.

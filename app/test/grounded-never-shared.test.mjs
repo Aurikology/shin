@@ -312,12 +312,28 @@ function freePort() {
   });
 }
 
-test('the server refuses to start on a free Gemini key', async () => {
+/*
+ * A real 1x1 PNG, so a broken guard would get past the route's own byte check
+ * and reach the model rather than failing on the picture and looking like a
+ * pass.
+ */
+const PNG_BASE64
+  = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+test('a free Gemini key starts the server, says so, and turns the photo route away', async () => {
   /*
-   * Google's free tier trains on what is sent to it. The eval uses a free key
-   * on public photographs; a shopper's own photograph must never reach it, and
-   * the two differ by one environment variable in the same tree. A warning
-   * would scroll away, so it is a refusal before the port is opened.
+   * CHANGED 2026-09-21, and the change is the point. Google's free tier trains
+   * on what is sent to it, so a shopper's photograph must never reach one --
+   * that half is unchanged and is asserted below. What changed is the shape of
+   * the enforcement: `SHIN_GEMINI_TIER=free` used to make the server refuse to
+   * START, which meant declaring the truth cost you the whole app and the
+   * cheapest way out was to unset the variable. D-112 settled the same
+   * question for the eval half: the point of the variable is that a run names
+   * which kind of key it is spending, not that the answer is `free`.
+   *
+   * So: it comes up, it says on stderr what it is, and the ONE route that
+   * carries a photograph declines. The barcode and typed paths send digits and
+   * words, never an image, so they are not the hazard and they stay up.
    */
   const p = await freePort();
   const sandbox = mkdtempSync(join(tmpdir(), 'shin-free-tier-'));
@@ -334,40 +350,89 @@ test('the server refuses to start on a free Gemini key', async () => {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let stderr = '';
+  let stdout = '';
   child.stderr.on('data', (d) => {
     stderr += String(d);
   });
   /*
-   * KILLED WHETHER OR NOT IT BEHAVED. If the guard is ever removed, the child
-   * comes up and stays up: the wait below gives up after twenty seconds, but a
+   * KILLED WHETHER OR NOT IT BEHAVED, and now it is expected to stay up: a
    * live child with pipes attached keeps the whole test process alive, so a
-   * failing assertion would become a hung suite that reports nothing. Measured
-   * on this file while writing it. The finally is the fix.
+   * failing assertion would become a hung suite that reports nothing. The
+   * finally is the fix.
    */
-  let exit;
   try {
-    exit = await new Promise((resolve, reject) => {
-      const fail = setTimeout(() => reject(new Error('the server did not exit in 20 seconds')), 20_000);
+    await new Promise((resolve, reject) => {
+      const fail = setTimeout(() => reject(new Error(`the server did not come up in 20 seconds: ${stderr}`)), 20_000);
+      child.stdout.on('data', (d) => {
+        stdout += String(d);
+        if (/Shin is running/.test(stdout)) {
+          clearTimeout(fail);
+          resolve();
+        }
+      });
       child.on('exit', (codeOut) => {
         clearTimeout(fail);
-        resolve(codeOut);
+        reject(new Error(`a free key stopped the server starting (exit ${codeOut}): ${stderr}`));
       });
       child.on('error', reject);
     });
+
+    // The operator is the only person who can change this, and they are
+    // reading this screen now.
+    assert.match(stderr, /SHIN_GEMINI_TIER/);
+    // The sentence says WHY, because the person reading it is about to wonder
+    // whether to just unset the guard.
+    assert.match(stderr, /trains/);
+
+    const res = await fetch(`http://127.0.0.1:${p}/api/identify/photo`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ image: PNG_BASE64, deviceId: 'device-A' }),
+    });
+    const body = await res.json();
+    assert.equal(res.status, 200, 'the refusal is a 200, or the client reads it as being offline');
+    assert.equal(body.failure, 'photo_tier_unsafe', 'a free key was served a photograph');
+    assert.equal(body.product, null);
+    // It names what was refused and how to fix it, and claims nothing else.
+    assert.match(body.says, /SHIN_GEMINI_TIER/);
+    assert.match(body.says, /trains/);
+
+    // The rest of the server is up, which is the whole difference from before.
+    const health = await fetch(`http://127.0.0.1:${p}/api/health`);
+    assert.equal(health.status, 200, 'the free-tier server did not serve the paths that carry no photograph');
   } finally {
     child.kill();
   }
-  assert.equal(exit, 1, 'a free key did not stop the start');
-  assert.match(stderr, /SHIN_GEMINI_TIER/);
-  // The sentence says WHY, because the person reading it is about to wonder
-  // whether to just unset the guard.
-  assert.match(stderr, /trains/);
-  assert.match(stderr, /Nothing was changed on disk/);
   try {
     rmSync(sandbox, { recursive: true, force: true });
   } catch {
     /* the OS will take it */
   }
+});
+
+test('an undeclared tier is treated as free, because unset is what every machine here is', async () => {
+  /*
+   * THE ACTUAL BUG, and it lived for as long as it did because the old guard
+   * fired only on the exact string `free`. Unset returned null, which read as
+   * safe -- and unset is what `.env` in this repo is, so the guard was inert
+   * on every machine in the project while looking like it was holding.
+   *
+   * The in-process server above is started with `SHIN_GEMINI_TIER` deleted
+   * (see the top of this file), so it IS that machine, and this asks it for a
+   * photo read.
+   */
+  const res = await fetch(`http://127.0.0.1:${port}/api/identify/photo`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ image: PNG_BASE64, deviceId: 'device-A' }),
+  });
+  const body = await res.json();
+  assert.equal(res.status, 200);
+  assert.equal(body.failure, 'photo_tier_unsafe', 'an undeclared key was served a photograph');
+  // The repair names both answers, because the server does not know which is
+  // true and saying "use a paid key" to someone who has one would be the
+  // D-112 mistake again.
+  assert.match(body.says, /paid or free/);
 });
 
 test('the server refuses to start on gemini with no key, rather than half-working', async () => {

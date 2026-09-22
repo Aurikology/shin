@@ -913,7 +913,7 @@ const PHOTO_MODEL_FAILURE_LINES = {
  * gives the two families the same treatment (a suppressed "said" line, since
  * the per-class sentence already carries both halves) but a different title.
  */
-const THROTTLE_REASONS = new Set(['too_large', 'rate_limited']);
+const THROTTLE_REASONS = new Set(['too_large', 'rate_limited', 'photo_tier_unsafe']);
 
 /**
  * Item 9's countdown sentence, built from the server's own `retryAfterSeconds`
@@ -3952,6 +3952,18 @@ export default {
       if (id?.failure === 'rate_limited') {
         showPhotoRefusal('rate_limited', retryCountdownLine(id.retryAfterSeconds));
         startRetryCountdown(id.retryAfterSeconds);
+        return;
+      }
+      /*
+       * The server is on a Gemini key it may not send a photograph to, or on
+       * one it was never told the kind of. Its decision, made before the image
+       * was read, so it belongs with the two above rather than with the model
+       * failures: nothing looked at this photo and nothing is wrong with it.
+       * Not queued for a later retry either -- the answer will be the same
+       * until someone changes the server's environment.
+       */
+      if (id?.failure === 'photo_tier_unsafe') {
+        showPhotoRefusal('photo_tier_unsafe', say('cam_photo_tier_unsafe'));
         return;
       }
 

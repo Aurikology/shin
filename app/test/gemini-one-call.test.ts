@@ -26,6 +26,8 @@ process.env.GEMINI_API_KEY = 'test-key-never-sent-anywhere';
 delete process.env.SHIN_INVITE_CODE;
 delete process.env.SHIN_GEMINI_MODEL;
 delete process.env.SHIN_MODEL_PROVIDER;
+// Named, because the photo route declines on an unnamed key. See photo-route.test.ts.
+process.env.SHIN_GEMINI_TIER = 'paid';
 
 const { server, setGeminiTransportForTests, setSpendGuardForTests, setCatalogueForTests, settleBackgroundChecks } = await import('../server.ts');
 const { getScan, geminiCallsForScan, openScanStore } = await import('../src/scans.ts');
