@@ -24,7 +24,8 @@ import {
 } from '../src/providers/gemini-scan.ts';
 import { fakeTransport, goodAnswer, httpBody } from '../../app/test/gemini-double.ts';
 
-const NO_ENV = {} as NodeJS.ProcessEnv;
+// These tests exercise the 2.5/3.x comparison, which runs only with SHIN_GEMINI_SPLIT=1 (default is 3.x for every scan).
+const NO_ENV = { SHIN_GEMINI_SPLIT: '1' } as NodeJS.ProcessEnv;
 const on = (family: '2.5' | '3.x'): string => {
   for (let i = 0; i < 200; i++) if (modelForScan(`d${i}`, NO_ENV).family === family) return `d${i}`;
   throw new Error('none');

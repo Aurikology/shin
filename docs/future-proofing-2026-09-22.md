@@ -50,16 +50,31 @@ already global). Other countries need price crawlers: `price/src/crawl.ts` fixes
 4. **Two servers would break the limits.** The photo rate map (`app/server.ts` ~849), the answer cache
    (~1062) and the spend cap file (`identify/src/cap.ts` ~92) live in one process, so a second server
    gets its own CA$10 a day cap. They need a shared store before a second server is added.
-5. **Cost.** Assuming 20 scans per user a month (estimate), from `identify/eval/scan-cost.ts`:
+5. **Cost.** Corrected 2026-09-22. The first version charged every scan a fresh search and assumed
+   20 scans per user. It ignored the shared repeat-scan cache already in `app/src/repeat-cache.ts`
+   (keyed by barcode, not device: any scan of a product checked in the last 6 hours costs nothing).
+   Rates re-read from ai.google.dev/gemini-api/docs/pricing on 2026-09-22: Gemini 2.5 Flash search
+   free for 1,500 prompts a day, then $35 per 1,000; tokens $0.30 in / $2.50 out per 1M, about
+   $0.0034 a scan at 4,500 in / 800 out. Gemini 3.x search free for 5,000 queries a month, then $14
+   per 1,000, about 4 queries a scan; 3.8 Flash tokens about $0.0064 a scan.
 
-| Users | Scans a month | Gemini 2.5 | Gemini 3.x |
+   Assumed (estimates, to be replaced by beta numbers): 8 scans per user a month, 60 percent of
+   scans answered from the cache.
+
+   Gemini 2.5 is not accessible on the beta server (Jamin, 2026-09-22), so only 3.x counts. Scans
+   now go to 3.x by default; `SHIN_GEMINI_SPLIT=1` brings back the 2.5/3.x split.
+
+| Users | Scans a month | Paid Gemini calls | Gemini 3.x (3.8 Flash) |
 | --- | --- | --- | --- |
-| 1,000 | 20,000 | about $44 | about $1,050 |
-| 10,000 | 200,000 | about $5,865 | about $11,550 |
-| 100,000 | 2,000,000 | about $73,000 | about $112,000 |
+| 1,000 | 8,000 | 3,200 | about $130 |
+| 10,000 | 80,000 | 32,000 | about $1,900 |
+| 100,000 | 800,000 | 320,000 | about $19,900 |
 
-At 10,000 users, a CA$3.99 plan (about US$2.20 after a 15 to 30 percent store fee, estimate) needs
-about 1 user in 4 paying to cover Gemini 2.5, and about 1 in 2 on Gemini 3.x (estimate). The weekly free limit is what keeps free users from carrying that.
+   Search is most of it: about 4 queries a scan at $14 per 1,000 is $0.056, against $0.0064 of
+   tokens. Fewer queries per scan is the biggest lever. The old no-cache, 20-scan figure is the
+   ceiling: about $12,400 a month at 10,000 users. Two numbers the beta must record to replace the guesses: scans per active user a month,
+   and the share of scans served from the cache. Thinking tokens bill as output and are not in the
+   token figure.
 
 ## Order
 
