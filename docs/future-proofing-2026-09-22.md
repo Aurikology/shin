@@ -61,14 +61,18 @@ already global). Other countries need price crawlers: `price/src/crawl.ts` fixes
    Assumed (estimates, to be replaced by beta numbers): 8 scans per user a month, 60 percent of
    scans answered from the cache.
 
-| Users | Scans a month | Paid Gemini calls | Gemini 2.5 | Gemini 3.x |
-| --- | --- | --- | --- | --- |
-| 1,000 | 8,000 | 3,200 | about $11 | about $130 |
-| 10,000 | 80,000 | 32,000 | about $110 (search stays inside the free 1,500 a day) | about $1,900 |
-| 100,000 | 800,000 | 320,000 | about $10,700 | about $19,900 |
+   Gemini 2.5 is not accessible on the beta server (Jamin, 2026-09-22), so only 3.x counts. Scans
+   now go to 3.x by default; `SHIN_GEMINI_SPLIT=1` brings back the 2.5/3.x split.
 
-   The old no-cache, 20-scan figure is the ceiling: about $6,100 (2.5) and $12,400 (3.x) at 10,000
-   users. Two numbers the beta must record to replace the guesses: scans per active user a month,
+| Users | Scans a month | Paid Gemini calls | Gemini 3.x (3.8 Flash) |
+| --- | --- | --- | --- |
+| 1,000 | 8,000 | 3,200 | about $130 |
+| 10,000 | 80,000 | 32,000 | about $1,900 |
+| 100,000 | 800,000 | 320,000 | about $19,900 |
+
+   Search is most of it: about 4 queries a scan at $14 per 1,000 is $0.056, against $0.0064 of
+   tokens. Fewer queries per scan is the biggest lever. The old no-cache, 20-scan figure is the
+   ceiling: about $12,400 a month at 10,000 users. Two numbers the beta must record to replace the guesses: scans per active user a month,
    and the share of scans served from the cache. Thinking tokens bill as output and are not in the
    token figure.
 

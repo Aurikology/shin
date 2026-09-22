@@ -25,7 +25,8 @@ import {
 } from '../src/providers/gemini-scan.ts';
 import { fakeTransport, goodAnswer, httpBody } from '../../app/test/gemini-double.ts';
 
-const NO_ENV = {} as NodeJS.ProcessEnv;
+// These tests exercise the 2.5/3.x comparison, which runs only with SHIN_GEMINI_SPLIT=1 (default is 3.x for every scan).
+const NO_ENV = { SHIN_GEMINI_SPLIT: '1' } as NodeJS.ProcessEnv;
 const on = (family: '2.5' | '3.x'): string => {
   for (let i = 0; i < 200; i++) if (modelForScan(`d${i}`, NO_ENV).family === family) return `d${i}`;
   throw new Error('none');
@@ -42,6 +43,13 @@ test('the model is a stable function of the device, defaults to 2.5, and SHIN_GE
   const forced = modelForScan('device-1', { SHIN_GEMINI_MODEL: 'gemini-x-9' } as NodeJS.ProcessEnv);
   assert.equal(forced.model, 'gemini-x-9');
   assert.equal(forced.via, 'env');
+});
+
+test('with no split setting every scan goes to 3.x, because 2.5 is not accessible on the beta server (Jamin 2026-09-22)', () => {
+  const plain = {} as NodeJS.ProcessEnv;
+  const seen = new Set(Array.from({ length: 60 }, (_, i) => modelForScan(`d${i}`, plain).model));
+  assert.deepEqual([...seen], [DEFAULT_GEMINI_3], 'a device was routed to a model other than 3.x');
+  assert.equal(modelForScan('d1', plain).via, 'default');
 });
 
 test('on 2.5 the JSON shape is in the prompt text with no schema; on 3.x the schema is sent (item 5)', () => {

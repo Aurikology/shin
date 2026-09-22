@@ -28,6 +28,9 @@ delete process.env.SHIN_GEMINI_MODEL;
 delete process.env.SHIN_MODEL_PROVIDER;
 // Named, because the photo route declines on an unnamed key. See photo-route.test.ts.
 process.env.SHIN_GEMINI_TIER = 'paid';
+// The per-device 2.5/3.x comparison these tests pin runs only with SHIN_GEMINI_SPLIT=1.
+process.env.SHIN_GEMINI_SPLIT = '1';
+const SPLIT = { SHIN_GEMINI_SPLIT: '1' } as NodeJS.ProcessEnv;
 
 const { server, setGeminiTransportForTests, setSpendGuardForTests, setCatalogueForTests, settleBackgroundChecks } = await import('../server.ts');
 const { getScan, geminiCallsForScan, openScanStore } = await import('../src/scans.ts');
@@ -86,7 +89,7 @@ const userTurn = (c: Call): string => {
 function deviceOn(family: '2.5' | '3.x', tag: string): string {
   for (let i = 0; i < 500; i++) {
     const id = `${tag}-${i}`;
-    if (modelForScan(id, {}).family === family) return id;
+    if (modelForScan(id, SPLIT).family === family) return id;
   }
   throw new Error('no device found');
 }
@@ -144,10 +147,10 @@ test('the model is picked deterministically per device, both are used, and the e
   }
   assert.deepEqual(
     calls.map((c) => String(c.body.model)),
-    [modelForScan(a, {}).model, modelForScan(b, {}).model, modelForScan(a, {}).model, modelForScan(b, {}).model],
+    [modelForScan(a, SPLIT).model, modelForScan(b, SPLIT).model, modelForScan(a, SPLIT).model, modelForScan(b, SPLIT).model],
   );
   assert.notEqual(calls[0].body.model, calls[1].body.model);
-  assert.equal(modelForScan('anything', {}).model.startsWith('gemini-2.5') || modelForScan('anything', {}).family === '3.x', true);
+  assert.equal(modelForScan('anything', SPLIT).model.startsWith('gemini-2.5') || modelForScan('anything', SPLIT).family === '3.x', true);
   assert.equal(modelForScan(a, { SHIN_GEMINI_MODEL: 'gemini-9-test' }).model, 'gemini-9-test');
 });
 

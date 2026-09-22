@@ -62,8 +62,8 @@ export type ModelFamily = '2.5' | '3.x';
 export interface ModelChoice {
   readonly model: string;
   readonly family: ModelFamily;
-  /** 'env' when SHIN_GEMINI_MODEL forced it, otherwise 'hash'. */
-  readonly via: 'env' | 'hash';
+  /** 'env' when SHIN_GEMINI_MODEL forced it, 'hash' when SHIN_GEMINI_SPLIT=1 split devices, otherwise 'default'. */
+  readonly via: 'env' | 'hash' | 'default';
 }
 
 /** 3.x ids start `gemini-3`. Anything else is treated as 2.5, the default. */
@@ -83,6 +83,9 @@ export function modelForScan(deviceId: string, env: NodeJS.ProcessEnv = process.
   if (forced) return { model: forced, family: familyOf(forced), via: 'env' };
   const v25 = env.SHIN_GEMINI_MODEL_25?.trim() || DEFAULT_GEMINI_25;
   const v3 = env.SHIN_GEMINI_MODEL_3?.trim() || DEFAULT_GEMINI_3;
+  // Jamin, 2026-09-22: "gemini 2.5 is not accessible" on the beta server. Every scan goes to 3.x
+  // unless SHIN_GEMINI_SPLIT=1 turns the half-and-half 2.5/3.x comparison back on.
+  if (env.SHIN_GEMINI_SPLIT?.trim() !== '1') return { model: v3, family: familyOf(v3), via: 'default' };
   const byte = createHash('sha256').update(deviceId).digest()[0];
   return (byte & 1) === 0
     ? { model: v25, family: familyOf(v25), via: 'hash' }
@@ -1078,7 +1081,7 @@ export interface StageLatency {
 export interface GeminiRun {
   readonly model: string;
   readonly family: ModelFamily;
-  readonly via: 'env' | 'hash';
+  readonly via: 'env' | 'hash' | 'default';
   readonly scanType: ScanType;
   /** The full request body as sent, image bytes replaced by a stub. */
   readonly requestJson: string;
