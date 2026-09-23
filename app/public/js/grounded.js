@@ -112,6 +112,11 @@ function el(doc, tag, className) {
  * "will not modify" true field by field. No trimming, no casing, no currency
  * formatting; the bytes Gemini sent are the bytes rendered.
  */
+/** A block the server answered from Shin's own data rather than a search (a typed name, 2026-09-23). */
+function ownData(block) {
+  return Boolean(block) && block.source === 'shin_own_data';
+}
+
 function field(doc, parent, className, value) {
   const text = str(value);
   if (text === '') return null;
@@ -209,6 +214,13 @@ export function groundedRoot(grounded, opts = {}) {
       // and must not be: "$4.49" where Gemini said "4.49 CAD" is a modified
       // Grounded Result, however much nicer it looks beside our own prices.
       field(doc, row, 'g-price', offer.price);
+      // Shin's own prices (a typed search, 2026-09-23) carry their currency and
+      // the day each was seen, and the date is never hidden. Gemini's rows are
+      // left exactly as they were.
+      if (ownData(block)) {
+        field(doc, row, 'g-currency', offer.currency);
+        field(doc, row, 'g-seen', offer.seenOn);
+      }
       field(doc, row, 'g-pack', offer.packCount);
       field(doc, row, 'g-size', offer.sizeValue);
       field(doc, row, 'g-unit', offer.sizeUnit);
@@ -335,10 +347,13 @@ export function groundedSection(grounded, opts = {}) {
    * interspersing our content with a Grounded Result.
    */
   const section = el(doc, 'section', 'grounded-section');
-  section.setAttribute('aria-label', t('grounded_heading'));
+  // Shin's own prices are not a Google result and never say they are.
+  const own = ownData(grounded.block);
+  if (own) section.setAttribute('data-own-data', '');
+  section.setAttribute('aria-label', t(own ? 'grounded_heading_own' : 'grounded_heading'));
 
   const heading = el(doc, 'h3', 'grounded-heading');
-  heading.textContent = t('grounded_heading');
+  heading.textContent = t(own ? 'grounded_heading_own' : 'grounded_heading');
   section.appendChild(heading);
 
   /*
@@ -348,7 +363,7 @@ export function groundedSection(grounded, opts = {}) {
    */
   if (grounded.block.checked === false) {
     const note = el(doc, 'p', 'grounded-unchecked');
-    note.textContent = t('grounded_unchecked');
+    note.textContent = t(own ? 'grounded_own_note' : 'grounded_unchecked');
     section.appendChild(note);
   }
 

@@ -108,7 +108,8 @@ test('manual search asks the price first, then sends the typed name as one text 
   assert.ok(CAMERA.includes("else if (pending.kind === 'text') void runTypedSearch(pending.text, scanShelfCents, true);"), 'the pad does not send a text scan');
   const run = between(CAMERA, '    async function runTypedSearch(text, cents, asked) {', '    /* The sheet moves between three detents', 'runTypedSearch');
   assert.ok(run.includes('ctx.api.identify({ text, shelfPriceCents: cents ?? undefined })'), 'the typed name is not sent as a text identify carrying the price');
-  assert.ok(run.includes('const priced = asked ? null : matchCatalogue'), 'manual search still asks the demo shelf before Gemini');
+  // 2026-09-23: no typed name is matched against the demo shelf any more; a hit there went to /api/price and a paid call.
+  assert.ok(!run.includes('matchCatalogue('), 'a typed name is matched against the demo shelf, whose hit is priced by a paid call');
   assert.ok(run.includes('if (asked) proceed(typed, cents ?? undefined);'), 'the pad is asked a second time');
   // The type-it route out of a refusal is the same field but NOT a manual search:
   // it identifies first and asks the price after, as before.

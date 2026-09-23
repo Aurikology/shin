@@ -850,6 +850,13 @@ const LINES_EN = {
     warm: (f) => `I could not find anything I know that matches "${f.query}". Try the barcode, or a different word or two.`,
     blunt: (f) => `"${f.query}" matches nothing I know.`,
   },
+  /* A typed search with no item and price in Shin's own data (Jamin,
+     2026-09-23). No facts, so there is nothing to go missing. */
+  cam_text_no_own_price: {
+    deadpan: () => 'Shin does not have a price for that yet. Scan the barcode instead.',
+    warm: () => 'I do not have a price for that one yet. Scan its barcode and I will look it up.',
+    blunt: () => 'No price for that yet. Scan the barcode.',
+  },
   cam_notthis_failed: {
     deadpan: () => 'I could not go back and look again.',
     warm: () => 'I could not go back and look again just now. The first answer still stands.',

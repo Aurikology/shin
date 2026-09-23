@@ -495,6 +495,11 @@ export const LINES_FR = {
     warm: (f) => `Je n'ai rien trouvé que je connais qui corresponde à « ${f.query} ». Essaie le code-barres, ou un ou deux mots différents.`,
     blunt: (f) => `« ${f.query} » ne correspond à rien que je connais.`,
   },
+  cam_text_no_own_price: {
+    deadpan: () => "Shin n'a pas encore de prix pour ça. Scanne plutôt le code-barres.",
+    warm: () => "Je n'ai pas encore de prix pour celui-ci. Scanne son code-barres et je vais le chercher.",
+    blunt: () => 'Pas encore de prix. Scanne le code-barres.',
+  },
   cam_notthis_failed: {
     deadpan: () => "Je n'ai pas pu retourner regarder.",
     warm: () => "Je n'ai pas pu retourner regarder là. La première réponse tient toujours.",

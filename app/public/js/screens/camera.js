@@ -3115,14 +3115,16 @@ export default {
       clearTimeout(torchAckTimer);
       coachKey = null;
       scanThumb = captureThumb(video, cam.dataset.camera === 'live');
-      // The shutter log's own pattern (shoot(), 2026-09-13), now on a barcode
-      // read too: the whole frame goes to the server the same way a shutter
-      // press's frame does, and every request this read causes carries the id
-      // (server.ts's recordShutterRequest), so a barcode scan leaves a frame
-      // on the server the same as a photo scan does. Collecting everything
-      // means a barcode read is no longer the one path that leaves nothing
-      // behind but the decoded code.
-      ctx.api.beginShutter?.(video);
+      // D-147, Jamin's ruling 2026-09-23: "Fix the barcode full photo." This
+      // used to call beginShutter unconditionally, the one call on this
+      // screen with no FLAGS.photoId guard and no consent read, so a barcode
+      // scan uploaded a full frame to /api/shutter/frame even with photo
+      // consent OFF -- exactly what flags.js promises never happens with
+      // photoId off. Gated the same two ways shoot() and the shelf stream
+      // already are: the flag and the shopper's own photo consent both have
+      // to be on, not just one of them, so with the MVP flags (photoId off)
+      // a barcode read never sends a photo.
+      if (FLAGS.photoId && store.consent().photos === true) ctx.api.beginShutter?.(video);
       track('barcode_read', {
         value: read.value,
         format: read.format,
@@ -3900,7 +3902,21 @@ export default {
             ? { answered: !geminiFailed(result), zone: geminiReading(result.grounded).zone }
             : {}),
         });
-        if (result.kind === 'gemini') {
+        if (result.ownData && !result.found) {
+          /* Free text the server answered from Shin's own data (2026-09-23)
+             and found no item with a price for: the plain sentence, never
+             "could not get an answer", and no paid "just the price" route.
+             Not a Gemini answer, so it sits ahead of the Gemini branch. */
+          lastKeepable = null;
+          slot.innerHTML = refusalSheet(
+            { kind: 'refusal', reason: 'no_identity', detail: say('cam_text_no_own_price'), identity: null, evidence: [] },
+            item,
+            supportedCategories,
+            null,
+            { priceRoute: false },
+          );
+          playRefusalLanding(slot);
+        } else if (result.kind === 'gemini') {
           /* THE ANSWER THIS ROUTE NOW GIVES. Never the refusal sheet, and
              never `fillCheaper`: the catalogue is not consulted for an answer,
              so any alternatives are the ones inside Gemini's own block. */
@@ -4770,31 +4786,21 @@ export default {
       }
 
       /*
-       * The hand-priced shelf is asked FIRST, and that ordering is the whole
-       * point rather than a leftover.
-       *
-       * The catalogue knows 5,182,591 products and the price engine has
-       * observations for seven. Typing "Kraft Dinner 225g" against the
-       * catalogue finds a real 200 g row that nobody has ever priced, and the
-       * answer is an honest refusal. Asking the priced shelf first finds the
-       * 225 g box somebody actually stood in a store and recorded, and the
-       * answer is a verdict. Preferring the row we can price over the row we
-       * merely have is not a demo shortcut; it is the same preference the
-       * product will keep once the priced set is thousands rather than seven.
+       * NO DEMO-SHELF SHORTCUT ANY MORE (2026-09-23). A typed name used to be
+       * matched against the demo shelf first (`matchCatalogue`) and a hit went
+       * straight to `openPad` and `proceed`, whose /api/price made a paid
+       * Gemini call for a typed name. Jamin, 2026-09-23: "typing a product
+       * should only search our catalogue and only return when we have both the
+       * item and price." So every typed name goes to /api/identify, which
+       * answers from Shin's own data only.
        */
       let typed = null;
-      const priced = asked ? null : matchCatalogue(text, catalogueItems);
-      if (priced) {
-        typed = scenarios.find((s) => s.id === priced.id) ?? {
-          text: priced.label,
-          category: priced.category,
-        };
-      }
 
-      /*
-       * Nothing priced matches, so ask the real catalogue. Measured against
-       * 5,182,591 rows: 11 to 300 ms depending on how common the words are.
-       */
+      /* The typed name's answer from Shin's own data (Jamin, 2026-09-23: "typing
+         a product should only search our catalogue and only return when we
+         have both the item and price"). Held here and drawn below; never
+         handed on to `proceed`, whose /api/price would make the paid call. */
+      let own = null;
       if (!typed) {
         try {
           const id = await ctx.api.identify({ text, shelfPriceCents: cents ?? undefined });
@@ -4807,6 +4813,9 @@ export default {
           lastPriceQuery = id?.priceQuery ?? null; lastPriceMatch = id?.priceMatch ?? null;
           // The weekly free scans are used (402 scan_limit): the subscription screen.
           if (id?.failure === 'scan_limit') { openPaywall(id); return; }
+          // Shin's own data answered (or said it has no price): drawn below, never priced again.
+          // Such an answer carries no catalogue product and no unchecked label, so neither branch below fires.
+          if (id?.ownData) own = id;
           if (id.catalogueUp && id.product) {
             typed = {
               id: id.product.code,
@@ -4851,6 +4860,10 @@ export default {
         }
       }
       if (dead || (asked && myGen !== gen)) return;
+      if (own) {
+        showOwnData(own, text, cents);
+        return;
+      }
       if (typed) {
         // Asked on the pad already: price it with that number, never ask twice.
         if (asked) proceed(typed, cents ?? undefined);
@@ -4872,6 +4885,57 @@ export default {
         supportedCategories,
         null,
         { priceRoute: lastScanId !== null },
+      );
+      playRefusalLanding(slot);
+      setState('result');
+      mounted();
+    }
+
+    /**
+     * A typed search answered from Shin's own data. With a match, the same
+     * answer sheet a Gemini answer uses, fed the server's grounded-shaped block
+     * (marked as Shin's own data, every price with its store, currency and the
+     * date it was seen). Without one, the plain sentence that Shin has no price
+     * for it yet and to scan the barcode, with no "just the price" route,
+     * because that route is the paid call this ruling removed.
+     */
+    function showOwnData(id, text, cents) {
+      const askingCents = cents ?? undefined;
+      if (id.found && id.grounded) {
+        const item = { id: null, text: id.ownMatch?.name ?? text, category: null, gtin: null };
+        const result = {
+          kind: 'gemini',
+          ownData: true,
+          source: id.source,
+          ...(Number.isInteger(id.scanId) ? { scanId: id.scanId } : {}),
+          lowConfidence: false,
+          confidenceReasons: [],
+          grounded: id.grounded,
+        };
+        const earlier = priorPrices(store.get().history, { gtin: '', names: [item.text] });
+        store.recordVerdict(result, { text: item.text, askingCents, thumb: scanThumb, answered: true, zone: null });
+        last = { result, scenario: item, thumb: scanThumb, askingCents };
+        lastKeepable = null;
+        slot.innerHTML = geminiSheet(result, item, scanThumb, earlier);
+        fillGrounded(slot, result);
+        buzz(16);
+        setState('result');
+        mounted();
+        return;
+      }
+      last = null;
+      slot.innerHTML = refusalSheet(
+        {
+          kind: 'refusal',
+          reason: 'no_identity',
+          detail: say('cam_text_no_own_price'),
+          identity: null,
+          evidence: [],
+        },
+        null,
+        supportedCategories,
+        null,
+        { priceRoute: false },
       );
       playRefusalLanding(slot);
       setState('result');

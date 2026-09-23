@@ -92,6 +92,7 @@ import {
   type GroundedWire,
 } from './src/grounded-record.ts';
 import { dailyLatency } from './src/latency.ts';
+import { defaultPricesPath, lookupOwnPrices, OWN_DATA_SOURCE, type OwnMatch } from './src/own-prices.ts';
 
 const PUBLIC_DIR = fileURLToPath(new URL('./public/', import.meta.url));
 const PORT = Number(process.env.PORT ?? 4173);
@@ -1775,6 +1776,146 @@ function answerMarks(c: Pick<Completed, 'run'>) {
   };
 }
 
+/** The sentence a typed search gets when Shin holds no item with a price for it. */
+export const TYPED_NO_OWN_PRICE = 'Shin does not have a price for that yet. Scan the barcode instead.';
+
+/**
+ * A typed name, answered from Shin's own data (Jamin, 2026-09-23; the full
+ * reasoning is on `/api/identify`). No Gemini call, no network, nothing spent.
+ *
+ * A match is shaped as the grounded wire the answer sheet already renders,
+ * with `block.source` marking it as Shin's own data so the sheet does not
+ * call it a Google result, and every offer carrying its currency and the date
+ * it was seen. `fetchedAt` is the newest of those dates, never "now": the
+ * sheet prints it as when the price was checked.
+ *
+ * Never throws: `lookupOwnPrices` degrades a missing or broken file into "no
+ * match", and a scan row that cannot be written is a null id.
+ */
+function typedFromOwnData(
+  text: string,
+  device: string,
+  telemetry: ReturnType<typeof telemetryFrom>,
+  where: ReturnType<typeof locationFor>,
+  startedAt: number,
+  /** `/api/price` naming a typed scan already has its row: it is reused, never duplicated. */
+  existingScanId: number | null = null,
+): Record<string, unknown> & { scanId?: number } {
+  let match: OwnMatch | null = null;
+  try {
+    match = lookupOwnPrices(text, {
+      pricesDbPath: defaultPricesPath(),
+      userCatalogueDb: userCatalogue?.db ?? null,
+      userCataloguePath: USER_CATALOGUE_PATH,
+      catalogueProbe: catalogueDb ? probeCatalogue(catalogueDb) : null,
+    }).match;
+  } catch (err) {
+    logError({ where: 'identify.own_data', deviceId: device, scanId: null, err });
+  }
+  const ms = Date.now() - startedAt;
+  const label = match ? [match.brand && !match.name.toLowerCase().includes(match.brand.toLowerCase()) ? match.brand : null, match.name, match.size].filter(Boolean).join(' ') : null;
+  const scanId = existingScanId ?? recordScan({
+    deviceId: device,
+    kind: 'text',
+    query: text,
+    resolvedCode: match?.code ?? null,
+    resolvedLabel: label,
+    source: OWN_DATA_SOURCE,
+    outcome: match ? 'answered' : 'refused',
+    failureClass: match ? null : 'not_in_catalogue',
+    appVersion: telemetry.appVersion,
+    platform: telemetry.platform,
+    latencyMs: ms,
+    cell: where.cell,
+    storeId: where.storeId,
+    storeName: where.storeName,
+    exactLat: where.exactLat,
+    exactLon: where.exactLon,
+    exactAccuracy: where.exactAccuracy,
+    exactAt: where.exactAt,
+  });
+  const common = {
+    ownData: true,
+    source: OWN_DATA_SOURCE,
+    // The fields a typed answer has always carried, so no older reader trips on a missing one.
+    product: null,
+    matchedBy: 'none',
+    band: 'miss',
+    category: null,
+    categoryWhy: '',
+    ring: null,
+    otherCandidates: 0,
+    route: null,
+    catalogueUp: false,
+    ms,
+    model: null,
+    failure: null,
+    ...(scanId === null ? {} : { scanId }),
+  };
+  if (!match) {
+    return {
+      ...common,
+      found: false,
+      reason: 'no_own_price',
+      lowConfidence: true,
+      confidenceReasons: ['no_answer:no_own_price'],
+      message: TYPED_NO_OWN_PRICE,
+    };
+  }
+  const offers = match.prices.map((p) => ({
+    retailer: p.store,
+    price: p.amount,
+    currency: p.currency,
+    observedAt: p.observedAt,
+    // The day alone, for the sheet to print as it is.
+    seenOn: p.observedAt.slice(0, 10),
+    url: p.url,
+    hasLink: p.url !== null,
+    kind: p.kind,
+    from: p.from,
+    trusted: p.trusted,
+    sizeValue: null,
+    sizeUnit: null,
+    packCount: null,
+    memberOnly: null,
+    marketplace: null,
+  }));
+  const newest = match.prices.reduce((a, p) => (p.observedAt > a ? p.observedAt : a), '');
+  return {
+    ...common,
+    found: true,
+    reason: 'own_data',
+    lowConfidence: false,
+    confidenceReasons: [],
+    ownMatch: { name: match.name, brand: match.brand, size: match.size, code: match.code, score: match.score },
+    grounded: {
+      kind: 'grounded',
+      forDevice: device,
+      fetchedAt: newest || null,
+      suggestionsHtml: '',
+      block: {
+        kind: 'prices',
+        source: OWN_DATA_SOURCE,
+        checked: false,
+        name: match.name,
+        brand: match.brand,
+        size: match.size,
+        facts: [],
+        description: null,
+        offers,
+        reviews: [],
+        verdict: null,
+        noLineReason: null,
+        searchQueries: [],
+        citations: [],
+        alternatives: [],
+        lowConfidence: false,
+        confidenceReasons: [],
+      },
+    },
+  };
+}
+
 /**
  * What the catalogue says a barcode is, in the shape the price engine takes.
  *
@@ -2530,12 +2671,29 @@ export const server = createServer(async (req, res) => {
 
     if (url.pathname === '/api/identify') {
       /*
-       * A BARCODE (or a typed name) IS ONE GEMINI CALL, NOTHING ELSE.
-       * Beta gap items 1, 2, 3 and 6. Jamin: "The server will not check shins
-       * own product list for now. The only thing the server will do is call
-       * gemini." The barcode goes to Gemini as text digits, never an image
-       * (rule 2). The catalogue is not consulted for the answer; its code stays
-       * in the repo for `/api/search` and for when user data has built it up.
+       * A BARCODE IS ONE GEMINI CALL, NOTHING ELSE. A TYPED NAME IS NEVER ONE.
+       *
+       * A barcode: beta gap items 1, 2, 3 and 6. Jamin: "The server will not
+       * check shins own product list for now. The only thing the server will
+       * do is call gemini." The barcode goes to Gemini as text digits, never an
+       * image (rule 2). The catalogue is not consulted for a barcode's answer.
+       *
+       * A typed name (`text` and no `gtin`): Jamin, 2026-09-23, "typing a
+       * product should only search our catalogue and only return when we have
+       * both the item and price." So it searches Shin's own data and nothing
+       * else (`src/own-prices.ts`: the prices file, the user catalogue, and the
+       * big catalogue for names only), makes no Gemini or other network call,
+       * and answers only when a product matched AND Shin holds at least one
+       * dated price for it. Otherwise it answers, as a 200, that Shin has no
+       * price for that yet and to scan the barcode; there is no Gemini
+       * fallback. FOR TYPED SEARCHES ONLY this reverses two of Jamin's earlier
+       * rules in docs/jamin-gemini-rules.md, "no price from Shin's own data"
+       * and "always an answer", by his ruling of 2026-09-23. Barcodes and
+       * photos still follow both. A typed search spends nothing, so the weekly
+       * free-scan limit and the paid-call limiter do not apply to it (the
+       * limiter's budget is for calls that cost money; a typed search counted
+       * there would use up a tester's paid scans on free lookups). It still
+       * writes its scan row, kind 'text', answered or refused. Defect D-142.
        *
        * GET carries the request in the query string, and the shelf price and
        * the user's lines travel as `shelfPriceCents` and `thresholds` (one JSON
@@ -2544,7 +2702,7 @@ export const server = createServer(async (req, res) => {
        * shelf price still gets an answer, a missing `thresholds` gets the
        * default range (or this device's saved lines).
        *
-       * THE ANSWER ALWAYS COMES BACK, marked when it is not fully confident:
+       * FOR A BARCODE THE ANSWER ALWAYS COMES BACK, marked when it is not fully confident:
        * `lowConfidence` and `confidenceReasons`, and `failure` when Gemini gave
        * nothing at all. It carries the same block `/api/price` will serve, in
        * `grounded.block`: identity, offers, reviews and Gemini's own verdict.
@@ -2623,6 +2781,13 @@ export const server = createServer(async (req, res) => {
           confidenceReasons: ['no_answer:invalid_barcode'],
           ...(invalidScanId === null ? {} : { scanId: invalidScanId }),
         });
+      }
+
+      // A typed name: Shin's own data only, never a paid call (see the comment above).
+      if (!gtin && text) {
+        const typedAnswer = typedFromOwnData(text, device, telemetry, where, identifyStarted);
+        if (typeof typedAnswer.scanId === 'number') scanForLog = typedAnswer.scanId;
+        return json(200, typedAnswer);
       }
 
       const limitedIdentify = paidCallRefusal(req);
@@ -3073,12 +3238,33 @@ export const server = createServer(async (req, res) => {
         ? { run: recalled.run, block: recalled.block, scanId: recalled.scanId, checkedAt: new Date(recalled.at).toISOString() }
         : null;
       if (!answered) {
-        const limitedPrice = paidCallRefusal(req);
-        if (limitedPrice) return tooManyCalls(limitedPrice.retryAfterSeconds);
         const priceStarted = Date.now();
         // A scan row that exists and is this device's is attached to, not duplicated.
         const row = scanKnown ? getScan(pricedScan) : null;
         const attach = row !== null && row.device_id === pricedDevice;
+        /*
+         * A TYPED NAME IS NEVER A PAID CALL HERE EITHER. Jamin, 2026-09-23:
+         * "typing a product should only search our catalogue and only return
+         * when we have both the item and price." Free text with no barcode,
+         * about no scan or about a typed scan, is answered from Shin's own data
+         * exactly as `/api/identify` answers it, with no Gemini call and no
+         * limiter (it spends nothing). A barcode, or a photo or barcode scan
+         * this body names, still makes the one call below as before.
+         */
+        if (!searchGtin && searchText && (row === null || row.kind === 'text')) {
+          const own = typedFromOwnData(
+            searchText,
+            pricedDevice,
+            telemetryFrom(q),
+            locationFor(pricedDevice, q.cell, q.storeId, q.storeName),
+            priceStarted,
+            attach ? pricedScan : null,
+          );
+          if (typeof own.scanId === 'number') scanForLog = own.scanId;
+          return json(200, { ...own, kind: 'gemini' });
+        }
+        const limitedPrice = paidCallRefusal(req);
+        if (limitedPrice) return tooManyCalls(limitedPrice.retryAfterSeconds);
         try {
           const mod = await geminiScanModule();
           answered = await completeGeminiScan({

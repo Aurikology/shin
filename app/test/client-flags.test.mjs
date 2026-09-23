@@ -162,10 +162,76 @@ test('photoId off: the camera takes the shutter off the bar and never takes or s
   assert.ok(CAMERA.includes('if (FLAGS.photoId) startCaptureQueue(sendQueuedCapture)'), 'queued photos are still sent');
 });
 
-test('photoId off: the barcode path is the one it was', () => {
-  const onBarcode = between(CAMERA, '    async function onBarcode(read) {', '    function askPriceFirst(pending) {', 'onBarcode');
-  assert.ok(onBarcode.includes("askPriceFirst({ kind: 'barcode', code: read.value });"));
-  assert.ok(!onBarcode.includes('FLAGS'), 'the barcode read now depends on the photo switch');
+/*
+ * D-147, Jamin's ruling 2026-09-23: "Fix the barcode full photo." This test
+ * used to pin the defect itself -- `!onBarcode.includes('FLAGS')` -- because
+ * before the ruling a barcode read called `ctx.api.beginShutter?.(video)`
+ * with no guard at all, the one call on this screen that ignored the flag.
+ * It ran, was seen to pass against that unguarded code (the fail-before
+ * evidence for the fix below), and is replaced here with the real question:
+ * does a barcode read still hand its digits to `askPriceFirst` the same way,
+ * and does it now send a photo only when both `FLAGS.photoId` and the
+ * shopper's own photo consent are on.
+ *
+ * `onBarcode` is run for real, the same way `shoot()` and
+ * `handlePhotoCapture` are above: extracted and rebuilt with `new Function`
+ * so the actual logic executes against mocked deps, not a string search.
+ */
+function runOnBarcode(flags, consentPhotos) {
+  const src = between(CAMERA, '    async function onBarcode(read) {', '    /**\n     * The pad, opened at scan time', 'onBarcode');
+  const calls = { beginShutter: [], track: [], askPriceFirst: [] };
+  const deps = {
+    cam: { dataset: { camera: 'live' } },
+    video: { tag: 'the-video-element' },
+    FLAGS: flags,
+    store: { consent: () => ({ photos: consentPhotos }) },
+    ctx: { api: { beginShutter: (v) => calls.beginShutter.push(v) } },
+    track: (...a) => calls.track.push(a),
+    captureThumb: () => 'thumb',
+    askPriceFirst: (p) => calls.askPriceFirst.push(p),
+    cameraStartedAt: null,
+  };
+  const build = new Function('deps', `
+    const { cam, video, FLAGS, store, ctx, track, captureThumb, askPriceFirst, cameraStartedAt } = deps;
+    let barcodeInFlight = false, scanBarcode = null, hintTimer = null, scanPressTimer = null, torchAckTimer = null, coachKey = null, scanThumb = null;
+    ${src}
+    return onBarcode;
+  `);
+  return { fn: build(deps), calls };
+}
+
+test('photoId off: a barcode read never calls beginShutter, whatever photo consent says', async () => {
+  for (const consentPhotos of [false, true]) {
+    const { fn, calls } = runOnBarcode({ photoId: false }, consentPhotos);
+    await fn({ value: '012345678905', format: 'ean13', frames: 3 });
+    assert.deepEqual(calls.beginShutter, [], `photoId off, consent photos=${consentPhotos}: a barcode read sent a frame (D-147)`);
+    assert.deepEqual(calls.askPriceFirst, [{ kind: 'barcode', code: '012345678905' }], 'the barcode digits still reach the price pad');
+  }
+});
+
+test('photoId on and photo consent on: a barcode read still sends the shutter frame', async () => {
+  const { fn, calls } = runOnBarcode({ photoId: true }, true);
+  await fn({ value: '012345678905', format: 'ean13', frames: 3 });
+  assert.deepEqual(calls.beginShutter, [{ tag: 'the-video-element' }], 'the gate is not just a deletion: turning both switches on must still send the frame');
+});
+
+test('photoId on but photo consent off: a barcode read still never calls beginShutter', async () => {
+  const { fn, calls } = runOnBarcode({ photoId: true }, false);
+  await fn({ value: '012345678905', format: 'ean13', frames: 3 });
+  assert.deepEqual(calls.beginShutter, [], 'the flag alone let a frame through with no consent');
+});
+
+test('the stale "collecting everything" comment defending the unconditional upload is gone', () => {
+  const onBarcode = between(CAMERA, '    async function onBarcode(read) {', '    /**\n     * The pad, opened at scan time', 'onBarcode');
+  assert.ok(
+    !/Collecting everything\s*\n\s*\* means a barcode read is no longer the one path that leaves nothing/.test(onBarcode),
+    'the comment defending the old unconditional upload is still here',
+  );
+  assert.match(onBarcode, /D-147/, 'the replacement comment does not name the defect it fixes');
+  assert.match(onBarcode, /2026-09-23/, 'the replacement comment does not cite the ruling that changed this');
+});
+
+test('photoId off: submitScanPrice still resolves a barcode the same way', () => {
   const submit = between(CAMERA, '    function submitScanPrice(cents) {', '    async function resolveBarcode(', 'submitScanPrice');
   assert.ok(submit.includes("if (pending.kind === 'barcode') void resolveBarcode(pending.code, scanShelfCents);"));
   assert.ok(!submit.includes('FLAGS'));

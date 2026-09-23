@@ -18,7 +18,7 @@
     "icon": "node scripts/build-icon.mjs",
     "fonts": "node scripts/fonts.mjs",
     "typecheck": "node ../spine/node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
-    "test": "node --test \"test/*.test.{ts,mjs}\"",
+    "test": "node --test --test-global-setup=test/setup/global.mjs \"test/*.test.{ts,mjs}\"",
     "what-to-price": "node src/what-to-price.ts",
     "check": "npm run build-eye && npm run typecheck && npm test"
   },

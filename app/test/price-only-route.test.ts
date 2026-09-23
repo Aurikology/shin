@@ -232,14 +232,21 @@ test('a correction that DOES name a product is unaffected by any of this', async
  */
 
 test('a price body naming a scan attaches to that scan: its Gemini call is linked to the row, and no Shin verdict is written onto it', async () => {
-  const scanId = await unidentifiedScan('d-verdict');
+  /* A BARCODE scan since 2026-09-23: a typed name never reaches Gemini on this
+     route any more (Jamin: typing searches Shin's own data only; that side is
+     in typed-own-prices.test.ts), so the paid price call that gets linked to a
+     row is the one for a product a barcode scan identified. */
+  const res = await fetch(`${base()}/api/identify?gtin=${ROW.code}&deviceId=d-verdict`);
+  const scanId = ((await res.json()) as { scanId?: number }).scanId as number;
+  assert.equal(typeof scanId, 'number', 'identify wrote no scan row');
+  const before = geminiCallsForScan(scanId).length;
   // A fresh double clears the answer the scan held, so the price call has to make its own.
   const t = fakeTransport();
   setGeminiTransportForTests(t.transport);
-  const { body } = await post('/api/price', { scanId, deviceId: 'd-verdict', text: 'something nobody named', askingCents: 499 });
+  const { body } = await post('/api/price', { scanId, deviceId: 'd-verdict', text: ROW.name, askingCents: 499 });
   assert.equal(body.kind, 'gemini');
   assert.equal(t.calls.length, 1, 'a price call is one Gemini call');
-  assert.equal(geminiCallsForScan(scanId).length, 2, 'the scan holds its own call and the price call, both linked to it');
+  assert.equal(geminiCallsForScan(scanId).length, before + 1, 'the price call is linked to the scan it names');
   const row = getScan(scanId)!;
   assert.equal(row.verdict_tier, null, 'Shin wrote a verdict of its own onto the row');
   assert.equal(row.verdict_confidence, null);
@@ -254,7 +261,8 @@ test('a price body with no scan prices the thing and writes nothing to any scan 
   assert.equal(body.kind, 'gemini');
   const row = getScan(bystander)!;
   assert.equal(row.verdict_tier, null);
-  assert.equal(geminiCallsForScan(bystander).length, 1, 'a call for another question was linked to a bystander scan (it should hold only its own)');
+  // Zero since 2026-09-23: the bystander is a typed search, which makes no Gemini call of its own.
+  assert.equal(geminiCallsForScan(bystander).length, 0, 'a call for another question was linked to a bystander scan');
 });
 
 test('a price body that names nothing is a marked answer, not a Gemini call', async () => {

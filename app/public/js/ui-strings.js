@@ -360,6 +360,10 @@ const EN = {
   /* 2026-09-15, Jamin: "Having a response that is not checked is infinitely
      better than... told the app doesn't know". The label, not a refusal. */
   grounded_unchecked: 'From a web search. Not checked by Shin.',
+  /* A typed search answered from Shin's own data (Jamin, 2026-09-23): not
+     Google's, so it never wears Google's heading. Each row carries its date. */
+  grounded_heading_own: 'From Shin’s own prices',
+  grounded_own_note: 'Prices Shin has recorded, each with the day it was seen. Not checked.',
   grounded_size_assumed: 'Size not known, so this compares at the size most stores listed.',
   /* Why there is no price line. Each one states what the evidence was, never
    * that Shin does not know: the offers, the reviews and the description are
@@ -844,6 +848,8 @@ const FR = {
   grounded_heading: 'Trouvé par Google',
   grounded_no_link: (f) => `Pas de lien pour celui-ci : ${f.name}`,
   grounded_unchecked: 'Trouvé par une recherche web. Pas vérifié par Shin.',
+  grounded_heading_own: 'Selon les prix de Shin',
+  grounded_own_note: 'Prix que Shin a notés, chacun avec le jour où il a été vu. Pas vérifiés.',
   grounded_size_assumed: 'Format inconnu, donc la comparaison se fait au format que la plupart des magasins affichent.',
   grounded_no_line_none: 'Aucun prix comparable trouvé pour celui-ci.',
   grounded_no_line_size: 'Aucun format donné pour celui-ci, donc les prix ne peuvent pas être alignés.',
