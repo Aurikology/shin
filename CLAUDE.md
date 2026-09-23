@@ -150,7 +150,7 @@ does a claude session know another claude session is working"*. The answers, as 
 Aurik's sessions run on another Claude account, so `SendMessage` and the PC/Mac mailbox never
 reach them; **GitLab and this page are the only things every session shares.** No session is
 woken by the page, so write for a reader who arrives later. The page's top section carries the
-same nine rules; the binding details:
+same ten rules; the binding details:
 
 1. **Start:** `git pull`, fetch the page, read **Needs attention**, then **Working on now**.
 2. **Claim:** `who · machine · what · parts of the app · started · updated`. Re-fetch; an earlier
@@ -161,13 +161,17 @@ same nine rules; the binding details:
    hours unanswered, marking the line. The owner's unpushed work stays theirs to merge.
 5. **Need another session's changes:** ask it to push. Never copy another working copy's files or
    commit another session's files.
-6. **Stop:** pushed, move the line to **Finished**; unpushed, mark it `paused · unpushed on
-   <machine> · what is left`.
+6. **Stop:** pushed, delete the line (git log is the record); unpushed, mark it `paused ·
+   unpushed on <machine> · what is left`.
 7. **Main broken:** top of Needs attention. Revert another's commit only after 3 hours unanswered.
 8. **One working copy per session**; only a Mac session restarts the beta server, after checking
    for others' uncommitted work.
 9. **Humans decide:** early takeovers, deleting anyone's work, changing these rules or a shared
    status file's meaning, anything with a secret.
+10. **Keep the page short and clean it every visit.** Jamin, 2026-09-23: *"the notion should be
+   cosntantly cleanedup. Communication doesn't have ot be all documented there"*. One or two
+   sentences a line; the long version goes in the repo (`notes/catch-up.md`, `DEFECTS.md`,
+   `docs/`) and the line points to it. Delete settled lines on sight; the Mac log keeps a few.
 
 A session with no Notion access says so to its human at the start rather than skipping silently:
 an unread page reports "clear" when it is not.

@@ -59,7 +59,7 @@ export function decide(tool, command, state, now) {
   if (push && (s.lastNotion === null || now - s.lastNotion > PUSH_GRACE_MS)) {
     return {
       state: { ...s, lastNag: now },
-      message: `You just pushed. Update your line on ${page} now: refresh its updated time, or move it to Finished if the task is done (CLAUDE.md, WHO IS WORKING ON WHAT).`,
+      message: `You just pushed. Update your line on ${page} now: refresh its updated time, or delete it if the task is done, and delete any settled line you see (CLAUDE.md, WHO IS WORKING ON WHAT).`,
     };
   }
   if (s.lastNag !== null && now - s.lastNag < NAG_GAP_MS) return { state: s, message: null };

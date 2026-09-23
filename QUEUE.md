@@ -252,6 +252,62 @@ user; agreement between four language models is a fact about language models.
 
 ---
 
+## Band 7, the tester launch, added 2026-09-23
+
+What stands between the MVP (`docs/mvp-plan.md`) and 10 to 20 testers, collected 2026-09-23 from
+the MVP plan, the open DEFECTS rows, the catch-up note and the mailbox, and checked one by one
+against this file: none of these was here. Owner in brackets. Defect rows are named so the detail
+stays in one place.
+
+| Item | State | Acceptance test | Falsifier | Reopens / promotes on |
+| --- | --- | --- | --- | --- |
+| **7.1 Terms of use and privacy policy written and hosted** (Claude drafts, Jamin hosts; D-144) | `queued` | Both links on the subscription screen open a real https page on a phone. | A store review rejects the subscription screen over either page. | Not applicable while queued. |
+| **7.2 Apple Developer Program, individual enrolment** (Jamin, in person; status unrecorded since the page was opened 2026-09-22) | `queued`, start first: approval has taken 3 to 6 weeks for some | App Store Connect opens and holds an app record named Shin. | Enrolment still pending after 3 weeks: ask Apple support and launch Android testers first. | Not applicable while queued. |
+| **7.3 Google Play Console, personal account, device verified, app created** (Jamin, in person) | `queued` | Play Console shows the Shin app with an internal testing track. | Identity or device verification refused. | Not applicable while queued. |
+| **7.4 Apple paid-apps agreement, banking, tax; subscription group with `shin_plus_monthly` CA$3.99 and `shin_plus_yearly` CA$29.99** (Jamin; prices per `docs/decisions.md` 2026-09-23) | `queued`, after 7.2 | Both products load on the subscription screen in a TestFlight build. | Products do not load with the agreement signed. | Not applicable while queued. |
+| **7.5 Google merchant account and the same two subscriptions** (Jamin) | `queued`, after 7.3 | Both load on the subscription screen in an internal-testing build. | Same as 7.4. | Not applicable while queued. |
+| **7.6 RevenueCat project wired end to end** (Jamin creates the account, Claude wires): both apps, entitlement `plus`, offering `default`, keys in the native config, `REVENUECAT_SECRET_KEY` on the Mac, native sync (closes D-141) | `queued`, after 7.4 and 7.5 | A test purchase unlocks scanning; Restore works after a reinstall; setting the Plus flag by hand in the browser no longer unlocks anything. | A purchase that succeeds in the store does not unlock scanning. | Not applicable while queued. |
+| **7.7 Paid Gemini key and `SHIN_GEMINI_TIER` on the Mac** (Jamin; owed since 2026-09-21) | `queued` | `/api/health` on the live server reports the paid tier and a real barcode scan returns prices. | Not applicable. | Not applicable while queued. |
+| **7.8 The server reads its settings file, and a provider failure is not told to the shopper as "Shin doesn't know"** (D-146, D-150) | `queued` | Started plainly, the server uses the key in the file; with a broken key the shopper sees that the lookup failed, not that the product is unknown. | Not applicable. | Not applicable while queued. |
+| **7.9 Requests about a device answer only for that device** (D-145, D-155 to D-159) | `queued`, before any public build; the invite code limits it to invited testers until then (D-164, answered 2026-09-23) | One device cannot read or write another's consent, scans, ratings, events or quota. | Not applicable. | Not applicable while queued. |
+| **7.10 Upload and disk limits, and nothing written before the invite gate** (D-160, D-161, D-162) | `queued` | A burst of uploads is refused after a cap and the disk guard holds; an uninvited request writes nothing. | Not applicable. | Not applicable while queued. |
+| **7.11 Shopper photos land inside the backed-up data folder, with the existing ones moved** (D-163) | `queued`, before 7.12 | A backup of the data folder contains the photos. | Not applicable. | Not applicable while queued. |
+| **7.12 First real backup of the Mac's data, a restore test, and a nightly schedule** (Mac; mailed 2026-09-22, no receipt, and a 2026-09-19 mail is also unread) | `queued` | A restore onto a clean folder serves the same scans; the Mac acknowledges both mails. | Not applicable. | Not applicable while queued. |
+| **7.13 The shelf stream sends nothing with photo ID off, and photo consent starts off** (D-148; the barcode half, D-147, fixed 2026-09-23) | `queued`, Jamin's call | With the tester-launch settings, no crop reaches the server. | Not applicable. | Not applicable while queued. |
+| **7.14 Location is asked once when the welcome flow is off** (D-139) | `queued` | A fresh install shows one location switch. | Not applicable. | Not applicable while queued. |
+| **7.15 Switch the weekly free-scan limit on at 5** (Mac: `SHIN_FREE_SCANS_PER_WEEK=5`) | `queued`, after 7.6 | The sixth barcode scan in a week opens the subscription screen; typed searches never count. | Testers stop scanning at the limit without tapping Subscribe (decision 2026-09-23 says what then). | Not applicable while queued. |
+| **7.16 The MVP plan's "done means" list checked on a phone over cellular** | `queued`, after 7.6 and 7.15 | Every line, including a stranger without the invite link refused, the sixth scan opening the subscription screen, and the price-match line showing. | Not applicable. | Not applicable while queued. |
+| **7.17 TestFlight and Play internal builds to 10 to 20 testers** (Jamin invites; Mac builds) | `queued`, last | Every invited tester has scanned once. | Not applicable. | Not applicable while queued. |
+| **7.18 The two-week beta readout, on the four measures set before it starts** (`docs/mvp-plan.md`) | `queued`, two weeks after 7.17 | Keeps using it, acts on it, accurate, would pay: each a count out of testers, read against thresholds written before the readout. | Almost nobody scans in week two: change the question Shin answers, per the plan. | Not applicable while queued. |
+| **7.19 The wrong cached answer for 0068100084245 removed from both caches, and its origin found** | `queued` | Both caches answer Kraft peanut butter 1 kg or nothing. | Not applicable. | Not applicable while queued. |
+| **7.20 Run the 19 walkthrough barcodes through Vynn when it ships** | `parked` | A row-by-row comparison against Shin's answers. | Not applicable. | Vynn's public app or lookup answering. |
+
+### Band 7B, the cheaper lookup, added 2026-09-23
+
+From `docs/cheap-lookup-logistics-2026-09-23.md` section 6 (its items 28 to 31 are folded into 7.1
+and 7.6 above). Everything is built behind a switch that stays off until 7B.14 passes. The pass
+marks are that document's section 3, fixed before the run.
+
+| Item | State | Acceptance test | Falsifier | Reopens / promotes on |
+| --- | --- | --- | --- | --- |
+| **7B.1 Count the distinct real barcodes the beta has answered** [Claude] | `queued`, first | A number, from the Mac's scan table, demo rows excluded. | Not applicable. | Not applicable while queued. |
+| **7B.2 DataForSEO account and US$50 deposit** [Jamin] | `queued` | A live Google results call answers from the Mac. | Not applicable. | Not applicable while queued. |
+| **7B.3 A separate Google Cloud project and billing for a production Gemini key** [Jamin] | `queued` | The key answers a one-line call and is not the phone-testing key. | Not applicable. | Not applicable while queued. |
+| **7B.4 Domain confirmed or bought, and a one-page public site** [Jamin buys, Claude builds] | `queued` | The page answers over https with what Shin is and a contact address. | Not applicable. | Not applicable while queued. |
+| **7B.5 Publisher applications: AWIN, Rakuten, Impact** [Jamin, same day, after 7B.4] | `queued` | Each network shows approved or refused. | Not applicable. | Not applicable while queued. |
+| **7B.6 Read each network's publisher agreement on whether its barcode feed may power a price comparison** [whoever holds the login] | `queued`, after 7B.5 | The deciding clause quoted in `docs/decisions.md`. | Click-through only: the affiliate tier is dead as designed, and that goes to Jamin. | Not applicable while queued. |
+| **7B.7 Retailer programs: Best Buy Canada, Canadian Tire, Home Depot Canada on Impact; Walmart on Rakuten once confirmed** [Jamin] | `queued`, after 7B.6 | Each approved or refused. | Not applicable. | Not applicable while queued. |
+| **7B.8 Barcode variants: UPC-E expansion and variable-weight codes** [Claude] | `queued` | Tests over real short and weighed-item codes. | Not applicable. | Not applicable while queued. |
+| **7B.9 UPCitemdb as the next free identity source after Open Facts** [Claude] | `queued` | A barcode Open Facts misses is named from UPCitemdb, within its 100-a-day allowance. | Not applicable. | Not applicable while queued. |
+| **7B.10 Ask the shopper to type a name when no source knows the barcode** [Claude] | `queued` | The prompt appears only after every free source misses. | Scans abandoned at the prompt measurably more often than elsewhere. | Not applicable while queued. |
+| **7B.11 The live Google results client on google.ca** [Claude] | `queued`, after 7B.2 | One call returns the shopping pack items for a known product, under the switch. | Not applicable. | Not applicable while queued. |
+| **7B.12 The result filter and the rules-first matcher, with one ungrounded Gemini call for what the rules cannot settle** [Claude] | `queued` | Filter drops non-CAD, used, refurbished and wrong-size rows in tests built from real result pages. | Not applicable. | Not applicable while queued. |
+| **7B.13 Wire the pipeline ahead of today's call, and log which path answered each scan and what it cost** [Claude] | `queued` | Every scan row names its path and its measured cost. | Not applicable. | Not applicable while queued. |
+| **7B.14 The 50-barcode paired test, both arms, per-row table, against the five fixed thresholds** [Claude] | `queued`, needs 50 real barcodes (7B.1) | Ship, fix or kill stated against thresholds written before the run. | Below 35 of 50 matched, more than 2 confidently wrong, or slower than today's call at the shelf: the design goes back, not patched. | Not applicable while queued. |
+| **7B.15 Switch the cheaper lookup on for a slice of live scans** [Jamin] | `queued`, after 7B.14 passes | Cost per scan on the slice, measured, against the test's figure. | Not applicable. | Not applicable while queued. |
+| **7B.16 Moderate the 874 shopper-typed prices and show them, labelled as from shoppers** [Jamin or Aurik moderates, Claude builds] | `queued` | A moderation pass exists and the labelled prices render. | A first pass finds too many wrong or bad-faith rows to trust. | Not applicable while queued. |
+| **7B.17 Jamin's calls: Shin's own catalogue on the barcode path; whether the no-Claude rule covers an unseen matching call; cheap answers without a reviews line** [Jamin] | `queued` | Each answered in `docs/decisions.md`. | Not applicable. | Not applicable while queued. |
+
 ## Never in the loop, at any pass
 
 These are not queue items and they never become queue items. They are listed so that no pass

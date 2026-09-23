@@ -5,6 +5,14 @@ narrative.*
 
 ---
 
+## CURRENT, 2026-09-23: the tester launch is QUEUE.md bands 7 and 7B
+
+What stands between the MVP and 10 to 20 testers is one list, QUEUE.md band 7 (launch) and 7B (the
+cheaper lookup, `docs/cheap-lookup-logistics-2026-09-23.md`). Settled today in code: a typed name
+answers only from Shin's own data (no Gemini call), and the barcode button sends no photo. Settled
+in `docs/decisions.md`: CA$3.99 a month, CA$29.99 a year, 5 free barcode scans a week once
+purchases work. The invite code is set on the Mac (D-164).
+
 ## SETTLED IN CODE, 2026-09-21: the catalogue no longer identifies, and two things below are now history
 
 **`d3e4f0b` (Jamin, 2026-09-19) retired the catalogue-pick identify pipeline** -- `identify.ts`,

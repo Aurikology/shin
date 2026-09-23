@@ -9,6 +9,46 @@ A session that has told its human everything under a day adds a line to that day
 
 ---
 
+## 2026-09-23 (Jamin's PC): typing searches only Shin's own data, the barcode button sends no photo, and the launch list is in the queue
+
+### To do
+
+- **Aurik: nothing is asked of you.** Read "What changed" before touching typed search, the test
+  setup or `onBarcode`.
+- **Jamin: the launch list is QUEUE.md band 7 and 7B.** Start with the Apple enrolment (7.2) if it is
+  not done, since it has the longest wait, then the DataForSEO account (7B.2).
+- **Whoever runs the Mac:** nothing to set yet. `SHIN_FREE_SCANS_PER_WEEK=5` goes on only once a
+  test purchase works (7.15).
+
+### What changed
+
+- **D-164 answered: the invite code is set on the Mac.** D-155 to D-159 are reachable only by
+  invited testers; they still need fixing before any public build (7.9).
+- **Typed search (D-142 closed).** Jamin's ruling, recorded in decisions: a typed name searches
+  only Shin's own data and answers only with the item and a price. No Gemini call on typing, so it
+  is free and not counted against the weekly limit. This reverses two of his Gemini rules for the
+  typed path only. New `app/src/own-prices.ts`.
+- **Tests no longer write into the real user catalogue.** `npm test` now runs a global setup that
+  points every test process at a temp file and fails the run if the real file changes. A test file
+  run on its own, outside `npm test`, still skips that setup, so run through `npm test`. The Mac's
+  deploy stage was checked: it runs tests with a stripped environment in the stage copy, so its
+  live catalogue was never at risk.
+- **D-147 closed.** The barcode button uploads a frame only with photo ID on and photo consent on.
+  The shelf stream (D-148) is unchanged and still sends crops.
+- **Price and free scans decided** (decisions, 2026-09-23): CA$3.99 a month, CA$29.99 a year, 5 free
+  barcode scans a week, switched on only when purchases work.
+- **The cheaper lookup has a logistics plan**, `docs/cheap-lookup-logistics-2026-09-23.md`. One
+  correction made in review: DataForSEO's Shopping API has no live mode, so the plan uses its live
+  Google results endpoint instead, and the 50-barcode test now also has a speed threshold.
+- **The Notion page was cleaned** and rule 10 added (Jamin: keep it short, clean it every visit).
+  Stopping now deletes your line instead of moving it to Finished.
+
+### Read by
+
+- Jamin (PC), 2026-09-23
+
+---
+
 ## 2026-09-22 (Aurik's PC), evening: the server routes were swept, and one answer from you decides how bad six of them are
 
 ### To do

@@ -1918,3 +1918,24 @@ which machine is the whole point.)
 **Date:** 2026-09-22 · **Status:** active
 
 Jamin, 2026-09-22: *"we wwant to create the store listing under shin"*. Hard rule 1's condition is met: the CIPO search in the software classes was run 2026-09-04 and re-run 2026-09-11 (notes/trademark-search-2026-09-04.md, -09-11.md) with no live SHIN mark in Canadian classes 9 or 42, and the name was left as his call, which this is. Risks carried knowingly, not cleared: Nongshim's SHIN food marks (s.22 association on grocery shelves) and two live US class 42 design marks that transliterate to "Shin", one (Reg. 5082432) covering product-rating software. App Store and Play names must also be unique; that is checked when the record is created. **Reverses if** a store refuses the name, a demand letter arrives, or a trademark attorney advises against it before a US launch.
+
+## A typed product name searches only Shin's own data, and answers only with the item and a price
+**Date:** 2026-09-23 · **Status:** active
+
+Jamin, 2026-09-23: *"typing a product should only search our catalogue and only return when we have both the item and price."* For typed searches only, this reverses two of his earlier rules in `docs/jamin-gemini-rules.md`: "no price from Shin's own data" and "always an answer". A barcode scan is unchanged and still goes to Gemini. Why it is right on the numbers: a typed search was an unlimited paid call (D-142, about US$0.062 each, `docs/unit-economics-2026-09-22.md`), and it now costs nothing and needs no place in the weekly free-scan count. What it gives up: until testers' scans fill the catalogue, most typed searches will get "no price yet, scan the barcode", and every price shown is one Shin recorded earlier, so its date is shown with it. **Reverses if** testers' typed searches mostly miss in the first two weeks of the beta (count them from the scan log), which would say the catalogue is too thin to be the whole answer yet.
+
+## A barcode scan sends no photo
+**Date:** 2026-09-23 · **Status:** active
+
+Jamin, 2026-09-23: *"Fix the barcode full photo"* (D-147). The frame the barcode button used to upload is taken only when photo identification is switched on and the shopper's photo consent is on; with the tester-launch settings, never. The frame collection itself was his (2026-09-14, "collecting everything") and is kept in the code, not deleted. **Reverses if** photo identification is switched back on, where the consent switch then decides it. Not covered by this ruling and still open: the shelf capture stream (D-148).
+
+## Shin Plus price and the weekly free scans
+**Date:** 2026-09-23 · **Status:** active, the free-scan limit to be switched on only when a test purchase works
+
+Jamin, 2026-09-23: *"For now, you decide the most reasonable for price and free scans."* Decided:
+
+- **CA$3.99 a month, CA$29.99 a year.** The closest paid scanner, ShopSavvy, charges US$1.99 to 3.99 a month or US$29.99 to 34.99 a year; the 2026 median annual subscription is US$34.80 (both `docs/unit-economics-2026-09-22.md`). The year is priced at about 7.5 months so the yearly plan is the obvious pick, which matters because year-one churn on annual plans is about 72 percent and monthly is worse. Set in each store's product, never in the app (`plus-config.js` reads the store's price).
+- **5 free barcode scans a week.** Typed searches are free and not counted (the ruling above). The arithmetic: a scan not served from the repeat cache costs about US$0.062 today. A free shopper who uses all 5 every week costs at most about US$1.33 a month. A yearly subscriber brings in about US$1.55 a month after the 15 percent store fee (CA$29.99 at about 0.73 US$ per CA$, an estimate). So even the heaviest free user costs less than a subscriber pays. At 10 a week the heaviest free user would cost about US$2.67 a month, more than a subscriber brings in, which is the "negatives every month" problem he named on 2026-09-22.
+- **When it switches on:** `SHIN_FREE_SCANS_PER_WEEK=5` on the Mac, only once a test purchase unlocks scanning end to end. Switched on earlier, a tester who reaches the limit meets a subscribe button that cannot take a purchase and simply stops scanning, and the beta loses that tester's week-two data.
+
+**Reverses if:** the cheaper lookup ships (about US$0.002 a scan, `docs/scan-pipeline-v2-2026-09-22.md`), then raise the free scans to 15 a week, because a free scan is then almost free and the limit only has to protect against abuse. Or if under 1 in 10 testers who reach the limit tap Subscribe in the beta, which says the price or the offer is wrong, not the number. Or if queue item 6.16's test fails: nobody knows yet how many scans one shop visit takes, so after the first beta week count scans per store visit in the scan log. If a typical visit needs more than 5, the limit stops people in the middle of a shop, and it should become a number of shop visits rather than scans.
