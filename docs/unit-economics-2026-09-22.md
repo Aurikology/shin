@@ -81,6 +81,13 @@ product API unlocks after 10 sales in 30 days; Best Buy Canada 1 percent; Walmar
 
 ## 5. The month at 10,000 users
 
+**Correction, 2026-09-23.** Jamin: *"we should assume only 1 in 100 people pay"*. The table below
+assumed 1.5 percent. At 1 percent: 100 subscribers at about US$1.55 a month each after the store fee
+(CA$29.99 a year, not the US$29.99 used below) is **about US$155 a month**. Against the lookup costs
+below: about **-US$1,745** a month on today's call and about **+US$91** on the proposed pipeline,
+before server costs, and the proposed pipeline's cost is itself untested. The free-scan limit is
+derived from this in `docs/decisions.md`, "Shin Plus price and the weekly free scans".
+
 Assumed (estimates): 8 scans per user a month, 60 percent served from the cache, so 32,000 paid
 lookups; 1.5 percent of users on US$29.99 a year, which is US$2.12 a month each after the store fee.
 
