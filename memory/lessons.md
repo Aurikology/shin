@@ -228,3 +228,9 @@ has cost something recorded twice. One incident is a lesson. Two is a rule.
   hold an API key under its own machine's rules, which is the shape the founder's own hard rule 2
   already describes: the system does everything up to the spent-once act, and the act stays his.
   No words of his behind this one, so it is a lesson and not a standing instruction.
+- **2026-09-23 · An 8-line Edit to NOW.md showed as a 2,286-line diff.** NOW.md mixes CRLF with
+  lone CR line ends, and the Edit tool rewrote the lone CRs, so a small insertion would have
+  rewritten a quarter of the file under a one-line commit message. No words of his; caught by
+  `git diff --numstat` before commit. What it changes: after editing NOW.md, check `--numstat`
+  against the lines you meant to touch, and insert byte-precisely (a script on the raw bytes) when
+  they disagree.
