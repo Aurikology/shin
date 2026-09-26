@@ -5,13 +5,24 @@ narrative.*
 
 ---
 
-## CATALOGUE WORK, 2026-09-26: twelve units, plan in `docs/catalogue-build-plan-2026-09-26.md`
+## CATALOGUE WORK, 2026-09-26: plan in `docs/catalogue-build-plan-2026-09-26.md`, MVP cut applied
 
-Everything that can be done to the catalogue without an account, a licence or money, as twelve
-`queued` units with acceptance tests, split into a catalogue lane and a price lane that cannot
-write the same rows. Two facts in it correct earlier readings: the food loader discards 4,636,853
-rows against decision 28, counted; and the miss log in `catalogue/data/gaps.db` is **not** empty,
-it holds 94 text misses and zero barcode misses, counted. Nothing built yet.
+Everything doable without an account, a licence or money, as `queued` units with acceptance tests,
+split into a catalogue lane and a price lane that cannot write the same rows. **Build: 0, 11, then
+2, 3, 15, 4, 6a, 13 together, then 5, 7, 9, 8, 14. Parked with a number: 1, 6b, 10, most of 12.**
+
+Four findings in it correct earlier readings, all counted:
+
+- The phone reads a packed binary dated **2026-09-05**, and no unit rebuilt it. Now unit 0.
+- The food loader discards **4,636,853** rows against decision 28, but they arrive flagged
+  not-Canadian and the packer takes only Canada-flagged rows, so none can reach a phone. Parked.
+- The miss log in `catalogue/data/gaps.db` is **not** empty: 94 text misses, **zero** barcode
+  misses, last written 2026-09-19, its heaviest entries our own test strings.
+- **Prices transfer between provinces and a province adjustment is worth nothing.** 754 identical
+  barcodes priced in both NB and BC: median ratio **0.990**, and applying the best province factor
+  leaves the median error at **10.8%**, exactly where no adjustment leaves it. Statistics Canada's
+  provincial price levels agree independently: the country spans **7.6%**. Exceptions are dairy and
+  fresh produce only.
 
 ## CURRENT, 2026-09-23: the tester launch is QUEUE.md bands 7 and 7B
 

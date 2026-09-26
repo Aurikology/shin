@@ -36,7 +36,7 @@ a different and smaller job. It does not change any other unit.
 items for later"*, and on the BC crawl, *"nine hours is not worth it for just 100000 products where
 the majority is alcohol. maybe we can take the things we actually need and forget the rest"*.
 
-**Build now, in this order.** 0, 11, 2, 3, 4, 5, 6a, then 7, 9, 8.
+**Build now, in this order.** 0, 11, then 2, 3, 15, 4, 6a, 13 together, then 5, 7, 9, 8, 14.
 **Parked with a number, not an opinion:** 1, 6b, 10, and three quarters of 12.
 
 | Unit | Verdict | The number that decided it |
@@ -45,6 +45,7 @@ the majority is alcohol. maybe we can take the things we actually need and forge
 | 11 Delete the junk | build, needs his word | 16 junk products, 6,210 unlinked observations, counted |
 | 2 Québec | build | 45,044 new, counted, all Canadian, all sized |
 | 3 BC liquor prices | build | 7,556 priced barcodes against 438 held, counted, zero overlap |
+| **15 New Brunswick liquor prices** | **build** | **6,731 priced barcodes, 6,487 new to the catalogue, 5,977 that BC does not have, counted.** One PDF. |
 | 4 Metro | build | 9,438 new plus 6,782 categories filled, counted |
 | 5 Barcode miss logging | build | 0 barcode misses ever recorded, counted. Nothing else can be aimed without it. |
 | **6a BC non-alcohol only** | **build** | **22,972 rows, 764 pages, 1.4 h**, exact off the pager |
@@ -82,6 +83,74 @@ three saves about twenty minutes and is not worth deciding.
 **What is honest about cutting the alcohol:** per hour it is the better deal, roughly 15,800 new
 products an hour against 7,200, and the crawl is unattended so hours are nearly free. It is cut on
 the price argument, not the throughput one.
+
+## Prices transfer between provinces. Do not build a province adjustment.
+
+His question, 2026-09-26: can one province's prices estimate another's, and can the difference be
+measured and used in the math. Measured twice, by two methods on two unrelated datasets, and both
+say the same thing: **yes they transfer, and no adjustment is worth applying.**
+
+**The trap that was avoided.** The obvious dataset is the Consumer Price Index, and it cannot answer
+this. CPI measures how prices change **over time within** a province, never the level **between**
+provinces. Using it here would have produced a confident wrong multiplier.
+
+### Measurement one: identical barcodes in two provinces, counted
+
+New Brunswick's public liquor price list joined to BC's on barcode. **754 products are the same
+bottle priced in both provinces, counted.** No categories and no inference.
+
+| | |
+| --- | --- |
+| Median New Brunswick price over BC price | **0.990** |
+| Middle half | 0.87x to 1.08x |
+| 10th to 90th percentile | 0.76x to 1.19x |
+| Within 10% of each other | **48%**, counted |
+| Within 20% | **77%**, counted |
+| Worst | **2.04x**, a Cabernet at $18.99 in NB and $9.29 in BC |
+
+**The decisive line:** BC's price times the best province factor gives a **median error of 10.8%**.
+BC's price with no adjustment at all gives a **median error of 10.8%**. Identical to one decimal.
+A province multiplier buys nothing.
+
+### Measurement two: Statistics Canada's own provincial price levels
+
+Table 18-10-0245, average retail price **in dollars** by province, monthly, 110 products, free,
+July 2026. A level, so provinces are comparable.
+
+Median against the national average: Quebec **0.980**, Ontario 0.986, Saskatchewan 1.000,
+Manitoba 1.002, Alberta 1.021, BC 1.026, New Brunswick 1.043, Newfoundland 1.049, Nova Scotia
+1.052, PEI **1.054**. **The whole country spans 7.6%, counted**, which is smaller than the
+variation between products inside any one province.
+
+Split by whether the product carries a barcode at all:
+
+| | Products | Median spread, dearest province over cheapest | p90 | Worst |
+| --- | --- | --- | --- | --- |
+| **Packaged, has a barcode** | 74 | **1.16x** | 1.38x | 1.94x |
+| Fresh or by weight, no barcode | 34 | 1.39x | 1.64x | 1.98x |
+
+**Taking another province's price for a barcoded packaged good costs a median 7.8%, 19.1% at p90,
+46.8% at worst, counted over 74 products.** Set against the **23% median error of a blind Claude
+guess** measured earlier this session: different product sets, so not a strict head to head, but a
+threefold gap sits far outside that caveat.
+
+### The rule to build
+
+1. **Treat a price observed anywhere in Canada as valid nationally.** Carry about **10%**
+   uncertainty for liquor and about **8%** for packaged groceries.
+2. **Build no province adjustment.** Two measurements say it is worth nothing.
+3. **Two exceptions, and they are named rather than guessed at.** Dairy and fresh produce. Milk is
+   the worst packaged product in the country at **1.94x**, Ontario $3.97 against Manitoba $2.05,
+   because provinces regulate dairy directly. After milk: strawberries 1.85x, potatoes 1.78x,
+   mushrooms 1.60x. All dairy or produce, and produce has no barcode anyway.
+4. **Falsifier for the whole rule:** a third province's list, joined on barcode, shows a median
+   ratio further than 0.10 from 1.00. That would mean these two provinces happen to agree and the
+   country does not.
+
+**One more thing this measurement is worth, beyond the rule.** Statistics Canada republishes those
+110 products monthly, by province, in dollars. For the most commonly scanned groceries in the
+country that is a free authoritative price anchor, not a guess. Mapping the 110 onto our own
+categories is about an hour of hand work on a 110-row table, and it is unbuilt.
 
 ## The nine gaps found in the first draft of this plan
 
@@ -125,9 +194,9 @@ the price argument, not the throughput one.
 
 | Lane | Writes | Units |
 | --- | --- | --- |
-| **Catalogue lane** | `product`, `product_category`, `product_fts`, `product_vec` in `catalogue/data/catalogue.db` | 1, 2, 4, 6, 7, 8, 9, 10, 12 |
-| **Price lane** | `observation` in `price/data/prices.db` | 3 |
-| **Neither** | the two logs, and the user store | 5, 11 |
+| **Catalogue lane** | `product`, `product_category`, `product_fts`, `product_vec` in `catalogue/data/catalogue.db` | 1, 2, 4, 6a, 7, 8, 9, 10, 12, 13, 15 |
+| **Price lane** | `observation` in `price/data/prices.db` | 3, 15 |
+| **Neither** | the two logs, and the user store | 5, 11, 14 |
 
 One rule makes the catalogue lane safe to run in parallel with itself: **a loader may only insert or
 update rows whose `source` it owns.** Each unit below names its source string. Two loaders with
@@ -143,8 +212,9 @@ by the MVP cut above; unit 1 no longer leads.**
    this runs, no unit below changes anything a tester can see. It runs again after every load.
 2. **Unit 11 next, alone, once he says so.** It deletes rows. Anything that computes on the user
    store before it runs computes on junk, and any measurement taken before it is void.
-3. **Units 2, 3, 4, 6a, 12 in parallel.** Different sources, different files, and only unit 3
-   touches the price database. Copy the catalogue database before the first of them, per gap 6.
+3. **Units 2, 3, 4, 6a, 12, 13, 15 in parallel.** Different sources, different files, and only
+   units 3 and 15 touch the price database. Copy the catalogue database before the first of them,
+   per gap 6.
 4. **Unit 0 again**, so the loads reach a phone.
 5. **Units 7, 9, 8 after the loads**, because each reads across all sources.
 6. **Unit 5 as early as anyone has a spare hour.** It blocks nothing and nothing blocks it, and
@@ -341,6 +411,21 @@ registry's own type filter does the cutting, so this is a narrower crawl, not a 
 | **Falsifier** | The hit rate does not move, which means the sources added products nobody scans, and the next catalogue decision is aimed at the miss log instead of at whatever is downloadable. |
 | **Reopens on** | Not applicable while queued. |
 
+### 15. Load New Brunswick's liquor price list  --  BUILD
+
+| Field | |
+| --- | --- |
+| **State** | `queued`, alongside unit 3 |
+| **Owner** | Aurik (prices) |
+| **Writes** | `observation` in the price database, seller `anbl`, and new catalogue rows at source `anbl` |
+| **What** | ANBL publishes its whole public price list as a free PDF with no login, `https://www.anbl.com/medias/PriceList-Public.pdf`, 2.70 MB. Columns: class, **UPC**, description with the container size in the name, base price, HST, deposit, and shelf price. Extract with `pdftotext -table`; `-layout` mangles the columns. |
+| **Numbers** | **6,731 rows parsed of about 6,789, counted**, every one with a barcode and a price. **6,487 are new to the catalogue. 5,977 are priced barcodes BC does not have. Zero are in the price store today.** By class: 3,251 wine, 1,484 spirits, 1,468 beer, 471 other. Loading it with unit 3 takes the price store from **438 distinct barcodes to about 13,970**. |
+| **Acceptance test** | The price database reports at least 6,700 observations at seller `anbl`, currency CAD, country CA, region NB, and five prices are read back and matched by hand against the PDF's own rows. The distinct-barcode count rises past 13,900. Store the **shelf** price and the **base** price in separate fields; New Brunswick's HST is inside the shelf figure and BC's is not, which is why the two provinces' numbers must not be averaged naively. |
+| **Falsifier** | Fewer than 6,000 rows parse, which means the PDF layout shifted and the regular expression is silently dropping rows rather than the file being thin. A price of zero also fails, since the source contains none. |
+| **Reopens on** | ANBL republishes the PDF; it carries no date in its name, so the file's own bytes are the version. |
+| **Skipped deliberately** | **Manitoba.** It publishes the same shape with a barcode column, but about **874 rows dated 2021**, five years stale and an eighth the size. Reopens if MBLL publishes a current one. |
+| **Still unknown, not negative** | **Quebec and Nova Scotia.** One search each on two open-data portals returned nothing and the liquor boards' own sites were never opened. Naming them absent would be reporting a sample's emptiness as a fact about the world. |
+
 ## What makes this plan checkable rather than asserted
 
 Four rules, each already the repo's practice or a standing instruction:
@@ -357,15 +442,42 @@ Four rules, each already the repo's practice or a standing instruction:
 
 - **Anything needing an account, a licence negotiation or money.** Every unit above is free and
   needs no signup.
-- **Prices from anywhere but unit 3.** Three of the four growth units add names and sizes, not
-  prices. Only unit 3 raises the chance the price is right; the rest raise the chance a scan
+- **Prices from anywhere but units 3 and 15.** The growth units add names and sizes, not prices.
+  Only the two liquor lists raise the chance the price is right; the rest raise the chance a scan
   finds anything at all. Saying otherwise would oversell the plan.
-- **The sources already ruled out**, so nobody spends a second pass on them: Alberta publishes no
-  public list, Ontario's is behind a login, Loblaws and No Frills and Dollarama publish no product
-  pages, Giant Tiger's pages carry a price and a stock number but no barcode, Flipp's flyer feed
-  has no barcode field by design, Home Depot refuses automated reads, no Canadian open data goes
-  below category averages, and every manufacturer and distributor catalogue checked routes to a
-  sales rep. Evidence in `docs/lookup-alternatives-2026-09-23.md` and this session's sweeps.
+- **A province price adjustment.** Measured worthless twice, see the section above. Not a gap.
+- **The sources already ruled out**, so nobody spends a second pass on them: Ontario's liquor file
+  is paid and agents-only with terms forbidding third-party distribution, Loblaws and No Frills and
+  Dollarama publish no product pages, Giant Tiger's pages carry a price and a stock number but no
+  barcode, Flipp's flyer feed has no barcode field by design, Home Depot refuses automated reads,
+  no Canadian open data goes below category averages, and every manufacturer and distributor
+  catalogue checked routes to a sales rep. Evidence in `docs/lookup-alternatives-2026-09-23.md`
+  and this session's sweeps.
+- **Open Food Facts' crowd-sourced price project, and the reason is a control that nearly went
+  unrun.** Its API reported 317,460 prices and 7,384 Canadian stores. **Passing a nonsense country
+  name returned the identical totals**, so those filters are ignored and both figures are
+  meaningless. The one filter that does work gives **667 prices in Canadian dollars, counted**, and
+  we already hold 874 rows from that project. Not a growth source. Anyone quoting the big numbers
+  as Canadian coverage is wrong by nearly three orders of magnitude.
+- **The Consumer Price Index, for anything about where prices are higher.** It measures change over
+  time within a province, never the level between provinces.
+
+## Provincial liquor lists, the full status
+
+| Province | Free file with a barcode and a price | Status |
+| --- | --- | --- |
+| British Columbia | **yes**, open data CSV | **unit 3**, 7,556 rows |
+| New Brunswick | **yes**, public PDF | **unit 15**, 6,731 rows |
+| Manitoba | yes, public PDF | skipped: about 874 rows **dated 2021** |
+| Alberta | no downloadable file on the pages opened | browsable catalogue only |
+| Saskatchewan | no downloadable file on the pages opened | browsable catalogue only |
+| Ontario | has one, but **paid, agents-only, no third-party distribution** | ruled out |
+| Ontario Cannabis Store | login-gated B2B portal | out of scope |
+| **Quebec** | **UNKNOWN** | one open-data search, SAQ's own site never opened |
+| **Nova Scotia** | **UNKNOWN** | one open-data search, NSLC's own site never opened |
+
+Quebec and Nova Scotia are written as unknown, not absent. A single search returning nothing is a
+fact about the search.
 
 ## Totals, and what is honest about them
 
@@ -375,12 +487,13 @@ Four rules, each already the repo's practice or a standing instruction:
 | --- | --- | --- |
 | New products from units 2, 3, 4 | **61,836** | |
 | New products from unit 6a, the non-alcohol slice | | about **10,053** after Québec is loaded |
-| Priced barcodes, today to after unit 3 | **438 to 7,994** | |
+| New products from unit 15, New Brunswick | **6,487** | |
+| Priced barcodes, today to after units 3 and 15 | **438 to about 13,970** | |
 | Categories filled by unit 4 | **6,782** | |
 | Sizes filled by units 2, 3, 6a | | unmeasured until they land, against 99,598 missing |
 | Shipped pack size, brotli | **7.47 MB at 618,310 rows** | about **8.4 MB**, derived by scaling |
 
-So about **72,000 new Canadian products and a 17-fold larger price store**, from four downloads and
+So about **78,000 new Canadian products and a 32-fold larger price store**, from five downloads and
 one 1.4-hour crawl, against **618,365 Canadian products held today, counted**.
 
 **What parking costs**, so the choice is visible rather than buried: 4,636,853 food rows reachable
