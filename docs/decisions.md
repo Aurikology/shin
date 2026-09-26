@@ -1953,3 +1953,113 @@ Jamin, 2026-09-23: *"For now, you decide the most reasonable for price and free 
 - **When it switches on:** `SHIN_FREE_SCANS_PER_WEEK=5` on the Mac for the beta, only once a test purchase unlocks scanning end to end. Switched on earlier, a tester who reaches the limit meets a subscribe button that cannot take a purchase and simply stops scanning, and the beta loses that tester's week-two data. `3` at the public launch.
 
 **Reverses if:** the 50-barcode test measures f, then recompute W from the table's formula (break-even W = 0.0155 / (4.33 x 0.4 x cost per uncached scan)); or beta data shows the average user's scans a month, then set the limit so the AVERAGE user costs under 1.55 cents rather than the heaviest; or affiliate income per user is measured, which adds to the 1.55 cents; or the price rises (the whole budget scales with it). Or if under 1 in 10 testers who reach the limit tap Subscribe in the beta, which says the price or the offer is wrong, not the number. Or if queue item 6.16's test fails: nobody knows yet how many scans one shop visit takes, so after the first beta week count scans per store visit in the scan log. If a typical visit needs more than 5, the limit stops people in the middle of a shop, and it should become a number of shop visits rather than scans.
+
+
+## Country is a column in the catalogue, not a filter applied while loading
+
+**Date:** 2026-09-26 · **Status:** active, **written to repair a citation whose target could not be found**
+
+Three places cite "decision 28" as the authority for this: the Canadian food loader's own
+docstring, its sibling loader, and the catalogue research doc. Searched on 2026-09-26 for the
+decision itself in this file, in the queue, in the current state file and in every doc under
+`docs/`; only the citations turned up, never an entry. So the rule the code obeys has never been
+written down, and the entry below is that rule stated, not a new choice.
+
+**The rule.** Whether a product is sold in Canada is recorded as a column on the row. A loader
+does not delete a product for being foreign. Anything that needs only Canadian products filters
+on the column at read time, which the cheaper-alternatives path already does.
+
+**Why it matters more than it sounds.** The three non-food databases are loaded whole under this
+rule, which is why the catalogue holds 48,943 beauty, 26,947 general-product and 12,294 pet-food
+rows of which only 801, 681 and 214 are Canadian (counted from the database, 2026-09-26). The
+Canadian food loader breaks the rule: it ends `WHERE list_contains(countries_tags, 'en:canada')`
+and so keeps 122,158 of the source's 4,759,011 food products (counted from the publisher's own
+row index, 2026-09-26), discarding 4,636,853 at load time.
+
+**Reverses if:** the file the phone downloads is ever built by country at load time rather than at
+read time, in which case country becomes a load-time concern by construction and this entry is
+wrong rather than merely unenforced. Or if he decides the catalogue should hold only what is sold
+here, which is his call and not a technical one.
+
+## The four and a half million food products from outside Canada stay out, for now
+
+**Date:** 2026-09-26 · **Status:** parked
+
+Removing one clause from the Canadian food loader would admit **4,636,853 more food products**
+(counted 2026-09-26: the source holds 4,759,011, the catalogue keeps 122,158), it is a single line,
+the loader's own notes say no change to how rows are stored is needed, and the rule above says the
+filter should not be there at all. It is still parked, and the reason is not effort.
+
+**The file the phone downloads is built with `sold_in_canada = 1`** (read in the pack exporter,
+2026-09-26). Those 4.6 million rows arrive flagged as not sold in Canada, because the country tag
+is exactly what the filter was reading, so **every one of them is excluded from the phone's copy by
+construction**. They would be reachable only through the server-side search, which was checked the
+same day: it ranks Canadian rows higher and filters nothing out, so they are reachable online and
+nowhere else. The price of that is an 8 GB download, a full reload, and unmeasured disk on a
+database already at 4.1 GB.
+
+For an MVP whose testers shop in Canada, that is the lowest return of any catalogue work available,
+which is the whole reason for the park. It is not a judgement that the rows are worthless.
+
+**Promotes back if:** the barcode miss log records a scan of a product not sold in Canada, which is
+the direct evidence that a real shopper needs them and the only evidence that should reverse this.
+That log has recorded zero barcode misses of any kind so far (counted 2026-09-26), so the condition
+cannot currently fire, which is itself an argument for fixing the log first. It also promotes back
+if the phone's copy stops being built by country, since the exclusion is the entire objection.
+
+## British Columbia's wine and spirits are not worth crawling yet
+
+**Date:** 2026-09-26 · **Status:** parked
+
+British Columbia's beverage-container registry is public, free, needs no login, and prints its own
+totals, so the sizes are exact rather than sampled: **154,401 containers, of which 130,404 are
+alcohol** (read off the registry's pager, 2026-09-26). At thirty rows a page that is 4,347 pages
+for the alcohol alone, **8.1 hours** at a measured 6.7 seconds a page over 80 pages. The other
+**22,972 rows, 764 pages, 1.4 hours**, are being taken.
+
+**It is not parked for being slow, and the honest version matters here.** Per hour the alcohol is
+the better yield, roughly 15,800 new products an hour against 7,200 for the rest, measured on 1,839
+sampled rows, and the crawl is unattended so hours are nearly free. It is parked on price coverage.
+The only free British Columbia price file carrying barcodes holds **7,555 distinct barcodes**, so
+**at most 5.8% of those 130,404 containers can ever carry a price** (two exact counts, no sampling).
+New Brunswick's public list adds 5,977 more priced barcodes but does not move that share much. So
+94% of the crawl would produce a scan that finds the bottle and has nothing to say about what it
+costs, inside a category with almost no prices to average.
+
+**Promotes back if:** a free price source is found that covers more than a quarter of the 130,404,
+which makes the found-with-no-price outcome the exception rather than the rule; or a tester's scan
+log shows wine and spirits actually being scanned, which would mean the category earns the hours
+whether or not a price exists.
+
+## The fuzzy search stays at one row in seven
+
+**Date:** 2026-09-26 · **Status:** parked
+
+**718,662 of 5,182,591 products carry a vector** (counted from the database, 2026-09-26). The word
+search covers all 5,182,591, so a product without a vector is still findable by its name; only the
+fuzzy, close-enough path is affected. Nobody has measured how fast the embedder runs, and the row
+count would grow roughly forty-fold if the foreign food rows above were ever loaded, so starting a
+full pass is starting something of unknown length.
+
+**Promotes back if:** a timed ten-thousand-row slice extrapolates to under a day, which is the
+measurement this park is really waiting on and which costs minutes; or the miss log starts showing
+typed searches failing on products the catalogue demonstrably holds, which is the one symptom a
+missing vector actually causes and therefore the only user-visible reason to care.
+
+## Books, music and records stay out of the catalogue
+
+**Date:** 2026-09-26 · **Status:** parked
+
+Three free, openly licensed sources would each add a large number of real barcoded objects: Open
+Library with around 30 million editions, where the ISBN printed on a book **is** its barcode;
+MusicBrainz, which reports **2,581,558 of 5,804,963 releases carrying a barcode**; and Discogs,
+published monthly. All three figures come from the publishers' own pages, read 2026-09-26. How much
+each overlaps what the catalogue already holds is **unmeasured**.
+
+They are parked because the product is a grocery and shelf-price scanner. Nothing in the beta scans
+a book or a record, so those rows would add size, add crawl and load time, and dilute every typed
+search, in exchange for answering a scan nobody is making. The United States branded-foods file is
+deliberately **not** parked with them, because it is food.
+
+**Promotes back if:** the barcode miss log records an ISBN or a music barcode. One condition serves
+all three, and it is cheap to detect: book barcodes begin 978 or 979.
