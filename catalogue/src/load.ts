@@ -15,9 +15,20 @@
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { openCatalogue, rebuildFts, rebuildCategories } from './schema.ts';
+import { canonicalCode } from './barcode.ts';
 
 const DB_PATH = process.env.SHIN_CATALOGUE ?? 'data/catalogue.db';
 const ROWS_PATH = process.argv[2] ?? 'data/rows.jsonl';
+
+/*
+ * ONE BARCODE, ONE SPELLING. The upsert below keys on `code` exactly as the
+ * prepared row spells it, so before `canonicalCode` existed one barcode written two
+ * ways was two rows and the conflict clause never fired: 1,375,443 products sat in
+ * the catalogue under both a 12-digit code and its zero-padded 13-digit twin,
+ * 198,095 of them Canadian, which was 32% of what the phone downloads. The rule and
+ * the counts behind it are in `barcode.ts`; `dedupe-barcode-spellings.ts` cleaned
+ * the rows that were already there.
+ */
 const BATCH = 2000;
 
 interface PreparedRow {
@@ -85,7 +96,7 @@ async function main(): Promise<number> {
       continue;
     }
     insert.run(
-      r.code,
+      canonicalCode(r.code),
       r.name,
       r.name_en,
       r.name_fr,
