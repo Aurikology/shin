@@ -13,7 +13,7 @@ import { createServer, type IncomingMessage } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
-import { extname, join, normalize as normalizePath, sep } from 'node:path';
+import { dirname, extname, join, normalize as normalizePath, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DatabaseSync } from 'node:sqlite';
 import { priceIt } from '../spine/src/spine.ts';
@@ -1183,8 +1183,31 @@ export function settleBackgroundChecks(): Promise<void> {
  * it already holds (closest size when two exist); an unmatched scan becomes a new
  * user-sourced, untrusted entry.
  */
+/**
+ * THE USER STORE FOLLOWS THE SCAN STORE, added 2026-09-26, and this is a fix for
+ * a real leak rather than tidying.
+ *
+ * Until today this resolved to `app/data/user-catalogue.db` unless
+ * `SHIN_USER_CATALOGUE` was set, and it is the ONE store a test could not redirect
+ * by redirecting everything else: the gap log already resolves its user catalogue
+ * beside itself (`gaps.ts`), `SHIN_USER_CATALOGUE` is not in `DATABASE_ENV`, and so
+ * **17 of the 21 tests that boot this server were writing into the live user
+ * store**, counted 2026-09-26. That store is the one the plan's cleanup unit
+ * exists to empty: it held 18 products, of which the nine "Kraft Dinner" rows
+ * keyed 1 through 9, and two rows created by tests run tonight, are test scans
+ * that a person never made. Deleting them without this change means the next
+ * `node --test` puts them back.
+ *
+ * So the rule is now the one `admin.ts` already uses for `people.db`: this file
+ * lives beside the scan store. A test that points `SHIN_SCANS` at a temp file gets
+ * its user store there too, automatically and without editing 17 files.
+ * Production sets neither variable, so the path is unchanged, byte for byte.
+ */
 const USER_CATALOGUE_PATH =
-  process.env.SHIN_USER_CATALOGUE ?? fileURLToPath(new URL('./data/user-catalogue.db', import.meta.url));
+  process.env.SHIN_USER_CATALOGUE
+  ?? (process.env.SHIN_SCANS?.trim()
+    ? join(dirname(resolve(process.env.SHIN_SCANS.trim())), 'user-catalogue.db')
+    : fileURLToPath(new URL('./data/user-catalogue.db', import.meta.url)));
 let userCatalogue: UserCatalogue | null = null;
 export function setUserCatalogueForTests(uc: UserCatalogue | null): void {
   userCatalogue = uc;

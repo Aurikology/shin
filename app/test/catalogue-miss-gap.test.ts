@@ -37,9 +37,11 @@
  */
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
+import { DatabaseSync } from 'node:sqlite';
 import type { AddressInfo } from 'node:net';
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-catalogue-gap-'));
@@ -53,7 +55,8 @@ process.env.PORT = '0';
 delete process.env.SHIN_INVITE_CODE;
 process.env.GEMINI_API_KEY = 'test-key-never-sent';
 
-const { server, setGeminiTransportForTests, setCatalogueForTests } = await import('../server.ts');
+const { server, setGeminiTransportForTests, setCatalogueForTests, settleBackgroundChecks } =
+  await import('../server.ts');
 const { fakeTransport } = await import('./gemini-double.ts');
 const { activeGapLog, openGapLog, recordGap } = await import('../../catalogue/src/gaps.ts');
 const { clearRepeatCacheForTests } = await import('../src/repeat-cache.ts');
@@ -210,6 +213,75 @@ test('with NO catalogue attached, an absent barcode records nothing at all', asy
     gapRows().length,
     before,
     'a miss was recorded while no catalogue was attached, which is a fabricated finding, not a finding',
+  );
+});
+
+test('a test scan writes its user-store entry into the temp dir, never into the live store', async () => {
+  /*
+   * THE LEAK THIS PINS, counted 2026-09-26: `SHIN_USER_CATALOGUE` was the one store
+   * a test could not redirect by redirecting everything else, so 17 of the 21 tests
+   * that boot this server were writing scans into `app/data/user-catalogue.db` --
+   * the live store, and the very one the plan's cleanup unit exists to empty. It
+   * held 18 products; nine are "Kraft Dinner" rows keyed 1 through 9 and two were
+   * created by test runs tonight. Deleting them without this check means the next
+   * `node --test` puts them back, which is why the check ships with the delete.
+   *
+   * This file deliberately does NOT set SHIN_USER_CATALOGUE, so it is the canary:
+   * the path must be derived from SHIN_SCANS. Both halves are asserted, because
+   * "the temp file exists" alone would also pass if the live file were written too.
+   */
+  const liveStore = fileURLToPath(new URL('../data/user-catalogue.db', import.meta.url));
+  const countLive = (): number => {
+    if (!existsSync(liveStore)) return -1;
+    const db = new DatabaseSync(liveStore, { readOnly: true });
+    try {
+      return (db.prepare('SELECT count(*) AS c FROM user_product').get() as { c: number }).c;
+    } finally {
+      db.close();
+    }
+  };
+  const tempStore = join(dir, 'user-catalogue.db');
+  const countTemp = (): number => {
+    if (!existsSync(tempStore)) return 0;
+    const db = new DatabaseSync(tempStore, { readOnly: true });
+    try {
+      return (db.prepare('SELECT count(*) AS c FROM user_product').get() as { c: number }).c;
+    } finally {
+      db.close();
+    }
+  };
+  const liveBefore = countLive();
+  const tempBefore = countTemp();
+
+  /*
+   * A NEW barcode with a VALID check digit, and the counts are compared before and
+   * against after. The first version of this test used `...124`, whose check digit
+   * does not work out, so the route refused it before any store was touched and the
+   * test passed on rows the earlier tests had already written. It ran in 20 ms,
+   * which was the tell.
+   */
+  setCatalogueForTests(oneProductCatalogue);
+  const { status } = await identify(`gtin=0000000000123&deviceId=cat-store-f`);
+  assert.equal(status, 200, 'the scan was refused, so this test proves nothing about the store');
+  await settleBackgroundChecks();
+
+  /*
+   * A floor, not an equality, and measured rather than assumed: one scan of an
+   * absent barcode adds TWO entries here, because two independent paths feed this
+   * store -- the miss log creates a bare entry keyed by the barcode
+   * (`autoCreateFromMiss` in gaps.ts) and the answer path creates a named one
+   * (`feedUserCatalogue` below `USER_CATALOGUE_PATH`). That is also why the live
+   * store grew faster than the number of test scans. The floor still goes red on
+   * the thing this pins, a scan that writes nowhere.
+   */
+  assert.ok(
+    countTemp() >= tempBefore + 1,
+    `the scan did not add its entry to the user store beside the temp scan store (${tempBefore} before, ${countTemp()} after)`,
+  );
+  assert.equal(
+    countLive(),
+    liveBefore,
+    'a test scan added a row to the LIVE user store, which is the leak that filled it with test products',
   );
 });
 
