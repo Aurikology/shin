@@ -301,11 +301,11 @@ and nothing more. `product.source` is free text, so a new source string collides
 | **Reopens on** | The monthly file is republished; the current one is dated June 2026. |
 | **Known limit, counted** | It can price **at most 7,555 of BC's 130,404 registered alcohol containers, 5.8%**, because that is all the distinct barcodes it holds. Unit 6 does not inherit prices from this. |
 
-### 4. Take Metro's barcodes and its aisle paths
+### 4. Take Metro's barcodes and its aisle paths  --  FALSIFIER FAILED, NOT LOADED
 
 | Field | |
 | --- | --- |
-| **State** | `queued` |
+| **State** | `blocked` 2026-09-26. Run live: all four sitemaps fetched (each needed 1-8 retries against the empty-cache flakiness, none failed outright), 26,563 distinct 12/13/8-digit barcodes counted today. Exact-string match of each product's own leaf aisle segment (`en:<segment>` / `fr:<segment>`) against this catalogue's existing tag vocabulary matched 4,817 of them. Where a matched product already had a category, **the aisle-derived one disagreed on 1,188 of 1,245 rows, 95.4%** -- nineteen times the 5% limit -- so **nothing was loaded**, per the plan's own falsifier clause. Checked by hand on a sample (e.g. code 087692007470, aisle leaf `coolers`, existing category `Boisson alcoolisée`; several `baby/food-formula/food/*` purées all landing on the generic `en:food` instead of their real `en:baby-foods` / `en:apple-compotes` / `en:compotes`): aisle segments collide with real tag strings by coincidence, not by meaning. Aisle is not category here; reopening this unit needs an actual Metro-aisle-to-taxonomy table, not a closer string match. `catalogue/src/fetch_metro.py` and `catalogue/src/prepare_rows_metro.py` are built and committed for whoever builds that table. |
 | **Owner** | Jamin |
 | **Source string** | `metro` for new rows; existing rows get only a category, never a name or a flag |
 | **What** | Metro publishes its product page addresses, and the number ending each address **is the barcode**. Proven, not assumed: **58.7% of them, 13,412 of 22,850, match a product we already hold, by barcode, counted.** A private stock number would match nothing. The address also spells out the aisle the product sits in, and the slug is a product name in French. |
