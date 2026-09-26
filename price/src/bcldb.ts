@@ -1,0 +1,221 @@
+/**
+ * BC Liquor Distribution Branch's public price list, unit 3 of the
+ * 2026-09-26 catalogue build plan (`docs/catalogue-build-plan-2026-09-26.md`).
+ *
+ * SOURCE: the BC Open Government Licence CSV, no login, republished monthly:
+ *   https://catalogue.data.gov.bc.ca/dataset/bc-liquor-store-product-price-list-historical-prices
+ *   https://catalogue.data.gov.bc.ca/dataset/e43be180-7511-4e6f-84d3-ad6c9f5c3e2b/resource/09a4eba7-c357-4764-8ef8-5f0499e11a3e/download/bc_liquor_store_product_price_list_june_2026.csv
+ * Verified 2026-09-26: HTTP 200, 988,625 bytes, 8,211 data rows, 7,556 of them
+ * carrying a UPC in PRODUCT_BASE_UPC_NO, one of those 7,556 UPCs (62067427152,
+ * Michelob Ultra Zero, a 6-pack and a single under two different SKUs) repeated
+ * once, so 7,555 distinct barcodes -- both counts match the plan's own numbers
+ * to the row.
+ *
+ * PRICE FIELD. The dataset carries exactly one price column, PRODUCT_PRICE,
+ * and the publisher's own metadata says it plainly: "prices shown do not
+ * include taxes and are subject to change." There is no second, tax-inclusive
+ * shelf-price column here the way New Brunswick's PDF carries one -- this file
+ * has nothing to keep in a separate field. Every `priceCents` this loader
+ * writes is that one pre-tax PRODUCT_PRICE column, converted to integer cents
+ * by string arithmetic (never a float, never Math.round(x*100), which can land
+ * one cent off on values like 19.99 * 100 depending on the exact double).
+ *
+ * BARCODE CANONICALISATION. Same rule catalogue/src/load.ts's canonicalCode
+ * uses, copied rather than imported because this package does not depend on
+ * catalogue/: a 12-digit UPC-A gets one leading zero (GTIN-13 spelling), a
+ * 14-digit code starting with 0 loses that zero, and everything else --
+ * including the 8-digit EAN-8 codes in this file -- passes through untouched.
+ * An 8-digit code is a different symbology, not a truncated EAN-13, so padding
+ * it to 13 would assert a barcode nobody printed.
+ *
+ * JOIN METHOD. This source publishes the barcode itself, so every row here
+ * joins by `gtin`, the same as crawl.ts's Walmart rows that read a UPC off the
+ * seller's own page -- no name matching, no candidate search.
+ */
+
+import { readFileSync } from 'node:fs';
+import { openPrices, recordObservation, type ObservationRow } from './store.ts';
+
+export const SELLER = 'bcldb';
+
+const DEFAULT_CSV = new URL(
+  '../data/bc_liquor_store_product_price_list_june_2026.csv',
+  import.meta.url,
+).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+
+/**
+ * Same rule catalogue/src/load.ts's canonicalCode uses: only a 12-digit code is
+ * padded, and only a 14-digit code whose leading digit is 0 is shortened. An
+ * 8-digit EAN-8, and anything else that is not exactly 12 or 0-led-14 digits,
+ * is passed through untouched.
+ */
+export function canonicalCode(code: string): string {
+  const digits = code.trim();
+  if (!/^\d+$/.test(digits)) return code;
+  if (digits.length === 12) return `0${digits}`;
+  if (digits.length === 14 && digits.startsWith('0')) return digits.slice(1);
+  return digits;
+}
+
+/**
+ * Minimal RFC 4180 line splitter: quoted fields, commas inside quotes, and a
+ * doubled `""` as an escaped quote (the file has both -- see
+ * `BIG ROCK - "THE ROCK BOX" SIGNATURE 15 PACK CAN`). A plain `split(',')`
+ * would shift every column on a quoted field, silently, which is exactly the
+ * kind of wrong parse this loader's falsifier exists to catch.
+ */
+export function parseCsvLine(line: string): string[] {
+  const fields: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cur += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      fields.push(cur);
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  fields.push(cur);
+  return fields;
+}
+
+/**
+ * "19.99", "2000", "1.99" -> integer cents, by string arithmetic so no float
+ * ever touches the number. Returns null for anything that is not plain digits
+ * with at most two decimal places, which the loader treats as a parse failure,
+ * never as a silent zero.
+ */
+export function toCents(raw: string): number | null {
+  const s = raw.trim();
+  if (!/^\d+(\.\d{1,2})?$/.test(s)) return null;
+  const [whole, fracRaw] = s.split('.');
+  const frac = (fracRaw ?? '').padEnd(2, '0');
+  return Number(whole) * 100 + Number(frac);
+}
+
+interface ParsedCsv {
+  readonly header: readonly string[];
+  readonly rows: readonly string[][];
+}
+
+export function parseCsv(text: string): ParsedCsv {
+  const lines = text.split(/\r?\n/).filter((l) => l.length > 0);
+  const header = parseCsvLine(lines[0]);
+  const rows = lines.slice(1).map(parseCsvLine);
+  return { header, rows };
+}
+
+function columnIndex(header: readonly string[], name: string): number {
+  const i = header.indexOf(name);
+  if (i === -1) {
+    throw new Error(
+      `bcldb: expected column "${name}" in the CSV header, got: ${header.join(', ')}. ` +
+        `Stopping -- the plan's column mapping no longer matches the file.`,
+    );
+  }
+  return i;
+}
+
+export interface LoadResult {
+  readonly written: number;
+  readonly skippedNoUpc: number;
+  readonly skippedBadPrice: number;
+}
+
+export async function loadBcldb(csvPath: string = DEFAULT_CSV): Promise<LoadResult> {
+  const text = readFileSync(csvPath, 'utf8');
+  const { header, rows } = parseCsv(text);
+
+  const UPC = columnIndex(header, 'PRODUCT_BASE_UPC_NO');
+  const SKU = columnIndex(header, 'PRODUCT_SKU_NO');
+  const NAME = columnIndex(header, 'PRODUCT_LONG_NAME');
+  const PRICE = columnIndex(header, 'PRODUCT_PRICE');
+
+  const db = openPrices();
+  const today = new Date().toISOString().slice(0, 10);
+
+  let written = 0;
+  let skippedNoUpc = 0;
+  let skippedBadPrice = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const fields = rows[i];
+    const upcRaw = (fields[UPC] ?? '').trim();
+    if (upcRaw === '') {
+      skippedNoUpc++;
+      continue;
+    }
+
+    const priceCents = toCents(fields[PRICE] ?? '');
+    if (priceCents === null || priceCents <= 0) {
+      /* The plan's falsifier: the source never contains a zero, negative or
+       * absent price on a row that carries a barcode, so landing here means
+       * this parser is wrong, not that the row is thin. Logged loudly rather
+       * than silently dropped. */
+      console.error(
+        `bcldb: row ${i + 2}: unusable price "${fields[PRICE]}" for upc ${upcRaw} -- skipped, not written as 0`,
+      );
+      skippedBadPrice++;
+      continue;
+    }
+
+    const row: ObservationRow = {
+      code: canonicalCode(upcRaw),
+      seller: SELLER,
+      sellerSku: fields[SKU],
+      sellerName: fields[NAME],
+      sellerBrand: null,
+      priceCents,
+      kind: 'regular',
+      unitPriceCents: null,
+      unitLabel: null,
+      currency: 'CAD',
+      country: 'CA',
+      region: 'British Columbia',
+      joinMethod: 'gtin',
+      seenOn: today,
+      url: null,
+      imageUrl: null,
+      inStock: null,
+      pageGtin: upcRaw,
+    };
+    recordObservation(db, row);
+    written++;
+  }
+
+  return { written, skippedNoUpc, skippedBadPrice };
+}
+
+async function main(): Promise<void> {
+  const csvPath = process.argv[2] ?? DEFAULT_CSV;
+  const { written, skippedNoUpc, skippedBadPrice } = await loadBcldb(csvPath);
+  console.log(
+    `bcldb: ${written} observations written, ${skippedNoUpc} rows with no UPC skipped, ` +
+      `${skippedBadPrice} priced-looking rows failed to parse.`,
+  );
+  if (skippedBadPrice > 0) {
+    console.error(
+      `bcldb: ${skippedBadPrice} rows failed price parsing. The source is documented to never ` +
+        `contain a zero, negative or absent price on a barcoded row, so this is a bug here, not a thin source.`,
+    );
+  }
+}
+
+if (import.meta.filename === process.argv[1]) {
+  main();
+}
