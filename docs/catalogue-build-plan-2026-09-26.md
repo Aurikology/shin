@@ -8,6 +8,11 @@ meets it, a falsifier, and what reopens it. Nothing here is built yet; every row
 `projected` means measured on a stated sample and extrapolated. `unmeasured` means nobody has
 looked yet, and the unit's first step is to look.
 
+> **REVISED SAME DAY, after a gap pass and his ruling that this is an MVP and low-return work
+> waits.** Read `## The MVP cut` below before any unit. Nine gaps were found; two of them
+> reorder the plan. Unit 0 is new and comes before everything. Unit 1 loses its first place.
+> Units 6, 10 and most of 12 are `parked` with the numbers that parked them.
+
 ## One correction to the numbers this plan was asked from
 
 The miss log is **not** empty, and an earlier reading of it said so. There are two of them. The
@@ -25,6 +30,97 @@ What that log says, counted:
 This changes unit 5 from "turn the log on" to "find out why the barcode half never fires", which is
 a different and smaller job. It does not change any other unit.
 
+## The MVP cut, set by him 2026-09-26
+
+*"we are just building the mvp right now. We will take whats accessible and leave the low roi
+items for later"*, and on the BC crawl, *"nine hours is not worth it for just 100000 products where
+the majority is alcohol. maybe we can take the things we actually need and forget the rest"*.
+
+**Build now, in this order.** 0, 11, 2, 3, 4, 5, 6a, then 7, 9, 8.
+**Parked with a number, not an opinion:** 1, 6b, 10, and three quarters of 12.
+
+| Unit | Verdict | The number that decided it |
+| --- | --- | --- |
+| **0 Rebuild the shipped pack** | **build, first** | The pack on disk is dated **2026-09-05, counted**. The phone reads it and nothing else. Every other unit ships nothing until this runs. |
+| 11 Delete the junk | build, needs his word | 16 junk products, 6,210 unlinked observations, counted |
+| 2 Québec | build | 45,044 new, counted, all Canadian, all sized |
+| 3 BC liquor prices | build | 7,556 priced barcodes against 438 held, counted, zero overlap |
+| 4 Metro | build | 9,438 new plus 6,782 categories filled, counted |
+| 5 Barcode miss logging | build | 0 barcode misses ever recorded, counted. Nothing else can be aimed without it. |
+| **6a BC non-alcohol only** | **build** | **22,972 rows, 764 pages, 1.4 h**, exact off the pager |
+| 7, 9, 8 Sizes, categories, parts list | build after the loads | 99,598 sizeless and 134,865 categoryless, counted |
+| **1 The 4.6M food rows** | **parked** | They arrive flagged not-Canadian, and **the packer selects only Canada-flagged rows**, so none reaches a phone. Reachable by server search only. 8 GB download for that. |
+| **6b BC alcohol** | **parked** | **130,404 rows, 8.1 h**, and the liquor file can price **at most 5.8% of them, counted**. The rest is a hit with no price. |
+| **10 Embeddings** | **parked** | 718,662 of 5,182,591 embedded, counted; the word search already covers all of them |
+| **12 Books, music, Discogs** | **parked** | ~30M editions and 2,581,558 barcoded releases, none of which a grocery tester scans. Keep only the USDA food file as worth measuring. |
+
+**Promotes back:** unit 1 when a scan of a non-Canadian barcode is shown to matter to a real user;
+6b when alcohol prices exist for more than 5.8% of it; 10 when a 10,000-row slice is timed; 12 when
+someone scans a book.
+
+### The BC slice, exact, off the registry's own pager
+
+| Slice | Rows | Pages | Hours at the measured 6.7 s/page |
+| --- | --- | --- | --- |
+| Alcohol | 130,404 | 4,347 | 8.1 |
+| Juice | 6,693 | 224 | 0.4 |
+| Soft Drink | 4,766 | 159 | 0.3 |
+| Water | 4,678 | 156 | 0.3 |
+| Other | 2,163 | 73 | 0.1 |
+| Tea | 1,891 | 64 | 0.1 |
+| De-alcoholised | 1,090 | 37 | 0.1 |
+| Energy Drink | 913 | 31 | 0.1 |
+| Milk, Coffee, Plant-Based, Cannabis, Others | 1,868 | 65 | 0.1 |
+| **Everything except alcohol** | **22,972** | **764** | **1.4** |
+
+Yield of that slice, **measured on 1,839 rows sampled across all eleven types, projected**: about
+**15,699 new, falling to about 10,053 once Québec is loaded**, because 39% of the sample is in the
+Québec list already, counted. Per type the new rate runs 78 to 91% for juice, tea, coffee, soft
+drinks and the odd categories, and 31 to 39% for water, milk and plant-based, so trimming those
+three saves about twenty minutes and is not worth deciding.
+
+**What is honest about cutting the alcohol:** per hour it is the better deal, roughly 15,800 new
+products an hour against 7,200, and the crawl is unattended so hours are nearly free. It is cut on
+the price argument, not the throughput one.
+
+## The nine gaps found in the first draft of this plan
+
+1. **The phone reads a packed binary, not the database, and no unit rebuilt it.** Now unit 0.
+   The exporter's own record: 122,101 grocery rows at 1.70 MB brotli, 618,310 Canadian rows at
+   7.47 MB brotli, counted from `catalogue/src/export-pack.ts`.
+2. **Unit 1's rows cannot reach a phone.** The packer's clause is `WHERE sold_in_canada = 1`.
+   Checked: the server search ranks Canadian rows first but filters nothing out, so those rows are
+   reachable online and nowhere else.
+3. **No unit measures whether the answer improved.** Every acceptance test counts rows. The product
+   measure is a held set of barcodes that miss today, re-run after loading, and that needs unit 5
+   to have fired at least once. Unit 5 is a prerequisite, not an extra.
+4. **No unit merges duplicates across sources.** Counted: 39% of the BC sample is in Québec's list,
+   58.7% of Metro's barcodes are already held. Source ownership stops collisions and permits the
+   same product three times under three source names.
+5. **No size ceiling for what a phone downloads.** 618,310 rows is 7.47 MB brotli, counted. The
+   four MVP loads scale that to roughly 8.4 MB, **derived, not measured**. No ceiling was ever set.
+6. **No rollback.** Only unit 11 keeps a copy. Copy the 4.1 GB database before any reload; it is
+   far cheaper than re-downloading 8 GB.
+7. **The nameless rows are uncovered.** `docs/catalogues.md` already counted **45,135 rows with no
+   name in any language**. Unit 8 covers short names, not absent ones.
+8. **Reuse terms unchecked for three of the four sources.** Québec, BC's registry and Metro are
+   free and need no login, verified. What they permit is **unmeasured**. BC liquor is BC open
+   licence and Open Food Facts is share-alike, both known. Twenty minutes, before loading.
+9. **Two units had no actor.** Unit 11 needs his word and unit 8 is his decision; both now carry a
+   default so silence resolves them instead of stalling them.
+
+## Unit 0. Rebuild the shipped pack
+
+| Field | |
+| --- | --- |
+| **State** | `queued`. Before everything, and again after every load. |
+| **Owner** | Aurik (catalogue) |
+| **What** | `catalogue/src/export-pack.ts` writes `pack-grocery` and `pack-canada`, raw plus gzip plus brotli, and `app/src/pack-route.ts` streams the brotli straight to the phone. Selection is `WHERE sold_in_canada = 1`, and for the grocery pack also `source = 'openfoodfacts'`. |
+| **Numbers** | The files on disk are dated **2026-09-05, counted**: 44.1 MB raw and 6.77 MB brotli for the Canadian pack, 5.6 MB raw and 1.50 MB brotli for grocery. The exporter's own record is 618,310 Canadian rows at 7.47 MB brotli. |
+| **Acceptance test** | Run the exporter, then read the row count out of the pack's own 4-byte header rather than the exporter's log, and confirm it equals the Canadian row count in the database. Then fetch the pack over the route and binary-search five barcodes loaded after 2026-09-05, which today's pack cannot contain. |
+| **Falsifier** | The header count disagrees with the database, or a barcode loaded this week is absent from the fetched pack, either of which means the phone is still being served stale data. |
+| **Reopens on** | Every load. This unit runs again after each one, which is why it is numbered zero rather than first. |
+
 ## The two lanes, and why they cannot collide
 
 | Lane | Writes | Units |
@@ -40,26 +136,32 @@ in any order. Units 7, 8, 9 and 10 read every source and must run after the load
 
 ## The order, set by what cannot be taken back
 
-Nothing here is spent-once, so ordering is by what blocks what, not by risk:
+Nothing here is spent-once, so ordering is by what blocks what, not by risk. **Revised 2026-09-26
+by the MVP cut above; unit 1 no longer leads.**
 
-1. **Unit 11 first, alone.** It deletes rows. Anything that computes on the user store before it
-   runs computes on junk, and any measurement taken before it is void.
-2. **Unit 1 next, alone.** It multiplies the food table by roughly forty and rewrites the size of
-   every later count. Measuring anything else first means measuring it twice.
-3. **Units 2, 3, 4, 6, 12 in parallel** once 1 has landed. Different sources, different files.
-4. **Units 7, 8, 9, 10 after the loads**, because each one reads across all sources.
-5. **Unit 5 whenever.** It blocks nothing and nothing blocks it, and until it lands, every unit
-   here is aimed by argument instead of by evidence.
+1. **Unit 0 first.** The phone reads the packed file and nothing else, and it is 21 days old. Until
+   this runs, no unit below changes anything a tester can see. It runs again after every load.
+2. **Unit 11 next, alone, once he says so.** It deletes rows. Anything that computes on the user
+   store before it runs computes on junk, and any measurement taken before it is void.
+3. **Units 2, 3, 4, 6a, 12 in parallel.** Different sources, different files, and only unit 3
+   touches the price database. Copy the catalogue database before the first of them, per gap 6.
+4. **Unit 0 again**, so the loads reach a phone.
+5. **Units 7, 9, 8 after the loads**, because each reads across all sources.
+6. **Unit 5 as early as anyone has a spare hour.** It blocks nothing and nothing blocks it, and
+   until it lands every unit here is aimed by argument instead of by evidence.
+
+**Before any load, per gap 8:** read what Québec, BC's registry and Metro permit us to do with the
+data. Twenty minutes. They are free and need no login, verified; the permission is unmeasured.
 
 ---
 
 ## The units
 
-### 1. Stop discarding 97% of the food data
+### 1. Stop discarding 97% of the food data  --  PARKED for the MVP
 
 | Field | |
 | --- | --- |
-| **State** | `queued`. First. |
+| **State** | `parked` 2026-09-26. **Promotes back when a scan of a non-Canadian barcode is shown to matter to a real user.** Parked because the packer selects only Canada-flagged rows, so none of these 4,636,853 rows can reach a phone; they are reachable by server search alone, and that costs an 8 GB download and unmeasured disk on a database already at 4.1 GB. |
 | **Owner** | Aurik (catalogue) |
 | **Source string** | `openfoodfacts`, unchanged |
 | **What** | `catalogue/src/fetch_canada.py` ends `WHERE list_contains(countries_tags, 'en:canada')`. Remove that clause. Its own docstring already says the loader can be pointed at a wider pull with no schema change, and **decision 28 says country is a column and not a load-time filter**, so this is a defect against a decision already made, not a new decision. |
@@ -122,19 +224,24 @@ Nothing here is spent-once, so ordering is by what blocks what, not by risk:
 | **Reopens on** | Not applicable while queued. |
 | **Why it is worth its place** | Every other unit here decides what to add by argument. This is the only one that makes the next decision evidence. |
 
-### 6. Crawl BC's deposit registry
+### 6a. Crawl BC's deposit registry, the non-alcohol slice only  --  BUILD
+
+**6b, the alcohol slice, is `parked`: 130,404 rows, 4,347 pages, 8.1 h, and the liquor price file can
+price at most 5.8% of it, counted. Promotes back when alcohol prices exist for more than that.**
+The unit below is the 22,972-row, 764-page, 1.4-hour slice: every drink type except `Alcohol`. The
+registry's own type filter does the cutting, so this is a narrower crawl, not a filtered one.
 
 | Field | |
 | --- | --- |
-| **State** | `queued`, and the only unattended long-runner |
+| **State** | `queued`. 1.4 h, not the 9.6 h a full crawl takes. |
 | **Owner** | Aurik (catalogue) |
 | **Source string** | `returnit` |
-| **What** | BC publishes the same registry as Québec but as a paged search rather than a file. The pager prints its own totals, so the denominators are exact: **154,401 containers, of which 130,404 are alcohol and 1,090 de-alcoholised, counted off the pager.** Thirty rows a page, so **5,147 page reads**. Every row carries brand, flavour, drink type, container size and material, and a barcode. It needs a browser user agent; plain requests get 403, and the PDF links that were thought to exist return 404. |
-| **Numbers** | Measured on **2,400 rows sampled from 80 random pages: 96% carry a barcode, 100% carry the brand and container size, 98.6% are not in our catalogue.** That **projects to about 146,000 new products, projected, not counted**, and stays projected until the crawl runs. Also counted on that sample: **4.8% of rows repeat a barcode already in the sample**, so the row count is not the product count and the loader must collapse duplicates. |
-| **Acceptance test** | The crawl writes 5,147 pages to disk before anything is loaded, so the load can be re-run without re-crawling. The database then reports rows at source `returnit` within 10% of the projection, every one with a size, and ten barcodes are searched back through the registry's own page by hand and match. |
-| **Falsifier** | The projection is out by more than 10% in either direction, which means the 80-page sample was not random over the registry; or the site rate-limits the crawl to the point that a full pass cannot finish in a day, in which case this unit is parked with the pages already banked rather than restarted. |
+| **What** | BC publishes the same registry as Québec but as a paged search rather than a file. The pager prints its own totals, so every denominator is exact: **154,401 containers in all, 130,404 of them alcohol, 22,972 everything else, counted off the pager.** Thirty rows a page, so **764 page reads for this slice** against 5,147 for the whole thing. Pass the registry's own `type` filter, once per drink type, and the alcohol never gets fetched. Every row carries brand, flavour, drink type, container size and material, and a barcode. It needs a browser user agent; plain requests get 403, and the PDF links that were thought to exist return 404. |
+| **Numbers** | The 98.6%-new figure from the first pass came off a sample that was 94% alcohol and does **not** describe this slice. Re-measured on **1,839 rows sampled across all eleven non-alcohol types: about 15,699 new to the catalogue, falling to about 10,053 once Québec is loaded, projected**, because **39% of the sample is already in the Québec list, counted**. Per type the new rate runs 78 to 91% for juice, tea, coffee, soft drinks and the odd categories and 31 to 39% for water, milk and plant-based, counted, so trimming those three saves about twenty minutes and is not worth deciding. Also counted: **4.8% of rows repeat a barcode already in the sample**, so the row count is not the product count and the loader must collapse duplicates. |
+| **Acceptance test** | The crawl writes all 764 pages to disk before anything is loaded, so the load can be re-run without re-crawling. The database then reports rows at source `returnit` within 10% of the 10,053 projection, every one with a size, and ten barcodes are searched back through the registry's own page by hand and match. Zero rows of type `Alcohol` are present, which is what proves the slice held. |
+| **Falsifier** | The new-row count is out by more than 10% either way, which means the 1,839-row sample was not random over the eleven types; or an alcohol row lands, which means the type filter does not filter; or the site rate-limits the crawl so 764 pages cannot finish in an evening, in which case this unit parks with the pages already banked rather than restarting. |
 | **Reopens on** | Parked by rate limiting promotes back when a slower schedule is shown to finish. |
-| **Cost** | About two and a half hours at one second a page, `projected` from a measured 6.7 seconds per page over 80 pages, which is slower than one a second and makes the real figure nearer nine hours. **Take the nine.** |
+| **Cost** | **1.4 hours**, from 764 pages at a **measured 6.7 seconds per page over 80 pages**. The full registry would be 9.6 hours. Unattended either way. |
 
 ### 7. Fill the missing sizes
 
@@ -176,7 +283,7 @@ Nothing here is spent-once, so ordering is by what blocks what, not by risk:
 
 | Field | |
 | --- | --- |
-| **State** | `queued`, last of the catalogue lane |
+| **State** | `parked` 2026-09-26. **Promotes back when a 10,000-row slice has been timed.** The word search already covers all 5,182,591 rows, counted, so this only affects the fuzzy path. |
 | **Owner** | Aurik (catalogue) |
 | **Numbers** | **718,662 of 5,182,591 products are embedded, counted.** The word search covers all of them, which is why this is last: it only affects the fuzzy path. After unit 1 the denominator is roughly forty times larger, so the run time is `unmeasured` and should be measured on a 10,000-row slice before anyone starts the full pass. |
 | **Acceptance test** | Every row that has a name has a vector, counted from the database, and the same twenty fuzzy searches return at least as good a first result as before, judged by a person and written down. |
@@ -195,11 +302,11 @@ Nothing here is spent-once, so ordering is by what blocks what, not by risk:
 | **Falsifier** | A row that turns out to be a real scan is in the deleted set, which is why the copy is written before the delete and not after. |
 | **Reopens on** | Not applicable while queued. |
 
-### 12. Measure four more sources before loading any of them
+### 12. Measure four more sources  --  THREE PARKED, USDA ONLY
 
 | Field | |
 | --- | --- |
-| **State** | `queued` |
+| **State** | `queued` for USDA only. **Open Library, MusicBrainz and Discogs are `parked` 2026-09-26: around 30 million editions and 2,581,558 barcoded releases, none of which a grocery tester scans. They promote back when someone scans a book.** |
 | **Owner** | Jamin |
 | **Source strings** | `usda`, `openlibrary`, `musicbrainz`, `discogs`, one each |
 | **What** | Four free sources with a barcode column that we hold nothing from. Books and music are real objects people point a phone at, and the catalogue has none of them. |
@@ -209,6 +316,30 @@ Nothing here is spent-once, so ordering is by what blocks what, not by risk:
 | **Reopens on** | Killed on size reopens if the publisher's row count changes by an order of magnitude. |
 
 ---
+
+### 13. Merge the duplicates the new sources create  --  BUILD, with the loads
+
+| Field | |
+| --- | --- |
+| **State** | `queued`. Runs with units 2, 4 and 6a, not after them. |
+| **Owner** | Aurik (catalogue) |
+| **What** | Closes gap 4. Source ownership stops two loaders fighting over a row and therefore permits the same product to land three times under three source names. Rule: a barcode already present keeps its existing row and the new source contributes only fields that row is missing, a size, a category, a French name, plus its source recorded as a second witness. |
+| **Numbers** | Counted: **39% of the BC non-alcohol sample is already in Québec's list**, **58.7% of Metro's barcodes are already in the catalogue**, and **4.8% of BC rows repeat a barcode inside BC itself**. Without this the totals inflate and a user sees the same drink twice. |
+| **Acceptance test** | After all loads, no barcode appears on more than one row, counted from the database with a group-by. Ten products that exist in two sources are read by hand and each shows one row carrying the better name and a size. |
+| **Falsifier** | A merge overwrites a name or size that was better than the one it took, found on a hand-checked sample of twenty, which means the field-preference rule is wrong and merging is doing damage rather than tidying. |
+| **Reopens on** | Not applicable while queued. |
+
+### 14. Prove the catalogue work changed an answer  --  BUILD, last
+
+| Field | |
+| --- | --- |
+| **State** | `queued`. Needs unit 5 to have fired at least once. |
+| **Owner** | Jamin |
+| **What** | Closes gap 3. Every other acceptance test in this plan counts rows, and rows are not answers. This one holds a set of barcodes and typed names that miss **today**, re-runs them after the loads, and counts how many now hit. It is the only unit here whose result could say the whole effort was not worth it. |
+| **Numbers** | The held set comes from the miss log, which today has **94 text misses and 0 barcode misses, counted**, and whose heaviest entries are our own test strings. So the set has to be built from real scans first, which is unit 5's job. **Size of the held set: unmeasured until unit 5 runs.** |
+| **Acceptance test** | A written before-and-after table, one row per held barcode, run by a process that did not do the loading. It passes if the hit rate rises. It is still a pass if the rate does not rise, and the number is recorded either way. |
+| **Falsifier** | The hit rate does not move, which means the sources added products nobody scans, and the next catalogue decision is aimed at the miss log instead of at whatever is downloadable. |
+| **Reopens on** | Not applicable while queued. |
 
 ## What makes this plan checkable rather than asserted
 
@@ -238,13 +369,20 @@ Four rules, each already the repo's practice or a standing instruction:
 
 ## Totals, and what is honest about them
 
+**What the MVP build delivers**, units 0, 11, 2, 3, 4, 5, 6a:
+
 | | Counted | Projected |
 | --- | --- | --- |
 | New products from units 2, 3, 4 | **61,836** | |
-| New products from unit 6 | | about **146,000** |
-| Food rows unit 1 stops discarding | **4,636,853** | how many are worth keeping is unmeasured |
+| New products from unit 6a, the non-alcohol slice | | about **10,053** after Québec is loaded |
 | Priced barcodes, today to after unit 3 | **438 to 7,994** | |
 | Categories filled by unit 4 | **6,782** | |
+| Sizes filled by units 2, 3, 6a | | unmeasured until they land, against 99,598 missing |
+| Shipped pack size, brotli | **7.47 MB at 618,310 rows** | about **8.4 MB**, derived by scaling |
 
-Against **618,365 Canadian products held today, counted**. Units 2, 3 and 4 alone are three
-downloads and no crawling.
+So about **72,000 new Canadian products and a 17-fold larger price store**, from four downloads and
+one 1.4-hour crawl, against **618,365 Canadian products held today, counted**.
+
+**What parking costs**, so the choice is visible rather than buried: 4,636,853 food rows reachable
+online only, about 128,000 alcohol containers of which at most 5.8% could be priced, the fuzzy
+search left covering 14% of the catalogue, and no books or music at all.
