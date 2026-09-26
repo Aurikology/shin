@@ -5,6 +5,14 @@ narrative.*
 
 ---
 
+## CATALOGUE WORK, 2026-09-26: twelve units, plan in `docs/catalogue-build-plan-2026-09-26.md`
+
+Everything that can be done to the catalogue without an account, a licence or money, as twelve
+`queued` units with acceptance tests, split into a catalogue lane and a price lane that cannot
+write the same rows. Two facts in it correct earlier readings: the food loader discards 4,636,853
+rows against decision 28, counted; and the miss log in `catalogue/data/gaps.db` is **not** empty,
+it holds 94 text misses and zero barcode misses, counted. Nothing built yet.
+
 ## CURRENT, 2026-09-23: the tester launch is QUEUE.md bands 7 and 7B
 
 What stands between the MVP and 10 to 20 testers is one list, QUEUE.md band 7 (launch) and 7B (the
@@ -288,99 +296,99 @@ adopted quietly.
 
 ---
 
-## A price source that could answer nothing was calling itself healthy, 2026-09-16
-
-D-119. `ObservedSource` said `ok` whenever its database opened, while `prices()` matches on the
-barcode -- so a row with no code is invisible to it. `price/data/prices.db` holds **ten
-observations and none of them has a code**: the Walmart rows from the 2026-09-08 crawl, stopped by
-the rate block before anything was joined. The source answered every query with nothing and
-reported itself fine, which is verbatim the failure `sources/source.ts:26-30` warns about.
-
-It now counts joined rows at open and refuses with a reason. Checked against the real file, not a
-fixture:
-
-> `price/data/prices.db holds 10 observations and none of them is joined to a catalogue product,
-> so every lookup by barcode returns nothing`
-
-"no rows yet" and "rows nobody joined" are deliberately two different sentences, because they have
-two different fixes.
-
-**This adds no prices, and that is the point.** Under rule 3 this source is truth-set data and
-never a shopper's answer. Its value is that every measurement built on top of a silent source would
-have been wrong in a way nothing would have flagged. **The joiner is still not written** and is not
-claimed: joining ten rows nobody is allowed to show is motion, not progress.
-
-spine 226 pass / 0 fail, typecheck clean.
-
-## Rule 4: what a scan costs is recorded now, not estimated, 2026-09-16
-
-Jamin's rule 4 is *"we will record EVERYTHING that happens when the user interacts with the app
-which was asked for multiple times but never done."* What a call cost was one of the parts nobody
-was keeping, and after D-117 the functions to work it out finally worked, so this closes the loop.
-
-**Three new columns on `scan`, migration 10:** `grounded_cost_cents`, `grounded_model`,
-`grounded_queries`. Written by `keepGroundedForOwner`, which already had the box and the row.
-
-**They do NOT overwrite `model_cost_cents`,** and the distinction matters: that column holds
-`estimatedCostCents`, a flat per-tier figure typed into a table and charged identically whatever the
-vendor did, for the IDENTIFICATION call. These three are the grounded PRICE search, measured from
-what Google reported. A scan makes both calls, and collapsing them would destroy the ability to say
-which half costs what -- which is the exact question the flash-lite-versus-flash decision turns on.
-
-**REAL and not INTEGER**, asserted by a test: one call costs 0.2238 of a cent, and an integer column
-would have recorded every scan as free. That is D-117's mistake one layer down and it was designed
-out rather than discovered.
-
-**The recorded figure is a FLOOR, said here rather than found later.** `alreadyThisMonth` is passed
-as 0 because this repo has no meter for how many grounded searches a month has used, and the first
-5,000 are free. `grounded_queries` beside it is what a real meter would be built from.
-
-**Not analysis of a Grounded Result**, and the argument is the one `provenanceOf` already makes for
-counting searches: every figure describes OUR request and OUR bill. A token count is the size of the
-envelope, never a fact about any Link or Suggestion in it. The cost columns also outlive
-`grounded_json`'s two-year clock on purpose, so a cost history survives the reaper.
-
-**D-118 fell out of building it.** `app/tsconfig.json` does not typecheck `test/`, so when
-`GroundedModule` gained a fourth method, three test doubles silently stopped implementing it, the
-typechecker stayed clean, and 804 tests passed -- because the caller catches, so the missing method
-just wrote nulls. The stubs are fixed and the new tests assert real numbers; **adding `test/**` to
-the include is the real fix and is deliberately left for its own pass**, because it would compile
-about forty never-compiled files at once.
-
-**Counted:** app 810 pass / 0 fail, identify 293 / 0, spine 223 / 0, typecheck clean in all three.
-**Still never run against a live key**, so no real cost has been recorded yet -- what exists is the
-path, proven on fixtures.
-
-## What the better model would actually cost: 1.83x, and that is a fifth of a cent, 2026-09-16
-
-**The 2.5x figure quoted earlier today was wrong** and it was the number the model decision was
-about to be made on. It came from comparing the two INPUT rates. Priced properly over a realistic
-call -- 2,459 input tokens for a 1568 px crop, 600 output for a whole prices-and-reviews answer:
-
-| model | tokens, cents per call |
-| --- | --- |
-| `gemini-3.5-flash-lite` (today) | **0.2238** |
-| `gemini-3.8-flash` | **0.4094** |
-
-**1.83x, not 2.5x**, because input and output rates do not scale by the same factor and this mix is
-mostly output. In absolute terms the upgrade costs **about a fifth of a cent per scan** in tokens,
-and the search charge does not change with the model at all: it is $14 per thousand queries past a
-free 5,000 a month, and one grounded price search ran four queries.
-
-**D-117, and it is why no such figure existed before.** `app/src/model-cost.ts` was reading token
-counts by names the adapter stopped sending on 2026-09-14 -- it wanted `promptTokenCount`, the
-adapter emits `inputTokens`. The shapes share no field, so every grounded call would have priced as
-NULL. It never showed because `tokenCostCents`, `searchCostCents` and `realCostCents` had zero
-callers in the whole repo, tests included. `gemini.ts:517-528` warns about this exact failure in its
-own file -- *"a failure that looks like working software"* -- and the warning did not travel one
-package over. Fixed, with nine tests, including one pinning both usage shapes to the same number.
-
-**Still not wired to production**, said plainly: the functions are correct now and nothing calls
-them. `scans.ts` already has the `model_cost_cents` column to receive it, and `provenanceOf`
-(`identify/src/grounded.ts:366`) is the metadata-only door built for exactly this and still without
-a caller. Carrying the model id and `usage` through the grounded envelope into that door is the
-remaining step, and it is queued rather than claimed.
-
+## A price source that could answer nothing was calling itself healthy, 2026-09-16
+
+D-119. `ObservedSource` said `ok` whenever its database opened, while `prices()` matches on the
+barcode -- so a row with no code is invisible to it. `price/data/prices.db` holds **ten
+observations and none of them has a code**: the Walmart rows from the 2026-09-08 crawl, stopped by
+the rate block before anything was joined. The source answered every query with nothing and
+reported itself fine, which is verbatim the failure `sources/source.ts:26-30` warns about.
+
+It now counts joined rows at open and refuses with a reason. Checked against the real file, not a
+fixture:
+
+> `price/data/prices.db holds 10 observations and none of them is joined to a catalogue product,
+> so every lookup by barcode returns nothing`
+
+"no rows yet" and "rows nobody joined" are deliberately two different sentences, because they have
+two different fixes.
+
+**This adds no prices, and that is the point.** Under rule 3 this source is truth-set data and
+never a shopper's answer. Its value is that every measurement built on top of a silent source would
+have been wrong in a way nothing would have flagged. **The joiner is still not written** and is not
+claimed: joining ten rows nobody is allowed to show is motion, not progress.
+
+spine 226 pass / 0 fail, typecheck clean.
+
+## Rule 4: what a scan costs is recorded now, not estimated, 2026-09-16
+
+Jamin's rule 4 is *"we will record EVERYTHING that happens when the user interacts with the app
+which was asked for multiple times but never done."* What a call cost was one of the parts nobody
+was keeping, and after D-117 the functions to work it out finally worked, so this closes the loop.
+
+**Three new columns on `scan`, migration 10:** `grounded_cost_cents`, `grounded_model`,
+`grounded_queries`. Written by `keepGroundedForOwner`, which already had the box and the row.
+
+**They do NOT overwrite `model_cost_cents`,** and the distinction matters: that column holds
+`estimatedCostCents`, a flat per-tier figure typed into a table and charged identically whatever the
+vendor did, for the IDENTIFICATION call. These three are the grounded PRICE search, measured from
+what Google reported. A scan makes both calls, and collapsing them would destroy the ability to say
+which half costs what -- which is the exact question the flash-lite-versus-flash decision turns on.
+
+**REAL and not INTEGER**, asserted by a test: one call costs 0.2238 of a cent, and an integer column
+would have recorded every scan as free. That is D-117's mistake one layer down and it was designed
+out rather than discovered.
+
+**The recorded figure is a FLOOR, said here rather than found later.** `alreadyThisMonth` is passed
+as 0 because this repo has no meter for how many grounded searches a month has used, and the first
+5,000 are free. `grounded_queries` beside it is what a real meter would be built from.
+
+**Not analysis of a Grounded Result**, and the argument is the one `provenanceOf` already makes for
+counting searches: every figure describes OUR request and OUR bill. A token count is the size of the
+envelope, never a fact about any Link or Suggestion in it. The cost columns also outlive
+`grounded_json`'s two-year clock on purpose, so a cost history survives the reaper.
+
+**D-118 fell out of building it.** `app/tsconfig.json` does not typecheck `test/`, so when
+`GroundedModule` gained a fourth method, three test doubles silently stopped implementing it, the
+typechecker stayed clean, and 804 tests passed -- because the caller catches, so the missing method
+just wrote nulls. The stubs are fixed and the new tests assert real numbers; **adding `test/**` to
+the include is the real fix and is deliberately left for its own pass**, because it would compile
+about forty never-compiled files at once.
+
+**Counted:** app 810 pass / 0 fail, identify 293 / 0, spine 223 / 0, typecheck clean in all three.
+**Still never run against a live key**, so no real cost has been recorded yet -- what exists is the
+path, proven on fixtures.
+
+## What the better model would actually cost: 1.83x, and that is a fifth of a cent, 2026-09-16
+
+**The 2.5x figure quoted earlier today was wrong** and it was the number the model decision was
+about to be made on. It came from comparing the two INPUT rates. Priced properly over a realistic
+call -- 2,459 input tokens for a 1568 px crop, 600 output for a whole prices-and-reviews answer:
+
+| model | tokens, cents per call |
+| --- | --- |
+| `gemini-3.5-flash-lite` (today) | **0.2238** |
+| `gemini-3.8-flash` | **0.4094** |
+
+**1.83x, not 2.5x**, because input and output rates do not scale by the same factor and this mix is
+mostly output. In absolute terms the upgrade costs **about a fifth of a cent per scan** in tokens,
+and the search charge does not change with the model at all: it is $14 per thousand queries past a
+free 5,000 a month, and one grounded price search ran four queries.
+
+**D-117, and it is why no such figure existed before.** `app/src/model-cost.ts` was reading token
+counts by names the adapter stopped sending on 2026-09-14 -- it wanted `promptTokenCount`, the
+adapter emits `inputTokens`. The shapes share no field, so every grounded call would have priced as
+NULL. It never showed because `tokenCostCents`, `searchCostCents` and `realCostCents` had zero
+callers in the whole repo, tests included. `gemini.ts:517-528` warns about this exact failure in its
+own file -- *"a failure that looks like working software"* -- and the warning did not travel one
+package over. Fixed, with nine tests, including one pinning both usage shapes to the same number.
+
+**Still not wired to production**, said plainly: the functions are correct now and nothing calls
+them. `scans.ts` already has the `model_cost_cents` column to receive it, and `provenanceOf`
+(`identify/src/grounded.ts:366`) is the metadata-only door built for exactly this and still without
+a caller. Carrying the model id and `usage` through the grounded envelope into that door is the
+remaining step, and it is queued rather than claimed.
+
 ## The zero-offer problem looks like the MODEL, not the prompt and not obscurity, 2026-09-16
 
 Seven of ten grounded calls returned no price. The protocol in
