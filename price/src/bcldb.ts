@@ -20,8 +20,15 @@
  * by string arithmetic (never a float, never Math.round(x*100), which can land
  * one cent off on values like 19.99 * 100 depending on the exact double).
  *
- * BARCODE CANONICALISATION. Same rule catalogue/src/load.ts's canonicalCode
- * uses, copied rather than imported because this package does not depend on
+ * BARCODE REPAIR, then CANONICALISATION. Found 2026-09-26: the publisher's
+ * numeric-looking UPC column has lost leading zeros the way a spreadsheet does
+ * to "00123" -- 1,439 rows arrived 11 digits long, 7 at 10, 3 at 9, every one
+ * of them a real 12-digit UPC-A (81753830175 is really 081753830175, Cape
+ * Mentelle Shiraz Cabernet). `repairShortUpc` left-pads a 9-11 digit numeric
+ * code back to 12 before canonicalisation ever sees it; a code under 8 digits
+ * even after that is too corrupted to trust and is skipped, counted, never
+ * stored. Then `canonicalCode`, the same rule catalogue/src/load.ts uses,
+ * copied rather than imported because this package does not depend on
  * catalogue/: a 12-digit UPC-A gets one leading zero (GTIN-13 spelling), a
  * 14-digit code starting with 0 loses that zero, and everything else --
  * including the 8-digit EAN-8 codes in this file -- passes through untouched.
@@ -54,6 +61,36 @@ export function canonicalCode(code: string): string {
   if (!/^\d+$/.test(digits)) return code;
   if (digits.length === 12) return `0${digits}`;
   if (digits.length === 14 && digits.startsWith('0')) return digits.slice(1);
+  return digits;
+}
+
+/**
+ * The publisher's own CSV column is numeric-looking, and something between the
+ * publisher and this parser strips leading zeros from a numeric column -- the
+ * same thing a spreadsheet does to "00123". Found 2026-09-26 by the coordinator
+ * reading the loaded distribution back out of the database: 1,439 rows landed
+ * at 11 digits, 7 at 10, 3 at 9, all real 12-digit UPC-A codes missing 1, 2 or
+ * 3 leading zeros (e.g. 81753830175 -> Cape Mentelle Shiraz Cabernet is really
+ * 081753830175). None of those would ever join to the catalogue's 13-digit
+ * spelling, silently, because `canonicalCode` only special-cases an exact
+ * 12-digit code.
+ *
+ * The fix belongs in the parse, not in `canonicalCode`, which stays the shared
+ * rule catalogue/src/load.ts also uses: a 9, 10 or 11 digit numeric code is
+ * left-padded back to 12 here, before `canonicalCode` ever sees it, so 11
+ * becomes 12 becomes (there) 13. An 8-digit code is EAN-8, a real and
+ * different symbology that was never 12 digits, so it is returned unchanged.
+ * Anything under 8 digits is too short to trust as a lost-zero UPC-A -- padding
+ * it would fabricate digits nobody printed -- so it is rejected (null) and the
+ * caller must skip and count the row, not store a code that can never join.
+ * A code already 12 digits or longer is also returned unchanged; it is not
+ * this function's job.
+ */
+export function repairShortUpc(digits: string): string | null {
+  if (!/^\d+$/.test(digits)) return digits;
+  if (digits.length < 8) return null;
+  if (digits.length === 8) return digits;
+  if (digits.length >= 9 && digits.length <= 11) return digits.padStart(12, '0');
   return digits;
 }
 
@@ -135,6 +172,7 @@ export interface LoadResult {
   readonly written: number;
   readonly skippedNoUpc: number;
   readonly skippedBadPrice: number;
+  readonly skippedShortUpc: number;
 }
 
 export async function loadBcldb(csvPath: string = DEFAULT_CSV): Promise<LoadResult> {
@@ -152,12 +190,25 @@ export async function loadBcldb(csvPath: string = DEFAULT_CSV): Promise<LoadResu
   let written = 0;
   let skippedNoUpc = 0;
   let skippedBadPrice = 0;
+  let skippedShortUpc = 0;
 
   for (let i = 0; i < rows.length; i++) {
     const fields = rows[i];
     const upcRaw = (fields[UPC] ?? '').trim();
     if (upcRaw === '') {
       skippedNoUpc++;
+      continue;
+    }
+
+    const repaired = repairShortUpc(upcRaw);
+    if (repaired === null) {
+      /* Under 8 digits even after the lost-leading-zero repair: too corrupted
+       * to trust as a barcode, so it is skipped and counted, never stored as a
+       * code that can never join. */
+      console.error(
+        `bcldb: row ${i + 2}: upc "${upcRaw}" is under 8 digits even after left-pad repair -- skipped, cannot join`,
+      );
+      skippedShortUpc++;
       continue;
     }
 
@@ -175,7 +226,7 @@ export async function loadBcldb(csvPath: string = DEFAULT_CSV): Promise<LoadResu
     }
 
     const row: ObservationRow = {
-      code: canonicalCode(upcRaw),
+      code: canonicalCode(repaired),
       seller: SELLER,
       sellerSku: fields[SKU],
       sellerName: fields[NAME],
@@ -198,15 +249,15 @@ export async function loadBcldb(csvPath: string = DEFAULT_CSV): Promise<LoadResu
     written++;
   }
 
-  return { written, skippedNoUpc, skippedBadPrice };
+  return { written, skippedNoUpc, skippedBadPrice, skippedShortUpc };
 }
 
 async function main(): Promise<void> {
   const csvPath = process.argv[2] ?? DEFAULT_CSV;
-  const { written, skippedNoUpc, skippedBadPrice } = await loadBcldb(csvPath);
+  const { written, skippedNoUpc, skippedBadPrice, skippedShortUpc } = await loadBcldb(csvPath);
   console.log(
     `bcldb: ${written} observations written, ${skippedNoUpc} rows with no UPC skipped, ` +
-      `${skippedBadPrice} priced-looking rows failed to parse.`,
+      `${skippedBadPrice} priced-looking rows failed to parse, ${skippedShortUpc} upcs too short to repair.`,
   );
   if (skippedBadPrice > 0) {
     console.error(
