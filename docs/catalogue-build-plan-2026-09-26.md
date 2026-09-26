@@ -223,6 +223,39 @@ by the MVP cut above; unit 1 no longer leads.**
 **Before any load, per gap 8:** read what Québec, BC's registry and Metro permit us to do with the
 data. Twenty minutes. They are free and need no login, verified; the permission is unmeasured.
 
+## Is it ready to run, checked on 2026-09-26 rather than assumed
+
+Every source re-opened today, and every write path looked up in the code, because a plan naming a
+file that has moved or a table that does not exist wastes a worker's whole pass.
+
+**Every source still resolves, and four of the five match this plan to the byte.** Québec 3,122,979
+bytes, last modified 2026-09-24. BC's price CSV 988,625 bytes, 8,211 rows, **7,556 carrying a
+barcode, which is the number this plan already quotes**, arrived at independently. New Brunswick
+2,699,189 bytes, exactly the 2.70 MB claimed. BC's registry search still answers only to a browser
+user agent, 403 to a plain one, with its `upc`, `type`, `flvr` and `size` fields live. The fifth,
+Metro, differs and is written into unit 4: aisle pages answer, product pages refuse every header.
+
+**Every write path already exists. No unit needs new infrastructure.** The price store's
+`observation` table is `price/src/store.ts:112`, with seller, currency, country and region columns,
+and `recordObservation` at `:286` is already called by three existing scrapers, so units 3 and 15
+need a parser, not a schema. Catalogue rows go through `catalogue/src/load.ts`, which takes a
+prepared JSONL row and upserts on the barcode, so units 2, 4 and 6a need a fetch-and-prepare script
+and nothing more. `product.source` is free text, so a new source string collides with nothing.
+
+**What is actually in the way, all of it:**
+
+1. **Unit 11 needs his word and it is second in the order.** It deletes 16 rows of his own data.
+   Nothing else is waiting on him.
+2. **Eight of the fifteen units name Aurik as owner and he has not agreed to that.** This is the
+   one blocker that decides whether the plan is a plan or a wish list.
+3. **Unit 13 is not what it says it is**, and the correction is inside it now: the loader already
+   collapses a barcode loaded twice as the same string, but nothing canonicalizes the barcode
+   first, so **1,375,443 products sit in the catalogue right now under two spellings, 198,095 of
+   them Canadian, which is 32% of what the phone downloads.** That is a defect the new loads would
+   multiply, and it is worth fixing before unit 0 rebuilds the pack rather than after.
+
+**Unit 5 is built** and its row says how it was checked. Nothing else has moved.
+
 ---
 
 ## The units
@@ -280,12 +313,13 @@ data. Twenty minutes. They are free and need no login, verified; the permission 
 | **Acceptance test** | Two separate checks. The `no leaf_category` count across the whole catalogue drops by at least 6,000 from 134,865. And at least 9,000 rows exist at source `metro`, each with a name and a category, five of them opened in a browser by hand and confirmed to be the product the row claims. |
 | **Falsifier** | The category filled in from an aisle path disagrees with the category the product already had on more than 5% of the rows where both exist, which would mean aisle is not category and the mapping needs a table. A run that records zero rows because a regional list was empty is also a failure, not a result. |
 | **Reopens on** | Metro republishes; the lists carry today's date. |
+| **Fetch limit, checked live 2026-09-26** | The listing and aisle pages answer a plain HTTP request with **200** and carry the barcodes in their addresses, so everything this unit needs, a barcode and an aisle path, arrives without a browser. **Individual product pages return 403 to every header set tried, including a full browser one**, so they need a real browser session with cookies. That only bites a later unit wanting a name or a size off the product page itself, and it means the five hand-checks in the acceptance test above are done in a signed-in browser, not with a fetch. |
 
-### 5. Find out why the barcode half of the miss log has never fired
+### 5. Find out why the barcode half of the miss log has never fired  --  BUILT
 
 | Field | |
 | --- | --- |
-| **State** | `queued`. Blocks nothing, and blocks the aim of everything. |
+| **State** | **`built` 2026-09-26**, `364eb25` and `02a542c`. It was the second cause: the barcode path never consulted the catalogue, so "we do not hold this" was unobservable, and the only barcode gap the server could write came from the model path and meant "the model could not name it". Both are now recorded separately. Acceptance met **as worded below**: a genuinely absent barcode scanned over HTTP against the running app with the real 4.13 GB catalogue attached, and the row read out of the log file by a second process that never wrote to it. The barcode the catalogue DOES hold came back marked not-missing in the same run, from the same log, which is the negative control. The second commit exists because the first passed its unit tests and did not work in the running app: the model path writes to the same row microseconds later and the log's upsert gave it the note, so the fact moved into a column that cannot be cleared. **Still owing: the five real absent barcodes scanned in a store**, which needs a phone in a shop, not code. |
 | **Owner** | Jamin |
 | **What** | The log records text misses and has **94 of them over 250 hits, counted**. It has recorded **zero barcode misses, counted**, though the recorder classifies them and the search path passes a barcode to it. Either no barcode scan has ever missed, which the 6,210 unmatched rows in the user store argue against, or the app's barcode path does not reach that recorder. Find which, in the running app, and fix it if it is the second. |
 | **Numbers** | **94 entries, 250 hits, 0 with a barcode, last written 2026-09-19, counted.** The heaviest entries are our own test strings, counted. So there is no real-user signal in it yet, from either half. |
@@ -395,7 +429,8 @@ registry's own type filter does the cutting, so this is a narrower crawl, not a 
 | **Owner** | Aurik (catalogue) |
 | **What** | Closes gap 4. Source ownership stops two loaders fighting over a row and therefore permits the same product to land three times under three source names. Rule: a barcode already present keeps its existing row and the new source contributes only fields that row is missing, a size, a category, a French name, plus its source recorded as a second witness. |
 | **Numbers** | Counted: **39% of the BC non-alcohol sample is already in Québec's list**, **58.7% of Metro's barcodes are already in the catalogue**, and **4.8% of BC rows repeat a barcode inside BC itself**. Without this the totals inflate and a user sees the same drink twice. |
-| **Acceptance test** | After all loads, no barcode appears on more than one row, counted from the database with a group-by. Ten products that exist in two sources are read by hand and each shows one row carrying the better name and a size. |
+| **Half of this is already built, and the other half is worse than described.** Checked in the code 2026-09-26. `catalogue/src/load.ts:56` already ends `ON CONFLICT(code) DO UPDATE`, keyed on `product.code PRIMARY KEY`, so a barcode loaded twice as the **same string** updates one row and cannot duplicate. That is the 4.8%-within-BC case, handled. What is NOT handled: **nothing canonicalizes `code` before the insert**, so one barcode written two ways is two rows. Counted in the live catalogue: **1,375,443 products are stored under both a 12-digit and a zero-padded 13-digit spelling**, which is every 12-digit code in the table, 1,375,441 of them written by the electronics loader under both forms with the same name. **198,095 of those pairs are Canadian**, so **32% of the 618,365 rows the phone downloads are a second spelling of a product already in it.** Two pairs are genuine cross-source collisions with different names, a food name sitting on a games-controller barcode. So this unit's real job is a canonical form at load time plus one cleanup pass, not a merge rule. |
+| **Acceptance test** | After all loads, no barcode appears on more than one row **in any spelling**: group by the digits with leading zeros stripped, not by the stored string, which is the check that would have caught the 1,375,443 above. Ten products that exist in two sources are read by hand and each shows one row carrying the better name and a size. |
 | **Falsifier** | A merge overwrites a name or size that was better than the one it took, found on a hand-checked sample of twenty, which means the field-preference rule is wrong and merging is doing damage rather than tidying. |
 | **Reopens on** | Not applicable while queued. |
 
