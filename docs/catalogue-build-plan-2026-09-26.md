@@ -278,8 +278,8 @@ and nothing more. `product.source` is free text, so a new source string collides
 
 | Field | |
 | --- | --- |
-| **State** | `queued` |
-| **Owner** | Aurik (catalogue) |
+| **State** | **`built` 2026-09-26**, `80540d8`. Verified by reading the database back rather than from the loader's own tally: **50,166 rows at source `consignaction`**, exactly the count this unit projected, and the catalogue rose from 5,182,591 to 5,227,642, so **45,051 new** against the 45,044 projected, inside 1%. All carry a size and a name, all flagged sold in Canada, and zero are stored under two barcode spellings. The published file was byte-checked before download (3,122,979 bytes, last modified 2026-09-24). |
+| **Owner** | Jamin (taken over from Aurik 2026-09-26, his word) |
 | **Source string** | `consignaction` (new, so it collides with nothing) |
 | **What** | One spreadsheet, 3 MB, no login, published 2026-09-24, holding every beverage container registered for deposit in Québec. Producer, product name, deposit value, volume in millilitres, drink classification, container material, barcode. |
 | **Numbers** | **50,166 rows, counted. 50,159 usable barcodes, all distinct, counted. 45,044 not in our catalogue, counted by looking up every one of them.** Every row has a name and a volume, counted. |
@@ -291,8 +291,8 @@ and nothing more. `product.source` is free text, so a new source string collides
 
 | Field | |
 | --- | --- |
-| **State** | `queued` |
-| **Owner** | Aurik (prices) |
+| **State** | **`built` 2026-09-26**, `659c543` and `69f8681`. Read back from the price database, not from the loader: **7,556 observations at seller `bcldb`, 7,555 distinct barcodes**, which is this unit's own projection reached independently, zero rows priced at or below zero, five prices hand-matched against the source rows. The second commit exists because the first stored **1,451 barcodes too short to ever join**: 11 digits on 1,439 rows, where a spreadsheet had eaten the leading zero off codes like Crown Royal's, found by reading the length distribution back out of the store. Now 7,554 at 13 digits and 2 at 8. Two prices that looked like parse errors, a $160,000 Fettercairn and a $100,000 Bowmore, were checked by name and are real collectibles. |
+| **Owner** | Jamin (taken over from Aurik 2026-09-26, his word) |
 | **Writes** | `observation` in the price database, seller `bcldb`, not the catalogue |
 | **What** | Government open data under the BC open licence. Barcode, full product name, litres per container, three levels of category, alcohol percent, and a price, for every product in BC liquor stores. |
 | **Numbers** | **7,556 rows carrying a barcode and a price, counted, every one of them priced. 7,555 distinct barcodes, counted.** The price store today holds **896 observations over 438 barcodes, counted**, and **the overlap is zero, counted**. So this is a **17-fold increase in priced barcodes** and **7,354 products new to the catalogue as well, counted**. |
@@ -398,8 +398,8 @@ registry's own type filter does the cutting, so this is a narrower crawl, not a 
 
 | Field | |
 | --- | --- |
-| **State** | `queued`. First of everything, and **it needs his word** because it is his data. |
-| **Owner** | Jamin, after he says so |
+| **State** | **`built` 2026-09-26**, `946070e`, on his word, and **the diagnosis in this unit was wrong in a way worth recording**. The store did not hold leftover junk somebody typed once: `SHIN_USER_CATALOGUE` was the one store a test could not redirect by redirecting everything else, so **17 of the 21 tests that boot the server were writing their scans into the live store**, and two of its 18 products were created by test runs on the night of the cleanup. The cause is fixed first (the user store now resolves beside whatever scan store `SHIN_SCANS` names, so all 17 are redirected without editing them, and production is unchanged), then the store was emptied. Without that order the next `node --test` puts the rows back. |
+| **Owner** | Jamin |
 | **Numbers** | Counted: **nine products with barcodes "1" through "9", all named Kraft Dinner; one named "broken"; one with 5,623 scans recorded; 6,210 observations, none of which link to a real catalogue product; 645 of them carrying a price.** Sixteen products in total. |
 | **What** | Anyone who computes on that store today gets a wrong answer, and units 5 and 7 both want to read it. |
 | **Acceptance test** | The store holds zero products with a barcode shorter than eight digits, zero named "broken", and no observation whose scan count exceeds the number of observations that exist. A copy of the deleted rows is written to a file first so the delete is undoable. |
@@ -450,8 +450,8 @@ registry's own type filter does the cutting, so this is a narrower crawl, not a 
 
 | Field | |
 | --- | --- |
-| **State** | `queued`, alongside unit 3 |
-| **Owner** | Aurik (prices) |
+| **State** | **`built` 2026-09-26**, `c15b6a8`. Read back from the price database: **6,741 observations at seller `anbl`, 6,741 distinct barcodes**, against the 6,731 projected; the shelf price and the base price are both present on every row, which is what keeps New Brunswick's tax-inclusive figure from being averaged with BC's tax-exclusive one; zero rows at or below zero. **6,108 are new to the catalogue and 5,982 are absent from BC's list.** Store-wide the price store went from **438 distinct barcodes to 13,975**, a 32-fold rise, against the 13,970 this plan projected. One real defect was found by questioning the price range: 219 rows (3.2%) had a bare vintage year as the product name, because the table extractor wraps a long description and shifts the next row's name onto an orphan line. Barcodes and prices were never wrong; the descriptions are recovered and zero bad ones remain. |
+| **Owner** | Jamin (taken over from Aurik 2026-09-26, his word) |
 | **Writes** | `observation` in the price database, seller `anbl`, and new catalogue rows at source `anbl` |
 | **What** | ANBL publishes its whole public price list as a free PDF with no login, `https://www.anbl.com/medias/PriceList-Public.pdf`, 2.70 MB. Columns: class, **UPC**, description with the container size in the name, base price, HST, deposit, and shelf price. Extract with `pdftotext -table`; `-layout` mangles the columns. |
 | **Numbers** | **6,731 rows parsed of about 6,789, counted**, every one with a barcode and a price. **6,487 are new to the catalogue. 5,977 are priced barcodes BC does not have. Zero are in the price store today.** By class: 3,251 wine, 1,484 spirits, 1,468 beer, 471 other. Loading it with unit 3 takes the price store from **438 distinct barcodes to about 13,970**. |
