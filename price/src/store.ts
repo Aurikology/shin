@@ -106,6 +106,20 @@ export interface ObservationRow {
    * picks one of the three without saying so.
    */
   readonly storeOsm?: string | null;
+  /**
+   * The pre-tax, pre-deposit price, when the source publishes one separately
+   * from what the customer pays. Added 2026-09-26 for New Brunswick's liquor
+   * price list, whose "Base" column excludes HST while its "Price" column
+   * (what `priceCents` holds) includes it - unlike British Columbia, whose
+   * single published price has no HST folded in. The two provinces' numbers
+   * must never be averaged against each other without this field, because
+   * one would be comparing a tax-in figure to a tax-out one. Optional for the
+   * same reason storeName is: a caller whose source publishes only one price
+   * is not forced to invent a second. Omitted means the caller does not carry
+   * a base price at all; present and null means the source has none for this
+   * row.
+   */
+  readonly basePriceCents?: number | null;
 }
 
 const DDL = `
@@ -144,6 +158,11 @@ CREATE TABLE IF NOT EXISTS observation (
    * such thing at all.
    */
   page_gtin       TEXT,
+  /*
+   * The pre-tax, pre-deposit price, kept apart from price_cents (what the
+   * customer pays). Added 2026-09-26; see ObservationRow.basePriceCents.
+   */
+  base_price_cents INTEGER,
   PRIMARY KEY (seller, seller_sku, seen_on)
 );
 
@@ -246,6 +265,8 @@ function addMissingColumns(db: DatabaseSync): void {
   const columns = db.prepare('PRAGMA table_info(observation)').all() as unknown as { name: string }[];
   const have = new Set(columns.map((c) => c.name));
   if (!have.has('page_gtin')) db.exec('ALTER TABLE observation ADD COLUMN page_gtin TEXT');
+  if (!have.has('base_price_cents'))
+    db.exec('ALTER TABLE observation ADD COLUMN base_price_cents INTEGER');
 }
 
 /*
@@ -279,9 +300,10 @@ export function openPrices(path: string = PRICES_DB_PATH): DatabaseSync {
  * store_* columns were added to the table in this same change; if a future
  * column is added to the table and not added here, in both the column list
  * and the values list and the bind arguments below, it will quietly wipe
- * itself out on the next INSERT OR REPLACE for that key. Count them: 21
- * columns, 21 placeholders, 21 bind arguments below. Keep the three counts
- * equal. (`page_gtin` was the 21st, added 2026-09-08.)
+ * itself out on the next INSERT OR REPLACE for that key. Count them: 22
+ * columns, 22 placeholders, 22 bind arguments below. Keep the three counts
+ * equal. (`page_gtin` was the 21st, added 2026-09-08; `base_price_cents` is
+ * the 22nd, added 2026-09-26.)
  */
 export function recordObservation(db: DatabaseSync, o: ObservationRow): void {
   db.prepare(
@@ -289,8 +311,8 @@ export function recordObservation(db: DatabaseSync, o: ObservationRow): void {
        (code, seller, seller_sku, seller_name, seller_brand, price_cents, kind,
         unit_price_cents, unit_label, currency, country, region, join_method,
         seen_on, url, image_url, in_stock, store_name, store_city, store_osm,
-        page_gtin)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        page_gtin, base_price_cents)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   ).run(
     o.code,
     o.seller,
@@ -313,6 +335,7 @@ export function recordObservation(db: DatabaseSync, o: ObservationRow): void {
     o.storeCity ?? null,
     o.storeOsm ?? null,
     o.pageGtin ?? null,
+    o.basePriceCents ?? null,
   );
 }
 
