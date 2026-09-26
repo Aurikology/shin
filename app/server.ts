@@ -217,7 +217,17 @@ function noteCatalogueBarcodeMiss(gtin: string): void {
   try {
     if (fastLookup.byGtin(gtin) !== null) return;
     if (!activeGapLog()) openGapLog(GAPS_DB);
-    recordGap({ gtin, note: 'catalogue_miss' });
+    /*
+     * `catalogueMissing` carries the fact; the note is only for a person reading
+     * the log by eye. Measured in the running app 2026-09-26: the Gemini path
+     * records a gap for the same barcode microseconds later, and the log's upsert
+     * gives the last writer the note, so a live absent scan came back saying
+     * `gemini_miss:model_client_error` with a count of 2. Both writes had landed
+     * and the meaning had been overwritten by the one thing it must be told apart
+     * from. The column is raised with `max` and never cleared, so write order
+     * stops mattering. See the comment on MIGRATIONS in gaps.ts.
+     */
+    recordGap({ gtin, note: 'catalogue_miss', catalogueMissing: true });
   } catch {
     /* a lookup or a log that failed is not a reason to fail the scan */
   }

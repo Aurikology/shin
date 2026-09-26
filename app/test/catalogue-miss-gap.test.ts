@@ -55,7 +55,7 @@ process.env.GEMINI_API_KEY = 'test-key-never-sent';
 
 const { server, setGeminiTransportForTests, setCatalogueForTests } = await import('../server.ts');
 const { fakeTransport } = await import('./gemini-double.ts');
-const { activeGapLog, openGapLog } = await import('../../catalogue/src/gaps.ts');
+const { activeGapLog, openGapLog, recordGap } = await import('../../catalogue/src/gaps.ts');
 const { clearRepeatCacheForTests } = await import('../src/repeat-cache.ts');
 
 /*
@@ -84,6 +84,7 @@ interface GapRow {
   query_text: string | null;
   count: number;
   note: string | null;
+  catalogue_missing: number;
 }
 
 /*
@@ -94,7 +95,7 @@ function gapRows(): GapRow[] {
   const log = activeGapLog();
   if (!log?.db) return [];
   return log.db
-    .prepare('SELECT kind, key, gtin, query_text, count, note FROM gap ORDER BY key ASC')
+    .prepare('SELECT kind, key, gtin, query_text, count, note, catalogue_missing FROM gap ORDER BY key ASC')
     .all() as unknown as GapRow[];
 }
 
@@ -136,11 +137,47 @@ test('a barcode the catalogue does not hold leaves a gap row saying so', async (
   const row = rows.find((r) => r.gtin === ABSENT || r.key === ABSENT.replace(/^0+/, ''));
   assert.ok(row, 'the gap row was not keyed by the scanned barcode');
   assert.equal(row!.kind, 'gtin', 'the miss was filed as a typed search rather than a barcode');
-  assert.match(
-    String(row!.note),
-    /catalogue_miss/,
+  assert.equal(
+    row!.catalogue_missing,
+    1,
     'the row does not say the CATALOGUE missed it, so it cannot be told apart from a model failure',
   );
+  assert.match(String(row!.note), /catalogue_miss/, 'the note a person reads by eye is missing');
+});
+
+test('a later model-failure write on the same barcode cannot erase the catalogue fact', async () => {
+  /*
+   * THIS IS THE CASE THAT FAILED IN THE RUNNING APP, 2026-09-26, and the reason
+   * `catalogue_missing` is a column at all. The earlier version of this file
+   * asserted the meaning on `note`, and passed, because the fake Gemini transport
+   * answers every scan with a name and so never writes a gap of its own. In the
+   * real app the model path DOES write, microseconds later, on the same barcode,
+   * and the log's upsert ends `note = COALESCE(excluded.note, note)`: last writer
+   * wins. A live scan of a genuinely absent barcode came back holding
+   * `gemini_miss:model_client_error` with a count of 2, meaning both writes landed
+   * and the catalogue fact had been overwritten by the one fact it exists to be
+   * distinguished from.
+   *
+   * The second writer is simulated by calling `recordGap` the same way the Gemini
+   * path calls it, rather than by breaking the transport, so the test pins the
+   * WRITE ORDER rather than one route's error handling.
+   */
+  setCatalogueForTests(oneProductCatalogue);
+  const code = '0000000000116'; // valid check digit, absent from the double
+  await identify(`gtin=${code}&deviceId=cat-order-e`);
+  const keyed = (rows: GapRow[]) => rows.find((r) => r.key === code.replace(/^0+/, ''));
+  assert.equal(keyed(gapRows())?.catalogue_missing, 1, 'the catalogue miss was never recorded');
+
+  recordGap({ gtin: code, note: 'gemini_miss:model_client_error' });
+
+  const after = keyed(gapRows());
+  assert.equal(
+    after?.catalogue_missing,
+    1,
+    'a model-failure write cleared the catalogue fact, which is how the log lied in the running app',
+  );
+  assert.match(String(after?.note), /gemini_miss/, 'the note should be the later writer’s, which is why it cannot hold the fact');
+  assert.equal(after?.count, 2, 'both writers should be rolled into one finding');
 });
 
 test('a barcode the catalogue does hold leaves no gap row', async () => {

@@ -54,6 +54,48 @@ CREATE INDEX IF NOT EXISTS gap_count ON gap(count DESC);
 `;
 
 /**
+ * WHY `catalogue_missing` IS A COLUMN AND NOT A NOTE, added 2026-09-26.
+ *
+ * `note` cannot carry this fact, and that was proved in the running app rather
+ * than argued. Two writers land on the same barcode inside one scan: the
+ * catalogue check in server.ts, which means "we do not hold this", and the
+ * Gemini path, which means "the model could not name it". The upsert below ends
+ * `note = COALESCE(excluded.note, note)`, so whichever writes SECOND owns the
+ * field, and the Gemini path always writes second. A live scan of a genuinely
+ * absent barcode came back holding `gemini_miss:model_client_error` with a count
+ * of 2: both writes had landed, and the one fact a catalogue decision needs had
+ * been overwritten by the one it must be told apart from.
+ *
+ * A column fixes it in a way that does not depend on write order. It is raised
+ * with `max(...)`, never cleared, so a later writer that knows nothing about the
+ * catalogue cannot erase what the catalogue already answered. The consumer's
+ * question becomes one count that cannot be confused with a model failure:
+ * `SELECT count(*) FROM gap WHERE catalogue_missing = 1`.
+ *
+ * Added by migration rather than only in the DDL because three of these files
+ * already exist on this machine, holding 102 misses between them.
+ */
+const MIGRATIONS: ReadonlyArray<{ column: string; ddl: string }> = [
+  {
+    column: 'catalogue_missing',
+    ddl: 'ALTER TABLE gap ADD COLUMN catalogue_missing INTEGER NOT NULL DEFAULT 0',
+  },
+];
+
+/**
+ * Adds any column the DDL above gained after files were already in the field.
+ * Additive only: no column is renamed, retyped or dropped, so an older reader
+ * of the same file keeps working. A failure here is swallowed like every other
+ * failure in this file; the caller's answer to a user never depends on it.
+ */
+function migrate(db: DatabaseSync): void {
+  const have = new Set(
+    (db.prepare('SELECT name FROM pragma_table_info(?)').all('gap') as Array<{ name: string }>).map((r) => r.name),
+  );
+  for (const m of MIGRATIONS) if (!have.has(m.column)) db.exec(m.ddl);
+}
+
+/**
  * A handle on the miss log.
  *
  * `db` is null when the file could not be opened or migrated (a directory
@@ -114,6 +156,7 @@ export function openGapLog(path: string = process.env.SHIN_GAPS ?? 'data/gaps.db
     db.exec('PRAGMA busy_timeout = 5000');
     db.exec('PRAGMA journal_mode = WAL');
     db.exec(DDL);
+    migrate(db);
   } catch (err) {
     db = null;
     droppedWhy = err instanceof Error ? err.message : String(err);
@@ -209,6 +252,15 @@ export function recordGap(input: {
   queryText?: string;
   note?: string;
   /**
+   * True only when the catalogue was actually consulted and did not hold this
+   * barcode. Left absent by every other caller, which is why it is raised with
+   * `max` and never cleared: a Gemini-path write on the same barcode says
+   * nothing about the catalogue and must not be able to unset it. Absent is not
+   * "we have it"; it is "nobody looked", and the two must stay distinguishable
+   * or every count taken from this log is wrong.
+   */
+  catalogueMissing?: boolean;
+  /**
    * Item 15. What the scan that missed knows about the product (Gemini's answer,
    * the typed price, the store). When present it fills the new user-sourced entry;
    * when absent the entry is built from the barcode or the query text alone and is
@@ -228,14 +280,24 @@ export function recordGap(input: {
     const now = new Date().toISOString();
     log.db
       .prepare(
-        `INSERT INTO gap (kind, key, gtin, query_text, first_seen, last_seen, count, note)
-         VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+        `INSERT INTO gap (kind, key, gtin, query_text, first_seen, last_seen, count, note, catalogue_missing)
+         VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
          ON CONFLICT(kind, key) DO UPDATE SET
            count = count + 1,
            last_seen = excluded.last_seen,
-           note = COALESCE(excluded.note, note)`,
+           note = COALESCE(excluded.note, note),
+           catalogue_missing = max(gap.catalogue_missing, excluded.catalogue_missing)`,
       )
-      .run(kind, key, gtin, queryText, now, now, input.note?.trim() || null);
+      .run(
+        kind,
+        key,
+        gtin,
+        queryText,
+        now,
+        now,
+        input.note?.trim() || null,
+        input.catalogueMissing ? 1 : 0,
+      );
   } catch (err) {
     log.dropped += 1;
     log.droppedWhy = err instanceof Error ? err.message : String(err);
