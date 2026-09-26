@@ -424,7 +424,7 @@ registry's own type filter does the cutting, so this is a narrower crawl, not a 
 | **Falsifier** | Fewer than 6,000 rows parse, which means the PDF layout shifted and the regular expression is silently dropping rows rather than the file being thin. A price of zero also fails, since the source contains none. |
 | **Reopens on** | ANBL republishes the PDF; it carries no date in its name, so the file's own bytes are the version. |
 | **Skipped deliberately** | **Manitoba.** It publishes the same shape with a barcode column, but about **874 rows dated 2021**, five years stale and an eighth the size. Reopens if MBLL publishes a current one. |
-| **Still unknown, not negative** | **Quebec and Nova Scotia.** One search each on two open-data portals returned nothing and the liquor boards' own sites were never opened. Naming them absent would be reporting a sample's emptiness as a fact about the world. |
+| **Searched properly and not found** | **Quebec and Nova Scotia**, closed 2026-09-26 by opening the liquor boards' own sites, not just the portals. Quebec: SAQ publishes no export, and the only alcohol data on the province's open-data portal is RACJ's **licence-holder lists**, retailers and manufacturers, with no products and no barcode column. Nova Scotia: NSLC's product pages carry an internal **article number and no barcode at all**, and its price lists are agency and licensee accounts only. Nova Scotia is the harder no of the two, because crawling its storefront would not produce a barcode even if we paid the hours. Quebec's no is about files only; its storefront was never crawled. |
 
 ## What makes this plan checkable rather than asserted
 
@@ -473,11 +473,18 @@ Four rules, each already the repo's practice or a standing instruction:
 | Saskatchewan | no downloadable file on the pages opened | browsable catalogue only |
 | Ontario | has one, but **paid, agents-only, no third-party distribution** | ruled out |
 | Ontario Cannabis Store | login-gated B2B portal | out of scope |
-| **Quebec** | **UNKNOWN** | one open-data search, SAQ's own site never opened |
-| **Nova Scotia** | **UNKNOWN** | one open-data search, NSLC's own site never opened |
+| Quebec | **no file found**, after opening SAQ itself | SAQ has no export; the portal's only alcohol data is RACJ **licence-holder** lists, no products, no barcode |
+| Nova Scotia | **no barcode exists to find** | NSLC product pages carry an internal article number only; price lists are licensee-account gated; Divert NS publishes no container registry |
 
-Quebec and Nova Scotia are written as unknown, not absent. A single search returning nothing is a
-fact about the search.
+Quebec and Nova Scotia were written as unknown in the first draft because one portal search had
+returned nothing, which is a fact about the search. They were closed on 2026-09-26 by opening the
+two liquor boards' own sites, the provincial open-data portals under six terms each, and Nova
+Scotia's deposit agency: **SAQ**, **donneesquebec.ca**, **racj.gouv.qc.ca**, **mynslc.com**,
+**data.novascotia.ca** and **divertns.ca**. Both are now negatives with a named search space, and
+they are not the same kind of negative. Quebec might still yield to a storefront crawl of the kind
+unit 6a runs on British Columbia, which was not attempted. Nova Scotia would not: the barcode is
+not on the page, so no amount of crawling produces one, and that closes the province rather than
+deferring it. Reopens if NSLC ever prints a UPC on a public product page.
 
 ## Totals, and what is honest about them
 

@@ -11,13 +11,20 @@ Everything doable without an account, a licence or money, as `queued` units with
 split into a catalogue lane and a price lane that cannot write the same rows. **Build: 0, 11, then
 2, 3, 15, 4, 6a, 13 together, then 5, 7, 9, 8, 14. Parked with a number: 1, 6b, 10, most of 12.**
 
-Four findings in it correct earlier readings, all counted:
+Five findings in it correct earlier readings, all counted:
 
 - The phone reads a packed binary dated **2026-09-05**, and no unit rebuilt it. Now unit 0.
 - The food loader discards **4,636,853** rows against decision 28, but they arrive flagged
   not-Canadian and the packer takes only Canada-flagged rows, so none can reach a phone. Parked.
 - The miss log in `catalogue/data/gaps.db` is **not** empty: 94 text misses, **zero** barcode
-  misses, last written 2026-09-19, its heaviest entries our own test strings.
+  misses, last written 2026-09-19, its heaviest entries our own test strings. **Fixed in `364eb25`**:
+  the barcode path now asks the catalogue and records `catalogue_miss`, and records nothing when no
+  catalogue is attached. Three parks in `docs/decisions.md` promote back on that log, so it had to
+  start working before any of them can fire.
+- **Quebec and Nova Scotia publish no usable liquor price list**, closed 2026-09-26 by opening SAQ,
+  NSLC, both open-data portals and Divert NS rather than one search. NSLC prints an internal article
+  number and **no barcode**, so that province is closed, not deferred. BC and New Brunswick stay the
+  only two price sources.
 - **Prices transfer between provinces and a province adjustment is worth nothing.** 754 identical
   barcodes priced in both NB and BC: median ratio **0.990**, and applying the best province factor
   leaves the median error at **10.8%**, exactly where no adjustment leaves it. Statistics Canada's
