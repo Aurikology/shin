@@ -2104,3 +2104,55 @@ claimed.
 **Reverses if** a tester is shown a Shin price that is wrong at the till and the outside answer was
 right, which is visible in the corrections store rather than in an opinion; or if two prices on one
 answer sheet are shown to confuse rather than help, which is a design question and his.
+
+## One list of current rulings outranks every other file
+
+**Date:** 2026-09-27 · **Status:** active, being built
+
+Jamin, 2026-09-26/27, on the PC: *"When i make a decision, especially a decision regarding
+something that is integrated in every aspect of a system like gemini's role in shin, claude only
+updates one part of the repo and the rest of the repo stays not up to date unless claude reads
+thorugh the entire thing. This is a huge underlying red flag for the future when we scale our
+app."* Then, choosing the defaults offered: *"yes to all four defaults, start the Shin pilot
+without auriks agrement"*.
+
+**What changes.** A new file at the root, `RULINGS.md`, holds one entry per live ruling, rewritten
+in place when the ruling changes; this log keeps the history. RULINGS.md outranks every other file
+in this repo, **including `docs/jamin-gemini-rules.md` and the Google Doc walkthrough**, which feed
+into it rather than competing with it. `NOW.md` is state, never rulings. Code reads its settings
+from one module. Dated documents get a one-line "snapshot as of" label instead of a rewrite. A
+test fails when a retired ruling or a stray model name reappears in a live file. Changing a ruling
+means: rewrite its entry, move the old text here, search for the old wording, fix every hit in the
+same commit.
+
+**Why, measured before anything moved** (the full record is in Jamin's agent repo): a fresh Sonnet
+session asked 12 questions about Shin at `81b2f91`, three times, got 33 of 36 right, and on 9 of
+the 12 at least one run had to pick between files that disagreed. The two wrong answers were
+Gemini's role exactly: one run said a barcode never shows Shin's own prices (the ruling above
+says it does), one said the default model is gemini-2.5-flash (the code has sent every scan to
+gemini-3.8-flash since 2026-09-22). This log's newest entry says it reverses rule 3 of the rules
+file, and rule 3, plus line 8 of CLAUDE.md that every session reads first, still say the opposite.
+
+**Aurik** was told through `comms/messages/`, not asked; Jamin chose not to wait.
+
+**Reverses if:** the same 12 questions, re-asked after the sweep, are not answered better than
+33 of 36 with 9 contradictions; then the structure did not fix what it was built for.
+
+## Sessions talk through GitLab, not the Notion page
+
+**Date:** 2026-09-27 · **Status:** active
+
+Jamin, 2026-09-27: *"i've already told you before to switch to gitlab for communication, not
+notion"*. This supersedes 2026-09-19's *"nvm, we are still using the notion"* (quoted in
+`comms/README.md`) and the Notion board of 2026-09-14. He had given the switch before and it never
+reached this repo, which is the failure the ruling above exists to stop. The Notion workspace is
+also out of free blocks (a write refused 2026-09-27 03:06 UTC; the same limit that silenced the
+Mac checker on 2026-09-23), so the page could not have carried anything anyway.
+
+The board is now `comms/` in this repo: `comms/claims/<name>.md` for who is working on what,
+`comms/messages/` for questions and handoffs, both pushed to GitLab. The session-start hook reads
+both from disk after a pull; the 20-minute Notion reminder hook is removed. **Not yet moved:** the
+Mac's deploy checker still takes its requests from the Notion page (`mac/deploy/`); moving that to
+GitLab is a Mac-side unit, asked of the Mac through the mailbox.
+
+**Reverses if:** he says so.

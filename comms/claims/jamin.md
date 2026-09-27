@@ -1,0 +1,1 @@
+jamin · Jamin's PC · decision sync: RULINGS.md, then stale copies of rulings fixed across docs; later one settings module · CLAUDE.md, RULINGS.md, comms/, .claude/hooks, docs/, notes/, NOW.md · started 2026-09-27 03:06 UTC · updated 2026-09-27 03:35 UTC

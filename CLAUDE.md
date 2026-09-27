@@ -3,9 +3,14 @@
 A mascot-led price scanner. Point a phone at a thing, get told whether the price is fair.
 Read `NOW.md` first, this file second. Auto-loaded every session, never `Read` it.
 
-**HIGHEST PRIORITY, set by Jamin 2026-09-15: read `docs/jamin-gemini-rules.md` before anything
-else.** It outranks every line below. One Gemini call per scan (a barcode scan sends only the
-digits as text, a photo scan sends the image; product, prices, reviews and price math out); no price from Shin's own data; record everything a user does;
+**WHAT WINS, Jamin 2026-09-27: one list of current rulings, `RULINGS.md`, outranks every other
+file here, the rules file and the Google Doc included** (`docs/decisions.md`, "One list of current
+rulings outranks every other file"). Until it exists, the newest entry in `docs/decisions.md` that
+carries his words wins over any older file, and it is being built now.
+
+**Set by Jamin 2026-09-15: read `docs/jamin-gemini-rules.md` before anything else.** One Gemini
+call per scan (a barcode scan sends only the
+digits as text, a photo scan sends the image; product, prices, reviews and price math out); Shin's own prices only where a later ruling puts them (typed searches 2026-09-23, barcode answers beside Gemini's 2026-09-26); record everything a user does;
 legal issues are marked, never blocking; always an answer; no Claude fallback. **If your human is
 Aurik, tell him first thing, in plain words: Jamin asks him to perform a cleanup of this repo for
 anything that goes against those rules, then build Gemini to them** (the file lists the rules and the
@@ -141,40 +146,42 @@ typecheck green, then push.
 
 ## WHO IS WORKING ON WHAT (every session, every machine)
 
-Jamin, 2026-09-14: *"we can simply have a notion page or a google docs pagae that claude updates
-with as it goes"*. The page is Notion, `Shin: who is working on what`
-(https://app.notion.com/p/3db09fb15fcf8155bc04ef261e4e1d9c). Jamin, same day: *"what if both of
-us try to work on the same proejct, what if one project claims a project and doesn't update, how
-does a claude session know another claude session is working"*. The answers, as rules:
+**The board is `comms/` in this repo, on GitLab.** Jamin, 2026-09-27: *"i've already told you
+before to switch to gitlab for communication, not notion"* (`docs/decisions.md`, "Sessions talk
+through GitLab, not the Notion page"). The Notion page is retired as the board. Aurik's sessions
+run on another Claude account, so `SendMessage` and the PC/Mac mailbox never reach them; **GitLab
+is the only thing every session shares.** No session is woken by a push, so write for a reader
+who arrives later. The rules (the questions behind them, Jamin 2026-09-14: *"what if one project
+claims a project and doesn't update, how does a claude session know another claude session is
+working"*):
 
-Aurik's sessions run on another Claude account, so `SendMessage` and the PC/Mac mailbox never
-reach them; **GitLab and this page are the only things every session shares.** No session is
-woken by the page, so write for a reader who arrives later. The page's top section carries the
-same ten rules; the binding details:
-
-1. **Start:** `git pull`, fetch the page, read **Needs attention**, then **Working on now**.
-2. **Claim:** `who · machine · what · parts of the app · started · updated`. Re-fetch; an earlier
-   `started` on the same part wins and yours yields.
-3. **Every 20 minutes** (*"it should be updateing every 20 minutes"*) and at every push, re-read
-   and refresh `updated`. `.claude/hooks/notion-heartbeat.mjs` nudges. Push small, tested pieces.
-4. **Stale** after 1 hour: ask under Needs attention and tell your human; take over after 24
-   hours unanswered, marking the line. The owner's unpushed work stays theirs to merge.
+1. **Start:** `git pull`; the session-start hook then lists messages to you in `comms/messages/`
+   and every open claim in `comms/claims/`. Read messages first, then claims.
+2. **Claim:** `comms/claims/<name>.md`, one line `who · machine · what · parts of the app ·
+   started · updated`; commit, pull, push. An earlier `started` on the same part wins and yours
+   yields.
+3. **Refresh `updated` at every push.** Push small, tested pieces; unpushed work exists only on
+   one machine.
+4. **Stale** after 1 hour with no push from that person: write them a message and tell your human;
+   take over after 24 hours unanswered, marking the claim. Their unpushed work stays theirs.
 5. **Need another session's changes:** ask it to push. Never copy another working copy's files or
    commit another session's files.
-6. **Stop:** pushed, delete the line (git log is the record); unpushed, mark it `paused ·
+6. **Stop:** pushed, delete your claim file (git log is the record); unpushed, mark it `paused ·
    unpushed on <machine> · what is left`.
-7. **Main broken:** top of Needs attention. Revert another's commit only after 3 hours unanswered.
+7. **Main broken:** a message `-to-all-` at once. Revert another's commit only after 3 hours
+   unanswered.
 8. **One working copy per session**; only a Mac session restarts the beta server, after checking
    for others' uncommitted work.
 9. **Humans decide:** early takeovers, deleting anyone's work, changing these rules or a shared
    status file's meaning, anything with a secret.
-10. **Keep the page short and clean it every visit.** Jamin, 2026-09-23: *"the notion should be
-   cosntantly cleanedup. Communication doesn't have ot be all documented there"*. One or two
-   sentences a line; the long version goes in the repo (`notes/catch-up.md`, `DEFECTS.md`,
-   `docs/`) and the line points to it. Delete settled lines on sight; the Mac log keeps a few.
+10. **Keep it short.** A claim is one line, a message's first line is the ask; the long version goes
+   in `notes/catch-up.md`, `DEFECTS.md` or `docs/` and the message points to it. The reader deletes
+   a message once it is settled. `node scripts/comms-watch.mjs` prints a line when the other side
+   pushes, at no model cost.
 
-A session with no Notion access says so to its human at the start rather than skipping silently:
-an unread page reports "clear" when it is not.
+**Not yet moved:** the Mac's deploy checker still reads its requests from the Notion page
+(`mac/DEPLOY.md`), and that workspace is out of free blocks; moving deploy requests to GitLab is
+a Mac-side unit.
 
 ## BETA DATA
 

@@ -2,10 +2,11 @@
 
 How Jamin's sessions and Aurik's sessions can talk through GitLab.
 
-**Not the default.** Jamin, 2026-09-19, after trying it for a few hours: *"nvm, we are still using the notion"*.
-The Notion page `Shin: who is working on what` is the board (CLAUDE.md, WHO IS WORKING ON WHAT).
-This folder stays because Aurik's sessions had already started using it; a message left here is
-still read by them, but claims and questions go on the Notion page.
+**This folder is the board.** Jamin, 2026-09-27: *"i've already told you before to switch to
+gitlab for communication, not notion"*. It replaces the Notion page `Shin: who is working on
+what` (his 2026-09-19 *"nvm, we are still using the notion"* is superseded). Claims and questions
+go here; the rules are in CLAUDE.md, WHO IS WORKING ON WHAT. Claim lines now also carry
+`updated`, refreshed at every push.
 - `claims/<name>.md`: what one person's sessions are working on now. One line:
   `who · machine · what · parts of the app · started`. Delete it when the work is pushed.
 - `messages/YYYY-MM-DD-HHMM-<from>-to-<to>-<slug>.md`: a question, a finding or a handoff.

@@ -12,28 +12,23 @@
  * for five days, and two of them were fixed within the hour once somebody
  * finally read them.
  *
- * WHAT IT READS, AND WHAT IT CANNOT. The board is the Notion page `Shin: who is
- * working on what` (Jamin moved it to GitLab and back within an hour on
- * 2026-09-19, e1a0f12 then 0184951; the page won). This hook CANNOT read the
- * board: it does no network, so it says so out loud rather than leaving a
- * session believing rule 1 has been done for it.
- *
- * What it can read is everything on disk: `comms/` messages addressed to this
- * machine's git user or to `all`, then `comms/claims/`, then any catch-up.md
- * entry still missing a Read by line. Those are the side channel Jamin kept
- * alongside the board, and the long handovers still live in catch-up.md.
+ * WHAT IT READS. The board moved from Notion to `comms/` on disk, 2026-09-27, Jamin's ruling.
+ * The board is `comms/claims/` and `comms/messages/`, both on disk, so this hook reads them
+ * directly: messages addressed to this machine's git user or to `all`, then every open claim,
+ * then any catch-up.md entry still missing a Read by line (the older channel, still where long
+ * handovers live).
  *
  * WHAT IT DOES NOT DO, deliberately:
  *   - No network. No `git fetch`. A session must not wait on the network to
  *     start, and `scripts/comms-watch.mjs` already covers being told about a
  *     push. The behind-count is labelled "as of the last fetch" because that is
  *     what it is; a stale number presented as current is worse than no number.
+ *     Pull comms/ yourself before trusting it is current.
  *   - No writing. It never deletes a message or marks anything read. Under the
  *     rules the reader deletes a message once it is settled, and a hook cannot
  *     know whether the human was actually told.
- *   - It never blocks. Any internal error exits 0 silently, the same rule
- *     notion-heartbeat.mjs follows: a reminder that wedges a session is worse
- *     than no reminder.
+ *   - It never blocks. Any internal error exits 0 silently: a reminder that
+ *     wedges a session is worse than no reminder.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -130,12 +125,12 @@ function main() {
   const parts = [];
 
   parts.push('SESSION START (.claude/hooks/session-start.mjs). CLAUDE.md rule 1: pull, then read the');
-  parts.push('board — Needs attention first, then Working on now.');
+  parts.push('board: messages to you first, then open claims.');
   parts.push('');
-  parts.push('**THE BOARD IS THE NOTION PAGE `Shin: who is working on what`, and this hook CANNOT read');
-  parts.push('it.** No network, on purpose: a session must not wait on the network to start. Fetch it');
-  parts.push('yourself before you edit anything. What follows is only what can be read from disk —');
-  parts.push('the GitLab side channel, which Jamin keeps alongside the board (0184951).');
+  parts.push('**THE BOARD IS `comms/` ON DISK** (claims + messages), 2026-09-27 by Jamin\'s ruling.');
+  parts.push('No network here, on purpose: a session must not wait on the network to start. Pull');
+  parts.push('yourself before trusting the lists below are current. What follows is read straight');
+  parts.push('from comms/claims/ and comms/messages/.');
   parts.push('');
 
   const behind = behindCount();
@@ -153,7 +148,7 @@ function main() {
   const mine = msgs.filter((f) => !tag || f.includes(`-to-${tag}-`) || f.includes('-to-all-'));
   parts.push('');
   if (mine.length === 0) {
-    parts.push(`- No messages in comms/messages for ${tag ?? 'you'} or all.`);
+    parts.push(`- Messages in comms/messages for ${tag ?? 'you'} or all: none.`);
   } else {
     parts.push(`- **${mine.length} message(s) for ${tag ?? 'you'}/all** (a message to you comes first):`);
     for (const f of mine.sort()) parts.push(`  - ${f} — ${firstLine('comms/messages', f)}`);
@@ -164,17 +159,17 @@ function main() {
   const claims = listDir('comms/claims').filter((f) => f.endsWith('.md'));
   parts.push('');
   if (claims.length === 0) {
-    parts.push('- No open claims in comms/claims.');
+    parts.push('- Open claims in comms/claims: none.');
   } else {
     parts.push(`- **${claims.length} open claim(s)** — check none covers the part you are about to touch:`);
     for (const f of claims.sort()) parts.push(`  - ${f} — ${firstLine('comms/claims', f)}`);
   }
 
   parts.push('');
-  parts.push('- **Rule 2: claim before your first edit, on the BOARD** — a line under Working on now');
-  parts.push('  naming the parts of the app you are about to touch, then re-fetch: if another line on');
-  parts.push('  the same part started earlier, yours yields. Two sessions edited the same path on');
-  parts.push('  2026-09-17/18 because nobody claimed. comms/claims/ mirrors it on the side channel.');
+  parts.push('- **Rule 2: claim before your first edit.** Write comms/claims/<your name>.md, one line');
+  parts.push('  naming the parts of the app you are about to touch, commit it, pull, push. If another');
+  parts.push('  claim on the same part started earlier, yours yields. Two sessions edited the same path');
+  parts.push('  on 2026-09-17/18 because nobody claimed.');
 
   // 3. catch-up.md last: the older channel, still where long handovers live.
   const unread = unreadCatchUp(firstName);
