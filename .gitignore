@@ -89,3 +89,6 @@ catalogue/crosslang-work.db
 
 # Output of app/scripts/sheet-preview.mjs: generated previews, never committed.
 app/.sheet-preview/
+
+# ruling-judge queue: per-machine, delivered to the next session here (ruling-capture.mjs)
+.claude/state/ruling-queue/

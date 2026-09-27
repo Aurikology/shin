@@ -105,6 +105,35 @@ if (rulingFailures.length) {
   console.log(rulingFailures.join("\n"));
 }
 
+// The model judge's queue: every prompt queues a judge job (dry run, scratch queue, so no real
+// claude -p starts and no real pending ruling is consumed); a pending ruling is delivered once.
+{
+  const { spawnSync } = await import("node:child_process");
+  const { mkdtempSync, readdirSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join, dirname } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const hook = join(dirname(fileURLToPath(import.meta.url)), "ruling-capture.mjs");
+  const q = mkdtempSync(join(tmpdir(), "ruling-queue-selftest-"));
+  const env = { ...process.env, RULING_JUDGE_DRYRUN: "1", RULING_QUEUE_DIR: q };
+  const run = (prompt, session_id) =>
+    spawnSync(process.execPath, [hook], { input: JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt, session_id }), encoding: "utf8", env }).stdout || "";
+  const jobs = () => readdirSync(q).filter((n) => n.endsWith(".job")).length;
+  const cases = [];
+  run("this plan is so flawed, it doesn't consider all cases", "t");
+  cases.push(["a plain-worded correction queues a judge job", jobs() === 1]);
+  run("<task-notification>worker: from now on X</task-notification>", "t");
+  cases.push(["a harness turn queues nothing", jobs() === 1]);
+  writeFileSync(join(q, "2026-01-01T00-00-00Z.json"), JSON.stringify({ status: "pending", ts: "2026-01-01T00:00:00Z", prompt: "why are you still doing X", ruling: "X is not the direction", repo: "shin" }));
+  cases.push(["a pending ruling is delivered on the next prompt", run("ok", "a").includes("X is not the direction")]);
+  cases.push(["and only once", !run("ok", "b").includes("X is not the direction")]);
+  for (const [name, ok] of cases) {
+    if (ok) rulingPass += 1;
+    else rulingFailures.push(`  judge queue: ${name}`);
+  }
+  console.log(`ruling-judge queue: ${cases.filter((c) => c[1]).length}/${cases.length}`);
+}
+
 if (failures.length || rulingFailures.length) {
   process.exit(1);
 }
