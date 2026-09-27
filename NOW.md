@@ -5,11 +5,37 @@ narrative.*
 
 ---
 
-## CATALOGUE WORK, 2026-09-26: plan in `docs/catalogue-build-plan-2026-09-26.md`, MVP cut applied
+## CATALOGUE WORK, 2026-09-26: THE PLAN IS RUN. `docs/catalogue-build-plan-2026-09-26.md`
 
-Everything doable without an account, a licence or money, as `queued` units with acceptance tests,
-split into a catalogue lane and a price lane that cannot write the same rows. **Build: 0, 11, then
-2, 3, 15, 4, 6a, 13 together, then 5, 7, 9, 8, 14. Parked with a number: 1, 6b, 10, most of 12.**
+Every unit is built, parked with a number, or killed with the number that killed it. Built and
+verified from a process that did not do the work: 0, 2, 3, 5, 6a, 7, 8, 9, 11, 12, 13, 14, 15, 16,
+17, 18. Parked with a number: 1, 6b, 10, three of 12's four sources. Killed by its own falsifier: 4
+(Metro, 95.4% disagreement). Waiting on one sentence from him: 16.
+
+**The catalogue tonight: 4,289,929 products, 473,773 of them sold in Canada.** The phone's Canadian
+pack is 473,677 rows, 6.50 MB brotli, and its own bytes carry **0 duplicate and 0 out-of-order
+keys**, where the pack shipping before tonight had **198,095 barcodes (32%) on an ambiguous key**.
+Grocery pack 121,896 rows, 1.47 MB. App suite **1,379 of 1,379**.
+
+**What it changed about an answer, counted both ways** (`docs/answer-change-2026-09-26.md`): of the
+13,537 barcodes we hold a real price for and did not load tonight, the catalogue answered **2.5%
+before and 6.4% now**, so **93.6% of priced barcodes still have no product** - that is the number
+the next catalogue decision should aim at, not the row counts. Where a barcode answered both
+before and after, the answer itself got better: a size on 14.2% then 45.1%, a category 28.5% then
+54.1%, a brand 34.3% then 49.7%, no regressions. The demand-weighted version of this question
+cannot be asked yet: the scan store holds 3 barcodes, all of which already resolve, and
+`catalogue/src/gaps-from-scans.ts` is what builds that set as people scan.
+
+**Two defects the plan did not know about, both found by something going red rather than by
+reading code.** A second source used to overwrite the first, which had taken 4% out of the grocery
+pack (unit 17, repaired, 5,115 rows). And one barcode number was being stored under two spellings,
+found when the pack **refused to build** (unit 18: 399 pairs folded, 7,588 codes renamed to the
+canonical form, so no future load can write a second spelling).
+
+**Next time the catalogue is loaded**: run the canonical-spelling pass AFTER the load, not before.
+The duplicate cleanup ran an hour ahead of the British Columbia load and the load recreated the
+class behind it. And after any category fill, **restart the search workers**: `rebuildCategories`
+invalidates their memoised tag sizes.
 
 Five findings in it correct earlier readings, all counted:
 
