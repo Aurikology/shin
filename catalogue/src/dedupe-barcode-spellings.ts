@@ -53,12 +53,39 @@ const apply = process.argv.includes('--apply');
 const PAIR =
   "FROM product p JOIN product q ON q.code = substr(p.code, 2) WHERE length(p.code) = 13 AND p.code LIKE '0%'";
 
+/**
+ * The join that defines the OTHER pair shape, found 2026-09-26 by reading the
+ * shipped phone pack rather than the code: a 13-digit code beginning with five
+ * zeros, and the 8-digit code left over after stripping them. GS1 writes an
+ * EAN-8 right-aligned in a 13-digit field with leading zeros exactly as it
+ * writes a UPC-A, and the check digit does not change (see `barcode.ts`), so
+ * these are one trade item too. On the live catalogue: 406 pairs (812 rows),
+ * 119 of them Canadian, 404 of the 406 carrying the same name on both rows.
+ */
+const PAIR_8 =
+  "FROM product p JOIN product q ON q.code = substr(p.code, 6) WHERE length(p.code) = 13 AND p.code LIKE '00000%'";
+
+/**
+ * `PAIR_8` narrowed to the pairs this rule actually folds. Unlike the 12/13
+ * shape above, whose two disagreeing pairs both turned out to be the same
+ * object (one corrected by hand below, one already fine to fold as written),
+ * the 8/13 shape's two disagreeing pairs are a real data fault: 'Avocado'
+ * against a Google Pixel screen protector, and 'Natural Spring Water' against
+ * 'SHELL SELECT ... Eau de Source', genuinely different products sharing a
+ * junk code rather than the same item spelled two ways. Those are printed and
+ * never folded by this rule.
+ */
+const PAIR_8_FOLDABLE = `${PAIR_8} AND p.name = q.name`;
+
 /** Fields worth rescuing off the row that is about to be deleted. */
 const RESCUE = ['name_en', 'name_fr', 'brands', 'quantity', 'leaf_category', 'image_url', 'ingredients_text'] as const;
 
 function open(readOnly: boolean): DatabaseSync {
   const db = new DatabaseSync(DB, { allowExtension: true, readOnly });
   sqliteVec.load(db);
+  // Other jobs are on this file tonight; a reader or writer should wait out a
+  // lock rather than fail on one.
+  db.exec('PRAGMA busy_timeout = 120000');
   return db;
 }
 
@@ -71,6 +98,11 @@ function counts(db: DatabaseSync): Record<string, number> {
     canadianPairs: one(`SELECT count(*) AS c ${PAIR} AND p.sold_in_canada = 1 AND q.sold_in_canada = 1`),
     canadian: one('SELECT count(*) AS c FROM product WHERE sold_in_canada = 1'),
     namesDisagree: one(`SELECT count(*) AS c ${PAIR} AND p.name != q.name`),
+    eightDigit: one('SELECT count(*) AS c FROM product WHERE length(code) = 8'),
+    pairs8: one(`SELECT count(*) AS c ${PAIR_8}`),
+    canadianPairs8: one(`SELECT count(*) AS c ${PAIR_8} AND p.sold_in_canada = 1 AND q.sold_in_canada = 1`),
+    namesDisagree8: one(`SELECT count(*) AS c ${PAIR_8} AND p.name != q.name`),
+    foldablePairs8: one(`SELECT count(*) AS c ${PAIR_8_FOLDABLE}`),
   };
 }
 
@@ -95,6 +127,17 @@ function main(): number {
     .all();
   for (const r of disagree) console.log('  ' + JSON.stringify(r));
 
+  console.log('\nthe 8/13 pairs whose names disagree, a real data fault, which this rule does NOT touch:');
+  const disagree8 = ro
+    .prepare(
+      'SELECT p.rowid AS keepRow, p.code AS keepCode, p.name AS keepName, p.source AS keepSrc,' +
+        ' q.rowid AS dropRow, q.code AS dropCode, q.name AS dropName, q.source AS dropSrc ' +
+        PAIR_8 +
+        ' AND p.name != q.name',
+    )
+    .all();
+  for (const r of disagree8) console.log('  ' + JSON.stringify(r));
+
   const rescuable: Record<string, number> = {};
   for (const col of RESCUE) {
     rescuable[col] = (
@@ -102,6 +145,16 @@ function main(): number {
     ).c;
   }
   console.log('\nfields to copy off the dying row before it goes:', JSON.stringify(rescuable));
+
+  const rescuable8: Record<string, number> = {};
+  for (const col of RESCUE) {
+    rescuable8[col] = (
+      ro.prepare(`SELECT count(*) AS c ${PAIR_8_FOLDABLE} AND p.${col} IS NULL AND q.${col} IS NOT NULL`).get() as {
+        c: number;
+      }
+    ).c;
+  }
+  console.log('\nfields to copy off the dying 8-digit row before it goes:', JSON.stringify(rescuable8));
 
   /*
    * DRY RUN ONLY, and the reason is measured. These three EXISTS queries walk all
@@ -139,6 +192,34 @@ function main(): number {
     ).c,
   } : 'not counted on the apply path: diagnostics only, and they cost more than the work';
   console.log('vectors:', JSON.stringify(vectors));
+
+  const vectors8 = !apply ? {
+    dyingOnly: (
+      ro
+        .prepare(
+          `SELECT count(*) AS c ${PAIR_8_FOLDABLE} AND EXISTS (SELECT 1 FROM product_vec v WHERE v.rowid = q.rowid)` +
+            ' AND NOT EXISTS (SELECT 1 FROM product_vec v WHERE v.rowid = p.rowid)',
+        )
+        .get() as { c: number }
+    ).c,
+    survivingOnly: (
+      ro
+        .prepare(
+          `SELECT count(*) AS c ${PAIR_8_FOLDABLE} AND EXISTS (SELECT 1 FROM product_vec v WHERE v.rowid = p.rowid)` +
+            ' AND NOT EXISTS (SELECT 1 FROM product_vec v WHERE v.rowid = q.rowid)',
+        )
+        .get() as { c: number }
+    ).c,
+    both: (
+      ro
+        .prepare(
+          `SELECT count(*) AS c ${PAIR_8_FOLDABLE} AND EXISTS (SELECT 1 FROM product_vec v WHERE v.rowid = p.rowid)` +
+            ' AND EXISTS (SELECT 1 FROM product_vec v WHERE v.rowid = q.rowid)',
+        )
+        .get() as { c: number }
+    ).c,
+  } : 'not counted on the apply path: diagnostics only, and they cost more than the work';
+  console.log('vectors (8/13):', JSON.stringify(vectors8));
   ro.close();
 
   if (!apply) {
@@ -190,6 +271,19 @@ function main(): number {
     }
 
     /*
+     * 1c. Same rescue, for the 8/13 shape, restricted to foldable pairs (names
+     * agree) exactly like every other apply-path step for this shape below.
+     */
+    for (const col of RESCUE) {
+      db.exec(
+        `UPDATE product SET ${col} = (SELECT q.${col} FROM product q WHERE q.code = substr(product.code, 6))` +
+          ` WHERE length(code) = 13 AND code LIKE '00000%' AND ${col} IS NULL` +
+          ` AND EXISTS (SELECT 1 FROM product q WHERE q.code = substr(product.code, 6) AND q.${col} IS NOT NULL` +
+          ` AND q.name = product.name)`,
+      );
+    }
+
+    /*
      * 1b. THE ONE PAIR DECIDED BY HAND, and it is a data fault rather than a
      * spelling one. Barcode 0045496590161 carries "Caramel au beurre" from the food
      * database on the surviving row, and "Switch Pro Controller" from the
@@ -227,6 +321,23 @@ function main(): number {
     }
     console.log(`moved ${movable.length} vectors onto the surviving row`);
 
+    /*
+     * 2b. Same vector move, for the 8/13 shape, restricted to foldable pairs so a
+     * disagreeing pair's vector is never touched.
+     */
+    const movable8 = db
+      .prepare(
+        `SELECT p.rowid AS keepRow, q.rowid AS dropRow ${PAIR_8_FOLDABLE}` +
+          ' AND EXISTS (SELECT 1 FROM product_vec v WHERE v.rowid = q.rowid)' +
+          ' AND NOT EXISTS (SELECT 1 FROM product_vec v WHERE v.rowid = p.rowid)',
+      )
+      .all() as Array<{ keepRow: number; dropRow: number }>;
+    for (const m of movable8) {
+      const v = readVec.get(m.dropRow) as { embedding: Uint8Array } | undefined;
+      if (v) putVec.run(m.keepRow, v.embedding);
+    }
+    console.log(`moved ${movable8.length} vectors onto the surviving row (8/13)`);
+
     // 3. Delete the dying rows' vectors, then the rows.
     db.exec(
       'DELETE FROM product_vec WHERE rowid IN (' +
@@ -247,6 +358,26 @@ function main(): number {
       'DELETE FROM product WHERE rowid IN (' +
         "SELECT q.rowid FROM product p JOIN product q ON q.code = substr(p.code, 2) WHERE length(p.code) = 13 AND p.code LIKE '0%')",
     );
+
+    /*
+     * 3b. Same three deletes, for the 8/13 shape, restricted to foldable pairs
+     * (names agree) so the two junk-code pairs are never dropped.
+     */
+    db.exec(
+      'DELETE FROM product_vec WHERE rowid IN (' +
+        "SELECT q.rowid FROM product p JOIN product q ON q.code = substr(p.code, 6)" +
+        " WHERE length(p.code) = 13 AND p.code LIKE '00000%' AND p.name = q.name)",
+    );
+    db.exec(
+      'DELETE FROM product_category WHERE rowid_ref IN (' +
+        "SELECT q.rowid FROM product p JOIN product q ON q.code = substr(p.code, 6)" +
+        " WHERE length(p.code) = 13 AND p.code LIKE '00000%' AND p.name = q.name)",
+    );
+    db.exec(
+      'DELETE FROM product WHERE rowid IN (' +
+        "SELECT q.rowid FROM product p JOIN product q ON q.code = substr(p.code, 6)" +
+        " WHERE length(p.code) = 13 AND p.code LIKE '00000%' AND p.name = q.name)",
+    );
     db.exec('COMMIT');
   } catch (err) {
     db.exec('ROLLBACK');
@@ -265,11 +396,22 @@ function main(): number {
   console.log(`removed ${removed} rows; Canadian rows ${before.canadian} -> ${after.canadian}`);
   db.close();
 
-  const ok = after.pairs === 0 && after.twelveDigit === 0 && removed === before.pairs;
+  /*
+   * The 8/13 shape does NOT go to zero pairs: the two disagreeing (junk-code)
+   * pairs are deliberately left standing, so the correct end state is that
+   * `pairs8` still equals exactly the disagreement count measured before the
+   * run, and the rows removed equal the 12/13 pairs plus the FOLDABLE 8/13
+   * pairs only.
+   */
+  const ok =
+    after.pairs === 0 &&
+    after.twelveDigit === 0 &&
+    after.pairs8 === before.namesDisagree8 &&
+    removed === before.pairs + before.foldablePairs8;
   console.log(
     ok
-      ? 'PASS: no barcode is stored under two spellings any more, and the number of rows removed equals the number of pairs found'
-      : `FAIL: pairs left ${after.pairs}, 12-digit rows left ${after.twelveDigit}, removed ${removed} against ${before.pairs} pairs`,
+      ? 'PASS: no foldable barcode is stored under two spellings any more (the junk-code pairs excepted), and the number of rows removed equals the number of foldable pairs found'
+      : `FAIL: pairs left ${after.pairs}, 12-digit rows left ${after.twelveDigit}, 8/13 pairs left ${after.pairs8} (expected ${before.namesDisagree8}), removed ${removed} against ${before.pairs} + ${before.foldablePairs8}`,
   );
   return ok ? 0 : 1;
 }

@@ -37,12 +37,27 @@ test('a 13-digit code is already canonical and is not touched', () => {
   assert.equal(canonicalCode('4006381333931'), '4006381333931');
 });
 
-test('an 8-digit EAN-8 is left alone, because it is a different code and not a short EAN-13', () => {
+test('an 8-digit EAN-8 becomes its 13-digit form, the same as GS1 writes it zero-padded', () => {
   /*
-   * 7,724 rows in the catalogue carry an 8-digit code. Padding them to 13 would
-   * invent a barcode that is not printed on anything.
+   * Found 2026-09-26 by reading the shipped phone pack: an 8-digit code and its
+   * zero-padded 13-digit twin collapsed to the same unsigned 64-bit integer in
+   * the binary-searched array, because nothing canonicalised them to one
+   * spelling. GS1 pads an EAN-8 into a 13- or 14-digit field the same way it
+   * pads a UPC-A, and the check digit, computed from the right, does not change.
    */
-  assert.equal(canonicalCode('96385074'), '96385074');
+  assert.equal(canonicalCode('96385074'), '0000096385074');
+  assert.equal(canonicalCode('00128582'), canonicalCode('0000000128582'));
+  assert.equal(canonicalCode('00128582'), '0000000128582');
+});
+
+test('an 11-digit code and a code longer than 14 digits are damaged, not zero-padded, and pass through untouched', () => {
+  /*
+   * Only 12, 14-with-a-zero-indicator, and now 8 digits are zero-padding shapes.
+   * The catalogue holds 2 rows at 11 digits and 388 rows longer than 14;
+   * padding either would invent a barcode nobody printed.
+   */
+  assert.equal(canonicalCode('12345678901'), '12345678901');
+  assert.equal(canonicalCode('123456789012345'), '123456789012345');
 });
 
 test('a 14-digit code with a zero indicator drops it; one with a real indicator does not', () => {

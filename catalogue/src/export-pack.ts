@@ -144,6 +144,55 @@ function pack(rows: readonly PackRow[]): Buffer {
   return buf;
 }
 
+/**
+ * THE CHECK THAT WOULD HAVE CAUGHT THIS, found 2026-09-26 by reading the shipped
+ * pack's bytes rather than trusting the layout comment above. Nothing here ever
+ * verified the codes array was actually ascending: `canonicalCode` did not fold
+ * an 8-digit code and its zero-padded 13-digit twin to one spelling, so both
+ * rows survived into the pack with the SAME integer key, and 118 adjacent pairs
+ * in `data/pack-canada.bin` were equal rather than strictly ascending. A binary
+ * search over a key that appears twice returns whichever occurrence it lands
+ * on, arbitrarily, and the phone has no way to notice the other one exists.
+ *
+ * A pack with duplicate keys is worse than no new pack at all, because the
+ * phone cannot tell, so this fails the build rather than warning: it prints
+ * the count of equal and descending pairs, with one example of each, and exits
+ * non-zero WITHOUT writing any pack file.
+ */
+function assertAscending(rows: readonly PackRow[]): boolean {
+  let equal = 0;
+  let descending = 0;
+  let equalExample: readonly [bigint, bigint] | undefined;
+  let descendingExample: readonly [bigint, bigint] | undefined;
+  for (let i = 1; i < rows.length; i += 1) {
+    const prev = rows[i - 1].code;
+    const cur = rows[i].code;
+    if (cur === prev) {
+      equal += 1;
+      if (equalExample === undefined) equalExample = [prev, cur];
+    } else if (cur < prev) {
+      descending += 1;
+      if (descendingExample === undefined) descendingExample = [prev, cur];
+    }
+  }
+  if (equal === 0 && descending === 0) return true;
+
+  console.error('REFUSING TO WRITE THE PACK: the code array is not strictly ascending.');
+  console.error(
+    `  ${equal} equal adjacent pairs` +
+      (equalExample ? `, e.g. ${equalExample[0]} == ${equalExample[1]}` : ''),
+  );
+  console.error(
+    `  ${descending} descending adjacent pairs` +
+      (descendingExample ? `, e.g. ${descendingExample[0]} > ${descendingExample[1]}` : ''),
+  );
+  console.error(
+    'A binary search over a duplicate or out-of-order key returns whichever occurrence it ' +
+      'lands on, arbitrarily, and the phone cannot tell the other one exists.',
+  );
+  return false;
+}
+
 function main(): number {
   const args = process.argv.slice(2);
   const scope = ((args.find((a) => a.startsWith('--scope='))?.split('=')[1] ?? 'canada') as Scope);
@@ -154,6 +203,9 @@ function main(): number {
   }
 
   const db = openCatalogueReadOnly(DB_PATH);
+  // Other jobs are writing this file tonight; a reader should wait out a lock
+  // rather than fail on one.
+  db.exec('PRAGMA busy_timeout = 120000');
   const started = Date.now();
 
   const raw = db
@@ -196,6 +248,8 @@ function main(): number {
   // SQL ORDER BY is on the TEXT code, and "0068100084245" and "68100084245"
   // order differently as text and as numbers, so this is not redundant.
   rows.sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
+
+  if (!assertAscending(rows)) return 1;
 
   const body = pack(rows);
   const gz = gzipSync(body, { level: 9 });
