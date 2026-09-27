@@ -2334,3 +2334,66 @@
  */
 .shop-list .ilist-k { visibility: hidden; }
 .shop-row.on .ilist-k { visibility: visible; }
+
+/* ------------------------------------------------ catalogue first ---------
+ *
+ * The catalogue answer sheet (`.sheet.catalogue`, camera.js `catalogueSheet`)
+ * is built out of the answer sheet's own parts: `.vword`, `.itemname`,
+ * `.priceline`, `.sub`, `.conf-label` for the provenance line (a source count
+ * or a date, which is what the mono face is reserved for, FLAWS.md item 6),
+ * and `.pill.solid` for the one primary action. Only the range figure needs a
+ * size of its own: two prices and a word between them do not fit at the 64px
+ * a single `.price` is drawn at, so it steps down to 34px (DESIGN.md's verdict
+ * size) and wraps rather than running off a 390px phone.
+ */
+.cat-range-figure {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 34px;
+  line-height: 1.05;
+  letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.cat-shelf { padding-bottom: 0; margin: 0; }
+.cat-code { font-variant-numeric: tabular-nums; }
+
+/*
+ * Pick one of 3 (text-match.js), over the live viewfinder under the top bar.
+ * Only present when a text reader exists; the rows reuse the candidate card
+ * (`.cands` / `.cand`, 56px rows, so every row clears the 44px floor), and
+ * the empty state's one action is a `.pill.solid` at the 48px `--tap` height.
+ */
+.tm-slot {
+  position: absolute;
+  z-index: 4;
+  top: calc(max(14px, env(safe-area-inset-top)) + 48px);
+  left: 16px; right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--ink);
+}
+.tm-slot[hidden] { display: none; }
+.tm { display: flex; flex-direction: column; gap: 8px; }
+.tm-heading {
+  margin: 0;
+  font-family: var(--f-ui);
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,.6);
+}
+.tm-cands { max-height: calc(3 * 56px + 2px); }
+.tm-type { align-self: flex-start; background: var(--ink); color: var(--ground); }
+/* The development reader: a plain field, never shown without ?textmatch=dev. */
+.tm-dev { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #fff; }
+.tm-dev textarea {
+  font: 13px/1.35 var(--f-mono);
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--hairline);
+  background: var(--raised);
+  color: var(--ink);
+  resize: vertical;
+}
