@@ -116,8 +116,14 @@ export function lastAssistantText(transcriptPath) {
   return '';
 }
 
-/** Pending rulings the judge found in earlier messages; each is handed to one session, once. */
-export function takePending(queueDir, sessionId) {
+/**
+ * Pending rulings the judge found in earlier messages; each is handed to one session, once.
+ * The session that heard it gets it first, since it holds the context; another session gets it
+ * only once it has waited HANDOFF_MS (live in the agent repo, 2026-09-27: a ruling said to one
+ * session was handed to an unrelated session that happened to be prompted first).
+ */
+export const HANDOFF_MS = 30 * 60 * 1000;
+export function takePending(queueDir, sessionId, now = Date.now()) {
   const items = [];
   let names = [];
   try { names = readdirSync(queueDir).filter((n) => n.endsWith('.json')).sort(); } catch { return items; }
@@ -126,6 +132,8 @@ export function takePending(queueDir, sessionId) {
     try {
       const item = JSON.parse(readFileSync(p, 'utf8'));
       if (item.status !== 'pending') continue;
+      const own = !item.sessionId || item.sessionId === sessionId;
+      if (!own && now - Date.parse(item.ts) < HANDOFF_MS) continue;
       items.push(item);
       writeFileSync(p, JSON.stringify({ ...item, status: 'delivered', deliveredTo: sessionId ?? null, deliveredAt: new Date().toISOString() }, null, 1));
     } catch {}

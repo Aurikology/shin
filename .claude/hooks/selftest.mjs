@@ -127,6 +127,9 @@ if (rulingFailures.length) {
   writeFileSync(join(q, "2026-01-01T00-00-00Z.json"), JSON.stringify({ status: "pending", ts: "2026-01-01T00:00:00Z", prompt: "why are you still doing X", ruling: "X is not the direction", repo: "shin" }));
   cases.push(["a pending ruling is delivered on the next prompt", run("ok", "a").includes("X is not the direction")]);
   cases.push(["and only once", !run("ok", "b").includes("X is not the direction")]);
+  writeFileSync(join(q, "fresh.json"), JSON.stringify({ status: "pending", ts: new Date().toISOString(), sessionId: "heard", prompt: "stop doing Y", ruling: "Y is out", repo: "shin" }));
+  cases.push(["a fresh ruling is not handed to a session that did not hear it", !run("ok", "someone-else").includes("Y is out")]);
+  cases.push(["the session that heard it gets it", run("ok", "heard").includes("Y is out")]);
   for (const [name, ok] of cases) {
     if (ok) rulingPass += 1;
     else rulingFailures.push(`  judge queue: ${name}`);

@@ -97,7 +97,7 @@ function classify(jobPath) {
   appendFileSync(join(dir, "log.jsonl"), JSON.stringify(record) + "\n");
   if (v?.standing) {
     const name = `${String(job.ts).replace(/[:.]/g, "-")}.json`;
-    writeFileSync(join(dir, name), JSON.stringify({ status: "pending", ts: job.ts, prompt: String(job.prompt).slice(0, 2000), ruling: v.ruling, repo: v.repo, reasoning: v.reasoning }, null, 1));
+    writeFileSync(join(dir, name), JSON.stringify({ status: "pending", ts: job.ts, sessionId: job.sessionId ?? null, prompt: String(job.prompt).slice(0, 2000), ruling: v.ruling, repo: v.repo, reasoning: v.reasoning }, null, 1));
   }
   try { unlinkSync(jobPath); } catch {}
 }
