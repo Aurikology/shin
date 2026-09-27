@@ -66,7 +66,9 @@ Added only by him.
 
 1. **No name in public until it is cleared.** Nongshim's SHIN RAMYUN is registered, first use
    1987, and "Shin Ramen" is its English-market form, so that version is dead. Plain "Shin" for
-   software is unchecked. No store listing, handle, or posted video under a name that has not
+   software passed CIPO's classes 9/42 twice (2026-09-04, 2026-09-11), and his 2026-09-22 ruling
+   puts the store listing under "Shin" with the remaining US and food-mark risk carried knowingly
+   (RULINGS.md, "Shin name"). No store listing, handle, or posted video under a name that has not
    passed a CIPO search in the software classes.
 2. **No savings claim until it is measured.** Competition Act s.74.01(1)(b) requires adequate
    and proper testing before a performance claim is published. An early four-figure yearly savings

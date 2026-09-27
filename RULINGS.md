@@ -163,9 +163,12 @@ stays refused, promoted once two independent shopper reports clear the existing 
 Retired wording: none
 Governs: catalogue/, product.ring field (leaf/parent)
 ### Catalogue scope: in, out, and parked
-Country-in-Canada is a column on the product row, never a load-time filter: the exception is the
-phone's downloadable pack, which is built by filtering to sold_in_canada = 1 and so excludes the
-4,636,853 non-Canadian food rows, an 8 GB size tradeoff. The fuzzy vector-search embedding pass
+The rule: country-in-Canada is a column on the product row, never a load-time filter, and
+anything that needs only Canadian products filters at read time (the phone's downloadable pack is
+built from sold_in_canada = 1). One loader breaks it and that stays, for now: the Canadian food
+loader keeps only rows tagged en:canada (122,158 of 4,759,011), so the other 4,636,853 food
+products from outside Canada are NOT in the catalogue; loading them is parked (8 GB, 2026-09-26,
+docs/decisions.md#The four and a half million food products from outside Canada stay out, for now). The fuzzy vector-search embedding pass
 stays parked at 718,662 of 5,182,591 products; word search already covers all products by name.
 Books, music and Discogs records stay out of the catalogue (it is a grocery/shelf-price scanner);
 the US branded-foods file is not parked with them because it is food. Shin is global from the

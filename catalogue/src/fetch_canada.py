@@ -13,9 +13,11 @@ projection and the filter into the Parquet reader and fetches only the row group
 and column chunks it needs, so the Canadian slice costs a fraction of the 7.8 GB
 the whole file weighs.
 
-Nothing here filters non-Canadian products out of existence. Decision 28 keeps
-them reachable, so `sold_in_canada` is written as a column and the loader can be
-pointed at a wider pull later without a schema change.
+This loader DOES filter non-Canadian products out at load time (the WHERE clause
+below keeps only rows tagged en:canada), which breaks decision 28's rule that
+country is a column, not a load filter. That breach is known and parked
+(RULINGS.md, "Catalogue scope"; docs/decisions.md 2026-09-26). `sold_in_canada`
+is still written as a column, so dropping the WHERE clause is the whole change.
 """
 
 import sys

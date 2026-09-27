@@ -40,8 +40,9 @@ invalidates their memoised tag sizes.
 Five findings in it correct earlier readings, all counted:
 
 - The phone reads a packed binary dated **2026-09-05**, and no unit rebuilt it. Now unit 0.
-- The food loader discards **4,636,853** rows against decision 28, but they arrive flagged
-  not-Canadian and the packer takes only Canada-flagged rows, so none can reach a phone. Parked.
+- The food loader discards **4,636,853** non-Canadian rows at load time, against decision 28, so
+  they are not in the catalogue at all (and the phone pack takes only Canada-flagged rows anyway).
+  Loading them is parked.
 - The miss log in `catalogue/data/gaps.db` is **not** empty: 94 text misses, **zero** barcode
   misses, last written 2026-09-19, its heaviest entries our own test strings. **Fixed in `364eb25`**:
   the barcode path now asks the catalogue and records `catalogue_miss`, and records nothing when no
@@ -103,8 +104,9 @@ that before the question below, which stays as the record of why it was asked.
 ## BLOCKING QUESTION, 2026-09-18: does Gemini identify the product, or does the catalogue?
 
 **Jamin pushed `Shin_Gemini_Pricing_Engine.zip` (f828606): GEMINI_SYSTEM.md, PRICING_GUIDE.md,
-scan_prompt.md, response_schema.json.** It is the rule-1 fix for the photo path, which this file
-already admits is two calls. **Until it is answered, retrieval work has an unknown payoff**, and
+scan_prompt.md, response_schema.json.** It was the rule-1 fix for the photo path, which was two
+calls on 2026-09-18; photo scans are one call now (RULINGS.md, "Gemini switch and call
+architecture"). **Until it is answered, retrieval work has an unknown payoff**, and
 that is why it sits above everything else here.
 
 Traced in code 2026-09-18, a photo scan runs `/api/identify/photo` -> `IdentifyStage.fromCrop`,
@@ -444,8 +446,10 @@ Seven of ten grounded calls returned no price. The protocol in
 candidate causes: the prompt, product obscurity, and Canada. **The cause appears to be a fourth
 one that protocol did not list: the model tier.**
 
-Production runs its grounded price search on the CHEAPEST tier. `gemini-grounded.ts:1093` defaults
-to `'claude-haiku-4-5'`, which `gemini.ts:141` maps to the lite-tier model id.
+Production ran its grounded price search on the CHEAPEST tier (2026-09-18). `gemini-grounded.ts`
+defaults its model setting to the stand-in name `'claude-haiku-4-5'`, which `gemini.ts` maps to the
+lite-tier Gemini id; no Claude model is called (RULINGS.md, "Claude excluded"). The stand-in name
+itself is garbage to rename when the settings move into one place.
 
 Same prompt, same browser, same session, three products (rule 8's method, Claude in Chrome on
 gemini.google.com, never the API):
