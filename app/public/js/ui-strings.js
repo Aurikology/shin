@@ -184,6 +184,31 @@ const EN = {
   gem_alt_kind_other: 'Another option',
   cam_standin_note: 'This asking price is a stated stand-in, not a tag anyone read.',
 
+  /* CATALOGUE FIRST (RULINGS.md, 2026-09-27; app/src/catalogue-first.ts). The
+     answer sheet for a barcode Shin's own catalogue named, and the pick-one-of-3
+     list for text read off a pack. The range figures arrive already formatted
+     by lib/money.js; the provenance line says where the range came from and
+     never what the price is. No grading word anywhere: a shelf price is placed
+     with the price line's own zone words (`priceline_zone_*`). */
+  cat_range: (f) => `${f.low} to ${f.high}`,
+  cat_range_unit: (f) => `${f.low} to ${f.high}, for ${f.unit}`,
+  cat_range_label: 'Price range',
+  cat_basis_shin: (f) => `From Shin's own prices at ${f.n} stores`,
+  cat_basis_shin_one: "From Shin's own prices at 1 store",
+  cat_basis_shin_bare: "From Shin's own prices",
+  cat_basis_category: (f) => `From similar products in ${f.category}`,
+  cat_basis_category_bare: 'From similar products',
+  cat_basis_ai: 'A typical range estimated by AI',
+  cat_basis_ai_asked: (f) => `A typical range estimated by AI, asked ${f.date}`,
+  cat_no_range: 'Shin has no price range for this yet.',
+  cat_no_range_later: 'Shin has no price range for this yet. Scan it again later.',
+  cat_not_found: "This barcode is not in Shin's catalogue yet.",
+  cat_type_name: 'Type the product name',
+  tm_heading: 'Is it one of these?',
+  tm_label: 'Products that match the text on the pack',
+  tm_none: "Nothing in Shin's catalogue matches this text yet.",
+  tm_dev_label: 'Text read off the pack (development)',
+
   /* ------------------------------------------------- the cheaper-swap rings
    *
    * D-036, in its own words: "it is the word 'cheaper' doing the lying, since
@@ -723,6 +748,28 @@ const FR = {
   gem_alt_kind_newer_model: 'Un modèle plus récent',
   gem_alt_kind_other: 'Une autre option',
   cam_standin_note: 'Ce prix demandé est un substitut déclaré, pas une étiquette que quelqu’un a lue.',
+
+  /* LE CATALOGUE D'ABORD. Les montants arrivent deja formates (4,99 $) par
+     lib/money.js. La ligne de provenance dit d'ou vient la fourchette, jamais
+     ce que vaut le prix. */
+  cat_range: (f) => `${f.low} à ${f.high}`,
+  cat_range_unit: (f) => `${f.low} à ${f.high}, pour ${f.unit}`,
+  cat_range_label: 'Fourchette de prix',
+  cat_basis_shin: (f) => `D’après les prix de Shin dans ${f.n} magasins`,
+  cat_basis_shin_one: 'D’après les prix de Shin dans 1 magasin',
+  cat_basis_shin_bare: 'D’après les prix de Shin',
+  cat_basis_category: (f) => `D’après des produits semblables de la catégorie ${f.category}`,
+  cat_basis_category_bare: 'D’après des produits semblables',
+  cat_basis_ai: 'Une fourchette habituelle estimée par l’IA',
+  cat_basis_ai_asked: (f) => `Une fourchette habituelle estimée par l’IA, demandée le ${f.date}`,
+  cat_no_range: 'Shin n’a pas encore de fourchette de prix pour ce produit.',
+  cat_no_range_later: 'Shin n’a pas encore de fourchette de prix pour ce produit. Scanne-le de nouveau plus tard.',
+  cat_not_found: 'Ce code-barres n’est pas encore dans le catalogue de Shin.',
+  cat_type_name: 'Tape le nom du produit',
+  tm_heading: 'Est-ce l’un de ceux-ci?',
+  tm_label: 'Produits qui correspondent au texte de l’emballage',
+  tm_none: 'Rien dans le catalogue de Shin ne correspond encore à ce texte.',
+  tm_dev_label: 'Texte lu sur l’emballage (développement)',
 
   /* --------------------------------------------- les anneaux de substitution
    *

@@ -321,6 +321,18 @@ export interface ScanInput {
    * count it without knowing to.
    */
   readonly isDemo?: boolean;
+  /**
+   * Migration 18: the catalogue-first path (RULINGS.md "Catalogue first;
+   * Gemini is a capped fallback, never the identity"). Every older caller
+   * leaves these out and writes nulls, exactly as before.
+   */
+  readonly answerPath?: 'catalogue_hit' | 'not_in_catalogue' | 'text_match' | null;
+  readonly rangeSource?: 'shin_prices' | 'gemini_typical' | 'none' | null;
+  readonly rangeBasis?: string | null;
+  readonly rangeMissReason?: string | null;
+  readonly matchLines?: number | null;
+  readonly matchCandidates?: number | null;
+  readonly matchPriceRead?: boolean | null;
 }
 
 /**
@@ -505,8 +517,9 @@ export function recordScan(input: ScanInput): number | null {
     const result = store.db
       .prepare(
         `INSERT INTO scan (device_id, kind, query_text, resolved_code, resolved_label, confidence, source, outcome, failure_class, corrected_code, scanned_at, category,
-                           model_json, model_cost_cents, app_version, platform, latency_ms, cell, store_id, store_name, exact_lat, exact_lon, exact_accuracy, exact_at, user_id, is_demo, scan_category)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                           model_json, model_cost_cents, app_version, platform, latency_ms, cell, store_id, store_name, exact_lat, exact_lon, exact_accuracy, exact_at, user_id, is_demo, scan_category,
+                           answer_path, range_source, range_basis, range_miss_reason, match_lines, match_candidates, match_price_read)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         input.deviceId,
@@ -535,6 +548,13 @@ export function recordScan(input: ScanInput): number | null {
         input.userId ?? null,
         input.isDemo ? 1 : 0,
         input.scanCategory ?? null,
+        input.answerPath ?? null,
+        input.rangeSource ?? null,
+        input.rangeBasis ?? null,
+        input.rangeMissReason ?? null,
+        input.matchLines ?? null,
+        input.matchCandidates ?? null,
+        input.matchPriceRead == null ? null : input.matchPriceRead ? 1 : 0,
       );
     return Number(result.lastInsertRowid);
   } catch (err) {

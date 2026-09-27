@@ -34,7 +34,9 @@ import { wireRadioGroup } from '../lib/radiogroup.js';
 import { t } from '../ui-strings.js';
 import * as shops from '../shops.js';
 import { countryLabel, countryIn } from './market.js';
-import { locale } from '../lib/locale.js';
+import { locale, localeTag } from '../lib/locale.js';
+import { usableRange, placeShelf, shelfCentsOf, provenanceOf, noRangeKey, askedDate } from '../lib/catalogue-range.js';
+import { mountTextMatch } from '../text-match.js';
 import { priorPrices, historyChartHtml } from '../lib/price-history.js';
 import { money, currencyMark } from '../lib/money.js';
 import { render as renderProse, renderLines } from '../prose.js';
@@ -1508,6 +1510,101 @@ export function needsConnectionSheet() {
     </section>`;
 }
 
+/**
+ * CATALOGUE FIRST: the answer to a barcode when `/api/identify` answers
+ * `kind: 'catalogue'` (server setting SHIN_CATALOGUE_FIRST on; the shape is in
+ * the header of app/src/catalogue-first.ts). With the setting off this is
+ * never called and nothing below runs.
+ *
+ * Two outcomes, one template, so the surface has one tag (a98):
+ *
+ *   catalogue_hit      the product Shin's own catalogue named (name, brand,
+ *                      size) and its price range, low to high in the range's
+ *                      own currency through lib/money.js (so French reads
+ *                      `4,99 $`), with one provenance line that says where the
+ *                      range came from and never what the price is. A shelf
+ *                      price (typed on the pad, else read off a weighed label)
+ *                      is placed against the SHOPPER'S OWN lines with the price
+ *                      line's three zone words, exactly as the answer sheet
+ *                      does with Gemini's zone. No range: the product still
+ *                      shows, with a short line keyed on `noRangeReason`
+ *                      (lib/catalogue-range.js), never the code.
+ *   not_in_catalogue   one primary action, type the product name, which opens
+ *                      the camera's existing type-it field (`typeit`); the
+ *                      shelf price already typed rides on (`data-carry-price`).
+ *
+ * Peek only: there is nothing a half detent would hold yet, and a grabber that
+ * cannot move is the defect `grabber()` records.
+ */
+function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store.get() } = {}) {
+  const identity = answer?.outcome === 'catalogue_hit' ? answer.identity : null;
+  if (!identity) {
+    return `
+    <section class="sheet catalogue" data-kind="catalogue" data-outcome="not_in_catalogue" data-tier="unknown" data-conf="reading" data-detent="peek" aria-live="polite" tabindex="-1">
+      <span class="grabber" aria-hidden="true"></span>
+      ${backButton()}
+      <div class="sheet-peek">
+        <div class="sheet-head">
+          ${shinSay('asking', 'text_route_prompt', {}, { size: 64 })}
+        </div>
+        <h2 class="vword small" data-cat-headline>${escapeHtml(t('cat_not_found'))}</h2>
+        ${answer?.barcode ? `<p class="conf-label cat-code">${escapeHtml(answer.barcode)}</p>` : ''}
+        ${answer?.offerManualEntry ? `<div class="actions actions-primary">
+          <button type="button" class="pill solid wide" data-act="typeit" data-carry-price>${escapeHtml(t('cat_type_name'))}</button>
+        </div>` : ''}
+      </div>
+    </section>`;
+  }
+
+  const range = usableRange(answer.range);
+  const currency = range?.currency ?? null;
+  const shelf = shelfCentsOf(shelfCents, answer.shelfPrice);
+  const placed = range && shelf !== null ? placeShelf(shelf, range, state) : null;
+  const zone = placed?.zone ?? null;
+  const name = candidateRow({ brand: identity.brand, name: identity.name, size: identity.size }).label;
+  const headline = zone ? t(GEMINI_ZONE_KEY[zone]) : name;
+  const figure = range
+    ? t(range.unit ? 'cat_range_unit' : 'cat_range', {
+        low: money(range.lowCents, currency),
+        high: money(range.highCents, currency),
+        unit: range.unit ?? '',
+      })
+    : '';
+  let basis = '';
+  if (range) {
+    const p = provenanceOf(range, identity);
+    if (p && range.basis === 'gemini_typical') {
+      const date = askedDate(answer.rangeAskedAt, localeTag());
+      basis = date ? t('cat_basis_ai_asked', { date }) : t('cat_basis_ai');
+    } else if (p) {
+      basis = t(p.key, p.facts);
+    }
+  }
+  const shelfLine = shelf !== null ? t('cam_gem_shelf', { label: money(shelf, currency) }) : '';
+
+  return `
+    <section class="sheet catalogue" data-kind="catalogue" data-outcome="catalogue_hit" data-basis="${escapeHtml(range?.basis ?? '')}" data-tier="${GEMINI_ZONE_TIER[zone] ?? 'unknown'}" data-zone="${escapeHtml(zone ?? '')}" data-conf="${range ? 'sure' : 'refuses'}" data-detent="peek" aria-live="polite" tabindex="-1">
+      <span class="grabber" aria-hidden="true"></span>
+      ${backButton()}
+      <div class="sheet-peek">
+        <div class="sheet-head">
+          ${shinSay(range ? 'idle' : 'unknown', 'gem_answer', {}, { size: 'face-verdict', tier: 'unknown' })}
+          ${thumbImg(thumb)}
+        </div>
+        <h2 class="vword${zone ? '' : ' small'}" data-cat-headline>${escapeHtml(headline)}</h2>
+        ${zone ? `<p class="itemname" data-cat-name>${escapeHtml(name)}</p>` : ''}
+        ${range
+          ? `<div class="priceline cat-range" role="group" aria-label="${escapeHtml(t('cat_range_label'))}"><span class="cat-range-figure" data-cat-range>${escapeHtml(figure)}</span></div>`
+          : `<p class="detail" data-cat-no-range>${escapeHtml(t(noRangeKey(answer.noRangeReason)))}</p>`}
+        ${shelfLine ? `<p class="sub cat-shelf" data-cat-shelf>${escapeHtml(shelfLine)}</p>` : ''}
+        ${basis ? `<p class="conf-label cat-basis" data-cat-basis>${escapeHtml(basis)}</p>` : ''}
+        <div class="actions actions-primary">
+          <button type="button" class="pill solid wide" data-act="cancel-scan">${escapeHtml(t('done'))}</button>
+        </div>
+      </div>
+    </section>`;
+}
+
 
 /**
  * AVATAR.md row 36: the refusal's landing is `verdict-land` at 340ms, then
@@ -2267,6 +2364,8 @@ function photoCandidateLabel(c) {
 export { verdictSheet, refusalSheet, pricePadSheet, goingRateCard, workingSheet, textRouteSheet };
 // The Gemini answer, its plain failure state, and the one test that tells them apart.
 export { geminiSheet, geminiFailureSheet, geminiFailed };
+// The catalogue-first answer (SHIN_CATALOGUE_FIRST on), for test/catalogue-answer.test.mjs.
+export { catalogueSheet };
 
 /* The shop shortlist joins them 2026-09-13, same reason: `padShopRow` and
    `storePickerSheet` are pure string builders, so app/test/shops.test.mjs can
@@ -2461,6 +2560,9 @@ export default {
     let catalogueItems = [];
     let supportedCategories = [];
     let last = null;      // { result, scenario, thumb }
+    /* Pick one of 3, or null when no text reader exists (the usual case). Mounted
+       near the end of this function; declared here so setState can reach it. */
+    let textMatch = null;
     /*
      * THE SERVER'S OWN ID FOR THE SCAN ON SCREEN, or null. 2026-09-13.
      *
@@ -2597,6 +2699,11 @@ export default {
      * where the type-it route out of a refusal identifies first.
      */
     let manualSearch = false;
+    /* The type-it field opened from the catalogue-first "not in the catalogue"
+       sheet (`data-carry-price`): the shelf price was already asked on the pad
+       for the barcode, so the typed name goes out carrying it, `{ cents }`, and
+       the pad is never opened a second time. Null on every other route. */
+    let typedAfterPad = null;
     /** The line that answers a barcode press with nothing read, put back to the aim hint when it runs out; the scan clears it. */
     let scanPressTimer = null;
     /** D-026's caller, started once below. The teardown `startCaptureQueue`
@@ -2899,6 +3006,8 @@ export default {
       paintBarcodeButton();
       syncDecoding();
       parkDockedFace(FACE_HIDDEN_IN.has(next));
+      // Pick one of 3 listens only at idle; a sheet up means nobody is aiming.
+      textMatch?.setActive(next === 'idle');
     }
 
     /**
@@ -3251,6 +3360,11 @@ export default {
         return;
       }
 
+      if (found?.catalogue) {
+        showCatalogue(found.catalogue, cents);
+        return;
+      }
+
       if (found) {
         /*
          * `scannedGtin` carries the code the package itself published, and only
@@ -3333,6 +3447,12 @@ export default {
       /* The weekly limit (2026-09-21): the server said no on purpose, so the
          pack below must not answer instead. */
       if (id?.failure === 'scan_limit') return { scanLimit: id };
+
+      /* CATALOGUE FIRST (server setting SHIN_CATALOGUE_FIRST on): the server
+         named the barcode from Shin's own catalogue, or said it has never seen
+         it, and already worked out the range. Drawn as it came, never sent on
+         to /api/price. With the setting off no answer has this kind. */
+      if (id?.kind === 'catalogue') return { catalogue: id };
 
       /*
        * Two ways to end up with nothing from the server, and the pack can help
@@ -4274,6 +4394,7 @@ export default {
       // to suppress. See the note by `manualSearch`.
       scanBarcode = null;
       manualSearch = false;
+      typedAfterPad = null;
       // Drops the eye's pick AND any arming the shopper walked away from, so
       // coming back to the viewfinder is never mid-read.
       eye?.clearSelection?.();
@@ -4558,6 +4679,7 @@ export default {
 
       // Row 17, 88, 89, take: the second route out of a no-identity refusal.
       if (act === 'typeit') {
+        typedAfterPad = btn.hasAttribute('data-carry-price') ? { cents: scanShelfCents } : null;
         setState('texting');
         typedSearchPending = true;
         manualSearch = false;
@@ -4770,6 +4892,12 @@ export default {
       // Manual Search (W30): the shelf price is asked first, on the pad, and
       // the typed name then goes out as one Gemini text call carrying it.
       if (manualSearch) { manualSearch = false; askPriceFirst({ kind: 'text', text }); return; }
+      if (typedAfterPad) {
+        const { cents } = typedAfterPad;
+        typedAfterPad = null;
+        await runTypedSearch(text, cents, true);
+        return;
+      }
       await runTypedSearch(text, null, false);
     }, { signal: listeners.signal });
 
@@ -4944,6 +5072,24 @@ export default {
       mounted();
     }
 
+    /**
+     * The catalogue-first answer (`kind: 'catalogue'`), drawn by
+     * `catalogueSheet`. `cents` is the price the shopper typed on the pad at
+     * scan time, or null for a skipped one; it is what gets placed against
+     * their lines. Not written to history: the past-scans screens know only
+     * the verdict and Gemini shapes, and a row they cannot draw is worse than
+     * none (flagged in the lane report).
+     */
+    function showCatalogue(answer, cents) {
+      last = null;
+      lastKeepable = null;
+      slot.innerHTML = catalogueSheet(answer, { shelfCents: cents ?? null, thumb: scanThumb });
+      if (answer.outcome === 'catalogue_hit' && answer.range) buzz(16);
+      else playRefusalLanding(slot);
+      setState('result');
+      mounted(answer.offerManualEntry ? '[data-act="typeit"]' : undefined);
+    }
+
     /* The sheet moves between three detents: peek, half, full. A drag of more
        than 40px moves one detent in that direction (downward past peek
        dismisses); a tap on the grabber or head steps forward, wrapping from
@@ -5109,6 +5255,30 @@ export default {
       if (document.hidden) trackScanAbandonedIfMidScan('backgrounded');
     }, { signal: listeners.signal });
 
+    /*
+     * PICK ONE OF 3 (text-match.js). Mounted only when a text reader exists:
+     * the native one (none yet, see `nativeTextReader`) or the development one
+     * behind `?textmatch=dev`. With neither, `mountTextMatch` returns null
+     * before touching anything and the camera is exactly what it was. A tapped
+     * candidate runs the ordinary barcode scan with its barcode, from the
+     * shelf-price question on; the route turns itself off on a 404.
+     */
+    const tmHost = document.createElement('div');
+    tmHost.className = 'tm-slot';
+    textMatch = mountTextMatch({
+      host: tmHost,
+      send: (lines) => ctx.api.matchText(lines),
+      onPick: (code) => {
+        if (dead || cam.dataset.state !== 'idle') return;
+        track('text_match_pick', { code });
+        void onBarcode({ value: code, format: 'text_match', frames: 0 });
+      },
+    });
+    if (textMatch) {
+      cam.insertBefore(tmHost, slot);
+      textMatch.setActive(!cam.dataset.state || cam.dataset.state === 'idle');
+    }
+
     return () => {
       // Leaving the camera screen entirely (navigated elsewhere) while a scan
       // was open with no answer yet. Before `dead = true` and the rest of
@@ -5116,6 +5286,7 @@ export default {
       trackScanAbandonedIfMidScan('left_screen');
       dead = true;
       listeners.abort();
+      textMatch?.stop();
       unsub();
       eye?.stop();
       stopCamera(stream);

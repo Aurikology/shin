@@ -74,6 +74,12 @@ export interface TextMatchOptions {
   readonly vectors?: boolean;
   /** Passed straight through to `SearchQuery.sources`. */
   readonly sources?: readonly string[];
+  /**
+   * Passed straight through to `SearchQuery.recordMiss`. Default true (a
+   * no-hit query is logged as a miss, as before). `POST /api/match-text`
+   * passes false so passive scanning does not flood the miss log.
+   */
+  readonly recordMiss?: boolean;
 }
 
 export interface TextMatchCandidate {
@@ -696,6 +702,7 @@ export async function topMatchesFromText(
       ? { sizeValue: size.value, sizeUnit: size.unit, ...(size.each !== null ? { sizeValueAlt: size.each } : {}) }
       : {}),
     ...(opts.sources && opts.sources.length > 0 ? { sources: opts.sources } : {}),
+    ...(opts.recordMiss === false ? { recordMiss: false } : {}),
   };
 
   /* Retrieve, merge by barcode, keep each row's best position. */

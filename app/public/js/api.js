@@ -383,6 +383,32 @@ export async function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPr
 }
 
 /**
+ * Lines of text read off a pack or a shelf tag, matched against Shin's own
+ * catalogue: `POST /api/match-text` (app/src/catalogue-first.ts, `matchText`).
+ * Answers `{ kind: 'text_match', candidates (0 to 3), shelfPrice }`.
+ *
+ * Three shapes a caller has to tell apart, none of them a throw:
+ *   `{ disabled: true }`     404: the route is off (SHIN_CATALOGUE_FIRST unset),
+ *                            so the caller stops asking for the session.
+ *   `{ rateLimited: true }`  429: the server's own throttle; try later.
+ *   the answer               200.
+ * Anything else (a 5xx, no connection) throws, as `post()` does.
+ */
+export async function matchText(lines) {
+  const device = getDeviceId()?.id;
+  const body = { ...scanContext(), lines, ...(device ? { deviceId: device } : {}) };
+  const res = await fetch(`${BASE}/api/match-text`, {
+    method: 'POST',
+    headers: headers({ 'content-type': 'application/json' }),
+    body: JSON.stringify(body),
+  });
+  if (res.status === 404) return { disabled: true };
+  if (res.status === 429) return { rateLimited: true };
+  if (!res.ok) throw new Error(`/api/match-text returned ${res.status}`);
+  return res.json();
+}
+
+/**
  * The weekly free scans are used up (2026-09-21, docs/mvp-plan.md
  * "Subscription"). The server answers `/api/identify` with 402
  * `{ error: "scan_limit", limit, used, resetsAt }`, and the camera opens the

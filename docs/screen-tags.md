@@ -156,6 +156,8 @@ The answer sheet used to show the verdict tags a38 to a40 and its could-not-answ
 | a95 | Shin Plus, in a browser (Subscribe in the app) | Open ?s=paywall in a plain browser, outside the phone app. | `app/public/js/screens/paywall.js` |
 | a96 | Shin Plus, the two plans with store prices | Open the subscription screen in the phone app with the store products set up. | `app/public/js/screens/paywall.js` |
 | a97 | Camera and location permissions, on its own | First launch when the welcome flow is switched off (FLAGS.onboarding false). Or ?s=permissions. Same panel as a24, which is the step inside the welcome flow. | `app/public/js/screens/permissions.js` |
+| a98 | Catalogue answer sheet (the product and its price range) | With the server setting SHIN_CATALOGUE_FIRST on, scan a barcode the catalogue has. With no range for it yet the sheet says so. | `app/public/js/screens/camera.js` |
+| a99 | Not in the catalogue (type the product name) | With the server setting SHIN_CATALOGUE_FIRST on, scan a barcode the catalogue does not have. | `app/public/js/screens/camera.js` |
 
 ## Not tagged, with reason
 

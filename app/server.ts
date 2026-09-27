@@ -12,10 +12,10 @@
 import { createServer, type IncomingMessage } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, extname, join, normalize as normalizePath, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { DatabaseSync } from 'node:sqlite';
+import { DatabaseSync } from 'node:sqlite';
 import * as settings from '../settings/src/index.ts';
 import { priceIt } from '../spine/src/spine.ts';
 import { defaultDeps } from '../spine/src/sources/registry.ts';
@@ -57,7 +57,17 @@ import {
   updateScan,
   type ScanKind,
 } from './src/scans.ts';
-import { canonicalGtin } from './src/barcode.ts';
+import { canonicalBarcode, canonicalGtin } from './src/barcode.ts';
+import {
+  answerBarcodeFromCatalogue,
+  catalogueFirstOn,
+  matchText,
+  rangeAskSettings,
+  readMatchTextBody,
+  type MatchTextAnswer,
+} from './src/catalogue-first.ts';
+import { PRICES_DB_PATH } from '../price/src/store.ts';
+import type { Provider } from '../identify/src/provider.ts';
 import { lookupOpenFoodFacts } from './src/open-food-facts.ts';
 import {
   claimRefresh,
@@ -154,6 +164,23 @@ let catalogueWhyNot = 'not attempted yet';
 export function setCatalogueForTests(fake: { byGtin(code: string): unknown } | null): void {
   fastLookup = fake;
   catalogueWhyNot = fake ? 'a test double' : 'not attempted yet';
+}
+
+/**
+ * TEST ONLY, for the catalogue-first path (src/catalogue-first.ts). Replaces the
+ * three things a test machine cannot have: the search worker (a real
+ * in-memory `Catalogue` stands in), the catalogue handle the range ladder and
+ * the brand lookup read, and the Gemini provider the range ask would build from
+ * GEMINI_API_KEY. With a provider injected, no socket is ever opened. Null
+ * restores the shipped wiring.
+ */
+let catalogueFirstTest: {
+  searcher?: { search(q: unknown): Promise<unknown> } | null;
+  db?: DatabaseSync | null;
+  rangeAskProvider?: Provider;
+} | null = null;
+export function setCatalogueFirstForTests(fake: typeof catalogueFirstTest): void {
+  catalogueFirstTest = fake;
 }
 /**
  * The same read-only handle `fastLookup` was built from, kept so `/api/alternatives`
@@ -888,6 +915,27 @@ let addressLimiter = new KeyedLimiter(addressWindows());
 export function resetPaidCallLimitersForTests(env: NodeJS.ProcessEnv = process.env): void {
   codeLimiter = new KeyedLimiter(codeWindows(env));
   addressLimiter = new KeyedLimiter(addressWindows(env));
+  matchTextCodeLimiter = new KeyedLimiter(codeWindows(env));
+  matchTextAddressLimiter = new KeyedLimiter(addressWindows(env));
+}
+
+/*
+ * `POST /api/match-text` gets the same limiter, with the same per-code and
+ * per-address windows (the same SHIN_RATE_* settings), but its OWN buckets. It
+ * makes no paid call, and it fires passively on every frame of text the camera
+ * reads, so sharing the paid buckets would let passive reading use up the
+ * budget a barcode scan's Gemini call needs.
+ */
+let matchTextCodeLimiter = new KeyedLimiter(codeWindows());
+let matchTextAddressLimiter = new KeyedLimiter(addressWindows());
+
+function matchTextRefusal(req: IncomingMessage): { retryAfterSeconds: number } | null {
+  const who = inviteWho(req.headers[INVITE_HEADER]) ?? 'open';
+  const byCode = matchTextCodeLimiter.check(`code:${who}`);
+  if (!byCode.allowed) return { retryAfterSeconds: byCode.retryAfterSeconds };
+  const byAddress = matchTextAddressLimiter.check(`ip:${clientAddress(req.headers, req.socket.remoteAddress)}`);
+  if (!byAddress.allowed) return { retryAfterSeconds: byAddress.retryAfterSeconds };
+  return null;
 }
 
 function paidCallRefusal(req: IncomingMessage): { retryAfterSeconds: number } | null {
@@ -2051,6 +2099,73 @@ function ownOffersForBarcode(gtin: string, device: string): Record<string, unkno
 }
 
 /**
+ * THE CATALOGUE-FIRST BARCODE ANSWER, behind SHIN_CATALOGUE_FIRST (default off).
+ * RULINGS.md "Catalogue first; Gemini is a capped fallback, never the identity".
+ * The logic and the answer shape are in src/catalogue-first.ts; this is the
+ * wiring: the catalogue lookup is `fastLookup.byGtin` (catalogue/src/search.ts
+ * `Catalogue.byGtin`, the same lookup attached for barcodes), the prices are
+ * `PRICES_DB_PATH` opened read-only for this one answer, and the range ask is
+ * `askTypicalRange` with the three SHIN_RANGE_ASK_* settings, behind the same
+ * paid-call limiter every Gemini call in this file passes. `runGeminiScan` is
+ * never reached from here.
+ */
+async function catalogueFirstBarcode(
+  req: IncomingMessage,
+  canonical: NonNullable<ReturnType<typeof canonicalBarcode>>,
+  market: { country: string | null; currency: string | null },
+  device: string,
+): Promise<Awaited<ReturnType<typeof answerBarcodeFromCatalogue>>> {
+  let prices: DatabaseSync | null = null;
+  try {
+    if (existsSync(PRICES_DB_PATH)) prices = new DatabaseSync(PRICES_DB_PATH, { readOnly: true });
+  } catch (err) {
+    logError({ where: 'identify.catalogue_first.prices', deviceId: device, scanId: null, err });
+    prices = null;
+  }
+  try {
+    return await answerBarcodeFromCatalogue(canonical, {
+      lookup: fastLookup,
+      prices,
+      catalogue: catalogueFirstTest?.db !== undefined ? catalogueFirstTest.db : catalogueDb,
+      country: market.country,
+      currency: market.currency ?? 'CAD',
+      asOf: new Date().toISOString().slice(0, 10),
+      askRange: async (identity) => {
+        // Checked here, not at the top of the route: only this call can cost money.
+        if (paidCallRefusal(req)) return { ok: false, reason: 'rate_limited' as const };
+        const { askTypicalRange } = await import('../identify/src/range-ask.ts');
+        const s = rangeAskSettings();
+        return askTypicalRange(identity, {
+          monthlyCap: s.monthlyCap,
+          ceilingCents: s.ceilingCents,
+          ...(s.storePath ? { storePath: s.storePath } : {}),
+          ...(catalogueFirstTest?.rangeAskProvider ? { provider: catalogueFirstTest.rangeAskProvider } : {}),
+        });
+      },
+    });
+  } finally {
+    try {
+      prices?.close();
+    } catch {
+      /* already closed */
+    }
+  }
+}
+
+/** `POST /api/match-text`'s search, through the worker in the product and a stand-in under test. */
+async function catalogueFirstMatchText(lines: readonly string[], device: string): Promise<MatchTextAnswer> {
+  const searcher = catalogueFirstTest?.searcher !== undefined ? catalogueFirstTest.searcher : searchService;
+  const db = catalogueFirstTest?.db !== undefined ? catalogueFirstTest.db : catalogueDb;
+  try {
+    return await matchText(lines, { searcher, catalogue: db });
+  } catch (err) {
+    // A search that failed (a worker timeout, say) is an empty list, never a thrown request.
+    logError({ where: 'match_text.search', deviceId: device, scanId: null, err });
+    return { kind: 'text_match', catalogueUp: searcher !== null, candidates: [], shelfPrice: null };
+  }
+}
+
+/**
  * How many bytes of JSON a request is allowed to spend before it is refused.
  *
  * ONE NUMBER FOR EVERY ROUTE THAT TAKES A BODY TODAY, because both of them
@@ -2366,6 +2481,26 @@ const SCAN_ROUTES: ReadonlySet<string> = new Set([
   '/api/price',
 ]);
 
+/**
+ * ITEM 18's origin rule, as one function so a route that is only live behind a
+ * setting (`/api/match-text`) can apply it after that setting is checked, and
+ * answer exactly as an unknown path does while the setting is off. A missing
+ * Origin is allowed (and marked by the access log); a present, mismatched or
+ * unparseable one is refused.
+ */
+function originRefused(req: IncomingMessage): boolean {
+  const origin = req.headers.origin;
+  if (typeof origin !== 'string' || !origin) return false;
+  let originHost: string | null = null;
+  try {
+    originHost = new URL(origin).host;
+  } catch {
+    originHost = null;
+  }
+  const requestHost = typeof req.headers.host === 'string' ? req.headers.host : null;
+  return originHost === null || requestHost === null || originHost !== requestHost;
+}
+
 /** ITEM 19's fixed sample answer. Never Gemini's; never billed. */
 const DEMO_SAMPLE = {
   label: 'Kraft Dinner Original, 225 g',
@@ -2595,20 +2730,8 @@ export const server = createServer(async (req, res) => {
      * the request line is parsed against a placeholder base rather than the
      * real Host.
      */
-    if (SCAN_ROUTES.has(url.pathname)) {
-      const origin = req.headers.origin;
-      if (typeof origin === 'string' && origin) {
-        let originHost: string | null = null;
-        try {
-          originHost = new URL(origin).host;
-        } catch {
-          originHost = null;
-        }
-        const requestHost = typeof req.headers.host === 'string' ? req.headers.host : null;
-        if (originHost === null || requestHost === null || originHost !== requestHost) {
-          return json(403, { error: 'that origin is not allowed to call this route' });
-        }
-      }
+    if (SCAN_ROUTES.has(url.pathname) && originRefused(req)) {
+      return json(403, { error: 'that origin is not allowed to call this route' });
     }
 
     if (url.pathname === '/api/shutter/frame') {
@@ -2871,6 +2994,55 @@ export const server = createServer(async (req, res) => {
         return json(200, typedAnswer);
       }
 
+      /*
+       * CATALOGUE FIRST, only when SHIN_CATALOGUE_FIRST is on (RULINGS.md
+       * "Catalogue first; Gemini is a capped fallback, never the identity";
+       * both founders decide the flip). Off, this block is skipped and the
+       * route below answers exactly as it always has. On, the catalogue names
+       * the product, Shin's prices give the range, a capped Gemini range ask is
+       * the only model call that can happen, and the Gemini scan call is never
+       * made. The weekly free-scan limit applies as it does to any barcode
+       * scan; the paid-call limiter is checked only in front of the range ask.
+       */
+      if (gtin && rawGtin && catalogueFirstOn()) {
+        const overLimitFirst = await scanLimitRefusal(device, req.headers);
+        if (overLimitFirst) return json(402, overLimitFirst);
+        const canonical = canonicalBarcode(rawGtin);
+        if (canonical) {
+          const { answer, record } = await catalogueFirstBarcode(req, canonical, marketOfContext(contextFrom(pick)), device);
+          // A barcode the catalogue was asked about and does not hold is the most
+          // actionable miss the gap log can hold (`what-to-price` reads it).
+          if (answer.outcome === 'not_in_catalogue' && answer.catalogueUp) recordGap({ gtin, catalogueMissing: true });
+          const ms = Date.now() - identifyStarted;
+          const firstScanId = recordScan({
+            deviceId: device,
+            kind: 'barcode',
+            query: gtin,
+            resolvedCode: record.resolvedCode,
+            resolvedLabel: record.resolvedLabel,
+            source: 'catalogue',
+            outcome: record.outcome,
+            failureClass: record.failureClass,
+            answerPath: record.answerPath,
+            rangeSource: record.rangeSource,
+            rangeBasis: record.rangeBasis,
+            rangeMissReason: record.rangeMissReason,
+            appVersion: telemetry.appVersion,
+            platform: telemetry.platform,
+            latencyMs: ms,
+            cell: where.cell,
+            storeId: where.storeId,
+            storeName: where.storeName,
+            exactLat: where.exactLat,
+            exactLon: where.exactLon,
+            exactAccuracy: where.exactAccuracy,
+            exactAt: where.exactAt,
+          });
+          scanForLog = firstScanId;
+          return json(200, { ...answer, ms, ...(firstScanId === null ? {} : { scanId: firstScanId }) });
+        }
+      }
+
       const limitedIdentify = paidCallRefusal(req);
       if (limitedIdentify) return tooManyCalls(limitedIdentify.retryAfterSeconds);
       // The weekly free-scan limit (src/scan-quota.ts), before anything is spent. Off unless set.
@@ -3000,6 +3172,77 @@ export const server = createServer(async (req, res) => {
         ...(ownMarked.length ? { ownOffers: ownMarked } : {}),
         grounded: wire,
       });
+    }
+
+    /*
+     * TEXT OFF A PACK OR A SHELF TAG, IN; THE TOP 3 CATALOGUE ROWS, OUT.
+     * RULINGS.md "Catalogue first; Gemini is a capped fallback, never the
+     * identity". Live only when SHIN_CATALOGUE_FIRST is on; off, it answers
+     * exactly what an unknown path answers, the same 404 as before it existed.
+     *
+     * Guards, the same as `/api/identify`'s: the invite code (above, every
+     * `/api/` path), the origin rule (`originRefused`, applied here after the
+     * setting so the off case stays a plain 404), the 8 KiB JSON body cap, and
+     * the per-code and per-address limiter windows, in this route's own buckets
+     * (`matchTextRefusal`) because it spends nothing. No Gemini call of any kind.
+     * The shopper picks one candidate and the client sends its barcode to
+     * `/api/identify`. Passive reading never writes a catalogue miss
+     * (`recordMiss: false`), but every call writes its scan row.
+     */
+    if (url.pathname === '/api/match-text') {
+      if (!catalogueFirstOn()) return json(404, { error: 'no such endpoint' });
+      if (originRefused(req)) return json(403, { error: 'that origin is not allowed to call this route' });
+      if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      const limitedMatch = matchTextRefusal(req);
+      if (limitedMatch) return tooManyCalls(limitedMatch.retryAfterSeconds);
+      const body = await readBody(req);
+      if (body === TOO_LARGE) return refuseTooLarge();
+      const read = readMatchTextBody(body);
+      if (!read.ok) return json(400, { error: read.error });
+      const posted = body as Record<string, unknown>;
+      const device =
+        (typeof posted.deviceId === 'string' ? posted.deviceId.trim() : '') || deviceFromHeaders(req.headers) || UNATTRIBUTED;
+      deviceForLog = device;
+      const started = Date.now();
+      const telemetry = telemetryFrom(posted);
+      const where = locationFor(device, posted.cell, posted.storeId, posted.storeName, {
+        lat: posted.lat,
+        lon: posted.lon,
+        accuracy: posted.accuracy,
+        at: posted.locatedAt,
+      });
+      const matched = await catalogueFirstMatchText(read.lines, device);
+      const ms = Date.now() - started;
+      /*
+       * The lines are kept in `query_text`, joined by newlines, following the
+       * precedent a typed search set: `typedFromOwnData` writes the typed text
+       * there too. They are capped (60 lines of 200 characters, inside the 8 KiB
+       * body cap) before they get this far.
+       */
+      const matchScanId = recordScan({
+        deviceId: device,
+        kind: 'text',
+        query: read.lines.join('\n'),
+        source: 'catalogue',
+        outcome: matched.candidates.length > 0 ? 'answered' : 'refused',
+        failureClass: matched.candidates.length > 0 ? null : 'not_in_catalogue',
+        answerPath: 'text_match',
+        matchLines: read.lines.length,
+        matchCandidates: matched.candidates.length,
+        matchPriceRead: matched.shelfPrice !== null,
+        appVersion: telemetry.appVersion,
+        platform: telemetry.platform,
+        latencyMs: ms,
+        cell: where.cell,
+        storeId: where.storeId,
+        storeName: where.storeName,
+        exactLat: where.exactLat,
+        exactLon: where.exactLon,
+        exactAccuracy: where.exactAccuracy,
+        exactAt: where.exactAt,
+      });
+      scanForLog = matchScanId;
+      return json(200, { ...matched, ms, ...(matchScanId === null ? {} : { scanId: matchScanId }) });
     }
 
     /*

@@ -161,6 +161,8 @@ export const SCREEN_TAGS = {
   a95: { id: 'paywall.web', title: 'Shin Plus, in a browser (Subscribe in the app)', kind: 'state', file: 'app/public/js/screens/paywall.js', route: 'paywall', sel: '[data-pw-state="web"]', rank: 10, how: 'Open ?s=paywall in a plain browser, outside the phone app.' },
   a96: { id: 'paywall.plans', title: 'Shin Plus, the two plans with store prices', kind: 'state', file: 'app/public/js/screens/paywall.js', route: 'paywall', sel: '[data-pw-state="plans"]', rank: 10, how: 'Open the subscription screen in the phone app with the store products set up.' },
   a97: { id: 'permissions', title: 'Camera and location permissions, on its own', kind: 'screen', file: 'app/public/js/screens/permissions.js', route: 'permissions', how: 'First launch when the welcome flow is switched off (FLAGS.onboarding false). Or ?s=permissions. Same panel as a24, which is the step inside the welcome flow.' },
+  a98: { id: 'camera.catalogue', title: 'Catalogue answer sheet (the product and its price range)', kind: 'sheet', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.sheet.catalogue[data-outcome="catalogue_hit"]', rank: 41, how: 'With the server setting SHIN_CATALOGUE_FIRST on, scan a barcode the catalogue has. With no range for it yet the sheet says so.' },
+  a99: { id: 'camera.catalogue.missing', title: 'Not in the catalogue (type the product name)', kind: 'sheet', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.sheet.catalogue[data-outcome="not_in_catalogue"]', rank: 41, how: 'With the server setting SHIN_CATALOGUE_FIRST on, scan a barcode the catalogue does not have.' },
 };
 
 /**
