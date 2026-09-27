@@ -2998,7 +2998,7 @@ export const server = createServer(async (req, res) => {
         ownOffers.length && baseWire && typeof baseWire === 'object' && 'block' in baseWire && baseWire.block
           ? {
               ...baseWire,
-              block: { ...baseWire.block, offers: [...baseWire.block.offers, ...ownOffers] },
+              block: { ...(baseWire.block as AnswerBlock), offers: [...(baseWire.block as AnswerBlock).offers, ...ownOffers] },
             }
           : baseWire;
       // The cashier line (src/price-match-line.ts). The store name is read for this answer only, never kept past consent.
