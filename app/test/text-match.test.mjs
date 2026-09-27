@@ -327,6 +327,7 @@ test('lines are trimmed and capped the way the server caps them (60 lines of 200
 test('the native reader plugs in at one named place', () => {
   const src = read('../public/js/text-match.js');
   assert.equal((src.match(/THE NATIVE TEXT READER PLUGS IN HERE/g) ?? []).length, 1);
-  assert.match(src, /export function nativeTextReader\(\) \{\s*return null;\s*\}/);
+  // Wired to the on-device reader, which answers null outside the wrapper (native-text-reader.test.mjs).
+  assert.match(src, /export function nativeTextReader\(options\) \{\s*try \{\s*return createNativeTextReader\(options\);/);
   assert.match(src, /native = nativeTextReader\(\)/, 'pickReader does not consult the plug point');
 });

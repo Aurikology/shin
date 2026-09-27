@@ -14,9 +14,10 @@
  *   A READER, `{ start(onLines), stop() }`. It calls `onLines(string[])`
  *   whenever it has read something. Which reader runs is decided in ONE place,
  *   `pickReader`, and the native one plugs in at `nativeTextReader` below.
- *   Shipped today: a development reader (a textarea, only with `?textmatch=dev`
- *   in the address) and a no-op for everything else, so with no native reader
- *   and no query parameter nothing on the camera changes at all.
+ *   Shipped: the native reader (native-text-reader.js, inside the wrapper
+ *   only), a development reader (a textarea, only with `?textmatch=dev` in the
+ *   address) and a no-op for everything else, so with no native reader and no
+ *   query parameter nothing on the camera changes at all.
  *
  *   A MATCHER, `createTextMatcher`. Throttled: at most one request in flight,
  *   and no two sent closer than MIN_INTERVAL_MS apart; lines identical to the
@@ -32,6 +33,7 @@
 
 import { t } from './ui-strings.js';
 import { escapeHtml } from './lib/dom.js';
+import { createNativeTextReader } from './native-text-reader.js';
 
 /** No two requests closer together than this. */
 export const MIN_INTERVAL_MS = 1500;
@@ -91,11 +93,17 @@ export const NO_READER = Object.freeze({ kind: 'none', start() {}, stop() {} });
  * when that plugin is present, and null when it is not. `start` must call
  * `onLines` with the lines of text it read from the current camera frame;
  * the matcher below does all throttling, so the reader may call it as often
- * as it reads. Today no such plugin exists, so this returns null and
- * `pickReader` falls through to the development reader or the no-op.
+ * as it reads. The reader itself is native-text-reader.js; it answers null in
+ * a browser, or in a wrapper built without the TextRecognition or Filesystem
+ * plugin, and `pickReader` then falls through to the development reader or
+ * the no-op exactly as before.
  */
-export function nativeTextReader() {
-  return null;
+export function nativeTextReader(options) {
+  try {
+    return createNativeTextReader(options);
+  } catch {
+    return null;
+  }
 }
 
 /**
