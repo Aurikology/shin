@@ -115,3 +115,136 @@ unit's shape, not a timed run of this loader.
 | **Acceptance test** | The catalogue's distinct-barcode count rises by at least 425,000. A sample of 20 newly-loaded USDA barcodes, read back by `code`, matches `food.csv`'s `description` and `branded_food.csv`'s `gtin_upc` for the same `fdc_id`, by hand. Zero rows with `sold_in_canada = 1` from this source (this file has none to claim). |
 | **Falsifier** | Fewer than 400,000 new rows land, which means the canonicalisation or the dedupe-against-catalogue step silently dropped rows rather than the source being smaller than measured here. |
 | **Reopens on** | USDA republishes Branded Foods with a materially different row count (the dataset is refreshed periodically; re-check `fdc.nal.usda.gov/download-datasets/` for the current file before reusing this URL). |
+
+## Prepare step, run -- 2026-09-26
+
+The prepare step only: `catalogue/src/prepare_rows_usda.py` reads
+`branded_food.csv` and `food.csv` (extracted from the zip into
+`catalogue/data/usda_branded_csv/FoodData_Central_branded_food_csv_2025-12-18/`)
+and writes `catalogue/data/rows-usda.jsonl`, one `PreparedRow` per distinct
+canonical barcode. It does not import or run `catalogue/src/load.ts`; nothing
+was written to the live catalogue by this step.
+
+**Run it with:**
+
+```
+cd catalogue
+python3 src/prepare_rows_usda.py
+```
+
+(defaults to the paths above; three positional args override branded CSV,
+food CSV, and output path). Took a few minutes end to end on the full
+1,993,975-row file. Then, to check the output the way this file is checked
+below:
+
+```
+python3 src/verify_rows_usda.py data/rows-usda.jsonl
+```
+
+### Counts, from the OUTPUT file (`wc -l` and a second pass over the JSON),
+### not from the script's own loop counters
+
+| Metric | Count |
+| --- | --- |
+| Lines written | 432,132 |
+| Distinct `code` values in the file | 432,132 (zero duplicates) |
+| Rows with a non-empty `name` | 432,132 (100%) |
+| Rows with a non-null `size_value` | 377,635 (87.4%) |
+| Rows skipped, barcode not a usable canonical length (8/12/13/14 digits) | 1,561,843 |
+| Rows skipped, no name after picking the best `fdc_id` per barcode | 0 |
+
+The barcode-length skip count is `1,993,975` CSV rows minus `432,132` distinct
+canonical barcodes that survive; it is not a separate counted pass over "junk
+length" rows the way the measurement doc's histogram is, because this script's
+job was dedup-to-one-row-per-barcode, not re-deriving that histogram.
+
+Multiple `fdc_id`s canonicalising to the same barcode are resolved by a fully
+ordered rule (has a name, then has a `package_weight`, then most recent
+`modified_date`, then highest `fdc_id`): **the fourth key was added after the
+first hand-check run found two `fdc_id`s for the Gatorade barcode below tied
+on all three of the first keys** (identical `description`, neither had a
+`package_weight`, identical `modified_date`), which meant the row actually
+written was picked by DuckDB's internal, undocumented order for ties rather
+than any rule this file stated. `fdc_id` is USDA's own incrementing surrogate
+key, so its highest value is at least a real, reproducible ordering. The
+script was rerun after adding it; the distinct-barcode count did not change
+(432,132 both times) and only the `with_size` count moved, from 377,351 to
+377,635, because a handful of formerly-tied pairs now resolve to whichever
+side actually had the size.
+
+**87.4% with a size is lower than the measurement doc's 97.7%, on purpose.**
+That 97.7% counted a row as having "a usable size" if `serving_size` and
+`serving_size_unit`, OR `household_serving_fulltext`, OR `package_weight` was
+present. This script only ever computes `size_value`/`size_unit` from
+`package_weight`, because `package_weight` is the only one of those three that
+measures the whole package rather than a single serving; using a serving size
+as a package size would put a wrong, not missing, number into every
+price-per-unit comparison built on it (see the WHY comment in
+`parse_package_weight()`). 860,410 of 1,993,975 raw rows (43%) carry a
+`package_weight` at all; of the 432,132 rows written here, 377,635 (87.4%)
+parsed one, which means the small remainder either had no `package_weight` on
+the winning `fdc_id` or had one this parser could not read (a bare count unit
+like `EA` or `TABLET`, or free text that does not match `<number><unit>`).
+
+### Ten rows checked by hand against the source CSVs
+
+Picked at random from the output file, then looked up in `branded_food.csv`
+by reversing the canonicalisation (matching every `gtin_upc` whose
+`canonical_code()` equals the row's `code`) and cross-checked against
+`food.csv`'s `description` for the same `fdc_id`. All ten matched: the
+`name` is that `fdc_id`'s `description`, `brands` is that `fdc_id`'s
+`brand_name` (or `brand_owner` when `brand_name` was blank), and where more
+than one `fdc_id` shared the barcode, the one this script kept was the one
+the four-key rule above picked.
+
+```
+{"code": "0052000102963", "name": "Gatorade Strawberry Lemonade Thirst Quncher 32 Fluid Ounce Bottle.", "brands": "Gatorade", "size_value": null, "size_unit": null, "leaf_category": "Non Alcoholic Beverages  Ready to Drink"}
+  -> fdc_id 1458894 (of 4 candidates for this barcode, two with brand_name "Gatorade": 1166892 and 1458894). Both had an identical description, no package_weight, and the same modified_date -- true ties on the first three keys, so the fourth key (highest fdc_id) decided it: 1458894 over 1166892. This is the pair that surfaced the tie in the first place, and is why the fourth key exists (see above). One real finding from checking it: 1166892's branded_food_category contains a genuine UTF-8 en dash ("Non Alcoholic Beverages – Ready to Drink", byte-checked against the raw CSV: \xe2\x80\x93, not a corrupted byte), which this terminal's console codepage rendered as a replacement-character glyph when printed -- a display artifact on this machine, not a data problem, and not present in either the CSV or the JSONL either way this tie resolves. size null is correct either way: neither candidate has a package_weight.
+
+{"code": "0688267032240", "name": "AHOLD, COLA", "brands": "AHOLD", "size_value": 240.0, "size_unit": "ml", "quantity": "8 fl oz/240 mL"}
+  -> fdc_id 1877191 (of 5 candidates; two, 1877191 and 1771747, tied on package_weight-present and on modified_date, decided by the fourth key): package_weight "8 fl oz/240 mL", metric segment "240 mL" taken.
+
+{"code": "0099482473778", "name": "CHICKEN ORGANIC BROTH, CHICKEN", "brands": "365 WHOLE FOODS MARKET", "size_value": 5680.0, "size_unit": "ml", "quantity": "1.5 GAL/5.68 L/946 mL"}
+  -> fdc_id 2278962 (of 8 candidates, decided by modified_date alone: 2022-03-21, strictly newer than the four other candidates sharing this same package_weight text): metric segment "5.68 L" taken over the first segment "1.5 GAL", both correct.
+
+{"code": "0020601401013", "name": "ORANGE CALCIUM & VITAMIN D PULP FREE 100% PREMIUM JUICE, ORANGE", "brands": "HEINEN'S", "size_value": 1530.0, "size_unit": "ml", "quantity": "52 fl oz/1.6 Quart/1.53 L"}
+  -> fdc_id 2468121 (of 8 candidates; three, including 2468121, tied on package_weight-present and modified_date 2021-08-23, decided by the fourth key): package_weight "52 fl oz/1.6 Quart/1.53 L"; metric segment "1.53 L" taken.
+
+{"code": "0035826094100", "name": "100% ORANGE JUICE", "brands": "FOOD LION", "size_value": 3780.0, "size_unit": "ml", "quantity": "128 fl oz/1 GAL/3.78 L"}
+  -> fdc_id 2046950 (of 4 candidates): the only one carrying a package_weight, "128 fl oz/1 GAL/3.78 L"; metric segment "3.78 L" taken.
+
+{"code": "0073651162021", "name": "MEDITERRANEAN MIX, GREEK OLIVES...", "brands": "MARIO", "size_value": 200.0, "size_unit": "g", "quantity": "7.05 oz/200 g"}
+  -> fdc_id 2116909 (of 4 candidates): the only one with a package_weight, "7.05 oz/200 g"; metric segment "200 g" taken.
+
+{"code": "0041735051448", "name": "WHITE CHEDDAR CHEESE & YOGURT COVERED RAISINS SNACK PACK...", "brands": "PICS", "size_value": 42.0, "size_unit": "g", "quantity": "1.5 oz/42 g"}
+  -> fdc_id 2175853 (of 2 candidates): correctly preferred over fdc_id 1835501, which had no package_weight.
+
+{"code": "0757528046804", "name": "MARSHMALLOW WITH CHOCOLATE FLAVORED COATING PALETA PAYASO...", "brands": "RICOLINO", "size_value": 540.0, "size_unit": "g", "quantity": "540 g/45 g"}
+  -> fdc_id 2178082 (of 2 candidates, both carrying the same package_weight text; decided by modified_date, 2021-07-13 over 2021-06-26): both segments are metric, so the FIRST one, 540 g (the whole pack; 45 g reads as the per-piece weight of this multi-piece lollipop assortment), was taken.
+
+{"code": "0053600001373", "name": "PROBIOTIC PIA COLADA AND MANGO BLENDED LOWFAT YOGURT", "brands": "LA YOGURT", "size_value": 170.0971, "size_unit": "g", "quantity": "6 oz"}
+  -> fdc_id 2530465 (the only candidate; this gtin_upc was stored as "0053600001373", already 13 digits, passed through unchanged): package_weight "6 oz" converted at 28.349523125 g/oz.
+
+{"code": "0853358000969", "name": "TOASTED SESAME BROWN RICE & CHICKPEA CRACKERS", "brands": "HARVEST STONE", "size_value": 100.0, "size_unit": "g", "quantity": "3.54 oz/100 g"}
+  -> fdc_id 2640677 (of 4 candidates, decided by modified_date alone: 2023-08-01, strictly newer than 1887060's 2017-07-14, the only other candidate sharing this package_weight text): metric segment "100 g" taken over "3.54 oz".
+```
+
+### Distinct-barcode agreement with the measurement lane
+
+**Exact agreement.** This run: 432,132 distinct canonical barcodes. The
+measurement section above this one, run earlier the same day by a different
+pass over the same release: 432,132. Not "within a few hundred" -- the same
+number, which is expected since both passes apply the same `canonicalCode`
+rule to the same release and both count distinct results, but it is still
+worth stating plainly rather than waved through: two independently written
+passes over the same 1,993,975-row file landed on the identical
+distinct-barcode count.
+
+### What was NOT done here
+
+This is the prepare step only. `catalogue/data/rows-usda.jsonl` (432,132
+lines, gitignored under `catalogue/data/`) exists on disk but was never loaded
+-- `load.ts` was not imported, not run, and the live catalogue was not
+touched. The queued load unit above is unchanged by this run except that its
+raw-material file, `rows-usda.jsonl`, now exists for whichever lane picks it
+up.
