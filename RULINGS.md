@@ -196,6 +196,16 @@ reading through websites. Think really really outside the box"* · 2026-09-13 ·
 Retired wording: `roughly ten minutes lockout`, `search() in walmart.ts`
 Governs: price/src/walmart-sitemap.ts (discoverSkus, --indexes)
 
+### Task-list split: Aurik owns the heart-marked items, the rest are the founder/assistant's
+He shared the Shin task list and marked which items are Aurik's: the ones with a heart under
+them are Aurik's to work, everything else on that list is worked by the founder and the
+assistant. Narrower than this: the same day, for the catalogue-expansion plan specifically, he
+moved Aurik's pieces of that one plan to Claude too (see the entry below); that reassignment is
+scoped to the catalogue-expansion plan, not a standing reversal of who owns the rest of the
+heart-marked list. · 2026-09-26 · *"these are the things that need to be worked on, of which,
+aurik will work on the things that have a heart under them"*
+Retired wording: none
+Governs: the Shin task list (image-shared, not a repo file)
 ### Catalogue-expansion plan: Claude owns all of it, Aurik's share included
 The catalogue-expansion plan's pieces that were assigned to Aurik are Claude's to do; the open
 calls inside that plan (then: deleting the 16 junk products, who does Aurik's eight pieces, and
