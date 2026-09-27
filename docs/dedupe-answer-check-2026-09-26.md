@@ -197,3 +197,82 @@ what came back. What it removed was 1,375,443 rows a search-layer guard was
 already filtering out one query at a time, and the risk it carried (deleting
 instead of collapsing) did not materialise in the 200-pair sample checked
 here.
+
+---
+
+## Follow-up, same night: the unmeasured gap, measured on all 1,375,443 pairs
+
+The "unknown" flagged above (`size_value`/`size_unit` not in the rescue
+step's field list) was measured directly, over the full population rather
+than a sample, using `PRAGMA table_info(product)` on both files (read-only,
+same rule as above) to enumerate every column and diff it against what
+`dedupe-barcode-spellings.ts`'s `RESCUE` constant actually copied.
+
+**Columns already rescued** (name_en, name_fr, brands, quantity,
+leaf_category, image_url, ingredients_text): counted again from scratch
+against the backup, this reproduced the file's own documented totals exactly
+-- name_en 1, brands 1, leaf_category 2, image_url 2, name_fr 0, quantity 0,
+ingredients_text 0 -- confirming the counting method matches the script's own
+math.
+
+**Columns never rescued, counted over all 1,375,443 pairs:** size_value 0,
+size_unit 0, category_source 0, generic_name 0, nutriscore_grade 0,
+nova_group 0, additives_n 0, allergens 0 -- and **category_path: 2**. Two
+`name_derived`/`derived_source` are not counted: those columns did not exist
+in the 2026-09-13 backup, so there is nothing to diff.
+
+`size_value`/`size_unit` are genuinely clean, not merely unsampled: zero
+pairs, out of all 1,375,443, ever disagreed. The one real gap is
+`category_path`, a NOT NULL column whose schema default `'[]'` stands in for
+"no data" (schema.ts's own words), so a plain `IS NULL` test -- which is what
+every other check here and in the original script uses -- never catches it.
+
+**Confirmed against the live file**, not inferred: both barcodes' `category_path`
+is `[]` there today, even though `leaf_category` (which the original rule did
+rescue) is correct on both:
+
+| barcode | leaf_category (live) | category_path (live) | category_path the dying row had |
+|---|---|---|---|
+| 0045496590161 | en:gaming-controllers | `[]` | `["en:entertainment-hobby","en:video-games-consoles","en:gaming-controllers"]` |
+| 0023942947769 | en:blank-cds | `[]` | `["en:computers-peripherals","en:data-storage","en:data-storage-mediums","en:blank-cds"]` |
+
+Consequence: `rebuildCategories()` (`schema.ts`) populates `product_category`
+-- what the neighbour ring reads -- from `category_path`, not from
+`leaf_category`. Both products show the right category label but belong to
+no ring: "other gaming controllers" and "other blank CDs" can never surface
+either one, and neither can ever be found as a member of its own category
+walk. This is the answer that changed, and it is two barcodes, not zero.
+
+**Root cause and repair**, in two pieces:
+
+1. `catalogue/src/dedupe-barcode-spellings.ts`: `RESCUE` was a seven-column
+   list typed by hand. It is now `rescueColumns(db)`, derived at run time from
+   `PRAGMA table_info(product)` (every non-key, nullable column), so a future
+   column addition is rescued or excluded by the same rule that already
+   governs `name`/`category_path`/`allergens`/`sold_in_canada`/`source`
+   (NOT NULL, the survivor's own identity/classification, never overwritten)
+   rather than by whoever last edited a hand-written array. Lines touched:
+   the `RESCUE` constant became a `rescueColumns()` function (was line 81,
+   now the block above `open()`), and one call site,
+   `const RESCUE = rescueColumns(ro);`, added right after `const ro =
+   open(true);` in `main()`. Nothing else in the file moved; the 8/13-digit
+   work another session has open in this same file was not touched. This
+   fix is scoped to nullable columns only, per the brief ("every column that
+   can be null") -- it does not add sentinel handling for `category_path`/
+   `allergens` to this shared file, since that is a different kind of check
+   (emptiness, not nullness) and a bigger, riskier edit to make mid-edit by
+   someone else.
+2. `catalogue/src/repair-dedupe-rescue.ts` (new): reads the same 1.37M pairs
+   out of the backup and fills any live 13-digit survivor's empty column from
+   the dying 12-digit row's value, for every nullable column both schemas
+   share plus `category_path`/`allergens` as a separate sentinel-aware pass.
+   Guarded so a live value that is already present is never touched. Dry run
+   by default; `--apply` is behind an explicit flag and was **not run** in
+   this session -- the dry run against the live file confirms exactly 2 cells
+   would change, both `category_path`, matching the count above, and 0 for
+   every already-rescued column (confirming the original apply already fixed
+   those correctly).
+
+Scope note: everything in this follow-up, including the dry run of
+`repair-dedupe-rescue.ts`, was read-only against both database files. No
+`--apply` was run on anything.

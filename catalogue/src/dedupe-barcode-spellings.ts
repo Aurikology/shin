@@ -77,8 +77,25 @@ const PAIR_8 =
  */
 const PAIR_8_FOLDABLE = `${PAIR_8} AND p.name = q.name`;
 
-/** Fields worth rescuing off the row that is about to be deleted. */
-const RESCUE = ['name_en', 'name_fr', 'brands', 'quantity', 'leaf_category', 'image_url', 'ingredients_text'] as const;
+/**
+ * Fields worth rescuing off the row that is about to be deleted, read from the
+ * schema at run time rather than typed by hand. A hand-written list in a
+ * script that deletes rows is the defect: it silently excludes every column
+ * added after whoever wrote it last looked, and one of those columns
+ * (`category_path`, added to this table after this list was written) already
+ * lost data on 2026-09-26 because of it -- 2 of the 1,375,443 pairs, found and
+ * repaired separately by `repair-dedupe-rescue.ts`. Every column that CAN be
+ * null is a candidate here; the key (`code`) and every NOT NULL column
+ * (`name`, `category_path`, `allergens`, `sold_in_canada`, `source` -- the
+ * survivor's own identity and classification, never silently overwritten from
+ * the row being deleted) are excluded by that same test, not by name, so a
+ * NOT NULL column added later is excluded automatically and a nullable one is
+ * rescued automatically.
+ */
+function rescueColumns(db: DatabaseSync): string[] {
+  const cols = db.prepare('PRAGMA table_info(product)').all() as unknown as { name: string; notnull: number; pk: number }[];
+  return cols.filter((c) => c.pk === 0 && c.notnull === 0).map((c) => c.name);
+}
 
 function open(readOnly: boolean): DatabaseSync {
   const db = new DatabaseSync(DB, { allowExtension: true, readOnly });
@@ -113,6 +130,8 @@ function main(): number {
   }
 
   const ro = open(true);
+  const RESCUE = rescueColumns(ro);
+  console.log('rescuing (schema-derived):', RESCUE);
   const before = counts(ro);
   console.log('BEFORE:', JSON.stringify(before));
 
