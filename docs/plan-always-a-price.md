@@ -443,7 +443,7 @@ pointed `SHIN_SCANS` at a temp file; never against the live stores.
    device, then `identifyPhoto`, which calls `stage.fromCrop(image, null, tier, sharpness)`
    (line 1081). **The tag argument is hard-coded null.** It writes a scan row (the model's reading,
    cost estimate, store if consented) and keeps the photo only if the device said yes to photos.
-4. **Identify stage** (`identify/src/identify.ts`, `fromCrop`): calls `Identifier.read(product,
+4. **Identify stage** (`identify/src/identify.ts` (removed 2026-09-19, d3e4f0b), `fromCrop`): calls `Identifier.read(product,
    tag, tier)`. With a tag image, `read` makes a second model call with `TAG_INSTRUCTION` and
    `TAG_SCHEMA` (`identify/src/model.ts` around lines 569 and 717 and 859) returning everyday, sale
    and member prices in cents, the unit-price text, the limit and the currency. **Nothing reads
@@ -664,7 +664,7 @@ Tell him before building:
    from the same coarse cell. His location-consent wording update is waiting on the founder.
 4. **Produce as the beta's test case.** Part 1 replaces the produce refusal with untiered references.
    That changes what his decision means on screen.
-5. **The eval's stage split.** Part 2 adds a tag mode to the same runner (`identify/eval/run.ts`,
+5. **The eval's stage split.** Part 2 adds a tag mode to the same runner (`identify/eval/run.ts` (removed 2026-09-19, d3e4f0b),
    `metrics.ts`) he restructured.
 6. **The model seam and providers.** Tag schema changes go through the provider seam he built and the
    Mac's adapter fix (commit 20600df, not his).

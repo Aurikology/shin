@@ -284,7 +284,7 @@ Ordered by what unblocks the most, reversible before expensive.
 
 | Piece | Where it is | State |
 | --- | --- | --- |
-| Identification chain, four attempts in order | `identify/src/identify.ts` | Complete, tested, zero importers |
+| Identification chain, four attempts in order | `identify/src/identify.ts` (removed 2026-09-19, d3e4f0b) | Complete, tested, zero importers |
 | Vision read of product and shelf tag | `identify/src/model.ts` | Complete, never called; two calls where one would do; `claude-haiku-4-5` / `claude-opus-5` |
 | Second price judge, built for the real price store | `price/src/verdict.ts` | Complete, only its own test calls it |
 | Cheaper options | `catalogue/src/alternatives.ts` | Complete, only its own test calls it |

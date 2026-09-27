@@ -71,7 +71,7 @@ re-running the sync. Nothing else in `native/` names the hostname.
 
 ## How the wrapper serves the web app
 
-`scripts/sync-web.mjs` copies `app/public` into `native/www` (gitignored, regenerated every
+`native/scripts/sync-web.mjs` copies `app/public` into `native/www` (gitignored, regenerated every
 time) and inserts one inline `<script>` into that COPY, right before the existing
 `<script type="module" src="/js/main.js">` tag, setting `window.SHIN_API_BASE` and
 `window.SHIN_INVITE_CODE`. `app/public/index.html` is never touched. `npx cap sync` then copies
@@ -85,7 +85,7 @@ Run it with `npm run sync` alone, or `npm run cap:sync` which also runs `npx cap
 Installed: `@capacitor/camera` (photo capture) and `@capacitor-mlkit/barcode-scanning`
 (hardware barcode scan + torch, Google ML Kit on Android, AVFoundation-backed on iOS).
 
-`native/native-bridge/camera-bridge.js` wraps both behind three functions --
+`native/native-bridge/camera-bridge.js` (removed 2026-09-27, becf7d8) wraps both behind three functions --
 `scanBarcodeNative()`, `capturePhotoNative()`, `setTorchNative(on)` -- gated by
 `window.SHIN_NATIVE_CAMERA_FALLBACK` (a flag, added to `shin-api.config.json` alongside
 `apiBase`; default `false`). Flipping that one flag is the whole switch; nothing here is a
@@ -290,7 +290,7 @@ names what it needs from the one before it.
 ## Shin Plus: RevenueCat (2026-09-21)
 
 `@revenuecat/purchases-capacitor` 13.6.0 is installed here. The web app reaches it through
-`window.Capacitor.registerPlugin('Purchases')`: `scripts/sync-web.mjs` copies Capacitor's browser
+`window.Capacitor.registerPlugin('Purchases')`: `native/scripts/sync-web.mjs` copies Capacitor's browser
 build to `www/js/capacitor.js` and loads it before `main.js`, because `app/public` has no bundler.
 Code: `app/public/js/purchases.js`; names and URLs: `app/public/js/plus-config.js`.
 

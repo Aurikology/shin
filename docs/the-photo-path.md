@@ -7,7 +7,7 @@ State lives in `NOW.md`; this file is the design and the lane contract.*
 ## 0. What is true today
 
 - The ladder is barcode → catalogue-by-text → model reads the picture → (web, cut). Attempts one
-  and two run. Attempt three, `identify/src/model.ts` + `identify/src/identify.ts`, has been
+  and two run. Attempt three, `identify/src/model.ts` + `identify/src/identify.ts` (removed 2026-09-19, d3e4f0b), has been
   written and tested since 2026-09-05 and is imported by nothing (D-024, D-047).
 - The eye already produces the right input: a burst-scored, object-cropped, 1568 px long-edge
   **PNG** (`app/src/eye/capture.ts` `cropTo`, decision 12), handed to `camera.js` as `lastCrop`
