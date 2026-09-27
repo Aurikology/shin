@@ -184,21 +184,37 @@ export function unitPriceCents(
 }
 
 /**
- * Reads a printed quantity such as "500 g", "1.5 L", "12 oz", "6 x 355 ml" or
- * "6 * 355ml". A multipack is multiplied out: the value returned is the total.
- * Null when nothing in the text is a recognised size. A comma decimal ("1,5 l")
- * is read as a decimal point, which is what every non-English shelf prints.
+ * Reads a printed quantity such as "500 g", "1.5 L", "12 oz", "6 x 355 ml",
+ * "6 * 355ml" or ".6 kg" (a leading-dot decimal with no leading zero, which a
+ * shelf label prints as often as "0.6"). A multipack is multiplied out: the
+ * value returned is the total. Null when nothing in the text is a recognised
+ * size. A comma decimal ("1,5 l") is read as a decimal point, which is what
+ * every non-English shelf prints.
+ *
+ * Unit 7 (docs/catalogue-build-plan-2026-09-26.md), size-fill.ts: found
+ * against the live catalogue and fixed here so every caller gets both fixes.
+ *   - ".6kg" used to match on the bare "6" alone (the regex required a digit
+ *     BEFORE the decimal point), silently turning 0.6 kg into 6 kg -- ten
+ *     times too big, and wrong is worse than missing (the plan's own
+ *     falsifier). Real row: "small breed compliments .6kg".
+ *   - "0 x 88 ml" used to return 88 ml: `pack ? pack * each : each` treats a
+ *     multiplier of exactly 0 the same as "no multiplier was given" because 0
+ *     is falsy in JavaScript, so the zero silently vanished instead of
+ *     zeroing the result or being rejected. A multipack of zero copies is not
+ *     a real quantity either way, so it is rejected outright now. Real row:
+ *     "Crunchy almond", quantity "0 x 88 ml".
  */
 export function parseQuantity(text: string | null | undefined): { value: number; unit: string; packCount: number | null } | null {
   if (!text) return null;
   const t = text.trim().toLowerCase().replace(/(\d),(\d)/g, '$1.$2');
-  const m = /(?:(\d+)\s*[x*]\s*)?(\d+(?:\.\d+)?)\s*(fl\.?\s*oz|[a-z]+)\b/.exec(t);
+  const m = /(?:(\d+)\s*[x*]\s*)?(\d+(?:\.\d+)?|\.\d+)\s*(fl\.?\s*oz|[a-z]+)\b/.exec(t);
   if (!m) return null;
   const pack = m[1] ? Number(m[1]) : null;
+  if (pack !== null && pack <= 0) return null;
   const each = Number(m[2]);
   const unit = m[3];
   if (!Number.isFinite(each) || each <= 0 || UNITS[normUnit(unit)] === undefined) return null;
-  return { value: pack ? pack * each : each, unit, packCount: pack };
+  return { value: pack !== null ? pack * each : each, unit, packCount: pack };
 }
 
 /**

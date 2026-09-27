@@ -73,6 +73,23 @@ test('units: a printed quantity is read, a multipack is multiplied out, a comma 
   assert.equal(parseQuantity('a nice jar'), null);
 });
 
+test('units: a leading-dot decimal with no leading zero reads as the fraction it is', () => {
+  // Found live (catalogue/src/size-fill.ts, unit 7): ".6kg" used to match on
+  // the bare "6" because the number group required a digit before the
+  // decimal point, silently turning 0.6 kg into 6 kg. Wrong is worse than
+  // missing here, so this is a correctness fix, not a feature.
+  assert.equal(parseQuantity('.6kg')!.value, 0.6);
+  assert.equal(parseQuantity('.6kg')!.unit, 'kg');
+});
+
+test('units: a zero multiplier ("0 x 88 ml") is rejected, not silently dropped to 88 ml', () => {
+  // `pack ? pack * each : each` treated a multiplier of exactly 0 the same as
+  // "no multiplier was given", because 0 is falsy in JavaScript. Found live
+  // in a real quantity string ("Crunchy almond", "0 x 88 ml"). A multipack of
+  // zero copies is not a real quantity, so it is null now, not a guess.
+  assert.equal(parseQuantity('0 x 88 ml'), null);
+});
+
 test('units: the SQL conversion is built from the same table as the TypeScript one', () => {
   const db = openCatalogue(':memory:');
   // The expression takes column names, so use a tiny table.
