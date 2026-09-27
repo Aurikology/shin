@@ -48,7 +48,7 @@ function l2normalize(v: Float32Array): Float32Array {
  * still returns results, they are just measurably worse, and nothing errors to
  * tell you. They are applied here so no caller can forget.
  */
-export class LocalEmbedder implements Embedder {
+class LocalEmbedder implements Embedder {
   readonly id = 'local:multilingual-e5-small';
   readonly dim = EMBED_DIM;
   #pipe: unknown = null;
@@ -90,7 +90,7 @@ export class LocalEmbedder implements Embedder {
 }
 
 /** voyage-4, asked for 384 dimensions so it drops into the same schema. */
-export class VoyageEmbedder implements Embedder {
+class VoyageEmbedder implements Embedder {
   readonly id = 'voyage-4';
   readonly dim = EMBED_DIM;
   readonly #key: string;

@@ -86,7 +86,7 @@ export function canonicalCode(code: string): string {
  * A code already 12 digits or longer is also returned unchanged; it is not
  * this function's job.
  */
-export function repairShortUpc(digits: string): string | null {
+function repairShortUpc(digits: string): string | null {
   if (!/^\d+$/.test(digits)) return digits;
   if (digits.length < 8) return null;
   if (digits.length === 8) return digits;
@@ -101,7 +101,7 @@ export function repairShortUpc(digits: string): string | null {
  * would shift every column on a quoted field, silently, which is exactly the
  * kind of wrong parse this loader's falsifier exists to catch.
  */
-export function parseCsvLine(line: string): string[] {
+function parseCsvLine(line: string): string[] {
   const fields: string[] = [];
   let cur = '';
   let inQuotes = false;
@@ -150,7 +150,7 @@ interface ParsedCsv {
   readonly rows: readonly string[][];
 }
 
-export function parseCsv(text: string): ParsedCsv {
+function parseCsv(text: string): ParsedCsv {
   const lines = text.split(/\r?\n/).filter((l) => l.length > 0);
   const header = parseCsvLine(lines[0]);
   const rows = lines.slice(1).map(parseCsvLine);
@@ -175,7 +175,7 @@ export interface LoadResult {
   readonly skippedShortUpc: number;
 }
 
-export async function loadBcldb(csvPath: string = DEFAULT_CSV): Promise<LoadResult> {
+async function loadBcldb(csvPath: string = DEFAULT_CSV): Promise<LoadResult> {
   const text = readFileSync(csvPath, 'utf8');
   const { header, rows } = parseCsv(text);
 

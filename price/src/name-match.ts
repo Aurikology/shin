@@ -45,7 +45,7 @@ export const NAME_FLOOR = 0.5;
  * observation is stored as an exact join rather than a likely one: every word of
  * the catalogue's name present in the seller's title, plus the brand.
  */
-export const CONFIDENT_AT = 0.99;
+const CONFIDENT_AT = 0.99;
 
 function fold(text: string): string {
   let folded = '';

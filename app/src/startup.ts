@@ -88,7 +88,7 @@ export interface FileFacts {
   isDirectory(path: string): boolean;
 }
 
-export const realFiles: FileFacts = {
+const realFiles: FileFacts = {
   exists: (path) => existsSync(path),
   isDirectory: (path) => {
     try {

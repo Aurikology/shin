@@ -47,7 +47,7 @@ export type Rating = 'up' | 'down';
  * client lane's four chips are the same four words; a fifth chip on a screen
  * with no entry here would be silently dropped, so the list is the contract.
  */
-export const RATING_REASONS = ['wrong_product', 'wrong_price', 'no_price', 'too_slow'] as const;
+const RATING_REASONS = ['wrong_product', 'wrong_price', 'no_price', 'too_slow'] as const;
 export type RatingReason = (typeof RATING_REASONS)[number];
 
 export function isRating(value: unknown): value is Rating {

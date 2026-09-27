@@ -67,7 +67,7 @@ export interface ModelChoice {
 }
 
 /** 3.x ids start `gemini-3`. Anything else is treated as 2.5, the default. */
-export function familyOf(model: string): ModelFamily {
+function familyOf(model: string): ModelFamily {
   return /^gemini-3/i.test(model.trim()) ? '3.x' : '2.5';
 }
 
@@ -241,7 +241,7 @@ interface Engine {
 
 let engine: Engine | null = null;
 
-export function engineDir(): string {
+function engineDir(): string {
   return join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'Shin_Gemini_Pricing_Engine');
 }
 
@@ -287,7 +287,7 @@ function fill(template: string, values: Record<string, string>): string {
  * numbers outright. Dollar mode names the amounts and the unit, and the prompt's
  * price math (scan_prompt.md) tells Gemini how to turn them into percents.
  */
-export function rangesText(t: Thresholds): string {
+function rangesText(t: Thresholds): string {
   if (t.unit === 'amount' && t.amounts) {
     const a = t.amounts;
     return [
@@ -383,7 +383,7 @@ export interface RequestBody {
  * grounds exactly as before. Never Shin's own catalogue and never a cache
  * check (a different item): only whether there is an identity to search for.
  */
-export function hasSearchableIdentity(input: ScanInput): boolean {
+function hasSearchableIdentity(input: ScanInput): boolean {
   if (input.barcode && input.barcode.trim() !== '') return true;
   if (input.text && input.text.trim() !== '') return true;
   if (input.userInput && input.userInput.trim() !== '') return true;
@@ -424,7 +424,7 @@ export function buildRequestBody(
 }
 
 /** The request as it is stored: complete, with image bytes stood in for by their hash and size. */
-export function requestForRecord(body: RequestBody): { json: string; imageRef: string | null } {
+function requestForRecord(body: RequestBody): { json: string; imageRef: string | null } {
   let imageRef: string | null = null;
   const clone = JSON.parse(
     JSON.stringify(body, (_k, v) => v),
@@ -531,7 +531,7 @@ export function repairJson(text: string): unknown {
  * returning null, on ordinary text: this never fires on an answer neither
  * shape describes, and it costs nothing when the answer was clean already.
  */
-export function stripWrapperArtifact(text: string): string | null {
+function stripWrapperArtifact(text: string): string | null {
   const trimmed = text.trim();
   try {
     const direct = JSON.parse(trimmed);
@@ -955,7 +955,7 @@ function matchesType(value: unknown, type: string): boolean {
  * throws, never used to refuse an answer (rule 6): its only output is a list,
  * for the caller to record.
  */
-export function validateAgainstSchema(value: unknown, schema: unknown, path = '$'): SchemaViolation[] {
+function validateAgainstSchema(value: unknown, schema: unknown, path = '$'): SchemaViolation[] {
   const node = schema as JsonSchemaNode;
   const types = schemaTypes(node);
   const out: SchemaViolation[] = [];
@@ -1011,7 +1011,7 @@ export interface GuardReference {
  * `runGeminiScan` (to compute what to record) and `toAnswerBlock` (to compute
  * what to show) so the two are never able to disagree on what a guard call means.
  */
-export function guardReferenceFor(answer: ReadAnswer | null, scanCurrency: string | null): GuardReference {
+function guardReferenceFor(answer: ReadAnswer | null, scanCurrency: string | null): GuardReference {
   return {
     currency: (answer?.shelfCurrency ?? scanCurrency ?? null)?.trim().toUpperCase() || null,
     median: answer?.verdict?.median ?? null,
@@ -1038,7 +1038,7 @@ export function guardReferenceFor(answer: ReadAnswer | null, scanCurrency: strin
  *   band `gauge.ts` already uses for the grounded-only flow), where the
  *   reference is Gemini's own stated median, never one Shin computed.
  */
-export function guardOffers(
+function guardOffers(
   offers: readonly ReadOffer[],
   reference: GuardReference,
 ): { readonly offers: readonly ReadOffer[]; readonly suppressed: readonly PriceSuppression[] } {

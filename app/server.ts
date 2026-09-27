@@ -1802,7 +1802,7 @@ function answerMarks(c: Pick<Completed, 'run'>) {
 }
 
 /** The sentence a typed search gets when Shin holds no item with a price for it. */
-export const TYPED_NO_OWN_PRICE = 'Shin does not have a price for that yet. Scan the barcode instead.';
+const TYPED_NO_OWN_PRICE = 'Shin does not have a price for that yet. Scan the barcode instead.';
 
 /**
  * A typed name, answered from Shin's own data (Jamin, 2026-09-23; the full

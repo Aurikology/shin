@@ -59,7 +59,7 @@ export function inviteRequired(env: NodeJS.ProcessEnv = process.env): string | n
  * on the family's phones keeps opening. This is still a bouncer, not a login:
  * a name here is who a link was handed to, not proof of who is holding it.
  */
-export function inviteCodes(env: NodeJS.ProcessEnv = process.env): { name: string; code: string }[] {
+function inviteCodes(env: NodeJS.ProcessEnv = process.env): { name: string; code: string }[] {
   const out: { name: string; code: string }[] = [];
   const shared = settings.SHIN_INVITE_CODE(env)?.trim();
   if (shared) out.push({ name: 'family', code: shared });

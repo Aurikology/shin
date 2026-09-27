@@ -76,7 +76,7 @@ export interface EventRow {
  * notices. The JSON body cap on the route is 8 KiB, so this is the inner of
  * two bounds and the one that names the payload specifically.
  */
-export const MAX_EVENT_TYPE_CHARS = 64;
+const MAX_EVENT_TYPE_CHARS = 64;
 export const MAX_EVENT_PAYLOAD_BYTES = 4 * 1024;
 
 /**

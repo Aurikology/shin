@@ -54,7 +54,6 @@ import type { ComparisonQuantity } from './units.ts';
 import { toComparison } from './units.ts';
 
 export type AlternativeMode = 'validation' | 'switching';
-export const ALTERNATIVE_MODES: readonly AlternativeMode[] = ['validation', 'switching'];
 
 export type ItemCondition = 'new' | 'used' | 'refurbished' | 'unknown';
 
@@ -132,7 +131,7 @@ export interface Constraint {
 const ALLOW: ConstraintEffect = { effect: 'allow' };
 
 /** Pack sizes this far apart (either way) are a bulk-versus-ordinary comparison. */
-export const BULK_RATIO = 5;
+const BULK_RATIO = 5;
 
 const registry = new Map<string, Constraint>();
 
@@ -410,7 +409,7 @@ export function parseAlternativesAnswer(raw: unknown, market: Market): ParsedAlt
   return { offers, dropped };
 }
 
-export function subjectOfOffer(o: AlternativeOffer): AlternativeSubject {
+function subjectOfOffer(o: AlternativeOffer): AlternativeSubject {
   return {
     kind: null,
     condition: o.condition,

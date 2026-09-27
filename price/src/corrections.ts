@@ -48,7 +48,7 @@ import { fileURLToPath } from 'node:url';
  * so the writer (`app/server.ts`) and the reader (the spine source) agree on
  * where the file is without either hardcoding a path into the other's package.
  */
-export const CORRECTIONS_DB_PATH =
+const CORRECTIONS_DB_PATH =
   settings.SHIN_CORRECTIONS() ?? fileURLToPath(new URL('../data/corrections.db', import.meta.url));
 
 /**
@@ -146,11 +146,6 @@ export interface CorrectionStore {
 }
 
 let active: CorrectionStore | null = null;
-
-/** The store currently in use, or null if nothing has opened one yet. */
-export function activeCorrectionStore(): CorrectionStore | null {
-  return active;
-}
 
 /**
  * Opens (creating if needed) the corrections database and makes it the target

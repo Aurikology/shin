@@ -69,7 +69,7 @@ const NORMALIZE_RE = /[-.\s]/g;
 /** Lowercased, with hyphens, periods and whitespace removed. Applied to both
  * sides of the match so "TL-WN821N", "tlwn821n" and "TL WN821N" all collapse
  * to the same string, "tlwn821n". */
-export function normalizeBareToken(s: string): string {
+function normalizeBareToken(s: string): string {
   return s.toLowerCase().replace(NORMALIZE_RE, '');
 }
 

@@ -629,7 +629,7 @@ function canonicalSellers(points: readonly PricePoint[]): Map<string, string> {
  * set can be built; the comparison rules, not this label, decide what to do
  * about one).
  */
-export function currencyOfPoints(points: readonly { readonly currency: string }[]): string {
+function currencyOfPoints(points: readonly { readonly currency: string }[]): string {
   const counts = new Map<string, number>();
   for (const p of points) counts.set(p.currency, (counts.get(p.currency) ?? 0) + 1);
   let best = '';

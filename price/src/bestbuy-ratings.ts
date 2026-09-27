@@ -64,7 +64,7 @@ export const REFRESH_AFTER_DAYS = 7;
  * defensible and the bulk pass takes a flag so it can be slowed further without
  * a code change.
  */
-export const BULK_DELAY_MS = 1000;
+const BULK_DELAY_MS = 1000;
 
 export type RatingOutcome =
   /** Best Buy carries it and somebody has reviewed it. */

@@ -224,12 +224,8 @@ export interface UserCatalogue {
 
 let active: UserCatalogue | null = null;
 
-export function activeUserCatalogue(): UserCatalogue | null {
-  return active;
-}
-
 /** Opens (creating if needed) the user catalogue and makes it the default target. Never throws. */
-export function openUserCatalogue(path: string = settings.SHIN_USER_CATALOGUE() ?? 'data/user-catalogue.db'): UserCatalogue {
+function openUserCatalogue(path: string = settings.SHIN_USER_CATALOGUE() ?? 'data/user-catalogue.db'): UserCatalogue {
   const uc = createUserCatalogue(path);
   active = uc;
   return uc;

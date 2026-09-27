@@ -35,10 +35,10 @@ import type { IncomingHttpHeaders } from 'node:http';
 import { activeScanStore, openScanStore } from './scans.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-export const WINDOW_MS = 7 * DAY_MS;
-export const DEVICE_HEADER = 'x-shin-device';
-export const PLUS_HEADER = 'x-shin-plus';
-export const PLUS_ENTITLEMENT = 'plus';
+const WINDOW_MS = 7 * DAY_MS;
+const DEVICE_HEADER = 'x-shin-device';
+const PLUS_HEADER = 'x-shin-plus';
+const PLUS_ENTITLEMENT = 'plus';
 const ENTITLEMENT_CACHE_MS = 10 * 60 * 1000;
 /** A failed RevenueCat call is retried after a minute, not after ten. */
 const ENTITLEMENT_ERROR_CACHE_MS = 60 * 1000;
@@ -223,7 +223,7 @@ export async function scanLimitRefusal(
 
 /* --------------------------------------------------------------- outcome */
 
-export const SCAN_OUTCOMES = ['bought_elsewhere', 'price_matched', 'bought_here', 'not_bought'] as const;
+const SCAN_OUTCOMES = ['bought_elsewhere', 'price_matched', 'bought_here', 'not_bought'] as const;
 export type ScanActOutcome = (typeof SCAN_OUTCOMES)[number];
 
 export function isScanOutcome(v: unknown): v is ScanActOutcome {

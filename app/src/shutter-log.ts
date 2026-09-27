@@ -22,7 +22,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-export const SHUTTER_HEADER = 'x-shin-shutter';
+const SHUTTER_HEADER = 'x-shin-shutter';
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export function shutterLogOn(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -34,7 +34,7 @@ export function shutterDir(env: NodeJS.ProcessEnv = process.env): string {
 }
 
 /** The press id on a request, or null when there is none or it is malformed. */
-export function shutterIdOf(req: IncomingMessage): string | null {
+function shutterIdOf(req: IncomingMessage): string | null {
   const raw = req.headers[SHUTTER_HEADER];
   const id = Array.isArray(raw) ? raw[0] : raw;
   return typeof id === 'string' && ID.test(id) ? id : null;

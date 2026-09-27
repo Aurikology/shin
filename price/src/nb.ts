@@ -98,7 +98,7 @@ const DOLLAR = /\$([\d,]+\.\d{1,2})/g;
  * the wrapped-description artifact described in the file header, which always
  * shows up as a line with the wrong number of dollar amounts.
  */
-export function parseLine(line: string): NbRow | null {
+function parseLine(line: string): NbRow | null {
   const m = LINE_START.exec(line);
   if (m === null) return null;
   const [, cls, , upc, rest] = m;

@@ -173,7 +173,7 @@ export interface TokenUsage {
 export const SEARCH_FREE_PER_MONTH = 5_000;
 
 /** USD per 1,000 grounded search queries once the free allowance is gone. */
-export const SEARCH_USD_PER_1000 = 14;
+const SEARCH_USD_PER_1000 = 14;
 
 function count(value: number | null | undefined): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
@@ -268,8 +268,8 @@ export function realCostCents(
  * `cap.ts` says of its own estimate: it trips sooner than the spend justifies, never later. The
  * soft cap only marks and logs; only the hard ceiling refuses. `SHIN_PHOTO_DAILY_CAP_CAD` moves both.
  */
-export const ASSUMED_QUERIES_PER_GROUNDED_SCAN = 4;
-export const ASSUMED_TOKEN_CENTS_PER_GROUNDED_SCAN = 0.2238;
+const ASSUMED_QUERIES_PER_GROUNDED_SCAN = 4;
+const ASSUMED_TOKEN_CENTS_PER_GROUNDED_SCAN = 0.2238;
 
 export function groundedScanCapChargeUsdCents(): number {
   return (

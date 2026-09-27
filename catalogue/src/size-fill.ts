@@ -30,7 +30,7 @@
 import { openCatalogue, openCatalogueReadOnly } from './schema.ts';
 import { parseQuantity, toComparison } from './units.ts';
 
-export const FOOD_WHERE = "sold_in_canada = 1 AND source = 'openfoodfacts'";
+const FOOD_WHERE = "sold_in_canada = 1 AND source = 'openfoodfacts'";
 
 export interface CandidateRow {
   code: string;

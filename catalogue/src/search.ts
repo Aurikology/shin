@@ -188,7 +188,7 @@ export const MAX_RING_TAG = 1500;
  * open-products-facts, open-pet-food-facts) since they arrive whenever a
  * sibling project is loaded and enumerating them one by one rots.
  */
-export const NON_KIND_TRAILING_TAGS: readonly string[] = ['en:groceries', 'en:non-food-products'];
+const NON_KIND_TRAILING_TAGS: readonly string[] = ['en:groceries', 'en:non-food-products'];
 
 /** Source markers rather than categories. See NON_KIND_TRAILING_TAGS. */
 const NON_KIND_TRAILING_PREFIX = 'en:open-';

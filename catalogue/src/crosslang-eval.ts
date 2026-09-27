@@ -76,7 +76,7 @@ const NO_EMBEDDER = {
   embedPassage(): never { throw new Error('crosslang-eval is offline: no embedding'); },
 } as never;
 
-export async function runCrossLanguageEval(opt: EvalOptions): Promise<EvalResult> {
+async function runCrossLanguageEval(opt: EvalOptions): Promise<EvalResult> {
   const indexedName = opt.direction === 'fr2en' ? 'name_fr' : 'name_en';
   const queriedName = opt.direction === 'fr2en' ? 'name_en' : 'name_fr';
   const from: Lang = opt.direction === 'fr2en' ? 'fr' : 'en';

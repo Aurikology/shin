@@ -77,7 +77,7 @@ const MEDIUM = 0.52;
  * question it answers. Below this, pass one has not settled anything and the
  * pick pass is worth a call.
  */
-export const LEAD_CLEAR = 0.03;
+const LEAD_CLEAR = 0.03;
 
 /**
  * What a pick-pass confidence is allowed to leave the six-signal score at.

@@ -46,12 +46,12 @@ const CANDIDATES = [
   '/usr/bin/chromium',
 ].filter(Boolean);
 
-export function findBrowser() {
+function findBrowser() {
   return CANDIDATES.find((p) => existsSync(p)) ?? null;
 }
 
 /** Render icon.svg at SIZE and return the PNG bytes. */
-export function renderIcon() {
+function renderIcon() {
   const browser = findBrowser();
   if (!browser) {
     throw new Error(

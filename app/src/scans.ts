@@ -481,40 +481,6 @@ export function readPreferences(deviceId: string): Preferences {
 }
 
 /**
- * Sets one or both percentages for a device. Never throws; returns whether the
- * row is now what was asked for.
- *
- * A key left `undefined` keeps whatever is stored, the same distinction
- * `ScanPatch` makes, so a screen that offers one slider cannot silently reset
- * the other one to a default.
- */
-export function writePreferences(
-  deviceId: string,
-  patch: { goodUnderPct?: number; highOverPct?: number },
-  now: Date = new Date(),
-): boolean {
-  const store = active ?? openScanStore();
-  try {
-    if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
-    const current = readPreferences(deviceId);
-    const good = Number.isFinite(patch.goodUnderPct) ? Number(patch.goodUnderPct) : current.goodUnderPct;
-    const high = Number.isFinite(patch.highOverPct) ? Number(patch.highOverPct) : current.highOverPct;
-    store.db
-      .prepare(
-        `INSERT INTO device_preference (device_id, good_under_pct, high_over_pct, updated_at) VALUES (?, ?, ?, ?)
-         ON CONFLICT (device_id) DO UPDATE SET good_under_pct = excluded.good_under_pct,
-           high_over_pct = excluded.high_over_pct, updated_at = excluded.updated_at`,
-      )
-      .run(deviceId, good, high, now.toISOString());
-    return true;
-  } catch (err) {
-    store.dropped += 1;
-    store.droppedWhy = err instanceof Error ? err.message : String(err);
-    return false;
-  }
-}
-
-/**
  * Records one scan.
  *
  * Never throws. Returns the new row's id so a later `correctScan` can point
@@ -1091,13 +1057,4 @@ export function geminiCallsForScan(scanId: number): GeminiCallRow[] {
   const store = active ?? openScanStore();
   if (!store.db) return [];
   return store.db.prepare('SELECT * FROM gemini_call WHERE scan_id = ? ORDER BY id ASC').all(scanId) as unknown as GeminiCallRow[];
-}
-
-/** Every call whose math check found a mismatch, newest first. The review list item 14 exists to build. */
-export function geminiMathMismatches(limit = 100): GeminiCallRow[] {
-  const store = active ?? openScanStore();
-  if (!store.db) return [];
-  return store.db
-    .prepare("SELECT * FROM gemini_call WHERE math_check = 'mismatch' ORDER BY id DESC LIMIT ?")
-    .all(limit) as unknown as GeminiCallRow[];
 }

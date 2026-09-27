@@ -66,7 +66,7 @@ export interface RunReport {
   caveats: string[];
 }
 
-export const CORPUS_PATH = fileURLToPath(new URL('../data/corpus.json', import.meta.url));
+const CORPUS_PATH = fileURLToPath(new URL('../data/corpus.json', import.meta.url));
 
 export function loadCorpus(path: string = CORPUS_PATH): Corpus {
   return JSON.parse(readFileSync(path, 'utf8')) as Corpus;

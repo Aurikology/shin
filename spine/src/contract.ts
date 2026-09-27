@@ -560,9 +560,6 @@ export function isVerdict(r: SpineResult): r is Verdict {
   return r.kind === 'verdict';
 }
 
-export function isRefusal(r: SpineResult): r is Refusal {
-  return r.kind === 'refusal';
-}
 
 /** What the caller hands in. A scan, a screenshot, or typed text all reduce to this. */
 export interface SpineQuery {

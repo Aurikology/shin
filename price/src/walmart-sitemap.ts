@@ -94,7 +94,7 @@ export const PRODUCT_SITEMAP_INDEXES = {
  * costs almost nothing: five children of the 1p set is fifteen seconds of
  * waiting to discover 217,660 products.
  */
-export const POLITE_DELAY_MS = 3000;
+const POLITE_DELAY_MS = 3000;
 
 /** One child sitemap as its index names it. */
 export interface SitemapShard {
@@ -290,7 +290,7 @@ async function fetchSitemapStream(url: string, timeoutMs: number): Promise<Async
 }
 
 /** Every child sitemap an index names. Small enough to read whole; the children are not. */
-export async function fetchSitemapIndex(url: string, timeoutMs = 15_000): Promise<SitemapShard[]> {
+async function fetchSitemapIndex(url: string, timeoutMs = 15_000): Promise<SitemapShard[]> {
   const chunks = await fetchSitemapStream(url, timeoutMs);
   let xml = '';
   for await (const c of chunks) xml += c;
@@ -308,7 +308,7 @@ export async function fetchSitemapIndex(url: string, timeoutMs = 15_000): Promis
 }
 
 /** Every product entry in one child sitemap, streamed. */
-export async function* streamProductSitemap(
+async function* streamProductSitemap(
   url: string,
   timeoutMs = 60_000,
 ): AsyncGenerator<SitemapEntry> {
@@ -324,7 +324,7 @@ export async function* streamProductSitemap(
  * failure to fetch or parse returns null, which leaves `POLITE_DELAY_MS` in
  * charge: a robots.txt we could not read is never treated as permission.
  */
-export async function crawlDelayMs(timeoutMs = 10_000): Promise<number | null> {
+async function crawlDelayMs(timeoutMs = 10_000): Promise<number | null> {
   let text: string;
   try {
     const res = await fetch(`${BASE}/robots.txt`, {

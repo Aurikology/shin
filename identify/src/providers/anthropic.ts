@@ -45,14 +45,6 @@ export interface MessagesClient {
   };
 }
 
-/** Builds a real SDK client, with the SDK's own retry loop switched off. */
-export function anthropicClient(apiKey?: string): MessagesClient {
-  // maxRetries: 0 added 2026-09-08. The SDK retries twice by default, which
-  // would sit underneath model.ts's policy and make the real behaviour four
-  // attempts with a backoff nothing in this repo chose.
-  return new Anthropic(apiKey ? { apiKey, maxRetries: 0 } : { maxRetries: 0 }) as unknown as MessagesClient;
-}
-
 export class AnthropicProvider implements Provider {
   readonly name = 'anthropic';
   readonly #client: MessagesClient;

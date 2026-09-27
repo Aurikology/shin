@@ -72,7 +72,7 @@ const FAMILIES: readonly { readonly words: readonly string[]; readonly categoryH
 const IGNORED = new Set(['flavoured', 'flavored', 'flavour', 'flavor', 'saveur', 'sugar', 'sucre']);
 
 /** Lower-cased and stripped of accents, so "Cerise" and "cerise" are one word. */
-export function foldVariantText(s: string): string {
+function foldVariantText(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 

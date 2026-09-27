@@ -189,7 +189,7 @@ export function keywordFor(identity: ProductIdentity): string {
  * Rule 3. Every model token must be in the title when the identity has a
  * model, and the keyword as a whole must clear the overlap floor.
  */
-export function coversIdentity(identity: ProductIdentity, keyword: string, title: string): boolean {
+function coversIdentity(identity: ProductIdentity, keyword: string, title: string): boolean {
   const model = identity.model?.trim() ?? '';
   if (model !== '' && overlap(model, title) < 1) return false;
   return overlap(keyword, title) >= TITLE_OVERLAP_FLOOR;

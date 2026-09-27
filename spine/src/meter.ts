@@ -29,7 +29,7 @@ export type Plan = 'basic' | 'pro';
 /** Decision 43. His design: three a week on the free tier. */
 export const BASIC_IMAGE_SEARCHES = 3;
 /** Decision 47. Rolling, not calendar. A Monday reset is a Sunday cliff. */
-export const WINDOW_DAYS = 7;
+const WINDOW_DAYS = 7;
 
 /**
  * Why a search did or did not count. Stored, so the meter can always answer

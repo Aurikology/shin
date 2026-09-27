@@ -71,7 +71,7 @@ export async function resolve(id: string): Promise<void> {
   await tx('readwrite', (s) => s.delete(id) as unknown as IDBRequest<undefined>);
 }
 
-export async function noteAttempt(id: string): Promise<void> {
+async function noteAttempt(id: string): Promise<void> {
   const item = await tx<PendingCapture | undefined>(
     'readonly',
     (s) => s.get(id) as IDBRequest<PendingCapture | undefined>,

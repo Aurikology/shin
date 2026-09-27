@@ -38,7 +38,7 @@ import * as settings from '../../settings/src/index.ts';
 import { accessLogPath } from './access-log.ts';
 import { shutterDir } from './shutter-log.ts';
 
-export const ADMIN_HEADER = 'x-shin-admin';
+const ADMIN_HEADER = 'x-shin-admin';
 const MAX_ROWS = 5000;
 const MAX_SQL_BYTES = 64 * 1024;
 
@@ -50,11 +50,11 @@ function scansPath(env: NodeJS.ProcessEnv): string {
   return resolve(settings.SHIN_SCANS(env)?.trim() || join(dataDir(env), 'scans.db'));
 }
 
-export function peoplePath(env: NodeJS.ProcessEnv = process.env): string {
+function peoplePath(env: NodeJS.ProcessEnv = process.env): string {
   return resolve(settings.SHIN_PEOPLE_DB(env)?.trim() || join(dataDir(env), 'people.db'));
 }
 
-export function adminAllows(sent: unknown, env: NodeJS.ProcessEnv = process.env): boolean {
+function adminAllows(sent: unknown, env: NodeJS.ProcessEnv = process.env): boolean {
   const token = settings.SHIN_ADMIN_TOKEN(env)?.trim();
   if (!token || typeof sent !== 'string') return false;
   const a = Buffer.from(sent.trim(), 'utf8');

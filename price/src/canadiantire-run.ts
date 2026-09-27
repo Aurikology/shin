@@ -132,7 +132,7 @@ export interface TargetQuery {
   readonly sources: readonly string[];
 }
 
-export const DEFAULT_SOURCES: readonly string[] = ['icecat'];
+const DEFAULT_SOURCES: readonly string[] = ['icecat'];
 
 export interface CatalogueReader {
   readonly available: boolean;
@@ -141,7 +141,7 @@ export interface CatalogueReader {
   close(): void;
 }
 
-export function openCatalogueForTargets(path: string = CATALOGUE_PATH): CatalogueReader {
+function openCatalogueForTargets(path: string = CATALOGUE_PATH): CatalogueReader {
   let db: DatabaseSync;
   try {
     db = new DatabaseSync(path, { readOnly: true });
@@ -266,7 +266,7 @@ export interface Adapter {
   detail(sku: string): Promise<ct.ProductDetail | null>;
 }
 
-export const liveAdapter: Adapter = {
+const liveAdapter: Adapter = {
   search: (q) => ct.search(q),
   detail: (sku) => ct.detail(sku),
 };
@@ -405,7 +405,7 @@ export interface RunOptions {
   readonly stopOnThrottle: boolean;
 }
 
-export const DEFAULT_RUN: RunOptions = {
+const DEFAULT_RUN: RunOptions = {
   limit: null,
   offset: 0,
   leafLike: null,
