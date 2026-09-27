@@ -8,3 +8,4 @@
 # ending. Two lines here make that impossible for the whole class.
 *.sh text eol=lf
 *.mjs text eol=lf
+.githooks/* text eol=lf
