@@ -1962,12 +1962,21 @@ function typedFromOwnData(
  * no answer Gemini gives; a decision that cheap to undo is not a decision to
  * escalate. Set `SHIN_BARCODE_OWN_PRICES=0` to close it again.
  *
- * WHAT IT CHANGES, counted rather than asserted, 2026-09-26: the price store holds
- * 13,537 barcodes and the catalogue can now name 4,289,929, but only 862 of those
- * priced barcodes have a product here, and 93.6% of them still do not. So this
- * shows a Shin price on roughly 862 barcodes today and grows only as prices are
- * crawled: it does not make us independent of the model, it makes the prices we
- * already paid to collect reachable by the one gesture a person actually makes.
+ * WHAT IT CHANGES, counted by calling this very lookup over every barcode the price
+ * store holds, 2026-09-26: **17,994 barcode strings, every one of them answered,
+ * none unanswered**, which are **13,975 distinct trade items** (4,019 of the strings
+ * are a second spelling of a number already there). By seller: 7,555 British
+ * Columbia, 6,741 New Brunswick, 417 Open Prices, 21 Walmart. The control held: a
+ * barcode the store does not hold comes back with nothing.
+ *
+ * A NUMBER I FIRST GOT WRONG BY 21 TIMES, kept here because the mistake is easy to
+ * repeat: I first reported this as 862 barcodes, which is how many priced barcodes
+ * also have a CATALOGUE row. That is the wrong denominator for this path. This reads
+ * the price store and never the product list, so a barcode with no catalogue row
+ * still gets our price, and catalogue coverage does not gate it at all.
+ *
+ * It does not make us independent of the model: identity still comes from there.
+ * It makes the prices already paid for reachable by the one gesture a person makes.
  * Our prices ride ALONGSIDE Gemini's answer in the same offers list the answer
  * sheet already renders, each marked as Shin's own data, untrusted, and carrying
  * the date it was seen, and the cashier line sees them too. No catalogue lookup is

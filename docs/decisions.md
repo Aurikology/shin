@@ -2082,14 +2082,19 @@ date it was seen.
 decision that cheap to undo does not get escalated, and the standing instruction says so in words:
 a blocker is a false positive unless it is spent-once, compliance, or his personal data.
 
-**What it changes, counted rather than asserted.** The price store holds **13,537 barcodes** with a
-real Canadian shelf price. The catalogue can now name **4,289,929 products**. But only **862 of
-those priced barcodes have a product here**, measured through the app's own lookup against both the
-live file and the 2026-09-14 copy and re-counted in a second process
-(`docs/answer-change-2026-09-26.md`), so **93.6% of the barcodes we already hold a price for still
-have no product**. This shows a Shin price on roughly 862 barcodes today. It does not make the app
-independent of the model; it makes the prices already paid for reachable by the one gesture a shopper
-actually makes, and it grows with every price crawled rather than with every product loaded.
+**What it changes, counted by calling the route's own lookup over every barcode in the price store,
+enumerated and not sampled.** **17,994 barcode strings, all 17,994 answered, 0 unanswered**, being
+**13,975 distinct trade items** (4,019 strings are a second spelling of a number already present).
+By seller: British Columbia 7,555, New Brunswick 6,741, Open Prices 417, Walmart 21. Control held: a
+barcode the store does not hold returns nothing, so "answers for everything" is not a function that
+answers for anything.
+
+**The first number reported for this was 862, and it was wrong by 21 times.** 862 is how many priced
+barcodes also have a **catalogue** row (`docs/answer-change-2026-09-26.md`), and catalogue coverage
+does not gate this path at all: it reads the price store, never the product list, so a barcode with
+no catalogue row still gets our price. The right denominator is what the price store holds, and the
+93.6%-with-no-product figure belongs to the catalogue question, not to this one. It does not make the
+app independent of the model; identity still comes from there.
 
 **Pinned by tests in both directions**, `app/test/barcode-own-prices-route.test.ts`: one process with
 nothing set must answer with our price, a second process with the switch set to `0` must answer with
