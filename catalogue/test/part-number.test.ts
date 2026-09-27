@@ -2,13 +2,19 @@
  * Unit 8: the predicate itself, and the five names the plan asked to be
  * checked by name. See docs/part-number-exclusion-2026-09-26.md for the
  * 200-row sample this predicate was measured against (not repeated here;
- * a test file is not where a hand-read sample belongs) and for why the
- * flag ships OFF by default.
+ * a test file is not where a hand-read sample belongs), for the first
+ * version's falsifier, and for the second version's own acceptance test.
  */
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isBarePartNumber, isBarePartNumberRow } from '../src/part-number.ts';
+import {
+  isBarePartNumber,
+  isBarePartNumberRow,
+  rawQueryTokens,
+  bareMatchCandidates,
+  bareRowAllowed,
+} from '../src/part-number.ts';
 
 test('the five names named in the unit', () => {
   assert.equal(isBarePartNumber('LV-7545'), true, 'unfindable by any typed word');
@@ -65,5 +71,48 @@ test('the row-level check adds the icecat scope the bare SQL clause also uses', 
     isBarePartNumberRow({ source: 'icecat', name: 'fallback', name_en: 'AP9520T' }),
     true,
     'name_en wins over name when both exist',
+  );
+});
+
+test('second version: the query spelling the name unlocks a bare row, in every punctuation the coordinator named', () => {
+  const row = (name: string) => ({ source: 'icecat', name, name_en: null as string | null });
+  for (const q of ['tp-link tl-wn821n', 'brother mfc-j4610dw is here', 'rt-n66u', 'tl wn821n', 'TLWN821N']) {
+    const candidates = bareMatchCandidates(rawQueryTokens(q));
+    if (q.includes('wn821n')) assert.equal(bareRowAllowed(row('TL-WN821N'), candidates), true, q);
+  }
+  // The two exact falsifier queries, checked directly against their own row.
+  assert.equal(
+    bareRowAllowed(row('TL-WN821N'), bareMatchCandidates(rawQueryTokens('tp-link tl-wn821n'))),
+    true,
+  );
+  assert.equal(
+    bareRowAllowed(row('MFC-J4610DW'), bareMatchCandidates(rawQueryTokens('brother mfc-j4610dw'))),
+    true,
+  );
+  // A plain shopper query spells no bare row's name.
+  assert.equal(
+    bareRowAllowed(row('TL-WN821N'), bareMatchCandidates(rawQueryTokens('wireless router'))),
+    false,
+  );
+});
+
+test('second version: a lone trailing digit split off by a hyphen still reconstructs', () => {
+  // ftsTokens (search.ts) drops length-1 tokens to keep FTS from scoring on
+  // noise; rawQueryTokens must not, or "zyxel gs2200-8" can never spell
+  // "GS2200-8" back (found running the acceptance test).
+  const tokens = rawQueryTokens('zyxel gs2200-8');
+  assert.deepEqual(tokens, ['zyxel', 'gs2200', '8']);
+  const candidates = bareMatchCandidates(tokens);
+  assert.equal(
+    bareRowAllowed({ source: 'icecat', name: 'GS2200-8', name_en: null }, candidates),
+    true,
+  );
+});
+
+test('second version: a non-bare row is always allowed, regardless of the query', () => {
+  const candidates = bareMatchCandidates(rawQueryTokens('completely unrelated query'));
+  assert.equal(
+    bareRowAllowed({ source: 'icecat', name: 'Wireless Keyboard', name_en: null }, candidates),
+    true,
   );
 });

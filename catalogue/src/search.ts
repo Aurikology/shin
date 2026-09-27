@@ -26,7 +26,10 @@ import type { Embedder } from './embed.ts';
 import {
   EXCLUDE_BARE_PART_NUMBERS_FROM_TEXT_SEARCH,
   barePartNumberSqlClause,
-  isBarePartNumberRow,
+  normalizedNameSql,
+  bareMatchCandidates,
+  bareRowAllowed,
+  rawQueryTokens,
 } from './part-number.ts';
 /*
  * The one word-family table, read by both sides of D-099 so that the rank here
@@ -1076,9 +1079,11 @@ export class Catalogue {
     // of the words matched" is not a thing that can happen and must not be
     // reported. Saying 'some' here would make every one-word grocery query --
     // "milk", "bread" -- look like weak evidence and send it to the fallback.
-    if (tokens.length === 1) return { hits: this.#runFts(joinFts(tokens, 'OR'), sources), wordsMatched: 'n/a' };
+    if (tokens.length === 1) {
+      return { hits: this.#runFts(joinFts(tokens, 'OR'), sources, text), wordsMatched: 'n/a' };
+    }
 
-    const strict = this.#runFts(joinFts(tokens, 'AND'), sources);
+    const strict = this.#runFts(joinFts(tokens, 'AND'), sources, text);
     if (strict.length >= ENOUGH_STRICT_HITS) return { hits: strict, wordsMatched: 'all' };
 
     // `wordsMatched` keys on whether the strict pass found ANYTHING, not on
@@ -1095,7 +1100,7 @@ export class Catalogue {
     // whether to trust a narrowed answer actually has. Whether the ranked list
     // handed back came from the strict or the loose pass is a separate matter,
     // and the loose list is still the better one to return here.
-    const loose = this.#runFts(joinFts(tokens, 'OR'), sources);
+    const loose = this.#runFts(joinFts(tokens, 'OR'), sources, text);
     return { hits: loose, wordsMatched: strict.length > 0 ? 'all' : 'some' };
   }
 
@@ -1113,16 +1118,33 @@ export class Catalogue {
    * moment survivors fall below RETRIEVE_N and reads as a weak arm rather than
    * a truncated one. Left alone until someone measures it properly.
    */
-  #runFts(match: string, sources?: readonly string[]): { row: Row; bm25: number }[] {
+  #runFts(match: string, sources?: readonly string[], text?: string): { row: Row; bm25: number }[] {
     const narrowed = sources && sources.length > 0;
     const clause = narrowed ? ` AND p.source IN (${sources.map(() => '?').join(',')})` : '';
     // Unit 8: THE ONE LINE THAT REVERSES THIS is the flag itself, in
-    // part-number.ts (EXCLUDE_BARE_PART_NUMBERS_FROM_TEXT_SEARCH). Flip it to
-    // false and this clause goes back to empty string, byGtin is untouched
-    // either way because it never calls #runFts.
-    const exclusion = EXCLUDE_BARE_PART_NUMBERS_FROM_TEXT_SEARCH
-      ? ` AND NOT ${barePartNumberSqlClause('p')}`
-      : '';
+    // part-number.ts (EXCLUDE_BARE_PART_NUMBERS_FROM_TEXT_SEARCH). byGtin is
+    // untouched either way because it never calls #runFts.
+    //
+    // SECOND VERSION: a bare row is excluded UNLESS the query itself spells
+    // its name (bareMatchCandidates -- see part-number.ts for what "spells"
+    // means: the query's own tokens, run together, normalized the same way
+    // the row's name is). With no candidates the query could not spell
+    // anything, so every bare row is excluded, same as the first version.
+    //
+    // `text` is the RAW query, tokenized here with `rawQueryTokens`, not the
+    // `match` string's own `ftsTokens` split: ftsTokens drops single-character
+    // tokens to keep FTS from scoring on noise, and that dropped exactly the
+    // trailing "8" that would have reconstructed "GS2200-8" for the query
+    // "zyxel gs2200-8" -- found running this unit's own acceptance test.
+    const candidates = text ? [...bareMatchCandidates(rawQueryTokens(text))] : [];
+    let exclusion = '';
+    if (EXCLUDE_BARE_PART_NUMBERS_FROM_TEXT_SEARCH) {
+      exclusion =
+        candidates.length === 0
+          ? ` AND NOT (${barePartNumberSqlClause('p')})`
+          : ` AND NOT (${barePartNumberSqlClause('p')} AND ${normalizedNameSql('p')} NOT IN (${candidates.map(() => '?').join(',')}))`;
+    }
+    const exclusionParams = EXCLUDE_BARE_PART_NUMBERS_FROM_TEXT_SEARCH && candidates.length > 0 ? candidates : [];
     const rows = this.#db
       .prepare(
         `SELECT ${SELECT_COLS.split(', ').map((c) => `p.${c.trim()}`).join(', ')},
@@ -1132,7 +1154,12 @@ export class Catalogue {
          WHERE product_fts MATCH ?${clause}${exclusion}
          ORDER BY score
          LIMIT ?`,
-      ).all(match, ...(narrowed ? sources : []), RETRIEVE_N) as unknown as (Row & { score: number })[];
+      ).all(
+        match,
+        ...(narrowed ? sources : []),
+        ...exclusionParams,
+        RETRIEVE_N,
+      ) as unknown as (Row & { score: number })[];
     return rows.map((r) => ({ row: r, bm25: r.score }));
   }
 
@@ -1316,10 +1343,15 @@ export class Catalogue {
     // Unit 8's SQL clause (see #runFts) only reaches the text arm: vec0 has no
     // WHERE. Measured on "asus rt-n66u": without this line the bare row
     // "RT-N66U" still won on the vector arm alone and came back as result #1
-    // even with the text arm correctly excluding it. Same flag as #runFts, so
-    // one line (part-number.ts) still reverses both arms together.
+    // even with the text arm correctly excluding it. Same flag as #runFts, and
+    // the same "unless the query spells it" rule: bareMatchCandidates is
+    // computed once from this query's own tokens and bareRowAllowed checks
+    // each vector hit against it, so "asus rt-n66u" keeps RT-N66U here too.
     const vecHits = EXCLUDE_BARE_PART_NUMBERS_FROM_TEXT_SEARCH
-      ? vecHitsRaw.filter((h) => !isBarePartNumberRow(h.row))
+      ? (() => {
+          const candidates = bareMatchCandidates(rawQueryTokens(text));
+          return vecHitsRaw.filter((h) => bareRowAllowed(h.row, candidates));
+        })()
       : vecHitsRaw;
 
     // Fuse on rank, keeping each retriever's own evidence attached so the caller

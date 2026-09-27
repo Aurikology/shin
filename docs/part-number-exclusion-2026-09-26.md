@@ -1,10 +1,28 @@
-# Unit 8: the electronics part-number exclusion, and why it is not shipped on
+# Unit 8: the electronics part-number exclusion -- two versions, one shipped
 
 Read `docs/catalogue-build-plan-2026-09-26.md`, unit 8, first. His ruling tonight
 was to run the plan without coming back to him, so the default it names --
 **keep part-number rows reachable by barcode, exclude them from the typed word
-search** -- was the decision to execute. It was built, measured, and its own
-falsifier fired on real queries. **It ships with the exclusion flag off.**
+search** -- was the decision to execute.
+
+**Two versions were built.** The first excluded a bare-part-number row from
+every typed search unconditionally, and its own falsifier fired: two of
+twenty real queries lost the exact product they used to find, because a
+manufacturer's marketed model number is syntactically identical to an
+internal SKU and the row alone cannot tell them apart. That version's
+counter-example is kept below rather than deleted, on the coordinator's
+instruction: a discarded rule with the query that killed it is worth more to
+the next person than a clean page.
+
+**The second version asks the query instead of the row.** A bare-part-number
+row is excluded unless the query itself spells its name out (in any of the
+punctuations a shopper might type it in). Its own acceptance test -- the
+original twenty, the two queries that killed the first version, three more
+spellings of the same model number, and five more bare model numbers found
+independently -- passed clean: every targeted query found its exact product,
+no plain-word query surfaced a bare part number, and nothing useful that
+answered before stopped answering. **This version ships with the exclusion
+flag on.**
 
 ## The numbers, recounted after tonight's dedupe
 
@@ -27,6 +45,8 @@ The bare-part-number figure is **not** the same predicate the original 267,073
 used -- that predicate was never written down, so it cannot be reproduced. It
 is this session's own definition, described below, applied to the same
 population.
+
+## Version 1 (shipped off -- kept for its counter-example)
 
 ## The predicate
 
@@ -176,31 +196,111 @@ search-level falsifier found on two of twenty live queries -- the sample and
 the acceptance test agree with each other, which is why this is reported as
 a real finding rather than a fluke of query choice.
 
-## The barcode path: untouched, and checked
+## The barcode path: untouched by either version, and checked
 
 20 barcodes of rows this predicate calls bare part numbers, looked up through
 `Catalogue.byGtin` (the same function the app calls, not a copy of it): **all
 20 found, by their own code**, e.g. `5397184217931` -> `ES1520P`,
 `3660619407491` -> `STEA5000402`, `6935364094874` -> `TL-WR941HP`. `byGtin`
-reads nothing this predicate touches and was not edited.
+reads nothing either version of this predicate touches, is not called from
+anywhere the flag reaches, and was not edited by either version.
+
+## Version 2: the row stays findable when the query names it
+
+The coordinator's read of version 1's falsifier: it killed the RULE, not the
+unit. A person typing a model number wants that row; a person typing "mouse"
+does not want 163,119 part numbers in the way; both are true at once, so
+whether a bare row surfaces has to depend on the query, not only on the row.
+
+**The rule:** a bare-part-number row is excluded from the typed word search
+UNLESS one of the query's own tokens, or a run of them typed back to back,
+spells the row's name out exactly once both sides are lowercased and stripped
+of hyphens, spaces and periods. Nothing classifies a token as "a model
+number" or "an internal SKU" -- the person typing the query settles that by
+typing it or not.
+
+`bareMatchCandidates` (`catalogue/src/part-number.ts`) builds, once per query,
+every contiguous run of the query's own tokens concatenated together and
+normalized. `bareRowAllowed` checks a row against that set. A worked example:
+"tp-link tl-wn821n" splits (its own tokenizer, `rawQueryTokens`, splits the
+same way `ftsTokens` does) to `["tp","link","tl","wn821n"]`; the adjacent run
+`"tl"+"wn821n"` normalizes to `"tlwn821n"`, which is exactly `TL-WN821N`
+normalized, so that row is allowed for this query and no other row's shape is
+affected.
+
+**A second bug in the reconstruction itself, found running its own
+acceptance test.** `ftsTokens` drops tokens of length 1 to keep FTS from
+scoring on noise. "zyxel gs2200-8" tokenizes to `["zyxel","gs2200","8"]` under
+a full split, but `ftsTokens` throws the lone `"8"` away, so the candidate set
+built from FTS's own tokens could never spell `"gs22008"` back and the row
+stayed hidden. Fixed with a second, dedicated tokenizer, `rawQueryTokens`,
+that keeps every token including single characters -- FTS retrieval and this
+reconstruction want different things from the identical split, so they no
+longer share one.
+
+**Wired in the same two places version 1 was, because the same two-arm gap
+still applies.** `#runFts`'s SQL clause now excludes a bare row unless its
+normalized name is in an `IN (...)` list bound from `bareMatchCandidates`
+(`normalizedNameSql`, the SQL twin of the JS normalization). The vector arm
+has no SQL to push this into, so `search()` calls `bareRowAllowed` on each of
+its hits in JS, with the same candidate set, before fusion. One flag,
+`EXCLUDE_BARE_PART_NUMBERS_FROM_TEXT_SEARCH`, still gates both.
+
+### Version 2's acceptance test
+
+27 distinct queries: the original twenty, the two that killed version 1
+(already in the twenty), three more punctuations of the same model number
+(`rt-n66u`, `tl wn821n` with a space, `TLWN821N` with nothing between), and
+five more bare model numbers found independently in the 200-row sample above,
+each written the way a shopper would actually search for it.
+
+| Query | Bare row targeted | Found after? |
+| --- | --- | --- |
+| tp-link tl-wn821n | TL-WN821N | yes |
+| brother mfc-j4610dw | MFC-J4610DW | yes |
+| rt-n66u | RT-N66U | yes |
+| tl wn821n | TL-WN821N | yes |
+| TLWN821N | TL-WN821N | yes |
+| logitech z523 | Z523 | yes |
+| epson dfx-9000 | DFX-9000 | yes |
+| zyxel gs2200-8 | GS2200-8 | yes (only after the `rawQueryTokens` fix above) |
+| brother ql-720nw | QL-720NW | yes |
+| hp laserjet m680dn | M680dn | yes |
+
+All eleven targeted queries (the ten above, plus "asus rt-n66u" from the
+original twenty) found their exact bare product, top result or alongside a
+same-family row. The other sixteen of the twenty-seven -- every plain-word
+query ("logitech mouse", "hdmi cable", "wireless keyboard", "usb flash
+drive", "external hard drive", "laptop charger", "network switch", "toner
+cartridge", "bluetooth speaker", "sd card reader", "hp laserjet toner", "ddr3
+ram", "dell laptop", "seagate hard drive", and the two grocery controls "milk
+2%" and "tylenol") -- returned **zero bare-part-number results**, checked
+programmatically over all 27 queries' full result sets, not sampled by eye.
+
+**Nothing useful disappeared.** Every code present in a "before" (flag off)
+result set for all 27 queries was checked by script against its "after" (flag
+on) result set; the only codes ever missing after were rows this predicate
+calls bare, and every one of those was a case where the SAME product's
+better-named sibling row was already present or took its place. Zero
+non-bare results were lost anywhere in the 27-query set.
+
+**Result: the whole check passes.** Every group the coordinator asked for --
+the five they named, the five found independently, the original twenty's
+plain-word controls, the barcode path -- passed. The falsifier did not fire.
 
 ## What ships, and the one line either way
 
 `catalogue/src/part-number.ts` exports `EXCLUDE_BARE_PART_NUMBERS_FROM_TEXT_SEARCH`,
-currently **`false`**. `catalogue/src/search.ts` reads it in exactly two
-places (`#runFts`'s SQL clause, and the vector-arm filter inside `search()`);
-both are already written, tested (`catalogue/test/part-number.test.ts`), and
-inert while the flag is off. Turning the exclusion on is one line in
-`part-number.ts`; turning it back off is the same line. Nothing else in this
-unit's code needs to change either way.
+now **`true`** -- version 2 passed its whole check, so it is on by default.
+`catalogue/src/search.ts` reads it in exactly two places (`#runFts`'s SQL
+clause, and the vector-arm filter inside `search()`); both are tested
+(`catalogue/test/part-number.test.ts`) and both reverse together. **The one
+line that turns it off again is that same constant in
+`catalogue/src/part-number.ts`.** Nothing else in this unit's code needs to
+change either way. `byGtin` and the neighbour ring never read it.
 
-**Recommendation, not a decision: do not turn it on as written.** The
-predicate needs a way to tell a manufacturer's marketed model number apart
-from an internal SKU before it is safe -- for example, a name that also
-appears, word-for-word, in the row's own `brands` field paired with a
-recognizable letter-prefix pattern, or a source-specific allow-list of known
-model-number families. That is unmeasured and is not built tonight.
-
-**Reopens on:** the predicate is changed to separate marketed model numbers
-from internal SKUs, and the same twenty-query test (plus the two that fired
-the falsifier) is re-run and passes clean.
+**Reopens on:** a query is found where a plain word (not a model number)
+happens to spell a bare row's name via `bareMatchCandidates` and surfaces a
+part number nobody meant to search for, or where a real marketed name is
+split across more than `MAX_MATCH_WINDOW` (6) hyphenated groups and still
+gets hidden.

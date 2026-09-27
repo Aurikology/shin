@@ -26,7 +26,11 @@
  *
  * This was measured, not assumed: see part-number.test.ts and
  * docs/part-number-exclusion-2026-09-26.md for the 200-row sample (100
- * caught, 100 let through) read by hand against this predicate.
+ * caught, 100 let through) read by hand against this predicate, and for
+ * the FIRST version of this file's rule, which shipped off because its own
+ * acceptance test's falsifier fired: it could not tell a manufacturer's
+ * marketed model number ("TL-WN821N", "MFC-J4610DW") apart from an internal
+ * SKU nobody types, so it hid real products a shopper typed by name.
  */
 export function isBarePartNumber(name: string | null | undefined): boolean {
   if (!name) return false;
@@ -37,28 +41,107 @@ export function isBarePartNumber(name: string | null | undefined): boolean {
 }
 
 /**
- * THE ONE LINE THAT TURNS UNIT 8 ON OR OFF.
+ * THE SECOND VERSION: THE ROW STAYS FINDABLE WHEN THE QUERY NAMES IT.
  *
- * OFF BY DEFAULT. THE FALSIFIER FIRED. Full run in
- * docs/part-number-exclusion-2026-09-26.md: of twenty typed searches run
- * before and after, two lost the exact product they used to find --
- * "tp-link tl-wn821n" returned the TL-WN821N adapter at rank 1 before this
- * flag and no TL-WN821N row at all after it; "brother mfc-j4610dw" returned
- * MFC-J4610DW at rank 2 before and no MFC-J4610DW row at all after. Both
- * queries are a shopper typing a manufacturer's own marketed model number,
- * which this predicate cannot tell apart from an internal SKU nobody ever
- * types (its whole job, "single token with a digit", is syntactic and
- * cannot see that difference) -- so the rule caught real, typeable names
- * along with the unfindable ones, which is exactly the falsifier this unit
- * names: "a typed search that used to return the right product no longer
- * does... the exclusion rule caught real names too."
+ * The first version excluded a bare-part-number row unconditionally, and its
+ * falsifier fired: "tp-link tl-wn821n" and "brother mfc-j4610dw" used to find
+ * the exact product and stopped. The fix is not a smarter row predicate --
+ * `isBarePartNumber` cannot tell a marketed model number from an internal SKU
+ * from the row alone, and no amount of pattern-matching on the name fixes
+ * that, because both shapes are the same shape. The person typing the query
+ * already knows which one they meant. So the row's SHAPE still decides
+ * whether it is normally hidden from the word arm, but the QUERY decides
+ * whether this one search may still see it: a bare-part-number row surfaces
+ * only when one of the query's own tokens, or a run of them typed back to
+ * back, spells its name out.
+ *
+ * "tp-link tl-wn821n" tokenizes (ftsTokens) to ["tp","link","tl","wn821n"].
+ * The row "TL-WN821N" normalizes to "tlwn821n". The adjacent pair "tl" +
+ * "wn821n" concatenates to "tlwn821n" -- a match, so the row surfaces. A
+ * plain "mouse" query has no token or run of tokens that spells any bare
+ * row's name, so none of them surface. Nothing here classifies a token as a
+ * "model number" or a "SKU" -- it only asks whether the query, read as one
+ * continuous string with the punctuation a person might or might not have
+ * typed, contains this row's name.
+ */
+const NORMALIZE_RE = /[-.\s]/g;
+
+/** Lowercased, with hyphens, periods and whitespace removed. Applied to both
+ * sides of the match so "TL-WN821N", "tlwn821n" and "TL WN821N" all collapse
+ * to the same string, "tlwn821n". */
+export function normalizeBareToken(s: string): string {
+  return s.toLowerCase().replace(NORMALIZE_RE, '');
+}
+
+/**
+ * Splits a raw query the same way `ftsTokens` (search.ts) does, EXCEPT it
+ * keeps single-character tokens.
+ *
+ * FOUND WHILE RUNNING THE SECOND VERSION'S OWN ACCEPTANCE TEST. "zyxel
+ * gs2200-8" failed to find the row "GS2200-8": `ftsTokens` drops tokens of
+ * length 1 to keep FTS from scoring on noise, so the query's own trailing
+ * "8" -- split off by the hyphen, same as every other bare-number match here
+ * -- never reached `bareMatchCandidates`, and "gs2200" alone does not equal
+ * "gs22008". FTS retrieval and this reconstruction want different things
+ * from the same split: FTS should ignore a lone digit, and this needs every
+ * character the shopper typed. So this is its own tokenizer, not a reuse of
+ * `ftsTokens`, even though the split pattern is identical.
+ */
+export function rawQueryTokens(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/["*()]/g, ' ')
+    .split(/[^\p{L}\p{N}.]+/u)
+    .filter((t) => t.length > 0);
+}
+
+/**
+ * How many of the query's tokens in a row may be glued together looking for
+ * a match. Bare part numbers in this catalogue run up to a handful of
+ * hyphenated groups ("Z1BE-28XP-3C0" is three); six is generous headroom
+ * without letting an unrelated long query accidentally spell a short code
+ * one token at a time.
+ */
+const MAX_MATCH_WINDOW = 6;
+
+/**
+ * Every string a bare-part-number row's normalized name would have to equal
+ * for THIS query to be allowed to show it: each of the query's own tokens
+ * (pass `rawQueryTokens(text)`, not `ftsTokens(text)` -- see that function's
+ * comment for why), normalized, and every contiguous run of up to
+ * `MAX_MATCH_WINDOW` of them concatenated with no separator. Computed once
+ * per query and checked by both retrieval arms, so "asus rt-n66u" and
+ * "RT-N66U" and "rt n66u" all produce a set containing "rtn66u" and a plain
+ * "asus router" query produces a set that contains none of the electronics
+ * rows' bare names.
+ */
+export function bareMatchCandidates(queryTokens: readonly string[]): ReadonlySet<string> {
+  const norm = queryTokens.map(normalizeBareToken);
+  const out = new Set<string>();
+  for (let i = 0; i < norm.length; i++) {
+    let acc = '';
+    for (let j = i; j < norm.length && j < i + MAX_MATCH_WINDOW; j++) {
+      acc += norm[j];
+      if (acc.length === 0) continue;
+      out.add(acc);
+    }
+  }
+  return out;
+}
+
+/**
+ * THE ONE LINE THAT TURNS UNIT 8 ON OR OFF.
  *
  * Flip this to `true` to turn the exclusion on. Every place that reads it
  * -- the SQL clause in #runFts and the vector-arm filter in `search()`,
  * both in search.ts -- reverses together. byGtin and the neighbour ring
  * never read this flag and are unaffected either way.
+ *
+ * State as of the second version's own acceptance test:
+ * docs/part-number-exclusion-2026-09-26.md records whether it passed and,
+ * if so, this constant was turned on by the same commit that recorded it.
  */
-export const EXCLUDE_BARE_PART_NUMBERS_FROM_TEXT_SEARCH = false;
+export const EXCLUDE_BARE_PART_NUMBERS_FROM_TEXT_SEARCH = true;
 
 /**
  * The SQL form of `isBarePartNumber`, scoped to `source = 'icecat'`.
@@ -84,6 +167,17 @@ export function barePartNumberSqlClause(alias: string): string {
 }
 
 /**
+ * The SQL form of `normalizeBareToken`, applied to the same display name
+ * `barePartNumberSqlClause` reads. Used to compare a row's name against the
+ * query's own `bareMatchCandidates`, bound in as an `IN (...)` list -- see
+ * #runFts in search.ts for the query this is spliced into.
+ */
+export function normalizedNameSql(alias: string): string {
+  const name = `COALESCE(${alias}.name_en, ${alias}.name)`;
+  return `REPLACE(REPLACE(REPLACE(LOWER(${name}), '-', ''), ' ', ''), '.', '')`;
+}
+
+/**
  * The row-level twin of `barePartNumberSqlClause`, for rows already pulled
  * into memory rather than filtered in SQL.
  *
@@ -105,4 +199,22 @@ export function isBarePartNumberRow(row: {
   readonly name_en: string | null;
 }): boolean {
   return row.source === 'icecat' && isBarePartNumber(row.name_en ?? row.name);
+}
+
+/**
+ * Whether THIS row may appear in THIS query's results: always true for a row
+ * that is not a bare part number, and for one that is, only when its
+ * normalized name is one of the query's `bareMatchCandidates`. This is the
+ * single function both arms should call once they have a candidate set --
+ * `#runFts` calls the SQL equivalent instead (`normalizedNameSql` bound into
+ * an `IN` list) because it never pulls a row into JS it does not already
+ * intend to return, but the vector arm has no SQL to push this into, so it
+ * calls this directly on each of its hits.
+ */
+export function bareRowAllowed(
+  row: { readonly source: string; readonly name: string; readonly name_en: string | null },
+  candidates: ReadonlySet<string>,
+): boolean {
+  if (!isBarePartNumberRow(row)) return true;
+  return candidates.has(normalizeBareToken(row.name_en ?? row.name));
 }
