@@ -83,6 +83,11 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_RATE_IP_PER_DAY', default: '600', ruling: 'Server-side guards and limits' },
   // -- v1 floor: what the MVP ships ------------------------------------------
   { env: 'SHIN_GEMINI_TIER', default: 'unset -> no photo identification', ruling: 'v1 floor: what the MVP ships, and how photo identification returns' },
+  // -- Catalogue first; Gemini is a capped fallback, never the identity -----
+  { env: 'SHIN_CATALOGUE_FIRST', default: "off; only '1', 'on' or 'true' turns it on", ruling: 'Catalogue first; Gemini is a capped fallback, never the identity' },
+  { env: 'SHIN_RANGE_ASK_MONTHLY_CAP', default: '1000 (asks per UTC month; 0 turns the ask off)', ruling: 'Catalogue first; Gemini is a capped fallback, never the identity' },
+  { env: 'SHIN_RANGE_ASK_CEILING_CENTS', default: '2000000 (highest high_cents accepted)', ruling: 'Catalogue first; Gemini is a capped fallback, never the identity' },
+  { env: 'SHIN_RANGE_ASK_STORE_PATH', default: 'identify/data/range-ask.json', ruling: 'Catalogue first; Gemini is a capped fallback, never the identity' },
 
   // -- Operational: plumbing with no product ruling ------------------------
   { env: 'PORT', default: '4173', ruling: 'operational' },
@@ -191,6 +196,18 @@ export function SHIN_RATE_IP_PER_DAY(env: NodeJS.ProcessEnv = process.env): stri
 }
 export function SHIN_GEMINI_TIER(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_GEMINI_TIER');
+}
+export function SHIN_CATALOGUE_FIRST(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_CATALOGUE_FIRST');
+}
+export function SHIN_RANGE_ASK_MONTHLY_CAP(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_RANGE_ASK_MONTHLY_CAP');
+}
+export function SHIN_RANGE_ASK_CEILING_CENTS(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_RANGE_ASK_CEILING_CENTS');
+}
+export function SHIN_RANGE_ASK_STORE_PATH(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_RANGE_ASK_STORE_PATH');
 }
 export function PORT(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'PORT');

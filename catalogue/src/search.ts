@@ -498,6 +498,14 @@ export interface SearchQuery {
    * rule to guess at.
    */
   readonly sources?: readonly string[];
+  /**
+   * Whether a query that finds nothing is written to the miss log. Default
+   * true, so every existing caller is unchanged. The passive text path
+   * (`POST /api/match-text`, 2026-09-27) passes false: it fires on every frame
+   * of text a camera reads, and one miss row per frame would bury the typed and
+   * scanned misses the log exists to surface.
+   */
+  readonly recordMiss?: boolean;
 }
 
 export interface SearchResult {
@@ -1299,7 +1307,7 @@ export class Catalogue {
        * Keyed on the gtin alone, so the text arm's own miss, if it comes, is
        * recorded separately rather than merged with it.
        */
-      this.#recordGap({ gtin: query.gtin });
+      this.#recordGap({ gtin: query.gtin, recordMiss: query.recordMiss });
     }
 
     const text = query.text?.trim();
@@ -1568,6 +1576,7 @@ export class Catalogue {
 
   /** Decision 30: a miss is recorded, and nothing typed is promoted automatically. */
   #recordGap(query: SearchQuery): void {
+    if (query.recordMiss === false) return;
     try {
       /*
        * Writes to its own small file, never to the catalogue. The seam the

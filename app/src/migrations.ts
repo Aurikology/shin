@@ -652,6 +652,40 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
       addColumnIfMissing(db, 'scan', 'scan_category', 'TEXT');
     },
   },
+  {
+    version: 18,
+    name: 'which catalogue-first path answered, and where its range came from',
+    apply(db) {
+      /*
+       * RULINGS.md "Catalogue first; Gemini is a capped fallback, never the
+       * identity" (both founders, 2026-09-27), behind SHIN_CATALOGUE_FIRST, and
+       * "Record everything the user does". A scan on the new path says which
+       * path answered and where the range came from, so the founders can see
+       * how often the catalogue alone was enough before deciding the flip.
+       *
+       *   answer_path       'catalogue_hit', 'not_in_catalogue' or 'text_match'.
+       *                     Null on every row from the older paths.
+       *   range_source      'shin_prices', 'gemini_typical' or 'none'. Null on
+       *                     the older paths and on a text_match row.
+       *   range_basis       priceRangeFor's basis: this_product, leaf_category,
+       *                     parent_category or none.
+       *   range_miss_reason Why no range was given (the ask's reason code, for
+       *                     example monthly_cap_reached). Null when one was.
+       *   match_lines       POST /api/match-text only: how many lines arrived.
+       *   match_candidates  How many candidates were returned (0 to 3).
+       *   match_price_read  1 when a shelf price was read off the text, else 0.
+       *
+       * Nullable, additive only, like every column added after the first release.
+       */
+      addColumnIfMissing(db, 'scan', 'answer_path', 'TEXT');
+      addColumnIfMissing(db, 'scan', 'range_source', 'TEXT');
+      addColumnIfMissing(db, 'scan', 'range_basis', 'TEXT');
+      addColumnIfMissing(db, 'scan', 'range_miss_reason', 'TEXT');
+      addColumnIfMissing(db, 'scan', 'match_lines', 'INTEGER');
+      addColumnIfMissing(db, 'scan', 'match_candidates', 'INTEGER');
+      addColumnIfMissing(db, 'scan', 'match_price_read', 'INTEGER');
+    },
+  },
 ];
 
 /** What `schema_version` says this database is at. 0 means nothing has run. */
