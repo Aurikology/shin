@@ -1199,7 +1199,8 @@ even with a funded key**. Migrated (15 -> 20 columns, 212,340 rows intact); the 
 still NULL and populating them is item 25b, Jamin's.
 
 **21 and 22, `identify/`.** `model.ts` no longer imports the Anthropic SDK. A neutral seam carries
-the call; `providers/anthropic.ts` and `providers/xai.ts` implement it; `SHIN_MODEL_PROVIDER`
+the call; `providers/anthropic.ts` and `providers/xai.ts` implement it (the xAI adapter was
+removed 2026-09-27, never having run against a real key); `SHIN_MODEL_PROVIDER`
 selects and defaults to `anthropic`. Five levers, all default-off, all unit-tested: usage capture,
 prompt caching, per-call token caps, cheap-first escalation, provider select. The eval scores a
 matrix in **cost per correct identification**, never cost per call. **66 -> 96 tests, zero existing

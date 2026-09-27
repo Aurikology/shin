@@ -1119,7 +1119,9 @@ provider-and-tier matrix in that unit.
 
 To make the question askable at all, `identify/src/model.ts` no longer imports the Anthropic SDK.
 A neutral seam in `identify/src/provider.ts` carries an image, a system prompt, a schema and a token
-budget; `providers/anthropic.ts` and `providers/xai.ts` implement it; `SHIN_MODEL_PROVIDER` selects,
+budget; `providers/anthropic.ts` and `providers/xai.ts` implement it (the xAI adapter was removed
+2026-09-27, having never run against a real key or been wired into `SHIN_MODEL_PROVIDER`);
+`SHIN_MODEL_PROVIDER` selects,
 defaulting to `anthropic` so nothing moves without an explicit opt-in. The refactor was held to
 behaviour preservation and all 66 pre-existing tests passed unedited.
 

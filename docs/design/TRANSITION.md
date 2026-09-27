@@ -231,7 +231,8 @@ and three of them collide with it.
 ### The retro palette is measurably better, and that is the strongest single argument for the move
 
 Contrast computed on 2026-09-07 with the standard relative-luminance formula, on the retro
-tokens as declared in `Test/src/styles/tokens.css`:
+tokens as declared in `Test/src/styles/tokens.css` (that prototype folder was removed
+2026-09-27; the values below are the historical measurement):
 
 | Pair | Ratio | 4.5 required |
 | --- | --- | --- |

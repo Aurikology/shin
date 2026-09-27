@@ -148,7 +148,7 @@ export interface ProviderResponse<T> {
   /** The structured answer, already parsed. A provider that cannot parse throws. */
   readonly value: T;
   readonly usage: TokenUsage;
-  /** Which adapter answered: `anthropic`, `xai`. */
+  /** Which adapter answered: `anthropic`. */
   readonly provider: string;
   /** The model the provider says it actually ran, which need not be the one asked for. */
   readonly model: string;
@@ -333,7 +333,7 @@ export function classifyProviderError(err: unknown): FailureClass {
   const message = String((err as { message?: unknown } | null)?.message ?? '');
   if (
     name === 'AuthenticationError' ||
-    /api key|apiKey|ANTHROPIC_API_KEY|XAI_API_KEY|auth(entication)? token/i.test(message)
+    /api key|apiKey|ANTHROPIC_API_KEY|auth(entication)? token/i.test(message)
   ) {
     return 'model_client_error';
   }

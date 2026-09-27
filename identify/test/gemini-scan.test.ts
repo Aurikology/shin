@@ -25,36 +25,30 @@ import {
 } from '../src/providers/gemini-scan.ts';
 import { fakeTransport, goodAnswer, httpBody } from '../../app/test/gemini-double.ts';
 
-// These tests exercise the 2.5/3.x comparison, which runs only with SHIN_GEMINI_SPLIT=1 (default is 3.x for every scan).
-const NO_ENV = { SHIN_GEMINI_SPLIT: '1' } as NodeJS.ProcessEnv;
-const on = (family: '2.5' | '3.x'): string => {
-  for (let i = 0; i < 200; i++) if (modelForScan(`d${i}`, NO_ENV).family === family) return `d${i}`;
-  throw new Error('none');
-};
+// The 2026-09-19 per-device hash split (SHIN_GEMINI_SPLIT=1) was removed 2026-09-27: every real
+// configuration goes to 3.x. Tests below that need a 2.5-family choice build one directly rather
+// than hunting for a device id that used to hash into it.
+const choiceFor = (family: '2.5' | '3.x') => ({
+  model: family === '2.5' ? DEFAULT_GEMINI_25 : DEFAULT_GEMINI_3,
+  family,
+  via: 'env' as const,
+});
 const scan = { kind: 'barcode' as const, barcode: '0068100084245' };
 const parsed = (over: Record<string, unknown> = {}) => readAnswer(goodAnswer(over));
 
-test('the model is a stable function of the device, defaults to 2.5, and SHIN_GEMINI_MODEL overrides it (item 4)', () => {
-  assert.equal(DEFAULT_GEMINI_25, 'gemini-2.5-flash');
-  const a = modelForScan('device-1', NO_ENV);
-  assert.deepEqual(modelForScan('device-1', NO_ENV), a, 'the same device got two different models');
-  const seen = new Set(Array.from({ length: 60 }, (_, i) => modelForScan(`d${i}`, NO_ENV).model));
-  assert.deepEqual([...seen].sort(), [DEFAULT_GEMINI_25, DEFAULT_GEMINI_3].sort(), 'both models must be in use');
+test('every device gets the same 3.x default, and SHIN_GEMINI_MODEL overrides it for every scan (item 4)', () => {
+  const plain = {} as NodeJS.ProcessEnv;
+  const seen = new Set(Array.from({ length: 10 }, (_, i) => modelForScan(`d${i}`, plain).model));
+  assert.deepEqual([...seen], [DEFAULT_GEMINI_3], 'a device was routed to a model other than 3.x');
+  assert.equal(modelForScan('d1', plain).via, 'default');
   const forced = modelForScan('device-1', { SHIN_GEMINI_MODEL: 'gemini-x-9' } as NodeJS.ProcessEnv);
   assert.equal(forced.model, 'gemini-x-9');
   assert.equal(forced.via, 'env');
 });
 
-test('with no split setting every scan goes to 3.x, because 2.5 is not accessible on the beta server (Jamin 2026-09-22)', () => {
-  const plain = {} as NodeJS.ProcessEnv;
-  const seen = new Set(Array.from({ length: 60 }, (_, i) => modelForScan(`d${i}`, plain).model));
-  assert.deepEqual([...seen], [DEFAULT_GEMINI_3], 'a device was routed to a model other than 3.x');
-  assert.equal(modelForScan('d1', plain).via, 'default');
-});
-
 test('on 2.5 the JSON shape is in the prompt text with no schema; on 3.x the schema is sent (item 5)', () => {
-  const c25 = modelForScan(on('2.5'), NO_ENV);
-  const c3 = modelForScan(on('3.x'), NO_ENV);
+  const c25 = choiceFor('2.5');
+  const c3 = choiceFor('3.x');
   const b25 = buildRequestBody(scan, c25).body as unknown as Record<string, unknown>;
   const b3 = buildRequestBody(scan, c3).body as unknown as Record<string, unknown>;
   assert.equal(b25.response_format, undefined);
@@ -65,7 +59,7 @@ test('on 2.5 the JSON shape is in the prompt text with no schema; on 3.x the sch
 });
 
 test('the shelf price and the thresholds are in the prompt, and a missing range falls back to the default (item 6)', () => {
-  const choice = modelForScan(on('2.5'), NO_ENV);
+  const choice = choiceFor('2.5');
   const withBoth = buildRequestBody(
     { ...scan, shelfPriceCents: 449, thresholds: readThresholds({ lineUnderPct: 15, lineOverPct: 25 }) },
     choice,
@@ -84,7 +78,7 @@ test('the shelf price and the thresholds are in the prompt, and a missing range 
 });
 
 test('a barcode request carries no image part, a photo request carries one (item 1)', () => {
-  const choice = modelForScan(on('3.x'), NO_ENV);
+  const choice = choiceFor('3.x');
   const parts = (r: ReturnType<typeof buildRequestBody>) => (r.body as unknown as { input: Array<{ type: string }> | string }).input;
   const barcode = parts(buildRequestBody(scan, choice));
   assert.ok(typeof barcode === 'string' || !barcode.some((p) => p.type === 'image'));
@@ -108,11 +102,11 @@ test('a reply cut off mid-string is repaired; prose with no JSON is marked faile
 
 test('runGeminiScan never throws: garbage text and an HTTP 503 both come back marked low confidence (item 5)', async () => {
   const garbage = fakeTransport(() => ({ text: httpBody('{"product": {"name": "brok') }));
-  const g = await runGeminiScan(scan, { apiKey: 'k', deviceId: on('2.5'), transport: garbage.transport });
+  const g = await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: garbage.transport });
   assert.equal(g.lowConfidence, true);
   assert.equal(garbage.calls.length, 1, 'a parse failure was retried');
   const down = fakeTransport(() => ({ status: 503, text: 'unavailable' }));
-  const d = await runGeminiScan(scan, { apiKey: 'k', deviceId: on('2.5'), transport: down.transport });
+  const d = await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: down.transport });
   assert.equal(d.lowConfidence, true);
   assert.ok(d.failure, 'an outage carried no failure class');
   assert.equal(down.calls.length, 1, 'an outage fell back to a second call');
@@ -265,7 +259,7 @@ test('three ranges and a unit are read, 30 percent is allowed, and an older clie
 
 test('dollar mode reaches the prompt as amounts and, with no typed price, the hidden check skips the zone', () => {
   const t = readThresholds({ unit: 'amount', great: 3, good: 1.5, bad: 2 });
-  const p = buildRequestBody({ ...scan, thresholds: t }, modelForScan(on('2.5'), NO_ENV)).prompt.user;
+  const p = buildRequestBody({ ...scan, thresholds: t }, choiceFor('2.5')).prompt.user;
   assert.match(p, /Unit: DOLLAR AMOUNTS/);
   assert.match(p, /Great range: 3 or more below the median/);
   assert.doesNotMatch(p, /Good range: [\d.]+%/);
@@ -342,7 +336,7 @@ test('dollar mode still checks the median and the count, and percent mode is unc
  * name or a bare photo, grounds exactly as before.
  */
 test('grounding is skipped only when the scan has no searchable identity at all (item 7)', () => {
-  const choice = modelForScan(on('2.5'), NO_ENV);
+  const choice = choiceFor('2.5');
   const nothing = buildRequestBody({ kind: 'text' }, choice).body as unknown as Record<string, unknown>;
   assert.deepEqual(nothing.tools, [], 'a scan with nothing to search for still spent a grounded query');
   const barcode = buildRequestBody(scan, choice).body as unknown as Record<string, unknown>;

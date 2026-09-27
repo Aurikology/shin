@@ -350,7 +350,7 @@ test('an aborted call is a timeout, not an outage', async () => {
   };
   const provider = new GeminiProvider({ apiKey: 'k', transport, baseUrl: BASE });
   // The adapter does not catch this one: `classifyProviderError` in model.ts
-  // reads `name` off whatever came up, which is the same contract xai.ts has.
+  // reads `name` off whatever came up.
   await assert.rejects(() => provider.send(request()), { name: 'AbortError' });
 });
 

@@ -9,10 +9,12 @@
  * builds an `Identifier` and never calls `makeProvider`.
  *
  * WHAT STAYS: the price table itself. `claude-haiku-4-5`/`claude-sonnet-5`/
- * `claude-opus-5` are still the internal tier names `gemini.ts`, `xai.ts` and
+ * `claude-opus-5` are still the internal tier names `gemini.ts` and
  * `describe.ts` map their own models onto (see `identify/src/providers/gemini.ts`'s
  * `GEMINI_FOR`), so a call still gets billed against these rows even though it
- * never reaches Anthropic.
+ * never reaches Anthropic. (The xAI adapter these tier names also fed, `xai.ts`,
+ * was removed 2026-09-27: it was never wired into any provider seam and never
+ * ran against a real key.)
  */
 
 import { test } from 'node:test';

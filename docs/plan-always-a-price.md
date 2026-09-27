@@ -468,8 +468,8 @@ pointed `SHIN_SCANS` at a temp file; never against the live stores.
    The price itself is kept either way (`NOW.md` 2026-09-13, proved both sides through the server).
 
 **Fixtures:** 0 tag photos. `identify/eval/photos` holds 40 images, all product fronts
-(`identify/eval/manifest.json`, no tag field); `Test/` holds 0 images outside `node_modules`; the only
-other image in the repo is `app/public/icon-180.png`. Tag reading is tested only with empty byte
+(`identify/eval/manifest.json`, no tag field); `Test/` held 0 images outside `node_modules` before
+that folder was removed 2026-09-27; the only other image in the repo is `app/public/icon-180.png`. Tag reading is tested only with empty byte
 arrays and scripted answers (`identify/test/model.test.ts` around line 190,
 `identify/test/provider.test.ts` around line 194).
 

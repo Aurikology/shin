@@ -11,8 +11,7 @@
  * WHAT THIS FILE OWNS
  *   - the prompt: `Shin_Gemini_Pricing_Engine/` (system text, pricing guide,
  *     scan template, response schema), filled per scan;
- *   - the model choice per scan (Gemini 2.5 and a 3.x model side by side,
- *     picked by a stable hash of the device id, overridable by env);
+ *   - the model choice per scan (a 3.x model by default, overridable by env);
  *   - the request, sent over the Interactions API the rest of this package
  *     already speaks (`./gemini.ts`), with `google_search` and NOTHING ELSE;
  *   - reading the answer without ever throwing at the person: a JSON that is
@@ -62,8 +61,8 @@ export type ModelFamily = '2.5' | '3.x';
 export interface ModelChoice {
   readonly model: string;
   readonly family: ModelFamily;
-  /** 'env' when SHIN_GEMINI_MODEL forced it, 'hash' when SHIN_GEMINI_SPLIT=1 split devices, otherwise 'default'. */
-  readonly via: 'env' | 'hash' | 'default';
+  /** 'env' when SHIN_GEMINI_MODEL forced it, otherwise 'default'. */
+  readonly via: 'env' | 'default';
 }
 
 /** 3.x ids start `gemini-3`. Anything else is treated as 2.5, the default. */
@@ -72,24 +71,20 @@ export function familyOf(model: string): ModelFamily {
 }
 
 /**
- * Which model answers THIS scan. Deterministic: the same device always gets the
- * same model, so a shopper's scans are comparable with each other, and across
- * devices the two split roughly in half. `SHIN_GEMINI_MODEL` forces one model
- * for every scan (the paid-key test and any rollback use it). The two ids
- * themselves come from `SHIN_GEMINI_MODEL_25` and `SHIN_GEMINI_MODEL_3`.
+ * Which model answers THIS scan. Every scan goes to the 3.x default (Jamin,
+ * 2026-09-22: "gemini 2.5 is not accessible" on the beta server) unless
+ * `SHIN_GEMINI_MODEL` forces a specific model for every scan (the paid-key
+ * test and any rollback use it). `deviceId` is accepted for call-site
+ * compatibility but no longer changes which model is chosen; the 2026-09-19
+ * per-device hash split (`SHIN_GEMINI_MODEL_25`/`SHIN_GEMINI_SPLIT`) was
+ * removed 2026-09-27 because the default was never turned back on outside
+ * tests.
  */
 export function modelForScan(deviceId: string, env: NodeJS.ProcessEnv = process.env): ModelChoice {
   const forced = env.SHIN_GEMINI_MODEL?.trim();
   if (forced) return { model: forced, family: familyOf(forced), via: 'env' };
-  const v25 = env.SHIN_GEMINI_MODEL_25?.trim() || DEFAULT_GEMINI_25;
   const v3 = env.SHIN_GEMINI_MODEL_3?.trim() || DEFAULT_GEMINI_3;
-  // Jamin, 2026-09-22: "gemini 2.5 is not accessible" on the beta server. Every scan goes to 3.x
-  // unless SHIN_GEMINI_SPLIT=1 turns the half-and-half 2.5/3.x comparison back on.
-  if (env.SHIN_GEMINI_SPLIT?.trim() !== '1') return { model: v3, family: familyOf(v3), via: 'default' };
-  const byte = createHash('sha256').update(deviceId).digest()[0];
-  return (byte & 1) === 0
-    ? { model: v25, family: familyOf(v25), via: 'hash' }
-    : { model: v3, family: familyOf(v3), via: 'hash' };
+  return { model: v3, family: familyOf(v3), via: 'default' };
 }
 
 /* ------------------------------------------------------------ user context */
@@ -1081,7 +1076,7 @@ export interface StageLatency {
 export interface GeminiRun {
   readonly model: string;
   readonly family: ModelFamily;
-  readonly via: 'env' | 'hash' | 'default';
+  readonly via: 'env' | 'default';
   readonly scanType: ScanType;
   /** The full request body as sent, image bytes replaced by a stub. */
   readonly requestJson: string;

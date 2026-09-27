@@ -100,7 +100,7 @@
  *      shape behind it.
  *  15. `OTHER` IS NOT A PHOTOGRAPH PROBLEM (hard rule 3): `model_malformed`.
  *  16. No per-request cache-breakpoint control exists, so `request.cache` is
- *      accepted and ignored, exactly as `xai.ts` does.
+ *      accepted and ignored.
  *
  * None of this is reached unless `SHIN_MODEL_PROVIDER=gemini` is set AND
  * `GEMINI_API_KEY` is present. Absent either, `model.ts`'s `makeProvider` never
@@ -131,8 +131,8 @@ export const MAX_INLINE_IMAGE_BYTES = 20 * 1024 * 1024;
  *
  * `model.ts` picks from its own tier table, written in Anthropic's names
  * because Anthropic is the default provider. Rather than teach `model.ts` about
- * every vendor's catalogue, the translation lives with the translator, the same
- * way `xai.ts`'s `GROK_FOR` does. `basic` is `claude-haiku-4-5` and `pro` is
+ * every vendor's catalogue, the translation lives with the translator instead.
+ * `basic` is `claude-haiku-4-5` and `pro` is
  * `claude-sonnet-5`, and `model.ts`'s escalation step re-sends the extract pass
  * on `MODEL.pro`, so the two rows below are exactly the cheap-first pair the
  * ruling asks for with no second mechanism invented anywhere.

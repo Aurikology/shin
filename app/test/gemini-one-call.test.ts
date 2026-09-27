@@ -28,14 +28,10 @@ delete process.env.SHIN_GEMINI_MODEL;
 delete process.env.SHIN_MODEL_PROVIDER;
 // Named, because the photo route declines on an unnamed key. See photo-route.test.ts.
 process.env.SHIN_GEMINI_TIER = 'paid';
-// The per-device 2.5/3.x comparison these tests pin runs only with SHIN_GEMINI_SPLIT=1.
-process.env.SHIN_GEMINI_SPLIT = '1';
-const SPLIT = { SHIN_GEMINI_SPLIT: '1' } as NodeJS.ProcessEnv;
 
 const { server, setGeminiTransportForTests, setSpendGuardForTests, setCatalogueForTests, settleBackgroundChecks } = await import('../server.ts');
 const { getScan, geminiCallsForScan, openScanStore } = await import('../src/scans.ts');
 const { clearRepeatCacheForTests } = await import('../src/repeat-cache.ts');
-const { modelForScan } = await import('../../identify/src/providers/gemini-scan.ts');
 
 let port = 0;
 let calls: Call[] = [];
@@ -85,13 +81,16 @@ const userTurn = (c: Call): string => {
   const input = c.body.input;
   return typeof input === 'string' ? input : (input as any[]).filter((p) => p.type === 'text').map((p) => p.text).join('\n');
 };
-/** A device id whose stable hash lands on the family asked for. */
-function deviceOn(family: '2.5' | '3.x', tag: string): string {
-  for (let i = 0; i < 500; i++) {
-    const id = `${tag}-${i}`;
-    if (modelForScan(id, SPLIT).family === family) return id;
-  }
-  throw new Error('no device found');
+// The 2026-09-19 per-device hash split (SHIN_GEMINI_SPLIT=1) was removed 2026-09-27: every real
+// configuration goes to the 3.x default. A test that needs the 2.5 request/parse shape forces it
+// with SHIN_GEMINI_MODEL directly (restored after) instead of hunting for a device id.
+function withModel<T>(model: string, fn: () => Promise<T>): Promise<T> {
+  const prior = process.env.SHIN_GEMINI_MODEL;
+  process.env.SHIN_GEMINI_MODEL = model;
+  return fn().finally(() => {
+    if (prior === undefined) delete process.env.SHIN_GEMINI_MODEL;
+    else process.env.SHIN_GEMINI_MODEL = prior;
+  });
 }
 
 test('a barcode scan is ONE Gemini call, digits only, and Shin\'s own catalogue is not consulted for the answer (items 1, 2)', async () => {
@@ -102,8 +101,7 @@ test('a barcode scan is ONE Gemini call, digits only, and Shin\'s own catalogue 
       return { code: '0068100084245', name: 'CATALOGUE NAME', brands: 'X', quantity: '1', sizeValue: 1, sizeUnit: 'g', soldInCanada: true };
     },
   });
-  const device = deviceOn('2.5', 'one');
-  const { status, body } = await identify(`gtin=0068100084245&deviceId=${device}`);
+  const { status, body } = await identify('gtin=0068100084245&deviceId=one');
   assert.equal(status, 200);
   assert.equal(calls.length, 1, 'a scan must make exactly one Gemini call');
   assert.equal(asked, 0, 'the catalogue was consulted for a scan');
@@ -116,15 +114,15 @@ test('a barcode scan is ONE Gemini call, digits only, and Shin\'s own catalogue 
 });
 
 test('no Claude: the request goes to the Gemini endpoint with a Gemini model, and nothing else is called (item 1)', async () => {
-  await identify(`gtin=0068100084245&deviceId=${deviceOn('3.x', 'claude')}`);
+  await identify('gtin=0068100084245&deviceId=claude');
   assert.equal(calls.length, 1);
   assert.match(calls[0].url, /generativelanguage\.googleapis\.com/);
   assert.match(String(calls[0].body.model), /^gemini-/);
 });
 
 test('2.5 asks for the JSON in the prompt text and sends no schema; 3.x sends the schema (item 5)', async () => {
-  await identify(`gtin=0000000000017&deviceId=${deviceOn('2.5', 'a')}`);
-  await identify(`gtin=0000000000024&deviceId=${deviceOn('3.x', 'b')}`);
+  await withModel('gemini-2.5-flash', () => identify('gtin=0000000000017&deviceId=a'));
+  await identify('gtin=0000000000024&deviceId=b');
   const [c25, c3] = calls;
   assert.match(String(c25.body.model), /2\.5/);
   assert.equal(c25.body.response_format, undefined, 'a response schema was sent together with google_search on 2.5');
@@ -135,28 +133,8 @@ test('2.5 asks for the JSON in the prompt text and sends no schema; 3.x sends th
   assert.deepEqual(c3.body.tools, [{ type: 'google_search' }]);
 });
 
-test('the model is picked deterministically per device, both are used, and the env override wins (item 4)', async () => {
-  const a = deviceOn('2.5', 'det');
-  const b = deviceOn('3.x', 'det');
-  for (const d of [a, b, a, b]) {
-    // Item 1's repeat-scan cache is keyed on the barcode alone; this loop
-    // scans the same barcode four times on purpose (to prove per-device model
-    // routing), which the cache would otherwise turn into one real call.
-    clearRepeatCacheForTests();
-    await identify(`gtin=0000000000093&deviceId=${d}`);
-  }
-  assert.deepEqual(
-    calls.map((c) => String(c.body.model)),
-    [modelForScan(a, SPLIT).model, modelForScan(b, SPLIT).model, modelForScan(a, SPLIT).model, modelForScan(b, SPLIT).model],
-  );
-  assert.notEqual(calls[0].body.model, calls[1].body.model);
-  assert.equal(modelForScan('anything', SPLIT).model.startsWith('gemini-2.5') || modelForScan('anything', SPLIT).family === '3.x', true);
-  assert.equal(modelForScan(a, { SHIN_GEMINI_MODEL: 'gemini-9-test' }).model, 'gemini-9-test');
-});
-
 test('every Gemini request and the full response are stored, linked to the scan and to the model (item 12)', async () => {
-  const device = deviceOn('3.x', 'store');
-  const { body } = await identify(`gtin=0068100084245&deviceId=${device}`);
+  const { body } = await identify('gtin=0068100084245&deviceId=store');
   const rows = geminiCallsForScan(body.scanId);
   assert.equal(rows.length, 1, 'no stored Gemini call for the scan');
   const row = rows[0];
@@ -327,11 +305,10 @@ test('dollar mode: the hidden check recomputes the zone from the typed price, an
   assert.match(String(geminiCallsForScan(noPrice.body.scanId)[0].math_mismatches), /no_shelf_price/);
 });
 
-test('an unparseable 2.5 answer is still an answer, marked not fully confident, never a thrown error (item 5)', async () => {
+test('an unparseable answer is still an answer, marked not fully confident, never a thrown error (item 5)', async () => {
   reply = () => ({ text: httpBody('I am sorry, here is some prose and {"product": {"name": "broken') });
   install(reply);
-  const device = deviceOn('2.5', 'garbage');
-  const { status, body } = await identify(`gtin=4006381333931&deviceId=${device}`);
+  const { status, body } = await identify('gtin=4006381333931&deviceId=garbage');
   assert.equal(status, 200);
   assert.equal(body.lowConfidence, true);
   assert.ok(['repaired', 'failed'].includes(body.parseStatus), body.parseStatus);

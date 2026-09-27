@@ -15,7 +15,6 @@ import {
   buildRequestBody,
   buildScanPrompt,
   loadEngine,
-  modelForScan,
   readAlternatives,
   readAnswer,
   runGeminiScan,
@@ -24,12 +23,6 @@ import {
 } from '../src/providers/gemini-scan.ts';
 import { fakeTransport, goodAnswer, httpBody } from '../../app/test/gemini-double.ts';
 
-// These tests exercise the 2.5/3.x comparison, which runs only with SHIN_GEMINI_SPLIT=1 (default is 3.x for every scan).
-const NO_ENV = { SHIN_GEMINI_SPLIT: '1' } as NodeJS.ProcessEnv;
-const on = (family: '2.5' | '3.x'): string => {
-  for (let i = 0; i < 200; i++) if (modelForScan(`d${i}`, NO_ENV).family === family) return `d${i}`;
-  throw new Error('none');
-};
 const scan = { kind: 'barcode' as const, barcode: '0068100084245' };
 
 const row = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
@@ -185,7 +178,7 @@ test('alternatives reach the answer block the phone is sent, and stay out of the
 test('a scan whose alternatives are broken or absent is still answered in full and not marked unsure (rule 6)', async () => {
   for (const alternatives of [undefined, 'oops', [{ nope: true }], [row()]]) {
     const t = fakeTransport(() => ({ text: httpBody(JSON.stringify(goodAnswer(alternatives === undefined ? {} : { alternatives }))) }));
-    const run = await runGeminiScan(scan, { apiKey: 'k', deviceId: on('2.5'), transport: t.transport });
+    const run = await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: t.transport });
     const block = toAnswerBlock(run);
     assert.equal(run.lowConfidence, false, `alternatives ${JSON.stringify(alternatives)} lowered confidence`);
     assert.equal(block.name, 'Kraft Dinner Original');
@@ -194,7 +187,7 @@ test('a scan whose alternatives are broken or absent is still answered in full a
   }
   const good = await runGeminiScan(scan, {
     apiKey: 'k',
-    deviceId: on('2.5'),
+    deviceId: 'x',
     transport: fakeTransport(() => ({ text: httpBody(JSON.stringify(goodAnswer({ alternatives: [row()] }))) })).transport,
   });
   assert.equal(toAnswerBlock(good).alternatives.length, 1);

@@ -3225,7 +3225,7 @@ export const server = createServer(async (req, res) => {
        * second pass. The shelf price and the user's lines ride in this body
        * (`shelfPriceCents`, `thresholds`) so the verdict comes back inside the
        * same answer. `tier` is still read from old clients and ignored: the
-       * model is picked per scan by `modelForScan` (2.5 and 3.x side by side).
+       * model is picked per scan by `modelForScan` (3.x by default, overridable by env).
        */
       const limitedPhoto = paidCallRefusal(req);
       if (limitedPhoto) return tooManyCalls(limitedPhoto.retryAfterSeconds);

@@ -16,10 +16,13 @@ Drifted three times: cheap-first tiering (3.5-flash-lite, escalate to 3.8-flash 
 to replace 2.5 only if testing said so (2026-09-19). 2.5 also can't combine a response schema with
 Google Search, forcing a prompt-text JSON parse. On 2026-09-22 Jamin found "gemini 2.5 is not
 accessible" on the beta server, so code now sends every scan to 3.x by default
-(`DEFAULT_GEMINI_3='gemini-3.8-flash'`) unless `SHIN_GEMINI_SPLIT=1`. Flagged in the 2026-09-27
-decisions.md entry as one of two places the log had drifted from the running system. · 2026-09-22 · *"gemini 2.5 is not accessible"* · log: identify/src/providers/gemini-scan.ts:82-88 (quote at line 86; docs/decisions.md#One list of current rulings outranks every other file)
+(`DEFAULT_GEMINI_3='gemini-3.8-flash'`). The per-device `SHIN_GEMINI_SPLIT=1` hash split this
+ruling introduced as an escape hatch was itself removed 2026-09-27 as dead code: it never ran
+outside tests, because the thing it would have turned back on (Gemini 2.5 access) never came
+back. Flagged in the 2026-09-27 decisions.md entry as one of two places the log had drifted from
+the running system. · 2026-09-22 · *"gemini 2.5 is not accessible"* · log: identify/src/providers/gemini-scan.ts:74-87 (quote at line 75; docs/decisions.md#One list of current rulings outranks every other file)
 Retired wording: `gemini-3.5-flash-lite`, `gemini-2.5-flash as the flat default`, `Gemini 2.5 by default`, `SHIN_GEMINI_MODEL=gemini-2.5-flash`, `default decided only by an offline test`
-Governs: SHIN_GEMINI_MODEL, SHIN_GEMINI_MODEL_25, SHIN_GEMINI_MODEL_3, SHIN_GEMINI_SPLIT
+Governs: SHIN_GEMINI_MODEL, SHIN_GEMINI_MODEL_3 (SHIN_GEMINI_MODEL_25 still governs identify/eval/scan-cost.ts and scan-run.ts only, the family-comparison eval tools, not the live scan path)
 ### Barcode plumbing: digits only, through Shin's server
 A barcode scan sends Gemini only the digits, never the image or a full photo (the frame is taken
 only when photo identification and photo consent are both on, which is never under tester-launch
