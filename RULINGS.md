@@ -21,7 +21,7 @@ ruling introduced as an escape hatch was itself removed 2026-09-27 as dead code:
 outside tests, because the thing it would have turned back on (Gemini 2.5 access) never came
 back. Flagged in the 2026-09-27 decisions.md entry as one of two places the log had drifted from
 the running system. · 2026-09-22 · *"gemini 2.5 is not accessible"* · log: identify/src/providers/gemini-scan.ts:74-87 (quote at line 75; docs/decisions.md#One list of current rulings outranks every other file)
-Retired wording: `gemini-3.5-flash-lite`, `gemini-2.5-flash as the flat default`, `Gemini 2.5 by default`, `SHIN_GEMINI_MODEL=gemini-2.5-flash`, `default decided only by an offline test`
+Retired wording: `gemini-2.5-flash as the flat default`, `Gemini 2.5 by default`, `SHIN_GEMINI_MODEL=gemini-2.5-flash`, `default decided only by an offline test`
 Governs: SHIN_GEMINI_MODEL, SHIN_GEMINI_MODEL_3 (the family-comparison eval tools this paragraph also names are eval/, not live code, and outside settings/src/index.ts on purpose)
 ### Barcode plumbing: digits only, through Shin's server
 A barcode scan sends Gemini only the digits, never the image or a full photo (the frame is taken

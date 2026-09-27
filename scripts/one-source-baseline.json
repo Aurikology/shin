@@ -1,10 +1,6 @@
 [
-  "app/src/model-cost.ts :: gemini-3.5-flash-lite",
   "docs/jamin-gemini-rules.md :: THE PRICE SHOULD NOT COME FROM US",
   "docs/jamin-gemini-rules.md :: barcode will not be sent to shins servers as of now",
-  "identify/eval/scan-cost.ts :: gemini-3.5-flash-lite",
-  "identify/src/provider.ts :: gemini-3.5-flash-lite",
-  "identify/src/providers/gemini.ts :: gemini-3.5-flash-lite",
   "price/src/verdict.ts :: at the high end",
   "price/src/verdict.ts :: at the low end"
 ]
