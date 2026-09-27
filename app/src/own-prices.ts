@@ -34,6 +34,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { nameTokens, type CatalogueProbe } from '../../catalogue/src/user-catalogue.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity } from '../../catalogue/src/units.ts';
+import { canonicalCode } from '../../catalogue/src/barcode.ts';
 
 export const OWN_DATA_SOURCE = 'shin_own_data' as const;
 
@@ -51,6 +52,22 @@ export interface OwnPrice {
   readonly from: 'prices' | 'user_offer' | 'user_shelf_price';
   /** User data is never fully trusted (Jamin, 2026-09-17); crawled and crowd rows are not checked either. */
   readonly trusted: false;
+  /**
+   * The province/state the source named, when it named one. Present only on
+   * a barcode lookup. Never used to merge rows across regions: two regions
+   * that price the same barcode differently are two facts, not one average.
+   */
+  readonly region?: string | null;
+  readonly country?: string | null;
+  /**
+   * The pre-tax, pre-deposit figure, when the source publishes one separately
+   * from `amount`. New Brunswick's liquor list does (its shelf price in
+   * `amount` includes HST); British Columbia's does not, and omits this
+   * field entirely. `amount` is always the shelf/customer-facing price;
+   * this one rides along for a caller that needs the pre-tax figure and is
+   * never averaged into `amount`.
+   */
+  readonly basePriceCents?: number | null;
 }
 
 export interface OwnMatch {
@@ -241,6 +258,29 @@ function latestPerStore(all: readonly OwnPrice[]): OwnPrice[] {
   return [...by.values()].sort((a, b) => a.amount - b.amount || a.store.localeCompare(b.store));
 }
 
+/**
+ * One price per store PER REGION: the latest there, ties broken low. Unlike
+ * `latestPerStore`, the same store name in two regions stays two rows, because
+ * a region can price the same barcode on a different tax basis (New
+ * Brunswick's shelf price is tax-inclusive, British Columbia's is not) and
+ * averaging them would compare a tax-in figure to a tax-out one.
+ */
+function latestPerStoreRegion(all: readonly OwnPrice[]): OwnPrice[] {
+  const by = new Map<string, OwnPrice>();
+  for (const p of all) {
+    const key = `${(p.region ?? '').toLowerCase().trim()}|${p.store.toLowerCase().replace(/\s+/g, ' ').trim()}`;
+    const have = by.get(key);
+    if (
+      !have ||
+      p.observedAt > have.observedAt ||
+      (p.observedAt === have.observedAt && p.amount < have.amount)
+    ) {
+      by.set(key, p);
+    }
+  }
+  return [...by.values()].sort((a, b) => a.amount - b.amount || a.store.localeCompare(b.store));
+}
+
 /* ------------------------------------------------------------ candidates */
 
 interface Candidate {
@@ -405,6 +445,216 @@ export function lookupOwnPrices(typed: string, sources: OwnLookupSources = {}): 
         size: best.sizeText ?? (best.size ? `${best.size.original.value} ${best.size.original.unit}` : null),
         code: best.code,
         score: Math.round(best.score * 1000) / 1000,
+        prices: list,
+      },
+      searched,
+      unavailable,
+    };
+  } catch {
+    return { match: null, searched, unavailable };
+  } finally {
+    try {
+      prices?.close();
+    } catch {
+      /* already closed */
+    }
+    if (ownUser) {
+      try {
+        user?.close();
+      } catch {
+        /* already closed */
+      }
+    }
+  }
+}
+
+/* -------------------------------------------------------- barcode lookup */
+
+/**
+ * A scanned barcode, answered from Shin's own data and nothing else.
+ *
+ * 2026-09-26: two price loads put about 14,000 priced barcodes into
+ * `price/data/prices.db`, and nothing in the app could read a price by
+ * barcode. This is that read path. Unlike `lookupOwnPrices`, no catalogue row
+ * is required or read: most of these barcodes are products the big catalogue
+ * does not hold, and that is the case that matters.
+ *
+ * TWO STORES, both read:
+ *   - `observation` in the price file. A barcode lives in `code` only when
+ *     the crawl joined the row to a catalogue product; most rows never
+ *     joined and keep the barcode in `page_gtin` instead, `code` left NULL
+ *     (store.ts's own convention, not a defect). Reading `code` alone would
+ *     answer for a few hundred barcodes instead of thousands (checked
+ *     2026-09-26: only 323 of BC's 7,555 rows join; 6,108 of New Brunswick's
+ *     6,741 are page_gtin-only), so both columns are matched.
+ *   - the user catalogue's typed shelf prices (`user_observation`), reached
+ *     two ways: by `catalogue_code` when a shopper's scan joined to the big
+ *     catalogue, and by `user_product.gtin` -> `product_id` when it did not
+ *     (the branch `recordUserScan` takes for a product the catalogue never
+ *     named - the same case that matters here).
+ *
+ * The incoming barcode is canonicalised (`canonicalCode`) and then tried in
+ * every spelling a source might hold (bare, 12, 13, 14 digits), because
+ * `page_gtin` is the seller's own unnormalised claim and `user_product.gtin`
+ * is stored with its leading zeros stripped.
+ *
+ * REGIONS ARE NEVER BLENDED. New Brunswick's shelf price is tax-inclusive
+ * (`price_cents`, exposed as `amount`, same meaning `amount` carries
+ * everywhere else in this file) with the tax-exclusive figure alongside it in
+ * `base_price_cents` (exposed as `basePriceCents`); British Columbia
+ * publishes only the tax-exclusive figure. Rows are deduped to one per store
+ * PER REGION, latest first, never merged across regions.
+ *
+ * Same rules as `lookupOwnPrices`: never throws, a missing file is a named
+ * `unavailable` source, and a price with no currency or no date is not an
+ * answer.
+ */
+export function lookupOwnPricesByBarcode(code: string, sources: OwnLookupSources = {}): OwnLookup {
+  const searched: string[] = [];
+  const unavailable: string[] = [];
+  const canon = canonicalCode((code ?? '').trim());
+  if (canon.replace(/\D/g, '') === '') return { match: null, searched, unavailable };
+  const forms = padForms(canon);
+  const placeholders = forms.map(() => '?').join(',');
+
+  let prices: DatabaseSync | null = null;
+  let user: DatabaseSync | null = null;
+  let ownUser = false;
+  try {
+    const all: OwnPrice[] = [];
+    let name: string | null = null;
+    let brand: string | null = null;
+    let sizeText: string | null = null;
+    let foundCode: string | null = null;
+
+    // 1. The crawled and crowd prices file: `code` (joined) or `page_gtin`
+    // (the far larger unjoined population) matched in every spelling.
+    try {
+      prices = openReadOnly(sources.pricesDbPath ?? defaultPricesPath());
+      if (!prices) throw new Error('missing');
+      const rows = prices
+        .prepare(
+          `SELECT seller, seller_name, seller_brand, store_name, store_city, price_cents, base_price_cents,
+                  currency, country, region, seen_on, url, kind, code, page_gtin
+             FROM observation WHERE code IN (${placeholders}) OR page_gtin IN (${placeholders})`,
+        )
+        .all(...forms, ...forms) as Record<string, unknown>[];
+      for (const r of rows) {
+        const cents = money(r.price_cents);
+        const currency = text(r.currency);
+        const seen = text(r.seen_on);
+        const url = text(r.url);
+        if (cents === null || currency === null || seen === null || reservedHost(url)) continue;
+        const storeName = text(r.store_name);
+        const city = text(r.store_city);
+        const store = storeName ? (city ? `${storeName} (${city})` : storeName) : text(r.seller);
+        if (store === null) continue;
+        const kind = r.kind === 'promotional' ? 'promotional' : r.kind === 'regular' ? 'regular' : null;
+        all.push({
+          store,
+          amount: cents / 100,
+          currency,
+          observedAt: seen,
+          url,
+          kind,
+          from: 'prices',
+          trusted: false,
+          region: text(r.region),
+          country: text(r.country),
+          basePriceCents: r.base_price_cents === null || r.base_price_cents === undefined ? null : money(r.base_price_cents),
+        });
+        if (name === null) {
+          name = text(r.seller_name);
+          brand = text(r.seller_brand);
+          foundCode = text(r.code) ?? text(r.page_gtin);
+        }
+      }
+      searched.push('prices');
+    } catch {
+      unavailable.push('prices');
+    }
+
+    // 2. The user catalogue's typed shelf prices.
+    try {
+      user = sources.userCatalogueDb ?? null;
+      if (!user) {
+        user = openReadOnly(sources.userCataloguePath);
+        ownUser = user !== null;
+      }
+      if (!user) throw new Error('missing');
+
+      // 2a. The scan that typed this shelf price joined to the big catalogue.
+      const byCode = user
+        .prepare(
+          `SELECT store_name, currency, price_cents, region, country, observed_at
+             FROM user_observation
+            WHERE catalogue_code IN (${placeholders})
+              AND price_cents IS NOT NULL AND store_name IS NOT NULL AND currency IS NOT NULL`,
+        )
+        .all(...forms) as Record<string, unknown>[];
+
+      // 2b. It did not: the barcode lives on `user_product.gtin` (stored bare,
+      // leading zeros stripped by recordUserScan's own normalizeGtin).
+      const products = user
+        .prepare(`SELECT id, name, brand, orig_value, orig_unit FROM user_product WHERE gtin IN (${placeholders})`)
+        .all(...forms) as Record<string, unknown>[];
+      let byProduct: Record<string, unknown>[] = [];
+      if (products.length > 0) {
+        const idPlaceholders = products.map(() => '?').join(',');
+        byProduct = user
+          .prepare(
+            `SELECT store_name, currency, price_cents, region, country, observed_at
+               FROM user_observation
+              WHERE product_id IN (${idPlaceholders})
+                AND price_cents IS NOT NULL AND store_name IS NOT NULL AND currency IS NOT NULL`,
+          )
+          .all(...products.map((p) => Number(p.id))) as Record<string, unknown>[];
+        if (name === null) {
+          const p = products[0];
+          name = text(p.name);
+          brand = text(p.brand);
+          const origValue = typeof p.orig_value === 'number' ? p.orig_value : null;
+          const origUnit = text(p.orig_unit);
+          sizeText = origValue !== null && origUnit ? `${origValue} ${origUnit}` : null;
+        }
+      }
+
+      for (const r of [...byCode, ...byProduct]) {
+        const cents = money(r.price_cents);
+        const currency = text(r.currency);
+        const seen = text(r.observed_at);
+        const store = text(r.store_name);
+        if (cents === null || currency === null || seen === null || store === null) continue;
+        all.push({
+          store,
+          amount: cents / 100,
+          currency,
+          observedAt: seen,
+          url: null,
+          kind: null,
+          from: 'user_shelf_price',
+          trusted: false,
+          region: text(r.region),
+          country: text(r.country),
+        });
+      }
+      searched.push('user_catalogue');
+    } catch {
+      unavailable.push('user_catalogue');
+    }
+
+    if (all.length === 0) return { match: null, searched, unavailable };
+    const list = latestPerStoreRegion(all);
+    if (list.length === 0) return { match: null, searched, unavailable };
+    return {
+      match: {
+        // No fabricated name: when neither store named the product, the
+        // barcode itself is the only fact on hand.
+        name: name ?? canon,
+        brand,
+        size: sizeText,
+        code: foundCode ?? canon,
+        score: 1,
         prices: list,
       },
       searched,
