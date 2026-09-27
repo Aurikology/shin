@@ -56,8 +56,42 @@ interface PreparedRow {
 async function main(): Promise<number> {
   const db = openCatalogue(DB_PATH);
 
-  // Re-runnable: the same dump loaded twice must not double the catalogue, and
-  // a re-run after an upstream refresh must update rather than conflict.
+  /*
+   * TWO DIFFERENT JOBS FOR ONE CONFLICT CLAUSE, AND THEY WANT OPPOSITE THINGS.
+   *
+   * Job one: the same dump loaded twice must not double the catalogue, and when
+   * a feed republishes with a corrected name that correction must land. That
+   * wants the incoming row to win.
+   *
+   * Job two: a SECOND source writing a barcode we already hold is a second
+   * witness to the same product, not a replacement for it. That wants the
+   * existing row to win, with the newcomer filling only what is missing. It is
+   * the rule the build plan wrote down for this loader: "a barcode already
+   * present keeps its existing row and the new source contributes only fields
+   * that row is missing".
+   *
+   * Until 2026-09-26 this clause did job one for both, which is silent and
+   * expensive. Counted afterwards: Quebec's deposit registry overwrote 5,106
+   * rows the food database already held, so "Black Raspberry Sparkling Fruit2O"
+   * became "Black Raspberry", "Mixed Berry Sparkling Fruit2O" became "Baies",
+   * and because those rows' `source` was overwritten too, the phone's grocery
+   * pack, which selects `source = 'openfoodfacts'`, quietly lost 4% of its
+   * products while the catalogue still held every one of them.
+   *
+   * SO THE CLAUSE ASKS WHO IS WRITING. `product.source = excluded.source` means
+   * the same feed is refreshing its own row, and then the incoming value wins,
+   * nulls included, because a feed is allowed to delete a field it no longer
+   * publishes. A different source means the newcomer may only fill a hole:
+   * COALESCE takes the existing value first, and NULLIF is there because an
+   * empty string is a hole too, as are '[]' for the two JSON list columns.
+   *
+   * TWO EXCEPTIONS, both deliberate. `sold_in_canada` is raised with max(),
+   * because one source saying a product is sold here is a fact that another
+   * source's silence does not undo. And `source` itself stays with the first
+   * writer, which is what keeps a product in the pack it belongs to; the cost is
+   * that the catalogue records one source per barcode rather than a list, and a
+   * second-witness column is the fix for that when something needs it.
+   */
   const insert = db.prepare(`
     INSERT INTO product (
       code, name, name_en, name_fr, brands, quantity, size_value, size_unit,
@@ -65,15 +99,42 @@ async function main(): Promise<number> {
       generic_name, nutriscore_grade, nova_group, additives_n, ingredients_text
     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(code) DO UPDATE SET
-      name=excluded.name, name_en=excluded.name_en, name_fr=excluded.name_fr,
-      brands=excluded.brands, quantity=excluded.quantity,
-      size_value=excluded.size_value, size_unit=excluded.size_unit,
-      category_path=excluded.category_path, leaf_category=excluded.leaf_category,
-      allergens=excluded.allergens, image_url=excluded.image_url,
-      sold_in_canada=excluded.sold_in_canada, source=excluded.source,
-      generic_name=excluded.generic_name, nutriscore_grade=excluded.nutriscore_grade,
-      nova_group=excluded.nova_group, additives_n=excluded.additives_n,
-      ingredients_text=excluded.ingredients_text
+      name = CASE WHEN product.source = excluded.source THEN excluded.name
+                  ELSE COALESCE(NULLIF(TRIM(product.name), ''), excluded.name) END,
+      name_en = CASE WHEN product.source = excluded.source THEN excluded.name_en
+                     ELSE COALESCE(NULLIF(TRIM(product.name_en), ''), excluded.name_en) END,
+      name_fr = CASE WHEN product.source = excluded.source THEN excluded.name_fr
+                     ELSE COALESCE(NULLIF(TRIM(product.name_fr), ''), excluded.name_fr) END,
+      brands = CASE WHEN product.source = excluded.source THEN excluded.brands
+                    ELSE COALESCE(NULLIF(TRIM(product.brands), ''), excluded.brands) END,
+      quantity = CASE WHEN product.source = excluded.source THEN excluded.quantity
+                      ELSE COALESCE(NULLIF(TRIM(product.quantity), ''), excluded.quantity) END,
+      size_value = CASE WHEN product.source = excluded.source THEN excluded.size_value
+                        ELSE COALESCE(product.size_value, excluded.size_value) END,
+      size_unit = CASE WHEN product.source = excluded.source THEN excluded.size_unit
+                       ELSE COALESCE(NULLIF(TRIM(product.size_unit), ''), excluded.size_unit) END,
+      category_path = CASE WHEN product.source = excluded.source THEN excluded.category_path
+                           ELSE COALESCE(NULLIF(NULLIF(product.category_path, ''), '[]'), excluded.category_path) END,
+      leaf_category = CASE WHEN product.source = excluded.source THEN excluded.leaf_category
+                           ELSE COALESCE(NULLIF(TRIM(product.leaf_category), ''), excluded.leaf_category) END,
+      allergens = CASE WHEN product.source = excluded.source THEN excluded.allergens
+                       ELSE COALESCE(NULLIF(NULLIF(product.allergens, ''), '[]'), excluded.allergens) END,
+      image_url = CASE WHEN product.source = excluded.source THEN excluded.image_url
+                       ELSE COALESCE(NULLIF(TRIM(product.image_url), ''), excluded.image_url) END,
+      -- A fact, never a preference: one source saying a product is sold in Canada
+      -- is not undone by another source that does not say so.
+      sold_in_canada = max(product.sold_in_canada, excluded.sold_in_canada),
+      source = CASE WHEN product.source = excluded.source THEN excluded.source ELSE product.source END,
+      generic_name = CASE WHEN product.source = excluded.source THEN excluded.generic_name
+                          ELSE COALESCE(NULLIF(TRIM(product.generic_name), ''), excluded.generic_name) END,
+      nutriscore_grade = CASE WHEN product.source = excluded.source THEN excluded.nutriscore_grade
+                              ELSE COALESCE(NULLIF(TRIM(product.nutriscore_grade), ''), excluded.nutriscore_grade) END,
+      nova_group = CASE WHEN product.source = excluded.source THEN excluded.nova_group
+                        ELSE COALESCE(product.nova_group, excluded.nova_group) END,
+      additives_n = CASE WHEN product.source = excluded.source THEN excluded.additives_n
+                         ELSE COALESCE(product.additives_n, excluded.additives_n) END,
+      ingredients_text = CASE WHEN product.source = excluded.source THEN excluded.ingredients_text
+                              ELSE COALESCE(NULLIF(TRIM(product.ingredients_text), ''), excluded.ingredients_text) END
   `);
 
   const rl = createInterface({
