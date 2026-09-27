@@ -238,7 +238,7 @@ Name the paths you stage.
 
 ## graphify
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+Only where graphify is installed and graphify-out/ exists (Aurik's PC; not this Windows PC, 2026-09-27): a knowledge graph with god nodes, community structure, and cross-file relationships. Where it is absent, skip this whole section; the hooks already skip themselves.
 
 Rules:
 - For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
