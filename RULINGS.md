@@ -181,7 +181,11 @@ now doubly so under Copyright Act s.41.1 (circumventing a protection measure). C
 (Karma/Honey style) is rejected on the same ground plus store policy. BC's 130,404-container
 alcohol registry is parked: at most 5.8% could ever carry a price. Expanding the product-and-price
 catalogue by every possible method stays Shin's highest priority, restated 2026-09-11 and
-2026-09-26: a product identified without a price is meaningless. · 2026-09-13 · log: docs/decisions.md#Never circumvent a bot block, and now for a second reason · 2026-09-11: *"Expand our product catalogue by finidng all possible methods to gain more infomation(product and price catalogue come hand in hand, knowing the product without the price is meaningless)"* · 2026-09-26: *"we need more items in the catalogue"*
+2026-09-26: a product identified without a price is meaningless. Every possible method means the
+unconventional ones too, down to reading websites by hand, inside the law line above. ·
+2026-09-26 · *"keep searching for EVERYTHING we can possibly do to build up our catalogue. think
+crazy, unreasonable things, i need you to think outside of the box, even to the point of manually
+reading through websites. Think really really outside the box"* · 2026-09-13 · log: docs/decisions.md#Never circumvent a bot block, and now for a second reason · 2026-09-11: *"Expand our product catalogue by finidng all possible methods to gain more infomation(product and price catalogue come hand in hand, knowing the product without the price is meaningless)"* · 2026-09-26: *"we need more items in the catalogue"*
 Retired wording: `roughly ten minutes lockout`, `search() in walmart.ts`
 Governs: price/src/walmart-sitemap.ts (discoverSkus, --indexes)
 
