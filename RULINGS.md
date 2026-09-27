@@ -30,7 +30,11 @@ accessible" on the beta server, so code now sends every scan to 3.x by default
 ruling introduced as an escape hatch was itself removed 2026-09-27 as dead code: it never ran
 outside tests, because the thing it would have turned back on (Gemini 2.5 access) never came
 back. Flagged in the 2026-09-27 decisions.md entry as one of two places the log had drifted from
-the running system. · 2026-09-22 · *"gemini 2.5 is not accessible"* · log: identify/src/providers/gemini-scan.ts:74-87 (quote at line 75; docs/decisions.md#One list of current rulings outranks every other file)
+the running system. Any cost or pricing projection (per-user, per-scan, or free-tier math) must
+assume Gemini 2.5 stays unavailable, never re-derive or re-guess it: a session on either machine
+carries forward a fact the other one already established instead of re-deriving it from scratch. ·
+2026-09-22 · *"gemini 2.5 is not accessible"* (same day: *"you should knwo based on the mac that
+gemini 2.5 is not accessible"*) · log: identify/src/providers/gemini-scan.ts:74-87 (quote at line 75; docs/decisions.md#One list of current rulings outranks every other file)
 Retired wording: `gemini-2.5-flash as the flat default`, `Gemini 2.5 by default`, `SHIN_GEMINI_MODEL=gemini-2.5-flash`, `default decided only by an offline test`
 Governs: SHIN_GEMINI_MODEL, SHIN_GEMINI_MODEL_3 (the family-comparison eval tools this paragraph also names are eval/, not live code, and outside settings/src/index.ts on purpose)
 ### Barcode plumbing: digits only, through Shin's server
@@ -182,7 +186,10 @@ now doubly so under Copyright Act s.41.1 (circumventing a protection measure). C
 alcohol registry is parked: at most 5.8% could ever carry a price. Expanding the product-and-price
 catalogue by every possible method stays Shin's highest priority, restated 2026-09-11 and
 2026-09-26: a product identified without a price is meaningless. Every possible method means the
-unconventional ones too, down to reading websites by hand, inside the law line above. ·
+unconventional ones too, down to reading websites by hand, inside the law line above. This is the
+long-run goal, not the immediate build list: MVP mode (09-26, see Catalogue scope) narrows what
+gets built right now to what is accessible and actually needed, deferring low-ROI sourcing work
+rather than chasing every method at once. ·
 2026-09-26 · *"keep searching for EVERYTHING we can possibly do to build up our catalogue. think
 crazy, unreasonable things, i need you to think outside of the box, even to the point of manually
 reading through websites. Think really really outside the box"* · 2026-09-13 · log: docs/decisions.md#Never circumvent a bot block, and now for a second reason · 2026-09-11: *"Expand our product catalogue by finidng all possible methods to gain more infomation(product and price catalogue come hand in hand, knowing the product without the price is meaningless)"* · 2026-09-26: *"we need more items in the catalogue"*
@@ -213,6 +220,10 @@ competitor. · 2026-09-21 · log: docs/decisions.md#Nine rulings so the competit
 Retired wording: none
 Governs: catalogue/, product.ring field (leaf/parent)
 ### Catalogue scope: in, out, and parked
+MVP mode (09-26): build only what is accessible and actually needed right now; skip low-ROI
+items and defer them for later rather than build everything possible up front. This is the
+general rule the parked items below are instances of, not a one-off call on the BC registry
+alone.
 The rule: country-in-Canada is a column on the product row, never a load-time filter, and
 anything that needs only Canadian products filters at read time (the phone's downloadable pack is
 built from sold_in_canada = 1). One loader breaks it and that stays, for now: the Canadian food
