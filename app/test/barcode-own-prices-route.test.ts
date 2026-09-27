@@ -10,18 +10,19 @@
  *
  * WHAT THEY PIN, and it is two facts that pull in opposite directions:
  *
- *   1. OFF BY DEFAULT. Jamin's rule for a barcode, quoted where
- *      `/api/identify` begins: "The server will not check shins own product
- *      list for now. The only thing the server will do is call gemini." He
- *      lifted that on 2026-09-23 for a TYPED search and said in the same ruling
- *      that barcodes and photos still follow the old rules. So with the flag
- *      unset the response must carry NO own prices at all, and the first test
- *      here is the one that keeps his rule honest: if somebody flips the default
- *      without his word, it goes red.
+ *   1. ON BY DEFAULT since 2026-09-26. These tests were written the other way
+ *      round on the day the seam was built, pinning "off by default" to keep
+ *      Jamin's barcode rule honest: "The server will not check shins own product
+ *      list for now. The only thing the server will do is call gemini." He lifted
+ *      that for a TYPED search on 2026-09-23, and on 2026-09-26 he asked why
+ *      Gemini was still in the way of a scan, which is the ruling for scans too.
+ *      So the first test now pins the opposite: a scan answers with our price
+ *      without anyone setting anything.
  *
- *   2. IT WORKS WHEN HE TURNS IT ON. With `SHIN_BARCODE_OWN_PRICES=1` the same
- *      scan comes back carrying our price, in the same offers list the answer
- *      sheet already renders, marked as our own data and untrusted.
+ *   2. THE SWITCH STILL CLOSES. With `SHIN_BARCODE_OWN_PRICES=0` the same scan
+ *      comes back with NO own prices at all. That test is what makes this a
+ *      one-line reversal rather than a claim that it is one, and the pair of
+ *      tests is why the direction of the default is a decision and not a drift.
  *
  * WHY TWO SERVER PROCESSES. The flag is read once when the module loads, which
  * is what makes it a one-line switch rather than a per-request cost, so one
@@ -138,20 +139,23 @@ function allOffers(body: Record<string, unknown>): Record<string, unknown>[] {
   return [...own, ...inBlock];
 }
 
-test('with the flag unset, a scanned barcode is answered without any of our own prices', async () => {
+test('with nothing set at all, a scanned barcode is answered with our own price on it', async () => {
   const { status, body } = await identify(`http://127.0.0.1:${port}`);
   assert.equal(status, 200);
-  assert.equal(body.ownOffers, undefined, 'his rule says a barcode does not read our own data');
   const ours = allOffers(body).filter((o) => o.retailer === OUR_STORE);
-  assert.deepEqual(ours, [], 'our price reached the answer with the flag off');
+  assert.equal(ours.length >= 1, true, `our price did not reach the answer: ${JSON.stringify(body).slice(0, 600)}`);
+  assert.equal(ours[0]!.price, OUR_PRICE_DOLLARS);
+  assert.equal(ours[0]!.currency, 'CAD');
+  assert.equal(ours[0]!.trusted, false, 'a crawled price is never presented as checked');
+  assert.equal(ours[0]!.seenOn, '2026-09-26', 'the date printed is when the price was seen, never now');
 });
 
-test('the price really is there to be found, so the test above is a rule and not an empty store', async () => {
-  // The negative control. Without this, the first test passes just as well
+test('the price really is there to be found, so the test below is a rule and not an empty store', async () => {
+  // The negative control. Without this, the OFF test passes just as well
   // against a price store that was never written, which would prove nothing.
   const { lookupOwnPricesByBarcode } = await import('../src/own-prices.ts');
   const match = lookupOwnPricesByBarcode(SCANNED, { pricesDbPath: pricesPath }).match;
-  assert.ok(match, 'the fixture price is not readable at all, so the first test proves nothing');
+  assert.ok(match, 'the fixture price is not readable at all, so the OFF test proves nothing');
   assert.equal(match.prices.some((p) => p.amount === OUR_PRICE_DOLLARS), true);
 });
 
@@ -172,22 +176,22 @@ async function freePort(): Promise<number> {
   });
 }
 
-test('with SHIN_BARCODE_OWN_PRICES=1 the same scan comes back carrying our price, even though the model gave nothing', async () => {
+test('with SHIN_BARCODE_OWN_PRICES=0 the same scan comes back with none of our prices, so the reversal is real', async () => {
   /*
    * The child has no Gemini key that works and no way to be handed the test
    * double, so its model call fails and the route answers with
-   * failure: model_client_error. That is the case this feature is worth the most
+   * failure: model_client_error. That is the case our own price is worth the most
    * in, and the reason the lookup happens before the model call rather than
-   * after: a price we already hold is the only thing left to show. So this test
-   * asserts BOTH that the answer is the failure answer and that our price is on
-   * it.
+   * after: a price we already hold is the only thing left to show. Which is
+   * exactly why the OFF case is worth pinning here rather than in the easy path:
+   * if the switch leaked anywhere, it would leak here.
    */
   const serverPath = fileURLToPath(new URL('../server.ts', import.meta.url));
   const chosen = await freePort();
   child = spawn(process.execPath, ['--experimental-strip-types', serverPath], {
     env: {
       ...process.env,
-      SHIN_BARCODE_OWN_PRICES: '1',
+      SHIN_BARCODE_OWN_PRICES: '0',
       PORT: String(chosen),
       SHIN_SCANS: join(dir, 'scans-on.db'),
       SHIN_REPEAT_CACHE: join(dir, 'repeat-cache-on.db'),
@@ -226,10 +230,7 @@ test('with SHIN_BARCODE_OWN_PRICES=1 the same scan comes back carrying our price
 
   const { status, body } = await identify(base);
   assert.equal(status, 200);
+  assert.equal(body.ownOffers, undefined, 'the switch was set to 0 and our data was read anyway');
   const ours = allOffers(body).filter((o) => o.retailer === OUR_STORE);
-  assert.equal(ours.length >= 1, true, `our price did not reach the answer: ${JSON.stringify(body).slice(0, 600)}`);
-  assert.equal(ours[0]!.price, OUR_PRICE_DOLLARS);
-  assert.equal(ours[0]!.currency, 'CAD');
-  assert.equal(ours[0]!.trusted, false, 'a crawled price is never presented as checked');
-  assert.equal(ours[0]!.seenOn, '2026-09-26', 'the date printed is when the price was seen, never now');
+  assert.deepEqual(ours, [], 'our price reached the answer with the switch closed');
 });

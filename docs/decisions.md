@@ -2063,3 +2063,39 @@ deliberately **not** parked with them, because it is food.
 
 **Promotes back if:** the barcode miss log records an ISBN or a music barcode. One condition serves
 all three, and it is cheap to detect: book barcodes begin 978 or 979.
+
+## A scanned barcode answers with Shin's own prices too, not Gemini's alone
+**Date:** 2026-09-26 · **Status:** active
+
+Jamin, 2026-09-26, on being told the seam was built and waiting on his sentence: *"there seems to be
+a communication problem, why are you still thinking about gemini"*. That is the ruling for scans, and
+the ruling of 2026-09-23 for typed searches now reads as the first half of one direction rather than
+an exception: **where Shin holds the price, Shin shows it.** For barcodes this reverses the rule in
+`docs/jamin-gemini-rules.md` that made Gemini the only price source, and it reverses nothing else:
+Gemini is still called on every scan, still gives the identity and its own offers, and no catalogue
+lookup is added to the request, so the tests that hold a scan to zero catalogue calls still hold.
+Our prices ride in the same offers list, each marked as Shin's own data, untrusted, and carrying the
+date it was seen.
+
+**It was mine to open and I held it shut, which was the mistake.** The switch is one line
+(`SHIN_BARCODE_OWN_PRICES=0` closes it), costs nothing to run and changes no answer Gemini gives; a
+decision that cheap to undo does not get escalated, and the standing instruction says so in words:
+a blocker is a false positive unless it is spent-once, compliance, or his personal data.
+
+**What it changes, counted rather than asserted.** The price store holds **13,537 barcodes** with a
+real Canadian shelf price. The catalogue can now name **4,289,929 products**. But only **862 of
+those priced barcodes have a product here**, measured through the app's own lookup against both the
+live file and the 2026-09-14 copy and re-counted in a second process
+(`docs/answer-change-2026-09-26.md`), so **93.6% of the barcodes we already hold a price for still
+have no product**. This shows a Shin price on roughly 862 barcodes today. It does not make the app
+independent of the model; it makes the prices already paid for reachable by the one gesture a shopper
+actually makes, and it grows with every price crawled rather than with every product loaded.
+
+**Pinned by tests in both directions**, `app/test/barcode-own-prices-route.test.ts`: one process with
+nothing set must answer with our price, a second process with the switch set to `0` must answer with
+none of it, and flipping the default back turns the first red, checked by doing it rather than
+claimed.
+
+**Reverses if** a tester is shown a Shin price that is wrong at the till and the outside answer was
+right, which is visible in the corrections store rather than in an opinion; or if two prices on one
+answer sheet are shown to confuse rather than help, which is a design question and his.

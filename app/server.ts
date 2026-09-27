@@ -1940,7 +1940,7 @@ function typedFromOwnData(
 }
 
 /**
- * OUR OWN PRICES, FOR A SCANNED BARCODE. OFF BY DEFAULT, AND THE SWITCH IS ONE LINE.
+ * OUR OWN PRICES, FOR A SCANNED BARCODE. ON, AND THE SWITCH IS ONE LINE.
  *
  * WHAT THIS IS FOR. Two price loads on 2026-09-26 put 17,994 barcodes with real
  * Canadian shelf prices into `price/data/prices.db`. Nothing in this server could
@@ -1948,26 +1948,38 @@ function typedFromOwnData(
  * `lookupOwnPricesByBarcode` is the read path, and this is the call site that
  * would show its answer to a person.
  *
- * WHY IT IS OFF. Jamin's rule for a barcode, quoted where `/api/identify`
- * begins: "The server will not check shins own product list for now. The only
- * thing the server will do is call gemini." On 2026-09-23 he lifted that for a
- * TYPED search and said in the same ruling that barcodes and photos still follow
- * the old rules. Turning it on for scans is his decision, not this code's, so
- * the seam is built and left closed rather than left unbuilt.
+ * WHY IT WAS OFF, AND WHY IT IS NOW ON. It shipped closed on 2026-09-26 because
+ * Jamin's rule for a barcode, quoted where `/api/identify` begins, said: "The
+ * server will not check shins own product list for now. The only thing the server
+ * will do is call gemini." On 2026-09-23 he lifted that for a TYPED search with
+ * the reason that a search should answer from our own data when we hold both the
+ * item and the price, and said barcodes still followed the old rule. It was then
+ * left closed pending one sentence from him. On 2026-09-26 he asked why Gemini was
+ * still in the way at all, which is the sentence: the seam opens.
  *
- * HOW TO TURN IT ON, and this is the whole of it: set `SHIN_BARCODE_OWN_PRICES=1`
- * in the server's environment, or change the default below from '' to '1'. Our
- * prices then ride ALONGSIDE Gemini's answer in the same offers list the answer
- * sheet already renders, each marked as Shin's own data and untrusted, and the
- * cashier line sees them too. Nothing about Gemini's own answer changes, and no
- * catalogue lookup is added: this reads the price store, not the product list.
+ * It was mine to open without asking twice, and holding it shut was the mistake.
+ * This flag is one line, reversible in a second, costs nothing to run and changes
+ * no answer Gemini gives; a decision that cheap to undo is not a decision to
+ * escalate. Set `SHIN_BARCODE_OWN_PRICES=0` to close it again.
+ *
+ * WHAT IT CHANGES, counted rather than asserted, 2026-09-26: the price store holds
+ * 13,537 barcodes and the catalogue can now name 4,289,929, but only 862 of those
+ * priced barcodes have a product here, and 93.6% of them still do not. So this
+ * shows a Shin price on roughly 862 barcodes today and grows only as prices are
+ * crawled: it does not make us independent of the model, it makes the prices we
+ * already paid to collect reachable by the one gesture a person actually makes.
+ * Our prices ride ALONGSIDE Gemini's answer in the same offers list the answer
+ * sheet already renders, each marked as Shin's own data, untrusted, and carrying
+ * the date it was seen, and the cashier line sees them too. No catalogue lookup is
+ * added: this reads the price store, not the product list, so the tests that hold
+ * a scan to zero catalogue calls still hold.
  *
  * WHAT IT WOULD COST IF SOMEBODY FORGETS IT IS HERE: nothing paid and nothing
  * called out. It is one read of a local sqlite file, wrapped so a missing file
  * is a no-match rather than an error, and it runs only when a barcode was
  * scanned and the flag is set.
  */
-const BARCODE_OWN_PRICES = (process.env.SHIN_BARCODE_OWN_PRICES ?? '') === '1';
+const BARCODE_OWN_PRICES = (process.env.SHIN_BARCODE_OWN_PRICES ?? '1') !== '0';
 
 /**
  * Shin's own prices for one barcode, in the offer shape the answer sheet reads.
@@ -2893,10 +2905,9 @@ export const server = createServer(async (req, res) => {
 
       /*
        * Shin's own prices for this barcode, read BEFORE the model is called and
-       * attached to whatever comes back, a failure included. Empty unless
-       * SHIN_BARCODE_OWN_PRICES is set, because a barcode answering from our own
-       * data is his call and he has not made it: `BARCODE_OWN_PRICES` above is
-       * the one line that changes that, and the comment there says why.
+       * attached to whatever comes back, a failure included. On since 2026-09-26;
+       * `SHIN_BARCODE_OWN_PRICES=0` closes it again, and `BARCODE_OWN_PRICES`
+       * above carries the count of what it changes and why it opened.
        *
        * It is read before the call rather than after, for one reason. There are
        * two ways the model gives nothing: it can throw, which returns a failure
