@@ -44,6 +44,8 @@ who were just browsing. Optimizing for a purchase optimizes for the smaller half
 cost scales with saves rather than users.
 
 ## The v1 floor is six systems
+
+**Superseded in part by RULINGS.md: "v1 floor: live photo recognition is load-bearing" (2026-09-09). RULINGS.md is current; this entry is history.**
 **Date:** 2026-09-03 · **Status:** reversed 2026-09-09, see "Live photo recognition is load-bearing" below
 
 One category, barcode and screenshot input only, three faces, save and watch, a still share
@@ -999,6 +1001,8 @@ camera cannot be made to work inside the wrapper on a real phone after the nativ
 in which case the photo path stays web-only for the beta and the barcode path goes native.
 
 ## Review scores come only through a retailer's official API, named on screen, and food quality comes from Open Food Facts
+
+**Superseded in part by RULINGS.md: "Reviews: Gemini's reviews ship, shown even without a source link" (2026-09-14). RULINGS.md is current; this entry is history.**
 **Date:** 2026-09-11 · **Status:** active
 
 His words: *"the reviews can be pulled from amazon or walmart, or best buy or any other popular
@@ -1036,6 +1040,8 @@ stars and the table's rating column widens; nothing else changes.
 
 
 ## The app ships in French and English from the first beta, not English-only
+
+**Superseded in part by RULINGS.md: "Localization and onboarding" (2026-09-13). RULINGS.md is current; this entry is history.**
 **Date:** 2026-09-13 · **Status:** active
 
 `docs/the-beta-build-plan.md` E13 recorded that "the interface language stays English for the beta
@@ -1402,6 +1408,8 @@ instead of an argument, which is what the reversal condition asked for.
 
 ## Consent is off until answered, and the cell stays coarse: his ruling over the one-push "everything"
 
+**Superseded in part by RULINGS.md: "Location and photo consent default off until answered" (2026-09-14). RULINGS.md is current; this entry is history.**
+
 2026-09-14. Two founders said opposite things on the same screen on the same day. Jamin, on his
 Mac session: *"build everything for collecting EVERYTHING"*, and commit `d0a1c2e` shipped both
 toggles on by default for a device that never answered, the exact GPS position beside the coarse
@@ -1466,6 +1474,8 @@ block is display-only (nothing stored, nothing scored, no tier word) and it type
 a `git revert` of the revert plus a green gate.
 
 ## Gemini for identification, and grounded prices display-only
+
+**Superseded in part by RULINGS.md: "Default Gemini model is gemini-3.8-flash" (2026-09-22). RULINGS.md is current; this entry is history.**
 
 2026-09-14. Aurik: *"we will be swithcing to gemini. read the gemini documents. it is really good
 but it has so many legal rules we need to build around. Shin will adopt this."* Adopted. The
@@ -1588,6 +1598,8 @@ Shin stands behind.
 
 
 ## Twelve rulings on the Gemini branch, answered together
+
+**Superseded in part by RULINGS.md: "Reviews: Gemini's reviews ship, shown even without a source link" (2026-09-14), item 4; "A scanned barcode answers with Shin's own prices too" (2026-09-26), item 10. RULINGS.md is current; this entry is history.**
 
 2026-09-14. The Gemini tree (`docs/the-gemini-tree.md`) named 13 leaves only Jamin could decide.
 Asked to go through them, he ruled on 12 in one pass (Aurik's own agreement on the branch inside
