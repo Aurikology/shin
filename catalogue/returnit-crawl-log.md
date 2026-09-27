@@ -9,3 +9,4 @@ Checkpointed every 100 pages so a crash's furthest point is visible in git histo
 - page 500/772, 13747 rows written so far (2026-09-26 20:42:56)
 - page 600/772, 16485 rows written so far (2026-09-26 20:54:07)
 - page 700/772, 17934 rows written so far (2026-09-26 21:05:22)
+- page 772/772, 18631 rows written so far (2026-09-26 21:13:28)
