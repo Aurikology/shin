@@ -219,9 +219,10 @@ all four."*
 3. **The photo scan is built as one call** (image plus grounded search, rule 1) and is the first
    thing measured when the paid key arrives. If the API refuses that combination, it is raised
    with him, not quietly split into two calls.
-4. **The per-scan cost is accepted.** About 5.6 cents a scan past roughly 1,250 scans a month
-   (Aurik's question 4). No catalogue-first free path in front of Gemini, per *"The server will
-   not check shins own product list for now."*
+4. **The per-scan cost was accepted.** About 5.6 cents a scan past roughly 1,250 scans a month
+   (Aurik's question 4), with Gemini in front of the catalogue, per *"The server will not check
+   shins own product list for now."* **Superseded 2026-09-27, see RULINGS.md: "Catalogue first;
+   Gemini is a capped fallback, never the identity."**
 
 **Model: 2.5 was decided as the flat default on 2026-09-18. Superseded 2026-09-22, see
 RULINGS.md: "Default Gemini model is gemini-3.8-flash."** His words at the time: *"lets make the

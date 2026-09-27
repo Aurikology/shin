@@ -45,6 +45,14 @@ const RULING_PATTERNS = [
   /i've already told you/i,
   /i (decided|changed my mind)/i,
   /my (call|decision)/i,
+  // WIDENED 2026-09-27: his corrections arrive as questions, and both of his "why are you
+  // still thinking about gemini" turns (09-26, 09-27) passed this list silently, so the
+  // ruling behind them was recorded as the smallest change. Backtest over his 1,081 distinct
+  // typed prompts: these add 5 fires, all 5 corrections of a standing direction.
+  /\bwhy (are|do|did|is|does) (you|we|it|shin)\b[^.?!\n]{0,60}\bstill\b/i,
+  /\b(you|we) (are |were )?still (think|thinking|using|use|calling|building|planning)\b/i,
+  /\bi (already |have already |'ve )?told you\b/i,
+  /\bcommunication problem\b/i,
 ];
 
 /**
@@ -68,7 +76,9 @@ export function looksLikeRuling(prompt) {
 const CONTEXT_TEXT =
   "[ruling-capture] If this message sets a ruling, record it this turn in RULINGS.md " +
   '(until it exists, docs/decisions.md) with his words and date, and say where. ' +
-  'Otherwise ignore.';
+  'A correction ("why are you still X") rules that X is not the design. Record it at ' +
+  'the level of his direction, never as the smallest change that satisfies it, and in ' +
+  'the same turn rewrite every active entry it contradicts. Otherwise ignore.';
 
 function main() {
   let payload;

@@ -3,11 +3,21 @@ This file outranks every other file in the repo, including docs/jamin-gemini-rul
 To change an entry: rewrite it here, move the old text to docs/decisions.md, then run node scripts/checks.mjs.
 Process rows (git, commits, claiming, lanes, hooks, comms channel) live in CLAUDE.md, not here; one entry per live ruling below.
 ## Scanning and Gemini
+### Catalogue first; Gemini is a capped fallback, never the identity
+Shin names a product from its own catalogue: a barcode by lookup; anything else by reading every
+piece of text on the object (price tag, cereal box, container) and searching the catalogue with it,
+returning the top 3 for the shopper to pick, never one row forced out of millions; manual entry
+when nothing matches. The price range comes from Shin's own data by math: the product's own
+prices, else its category's range. Gemini is not asked who the product is; it is only a fallback
+asked for a typical price range, capped per month. Every new feature is planned without Gemini,
+and no work widens Gemini's role. The beta keeps today's behaviour until one setting flips, which
+both founders decide; the code behind it is Aurik's. · 2026-09-27 · Jamin: *"why do you still think we use gemini, even after all the work done yesturday"* (09-26: *"there seems to be a communication problem, why are you still thinking about gemini"*); Aurik: *"THAT IS THE PLAN WE WILL FOLLOW, WE ARE SHIFTING SHIN AND THAT IS THE MOST RECENT PLAN"* · log: docs/decisions.md#Catalogue first, Gemini a capped fallback
+Retired wording: `no catalogue-first free path`, `The server calls Gemini for identity`, `Gemini is still called on every scan`, `catalogue-pick identify pipeline is retired`
+Governs: to fill (the one setting Aurik's session is adding)
 ### Gemini switch and call architecture
-Gemini replaces Claude for identification (measured: 7/7 price requests refused, 9/30 barcodes
-absent, Claude refusing 4/15 photos on Jamin's phone). One Gemini call returns product, prices,
-reviews and price math together, never split; photo scans are also one call. Rollout order:
-identification, guard, grounded prices, reviews, price line. · 2026-09-14 · *"we will be swithcing to gemini... Shin will adopt this"* · log: docs/decisions.md#Gemini for identification, and grounded prices display-only
+Gemini replaced Claude (measured: 7/7 price requests refused, 9/30 barcodes absent, Claude
+refusing 4/15 photos on Jamin's phone). When Gemini is called, now only as the capped fallback
+above, it is one call, never split. · 2026-09-14 · *"we will be swithcing to gemini... Shin will adopt this"* · log: docs/decisions.md#Gemini for identification, and grounded prices display-only
 Retired wording: `Claude for product identification`, `two Gemini calls per scan`
 Governs: identify/src/model.ts, identify/src/providers/gemini-scan.ts, SHIN_MODEL_PROVIDER
 ### Default Gemini model is gemini-3.8-flash
@@ -34,8 +44,8 @@ Retired wording: `barcode will not be sent to shins servers as of now`
 Governs: app/server.ts, identify/src/providers/gemini-scan.ts
 ### Verifying Gemini never means calling it twice
 A single ungrounded AI read is never trusted by calling the model again; agreement is checked by
-scanning multiple camera frames instead. Built on top of that: Shin never runs or shows its own
-price math to the user, but a hidden background check may recompute Gemini's math, and a mismatch
+scanning multiple camera frames instead. Shin's own price range is computed by math from its own
+data (catalogue-first ruling above). A hidden background check may recompute Gemini's math, and a mismatch
 marks that scan (image/digits plus the exact prompt) for later review, never shown to the user; a
 page-fetch verifier extends the same idea: it fetches only an allowlisted host, only a URL the
 grounded search itself returned, and records agreement or mismatch without changing what the user
@@ -85,7 +95,8 @@ Governs: to fill
 ## Prices and verdicts
 ### A scanned barcode answers with Shin's own prices too
 YES. A barcode scan's offers list now includes Shin's own collected prices, each marked as Shin's
-own data, untrusted, dated; Gemini is still called on every scan for identity and its own offers.
+own data, untrusted, dated. Under the beta's current settings Gemini is also called on each barcode
+scan; the catalogue-first ruling replaces that when its setting flips.
 This reverses the 2026-09-15 rule that the price answer never comes from Shin's own price
 database, price engine or lookups, and the 2026-09-14 rule that Shin's own prices are not shown
 anywhere. Typed-name search (not barcode) still only searches Shin's own catalogue and answers
@@ -150,7 +161,7 @@ alcohol registry is parked: at most 5.8% could ever carry a price. · 2026-09-13
 Retired wording: `roughly ten minutes lockout`, `search() in walmart.ts`
 Governs: price/src/walmart-sitemap.ts (discoverSkus, --indexes)
 ### Product identity and catalogue matching
-The server calls Gemini for identity, not Shin's own catalogue: Aurik later accepted a
+Shin's own catalogue names the product (catalogue-first ruling above). Aurik earlier accepted a
 live-vs-imported distinction, not yet built: imported Open Food Facts answers first, a live OFF
 call is only the fallback, and the answer records which was used (open: snapshot staleness). A
 matched scan attaches at the closest of two stored quantities, converting units but keeping the
@@ -224,9 +235,10 @@ flagged the per-scan cost assumption as stale given the cheaper system planned.
 hits the wall against a subscribe button that can't yet take a purchase. · 2026-09-23 · *"we should assume only 1 in 100 people pay"* · log: docs/decisions.md#Shin Plus price and the weekly free scans
 Retired wording: `assuming a scan cost 0.6 cents`
 Governs: SHIN_FREE_SCANS_PER_WEEK, app/public/js/plus-config.js
-### Per-scan cost accepted, no catalogue-first free path
-The roughly 5.6-cent per-scan cost past ~1,250 scans a month is accepted; there is no catalogue-
-first free path in front of Gemini. · 2026-09-18 · *"go with the defaults for all four."* · log: docs/jamin-gemini-rules.md#walkthrough-rulings-2026-09-1617-his-notes-and-comments-on-the-google-doc-walkthrough
+### Gemini spend cap
+Gemini calls stay under a daily and a hard dollar cap. The 2026-09-18 acceptance of roughly 5.6
+cents on every scan is superseded: the catalogue now answers first and Gemini is a monthly-capped
+fallback (catalogue-first ruling). · 2026-09-18, revised 2026-09-27 · *"go with the defaults for all four."* · log: docs/jamin-gemini-rules.md#walkthrough-rulings-2026-09-1617-his-notes-and-comments-on-the-google-doc-walkthrough
 Retired wording: none
 Governs: SHIN_PHOTO_DAILY_CAP_CAD, SHIN_PHOTO_HARD_CAP_CAD, SHIN_SPEND_CAP_STORE_PATH, identify/src/cap.ts
 ## Privacy, recording and consent

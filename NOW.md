@@ -37,11 +37,13 @@ in `docs/decisions.md`: CA$3.99 a month, CA$29.99 a year, 5 free barcode scans a
 purchases work (this matches RULINGS.md, "Shin Plus pricing and free scans": 5 a week for the
 beta, 3 a week at public launch). The invite code is set on the Mac (D-164).
 
-**The catalogue-pick identify pipeline is retired.** `d3e4f0b` (Jamin, 2026-09-19) removed
-`identify.ts`, most of `model.ts`, `gauge.ts`'s dead sandbox-verification pair, the
-`/api/alternatives` route and the orphaned `identifyPhoto` in `server.ts`. Gemini identifies the
-product now; Shin's own catalogue does not (it still holds category/size/variant discrimination
-and alternatives). Detail and the ruling this executed: archive, "SETTLED IN CODE, 2026-09-21".
+**Shin is shifting to catalogue first (both founders, 2026-09-27; RULINGS.md, "Catalogue first;
+Gemini is a capped fallback").** The catalogue names the product (text on the object searched,
+top 3 returned, manual entry on no match), Shin's own math gives the price range, and Gemini is only
+a monthly-capped price-range fallback. Aurik's session is building it behind one setting that stays
+off until both say flip it; until then the running beta still asks Gemini on each scan. The old
+single-row photo matcher removed in `d3e4f0b` (2026-09-19) stays removed: the new search returns
+three for the shopper to pick, never one row forced out of millions.
 
 **Do not quote the old "32 of 52 failures is retrieval" figure as current.** It was measured while
 the catalogue still picked the product, which is exactly the work the deletion above removed from

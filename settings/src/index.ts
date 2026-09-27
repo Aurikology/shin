@@ -66,10 +66,10 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_BARCODE_OWN_PRICES', default: "'1' (on)", ruling: "A scanned barcode answers with Shin's own prices too" },
   // -- Caching and cancellation ------------------------------------------
   { env: 'SHIN_REPEAT_CACHE', default: "'data/repeat-cache.db'", ruling: 'Caching and cancellation' },
-  // -- Per-scan cost accepted: the dollar spend cap -----------------------
-  { env: 'SHIN_PHOTO_DAILY_CAP_CAD', default: '10 (CAD, soft cap)', ruling: 'Per-scan cost accepted, no catalogue-first free path' },
-  { env: 'SHIN_PHOTO_HARD_CAP_CAD', default: '10x the soft cap', ruling: 'Per-scan cost accepted, no catalogue-first free path' },
-  { env: 'SHIN_SPEND_CAP_STORE_PATH', default: 'identify/data/spend-cap.json', ruling: 'Per-scan cost accepted, no catalogue-first free path' },
+  // -- Gemini spend cap: the dollar spend cap -----------------------
+  { env: 'SHIN_PHOTO_DAILY_CAP_CAD', default: '10 (CAD, soft cap)', ruling: 'Gemini spend cap' },
+  { env: 'SHIN_PHOTO_HARD_CAP_CAD', default: '10x the soft cap', ruling: 'Gemini spend cap' },
+  { env: 'SHIN_SPEND_CAP_STORE_PATH', default: 'identify/data/spend-cap.json', ruling: 'Gemini spend cap' },
   // -- Shin Plus pricing and free scans ------------------------------------
   { env: 'SHIN_FREE_SCANS_PER_WEEK', default: 'unset/empty/0/NaN -> unlimited (off)', ruling: 'Shin Plus pricing and free scans' },
   // -- Record everything the user does -------------------------------------

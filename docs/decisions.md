@@ -2190,3 +2190,48 @@ so a disabled check shows red rather than a silent green.
 
 **Reverses if:** the checks block legitimate pushes more than they catch real regressions, counted
 from the pipeline history.
+
+## Catalogue first, Gemini a capped fallback
+
+**Date:** 2026-09-27 · **Status:** active; the running beta changes when its setting flips
+
+Aurik, 2026-09-27 (comms message of 13:43 -0400): *"THAT IS THE PLAN WE WILL FOLLOW, WE ARE
+SHIFTING SHIN AND THAT IS THE MOST RECENT PLAN"*, the plan verbatim: *"identify if it is in our
+catalogue, catalogue has a bunch of categories and a general price range for those categories, use
+pure math instead of calling apis to generate an avg price range / Call claude and ask it what is
+the typical price range for this item, this can be limited to a certain amount of time per month /
+Identify the object, price tag, cereal box, container, all of these things will have text, we take
+these texts and search it in our catalog, and return the top 3. Passive feature. / Look into: if
+our catalogue does have the product. / If product cannot be matched, manually input this."*
+("Call claude" means Gemini, Aurik's answer the same day.) Jamin the same day, in the agent repo:
+*"why do you still think we use gemini, even after all the work done yesturday"*, the second time
+after 2026-09-26's *"there seems to be a communication problem, why are you still thinking about
+gemini"*.
+
+**Why it took two corrections.** The 09-26 words were recorded as the smallest change that
+satisfied them (own prices shown beside Gemini's, "and it reverses nothing else"), so every
+Gemini-first entry stayed active, and the 09-27 before/after test graded sessions against a key
+written from that narrow entry. The ruling-capture hook matched neither sentence, because a
+correction phrased as a question fits none of its patterns; widened the same day (5 new fires over
+his 1,081 distinct typed prompts, all 5 corrections), with both sentences as selftest cases that
+fail on the old hook.
+
+**Old text moved here from RULINGS.md:**
+- "Gemini switch and call architecture": *Gemini replaces Claude for identification (measured:
+  7/7 price requests refused, 9/30 barcodes absent, Claude refusing 4/15 photos on Jamin's phone).
+  One Gemini call returns product, prices, reviews and price math together, never split; photo
+  scans are also one call. Rollout order: identification, guard, grounded prices, reviews, price
+  line.*
+- "Verifying Gemini never means calling it twice": *Built on top of that: Shin never runs or
+  shows its own price math to the user, but a hidden background check may recompute Gemini's
+  math...*
+- "Product identity and catalogue matching": *The server calls Gemini for identity, not Shin's own
+  catalogue: Aurik later accepted a live-vs-imported distinction...*
+- "Per-scan cost accepted, no catalogue-first free path" (renamed "Gemini spend cap"): *The
+  roughly 5.6-cent per-scan cost past ~1,250 scans a month is accepted; there is no catalogue-first
+  free path in front of Gemini.*
+- "A scanned barcode answers with Shin's own prices too": *Gemini is still called on every scan
+  for identity and its own offers.*
+
+**Reverses if:** the measurement Aurik's session runs first shows the catalogue holds too few of
+the products shoppers scan for top 3 to beat asking Gemini; that number goes to both founders.

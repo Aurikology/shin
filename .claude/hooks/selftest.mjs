@@ -70,6 +70,9 @@ const RULING_CASES = [
     "i've already told you, and switch to",
   ],
   ["from now on never show the price math", true, "from now on, even with never elsewhere in the sentence"],
+  ["there seems to be a communication problem, why are you still thinking about gemini", true, "his 09-26 correction, silent before 2026-09-27"],
+  ["why do you still think we use gemini, even after all the work done yesturday", true, "his 09-27 correction, silent before 2026-09-27"],
+  ["why is the scan slow", false, "a why-question with no still"],
 
   ["what does the barcode route return?", false, "an ordinary question"],
   ["run the tests", false, "an ordinary task"],
