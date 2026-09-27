@@ -241,7 +241,7 @@ test('a swap row is its own single-column stack, not a child fighting .prov', ()
 
 test('the badge is set in the UI face, not the measurement face', () => {
   /*
-   * NOW.md 2026-09-10: "Section headings are sentence case in the UI face;
+   * docs/archive/now-history-2026-09-27.md:1276, 2026-09-10: "Section headings are sentence case in the UI face;
    * mono uppercase stays reserved for a measurement (FLAWS item 6 wins)."
    * "Same kind of thing" is a label. "$0.44 per 100 g" is a measurement. They
    * were rendering in the same typeface, which says they are the same kind of

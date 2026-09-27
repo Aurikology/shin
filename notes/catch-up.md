@@ -7,6 +7,11 @@ Never put a secret here: links with codes and tokens travel privately between Ja
 
 A session that has told its human everything under a day adds a line to that day's **Read by**.
 
+**Not current.** This is a dated log; each entry records what was true on that day, not today.
+RULINGS.md holds current rulings and NOW.md holds current state; where an older entry below states
+something as if it still holds (a call count, a model tier, a free-scan number), it is history, not
+state, and RULINGS.md/NOW.md win on any disagreement.
+
 ---
 
 ## 2026-09-23 (Jamin's PC): typing searches only Shin's own data, the barcode button sends no photo, and the launch list is in the queue
@@ -819,7 +824,13 @@ or has already bled on.**
   today with a guard that withholds the line; your rule stops it being wrong in the first place.
 - **Marketplace separated from direct retailer**, which this repo does not distinguish at all.
 
-### The question: does Gemini identify the product, or does the catalogue?
+### The question: does Gemini identify the product, or does the catalogue? (history, see RULINGS.md)
+
+**Answered since this entry was written: Gemini identifies now, the catalogue does not.**
+`d3e4f0b` (2026-09-19) retired the catalogue-pick identify pipeline; see
+`docs/archive/now-history-2026-09-27.md`, "SETTLED IN CODE, 2026-09-21". The "still two calls" line
+below is also no longer true: RULINGS.md, "Gemini switch and call architecture" -- photo scans are
+one call too now. Left below as the record of the question as it stood on 2026-09-18.
 
 **This is not two competing ideas. Your package is the rule-1 fix for the photo path, and this
 repo has openly not done it.** `NOW.md` says so in those words: the barcode path is one call now,
