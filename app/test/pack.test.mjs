@@ -57,20 +57,55 @@ function loadRealPackBuffer() {
   return buffer;
 }
 
-test('a known barcode resolves to the product the pack itself names', { skip: NEEDS_PACK }, () => {
+test('a known barcode resolves to the product the pack itself names', { skip: NEEDS_PACK }, async () => {
   const buffer = loadRealPackBuffer();
 
   const prepareStart = performance.now();
   const parsed = parsePack(buffer);
   const prepareMs = performance.now() - prepareStart;
 
-  assert.equal(parsed.count, 122101, 'row count should match the grocery scope as exported');
+  /*
+   * THIS USED TO BE A HARD-CODED 122,101, AND THAT NUMBER EARNED ITS KEEP BEFORE
+   * IT BECAME A LIABILITY.
+   *
+   * On 2026-09-26 it was the only thing in the repository that noticed a real
+   * defect: an export came back with 116,998 rows, and the cause turned out to be
+   * a loader overwriting 5,115 food rows' `source` with a deposit registry's,
+   * which moved them out of the grocery scope while leaving them in the
+   * catalogue. No count from the loader, no answer, and no other test saw it.
+   *
+   * But a constant cannot tell "the pack shrank because something broke" from
+   * "the pack changed because the catalogue changed", and it goes red on every
+   * legitimate load. So it is now the real invariant: the pack's own header count
+   * equals the number of rows in the scope it claims to hold, read out of the
+   * catalogue. Where the catalogue is not built, a floor stands in, because a
+   * pack an order of magnitude short is still obviously wrong.
+   */
+  const CATALOGUE = fileURLToPath(new URL('../../catalogue/data/catalogue.db', import.meta.url));
+  if (existsSync(CATALOGUE)) {
+    const { DatabaseSync } = await import('node:sqlite');
+    const db = new DatabaseSync(CATALOGUE, { readOnly: true });
+    db.exec('PRAGMA busy_timeout = 120000');
+    const inScope = Object.values(
+      db.prepare("SELECT count(*) FROM product WHERE sold_in_canada = 1 AND source = 'openfoodfacts'").get() ?? {},
+    )[0];
+    db.close();
+    // The exporter refuses codes longer than 14 digits, which no scanner can
+    // produce, so the pack is allowed to be a little short of the scope. It is
+    // never allowed to be longer, and never allowed to be short by much.
+    assert.ok(
+      parsed.count <= inScope && inScope - parsed.count < 500,
+      `the pack holds ${parsed.count} rows and the grocery scope holds ${inScope}`,
+    );
+  } else {
+    assert.ok(parsed.count > 100_000, `the pack holds only ${parsed.count} rows`);
+  }
 
   const lookupStart = performance.now();
   const hit = lookupCode(parsed, KNOWN_CODE);
   const lookupMs = performance.now() - lookupStart;
 
-  console.log(`load + prepare (122,101 rows, ${(buffer.byteLength / 1024 / 1024).toFixed(2)} MB decompressed): ${prepareMs.toFixed(3)} ms`);
+  console.log(`load + prepare (${parsed.count.toLocaleString()} rows, ${(buffer.byteLength / 1024 / 1024).toFixed(2)} MB decompressed): ${prepareMs.toFixed(3)} ms`);
   console.log(`single lookup: ${lookupMs.toFixed(4)} ms`);
 
   assert.ok(hit, 'known barcode should resolve');
