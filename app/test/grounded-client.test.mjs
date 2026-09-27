@@ -109,6 +109,21 @@ const WIRE = () => ({
   suggestionsHtml: '<div class="gsc"><a href="https://www.google.com/search?q=citrus+soda">citrus soda</a></div>',
 });
 
+/**
+ * The wire above plus two of Shin's own rows for stores the search also
+ * quoted, as the server marks them (`sameStoreAsGemini`, src/same-store.ts).
+ * One carries its date and one does not, so both sentences are rendered.
+ */
+const SAME_STORE_WIRE = () => {
+  const wire = WIRE();
+  wire.block.offers.push(
+    { retailer: 'Northfield Grocers Canada', price: 4.29, currency: 'CAD', seenOn: '2026-09-20', url: null, hasLink: false, trusted: false, source: 'shin_own_data', sameStoreAsGemini: true },
+    { retailer: 'Ridgeway Market', price: 6.5, currency: 'CAD', url: null, hasLink: false, trusted: false, source: 'shin_own_data', sameStoreAsGemini: true },
+    { retailer: 'Lakeshore Depot', price: 5.1, currency: 'CAD', seenOn: '2026-09-18', url: null, hasLink: false, trusted: false, source: 'shin_own_data' },
+  );
+  return wire;
+};
+
 /* --------------------------------------------------------- the renderer -- */
 
 async function renderRoot(wire = WIRE()) {
@@ -579,6 +594,11 @@ test('the zone words and the large dot reading name the user\'s line, never a gr
     const noLine = NO_LINE_WIRE('no_offers_on_line');
     const { section: bare } = await renderSection(noLine, { locale: id });
     for (const n of [...bare.querySelectorAll('.grounded-no-line')]) words.push(n.textContent);
+    // The same-store line, with and without a date, rendered for real.
+    const { section: twice } = await renderSection(SAME_STORE_WIRE(), { locale: id });
+    const twiceLines = [...(twice.querySelector('.grounded-same-store')?.querySelectorAll('li') ?? [])];
+    assert.equal(twiceLines.length, 2, `${id}: the same-store lines did not render, so the ban check saw nothing`);
+    for (const n of twiceLines) words.push(n.textContent);
     for (const line of words) {
       for (const word of BANNED[id]) {
         if (boundaried(word).test(line)) bad.push(`${id}: "${word}" in ${JSON.stringify(line)}`);
@@ -738,6 +758,32 @@ test('a members-only or marketplace price is marked on its dot and on the list, 
   // Nothing marked, no list: an unmarked wire adds nothing.
   const { section: plain } = await renderSection(WIRE(), {});
   assert.equal(plain.querySelector('.grounded-marks'), null);
+});
+
+test("Shin's own row for a store the search also quoted gets one dated line, outside the Google root, and every row stays", async () => {
+  const { setLocale } = await import('../public/js/ui-strings.js');
+  for (const [id, listed] of [
+    ['en', [
+      'Northfield Grocers Canada: Shin’s own record for this store, seen 2026-09-20. Not checked.',
+      'Ridgeway Market: Shin’s own record for this store. Not checked.',
+    ]],
+    ['fr', [
+      'Northfield Grocers Canada : relevé de Shin pour ce magasin, vu le 2026-09-20. Pas vérifié.',
+      'Ridgeway Market : relevé de Shin pour ce magasin. Pas vérifié.',
+    ]],
+  ]) {
+    setLocale(id);
+    const { section } = await renderSection(SAME_STORE_WIRE(), { locale: id });
+    const list = section.querySelector('.grounded-same-store');
+    assert.ok(list, `${id}: the same-store rows are not mentioned`);
+    assert.deepEqual([...list.querySelectorAll('li')].map((n) => n.textContent), listed, `${id}: the same-store lines are wrong`);
+    assert.equal(list.closest('[data-no-track]'), null, 'the same-store line went inside the Google-owned block');
+    assert.equal(section.querySelectorAll('.g-offer').length, 6, `${id}: a row was dropped; both sources must stay on screen`);
+  }
+  setLocale('en');
+  // Nothing marked, no list.
+  const { section: plain } = await renderSection(WIRE(), {});
+  assert.equal(plain.querySelector('.grounded-same-store'), null);
 });
 
 test('each reason for having no line gets its own sentence, never a shrug', async () => {

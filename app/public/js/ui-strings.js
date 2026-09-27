@@ -379,6 +379,12 @@ const EN = {
    * about the offer, never a reading of its price. */
   grounded_mark_members: (f) => `Members only: ${f.name}`,
   grounded_mark_marketplace: (f) => `Marketplace seller: ${f.name}`,
+  /* One store from two sources: Shin's own recorded price for a store the web
+   * search also quoted (server's `sameStoreAsGemini`). Both rows stay; this
+   * says which one is Shin's own and when it was seen, never which is right. */
+  grounded_same_store_own: (f) => (f.date
+    ? `${f.name}: Shin’s own record for this store, seen ${f.date}. Not checked.`
+    : `${f.name}: Shin’s own record for this store. Not checked.`),
   cam_unchecked_answer: (f) => `Best match, not checked: ${f.label}`,
 
   /* ------------------------------------------------------- the price line
@@ -858,6 +864,9 @@ const FR = {
   grounded_line_held: 'Un prix était trop éloigné des autres pour être placé.',
   grounded_mark_members: (f) => `Réservé aux membres : ${f.name}`,
   grounded_mark_marketplace: (f) => `Vendeur de la place de marché : ${f.name}`,
+  grounded_same_store_own: (f) => (f.date
+    ? `${f.name} : relevé de Shin pour ce magasin, vu le ${f.date}. Pas vérifié.`
+    : `${f.name} : relevé de Shin pour ce magasin. Pas vérifié.`),
   cam_unchecked_answer: (f) => `Meilleure correspondance, pas vérifiée : ${f.label}`,
 
   /* ------------------------------------------------------- la ligne des prix

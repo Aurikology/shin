@@ -243,6 +243,13 @@ export interface ScanInput {
   readonly source?: string | null;
   /** The five-kind verdict at scan time, or null when the app would not name one. */
   readonly category?: string | null;
+  /**
+   * Gemini's general category for the product (`SCAN_CATEGORIES` in
+   * identify/src/providers/gemini-scan.ts), or null. Migration 17. Kept
+   * apart from `category` above, which is the five-kind verdict the routing
+   * prior reads; the two vocabularies never share a column.
+   */
+  readonly scanCategory?: string | null;
   readonly outcome: ScanOutcome;
   /**
    * Why, when the outcome is 'refused'. Added 2026-09-08 alongside `outcome`
@@ -438,6 +445,8 @@ export interface ScanRow {
   enriched_verdict_zone: string | null;
   enriched_checked_at: string | null;
   enriched_updated_at: string | null;
+  // Migration 17: Gemini's general category (SCAN_CATEGORIES), or null. Not `category`.
+  scan_category: string | null;
 }
 
 /**
@@ -496,8 +505,8 @@ export function recordScan(input: ScanInput): number | null {
     const result = store.db
       .prepare(
         `INSERT INTO scan (device_id, kind, query_text, resolved_code, resolved_label, confidence, source, outcome, failure_class, corrected_code, scanned_at, category,
-                           model_json, model_cost_cents, app_version, platform, latency_ms, cell, store_id, store_name, exact_lat, exact_lon, exact_accuracy, exact_at, user_id, is_demo)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                           model_json, model_cost_cents, app_version, platform, latency_ms, cell, store_id, store_name, exact_lat, exact_lon, exact_accuracy, exact_at, user_id, is_demo, scan_category)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         input.deviceId,
@@ -525,6 +534,7 @@ export function recordScan(input: ScanInput): number | null {
         input.exactAt ?? null,
         input.userId ?? null,
         input.isDemo ? 1 : 0,
+        input.scanCategory ?? null,
       );
     return Number(result.lastInsertRowid);
   } catch (err) {

@@ -625,6 +625,33 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
       addColumnIfMissing(db, 'gemini_call', 'price_verify_checked_at', 'TEXT');
     },
   },
+  {
+    version: 17,
+    name: 'the general category Gemini sorted the scan into',
+    apply(db) {
+      /*
+       * Commit 65c2082: the one Gemini scan call now names a general category
+       * for the product (`SCAN_CATEGORIES` in identify/src/providers/
+       * gemini-scan.ts: grocery, household, personal_care, and so on), and
+       * the rule "record everything the user does" wants it kept.
+       *
+       * A NEW COLUMN AND NOT `category`. `category` already means something
+       * else: the five-kind price-engine verdict from `category-map.ts`, and
+       * its one reader is `recentCategories`, which feeds the routing prior
+       * in catalogue/src/routing.ts. Writing Gemini's fourteen-value list
+       * into it would hand that prior votes in a vocabulary it has never
+       * heard of, and "grocery" would silently mean two different things in
+       * one column depending on the row's date.
+       *
+       * Nullable, like every column added after the first release. Null on
+       * every row written before this, on every scan that did not go through
+       * the Gemini call, on a cached answer from before 65c2082, and on any
+       * answer where Gemini named nothing or named something off the list.
+       * Additive only.
+       */
+      addColumnIfMissing(db, 'scan', 'scan_category', 'TEXT');
+    },
+  },
 ];
 
 /** What `schema_version` says this database is at. 0 means nothing has run. */

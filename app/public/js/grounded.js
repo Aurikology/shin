@@ -313,6 +313,26 @@ function markedOffers(block) {
 }
 
 /**
+ * Shin's own rows for a store the search also quoted, as a name and a date for
+ * Shin to say OUTSIDE the root. The server marks such a row
+ * `sameStoreAsGemini: true` and removes nothing, so both rows stay on screen;
+ * this sentence only says which one is Shin's own record and the day it was
+ * seen. It reads one flag, the retailer's name and `seenOn`, nothing else, and
+ * adds nothing to the root: the line sits beside the block with the other
+ * marks, never on the row itself, for the same term-1 reason they do.
+ */
+function sameStoreOwn(block) {
+  const out = [];
+  const offers = Array.isArray(block.offers) ? block.offers : [];
+  for (let i = 0; i < offers.length; i += 1) {
+    if (offers[i].sameStoreAsGemini === true) {
+      out.push({ name: str(offers[i].retailer), date: str(offers[i].seenOn) });
+    }
+  }
+  return out;
+}
+
+/**
  * Everything the result screen shows for a grounded answer: Shin's heading,
  * the untouched block, Shin's heads-up, and the price line.
  *
@@ -386,6 +406,17 @@ export function groundedSection(grounded, opts = {}) {
     for (let i = 0; i < marked.length; i += 1) {
       const li = el(doc, 'li', null);
       li.textContent = t(marked[i].key, { name: marked[i].name });
+      list.appendChild(li);
+    }
+    section.appendChild(list);
+  }
+
+  const twice = sameStoreOwn(grounded.block);
+  if (twice.length > 0) {
+    const list = el(doc, 'ul', 'grounded-same-store');
+    for (let i = 0; i < twice.length; i += 1) {
+      const li = el(doc, 'li', null);
+      li.textContent = t('grounded_same_store_own', { name: twice[i].name, date: twice[i].date });
       list.appendChild(li);
     }
     section.appendChild(list);

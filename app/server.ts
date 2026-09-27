@@ -21,9 +21,9 @@ import { priceIt } from '../spine/src/spine.ts';
 import { defaultDeps } from '../spine/src/sources/registry.ts';
 import { RecordedSource } from '../spine/src/sources/recorded.ts';
 import { CATEGORY_RULES } from '../spine/src/categories.ts';
-import type { ProductIdentity, SpineQuery } from '../spine/src/contract.ts';
+import type { SpineQuery } from '../spine/src/contract.ts';
 import { categoryFor } from './src/category-map.ts';
-import type { Candidate } from '../catalogue/src/search.ts';
+import { markSameStore } from './src/same-store.ts';
 import { countryCodeOf, marketFromLocation, marketPromptFields } from '../catalogue/src/market.ts';
 import { normalizeStoreType } from '../catalogue/src/product-kind.ts';
 import {
@@ -1419,6 +1419,19 @@ function whyNot(c: Pick<Completed, 'run'>): string {
 }
 
 /**
+ * Gemini's general category for a scan, for the `scan_category` column
+ * (migration 17), or null. Read from the answer block first and the parsed run
+ * second, and every read goes through `?? null`: a block or run cached before
+ * commit 65c2082 has no such property, and undefined must not reach the row.
+ */
+function scanCategoryOf(block: unknown, run: unknown): string | null {
+  const fromBlock = (block as { category?: unknown } | null | undefined)?.category;
+  if (typeof fromBlock === 'string') return fromBlock;
+  const fromRun = (run as { answer?: { product?: { category?: unknown } | null } | null } | null | undefined)?.answer?.product?.category;
+  return typeof fromRun === 'string' ? fromRun : null;
+}
+
+/**
  * THE ONE CALL, and everything that has to happen because it was made: the
  * scan row, the whole request and response stored (item 12), the answer held
  * for the price sheet, the hidden math check scheduled (item 14). Never
@@ -1466,6 +1479,8 @@ async function completeGeminiScan(a: CompleteArgs): Promise<Completed> {
           confidence: hit.run.answer?.overallConfidence ?? null,
           source: 'gemini_cache',
           category: null,
+          // A block cached before 65c2082 has no category at all: `?? null`, never undefined.
+          scanCategory: scanCategoryOf(hit.block, hit.run),
           outcome: named ? 'answered' : 'refused',
           failureClass: hit.run.failure,
           appVersion: a.telemetry.appVersion,
@@ -1557,6 +1572,7 @@ async function completeGeminiScan(a: CompleteArgs): Promise<Completed> {
       confidence: run.answer?.overallConfidence ?? null,
       source: 'gemini',
       category: null,
+      scanCategory: scanCategoryOf(block, run),
       outcome: label ? 'answered' : 'refused',
       failureClass: run.failure,
       modelJson: JSON.stringify({
@@ -2032,60 +2048,6 @@ function ownOffersForBarcode(gtin: string, device: string): Record<string, unkno
     logError({ where: 'identify.own_prices_by_barcode', deviceId: device, scanId: null, err });
     return [];
   }
-}
-
-/**
- * What the catalogue says a barcode is, in the shape the price engine takes.
- *
- * Added 2026-09-14 after the founder's phone showed `/api/identify` naming a
- * Kirkland Signature water bottle by barcode and `/api/price`, carrying that
- * same code, answering "Could not work out what this is". No price source held
- * a row for the code, and the price route never asked the catalogue. The
- * engine asks this only after every price source has said it does not know.
- *
- * Barcode only. A text match is a guess with its own confidence, and the
- * engine already retries by words on its own sources; a catalogue row found by
- * its code is the fact `/api/identify` already acted on.
- *
- * THE CATEGORY IS NEVER INVENTED. It is the one the client sent (which is the
- * one `/api/identify` gave it) or the one `category-map.ts` names for the row.
- * When neither exists this answers null rather than defaulting, because the
- * category picks the comparison rule, and shopper-typed prices under this code
- * (the corrections source prices by code) could otherwise reach a verdict under
- * a rule nobody chose.
- */
-function catalogueIdentityForPrice(query: SpineQuery): Promise<ProductIdentity | null> {
-  if (!fastLookup || !query.gtin) return Promise.resolve(null);
-  const row = (fastLookup.byGtin(query.gtin) ?? null) as Candidate | null;
-  if (!row) return Promise.resolve(null);
-  const mapped =
-    row.source !== undefined
-      ? categoryFor({ source: row.source, categoryPath: row.categoryPath ?? [], leafCategory: row.leafCategory ?? null })
-          .category
-      : null;
-  const category = query.category ?? mapped;
-  if (!category) return Promise.resolve(null);
-
-  const name = String(row.name ?? '').trim();
-  const brand = String(row.brands ?? '').split(',')[0].trim();
-  const fold = (s: string) => s.toLowerCase().replace(/\s+/g, '');
-  const parts: string[] = [];
-  if (brand && !fold(name).startsWith(fold(brand))) parts.push(brand);
-  parts.push(name);
-  const quantity = row.quantity ? String(row.quantity).trim() : '';
-  if (quantity && !fold(name).includes(fold(quantity))) parts.push(quantity);
-  const label = parts.join(' ').trim() || row.code;
-
-  return Promise.resolve({
-    id: `catalogue:${row.code}`,
-    label,
-    category,
-    ...(brand ? { brand } : {}),
-    gtin: row.code,
-    // 1.0 for a barcode match, per docs/plan-always-a-price.md.
-    confidence: 1,
-    resolvedBy: 'catalogue',
-  });
 }
 
 /**
@@ -2994,16 +2956,26 @@ export const server = createServer(async (req, res) => {
         });
       }
       const baseWire = wireFor(completed, groundedOwner(device), device);
+      const wireBlock =
+        baseWire && typeof baseWire === 'object' && 'block' in baseWire && baseWire.block ? (baseWire.block as AnswerBlock) : null;
+      /*
+       * One store from two sources (src/same-store.ts). An own offer whose
+       * store Gemini also quoted is MARKED, never dropped: both are real
+       * observations, and the client says which is Shin's own and when it was
+       * seen. Read against the offers actually being sent, falling back to the
+       * scan's own block when there is no wire block to merge into.
+       */
+      const ownMarked = ownOffers.length ? markSameStore(wireBlock?.offers ?? completed.block.offers, ownOffers) : ownOffers;
       const wire =
-        ownOffers.length && baseWire && typeof baseWire === 'object' && 'block' in baseWire && baseWire.block
+        ownMarked.length && wireBlock
           ? {
               ...baseWire,
-              block: { ...(baseWire.block as AnswerBlock), offers: [...(baseWire.block as AnswerBlock).offers, ...ownOffers] },
+              block: { ...wireBlock, offers: [...wireBlock.offers, ...ownMarked] },
             }
           : baseWire;
       // The cashier line (src/price-match-line.ts). The store name is read for this answer only, never kept past consent.
       const priceMatch = priceMatchLine(
-        [...completed.block.offers, ...ownOffers] as typeof completed.block.offers,
+        [...completed.block.offers, ...ownMarked] as typeof completed.block.offers,
         pickText('storeName')?.trim() || where.storeName,
         completed.mod.readShelfPriceCents(pick('shelfPriceCents')),
       );
@@ -3025,7 +2997,7 @@ export const server = createServer(async (req, res) => {
         ...(priceQuery ? { priceQuery } : {}),
         ...(unchecked ? { unchecked } : {}),
         ...answerMarks(completed),
-        ...(ownOffers.length ? { ownOffers } : {}),
+        ...(ownMarked.length ? { ownOffers: ownMarked } : {}),
         grounded: wire,
       });
     }
