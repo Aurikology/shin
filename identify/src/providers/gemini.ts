@@ -37,7 +37,7 @@
  *      https://ai.google.dev/gemini-api/docs/image-understanding. Never a
  *      `?key=` query parameter, which writes the secret into every URL log.
  *   3. `model`. A plain id string. `gemini-3.8-flash` is in the spec's
- *      `ModelOption` enum. `gemini-3.5-flash-lite` is NOT in that enum but is
+ *      `ModelOption` enum. The lite tier id below is NOT in that enum but is
  *      listed as a stable model code on
  *      https://ai.google.dev/gemini-api/docs/models and in the thinking-level
  *      table on https://ai.google.dev/gemini-api/docs/thinking. The two pages
@@ -204,8 +204,8 @@ const THINKING_LEVELS: ReadonlySet<string> = new Set(['minimal', 'low', 'medium'
 /**
  * ITEM 22. Per model tier, not one constant for every 3.x call. `SHIN_GEMINI_THINKING`
  * still wins outright whenever it names a valid level, exactly as before; only the
- * DEFAULT now varies, by the model id this call actually configured. A lite tier
- * (`gemini-3.5-flash-lite`) is the cheapest, so it gets the least thinking; a pro
+ * DEFAULT now varies, by the model id this call actually configured. The lite tier
+ * (`GEMINI_FOR`'s haiku row, above) is the cheapest, so it gets the least thinking; a pro
  * tier gets the most, on the same reasoning sugar-no-scanner-demo's
  * `recognitionThinkingLevel` uses (`src/server/recognition.ts:124`): spend more
  * reasoning only where a heavier tier is already paying more. A flash tier (today's

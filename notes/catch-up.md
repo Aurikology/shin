@@ -938,13 +938,16 @@ new-product identity rows), and the one adapter that could price a used item, `S
 all: recommending an upgrade is a different question from "is the thing in your hand a steal or a
 ripoff," which is the frame the whole app verdict is built on.
 
-**The conflict is rules 1 and 3 in `docs/jamin-gemini-rules.md`.** Rule 3: *"THE PRICE SHOULD NOT
-COME FROM US."* Shin's own price database, price engine and "cheaper" lookups are named
-specifically as not the answer source — and `alternatives.ts` is exactly that: a local catalogue
-query against Shin's own price table. Rule 1: *"one gemini call will return the object, the price,
-the reviews, etc."* — one prompt, never two. A real alternatives feature can't be a local query
-under rule 3; it has to come out of the same Gemini call's output under rule 1, which means
-growing that call's schema, not adding a second call.
+**The conflict is rules 1 and 3 in `docs/jamin-gemini-rules.md`.** Rule 3, at the time, named
+Shin's own price database, price engine and "cheaper" lookups specifically as not the answer
+source, and `alternatives.ts` is exactly that: a local catalogue query against Shin's own price
+table. Rule 1: *"one gemini call will return the object, the price, the reviews, etc."*, one
+prompt, never two. A real alternatives feature couldn't be a local query under rule 3 as it stood
+then; it had to come out of the same Gemini call's output under rule 1, which meant growing that
+call's schema, not adding a second call. **Rule 3 is since narrowed** (RULINGS.md, "A scanned
+barcode answers with Shin's own prices too"): a barcode scan's own price display may now use
+Shin's own collected prices, marked as such. The nearby-cheaper/alternatives feature specifically
+stays a separate, still out-of-v1 question (RULINGS.md, "What the price line covers").
 
 ### For Jamin
 
@@ -1252,7 +1255,8 @@ display-only":
 5. **The price line's words name the range the shopper set, never Shin's opinion of the price.**
    `good / reasonable / bad` do not ship: they are tier words, hard rule 2 forbids an unmeasured
    performance claim, and four test files enforce it. The function returns neutral zone codes.
-6. Models: `gemini-3.5-flash-lite` by default, `gemini-3.8-flash` only on low confidence.
+6. Models: the lite tier by default, `gemini-3.8-flash` only on low confidence (superseded
+   2026-09-22, see RULINGS.md, "Default Gemini model is gemini-3.8-flash").
 
 ### What is built and pushed
 

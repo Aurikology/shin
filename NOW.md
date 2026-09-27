@@ -84,11 +84,12 @@ exactly the work the deletion removed from the critical path, so the figure desc
 that may no longer be on it. **Aurik's ruling, 2026-09-21: re-measure before building.** No
 retrieval work starts on the 32/52 number, and nobody should quote it as current.
 
-**The key blocker is narrower than this file says elsewhere.** A `GEMINI_API_KEY` now exists in
-`.env`. **It is free tier**, and `app/server.ts:3646` refuses to serve shopper photos on free tier
-because Google trains on free-tier input, so the photo path is still shut. The blocker is not "no
-key", it is **"no PAID key"**, and that ask to Jamin has stood since 2026-09-15. Everywhere below
-that says the measurement is waiting on "the key", read it as the paid one.
+**The key blocker, re-checked 2026-09-27: the Windows PC's `.env` has no `GEMINI_API_KEY` line at all** (the Mac server's own config is not visible from here)
+(only `ICECAT_*` and `EBAY_*` vars). The free-tier photo refusal this section used to describe now
+lives in `photoTierRefusal` (`app/server.ts:823`) and `geminiKeyProblem` (`app/server.ts:4103`),
+not the old line 3646. The blocker is not "no key", it is **"no PAID key"**, and that ask to Jamin
+has stood since 2026-09-15. Everywhere below that says the measurement is waiting on "the key",
+read it as the paid one.
 
 ## ANSWERED by Jamin in the walkthrough doc, 2026-09-16/17: Gemini identifies
 
@@ -189,12 +190,15 @@ unchecked), and the cross-language derived-name column with a real FTS migration
 
 ---
 
-## HIGHEST PRIORITY, set by him 2026-09-15: his Gemini rules, and a repo cleanup against them
+## HIGHEST PRIORITY, set by him 2026-09-15: his Gemini rules, and a repo cleanup against them -- DONE / SUPERSEDED
 
-Read `docs/jamin-gemini-rules.md` first; it outranks everything below and every other doc. Two
-jobs: (1) Aurik performs a cleanup of the repo for anything that contradicts those rules (Jamin's
-ask); (2) then Aurik rebuilds the Gemini path as one call per scan (barcode scan: digits as text, no image;
-photo scan: the image), product, prices, reviews and price math out, nothing priced from Shin's own data, everything recorded.
+Read `RULINGS.md` first now; it outranks everything below and every other doc, including
+`docs/jamin-gemini-rules.md`. Both jobs below shipped: (1) the cleanup against Jamin's rules, and
+(2) the one-call-per-scan Gemini path (barcode scan: digits as text, no image; photo scan: the
+image), product, prices, reviews and price math out, everything recorded, shipped commit `09b86ec`
+(2026-09-15). "Nothing priced from Shin's own data" no longer holds: a barcode scan's offers now
+include Shin's own collected prices too, marked as Shin's own data (commit `146f1f6`, 2026-09-26;
+RULINGS.md, "A scanned barcode answers with Shin's own prices too").
 
 ---
 
@@ -411,7 +415,7 @@ call -- 2,459 input tokens for a 1568 px crop, 600 output for a whole prices-and
 
 | model | tokens, cents per call |
 | --- | --- |
-| `gemini-3.5-flash-lite` (today) | **0.2238** |
+| the lite tier (today) | **0.2238** |
 | `gemini-3.8-flash` | **0.4094** |
 
 **1.83x, not 2.5x**, because input and output rates do not scale by the same factor and this mix is
@@ -441,7 +445,7 @@ candidate causes: the prompt, product obscurity, and Canada. **The cause appears
 one that protocol did not list: the model tier.**
 
 Production runs its grounded price search on the CHEAPEST tier. `gemini-grounded.ts:1093` defaults
-to `'claude-haiku-4-5'`, which `gemini.ts:141` maps to `gemini-3.5-flash-lite`.
+to `'claude-haiku-4-5'`, which `gemini.ts:141` maps to the lite-tier model id.
 
 Same prompt, same browser, same session, three products (rule 8's method, Claude in Chrome on
 gemini.google.com, never the API):
@@ -1671,7 +1675,7 @@ these two was a filter, not a threshold, and not supply either.
 
 **Found on the same pass and closed the same day.** Where the only price we hold equals the price
 on the tag the band has zero width, and `judge()` called that position zero, so the first two
-answers read "at the low end" over a set with no low end. That was D-045; it is resolved: a
+answers named a low position over a set with no low end (RULINGS.md, "Judge and gauge mechanics"). That was D-045; it is resolved: a
 zero-width band now compares the tag to the one number directly and says "matches the only price
 we have", or "matches what every seller charges" when several sellers agree. The three refusal
 codes the cascade can no longer emit were pruned from the camera screen's thin list too.

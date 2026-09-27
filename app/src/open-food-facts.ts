@@ -57,8 +57,9 @@ function cacheSet(gtin: string, product: OffProduct | null): void {
  * FIELD NORMALIZATION. OFF's own field names, read as they are and never
  * re-derived: `product_name`, the first of a comma-separated `brands`, and
  * `quantity` as OFF prints it (Shin does no unit conversion here; that stays
- * the model's job under rule 3, "the price should not come from us," which
- * this file reads broadly as "no math of ours touches what is shown"). A
+ * the model's job under the rule that Shin's own math never substitutes for
+ * the model's, which this file reads broadly as "no math of ours touches
+ * what is shown"). A
  * response with no product, or no name, is not an identity: null.
  */
 export function normalizeOffResponse(raw: unknown): OffProduct | null {

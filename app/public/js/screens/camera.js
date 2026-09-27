@@ -1741,8 +1741,10 @@ function parsePadPrice(buf) {
  * here as a confirm key inside the keypad grid rather than a debounce after
  * typing stops: a pause guessing that typing has finished is exactly how
  * someone who types "2", glances back at the tag, then types ".49" gets
- * priced at $2.00, and a wrong verdict is worse than no verdict (CLAUDE.md
- * priority 1). Nothing submits until the confirm key is pressed, and it is
+ * priced at $2.00, and a confidently wrong verdict is the one mistake that
+ * makes someone spend money (RULINGS.md, "Always answer, never refuse for
+ * wasting time"; CLAUDE.md priority 1). Nothing submits until the confirm
+ * key is pressed, and it is
  * disabled until the effective price parses to more than zero.
  *
  * Clear is gated the same way, on the buffer rather than the price: it was live

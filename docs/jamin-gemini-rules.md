@@ -42,7 +42,11 @@ Jamin as a point. When the cleanup is done, record it in `notes/catch-up.md`.
    than sending an image."* The phone reads the barcode itself and Gemini gets the digits as text.
    The photo goes to Gemini only on a photo scan, when there is no barcode.
 3. **The price does not come from Shin.** *"THE PRICE SHOULD NOT COME FROM US."* Shin's own price
-   database, price engine and "cheaper" lookups are not the answer source.
+   database, price engine and "cheaper" lookups are not the answer source. **Superseded 2026-09-23
+   and 2026-09-26, see RULINGS.md: "A scanned barcode answers with Shin's own prices too."** A
+   typed-name search still answers only from Shin's own catalogue and only when both item and price
+   are known, unchanged; a barcode scan now also shows Shin's own collected prices, marked as
+   Shin's own data; the nearby-cheaper/alternatives feature is separately still out of v1.
 4. **Record everything.** *"we will record EVERYTHING that happens when the user interacts with the
    app which was asked for multiple times but never done."* Every request, every Gemini request and
    response, every screen, tap and answer the phone shows, saved.
@@ -101,7 +105,8 @@ Jamin as a point. When the cleanup is done, record it in `notes/catch-up.md`.
   are just showing what we see on an app."*
 - Checking an answer: *"there can be measures in place but definitely not calling the ai a second
   time, we can scan multiple frames to ensure they all match up."*
-- Shin's own prices are not shown anywhere until enough are collected.
+- Shin's own prices were not shown anywhere until enough were collected. **Superseded 2026-09-23
+  and 2026-09-26, see RULINGS.md: "A scanned barcode answers with Shin's own prices too."**
 - Also recorded: legal review before launch; seek zero data retention but build assuming it is
   refused; image resolution decided by a test, not a guess; consent wording delegated (*"you
   decide"*).
@@ -218,17 +223,16 @@ all four."*
    (Aurik's question 4). No catalogue-first free path in front of Gemini, per *"The server will
    not check shins own product list for now."*
 
-**Model: Gemini 2.5 by default, DECIDED 2026-09-18.** His words: *"lets make the default gemini
-2.5 for now and we will switch to a better model if our testing says otherwise."* Why, from
+**Model: 2.5 was decided as the flat default on 2026-09-18. Superseded 2026-09-22, see
+RULINGS.md: "Default Gemini model is gemini-3.8-flash."** His words at the time: *"lets make the
+default gemini 2.5 for now and we will switch to a better model if our testing says otherwise."* Why, from
 ai.google.dev/gemini-api/docs/pricing read 2026-09-18: 2.5 bills search grounding per grounded
 PROMPT (*"1,500 RPD (free...), then $35 / 1,000 grounded prompts"*), 3.x per search QUERY (*"5,000
 free search requests per month... then $14 per 1,000 requests"*). One observed scan ran four
 queries: 5.6 cents on 3.x against 3.5 cents on 2.5, and 2.5's free allowance is about 45,000 scans
-a month against about 1,250. Default model id `gemini-2.5-flash`. The code today maps to
-`gemini-3.5-flash-lite` / `gemini-3.8-flash` (`identify/src/providers/gemini.ts`); the one-call
-rebuild changes that default, and until then `SHIN_GEMINI_MODEL=gemini-2.5-flash` overrides it.
-Any cost figure must bill 2.5 per prompt, not per query. The paid-key test runs 2.5 and a 3.x model
-side by side on the same scans; 3.x replaces 2.5 only if that test says so.
+a month against about 1,250. That 2.5 default held only until Jamin found 2.5 inaccessible on the
+beta server on 2026-09-22; every scan now defaults to `gemini-3.8-flash` (RULINGS.md). The switch
+came from 2.5 being unreachable, not from the side-by-side test, which has not been recorded.
 **Both models are tested in the beta itself**, his words 2026-09-19: *"both models should be
 tested for the beta."* The beta build can run either model per scan, records which one answered,
 and reports them side by side (right product, searches, tokens, cost, seconds, answers that did

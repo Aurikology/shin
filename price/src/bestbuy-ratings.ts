@@ -31,8 +31,12 @@
  *
  * THE NUMBER IS NEVER RECOMPUTED, ROUNDED OR COMBINED. It is Best Buy's own
  * average, out of five, stored as published, shown with their name and a link to
- * the page it came from. Item 30's rule for the whole review display: "shown
- * only when a licensed source has a row; nothing generated."
+ * the page it came from. This is exactly the shape item 30's old review-display
+ * rule asked for: a rating tied to a licensed source's own row, nothing
+ * invented (superseded for Gemini's own reviews, which now ship even with no
+ * source link: RULINGS.md, "Reviews: Gemini's reviews ship, shown even
+ * without a source link"; a Best Buy rating is still a licensed source's row
+ * either way).
  */
 
 import { DatabaseSync } from 'node:sqlite';

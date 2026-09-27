@@ -125,7 +125,7 @@ export interface GroundedEnvelope<T> {
   readonly provider: 'gemini';
   readonly searchQueries: number;
   /**
-   * The model id the request named, e.g. `gemini-3.5-flash-lite`. Needed to
+   * The model id the request named, e.g. one of the lite or flash tiers. Needed to
    * price the call at all, since the two models in use bill at different
    * rates, and needed for a second reason: a cost figure with no model beside
    * it cannot be compared with one taken after the model changed.

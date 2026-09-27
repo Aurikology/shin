@@ -8,9 +8,10 @@
  * `gemini-grounded.ts`), parses it deterministically for a price with no model
  * anywhere in the loop, and reports agreement or mismatch. It NEVER changes the
  * price shown -- Shin's own parse is a check on Gemini's number, never a
- * replacement for it (rule 3, "THE PRICE SHOULD NOT COME FROM US"; the
- * walkthrough ruling "Shin never shows its own price math... a mismatch marks
- * that scan... for later review. Never shown.").
+ * replacement for it (Jamin's rule 3, naming Shin's own price sourcing
+ * specifically as not the answer source; the walkthrough ruling that Shin
+ * never shows its own price math, a mismatch only marks that scan for later
+ * review, never shown).
  *
  * NOTHING HERE IS WIRED INTO THE LIVE SCAN. Calling this after a scan, and
  * recording its result on the scan row, is a route-layer decision (which scan

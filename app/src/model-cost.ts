@@ -256,7 +256,7 @@ export function realCostCents(
 /**
  * What the daily dollar cap charges for ONE grounded scan, before the call is made, in US cents.
  *
- * The cap used to charge 0.68 US cents a call, the price of a Claude identification with no search
+ * The cap used to charge a per-call cents figure priced for a Claude identification with no search
  * in it. A Gemini scan is a grounded search, and one measured search used four queries: at the
  * paid rate that is 5.6 cents of search on top of about 0.22 cents of tokens (both figures from the
  * commit messages of `eeb8e15` and `a0bc8e4` and `NOW.md`, one observation, not an average). So the

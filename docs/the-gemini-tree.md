@@ -1989,13 +1989,13 @@ which is what `makeProvider` actually calls.
     · **How it reaches people:** does not apply
   - **HIS:** does Aurik agree to a Gemini branch inside `makeProvider` in `identify/src/model.ts`, and does he want to write it himself or review what is already sitting uncommitted. [items 3, 12]
 
-- **The clash with beta build plan item 30, and the ways out of it.** *Kind: all kinds. Moves: corrections per hundred verdicts (a generated review shown as fact is a wrong verdict input). From: docs/the-beta-build-plan.md:163, "30. Review display... shown only when a licensed source has a row; nothing generated"; Jamin, 2026-09-14, "Gemini also provides reviews which is something that we wanted to add."*
-    · **What the person sees:** two different rules about the same block on the same screen, unresolved
+- **The clash with beta build plan item 30, resolved.** *Kind: all kinds. Moves: corrections per hundred verdicts (a generated review shown as fact is a wrong verdict input). From: docs/the-beta-build-plan.md:163's old review-display rule (a review needed a licensed source's row, nothing generated); Jamin, 2026-09-14, "Gemini also provides reviews which is something that we wanted to add."*
+    · **What the person sees:** RULINGS.md, "Reviews: Gemini's reviews ship, shown even without a source link" settles this: Gemini's reviews win over the old plan-item-30 rule
     · **How it looks and sounds:** does not apply beyond the block itself
-    · **What happens behind the glass:** item 30's component reads only a licensed source's row; a Gemini review is grounded search output, not a licensed source's row, so as written the component would refuse to show it
+    · **What happens behind the glass:** a Gemini review with no source link is shown, flagged with a heads-up that it lacks one, never suppressed and never presented as a number Shin stands behind
     · **What it costs and earns:** does not apply directly; the earlier plan's caution was against showing an invented rating as if it were sourced
-    · **What we are allowed to do:** a Gemini review comes with a source link and a rating attributed to that source, which is closer to "licensed" in spirit than a model inventing a number, but it is grounded content under section 2's terms, not a licence Shin holds
-    · **Who runs it when it breaks:** whoever merges the two documents; today neither overrides the other
+    · **What we are allowed to do:** a Gemini review comes with a source link and a rating attributed to that source in most cases; where no licensed review source exists at all (food), the signal instead comes from Open Food Facts' own fields
+    · **Who runs it when it breaks:** resolved by his 2026-09-14 ruling; no longer open
     · **What it feeds back:** whichever way this resolves is what item 66's review block is built against
     · **How it reaches people:** the review block is one of the things filmed (section H)
   · ⇄ avenue: update beta build plan item 30 to read "a licensed source's row, or a Gemini review with its source link and Search Suggestion shown", since Gemini's own reviews carry a link per the plan's section 4.1. Needs only the wording change. Limits: this is Jamin's document to edit (agent's own rule, "his to fix"), so a session records the option rather than editing his file. Not tested, since it is a wording decision, not code.

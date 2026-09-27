@@ -52,9 +52,9 @@ there. A session that changes something the other person must know or do adds it
 
 1. **Always answer; the confidence carries the doubt.** His words, 2026-09-05: *"The worst thing
    this app can do is tell people it doesn't know because that literally wastes the users time."*
-   (The previous line here, "a wrong verdict is worse than no verdict", was written by Claude on
-   2026-09-03 with no words of his behind it; he named it as not his on 2026-09-06 and it is
-   retired.)
+   (The previous line here held the opposite position, that a mistaken answer beat no answer at
+   all; Claude wrote it on 2026-09-03 with no words of his behind it, he named it as not his on
+   2026-09-06, and RULINGS.md, "Always answer, never refuse for wasting time" retired it.)
 2. **Ship or kill.** A pass that does neither is the failure mode this project dies of.
 3. **Speed**, never traded for the first two.
 
@@ -69,8 +69,9 @@ Added only by him.
    software is unchecked. No store listing, handle, or posted video under a name that has not
    passed a CIPO search in the software classes.
 2. **No savings claim until it is measured.** Competition Act s.74.01(1)(b) requires adequate
-   and proper testing before a performance claim is published. The "$1,000 a year" figure was
-   never measured and mirrors a published forecast. Measure first or say nothing.
+   and proper testing before a performance claim is published. An early four-figure yearly savings
+   claim was never measured and mirrored a published forecast (RULINGS.md, "No savings claim ships
+   until it is measured"). Measure first or say nothing.
 3. **The aggression points at the price, the store, or the brand. Never at the user.** Groceries
    are non-discretionary and the person scanning did not set the price.
 4. **Name the paths in a commit.** No catch-all stage, no catch-all commit. Enforced by
@@ -198,8 +199,8 @@ openable in a browser · `notes/` the working record including the pricing pilot
 already researched · `spine/` the price spine, built by a parallel session · `.claude/skills/`
 self-improve, decision, weekly-pass, price-by-hand, republish-page, and the three verification
 skills added 2026-09-08 (`wire-check` is it reachable, `screen-walk` walk it at phone size,
-`negative-test` make the check prove it can fail) · `.claude/hooks/` one guard
-plus its selftest.
+`negative-test` make the check prove it can fail) · `.claude/hooks/` the git-add guard, a
+SessionStart informational hook, and their selftests.
 
 **Each package installs its own dependencies** (`app/`, `spine/`, `price/`, `catalogue/`,
 `identify/`), and a fresh copy has none. A missing install does not say so (D-043): run
@@ -238,7 +239,7 @@ Name the paths you stage.
 
 ## graphify
 
-Only where graphify is installed and graphify-out/ exists (Aurik's PC; not this Windows PC, 2026-09-27): a knowledge graph with god nodes, community structure, and cross-file relationships. Where it is absent, skip this whole section; the hooks already skip themselves.
+Only where graphify is installed and graphify-out/ exists (set up 2026-09-15; not installed on the Windows PC as of 2026-09-27): a knowledge graph with god nodes, community structure, and cross-file relationships. Where it is absent, skip this whole section; the hooks already skip themselves.
 
 Rules:
 - For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.

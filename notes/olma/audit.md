@@ -148,7 +148,7 @@ Ninety rows. Screen letters map to the inventory above.
 | 21 | Paywall | Close X, top right | Dismisses | Escaping | take | Any full screen interruption Shin ever shows must be dismissible in one tap at a corner the thumb reaches, because the user is one handed and standing. | Screen 14 |
 | 22 | Paywall | Benefit row, "Unlimited Scans, Never hit a limit again." | Says what money buys | Deciding | adapt | Only if Shin meters at all, which Phase 3 decides. Spin: the benefit names the limit's number rather than the word unlimited, so the free tier is legible before the purchase. | Screen 14 |
 | 23 | Paywall | Benefit row, "Faster Analysis, Priority server access." | Sells speed | A shorter wait | reject | Selling speed concedes the free path is slowed deliberately. Shin's product is a verdict a person trusts, and a deliberately slowed verdict is a trust cost taken as revenue. Reverses if infrastructure genuinely forces a two tier queue, and then the free tier's wait is stated up front. | none |
-| 24 | Paywall | Benefit row, "Pays for Itself, With one good find." | Frames price against savings | Justifying the cost | reject | Shin's hard rule 2: no savings claim until it is measured. This is a performance claim with no testing behind it. Reverses only when a measured saving exists, and then the claim carries the measurement. | none |
+| 24 | Paywall | Benefit row framing the price as self-funding off one good find | Frames price against savings | Justifying the cost | reject | Shin's hard rule 2: no savings claim until it is measured (RULINGS.md, "No savings claim ships until it is measured"). This is a performance claim with no testing behind it. Reverses only when a measured saving exists, and then the claim carries the measurement. | none |
 | 25 | Paywall | Plan row, 2-Week Free Trial with a "Try Free" pill, subtitle stating $6.99 a month afterwards and that it auto renews | Trial | Trying before paying | adapt | Shin needs a trial only if it meters. Spin worth taking from OLMA: the recurring price sits on the same line as the word free (t=22.00), which is the honest form. | Screen 14 |
 | 26 | Paywall | Plan rows, monthly $6.99 and annual $49.99 with a "Best Value" pill | Price choice | Picking a term | already have | Screen 14, paywall, is already on the screen list. | Screen 14 |
 | 27 | Paywall | Auto renew fine print block | Legal disclosure | Not being surprised by a charge | take | A subscription without it is a chargeback, and Shin's user is a window shopper who did not come to buy anything. | Screen 14 |
@@ -386,7 +386,8 @@ the screen began to change, so they are accurate to 0.25 seconds.
   and no explanation appears on either screen.
 - **What OLMA sells against it.** OLMA Pro, headline "Unlock unlimited price checks and save
   money everywhere you shop" (t=22.00). Three benefits: Unlimited Scans, Faster Analysis with
-  priority server access, and Pays for Itself with one good find. Three plans: a two week free
+  priority server access, and a third framing the subscription as self-funding off a single find
+  (not a claim Shin makes: RULINGS.md, "No savings claim ships until it is measured"). Three plans: a two week free
   trial then $6.99 a month, monthly $6.99, annual $49.99 marked Best Value. Settings carries a
   second door, "Try Pro for 14 Days Free" (t=68).
 

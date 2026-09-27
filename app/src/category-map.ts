@@ -10,10 +10,13 @@
  * hit had no route to a verdict at all. This is that route.
  *
  * THE RULE THIS FILE OBEYS: it returns null rather than guessing. A product
- * mapped to the wrong kind is judged by the wrong rule, and the first priority
- * here is that a wrong verdict is worse than no verdict. `null` reaches the
- * screen as "we know what this is and cannot price it", which is a designed
- * state and, per the plan, the one that fires most often.
+ * mapped to the wrong kind is judged by the wrong rule, and a wrong category
+ * mapping is exactly the kind of confidently wrong answer this file exists
+ * to avoid (the app's own answer-anyway rule, RULINGS.md, "Always answer,
+ * never refuse for wasting time", is about the price verdict, not category
+ * identity). `null` reaches the screen as "we know what this is and cannot
+ * price it", which is a designed state and, per the plan, the one that fires
+ * most often.
  *
  * EVERY MAPPING BELOW IS COUNTED, NOT ASSUMED. The first version of this file
  * sent the whole electronics database to the tech rule, on the strength of the

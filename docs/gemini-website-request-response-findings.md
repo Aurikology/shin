@@ -20,7 +20,7 @@ The website (`gemini.google.com/app`) is a different product surface from the In
 | 10 | A refusal arrives as a finish reason or block reason (`safety`, `recitation`, `prohibited_content`, `spii`, `image_safety`, `blocklist`) | not exercised — no piece sent content likely to trigger a safety/content block. Piece 2's and piece 3's `null` answers and piece 3's "no public record found" are the model declining to assert a FACT within a normal JSON payload, a content-level behaviour, not an API-level finish/block reason. The two are not the same mechanism and this testing says nothing about assumption 10's wire location. | unverifiable |
 | 11 | A generic `OTHER` finish reason is classified `model_malformed`, never blamed on the photo | not exercised; no piece produced anything resembling an `OTHER` finish reason (there is no visible equivalent on the website) | unverifiable |
 | 12 | No per-request cache-breakpoint control; `request.cache` accepted and ignored | no equivalent control visible on the website UI | unverifiable |
-| 13 | The model ids in `GEMINI_FOR` (`gemini-3.5-flash-lite`, `gemini-3.8-flash`) exist and accept images | the website's own model selector offered only "Flash" as a name, not a versioned id, across every piece; which underlying model id the website's "Flash" maps to is unknown from the UI alone | unverifiable |
+| 13 | The model ids in `GEMINI_FOR` (the lite tier and `gemini-3.8-flash`) exist and accept images | the website's own model selector offered only "Flash" as a name, not a versioned id, across every piece; which underlying model id the website's "Flash" maps to is unknown from the UI alone | unverifiable |
 
 ## The step types (`gemini-grounded.ts`'s `walkSteps`)
 

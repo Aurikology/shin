@@ -16,9 +16,12 @@
  *   recorded and answers a question about them. Deleting this file changes no
  *   behaviour, which is the test of that claim.
  *
- *   It is not a price. Jamin's rule 3, verbatim: "THE PRICE SHOULD NOT COME
- *   FROM US." Shin's own price database, price engine and cheaper lookups are
- *   not the answer source. What is allowed is reporting that two RECORDED
+ *   It is not a price. Jamin's rule 3 named Shin's own price database, price
+ *   engine and cheaper lookups specifically as not the answer source (a rule
+ *   since narrowed for barcode price display: RULINGS.md, "A scanned barcode
+ *   answers with Shin's own prices too"; this file's own comparison stays
+ *   out of scope of that narrowing either way). What is allowed is reporting
+ *   that two RECORDED
  *   observations differ, and handing each one back exactly as it was recorded.
  *   So this file never computes a difference, a percentage, a rate of change,
  *   an average, a projection or a usual price. It never subtracts one price

@@ -61,7 +61,11 @@ of seven. Both numbers are facts about the method, not about the market.
 - **Produce is the one genuinely hard category.** Three stacked problems: a produce code names a
   category rather than a product, package formats break unit comparison, and public price
   movement is underlying inflation rather than promotional. Shopper-reported shelf prices are the
-  only source, not a supplement. Out of v1.
+  only source, not a supplement. **Superseded 2026-09-13, see docs/decisions.md, "Produce becomes
+  the beta's test case, on the condition already written for it":** he chose produce as the beta's
+  test case, so it is not out of v1; it stays refused in the price verdict until promoted (two
+  independent shopper reports clearing the existing thresholds, RULINGS.md, "Product identity and
+  catalogue matching").
 
 ## Learnings log
 

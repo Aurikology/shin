@@ -2803,8 +2803,9 @@ export const server = createServer(async (req, res) => {
        * dated price for it. Otherwise it answers, as a 200, that Shin has no
        * price for that yet and to scan the barcode; there is no Gemini
        * fallback. FOR TYPED SEARCHES ONLY this reverses two of Jamin's earlier
-       * rules in docs/jamin-gemini-rules.md, "no price from Shin's own data"
-       * and "always an answer", by his ruling of 2026-09-23. Barcodes and
+       * rules in docs/jamin-gemini-rules.md, that the price never comes from
+       * Shin's own data and that there is always an answer, by his ruling of
+       * 2026-09-23. Barcodes and
        * photos still follow both. A typed search spends nothing, so the weekly
        * free-scan limit and the paid-call limiter do not apply to it (the
        * limiter's budget is for calls that cost money; a typed search counted

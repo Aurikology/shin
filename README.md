@@ -7,8 +7,12 @@ Problem statement, adopted verbatim 2026-09-03:
 > Sellers know what things are worth and buyers are guessing, so we're making the check instant
 > enough that guessing stops being the default.
 
-There is code now, in `spine/`. The rest of this folder holds the thinking, so it stops living in
-a temp directory that Windows can empty without warning.
+There is a real, running build now: `app/` (the server and phone client), `catalogue/` (the
+multi-million-row product catalogue), `identify/` (the Gemini identification path), `price/` and
+`spine/` (the price engine, band 1 of the plan), `native/`, and `comms/`. `spine/` was the first
+piece and is still where band 1 lives; the rest of this folder holds the thinking, so it stops
+living in a temp directory that Windows can empty without warning. Read `RULINGS.md` first for
+what currently governs any of this.
 
 ## What is in here
 
@@ -61,7 +65,9 @@ Editing a file in `pages/` does not change the live page. Republishing is a sepa
 ## Open, before any code
 
 - The name. Nongshim's SHIN RAMYUN is registered and "Shin Ramen" is its English market form, so
-  that version is out. Plain "Shin" for software is unchecked. A CIPO search settles it.
+  that version is out. Plain "Shin" for software passed a CIPO search twice (2026-09-04,
+  2026-09-11) and the store listing already goes out under "Shin", risk carried knowingly rather
+  than cleared (RULINGS.md, "Shin name: risk carried knowingly"). This is no longer open.
 - The two person video test, on borrowed audiences rather than a new account.
 - Thirty items priced by hand. Seven were done and one of the failures turned out to be method,
   not the market. The notes say which.

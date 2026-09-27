@@ -26,7 +26,7 @@
  * What that would have done, had the key ever been set: a US dollar number
  * enters the comparison as though it were Canadian, and at the exchange rates of
  * any recent year it enters LOW. A shopper in a Canadian store is then told the
- * tag in front of them is at the high end of a range whose cheap end is a price
+ * tag in front of them sits near the top of a range whose cheap end is a price
  * nobody in Canada can pay. That is the one mistake the verdict file names as
  * unrecoverable: it is the kind that makes somebody spend money, or refuse to.
  *

@@ -26,10 +26,11 @@ kills anything is a failure of the pass, not a slow week.
 
 1. **Read `NOW.md`.** If it disagrees with any other document about the current state, it wins.
    If it is stale, that is the first thing this pass fixes.
-2. **Take the top band that is not finished.** The bands are in the master plan and they are
-   gated: nothing from a later band starts while an earlier one is open. The order is the price
-   spine alone, then the cheap versions of the hard items, then the shippable floor, then the
-   easy and middle items, then the hard items in full.
+2. **Take the top band that is not finished.** The bands are in the master plan; their gate-first
+   ordering was superseded 2026-09-04 by him (`QUEUE.md`'s own header) because iterating is cheaper
+   than the gate assumed, and `NOW.md` supplies the real pipeline and order now, not strict band
+   sequencing. In practice, later bands (7, 7B, the catalogue work) run while earlier ones are
+   still open. Read `NOW.md` for what is actually current before picking a band.
 3. **For each item in that band, ask the one question that can kill it.** For most items that
    question is "can this be priced at all", and it is answered by the `price-by-hand` skill, not
    by reasoning. Answer it before building anything.

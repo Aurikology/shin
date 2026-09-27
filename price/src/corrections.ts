@@ -272,7 +272,7 @@ export const TYPED_PRICES_PER_DEVICE_PER_DAY = 200;
  * corroborated reports."
  *
  * Full at ten corroborated readings. A design default, like the cap above, and
- * chosen at the low end deliberately: the score exists to separate a phone that
+ * chosen small on purpose: the score exists to separate a phone that
  * has been confirmed by other people from one nobody has ever confirmed, and ten
  * is about a fortnight of ordinary shopping rather than a career.
  *

@@ -39,7 +39,7 @@
  *   - past 6 hours: NOT served. A hit this old means the 1-hour background
  *     refresh has not landed for five hours straight (Gemini down, or a
  *     process that never got to run one), and continuing to serve it would
- *     be exactly "the price should not come from us" with extra steps. The
+ *     mean Shin quietly substituting its own stale number for Gemini's. The
  *     caller falls through to an ordinary synchronous call, the same one a
  *     first-ever scan of this barcode makes, and its answer overwrites the
  *     cache (both the identity and the price, since one call is both).

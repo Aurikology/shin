@@ -34,7 +34,7 @@
  *    them through, and the model token is the only one that tells them apart.
  *    Then the overlap floor `recorded.ts` uses, over the whole keyword. The
  *    cost is that "Canon R6 body" with no "EOS" is dropped too, which is the
- *    safe direction: a wrong verdict is worse than no verdict.
+ *    safe direction here: a false match costs more than a missed one.
  *    Without a model the keyword is the label, never the bare brand: the
  *    corpus's POÄNG has brand "IKEA" and no model, and "IKEA" as the query
  *    matched every IKEA sale on the site at overlap 1.0.

@@ -321,8 +321,9 @@ export function judge(input: VerdictInput): Verdict {
   }
 
   // D-045, 2026-09-08. When the band has zero width (one seller or multiple sellers
-  // agreeing), the position is forced to 0, making all prices read as "at the low end".
-  // Instead, compare the asking price directly to that number. The confidence stays
+  // agreeing), the position is forced to 0, making every price read as though it sat
+  // at the bottom of a range that has no low end (RULINGS.md, "Judge and gauge
+  // mechanics"). Instead, compare the asking price directly to that number. The confidence stays
   // unchanged. Wording depends on seller count: with one, "the only price we have";
   // with more, "what every seller charges".
   const isZeroBand = basis.cheapestCents === basis.dearestCents;

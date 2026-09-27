@@ -17,8 +17,9 @@
  *   what puts `priceMatch` on a `/api/identify` answer. This file stays the
  *   policy table and the yes/no.
  *
- *   It is not a price. Jamin's rule 3, verbatim: "THE PRICE SHOULD NOT COME
- *   FROM US." Nothing here produces, estimates, adjusts or infers an amount.
+ *   It is not a price. Jamin's rule 3 named Shin's own price sourcing
+ *   specifically as not the answer source. Nothing here produces, estimates,
+ *   adjusts or infers an amount.
  *   The two amounts it touches arrive from the caller, are compared once to
  *   answer "is there anything to match", and are never combined, differenced
  *   or rendered. FreshCo and Giant Tiger beat a competitor by one cent and
