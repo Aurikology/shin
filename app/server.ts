@@ -64,7 +64,7 @@ import {
   releaseRefresh,
   rememberCachedScan,
 } from './src/repeat-cache.ts';
-import { recordGap, activeGapLog, openGapLog } from '../catalogue/src/gaps.ts';
+import { recordGap } from '../catalogue/src/gaps.ts';
 import { summariseScans, UNATTRIBUTED } from './src/scan-summary.ts';
 import { keepLocation, keepPhoto, readConsent, writeConsent } from './src/consent.ts';
 import { deleteRating, isRating, isRatingReason, rateScan, scanExists } from './src/ratings.ts';
@@ -161,106 +161,6 @@ export function setCatalogueForTests(fake: { byGtin(code: string): unknown } | n
  * private, so this is the one place outside `attachCatalogue` that gets to see it.
  */
 let catalogueDb: DatabaseSync | null = null;
-
-/**
- * Write down that Shin's own catalogue did not have this barcode.
- *
- * WHY THIS EXISTS AT ALL, and it is not the plumbing. Measured 2026-09-26 across
- * all three gap logs on this machine: 102 misses over 279 hits, and NOT ONE of
- * them a barcode. The recorder was never broken -- `gaps.ts` classifies a
- * barcode miss and `test/gemini-miss-gap.test.ts` proves a barcode row gets
- * written. What was missing is the FACT. The only barcode gap this server could
- * write came from the Gemini path and means "the model could not name it", while
- * every catalogue decision needs "our catalogue does not hold it". The identify
- * route says why in its own words: "The catalogue is not consulted for a
- * barcode's answer." So that second fact was never observable, and with Gemini
- * leaving, the one path that wrote barcode gaps leaves with it.
- *
- * THIS CHANGES NO ANSWER. It looks the barcode up and writes a log row. The
- * shopper sees exactly what they saw before.
- *
- * WHAT IT COSTS, measured rather than assumed, against the real 4.13 GB
- * catalogue on 2026-09-26, 2,000 calls each after a warm-up: **0.151 ms for a
- * miss and 0.072 ms for a hit.** A miss is the dearer one because `byGtin`
- * (`catalogue/src/search.ts:998`) is NOT one lookup: it tries up to five code
- * forms, the padded and stripped EAN/UPC variants plus UPC-E, and only a miss
- * pays for all of them. Bounded and negligible beside anything else on this
- * route, but it is five statements on the server's thread, not one, and an
- * earlier version of this comment claimed otherwise.
- *
- * WHERE THE LOG FILE GOES, and this is the part that needed fixing. `recordGap`
- * opens a log lazily the first time one is needed, and its default is
- * `data/gaps.db` **relative to the current directory** (`gaps.ts:102`). Before
- * this change only a Gemini failure could trigger that first open, so the
- * cwd-relative default was rarely reached; putting a check on every barcode scan
- * would have made a stray `data/gaps.db` appear under whatever directory the
- * process happened to start in. So the path is resolved here, absolutely, beside
- * this file, which is where the server's existing log already sits. `SHIN_GAPS`
- * still wins, which is what the tests and the deployment config set.
- *
- * NO CATALOGUE MEANS NO RECORD, and that is the important half. The server is
- * required to boot and serve every screen with no catalogue attached (see the
- * comment above `CATALOGUE_DB`). In that state "we cannot look" is not "we do
- * not have it", and a logger that confuses the two fills the log with
- * fabricated misses, after which every count taken from it is wrong. So the
- * absence of a catalogue returns early and records nothing. `gemini-miss-gap.
- * test.ts` runs with no catalogue and asserts exact row counts, so if this ever
- * starts inventing misses, that file goes red.
- *
- * It never throws, for the same reason `recordGap` never does: a scan that
- * worked must not fail because its bookkeeping did.
- */
-const GAPS_DB = process.env.SHIN_GAPS ?? fileURLToPath(new URL('./data/gaps.db', import.meta.url));
-
-/*
- * IT RUNS AFTER THE ANSWER HAS GONE OUT, AND THAT IS THE WHOLE POINT.
- *
- * His rule is that the catalogue is not consulted for a barcode's ANSWER. Three
- * tests encode it by counting calls to the catalogue during a scan and demanding
- * zero (`gemini-one-call.test.ts`, `catalogue-feed.test.ts`,
- * `over-cap-verdict-offers.test.ts`), and when this check was written inline it
- * turned all three red: one lookup, made for the log and not for the answer, is
- * still a lookup while the request is being served.
- *
- * Weakening those three to "one call is allowed" would have been the easy fix
- * and the wrong one, because the number they count is the only mechanical
- * evidence that the rule holds. So the check moved instead: it is queued as a
- * background task and runs after the response, like the median re-check does. At
- * the moment the answer is produced the count really is zero, and the log still
- * gets its row. `settleBackgroundChecks()` is how a test waits for it.
- */
-function noteCatalogueBarcodeMiss(gtin: string): void {
-  if (!fastLookup) return;
-  const task = new Promise<void>((resolve) => {
-    setImmediate(() => {
-      noteCatalogueBarcodeMissNow(gtin);
-      resolve();
-    });
-  });
-  backgroundChecks.add(task);
-  void task.finally(() => backgroundChecks.delete(task));
-}
-
-function noteCatalogueBarcodeMissNow(gtin: string): void {
-  if (!fastLookup) return;
-  try {
-    if (fastLookup.byGtin(gtin) !== null) return;
-    if (!activeGapLog()) openGapLog(GAPS_DB);
-    /*
-     * `catalogueMissing` carries the fact; the note is only for a person reading
-     * the log by eye. Measured in the running app 2026-09-26: the Gemini path
-     * records a gap for the same barcode microseconds later, and the log's upsert
-     * gives the last writer the note, so a live absent scan came back saying
-     * `gemini_miss:model_client_error` with a count of 2. Both writes had landed
-     * and the meaning had been overwritten by the one thing it must be told apart
-     * from. The column is raised with `max` and never cleared, so write order
-     * stops mattering. See the comment on MIGRATIONS in gaps.ts.
-     */
-    recordGap({ gtin, note: 'catalogue_miss', catalogueMissing: true });
-  } catch {
-    /* a lookup or a log that failed is not a reason to fail the scan */
-  }
-}
 
 /**
  * Whether the meaning half of search is affordable right now.
@@ -2977,17 +2877,6 @@ export const server = createServer(async (req, res) => {
           ...(invalidScanId === null ? {} : { scanId: invalidScanId }),
         });
       }
-
-      /*
-       * Write down whether Shin's own catalogue held this barcode, before
-       * anything else happens to it. Placed here, above the paid-call limiter
-       * and the weekly free-scan limit, on purpose: a shopper who scans a
-       * product we do not stock has told us something true whether or not we
-       * were willing to spend a call answering them, and a miss log that only
-       * sees the scans we chose to answer is biased towards whatever we could
-       * already afford. Changes no answer; see `noteCatalogueBarcodeMiss`.
-       */
-      if (gtin) noteCatalogueBarcodeMiss(gtin);
 
       // A typed name: Shin's own data only, never a paid call (see the comment above).
       if (!gtin && text) {
