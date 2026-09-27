@@ -88,8 +88,22 @@ unfinished `gemini-grounded.ts` price/gauge provider was reverted off main pendi
 settling in writing whether it meets the Grounded Results contract and whether gauge words violate
 hard rule 2. Image resolution is decided by a test not yet run; a better model identifying photos
 while another searches (two calls), and a better barcode encoding for Gemini, are open questions in
-the Gemini tree, not decided. Branch testing before a paid key runs via Claude in Chrome on
-gemini.google.com. · 2026-09-13/14 · log: docs/decisions.md#Google Lens means Google Cloud Vision Web Detection, and it is specified but not built; docs/decisions.md#A model call goes through a provider seam, and the measure is cost per correct identification; docs/decisions.md#The unfinished grounded-price provider comes off main until it is green and the two questions are settled; docs/decisions.md#Twelve rulings on the Gemini branch, answered together (items 1, 12); docs/the-gemini-tree.md
+the Gemini tree, not decided. That resolution test also decides cost tradeoff: a lower resolution
+found cheaper may be gated to a lower Shin subscription tier. Branch testing before a paid key runs
+via Claude in Chrome on gemini.google.com. · 2026-09-13/14 (2026-09-14: *"test different resolutions to determine which one produces the best returns, furthermore, consider the price, also, a lower resolution can be used for a lower tier of shin subscription"*) · log: docs/decisions.md#Google Lens means Google Cloud Vision Web Detection, and it is specified but not built; docs/decisions.md#A model call goes through a provider seam, and the measure is cost per correct identification; docs/decisions.md#The unfinished grounded-price provider comes off main until it is green and the two questions are settled; docs/decisions.md#Twelve rulings on the Gemini branch, answered together (items 1, 12); docs/the-gemini-tree.md
+Retired wording: none
+Governs: to fill
+### LLM prompting efficiency and research approach
+Reviews and descriptions are fetched in the same call as the product/price lookup, not a separate
+step. A pipeline design must explicitly address how the model is prompted and how to produce
+results efficiently (call cost, context reuse) as a required piece, never a gap left implicit.
+Combining multiple LLMs (Grok alongside Claude, raised 2026-09-11 to cut cost) no longer applies:
+Claude is excluded once Gemini is in (Claude excluded ruling above, 2026-09-17). Open research
+questions here (prompting strategy, catalogue coverage) are tracked as living, adapting as data
+comes in, rather than answered once upfront; asked how he'd build such a plan, the answer is the
+approach for building it, not the plan's contents. Beta-readiness testing waits on already-
+identified gaps (catalogue/price coverage, prompting strategy) being fixed first, never run against
+a product already known to be incomplete there. · 2026-09-11 · *"Can we use multiple llms like grok and claude together since grok is cheaper? How can we prompt to ensure efficiency with credit and effective answers"* (*"i'm not asking you to build a plan, i want you to figure out how to build the plan"*; *"there a many things you should be doing before these. These are mostly tests on a product we know isn't ready"*) · 2026-09-12: *"reviews should be gathered alongside the api call"* · log: to fill
 Retired wording: none
 Governs: to fill
 ## Prices and verdicts
@@ -108,7 +122,11 @@ Governs: SHIN_BARCODE_OWN_PRICES, app/test/barcode-own-prices-route.test.ts
 ### Always answer, never refuse for wasting time
 An unchecked response beats telling the user the app doesn't know after a wait; confidence carries
 the doubt instead. This reverses an earlier Claude-authored, non-human "a wrong verdict is worse
-than no verdict" line. · 2026-09-15 · *"Having a repsonse that is not checked is infinitly better than having the user scan something, wait 10 seconds, only to get told the app doesn't know, because that will make the user just uninstall the app"* · log: docs/jamin-gemini-rules.md#the-rules-in-jamins-words-from-2026-09-15
+than no verdict" line. For a known name-brand item Shin has no price data on, the estimate is that
+brand's average category markup, not a refusal. A specific paywall pitch he floated the same week
+("pro identifies 99% of items... average $1,000/year saved") is not adopted as written: it collides
+with the unmeasured-claims ban below (No savings claim ships until it is measured), which is the
+one that actually shipped. · 2026-09-15 · *"Having a repsonse that is not checked is infinitly better than having the user scan something, wait 10 seconds, only to get told the app doesn't know, because that will make the user just uninstall the app"* · log: docs/jamin-gemini-rules.md#the-rules-in-jamins-words-from-2026-09-15 · 2026-09-06: *"If its a name brand that we don't have info on, we can take the average mark up for name brands and apply it to the product... on average, our pro model can correctlly identify 99% of items and find their exact price, store, your nearest good deal, ratings. On average, our pro users save 1000 dollars a year."*
 Retired wording: `a wrong verdict is worse than no verdict`
 Governs: to fill
 ### The price line speaks the shopper's own range, never Shin's opinion
@@ -145,7 +163,9 @@ dupe features are out of v1 (no verified store-level feed/location; category vol
 Of twelve awkward item kinds specified, only four reach beta (sold by weight, store brands, deals,
 member prices); marketplace/US listings stay off the price line. Background enrichment writes a
 later, better answer into its own column with its own timestamp; the value the user was first shown
-never changes. · 2026-09-19 · log: docs/decisions.md#Nine rulings so the competitor-survey build could start (item 7)
+never changes. More generally, Shin never prints a claim it cannot back with a real feed: no "in
+stock", no "cheaper 1.2 km away", nothing beyond what a chain's actual per-store feed supports.
+· 2026-09-19 · log: docs/decisions.md#Nine rulings so the competitor-survey build could start (item 7) · 2026-09-05: *"Never print \"in stock\" and never print \"cheaper 1.2 km away\". You do not know either until a chain gives you a real per-store feed."*
 Retired wording: `no_asking_price refusal`
 Governs: to fill
 ## Catalogue and data sources
@@ -157,7 +177,9 @@ seller's own barcode to rejoin later. Crawl rate was never measured: the residen
 a PerimeterX challenge outlasting 13+ hours idle; rotating addresses/spoofing headers is ruled out,
 now doubly so under Copyright Act s.41.1 (circumventing a protection measure). Client-side parsing
 (Karma/Honey style) is rejected on the same ground plus store policy. BC's 130,404-container
-alcohol registry is parked: at most 5.8% could ever carry a price. · 2026-09-13 · log: docs/decisions.md#Never circumvent a bot block, and now for a second reason
+alcohol registry is parked: at most 5.8% could ever carry a price. Expanding the product-and-price
+catalogue by every possible method stays Shin's highest priority, restated 2026-09-11 and
+2026-09-26: a product identified without a price is meaningless. · 2026-09-13 · log: docs/decisions.md#Never circumvent a bot block, and now for a second reason · 2026-09-11: *"Expand our product catalogue by finidng all possible methods to gain more infomation(product and price catalogue come hand in hand, knowing the product without the price is meaningless)"* · 2026-09-26: *"we need more items in the catalogue"*
 Retired wording: `roughly ten minutes lockout`, `search() in walmart.ts`
 Governs: price/src/walmart-sitemap.ts (discoverSkus, --indexes)
 ### Product identity and catalogue matching
@@ -170,7 +192,9 @@ per store branch. Substitutes draw on leaf category, one step to parent if empty
 grandparent, labelled when looser. Alternatives split validation (farm/used price can still
 validate) from genuine switching (rejected); tech items are never compared by weight. Produce
 stays refused, promoted once two independent shopper reports clear the existing thresholds.
-· 2026-09-21 · log: docs/decisions.md#Nine rulings so the competitor-survey build could start (item 5 addendum, Aurik's answer 2026-09-21)
+Furniture is a named, unresolved coverage gap raised alongside tech and produce, both answered
+above. The category tag is stored lower-cased on match. A store is never counted as its own price
+competitor. · 2026-09-21 · log: docs/decisions.md#Nine rulings so the competitor-survey build could start (item 5 addendum, Aurik's answer 2026-09-21) · 2026-09-03: *"why does it not work for new tech, furniture and fresh produce"* · 2026-09-05: *"Lower-case the category tag on match"* · 2026-09-11: *"A store is never counted as its own competitor"*
 Retired wording: none
 Governs: catalogue/, product.ring field (leaf/parent)
 ### Catalogue scope: in, out, and parked
@@ -185,7 +209,8 @@ Books, music and Discogs records stay out of the catalogue (it is a grocery/shel
 the US branded-foods file is not parked with them because it is food. Shin is global from the
 start, not Canada-only: same-country products compare, cross-country generally does not, except
 provinces that differ sharply or EU-like regions, the Gemini prompting for this still needs design.
-· 2026-09-26 · log: docs/decisions.md#Country is a column in the catalogue, not a filter applied while loading
+Shin is a phone app: no architecture decision assumes multi-gigabyte on-device data is feasible
+(the reason behind the 8 GB and embedding parks above). · 2026-09-26 · log: docs/decisions.md#Country is a column in the catalogue, not a filter applied while loading · 2026-09-05: *"consider that this is a phone app and having multiple gbs of data is impossible"*
 Retired wording: none
 Governs: sold_in_canada column, embedder coverage
 ### Attribution, provenance and correction data
@@ -196,7 +221,10 @@ deliberately not stored; ODbL attribution names the source databases, frozen in 
 assembled from live data. eBay's Browse API answers only for used/tech, asking prices only, filtered
 to Canadian fixed-price listings, never for groceries. A price a person types into the correction
 screen enters the next verdict's comparison set; one person/shop/product/day overwrites rather than
-duplicates, a shop name is required, sale-price is a separate opt-in flag. · 2026-09-05 · log: docs/decisions.md#A price somebody types in is a price, and it reaches the next verdict
+duplicates, a shop name is required, sale-price is a separate opt-in flag. Best Buy's API key is
+likewise a live seller-price source, not catalogue data. An invented "in stock" flag and inaccurate
+allergen wording are hard-rule problems (fabricated evidence), fixed on sight, never deferred behind
+another feature. · 2026-09-05 · log: docs/decisions.md#A price somebody types in is a price, and it reaches the next verdict · 2026-09-05: *"Best Buy and eBay keys are free, but those are not catalogues. They return live prices, so they belong with the other sellers, not in the product table."*; *"Fix the invented stock flag and the allergen wording. Both are hard-rule problems that exist now and neither waits on this feature."*
 Retired wording: `gate keyed on openprices denylist`, `collected, applied to nothing yet`
 Governs: app/src/attribution.ts
 ## Money and plans
@@ -258,6 +286,14 @@ mentioned that is not currently recorded should prompt a review of the data coll
 · 2026-09-17 · *"Shin should try to save as much data as possible... all user data should be recorded"* · log: docs/walkthrough/jamin-notes-2026-09-17.md#notes-typed-into-the-tabs
 Retired wording: none
 Governs: SHIN_ACCESS_LOG, SHIN_SHUTTER_LOG, SHIN_SHUTTER_DIR
+### Collective user data reduces computation, and the privacy policy names both uses
+Shin is designed to use aggregated, collective user data (a setup survey, past shopping history) to
+cut the computation a scan needs and to proactively surface an answer before the user has to
+search, without hurting the experience. The privacy policy states plainly that all of a user's
+scanned data is collected, and that it is used both to train Shin's models and to answer other
+users, with a system in place for someone to report an incorrect price. · 2026-09-05 · *"collective user data can be used to heavily reduce the computation required... we should aggresively design systems that provide the user with the answer before they need to search with the llms... our privacy policy must say that we will collect all of a users' scanned data, and all of it will be used to both train our models and also to answer other people"* · log: to fill
+Retired wording: none
+Governs: to fill
 ### Zero data retention sought, built assuming refusal
 Seek zero-data-retention approval from Google, but build as if it will be refused. · 2026-09-14 · log: docs/decisions.md#Twelve rulings on the Gemini branch, answered together (item 2)
 Retired wording: none
@@ -332,7 +368,10 @@ the export that does this could not be located in the currently tracked client f
 (`spine/src/money.ts`'s `cad()` stays English on purpose) and needs a session's re-check. Welcome
 screens are Cal AI's onboarding screens with his replacement text, plus screens asking shopping
 habits, good/bad/great price ranges, location. Social-proof numbers (10,000 shoppers, 4.8 rating,
-$15/$180 savings) stay hidden until real, never invented placeholders. · 2026-09-13 (bilingual, money format) · 2026-09-16/17 (onboarding) · 2026-09-18 (placeholders) · log: docs/decisions.md#The app ships in French and English from the first beta, not English-only; docs/decisions.md#Money is written the way the reader's language writes money, and only the client does it; docs/jamin-gemini-rules.md#walkthrough-rulings-2026-09-1617-his-notes-and-comments-on-the-google-doc-walkthrough
+$15/$180 savings) stay hidden until real, never invented placeholders. Bilingual French/English is
+the shipped beachhead for the first beta, not the ceiling: the standing requirement is that Shin
+works in every language, since it is used worldwide (see Catalogue scope: global from the start).
+Onboarding pages must be watchable more than once during the beta test. · 2026-09-13 (bilingual, money format) · 2026-09-16/17 (onboarding) · 2026-09-18 (placeholders) · log: docs/decisions.md#The app ships in French and English from the first beta, not English-only; docs/decisions.md#Money is written the way the reader's language writes money, and only the client does it; docs/jamin-gemini-rules.md#walkthrough-rulings-2026-09-1617-his-notes-and-comments-on-the-google-doc-walkthrough · 2026-09-19: *"shin should work for all laungauges"*; *"for the beta test, the onboarding pages should be able to be watched multiple times"*
 Retired wording: `$4.99 in French UI`, `Join over 10,000 smart shoppers placeholder`, `4.8 star rating placeholder`
 Governs: app/public/js/shin.js, app/public/js/ui-strings.js, spine/src/money.ts
 ### Scan-time asks and feedback
@@ -359,13 +398,51 @@ by design: screens.css @imports its stylesheets, custom properties give the scal
 browser modules directly under node --test. · 2026-09-06 · log: docs/decisions.md#The camera's standard is applied outward, and the tier palette is measured
 Retired wording: none
 Governs: app/public/css/components.css, app/public/css/screens.css
+### Avatar / mascot and competitor-inspired design
+The mascot is one of Shin's most important features. It behaves like Duolingo's bird: present
+throughout the UI, reacting emotionally (happy at a good price, mad at a bad one), with its own
+animations and screen-by-screen dialogue; placeholders stand in for its visuals until it is
+designed separately. Inspiration from Duolingo, Olma or any other app is never copied directly,
+only applied where it specifically fits Shin's own use case; Olma's screens are analysed one by one
+for individual features worth pulling in, without copying its UI. Analysing a competitor app is not
+the deliverable: it has to turn into implemented, shipped changes. · 2026-09-03 · *"The avatar for our app is one of our most important features"* (2026-09-04: *"we plan on having this avatar function similar to the duolingo bird that pops up constantly throughout the ui... Sometimes the avatar might be mad at bad prices, sometimes itll be really happy with good prices"*; *"go ahead. rememebr we are not trying to copy duolingo or any other app, we are taking inspiration that applies to us"*; *"how come basically nothing in the app changed even after i told you to analyse duolingo and olma"*; *"what is the avatars role in the ui. I originally asked about that and the avatar is not present at all"*) · log: to fill
+Retired wording: none
+Governs: to fill
+### Method for AI-assisted redesign work
+When an AI redesigns a Shin screen, the deliverable is a written description, not a built page. The
+AI gets no prior knowledge of Shin's current screens: it redesigns each one from scratch for an
+innovative, non-"AI slop" look, covering the popups that appear through the UI too (for example, a
+paid-plan upsell screen when the free scan limit is hit), with full detail on how each pops up and
+looks. The prompt given to the AI carries much more descriptive information about the app than
+before, still without showing the actual current screens, plus constraints that push for a
+thorough answer rather than the AI's most efficient, minimal-effort one. · 2026-09-21 · *"the design is supposed to just be in words and not actrually created"* (*"I wanted the ais to completely redesign each screen without prior knowladge of what our screens look like. I wanted a non ai slop look and innovative aspects... maybe when usage limit is hit for the free plan, a screen pops up and advertises the paid plan"*; *"regenerate a new prompt that doesn't assume the ais have context... create constraints that make sure tehy give high quality answers"*) · log: to fill
+Retired wording: none
+Governs: to fill
+### Screen and page tagging
+Every single page and screen carries a short tag (a1, a2, a3, ...) so he can refer to it by tag
+when talking to Claude Code; this includes screens that only half pop up, such as the price-verdict
+result. · 2026-09-19 · *"delegate an agent to add a tag like a1, a2, a3, etc. to every single page and screen so i can refer to it but its tag when i communicate with claude code"* (*"i said before tht every screen should carry a tag. That includes all screens that half pop up like when the price verdict is determined"*) · log: to fill
+Retired wording: none
+Governs: to fill
+### UI rebuilds: old UI is the feature record, new UI is the design
+When Shin's UI is rebuilt or restyled, the old UI (even with bad design) is the source of truth for
+the feature instructions he actually gave; the new UI's design is adopted for its design quality,
+and specific features it happens to have are pulled into the backend only where judged genuinely
+worthwhile. · 2026-09-08 · *"Although the current ui is bad, it contains the instructions I gave shin on certain features. Although the new ui has good design, none of its features are what i instructed"* · log: to fill
+Retired wording: none
+Governs: to fill
 ## Build, servers and infrastructure
 ### Repo, deployment and scope cuts
 The repo lives on GitLab at gitlab.com/shin3223636/shin, private, Aurik Disler as Maintainer. Beta
 is a native build on TestFlight/Google Play internal testing (six testers: Jamin, Aurik, their
 parents), the web app wrapped rather than rewritten, native barcode plugin as fallback. Leftover
-uncommitted Gemini branch code is reused where it can be, not rewritten clean or committed as-is.
-Shin does not run in a browser except for testing, and is not usable offline for now. · 2026-09-17 · log: docs/jamin-gemini-rules.md#walkthrough-rulings-2026-09-1617-his-notes-and-comments-on-the-google-doc-walkthrough
+uncommitted Gemini branch code is reused where it can be, not rewritten clean or committed as-is;
+that reuse principle is general across the 2026-09-14 twelve-item set, not just the Gemini branch.
+Shin does not run in a browser except for testing, and is not usable offline for now. A real GitLab
+Group was the original ask; it was blocked technically, so Aurik holds Maintainer on this
+personal-namespace repo instead. The backend (API, catalogue, backups, migrations) is hosted on his
+own Mac rather than a paid hosted API service. The GitLab repo is mirrored to GitHub: origin pushes
+to both remotes. · 2026-09-17 · log: docs/jamin-gemini-rules.md#walkthrough-rulings-2026-09-1617-his-notes-and-comments-on-the-google-doc-walkthrough · 2026-09-03: *"i changed my mind. Create a shin repo on this laptop and then create a shin group in gitlab and invite aurik"* · 2026-09-12: *"instead of Hosted API with HTTPS, catalogue, backups, migrations. can i host on my mac."* · 2026-09-14: *"reuse what can be used"* · 2026-09-26: *"shin's gitlab should be mirror to github"*
 Retired wording: `gitlab.com/jaminke/shin`
 Governs: to fill
 ### Server-side guards and limits
@@ -384,7 +461,13 @@ the check instant enough that guessing stops being the default. Every change mus
 visually appealing: one that can't name which it serves is not made. Channel is short-form video
 (the objective function, not defensibility); primary user is a window shopper, browse over
 purchase frequency; Shin is a fast follower, not a feature inventor. Every pass ships or kills
-something. Aggressive tone points at the price/store/brand, never the user. · 2026-09-04 · *"useful to the user, easy to use, and visually appealling"* · log: CLAUDE.md#intro
+something. Aggressive tone points at the price/store/brand, never the user. No past decision is
+final; the only hard constraint is the law. The backend vision every improvement answers to: build
+something users want and become reliant on, and make money. A "moonshot" for Shin means the hardest
+realistic thing a small company and a founder of his influence could pull off by ordinary means,
+never something literally impossible. Shin is built to hold up long-term, not just for a demo. MVP
+direction: simplify and stop chasing perfection over an elegant, complicated system.
+· 2026-09-04 · *"useful to the user, easy to use, and visually appealling"* (2026-09-03: *"there are no hard rules outside things like breaking the law. Nothing should be final"*; 2026-09-06: *"create something that users will want and become reliant on and to make money"*; *"i wanted the moonshot to be something thats impossible to achieve for an app and a small comapny with people of my influence. Yours is impossible to achieve unless i have supernatrual abilities"*; 2026-09-22: *"make sure shin works for the future"*; 2026-09-26: *"We want to simply everything and stop chasing perfection"*) · log: CLAUDE.md#intro
 Retired wording: none
 Governs: to fill
 ### Marketing and positioning
@@ -393,7 +476,13 @@ following Yuka's growth pattern. The launch video test runs on borrowed audience
 creators, or Reddit), never a cold new account, since TikTok seeds new posts to existing followers
 first. Marketing videos may show real Gemini answers, framed as showing what the app produced, not
 as showing the answer to the person who asked, a reading not yet checked against Gemini's terms'
-actual wording. · 2026-09-03 (hook, borrowed audiences) · 2026-09-14 (filming, *"we will show the real answers in the videos, we are not showing the answers to users, we are just showing what we see on an app"*) · log: docs/decisions.md#The hook is a capability plus a villain; docs/decisions.md#The video test runs on borrowed audiences; docs/decisions.md#Twelve rulings on the Gemini branch, answered together (item 9)
+actual wording. Growth does not require being broadly better than or different from competitors:
+one killer, easily viral feature or phrase (the working example: "scan anything and it tells you if
+the price is right", or the mascot) beats trying to be better, since users rarely install two
+similar apps to compare them. Following Yuka's growth pattern is not the same as copying its
+purpose: Shin does something different, arguably more important for users. Any claimed capability
+in marketing or specs cites the concrete backend mechanism and a real, measured metric behind it,
+never asserted bare. · 2026-09-03 (hook, borrowed audiences) · 2026-09-14 (filming, *"we will show the real answers in the videos, we are not showing the answers to users, we are just showing what we see on an app"*) · 2026-09-03: *"popular apps will have on killer, viral feature, or selling point"* · 2026-09-06: *"our app does something different, arguably more important for users"*; *"For everything you say that the app does, the backend should be clearly listed... there should be metrics for everything"* · log: docs/decisions.md#The hook is a capability plus a villain; docs/decisions.md#The video test runs on borrowed audiences; docs/decisions.md#Twelve rulings on the Gemini branch, answered together (item 9)
 Retired wording: none
 Governs: to fill
 ### v1 floor: live photo recognition is load-bearing
@@ -404,6 +493,49 @@ catalogue search, second-pass model pick) opens via POST /api/identify/photo; we
 catalogue miss and image-embedding search stay parked pending a measured top-1 eval. · 2026-09-09 · *"the user must take a picture and Shin must be able to identify. Nothing less."* · log: docs/decisions.md#Live photo recognition is load-bearing, and the photo door opens
 Retired wording: `live photo recognition cut from v1`, `barcode and screenshot input only`
 Governs: POST /api/identify/photo, SHIN_GEMINI_TIER
+### Decision-analysis and calibration discipline
+A competitor already building a feature is not a reason to reject it: copying what works and adding
+Shin's own spin is fine, not a negative, and this applies to every decision, not just features.
+Whenever a decision is concluded positive or negative, the "why" gets asked again rather than
+stopping at a surface reason like "a competitor already does this." An app's model being unpopular
+is not evidence it was wrong (Olma). A test failing once does not mean the whole approach is dead
+(meaning search): it could be a false positive, and could work applied elsewhere. When critiquing a
+plan, name a flaw's available workaround and the underlying intent being served before calling the
+plan bad, and re-check any economics used in the critique. An audit for contradictions checks his
+full instruction history, not just the item most recently raised, and watches for logical fallacies
+specifically. Before refining a design, research existing open-source tools and how other companies
+solve the same problem. Project timeline and history are stated only from verified fact, never
+hallucinated. An invented rule or figure is never attributed to him as something he said.
+· 2026-09-03 · *"Just because a competitor already builds something, doesn't mean we can't build the exact same feature... if your why is that competitors already do that, you should know to ask why again"* (2026-09-04: *"olma's model is accurate... just because olma is not popular doesn't mean the idea is dead"*; 2026-09-05: *"Don't fall for logical fallacies: even thouse meaning search failed at one test doesn't mean it shouldn't be used in the product at all"*; 2026-09-06: *"crticially analyse this against what i've been asking for in this repo... consider... faults with logical fallacies"*; *"a price the app cannot source is absent, not estimated. $20 is not my number, i never stated it"*; 2026-09-11: *"you seem to be hallucinating a lot with timing"*; 2026-09-19: *"contradictions are not just limited to these, i'm talking about contradictions of instructions i gave"*; 2026-09-22: *"You also didn't look at what open source tools exist or research how other companies online do it"*; 2026-09-26: *"you failed to consider... underlying intentions"*) · log: to fill
+Retired wording: none
+Governs: to fill
+### Build only when asked; decide small things without stalling
+Asked how something would be built, the answer is the analysis or plan, never starting to build it;
+this holds every time it is restated. Within a plan already agreed, small decisions are made and
+work continues rather than raising blocking questions back to him; that autonomy is for judgment
+calls inside agreed work, not for whether to start building a new feature. · 2026-09-11 · *"i didn't ask you to build, i asked you how you would build it"* (2026-09-12: *"Why do you need 5. and 7. for 8. you can make these decisions"*; 2026-09-26: *"i didn't ask you to build anything"*) · log: to fill
+Retired wording: none
+Governs: to fill
+### Walkthroughs and explanations of Shin: full detail, verified, plain language
+A walkthrough of Shin written for him breaks every tool, mechanism and surface into its granular
+substeps (camera capture, barcode tracking, barcode identified, lookup triggered, server call,
+server search, and so on, built or only planned) and states the reasoning behind every design
+decision that shapes the system. It is written at a systems-designer, pseudocode level: no
+file:line citations, no unexplained function names, no "contradicts your rule" claim without
+restating the rule, no assumption he knows what a named function does. Every claim is backed by
+actually reading the code, never reported as assumed. No step is summarized in one line, even if a
+similar step was already explained earlier: a Gemini call states the exact prompt sent and how the
+response is interpreted; a math step states the exact formula. It eventually covers the frontend
+too, not only backend and Gemini logic. · 2026-09-16 · *"perform a thorough walkthrough of every single tool, mechanism, surface etc of shin"* (*"this is for me to read... i only need to understand similar to how high level engineers will write Pseudocode"*; *"everything should be backed up with evidence, all claims should be from looking inside the code"*; *"for step 8, you still did not detail exactly what is sent to gemini. What is the prompt sent ot it?? For 11, it says it sends the math function but it doesn't say what the math function is"*; *"fruther more, you did not talk about the frontend at all which is okay but should be remembered for the full walkthrough"*) · log: to fill
+Retired wording: none
+Governs: to fill
+### Running lists: defects and parked items
+A running defects document accumulates every defect found as Shin gets built, rather than each one
+being scattered or dropped. A separate list holds Shin work items for later (docs/parked-list.md);
+items go on it only when he explicitly says so, and nothing on it is worked on automatically for
+being listed. · 2026-09-06 · *"write these in a defects document that gets built together will all other defects that will pop up as the proudct is getting built"* (2026-09-19: *"create a new list for items that need to be worked on. These itmes will not automatically be worked on, they are just stored"*) · log: docs/parked-list.md
+Retired wording: none
+Governs: docs/parked-list.md
 ### Governance: which document outranks which
 RULINGS.md (this file) outranks every other file in the repo, including docs/jamin-gemini-rules.md
 and the Google Doc "Shin Full Walkthrough": both feed into it rather than compete with it. Before
