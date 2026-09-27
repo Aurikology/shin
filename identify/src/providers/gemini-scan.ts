@@ -684,6 +684,70 @@ function b(v: unknown): boolean | null {
   return typeof v === 'boolean' ? v : null;
 }
 
+/**
+ * The general categories a scanned product is sorted into (the founder's ask: "sort
+ * items in their general categories"). Mirrors the `product.category` enum in
+ * `response_schema.json`; the two must stay the same list.
+ */
+export const SCAN_CATEGORIES = [
+  'grocery',
+  'household',
+  'personal_care',
+  'pet',
+  'alcohol',
+  'electronics',
+  'appliances',
+  'furniture',
+  'clothing',
+  'toys',
+  'tools_hardware',
+  'books_media',
+  'health',
+  'other',
+] as const;
+export type ScanCategory = (typeof SCAN_CATEGORIES)[number];
+const CATEGORY_SET: ReadonlySet<string> = new Set(SCAN_CATEGORIES);
+
+/**
+ * Gemini's category, or null when it gave none or gave one outside the list. Case,
+ * spaces and hyphens are forgiven ("Personal Care" reads as `personal_care`);
+ * anything else is null, never a guessed nearest match. Never throws.
+ */
+export function readCategory(v: unknown): ScanCategory | null {
+  const t = s(v)?.toLowerCase().replace(/[\s-]+/g, '_') ?? null;
+  return t !== null && CATEGORY_SET.has(t) ? (t as ScanCategory) : null;
+}
+
+/**
+ * An offer's currency as an ISO 4217 code: exactly three letters, upper-cased.
+ * Anything else that is present is `unreadable` (the offer is then treated as
+ * having no currency, and `guardOffers` withholds its price); absent is plain null.
+ */
+function readCurrency(v: unknown): { readonly code: string | null; readonly unreadable: boolean } {
+  const t = s(v);
+  if (t === null) return { code: null, unreadable: false };
+  return /^[A-Za-z]{3}$/.test(t) ? { code: t.toUpperCase(), unreadable: false } : { code: null, unreadable: true };
+}
+
+/**
+ * The date a price was seen, as the source stated it, as `YYYY-MM-DD`. Accepts a
+ * date or a full ISO timestamp (only the date part is kept). Null for anything that
+ * is not a real calendar date, and for a date later than today anywhere on Earth
+ * (UTC+14, so a store already in tomorrow's date is not rejected). Never throws.
+ */
+export function readObservedAt(v: unknown, nowMs: number = Date.now()): string | null {
+  const t = s(v);
+  if (t === null) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:$|[T ])/.exec(t);
+  if (!m) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const at = new Date(Date.UTC(y, mo - 1, d));
+  if (at.getUTCFullYear() !== y || at.getUTCMonth() !== mo - 1 || at.getUTCDate() !== d) return null;
+  const latestToday = new Date(nowMs + 14 * 3600 * 1000).toISOString().slice(0, 10);
+  const day = `${m[1]}-${m[2]}-${m[3]}`;
+  return day > latestToday ? null : day;
+}
+
 /** Everything the phone needs from the answer, read defensively so it can never throw. */
 export interface ReadAnswer {
   readonly product: {
@@ -691,6 +755,8 @@ export interface ReadAnswer {
     readonly brand: string | null;
     readonly size: string | null;
     readonly description: string | null;
+    /** Gemini's general category for the product, from `SCAN_CATEGORIES`; null when absent or not on the list. */
+    readonly category: ScanCategory | null;
     readonly confidence: number | null;
     readonly sources: { readonly name: string | null; readonly brand: string | null; readonly size: string | null };
   };
@@ -825,13 +891,31 @@ export interface ReadOffer {
   readonly raw: Record<string, unknown>;
   readonly retailer: string | null;
   readonly price: number | null;
-  /** The currency Gemini gave this offer, upper-cased, or null. Read for the hidden check only. */
+  /**
+   * The currency Gemini gave this offer, as a three-letter code upper-cased, or null.
+   * Null also when what Gemini wrote was not three letters (`currencyUnreadable`).
+   */
   readonly currency: string | null;
+  /** True when Gemini wrote a currency that is not a three-letter code. Its price is withheld, never guessed. */
+  readonly currencyUnreadable: boolean;
   readonly unitPrice: number | null;
   readonly inMedian: boolean;
   readonly exclusionReason: string | null;
   readonly pctVsMedian: number | null;
   readonly position: number | null;
+  /** The raw size and deal fields, read for the hidden check to recompute `unitPrice` from. */
+  readonly sizeValue: number | null;
+  readonly sizeUnit: string | null;
+  readonly packCount: number | null;
+  /** `multi_buy` when Gemini set `multi_buy`, `bogo` when it set `bogo`, else null (same rule as `shownFrom`). */
+  readonly dealKind: 'multi_buy' | 'bogo' | null;
+  /** `quantity_covered`: the 2 in a "2 for $5". */
+  readonly quantityCovered: number | null;
+  /** What the price is per, as advertised ("kg", "lb", "100 g", "item"), or null. */
+  readonly priceUnit: string | null;
+  readonly soldByWeight: boolean | null;
+  /** The date the source stated the price was seen, `YYYY-MM-DD`, or null. */
+  readonly observedAt: string | null;
 }
 
 export interface ReadVerdict {
@@ -848,22 +932,32 @@ export interface ReadVerdict {
   readonly sizeAssumed: boolean;
 }
 
-export function readAnswer(value: Record<string, unknown> | null): ReadAnswer | null {
+export function readAnswer(value: Record<string, unknown> | null, nowMs: number = Date.now()): ReadAnswer | null {
   if (value === null) return null;
   const p = rec(value.product);
   const src = rec(p.sources);
   const offers: ReadOffer[] = arr(value.offers).map((o) => {
     const r = rec(o);
+    const cur = readCurrency(r.currency);
     return {
       raw: r,
       retailer: s(r.retailer),
       price: n(r.price),
-      currency: s(r.currency)?.toUpperCase() ?? null,
+      currency: cur.code,
+      currencyUnreadable: cur.unreadable,
       unitPrice: n(r.unit_price),
       inMedian: r.in_median === true,
       exclusionReason: s(r.exclusion_reason),
       pctVsMedian: n(r.pct_vs_median),
       position: n(r.position),
+      sizeValue: n(r.size_value),
+      sizeUnit: s(r.size_unit),
+      packCount: n(r.pack_count),
+      dealKind: b(r.multi_buy) === true ? 'multi_buy' : b(r.bogo) === true ? 'bogo' : null,
+      quantityCovered: n(r.quantity_covered),
+      priceUnit: s(r.price_unit),
+      soldByWeight: b(r.sold_by_weight),
+      observedAt: readObservedAt(r.observed_at, nowMs),
     };
   });
   const v = rec(value.price_verdict);
@@ -875,6 +969,7 @@ export function readAnswer(value: Record<string, unknown> | null): ReadAnswer | 
       brand: s(p.brand),
       size: s(p.size),
       description: s(p.description),
+      category: readCategory(p.category),
       confidence: n(p.identification_confidence),
       sources: { name: s(src.name), brand: s(src.brand), size: s(src.size) },
     },
@@ -990,7 +1085,7 @@ function validateAgainstSchema(value: unknown, schema: unknown, path = '$'): Sch
 
 /* ------------------------------------------------------------ item 4, guards */
 
-export type PriceSuppressionReason = 'currency_mismatch' | 'implausible_price';
+export type PriceSuppressionReason = 'currency_mismatch' | 'currency_unreadable' | 'implausible_price';
 
 /** A price this file decided not to show, and why. Never silent (ruling 4, docs/decisions.md 2026-09-19). */
 export interface PriceSuppression {
@@ -1045,6 +1140,14 @@ function guardOffers(
   const suppressed: PriceSuppression[] = [];
   const guarded = offers.map((o) => {
     if (o.price === null) return o;
+    /* A currency Gemini wrote but that is not a three-letter code says the price is in
+       SOME money nobody can name, so it is withheld whatever the reference is: the
+       price is never shown as if it were in the user's currency. An absent currency is
+       not this case and is left to the check below, as before. */
+    if (o.currencyUnreadable) {
+      suppressed.push({ retailer: o.retailer, reason: 'currency_unreadable' });
+      return { ...o, price: null, unitPrice: null };
+    }
     if (reference.currency !== null && o.currency !== null && o.currency !== reference.currency) {
       suppressed.push({ retailer: o.retailer, reason: 'currency_mismatch' });
       return { ...o, price: null, unitPrice: null };
@@ -1380,6 +1483,8 @@ export interface AnswerBlock extends Omit<PriceBlock, 'verdict' | 'offers'> {
   readonly name: string | null;
   readonly brand: string | null;
   readonly size: string | null;
+  /** Gemini's general category for the product (`SCAN_CATEGORIES`), or null when it gave none or one off the list. */
+  readonly category: ScanCategory | null;
   readonly facts: readonly { readonly field: 'name' | 'brand' | 'size'; readonly value: string; readonly url: string | null; readonly hasLink: boolean }[];
   /** Which model answered this scan. */
   readonly model: string;
@@ -1443,7 +1548,7 @@ function shownFrom(o: ReadOffer): AnswerBlock['offers'][number] | null {
     memberOnly: b(r.membership_required),
     dealKind: multi ? 'multi_buy' : bogo ? 'bogo' : null,
     dealUnits: multi ? n(r.quantity_covered) : null,
-    observedAt: null,
+    observedAt: o.observedAt,
     organic: b(r.organic),
     storeBrand: b(r.store_brand) === true ? 'store brand' : null,
     soldByWeight: b(r.sold_by_weight),
@@ -1562,6 +1667,8 @@ export function toAnswerBlock(run: GeminiRun): AnswerBlock {
     name: a?.product.name ?? null,
     brand: a?.product.brand ?? null,
     size: a?.product.size ?? null,
+    // `?? null` also covers a run cached before this field existed.
+    category: a?.product.category ?? null,
     facts,
     model: run.model,
     lowConfidence: run.lowConfidence,
@@ -1627,6 +1734,10 @@ const close = (stated: number, computed: number, abs: number, rel: number): bool
  * output is a mark on the stored call, so a wrong answer can be found later
  * along with the exact prompt. Tolerances allow for rounding, not for error.
  *
+ * Each offer's own `unit_price` is also recomputed from its raw price, size, pack
+ * and deal (`recomputeUnitPrice`), so a "2 for $5" left undivided or a per lb price
+ * read as per kg is caught, not only a median that disagrees with its own inputs.
+ *
  * Dollar mode (`thresholds.unit === 'amount'`) is checked from three things Shin
  * does hold: Gemini's own median, the shelf price the user typed (`ctx`), and the
  * user's dollar amounts. The zone is recomputed in money at the shelf's size and
@@ -1641,6 +1752,8 @@ export function checkMath(answer: ReadAnswer | null, thresholds: Thresholds, ctx
   const onLine = answer.offers.filter((o) => o.inMedian && o.unitPrice !== null && o.unitPrice > 0);
   // One offer is a verdict now (its median is that price); only none is not.
   const median = onLine.length >= 1 ? medianOf(onLine.map((o) => o.unitPrice as number)) : null;
+
+  out.push(...checkOfferUnitPrices(answer.offers, v.comparisonUnit));
 
   if (v.available && onLine.length < 1) out.push({ field: 'verdict_available', stated: true, recomputed: false });
   if (!v.available && onLine.length >= 1 && v.noVerdictReason !== 'no_shelf_size') {
@@ -1695,6 +1808,146 @@ export function checkMath(answer: ReadAnswer | null, thresholds: Thresholds, ctx
     }
   }
   return { checked: true, mismatches: out, skipped: [] };
+}
+
+/* ---------------------------------------- the per-offer unit price re-check */
+
+/*
+ * The same unit tables `gauge.ts` uses for its step 0 (copied, because gauge.ts keeps
+ * them private and this lane may not change its code), plus the spellings a model
+ * writes in words. Keys are lower-cased with spaces and dots removed first.
+ */
+const CHECK_MASS_TO_G: Readonly<Record<string, number>> = { g: 1, kg: 1000, lb: 453.59237, oz: 28.349523125 };
+const CHECK_VOLUME_TO_ML: Readonly<Record<string, number>> = { ml: 1, l: 1000, floz: 29.5735295625 };
+const CHECK_UNIT_ALIASES: Readonly<Record<string, string>> = {
+  gram: 'g', grams: 'g', gr: 'g', kgs: 'kg', kilo: 'kg', kilos: 'kg', kilogram: 'kg', kilograms: 'kg',
+  lbs: 'lb', pound: 'lb', pounds: 'lb', ounce: 'oz', ounces: 'oz',
+  millilitre: 'ml', millilitres: 'ml', milliliter: 'ml', milliliters: 'ml',
+  litre: 'l', litres: 'l', liter: 'l', liters: 'l', fluidounce: 'floz', fluidounces: 'floz',
+};
+const CHECK_COUNT_UNITS: ReadonlySet<string> = new Set([
+  'item', 'items', 'each', 'ea', 'unit', 'units', 'count', 'ct', 'pc', 'pcs', 'piece', 'pieces',
+]);
+
+type CheckDim = 'mass' | 'volume' | 'count';
+
+function unitKey(u: string): string {
+  const k = u.trim().toLowerCase().replace(/[\s.]+/g, '');
+  return CHECK_UNIT_ALIASES[k] ?? k;
+}
+
+/** A quantity in its dimension's base unit (g, mL, or a count), or null when the unit is not one this reads. */
+function measureOf(value: number, unit: string): { dim: CheckDim; base: number } | null {
+  const k = unitKey(unit);
+  if (k in CHECK_MASS_TO_G) return { dim: 'mass', base: value * CHECK_MASS_TO_G[k] };
+  if (k in CHECK_VOLUME_TO_ML) return { dim: 'volume', base: value * CHECK_VOLUME_TO_ML[k] };
+  if (CHECK_COUNT_UNITS.has(k)) return { dim: 'count', base: value };
+  return null;
+}
+
+/**
+ * What an offer's price is per, read from `price_unit` ("kg", "per lb", "/100 g",
+ * "item"). `count` means the price is for the item as sold (the size fields then say
+ * how much that is); `measure` means a by-weight or by-volume price; null means the
+ * text could not be read, and the offer is then skipped.
+ */
+function priceUnitOf(text: string): { kind: 'count' } | { kind: 'measure'; dim: CheckDim; base: number } | null {
+  const m = /^(?:per\s+|\/\s*)?(\d+(?:\.\d+)?)?\s*([a-z][a-z .]*)$/i.exec(text.trim());
+  if (!m) return null;
+  const q = measureOf(m[1] ? Number(m[1]) : 1, m[2]);
+  if (q === null) return null;
+  if (q.dim === 'count') return { kind: 'count' };
+  return q.base > 0 ? { kind: 'measure', dim: q.dim, base: q.base } : null;
+}
+
+function comparisonDim(unit: string | null): CheckDim | null {
+  const k = unit?.trim().toLowerCase().replace(/\s+/g, '') ?? '';
+  if (k === '100g') return 'mass';
+  if (k === '100ml') return 'volume';
+  if (k === 'item') return 'count';
+  return null;
+}
+
+/**
+ * One offer's unit price, recomputed from its raw price, size, pack and deal the way
+ * the scan prompt's PRICE MATH step 2 (and `gauge.ts` step 0) states it: the price
+ * for ONE item first ("2 for 5" is 2.50, buy one get one halves it), then per 100 g,
+ * per 100 mL or per item. A by-weight price (`price_unit` a mass or volume) is
+ * converted from that unit directly. Returns null whenever the fields do not say
+ * enough to recompute without guessing: that offer is skipped, never flagged.
+ */
+export function recomputeUnitPrice(o: ReadOffer, comparisonUnit: string | null): number | null {
+  const dim = comparisonDim(comparisonUnit);
+  const price = o.price ?? null;
+  if (dim === null || price === null || !(price > 0)) return null;
+
+  const dealUnits = o.quantityCovered ?? null;
+  let each: number;
+  if (o.dealKind === 'multi_buy') {
+    if (dealUnits === null || !(dealUnits > 1)) return null; // a multi-buy with no count: cannot divide
+    each = price / dealUnits;
+  } else if (o.dealKind === 'bogo') {
+    each = price / 2;
+  } else {
+    // A count above one with no multi-buy flag could be a deal or a pack: ambiguous, so skipped.
+    if (dealUnits !== null && dealUnits > 1) return null;
+    each = price;
+  }
+
+  const priceUnit = o.priceUnit ?? null;
+  const per = priceUnit === null ? null : priceUnitOf(priceUnit);
+  if (priceUnit !== null && per === null) return null;
+  if (per !== null && per.kind === 'measure') {
+    return per.dim === dim && dim !== 'count' ? (each / per.base) * 100 : null;
+  }
+  // Priced by weight at the till with no unit saying per what: the weight is unknown.
+  if (per === null && o.soldByWeight === true) return null;
+
+  const pack = o.packCount !== null && o.packCount !== undefined && o.packCount > 1 ? o.packCount : 1;
+  const sizeValue = o.sizeValue ?? null;
+  const sizeUnit = o.sizeUnit ?? null;
+  if (sizeValue === null || sizeUnit === null) {
+    // Per item with no size at all (a television): the item price is the unit price.
+    // With a pack count but no size, "per item" is ambiguous, so skipped.
+    return dim === 'count' && sizeValue === null && sizeUnit === null && pack === 1 ? each : null;
+  }
+  const q = measureOf(sizeValue, sizeUnit);
+  if (q === null || q.dim !== dim || !(q.base > 0)) return null;
+  const total = q.base * pack;
+  return dim === 'count' ? each / total : (each / total) * 100;
+}
+
+/**
+ * TOLERANCE for the per-offer re-check: 1 cent, or 2 percent of the recomputed unit
+ * price, whichever is larger. Gemini rounds unit prices to the cent (up to half a
+ * cent of error, and per 100 g values are often under a dollar), and it may use a
+ * rounded conversion (1 lb as 454 g is 0.1 percent off; 1 fl oz as 30 mL is 1.4
+ * percent off). The errors this exists to catch are far outside that band: an
+ * ignored "2 for" is 100 percent off, per lb read as per kg is about 120 percent.
+ */
+export const UNIT_PRICE_ABS_TOLERANCE = 0.01;
+export const UNIT_PRICE_REL_TOLERANCE = 0.02;
+
+/**
+ * Every offer whose stated `unit_price` disagrees with the one recomputed from its
+ * own raw fields beyond the tolerance above, as mismatches named
+ * `offer.unit_price:<retailer>`. An offer that cannot be recomputed, or states no
+ * unit price, is left out silently: skipped, not flagged, and not listed in
+ * `skipped` either, because that list turns the stored mark from 'ok' into
+ * 'partial' and most offers (an electronics listing with no size) legitimately
+ * cannot be recomputed. Reads only; changes nothing the user is shown.
+ */
+function checkOfferUnitPrices(offers: readonly ReadOffer[], comparisonUnit: string | null): MathMismatch[] {
+  const out: MathMismatch[] = [];
+  for (const o of offers) {
+    if (o.unitPrice === null || o.unitPrice === undefined) continue;
+    const want = recomputeUnitPrice(o, comparisonUnit);
+    if (want === null) continue;
+    if (!close(o.unitPrice, want, UNIT_PRICE_ABS_TOLERANCE, UNIT_PRICE_REL_TOLERANCE)) {
+      out.push({ field: `offer.unit_price:${o.retailer ?? '?'}`, stated: o.unitPrice, recomputed: Math.round(want * 10000) / 10000 });
+    }
+  }
+  return out;
 }
 
 /**

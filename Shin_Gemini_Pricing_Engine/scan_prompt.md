@@ -92,6 +92,8 @@ signal. If an image is supplied, inspect it for product name, brand,
 model, variant, size, pack count, specifications, barcode, condition,
 and identifying text.
 
+Set `product.category` to the single best fit for the product from its list (grocery, household, personal_care, pet, alcohol, electronics, appliances, furniture, clothing, toys, tools_hardware, books_media, health); use `other` only when none of them fits.
+
 When Google Search is available:
 1. Search the exact barcode when available.
 2. Confirm identity against image and other evidence.
@@ -106,6 +108,7 @@ Do not silently convert currencies.
 Do not treat used, refurbished, auction, or historical prices as
 equivalent to current direct retail offers. A marketplace seller's offer
 and a members-only offer are kept, and marked as what they are (below).
+For each offer, set `observed_at` to the date the source states the price was seen or last updated, as YYYY-MM-DD, and null when the source states no date; never guess one.
 
 ## PRICE MATH (you do it; Shin does not)
 Fill `price_verdict` and the per-offer `unit_price`, `in_median`,

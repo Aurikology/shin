@@ -22,8 +22,24 @@ import {
   runGeminiScan,
   toAnswerBlock,
   DEFAULT_THRESHOLDS,
+  SCAN_CATEGORIES,
+  loadEngine,
+  readCategory,
+  readObservedAt,
+  recomputeUnitPrice,
 } from '../src/providers/gemini-scan.ts';
-import { fakeTransport, goodAnswer, httpBody } from '../../app/test/gemini-double.ts';
+import { fakeTransport, goodAnswer as sharedGoodAnswer, httpBody } from '../../app/test/gemini-double.ts';
+
+/**
+ * The shared fixture's offers are 225 g boxes whose `unit_price` equals the box price
+ * (2, 3, 4), which is not a price per 100 g. Since the hidden check now recomputes each
+ * offer's unit price from its own size, those offers are sized 100 g here, which makes
+ * every stated number in the fixture true and changes no other expectation.
+ */
+function goodAnswer(over: Record<string, unknown> = {}): Record<string, unknown> {
+  const offers = (sharedGoodAnswer().offers as Record<string, unknown>[]).map((o) => ({ ...o, size: '100 g', size_value: 100 }));
+  return sharedGoodAnswer({ offers, ...over });
+}
 
 // The 2026-09-19 per-device hash split (SHIN_GEMINI_SPLIT=1) was removed 2026-09-27: every real
 // configuration goes to 3.x. Tests below that need a 2.5-family choice build one directly rather
@@ -551,4 +567,143 @@ test('a verdict that cannot be drawn always names a reason, so the phone is neve
   assert.equal(noPriceTyped.noLineReason, 'no_shelf_size');
   const stated = await blank({ verdict_available: false, no_verdict_reason: 'no_offers_on_line', median_unit_price: null }, 499);
   assert.equal(stated.noLineReason, 'no_offers_on_line');
+});
+
+/* ------------------------------------------------ the new optional fields */
+
+const schemaNode = () => loadEngine().schema as {
+  properties: {
+    product: { properties: Record<string, { enum?: unknown[] }>; required: string[] };
+    offers: { items: { properties: Record<string, unknown>; required: string[] } };
+  };
+};
+
+test('the category and observed_at fields are optional in the schema and asked for in the prompt', () => {
+  const sc = schemaNode();
+  assert.deepEqual(sc.properties.product.properties.category.enum, [...SCAN_CATEGORIES, null], 'the schema enum and SCAN_CATEGORIES drifted apart');
+  assert.ok(!sc.properties.product.required.includes('category'), 'category must stay optional so an old answer still parses');
+  assert.ok('observed_at' in sc.properties.offers.items.properties);
+  assert.ok(!sc.properties.offers.items.required.includes('observed_at'), 'observed_at must stay optional');
+  const prompt = buildRequestBody(scan, choiceFor('3.x')).prompt.user;
+  assert.match(prompt, /`product\.category`.*`other` only when none of them fits/);
+  assert.match(prompt, /`observed_at`.*null when the source states no date/);
+});
+
+test('a category on the list is read, an unknown one and an absent one are null, and an old answer parses as before', () => {
+  const withCat = (category: unknown) => goodAnswer({ product: { ...(goodAnswer().product as object), category } });
+  assert.equal(parsed(withCat('grocery'))?.product.category, 'grocery');
+  assert.equal(parsed(withCat('Personal Care'))?.product.category, 'personal_care', 'case and spaces are forgiven');
+  assert.equal(parsed(withCat('snacks'))?.product.category, null, 'a category off the list must be null, never a guess');
+  assert.equal(parsed(withCat(42))?.product.category, null);
+  const old = parsed();
+  assert.equal(old?.product.category, null, 'an answer with no category reads as null');
+  const fresh = parsed(withCat('grocery'));
+  assert.deepEqual({ ...fresh, product: { ...fresh!.product, category: null } }, old, 'adding a category changed something else in the read answer');
+  assert.equal(readCategory(undefined), null);
+});
+
+test('the category reaches the block the server receives, and is null there when Gemini gave none', async () => {
+  const run = async (answer: Record<string, unknown>) =>
+    toAnswerBlock(await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: fakeTransport(() => ({ text: httpBody(JSON.stringify(answer)) })).transport }));
+  const tagged = await run(goodAnswer({ product: { ...(goodAnswer().product as object), category: 'grocery' } }));
+  assert.equal(tagged.category, 'grocery');
+  assert.equal((await run(goodAnswer())).category, null);
+});
+
+/** One offer on a line in `comparison_unit`, with the raw fields the unit price is recomputed from. */
+function unitAnswer(comparisonUnit: string, offer: Record<string, unknown>): Record<string, unknown> {
+  const template = (sharedGoodAnswer().offers as Record<string, unknown>[])[0];
+  const o: Record<string, unknown> = { ...template, multi_buy: false, bogo: false, quantity_covered: 1, sold_by_weight: false, ...offer };
+  return goodAnswer({
+    offers: [o],
+    price_verdict: {
+      ...(goodAnswer().price_verdict as object),
+      comparison_unit: comparisonUnit,
+      median_unit_price: o.unit_price,
+      offers_in_median: 1,
+      span_pct: 15,
+      zone_under_boundary: 16.667,
+      zone_over_boundary: 83.333,
+    },
+  });
+}
+const unitFlags = (answer: Record<string, unknown>) =>
+  checkMath(parsed(answer), DEFAULT_THRESHOLDS).mismatches.filter((m) => m.field.startsWith('offer.unit_price:'));
+
+test('the hidden check passes a correct 2 for $5 and flags one whose unit price ignored the multi-buy', () => {
+  const twoForFive = { price: 5, multi_buy: true, quantity_covered: 2, size: null, size_value: null, size_unit: null, pack_count: null, price_unit: 'item' };
+  assert.deepEqual(unitFlags(unitAnswer('item', { ...twoForFive, unit_price: 2.5 })), [], 'a correct 2 for $5 was flagged');
+  const ignored = unitFlags(unitAnswer('item', { ...twoForFive, unit_price: 5 }));
+  assert.deepEqual(ignored, [{ field: 'offer.unit_price:Alpha Market', stated: 5, recomputed: 2.5 }]);
+  // Buy one get one halves the price, and a 2 for $5 on a 225 g box is 1.11 per 100 g.
+  assert.deepEqual(unitFlags(unitAnswer('item', { ...twoForFive, multi_buy: false, bogo: true, quantity_covered: 1, unit_price: 2.5 })), []);
+  assert.deepEqual(unitFlags(unitAnswer('100 g', { ...twoForFive, size: '225 g', size_value: 225, size_unit: 'g', unit_price: 1.11 })), []);
+});
+
+test('the hidden check flags a per lb price converted as if it were per kg', () => {
+  const byWeight = { price: 4.99, price_unit: 'lb', sold_by_weight: true, size: null, size_value: null, size_unit: null, pack_count: null };
+  assert.deepEqual(unitFlags(unitAnswer('100 g', { ...byWeight, unit_price: 1.1 })), [], '4.99 per lb is 1.10 per 100 g');
+  const asKg = unitFlags(unitAnswer('100 g', { ...byWeight, unit_price: 0.499 }));
+  assert.equal(asKg.length, 1, 'a per lb price read as per kg passed');
+  assert.equal(asKg[0].stated, 0.499);
+  assert.ok(Math.abs((asKg[0].recomputed as number) - 1.1001) < 0.001);
+});
+
+test('an offer missing the fields to recompute from is skipped, never flagged, and never makes the check partial', () => {
+  const noSize = unitAnswer('100 g', { price: 3, unit_price: 99, size: null, size_value: null, size_unit: null, pack_count: null, price_unit: 'item' });
+  const r = checkMath(parsed(noSize), DEFAULT_THRESHOLDS);
+  assert.deepEqual(r.mismatches.filter((m) => m.field.startsWith('offer.unit_price:')), []);
+  assert.deepEqual(r.skipped, []);
+  // Ambiguous inputs are skipped too: a multi-buy with no count, sold by weight with no unit, an unreadable unit.
+  const multiNoCount = { price: 5, multi_buy: true, quantity_covered: null, size: null, size_value: null, size_unit: null, pack_count: null, price_unit: 'item', unit_price: 99 };
+  assert.deepEqual(unitFlags(unitAnswer('item', multiNoCount)), []);
+  assert.deepEqual(unitFlags(unitAnswer('100 g', { price: 5, sold_by_weight: true, price_unit: null, size_value: null, size_unit: null, unit_price: 99 })), []);
+  assert.deepEqual(unitFlags(unitAnswer('100 g', { price: 5, price_unit: 'per bushel', unit_price: 99 })), []);
+  assert.equal(recomputeUnitPrice(parsed(noSize)!.offers[0], '100 g'), null);
+});
+
+test('a unit price mismatch is only a mark: the answer the phone is shown keeps Gemini\'s own numbers', async () => {
+  const wrong = unitAnswer('item', { price: 5, multi_buy: true, quantity_covered: 2, size: null, size_value: null, size_unit: null, pack_count: null, price_unit: 'item', unit_price: 5 });
+  const t = fakeTransport(() => ({ text: httpBody(JSON.stringify(wrong)) }));
+  const run = await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: t.transport });
+  assert.ok(run.mathCheck.mismatches.some((m) => m.field === 'offer.unit_price:Alpha Market'), 'the run was not marked');
+  const block = toAnswerBlock(run);
+  assert.equal(block.offers[0].unitPrice, 5, 'the hidden check changed what the user is shown');
+  assert.equal(block.verdict?.median, 5);
+  assert.equal(t.calls.length, 1, 'verifying the math must never call Gemini a second time');
+});
+
+test('observed_at is read as a real past date and reaches the shown offer; anything else is null', async () => {
+  const now = Date.parse('2026-09-27T12:00:00Z');
+  assert.equal(readObservedAt('2026-09-20', now), '2026-09-20');
+  assert.equal(readObservedAt('2026-09-20T08:30:00Z', now), '2026-09-20', 'a timestamp keeps its date');
+  assert.equal(readObservedAt('2026-09-28', now), '2026-09-28', 'already tomorrow somewhere on Earth, so not in the future');
+  assert.equal(readObservedAt('2026-10-05', now), null, 'a future date must be rejected');
+  assert.equal(readObservedAt('2026-02-30', now), null, 'not a real calendar date');
+  assert.equal(readObservedAt('last week', now), null);
+  assert.equal(readObservedAt(20260920, now), null);
+  assert.equal(readObservedAt(null, now), null);
+
+  const offers = (goodAnswer().offers as Record<string, unknown>[]).map((o, i) =>
+    i === 0 ? { ...o, observed_at: '2026-09-20' } : i === 1 ? { ...o, observed_at: '2999-01-01' } : o,
+  );
+  const read = readAnswer(goodAnswer({ offers }), now);
+  assert.deepEqual(read?.offers.map((o) => o.observedAt), ['2026-09-20', null, null]);
+  const t = fakeTransport(() => ({ text: httpBody(JSON.stringify(goodAnswer({ offers }))) }));
+  const block = toAnswerBlock(await runGeminiScan(scan, { apiKey: 'k', deviceId: 'x', transport: t.transport }));
+  assert.deepEqual(block.offers.map((o) => o.observedAt), ['2026-09-20', null, null]);
+});
+
+test('an offer currency that is not three letters is treated as none and its price is withheld, never substituted', async () => {
+  const offers = (goodAnswer().offers as Record<string, unknown>[]).map((o, i) =>
+    i === 0 ? { ...o, currency: 'dollars' } : i === 1 ? { ...o, currency: 'cad' } : { ...o, currency: null },
+  );
+  const read = readAnswer(goodAnswer({ offers }));
+  assert.deepEqual(read?.offers.map((o) => [o.currency, o.currencyUnreadable]), [[null, true], ['CAD', false], [null, false]]);
+  const t = fakeTransport(() => ({ text: httpBody(JSON.stringify(goodAnswer({ offers }))) }));
+  const run = await runGeminiScan({ ...scan, currency: 'CAD' }, { apiKey: 'k', deviceId: 'x', transport: t.transport });
+  assert.deepEqual(run.priceSuppressions, [{ retailer: 'Alpha Market', reason: 'currency_unreadable' }]);
+  const block = toAnswerBlock(run);
+  assert.deepEqual(block.offers.map((o) => o.retailer), ['Beta Foods', 'Gamma Grocer'], 'an unreadable currency reached the phone, or an absent one was newly withheld');
+  assert.ok(run.answer && run.answer.product.name, 'the rest of the answer must still go out');
 });

@@ -81,6 +81,29 @@
             "null"
           ]
         },
+        "category": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "grocery",
+            "household",
+            "personal_care",
+            "pet",
+            "alcohol",
+            "electronics",
+            "appliances",
+            "furniture",
+            "clothing",
+            "toys",
+            "tools_hardware",
+            "books_media",
+            "health",
+            "other",
+            null
+          ]
+        },
         "identification_confidence": {
           "type": "number"
         },
@@ -346,6 +369,12 @@
           "position": {
             "type": [
               "number",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "type": [
+              "string",
               "null"
             ]
           }

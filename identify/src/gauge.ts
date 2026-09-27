@@ -23,9 +23,13 @@
  * remained (only `test/gauge.test.ts` and `test/item-rules.test.ts` still
  * read them, to prove properties of a script nothing executes anymore).
  *
- * `computeGauge` is the one surviving implementation now: a TypeScript
- * function called live, from `priceGaugeFor` in `providers/gemini-grounded.ts`,
- * on the same grounded offers a scan renders. Every numeric expectation in
+ * `computeGauge` is the one surviving implementation now, but it is NOT on the
+ * live scan path (checked 2026-09-27): its only non-test callers are
+ * `priceGaugeFor` in `providers/gemini-grounded.ts`, reached only through
+ * `GeminiGroundedLookup`, which only the offline eval `eval/price-truth.ts`
+ * constructs, and `eval/zone-truth.ts`. The live scan's line comes from
+ * Gemini's own `price_verdict` (`providers/gemini-scan.ts`); only this file's
+ * `LONE_CLAIM_FLOOR`/`LONE_CLAIM_CEILING` are used live. Every numeric expectation in
  * `test/gauge.test.ts` was produced by actually running the retired Python
  * source and compared against this TypeScript, because a previous session
  * hand-typed an expected line and it was wrong; that history is why the
