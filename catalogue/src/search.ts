@@ -21,6 +21,13 @@ import type { DatabaseSync } from 'node:sqlite';
 import { toVecBlob } from './schema.ts';
 import { recordGap, activeGapLog } from './gaps.ts';
 import type { Embedder } from './embed.ts';
+// Unit 8, docs/catalogue-build-plan-2026-09-26.md: bare-part-number electronics
+// rows are excluded from the word arm only (#runFts below), never from byGtin.
+import {
+  EXCLUDE_BARE_PART_NUMBERS_FROM_TEXT_SEARCH,
+  barePartNumberSqlClause,
+  isBarePartNumberRow,
+} from './part-number.ts';
 /*
  * The one word-family table, read by both sides of D-099 so that the rank here
  * and the guard in the identify stage cannot drift apart. It lives in
@@ -1109,13 +1116,20 @@ export class Catalogue {
   #runFts(match: string, sources?: readonly string[]): { row: Row; bm25: number }[] {
     const narrowed = sources && sources.length > 0;
     const clause = narrowed ? ` AND p.source IN (${sources.map(() => '?').join(',')})` : '';
+    // Unit 8: THE ONE LINE THAT REVERSES THIS is the flag itself, in
+    // part-number.ts (EXCLUDE_BARE_PART_NUMBERS_FROM_TEXT_SEARCH). Flip it to
+    // false and this clause goes back to empty string, byGtin is untouched
+    // either way because it never calls #runFts.
+    const exclusion = EXCLUDE_BARE_PART_NUMBERS_FROM_TEXT_SEARCH
+      ? ` AND NOT ${barePartNumberSqlClause('p')}`
+      : '';
     const rows = this.#db
       .prepare(
         `SELECT ${SELECT_COLS.split(', ').map((c) => `p.${c.trim()}`).join(', ')},
                 bm25(product_fts, ${this.#ftsWeights.join(', ')}) AS score
          FROM product_fts f
          JOIN product p ON p.rowid = f.rowid
-         WHERE product_fts MATCH ?${clause}
+         WHERE product_fts MATCH ?${clause}${exclusion}
          ORDER BY score
          LIMIT ?`,
       ).all(match, ...(narrowed ? sources : []), RETRIEVE_N) as unknown as (Row & { score: number })[];
@@ -1295,10 +1309,18 @@ export class Catalogue {
       return { band: 'miss', candidates: [], ring: null, matchedBy: 'none', wordsMatched: 'n/a' };
     }
 
-    const [textResult, vecHits] = await Promise.all([
+    const [textResult, vecHitsRaw] = await Promise.all([
       Promise.resolve(this.#textSearch(text, query.sources)),
       query.vectors === false ? Promise.resolve([]) : this.#vectorSearch(text),
     ]);
+    // Unit 8's SQL clause (see #runFts) only reaches the text arm: vec0 has no
+    // WHERE. Measured on "asus rt-n66u": without this line the bare row
+    // "RT-N66U" still won on the vector arm alone and came back as result #1
+    // even with the text arm correctly excluding it. Same flag as #runFts, so
+    // one line (part-number.ts) still reverses both arms together.
+    const vecHits = EXCLUDE_BARE_PART_NUMBERS_FROM_TEXT_SEARCH
+      ? vecHitsRaw.filter((h) => !isBarePartNumberRow(h.row))
+      : vecHitsRaw;
 
     // Fuse on rank, keeping each retriever's own evidence attached so the caller
     // can see WHY something ranked where it did.
