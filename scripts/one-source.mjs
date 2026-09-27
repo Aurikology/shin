@@ -20,12 +20,13 @@ export const SEARCHED_CLASSES = new Set(['constitution', 'status', 'live-doc', '
 /**
  * A retired phrase must be specific enough that finding it means the stale
  * rule, not ordinary prose ("reasonable", "leaderboard" hit dozens of innocent
- * lines). Three words, a digit (model ids, prices, dates), or an identifier or
- * URL character (_ / .) is enough. A word too common to search goes on a
- * "Retired wording (why not searched): ..." line, which this parser skips.
+ * lines). Two words (a quoted name like "Lead Developer"), a digit (model ids,
+ * prices, dates), or an identifier or path character (_ / . \ :) is enough. A
+ * word too common to search goes on a "Retired wording (why not searched): ..."
+ * line, which this parser skips.
  */
 export function isVague(phrase) {
-  return phrase.trim().split(/\s+/).length < 3 && !/[\d_/.]/.test(phrase);
+  return phrase.trim().split(/\s+/).length < 2 && !/[\d_/.\\:]/.test(phrase);
 }
 
 /** Every backticked phrase on a "Retired wording:" line of the register. */

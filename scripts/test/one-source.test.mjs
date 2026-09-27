@@ -5,9 +5,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseRetired, findHits, repoFiles, isVague } from '../one-source.mjs';
 
-test('a one- or two-word phrase with no digit is too vague to search for', () => {
+test('a single word with no digit or path character is too vague to search for', () => {
   assert.equal(isVague('leaderboard'), true);
-  assert.equal(isVague('Shin Ramen'), true);
+  assert.equal(isVague('Shin Ramen'), false); // two words: specific enough (the Shin entry skips it for relevance, not vagueness)
   assert.equal(isVague('gemini-3.5-flash-lite'), false);
   assert.equal(isVague('$1,000 a year'), false);
   assert.equal(isVague('gitlab.com/jaminke/shin'), false);
