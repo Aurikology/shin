@@ -7,13 +7,32 @@
  * instantly and without limit, and a barcode is a key lookup: it needs the code,
  * the name, the brand and the size, and nothing else at all.
  *
- * WHAT IT COSTS, built and measured 2026-09-05 rather than estimated:
+ * WHAT IT COSTS, rebuilt and measured 2026-09-26 rather than estimated:
  *
- *   Canadian groceries   122,101 rows    6.67 MB raw    2.47 MB gzip    1.70 MB brotli
- *   All Canadian rows    618,310 rows   77.43 MB raw   12.71 MB gzip    7.47 MB brotli
+ *   Canadian groceries   116,998 rows    5.15 MB raw    1.87 MB gzip    1.38 MB brotli
+ *   All Canadian rows    465,269 rows   30.28 MB raw   10.14 MB gzip    6.43 MB brotli
  *
- * The entire Canadian catalogue is a 12.7 MB download. That is smaller than one
+ * The entire Canadian catalogue is a 10.1 MB download. That is smaller than one
  * photo from the camera this app is built around.
+ *
+ * WHAT THE 2026-09-05 NUMBERS IN THIS COMMENT USED TO SAY, and why they were
+ * replaced rather than kept as a comparison: 618,310 rows, 77.43 MB raw,
+ * 7.47 MB brotli. The raw figure no longer reproduces on the same data, so
+ * this exporter's layout changed at some point after that measurement and
+ * nobody re-measured. On 2026-09-26 tonight's cleanup was checked against the
+ * pre-cleanup copy of the database with THIS version of the exporter, which is
+ * the only comparison that means anything: 618,311 rows, 42.10 MB raw,
+ * 6.46 MB brotli, against 465,269 rows, 30.28 MB raw, 6.43 MB brotli.
+ *
+ * SO THE 25% OF ROWS THAT WERE DUPLICATE SPELLINGS WERE COSTING THE PHONE
+ * ALMOST NOTHING: 0.03 MB of a 6.46 MB download, half of one percent. Brotli
+ * had already collapsed them, because a duplicate row's name is the same text
+ * and its barcode differs by one leading zero, which is exactly what a
+ * compressor is good at. The cleanup was still right, for reasons that are not
+ * download size: one product is now one row, so a text search cannot return the
+ * same product twice, and the embedding work is not paid twice on 202,697 pairs.
+ * Anyone who reaches for this file expecting a fatter row count to be a fatter
+ * download should read those two numbers first.
  *
  * WHY NOT SQLITE ON THE PHONE. A database in the browser costs about a megabyte
  * of WebAssembly runtime and a worker thread, to buy a query planner for a

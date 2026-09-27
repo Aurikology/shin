@@ -44,7 +44,7 @@
  */
 import { DatabaseSync } from 'node:sqlite';
 import * as sqliteVec from 'sqlite-vec';
-import { copyFileSync, existsSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, renameSync, statSync } from 'node:fs';
 
 const DB = process.env.SHIN_CATALOGUE ?? 'data/catalogue.db';
 const apply = process.argv.includes('--apply');
@@ -146,12 +146,35 @@ function main(): number {
     return 0;
   }
 
+  /*
+   * A FILE WITH THE RIGHT NAME IS NOT A BACKUP.
+   *
+   * This checked only that the path existed, and on 2026-09-26 it printed
+   * "backup in place" over a copy made on 2026-09-13, thirteen days and one
+   * 45,051-row load earlier. The run then deleted 1,375,443 rows with no
+   * rollback point for anything added since. Nothing was lost, because the
+   * delete was right, but the safety line was not there.
+   *
+   * So the copy is trusted only if it is at least as new as the database it is
+   * supposed to be a copy of. An older one is renamed out of the way rather
+   * than deleted or overwritten, because a stale copy is still the only record
+   * of the state it came from.
+   */
   const backup = `${DB}.before-dedupe`;
+  const stale = existsSync(backup) && statSync(backup).mtimeMs < statSync(DB).mtimeMs;
+  if (stale) {
+    const parked = `${backup}.${new Date(statSync(backup).mtimeMs).toISOString().slice(0, 10)}`;
+    console.log(`\nthe existing backup is OLDER than the database, so it is not a backup of it.`);
+    console.log(`  ${backup} last written ${new Date(statSync(backup).mtimeMs).toISOString()}`);
+    console.log(`  ${DB} last written ${new Date(statSync(DB).mtimeMs).toISOString()}`);
+    console.log(`moving the old one to ${parked} and taking a fresh copy`);
+    renameSync(backup, parked);
+  }
   if (!existsSync(backup)) {
     console.log(`\ncopying ${DB} to ${backup} first (${(statSync(DB).size / 1e9).toFixed(2)} GB)`);
     copyFileSync(DB, backup);
   }
-  console.log(`backup in place: ${backup}`);
+  console.log(`backup in place: ${backup}, written ${new Date(statSync(backup).mtimeMs).toISOString()}`);
 
   const db = open(false);
   db.exec('PRAGMA journal_mode = WAL');
