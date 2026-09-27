@@ -266,7 +266,7 @@ and nothing more. `product.source` is free text, so a new source string collides
 | Field | |
 | --- | --- |
 | **State** | `parked` 2026-09-26. **Promotes back when a scan of a non-Canadian barcode is shown to matter to a real user.** Parked because the packer selects only Canada-flagged rows, so none of these 4,636,853 rows can reach a phone; they are reachable by server search alone, and that costs an 8 GB download and unmeasured disk on a database already at 4.1 GB. |
-| **Owner** | Aurik (catalogue) |
+| **Owner** | Jamin (taken over from Aurik 2026-09-26, his word) |
 | **Source string** | `openfoodfacts`, unchanged |
 | **What** | `catalogue/src/fetch_canada.py` ends `WHERE list_contains(countries_tags, 'en:canada')`. Remove that clause. Its own docstring already says the loader can be pointed at a wider pull with no schema change, and **decision 28 says country is a column and not a load-time filter**, so this is a defect against a decision already made, not a new decision. |
 | **Numbers** | The source holds **4,759,011 food products, counted from the publisher's own row index**. We keep **122,158, counted from our database**. So **4,636,853 rows are discarded at load time by one clause, counted.** How many of those are worth keeping is `unmeasured`. |
@@ -354,7 +354,7 @@ registry's own type filter does the cutting, so this is a narrower crawl, not a 
 | Field | |
 | --- | --- |
 | **State** | `built, applied` 2026-09-26, `7c46562`. Re-measured after tonight's dedupe, Quebec load and food repair: Canadian food and drink rows **123,854 -> 122,157**, and the no-size count fell on its own from 99,598 to **96,088** before this filler touched anything. Applied, read back from the database: **145 fills** (126 from the `quantity` column, 19 from the product name), no-size **96,088 -> 95,943**. All 145 were read one by one against the source string that gave each; none disagreed. `docs/size-fill-2026-09-26.md`. |
-| **Owner** | Aurik (catalogue) |
+| **Owner** | Jamin (taken over from Aurik 2026-09-26, his word) |
 | **What** | A product with no size cannot be priced per unit and cannot be compared to anything, which is most of what the price range is for. |
 | **Numbers** | **99,598 of our 123,854 Canadian food and drink rows have no size at all, counted.** Units 2, 3 and 6 each carry a size on every row, so the beverage overlap fills for free as a side effect of loading them. How much of the 99,598 that covers is `unmeasured` until they land. |
 | **Acceptance test** | The no-size count over Canadian food and drink rows is reported before and after, from the database, and the after is lower. Twenty rows that gained a size are checked against the source that gave it. |
@@ -379,7 +379,7 @@ registry's own type filter does the cutting, so this is a narrower crawl, not a 
 | Field | |
 | --- | --- |
 | **State** | `built, applied` 2026-09-26, `6989069`. Re-read from the post-cleanup catalogue before filling: no-category rows **131,502** (down from the plan's 134,865, since the dedupe removed uncategorised duplicates too), 87,000 of them Canadian, 98.5% of the gap the four Open*Facts sources with a human-readable name, not unreadable codes as the plan's own hypothesis expected. A brand-affinity rule was tried and killed: unanimous brand agreement still filed "Milk" (brand Black & White) under `en:anti-perspirants`, a coincidental brand-string collision, not noise -- **that arm ships OFF**, left in the code with the evidence. The rule that shipped matches a 2-4 word category phrase, drawn from the catalogue's own vocabulary, against the product's own name, with negation and contradiction guards; judged on 30 hand-checked rows, 2 wrong (6.7%), under the 10% falsifier. Applied, read back from the database: **9,149 fills**, no-category **131,500 -> 122,351**, matching the projection to within the row this session's other loads moved. `docs/category-fill-2026-09-26.md`. |
-| **Owner** | Aurik (catalogue) |
+| **Owner** | Jamin (taken over from Aurik 2026-09-26, his word) |
 | **Numbers** | **134,865 products have no category whatsoever, counted**, which means the category price range has nothing to compute from for any of them. Unit 4 closes **6,782 of them for free, counted**. The remaining 128,083 need a source or a rule, and which is `unmeasured`. |
 | **Acceptance test** | The no-category count is read from the database before and after and has dropped. For 30 rows that gained a category, the category is judged right by a person reading the product name, with the judgements written down and the wrong ones counted rather than glossed. |
 | **Falsifier** | More than 10% of the 30 are judged wrong, in which case a guessed category is worse than no category, because a wrong category produces a confident wrong price range instead of no range. |
@@ -390,7 +390,7 @@ registry's own type filter does the cutting, so this is a narrower crawl, not a 
 | Field | |
 | --- | --- |
 | **State** | `parked` 2026-09-26. **Promotes back when a 10,000-row slice has been timed.** The word search already covers all 5,182,591 rows, counted, so this only affects the fuzzy path. |
-| **Owner** | Aurik (catalogue) |
+| **Owner** | Jamin (taken over from Aurik 2026-09-26, his word) |
 | **Numbers** | **718,662 of 5,182,591 products are embedded, counted.** The word search covers all of them, which is why this is last: it only affects the fuzzy path. After unit 1 the denominator is roughly forty times larger, so the run time is `unmeasured` and should be measured on a 10,000-row slice before anyone starts the full pass. |
 | **Acceptance test** | Every row that has a name has a vector, counted from the database, and the same twenty fuzzy searches return at least as good a first result as before, judged by a person and written down. |
 | **Falsifier** | The measured 10,000-row slice extrapolates to more than a day, in which case this unit is parked with the slice time recorded, not started and abandoned. |

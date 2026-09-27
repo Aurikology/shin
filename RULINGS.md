@@ -184,6 +184,15 @@ catalogue by every possible method stays Shin's highest priority, restated 2026-
 2026-09-26: a product identified without a price is meaningless. · 2026-09-13 · log: docs/decisions.md#Never circumvent a bot block, and now for a second reason · 2026-09-11: *"Expand our product catalogue by finidng all possible methods to gain more infomation(product and price catalogue come hand in hand, knowing the product without the price is meaningless)"* · 2026-09-26: *"we need more items in the catalogue"*
 Retired wording: `roughly ten minutes lockout`, `search() in walmart.ts`
 Governs: price/src/walmart-sitemap.ts (discoverSkus, --indexes)
+
+### Catalogue-expansion plan: Claude owns all of it, Aurik's share included
+The catalogue-expansion plan's pieces that were assigned to Aurik are Claude's to do; the open
+calls inside that plan (then: deleting the 16 junk products, who does Aurik's eight pieces, and
+merging the 12- and 13-digit spellings of one barcode) are Claude's to decide and state, not to
+wait on. · 2026-09-26 · Jamin · *"for the three things, i give you permission to do what you think
+is right. For the things assigned to aurik, just take over them"*
+Retired wording: none
+Governs: the catalogue-expansion plan, QUEUE.md catalogue bands
 ### Product identity and catalogue matching
 Shin's own catalogue names the product (catalogue-first ruling above). Aurik earlier accepted a
 live-vs-imported distinction, not yet built: imported Open Food Facts answers first, a live OFF
@@ -461,6 +470,14 @@ can legitimately send none); a present-and-mismatched Origin is refused outright
 Retired wording: none
 Governs: SHIN_RATE_CODE_PER_10MIN, SHIN_RATE_CODE_PER_DAY, SHIN_RATE_IP_PER_10MIN, SHIN_RATE_IP_PER_DAY, app/src/rate-limit.ts (the 2,000-calls-per-process cap this paragraph also describes is not read from any environment variable in the code today)
 ## Anything else
+### A plan covers every case involved, not the path where everything works
+A plan is not acceptable until it names every case the feature meets: each input the user can
+give, each way a step can fail or return nothing, and what happens then. · 2026-09-27 · Jamin ·
+*"this plan is so flawed, it doesn't consider all cases invovled"*, said of a photo-to-catalogue
+matching plan that covered only the case where the photo holds readable text that matches.
+Retired wording: none
+Governs: every plan written for Shin
+
 ### Mission and principles
 Fixed problem statement: sellers know what things are worth and buyers are guessing, so Shin makes
 the check instant enough that guessing stops being the default. Every change must be useful, easy,
