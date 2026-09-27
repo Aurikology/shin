@@ -20,7 +20,7 @@ export const SEARCHED_CLASSES = new Set(['constitution', 'status', 'live-doc', '
 /**
  * A retired phrase must be specific enough that finding it means the stale
  * rule, not ordinary prose ("reasonable", "leaderboard" hit dozens of innocent
- * lines). Two words (a quoted name like "Lead Developer"), a digit (model ids,
+ * lines). Two words (a quoted job title or product name), a digit (model ids,
  * prices, dates), or an identifier or path character (_ / . \ :) is enough. A
  * word too common to search goes on a "Retired wording (why not searched): ..."
  * line, which this parser skips.
