@@ -48,9 +48,10 @@ export function parseRetired(registerText) {
  * (// * # >), and collapse every run of whitespace, so a phrase split across
  * lines, or across a wrapped code comment, still matches.
  */
-export function flatten(text) {
+export function flatten(text, invisible = '') {
   return text
     .toLowerCase()
+    .replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, invisible) // an invisible character splits a phrase unseen
     .replace(/\n[ \t]*(\/\/+|\*+|#+|>+)/g, '\n')
     .replace(/\s+/g, ' ');
 }
@@ -65,9 +66,10 @@ export function findHits(files, phrases) {
   const lowered = phrases.map((p) => [p, flatten(p)]);
   for (const { path, text } of files) {
     if (!SEARCHED_CLASSES.has(classify(path))) continue;
-    const body = flatten(text);
+    // An invisible character may stand in for a space or sit inside a word: try both readings.
+    const bodies = [flatten(text, ''), flatten(text, ' ')];
     for (const [phrase, low] of lowered) {
-      if (body.includes(low)) hits.add(`${path} :: ${phrase}`);
+      if (bodies.some((b) => b.includes(low))) hits.add(`${path} :: ${phrase}`);
     }
   }
   return [...hits].sort();
