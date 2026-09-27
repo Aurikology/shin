@@ -279,13 +279,25 @@ week for the beta, 3 a week at public launch, on the cheaper lookup path; typed 
 and uncounted, revised same-day after Jamin corrected the payer-rate assumption to 1-in-100 and
 flagged the per-scan cost assumption as stale given the cheaper system planned.
 `SHIN_FREE_SCANS_PER_WEEK=5` switches on only once a test purchase works end to end, so no tester
-hits the wall against a subscribe button that can't yet take a purchase. · 2026-09-23 · *"we should assume only 1 in 100 people pay"* · log: docs/decisions.md#Shin Plus price and the weekly free scans
+hits the wall against a subscribe button that can't yet take a purchase. The price and free-scan
+numbers are Claude's to set at the most reasonable value until he or Aurik changes them. ·
+2026-09-23 · *"For now, you decide the most reasonable for price and free scans. Figure out the
+logistics of the cheaper looup design and add all items not already added to the work item list"*
+· 2026-09-23 · *"we should assume only 1 in 100 people pay"* · log: docs/decisions.md#Shin Plus price and the weekly free scans
 Retired wording: `assuming a scan cost 0.6 cents`
 Governs: SHIN_FREE_SCANS_PER_WEEK, app/public/js/plus-config.js
 ### Gemini spend cap
 Gemini calls stay under a daily and a hard dollar cap. The 2026-09-18 acceptance of roughly 5.6
 cents on every scan is superseded: the catalogue now answers first and Gemini is a monthly-capped
-fallback (catalogue-first ruling). · 2026-09-18, revised 2026-09-27 · *"go with the defaults for all four."* · log: docs/jamin-gemini-rules.md#walkthrough-rulings-2026-09-1617-his-notes-and-comments-on-the-google-doc-walkthrough
+fallback (catalogue-first ruling). Shin is never designed to lose money every month: a cost model
+that runs negative is a red flag, answered by researching every way to cut it (one search per
+query, a free database first, what to charge, how many scans to give, other model providers),
+not by accepting it. · 2026-09-22 · Jamin · *"this pricing model is a huge red flag for us. With
+this model we will be in the negatives every month. I want you to research all possible avenues
+these are some but not limited to these examples: how do we fine tune grounding with google search
+to only search once per query, how can we reduce costs in other ways by first searching a free
+database, how much can we charge, how many scans should we provide, is claude also an option etc"*
+· 2026-09-18, revised 2026-09-27 · *"go with the defaults for all four."* · log: docs/jamin-gemini-rules.md#walkthrough-rulings-2026-09-1617-his-notes-and-comments-on-the-google-doc-walkthrough
 Retired wording: none
 Governs: SHIN_PHOTO_DAILY_CAP_CAD, SHIN_PHOTO_HARD_CAP_CAD, SHIN_SPEND_CAP_STORE_PATH, identify/src/cap.ts
 ## Privacy, recording and consent
@@ -530,7 +542,13 @@ stopping at a surface reason like "a competitor already does this." An app's mod
 is not evidence it was wrong (Olma). A test failing once does not mean the whole approach is dead
 (meaning search): it could be a false positive, and could work applied elsewhere. When critiquing a
 plan, name a flaw's available workaround and the underlying intent being served before calling the
-plan bad, and re-check any economics used in the critique. An audit for contradictions checks his
+plan bad, and re-check any economics used in the critique. A stated flaw with a solution
+available is not a flaw in the plan: his example, Electronics holding 4,972,249 of 5.2 million
+products with exactly 2 prices, is solved by asking a model the typical price for that type of
+tech, testable, not a reason to devalue the plan. Simplification is judged by why it was wanted
+(results were inaccurate, the product would not turn a profit, the cheaper alternative was too
+complicated to build): steps that are low-level, simple to build and near impossible to get wrong,
+such as sorting into categories, count as simple even when time-consuming. An audit for contradictions checks his
 full instruction history, not just the item most recently raised, and watches for logical fallacies
 specifically. Before refining a design, research existing open-source tools and how other companies
 solve the same problem. Project timeline and history are stated only from verified fact, never
