@@ -9,14 +9,16 @@
  * be before a verdict is allowed. Nothing joined them, which meant a catalogue
  * hit had no route to a verdict at all. This is that route.
  *
- * THE RULE THIS FILE OBEYS: it returns null rather than guessing. A product
- * mapped to the wrong kind is judged by the wrong rule, and a wrong category
- * mapping is exactly the kind of confidently wrong answer this file exists
- * to avoid (the app's own answer-anyway rule, RULINGS.md, "Always answer,
- * never refuse for wasting time", is about the price verdict, not category
- * identity). `null` reaches the screen as "we know what this is and cannot
- * price it", which is a designed state and, per the plan, the one that fires
- * most often.
+ * THE RULE THIS FILE OBEYS: `null` here does not mean refusal, it means this
+ * kind of thing has no pricing rule written for it yet. This function is
+ * reached only from typed-name search (app/server.ts), which RULINGS.md's
+ * "Always answer, never refuse for wasting time" already allows to answer
+ * only when both the item and its price are known; it is never on the
+ * barcode or photo scan path, which answers on identity alone.
+ *
+ * The five kinds below are the price engine's own vocabulary, not the
+ * catalogue's own `category_path`/`leaf_category` taxonomy that search and
+ * substitutes read directly, so the two should not be confused for each other.
  *
  * EVERY MAPPING BELOW IS COUNTED, NOT ASSUMED. The first version of this file
  * sent the whole electronics database to the tech rule, on the strength of the
@@ -66,6 +68,24 @@ const PRODUCE = /(^|:)fresh-|(^|:)(fruits|vegetables|legumes)$/;
 const FURNITURE = /(^|:)(furniture|chairs|tables|sofas|couches|beds|mattresses|desks|wardrobes|bookcases)$/;
 
 /**
+ * Household cleaning and consumables sold on the grocery shelf and discounted
+ * on the same weekly promotional cycle as packaged grocery, counted by audit
+ * on the local catalogue. Same reasoning the file already gives openpetfoodfacts
+ * and openbeautyfacts below: packaged, barcoded, bought in the same stores.
+ * Checked across the whole path, like FURNITURE, because these tags are not
+ * confined to one source database.
+ */
+const HOUSEHOLD_GROCERY = /(^|:)(dish soap|detergents|cat-litter)$/;
+
+/** Webcams: a computer peripheral, counted by audit as a miss wherever it lands outside an ICECAT_SECTIONS root. */
+const WEBCAM = /(^|:)webcams$/;
+
+/*
+ * Left null on purpose, no rule written for them and none invented by proxy:
+ * en:tools, en:t-shirts, en:shoes, en:books, en:publications, en:cigarettes, en:medicine-drugs.
+ */
+
+/**
  * The electronics database's own top sections, mapped by hand, with the row
  * count each one carries so the size of any mistake here is visible.
  *
@@ -109,6 +129,12 @@ export function categoryFor(identity: CatalogueIdentity): CategoryVerdict {
   }
 
   if (anyTag(FURNITURE)) return { category: 'furniture', why: 'Furniture.' };
+
+  if (anyTag(HOUSEHOLD_GROCERY)) {
+    return { category: 'grocery', why: 'Household cleaning or consumable, priced like packaged grocery.' };
+  }
+
+  if (anyTag(WEBCAM)) return { category: 'tech', why: 'Electronics.' };
 
   switch (identity.source) {
     /*
