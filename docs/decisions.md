@@ -2235,3 +2235,28 @@ fail on the old hook.
 
 **Reverses if:** the measurement Aurik's session runs first shows the catalogue holds too few of
 the products shoppers scan for top 3 to beat asking Gemini; that number goes to both founders.
+
+## Three entries that contradicted Jamin's own words, rewritten
+
+**Date:** 2026-09-27 · **Status:** active
+
+A clean check of all 320 standing rulings in Jamin's typed messages against RULINGS.md (agent repo,
+docs/decision-capture-2026-09-27.md) found these entries saying the opposite of his words, with no
+later word of his reversing them. He was away and said *"do what you think is right for
+decisions"*; each rewrite follows his words and keeps what they do not touch.
+
+- "Catalogue scope": old text *"Books, music and Discogs records stay out of the catalogue (it is a
+  grocery/shelf-price scanner); the US branded-foods file is not parked with them because it is
+  food."* against 09-03, 09-06, 09-11 (Shin prices anything). Books and music stay parked, for the
+  MVP low-return reason, with the same miss-log promotion.
+- "Verifying Gemini never means calling it twice": his 2026-09-20 words (stop building things that
+  find out if the answer is wrong; get more accurate answers) were never recorded. Added; the hidden
+  checks already built are left as they are, since they are Aurik's code and cost the user nothing.
+- "v1 floor: live photo recognition is load-bearing" (renamed "v1 floor: what the MVP ships, and
+  how photo identification returns"): old text *"photo recognition is load-bearing and required
+  ... The photo path (IdentifyStage, catalogue search, second-pass model pick) opens via POST
+  /api/identify/photo; web search on a catalogue miss and image-embedding search stay parked
+  pending a measured top-1 eval."* against his 2026-09-21 MVP cut (photo id off for now); the
+  2026-09-27 catalogue-first plan is how it returns.
+
+**Reverses if:** he says so.

@@ -81,8 +81,8 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_RATE_CODE_PER_DAY', default: '1500', ruling: 'Server-side guards and limits' },
   { env: 'SHIN_RATE_IP_PER_10MIN', default: '90', ruling: 'Server-side guards and limits' },
   { env: 'SHIN_RATE_IP_PER_DAY', default: '600', ruling: 'Server-side guards and limits' },
-  // -- v1 floor: live photo recognition is load-bearing ---------------------
-  { env: 'SHIN_GEMINI_TIER', default: 'unset -> no photo identification', ruling: 'v1 floor: live photo recognition is load-bearing' },
+  // -- v1 floor: what the MVP ships ------------------------------------------
+  { env: 'SHIN_GEMINI_TIER', default: 'unset -> no photo identification', ruling: 'v1 floor: what the MVP ships, and how photo identification returns' },
 
   // -- Operational: plumbing with no product ruling ------------------------
   { env: 'PORT', default: '4173', ruling: 'operational' },

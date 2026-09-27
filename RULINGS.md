@@ -49,7 +49,9 @@ data (catalogue-first ruling above). A hidden background check may recompute Gem
 marks that scan (image/digits plus the exact prompt) for later review, never shown to the user; a
 page-fetch verifier extends the same idea: it fetches only an allowlisted host, only a URL the
 grounded search itself returned, and records agreement or mismatch without changing what the user
-sees. · 2026-09-19 · *"there can be measures in place but definitely not calling the ai a second time"* · log: docs/decisions.md#Nine rulings so the competitor-survey build could start (item 3)
+sees. No new mechanism is built whose purpose is to find out whether an answer is wrong; effort
+goes to getting answers right (Jamin 2026-09-20). The hidden checks above stay as built and are not
+extended. · 2026-09-19, 2026-09-20 · *"there can be measures in place but definitely not calling the ai a second time"*; *"You keep trying to put things in place that find out if the answer is wrong. To me, thats not important at all and to the user, that provides them no value. We need to figure out how to GET more accurate answers"* · log: docs/decisions.md#Nine rulings so the competitor-survey build could start (item 3)
 Retired wording: none
 Governs: app/server.ts (checkMath), allowlist config, to fill
 ### Caching and cancellation
@@ -205,13 +207,17 @@ loader keeps only rows tagged en:canada (122,158 of 4,759,011), so the other 4,6
 products from outside Canada are NOT in the catalogue; loading them is parked (8 GB, 2026-09-26,
 docs/decisions.md#The four and a half million food products from outside Canada stay out, for now). The fuzzy vector-search embedding pass
 stays parked at 718,662 of 5,182,591 products; word search already covers all products by name.
-Books, music and Discogs records stay out of the catalogue (it is a grocery/shelf-price scanner);
-the US branded-foods file is not parked with them because it is food. Shin is global from the
+Shin finds the price of anything, not only groceries: food, furniture, tech and more (Jamin
+2026-09-03 *"we are not only scanning food but also furniture, tech and much more"*, 09-06 *"its a
+search and find the price of anything app"*, 09-11 *"don't forget that we don't just focus on
+groceries"*). Books, music and Discogs records are parked for the MVP as low return for now (09-26
+*"we will take whats accessible and leave the low roi items for later"*), not because of scope;
+they come back the first time the miss log records an ISBN or music barcode. Shin is global from the
 start, not Canada-only: same-country products compare, cross-country generally does not, except
 provinces that differ sharply or EU-like regions, the Gemini prompting for this still needs design.
 Shin is a phone app: no architecture decision assumes multi-gigabyte on-device data is feasible
 (the reason behind the 8 GB and embedding parks above). · 2026-09-26 · log: docs/decisions.md#Country is a column in the catalogue, not a filter applied while loading · 2026-09-05: *"consider that this is a phone app and having multiple gbs of data is impossible"*
-Retired wording: none
+Retired wording: `grocery/shelf-price scanner`, `grocery and shelf-price scanner`
 Governs: sold_in_canada column, embedder coverage
 ### Attribution, provenance and correction data
 Allergen comparisons stay two-state (the source can't say "checked and clean"); allergens print,
@@ -485,12 +491,14 @@ in marketing or specs cites the concrete backend mechanism and a real, measured 
 never asserted bare. · 2026-09-03 (hook, borrowed audiences) · 2026-09-14 (filming, *"we will show the real answers in the videos, we are not showing the answers to users, we are just showing what we see on an app"*) · 2026-09-03: *"popular apps will have on killer, viral feature, or selling point"* · 2026-09-06: *"our app does something different, arguably more important for users"*; *"For everything you say that the app does, the backend should be clearly listed... there should be metrics for everything"* · log: docs/decisions.md#The hook is a capability plus a villain; docs/decisions.md#The video test runs on borrowed audiences; docs/decisions.md#Twelve rulings on the Gemini branch, answered together (item 9)
 Retired wording: none
 Governs: to fill
-### v1 floor: live photo recognition is load-bearing
-The original v1 floor (six systems, barcode/screenshot input only, live photo recognition cut as
-the weakest input) is reversed: photo recognition is load-bearing and required, "the user must
-take a picture and Shin must be able to identify. Nothing less." The photo path (IdentifyStage,
-catalogue search, second-pass model pick) opens via POST /api/identify/photo; web search on a
-catalogue miss and image-embedding search stay parked pending a measured top-1 eval. · 2026-09-09 · *"the user must take a picture and Shin must be able to identify. Nothing less."* · log: docs/decisions.md#Live photo recognition is load-bearing, and the photo door opens
+### v1 floor: what the MVP ships, and how photo identification returns
+The MVP keeps what is already built, like the mascot, and still needs the subscription screen; the
+welcome screen, photo identification and languages stay off for now (Jamin 2026-09-21). Photo
+identification comes back as the catalogue-first plan of 2026-09-27: every piece of text on the
+object is read and searched in Shin's own catalogue, top 3 returned (see "Catalogue first; Gemini
+is a capped fallback"). The 2026-09-09 floor, *"the user must take a picture and Shin must be able
+to identify. Nothing less."*, is the goal that plan serves, not a requirement of the MVP.
+Image-embedding search stays parked. · 2026-09-09, 2026-09-21, 2026-09-27 · *"Things like the welcome screen, the photo id, the languages etc. should be kept off for now. Plan out in detail what the mvp should include. Also, we still need the subscription screen etc."* · log: docs/decisions.md#Live photo recognition is load-bearing, and the photo door opens
 Retired wording: `live photo recognition cut from v1`, `barcode and screenshot input only`
 Governs: POST /api/identify/photo, SHIN_GEMINI_TIER
 ### Decision-analysis and calibration discipline
