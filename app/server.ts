@@ -16,6 +16,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, extname, join, normalize as normalizePath, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DatabaseSync } from 'node:sqlite';
+import * as settings from '../settings/src/index.ts';
 import { priceIt } from '../spine/src/spine.ts';
 import { defaultDeps } from '../spine/src/sources/registry.ts';
 import { RecordedSource } from '../spine/src/sources/recorded.ts';
@@ -95,7 +96,7 @@ import { dailyLatency } from './src/latency.ts';
 import { defaultPricesPath, lookupOwnPrices, lookupOwnPricesByBarcode, OWN_DATA_SOURCE, type OwnMatch } from './src/own-prices.ts';
 
 const PUBLIC_DIR = fileURLToPath(new URL('./public/', import.meta.url));
-const PORT = Number(process.env.PORT ?? 4173);
+const PORT = Number(settings.PORT() ?? 4173);
 
 /**
  * The catalogue, attached two different ways on purpose.
@@ -114,7 +115,7 @@ const PORT = Number(process.env.PORT ?? 4173);
  * catalogue at all, or nobody can work on the screens.
  */
 const CATALOGUE_DB =
-  process.env.SHIN_CATALOGUE ?? fileURLToPath(new URL('../catalogue/data/catalogue.db', import.meta.url));
+  settings.SHIN_CATALOGUE() ?? fileURLToPath(new URL('../catalogue/data/catalogue.db', import.meta.url));
 
 let fastLookup: { byGtin(code: string): unknown } | null = null;
 let searchService: { search(q: unknown): Promise<unknown> } | null = null;
@@ -247,8 +248,8 @@ async function attachCatalogue(): Promise<void> {
       embeddedRows = 0;
     }
     vectorsOn =
-      process.env.SHIN_VECTORS === 'on' ||
-      (process.env.SHIN_VECTORS !== 'off' && embeddedRows > 0 && embeddedRows <= VECTOR_ROW_CEILING);
+      settings.SHIN_VECTORS() === 'on' ||
+      (settings.SHIN_VECTORS() !== 'off' && embeddedRows > 0 && embeddedRows <= VECTOR_ROW_CEILING);
 
     catalogueWhyNot = '';
     console.log(
@@ -805,7 +806,7 @@ function imageKind(bytes: Buffer): 'png' | 'jpeg' | null {
 type GeminiTier = 'paid' | 'free';
 
 function geminiTier(env: NodeJS.ProcessEnv = process.env): { tier: GeminiTier; declared: boolean } {
-  const raw = (env.SHIN_GEMINI_TIER ?? '').trim().toLowerCase();
+  const raw = (settings.SHIN_GEMINI_TIER(env) ?? '').trim().toLowerCase();
   if (raw === 'paid') return { tier: 'paid', declared: true };
   return { tier: 'free', declared: raw === 'free' };
 }
@@ -1132,10 +1133,11 @@ export function settleBackgroundChecks(): Promise<void> {
  * its user store there too, automatically and without editing 17 files.
  * Production sets neither variable, so the path is unchanged, byte for byte.
  */
+const SHIN_SCANS_FOR_USER_CATALOGUE = settings.SHIN_SCANS()?.trim();
 const USER_CATALOGUE_PATH =
-  process.env.SHIN_USER_CATALOGUE
-  ?? (process.env.SHIN_SCANS?.trim()
-    ? join(dirname(resolve(process.env.SHIN_SCANS.trim())), 'user-catalogue.db')
+  settings.SHIN_USER_CATALOGUE()
+  ?? (SHIN_SCANS_FOR_USER_CATALOGUE
+    ? join(dirname(resolve(SHIN_SCANS_FOR_USER_CATALOGUE)), 'user-catalogue.db')
     : fileURLToPath(new URL('./data/user-catalogue.db', import.meta.url)));
 let userCatalogue: UserCatalogue | null = null;
 export function setUserCatalogueForTests(uc: UserCatalogue | null): void {
@@ -1988,7 +1990,7 @@ function typedFromOwnData(
  * is a no-match rather than an error, and it runs only when a barcode was
  * scanned and the flag is set.
  */
-const BARCODE_OWN_PRICES = (process.env.SHIN_BARCODE_OWN_PRICES ?? '1') !== '0';
+const BARCODE_OWN_PRICES = (settings.SHIN_BARCODE_OWN_PRICES() ?? '1') !== '0';
 
 /**
  * Shin's own prices for one barcode, in the offer shape the answer sheet reads.
@@ -4060,7 +4062,7 @@ export const server = createServer(async (req, res) => {
  * and every later write is a counted drop, which is the contract scans.ts was
  * written to keep.
  */
-const SCAN_DB = process.env.SHIN_SCANS ?? fileURLToPath(new URL('./data/scans.db', import.meta.url));
+const SCAN_DB = settings.SHIN_SCANS() ?? fileURLToPath(new URL('./data/scans.db', import.meta.url));
 
 /**
  * The startup guard. Plan item 1i, and plan item 19c as a tester-visible
@@ -4101,8 +4103,8 @@ const SCAN_DB = process.env.SHIN_SCANS ?? fileURLToPath(new URL('./data/scans.db
  * before the port opens. Present and non-empty is the whole claim.
  */
 function geminiKeyProblem(env: NodeJS.ProcessEnv = process.env): string | null {
-  if ((env.SHIN_MODEL_PROVIDER ?? '').trim().toLowerCase() !== 'gemini') return null;
-  if ((env.GEMINI_API_KEY ?? '').trim() !== '') return null;
+  if ((settings.SHIN_MODEL_PROVIDER(env) ?? '').trim().toLowerCase() !== 'gemini') return null;
+  if ((settings.GEMINI_API_KEY(env) ?? '').trim() !== '') return null;
   return 'SHIN_MODEL_PROVIDER is set to gemini and GEMINI_API_KEY is empty, so every scan would fail. Set GEMINI_API_KEY; Gemini is the only provider a scan uses and Claude does not take over.';
 }
 

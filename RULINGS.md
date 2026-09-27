@@ -22,7 +22,7 @@ outside tests, because the thing it would have turned back on (Gemini 2.5 access
 back. Flagged in the 2026-09-27 decisions.md entry as one of two places the log had drifted from
 the running system. · 2026-09-22 · *"gemini 2.5 is not accessible"* · log: identify/src/providers/gemini-scan.ts:74-87 (quote at line 75; docs/decisions.md#One list of current rulings outranks every other file)
 Retired wording: `gemini-3.5-flash-lite`, `gemini-2.5-flash as the flat default`, `Gemini 2.5 by default`, `SHIN_GEMINI_MODEL=gemini-2.5-flash`, `default decided only by an offline test`
-Governs: SHIN_GEMINI_MODEL, SHIN_GEMINI_MODEL_3 (SHIN_GEMINI_MODEL_25 still governs identify/eval/scan-cost.ts and scan-run.ts only, the family-comparison eval tools, not the live scan path)
+Governs: SHIN_GEMINI_MODEL, SHIN_GEMINI_MODEL_3 (the family-comparison eval tools this paragraph also names are eval/, not live code, and outside settings/src/index.ts on purpose)
 ### Barcode plumbing: digits only, through Shin's server
 A barcode scan sends Gemini only the digits, never the image or a full photo (the frame is taken
 only when photo identification and photo consent are both on, which is never under tester-launch
@@ -50,7 +50,7 @@ whole answer came from cache or the scan has no searchable identity at all, neve
 Shin's own catalogue. A scene change may cancel a request before it is sent, but never hides an
 answer once the one permitted call has been spent. · 2026-09-21 · log: docs/decisions.md#Nine rulings so the competitor-survey build could start (item 1 addendum, pinned 2026-09-21)
 Retired wording: `0.68 US cents a call`
-Governs: cache key = barcode + market + currency, app/test/repeat-cache.test.ts
+Governs: cache key = barcode + market + currency, SHIN_REPEAT_CACHE, app/test/repeat-cache.test.ts
 ### Claude excluded; founder's words outrank the system and Gemini's terms
 Claude is never used inside Shin once Gemini is in; nothing holds higher precedence than the
 founder's words, not the system's own machinery and not Gemini's terms: breaking a term should
@@ -228,7 +228,7 @@ Governs: SHIN_FREE_SCANS_PER_WEEK, app/public/js/plus-config.js
 The roughly 5.6-cent per-scan cost past ~1,250 scans a month is accepted; there is no catalogue-
 first free path in front of Gemini. · 2026-09-18 · *"go with the defaults for all four."* · log: docs/jamin-gemini-rules.md#walkthrough-rulings-2026-09-1617-his-notes-and-comments-on-the-google-doc-walkthrough
 Retired wording: none
-Governs: to fill
+Governs: SHIN_PHOTO_DAILY_CAP_CAD, SHIN_PHOTO_HARD_CAP_CAD, SHIN_SPEND_CAP_STORE_PATH, identify/src/cap.ts
 ## Privacy, recording and consent
 ### Location and photo consent default off until answered
 Consent defaults to off until answered; only a coarse kilometre-wide cell is stored, never exact
@@ -245,7 +245,7 @@ on their own scale (not Gemini's), so a median can later be computed against it.
 mentioned that is not currently recorded should prompt a review of the data collection system.
 · 2026-09-17 · *"Shin should try to save as much data as possible... all user data should be recorded"* · log: docs/walkthrough/jamin-notes-2026-09-17.md#notes-typed-into-the-tabs
 Retired wording: none
-Governs: to fill
+Governs: SHIN_ACCESS_LOG, SHIN_SHUTTER_LOG, SHIN_SHUTTER_DIR
 ### Zero data retention sought, built assuming refusal
 Seek zero-data-retention approval from Google, but build as if it will be refused. · 2026-09-14 · log: docs/decisions.md#Twelve rulings on the Gemini branch, answered together (item 2)
 Retired wording: none
@@ -364,7 +364,7 @@ network address (90/10min, 600/day), each overridable by env, refusing with 429 
 before any Gemini call or counting. A missing Origin header is allowed and marked (a native wrapper
 can legitimately send none); a present-and-mismatched Origin is refused outright. · 2026-09-19 · log: docs/decisions.md#Calls that cost money are limited per invite code and per address, and the cap charges the search fee
 Retired wording: none
-Governs: SHIN_RATE_CODE_PER_10MIN, SHIN_MODEL_DAILY_CALLS, app/src/rate-limit.ts
+Governs: SHIN_RATE_CODE_PER_10MIN, SHIN_RATE_CODE_PER_DAY, SHIN_RATE_IP_PER_10MIN, SHIN_RATE_IP_PER_DAY, app/src/rate-limit.ts (the 2,000-calls-per-process cap this paragraph also describes is not read from any environment variable in the code today)
 ## Anything else
 ### Mission and principles
 Fixed problem statement: sellers know what things are worth and buyers are guessing, so Shin makes
@@ -391,7 +391,7 @@ take a picture and Shin must be able to identify. Nothing less." The photo path 
 catalogue search, second-pass model pick) opens via POST /api/identify/photo; web search on a
 catalogue miss and image-embedding search stay parked pending a measured top-1 eval. · 2026-09-09 · *"the user must take a picture and Shin must be able to identify. Nothing less."* · log: docs/decisions.md#Live photo recognition is load-bearing, and the photo door opens
 Retired wording: `live photo recognition cut from v1`, `barcode and screenshot input only`
-Governs: POST /api/identify/photo
+Governs: POST /api/identify/photo, SHIN_GEMINI_TIER
 ### Governance: which document outranks which
 RULINGS.md (this file) outranks every other file in the repo, including docs/jamin-gemini-rules.md
 and the Google Doc "Shin Full Walkthrough": both feed into it rather than compete with it. Before

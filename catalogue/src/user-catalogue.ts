@@ -48,6 +48,7 @@
  * failed write here must not become a failed scan.
  */
 
+import * as settings from '../../settings/src/index.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
@@ -228,7 +229,7 @@ export function activeUserCatalogue(): UserCatalogue | null {
 }
 
 /** Opens (creating if needed) the user catalogue and makes it the default target. Never throws. */
-export function openUserCatalogue(path: string = process.env.SHIN_USER_CATALOGUE ?? 'data/user-catalogue.db'): UserCatalogue {
+export function openUserCatalogue(path: string = settings.SHIN_USER_CATALOGUE() ?? 'data/user-catalogue.db'): UserCatalogue {
   const uc = createUserCatalogue(path);
   active = uc;
   return uc;

@@ -28,6 +28,7 @@
  * `model.ts` and the two files are not a cycle.
  */
 
+import * as settings from '../../settings/src/index.ts';
 import type { FailureClass } from './model.ts';
 import type { Grounded } from './grounded.ts';
 
@@ -218,7 +219,7 @@ const NO_SECOND_VENDOR: ReadonlySet<FailureClass> = new Set<FailureClass>([
 let nextAllowedAt = 0;
 
 export async function waitForSlot(): Promise<void> {
-  const gap = Number(process.env.SHIN_MODEL_MIN_INTERVAL_MS ?? 0);
+  const gap = Number(settings.SHIN_MODEL_MIN_INTERVAL_MS() ?? 0);
   if (!Number.isFinite(gap) || gap <= 0) return;
   const now = Date.now();
   const waitMs = Math.max(0, nextAllowedAt - now);

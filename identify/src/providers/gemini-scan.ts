@@ -30,6 +30,7 @@
  * NOTHING HERE OPENS A SOCKET IN A TEST. `transport` is injected.
  */
 
+import * as settings from '../../../settings/src/index.ts';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -81,9 +82,9 @@ export function familyOf(model: string): ModelFamily {
  * tests.
  */
 export function modelForScan(deviceId: string, env: NodeJS.ProcessEnv = process.env): ModelChoice {
-  const forced = env.SHIN_GEMINI_MODEL?.trim();
+  const forced = settings.SHIN_GEMINI_MODEL(env)?.trim();
   if (forced) return { model: forced, family: familyOf(forced), via: 'env' };
-  const v3 = env.SHIN_GEMINI_MODEL_3?.trim() || DEFAULT_GEMINI_3;
+  const v3 = settings.SHIN_GEMINI_MODEL_3(env)?.trim() || DEFAULT_GEMINI_3;
   return { model: v3, family: familyOf(v3), via: 'default' };
 }
 
@@ -1255,7 +1256,7 @@ export async function runGeminiScan(input: ScanInput, opts: RunOptions): Promise
     };
   }
 
-  const apiKey = (opts.apiKey ?? process.env.GEMINI_API_KEY ?? '').trim();
+  const apiKey = (opts.apiKey ?? settings.GEMINI_API_KEY() ?? '').trim();
   if (apiKey === '') return finish({ failure: 'model_client_error', failureMessage: 'No GEMINI_API_KEY, so no call was made.' });
   if (opts.spendGuard) {
     const verdict = opts.spendGuard();
@@ -1266,11 +1267,11 @@ export async function runGeminiScan(input: ScanInput, opts: RunOptions): Promise
 
   const base =
     opts.baseUrl ??
-    process.env.SHIN_GEMINI_GROUNDED_BASE_URL ??
-    process.env.SHIN_GEMINI_BASE_URL ??
+    settings.SHIN_GEMINI_GROUNDED_BASE_URL() ??
+    settings.SHIN_GEMINI_BASE_URL() ??
     'https://generativelanguage.googleapis.com/v1beta/interactions';
   const transport: GroundedTransport = opts.transport ?? ((url, init) => fetch(url, init) as ReturnType<GroundedTransport>);
-  const envTimeout = Number(env.SHIN_GEMINI_TIMEOUT_MS);
+  const envTimeout = Number(settings.SHIN_GEMINI_TIMEOUT_MS(env));
   const timeoutMs = opts.timeoutMs ?? (Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : DEFAULT_TIMEOUT_MS);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

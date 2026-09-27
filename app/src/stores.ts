@@ -295,7 +295,9 @@ export function overpassQuery(cell: CoarseCell): string {
  */
 export type StoreFetcher = (query: string) => Promise<string>;
 
-const OVERPASS_URL = process.env.SHIN_OVERPASS ?? 'https://overpass-api.de/api/interpreter';
+import * as settings from '../../settings/src/index.ts';
+
+const OVERPASS_URL = settings.SHIN_OVERPASS() ?? 'https://overpass-api.de/api/interpreter';
 
 /**
  * The default fetcher, which is the only thing in this file that touches the

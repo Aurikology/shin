@@ -61,6 +61,7 @@
  * laptop it is groceries because that is what they usually buy.
  */
 
+import * as settings from '../../settings/src/index.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -176,7 +177,7 @@ export function activeScanStore(): ScanStore | null {
  * `ScanStore` with `db: null` and `droppedWhy` set, so a caller that only
  * calls `recordScan` afterward never sees an exception either.
  */
-export function openScanStore(path: string = process.env.SHIN_SCANS ?? 'data/scans.db'): ScanStore {
+export function openScanStore(path: string = settings.SHIN_SCANS() ?? 'data/scans.db'): ScanStore {
   let db: DatabaseSync | null = null;
   let droppedWhy = '';
   try {

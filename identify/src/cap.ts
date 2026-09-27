@@ -54,6 +54,7 @@
  * than made.
  */
 
+import * as settings from '../../settings/src/index.ts';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -114,8 +115,7 @@ const ESTIMATED_COST_USD_PER_CALL = 0.0068;
  */
 const APPROXIMATE_USD_TO_CAD = 1.35;
 
-function envFloat(name: string, fallback: number): number {
-  const raw = process.env[name];
+function envFloat(raw: string | undefined, fallback: number): number {
   if (raw === undefined || raw.trim() === '') return fallback;
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : fallback;
@@ -123,16 +123,16 @@ function envFloat(name: string, fallback: number): number {
 
 function resolveOptions(opts?: SpendCapOptions): { capCad: number; hardCapCad: number; storePath: string } {
   loadDotEnv();
-  const capCad = opts?.capCad ?? envFloat('SHIN_PHOTO_DAILY_CAP_CAD', DEFAULT_CAP_CAD);
+  const capCad = opts?.capCad ?? envFloat(settings.SHIN_PHOTO_DAILY_CAP_CAD(), DEFAULT_CAP_CAD);
   // The ceiling can never sit below the soft cap: a misconfigured pair must not turn the ceiling into the cap.
   const hardCapCad = Math.max(
     capCad,
-    opts?.hardCapCad ?? envFloat('SHIN_PHOTO_HARD_CAP_CAD', capCad * HARD_CAP_MULTIPLE),
+    opts?.hardCapCad ?? envFloat(settings.SHIN_PHOTO_HARD_CAP_CAD(), capCad * HARD_CAP_MULTIPLE),
   );
   return {
     capCad,
     hardCapCad,
-    storePath: opts?.storePath ?? process.env.SHIN_SPEND_CAP_STORE_PATH ?? DEFAULT_STORE_PATH,
+    storePath: opts?.storePath ?? settings.SHIN_SPEND_CAP_STORE_PATH() ?? DEFAULT_STORE_PATH,
   };
 }
 

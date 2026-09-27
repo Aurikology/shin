@@ -43,6 +43,7 @@
  * `identify()` returns null and identity comes from a source that has one.
  */
 
+import * as settings from '../../../settings/src/index.ts';
 import type { CategoryId, PricePoint, ProductIdentity, SpineQuery } from '../contract.ts';
 import type { PriceSource, SourceAvailability } from './source.ts';
 import { normalize, overlap } from './source.ts';
@@ -105,8 +106,8 @@ export class SoldCompsSource implements PriceSource {
     env: Record<string, string | undefined> = process.env,
     fetchImpl: FetchLike = (url, init) => fetch(url, init),
   ) {
-    this.#key = env.SOLDCOMPS_API_KEY;
-    this.#base = env.SOLDCOMPS_API_BASE ?? DEFAULT_BASE;
+    this.#key = settings.SOLDCOMPS_API_KEY(env as NodeJS.ProcessEnv);
+    this.#base = settings.SOLDCOMPS_API_BASE(env as NodeJS.ProcessEnv) ?? DEFAULT_BASE;
     this.#fetch = fetchImpl;
   }
 

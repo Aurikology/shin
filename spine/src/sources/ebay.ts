@@ -66,6 +66,7 @@
  * repair is a per-source seller cap in the spine rather than a change here.
  */
 
+import * as settings from '../../../settings/src/index.ts';
 import type { CategoryId, PricePoint, ProductIdentity, SpineQuery } from '../contract.ts';
 import type { PriceSource, SourceAvailability } from './source.ts';
 
@@ -92,8 +93,9 @@ const MARKETPLACE = 'EBAY_CA';
  * was created for.
  */
 function baseFor(env: Record<string, string | undefined>): string {
-  if (env.EBAY_API_BASE) return env.EBAY_API_BASE;
-  return env.EBAY_ENV === 'sandbox' ? SANDBOX_BASE : PRODUCTION_BASE;
+  const base = settings.EBAY_API_BASE(env as NodeJS.ProcessEnv);
+  if (base) return base;
+  return settings.EBAY_ENV(env as NodeJS.ProcessEnv) === 'sandbox' ? SANDBOX_BASE : PRODUCTION_BASE;
 }
 
 /**
@@ -169,8 +171,8 @@ export class EbaySource implements PriceSource {
    * API and plays no part in the OAuth client-credentials exchange this uses.
    */
   constructor(env: Record<string, string | undefined> = process.env) {
-    this.#clientId = env.EBAY_CLIENT_ID ?? env.EBAY_APP_ID;
-    this.#clientSecret = env.EBAY_CLIENT_SECRET ?? env.EBAY_CERT_ID;
+    this.#clientId = settings.EBAY_CLIENT_ID(env as NodeJS.ProcessEnv) ?? settings.EBAY_APP_ID(env as NodeJS.ProcessEnv);
+    this.#clientSecret = settings.EBAY_CLIENT_SECRET(env as NodeJS.ProcessEnv) ?? settings.EBAY_CERT_ID(env as NodeJS.ProcessEnv);
     this.#base = baseFor(env);
   }
 

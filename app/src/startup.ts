@@ -43,6 +43,7 @@
  * already wrote.
  */
 
+import * as settings from '../../settings/src/index.ts';
 import { existsSync, statSync } from 'node:fs';
 import { dirname } from 'node:path';
 
@@ -109,7 +110,7 @@ export const realFiles: FileFacts = {
 export function startupProblems(env: StartupEnv = process.env, files: FileFacts = realFiles): string[] {
   const problems: string[] = [];
 
-  const portRaw = env.PORT;
+  const portRaw = settings.PORT(env as NodeJS.ProcessEnv);
   if (portRaw !== undefined && portRaw.trim() !== '') {
     const port = Number(portRaw);
     if (!Number.isInteger(port) || port < 0 || port > 65535) {
@@ -121,7 +122,7 @@ export function startupProblems(env: StartupEnv = process.env, files: FileFacts 
    * Case 2 first, because it is the explicit one: whatever the operator listed
    * must be there as a file, no exceptions and no rules about directories.
    */
-  const required = (env.SHIN_REQUIRE_DB ?? '')
+  const required = (settings.SHIN_REQUIRE_DB(env as NodeJS.ProcessEnv) ?? '')
     .split(',')
     .map((name) => name.trim().toLowerCase())
     .filter((name) => name !== '');

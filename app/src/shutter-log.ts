@@ -17,6 +17,7 @@
  * to <SHIN_DATA_DIR>/shutter. Nothing here may break a request: every write is
  * wrapped, and a failure is dropped rather than thrown into the route.
  */
+import * as settings from '../../settings/src/index.ts';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -25,11 +26,11 @@ export const SHUTTER_HEADER = 'x-shin-shutter';
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export function shutterLogOn(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.SHIN_SHUTTER_LOG?.trim().toLowerCase() !== 'off';
+  return settings.SHIN_SHUTTER_LOG(env)?.trim().toLowerCase() !== 'off';
 }
 
 export function shutterDir(env: NodeJS.ProcessEnv = process.env): string {
-  return env.SHIN_SHUTTER_DIR?.trim() || join(env.SHIN_DATA_DIR?.trim() || join(process.cwd(), 'data'), 'shutter');
+  return settings.SHIN_SHUTTER_DIR(env)?.trim() || join(settings.SHIN_DATA_DIR(env)?.trim() || join(process.cwd(), 'data'), 'shutter');
 }
 
 /** The press id on a request, or null when there is none or it is malformed. */

@@ -82,6 +82,7 @@
  * since 2026-09-15 they share one.
  */
 
+import * as settings from '../../../settings/src/index.ts';
 import {
   ProviderError,
   classifyProviderError,
@@ -98,7 +99,7 @@ import {
   type GaugeOffer,
   type GaugeShelfItem,
 } from '../gauge.ts';
-import { geminiModelFor, interactionBody, interactionsUrl, usageOf } from './gemini.ts';
+import { GEMINI_BASIC_TIER, geminiModelFor, interactionBody, interactionsUrl, usageOf } from './gemini.ts';
 
 /* -------------------------------------------------------------------- wire */
 
@@ -611,14 +612,14 @@ export class GeminiGroundedProvider implements GroundedProvider {
   #baseUrl(): string {
     return interactionsUrl(
       this.#opts.baseUrl ??
-        process.env.SHIN_GEMINI_GROUNDED_BASE_URL ??
-        process.env.SHIN_GEMINI_BASE_URL ??
+        settings.SHIN_GEMINI_GROUNDED_BASE_URL() ??
+        settings.SHIN_GEMINI_BASE_URL() ??
         DEFAULT_BASE_URL,
     );
   }
 
   #apiKey(): string {
-    return (this.#opts.apiKey ?? process.env.GEMINI_API_KEY ?? '').trim();
+    return (this.#opts.apiKey ?? settings.GEMINI_API_KEY() ?? '').trim();
   }
 
   /**
@@ -1087,9 +1088,20 @@ const GROUNDED_TIMEOUT_MS = 9_000;
 const GROUNDED_REUSE_MS = 5 * 60_000;
 const GROUNDED_MAX_KEPT = 500;
 
-/** The basic tier, translated by `geminiModelFor`, unless named. */
+/**
+ * The basic tier, translated by `geminiModelFor`, unless named.
+ *
+ * The default used to be the stand-in tier name `'claude-haiku-4-5'`, which
+ * `geminiModelFor` then translated via `GEMINI_FOR`. The founder's ruling is
+ * no Claude anywhere in Shin, so the default here is now `GEMINI_BASIC_TIER`,
+ * the Gemini id that stand-in name already resolved to (one source: gemini.ts's
+ * own `GEMINI_FOR` table). Behavior is unchanged either way: `geminiModelFor`
+ * passes through anything already starting with `gemini` as-is, and
+ * `GEMINI_FOR` still maps the old stand-in names too, in case a server config
+ * still sets one.
+ */
 function groundedModel(): string {
-  return process.env.SHIN_GEMINI_GROUNDED_MODEL?.trim() || 'claude-haiku-4-5';
+  return settings.SHIN_GEMINI_GROUNDED_MODEL()?.trim() || GEMINI_BASIC_TIER;
 }
 
 function readerFrom(value: unknown): Reader {
@@ -1121,7 +1133,7 @@ export class GeminiGroundedLookup {
 
   constructor(opts: GroundedLookupOptions = {}) {
     this.#provider = new GeminiGroundedProvider(opts);
-    const envTimeout = Number(process.env.SHIN_GROUNDED_TIMEOUT_MS);
+    const envTimeout = Number(settings.SHIN_GROUNDED_TIMEOUT_MS());
     this.#timeoutMs = opts.timeoutMs ?? (Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : GROUNDED_TIMEOUT_MS);
     this.#reuseMs = opts.reuseMs ?? GROUNDED_REUSE_MS;
     this.#now = opts.now ?? Date.now;

@@ -31,6 +31,7 @@
  * having opened at all, is swallowed and counted instead.
  */
 
+import * as settings from '../../settings/src/index.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -141,7 +142,7 @@ export function activeGapLog(): GapLog | null {
  * `GapLog` with `db: null` and `droppedWhy` set, so a caller that only
  * calls `recordGap` afterward never sees an exception either.
  */
-export function openGapLog(path: string = process.env.SHIN_GAPS ?? 'data/gaps.db'): GapLog {
+export function openGapLog(path: string = settings.SHIN_GAPS() ?? 'data/gaps.db'): GapLog {
   let db: DatabaseSync | null = null;
   let droppedWhy = '';
   try {
@@ -219,7 +220,7 @@ const userCatalogues = new WeakMap<GapLog, UserCatalogue>();
 function userCatalogueFor(log: GapLog): UserCatalogue {
   let uc = userCatalogues.get(log);
   if (!uc) {
-    const path = process.env.SHIN_USER_CATALOGUE
+    const path = settings.SHIN_USER_CATALOGUE()
       ?? (log.path === ':memory:' ? ':memory:' : join(dirname(log.path), 'user-catalogue.db'));
     uc = createUserCatalogue(path);
     userCatalogues.set(log, uc);

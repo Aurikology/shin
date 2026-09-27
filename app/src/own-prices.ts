@@ -29,6 +29,7 @@
  * Never throws. A missing or unreadable file is a source that contributed
  * nothing, named in `unavailable`, and the answer degrades to "no match".
  */
+import * as settings from '../../settings/src/index.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -100,7 +101,7 @@ export interface OwnLookup {
 }
 
 export function defaultPricesPath(): string {
-  return process.env.SHIN_PRICES ?? fileURLToPath(new URL('../../price/data/prices.db', import.meta.url));
+  return settings.SHIN_PRICES() ?? fileURLToPath(new URL('../../price/data/prices.db', import.meta.url));
 }
 
 /* ------------------------------------------------------------- matching */

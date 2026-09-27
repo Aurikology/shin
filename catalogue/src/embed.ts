@@ -20,6 +20,7 @@
  * and sizes, which embeddings blur. Neither alone is enough, which is decision 24.
  */
 
+import * as settings from '../../settings/src/index.ts';
 import { EMBED_DIM } from './schema.ts';
 
 export interface Embedder {
@@ -141,7 +142,7 @@ export class VoyageEmbedder implements Embedder {
  * and queried with another returns plausible nonsense and nothing errors.
  */
 export function defaultEmbedder(): Embedder {
-  const key = process.env.VOYAGE_API_KEY;
+  const key = settings.VOYAGE_API_KEY();
   return key ? new VoyageEmbedder(key) : new LocalEmbedder();
 }
 

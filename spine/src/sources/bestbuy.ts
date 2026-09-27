@@ -52,6 +52,7 @@
  * being shown. Both are queue item 1.4.
  */
 
+import * as settings from '../../../settings/src/index.ts';
 import type { CategoryId, PricePoint, ProductIdentity, SpineQuery } from '../contract.ts';
 import type { PriceSource, SourceAvailability } from './source.ts';
 
@@ -105,8 +106,8 @@ export class BestBuySource implements PriceSource {
   #base: string;
 
   constructor(env: Record<string, string | undefined> = process.env) {
-    this.#key = env.BESTBUY_API_KEY;
-    this.#base = env.BESTBUY_API_BASE ?? DEFAULT_BASE;
+    this.#key = settings.BESTBUY_API_KEY(env as NodeJS.ProcessEnv);
+    this.#base = settings.BESTBUY_API_BASE(env as NodeJS.ProcessEnv) ?? DEFAULT_BASE;
   }
 
   available(): SourceAvailability {

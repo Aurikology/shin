@@ -13,6 +13,7 @@
  * NEVER THROWS, same contract as the scan log: a line that cannot be written
  * is dropped rather than costing the shopper the answer.
  */
+import * as settings from '../../settings/src/index.ts';
 import { appendFile } from 'node:fs';
 import { join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -20,11 +21,11 @@ import { inviteWho } from './invite.ts';
 import { notePerson } from './admin.ts';
 
 export function accessLogPath(env: NodeJS.ProcessEnv = process.env): string {
-  return env.SHIN_ACCESS_LOG?.trim() || join(env.SHIN_DATA_DIR?.trim() || join(process.cwd(), 'data'), 'access.log');
+  return settings.SHIN_ACCESS_LOG(env)?.trim() || join(settings.SHIN_DATA_DIR(env)?.trim() || join(process.cwd(), 'data'), 'access.log');
 }
 
 export function recordAccess(req: IncomingMessage, res: ServerResponse, env: NodeJS.ProcessEnv = process.env): void {
-  if (env.SHIN_ACCESS_LOG?.trim().toLowerCase() === 'off') return;
+  if (settings.SHIN_ACCESS_LOG(env)?.trim().toLowerCase() === 'off') return;
   const started = Date.now();
   res.on('finish', () => {
     try {

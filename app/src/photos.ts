@@ -40,6 +40,7 @@
  * the product; the photograph is the part we promised to hold for ninety days.
  */
 
+import * as settings from '../../settings/src/index.ts';
 import { mkdirSync, rmSync, statSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
@@ -62,7 +63,7 @@ export const DEFAULT_RETENTION_DAYS = null;
  * header above. Only a genuine positive number turns the sweep on at all.
  */
 export function retentionDays(env: NodeJS.ProcessEnv = process.env): number | null {
-  const raw = env.SHIN_PHOTO_RETENTION_DAYS;
+  const raw = settings.SHIN_PHOTO_RETENTION_DAYS(env);
   if (raw === undefined || raw.trim() === '') return null;
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? n : null;
@@ -73,7 +74,7 @@ export function retentionDays(env: NodeJS.ProcessEnv = process.env): number | nu
  * because it is data and the nightly backup in plan item 1g copies data.
  */
 export function photosDir(env: NodeJS.ProcessEnv = process.env): string {
-  const named = env.SHIN_PHOTOS?.trim();
+  const named = settings.SHIN_PHOTOS(env)?.trim();
   if (named) return resolve(named);
   return fileURLToPath(new URL('../data/photos/', import.meta.url));
 }

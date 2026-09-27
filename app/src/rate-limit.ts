@@ -17,6 +17,8 @@
  * from one phone is already unusual) and are overridable in the environment.
  */
 
+import * as settings from '../../settings/src/index.ts';
+
 export interface Window {
   readonly ms: number;
   readonly limit: number;
@@ -67,8 +69,7 @@ export class KeyedLimiter {
   }
 }
 
-function envCount(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
-  const raw = env[name];
+function envCount(raw: string | undefined, fallback: number): number {
   if (raw === undefined || raw.trim() === '') return fallback;
   const n = Number(raw);
   return Number.isInteger(n) && n > 0 ? n : fallback;
@@ -80,16 +81,16 @@ const ONE_DAY = 24 * 60 * 60 * 1000;
 /** Per invite code. A code can be on several phones (the family one is), so this is the roomier of the two. */
 export function codeWindows(env: NodeJS.ProcessEnv = process.env): Window[] {
   return [
-    { ms: TEN_MINUTES, limit: envCount(env, 'SHIN_RATE_CODE_PER_10MIN', 200) },
-    { ms: ONE_DAY, limit: envCount(env, 'SHIN_RATE_CODE_PER_DAY', 1_500) },
+    { ms: TEN_MINUTES, limit: envCount(settings.SHIN_RATE_CODE_PER_10MIN(env), 200) },
+    { ms: ONE_DAY, limit: envCount(settings.SHIN_RATE_CODE_PER_DAY(env), 1_500) },
   ];
 }
 
 /** Per network address. */
 export function addressWindows(env: NodeJS.ProcessEnv = process.env): Window[] {
   return [
-    { ms: TEN_MINUTES, limit: envCount(env, 'SHIN_RATE_IP_PER_10MIN', 90) },
-    { ms: ONE_DAY, limit: envCount(env, 'SHIN_RATE_IP_PER_DAY', 600) },
+    { ms: TEN_MINUTES, limit: envCount(settings.SHIN_RATE_IP_PER_10MIN(env), 90) },
+    { ms: ONE_DAY, limit: envCount(settings.SHIN_RATE_IP_PER_DAY(env), 600) },
   ];
 }
 

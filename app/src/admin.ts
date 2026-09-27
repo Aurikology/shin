@@ -34,6 +34,7 @@ import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { join, resolve, sep, extname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import * as settings from '../../settings/src/index.ts';
 import { accessLogPath } from './access-log.ts';
 import { shutterDir } from './shutter-log.ts';
 
@@ -42,19 +43,19 @@ const MAX_ROWS = 5000;
 const MAX_SQL_BYTES = 64 * 1024;
 
 function dataDir(env: NodeJS.ProcessEnv): string {
-  return resolve(env.SHIN_DATA_DIR?.trim() || join(process.cwd(), 'data'));
+  return resolve(settings.SHIN_DATA_DIR(env)?.trim() || join(process.cwd(), 'data'));
 }
 
 function scansPath(env: NodeJS.ProcessEnv): string {
-  return resolve(env.SHIN_SCANS?.trim() || join(dataDir(env), 'scans.db'));
+  return resolve(settings.SHIN_SCANS(env)?.trim() || join(dataDir(env), 'scans.db'));
 }
 
 export function peoplePath(env: NodeJS.ProcessEnv = process.env): string {
-  return resolve(env.SHIN_PEOPLE_DB?.trim() || join(dataDir(env), 'people.db'));
+  return resolve(settings.SHIN_PEOPLE_DB(env)?.trim() || join(dataDir(env), 'people.db'));
 }
 
 export function adminAllows(sent: unknown, env: NodeJS.ProcessEnv = process.env): boolean {
-  const token = env.SHIN_ADMIN_TOKEN?.trim();
+  const token = settings.SHIN_ADMIN_TOKEN(env)?.trim();
   if (!token || typeof sent !== 'string') return false;
   const a = Buffer.from(sent.trim(), 'utf8');
   const b = Buffer.from(token, 'utf8');
@@ -121,7 +122,7 @@ const TYPES: Record<string, string> = {
  * take the admin token instead.
  */
 export async function handleAdmin(req: IncomingMessage, res: ServerResponse, url: URL, env: NodeJS.ProcessEnv = process.env): Promise<void> {
-  if (!env.SHIN_ADMIN_TOKEN?.trim()) return send(res, 404, { error: 'not found' });
+  if (!settings.SHIN_ADMIN_TOKEN(env)?.trim()) return send(res, 404, { error: 'not found' });
   if (!adminAllows(req.headers[ADMIN_HEADER], env)) return send(res, 401, { error: `admin routes need the ${ADMIN_HEADER} header` });
   const route = url.pathname.slice('/api/admin/'.length);
   try {

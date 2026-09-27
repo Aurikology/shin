@@ -109,6 +109,7 @@
  * =======================================================================
  */
 
+import * as settings from '../../../settings/src/index.ts';
 import {
   ProviderError,
   classifyProviderError,
@@ -146,6 +147,14 @@ const GEMINI_FOR: Readonly<Record<string, string>> = {
 const FALLBACK_MODEL = 'gemini-3.5-flash-lite';
 
 /**
+ * The basic tier's Gemini id, one source for it: `GEMINI_FOR`'s own haiku
+ * row. `gemini-grounded.ts`'s `groundedModel()` default reads this instead of
+ * repeating the literal id, so the two stay one fact rather than two strings
+ * that can drift apart the next time this table changes.
+ */
+export const GEMINI_BASIC_TIER = GEMINI_FOR['claude-haiku-4-5'];
+
+/**
  * PUBLISHED LIST PRICES, USD PER MILLION TOKENS, TYPED IN AND NEVER BILLED.
  *
  * These rows belong in `provider.ts`'s `LIST_PRICES_USD_PER_MTOK`, which is
@@ -166,7 +175,7 @@ export const GEMINI_LIST_PRICES_USD_PER_MTOK: Readonly<Record<string, ModelPrice
 };
 
 export function geminiModelFor(model: string): string {
-  const override = process.env.SHIN_GEMINI_MODEL?.trim();
+  const override = settings.SHIN_GEMINI_MODEL()?.trim();
   if (override) return override;
   const mapped = GEMINI_FOR[model];
   if (mapped) return mapped;
@@ -189,7 +198,7 @@ export function geminiModelFor(model: string): string {
 const RESOLUTIONS: ReadonlySet<string> = new Set(['low', 'medium', 'high', 'ultra_high']);
 
 export function mediaResolution(): string {
-  const named = (process.env.SHIN_GEMINI_MEDIA_RESOLUTION ?? '').trim().toLowerCase().replace(/^media_resolution_/, '');
+  const named = (settings.SHIN_GEMINI_MEDIA_RESOLUTION() ?? '').trim().toLowerCase().replace(/^media_resolution_/, '');
   return RESOLUTIONS.has(named) ? named : 'medium';
 }
 
@@ -214,7 +223,7 @@ const THINKING_LEVELS: ReadonlySet<string> = new Set(['minimal', 'low', 'medium'
  * is unaffected.
  */
 export function thinkingLevel(model?: string): string {
-  const named = (process.env.SHIN_GEMINI_THINKING ?? '').trim().toLowerCase();
+  const named = (settings.SHIN_GEMINI_THINKING() ?? '').trim().toLowerCase();
   if (THINKING_LEVELS.has(named)) return named;
   const id = (model ?? '').trim().toLowerCase();
   if (id.includes('lite')) return 'minimal';
@@ -267,8 +276,8 @@ export class GeminiProvider implements Provider {
   readonly #transport: GeminiTransport;
 
   constructor(options: GeminiOptions = {}) {
-    this.#apiKey = (options.apiKey ?? process.env.GEMINI_API_KEY ?? '').trim();
-    this.#url = interactionsUrl(options.baseUrl ?? process.env.SHIN_GEMINI_BASE_URL ?? DEFAULT_BASE_URL);
+    this.#apiKey = (options.apiKey ?? settings.GEMINI_API_KEY() ?? '').trim();
+    this.#url = interactionsUrl(options.baseUrl ?? settings.SHIN_GEMINI_BASE_URL() ?? DEFAULT_BASE_URL);
     this.#transport = options.transport ?? (globalThis.fetch as unknown as GeminiTransport);
   }
 

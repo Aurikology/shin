@@ -50,11 +50,12 @@
  *   node src/export-pack.ts --scope=canada  --out=data/pack-canada.bin
  */
 
+import * as settings from '../../settings/src/index.ts';
 import { openCatalogueReadOnly } from './schema.ts';
 import { writeFileSync } from 'node:fs';
 import { gzipSync, brotliCompressSync, constants as zlibConstants } from 'node:zlib';
 
-const DB_PATH = process.env.SHIN_CATALOGUE ?? 'data/catalogue.db';
+const DB_PATH = settings.SHIN_CATALOGUE() ?? 'data/catalogue.db';
 
 type Scope = 'grocery' | 'canada';
 

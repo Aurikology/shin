@@ -35,6 +35,7 @@
  * in for it. See `rejoin.ts` for the leg that turns one into the other.
  */
 
+import * as settings from '../../settings/src/index.ts';
 import { DatabaseSync } from 'node:sqlite';
 
 /** How the row was tied to a catalogue product, stored so a number can be argued with later. */
@@ -236,7 +237,7 @@ export type AttemptOutcome =
  * behaviour.
  */
 export const PRICES_DB_PATH: string =
-  process.env.SHIN_PRICES ??
+  settings.SHIN_PRICES() ??
   new URL('../data/prices.db', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 
 /**

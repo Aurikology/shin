@@ -29,6 +29,7 @@
  * to have this argument.
  */
 
+import * as settings from '../../settings/src/index.ts';
 import { timingSafeEqual } from 'node:crypto';
 
 /** The header the client sends it in. The client lane builds against this name. */
@@ -60,9 +61,9 @@ export function inviteRequired(env: NodeJS.ProcessEnv = process.env): string | n
  */
 export function inviteCodes(env: NodeJS.ProcessEnv = process.env): { name: string; code: string }[] {
   const out: { name: string; code: string }[] = [];
-  const shared = env.SHIN_INVITE_CODE?.trim();
+  const shared = settings.SHIN_INVITE_CODE(env)?.trim();
   if (shared) out.push({ name: 'family', code: shared });
-  for (const part of (env.SHIN_INVITES ?? '').split(',')) {
+  for (const part of (settings.SHIN_INVITES(env) ?? '').split(',')) {
     const i = part.indexOf(':');
     if (i <= 0) continue;
     const name = part.slice(0, i).trim();

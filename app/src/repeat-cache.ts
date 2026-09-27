@@ -58,6 +58,7 @@
  * is, for the job THIS file exists to do instead.
  */
 
+import * as settings from '../../settings/src/index.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -97,7 +98,7 @@ export function activeRepeatCache(): RepeatCacheStore | null {
 }
 
 /** Never throws. A store that cannot open comes back with `db: null`, counted like any other drop. */
-export function openRepeatCache(path: string = process.env.SHIN_REPEAT_CACHE ?? 'data/repeat-cache.db'): RepeatCacheStore {
+export function openRepeatCache(path: string = settings.SHIN_REPEAT_CACHE() ?? 'data/repeat-cache.db'): RepeatCacheStore {
   let db: DatabaseSync | null = null;
   let droppedWhy = '';
   try {

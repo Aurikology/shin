@@ -1,0 +1,7 @@
+{
+  "name": "shin-settings",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "One place every setting Shin's live code reads lives, each tagged with the RULINGS.md title that decided it."
+}

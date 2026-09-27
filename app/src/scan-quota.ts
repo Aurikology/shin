@@ -30,6 +30,7 @@
  * answer for ten minutes. Without it, the client's `x-shin-plus: 1` header is
  * believed, which is a beta seam and says so once at startup.
  */
+import * as settings from '../../settings/src/index.ts';
 import type { IncomingHttpHeaders } from 'node:http';
 import { activeScanStore, openScanStore } from './scans.ts';
 
@@ -44,7 +45,7 @@ const ENTITLEMENT_ERROR_CACHE_MS = 60 * 1000;
 
 /** The weekly limit, or null when there is none. See the header: unset is off. */
 export function freeScanLimit(env: NodeJS.ProcessEnv = process.env): number | null {
-  const raw = (env.SHIN_FREE_SCANS_PER_WEEK ?? '').trim();
+  const raw = (settings.SHIN_FREE_SCANS_PER_WEEK(env) ?? '').trim();
   if (!/^\d+$/.test(raw)) return null;
   const n = Number(raw);
   return Number.isSafeInteger(n) && n > 0 ? n : null;
@@ -120,7 +121,7 @@ export function setEntitlementFetchForTests(f: FetchLike | null): void {
 export type EntitlementMode = 'revenuecat' | 'client_trusted';
 
 export function entitlementMode(env: NodeJS.ProcessEnv = process.env): EntitlementMode {
-  return (env.REVENUECAT_SECRET_KEY ?? '').trim() ? 'revenuecat' : 'client_trusted';
+  return (settings.REVENUECAT_SECRET_KEY(env) ?? '').trim() ? 'revenuecat' : 'client_trusted';
 }
 
 /** The one startup line, or null when RevenueCat is doing the checking. */
@@ -154,7 +155,7 @@ export async function isPlus(
   if (entitlementMode(env) === 'client_trusted') return headerText(headers, PLUS_HEADER) === '1';
   const cached = entitlementCache.get(deviceId);
   if (cached && cached.until > now.getTime()) return cached.plus;
-  const key = (env.REVENUECAT_SECRET_KEY ?? '').trim();
+  const key = (settings.REVENUECAT_SECRET_KEY(env) ?? '').trim();
   const doFetch: FetchLike = fetchForEntitlement ?? (globalThis.fetch as unknown as FetchLike);
   try {
     const res = await doFetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(deviceId)}`, {

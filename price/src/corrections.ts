@@ -37,6 +37,7 @@
  * be able to take the server down.
  */
 
+import * as settings from '../../settings/src/index.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -48,7 +49,7 @@ import { fileURLToPath } from 'node:url';
  * where the file is without either hardcoding a path into the other's package.
  */
 export const CORRECTIONS_DB_PATH =
-  process.env.SHIN_CORRECTIONS ?? fileURLToPath(new URL('../data/corrections.db', import.meta.url));
+  settings.SHIN_CORRECTIONS() ?? fileURLToPath(new URL('../data/corrections.db', import.meta.url));
 
 /**
  * Whether the number is what the thing normally costs or what it costs today.
