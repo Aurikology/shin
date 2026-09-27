@@ -159,6 +159,57 @@ function pack(rows: readonly PackRow[]): Buffer {
  * the count of equal and descending pairs, with one example of each, and exits
  * non-zero WITHOUT writing any pack file.
  */
+/**
+ * TWO PRODUCTS THAT REALLY DO SHARE ONE KEY GET NEITHER OF THEM.
+ *
+ * After the duplicate-spelling cleanup, two pairs are left in the catalogue whose
+ * barcodes are the same GTIN and whose products are genuinely different:
+ * "Avocado" under the 8-digit code 00004770 against a Google Pixel screen
+ * protector under 0000000004770, and "Natural Spring Water" under 00128582
+ * against a Shell station's bulk water listing under 0000000128582. Both pairs
+ * check out arithmetically: a GTIN's check digit is computed from the right, so
+ * an 8-digit code and its zero-padded 13-digit form are one number with one valid
+ * check digit. One product in each pair is wrong about its own barcode, and
+ * nothing in the data says which.
+ *
+ * So the pack ships neither. Keeping one is a coin flip presented to a shopper as
+ * an answer, and refusing to build at all over two bad rows would mean the phone
+ * keeps a pack that is weeks stale, which is worse. Every dropped row is printed
+ * with its name, so a handful stays visible rather than becoming folklore.
+ *
+ * The build still fails above `MAX_COLLISIONS`, because a large number here does
+ * not mean a few bad barcodes: it means a rule stopped folding a spelling it used
+ * to fold, which is exactly what happened on 2026-09-26 when 118 of these
+ * appeared at once and, before the cleanup, 198,095 did.
+ */
+const MAX_COLLISIONS = 50;
+
+function dropCollidingKeys(rows: readonly PackRow[]): PackRow[] | null {
+  const kept: PackRow[] = [];
+  let dropped = 0;
+  for (let i = 0; i < rows.length; ) {
+    let j = i + 1;
+    while (j < rows.length && rows[j].code === rows[i].code) j += 1;
+    if (j - i === 1) {
+      kept.push(rows[i]);
+    } else {
+      dropped += j - i;
+      console.log(`dropping ${j - i} rows that share the key ${rows[i].code}, so the phone is never handed a coin flip:`);
+      for (let k = i; k < j; k += 1) console.log(`    ${rows[k].code}  ${rows[k].name ?? '(no name)'}`);
+    }
+    i = j;
+  }
+  if (dropped > MAX_COLLISIONS) {
+    console.error(
+      `REFUSING TO WRITE THE PACK: ${dropped} rows share a key with another row. That is not a` +
+        ' handful of bad barcodes, it is a spelling rule that stopped folding something.',
+    );
+    return null;
+  }
+  if (dropped) console.log(`dropped ${dropped} rows in total to keep every key unique`);
+  return kept;
+}
+
 function assertAscending(rows: readonly PackRow[]): boolean {
   let equal = 0;
   let descending = 0;
@@ -249,9 +300,14 @@ function main(): number {
   // order differently as text and as numbers, so this is not redundant.
   rows.sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
 
-  if (!assertAscending(rows)) return 1;
+  // Two products that really do share one key get neither of them, and then the
+  // ascending check has to hold with nothing left over: it is the guard, and
+  // dropping rows is not allowed to be a way around it.
+  const unique = dropCollidingKeys(rows);
+  if (unique === null) return 1;
+  if (!assertAscending(unique)) return 1;
 
-  const body = pack(rows);
+  const body = pack(unique);
   const gz = gzipSync(body, { level: 9 });
   const br = brotliCompressSync(body, {
     params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 9 },
@@ -263,7 +319,7 @@ function main(): number {
 
   const mb = (n: number) => `${(n / 1024 / 1024).toFixed(2)} MB`;
   console.log(`scope           ${scope}`);
-  console.log(`rows            ${rows.length.toLocaleString()}`);
+  console.log(`rows            ${unique.length.toLocaleString()}`);
   if (skippedShape > 0) {
     console.log(`skipped         ${skippedShape} codes no scanner can produce (over ${MAX_GTIN_DIGITS} digits)`);
   }

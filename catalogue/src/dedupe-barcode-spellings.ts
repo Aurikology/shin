@@ -313,16 +313,30 @@ function main(): number {
      * across first. The other disagreeing pair, "Verbatim CD-R" against "52x CD-R
      * Media", is two names for the same object; the surviving one carries the brand,
      * so it is left alone.
+     *
+     * THIS STEP HAS TO SURVIVE BEING RUN TWICE. It reads the true name off the
+     * 12-digit partner row, and the pass below then deletes that partner. So on a
+     * second run the subquery has nothing to read, `name` goes NULL, and the whole
+     * transaction dies on the NOT NULL constraint and rolls back -- which is exactly
+     * what happened on 2026-09-26 when this script was re-run to add the 8/13
+     * shape: every 8/13 fold was lost to a correction that had already been made.
+     * The `EXISTS` guard makes the step a no-op once the partner is gone, and
+     * `changes: 0` then means "already corrected", not "failed to correct".
      */
     const NINTENDO = '0045496590161';
     const fixed = db
       .prepare(
         'UPDATE product SET name = (SELECT q.name FROM product q WHERE q.code = substr(product.code, 2)),' +
           ' brands = coalesce((SELECT q.brands FROM product q WHERE q.code = substr(product.code, 2)), brands),' +
-          " source = 'icecat' WHERE code = ?",
+          " source = 'icecat' WHERE code = ?" +
+          ' AND EXISTS (SELECT 1 FROM product q WHERE q.code = substr(product.code, 2) AND q.name IS NOT NULL)',
       )
       .run(NINTENDO);
-    console.log(`corrected the food-name-on-an-electronics-barcode row: ${fixed.changes} row`);
+    console.log(
+      fixed.changes
+        ? `corrected the food-name-on-an-electronics-barcode row: ${fixed.changes} row`
+        : 'the food-name-on-an-electronics-barcode row was corrected by an earlier run, nothing to do',
+    );
 
     // 2. Move a vector from the dying row to the survivor when only the dying row has one.
     const movable = db
