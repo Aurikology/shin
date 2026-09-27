@@ -112,3 +112,16 @@ test('a barcode missing its leading zeros still reaches Gemini, in its one repai
   assert.match(sent, /68100084245/, 'the barcode never reached Gemini at all');
   assert.doesNotMatch(sent, /"68100084245"/, 'the unpadded, as-read digits reached Gemini rather than the padded canonical form');
 });
+
+test('a printed UPC-E (fails EAN-8) is not refused: it reaches Gemini once, as its 12-digit UPC-A', async () => {
+  // 7B.8, RULINGS.md "Always answer". The Coke Zero can from catalogue/test/upce.test.ts.
+  const { calls, transport } = fakeTransport();
+  setGeminiTransportForTests(transport);
+  const { status, body } = await identify('gtin=06781901&deviceId=barcode-upce');
+  assert.equal(status, 200);
+  assert.notEqual(body.failure, 'invalid_barcode', 'a real printed UPC-E was refused as invalid');
+  assert.equal(calls.length, 1);
+  const sent = JSON.stringify(calls[0].body.input ?? calls[0].body);
+  assert.match(sent, /067000008191/, 'the expanded UPC-A never reached Gemini');
+  assert.doesNotMatch(sent, /06781901/, 'the compressed as-read digits reached Gemini rather than the one canonical form');
+});

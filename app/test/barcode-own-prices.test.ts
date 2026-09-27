@@ -125,6 +125,18 @@ const BARCODE_MULTI = '0060000000050';
 joinedRow({ code: BARCODE_MULTI, seller: 'bcliquorstores', sku: 'bc-3', name: 'Coastal Lager', cents: 1999, seen: '2026-09-20', region: 'BC', store: 'BC Liquor' });
 unjoinedRow({ pageGtin: BARCODE_MULTI, seller: 'anbl', sku: 'nb-2', name: 'Coastal Lager', cents: 2499, seen: '2026-09-21', region: 'NB', store: 'ANBL', basePriceCents: 2200 });
 
+// 7B.8, UPC-E: the Coke Zero can (catalogue/test/upce.test.ts) priced under
+// the 8 digits printed on it, unjoined, as a seller page would state it.
+const UPCE_PRINTED = '06781901';
+const UPCE_LONG = '067000008191';
+unjoinedRow({ pageGtin: UPCE_PRINTED, seller: 'anbl', sku: 'nb-upce', name: 'Coke Zero 355 ml', cents: 149, seen: '2026-09-22', region: 'NB', store: 'ANBL' });
+
+// And the other direction: a price joined under the 13-digit UPC-A spelling,
+// scanned as the short code 04252614 (UPC-A 042100005264).
+const UPCA_STORED = '0042100005264';
+const UPCA_SHORT = '04252614';
+joinedRow({ code: UPCA_STORED, seller: 'bcliquorstores', sku: 'bc-upca', name: 'Small Can Soda', cents: 129, seen: '2026-09-22', region: 'BC', store: 'BC Liquor' });
+
 prices.close();
 
 const uc = createUserCatalogue(userPath);
@@ -240,6 +252,31 @@ test('a 12-digit spelling of a stored 13-digit barcode still finds it', () => {
   const out = lookupOwnPricesByBarcode(twelveDigit, { pricesDbPath: pricesPath, userCataloguePath: join(dir, 'absent-user.db') });
   assert.ok(out.match, 'canonicalCode should have re-padded this back to the stored 13-digit form');
   assert.equal(out.match!.prices[0].amount, 17.99);
+});
+
+test('a price stored under the printed UPC-E is found from the 12-digit UPC-A a reader sends', () => {
+  const out = lookupOwnPricesByBarcode(UPCE_LONG, { pricesDbPath: pricesPath, userCataloguePath: join(dir, 'absent-user.db') });
+  assert.ok(out.match, 'the short-code row was not found from the long form');
+  assert.equal(out.match!.prices[0].amount, 1.49);
+  assert.equal(out.match!.prices[0].store, 'ANBL');
+});
+
+test('the printed UPC-E itself still finds its own row', () => {
+  const out = lookupOwnPricesByBarcode(UPCE_PRINTED, { pricesDbPath: pricesPath, userCataloguePath: join(dir, 'absent-user.db') });
+  assert.ok(out.match);
+  assert.equal(out.match!.prices[0].amount, 1.49);
+});
+
+test('a price stored under the UPC-A is found from the short UPC-E', () => {
+  const out = lookupOwnPricesByBarcode(UPCA_SHORT, { pricesDbPath: pricesPath, userCataloguePath: join(dir, 'absent-user.db') });
+  assert.ok(out.match, 'the UPC-A row was not found from the short code');
+  assert.equal(out.match!.prices[0].amount, 1.29);
+});
+
+test('a UPC-A with no short form finds nothing through a twin', () => {
+  // 012345678905 has no UPC-E (catalogue/test/upce.test.ts) and no stored price.
+  const out = lookupOwnPricesByBarcode('012345678905', { pricesDbPath: pricesPath, userCataloguePath: join(dir, 'absent-user.db') });
+  assert.equal(out.match, null);
 });
 
 test('a barcode the big catalogue never held: the shelf price is found via user_product.gtin, no catalogue row needed', () => {

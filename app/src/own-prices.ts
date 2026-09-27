@@ -36,6 +36,8 @@ import { fileURLToPath } from 'node:url';
 import { nameTokens, type CatalogueProbe } from '../../catalogue/src/user-catalogue.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity } from '../../catalogue/src/units.ts';
 import { canonicalCode } from '../../catalogue/src/barcode.ts';
+import { upcAOf, upcEOf } from '../../catalogue/src/upc.ts';
+import { isValidGtin } from './barcode.ts';
 
 export const OWN_DATA_SOURCE = 'shin_own_data' as const;
 
@@ -171,10 +173,38 @@ function text(v: unknown): string | null {
   return typeof v === 'string' && v.trim() !== '' ? v.trim() : null;
 }
 
+/** Every spelling a source might store one code under: bare, 8 (short codes only), 12, 13, 14 digits. */
+function spellings(bare: string): string[] {
+  return [bare, ...(bare.length <= 8 ? [bare.padStart(8, '0')] : []), bare.padStart(12, '0'), bare.padStart(13, '0'), bare.padStart(14, '0')];
+}
+
+/**
+ * The UPC-E / UPC-A twin of a code, or null (7B.8). A short can's price may be
+ * stored under the 8 printed digits and the scan arrive as the 12-digit UPC-A,
+ * or the other way round. Uses the catalogue's own `upcAOf`/`upcEOf`; an
+ * expansion only counts when its check digit passes. The EAN-8/UPC-E tie is
+ * resolved the way `canonicalBarcode` resolves it (app/src/barcode.ts): as a UPC-E.
+ */
+function upcTwin(bare: string): string | null {
+  if (bare.length <= 8) {
+    const upca = upcAOf(bare.padStart(8, '0'));
+    return upca && isValidGtin(upca) ? upca : null;
+  }
+  if (bare.length <= 12) {
+    const upca = bare.padStart(12, '0');
+    return isValidGtin(upca) ? upcEOf(upca) : null;
+  }
+  // A 13-digit code is a UPC-A only with a leading zero, which `bare` has already lost.
+  return null;
+}
+
 function padForms(code: string): string[] {
   const d = code.replace(/\D/g, '');
   const bare = d.replace(/^0+/, '') || d;
-  return [...new Set([d, bare, bare.padStart(12, '0'), bare.padStart(13, '0'), bare.padStart(14, '0')])];
+  const forms = [d, ...spellings(bare)];
+  const twin = upcTwin(bare);
+  if (twin) forms.push(...spellings(twin.replace(/^0+/, '') || twin));
+  return [...new Set(forms)];
 }
 
 function pricesRows(db: DatabaseSync, where: string, args: string[]): OwnPrice[] {
@@ -495,9 +525,11 @@ export function lookupOwnPrices(typed: string, sources: OwnLookupSources = {}): 
  *     named - the same case that matters here).
  *
  * The incoming barcode is canonicalised (`canonicalCode`) and then tried in
- * every spelling a source might hold (bare, 12, 13, 14 digits), because
- * `page_gtin` is the seller's own unnormalised claim and `user_product.gtin`
- * is stored with its leading zeros stripped.
+ * every spelling a source might hold (bare, 8 for a short code, 12, 13, 14
+ * digits), because `page_gtin` is the seller's own unnormalised claim and
+ * `user_product.gtin` is stored with its leading zeros stripped. The code's
+ * UPC-E / UPC-A twin is tried in the same spellings (`upcTwin`), so a price
+ * stored under the short printed code is found from the long one and back.
  *
  * REGIONS ARE NEVER BLENDED. New Brunswick's shelf price is tax-inclusive
  * (`price_cents`, exposed as `amount`, same meaning `amount` carries
