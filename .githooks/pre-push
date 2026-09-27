@@ -1,0 +1,24 @@
+#!/bin/sh
+# pre-push -- blocks the push if the fast repo checks are red.
+#
+# WHY: docs/decisions.md, "Every push is checked by GitLab, and every prompt
+# that reads like a ruling gets recorded" (2026-09-27). The GitLab job
+# (.gitlab-ci.yml) is a backstop that shows a mark AFTER the push already
+# happened, and this repo has no branches to protect it from landing anyway.
+# This hook is the one point in the chain that can still stop a bad push
+# before it goes out.
+#
+# Installed automatically: .claude/hooks/session-start.mjs sets
+# core.hooksPath to .githooks on every clone that has not already been
+# switched, so this does not depend on a session remembering to run
+# `git config core.hooksPath .githooks` by hand.
+
+node scripts/checks.mjs
+status=$?
+
+if [ "$status" -ne 0 ]; then
+  echo "[pre-push] BLOCKED: fast checks failed. Run: node scripts/checks.mjs" >&2
+  exit 1
+fi
+
+exit 0

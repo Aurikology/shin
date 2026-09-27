@@ -2156,3 +2156,23 @@ Mac's deploy checker still takes its requests from the Notion page (`mac/deploy/
 GitLab is a Mac-side unit, asked of the Mac through the mailbox.
 
 **Reverses if:** he says so.
+
+## Every push is checked by GitLab, and every prompt that reads like a ruling gets recorded
+
+**Date:** 2026-09-27 · **Status:** active, being built
+
+Jamin, 2026-09-27: *"rememebr all fixes and problems that you identified are useless if your
+solutions are not future proof"*, then *"yes to both"* to (1) GitLab CI on this repo, so every
+push, Aurik's included, shows a red or green mark, and (2) a ruling-capture hook.
+
+Found when checking: this repo had no CI, no git hooks and no check that runs unless a session
+chooses to run tests, so every cleanup guard would have rested on someone remembering. Built as:
+`.gitlab-ci.yml` running the fast checks on every push (backstop; a red mark does not undo a push,
+since there are no branches); a tracked `.githooks/pre-push` running the same checks and blocking
+the push, installed on every clone by the session-start hook setting `core.hooksPath`; a
+UserPromptSubmit hook that, when a message reads like a ruling, tells the session to write it to
+RULINGS.md and this log in the same turn. Each check carries a planted violation it must fail on,
+so a disabled check shows red rather than a silent green.
+
+**Reverses if:** the checks block legitimate pushes more than they catch real regressions, counted
+from the pipeline history.

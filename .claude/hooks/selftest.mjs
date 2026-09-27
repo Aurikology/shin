@@ -12,6 +12,7 @@
  *   node .claude/hooks/selftest.mjs
  */
 import { classify } from "./no-blind-git-add.mjs";
+import { looksLikeRuling } from "./ruling-capture.mjs";
 
 const CASES = [
   // [tool, command, expected verdict, note]
@@ -51,6 +52,57 @@ console.log(`no-blind-git-add: ${pass}/${CASES.length}`);
 if (failures.length) {
   console.log("FAILURES:");
   console.log(failures.join("\n"));
+}
+
+/*
+ * ruling-capture cases. Matching is strong-phrase only (narrowed 2026-09-27,
+ * Jamin: "no solution may add credit cost or per-task complexity") -- bare
+ * always/never/should/must/don't/we-will were dropped because they fire on
+ * ordinary one-off prompts, not standing rulings, and would inject extra
+ * context into nearly every turn.
+ */
+const RULING_CASES = [
+  // [prompt, expected boolean, note]
+  ["from now on typed search should only use our catalogue", true, "from now on"],
+  [
+    "i've already told you before to switch to gitlab for communication, not notion",
+    true,
+    "i've already told you, and switch to",
+  ],
+  ["from now on never show the price math", true, "from now on, even with never elsewhere in the sentence"],
+
+  ["what does the barcode route return?", false, "an ordinary question"],
+  ["run the tests", false, "an ordinary task"],
+  ["how many free scans are there", false, "an ordinary question"],
+  ["never show the price math", false, "bare never, one-off ask about this task, not a standing rule"],
+  ["we will launch under Shin", false, "bare we-will, dropped: fires on ordinary prompts"],
+  [
+    "<task-notification>worker report: from now on we cache every lookup</task-notification>",
+    false,
+    "harness wrapper quotes a worker's report, not Jamin",
+  ],
+  [
+    '<cross-session-message from="mac">switch to the new deploy script</cross-session-message>',
+    false,
+    "harness wrapper quotes a cross-session relay, not Jamin",
+  ],
+];
+
+let rulingPass = 0;
+const rulingFailures = [];
+for (const [prompt, expected, note] of RULING_CASES) {
+  const got = looksLikeRuling(prompt);
+  if (got === expected) rulingPass += 1;
+  else rulingFailures.push(`  "${prompt}"\n    expected ${expected}, got ${got}  (${note})`);
+}
+
+console.log(`ruling-capture: ${rulingPass}/${RULING_CASES.length}`);
+if (rulingFailures.length) {
+  console.log("FAILURES:");
+  console.log(rulingFailures.join("\n"));
+}
+
+if (failures.length || rulingFailures.length) {
   process.exit(1);
 }
 

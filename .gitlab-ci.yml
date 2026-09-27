@@ -1,0 +1,20 @@
+# GitLab CI -- backstop for the fast repo checks.
+#
+# WHY: docs/decisions.md, "Every push is checked by GitLab, and every prompt
+# that reads like a ruling gets recorded" (2026-09-27). Runs the exact same
+# runner scripts/checks.mjs uses locally in .githooks/pre-push, so a push that
+# skipped or bypassed the local hook (a fresh clone that has not switched
+# core.hooksPath yet, or a push from a machine without it installed) still
+# shows a red or green mark. A red mark here does not undo the push -- there
+# are no branches in this repo to protect -- but it is the check that catches
+# what the local hook missed.
+#
+# No `rules:` on purpose: runs on every push, unrestricted by branch, since
+# there is only one branch. No npm install, no database -- the checks use
+# only Node's built-ins.
+
+checks:
+  image: node:22-alpine
+  interruptible: true
+  script:
+    - node scripts/checks.mjs

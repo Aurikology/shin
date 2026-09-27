@@ -63,6 +63,39 @@ function whoAmI() {
   return { name: name || null, tag: first === 'jamin' || first === 'aurik' ? first : null };
 }
 
+/**
+ * Switches this clone's core.hooksPath to .githooks, so the tracked
+ * .githooks/pre-push (docs/decisions.md, "Every push is checked by GitLab...",
+ * 2026-09-27) actually runs, instead of depending on a session remembering to
+ * run `git config core.hooksPath .githooks` by hand on every fresh clone.
+ *
+ * Uses `git -C <root>`, never execFileSync with a `cwd` option: memory/lessons
+ * (this repo's sibling agent repo) records execFileSync("git", args, {cwd})
+ * dying ENOENT under Git Bash because the executable is resolved via MSYS
+ * PATH before cwd is applied. `-C` avoids that path entirely.
+ *
+ * Returns a line for the output, or null when nothing needed to change.
+ * Never throws: a broken git config is worse discovered here, in text, than
+ * as an uncaught exception that wedges session start.
+ */
+function ensurePrePushHooksInstalled() {
+  const current = quiet(
+    () => execFileSync('git', ['-C', root, 'config', 'core.hooksPath'], { encoding: 'utf8' }).trim(),
+    null,
+  );
+  if (current === '.githooks') return null;
+
+  const setOk = quiet(() => {
+    execFileSync('git', ['-C', root, 'config', 'core.hooksPath', '.githooks'], { encoding: 'utf8' });
+    return true;
+  }, false);
+
+  return setOk
+    ? '- Switched on the pre-push checks for this clone (core.hooksPath -> .githooks).'
+    : '- Could NOT set core.hooksPath to .githooks for this clone. Pre-push checks are OFF here. ' +
+        'Run by hand: git config core.hooksPath .githooks';
+}
+
 /** Commits behind the LAST-FETCHED origin/main. Never fetches. */
 function behindCount() {
   const out = quiet(
@@ -123,6 +156,12 @@ function main() {
   const { name, tag } = whoAmI();
   const firstName = name ? name.split(/\s+/)[0] : null;
   const parts = [];
+
+  const hooksMsg = ensurePrePushHooksInstalled();
+  if (hooksMsg) {
+    parts.push(hooksMsg);
+    parts.push('');
+  }
 
   parts.push('SESSION START (.claude/hooks/session-start.mjs). CLAUDE.md rule 1: pull, then read the');
   parts.push('board: messages to you first, then open claims.');
