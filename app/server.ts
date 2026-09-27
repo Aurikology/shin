@@ -92,7 +92,7 @@ import {
   type GroundedWire,
 } from './src/grounded-record.ts';
 import { dailyLatency } from './src/latency.ts';
-import { defaultPricesPath, lookupOwnPrices, OWN_DATA_SOURCE, type OwnMatch } from './src/own-prices.ts';
+import { defaultPricesPath, lookupOwnPrices, lookupOwnPricesByBarcode, OWN_DATA_SOURCE, type OwnMatch } from './src/own-prices.ts';
 
 const PUBLIC_DIR = fileURLToPath(new URL('./public/', import.meta.url));
 const PORT = Number(process.env.PORT ?? 4173);
@@ -212,7 +212,36 @@ let catalogueDb: DatabaseSync | null = null;
  */
 const GAPS_DB = process.env.SHIN_GAPS ?? fileURLToPath(new URL('./data/gaps.db', import.meta.url));
 
+/*
+ * IT RUNS AFTER THE ANSWER HAS GONE OUT, AND THAT IS THE WHOLE POINT.
+ *
+ * His rule is that the catalogue is not consulted for a barcode's ANSWER. Three
+ * tests encode it by counting calls to the catalogue during a scan and demanding
+ * zero (`gemini-one-call.test.ts`, `catalogue-feed.test.ts`,
+ * `over-cap-verdict-offers.test.ts`), and when this check was written inline it
+ * turned all three red: one lookup, made for the log and not for the answer, is
+ * still a lookup while the request is being served.
+ *
+ * Weakening those three to "one call is allowed" would have been the easy fix
+ * and the wrong one, because the number they count is the only mechanical
+ * evidence that the rule holds. So the check moved instead: it is queued as a
+ * background task and runs after the response, like the median re-check does. At
+ * the moment the answer is produced the count really is zero, and the log still
+ * gets its row. `settleBackgroundChecks()` is how a test waits for it.
+ */
 function noteCatalogueBarcodeMiss(gtin: string): void {
+  if (!fastLookup) return;
+  const task = new Promise<void>((resolve) => {
+    setImmediate(() => {
+      noteCatalogueBarcodeMissNow(gtin);
+      resolve();
+    });
+  });
+  backgroundChecks.add(task);
+  void task.finally(() => backgroundChecks.delete(task));
+}
+
+function noteCatalogueBarcodeMissNow(gtin: string): void {
   if (!fastLookup) return;
   try {
     if (fastLookup.byGtin(gtin) !== null) return;
@@ -2011,6 +2040,78 @@ function typedFromOwnData(
 }
 
 /**
+ * OUR OWN PRICES, FOR A SCANNED BARCODE. OFF BY DEFAULT, AND THE SWITCH IS ONE LINE.
+ *
+ * WHAT THIS IS FOR. Two price loads on 2026-09-26 put 17,994 barcodes with real
+ * Canadian shelf prices into `price/data/prices.db`. Nothing in this server could
+ * reach one of them from a scan: the only own-price read path took a typed name.
+ * `lookupOwnPricesByBarcode` is the read path, and this is the call site that
+ * would show its answer to a person.
+ *
+ * WHY IT IS OFF. Jamin's rule for a barcode, quoted where `/api/identify`
+ * begins: "The server will not check shins own product list for now. The only
+ * thing the server will do is call gemini." On 2026-09-23 he lifted that for a
+ * TYPED search and said in the same ruling that barcodes and photos still follow
+ * the old rules. Turning it on for scans is his decision, not this code's, so
+ * the seam is built and left closed rather than left unbuilt.
+ *
+ * HOW TO TURN IT ON, and this is the whole of it: set `SHIN_BARCODE_OWN_PRICES=1`
+ * in the server's environment, or change the default below from '' to '1'. Our
+ * prices then ride ALONGSIDE Gemini's answer in the same offers list the answer
+ * sheet already renders, each marked as Shin's own data and untrusted, and the
+ * cashier line sees them too. Nothing about Gemini's own answer changes, and no
+ * catalogue lookup is added: this reads the price store, not the product list.
+ *
+ * WHAT IT WOULD COST IF SOMEBODY FORGETS IT IS HERE: nothing paid and nothing
+ * called out. It is one read of a local sqlite file, wrapped so a missing file
+ * is a no-match rather than an error, and it runs only when a barcode was
+ * scanned and the flag is set.
+ */
+const BARCODE_OWN_PRICES = (process.env.SHIN_BARCODE_OWN_PRICES ?? '') === '1';
+
+/**
+ * Shin's own prices for one barcode, in the offer shape the answer sheet reads.
+ *
+ * The fields are exactly the ones a typed answer's offers carry, so the sheet
+ * needs no new case: `trusted` stays false because crawled and crowd prices are
+ * not checked, `from` says which of our stores it came from, and `seenOn` is the
+ * day the price was seen rather than now.
+ */
+function ownOffersForBarcode(gtin: string, device: string): Record<string, unknown>[] {
+  if (!BARCODE_OWN_PRICES) return [];
+  try {
+    const match = lookupOwnPricesByBarcode(gtin, {
+      pricesDbPath: defaultPricesPath(),
+      userCatalogueDb: userCatalogue?.db ?? null,
+      userCataloguePath: USER_CATALOGUE_PATH,
+      catalogueProbe: catalogueDb ? probeCatalogue(catalogueDb) : null,
+    }).match;
+    if (!match) return [];
+    return match.prices.map((p) => ({
+      retailer: p.store,
+      price: p.amount,
+      currency: p.currency,
+      observedAt: p.observedAt,
+      seenOn: p.observedAt.slice(0, 10),
+      url: p.url,
+      hasLink: p.url !== null,
+      kind: p.kind,
+      from: p.from,
+      trusted: p.trusted,
+      source: OWN_DATA_SOURCE,
+      sizeValue: null,
+      sizeUnit: null,
+      packCount: null,
+      memberOnly: null,
+      marketplace: null,
+    }));
+  } catch (err) {
+    logError({ where: 'identify.own_prices_by_barcode', deviceId: device, scanId: null, err });
+    return [];
+  }
+}
+
+/**
  * What the catalogue says a barcode is, in the shape the price engine takes.
  *
  * Added 2026-09-14 after the founder's phone showed `/api/identify` naming a
@@ -2901,6 +3002,23 @@ export const server = createServer(async (req, res) => {
       const overLimit = gtin ? await scanLimitRefusal(device, req.headers) : null;
       if (overLimit) return json(402, overLimit);
 
+      /*
+       * Shin's own prices for this barcode, read BEFORE the model is called and
+       * attached to whatever comes back, a failure included. Empty unless
+       * SHIN_BARCODE_OWN_PRICES is set, because a barcode answering from our own
+       * data is his call and he has not made it: `BARCODE_OWN_PRICES` above is
+       * the one line that changes that, and the comment there says why.
+       *
+       * It is read before the call rather than after, for one reason. There are
+       * two ways the model gives nothing: it can throw, which returns a failure
+       * answer several lines below and would skip a lookup written after it, and
+       * it can come back unparsed, which carries on through the normal path with
+       * `failure: model_client_error` on the answer. Measured, the second is the
+       * common one. Both now carry our price, and that is the case the price is
+       * worth the most in, because it is the only thing left to show a person.
+       */
+      const ownOffers = gtin ? ownOffersForBarcode(gtin, device) : [];
+
       let completed: Completed;
       try {
         const mod = await geminiScanModule();
@@ -2930,6 +3048,10 @@ export const server = createServer(async (req, res) => {
           reason: 'model_client_error',
           lowConfidence: true,
           confidenceReasons: ['no_answer:model_client_error'],
+          // A price we already hold is worth more here than anywhere else: the
+          // model gave nothing, so this is all there is. Absent unless the flag
+          // above is set.
+          ...(ownOffers.length ? { ownOffers } : {}),
         });
       }
       scanForLog = completed.scanId;
@@ -2959,10 +3081,17 @@ export const server = createServer(async (req, res) => {
           payload: { scanId, source: gtin ? 'barcode' : 'text', failure: completed.run.failure, readAs: label?.label ?? null },
         });
       }
-      const wire = wireFor(completed, groundedOwner(device), device);
+      const baseWire = wireFor(completed, groundedOwner(device), device);
+      const wire =
+        ownOffers.length && baseWire && typeof baseWire === 'object' && 'block' in baseWire && baseWire.block
+          ? {
+              ...baseWire,
+              block: { ...baseWire.block, offers: [...baseWire.block.offers, ...ownOffers] },
+            }
+          : baseWire;
       // The cashier line (src/price-match-line.ts). The store name is read for this answer only, never kept past consent.
       const priceMatch = priceMatchLine(
-        completed.block.offers,
+        [...completed.block.offers, ...ownOffers] as typeof completed.block.offers,
         pickText('storeName')?.trim() || where.storeName,
         completed.mod.readShelfPriceCents(pick('shelfPriceCents')),
       );
@@ -2984,6 +3113,7 @@ export const server = createServer(async (req, res) => {
         ...(priceQuery ? { priceQuery } : {}),
         ...(unchecked ? { unchecked } : {}),
         ...answerMarks(completed),
+        ...(ownOffers.length ? { ownOffers } : {}),
         grounded: wire,
       });
     }
