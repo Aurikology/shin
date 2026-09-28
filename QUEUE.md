@@ -307,7 +307,7 @@ marks are that document's section 3, fixed before the run.
 | **7B.14 The 50-barcode paired test, both arms, per-row table, against the five fixed thresholds** [Claude] | `queued`, needs 50 real barcodes (7B.1) | Ship, fix or kill stated against thresholds written before the run. | Below 35 of 50 matched, more than 2 confidently wrong, or slower than today's call at the shelf: the design goes back, not patched. | Not applicable while queued. |
 | **7B.15 Switch the cheaper lookup on for a slice of live scans** [Jamin] | `queued`, after 7B.14 passes | Cost per scan on the slice, measured, against the test's figure. | Not applicable. | Not applicable while queued. |
 | **7B.16 Moderate the 874 shopper-typed prices and show them, labelled as from shoppers** [Jamin or Aurik moderates, Claude builds] | `queued` | A moderation pass exists and the labelled prices render. | A first pass finds too many wrong or bad-faith rows to trust. | Not applicable while queued. |
-| **7B.17 Jamin's calls: Shin's own catalogue on the barcode path; whether the no-Claude rule covers an unseen matching call; cheap answers without a reviews line** [Jamin] | `queued` | Each answered in `docs/decisions.md`. | Not applicable. | Not applicable while queued. |
+| **7B.17 Jamin's calls: Shin's own catalogue on the barcode path; whether the no-Claude rule covers an unseen matching call; cheap answers without a reviews line** [Jamin] | `partly answered`: own catalogue prices on the barcode path, YES 2026-09-26; the no-Claude question is moot, Claude is the price-range fallback with no web search (2026-09-28); the reviews line still open | Each answered in `docs/decisions.md`. | Not applicable. | Not applicable while queued. |
 
 ## Never in the loop, at any pass
 

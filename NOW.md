@@ -11,7 +11,8 @@ History moved out of NOW.md on 2026-09-27: `docs/archive/now-history-2026-09-27.
 The catalogue build plan has run (`docs/catalogue-build-plan-2026-09-26.md`). Every unit is built,
 parked with a number, or killed with the number that killed it. Built and verified: 0, 2, 3, 5,
 6a, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18. Parked: 1, 6b, 10, three of 12's four sources. Killed
-by its own falsifier: 4 (Metro, 95.4% disagreement). **Waiting on one sentence from him: unit 16.**
+by its own falsifier: 4 (Metro, 95.4% disagreement). Unit 16 answered YES 2026-09-26 (RULINGS.md, "A scanned barcode answers with Shin's own prices
+too"); whether the Mac server has it on is being checked (mail 20260928011752-pc-32d55a).
 
 The catalogue tonight: 4,289,929 products, 473,773 of them sold in Canada. The phone's Canadian
 pack is 473,677 rows, 6.50 MB brotli, 0 duplicate and 0 out-of-order keys (the pack shipping before
@@ -63,9 +64,12 @@ the key", read it as the paid one.
 
 ## Waiting on Jamin or Aurik
 
-- **Jamin:** the paid Gemini key (above, standing since 2026-09-15). Unit 16 of the catalogue
-  plan, one sentence.
-- **Aurik:** nothing new open here beyond his assigned `QUEUE.md` bands.
+- **Jamin:** the paid Gemini key (above, standing since 2026-09-15), needed only by the running
+  beta until catalogue-first is on.
+- **Aurik:** his half of the catalogue-first flip (Jamin gave his 2026-09-28, with the Gemini range
+  ask capped to 0), and rebuilding the range ask on Claude with no web search.
+- **The Mac:** verify own prices on barcode scans and flip catalogue-first on (mail
+  20260928011752-pc-32d55a, 2026-09-28, no receipt yet).
 - **The Mac (asked by mail 2026-09-27, no receipt yet):** is SHIN_GEMINI_TIER paid (unset or free
   refuses every shopper photo), SHIN_REQUIRE_DB, SHIN_GEMINI_GROUNDED_MODEL, and SHIN_GEMINI_SPLIT;
   then pull main and restart the beta server (becf7d8 removed the 2.5 split).
@@ -74,4 +78,4 @@ the key", read it as the paid one.
 
 1. Ship `QUEUE.md` bands 7 and 7B to get to 10-20 testers.
 2. Once the paid key lands, re-measure retrieval before building against the old 32/52 number.
-3. Get Jamin's sentence on catalogue unit 16 and close the catalogue plan out fully.
+3. Confirm unit 16 is live on the Mac server and close the catalogue plan out fully.

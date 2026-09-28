@@ -12,7 +12,9 @@ prices, else its category's range. When Shin has no price, Claude is asked for a
 range from its own knowledge, with no web search, capped per month, to save credits. Gemini is not
 used in this version, for identity or price. Every new feature is planned without Gemini. The beta
 keeps today's Gemini behaviour until one setting flips, which both founders decide; the code behind
-it is Aurik's. · 2026-09-28 · Jamin: *"this is probably the 10th time saying this, we are not using gemini, we are using claude for a typical range without having it search the web, this way we save a lot of credits"* · 2026-09-27 · Jamin: *"why do you still think we use gemini, even after all the work done yesturday"* (09-26: *"there seems to be a communication problem, why are you still thinking about gemini"*); Aurik: *"THAT IS THE PLAN WE WILL FOLLOW, WE ARE SHIFTING SHIN AND THAT IS THE MOST RECENT PLAN"* · log: docs/decisions.md#Catalogue first, Gemini a capped fallback
+it is Aurik's. Jamin's half is given: flip it on now, with the Gemini range ask capped to 0 until
+the Claude one is built (2026-09-28, *"do 3 and 4"*, 3 being confirm scanned barcodes show Shin's
+own prices, 4 being flip catalogue-first on); Aurik's is not yet recorded. · 2026-09-28 · Jamin: *"this is probably the 10th time saying this, we are not using gemini, we are using claude for a typical range without having it search the web, this way we save a lot of credits"* · 2026-09-27 · Jamin: *"why do you still think we use gemini, even after all the work done yesturday"* (09-26: *"there seems to be a communication problem, why are you still thinking about gemini"*); Aurik: *"THAT IS THE PLAN WE WILL FOLLOW, WE ARE SHIFTING SHIN AND THAT IS THE MOST RECENT PLAN"* · log: docs/decisions.md#Catalogue first, Gemini a capped fallback
 Retired wording: `no catalogue-first free path`, `The server calls Gemini for identity`, `Gemini is still called on every scan`, `catalogue-pick identify pipeline is retired`, `Gemini is only a monthly-capped`
 Governs: to fill (the one setting Aurik's session is adding)
 ### Gemini switch and call architecture
