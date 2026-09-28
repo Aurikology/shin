@@ -112,6 +112,12 @@ identified gaps (catalogue/price coverage, prompting strategy) being fixed first
 a product already known to be incomplete there. · 2026-09-11 · *"Can we use multiple llms like grok and claude together since grok is cheaper? How can we prompt to ensure efficiency with credit and effective answers"* (*"i'm not asking you to build a plan, i want you to figure out how to build the plan"*; *"there a many things you should be doing before these. These are mostly tests on a product we know isn't ready"*) · 2026-09-12: *"reviews should be gathered alongside the api call"* · log: to fill
 Retired wording: none
 Governs: to fill
+### Explaining how Shin works: the docs are the source, not the code
+When he asks how Shin works, what the plan is, or what a shopper will see, answer from the current
+documentation (RULINGS.md, NOW.md, QUEUE.md, docs/decisions.md, the latest comms messages). Do not
+send agents through the app code to answer it. · 2026-09-28 · *"it shouldn't have to go through code, you can just look at the current documentation"* · *"you just need to give me a high level rundown"*
+Retired wording: none
+Governs: to fill
 ## Prices and verdicts
 ### A scanned barcode answers with Shin's own prices too
 YES. A barcode scan's offers list now includes Shin's own collected prices, each marked as Shin's
