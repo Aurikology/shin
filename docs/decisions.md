@@ -2346,3 +2346,18 @@ bars the words good and bad without measured testing. The new ruling keeps that 
 force until he decides.
 
 **Reverses if:** he says so.
+
+## How a Shin system is designed (2026-09-28)
+
+His words, 2026-09-28, correcting a design process that listed steps with nothing tying them
+together: *"There should be something that guides you in one direction: what is the purpose of each
+one of these stages. are there going to be checks in place? how are you going to find if something
+works or doesn't work. Instead of designing everythign yoruslef, everythign is avaliable on the
+internet"*. Recorded in RULINGS.md. The ruling judge named one narrower entry, rewritten:
+
+- "Decision-analysis and calibration discipline": old text *"Before refining a design, research
+  existing open-source tools and how other companies solve the same problem."* Now: before designing
+  anything, research what already exists, pointing to the new entry. Third time he has asked for this
+  (2026-09-22, and twice on 2026-09-28).
+
+**Reverses if:** he says so.

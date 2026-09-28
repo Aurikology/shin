@@ -636,10 +636,18 @@ tech, testable, not a reason to devalue the plan. Simplification is judged by wh
 complicated to build): steps that are low-level, simple to build and near impossible to get wrong,
 such as sorting into categories, count as simple even when time-consuming. An audit for contradictions checks his
 full instruction history, not just the item most recently raised, and watches for logical fallacies
-specifically. Before refining a design, research existing open-source tools and how other companies
-solve the same problem. Project timeline and history are stated only from verified fact, never
+specifically. Before designing anything, research what already exists (see "How a Shin system is
+designed"). Project timeline and history are stated only from verified fact, never
 hallucinated. An invented rule or figure is never attributed to him as something he said.
 · 2026-09-03 · *"Just because a competitor already builds something, doesn't mean we can't build the exact same feature... if your why is that competitors already do that, you should know to ask why again"* (2026-09-04: *"olma's model is accurate... just because olma is not popular doesn't mean the idea is dead"*; 2026-09-05: *"Don't fall for logical fallacies: even thouse meaning search failed at one test doesn't mean it shouldn't be used in the product at all"*; 2026-09-06: *"crticially analyse this against what i've been asking for in this repo... consider... faults with logical fallacies"*; *"a price the app cannot source is absent, not estimated. $20 is not my number, i never stated it"*; 2026-09-11: *"you seem to be hallucinating a lot with timing"*; 2026-09-19: *"contradictions are not just limited to these, i'm talking about contradictions of instructions i gave"*; 2026-09-22: *"You also didn't look at what open source tools exist or research how other companies online do it"*; 2026-09-26: *"you failed to consider... underlying intentions"*) · log: to fill
+Retired wording: none
+Governs: to fill
+### How a Shin system is designed
+One guiding purpose comes first and every stage serves it. Each stage states what it is for, the
+checks in place on it, and how it is found to work or not work. Before designing anything, research
+what already exists on the internet (tools, datasets, papers, how shipped products do it and measure
+it): it has high reference value even where Shin builds its own, so the design is never invented
+from scratch. · 2026-09-28 · *"There should be something that guides you in one direction: what is the purpose of each one of these stages. are there going to be checks in place? how are you going to find if something works or doesn't work. Instead of designing everythign yoruslef, everythign is avaliable on the internet, what things on the internet can provide value twoards what you are building. Even if something is already built, things on the internet still have very high refernce value"* · 2026-09-22: *"You also didn't look at what open source tools exist or research how other companies online do it"* · log: docs/decisions.md#How a Shin system is designed
 Retired wording: none
 Governs: to fill
 ### Build only when asked; decide small things without stalling
