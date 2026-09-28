@@ -2297,3 +2297,30 @@ decisions"*; each rewrite follows his words and keeps what they do not touch.
   2026-09-27 catalogue-first plan is how it returns.
 
 **Reverses if:** he says so.
+
+
+## No used goods, and sources chosen by what users scan (2026-09-28)
+
+His words, 2026-09-28: *"we are not going to be scanning used goods"*, and earlier the same night
+*"consider what users are actrually going to be using shin for"*. Recorded in RULINGS.md under
+"Catalogue scope" and "Mission and principles". The ruling judge named four entries that said
+otherwise; each was rewritten and its old text is kept here.
+
+- "Attribution, provenance and correction data": old text *"eBay's Browse API answers only for
+  used/tech, asking prices only, filtered to Canadian fixed-price listings, never for groceries."*
+  Now: eBay gives no answer, because Shin does not scan used goods.
+- "Product identity and catalogue matching": old text *"Alternatives split validation (farm/used
+  price can still validate) from genuine switching (rejected)"*. Now: a farm price can still
+  validate; a used price cannot.
+- "What the price line covers": old text *"marketplace/US listings stay off the price line"*. Now
+  used or resale prices stay off it too.
+- "Price feed sourcing": old text *"categories chosen for official APIs over blocked
+  direct-retailer fetches"*. Now sources are chosen for what users will scan (new products in
+  stores), and among those an official API comes before a blocked direct-retailer fetch. The
+  no-evasion line is unchanged.
+
+Not rewritten, flagged: `docs/the-vision.md` still lists "used" among the four kinds in the code,
+and the 2026-09-03 research memo made second-hand electronics its first "Ship" class. Both were
+written before this ruling; RULINGS.md wins.
+
+**Reverses if:** he says so.

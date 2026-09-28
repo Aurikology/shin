@@ -193,7 +193,7 @@ Governs: identify/src/gauge.ts (LONE_CLAIM_CEILING, LONE_CLAIM_FLOOR)
 With no asking price, Shin shows a neutral going-rate card instead of refusing. Nearby-cheaper and
 dupe features are out of v1 (no verified store-level feed/location; category volume too thin).
 Of twelve awkward item kinds specified, only four reach beta (sold by weight, store brands, deals,
-member prices); marketplace/US listings stay off the price line. Background enrichment writes a
+member prices); marketplace/US listings and used or resale prices stay off the price line. Background enrichment writes a
 later, better answer into its own column with its own timestamp; the value the user was first shown
 never changes. More generally, Shin never prints a claim it cannot back with a real feed: no "in
 stock", no "cheaper 1.2 km away", nothing beyond what a chain's actual per-store feed supports.
@@ -202,8 +202,9 @@ Retired wording: `no_asking_price refusal`
 Governs: to fill
 ## Catalogue and data sources
 ### Price feed sourcing: real feed, official APIs, no evasion
-Shin ships a real price feed from day one, never live search for it; categories chosen for
-official APIs over blocked direct-retailer fetches. Walmart's crawl dropped search() (robots.txt
+Shin ships a real price feed from day one, never live search for it; sources are chosen for what
+users will scan (new products in stores, 2026-09-28), and among those an official API comes before
+a blocked direct-retailer fetch. Walmart's crawl dropped search() (robots.txt
 disallows /search?*) for the product sitemap (~217,660 SKUs); an unjoined observation keeps the
 seller's own barcode to rejoin later. Crawl rate was never measured: the residential address gets
 a PerimeterX challenge outlasting 13+ hours idle; rotating addresses/spoofing headers is ruled out,
@@ -219,7 +220,7 @@ rather than chasing every method at once. ·
 2026-09-26 · *"keep searching for EVERYTHING we can possibly do to build up our catalogue. think
 crazy, unreasonable things, i need you to think outside of the box, even to the point of manually
 reading through websites. Think really really outside the box"* · 2026-09-13 · log: docs/decisions.md#Never circumvent a bot block, and now for a second reason · 2026-09-11: *"Expand our product catalogue by finidng all possible methods to gain more infomation(product and price catalogue come hand in hand, knowing the product without the price is meaningless)"* · 2026-09-26: *"we need more items in the catalogue"*
-Retired wording: `roughly ten minutes lockout`, `search() in walmart.ts`
+Retired wording: `roughly ten minutes lockout`, `search() in walmart.ts`, `categories chosen for official APIs`
 Governs: price/src/walmart-sitemap.ts (discoverSkus, --indexes)
 
 ### Task-list split: Aurik owns the heart-marked items, the rest are the founder/assistant's
@@ -247,13 +248,13 @@ call is only the fallback, and the answer records which was used (open: snapshot
 matched scan attaches at the closest of two stored quantities, converting units but keeping the
 original; user data is never fully trusted; an unknown product becomes a new grouped entry, stored
 per store branch. Substitutes draw on leaf category, one step to parent if empty, never
-grandparent, labelled when looser. Alternatives split validation (farm/used price can still
+grandparent, labelled when looser. Alternatives split validation (a farm price can still
 validate) from genuine switching (rejected); tech items are never compared by weight. Produce
 stays refused, promoted once two independent shopper reports clear the existing thresholds.
 Furniture is a named, unresolved coverage gap raised alongside tech and produce, both answered
 above. The category tag is stored lower-cased on match. A store is never counted as its own price
 competitor. · 2026-09-21 · log: docs/decisions.md#Nine rulings so the competitor-survey build could start (item 5 addendum, Aurik's answer 2026-09-21) · 2026-09-03: *"why does it not work for new tech, furniture and fresh produce"* · 2026-09-05: *"Lower-case the category tag on match"* · 2026-09-11: *"A store is never counted as its own competitor"*
-Retired wording: none
+Retired wording: `farm/used price can still validate`
 Governs: catalogue/, product.ring field (leaf/parent)
 ### Catalogue scope: in, out, and parked
 MVP mode (09-26): build only what is accessible and actually needed right now; skip low-ROI
@@ -270,7 +271,9 @@ stays parked at 718,662 of 5,182,591 products; word search already covers all pr
 Shin finds the price of anything, not only groceries: food, furniture, tech and more (Jamin
 2026-09-03 *"we are not only scanning food but also furniture, tech and much more"*, 09-06 *"its a
 search and find the price of anything app"*, 09-11 *"don't forget that we don't just focus on
-groceries"*). Books, music and Discogs records are parked for the MVP as low return for now (09-26
+groceries"*). Shin does not scan used goods: new products only, so used and resale prices, sold
+listings and marketplace listings are out of scope, not parked (2026-09-28 *"we are not going to be
+scanning used goods"*). Books, music and Discogs records are parked for the MVP as low return for now (09-26
 *"we will take whats accessible and leave the low roi items for later"*), not because of scope;
 they come back the first time the miss log records an ISBN or music barcode. Shin is global from the
 start, not Canada-only: same-country products compare, cross-country generally does not, except
@@ -284,14 +287,14 @@ Allergen comparisons stay two-state (the source can't say "checked and clean"); 
 never filter. A price row may name the shop it was seen in plus a date, joined by barcode and a
 store name: this is provenance, not the nearby-cheaper feature. Open Prices' contributor handle is
 deliberately not stored; ODbL attribution names the source databases, frozen in attribution.ts, not
-assembled from live data. eBay's Browse API answers only for used/tech, asking prices only, filtered
-to Canadian fixed-price listings, never for groceries. A price a person types into the correction
+assembled from live data. eBay's Browse API gives no answer: Shin does not scan used goods
+(2026-09-28). A price a person types into the correction
 screen enters the next verdict's comparison set; one person/shop/product/day overwrites rather than
 duplicates, a shop name is required, sale-price is a separate opt-in flag. Best Buy's API key is
 likewise a live seller-price source, not catalogue data. An invented "in stock" flag and inaccurate
 allergen wording are hard-rule problems (fabricated evidence), fixed on sight, never deferred behind
 another feature. · 2026-09-05 · log: docs/decisions.md#A price somebody types in is a price, and it reaches the next verdict · 2026-09-05: *"Best Buy and eBay keys are free, but those are not catalogues. They return live prices, so they belong with the other sellers, not in the product table."*; *"Fix the invented stock flag and the allergen wording. Both are hard-rule problems that exist now and neither waits on this feature."*
-Retired wording: `gate keyed on openprices denylist`, `collected, applied to nothing yet`
+Retired wording: `gate keyed on openprices denylist`, `collected, applied to nothing yet`, `answers only for used/tech`
 Governs: app/src/attribution.ts
 ## Money and plans
 ### Scans are not metered in v1
@@ -553,7 +556,10 @@ final; the only hard constraint is the law. The backend vision every improvement
 something users want and become reliant on, and make money. A "moonshot" for Shin means the hardest
 realistic thing a small company and a founder of his influence could pull off by ordinary means,
 never something literally impossible. Shin is built to hold up long-term, not just for a demo. MVP
-direction: simplify and stop chasing perfection over an elegant, complicated system.
+direction: simplify and stop chasing perfection over an elegant, complicated system. Data sources,
+features and next steps are chosen from what users will actually use Shin for, never from which
+data is cleanest, most official or cheapest to get (2026-09-28 *"consider what users are actrually
+going to be using shin for"*).
 · 2026-09-04 · *"useful to the user, easy to use, and visually appealling"* (2026-09-03: *"there are no hard rules outside things like breaking the law. Nothing should be final"*; 2026-09-06: *"create something that users will want and become reliant on and to make money"*; *"i wanted the moonshot to be something thats impossible to achieve for an app and a small comapny with people of my influence. Yours is impossible to achieve unless i have supernatrual abilities"*; 2026-09-22: *"make sure shin works for the future"*; 2026-09-26: *"We want to simply everything and stop chasing perfection"*) · log: CLAUDE.md#intro
 Retired wording: none
 Governs: to fill
