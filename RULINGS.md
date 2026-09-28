@@ -8,8 +8,9 @@ Shin names a product from its own catalogue: a barcode by lookup; anything else 
 piece of text on the object (price tag, cereal box, container) and searching the catalogue with it,
 returning the top 3 for the shopper to pick, never one row forced out of millions; manual entry
 when nothing matches. The price range comes from Shin's own data by math: the product's own
-prices, else its category's range. When Shin has no price, Claude is asked for a typical price
-range from its own knowledge, with no web search, capped per month, to save credits. Gemini is not
+prices, else a prediction through its categories (see "How Shin predicts a price it has not
+seen"). When that gives nothing, Claude is asked for a typical price range from its own knowledge,
+with no web search, capped per month, to save credits, and every answer is saved as data. Gemini is not
 used in this version, for identity or price. Every new feature is planned without Gemini. The beta
 keeps today's Gemini behaviour until one setting flips, which both founders decide; the code behind
 it is Aurik's. Jamin's half is given: flip it on now, with the Gemini range ask capped to 0 until
@@ -146,6 +147,19 @@ with the unmeasured-claims ban below (No savings claim ships until it is measure
 one that actually shipped. · 2026-09-15 · *"Having a repsonse that is not checked is infinitly better than having the user scan something, wait 10 seconds, only to get told the app doesn't know, because that will make the user just uninstall the app"* · log: docs/jamin-gemini-rules.md#the-rules-in-jamins-words-from-2026-09-15 · 2026-09-06: *"If its a name brand that we don't have info on, we can take the average mark up for name brands and apply it to the product... on average, our pro model can correctlly identify 99% of items and find their exact price, store, your nearest good deal, ratings. On average, our pro users save 1000 dollars a year."*
 Retired wording: `a wrong verdict is worse than no verdict`
 Governs: to fill
+### How Shin predicts a price it has not seen
+Priority now is a product that always gives an answer; accuracy is deferred, not ignored. Prices
+are predicted through nested categories, subcategories and deeper, split as the assistant designs:
+a group whose prices vary little (apples, oranges) stays whole, one that varies a lot (wine) is
+split further. Priced products inform unpriced ones, including known relationships (one product
+typically costing so much less than another). Ranges start broad while data is thin and narrow as
+price coverage grows. Every Claude answer a shopper's scan produces is saved to improve the server
+data. Each data source carries its own confidence level, set by the assistant. Seeding may use
+Jamin's Gemini Pro subscription offline (not a runtime call in the app): a long list of the items
+that most affect others, asked for their price ranges. · 2026-09-28 · *"We need to provide a product that at least gives an answer"* · *"a set of products will typically have a set of price variation. An orange or an apple will probably have similar price variation. However, something like wine will have far more price variation"* · *"I have access to gemini pro and unlimited tokens on it, you can very well create a long list of items(important items that affect others) and ask it for the price ranges"*
+Retired wording: none
+Governs: to fill (price/src/range.ts is the first version)
+
 ### The price line speaks the shopper's own range, never Shin's opinion
 Zone words name where the shelf price falls against the shopper's own set thresholds (defaults 10%
 under/over), returned as neutral codes (under_your_line, middle, over_your_line), never
