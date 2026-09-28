@@ -2324,3 +2324,25 @@ and the 2026-09-03 research memo made second-hand electronics its first "Ship" c
 written before this ruling; RULINGS.md wins.
 
 **Reverses if:** he says so.
+
+## The price answer must tell the shopper whether the price is good (2026-09-28)
+
+His words, 2026-09-28: *"The user is looking for validation for whether or not a product is a good
+price or a bad price. And if we are not able to give A valuable answer, then our entire system is
+useless."* Recorded in RULINGS.md with the two rulings of the same message ("Priced store items that
+match no barcode still train prices", "Everything is an assumption until tested"). The ruling judge
+named two entries as narrower; each was rewritten and its old text is kept here.
+
+- "Catalogue first; Claude, with no web search, is the capped price-range fallback": old text
+  *"The price range comes from Shin's own data by math: the product's own prices, else a prediction
+  through its categories"*. Now the prediction draws on every data point Shin holds.
+- "How Shin predicts a price it has not seen": old text *"Each data source carries its own
+  confidence level, set by the assistant."* Now that level is a starting guess replaced by measured
+  accuracy, shopper reports are weighted by how well they check out, and machine-learning prediction
+  is considered and used only after beating the simpler method on a held-out test.
+
+Not rewritten, flagged to him: "The price line speaks the shopper's own range, never Shin's opinion"
+bars the words good and bad without measured testing. The new ruling keeps that wording rule in
+force until he decides.
+
+**Reverses if:** he says so.

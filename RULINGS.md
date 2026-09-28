@@ -8,8 +8,8 @@ Shin names a product from its own catalogue: a barcode by lookup; anything else 
 piece of text on the object (price tag, cereal box, container) and searching the catalogue with it,
 returning the top 3 for the shopper to pick, never one row forced out of millions; manual entry
 when nothing matches. The price range comes from Shin's own data by math: the product's own
-prices, else a prediction through its categories (see "How Shin predicts a price it has not
-seen"). When that gives nothing, Claude is asked for a typical price range from its own knowledge,
+prices, else a prediction from every data point Shin holds (see "How Shin predicts a price it has
+not seen" and "The price answer must tell the shopper whether the price is good"). When that gives nothing, Claude is asked for a typical price range from its own knowledge,
 with no web search, capped per month, to save credits, and every answer is saved as data. Gemini is not
 used in this version, for identity or price. Every new feature is planned without Gemini. The beta
 keeps today's Gemini behaviour until one setting flips, which both founders decide; the code behind
@@ -155,7 +155,10 @@ a group whose prices vary little (apples, oranges) stays whole, one that varies 
 split further. Priced products inform unpriced ones, including known relationships (one product
 typically costing so much less than another). Ranges start broad while data is thin and narrow as
 price coverage grows. Every Claude answer a shopper's scan produces is saved to improve the server
-data. Each data source carries its own confidence level, set by the assistant. Seeding may use
+data. Each data source carries its own confidence level, set by the assistant as a starting guess
+and replaced by its measured accuracy; shopper reports are weighted by how well they check out.
+Machine-learning and neural-network prediction are considered, and used only after beating the
+simpler method on a held-out test. Seeding may use
 Jamin's Gemini Pro subscription offline (not a runtime call in the app): a long list of the items
 that most affect others, asked for their price ranges. · 2026-09-28 · *"We need to provide a product that at least gives an answer"* · *"a set of products will typically have a set of price variation. An orange or an apple will probably have similar price variation. However, something like wine will have far more price variation"* · *"I have access to gemini pro and unlimited tokens on it, you can very well create a long list of items(important items that affect others) and ask it for the price ranges"*
 Retired wording: none
@@ -169,6 +172,16 @@ a price data point: the price spread of its category and subcategories, and the 
 Sale prices are kept too, marked as sales. · 2026-09-28 · *"If it doesn't match with anything in the catalog, since the item doesn't come with a barcode, you cannot automatically add it to the catalog. However, what you can do is use it to train the price data. You can use it to train the price variation for subcategories. You can use it to train prediction models. In fact, these are very accurate and valued prices."*
 Retired wording: none
 Governs: to fill (price/src/range.ts reads no row without a barcode and no sale row today; docs/price-data-design-2026-09-28.md)
+
+### The price answer must tell the shopper whether the price is good
+The range a shopper sees is built from every data point Shin holds: store prices, store items with
+no barcode, sale prices, shopper reports weighted by how well they check out, from any site and any
+category, electronics included. It exists to tell the shopper whether the price in front of them is
+a good one or a bad one; an answer that cannot separate the two makes the system useless, however
+accurate it is. Until that is measured, the words shown stay under "The price line speaks the
+shopper's own range, never Shin's opinion" (open question to Jamin, 2026-09-28). · 2026-09-28 · *"How do the price ranges we return to the user get determined from all the data points we have? After all, it is very important to remember what the user actually wants. The user is looking for validation for whether or not a product is a good price or a bad price. And if we are not able to give A valuable answer, then our entire system is useless."* · *"How will you handle future data that comes from other sites? How will you handle electronics?"*
+Retired wording: none
+Governs: to fill (docs/price-data-design-2026-09-28.md, section 8)
 
 ### Everything is an assumption until tested, and a test can be wrong
 Nothing about the catalogue, a match, a price or a model is treated as true until a test has checked
