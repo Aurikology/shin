@@ -147,3 +147,48 @@ with one line of reason. Output is a CSV back, parsed strictly (a row it skipped
 4. Stage 5 text CSV, then the image pass for ties, each scored paired against the stage before.
 5. Stage 6 writes, only after the bar is met.
 6. Stage 1 for plain screenshots, when screenshots without links arrive.
+
+## Test results, version 1, 2026-09-28: the bar is NOT met
+
+Asked by Jamin 2026-09-28: *"test your system"*. Prototype scripts (Python, read-only against
+`catalogue/data/catalogue.db`) were built for stages 1, 3, 4 and 5 and run on all 898 products. Tuning
+used only the first 20 answer-key products; the pipeline was frozen before any held-out answer was read.
+
+**Held-out answer key:** 300 products drawn at random (seed 20260928) from the 874 not used for tuning.
+Walmart showed its bot check after 77 pages read at 3 s apart ("Verify Your Identity"), so 77 are
+scored here; the rest are being read at 6 s apart and will serve as the test set for version 2.
+
+| Stage | Result on 77 held-out products |
+| --- | --- |
+| 1. Intake | 898 products, 894 named, 872 priced. **88 printed names belonged to the neighbouring tile** (a link rectangle overlaps the next tile's text); fixed by taking the full title from the product link. Prices were not checked against the page and may carry the same fault. |
+| Catalogue coverage | **21 of 77 (27%) have a barcode that is not in the catalogue at all**: fresh produce and herbs, Walmart's own "Your Fresh Market", imports, a toaster, two loose-produce store codes. No matcher can match these. |
+| 3. Shortlist | Right product in the top 10 for **39 of 56 (70%)**. Below the 80% kill line. |
+| 4. Checker alone | 4 accepted without review, **1 wrong**. |
+| 5. Gemini 3.1 Pro (extended thinking), 300 rows in 6 chunks via the Gemini app | Picked a letter 21 times: **15 right, 6 wrong**. Said NONE 41 times (10 of them when the right product was in its list), UNSURE 15 times. |
+| 6. Accept rule | **21 accepted, 6 wrong. 95% range of the wrong rate 13.8% to 50.0%.** Bar: upper end at most 2%. Two of the 21 not-in-catalogue products still got a match. |
+
+**Why the shortlist missed (17 of 56):** 6 true rows carry only a French name ("Graines de sésame",
+"Gingembte moulu", "Pomme de terre tranchees"); 6 brand spellings differ from the title ("Hunts",
+"Sun Chips", "Kraft Canada", "Nestlé" for Nesquik, "General Mills" for Cinnamon Toast Crunch, "QUIRKER");
+3 lists were filled by junk rows named just "Great value" or ten rows named "Heinz"; 1 size stored as
+"250" with no unit; 1 other.
+
+**The six wrong accepts, read one by one:** a Great Value hazelnut spread whose true row is named in
+French; Tilda basmati picked at 240 g where the true row is 250 g; Great Value coconut oil whose true row
+is named just "Great Value"; Great Value crushed chili whose true row has no brand. Two more look like
+the same product under a second barcode (Your Fresh Market mini yellow potatoes 680 g, Yupik organic
+French lentils): Walmart's page carries a barcode the catalogue lacks, while the catalogue holds a row
+with the same brand, name and size. That is unverified from here; even counting both as right, 4 of 21
+wrong is far above the bar.
+
+**What this says, per the design's own kill line:** text matching plus a text-only Gemini review is not
+good enough to attach prices by name, on this catalogue, today. The two largest causes are in the
+catalogue, not the matcher: French-only names and junk names on store-brand rows, and a quarter of
+Walmart's grocery products missing entirely. Until version 2 meets the bar on fresh products, only
+stage 2 (barcode read from the store's own page) attaches prices; everything else is kept as unmatched
+price data, per the stage 6 ruling above.
+
+**Version 2, to be tested on the products the first run did not reach:** search `name_fr` and the
+semantic index as well as `name`; match brands loosely (apostrophes, "Canada" suffixes, owner names);
+drop rows whose name is only the brand; collapse identical rows before the top 10; the image pass for
+ties; and Gemini told that a size missing on one side is not agreement.
