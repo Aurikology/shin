@@ -1,0 +1,19 @@
+scorable 198, answered 136, skipped 62
+ALL: n=136  real price inside range 66 (49%)  typical within 20% 83 (61%)  median typical/real 1.04  worst low 0.20 worst high 2.14  median range width 24% of typical
+BC (no size in name): n=66  real price inside range 31 (47%)  typical within 20% 37 (56%)  median typical/real 0.97  worst low 0.52 worst high 2.14  median range width 25% of typical
+NB (size in name): n=70  real price inside range 35 (50%)  typical within 20% 46 (66%)  median typical/real 1.10  worst low 0.20 worst high 1.89  median range width 24% of typical
+under $30 real: n=67  real price inside range 36 (54%)  typical within 20% 42 (63%)  median typical/real 1.10  worst low 0.60 worst high 2.14  median range width 24% of typical
+$30-$100 real: n=38  real price inside range 17 (45%)  typical within 20% 25 (66%)  median typical/real 1.03  worst low 0.55 worst high 1.84  median range width 22% of typical
+$100+ real: n=31  real price inside range 13 (42%)  typical within 20% 16 (52%)  median typical/real 0.87  worst low 0.20 worst high 1.39  median range width 29% of typical
+
+worst 8 misses (typical/real):
+  27 NB Rum's Revenge 1st edition 12 X 50ml                     real    249.99  gemini 39.99-59.99
+  120 NB Famous Grouse Collaboration 2013 edition by Vic         real    127.29  gemini 44.99-54.99
+  152 BC BACARDI - SUPERIOR WHITE                                real     13.99  gemini 26.99-32.99
+  97 BC LOT 40 - OLOROSO CANADIAN WHISKY                        real    115.99  gemini 54.99-64.99
+  147 BC MEURSAULT 1ER LES CRAS - PHILIPPE COLIN                 real    269.99  gemini 119.99-159.99
+  86 BC HIGHLAND PARK - 54 YEAR OLD                             real  67000.00  gemini 29999.99-39999.99
+  9 NB Picaroons Specialty Ale 500ml                           real      4.50  gemini 6.99-9.99
+  118 BC BAROLO RISERVA - PRUNOTTO BUSSIA VIGNA COLONNELLO 12    real    325.99  gemini 149.99-199.99
+
+skipped ids: [20, 21, 22, 43, 44, 45, 46, 47, 48, 64, 65, 66, 67, 68, 69, 70, 71, 72, 88, 89, 90, 91, 92, 93, 94, 95, 96, 112, 113, 114, 115, 116, 117, 133, 134, 135, 136, 137, 138, 139, 140, 141, 176, 177, 178, 179, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200]

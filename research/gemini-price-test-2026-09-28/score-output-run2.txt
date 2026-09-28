@@ -1,0 +1,19 @@
+scorable 198, answered 152, skipped 46
+ALL: n=152  real price inside range 81 (53%)  typical within 20% 92 (61%)  median typical/real 1.00  worst low 0.13 worst high 1.97  median range width 32% of typical
+BC (no size in name): n=75  real price inside range 36 (48%)  typical within 20% 45 (60%)  median typical/real 0.94  worst low 0.13 worst high 1.97  median range width 32% of typical
+NB (size in name): n=77  real price inside range 45 (58%)  typical within 20% 47 (61%)  median typical/real 1.09  worst low 0.20 worst high 1.66  median range width 31% of typical
+under $30 real: n=74  real price inside range 48 (65%)  typical within 20% 49 (66%)  median typical/real 1.07  worst low 0.13 worst high 1.82  median range width 31% of typical
+$30-$100 real: n=42  real price inside range 19 (45%)  typical within 20% 25 (60%)  median typical/real 1.03  worst low 0.54 worst high 1.97  median range width 29% of typical
+$100+ real: n=36  real price inside range 14 (39%)  typical within 20% 18 (50%)  median typical/real 0.80  worst low 0.20 worst high 1.20  median range width 34% of typical
+
+worst 8 misses (typical/real):
+  123 BC HEINEKEN SILVER - CAN                                   real     25.79  gemini 2.89-3.99
+  27 NB Rum's Revenge 1st edition 12 X 50ml                     real    249.99  gemini 39.99-59.99
+  120 NB Famous Grouse Collaboration 2013 edition by Vic         real    127.29  gemini 32.99-45.99
+  1 BC COMPASS BOX - BRULEE ROYALE                             real    299.99  gemini 119.99-159.99
+  13 BC VILLA ONE - SILVER TEQUILA                              real     37.97  gemini 64.99-84.99
+  147 BC MEURSAULT 1ER LES CRAS - PHILIPPE COLIN                 real    269.99  gemini 120.00-175.00
+  172 NB El Dorado Gift Pack 3 x 375ml                           real     90.99  gemini 39.99-58.99
+  152 BC BACARDI - SUPERIOR WHITE                                real     13.99  gemini 22.99-28.49
+
+skipped ids: [20, 21, 22, 43, 44, 45, 46, 47, 48, 64, 65, 66, 67, 68, 69, 70, 71, 72, 88, 89, 90, 91, 92, 93, 94, 95, 96, 112, 113, 114, 115, 116, 117, 133, 134, 135, 136, 137, 138, 139, 140, 141, 176, 177, 178, 179]

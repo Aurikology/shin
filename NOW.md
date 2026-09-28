@@ -29,6 +29,10 @@ five corrected readings) are in the archive under "CATALOGUE WORK, 2026-09-26":
 - After any category fill, restart the search workers: `rebuildCategories` invalidates their
   memoised tag sizes.
 
+**Pricing without data, 2026-09-28:** Jamin's nested-category design, the flawed first plan and
+why, and the Gemini liquor test (typical within 20% for 61%, its own ranges catch only 53%, 0.7x
+to 1.4x of its typical catches 80%; skips 23% of lines): `research/gemini-price-test-2026-09-28/`.
+
 ## What is being worked on: the tester launch
 
 What stands between the MVP and 10-20 testers is one list: `QUEUE.md` bands 7 (launch) and 7B (the

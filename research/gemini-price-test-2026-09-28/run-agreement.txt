@@ -1,0 +1,1 @@
+common 136 median diff 5% within 10%: 102 over 25%: 7
