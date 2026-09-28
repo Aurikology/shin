@@ -66,10 +66,10 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_BARCODE_OWN_PRICES', default: "'1' (on)", ruling: "A scanned barcode answers with Shin's own prices too" },
   // -- Caching and cancellation ------------------------------------------
   { env: 'SHIN_REPEAT_CACHE', default: "'data/repeat-cache.db'", ruling: 'Caching and cancellation' },
-  // -- Gemini spend cap: the dollar spend cap -----------------------
-  { env: 'SHIN_PHOTO_DAILY_CAP_CAD', default: '10 (CAD, soft cap)', ruling: 'Gemini spend cap' },
-  { env: 'SHIN_PHOTO_HARD_CAP_CAD', default: '10x the soft cap', ruling: 'Gemini spend cap' },
-  { env: 'SHIN_SPEND_CAP_STORE_PATH', default: 'identify/data/spend-cap.json', ruling: 'Gemini spend cap' },
+  // -- Model spend cap: the dollar spend cap -----------------------
+  { env: 'SHIN_PHOTO_DAILY_CAP_CAD', default: '10 (CAD, soft cap)', ruling: 'Model spend cap' },
+  { env: 'SHIN_PHOTO_HARD_CAP_CAD', default: '10x the soft cap', ruling: 'Model spend cap' },
+  { env: 'SHIN_SPEND_CAP_STORE_PATH', default: 'identify/data/spend-cap.json', ruling: 'Model spend cap' },
   // -- Shin Plus pricing and free scans ------------------------------------
   { env: 'SHIN_FREE_SCANS_PER_WEEK', default: 'unset/empty/0/NaN -> unlimited (off)', ruling: 'Shin Plus pricing and free scans' },
   // -- Record everything the user does -------------------------------------
@@ -83,11 +83,11 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_RATE_IP_PER_DAY', default: '600', ruling: 'Server-side guards and limits' },
   // -- v1 floor: what the MVP ships ------------------------------------------
   { env: 'SHIN_GEMINI_TIER', default: 'unset -> no photo identification', ruling: 'v1 floor: what the MVP ships, and how photo identification returns' },
-  // -- Catalogue first; Gemini is a capped fallback, never the identity -----
-  { env: 'SHIN_CATALOGUE_FIRST', default: "off; only '1', 'on' or 'true' turns it on", ruling: 'Catalogue first; Gemini is a capped fallback, never the identity' },
-  { env: 'SHIN_RANGE_ASK_MONTHLY_CAP', default: '1000 (asks per UTC month; 0 turns the ask off)', ruling: 'Catalogue first; Gemini is a capped fallback, never the identity' },
-  { env: 'SHIN_RANGE_ASK_CEILING_CENTS', default: '2000000 (highest high_cents accepted)', ruling: 'Catalogue first; Gemini is a capped fallback, never the identity' },
-  { env: 'SHIN_RANGE_ASK_STORE_PATH', default: 'identify/data/range-ask.json', ruling: 'Catalogue first; Gemini is a capped fallback, never the identity' },
+  // -- Catalogue first; Claude, with no web search, is the capped price-range fallback -----
+  { env: 'SHIN_CATALOGUE_FIRST', default: "off; only '1', 'on' or 'true' turns it on", ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
+  { env: 'SHIN_RANGE_ASK_MONTHLY_CAP', default: '1000 (asks per UTC month; 0 turns the ask off)', ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
+  { env: 'SHIN_RANGE_ASK_CEILING_CENTS', default: '2000000 (highest high_cents accepted)', ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
+  { env: 'SHIN_RANGE_ASK_STORE_PATH', default: 'identify/data/range-ask.json', ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
 
   // -- Operational: plumbing with no product ruling ------------------------
   { env: 'PORT', default: '4173', ruling: 'operational' },

@@ -13,7 +13,7 @@ range from its own knowledge, with no web search, capped per month, to save cred
 used in this version, for identity or price. Every new feature is planned without Gemini. The beta
 keeps today's Gemini behaviour until one setting flips, which both founders decide; the code behind
 it is Aurik's. · 2026-09-28 · Jamin: *"this is probably the 10th time saying this, we are not using gemini, we are using claude for a typical range without having it search the web, this way we save a lot of credits"* · 2026-09-27 · Jamin: *"why do you still think we use gemini, even after all the work done yesturday"* (09-26: *"there seems to be a communication problem, why are you still thinking about gemini"*); Aurik: *"THAT IS THE PLAN WE WILL FOLLOW, WE ARE SHIFTING SHIN AND THAT IS THE MOST RECENT PLAN"* · log: docs/decisions.md#Catalogue first, Gemini a capped fallback
-Retired wording: `no catalogue-first free path`, `The server calls Gemini for identity`, `Gemini is still called on every scan`, `catalogue-pick identify pipeline is retired`, `Gemini is a capped fallback`, `Gemini is only a monthly-capped`
+Retired wording: `no catalogue-first free path`, `The server calls Gemini for identity`, `Gemini is still called on every scan`, `catalogue-pick identify pipeline is retired`, `Gemini is only a monthly-capped`
 Governs: to fill (the one setting Aurik's session is adding)
 ### Gemini switch and call architecture
 Gemini replaced Claude (measured: 7/7 price requests refused, 9/30 barcodes absent, Claude
