@@ -51,6 +51,65 @@ covered. Their six files are kept verbatim below. This header is the reviewing s
    gtin13 where a site marks it up), Wayback Machine.
 10. **Category APIs:** PriceCharting (games, UPC), IsThereAnyDeal (games, CAD), Discogs, eBay.
 
+
+## Re-ranked by what users will actually scan (added 2026-09-27, his follow-up)
+
+His words: "consider what users are actrually going to be using shin for". The list above was
+ranked by how clean a source is (official, barcode-keyed, free), which put liquor boards first.
+That is the wrong axis. Re-ranked here by the moment a user is standing in.
+
+**What is known about real use, counted:** nothing yet. The PC's scan log holds 26 scans, every
+one a team test of groceries (Lay's, Kraft Dinner, Green Giant, "unicorn steak"); the Mac's is
+the same size class (`docs/answer-change-2026-09-26.md`: 3 distinct scanned barcodes). The mix
+below comes from his rulings and the competitor study, not from users. The first tester week's
+scan log settles it per kind.
+
+**What the evidence says users will do:**
+- His scope: "scan anything", "furniture, tech and much more", "its a search and find the price of
+  anything app", global from the start (RULINGS.md, Catalogue scope). The one-sentence promise
+  is "buy it, walk, or here is the cheaper one and where" (`docs/the-vision.md`).
+- The apps that already do "point the phone, get a verdict" are almost all thrift and resale
+  scanners pricing from sold listings (`research/competitors/scan-and-verdict-apps.md`: ThriftAI
+  4.8 with 20K ratings, OLMA, Underpriced, Price Snap, ReSell AI, ResaleScan). The 09-03 memo
+  made second-hand electronics the first "Ship" class; its 60/15/25 used/new/grocery mix is an
+  assumption it labels unmeasured.
+
+**Moment 1: buying something used** (thrift store, garage sale, Marketplace or Kijiji listing).
+Usually no barcode; the photo names the model. The fair price is what that model sells for used.
+- eBay Browse API (official, free, ebay.ca listings, asking prices): the one legitimate live
+  source. Already known; not wired.
+- eBay Marketplace Insights (sold prices, takes GTIN, needs a company to apply): the sold-price
+  source this moment needs most. eBay closed signed-out sold data in Jul/Aug 2026 (09-03 memo).
+- Kijiji asking prices (Apify scrapers, about $0.95 per 1,000 results as cited), StockX/GOAT for
+  sneakers, PriceCharting for games and cards (takes UPC).
+- Books (ISBN) and records (Discogs) are thrift-store staples; parked for the MVP on 09-26 until
+  the miss log records one. Watch that log for them first.
+- Constraint: RULINGS.md keeps marketplace/US listings off the price line, so used prices need
+  their own ruling on how they are shown.
+
+**Moment 2: a bigger purchase, new, in a store** (TV, headphones, appliance, tool, furniture,
+baby gear, skincare). A barcode or a model number on the tag; the question is "is it cheaper
+elsewhere or was it lower last month".
+- Google Shopping through DataForSEO: already the live call.
+- Affiliate feeds: Canadian Tire and Home Depot Canada on Impact, Staples on CJ, Well.ca and
+  Sephora on Rakuten, FlexOffers (UPC in its feeds). Free to join, per-store approval.
+- Keepa for Amazon.ca price history (already known), PCPartPicker for computer parts,
+  Canadian Tire's internal API (open-source tracker exists).
+- Google Merchant Center benchmark price per GTIN, if listing as a merchant is allowed.
+
+**Moment 3: groceries and household, weekly shop.** Cheap per item, many items. The useful answer
+is "this is on sale elsewhere this week" or "this is above its usual price", so flyer sale prices
+matter more here than the header's "sale prices only" dismissal implied.
+- Flipp's flyer data (two live Canadian trackers use it), PC Express (Loblaw banners), the
+  Pattison backend (Save-On-Foods and three sister chains), Shin's own shelf-tag and typed prices,
+  Veryfi-read receipts.
+
+**Pushed to the bottom as not what users scan:** BC Liquor and Beer Store lists, StatCan averages,
+the foreign price-transparency laws, IsThereAnyDeal, Wine-Searcher, fuel, cannabis.
+
+**What would make this ranking wrong:** testers scanning mostly groceries after all, as every
+team test so far has. The first week of tester scans, split by kind, is the check.
+
 ---
 
 
