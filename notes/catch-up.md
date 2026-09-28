@@ -18,7 +18,9 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ### To do
 
-- **Aurik: nothing is asked of you.** Read "What changed" before touching the price range code.
+- **Aurik: build the price system plan** (`docs/price-system-build-plan-2026-09-28.md`), Jamin's
+  ask 2026-09-28. Start with its phases A and B; leave phase C (printout matching) to Jamin's
+  session until it hands over. The message in `comms/messages/` has the short version.
 
 ### What changed
 
