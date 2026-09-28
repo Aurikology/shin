@@ -5,7 +5,9 @@ these screenshots and match with our catalogue. This requires many steps, it mig
 text matcher, an automatic checker, and then it could also send a large csv file to gemini asking
 for if each product is a correct match etc"*
 
-Design only. Nothing here is built. Every number below was measured 2026-09-27/28 on the 29 Walmart
+**Status 2026-09-28: version 1 tested and failed the bar (see "Test results, version 1"); matching is
+paused and items are sorted into subcategories instead (see the last section).** Design only.
+Nothing here is built into the app. Every number below was measured 2026-09-27/28 on the 29 Walmart
 Canada printouts in `data/WalmartScreenShots/` (gitignored, on the Windows PC only).
 
 ## What the measurements say, before any design

@@ -21,8 +21,21 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 - **Aurik: build the price system plan** (`docs/price-system-build-plan-2026-09-28.md`), Jamin's
   ask 2026-09-28. Start with its phases A and B; leave phase C (printout matching) to Jamin's
   session until it hands over. The message in `comms/messages/` has the short version.
+- **Aurik: read the plan update** (`comms/messages/2026-09-28-0530-jamin-to-aurik-price-plan-update-after-matching-test.md`).
+  Matching is paused, so phase C will not hand over; D1 sorts each item on its own; A1/A2 keep the
+  printed unit price and store; Walmart arrives as PDF pages Jamin saves by hand.
 
 ### What changed
+
+- **Matching Walmart printouts to the catalogue failed its test and is paused.** On 77 products
+  checked against Walmart's own barcodes, 21 matches were accepted and 6 were wrong (the bar was 2%),
+  and 21 of the 77 are not in the catalogue at all. Jamin chose to sort store items into
+  subcategories instead: the product's own shortlist gets the subcategory right, or one step up,
+  66% of the time, against 17% when a whole store page is mapped to one category.
+- **Most Walmart tiles already print a price per 100 g.** 606 of 898 do; with sizes in names and
+  links, 83% of products have what the price range needs. Walmart's bot check blocks automated
+  reading of product pages; Jamin saving category pages as PDF by hand ran at about 100 products a
+  minute.
 
 - **Two new rulings from Jamin.** A store price Shin cannot tie to a barcode is kept whole (name,
   store, page, price, sale or regular, date, image) and trains category prices and the prediction

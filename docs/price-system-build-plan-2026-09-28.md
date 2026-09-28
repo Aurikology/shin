@@ -4,8 +4,8 @@ Asked by Jamin 2026-09-28: *"create a plan to build all of this"*, after the pro
 "How a Shin system is designed". Plan only; nothing here is built. Inputs:
 `docs/price-data-design-2026-09-28.md` (first design guess, now a list of things to test),
 `research/price-system-references-*-2026-09-28.md` (47 outside items, 45 with content),
-`docs/screenshot-matcher-design-2026-09-28.md` (the printout matcher, being tested by another
-session), `docs/price-access-sweep-2026-09-27.md` (sources, re-ranked by what users scan).
+`docs/screenshot-matcher-design-2026-09-28.md` (the printout matcher; version 1 tested and failed,
+paused for sorting), `docs/price-access-sweep-2026-09-27.md` (sources, re-ranked by what users scan).
 
 ## The one purpose
 
@@ -24,17 +24,27 @@ a range no wider than 1.5x high over low; a predicted range states its measured 
 - 6,208 of 15,193 stored prices (41%) have no barcode and never reach a range; 252 sale prices are skipped.
 - Category range, leave-one-out: real price inside 325 of 654 (49.7%), median width 2.36x, 86% liquor.
   Its answer key (liquor board lists) is itself unaudited.
-- Printout matcher, other session, held-out 77 products: right product in the shortlist 40 of 57
-  (70%, bar 80%, fails as built); **20 of 77 not in the catalogue at all** (produce, Walmart fresh
-  brands, imports); 88 of 898 tiles had picked up a neighbour's name (fixed); Walmart's bot check
-  stopped the barcode reader after 77 pages.
+- Printout matcher, other session, final held-out result on 77 products: right product in the
+  shortlist 39 of 56 (70%, bar 80%); **21 accepted, 6 wrong** (95% range 13.8% to 50%, bar 2%):
+  **fails, and matching is paused** (Jamin 2026-09-28, sort into subcategories instead); **21 of 77
+  not in the catalogue at all** (produce, Walmart fresh brands, imports); 88 of 898 tiles had picked
+  up a neighbour's name (fixed). `docs/screenshot-matcher-design-2026-09-28.md`, test results.
+- Sorting instead of matching, same key: the product's own shortlist gives the right leaf category
+  27 of 47 (57%), leaf or parent 31 of 47 (66%); mapping each store category page to one Shin
+  category gives 8 of 47 (17%).
+- 606 of 898 tiles print a unit price (per 100 g / 100 ml); with sizes in the name or link, **747 of
+  898 (83%) have a size or unit price**, 151 have neither. Where a tile has both, price / size agrees
+  with the printed unit price 184 of 200 times. The printouts do not say which Walmart store.
+- Walmart's bot check stopped the product-page reader after 77 pages at 3 s apart, and again after 6
+  more at 6 s. Printouts saved by hand ran at about 100 products a minute (29 pages, 898 products,
+  11:10 to 11:19 PM) with no check.
 - Used goods are out (RULINGS.md, 2026-09-28). What users scan: groceries weekly, and new bigger
   purchases in store (electronics, tools, appliances).
 
 ## Order, by what cannot be taken back
 
 A price not captured today is lost; a model can be rebuilt any day. So: **A (stop losing data) and
-B (the test bench) first, in parallel.** C (matching) continues in the other session. D and E
+B (the test bench) first, in parallel.** C (matching) is paused; its version 1 failed. D and E
 change answers, so they wait for B. F waits for testers. G is the product, built on whatever wins E.
 
 Each unit: what it is for · what gets built · **done when** (pass mark set before building, plus a
@@ -44,19 +54,28 @@ case it must fail) · borrowed from. Every unit is handed to a worker with its d
 
 **A1. Three-layer store.** For: every later unit trains and tests on what is kept here.
 Build: raw captures kept unedited (file, hash, tile crop, every word); observation rows gain store
-category, "was" price, sale flag, tile image, parsed brand/size/variant, capture id, source; identity
-link (barcode + how found + confidence) optional and replaceable.
+category, "was" price, sale flag, **unit price as printed (per 100 g / 100 ml / each)**, **store,
+"unknown" allowed** (the 29 printouts do not show it), tile image, parsed brand/size/variant, capture
+id, source; identity link (barcode + how found + confidence) optional and replaceable.
 Done when: the 29 printouts give 898 rows for 898 products, every drop has a logged reason; the
 observation table rebuilt from raw alone matches the stored one exactly; deleting one raw file turns
 that rebuild check red. Borrowed: Project Hammer's product table + raw price history split, and its
 habit of labelling bad rows rather than deleting them; Keepa's price-type split.
 
 **A2. Printout intake keeps every tile.** For: unmatched and sale tiles are the training data.
-Done when: 20 tiles re-read by hand for name, price, sale flag and "was" price all agree; the
-neighbour-name defect (88 tiles) is caught by a standing check that fails when reintroduced.
+The name comes from the product link, not the printed text (the printed text belonged to the
+neighbouring tile 88 times). Done when: 20 tiles re-read by hand for name, price, unit price, sale flag
+and "was" price all agree; the neighbour-name defect is caught by a standing check that fails when
+reintroduced; a second standing check compares price / size with the printed unit price wherever a
+tile has both (184 of 200 agree today) and flags, never silently uses, a disagreeing tile, since some
+of the 16 look like a price or unit price taken from the neighbouring tile. **Input is pages saved as
+PDF, not image screenshots**: a PDF keeps each product's link and text; an image needs a vision model
+per tile. Each saved page shows the store, and a category is saved page by page to its end (the 29
+printouts hold only each category's first page).
 
 **A3. New sources, one reader contract.** For: prices on what shoppers scan. Order: groceries
-(Flipp flyers, PC Express, Save-On-Foods, Walmart pages), then new electronics and tools (Best Buy,
+(Flipp flyers, PC Express, Save-On-Foods, Walmart category pages saved by hand; Walmart product pages
+only in small batches, since its bot check stopped a reader after 77), then new electronics and tools (Best Buy,
 Canadian Tire). Each reader checks the page's own schema.org Offer markup before any custom parsing.
 Browser workers where a page needs Chrome, one per Chrome profile, no evasion (RULINGS.md, price feed
 sourcing). Done when, per source: 20 rows re-read by hand; count of top-scanned items it prices;
@@ -90,8 +109,10 @@ passes. The bench is not used for any decision until this holds.
 **B4. Baselines on record.** Today's category range; category median; Claude's no-web-search guess
 on a 200-item sample (cost logged). Every later model must beat all three on the same items.
 
-## C. Matching (the other session's test continues; this plan does not duplicate it)
+## C. Matching (paused 2026-09-28: version 1 failed; Jamin chose sorting into subcategories for now)
 
+Version 1 held-out: shortlist 70%, 21 accepted with 6 wrong. No store price is tied to a catalogue
+barcode by name until a later version passes; a barcode read from the store's own page still counts.
 Done when: shortlist holds the right product for 80%+ of held-out key items; wrong accepted matches
 2% or fewer, judged by the upper end of the 95% interval; not-in-catalogue items return no match.
 Next fixes named by that session: French names, Splink-learned weights for brand/size/pack,
@@ -101,8 +122,14 @@ Items not in the catalogue (1 in 4 so far) go to D as data, and to a list of wha
 
 ## D. Unmatched items become data
 
-**D1. Store category to Shin category, once per store page.** Done when: 50 random unmatched items'
-mapped categories re-read by hand, 95%+ right.
+**D1. Each item sorted into a Shin category on its own, not once per store page.** A store page mixes
+categories ("Canned Food" holds soups, beans and fruit): mapping per page put 8 of 47 items in the
+right leaf; the item's own catalogue shortlist put 27 of 47 in the right leaf and 31 of 47 in the
+leaf or its parent (the two steps the range reads). Next: skip candidates with no category, treat
+the catalogue's two vocabularies (Open Food Facts and USDA) as one, then test Gemini choosing a leaf
+from the catalogue's own list, scored on the same key. Only items with a size or unit price enter a
+range (747 of 898); the rest are kept as data. Done when: 50 random unmatched items' categories
+re-read by hand, 95%+ right at the leaf-or-parent level.
 **D2. The range reads unmatched rows and sale rows** (sale rows kept apart as their own kind).
 Done when: on B's bench it beats the B4 baselines by more than run-to-run noise, or it is not
 merged. The standing test "an unjoined row never counts" is replaced by one proving an unmatched row
