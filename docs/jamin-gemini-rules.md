@@ -222,7 +222,7 @@ all four."*
 4. **The per-scan cost was accepted.** About 5.6 cents a scan past roughly 1,250 scans a month
    (Aurik's question 4), with Gemini in front of the catalogue, per *"The server will not check
    shins own product list for now."* **Superseded 2026-09-27, see RULINGS.md: "Catalogue first;
-   Gemini is a capped fallback, never the identity."**
+   Claude, with no web search, is the capped price-range fallback" (renamed 2026-09-28).**
 
 **Model: 2.5 was decided as the flat default on 2026-09-18. Superseded 2026-09-22, see
 RULINGS.md: "Default Gemini model is gemini-3.8-flash."** His words at the time: *"lets make the

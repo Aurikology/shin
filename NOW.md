@@ -38,9 +38,11 @@ purchases work (this matches RULINGS.md, "Shin Plus pricing and free scans": 5 a
 beta, 3 a week at public launch). The invite code is set on the Mac (D-164).
 
 **Shin is shifting to catalogue first (both founders, 2026-09-27; RULINGS.md, "Catalogue first;
-Gemini is a capped fallback").** The catalogue names the product (text on the object searched,
-top 3 returned, manual entry on no match), Shin's own math gives the price range, and Gemini is only
-a monthly-capped price-range fallback. Aurik's session is building it behind one setting that stays
+Claude, with no web search, is the capped price-range fallback").** The catalogue names the product
+(text on the object searched, top 3 returned, manual entry on no match), Shin's own math gives the
+price range, and when Shin has no price, Claude is asked for a typical range with no web search,
+capped per month. Gemini is not used in this version (Jamin, 2026-09-28, correcting a record that
+had the fallback as Gemini). Aurik's session is building it behind one setting that stays
 off until both say flip it; until then the running beta still asks Gemini on each scan. The old
 single-row photo matcher removed in `d3e4f0b` (2026-09-19) stays removed: the new search returns
 three for the shopper to pick, never one row forced out of millions.

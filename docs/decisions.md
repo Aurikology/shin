@@ -2236,6 +2236,31 @@ fail on the old hook.
 **Reverses if:** the measurement Aurik's session runs first shows the catalogue holds too few of
 the products shoppers scan for top 3 to beat asking Gemini; that number goes to both founders.
 
+## The price-range fallback is Claude with no web search, not Gemini
+
+**Date:** 2026-09-28 · **Status:** active
+
+Jamin: *"this is probably the 10th time saying this, we are not using gemini, we are using claude
+for a typical range without having it search the web, this way we save a lot of credits"*. The
+entry above glossed the plan's *"Call claude"* as Gemini on Aurik's word; Jamin's word overrules
+that gloss. If Aurik meant Gemini, the founders settle it between them; until then the register
+follows Jamin. Five RULINGS.md entries were rewritten; their old text:
+
+- "Catalogue first; Gemini is a capped fallback, never the identity": *Gemini is not asked who the
+  product is; it is only a fallback asked for a typical price range, capped per month. Every new
+  feature is planned without Gemini, and no work widens Gemini's role.*
+- "Gemini switch and call architecture": *When Gemini is called, now only as the capped fallback
+  above, it is one call, never split.*
+- "Claude excluded; founder's words outrank the system and Gemini's terms": *Claude is never used
+  inside Shin once Gemini is in.*
+- "LLM prompting efficiency and research approach": *Claude is excluded once Gemini is in (Claude
+  excluded ruling above, 2026-09-17).*
+- "Gemini spend cap": *Gemini calls stay under a daily and a hard dollar cap. ... the catalogue now
+  answers first and Gemini is a monthly-capped fallback (catalogue-first ruling).*
+
+The running beta still calls Gemini until the catalogue-first setting flips; that is today's code,
+not the plan.
+
 ## Three entries that contradicted Jamin's own words, rewritten
 
 **Date:** 2026-09-27 · **Status:** active

@@ -3,21 +3,23 @@ This file outranks every other file in the repo, including docs/jamin-gemini-rul
 To change an entry: rewrite it here, move the old text to docs/decisions.md, then run node scripts/checks.mjs.
 Process rows (git, commits, claiming, lanes, hooks, comms channel) live in CLAUDE.md, not here; one entry per live ruling below.
 ## Scanning and Gemini
-### Catalogue first; Gemini is a capped fallback, never the identity
+### Catalogue first; Claude, with no web search, is the capped price-range fallback
 Shin names a product from its own catalogue: a barcode by lookup; anything else by reading every
 piece of text on the object (price tag, cereal box, container) and searching the catalogue with it,
 returning the top 3 for the shopper to pick, never one row forced out of millions; manual entry
 when nothing matches. The price range comes from Shin's own data by math: the product's own
-prices, else its category's range. Gemini is not asked who the product is; it is only a fallback
-asked for a typical price range, capped per month. Every new feature is planned without Gemini,
-and no work widens Gemini's role. The beta keeps today's behaviour until one setting flips, which
-both founders decide; the code behind it is Aurik's. · 2026-09-27 · Jamin: *"why do you still think we use gemini, even after all the work done yesturday"* (09-26: *"there seems to be a communication problem, why are you still thinking about gemini"*); Aurik: *"THAT IS THE PLAN WE WILL FOLLOW, WE ARE SHIFTING SHIN AND THAT IS THE MOST RECENT PLAN"* · log: docs/decisions.md#Catalogue first, Gemini a capped fallback
-Retired wording: `no catalogue-first free path`, `The server calls Gemini for identity`, `Gemini is still called on every scan`, `catalogue-pick identify pipeline is retired`
+prices, else its category's range. When Shin has no price, Claude is asked for a typical price
+range from its own knowledge, with no web search, capped per month, to save credits. Gemini is not
+used in this version, for identity or price. Every new feature is planned without Gemini. The beta
+keeps today's Gemini behaviour until one setting flips, which both founders decide; the code behind
+it is Aurik's. · 2026-09-28 · Jamin: *"this is probably the 10th time saying this, we are not using gemini, we are using claude for a typical range without having it search the web, this way we save a lot of credits"* · 2026-09-27 · Jamin: *"why do you still think we use gemini, even after all the work done yesturday"* (09-26: *"there seems to be a communication problem, why are you still thinking about gemini"*); Aurik: *"THAT IS THE PLAN WE WILL FOLLOW, WE ARE SHIFTING SHIN AND THAT IS THE MOST RECENT PLAN"* · log: docs/decisions.md#Catalogue first, Gemini a capped fallback
+Retired wording: `no catalogue-first free path`, `The server calls Gemini for identity`, `Gemini is still called on every scan`, `catalogue-pick identify pipeline is retired`, `Gemini is a capped fallback`, `Gemini is only a monthly-capped`
 Governs: to fill (the one setting Aurik's session is adding)
 ### Gemini switch and call architecture
 Gemini replaced Claude (measured: 7/7 price requests refused, 9/30 barcodes absent, Claude
-refusing 4/15 photos on Jamin's phone). When Gemini is called, now only as the capped fallback
-above, it is one call, never split. · 2026-09-14 · *"we will be swithcing to gemini... Shin will adopt this"* · log: docs/decisions.md#Gemini for identification, and grounded prices display-only
+refusing 4/15 photos on Jamin's phone). That swap covers the running beta only: once the
+catalogue-first setting flips, Gemini is not used and Claude, with no web search, is the price-range
+fallback (catalogue-first ruling, 2026-09-28). While Gemini is called, it is one call, never split. · 2026-09-14 · *"we will be swithcing to gemini... Shin will adopt this"* · log: docs/decisions.md#Gemini for identification, and grounded prices display-only
 Retired wording: `Claude for product identification`, `two Gemini calls per scan`
 Governs: identify/src/model.ts, identify/src/providers/gemini-scan.ts, SHIN_MODEL_PROVIDER
 ### Default Gemini model is gemini-3.8-flash
@@ -67,15 +69,16 @@ Shin's own catalogue. A scene change may cancel a request before it is sent, but
 answer once the one permitted call has been spent. · 2026-09-21 · log: docs/decisions.md#Nine rulings so the competitor-survey build could start (item 1 addendum, pinned 2026-09-21)
 Retired wording: `0.68 US cents a call`
 Governs: cache key = barcode + market + currency, SHIN_REPEAT_CACHE, app/test/repeat-cache.test.ts
-### Claude excluded; founder's words outrank the system and Gemini's terms
-Claude is never used inside Shin once Gemini is in; nothing holds higher precedence than the
+### Founder's words outrank the system and any provider's terms
+Claude's role inside Shin is the catalogue-first price-range fallback, asked with no web search
+(2026-09-28, reversing the 2026-09-17 exclusion of Claude); nothing holds higher precedence than the
 founder's words, not the system's own machinery and not Gemini's terms: breaking a term should
 never crash the system, and legal issues with Gemini are marked as an issue, never used to block a
 feature from functioning. Left open and unresolved: Jamin flagged that Claude's own research on
 what Gemini's Grounded Results terms forbid (reinterpretation, tone change, training, cataloguing)
 contradicts Gemini's own published research on what is actually allowed; nobody has re-checked
 this against the terms' real wording. · 2026-09-17 · *"nothing should hold higher precedency than the words of the founder"* · log: docs/walkthrough/jamin-notes-2026-09-17.md#notes-typed-into-the-tabs
-Retired wording: `Claude fallback behind Gemini`
+Retired wording: `Claude fallback behind Gemini`, `Claude is never used inside Shin`
 Governs: to fill (see his-call.md item 1)
 ### Gemini's Grounded Results carry real contract limits
 Grounded Results (the `google_search` tool on) cannot be modified, interspersed, cached, framed,
@@ -104,7 +107,7 @@ Reviews and descriptions are fetched in the same call as the product/price looku
 step. A pipeline design must explicitly address how the model is prompted and how to produce
 results efficiently (call cost, context reuse) as a required piece, never a gap left implicit.
 Combining multiple LLMs (Grok alongside Claude, raised 2026-09-11 to cut cost) no longer applies:
-Claude is excluded once Gemini is in (Claude excluded ruling above, 2026-09-17). Open research
+Claude is now the price-range fallback, with no web search (catalogue-first ruling, 2026-09-28). Open research
 questions here (prompting strategy, catalogue coverage) are tracked as living, adapting as data
 comes in, rather than answered once upfront; asked how he'd build such a plan, the answer is the
 approach for building it, not the plan's contents. Beta-readiness testing waits on already-
@@ -313,10 +316,11 @@ logistics of the cheaper looup design and add all items not already added to the
 · 2026-09-23 · *"we should assume only 1 in 100 people pay"* · log: docs/decisions.md#Shin Plus price and the weekly free scans
 Retired wording: `assuming a scan cost 0.6 cents`
 Governs: SHIN_FREE_SCANS_PER_WEEK, app/public/js/plus-config.js
-### Gemini spend cap
-Gemini calls stay under a daily and a hard dollar cap. The 2026-09-18 acceptance of roughly 5.6
-cents on every scan is superseded: the catalogue now answers first and Gemini is a monthly-capped
-fallback (catalogue-first ruling). Shin is never designed to lose money every month: a cost model
+### Model spend cap
+Model calls (Gemini in the running beta, Claude as the catalogue-first price-range fallback) stay
+under a daily and a hard dollar cap. The 2026-09-18 acceptance of roughly 5.6 cents on every scan
+is superseded: the catalogue now answers first and Claude, with no web search, is the monthly-capped
+fallback (catalogue-first ruling, 2026-09-28). Shin is never designed to lose money every month: a cost model
 that runs negative is a red flag, answered by researching every way to cut it (one search per
 query, a free database first, what to charge, how many scans to give, other model providers),
 not by accepting it. · 2026-09-22 · Jamin · *"this pricing model is a huge red flag for us. With
@@ -555,8 +559,9 @@ Governs: to fill
 The MVP keeps what is already built, like the mascot, and still needs the subscription screen; the
 welcome screen, photo identification and languages stay off for now (Jamin 2026-09-21). Photo
 identification comes back as the catalogue-first plan of 2026-09-27: every piece of text on the
-object is read and searched in Shin's own catalogue, top 3 returned (see "Catalogue first; Gemini
-is a capped fallback"). The 2026-09-09 floor, *"the user must take a picture and Shin must be able
+object is read and searched in Shin's own catalogue, top 3 returned, and a missing price answered by
+Claude with no web search (see "Catalogue first; Claude, with no web search, is the capped
+price-range fallback"). The 2026-09-09 floor, *"the user must take a picture and Shin must be able
 to identify. Nothing less."*, is the goal that plan serves, not a requirement of the MVP.
 Image-embedding search stays parked. · 2026-09-09, 2026-09-21, 2026-09-27 · *"Things like the welcome screen, the photo id, the languages etc. should be kept off for now. Plan out in detail what the mvp should include. Also, we still need the subscription screen etc."* · log: docs/decisions.md#Live photo recognition is load-bearing, and the photo door opens
 Retired wording: `live photo recognition cut from v1`, `barcode and screenshot input only`
