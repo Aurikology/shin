@@ -178,6 +178,8 @@ const destructiveFailures = [];
     ["Bash", "rm -rf app/data", "violation", "c", "recursive delete of a Shin data folder"],
     ["PowerShell", "Remove-Item -Recurse app\\data\\photos", "violation", "c", "PowerShell, photos under data"],
     ["Bash", "mv app/data /tmp/backup", "violation", "c", "move, not delete, is still rule c"],
+    ["Bash", "rm -rf /Users/shin/shin/app/data", "violation", "c", "an absolute Mac path is a target, not a Windows /x flag"],
+    ["Bash", "rmdir /s /q C:\\shin\\app\\data", "violation", "c", "real Windows /s /q flags are still skipped, the path is not"],
     ["Bash", "git clean -xdf", "violation", "e", "git clean -x deletes ignored files"],
     ["PowerShell", "git clean -fX", "violation", "e", "capital -X, combined with -f"],
     [

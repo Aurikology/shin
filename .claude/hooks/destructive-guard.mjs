@@ -57,13 +57,18 @@ function tails(cmd, leadSrc) {
   return out;
 }
 
-/** Bare (non-flag) tokens in a clause -- Unix `-x` and Windows `/x` flags are both skipped. */
+/**
+ * Bare (non-flag) tokens in a clause -- Unix `-x` and Windows `/x` flags are both skipped.
+ * A Windows flag is one letter after the slash (`/s`, `/q`, `/J`); anything longer is an
+ * absolute Unix path and stays a candidate. Skipping every "/" token let
+ * `rm -rf /Users/.../linked-copy` through on the Mac (caught by CI on Linux, 2026-09-28).
+ */
 function candidatesIn(clause) {
   const tokens = clause.match(/"[^"]*"|'[^']*'|\S+/g) || [];
   const out = [];
   for (const raw of tokens) {
     const tok = raw.replace(/^["']|["']$/g, "");
-    if (!tok || tok.startsWith("-") || tok.startsWith("/")) continue;
+    if (!tok || tok.startsWith("-") || /^\/[a-z?]$/i.test(tok)) continue;
     out.push(tok);
   }
   return out;
