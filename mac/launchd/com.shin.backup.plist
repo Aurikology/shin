@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  mac/launchd/com.shin.backup.plist
+
+  Template, same __SHIN_REPO_DIR__ placeholder style as com.shin.server.plist
+  and com.shin.checker.plist. Runs mac/07-backup.sh once a night at 04:00
+  local time (StartCalendarInterval, not StartInterval/RunAtLoad -- this is
+  a once-a-day job, not a poller). See the "Backup" section of mac/DEPLOY.md
+  for how to install it and how to run the one restore test that has to
+  pass before this schedule is trusted.
+
+  Do not load this file as-is: replace __SHIN_REPO_DIR__ with the real
+  absolute path first (mac/05-install-launchd.sh does this substitution for
+  the other two plists in this folder; do the same by hand here, or extend
+  that script, before copying this into ~/Library/LaunchAgents/).
+
+  RunAtLoad is deliberately false. A backup should run on its schedule, not
+  every time the Mac reboots or this agent is reloaded -- StartCalendarInterval
+  alone already guarantees it eventually runs even if the Mac was asleep at
+  04:00 (launchd runs a missed StartCalendarInterval job once it wakes).
+  KeepAlive is not set either: 07-backup.sh is a one-shot script that exits,
+  not a long-running server: it must never be restarted just for exiting,
+  successfully or not, the way com.shin.server.plist's KeepAlive restarts a
+  crashed server.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.shin.backup</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>__SHIN_REPO_DIR__/mac/07-backup.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__SHIN_REPO_DIR__/mac</string>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>4</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>__SHIN_REPO_DIR__/mac/logs/backup.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__SHIN_REPO_DIR__/mac/logs/backup.err.log</string>
+</dict>
+</plist>

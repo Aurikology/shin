@@ -9,9 +9,11 @@
  *
  * `snapshot` reads the file read-only: whether it exists, the modified time of
  * the file and of its write-ahead log, and the row count of every table a scan
- * writes. `differences` names what changed between two snapshots. The global
- * setup (global.mjs) takes one before the run and one after, and fails the run
- * on any difference.
+ * writes. `differences` names what changed between two snapshots. Since
+ * 2026-09-28 the run-level check is wider and lives in data-paths.mjs: global.mjs
+ * compares every file under every real data folder, this one included, by
+ * size and modified time. This module stays for live-catalogue-guard.test.mjs,
+ * which shows the row-count comparison sees a real scan.
  *
  * A server on this machine that is serving real scans during the run writes the
  * same file, and the guard will report that too: stop it, or run the suite when

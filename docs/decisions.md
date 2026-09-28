@@ -2361,3 +2361,18 @@ internet"*. Recorded in RULINGS.md. The ruling judge named one narrower entry, r
   (2026-09-22, and twice on 2026-09-28).
 
 **Reverses if:** he says so.
+
+## Builders and tests cannot damage real data (2026-09-28)
+
+His words, 2026-09-28, after two near-misses in one session (a lane deleted every installed
+dependency by removing a temp copy that linked the real node_modules; a lane's test moved every
+file out of the real legacy photo folder and deleted it, harmless on the PC, fatal on the Mac):
+*"how can we prevent problems like this but not limited to this from happening in the future"*,
+then *"build 1-5"*. The five: tests run on temp data and fail the run if a real data folder
+changed (the third test-writes-real-data incident: the user catalogue, the repeat cache on
+2026-09-20, the photos on 2026-09-28); each lane gets its own worktree and installs; a hook blocks
+destructive commands on libraries, data and folders holding links; tests refuse to run in the
+live server's folder; the Mac's data is backed up nightly with a restore test. Recorded in
+CLAUDE.md (process rules live there, not in RULINGS.md).
+
+**Reverses if:** he says so.

@@ -148,6 +148,17 @@ nobody's yes** (Jamin, 2026-09-14: *"aurik does not need to approve before i pus
 need to approve his push, neither of us actrually read the code"*). Pull first, tests and
 typecheck green, then push.
 
+**Nothing a builder does can reach real data or shared libraries** (Jamin, 2026-09-28, *"how can we
+prevent problems like this but not limited to this from happening in the future"*, then *"build
+1-5"*; `docs/decisions.md`, "Builders and tests cannot damage real data"). After a lane deleted
+every dependency through a link and a test nearly deleted shoppers' photos: every test runs
+against temp data and the run fails if a real data folder changed; tests refuse to run in the live
+server's folder; each lane works in its own worktree with its own installs
+(`scripts/lane-worktree.mjs create <name>`; the lane leaves its changes uncommitted there, the boss
+reviews and commits in that worktree, cherry-picks onto main, then `remove <name>`); a hook blocks recursive deletes of libraries, data or folders
+holding links, and links to `node_modules`; the Mac's data is backed up nightly with a tested
+restore. Every lane brief says: temp folders only, never link or delete a shared folder.
+
 ## WHO IS WORKING ON WHAT (every session, every machine)
 
 **The board is `comms/` in this repo, on GitLab.** Jamin, 2026-09-27: *"i've already told you

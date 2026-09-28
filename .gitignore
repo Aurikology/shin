@@ -92,3 +92,7 @@ app/.sheet-preview/
 
 # ruling-judge queue: per-machine, delivered to the next session here (ruling-capture.mjs)
 .claude/state/ruling-queue/
+
+# Written by mac/run-server.sh at the repo root of the live server. Its presence makes
+# app/test/setup/global.mjs refuse to run the tests there (2026-09-28). Per machine.
+/.shin-live-server

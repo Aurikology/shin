@@ -13,6 +13,7 @@
  */
 import { classify } from "./no-blind-git-add.mjs";
 import { looksLikeRuling } from "./ruling-capture.mjs";
+import { classify as classifyDestructive } from "./destructive-guard.mjs";
 
 const CASES = [
   // [tool, command, expected verdict, note]
@@ -137,7 +138,96 @@ if (rulingFailures.length) {
   console.log(`ruling-judge queue: ${cases.filter((c) => c[1]).length}/${cases.length}`);
 }
 
-if (failures.length || rulingFailures.length) {
+/*
+ * destructive-guard cases. Rule (d) needs a real directory on disk to lstat -- built here
+ * in the OS temp dir, never in this repo, and never deleted by anything but the selftest's
+ * own cleanup. classify() only ever reads (lstatSync/readdirSync); it does not delete.
+ */
+let destructivePass = 0;
+const destructiveFailures = [];
+{
+  const { mkdtempSync, mkdirSync, symlinkSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const scratch = mkdtempSync(join(tmpdir(), "destructive-guard-selftest-"));
+  // A stand-in for the incident: a "temp copy" directory whose 2nd level holds a junction
+  // pointing at some other real directory -- exactly the shape that destroyed node_modules.
+  const linkedCopy = join(scratch, "linked-copy");
+  const realTarget = join(scratch, "real-target");
+  mkdirSync(join(linkedCopy, "sub"), { recursive: true });
+  mkdirSync(realTarget, { recursive: true });
+  symlinkSync(realTarget, join(linkedCopy, "sub", "app"), "junction");
+  // A clean temp copy with no links anywhere -- must be allowed to delete.
+  const cleanCopy = join(scratch, "clean-copy");
+  mkdirSync(join(cleanCopy, "sub"), { recursive: true });
+
+  const DESTRUCTIVE_CASES = [
+    // [tool, command, expected verdict, expected rule, note, opts]
+    ["Bash", "rm -rf node_modules", "violation", "a", "the exact shape of the incident, bash"],
+    ["Bash", "rm -rf ./frontend/node_modules", "violation", "a", "node_modules nested in a path"],
+    ["PowerShell", "Remove-Item -Recurse -Force node_modules", "violation", "a", "PowerShell spelling"],
+    ["PowerShell", "Remove-Item -Recurse .\\app\\node_modules", "violation", "a", "PowerShell, nested"],
+    ["Bash", "rimraf node_modules", "violation", "a", "rimraf is always recursive"],
+    ["Bash", "rmdir /s /q node_modules", "violation", "a", "cmd.exe rmdir /s, run from Bash"],
+    ["PowerShell", "rd /s /q app\\node_modules", "violation", "a", "cmd.exe rd /s, run from PowerShell"],
+    ["Bash", "node -e \"require('fs').rmSync('node_modules', {recursive: true})\"", "violation", "a", "fs.rmSync inside node -e"],
+    ["Bash", "mklink /J node_modules ..\\real\\node_modules", "violation", "b", "junction named node_modules"],
+    ["Bash", "ln -s /real/node_modules ./node_modules", "violation", "b", "symlink pointing at node_modules"],
+    ["PowerShell", "New-Item -ItemType Junction -Path node_modules -Target ..\\real\\node_modules", "violation", "b", "New-Item junction"],
+    ["Bash", "rm -rf app/data", "violation", "c", "recursive delete of a Shin data folder"],
+    ["PowerShell", "Remove-Item -Recurse app\\data\\photos", "violation", "c", "PowerShell, photos under data"],
+    ["Bash", "mv app/data /tmp/backup", "violation", "c", "move, not delete, is still rule c"],
+    ["Bash", "git clean -xdf", "violation", "e", "git clean -x deletes ignored files"],
+    ["PowerShell", "git clean -fX", "violation", "e", "capital -X, combined with -f"],
+    [
+      "Bash",
+      `rm -rf "${linkedCopy}"`,
+      "violation",
+      "d",
+      "the incident itself: recursive delete of a dir with a junction 2 levels down",
+    ],
+    [
+      "Bash",
+      "rm -rf shin-store-photos",
+      "violation",
+      "c",
+      "SHIN_DATA_DIR set, target is under it though not named data/photos",
+      { repoRoot: scratch, dataDirEnv: join(scratch, "shin-store-photos").slice(0, -"-photos".length) },
+    ],
+
+    ["Bash", "npm ci", "na", null, "the documented safe alternative"],
+    ["Bash", "git worktree remove ./worktrees/lane-y", "na", null, "worktree remove is allowed"],
+    ["Bash", `rm -rf "${cleanCopy}"`, "na", null, "a temp copy with no links anywhere is allowed", { repoRoot: scratch }],
+    ["Bash", "rm file.txt", "na", null, "single file, no recursive flag"],
+    ["Bash", "git clean -n", "na", null, "dry run, no -x"],
+    ["Bash", "git status", "na", null, "read only"],
+    ["Bash", "mv build/output dist/output", "na", null, "move with no data folder involved"],
+    ["Bash", "ln -s /some/file ./shortcut", "na", null, "symlink unrelated to node_modules"],
+  ];
+
+  for (const [tool, cmd, expected, expectedRule, note, opts] of DESTRUCTIVE_CASES) {
+    const got = classifyDestructive(tool, cmd, opts || {});
+    const ok = got.verdict === expected && (expected === "na" || got.rule === expectedRule);
+    if (ok) destructivePass += 1;
+    else
+      destructiveFailures.push(
+        `  ${tool}: ${cmd}\n    expected ${expected}${expectedRule ? "/" + expectedRule : ""}, got ${got.verdict}${got.rule ? "/" + got.rule : ""}  (${note})`,
+      );
+  }
+
+  try {
+    rmSync(scratch, { recursive: true, force: true });
+  } catch {}
+}
+
+console.log(`destructive-guard: ${destructivePass}/${destructivePass + destructiveFailures.length}`);
+if (destructiveFailures.length) {
+  console.log("FAILURES:");
+  console.log(destructiveFailures.join("\n"));
+}
+
+if (failures.length || rulingFailures.length || destructiveFailures.length) {
   process.exit(1);
 }
 

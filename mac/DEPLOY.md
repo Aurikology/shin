@@ -118,3 +118,45 @@ Stop the checker (above), then set `SHIN_REPO_DIR=/Users/worker/shin` in `mac/co
 (the line before the switch is saved in `~/.shin-deploy/config.env.before-live-switch`) and
 `launchctl kickstart -k gui/$(id -u)/com.shin.server`. The server runs `~/shin/mac/run-server.sh`
 and reads `~/shin/mac/config.env` either way.
+
+## Backup
+
+The beta serves real tester data (`scans.db`, the repeat cache, the people database, the
+photos and shutter folders, prices, corrections, gaps, the user catalogue, the spend-cap and
+range-ask stores) that exists nowhere else. `mac/07-backup.sh` backs up every one of those into
+`$SHIN_BACKUP_DIR/<timestamp>/`, skips only the read-only ~4 GB `catalogue.db` (reacquired from
+`mac/04-catalogue-acquire.md`, never restored from a backup), and writes a `manifest.tsv`
+(file, size, per-table row counts) next to what it copied. `mac/07-restore.sh` restores a named
+backup into a clean, non-live target folder and checks every restored item against that
+manifest -- read both scripts' own header comments for exactly what each covers and why.
+
+**Install (nightly, 04:00 local):**
+
+```
+mkdir -p "$SHIN_REPO_DIR/mac/logs"
+sed "s|__SHIN_REPO_DIR__|$SHIN_REPO_DIR|g" \
+  "$SHIN_REPO_DIR/mac/launchd/com.shin.backup.plist" \
+  > ~/Library/LaunchAgents/com.shin.backup.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.shin.backup.plist
+```
+
+Stop it: `launchctl bootout gui/$(id -u)/com.shin.backup`.
+
+**Before trusting the schedule**, run it once by hand and prove the restore actually works --
+a backup nobody has restored is a claim, not a fact:
+
+```
+sh "$SHIN_REPO_DIR/mac/07-backup.sh"
+LATEST=$(ls -t "$SHIN_BACKUP_DIR" | head -1)
+sh "$SHIN_REPO_DIR/mac/07-restore.sh" "$LATEST" /tmp/shin-restore-proof
+```
+
+Expected: the backup prints `OK -- backup complete: ...` and exits 0; the restore prints one
+`OK <name> (<file>): <table:count,...>` line per database and folder, ending
+`OK -- N item(s) verified against <manifest path>`, and also exits 0. Then delete the throwaway
+copy (`rm -rf /tmp/shin-restore-proof`) so it is never mistaken for a live database. This is
+the same restore shape E12's first check ("one backup restored") uses.
+
+A run that instead prints `FAILED ...` or `MISMATCH ...` and exits non-zero means exactly that:
+something is missing, unreadable, or does not match what the backup recorded -- fix it and
+re-run before installing the schedule, never install a schedule nobody has watched succeed.

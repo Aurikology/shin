@@ -30,4 +30,13 @@ set +a
 NODE_BIN="${NODE_BIN:-node}"
 
 cd "$SHIN_REPO_DIR/app" || exit 1
+
+# Marks this folder as the live server's: app/test/setup/global.mjs refuses to
+# run the test suite while this file exists, so no test run can touch the data
+# testers are using (Jamin, 2026-09-28: "build it so tests can never touch real
+# data"). Left in place when the server stops on purpose: this is still the
+# live server's folder. Gitignored. exec keeps this shell's PID, so $$ is the
+# server's PID.
+printf 'live Shin server started %s, pid %s, by mac/run-server.sh\n' "$(date)" "$$" > "$SHIN_REPO_DIR/.shin-live-server" || exit 1
+
 exec "$NODE_BIN" server.ts
