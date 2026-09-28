@@ -110,6 +110,27 @@ the foreign price-transparency laws, IsThereAnyDeal, Wine-Searcher, fuel, cannab
 **What would make this ranking wrong:** testers scanning mostly groceries after all, as every
 team test so far has. The first week of tester scans, split by kind, is the check.
 
+
+## Measured 2026-09-28: Save-On-Foods answers a barcode directly
+
+His question: "What is the most reasonable thing we can do right now to get prices on the items in
+our catalogue" (used goods ruled out the same message).
+
+- `GET https://storefrontgateway.saveonfoods.com/api/stores/{retailerStoreId}/products/{GTIN-14}`
+  returns JSON with `price`, `wasPrice`, `unitPrice`, `promotions`, `available`, keyed by the
+  barcode itself, so the join is exact, never a name match. 404 when the store does not carry it.
+- Answers a plain request with an honest user agent (`ShinPriceCheck/0.1`, and `curl/8.9`); no
+  header spoofing, no key, no login. The site's search, sitemap and robots.txt sit behind a
+  Cloudflare challenge; this endpoint does not. Legal note, marked not blocking: Save-On's terms
+  were not read, and *Century 21 v Rogers* (2011 BCSC 1196) enforced browse-wrap terms against a bot.
+- 196 stores in the store list (Save-On, PriceSmart, Urban Fare, Fresh St.; Western Canada).
+- **Hit rate, counted, store 1982 (Langley):** 13 of 300 random Canadian Open Food Facts barcodes
+  priced (4.3%); 20 of 60 barcodes Canadians recorded buying in Open Prices priced (33%).
+- Derived, not measured: 4.3% of 121,949 Canadian grocery rows is about 5,300 priced products,
+  against 862 catalogue products priced today. At 1.2 s a request one full pass is about 41 hours.
+- A name search (`/preview?q=`) also answers but returns at most 3 products, so barcode lookup
+  is the route.
+
 ---
 
 
