@@ -2,7 +2,7 @@
   "name": "shin-native-wrapper",
   "version": "0.1.0",
   "private": true,
-  "description": "Capacitor wrapper around the Shin web app. App name and bundle id are placeholders until the trademark search clears (see NAME-PLACEHOLDER.md).",
+  "description": "Capacitor wrapper around the Shin web app. App name \"Shin\", app id com.useshinapp.shin (RULINGS.md, \"Shin name: risk carried knowingly\").",
   "scripts": {
     "sync": "node scripts/sync-web.mjs",
     "cap:sync": "npm run sync && npx cap sync",

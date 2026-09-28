@@ -1,4 +1,4 @@
-package com.placeholder.pricecheck;
+package com.useshinapp.shin;
 
 import com.getcapacitor.BridgeActivity;
 

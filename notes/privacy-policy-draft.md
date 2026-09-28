@@ -1,58 +1,108 @@
-DRAFT ONLY. Not published, not submitted. The founder reviews and hosts this at a URL before
-it is linked from any app store listing or the app itself (plan item 40). This draft is written
-to match `notes/consent-screen-wording-2026-09-11.md` word for word in substance, per item 40a.
+FINISHED AND PUBLISHED. Hosted at `app/public/legal/privacy.html` (English) and
+`app/public/legal/privacy-fr.html` (French), served by the app's own server; the founder still
+reviews before any store submission links to it, but the pages are live, not a stub. This file is
+the same content in Markdown, kept here so it can be diffed and edited without opening HTML.
 
-# Privacy Policy [App name pending trademark clearance, see notes/trademark-search-2026-09-11.md]
+Checked directly against the code on 2026-09-28: `app/src/consent.ts`, `app/src/events.ts`,
+`app/src/scans.ts`, `app/src/photos.ts`, `app/src/shelf.ts`, `app/public/js/geocell.js`,
+`app/public/js/track.js`, `identify/src/providers/gemini*.ts`, and `RULINGS.md`'s "Privacy,
+recording and consent" section. Photos default to **off**, not on: from 2026-09-19 to the
+2026-09-28 ruling ("Location and photo consent default off until answered") they defaulted on,
+and this file was written during that window; `consent.ts`'s `DEFAULT_CONSENT` now reads
+`{ photos: false, location: false }` again, matching location, which was off by default the whole
+time. There is also no 90-day photo deletion running by default (`SHIN_PHOTO_RETENTION_DAYS`
+defaults to null, meaning keep-forever, per `settings/src/index.ts`), so this no longer promises a
+fixed window that is not actually enforced.
 
-Last updated: 2026-09-11 (draft, not yet published)
+# Shin - Privacy Policy
 
-## What we collect
+Last updated: 2026-09-28 (beta).
 
-Every time you scan something, we save a record of what you scanned, what we told you, whether
-we answered or refused or you corrected us, and when. Each app install has a random ID it
-created for itself; that ID identifies the app on your phone, not you personally. We do not
-require or collect your name, email, or an account to use the scanner.
+## Who we are
 
-If you take a photo to identify a product, that photo is sent once to our identification
-service to produce an answer. Unless you have turned on photo storage (below), the photo itself
-is discarded immediately after; we keep only the text answer it produced.
+Shin is a beta grocery and retail price-checking app. This policy covers Shin's mobile app and
+its server. Contact us at useshinapp@gmail.com.
 
-## What we collect only if you say yes
+## No account, no name, no email
 
-**Photos**, off by default. If you turn this on, we keep the photo behind a scan for ninety
-days, then delete it automatically. We keep it so a person can check a wrong answer.
+Shin does not ask for your name, email address, or an account. The first time you open Shin, your
+device creates a random identifier for itself and sends it back on every scan afterward. That
+identifier tells us it is the same device asking again; it does not tell us who you are.
 
-**Location**, off by default. If you turn this on, your phone computes a rough area about one
-kilometre wide, never your exact coordinates, and sends us that area so we can suggest nearby
-stores. Whichever store you pick is saved with the scan so prices can be tracked per store.
+## What we collect every time you use Shin
 
-Both are independent choices. Leaving either off, or never answering, is treated the same as
-saying no to both.
+Every scan you make (a barcode, a photo, or a name you typed) is recorded: what you scanned, what
+we told you, whether we answered, refused, or you corrected us, and when. We also record how you
+use the app itself: screens you open, buttons you tap, and text you type into a search box,
+including text you type and then delete without sending. If you rate an answer or flag it wrong,
+that is recorded too. None of this requires a name, an email, or a sign-up.
 
-## Why we collect it
+## Photos: off until you turn them on, and what happens either way
 
-The scan record supports your free-scan count, our queue for what to look up next, and a note
-when someone nearby already checked a price. The photo, when kept, supports human review of
-wrong answers. The location, when kept, supports attaching a price to the correct store.
+Photo saving is **off by default**. Either way, if you take a photo to identify a product, it is
+sent once to Google's Gemini AI model to produce an answer.
 
-## Who sees it
+- **Photo saving off (the default):** the photo is read once to produce that one answer and is not
+  kept.
+- **Photo saving on:** the photo is kept, tied to that scan, for human review of a wrong answer and
+  for Shin to learn from. No automatic deletion schedule runs by default; a kept photo stays until
+  you ask us to delete it, or until we turn on an automatic deletion window in the future, at which
+  point this page will say so with the number of days.
 
-Nobody outside the app's own server sees this information, with one exception: a photo you take
-to identify a product is sent once to our identification service to produce an answer, whether
-or not you have chosen to let us keep a copy afterward.
+You can turn photo saving on at any time from the You screen; turning it off afterward does not
+retroactively delete a photo already kept.
+
+## Location: off until you turn it on, and only ever a rough area
+
+Location saving is **off by default**. If you turn it on:
+
+- Your phone asks the OS for the exact GPS position and snaps it, on the phone, to a grid cell
+  about one kilometre wide.
+- The exact reading is sent to our server alongside the rough cell (so the server can re-check
+  the snap), and our server discards the exact reading immediately; only the rough,
+  kilometre-wide cell is ever written to our database.
+- We use the rough area to suggest nearby stores; the store you pick is saved with that scan.
+
+If location saving is off, your phone is never asked for a location reading at all.
+
+## Why we collect this
+
+To answer your scans, count your free scans, decide what to look up next, and notice when a
+nearby shopper already checked the same price. We also use collected scan data, including kept
+photos, to train and improve Shin's own price-answering system and to answer other shoppers
+scanning the same or similar products. A correction you send is used to fix future answers.
+
+## When Shin asks an AI model
+
+A photo is sent once to Google's Gemini AI model, kept or not. When Shin has no price of its own,
+we may ask an AI model for a general, typical price range from the product's name or category
+only, never your photo, exact location, or device identifier tied to anything else about you.
+
+## Who sees this data
+
+Nobody outside Shin's own server, except the AI model providers named above, and only for what
+this page says they receive.
 
 ## How long we keep it
 
-Scan records are kept for the life of the beta. Photos you have chosen to let us keep are
-deleted automatically after ninety days; the underlying scan record is not deleted with them.
+Scan and event records are kept for the life of the beta. A kept photo stays until you ask us to
+delete it (see "Photos" above); no automatic deletion schedule runs by default today.
 
-## How to delete your data
+## How to see or delete your data
 
-During the beta, there is no in-app delete button. Email [support address, to be added by the
-founder] and we will delete your device's scan records, saved photos, and saved location or
-store choices.
+During the beta there is no in-app delete button. Email useshinapp@gmail.com and we will delete
+your device's scan records, saved photos, and saved location or store choices by hand.
 
-## Changes
+## Children
 
-Because this is a beta, this policy may change; the current version is always the one hosted at
-this URL, and it will always match the wording shown on the app's consent screen.
+Shin is not directed at children and we do not knowingly collect information from a child under
+13. Email us if you believe a child has used Shin.
+
+## Changes to this policy
+
+This policy may change during the beta. The hosted page is always the current version, and it is
+kept to match the app's own consent screen.
+
+## Contact
+
+useshinapp@gmail.com

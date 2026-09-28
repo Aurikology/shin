@@ -1,6 +1,6 @@
 {
-  "appId": "com.placeholder.pricecheck",
-  "appName": "PriceCheck Placeholder",
+  "appId": "com.useshinapp.shin",
+  "appName": "Shin",
   "webDir": "www",
   "server": {
     "hostname": "localhost",

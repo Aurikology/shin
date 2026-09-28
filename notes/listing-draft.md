@@ -1,7 +1,9 @@
-DRAFT ONLY. Not submitted to the App Store or Play Store. The founder reviews, finalizes the
-name, and submits (plan item 42). Name shown here as a placeholder until the trademark question
-in `notes/trademark-search-2026-09-11.md` is resolved by the founder (hard rule 1); do not treat
-"Shin" below as cleared for public use.
+DRAFT ONLY. Not submitted to the App Store or Play Store. The founder reviews, finalizes, and
+submits (plan item 42). The name "Shin" below is not a placeholder: RULINGS.md ("Shin name: risk
+carried knowingly," 2026-09-22) has the store listing going out under "Shin," risk carried
+knowingly rather than cleared -- the app id is `com.useshinapp.shin`. This is not the same as
+cleared; see that ruling before any wider public use (a handle, a posted video) beyond the store
+listing itself.
 
 ## Age rating
 
@@ -41,8 +43,8 @@ in the aisle wondering if you're being overcharged.
 - Scan barcodes or photograph products directly.
 - Get a straight verdict, not a maze of listings to compare yourself.
 - See what real shoppers nearby have seen for this exact item.
-- Your photos and location stay off by default; you choose what to share, and you can change
-  your mind any time.
+- Your location stays off until you turn it on, and it's only ever a rough area, never your
+  exact spot; you choose what to share, and you can change your mind any time.
 
 This is a beta. Expect rough edges, and tell us what's wrong when you find it.
 

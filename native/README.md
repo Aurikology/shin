@@ -3,8 +3,11 @@
 Capacitor project that wraps the existing web app (`app/public`) for iOS and Android.
 Owned entirely by `native/`; nothing outside this directory is touched by anything below.
 
-The app name and bundle id are PLACEHOLDERS. See "The name is not cleared yet" below before
-touching anything that shows a name to a person.
+The app name and bundle id are already real on Android and in `capacitor.config.json`
+(`Shin` / `com.useshinapp.shin`, checked 2026-09-28) but are STILL PLACEHOLDERS on iOS
+(`Info.plist` and `project.pbxproj` still read `PriceCheck Placeholder` /
+`com.placeholder.pricecheck`). See "The name is not cleared yet" below before touching anything
+that shows a name to a person on iOS.
 
 ## Where things stand right now (checked, not assumed)
 
@@ -27,20 +30,21 @@ run and its real output, or a command not yet run, labelled as such.
 
 ## The name is not cleared yet
 
-A trademark search is running in another lane. Until it clears, everything in this project
-uses a placeholder name and a placeholder bundle id. Changing them later is ONE edit per file
-listed here, no hunting:
+A trademark search is running in another lane. iOS still uses a placeholder name and a
+placeholder bundle id; Android and `capacitor.config.json` have already moved to the real ones
+(checked 2026-09-28: `Shin` / `com.useshinapp.shin`), ahead of that clearing. Changing the iOS
+ones later is ONE edit per file listed here, no hunting:
 
-| What | File | Current placeholder value |
+| What | File | Current value |
 |---|---|---|
-| App display name (source of truth) | `native/capacitor.config.json` | `appName: "PriceCheck Placeholder"` |
-| Bundle id (source of truth) | `native/capacitor.config.json` | `appId: "com.placeholder.pricecheck"` |
-| Android app label | `native/android/app/src/main/res/values/strings.xml` | `app_name`, `title_activity_main` = `PriceCheck Placeholder` |
-| Android package id | `native/android/app/src/main/res/values/strings.xml` | `package_name`, `custom_url_scheme` = `com.placeholder.pricecheck` |
-| Android application id | `native/android/app/build.gradle` | `namespace` and `applicationId` = `com.placeholder.pricecheck` |
-| Android Java package + folder | `native/android/app/src/main/java/com/placeholder/pricecheck/MainActivity.java` | package `com.placeholder.pricecheck` (the folder path itself encodes the id; renaming the id means moving this file) |
-| iOS display name | `native/ios/App/App/Info.plist` | `CFBundleDisplayName` = `PriceCheck Placeholder` |
-| iOS bundle id | `native/ios/App/App.xcodeproj/project.pbxproj` | `PRODUCT_BUNDLE_IDENTIFIER = com.placeholder.pricecheck;` (appears twice, Debug and Release configs) |
+| App display name (source of truth) | `native/capacitor.config.json` | `appName: "Shin"` (cleared) |
+| Bundle id (source of truth) | `native/capacitor.config.json` | `appId: "com.useshinapp.shin"` (cleared) |
+| Android app label | `native/android/app/src/main/res/values/strings.xml` | `app_name`, `title_activity_main` = `Shin` (cleared) |
+| Android package id | `native/android/app/src/main/res/values/strings.xml` | `package_name`, `custom_url_scheme` = `com.useshinapp.shin` (cleared) |
+| Android application id | `native/android/app/build.gradle` | `namespace` and `applicationId` = `com.useshinapp.shin` (cleared) |
+| Android Java package + folder | `native/android/app/src/main/java/com/useshinapp/shin/MainActivity.java` | package `com.useshinapp.shin` (cleared; the folder path has already moved) |
+| iOS display name | `native/ios/App/App/Info.plist` | `CFBundleDisplayName` = `PriceCheck Placeholder` (still the placeholder) |
+| iOS bundle id | `native/ios/App/App.xcodeproj/project.pbxproj` | `PRODUCT_BUNDLE_IDENTIFIER = com.placeholder.pricecheck;` (appears twice, Debug and Release configs; still the placeholder) |
 
 Easiest path once the name clears: edit `capacitor.config.json` to the real values, then run
 `npx cap sync` from `native/` -- Capacitor's own sync step rewrites every file above except the
@@ -277,7 +281,8 @@ names what it needs from the one before it.
    form match before paying. Note also that the 12-testers-for-14-continuous-days requirement
    gates PRODUCTION access for personal accounts created after 2023-11-13; it does not gate the
    internal track, which is what the six-person beta uses.
-2. Create a new app in Play Console: name (placeholder until cleared), default language,
+2. Create a new app in Play Console: name (`Shin`, already the real name on the Android side),
+   default language,
    app or game, free or paid (free), fill the required declarations (content rating
    questionnaire, data safety form, target audience -- these ask real questions about what the
    app does and collects; answer them from what the app actually does, do not template them).

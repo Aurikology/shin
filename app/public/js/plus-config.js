@@ -25,15 +25,26 @@ export const PLUS = Object.freeze({
  * Terms and Privacy, linked from the subscription screen (Apple rejects a
  * subscription screen without both).
  *
- * TODO(before any store submission): both are placeholders. The privacy policy
- * exists only as a draft (notes/privacy-policy-draft.md) that the founder
- * reviews and hosts; no terms of use has been written at all. Replace each
- * value with the real hosted https URL. `.invalid` is reserved (RFC 2606), so a
- * placeholder can never resolve to somebody else's page.
+ * Both pages are hosted as plain HTML by the same server as the rest of the
+ * app: `app/public/legal/terms.html` and `app/public/legal/privacy.html`
+ * (French: `terms-fr.html`, `privacy-fr.html`, linked from each page itself).
+ * The server's static route serves `public/` without the invite code
+ * (`app/server.ts`, "Static files are not gated"), so these load for anyone,
+ * including a store reviewer with no invite.
+ *
+ * ABSOLUTE ON NATIVE, RELATIVE ON THE WEB. `window.SHIN_API_BASE` is the one
+ * global `native/scripts/sync-web.mjs` injects into the native wrapper's copy
+ * of this file, from `native/config/shin-api.config.json`'s `apiBase`; it is
+ * never set when this file runs in an ordinary browser tab, where the page
+ * that imported it is already being served by this same host. A native app
+ * has no "same origin" of its own to be relative to, so it needs the real
+ * hostname; a browser tab already has one, so a relative path keeps working
+ * even if the hostname changes later and nobody has to touch this file.
  */
+const API_BASE = typeof window !== 'undefined' && window.SHIN_API_BASE ? window.SHIN_API_BASE : '';
 export const LEGAL_URLS = Object.freeze({
-  terms: 'https://TODO-terms-of-use-not-written.invalid/',
-  privacy: 'https://TODO-host-notes-privacy-policy-draft.invalid/',
+  terms: `${API_BASE}/legal/terms.html`,
+  privacy: `${API_BASE}/legal/privacy.html`,
 });
 
 /**
