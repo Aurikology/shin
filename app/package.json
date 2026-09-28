@@ -10,9 +10,9 @@
   "scripts": {
     "build-eye": "node scripts/build-eye.mjs",
     "prestart": "npm run build-eye",
-    "start": "node server.ts",
+    "start": "node --env-file-if-exists=../.env --env-file-if-exists=.env server.ts",
     "predev": "npm run build-eye",
-    "dev": "node --watch server.ts",
+    "dev": "node --watch --env-file-if-exists=../.env --env-file-if-exists=.env server.ts",
     "stubs": "node scripts/make-stubs.mjs",
     "faces": "node scripts/build-faces.mjs",
     "icon": "node scripts/build-icon.mjs",

@@ -12,17 +12,13 @@
  * shelf has not thereby withdrawn where the shelf is, and the reverse is more
  * obviously true. They are two columns and two questions on the screen.
  *
- * PHOTOS DEFAULT ON, LOCATION DEFAULT OFF, AND THE DEFAULT IS NO ROW. Changed
- * 2026-09-19 for photos only (beta gap item 13). Jamin, 2026-09-17: "Shin
- * should try to save as much data as possible: the users' picture or
- * barcode...", and he delegated the consent wording ("you decide"). A device
- * that has never answered therefore reads photos TRUE, location false,
- * updatedAt null; a device that answered no reads photos false with a real
- * `updatedAt`, and that written no is never overridden by the default. The
- * screen says the default out loud and offers one plain switch to turn it
- * off (`voice.js` `consent_photos_desc`, `voice-fr.js`, and `store.js` mirror
- * this line). Location is untouched: still off until turned on, coarse cell
- * only, as ruled below; nobody has asked to move it.
+ * BOTH DEFAULT OFF, AND THE DEFAULT IS NO ROW. From 2026-09-19 to D-148
+ * (2026-09-22) photos defaulted ON here, on a reading of Jamin's "save as
+ * much data as possible" (beta gap item 13). That was the wrong side of the
+ * standing ruling "Location and photo consent default off until answered",
+ * and it meant a fresh install streamed shelf crops before anybody had been
+ * asked. A device that has never answered now reads photos false, location
+ * false, updatedAt null; only a written yes turns either on.
  *
  * THE RULING, 2026-09-14, because the two founders said opposite things on
  * the same day and this file is where the answer has to live. Jamin: "build
@@ -44,9 +40,7 @@
  * Lives in the scan database rather than one of its own for the same reason
  * the ratings and the events do: it is read on the same requests that write
  * scans, one file is one backup, and a consent flag in a second file that
- * failed to open would fail OPEN -- and open now means kept, which is the
- * direction that matters while the beta is family-only and the founder's own
- * word governs what a missing answer means.
+ * failed to open would fail OPEN.
  */
 
 import { activeScanStore, openScanStore } from './scans.ts';
@@ -66,10 +60,10 @@ export interface Consent {
 const NOTHING: Consent = { photos: false, location: false, updatedAt: null };
 
 /**
- * What a device with no row reads as: photos kept, location not. See the
+ * What a device with no row reads as: nothing agreed to. See the
  * header. Exported so the tests and the client mirror name one value.
  */
-export const DEFAULT_CONSENT: Consent = { photos: true, location: false, updatedAt: null };
+export const DEFAULT_CONSENT: Consent = { photos: false, location: false, updatedAt: null };
 
 interface ConsentRow {
   photos: number;

@@ -32,6 +32,7 @@ import { localeTag } from '../lib/locale.js';
 import { goBack, rowCheck } from '../lib/pagebar.js';
 import { LEGAL_URLS } from '../plus-config.js';
 import * as purchases from '../purchases.js';
+import { track } from '../track.js';
 
 const CLOSE_ICON = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
@@ -166,29 +167,42 @@ export default {
       }
     }
 
+    /*
+     * The Buy tap and its outcome, tracked so a two-week readout can count
+     * "would pay": a tap that never resolves into a subscription is still a
+     * fact about intent, not nothing. `plan` is the plan id chosen at the
+     * moment of the tap, so a plan switched after a failed attempt does not
+     * get credited with the earlier tap.
+     */
     async function buy() {
       const plan = plans.find((p) => p.id === chosen);
       if (!plan) return;
+      track('paywall_buy', { plan: plan.id, outcome: 'tapped' });
       paint('working');
       try {
         const out = await purchases.subscribe(plan.pkg, win);
         if (gone()) return;
-        if (out.plus) { paint('done'); return; }
+        if (out.plus) { track('paywall_buy', { plan: plan.id, outcome: 'done' }); paint('done'); return; }
+        track('paywall_buy', { plan: plan.id, outcome: out.cancelled ? 'cancelled' : 'failed' });
         paint('plans', { message: out.cancelled ? '' : t('paywall_buy_failed') });
       } catch {
+        track('paywall_buy', { plan: plan.id, outcome: 'failed' });
         paint('plans', { message: t('paywall_buy_failed') });
       }
     }
 
     async function restore() {
       const back = plans.length ? 'plans' : 'none';
+      track('paywall_restore', { outcome: 'tapped' });
       paint('working');
       try {
         const out = await purchases.restore(win);
         if (gone()) return;
-        if (out.plus) { paint('done'); return; }
+        if (out.plus) { track('paywall_restore', { outcome: 'done' }); paint('done'); return; }
+        track('paywall_restore', { outcome: 'failed' });
         paint(back, { message: t('paywall_restore_none') });
       } catch {
+        track('paywall_restore', { outcome: 'failed' });
         paint(back, { message: t('paywall_failed') });
       }
     }

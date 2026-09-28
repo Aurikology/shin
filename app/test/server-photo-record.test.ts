@@ -184,16 +184,14 @@ test('a photo is not kept when the device has explicitly opted out', async () =>
   assert.equal(getScan(scanId)!.photo_path, null, 'a photograph was kept after an explicit opt-out');
 });
 
-test('a photo is kept for a device that never touched consent, because photos default on', async () => {
-  // Changed 2026-09-19 (beta gap item 13): photos are saved by default and the
-  // switch on the consent screen is the opt-out. The opt-out test above is the
-  // other half; each fails if the default moves.
+test('no photo is kept for a device that never touched consent, because photos default off', async () => {
+  // D-148: the standing ruling "Location and photo consent default off until
+  // answered". Photos defaulted on from 2026-09-19 until D-148. The test
+  // below is the other half: a written yes is kept.
   useModel(answeringClient(READING));
-  const res = await postPhoto({ deviceId: 'p-default-on' });
+  const res = await postPhoto({ deviceId: 'p-default-off' });
   const { scanId } = (await res.json()) as { scanId: number };
-  const row = getScan(scanId)!;
-  assert.equal(row.photo_path, `${scanId}.png`, 'a photograph was not kept for a device that never said no');
-  assert.ok(photoExists(row.photo_path!), 'the row claims a file that is not on disk');
+  assert.equal(getScan(scanId)!.photo_path, null, 'a photograph was kept for a device that was never asked');
 });
 
 test('and it is kept, keyed by the scan id, once the device has', async () => {

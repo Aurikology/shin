@@ -895,12 +895,24 @@ function isThinReason(reason) {
  * Titled apart from `refuse_unknown` in `refusalSheet` below for hard rule 3:
  * an outage is not the shopper's photo being unclear, and saying so would be
  * the aggression landing on the wrong target.
+ *
+ * `model_client_error` joined this set 2026-09-28, D-150: a server with no
+ * usable model key answers every route the same way this set's other four
+ * members do (the call never left the building), and until today nothing
+ * here checked for it, so it fell through to the honest-miss refusal ("I do
+ * not know this one") on a server fault that has nothing to do with whether
+ * Shin has ever heard of the product. `catalogueLookup` (the barcode route)
+ * and `runTypedSearch` (the typed route) check this set now too, not only the
+ * photo route below, because `identify/src/model.ts`'s failure vocabulary is
+ * shared across all three and the same server fault reaches a shopper
+ * through any of them.
  */
 const MODEL_DOWN_REASONS = new Set([
   'model_timeout',
   'model_outage',
   'model_rate_limited',
   'spend_cap_reached',
+  'model_client_error',
 ]);
 
 /** Each model-down failure's own sentence in voice.js, keyed by the failure code. */
@@ -909,6 +921,7 @@ const PHOTO_MODEL_FAILURE_LINES = {
   model_outage: 'cam_photo_model_outage',
   model_rate_limited: 'cam_photo_model_rate_limited',
   spend_cap_reached: 'cam_photo_spend_cap_reached',
+  model_client_error: 'cam_photo_model_client_error',
 };
 
 /**
@@ -2852,6 +2865,19 @@ export default {
      */
     let stopShelfCapture = () => {};
     const startShelf = () => {
+      /*
+       * D-148: the shelf stream used to start regardless of FLAGS.photoId,
+       * relying only on `consentOn` below (checked every tick) to stop it
+       * from actually sending anything. With photo consent ON by default
+       * (app/src/consent.ts) that meant a fresh install with FLAGS.photoId
+       * OFF still opened this loop on every camera mount. `startCaptureQueue`
+       * just above already gates the same flag the same way; this is the
+       * shelf stream's own copy of that gate. Consent itself is left to the
+       * per-tick `consentOn` check, not re-tested here, because it can change
+       * (the You screen's Photos switch) while this screen stays mounted and
+       * the loop already reacts to that on its own.
+       */
+      if (!FLAGS.photoId || store.consent().photos !== true) return;
       startShelfCapture({
         video,
         isBusy: () => cam.dataset.state !== 'idle',
@@ -3344,6 +3370,19 @@ export default {
         return;
       }
 
+      /*
+       * D-150: a model outage on the server (no usable key, timed out, down,
+       * over its rate limit or spend cap) used to fall all the way through to
+       * "read fine, we have never seen it" below, which told the shopper the
+       * catalogue was empty on a code it may hold. Checked here, before that
+       * fallthrough, the same way the photo route's own model-down reasons
+       * are checked before its honest-miss line.
+       */
+      if (found?.modelDown) {
+        showPhotoRefusal(found.modelDown, say('cam_reader_model_down'));
+        return;
+      }
+
       // The weekly free scans are used (402 scan_limit): the subscription screen.
       if (found?.scanLimit) { openPaywall(found.scanLimit); return; }
 
@@ -3447,6 +3486,18 @@ export default {
       /* The weekly limit (2026-09-21): the server said no on purpose, so the
          pack below must not answer instead. */
       if (id?.failure === 'scan_limit') return { scanLimit: id };
+
+      /*
+       * D-150: the same model-down reasons the photo route already names
+       * (`MODEL_DOWN_REASONS`), checked here for the same reason rate_limited
+       * is checked above it -- none of the unchecked/catalogueUp/product
+       * fields below exist on this answer either, and falling through to them
+       * is exactly what told a shopper on a keyless server "we have never
+       * seen this" for a barcode the catalogue holds.
+       */
+      if (id?.failure && MODEL_DOWN_REASONS.has(id.failure)) {
+        return { modelDown: id.failure };
+      }
 
       /* CATALOGUE FIRST (server setting SHIN_CATALOGUE_FIRST on): the server
          named the barcode from Shin's own catalogue, or said it has never seen
@@ -4931,6 +4982,10 @@ export default {
          have both the item and price"). Held here and drawn below; never
          handed on to `proceed`, whose /api/price would make the paid call. */
       let own = null;
+      // D-150: held past the try block, where `id` itself is not, so the
+      // no-match fallthrough below can tell a real server-side model outage
+      // apart from an honest catalogue miss.
+      let idFailure = null;
       if (!typed) {
         try {
           const id = await ctx.api.identify({ text, shelfPriceCents: cents ?? undefined });
@@ -4941,6 +4996,7 @@ export default {
           // The query the server already started a price search under. Held
           // exactly as it arrived; see `lastPriceQuery`.
           lastPriceQuery = id?.priceQuery ?? null; lastPriceMatch = id?.priceMatch ?? null;
+          idFailure = id?.failure ?? null;
           // The weekly free scans are used (402 scan_limit): the subscription screen.
           if (id?.failure === 'scan_limit') { openPaywall(id); return; }
           // Shin's own data answered (or said it has no price): drawn below, never priced again.
@@ -4998,6 +5054,33 @@ export default {
         // Asked on the pad already: price it with that number, never ask twice.
         if (asked) proceed(typed, cents ?? undefined);
         else openPad(typed);
+        return;
+      }
+      /*
+       * D-150: a model outage on the server used to fall all the way through
+       * to the no-match refusal below, which told the shopper "nothing in
+       * what Shin has been taught matches" a query the server never actually
+       * checked against anything. Checked before that fallthrough, the same
+       * set the photo and barcode routes now check.
+       */
+      if (idFailure && MODEL_DOWN_REASONS.has(idFailure)) {
+        last = null;
+        slot.innerHTML = refusalSheet(
+          {
+            kind: 'refusal',
+            reason: idFailure,
+            detail: say('cam_reader_model_down'),
+            identity: null,
+            evidence: [],
+          },
+          null,
+          supportedCategories,
+          null,
+          { priceRoute: lastScanId !== null },
+        );
+        playRefusalLanding(slot);
+        setState('result');
+        mounted();
         return;
       }
       // No match: the unsure refusal, the engine's own shape, never a fake

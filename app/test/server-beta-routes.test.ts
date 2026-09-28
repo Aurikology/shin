@@ -173,14 +173,13 @@ test('a client that reports nothing about itself writes nulls, not empty strings
 
 /* ------------------- 6c and 11, consent gates the location --------------- */
 
-test('consent defaults to photos kept and location off, for a device that has never been asked', async () => {
-  // Location: his ruling of 2026-09-14 (docs/decisions.md, "Consent is off
-  // until answered") stands. Photos: changed 2026-09-19 (beta gap item 13),
-  // "save as much data as possible" and the wording delegated to the builder,
-  // so a device with no row keeps photos until it says no. consent.ts's header.
+test('consent defaults to photos off and location off, for a device that has never been asked', async () => {
+  // The standing ruling "Location and photo consent default off until
+  // answered". Photos defaulted on from 2026-09-19 until D-148 put them back
+  // with the ruling. consent.ts's header.
   const res = await get('/api/consent?deviceId=d-consent-new');
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { photos: true, location: false, updatedAt: null });
+  assert.deepEqual(await res.json(), { photos: false, location: false, updatedAt: null });
 });
 
 test('no cell is written for a device that never touched consent, because the default is off', async () => {

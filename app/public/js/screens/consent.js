@@ -1,8 +1,8 @@
 /**
- * Item 6b: the first-launch consent screen. Photos are ON by default and
- * location is OFF by default (photos changed 2026-09-19, beta gap item 13:
- * Jamin asked for as much user data as possible and delegated this wording;
- * location stays Aurik's 2026-09-14 ruling; see app/src/consent.ts). Each is
+ * Item 6b: the first-launch consent screen. Photos and location are both OFF
+ * until answered (RULINGS.md, "Location and photo consent default off until
+ * answered"; photos were briefly on by default from 2026-09-19 until D-148
+ * was fixed 2026-09-28; see app/src/consent.ts). Each is
  * its own switch with its own explanation right beside it, the photo line
  * saying plainly that it is on and how to turn it off, and a Continue that
  * works whatever the switches say -- the screen must be fully usable and
@@ -74,6 +74,10 @@ export default {
             <button type="button" class="switch" data-consent="photos" role="switch"
                     aria-checked="${store.consent().photos}" aria-label="${escapeHtml(t('consent_photos'))}"></button>
           </div>
+          ${/* FLAGS.onboarding off: the permission screen right before this
+               one already asked for location, through the same switch
+               (D-139; ruled 2026-09-28, asked once, on the permission screen). */
+            FLAGS.onboarding ? `
           <div class="ilist-row consent-row">
             <div class="consent-text">
               <span class="ilist-l">${escapeHtml(t('consent_location'))}</span>
@@ -81,7 +85,7 @@ export default {
             </div>
             <button type="button" class="switch" data-consent="location" role="switch"
                     aria-checked="false" aria-label="${escapeHtml(t('consent_location'))}"></button>
-          </div>
+          </div>` : ''}
         </div>
 
         <p class="fineprint consent-enter">${escapeHtml(say('consent_footer'))}</p>
@@ -106,7 +110,7 @@ export default {
         btn.classList.toggle('on', c[key]);
       }
     }
-    // Photos start on and location starts off until this device's own store
+    // Both start off until this device's own store
     // says otherwise (a re-run of this screen after a reset, say); painted
     // from `store.consent()`, the same values the server's default reads as.
     paint();

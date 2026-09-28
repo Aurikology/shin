@@ -150,8 +150,8 @@ export const LINES_FR = {
     blunt: (f) => `${f.category}? Non.`,
   },
   refuse_unavailable: {
-    deadpan: () => "Le lecteur de photos ne répond pas",
-    warm: () => "Le lecteur de photos ne répond pas en ce moment",
+    deadpan: () => "Le lecteur ne répond pas",
+    warm: () => "Le lecteur ne répond pas en ce moment",
     blunt: () => "Le lecteur est à terre",
   },
   refuse_unavailable_why: {
@@ -495,6 +495,11 @@ export const LINES_FR = {
     warm: (f) => `Je n'ai rien trouvé que je connais qui corresponde à « ${f.query} ». Essaie le code-barres, ou un ou deux mots différents.`,
     blunt: (f) => `« ${f.query} » ne correspond à rien que je connais.`,
   },
+  cam_reader_model_down: {
+    deadpan: () => "Le lecteur de Shin ne répond pas en ce moment. Réessaie dans un instant.",
+    warm: () => "Le lecteur de Shin ne répond pas en ce moment, ça n'a rien à voir avec ton scan. Réessaie dans un instant.",
+    blunt: () => "Le lecteur est à terre. Réessaie.",
+  },
   cam_text_no_own_price: {
     deadpan: () => "Shin n'a pas encore de prix pour ça. Scanne plutôt le code-barres.",
     warm: () => "Je n'ai pas encore de prix pour celui-ci. Scanne son code-barres et je vais le chercher.",
@@ -596,6 +601,11 @@ export const LINES_FR = {
     deadpan: () => "Les lectures de photos d'aujourd'hui sont épuisées. Le code-barres et la saisie au clavier fonctionnent encore.",
     warm: () => "Les lectures de photos d'aujourd'hui sont déjà épuisées, pas ta photo. Le code-barres ou la saisie au clavier vont quand même te donner une réponse.",
     blunt: () => "Plus de lectures de photos aujourd'hui. Essaie le code-barres ou écris-le.",
+  },
+  cam_photo_model_client_error: {
+    deadpan: () => "Le lecteur de photos ne répond pas en ce moment. Le code-barres et la saisie au clavier fonctionnent encore.",
+    warm: () => "Le lecteur de photos ne répond pas en ce moment, pas ta photo. Le code-barres ou la saisie au clavier vont quand même te donner une réponse.",
+    blunt: () => "Le lecteur ne répond pas. Essaie le code-barres ou écris-le.",
   },
   cam_photo_tier_unsafe: {
     deadpan: () => "Les photos sont désactivées sur ce serveur, donc la tienne n'a été envoyée nulle part. Le code-barres et la saisie au clavier fonctionnent encore.",
@@ -721,6 +731,11 @@ export const LINES_FR = {
     warm: () => "Refusé, parce que les lectures de photos d'aujourd'hui sont déjà épuisées.",
     blunt: () => "Refusé. Plus de lectures de photos aujourd'hui.",
   },
+  refusal_label_model_client_error: {
+    deadpan: () => "Refusé. Le lecteur ne répond pas.",
+    warm: () => "Refusé, parce que le lecteur ne répond pas en ce moment.",
+    blunt: () => "Refusé. Le lecteur ne répond pas.",
+  },
   refusal_label_too_large: {
     deadpan: () => "Refusé. Cette photo était trop grosse à envoyer.",
     warm: () => "Refusé, parce que cette photo était trop grosse à envoyer.",
@@ -833,14 +848,14 @@ export const LINES_FR = {
    * simplement, avec la sortie juste à côté: l'interrupteur. Tout changement
    * de défaut change ce texte, voice.js et consent.ts le même jour. */
   consent_intro: {
-    deadpan: () => "Chaque scan est écrit: le produit et le prix que tu as vu, toujours, pour que la prochaine personne qui le scanne obtienne une réponse. Les photos des scans par photo sont gardées tant que tu ne les fermes pas ci-dessous. La position n'est gardée que si tu l'ouvres.",
-    warm: () => "Chaque scan est écrit: ce que tu as scanné et le prix que tu as vu, toujours, pour que la prochaine personne qui scanne la même chose obtienne une réponse elle aussi. Les photos des scans par photo sont gardées tant que tu ne les fermes pas ci-dessous, et la position n'est gardée que si tu l'ouvres.",
-    blunt: () => "Chaque scan est consigné: produit et prix, toujours. Les photos sont gardées tant que tu ne les fermes pas. La position n'est gardée que si tu l'ouvres.",
+    deadpan: () => "Chaque scan est écrit: le produit et le prix que tu as vu, toujours, pour que la prochaine personne qui le scanne obtienne une réponse. Les photos sont gardées seulement si tu ouvres ça ci-dessous. La position n'est gardée que si tu l'ouvres.",
+    warm: () => "Chaque scan est écrit: ce que tu as scanné et le prix que tu as vu, toujours, pour que la prochaine personne qui scanne la même chose obtienne une réponse elle aussi. Les photos sont gardées seulement si tu ouvres ça ci-dessous, et la position n'est gardée que si tu l'ouvres.",
+    blunt: () => "Chaque scan est consigné: produit et prix, toujours. Les photos sont gardées seulement si tu ouvres ça. La position n'est gardée que si tu l'ouvres.",
   },
   consent_photos_desc: {
-    deadpan: () => "Ouvert jusqu'à ce que tu le fermes. Garde l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et que Shin puisse apprendre. Fermé, l'image est lue une fois pour répondre au scan et n'est pas gardée. Le risque: une photo gardée peut montrer ce qui se trouve autour de toi.",
-    warm: () => "Ouvert jusqu'à ce que tu le fermes. Garde l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et que Shin puisse apprendre. Fermé, l'image n'est lue qu'une fois, pour répondre à ce scan, puis elle est partie. Le risque, c'est qu'une photo gardée peut montrer tout ce qu'il y avait d'autre autour de toi.",
-    blunt: () => "Ouvert jusqu'à ce que tu le fermes. Garde la photo, liée au scan, pour qu'une mauvaise réponse puisse être vérifiée. Fermé: lue une fois, pas gardée. Risque: une photo gardée peut montrer ce qui est près de toi.",
+    deadpan: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé, aucune image du rayon n'est gardée pendant que la caméra est ouverte, et l'image d'un scan par photo est lue une fois pour répondre et n'est pas gardée. Ouvert, les deux sont gardées: l'image du rayon, et l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et que Shin puisse apprendre. Le risque: une photo gardée peut montrer ce qui se trouve autour de toi.",
+    warm: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé, aucune image du rayon n'est gardée pendant que la caméra est ouverte, et l'image d'un scan par photo n'est lue qu'une fois, pour répondre à ce scan, puis elle est partie. Ouvert, les deux sont gardées: l'image du rayon, et l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et que Shin puisse apprendre. Le risque, c'est qu'une photo gardée peut montrer tout ce qu'il y avait d'autre autour de toi.",
+    blunt: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé: pas d'image du rayon, et l'image du scan par photo est lue une fois, pas gardée. Ouvert: les deux gardées, liées au scan, pour qu'une mauvaise réponse puisse être vérifiée. Risque: une photo gardée peut montrer ce qui est près de toi.",
   },
   consent_location_desc: {
     deadpan: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact, pour qu'un prix puisse être associé à un magasin proche. Ton téléphone retient aussi quel magasin tu as choisi dans chaque zone, pour arrêter de te le demander. Cette liste ne quitte jamais le téléphone et elle disparaît quand tu fermes ça. Fermé, aucune position n'est gardée. Le risque: même une zone approximative réduit l'endroit où tu magasines.",

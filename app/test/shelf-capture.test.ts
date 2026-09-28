@@ -129,7 +129,7 @@ beforeEach(() => {
 });
 
 test('a consented frame is stored as a file with a note beside it', () => {
-  const r = saveShelfFrame(body(), { env: env(), keep: () => true, now: new Date('2026-09-19T10:00:05Z') });
+  const r = saveShelfFrame(body(), { env: env(), keep: () => true, photoId: () => true, free: () => 1e12, now: new Date('2026-09-19T10:00:05Z') });
   assert.equal(r.status, 204);
   const folder = join(dir, 'shelf', '2026-09-19', 'device-abcdef12');
   const files = readdirSync(folder);
@@ -138,22 +138,22 @@ test('a consented frame is stored as a file with a note beside it', () => {
 });
 
 test('without photo consent the server stores nothing', () => {
-  const r = saveShelfFrame(body(), { env: env(), keep: () => false });
+  const r = saveShelfFrame(body(), { env: env(), keep: () => false, photoId: () => true, free: () => 1e12 });
   assert.equal(r.status, 403);
   assert.equal(existsSync(join(dir, 'shelf')), false, 'a frame was written for a device that did not consent');
 });
 
 test('something that is not an image, or has no device, is refused', () => {
-  assert.equal(saveShelfFrame(body({ frame: Buffer.from('not an image at all').toString('base64') }), { env: env(), keep: () => true }).status, 400);
-  assert.equal(saveShelfFrame(body({ deviceId: '../../etc' }), { env: env(), keep: () => true }).status, 400);
-  assert.equal(saveShelfFrame(null, { env: env(), keep: () => true }).status, 400);
+  assert.equal(saveShelfFrame(body({ frame: Buffer.from('not an image at all').toString('base64') }), { env: env(), keep: () => true, photoId: () => true, free: () => 1e12 }).status, 400);
+  assert.equal(saveShelfFrame(body({ deviceId: '../../etc' }), { env: env(), keep: () => true, photoId: () => true, free: () => 1e12 }).status, 400);
+  assert.equal(saveShelfFrame(null, { env: env(), keep: () => true, photoId: () => true, free: () => 1e12 }).status, 400);
 });
 
 test('a device cannot store more than the daily cap', () => {
   const now = new Date('2026-09-19T10:00:00Z');
   let last = 204;
   for (let i = 0; i < SHELF_DAILY_CAP + 3; i += 1) {
-    last = saveShelfFrame(body(), { env: env(), keep: () => true, now }).status;
+    last = saveShelfFrame(body(), { env: env(), keep: () => true, photoId: () => true, free: () => 1e12, now }).status;
   }
   assert.equal(last, 429, 'the server has no floor under the phone\'s own throttle');
 });

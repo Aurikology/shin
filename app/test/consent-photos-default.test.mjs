@@ -79,12 +79,14 @@ beforeEach(() => {
 
 /* ----------------------------------------------------------------- server -- */
 
-test('a device that was never asked keeps photos and not location', () => {
+test('a device that was never asked keeps neither photos nor location (D-148)', () => {
+  // The standing ruling "Location and photo consent default off until
+  // answered". The photo default was on from 2026-09-19 until D-148.
   openScanStore(fresh());
-  assert.deepEqual(readConsent('never-asked'), { photos: true, location: false, updatedAt: null });
-  assert.equal(keepPhoto('never-asked'), true, 'the default stopped saving photos');
+  assert.deepEqual(readConsent('never-asked'), { photos: false, location: false, updatedAt: null });
+  assert.equal(keepPhoto('never-asked'), false, 'a photo is kept for a device that was never asked');
   assert.equal(keepLocation('never-asked'), false, 'location moved with the photo default');
-  assert.deepEqual(DEFAULT_CONSENT, { photos: true, location: false, updatedAt: null });
+  assert.deepEqual(DEFAULT_CONSENT, { photos: false, location: false, updatedAt: null });
 });
 
 test('a written no is never overridden by the default', () => {
@@ -118,11 +120,15 @@ test('the phone starts from the same default the server does', () => {
 });
 
 test('an old saved state that never recorded a choice reads as the new default', async () => {
-  const state = { consent: { photos: false, location: false, updatedAt: null }, consentSeen: true };
+  // D-148, 2026-09-28: the default this reads as reversed back to off, so a
+  // state saved during the 2026-09-19-to-2026-09-28 window (photos true, no
+  // updatedAt) is the one that now has to be re-read as the CURRENT default
+  // rather than credited with a yes nobody actually gave.
+  const state = { consent: { photos: true, location: false, updatedAt: null }, consentSeen: true };
   const fresher = await freshStore({ 'shin.v1': JSON.stringify(state) }, 'legacy-unrecorded');
   assert.equal(fresher.loadFault(), null, 'the seeded state was not read at all');
   assert.equal(fresher.consentSeen(), true, 'the seeded state was not the one loaded');
-  assert.equal(fresher.consent().photos, true, 'the old off default was read as a recorded no');
+  assert.equal(fresher.consent().photos, false, 'the old on-by-default state was read as a recorded yes');
   assert.equal(fresher.consent().location, false);
 });
 
@@ -146,11 +152,11 @@ test('Continue records the default as an answer, with a time, and posts it', () 
       postEvent: (body) => events.push(body),
     };
     const next = confirmConsent(api);
-    assert.equal(next.photos, true);
+    assert.equal(next.photos, false);
     assert.equal(next.location, false);
     assert.ok(next.updatedAt, 'the confirmed answer carries no time');
     assert.equal(posted.length, 1, 'Continue did not post the consent to the server');
-    assert.equal(posted[0].photos, true);
+    assert.equal(posted[0].photos, false);
     assert.equal(posted[0].location, false);
     assert.equal(events[0].payload.via, 'continue');
   });
@@ -161,9 +167,9 @@ test('the one switch is the whole opt-out, and it posts what it says', () => {
     const posted = [];
     const api = { postConsent: (b) => posted.push(b), postEvent: () => {} };
     const next = toggleConsent(api, 'photos');
-    assert.equal(next.photos, false);
-    assert.equal(posted[0].photos, false, 'the switch and the server disagree');
-    assert.equal(toggleConsent(api, 'photos').photos, true);
+    assert.equal(next.photos, true);
+    assert.equal(posted[0].photos, true, 'the switch and the server disagree');
+    assert.equal(toggleConsent(api, 'photos').photos, false);
   });
 });
 
@@ -171,15 +177,15 @@ test('the one switch is the whole opt-out, and it posts what it says', () => {
 
 const KEYS = ['consent_intro', 'consent_photos_desc', 'consent_footer'];
 
-test('the English copy says photos are kept by default and how to turn that off', () => {
+test('the English copy says photos are off by default and how to turn that on', () => {
   for (const tone of TONES) {
     const intro = say('consent_intro', {}, tone);
     const photos = say('consent_photos_desc', {}, tone);
     assert.match(intro, /photos/i, `${tone} intro does not mention photos`);
-    assert.match(intro, /unless you switch (them )?off/i, `${tone} intro does not say photos are kept by default`);
-    assert.match(photos, /on until you switch it off/i, `${tone} photo line does not say it is on`);
+    assert.match(intro, /only if you switch (that|them) on/i, `${tone} intro does not say photos are off by default`);
+    assert.match(photos, /off until you switch it on/i, `${tone} photo line does not say it is off`);
     assert.match(photos, /not kept|is gone/i, `${tone} photo line does not say what off does`);
-    assert.doesNotMatch(intro, /two more things/i, `${tone} intro still says photos are off by default`);
+    assert.doesNotMatch(intro, /two more things/i, `${tone} intro regressed to an even older wording`);
   }
 });
 
@@ -188,10 +194,10 @@ test('the French copy says the same, in all three tones', () => {
     const intro = LINES_FR.consent_intro[tone]();
     const photos = LINES_FR.consent_photos_desc[tone]();
     assert.match(intro, /photos/i, `${tone} intro does not mention photos`);
-    assert.match(intro, /tant que tu ne les fermes pas/i, `${tone} intro does not say photos are kept by default`);
-    assert.match(photos, /Ouvert jusqu'à ce que tu le fermes/, `${tone} photo line does not say it is on`);
+    assert.match(intro, /seulement si tu ouvres/i, `${tone} intro does not say photos are off by default`);
+    assert.match(photos, /Fermé jusqu'à ce que tu l'ouvres/, `${tone} photo line does not say it is off`);
     assert.match(photos, /pas gardée|est partie/i, `${tone} photo line does not say what off does`);
-    assert.doesNotMatch(intro, /Deux autres choses/i, `${tone} intro still says photos are off by default`);
+    assert.doesNotMatch(intro, /Deux autres choses/i, `${tone} intro regressed to an even older wording`);
   }
 });
 
@@ -219,4 +225,17 @@ test('the source of the screen and the actions still agree on the opt-out', () =
   // uses; Continue goes through confirmConsent so the answer is recorded.
   assert.match(screen, /aria-checked="\$\{store\.consent\(\)\.photos\}"/);
   assert.match(screen, /confirmConsent\(ctx\.api\)/);
+});
+
+test('with the welcome flow off, location is asked once: the consent screen gates its row (D-139)', () => {
+  const screen = readFileSync(
+    fileURLToPath(new URL('../public/js/screens/consent.js', import.meta.url)),
+    'utf8',
+  );
+  // The location switch is emitted only inside the FLAGS.onboarding branch;
+  // with the flow off the permission screen right before has already asked.
+  const at = screen.indexOf('data-consent="location"');
+  assert.ok(at > 0, 'the location switch still exists for the welcome flow');
+  const gate = screen.lastIndexOf('FLAGS.onboarding ?', at);
+  assert.ok(gate > 0 && at - gate < 800, 'the location row sits inside a FLAGS.onboarding branch');
 });

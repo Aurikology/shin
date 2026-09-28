@@ -242,12 +242,13 @@ test('identifyDemo passes a real demo answer straight through', async () => {
 
 /* --------------------------------------------------------- the refusal voice */
 
-/** The four failure classes the photo model itself can return, per
+/** The five failure classes the photo model itself can return, per
     identify/src/model.ts's FailureClass, minus the two the route answers
     before a model is ever asked (too_large, rate_limited) and the one that
     means the model looked and failed (unreadable_photo, folded into
-    no_identity per the task contract). */
-const MODEL_DOWN_REASONS = ['model_timeout', 'model_outage', 'model_rate_limited', 'spend_cap_reached'];
+    no_identity per the task contract). `model_client_error` (no usable model
+    key at all) joined the other four 2026-09-28, D-150. */
+const MODEL_DOWN_REASONS = ['model_timeout', 'model_outage', 'model_rate_limited', 'spend_cap_reached', 'model_client_error'];
 
 test('every model-down failure has its own refusal label, never the bare fallback', () => {
   for (const reason of MODEL_DOWN_REASONS) {
@@ -264,6 +265,7 @@ test('every model-down failure has a sentence in all three personalities, and it
     model_outage: 'cam_photo_model_outage',
     model_rate_limited: 'cam_photo_model_rate_limited',
     spend_cap_reached: 'cam_photo_spend_cap_reached',
+    model_client_error: 'cam_photo_model_client_error',
   };
   for (const [reason, key] of Object.entries(keys)) {
     for (const who of ['deadpan', 'warm', 'blunt']) {
@@ -514,4 +516,59 @@ test('the capture queue is torn down when the screen unmounts', () => {
   // resolution, so the teardown call proves it is the same handle, not a
   // second unrelated stop function.
   assert.match(CAMERA, /stopCaptureQueue = stop;/);
+});
+
+/* --------------------------------------------- D-150: model outage, by source */
+
+// The barcode and typed routes went through /api/identify with no branch at
+// all for a model-down failure, so a keyless or misconfigured server told a
+// shopper "we have never seen this" instead of naming the outage. Checked by
+// source, the same way the two tests above check catalogueLookup and
+// startCaptureQueue: the branch lives in a closure this file has no DOM to
+// mount.
+test('the barcode route checks MODEL_DOWN_REASONS before falling through to the catalogue-miss candidate list', () => {
+  const fn = CAMERA.slice(
+    CAMERA.indexOf('async function catalogueLookup'),
+    CAMERA.indexOf('/** Brand, name and size, without'),
+  );
+  assert.match(fn, /MODEL_DOWN_REASONS\.has\(id\.failure\)/, 'catalogueLookup never checks a model-down failure');
+  assert.match(fn, /return \{ modelDown: id\.failure \};/);
+  // Checked before the unchecked/catalogueUp/product branches, the same
+  // ordering rate_limited and scan_limit already use above it.
+  const modelDownAt = fn.indexOf('MODEL_DOWN_REASONS.has(id.failure)');
+  const uncheckedAt = fn.indexOf('id.unchecked?.label');
+  assert.ok(modelDownAt > -1 && uncheckedAt > -1 && modelDownAt < uncheckedAt, 'the model-down check runs after the unchecked branch, which would answer first');
+});
+
+test('resolveBarcode paints a model-down answer as refuse_unavailable, not the catalogue-miss list', () => {
+  const fn = CAMERA.slice(CAMERA.indexOf('async function resolveBarcode'), CAMERA.indexOf('async function catalogueLookup'));
+  assert.match(fn, /found\?\.modelDown/, 'resolveBarcode never reads the modelDown marker catalogueLookup returns');
+  assert.match(fn, /showPhotoRefusal\(found\.modelDown, say\('cam_reader_model_down'\)\)/);
+});
+
+test('the typed route checks MODEL_DOWN_REASONS before the "nothing in what Shin has been taught" refusal', () => {
+  const fn = CAMERA.slice(CAMERA.indexOf('async function runTypedSearch'), CAMERA.length);
+  assert.match(fn, /idFailure = id\?\.failure \?\? null;/, 'runTypedSearch never keeps the failure code past its try block');
+  assert.match(fn, /MODEL_DOWN_REASONS\.has\(idFailure\)/);
+  assert.match(fn, /say\('cam_reader_model_down'\)/);
+  // The model-down branch has to run before the hard-coded no_identity
+  // fallback, or a model outage still reaches "nothing in what Shin has been
+  // taught matches" first.
+  const modelDownAt = fn.indexOf('MODEL_DOWN_REASONS.has(idFailure)');
+  const noMatchAt = fn.indexOf('cam_text_no_match');
+  assert.ok(modelDownAt > -1 && noMatchAt > -1 && modelDownAt < noMatchAt, 'cam_text_no_match still renders before the model-down check');
+});
+
+test('cam_reader_model_down and the generalised refuse_unavailable never name a photo', () => {
+  for (const who of ['deadpan', 'warm', 'blunt']) {
+    assert.doesNotMatch(say('cam_reader_model_down', {}, who), /photo/i, `cam_reader_model_down/${who} names a photo on a route that may be barcode or typed`);
+    assert.doesNotMatch(say('refuse_unavailable', {}, who), /photo/i, `refuse_unavailable/${who} names a photo on a route that may be barcode or typed`);
+  }
+});
+
+/* ---------------------------------------------------- D-148: the shelf stream */
+
+test('startShelf does not run when FLAGS.photoId is off, even with photo consent on', () => {
+  const fn = CAMERA.slice(CAMERA.indexOf('const startShelf = () => {'), CAMERA.indexOf('ctx.api.scenarios()'));
+  assert.match(fn, /if \(!FLAGS\.photoId \|\| store\.consent\(\)\.photos !== true\) return;/, 'startShelf no longer gates on FLAGS.photoId');
 });

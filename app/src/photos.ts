@@ -38,6 +38,27 @@
  * THE ROW SURVIVES THE PHOTO. Deleting the file nulls `photo_path` and touches
  * nothing else on the scan row. What was scanned, what came back and when are
  * the product; the photograph is the part we promised to hold for ninety days.
+ *
+ * FIXED 2026-09-28, DEFECTS.md D-163. `photosDir` used to honour `SHIN_PHOTOS`
+ * then fall back to a path resolved relative to THIS SOURCE FILE, never
+ * `SHIN_DATA_DIR` -- unlike `shutterDir` (`shutter-log.ts`), which already
+ * falls back to `<SHIN_DATA_DIR>/shutter`. With `SHIN_DATA_DIR` set and no
+ * explicit `SHIN_PHOTOS`, shopper photos still landed inside the repo
+ * checkout at `app/data/photos/`, which the nightly backup (plan item 1g)
+ * never reaches. `photosDir` below now mirrors `shutterDir`'s own order:
+ * `SHIN_PHOTOS` (explicit override) > `<SHIN_DATA_DIR>/photos` > the old
+ * repo-relative default, kept last so a machine with neither set (every dev
+ * box and the test suite) is unchanged.
+ *
+ * EXISTING PHOTOS ARE NOT SILENTLY ORPHANED BY THIS CHANGE. A server that
+ * already set `SHIN_DATA_DIR` and already has photos sitting in the OLD
+ * repo-relative location needs them MOVED, once, to the new location this
+ * fix now points at -- this file does not do that move itself (walking the
+ * old directory on every read, or on every server start, is a permanent
+ * cost paid by every future start for a one-time problem). Run
+ * `app/scripts/migrate-photos-to-data-dir.mjs` once on that machine instead;
+ * see its header for exactly what it moves and how it decides there is
+ * nothing to do.
  */
 
 import * as settings from '../../settings/src/index.ts';
@@ -72,10 +93,22 @@ export function retentionDays(env: NodeJS.ProcessEnv = process.env): number | nu
 /**
  * The folder. Beside the scan database rather than inside the repo tree,
  * because it is data and the nightly backup in plan item 1g copies data.
+ *
+ * Order: `SHIN_PHOTOS` (an explicit override always wins) > `<SHIN_DATA_DIR>/
+ * photos` (so a server that points its data at a backed-up folder gets its
+ * photos backed up too, same as `shutterDir`) > the repo-relative default,
+ * for a machine with neither set.
  */
 export function photosDir(env: NodeJS.ProcessEnv = process.env): string {
   const named = settings.SHIN_PHOTOS(env)?.trim();
   if (named) return resolve(named);
+  const dataDir = settings.SHIN_DATA_DIR(env)?.trim();
+  if (dataDir) return join(resolve(dataDir), 'photos');
+  return fileURLToPath(new URL('../data/photos/', import.meta.url));
+}
+
+/** The repo-relative default `photosDir` used before D-163, whatever the environment. Used only by the one-shot migration. */
+export function legacyPhotosDir(): string {
   return fileURLToPath(new URL('../data/photos/', import.meta.url));
 }
 

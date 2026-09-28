@@ -78,7 +78,7 @@ import {
 import { recordGap } from '../catalogue/src/gaps.ts';
 import { summariseScans, UNATTRIBUTED } from './src/scan-summary.ts';
 import { keepLocation, keepPhoto, readConsent, writeConsent } from './src/consent.ts';
-import { deleteRating, isRating, isRatingReason, rateScan, scanExists } from './src/ratings.ts';
+import { deleteRating, isRating, isRatingReason, rateScan, ratingFor, scanExists } from './src/ratings.ts';
 import { deviceFromHeaders, entitlementStartupWarning, isScanOutcome, quotaFor, recordScanOutcome, scanLimitRefusal } from './src/scan-quota.ts';
 import { priceMatchLine } from './src/price-match-line.ts';
 import { recordEvent, serialisePayload } from './src/events.ts';
@@ -90,8 +90,11 @@ import { markScan } from './src/scan-marks.ts';
 import { listenProblem, startupProblems } from './src/startup.ts';
 import { estimatedCostCents, groundedScanCapChargeUsdCents } from './src/model-cost.ts';
 import { recordAccess } from './src/access-log.ts';
-import { handleAdmin } from './src/admin.ts';
-import { recordShutterRequest, saveShutterFrame } from './src/shutter-log.ts';
+import { ADMIN_HEADER, adminAllows, handleAdmin } from './src/admin.ts';
+import { DEVICE_REFUSAL, bindDevice, deviceHeaderOf, ownsDevice } from './src/device-key.ts';
+import { recordShutterRequest, shutterDir } from './src/shutter-log.ts';
+import { saveCappedShutterFrame } from './src/shutter-frame.ts';
+import { diskHasRoom } from './src/disk-guard.ts';
 import { saveShelfFrame, MAX_SHELF_FRAME_BYTES } from './src/shelf.ts';
 import { savePhoto, sweepPhotos } from './src/photos.ts';
 import {
@@ -2501,6 +2504,20 @@ function originRefused(req: IncomingMessage): boolean {
   return originHost === null || requestHost === null || originHost !== requestHost;
 }
 
+/**
+ * D-161: will the door turn this request away? The same two checks the
+ * handler makes before any route runs (the admin token on `/api/admin/`, the
+ * invite on every other `/api/` path but the exempt ones), asked early and
+ * without side effects so nothing is written for a request that is refused.
+ * Static files are not gated and are not refused here.
+ */
+function refusedAtTheDoor(req: IncomingMessage, pathname: string): boolean {
+  if (!pathname.startsWith('/api/')) return false;
+  if (pathname.startsWith('/api/admin/')) return !adminAllows(req.headers[ADMIN_HEADER]);
+  if (INVITE_EXEMPT.includes(pathname)) return false;
+  return !inviteAllows(req.headers[INVITE_HEADER]);
+}
+
 /** ITEM 19's fixed sample answer. Never Gemini's; never billed. */
 const DEMO_SAMPLE = {
   label: 'Kraft Dinner Original, 225 g',
@@ -2547,8 +2564,21 @@ export const server = createServer(async (req, res) => {
 
   // Before any route reads the body: a request carrying a shutter press id is
   // copied, sent and returned, into that press's folder (src/shutter-log.ts).
-  recordAccess(req, res);
-  recordShutterRequest(req, res, url.pathname);
+  //
+  // D-161 (2026-09-22): ONLY FOR A REQUEST THE GATES BELOW WILL LET IN. Both
+  // loggers used to run first, so a refused caller could create a folder and
+  // a JSON file per request, about 589 a second, with no invite at all. The
+  // decision is the same one the invite check and `handleAdmin` make, taken
+  // here without reading anything, so a refusal writes nothing to disk.
+  if (!refusedAtTheDoor(req, url.pathname)) {
+    recordAccess(req, res);
+    // The same low-disk floor the frames have (D-160), asked only when the
+    // request carries a press id, since only then is there a folder to write.
+    if (req.headers['x-shin-shutter'] && diskHasRoom(shutterDir())) recordShutterRequest(req, res, url.pathname);
+  }
+  // A phone's first request carrying its secret ties its id to it
+  // (src/device-key.ts). After the door, for the same reason as the logs.
+  if (!refusedAtTheDoor(req, url.pathname)) bindDevice(req.headers);
 
   /*
    * ITEM 18 (docs/scanner-build-order-2026-09-19.md section 18): the
@@ -2570,6 +2600,15 @@ export const server = createServer(async (req, res) => {
     });
     res.end(payload);
   };
+
+  /*
+   * D-145, D-155 to D-159: a route that answers about a device asks this
+   * first. A device that has bound a secret (src/device-key.ts) is answered
+   * only for a request carrying that secret; a device that has not yet is
+   * answered as before, so no tester's phone is locked out by the update.
+   */
+  const owns = (deviceId: string) => ownsDevice(deviceId, req.headers);
+  const notYours = () => json(403, { error: DEVICE_REFUSAL });
 
   // The refusal for `paidCallRefusal`: nothing has been sent to Google and nothing counted against the cap.
   const tooManyCalls = (retryAfterSeconds: number) => {
@@ -2738,13 +2777,26 @@ export const server = createServer(async (req, res) => {
       if (req.method !== 'POST') return json(405, { error: 'POST only' });
       const body = await readBody(req, MAX_SHUTTER_FRAME_BYTES);
       if (body === TOO_LARGE) return refuseTooLarge(MAX_SHUTTER_FRAME_BYTES);
-      const status = saveShutterFrame(body);
+      // D-160: the frame is counted against the device that sent it, and
+      // against everybody, and not written at all to a nearly full disk.
+      const frameDevice = deviceHeaderOf(req.headers);
+      if (frameDevice && !owns(frameDevice)) return notYours();
+      const status = saveCappedShutterFrame(body, process.env, { deviceId: frameDevice });
       if (status === 204) {
         res.writeHead(204, { 'cache-control': 'no-store' });
         res.end();
         return;
       }
-      return json(status, { error: status === 404 ? 'the shutter log is off' : 'frame not saved' });
+      return json(status, {
+        error:
+          status === 404
+            ? 'the shutter log is off'
+            : status === 429
+              ? 'daily frame limit reached'
+              : status === 507
+                ? 'the server is low on disk space'
+                : 'frame not saved',
+      });
     }
 
     /*
@@ -2758,6 +2810,10 @@ export const server = createServer(async (req, res) => {
       const cap = Math.ceil(MAX_SHELF_FRAME_BYTES * 1.4);
       const body = await readBody(req, cap);
       if (body === TOO_LARGE) return refuseTooLarge(cap);
+      // D-155: only the device itself may send its pictures. Photo
+      // identification, consent and the caps are checked inside the store.
+      const shelfDevice = body !== null && typeof body === 'object' ? (body as { deviceId?: unknown }).deviceId : null;
+      if (typeof shelfDevice === 'string' && !owns(shelfDevice)) return notYours();
       const saved = saveShelfFrame(body);
       if (saved.status === 204) {
         res.writeHead(204, { 'cache-control': 'no-store' });
@@ -2850,6 +2906,7 @@ export const server = createServer(async (req, res) => {
       if (req.method !== 'GET') return json(405, { error: 'GET only' });
       const quotaDevice = url.searchParams.get('deviceId')?.trim() || deviceFromHeaders(req.headers) || '';
       if (quotaDevice === '') return json(400, { error: 'deviceId is required' });
+      if (!owns(quotaDevice)) return notYours();
       deviceForLog = quotaDevice;
       return json(200, await quotaFor(quotaDevice, req.headers));
     }
@@ -2867,6 +2924,7 @@ export const server = createServer(async (req, res) => {
         return json(400, { error: "outcome must be 'bought_elsewhere', 'price_matched', 'bought_here' or 'not_bought'" });
       }
       const outcomeDevice = (typeof o.deviceId === 'string' ? o.deviceId.trim() : '') || deviceFromHeaders(req.headers);
+      if (outcomeDevice && !owns(outcomeDevice)) return notYours();
       if (outcomeDevice) deviceForLog = outcomeDevice;
       const kept = recordScanOutcome(outcomeScan, outcomeDevice ?? null, o.outcome);
       return json(200, kept ? { stored: true } : { stored: false, why: 'that outcome could not be written down' });
@@ -3889,7 +3947,19 @@ export const server = createServer(async (req, res) => {
      * the reply is about the whole log.
      */
     if (url.pathname === '/api/scans') {
-      return json(200, summariseScans(url.searchParams.get('deviceId')?.trim() || undefined));
+      /*
+       * D-156, D-157: a device's own week only for that device, and the
+       * whole-log reply only for the admin token. Without a device this used
+       * to hand fleet-wide figures to anybody with the invite; the phone
+       * always sends its id, so nothing on a screen asks for that shape.
+       */
+      const scansDevice = url.searchParams.get('deviceId')?.trim() || '';
+      if (scansDevice === '') {
+        if (!adminAllows(req.headers[ADMIN_HEADER])) return json(400, { error: 'deviceId is required' });
+        return json(200, summariseScans(undefined));
+      }
+      if (!owns(scansDevice)) return notYours();
+      return json(200, summariseScans(scansDevice));
     }
 
     /*
@@ -3919,12 +3989,16 @@ export const server = createServer(async (req, res) => {
       const r = body as Record<string, unknown>;
       const deviceId = typeof r.deviceId === 'string' ? r.deviceId.trim() : '';
       if (deviceId === '') return json(400, { error: 'deviceId is required' });
+      if (!owns(deviceId)) return notYours();
       deviceForLog = deviceId;
       const ratedScan = Number(r.scanId);
       if (!scanExists(ratedScan)) {
         return json(400, { error: 'scanId must be the id of a scan this server recorded' });
       }
       scanForLog = ratedScan;
+      // D-159: a device rates its own scans. Thumbs are how accuracy is
+      // measured during the beta, so a thumb on somebody else's scan is noise.
+      if (getScan(ratedScan)?.device_id !== deviceId) return notYours();
       if (!isRating(r.rating)) return json(400, { error: "rating must be 'up' or 'down'" });
       // A reason that is not one of the four is dropped rather than refused.
       // It is a client sending a chip this server has not shipped yet, and
@@ -3965,6 +4039,10 @@ export const server = createServer(async (req, res) => {
         return json(400, { error: 'scanId must be the id of a scan this server recorded' });
       }
       scanForLog = ratedScan;
+      if (!owns(deviceId)) return notYours();
+      // D-159: only the device that gave the thumb can take it back.
+      const standing = ratingFor(ratedScan);
+      if (standing && standing.device_id !== deviceId) return notYours();
       const deleted = deleteRating(ratedScan);
       if (deleted) recordEvent({ deviceId, type: 'thumbs_undo', payload: { scanId: ratedScan } });
       return json(200, { deleted });
@@ -3987,6 +4065,7 @@ export const server = createServer(async (req, res) => {
       if (req.method === 'GET') {
         const deviceId = url.searchParams.get('deviceId')?.trim() ?? '';
         if (deviceId === '') return json(400, { error: 'deviceId is required' });
+        if (!owns(deviceId)) return notYours();
         return json(200, readConsent(deviceId));
       }
       if (req.method !== 'POST') return json(405, { error: 'GET or POST only' });
@@ -3998,6 +4077,8 @@ export const server = createServer(async (req, res) => {
       const k = body as Record<string, unknown>;
       const deviceId = typeof k.deviceId === 'string' ? k.deviceId.trim() : '';
       if (deviceId === '') return json(400, { error: 'deviceId is required' });
+      // D-155: the consent record the photo store checks is written only by its own device.
+      if (!owns(deviceId)) return notYours();
       deviceForLog = deviceId;
       /*
        * ANYTHING THAT IS NOT LITERALLY `true` IS NO. Not truthiness: a missing
@@ -4046,6 +4127,8 @@ export const server = createServer(async (req, res) => {
       const type = typeof e.type === 'string' ? e.type.trim() : '';
       if (deviceId === '') return json(400, { error: 'deviceId is required' });
       if (type === '') return json(400, { error: 'type is required' });
+      // D-158: an event is filed only under the device that sent it.
+      if (!owns(deviceId)) return notYours();
       deviceForLog = deviceId;
       const payload = serialisePayload(e.payload);
       if ('why' in payload) return json(400, { error: payload.why });
@@ -4094,6 +4177,8 @@ export const server = createServer(async (req, res) => {
         const deviceId = typeof e.deviceId === 'string' ? e.deviceId.trim() : '';
         const type = typeof e.type === 'string' ? e.type.trim() : '';
         if (deviceId === '' || type === '') { dropped += 1; continue; }
+        // D-158: dropped like any other bad item, not a refusal of the batch.
+        if (!owns(deviceId)) { dropped += 1; continue; }
         deviceForLog = deviceId;
         const payload = serialisePayload(e.payload);
         if ('why' in payload) { dropped += 1; continue; }

@@ -130,22 +130,28 @@ const EMPTY = {
    */
   buzz: true,
   /**
-   * Item 6: photos and location. Changed 2026-09-14 on the founder's word,
-   * "build everything for collecting EVERYTHING": both default ON now,
-   * mirroring `app/src/consent.ts`'s own default for a device with no row.
-   * This is the client's cached copy of that same decision, painted on the
-   * consent screen before any network round trip and read by `api.js`
-   * between round trips; the server's own default is what actually governs
-   * what gets kept, and stays in sync with this one by construction (both
-   * changed together, same day, same reason).
+   * Item 6: photos and location, both off until answered.
+   *
+   * REVERSED 2026-09-28, D-148, ruled the same day. From 2026-09-19 to that
+   * ruling photos defaulted ON here (the founder's 2026-09-14 "build
+   * everything for collecting EVERYTHING", read for photos only), which was
+   * the wrong side of the standing ruling "Location and photo consent default
+   * off until answered": it meant a fresh install streamed shelf crops
+   * (`camera.js` `startShelf`) before anybody had been asked anything. This
+   * is the client's cached copy of `app/src/consent.ts`'s own `DEFAULT_CONSENT`
+   * for a device with no row, painted on the consent screen before any
+   * network round trip and read by `api.js` between round trips; the
+   * server's own default is what actually governs what gets kept, and stays
+   * in sync with this one by construction (both changed together, same day,
+   * same reason).
    *
    * `updatedAt` is the timestamp item 6c asks for ("store each choice per
    * device with a timestamp"); it is null until the person actually acts on
    * the consent screen, so a screen can tell "never touched, running on the
    * default" from "touched and left this way", which the switches still let
-   * anyone turn off.
+   * anyone turn on.
    */
-  consent: { photos: true, location: false, updatedAt: null },
+  consent: { photos: false, location: false, updatedAt: null },
   /**
    * Whether the first-launch consent screen (item 6b) has been shown and
    * acted on. Separate from `seenIntro`: the attitude picker and the consent
@@ -236,10 +242,13 @@ function migrate(s) {
    * `updatedAt`) keeps exactly what it recorded, on or off, regardless of
    * where the default sits today.
    */
-  /* 2026-09-19: photos default ON (app/src/consent.ts DEFAULT_CONSENT). A saved
-     object with no `updatedAt` never recorded a choice, so its `photos: false`
-     is the old default and not a no; it reads as the current default. One
-     with an `updatedAt` keeps exactly what the person recorded. */
+  /* D-148 (2026-09-28): photos default OFF again (app/src/consent.ts
+     DEFAULT_CONSENT), reversing the 2026-09-19 to 2026-09-28 window where this
+     read TRUE. A saved object with no `updatedAt` never recorded a choice, so
+     it reads as whatever the CURRENT default is, never the stored value taken
+     as a decision -- which is exactly why an old on-by-default install now
+     reads as off rather than being credited with a yes nobody gave. One with
+     a real `updatedAt` keeps exactly what the person recorded, either way. */
   const consent = s.consent && typeof s.consent === 'object'
     ? {
         photos: s.consent.updatedAt ? s.consent.photos === true : EMPTY.consent.photos,
@@ -777,7 +786,7 @@ export function setConsent(patch) {
   update((s) => ({
     ...s,
     consent: {
-      photos: patch.photos !== undefined ? !!patch.photos : (s.consent?.photos ?? true),
+      photos: patch.photos !== undefined ? !!patch.photos : (s.consent?.photos ?? false),
       location: patch.location !== undefined ? !!patch.location : (s.consent?.location ?? true),
       updatedAt: new Date().toISOString(),
     },

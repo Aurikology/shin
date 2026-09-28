@@ -7,7 +7,7 @@
  * safety mechanism in the product.
  */
 
-import { getDeviceId } from './device.js';
+import { getDeviceId, getDeviceSecret } from './device.js';
 import { APP_VERSION } from './version.js';
 import { currentCell } from './geocell.js';
 import { consent, get as storeState, market as storeMarket } from './store.js';
@@ -214,6 +214,9 @@ function headers(extra = {}) {
      check a subscription against the device that asked. */
   const device = getDeviceId()?.id;
   if (device) h['x-shin-device'] = device;
+  /* The secret beside it (device.js): the server answers about this device
+     only to requests that carry it, so knowing the id is not enough. */
+  if (device) h['x-shin-device-key'] = getDeviceSecret();
   /* Beta seam: a device whose store entitlement is active says so, and the
      server skips the weekly limit for it. The server is meant to verify this
      with RevenueCat by the device id above; until it does, this is trust. */

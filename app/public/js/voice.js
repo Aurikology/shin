@@ -219,16 +219,21 @@ const LINES_EN = {
     blunt: (f) => `${f.category}? No.`,
   },
   /*
-   * --- the photo route's own refusal title, added with the photo path ---
-   * A model that timed out, went down, is over its rate limit, or is over its
-   * daily spend cap never got a real look at the picture, so titling it like
-   * `refuse_unknown` ("I do not know this one") would blame the photo for an
-   * outage that has nothing to do with it. Hard rule 3: the aggression, such
-   * as it is, points at the reader, never at the shot the shopper took.
+   * --- the model-down refusal title, shared by all three routes ---
+   * A model that timed out, went down, is over its rate limit, is over its
+   * daily spend cap, or never had a usable key never got a real look at the
+   * scan, so titling it like `refuse_unknown` ("I do not know this one") would
+   * blame the scan for an outage that has nothing to do with it. Hard rule 3:
+   * the aggression, such as it is, points at the reader, never at the shopper.
+   *
+   * GENERALISED 2026-09-28, D-150: `MODEL_DOWN_REASONS` in camera.js now
+   * drives this title on the barcode and typed routes as well as the photo
+   * one, and "the photo reader is not answering" would be wrong on either --
+   * nobody took a photo. "The reader" alone is true on all three.
    */
   refuse_unavailable: {
-    deadpan: () => 'The photo reader is not answering',
-    warm: () => 'The photo reader is not answering right now',
+    deadpan: () => 'The reader is not answering',
+    warm: () => 'The reader is not answering right now',
     blunt: () => 'Reader is down',
   },
   refuse_unavailable_why: {
@@ -850,6 +855,22 @@ const LINES_EN = {
     warm: (f) => `I could not find anything I know that matches "${f.query}". Try the barcode, or a different word or two.`,
     blunt: (f) => `"${f.query}" matches nothing I know.`,
   },
+  /**
+   * D-150, 2026-09-28. The barcode and typed routes' own model-down detail,
+   * parallel to the `cam_photo_model_*` family above but written for a
+   * shopper who scanned a code or typed a name rather than took a photo:
+   * naming "photo" here would be wrong on both of those routes, so this line
+   * never does. Paired with `reason` set to the failure code, which gives the
+   * sheet the same `refuse_unavailable` title the photo route already earns
+   * for the same class of fault -- never `cam_text_no_match`'s "nothing in
+   * what Shin has been taught", which is the honest-miss line and asserts a
+   * different, false, reason.
+   */
+  cam_reader_model_down: {
+    deadpan: () => 'Shin’s reader is not answering right now. Try again in a moment.',
+    warm: () => 'Shin’s reader is not answering right now, nothing to do with your scan. Try again in a moment.',
+    blunt: () => 'Reader is down. Try again.',
+  },
   /* A typed search with no item and price in Shin's own data (Jamin,
      2026-09-23). No facts, so there is nothing to go missing. */
   cam_text_no_own_price: {
@@ -1022,6 +1043,17 @@ const LINES_EN = {
     deadpan: () => 'Today’s photo reads are used up. The barcode and typing it still work.',
     warm: () => 'Today’s photo reads are already used up, not your shot. The barcode or typing it will still get you an answer.',
     blunt: () => 'Out of photo reads today. Try the barcode or type it.',
+  },
+  /**
+   * D-150, 2026-09-28. The fifth model-down reason, and the one a keyless or
+   * misconfigured server actually returns: the call never left the building,
+   * which is on Shin's own end and never on the shopper's shot, the same fact
+   * the four lines above it state.
+   */
+  cam_photo_model_client_error: {
+    deadpan: () => 'The photo reader is not answering right now. The barcode and typing it still work.',
+    warm: () => 'The photo reader is not answering right now, not your shot. The barcode or typing it will still get you an answer.',
+    blunt: () => 'Reader is not answering. Try the barcode or type it.',
   },
   /**
    * The photo path is off on this server because of the key it holds, and the
@@ -1206,6 +1238,17 @@ const LINES_EN = {
     deadpan: () => 'Refused. Today’s photo reads are used up.',
     warm: () => 'Refused, because today’s photo reads are already used up.',
     blunt: () => 'Refused. Out of photo reads today.',
+  },
+  /**
+   * D-150, 2026-09-28. Unlike the four labels above, a reopened refusal
+   * carrying this reason may have come from the barcode or typed route as
+   * easily as the photo one (a scan's stored `failure` is shared across all
+   * three), so this label never says "photo" the way its siblings do.
+   */
+  refusal_label_model_client_error: {
+    deadpan: () => 'Refused. The reader is not answering.',
+    warm: () => 'Refused, because the reader is not answering right now.',
+    blunt: () => 'Refused. Reader is not answering.',
   },
   /* Item 9's two route-declined codes (`THROTTLE_REASONS` in camera.js),
      added the same way the four above were: the raw code reaching this
@@ -1423,15 +1466,36 @@ const LINES_EN = {
    * notice of what is kept, so any change to a default changes it here, in
    * `voice-fr.js`, and in `consent.ts` the same day.
    */
+  /*
+   * REWRITTEN 2026-09-28, D-148, ruled the same day, alongside `consent.ts`'s
+   * `DEFAULT_CONSENT` reversal: from 2026-09-19 to today this said photos were
+   * kept unless switched off. That was the wrong side of the standing ruling
+   * "Location and photo consent default off until answered", and this line
+   * saying "on by default" while the switch itself paints off would have been
+   * a false statement on the one screen whose whole job is to say what is
+   * kept truthfully.
+   */
   consent_intro: {
-    deadpan: () => 'Every scan is written down: the product and the price you saw, always, so the next person who scans it gets an answer. Photos from photo scans are kept unless you switch them off below. Location is kept only if you switch it on.',
-    warm: () => 'Every scan gets written down: what you scanned and the price you saw, always, so the next person who scans the same thing gets an answer too. Photos from photo scans are kept unless you switch them off below, and location is kept only if you switch it on.',
-    blunt: () => 'Every scan is logged: product and price, always. Photos are kept unless you switch them off. Location is kept only if you switch it on.',
+    deadpan: () => 'Every scan is written down: the product and the price you saw, always, so the next person who scans it gets an answer. Photos are kept only if you switch that on below. Location is kept only if you switch it on.',
+    warm: () => 'Every scan gets written down: what you scanned and the price you saw, always, so the next person who scans the same thing gets an answer too. Photos are kept only if you switch that on below, and location is kept only if you switch it on.',
+    blunt: () => 'Every scan is logged: product and price, always. Photos are kept only if you switch that on. Location is kept only if you switch it on.',
   },
+  /*
+   * REWRITTEN 2026-09-28, twice the same day. First for D-148's own complaint:
+   * this line named only "the picture from a photo scan", the one path
+   * FLAGS.photoId keeps off in this build, and said nothing about the shelf
+   * stream that runs today (`camera.js` `startShelf`, gated on this same
+   * flag) and is the thing this switch actually turns on or off. Second for
+   * the default reversal right above: `store.js` and `consent.ts` now both
+   * read photos OFF for a device that has never answered, so "on until you
+   * switch it off" became a sentence the switch itself would contradict the
+   * moment it painted. Now it names both things this switch governs, on the
+   * side the default actually sits.
+   */
   consent_photos_desc: {
-    deadpan: () => 'On until you switch it off. Keeps the picture from a photo scan, tied to that scan, so a wrong answer can be checked later and Shin can learn from it. Switched off, the picture is read once to answer the scan and is not kept. The risk: a kept photo can show what is near you in the shot.',
-    warm: () => 'On until you switch it off. Keeps the picture from a photo scan, tied to that scan, so a wrong answer can be checked later and Shin can learn from it. Switched off, the picture is only read once, to answer that scan, and then it is gone. The risk is that a kept photo can show whatever else was in the shot around you.',
-    blunt: () => 'On until you switch it off. Keeps the photo, tied to the scan, so a wrong answer can be checked. Off: read once, not kept. Risk: a kept photo can show what is near you.',
+    deadpan: () => 'Off until you switch it on. Off, no picture of the shelf is kept while the camera is open, and a photo scan’s picture is read once to answer it and not kept. Switched on, both are kept: the shelf picture, and the picture from a photo scan, tied to that scan, so a wrong answer can be checked later and Shin can learn from it. The risk: a kept photo can show what is near you in the shot.',
+    warm: () => 'Off until you switch it on. Off, no picture of the shelf is kept while the camera is open, and a photo scan’s picture is only read once, to answer that scan, and then it is gone. Switched on, both are kept: the shelf picture, and the picture from a photo scan, tied to that scan, so a wrong answer can be checked later and Shin can learn from it. The risk is that a kept photo can show whatever else was in the shot around you.',
+    blunt: () => 'Off until you switch it on. Off: no shelf picture, and the photo-scan picture is read once, not kept. On: both kept, tied to the scan, so a wrong answer can be checked. Risk: a kept photo can show what is near you.',
   },
   consent_location_desc: {
     deadpan: () => 'Keeps a rough area, about a kilometre wide, never your exact spot, so a price can be matched to a nearby store. Your phone also remembers which shop you picked in each area, so it stops asking. That list never leaves the phone and it goes when you switch this off. Off, no location is kept at all. The risk: even a rough area narrows down where you shop.',

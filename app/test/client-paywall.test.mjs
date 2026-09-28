@@ -194,6 +194,11 @@ test('in the app the two plans show the store price strings exactly, and Subscri
   assert.ok(log.some((l) => l[0] === 'purchasePackage' && l[1] === 'shin_plus_yearly:annual'), 'Subscribe did not buy the chosen plan');
   assert.match(root.body.innerHTML, /data-pw-state="done"/);
   assert.equal(purchases.plusActive(), true, 'an active entitlement was not remembered');
+  // The Buy tap and its outcome, tracked so a two-week readout can count
+  // "would pay" against a scan that never got the money.
+  const tracked = JSON.parse(storage.getItem('shin.track.queue') || '[]').filter((e) => e.type === 'paywall_buy');
+  assert.ok(tracked.some((e) => e.payload.plan === 'yearly' && e.payload.outcome === 'tapped'), 'the Buy tap was not tracked');
+  assert.ok(tracked.some((e) => e.payload.plan === 'yearly' && e.payload.outcome === 'done'), 'the Buy outcome was not tracked');
   stop();
   storage.setItem('shin.plus', '0');
 });
@@ -209,6 +214,9 @@ test('Restore purchases asks the store, and says so when nothing was found', asy
   assert.ok(log.some((l) => l[0] === 'restorePurchases'));
   assert.match(root.body.innerHTML, /No Shin Plus subscription was found/);
   assert.equal(purchases.plusActive(), false);
+  const tracked = JSON.parse(storage.getItem('shin.track.queue') || '[]').filter((e) => e.type === 'paywall_restore');
+  assert.ok(tracked.some((e) => e.payload.outcome === 'tapped'), 'the Restore tap was not tracked');
+  assert.ok(tracked.some((e) => e.payload.outcome === 'failed'), 'the no-subscription-found outcome was not tracked');
   stop();
 });
 

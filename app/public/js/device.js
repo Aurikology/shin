@@ -37,3 +37,40 @@ export function getDeviceId() {
     return { id: memoryId, persistent: false };
   }
 }
+
+/*
+ * The device's secret: a second random value, made and kept exactly like the
+ * id, and sent beside it on every request (api.js, `x-shin-device-key`).
+ *
+ * WHY THERE ARE TWO. The id is a name, and names travel: it is in URLs, logs
+ * and the purchase service. Anyone who learned it could read and write this
+ * phone's consent, events and thumbs (D-155 and its siblings). The server now
+ * ties the id to the first secret it sees and answers about the device only
+ * to requests carrying that secret, so knowing the id is no longer enough.
+ * The secret goes in a header and nowhere else.
+ *
+ * Made the first time it is asked for, so a phone that already has an id
+ * keeps it and simply gains a secret on its next request.
+ */
+const SECRET_KEY = 'shin.deviceSecret';
+let memorySecret = null;
+
+function freshSecret() {
+  // Two UUIDs without their dashes: 64 hex characters, 244 random bits.
+  return (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '');
+}
+
+/** Returns the device's secret, making and keeping it on first use. Never throws. */
+export function getDeviceSecret() {
+  try {
+    let secret = localStorage.getItem(SECRET_KEY);
+    if (!secret) {
+      secret = freshSecret();
+      localStorage.setItem(SECRET_KEY, secret);
+    }
+    return secret;
+  } catch {
+    if (!memorySecret) memorySecret = freshSecret();
+    return memorySecret;
+  }
+}
