@@ -20,7 +20,7 @@ covered. Their six files are kept verbatim below. This header is the reviewing s
 |---|---|
 | Giant Tiger `/products.json` is a live, keyless catalogue with prices | **True.** 250 products, 1,006 variants on page 1, prices present. **But 0 of 1,006 variants carry a `barcode` key, and the per-product `.js` returns `barcode: null`.** Priced by name/SKU only, so it needs name matching like everything else. |
 | Beer Store publishes a UPC-keyed price list | **True but stale.** The linked PDF is dated 9/30/2024. 939 text lines carry an 11-13 digit number (UPC-length; derived count, not a parse). A current edition was not found. |
-| BC Liquor product price list on BC open data | **True and current.** CSV "June 2026", modified 2026-09-10, 8,211 products, 7,556 with a `PRODUCT_BASE_UPC_NO` (naive comma split, so approximate). Columns include SKU, UPC, size, price. The best free, official, barcode-keyed price file found. |
+| BC Liquor product price list on BC open data | **True and current.** CSV "June 2026", modified 2026-09-10, 8,211 products, 7,556 with a `PRODUCT_BASE_UPC_NO` (counted with a CSV parser; 7,555 distinct UPCs). Columns include SKU, UPC, size, price. The best free, official, barcode-keyed price file found. |
 | Save-On-Foods storefront gateway answers without a login | `/api/stores` returned HTTP 200. Whether a product/price endpoint takes a UPC is **not checked**. |
 | MealMe claims Canadian SKU-level prices | Its page is script-rendered; the claim could not be read by fetch. **Unchecked.** |
 | Serbia's 2026 rule requires barcode in published price files | **Unchecked by the reviewer.** |
