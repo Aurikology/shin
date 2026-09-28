@@ -2261,6 +2261,18 @@ follows Jamin. Five RULINGS.md entries were rewritten; their old text:
 The running beta still calls Gemini until the catalogue-first setting flips; that is today's code,
 not the plan.
 
+## Shin always answers a price: prediction through nested categories
+
+**Date:** 2026-09-28 · **Status:** active · RULINGS.md "How Shin predicts a price it has not seen".
+Two entries rewritten to hold it; old text:
+
+- "Catalogue first; Claude, with no web search, is the capped price-range fallback": *prices, else
+  its category's range. When Shin has no price, Claude is asked for a typical price range from its
+  own knowledge, with no web search, capped per month, to save credits.*
+- "A scanned barcode answers with Shin's own prices too": *Typed-name search (not barcode) still
+  only searches Shin's own catalogue and answers only when both item and price are known; that
+  narrower rule is unchanged.*
+
 ## Three entries that contradicted Jamin's own words, rewritten
 
 **Date:** 2026-09-27 · **Status:** active

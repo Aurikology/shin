@@ -131,8 +131,9 @@ own data, untrusted, dated. Under the beta's current settings Gemini is also cal
 scan; the catalogue-first ruling replaces that when its setting flips.
 This reverses the 2026-09-15 rule that the price answer never comes from Shin's own price
 database, price engine or lookups, and the 2026-09-14 rule that Shin's own prices are not shown
-anywhere. Typed-name search (not barcode) still only searches Shin's own catalogue and answers
-only when both item and price are known; that narrower rule is unchanged. Enumerated over the
+anywhere. Typed-name search (not barcode) still only searches Shin's own catalogue; when the item is
+known and its price is not, it answers with the predicted range (2026-09-28, "How Shin predicts a
+price it has not seen"). Enumerated over the
 whole price store, not sampled: 17,994 barcode strings, all 17,994 answered, 13,975 distinct trade
 items. · 2026-09-26 · *"there seems to be a communication problem, why are you still thinking about gemini"* · log: docs/decisions.md#A scanned barcode answers with Shin's own prices too, not Gemini's alone
 Retired wording: `THE PRICE SHOULD NOT COME FROM US`, `no price from Shin's own data`, `Shin's own prices are not shown anywhere`
