@@ -1,0 +1,50 @@
+P151,UNSURE,Candidates A and B are identical so cannot decide.
+P152,NONE,No candidate is mocha cappuccino.
+P153,UNSURE,Multiple generic ginger candidates with no size are identical.
+P154,NONE,Candidate does not specify 0% M.F. plain variant.
+P155,NONE,No candidate exactly matches both sidekicks and rice side dish.
+P156,A,Matches brand, product, and size.
+P157,NONE,No candidate matches Gray Ridge 12 eggs.
+P158,NONE,Candidate A is jam, not spread.
+P159,NONE,Candidate A is strawberry, not white milk.
+P160,A,Matches brand, variant, and product.
+P161,A,Matches brand, product name, and variant perfectly.
+P162,NONE,No candidate is yellow onions.
+P163,NONE,No candidate matches the multi-flavor duo pack.
+P164,A,Matches brand and product flavor.
+P165,A,Matches brand, product, and variant exactly.
+P166,NONE,No candidate is Smucker's caramel sundae syrup sold in Canada.
+P167,E,Matches brand and product exactly (in French).
+P168,B,Matches product name exactly.
+P169,B,Matches brand and product exactly (in French).
+P170,NONE,No candidate is plain green bell pepper.
+P171,NONE,No candidate is exactly Strawberry Toast Crunch.
+P172,B,Matches brand and specific product variant.
+P173,A,Matches brand and product variant exactly.
+P174,NONE,No candidate is white wine vinegar from Great Value.
+P175,A,Matches brand and product exactly.
+P176,NONE,No candidate perfectly matches the raw Canadian specs and size.
+P177,UNSURE,Candidates A and B are identical so cannot decide.
+P178,NONE,No candidates provided.
+P179,UNSURE,Cannot distinguish between identical candidates or different sizes.
+P180,NONE,No candidate is black peppercorns.
+P181,NONE,No candidate is the Greek Mix salad kit.
+P182,A,Matches product exactly.
+P183,A,Matches brand and product.
+P184,NONE,No candidate is snow peas.
+P185,NONE,No candidates provided.
+P186,A,Matches brand and exact product.
+P187,NONE,No candidate is syrup.
+P188,NONE,No candidate is Plochman's crushed parsley.
+P189,UNSURE,Candidates do not specify vanilla flavor.
+P190,NONE,No candidate matches 60 eggs size.
+P191,NONE,No candidate specifies double strength.
+P192,D,Matches brand, variant, and product.
+P193,NONE,No candidate matches the 200 unit portion case.
+P194,NONE,No candidate is plum sauce.
+P195,C,Matches product and exact size.
+P196,A,Matches brand and product exactly.
+P197,NONE,No candidate is curry leaves.
+P198,NONE,No candidate specifies the original variant.
+P199,A,Matches product exactly.
+P200,A,Matches brand and product exactly.

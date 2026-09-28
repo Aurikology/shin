@@ -1,0 +1,50 @@
+P201,NONE,size mismatch and wrong products
+P202,NONE,wrong brand
+P203,NONE,wrong sizes or missing flavor
+P204,NONE,missing brand
+P205,NONE,missing product name
+P206,NONE,missing sushi in name or wrong brand
+P207,NONE,wrong products or missing size match
+P208,NONE,wrong products
+P209,NONE,wrong sizes or missing variant
+P210,UNSURE,two identical candidates missing size
+P211,A,exact match missing size
+P212,NONE,missing beef chili soup
+P213,NONE,wrong products
+P214,NONE,wrong products
+P215,NONE,missing with skin
+P216,A,exact match missing size
+P217,A,exact match
+P218,NONE,wrong products
+P219,NONE,wrong products
+P220,UNSURE,two identical candidates missing size
+P221,NONE,wrong products
+P222,NONE,wrong variant or name
+P223,NONE,wrong variants or cuts
+P224,UNSURE,multiple matching candidates with different sizes
+P225,NONE,wrong sizes or products
+P226,NONE,missing variety pack
+P227,A,exact match missing size
+P228,A,exact match missing size
+P229,NONE,wrong brand or product
+P230,NONE,wrong products
+P231,NONE,wrong variants or sizes
+P232,UNSURE,two identical candidates missing size
+P233,NONE,missing mini variant
+P234,UNSURE,multiple identical candidates matching size
+P235,NONE,wrong products
+P236,A,exact match missing size
+P237,NONE,wrong product name
+P238,A,exact match
+P239,UNSURE,two identical candidates missing size
+P240,A,exact match
+P241,NONE,missing refurbished condition
+P242,UNSURE,multiple identical candidates missing size
+P243,NONE,missing pro high protein
+P244,NONE,size mismatch
+P245,NONE,wrong product
+P246,NONE,wrong sizes or flavors
+P247,NONE,wrong brand or product
+P248,A,exact match
+P249,A,exact match
+P250,NONE,wrong variants

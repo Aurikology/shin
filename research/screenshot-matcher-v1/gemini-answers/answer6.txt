@@ -1,0 +1,50 @@
+P251,UNSURE,Candidates A and B are identical and could match.
+P252,A,Exact match for brand and product.
+P253,UNSURE,Candidates A and C are identical exact matches.
+P254,A,Exact match for brand and specific flavour.
+P255,UNSURE,Candidates A and B are identical exact matches.
+P256,UNSURE,Candidates A and B are identical and could match.
+P257,A,Only candidate A matches the natural variant.
+P258,NONE,No candidate matches the pimento paste variant perfectly.
+P259,NONE,No candidate matches the Kasturi brand.
+P260,A,Exact product match for the fresh apple.
+P261,A,Only candidate A matches the grapeseed oil product.
+P262,A,Only candidate A matches brand and flavour in Canada.
+P263,A,Best exact match for the beef noodle flavour.
+P264,C,Exact match for brand and specific flavour.
+P265,I,Matches the specific mint and chlorophyll flavour variant.
+P266,NONE,No candidate mentions the pear flavour variant.
+P267,UNSURE,Candidates B and C both match the product perfectly.
+P268,NONE,No candidate matches the original flavour and brand.
+P269,A,Exact match for brand and pasta shape.
+P270,NONE,No candidate matches the medium size and free range.
+P271,UNSURE,Candidates B and D are identical exact matches.
+P272,NONE,No candidate matches the hearts variant or pack size.
+P273,NONE,No candidate matches the seedless spread variant.
+P274,NONE,No valid Canadian candidate matches exactly.
+P275,A,Exact match for brand and flavour variant.
+P276,A,Exact match for brand and product.
+P277,NONE,No valid Canadian candidate matches exactly.
+P278,NONE,No candidate matches both the brand and product.
+P279,A,Best match for fresh cilantro produce.
+P280,A,Exact match for brand and 2 percent fat size.
+P281,NONE,No candidate specifies the creamy bacon carbonara flavour.
+P282,UNSURE,Candidates A and B could both match the product.
+P283,NONE,No candidate matches the Madhava brand.
+P284,NONE,No candidates match the requested product.
+P285,NONE,No valid Canadian candidate matches the product.
+P286,A,Exact match for brand and vanilla flavour.
+P287,A,Exact match for brand and product flavour.
+P288,A,Exact match for product and 3 lb size.
+P289,A,Exact match for brand and specific bean variant.
+P290,NONE,No candidate matches the Nin Jiom brand.
+P291,C,Matches brand and flavour and missing size is allowed.
+P292,NONE,No candidate matches the Yoshi brand.
+P293,NONE,No candidate matches the ground cumin product.
+P294,NONE,No candidate matches the vegetable product.
+P295,NONE,No candidate matches the rainbow variant and size.
+P296,NONE,No candidates provided.
+P297,C,Exact match for brand and flavour.
+P298,NONE,No candidate matches the Your Fresh Market brand.
+P299,NONE,No candidate matches the yogurt drink product.
+P300,J,Exact French translation of the brand and flavour.

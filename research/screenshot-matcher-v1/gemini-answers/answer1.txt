@@ -1,0 +1,50 @@
+P001,NONE,No candidate matches brand and variant.
+P002,D,Matches brand and exact product name.
+P003,NONE,No candidate matches the Classic variant exactly.
+P004,UNSURE,Multiple candidates match without distinguishing size.
+P005,A,Matches brand product and size exactly.
+P006,A,Matches brand flavor and size exactly.
+P007,NONE,No candidate matches Multigrain Snacks exactly.
+P008,NONE,No candidate matches the product Alphaghetti.
+P009,NONE,No candidate matches Brown Lentils exactly.
+P010,NONE,No candidate matches the Homestyle variant.
+P011,NONE,No candidate matches the Bistro Express line.
+P012,UNSURE,Multiple candidates match without distinguishing size.
+P013,NONE,No candidate matches the product.
+P014,A,Matches brand and exact product name perfectly.
+P015,NONE,No candidate matches the Fat Free variant.
+P016,UNSURE,Multiple identical candidates without distinguishing details.
+P017,NONE,No candidate matches Dazzle Apple.
+P018,UNSURE,Multiple size variants match the size-less listing.
+P019,NONE,No candidate matches the toaster product.
+P020,NONE,No candidate matches the exact variant.
+P021,NONE,No candidate matches the Hot Honey variant.
+P022,NONE,No candidate matches the exact variant.
+P023,UNSURE,Multiple size variants match the size-less listing.
+P024,NONE,No candidate matches Sesame Seeds.
+P025,NONE,No candidate matches both brand and exact product.
+P026,NONE,Candidate lacks the specific flavor variant.
+P027,J,Matches brand and synonymous product name.
+P028,NONE,No candidate matches both brand and Premium variant.
+P029,NONE,No candidate matches both brand and Red Wine variant.
+P030,NONE,No candidate matches the specific product.
+P031,NONE,No candidate matches the product.
+P032,NONE,No candidate matches the exact 354g size.
+P033,NONE,No candidate matches the Sliced variant.
+P034,A,Matches brand and exact product name.
+P035,UNSURE,Multiple identical candidates match the listing.
+P036,A,Matches brand variant and size exactly.
+P037,UNSURE,Multiple size variants match the size-less listing.
+P038,A,Matches brand and product with acceptable missing size.
+P039,UNSURE,Multiple size variants match the size-less listing.
+P040,A,Matches brand and exact flavor variant.
+P041,I,Matches brand and exact product name.
+P042,A,Matches brand product and size exactly.
+P043,NONE,No candidate matches the product variant.
+P044,NONE,No candidate matches the Rich Taste variant.
+P045,UNSURE,Multiple size variants match the size-less listing.
+P046,A,Matches brand and exact product name.
+P047,A,Matches brand and exact product name perfectly.
+P048,UNSURE,Multiple identical candidates match the listing.
+P049,UNSURE,Multiple size variants match the size-less listing.
+P050,NONE,No candidate matches both brand and product.

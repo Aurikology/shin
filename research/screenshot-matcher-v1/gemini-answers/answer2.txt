@@ -1,0 +1,50 @@
+P051,UNSURE,Multiple identical candidates match
+P052,A,Only candidate matching flavor and size
+P053,UNSURE,Multiple identical candidates match
+P054,NONE,No matching product
+P055,A,Only plain rotini sold in Canada
+P056,NONE,No candidates
+P057,NONE,Missing fine-filtered attribute
+P058,NONE,No homestyle cheddar flavor
+P059,A,Matches size and Canadian milk fat term
+P060,A,Matches exact flavor
+P061,UNSURE,Multiple identical candidates match
+P062,NONE,No ground ginger candidate
+P063,NONE,No matching product
+P064,NONE,Missing very dark strong taste variant
+P065,NONE,No matching brand
+P066,A,Only matching cinnamon sticks product
+P067,NONE,No matching variant sold in Canada
+P068,UNSURE,Multiple identical or generic candidates match
+P069,NONE,No matching brand
+P070,NONE,No light spread variant
+P071,F,Only matching broccoli cheddar flavor
+P072,NONE,No 5 pack candidate
+P073,NONE,No matching variant
+P074,NONE,No candidate perfectly matches all terms
+P075,A,Matches exact flavor and brand
+P076,A,Matches exact flavor and size
+P077,NONE,Sizes do not exactly match
+P078,NONE,No matching white wine vinegar
+P079,NONE,No matching flavor
+P080,UNSURE,Multiple sizes possible and listing has none
+P081,UNSURE,Multiple iceberg lettuce candidates
+P082,NONE,No matching product
+P083,NONE,No matching product sold in Canada
+P084,NONE,No variety pack candidate
+P085,NONE,Missing brand
+P086,A,Matches exact flavor and size
+P087,NONE,No matching product
+P088,UNSURE,Multiple identical candidates match
+P089,UNSURE,Multiple identical candidates match
+P090,NONE,No poutine gravy flavor
+P091,A,Matches exact flavor and size
+P092,NONE,No harvest chicken flavor
+P093,UNSURE,Multiple possible matching candidates
+P094,A,Only matching oregano leaves candidate
+P095,UNSURE,Multiple candidates partially match
+P096,A,Matches exactly
+P097,NONE,No raw purple sweet potato candidate
+P098,NONE,No bittermelon leaves
+P099,UNSURE,Multiple possible size matches
+P100,A,Only matching ground cinnamon candidate

@@ -1,0 +1,541 @@
+I am checking whether store listings match products in a catalogue. For each listing below, pick the catalogue candidate that is exactly the same product: same brand, same product, same flavour or variant, same size and pack count.
+Rules:
+- If the listing shows a size and a candidate shows a different size, that candidate is wrong.
+- A candidate with no size can still be right if everything else matches.
+- If no candidate is the same product, answer NONE.
+- If two or more candidates could be it and nothing in the text separates them, answer UNSURE.
+- Do not search the web. Judge only from the text.
+Reply with ONLY CSV lines, no header, no other text, one line per listing in the same order:
+id,answer,reason
+where answer is one candidate letter, NONE or UNSURE, and reason is under 12 words.
+
+P001 | listing: Nakano Original Rice Vinegar | price $6.17
+  A) Rice Vinegar | brand: none | size: no size | sold in Canada
+  B) Rice Crackers Original | brand: none | size: no size | sold in Canada
+  C) Original Rice Crackers | brand: none | size: no size | sold in Canada
+  D) NATURAL RICE VINEGAR, NATURAL | brand: NAKANO | size: 12 fl oz/355 mL | not sold in Canada
+
+P002 | listing: Great Value Hazelnut with Cocoa Spread | price $5.77
+  A) Hazelnut with cocoa | brand: Great Value | size: no size | sold in Canada
+  B) Crunchy Hazelnut With Cocoa Spread | brand: Great Value | size: no size | sold in Canada
+  C) Crunchy Hazelnut With Cocoa | brand: Great Value | size: no size | sold in Canada
+  D) HAZELNUT SPREAD WITH COCOA, HAZELNUT WITH COCOA | brand: GREAT VALUE | size: 26.5 oz/751 g | not sold in Canada
+  E) Baking Cocoa | brand: Great Value | size: 227 g | sold in Canada
+  F) Cocoa crispy rice | brand: Great Value | size: no size | sold in Canada
+  G) Cream Cheese Spread | brand: Great Value | size: no size | sold in Canada
+  H) Cream Cheese Spread | brand: Great Value | size: 227g | sold in Canada
+  I) CHIPOTLE MAYO SPREAD | brand: Great Value | size: 300 ml | sold in Canada
+  J) Cream Cheese Spread | brand: Great Value | size: no size | sold in Canada
+
+P003 | listing: Catelli Classic All Natural Macaroni Pasta | price $1.77
+  A) Macaroni | brand: Catelli, Catelli Smart Veggie | size: no size | sold in Canada
+  B) Macaroni | brand: Catelli | size: no size | sold in Canada
+  C) pasta | brand: catelli | size: no size | sold in Canada
+  D) MACARONI | brand: CATELLI | size: 340g | sold in Canada
+  E) Macaroni | brand: Catelli | size: no size | sold in Canada
+  F) MACARONI | brand: CATELLI | size: 375 g | sold in Canada
+  G) Long Macaroni | brand: Catelli | size: 500 g | sold in Canada
+  H) Tortiglioni Pasta | brand: Catelli | size: no size | sold in Canada
+  I) Stars Pasta | brand: Catelli | size: no size | sold in Canada
+  J) Classic Vermicelli | brand: Catelli | size: no size | sold in Canada
+
+P004 | listing: Great Value Balsamic Vinegar of Modena | price $4.97
+  A) BALSAMIC VINEGAR OF MODENA, BALSAMIC | brand: GREAT VALUE | size: 16.9 fl oz/500 mL | not sold in Canada
+  B) BALSAMIC VINEGAR OF MODENA, BALSAMIC | brand: GREAT VALUE | size: 8.45 fl oz/250 mL | not sold in Canada
+  C) BALSAMIC VINEGAR, BALSAMIC | brand: GREAT VALUE | size: 8.5 fl oz/251 mL | not sold in Canada
+  D) Salt & Vinegar | brand: Great value | size: no size | sold in Canada
+  E) Malt Vinegar | brand: Great Value | size: 500 mL | sold in Canada
+  F) APPLE CIDER VINEGAR | brand: Great Value | size: no size | sold in Canada
+  G) Apple Cider Vinegar | brand: Great Value | size: 500 mL | sold in Canada
+  H) Salt And Vinegar Chips | brand: Great Value | size: no size | sold in Canada
+  I) Balsamic vinegar of modena | brand: none | size: no size | sold in Canada
+  J) Balsamic Vinegar of Modena | brand: none | size: no size | sold in Canada
+
+P005 | listing: Your Fresh Market Mini Yellow Potatoes, 1.5 | price $2.98
+  A) Yellow Mini Potatoes | brand: Your Fresh Market | size: 680g (1.5lb) | sold in Canada
+  B) Mini yellow potatoes | brand: none | size: no size | sold in Canada
+  C) Blueberry Mini Muffins | brand: Your Fresh Market | size: no size | sold in Canada
+  D) Chocolate Mini Cupcakes | brand: Your Fresh Market | size: no size | sold in Canada
+  E) Carrot mini muffins | brand: Your Fresh Market | size: no size | sold in Canada
+  F) Mini Naan Original | brand: Your Fresh Market | size: no size | sold in Canada
+  G) Apple Mini Pie | brand: Your Fresh Market | size: no size | sold in Canada
+  H) Wild Blueberry Mini Pie | brand: Your Fresh Market | size: no size | sold in Canada
+  I) Cheese Jalapeno Mini Croissant | brand: Your Fresh Market | size: no size | sold in Canada
+  J) Chocolate Chip Mini Muffins | brand: Your Fresh Market | size: no size | sold in Canada
+
+P006 | listing: Annie's Macaroni & Cheese, Shells & White Annie s Cheddar kids meal 170 g | price $2.47
+  A) Shells & White Cheddar | brand: Annie's | size: 170g | sold in Canada
+  B) Shells & Real Aged Cheddar Macaroni & Cheese | brand: Annie's | size: 170g | sold in Canada
+  C) Shells with Real Aged Cheddar Macaroni & Cheese | brand: Annie's | size: 170 g | sold in Canada
+  D) SHELLS & WHITE CHEDDAR MAC & [EXTREME] CHEESE, WHITE CHEDDAR | brand: ANNIE'S | size: 6 oz/170 g | not sold in Canada
+  E) MACARONI & CHEESE, RICE PASTA & WHITE CHEDDAR | brand: ANNIE'S HOMEGROWN | size: 170 g | not sold in Canada
+  F) Shells & white cheddar | brand: Annie's | size: no size | sold in Canada
+  G) Annie's Puppies & Kitties & White Cheddar Pasta Mac N Cheese | brand: Annie's | size: 6 ONZ | not sold in Canada
+  H) Macaroni & Cheese Classic Cheddar | brand: Annie's | size: no size | sold in Canada
+  I) Macaroni & Cheese | brand: Annie's | size: no size | sold in Canada
+  J) SHELLS & WHITE CHEDDAR MACARONI & CHEESE | brand: ANNIE'S | size: no size | not sold in Canada
+
+P007 | listing: SunChips Harvest Cheddar flavour Multigrain Snacks | price $3.47
+  A) Garden Harvest | brand: SunChips | size: 215 | sold in Canada
+  B) HARVEST CHEDDAR WHOLE GRAIN SNACKS, HARVEST CHEDDAR | brand: SUNCHIPS | size: 3 3/4 OZ/106.3 g | not sold in Canada
+  C) Cheddar flavour | brand: none | size: no size | sold in Canada
+  D) MIX AND MATCH HARVEST CHEDDAR FLAVORED WHOLE GRAIN SNACKS, CHEDDAR | brand: SUNCHIPS | size: 12.25 oz | not sold in Canada
+  E) Smoked flavour cheddar cheese | brand: none | size: no size | sold in Canada
+  F) Multigrain quinoa snacks | brand: none | size: no size | sold in Canada
+  G) Multigrain Quinoa Snacks | brand: none | size: no size | sold in Canada
+  H) GARDEN SALSA FLAVORED WHOLE GRAIN  SNACKS | brand: SUNCHIPS | size: 12.25 oz | not sold in Canada
+
+P008 | listing: Heinz Alphaghetti | price $1.97
+  A) Heinz | brand: Heinz | size: no size | sold in Canada
+  B) Heinz | brand: Heinz | size: no size | sold in Canada
+  C) Heinz | brand: Heinz | size: no size | sold in Canada
+  D) Heinz bébés | brand: Heinz | size: no size | sold in Canada
+  E) Heinz nature | brand: Heinz | size: no size | sold in Canada
+  F) heinz ketchup | brand: Heinz | size: no size | sold in Canada
+  G) Heinz Ketchup | brand: Heinz | size: no size | sold in Canada
+  H) Heinz - Tomato | brand: Heinz | size: 284 ml Bi-Metal, Nonrefillable | sold in Canada
+  I) Heinz Relish Sweet | brand: Heinz | size: no size | sold in Canada
+  J) Heinz fèves barbecue | brand: Heinz | size: no size | sold in Canada
+
+P009 | listing: Sitara Brown Lentil - 4LB 1.8 kg | price $4.98
+  A) Brown Chickpeas | brand: Sitara | size: no size | sold in Canada
+  B) Lentil lovies | brand: none | size: no size | sold in Canada
+  C) Lentil chips | brand: none | size: no size | sold in Canada
+  D) Lentil chips | brand: none | size: no size | sold in Canada
+
+P010 | listing: Campbell s Condensed Homestyle Chicken Noodle Soup Shelf Stable | price $1.77
+  A) Classic Chicken Noodle Soup | brand: Campbell’s | size: no size | sold in Canada
+  B) Chunky Chicken Noodle | brand: Campbell’s | size: no size | sold in Canada
+  C) Yellow Thai Curry Condensed Soup | brand: Campbell’s | size: no size | sold in Canada
+
+P011 | listing: BEN S ORIGINAL BISTRO EXPRESS Mexican Style Rice Side Dish 250g Pouch | price $2.98
+  A) Mexican Style Rice | brand: Ben’s Original | size: no size | sold in Canada
+  B) Fried Rice Style | brand: Ben’s Original | size: no size | sold in Canada
+  C) Tikka Masala Bistro Express Rice | brand: Ben’s Original | size: no size | sold in Canada
+  D) Street Food Bean And Rice Burrito Bowl | brand: Ben’s Original | size: no size | sold in Canada
+  E) Mexican Style Rice | brand: none | size: no size | sold in Canada
+  F) Bens original - bistro express | brand: none | size: no size | sold in Canada
+  G) Bistro Express | brand: none | size: no size | sold in Canada
+  H) Bistro express | brand: none | size: no size | sold in Canada
+  I) ben's original brown rice | brand: none | size: no size | sold in Canada
+
+P012 | listing: Great Value Pure Liquid Honey | price $10.97
+  A) Pure Liquid Honey | brand: Great Value | size: no size | sold in Canada
+  B) Liquid Honey, Pure | brand: Great Value | size: 2 kg | sold in Canada
+  C) Liquid Honey | brand: Great value | size: 375g | sold in Canada
+  D) Liquid Honey | brand: Great Value | size: 500 g | sold in Canada
+  E) Honey, liquid | brand: Great Value • Walmart | size: 1 kilo | sold in Canada
+  F) Liquid Honey | brand: Great Value | size: 1 kg | sold in Canada
+  G) Creamed Pure Honey | brand: Great Value | size: 1 kg | sold in Canada
+  H) Great value | brand: Great Value, | size: 250 g | sold in Canada
+  I) Great value | brand: Great Value | size: no size | sold in Canada
+  J) Great value | brand: Great Value | size: no size | sold in Canada
+
+P013 | listing: Poultry Blend Herbs, Your Fresh Market, 28 g | price $1.97
+  A) Atlantic Salmon Portion, Lemon & Herbs | brand: Your Fresh Market | size: no size | sold in Canada
+  B) Fresh-Style Wheat Baguette | brand: Your Fresh Market | size: no size | sold in Canada
+
+P014 | listing: Great Value Original Pasta Sauce | price $1.87
+  A) Original pasta sauce | brand: Great Value | size: 680 ml | sold in Canada
+  B) Pasta sauce | brand: Great Value | size: no size | sold in Canada
+  C) Great Value Rosée Pasta Sauce | brand: Great Value | size: 410mL | sold in Canada
+  D) Great value | brand: Great Value, | size: 250 g | sold in Canada
+  E) Great Value - ALMOND ORIGINAL | brand: Great Value | size: 946 mL Drink Box, Nonrefillable | sold in Canada
+  F) Primavera pasta sauce | brand: great value | size: no size | sold in Canada
+  G) Original wieners | brand: Great Value | size: no size | sold in Canada
+  H) Original Pancake | brand: Great Value | size: no size | sold in Canada
+  I) BOLOGNA ORIGINAL | brand: Great Value | size: no size | sold in Canada
+  J) Original Wieners | brand: Great Value | size: 900 g | sold in Canada
+
+P015 | listing: Gay Lea Fat Free Sour Cream | price n/a
+  A) Sour Cream | brand: Gay Lea | size: no size | sold in Canada
+  B) Sour Cream | brand: Gay Lea | size: no size | sold in Canada
+  C) Sour Cream | brand: Gay Lea | size: no size | sold in Canada
+  D) Sour Cream | brand: Gay Lea | size: 450 ml | sold in Canada
+  E) Sour Cream | brand: Gay Lea | size: 500 mL | sold in Canada
+  F) Whipped cream | brand: Gay Lea | size: no size | sold in Canada
+  G) 10% Cream | brand: Gay Lea | size: no size | sold in Canada
+  H) Real Whipped Cream | brand: Gay Lea | size: no size | sold in Canada
+  I) Whipped cream chocolate | brand: Gay Lea | size: 255 g | sold in Canada
+  J) Real Whipped Cream | brand: Gay Lea | size: no size | sold in Canada
+
+P016 | listing: Vinegar Balsamic | price $87.16
+  A) Balsamic vinegar | brand: none | size: no size | sold in Canada
+  B) Balsamic Vinegar | brand: none | size: no size | sold in Canada
+  C) Balsamic Vinegar | brand: none | size: no size | sold in Canada
+  D) Balsamic Vinegar | brand: none | size: no size | sold in Canada
+  E) Balsamic vinegar | brand: none | size: no size | sold in Canada
+  F) Balsamic Vinegar | brand: none | size: no size | sold in Canada
+  G) Balsamic Vinegar | brand: none | size: no size | sold in Canada
+  H) Balsamic vinegar | brand: none | size: no size | sold in Canada
+  I) balsamic vinegar | brand: none | size: 500 ml | sold in Canada
+  J) Balsamic vinegar | brand: none | size: no size | sold in Canada
+
+P017 | listing: Dazzle Apple, 2 lb | price $4.97
+  A) Dazzle - Grape Punch | brand: none | size: 2000 ml | sold in Canada
+  B) Jelly King Razzle Dazzle | brand: none | size: 473 ml | sold in Canada
+  C) Blood Brothers, Razzle Dazzle | brand: none | size: 473 ml | sold in Canada
+
+P018 | listing: NESQUIK Chocolate Syrup | price $4.97
+  A) Nesquik | brand: Nesquik | size: no size | sold in Canada
+  B) CHOCOLATE SYRUP, CHOCOLATE | brand: NESQUIK | size: 9 oz/255.1 g | not sold in Canada
+  C) CHOCOLATE SYRUP, CHOCOLATE | brand: NESQUIK | size: 22 oz | not sold in Canada
+  D) Chocolate Milk Mix | brand: Nesquik | size: 1.36kg | sold in Canada
+  E) Chocolate Milk Shake | brand: Nesquik | size: 473 ml | sold in Canada
+  F) Instant chocolate mix | brand: Nesquik • Nestle | size: 1300 g | sold in Canada
+  G) CHOCOLATE POWDER, CHOCOLATE | brand: NESQUIK | size: 2.61 lbs/41.9 oz/1.18 kg | not sold in Canada
+  H) CHOCOLATE POWDER, CHOCOLATE | brand: NESQUIK | size: 16 oz/1 lbs/453.5 g | not sold in Canada
+  I) CHOCOLATE POWDER, CHOCOLATE | brand: NESQUIK | size: 3.17 oz/90 g | not sold in Canada
+  J) CHOCOLATE POWDER, CHOCOLATE | brand: NESQUIK | size: 2.21 lbs/35.5 oz/1.006 kg | not sold in Canada
+
+P019 | listing: Toastmaster 4 Slice Toaster | price n/a
+  A) Watermelon Slice | brand: none | size: no size | sold in Canada
+  B) mango slice | brand: none | size: no size | sold in Canada
+  C) Slice & Serve Roll | brand: none | size: 680 g | sold in Canada
+  D) Russian Slice Bread | brand: none | size: no size | sold in Canada
+  E) Pickled Ginger (Slice) | brand: none | size: no size | sold in Canada
+  F) Digestive mango slice | brand: none | size: 200 g | sold in Canada
+  G) Rainbow Cake Slice | brand: none | size: no size | sold in Canada
+  H) Toaster Loaf - Raisin Cinnamon | brand: none | size: no size | sold in Canada
+  I) Slice cinnamon raisin bread | brand: none | size: no size | sold in Canada
+  J) Sun rich apple slice | brand: none | size: 595 g | sold in Canada
+
+P020 | listing: Crispy Traditional Style Plain Stone Baked Tandoori Naan | price $1.76
+  A) Tandoori Naan Whole Wheat | brand: Crispy Just Baked | size: 5 x 100 g, Net 500g | sold in Canada
+  B) Mini Naan | brand: Crispy Just Baked! | size: 500 g | sold in Canada
+  C) Roti wrap Plain Bread | brand: CRISPY JUST BAKED! | size: no size | sold in Canada
+  D) plain naan | brand: none | size: no size | sold in Canada
+  E) Traditional naan bread | brand: none | size: 6 x 100 g | sold in Canada
+
+P021 | listing: Dutchman's Gold Hot Honey | Chili Infused Dutchman s Canadian Sweet Spicy Drizzle Unpasteurized 550 g Squeeze Bottle | price $14.99
+  A) Liquid Honey | brand: Dutchman's Gold | size: no size | sold in Canada
+  B) Liquid Honey | brand: Dutchman's Gold | size: no size | sold in Canada
+  C) Unpasteurized honey | brand: none | size: no size | sold in Canada
+  D) FLORIDA HONEY | brand: SWEET SQUEEZE | size: no size | not sold in Canada
+  E) Wildflower Pure Unpasteurized Honey | brand: none | size: no size | sold in Canada
+  F) Unpasteurized Pure Liquid Honey | brand: none | size: no size | sold in Canada
+  G) Canadian Gold Crown | brand: none | size: no size | sold in Canada
+
+P022 | listing: Hunt's Original Tomato Paste 156ml Hunt s | price $1.42
+  A) Tomato Paste, Garlic | brand: Hunt's | size: 156 ml | sold in Canada
+  B) TOMATO PASTE, ORIGINAL | brand: HUNT'S | size: 1.5 oz/43 g | not sold in Canada
+  C) Paste Made From Tomatoes Herbs & Spices | brand: Hunt's | size: 156ml | sold in Canada
+  D) TOMATO PASTE, TOMATO PASTE | brand: HUNT'S | size: 3.15 kg | not sold in Canada
+  E) Tomato Paste/Pate De Tomates | brand: Hunt's | size: no size | sold in Canada
+  F) Tomato Sauce, Roasted Garlic | brand: Hunts, Hunt's | size: no size | sold in Canada
+  G) Tomato paste | brand: none | size: no size | sold in Canada
+  H) Tomato paste | brand: none | size: no size | sold in Canada
+  I) Tomato paste | brand: none | size: no size | sold in Canada
+  J) Tomato paste | brand: none | size: no size | sold in Canada
+
+P023 | listing: Primo Spaghettini | price $1.27
+  A) Spaghettini | brand: Primo | size: no size | sold in Canada
+  B) Spaghettini | brand: PRIMO | size: 750 g | sold in Canada
+  C) Spaghettini | brand: Primo | size: 454g | sold in Canada
+  D) Spaghettini | brand: Primo | size: no size | sold in Canada
+  E) Spaghettini Pasta | brand: Primo | size: 900g | sold in Canada
+  F) Spaghettini grain entier Primo | brand: Primo | size: no size | sold in Canada
+  G) Primo Spaghetti | brand: Primo | size: no size | sold in Canada
+  H) Spaghettini | brand: none | size: no size | sold in Canada
+  I) Spaghettini | brand: none | size: 100g | sold in Canada
+  J) Spaghettini | brand: none | size: no size | sold in Canada
+
+P024 | listing: Great Value Sesame Seeds | price $2.27
+  A) Great value | brand: Great Value, | size: 250 g | sold in Canada
+  B) Great value | brand: Great Value | size: no size | sold in Canada
+  C) Great value | brand: Great Value | size: no size | sold in Canada
+  D) Great value | brand: Great Value | size: no size | sold in Canada
+  E) Great Value Sesame Oil | brand: Great Value | size: no size | sold in Canada
+  F) Great Value Peanut | brand: Great Value | size: no size | sold in Canada
+  G) great value bacaon | brand: great value | size: no size | sold in Canada
+  H) Great Value Popcorn | brand: Great Value | size: no size | sold in Canada
+  I) Great Value Mayonnaise | brand: Great Value | size: no size | sold in Canada
+  J) Great value limonade | brand: Great Value | size: 1750 ml | sold in Canada
+
+P025 | listing: Unico White Wine Vinegar | price $2.57
+  A) Wine vinegar | brand: unico | size: 1l | sold in Canada
+  B) Wine Vinegar | brand: Unico | size: no size | sold in Canada
+  C) White Wine Vinegar | brand: none | size: no size | sold in Canada
+  D) White wine vinegar | brand: none | size: no size | sold in Canada
+  E) White wine vinegar | brand: none | size: no size | sold in Canada
+  F) White wine vinegar | brand: none | size: no size | sold in Canada
+  G) White Kidney Beans Cannellini Beans | brand: Unico | size: 540 mL | sold in Canada
+  H) Balsamic Vinegar of Modena | brand: Unico | size: 500 ml | sold in Canada
+
+P026 | listing: Rio Mare Insalatissime Ready to Eat Couscous and Tuna Salad 1x160g | price $4.97
+  A) Insalatissime | brand: Rio Mare | size: 4 x 160 g | sold in Canada
+  B) Insalatissime | brand: Rio Mare | size: 160 g | sold in Canada
+  C) Tuna Salad | brand: none | size: no size | sold in Canada
+  D) Ready-to-eat meal | brand: none | size: no size | sold in Canada
+  E) Tuna Salad Sandwich | brand: none | size: no size | sold in Canada
+  F) ready to cereal | brand: none | size: no size | sold in Canada
+
+P027 | listing: Great Value Crushed Chili Peppers | price $2.27
+  A) Great value | brand: Great Value, | size: 250 g | sold in Canada
+  B) Great value | brand: Great Value | size: no size | sold in Canada
+  C) Great value | brand: Great Value | size: no size | sold in Canada
+  D) Great value | brand: Great Value | size: no size | sold in Canada
+  E) Great Value Peanut | brand: Great Value | size: no size | sold in Canada
+  F) great value bacaon | brand: great value | size: no size | sold in Canada
+  G) Great Value Popcorn | brand: Great Value | size: no size | sold in Canada
+  H) Great Value Mayonnaise | brand: Great Value | size: no size | sold in Canada
+  I) Great value limonade | brand: Great Value | size: 1750 ml | sold in Canada
+  J) Crushed Chilies | brand: Great Value | size: no size | sold in Canada
+
+P028 | listing: Sitara Premium Basmati Rice, 3.62 Kg Bag | price $9.94
+  A) sitara basmati rice | brand: none | size: no size | sold in Canada
+  B) Premium basmati rice | brand: none | size: no size | sold in Canada
+  C) Premium basmati rice | brand: none | size: no size | sold in Canada
+  D) Basmati Rice | brand: none | size: no size | sold in Canada
+  E) Basmati rice | brand: none | size: no size | sold in Canada
+  F) Basmati Rice | brand: none | size: no size | sold in Canada
+  G) Basmati rice | brand: none | size: no size | sold in Canada
+  H) Basmati Rice | brand: none | size: no size | sold in Canada
+  I) Premium Brown Basmati Rice | brand: none | size: no size | sold in Canada
+  J) Premium Brown Basmati Rice | brand: none | size: no size | sold in Canada
+
+P029 | listing: Unico Red Wine Vinegar | price $2.57
+  A) Wine vinegar | brand: unico | size: 1l | sold in Canada
+  B) Wine Vinegar | brand: Unico | size: no size | sold in Canada
+  C) Red wine vinegar | brand: none | size: no size | sold in Canada
+  D) Red Wine Vinegar | brand: none | size: no size | sold in Canada
+  E) Red wine vinegar | brand: none | size: no size | sold in Canada
+  F) Red wine vinegar | brand: none | size: no size | sold in Canada
+  G) red wine vinegar | brand: none | size: no size | sold in Canada
+  H) Red Kidney Beans | brand: Unico | size: no size | sold in Canada
+  I) Red Kidney Beans | brand: Unico | size: 540 ml. | sold in Canada
+  J) Red Kidney Beans | brand: Unico | size: 540 mL | sold in Canada
+
+P030 | listing: eggplant indian | price $0.94
+  A) Eggplant Parmesan | brand: none | size: no size | sold in Canada
+  B) Spicy Eggplant | brand: none | size: no size | sold in Canada
+  C) Grilled Eggplant | brand: none | size: no size | sold in Canada
+  D) Eggplant spread | brand: none | size: no size | sold in Canada
+  E) Indian curry | brand: none | size: no size | sold in Canada
+  F) Spicy eggplant strips | brand: none | size: no size | sold in Canada
+  G) Roasted eggplant puree | brand: none | size: no size | sold in Canada
+  H) Hot marinated eggplant | brand: none | size: no size | sold in Canada
+  I) Grilles eggplant slices | brand: none | size: no size | sold in Canada
+  J) Eggplant Baba Ghanoush | brand: none | size: no size | sold in Canada
+
+P031 | listing: Jet-Puffed Marshmallow Creme Topping - 3 lbs 6 Case Bulk Fluffy Whipped Vanilla Spread Fudge Base Cafes Restaurants Bakeries | price $189.00
+  A) Vanilla marshmallow | brand: none | size: no size | sold in Canada
+  B) jet puffed | brand: none | size: no size | sold in Canada
+  C) jet puffed marshmallows | brand: none | size: no size | sold in Canada
+
+P032 | listing: Cinnamon Toast Crunch Breakfast Cereal Whole Grains and Real 354 g | price $3.33
+  A) Cinnamon Toast Crunch Whole Grain Breakfast Cereal | brand: Toast Crunch | size: 12 ONZ | not sold in Canada
+  B) Strawberry Cinnamon Toast Crunch Breakfast Cereal | brand: Toast Crunch | size: 12 ONZ | not sold in Canada
+  C) Cinnamon Toast Crunch Mini Breakfast Cereal | brand: Toast Crunch | size: 12.3 ONZ | not sold in Canada
+  D) Cinnamon Toast Crunch Tres Leches Breakfast Cereal | brand: Toast Crunch | size: 12 ONZ | not sold in Canada
+  E) Cinnamon Toast Crunch Loaded Breakfast Cereal Large Size | brand: Toast Crunch | size: 13 ONZ | not sold in Canada
+  F) Cinnamon Toast Crunch Mexican Style Hot Chocolate Breakfast Cereal | brand: Toast Crunch | size: 12 ONZ | not sold in Canada
+  G) Dulce de Leche Toast Crunch Breakfast Cereal | brand: Toast Crunch | size: 12 ONZ | not sold in Canada
+  H) CRISPY, SWEETENED WHOLE WHEAT AND RICE CEREAL, CINNAMON | brand: CINNAMON TOAST CRUNCH | size: no size | not sold in Canada
+  I) CRISPY, SWEETENED WHOLE WHEAT AND RICE CEREAL | brand: CINNAMON TOAST CRUNCH | size: no size | not sold in Canada
+
+P033 | listing: Great Value Sliced White Potatoes | price $1.67
+  A) White Potatoes | brand: Great Value | size: no size | sold in Canada
+  B) Sliced White Peaches | brand: Great Value | size: no size | sold in Canada
+  C) Great value | brand: Great Value, | size: 250 g | sold in Canada
+  D) Great value | brand: Great Value | size: no size | sold in Canada
+  E) Great value | brand: Great Value | size: no size | sold in Canada
+  F) Great value | brand: Great Value | size: no size | sold in Canada
+  G) Great value Pacific white shrimp | brand: Great Value | size: no size | sold in Canada
+  H) White bread | brand: Great Value | size: no size | sold in Canada
+  I) Blanc white | brand: Great Value | size: no size | sold in Canada
+  J) White bread | brand: Great value | size: no size | sold in Canada
+
+P034 | listing: Great Value Canola Olive Oil Blend | price $7.97
+  A) Canola Olive Oil | brand: Great Value | size: no size | sold in Canada
+  B) Canola Oil | brand: Great Value | size: no size | sold in Canada
+  C) Canola oil | brand: Great Value | size: no size | sold in Canada
+  D) Canola Oil | brand: Great Value | size: no size | sold in Canada
+  E) Canola oil | brand: Great Value | size: no size | sold in Canada
+  F) Canola oil | brand: Great Value | size: no size | sold in Canada
+  G) Canola oil | brand: Great Value | size: no size | sold in Canada
+  H) Great Value | brand: Great Value | size: no size | sold in Canada
+  I) Olive Oil Mayonnaise | brand: Great Value | size: no size | sold in Canada
+  J) Olive Oil Margarine | brand: Great Value | size: no size | sold in Canada
+
+P035 | listing: Barilla Pastina Pasta | price $2.44
+  A) Pastina | brand: Barilla | size: no size | sold in Canada
+  B) Pastina | brand: Barilla | size: no size | sold in Canada
+  C) Cellentani Pasta | brand: Barilla | size: no size | sold in Canada
+  D) Snowfall Pasta | brand: Barilla | size: no size | sold in Canada
+  E) Ditali Pasta | brand: Barilla | size: 410g | sold in Canada
+  F) Ready Pasta Elbows | brand: Barilla | size: no size | sold in Canada
+  G) Ready Pasta Rotini | brand: Barilla | size: no size | sold in Canada
+  H) Heart Shaped Pasta | brand: Barilla | size: no size | sold in Canada
+  I) CLASSIC PASTINA N318 PASTA | brand: BARILLA | size: 12 oz | not sold in Canada
+  J) BARILLA, PASTA, ROTINI | brand: BARILLA | size: 13.25 oz/375 g | not sold in Canada
+
+P036 | listing: Kraft Smooth Peanut Butter, 2 kg Jar | price $10.97
+  A) Smooth Peanut Butter | brand: Kraft | size: 2 kg | sold in Canada
+  B) Smooth | brand: Kraft | size: 2kg | sold in Canada
+  C) Peanut butter | brand: Kraft | size: 2 kg | sold in Canada
+  D) Smooth Crémeux | brand: Kraft | size: 2 kg | sold in Canada
+  E) Peanut butter | brand: Kraft | size: no size | sold in Canada
+  F) Peanut butter | brand: Kraft | size: no size | sold in Canada
+  G) Peanut Butter | brand: Kraft | size: no size | sold in Canada
+  H) Kraft Only Peanuts Smooth Peanut Butter | brand: Kraft | size: no size | sold in Canada
+  I) Only peanut Smooth | brand: kraft | size: no size | sold in Canada
+  J) Only peanuts smooth peanut butter all natural | brand: Kraft | size: no size | sold in Canada
+
+P037 | listing: Green Giant Peaches & Cream Whole Kernel Corn | price $1.67
+  A) Peaches & Cream Whole Kernel Corn | brand: Green Giant | size: 250 g | sold in Canada
+  B) Whole Kernel Corn Niblets | brand: Green Giant, Géant Vert | size: 750 g | sold in Canada
+  C) Peaches & Cream | brand: Green Giant | size: 750 g | sold in Canada
+  D) Peaches and Cream Corn | brand: Green Giant | size: 341 ml | sold in Canada
+  E) Whole Green Beans | brand: Green Giant Valley Selections | size: 500 g | sold in Canada
+  F) Cream Style Corn | brand: Green giant | size: no size | sold in Canada
+  G) Cream Style Corn | brand: Green Giant | size: 284 mL | sold in Canada
+  H) Cream Style Corn | brand: Green Giant | size: 398 mL | sold in Canada
+  I) Corn Niblets | brand: Green Giant | size: no size | sold in Canada
+  J) WHOLE KERNEL SWEET CORN | brand: GREEN GIANT | size: no size | not sold in Canada
+
+P038 | listing: Yupik Organic French Lentils, 1Kg | price $13.99
+  A) Organic French Lentils | brand: Yupik | size: no size | sold in Canada
+  B) Organic Brown Lentils | brand: Yupik | size: no size | sold in Canada
+  C) ORGANIC FAVA BEANS | brand: YUPIK | size: 1.00 kg/2.20 lbs | not sold in Canada
+  D) Organic Hazelnut Butter | brand: Yupik | size: no size | sold in Canada
+  E) Organic Diced Mango | brand: Yupik | size: no size | sold in Canada
+  F) Organic Coconut Flour | brand: Yupik | size: no size | sold in Canada
+  G) Organic Walnuts (California) | brand: Yupik | size: no size | sold in Canada
+  H) Organic Rye Flakes | brand: Yupik | size: no size | sold in Canada
+  I) Organic Puffed Brown Rice | brand: Yupik | size: no size | sold in Canada
+  J) Organic whole buckwheat flour | brand: Yupik | size: no size | sold in Canada
+
+P039 | listing: Greenhouse Organic Berry Banana smoothie | price $7.97
+  A) Organic Berry Banana Smoothie | brand: Greenhouse | size: 300 ml Glass, Nonrefillable | sold in Canada
+  B) Berry Banana Smoothie | brand: Greenhouse | size: 900 mL Gable Top, Nonrefillable | sold in Canada
+  C) Greenhouse Organic Almond Milk | brand: Greenhouse | size: 946 ml Gable Top, Nonrefillable | sold in Canada
+  D) Organic Ginger Defence | brand: Greenhouse | size: 12 x 60 ml | sold in Canada
+  E) Organic Oat milk | brand: Greenhouse | size: 946 ml Gable Top, Nonrefillable | sold in Canada
+  F) Organic Unsweetenes Almondmilk | brand: GREENHOUSE | size: 946 ml Glass, Nonrefillable | sold in Canada
+  G) Deep Roots Raw Organic Juice | brand: Greenhouse | size: 300 ml | sold in Canada
+  H) Sweet greens smoothie | brand: Greenhouse | size: 900 mL Gable Top, Nonrefillable | sold in Canada
+  I) Sweet Greens Smoothie | brand: Greenhouse | size: 300 ml Glass, Nonrefillable | sold in Canada
+  J) Berry Blush Banana | brand: none | size: no size | sold in Canada
+
+P040 | listing: Primo Thick and Zesty Romano Cheese and Basil Pasta Sauce | price $2.38
+  A) Thick & Zesty Romano Cheese & Basil Flavour | brand: PRIMO | size: no size | sold in Canada
+  B) Thick & Zesty Tomato Basil Pasta Sauce | brand: Primo | size: 680 mL | sold in Canada
+  C) Thick and Zesty | brand: Primo | size: no size | sold in Canada
+  D) primo pizza sauce | brand: Primo | size: no size | sold in Canada
+  E) Primo pizza sauce | brand: Primo | size: no size | sold in Canada
+  F) Cheese pasta sauce | brand: none | size: no size | sold in Canada
+  G) Pasta Shells | brand: Primo | size: no size | sold in Canada
+  H) Sauce spaghetti | brand: Primo | size: no size | sold in Canada
+  I) Rotini Pasta | brand: Primo | size: no size | sold in Canada
+  J) Spaghettini Pasta | brand: Primo | size: 900g | sold in Canada
+
+P041 | listing: Tilda Pure Steamed Basmati Rice | price $2.97
+  A) Pure Basmati | brand: Tilda | size: no size | sold in Canada
+  B) Wholegrain Steamed Basmati Rice | brand: Tilda | size: 250 g | sold in Canada
+  C) Steamed Pilau Basmati Rice | brand: Tilda | size: no size | sold in Canada
+  D) tilda | brand: Tilda | size: 250g | sold in Canada
+  E) Steamed Lime & Cilantro Basmati Rice | brand: Tilda | size: no size | sold in Canada
+  F) Lemon & Herb Steamed Basmati Rice | brand: Tilda | size: no size | sold in Canada
+  G) Pure Original Basmati | brand: Tilda | size: 1.81 kg/4 lbs | sold in Canada
+  H) Pure Original Basmati | brand: Tilda | size: 4kg | sold in Canada
+  I) STEAMED PURE BASMATI RICE | brand: TILDA | size: 8.5 oz/240 g | not sold in Canada
+  J) Sweet Chili & Lime Steamed Basmati Rice | brand: Tilda | size: no size | sold in Canada
+
+P042 | listing: Burnbrae Farms Naturegg Simply Egg Whites 1KG | price $9.47
+  A) Simply Egg Whites | brand: Burnbrae Farms | size: 1 kg | sold in Canada
+  B) Simply Egg Whites | brand: Burnbrae | size: no size | sold in Canada
+  C) Simply Egg Whites | brand: Naturegg | size: no size | sold in Canada
+  D) Naturegg Simply Egg White | brand: Burnbrae Farms | size: no size | sold in Canada
+  E) Naturegg | brand: Naturegg | size: no size | sold in Canada
+  F) Naturegg Omega Plus | brand: Burnbrae Farms | size: no size | sold in Canada
+  G) Egg Bakes! Crustless Quiche Spinach & Ricotta | brand: Burnbrae Farms | size: no size | sold in Canada
+  H) Egg Whites | brand: none | size: no size | sold in Canada
+  I) Egg whites | brand: none | size: no size | sold in Canada
+  J) 4 Cheese & Ham Egg Bakes Crustless Quiche | brand: Burnbrae Farms | size: no size | sold in Canada
+
+P043 | listing: Dr. Oetker Casa di Mama Classic Canadian Pizza, 410 g Dr | price $3.98
+  A) Pizza tradizionale | brand: Dr oetker | size: 405g | sold in Canada
+  B) Canadian Pizza | brand: none | size: no size | sold in Canada
+  C) DR OETKER, MUG CAKE INSTANT CAKE MIX, CHOCOLATE | brand: DR OETKER | size: no size | not sold in Canada
+
+P044 | listing: Bertolli Extra Virgin Olive Oil, Rich Taste – Cold Extracted 100 Recycled Bottle Canada s Most Trusted Brand | price $12.97
+  A) Extra Virgin Olive Oil | brand: Bertolli | size: 1 litre | sold in Canada
+  B) Extra virgin olive oil | brand: Bertolli | size: 1L | sold in Canada
+  C) Olive Oil | brand: Bertolli | size: no size | sold in Canada
+  D) Olive | brand: Bertolli | size: no size | sold in Canada
+  E) Bertolli bold extra virgin canada | brand: Bertolli | size: 1 l | sold in Canada
+  F) Bertolli mild extra virgin canada | brand: Bertolli | size: no size | sold in Canada
+  G) Bertolli mild extra virgin canada | brand: Bertolli | size: no size | sold in Canada
+
+P045 | listing: Classico Four Cheese Alfredo Spaghetti Pasta Sauce | price $3.47
+  A) Four Cheese Pasta Sauce | brand: Classico | size: no size | sold in Canada
+  B) Alfredo | brand: Classico | size: no size | sold in Canada
+  C) Alfredo | brand: Classico | size: 410 mL | sold in Canada
+  D) Mushroom Alfredo Pasta Sauce | brand: CLASSICO | size: 410 mL | sold in Canada
+  E) FOUR CHEESE ALFREDO PASTA SAUCE, FOUR CHEESE ALFREDO | brand: CLASSICO | size: no size | not sold in Canada
+  F) FOUR CHEESE ALFREDO PASTA SAUCE, FOUR CHEESE ALFREDO | brand: CLASSICO | size: 15 oz/425 g | not sold in Canada
+  G) FOUR CHEESE ALFREDO PASTA SAUCE, FOUR CHEESE ALFREDO | brand: CLASSICO | size: 410 mL | not sold in Canada
+  H) Pasta Sauce | brand: Classico | size: no size | sold in Canada
+  I) Pasta Sauce | brand: Classico | size: no size | sold in Canada
+  J) pasta sauce | brand: classico | size: no size | sold in Canada
+
+P046 | listing: Great Value Green Lentils | price $2.97
+  A) Green Lentils | brand: Great Value | size: 900 gr | sold in Canada
+  B) Lentils | brand: Great Value | size: 540 mL | sold in Canada
+  C) Great value | brand: Great Value, | size: 250 g | sold in Canada
+  D) Great value | brand: Great Value | size: no size | sold in Canada
+  E) Great value | brand: Great Value | size: no size | sold in Canada
+  F) Great value | brand: Great Value | size: no size | sold in Canada
+  G) Green curry | brand: Great Value | size: no size | sold in Canada
+  H) GREEN PEAS | brand: Great Value | size: no size | sold in Canada
+  I) Green Peas | brand: Great Value | size: no size | sold in Canada
+  J) Great Value Peanut | brand: Great Value | size: no size | sold in Canada
+
+P047 | listing: Great Value Refined Coconut Oil | price $4.17
+  A) Refined Coconut Oil | brand: Great Value | size: no size | sold in Canada
+  B) Coconut Oil | brand: Great Value | size: 250 mL | sold in Canada
+  C) Coconut oil | brand: Great Value | size: 1.6 L | sold in Canada
+  D) Coconut oil | brand: Great Value | size: no size | sold in Canada
+  E) Liquid coconut oil | brand: Great Value | size: no size | sold in Canada
+  F) Great Value | brand: Great Value | size: no size | sold in Canada
+  G) 100% Virgin Coconut Oil | brand: Great Value | size: no size | sold in Canada
+  H) 100% Virgin Coconut Oil | brand: Great Value | size: no size | sold in Canada
+  I) Refined Avocado Oil | brand: Great Value | size: no size | sold in Canada
+  J) Refined avocado oil | brand: Great Value | size: no size | sold in Canada
+
+P048 | listing: Sitara Split Red Lentils | price $3.88
+  A) Split Red Lentils | brand: Sitara | size: no size | sold in Canada
+  B) Split Red Lentils | brand: Sitara | size: no size | sold in Canada
+  C) Whole Red Lentils | brand: Sitara | size: no size | sold in Canada
+  D) Split red lentils | brand: none | size: no size | sold in Canada
+  E) Red Split Lentils | brand: none | size: no size | sold in Canada
+  F) Dark Red Kidney Beans | brand: Sitara | size: no size | sold in Canada
+  G) Red Lentils | brand: none | size: no size | sold in Canada
+  H) Split Chickpeas(Chana Dal) Uncooked | brand: Sitara | size: no size | sold in Canada
+  I) Toor Daal (Split Pigeon Peas) | brand: Sitara | size: no size | sold in Canada
+  J) Red lentils reginerte | brand: none | size: 454 g | sold in Canada
+
+P049 | listing: Quaker Harvest Crunch Original Granola Cereal | price $3.97
+  A) Harvest Crunch Granola Cereal Original | brand: Quaker | size: 560 g | sold in Canada
+  B) HARVEST CRUNCH ORIGINAL Granola Cereal | brand: QUAKER | size: 1.8 kg | sold in Canada
+  C) Harvest Crunch Original | brand: Quaker | size: no size | sold in Canada
+  D) HARVEST CRUNCH ORIGINAL | brand: QUAKER | size: 1.4 kg | sold in Canada
+  E) Harvest Crunch Granola Cereal - Raisin Almond | brand: QUAKER | size: 600g | sold in Canada
+  F) Harvest crunch granola cereales | brand: Quaker, Quaker Oats | size: 510 g | sold in Canada
+  G) Oat Cereal | brand: Quaker | size: no size | sold in Canada
+  H) Yogurt granola | brand: Quaker | size: no size | sold in Canada
+  I) Granola Bars | brand: Quaker Chewy | size: 40 x 24 g | sold in Canada
+  J) Cereal Corazón | brand: Quaker | size: 300g | sold in Canada
+
+P050 | listing: Yupik Organic Red Split Lentils, 1 kg - Plant Based Vegan Protein for Soups Stews Curries | price $11.99
+  A) Organic Soy Protein Powder | brand: Yupik | size: no size | sold in Canada
+  B) Organic French Lentils | brand: Yupik | size: no size | sold in Canada
+  C) Organic Soy Protein Powder 90% | brand: Yupik | size: no size | sold in Canada
+  D) 70% Organic Dark Chocolate Chips Vegan | brand: Yupik | size: no size | sold in Canada
+  E) Organic split red lentils | brand: none | size: no size | sold in Canada
+  F) Organic Plant-Based Protein | brand: none | size: no size | sold in Canada
+  G) Flax Protein | brand: Yupik | size: no size | sold in Canada
+  H) ORGANIC FAVA BEANS | brand: YUPIK | size: 1.00 kg/2.20 lbs | not sold in Canada
+  I) Organic Hazelnut Butter | brand: Yupik | size: no size | sold in Canada
+  J) Organic Diced Mango | brand: Yupik | size: no size | sold in Canada

@@ -1,0 +1,50 @@
+P101,NONE,No candidate matches Family Size.
+P102,A,Matches brand and product exactly.
+P103,A,Matches brand product flavor and size exactly.
+P104,F,Matches brand product flavor and size perfectly.
+P105,UNSURE,Multiple size candidates match the listing.
+P106,NONE,No candidate matches the dual variety pack.
+P107,NONE,No candidate matches the Cherry flavor.
+P108,UNSURE,Multiple size candidates match the listing.
+P109,NONE,No candidate matches Gluten Free Spaghetti.
+P110,NONE,No candidate matches plain Ranch Dressing.
+P111,UNSURE,Multiple size candidates match the listing.
+P112,UNSURE,Multiple size candidates match the listing.
+P113,UNSURE,Multiple size candidates match the listing.
+P114,NONE,No candidate matches Tiramisu flavor.
+P115,NONE,No candidates provided.
+P116,UNSURE,Multiple candidates match the listing.
+P117,NONE,No candidate matches No Sugar Added and size.
+P118,NONE,No candidate matches Chicken and Rib flavor.
+P119,A,Matches product exactly.
+P120,UNSURE,Multiple candidates match the listing.
+P121,C,Matches product and equivalent size.
+P122,NONE,No candidate matches brand and flavor.
+P123,UNSURE,Multiple size candidates match the listing.
+P124,NONE,No candidate matches flat cabbage.
+P125,UNSURE,Multiple identical candidates match the listing.
+P126,NONE,No candidates provided.
+P127,UNSURE,Multiple identical candidates match the listing.
+P128,NONE,No candidates provided.
+P129,UNSURE,Multiple size candidates match the listing.
+P130,NONE,No candidate matches the exact 200g size.
+P131,UNSURE,Multiple identical candidates match the listing.
+P132,NONE,No candidate matches brand and product exactly.
+P133,NONE,No exact product match found.
+P134,UNSURE,Multiple size candidates match the listing.
+P135,A,Matches product and brand with missing size.
+P136,UNSURE,Multiple size candidates match the listing.
+P137,A,Matches product and brand exactly.
+P138,NONE,No candidate matches the shelled variant.
+P139,NONE,No exact textual match for Chayote.
+P140,NONE,No candidate matches Free Run exactly.
+P141,NONE,No candidate matches Peanut Spread exactly.
+P142,NONE,No candidate matches brand and product.
+P143,UNSURE,Multiple identical candidates match the listing.
+P144,A,Matches brand product and size exactly.
+P145,UNSURE,Multiple identical candidates match the listing.
+P146,NONE,No candidate matches the 2L size.
+P147,A,Matches brand and product exactly.
+P148,UNSURE,Multiple identical candidates match the listing.
+P149,NONE,No candidate matches the product.
+P150,UNSURE,Multiple identical candidates match the listing.
