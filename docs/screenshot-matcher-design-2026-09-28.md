@@ -116,8 +116,10 @@ with one line of reason. Output is a CSV back, parsed strictly (a row it skipped
 - **Accepted:** stage 4 says single and Gemini picks the same code; or stage 4 says tie/weak and
   Gemini picks one code with a reason naming the size or the package. Written to `observation` as
   `join_method = 'name'`, with the store, capture date and, for per-weight items, the unit price.
-- **Everything else is unmatched**, and stays unmatched: no price attached. `sources.ts`'s header is
-  the reason: a wrong match is a verdict about a product the shopper is not holding.
+- **Everything else gets no barcode, and is still kept as a price.** No barcode is attached, because
+  a wrong match is a verdict about a product the shopper is not holding (`sources.ts`'s header). The
+  tile is still stored whole and trains category prices and the model (RULINGS.md, "Priced store
+  items that match no barcode still train prices"; `docs/price-data-design-2026-09-28.md`).
 - **Stale by design:** Walmart's own page says "New deals every Thursday". Each price carries its
   capture date; Rollback and Flyer prices are marked as sale prices.
 

@@ -161,6 +161,24 @@ that most affect others, asked for their price ranges. · 2026-09-28 · *"We nee
 Retired wording: none
 Governs: to fill (price/src/range.ts is the first version)
 
+### Priced store items that match no barcode still train prices
+A store price for an item Shin cannot tie to a barcode is never thrown away. It is not added to the
+catalogue, since without a barcode it cannot be, but it is kept whole (the capture itself, the full
+name, the store and page it came from, the price, sale or regular, the date, the image) and used as
+a price data point: the price spread of its category and subcategories, and the prediction models.
+Sale prices are kept too, marked as sales. · 2026-09-28 · *"If it doesn't match with anything in the catalog, since the item doesn't come with a barcode, you cannot automatically add it to the catalog. However, what you can do is use it to train the price data. You can use it to train the price variation for subcategories. You can use it to train prediction models. In fact, these are very accurate and valued prices."*
+Retired wording: none
+Governs: to fill (price/src/range.ts reads no row without a barcode and no sale row today; docs/price-data-design-2026-09-28.md)
+
+### Everything is an assumption until tested, and a test can be wrong
+Nothing about the catalogue, a match, a price or a model is treated as true until a test has checked
+it, and a passing test is not proof: the test itself can be wrong. Every test is built so it can
+fail: scored on data the thing tested never saw, against an answer key that is itself checked by
+hand, with a control it must reject, and a pass mark set before it runs. A test that has never gone
+red on a broken version is not yet a test. · 2026-09-28 · *"Especially when building something like a catalog, Everything is an assumption until it is properly tested. Write this down. Just because something is tested doesn't mean it's correct. Because the test itself can be inherently wrong."*
+Retired wording: none
+Governs: to fill (first use: docs/price-data-design-2026-09-28.md, "How it is tested")
+
 ### The price line speaks the shopper's own range, never Shin's opinion
 Zone words name where the shelf price falls against the shopper's own set thresholds (defaults 10%
 under/over), returned as neutral codes (under_your_line, middle, over_your_line), never

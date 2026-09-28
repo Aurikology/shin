@@ -14,6 +14,30 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ---
 
+## 2026-09-28 (Jamin's PC): store prices with no barcode are kept, and nothing counts as true until tested
+
+### To do
+
+- **Aurik: nothing is asked of you.** Read "What changed" before touching the price range code.
+
+### What changed
+
+- **Two new rulings from Jamin.** A store price Shin cannot tie to a barcode is kept whole (name,
+  store, page, price, sale or regular, date, image) and trains category prices and the prediction
+  model; it never enters the catalogue. And everything is an assumption until tested, where a test
+  counts only if it can fail and has been shown to fail on a broken version.
+- **The price range was tested against real prices for the first time.** Hiding each of 654 priced
+  products and predicting it from its category: the real price fell inside the range 49.7% of the
+  time, ranges were typically 2.4x wide, and 86% of what could be tested was beer and liquor. The
+  range is the category's middle half, so half falls outside by construction. Design for what
+  replaces it: `docs/price-data-design-2026-09-28.md`.
+
+### Read by
+
+- (none yet)
+
+---
+
 ## 2026-09-23 (Jamin's PC): typing searches only Shin's own data, the barcode button sends no photo, and the launch list is in the queue
 
 ### To do
