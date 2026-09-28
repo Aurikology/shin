@@ -26,11 +26,20 @@
  * The cache survives a month turning over; only `calls` resets. Entries past
  * their 30 days are pruned whenever the file is written.
  *
+ * EVERY ANSWER IS SAVED AS DATA (RULINGS "Catalogue first; Claude, with no web
+ * search, is the capped price-range fallback"). Beside the store, an
+ * append-only JSON-lines file (`<store>.answers.jsonl`, see
+ * `rangeAnswersPath`) gets one line per answer the model gave: valid ranges,
+ * `known: false`, and answers refused by the validator, each with its reason
+ * and the raw object. A transport failure (no answer came back) is not an
+ * answer and is not written. This log is never pruned and never read back by
+ * the ask; the cache above is what saves a rescan its cap slot.
+ *
  * Single process, single event loop: the read-modify-write below is not
  * atomic across processes, the same limit `cap.ts` states for itself.
  */
 
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -142,4 +151,29 @@ export function readCachedRange(storePath: string, key: string, nowMs: number, t
 export function writeCachedRange(storePath: string, key: string, entry: CachedRangeEntry, nowMs: number, ttlMs: number): void {
   const s = readRangeStore(storePath, nowMs);
   writeRangeStore(storePath, { ...s, cache: { ...s.cache, [key]: entry } }, nowMs, ttlMs);
+}
+
+/** One answer the model gave, as it is logged. */
+export interface RangeAnswerRecord {
+  readonly key: string;
+  /** ISO time of the call. */
+  readonly askedAt: string;
+  readonly model: string;
+  /** 'ok', 'model_does_not_know', or the validator's refusal reason. */
+  readonly outcome: string;
+  readonly detail?: string;
+  /** The model's parsed object, or null when it did not parse. */
+  readonly raw: unknown;
+}
+
+/** The answer log beside `storePath`: `range-ask.json` -> `range-ask.answers.jsonl`. */
+export function rangeAnswersPath(storePath: string): string {
+  return storePath.replace(/\.json$/i, '') + '.answers.jsonl';
+}
+
+/** Appends one answer to the log. Throws on a write failure; the caller decides what that means. */
+export function appendRangeAnswer(storePath: string, record: RangeAnswerRecord): void {
+  const path = rangeAnswersPath(storePath);
+  mkdirSync(dirname(path), { recursive: true });
+  appendFileSync(path, JSON.stringify(record) + '\n', 'utf8');
 }

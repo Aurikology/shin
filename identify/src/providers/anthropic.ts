@@ -59,7 +59,7 @@ export class AnthropicProvider implements Provider {
       maxRetries: 0,
     });
     return {
-      value: parseJson<T>(message),
+      value: parseJson<T>(message, request.images.length > 0),
       usage: usageOf(message),
       provider: this.name,
       // The SDK echoes the model it ran. A fake client in a test does not, and
@@ -138,6 +138,9 @@ function bodyFor(request: ProviderRequest): Anthropic.MessageCreateParamsNonStre
   return {
     model: request.model,
     max_tokens: request.maxOutputTokens,
+    // Only when asked for: a request with no `thinking` sends no such key, so
+    // every body built before 2026-09-28 is byte-identical.
+    ...(request.thinking === 'disabled' ? { thinking: { type: 'disabled' as const } } : {}),
     system: request.system,
     output_config: {
       format: {
@@ -174,12 +177,15 @@ function usageOf(message: unknown): TokenUsage {
   };
 }
 
-function parseJson<T>(message: Anthropic.Message): T {
+function parseJson<T>(message: Anthropic.Message, hasImage: boolean): T {
   // stop_reason is checked before content is read: a refusal returns HTTP 200
   // with no usable body, and treating that as a parse failure would report a
   // camera problem for something that is not one.
   if (message.stop_reason === 'refusal') {
-    throw new ProviderError('unreadable_photo', 'model declined to read this image');
+    // The class is unchanged for every caller (the vocabulary has no text-only
+    // refusal); the message says which it was. A photo caller gets exactly the
+    // message it always got. A text-only call (the range ask) gets 'refused'.
+    throw new ProviderError('unreadable_photo', hasImage ? 'model declined to read this image' : 'refused');
   }
   const text = message.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')

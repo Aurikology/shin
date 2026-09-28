@@ -152,14 +152,14 @@ interface AskCall {
 }
 const askCalls: AskCall[] = [];
 const rangeAskProvider = {
-  name: 'fake-gemini-range',
+  name: 'fake-claude-range',
   async send<T>(req: { user: string }) {
     askCalls.push({ user: req.user });
     return {
       value: { known: true, low_cents: 199, high_cents: 349, currency: 'CAD', unit: 'one 2 L bottle', confidence: 'medium' } as T,
       usage: { inputTokens: null, outputTokens: null, cacheReadTokens: null, cacheCreationTokens: null },
-      provider: 'gemini',
-      model: 'gemini-3.8-flash',
+      provider: 'anthropic',
+      model: 'claude-sonnet-5',
     };
   },
 };
@@ -344,29 +344,59 @@ test('ON, catalogue hit with only its category priced: a leaf_category range, sc
   assert.equal(row.range_basis, 'leaf_category');
 });
 
-test('ON, catalogue hit Shin cannot price: the identity, no range, no_shin_prices, and no model call of any kind', async () => {
-  // Jamin, 2026-09-28: "We are not using gemini at all for the client side answers".
+test('ON, catalogue hit Shin cannot price: exactly one Claude range ask, zero Gemini calls, gemini_typical with its time', async () => {
+  // RULINGS.md "Catalogue first; Claude, with no web search, is the capped
+  // price-range fallback". Jamin, 2026-09-28: "We are not using gemini at all
+  // for the client side answers"; `gemini_typical` is the historical wire value.
   on();
-  for (const [code, name] of [
-    [NONE_HIT, 'Cola Classic'],
-    [CAP_HIT, 'Cola Zero'],
-  ] as const) {
+  const scansBefore = scanDouble.calls.length;
+  const asksBefore = askCalls.length;
+  const body = await identify(NONE_HIT);
+  assert.equal(body.outcome, 'catalogue_hit');
+  assert.equal(askCalls.length - asksBefore, 1, 'the range ask was not made exactly once');
+  assert.equal(scanDouble.calls.length, scansBefore, 'the Gemini scan call was made on the catalogue path');
+  assert.match(askCalls[askCalls.length - 1]!.user, /Product: Cola Classic/);
+  assert.match(askCalls[askCalls.length - 1]!.user, /Brand: Fizzco/);
+  assert.deepEqual(body.range, {
+    lowCents: 199,
+    highCents: 349,
+    medianCents: null,
+    n: null,
+    basis: 'gemini_typical',
+    category: null,
+    currency: 'CAD',
+    unit: 'one 2 L bottle',
+  });
+  assert.equal(body.rangeSource, 'gemini_typical');
+  assert.equal(typeof body.rangeAskedAt, 'string');
+  assert.ok(!Number.isNaN(Date.parse(body.rangeAskedAt as string)));
+  assert.equal(body.noRangeReason, null);
+  const row = scanRow(body.scanId);
+  assert.equal(row.answer_path, 'catalogue_hit');
+  assert.equal(row.range_source, 'gemini_typical');
+  assert.equal(row.range_basis, 'none');
+});
+
+test('ON, the monthly ask cap reached: the identity still comes back, no range, the reason, no model call', async () => {
+  on();
+  process.env.SHIN_RANGE_ASK_MONTHLY_CAP = '0';
+  try {
     const scansBefore = scanDouble.calls.length;
     const asksBefore = askCalls.length;
-    const body = await identify(code);
+    const body = await identify(CAP_HIT);
     assert.equal(body.outcome, 'catalogue_hit');
-    assert.equal((body.identity as Record<string, unknown>).name, name);
+    assert.equal((body.identity as Record<string, unknown>).name, 'Cola Zero');
     assert.equal(body.range, null);
     assert.equal(body.rangeSource, null);
-    assert.equal(body.rangeAskedAt, null);
-    assert.equal(body.noRangeReason, 'no_shin_prices');
-    assert.equal(askCalls.length, asksBefore, 'a model was asked for a range');
-    assert.equal(scanDouble.calls.length, scansBefore, 'the Gemini scan call was made on the catalogue path');
+    assert.equal(body.noRangeReason, 'monthly_cap_reached');
+    assert.equal(askCalls.length, asksBefore, 'the ask went out past the cap');
+    assert.equal(scanDouble.calls.length, scansBefore);
     const row = scanRow(body.scanId);
     assert.equal(row.outcome, 'answered');
     assert.equal(row.answer_path, 'catalogue_hit');
-    assert.equal(row.range_source, 'none');
-    assert.equal(row.range_miss_reason, 'no_shin_prices');
+    assert.equal(row.range_miss_reason, 'monthly_cap_reached');
+  } finally {
+    delete process.env.SHIN_RANGE_ASK_MONTHLY_CAP;
   }
 });
 

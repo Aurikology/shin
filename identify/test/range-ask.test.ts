@@ -1,26 +1,38 @@
 /**
- * The last-resort range ask (`src/range-ask.ts`). Added 2026-09-27.
+ * The last-resort range ask (`src/range-ask.ts`). Added 2026-09-27; moved from
+ * Gemini to Claude 2026-09-28 (RULINGS.md "Catalogue first; Claude, with no
+ * web search, is the capped price-range fallback").
  *
- * Every call here goes through the REAL `GeminiProvider` with a fake transport
- * (the double `gemini.test.ts` uses), so the body asserted is the body the
- * provider would really build, and nothing opens a socket. Every test uses its
- * own temp store and an injected clock, so none touches
- * `identify/data/range-ask.json` and none depends on today's date.
+ * Every call here goes through the REAL `AnthropicProvider` with a fake
+ * `MessagesClient` (the seam the provider's own tests build against), so the
+ * body asserted is the body the provider would really send, and nothing opens
+ * a socket. Every test uses its own temp store and an injected clock, so none
+ * touches `identify/data/range-ask.json` and none depends on today's date.
  *
  * What these prove is that the code agrees with itself. They do not prove that
- * Gemini accepts this request, honours the schema, or gives sane Canadian
+ * Claude accepts this request, honours the schema, or gives sane Canadian
  * prices: only a live call can.
  */
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { GeminiProvider, type GeminiTransport } from '../src/providers/gemini.ts';
-import { askTypicalRange, rangeCacheKey, type RangeAskDeps, type RangeIdentity } from '../src/range-ask.ts';
-import { monthlyRangeCalls } from '../src/range-ask-store.ts';
+import { AnthropicProvider, type MessagesClient } from '../src/providers/anthropic.ts';
+import {
+  askTypicalRange,
+  capOf,
+  DEFAULT_MONTHLY_CAP,
+  MAX_OUTPUT_TOKENS,
+  rangeCacheKey,
+  RANGE_ASK_MODEL,
+  validateRange,
+  type RangeAskDeps,
+  type RangeIdentity,
+} from '../src/range-ask.ts';
+import { monthlyRangeCalls, rangeAnswersPath } from '../src/range-ask-store.ts';
 
 const IDENTITY: RangeIdentity = {
   name: 'Classic Ketchup',
@@ -37,29 +49,29 @@ function tempStore(): string {
   return join(mkdtempSync(join(tmpdir(), 'shin-range-ask-')), 'range-ask.json');
 }
 
-interface Sent {
-  url: string;
-  body: Record<string, unknown>;
-}
+type Body = Record<string, unknown>;
 
-/** A fake transport answering with `modelText` as the model's output text, counting every send. */
-function fake(modelText: string): GeminiTransport & { sent: Sent[] } {
-  const sent: Sent[] = [];
-  const t = (async (url, init) => {
-    sent.push({ url, body: JSON.parse(init.body) as Record<string, unknown> });
-    return {
-      ok: true,
-      status: 200,
-      async text() {
-        return JSON.stringify({
-          status: 'completed',
-          steps: [{ type: 'model_output', content: [{ type: 'text', text: modelText }] }],
-        });
+/** A fake Messages client answering with `modelText` as the text block, recording every body sent. */
+function fake(modelText: string, stopReason = 'end_turn'): MessagesClient & { sent: Body[] } {
+  const sent: Body[] = [];
+  return {
+    sent,
+    messages: {
+      async create(body) {
+        sent.push(JSON.parse(JSON.stringify(body)) as Body);
+        return {
+          id: 'msg_test',
+          type: 'message',
+          role: 'assistant',
+          model: body.model,
+          content: [{ type: 'text', text: modelText, citations: null }],
+          stop_reason: stopReason,
+          stop_sequence: null,
+          usage: { input_tokens: 10, output_tokens: 20 },
+        } as never;
       },
-    };
-  }) as GeminiTransport & { sent: Sent[] };
-  t.sent = sent;
-  return t;
+    },
+  };
 }
 
 function goodAnswer(over: Record<string, unknown> = {}): string {
@@ -74,18 +86,17 @@ function goodAnswer(over: Record<string, unknown> = {}): string {
   });
 }
 
-function deps(transport: GeminiTransport, storePath: string, over: Partial<RangeAskDeps> = {}): RangeAskDeps {
+function deps(client: MessagesClient, storePath: string, over: Partial<RangeAskDeps> = {}): RangeAskDeps {
   return {
-    provider: new GeminiProvider({ apiKey: 'test-key', baseUrl: 'https://example.invalid/v1beta', transport }),
+    provider: new AnthropicProvider(client),
     storePath,
     monthlyCap: 1000,
-    model: 'gemini-3.8-flash',
     now: () => SEPT,
     ...over,
   };
 }
 
-test('happy path: one ungrounded call, a validated range in cents, stamped with the call time', async () => {
+test('happy path: one Claude call with no tools, a validated range in cents, stamped with the call time', async () => {
   const store = tempStore();
   const t = fake(goodAnswer());
   const r = await askTypicalRange(IDENTITY, deps(t, store));
@@ -98,16 +109,79 @@ test('happy path: one ungrounded call, a validated range in cents, stamped with 
   assert.equal(r.range.unit, 'one 1 L bottle');
   assert.equal(r.range.confidence, 'medium');
   assert.equal(r.range.askedAt, new Date(SEPT).toISOString());
+  assert.equal(r.range.model, 'claude-sonnet-5');
   assert.equal(t.sent.length, 1);
 
-  const body = t.sent[0]!.body;
-  assert.equal('tools' in body, false, 'no tools key at all: the ask is ungrounded');
-  assert.equal(typeof body.input, 'string', 'text only, no image part');
-  assert.match(String(body.input), /Product: Classic Ketchup/);
-  assert.match(String(body.input), /Brand: Heinz/);
-  assert.match(String(body.input), /Currency: CAD/);
-  assert.equal(body.model, 'gemini-3.8-flash');
+  const body = t.sent[0]!;
+  assert.equal('tools' in body, false, 'no tools key at all: no web search exists for the model');
+  assert.equal('tool_choice' in body, false);
+  assert.equal(body.model, 'claude-sonnet-5');
+  assert.equal(RANGE_ASK_MODEL, 'claude-sonnet-5');
+  assert.equal(body.max_tokens, 1024);
+  assert.equal(typeof body.system, 'string');
+  const messages = body.messages as { role: string; content: { type: string; text?: string }[] }[];
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0]!.role, 'user');
+  assert.deepEqual(messages[0]!.content.map((c) => c.type), ['text'], 'text only, never an image');
+  const text = messages[0]!.content[0]!.text ?? '';
+  assert.match(text, /Product: Classic Ketchup/);
+  assert.match(text, /Brand: Heinz/);
+  assert.match(text, /Currency: CAD/);
+  const format = (body.output_config as { format: { type: string; schema: Record<string, unknown> } }).format;
+  assert.equal(format.type, 'json_schema');
+  assert.equal(format.schema.additionalProperties, false);
   assert.deepEqual(monthlyRangeCalls(store, SEPT), { month: '2026-09', calls: 1 });
+});
+
+test('the answer is saved as data: the store holds the range, its call time and the model', async () => {
+  const store = tempStore();
+  await askTypicalRange(IDENTITY, deps(fake(goodAnswer()), store));
+  const onDisk = JSON.parse(readFileSync(store, 'utf8')) as {
+    cache: Record<string, { askedAt: string; range: Record<string, unknown> }>;
+  };
+  const entry = onDisk.cache[rangeCacheKey(IDENTITY)];
+  assert.ok(entry, 'the answer was not stored');
+  assert.equal(entry.askedAt, new Date(SEPT).toISOString());
+  assert.equal(entry.range.lowCents, 399);
+  assert.equal(entry.range.highCents, 649);
+  assert.equal(entry.range.model, 'claude-sonnet-5');
+});
+
+test('a caller-named model is the one sent', async () => {
+  const t = fake(goodAnswer());
+  await askTypicalRange(IDENTITY, deps(t, tempStore(), { model: 'claude-haiku-4-5' }));
+  assert.equal(t.sent[0]!.model, 'claude-haiku-4-5');
+});
+
+test('a refusal is a failure with no number, and the attempt still counts', async () => {
+  const store = tempStore();
+  const r = await askTypicalRange(IDENTITY, deps(fake('', 'refusal'), store));
+  assert.equal(r.ok, false);
+  assert.equal(monthlyRangeCalls(store, SEPT).calls, 1);
+});
+
+test('no ANTHROPIC_API_KEY and no provider: no_api_key, nothing counted, nothing sent', async () => {
+  const store = tempStore();
+  const saved = process.env.ANTHROPIC_API_KEY;
+  // Empty, not deleted: loadDotEnv only fills unset keys, so a developer's .env cannot turn this into a live call.
+  process.env.ANTHROPIC_API_KEY = '';
+  try {
+    const r = await askTypicalRange(IDENTITY, { storePath: store, monthlyCap: 1000, now: () => SEPT });
+    assert.deepEqual(r, { ok: false, reason: 'no_api_key' });
+    assert.equal(monthlyRangeCalls(store, SEPT).calls, 0);
+  } finally {
+    if (saved === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = saved;
+  }
+});
+
+test('a cap of 0 turns the ask off: nothing is sent', async () => {
+  const store = tempStore();
+  const t = fake(goodAnswer());
+  const r = await askTypicalRange(IDENTITY, deps(t, store, { monthlyCap: 0 }));
+  assert.deepEqual(r, { ok: false, reason: 'monthly_cap_reached' });
+  assert.equal(t.sent.length, 0);
+  assert.equal(monthlyRangeCalls(store, SEPT).calls, 0);
 });
 
 test('invalid JSON from the model is a failure, never a number, and the attempt still counts', async () => {
@@ -233,4 +307,139 @@ test('no name, or a market with no known currency, asks nothing', async () => {
   assert.equal(r.ok ? null : r.reason, 'unsupported_market');
   assert.equal(t.sent.length, 0);
   assert.equal(monthlyRangeCalls(store, SEPT).calls, 0);
+});
+
+/* ------------------------------------------- audit fixes, 2026-09-28 */
+
+function answersOf(store: string): { outcome: string; detail?: string; raw: unknown; model: string; askedAt: string }[] {
+  const path = rangeAnswersPath(store);
+  if (!existsSync(path)) return [];
+  return readFileSync(path, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
+}
+
+test('thinking is disabled and the ceiling is 1024, so a thinking model cannot eat the answer', async () => {
+  const t = fake(goodAnswer());
+  await askTypicalRange(IDENTITY, deps(t, tempStore()));
+  const body = t.sent[0]!;
+  assert.deepEqual(body.thinking, { type: 'disabled' });
+  assert.equal(body.max_tokens, 1024);
+  assert.equal(MAX_OUTPUT_TOKENS, 1024);
+});
+
+test('a request that names no thinking sends no thinking key: other callers are unchanged', async () => {
+  const t = fake(goodAnswer());
+  const p = new AnthropicProvider(t);
+  const request = {
+    model: 'claude-sonnet-5',
+    images: [{ bytes: new Uint8Array([1, 2, 3]), mediaType: 'image/png' as const }],
+    system: 's',
+    user: 'u',
+    schema: { name: 'x', schema: { type: 'object', properties: {}, additionalProperties: false } },
+    maxOutputTokens: 64,
+    signal: new AbortController().signal,
+  };
+  await p.send(request);
+  assert.equal('thinking' in t.sent[0]!, false);
+  assert.deepEqual(Object.keys(t.sent[0]!), ['model', 'max_tokens', 'system', 'output_config', 'messages']);
+});
+
+test('a photo refusal keeps its old message; a text refusal says refused', async () => {
+  const p = new AnthropicProvider(fake('', 'refusal'));
+  const base = {
+    model: 'm', system: 's', user: 'u', maxOutputTokens: 64, signal: new AbortController().signal,
+    schema: { name: 'x', schema: { type: 'object' } },
+  };
+  await assert.rejects(
+    p.send({ ...base, images: [{ bytes: new Uint8Array([1]), mediaType: 'image/png' }] }),
+    (e: { failure: string; message: string }) => e.failure === 'unreadable_photo' && e.message === 'model declined to read this image',
+  );
+  await assert.rejects(
+    p.send({ ...base, images: [] }),
+    (e: { failure: string; message: string }) => e.failure === 'unreadable_photo' && e.message === 'refused',
+  );
+  const r = await askTypicalRange(IDENTITY, deps(fake('', 'refusal'), tempStore()));
+  assert.deepEqual(r, { ok: false, reason: 'model_error', detail: 'refused' });
+});
+
+test('every answer is saved: valid, known:false, invalid (with its reason), and unparseable', async () => {
+  const store = tempStore();
+  await askTypicalRange(IDENTITY, deps(fake(goodAnswer()), store));
+  await askTypicalRange({ ...IDENTITY, name: 'A' }, deps(fake(goodAnswer({ known: false, low_cents: null, high_cents: null })), store));
+  await askTypicalRange({ ...IDENTITY, name: 'B' }, deps(fake(goodAnswer({ currency: 'USD' })), store));
+  await askTypicalRange({ ...IDENTITY, name: 'C' }, deps(fake('about five dollars'), store));
+  const log = answersOf(store);
+  assert.deepEqual(log.map((a) => a.outcome), ['ok', 'model_does_not_know', 'currency_mismatch', 'invalid_json']);
+  assert.equal((log[2]!.raw as { currency: string }).currency, 'USD', 'the raw answer is kept');
+  assert.match(log[2]!.detail ?? '', /USD is not CAD/);
+  assert.equal(log[3]!.raw, null);
+  assert.equal(log[0]!.model, 'claude-sonnet-5');
+  assert.equal(log[0]!.askedAt, new Date(SEPT).toISOString());
+});
+
+test('known:false is cached for 30 days: a rescan sends nothing and costs no cap slot', async () => {
+  const store = tempStore();
+  const unknown = goodAnswer({ known: false, low_cents: null, high_cents: null });
+  const first = await askTypicalRange(IDENTITY, deps(fake(unknown), store));
+  assert.deepEqual(first, { ok: false, reason: 'model_does_not_know' });
+  const t = fake(goodAnswer());
+  const later = SEPT + 5 * 24 * 60 * 60 * 1000;
+  const again = await askTypicalRange(IDENTITY, deps(t, store, { now: () => later }));
+  assert.deepEqual(again, { ok: false, reason: 'model_does_not_know', cached: true });
+  assert.equal(t.sent.length, 0);
+  assert.equal(monthlyRangeCalls(store, later).calls, 1);
+  // Past 30 days it is asked again.
+  const t2 = fake(goodAnswer());
+  const r = await askTypicalRange(IDENTITY, deps(t2, store, { now: () => SEPT + 31 * 24 * 60 * 60 * 1000 }));
+  assert.equal(r.ok, true);
+  assert.equal(t2.sent.length, 1);
+});
+
+test('an invalid answer or a transport failure is not cached; a transport failure is not logged', async () => {
+  const store = tempStore();
+  const failing: MessagesClient & { sent: Body[] } = {
+    sent: [],
+    messages: {
+      async create() {
+        throw Object.assign(new Error('socket hang up'), { status: 503 });
+      },
+    },
+  };
+  const r = await askTypicalRange(IDENTITY, deps(failing, store));
+  assert.equal(r.ok ? null : r.reason, 'model_error');
+  assert.equal(answersOf(store).length, 0);
+  await askTypicalRange(IDENTITY, deps(fake(goodAnswer({ currency: 'cad' })), store));
+  const t = fake(goodAnswer());
+  const ok = await askTypicalRange(IDENTITY, deps(t, store));
+  assert.equal(ok.ok && !ok.cached, true);
+  assert.equal(t.sent.length, 1);
+  assert.equal(monthlyRangeCalls(store, SEPT).calls, 3);
+});
+
+test('a bad cap fails closed: NaN, negative or fractional is 0 and nothing is sent; absent is the default', async () => {
+  for (const bad of [Number.NaN, -1, 2.5, Number.POSITIVE_INFINITY]) {
+    const t = fake(goodAnswer());
+    const r = await askTypicalRange(IDENTITY, deps(t, tempStore(), { monthlyCap: bad }));
+    assert.deepEqual(r, { ok: false, reason: 'monthly_cap_reached' }, String(bad));
+    assert.equal(t.sent.length, 0, String(bad));
+  }
+  assert.equal(capOf(undefined), DEFAULT_MONTHLY_CAP);
+  assert.equal(capOf(0), 0);
+  assert.equal(capOf(7), 7);
+});
+
+test('the validator refuses extra fields, a missing or non-boolean known, and a lowercased or padded currency', async () => {
+  const cases: [string, string][] = [
+    [goodAnswer({ note: 'hi' }), 'extra_fields'],
+    [JSON.stringify({ low_cents: 399, high_cents: 649, currency: 'CAD', unit: 'each', confidence: 'low' }), 'bad_known'],
+    [goodAnswer({ known: 'true' }), 'bad_known'],
+    [goodAnswer({ known: 1 }), 'bad_known'],
+    [goodAnswer({ currency: 'cad' }), 'bad_currency'],
+    [goodAnswer({ currency: ' CAD' }), 'bad_currency'],
+    [goodAnswer({ currency: 'CAD ' }), 'bad_currency'],
+  ];
+  for (const [text, reason] of cases) {
+    const r = await askTypicalRange(IDENTITY, deps(fake(text), tempStore()));
+    assert.equal(r.ok ? null : r.reason, reason, text);
+  }
+  assert.deepEqual(validateRange({ ...JSON.parse(goodAnswer()), extra: 1 }, 'CAD', 1e6), { ok: false, reason: 'extra_fields', detail: 'extra' });
 });

@@ -62,6 +62,7 @@ import {
   answerBarcodeFromCatalogue,
   catalogueFirstOn,
   matchText,
+  rangeAskSettings,
   readMatchTextBody,
   type MatchTextAnswer,
 } from './src/catalogue-first.ts';
@@ -172,8 +173,8 @@ export function setCatalogueForTests(fake: { byGtin(code: string): unknown } | n
  * TEST ONLY, for the catalogue-first path (src/catalogue-first.ts). Replaces the
  * three things a test machine cannot have: the search worker (a real
  * in-memory `Catalogue` stands in), the catalogue handle the range ladder and
- * the brand lookup read, and the Gemini provider the range ask would build from
- * GEMINI_API_KEY. With a provider injected, no socket is ever opened. Null
+ * the brand lookup read, and the Claude provider the range ask would build from
+ * ANTHROPIC_API_KEY. With a provider injected, no socket is ever opened. Null
  * restores the shipped wiring.
  */
 let catalogueFirstTest: {
@@ -2107,7 +2108,8 @@ function ownOffersForBarcode(gtin: string, device: string): Record<string, unkno
  * src/catalogue-first.ts; this is the wiring: the catalogue lookup is
  * `fastLookup.byGtin` (catalogue/src/search.ts `Catalogue.byGtin`, the same
  * lookup attached for barcodes) and the prices are `PRICES_DB_PATH` opened
- * read-only for this one answer. No model is called from here.
+ * read-only for this one answer. The only model call is the capped Claude
+ * range ask, made only when Shin's own prices give no range.
  */
 async function catalogueFirstBarcode(
   req: IncomingMessage,
@@ -2130,9 +2132,21 @@ async function catalogueFirstBarcode(
       country: market.country,
       currency: market.currency ?? 'CAD',
       asOf: new Date().toISOString().slice(0, 10),
-      // No `askRange`: no shopper answer comes from Gemini (Jamin, 2026-09-28,
-      // "We are not using gemini at all for the client side answers"), and the
-      // Claude range ask RULINGS.md names is not built yet.
+      // Only when Shin has no price: one Claude ask, no web search, capped per
+      // month (identify/src/range-ask.ts). No shopper answer comes from Gemini
+      // (Jamin, 2026-09-28, "We are not using gemini at all for the client side answers").
+      askRange: async (identity) => {
+        // Checked here, not at the top of the route: only this call can cost money.
+        if (paidCallRefusal(req)) return { ok: false, reason: 'rate_limited' as const };
+        const { askTypicalRange } = await import('../identify/src/range-ask.ts');
+        const s = rangeAskSettings();
+        return askTypicalRange(identity, {
+          monthlyCap: s.monthlyCap,
+          ceilingCents: s.ceilingCents,
+          ...(s.storePath ? { storePath: s.storePath } : {}),
+          ...(catalogueFirstTest?.rangeAskProvider ? { provider: catalogueFirstTest.rangeAskProvider } : {}),
+        });
+      },
     });
   } finally {
     try {

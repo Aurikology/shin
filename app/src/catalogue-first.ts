@@ -1,6 +1,8 @@
 /**
  * CATALOGUE FIRST: a barcode is named by Shin's own catalogue and priced by
- * Shin's own prices. No answer a shopper sees comes from Gemini.
+ * Shin's own prices; when Shin has no price, Claude, with no web search, is
+ * asked for a typical range, capped per month. No answer a shopper sees comes
+ * from Gemini.
  *
  * RULINGS.md "Catalogue first; Claude, with no web search, is the capped
  * price-range fallback": "Shin names a product from its own catalogue: a
@@ -21,13 +23,14 @@
  *        the server's `fastLookup` already holds;
  *     2. found: the catalogue row IS the identity. `priceRangeFor`
  *        (price/src/range.ts) computes the range from Shin's own prices. When
- *        its basis is `none`, `askRange` is called only if the caller passed
- *        one; the server passes none, because the Gemini range ask
- *        (identify/src/range-ask.ts) is off the shopper's path and the Claude
- *        one is not built. The answer still comes back, with the identity, no
- *        range and `no_shin_prices` (RULINGS "Always answer");
+ *        its basis is `none`, `askRange` is called once if the caller passed
+ *        one; the server passes the capped Claude ask, no web search
+ *        (identify/src/range-ask.ts `askTypicalRange`). If that ask fails for
+ *        any reason, or no ask is passed, the answer still comes back with the
+ *        identity, no range and the reason code (`no_shin_prices` when no ask
+ *        was passed; RULINGS "Always answer");
  *     3. not found: `not_in_catalogue`, and the client offers manual entry.
- *        Gemini is never asked who the product is. The Gemini scan call
+ *        No model is asked who the product is. The Gemini scan call
  *        (`runGeminiScan`) is never made anywhere on this path.
  *
  *   TEXT (`POST /api/match-text`), `matchText`: the lines read off a pack or a
@@ -59,12 +62,19 @@
  *       unit: string | null,          // gemini_typical only: what one price buys, as the model said
  *     },
  *     rangeSource: 'shin_prices' | 'gemini_typical' | null,
- *     rangeAskedAt: string | null,    // ISO time of the Gemini ask, gemini_typical only
+ *     rangeAskedAt: string | null,    // ISO time of the Claude ask, gemini_typical only
  *     noRangeReason: string | null,   // why range is null, e.g. 'monthly_cap_reached'
  *     shelfPrice: null | { cents: number, from: 'weighed_label' },
  *     ms: number,
  *     scanId?: number,
  *   }
+ *
+ * `gemini_typical` is a historical wire value, not a statement of which model
+ * answered: it is what the client (app/public/js/lib/catalogue-range.js), the
+ * scans table (`range_source`, app/src/migrations.ts) and the native copies
+ * already read. Since 2026-09-28 the answer behind it comes from Claude (the
+ * model id is kept with the saved answer in identify/data/range-ask.json).
+ * Renaming it is a client + migration change, not made here.
  *
  * `POST /api/match-text` answers:
  *
@@ -104,6 +114,18 @@ function wholeOr(raw: string | undefined, fallback: number): number {
 }
 
 /**
+ * The monthly cap fails CLOSED: unset or empty is the documented default, but a
+ * value that is set and is not a whole number >= 0 ('abc', '-3', '1.5') is 0,
+ * so a typo turns the paid ask off rather than opening it to 1000 a month.
+ */
+function capOr(raw: string | undefined, fallback: number): number {
+  const t = (raw ?? '').trim();
+  if (t === '') return fallback;
+  const n = Number(t);
+  return Number.isInteger(n) && n >= 0 ? n : 0;
+}
+
+/**
  * The three range-ask settings, as `askTypicalRange`'s deps. The store path is
  * left undefined when unset, so range-ask.ts keeps its own default
  * (`identify/data/range-ask.json`) as the one source of that path.
@@ -114,7 +136,7 @@ export function rangeAskSettings(env: NodeJS.ProcessEnv = process.env): {
   storePath: string | undefined;
 } {
   return {
-    monthlyCap: wholeOr(settings.SHIN_RANGE_ASK_MONTHLY_CAP(env), RANGE_ASK_DEFAULT_MONTHLY_CAP),
+    monthlyCap: capOr(settings.SHIN_RANGE_ASK_MONTHLY_CAP(env), RANGE_ASK_DEFAULT_MONTHLY_CAP),
     ceilingCents: wholeOr(settings.SHIN_RANGE_ASK_CEILING_CENTS(env), RANGE_ASK_DEFAULT_CEILING_CENTS),
     storePath: settings.SHIN_RANGE_ASK_STORE_PATH(env)?.trim() || undefined,
   };
@@ -201,9 +223,9 @@ export interface BarcodeDeps {
   /** ISO date the range is for. */
   readonly asOf: string;
   /**
-   * One capped model range ask, or absent for none. The server passes none:
-   * no shopper answer comes from Gemini (Jamin, 2026-09-28), and the Claude
-   * ask the ruling names is not built yet.
+   * One capped Claude range ask, no tools, or absent for none. The server wraps
+   * `askTypicalRange` with its settings and the paid-call limiter. No shopper
+   * answer comes from Gemini (Jamin, 2026-09-28).
    */
   readonly askRange?: (identity: RangeIdentity) => Promise<RangeAskResult | { ok: false; reason: 'rate_limited' }>;
 }

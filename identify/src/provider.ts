@@ -89,6 +89,14 @@ export interface ProviderRequest {
    * outer clock. Ignored by a provider that is not a pair.
    */
   readonly vendorTimeoutMs?: number;
+  /**
+   * Extended thinking, for a provider that has it. Added 2026-09-28 for the
+   * text-only range ask. Absent (every caller written before then) means the
+   * provider sends no thinking field at all, so those bodies are unchanged.
+   * `disabled` asks for no thinking, so the whole output ceiling goes to the
+   * answer. Ignored by a provider with no such setting.
+   */
+  readonly thinking?: 'disabled';
 }
 
 /**
