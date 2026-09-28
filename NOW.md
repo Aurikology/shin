@@ -42,13 +42,14 @@ in `docs/decisions.md`: CA$3.99 a month, CA$29.99 a year, 5 free barcode scans a
 purchases work (this matches RULINGS.md, "Shin Plus pricing and free scans": 5 a week for the
 beta, 3 a week at public launch). The invite code is set on the Mac (D-164).
 
-**Shin is shifting to catalogue first (both founders, 2026-09-27; RULINGS.md, "Catalogue first;
+**Shin is catalogue first, switched on for testers 2026-09-28 (RULINGS.md, "Catalogue first;
 Claude, with no web search, is the capped price-range fallback").** The catalogue names the product
 (text on the object searched, top 3 returned, manual entry on no match), Shin's own math gives the
 price range, and when Shin has no price, Claude is asked for a typical range with no web search,
-capped per month. Gemini is not used in this version (Jamin, 2026-09-28, correcting a record that
-had the fallback as Gemini). Aurik's session is building it behind one setting that stays
-off until both say flip it; until then the running beta still asks Gemini on each scan. The old
+capped per month. No shopper answer comes from Gemini (Jamin, 2026-09-28: *"We are not using gemini
+at all for the client side answers"*). The setting is on by default in code; the Claude range ask
+is not built yet, so an item with no Shin price shows no range. The Mac serves it once it pulls
+main and restarts the server. The old
 single-row photo matcher removed in `d3e4f0b` (2026-09-19) stays removed: the new search returns
 three for the shopper to pick, never one row forced out of millions.
 
@@ -79,14 +80,14 @@ Android debug APK built on this PC. App tests 1558 of 1558; 9 of 9 live server c
 
 **Not done yet:** the Mac has not picked up either mail (iPhone build + paid-key check,
 20260928053407-pc-806590; pull, restart, photo move, cache row, 20260928063225-pc-252cb2): no
-Mac session was open. The catalogue-first flip waits on Aurik's half (comms, 2026-09-28 05:45).
+Mac session was open. Catalogue first is on in code (2026-09-28); the Mac has not yet restarted onto it.
 Nothing has been opened on a real phone.
 
 ## Waiting on Jamin or Aurik
-- **Aurik:** his half of the catalogue-first flip (Jamin gave his 2026-09-28, with the Gemini range
-  ask capped to 0), and rebuilding the range ask on Claude with no web search.
-- **The Mac:** verify own prices on barcode scans and flip catalogue-first on (mail
-  20260928011752-pc-32d55a, 2026-09-28, no receipt yet).
+- **Aurik:** the range ask on Claude with no web search (his claim, 2026-09-28 17:00 UTC). The
+  server makes no range ask until it is wired back in.
+- **The Mac:** pull, restart onto catalogue first, verify own prices on barcode scans, and move
+  the iOS project to CocoaPods for the ML Kit plugins (mail 2026-09-28, see mailbox).
 - **The Mac (asked by mail 2026-09-27, no receipt yet):** is SHIN_GEMINI_TIER paid (unset or free
   refuses every shopper photo), SHIN_REQUIRE_DB, SHIN_GEMINI_GROUNDED_MODEL, and SHIN_GEMINI_SPLIT;
   then pull main and restart the beta server (becf7d8 removed the 2.5 split).

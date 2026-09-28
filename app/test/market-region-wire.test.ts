@@ -16,6 +16,7 @@ import type { AddressInfo } from 'node:net';
 import { fakeTransport, type Call } from './gemini-double.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-market-wire-'));
+process.env.SHIN_CATALOGUE_FIRST = '0'; // the Gemini path these tests pin; catalogue first is on by default since 2026-09-28
 process.env.SHIN_SCANS = join(dir, 'scans.db');
 process.env.SHIN_REPEAT_CACHE = join(dir, 'repeat-cache.db');
 process.env.SHIN_GAPS = join(dir, 'gaps.db');

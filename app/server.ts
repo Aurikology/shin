@@ -62,7 +62,6 @@ import {
   answerBarcodeFromCatalogue,
   catalogueFirstOn,
   matchText,
-  rangeAskSettings,
   readMatchTextBody,
   type MatchTextAnswer,
 } from './src/catalogue-first.ts';
@@ -2102,15 +2101,13 @@ function ownOffersForBarcode(gtin: string, device: string): Record<string, unkno
 }
 
 /**
- * THE CATALOGUE-FIRST BARCODE ANSWER, behind SHIN_CATALOGUE_FIRST (default off).
- * RULINGS.md "Catalogue first; Gemini is a capped fallback, never the identity".
- * The logic and the answer shape are in src/catalogue-first.ts; this is the
- * wiring: the catalogue lookup is `fastLookup.byGtin` (catalogue/src/search.ts
- * `Catalogue.byGtin`, the same lookup attached for barcodes), the prices are
- * `PRICES_DB_PATH` opened read-only for this one answer, and the range ask is
- * `askTypicalRange` with the three SHIN_RANGE_ASK_* settings, behind the same
- * paid-call limiter every Gemini call in this file passes. `runGeminiScan` is
- * never reached from here.
+ * THE CATALOGUE-FIRST BARCODE ANSWER, behind SHIN_CATALOGUE_FIRST (default on
+ * since 2026-09-28). RULINGS.md "Catalogue first; Claude, with no web search,
+ * is the capped price-range fallback". The logic and the answer shape are in
+ * src/catalogue-first.ts; this is the wiring: the catalogue lookup is
+ * `fastLookup.byGtin` (catalogue/src/search.ts `Catalogue.byGtin`, the same
+ * lookup attached for barcodes) and the prices are `PRICES_DB_PATH` opened
+ * read-only for this one answer. No model is called from here.
  */
 async function catalogueFirstBarcode(
   req: IncomingMessage,
@@ -2133,18 +2130,9 @@ async function catalogueFirstBarcode(
       country: market.country,
       currency: market.currency ?? 'CAD',
       asOf: new Date().toISOString().slice(0, 10),
-      askRange: async (identity) => {
-        // Checked here, not at the top of the route: only this call can cost money.
-        if (paidCallRefusal(req)) return { ok: false, reason: 'rate_limited' as const };
-        const { askTypicalRange } = await import('../identify/src/range-ask.ts');
-        const s = rangeAskSettings();
-        return askTypicalRange(identity, {
-          monthlyCap: s.monthlyCap,
-          ceilingCents: s.ceilingCents,
-          ...(s.storePath ? { storePath: s.storePath } : {}),
-          ...(catalogueFirstTest?.rangeAskProvider ? { provider: catalogueFirstTest.rangeAskProvider } : {}),
-        });
-      },
+      // No `askRange`: no shopper answer comes from Gemini (Jamin, 2026-09-28,
+      // "We are not using gemini at all for the client side answers"), and the
+      // Claude range ask RULINGS.md names is not built yet.
     });
   } finally {
     try {
@@ -2153,6 +2141,28 @@ async function catalogueFirstBarcode(
       /* already closed */
     }
   }
+}
+
+/**
+ * The catalogue-first answer for a request no model may answer (Jamin,
+ * 2026-09-28: "We are not using gemini at all for the client side answers"):
+ * not in the catalogue, so the client offers manual entry.
+ */
+function noModelCatalogueAnswer(barcode: string, startedAt: number) {
+  return {
+    kind: 'catalogue' as const,
+    outcome: 'not_in_catalogue' as const,
+    offerManualEntry: true,
+    catalogueUp: fastLookup !== null,
+    barcode,
+    identity: null,
+    range: null,
+    rangeSource: null,
+    rangeAskedAt: null,
+    noRangeReason: null,
+    shelfPrice: null,
+    ms: Date.now() - startedAt,
+  };
 }
 
 /** `POST /api/match-text`'s search, through the worker in the product and a stand-in under test. */
@@ -3053,14 +3063,14 @@ export const server = createServer(async (req, res) => {
       }
 
       /*
-       * CATALOGUE FIRST, only when SHIN_CATALOGUE_FIRST is on (RULINGS.md
-       * "Catalogue first; Gemini is a capped fallback, never the identity";
-       * both founders decide the flip). Off, this block is skipped and the
-       * route below answers exactly as it always has. On, the catalogue names
-       * the product, Shin's prices give the range, a capped Gemini range ask is
-       * the only model call that can happen, and the Gemini scan call is never
-       * made. The weekly free-scan limit applies as it does to any barcode
-       * scan; the paid-call limiter is checked only in front of the range ask.
+       * CATALOGUE FIRST, when SHIN_CATALOGUE_FIRST is on, its default since
+       * 2026-09-28 (RULINGS.md "Catalogue first; Claude, with no web search,
+       * is the capped price-range fallback"). Off, this block is skipped and
+       * the route below answers exactly as it always has. On, the catalogue
+       * names the product, Shin's prices give the range, and no model is
+       * called: Jamin, 2026-09-28, "We are not using gemini at all for the
+       * client side answers". The weekly free-scan limit applies as it does to
+       * any barcode scan.
        */
       if (gtin && rawGtin && catalogueFirstOn()) {
         const overLimitFirst = await scanLimitRefusal(device, req.headers);
@@ -3100,6 +3110,10 @@ export const server = createServer(async (req, res) => {
           return json(200, { ...answer, ms, ...(firstScanId === null ? {} : { scanId: firstScanId }) });
         }
       }
+
+      // Catalogue first on: whatever the block above did not answer gets manual
+      // entry, never the Gemini scan below (and never its cached answers).
+      if (catalogueFirstOn()) return json(200, noModelCatalogueAnswer(gtin ?? '', identifyStarted));
 
       const limitedIdentify = paidCallRefusal(req);
       if (limitedIdentify) return tooManyCalls(limitedIdentify.retryAfterSeconds);
@@ -3435,6 +3449,23 @@ export const server = createServer(async (req, res) => {
        * answer hard rule 3 exists to stop. `says` carries the server's own
        * sentence for whoever is reading a log or a curl.
        */
+      // Catalogue first on: a photograph is never sent to Gemini (Jamin,
+      // 2026-09-28, "We are not using gemini at all for the client side
+      // answers"). The phone reads the text itself and uses /api/match-text.
+      if (catalogueFirstOn()) {
+        return json(200, {
+          product: null,
+          matchedBy: 'none',
+          band: 'miss',
+          catalogueUp: fastLookup !== null,
+          failure: 'no_model_call',
+          reason: 'no_model_call',
+          lowConfidence: true,
+          confidenceReasons: ['no_answer:no_model_call'],
+          offerManualEntry: true,
+          says: 'Catalogue first is on: photographs are not sent to a model.',
+        });
+      }
       const tierRefusal = photoTierRefusal();
       if (tierRefusal) {
         return json(200, {
@@ -3644,6 +3675,27 @@ export const server = createServer(async (req, res) => {
         typeof q.deviceId === 'string' && q.deviceId.trim() !== '' ? q.deviceId.trim() : UNATTRIBUTED;
       deviceForLog = pricedDevice;
       const owner = groundedOwner(pricedDevice);
+
+      // Catalogue first on: a typed name is still answered from Shin's own
+      // data; nothing else here reaches Gemini or a stored Gemini answer
+      // (Jamin, 2026-09-28, "We are not using gemini at all for the client
+      // side answers").
+      if (catalogueFirstOn()) {
+        const row = scanKnown ? getScan(pricedScan) : null;
+        if (!searchGtin && searchText && (row === null || row.kind === 'text')) {
+          const own = typedFromOwnData(
+            searchText,
+            pricedDevice,
+            telemetryFrom(q),
+            locationFor(pricedDevice, q.cell, q.storeId, q.storeName),
+            Date.now(),
+            row !== null && row.device_id === pricedDevice ? pricedScan : null,
+          );
+          if (typeof own.scanId === 'number') scanForLog = own.scanId;
+          return json(200, { ...own, kind: 'gemini' });
+        }
+        return json(200, { kind: 'gemini', failure: 'no_model_call', lowConfidence: true, confidenceReasons: ['no_answer:no_model_call'] });
+      }
 
       /*
        * THE SECOND STALE PATH, and it is the one a tester hits first. This

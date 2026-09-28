@@ -1,30 +1,31 @@
 /**
- * CATALOGUE FIRST: a barcode is named by Shin's own catalogue, priced by Shin's
- * own prices, and Gemini is asked only for a typical range, capped per month.
+ * CATALOGUE FIRST: a barcode is named by Shin's own catalogue and priced by
+ * Shin's own prices. No answer a shopper sees comes from Gemini.
  *
- * RULINGS.md "Catalogue first; Gemini is a capped fallback, never the identity"
- * (both founders, 2026-09-27): "Shin names a product from its own catalogue: a
+ * RULINGS.md "Catalogue first; Claude, with no web search, is the capped
+ * price-range fallback": "Shin names a product from its own catalogue: a
  * barcode by lookup; anything else by reading every piece of text on the object
  * ... returning the top 3 for the shopper to pick ... manual entry when nothing
- * matches. The price range comes from Shin's own data by math ... Gemini is not
- * asked who the product is; it is only a fallback asked for a typical price
- * range, capped per month. ... The beta keeps today's behaviour until one
- * setting flips, which both founders decide".
+ * matches. The price range comes from Shin's own data by math". Jamin,
+ * 2026-09-28: "We are not using gemini at all for the client side answers".
  *
- * That setting is SHIN_CATALOGUE_FIRST, default off. With it off, nothing in
- * this file runs and `/api/identify` answers exactly as it did before, byte for
- * byte (pinned by test/catalogue-first-route.test.ts). With it on:
+ * That setting is SHIN_CATALOGUE_FIRST, ON by default since 2026-09-28 (Jamin:
+ * "switch on the setting to allow testers to see it"); '0', 'off' or 'false'
+ * turns it off, and then nothing in this file runs and `/api/identify`
+ * answers exactly as it did before (pinned by
+ * test/catalogue-first-route.test.ts). With it on:
  *
  *   BARCODE (`/api/identify?gtin=`), `answerBarcodeFromCatalogue`:
  *     1. the canonical barcode (app/src/barcode.ts `canonicalBarcode`) is looked
  *        up with `Catalogue.byGtin` (catalogue/src/search.ts), the same lookup
  *        the server's `fastLookup` already holds;
  *     2. found: the catalogue row IS the identity. `priceRangeFor`
- *        (price/src/range.ts) computes the range from Shin's own prices; only
- *        when its basis is `none` is `askTypicalRange` (identify/src/range-ask.ts)
- *        called, once, with the catalogue identity. If that ask fails for any
- *        reason the answer still comes back, with the identity, no range and
- *        the reason code (RULINGS "Always answer");
+ *        (price/src/range.ts) computes the range from Shin's own prices. When
+ *        its basis is `none`, `askRange` is called only if the caller passed
+ *        one; the server passes none, because the Gemini range ask
+ *        (identify/src/range-ask.ts) is off the shopper's path and the Claude
+ *        one is not built. The answer still comes back, with the identity, no
+ *        range and `no_shin_prices` (RULINGS "Always answer");
  *     3. not found: `not_in_catalogue`, and the client offers manual entry.
  *        Gemini is never asked who the product is. The Gemini scan call
  *        (`runGeminiScan`) is never made anywhere on this path.
@@ -86,10 +87,10 @@ import type { CanonicalBarcode } from './barcode.ts';
 
 /* ---------------------------------------------------------------- settings */
 
-/** SHIN_CATALOGUE_FIRST: off unless it reads '1', 'on' or 'true'. Read per call, so a test can flip it. */
+/** SHIN_CATALOGUE_FIRST: on unless it reads '0', 'off' or 'false'. Read per call, so a test can flip it. */
 export function catalogueFirstOn(env: NodeJS.ProcessEnv = process.env): boolean {
   const v = (settings.SHIN_CATALOGUE_FIRST(env) ?? '').trim().toLowerCase();
-  return v === '1' || v === 'on' || v === 'true';
+  return !(v === '0' || v === 'off' || v === 'false');
 }
 
 export const RANGE_ASK_DEFAULT_MONTHLY_CAP = 1000;
@@ -145,7 +146,7 @@ export interface CatalogueRange {
   readonly unit: string | null;
 }
 
-export type NoRangeReason = RangeAskFailure | 'rate_limited';
+export type NoRangeReason = RangeAskFailure | 'rate_limited' | 'no_shin_prices';
 
 export interface CatalogueAnswer {
   readonly kind: 'catalogue';
@@ -199,8 +200,12 @@ export interface BarcodeDeps {
   readonly currency: string;
   /** ISO date the range is for. */
   readonly asOf: string;
-  /** One capped Gemini range ask. The server wraps `askTypicalRange` with its settings and the paid-call limiter. */
-  readonly askRange: (identity: RangeIdentity) => Promise<RangeAskResult | { ok: false; reason: 'rate_limited' }>;
+  /**
+   * One capped model range ask, or absent for none. The server passes none:
+   * no shopper answer comes from Gemini (Jamin, 2026-09-28), and the Claude
+   * ask the ruling names is not built yet.
+   */
+  readonly askRange?: (identity: RangeIdentity) => Promise<RangeAskResult | { ok: false; reason: 'rate_limited' }>;
 }
 
 /* ----------------------------------------------------------------- helpers */
@@ -327,6 +332,8 @@ export async function answerBarcodeFromCatalogue(
   if (ladder && ladder.basis !== 'none') {
     range = fromShinPrices(ladder);
     rangeSource = 'shin_prices';
+  } else if (!deps.askRange) {
+    noRangeReason = 'no_shin_prices';
   } else {
     let asked: RangeAskResult | { ok: false; reason: 'rate_limited' };
     try {

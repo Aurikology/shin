@@ -1,17 +1,18 @@
 /**
  * The catalogue-first settings (settings/src/index.ts, ruling "Catalogue
- * first; Gemini is a capped fallback, never the identity"): off by default,
- * and the three range-ask numbers fall back to range-ask.ts's own defaults.
+ * first; Claude, with no web search, is the capped price-range fallback"): on
+ * by default since 2026-09-28, and the three range-ask numbers fall back to
+ * range-ask.ts's own defaults.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { catalogueFirstOn, rangeAskSettings, readMatchTextBody } from '../src/catalogue-first.ts';
 import { DEFAULT_CEILING_CENTS, DEFAULT_MONTHLY_CAP } from '../../identify/src/range-ask.ts';
 
-test('SHIN_CATALOGUE_FIRST is off unless it says 1, on or true', () => {
-  assert.equal(catalogueFirstOn({}), false);
-  for (const v of ['', '0', 'off', 'false', 'yes', ' 2 ']) assert.equal(catalogueFirstOn({ SHIN_CATALOGUE_FIRST: v }), false, v);
-  for (const v of ['1', 'on', 'true', ' ON ', 'True']) assert.equal(catalogueFirstOn({ SHIN_CATALOGUE_FIRST: v }), true, v);
+test('SHIN_CATALOGUE_FIRST is on unless it says 0, off or false', () => {
+  assert.equal(catalogueFirstOn({}), true);
+  for (const v of ['0', 'off', 'false', ' OFF ', 'False']) assert.equal(catalogueFirstOn({ SHIN_CATALOGUE_FIRST: v }), false, v);
+  for (const v of ['', '1', 'on', 'true', 'yes', ' ON ']) assert.equal(catalogueFirstOn({ SHIN_CATALOGUE_FIRST: v }), true, v);
 });
 
 test('the range-ask settings default to the numbers range-ask.ts already uses, and junk is the default', () => {

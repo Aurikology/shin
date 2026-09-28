@@ -201,7 +201,8 @@ const on = () => {
   process.env.SHIN_CATALOGUE_FIRST = '1';
 };
 const off = () => {
-  delete process.env.SHIN_CATALOGUE_FIRST;
+  // On by default since 2026-09-28, so off has to be said.
+  process.env.SHIN_CATALOGUE_FIRST = '0';
 };
 
 async function identify(gtin: string, device = 'cf-test'): Promise<Record<string, unknown>> {
@@ -343,57 +344,56 @@ test('ON, catalogue hit with only its category priced: a leaf_category range, sc
   assert.equal(row.range_basis, 'leaf_category');
 });
 
-test('ON, catalogue hit Shin cannot price: exactly one range ask, zero scan calls, gemini_typical with its time', async () => {
+test('ON, catalogue hit Shin cannot price: the identity, no range, no_shin_prices, and no model call of any kind', async () => {
+  // Jamin, 2026-09-28: "We are not using gemini at all for the client side answers".
   on();
-  const scansBefore = scanDouble.calls.length;
-  const asksBefore = askCalls.length;
-  const body = await identify(NONE_HIT);
-  assert.equal(body.outcome, 'catalogue_hit');
-  assert.equal(askCalls.length - asksBefore, 1, 'the range ask was not made exactly once');
-  assert.equal(scanDouble.calls.length, scansBefore, 'the Gemini scan call was made on the catalogue path');
-  assert.match(askCalls[askCalls.length - 1]!.user, /Product: Cola Classic/);
-  assert.match(askCalls[askCalls.length - 1]!.user, /Brand: Fizzco/);
-  assert.deepEqual(body.range, {
-    lowCents: 199,
-    highCents: 349,
-    medianCents: null,
-    n: null,
-    basis: 'gemini_typical',
-    category: null,
-    currency: 'CAD',
-    unit: 'one 2 L bottle',
-  });
-  assert.equal(body.rangeSource, 'gemini_typical');
-  assert.equal(typeof body.rangeAskedAt, 'string');
-  assert.ok(!Number.isNaN(Date.parse(body.rangeAskedAt as string)));
-  assert.equal(body.noRangeReason, null);
-  const row = scanRow(body.scanId);
-  assert.equal(row.answer_path, 'catalogue_hit');
-  assert.equal(row.range_source, 'gemini_typical');
-  assert.equal(row.range_basis, 'none');
-});
-
-test('ON, the monthly ask cap reached: the identity still comes back, no range, the reason, no model call', async () => {
-  on();
-  process.env.SHIN_RANGE_ASK_MONTHLY_CAP = '0';
-  try {
+  for (const [code, name] of [
+    [NONE_HIT, 'Cola Classic'],
+    [CAP_HIT, 'Cola Zero'],
+  ] as const) {
     const scansBefore = scanDouble.calls.length;
     const asksBefore = askCalls.length;
-    const body = await identify(CAP_HIT);
+    const body = await identify(code);
     assert.equal(body.outcome, 'catalogue_hit');
-    assert.equal((body.identity as Record<string, unknown>).name, 'Cola Zero');
+    assert.equal((body.identity as Record<string, unknown>).name, name);
     assert.equal(body.range, null);
     assert.equal(body.rangeSource, null);
-    assert.equal(body.noRangeReason, 'monthly_cap_reached');
-    assert.equal(askCalls.length, asksBefore, 'the ask went out past the cap');
-    assert.equal(scanDouble.calls.length, scansBefore);
+    assert.equal(body.rangeAskedAt, null);
+    assert.equal(body.noRangeReason, 'no_shin_prices');
+    assert.equal(askCalls.length, asksBefore, 'a model was asked for a range');
+    assert.equal(scanDouble.calls.length, scansBefore, 'the Gemini scan call was made on the catalogue path');
     const row = scanRow(body.scanId);
     assert.equal(row.outcome, 'answered');
+    assert.equal(row.answer_path, 'catalogue_hit');
     assert.equal(row.range_source, 'none');
-    assert.equal(row.range_miss_reason, 'monthly_cap_reached');
-  } finally {
-    delete process.env.SHIN_RANGE_ASK_MONTHLY_CAP;
+    assert.equal(row.range_miss_reason, 'no_shin_prices');
   }
+});
+
+test('ON, a photo and a price request reach no model and no stored model answer', async () => {
+  on();
+  const scansBefore = scanDouble.calls.length;
+  const photo = await fetch(`${base}/api/identify/photo`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ deviceId: 'cf-test', image: 'aGVsbG8=' }),
+  });
+  assert.equal(photo.status, 200);
+  const photoBody = (await photo.json()) as Record<string, unknown>;
+  assert.equal(photoBody.failure, 'no_model_call');
+  assert.equal(photoBody.offerManualEntry, true);
+  // SNAPSHOT_GTIN was answered by the Gemini double in the OFF test above, so a
+  // stored answer exists for device "cap"; it must not be served either.
+  const price = await fetch(`${base}/api/price`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ deviceId: 'cap', gtin: SNAPSHOT_GTIN }),
+  });
+  assert.equal(price.status, 200);
+  const priceBody = (await price.json()) as Record<string, unknown>;
+  assert.equal(priceBody.failure, 'no_model_call');
+  assert.equal(priceBody.grounded, undefined);
+  assert.equal(scanDouble.calls.length, scansBefore, 'a Gemini call was made with catalogue first on');
 });
 
 test('ON, a barcode not in the catalogue: not_in_catalogue, manual entry offered, zero Gemini calls of any kind', async () => {

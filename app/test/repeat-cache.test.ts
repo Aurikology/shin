@@ -82,6 +82,7 @@ test('claimRefresh lets exactly one caller in; a second claim on the same key is
 /* ------------------------- the server-level proof ------------------------- */
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-repeat-cache-route-'));
+process.env.SHIN_CATALOGUE_FIRST = '0'; // the Gemini path these tests pin; catalogue first is on by default since 2026-09-28
 process.env.SHIN_SCANS = join(dir, 'scans.db');
 process.env.SHIN_REPEAT_CACHE = join(dir, 'repeat-cache.db');
 process.env.SHIN_GAPS = join(dir, 'gaps.db');

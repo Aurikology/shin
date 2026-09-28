@@ -2261,6 +2261,46 @@ follows Jamin. Five RULINGS.md entries were rewritten; their old text:
 The running beta still calls Gemini until the catalogue-first setting flips; that is today's code,
 not the plan.
 
+## No shopper answer comes from Gemini, and catalogue first is switched on
+
+**Date:** 2026-09-28 · **Status:** active
+
+Jamin, 2026-09-28: *"We are not using gemini at all for the client side answers."* and *"switch on
+the setting to allow testers to see it"*. Aurik had given his yes the same day (comms, 17:15 UTC).
+
+What changed in code: `SHIN_CATALOGUE_FIRST` is on by default (only 0/off/false turns it off). With
+it on, the server passes no range ask, so the capped Gemini range ask Aurik built on 2026-09-27 is
+off the shopper's path; an item Shin cannot price shows its name and `no_shin_prices`. Anything
+the catalogue branch of `/api/identify` does not answer gets manual entry; `/api/identify/photo`
+answers `no_model_call` before reading the photograph; `/api/price` answers a typed name from
+Shin's own data and everything else `no_model_call`, never a stored Gemini answer. 21 older test
+files that pin the Gemini path now set the setting to 0.
+
+Retired from RULINGS.md "Catalogue first": *"The beta keeps today's Gemini behaviour until one
+setting flips, which both founders decide; the code behind it is Aurik's. Jamin's half is given:
+flip it on now, with the Gemini range ask capped to 0 until the Claude one is built (2026-09-28, "do
+3 and 4", 3 being confirm scanned barcodes show Shin's own prices, 4 being flip catalogue-first
+on); Aurik's is not yet recorded."*
+
+**Reverses if:** either founder says so.
+
+## One founder's word decides
+
+**Date:** 2026-09-28 · **Status:** active
+
+Jamin, 2026-09-28: *"from now on, no deiciosn needs both me and auriks approval. Niether of us
+created this rule, it was automatically created by claude."*
+
+Either founder's word decides; the other is told through comms/, not asked. Every "both founders
+decide" / "his half" requirement in RULINGS.md and NOW.md was a Claude session's invention and is
+withdrawn. Retired from RULINGS.md "Governance": *"Jamin chose to start the Shin pilot without
+waiting for Aurik's agreement, taking the four offered defaults; Aurik was informed through
+comms/, not asked (both process, recorded in CLAUDE.md, not here)."* Retired from "Parked and open
+Gemini questions": *"pending both founders settling in writing"*. Older entries in this log that
+say a decision waits on both founders are history, not live rules.
+
+**Reverses if:** either founder says so.
+
 ## Shin always answers a price: prediction through nested categories
 
 **Date:** 2026-09-28 · **Status:** active · RULINGS.md "How Shin predicts a price it has not seen".

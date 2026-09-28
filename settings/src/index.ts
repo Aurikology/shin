@@ -84,8 +84,8 @@ export const SETTINGS: readonly SettingKey[] = [
   // -- v1 floor: what the MVP ships ------------------------------------------
   { env: 'SHIN_GEMINI_TIER', default: 'unset -> no photo identification', ruling: 'v1 floor: what the MVP ships, and how photo identification returns' },
   // -- Catalogue first; Claude, with no web search, is the capped price-range fallback -----
-  { env: 'SHIN_CATALOGUE_FIRST', default: "off; only '1', 'on' or 'true' turns it on", ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
-  { env: 'SHIN_RANGE_ASK_MONTHLY_CAP', default: '1000 (asks per UTC month; 0 turns the ask off)', ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
+  { env: 'SHIN_CATALOGUE_FIRST', default: "on since 2026-09-28; only '0', 'off' or 'false' turns it off", ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
+  { env: 'SHIN_RANGE_ASK_MONTHLY_CAP', default: '1000 (asks per UTC month; 0 turns the ask off; the server makes no range ask since 2026-09-28)', ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
   { env: 'SHIN_RANGE_ASK_CEILING_CENTS', default: '2000000 (highest high_cents accepted)', ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
   { env: 'SHIN_RANGE_ASK_STORE_PATH', default: 'identify/data/range-ask.json', ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
 

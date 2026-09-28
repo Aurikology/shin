@@ -10,19 +10,21 @@ returning the top 3 for the shopper to pick, never one row forced out of million
 when nothing matches. The price range comes from Shin's own data by math: the product's own
 prices, else a prediction from every data point Shin holds (see "How Shin predicts a price it has
 not seen" and "The price answer must tell the shopper whether the price is good"). When that gives nothing, Claude is asked for a typical price range from its own knowledge,
-with no web search, capped per month, to save credits, and every answer is saved as data. Gemini is not
-used in this version, for identity or price. Every new feature is planned without Gemini. The beta
-keeps today's Gemini behaviour until one setting flips, which both founders decide; the code behind
-it is Aurik's. Jamin's half is given: flip it on now, with the Gemini range ask capped to 0 until
-the Claude one is built (2026-09-28, *"do 3 and 4"*, 3 being confirm scanned barcodes show Shin's
-own prices, 4 being flip catalogue-first on); Aurik's is not yet recorded. · 2026-09-28 · Jamin: *"this is probably the 10th time saying this, we are not using gemini, we are using claude for a typical range without having it search the web, this way we save a lot of credits"* · 2026-09-27 · Jamin: *"why do you still think we use gemini, even after all the work done yesturday"* (09-26: *"there seems to be a communication problem, why are you still thinking about gemini"*); Aurik: *"THAT IS THE PLAN WE WILL FOLLOW, WE ARE SHIFTING SHIN AND THAT IS THE MOST RECENT PLAN"* · log: docs/decisions.md#Catalogue first, Gemini a capped fallback
-Retired wording: `no catalogue-first free path`, `The server calls Gemini for identity`, `Gemini is still called on every scan`, `catalogue-pick identify pipeline is retired`, `Gemini is only a monthly-capped`
-Governs: to fill (the one setting Aurik's session is adding)
+with no web search, capped per month, to save credits, and every answer is saved as data. **No
+answer a shopper sees comes from Gemini, in any form:** not identity, not a price, not a range, not
+reviews, not a stored earlier Gemini answer. Every new feature is planned without Gemini. The
+setting is on for testers from 2026-09-28 (`SHIN_CATALOGUE_FIRST`, on by default in code; only an
+explicit 0/off/false returns the old Gemini path). Until the Claude range ask is built, an item
+with no Shin price shows its name and no range. · 2026-09-28 · Jamin: *"We are not using gemini at all for the client side answers"*, *"switch on the setting to allow testers to see it"* · 2026-09-28 · Jamin: *"this is probably the 10th time saying this, we are not using gemini, we are using claude for a typical range without having it search the web, this way we save a lot of credits"* · 2026-09-27 · Jamin: *"why do you still think we use gemini, even after all the work done yesturday"* (09-26: *"there seems to be a communication problem, why are you still thinking about gemini"*); Aurik: *"THAT IS THE PLAN WE WILL FOLLOW, WE ARE SHIFTING SHIN AND THAT IS THE MOST RECENT PLAN"* · log: docs/decisions.md#Catalogue first, Gemini a capped fallback
+Retired wording: `no catalogue-first free path`, `The server calls Gemini for identity`, `Gemini is still called on every scan`, `catalogue-pick identify pipeline is retired`, `Gemini is only a monthly-capped`, `Gemini range ask capped to 0`, `Gemini is asked only for a typical range`
+Governs: SHIN_CATALOGUE_FIRST, app/src/catalogue-first.ts, app/server.ts (/api/identify, /api/identify/photo, /api/price), app/test/catalogue-first-route.test.ts
 ### Gemini switch and call architecture
 Gemini replaced Claude (measured: 7/7 price requests refused, 9/30 barcodes absent, Claude
-refusing 4/15 photos on Jamin's phone). That swap covers the running beta only: once the
-catalogue-first setting flips, Gemini is not used and Claude, with no web search, is the price-range
-fallback (catalogue-first ruling, 2026-09-28). While Gemini is called, it is one call, never split. · 2026-09-14 · *"we will be swithcing to gemini... Shin will adopt this"* · log: docs/decisions.md#Gemini for identification, and grounded prices display-only
+refusing 4/15 photos on Jamin's phone). That swap covered the beta only until the catalogue-first
+setting was switched on for testers (2026-09-28): no shopper answer comes from Gemini, and Claude,
+with no web search, is the price-range fallback (catalogue-first ruling). This entry and the Gemini
+entries below describe only the old path an explicit SHIN_CATALOGUE_FIRST=0 returns. While Gemini
+is called, it is one call, never split. · 2026-09-14 · *"we will be swithcing to gemini... Shin will adopt this"* · log: docs/decisions.md#Gemini for identification, and grounded prices display-only
 Retired wording: `Claude for product identification`, `two Gemini calls per scan`
 Governs: identify/src/model.ts, identify/src/providers/gemini-scan.ts, SHIN_MODEL_PROVIDER
 ### Default Gemini model is gemini-3.8-flash
@@ -96,8 +98,8 @@ Governs: identify/src/providers/gemini-grounded.ts
 Google Lens means Cloud Vision Web Detection, specified but not built (catalogue-miss branch fires
 zero times in a 40-photo dry run). Model choice is measured as cost per correct identification,
 never per call, via a provider seam, never actually measured (no key existed at the time). The
-unfinished `gemini-grounded.ts` price/gauge provider was reverted off main pending both founders
-settling in writing whether it meets the Grounded Results contract and whether gauge words violate
+unfinished `gemini-grounded.ts` price/gauge provider was reverted off main until a founder settles
+in writing whether it meets the Grounded Results contract and whether gauge words violate
 hard rule 2. Image resolution is decided by a test not yet run; a better model identifying photos
 while another searches (two calls), and a better barcode encoding for Gemini, are open questions in
 the Gemini tree, not decided. That resolution test also decides cost tradeoff: a lower resolution
@@ -127,8 +129,8 @@ Governs: to fill
 ## Prices and verdicts
 ### A scanned barcode answers with Shin's own prices too
 YES. A barcode scan's offers list now includes Shin's own collected prices, each marked as Shin's
-own data, untrusted, dated. Under the beta's current settings Gemini is also called on each barcode
-scan; the catalogue-first ruling replaces that when its setting flips.
+own data, untrusted, dated. Since 2026-09-28 the catalogue-first setting is on and no Gemini call
+is made on a barcode scan; the old Gemini call returns only with SHIN_CATALOGUE_FIRST=0.
 This reverses the 2026-09-15 rule that the price answer never comes from Shin's own price
 database, price engine or lookups, and the 2026-09-14 rule that Shin's own prices are not shown
 anywhere. Typed-name search (not barcode) still only searches Shin's own catalogue; when the item is
@@ -206,7 +208,9 @@ Gemini's reviews win over the earlier rule that reviews show only from a license
 nothing generated; a Gemini review with no source link is still shown, flagged with a heads-up
 that it lacks one, never suppressed and never presented as a number Shin stands behind: full
 transparency is not worth making the product worse. Where no licensed review source exists (food),
-the "how good is it" signal instead comes from Open Food Facts' own fields. · 2026-09-14 · *"we don't have to push for super transparency when it makes our product worse, we just have to give a way for the user to know where our info comes from"* · log: docs/decisions.md#Gemini's reviews ship, and beta plan item 30 is amended
+the "how good is it" signal instead comes from Open Food Facts' own fields. Since 2026-09-28 no
+shopper answer comes from Gemini (catalogue-first ruling), so Gemini reviews are shown only on the
+old path SHIN_CATALOGUE_FIRST=0 returns. · 2026-09-14 · *"we don't have to push for super transparency when it makes our product worse, we just have to give a way for the user to know where our info comes from"* · log: docs/decisions.md#Gemini's reviews ship, and beta plan item 30 is amended
 Retired wording: `shown only when a licensed source has a row; nothing generated`
 Governs: to fill
 ### Judge and gauge mechanics
@@ -687,10 +691,16 @@ Governs: docs/parked-list.md
 RULINGS.md (this file) outranks every other file in the repo, including docs/jamin-gemini-rules.md
 and the Google Doc "Shin Full Walkthrough": both feed into it rather than compete with it. Before
 this file existed, the Google Doc outranked every older repo note from 2026-09-16 onward; a
-pre-2026-09-16 line contradicting it was deleted and named in the commit message. Jamin chose to
-start the Shin pilot without waiting for Aurik's agreement, taking the four offered defaults; Aurik
-was informed through comms/, not asked (both process, recorded in CLAUDE.md, not here). To change a
+pre-2026-09-16 line contradicting it was deleted and named in the commit message. To change a
 ruling: rewrite its entry here, move the old text to docs/decisions.md, search for the old wording
 and fix every hit in the same commit. · 2026-09-27 · *"yes to all four defaults, start the Shin pilot without auriks agrement"* · log: docs/decisions.md#One list of current rulings outranks every other file
 Retired wording: none
 Governs: RULINGS.md (this file), docs/jamin-gemini-rules.md, docs/walkthrough/jamin-notes-2026-09-17.md
+### One founder's word decides; nothing waits for both
+No decision needs both Jamin's and Aurik's approval. Either founder's word decides, and the other
+is told through comms/, not asked. Neither founder ever made a rule that a decision needs both of
+them: that requirement was written into these files by Claude sessions, and it is withdrawn
+everywhere it appears (a flip, a setting, a merge, a ruling). When the two say opposite things, the
+later word stands until one of them says otherwise. · 2026-09-28 · Jamin: *"from now on, no deiciosn needs both me and auriks approval. Niether of us created this rule, it was automatically created by claude."* · log: docs/decisions.md#One founder's word decides
+Retired wording: `which both founders decide`, `both founders decide`, `Aurik's half`, `Jamin's half`, `pending both founders`, `until both say flip it`, `without waiting for Aurik's agreement`
+Governs: every decision in this repo; CLAUDE.md process rows
