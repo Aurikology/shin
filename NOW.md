@@ -59,17 +59,24 @@ No one should quote 32/52 as current.
 
 ## Open blockers
 
-**The paid Gemini key, re-checked 2026-09-27: still missing.** The Windows PC's `.env` has no
-`GEMINI_API_KEY` line at all (only `ICECAT_*` and `EBAY_*`; the Mac server's own config is not
-visible from here). The refusal path lives in `photoTierRefusal` (`app/server.ts:823`) and
-`geminiKeyProblem` (`app/server.ts:4103`). The blocker is not "no key", it is "no PAID key", and
-that ask to Jamin has stood since 2026-09-15. Anywhere else that says a measurement is "waiting on
-the key", read it as the paid one.
+**The paid Gemini key EXISTS, Jamin 2026-09-28:** *"The paid ai key already exists"*. It is not
+in the Windows PC's `.env` (only `ICECAT_*` and `EBAY_*` there), so where it lives is the Mac's
+config, and whether the live server runs on it is asked of the Mac (mail 2026-09-28): `/api/health`
+must report the paid tier and a real barcode scan must return prices. The refusal path lives in
+`photoTierRefusal` (`app/server.ts:823`) and `geminiKeyProblem` (`app/server.ts:4103`).
+
+## Tester-launch fixes in flight, 2026-09-28 (Jamin: *"do all 1-12 including the iphone build, switching the new catalogue path on"*)
+
+Jamin's PC session, claim in `comms/claims/jamin.md`: device isolation (D-145, D-155 to D-159),
+upload and disk caps (D-160, D-162), nothing written before the invite gate (D-161), the server
+reads its settings file (D-146), provider failure not told as "Shin doesn't know" (D-150), the buy
+tap recorded for the readout, location asked once (D-139), shelf stream off without photo ID
+(D-148), photos inside the data folder (D-163), the 0068100084245 cached answer, terms and privacy
+pages, the real app name and id, store listing and privacy declarations, the Android build. The
+iPhone build (CocoaPods) goes to the Mac. The catalogue-first flip waits on Aurik's half, asked
+2026-09-28 in comms.
 
 ## Waiting on Jamin or Aurik
-
-- **Jamin:** the paid Gemini key (above, standing since 2026-09-15), needed only by the running
-  beta until catalogue-first is on.
 - **Aurik:** his half of the catalogue-first flip (Jamin gave his 2026-09-28, with the Gemini range
   ask capped to 0), and rebuilding the range ask on Claude with no web search.
 - **The Mac:** verify own prices on barcode scans and flip catalogue-first on (mail

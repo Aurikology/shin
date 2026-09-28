@@ -391,6 +391,12 @@ GPS stored, migration 8) that had followed Jamin's literal "build everything for
 EVERYTHING" instruction. · 2026-09-14 · *"build everything for collecting EVERYTHING"* (overridden) · log: docs/decisions.md#Consent is off until answered, and the cell stays coarse: his ruling over the one-push "everything"
 Retired wording: `photos: true, location: true default`, `exact GPS position stored beside coarse cell`
 Governs: app/public/js/api.js, exact-location columns
+### Location is asked once, and the shelf stream needs photo identification on
+A first launch asks for location once, on the permission screen; the consent screen does not ask
+it again (it was the same switch shown twice, D-139). The shelf capture sends nothing unless photo
+identification AND photo consent are both on, and the Photos switch describes what it actually
+governs (D-148). Decided by Jamin's session on his delegation. · 2026-09-28 · Jamin: *"For the two product calls, you make the decision"*
+Governs: app/public/js/permissions-panel.js, app/public/js/consent-actions.js, app/public/js/screens/camera.js startShelf
 ### Record everything the user does
 Every request, every Gemini request/response, every screen/tap/answer the phone shows, is
 recorded: photo or barcode, typed price, location, store, and the user's own good/bad/great verdict
