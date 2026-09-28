@@ -192,3 +192,36 @@ price data, per the stage 6 ruling above.
 semantic index as well as `name`; match brands loosely (apostrophes, "Canada" suffixes, owner names);
 drop rows whose name is only the brand; collapse identical rows before the top 10; the image pass for
 ties; and Gemini told that a size missing on one side is not agreement.
+
+## Sorting into subcategories instead of matching, measured 2026-09-28
+
+Jamin 2026-09-28: *"another possibility: for now we don't match at all, we sort all of the items in
+the subcatagoeis that it belongs in and it helps to imporve the layered statistcal system"*. This is
+what "Priced store items that match no barcode still train prices" (RULINGS.md) needs, and it does not
+need the exact barcode, only the category. Measured on the same held-out key, version 1 shortlist, no
+tuning:
+
+| Measured | Result |
+| --- | --- |
+| Key products whose true barcode is in the catalogue with a category | 47 of 81 (the other 34 are not in the catalogue, or their row has no category) |
+| Top shortlist candidate's leaf category equals the true product's leaf | **27 of 47 (57%)** |
+| Vote of the top 5 candidates' leaves | 27 of 47 (57%) |
+| Same leaf or the parent one step up (what `price/src/range.ts` reads: leaf, then parent, never grandparent) | **31 of 47 (66%)** |
+| Baseline to beat: the most common leaf on the same printout page | 8 of 47 (17%) |
+| Tiles with a size readable from the printed title or the link | **351 of 898 (39%)**; produce sold by weight shows a per-100 g price on the tile, not yet counted |
+
+What this says:
+
+- **Sorting is far easier than matching**: a crude shortlist gets the category right three times as
+  often as the lazy baseline, including for products whose exact barcode it gets wrong. Most category
+  misses are the top candidate having no category at all (skip to the next categorised one), or two
+  vocabularies in the catalogue for one thing (`en:crisps` from Open Food Facts against "Chips,
+  Pretzels & Snacks" from USDA).
+- **Size is the harder limit.** `range.ts` compares unit prices scaled to the product's size and
+  drops a price with no size (`no_size`). 61% of tiles carry no readable size, so their price cannot
+  enter a category range as it stands. A size guessed by a model would be a fabricated unit price;
+  the size must come from the page (Walmart's product page carries it and a unit price, behind the
+  same bot check) or stay unknown.
+- **Next test, same key:** Gemini assigns each tile a leaf from the catalogue's own leaf list,
+  scored against the true product's leaf, paired against the shortlist vote above; pass mark set
+  before it runs.
