@@ -1,9 +1,10 @@
 """Check the tile unit price against price / size where a tile has both.
 Agreement means the unit price was read from its own tile and parsed right."""
 import pymupdf, glob, re, os, json, importlib.util
+from paths import WALMART_PDFS
 S = os.path.dirname(os.path.abspath(__file__))
 spec = importlib.util.spec_from_file_location('pl', os.path.join(S, 'pipeline.py')); pl = importlib.util.module_from_spec(spec); spec.loader.exec_module(pl)
-os.chdir(r'C:\shin\data\WalmartScreenShots')
+os.chdir(WALMART_PDFS)
 U1 = re.compile(r'(\d+(?:\.\d+)?)\s*¢\s*/\s*(\d*)\s*(g|ml|kg|l)\b', re.I)
 U2 = re.compile(r'\$\s?(\d+(?:\.\d+)?)\s*/\s*(\d*)\s*(g|ml|kg|l|lb)\b', re.I)
 BASE = {'g': ('g', 1), 'kg': ('g', 1000), 'ml': ('ml', 1), 'l': ('ml', 1000), 'lb': ('g', 453.6)}

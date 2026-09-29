@@ -2,8 +2,9 @@
 barcode is wrong? Truth = the category tags of the product's true barcode (held-out key).
 Baseline to beat = the most common category on the same printout page (says if categories are too coarse)."""
 import json, os, re, sqlite3, collections
+from paths import CATALOGUE_DB
 S = os.path.dirname(os.path.abspath(__file__))
-DB = sqlite3.connect(r'file:C:\shin\catalogue\data\catalogue.db?mode=ro', uri=True)
+DB = sqlite3.connect(f'file:{CATALOGUE_DB}?mode=ro', uri=True)
 
 def tags(code):
     r = DB.execute('SELECT rowid, leaf_category FROM product WHERE code IN (?,?,?)', (code, code.zfill(13), code.zfill(14))).fetchone()

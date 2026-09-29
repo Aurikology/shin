@@ -1,8 +1,9 @@
 """Final scoring of the matcher test on the held-out answer key (key-truth.jsonl).
 Stages 3 and 4 from stage3.json/stage4.json, stage 5 from review/answer*.txt, stage 6 accept rule."""
 import json, os, re, glob, sqlite3, math, collections
+from paths import CATALOGUE_DB
 S = os.path.dirname(os.path.abspath(__file__))
-DB = sqlite3.connect(r'file:C:\shin\catalogue\data\catalogue.db?mode=ro', uri=True)
+DB = sqlite3.connect(f"file:{CATALOGUE_DB}?mode=ro", uri=True)
 def n(c): return (c or '').lstrip('0')
 def wilson(k, m, z=1.96):
     if m == 0: return float('nan'), float('nan')

@@ -96,3 +96,9 @@ app/.sheet-preview/
 # Written by mac/run-server.sh at the repo root of the live server. Its presence makes
 # app/test/setup/global.mjs refuse to run the tests there (2026-09-28). Per machine.
 /.shin-live-server
+
+# Screenshot matcher intermediates: store-page content derived from the gitignored printouts
+research/screenshot-matcher-v1/walmart-rows*.json
+research/screenshot-matcher-v1/stage3.json
+research/screenshot-matcher-v1/stage4.json
+research/screenshot-matcher-v1/category.json

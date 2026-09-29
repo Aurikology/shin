@@ -5,9 +5,10 @@ Reads walmart-rows.json (stage 1 output: one row per product tile), writes stage
 Never reads the answer key.
 """
 import sqlite3, json, re, os, unicodedata, collections, sys
+from paths import CATALOGUE_DB
 
 S = os.path.dirname(os.path.abspath(__file__))
-DB = sqlite3.connect(r'file:C:\shin\catalogue\data\catalogue.db?mode=ro', uri=True)
+DB = sqlite3.connect(f'file:{CATALOGUE_DB}?mode=ro', uri=True)
 COLS = ['code', 'name', 'brands', 'quantity', 'size_value', 'size_unit', 'sold_in_canada', 'source', 'image_url']
 SEL = 'SELECT p.' + ', p.'.join(COLS) + ' FROM product_fts f JOIN product p ON p.rowid = f.rowid WHERE product_fts MATCH ? ORDER BY rank LIMIT ?'
 

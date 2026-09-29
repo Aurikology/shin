@@ -1,8 +1,9 @@
 """Score stage 3 (recall@10) and stage 4 (verdicts) against an answer key.
 Usage: python evaluate.py truth.json|key-truth.jsonl [--show]"""
 import json, os, sys, sqlite3, collections, math
+from paths import CATALOGUE_DB
 S = os.path.dirname(os.path.abspath(__file__))
-DB = sqlite3.connect(r'file:C:\shin\catalogue\data\catalogue.db?mode=ro', uri=True)
+DB = sqlite3.connect(f"file:{CATALOGUE_DB}?mode=ro", uri=True)
 
 def load_truth(p):
     p = os.path.join(S, p)

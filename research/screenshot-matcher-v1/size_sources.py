@@ -1,8 +1,9 @@
 """Where can a size come from, counted per product: link/title (already), unit price printed on the tile."""
 import pymupdf, glob, re, os, json, importlib.util
+from paths import WALMART_PDFS
 S = os.path.dirname(os.path.abspath(__file__))
 spec = importlib.util.spec_from_file_location('pl', os.path.join(S, 'pipeline.py')); pl = importlib.util.module_from_spec(spec); spec.loader.exec_module(pl)
-os.chdir(r'C:\shin\data\WalmartScreenShots')
+os.chdir(WALMART_PDFS)
 UNIT = re.compile(r'(\d+(?:\.\d+)?)\s*[¢c]\s*/\s*(\d+)\s*(g|ml|kg|l)\b|\$\s?\d+(?:\.\d+)?\s*/\s*(\d+)?\s*(g|ml|kg|l|lb|ea)\b', re.I)
 tile_unit = {}
 tile_text = {}

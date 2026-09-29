@@ -1,6 +1,8 @@
 import pymupdf, glob, re, os, json
+from paths import WALMART_PDFS
 # One row per Walmart product: id, name (from the tile text), price in cents, file.
-os.chdir(r'C:\shin\data\WalmartScreenShots')
+OUT = os.path.abspath(os.environ['OUT'])  # resolved before the chdir, so it never lands in the PDF folder
+os.chdir(WALMART_PDFS)
 out = {}
 SKIP = re.compile(r'^(Add|Best seller|Save with.*|Delivery.*|Pickup.*|\+ tax|Final cost by weight|Rollback|Flyer feature|Options|Sponsored|Was.*|Clearance|Reduced price|New|Popular pick|\d+|avg price.*|Only \d+ left|In-store.*|Out of stock|More options.*)$')
 for f in sorted(glob.glob('*.pdf')):
@@ -28,7 +30,7 @@ for f in sorted(glob.glob('*.pdf')):
             if price and row['price'] is None:
                 row['price'] = price
 rows = list(out.values())
-json.dump(rows, open(os.environ['OUT'], 'w', encoding='utf-8'), ensure_ascii=False, indent=0)
+json.dump(rows, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, indent=0)
 print('rows', len(rows), 'named', sum(1 for r in rows if r['name']), 'priced', sum(1 for r in rows if r['price']))
 for r in rows[:12]:
     print(r['sku'], r['price'], r['name'], '|', r['slug'][:40])
