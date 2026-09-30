@@ -65,6 +65,8 @@
  *     rangeAskedAt: string | null,    // ISO time of the Claude ask, gemini_typical only
  *     noRangeReason: string | null,   // why range is null, e.g. 'monthly_cap_reached'
  *     shelfPrice: null | { cents: number, from: 'weighed_label' },
+ *     verdict: null | Verdict,        // price/src/estimate.ts, the design's response contract
+ *     storeIdentity: null | { name, brand, size, barcode },   // design case 2 only
  *     ms: number,
  *     scanId?: number,
  *   }
@@ -94,6 +96,8 @@ import * as settings from '../../settings/src/index.ts';
 import { priceRangeFor, type RangeResult } from '../../price/src/range.ts';
 import type { RangeAskFailure, RangeAskResult, RangeIdentity } from '../../identify/src/range-ask.ts';
 import type { CanonicalBarcode } from './barcode.ts';
+import { estimate, type EstimateDeps, type EstimateTrace, type Verdict } from '../../price/src/estimate.ts';
+import { onceAsk, type RangeAskOutcome } from './distribution.ts';
 
 /* ---------------------------------------------------------------- settings */
 
@@ -168,7 +172,8 @@ export interface CatalogueRange {
   readonly unit: string | null;
 }
 
-export type NoRangeReason = RangeAskFailure | 'rate_limited' | 'no_shin_prices';
+/** `claude_slow`: the ask outlived the verdict's wait; the answer went out without it. */
+export type NoRangeReason = RangeAskFailure | 'rate_limited' | 'no_shin_prices' | 'claude_slow';
 
 export interface CatalogueAnswer {
   readonly kind: 'catalogue';
@@ -182,6 +187,18 @@ export interface CatalogueAnswer {
   readonly rangeAskedAt: string | null;
   readonly noRangeReason: NoRangeReason | null;
   readonly shelfPrice: { readonly cents: number; readonly from: 'weighed_label' } | null;
+  /**
+   * The price verdict as a distribution (docs/verdict-distribution-design-2026-09-30.md,
+   * price/src/estimate.ts). Set on every catalogue hit; on a barcode missing
+   * from the catalogue, set only when Shin holds a store price for it (design
+   * case 2), else null and the client asks for the name (case 6).
+   */
+  readonly verdict: Verdict | null;
+  /**
+   * Design case 2: a barcode the catalogue lacks but a store prices, named by
+   * the store's own product name. Null on every other answer.
+   */
+  readonly storeIdentity: { readonly name: string; readonly brand: string | null; readonly size: string | null; readonly barcode: string } | null;
 }
 
 /** What the scan row gets beside the answer (migration 18). */
@@ -194,6 +211,10 @@ export interface CatalogueRecord {
   readonly rangeSource: 'shin_prices' | 'gemini_typical' | 'none' | null;
   readonly rangeBasis: string | null;
   readonly rangeMissReason: string | null;
+  /** The verdict shown, or null (migration 19 records its basis, confidence and zone). */
+  readonly verdict: Verdict | null;
+  /** Design case 9: the catalogue and the store row disagree on size; the caller logs it. */
+  readonly conflict: EstimateTrace['conflict'];
 }
 
 /** The fields of a catalogue row this path reads. `Catalogue.byGtin`'s `Candidate` has all of them. */
@@ -228,6 +249,23 @@ export interface BarcodeDeps {
    * answer comes from Gemini (Jamin, 2026-09-28).
    */
   readonly askRange?: (identity: RangeIdentity) => Promise<RangeAskResult | { ok: false; reason: 'rate_limited' }>;
+  /** The shopper's province or state as they chose it ("British Columbia"), or null. */
+  readonly region?: string | null;
+  /** The shelf price and the shopper's own lines, when the request carried them. */
+  readonly shopper?: { readonly cents: number; readonly thresholds?: unknown } | null;
+  /** Places a name in a category (the catalogue search), for design cases 2 and 5. */
+  readonly sortName?: EstimateDeps['sortName'];
+  /** How long the verdict waits for Claude before moving down the ladder. */
+  readonly claudeWaitMs?: number;
+}
+
+/** The verdict, never a throw: an estimate that fails for any reason is null and the answer still goes out. */
+export async function safeEstimate(...args: Parameters<typeof estimate>): Promise<Awaited<ReturnType<typeof estimate>> | null> {
+  try {
+    return await estimate(...args);
+  } catch {
+    return null;
+  }
 }
 
 /* ----------------------------------------------------------------- helpers */
@@ -297,6 +335,32 @@ export async function answerBarcodeFromCatalogue(
   }
 
   if (!row) {
+    /*
+     * Design case 2: a barcode the catalogue lacks can still be one a store
+     * prices (7,211 BC liquor rows). Its verdict is built from that price under
+     * the store's own product name, sorted into a category by name. No Claude
+     * ask here: a barcode nothing knows asks the shopper for the name first
+     * (case 6), and the typed path takes it from there.
+     */
+    let verdict: Verdict | null = null;
+    let storeIdentity: CatalogueAnswer['storeIdentity'] = null;
+    if (deps.prices) {
+      const est = await safeEstimate(
+        {
+          barcode: barcode.gtin,
+          region: deps.region ?? null,
+          country: deps.country,
+          currency: deps.currency,
+          asOf: deps.asOf,
+        },
+        deps.shopper ?? null,
+        { prices: deps.prices, catalogue: deps.catalogue, sortName: deps.sortName },
+      );
+      if (est && est.verdict.dots.length > 0 && est.trace.name) {
+        verdict = est.verdict;
+        storeIdentity = { name: est.trace.name, brand: est.trace.brand, size: est.trace.size, barcode: barcode.gtin };
+      }
+    }
     return {
       answer: {
         kind: 'catalogue',
@@ -310,16 +374,20 @@ export async function answerBarcodeFromCatalogue(
         rangeAskedAt: null,
         noRangeReason: null,
         shelfPrice,
+        verdict,
+        storeIdentity,
       },
       record: {
-        resolvedCode: null,
-        resolvedLabel: null,
-        outcome: 'refused',
-        failureClass: 'not_in_catalogue',
+        resolvedCode: storeIdentity ? barcode.gtin : null,
+        resolvedLabel: storeIdentity ? [storeIdentity.name, storeIdentity.size].filter(Boolean).join(' ') : null,
+        outcome: verdict ? 'answered' : 'refused',
+        failureClass: verdict ? null : 'not_in_catalogue',
         answerPath: 'not_in_catalogue',
         rangeSource: null,
         rangeBasis: null,
         rangeMissReason: null,
+        verdict,
+        conflict: null,
       },
     };
   }
@@ -351,24 +419,52 @@ export async function answerBarcodeFromCatalogue(
   let rangeAskedAt: string | null = null;
   let noRangeReason: NoRangeReason | null = null;
 
+  /*
+   * The verdict first. Its ladder asks Claude only when Shin's own data cannot
+   * answer (own prices, other sizes, the leaf, the parent, the brand); the one
+   * ask it makes is shared with the older `range` field below, so a scan never
+   * spends two cap slots.
+   */
+  const once = onceAsk(deps.askRange, identity.category?.name ?? null);
+  let verdict: Verdict | null = null;
+  let conflict: EstimateTrace['conflict'] = null;
+  const est = await safeEstimate(
+    {
+      barcode: row.code,
+      name: identity.name,
+      brand: identity.brand,
+      size: identity.size,
+      leafCategory: row.leafCategory,
+      categoryPath: row.categoryPath,
+      region: deps.region ?? null,
+      country: deps.country,
+      currency: deps.currency,
+      asOf: deps.asOf,
+      weighed: barcode.how === 'variable_measure',
+    },
+    deps.shopper ?? null,
+    {
+      prices: deps.prices,
+      catalogue: deps.catalogue,
+      ...(once ? { askClaude: once.askClaude } : {}),
+      sortName: deps.sortName,
+      ...(deps.claudeWaitMs !== undefined ? { claudeWaitMs: deps.claudeWaitMs } : {}),
+    },
+  );
+  verdict = est?.verdict ?? null;
+  conflict = est?.trace.conflict ?? null;
+
   if (ladder && ladder.basis !== 'none') {
     range = fromShinPrices(ladder);
     rangeSource = 'shin_prices';
-  } else if (!deps.askRange) {
+  } else if (!once || !once.started()) {
+    // No ask was passed, or the verdict answered from Shin's own data and never needed one.
     noRangeReason = 'no_shin_prices';
+  } else if (once.settled() === undefined) {
+    // The verdict stopped waiting (design case 27, "slow"); the ask carries on and saves its answer as data.
+    noRangeReason = 'claude_slow';
   } else {
-    let asked: RangeAskResult | { ok: false; reason: 'rate_limited' };
-    try {
-      asked = await deps.askRange({
-        name: identity.name,
-        brand: identity.brand,
-        size: identity.size,
-        category: identity.category?.name ?? null,
-        market: deps.country ?? '',
-      });
-    } catch {
-      asked = { ok: false, reason: 'model_error' };
-    }
+    const asked: RangeAskOutcome = once.settled()!;
     if (asked.ok) {
       range = {
         lowCents: asked.range.lowCents,
@@ -400,6 +496,8 @@ export async function answerBarcodeFromCatalogue(
       rangeAskedAt,
       noRangeReason,
       shelfPrice,
+      verdict,
+      storeIdentity: null,
     },
     record: {
       resolvedCode: row.code,
@@ -410,6 +508,8 @@ export async function answerBarcodeFromCatalogue(
       rangeSource: rangeSource ?? 'none',
       rangeBasis: ladder ? ladder.basis : null,
       rangeMissReason: noRangeReason,
+      verdict,
+      conflict,
     },
   };
 }

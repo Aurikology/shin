@@ -333,6 +333,18 @@ export interface ScanInput {
   readonly matchLines?: number | null;
   readonly matchCandidates?: number | null;
   readonly matchPriceRead?: boolean | null;
+  /**
+   * Migration 19: the price verdict as a distribution
+   * (docs/verdict-distribution-design-2026-09-30.md). Which ladder rung gave
+   * the centre, how sure it was, where the shopper's price fell, and the centre
+   * and spread shown, so the answer as shown can be scored later. Every older
+   * caller leaves these out and writes nulls.
+   */
+  readonly estimateBasis?: string | null;
+  readonly estimateConfidence?: string | null;
+  readonly estimateZone?: string | null;
+  readonly estimateCentreCents?: number | null;
+  readonly estimateSigmaLog?: number | null;
 }
 
 /**
@@ -365,6 +377,12 @@ export interface ScanPatch {
   readonly latencyMs?: number | null;
   readonly modelCostCents?: number | null;
   readonly userId?: string | null;
+  /** Migration 19, for a row written before its verdict was known (a typed search `/api/price` names). */
+  readonly estimateBasis?: string | null;
+  readonly estimateConfidence?: string | null;
+  readonly estimateZone?: string | null;
+  readonly estimateCentreCents?: number | null;
+  readonly estimateSigmaLog?: number | null;
 }
 
 /**
@@ -388,6 +406,11 @@ const PATCH_COLUMNS: Readonly<Record<keyof ScanPatch, string>> = {
   latencyMs: 'latency_ms',
   modelCostCents: 'model_cost_cents',
   userId: 'user_id',
+  estimateBasis: 'estimate_basis',
+  estimateConfidence: 'estimate_confidence',
+  estimateZone: 'estimate_zone',
+  estimateCentreCents: 'estimate_centre_cents',
+  estimateSigmaLog: 'estimate_sigma_log',
 };
 
 export interface ScanRow {
@@ -459,6 +482,12 @@ export interface ScanRow {
   enriched_updated_at: string | null;
   // Migration 17: Gemini's general category (SCAN_CATEGORIES), or null. Not `category`.
   scan_category: string | null;
+  // Migration 19: the distribution verdict as shown. Null on older rows and on answers with no verdict.
+  estimate_basis?: string | null;
+  estimate_confidence?: string | null;
+  estimate_zone?: string | null;
+  estimate_centre_cents?: number | null;
+  estimate_sigma_log?: number | null;
 }
 
 /**
@@ -518,8 +547,9 @@ export function recordScan(input: ScanInput): number | null {
       .prepare(
         `INSERT INTO scan (device_id, kind, query_text, resolved_code, resolved_label, confidence, source, outcome, failure_class, corrected_code, scanned_at, category,
                            model_json, model_cost_cents, app_version, platform, latency_ms, cell, store_id, store_name, exact_lat, exact_lon, exact_accuracy, exact_at, user_id, is_demo, scan_category,
-                           answer_path, range_source, range_basis, range_miss_reason, match_lines, match_candidates, match_price_read)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                           answer_path, range_source, range_basis, range_miss_reason, match_lines, match_candidates, match_price_read,
+                           estimate_basis, estimate_confidence, estimate_zone, estimate_centre_cents, estimate_sigma_log)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         input.deviceId,
@@ -555,6 +585,11 @@ export function recordScan(input: ScanInput): number | null {
         input.matchLines ?? null,
         input.matchCandidates ?? null,
         input.matchPriceRead == null ? null : input.matchPriceRead ? 1 : 0,
+        input.estimateBasis ?? null,
+        input.estimateConfidence ?? null,
+        input.estimateZone ?? null,
+        input.estimateCentreCents ?? null,
+        input.estimateSigmaLog ?? null,
       );
     return Number(result.lastInsertRowid);
   } catch (err) {

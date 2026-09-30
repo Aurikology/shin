@@ -686,6 +686,35 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
       addColumnIfMissing(db, 'scan', 'match_price_read', 'INTEGER');
     },
   },
+  {
+    version: 19,
+    name: 'the distribution verdict as shown: basis, confidence, zone, centre and spread',
+    apply(db) {
+      /*
+       * docs/verdict-distribution-design-2026-09-30.md, Server unit: "the scan
+       * row records basis, confidence, zone". Kept apart from `verdict_zone`
+       * and `verdict_confidence` (migrations 2 and 13), which hold the Gemini
+       * path's own vocabulary ('under_your_line', ...); the two never share a
+       * column, so no reader sees one word mean two things by row date.
+       *
+       *   estimate_basis        own_prices, other_size, leaf_category,
+       *                         parent_category, brand_markup, claude_typical,
+       *                         category_prior or global_prior.
+       *   estimate_confidence   high, medium or low.
+       *   estimate_zone         great, good, reasonable or bad; null with no shelf price.
+       *   estimate_centre_cents the centre shown, whole cents.
+       *   estimate_sigma_log    the spread shown, on log price.
+       *
+       * Build plan G: "Log exactly what was shown, for scoring." Nullable,
+       * additive only.
+       */
+      addColumnIfMissing(db, 'scan', 'estimate_basis', 'TEXT');
+      addColumnIfMissing(db, 'scan', 'estimate_confidence', 'TEXT');
+      addColumnIfMissing(db, 'scan', 'estimate_zone', 'TEXT');
+      addColumnIfMissing(db, 'scan', 'estimate_centre_cents', 'INTEGER');
+      addColumnIfMissing(db, 'scan', 'estimate_sigma_log', 'REAL');
+    },
+  },
 ];
 
 /** What `schema_version` says this database is at. 0 means nothing has run. */

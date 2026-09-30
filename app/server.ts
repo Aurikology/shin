@@ -64,8 +64,11 @@ import {
   matchText,
   rangeAskSettings,
   readMatchTextBody,
+  safeEstimate,
   type MatchTextAnswer,
 } from './src/catalogue-first.ts';
+import { onceAsk, readShelfCents, readThresholdsRaw, sortByName, verdictRecord, type RangeAsk } from './src/distribution.ts';
+import type { Verdict } from '../price/src/estimate.ts';
 import { PRICES_DB_PATH } from '../price/src/store.ts';
 import type { Provider } from '../identify/src/provider.ts';
 import { lookupOpenFoodFacts } from './src/open-food-facts.ts';
@@ -181,6 +184,8 @@ let catalogueFirstTest: {
   searcher?: { search(q: unknown): Promise<unknown> } | null;
   db?: DatabaseSync | null;
   rangeAskProvider?: Provider;
+  /** How long a verdict waits for the Claude ask (design case 27), shortened under test. */
+  claudeWaitMs?: number;
 } | null = null;
 export function setCatalogueFirstForTests(fake: typeof catalogueFirstTest): void {
   catalogueFirstTest = fake;
@@ -1884,7 +1889,50 @@ const TYPED_NO_OWN_PRICE = 'Shin does not have a price for that yet. Scan the ba
  * Never throws: `lookupOwnPrices` degrades a missing or broken file into "no
  * match", and a scan row that cannot be written is a null id.
  */
-function typedFromOwnData(
+/**
+ * What a typed answer's verdict needs beyond the text: the shelf price and the
+ * shopper's lines, the market, and the capped Claude ask (design case 8: a
+ * typed name that matches nothing is asked of Claude from the typed name).
+ */
+interface TypedVerdictContext {
+  readonly shopper: { cents: number; thresholds?: unknown } | null;
+  readonly market: { country: string | null; currency: string | null; region?: string | null };
+  readonly askRange?: RangeAsk;
+}
+
+/**
+ * The typed answer's verdict (design cases 7 and 8). A match is priced as its
+ * barcode would be; no match is priced from the typed words alone, sorted by
+ * the catalogue search and, when that finds nothing, asked of Claude once.
+ */
+async function typedVerdict(text: string, match: OwnMatch | null, ctx: TypedVerdictContext, device: string): Promise<Verdict | null> {
+  const prices = openPricesReadOnly(defaultPricesPath(), device);
+  try {
+    const once = onceAsk(ctx.askRange);
+    const est = await safeEstimate(
+      match
+        ? { barcode: match.code, name: match.name, brand: match.brand, size: match.size, region: ctx.market.region ?? null, country: ctx.market.country, currency: ctx.market.currency ?? 'CAD', asOf: new Date().toISOString().slice(0, 10) }
+        : { barcode: null, name: text, region: ctx.market.region ?? null, country: ctx.market.country, currency: ctx.market.currency ?? 'CAD', asOf: new Date().toISOString().slice(0, 10) },
+      ctx.shopper,
+      {
+        prices,
+        catalogue: catalogueFirstTest?.db !== undefined ? catalogueFirstTest.db : catalogueDb,
+        ...(once ? { askClaude: once.askClaude } : {}),
+        sortName: sortByName(catalogueFirstTest?.searcher !== undefined ? catalogueFirstTest.searcher : searchService),
+        ...(catalogueFirstTest?.claudeWaitMs !== undefined ? { claudeWaitMs: catalogueFirstTest.claudeWaitMs } : {}),
+      },
+    );
+    return est?.verdict ?? null;
+  } finally {
+    try {
+      prices?.close();
+    } catch {
+      /* already closed */
+    }
+  }
+}
+
+async function typedFromOwnData(
   text: string,
   device: string,
   telemetry: ReturnType<typeof telemetryFrom>,
@@ -1892,7 +1940,8 @@ function typedFromOwnData(
   startedAt: number,
   /** `/api/price` naming a typed scan already has its row: it is reused, never duplicated. */
   existingScanId: number | null = null,
-): Record<string, unknown> & { scanId?: number } {
+  verdictCtx: TypedVerdictContext | null = null,
+): Promise<Record<string, unknown> & { scanId?: number }> {
   let match: OwnMatch | null = null;
   try {
     match = lookupOwnPrices(text, {
@@ -1904,6 +1953,8 @@ function typedFromOwnData(
   } catch (err) {
     logError({ where: 'identify.own_data', deviceId: device, scanId: null, err });
   }
+  // Every typed answer carries the verdict when the caller passed its context (catalogue first on).
+  const verdict = verdictCtx && catalogueFirstOn() ? await typedVerdict(text, match, verdictCtx, device) : null;
   const ms = Date.now() - startedAt;
   const label = match ? [match.brand && !match.name.toLowerCase().includes(match.brand.toLowerCase()) ? match.brand : null, match.name, match.size].filter(Boolean).join(' ') : null;
   const scanId = existingScanId ?? recordScan({
@@ -1915,6 +1966,7 @@ function typedFromOwnData(
     source: OWN_DATA_SOURCE,
     outcome: match ? 'answered' : 'refused',
     failureClass: match ? null : 'not_in_catalogue',
+    ...verdictRecord(verdict),
     appVersion: telemetry.appVersion,
     platform: telemetry.platform,
     latencyMs: ms,
@@ -1926,6 +1978,7 @@ function typedFromOwnData(
     exactAccuracy: where.exactAccuracy,
     exactAt: where.exactAt,
   });
+  if (existingScanId !== null && verdict) updateScan(existingScanId, verdictRecord(verdict));
   const common = {
     ownData: true,
     source: OWN_DATA_SOURCE,
@@ -1942,6 +1995,7 @@ function typedFromOwnData(
     ms,
     model: null,
     failure: null,
+    verdict,
     ...(scanId === null ? {} : { scanId }),
   };
   if (!match) {
@@ -2114,8 +2168,9 @@ function ownOffersForBarcode(gtin: string, device: string): Record<string, unkno
 async function catalogueFirstBarcode(
   req: IncomingMessage,
   canonical: NonNullable<ReturnType<typeof canonicalBarcode>>,
-  market: { country: string | null; currency: string | null },
+  market: { country: string | null; currency: string | null; region?: string | null },
   device: string,
+  shopper: { cents: number; thresholds?: unknown } | null = null,
 ): Promise<Awaited<ReturnType<typeof answerBarcodeFromCatalogue>>> {
   let prices: DatabaseSync | null = null;
   try {
@@ -2135,18 +2190,11 @@ async function catalogueFirstBarcode(
       // Only when Shin has no price: one Claude ask, no web search, capped per
       // month (identify/src/range-ask.ts). No shopper answer comes from Gemini
       // (Jamin, 2026-09-28, "We are not using gemini at all for the client side answers").
-      askRange: async (identity) => {
-        // Checked here, not at the top of the route: only this call can cost money.
-        if (paidCallRefusal(req)) return { ok: false, reason: 'rate_limited' as const };
-        const { askTypicalRange } = await import('../identify/src/range-ask.ts');
-        const s = rangeAskSettings();
-        return askTypicalRange(identity, {
-          monthlyCap: s.monthlyCap,
-          ceilingCents: s.ceilingCents,
-          ...(s.storePath ? { storePath: s.storePath } : {}),
-          ...(catalogueFirstTest?.rangeAskProvider ? { provider: catalogueFirstTest.rangeAskProvider } : {}),
-        });
-      },
+      askRange: claudeRangeAsk(req),
+      region: market.region ?? null,
+      shopper,
+      sortName: sortByName(catalogueFirstTest?.searcher !== undefined ? catalogueFirstTest.searcher : searchService),
+      ...(catalogueFirstTest?.claudeWaitMs !== undefined ? { claudeWaitMs: catalogueFirstTest.claudeWaitMs } : {}),
     });
   } finally {
     try {
@@ -2154,6 +2202,45 @@ async function catalogueFirstBarcode(
     } catch {
       /* already closed */
     }
+  }
+}
+
+/**
+ * The capped Claude range ask, no web search (identify/src/range-ask.ts), behind
+ * the paid-call limiter. The one model call any catalogue-first answer may make,
+ * and only when Shin's own data cannot answer. RULINGS.md "Catalogue first;
+ * Claude, with no web search, is the capped price-range fallback".
+ */
+function claudeRangeAsk(req: IncomingMessage): RangeAsk {
+  return async (identity) => {
+    // Checked here, not at the top of the route: only this call can cost money.
+    if (paidCallRefusal(req)) return { ok: false, reason: 'rate_limited' as const };
+    const { askTypicalRange } = await import('../identify/src/range-ask.ts');
+    const s = rangeAskSettings();
+    return askTypicalRange(identity, {
+      monthlyCap: s.monthlyCap,
+      ceilingCents: s.ceilingCents,
+      ...(s.storePath ? { storePath: s.storePath } : {}),
+      ...(catalogueFirstTest?.rangeAskProvider ? { provider: catalogueFirstTest.rangeAskProvider } : {}),
+    });
+  };
+}
+
+/** The shelf price and the shopper's own lines a request carries, or null when it carries no price. */
+function shopperFrom(cents: unknown, thresholds: unknown): { cents: number; thresholds?: unknown } | null {
+  const c = readShelfCents(cents);
+  if (c === null) return null;
+  const t = readThresholdsRaw(thresholds);
+  return t === undefined ? { cents: c } : { cents: c, thresholds: t };
+}
+
+/** The price file, read-only, for one answer. Null when it is missing or will not open. */
+function openPricesReadOnly(path: string, device: string): DatabaseSync | null {
+  try {
+    return existsSync(path) ? new DatabaseSync(path, { readOnly: true }) : null;
+  } catch (err) {
+    logError({ where: 'verdict.prices', deviceId: device, scanId: null, err });
+    return null;
   }
 }
 
@@ -2175,8 +2262,49 @@ function noModelCatalogueAnswer(barcode: string, startedAt: number) {
     rangeAskedAt: null,
     noRangeReason: null,
     shelfPrice: null,
+    verdict: null,
+    storeIdentity: null,
     ms: Date.now() - startedAt,
   };
+}
+
+/**
+ * The verdict for the top text-match candidate, with the shelf price read off
+ * the tag as the shopper's price (a "2 for $5" tag counts per item). No Claude
+ * ask here: text reading can run passively, so it spends nothing, and the
+ * shopper's pick goes through the barcode answer, which may ask. Null when
+ * nothing matched.
+ */
+async function matchTextVerdict(matched: MatchTextAnswer, posted: Record<string, unknown>, device: string): Promise<Verdict | null> {
+  const top = matched.candidates[0];
+  if (!top) return null;
+  const market = marketOfContext(contextFrom((key) => posted[key]));
+  const shelf = matched.shelfPrice;
+  const shopperCents = shelf ? Math.round(shelf.cents / Math.max(1, shelf.forCount)) : null;
+  const prices = openPricesReadOnly(PRICES_DB_PATH, device);
+  try {
+    const est = await safeEstimate(
+      {
+        barcode: top.barcode,
+        name: top.name,
+        brand: top.brand,
+        size: top.size,
+        region: market.region ?? null,
+        country: market.country,
+        currency: market.currency ?? 'CAD',
+        asOf: new Date().toISOString().slice(0, 10),
+      },
+      shopperFrom(shopperCents, posted.thresholds),
+      { prices, catalogue: catalogueFirstTest?.db !== undefined ? catalogueFirstTest.db : catalogueDb },
+    );
+    return est?.verdict ?? null;
+  } finally {
+    try {
+      prices?.close();
+    } catch {
+      /* already closed */
+    }
+  }
 }
 
 /** `POST /api/match-text`'s search, through the worker in the product and a stand-in under test. */
@@ -3071,7 +3199,11 @@ export const server = createServer(async (req, res) => {
 
       // A typed name: Shin's own data only, never a paid call (see the comment above).
       if (!gtin && text) {
-        const typedAnswer = typedFromOwnData(text, device, telemetry, where, identifyStarted);
+        const typedAnswer = await typedFromOwnData(text, device, telemetry, where, identifyStarted, null, {
+          shopper: shopperFrom(pick('shelfPriceCents'), pick('thresholds')),
+          market: marketOfContext(contextFrom(pick)),
+          askRange: claudeRangeAsk(req),
+        });
         if (typeof typedAnswer.scanId === 'number') scanForLog = typedAnswer.scanId;
         return json(200, typedAnswer);
       }
@@ -3091,7 +3223,13 @@ export const server = createServer(async (req, res) => {
         if (overLimitFirst) return json(402, overLimitFirst);
         const canonical = canonicalBarcode(rawGtin);
         if (canonical) {
-          const { answer, record } = await catalogueFirstBarcode(req, canonical, marketOfContext(contextFrom(pick)), device);
+          const { answer, record } = await catalogueFirstBarcode(
+            req,
+            canonical,
+            marketOfContext(contextFrom(pick)),
+            device,
+            shopperFrom(pick('shelfPriceCents'), pick('thresholds')),
+          );
           // A barcode the catalogue was asked about and does not hold is the most
           // actionable miss the gap log can hold (`what-to-price` reads it).
           if (answer.outcome === 'not_in_catalogue' && answer.catalogueUp) recordGap({ gtin, catalogueMissing: true });
@@ -3109,6 +3247,7 @@ export const server = createServer(async (req, res) => {
             rangeSource: record.rangeSource,
             rangeBasis: record.rangeBasis,
             rangeMissReason: record.rangeMissReason,
+            ...verdictRecord(record.verdict),
             appVersion: telemetry.appVersion,
             platform: telemetry.platform,
             latencyMs: ms,
@@ -3121,6 +3260,8 @@ export const server = createServer(async (req, res) => {
             exactAt: where.exactAt,
           });
           scanForLog = firstScanId;
+          // Design case 9: the catalogue and the store row disagree on size. Logged, never shown.
+          if (record.conflict) recordEvent({ deviceId: device, type: 'identity_conflict', payload: { ...record.conflict, scanId: firstScanId } });
           return json(200, { ...answer, ms, ...(firstScanId === null ? {} : { scanId: firstScanId }) });
         }
       }
@@ -3298,6 +3439,7 @@ export const server = createServer(async (req, res) => {
         at: posted.locatedAt,
       });
       const matched = await catalogueFirstMatchText(read.lines, device);
+      const textVerdict = await matchTextVerdict(matched, posted, device);
       const ms = Date.now() - started;
       /*
        * The lines are kept in `query_text`, joined by newlines, following the
@@ -3316,6 +3458,7 @@ export const server = createServer(async (req, res) => {
         matchLines: read.lines.length,
         matchCandidates: matched.candidates.length,
         matchPriceRead: matched.shelfPrice !== null,
+        ...verdictRecord(textVerdict),
         appVersion: telemetry.appVersion,
         platform: telemetry.platform,
         latencyMs: ms,
@@ -3328,7 +3471,7 @@ export const server = createServer(async (req, res) => {
         exactAt: where.exactAt,
       });
       scanForLog = matchScanId;
-      return json(200, { ...matched, ms, ...(matchScanId === null ? {} : { scanId: matchScanId }) });
+      return json(200, { ...matched, verdict: textVerdict, ms, ...(matchScanId === null ? {} : { scanId: matchScanId }) });
     }
 
     /*
@@ -3697,13 +3840,18 @@ export const server = createServer(async (req, res) => {
       if (catalogueFirstOn()) {
         const row = scanKnown ? getScan(pricedScan) : null;
         if (!searchGtin && searchText && (row === null || row.kind === 'text')) {
-          const own = typedFromOwnData(
+          const own = await typedFromOwnData(
             searchText,
             pricedDevice,
             telemetryFrom(q),
             locationFor(pricedDevice, q.cell, q.storeId, q.storeName),
             Date.now(),
             row !== null && row.device_id === pricedDevice ? pricedScan : null,
+            {
+              shopper: shopperFrom(q.askingCents ?? q.shelfPriceCents, q.thresholds),
+              market: marketOfContext(contextFrom((key) => q[key])),
+              askRange: claudeRangeAsk(req),
+            },
           );
           if (typeof own.scanId === 'number') scanForLog = own.scanId;
           return json(200, { ...own, kind: 'gemini' });
@@ -3738,13 +3886,18 @@ export const server = createServer(async (req, res) => {
          * this body names, still makes the one call below as before.
          */
         if (!searchGtin && searchText && (row === null || row.kind === 'text')) {
-          const own = typedFromOwnData(
+          const own = await typedFromOwnData(
             searchText,
             pricedDevice,
             telemetryFrom(q),
             locationFor(pricedDevice, q.cell, q.storeId, q.storeName),
             priceStarted,
             attach ? pricedScan : null,
+            {
+              shopper: shopperFrom(q.askingCents ?? q.shelfPriceCents, q.thresholds),
+              market: marketOfContext(contextFrom((key) => q[key])),
+              askRange: claudeRangeAsk(req),
+            },
           );
           if (typeof own.scanId === 'number') scanForLog = own.scanId;
           return json(200, { ...own, kind: 'gemini' });
