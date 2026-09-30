@@ -458,7 +458,7 @@ test('a route with no entry gets no tag, which the badge draws as a?', () => {
 test('a sheet over the camera wins, and a modal over a list wins', () => {
   const on = (...sels) => (s) => sels.includes(s);
   const id = (route, m) => SCREEN_TAGS[pickTag(route, m)].id;
-  assert.equal(id('camera', on('.sheet.verdict:not(.gemini)[data-detent="half"]', '.cam[data-state="idle"][data-mode="photo"]')), 'camera.verdict.half');
+  assert.equal(id('camera', on('.sheet.verdict:not(.gemini):not(.dist)[data-detent="half"]', '.cam[data-state="idle"][data-mode="photo"]')), 'camera.verdict.half');
   assert.equal(id('camera', on('.sheet.refusal.gemini-failed', '.cam[data-state="idle"][data-mode="photo"]')), 'camera.gemini.failed');
   assert.equal(id('camera', on('.sheet.verdict.gemini[data-detent="full"]', '.toast[data-toast]')), 'camera.verdict.toast');
   assert.equal(id('camera', on('.sheet.verdict.gemini[data-detent="half"]', '.sheet.gemini[data-detent="half"] [data-gem-history]')), 'camera.gemini.history');

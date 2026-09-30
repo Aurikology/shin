@@ -36,6 +36,7 @@ import * as shops from '../shops.js';
 import { countryLabel, countryIn } from './market.js';
 import { locale, localeTag } from '../lib/locale.js';
 import { usableRange, placeShelf, shelfCentsOf, provenanceOf, noRangeKey, askedDate } from '../lib/catalogue-range.js';
+import { usableVerdict, shopperOf, shopperFor, multipleOf, bellSvg, tweenVerdict, ZONE_TIER } from '../lib/verdict-chart.js';
 import { mountTextMatch } from '../text-match.js';
 import { priorPrices, historyChartHtml } from '../lib/price-history.js';
 import { money, currencyMark } from '../lib/money.js';
@@ -1549,6 +1550,194 @@ export function needsConnectionSheet() {
  * Peek only: there is nothing a half detent would hold yet, and a grabber that
  * cannot move is the defect `grabber()` records.
  */
+/* ==================================================== the verdict bell ==
+ *
+ * THE PRICE VERDICT AS A DISTRIBUTION (RULINGS.md "V1 verdict screen
+ * mechanics", 2026-09-30: "an animated normal distribution chart and where
+ * their product price falls on it. It will ALWAYS provide the answer(unless
+ * the user runs out of scans)"). Built to the response contract in
+ * docs/verdict-distribution-design-2026-09-30.md: any answer that carries a
+ * drawable `verdict` (`kind: 'distribution'`) is shown here, whichever route
+ * it came by, and no refusal sheet is drawn over it.
+ *
+ * Detents, per the same ruling: the peek holds the face, his zone word, the
+ * bell and the one primary action (Save, tier-keyed); the half holds the
+ * evidence (notes, the bigger-pack note, every dot with its store and
+ * quantity, where the estimate came from) and Correct; the full holds the
+ * thumbs and Done.
+ */
+
+/** His zone, in the face the tier wears. Great is the intense face only when Shin is not unsure (AVATAR.md's gate). */
+function distFace(zone, confidence) {
+  if (zone === 'great') return confidence === 'low' ? 'good' : 'delighted';
+  if (zone === 'good') return 'good';
+  if (zone === 'reasonable') return 'fair';
+  if (zone === 'bad') return 'walk';
+  return 'idle';
+}
+
+/** The contract's confidence, in the fill treatment DESIGN.md section 1 already has. */
+const DIST_CONF = { high: 'certain', medium: 'sure', low: 'thin' };
+
+/** A per-unit label off the wire, in the reader's language when this build knows it. */
+function unitWords(label) {
+  // The wire's own label, as a key: a label this build has no words for is shown as it came.
+  const key = `vd_unit_${String(label).toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+  const said = t(key);
+  return said === key ? label : said;
+}
+
+/** A short number in the reader's language ("0.3" / "0,3"). */
+function localNumber(s) {
+  const n = Number(s);
+  try {
+    return new Intl.NumberFormat(localeTag(), { maximumFractionDigits: 2 }).format(n);
+  } catch {
+    return s;
+  }
+}
+
+/** "25% under the typical price", from the shopper block. The sign comes from the prices, the size from `offByPct` when sent. */
+function distWhere(shopper, verdict) {
+  const signed = (shopper.cents - verdict.centreCents) / verdict.centreCents * 100;
+  const size = Math.round(Math.abs(isFinite(shopper.offByPct) && shopper.offByPct !== null ? shopper.offByPct : signed));
+  if (size < 1) return t('vd_where_about');
+  return t(signed < 0 ? 'vd_where_under' : 'vd_where_over', { pct: String(size) });
+}
+
+/** The bell's markup for one verdict, every word localised. `labels` pins the axis words to a real answer during a tween. */
+function distBell(v, { labels = null } = {}) {
+  const fmt = (c) => money(c, v.currency);
+  const shopper = v.shopper;
+  const facts = { centre: fmt(Math.round(v.centreCents)), low: fmt(Math.round(v.p10Cents)), high: fmt(Math.round(v.p90Cents)) };
+  const alt = shopper
+    ? t('vd_alt_marked', { ...facts, verdict: t(`vd_zone_${shopper.zone}`), asking: fmt(shopper.cents), where: distWhere(shopper, v) })
+    : t('vd_alt_bare', facts);
+  return bellSvg(v, {
+    format: fmt,
+    alt,
+    band: t('vd_band', facts),
+    saleWord: t('vd_sale'),
+    multiple: shopper?.beyond ? t('vd_multiple', { m: localNumber(multipleOf(shopper.cents, v.centreCents)) }) : '',
+    dotLabel: (d) => [d.store, d.quantity].filter(Boolean).join(' ').slice(0, 20),
+    labels,
+  });
+}
+
+/**
+ * The whole verdict sheet for a drawable `verdict`.
+ *
+ * @param {object} raw     the wire's `verdict`
+ * @param {object} opts    `name` the product's label, `thumb`, `saved` whether
+ *                         it is already on the watchlist, `typedCents` a price
+ *                         the shopper typed on this sheet or picked from "Did
+ *                         you mean" (drawn with `shopperFor`, and newer than
+ *                         the server's `shopper`), `still` to draw the bell
+ *                         without its entry motion (a repaint of a sheet
+ *                         already on screen: only the new dot moves)
+ */
+function distributionSheet(raw, { name = '', thumb = null, saved = false, typedCents = null, still = false } = {}) {
+  const base = usableVerdict(raw);
+  if (!base) return '';
+  // A price typed on this sheet (or a "Did you mean" tap) is newer than the server's reading of the tag.
+  const v = { ...base, shopper: typedCents ? shopperFor(typedCents, base) : base.shopper ? shopperOf(base) : null };
+  const s = v.shopper;
+  const zone = s?.zone ?? null;
+  const tier = zone ? ZONE_TIER[zone] : 'unknown';
+  const fmt = (c) => money(c, v.currency);
+  const centre = fmt(Math.round(v.centreCents));
+  const face = distFace(zone, v.confidence);
+  const spoken = zone ? tier : 'gem_answer';
+  const headline = zone ? t(`vd_zone_${zone}`) : name;
+  const line = s ? t('vd_off', { where: distWhere(s, v), centre }) : t('vd_typical', { centre });
+  const notSure = v.confidence !== 'high';
+  const notes = v.notes.map((n) => `<li class="vd-note" data-vd-note="${n}">${escapeHtml(t(`vd_note_${n}`))}</li>`).join('');
+  const bigger = v.biggerPack
+    ? `<p class="detail vd-bigger" data-vd-bigger>${escapeHtml(t('vd_bigger_pack', { quantity: v.biggerPack.quantity ?? '', store: v.biggerPack.store ?? '', price: fmt(v.biggerPack.perUnitCents), unit: unitWords(v.perUnit?.label ?? '') }))}</p>`
+    : '';
+  const basis = v.basis ? t('vd_basis', { from: t(`vd_basis_${v.basis}`), n: v.n ? String(v.n) : '' }) : '';
+  const dots = v.dots.length
+    ? `<h3 class="vd-dots-h">${escapeHtml(t('vd_dots_heading'))}</h3><ul class="vd-dots" data-vd-dots>${v.dots
+        .map((d) => `<li class="vd-dotrow${d.kind === 'sale' ? ' sale' : ''}"><b>${escapeHtml([d.store, d.city].filter(Boolean).join(', ') || '')}</b><span>${escapeHtml([d.quantity, fmt(d.cents), d.seenOn, d.kind === 'sale' ? t('vd_sale') : null].filter(Boolean).join(' · '))}</span></li>`)
+        .join('')}</ul>`
+    : '';
+
+  return `
+    <section class="sheet verdict dist" data-kind="distribution" data-tier="${tier}" data-zone="${escapeHtml(zone ?? '')}" data-conf="${DIST_CONF[v.confidence]}" data-confidence="${v.confidence}" data-basis="${escapeHtml(v.basis ?? '')}" data-detent="peek" aria-live="polite" tabindex="-1">
+      ${grabber()}
+      ${backButton()}
+      <div class="sheet-peek">
+        <div class="sheet-head">
+          ${shinSay(face, spoken, zone ? { asking: fmt(s.cents), usual: centre } : {}, { size: 'face-verdict', tier })}
+          ${thumbImg(thumb)}
+        </div>
+        <h2 class="vword${zone ? '' : ' small'}" data-dist-headline>${escapeHtml(headline)}</h2>
+        <p class="sub vd-line" data-dist-line>${escapeHtml(line)}</p>
+        ${notSure ? `<p class="conf-label vd-conf" data-dist-conf>${escapeHtml(t('vd_not_confident'))}</p>` : ''}
+        ${s?.suspect ? `<button type="button" class="pill ghost vd-suspect" data-act="dist-suspect" data-cents="${s.suspect.suggestCents}">${escapeHtml(t('vd_suspect', { price: fmt(s.suspect.suggestCents) }))}</button>` : ''}
+        <div class="vd-chart${still ? ' vd-still' : ''}" data-dist-chart>${distBell(v)}</div>
+        ${s ? '' : `<form class="vd-price" data-dist-price novalidate>
+          <label class="vd-price-l"><span>${escapeHtml(t('vd_price_label'))}</span><input type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" name="price" data-dist-input></label>
+          <button type="submit" class="pill ghost">${escapeHtml(t('vd_place'))}</button>
+        </form>`}
+        ${zone && name ? `<p class="itemname" data-dist-name>${escapeHtml(name)}</p>` : ''}
+        <div class="actions actions-primary">
+          <button type="button" class="pill solid wide" data-act="dist-save">${saved ? say('peek_watching') : say(`peek_${zone ? tier : 'fair'}`)}</button>
+        </div>
+      </div>
+      <div class="sheet-half">
+        ${notes ? `<ul class="vd-notes" data-vd-notes>${notes}</ul>` : ''}
+        ${bigger}
+        ${dots}
+        ${basis ? `<p class="conf-label vd-basis" data-vd-basis>${escapeHtml(basis)}</p>` : ''}
+        <div class="actions">
+          <button type="button" class="pill ghost" data-act="correct">${escapeHtml(t('cam_correct_it'))}</button>
+        </div>
+      </div>
+      <div class="sheet-full">
+        ${thumbsBlock()}
+        <div class="toast-slot" data-toast-slot></div>
+        <button type="button" class="pill solid wide done-btn" data-act="cancel-scan">${escapeHtml(t('done'))}</button>
+      </div>
+    </section>`;
+}
+
+/**
+ * A better answer arriving while the bell is on screen (design case 28): the
+ * bell eases from the old centre and spread to the new ones, the axis words
+ * already the new answer's. Under prefers-reduced-motion it is simply redrawn.
+ * Returns a cancel function.
+ */
+function morphBell(host, fromRaw, toRaw, { ms = 620, reduced = prefersReducedMotion() } = {}) {
+  const from = usableVerdict(fromRaw);
+  const to = usableVerdict(toRaw);
+  if (!host || !to) return () => {};
+  const toV = { ...to, shopper: to.shopper ? shopperOf(to) : null };
+  if (!from || reduced || typeof requestAnimationFrame !== 'function') {
+    host.innerHTML = distBell(toV);
+    return () => {};
+  }
+  host.classList.add('vd-morphing');
+  let raf = 0;
+  const start = performance.now();
+  const frame = (now) => {
+    const k = Math.min(1, (now - start) / ms);
+    host.innerHTML = distBell(tweenVerdict(from, toV, k), { labels: toV });
+    if (k < 1) raf = requestAnimationFrame(frame);
+    else host.classList.remove('vd-morphing');
+  };
+  raf = requestAnimationFrame(frame);
+  return () => cancelAnimationFrame(raf);
+}
+
+function prefersReducedMotion() {
+  try {
+    return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch {
+    return false;
+  }
+}
+
 function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store.get() } = {}) {
   const identity = answer?.outcome === 'catalogue_hit' ? answer.identity : null;
   if (!identity) {
@@ -2379,6 +2568,8 @@ export { verdictSheet, refusalSheet, pricePadSheet, goingRateCard, workingSheet,
 export { geminiSheet, geminiFailureSheet, geminiFailed };
 // The catalogue-first answer (SHIN_CATALOGUE_FIRST on), for test/catalogue-answer.test.mjs.
 export { catalogueSheet };
+// The verdict bell (RULINGS.md "V1 verdict screen mechanics"), for the tests and the fixture walk.
+export { distributionSheet, morphBell, distFace };
 
 /* The shop shortlist joins them 2026-09-13, same reason: `padShopRow` and
    `storePickerSheet` are pure string builders, so app/test/shops.test.mjs can
@@ -4075,7 +4266,18 @@ export default {
             ? { answered: !geminiFailed(result), zone: geminiReading(result.grounded).zone }
             : {}),
         });
-        if (result.ownData && !result.found) {
+        if (usableVerdict(result?.verdict)) {
+          /* THE VERDICT BELL (RULINGS.md "V1 verdict screen mechanics"): any
+             price answer that carries a drawable verdict ends in the chart,
+             never in the refusal or failure sheets below. */
+          showDistribution(result.verdict, {
+            name: item.text ?? '',
+            key: item.scannedGtin ?? item.gtin ?? (item.text ? `name:${item.text}` : null),
+            cents: askingCents ?? null,
+            scenario: item,
+          });
+          return;
+        } else if (result.ownData && !result.found) {
           /* Free text the server answered from Shin's own data (2026-09-23)
              and found no item with a price for: the plain sentence, never
              "could not get an answer", and no paid "just the price" route.
@@ -4747,6 +4949,34 @@ export default {
       // now shared by the working sheet's close, the verdict's own Done, and
       // the candidate list / price pad / type-it route's new back button.
       if (act === 'cancel-scan') { reset(); return; }
+      /* The verdict bell's own two actions. "Did you mean": the suggested price
+         replaces the one read, and the chart stays. Save: the watchlist, keyed
+         on the barcode, with Shin's estimate as the usual price. */
+      if (act === 'dist-suspect' && dist) {
+        const cents = Number(btn.dataset.cents);
+        if (Number.isInteger(cents) && cents > 0) {
+          dist.typedCents = cents;
+          if (last) last.askingCents = cents;
+          paintDistribution(true);
+        }
+        return;
+      }
+      if (act === 'dist-save' && dist?.key) {
+        const v = usableVerdict(dist.raw);
+        const shopper = dist.typedCents ?? v?.shopper?.cents ?? null;
+        store.toggleWatch({
+          id: dist.key,
+          label: dist.name,
+          category: null,
+          lastCents: shopper,
+          askingSeller: null,
+          usualCents: v ? Math.round(v.centreCents) : null,
+          thumb: last?.thumb ?? null,
+        });
+        paintDistribution(true);
+        mounted('[data-act="dist-save"]');
+        return;
+      }
 
       if (act === 'correct') {
         ctx.go('correct', last?.scenario ? { text: last.scenario.text, category: last.scenario.category } : {});
@@ -5002,6 +5232,8 @@ export default {
           // Shin's own data answered (or said it has no price): drawn below, never priced again.
           // Such an answer carries no catalogue product and no unchecked label, so neither branch below fires.
           if (id?.ownData) own = id;
+          // A typed answer that carries a verdict is drawn as the bell by showOwnData, whatever else it says.
+          if (usableVerdict(id?.verdict)) own = id;
           if (id.catalogueUp && id.product) {
             typed = {
               id: id.product.code,
@@ -5113,6 +5345,17 @@ export default {
      * because that route is the paid call this ruling removed.
      */
     function showOwnData(id, text, cents) {
+      /* The verdict bell when the typed answer carries one, matched or not
+         (design case 8: a typed name nothing matches still gets an estimate). */
+      if (usableVerdict(id?.verdict)) {
+        const m = id.ownMatch;
+        showDistribution(id.verdict, {
+          name: m ? candidateRow({ brand: m.brand, name: m.name, size: m.size }).label : text,
+          key: m?.code ?? (text ? `name:${text}` : null),
+          cents,
+        });
+        return;
+      }
       const askingCents = cents ?? undefined;
       if (id.found && id.grounded) {
         const item = { id: null, text: id.ownMatch?.name ?? text, category: null, gtin: null };
@@ -5164,6 +5407,16 @@ export default {
      * none (flagged in the lane report).
      */
     function showCatalogue(answer, cents) {
+      // The verdict bell, when the answer carries one (RULINGS.md "V1 verdict screen mechanics").
+      if (usableVerdict(answer?.verdict)) {
+        const id = answer.identity;
+        showDistribution(answer.verdict, {
+          name: id ? candidateRow({ brand: id.brand, name: id.name, size: id.size }).label : '',
+          key: id?.barcode ?? answer.barcode ?? null,
+          cents,
+        });
+        return;
+      }
       last = null;
       lastKeepable = null;
       slot.innerHTML = catalogueSheet(answer, { shelfCents: cents ?? null, thumb: scanThumb });
@@ -5171,6 +5424,60 @@ export default {
       else playRefusalLanding(slot);
       setState('result');
       mounted(answer.offerManualEntry ? '[data-act="typeit"]' : undefined);
+    }
+
+    /*
+     * THE VERDICT BELL ON SCREEN. `dist` holds what the sheet was drawn from,
+     * so a price typed on it, a "Did you mean" tap or a save repaints it in
+     * place (`paintDistribution(true)`): the detent containers are swapped
+     * and the sheet itself is not re-mounted, so it does not rise again and
+     * the bell does not redraw; only the shopper's new dot drops in.
+     */
+    let dist = null;
+    function showDistribution(raw, { name = '', key = null, cents = null, scenario = null } = {}) {
+      const v = usableVerdict(raw);
+      dist = { raw, name, key: key ?? (name ? `name:${name}` : null), typedCents: !v?.shopper && cents ? cents : null };
+      last = { result: { kind: 'distribution', verdict: raw }, scenario: scenario ?? { text: name, category: null }, thumb: scanThumb, askingCents: cents ?? undefined };
+      lastKeepable = null;
+      paintDistribution(false);
+      buzz(16);
+      setState('result');
+      mounted();
+    }
+    function paintDistribution(inPlace) {
+      if (!dist) return;
+      const html = distributionSheet(dist.raw, {
+        name: dist.name,
+        thumb: scanThumb,
+        saved: dist.key ? store.isWatched(dist.key) : false,
+        typedCents: dist.typedCents,
+        still: inPlace,
+      });
+      const sheet = slot.querySelector('.sheet.dist');
+      if (inPlace && sheet) {
+        const tpl = document.createElement('template');
+        tpl.innerHTML = html.trim();
+        const next = tpl.content.firstElementChild;
+        for (const a of ['data-tier', 'data-zone', 'data-conf', 'data-confidence']) sheet.setAttribute(a, next.getAttribute(a) ?? '');
+        for (const part of ['.sheet-peek', '.sheet-half', '.sheet-full']) {
+          const to = sheet.querySelector(part);
+          const from = next.querySelector(part);
+          if (to && from) to.innerHTML = from.innerHTML;
+        }
+      } else {
+        slot.innerHTML = html;
+      }
+      const form = slot.querySelector('form[data-dist-price]');
+      form?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = form.querySelector('[data-dist-input]');
+        const cents = parsePadPrice(String(input?.value ?? '').replace(',', '.').replace(/[^0-9.]/g, ''));
+        if (!cents || cents <= 0) { input?.focus(); return; }
+        dist.typedCents = cents;
+        if (last) last.askingCents = cents;
+        paintDistribution(true);
+        buzz(10);
+      });
     }
 
     /* The sheet moves between three detents: peek, half, full. A drag of more

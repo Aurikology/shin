@@ -2356,6 +2356,107 @@
   overflow-wrap: anywhere;
 }
 .cat-shelf { padding-bottom: 0; margin: 0; }
+
+/*
+ * THE VERDICT BELL (RULINGS.md "V1 verdict screen mechanics", 2026-09-30;
+ * camera.js `distributionSheet`, lib/verdict-chart.js `bellSvg`).
+ *
+ * Colour: the sheet itself is the verdict's hue (DESIGN.md Law 2), so the bell,
+ * its shaded 8-in-10 band, the axis and every dot are drawn in the sheet's own
+ * text colour; the strip under the axis is the shopper's own zones in the tier
+ * hues, on a neutral track so they read on a field of the same hue. The
+ * shopper's dot is the largest mark, ringed in the field colour. Store dots
+ * are small; sale dots sit on their own lane, hollow, so a sale can never be
+ * read as a regular price.
+ *
+ * Motion: every part's resting style is its FINAL state and the keyframes say
+ * only where it starts (`animation-fill-mode: backwards`), so under
+ * prefers-reduced-motion, where the animations are switched off, the bell is
+ * drawn still and complete. The curve draws along its own length, the fill
+ * fades in behind it, the store dots pop in one after another, and the
+ * shopper's dot drops onto its place and settles. It never slides along the
+ * axis (DESIGN.md section 6). `.vd-still` is a repaint of a sheet already on
+ * screen: only the shopper's dot moves.
+ */
+.sheet.dist .vd-line { margin: 2px 0 0; padding: 0; }
+.sheet.dist .vd-conf { margin: 4px 0 0; }
+.vd-suspect { margin-top: 8px; min-height: 44px; }
+.vd-chart { margin: 8px 0 2px; }
+.vbell { margin: 0; --vb-halo: var(--tier); color: inherit; }
+.sheet[data-conf="thin"] .vbell { --vb-halo: color-mix(in srgb, var(--tier) 14%, var(--ground)); }
+.vbell svg { display: block; width: 100%; height: auto; overflow: visible; }
+/* Everything but the zone strip is drawn in the sheet's own text colour
+   (`--tier-on` on a solid field, `--tier-bright` on a thin one), so it reads on
+   whichever of the four fills the confidence gives the sheet. */
+.vb-axis { stroke: currentColor; stroke-width: 1.5; opacity: .5; }
+.vb-centre { stroke: currentColor; stroke-width: 1; stroke-dasharray: 2 3; opacity: .55; }
+.vb-area { fill: currentColor; opacity: .08; }
+.vb-band { fill: currentColor; opacity: .16; }
+.vb-curve {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: vb-draw 780ms cubic-bezier(.32,.72,0,1) 120ms backwards;
+}
+.vb-area, .vb-band { animation: vb-fade 420ms ease-out 520ms backwards; }
+/* The shopper's zones, on a neutral track so the tier hues read on a field of the same hue. */
+.vb-track { fill: var(--surface); animation: vb-fade 320ms ease-out 700ms backwards; }
+.vb-zone { animation: vb-fade 320ms ease-out 700ms backwards; }
+.vb-zone-great { fill: var(--good-bright); }
+.vb-zone-good { fill: var(--good); }
+.vb-zone-reasonable { fill: var(--fair); }
+.vb-zone-bad { fill: var(--walk); }
+.vb-dot { stroke: var(--vb-halo); stroke-width: 1.5; animation: vb-pop 220ms ease-out backwards; animation-delay: calc(760ms + var(--i, 0) * 40ms); transform-box: fill-box; transform-origin: center; }
+.vb-dot-regular { fill: currentColor; }
+.vb-dot-sale { fill: var(--vb-halo); stroke: currentColor; stroke-width: 1.5; stroke-dasharray: 2 1.5; }
+.vb-lane { font: 600 9px var(--f-ui); fill: currentColor; opacity: .8; letter-spacing: .02em; }
+.vb-lbl { font: 500 11px var(--f-mono); fill: currentColor; opacity: .85; font-variant-numeric: tabular-nums; }
+.vb-lbl-centre { opacity: 1; font-weight: 700; }
+.vb-dotlbl { font: 500 9.5px var(--f-ui); fill: currentColor; opacity: .8; }
+.vb-you { animation: vb-settle 480ms cubic-bezier(.34,1.56,.64,1) 1000ms backwards; }
+.vb-guide { stroke: currentColor; stroke-width: 1.5; stroke-dasharray: 3 3; }
+/* The shopper's dot: the largest mark, in the text colour with a ring of the field, so it is the one thing on the line the eye lands on. */
+.vb-youdot { fill: currentColor; stroke: var(--vb-halo); stroke-width: 3; }
+.vb-youlbl { font: 700 13px var(--f-ui); fill: currentColor; font-variant-numeric: tabular-nums; paint-order: stroke; stroke: var(--vb-halo); stroke-width: 4px; stroke-linejoin: round; }
+.vb-mult { font-weight: 600; font-size: 11px; }
+.vb-cap { margin: 2px 0 0; font: 500 11px var(--f-ui); color: inherit; opacity: .8; }
+.vd-still .vb-curve, .vd-still .vb-area, .vd-still .vb-band, .vd-still .vb-track, .vd-still .vb-zone, .vd-still .vb-dot { animation: none; }
+.vd-still .vb-you { animation-delay: 0ms; }
+.vd-morphing .vb-curve, .vd-morphing .vb-area, .vd-morphing .vb-band, .vd-morphing .vb-track, .vd-morphing .vb-zone, .vd-morphing .vb-dot, .vd-morphing .vb-you { animation: none; }
+@keyframes vb-draw { from { stroke-dashoffset: 1; } }
+@keyframes vb-fade { from { opacity: 0; } }
+@keyframes vb-pop { from { opacity: 0; transform: scale(.2); } }
+@keyframes vb-settle { from { opacity: 0; transform: translateY(-22px); } }
+@media (prefers-reduced-motion: reduce) {
+  .vb-curve, .vb-area, .vb-band, .vb-track, .vb-zone, .vb-dot, .vb-you { animation: none; }
+}
+/* The price field, when the answer came without a shelf price (design case 23). */
+.vd-price { display: flex; gap: 8px; align-items: flex-end; margin: 8px 0 0; }
+.vd-price-l { flex: 1; display: flex; flex-direction: column; gap: 4px; font: 600 12px var(--f-ui); color: inherit; }
+.vd-price input {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--hairline);
+  background: var(--raised);
+  color: var(--ink);
+  font: 600 17px var(--f-ui);
+  font-variant-numeric: tabular-nums;
+}
+.vd-price .pill { min-height: 44px; }
+.vd-notes { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; padding: 0; }
+.vd-note { font: 500 12px var(--f-ui); color: var(--ink-muted); background: var(--raised); border: 1px solid var(--hairline); border-radius: 999px; padding: 4px 10px; }
+.vd-bigger { margin: 0 0 10px; }
+.vd-dots-h { margin: 6px 0 4px; font: 600 13px var(--f-ui); color: var(--ink); }
+.vd-dots { list-style: none; margin: 0 0 10px; padding: 0; }
+.vd-dotrow { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--hairline); font: 500 12px var(--f-mono); color: var(--ink-muted); }
+.vd-dotrow b { font: 600 12px var(--f-ui); color: var(--ink); overflow-wrap: anywhere; }
+.vd-dotrow span { text-align: right; }
+.vd-dotrow.sale span { color: var(--ink-faint); font-style: italic; }
 .cat-code { font-variant-numeric: tabular-nums; }
 
 /*
