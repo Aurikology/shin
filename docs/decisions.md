@@ -2440,4 +2440,9 @@ Recorded in RULINGS.md. The ruling judge named two entries, rewritten:
   counts from one store, shown with store and date; the lone-claim guard covers only web-search
   offers on the old Gemini path. `MIN_OWN_SHOPS = 3` in the range step is retired with it.
 
+Same day, next message: *"claude never does a web search"*. Widened from the range ask to every
+Claude call Shin makes, for any feature. The sizes line of the first message is recorded in "How
+Shin predicts a price it has not seen": build on the existing size system. The ruling judge found
+nothing contradicting either.
+
 **Reverses if:** he says so.

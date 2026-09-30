@@ -14,7 +14,9 @@ catalogue cannot answer (a known product with no Shin price, a typed name that m
 barcode nothing knows once the shopper has named it), the cheapest Claude model is asked for a
 typical price range from its own knowledge, with no web search, capped per month, to save credits,
 and every answer is saved as data (2026-09-30: *"Claude(the cheapest possible) is called if our
-catalogue cannot answer"*). A barcode missing from the catalogue whose price Shin holds is not a
+catalogue cannot answer"*). **Claude never does a web search**, in any call Shin makes to it, for
+any feature: no search tool is ever offered to it (2026-09-30: *"claude never does a web search"*).
+These cases are fixable, never a reason to drop an answer. A barcode missing from the catalogue whose price Shin holds is not a
 catalogue miss: it answers from that price, named by the store's own product name. **No
 answer a shopper sees comes from Gemini, in any form:** not identity, not a price, not a range, not
 reviews, not a stored earlier Gemini answer. Every new feature is planned without Gemini. The
@@ -80,8 +82,8 @@ answer once the one permitted call has been spent. · 2026-09-21 · log: docs/de
 Retired wording: `0.68 US cents a call`
 Governs: cache key = barcode + market + currency, SHIN_REPEAT_CACHE, app/test/repeat-cache.test.ts
 ### Founder's words outrank the system and any provider's terms
-Claude's role inside Shin is the catalogue-first price-range fallback, asked with no web search
-(2026-09-28, reversing the 2026-09-17 exclusion of Claude); nothing holds higher precedence than the
+Claude's role inside Shin is the catalogue-first price-range fallback, on the cheapest Claude model,
+and Claude never does a web search in any call (2026-09-28 and 2026-09-30, reversing the 2026-09-17 exclusion of Claude); nothing holds higher precedence than the
 founder's words, not the system's own machinery and not Gemini's terms: breaking a term should
 never crash the system, and legal issues with Gemini are marked as an issue, never used to block a
 feature from functioning. Left open and unresolved: Jamin flagged that Claude's own research on
@@ -167,7 +169,11 @@ and replaced by its measured accuracy; shopper reports are weighted by how well 
 Machine-learning and neural-network prediction are considered, and used only after beating the
 simpler method on a held-out test. Seeding may use
 Jamin's Gemini Pro subscription offline (not a runtime call in the app): a long list of the items
-that most affect others, asked for their price ranges. · 2026-09-28 · *"We need to provide a product that at least gives an answer"* · *"a set of products will typically have a set of price variation. An orange or an apple will probably have similar price variation. However, something like wine will have far more price variation"* · *"I have access to gemini pro and unlimited tokens on it, you can very well create a long list of items(important items that affect others) and ask it for the price ranges"*
+that most affect others, asked for their price ranges. Sizes are handled by the size system
+already designed (every size converted to per 100 g, per 100 ml or each with the original kept;
+missing sizes filled from the quantity or the end of the name; category prices scaled to this
+product's size), built on rather than replaced, imperfect as it is (2026-09-30: *"We have
+previously designed an imperfect system to handle sizes, find it."*). · 2026-09-28 · *"We need to provide a product that at least gives an answer"* · *"a set of products will typically have a set of price variation. An orange or an apple will probably have similar price variation. However, something like wine will have far more price variation"* · *"I have access to gemini pro and unlimited tokens on it, you can very well create a long list of items(important items that affect others) and ask it for the price ranges"*
 Retired wording: none
 Governs: to fill (price/src/range.ts is the first version)
 
