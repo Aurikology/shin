@@ -94,9 +94,33 @@ this says sorting is still far easier than matching (74-78% vs. matching's 57-70
 on a much stricter exact-barcode bar), but not yet safe to treat as ground truth for range-building
 without the hand re-read this unit was scoped to stop short of.
 
+### The 50-item re-read, and produce refused, 2026-09-30
+
+Both sheets were marked by Claude reading the tile name against the chosen leaf and parent
+(column `reread_by`), not by a person. Right means the leaf or the parent is a category the item
+belongs in at a granularity a price range can use; a wrong canned/dried or canned/frozen split is
+counted wrong.
+
+| Sheet | Method | Leaf-or-parent right |
+| --- | --- | --- |
+| `category-reread-50.csv` (seed 20260928) | before the produce rule | **34/50 = 68%** |
+| `category-reread-50-b.csv` (seed 20260930, unseen until scored) | with the produce rule | **35/50 = 70%** |
+
+The bar is 95%; **D1 does not pass**. On the first sheet 7 of 16 misses were loose produce voted
+into packaged categories (lime -> fruit juices, ginger -> biscuits, yu choy -> teas), which is why
+`is_produce()` now refuses produce instead of sorting it (RULINGS.md, "Produce stays refused"): 99
+of 894 tiles, 0 of the 46 key items, 1 wrong refusal seen (a lower-case "cilantro seasoning
+paste"). The misses left are retrieval picking a wrong neighbour (red wine vinegar -> red wines,
+almond butter -> tahini, cream-style corn -> beverages, SunChips -> bagel breads), which no vote
+over the same shortlist can fix. The plan's next step is a model choosing the leaf from the
+catalogue's own list, scored on these same two sheets; it needs an API key where it runs, and
+this PC has none.
+
 ### What could not be verified
 
-- **The 50-item hand re-read itself.** `category-reread-50.csv` (50 random tiles, seed 20260928,
+- **A person's re-read.** The sheets above were marked by Claude, which is not the hand re-read
+  the plan asks for.
+- **The 50-item hand re-read itself (superseded by the section above).** `category-reread-50.csv` (50 random tiles, seed 20260928,
   across all 894 named tiles, with the tile name, chosen leaf, chosen parent, and an empty
   right/wrong column) is produced but not filled in -- that step needs a human and was out of
   scope for this lane.

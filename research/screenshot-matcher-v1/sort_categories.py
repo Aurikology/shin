@@ -56,6 +56,24 @@ spec.loader.exec_module(pl)
 
 GARBLE_LEN = 55  # leaf slug longer than this is treated as the ingestion-bug concatenation
 
+# Produce is refused, not sorted (RULINGS.md: "Produce stays refused, promoted once two
+# independent shopper reports clear the existing thresholds"). A lime voted into "fruit juices"
+# would put a loose-produce price inside a packaged-goods range. Three signals, checked on all
+# 894 tiles 2026-09-30: "sold in singles/bunches/bulk" (25 tiles, all produce); the Fresh Fruits
+# and Fresh Vegetables pages (the Fresh Herbs page is left out: it mixes in dried, packaged
+# herbs the catalogue knows); Walmart names loose produce in lower case with no size, and a
+# lower-case name of at most three words with no digit caught one non-produce tile of 894
+# ("sweet italian pickle").
+PRODUCE_PAGE = re.compile(r'Buy Fresh (Fruits|Vegetables)\b', re.I)
+PRODUCE_SOLD = re.compile(r'\bsold (in singles?|in single wrap|in bunch(es)?|in bundle|bulk)\b', re.I)
+REFUSED_PRODUCE = 'refused:produce'
+
+
+def is_produce(title, file):
+    if PRODUCE_PAGE.search(os.path.basename(file or '')) or PRODUCE_SOLD.search(title):
+        return True
+    return title == title.lower() and not re.search(r'\d', title) and 0 < len(title.split()) <= 3
+
 
 # ---------- vocabulary merge: language-orphan canonicalisation + garbled-leaf repair ----------
 def build_canon():
@@ -302,7 +320,11 @@ def main():
 
     out = []
     for i, r in enumerate(rows):
-        res = sort_tile(r, k)
+        title = pl.full_title(r['name'] or '', r['slug'])
+        if title and is_produce(title, r['file']):
+            res = {'sku': r['sku'], 'title': title, 'leaf': REFUSED_PRODUCE, 'parent': None, 'k_used': 0}
+        else:
+            res = sort_tile(r, k)
         if res is None:
             res = {'sku': r['sku'], 'title': None, 'leaf': None, 'parent': None, 'k_used': 0}
         res['file'] = r['file']
@@ -311,8 +333,9 @@ def main():
             print(i, file=sys.stderr)
     json.dump(out, open(os.path.join(S, 'category.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=0)
 
-    n_categorised = sum(1 for r in out if r['leaf'])
-    print(f'\ntiles with a category assigned: {n_categorised}/{len(out)} ({n_categorised/len(out):.0%})')
+    n_categorised = sum(1 for r in out if r['leaf'] and r['leaf'] != REFUSED_PRODUCE)
+    n_produce = sum(1 for r in out if r['leaf'] == REFUSED_PRODUCE)
+    print(f'\ntiles with a category assigned: {n_categorised}/{len(out)} ({n_categorised/len(out):.0%}); refused as produce: {n_produce}')
 
     # size / unit price coverage (747/898 in the design doc)
     have_title_size = sum(1 for r in rows if pl.sizes(pl.full_title(r['name'] or '', r['slug'])))
@@ -355,6 +378,7 @@ def score_on_key(out, rows_list):
             continue
         res['scored'] += 1
         pred = by_sku[sku]
+        res['refused as produce'] += (pred['leaf'] == REFUSED_PRODUCE)
         res['sorter exact leaf'] += (pred['leaf'] == tleaf)
         res['sorter leaf or parent'] += (pred['leaf'] == tleaf or pred['leaf'] == tparent or pred['parent'] == tleaf)
         pl_ = page_leaf[rows[sku]['file']].most_common(1)
@@ -369,20 +393,26 @@ def score_on_key(out, rows_list):
           f"95% Wilson {wilson(res['sorter leaf or parent'], n)}")
     print(f"page-majority baseline exact leaf: {res['page-majority exact leaf']}/{n} = {res['page-majority exact leaf']/max(1,n):.0%}, "
           f"95% Wilson {wilson(res['page-majority exact leaf'], n)}")
+    print(f"key items refused as produce (counted wrong above): {res['refused as produce']}")
 
 
-def make_reread_sheet():
-    random.seed(20260928)
+def make_reread_sheet(seed=20260928, name='category-reread-50.csv'):
+    random.seed(seed)
     out = json.load(open(os.path.join(S, 'category.json'), encoding='utf-8'))
     sample = random.sample(out, min(50, len(out)))
-    with open(os.path.join(S, 'category-reread-50.csv'), 'w', encoding='utf-8', newline='') as f:
+    path = os.path.join(S, name)
+    if os.path.exists(path):
+        print(f'kept {name}: it exists and may hold marks')
+        return
+    with open(path, 'w', encoding='utf-8', newline='') as f:
         w = csv.writer(f)
         w.writerow(['sku', 'tile_name', 'chosen_leaf', 'chosen_parent', 'right_or_wrong'])
         for r in sample:
             w.writerow([r['sku'], r['title'] or '', r['leaf'] or '', r['parent'] or '', ''])
-    print(f'wrote category-reread-50.csv, {len(sample)} rows')
+    print(f'wrote {name}, {len(sample)} rows')
 
 
 if __name__ == '__main__':
     main()
     make_reread_sheet()
+    make_reread_sheet(20260930, 'category-reread-50-b.csv')

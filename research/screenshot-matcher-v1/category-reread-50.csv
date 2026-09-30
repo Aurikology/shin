@@ -1,51 +1,51 @@
-sku,tile_name,chosen_leaf,chosen_parent,right_or_wrong
-10303377,Great Value Sesame Seeds,en:beverages,,
-3Z9UL19OBS45,Matteo s Sugar Free Fruit Syrup Cherry 750mL 0 Calories 0 Sugar Single Bottle,en:simple-syrups,en:syrups,
-6000203462918,Barilla Spaghettini Pasta,en:pasta1233,en:spaghetti,
-6000196207717,Great Value Ground Cinnamon,en:cinnamon-sticks,en:cinnamon,
-6000188866187,"Betty Crocker Scalloped Potatoes, Au Gratin 141 g 5 Servings",en:dauphine-style-creamed-potatoes-au-gratin,en:potato-gratin,
-20M8II5U5MU9,"Yoplait Vanilla Flavour Tubes, 448G",en:yogurts,en:fermented-dairy-desserts,
-6000191268571,lime,en:fruit-juices,en:juices-and-nectars,
-6000197179588,Great Value No Salt Added Black Beans,en:black-beans,en:common-beans,
-10054562,Great Value Cream Cheese,en:cheese-spreads,en:salted-spreads,
-3NH1EOW2XJPJ,Great Value Cream of Chicken Condensed Soup,en:chickens,en:poultries,
-6000201855215,Idahoan Buttery Homestyle Flavoured Mashed Potatoes,en:mashed-potatoes,en:potato-preparations,
-6000191271867,ginger,en:biscuits,en:biscuits-and-crackers,
-981708,"Cilantro, Sold in bunches",en:cilantro-in-oil,,
-10303802,Great Value Garlic Herb Pasta Sauce,en:groceries,en:tomato-sauces,
-2LZXPBPWBJP4,Great Value 100% Pure Grapeseed Oil 100,en:olive-oils,en:vegetable-oils,
-3UJ83PDGTVS6,Hinode Mirin Seasoning Cooking Wine 1 8L Unit 6 Units Case,en:spices,en:herbs-and-spices,
-6000205667837,oranges seedless your fresh market,en:fresh-clementine-oranges,en:clementines,
-144BSZWI6O8R,greenhouse ginger defence for immunity wellness shot,en:sodas,en:soft-drinks,
-6000196795237,"Squash, Chayote, Sold in singles",en:butternut-squashes,en:pumpkins,
-1QR7S8186QM5,Dutchman's Gold Raw Honey | 100% Dutchman s 100 Canadian Unpasteurized Cold Processed Naturally Creamy Spreadable Contains Bee Pollen Royal Jelly Beeswax Made Canada 5,en:honeys,en:sweeteners,
-6000196142933,Great Value Flaked Light Tuna,en:canned-tunas,en:tunas,
-2QV9LGU46RLX,Great Value Spaghetti Pasta,en:spaghetti,en:pastas,
-6000202666145,Great Value Oregano Leaves,en:beverages,,
-206829,"Club House, Dry Sauce Seasoning Marinade Mix Shepherd s Pie",en:cheese-sauces,en:sauces,
-5Q2I9VTVI8W3,Fresh Attitude Family Salad Kit Spring Mix with toppings 318g,en:caesar-salads,en:prepared-salads,
-10292042,Poutine Gravy,en:groceries,en:sauces,
-205819,Smucker's No Sugar Added Strawberry Smucker s Spread 310mL,en:strawberry-jams,en:berry-jams,
-6000201745212,Great Value Iodized Table Salt,en:sea-salts,en:salts,
-6000196138395,Kraft Pasta Salad,en:groceries,en:vinaigrettes,
-67EDUR5G616R,Natural Table Syrup with 5% Maple Syrup 5 Bottle 710ml,en:syrups,,
-6000197676492,"Coconut, Brown, Sold in singles",en:pastas,en:plant-based-foods,
-206345,Mr. Noodles Beef Cup Mr,en:instant-noodles,en:noodles,
-10275354,Great Value No Salt White Kidney Beans,en:white-kidney-beans,en:white-beans,
-356L4U6QUD51,Great Value Corn Oil,en:corn-oils,en:cereal-oils,
-6G335WP8K6XY,Primo Elbow,en:spaghetti,en:pastas,
-206880,"Kraft Smooth Peanut Butter, 1 kg Jar",en:creamy-peanut-butters,en:nut-butters,
-1KH80QS63J4X,2% Protein 18G Beverage 2,en:dietary-supplements,en:milks,
-6000188763177,Haldiram Moong Dal,en:pulses,en:legume-seeds,
-3LD6MN63NCWN,"Smucker's Pure Liquid Honey, Portion Smucker s 21G Unit 200 Units Case",en:honeys,en:sweeteners,
-7DER9IG7O1LT,"Classico Bolognese Pasta Sauce, 600 ml Jar",en:pas,en:pasta-sauces,
-10299508,Minute Rice Premium Instant Long Grain White 1.4 kg,en:basmati-rices,en:long-grain-rices,
-6000197861192,Great Value Gluten Free Spaghetti,en:penne-rigate,en:penne,
-1TE5EOKSPEMR,Gallo Extra Virgin Olive Oil 1L Great Value Canola,en:extra-virgin-olive-oils,en:virgin-olive-oils,
-5L9HF103LULI,Classico Tomato & Basil Pasta Sauce,en:tomato-sauces,en:pasta-sauces,
-14GAJHE7LPWA,Great Value Caribbean-Style Curry Cooking Sauce,en:groceries,en:pasta-sauces,
-6000200218222,"Maple Leaf Bone-In Chicken Thighs, 10-12 Thighs, 1.34 - 2.17 KG",en:chickens,en:poultries,
-4QKVEBXQ92LT,Great Value Extra Virgin Olive Oil,en:extra-virgin-olive-oils,en:olive-oils,
-6000196181082,Great Value Yellow Split Peas,en:plant-based-foods,en:plant-based-foods-and-beverages,
-6000197107045,yu choy sold bulk,en:teas,en:plant-based-beverages,
-10061051,Cap'N Crunch Original Cereal Cap N,en:breakfast-cereals,en:cereals-and-their-products,
+sku,tile_name,chosen_leaf,chosen_parent,right_or_wrong,reread_by
+10303377,Great Value Sesame Seeds,en:beverages,,wrong,"Claude, from the tile name, 2026-09-30 (not a person)"
+3Z9UL19OBS45,Matteo s Sugar Free Fruit Syrup Cherry 750mL 0 Calories 0 Sugar Single Bottle,en:simple-syrups,en:syrups,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000203462918,Barilla Spaghettini Pasta,en:pasta1233,en:spaghetti,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000196207717,Great Value Ground Cinnamon,en:cinnamon-sticks,en:cinnamon,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000188866187,"Betty Crocker Scalloped Potatoes, Au Gratin 141 g 5 Servings",en:dauphine-style-creamed-potatoes-au-gratin,en:potato-gratin,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+20M8II5U5MU9,"Yoplait Vanilla Flavour Tubes, 448G",en:yogurts,en:fermented-dairy-desserts,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000191268571,lime,en:fruit-juices,en:juices-and-nectars,wrong,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000197179588,Great Value No Salt Added Black Beans,en:black-beans,en:common-beans,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+10054562,Great Value Cream Cheese,en:cheese-spreads,en:salted-spreads,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+3NH1EOW2XJPJ,Great Value Cream of Chicken Condensed Soup,en:chickens,en:poultries,wrong,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000201855215,Idahoan Buttery Homestyle Flavoured Mashed Potatoes,en:mashed-potatoes,en:potato-preparations,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000191271867,ginger,en:biscuits,en:biscuits-and-crackers,wrong,"Claude, from the tile name, 2026-09-30 (not a person)"
+981708,"Cilantro, Sold in bunches",en:cilantro-in-oil,,wrong,"Claude, from the tile name, 2026-09-30 (not a person)"
+10303802,Great Value Garlic Herb Pasta Sauce,en:groceries,en:tomato-sauces,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+2LZXPBPWBJP4,Great Value 100% Pure Grapeseed Oil 100,en:olive-oils,en:vegetable-oils,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+3UJ83PDGTVS6,Hinode Mirin Seasoning Cooking Wine 1 8L Unit 6 Units Case,en:spices,en:herbs-and-spices,wrong,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000205667837,oranges seedless your fresh market,en:fresh-clementine-oranges,en:clementines,wrong,"Claude, from the tile name, 2026-09-30 (not a person)"
+144BSZWI6O8R,greenhouse ginger defence for immunity wellness shot,en:sodas,en:soft-drinks,wrong,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000196795237,"Squash, Chayote, Sold in singles",en:butternut-squashes,en:pumpkins,wrong,"Claude, from the tile name, 2026-09-30 (not a person)"
+1QR7S8186QM5,Dutchman's Gold Raw Honey | 100% Dutchman s 100 Canadian Unpasteurized Cold Processed Naturally Creamy Spreadable Contains Bee Pollen Royal Jelly Beeswax Made Canada 5,en:honeys,en:sweeteners,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000196142933,Great Value Flaked Light Tuna,en:canned-tunas,en:tunas,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+2QV9LGU46RLX,Great Value Spaghetti Pasta,en:spaghetti,en:pastas,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000202666145,Great Value Oregano Leaves,en:beverages,,wrong,"Claude, from the tile name, 2026-09-30 (not a person)"
+206829,"Club House, Dry Sauce Seasoning Marinade Mix Shepherd s Pie",en:cheese-sauces,en:sauces,wrong,"Claude, from the tile name, 2026-09-30 (not a person)"
+5Q2I9VTVI8W3,Fresh Attitude Family Salad Kit Spring Mix with toppings 318g,en:caesar-salads,en:prepared-salads,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+10292042,Poutine Gravy,en:groceries,en:sauces,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+205819,Smucker's No Sugar Added Strawberry Smucker s Spread 310mL,en:strawberry-jams,en:berry-jams,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000201745212,Great Value Iodized Table Salt,en:sea-salts,en:salts,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000196138395,Kraft Pasta Salad,en:groceries,en:vinaigrettes,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+67EDUR5G616R,Natural Table Syrup with 5% Maple Syrup 5 Bottle 710ml,en:syrups,,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000197676492,"Coconut, Brown, Sold in singles",en:pastas,en:plant-based-foods,wrong,"Claude, from the tile name, 2026-09-30 (not a person)"
+206345,Mr. Noodles Beef Cup Mr,en:instant-noodles,en:noodles,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+10275354,Great Value No Salt White Kidney Beans,en:white-kidney-beans,en:white-beans,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+356L4U6QUD51,Great Value Corn Oil,en:corn-oils,en:cereal-oils,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+6G335WP8K6XY,Primo Elbow,en:spaghetti,en:pastas,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+206880,"Kraft Smooth Peanut Butter, 1 kg Jar",en:creamy-peanut-butters,en:nut-butters,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+1KH80QS63J4X,2% Protein 18G Beverage 2,en:dietary-supplements,en:milks,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000188763177,Haldiram Moong Dal,en:pulses,en:legume-seeds,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+3LD6MN63NCWN,"Smucker's Pure Liquid Honey, Portion Smucker s 21G Unit 200 Units Case",en:honeys,en:sweeteners,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+7DER9IG7O1LT,"Classico Bolognese Pasta Sauce, 600 ml Jar",en:pas,en:pasta-sauces,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+10299508,Minute Rice Premium Instant Long Grain White 1.4 kg,en:basmati-rices,en:long-grain-rices,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000197861192,Great Value Gluten Free Spaghetti,en:penne-rigate,en:penne,wrong,"Claude, from the tile name, 2026-09-30 (not a person)"
+1TE5EOKSPEMR,Gallo Extra Virgin Olive Oil 1L Great Value Canola,en:extra-virgin-olive-oils,en:virgin-olive-oils,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+5L9HF103LULI,Classico Tomato & Basil Pasta Sauce,en:tomato-sauces,en:pasta-sauces,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+14GAJHE7LPWA,Great Value Caribbean-Style Curry Cooking Sauce,en:groceries,en:pasta-sauces,wrong,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000200218222,"Maple Leaf Bone-In Chicken Thighs, 10-12 Thighs, 1.34 - 2.17 KG",en:chickens,en:poultries,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+4QKVEBXQ92LT,Great Value Extra Virgin Olive Oil,en:extra-virgin-olive-oils,en:olive-oils,right,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000196181082,Great Value Yellow Split Peas,en:plant-based-foods,en:plant-based-foods-and-beverages,wrong,"Claude, from the tile name, 2026-09-30 (not a person)"
+6000197107045,yu choy sold bulk,en:teas,en:plant-based-beverages,wrong,"Claude, from the tile name, 2026-09-30 (not a person)"
+10061051,Cap'N Crunch Original Cereal Cap N,en:breakfast-cereals,en:cereals-and-their-products,right,"Claude, from the tile name, 2026-09-30 (not a person)"
