@@ -193,8 +193,8 @@ The range a shopper sees is built from every data point Shin holds: store prices
 no barcode, sale prices, shopper reports weighted by how well they check out, from any site and any
 category, electronics included. It exists to tell the shopper whether the price in front of them is
 a good one or a bad one; an answer that cannot separate the two makes the system useless, however
-accurate it is. Until that is measured, the words shown stay under "The price line speaks the
-shopper's own range, never Shin's opinion" (open question to Jamin, 2026-09-28). · 2026-09-28 · *"How do the price ranges we return to the user get determined from all the data points we have? After all, it is very important to remember what the user actually wants. The user is looking for validation for whether or not a product is a good price or a bad price. And if we are not able to give A valuable answer, then our entire system is useless."* · *"How will you handle future data that comes from other sites? How will you handle electronics?"*
+accurate it is. The words shown follow "The verdict speaks his words against the shopper's own
+thresholds" (2026-09-30). · 2026-09-28 · *"How do the price ranges we return to the user get determined from all the data points we have? After all, it is very important to remember what the user actually wants. The user is looking for validation for whether or not a product is a good price or a bad price. And if we are not able to give A valuable answer, then our entire system is useless."* · *"How will you handle future data that comes from other sites? How will you handle electronics?"*
 Retired wording: none
 Governs: to fill (docs/price-data-design-2026-09-28.md, section 8)
 
@@ -207,15 +207,18 @@ red on a broken version is not yet a test. · 2026-09-28 · *"Especially when bu
 Retired wording: none
 Governs: to fill (first use: docs/price-data-design-2026-09-28.md, "How it is tested")
 
-### The price line speaks the shopper's own range, never Shin's opinion
-Zone words name where the shelf price falls against the shopper's own set thresholds (defaults 10%
-under/over), returned as neutral codes (under_your_line, middle, over_your_line), never
-good/reasonable/bad against a grounded search median, which are performance-claim words barred by
-hard rule 2 without measured testing. This dissolves the tension between Jamin's own "tell the
-user factually good/bad" instinct and the Competition Act rule, rather than bending either.
-· 2026-09-14 · *"The price line speaks the shopper's own range, never Shin's opinion"* · log: docs/decisions.md#The price line speaks the shopper's own range, never Shin's opinion
-Retired wording (single words, too common to search; guarded by identify/src/gauge.ts): good, reasonable, bad, factually
-Governs: identify/src/gauge.ts, four price-line ban-list tests
+### The verdict speaks his words against the shopper's own thresholds
+The zone is named in his words, great, good, reasonable or bad, by where the shopper's price falls
+against Shin's estimated typical price for this item and the shopper's own thresholds (defaults, his
+2026-09-17 setup numbers: good 20% or more under, great 30% or more under, bad 20% or more over). The
+typical price is labelled as Shin's estimate. No "saved" wording and no savings tally (hard rule 2);
+legal review before public launch still stands. · 2026-09-14 · *"we ask the user what their range
+for a bad, resonable and good price is as an average above or below the price and then we tell the
+user based on their preference, this is factrually a bad, resonable or good price"* · 2026-09-17 ·
+*"ask them to determine their good, bad, and great price ranges"* · 2026-09-30 · *"you can make any
+calls"* (the neutral-code version was Claude's, never his) · log: docs/decisions.md#The price verdict is an animated normal distribution chart, always shown (2026-09-30)
+Retired wording: `never Shin's opinion`, `returned as neutral codes`
+Governs: identify/src/gauge.ts ban lists, the verdict zones in docs/verdict-distribution-design-2026-09-30.md
 ### Reviews: Gemini's reviews ship, shown even without a source link
 Gemini's reviews win over the earlier rule that reviews show only from a licensed source with
 nothing generated; a Gemini review with no source link is still shown, flagged with a heads-up

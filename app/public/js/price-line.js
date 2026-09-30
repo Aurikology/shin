@@ -27,7 +27,8 @@
  * `test/grounded-client.test.mjs` proves the direction of that dependency by
  * breaking a wire position and asserting the dot moves.
  *
- * THE ZONE WORDS NAME THE USER'S RANGE, NEVER SHIN'S OPINION OF THE PRICE.
+ * THE ZONE WORDS NAME THE USER'S RANGE (superseded 2026-09-30: the verdict now speaks his
+ * words, great / good / reasonable / bad, against the shopper's own thresholds).
  * That is the founder's ruling of 2026-09-14 and it is also the only shape
  * that survives hard rule 2: Competition Act s.74.01(1)(b) needs adequate and
  * proper testing behind a performance claim, and four test files in this repo

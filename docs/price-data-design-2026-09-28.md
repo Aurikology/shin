@@ -186,9 +186,9 @@ separate a good price from a bad one is worthless, whatever its accuracy. So:
 - **Usefulness line, set before launch and then measured:** a range wider than a set ratio (for
   example 1.5x high over low) still answers, per "Always answer", but says it is a rough figure for
   the kind of product, not this item.
-- **The verdict words stay neutral** (RULINGS.md, "The price line speaks the shopper's own range,
-  never Shin's opinion"): "good price" and "bad price" are barred without measured testing. Section
-  6's discrimination test is that measurement.
+- **Superseded 2026-09-30:** the verdict speaks his words (great, good, reasonable, bad) against the
+  shopper's own thresholds (RULINGS.md, "The verdict speaks his words against the shopper's own
+  thresholds"). Section 6's discrimination test still measures whether the zones are right.
 
 ## Order to build
 

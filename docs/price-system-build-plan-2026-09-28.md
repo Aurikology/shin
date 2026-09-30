@@ -167,7 +167,7 @@ Build: usual price nearby, lowest recent price and where, how low it goes on sal
 items, the item's own range with how many prices stand behind it. The range always shows (Always
 answer); the low/typical/high label shows only when its confidence check passes (Google Flights
 pattern). Log exactly what was shown, for scoring. Done when: the top check passes on the sealed
-batch. Wording: RULINGS.md "The price line speaks the shopper's own range" holds until Jamin decides
+batch. Wording (decided 2026-09-30): RULINGS.md "The verdict speaks his words against the shopper's own thresholds"; was open until then
 (open question, 2026-09-28); Competition Act "general impression" standard (fines up to $10M or 3%).
 Borrowed: CarGurus deal ratings, Kelley Blue Book fair range, Kayak per-forecast confidence.
 

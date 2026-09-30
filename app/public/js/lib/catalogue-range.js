@@ -10,8 +10,8 @@
  * on the client, and nothing else:
  *
  *   1. WHERE A SHELF PRICE FALLS against the shopper's OWN lines.
- *      RULINGS.md "The price line speaks the shopper's own range, never Shin's
- *      opinion": the answer is one of the three neutral codes the price line
+ *      (Superseded 2026-09-30 by RULINGS.md "The verdict speaks his words against
+ *      the shopper's own thresholds".) The answer is one of the three codes the price line
  *      already uses (under_your_line, middle, over_your_line), never a grading
  *      word. The rule is identify/src/gauge.ts's own, so the two cannot disagree
  *      on where a line sits: percent from the middle, `<= -good` is under, `> bad`

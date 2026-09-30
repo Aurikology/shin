@@ -2476,4 +2476,16 @@ text: *"Correct and Share sit at half detent since correction applies even to a 
 hands back exactly one action (record the price the user read, dated and attributed) and never
 promises to look again."* The matching passage in docs/design/DESIGN.md is replaced the same way.
 
+Then: *"go ahead and build. make sure you don't go any of the most recent calls i've made(a call
+from the past doesn't count if i've contradicted it in the future). Other than that, you can make
+any calls"*. Claude's calls, in docs/verdict-distribution-design-2026-09-30.md: a log-price bell;
+bulk compared within a pack-size band (his 09-17 "constraints" is later than 09-14 "a bad deal is a
+bad deal"); his own verdict words and his 09-17 threshold numbers. The price-line entry is
+rewritten: old heading "The price line speaks the shopper's own range, never Shin's opinion", old
+text *"Zone words name where the shelf price falls against the shopper's own set thresholds
+(defaults 10% under/over), returned as neutral codes (under_your_line, middle, over_your_line),
+never good/reasonable/bad against a grounded search median, which are performance-claim words
+barred by hard rule 2 without measured testing."* That entry was Claude's; hard rule 2 bars savings
+claims and is untouched.
+
 **Reverses if:** he says so.

@@ -110,8 +110,8 @@ whether it does anything once set.
 15. **Direct contradiction, verified in the code on every step of the path above.** The setup screen
     and the You screen both tell the shopper, in plain words, that these two numbers are theirs to
     set and that the app's zones are drawn around them ("Both changeable any time on the You page";
-    the zone-drawing code's own comment: "THE ZONE WORDS NAME THE USER'S RANGE, NEVER SHIN'S
-    OPINION"). The dated decision that created this feature exists specifically so that a real,
+    the zone-drawing code's own comment, superseded 2026-09-30 when the verdict took his words
+    great / good / reasonable / bad). The dated decision that created this feature exists specifically so that a real,
     Competition-Act-compliant version of the founder's original ask ("we tell the user based on
     their preference") could ship. But no code on the path from the setup screen to the price-line
     calculation actually carries the chosen numbers anywhere; they are written to the phone's local

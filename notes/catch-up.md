@@ -1302,7 +1302,7 @@ display-only":
 3. **Gemini reviews ship, and beta plan item 30 is amended** (work-list item 4, his call). Recorded
    in the decision log rather than by editing `docs/the-beta-build-plan.md`, which is Jamin's file.
 4. Of the twelve awkward item kinds, the four that reach beta testers.
-5. **The price line's words name the range the shopper set, never Shin's opinion of the price.**
+5. **(Superseded 2026-09-30: the verdict now speaks his words against the shopper's own thresholds.) The price line's words named the range the shopper set.**
    `good / reasonable / bad` do not ship: they are tier words, hard rule 2 forbids an unmeasured
    performance claim, and four test files enforce it. The function returns neutral zone codes.
 6. Models: the lite tier by default, `gemini-3.8-flash` only on low confidence (superseded
