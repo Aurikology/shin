@@ -1,0 +1,15 @@
+{
+  "name": "shin-bench",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The price test bench (build plan unit B): audited answer keys, grouped and time splits, a sealed batch, scores, and baselines on record. Reads price/data/prices.db read-only.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.ts\"",
+    "typecheck": "node ../spine/node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
+    "baseline": "node src/run.ts"
+  }
+}
