@@ -121,7 +121,70 @@ export interface ObservationRow {
    * row.
    */
   readonly basePriceCents?: number | null;
+  /*
+   * THE PRINTOUT FIELDS, added 2026-09-28 for unit A1 of
+   * docs/price-system-build-plan-2026-09-28.md (layer 2 of the three-layer
+   * store). All optional, same rule as storeName: omitted means the caller's
+   * source does not carry the thing, present and null means it does and this
+   * row had none. capture-printout.ts fills them; no crawl caller passes them.
+   */
+  /** The store's own category for the page the row was read from, verbatim ("Pasta & Pasta Sauce"). */
+  readonly storeCategory?: string | null;
+  /** The "was" price printed next to a sale price, in cents. NULL when none was printed. */
+  readonly wasCents?: number | null;
+  /** 1 when the tile carried a sale mark (Rollback, Clearance, Reduced price) or a "was" price; 0 when it carried none. */
+  readonly isSale?: number | null;
+  /**
+   * What `unitPriceCents` is per, normalised: '100g', '100ml', 'kg', 'l', 'lb', 'each'.
+   * `unitLabel` keeps the unit price exactly as printed ("$2.62/100g"). A
+   * printed unit price may be fractional cents (26.2¢/100g), so for these rows
+   * `unitPriceCents` can hold a non-integer; SQLite keeps it as REAL.
+   */
+  readonly unitPricePer?: string | null;
+  /** Brand / size / variant parsed from the name. Parsed, never printed: a guess the row can be argued out of. */
+  readonly parsedBrand?: string | null;
+  readonly parsedSize?: string | null;
+  readonly parsedVariant?: string | null;
+  /** The raw `capture_tile` this row was derived from. Set means the row is rebuildable from raw alone. */
+  readonly captureTileId?: number | null;
+  /** Path of the tile crop image, when one was saved. */
+  readonly tileImage?: string | null;
+  /**
+   * Why this row should not be trusted as-is, as a JSON array of strings, or
+   * NULL when nothing was flagged. A flagged row is labelled, not deleted
+   * (Project Hammer's habit, cited in the build plan). E.g.
+   * "unit_price_disagrees:..." when price / size and the printed unit price
+   * disagree; `unitPriceCents` is then left NULL and only the printed text
+   * survives in `unitLabel`, so nothing downstream uses it silently.
+   */
+  readonly flags?: string | null;
+  /**
+   * 1 only when a printout price passed EVERY positive check in
+   * capture-printout.ts (one whole shelf-price token, in this tile alone, no
+   * other money in the tile, no count / range / "from" / minus / US context,
+   * visible and upright, above its own printed title, no flags). 0 otherwise,
+   * and 0 for every row not derived from a printout. Downstream consumers read
+   * only price_verified = 1 printout rows as price evidence; the rest is
+   * training data. Added 2026-09-28 (third audit, the inverted model).
+   */
+  readonly priceVerified?: number | null;
 }
+
+/*
+ * Why a raw product link did not become an observation row. Derived: replaced
+ * wholesale on every derive, never hand-edited, so a table of an older shape is
+ * simply dropped and recreated (see addMissingColumns). Store is in the key so
+ * two stores' drops for one product and day never overwrite each other.
+ */
+const CAPTURE_DROP_DDL = `CREATE TABLE IF NOT EXISTS capture_drop (
+  seller        TEXT NOT NULL,
+  store         TEXT NOT NULL,
+  retailer_product_id TEXT NOT NULL,
+  seen_on       TEXT NOT NULL,
+  capture_tile_id INTEGER,
+  reason        TEXT NOT NULL,
+  PRIMARY KEY (seller, store, retailer_product_id, seen_on)
+);`;
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS observation (
@@ -164,6 +227,21 @@ CREATE TABLE IF NOT EXISTS observation (
    * customer pays). Added 2026-09-26; see ObservationRow.basePriceCents.
    */
   base_price_cents INTEGER,
+  /*
+   * Layer 2 printout fields, added 2026-09-28 (unit A1). See ObservationRow.
+   * Existing databases get them from addMissingColumns, not from here.
+   */
+  store_category  TEXT,
+  was_cents       INTEGER,
+  is_sale         INTEGER,
+  unit_price_per  TEXT,
+  parsed_brand    TEXT,
+  parsed_size     TEXT,
+  parsed_variant  TEXT,
+  capture_tile_id INTEGER,
+  tile_image      TEXT,
+  flags           TEXT,
+  price_verified  INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (seller, seller_sku, seen_on)
 );
 
@@ -187,6 +265,113 @@ CREATE TABLE IF NOT EXISTS crawl_attempt (
 );
 
 CREATE INDEX IF NOT EXISTS attempt_by_outcome ON crawl_attempt(seller, outcome);
+
+/*
+ * ---------------------------------------------------------------------------
+ * THE THREE-LAYER STORE, 2026-09-28 (unit A1, docs/price-system-build-plan-2026-09-28.md).
+ *
+ *   Layer 1, raw:         capture + capture_tile. What the saved page said, kept
+ *                         unedited. The triggers below refuse UPDATE; rows can be
+ *                         deleted (that is how the rebuild check is proved to go
+ *                         red) but never rewritten.
+ *   Layer 2, observation: the table above. Rows derived from raw carry
+ *                         capture_tile_id and can be rebuilt from raw alone
+ *                         (capture-printout.ts, checkRebuild).
+ *   Layer 3, identity:    identity_link. Which barcode a seller's product is, how
+ *                         that was found and how sure. Optional and replaceable,
+ *                         and kept OFF the price row on purpose: a wrong match is
+ *                         replaced by a new link, the price it pointed at is not
+ *                         touched. observation.code is still the only column any
+ *                         serving reader (range.ts, verdict.ts, lookup.ts, the
+ *                         app) joins on, and nothing here writes it. Turning a
+ *                         link into a served code changes answers, so it waits
+ *                         for the test bench (plan, section B).
+ * ---------------------------------------------------------------------------
+ */
+CREATE TABLE IF NOT EXISTS capture (
+  id            INTEGER PRIMARY KEY,
+  file_path     TEXT NOT NULL,
+  /* The same file read twice is the same capture: intake is idempotent on this. */
+  sha256        TEXT NOT NULL UNIQUE,
+  source_kind   TEXT NOT NULL,
+  seller        TEXT NOT NULL,
+  /* 'unknown' is a real value: the 29 printouts do not show which store. */
+  store         TEXT NOT NULL,
+  /* The store's category as given at intake; NULL means read it from doc_title. */
+  store_category TEXT,
+  captured_at   TEXT NOT NULL,
+  page_count    INTEGER NOT NULL,
+  doc_title     TEXT,
+  creation_date TEXT,
+  /* Links on the pages that were not product links (navigation): counted, not stored. */
+  other_links   INTEGER NOT NULL,
+  ingested_at   TEXT NOT NULL,
+  /*
+   * One intake run (one CLI invocation, one person's session). With no store
+   * given, captures of one run are treated as one unknown store.
+   */
+  intake_run    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS capture_tile (
+  id            INTEGER PRIMARY KEY,
+  capture_id    INTEGER NOT NULL REFERENCES capture(id),
+  page          INTEGER NOT NULL,
+  x0 REAL NOT NULL, y0 REAL NOT NULL, x1 REAL NOT NULL, y1 REAL NOT NULL,
+  retailer_product_id TEXT NOT NULL,
+  retailer_url  TEXT NOT NULL,
+  /* Every word whose centre is inside the link rectangle, verbatim, as the PDF reader gave it. */
+  words_json    TEXT NOT NULL,
+  tile_image    TEXT,
+  /* Words touching the rectangle from outside (edge-crossing, or the rest of a block that starts inside). */
+  near_json     TEXT
+);
+
+CREATE INDEX IF NOT EXISTS capture_tile_by_capture ON capture_tile(capture_id, page);
+
+CREATE TRIGGER IF NOT EXISTS capture_is_raw BEFORE UPDATE ON capture
+BEGIN SELECT RAISE(ABORT, 'capture is raw and is never edited'); END;
+CREATE TRIGGER IF NOT EXISTS capture_tile_is_raw BEFORE UPDATE ON capture_tile
+BEGIN SELECT RAISE(ABORT, 'capture_tile is raw and is never edited'); END;
+
+/*
+ * Which observation keys the printout intake itself wrote. Lets the rebuild
+ * check tell "a crawl row held this key before intake" (expected) from "our
+ * row was later unlinked or replaced by another writer" (a finding, red).
+ */
+CREATE TABLE IF NOT EXISTS capture_written (
+  seller        TEXT NOT NULL,
+  retailer_product_id TEXT NOT NULL,
+  seen_on       TEXT NOT NULL,
+  capture_tile_id INTEGER,
+  written_at    TEXT NOT NULL,
+  PRIMARY KEY (seller, retailer_product_id, seen_on)
+);
+
+/* Append-only, like raw: a ledger that can be edited cannot vouch for anything. */
+CREATE TRIGGER IF NOT EXISTS capture_written_no_update BEFORE UPDATE ON capture_written
+BEGIN SELECT RAISE(ABORT, 'capture_written is a ledger and is never edited'); END;
+CREATE TRIGGER IF NOT EXISTS capture_written_no_delete BEFORE DELETE ON capture_written
+BEGIN SELECT RAISE(ABORT, 'capture_written is a ledger and is never edited'); END;
+
+${CAPTURE_DROP_DDL}
+
+CREATE TABLE IF NOT EXISTS identity_link (
+  id            INTEGER PRIMARY KEY,
+  seller        TEXT NOT NULL,
+  seller_sku    TEXT NOT NULL,
+  barcode       TEXT NOT NULL,
+  /* How it was found. Free text on purpose: 'retailer_page_upc', 'gtin', 'name', 'human', ... */
+  join_method   TEXT NOT NULL,
+  confidence    REAL NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
+  found_on      TEXT NOT NULL,
+  evidence      TEXT,
+  /* NULL means current. A replaced link is kept, pointing at the link that replaced it. */
+  replaced_by   INTEGER REFERENCES identity_link(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS identity_link_current
+  ON identity_link(seller, seller_sku) WHERE replaced_by IS NULL;
 `;
 
 /**
@@ -268,7 +453,44 @@ function addMissingColumns(db: DatabaseSync): void {
   if (!have.has('page_gtin')) db.exec('ALTER TABLE observation ADD COLUMN page_gtin TEXT');
   if (!have.has('base_price_cents'))
     db.exec('ALTER TABLE observation ADD COLUMN base_price_cents INTEGER');
+  // Layer 2 printout fields, 2026-09-28 (unit A1). All nullable, so ADD COLUMN
+  // rewrites no row and every existing row reads NULL for them.
+  for (const [name, type] of PRINTOUT_COLUMNS) {
+    if (!have.has(name)) db.exec(`ALTER TABLE observation ADD COLUMN ${name} ${type}`);
+  }
+  // A constant default is allowed by ADD COLUMN: no row is rewritten, every existing row reads 0.
+  if (!have.has('price_verified')) db.exec('ALTER TABLE observation ADD COLUMN price_verified INTEGER NOT NULL DEFAULT 0');
+  const tileCols = new Set(
+    (db.prepare('PRAGMA table_info(capture_tile)').all() as unknown as { name: string }[]).map((c) => c.name),
+  );
+  if (!tileCols.has('near_json')) db.exec('ALTER TABLE capture_tile ADD COLUMN near_json TEXT');
+  const captureCols = new Set(
+    (db.prepare('PRAGMA table_info(capture)').all() as unknown as { name: string }[]).map((c) => c.name),
+  );
+  if (!captureCols.has('intake_run')) db.exec('ALTER TABLE capture ADD COLUMN intake_run TEXT');
+  const dropCols = new Set(
+    (db.prepare('PRAGMA table_info(capture_drop)').all() as unknown as { name: string }[]).map((c) => c.name),
+  );
+  if (!dropCols.has('store')) {
+    // Derived table, rebuilt on every derive: recreating it loses nothing raw holds.
+    db.exec('DROP TABLE capture_drop');
+    db.exec(CAPTURE_DROP_DDL);
+  }
 }
+
+/** The columns unit A1 added to `observation`, in DDL order. Exported for the migration test. */
+export const PRINTOUT_COLUMNS: readonly (readonly [string, string])[] = [
+  ['store_category', 'TEXT'],
+  ['was_cents', 'INTEGER'],
+  ['is_sale', 'INTEGER'],
+  ['unit_price_per', 'TEXT'],
+  ['parsed_brand', 'TEXT'],
+  ['parsed_size', 'TEXT'],
+  ['parsed_variant', 'TEXT'],
+  ['capture_tile_id', 'INTEGER'],
+  ['tile_image', 'TEXT'],
+  ['flags', 'TEXT'],
+];
 
 /*
  * Created after addMissingColumns rather than inside DDL above: on a database
@@ -282,10 +504,15 @@ const REJOIN_INDEX = `
 CREATE INDEX IF NOT EXISTS observation_rejoinable
   ON observation(page_gtin)
   WHERE code IS NULL AND page_gtin IS NOT NULL;
+CREATE INDEX IF NOT EXISTS observation_by_capture_tile
+  ON observation(capture_tile_id) WHERE capture_tile_id IS NOT NULL;
 `;
 
 export function openPrices(path: string = PRICES_DB_PATH): DatabaseSync {
   const db = new DatabaseSync(path);
+  // Before anything writes (the migration below included): a second process
+  // holding the file waits up to 5 s instead of failing the open with SQLITE_BUSY.
+  db.exec('PRAGMA busy_timeout = 5000');
   db.exec('PRAGMA journal_mode = WAL');
   db.exec(DDL);
   addMissingColumns(db);
@@ -301,10 +528,11 @@ export function openPrices(path: string = PRICES_DB_PATH): DatabaseSync {
  * store_* columns were added to the table in this same change; if a future
  * column is added to the table and not added here, in both the column list
  * and the values list and the bind arguments below, it will quietly wipe
- * itself out on the next INSERT OR REPLACE for that key. Count them: 22
- * columns, 22 placeholders, 22 bind arguments below. Keep the three counts
- * equal. (`page_gtin` was the 21st, added 2026-09-08; `base_price_cents` is
- * the 22nd, added 2026-09-26.)
+ * itself out on the next INSERT OR REPLACE for that key. Count them: 33
+ * columns, 33 placeholders, 33 bind arguments below. Keep the three counts
+ * equal. (`page_gtin` was the 21st, added 2026-09-08; `base_price_cents` the
+ * 22nd, added 2026-09-26; the ten printout columns, store_category through
+ * flags, are the 23rd to 32nd, added 2026-09-28; price_verified is the 33rd.)
  */
 export function recordObservation(db: DatabaseSync, o: ObservationRow): void {
   db.prepare(
@@ -312,8 +540,10 @@ export function recordObservation(db: DatabaseSync, o: ObservationRow): void {
        (code, seller, seller_sku, seller_name, seller_brand, price_cents, kind,
         unit_price_cents, unit_label, currency, country, region, join_method,
         seen_on, url, image_url, in_stock, store_name, store_city, store_osm,
-        page_gtin, base_price_cents)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        page_gtin, base_price_cents,
+        store_category, was_cents, is_sale, unit_price_per, parsed_brand,
+        parsed_size, parsed_variant, capture_tile_id, tile_image, flags, price_verified)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   ).run(
     o.code,
     o.seller,
@@ -337,6 +567,17 @@ export function recordObservation(db: DatabaseSync, o: ObservationRow): void {
     o.storeOsm ?? null,
     o.pageGtin ?? null,
     o.basePriceCents ?? null,
+    o.storeCategory ?? null,
+    o.wasCents ?? null,
+    o.isSale ?? null,
+    o.unitPricePer ?? null,
+    o.parsedBrand ?? null,
+    o.parsedSize ?? null,
+    o.parsedVariant ?? null,
+    o.captureTileId ?? null,
+    o.tileImage ?? null,
+    o.flags ?? null,
+    o.priceVerified ?? 0,
   );
 }
 
@@ -503,7 +744,17 @@ export interface NameRejoinableRow {
   readonly url: string | null;
 }
 
-/** Unjoined rows with no barcode on them, for the name leg of a nightly rejoin. */
+/**
+ * Unjoined rows with no barcode on them, for the name leg of a nightly rejoin.
+ *
+ * Rows derived from a raw capture (capture_tile_id set, i.e. the store
+ * printouts) are NOT returned, added 2026-09-28. Joining a printout row by
+ * name IS the printout matcher, and that matcher failed its bar and is paused
+ * (docs/screenshot-matcher-design-2026-09-28.md, version 1 results; Jamin
+ * 2026-09-28). Without this line the first nightly name rejoin after a
+ * printout intake would quietly run the paused matcher and write codes that
+ * range.ts then serves. Their identity goes through `identity_link` instead.
+ */
 export function nameRejoinable(
   db: DatabaseSync,
   seller: string | null = null,
@@ -515,6 +766,7 @@ export function nameRejoinable(
          FROM observation
         WHERE code IS NULL
           AND page_gtin IS NULL
+          AND capture_tile_id IS NULL
           ${seller === null ? '' : 'AND seller = ?'}
         ORDER BY seen_on, seller, seller_sku
         ${limit === null ? '' : 'LIMIT ?'}`,
@@ -590,4 +842,88 @@ export function joinState(db: DatabaseSync, seller: string): {
     rejoinable: row.rejoinable ?? 0,
     noBarcode: row.no_barcode ?? 0,
   };
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * IDENTITY LINK, layer 3, 2026-09-28 (unit A1). Which barcode a seller's product
+ * is, kept apart from every price row for that product.
+ *
+ * Keyed on (seller, seller_sku), not on a price row: a product's identity does
+ * not change day to day, its price does. One CURRENT link per key; replacing it
+ * inserts the new link and points the old one at it, so the history of what we
+ * believed and why is never lost. Nothing here writes observation.code.
+ * ---------------------------------------------------------------------------
+ */
+
+export interface IdentityLink {
+  readonly id: number;
+  readonly seller: string;
+  readonly sellerSku: string;
+  readonly barcode: string;
+  readonly joinMethod: string;
+  readonly confidence: number;
+  readonly foundOn: string;
+  readonly evidence: string | null;
+  readonly replacedBy: number | null;
+}
+
+export type NewIdentityLink = Omit<IdentityLink, 'id' | 'replacedBy'>;
+
+/** Record a link, replacing (not deleting) the current one for that product. Returns the new id. */
+export function linkIdentity(db: DatabaseSync, link: NewIdentityLink): number {
+  if (!(link.confidence >= 0 && link.confidence <= 1)) throw new Error(`confidence out of range: ${link.confidence}`);
+  db.exec('BEGIN');
+  try {
+    const prior = db
+      .prepare('SELECT id FROM identity_link WHERE seller = ? AND seller_sku = ? AND replaced_by IS NULL')
+      .get(link.seller, link.sellerSku) as unknown as { id: number } | undefined;
+    // The unique index allows one current link per key, so the old one steps
+    // aside first (pointed at itself for the instant before the new id exists).
+    if (prior) db.prepare('UPDATE identity_link SET replaced_by = id WHERE id = ?').run(prior.id);
+    const r = db
+      .prepare(
+        `INSERT INTO identity_link (seller, seller_sku, barcode, join_method, confidence, found_on, evidence)
+         VALUES (?,?,?,?,?,?,?)`,
+      )
+      .run(link.seller, link.sellerSku, link.barcode, link.joinMethod, link.confidence, link.foundOn, link.evidence);
+    const id = Number(r.lastInsertRowid);
+    if (prior) db.prepare('UPDATE identity_link SET replaced_by = ? WHERE id = ?').run(id, prior.id);
+    db.exec('COMMIT');
+    return id;
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+function toLink(r: Record<string, unknown>): IdentityLink {
+  return {
+    id: Number(r.id),
+    seller: String(r.seller),
+    sellerSku: String(r.seller_sku),
+    barcode: String(r.barcode),
+    joinMethod: String(r.join_method),
+    confidence: Number(r.confidence),
+    foundOn: String(r.found_on),
+    evidence: r.evidence === null ? null : String(r.evidence),
+    replacedBy: r.replaced_by === null ? null : Number(r.replaced_by),
+  };
+}
+
+/** The current link for a product, or null when none has been made. */
+export function currentIdentity(db: DatabaseSync, seller: string, sellerSku: string): IdentityLink | null {
+  const r = db
+    .prepare('SELECT * FROM identity_link WHERE seller = ? AND seller_sku = ? AND replaced_by IS NULL')
+    .get(seller, sellerSku) as Record<string, unknown> | undefined;
+  return r ? toLink(r) : null;
+}
+
+/** Every link ever made for a product, oldest first, replaced ones included. */
+export function identityHistory(db: DatabaseSync, seller: string, sellerSku: string): IdentityLink[] {
+  return (
+    db
+      .prepare('SELECT * FROM identity_link WHERE seller = ? AND seller_sku = ? ORDER BY id')
+      .all(seller, sellerSku) as Record<string, unknown>[]
+  ).map(toLink);
 }

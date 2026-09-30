@@ -207,11 +207,26 @@ function padForms(code: string): string[] {
   return [...new Set(forms)];
 }
 
+/**
+ * " AND capture_tile_id IS NULL", or "" on a prices file that predates the
+ * column (this file is opened read-only, so it is never migrated here).
+ *
+ * A row with capture_tile_id set was derived from a store printout
+ * (price/src/capture-printout.ts). It carries no checked identity - the
+ * printout matcher failed its bar and is paused - so it must never be merged
+ * into an answer by name and size. Audit 2026-09-28: a printout Rollback at
+ * $2.97 became a barcoded Loblaws product's cheapest price that way.
+ */
+function notPrintout(db: DatabaseSync): string {
+  const cols = db.prepare('PRAGMA table_info(observation)').all() as { name: string }[];
+  return cols.some((c) => c.name === 'capture_tile_id') ? ' AND capture_tile_id IS NULL' : '';
+}
+
 function pricesRows(db: DatabaseSync, where: string, args: string[]): OwnPrice[] {
   const rows = db
     .prepare(
       `SELECT seller, store_name, store_city, price_cents, currency, seen_on, url, kind
-         FROM observation WHERE ${where}`,
+         FROM observation WHERE (${where})${notPrintout(db)}`,
     )
     .all(...args) as Record<string, unknown>[];
   const out: OwnPrice[] = [];
@@ -369,7 +384,7 @@ export function lookupOwnPrices(typed: string, sources: OwnLookupSources = {}): 
       const rows = prices
         .prepare(
           `SELECT DISTINCT code, seller, seller_sku, seller_name, seller_brand FROM observation
-            WHERE seller_name <> '(unnamed)'${like ? " AND lower(seller_name || ' ' || coalesce(seller_brand, '')) LIKE ?" : ''}`,
+            WHERE seller_name <> '(unnamed)'${notPrintout(prices)}${like ? " AND lower(seller_name || ' ' || coalesce(seller_brand, '')) LIKE ?" : ''}`,
         )
         .all(...(like ? [like] : [])) as Record<string, unknown>[];
       const db = prices;
@@ -569,7 +584,7 @@ export function lookupOwnPricesByBarcode(code: string, sources: OwnLookupSources
         .prepare(
           `SELECT seller, seller_name, seller_brand, store_name, store_city, price_cents, base_price_cents,
                   currency, country, region, seen_on, url, kind, code, page_gtin
-             FROM observation WHERE code IN (${placeholders}) OR page_gtin IN (${placeholders})`,
+             FROM observation WHERE (code IN (${placeholders}) OR page_gtin IN (${placeholders}))${notPrintout(prices)}`,
         )
         .all(...forms, ...forms) as Record<string, unknown>[];
       for (const r of rows) {

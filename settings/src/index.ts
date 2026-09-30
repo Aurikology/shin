@@ -112,6 +112,7 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_GEMINI_MEDIA_RESOLUTION', default: "unset -> provider's own per-tier default", ruling: 'operational' },
   { env: 'SHIN_GEMINI_THINKING', default: 'unset -> per-tier default thinking level', ruling: 'operational' },
   { env: 'SHIN_CORRECTIONS', default: 'price/data/corrections.db', ruling: 'operational' },
+  { env: 'SHIN_PYTHON', default: "'python' on Windows, 'python3' elsewhere (printout intake's PDF reader)", ruling: 'operational' },
   { env: 'REVENUECAT_SECRET_KEY', default: "unset -> 'client_trusted' mode (beta only)", ruling: 'operational', secret: true },
   { env: 'SHIN_ADMIN_TOKEN', default: 'unset -> every /api/admin/* path answers 404', ruling: 'operational', secret: true },
   { env: 'SHIN_DATA_DIR', default: 'process.cwd()/data', ruling: 'operational' },
@@ -262,6 +263,9 @@ export function SHIN_GEMINI_THINKING(env: NodeJS.ProcessEnv = process.env): stri
 }
 export function SHIN_CORRECTIONS(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_CORRECTIONS');
+}
+export function SHIN_PYTHON(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_PYTHON');
 }
 export function REVENUECAT_SECRET_KEY(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'REVENUECAT_SECRET_KEY');
