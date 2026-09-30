@@ -2464,3 +2464,16 @@ which": his newest design and every decision behind it outrank Claude's calls an
 The ruling judge found nothing contradicting it or the estimated-range sentence.
 
 **Reverses if:** he says so.
+
+## The price verdict is an animated normal distribution chart, always shown (2026-09-30)
+
+His words: *"for the price verdict, the app will provide an animated normal distribution chart and
+where their product price falls on it. It will ALWAYS provide the answer(unless the user runs out
+of scans). So now the question is, what are all the edge cases, and how will you provide the best
+answer possible for each case"*. Recorded in RULINGS.md "V1 verdict screen mechanics". The ruling
+judge found no conflict, but the same entry still held a refusal screen, rewritten by hand. Old
+text: *"Correct and Share sit at half detent since correction applies even to a refusal. A refusal
+hands back exactly one action (record the price the user read, dated and attributed) and never
+promises to look again."* The matching passage in docs/design/DESIGN.md is replaced the same way.
+
+**Reverses if:** he says so.

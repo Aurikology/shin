@@ -320,12 +320,8 @@ where their eyes already are. Correct it ranks above Share because a wrong verdi
 no verdict, it is the only action that exists on every outcome including a refusal, and it is the
 crowd price layer's only intake.
 
-**A refusal hands back exactly one action**, chosen by reason, and never two weighted pills. The
-second option is the downward drag that already dismisses the sheet. The one action for the thin
-family is **Keep it**, which records what the user read, dated and attributed to a named seller.
-**A refusal never promises to look again**, because there is no re-queryable source and a
-capability claim the app cannot honour sits in the same family as a fabricated price
-(`USAGE.md` C4).
+**There is no refusal.** Retired 2026-09-30 (RULINGS.md "V1 verdict screen mechanics"): every scan
+with a scan left ends in the price distribution chart; only running out of scans stops it.
 
 **A session ends on the viewfinder, never on a confirmation screen**, because the last thing on
 screen should be the thing that starts the next scan. After a refusal the viewfinder hint names

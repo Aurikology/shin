@@ -481,12 +481,15 @@ Retired wording: none
 Governs: to fill
 ## Design and screens
 ### V1 verdict screen mechanics
-The verdict is one Shin face per tier, not a number. The primary action (Save/Watch, tier-keyed)
-sits in the peek detent, needing no drag; Correct and Share sit at half detent since correction
-applies even to a refusal. A refusal hands back exactly one action (record the price the user read,
-dated and attributed) and never promises to look again. The primary CTA after a verdict is Save,
+The price verdict is an animated normal distribution chart of this item's estimated prices, with the
+shopper's price marked where it falls on it. It ALWAYS gives this answer; the one exception is a
+shopper who has run out of scans (2026-09-30: *"for the price verdict, the app will provide an
+animated normal distribution chart and where their product price falls on it. It will ALWAYS provide
+the answer(unless the user runs out of scans)"*). The verdict is one Shin face per tier, not a number. The primary action (Save/Watch, tier-keyed)
+sits in the peek detent, needing no drag; Correct and Share sit at half detent. There is no refusal
+screen: every scan that has a scan left ends in the chart. The primary CTA after a verdict is Save,
 not Buy: the primary user is a window shopper, not a buyer. · 2026-09-03 · log: docs/decisions.md#The primary action sits in the verdict's peek detent
-Retired wording: `every action in the full detent`, `Move back instruction`
+Retired wording: `every action in the full detent`, `Move back instruction`, `A refusal hands back exactly one action`
 Governs: to fill
 ### Sharing, notifications and attitude
 Share exports carry no download link (Wordle's example; a link reads as an ad). The v1 return
