@@ -81,7 +81,18 @@ export interface CorrectionInput {
   readonly kind: CorrectionKind;
   /** ISO date, no time. A tag is a fact about a day. */
   readonly seenOn: string;
+  /**
+   * How the number was captured: read off a photo of the tag, or typed by hand.
+   * Optional so every existing caller keeps compiling; absent is stored as NULL,
+   * "not said", never guessed as either.
+   */
+  readonly capture?: CaptureMethod | null;
+  /** When the tag was seen, ISO timestamp, if the phone knows. `seenOn` stays the day. */
+  readonly seenAt?: string | null;
 }
+
+/** Unit F, 2026-09-30. A photo of a tag and a typed number are different evidence. */
+export type CaptureMethod = 'photo' | 'typed';
 
 export interface CorrectionRow {
   readonly id: number;
@@ -97,6 +108,9 @@ export interface CorrectionRow {
   readonly kind: CorrectionKind;
   readonly seen_on: string;
   readonly recorded_at: string;
+  /** NULL on every row written before unit F, and whenever the phone did not say. */
+  readonly capture?: CaptureMethod | null;
+  readonly seen_at?: string | null;
 }
 
 const DDL = `
@@ -114,7 +128,9 @@ CREATE TABLE IF NOT EXISTS correction (
   price_cents INTEGER NOT NULL,
   kind        TEXT NOT NULL CHECK (kind IN ('regular', 'promotional')),
   seen_on     TEXT NOT NULL,
-  recorded_at TEXT NOT NULL
+  recorded_at TEXT NOT NULL,
+  capture     TEXT CHECK (capture IS NULL OR capture IN ('photo', 'typed')),
+  seen_at     TEXT
 ) STRICT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS correction_one_per_shop_per_day
@@ -145,6 +161,27 @@ export interface CorrectionStore {
   droppedWhy: string;
 }
 
+/**
+ * Unit F's two columns, for a database created before them. Same pattern and
+ * same reason as `store.ts`'s addMissingColumns: CREATE TABLE IF NOT EXISTS
+ * never reshapes a table that already exists, and ADD COLUMN of a nullable
+ * column rewrites no row, so every correction already filed survives and reads
+ * NULL for both. Idempotent: it adds only what the table is missing.
+ */
+export const REPORT_COLUMNS: readonly (readonly [string, string])[] = [
+  ['capture', "TEXT CHECK (capture IS NULL OR capture IN ('photo', 'typed'))"],
+  ['seen_at', 'TEXT'],
+];
+
+function addReportColumns(db: DatabaseSync): void {
+  const have = new Set(
+    (db.prepare('PRAGMA table_info(correction)').all() as unknown as { name: string }[]).map((c) => c.name),
+  );
+  for (const [name, type] of REPORT_COLUMNS) {
+    if (!have.has(name)) db.exec(`ALTER TABLE correction ADD COLUMN ${name} ${type}`);
+  }
+}
+
 let active: CorrectionStore | null = null;
 
 /**
@@ -160,6 +197,7 @@ export function openCorrectionStore(path: string = CORRECTIONS_DB_PATH): Correct
     db = new DatabaseSync(path);
     db.exec('PRAGMA journal_mode = WAL');
     db.exec(DDL);
+    addReportColumns(db);
   } catch (err) {
     db = null;
     droppedWhy = err instanceof Error ? err.message : String(err);
@@ -334,6 +372,14 @@ export function recordCorrection(input: CorrectionInput): RecordResult {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.seenOn)) {
     return { ok: false, why: 'the date a tag was seen is an ISO date, no time' };
   }
+  const capture = input.capture ?? null;
+  if (capture !== null && capture !== 'photo' && capture !== 'typed') {
+    return { ok: false, why: 'a price is captured from a photo or typed, nothing else' };
+  }
+  const seenAt = input.seenAt && input.seenAt.trim() !== '' ? input.seenAt.trim() : null;
+  if (seenAt !== null && Number.isNaN(Date.parse(seenAt))) {
+    return { ok: false, why: 'the time a tag was seen is an ISO timestamp' };
+  }
 
   const code = input.code && input.code.trim() !== '' ? padGtin(input.code.trim()) : null;
   const productId = input.productId && input.productId.trim() !== '' ? input.productId.trim() : null;
@@ -412,7 +458,9 @@ export function recordCorrection(input: CorrectionInput): RecordResult {
              code        = COALESCE(code, ?),
              product_id  = COALESCE(product_id, ?),
              seller      = ?,
-             recorded_at = ?
+             recorded_at = ?,
+             capture     = ?,
+             seen_at     = ?
            WHERE id = ?`,
         )
         .run(
@@ -425,6 +473,8 @@ export function recordCorrection(input: CorrectionInput): RecordResult {
           productId,
           seller,
           now,
+          capture,
+          seenAt,
           existing.id,
         );
       return { ok: true, id: existing.id, replaced: true, alreadyStored: false };
@@ -453,8 +503,8 @@ export function recordCorrection(input: CorrectionInput): RecordResult {
       .prepare(
         `INSERT INTO correction
            (client_id, device_id, subject, code, product_id, label, category,
-            seller, seller_key, price_cents, kind, seen_on, recorded_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            seller, seller_key, price_cents, kind, seen_on, recorded_at, capture, seen_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          RETURNING id`,
       )
       .get(
@@ -471,6 +521,8 @@ export function recordCorrection(input: CorrectionInput): RecordResult {
         input.kind,
         input.seenOn,
         now,
+        capture,
+        seenAt,
       ) as { id: number } | undefined;
 
     if (row === undefined) {
