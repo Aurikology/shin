@@ -381,3 +381,58 @@ test('helpers: provenance keys, dates', () => {
   assert.equal(askedDate('', 'en-CA'), '');
   assert.equal(askedDate(null, 'en-CA'), '');
 });
+
+/* ===================================================== one store, one price == */
+
+test('one store: the price with the store and the day in plain words, never a zero-width range', () => {
+  const one = RANGE({ lowCents: 4299, highCents: 4299, medianCents: 4299, n: 1, store: 'bcldb', seenOn: '2026-09-21' });
+  const en = inLocale('en', () => catalogueSheet(hit(one), { state: TEN_TEN }));
+  assert.equal(between(en, 'data-cat-range'), '$42.99');
+  assert.equal(between(en, 'data-cat-where'), 'At BC Liquor Stores, seen September 21, 2026');
+  assert.ok(!/ to /.test(between(en, 'data-cat-range')), 'a one-price answer was drawn as a range');
+  assert.equal(between(en, 'data-cat-basis'), "From Shin's own prices at 1 store");
+  const fr = inLocale('fr', () => catalogueSheet(hit(one), { state: TEN_TEN }));
+  assert.match(between(fr, 'data-cat-range'), /^42,99.\$$/);
+  assert.equal(between(fr, 'data-cat-where'), 'Chez BC Liquor Stores, vu le 21 septembre 2026');
+  // A store this build has no word for is shown as the seller came; no date says no date.
+  const odd = inLocale('en', () => catalogueSheet(hit(RANGE({ lowCents: 500, highCents: 500, medianCents: 500, n: 1, store: 'acme', seenOn: null })), { state: TEN_TEN }));
+  assert.equal(between(odd, 'data-cat-where'), 'At acme');
+});
+
+test('every seller reads as a real store; Open Prices is a publisher, so its rows name the shop', () => {
+  const one = (extra) => RANGE({ lowCents: 649, highCents: 649, medianCents: 649, n: 1, seenOn: '2026-08-08', ...extra });
+  const where = (extra) => between(inLocale('en', () => catalogueSheet(hit(one(extra)), { state: TEN_TEN })), 'data-cat-where');
+  assert.equal(where({ store: 'anbl' }), 'At NB Liquor (ANBL), seen August 8, 2026');
+  assert.equal(where({ store: 'bcldb' }), 'At BC Liquor Stores, seen August 8, 2026');
+  assert.equal(where({ store: 'walmart.ca' }), 'At Walmart, seen August 8, 2026');
+  assert.equal(where({ store: 'openprices', shop: 'Marché Adonis, Brossard' }), 'At Marché Adonis, Brossard, seen August 8, 2026');
+  assert.equal(where({ store: 'openprices', shop: null }), 'At a shopper-reported store, seen August 8, 2026');
+  assert.ok(!/Open Prices/.test(where({ store: 'openprices', shop: null })));
+});
+
+test('one store price: the shelf price is said against that one number in plain money, never a zone or a verdict', () => {
+  const one = RANGE({ lowCents: 649, highCents: 649, medianCents: 649, n: 1, store: 'bcldb', seenOn: '2026-08-08' });
+  const say = (cents) => {
+    const html = inLocale('en', () => catalogueSheet(hit(one), { shelfCents: cents, state: TEN_TEN }));
+    return { head: between(html, 'data-cat-headline'), zone: attr(html, 'data-zone'), tier: attr(html, 'data-tier') };
+  };
+  assert.deepEqual(say(649), { head: "Same as the store's price", zone: '', tier: 'unknown' });
+  assert.equal(say(549).head, "$1.00 under the store's price");
+  assert.equal(say(700).head, "$0.51 over the store's price");
+  assert.ok(!/middle|good|bad|great|cheap|expensive/i.test(say(700).head));
+  // A real range still speaks the shopper's zone.
+  const ranged = inLocale('en', () => catalogueSheet(hit(RANGE()), { shelfCents: 599, state: TEN_TEN }));
+  assert.equal(attr(ranged, 'data-zone'), 'middle');
+});
+
+test('a product only the price store knows is the same sheet, flagged by its source', () => {
+  const answer = hit(RANGE({ lowCents: 4299, highCents: 4299, medianCents: 4299, n: 1, store: 'bcldb', seenOn: '2026-09-21' }), {
+    outcome: 'price_store_hit',
+    identity: { name: 'Polar Ice Vodka 1750 ml', brand: null, size: null, barcode: '0048415411325', category: null },
+  });
+  const html = inLocale('en', () => catalogueSheet(answer, { state: TEN_TEN }));
+  assert.equal(attr(html, 'data-source'), 'price_store');
+  assert.equal(between(html, 'data-cat-headline'), 'Polar Ice Vodka 1750 ml');
+  assert.equal(between(html, 'data-cat-range'), '$42.99');
+  assert.equal(between(html, 'data-cat-where'), 'At BC Liquor Stores, seen September 21, 2026');
+});

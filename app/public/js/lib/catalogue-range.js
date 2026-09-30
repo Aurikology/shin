@@ -157,3 +157,50 @@ export function askedDate(iso, tag) {
     return '';
   }
 }
+
+/**
+ * Is this range really one price? The shop count never suppresses a product's own
+ * price (RULINGS.md "Judge and gauge mechanics", 2026-09-30): where low and high
+ * are the same number the sheet says that price, not a zero-width "range".
+ */
+export function isSinglePrice(range) {
+  const r = usableRange(range);
+  return !!r && r.basis === 'this_product' && r.lowCents === r.highCents;
+}
+
+/** A seller code as a shopper would say the store. An unknown seller is shown as it came. */
+const STORE_WORDS = { bcldb: 'BC Liquor Stores', anbl: 'NB Liquor (ANBL)', 'walmart.ca': 'Walmart' };
+
+/**
+ * The shop as a shopper would say it. Open Prices is a publisher, not a shop:
+ * its rows name the actual shop (`shop`, with its city), else a plain stand-in.
+ */
+export function storeLabel(seller, shop = null) {
+  if (typeof seller !== 'string' || seller.trim() === '') return '';
+  const key = seller.trim().toLowerCase();
+  if (key === 'openprices') return typeof shop === 'string' && shop.trim() !== '' ? shop.trim() : 'a shopper-reported store';
+  return STORE_WORDS[key] ?? seller.trim();
+}
+
+/**
+ * A shelf price against ONE store price, in plain money and never a verdict:
+ * { kind: 'same' | 'under' | 'over', cents } (cents is the absolute gap), or null.
+ */
+export function singleCompare(shelfCents, range) {
+  const r = usableRange(range);
+  if (!isNum(shelfCents) || shelfCents <= 0 || !r || !isSinglePrice(r)) return null;
+  const d = shelfCents - r.lowCents;
+  return { kind: d === 0 ? 'same' : d < 0 ? 'under' : 'over', cents: Math.abs(d) };
+}
+
+/** A YYYY-MM-DD day as a date in the reader's language, read as the calendar day it is (UTC, so no timezone moves it). '' when it does not parse. */
+export function seenDate(day, tag) {
+  if (typeof day !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(day)) return '';
+  const at = Date.parse(day.slice(0, 10));
+  if (!Number.isFinite(at)) return '';
+  try {
+    return new Intl.DateTimeFormat(tag || 'en-CA', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }).format(new Date(at));
+  } catch {
+    return '';
+  }
+}

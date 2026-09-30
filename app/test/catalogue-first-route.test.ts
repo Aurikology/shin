@@ -65,6 +65,7 @@ const PB_OTHERS = ['006810009003', '006810009004', '006810009005', '006810009006
 const NONE_HIT = withCheck('006700010001'); // a cola nobody has priced: the ask
 const CAP_HIT = withCheck('006700010002'); // another unpriced cola, for the cap
 const MISSING = withCheck('006999999999'); // valid, not in the catalogue
+const STORE_ONLY = withCheck('006888888888'); // valid, not in the catalogue, priced by one store
 /** A weighed-item label: item 12345, price field 0599 with digit 7 = 0, so $5.99 embedded. */
 const WEIGHED = withCheck('21234500599');
 
@@ -135,6 +136,7 @@ const { openPrices, recordObservation } = await import('../../price/src/store.ts
       storeCity: null,
       basePriceCents: null,
     });
+  price(STORE_ONLY, 'bcldb', 'BCL One', 4299);
   price(OWN_HIT, 'alpha', 'Alpha One', 599);
   price(OWN_HIT, 'beta', 'Beta One', 649);
   price(OWN_HIT, 'gamma', 'Gamma One', 699);
@@ -304,6 +306,9 @@ test('ON, catalogue hit with its own prices: identity from the catalogue, range 
     category: null,
     currency: 'CAD',
     unit: null,
+    store: null,
+    shop: null,
+    seenOn: today,
   });
   assert.equal(body.rangeSource, 'shin_prices');
   assert.equal(body.rangeAskedAt, null);
@@ -444,6 +449,64 @@ test('ON, a barcode not in the catalogue: not_in_catalogue, manual entry offered
   assert.equal(row.failure_class, 'not_in_catalogue');
   assert.equal(row.answer_path, 'not_in_catalogue');
   assert.equal(row.range_source, null);
+});
+
+test('ON, a barcode the catalogue lacks but ONE store prices: answered from that store, named by its own product name, no ask', async () => {
+  // Jamin, 2026-09-30: "A products price should be used even if only one store carries it."
+  on();
+  const scansBefore = scanDouble.calls.length;
+  const asksBefore = askCalls.length;
+  const body = await identify(STORE_ONLY);
+  assert.equal(body.kind, 'catalogue');
+  assert.equal(body.outcome, 'price_store_hit');
+  assert.equal(body.offerManualEntry, false);
+  assert.deepEqual(body.identity, { name: 'BCL One item', brand: null, size: null, barcode: STORE_ONLY, category: null });
+  assert.deepEqual(body.range, {
+    lowCents: 4299,
+    highCents: 4299,
+    medianCents: 4299,
+    n: 1,
+    basis: 'this_product',
+    category: null,
+    currency: 'CAD',
+    unit: null,
+    store: 'bcldb',
+    shop: 'BCL One',
+    seenOn: today,
+  });
+  assert.equal(body.rangeSource, 'shin_prices');
+  assert.equal(body.noRangeReason, null);
+  assert.equal(scanDouble.calls.length, scansBefore);
+  assert.equal(askCalls.length, asksBefore, 'a priced product must not reach the paid ask');
+  const row = scanRow(body.scanId);
+  assert.equal(row.outcome, 'answered');
+  assert.equal(row.answer_path, 'price_store_hit');
+  assert.equal(row.range_source, 'shin_prices');
+  assert.equal(row.range_basis, 'this_product');
+});
+
+test('ON, a typed name Shin has no price for: one Claude range ask, the range beside found false', async () => {
+  on();
+  const asksBefore = askCalls.length;
+  const r = await fetch(`${base}/api/identify?text=${encodeURIComponent('Zorblax Quantum Widget')}&deviceId=cf-typed&countryCode=CA`);
+  assert.equal(r.status, 200);
+  const body = (await r.json()) as Record<string, unknown>;
+  assert.equal(body.found, false);
+  assert.equal(askCalls.length - asksBefore, 1, 'the typed miss did not reach the Claude range ask');
+  assert.match(askCalls[askCalls.length - 1]!.user, /Product: Zorblax Quantum Widget/);
+  assert.equal((body.range as { basis: string }).basis, 'gemini_typical');
+  assert.equal(body.rangeSource, 'gemini_typical');
+  assert.equal(body.noRangeReason, null);
+});
+
+test('ON, a typed name Shin DOES price is answered from Shin, with no ask', async () => {
+  on();
+  const asksBefore = askCalls.length;
+  const r = await fetch(`${base}/api/identify?text=${encodeURIComponent('BCL One item')}&deviceId=cf-typed2&countryCode=CA`);
+  const body = (await r.json()) as Record<string, unknown>;
+  assert.equal(askCalls.length, asksBefore);
+  assert.equal(body.found, true);
+  assert.equal(body.range, undefined);
 });
 
 test('ON, a weighed-item label carries its embedded price as the shelf price', async () => {

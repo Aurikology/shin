@@ -35,7 +35,7 @@ import { t } from '../ui-strings.js';
 import * as shops from '../shops.js';
 import { countryLabel, countryIn } from './market.js';
 import { locale, localeTag } from '../lib/locale.js';
-import { usableRange, placeShelf, shelfCentsOf, provenanceOf, noRangeKey, askedDate } from '../lib/catalogue-range.js';
+import { usableRange, placeShelf, shelfCentsOf, provenanceOf, noRangeKey, askedDate, isSinglePrice, storeLabel, seenDate, singleCompare } from '../lib/catalogue-range.js';
 import { mountTextMatch } from '../text-match.js';
 import { priorPrices, historyChartHtml } from '../lib/price-history.js';
 import { money, currencyMark } from '../lib/money.js';
@@ -1549,8 +1549,35 @@ export function needsConnectionSheet() {
  * Peek only: there is nothing a half detent would hold yet, and a grabber that
  * cannot move is the defect `grabber()` records.
  */
+/**
+ * A typed name Shin had no price for, but the server put to the capped Claude
+ * range ask and got a range back (`range`, `rangeAskedAt` beside `found: false`).
+ * Returned in the catalogue answer's own shape so `catalogueSheet` draws it,
+ * the typed text standing as the name. Null when there is no usable range.
+ */
+function typedRangeAnswer(id, text) {
+  if (!id || id.found || !usableRange(id.range)) return null;
+  const name = typeof text === 'string' ? text.trim() : '';
+  if (!name) return null;
+  return {
+    kind: 'catalogue',
+    outcome: 'catalogue_hit',
+    offerManualEntry: false,
+    catalogueUp: true,
+    barcode: '',
+    identity: { name, brand: null, size: null, barcode: '', category: null },
+    range: id.range,
+    rangeSource: id.rangeSource ?? 'gemini_typical',
+    rangeAskedAt: id.rangeAskedAt ?? null,
+    noRangeReason: null,
+    shelfPrice: null,
+  };
+}
+
 function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store.get() } = {}) {
-  const identity = answer?.outcome === 'catalogue_hit' ? answer.identity : null;
+  // A barcode the catalogue lacks but Shin's price store carries (`price_store_hit`) is the same sheet,
+  // named by the store's own product name.
+  const identity = answer?.outcome === 'catalogue_hit' || answer?.outcome === 'price_store_hit' ? answer.identity : null;
   if (!identity) {
     return `
     <section class="sheet catalogue" data-kind="catalogue" data-outcome="not_in_catalogue" data-tier="unknown" data-conf="reading" data-detent="peek" aria-live="polite" tabindex="-1">
@@ -1573,16 +1600,28 @@ function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store
   const currency = range?.currency ?? null;
   const shelf = shelfCentsOf(shelfCents, answer.shelfPrice);
   const placed = range && shelf !== null ? placeShelf(shelf, range, state) : null;
-  const zone = placed?.zone ?? null;
+  const cmp = singleCompare(shelf, range);
+  // One store price has no middle to sit in: the shelf price is said against that one number, never as a zone.
+  const zone = cmp ? null : (placed?.zone ?? null);
   const name = candidateRow({ brand: identity.brand, name: identity.name, size: identity.size }).label;
-  const headline = zone ? t(GEMINI_ZONE_KEY[zone]) : name;
-  const figure = range
-    ? t(range.unit ? 'cat_range_unit' : 'cat_range', {
-        low: money(range.lowCents, currency),
-        high: money(range.highCents, currency),
-        unit: range.unit ?? '',
-      })
-    : '';
+  const cmpLine = cmp ? (cmp.kind === 'same' ? t('cat_cmp_same') : t(cmp.kind === 'under' ? 'cat_cmp_under' : 'cat_cmp_over', { amount: money(cmp.cents, currency) })) : '';
+  const headline = cmpLine || (zone ? t(GEMINI_ZONE_KEY[zone]) : name);
+  // One price (one store, or stores that agree) is said as that price with the store and the day, never as a zero-width range.
+  const single = isSinglePrice(range);
+  let figure = '';
+  let where = '';
+  if (single) {
+    const store = storeLabel(range.store, range.shop);
+    const day = seenDate(range.seenOn, localeTag());
+    figure = money(range.lowCents, currency);
+    where = store ? t(day ? 'cat_one_where' : 'cat_one_where_nodate', { store, date: day }) : '';
+  } else if (range) {
+    figure = t(range.unit ? 'cat_range_unit' : 'cat_range', {
+      low: money(range.lowCents, currency),
+      high: money(range.highCents, currency),
+      unit: range.unit ?? '',
+    });
+  }
   let basis = '';
   if (range) {
     const p = provenanceOf(range, identity);
@@ -1596,7 +1635,7 @@ function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store
   const shelfLine = shelf !== null ? t('cam_gem_shelf', { label: money(shelf, currency) }) : '';
 
   return `
-    <section class="sheet catalogue" data-kind="catalogue" data-outcome="catalogue_hit" data-basis="${escapeHtml(range?.basis ?? '')}" data-tier="${GEMINI_ZONE_TIER[zone] ?? 'unknown'}" data-zone="${escapeHtml(zone ?? '')}" data-conf="${range ? 'sure' : 'refuses'}" data-detent="peek" aria-live="polite" tabindex="-1">
+    <section class="sheet catalogue" data-kind="catalogue" data-outcome="catalogue_hit" data-source="${answer.outcome === 'price_store_hit' ? 'price_store' : 'catalogue'}" data-basis="${escapeHtml(range?.basis ?? '')}" data-tier="${GEMINI_ZONE_TIER[zone] ?? 'unknown'}" data-zone="${escapeHtml(zone ?? '')}" data-conf="${range ? 'sure' : 'refuses'}" data-detent="peek" aria-live="polite" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
       ${backButton()}
       <div class="sheet-peek">
@@ -1604,10 +1643,10 @@ function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store
           ${shinSay(range ? 'idle' : 'unknown', 'gem_answer', {}, { size: 'face-verdict', tier: 'unknown' })}
           ${thumbImg(thumb)}
         </div>
-        <h2 class="vword${zone ? '' : ' small'}" data-cat-headline>${escapeHtml(headline)}</h2>
-        ${zone ? `<p class="itemname" data-cat-name>${escapeHtml(name)}</p>` : ''}
+        <h2 class="vword${zone || cmpLine ? '' : ' small'}" data-cat-headline>${escapeHtml(headline)}</h2>
+        ${zone || cmpLine ? `<p class="itemname" data-cat-name>${escapeHtml(name)}</p>` : ''}
         ${range
-          ? `<div class="priceline cat-range" role="group" aria-label="${escapeHtml(t('cat_range_label'))}"><span class="cat-range-figure" data-cat-range>${escapeHtml(figure)}</span></div>`
+          ? `<div class="priceline cat-range" role="group" aria-label="${escapeHtml(t(single ? 'cat_one_price_label' : 'cat_range_label'))}"><span class="cat-range-figure" data-cat-range>${escapeHtml(figure)}</span></div>${where ? `<p class="sub cat-where" data-cat-where>${escapeHtml(where)}</p>` : ''}`
           : `<p class="detail" data-cat-no-range>${escapeHtml(t(noRangeKey(answer.noRangeReason)))}</p>`}
         ${shelfLine ? `<p class="sub cat-shelf" data-cat-shelf>${escapeHtml(shelfLine)}</p>` : ''}
         ${basis ? `<p class="conf-label cat-basis" data-cat-basis>${escapeHtml(basis)}</p>` : ''}
@@ -4081,14 +4120,20 @@ export default {
              "could not get an answer", and no paid "just the price" route.
              Not a Gemini answer, so it sits ahead of the Gemini branch. */
           lastKeepable = null;
-          slot.innerHTML = refusalSheet(
-            { kind: 'refusal', reason: 'no_identity', detail: say('cam_text_no_own_price'), identity: null, evidence: [] },
-            item,
-            supportedCategories,
-            null,
-            { priceRoute: false },
-          );
-          playRefusalLanding(slot);
+          const askedAnswer = typedRangeAnswer(result, item.text);
+          if (askedAnswer) {
+            slot.innerHTML = catalogueSheet(askedAnswer, { shelfCents: askingCents ?? null, thumb: scanThumb });
+            buzz(16);
+          } else {
+            slot.innerHTML = refusalSheet(
+              { kind: 'refusal', reason: 'no_identity', detail: say('cam_text_no_own_price'), identity: null, evidence: [] },
+              item,
+              supportedCategories,
+              null,
+              { priceRoute: false },
+            );
+            playRefusalLanding(slot);
+          }
         } else if (result.kind === 'gemini') {
           /* THE ANSWER THIS ROUTE NOW GIVES. Never the refusal sheet, and
              never `fillCheaper`: the catalogue is not consulted for an answer,
@@ -5137,6 +5182,16 @@ export default {
         return;
       }
       last = null;
+      // No Shin price for the typed name: the capped Claude range the server asked for, when it gave one.
+      const askedAnswer = typedRangeAnswer(id, text);
+      if (askedAnswer) {
+        lastKeepable = null;
+        slot.innerHTML = catalogueSheet(askedAnswer, { shelfCents: cents ?? null, thumb: scanThumb });
+        buzz(16);
+        setState('result');
+        mounted();
+        return;
+      }
       slot.innerHTML = refusalSheet(
         {
           kind: 'refusal',
@@ -5167,7 +5222,7 @@ export default {
       last = null;
       lastKeepable = null;
       slot.innerHTML = catalogueSheet(answer, { shelfCents: cents ?? null, thumb: scanThumb });
-      if (answer.outcome === 'catalogue_hit' && answer.range) buzz(16);
+      if ((answer.outcome === 'catalogue_hit' || answer.outcome === 'price_store_hit') && answer.range) buzz(16);
       else playRefusalLanding(slot);
       setState('result');
       mounted(answer.offerManualEntry ? '[data-act="typeit"]' : undefined);

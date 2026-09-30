@@ -109,14 +109,14 @@ test('happy path: one Claude call with no tools, a validated range in cents, sta
   assert.equal(r.range.unit, 'one 1 L bottle');
   assert.equal(r.range.confidence, 'medium');
   assert.equal(r.range.askedAt, new Date(SEPT).toISOString());
-  assert.equal(r.range.model, 'claude-sonnet-5');
+  assert.equal(r.range.model, 'claude-haiku-4-5-20251001');
   assert.equal(t.sent.length, 1);
 
   const body = t.sent[0]!;
   assert.equal('tools' in body, false, 'no tools key at all: no web search exists for the model');
   assert.equal('tool_choice' in body, false);
-  assert.equal(body.model, 'claude-sonnet-5');
-  assert.equal(RANGE_ASK_MODEL, 'claude-sonnet-5');
+  assert.equal(body.model, 'claude-haiku-4-5-20251001');
+  assert.equal(RANGE_ASK_MODEL, 'claude-haiku-4-5-20251001');
   assert.equal(body.max_tokens, 1024);
   assert.equal(typeof body.system, 'string');
   const messages = body.messages as { role: string; content: { type: string; text?: string }[] }[];
@@ -144,7 +144,7 @@ test('the answer is saved as data: the store holds the range, its call time and 
   assert.equal(entry.askedAt, new Date(SEPT).toISOString());
   assert.equal(entry.range.lowCents, 399);
   assert.equal(entry.range.highCents, 649);
-  assert.equal(entry.range.model, 'claude-sonnet-5');
+  assert.equal(entry.range.model, 'claude-haiku-4-5-20251001');
 });
 
 test('a caller-named model is the one sent', async () => {
@@ -330,7 +330,7 @@ test('a request that names no thinking sends no thinking key: other callers are 
   const t = fake(goodAnswer());
   const p = new AnthropicProvider(t);
   const request = {
-    model: 'claude-sonnet-5',
+    model: 'claude-haiku-4-5-20251001',
     images: [{ bytes: new Uint8Array([1, 2, 3]), mediaType: 'image/png' as const }],
     system: 's',
     user: 'u',
@@ -372,7 +372,7 @@ test('every answer is saved: valid, known:false, invalid (with its reason), and 
   assert.equal((log[2]!.raw as { currency: string }).currency, 'USD', 'the raw answer is kept');
   assert.match(log[2]!.detail ?? '', /USD is not CAD/);
   assert.equal(log[3]!.raw, null);
-  assert.equal(log[0]!.model, 'claude-sonnet-5');
+  assert.equal(log[0]!.model, 'claude-haiku-4-5-20251001');
   assert.equal(log[0]!.askedAt, new Date(SEPT).toISOString());
 });
 

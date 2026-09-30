@@ -24,7 +24,7 @@
  *      `tools` key at all (so no web search tool exists for the model to use),
  *      and thinking disabled with a 1024-token ceiling, so the whole ceiling
  *      goes to the JSON answer and a thinking model cannot cut it off.
- *      The model is `claude-sonnet-5` unless a caller names another. The key is
+ *      The model is `claude-haiku-4-5-20251001` (the cheapest Claude) unless a caller names another. The key is
  *      ANTHROPIC_API_KEY, read by the Anthropic SDK itself (after `.env` is
  *      loaded); an absent or empty key returns `no_api_key` before anything is
  *      counted or sent;
@@ -121,7 +121,7 @@ export interface RangeAskDeps {
   readonly ceilingCents?: number;
   /** How long a cached answer stands. Default 30 days. */
   readonly cacheTtlMs?: number;
-  /** Model id. Default `RANGE_ASK_MODEL` (claude-sonnet-5). */
+  /** Model id. Default `RANGE_ASK_MODEL` (claude-haiku-4-5-20251001). */
   readonly model?: string;
   /** Per-call clock in ms. Default 30000. */
   readonly timeoutMs?: number;
@@ -135,7 +135,7 @@ export const DEFAULT_CEILING_CENTS = 2_000_000;
 export const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const DEFAULT_TIMEOUT_MS = 30_000;
 /** The Claude model asked. No setting names one yet; a caller may pass `deps.model`. */
-export const RANGE_ASK_MODEL = 'claude-sonnet-5';
+export const RANGE_ASK_MODEL = 'claude-haiku-4-5-20251001';
 /** Thinking is disabled, so all of this is the JSON answer (about 60 tokens in practice). */
 export const MAX_OUTPUT_TOKENS = 1024;
 
