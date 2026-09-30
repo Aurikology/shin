@@ -713,7 +713,10 @@ and the Google Doc "Shin Full Walkthrough": both feed into it rather than compet
 this file existed, the Google Doc outranked every older repo note from 2026-09-16 onward; a
 pre-2026-09-16 line contradicting it was deleted and named in the commit message. To change a
 ruling: rewrite its entry here, move the old text to docs/decisions.md, search for the old wording
-and fix every hit in the same commit. · 2026-09-27 · *"yes to all four defaults, start the Shin pilot without auriks agrement"* · log: docs/decisions.md#One list of current rulings outranks every other file
+and fix every hit in the same commit. The founder's newest app design and every decision behind it
+outrank Claude's own calls and whatever the running code does today: anything is rated, planned or
+changed against that design (today the price system build plan of 2026-09-28 and this file), never
+against the current code. · 2026-09-27 · *"yes to all four defaults, start the Shin pilot without auriks agrement"* · 2026-09-30 · *"you are wrong, a lot of the calls you've made and the current design of the app is wrong. Consider the newest version of the app that i designed recently and all the decisions made."* · log: docs/decisions.md#One list of current rulings outranks every other file
 Retired wording: none
 Governs: RULINGS.md (this file), docs/jamin-gemini-rules.md, docs/walkthrough/jamin-notes-2026-09-17.md
 ### One founder's word decides; nothing waits for both

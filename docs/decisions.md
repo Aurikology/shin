@@ -2459,4 +2459,8 @@ directly to it"*; *"A barcode missing from the catalogue whose price Shin holds 
 miss: it answers from that price, named by the store's own product name."* Now: one store's price
 is evidence inside the item's estimated range, never the answer by itself.
 
+The first half of his correction is recorded in RULINGS.md "Governance: which document outranks
+which": his newest design and every decision behind it outrank Claude's calls and the running code.
+The ruling judge found nothing contradicting it or the estimated-range sentence.
+
 **Reverses if:** he says so.
