@@ -12,9 +12,9 @@ import { DatabaseSync } from 'node:sqlite';
 import { openPrices, recordObservation, type ObservationRow } from '../src/store.ts';
 import {
   priceRangeFor,
-  ownProductFromPrices,
   quartiles,
   nearestRankIndex,
+  MIN_OWN_SHOPS,
   MIN_CATEGORY_PRODUCTS,
   WINDOW_DAYS,
   type RangeInput,
@@ -114,7 +114,8 @@ test('nearest-rank quartiles on 1, 2, 4 and 5 values', () => {
 
 /* --------------------------------------------------------- this_product */
 
-test('this_product with three shops is the range over them', () => {
+test('this_product at exactly the shop threshold', () => {
+  assert.equal(MIN_OWN_SHOPS, 3);
   const r = priceRangeFor(input(), { prices: prices(ownRows([599, 499, 549])), catalogue: catalogue([]) });
   assert.equal(r.basis, 'this_product');
   if (r.basis !== 'this_product') return;
@@ -127,65 +128,15 @@ test('this_product with three shops is the range over them', () => {
   assert.ok(Number.isInteger(r.lowCents) && Number.isInteger(r.highCents));
 });
 
-test('ONE shop is enough: its price is the answer, carrying the store and the date', () => {
-  const r = priceRangeFor(input(), { prices: prices([obs({ seller: 'bcldb', sellerSku: 'only', priceCents: 4299, seenOn: '2026-09-21' })]), catalogue: null });
-  assert.equal(r.basis, 'this_product');
-  if (r.basis !== 'this_product') return;
-  assert.equal(r.lowCents, 4299);
-  assert.equal(r.medianCents, 4299);
-  assert.equal(r.highCents, 4299);
-  assert.equal(r.n, 1);
-  assert.equal(r.store, 'bcldb');
-  assert.equal(r.newest, '2026-09-21');
-  assert.equal(r.oldest, '2026-09-21');
-  assert.equal(r.spread, 1);
-  assert.equal(r.tried[0]!.outcome, 'used');
-});
-
-test('one Open Prices row carries the actual shop, with its city', () => {
-  const r = priceRangeFor(input(), {
-    prices: prices([obs({ seller: 'openprices', sellerSku: 'op', storeName: 'Marché Adonis', storeCity: 'Brossard', storeOsm: 'NODE/7', priceCents: 649 })]),
-    catalogue: null,
-  });
-  assert.equal(r.basis, 'this_product');
-  if (r.basis === 'this_product') {
-    assert.equal(r.store, 'openprices');
-    assert.equal(r.shop, 'Marché Adonis, Brossard');
-  }
-});
-
-test('two shops are a range; a shop crawled daily still counts once', () => {
+test('one below the shop threshold falls through, and one shop crawled daily counts once', () => {
   const rows = [
     ...ownRows([599, 499]),
     obs({ sellerSku: 's0', seenOn: '2026-09-21', priceCents: 505 }),
     obs({ sellerSku: 's0', seenOn: '2026-09-22', priceCents: 510 }),
   ];
   const r = priceRangeFor(input({ leafCategory: null, categoryPath: [] }), { prices: prices(rows), catalogue: null });
-  assert.equal(r.basis, 'this_product');
-  if (r.basis !== 'this_product') return;
-  assert.equal(r.n, 2, 'two shops, not four rows');
-  assert.equal(r.store, null);
-});
-
-test('ownProductFromPrices names the product by the newest store row and ranges over its shops', () => {
-  const rows = [
-    obs({ seller: 'bcldb', sellerSku: 'a', sellerName: 'Old Name 750 ml', priceCents: 2000, seenOn: '2026-09-01' }),
-    obs({ seller: 'anbl', sellerSku: 'b', sellerName: 'Newest Name 750 ml', priceCents: 2400, seenOn: '2026-09-25' }),
-  ];
-  const p = ownProductFromPrices(prices(rows), SELF, { asOf: AS_OF });
-  assert.ok(p);
-  assert.equal(p.name, 'Newest Name 750 ml');
-  assert.equal(p.range.n, 2);
-  assert.equal(p.range.store, null);
-  assert.equal(p.range.newest, '2026-09-25');
-  assert.equal(ownProductFromPrices(prices(rows), '0000000000017', { asOf: AS_OF }), null);
-  assert.equal(ownProductFromPrices(prices([obs({ priceCents: 500, seenOn: '2025-01-01' })]), SELF, { asOf: AS_OF }), null, 'a stale price is not an answer');
-});
-
-test('no shop at all still falls through, with the own step recorded as too_few', () => {
-  const r = priceRangeFor(input({ leafCategory: null, categoryPath: [] }), { prices: prices([]), catalogue: null });
   assert.equal(r.basis, 'none');
-  assert.equal(r.n, 0);
+  assert.equal(r.n, 2);
   assert.equal(r.tried[0]!.outcome, 'too_few');
 });
 
@@ -207,12 +158,8 @@ test('stale, future-dated, promotional and other-currency prices are ignored', (
     obs({ sellerSku: 'f', seller: 'Target', priceCents: 100, currency: 'USD' }),
   ];
   const r = priceRangeFor(input({ leafCategory: null, categoryPath: [] }), { prices: prices(rows), catalogue: null });
-  assert.equal(r.basis, 'this_product');
+  assert.equal(r.basis, 'none');
   assert.equal(r.n, 2, 'only the in-window row and the one exactly at the window edge count');
-  if (r.basis === 'this_product') {
-    assert.equal(r.lowCents, 500, 'none of the 100-cent rows got in');
-    assert.equal(r.highCents, 520);
-  }
 
   const withThird = [...rows, obs({ sellerSku: 'g', seller: 'Metro', priceCents: 510 })];
   const r2 = priceRangeFor(input(), { prices: prices(withThird), catalogue: null });
@@ -227,10 +174,7 @@ test('stale, future-dated, promotional and other-currency prices are ignored', (
 test('an unjoined row (code NULL) never counts', () => {
   const rows = [...ownRows([500, 510]), obs({ code: null, joinMethod: 'none', sellerSku: 'u', seller: 'Metro', priceCents: 520 })];
   const r = priceRangeFor(input({ leafCategory: null, categoryPath: [] }), { prices: prices(rows), catalogue: null });
-  assert.equal(r.basis, 'this_product');
-  if (r.basis !== 'this_product') return;
-  assert.equal(r.n, 2, 'the unjoined 520 is not a third shop');
-  assert.equal(r.highCents, 510);
+  assert.equal(r.basis, 'none');
 });
 
 /* ------------------------------------------------------- leaf_category */
@@ -240,7 +184,7 @@ test('leaf_category at exactly five products, scaled to this size', () => {
   // Five 500 g jars at 400..800 cents; this product is 1 kg.
   const { prods, rows } = categoryFixture(5, LEAF);
   const r = priceRangeFor(input(), {
-    prices: prices(rows),
+    prices: prices([...rows, ...ownRows([999])]),
     catalogue: catalogue([...prods, { code: SELF, size_value: 1000, size_unit: 'g', path: LEAF }]),
   });
   assert.equal(r.basis, 'leaf_category');
@@ -253,16 +197,6 @@ test('leaf_category at exactly five products, scaled to this size', () => {
   assert.deepEqual(r.unit, { label: '100 g', lowCents: 100, highCents: 140 });
   assert.equal(r.spread, 1.4);
   assert.deepEqual(r.tried.map((t) => t.outcome), ['too_few', 'used']);
-});
-
-test('a one-shop own price wins over a category that has five products', () => {
-  const { prods, rows } = categoryFixture(5, LEAF);
-  const r = priceRangeFor(input(), {
-    prices: prices([...rows, ...ownRows([999])]),
-    catalogue: catalogue([...prods, { code: SELF, size_value: 1000, size_unit: 'g', path: LEAF }]),
-  });
-  assert.equal(r.basis, 'this_product');
-  if (r.basis === 'this_product') assert.equal(r.lowCents, 999);
 });
 
 test('four leaf products fall through to the parent, which has five', () => {

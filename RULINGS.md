@@ -16,8 +16,10 @@ typical price range from its own knowledge, with no web search, capped per month
 and every answer is saved as data (2026-09-30: *"Claude(the cheapest possible) is called if our
 catalogue cannot answer"*). **Claude never does a web search**, in any call Shin makes to it, for
 any feature: no search tool is ever offered to it (2026-09-30: *"claude never does a web search"*).
-These cases are fixable, never a reason to drop an answer. A barcode missing from the catalogue whose price Shin holds is not a
-catalogue miss: it answers from that price, named by the store's own product name. **No
+These cases are fixable, never a reason to drop an answer. **The answer is always a price range
+estimated for this item from the data Shin has, never a single store's price** (2026-09-30: *"the
+app returns a price range. it takes the data it has and it returns a range that is estimated for
+this item"*). **No
 answer a shopper sees comes from Gemini, in any form:** not identity, not a price, not a range, not
 reviews, not a stored earlier Gemini answer. Every new feature is planned without Gemini. The
 setting is on for testers from 2026-09-28 (`SHIN_CATALOGUE_FIRST`, on by default in code; only an
@@ -228,10 +230,12 @@ Governs: to fill
 Where a category's own filters leave the comparison set empty, `judge()` still answers off a
 single seller with doubt expressed as a confidence number, retiring three refusal reasons; a
 zero-width band (one price, or sellers agreeing) compares the asking price directly to that number
-rather than nonsensical "low/high end" wording. A product's own price is used for its answer even
-when only one store carries it: shown with the store and date, the shelf price compared directly to
-it, and no count of stores ever suppresses it (2026-09-30: *"A products price should be used even
-if only one store carries it"*; the three-store minimum in the range step is retired with it). The
+rather than nonsensical "low/high end" wording. A product's own price counts as evidence in its
+estimated range even when only one store carries it; no count of stores ever keeps it out, and it
+is never shown as the answer on its own (2026-09-30: *"A products price should be used even if only
+one store carries it"*, then *"the app returns a price range... a range that is estimated for this
+item"*). How one store's price enters the range is the price model's job (the price system build
+plan, test bench first). The
 lone-claim guard (a lone claim or fewer than two offers suppresses the verdict line) now covers only
 offers from a web search on the old Gemini path, off since 2026-09-28, never Shin's own store
 prices. A price that fails a currency

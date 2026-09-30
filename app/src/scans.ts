@@ -326,7 +326,7 @@ export interface ScanInput {
    * Gemini is a capped fallback, never the identity"). Every older caller
    * leaves these out and writes nulls, exactly as before.
    */
-  readonly answerPath?: 'catalogue_hit' | 'price_store_hit' | 'not_in_catalogue' | 'text_match' | null;
+  readonly answerPath?: 'catalogue_hit' | 'not_in_catalogue' | 'text_match' | null;
   readonly rangeSource?: 'shin_prices' | 'gemini_typical' | 'none' | null;
   readonly rangeBasis?: string | null;
   readonly rangeMissReason?: string | null;

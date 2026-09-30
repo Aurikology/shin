@@ -2445,4 +2445,18 @@ Claude call Shin makes, for any feature. The sizes line of the first message is 
 Shin predicts a price it has not seen": build on the existing size system. The ruling judge found
 nothing contradicting either.
 
+**Corrected the same day.** Claude read "a products price should be used even if only one store
+carries it" as "one store's price IS the answer", wrote it into two entries, and shipped 8f8827f,
+which showed a single price ("$1.00 under the store's price") instead of a range. His correction:
+*"you are wrong, a lot of the calls you've made and the current design of the app is wrong.
+Consider the newest version of the app that i designed recently and all the decisions made. one of
+many decisions i made was that the app returns a price range. it takes the data it has and it
+returns a range that is estimated for this item"*. It also broke the price system build plan's order
+(the test bench before any answer changes). 8f8827f is reverted except the Haiku default for the
+range ask. Old wording retired from RULINGS.md: *"A product's own price is used for its answer
+even when only one store carries it: shown with the store and date, the shelf price compared
+directly to it"*; *"A barcode missing from the catalogue whose price Shin holds is not a catalogue
+miss: it answers from that price, named by the store's own product name."* Now: one store's price
+is evidence inside the item's estimated range, never the answer by itself.
+
 **Reverses if:** he says so.

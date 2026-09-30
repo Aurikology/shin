@@ -8,7 +8,7 @@
  *
  * The ladder, stopping at the first step with enough evidence:
  *
- *   this_product     the product's own recent prices, one per shop, from one shop up.
+ *   this_product     the product's own recent prices, one per shop.
  *   leaf_category    unit prices of other priced products in the product's
  *                    leaf category, scaled back to this product's size.
  *   parent_category  the same, one step up the category path. Never the
@@ -47,15 +47,12 @@ import { parseQuantity, toComparison, type ComparisonQuantity, type ComparisonLa
  */
 export const WINDOW_DAYS = 90;
 
-/*
- * Own-product step: ONE shop is enough (Jamin, 2026-09-30: "A products price
- * should be used even if only one store carries it"; RULINGS.md "Judge and
- * gauge mechanics"). The old floor of 3 shops is retired and no count of
- * stores suppresses a product's own price. With one shop the answer is that
- * price (low = high = median) and carries the store; with two or more it is
- * the range over them. The count is still of shops, never of rows, so one
- * chain crawled daily is one shop.
+/**
+ * Own-product step: at least 3 shops, one latest price each. Two numbers are a
+ * pair, not a range, and a single chain crawled daily must not be able to pass
+ * this alone, which is why the count is of shops and never of rows.
  */
+export const MIN_OWN_SHOPS = 3;
 
 /**
  * Category steps: at least 5 priced products. At 5, nearest-rank puts the 25th
@@ -122,10 +119,6 @@ interface RangeCommon {
 
 export interface RangeThisProduct extends RangeCommon {
   readonly basis: 'this_product';
-  /** The seller, when exactly one shop carries it (then low = high = median and `newest` is its date); else null. */
-  readonly store: string | null;
-  /** With one shop: that shop's own name and city when the row carries them (Open Prices rows do); else null. */
-  readonly shop: string | null;
 }
 
 export interface RangeCategory extends RangeCommon {
@@ -198,19 +191,6 @@ interface Obs {
   readonly shop: string;
   readonly cents: number;
   readonly seenOn: string;
-  /** The store's own name for the product, and its brand when it gives one. */
-  readonly name: string;
-  readonly brand: string | null;
-  /** The actual shop (store name, with its city when known), when the row names one. */
-  readonly shopName: string | null;
-}
-
-/** "Store name, City" from the row, or null when the row names no shop. */
-function shopNameOf(name: unknown, city: unknown): string | null {
-  const n = typeof name === 'string' ? name.trim() : '';
-  if (n === '') return null;
-  const c = typeof city === 'string' ? city.trim() : '';
-  return c ? `${n}, ${c}` : n;
 }
 
 /** Hosts reserved for documentation and tests: a row linking there came from a test double. */
@@ -234,7 +214,7 @@ function readObservations(db: DatabaseSync, codes: readonly string[] | null, cur
   const where = codes === null ? 'code IS NOT NULL' : `code IN (${codes.map(() => '?').join(',')})`;
   const rows = db
     .prepare(
-      `SELECT code, seller, seller_name, seller_brand, region, store_name, store_city, store_osm, price_cents, seen_on, url
+      `SELECT code, seller, region, store_name, store_osm, price_cents, seen_on, url
          FROM observation
         WHERE ${where} AND kind = 'regular' AND currency = ?`,
     )
@@ -256,16 +236,7 @@ function readObservations(db: DatabaseSync, codes: readonly string[] | null, cur
     if (age > windowDays) continue;
     // The shop, not the publisher: Open Prices publishes many shops under one seller string.
     const place = (r.store_osm ?? r.store_name ?? r.region ?? '') as string;
-    out.push({
-      key: codeKey(r.code),
-      seller: r.seller,
-      shop: `${r.seller}|${String(place).toLowerCase().trim()}`,
-      cents,
-      seenOn: seen,
-      name: typeof r.seller_name === 'string' ? r.seller_name.trim() : '',
-      brand: typeof r.seller_brand === 'string' && r.seller_brand.trim() !== '' ? r.seller_brand.trim() : null,
-      shopName: shopNameOf(r.store_name, r.store_city),
-    });
+    out.push({ key: codeKey(r.code), seller: r.seller, shop: `${r.seller}|${String(place).toLowerCase().trim()}`, cents, seenOn: seen });
   }
   return out;
 }
@@ -414,59 +385,6 @@ function categoryRange(
 
 /* ------------------------------------------------------------------ main */
 
-/** The own-product answer over one or more shops (one latest price each). */
-function ownRange(shops: readonly Obs[], currency: string, windowDays: number, tried: RangeStep[]): RangeThisProduct {
-  const q = quartiles(shops.map((s) => s.cents));
-  return {
-    basis: 'this_product',
-    lowCents: q.low,
-    highCents: q.high,
-    medianCents: q.median,
-    n: shops.length,
-    sellers: new Set(shops.map((s) => s.seller)).size,
-    store: shops.length === 1 ? shops[0]!.seller : null,
-    shop: shops.length === 1 ? shops[0]!.shopName : null,
-    ...dates(shops),
-    spread: ratio(q.high, q.low),
-    currency,
-    windowDays,
-    tried,
-  };
-}
-
-/** A product known only from the price store: the store's own name for it, and the range over its shops. */
-export interface PriceStoreProduct {
-  readonly name: string;
-  readonly brand: string | null;
-  readonly range: RangeThisProduct;
-}
-
-/**
- * A barcode the catalogue does not hold but the price store does (RULINGS.md
- * "Judge and gauge mechanics": a product's own price is used even from one
- * store). Named by the store's own product name, taken from the newest
- * observation (on the same day, the lower price, as `latestPerShop` does).
- * Null when no regular price in the window and currency carries the code.
- * Read-only, no network.
- */
-export function ownProductFromPrices(
-  db: DatabaseSync,
-  barcode: string,
-  opts: { asOf: string; currency?: string; windowDays?: number },
-): PriceStoreProduct | null {
-  const currency = opts.currency ?? 'CAD';
-  const windowDays = opts.windowDays ?? WINDOW_DAYS;
-  const shops = latestPerShop(readObservations(db, spellings(barcode.trim()), currency, opts.asOf, windowDays));
-  if (shops.length === 0) return null;
-  const named = [...shops].filter((s) => s.name !== '').sort((a, b) => (a.seenOn < b.seenOn ? 1 : a.seenOn > b.seenOn ? -1 : a.cents - b.cents))[0];
-  if (!named) return null;
-  return {
-    name: named.name,
-    brand: named.brand,
-    range: ownRange(shops, currency, windowDays, [{ basis: 'this_product', category: null, n: shops.length, outcome: 'used' }]),
-  };
-}
-
 /**
  * The general price range for one product, from Shin's own stored prices.
  * Never calls out; reads only the two handles given.
@@ -490,9 +408,22 @@ export function priceRangeFor(input: RangeInput, sources: RangeSources): RangeRe
   if (barcode) {
     const shops = latestPerShop(readObservations(sources.prices, spellings(barcode), currency, input.asOf, windowDays));
     best = shops.length;
-    if (shops.length >= 1) {
+    if (shops.length >= MIN_OWN_SHOPS) {
       tried.push({ basis: 'this_product', category: null, n: shops.length, outcome: 'used' });
-      return ownRange(shops, currency, windowDays, tried);
+      const q = quartiles(shops.map((s) => s.cents));
+      return {
+        basis: 'this_product',
+        lowCents: q.low,
+        highCents: q.high,
+        medianCents: q.median,
+        n: shops.length,
+        sellers: new Set(shops.map((s) => s.seller)).size,
+        ...dates(shops),
+        spread: ratio(q.high, q.low),
+        currency,
+        windowDays,
+        tried,
+      };
     }
     tried.push({ basis: 'this_product', category: null, n: shops.length, outcome: 'too_few' });
   } else {

@@ -68,7 +68,6 @@ import {
 } from './src/catalogue-first.ts';
 import { PRICES_DB_PATH } from '../price/src/store.ts';
 import type { Provider } from '../identify/src/provider.ts';
-import type { RangeAskResult, RangeIdentity } from '../identify/src/range-ask.ts';
 import { lookupOpenFoodFacts } from './src/open-food-facts.ts';
 import {
   claimRefresh,
@@ -2103,59 +2102,6 @@ function ownOffersForBarcode(gtin: string, device: string): Record<string, unkno
 }
 
 /**
- * THE ONE CLAUDE RANGE ASK, for every case the catalogue cannot answer (Jamin,
- * 2026-09-30: "Claude(the cheapest possible) is called if our catalogue cannot
- * answer"): a known product with no Shin price, a typed name that matches
- * nothing, a barcode nothing knows once the shopper types its name. No web
- * search, capped per month, cheapest model (identify/src/range-ask.ts). The
- * paid-call limiter is checked here, because only this call can cost money.
- */
-async function claudeRangeAsk(req: IncomingMessage, identity: RangeIdentity): Promise<RangeAskResult | { ok: false; reason: 'rate_limited' }> {
-  if (paidCallRefusal(req)) return { ok: false, reason: 'rate_limited' as const };
-  const { askTypicalRange } = await import('../identify/src/range-ask.ts');
-  const s = rangeAskSettings();
-  return askTypicalRange(identity, {
-    monthlyCap: s.monthlyCap,
-    ceilingCents: s.ceilingCents,
-    ...(s.storePath ? { storePath: s.storePath } : {}),
-    ...(catalogueFirstTest?.rangeAskProvider ? { provider: catalogueFirstTest.rangeAskProvider } : {}),
-  });
-}
-
-/**
- * A typed name Shin's own data could not price, put to the Claude range ask.
- * Returns the fields the client reads beside `found: false`: the range (basis
- * `gemini_typical`, the historical wire value) or the reason there is none.
- * Never throws.
- */
-async function typedRangeAsk(req: IncomingMessage, text: string, market: { country: string | null }) {
-  let asked: Awaited<ReturnType<typeof claudeRangeAsk>>;
-  try {
-    asked = await claudeRangeAsk(req, { name: text, brand: null, size: null, category: null, market: market.country ?? '' });
-  } catch {
-    asked = { ok: false, reason: 'model_error' };
-  }
-  if (asked.ok) {
-    return {
-      range: {
-        lowCents: asked.range.lowCents,
-        highCents: asked.range.highCents,
-        medianCents: null,
-        n: null,
-        basis: 'gemini_typical' as const,
-        category: null,
-        currency: asked.range.currency,
-        unit: asked.range.unit,
-      },
-      rangeSource: 'gemini_typical' as const,
-      rangeAskedAt: asked.range.askedAt,
-      noRangeReason: null,
-    };
-  }
-  return { range: null, rangeSource: null, rangeAskedAt: null, noRangeReason: asked.reason };
-}
-
-/**
  * THE CATALOGUE-FIRST BARCODE ANSWER, behind SHIN_CATALOGUE_FIRST (default on
  * since 2026-09-28). RULINGS.md "Catalogue first; Claude, with no web search,
  * is the capped price-range fallback". The logic and the answer shape are in
@@ -2189,7 +2135,18 @@ async function catalogueFirstBarcode(
       // Only when Shin has no price: one Claude ask, no web search, capped per
       // month (identify/src/range-ask.ts). No shopper answer comes from Gemini
       // (Jamin, 2026-09-28, "We are not using gemini at all for the client side answers").
-      askRange: (identity) => claudeRangeAsk(req, identity),
+      askRange: async (identity) => {
+        // Checked here, not at the top of the route: only this call can cost money.
+        if (paidCallRefusal(req)) return { ok: false, reason: 'rate_limited' as const };
+        const { askTypicalRange } = await import('../identify/src/range-ask.ts');
+        const s = rangeAskSettings();
+        return askTypicalRange(identity, {
+          monthlyCap: s.monthlyCap,
+          ceilingCents: s.ceilingCents,
+          ...(s.storePath ? { storePath: s.storePath } : {}),
+          ...(catalogueFirstTest?.rangeAskProvider ? { provider: catalogueFirstTest.rangeAskProvider } : {}),
+        });
+      },
     });
   } finally {
     try {
@@ -3116,11 +3073,6 @@ export const server = createServer(async (req, res) => {
       if (!gtin && text) {
         const typedAnswer = typedFromOwnData(text, device, telemetry, where, identifyStarted);
         if (typeof typedAnswer.scanId === 'number') scanForLog = typedAnswer.scanId;
-        // Shin's own data has no price for what was typed: the capped Claude
-        // range ask, no web search (catalogue first, 2026-09-30 ruling).
-        if (typedAnswer.found === false && catalogueFirstOn()) {
-          return json(200, { ...typedAnswer, ...(await typedRangeAsk(req, text, marketOfContext(contextFrom(pick)))) });
-        }
         return json(200, typedAnswer);
       }
 
@@ -3142,7 +3094,7 @@ export const server = createServer(async (req, res) => {
           const { answer, record } = await catalogueFirstBarcode(req, canonical, marketOfContext(contextFrom(pick)), device);
           // A barcode the catalogue was asked about and does not hold is the most
           // actionable miss the gap log can hold (`what-to-price` reads it).
-          if ((answer.outcome === 'not_in_catalogue' || answer.outcome === 'price_store_hit') && answer.catalogueUp) recordGap({ gtin, catalogueMissing: true });
+          if (answer.outcome === 'not_in_catalogue' && answer.catalogueUp) recordGap({ gtin, catalogueMissing: true });
           const ms = Date.now() - identifyStarted;
           const firstScanId = recordScan({
             deviceId: device,
@@ -3754,8 +3706,7 @@ export const server = createServer(async (req, res) => {
             row !== null && row.device_id === pricedDevice ? pricedScan : null,
           );
           if (typeof own.scanId === 'number') scanForLog = own.scanId;
-          const askedRange = own.found === false ? await typedRangeAsk(req, searchText, marketOfContext(contextFrom((key) => q[key]))) : {};
-          return json(200, { ...own, ...askedRange, kind: 'gemini' });
+          return json(200, { ...own, kind: 'gemini' });
         }
         return json(200, { kind: 'gemini', failure: 'no_model_call', lowConfidence: true, confidenceReasons: ['no_answer:no_model_call'] });
       }

@@ -29,12 +29,7 @@
  *        any reason, or no ask is passed, the answer still comes back with the
  *        identity, no range and the reason code (`no_shin_prices` when no ask
  *        was passed; RULINGS "Always answer");
- *     3. not found, but Shin's price store carries the barcode (RULINGS.md
- *        "Judge and gauge mechanics", 2026-09-30: a product's own price is
- *        used even from one store): `price_store_hit`, named by the store's own
- *        product name, the range being the store prices (one store: that
- *        price, with `range.store` and `range.seenOn`);
- *     4. not found and no price either: `not_in_catalogue`, and the client offers manual entry.
+ *     3. not found: `not_in_catalogue`, and the client offers manual entry.
  *        No model is asked who the product is. The Gemini scan call
  *        (`runGeminiScan`) is never made anywhere on this path.
  *
@@ -48,7 +43,7 @@
  *
  *   {
  *     kind: 'catalogue',
- *     outcome: 'catalogue_hit' | 'price_store_hit' | 'not_in_catalogue',
+ *     outcome: 'catalogue_hit' | 'not_in_catalogue',
  *     offerManualEntry: boolean,      // true exactly when outcome is not_in_catalogue
  *     catalogueUp: boolean,           // false: the catalogue is not attached at all
  *     barcode: string,                // the canonical digits that were looked up
@@ -65,8 +60,6 @@
  *       category: null | { tag: string, name: string },   // set for the two category bases
  *       currency: string,
  *       unit: string | null,          // gemini_typical only: what one price buys, as the model said
- *       store: string | null,         // this_product with ONE shop: the seller; else null
- *       seenOn: string | null,        // this_product: the newest date behind the price (YYYY-MM-DD)
  *     },
  *     rangeSource: 'shin_prices' | 'gemini_typical' | null,
  *     rangeAskedAt: string | null,    // ISO time of the Claude ask, gemini_typical only
@@ -98,7 +91,7 @@
 
 import type { DatabaseSync } from 'node:sqlite';
 import * as settings from '../../settings/src/index.ts';
-import { priceRangeFor, ownProductFromPrices, type RangeResult } from '../../price/src/range.ts';
+import { priceRangeFor, type RangeResult } from '../../price/src/range.ts';
 import type { RangeAskFailure, RangeAskResult, RangeIdentity } from '../../identify/src/range-ask.ts';
 import type { CanonicalBarcode } from './barcode.ts';
 
@@ -173,19 +166,13 @@ export interface CatalogueRange {
   readonly category: CategoryRef | null;
   readonly currency: string;
   readonly unit: string | null;
-  /** this_product with one shop: that shop's seller. Else null. */
-  readonly store?: string | null;
-  /** this_product with one shop: the shop's own name and city when the row has them. */
-  readonly shop?: string | null;
-  /** this_product: the newest date behind the price, YYYY-MM-DD. */
-  readonly seenOn?: string | null;
 }
 
 export type NoRangeReason = RangeAskFailure | 'rate_limited' | 'no_shin_prices';
 
 export interface CatalogueAnswer {
   readonly kind: 'catalogue';
-  readonly outcome: 'catalogue_hit' | 'price_store_hit' | 'not_in_catalogue';
+  readonly outcome: 'catalogue_hit' | 'not_in_catalogue';
   readonly offerManualEntry: boolean;
   readonly catalogueUp: boolean;
   readonly barcode: string;
@@ -203,7 +190,7 @@ export interface CatalogueRecord {
   readonly resolvedLabel: string | null;
   readonly outcome: 'answered' | 'refused';
   readonly failureClass: 'not_in_catalogue' | null;
-  readonly answerPath: 'catalogue_hit' | 'price_store_hit' | 'not_in_catalogue';
+  readonly answerPath: 'catalogue_hit' | 'not_in_catalogue';
   readonly rangeSource: 'shin_prices' | 'gemini_typical' | 'none' | null;
   readonly rangeBasis: string | null;
   readonly rangeMissReason: string | null;
@@ -283,7 +270,6 @@ function fromShinPrices(r: Exclude<RangeResult, { basis: 'none' }>): CatalogueRa
     category: r.basis === 'this_product' ? null : ref(r.category),
     currency: r.currency,
     unit: null,
-    ...(r.basis === 'this_product' ? { store: r.store, shop: r.shop, seenOn: r.newest } : {}),
   };
 }
 
@@ -311,44 +297,6 @@ export async function answerBarcodeFromCatalogue(
   }
 
   if (!row) {
-    // The catalogue does not hold it. Shin's price store may: a product's own
-    // price is used even when one store carries it.
-    let stored: ReturnType<typeof ownProductFromPrices> = null;
-    if (deps.prices) {
-      try {
-        stored = ownProductFromPrices(deps.prices, barcode.gtin, { asOf: deps.asOf, currency: deps.currency });
-      } catch {
-        stored = null;
-      }
-    }
-    if (stored) {
-      const identity: CatalogueIdentity = { name: stored.name, brand: stored.brand, size: null, barcode: barcode.gtin, category: null };
-      return {
-        answer: {
-          kind: 'catalogue',
-          outcome: 'price_store_hit',
-          offerManualEntry: false,
-          catalogueUp: deps.lookup !== null,
-          barcode: barcode.gtin,
-          identity,
-          range: fromShinPrices(stored.range),
-          rangeSource: 'shin_prices',
-          rangeAskedAt: null,
-          noRangeReason: null,
-          shelfPrice,
-        },
-        record: {
-          resolvedCode: barcode.gtin,
-          resolvedLabel: labelOf(identity),
-          outcome: 'answered',
-          failureClass: null,
-          answerPath: 'price_store_hit',
-          rangeSource: 'shin_prices',
-          rangeBasis: 'this_product',
-          rangeMissReason: null,
-        },
-      };
-    }
     return {
       answer: {
         kind: 'catalogue',
