@@ -2416,3 +2416,28 @@ live server's folder; the Mac's data is backed up nightly with a restore test. R
 CLAUDE.md (process rules live there, not in RULINGS.md).
 
 **Reverses if:** he says so.
+
+## Cheapest Claude whenever the catalogue cannot answer; one store's price counts (2026-09-30)
+
+His words, 2026-09-30, after the screen walkthrough found that 7,211 of 8,501 barcodes Shin holds a
+price for answer "not in Shin's catalogue yet" (every one a BC liquor row), and that no product's own
+price is ever shown because the range step needs three stores and no barcode has more than two:
+*"these are all fixable probelms: Claude(the cheapest possible) is called if our catalogue cannot
+answer. A products price should be used even if only one store carries it. We have previously
+designed an imperfect system to handle sizes, find it."*
+
+Recorded in RULINGS.md. The ruling judge named two entries, rewritten:
+
+- "Catalogue first; Claude, with no web search, is the capped price-range fallback": old text
+  *"When that gives nothing, Claude is asked for a typical price range from its own knowledge, with
+  no web search, capped per month, to save credits, and every answer is saved as data."* Now: the
+  cheapest Claude model, and the three cases named (known product with no Shin price, typed name
+  that matches nothing, unknown barcode once the shopper names it); a barcode missing from the
+  catalogue whose price Shin holds answers from that price under the store's own product name.
+  The range ask defaulted to `claude-sonnet-5`; the cheapest listed model is Haiku 4.5.
+- "Judge and gauge mechanics": old text *"A lone claim or fewer than two offers suppresses the
+  verdict line entirely (both guards used together, not either)."* Now: a product's own price
+  counts from one store, shown with store and date; the lone-claim guard covers only web-search
+  offers on the old Gemini path. `MIN_OWN_SHOPS = 3` in the range step is retired with it.
+
+**Reverses if:** he says so.

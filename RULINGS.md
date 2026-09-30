@@ -9,8 +9,13 @@ piece of text on the object (price tag, cereal box, container) and searching the
 returning the top 3 for the shopper to pick, never one row forced out of millions; manual entry
 when nothing matches. The price range comes from Shin's own data by math: the product's own
 prices, else a prediction from every data point Shin holds (see "How Shin predicts a price it has
-not seen" and "The price answer must tell the shopper whether the price is good"). When that gives nothing, Claude is asked for a typical price range from its own knowledge,
-with no web search, capped per month, to save credits, and every answer is saved as data. **No
+not seen" and "The price answer must tell the shopper whether the price is good"). Whenever the
+catalogue cannot answer (a known product with no Shin price, a typed name that matches nothing, a
+barcode nothing knows once the shopper has named it), the cheapest Claude model is asked for a
+typical price range from its own knowledge, with no web search, capped per month, to save credits,
+and every answer is saved as data (2026-09-30: *"Claude(the cheapest possible) is called if our
+catalogue cannot answer"*). A barcode missing from the catalogue whose price Shin holds is not a
+catalogue miss: it answers from that price, named by the store's own product name. **No
 answer a shopper sees comes from Gemini, in any form:** not identity, not a price, not a range, not
 reviews, not a stored earlier Gemini answer. Every new feature is planned without Gemini. The
 setting is on for testers from 2026-09-28 (`SHIN_CATALOGUE_FIRST`, on by default in code; only an
@@ -217,13 +222,18 @@ Governs: to fill
 Where a category's own filters leave the comparison set empty, `judge()` still answers off a
 single seller with doubt expressed as a confidence number, retiring three refusal reasons; a
 zero-width band (one price, or sellers agreeing) compares the asking price directly to that number
-rather than nonsensical "low/high end" wording. A lone claim or fewer than two offers suppresses
-the verdict line entirely (both guards used together, not either). A price that fails a currency
+rather than nonsensical "low/high end" wording. A product's own price is used for its answer even
+when only one store carries it: shown with the store and date, the shelf price compared directly to
+it, and no count of stores ever suppresses it (2026-09-30: *"A products price should be used even
+if only one store carries it"*; the three-store minimum in the range step is retired with it). The
+lone-claim guard (a lone claim or fewer than two offers suppresses the verdict line) now covers only
+offers from a web search on the old Gemini path, off since 2026-09-28, never Shin's own store
+prices. A price that fails a currency
 or plausibility guard is withheld, never replaced with a substitute number: the product, verdict
 and reason still show, and the suppression is recorded. Whether median is the right centralization
 measure for the gauge is questioned and not decided. · 2026-09-19 · log: docs/decisions.md#D-113 is closed with a guard, and six points come out of it rather than being built
 Retired wording: `at the low end`, `at the high end`
-Governs: identify/src/gauge.ts (LONE_CLAIM_CEILING, LONE_CLAIM_FLOOR)
+Governs: identify/src/gauge.ts (LONE_CLAIM_CEILING, LONE_CLAIM_FLOOR), price/src/range.ts (MIN_OWN_SHOPS)
 ### What the price line covers
 With no asking price, Shin shows a neutral going-rate card instead of refusing. Nearby-cheaper and
 dupe features are out of v1 (no verified store-level feed/location; category volume too thin).
