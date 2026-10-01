@@ -160,10 +160,11 @@ one that actually shipped. · 2026-09-15 · *"Having a repsonse that is not chec
 Retired wording: `a wrong verdict is worse than no verdict`
 Governs: to fill
 ### How Shin predicts a price it has not seen
-Priority now is a product that always gives an answer; accuracy is deferred, not ignored. Prices
-are predicted through nested categories, subcategories and deeper, split as the assistant designs:
-a group whose prices vary little (apples, oranges) stays whole, one that varies a lot (wine) is
-split further. Priced products inform unpriced ones, including known relationships (one product
+Priority now is a product that always gives an answer; accuracy is deferred, not ignored. The
+entire catalogue is split into categories, subcategories and deeper, split as the assistant designs;
+each category is a set of items with a similar price range ("vary" and "range" mean the same here,
+his word 2026-10-01): a group whose price range is narrow (apples, oranges) stays whole, one whose
+range is wide (wine) is split further. Priced products inform unpriced ones, including known relationships (one product
 typically costing so much less than another). Ranges start broad while data is thin and narrow as
 price coverage grows. Every Claude answer a shopper's scan produces is saved to improve the server
 data. Each data source carries its own confidence level, set by the assistant as a starting guess
@@ -175,8 +176,8 @@ that most affect others, asked for their price ranges. Sizes are handled by the 
 already designed (every size converted to per 100 g, per 100 ml or each with the original kept;
 missing sizes filled from the quantity or the end of the name; category prices scaled to this
 product's size), built on rather than replaced, imperfect as it is (2026-09-30: *"We have
-previously designed an imperfect system to handle sizes, find it."*). · 2026-09-28 · *"We need to provide a product that at least gives an answer"* · *"a set of products will typically have a set of price variation. An orange or an apple will probably have similar price variation. However, something like wine will have far more price variation"* · *"I have access to gemini pro and unlimited tokens on it, you can very well create a long list of items(important items that affect others) and ask it for the price ranges"*
-Retired wording: none
+previously designed an imperfect system to handle sizes, find it."*). · 2026-09-28 · *"We need to provide a product that at least gives an answer"* · *"a set of products will typically have a set of price variation. An orange or an apple will probably have similar price variation. However, something like wine will have far more price variation"* · *"I have access to gemini pro and unlimited tokens on it, you can very well create a long list of items(important items that affect others) and ask it for the price ranges"* · 2026-10-01 · *"according to my design, the entire catalogue should be split into catagories, where each catagory represents a set of items that have a similar price range"* · *"vary and range mean the same in this context"*
+Retired wording: `a group whose prices vary little`
 Governs: to fill (price/src/range.ts is the first version)
 
 ### Priced store items that match no barcode still train prices

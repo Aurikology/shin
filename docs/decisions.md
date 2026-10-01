@@ -2489,3 +2489,15 @@ barred by hard rule 2 without measured testing."* That entry was Claude's; hard 
 claims and is untouched.
 
 **Reverses if:** he says so.
+
+## Each category is a set of items with a similar price range (2026-10-01)
+
+His words: *"according to my design, the entire catalogue should be split into catagories, where
+each catagory represents a set of items that have a similar price range"*, then, after Claude read
+his 2026-09-28 "price variation" message as grouping by spread rather than by range: *"vary and
+range mean the same in this context"*. Recorded in RULINGS.md "How Shin predicts a price it has not
+seen". The ruling judge found no conflict. Old text: *"Prices are predicted through nested
+categories, subcategories and deeper, split as the assistant designs: a group whose prices vary
+little (apples, oranges) stays whole, one that varies a lot (wine) is split further."*
+
+**Reverses if:** he says so.
