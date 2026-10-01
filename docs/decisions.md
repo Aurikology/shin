@@ -2501,3 +2501,11 @@ categories, subcategories and deeper, split as the assistant designs: a group wh
 little (apples, oranges) stays whole, one that varies a lot (wine) is split further."*
 
 **Reverses if:** he says so.
+
+## Requirements, when asked for, are requirements only (2026-10-01)
+
+His words: *"build a set of requirments for this system. You're not designing anything, you are building
+the requirements. Think like an engineer"*. Recorded in RULINGS.md under that title. The ruling judge
+found no entry it contradicts or narrows; no old text.
+
+**Reverses if:** he says so.

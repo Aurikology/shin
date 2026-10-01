@@ -687,6 +687,12 @@ it): it has high reference value even where Shin builds its own, so the design i
 from scratch. · 2026-09-28 · *"There should be something that guides you in one direction: what is the purpose of each one of these stages. are there going to be checks in place? how are you going to find if something works or doesn't work. Instead of designing everythign yoruslef, everythign is avaliable on the internet, what things on the internet can provide value twoards what you are building. Even if something is already built, things on the internet still have very high refernce value"* · 2026-09-22: *"You also didn't look at what open source tools exist or research how other companies online do it"* · log: docs/decisions.md#How a Shin system is designed
 Retired wording: none
 Governs: to fill
+### Requirements, when asked for, are requirements only
+Asked for the requirements of a system, the deliverable is the requirements alone: what the system
+must do, each one testable and unambiguous, written the way an engineer writes a requirements
+specification. No design: no architecture, components, algorithms or chosen tools inside it. · 2026-10-01 · *"build a set of requirments for this system. You're not designing anything, you are building the requirements. Think like an engineer"* · log: docs/decisions.md#Requirements, when asked for, are requirements only
+Retired wording: none
+Governs: to fill
 ### Build only when asked; decide small things without stalling
 Asked how something would be built, the answer is the analysis or plan, never starting to build it;
 this holds every time it is restated. Within a plan already agreed, small decisions are made and
