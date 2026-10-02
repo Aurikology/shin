@@ -478,8 +478,11 @@ registration is only what those two accounts need (2026-10-02: *"we only need th
 register for the app store and play store"*, *"we need a devloepr account called pexi"*): no
 trademark filing for now (CIPO draft 3044038 left unsubmitted, $491.06 first class). Apple shows an
 individual's legal name as seller and refuses DBAs and trade names, so "Pexi" on the App Store
-needs a corporation named Pexi plus a D-U-N-S number; Google Play's developer name can differ
-from the legal name. Picked 2026-10-02 from a screen of 30 names (notes/name-screen-2026-10-01.md): no live PEXI mark
+needs a corporation named Pexi, a D-U-N-S number, a public website on its own domain and a work
+email on that domain (docs/the-store-accounts-packet.md 1a; pexi.com, pexi.app and getpexi.com
+are held by others, getpexi.app was free 2026-10-01). Google Play's developer name can differ from
+the legal name; a personal account must pass 12 testers for 14 days before public launch, an
+organization account does not (packet section 2). Picked 2026-10-02 from a screen of 30 names (notes/name-screen-2026-10-01.md): no live PEXI mark
 in Canada or the US in any class. Risks carried knowingly, not cleared: PEXIP (video software, US
 classes 9/35/42, one letter longer), PEXIL pending in Canada class 42, pexi.app and pexi.com held
 by others, Portuguese "peixe" (fish) not checked by a speaker. Shin (sound shared with Nongshim's
