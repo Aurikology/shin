@@ -13,7 +13,8 @@ not seen" and "The price answer must tell the shopper whether the price is good"
 catalogue cannot answer (a known product with no Shin price, a typed name that matches nothing, a
 barcode nothing knows once the shopper has named it), the cheapest Claude model is asked for a
 typical price range from its own knowledge, with no web search, capped per month, to save credits,
-and every answer is saved as data (2026-09-30: *"Claude(the cheapest possible) is called if our
+and every answer is saved as data, as an estimate kept apart from observed prices (the reference
+requirements, 2026-10-01) (2026-09-30: *"Claude(the cheapest possible) is called if our
 catalogue cannot answer"*). **Claude never does a web search**, in any call Shin makes to it, for
 any feature: no search tool is ever offered to it (2026-09-30: *"claude never does a web search"*).
 These cases are fixable, never a reason to drop an answer. **The answer is always a price range
@@ -167,8 +168,10 @@ his word 2026-10-01): a group whose price range is narrow (apples, oranges) stay
 range is wide (wine) is split further. Priced products inform unpriced ones, including known relationships (one product
 typically costing so much less than another). Ranges start broad while data is thin and narrow as
 price coverage grows. Every Claude answer a shopper's scan produces is saved to improve the server
-data. Each data source carries its own confidence level, set by the assistant as a starting guess
-and replaced by its measured accuracy; shopper reports are weighted by how well they check out.
+data, as an estimate kept apart from observed prices (the reference requirements, 2026-10-01). Each
+data source carries its own confidence level, set by the assistant as a starting guess and replaced
+by its measured accuracy; shopper reports are weighted by how well they check out and count in a
+range only once an independent source agrees (the reference requirements, 2026-10-01).
 Machine-learning and neural-network prediction are considered, and used only after beating the
 simpler method on a held-out test. Seeding may use
 Jamin's Gemini Pro subscription offline (not a runtime call in the app): a long list of the items
@@ -179,6 +182,15 @@ product's size), built on rather than replaced, imperfect as it is (2026-09-30: 
 previously designed an imperfect system to handle sizes, find it."*). · 2026-09-28 · *"We need to provide a product that at least gives an answer"* · *"a set of products will typically have a set of price variation. An orange or an apple will probably have similar price variation. However, something like wine will have far more price variation"* · *"I have access to gemini pro and unlimited tokens on it, you can very well create a long list of items(important items that affect others) and ask it for the price ranges"* · 2026-10-01 · *"according to my design, the entire catalogue should be split into catagories, where each catagory represents a set of items that have a similar price range"* · *"vary and range mean the same in this context"*
 Retired wording: `a group whose prices vary little`
 Governs: to fill (price/src/range.ts is the first version)
+
+### The price category requirements are the reference
+docs/price-category-requirements-2026-10-01.md is the reference set of requirements for the price
+category system: categories, placing items, the range for an item, data intake and growth, customer
+data, Claude's answers, accuracy, running limits. Work on that system is held to it. A requirement is
+replaced only by one proven better, on the bench or by an outcome, never by preference; the replaced
+line goes to docs/decisions.md. · 2026-10-01 · *"record these requirnemtns as reference unless a proven better requirement takes its place"* · log: docs/decisions.md#The price category requirements are the reference (2026-10-01)
+Retired wording: none
+Governs: docs/price-category-requirements-2026-10-01.md
 
 ### Priced store items that match no barcode still train prices
 A store price for an item Shin cannot tie to a barcode is never thrown away. It is not added to the

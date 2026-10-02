@@ -2502,6 +2502,18 @@ little (apples, oranges) stays whole, one that varies a lot (wine) is split furt
 
 **Reverses if:** he says so.
 
+## The price category requirements are the reference (2026-10-01)
+
+His words: *"record these requirnemtns as reference unless a proven better requirement takes its
+place"*, of the requirements set written the same day, now docs/price-category-requirements-2026-10-01.md.
+Recorded in RULINGS.md "The price category requirements are the reference". The ruling judge found
+three entries narrower than the set, each now points to it. Old texts: "How Shin predicts a price it
+has not seen", *"Every Claude answer a shopper's scan produces is saved to improve the server
+data."* and *"shopper reports are weighted by how well they check out."*; "Catalogue first; Claude,
+with no web search, is the capped price-range fallback", *"and every answer is saved as data"*.
+
+**Reverses if:** a requirement is proven better (bench or outcome), or he says so.
+
 ## Requirements, when asked for, are requirements only (2026-10-01)
 
 His words: *"build a set of requirments for this system. You're not designing anything, you are building
