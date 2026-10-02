@@ -22,7 +22,9 @@ estimated for this item from the data Shin has, never a single store's price** (
 app returns a price range. it takes the data it has and it returns a range that is estimated for
 this item"*). **No
 answer a shopper sees comes from Gemini, in any form:** not identity, not a price, not a range, not
-reviews, not a stored earlier Gemini answer. Every new feature is planned without Gemini. The
+reviews, not a stored earlier Gemini answer. The one exception: a range Gemini Pro seeded offline
+for a category with no prices, labelled low confidence (2026-10-02: *"gemini pro will be used to
+seed empty categories"*). Every new feature is planned without Gemini. The
 setting is on for testers from 2026-09-28 (`SHIN_CATALOGUE_FIRST`, on by default in code; only an
 explicit 0/off/false returns the old Gemini path). Until the Claude range ask is built, an item
 with no Shin price shows its name and no range. · 2026-09-28 · Jamin: *"We are not using gemini at all for the client side answers"*, *"switch on the setting to allow testers to see it"* · 2026-09-28 · Jamin: *"this is probably the 10th time saying this, we are not using gemini, we are using claude for a typical range without having it search the web, this way we save a lot of credits"* · 2026-09-27 · Jamin: *"why do you still think we use gemini, even after all the work done yesturday"* (09-26: *"there seems to be a communication problem, why are you still thinking about gemini"*); Aurik: *"THAT IS THE PLAN WE WILL FOLLOW, WE ARE SHIFTING SHIN AND THAT IS THE MOST RECENT PLAN"* · log: docs/decisions.md#Catalogue first, Gemini a capped fallback
@@ -31,8 +33,8 @@ Governs: SHIN_CATALOGUE_FIRST, app/src/catalogue-first.ts, app/server.ts (/api/i
 ### Gemini switch and call architecture
 Gemini replaced Claude (measured: 7/7 price requests refused, 9/30 barcodes absent, Claude
 refusing 4/15 photos on Jamin's phone). That swap covered the beta only until the catalogue-first
-setting was switched on for testers (2026-09-28): no shopper answer comes from Gemini, and Claude,
-with no web search, is the price-range fallback (catalogue-first ruling). This entry and the Gemini
+setting was switched on for testers (2026-09-28): no shopper answer comes from Gemini, save a range
+Gemini Pro seeded offline for an empty category (2026-10-02), and Claude, with no web search, is the price-range fallback (catalogue-first ruling). This entry and the Gemini
 entries below describe only the old path an explicit SHIN_CATALOGUE_FIRST=0 returns. While Gemini
 is called, it is one call, never split. · 2026-09-14 · *"we will be swithcing to gemini... Shin will adopt this"* · log: docs/decisions.md#Gemini for identification, and grounded prices display-only
 Retired wording: `Claude for product identification`, `two Gemini calls per scan`
@@ -188,7 +190,8 @@ docs/price-category-requirements-2026-10-01.md is the reference set of requireme
 category system: categories, placing items, the range for an item, data intake and growth, customer
 data, Claude's answers, accuracy, running limits. Work on that system is held to it. A requirement is
 replaced only by one proven better, on the bench or by an outcome, never by preference; the replaced
-line goes to docs/decisions.md. · 2026-10-01 · *"record these requirnemtns as reference unless a proven better requirement takes its place"* · log: docs/decisions.md#The price category requirements are the reference (2026-10-01)
+line goes to docs/decisions.md. The verdict chart follows them: no all-of-Shin median rung. Pages
+he browses and saves by hand are not automated copying and are a valid source. · 2026-10-01 · *"record these requirnemtns as reference unless a proven better requirement takes its place"* · 2026-10-02 · *"4. follow the requirments 5. its not automated copying, i'm manually browsing the web pages // you can make the call for the rest of the points"* · log: docs/decisions.md#The price category requirements are the reference (2026-10-01)
 Retired wording: none
 Governs: docs/price-category-requirements-2026-10-01.md
 

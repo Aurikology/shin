@@ -2521,3 +2521,37 @@ the requirements. Think like an engineer"*. Recorded in RULINGS.md under that ti
 found no entry it contradicts or narrows; no old text.
 
 **Reverses if:** he says so.
+
+## Gemini Pro seeds empty categories; the requirements' nine problems settled (2026-10-02)
+
+His words, on the nine problems the methods research found
+(research/price-category-methods-2026-10-01/README.md): *"2. gemini pro will be used to seed empty
+categories 4. follow the requirments 5. its not automated copying, i'm manually browsing the web
+pages // you can make the call for the rest of the points"*.
+
+RULINGS.md: "Catalogue first" gains the one exception to no Gemini in a shopper answer, old text
+*"reviews, not a stored earlier Gemini answer. Every new feature is planned without Gemini."*; the
+ruling judge listed "Gemini switch and call architecture" as narrower, old text *"no shopper answer
+comes from Gemini, and Claude, with no web search, is the price-range fallback"*; "The price category
+requirements are the reference" gains his items 4 and 5. Item 4 means the verdict chart's
+global_prior rung (docs/verdict-distribution-design-2026-09-30.md) does not stand.
+
+Requirements changed (docs/price-category-requirements-2026-10-01.md), old lines:
+- 1.1 *"Place every catalogue item in exactly one category at each level of a nested hierarchy | 100% of items have a category path"*
+- 1.8 *"Cover every department, and turn one on only after it passes section 7 | No department serves answers before passing"*
+- 2.1 pass *"100% placed at some level"*
+- 2.2 pass *"95%+ right at category-or-parent on 50+ random hand-checked items, per route"*
+- 2.3 *"Place an item only as deep as it is sure of, and record that confidence"*
+- 4.8 *"Record each source's licence; take nothing with no licence | 0 unlicensed sources"*
+- 5.3 *"Count a shopper report in a range only once an independent source agrees for that store and week | 0 lone reports in any range"*
+- 5.8 *"Measure how often shoppers' own calls agree with Shin's verdict"*
+- 7.1 pass *"An 80% range holds 78% to 82% of unseen prices overall, and within 5 points in every category with 30+ test items"*
+- 8.3 *"Show no Gemini output in any shopper answer | 0"*
+Added: 4.9, 5.9, the section 7 not-run note. Why each of Claude's calls is better: 7.1 at 30 items
+passes a perfectly calibrated range only 50.6% of the time (binomial, computed); 2.2's 50 items
+cannot prove 95% (48 of 50 gives a one-sided 95% lower bound of 0.879); 1.1 and 2.3 contradicted;
+2.1 was met by placing everything at the top; 5.3 let new accounts vouch for each other; 5.8 counted
+calls made after seeing the verdict; 1.8 contradicted "always answer"; 5.9 and 4.9 close gaps the
+research found (store and time identify a person; no Ontario grocery prices on repeat dates).
+
+**Reverses if:** a requirement is proven better (bench or outcome), or he says so.
