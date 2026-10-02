@@ -2555,3 +2555,22 @@ calls made after seeing the verdict; 1.8 contradicted "always answer"; 5.9 and 4
 research found (store and time identify a person; no Ontario grocery prices on repeat dates).
 
 **Reverses if:** a requirement is proven better (bench or outcome), or he says so.
+
+## The name is Pexi, not Shin
+**Date:** 2026-10-02 · **Status:** active
+
+Jamin, 2026-10-02: *"we are registering pexi"*. Before that he asked whether "Shinn" avoided the
+risk carried on "Shin" (it does not: same sound, Trademarks Act s.6(5)(e), TMEP 1207.01(b)(iv);
+notes/trademark-search-shinn-2026-10-01.md), then about "Roto" (live ROTO software marks in both
+countries, an App Store app named "Roto", Roto-Rooter; notes/trademark-search-roto-2026-10-01.md),
+then asked for a list. Of 30 screened names, Pexi and Dibbo came through cleanest
+(notes/name-screen-2026-10-01.md); Dibbo was the cleaner of the two, he picked Pexi. Retired
+RULINGS.md text, "Shin name: risk carried knowingly" (2026-09-22): "Shin Ramen" is dead as a name
+(Nongshim's SHIN RAMYUN, first use 1987). Plain "Shin" for software passed CIPO's Canadian classes
+9/42 clean twice (2026-09-04, 2026-09-11); the store listing goes out under "Shin" with risks
+carried knowingly, not cleared: Nongshim's food marks and two live US class 42 design marks that
+transliterate to "Shin", one covering product-rating software. No public use (handle, posted
+video) until a name has passed this kind of search.
+
+**Reverses if:** CIPO's examiner cites PEXIP or PEXIL against the application, an opposition is
+filed, or he picks another name.

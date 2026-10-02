@@ -472,12 +472,16 @@ valuable data, not a decided build item. · 2026-09-17 · *"This is very valuabl
 Retired wording: none
 Governs: to fill
 ## Legal and name
-### Shin name: risk carried knowingly
-"Shin Ramen" is dead as a name (Nongshim's SHIN RAMYUN, first use 1987). Plain "Shin" for software
-passed CIPO's Canadian classes 9/42 clean twice (2026-09-04, 2026-09-11); the store listing goes
-out under "Shin" with risks carried knowingly, not cleared: Nongshim's food marks and two live US
-class 42 design marks that transliterate to "Shin", one covering product-rating software. No
-public use (handle, posted video) until a name has passed this kind of search. · 2026-09-22 · *"we wwant to create the store listing under shin"* · log: docs/decisions.md#The store listing goes out under the name Shin
+### Name: Pexi, registered as a trademark
+The name being registered is Pexi; he files the Canadian trademark application at CIPO himself.
+Picked 2026-10-02 from a screen of 30 names (notes/name-screen-2026-10-01.md): no live PEXI mark
+in Canada or the US in any class. Risks carried knowingly, not cleared: PEXIP (video software, US
+classes 9/35/42, one letter longer), PEXIL pending in Canada class 42, pexi.app and pexi.com held
+by others, Portuguese "peixe" (fish) not checked by a speaker. Shin (sound shared with Nongshim's
+SHIN marks and two live US class 42 marks), Shinn (same sound, plus SHINN pending and SHINNTYPE)
+and Roto (live ROTO software marks, an App Store "Roto", Roto-Rooter) are not the name
+(notes/trademark-search-*.md). "Shin Ramen" is dead (SHIN RAMYUN, first use 1987). No public use
+(handle, posted video) under a name that has not passed this kind of search. · 2026-10-02 · *"we are registering pexi"* · log: docs/decisions.md#The name is Pexi, not Shin
 Retired wording (every live mention already says it is dead, so not searched): Shin Ramen
 Governs: to fill
 ### Product identification takes a string or GTIN, never an image
