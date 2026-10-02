@@ -2574,3 +2574,15 @@ video) until a name has passed this kind of search.
 
 **Reverses if:** CIPO's examiner cites PEXIP or PEXIL against the application, an opposition is
 filed, or he picks another name.
+
+## No trademark filing for now; the developer accounts are called Pexi
+**Date:** 2026-10-02 · **Status:** active
+
+The CIPO application (filing number 3044038, PEXI, classes 9/35/42, $789.14) was filled to the
+review page and not submitted. He asked why it was not $60 (that is Ontario's business-name fee),
+then: *"we only need this so that we can register for the app store and play store"* and *"we
+need a devloepr account called pexi"*. Neither store requires a trademark. Retired RULINGS.md
+wording: "The name being registered is Pexi; he files the Canadian trademark application at CIPO
+himself."
+
+**Reverses if:** someone else files PEXI, a store challenges the name, or he asks for the filing.

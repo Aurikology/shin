@@ -472,9 +472,14 @@ valuable data, not a decided build item. · 2026-09-17 · *"This is very valuabl
 Retired wording: none
 Governs: to fill
 ## Legal and name
-### Name: Pexi, registered as a trademark
-The name being registered is Pexi; he files the Canadian trademark application at CIPO himself.
-Picked 2026-10-02 from a screen of 30 names (notes/name-screen-2026-10-01.md): no live PEXI mark
+### Name: Pexi, and the store developer accounts are called Pexi
+The name is Pexi, and the App Store and Google Play developer accounts are both named Pexi. Legal
+registration is only what those two accounts need (2026-10-02: *"we only need this so that we can
+register for the app store and play store"*, *"we need a devloepr account called pexi"*): no
+trademark filing for now (CIPO draft 3044038 left unsubmitted, $491.06 first class). Apple shows an
+individual's legal name as seller and refuses DBAs and trade names, so "Pexi" on the App Store
+needs a corporation named Pexi plus a D-U-N-S number; Google Play's developer name can differ
+from the legal name. Picked 2026-10-02 from a screen of 30 names (notes/name-screen-2026-10-01.md): no live PEXI mark
 in Canada or the US in any class. Risks carried knowingly, not cleared: PEXIP (video software, US
 classes 9/35/42, one letter longer), PEXIL pending in Canada class 42, pexi.app and pexi.com held
 by others, Portuguese "peixe" (fish) not checked by a speaker. Shin (sound shared with Nongshim's
