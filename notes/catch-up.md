@@ -14,6 +14,34 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ---
 
+## 2026-10-05 (Aurik's PC): the bench ran on the Save-On data, and still cannot score
+
+### To do
+
+- **Jamin: the five verdict-chart calls** (`comms/messages/2026-10-01-1400-...`) are still unanswered;
+  nothing on the verdict chart moves until you answer.
+- **Jamin, or whoever runs the Save-On collection: a second collection day** would give the bench its
+  first repeat-date prices. Without two dates the by-time split is impossible (see What changed).
+- **Whoever holds the API key: the Claude no-search guess baseline (B4) has never run.** No key on
+  Aurik's PC; it is owed before any model can pass.
+
+### What changed
+
+- **`npm run baseline` in `bench/` ran on Aurik's PC against the 103-row `prices.db`** (read-only,
+  unchanged). Result file: `bench/results/baseline-2026-10-05-000347-969e207e.json`, not yet committed.
+- **Still nothing can be scored.** The prediction key now has 15 products at 3+ shops (81 truth points,
+  up from 1). The by-time split is impossible because the prices span too few dates. The sale key has
+  12 barcoded sale rows paired with a regular price. The category range held the real price 0% of the
+  time over 12 items, because only 2 of them had enough prices to answer.
+- **The re-read sheet grew by 45 unmarked rows** (`bench/results/reread-sheet.csv`, Save-On
+  2026-10-01 rows). They await a hand re-read; the 17.9% key error rate still rests on the old 39.
+
+### Read by
+
+- (none yet)
+
+---
+
 ## 2026-09-28 (Jamin's PC): store prices with no barcode are kept, and nothing counts as true until tested
 
 ### To do
@@ -49,7 +77,7 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ### Read by
 
-- (none yet)
+- Aurik (Windows PC), 2026-10-05
 
 ---
 

@@ -1,0 +1,623 @@
+{
+  "date": "2026-10-05",
+  "pricesDb": {
+    "path": "C:\\dev\\shin-main\\price\\data\\prices.db",
+    "rows": 103,
+    "usableCadRows": 103,
+    "before": {
+      "bytes": 139264,
+      "mtimeMs": 1790893510138.1472
+    },
+    "after": {
+      "bytes": 139264,
+      "mtimeMs": 1790893510138.1472
+    },
+    "untouched": true
+  },
+  "catalogue": "C:\\dev\\shin-main\\catalogue\\data\\catalogue.db",
+  "sealed": {
+    "path": "C:\\dev\\shin-main\\bench\\sealed\\sealed.json",
+    "mode": "none",
+    "sha256": null
+  },
+  "keys": {
+    "prediction": {
+      "products": 15,
+      "truthPoints": 81
+    },
+    "sale": {
+      "saleRows": 13,
+      "withBarcode": 12,
+      "paired": 12,
+      "byPairing": {
+        "was_price": 12,
+        "same_listing": 0,
+        "same_seller_barcode": 0,
+        "none": 1
+      },
+      "detection": "kind = 'promotional' or is_sale = 1 (where that column exists); regular price from was_cents when printed, else the same listing on another day, else the same seller and barcode"
+    },
+    "highSide": {
+      "status": "not built",
+      "note": "convenience-store prices have no source in observation today"
+    },
+    "matching": {
+      "status": "loaded",
+      "path": "C:\\dev\\shin-main\\research\\screenshot-matcher-v1\\key-truth.jsonl",
+      "rows": 87,
+      "withBarcode": 87,
+      "note": "matching key slot: loaded and counted only. Matching is paused (build plan C), so no score is computed against it."
+    },
+    "excluded": {
+      "flagged": 0,
+      "unverified_printout": 0
+    }
+  },
+  "audit": {
+    "rows": 94,
+    "flagged": 0,
+    "bySource": {
+      "prediction": {
+        "rows": 81,
+        "flagged": 0
+      },
+      "sale": {
+        "rows": 13,
+        "flagged": 0
+      }
+    },
+    "rereadSheet": "C:\\dev\\shin-main\\bench\\results\\reread-sheet.csv: 45 rows added, 95 on the sheet, 45 marked by hand",
+    "keyErrorRate": {
+      "status": "measured",
+      "errorRate": 0.1794871794871795,
+      "errorRate95": {
+        "low": 0.08977151811469994,
+        "high": 0.3266835162444276
+      },
+      "randomReread": 39,
+      "randomWrong": 7,
+      "flagPrecision": 1,
+      "flaggedReread": 6
+    }
+  },
+  "bar": {
+    "saleLowMin": 0.8,
+    "regularFalseLowMax": 0.2,
+    "ownWidthMedianMax": 1.5,
+    "widthP90Max": 3,
+    "calibrationTolerance": 0.05,
+    "perCategoryMinProducts": 30,
+    "minClaimedCoverage": 0.5,
+    "minAnswerRate": 0.95
+  },
+  "splits": [
+    {
+      "name": "by_product",
+      "description": "grouped by barcode, 30% of products held out, seed 0; the model never sees any price of a held-out product",
+      "cutoff": null,
+      "trainRows": 91,
+      "testPoints": 12,
+      "testSales": 0,
+      "testProducts": 2
+    },
+    {
+      "name": "by_time",
+      "impossible": "the prices span too few dates; learning on older and scoring on newer needs at least two"
+    }
+  ],
+  "runs": [
+    {
+      "model": "category_range",
+      "description": "today's range: price/src/range.ts priceRangeFor (own prices at 3+ shops, else leaf category, else parent), 25th to 75th percentile",
+      "fold": "by_product",
+      "foldDescription": "grouped by barcode, 30% of products held out, seed 0; the model never sees any price of a held-out product",
+      "counts": false,
+      "askedHash": "70a71f05cadc2460dde2b6fa9df1411fed952d98c4a3992a46b4668194c63970",
+      "answeredHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "ran": true,
+      "scores": {
+        "claimedCoverage": 0.5,
+        "points": 12,
+        "scored": 0,
+        "abstained": 12,
+        "invalid": 0,
+        "answerRate": 0,
+        "hitRate": 0,
+        "hitRateAnswered": null,
+        "perCategory": {
+          "en:chocolate-syrup": {
+            "n": 6,
+            "products": 1,
+            "hits": 0,
+            "hitRate": 0
+          },
+          "en:chocolates": {
+            "n": 6,
+            "products": 1,
+            "hits": 0,
+            "hitRate": 0
+          }
+        },
+        "width": null,
+        "ownWidth": null,
+        "intervalScoreMean": 9.210340371976185,
+        "perItem": [
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          }
+        ],
+        "perItem50": [
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          }
+        ],
+        "perItemMedian": [
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          }
+        ],
+        "with50": 0,
+        "logError": null,
+        "within": null,
+        "sentences": [
+          "the range held the real price 0% of the time counting skips as misses (claims 50%), answered 0 of 12"
+        ],
+        "sale": {
+          "items": 0,
+          "scored": 0,
+          "readLow": 0,
+          "saleLowRate": null,
+          "regularPaired": 0,
+          "regularReadLow": 0,
+          "regularFalseLowRate": null
+        }
+      },
+      "gate": {
+        "pass": false,
+        "failures": [
+          "nothing_scored",
+          "sale_not_measured",
+          "baseline_not_measured"
+        ],
+        "notes": [
+          "no valid prediction to score",
+          "no sale price was eligible, so the low check is not measured",
+          "only 2 products; B4 needs 30"
+        ],
+        "baselines": [
+          {
+            "baseline": "category_median",
+            "quantity": "median log error",
+            "status": "not_measured",
+            "meanDiff": null,
+            "baselineMean": null,
+            "threshold": null,
+            "ci95": null,
+            "mcError": null,
+            "reps": 0,
+            "products": 2,
+            "winShare": null,
+            "note": "only 2 products; B4 needs 30"
+          }
+        ]
+      },
+      "extra": {
+        "answeredBy": {
+          "none": 2
+        },
+        "noneReasons": {
+          "too_few_prices": 1,
+          "size_unknown": 1
+        }
+      },
+      "seconds": 0.038
+    },
+    {
+      "model": "category_median",
+      "description": "point estimate: median of per-product median prices in the leaf category (5+ products), else parent; no size scaling, no window",
+      "fold": "by_product",
+      "foldDescription": "grouped by barcode, 30% of products held out, seed 0; the model never sees any price of a held-out product",
+      "counts": false,
+      "askedHash": "70a71f05cadc2460dde2b6fa9df1411fed952d98c4a3992a46b4668194c63970",
+      "answeredHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "ran": true,
+      "scores": {
+        "claimedCoverage": 0,
+        "points": 12,
+        "scored": 0,
+        "abstained": 12,
+        "invalid": 0,
+        "answerRate": 0,
+        "hitRate": 0,
+        "hitRateAnswered": null,
+        "perCategory": {
+          "en:chocolate-syrup": {
+            "n": 6,
+            "products": 1,
+            "hits": 0,
+            "hitRate": 0
+          },
+          "en:chocolates": {
+            "n": 6,
+            "products": 1,
+            "hits": 0,
+            "hitRate": 0
+          }
+        },
+        "width": null,
+        "ownWidth": null,
+        "intervalScoreMean": 9.210340371976185,
+        "perItem": [
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          }
+        ],
+        "perItem50": [
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          }
+        ],
+        "perItemMedian": [
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "55000031318",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          },
+          {
+            "key": "62639342067",
+            "is": 9.210340371976184
+          }
+        ],
+        "with50": 0,
+        "logError": null,
+        "within": null,
+        "sentences": [
+          "the range held the real price 0% of the time counting skips as misses (claims 0%), answered 0 of 12"
+        ],
+        "sale": {
+          "items": 0,
+          "scored": 0,
+          "readLow": 0,
+          "saleLowRate": null,
+          "regularPaired": 0,
+          "regularReadLow": 0,
+          "regularFalseLowRate": null
+        }
+      },
+      "gate": {
+        "pass": false,
+        "failures": [
+          "claim_too_low",
+          "nothing_scored",
+          "sale_not_measured",
+          "baseline_not_measured"
+        ],
+        "notes": [
+          "claims 0%; a range must claim at least 50% (a point estimate claims 0)",
+          "no valid prediction to score",
+          "no sale price was eligible, so the low check is not measured",
+          "no 50% band returned (low50Cents/high50Cents), so the comparison with category_range is not measured"
+        ],
+        "baselines": [
+          {
+            "baseline": "category_range",
+            "quantity": "50% band interval score",
+            "status": "not_measured",
+            "meanDiff": null,
+            "baselineMean": null,
+            "threshold": null,
+            "ci95": null,
+            "mcError": null,
+            "reps": 0,
+            "products": 0,
+            "winShare": null,
+            "note": "no 50% band returned (low50Cents/high50Cents), so the comparison with category_range is not measured"
+          }
+        ]
+      },
+      "extra": {
+        "answeredBy": {
+          "leaf": 0,
+          "parent": 0,
+          "none": 2
+        }
+      },
+      "seconds": 0.001
+    },
+    {
+      "model": "claude_guess",
+      "description": "Claude, no web search, asked for a low/typical/high price on a 200-item sample with cost logged",
+      "fold": "by_product",
+      "foldDescription": "grouped by barcode, 30% of products held out, seed 0; the model never sees any price of a held-out product",
+      "counts": false,
+      "askedHash": "",
+      "answeredHash": "",
+      "ran": false,
+      "notRunReason": "not run: this lane has no network and no API key. Interface fixed (ClaudeGuessRequest / ClaudeGuessAnswer, claudeSample); the run and its cost are still owed.",
+      "scores": null,
+      "gate": null,
+      "seconds": 0
+    }
+  ],
+  "overall": {
+    "category_range": {
+      "pass": false,
+      "counted": [],
+      "reason": "no counting fold ran (by time or sealed)"
+    },
+    "category_median": {
+      "pass": false,
+      "counted": [],
+      "reason": "no counting fold ran (by time or sealed)"
+    },
+    "claude_guess": {
+      "pass": false,
+      "counted": [],
+      "reason": "no counting fold ran (by time or sealed)"
+    }
+  }
+}
