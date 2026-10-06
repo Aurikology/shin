@@ -14,6 +14,37 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ---
 
+## 2026-10-05 evening (Aurik's PC): a second Save-On day, and the by-time test can run but proves nothing yet
+
+### To do
+
+- **Jamin: may Gemini sort store items into categories offline?** One question with three answers
+  in `comms/messages/2026-10-06-0020-...`. Sorting is stuck at 70% against 95%, and the next step
+  needs a model.
+- **Jamin: the five verdict-chart calls** are still unanswered (see the entry below).
+- **Whoever runs the next Save-On collection: wait at least two weeks**, or until a flyer week
+  turns over, so prices have time to move.
+
+### What changed
+
+- **The same 75 barcodes were asked at the same 6 Save-On stores again** (Aurik's yes, 2026-10-05):
+  450 requests, nothing blocked, 94 prices written. Aurik's PC `prices.db` went from 103 rows to
+  197. Run sheet and log are in `research/saveonfoods-collection-2026-10-05/`.
+- **Not one price moved.** 93 store-item pairs are on both days, 0 changed price and 0 started or
+  ended a sale. The bench's by-time split now scores (82 of 82 points), and the category range
+  "holds" the real price 96% of the time while claiming 50%. That only shows a price seen 5 days
+  ago is still the price: the range is about zero width (1.00x), so it fails calibration and
+  measures nothing a shopper needs. The by-product split still answers 0 of 12. Result:
+  `bench/results/baseline-2026-10-05-202954-9b86d019.json`.
+- **Correction:** Aurik's PC does have a working Gemini key in `.env` (checked by listing models).
+  It has no Claude key. Earlier notes said there was no key at all.
+
+### Read by
+
+- Aurik (Windows PC), 2026-10-05
+
+---
+
 ## 2026-10-05 (Aurik's PC): the bench ran on the Save-On data, and still cannot score
 
 ### To do

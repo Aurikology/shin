@@ -113,8 +113,11 @@ of 894 tiles, 0 of the 46 key items, 1 wrong refusal seen (a lower-case "cilantr
 paste"). The misses left are retrieval picking a wrong neighbour (red wine vinegar -> red wines,
 almond butter -> tahini, cream-style corn -> beverages, SunChips -> bagel breads), which no vote
 over the same shortlist can fix. The plan's next step is a model choosing the leaf from the
-catalogue's own list, scored on these same two sheets; it needs an API key where it runs, and
-this PC has none.
+catalogue's own list, scored on these same two sheets. Correction, 2026-10-05: this PC's `.env`
+holds a working Gemini key (checked by listing models); there is no Claude key. The requirements
+(2.1) name Claude for this step and RULINGS.md plans every new feature without Gemini, so whether
+Gemini may run it offline is asked of Jamin
+(`comms/messages/2026-10-06-0020-aurik-to-jamin-may-gemini-sort-store-items-offline.md`).
 
 ### What could not be verified
 
