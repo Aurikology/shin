@@ -288,7 +288,7 @@ export default {
         // the kicker "NOTHING SAVED YET", the heading "Saved", and the line
         // "Nothing here yet." The kicker is dropped while the list is empty
         // (see the header below), so what is left is the heading, one line in
-        // Shin's voice, and the shutter in the footer as the way out.
+        // Pexi's voice, and the shutter in the footer as the way out.
         body = html`
           <div class="empty" data-act="wake-empty">
             ${raw(faceBlock('asleep', { size: 'face-verdict' }))}
@@ -309,7 +309,7 @@ export default {
           ${raw(
             // Row 45 is dark, not v1: without a re-queryable source, "under
             // the usual" is a snapshot taken at save time, not a movement
-            // Shin watched happen, and a nudging face would claim the
+            // Pexi watched happen, and a nudging face would claim the
             // latter. FLAGS.feed is the same switch row 33's promise waits
             // on, for the same reason (USAGE.md C4).
             FLAGS.feed && dropped.length

@@ -93,6 +93,6 @@ export function writeSetting(key, value) {
  * The line that goes with a false answer here lives in voice.js as
  * `storage_not_kept`, with all three personalities, as of 2026-09-06. It was
  * briefly a constant in this file, which voice.js's own opening rule forbids:
- * no string Shin says is written inside anything but voice.js. This module
+ * no string Pexi says is written inside anything but voice.js. This module
  * answers the question; it does not phrase the answer.
  */

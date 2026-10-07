@@ -225,7 +225,7 @@
  * a plain hollow ring, which is already the sheet's own "hold it loosely"
  * shape. `data-tier` on the row activates tokens.css's `--tier`/`--tier-on`
  * for everything inside it, including the face this targets. The disc
- * behind Shin takes the tier fill and the outline takes the on-tier ink; the
+ * behind Pexi takes the tier fill and the outline takes the on-tier ink; the
  * character's own colours never change.
  */
 .wrow[data-conf="certain"] .face-disc,

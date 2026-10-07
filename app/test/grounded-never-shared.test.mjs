@@ -366,7 +366,7 @@ test('a free Gemini key starts the server, says so, and turns the photo route aw
       const fail = setTimeout(() => reject(new Error(`the server did not come up in 20 seconds: ${stderr}`)), 20_000);
       child.stdout.on('data', (d) => {
         stdout += String(d);
-        if (/Shin is running/.test(stdout)) {
+        if (/Pexi is running/.test(stdout)) {
           clearTimeout(fail);
           resolve();
         }

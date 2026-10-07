@@ -1,4 +1,4 @@
-// Shin is global (Jamin, 2026-09-17 walkthrough): a new user's market is empty until they choose one,
+// Pexi is global (Jamin, 2026-09-17 walkthrough): a new user's market is empty until they choose one,
 // never Canada. And the button he calls "Fix Results" on the welcome screen carries the same words.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

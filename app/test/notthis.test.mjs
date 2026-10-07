@@ -8,7 +8,7 @@
  * is a decision somebody could undo without noticing:
  *
  *   1. The affordance appears only after an ambiguous pick. A confident answer
- *      offering alternatives is Shin apologising for something he is not unsure
+ *      offering alternatives is Pexi apologising for something he is not unsure
  *      of, and that costs trust in every other answer he gives.
  *   2. An empty list says so in a sentence. Drawing an empty box reads as a
  *      failure when it is actually "there was only ever one".

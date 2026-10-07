@@ -1,5 +1,5 @@
 /**
- * Savings Overview: his welcome screen 32, "SHIN Savings Overview showing: Total
+ * Savings Overview: his welcome screen 32, "PEXI Savings Overview showing: Total
  * Saved, Monthly Goal Progress, and Recently Scanned Item". Reached from the You
  * screen.
  *

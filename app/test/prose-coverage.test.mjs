@@ -407,7 +407,7 @@ const CASES = [
       why: 'Shopper-reported shelf prices are the only source here.',
     },
     english:
-      'Fresh produce is not something Shin can price yet. Shopper-reported shelf prices are the only source here.',
+      'Fresh produce is not something Pexi can price yet. Shopper-reported shelf prices are the only source here.',
   },
   /*
    * THE SAME REFUSAL AS THE ENGINE ACTUALLY SENDS IT. The case above is the
@@ -432,13 +432,13 @@ const CASES = [
       whyFacts: { problemCount: 3, plu: '4011', pluMeaning: 'bananas', pluInUseSince: 1990 },
     },
     english:
-      'Fresh produce is not something Shin can price yet. Three problems stack and none of them is solved by a better feed. A PLU names a category rather than a product (4011 has meant "bananas" since 1990), package formats break unit comparison, and the public series measures underlying inflation rather than what is on the shelf this week. Shopper-reported shelf prices are the only source here, not a supplement to one.',
+      'Fresh produce is not something Pexi can price yet. Three problems stack and none of them is solved by a better feed. A PLU names a category rather than a product (4011 has meant "bananas" since 1990), package formats break unit comparison, and the public series measures underlying inflation rather than what is on the shelf this week. Shopper-reported shelf prices are the only source here, not a supplement to one.',
   },
   {
     code: 'refusal_identity_below_floor',
     facts: { label: 'Canon EOS R6' },
     english:
-      'Not sure enough this is the right one. The closest match was "Canon EOS R6". Pick the right one and Shin will price it.',
+      'Not sure enough this is the right one. The closest match was "Canon EOS R6". Pick the right one and Pexi will price it.',
   },
   {
     code: 'refusal_no_price_for_product',
@@ -638,7 +638,7 @@ test('a reason code this client has not been taught leaves the English standing'
     );
     // The frame around it is still French: the sentence it is embedded in is
     // built from the category alone and does not depend on the reason.
-    assert.ok(out.includes('Shin'), `${String(whyCode)}: the frame is gone too:\n${out}`);
+    assert.ok(out.includes('Pexi'), `${String(whyCode)}: the frame is gone too:\n${out}`);
     assert.ok(!out.startsWith('Fresh produce is'), `${String(whyCode)}: the whole sentence went English:\n${out}`);
   }
 });

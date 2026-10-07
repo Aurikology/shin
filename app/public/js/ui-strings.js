@@ -1,7 +1,7 @@
 /**
- * Every user-facing string in this app that is NOT Shin talking.
+ * Every user-facing string in this app that is NOT Pexi talking.
  *
- * voice.js opens with the rule that no string Shin says is written inside a
+ * voice.js opens with the rule that no string Pexi says is written inside a
  * screen. This file is the other half of that sentence, which was never
  * written down because until there was a second language it cost nothing to
  * leave the chrome where it fell: "Undo", "Correct it", "Share", "Going rate",
@@ -14,14 +14,14 @@
  * test/screens-voice.test.mjs already draw:
  *
  *   In voice.js: anything in the first person, anything that judges, advises,
- *   apologises, or narrates what Shin is doing. Three personalities each.
+ *   apologises, or narrates what Pexi is doing. Three personalities each.
  *
  *   Here: structural labels, headings, button text, kickers, accessible names
- *   and factual captions that do not speak as Shin. NO PERSONALITY VARIANTS,
+ *   and factual captions that do not speak as Pexi. NO PERSONALITY VARIANTS,
  *   deliberately. Chrome does not have an attitude. A "Share" button that got
  *   ruder when you picked Blunt would be the picker leaking out of the thing
  *   it controls, and voice.js's own promise is that the attitude changes what
- *   Shin says, not what the app is.
+ *   Pexi says, not what the app is.
  *
  * SAME SHAPE AS voice.js OTHERWISE: locale is the outer key, a value is a
  * plain string or a function of already-formatted facts, and a key missing
@@ -43,7 +43,7 @@ const EN = {
   /* The onboarding flow's text, in its own file (onboarding-strings.js). */
   ...ONB_EN,
   /* ---------------------------------------------------------- shell and nav */
-  app_name: 'Shin',
+  app_name: 'Pexi',
   nav_saved: 'Saved',
   nav_you: 'You',
   nav_scan: 'Scan something',
@@ -54,11 +54,11 @@ const EN = {
   try_again: 'Try again',
   open: 'Open',
 
-  /* Shin Plus, 2026-09-21 (screens/paywall.js, docs/mvp-plan.md). No price is
+  /* Pexi Plus, 2026-09-21 (screens/paywall.js, docs/mvp-plan.md). No price is
      written here: every price is the store's own string, passed in as `price`.
      No savings claim (hard rule 2) and nothing aimed at the person (rule 3). */
-  paywall_title: 'Shin Plus',
-  paywall_heading: 'Shin Plus: unlimited scans',
+  paywall_title: 'Pexi Plus',
+  paywall_heading: 'Pexi Plus: unlimited scans',
   paywall_limit: (f) => `The ${f.limit} free scans for this week are used.`,
   paywall_limit_bare: 'The free scans for this week are used.',
   paywall_resets: (f) => `They come back ${f.when}.`,
@@ -77,14 +77,14 @@ const EN = {
   paywall_failed: 'The plans did not load.',
   paywall_none: 'No plans are on sale right now.',
   paywall_in_app: 'Subscribe in the app',
-  paywall_in_app_detail: 'Shin Plus is sold through the App Store and Google Play. Open Shin on your phone to subscribe.',
+  paywall_in_app_detail: 'Pexi Plus is sold through the App Store and Google Play. Open Pexi on your phone to subscribe.',
   paywall_working: 'Waiting for the store',
-  paywall_done: 'Shin Plus is on. Scans are unlimited.',
-  paywall_restore_none: 'No Shin Plus subscription was found for this store account.',
+  paywall_done: 'Pexi Plus is on. Scans are unlimited.',
+  paywall_restore_none: 'No Pexi Plus subscription was found for this store account.',
   paywall_buy_failed: 'The purchase did not go through.',
   you_manage_sub: 'Manage subscription',
   you_scans_left: (f) => `${f.remaining} of ${f.limit} free scans left this week`,
-  you_plus_on: 'Shin Plus: unlimited scans',
+  you_plus_on: 'Pexi Plus: unlimited scans',
 
   /* The answer sheet, 2026-09-21: the price-match line and the one-tap
      "What did you do?" after an answer that found it cheaper elsewhere. */
@@ -112,7 +112,7 @@ const EN = {
   screen_error_body: 'Something on it broke before it could draw. Going back to the camera will clear it.',
 
   /* ------------------------------------------------------------ the camera */
-  cam_label: 'Shin camera',
+  cam_label: 'Pexi camera',
   cam_undo: 'Undo',
   cam_why: 'Why',
   cam_correct_it: 'Fix Results',
@@ -122,12 +122,12 @@ const EN = {
   cam_tell_me_the_price: 'Tell me the price',
   /* The price route out of a refusal, added 2026-09-13. Chrome, not voice:
      four words on a button, no first person, and the same label whatever
-     attitude is picked. What SHIN says about it is price_only_recorded. */
+     attitude is picked. What PEXI says about it is price_only_recorded. */
   cam_just_the_price: 'Just write the price down',
   cam_price_written_down: 'Price written down',
   cam_no_name_for_it: 'No name for it',
-  /* The shop shortlist. Chrome, not Shin: a row label, a heading, and the
-     two rows that are not a shop. The one sentence that speaks as Shin
+  /* The shop shortlist. Chrome, not Pexi: a row label, a heading, and the
+     two rows that are not a shop. The one sentence that speaks as Pexi
      (`shop_pick_prompt`) is in voice.js, with all three attitudes. */
   cam_shop: 'Shop',
   cam_shop_choose: 'Choose',
@@ -164,7 +164,7 @@ const EN = {
   cam_gem_failed_word: 'No answer',
   /* WHEN THE ANSWER WAS CHECKED (ruling 1, docs/decisions.md: a cached answer
      may be served "for six hours and ALWAYS SHOWN WITH WHEN IT WAS CHECKED").
-     Shin's own fact about when Shin asked, never Gemini's bytes, so it is
+     Pexi's own fact about when Pexi asked, never Gemini's bytes, so it is
      chrome and lives here. `when` arrives already built by `ago()` in
      lib/dom.js, which is where the units and the French word order are
      decided; this key only carries the verb in front of it. Under a minute,
@@ -185,7 +185,7 @@ const EN = {
   cam_standin_note: 'This asking price is a stated stand-in, not a tag anyone read.',
 
   /* CATALOGUE FIRST (RULINGS.md, 2026-09-27; app/src/catalogue-first.ts). The
-     answer sheet for a barcode Shin's own catalogue named, and the pick-one-of-3
+     answer sheet for a barcode Pexi's own catalogue named, and the pick-one-of-3
      list for text read off a pack. The range figures arrive already formatted
      by lib/money.js; the provenance line says where the range came from and
      never what the price is. No grading word anywhere: a shelf price is placed
@@ -193,30 +193,30 @@ const EN = {
   cat_range: (f) => `${f.low} to ${f.high}`,
   cat_range_unit: (f) => `${f.low} to ${f.high}, for ${f.unit}`,
   cat_range_label: 'Price range',
-  cat_basis_shin: (f) => `From Shin's own prices at ${f.n} stores`,
-  cat_basis_shin_one: "From Shin's own prices at 1 store",
-  cat_basis_shin_bare: "From Shin's own prices",
+  cat_basis_shin: (f) => `From Pexi's own prices at ${f.n} stores`,
+  cat_basis_shin_one: "From Pexi's own prices at 1 store",
+  cat_basis_shin_bare: "From Pexi's own prices",
   cat_basis_category: (f) => `From similar products in ${f.category}`,
   cat_basis_category_bare: 'From similar products',
   cat_basis_ai: 'A typical range estimated by AI',
   cat_basis_ai_asked: (f) => `A typical range estimated by AI, asked ${f.date}`,
-  cat_no_range: 'Shin has no price range for this yet.',
-  cat_no_range_later: 'Shin has no price range for this yet. Scan it again later.',
-  cat_not_found: "This barcode is not in Shin's catalogue yet.",
+  cat_no_range: 'Pexi has no price range for this yet.',
+  cat_no_range_later: 'Pexi has no price range for this yet. Scan it again later.',
+  cat_not_found: "This barcode is not in Pexi's catalogue yet.",
   cat_type_name: 'Type the product name',
-  cat_unknown_ask_name: "Shin doesn't know this barcode yet. What is the product called?",
+  cat_unknown_ask_name: "Pexi doesn't know this barcode yet. What is the product called?",
   cam_typed_pick_which: (f) => `Which one is "${f.query}"?`,
   cam_typed_pick_none: 'None of these',
   cam_typed_pick_none_meta: 'Search with the words as typed',
   tm_heading: 'Is it one of these?',
   tm_label: 'Products that match the text on the pack',
-  tm_none: "Nothing in Shin's catalogue matches this text yet.",
+  tm_none: "Nothing in Pexi's catalogue matches this text yet.",
   tm_dev_label: 'Text read off the pack (development)',
 
   /* THE PRICE VERDICT BELL (RULINGS.md "V1 verdict screen mechanics" and "The
      verdict speaks his words against the shopper's own thresholds",
      2026-09-30; docs/verdict-distribution-design-2026-09-30.md). The four zone
-     words are his. The typical price is always labelled as Shin's estimate.
+     words are his. The typical price is always labelled as Pexi's estimate.
      Never "saved" and no savings tally (hard rule 2). Amounts arrive already
      formatted by lib/money.js. */
   vd_zone_great: 'Great price',
@@ -226,8 +226,8 @@ const EN = {
   vd_where_under: (f) => `${f.pct}% under the typical price`,
   vd_where_over: (f) => `${f.pct}% over the typical price`,
   vd_where_about: 'about the typical price',
-  vd_off: (f) => `${f.where}, Shin's estimate ${f.centre}`,
-  vd_typical: (f) => `Typical price, Shin's estimate: ${f.centre}`,
+  vd_off: (f) => `${f.where}, Pexi's estimate ${f.centre}`,
+  vd_typical: (f) => `Typical price, Pexi's estimate: ${f.centre}`,
   vd_not_confident: 'We are not fully confident in this answer.',
   /* D13: a low-confidence answer still answers, and says in a few words why it is thin (RULINGS.md "Always answer"; DESIGN.md Law 3). */
   vd_not_confident_why: (f) => `Not fully confident: ${f.why}`,
@@ -244,14 +244,14 @@ const EN = {
   vd_report_word: 'Your report',
   vd_suspect: (f) => `Did you mean ${f.price}?`,
   vd_multiple: (f) => `${f.m}x the typical price`,
-  vd_band: (f) => `Shaded: Shin's estimate of 8 in 10 prices, ${f.low} to ${f.high}`,
-  vd_alt_marked: (f) => `${f.verdict}. Your price, ${f.asking}, is ${f.where}. Shin estimates the typical price at ${f.centre}, with 8 in 10 prices between ${f.low} and ${f.high}.`,
-  vd_alt_bare: (f) => `Shin estimates the typical price at ${f.centre}, with 8 in 10 prices between ${f.low} and ${f.high}.`,
+  vd_band: (f) => `Shaded: Pexi's estimate of 8 in 10 prices, ${f.low} to ${f.high}`,
+  vd_alt_marked: (f) => `${f.verdict}. Your price, ${f.asking}, is ${f.where}. Pexi estimates the typical price at ${f.centre}, with 8 in 10 prices between ${f.low} and ${f.high}.`,
+  vd_alt_bare: (f) => `Pexi estimates the typical price at ${f.centre}, with 8 in 10 prices between ${f.low} and ${f.high}.`,
   vd_sale: 'Sale',
   vd_price_label: 'Shelf price',
   vd_place: 'Place it',
-  vd_dots_heading: 'Prices Shin has seen',
-  vd_basis: (f) => `Shin's estimate, from ${f.from}${f.n ? ` (${f.n} price${f.n === '1' ? '' : 's'})` : ''}`,
+  vd_dots_heading: 'Prices Pexi has seen',
+  vd_basis: (f) => `Pexi's estimate, from ${f.from}${f.n ? ` (${f.n} price${f.n === '1' ? '' : 's'})` : ''}`,
   vd_basis_own_prices: "this item's own prices",
   vd_basis_other_size: 'the same product in another size',
   vd_basis_leaf_category: 'similar products',
@@ -259,7 +259,7 @@ const EN = {
   vd_basis_brand_markup: "the brand's usual markup",
   vd_basis_claude_typical: 'an AI estimate',
   vd_basis_category_prior: 'its category',
-  vd_basis_global_prior: 'every price Shin holds',
+  vd_basis_global_prior: 'every price Pexi holds',
   vd_bigger_pack: (f) => `A bigger pack${f.quantity ? `, ${f.quantity}` : ''}${f.store ? ` at ${f.store}` : ''}, works out to ${f.price} ${f.unit}.`,
   vd_unit_per_100_g: 'per 100 g',
   vd_unit_per_100_ml: 'per 100 ml',
@@ -281,7 +281,7 @@ const EN = {
    * this", and a parent swap is a wider shelf and has to say so on the row.
    *
    * CHROME AND NOT VOICE, deliberately, and it is a close call. These read as
-   * Shin qualifying his own answer, which is the voice.js side of the line.
+   * Pexi qualifying his own answer, which is the voice.js side of the line.
    * But the qualifier is the row's label -- the thing that decides whether a
    * price means "instead of this" -- and a label that got shorter when you
    * picked Blunt would be the personality picker editing how honest the app
@@ -356,13 +356,13 @@ const EN = {
   you_torch_auto: 'Auto',
   you_torch_off: 'Off',
   you_torch_level: 'Switch on below this brightness',
-  you_torch_hint: 'A lower setting waits until it is darker. It starts at the level Shin uses.',
+  you_torch_hint: 'A lower setting waits until it is darker. It starts at the level Pexi uses.',
   you_torch_off_hint: 'The torch stays off, and the camera says when it is too dark to read.',
 
   /* ------------------------------------------------------------- the consent */
   consent_kicker: 'Before your first scan',
   consent_title: 'Your data',
-  consent_heading: 'What Shin does with your data',
+  consent_heading: 'What Pexi does with your data',
   consent_photos: 'Photos',
   consent_location: 'Location',
   consent_continue: 'Continue',
@@ -375,8 +375,8 @@ const EN = {
   perm_kicker: 'Before your first scan',
 
   /* ---------------------------------------------------------- the correction */
-  correct_kicker: 'Teach Shin',
-  correct_title: 'Tell Shin the price',
+  correct_kicker: 'Teach Pexi',
+  correct_title: 'Tell Pexi the price',
   correct_which_shop: 'Which shop?',
   correct_on_sale: 'On sale',
   correct_save_it: 'Save it',
@@ -390,7 +390,7 @@ const EN = {
   lic_sources: 'Sources',
   lic_fallback_credit: 'This app is built on open data from Open Food Facts, Open Prices, OpenStreetMap and Open Icecat. The full list, with each licence, is what failed to load.',
   lic_intro: 'Product details, prices and store names in this app are open data, collected and published by other people. Each source below sets its own terms for reuse, and this is the credit those terms ask for.',
-  lic_footer: 'Shin is not affiliated with any of them. Prices are what somebody recorded on the day shown beside them, not an offer, and not checked with the shop.',
+  lic_footer: 'Pexi is not affiliated with any of them. Prices are what somebody recorded on the day shown beside them, not an offer, and not checked with the shop.',
 
   /* -------------------------------------------------------------- the market */
   market_title: 'Where do you shop?',
@@ -447,14 +447,14 @@ const EN = {
   grounded_no_link: (f) => `No link for this one: ${f.name}`,
   /* 2026-09-15, Jamin: "Having a response that is not checked is infinitely
      better than... told the app doesn't know". The label, not a refusal. */
-  grounded_unchecked: 'From a web search. Not checked by Shin.',
-  /* A typed search answered from Shin's own data (Jamin, 2026-09-23): not
+  grounded_unchecked: 'From a web search. Not checked by Pexi.',
+  /* A typed search answered from Pexi's own data (Jamin, 2026-09-23): not
      Google's, so it never wears Google's heading. Each row carries its date. */
-  grounded_heading_own: 'From Shin’s own prices',
-  grounded_own_note: 'Prices Shin has recorded, each with the day it was seen. Not checked.',
+  grounded_heading_own: 'From Pexi’s own prices',
+  grounded_own_note: 'Prices Pexi has recorded, each with the day it was seen. Not checked.',
   grounded_size_assumed: 'Size not known, so this compares at the size most stores listed.',
   /* Why there is no price line. Each one states what the evidence was, never
-   * that Shin does not know: the offers, the reviews and the description are
+   * that Pexi does not know: the offers, the reviews and the description are
    * all still on screen above these sentences. D-113. (The single-price one
    * went on 2026-09-19: one price now draws a line, and says so below.) */
   grounded_no_line_none: 'No price that could be compared came back for this one.',
@@ -467,16 +467,16 @@ const EN = {
    * about the offer, never a reading of its price. */
   grounded_mark_members: (f) => `Members only: ${f.name}`,
   grounded_mark_marketplace: (f) => `Marketplace seller: ${f.name}`,
-  /* One store from two sources: Shin's own recorded price for a store the web
+  /* One store from two sources: Pexi's own recorded price for a store the web
    * search also quoted (server's `sameStoreAsGemini`). Both rows stay; this
-   * says which one is Shin's own and when it was seen, never which is right. */
+   * says which one is Pexi's own and when it was seen, never which is right. */
   grounded_same_store_own: (f) => (f.date
-    ? `${f.name}: Shin’s own record for this store, seen ${f.date}. Not checked.`
-    : `${f.name}: Shin’s own record for this store. Not checked.`),
+    ? `${f.name}: Pexi’s own record for this store, seen ${f.date}. Not checked.`
+    : `${f.name}: Pexi’s own record for this store. Not checked.`),
   cam_unchecked_answer: (f) => `Best match, not checked: ${f.label}`,
 
   /* ------------------------------------------------------- the price line
-   * The zone words name the range the USER set. They are never Shin's
+   * The zone words name the range the USER set. They are never Pexi's
    * reading of the price: "good", "fair", "high", "a deal", "over the usual"
    * and "under the usual" are all banned outside a real verdict. */
   priceline_label: 'Price line',
@@ -500,12 +500,12 @@ const EN = {
   priceline_excluded: (f) => `${f.n} left out`,
 
   /* --------------------------------------------------------------- the setup */
-  setup_title: 'Pick your Shin',
+  setup_title: 'Pick your Pexi',
   /* Was "One question, then the camera" until the two lines below were added
      on 2026-09-14. A kicker that promises one question over three is a small
      lie the user catches within four seconds of reading it. */
   setup_kicker: 'Two quick things, then the camera',
-  setup_heading: 'Which Shin do you want?',
+  setup_heading: 'Which Pexi do you want?',
   setup_promise: 'Changeable any time. The attitude changes the words and never the number.',
   setup_start: 'Start scanning',
 
@@ -516,7 +516,7 @@ const EN = {
    * are both on the grading-word ban list that test/refusal-swaps.test.mjs
    * keeps (hard rule 2, Competition Act s.74.01(1)(b)). So the question is
    * asked about the middle of what was found and about the user's own line,
-   * which is what it actually is: a boundary the user sets, not Shin's
+   * which is what it actually is: a boundary the user sets, not Pexi's
    * reading of a price. Same reason the French says "sous le milieu" and
    * "au-dessus du milieu" rather than anything with "prix" next to it:
    * "au-dessus du prix" is on the list and "au-dessus" alone is not. */
@@ -530,7 +530,7 @@ const EN = {
 
   /* The three ranges (2026-09-19). His words for the ranges are good, bad and
      great, and they name boundaries the USER sets, so they are the user's own
-     labels, not Shin grading a price. Shin's own answer words are unchanged. */
+     labels, not Pexi grading a price. Pexi's own answer words are unchanged. */
   ranges_heading: 'Set your price ranges',
   ranges_unit_q: 'Measure them in',
   ranges_unit_percent: 'Percentage (%)',
@@ -546,7 +546,7 @@ const EN = {
   /* --------------------------------------------------------------- the share */
   share_on_the_tag_caps: 'ON THE TAG',
   share_elsewhere_caps: 'ELSEWHERE',
-  share_shin_says: 'Shin says:',
+  share_shin_says: 'Pexi says:',
   share_on_the_tag: 'On the tag:',
   share_elsewhere: 'Elsewhere:',
   share_title: 'Share',
@@ -580,7 +580,7 @@ const EN = {
   share_conf_high: 'Confident',
   share_conf_medium: 'Fairly confident',
   share_conf_low: 'Not fully confident',
-  share_card_alt: (f) => `Shin card. ${f.word}. ${f.label}. On the tag ${f.asking}. Elsewhere ${f.elsewhere}.`,
+  share_card_alt: (f) => `Pexi card. ${f.word}. ${f.label}. On the tag ${f.asking}. Elsewhere ${f.elsewhere}.`,
 
   /* ----------------------------------------------------------- the watchlist */
   saved_title: 'Saved',
@@ -597,10 +597,10 @@ const EN = {
   /* ----------------------------------------------------------------- the you */
   you_title: 'You',
   you_kicker: 'Settings and honesty',
-  you_your_shin: 'Your Shin',
-  you_attitude_group: 'Shin’s attitude',
-  you_can_answer_h: 'What Shin can actually answer',
-  you_has_answered_h: 'What Shin has actually answered',
+  you_your_shin: 'Your Pexi',
+  you_attitude_group: 'Pexi’s attitude',
+  you_can_answer_h: 'What Pexi can actually answer',
+  you_has_answered_h: 'What Pexi has actually answered',
   you_reading_scan_log: 'Reading the scan log…',
   you_settings: 'Settings',
   you_theme: 'Theme',
@@ -608,7 +608,7 @@ const EN = {
   you_theme_light: 'Light',
   you_theme_dark: 'Dark',
   you_language: 'Language',
-  you_language_caption: 'The interface and everything Shin says. Prices and product names come from the catalogue and are shown as it holds them.',
+  you_language_caption: 'The interface and everything Pexi says. Prices and product names come from the catalogue and are shown as it holds them.',
   you_buzz: 'Buzz on verdicts',
   you_buzz_caption: 'A short buzz when a verdict or a refusal lands, on by default.',
   you_market: 'Market',
@@ -631,14 +631,14 @@ const EN = {
   you_ratings_none: 'None yet',
   you_thumbs_up: 'thumbs up',
   you_thumbs_down: 'thumbs down',
-  you_data_h: 'What Shin does with your data',
+  you_data_h: 'What Pexi does with your data',
   you_photos: 'Photos',
   you_location: 'Location',
   you_no_meter: 'No daily limit right now. Nothing is metered in this build; if that changes, the allowance will be one number, written once, shown wherever it applies.',
   you_delete_my_data: 'Delete my data',
   you_email: 'Email',
-  you_delete_subject: 'Delete my Shin data',
-  you_delete_body_head: 'Delete everything Shin has for this device',
+  you_delete_subject: 'Delete my Pexi data',
+  you_delete_body_head: 'Delete everything Pexi has for this device',
   you_delete_body_device: 'Device id',
   you_report: 'Report a wrong price',
   you_report_fastest: 'Fastest fix',
@@ -649,10 +649,10 @@ const EN = {
   dev_tags_caption: 'A small tag such as a12 in the top corner of every screen, so a screen can be named in a message. Off for everyone else.',
   you_build: 'Build',
   you_build_note: '(when this server last started)',
-  you_can_price: 'Products Shin can price',
+  you_can_price: 'Products Pexi can price',
   you_row_can_answer: 'can answer',
   you_row_refuses: 'refuses',
-  you_scans_named_row: 'Scans Shin could name',
+  you_scans_named_row: 'Scans Pexi could name',
   you_kind_barcode: 'Barcode',
   you_kind_typed: 'Typed',
   you_kind_photo: 'Photo',
@@ -666,16 +666,16 @@ const EN = {
   you_scan_count: (f) => `${f.n} scan${f.n === '1' ? '' : 's'}`,
   you_named_suffix: (f) => `${f.n} named`,
 
-  /* ----------------------------------------- Shin's face, for a screen reader
+  /* ----------------------------------------- Pexi's face, for a screen reader
    * The thirteen face states are drawn, so a sighted reader gets them for free
    * and a screen reader gets only this label. They live here rather than in
-   * voice.js because a state name is a LABEL and not Shin speaking: it does not
+   * voice.js because a state name is a LABEL and not Pexi speaking: it does not
    * change with the attitude, and it must not, or a blind user would hear a
    * different product than a sighted one sees. Keys match `FACE_STATES` in
    * face-art.js exactly; `app/test/locale.test.mjs` asserts all thirteen are
    * present in both languages, so a fourteenth state fails a test here rather
    * than reaching a screen reader as a raw English id. */
-  face_label: (f) => `Shin: ${f.state}`,
+  face_label: (f) => `Pexi: ${f.state}`,
   face_state_idle: 'waiting',
   face_state_thinking: 'thinking',
   face_state_asking: 'asking',
@@ -695,7 +695,7 @@ const FR = {
   /* Le texte de l'accueil, dans son propre fichier (onboarding-strings.js). */
   ...ONB_FR,
   /* ------------------------------------------------------- coquille et menu */
-  app_name: 'Shin',
+  app_name: 'Pexi',
   nav_saved: 'Gardés',
   nav_you: 'Toi',
   nav_scan: 'Scanner quelque chose',
@@ -706,8 +706,8 @@ const FR = {
   try_again: 'Réessayer',
   open: 'Ouvrir',
 
-  paywall_title: 'Shin Plus',
-  paywall_heading: 'Shin Plus : scans illimités',
+  paywall_title: 'Pexi Plus',
+  paywall_heading: 'Pexi Plus : scans illimités',
   paywall_limit: (f) => `Les ${f.limit} scans gratuits de cette semaine sont utilisés.`,
   paywall_limit_bare: 'Les scans gratuits de cette semaine sont utilisés.',
   paywall_resets: (f) => `Ils reviennent ${f.when}.`,
@@ -726,14 +726,14 @@ const FR = {
   paywall_failed: 'Les forfaits ne se sont pas chargés.',
   paywall_none: 'Aucun forfait n’est en vente en ce moment.',
   paywall_in_app: 'Abonne-toi dans l’application',
-  paywall_in_app_detail: 'Shin Plus est vendu par l’App Store et Google Play. Ouvre Shin sur ton téléphone pour t’abonner.',
+  paywall_in_app_detail: 'Pexi Plus est vendu par l’App Store et Google Play. Ouvre Pexi sur ton téléphone pour t’abonner.',
   paywall_working: 'En attente de la boutique',
-  paywall_done: 'Shin Plus est actif. Les scans sont illimités.',
-  paywall_restore_none: 'Aucun abonnement Shin Plus trouvé pour ce compte de boutique.',
+  paywall_done: 'Pexi Plus est actif. Les scans sont illimités.',
+  paywall_restore_none: 'Aucun abonnement Pexi Plus trouvé pour ce compte de boutique.',
   paywall_buy_failed: 'L’achat n’a pas abouti.',
   you_manage_sub: 'Gérer l’abonnement',
   you_scans_left: (f) => `${f.remaining} scans gratuits sur ${f.limit} restants cette semaine`,
-  you_plus_on: 'Shin Plus : scans illimités',
+  you_plus_on: 'Pexi Plus : scans illimités',
 
   pm_heading: 'Correspondance de prix',
   outcome_q: 'Qu’as-tu fait ?',
@@ -759,7 +759,7 @@ const FR = {
   screen_error_body: 'Quelque chose dessus a cassé avant de pouvoir s’afficher. Revenir à la caméra va l’effacer.',
 
   /* ----------------------------------------------------------- la caméra */
-  cam_label: 'Caméra Shin',
+  cam_label: 'Caméra Pexi',
   cam_undo: 'Annuler',
   cam_why: 'Pourquoi',
   cam_correct_it: 'Corriger les résultats',
@@ -821,28 +821,28 @@ const FR = {
   cat_range: (f) => `${f.low} à ${f.high}`,
   cat_range_unit: (f) => `${f.low} à ${f.high}, pour ${f.unit}`,
   cat_range_label: 'Fourchette de prix',
-  cat_basis_shin: (f) => `D’après les prix de Shin dans ${f.n} magasins`,
-  cat_basis_shin_one: 'D’après les prix de Shin dans 1 magasin',
-  cat_basis_shin_bare: 'D’après les prix de Shin',
+  cat_basis_shin: (f) => `D’après les prix de Pexi dans ${f.n} magasins`,
+  cat_basis_shin_one: 'D’après les prix de Pexi dans 1 magasin',
+  cat_basis_shin_bare: 'D’après les prix de Pexi',
   cat_basis_category: (f) => `D’après des produits semblables de la catégorie ${f.category}`,
   cat_basis_category_bare: 'D’après des produits semblables',
   cat_basis_ai: 'Une fourchette habituelle estimée par l’IA',
   cat_basis_ai_asked: (f) => `Une fourchette habituelle estimée par l’IA, demandée le ${f.date}`,
-  cat_no_range: 'Shin n’a pas encore de fourchette de prix pour ce produit.',
-  cat_no_range_later: 'Shin n’a pas encore de fourchette de prix pour ce produit. Scanne-le de nouveau plus tard.',
-  cat_not_found: 'Ce code-barres n’est pas encore dans le catalogue de Shin.',
+  cat_no_range: 'Pexi n’a pas encore de fourchette de prix pour ce produit.',
+  cat_no_range_later: 'Pexi n’a pas encore de fourchette de prix pour ce produit. Scanne-le de nouveau plus tard.',
+  cat_not_found: 'Ce code-barres n’est pas encore dans le catalogue de Pexi.',
   cat_type_name: 'Tape le nom du produit',
-  cat_unknown_ask_name: 'Shin ne connaît pas encore ce code-barres. Comment s’appelle le produit ?',
+  cat_unknown_ask_name: 'Pexi ne connaît pas encore ce code-barres. Comment s’appelle le produit ?',
   cam_typed_pick_which: (f) => `Lequel est « ${f.query} » ?`,
   cam_typed_pick_none: 'Aucun de ceux-ci',
   cam_typed_pick_none_meta: 'Chercher avec les mots tapés',
   tm_heading: 'Est-ce l’un de ceux-ci?',
   tm_label: 'Produits qui correspondent au texte de l’emballage',
-  tm_none: 'Rien dans le catalogue de Shin ne correspond encore à ce texte.',
+  tm_none: 'Rien dans le catalogue de Pexi ne correspond encore à ce texte.',
   tm_dev_label: 'Texte lu sur l’emballage (développement)',
 
   /* LA COURBE DU VERDICT. Les quatre mots de zone sont les siens. Le prix
-     habituel est toujours dit estimation de Shin. Jamais « économisé ». */
+     habituel est toujours dit estimation de Pexi. Jamais « économisé ». */
   vd_zone_great: 'Excellent prix',
   vd_zone_good: 'Bon prix',
   vd_zone_reasonable: 'Prix raisonnable',
@@ -850,8 +850,8 @@ const FR = {
   vd_where_under: (f) => `${f.pct} % sous le prix habituel`,
   vd_where_over: (f) => `${f.pct} % au-dessus du prix habituel`,
   vd_where_about: 'à peu près le prix habituel',
-  vd_off: (f) => `${f.where}, estimation de Shin ${f.centre}`,
-  vd_typical: (f) => `Prix habituel, estimation de Shin : ${f.centre}`,
+  vd_off: (f) => `${f.where}, estimation de Pexi ${f.centre}`,
+  vd_typical: (f) => `Prix habituel, estimation de Pexi : ${f.centre}`,
   vd_not_confident: 'Nous ne sommes pas entièrement sûrs de cette réponse.',
   vd_not_confident_why: (f) => `Pas entièrement sûrs : ${f.why}`,
   vd_why_own_prices: 'peu de prix pour ce produit',
@@ -866,14 +866,14 @@ const FR = {
   vd_report_word: 'Votre signalement',
   vd_suspect: (f) => `Voulais-tu dire ${f.price}?`,
   vd_multiple: (f) => `${f.m} fois le prix habituel`,
-  vd_band: (f) => `En couleur : l’estimation de Shin pour 8 prix sur 10, de ${f.low} à ${f.high}`,
-  vd_alt_marked: (f) => `${f.verdict}. Ton prix, ${f.asking}, est ${f.where}. Shin estime le prix habituel à ${f.centre}, avec 8 prix sur 10 entre ${f.low} et ${f.high}.`,
-  vd_alt_bare: (f) => `Shin estime le prix habituel à ${f.centre}, avec 8 prix sur 10 entre ${f.low} et ${f.high}.`,
+  vd_band: (f) => `En couleur : l’estimation de Pexi pour 8 prix sur 10, de ${f.low} à ${f.high}`,
+  vd_alt_marked: (f) => `${f.verdict}. Ton prix, ${f.asking}, est ${f.where}. Pexi estime le prix habituel à ${f.centre}, avec 8 prix sur 10 entre ${f.low} et ${f.high}.`,
+  vd_alt_bare: (f) => `Pexi estime le prix habituel à ${f.centre}, avec 8 prix sur 10 entre ${f.low} et ${f.high}.`,
   vd_sale: 'Solde',
   vd_price_label: 'Prix sur l’étiquette',
   vd_place: 'Placer',
-  vd_dots_heading: 'Prix vus par Shin',
-  vd_basis: (f) => `Estimation de Shin, d’après ${f.from}${f.n ? ` (${f.n} prix)` : ''}`,
+  vd_dots_heading: 'Prix vus par Pexi',
+  vd_basis: (f) => `Estimation de Pexi, d’après ${f.from}${f.n ? ` (${f.n} prix)` : ''}`,
   vd_basis_own_prices: 'les prix de ce produit',
   vd_basis_other_size: 'le même produit dans un autre format',
   vd_basis_leaf_category: 'des produits semblables',
@@ -881,7 +881,7 @@ const FR = {
   vd_basis_brand_markup: 'la marge habituelle de la marque',
   vd_basis_claude_typical: 'une estimation par l’IA',
   vd_basis_category_prior: 'sa catégorie',
-  vd_basis_global_prior: 'tous les prix de Shin',
+  vd_basis_global_prior: 'tous les prix de Pexi',
   vd_bigger_pack: (f) => `Un plus grand format${f.quantity ? `, ${f.quantity}` : ''}${f.store ? ` chez ${f.store}` : ''}, revient à ${f.price} ${f.unit}.`,
   vd_unit_per_100_g: 'les 100 g',
   vd_unit_per_100_ml: 'les 100 ml',
@@ -945,13 +945,13 @@ const FR = {
   you_torch_auto: 'Auto',
   you_torch_off: 'Éteinte',
   you_torch_level: 'Allumer sous cette luminosité',
-  you_torch_hint: "Un réglage plus bas attend qu'il fasse plus sombre. Il part du niveau que Shin utilise.",
+  you_torch_hint: "Un réglage plus bas attend qu'il fasse plus sombre. Il part du niveau que Pexi utilise.",
   you_torch_off_hint: "La lampe reste éteinte, et la caméra dit quand il fait trop sombre pour lire.",
 
   /* ----------------------------------------------------------- le consentement */
   consent_kicker: 'Avant ton premier scan',
   consent_title: 'Tes données',
-  consent_heading: 'Ce que Shin fait avec tes données',
+  consent_heading: 'Ce que Pexi fait avec tes données',
   consent_photos: 'Photos',
   consent_location: 'Localisation',
   consent_continue: 'Continuer',
@@ -961,8 +961,8 @@ const FR = {
   perm_kicker: 'Avant ton premier scan',
 
   /* ----------------------------------------------------------- la correction */
-  correct_kicker: 'Apprends à Shin',
-  correct_title: 'Dis le prix à Shin',
+  correct_kicker: 'Apprends à Pexi',
+  correct_title: 'Dis le prix à Pexi',
   correct_which_shop: 'Quel magasin?',
   correct_on_sale: 'En solde',
   correct_save_it: 'Enregistrer',
@@ -976,7 +976,7 @@ const FR = {
   lic_sources: 'Sources',
   lic_fallback_credit: 'Cette application est bâtie sur les données ouvertes d’Open Food Facts, Open Prices, OpenStreetMap et Open Icecat. La liste complète, avec chaque licence, est ce qui n’a pas pu être chargé.',
   lic_intro: 'Les détails de produits, les prix et les noms de magasins dans cette application sont des données ouvertes, recueillies et publiées par d’autres personnes. Chaque source ci-dessous fixe ses propres conditions de réutilisation, et voici le crédit que ces conditions demandent.',
-  lic_footer: 'Shin n’est affilié à aucune d’entre elles. Les prix sont ce que quelqu’un a noté le jour indiqué à côté, pas une offre, et ils n’ont pas été vérifiés auprès du magasin.',
+  lic_footer: 'Pexi n’est affilié à aucune d’entre elles. Les prix sont ce que quelqu’un a noté le jour indiqué à côté, pas une offre, et ils n’ont pas été vérifiés auprès du magasin.',
 
   /* ----------------------------------------------------------- le marché */
   market_title: 'Où magasines-tu?',
@@ -1023,9 +1023,9 @@ const FR = {
    * coup serait le "modifier". */
   grounded_heading: 'Trouvé par Google',
   grounded_no_link: (f) => `Pas de lien pour celui-ci : ${f.name}`,
-  grounded_unchecked: 'Trouvé par une recherche web. Pas vérifié par Shin.',
-  grounded_heading_own: 'Selon les prix de Shin',
-  grounded_own_note: 'Prix que Shin a notés, chacun avec le jour où il a été vu. Pas vérifiés.',
+  grounded_unchecked: 'Trouvé par une recherche web. Pas vérifié par Pexi.',
+  grounded_heading_own: 'Selon les prix de Pexi',
+  grounded_own_note: 'Prix que Pexi a notés, chacun avec le jour où il a été vu. Pas vérifiés.',
   grounded_size_assumed: 'Format inconnu, donc la comparaison se fait au format que la plupart des magasins affichent.',
   grounded_no_line_none: 'Aucun prix comparable trouvé pour celui-ci.',
   grounded_no_line_size: 'Aucun format donné pour celui-ci, donc les prix ne peuvent pas être alignés.',
@@ -1035,13 +1035,13 @@ const FR = {
   grounded_mark_members: (f) => `Réservé aux membres : ${f.name}`,
   grounded_mark_marketplace: (f) => `Vendeur de la place de marché : ${f.name}`,
   grounded_same_store_own: (f) => (f.date
-    ? `${f.name} : relevé de Shin pour ce magasin, vu le ${f.date}. Pas vérifié.`
-    : `${f.name} : relevé de Shin pour ce magasin. Pas vérifié.`),
+    ? `${f.name} : relevé de Pexi pour ce magasin, vu le ${f.date}. Pas vérifié.`
+    : `${f.name} : relevé de Pexi pour ce magasin. Pas vérifié.`),
   cam_unchecked_answer: (f) => `Meilleure correspondance, pas vérifiée : ${f.label}`,
 
   /* ------------------------------------------------------- la ligne des prix
    * Les mots des zones nomment la limite que l'UTILISATEUR a fixee. Jamais
-   * l'avis de Shin sur le prix: "cher", "bon prix", "aubaine", "rabais",
+   * l'avis de Pexi sur le prix: "cher", "bon prix", "aubaine", "rabais",
    * "salé", "élevé", "vol", "au-dessus du prix" et "en dessous du prix" sont
    * tous interdits hors d'un vrai verdict. D'ou "sous le milieu" et
    * "au-dessus du milieu": "au-dessus" seul n'est pas sur la liste, c'est
@@ -1065,9 +1065,9 @@ const FR = {
   priceline_excluded: (f) => `${f.n} écartés`,
 
   /* ----------------------------------------------------------- la mise en route */
-  setup_title: 'Choisis ton Shin',
+  setup_title: 'Choisis ton Pexi',
   setup_kicker: 'Deux petites choses, puis la caméra',
-  setup_heading: 'Quel Shin veux-tu?',
+  setup_heading: 'Quel Pexi veux-tu?',
   setup_promise: 'Modifiable n’importe quand. L’attitude change les mots et jamais le chiffre.',
   setup_start: 'Commencer à scanner',
 
@@ -1094,7 +1094,7 @@ const FR = {
   /* ----------------------------------------------------------- le partage */
   share_on_the_tag_caps: 'SUR L’ÉTIQUETTE',
   share_elsewhere_caps: 'AILLEURS',
-  share_shin_says: 'Shin dit :',
+  share_shin_says: 'Pexi dit :',
   share_on_the_tag: 'Sur l’étiquette :',
   share_elsewhere: 'Ailleurs :',
   share_title: 'Partager',
@@ -1130,7 +1130,7 @@ const FR = {
   share_conf_high: 'Confiant',
   share_conf_medium: 'Assez confiant',
   share_conf_low: 'Pas tout à fait sûr',
-  share_card_alt: (f) => `Carte Shin. ${f.word}. ${f.label}. Sur l’étiquette ${f.asking}. Ailleurs ${f.elsewhere}.`,
+  share_card_alt: (f) => `Carte Pexi. ${f.word}. ${f.label}. Sur l’étiquette ${f.asking}. Ailleurs ${f.elsewhere}.`,
 
   /* ----------------------------------------------------------- les gardés */
   saved_title: 'Gardés',
@@ -1147,10 +1147,10 @@ const FR = {
   /* ----------------------------------------------------------- toi */
   you_title: 'Toi',
   you_kicker: 'Réglages et honnêteté',
-  you_your_shin: 'Ton Shin',
-  you_attitude_group: 'L’attitude de Shin',
-  you_can_answer_h: 'Ce à quoi Shin peut vraiment répondre',
-  you_has_answered_h: 'Ce à quoi Shin a vraiment répondu',
+  you_your_shin: 'Ton Pexi',
+  you_attitude_group: 'L’attitude de Pexi',
+  you_can_answer_h: 'Ce à quoi Pexi peut vraiment répondre',
+  you_has_answered_h: 'Ce à quoi Pexi a vraiment répondu',
   you_reading_scan_log: 'Lecture du journal de scans…',
   you_settings: 'Réglages',
   you_theme: 'Thème',
@@ -1158,7 +1158,7 @@ const FR = {
   you_theme_light: 'Clair',
   you_theme_dark: 'Sombre',
   you_language: 'Langue',
-  you_language_caption: 'L’interface et tout ce que Shin dit. Les prix et les noms de produits viennent du catalogue et sont affichés tels qu’il les garde.',
+  you_language_caption: 'L’interface et tout ce que Pexi dit. Les prix et les noms de produits viennent du catalogue et sont affichés tels qu’il les garde.',
   you_buzz: 'Vibration sur les verdicts',
   you_buzz_caption: 'Une courte vibration quand un verdict ou un refus arrive, activée par défaut.',
   you_market: 'Marché',
@@ -1178,14 +1178,14 @@ const FR = {
   you_ratings_none: 'Aucune pour l’instant',
   you_thumbs_up: 'pouces en haut',
   you_thumbs_down: 'pouces en bas',
-  you_data_h: 'Ce que Shin fait avec tes données',
+  you_data_h: 'Ce que Pexi fait avec tes données',
   you_photos: 'Photos',
   you_location: 'Localisation',
   you_no_meter: 'Aucune limite quotidienne pour le moment. Rien n’est compté dans cette version; si ça change, l’allocation sera un seul chiffre, écrit une fois, montré partout où il s’applique.',
   you_delete_my_data: 'Supprimer mes données',
   you_email: 'Courriel',
-  you_delete_subject: 'Supprimer mes données Shin',
-  you_delete_body_head: 'Supprimer tout ce que Shin a pour cet appareil',
+  you_delete_subject: 'Supprimer mes données Pexi',
+  you_delete_body_head: 'Supprimer tout ce que Pexi a pour cet appareil',
   you_delete_body_device: 'Identifiant de l’appareil',
   you_report: 'Signaler un prix erroné',
   you_report_fastest: 'La correction la plus rapide',
@@ -1194,10 +1194,10 @@ const FR = {
   dev_tags_caption: 'Une petite étiquette comme a12 dans le coin de chaque écran, pour pouvoir nommer un écran dans un message. Désactivé pour tout le monde.',
   you_build: 'Version',
   you_build_note: '(dernier démarrage de ce serveur)',
-  you_can_price: 'Produits auxquels Shin peut donner un prix',
+  you_can_price: 'Produits auxquels Pexi peut donner un prix',
   you_row_can_answer: 'peut répondre',
   you_row_refuses: 'refuse',
-  you_scans_named_row: 'Scans que Shin a pu nommer',
+  you_scans_named_row: 'Scans que Pexi a pu nommer',
   you_kind_barcode: 'Code-barres',
   you_kind_typed: 'Écrit',
   you_kind_photo: 'Photo',
@@ -1214,12 +1214,12 @@ const FR = {
   you_scan_count: (f) => `${f.n} scan${f.n === '1' ? '' : 's'}`,
   you_named_suffix: (f) => `${f.n} nommés`,
 
-  /* ------------------------------------- le visage de Shin, pour un lecteur
+  /* ------------------------------------- le visage de Pexi, pour un lecteur
    * d'ecran. Le francais met une espace insecable AVANT le deux-points, ce que
-   * l'anglais ne fait pas: "Shin : content" et non "Shin: content". C'est la
+   * l'anglais ne fait pas: "Pexi : content" et non "Pexi: content". C'est la
    * meme raison que 4,99 $ dans shin.js -- la ponctuation est ce qui trahit une
    * traduction faite a la machine. */
-  face_label: (f) => `Shin\u00A0: ${f.state}`,
+  face_label: (f) => `Pexi\u00A0: ${f.state}`,
   face_state_idle: 'en attente',
   face_state_thinking: 'réfléchit',
   face_state_asking: 'pose une question',
@@ -1246,7 +1246,7 @@ const UI = { en: EN, fr: FR };
  *   interpolated, never built here.
  *
  * An unknown key returns the key itself rather than an empty string. That is
- * the opposite of `say()`'s choice and it is deliberate: Shin going quiet is a
+ * the opposite of `say()`'s choice and it is deliberate: Pexi going quiet is a
  * bubble that does not appear, which is survivable, while a button with no
  * label is a control nobody can use. The key on screen is ugly and reports
  * itself, which is what a missing label should do.

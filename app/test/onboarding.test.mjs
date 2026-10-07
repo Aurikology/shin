@@ -286,13 +286,13 @@ test('every step can be left with nothing chosen, and Skip leaves from any step'
 
 /* ------------------------------------------------------------ 4. paywall */
 
-test('the plan steps show the real plan prices, no invented trial and no "SHIN Pro" (D32)', () => {
+test('the plan steps show the real plan prices, no invented trial and no "PEXI Pro" (D32)', () => {
   resetStore();
   const trial = render('trial');
-  assert.match(trial.html, /Shin Plus is for unlimited scans/);
+  assert.match(trial.html, /Pexi Plus is for unlimited scans/);
   assert.match(trial.html, /CA\$3\.99 a month or CA\$29\.99 a year/);
   assert.match(trial.html, /See the plans/);
-  assert.doesNotMatch(trial.html, /SHIN Pro|free trial|No Payment Due/i);
+  assert.doesNotMatch(trial.html, /PEXI Pro|free trial|No Payment Due/i);
   trial.cleanup();
   const plans = render('plans');
   assert.match(plans.html, /Choose a plan to unlock unlimited scans/);

@@ -67,13 +67,13 @@ export const DATABASE_ENV: Readonly<Record<string, string>> = {
 export function listenProblem(err: unknown, port: number): string | null {
   const code = (err as NodeJS.ErrnoException)?.code;
   if (code === 'EADDRINUSE') {
-    return `Port ${port} is already in use, so Shin did not start. Stop whatever is on it, or set PORT to a free number.`;
+    return `Port ${port} is already in use, so Pexi did not start. Stop whatever is on it, or set PORT to a free number.`;
   }
   if (code === 'EACCES') {
-    return `This account is not allowed to listen on port ${port}, so Shin did not start. Set PORT to a number above 1024.`;
+    return `This account is not allowed to listen on port ${port}, so Pexi did not start. Set PORT to a number above 1024.`;
   }
   if (code === 'EADDRNOTAVAIL') {
-    return `The address for port ${port} is not available on this machine, so Shin did not start. Check the host it was told to bind.`;
+    return `The address for port ${port} is not available on this machine, so Pexi did not start. Check the host it was told to bind.`;
   }
   return null;
 }

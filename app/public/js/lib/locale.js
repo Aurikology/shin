@@ -1,5 +1,5 @@
 /**
- * Which language Shin is speaking.
+ * Which language Pexi is speaking.
  *
  * Canada is bilingual and this app is aimed at Canadian grocery aisles, so
  * French is not a translation project bolted on at the end: it is half the
@@ -149,7 +149,7 @@ export function applyLang() {
  * (`manifest.webmanifest` and `manifest.fr.webmanifest`, identical but for
  * `lang` and `description`) and this swaps the link.
  *
- * The name is NOT translated between them: "Shin" is the product's name, the
+ * The name is NOT translated between them: "Pexi" is the product's name, the
  * icon is the same face, and an app that appears under two different names
  * depending on a setting is an app somebody cannot find on their own phone.
  *

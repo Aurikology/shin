@@ -15,7 +15,7 @@
  *      summary is exactly the "minimize" the term names.
  *   2. Nothing of ours is painted INTO that subtree. No `::before` with
  *      `content`, no background watermark, no overlay. `grounded.js` keeps
- *      Shin's sentences outside the root in the DOM, and this file does not
+ *      Pexi's sentences outside the root in the DOM, and this file does not
  *      put them back in through a pseudo-element.
  *
  * Everything is built from tokens.css, so light and dark come for free: the
@@ -27,9 +27,9 @@
 /* ------------------------------------------------- the section around it -- */
 
 .grounded-section {
-  /* Its own section, visibly separate from Shin's own price list above it.
+  /* Its own section, visibly separate from Pexi's own price list above it.
      Two sections, never one list: the reader has to be able to tell which
-     numbers came from Shin's sources and which came from a Google search. The
+     numbers came from Pexi's sources and which came from a Google search. The
      rule is a hairline and real space, not a colour difference, because the
      distinction has to survive a monochrome screenshot. */
   margin-top: var(--s-5);
@@ -45,8 +45,8 @@
   color: var(--ink);
 }
 
-/* Shin's heads-up about a row with no link. Outside the root, below it, in
-   Shin's own muted register so it reads as a note and not as part of the
+/* Pexi's heads-up about a row with no link. Outside the root, below it, in
+   Pexi's own muted register so it reads as a note and not as part of the
    answer. The founder's call: the row still shows, this just says so. */
 .grounded-nolink {
   margin: var(--s-3) 0 0;

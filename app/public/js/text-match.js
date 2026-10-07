@@ -1,5 +1,5 @@
 /**
- * PICK ONE OF 3: text read off a pack or a shelf tag, matched against Shin's
+ * PICK ONE OF 3: text read off a pack or a shelf tag, matched against Pexi's
  * own catalogue, and the top three shown for the shopper to tap.
  *
  * RULINGS.md "Catalogue first; Gemini is a capped fallback, never the identity"

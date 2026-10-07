@@ -2,7 +2,7 @@
  * Feature switches. Two of them are named in docs/design/AVATAR.md and
  * docs/design/USAGE.md, and both are false-until-a-real-thing-exists.
  *
- * `feed` gates every string and every face state that implies Shin is watching
+ * `feed` gates every string and every face state that implies Pexi is watching
  * a price over time: the promising form of `watching`, the `dropped` line, and
  * the `nudging` face. USAGE.md C4 is explicit about why it defaults off: the
  * pilot's four direct retailer fetches returned zero prices, three of them 403
@@ -37,7 +37,7 @@
  * deleted: every one of these reverses by writing `true` here and nothing else.
  *
  * `onboarding`  the 30-step welcome and the setup screen after it. Off, a fresh
- *               install goes Permissions -> Consent -> Camera and Shin keeps
+ *               install goes Permissions -> Consent -> Camera and Pexi keeps
  *               its default voice (onboarding-flow.js `firstScreen`).
  * `photoId`     the shutter and the photo route. Off, the camera has no photo
  *               button, never sends a photo, and a press with no barcode read

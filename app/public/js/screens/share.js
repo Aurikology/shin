@@ -8,7 +8,7 @@
  * Wordle's counterintuitive detail is kept exactly. Josh Wardle left the link
  * out because a link generated a preview that read as spam, and the grid spread
  * further with no attribution than it would have with one. So the frame carries
- * Shin's face, the verdict word, both prices and the item, with the wordmark
+ * Pexi's face, the verdict word, both prices and the item, with the wordmark
  * small in the corner. THERE IS NO LINK IN THE FRAME, and that absence is the
  * feature.
  *
@@ -242,7 +242,7 @@ function typeset(read) {
 /* The card's own ramp. Not the spec's -- see the block comment above. */
 const SIZE = {
   verdict: 108,   // the largest text on the card, because the card is a post
-  line: 38,       // Shin's own sentence, the part people quote
+  line: 38,       // Pexi's own sentence, the part people quote
   item: 46,       // the product name
   price: 76,      // both price columns; the short size below when the figure is long
   priceLong: 56,
@@ -260,7 +260,7 @@ const SIZE = {
 const subSize = (f) => f.labelSize;
 
 /**
- * Shin's face as a bitmap.
+ * Pexi's face as a bitmap.
  *
  * faceSvg paints with whatever colour it is handed, so it is handed a literal
  * here: CSS custom properties do not resolve inside an <img> and would come out
@@ -328,7 +328,7 @@ async function drawCard(canvas, card) {
   g.fillStyle = pal.ground;
   g.fillRect(0, 0, W, H);
 
-  // The tier band. Solid when Shin is sure, hollow when the evidence is thin:
+  // The tier band. Solid when Pexi is sure, hollow when the evidence is thin:
   // the same rule the sheet follows, so a screenshot and the app agree.
   const solid = card.level === 'certain' || card.level === 'sure';
   if (solid) {
@@ -360,7 +360,7 @@ async function drawCard(canvas, card) {
   g.fillText(card.word, mid, 520);
   track(g, '0px');
 
-  // Shin's own sentence, which is the part people quote. Body role: UI face,
+  // Pexi's own sentence, which is the part people quote. Body role: UI face,
   // 400, 1.45 leading, and section 2's two lines maximum.
   g.font = `${f.bodyWeight} ${SIZE.line}px ${f.ui}`;
   const lineStep = Math.round(SIZE.line * f.bodyLeading);
@@ -426,7 +426,7 @@ async function drawCard(canvas, card) {
   col(W * 0.73, t('share_elsewhere_caps'), card.elsewhereText, card.elsewhereSub, pal.tierBright);
 
   /*
-   * How sure Shin was, on the card, because a screenshot outlives the screen.
+   * How sure Pexi was, on the card, because a screenshot outlives the screen.
    * Label role, like the two kickers above it.
    *
    * The baseline moved from +62 to +44 when the label role went from 24px to
@@ -447,9 +447,9 @@ async function drawCard(canvas, card) {
   g.textAlign = 'left';
   g.font = `${f.priceWeight} ${SIZE.wordmark}px ${f.display}`;
   g.fillStyle = pal.ink;
-  g.fillText('shin', pad, H - 62);
+  g.fillText('pexi', pad, H - 62);
   g.fillStyle = pal.brand;
-  g.fillText('.', pad + g.measureText('shin').width, H - 62);
+  g.fillText('.', pad + g.measureText('pexi').width, H - 62);
 
   // The date: the third of the card's three label-role strings. Provenance is
   // what section 2 reserves the mono face for, and a date is provenance.
@@ -649,7 +649,7 @@ export default {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `shin-${card.label.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}.png`;
+          a.download = `pexi-${card.label.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}.png`;
           document.body.appendChild(a);
           a.click();
           a.remove();

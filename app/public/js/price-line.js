@@ -115,7 +115,7 @@ export function labelWidth(text) {
  * string the server built ("6 x 355 mL, $4.49"). A merged marker cannot show
  * three labels in one place, so it shows how many it stands for and opens on
  * a tap. Either way the quantity is never dropped: it is either on screen or
- * one tap away, and the tap is on Shin's own chart rather than on anything of
+ * one tap away, and the tap is on Pexi's own chart rather than on anything of
  * Google's.
  *
  * A price that needs a membership, or that a marketplace seller lists, still
@@ -313,8 +313,8 @@ function leftStyle(position) {
  *   shelf   {position, zone, pct} for the scanned item, positions as sent
  *   points  [{retailer, position, price, label}] for the stores, order as sent
  *   excluded  rows the server left out, shown as a count and nothing more
- *   shelfLabel  the scanned item's own quantity-and-price line, Shin's own
- *     data formatted by Shin. Falls back to the median's unit line when the
+ *   shelfLabel  the scanned item's own quantity-and-price line, Pexi's own
+ *     data formatted by Pexi. Falls back to the median's unit line when the
  *     caller has nothing, because an unlabelled large dot is the one thing
  *     the founder's second sentence rules out.
  * @param {object} [opts] .doc to build in, .widthPx to lay out against
@@ -400,7 +400,7 @@ export function priceLine(spec, opts = {}) {
       label.textContent = pointText(points[group.members[0]]);
       marker.appendChild(label);
     } else {
-      // Merged: a button, because it opens. It is Shin's own chart furniture
+      // Merged: a button, because it opens. It is Pexi's own chart furniture
       // and sits outside the grounded root, so tracking a tap on it is fine;
       // it carries no `data-act` anyway, since what it means is "expand a
       // cluster" and not a product decision worth an event of its own.

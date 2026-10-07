@@ -12,7 +12,7 @@
  * light theme ended up painted a colour chosen for a near-black ground.
  *
  * The .88 rows are not decorative. camera.css draws `.said`, `.detail`, `.line`
- * and `.because` -- Shin's own sentence, the reason the verdict is what it is --
+ * and `.because` -- Pexi's own sentence, the reason the verdict is what it is --
  * at opacity .88, so the composite is the ratio a reader actually gets.
  */
 import { test } from 'node:test';
@@ -88,7 +88,7 @@ const LIGHT = { ...DARK, ...blockAt(':root[data-theme="light"]') };
 const TIERS = ['good', 'fair', 'walk', 'unknown'];
 /** The tint percentages the confidence block in camera.css actually uses. */
 const TINT = { good: 0.14, fair: 0.14, walk: 0.14, unknown: 0.12 };
-/** Shin's sentence is drawn at this opacity on every verdict surface. */
+/** Pexi's sentence is drawn at this opacity on every verdict surface. */
 const SAID = 0.88;
 
 const THEMES = [
@@ -123,7 +123,7 @@ test('the verdict word and the price clear 4.5 on a solid tier field', () => {
   }
 });
 
-test("Shin's sentence clears 4.5 on a solid tier field at its real opacity", () => {
+test("Pexi's sentence clears 4.5 on a solid tier field at its real opacity", () => {
   for (const [name, T] of THEMES) {
     for (const tier of TIERS) {
       const field = T[`--${tier}`];

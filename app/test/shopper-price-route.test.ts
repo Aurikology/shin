@@ -1,5 +1,5 @@
 /**
- * A shopper's price has to actually get into Shin (walkthrough D01, D02, D03,
+ * A shopper's price has to actually get into Pexi (walkthrough D01, D02, D03,
  * D05, D06, D09), hit over a real socket.
  *
  * What the walkthrough found: a typed price never left the pad (D05), the
@@ -313,7 +313,7 @@ test('D01/D02: with no barcode, no scan and no shop the server says stored:false
 
 /* ---------------------------------------------------------------- D03 -- */
 
-test('D03: the chain list comes from the data: the price file\'s own store names and the banners Shin names', async () => {
+test('D03: the chain list comes from the data: the price file\'s own store names and the banners Pexi names', async () => {
   const r = await fetch(`${base}/api/store-chains`);
   assert.equal(r.status, 200);
   const { chains } = (await r.json()) as { chains: { name: string }[] };

@@ -153,7 +153,7 @@ test('the pad carries a two-way choice that defaults as before and that the user
 test('no Canada default and no CAD-only formatting on the going rate cards', () => {
   assert.ok(!CAMERA.includes("|| 'Canada'"), "camera.js still defaults the market to 'Canada'");
   const range = between(CAMERA, 'function goingRateRange(v) {', '/**\n * AVATAR.md section 2', 'goingRateRange');
-  const card = between(CAMERA, 'function goingRateCard(refusal, item) {', 'The price was written down and Shin cannot call it', 'goingRateCard');
+  const card = between(CAMERA, 'function goingRateCard(refusal, item) {', 'The price was written down and Pexi cannot call it', 'goingRateCard');
   const prov = between(CAMERA, 'function provenance(points, askingCents) {', '\n}\n', 'provenance');
   for (const [name, body] of [['goingRateRange', range], ['goingRateCard', card], ['provenance', prov]]) {
     assert.ok(!/\bcad\(/.test(body), `${name} still formats with cad()`);

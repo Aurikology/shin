@@ -6,7 +6,7 @@
  *
  * THIS FILE ALSO KEEPS THE EXACT READING NOW, changed 2026-09-14 on the
  * founder's word ("build everything for collecting EVERYTHING") and the
- * vision doc's own sentence that all of a user's scanned data trains Shin's
+ * vision doc's own sentence that all of a user's scanned data trains Pexi's
  * models and answers other shoppers. Until today this header said the exact
  * pair was never kept past the `cellFor` call that snapped it; that was true
  * of this module then and is not true of it now. `currentExact()` hands back
@@ -110,7 +110,7 @@ let cached = null; // { cell, lat, lon, accuracy, at } | null
  * Resolves to the cell on success and to `null` on any failure (permission
  * denied, no `navigator.geolocation`, a timeout) -- never throws, because a
  * scan must never wait on, or break over, a location read that was always
- * secondary to what Shin is being pointed at (priority 1: always answer).
+ * secondary to what Pexi is being pointed at (priority 1: always answer).
  */
 export function refreshCell() {
   if (typeof navigator === 'undefined' || !navigator.geolocation) return Promise.resolve(null);

@@ -9,7 +9,7 @@
  *    live path, the cache-replay path, and a cached answer from before the
  *    category existed (no such property at all: null, never undefined).
  *
- * 2. ONE STORE FROM TWO SOURCES IS MARKED, NEVER DROPPED. Shin's own price for
+ * 2. ONE STORE FROM TWO SOURCES IS MARKED, NEVER DROPPED. Pexi's own price for
  *    a store Gemini also quoted keeps its row and gains
  *    `sameStoreAsGemini: true`; an own price for a store Gemini did not quote
  *    gains nothing; Gemini's rows are untouched.

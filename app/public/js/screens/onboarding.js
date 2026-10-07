@@ -1,5 +1,5 @@
 /**
- * Onboarding: Jamin's Welcome screen tab, drawn in Shin's own look.
+ * Onboarding: Jamin's Welcome screen tab, drawn in Pexi's own look.
  *
  * ONE ROUTE, MANY STEPS. The screen id is `onboarding` and the step rides in
  * `?step=`, so the router, the title and the scroll rules treat it as one
@@ -8,7 +8,7 @@
  * draws what the flow says and calls what the flow saves.
  *
  * ALL TEXT COMES FROM ui-strings.js (`t('onb_...')`). Every line on these
- * screens is Jamin's own text and none of it is Shin speaking, so it is chrome:
+ * screens is Jamin's own text and none of it is Pexi speaking, so it is chrome:
  * no attitude variants, and test/screens-voice.test.mjs holds this file to that.
  *
  * NOTHING HERE BLOCKS THE APP. Every step is left with Continue whether or not

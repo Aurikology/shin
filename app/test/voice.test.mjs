@@ -1,7 +1,7 @@
 /**
  * voice.js's own rule, enforced.
  *
- * The file opens with it in capitals: "NO STRING SHIN SAYS IS WRITTEN INSIDE A
+ * The file opens with it in capitals: "NO STRING PEXI SAYS IS WRITTEN INSIDE A
  * SCREEN. If a screen needs a new line, it gets a new key here with all three
  * variants, or it does not ship." docs/design/AVATAR.md puts the same thing as
  * a count -- thirteen states times three personalities is thirty-nine cells,
@@ -19,7 +19,7 @@
  * SINCE THE FRENCH INTERFACE (item 31) THE COUNT IS LOCALE TIMES PERSONALITY.
  * The same argument that made a missing personality a failure makes a missing
  * locale one, and it is the sharper of the two: a key with no French row does
- * not get somebody else's Shin, it gets somebody else's LANGUAGE, in the middle
+ * not get somebody else's Pexi, it gets somebody else's LANGUAGE, in the middle
  * of an otherwise French screen. voice.js falls back to English there rather
  * than to silence, deliberately, which means nothing at runtime will ever tell
  * anybody about it. This file is the thing that does.
@@ -111,7 +111,7 @@ test('voice.js has lines in it at all', () => {
 /**
  * The rule. A key missing a personality silently falls back to deadpan in
  * `say()`, so the app keeps working and the user quietly gets somebody else's
- * Shin -- which is exactly the failure the attitude picker exists to avoid.
+ * Pexi -- which is exactly the failure the attitude picker exists to avoid.
  */
 test('every line has all three personalities', () => {
   const missing = [];

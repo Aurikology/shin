@@ -4,7 +4,7 @@
  *
  * ASKED FOR IN THESE WORDS, 2026-09-13: "can we allow shin to use their
  * location and then assess instead of them having to input the store they're
- * in multiple times. Also Shin must be able to identify the pattern of where
+ * in multiple times. Also Pexi must be able to identify the pattern of where
  * the user often goes."
  *
  * Two answers, and they are different mechanisms wearing one feature:
@@ -291,7 +291,7 @@ export async function openShortlist() {
  *
  *   1. shops this shopper has used, the LAST-USED one first (then by how often);
  *   2. places nearby, when location is on and the lookup answered in time;
- *   3. the chains Shin's own price data names (`chains.js`, refreshed from
+ *   3. the chains Pexi's own price data names (`chains.js`, refreshed from
  *      `/api/store-chains` in the background).
  *
  * A name appears once, whichever source named it first. A search box narrows

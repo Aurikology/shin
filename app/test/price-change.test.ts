@@ -6,7 +6,7 @@
  * FROM US." The module is allowed to say that two recorded observations differ
  * and to hand each one back exactly as it was recorded. It is not allowed to
  * produce a difference, a percentage, an average, a rate or a usual price,
- * because any of those is a number Shin invented about a price. Hard rule 2
+ * because any of those is a number Pexi invented about a price. Hard rule 2
  * adds the second half: no savings claim until it is measured, so nothing may
  * even imply an amount saved.
  *
@@ -319,7 +319,7 @@ test('the difference between the two prices appears nowhere in the answer', () =
 
   assert.ok(
     !serialised.includes(String(difference)),
-    `the answer carries ${difference}, which is a price Shin worked out rather than one it was told`,
+    `the answer carries ${difference}, which is a price Pexi worked out rather than one it was told`,
   );
   assert.ok(!serialised.includes(String(-difference)));
 });
@@ -433,7 +433,7 @@ test('the sightings returned are the exact objects handed in, unmodified', () =>
  * `price-change.ts` refuses to compute a difference between two recorded
  * prices, and four guards above prove no arithmetic reaches its output. None
  * of that survives a string. The moment somebody writes
- * `price_change.down: 'You save $8.48'` into a locale table, Shin is stating a
+ * `price_change.down: 'You save $8.48'` into a locale table, Pexi is stating a
  * price it computed and claiming a saving it never measured, which is rule 3
  * and hard rule 2 in one line. The module cannot see that file and cannot
  * stop it.

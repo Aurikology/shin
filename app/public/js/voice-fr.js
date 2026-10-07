@@ -1,5 +1,5 @@
 /**
- * Shin, en français. L'autre moitié de la table de voice.js.
+ * Pexi, en français. L'autre moitié de la table de voice.js.
  *
  * WHY THIS IS A SEPARATE FILE AND NOT A SECOND BRANCH INSIDE voice.js.
  * The English strings in voice.js are read by three test files and quoted in
@@ -10,7 +10,7 @@
  *
  * THE TWO PROMISES THIS FILE INHERITS, both from voice.js's own header:
  *
- *   1. "NO STRING SHIN SAYS IS WRITTEN INSIDE A SCREEN." A key that exists in
+ *   1. "NO STRING PEXI SAYS IS WRITTEN INSIDE A SCREEN." A key that exists in
  *      English and not here is a screen that goes silent in French, which is
  *      the same failure as a missing personality. test/voice.test.mjs counts
  *      locale times personality now, so this table cannot be short.
@@ -501,17 +501,17 @@ export const LINES_FR = {
     blunt: () => "Correct. La première.",
   },
   cam_text_no_match: {
-    deadpan: (f) => `Rien dans ce qu'on a appris à Shin ne correspond à « ${f.query} ».`,
+    deadpan: (f) => `Rien dans ce qu'on a appris à Pexi ne correspond à « ${f.query} ».`,
     warm: (f) => `Je n'ai rien trouvé que je connais qui corresponde à « ${f.query} ». Essaie le code-barres, ou un ou deux mots différents.`,
     blunt: (f) => `« ${f.query} » ne correspond à rien que je connais.`,
   },
   cam_reader_model_down: {
-    deadpan: () => "Le lecteur de Shin ne répond pas en ce moment. Réessaie dans un instant.",
-    warm: () => "Le lecteur de Shin ne répond pas en ce moment, ça n'a rien à voir avec ton scan. Réessaie dans un instant.",
+    deadpan: () => "Le lecteur de Pexi ne répond pas en ce moment. Réessaie dans un instant.",
+    warm: () => "Le lecteur de Pexi ne répond pas en ce moment, ça n'a rien à voir avec ton scan. Réessaie dans un instant.",
     blunt: () => "Le lecteur est à terre. Réessaie.",
   },
   cam_text_no_own_price: {
-    deadpan: () => "Shin n'a pas encore de prix pour ça. Scanne plutôt le code-barres.",
+    deadpan: () => "Pexi n'a pas encore de prix pour ça. Scanne plutôt le code-barres.",
     warm: () => "Je n'ai pas encore de prix pour celui-ci. Scanne son code-barres et je vais le chercher.",
     blunt: () => 'Pas encore de prix. Scanne le code-barres.',
   },
@@ -568,19 +568,19 @@ export const LINES_FR = {
     blunt: () => "Pas d'accès à la caméra. J'utilise l'étalage dessiné.",
   },
   cam_offline_no_price: {
-    deadpan: () => "Shin a besoin d'une connexion internet pour chercher quoi que ce soit, alors je ne peux pas répondre à ce scan. Scanne-le de nouveau une fois connecté.",
-    warm: () => "Shin a besoin d'une connexion internet pour chercher ça, alors je n'ai rien à te dire pour l'instant. Scanne-le de nouveau une fois connecté.",
-    blunt: () => "Shin a besoin d'une connexion pour répondre. Connecte-toi, puis rescanne.",
+    deadpan: () => "Pexi a besoin d'une connexion internet pour chercher quoi que ce soit, alors je ne peux pas répondre à ce scan. Scanne-le de nouveau une fois connecté.",
+    warm: () => "Pexi a besoin d'une connexion internet pour chercher ça, alors je n'ai rien à te dire pour l'instant. Scanne-le de nouveau une fois connecté.",
+    blunt: () => "Pexi a besoin d'une connexion pour répondre. Connecte-toi, puis rescanne.",
   },
   cam_server_fault: {
-    deadpan: () => "Shin a un problème de son côté",
+    deadpan: () => "Pexi a un problème de son côté",
     warm: () => "Quelque chose a mal tourné de mon côté",
-    blunt: () => "Shin a un problème",
+    blunt: () => "Pexi a un problème",
   },
   cam_server_fault_detail: {
-    deadpan: () => "Ta connexion est bonne. La panne est du côté de Shin et je n'ai pas pu répondre à ce scan. Réessaie dans un instant.",
+    deadpan: () => "Ta connexion est bonne. La panne est du côté de Pexi et je n'ai pas pu répondre à ce scan. Réessaie dans un instant.",
     warm: () => "Ta connexion est bonne, c'est de mon côté. Je n'ai pas pu répondre à ce scan, alors réessaie dans un instant.",
-    blunt: () => "Pas ta connexion. La panne est du côté de Shin. Réessaie.",
+    blunt: () => "Pas ta connexion. La panne est du côté de Pexi. Réessaie.",
   },
   cam_photo_offline: {
     deadpan: () => "Tu es hors ligne, alors j'ai gardé la photo. Je finirai ça dès que tu seras de retour.",
@@ -878,8 +878,8 @@ export const LINES_FR = {
     blunt: () => "Chaque scan est consigné: produit et prix, toujours. Les photos sont gardées seulement si tu ouvres ça. La position n'est gardée que si tu l'ouvres.",
   },
   consent_photos_desc: {
-    deadpan: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé, aucune image du rayon n'est gardée pendant que la caméra est ouverte, et l'image d'un scan par photo est lue une fois pour répondre et n'est pas gardée. Ouvert, les deux sont gardées: l'image du rayon, et l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et que Shin puisse apprendre. Le risque: une photo gardée peut montrer ce qui se trouve autour de toi.",
-    warm: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé, aucune image du rayon n'est gardée pendant que la caméra est ouverte, et l'image d'un scan par photo n'est lue qu'une fois, pour répondre à ce scan, puis elle est partie. Ouvert, les deux sont gardées: l'image du rayon, et l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et que Shin puisse apprendre. Le risque, c'est qu'une photo gardée peut montrer tout ce qu'il y avait d'autre autour de toi.",
+    deadpan: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé, aucune image du rayon n'est gardée pendant que la caméra est ouverte, et l'image d'un scan par photo est lue une fois pour répondre et n'est pas gardée. Ouvert, les deux sont gardées: l'image du rayon, et l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et que Pexi puisse apprendre. Le risque: une photo gardée peut montrer ce qui se trouve autour de toi.",
+    warm: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé, aucune image du rayon n'est gardée pendant que la caméra est ouverte, et l'image d'un scan par photo n'est lue qu'une fois, pour répondre à ce scan, puis elle est partie. Ouvert, les deux sont gardées: l'image du rayon, et l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et que Pexi puisse apprendre. Le risque, c'est qu'une photo gardée peut montrer tout ce qu'il y avait d'autre autour de toi.",
     blunt: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé: pas d'image du rayon, et l'image du scan par photo est lue une fois, pas gardée. Ouvert: les deux gardées, liées au scan, pour qu'une mauvaise réponse puisse être vérifiée. Risque: une photo gardée peut montrer ce qui est près de toi.",
   },
   consent_location_desc: {
@@ -895,24 +895,24 @@ export const LINES_FR = {
   /* RÉÉCRIT 2026-09-14, même raison que cam_privacy_line: un code-barres
    * envoie maintenant aussi son image de caméra. */
   you_data_intro: {
-    deadpan: () => "Chaque scan est écrit: le produit et le prix que tu as vu, toujours, avec l'image de la caméra à ce moment, utilisé pour entraîner Shin et répondre à d'autres personnes.",
-    warm: () => "Chaque scan est écrit, le produit et le prix que tu as vu, toujours, avec l'image de la caméra à ce moment, et ça aide à entraîner Shin et à répondre à d'autres personnes.",
-    blunt: () => "Chaque scan est consigné: produit, prix et image de la caméra, toujours. Utilisé pour entraîner Shin et répondre à d'autres personnes.",
+    deadpan: () => "Chaque scan est écrit: le produit et le prix que tu as vu, toujours, avec l'image de la caméra à ce moment, utilisé pour entraîner Pexi et répondre à d'autres personnes.",
+    warm: () => "Chaque scan est écrit, le produit et le prix que tu as vu, toujours, avec l'image de la caméra à ce moment, et ça aide à entraîner Pexi et à répondre à d'autres personnes.",
+    blunt: () => "Chaque scan est consigné: produit, prix et image de la caméra, toujours. Utilisé pour entraîner Pexi et répondre à d'autres personnes.",
   },
   /* RÉÉCRIT 2026-09-14: "seuls cette application et la personne qui la fait
    * tourner peuvent voir ça" n'était plus toute la vérité une fois que tout
    * collecter est devenu le but; ce qui est collecté sert aussi à répondre à
-   * d'autres personnes et à entraîner Shin. */
+   * d'autres personnes et à entraîner Pexi. */
   consent_footer: {
-    deadpan: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Shin, et la personne qui la fait tourner peut le voir aussi. Change l'un ou l'autre des choix n'importe quand sur la page Toi.",
-    warm: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Shin, et la personne qui la fait tourner peut le voir aussi. Tu peux changer l'un ou l'autre des choix n'importe quand depuis la page Toi.",
-    blunt: () => "Cette application garde ça, l'utilise pour répondre à d'autres personnes et entraîner Shin. Change-le n'importe quand sur la page Toi.",
+    deadpan: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Pexi, et la personne qui la fait tourner peut le voir aussi. Change l'un ou l'autre des choix n'importe quand sur la page Toi.",
+    warm: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Pexi, et la personne qui la fait tourner peut le voir aussi. Tu peux changer l'un ou l'autre des choix n'importe quand depuis la page Toi.",
+    blunt: () => "Cette application garde ça, l'utilise pour répondre à d'autres personnes et entraîner Pexi. Change-le n'importe quand sur la page Toi.",
   },
   /* D24: une seule décision quand l'identification par photo est fermée. */
   consent_footer_one: {
-    deadpan: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Shin, et la personne qui la fait tourner peut le voir aussi. Change ce choix n'importe quand sur la page Toi.",
-    warm: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Shin, et la personne qui la fait tourner peut le voir aussi. Tu peux changer ce choix n'importe quand depuis la page Toi.",
-    blunt: () => "Cette application garde ça, l'utilise pour répondre à d'autres personnes et entraîner Shin. Change-le n'importe quand sur la page Toi.",
+    deadpan: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Pexi, et la personne qui la fait tourner peut le voir aussi. Change ce choix n'importe quand sur la page Toi.",
+    warm: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Pexi, et la personne qui la fait tourner peut le voir aussi. Tu peux changer ce choix n'importe quand depuis la page Toi.",
+    blunt: () => "Cette application garde ça, l'utilise pour répondre à d'autres personnes et entraîner Pexi. Change-le n'importe quand sur la page Toi.",
   },
   consent_intro_lean: {
     deadpan: (f) => `Chaque scan est écrit: le produit et le prix que tu as vu, toujours, pour que la prochaine personne qui le scanne obtienne une réponse.${f.photos ? ' Les photos sont gardées seulement si tu ouvres ça ci-dessous.' : ''}${f.locationSwitch ? " La position n'est gardée que si tu l'ouvres ci-dessous." : " La position n'est gardée que si tu l'as permise à l'écran précédent."}`,
@@ -921,9 +921,9 @@ export const LINES_FR = {
   },
   /* D24: identification par photo fermée, aucune image de caméra ne part avec un code-barres. */
   you_data_intro_nophoto: {
-    deadpan: () => "Chaque scan est écrit: le produit et le prix que tu as vu, toujours, utilisé pour entraîner Shin et répondre à d'autres personnes.",
-    warm: () => "Chaque scan est écrit, le produit et le prix que tu as vu, toujours, et ça aide à entraîner Shin et à répondre à d'autres personnes.",
-    blunt: () => "Chaque scan est consigné: produit et prix, toujours. Utilisé pour entraîner Shin et répondre à d'autres personnes.",
+    deadpan: () => "Chaque scan est écrit: le produit et le prix que tu as vu, toujours, utilisé pour entraîner Pexi et répondre à d'autres personnes.",
+    warm: () => "Chaque scan est écrit, le produit et le prix que tu as vu, toujours, et ça aide à entraîner Pexi et à répondre à d'autres personnes.",
+    blunt: () => "Chaque scan est consigné: produit et prix, toujours. Utilisé pour entraîner Pexi et répondre à d'autres personnes.",
   },
   cam_point_barcode: {
     deadpan: () => "Pointe-moi vers le code-barres.",
@@ -946,7 +946,7 @@ export const LINES_FR = {
  */
 export const BARE_FR = {
   cam_text_no_match: {
-    deadpan: () => "Rien dans ce qu'on a appris à Shin ne correspond à ça.",
+    deadpan: () => "Rien dans ce qu'on a appris à Pexi ne correspond à ça.",
     warm: () => "Je n'ai rien trouvé que je connais qui corresponde à ça. Essaie le code-barres, ou un ou deux mots différents.",
     blunt: () => "Ça ne correspond à rien que je connais.",
   },

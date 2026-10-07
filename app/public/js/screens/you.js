@@ -1,8 +1,8 @@
 /**
- * You. Settings, and the honest account of what Shin can and cannot do.
+ * You. Settings, and the honest account of what Pexi can and cannot do.
  *
- * There is no "what Shin can price" list any more. It counted the seven items
- * that were priced by hand, which stopped being what Shin can answer the day a
+ * There is no "what Pexi can price" list any more. It counted the seven items
+ * that were priced by hand, which stopped being what Pexi can answer the day a
  * scan became one Gemini call for any product: "4 of 7" was a claim about a
  * catalogue the scan no longer reads. The scan-log block below is what is left
  * of the honest account, and it counts what was actually asked.
@@ -172,13 +172,13 @@ export default {
     /**
      * Item 8d. The "Your ratings" section's zero-count caption has no
      * trailing period, and the counted branch is a dot-joined fragment with
-     * no terminal punctuation either -- neither is Shin talking and neither
+     * no terminal punctuation either -- neither is Pexi talking and neither
      * is on this file's own allowlist, so a four-plus-word sentence ending
      * in a full stop there would fail test/screens-voice.test.mjs's rule 2,
      * which this file does not own. A fragment reads exactly as clearly and
      * is not a sentence by that rule's own definition.
      *
-     * Item 6d/6e. The "What Shin does with your data" section used to open
+     * Item 6d/6e. The "What Pexi does with your data" section used to open
      * with "Everything stays on this device. Nothing is sent anywhere but
      * the local server that answers a scan," which stopped being true the
      * day the photo route and the hosted-server tunnel (plan item 1)
@@ -350,7 +350,7 @@ export default {
           </div>
         </section>
 
-        ${/* Shin Plus (2026-09-21): this week's free scans from /api/quota, filled
+        ${/* Pexi Plus (2026-09-21): this week's free scans from /api/quota, filled
              after the paint and shown only when the server sets a limit, and the
              store's own subscription page, which is the only place a
              subscription is changed or cancelled. */ ''}

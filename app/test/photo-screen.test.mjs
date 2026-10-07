@@ -546,13 +546,13 @@ test('resolveBarcode paints a model-down answer as refuse_unavailable, not the c
   assert.match(fn, /showPhotoRefusal\(found\.modelDown, say\('cam_reader_model_down'\)\)/);
 });
 
-test('the typed route checks MODEL_DOWN_REASONS before the "nothing in what Shin has been taught" refusal', () => {
+test('the typed route checks MODEL_DOWN_REASONS before the "nothing in what Pexi has been taught" refusal', () => {
   const fn = CAMERA.slice(CAMERA.indexOf('async function runTypedSearch'), CAMERA.length);
   assert.match(fn, /idFailure = id\?\.failure \?\? null;/, 'runTypedSearch never keeps the failure code past its try block');
   assert.match(fn, /MODEL_DOWN_REASONS\.has\(idFailure\)/);
   assert.match(fn, /say\('cam_reader_model_down'\)/);
   // The model-down branch has to run before the hard-coded no_identity
-  // fallback, or a model outage still reaches "nothing in what Shin has been
+  // fallback, or a model outage still reaches "nothing in what Pexi has been
   // taught matches" first.
   const modelDownAt = fn.indexOf('MODEL_DOWN_REASONS.has(idFailure)');
   const noMatchAt = fn.indexOf('cam_text_no_match');

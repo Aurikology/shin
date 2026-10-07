@@ -56,7 +56,7 @@ const verdict = (band = 'high', tier = 'walk_away') => ({
   ],
   confidence: { band, distinctSellers: 3, because: 'Three sellers agreed within a dollar.' },
   disagreement: { detail: 'One seller sits well above the rest. The other two agree closely.' },
-  lines: ['Shin used three shelf prices from the last week.'],
+  lines: ['Pexi used three shelf prices from the last week.'],
 });
 
 const refusal = (reason, detail = 'Something specific and true happened here. And then a second sentence.') => ({
@@ -179,7 +179,7 @@ test('a refusal offers exactly one action', () => {
     const html = refusalSheet(refusal(reason), scenario, ['Groceries', 'Household']);
     const pills = count(html, 'class="pill');
     if (reason === 'category_unsupported') {
-      // The category refusal's repair is a list of what Shin CAN price, on this
+      // The category refusal's repair is a list of what Pexi CAN price, on this
       // same sheet, plus the labelled way back. It is one repair, not a pill.
       assert.equal(pills, 0, `${reason}: expected the chip list as the repair, found ${pills} pill(s)`);
       assert.ok(html.includes('cat-chips'), `${reason}: no chip list to repair with`);

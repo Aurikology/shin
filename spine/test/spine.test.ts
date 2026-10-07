@@ -68,7 +68,7 @@ test('the unsure sentence carries no category slug and no research prose', async
   assert.equal(r.reason, 'identity_unsure');
   assert.equal(
     r.detail,
-    'Not sure enough this is the right one. The closest match was "Canon EOS R6, used body". Pick the right one and Shin will price it.',
+    'Not sure enough this is the right one. The closest match was "Canon EOS R6, used body". Pick the right one and Pexi will price it.',
   );
   assert.doesNotMatch(r.detail, /used goods|grocery|furniture/i, 'no category slug in the sentence');
   assert.ok(!r.detail.includes(note), 'the research note must not be in the headline');

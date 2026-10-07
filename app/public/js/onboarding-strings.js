@@ -5,7 +5,7 @@
  * of a few hundred lines is not buried in a table of eight hundred; ui-strings.js
  * spreads both objects into its own EN and FR, so `t('onb_...')` is the one way
  * to read any of it and test/locale.test.mjs holds the two languages to the same
- * keys. Nothing here is Shin speaking in the first person: these are the
+ * keys. Nothing here is Pexi speaking in the first person: these are the
  * questions, options and captions of Jamin's Welcome screen tab (docs/
  * walkthrough/jamin-notes-2026-09-17.md, the numbered list), so they are chrome
  * and carry no attitude, per the line ui-strings.js draws.
@@ -26,7 +26,7 @@ export const ONB_EN = {
   onb_replay_row: 'Watch the welcome again',
 
   /* 1 and 2 */
-  onb_welcome_name: 'SHIN',
+  onb_welcome_name: 'PEXI',
   onb_promise: 'Scan any product and instantly know if it’s worth it',
 
   /* 3 */
@@ -69,8 +69,8 @@ export const ONB_EN = {
 
   /* 8, a figure step: shown only with a measured savings trend */
   onb_trend_title: 'Designed to maximize your savings',
-  onb_trend_without: 'Overpaying without SHIN',
-  onb_trend_with: 'Consistently saving with SHIN',
+  onb_trend_without: 'Overpaying without PEXI',
+  onb_trend_with: 'Consistently saving with PEXI',
   onb_trend_months: 'Over 6 months',
 
   /* 9 and 10 */
@@ -87,7 +87,7 @@ export const ONB_EN = {
   onb_loyalty_q: 'Do you currently use store loyalty programs or coupon apps?',
   onb_loyalty_yes: 'Yes',
   onb_loyalty_no: 'No',
-  onb_goal_q: 'What is your primary goal with SHIN?',
+  onb_goal_q: 'What is your primary goal with PEXI?',
   onb_goal_groceries: 'Save money on groceries',
   onb_goal_checkout: 'Avoid overpaying at checkout',
   onb_goal_history: 'Track price history over time',
@@ -111,9 +111,9 @@ export const ONB_EN = {
 
   /* 15 */
   onb_compare_title: 'A smarter way to shop',
-  onb_compare_without: 'Without SHIN',
+  onb_compare_without: 'Without PEXI',
   onb_compare_without_sub: 'Guessing shelf prices',
-  onb_compare_with: 'With SHIN',
+  onb_compare_with: 'With PEXI',
   onb_compare_with_sub: 'Instant barcode scan and a verdict on the price',
 
   /* 16 */
@@ -131,7 +131,7 @@ export const ONB_EN = {
 
   /* 18 */
   onb_thanks_title: 'Thank you for trusting us!',
-  onb_thanks_sub: 'Now let’s personalize SHIN for you...',
+  onb_thanks_sub: 'Now let’s personalize PEXI for you...',
 
   /* 19, a figure step: each line is its own slot */
   onb_social_title: (f) => `Join over ${f.n} smart shoppers like you`,
@@ -156,10 +156,10 @@ export const ONB_EN = {
   onb_signin_email: 'Continue with email',
 
   /* 23 */
-  /* D32, 2026-10-06: this step promised a free trial of "SHIN Pro". There is no
-     trial and no product called Pro: the plan is Shin Plus, with the two prices
-     from plus-config.js (RULINGS.md "Shin Plus pricing and free scans"). */
-  onb_trial_title: 'Shin Plus is for unlimited scans',
+  /* D32, 2026-10-06: this step promised a free trial of "PEXI Pro". There is no
+     trial and no product called Pro: the plan is Pexi Plus, with the two prices
+     from plus-config.js (RULINGS.md "Pexi Plus pricing and free scans"). */
+  onb_trial_title: 'Pexi Plus is for unlimited scans',
   onb_trial_note: (f) => `${f.monthly} a month or ${f.yearly} a year, and you choose on the next screen.`,
   onb_trial_try: 'See the plans',
 
@@ -171,8 +171,8 @@ export const ONB_EN = {
   onb_perm_location_sub: 'for store prices',
   onb_perm_camera_denied: 'Camera access was not allowed on this device.',
   /* Item 19: a scripted demo scan, so a sample answer can be seen before
-     camera permission is granted. Chrome, not Shin: this screen carries none
-     of Shin's voice (see the file header on screens/onboarding.js), so the
+     camera permission is granted. Chrome, not Pexi: this screen carries none
+     of Pexi's voice (see the file header on screens/onboarding.js), so the
      badge and the fallback line are both plain labels, never a sentence in
      the first person. */
   onb_see_demo: 'See a demo scan',
@@ -191,14 +191,14 @@ export const ONB_EN = {
      marked so a tester cannot read the prices as real. Same two-part shape as
      the demo scan above: a plain badge, and one plain line. */
   onb_plans_badge: 'NOT LIVE',
-  onb_plans_stub: 'These are the real plan prices, but this step charges nothing and unlocks nothing. Subscribe from the Shin Plus screen.',
+  onb_plans_stub: 'These are the real plan prices, but this step charges nothing and unlocks nothing. Subscribe from the Pexi Plus screen.',
 
   /* 26 to 29 */
   onb_tip_scan_title: 'Get the best scan',
   onb_tip_scan_1: 'Hold still',
   onb_tip_scan_2: 'Use lots of light',
   onb_tip_scan_3: 'Ensure barcode or price tag is visible',
-  onb_tip_eval_title: 'SHIN evaluates your item',
+  onb_tip_eval_title: 'PEXI evaluates your item',
   onb_tip_eval_1: 'Barcode/Tag identified',
   onb_tip_eval_2: 'Matches local store price',
   onb_tip_eval_3: 'Instant deal verdict calculated',
@@ -228,7 +228,7 @@ export const ONB_FR = {
   onb_finish: 'C’est parti',
   onb_replay_row: 'Revoir l’accueil',
 
-  onb_welcome_name: 'SHIN',
+  onb_welcome_name: 'PEXI',
   onb_promise: 'Scanne n’importe quel produit et sache tout de suite si ça vaut le coup',
 
   onb_shops_q: 'Où magasines-tu le plus souvent?',
@@ -265,8 +265,8 @@ export const ONB_FR = {
   onb_tried_no: 'Non',
 
   onb_trend_title: 'Conçu pour maximiser tes économies',
-  onb_trend_without: 'Tu paies trop sans SHIN',
-  onb_trend_with: 'Tu économises régulièrement avec SHIN',
+  onb_trend_without: 'Tu paies trop sans PEXI',
+  onb_trend_with: 'Tu économises régulièrement avec PEXI',
   onb_trend_months: 'Sur 6 mois',
 
   onb_mode_q: 'Quel rabais minimum fait d’un article une « bonne affaire » pour toi?',
@@ -281,7 +281,7 @@ export const ONB_FR = {
   onb_loyalty_q: 'Utilises-tu des programmes de fidélité ou des applis de coupons?',
   onb_loyalty_yes: 'Oui',
   onb_loyalty_no: 'Non',
-  onb_goal_q: 'Quel est ton objectif principal avec SHIN?',
+  onb_goal_q: 'Quel est ton objectif principal avec PEXI?',
   onb_goal_groceries: 'Économiser sur l’épicerie',
   onb_goal_checkout: 'Éviter de trop payer à la caisse',
   onb_goal_history: 'Suivre l’historique des prix',
@@ -301,9 +301,9 @@ export const ONB_FR = {
   onb_alerts_aggressive_sub: 'Rabais de 10 % et plus',
 
   onb_compare_title: 'Une façon plus futée de magasiner',
-  onb_compare_without: 'Sans SHIN',
+  onb_compare_without: 'Sans PEXI',
   onb_compare_without_sub: 'Deviner les prix en tablette',
-  onb_compare_with: 'Avec SHIN',
+  onb_compare_with: 'Avec PEXI',
   onb_compare_with_sub: 'Scan instantané du code-barres et un verdict sur le prix',
 
   onb_frustration_q: 'Quelle est ta plus grande frustration en magasinant?',
@@ -318,7 +318,7 @@ export const ONB_FR = {
   onb_potential_saved: (f) => `${f.n} $ économisés`,
 
   onb_thanks_title: 'Merci de nous faire confiance!',
-  onb_thanks_sub: 'Personnalisons maintenant SHIN pour toi...',
+  onb_thanks_sub: 'Personnalisons maintenant PEXI pour toi...',
 
   onb_social_title: (f) => `Joins plus de ${f.n} acheteurs futés comme toi`,
   onb_social_rating: (f) => `Note de ${f.v} étoiles`,
@@ -338,7 +338,7 @@ export const ONB_FR = {
   onb_signin_google: 'Se connecter avec Google',
   onb_signin_email: 'Continuer avec un courriel',
 
-  onb_trial_title: 'Shin Plus sert à scanner sans limite',
+  onb_trial_title: 'Pexi Plus sert à scanner sans limite',
   onb_trial_note: (f) => `${f.monthly} par mois ou ${f.yearly} par année, et tu choisis à l’écran suivant.`,
   onb_trial_try: 'Voir les forfaits',
 
@@ -358,13 +358,13 @@ export const ONB_FR = {
   onb_plans_annual_sub: (f) => `(${f.perMonth}/mois)`,
   onb_plans_monthly: (f) => `${f.monthly}/mois`,
   onb_plans_badge: 'PAS ACTIF',
-  onb_plans_stub: 'Ce sont les vrais prix des forfaits, mais cette étape ne facture rien et ne débloque rien. Abonne-toi depuis l’écran Shin Plus.',
+  onb_plans_stub: 'Ce sont les vrais prix des forfaits, mais cette étape ne facture rien et ne débloque rien. Abonne-toi depuis l’écran Pexi Plus.',
 
   onb_tip_scan_title: 'Pour le meilleur scan',
   onb_tip_scan_1: 'Ne bouge pas',
   onb_tip_scan_2: 'Utilise beaucoup de lumière',
   onb_tip_scan_3: 'Assure-toi que le code-barres ou l’étiquette est visible',
-  onb_tip_eval_title: 'SHIN évalue ton article',
+  onb_tip_eval_title: 'PEXI évalue ton article',
   onb_tip_eval_1: 'Code-barres ou étiquette repéré',
   onb_tip_eval_2: 'Correspond au prix du magasin local',
   onb_tip_eval_3: 'Verdict instantané calculé',

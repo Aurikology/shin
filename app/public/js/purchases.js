@@ -1,5 +1,5 @@
 /**
- * Shin Plus purchases, through RevenueCat's native plugin (2026-09-21,
+ * Pexi Plus purchases, through RevenueCat's native plugin (2026-09-21,
  * docs/mvp-plan.md "Subscription").
  *
  * HOW THE PLUGIN IS REACHED WITHOUT A BUNDLER. This app is plain ES modules

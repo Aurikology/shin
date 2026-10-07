@@ -249,7 +249,7 @@ export function usdCentsToCad(usdCents: number): number {
  * try again in a little while, and it does not talk about billing.
  */
 export function spendCapRefusalMessage(): string {
-  return 'Shin could not look this one up just now. Please try again in a little while, or type the price in.';
+  return 'Pexi could not look this one up just now. Please try again in a little while, or type the price in.';
 }
 
 /**

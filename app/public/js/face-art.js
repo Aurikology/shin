@@ -1,5 +1,5 @@
 /**
- * Shin's face, drawn: the head and upper body on a circle, one 88 by 88
+ * Pexi's face, drawn: the head and upper body on a circle, one 88 by 88
  * viewBox, flat vector, no gradients, no filters, no clip paths.
  *
  * This file is the single source for the in-app face set. `shin.js` reads it
@@ -384,7 +384,7 @@ const MOUTH = {
    * that number was fitted to.
    *
    * The interior is navy rather than `currentColor`. Filling it with the ink
-   * meant the inside of Shin's mouth took the verdict hue, so a good verdict
+   * meant the inside of Pexi's mouth took the verdict hue, so a good verdict
    * opened a green cavity in a cyan face and the white tooth inside it read as
    * a floating square. Navy is a fill here, which the file's colour rule
    * allows, and it is what the inside of a mouth actually looks like.
@@ -915,7 +915,7 @@ export function faceInner(who, state) {
  * opened on its own. This is exactly what `scripts/build-faces.mjs` writes.
  *
  * IT CARRIES THE STATE'S IDENTITY AND NOT A SENTENCE IN ANY LANGUAGE. These
- * files used to root an `aria-label="Shin: idle"` in the markup, which is an
+ * files used to root an `aria-label="Pexi: idle"` in the markup, which is an
  * ENGLISH accessible name baked into a build artifact. The app ships in French
  * and English; a static file cannot know which one is reading it, so whichever
  * language is baked in is wrong for somebody. This is D-092's shape at the
@@ -937,7 +937,7 @@ export function faceInner(who, state) {
  */
 export function standaloneSvg(who, state) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 88" width="88" height="88" color="${INK_DEFAULT}" role="img" data-who="${who}" data-state="${state}">
-  <title>Shin ${who} ${state}</title>
+  <title>Pexi ${who} ${state}</title>
   ${faceInner(who, state)}
 </svg>
 `;

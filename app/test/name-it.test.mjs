@@ -76,7 +76,7 @@ test('the no-identity pad asks what it is', () => {
   assert.match(observationPad(), /data-obs-label/, 'no way to name the thing the price is about');
 });
 
-test('the pad for a product Shin already named does not ask', () => {
+test('the pad for a product Pexi already named does not ask', () => {
   assert.doesNotMatch(
     identifiedPad(),
     /data-obs-label/,

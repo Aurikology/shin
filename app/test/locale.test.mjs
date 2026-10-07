@@ -1,7 +1,7 @@
 /**
  * The French interface, beta-plan item 31.
  *
- * `voice.test.mjs` already counts locale times personality over what Shin
+ * `voice.test.mjs` already counts locale times personality over what Pexi
  * SAYS. This file covers the other three halves of the same change:
  *
  *   1. `ui-strings.js`, the chrome catalogue. Same completeness rule, no
@@ -105,7 +105,7 @@ test('no chrome string is empty in either language', () => {
 test('the French chrome is actually French, not a copy of the English', () => {
   /*
    * The same smoke alarm voice.test.mjs puts on the speech table. Some keys are
-   * legitimately identical (Shin, Photo, Canada), so this asserts a share.
+   * legitimately identical (Pexi, Photo, Canada), so this asserts a share.
    */
   const strings = Object.keys(TABLES.en).filter((k) => typeof TABLES.en[k] === 'string');
   const same = strings.filter((k) => TABLES.en[k] === TABLES.fr[k]);
@@ -361,7 +361,7 @@ test('every French renderer produces a non-empty sentence for its own code', () 
  * 7. Money, and the face label a screen reader hears.
  *
  * Both are punctuation problems, and punctuation is the tell. `$4.99` inside a
- * French sentence and `Shin: content` without the space before the colon are
+ * French sentence and `Pexi: content` without the space before the colon are
  * exactly what a machine translation leaves behind.
  * ------------------------------------------------------------------ */
 
@@ -421,8 +421,8 @@ test('French puts a no-break space before the colon and English does not', async
   const { t } = await import('../public/js/ui-strings.js');
   const en = inLocale('en', () => t('face_label', { state: t('face_state_fair') }));
   const fr = inLocale('fr', () => t('face_label', { state: t('face_state_fair') }));
-  assert.ok(en.startsWith('Shin: '), `English label was ${JSON.stringify(en)}`);
-  assert.ok(fr.startsWith('Shin : '), `French label was ${JSON.stringify(fr)}`);
+  assert.ok(en.startsWith('Pexi: '), `English label was ${JSON.stringify(en)}`);
+  assert.ok(fr.startsWith('Pexi : '), `French label was ${JSON.stringify(fr)}`);
 });
 
 test('the face label does not change with the attitude, so a blind user hears what a sighted one sees', async () => {
@@ -439,9 +439,9 @@ test('the face label does not change with the attitude, so a blind user hears wh
  *
  * This is the one that was actually broken, and it was invisible to every
  * test that renders markup. `faceSvg` writes the label once; `morphFace`
- * mutates the same element in place as Shin changes state and re-wrote the
+ * mutates the same element in place as Pexi changes state and re-wrote the
  * label from a hardcoded English template, so the app rendered French and then
- * reverted to "Shin: idle" on the first state change. Found by reading the
+ * reverted to "Pexi: idle" on the first state change. Found by reading the
  * aria-label off a real page in a browser, not by any assertion here.
  *
  * Both paths are pinned below, because fixing one and not the other is exactly
@@ -474,11 +474,11 @@ test('a state change rewrites the label in the CURRENT language, not in English'
   const { morphFace } = await import('../public/js/shin.js');
   const fr = fakeFace('idle');
   inLocale('fr', () => morphFace(fr, 'idle', 'walk'));
-  assert.equal(fr.getAttribute('aria-label'), 'Shin : passe ton tour');
+  assert.equal(fr.getAttribute('aria-label'), 'Pexi : passe ton tour');
 
   const en = fakeFace('idle');
   inLocale('en', () => morphFace(en, 'idle', 'walk'));
-  assert.equal(en.getAttribute('aria-label'), 'Shin: walk away');
+  assert.equal(en.getAttribute('aria-label'), 'Pexi: walk away');
 });
 
 test('no state change leaves a raw English state id on the element', async () => {
@@ -491,7 +491,7 @@ test('no state change leaves a raw English state id on the element', async () =>
     assert.ok(label, `no label written for ${state}`);
     assert.ok(!label.includes(state) || state === 'idle',
       `the raw id "${state}" reached a French screen reader: ${label}`);
-    assert.ok(label.startsWith('Shin :'), `French label lost its no-break space: ${label}`);
+    assert.ok(label.startsWith('Pexi :'), `French label lost its no-break space: ${label}`);
   }
 });
 

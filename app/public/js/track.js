@@ -1,7 +1,7 @@
 /**
  * Everything the client does, queued and sent. Added 2026-09-14 on the
  * founder's word, "build everything for collecting EVERYTHING": the vision
- * doc's own sentence is that all of a user's scanned data trains Shin's
+ * doc's own sentence is that all of a user's scanned data trains Pexi's
  * models and answers other shoppers, and until today the only client events
  * that existed were the handful `consent-actions.js` and `eye-attach.js`
  * called `api.postEvent` for by hand. This is the one place that captures the
@@ -224,7 +224,7 @@ if (hasBrowser) {
      * including any specific Link". This listener's whole job is to record
      * which element was tapped, by label, tag and class, which is exactly
      * that. `grounded.js` stamps `data-no-track` on the root of the block it
-     * renders and puts nothing of Shin's own inside it, so one ancestor
+     * renders and puts nothing of Pexi's own inside it, so one ancestor
      * check covers every offer row, every review and Google's own rendered
      * Search Suggestions in a single statement.
      *

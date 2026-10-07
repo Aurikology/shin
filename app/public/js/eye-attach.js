@@ -16,7 +16,7 @@
  *     of six jars is a choice rather than a guess,
  *   an automatic crop at the shutter, so the fine print on the label survives
  *     being sent as a photo of a whole shelf,
- *   one measured coaching line at a time, handed to the screen to say in Shin's
+ *   one measured coaching line at a time, handed to the screen to say in Pexi's
  *     own voice rather than painted here as chrome.
  *
  * DEGRADING IS THE NORMAL CASE, NOT THE ERROR CASE. A denied permission, a

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Shin</string>
-    <string name="title_activity_main">Shin</string>
+    <string name="app_name">Pexi</string>
+    <string name="title_activity_main">Pexi</string>
     <string name="package_name">com.useshinapp.shin</string>
     <string name="custom_url_scheme">com.useshinapp.shin</string>
 </resources>

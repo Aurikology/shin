@@ -386,7 +386,7 @@ export async function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPr
 }
 
 /**
- * Lines of text read off a pack or a shelf tag, matched against Shin's own
+ * Lines of text read off a pack or a shelf tag, matched against Pexi's own
  * catalogue: `POST /api/match-text` (app/src/catalogue-first.ts, `matchText`).
  * Answers `{ kind: 'text_match', candidates (0 to 3), shelfPrice }`.
  *
@@ -501,7 +501,7 @@ export function scans() {
  * what the same search found. A screen asks for it only when identify came back
  * `ambiguous`, because that is the band that means there was genuinely more
  * than one plausible row. Asking after a `confident` answer would be offering a
- * choice that does not exist, which reads as Shin hedging rather than as Shin
+ * choice that does not exist, which reads as Pexi hedging rather than as Pexi
  * being careful.
  *
  * Text only, and that is the endpoint's shape rather than an omission here: a
@@ -530,7 +530,7 @@ export function categories() {
 }
 
 /**
- * What Shin can plausibly be pointed at, with the asking price the hand pilot
+ * What Pexi can plausibly be pointed at, with the asking price the hand pilot
  * actually recorded. `observed` false means the asking price is a stated
  * stand-in and the screen must label it as one.
  */
@@ -857,7 +857,7 @@ export function stores(cell) {
 }
 
 /**
- * The chains Shin's own price data names, fresher than the list bundled in
+ * The chains Pexi's own price data names, fresher than the list bundled in
  * `chains.js`. Soft: the picker already has the bundled list on screen, so a
  * failure here changes nothing the shopper sees.
  */

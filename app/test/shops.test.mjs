@@ -4,7 +4,7 @@
  *
  * Asked for on 2026-09-13 in these words -- "can we allow shin to use their
  * location and then assess instead of them having to input the store they're
- * in multiple times. Also Shin must be able to identify the pattern of where
+ * in multiple times. Also Pexi must be able to identify the pattern of where
  * the user often goes" -- under two decisions that this file is here to hold
  * in place, because both of them are the kind that erode quietly:
  *

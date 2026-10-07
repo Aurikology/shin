@@ -12,11 +12,11 @@
  * whole opt-out.
  *
  * WHY THIS IS A SEPARATE SCREEN AND NOT A THIRD QUESTION FOLDED INTO SETUP.
- * `setup.js`'s own header draws a hard line between "which Shin" (a
+ * `setup.js`'s own header draws a hard line between "which Pexi" (a
  * preference, changeable any time, no consequence either way) and camera
  * permission (asked at the moment it means something). Consent belongs on
  * neither side of that line: it is not a preference and it is not the OS's
- * own permission prompt, it is Shin's own promise about what it does with
+ * own permission prompt, it is Pexi's own promise about what it does with
  * what it is handed, and it earns its own screen for the same reason the
  * plan calls it out as its own item rather than a line on another one.
  *

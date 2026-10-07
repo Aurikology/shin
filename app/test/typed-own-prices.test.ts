@@ -1,5 +1,5 @@
 /**
- * A typed product name searches Shin's own data and nothing else.
+ * A typed product name searches Pexi's own data and nothing else.
  *
  * Jamin, 2026-09-23: "typing a product should only search our catalogue and
  * only return when we have both the item and price."
@@ -86,7 +86,7 @@ recordUserScan(
   },
   { log: uc },
 );
-// A product Shin holds with no price at all.
+// A product Pexi holds with no price at all.
 recordUserScan({ name: 'Lonely Lentil Soup', brand: 'Nobody', quantity: '540 ml', observedAt: '2026-09-14T10:00:00.000Z' }, { log: uc });
 uc.db?.close();
 
@@ -128,7 +128,7 @@ async function typed(text: string, device = 'typed-dev') {
   return { status: res.status, body: (await res.json()) as Record<string, any> };
 }
 
-test('a typed name Shin holds with prices returns those prices, each with its store, currency and date', async () => {
+test('a typed name Pexi holds with prices returns those prices, each with its store, currency and date', async () => {
   const { status, body } = await typed('peaches and cream corn');
   assert.equal(status, 200);
   assert.equal(body.ownData, true);
@@ -157,7 +157,7 @@ test('prices from the user catalogue: latest per store, dated, and a test double
   assert.equal(gemini.calls.length, 0);
 });
 
-test('a product Shin holds with no price is the no-price answer, not a product', async () => {
+test('a product Pexi holds with no price is the no-price answer, not a product', async () => {
   const { status, body } = await typed('lonely lentil soup');
   assert.equal(status, 200);
   assert.equal(body.ownData, true);
@@ -203,7 +203,7 @@ async function price(body: Record<string, unknown>) {
   return { status: res.status, body: (await res.json()) as Record<string, any> };
 }
 
-test('/api/price with free text and no scan answers from Shin data and never calls Gemini', async () => {
+test('/api/price with free text and no scan answers from Pexi data and never calls Gemini', async () => {
   const { status, body } = await price({ text: 'peaches cream corn', deviceId: 'price-free-text', askingCents: 399 });
   assert.equal(status, 200);
   assert.equal(body.kind, 'gemini');
@@ -213,7 +213,7 @@ test('/api/price with free text and no scan answers from Shin data and never cal
   assert.equal(gemini.calls.length, 0, 'free text on /api/price called Gemini');
 });
 
-test('/api/price naming a typed scan answers from Shin data on that same row, never a paid call', async () => {
+test('/api/price naming a typed scan answers from Pexi data on that same row, never a paid call', async () => {
   const scan = await typed('unicorn steak', 'price-typed-scan');
   const { status, body } = await price({ scanId: scan.body.scanId, text: 'unicorn steak', deviceId: 'price-typed-scan' });
   assert.equal(status, 200);

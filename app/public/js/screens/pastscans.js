@@ -34,7 +34,7 @@ import { answerOf, answerLook, answerWord, answerLine } from '../lib/history-ans
 
 /*
  * The eight refusal reasons used to be a map here, described in this comment
- * as "plain screen labels, not Shin speaking". They were duplicated copy:
+ * as "plain screen labels, not Pexi speaking". They were duplicated copy:
  * voice.js already owned eight refusal keys covering the same eight reasons in
  * three voices, and this map wrote each of them a ninth time in one. They are
  * `refusal_label_*` in voice.js now and reached through `refusalLabel`, which

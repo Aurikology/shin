@@ -316,7 +316,7 @@ test('one leaf row is enough to stop the whole-list qualifier', () => {
 });
 
 test('an empty list is still one quiet sentence and no empty box', () => {
-  /* 2026-09-14: the sentence is Shin's own now, not the heading. A heading
+  /* 2026-09-14: the sentence is Pexi's own now, not the heading. A heading
      over nothing was seen live under a refusal and read as a list still
      loading; the heading names what WOULD be listed, and with nothing to
      list the honest line is that there is nothing. Per path, because the

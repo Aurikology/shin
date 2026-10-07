@@ -125,7 +125,7 @@ body {
 
 /* The market picker's own prompt: the shin-say unit under the kicker, not a
    heading beside a bare face (avatar-presence.md's opening rule -- every
-   hint and prompt is Shin talking through the one face-and-bubble unit). */
+   hint and prompt is Pexi talking through the one face-and-bubble unit). */
 .mkt-say { margin-top: 2px; }
 
 /*
@@ -527,14 +527,14 @@ button.ilist-row { cursor: pointer; }
 }
 
 /*
- * An empty list is a screen Shin is on, not a gap where content failed. It was
+ * An empty list is a screen Pexi is on, not a gap where content failed. It was
  * being drawn as one: 46px of padding at the top of a flex column whose items
  * do not grow, so on a phone the face and its line sat under the heading and
  * left roughly seven hundred pixels of nothing beneath the two nav rows.
  *
  * Growing rather than shrinking. `.page > *` is flex: none on purpose -- the
  * comment above it records a share card being squeezed into a letterbox -- so
- * this takes the slack explicitly and centres in it, which puts Shin in the
+ * this takes the slack explicitly and centres in it, which puts Pexi in the
  * middle of the space he is meant to occupy and leaves the rows where the thumb
  * expects them.
  */
@@ -560,7 +560,7 @@ button.ilist-row { cursor: pointer; }
  * The face keeps its own colours here.
  *
  * This used to set `color: var(--ink-faint)`, and the character is drawn with
- * `stroke="currentColor"` -- so the one place Shin appears at full size on an
+ * `stroke="currentColor"` -- so the one place Pexi appears at full size on an
  * otherwise bare screen was also the one place his outline was overridden to
  * grey. He came out washed out and slightly ill next to the same character
  * drawn correctly on the verdict.

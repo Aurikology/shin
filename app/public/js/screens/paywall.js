@@ -1,5 +1,5 @@
 /**
- * Shin Plus, the subscription screen (2026-09-21, docs/mvp-plan.md
+ * Pexi Plus, the subscription screen (2026-09-21, docs/mvp-plan.md
  * "Subscription").
  *
  * Opened by the camera when `/api/identify` answers 402 `scan_limit` (the
@@ -141,7 +141,7 @@ export function paywallBody(state, { plans = [], chosen = null, message = '' } =
 
 export default {
   id: 'paywall',
-  title: 'Shin Plus',
+  title: 'Pexi Plus',
   titleKey: 'paywall_title',
 
   render(root, ctx) {

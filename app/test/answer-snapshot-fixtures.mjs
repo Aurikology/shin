@@ -25,7 +25,7 @@ const verdict = (band = 'high', tier = 'walk_away') => ({
   ],
   confidence: { band, distinctSellers: 3, because: 'Three sellers agreed within a dollar.' },
   disagreement: { detail: 'One seller sits well above the rest. The other two agree closely.' },
-  lines: ['Shin used three shelf prices from the last week.'],
+  lines: ['Pexi used three shelf prices from the last week.'],
 });
 
 const gemini = (zone, low = false) => ({

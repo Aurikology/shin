@@ -86,21 +86,21 @@ function scroller() {
 }
 
 /** The app's name, and the suffix every screen title is hung off. One literal. */
-const APP_NAME = 'Shin';
+const APP_NAME = 'Pexi';
 
 /**
  * The browser tab's text for a screen title.
  *
- * D-016: the tab read "Shin · Shin". Two things were producing the app name and
+ * D-016: the tab read "Pexi · Pexi". Two things were producing the app name and
  * exactly one of them is redundant. The redundant one is the SUFFIX, not the
  * camera's title, and here is why.
  *
- * The camera's registered title being "Shin" is not an oversight. Every other
+ * The camera's registered title being "Pexi" is not an oversight. Every other
  * screen is a place inside the app and is titled after itself ("Saved", "Past
  * scans"). The camera is not a place inside the app, it is the app: it is the
  * cold-start screen, it has no h1, and the honest name of the tab a person
  * opened is the app's name. Retitling it to make the suffix rule uniform would
- * buy uniformity by putting a wrong word in the tab ("Camera · Shin" names a
+ * buy uniformity by putting a wrong word in the tab ("Camera · Pexi" names a
  * screen nobody navigated to) and would still leave this function needing to
  * know something, because a screen title that IS the app name can arrive again.
  *

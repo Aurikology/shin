@@ -2,7 +2,7 @@
  * D04: ONE ANSWER FOR ONE PRODUCT, WHETHER THE SHOPPER SCANS IT OR TYPES IT.
  *
  * docs/verdict-distribution-design-2026-09-30.md cases 7 and 8 and RULINGS.md
- * "A scanned barcode answers with Shin's own prices too": a typed name that
+ * "A scanned barcode answers with Pexi's own prices too": a typed name that
  * resolves to a catalogue product is answered exactly as that product's
  * barcode, and one that matches nothing is answered from the typed words.
  *

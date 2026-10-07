@@ -22,7 +22,7 @@ const EMPTY = {
   city: null,
   seenIntro: false,
   /**
-   * Which Shin the user picked. Null means setup has not run, which is the only
+   * Which Pexi the user picked. Null means setup has not run, which is the only
    * thing standing between a cold start and the camera. Decision 2026-09-03: the
    * attitude is the user's choice, not ours, and it changes the words around a
    * number without ever changing the number.
@@ -34,7 +34,7 @@ const EMPTY = {
    * middle of what was found is worth it, and how far above is past what they
    * will pay.
    *
-   * THEY ARE THE USER'S, NOT SHIN'S, and that distinction is the whole reason
+   * THEY ARE THE USER'S, NOT PEXI'S, and that distinction is the whole reason
    * they exist as stored settings rather than as constants. The price line's
    * three zones are named after these numbers ("under your line", "in the
    * middle", "over your line"), which is what keeps those words a statement
@@ -77,7 +77,7 @@ const EMPTY = {
    * The torch setting (item 11, 2026-09-17): 'auto' lights the shelf itself once
    * the frame is darker than `torchThreshold`; 'off' never does and the camera
    * says on screen when it is too dark. The threshold is a mean luminance on a
-   * 0 to 255 scale and starts at Shin's own default (src/eye/torch.ts,
+   * 0 to 255 scale and starts at Pexi's own default (src/eye/torch.ts,
    * DEFAULT_TORCH_THRESHOLD), so a user who never opens the setting gets the
    * behaviour the app already had.
    */
@@ -105,7 +105,7 @@ const EMPTY = {
   scanCount: 0,
   shareCount: 0,
   /**
-   * ISO timestamps of the times Shin has spoken without being asked.
+   * ISO timestamps of the times Pexi has spoken without being asked.
    * AVATAR.md section 3's interruption budget, made real. Pruned to the last
    * day on every read, so this never grows.
    */
@@ -116,7 +116,7 @@ const EMPTY = {
    * OLMA audit rows 9, 10, 78: the market a verdict is judged against. Changes
    * nothing in the engine today (build pass 2026-09-04); it is the basis line
    * every verdict names, so it is stored and read by `market()` for the camera
-   * side to pick up later. Empty until the user chooses one: Shin is global (Jamin,
+   * side to pick up later. Empty until the user chooses one: Pexi is global (Jamin,
    * 2026-09-17 walkthrough), so nothing assumes a country. An empty market is sent
    * to Gemini as "unknown" (lib/scan-body.js sends only what the user chose).
    */
@@ -186,7 +186,7 @@ const EMPTY = {
    * The shops this person has confirmed they were standing in, and which one
    * they confirmed last in each coarse cell. 2026-09-13, asked for in these
    * words: "instead of them having to input the store they're in multiple
-   * times... Shin must be able to identify the pattern of where the user
+   * times... Pexi must be able to identify the pattern of where the user
    * often goes."
    *
    * THIS LIVES HERE AND NOWHERE ELSE, and that is the decision rather than an
@@ -602,7 +602,7 @@ export function setRegion(region) {
  * The weekly line (GAMIFICATION.md mechanic M16): what the person's own record
  * says, nothing projected, nothing ranked, no dollar figure. "Callable" means
  * the scan produced a verdict rather than a refusal; that is the only sense in
- * which Shin "could call" a price.
+ * which Pexi "could call" a price.
  */
 export function weeklyStats() {
   const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -708,7 +708,7 @@ export function forgetShops() {
 /* --------------------------------------------- the interruption budget ---- */
 
 /**
- * AVATAR.md section 3 caps what Shin may say when the user did not act:
+ * AVATAR.md section 3 caps what Pexi may say when the user did not act:
  * **two per session, four per day, and zero notifications in v1.** The file is
  * explicit that "no third source may be added without a row in this table".
  *
@@ -741,7 +741,7 @@ function interruptionsToday() {
 }
 
 /**
- * Whether Shin may speak unprompted right now. A screen asks before it speaks,
+ * Whether Pexi may speak unprompted right now. A screen asks before it speaks,
  * and stays silent if the answer is no. It never queues the line for later:
  * the moment an unprompted line was for does not come back.
  */
@@ -751,7 +751,7 @@ export function canInterrupt() {
 }
 
 /**
- * Record that Shin spoke unprompted. Called only after the line actually went
+ * Record that Pexi spoke unprompted. Called only after the line actually went
  * on screen, never at the point it was considered, or a line that was decided
  * against would still spend the budget.
  */

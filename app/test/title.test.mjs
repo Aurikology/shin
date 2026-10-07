@@ -1,12 +1,12 @@
 /**
  * The browser tab's text, which is `router.js`'s `titleFor`.
  *
- * D-016: the tab read "Shin · Shin" on the camera, because the router appended
- * " · Shin" to every screen title and the camera's own title is "Shin". The
+ * D-016: the tab read "Pexi · Pexi" on the camera, because the router appended
+ * " · Pexi" to every screen title and the camera's own title is "Pexi". The
  * decision and its reasoning are on `titleFor` itself; this file is the part
  * that fails when somebody undoes it.
  *
- * The second test is the one with teeth. Asserting `titleFor('Shin')` alone
+ * The second test is the one with teeth. Asserting `titleFor('Pexi')` alone
  * would keep passing on the day a screen is registered under a title the rule
  * has never seen, so the screen titles are read off the screen modules and run
  * through the rule. They are read with a regex rather than by importing the
@@ -36,17 +36,17 @@ function registeredTitles() {
 }
 
 test('a screen whose title is already the app name does not get the app name twice', () => {
-  assert.equal(titleFor('Shin'), 'Shin');
+  assert.equal(titleFor('Pexi'), 'Pexi');
 });
 
 test('every other screen is named, then placed', () => {
-  assert.equal(titleFor('Saved'), 'Saved · Shin');
-  assert.equal(titleFor('Past scans'), 'Past scans · Shin');
+  assert.equal(titleFor('Saved'), 'Saved · Pexi');
+  assert.equal(titleFor('Past scans'), 'Past scans · Pexi');
 });
 
 test('a screen with no title at all still names the app', () => {
-  assert.equal(titleFor(undefined), 'Shin');
-  assert.equal(titleFor(''), 'Shin');
+  assert.equal(titleFor(undefined), 'Pexi');
+  assert.equal(titleFor(''), 'Pexi');
 });
 
 test('no registered screen produces a doubled app name', () => {
@@ -56,7 +56,7 @@ test('no registered screen produces a doubled app name', () => {
 
   for (const [file, title] of titles) {
     const tab = titleFor(title);
-    assert.notEqual(tab, 'Shin · Shin', `${file} registers "${title}" and the tab doubles it`);
-    assert.equal(tab, title === 'Shin' ? 'Shin' : `${title} · Shin`, `${file} registers "${title}"`);
+    assert.notEqual(tab, 'Pexi · Pexi', `${file} registers "${title}" and the tab doubles it`);
+    assert.equal(tab, title === 'Pexi' ? 'Pexi' : `${title} · Pexi`, `${file} registers "${title}"`);
   }
 });

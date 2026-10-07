@@ -80,7 +80,7 @@ const verdict = {
     { seller: 'Metro', amountCents: 529, observedAt: '2026-08-03', kind: 'regular' },
   ],
   confidence: { band: 'high', distinctSellers: 3, because: 'Three sellers.' },
-  lines: ['Shin used three shelf prices.'],
+  lines: ['Pexi used three shelf prices.'],
 };
 
 const scenario = { text: 'Kirkland Signature Natural spring water 500mL', category: 'grocery', scannedGtin: '0096619321841' };

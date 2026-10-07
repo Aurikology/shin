@@ -1,10 +1,10 @@
 /**
- * The client half of a typed search answered from Shin's own data (Jamin,
+ * The client half of a typed search answered from Pexi's own data (Jamin,
  * 2026-09-23: "typing a product should only search our catalogue and only
  * return when we have both the item and price").
  *
  * The answer renders through the same grounded block a Gemini answer uses, so
- * it is rendered here into real nodes (mini-dom): it must say it is Shin's own
+ * it is rendered here into real nodes (mini-dom): it must say it is Pexi's own
  * prices, never "Found by Google", and every row must show its currency and
  * the day it was seen. The no-match answer must be the plain sentence, and the
  * typed route must never hand an own-data answer to `proceed`, whose
@@ -42,19 +42,19 @@ const wire = (block) => ({
   block: { kind: 'prices', checked: false, facts: [], description: null, offers: [OFFER], reviews: [], verdict: null, noLineReason: null, ...block },
 });
 
-test("Shin's own prices say so, and every row shows its currency and the day it was seen", async () => {
+test("Pexi's own prices say so, and every row shows its currency and the day it was seen", async () => {
   const section = await renderSection(wire({ source: 'shin_own_data' }));
   assert.ok(section, 'the own-data block rendered nothing');
   const all = section.textContent;
   assert.doesNotMatch(all, /Google/, 'own prices are labelled as a Google result');
-  assert.equal(section.querySelector('.grounded-heading').textContent, 'From Shin’s own prices');
+  assert.equal(section.querySelector('.grounded-heading').textContent, 'From Pexi’s own prices');
   const row = section.querySelector('.g-offer');
   assert.equal(row.querySelector('.g-price').textContent, '3.49');
   assert.equal(row.querySelector('.g-currency').textContent, 'CAD');
   assert.equal(row.querySelector('.g-seen').textContent, '2026-09-10');
 });
 
-test("a Gemini block is left exactly as it was: Google's heading, no Shin fields added", async () => {
+test("a Gemini block is left exactly as it was: Google's heading, no Pexi fields added", async () => {
   const section = await renderSection(wire({}));
   assert.equal(section.querySelector('.grounded-heading').textContent, 'Found by Google');
   assert.equal(section.querySelector('.g-seen'), null);
@@ -92,12 +92,12 @@ test('the typed route draws an own-data answer itself and never hands it to proc
     'a match is not drawn on the answer sheet');
 });
 
-test('a price answer from Shin data with no price shows the plain sentence, not "no answer"', () => {
+test('a price answer from Pexi data with no price shows the plain sentence, not "no answer"', () => {
   const start = CAMERA.indexOf('    async function proceed(item, askingCents) {');
   assert.notEqual(start, -1, 'proceed is gone');
   const body = CAMERA.slice(start, CAMERA.indexOf('\n    }\n', start));
   const own = body.indexOf('if (result.ownData && !result.found) {');
-  assert.ok(own !== -1, 'proceed does not recognise a no-price answer from Shin data');
+  assert.ok(own !== -1, 'proceed does not recognise a no-price answer from Pexi data');
   const failed = body.indexOf("} else if (result.kind === 'gemini') {");
   assert.ok(failed !== -1 && own < failed, 'the no-price answer falls into the Gemini branch and its "no answer" sheet first');
   assert.ok(body.slice(own, failed).includes("say('cam_text_no_own_price')"));

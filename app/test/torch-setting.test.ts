@@ -95,7 +95,7 @@ test('off mode leaves a torch the user lit alone, even in a bright frame', () =>
   assert.equal(d.action, null);
 });
 
-test("the default is Shin's current threshold and storage is made safe", () => {
+test("the default is Pexi's current threshold and storage is made safe", () => {
   assert.equal(DEFAULT_TORCH_THRESHOLD, 52, 'the default moved from the level the camera has always used');
   assert.deepEqual(normaliseTorchSetting(undefined), { mode: 'auto', threshold: DEFAULT_TORCH_THRESHOLD });
   assert.deepEqual(normaliseTorchSetting({ mode: 'sideways', threshold: 'x' }), { mode: 'auto', threshold: DEFAULT_TORCH_THRESHOLD });
@@ -112,7 +112,7 @@ test('the dark line reaches the coach and outranks everything else', () => {
 
 /* ------------------------------------------- the slider, storage, wiring */
 
-test("the slider starts where Shin's default is, and the two copies of the range agree", () => {
+test("the slider starts where Pexi's default is, and the two copies of the range agree", () => {
   const store = src('../public/js/store.js');
   const torch = src('../src/eye/torch.ts');
   const num = (text: string, name: string) => Number(new RegExp(`${name} = (\\d+)`).exec(text)?.[1]);
@@ -120,8 +120,8 @@ test("the slider starts where Shin's default is, and the two copies of the range
   assert.ok(range, 'store.js has no TORCH_RANGE');
   assert.equal(Number(range[1]), num(torch, 'TORCH_THRESHOLD_MIN'));
   assert.equal(Number(range[2]), num(torch, 'TORCH_THRESHOLD_MAX'));
-  assert.equal(Number(range[3]), num(torch, 'DEFAULT_TORCH_THRESHOLD'), "the slider does not start at Shin's default");
-  assert.match(store, /torchMode: 'auto',\n\s*torchThreshold: 52,/, "the stored default is not auto at Shin's level");
+  assert.equal(Number(range[3]), num(torch, 'DEFAULT_TORCH_THRESHOLD'), "the slider does not start at Pexi's default");
+  assert.match(store, /torchMode: 'auto',\n\s*torchThreshold: 52,/, "the stored default is not auto at Pexi's level");
 });
 
 test('the You screen has both modes and a slider, and stores what they change', () => {

@@ -232,9 +232,9 @@ test('a correction that DOES name a product is unaffected by any of this', async
  * fails on a Tuesday for a reason that has nothing to do with this code.
  */
 
-test('a price body naming a scan attaches to that scan: its Gemini call is linked to the row, and no Shin verdict is written onto it', async () => {
+test('a price body naming a scan attaches to that scan: its Gemini call is linked to the row, and no Pexi verdict is written onto it', async () => {
   /* A BARCODE scan since 2026-09-23: a typed name never reaches Gemini on this
-     route any more (Jamin: typing searches Shin's own data only; that side is
+     route any more (Jamin: typing searches Pexi's own data only; that side is
      in typed-own-prices.test.ts), so the paid price call that gets linked to a
      row is the one for a product a barcode scan identified. */
   const res = await fetch(`${base()}/api/identify?gtin=${ROW.code}&deviceId=d-verdict`);
@@ -249,7 +249,7 @@ test('a price body naming a scan attaches to that scan: its Gemini call is linke
   assert.equal(t.calls.length, 1, 'a price call is one Gemini call');
   assert.equal(geminiCallsForScan(scanId).length, before + 1, 'the price call is linked to the scan it names');
   const row = getScan(scanId)!;
-  assert.equal(row.verdict_tier, null, 'Shin wrote a verdict of its own onto the row');
+  assert.equal(row.verdict_tier, null, 'Pexi wrote a verdict of its own onto the row');
   assert.equal(row.verdict_confidence, null);
   assert.equal(row.verdict_sellers, null);
 });

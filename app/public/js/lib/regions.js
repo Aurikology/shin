@@ -1143,7 +1143,7 @@ G|Sylhet`,
 /**
  * The per-country flag `regionMatters`: true where prices inside the country
  * differ enough by region (state or provincial sales tax, duty-free or reduced-tax
- * zones, distance and freight, a big gap between cities and the rest) that Shin
+ * zones, distance and freight, a big gap between cities and the rest) that Pexi
  * asks Gemini for offers in the user's own region. It feeds `{{REGION_MATTERS_HINT}}`.
  * The first ten are the earlier list, kept as it was; the rest are added in the
  * same spirit. It is a starting judgement, a hint and not a verdict, and it wants
@@ -1159,7 +1159,7 @@ export const REGION_MATTERS = Object.freeze([
  * The per-country cross-border flag: the blocs whose member countries can price
  * alike, so a price in one may be worth showing beside a price in another. It
  * feeds `{{CROSS_BORDER_HINT}}`, and only ever between two members that also
- * share a currency, because Shin never converts one. EU: the 27 member states
+ * share a currency, because Pexi never converts one. EU: the 27 member states
  * (Bulgaria joined the euro in 2026). EEA: the three EFTA members of the single
  * market that are not in the EU.
  */

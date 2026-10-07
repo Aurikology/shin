@@ -268,7 +268,7 @@ test('case 1 and 14: a catalogue barcode with one own price is blended with its 
   assert.equal(v.confidence, 'medium');
   assert.equal(v.centreCents, Math.round(Math.exp((Math.log(2400) + Math.log(2500)) / 2)));
   assert.equal(v.shopper.cents, 2300);
-  assert.equal(askCalls.length, asks, 'Claude was asked although Shin had a price');
+  assert.equal(askCalls.length, asks, 'Claude was asked although Pexi had a price');
   const row = scanRow(body.scanId);
   assert.equal(row.estimate_basis, 'own_prices');
   assert.equal(row.estimate_confidence, 'medium');
@@ -304,7 +304,7 @@ test('case 6: a barcode nothing knows asks for the name, with no verdict and no 
   assert.equal(askCalls.length, asks);
 });
 
-test('case 3 and 5: a known product with no Shin price asks Claude once, shared by verdict and range', async () => {
+test('case 3 and 5: a known product with no Pexi price asks Claude once, shared by verdict and range', async () => {
   const asks = askCalls.length;
   const { body } = await identify(COLA);
   assert.equal(askCalls.length, asks + 1, 'one scan, one ask');

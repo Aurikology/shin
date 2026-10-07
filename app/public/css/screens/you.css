@@ -2,7 +2,7 @@
  * You, and the coverage list.
  *
  * The coverage number is the honesty of the product made visible. It says how
- * many of the things Shin knows about he will actually answer for, and it is
+ * many of the things Pexi knows about he will actually answer for, and it is
  * measured by pricing every one of them rather than counting rows, because a
  * row count once made the app claim seven when the answer was two.
  *
@@ -127,7 +127,7 @@
 .covrow .no { color: var(--unknown-bright); }
 
 /*
- * The weekly line, GAMIFICATION.md mechanic M16, now Shin's own bubble
+ * The weekly line, GAMIFICATION.md mechanic M16, now Pexi's own bubble
  * (js/voice.js key you_weekly) rather than a bare card: one sentence, no
  * number treated as a score, no colour, because it is a fact read back, not
  * a result. The `.shin-say` component (css/face.css) supplies its own box;
@@ -311,7 +311,7 @@
 .atts-row .ilist-k { visibility: hidden; }
 .atts-row .att.on .ilist-k { visibility: visible; }
 
-/* The Shin Plus quota row starts hidden and is shown once /api/quota answers
+/* The Pexi Plus quota row starts hidden and is shown once /api/quota answers
    with a limit. `.ilist-row`'s own `display: flex` outranks the browser's
    `[hidden]` rule, so it is said here. */
 .ilist-row[hidden] { display: none; }

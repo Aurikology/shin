@@ -82,7 +82,7 @@ export const SHOP_KINDS: readonly string[] = [
   'department_store', 'general', 'variety_store', 'wholesale', 'kiosk',
   // Pharmacy without a dispensary. Shoppers and Jean Coutu sell groceries, and
   // OSM splits them: `shop=chemist` when there is no pharmacist,
-  // `amenity=pharmacy` when there is. Shin needs both and they are tagged in
+  // `amenity=pharmacy` when there is. Pexi needs both and they are tagged in
   // two different keys, which is the other half of why the old query missed.
   'chemist',
   // Tech, because the other thing that gets scanned is a gadget.

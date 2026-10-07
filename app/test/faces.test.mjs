@@ -31,7 +31,7 @@ test('tokens.css --face-ink matches the module INK_DEFAULT', () => {
   assert.ok(m, 'tokens.css no longer defines --face-ink');
   assert.equal(
     m[1].toUpperCase(), INK_DEFAULT.toUpperCase(),
-    "the CSS copy of Shin's outline colour has drifted from face-art.js",
+    "the CSS copy of Pexi's outline colour has drifted from face-art.js",
   );
 });
 
@@ -136,7 +136,7 @@ for (const who of Object.keys(FACE_SETS)) {
 /**
  * The deliverable states which face it is; it does not speak a language.
  *
- * These 39 files used to root `aria-label="Shin: idle"` -- an English
+ * These 39 files used to root `aria-label="Pexi: idle"` -- an English
  * accessible name baked into a build artifact. The product ships in French and
  * English, the files live under `public/` so they are served and the Capacitor
  * wrapper bundles them, and a static file cannot know who is reading it, so
@@ -177,7 +177,7 @@ test('the title names the same two identifiers as the path, so a misfiled face f
     for (const state of CONTRACT) {
       const title = /<title>([^<]*)<\/title>/.exec(standaloneSvg(who, state));
       assert.ok(title, `${who}/${state} has no title, so a file opened on its own is unnamed`);
-      assert.equal(title[1], `Shin ${who} ${state}`,
+      assert.equal(title[1], `Pexi ${who} ${state}`,
         `${who}/${state}'s title disagrees with its own path`);
     }
   }
@@ -192,7 +192,7 @@ test('the files on disk carry the change too, not just the module', () => {
     for (const state of CONTRACT) {
       const file = fileURLToPath(new URL(`../public/faces/${who}/${state}.svg`, import.meta.url));
       const svg = readFileSync(file, 'utf8');
-      assert.ok(!/aria-label="Shin: /.test(svg),
+      assert.ok(!/aria-label="Pexi: /.test(svg),
         `${who}/${state}.svg still holds the old English label; run npm run faces`);
     }
   }

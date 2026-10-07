@@ -19,7 +19,7 @@
  * impression this screen exists to prevent. It cannot fall back to a built-in
  * list, because the whole point of the single source is that there isn't one.
  *
- * THE LOADING AND FAILURE LINES ARE SHIN TALKING, and they now live in
+ * THE LOADING AND FAILURE LINES ARE PEXI TALKING, and they now live in
  * voice.js as `licences_loading` and `licences_failed`, three variants each.
  *
  * This file used to argue the opposite, and the argument is worth recording

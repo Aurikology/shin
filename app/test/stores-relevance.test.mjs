@@ -31,7 +31,7 @@ import {
 
 const CELL = parseCell('43.26,-79.87');
 
-test('every kind Shin prices is actually asked for', () => {
+test('every kind Pexi prices is actually asked for', () => {
   const q = overpassQuery(CELL);
   for (const kind of SHOP_KINDS) {
     assert.ok(q.includes(kind), `the query never asks for shop=${kind}`);
@@ -100,11 +100,11 @@ test('a place with no address is still named by what it is, amenity included', (
   assert.equal(hintFor({ amenity: 'pharmacy' }), 'pharmacy');
   assert.equal(hintFor({ amenity: 'marketplace' }), 'marketplace');
   assert.equal(hintFor({ shop: 'department_store' }), 'department store');
-  // Not a kind Shin offers, so there is nothing to say about it.
+  // Not a kind Pexi offers, so there is nothing to say about it.
   assert.equal(hintFor({ shop: 'hairdresser' }), '');
 });
 
-test('an amenity Shin does not price is not a shop', () => {
+test('an amenity Pexi does not price is not a shop', () => {
   const body = JSON.stringify({
     elements: [
       { type: 'node', id: 9, lat: 43.26, lon: -79.87, tags: { name: 'The Ship', amenity: 'pub' } },

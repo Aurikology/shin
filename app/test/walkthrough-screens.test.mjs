@@ -215,7 +215,7 @@ test('D29: Manage subscription is drawn in the Android store build and nowhere e
   const android = youMarkup({ win: { Capacitor: { getPlatform: () => 'android' } } });
   assert.match(android, /data-manage-sub/);
   assert.doesNotMatch(android, /data-plus-block hidden/);
-  assert.match(youMarkup(), /data-plus-block hidden/, 'an empty Shin Plus heading is left on screen');
+  assert.match(youMarkup(), /data-plus-block hidden/, 'an empty Pexi Plus heading is left on screen');
 });
 
 /* ------------------------------------------------------------------ D36 */

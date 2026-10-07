@@ -2,7 +2,7 @@
  * The camera surface and the verdict sheet.
  *
  * The most important rule in this file is the [data-conf] block near the bottom.
- * Same hue, four fills: solid when Shin is certain, solid with a hairline when
+ * Same hue, four fills: solid when Pexi is certain, solid with a hairline when
  * he is fairly sure, hollow and outlined when the evidence is thin, grey and
  * dashed when he refuses. A hollow verdict and a solid verdict must never be
  * mistaken for one another at arm's length, and if they ever are, this is the
@@ -23,7 +23,7 @@
    *
    * Chrome lives in the top band and the bottom band. The top band is the
    * torch and the wordmark, one 48px row under the safe area. The bottom
-   * band is the bar plus the docked Shin sitting above it, which is why
+   * band is the bar plus the docked Pexi sitting above it, which is why
    * --dock-band-bottom is measured up from the bottom edge now rather than
    * down from the top: the dock moved out of the top band, where it was
    * competing with the wordmark for the same corner.
@@ -414,7 +414,7 @@
 .cam[data-state="texting"] .feed { filter: blur(3px); }
 
 /*
- * Shin, docked on the viewfinder, in the lower band between the frame and the
+ * Pexi, docked on the viewfinder, in the lower band between the frame and the
  * bottom bar. One face-and-bubble unit that carries the aim hint, its
  * escalation, the torch acknowledgement, the second-visit callback and the
  * identifying morph.
@@ -1612,7 +1612,7 @@
   border-top: 1px dashed var(--hairline);
 }
 /*
- * Its sub-line is Shin talking ("I will almost certainly refuse"), not a
+ * Its sub-line is Pexi talking ("I will almost certainly refuse"), not a
  * measurement, so it loses the mono caps the priced rows keep. FLAWS.md item 6:
  * the mono face is reserved for a recorded measurement, and spending it on a
  * sentence is what made this list read as a readout rather than a question.
@@ -2215,7 +2215,7 @@
 }
 
 /*
- * Thin. Hollow. Shin still answers, and the shape says hold it loosely.
+ * Thin. Hollow. Pexi still answers, and the shape says hold it loosely.
  *
  * FLAWS.md item 2: the second argument to both mixes below was the literal
  * `#0B0C0E`, which is the dark theme's --ground copied out by hand, so a thin
@@ -2225,7 +2225,7 @@
  * This one is load-bearing beyond the look. app/test/tokens.test.mjs computes
  * the thin and refusal tints as `mix(--tier, --ground, 14%)` and
  * `mix(--unknown, --ground, 12%)` and asserts --tier-bright clears 4.5 on them,
- * in BOTH themes, including at the .88 Shin's sentence is drawn at. Until this
+ * in BOTH themes, including at the .88 Pexi's sentence is drawn at. Until this
  * change that test described a surface the light theme never painted. It
  * describes the real one now, which is the only reason its light-theme numbers
  * mean anything.

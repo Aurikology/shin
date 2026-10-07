@@ -228,11 +228,11 @@ test('good, reasonable, bad, great: his word, the tier, one face per tier, the r
   assert.equal(distFace('great', 'low'), 'good');
 });
 
-test('the line beside the answer: how far off, against Shin\'s estimate of the typical price', () => {
-  assert.equal(between(inLocale('en', () => distributionSheet(F.GOOD)), 'data-dist-line'), "22% under the typical price, Shin's estimate $5.99");
-  assert.equal(between(inLocale('en', () => distributionSheet(F.BAD)), 'data-dist-line'), "25% over the typical price, Shin's estimate $5.99");
-  assert.equal(between(inLocale('en', () => distributionSheet(F.FLOOR)), 'data-dist-line'), "about the typical price, Shin's estimate $5.99");
-  assert.equal(between(inLocale('fr', () => distributionSheet(F.GOOD)), 'data-dist-line'), `22${NB}% sous le prix habituel, estimation de Shin 5,99${NB}$`);
+test('the line beside the answer: how far off, against Pexi\'s estimate of the typical price', () => {
+  assert.equal(between(inLocale('en', () => distributionSheet(F.GOOD)), 'data-dist-line'), "22% under the typical price, Pexi's estimate $5.99");
+  assert.equal(between(inLocale('en', () => distributionSheet(F.BAD)), 'data-dist-line'), "25% over the typical price, Pexi's estimate $5.99");
+  assert.equal(between(inLocale('en', () => distributionSheet(F.FLOOR)), 'data-dist-line'), "about the typical price, Pexi's estimate $5.99");
+  assert.equal(between(inLocale('fr', () => distributionSheet(F.GOOD)), 'data-dist-line'), `22${NB}% sous le prix habituel, estimation de Pexi 5,99${NB}$`);
 });
 
 test('case 23, no price yet: the bell, no dot, a price field; a typed price drops the dot in and places it', () => {
@@ -242,7 +242,7 @@ test('case 23, no price yet: the bell, no dot, a price field; a typed price drop
   assert.match(html, /<form class="vd-price" data-dist-price/);
   assert.match(html, /inputmode="decimal"/);
   assert.equal(between(html, 'data-dist-headline'), 'Kraft Peanut Butter 1 kg');
-  assert.equal(between(html, 'data-dist-line'), "Typical price, Shin's estimate: $5.99");
+  assert.equal(between(html, 'data-dist-line'), "Typical price, Pexi's estimate: $5.99");
   assert.equal(attr(html, 'data-tier'), 'unknown');
   const typed = inLocale('en', () => distributionSheet(F.NO_PRICE, { name: 'Kraft Peanut Butter 1 kg', typedCents: 469, still: true }));
   assert.match(typed, /data-vb-you="469"/);
@@ -290,7 +290,7 @@ test('sale dots, the bigger pack, notes and where the estimate came from, in the
   assert.match(html, /class="vb-lane"[^>]*>Sale</);
   assert.equal(between(half, 'data-vd-bigger'), 'A bigger pack, 1.75 L at BC Liquor, works out to $1.31 per 100 ml.');
   assert.deepEqual([...half.matchAll(/data-vd-note="([^"]+)"/g)].map((m) => m[1]), ['old_prices', 'other_region', 'few_prices']);
-  assert.equal(between(half, 'data-vd-basis'), "Shin's estimate, from similar products (1 price)");
+  assert.equal(between(half, 'data-vd-basis'), "Pexi's estimate, from similar products (1 price)");
   assert.match(half, /data-act="correct"/, 'Correct is not at half');
   const peek = html.slice(html.indexOf('<div class="sheet-peek">'), html.indexOf('<div class="sheet-half">'));
   assert.match(peek, /data-act="dist-save"/, 'the primary action is not in the peek');
@@ -303,13 +303,13 @@ test('sale dots, the bigger pack, notes and where the estimate came from, in the
 test('the accessible name says in words where the price falls, English and French', () => {
   assert.equal(
     ariaOf(inLocale('en', () => distributionSheet(F.GOOD))),
-    'Good price. Your price, $4.69, is 22% under the typical price. Shin estimates the typical price at $5.99, with 8 in 10 prices between $4.76 and $7.54.',
+    'Good price. Your price, $4.69, is 22% under the typical price. Pexi estimates the typical price at $5.99, with 8 in 10 prices between $4.76 and $7.54.',
   );
   assert.equal(
     ariaOf(inLocale('fr', () => distributionSheet(F.BAD))),
-    `Mauvais prix. Ton prix, 7,49${NB}$, est 25${NB}% au-dessus du prix habituel. Shin estime le prix habituel à 5,99${NB}$, avec 8 prix sur 10 entre 4,76${NB}$ et 7,54${NB}$.`,
+    `Mauvais prix. Ton prix, 7,49${NB}$, est 25${NB}% au-dessus du prix habituel. Pexi estime le prix habituel à 5,99${NB}$, avec 8 prix sur 10 entre 4,76${NB}$ et 7,54${NB}$.`,
   );
-  assert.equal(ariaOf(inLocale('en', () => distributionSheet(F.NO_PRICE))), 'Shin estimates the typical price at $5.99, with 8 in 10 prices between $4.76 and $7.54.');
+  assert.equal(ariaOf(inLocale('en', () => distributionSheet(F.NO_PRICE))), 'Pexi estimates the typical price at $5.99, with 8 in 10 prices between $4.76 and $7.54.');
 });
 
 test('case 28, a better answer later: the bell eases on log price; the axis words are only ever a real answer\'s', () => {

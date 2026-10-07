@@ -4,12 +4,12 @@
  *
  * Two rules here are load-bearing rather than cosmetic:
  *
- *   The brand pink is Shin's identity and never a verdict. It is the wordmark
+ *   The brand pink is Pexi's identity and never a verdict. It is the wordmark
  *   and the shutter ring. It does not appear on the verdict surface at all,
  *   which is what stops it being read as "walk away" in someone's screenshot.
  *
  *   Hue is the verdict, saturation is the confidence. The same tier colour
- *   appears solid when Shin is sure and hollow when the evidence is thin, so
+ *   appears solid when Pexi is sure and hollow when the evidence is thin, so
  *   calibration is visible in the shape of the thing rather than claimed in a
  *   footnote nobody reads.
  *
@@ -50,7 +50,7 @@
      the pad is not the only thing that knows. */
   --brand-ink: #FFFFFF;
 
-  /* Shin's own outline, and the only colour in this file that belongs to the
+  /* Pexi's own outline, and the only colour in this file that belongs to the
      character rather than to the interface. It is INK_DEFAULT in
      public/js/face-art.js, which is the source of truth; this is a copy so that
      CSS can reach it, and test/faces.test.mjs asserts the two are equal so the

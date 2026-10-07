@@ -39,7 +39,7 @@ export async function globalSetup() {
   if (existsSync(LIVE_MARKER)) {
     const message = [
       `Tests refused to run: ${LIVE_MARKER} exists.`,
-      'That file means the live Shin server runs from this folder (mac/run-server.sh writes it),',
+      'That file means the live Pexi server runs from this folder (mac/run-server.sh writes it),',
       'and a test run here could change the real data testers are using.',
       'Run the tests in a separate copy of the repo. If the live server does not run from this',
       'folder, delete that file and run again.',

@@ -1,5 +1,5 @@
 /**
- * Correcting Shin, which is also how a refusal turns into data.
+ * Correcting Pexi, which is also how a refusal turns into data.
  *
  * The keypad is the whole screen because typing a price with one hand in an
  * aisle is the entire job. Nothing else competes for the thumb.
@@ -119,7 +119,7 @@ function gateReason(typed, seller) {
 
 export default {
   id: 'correct',
-  title: 'Tell Shin the price',
+  title: 'Tell Pexi the price',
   titleKey: 'correct_title',
 
   render(root, ctx) {

@@ -133,7 +133,7 @@ test('Manage subscription opens the store the phone uses, and the quota line sho
   assert.equal(manageSubscriptionUrl({ navigator: { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0)' } }), '');
   assert.equal(quotaText({ limit: 10, used: 3, remaining: 7, resetsAt: 'x', plus: false }), '7 of 10 free scans left this week');
   assert.equal(quotaText({ limit: null, used: 3, remaining: null, plus: false }), '', 'no limit set must show nothing');
-  assert.equal(quotaText({ limit: 10, remaining: 0, plus: true }), 'Shin Plus: unlimited scans');
+  assert.equal(quotaText({ limit: 10, remaining: 0, plus: true }), 'Pexi Plus: unlimited scans');
   assert.equal(quotaText(null), '');
 });
 

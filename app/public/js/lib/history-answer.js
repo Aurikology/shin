@@ -22,7 +22,7 @@ import { t } from '../ui-strings.js';
 import { usableVerdict, shopperFor, shopperOf, ZONE_TIER } from './verdict-chart.js';
 import { money } from './money.js';
 
-/** His zone, in the face the tier wears. Great is the intense face only when Shin is not unsure (AVATAR.md's gate). */
+/** His zone, in the face the tier wears. Great is the intense face only when Pexi is not unsure (AVATAR.md's gate). */
 export function distFace(zone, confidence) {
   if (zone === 'great') return confidence === 'low' ? 'good' : 'delighted';
   if (zone === 'good') return 'good';

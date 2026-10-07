@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Shin">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Pexi">
 <!--
   The home screen icon, the browser tab favicon and the manifest icon: one file,
   because they are the same mark at different sizes and an SVG does not care
   which.
 
-  Shin's own character, not a new one. The face below is lifted VERBATIM from
+  Pexi's own character, not a new one. The face below is lifted VERBATIM from
   public/faces/deadpan/pleased.svg, which scripts/build-faces.mjs writes from
   public/js/face-art.js. It is nested in its own 0 0 88 88 viewBox so it can be
   re-pasted from that file without touching a coordinate. Do not restyle it
@@ -34,7 +34,7 @@
   the outermost point at 140 from centre. So the manifest can honestly declare
   `any maskable` off one file.
 
-  The pink is the brand token. That is allowed and deliberate: brand pink is Shin's
+  The pink is the brand token. That is allowed and deliberate: brand pink is Pexi's
   identity, the wordmark and the shutter ring, and this ring is the shutter. The
   rule it must not break is that pink is never a verdict, and an icon is not a
   verdict surface.

@@ -868,7 +868,7 @@ function photoTierRefusal(env: NodeJS.ProcessEnv = process.env): string | null {
   const { tier, declared } = geminiTier(env);
   if (tier === 'paid') return null;
   if (declared) {
-    return 'SHIN_GEMINI_TIER is set to free, and Google trains on everything sent to a free key, so Shin will not send a shopper\'s photograph through it. The barcode and typing it still work. Set SHIN_GEMINI_TIER=paid on a server holding a paid key, and keep the free one for the eval.';
+    return 'SHIN_GEMINI_TIER is set to free, and Google trains on everything sent to a free key, so Pexi will not send a shopper\'s photograph through it. The barcode and typing it still work. Set SHIN_GEMINI_TIER=paid on a server holding a paid key, and keep the free one for the eval.';
   }
   return 'SHIN_GEMINI_TIER is not set, so this server does not know whether its Gemini key is free -- and Google trains on everything sent to a free key -- so it will not send a shopper\'s photograph. The barcode and typing it still work. Set SHIN_GEMINI_TIER to paid or free.';
 }
@@ -1882,7 +1882,7 @@ function answerMarks(c: Pick<Completed, 'run'>) {
 }
 
 /** The sentence a typed search gets when Shin holds no item with a price for it. */
-const TYPED_NO_OWN_PRICE = 'Shin does not have a price for that yet. Scan the barcode instead.';
+const TYPED_NO_OWN_PRICE = 'Pexi does not have a price for that yet. Scan the barcode instead.';
 
 /**
  * A typed name, answered from Shin's own data (Jamin, 2026-09-23; the full
@@ -2287,7 +2287,7 @@ async function catalogueFirstBarcode(
       country: market.country,
       currency: market.currency ?? 'CAD',
       asOf: new Date().toISOString().slice(0, 10),
-      // Only when Shin has no price: one Claude ask, no web search, capped per
+      // Only when Pexi has no price: one Claude ask, no web search, capped per
       // month (identify/src/range-ask.ts). No shopper answer comes from Gemini
       // (Jamin, 2026-09-28, "We are not using gemini at all for the client side answers").
       askRange,
@@ -3480,7 +3480,7 @@ export const server = createServer(async (req, res) => {
       );
       return json(200, {
         ...(priceMatch ? { priceMatch } : {}),
-        // Shin's own product list is not consulted, so there is never a catalogue product here.
+        // Pexi's own product list is not consulted, so there is never a catalogue product here.
         product: null,
         matchedBy: 'none',
         band: 'miss',
@@ -4787,7 +4787,7 @@ const keyProblem = geminiKeyProblem();
 if (keyProblem) problems.push(keyProblem);
 if (problems.length > 0) {
   for (const problem of problems) console.error(problem);
-  console.error('Shin did not start. Nothing was changed on disk.');
+  console.error('Pexi did not start. Nothing was changed on disk.');
   process.exit(1);
 }
 
@@ -4812,13 +4812,13 @@ if (tierRefusalAtBoot) console.error(tierRefusalAtBoot);
  */
 server.on('error', (err) => {
   const sentence = listenProblem(err, PORT);
-  console.error(sentence ?? `Shin could not open port ${PORT}: ${err instanceof Error ? err.message : String(err)}`);
+  console.error(sentence ?? `Pexi could not open port ${PORT}: ${err instanceof Error ? err.message : String(err)}`);
   logError({ where: 'server.listen', err, detail: { port: PORT } });
   process.exit(1);
 });
 
 server.listen(PORT, () => {
-  console.log(`Shin is running.  http://localhost:${PORT}`);
+  console.log(`Pexi is running.  http://localhost:${PORT}`);
   console.log('The engine behind it knows 7 products, because 7 is what has been priced by hand.');
   const scans = openScanStore(SCAN_DB);
   console.log(

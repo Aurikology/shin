@@ -1,5 +1,5 @@
 /**
- * Shin himself: the face, the money, and the confidence treatment.
+ * Pexi himself: the face, the money, and the confidence treatment.
  *
  * The face is the verdict, not a decoration in the corner of a card. It is drawn
  * rather than loaded, so there is no asset to go missing and it stays crisp at
@@ -10,7 +10,7 @@
  * and the person scanning did not set the price.
  *
  * Thirteen expressions, not three. The old file had three because there were
- * three verdict tiers; that was wrong, because refusing is a state Shin is in
+ * three verdict tiers; that was wrong, because refusing is a state Pexi is in
  * more often than any of them and it needs a face of its own rather than a
  * shrug. AVATAR.md section 2 adds the other seven on top of the six this file
  * already drew, and section 6 is the placeholder contract this file is.
@@ -158,7 +158,7 @@ export function runClassAnimation(el, className, ms) {
 }
 
 /**
- * Shin's face as an SVG string.
+ * Pexi's face as an SVG string.
  *
  * The xmlns is load-bearing, not decoration. Inline HTML tolerates its absence;
  * a standalone SVG document does not, so without it any screen that rasterises
@@ -357,7 +357,7 @@ export function morphFace(el, fromState, toState, opts = {}) {
   if (opts.who && el.dataset) el.dataset.who = opts.who;
   // The SAME label the render path writes, and it has to be looked up the same
   // way. This is a live swap: the face element is built once and mutated as
-  // Shin changes state, so a localised `aria-label` from `faceSvg` survives
+  // Pexi changes state, so a localised `aria-label` from `faceSvg` survives
   // exactly until the first state change, after which this line replaces it.
   // That is why the rendered markup can be right and the running app wrong --
   // no unit test that renders a face catches it, because the defect is in the
@@ -507,7 +507,7 @@ export function faceBlock(expression, opts = {}) {
  * The shared unit: a face and a speech bubble, one component every screen
  * uses instead of composing its own pill, toast or header line. The bubble
  * always carries `say(key, facts)` from voice.js, so no screen ever writes
- * a Shin line of its own.
+ * a Pexi line of its own.
  *
  * Face-left, bubble-right by default; `opts.side: 'right'` flips it to
  * face-right, bubble-left. Never below 48px: a bubble is always present, and
@@ -576,7 +576,7 @@ export function shinSay(state, key, facts, opts = {}) {
  * Update a mounted `shinSay` root in place: morph the face to `state` (via
  * `morphFace`, which also plays `anim` or `state`'s own default animation),
  * and swap the bubble's line to `say(key, facts)`. No screen has to
- * re-render itself just to change what Shin is saying.
+ * re-render itself just to change what Pexi is saying.
  *
  * @param {HTMLElement} el     the mounted `.shin-say` root `shinSay` returned
  * @param {string} state       the face's new expression

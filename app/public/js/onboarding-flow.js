@@ -3,10 +3,10 @@
  *
  * WHAT THIS IS. Jamin's "Welcome screen UI" tab (docs/walkthrough/jamin-notes-
  * 2026-09-17.md, screens 1 to 33): Cal AI's welcome pages with his replacement
- * text on each, in his order, built in Shin's own look. `n` on each step below
+ * text on each, in his order, built in Pexi's own look. `n` on each step below
  * is his line number in that tab, so the order can be checked against his page
  * by anyone. Screens 30, 32 and 33 (the viewfinder, the savings dashboard, the
- * verdict page) are Cal AI's own product screens, not welcome pages; in Shin
+ * verdict page) are Cal AI's own product screens, not welcome pages; in Pexi
  * those are the camera, the Savings Overview (screens/savings.js, reached from
  * You) and the verdict sheet. Screen 31, "Evaluating Deal...", is drawn here as a
  * demo of the scan wait (step `evaluating`), so the flow ends at 31.

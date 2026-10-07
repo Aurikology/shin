@@ -15,7 +15,7 @@
  *     the file cannot satisfy or break them;
  *   - the history screens are asserted on the rows they build.
  *
- * SHIN COMPUTES NO PRICE MATH (docs/beta-gaps-2026-09-19.md, rule 6): the
+ * PEXI COMPUTES NO PRICE MATH (docs/beta-gaps-2026-09-19.md, rule 6): the
  * figures on the sheet must be the model's bytes. The fixture medians are
  * chosen so a formatter would change them (4.5 becomes 4.50, 5.25 becomes
  * $5.25), which is what makes "shown as returned" checkable rather than
@@ -150,7 +150,7 @@ test('the middle price and the shelf label are shown as the model returned them'
   // 4.5, not 4.50 and not $4.50: a formatter would have changed it.
   assert.ok(html.includes('Middle price: 4.5 per 100 mL'), 'the median is not the model\'s own text');
   assert.ok(html.includes('Shelf price: 6 x 355 mL, 4.49'), 'the shelf label is not the model\'s own text');
-  assert.doesNotMatch(html, /\$\d|\d\s?%/, 'the sheet shows a dollar figure or a percentage Shin made');
+  assert.doesNotMatch(html, /\$\d|\d\s?%/, 'the sheet shows a dollar figure or a percentage Pexi made');
 });
 
 test('with no shelf price to place there is no zone, and the name leads instead', () => {
@@ -187,7 +187,7 @@ test('a low-confidence answer shows the mark and still shows the answer', () => 
   assert.match(html, /data-gemini-headline>over your line</, 'the answer disappeared behind the mark');
   assert.match(html, /data-grounded-slot/);
   assert.equal(geminiFailed(answer({ low: true })), false, 'a low-confidence answer was called a failure');
-  assert.ok(html.includes(say('gem_unsure')), 'Shin does not say he is unsure');
+  assert.ok(html.includes(say('gem_unsure')), 'Pexi does not say he is unsure');
 });
 
 test('a confident answer carries no mark', () => {
@@ -246,7 +246,7 @@ test('the reading lifted out of the wire copies values and works nothing out', (
   assert.equal(g.unitLabel, '100 mL');
   assert.equal(g.shelfLabel, '6 x 355 mL, 4.49');
   assert.equal(g.name, 'Citrus Soda');
-  // A code Shin does not know is not a zone, and is never guessed at.
+  // A code Pexi does not know is not a zone, and is never guessed at.
   const odd = geminiReading(answer({ zone: 'somewhere_else' }).grounded);
   assert.equal(odd.zone, null);
 
@@ -260,7 +260,7 @@ test('the reading lifted out of the wire copies values and works nothing out', (
 /*
  * Ruling 1, docs/decisions.md: a repeat scan of a known barcode may be
  * answered from a stored answer because "a cached Gemini answer is Gemini's
- * answer, not Shin's price" -- on the stated condition that the price "is
+ * answer, not Pexi's price" -- on the stated condition that the price "is
  * cached for six hours and ALWAYS SHOWN WITH WHEN IT WAS CHECKED". Only the
  * first half was built: `grounded.js` wrote the time into a `data-fetched-at`
  * attribute and nothing rendered it, so a price up to six hours old was
@@ -316,11 +316,11 @@ test('no time, and a time no clock can read, render nothing at all', () => {
   }
 });
 
-test('the checked line is Shin\'s own sentence, outside the grounded root and with no price in it', () => {
+test('the checked line is Pexi\'s own sentence, outside the grounded root and with no price in it', () => {
   const html = geminiSheet(answer({ top: { grounded: { ...answer().grounded, fetchedAt: AGO(3 * 3600e3) } } }), ITEM, null);
   const line = checkedLine(html);
   // Rule 6: the sheet shows the model's bytes. This line is a fact about when
-  // Shin asked, so it may not carry, reformat or recompute any figure of
+  // Pexi asked, so it may not carry, reformat or recompute any figure of
   // Gemini's.
   assert.ok(!line.includes('4.49') && !line.includes('4.5'), `the checked line carried a price: ${line}`);
   assert.ok(!line.includes('$'), `the checked line carried a currency mark: ${line}`);

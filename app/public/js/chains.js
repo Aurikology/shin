@@ -1,5 +1,5 @@
 /**
- * The shops Shin's own data already names, bundled so the shop picker has a
+ * The shops Pexi's own data already names, bundled so the shop picker has a
  * list the instant it opens (walkthrough D03: the old picker waited ten
  * seconds on OpenStreetMap and then showed nothing).
  *

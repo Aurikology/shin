@@ -253,9 +253,9 @@ function renderEnglish(f: TextFragment): string {
     case 'refusal_identity_unresolved':
       return 'Could not work out what this is. Scan the barcode, or type the model number.';
     case 'refusal_category_not_served':
-      return `${str(f, 'categoryLabel')} is not something Shin can price yet. ${str(f, 'why')}`;
+      return `${str(f, 'categoryLabel')} is not something Pexi can price yet. ${str(f, 'why')}`;
     case 'refusal_identity_below_floor':
-      return `Not sure enough this is the right one. The closest match was "${str(f, 'label')}". Pick the right one and Shin will price it.`;
+      return `Not sure enough this is the right one. The closest match was "${str(f, 'label')}". Pick the right one and Pexi will price it.`;
     case 'refusal_no_price_for_product':
       return `Nothing has a price for "${str(f, 'label')}" right now.`;
     case 'refusal_asking_price_missing':

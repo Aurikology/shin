@@ -95,7 +95,7 @@ function item(act, label, icon, active) {
  *                  the user navigated through to get here.
  */
 export function pageBar(activeId) {
-  return `<nav class="page-bar" aria-label="Shin">
+  return `<nav class="page-bar" aria-label="Pexi">
       ${item('watchlist', t('nav_saved'), SAVED_ICON, activeId === 'watchlist')}
       <button type="button" class="mini-shutter" data-act="camera" aria-label="${t('nav_scan')}" data-fk="nav:camera"></button>
       ${item('you', t('nav_you'), YOU_ICON, activeId === 'you')}

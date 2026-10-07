@@ -107,7 +107,7 @@ test('the English detail is byte for byte what it always was', async () => {
     // Spelled out rather than rebuilt from the facts on purpose. The round-trip
     // test rebuilds; this one pins the literal shape, so a fact rename that the
     // renderer follows cannot quietly take the sentence with it.
-    assert.equal(r.detail, `${rule.label} is not something Shin can price yet. ${rule.unsupported!.why}`);
+    assert.equal(r.detail, `${rule.label} is not something Pexi can price yet. ${rule.unsupported!.why}`);
     // `why` stays on the facts unchanged. It is the fallback a client uses for a
     // code it has not been taught, and dropping it would blank the sentence.
     assert.equal(r.structuredDetail.fragments[0]!.facts.why, rule.unsupported!.why);

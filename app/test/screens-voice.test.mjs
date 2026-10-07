@@ -1,7 +1,7 @@
 /**
  * The rule voice.js has opened with since the file existed, finally enforced.
  *
- * "NO STRING SHIN SAYS IS WRITTEN INSIDE A SCREEN. If a screen needs a new
+ * "NO STRING PEXI SAYS IS WRITTEN INSIDE A SCREEN. If a screen needs a new
  * line, it gets a new key here with all three variants, or it does not ship."
  * Nothing ever checked it. `test/voice.test.mjs` checks the table against
  * itself, thoroughly, and has never opened a screen file, so the rule held
@@ -14,19 +14,19 @@
  * than an opinion:
  *
  *   In voice.js: anything in the first person, anything that judges, advises,
- *   apologises, or narrates what Shin is doing.
+ *   apologises, or narrates what Pexi is doing.
  *
  *   In the screen: structural labels, headings, button text, kickers, and
- *   factual captions that do not speak as Shin.
+ *   factual captions that do not speak as Pexi.
  *
  * TWO RULES, DELIBERATELY DIFFERENT IN KIND.
  *
  * Rule 1 is hard and has no allowlist. A first-person pronoun inside a string
- * literal in a screen is Shin talking, with no case where it is not, so there
+ * literal in a screen is Pexi talking, with no case where it is not, so there
  * is nothing to argue about and no place to record an argument.
  *
  * Rule 2 is soft and allowlisted, and the allowlist is the artefact. A
- * four-word sentence in a screen is usually Shin and sometimes chrome, and the
+ * four-word sentence in a screen is usually Pexi and sometimes chrome, and the
  * only way to tell is for a person to say which. Every entry carries a reason
  * beside it, so the boundary above is written down against real strings rather
  * than described in the abstract, and the next inline sentence fails until
@@ -201,10 +201,10 @@ function allSegments() {
       /*
        * THE BLIND SPOT THIS CLOSES. `segments` splits a literal at every
        * interpolation, so `Nothing matches "${text}".` became two runs, neither
-       * ending in a period, and `isSentence` never saw it. Any inline Shin line
+       * ending in a period, and `isSentence` never saw it. Any inline Pexi line
        * with a `${}` before its final period was invisible to this file --
        * verified by running `segments` over camera.js: the run was `Nothing in
-       * what Shin has been taught matches "`, no full stop, no first person,
+       * what Pexi has been taught matches "`, no full stop, no first person,
        * both rules missed it. So each literal is ALSO judged whole, every
        * interpolation stood in for by a word, and a sentence found that way is
        * reported against the same line. Duplicates with the split pass are
@@ -214,8 +214,8 @@ function allSegments() {
       for (const text of segments(lit.text.replace(/ /g, ' \u0002 '))) {
         // A scaffold like `${a}. ${b} ${c}` is all stand-ins and no words; it
         // is punctuation around values, not a sentence somebody wrote. Three
-        // real words is the floor, so "Shin says: ${line}." (a label) drops
-        // out and "Nothing in what Shin has been taught matches \"${text}\"."
+        // real words is the floor, so "Pexi says: ${line}." (a label) drops
+        // out and "Nothing in what Pexi has been taught matches \"${text}\"."
         // stays in. The marker is shown as a word in the report.
         const real = text.replace(/\u0002/g, ' ').split(/\s+/).filter((w) => /[a-z]/i.test(w));
         if (real.length < 3) continue;
@@ -235,7 +235,7 @@ test('the scanner actually reads the screens', () => {
   assert.ok(FILES.length >= 10, `only ${FILES.length} screen files found`);
   assert.ok(SEGMENTS.length > 200, `only ${SEGMENTS.length} text runs found; the scanner has probably stopped matching`);
   /*
-   * The canary used to be setup.js's own heading, "Which Shin do you want?".
+   * The canary used to be setup.js's own heading, "Which Pexi do you want?".
    * It is not in a screen any more: the French interface (item 31) moved every
    * user-facing English literal out of the screens and into ui-strings.js,
    * which is the whole point of Rule 3 below, so a canary made of prose would
@@ -287,7 +287,7 @@ test('no screen writes a first-person line inside a string', () => {
     .map((s) => `${s.file}:${s.line}  ${JSON.stringify(s.text)}`);
 
   assert.deepEqual(found, [], [
-    'A line Shin says is written inside a screen. It gets a key in voice.js with',
+    'A line Pexi says is written inside a screen. It gets a key in voice.js with',
     'all three personalities, or it does not ship. There is no allowlist for this rule.',
     '',
     ...found,
@@ -313,7 +313,7 @@ test('the quarantine is still describing something real, and is empty', () => {
  * ------------------------------------------------------------------ */
 
 /**
- * The chrome, named, with why each one is not Shin talking.
+ * The chrome, named, with why each one is not Pexi talking.
  *
  * Matched on the file and the exact text run, never on a line number, because
  * line numbers move every time a comment is written above them and an
@@ -327,18 +327,18 @@ test('the quarantine is still describing something real, and is empty', () => {
  * happens to reach them. Nothing asserts an entry is used, for that reason.
  */
 const ALLOWED = [
-  { file: 'watchlist.js', text: '{value} , under the usual {value} .', why: 'Two prices and a relation word: a factual caption on a saved row, not Shin speaking. Surfaced by the whole-literal pass; the values are the sentence.' },
+  { file: 'watchlist.js', text: '{value} , under the usual {value} .', why: 'Two prices and a relation word: a factual caption on a saved row, not Pexi speaking. Surfaced by the whole-literal pass; the values are the sentence.' },
   { file: 'you.js', text: 'Build {value} · hand-set in main.js, not read from a running server.', why: 'A build stamp on the profile screen. Chrome, addressed to whoever is debugging, and it says where the number comes from.' },
   /* --- setup.js --- */
   {
     file: 'setup.js',
     text: 'One question, then the camera',
-    why: 'Kicker. A structural promise about the screen\'s length, not Shin addressing anyone.',
+    why: 'Kicker. A structural promise about the screen\'s length, not Pexi addressing anyone.',
   },
   {
     file: 'setup.js',
-    text: 'Which Shin do you want?',
-    why: 'The page heading, and it names Shin in the third person: the question the screen asks, not a thing Shin says about itself.',
+    text: 'Which Pexi do you want?',
+    why: 'The page heading, and it names Pexi in the third person: the question the screen asks, not a thing Pexi says about itself.',
   },
   {
     file: 'setup.js',
@@ -355,7 +355,7 @@ const ALLOWED = [
   {
     file: 'share.js',
     text: 'A link would make a preview that reads as spam.',
-    why: 'The reason for the kicker above it. Explains a design decision to the person posting, in the app\'s voice rather than Shin\'s.',
+    why: 'The reason for the kicker above it. Explains a design decision to the person posting, in the app\'s voice rather than Pexi\'s.',
   },
   {
     file: 'share.js',
@@ -377,12 +377,12 @@ const ALLOWED = [
   {
     file: 'market.js',
     text: 'Recorded, not yet part of the comparison',
-    why: 'Kicker. States what the pick does today, which is the honesty market_ask carries in Shin\'s own voice one line below it.',
+    why: 'Kicker. States what the pick does today, which is the honesty market_ask carries in Pexi\'s own voice one line below it.',
   },
   {
     file: 'market.js',
     text: 'Does not change a verdict yet. Recorded for when it does.',
-    why: 'Caption under the list. A fact about the engine, deliberately written with no subject so it is not a promise from Shin.',
+    why: 'Caption under the list. A fact about the engine, deliberately written with no subject so it is not a promise from Pexi.',
   },
   {
     file: 'market.js',
@@ -442,8 +442,8 @@ const ALLOWED = [
   },
   {
     file: 'licences.js',
-    text: 'Shin is not affiliated with any of them. Prices are what somebody recorded on the day shown beside them, not an offer, and not checked with the shop.',
-    why: 'The attribution footer, and a disclaimer. It names Shin in the third person, which is what a disclaimer about Shin has to do.',
+    text: 'Pexi is not affiliated with any of them. Prices are what somebody recorded on the day shown beside them, not an offer, and not checked with the shop.',
+    why: 'The attribution footer, and a disclaimer. It names Pexi in the third person, which is what a disclaimer about Pexi has to do.',
   },
 
   /* --- camera.js, another lane's file this pass --- */
@@ -475,7 +475,7 @@ function isSentence(text) {
   return text.split(/\s+/).filter(Boolean).length >= 4;
 }
 
-test('every sentence written inside a screen is either Shin\'s or explained', () => {
+test('every sentence written inside a screen is either Pexi\'s or explained', () => {
   const allowed = new Set(ALLOWED.map((a) => `${a.file}\u0001${a.text}`));
   const found = SEGMENTS
     .filter((s) => isSentence(s.text))
@@ -483,13 +483,13 @@ test('every sentence written inside a screen is either Shin\'s or explained', ()
     .map((s) => `${s.file}:${s.line}  ${JSON.stringify(s.text)}`);
 
   assert.deepEqual(found, [], [
-    'A sentence is written inside a screen and nothing says why it is not Shin talking.',
+    'A sentence is written inside a screen and nothing says why it is not Pexi talking.',
     '',
     'Two ways out, and picking one is the point of this rule:',
-    '  1. It is Shin. Give it a key in voice.js with all three personalities.',
+    '  1. It is Pexi. Give it a key in voice.js with all three personalities.',
     '  2. It is chrome. Add it to ALLOWED in this file WITH A REASON, using the',
     '     boundary at the top: structural labels, headings, button text, kickers',
-    '     and factual captions that do not speak as Shin.',
+    '     and factual captions that do not speak as Pexi.',
     '',
     ...found,
   ].join('\n'));
@@ -501,7 +501,7 @@ test('every allowlist entry carries a reason somebody wrote', () => {
     .map((a) => `${a.file}: ${JSON.stringify(a.text)}`);
   assert.deepEqual(thin, [], [
     'An allowlist entry with no real reason is a suppression wearing the costume of a',
-    'decision. Say why the string is chrome and not Shin.',
+    'decision. Say why the string is chrome and not Pexi.',
     '',
     ...thin,
   ].join('\n'));
@@ -522,7 +522,7 @@ test('every allowlist entry carries a reason somebody wrote', () => {
  * French page, and nothing in this file could see it.
  *
  * So: a literal in a screen that reads as English prose fails, and the two
- * ways out are the same two Rule 2 offers, one layer along. Either it is Shin
+ * ways out are the same two Rule 2 offers, one layer along. Either it is Pexi
  * and gets a voice.js key in every locale and personality, or it is chrome and
  * gets a ui-strings.js key in every locale. The screen holds neither table.
  *
@@ -561,7 +561,7 @@ const NOT_SHOWN = [
   { file: 'watchlist.js', text: '.wlist-head .face', why: 'A CSS descendant selector passed to querySelector; the space is the combinator.' },
   { file: 'watchlist.js', text: '.empty .face', why: 'A CSS descendant selector passed to querySelector, not a phrase anybody reads.' },
   { file: 'camera.js', text: 'NFKD', why: 'The Unicode normalisation form passed to String.normalize, a constant of the platform rather than a word.' },
-  { file: 'camera.js', text: 'a thing shin has never seen', why: 'A query string sent to the engine on purpose, to make it produce its own honest refusal rather than the app faking one. It is a search term, not a label; translating it would change what is asked.' },
+  { file: 'camera.js', text: 'a thing pexi has never seen', why: 'A query string sent to the engine on purpose, to make it produce its own honest refusal rather than the app faking one. It is a search term, not a label; translating it would change what is asked.' },
 
   { file: 'camera.js', text: 'Escape', why: 'A KeyboardEvent.key value compared against in the sheet key handler. A platform constant, the same string on a French keyboard.' },
   { file: 'share.js', text: 'toBlob gave nothing', why: 'The message of an Error thrown and caught inside the save path, so the console gets it. What the reader gets is share_export_failed.' },
@@ -575,17 +575,17 @@ const NOT_SHOWN = [
    * the literal. Listed one per screen rather than filtered by field name,
    * because the day a screen registers a title with no titleKey beside it is
    * the day this list stops matching and somebody has to look. --- */
-  { file: 'camera.js', text: 'Shin', why: 'The camera\'s registered title, and it is the app name: titleFor() in router.js has the reasoning for why this screen is titled after the app rather than after itself.' },
+  { file: 'camera.js', text: 'Pexi', why: 'The camera\'s registered title, and it is the app name: titleFor() in router.js has the reasoning for why this screen is titled after the app rather than after itself.' },
   { file: 'consent.js', text: 'Your data', why: 'The registered title. consent_title is what the tab and the announcement print; this literal is the screen\'s name in the source.' },
   { file: 'onboarding.js', text: 'Welcome', why: 'The registered title, translated through onb_title. Same split as every other screen.' },
   { file: 'permissions.js', text: 'Permissions', why: 'The registered title, translated through perm_title. Same split as every other screen.' },
-  { file: 'correct.js', text: 'Tell Shin the price', why: 'The registered title, translated through correct_title. Same split as every other screen.' },
+  { file: 'correct.js', text: 'Tell Pexi the price', why: 'The registered title, translated through correct_title. Same split as every other screen.' },
   { file: 'licences.js', text: 'Where this comes from', why: 'The registered title, translated through lic_kicker. Same split.' },
   { file: 'market.js', text: 'Where do you shop?', why: 'The registered title, translated through market_title. Same split.' },
-  { file: 'paywall.js', text: 'Shin Plus', why: 'The registered title, translated through paywall_title. Same split.' },
+  { file: 'paywall.js', text: 'Pexi Plus', why: 'The registered title, translated through paywall_title. Same split.' },
   { file: 'pastscans.js', text: 'Past scans', why: 'The registered title, translated through past_scans. Same split.' },
   { file: 'removed.js', text: 'Recently removed', why: 'The registered title, translated through removed_title. Same split.' },
-  { file: 'setup.js', text: 'Pick your Shin', why: 'The registered title, translated through setup_title. Same split.' },
+  { file: 'setup.js', text: 'Pick your Pexi', why: 'The registered title, translated through setup_title. Same split.' },
   { file: 'savings.js', text: 'Savings Overview', why: 'The registered title, translated through savings_title. Same split.' },
   { file: 'share.js', text: 'Share', why: 'The registered title, translated through share_title. Same split.' },
   { file: 'watchlist.js', text: 'Saved', why: 'The registered title, translated through saved_title. Same split.' },
@@ -640,7 +640,7 @@ test('no screen hardcodes a user-facing English string', () => {
     'English control on a French page, and no other rule in this file can see it.',
     '',
     'Two ways out:',
-    '  1. It is Shin. Give it a key in voice.js, in every locale and personality.',
+    '  1. It is Pexi. Give it a key in voice.js, in every locale and personality.',
     '  2. It is chrome. Give it a key in ui-strings.js, in every locale, and call',
     '     t(key) from the screen.',
     '',

@@ -1,5 +1,5 @@
 /**
- * A scanned barcode, answered from Shin's own data and nothing else.
+ * A scanned barcode, answered from Pexi's own data and nothing else.
  *
  * 2026-09-26: two price loads put about 14,000 priced barcodes into
  * `price/data/prices.db` and nothing in the app could read a price by

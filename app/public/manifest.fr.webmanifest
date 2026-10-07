@@ -1,7 +1,7 @@
 {
-  "name": "Shin",
-  "short_name": "Shin",
-  "description": "Pointe un objet. Shin te dit si le prix est correct.",
+  "name": "Pexi",
+  "short_name": "Pexi",
+  "description": "Pointe un objet. Pexi te dit si le prix est correct.",
   "lang": "fr-CA",
   "dir": "ltr",
   "start_url": "/",

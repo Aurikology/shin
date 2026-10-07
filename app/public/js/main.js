@@ -128,7 +128,7 @@ void flushCorrections();
    spends anything, because the viewfinder outranks it. */
 primeOfflineAisle();
 
-/* Shin Plus: inside the wrapper, ask the store whether the entitlement is
+/* Pexi Plus: inside the wrapper, ask the store whether the entitlement is
    still active, so an expiry or a refund is seen without opening anything.
    After the router and never awaited, like the three above; in a browser it
    does nothing. */

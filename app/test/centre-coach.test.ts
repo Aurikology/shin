@@ -3,7 +3,7 @@
  * prompts on screen that tell the user how to center the camera better."
  *
  * The coaching decision is pure, so it is tested here on numbers. That the
- * words are in Shin's three voices and about the framing is pinned against
+ * words are in Pexi's three voices and about the framing is pinned against
  * voice.js in the second half.
  */
 

@@ -212,7 +212,7 @@
    expression is already set before this plays: a fresh render carries its
    final geometry, and shin.js's morphFace applies every group at once (no
    40ms stagger) when the target animation is this one, so nobody watches
-   Shin change its mind on screen. */
+   Pexi change its mind on screen. */
 .face[data-anim="verdict-land"] {
   animation-name: verdict-land;
   animation-duration: var(--t-rise, 260ms);
@@ -264,7 +264,7 @@
 }
 
 /* -------------------------------------------------------- 9. pleased-nod */
-/* "It landed and Shin recorded it." 260ms, a 4 degree tilt and back. The
+/* "It landed and Pexi recorded it." 260ms, a 4 degree tilt and back. The
    acknowledgement line beside the face crossfades over the same 260ms
    (`.line-fade-run`, toggled by shin.js's updateShinSay), and under reduced
    motion that line fade is the whole animation. */
@@ -416,7 +416,7 @@
 
 /* ============================================================
    shin-say: face + speech bubble, the one shared unit every
-   screen uses so that Shin always looks the same when he talks.
+   screen uses so that Pexi always looks the same when he talks.
    Face-left, bubble-right by default; [data-side="right"] flips
    it. The bubble never truncates -- it wraps to whatever width
    its container gives it -- and its border picks up the tier

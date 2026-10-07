@@ -231,7 +231,7 @@ function backButton(label = t('back_to_camera'), act = 'cancel-scan') {
  * happened.
  *
  * Made a real `<button>` rather than promoting `.sheet-head` to the control,
- * because the head is not a control: it holds Shin's face, his spoken bubble
+ * because the head is not a control: it holds Pexi's face, his spoken bubble
  * (which changes text while the sheet is open) and the frozen-frame thumbnail,
  * and a button's accessible name is its whole subtree -- so promoting the head
  * would name this control with a paragraph of speech and would re-announce it
@@ -249,7 +249,7 @@ function grabber() {
 
 /**
  * Row 43: a tag can say "20% off" or "3 for $5" instead of one flat number.
- * Both recompute the unit price Shin actually judges; the typed number stops
+ * Both recompute the unit price Pexi actually judges; the typed number stops
  * being the asking price once a modifier is active, and the confirm key sends
  * the effective price, never the sticker number alone.
  */
@@ -300,7 +300,7 @@ function buzz(pattern) {
  * The spread, drawn.
  *
  * The scale covers the asking price as well as the comparison range, so a tag
- * priced above everything Shin found lands visibly outside the band instead of
+ * priced above everything Pexi found lands visibly outside the band instead of
  * being clamped onto its end. Clamping would hide exactly the case worth seeing,
  * which is the one where the shelf is the outlier.
  *
@@ -398,7 +398,7 @@ function intenseFaceFor(v, plainFace, conf, source) {
 
 /**
  * Row 35's toast: earns nothing, writes nothing but the local signal.
- * avatar-presence.md's floor: never smaller than 48 where Shin speaks, and
+ * avatar-presence.md's floor: never smaller than 48 where Pexi speaks, and
  * this toast has a bubble line, so it is the shared shinSay component at
  * face-page (48) with pleased-nod, not the bare 28px row face it used to be.
  */
@@ -632,7 +632,7 @@ function cheaperList(heading, alternatives, opts = {}) {
   const head = `<p class="detail">${escapeHtml(heading)}</p>`;
   // A heading over nothing reads as a list still loading. Seen live 2026-09-14
   // under a refusal: "Similar things that are priced" and then blank. The
-  // sentence is Shin's and it is per path, because the verdict's version may
+  // sentence is Pexi's and it is per path, because the verdict's version may
   // say "cheaper" and the refusal's never can.
   if (rows.length === 0) return `<p class="detail">${escapeHtml(say(opts.emptyKey ?? 'cam_cheaper_none'))}</p>`;
   const allLooser = rows.every((a) => ringOf(a) === 'parent');
@@ -678,9 +678,9 @@ let ctxApi = null;
  * every field and exactly one `innerHTML` for Google's own rendered markup,
  * and this slot is where they go.
  *
- * TWO SECTIONS, NEVER ONE LIST. Shin's own prices are the `provenance` list
+ * TWO SECTIONS, NEVER ONE LIST. Pexi's own prices are the `provenance` list
  * above; this sits below it as a separate section with its own heading. A
- * reader has to be able to tell which numbers came from Shin's sources and
+ * reader has to be able to tell which numbers came from Pexi's sources and
  * which came from a Google search, and a merged list makes that
  * unanswerable. It is also the "will not intersperse" term from the other
  * side: folding our rows into Google's would be exactly that.
@@ -698,7 +698,7 @@ function groundedSlot() {
  * rendering and it cannot delay the answer.
  *
  * `shelfLabel` is the scanned item's own quantity and price, formatted by
- * Shin from Shin's own data. It is passed IN rather than worked out inside
+ * Pexi from Pexi's own data. It is passed IN rather than worked out inside
  * `price-line.js`, and it is the founder's rule applied to the large dot as
  * well as the small ones: "there also needs to be measures in place that
  * label each dot on the graph with its actrual quantity". The quantity comes
@@ -744,7 +744,7 @@ function verdictSheet(v, scenario, thumb, acked = false) {
   const facts = { asking: money(v.askingCents), usual: money(v.spread.medianCents) };
   const watchFacts = { asking: money(v.askingCents), seller: source, day: 'today' };
   const intenseKey = face === 'delighted' ? 'verdict_steal' : face === 'angry' ? 'verdict_ripoff' : null;
-  // avatar-presence.md's opening rule: Shin is always a face and a speech
+  // avatar-presence.md's opening rule: Pexi is always a face and a speech
   // bubble, one component, never a heading of the screen's own. The tier
   // word stays the sheet's own chrome (below); the spoken line is what goes
   // in shinSay's bubble.
@@ -778,7 +778,7 @@ function verdictSheet(v, scenario, thumb, acked = false) {
   // each other exactly, over this build pass's own looser paraphrase of them):
   // peek carries the one wide primary and nothing else can push it below the
   // fold; half adds the rail, the confidence sentence and the provenance list;
-  // full adds what Shin used in full, the one-tap correctness signal, and (row
+  // full adds what Pexi used in full, the one-tap correctness signal, and (row
   // 68) one obvious Done that closes the whole sheet in a single tap.
   return `
     <section class="sheet verdict" data-tier="${v.tier}" data-conf="${conf.level}" data-detent="peek" aria-live="polite" tabindex="-1">
@@ -872,7 +872,7 @@ function verdictSheet(v, scenario, thumb, acked = false) {
  *
  * The category refusal's repair used to navigate to the You page's coverage
  * list, which abandoned the scan and the framed photo behind it. It now stays
- * on this sheet: a short list of what Shin can price, fetched once when the
+ * on this sheet: a short list of what Pexi can price, fetched once when the
  * camera opens and handed in here, never a second endpoint spent per refusal.
  */
 /**
@@ -885,7 +885,7 @@ function verdictSheet(v, scenario, thumb, acked = false) {
  * answering four different filter conditions with one code (D-012). Missing one
  * here is not cosmetic: an unlisted reason falls through to the refuse_unknown
  * title, so a Tide refusal with thirteen prices behind it would tell the shopper
- * Shin could not identify the product.
+ * Pexi could not identify the product.
  *
  * The last three stopped being EMITTED on 2026-09-08, when the thin-verdict
  * path started answering those shortfalls instead of refusing on them. They
@@ -927,7 +927,7 @@ function isThinReason(reason) {
  * members do (the call never left the building), and until today nothing
  * here checked for it, so it fell through to the honest-miss refusal ("I do
  * not know this one") on a server fault that has nothing to do with whether
- * Shin has ever heard of the product. `catalogueLookup` (the barcode route)
+ * Pexi has ever heard of the product. `catalogueLookup` (the barcode route)
  * and `runTypedSearch` (the typed route) check this set now too, not only the
  * photo route below, because `identify/src/model.ts`'s failure vocabulary is
  * shared across all three and the same server fault reaches a shopper
@@ -1045,7 +1045,7 @@ function keepableFrom(r, scenario, askingCents, isThin) {
  * Asked for in those words: "there should be a enter the price based on the
  * photo that the user entered if the barcode is not visible". Before today the
  * no-identity refusal offered "Type what it is" and nothing else, so a shopper
- * holding a tag Shin could not read had one option, and it was to do Shin's
+ * holding a tag Pexi could not read had one option, and it was to do Pexi's
  * job by hand. Standing in front of a price with no way to write it down is
  * the moment this app is least useful and most annoying.
  *
@@ -1089,7 +1089,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
    * comparison behind it is a price representation with no adequate basis,
    * which hard rule 2 forbids outright; `refuse_thin_swaps` in voice.js has
    * the whole reasoning. What is left is the part that was always the useful
-   * part: Shin will not call this one, and here is a thing beside it that
+   * part: Pexi will not call this one, and here is a thing beside it that
    * somebody has actually priced. The substitute carries the value.
    *
    * BOTH CONDITIONS ARE REAL, neither is defensive coding:
@@ -1141,7 +1141,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
     categoryWhy = cut === -1 ? '' : r.detail.slice(cut + 2);
   }
 
-  // The engine writes its own sentence naming the repair. Shin's voice sits
+  // The engine writes its own sentence naming the repair. Pexi's voice sits
   // above it; the engine's detail is never paraphrased, because it is the part
   // that says what actually happened.
   //
@@ -1186,7 +1186,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
           /* One action, never two. USAGE.md section 7 and section 4 both forbid
              a second pill on a refusal, and the label is the contract's own
              word. It is chrome rather than a voice key: two words, no sentence,
-             and the same button on every attitude. What Shin SAYS about it is
+             and the same button on every attitude. What Pexi SAYS about it is
              keep_it_ack, which has all three. */
           ? `<button type="button" class="pill solid" data-act="keepit">${escapeHtml(t('cam_keep_it'))}</button>`
           : isNoIdentity || isModelDown || isThrottled
@@ -1236,7 +1236,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
           : ''}
         ${/* The search's prices and reviews, on a refusal too (2026-09-15):
              our own engine refusing for want of sellers must not hide what the
-             search found. Still its own section, below Shin's evidence. */ ''}
+             search found. Still its own section, below Pexi's evidence. */ ''}
         ${groundedSlot()}
         ${/*
              Below the fold, the same place the verdict keeps it, and for the
@@ -1264,7 +1264,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
  * good answer fell into the refusal branch and the shopper saw a refusal for
  * it, on the app's main screen.
  *
- * SHIN COMPUTES AND SHOWS NO PRICE MATH HERE (rule 6 of the beta gaps list).
+ * PEXI COMPUTES AND SHOWS NO PRICE MATH HERE (rule 6 of the beta gaps list).
  * The headline word is Gemini's own zone code for the shelf price against the
  * user's lines, put into words by the same three strings the price line uses
  * (`priceline_zone_*`, which say "your line" and never grade the price). The
@@ -1276,7 +1276,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
  * no swaps slot and `fillCheaper` never runs on it.
  *
  * NO WATCH AND NO SHARE. Both need an identity id and a usual price in cents,
- * which the verdict carried and this answer does not (and Shin may not work
+ * which the verdict carried and this answer does not (and Pexi may not work
  * one out from Gemini's numbers). A sheet that offered them would offer two
  * buttons that could only do nothing.
  */
@@ -1386,7 +1386,7 @@ const GEMINI_ALT_KINDS = ['same_product', 'substitute', 'used_copy', 'newer_mode
 /**
  * Gemini's alternatives (beta gap item 18), a plain list under the answer: the
  * name, why it is an alternative, and its price as Gemini returned it. Every
- * word and figure is the model's; Shin adds no price math here, and a row whose
+ * word and figure is the model's; Pexi adds no price math here, and a row whose
  * reason is missing falls back to a plain sentence for its kind. NO SECTION AT
  * ALL when there are none, not an empty heading.
  */
@@ -1421,7 +1421,7 @@ function alternativesBlock(rows) {
  * CHECKED". That half was never built, so a shopper could be shown a price up
  * to six hours old as though it had just been looked up. This is that half.
  *
- * It is Shin's own fact about when Shin asked, not one of Gemini's bytes, so
+ * It is Pexi's own fact about when Pexi asked, not one of Gemini's bytes, so
  * it is a sentence of ours OUTSIDE the grounded root (grounded.js, term 1) and
  * its words live in ui-strings.js.
  *
@@ -1563,7 +1563,7 @@ export function needsConnectionSheet() {
     </section>`;
 }
 
-/** D17: a fault on Shin's side says so, and offers Retry. Never "I need a connection". */
+/** D17: a fault on Pexi's side says so, and offers Retry. Never "I need a connection". */
 export function serverFaultSheet() {
   return `
     <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite" tabindex="-1" data-server-fault>
@@ -1589,7 +1589,7 @@ export function serverFaultSheet() {
  *
  * Two outcomes, one template, so the surface has one tag (a98):
  *
- *   catalogue_hit      the product Shin's own catalogue named (name, brand,
+ *   catalogue_hit      the product Pexi's own catalogue named (name, brand,
  *                      size) and its price range, low to high in the range's
  *                      own currency through lib/money.js (so French reads
  *                      `4,99 $`), with one provenance line that says where the
@@ -1891,10 +1891,10 @@ function playRefusalLanding(slot) {
 }
 
 /**
- * What Shin might be looking at. Real items, real recorded asking prices.
+ * What Pexi might be looking at. Real items, real recorded asking prices.
  *
  * Reframed from a refusal (the fixed stand-in list used to borrow the unsure
- * refusal's face and lines) to a plain question: this is not Shin failing to
+ * refusal's face and lines) to a plain question: this is not Pexi failing to
  * separate two things he found, it is the one honest thing to ask when there
  * is no vision model yet. `asking`, not `unknown`; "Which one is it?", not
  * "I am not sure which one this is."
@@ -1940,9 +1940,9 @@ function candidateSheet(items) {
  *
  * NOT `candidateSheet`, and the difference is the whole reason there are two.
  * That one is the stand-in list the camera shows because there is no vision
- * model yet: seven hand-priced things, offered before Shin has looked at
+ * model yet: seven hand-priced things, offered before Pexi has looked at
  * anything. This one is the rest of what a real search actually found, offered
- * after Shin has already answered, when the band said the answer was one of
+ * after Pexi has already answered, when the band said the answer was one of
  * several plausible rows rather than the only one.
  *
  * So it carries no asking price and no stand-in note. These rows are catalogue
@@ -2235,7 +2235,7 @@ function shopRowsHtml(list, chosenId = null) {
 /**
  * The picker, rebuilt for D03 (2026-10-06). The list is handed in already
  * built (`shops.pickerShops`: last-used first, then nearby, then the chains
- * Shin's own data names), so this sheet never waits on anything. It carries a
+ * Pexi's own data names), so this sheet never waits on anything. It carries a
  * search box, and there is NO "No shop" row any more: RULINGS "Attribution,
  * provenance and correction data" says a shop name is required, and the
  * server refuses a price without one (D02).
@@ -2428,7 +2428,7 @@ function goingRateCard(refusal, item) {
 }
 
 /**
- * The price was written down and Shin cannot call it. 2026-09-13.
+ * The price was written down and Pexi cannot call it. 2026-09-13.
  *
  * NOT A VERDICT, AND NOT A REFUSAL WEARING A NUMBER. Those are the two things
  * this card had to avoid being, and the reason it is its own function rather
@@ -2445,12 +2445,12 @@ function goingRateCard(refusal, item) {
  * It is not a refusal because something useful actually happened. The price is
  * saved, against this scan, beside the photo, and it will still be there when
  * somebody can say what the thing was. `data-conf="reading"` rather than
- * `refuses` is that distinction in the markup: Shin is not turning the shopper
- * away, Shin is taking a note.
+ * `refuses` is that distinction in the markup: Pexi is not turning the shopper
+ * away, Pexi is taking a note.
  *
  * The price is the biggest thing on it, formatted by `money()` like every other
  * price in this app (`4,99 $` in French, and never re-implemented here), and
- * the caption under it says in chrome what the bubble says in Shin's voice.
+ * the caption under it says in chrome what the bubble says in Pexi's voice.
  */
 /*
  * `name` IS WHAT THE SHOPPER TYPED, AND NOTHING ELSE. It is not a resolved
@@ -2806,7 +2806,7 @@ export { cheaperList, ringOf, humaniseTag };
 
 export default {
   id: 'camera',
-  title: 'Shin',
+  title: 'Pexi',
 
   render(root, ctx) {
     // The two sheet-filling helpers above sit outside this method because the
@@ -2818,7 +2818,7 @@ export default {
      * the case that misses, which is most of them -- a fresh install (consent
      * now defaults on, so this is the very first ask) and a session where
      * consent was switched on from the You screen and the camera was already
-     * open. The camera screen is also the one place in the app "why is Shin
+     * open. The camera screen is also the one place in the app "why is Pexi
      * asking for my location" has an obvious answer on screen, which is the
      * only reason a permission prompt is ever the right moment to fire one.
      * Never awaited: a slow or denied OS prompt must not hold up the
@@ -2851,13 +2851,13 @@ export default {
              else lives in this band: the settings icon that used to sit up here
              duplicated the one in the bottom bar, the top right corner of a
              camera is the hardest place on the phone for a thumb to reach, and
-             Shin's own dock moved down under the frame it talks about. -->
+             Pexi's own dock moved down under the frame it talks about. -->
         <div class="cam-top">
           <button type="button" class="torch-btn" data-act="torch" aria-label="${escapeHtml(t('cam_torch'))}" aria-pressed="false">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg>
           </button>
-          <span class="wordmark">shin<i>.</i></span>
+          <span class="wordmark">pexi<i>.</i></span>
           <span class="cam-top-spacer" aria-hidden="true"></span>
         </div>
 
@@ -2870,7 +2870,7 @@ export default {
              when there is nothing to say, which is most of the time. -->
         <div class="frame-marks" data-slot="marks"></div>
 
-        <!-- Shin docked under the frame, above the bottom bar: the aim hint, the
+        <!-- Pexi docked under the frame, above the bottom bar: the aim hint, the
              escalated hint, the torch acknowledgement, the second-visit callback
              and the identifying morph all happen in this one component, never a
              second face competing with it. It reads as the caption to the frame
@@ -3466,7 +3466,7 @@ export default {
 
     /**
      * Row: second visit, useful and appealing. If the store has a past scan,
-     * Shin's first bubble on this camera is a callback to it, not the aim
+     * Pexi's first bubble on this camera is a callback to it, not the aim
      * hint. Facts arrive already formatted; the verdict word reuses `wordFor`
      * so a returning "good"/"about right"/"walk away" reads in the same words
      * the verdict itself used.
@@ -3821,7 +3821,7 @@ export default {
 
     /**
      * An unknown or unreadable barcode (D11, RULINGS "Always answer"): the one
-     * thing Shin needs is the product's name. The shelf price already typed rides
+     * thing Pexi needs is the product's name. The shelf price already typed rides
      * on (null when skipped), the name goes through the typed route, and that
      * route ends in the bell. No "not found" screen is drawn.
      */
@@ -3916,7 +3916,7 @@ export default {
       }
 
       /* CATALOGUE FIRST (server setting SHIN_CATALOGUE_FIRST on): the server
-         named the barcode from Shin's own catalogue, or said it has never seen
+         named the barcode from Pexi's own catalogue, or said it has never seen
          it, and already worked out the range. Drawn as it came, never sent on
          to /api/price. With the setting off no answer has this kind. */
       if (id?.kind === 'catalogue') return { catalogue: id };
@@ -4077,7 +4077,7 @@ export default {
      *
      * The row already on the pad is dropped from the list. It is the one thing
      * the shopper has just said is wrong, and leaving it in makes the list read
-     * as if Shin did not hear.
+     * as if Pexi did not hear.
      *
      * A search that fails leaves the pad exactly as it was and says so. It is
      * an optional second look at an answer that already exists, so there is
@@ -4195,7 +4195,7 @@ export default {
      * D03, 2026-10-06: THE LIST IS ON SCREEN BEFORE ANYTHING IS ASKED OF THE
      * NETWORK. It used to be awaited here, and the first lookup took ten
      * seconds and then showed nothing. Now the rows come from the phone (the
-     * shop used last, then the chains Shin's own data names), the sheet paints
+     * shop used last, then the chains Pexi's own data names), the sheet paints
      * in the same tick as the tap, and the nearby places join only if they
      * arrive inside 1.5 s. A lookup slower than that keeps running to fill the
      * cache for next time and the shopper never waited on it.
@@ -4655,7 +4655,7 @@ export default {
           });
           return;
         } else if (result.ownData && !result.found) {
-          /* Free text the server answered from Shin's own data (2026-09-23)
+          /* Free text the server answered from Pexi's own data (2026-09-23)
              and found no item with a price for: the plain sentence, never
              "could not get an answer", and no paid "just the price" route.
              Not a Gemini answer, so it sits ahead of the Gemini branch. */
@@ -4692,7 +4692,7 @@ export default {
           // Row 83: the verdict landing, once, right here.
           buzz(16);
         } else if (result.reason === 'no_asking_price') {
-          // Section 2's couch card, not a refusal: Shin has the comparison
+          // Section 2's couch card, not a refusal: Pexi has the comparison
           // set, only the one number was never supplied.
           slot.innerHTML = goingRateCard(result, item);
         } else {
@@ -4754,7 +4754,7 @@ export default {
      *                            "not this?" already uses, so choosing among
      *                            photo candidates feels like the choice it
      *                            already is elsewhere in this file.
-     *   failure                   a refusal, in Shin's voice and never the raw
+     *   failure                   a refusal, in Pexi's voice and never the raw
      *                            class (hard rule 3, D-011's whole point).
      *   failure: 'offline'        the crop goes into the eye's own queue
      *                            rather than being lost, decision 13.
@@ -5049,7 +5049,7 @@ export default {
           // An honest unknown. The engine is asked a question it cannot answer
           // rather than the app faking the refusal, so the refusal on screen is
           // the engine's own.
-          openPad({ text: 'a thing shin has never seen', category: 'grocery' });
+          openPad({ text: 'a thing pexi has never seen', category: 'grocery' });
           return;
         }
         track('candidate_pick', { id, wrong: false });
@@ -5356,7 +5356,7 @@ export default {
       if (act === 'cancel-scan') { reset(); return; }
       /* The verdict bell's own two actions. "Did you mean": the suggested price
          replaces the one read, and the chart stays. Save: the watchlist, keyed
-         on the barcode, with Shin's estimate as the usual price. */
+         on the barcode, with Pexi's estimate as the usual price. */
       if (act === 'dist-suspect' && dist) {
         const cents = Number(btn.dataset.cents);
         if (Number.isInteger(cents) && cents > 0) {
@@ -5411,7 +5411,7 @@ export default {
        * action on the surface five of seven scans end on.
        *
        * The whole point is that it asks for nothing. The shopper typed the
-       * price ninety seconds ago and Shin could not settle it; making them
+       * price ninety seconds ago and Pexi could not settle it; making them
        * open a form and type the same number again is the app charging a
        * person for its own gap. The number, the shop and the day are already
        * in hand, so this is one tap.
@@ -5606,7 +5606,7 @@ export default {
       if (!text) return;
       // Typed search text, submitted. Kept whole: events.ts's own header now
       // allows free text a person typed, on the founder's word that
-      // everything collected trains Shin's models and answers other
+      // everything collected trains Pexi's models and answers other
       // shoppers, and a typed name is exactly the input that decides whether
       // the catalogue match below was worth building.
       typedSearchPending = false;
@@ -5678,11 +5678,11 @@ export default {
        * Gemini call for a typed name. Jamin, 2026-09-23: "typing a product
        * should only search our catalogue and only return when we have both the
        * item and price." So every typed name goes to /api/identify, which
-       * answers from Shin's own data only.
+       * answers from Pexi's own data only.
        */
       let typed = null;
 
-      /* The typed name's answer from Shin's own data (Jamin, 2026-09-23: "typing
+      /* The typed name's answer from Pexi's own data (Jamin, 2026-09-23: "typing
          a product should only search our catalogue and only return when we
          have both the item and price"). Held here and drawn below; never
          handed on to `proceed`, whose /api/price would make the paid call. */
@@ -5704,7 +5704,7 @@ export default {
           idFailure = id?.failure ?? null;
           // The weekly free scans are used (402 scan_limit): the subscription screen.
           if (id?.failure === 'scan_limit') { openPaywall(id); return; }
-          // Shin's own data answered (or said it has no price): drawn below, never priced again.
+          // Pexi's own data answered (or said it has no price): drawn below, never priced again.
           // Such an answer carries no catalogue product and no unchecked label, so neither branch below fires.
           if (id?.ownData) own = id;
           // A typed answer that carries a verdict is drawn as the bell by showOwnData, whatever else it says.
@@ -5766,7 +5766,7 @@ export default {
       /*
        * D-150: a model outage on the server used to fall all the way through
        * to the no-match refusal below, which told the shopper "nothing in
-       * what Shin has been taught matches" a query the server never actually
+       * what Pexi has been taught matches" a query the server never actually
        * checked against anything. Checked before that fallthrough, the same
        * set the photo and barcode routes now check.
        */
@@ -5812,10 +5812,10 @@ export default {
     }
 
     /**
-     * A typed search answered from Shin's own data. With a match, the same
+     * A typed search answered from Pexi's own data. With a match, the same
      * answer sheet a Gemini answer uses, fed the server's grounded-shaped block
-     * (marked as Shin's own data, every price with its store, currency and the
-     * date it was seen). Without one, the plain sentence that Shin has no price
+     * (marked as Pexi's own data, every price with its store, currency and the
+     * date it was seen). Without one, the plain sentence that Pexi has no price
      * for it yet and to scan the barcode, with no "just the price" route,
      * because that route is the paid call this ruling removed.
      */

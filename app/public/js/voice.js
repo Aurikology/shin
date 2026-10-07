@@ -1,27 +1,27 @@
 /**
- * Every user-facing string Shin says, keyed by state and personality.
+ * Every user-facing string Pexi says, keyed by state and personality.
  *
- * The user picks Shin's attitude at setup and can change it any time. That is a
+ * The user picks Pexi's attitude at setup and can change it any time. That is a
  * recorded decision (docs/decisions.md, 2026-09-03) and it is the reason this
  * file exists: the cost of the choice is that every string is written three
  * times, and the way to stop that cost leaking into the screens is to put all
  * three here and let a screen ask for one.
  *
- * NO STRING SHIN SAYS IS WRITTEN INSIDE A SCREEN. If a screen needs a new line,
+ * NO STRING PEXI SAYS IS WRITTEN INSIDE A SCREEN. If a screen needs a new line,
  * it gets a new key here with all three variants, or it does not ship.
  *
  * WHERE THE LINE IS, decided 2026-09-07 and enforced by test/screens-voice.test.mjs:
  *
  *   In voice.js: anything in the first person, anything that judges, advises,
- *   apologises, or narrates what Shin is doing.
+ *   apologises, or narrates what Pexi is doing.
  *
  *   In the screen: structural labels, headings, button text, kickers, and
- *   factual captions that do not speak as Shin.
+ *   factual captions that do not speak as Pexi.
  *
  * That boundary retired a self-authored exemption in licences.js which held that
  * "a fetch narration is not a verdict" and so could live in the screen. It
  * appears in no design document, and under the line above a fetch narration
- * written in the first person is Shin talking whether or not it is a verdict.
+ * written in the first person is Pexi talking whether or not it is a verdict.
  * Both of that screen's lines are keys here now, with the four other screens
  * that had been copying the same exemption without ever writing it down.
  *
@@ -266,7 +266,7 @@ const LINES_EN = {
    * reference says what it rests on and stops.
    *
    * So the line states two facts and hands over: there is nothing to compare
-   * this to, so Shin will not call it, and here is a thing beside it that a
+   * this to, so Pexi will not call it, and here is a thing beside it that a
    * price is actually known for. THE SUBSTITUTE CARRIES THE VALUE, not the
    * adjective. Rendered only when `/api/alternatives` came back with rows; a
    * refusal with nothing under it keeps `refuse_thin` alone, because this line
@@ -437,7 +437,7 @@ const LINES_EN = {
   },
   /**
    * The correction screen's own fineprint, moved out of correct.js: no line
-   * Shin says may be written inside a screen file. Says what is now actually
+   * Pexi says may be written inside a screen file. Says what is now actually
    * true, against the item and seller already on screen: the correction is
    * filed against that product, at that shop, and counts when a second reading
    * agrees. See `correct_thanks` above for why the wording stays as it is.
@@ -476,7 +476,7 @@ const LINES_EN = {
    * --- the price written down off a photo nobody could identify, 2026-09-13 ---
    *
    * The exact inverse of `going_rate` above, and the pair is worth reading
-   * together: there, Shin has the comparison set and not the tag; here, Shin
+   * together: there, Pexi has the comparison set and not the tag; here, Pexi
    * has the tag and no idea what the thing is. Both are honest halves, and
    * neither is a verdict.
    *
@@ -487,8 +487,8 @@ const LINES_EN = {
    * would be a verdict with the confidence filed off, which is worse than
    * saying nothing, because the shopper cannot tell it from the real thing.
    *
-   * So it states two facts and stops: the price is written down, and Shin
-   * cannot call this one, because Shin does not know what it is. The reason is
+   * So it states two facts and stops: the price is written down, and Pexi
+   * cannot call this one, because Pexi does not know what it is. The reason is
    * given rather than implied; "I cannot judge this" with no because reads as
    * a malfunction, and this is not one.
    */
@@ -504,7 +504,7 @@ const LINES_EN = {
    * Asked once per shop and then never again: the tap is remembered against
    * the coarse cell, so the second visit opens with the right shop already
    * chosen. Both lines say what the list IS rather than instructing -- the
-   * shortlist is a question a person answers, and Shin's own note on it is
+   * shortlist is a question a person answers, and Pexi's own note on it is
    * why the list is short, not an order to pick from it.
    *
    * `shop_none_nearby` has to be honest about a thing this app cannot fix:
@@ -589,7 +589,7 @@ const LINES_EN = {
    * Earns nothing (GAMIFICATION.md M12). Undo lives beside it for four seconds,
    * OLMA audit row 65. camera.js's own comment on the tap handler is explicit:
    * "it earns nothing and writes nothing but this local signal", so the warm
-   * line may not claim it teaches Shin anything; nothing is stored anywhere.
+   * line may not claim it teaches Pexi anything; nothing is stored anywhere.
    */
   feedback_ack: {
     deadpan: () => 'Noted.',
@@ -714,7 +714,7 @@ const LINES_EN = {
    *
    * The block asks the engine to price everything it knows and prints how many
    * it can actually answer for. All three of these were written inline in
-   * you.js: they narrate what Shin is doing and then judge what Shin can do,
+   * you.js: they narrate what Pexi is doing and then judge what Pexi can do,
    * which is both halves of the boundary at the top of this file.
    *
    * The refused line takes the count already computed by the screen. It is
@@ -798,7 +798,7 @@ const LINES_EN = {
    * compared, and docs/plan-always-a-price.md section 3 forbids it there
    * whatever the sentence was trying to say. A person skimming a failed
    * lookup does not parse "could not check for a cheaper one" as a statement
-   * about a search; they read that Shin was pricing this against something.
+   * about a search; they read that Pexi was pricing this against something.
    *
    * So this one reports the same failure and makes no claim at all: a search
    * for something similar that has a price on it, which did not answer. No
@@ -829,7 +829,7 @@ const LINES_EN = {
    * `cam_notthis_offer` is the only one of the four a shopper sees without
    * asking for it, and it is deliberately not an apology. It appears only when
    * the search came back `ambiguous`, meaning there really were other plausible
-   * rows; after a confident answer it would be Shin hedging about something he
+   * rows; after a confident answer it would be Pexi hedging about something he
    * is not actually unsure of, which costs trust in every other answer he gives.
    *
    * `cam_notthis_empty` exists because the second ask can legitimately return
@@ -865,7 +865,7 @@ const LINES_EN = {
    * judges literals whole now, and this was the first thing it found.
    */
   cam_text_no_match: {
-    deadpan: (f) => `Nothing in what Shin has been taught matches "${f.query}".`,
+    deadpan: (f) => `Nothing in what Pexi has been taught matches "${f.query}".`,
     warm: (f) => `I could not find anything I know that matches "${f.query}". Try the barcode, or a different word or two.`,
     blunt: (f) => `"${f.query}" matches nothing I know.`,
   },
@@ -877,18 +877,18 @@ const LINES_EN = {
    * never does. Paired with `reason` set to the failure code, which gives the
    * sheet the same `refuse_unavailable` title the photo route already earns
    * for the same class of fault -- never `cam_text_no_match`'s "nothing in
-   * what Shin has been taught", which is the honest-miss line and asserts a
+   * what Pexi has been taught", which is the honest-miss line and asserts a
    * different, false, reason.
    */
   cam_reader_model_down: {
-    deadpan: () => 'Shin’s reader is not answering right now. Try again in a moment.',
-    warm: () => 'Shin’s reader is not answering right now, nothing to do with your scan. Try again in a moment.',
+    deadpan: () => 'Pexi’s reader is not answering right now. Try again in a moment.',
+    warm: () => 'Pexi’s reader is not answering right now, nothing to do with your scan. Try again in a moment.',
     blunt: () => 'Reader is down. Try again.',
   },
-  /* A typed search with no item and price in Shin's own data (Jamin,
+  /* A typed search with no item and price in Pexi's own data (Jamin,
      2026-09-23). No facts, so there is nothing to go missing. */
   cam_text_no_own_price: {
-    deadpan: () => 'Shin does not have a price for that yet. Scan the barcode instead.',
+    deadpan: () => 'Pexi does not have a price for that yet. Scan the barcode instead.',
     warm: () => 'I do not have a price for that one yet. Scan its barcode and I will look it up.',
     blunt: () => 'No price for that yet. Scan the barcode.',
   },
@@ -917,7 +917,7 @@ const LINES_EN = {
    *
    * The sentence has to do two things at once and the second is the one that
    * makes it honest: it confirms the number is written down, and it repeats
-   * that Shin still cannot call it. A thin refusal that ends in a thank-you
+   * that Pexi still cannot call it. A thin refusal that ends in a thank-you
    * reads as though the refusal was solved. It was not. What changed is that
    * the price is no longer only in the shopper's head.
    */
@@ -944,7 +944,7 @@ const LINES_EN = {
   /**
    * The Gemini answer sheet's four spoken lines (2026-09-19). None carries a
    * number or a fact: the price words on that sheet are the model's own and go
-   * in the sheet, never in Shin's mouth. The two failure lines are kind and
+   * in the sheet, never in Pexi's mouth. The two failure lines are kind and
    * retryable, and never say "refused": nothing was refused, the answer did
    * not come.
    */
@@ -983,7 +983,7 @@ const LINES_EN = {
    * REWRITTEN 2026-09-19 (beta gap item 21). Jamin: "For now, the app will not
    * be usable offline." The pack that named the product with no signal is no
    * longer consulted, so this line no longer says the phone knows what the
-   * thing is. It says one thing: Shin needs a connection. `cam_needs_connection`
+   * thing is. It says one thing: Pexi needs a connection. `cam_needs_connection`
    * is its title.
    */
   cam_needs_connection: {
@@ -992,25 +992,25 @@ const LINES_EN = {
     blunt: () => 'No connection',
   },
   cam_offline_no_price: {
-    deadpan: () => 'Shin needs an internet connection to look anything up, so I cannot answer this scan. Scan it again once you are connected.',
-    warm: () => 'Shin needs an internet connection to look this up, so I have nothing to tell you yet. Scan it again once you are connected.',
-    blunt: () => 'Shin needs a connection to answer. Connect, then scan again.',
+    deadpan: () => 'Pexi needs an internet connection to look anything up, so I cannot answer this scan. Scan it again once you are connected.',
+    warm: () => 'Pexi needs an internet connection to look this up, so I have nothing to tell you yet. Scan it again once you are connected.',
+    blunt: () => 'Pexi needs a connection to answer. Connect, then scan again.',
   },
   /*
    * D17 (2026-10-06 walkthrough): a server fault (a 5xx) used to paint the two
    * lines above, telling the shopper to fix a network that was fine. The fault
-   * is Shin's, so the line says so and offers Retry; only a request that never
+   * is Pexi's, so the line says so and offers Retry; only a request that never
    * reached the server says "connection".
    */
   cam_server_fault: {
-    deadpan: () => 'Shin hit a problem on its side',
+    deadpan: () => 'Pexi hit a problem on its side',
     warm: () => 'Something went wrong on my side',
-    blunt: () => 'Shin is having a problem',
+    blunt: () => 'Pexi is having a problem',
   },
   cam_server_fault_detail: {
-    deadpan: () => 'Your connection is fine. The fault is on Shin\'s side and I could not answer this scan. Try again in a moment.',
+    deadpan: () => 'Your connection is fine. The fault is on Pexi\'s side and I could not answer this scan. Try again in a moment.',
     warm: () => 'Your connection is fine, this one is on me. I could not answer this scan, so try again in a moment.',
-    blunt: () => 'Not your connection. The fault is on Shin\'s side. Try again.',
+    blunt: () => 'Not your connection. The fault is on Pexi\'s side. Try again.',
   },
   /*
    * --- the photo route's own six, added with the photo path
@@ -1077,7 +1077,7 @@ const LINES_EN = {
   /**
    * D-150, 2026-09-28. The fifth model-down reason, and the one a keyless or
    * misconfigured server actually returns: the call never left the building,
-   * which is on Shin's own end and never on the shopper's shot, the same fact
+   * which is on Pexi's own end and never on the shopper's shot, the same fact
    * the four lines above it state.
    */
   cam_photo_model_client_error: {
@@ -1141,8 +1141,8 @@ const LINES_EN = {
   /**
    * --- the reopened verdict's own footer, three call sites, one key ---
    *
-   * "This is what Shin said at the time. Read-only." was written three times,
-   * twice in pastscans.js and once in watchlist.js, and it is Shin narrating
+   * "This is what Pexi said at the time. Read-only." was written three times,
+   * twice in pastscans.js and once in watchlist.js, and it is Pexi narrating
    * the state of its own record. One key is a real deduplication rather than a
    * bookkeeping one: the three copies were already free to drift.
    *
@@ -1159,7 +1159,7 @@ const LINES_EN = {
    * --- the refusal reasons, as a heading on a reopened refusal ---
    *
    * pastscans.js carried these as a plain map called REFUSAL_LABEL, described
-   * in its own comment as "plain screen labels, not Shin speaking". They are
+   * in its own comment as "plain screen labels, not Pexi speaking". They are
    * duplicated copy: this file already owns eight refusal keys covering the
    * same eight reasons, written three times each, and the map wrote each of
    * them a ninth time in one voice.
@@ -1300,7 +1300,7 @@ const LINES_EN = {
    * That screen carried its own exemption in its file comment, and it is the
    * reason the boundary at the top of this file is written down: it argued
    * that "a fetch narration is not a verdict" and so could live in the screen.
-   * Both lines are first person and both narrate what Shin is doing, so both
+   * Both lines are first person and both narrate what Pexi is doing, so both
    * are here. The exemption is deleted.
    *
    * The failure line keeps the thing that matters about it: an empty
@@ -1443,7 +1443,7 @@ const LINES_EN = {
   },
   /**
    * --- the candidate list's own head, reframed off the unsure refusal it
-   * used to borrow: this is a plain question, not Shin failing to separate
+   * used to borrow: this is a plain question, not Pexi failing to separate
    * two things. State asking, 64px, face-morph. ---
    */
   cam_candidate_prompt: {
@@ -1454,7 +1454,7 @@ const LINES_EN = {
   /**
    * --- the category refusal's repair, now a short list on the same sheet
    * instead of a navigation away that lost the framed photo. Intro line
-   * only; the categories themselves are chrome (server data, not Shin
+   * only; the categories themselves are chrome (server data, not Pexi
    * talking). ---
    */
   refuse_category_repair: {
@@ -1486,7 +1486,7 @@ const LINES_EN = {
    * Item 6: the consent screen's own copy, and the You screen's withdrawal
    * section reads the same two description keys so the sentence explaining a
    * toggle cannot drift between the two places it appears. This is policy
-   * text, not Shin having a personality about privacy, so the three voices
+   * text, not Pexi having a personality about privacy, so the three voices
    * below say the same thing in close to the same words on purpose -- the
    * opposite intent from a verdict line, and the same intent the existing
    * data paragraph on the You screen was written with.
@@ -1542,8 +1542,8 @@ const LINES_EN = {
    * side the default actually sits.
    */
   consent_photos_desc: {
-    deadpan: () => 'Off until you switch it on. Off, no picture of the shelf is kept while the camera is open, and a photo scan’s picture is read once to answer it and not kept. Switched on, both are kept: the shelf picture, and the picture from a photo scan, tied to that scan, so a wrong answer can be checked later and Shin can learn from it. The risk: a kept photo can show what is near you in the shot.',
-    warm: () => 'Off until you switch it on. Off, no picture of the shelf is kept while the camera is open, and a photo scan’s picture is only read once, to answer that scan, and then it is gone. Switched on, both are kept: the shelf picture, and the picture from a photo scan, tied to that scan, so a wrong answer can be checked later and Shin can learn from it. The risk is that a kept photo can show whatever else was in the shot around you.',
+    deadpan: () => 'Off until you switch it on. Off, no picture of the shelf is kept while the camera is open, and a photo scan’s picture is read once to answer it and not kept. Switched on, both are kept: the shelf picture, and the picture from a photo scan, tied to that scan, so a wrong answer can be checked later and Pexi can learn from it. The risk: a kept photo can show what is near you in the shot.',
+    warm: () => 'Off until you switch it on. Off, no picture of the shelf is kept while the camera is open, and a photo scan’s picture is only read once, to answer that scan, and then it is gone. Switched on, both are kept: the shelf picture, and the picture from a photo scan, tied to that scan, so a wrong answer can be checked later and Pexi can learn from it. The risk is that a kept photo can show whatever else was in the shot around you.',
     blunt: () => 'Off until you switch it on. Off: no shelf picture, and the photo-scan picture is read once, not kept. On: both kept, tied to the scan, so a wrong answer can be checked. Risk: a kept photo can show what is near you.',
   },
   consent_location_desc: {
@@ -1552,7 +1552,7 @@ const LINES_EN = {
     blunt: () => 'Keeps a rough area, about a kilometre wide, never your exact spot. Your phone remembers which shop you picked where, so it stops asking. Stays on the phone. Deleted when you switch this off. Off: nothing kept. Risk: even a rough area narrows down where you shop.',
   },
   /**
-   * Item 8d: the You screen's rated-count row. Shin's own voice, same family
+   * Item 8d: the You screen's rated-count row. Pexi's own voice, same family
    * as `you_scans_named` above it: a fact about this device's own record,
    * narrated rather than printed as a bare caption, so it reads as the same
    * kind of sentence as the rest of the page rather than switching registers
@@ -1573,34 +1573,34 @@ const LINES_EN = {
    * never sends a picture" is no longer a sentence this screen can say.
    */
   you_data_intro: {
-    deadpan: () => 'Every scan is written down: the product and the price you saw, always, plus the camera frame from that moment, used to train Shin and answer other shoppers.',
-    warm: () => 'Every scan gets written down, the product and the price you saw, always, along with the camera frame from that moment, and it helps train Shin and answer other shoppers.',
-    blunt: () => 'Every scan is logged: product, price, and the camera frame, always. Used to train Shin and answer other shoppers.',
+    deadpan: () => 'Every scan is written down: the product and the price you saw, always, plus the camera frame from that moment, used to train Pexi and answer other shoppers.',
+    warm: () => 'Every scan gets written down, the product and the price you saw, always, along with the camera frame from that moment, and it helps train Pexi and answer other shoppers.',
+    blunt: () => 'Every scan is logged: product, price, and the camera frame, always. Used to train Pexi and answer other shoppers.',
   },
   /* Photo identification off (D24): no camera frame leaves the phone on a barcode scan (RULINGS.md "A barcode scan sends no photo"), so the line must not say one does. */
   you_data_intro_nophoto: {
-    deadpan: () => 'Every scan is written down: the product and the price you saw, always, used to train Shin and answer other shoppers.',
-    warm: () => 'Every scan gets written down, the product and the price you saw, always, and it helps train Shin and answer other shoppers.',
-    blunt: () => 'Every scan is logged: product and price, always. Used to train Shin and answer other shoppers.',
+    deadpan: () => 'Every scan is written down: the product and the price you saw, always, used to train Pexi and answer other shoppers.',
+    warm: () => 'Every scan gets written down, the product and the price you saw, always, and it helps train Pexi and answer other shoppers.',
+    blunt: () => 'Every scan is logged: product and price, always. Used to train Pexi and answer other shoppers.',
   },
   /*
    * REWRITTEN 2026-09-14. "Only this app and the person running it can see
    * any of this" stopped being the whole truth the day collecting everything
    * became the point: what is collected is also used to answer other
-   * shoppers and to train Shin, which is a use beyond "seen by the app and
+   * shoppers and to train Pexi, which is a use beyond "seen by the app and
    * whoever runs it." This says what actually happens instead of the
    * narrower, more reassuring claim.
    */
   consent_footer: {
-    deadpan: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Shin, and the person running it can see it too. Change either choice any time on the You page.',
-    warm: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Shin, and the person running it can see it as well. You can change either choice any time from the You page.',
-    blunt: () => 'This app keeps it, uses it to answer other shoppers and train Shin. Change it any time on the You page.',
+    deadpan: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Pexi, and the person running it can see it too. Change either choice any time on the You page.',
+    warm: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Pexi, and the person running it can see it as well. You can change either choice any time from the You page.',
+    blunt: () => 'This app keeps it, uses it to answer other shoppers and train Pexi. Change it any time on the You page.',
   },
   /* One choice left when photo identification is off (D24): "either choice" had nothing to be either of. */
   consent_footer_one: {
-    deadpan: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Shin, and the person running it can see it too. Change this choice any time on the You page.',
-    warm: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Shin, and the person running it can see it as well. You can change this choice any time from the You page.',
-    blunt: () => 'This app keeps it, uses it to answer other shoppers and train Shin. Change it any time on the You page.',
+    deadpan: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Pexi, and the person running it can see it too. Change this choice any time on the You page.',
+    warm: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Pexi, and the person running it can see it as well. You can change this choice any time from the You page.',
+    blunt: () => 'This app keeps it, uses it to answer other shoppers and train Pexi. Change it any time on the You page.',
   },
   /*
    * Item 9, the two route-declined failures (`THROTTLE_REASONS` in camera.js).
@@ -1635,7 +1635,7 @@ const LINES_EN = {
    * Item 9's live-camera-screen half: `startCamera` in camera.js now tells a
    * denied permission apart from no camera at all, the same classification
    * `onboarding.js`'s `askCamera` already makes (its own copy is
-   * `onb_perm_camera_denied`, chrome rather than Shin's voice, since
+   * `onb_perm_camera_denied`, chrome rather than Pexi's voice, since
    * onboarding text carries none). This is the docked-face line for the
    * screen itself, shown once, the same shape `cam_second_visit` uses.
    */
@@ -1672,7 +1672,7 @@ const LINES_EN = {
  *
  * D-021: seven of the keys above interpolate a fact with no guard, so a caller
  * that omits one ships "Saved at undefined, Metro, undefined." to the screen.
- * A blank bubble would be honest but leaves a hole where Shin was, so every
+ * A blank bubble would be honest but leaves a hole where Pexi was, so every
  * key that can break this way names the sentence it can still say with nothing
  * in hand. These are deliberately weaker than the real lines: they are what is
  * left when the facts are gone, not a second voice.
@@ -1682,7 +1682,7 @@ const LINES_EN = {
  */
 const BARE_EN = {
   cam_text_no_match: {
-    deadpan: () => 'Nothing in what Shin has been taught matches that.',
+    deadpan: () => 'Nothing in what Pexi has been taught matches that.',
     warm: () => 'I could not find anything I know that matches that. Try the barcode, or a different word or two.',
     blunt: () => 'That matches nothing I know.',
   },
@@ -1701,7 +1701,7 @@ const BARE_EN = {
   },
   /* The price is the fact this line exists to report, so losing it is the one
      degradation that costs something real. What survives is still true and
-     still the whole point: it is written down, and Shin cannot call it. The
+     still the whole point: it is written down, and Pexi cannot call it. The
      number is on the sheet beside this bubble either way. */
   price_only_recorded: {
     deadpan: () => 'Written down. I do not know what this is, so I have nothing to compare it to.',
@@ -1723,7 +1723,7 @@ const BARE_EN = {
   },
   /* The three verdict lines come first because they are the ones that must
      never go quiet. The tier word, the price and the rail are all still on the
-     screen when Shin's sentence loses its facts, so the fallback carries the
+     screen when Pexi's sentence loses its facts, so the fallback carries the
      call and drops the numbers rather than the other way round. */
   good: {
     deadpan: () => 'That is under the usual.',

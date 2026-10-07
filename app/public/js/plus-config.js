@@ -1,5 +1,5 @@
 /**
- * Shin Plus, in one place (2026-09-21, docs/mvp-plan.md "Subscription").
+ * Pexi Plus, in one place (2026-09-21, docs/mvp-plan.md "Subscription").
  *
  * Every name the store side has to match, and every outside URL the
  * subscription screen and the You screen link to. A screen reads these; it
@@ -54,7 +54,7 @@ export const LEGAL_URLS_FR = Object.freeze({
 });
 
 /**
- * The two plans as RULINGS.md "Shin Plus pricing and free scans" sets them,
+ * The two plans as RULINGS.md "Pexi Plus pricing and free scans" sets them,
  * in cents of Canadian dollars (the monthly plan and the yearly plan). D32
  * (2026-10-06): the welcome flow's plans step printed placeholder prices.
  *

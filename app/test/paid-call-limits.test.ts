@@ -177,7 +177,7 @@ test('a network address is limited whatever device id it sends', async () => {
 test('the price route limits only when it has to make a call', async () => {
   limits({ SHIN_RATE_CODE_PER_10MIN: '1' });
   /* Barcode bodies since 2026-09-23: a typed name on this route searches
-     Shin's own data and makes no call, so it has nothing to limit. */
+     Pexi's own data and makes no call, so it has nothing to limit. */
   const first = await price({ gtin: '0068100084245', text: 'Kraft Dinner Original', deviceId: 'p1' });
   assert.equal(first.status, 200);
   const second = await price({ gtin: '0037000930358', text: 'Tide Original 2.72 L', deviceId: 'p1' });

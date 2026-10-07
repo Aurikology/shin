@@ -2,7 +2,7 @@
  * The Gemini grounded block: the ONLY file in public/js that reads inside the
  * `grounded` wire.
  *
- * WHY THE "ONLY" MATTERS. When Shin's own price sources have nothing, the
+ * WHY THE "ONLY" MATTERS. When Pexi's own price sources have nothing, the
  * server asks Gemini, and Gemini answers from a Google Search. What comes
  * back is a Grounded Result under the Gemini API terms
  * (https://ai.google.dev/gemini-api/terms, eff. 2026-03-23), and the display
@@ -24,7 +24,7 @@
  *       "4.49" into "$4.49", is "modify" -- it changes what the reader is
  *       told the search said.
  *    -> "intersperse" is answered as DOM STRUCTURE, not as good intentions:
- *       Shin's own sentences (the section heading, the no-link heads-up) are
+ *       Pexi's own sentences (the section heading, the no-link heads-up) are
  *       SIBLINGS of `[data-grounded]`, never children of it. The root holds
  *       wire content and nothing else, so the separation survives a later
  *       edit by someone who has not read this header.
@@ -66,10 +66,10 @@
  *       the exception is visible rather than lost among others.
  *
  * NOT TRANSLATED AFTER THE FACT, and this is a deliberate exception to the
- * rule that every Shin string has French. The server asks Gemini for the
+ * rule that every Pexi string has French. The server asks Gemini for the
  * reader's language, so a French reader's grounded block arrives in French
  * from Google. Running it back through a translation once it is here would be
- * "modify" under term 1. So: Shin's sentences AROUND the block are translated
+ * "modify" under term 1. So: Pexi's sentences AROUND the block are translated
  * (they live in `ui-strings.js`), and the block's own words are whatever
  * Google sent, in whatever language Google sent them. Written down here
  * rather than left silent, because the French coverage test cannot see an
@@ -79,8 +79,8 @@
  * will accept all answers gemini gives, just give a heads up that something
  * doesn't have a link". So a `hasLink === false` offer or review is still
  * shown, in its wire position, with its price and its words intact. The
- * heads-up is a short plain sentence of Shin's, and by term 1 it goes OUTSIDE
- * the root with the rest of Shin's sentences.
+ * heads-up is a short plain sentence of Pexi's, and by term 1 it goes OUTSIDE
+ * the root with the rest of Pexi's sentences.
  */
 
 import { t } from './ui-strings.js';
@@ -112,7 +112,7 @@ function el(doc, tag, className) {
  * "will not modify" true field by field. No trimming, no casing, no currency
  * formatting; the bytes Gemini sent are the bytes rendered.
  */
-/** A block the server answered from Shin's own data rather than a search (a typed name, 2026-09-23). */
+/** A block the server answered from Pexi's own data rather than a search (a typed name, 2026-09-23). */
 function ownData(block) {
   return Boolean(block) && block.source === 'shin_own_data';
 }
@@ -155,7 +155,7 @@ function linkOrText(doc, row, item, label) {
  * to look inside.
  *
  * Exported so the tests can assert on it directly rather than digging it out
- * of the section, and so a future caller that wants the block without Shin's
+ * of the section, and so a future caller that wants the block without Pexi's
  * chrome cannot be tempted to reach into this file's internals for it.
  */
 export function groundedRoot(grounded, opts = {}) {
@@ -170,7 +170,7 @@ export function groundedRoot(grounded, opts = {}) {
   const root = el(doc, 'div', 'grounded');
   root.setAttribute('data-grounded', '');
   root.setAttribute('data-no-track', '');
-  // Not a landmark of Shin's own: the block is one quoted answer, and giving
+  // Not a landmark of Pexi's own: the block is one quoted answer, and giving
   // it a role with an accessible name would mean putting one of our words on
   // it, which is the heading's job and the heading is outside.
   if (grounded.fetchedAt) root.setAttribute('data-fetched-at', str(grounded.fetchedAt));
@@ -214,7 +214,7 @@ export function groundedRoot(grounded, opts = {}) {
       // and must not be: "$4.49" where Gemini said "4.49 CAD" is a modified
       // Grounded Result, however much nicer it looks beside our own prices.
       field(doc, row, 'g-price', offer.price);
-      // Shin's own prices (a typed search, 2026-09-23) carry their currency and
+      // Pexi's own prices (a typed search, 2026-09-23) carry their currency and
       // the day each was seen, and the date is never hidden. Gemini's rows are
       // left exactly as they were.
       if (ownData(block)) {
@@ -268,10 +268,10 @@ export function groundedRoot(grounded, opts = {}) {
 }
 
 /**
- * Which rows have no link, as plain labels for Shin to mention OUTSIDE the
+ * Which rows have no link, as plain labels for Pexi to mention OUTSIDE the
  * root.
  *
- * This is the only place the wire is read for Shin's own prose, and it reads
+ * This is the only place the wire is read for Pexi's own prose, and it reads
  * exactly two things: whether a link is absent, and the name of the row it is
  * absent from. The name is needed because "one of these has no link" over six
  * rows is not a heads-up, it is a puzzle. (`markedOffers` below is the other
@@ -296,7 +296,7 @@ function missingLinks(block) {
 
 /**
  * Which offers need a membership or come from a marketplace seller, as plain
- * names and a string key, for Shin to say OUTSIDE the root, beside the
+ * names and a string key, for Pexi to say OUTSIDE the root, beside the
  * no-link heads-up. Both kinds of offer still count in the middle (owner,
  * 2026-09-19: "it should just be marked"); this is the mark on the list, and
  * the price line carries the same mark on its dot. It reads one flag per
@@ -313,10 +313,10 @@ function markedOffers(block) {
 }
 
 /**
- * Shin's own rows for a store the search also quoted, as a name and a date for
- * Shin to say OUTSIDE the root. The server marks such a row
+ * Pexi's own rows for a store the search also quoted, as a name and a date for
+ * Pexi to say OUTSIDE the root. The server marks such a row
  * `sameStoreAsGemini: true` and removes nothing, so both rows stay on screen;
- * this sentence only says which one is Shin's own record and the day it was
+ * this sentence only says which one is Pexi's own record and the day it was
  * seen. It reads one flag, the retailer's name and `seenOn`, nothing else, and
  * adds nothing to the root: the line sits beside the block with the other
  * marks, never on the row itself, for the same term-1 reason they do.
@@ -333,16 +333,16 @@ function sameStoreOwn(block) {
 }
 
 /**
- * Everything the result screen shows for a grounded answer: Shin's heading,
- * the untouched block, Shin's heads-up, and the price line.
+ * Everything the result screen shows for a grounded answer: Pexi's heading,
+ * the untouched block, Pexi's heads-up, and the price line.
  *
  * THE ORDER OF THE CHILDREN IS THE COMPLIANCE STORY. Heading first, then the
- * root, then Shin's sentences, then the price line. Nothing of Shin's is ever
+ * root, then Pexi's sentences, then the price line. Nothing of Pexi's is ever
  * appended INTO `root`, and there is no code path here that could: `root` is
  * finished by `groundedRoot` before this function has a string of its own.
  *
  * The price line is outside the root for the same reason, and for a second
- * one: it carries Shin's zone words, which are the user's own settings put
+ * one: it carries Pexi's zone words, which are the user's own settings put
  * into English or French. Those are our words about the user's line, not
  * Google's words about a price.
  *
@@ -350,8 +350,8 @@ function sameStoreOwn(block) {
  * @param {object} [opts]
  * @param {object} [opts.doc]  document to build in
  * @param {object} [opts.shelfLabel]  the scanned item's own quantity-and-price
- *   label, e.g. "6 x 355 mL, $4.49". Shin's own item, from Shin's own data,
- *   so Shin formats it; it is passed IN rather than built here.
+ *   label, e.g. "6 x 355 mL, $4.49". Pexi's own item, from Pexi's own data,
+ *   so Pexi formats it; it is passed IN rather than built here.
  */
 export function groundedSection(grounded, opts = {}) {
   const root = groundedRoot(grounded, opts);
@@ -359,15 +359,15 @@ export function groundedSection(grounded, opts = {}) {
 
   const doc = docOf(opts);
   /*
-   * A section of its own, never a continuation of Shin's own price list.
+   * A section of its own, never a continuation of Pexi's own price list.
    * Two sections, never one list: a reader has to be able to see which
-   * numbers came from Shin's sources and which came from a Google search,
+   * numbers came from Pexi's sources and which came from a Google search,
    * and a single merged list makes that unanswerable. It is also term 1
    * again, from the other side: merging our rows into Google's list is
    * interspersing our content with a Grounded Result.
    */
   const section = el(doc, 'section', 'grounded-section');
-  // Shin's own prices are not a Google result and never say they are.
+  // Pexi's own prices are not a Google result and never say they are.
   const own = ownData(grounded.block);
   if (own) section.setAttribute('data-own-data', '');
   section.setAttribute('aria-label', t(own ? 'grounded_heading_own' : 'grounded_heading'));
@@ -444,7 +444,7 @@ export function groundedSection(grounded, opts = {}) {
    * price, and told the shopper an ordinary $1.74 was 83% under the going
    * rate because one Walmart row said $9.97.
    *
-   * The sentence is about the evidence, never about Shin's ignorance. The
+   * The sentence is about the evidence, never about Pexi's ignorance. The
    * offers, the reviews and the description are all already on screen above
    * it, which is what "always an answer" is protecting.
    *
@@ -536,7 +536,7 @@ export function mountGrounded(container, grounded, opts = {}) {
  * plain values so `camera.js` never reads inside `grounded`.
  *
  * THIS IS A READ, NEVER A COMPUTATION (beta gaps, rule 6: the price does not
- * come from Shin, and Shin shows no price math it made itself). The zone is the
+ * come from Pexi, and Pexi shows no price math it made itself). The zone is the
  * code Gemini put on the shelf price against the user's own lines, the median
  * and its unit are the ones Gemini stated, and the shelf label is Gemini's own
  * "quantity and price as sold". Nothing here adds, divides, compares or rounds;
@@ -586,14 +586,14 @@ export function geminiReading(grounded) {
     shelfLabel,
     name: typeof block.name === 'string' && block.name !== '' ? block.name : null,
     /*
-     * WHEN SHIN ASKED, and the one field here that is not Gemini's. Ruling 1
+     * WHEN PEXI ASKED, and the one field here that is not Gemini's. Ruling 1
      * (docs/decisions.md) lets a repeat scan of a known barcode be served from
      * a stored answer on one condition: the price "is cached for six hours and
      * ALWAYS SHOWN WITH WHEN IT WAS CHECKED". The wire has carried the time
      * since the wire existed and only `data-fetched-at` ever read it, which is
      * an attribute and not a sentence, so nothing on screen said it.
      *
-     * A time Shin cannot read is no time at all: an unparseable or missing
+     * A time Pexi cannot read is no time at all: an unparseable or missing
      * value comes back null and the sheet says nothing, because "checked
      * unknown" is worse than silence. Nothing is computed from it here; the
      * age is worked out where the sentence is built.

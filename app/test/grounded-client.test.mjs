@@ -14,8 +14,8 @@
  *
  *   "will not modify, or intersperse any other content with, the Grounded
  *   Results or Search Suggestions"
- *     -> the root carries only wire text (no Shin string appears inside it),
- *        Shin's sentences are siblings, and `grounded.js` has no `.sort`,
+ *     -> the root carries only wire text (no Pexi string appears inside it),
+ *        Pexi's sentences are siblings, and `grounded.js` has no `.sort`,
  *        `.slice`, `cad()` or `Intl.NumberFormat`.
  *
  *   "will not place any interstitial content between any Link... and the
@@ -61,7 +61,7 @@ function code(src) {
  * One grounded payload, shaped exactly as the server sends it.
  *
  * The strings are invented rather than borrowed from a real retailer, for one
- * reason that matters to a check below: the "no Shin string inside the root"
+ * reason that matters to a check below: the "no Pexi string inside the root"
  * test compares the root's text against every string this app exports, and a
  * fixture that happened to reuse one of them would make that test pass or
  * fail for the wrong reason.
@@ -110,7 +110,7 @@ const WIRE = () => ({
 });
 
 /**
- * The wire above plus two of Shin's own rows for stores the search also
+ * The wire above plus two of Pexi's own rows for stores the search also
  * quoted, as the server marks them (`sameStoreAsGemini`, src/same-store.ts).
  * One carries its date and one does not, so both sentences are rendered.
  */
@@ -270,7 +270,7 @@ test("no string this app exports appears as text inside the grounded root", asyn
    * TWO CHECKS, NOT ONE, because a single substring sweep is both too weak
    * and too strong. Too strong: "of", "on" and "sold" are all chrome strings
    * in ui-strings.js, and a Grounded Result that happens to contain the word
-   * "sold" has not had Shin's content interspersed with it. Too weak on its
+   * "sold" has not had Pexi's content interspersed with it. Too weak on its
    * own the other way: a short label moved INTO the root would slip past a
    * length cut-off. So a short string has to match a whole field exactly, and
    * anything sentence-length is banned as a substring anywhere in the root.
@@ -278,18 +278,18 @@ test("no string this app exports appears as text inside the grounded root", asyn
   for (const s of ours) {
     assert.ok(
       !leaves.includes(s),
-      `"${s}" is one of Shin's own strings and it is a whole field inside the grounded root. The heading and the heads-up belong beside the root, never in it.`,
+      `"${s}" is one of Pexi's own strings and it is a whole field inside the grounded root. The heading and the heads-up belong beside the root, never in it.`,
     );
     if (s.length >= 12) {
       assert.ok(
         !leaves.join(' ').includes(s),
-        `"${s}" is one of Shin's own sentences and it is inside the grounded root. The Gemini terms say we will not intersperse any other content with a Grounded Result.`,
+        `"${s}" is one of Pexi's own sentences and it is inside the grounded root. The Gemini terms say we will not intersperse any other content with a Grounded Result.`,
       );
     }
   }
 });
 
-test("Shin's sentences sit beside the grounded root, not inside it", async () => {
+test("Pexi's sentences sit beside the grounded root, not inside it", async () => {
   const { section } = await renderSection();
   assert.ok(section);
   const root = section.querySelector('[data-grounded]');
@@ -358,7 +358,7 @@ test('grounded.js never reformats or reorders what it was given', () => {
   for (const [pattern, why] of [
     [/\.sort\s*\(/, 're-ordering the rows changes what the reader is told the search found'],
     [/\.slice\s*\(/, 'cutting the list short is "inhibit the full and complete display"'],
-    [/\bcad\s*\(/, "formatting a grounded price with Shin's own currency helper is modifying it"],
+    [/\bcad\s*\(/, "formatting a grounded price with Pexi's own currency helper is modifying it"],
     [/Intl\.NumberFormat/, 'reformatting a number is modifying it'],
   ]) {
     assert.doesNotMatch(src, pattern, `grounded.js uses something it must not: ${why}.`);
@@ -608,7 +608,7 @@ test('the zone words and the large dot reading name the user\'s line, never a gr
   setLocale('en');
   assert.deepEqual(bad, [], [
     'The price line graded a price.',
-    'The zones name the range the USER set ("under your line", "sous ta limite"), never Shin\'s reading of the number.',
+    'The zones name the range the USER set ("under your line", "sous ta limite"), never Pexi\'s reading of the number.',
     'Hard rule 2: Competition Act s.74.01(1)(b) requires adequate and proper testing behind a performance claim.',
     'Change the string, never this list.',
   ].join('\n'));
@@ -653,7 +653,7 @@ test('the verdict sheet actually reaches the grounded block', () => {
   // for want of sellers still shows what the web search found.
   // Four since 2026-09-19: the Gemini answer sheet, which is what `/api/price`
   // now returns, mounts its own block the same way.
-  // Five since 2026-09-23: a typed search answered from Shin's own prices
+  // Five since 2026-09-23: a typed search answered from Pexi's own prices
   // draws the Gemini answer sheet itself (showOwnData), so it mounts there too.
   assert.equal(
     (camera.match(/(?<!function )fillGrounded\(slot, \w+\);/g) ?? []).length,
@@ -663,7 +663,7 @@ test('the verdict sheet actually reaches the grounded block', () => {
   // Two sections, never one list: the grounded slot sits outside provenance().
   assert.ok(
     camera.indexOf('${provenance(') < camera.indexOf('${groundedSlot()}'),
-    "the grounded section moved above Shin's own price list; they are two sections and the reader has to be able to tell them apart.",
+    "the grounded section moved above Pexi's own price list; they are two sections and the reader has to be able to tell them apart.",
   );
 });
 
@@ -758,7 +758,7 @@ test('a members-only or marketplace price is marked on its dot and on the list, 
     const list = section.querySelector('.grounded-marks');
     assert.ok(list, `${id}: the marked offers are not listed`);
     assert.deepEqual([...list.querySelectorAll('li')].map((n) => n.textContent), listed, `${id}: the list of marked offers is wrong`);
-    // Shin's own text, never inside Google's no-track block.
+    // Pexi's own text, never inside Google's no-track block.
     assert.equal(list.closest('[data-no-track]'), null, 'the marks went inside the Google-owned block');
   }
   setLocale('en');
@@ -767,16 +767,16 @@ test('a members-only or marketplace price is marked on its dot and on the list, 
   assert.equal(plain.querySelector('.grounded-marks'), null);
 });
 
-test("Shin's own row for a store the search also quoted gets one dated line, outside the Google root, and every row stays", async () => {
+test("Pexi's own row for a store the search also quoted gets one dated line, outside the Google root, and every row stays", async () => {
   const { setLocale } = await import('../public/js/ui-strings.js');
   for (const [id, listed] of [
     ['en', [
-      'Northfield Grocers Canada: Shin’s own record for this store, seen 2026-09-20. Not checked.',
-      'Ridgeway Market: Shin’s own record for this store. Not checked.',
+      'Northfield Grocers Canada: Pexi’s own record for this store, seen 2026-09-20. Not checked.',
+      'Ridgeway Market: Pexi’s own record for this store. Not checked.',
     ]],
     ['fr', [
-      'Northfield Grocers Canada : relevé de Shin pour ce magasin, vu le 2026-09-20. Pas vérifié.',
-      'Ridgeway Market : relevé de Shin pour ce magasin. Pas vérifié.',
+      'Northfield Grocers Canada : relevé de Pexi pour ce magasin, vu le 2026-09-20. Pas vérifié.',
+      'Ridgeway Market : relevé de Pexi pour ce magasin. Pas vérifié.',
     ]],
   ]) {
     setLocale(id);

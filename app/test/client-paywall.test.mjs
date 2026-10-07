@@ -1,5 +1,5 @@
 /**
- * Shin Plus on the client (2026-09-21, docs/mvp-plan.md "Subscription"):
+ * Pexi Plus on the client (2026-09-21, docs/mvp-plan.md "Subscription"):
  * the 402 from /api/identify becomes the subscription screen, the screen reads
  * its prices from the store and never from the code, and a plain browser gets
  * "Subscribe in the app" instead of a button that could only fail.
@@ -138,7 +138,7 @@ test('in a plain browser the screen says "Subscribe in the app" and offers nothi
   assert.match(root.body.innerHTML, /data-pw-state="web"/);
   assert.match(root.body.innerHTML, /Subscribe in the app/);
   assert.ok(!/data-act="subscribe"|data-act="restore"/.test(root.body.innerHTML), 'a browser was offered a store button');
-  assert.match(root.innerHTML, /Shin Plus: unlimited scans/);
+  assert.match(root.innerHTML, /Pexi Plus: unlimited scans/);
   assert.match(root.innerHTML, /class="shin-say"/, 'the mascot is not on the screen');
   assert.match(root.innerHTML, /data-act="close"/, 'no close button');
   assert.match(root.innerHTML, /data-pw-terms/);
@@ -212,7 +212,7 @@ test('Restore purchases asks the store, and says so when nothing was found', asy
   root.tap('[data-act="restore"]');
   await settle(); await settle();
   assert.ok(log.some((l) => l[0] === 'restorePurchases'));
-  assert.match(root.body.innerHTML, /No Shin Plus subscription was found/);
+  assert.match(root.body.innerHTML, /No Pexi Plus subscription was found/);
   assert.equal(purchases.plusActive(), false);
   const tracked = JSON.parse(storage.getItem('shin.track.queue') || '[]').filter((e) => e.type === 'paywall_restore');
   assert.ok(tracked.some((e) => e.payload.outcome === 'tapped'), 'the Restore tap was not tracked');

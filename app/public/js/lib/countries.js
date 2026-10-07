@@ -3,7 +3,7 @@
  * what a price means. Static: no network, no service, nothing to be down.
  *
  * Audit rows 14, 15, 34 (`docs/audit-google-doc-2026-09-19.md`). Jamin,
- * 2026-09-17: "Shin will work for all locations accross the world in all
+ * 2026-09-17: "Pexi will work for all locations accross the world in all
  * languages." The market picker offered three countries; this is the whole
  * list, so it is the only place a country is named.
  *

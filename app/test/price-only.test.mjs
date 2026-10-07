@@ -259,7 +259,7 @@ test('the card renders in French, with the same number and no English left in it
   // The bubble and the caption both moved, not just one of them.
   const bubble = (html) => /<p class="bubble-text">([\s\S]*?)<\/p>/.exec(html)?.[1] ?? '';
   const vword = (html) => /<h2 class="vword"[^>]*>([\s\S]*?)<\/h2>/.exec(html)?.[1] ?? '';
-  assert.ok(bubble(fr) && bubble(fr) !== bubble(en), 'Shin speaks English on the French card');
+  assert.ok(bubble(fr) && bubble(fr) !== bubble(en), 'Pexi speaks English on the French card');
   assert.ok(vword(fr) && vword(fr) !== vword(en), 'the caption was never translated');
 });
 

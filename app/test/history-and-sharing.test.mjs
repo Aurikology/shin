@@ -5,7 +5,7 @@
  *        a Saved item opens with the verdict on file
  *   D08  the bell sheet has Share at its half detent, the card is reachable, and
  *        carries no link
- *   D17  a server fault (5xx) says the fault is Shin's, with Retry; only a
+ *   D17  a server fault (5xx) says the fault is Pexi's, with Retry; only a
  *        request that never arrived says connection
  *   D20  the Saved list face follows the zone word, never the price delta
  *   D37  the offline sheet has Retry
@@ -136,7 +136,7 @@ test('D07: Past scans draws a bell row and reopens it with its zone word', () =>
   assert.match(row, /5\.49/);
   const detail = pastscans.detail(entry);
   assert.match(detail, /Reasonable price/);
-  assert.match(detail, /Shin&#39;s estimate \$5\.54|Shin's estimate \$5\.54/);
+  assert.match(detail, /Pexi&#39;s estimate \$5\.54|Pexi's estimate \$5\.54/);
   assert.ok(!/refus|No verdict on file/i.test(detail), 'a bell answer reopened as a refusal');
 });
 
@@ -252,12 +252,12 @@ test('D17: a 5xx is a server fault and a network failure is not', () => {
   assert.equal(camera.isServerFault(undefined), false);
 });
 
-test('D17: the server-fault sheet blames Shin, offers Retry and never says "I need a connection"', () => {
+test('D17: the server-fault sheet blames Pexi, offers Retry and never says "I need a connection"', () => {
   const html = camera.serverFaultSheet();
   assert.match(html, /data-server-fault/);
   assert.match(html, /data-act="lookup-retry"/);
-  assert.match(html, /Shin hit a problem on its side/);
-  assert.match(html, /fault is on Shin/);
+  assert.match(html, /Pexi hit a problem on its side/);
+  assert.match(html, /fault is on Pexi/);
   assert.ok(!/I need a connection|needs an internet connection/.test(html), 'a server fault tells the shopper to fix their network');
   const lookup = CAMERA.slice(CAMERA.indexOf('async function catalogueLookup'), CAMERA.indexOf('function sameCode'));
   assert.match(lookup, /serverFault = isServerFault\(err\)/);

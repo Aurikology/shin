@@ -71,7 +71,7 @@ before(async () => {
   await new Promise((resolve, reject) => {
     const fail = setTimeout(() => reject(new Error('the server did not come up in 20 seconds')), 20_000);
     child.stdout.on('data', (d) => {
-      if (String(d).includes('Shin is running')) {
+      if (String(d).includes('Pexi is running')) {
         clearTimeout(fail);
         resolve();
       }

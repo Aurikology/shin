@@ -4,7 +4,7 @@
  * setting SHIN_CATALOGUE_FIRST on; shape in app/src/catalogue-first.ts).
  *
  * RULINGS.md "Catalogue first; Gemini is a capped fallback, never the identity"
- * and "The price line speaks the shopper's own range, never Shin's opinion".
+ * and "The price line speaks the shopper's own range, never Pexi's opinion".
  * What this file holds shut:
  *
  *   - each basis gets its own provenance line, and the AI one says when it was
@@ -113,10 +113,10 @@ const between = (html, marker) => unescape(html.match(new RegExp(`${marker}>([^<
 
 /* ================================================================ the bases == */
 
-test('this_product: the range is low to high in the shopper\'s currency, from Shin\'s own prices at N stores', () => {
+test('this_product: the range is low to high in the shopper\'s currency, from Pexi\'s own prices at N stores', () => {
   const html = inLocale('en', () => catalogueSheet(hit(RANGE()), { state: TEN_TEN }));
   assert.equal(between(html, 'data-cat-range'), '$4.99 to $6.99');
-  assert.equal(between(html, 'data-cat-basis'), "From Shin's own prices at 4 stores");
+  assert.equal(between(html, 'data-cat-basis'), "From Pexi's own prices at 4 stores");
   assert.equal(attr(html, 'data-basis'), 'this_product');
   assert.equal(attr(html, 'data-outcome'), 'catalogue_hit');
   // No shelf price: no zone, and the product itself leads.
@@ -125,7 +125,7 @@ test('this_product: the range is low to high in the shopper\'s currency, from Sh
   assert.equal(between(html, 'data-cat-headline'), 'Kraft Crunchy Peanut Butter 1 kg');
   // One store is said as one store.
   const one = inLocale('en', () => catalogueSheet(hit(RANGE({ n: 1 })), { state: TEN_TEN }));
-  assert.equal(between(one, 'data-cat-basis'), "From Shin's own prices at 1 store");
+  assert.equal(between(one, 'data-cat-basis'), "From Pexi's own prices at 1 store");
 });
 
 test('leaf_category and parent_category: from similar products in the category the range came from', () => {
@@ -286,7 +286,7 @@ test('French money is 4,99 $, the range reads "à", and the zone word is the Fre
   assert.equal(between(html, 'data-cat-shelf'), inLocale('fr', () => t('cam_gem_shelf', { label: `5,20${NBSP}$` })));
   assert.ok(between(html, 'data-cat-shelf').endsWith(`5,20${NBSP}$`), 'the shelf price is not French money');
   assert.equal(between(html, 'data-cat-headline'), inLocale('fr', () => t('priceline_zone_under')));
-  assert.equal(between(html, 'data-cat-basis'), 'D’après les prix de Shin dans 4 magasins');
+  assert.equal(between(html, 'data-cat-basis'), 'D’après les prix de Pexi dans 4 magasins');
   assert.doesNotMatch(html, /\$\d/, 'a dollar sign in front of a number in French');
 });
 
@@ -341,7 +341,7 @@ test('no new string, and no rendered catalogue sheet, grades the price (the pric
     ]);
     for (const h of sheets) {
       const visible = h.replace(/<svg[\s\S]*?<\/svg>/g, ' ').replace(/<[^>]*>/g, ' ');
-      // Shin's own bubble lines (voice.js) are checked by their own tests; the
+      // Pexi's own bubble lines (voice.js) are checked by their own tests; the
       // product name is catalogue data. What is left is this lane's chrome.
       texts.push(visible);
     }
@@ -357,7 +357,7 @@ test('no new string, and no rendered catalogue sheet, grades the price (the pric
 test('the sheets are rendered in French too, not only their strings', () => {
   const html = inLocale('fr', () => catalogueSheet(MISS, { state: TEN_TEN }));
   assert.match(html, />Tape le nom du produit</);
-  assert.match(html, /Ce code-barres n’est pas encore dans le catalogue de Shin\./);
+  assert.match(html, /Ce code-barres n’est pas encore dans le catalogue de Pexi\./);
 });
 
 /* =============================================================== routing == */

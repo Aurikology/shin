@@ -2,7 +2,7 @@
  * Beta gap item 13, the consent half: photos are saved by default, with one
  * plain switch to opt out, and the server, the client and the wording agree.
  *
- * His words, 2026-09-17: "Shin should try to save as much data as possible:
+ * His words, 2026-09-17: "Pexi should try to save as much data as possible:
  * The users' picture or barcode...", and he delegated the consent wording
  * ("you decide"). Location is NOT part of this change and stays off until
  * turned on; a test below holds it there so the two are never moved together

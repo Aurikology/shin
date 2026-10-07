@@ -37,13 +37,13 @@ ones later is ONE edit per file listed here, no hunting:
 
 | What | File | Current value |
 |---|---|---|
-| App display name (source of truth) | `native/capacitor.config.json` | `appName: "Shin"` (cleared) |
+| App display name (source of truth) | `native/capacitor.config.json` | `appName: "Pexi"` (renamed 2026-10-06, RULINGS.md "Name: Pexi") |
 | Bundle id (source of truth) | `native/capacitor.config.json` | `appId: "com.useshinapp.shin"` (cleared) |
-| Android app label | `native/android/app/src/main/res/values/strings.xml` | `app_name`, `title_activity_main` = `Shin` (cleared) |
+| Android app label | `native/android/app/src/main/res/values/strings.xml` | `app_name`, `title_activity_main` = `Pexi` (renamed 2026-10-06) |
 | Android package id | `native/android/app/src/main/res/values/strings.xml` | `package_name`, `custom_url_scheme` = `com.useshinapp.shin` (cleared) |
 | Android application id | `native/android/app/build.gradle` | `namespace` and `applicationId` = `com.useshinapp.shin` (cleared) |
 | Android Java package + folder | `native/android/app/src/main/java/com/useshinapp/shin/MainActivity.java` | package `com.useshinapp.shin` (cleared; the folder path has already moved) |
-| iOS display name | `native/ios/App/App/Info.plist` | `CFBundleDisplayName` = `PriceCheck Placeholder` (still the placeholder) |
+| iOS display name | `native/ios/App/App/Info.plist` | `CFBundleDisplayName` = `Pexi` (renamed 2026-10-06; the bundle id below is still the placeholder) |
 | iOS bundle id | `native/ios/App/App.xcodeproj/project.pbxproj` | `PRODUCT_BUNDLE_IDENTIFIER = com.placeholder.pricecheck;` (appears twice, Debug and Release configs; still the placeholder) |
 
 Easiest path once the name clears: edit `capacitor.config.json` to the real values, then run

@@ -1,7 +1,7 @@
 {
-  "name": "Shin",
-  "short_name": "Shin",
-  "description": "Point at a thing. Shin tells you whether the price is fair.",
+  "name": "Pexi",
+  "short_name": "Pexi",
+  "description": "Point at a thing. Pexi tells you whether the price is fair.",
   "lang": "en-CA",
   "dir": "ltr",
   "start_url": "/",

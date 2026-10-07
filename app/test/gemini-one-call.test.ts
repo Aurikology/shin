@@ -94,7 +94,7 @@ function withModel<T>(model: string, fn: () => Promise<T>): Promise<T> {
   });
 }
 
-test('a barcode scan is ONE Gemini call, digits only, and Shin\'s own catalogue is not consulted for the answer (items 1, 2)', async () => {
+test('a barcode scan is ONE Gemini call, digits only, and Pexi\'s own catalogue is not consulted for the answer (items 1, 2)', async () => {
   let asked = 0;
   setCatalogueForTests({
     byGtin: () => {
@@ -221,7 +221,7 @@ test('the median and verdict shown are Gemini\'s own, even when they disagree wi
   install(reply);
   const { body } = await identify('gtin=0000000000031&deviceId=math-shown&shelfPriceCents=800');
   const v = body.grounded.block.verdict;
-  assert.equal(v.median, 7.77, 'Shin recomputed the median instead of showing Gemini\'s');
+  assert.equal(v.median, 7.77, 'Pexi recomputed the median instead of showing Gemini\'s');
   assert.equal(v.shelf.zone, 'middle');
   assert.equal(v.span, 35);
   reply = undefined;
@@ -331,7 +331,7 @@ test('a Gemini outage is a marked 200 with the class, never a 500 and never a Cl
   reply = undefined;
 });
 
-test('the price sheet shows the SAME one call: no second Gemini call and no Shin price engine (items 2, 3)', async () => {
+test('the price sheet shows the SAME one call: no second Gemini call and no Pexi price engine (items 2, 3)', async () => {
   const device = 'price-a';
   const first = await identify(`gtin=0068100084245&deviceId=${device}`);
   const priced = await post('/api/price', { deviceId: device, scanId: first.body.scanId, priceQuery: first.body.priceQuery, askingCents: 350 });
@@ -339,8 +339,8 @@ test('the price sheet shows the SAME one call: no second Gemini call and no Shin
   assert.equal(calls.length, 1, 'the price route made a second Gemini call for the same scan');
   assert.equal(priced.body.kind, 'gemini');
   assert.equal(priced.body.grounded.block.verdict.median, 3);
-  assert.equal(priced.body.shelfPriceLate, true, 'a shelf price that arrived after the call must be reported as late, not silently placed by Shin');
-  assert.ok(!('tier' in priced.body), 'Shin\'s own verdict tier is still being served');
+  assert.equal(priced.body.shelfPriceLate, true, 'a shelf price that arrived after the call must be reported as late, not silently placed by Pexi');
+  assert.ok(!('tier' in priced.body), 'Pexi\'s own verdict tier is still being served');
 });
 
 test('a photo scan then the price sheet is still ONE call, and it is one call for that device only (items 2, 3)', async () => {

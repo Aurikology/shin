@@ -5,7 +5,7 @@
  * answer, never the refusal sheet).
  *
  * The sheet is a string renderer, so the list is asserted on the markup a phone
- * would get. Shin computes no price math: the price text on screen must be the
+ * would get. Pexi computes no price math: the price text on screen must be the
  * bytes Gemini returned, which is why the fixture prices are ones a formatter
  * would change ("1.5 CAD", "$2").
  */
@@ -77,7 +77,7 @@ test('alternatives are a plain list under the answer: name, why, and the price a
   assert.ok(html.includes('>$2<'), 'the price text was reformatted');
   assert.ok(html.includes('at Beta Foods'), 'the shop is not shown');
   assert.ok(html.indexOf('data-grounded-slot') < html.indexOf('data-gemini-alternatives'), 'the list is not under the answer');
-  assert.doesNotMatch(html, /\d\s?%|save[sd]?\b|cheaper by/i, 'the sheet shows a saving Shin worked out');
+  assert.doesNotMatch(html, /\d\s?%|save[sd]?\b|cheaper by/i, 'the sheet shows a saving Pexi worked out');
 });
 
 test('no alternatives means no section at all, not an empty heading', () => {

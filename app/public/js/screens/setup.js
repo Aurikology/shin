@@ -1,7 +1,7 @@
 /**
  * Setup, and the only question the app asks before the camera.
  *
- * Which Shin you get is the user's call. That is a recorded decision, and it
+ * Which Pexi you get is the user's call. That is a recorded decision, and it
  * replaced a much worse plan in which we picked the tone for everybody and hoped.
  * It costs three variants of every string forever, which is real, and what it
  * buys is that the riskiest thing in the product stops being a guess.
@@ -24,7 +24,7 @@ import { track } from '../track.js';
 
 export default {
   id: 'setup',
-  title: 'Pick your Shin',
+  title: 'Pick your Pexi',
   titleKey: 'setup_title',
 
   render(root, ctx) {
@@ -62,7 +62,7 @@ export default {
         ${/*
            * The user's two lines, asked here because they are what the price
            * line's three zones are NAMED after and a zone with no number
-           * behind it is a zone Shin picked. The founder's ask, 2026-09-14:
+           * behind it is a zone Pexi picked. The founder's ask, 2026-09-14:
            * how far below the middle of what was found is worth it, and how
            * far above is past what they will pay. Ten and ten to start, so
            * skipping this screen is a complete answer rather than a blank.

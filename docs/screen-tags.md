@@ -27,7 +27,7 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 
 | Tag | Name | How to reach it | File |
 | --- | --- | --- | --- |
-| a1 | Welcome, the SHIN name | Very first launch of a fresh install. Or ?s=onboarding&step=welcome. | `app/public/js/screens/onboarding.js` |
+| a1 | Welcome, the PEXI name | Very first launch of a fresh install. Or ?s=onboarding&step=welcome. | `app/public/js/screens/onboarding.js` |
 | a2 | Welcome, the one-line promise | Welcome flow, Continue from a1. | `app/public/js/screens/onboarding.js` |
 | a3 | Welcome question: where do you shop most | Welcome flow step 3 (pick all that apply). | `app/public/js/screens/onboarding.js` |
 | a4 | Welcome question: how often per week | Welcome flow step 4. | `app/public/js/screens/onboarding.js` |
@@ -38,7 +38,7 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | a9 | Welcome question: percent or dollar deal threshold | Welcome flow step 9. | `app/public/js/screens/onboarding.js` |
 | a10 | Welcome: set your deal threshold slider | Welcome flow step 10. | `app/public/js/screens/onboarding.js` |
 | a11 | Welcome question: loyalty programs and coupon apps | Welcome flow step 11. | `app/public/js/screens/onboarding.js` |
-| a12 | Welcome question: primary goal with SHIN | Welcome flow step 12. | `app/public/js/screens/onboarding.js` |
+| a12 | Welcome question: primary goal with PEXI | Welcome flow step 12. | `app/public/js/screens/onboarding.js` |
 | a13 | Welcome: monthly savings target stepper | Welcome flow step 13. | `app/public/js/screens/onboarding.js` |
 | a14 | Welcome question: how aggressive deal alerts are | Welcome flow step 14. | `app/public/js/screens/onboarding.js` |
 | a15 | Welcome: a smarter way to shop (comparison) | Welcome flow step 15. | `app/public/js/screens/onboarding.js` |
@@ -49,14 +49,14 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | a20 | Welcome: setting up your deal engine | Welcome flow step 20 (checklist that ticks itself). | `app/public/js/screens/onboarding.js` |
 | a21 | Welcome: your savings goal progress | Welcome flow step 21. Hidden until a measured goal_progress is published. | `app/public/js/screens/onboarding.js` |
 | a22 | Welcome: save your progress, sign in | Welcome flow step 22. Hidden until accounts exist (CAPABILITIES.accounts in onboarding-flow.js). | `app/public/js/screens/onboarding.js` |
-| a23 | Welcome: try SHIN Pro for free | Welcome flow step 23. | `app/public/js/screens/onboarding.js` |
+| a23 | Welcome: try PEXI Pro for free | Welcome flow step 23. | `app/public/js/screens/onboarding.js` |
 | a24 | Welcome: camera and location permissions | Welcome flow step 24. Tapping the camera switch raises the phone's own permission prompt. | `app/public/js/screens/onboarding.js` |
 | a25 | Welcome: plans, 3-day free trial | Welcome flow step 25 (annual or monthly, Not now). | `app/public/js/screens/onboarding.js` |
 | a26 | Welcome tip: get the best scan | Welcome flow step 26. | `app/public/js/screens/onboarding.js` |
-| a27 | Welcome tip: SHIN evaluates your item | Welcome flow step 27. | `app/public/js/screens/onboarding.js` |
+| a27 | Welcome tip: PEXI evaluates your item | Welcome flow step 27. | `app/public/js/screens/onboarding.js` |
 | a28 | Welcome tip: adjust shelf price or store | Welcome flow step 28. | `app/public/js/screens/onboarding.js` |
 | a29 | Welcome tip: for highest accuracy | Welcome flow step 29. Continue goes to Evaluating Deal (a84). | `app/public/js/screens/onboarding.js` |
-| a30 | Pick your Shin (attitude and your three price ranges) | First launch after the welcome flow, once. Or ?s=setup. | `app/public/js/screens/setup.js` |
+| a30 | Pick your Pexi (attitude and your three price ranges) | First launch after the welcome flow, once. Or ?s=setup. | `app/public/js/screens/setup.js` |
 | a31 | Your data (photos and location switches) | First launch after setup, once. Or ?s=consent. | `app/public/js/screens/consent.js` |
 
 ### Camera and verdict
@@ -67,18 +67,18 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | a33 | Camera, barcode found, barcode button lit | Hold a barcode in the frame until the reader agrees on it; the barcode button gets a pink ring. | `app/public/js/screens/camera.js` |
 | a34 | Camera at rest (photo button) | The camera with nothing under way. Formerly Price Tag mode; the camera button now always takes the price tag photo. | `app/public/js/screens/camera.js` |
 | a35 | Camera with no live feed (drawn shelf instead) | Camera permission denied, no camera on the device, a private window, or a desktop without one. | `app/public/js/screens/camera.js` |
-| a36 | Camera, frame frozen while Shin reads it | Just after the shutter or Scan barcode button, before any sheet rises. | `app/public/js/screens/camera.js` |
+| a36 | Camera, frame frozen while Pexi reads it | Just after the shutter or Scan barcode button, before any sheet rises. | `app/public/js/screens/camera.js` |
 | a37 | Working sheet, the three-step wait | After a scan is identified and the price request is under way. The x cancels. | `app/public/js/screens/camera.js` |
-| a38 | Verdict sheet, first look (word and price) | A scan Shin can call. This is where the sheet lands. | `app/public/js/screens/camera.js` |
+| a38 | Verdict sheet, first look (word and price) | A scan Pexi can call. This is where the sheet lands. | `app/public/js/screens/camera.js` |
 | a39 | Verdict sheet, half open (rail, why, correct and share) | Verdict sheet, tap or drag the grabber up once. | `app/public/js/screens/camera.js` |
-| a40 | Verdict sheet, fully open (Shin's lines, thumbs, Done) | Verdict sheet, tap or drag the grabber up twice. | `app/public/js/screens/camera.js` |
+| a40 | Verdict sheet, fully open (Pexi's lines, thumbs, Done) | Verdict sheet, tap or drag the grabber up twice. | `app/public/js/screens/camera.js` |
 | a41 | Thanks toast after the thumbs, with Undo | Verdict sheet fully open, tap thumbs up or thumbs down. | `app/public/js/screens/camera.js` |
-| a42 | Refusal sheet, first look (Shin will not call this) | A scan Shin will not price: not sure which one, category not supported, nothing recognised, too little evidence, or the reader is down. | `app/public/js/screens/camera.js` |
+| a42 | Refusal sheet, first look (Pexi will not call this) | A scan Pexi will not price: not sure which one, category not supported, nothing recognised, too little evidence, or the reader is down. | `app/public/js/screens/camera.js` |
 | a43 | Refusal sheet, half open (evidence and cheaper swaps) | Refusal sheet, tap or drag the grabber up. | `app/public/js/screens/camera.js` |
 | a44 | Needs a connection sheet (scan with no signal) | Scan while the phone is offline. The sheet is also exported as needsConnectionSheet. | `app/public/js/screens/camera.js` |
 | a45 | Going rate card, first look (range, no shelf price typed) | Scan an item and skip the shelf price on the price pad. | `app/public/js/screens/camera.js` |
 | a46 | Going rate card, half open (the sellers behind the range) | Going rate card, tap or drag the grabber up. | `app/public/js/screens/camera.js` |
-| a47 | Which one is it? (stand-in item list) | A scan where Shin has to ask which item it is, from the stand-in list. | `app/public/js/screens/camera.js` |
+| a47 | Which one is it? (stand-in item list) | A scan where Pexi has to ask which item it is, from the stand-in list. | `app/public/js/screens/camera.js` |
 | a48 | Not this? (other search results) | On the price pad tap the not-this link, or the same offer after a photo search. | `app/public/js/screens/camera.js` |
 | a49 | Price pad (type the shelf price) | After the shutter or Scan barcode button, or Tell me the price on the going rate card. From a refusal, the price-only button opens it with a name field. | `app/public/js/screens/camera.js` |
 | a50 | Which shop are you in? (store picker) | Price pad, tap the shop row. | `app/public/js/screens/camera.js` |
@@ -101,7 +101,7 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | a59 | Past scans, nothing scanned yet | Open Past scans before any scan. | `app/public/js/screens/pastscans.js` |
 | a60 | Past scans, could not be read (Try again) | Open Past scans when the stored data is unreadable or storage is blocked. | `app/public/js/screens/pastscans.js` |
 | a61 | Past scan detail, a verdict (read only) | Past scans, tap a row that was a verdict. | `app/public/js/screens/pastscans.js` |
-| a62 | Past scan detail, a refusal (read only) | Past scans, tap a row that Shin refused. | `app/public/js/screens/pastscans.js` |
+| a62 | Past scan detail, a refusal (read only) | Past scans, tap a row that Pexi refused. | `app/public/js/screens/pastscans.js` |
 | a63 | Recently removed (the list) | Saved page, the Recently removed link. Or ?s=removed. | `app/public/js/screens/removed.js` |
 | a64 | Recently removed, nothing removed | Open Recently removed with nothing in the last 30 days. | `app/public/js/screens/removed.js` |
 | a65 | Recently removed, could not be read (Try again) | Open Recently removed when the stored data is unreadable or storage is blocked. | `app/public/js/screens/removed.js` |
@@ -115,8 +115,8 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | a68 | Where this comes from (data sources list) | Where do you shop, tap the sources link at the bottom. Or ?s=licences. | `app/public/js/screens/licences.js` |
 | a69 | Where this comes from, loading | Open the sources page; visible while the list is being fetched. | `app/public/js/screens/licences.js` |
 | a70 | Where this comes from, could not load (Try again) | Open the sources page with no signal or when the server answers with an empty list. | `app/public/js/screens/licences.js` |
-| a71 | Tell Shin the price (correction form) | Verdict half sheet, Correct it. Or a refusal sheet, Tell me the price. Or You, Report a wrong price. | `app/public/js/screens/correct.js` |
-| a72 | Tell Shin the price, thank-you state | Submit a price on the correction form; it returns to the camera after a moment. | `app/public/js/screens/correct.js` |
+| a71 | Tell Pexi the price (correction form) | Verdict half sheet, Correct it. Or a refusal sheet, Tell me the price. Or You, Report a wrong price. | `app/public/js/screens/correct.js` |
+| a72 | Tell Pexi the price, thank-you state | Submit a price on the correction form; it returns to the camera after a moment. | `app/public/js/screens/correct.js` |
 | a73 | Share (the card image) | Verdict half sheet, Share. Needs a verdict in Past scans. | `app/public/js/screens/share.js` |
 | a74 | Share, card drawn as plain text | Share when the card image cannot be drawn (fonts or canvas fail). | `app/public/js/screens/share.js` |
 
@@ -125,7 +125,7 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | Tag | Name | How to reach it | File |
 | --- | --- | --- | --- |
 | a75 | This screen could not open (render failure page) | Any screen whose render throws. Shows a Back to camera button. | `app/public/js/router.js` |
-| a76 | Shin cannot open (JavaScript off) | Open the app with JavaScript switched off. No badge can draw here: the badge is script. | `app/public/index.html` |
+| a76 | Pexi cannot open (JavaScript off) | Open the app with JavaScript switched off. No badge can draw here: the badge is script. | `app/public/index.html` |
 
 ### The plan pages (static files, name only)
 
@@ -145,16 +145,16 @@ The answer sheet used to show the verdict tags a38 to a40 and its could-not-answ
 
 | Tag | Name | How to reach it | File |
 | --- | --- | --- | --- |
-| a87 | Answer sheet, first look (headline and figures) | A scan Shin answers from the price search. This is where the answer sheet lands, including the not fully confident version. | `app/public/js/screens/camera.js` |
+| a87 | Answer sheet, first look (headline and figures) | A scan Pexi answers from the price search. This is where the answer sheet lands, including the not fully confident version. | `app/public/js/screens/camera.js` |
 | a88 | Answer sheet, half open (sources, other options, correct it) | Answer sheet, tap or drag the grabber up once. | `app/public/js/screens/camera.js` |
 | a89 | Answer sheet, fully open (thumbs, Done) | Answer sheet, tap or drag the grabber up twice. | `app/public/js/screens/camera.js` |
 | a90 | Answer sheet, could not answer (Try again) | A scan whose price lookup did not come back, had nothing to price, or came back with nothing to show. Try again repeats that scan. | `app/public/js/screens/camera.js` |
 | a91 | Past scan detail, an answer (read only) | Past scans, tap a row that was an answer from the price search. | `app/public/js/screens/pastscans.js` |
 | a92 | Where do you shop, region step | Where do you shop, pick a country that has regions to name. The region list appears under the country list. | `app/public/js/screens/market.js` |
 | a93 | Where do you shop, no country matches the search | Where do you shop, type something in the search box that no country matches. | `app/public/js/screens/market.js` |
-| a94 | Shin Plus (subscription screen) | Scan past the weekly free limit, or ?s=paywall. | `app/public/js/screens/paywall.js` |
-| a95 | Shin Plus, in a browser (Subscribe in the app) | Open ?s=paywall in a plain browser, outside the phone app. | `app/public/js/screens/paywall.js` |
-| a96 | Shin Plus, the two plans with store prices | Open the subscription screen in the phone app with the store products set up. | `app/public/js/screens/paywall.js` |
+| a94 | Pexi Plus (subscription screen) | Scan past the weekly free limit, or ?s=paywall. | `app/public/js/screens/paywall.js` |
+| a95 | Pexi Plus, in a browser (Subscribe in the app) | Open ?s=paywall in a plain browser, outside the phone app. | `app/public/js/screens/paywall.js` |
+| a96 | Pexi Plus, the two plans with store prices | Open the subscription screen in the phone app with the store products set up. | `app/public/js/screens/paywall.js` |
 | a97 | Camera and location permissions, on its own | First launch when the welcome flow is switched off (FLAGS.onboarding false). Or ?s=permissions. Same panel as a24, which is the step inside the welcome flow. | `app/public/js/screens/permissions.js` |
 | a98 | Catalogue answer sheet (the product and its price range) | With the server setting SHIN_CATALOGUE_FIRST on, scan a barcode the catalogue has. With no range for it yet the sheet says so. | `app/public/js/screens/camera.js` |
 | a99 | Not in the catalogue (type the product name) | With the server setting SHIN_CATALOGUE_FIRST on, scan a barcode the catalogue does not have. | `app/public/js/screens/camera.js` |
@@ -166,7 +166,7 @@ The answer sheet used to show the verdict tags a38 to a40 and its could-not-answ
 | a105 | Page: Terms of Use, French | Terms of Use, tap the French link at the top. Or open /legal/terms-fr.html. No badge is drawn. | `app/public/legal/terms-fr.html` |
 | a106 | Page: Privacy Policy, French | Privacy Policy, tap the French link at the top. Or open /legal/privacy-fr.html. No badge is drawn. | `app/public/legal/privacy-fr.html` |
 | a107 | Which one is it? (the typed name's top three catalogue matches) | Camera, Type the product name, enter a name the catalogue knows, such as McCain Tasti Taters, and submit. | `app/public/js/screens/camera.js` |
-| a108 | Shin hit a problem sheet (server fault on a scan) | Scan a barcode while the server answers with an error (a 500). The sheet says the fault is on Shin's side, not the phone's connection, and offers Try again. | `app/public/js/screens/camera.js` |
+| a108 | Pexi hit a problem sheet (server fault on a scan) | Scan a barcode while the server answers with an error (a 500). The sheet says the fault is on Pexi's side, not the phone's connection, and offers Try again. | `app/public/js/screens/camera.js` |
 
 ## Not tagged, with reason
 
@@ -176,7 +176,7 @@ The answer sheet used to show the verdict tags a38 to a40 and its could-not-answ
 | Verdict tiers and confidence levels (good, fair, walk, unknown) | The same sheet with different words and colour, not a different screen. They share the detent tags a38 to a40. |
 | Refusal reasons (unsure, category, no match, thin evidence, reader down) | The same sheet with a different sentence, so they share a42 and a43. The offline one has its own tag, a44, because it has its own markup. |
 | Verdict just saved acknowledgement (acked variant) | A line inside the verdict sheet, not a different view. |
-| Shin's docked face and its hints (aim hint, torch note, second-visit callback) | A caption on the camera, not a screen. It sits inside a32 to a36. |
+| Pexi's docked face and its hints (aim hint, torch note, second-visit callback) | A caption on the camera, not a screen. It sits inside a32 to a36. |
 | Eye marks over the feed (other-object buttons, barcode read mark) | Drawn on the camera surface, part of a32 to a35. |
 | You screen inner blocks (coverage failed, scan log, storage not kept line) | Inline sections of a66 that appear and vanish; nothing else on the page changes. |
 | Consent, setup and market storage-not-kept line | One inline sentence added to a screen that is already tagged. |

@@ -2,7 +2,7 @@
  * THE CATALOGUE-FIRST PATH, AT THE SOCKET.
  *
  * RULINGS.md "Catalogue first; Gemini is a capped fallback, never the identity"
- * (both founders, 2026-09-27): the catalogue names the product, Shin's own
+ * (both founders, 2026-09-27): the catalogue names the product, Pexi's own
  * prices give the range, and Gemini is only a capped fallback asked for a
  * typical range. "The beta keeps today's behaviour until one setting flips":
  * that setting is SHIN_CATALOGUE_FIRST, and the first test here pins that with
@@ -310,7 +310,7 @@ test('ON, catalogue hit with its own prices: identity from the catalogue, range 
   assert.equal(body.noRangeReason, null);
   assert.equal(body.shelfPrice, null);
   assert.equal(scanDouble.calls.length, scansBefore, 'the Gemini scan call was made on the catalogue path');
-  assert.equal(askCalls.length, asksBefore, 'the range ask was made although Shin had prices');
+  assert.equal(askCalls.length, asksBefore, 'the range ask was made although Pexi had prices');
   const row = scanRow(body.scanId);
   assert.equal(row.kind, 'barcode');
   assert.equal(row.outcome, 'answered');
@@ -344,7 +344,7 @@ test('ON, catalogue hit with only its category priced: a leaf_category range, sc
   assert.equal(row.range_basis, 'leaf_category');
 });
 
-test('ON, catalogue hit Shin cannot price: exactly one Claude range ask, zero Gemini calls, gemini_typical with its time', async () => {
+test('ON, catalogue hit Pexi cannot price: exactly one Claude range ask, zero Gemini calls, gemini_typical with its time', async () => {
   // RULINGS.md "Catalogue first; Claude, with no web search, is the capped
   // price-range fallback". Jamin, 2026-09-28: "We are not using gemini at all
   // for the client side answers"; `gemini_typical` is the historical wire value.

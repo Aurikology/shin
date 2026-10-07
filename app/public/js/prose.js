@@ -256,7 +256,7 @@ const CATEGORY_REASONS = {
   produce_no_shelf_price_source: (w) => {
     /* Rule 3, one layer in. A fact that is not there takes the REASON back to
      * the recorded English paragraph, not the whole refusal: the frame around
-     * it ("ce n'est pas quelque chose que Shin peut chiffrer") is built from
+     * it ("ce n'est pas quelque chose que Pexi peut chiffrer") is built from
      * the category alone and is still right. */
     for (const key of ['problemCount', 'plu', 'pluMeaning', 'pluInUseSince']) {
       if (w[key] === undefined || w[key] === null) return '';
@@ -428,10 +428,10 @@ const RENDERERS = {
   refusal_category_not_served: (f) => {
     const rebuild = CATEGORY_REASONS[f.whyCode];
     const reason = (typeof rebuild === 'function' ? rebuild(f.whyFacts ?? {}) : '') || f.why;
-    return `${categoryTitle(f)}, ce n'est pas quelque chose que Shin peut chiffrer pour l'instant. ${reason}`;
+    return `${categoryTitle(f)}, ce n'est pas quelque chose que Pexi peut chiffrer pour l'instant. ${reason}`;
   },
   refusal_identity_below_floor: (f) =>
-    `Je ne suis pas assez certain que ce soit le bon. Ce qui s'en approchait le plus, c'est « ${f.label} ». Choisis le bon et Shin va le chiffrer.`,
+    `Je ne suis pas assez certain que ce soit le bon. Ce qui s'en approchait le plus, c'est « ${f.label} ». Choisis le bon et Pexi va le chiffrer.`,
   refusal_no_price_for_product: (f) => `Rien n'a de prix pour « ${f.label} » en ce moment.`,
   refusal_asking_price_missing: () =>
     "J'ai trouvé des comparaisons, mais aucun prix pour la chose devant toi. Pointe l'étiquette.",

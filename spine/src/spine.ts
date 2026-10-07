@@ -125,7 +125,7 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
   if (rule.unsupported) {
     return refuse(
       'category_unsupported',
-      `${rule.label} is not something Shin can price yet. ${rule.unsupported.why}`,
+      `${rule.label} is not something Pexi can price yet. ${rule.unsupported.why}`,
       // `category` is the raw code and is what a French renderer keys on. The
       // label and the recorded `why` travel beside it as English prose owned by
       // `categories.ts`.
@@ -170,7 +170,7 @@ export async function priceIt(query: SpineQuery, deps: SpineDeps): Promise<Spine
   if (identity.confidence < rule.identityFloor) {
     return refuse(
       'identity_unsure',
-      `Not sure enough this is the right one. The closest match was "${identity.label}". Pick the right one and Shin will price it.`,
+      `Not sure enough this is the right one. The closest match was "${identity.label}". Pick the right one and Pexi will price it.`,
       say('refusal_identity_below_floor', { label: identity.label }),
       identity,
       [],

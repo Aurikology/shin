@@ -127,7 +127,7 @@ export function entitlementMode(env: NodeJS.ProcessEnv = process.env): Entitleme
 /** The one startup line, or null when RevenueCat is doing the checking. */
 export function entitlementStartupWarning(env: NodeJS.ProcessEnv = process.env): string | null {
   return entitlementMode(env) === 'client_trusted'
-    ? 'WARNING: REVENUECAT_SECRET_KEY is not set, so Shin Plus is whatever the phone says it is (x-shin-plus: 1). Beta only.'
+    ? 'WARNING: REVENUECAT_SECRET_KEY is not set, so Pexi Plus is whatever the phone says it is (x-shin-plus: 1). Beta only.'
     : null;
 }
 

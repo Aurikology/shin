@@ -2,8 +2,8 @@
  * The catalogue-first answer's arithmetic and word choices, with no DOM.
  *
  * RULINGS.md "Catalogue first; Gemini is a capped fallback, never the identity"
- * (2026-09-27): a barcode is named by Shin's own catalogue and its price range
- * comes from Shin's own prices by math, else its category's range, else (capped)
+ * (2026-09-27): a barcode is named by Pexi's own catalogue and its price range
+ * comes from Pexi's own prices by math, else its category's range, else (capped)
  * a typical range Gemini was asked for. The server sends that range as
  * `{ lowCents, highCents, medianCents, n, basis, category, currency, unit }`
  * (app/src/catalogue-first.ts, header). This file decides three things about it
@@ -19,7 +19,7 @@
  *      `rangesOf`, which fills the same defaults the server applies when the
  *      shopper set none (10 and 10), so an unset shopper is placed exactly where
  *      the server would place them. This is allowed on the client where the
- *      Gemini sheet's zone is not: a catalogue range is Shin's own data, not a
+ *      Gemini sheet's zone is not: a catalogue range is Pexi's own data, not a
  *      Grounded Result, so there is no term against doing the math here.
  *
  *   2. WHICH PROVENANCE LINE the basis gets (a ui-strings.js key and its facts).
@@ -111,7 +111,7 @@ export function shelfCentsOf(typedCents, wireShelf) {
  * The provenance line for a range, as `{ key, facts }` for `t()`. Facts arrive
  * unformatted except where noted; the caller formats the date.
  *
- *   this_product      "From Shin's own prices at N stores" (n is shops)
+ *   this_product      "From Pexi's own prices at N stores" (n is shops)
  *   leaf_category,    "From similar products in <category>" (the range's own
  *   parent_category    category, else the product's)
  *   gemini_typical    "A typical range estimated by AI, asked <date>"
