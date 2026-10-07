@@ -537,7 +537,7 @@ what it can, speaks only on four measured conditions. Barcode reading is continu
 every frame like a shift register; Scan sends only digits. Price-pad keys are at least 44×44 CSS
 px, 48-52px on the primary target. Torch is a user setting: auto-on at a slider brightness, or off
 with an on-screen too-dark prompt. · 2026-09-17 · log: docs/walkthrough/jamin-notes-2026-09-17.md#notes-typed-into-the-tabs
-Retired wording: `Move back instruction`, `The lighting is bad instruction`, `no automatic barcode detection`
+Retired wording: `Move back instruction`, `The lighting is bad instruction`, `no automatic barcode detection`, `refusal is a designed state`
 Governs: to fill
 ### Localization and onboarding
 Bilingual (Canadian French/English) from the first beta. French money prints 4,99 $ (comma

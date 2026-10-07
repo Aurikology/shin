@@ -18,6 +18,18 @@ section 10 and Phase 6 makes the edit. This file does not edit `DESIGN.md`.
 has been tested against a person or against a price. A default is a number the build is held to
 until real scans replace it.
 
+**RULINGS.md outranks every table below on what a scan ends in (aligned 2026-10-06).** Every scan
+that has a scan left ends in the answer chart, never a refusal ("V1 verdict screen mechanics",
+"Always answer"). The chart is spoken in his four words, great, good, reasonable or bad, against the
+shopper's own thresholds ("The verdict speaks his words"). Doubt is carried by confidence, never by
+withholding the answer: a low-confidence answer keeps its word, is drawn hollow, wears the plain
+face (`good` for a great zone, never `delighted`; `fair` for reasonable; `walk` for bad, never
+`angry`) and says why in a few words beside the word (the confidence gate, section 3). The refusal
+screens in Group D and the `unknown` face are no longer an outcome of a scan; they remain only for
+the moments where Shin has nothing to show yet (reading, asking, naming a barcode it does not know)
+and for a shopper who has run out of scans. Wherever a row below says refusal, read it with this
+paragraph first.
+
 **Hard rule 4 is the constraint the whole file is built around.** The aggression points at the
 price, the store, or the brand, and never at the user. Section 7 checks every Blunt line against
 it by name and records the lines that were deleted rather than softened.
@@ -127,7 +139,7 @@ Thirteen kept, one struck. The six in `DESIGN.md` section 3 are all kept and sev
 | `fair` | **Kept**, from `DESIGN.md` §3 | About the going rate. |
 | `walk` | **Kept**, from `DESIGN.md` §3 | Above what it goes for. |
 | `angry` | **Kept, added** | The intense form of `walk`. A rip-off, aimed at the price or the store. Thresholds below. |
-| `unknown` | **Kept**, from `DESIGN.md` §3 | The refusal face. Five of seven scans end here, and the owl note's fourth consequence is that this is the one state Duolingo never had to design: Duo's job is to make "do it again" unavoidable, and Shin's is to make "I do not know" survivable. It reads as a professional declining to guess, never as an apology for failing the user. |
+| `unknown` | **Kept**, from `DESIGN.md` §3 | The face for the moments Shin has nothing to show yet: reading, asking, naming an unknown barcode, and a shopper who has run out of scans. It is not the end of a scan (RULINGS "Always answer": every scan with a scan left ends in the chart), and a low-confidence answer never wears it; that answer keeps its word and the plain face. It reads as a professional who is short of one input, never as an apology for failing the user. |
 | `pleased` | **Kept**, from `DESIGN.md` §3 | Something landed: a save, a correction, a Keep it, a feedback tap. |
 | `nudging` | **Kept, added, narrowed** | A watched price moved. **Nothing else may ever trigger it.** The candidate in the brief included a refilled meter; that is struck, because a refilled meter is an occasion Shin manufactured, which is the guilt engine wearing a friendlier face (`notes/duolingo-owl.md` §5, sixth consequence). Not reachable in v1: there is no feed. |
 | `asleep` | **Kept, added** | An empty screen with nothing to say. The watchlist is empty for every new user and is one of the most common screens early on. Asleep is honest and it is not a reproach. |
@@ -552,7 +564,7 @@ did something.
 > us." (his words on approving `docs/design/brief-usage-and-avatar.md`)
 
 Shin's user, held fixed for every line below: **a window shopper holding a phone up in a store
-aisle, standing in front of one price, one handed, where five of seven scans end in a refusal.**
+aisle, standing in front of one price, one handed, who gets an answer on every scan and is told how far to trust it.**
 "Duolingo does it" and "OLMA does it" are not reasons and appear nowhere in this section.
 
 ### Borrowed from Duolingo's owl
@@ -581,7 +593,7 @@ aisle, standing in front of one price, one handed, where five of seven scans end
 | Intensity in the verdict, "Outrageous" | audit row 52, adapt | The word is aimed at the price, which is exactly what hard rule 4 requires, and it is the evidence that a merely negative verdict under-serves someone standing in front of a genuine rip-off. Shin's spin: a face rather than an icon, and the intense form gated on confidence so it can never fire on thin evidence |
 | A one tap correctness signal, with an undoable acknowledgement | audit rows 64 and 65 | Someone in an aisle often knows the verdict is wrong without knowing the right number, and one tap is the only signal they can give while moving. Calibration is the product's first priority, so it is the highest value tap on the screen |
 | The market named on the verdict | audit row 58, §5 item 8 | "Above what it goes for" has no referent for a person in a Canadian aisle unless the market is named, and an unscoped range is a confidently wrong verdict waiting to happen |
-| A text route out of a failure | audit rows 17, 88, 89 | Five of seven scans refuse, and typing a name is the cheapest second route for someone already holding the phone with the box in front of them |
+| A text route out of a failure | audit rows 17, 88, 89 | A barcode Shin does not know asks for the name, and typing it is the cheapest second route for someone already holding the phone with the box in front of them; it ends in the chart, never a dead end |
 | Recovery for a deleted item | audit row 75 | A saved scan is the only record of what a thing cost when they looked, and nothing Shin holds can rebuild it |
 | One verdict object rendered everywhere | audit row 70, §4 item 8 | OLMA called one scan "Outrageous" on the result screen and badged the same scan "Fair Price" in the list. For a product whose only value is being trusted about a number, two answers for one scan is the whole product failing at once |
 | The verdict never rewrites under the reader | audit row 53, §4 item 5 | OLMA's sentence changed at t=50 after being readable at t=49. Shin's version of that failure would be a face that re-morphs while they read, so section 5 forbids it outright |
@@ -609,7 +621,7 @@ One line each, with the reason.
 | The mid-lesson reward interstitial | owl mapping row 8 | There is no mid. One shutter press produces one verdict, and a celebration inserted before the answer is a delay dressed as a reward |
 | Leaderboards | owl mapping row 21 | Ranking by scans pays for scanning noise; ranking by "good prices found" pays for inventing them. Handed to Phase 5 with the condition that reverses it |
 | A note from the character in merchandise | owl mapping row 23 | No merchandise, no audience, and no cleared name |
-| The retention multiple as a reason to build any of it | owl §3, "His claim" | No source found attributes a retention multiple to the mascot. The evidence supports a weaker and more useful claim: the mascot is the delivery vehicle that made a stack of small mechanics tolerable, not the mechanic itself. **This file is built on that reading**, which is why the avatar's most important state is `unknown`: the job is to make an honest refusal survivable, five times out of seven, and that is a job Duo never had to do because Duolingo always has an answer |
+| The retention multiple as a reason to build any of it | owl §3, "His claim" | No source found attributes a retention multiple to the mascot. The evidence supports a weaker and more useful claim: the mascot is the delivery vehicle that made a stack of small mechanics tolerable, not the mechanic itself. **This file is built on that reading**, which is why the avatar's most important job is the plain face on a low-confidence answer: to carry doubt next to a word that is still given (RULINGS "Always answer"), a job Duo never had to do because Duolingo always has an answer |
 
 ---
 
