@@ -161,6 +161,10 @@ The answer sheet used to show the verdict tags a38 to a40 and its could-not-answ
 | a100 | Price verdict bell, first look (his word, the bell, Save) | Any scan whose answer carries a verdict (kind distribution). With no shelf price yet the bell shows a price field. | `app/public/js/screens/camera.js` |
 | a101 | Price verdict bell, half open (notes, prices seen, correct it) | Price verdict bell, tap or drag the grabber up once. | `app/public/js/screens/camera.js` |
 | a102 | Price verdict bell, fully open (thumbs, Done) | Price verdict bell, tap or drag the grabber up twice. | `app/public/js/screens/camera.js` |
+| a103 | Page: Terms of Use | You, Terms of use. Or open /legal/terms.html. The tag is in the page source as a meta tag; no badge is drawn. | `app/public/legal/terms.html` |
+| a104 | Page: Privacy Policy | You, Privacy policy. Or open /legal/privacy.html. The tag is in the page source as a meta tag; no badge is drawn. | `app/public/legal/privacy.html` |
+| a105 | Page: Terms of Use, French | Terms of Use, tap the French link at the top. Or open /legal/terms-fr.html. No badge is drawn. | `app/public/legal/terms-fr.html` |
+| a106 | Page: Privacy Policy, French | Privacy Policy, tap the French link at the top. Or open /legal/privacy-fr.html. No badge is drawn. | `app/public/legal/privacy-fr.html` |
 
 ## Not tagged, with reason
 

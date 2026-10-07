@@ -33,6 +33,9 @@ import {
 } from '../onboarding-flow.js';
 import { say } from '../voice.js';
 import { panelHtml, paintPanel, tapPermission, fillDemoSlot } from '../permissions-panel.js';
+import { FLAGS } from '../flags.js';
+import { locale as currentLocale } from '../lib/locale.js';
+import { planFacts } from '../plus-config.js';
 
 const DEPS = { store, track };
 
@@ -46,15 +49,15 @@ function answersNow() {
 }
 
 /** One option button. `sub` is the small line under the label, when it has one. */
-function optionHtml(step, opt, chosen) {
+function optionHtml(step, opt, chosen, facts = {}) {
   const role = step.multi ? 'checkbox' : 'radio';
-  const sub = t(`onb_${step.id}_${opt}_sub`);
+  const sub = t(`onb_${step.id}_${opt}_sub`, facts);
   const hasSub = !sub.startsWith('onb_');
   return `
     <button type="button" class="onb-opt${chosen ? ' on' : ''}" role="${role}"
             aria-checked="${chosen}" data-opt="${escapeHtml(opt)}">
       <span class="onb-opt-text">
-        <b>${escapeHtml(t(`onb_${step.id}_${opt}`))}</b>
+        <b>${escapeHtml(t(`onb_${step.id}_${opt}`, facts))}</b>
         ${hasSub && sub ? `<small>${escapeHtml(sub)}</small>` : ''}
       </span>
       ${TICK}
@@ -85,7 +88,10 @@ function face(state, size) {
 function listBody(step) {
   const items = [];
   for (let i = 1; i <= step.items; i += 1) {
-    items.push(`<li>${TICK}<span>${escapeHtml(t(`onb_${step.id}_${i}`))}</span></li>`);
+    /* D33: with photo identification off there is no photo of a price tag to take, so
+       the accuracy tip names typing the price instead. */
+    const key = step.id === 'tip_accuracy' && i === 2 && !FLAGS.photoId ? `onb_${step.id}_${i}_nophoto` : `onb_${step.id}_${i}`;
+    items.push(`<li>${TICK}<span>${escapeHtml(t(key))}</span></li>`);
   }
   return `<h1>${escapeHtml(t(`onb_${step.id}_title`))}</h1><ul class="onb-list">${items.join('')}</ul>`;
 }
@@ -241,7 +247,7 @@ export { demoResultHtml } from '../permissions-panel.js';
 
 function trialBody() {
   return `${face('delighted', 120)}<h1>${escapeHtml(t('onb_trial_title'))}</h1>
-    <p class="onb-note">${escapeHtml(t('onb_trial_note'))}</p>`;
+    <p class="onb-note">${escapeHtml(t('onb_trial_note', planFacts(currentLocale())))}</p>`;
 }
 
 function bodyFor(step, answers, replay) {
@@ -271,7 +277,7 @@ function bodyFor(step, answers, replay) {
 function planOptions(answers) {
   const step = stepById('plans');
   return `<div class="onb-opts" role="radiogroup" aria-labelledby="onb-q">${
-    step.options.map((o) => optionHtml(step, o, answers[step.key] === o)).join('')}</div>
+    step.options.map((o) => optionHtml(step, o, answers[step.key] === o, planFacts(currentLocale()))).join('')}</div>
     <p class="fineprint"><span class="onb-demo-badge">${escapeHtml(t('onb_plans_badge'))}</span> ${
       escapeHtml(t('onb_plans_stub'))}</p>`;
 }
@@ -378,18 +384,30 @@ export default {
       const bar = root.querySelector('[data-eval-bar]');
       const out = root.querySelector('[data-eval-pct]');
       const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-      /* One stage at a time; the bar is exactly the share of stages done. */
+      /* D35 (2026-10-06): the figure is computed from the clock and the real stage
+         count, never typed in. Each stage has a due time; the bar is the share of
+         stages whose time has passed, read from Date.now() on every tick, so a
+         throttled or late timer jumps to the right figure instead of freezing on
+         the last one it managed to paint (a screenshot caught it stuck at 33). */
       const paint = (done) => {
         const pct = Math.round((done / rows.length) * 100);
         bar.setAttribute('aria-valuenow', String(pct));
         bar.querySelector('i').style.transform = `scaleX(${pct / 100})`;
         out.textContent = `${pct}%`;
       };
-      rows.forEach((r, i) => {
-        const finish = () => { r.classList.add('done'); paint(i + 1); };
-        if (reduced) finish();
-        else timers.push(setTimeout(finish, 700 + i * 800));
-      });
+      const due = (i) => 700 + i * 800;
+      const startedAt = Date.now();
+      const settle = () => {
+        const elapsed = reduced ? Infinity : Date.now() - startedAt;
+        const done = rows.filter((_, i) => elapsed >= due(i)).length;
+        rows.forEach((r, i) => r.classList.toggle('done', i < done));
+        paint(done);
+        return done === rows.length;
+      };
+      if (rows.length && bar && out && !settle()) {
+        const tick = setInterval(() => { if (settle()) clearInterval(tick); }, 100);
+        timers.push(tick);
+      }
     }
 
     /* Step 24's switches, its camera prompt and its demo card all live in
@@ -448,9 +466,10 @@ export default {
         return;
       }
 
-      const perm = e.target.closest('[data-perm]');
+      /* D23: the whole row is the target, not only the small switch inside it. */
+      const perm = e.target.closest('[data-perm-row]');
       if (perm) {
-        await tapPermission(root, ctx, perm.dataset.perm, (key, value) => {
+        await tapPermission(root, ctx, perm.dataset.permRow, (key, value) => {
           /* The camera prompt is awaited, so the screen can be gone by the
              time the phone answers. Unchanged from before the extraction:
              a step that was left records nothing. */

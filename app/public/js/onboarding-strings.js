@@ -114,7 +114,7 @@ export const ONB_EN = {
   onb_compare_without: 'Without SHIN',
   onb_compare_without_sub: 'Guessing shelf prices',
   onb_compare_with: 'With SHIN',
-  onb_compare_with_sub: 'Instant barcode scan & price history',
+  onb_compare_with_sub: 'Instant barcode scan and a verdict on the price',
 
   /* 16 */
   onb_frustration_q: 'What’s your biggest frustration when shopping?',
@@ -142,7 +142,7 @@ export const ONB_EN = {
   onb_preparing_discount: 'Target Discount %',
   onb_preparing_stores: 'Preferred Stores',
   onb_preparing_radius: 'Deal Alert Radius',
-  onb_preparing_history: 'Price History Database',
+  onb_preparing_history: 'Prices seen before',
   onb_preparing_tracker: 'Savings Tracker',
 
   /* 21, a figure step */
@@ -156,9 +156,12 @@ export const ONB_EN = {
   onb_signin_email: 'Continue with email',
 
   /* 23 */
-  onb_trial_title: 'We want you to try SHIN Pro for free',
-  onb_trial_note: 'No Payment Due Now',
-  onb_trial_try: 'Try Now',
+  /* D32, 2026-10-06: this step promised a free trial of "SHIN Pro". There is no
+     trial and no product called Pro: the plan is Shin Plus, with the two prices
+     from plus-config.js (RULINGS.md "Shin Plus pricing and free scans"). */
+  onb_trial_title: 'Shin Plus is for unlimited scans',
+  onb_trial_note: (f) => `${f.monthly} a month or ${f.yearly} a year, and you choose on the next screen.`,
+  onb_trial_try: 'See the plans',
 
   /* 24 */
   onb_perm_title: 'Enable camera & location permissions to scan and compare local deals',
@@ -175,19 +178,20 @@ export const ONB_EN = {
   onb_see_demo: 'See a demo scan',
   onb_demo_badge: 'DEMO',
   onb_demo_unavailable: 'The demo scan is not available yet.',
+  onb_demo_loading: 'Fetching the demo scan...',
 
   /* 25 */
-  onb_plans_title: 'Start your 3-day FREE trial to unlock unlimited scans',
-  onb_plans_annual: '$39.99 billed annually',
-  onb_plans_annual_sub: '($3.33/mo)',
-  onb_plans_monthly: '$12.99/mo',
+  onb_plans_title: 'Choose a plan to unlock unlimited scans',
+  onb_plans_annual: (f) => `${f.yearly} billed annually`,
+  onb_plans_annual_sub: (f) => `(${f.perMonth}/mo)`,
+  onb_plans_monthly: (f) => `${f.monthly}/mo`,
   /* The plan step sells nothing: no billing exists, `store.js` never sets
      `proUntil`, and the flow finishes whatever was tapped. Kept rather than
      deleted (Aurik, 2026-09-21) so the shape of the product stays visible, and
      marked so a tester cannot read the prices as real. Same two-part shape as
      the demo scan above: a plain badge, and one plain line. */
   onb_plans_badge: 'NOT LIVE',
-  onb_plans_stub: 'These prices are a placeholder. Nothing is charged, nothing is unlocked, and every plan finishes the same way.',
+  onb_plans_stub: 'These are the real plan prices, but this step charges nothing and unlocks nothing. Subscribe from the Shin Plus screen.',
 
   /* 26 to 29 */
   onb_tip_scan_title: 'Get the best scan',
@@ -205,6 +209,7 @@ export const ONB_EN = {
   onb_tip_accuracy_title: 'For highest accuracy',
   onb_tip_accuracy_1: 'Scan the barcode',
   onb_tip_accuracy_2: 'Or take a photo of the shelf price tag',
+  onb_tip_accuracy_2_nophoto: 'Or type the price you see on the tag',
   onb_tip_accuracy_3: 'Alternatively, search the product database',
 
   /* 31: his "Evaluating Deal..." with a progress bar. The status line is his; the
@@ -299,7 +304,7 @@ export const ONB_FR = {
   onb_compare_without: 'Sans SHIN',
   onb_compare_without_sub: 'Deviner les prix en tablette',
   onb_compare_with: 'Avec SHIN',
-  onb_compare_with_sub: 'Scan instantané du code-barres et historique des prix',
+  onb_compare_with_sub: 'Scan instantané du code-barres et un verdict sur le prix',
 
   onb_frustration_q: 'Quelle est ta plus grande frustration en magasinant?',
   onb_frustration_fake: 'Les faux rabais ou les rabais trompeurs',
@@ -322,7 +327,7 @@ export const ONB_FR = {
   onb_preparing_discount: 'Rabais visé en %',
   onb_preparing_stores: 'Magasins préférés',
   onb_preparing_radius: 'Rayon des alertes',
-  onb_preparing_history: 'Base de l’historique des prix',
+  onb_preparing_history: 'Prix déjà vus',
   onb_preparing_tracker: 'Suivi des économies',
 
   onb_progress_title: (f) => `Objectif : économiser ${f.n} $`,
@@ -333,9 +338,9 @@ export const ONB_FR = {
   onb_signin_google: 'Se connecter avec Google',
   onb_signin_email: 'Continuer avec un courriel',
 
-  onb_trial_title: 'On veut que tu essaies SHIN Pro gratuitement',
-  onb_trial_note: 'Aucun paiement dû maintenant',
-  onb_trial_try: 'Essayer',
+  onb_trial_title: 'Shin Plus sert à scanner sans limite',
+  onb_trial_note: (f) => `${f.monthly} par mois ou ${f.yearly} par année, et tu choisis à l’écran suivant.`,
+  onb_trial_try: 'Voir les forfaits',
 
   onb_perm_title: 'Active la caméra et la localisation pour scanner et comparer les rabais près de toi',
   onb_perm_camera: 'Accès à la caméra',
@@ -346,13 +351,14 @@ export const ONB_FR = {
   onb_see_demo: 'Voir un exemple de scan',
   onb_demo_badge: 'DÉMO',
   onb_demo_unavailable: 'L’exemple de scan n’est pas encore disponible.',
+  onb_demo_loading: 'Chargement de l’exemple de scan...',
 
-  onb_plans_title: 'Commence ton essai GRATUIT de 3 jours pour scanner sans limite',
-  onb_plans_annual: '39,99 $ facturés par année',
-  onb_plans_annual_sub: '(3,33 $/mois)',
-  onb_plans_monthly: '12,99 $/mois',
+  onb_plans_title: 'Choisis un forfait pour scanner sans limite',
+  onb_plans_annual: (f) => `${f.yearly} facturés par année`,
+  onb_plans_annual_sub: (f) => `(${f.perMonth}/mois)`,
+  onb_plans_monthly: (f) => `${f.monthly}/mois`,
   onb_plans_badge: 'PAS ACTIF',
-  onb_plans_stub: 'Ces prix sont un espace réservé. Rien n’est facturé, rien n’est débloqué, et tous les forfaits se terminent de la même façon.',
+  onb_plans_stub: 'Ce sont les vrais prix des forfaits, mais cette étape ne facture rien et ne débloque rien. Abonne-toi depuis l’écran Shin Plus.',
 
   onb_tip_scan_title: 'Pour le meilleur scan',
   onb_tip_scan_1: 'Ne bouge pas',
@@ -369,6 +375,7 @@ export const ONB_FR = {
   onb_tip_accuracy_title: 'Pour la meilleure précision',
   onb_tip_accuracy_1: 'Scanne le code-barres',
   onb_tip_accuracy_2: 'Ou prends une photo de l’étiquette de prix',
+  onb_tip_accuracy_2_nophoto: 'Ou tape le prix que tu vois sur l’étiquette',
   onb_tip_accuracy_3: 'Ou cherche dans la base de produits',
 
   onb_eval_title: 'Évaluation de l’aubaine...',

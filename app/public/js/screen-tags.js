@@ -166,6 +166,10 @@ export const SCREEN_TAGS = {
   a100: { id: 'camera.bell.peek', title: 'Price verdict bell, first look (his word, the bell, Save)', kind: 'sheet', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.sheet.verdict.dist[data-detent="peek"]', rank: 41, how: 'Any scan whose answer carries a verdict (kind distribution). With no shelf price yet the bell shows a price field.' },
   a101: { id: 'camera.bell.half', title: 'Price verdict bell, half open (notes, prices seen, correct it)', kind: 'sheet', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.sheet.verdict.dist[data-detent="half"]', rank: 41, how: 'Price verdict bell, tap or drag the grabber up once.' },
   a102: { id: 'camera.bell.full', title: 'Price verdict bell, fully open (thumbs, Done)', kind: 'sheet', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.sheet.verdict.dist[data-detent="full"]', rank: 41, how: 'Price verdict bell, tap or drag the grabber up twice.' },
+  a103: { id: 'page.legal-terms', title: 'Page: Terms of Use', kind: 'static', file: 'app/public/legal/terms.html', route: null, how: 'You, Terms of use. Or open /legal/terms.html. The tag is in the page source as a meta tag; no badge is drawn.' },
+  a104: { id: 'page.legal-privacy', title: 'Page: Privacy Policy', kind: 'static', file: 'app/public/legal/privacy.html', route: null, how: 'You, Privacy policy. Or open /legal/privacy.html. The tag is in the page source as a meta tag; no badge is drawn.' },
+  a105: { id: 'page.legal-terms-fr', title: 'Page: Terms of Use, French', kind: 'static', file: 'app/public/legal/terms-fr.html', route: null, how: 'Terms of Use, tap the French link at the top. Or open /legal/terms-fr.html. No badge is drawn.' },
+  a106: { id: 'page.legal-privacy-fr', title: 'Page: Privacy Policy, French', kind: 'static', file: 'app/public/legal/privacy-fr.html', route: null, how: 'Privacy Policy, tap the French link at the top. Or open /legal/privacy-fr.html. No badge is drawn.' },
 };
 
 /**

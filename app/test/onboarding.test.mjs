@@ -286,19 +286,62 @@ test('every step can be left with nothing chosen, and Skip leaves from any step'
 
 /* ------------------------------------------------------------ 4. paywall */
 
-test('the paywall shows his text and his prices as given', () => {
+test('the plan steps show the real plan prices, no invented trial and no "SHIN Pro" (D32)', () => {
   resetStore();
   const trial = render('trial');
-  assert.match(trial.html, /We want you to try SHIN Pro for free/);
-  assert.match(trial.html, /No Payment Due Now/);
-  assert.match(trial.html, /Try Now/);
+  assert.match(trial.html, /Shin Plus is for unlimited scans/);
+  assert.match(trial.html, /CA\$3\.99 a month or CA\$29\.99 a year/);
+  assert.match(trial.html, /See the plans/);
+  assert.doesNotMatch(trial.html, /SHIN Pro|free trial|No Payment Due/i);
   trial.cleanup();
   const plans = render('plans');
-  assert.match(plans.html, /Start your 3-day FREE trial to unlock unlimited scans/);
-  assert.match(plans.html, /\$39\.99 billed annually/);
-  assert.match(plans.html, /\(\$3\.33\/mo\)/);
-  assert.match(plans.html, /\$12\.99\/mo/);
+  assert.match(plans.html, /Choose a plan to unlock unlimited scans/);
+  assert.match(plans.html, /CA\$29\.99 billed annually/);
+  assert.match(plans.html, /\(CA\$2\.50\/mo\)/);
+  assert.match(plans.html, /CA\$3\.99\/mo/);
+  assert.doesNotMatch(plans.html, /3-day|FREE trial|39\.99|12\.99|3\.33|placeholder/i);
   plans.cleanup();
+});
+
+test('the comparison step claims no price history the app does not show (D34)', () => {
+  assert.doesNotMatch(strings.ONB_EN.onb_compare_with_sub, /history/i);
+  assert.doesNotMatch(strings.ONB_EN.onb_preparing_history, /history database/i);
+  assert.doesNotMatch(strings.ONB_FR.onb_compare_with_sub, /historique/i);
+});
+
+test('with photo identification off the accuracy tip names typing, not a photo (D33)', () => {
+  const tips = render('tip_accuracy');
+  assert.doesNotMatch(tips.html, /photo/i);
+  assert.match(tips.html, /type the price you see on the tag/i);
+  tips.cleanup();
+});
+
+test('the evaluating figure follows the clock and the stage count, and lands on 100 even if ticks run late (D35)', (ctx) => {
+  ctx.mock.timers.enable({ apis: ['setInterval', 'Date'] });
+  resetStore();
+  const stageEls = [0, 1, 2].map(() => {
+    const classes = new Set();
+    return { classes, classList: { add: (c) => classes.add(c), toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)) } };
+  });
+  const fill = { style: {} };
+  const bar = { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, querySelector: () => fill };
+  const out = { textContent: '' };
+  const root = doc.createElement('div');
+  root.querySelectorAll = (sel) => (sel === '[data-eval-stage]' ? stageEls : []);
+  root.querySelector = (sel) => (sel === '[data-eval-bar]' ? bar : sel === '[data-eval-pct]' ? out : null);
+  const cleanup = screen.render(root, {
+    params: { step: 'evaluating' }, api: { postConsent() {}, postEvent() {} }, go() {}, replace() {},
+  });
+  assert.equal(out.textContent, '0%');
+  ctx.mock.timers.tick(800);
+  assert.equal(out.textContent, '33%', 'one stage of three is due at 700 ms');
+  assert.equal(bar.attrs['aria-valuenow'], '33');
+  ctx.mock.timers.tick(800);
+  assert.equal(out.textContent, '67%');
+  ctx.mock.timers.tick(800);
+  assert.equal(out.textContent, '100%', 'the figure froze before the last stage');
+  assert.ok(stageEls.every((s) => s.classes.has('done')));
+  cleanup?.();
 });
 
 test('the paywall does not block: Continue and Not now both go on, and Pro is never granted', async () => {
