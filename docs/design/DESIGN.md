@@ -1,6 +1,10 @@
 # Shin DESIGN.md
 
-**`USAGE.md` wins on sequence, `AVATAR.md` wins on the face.**
+Brought in line with RULINGS.md 2026-10-06.
+
+**`USAGE.md` wins on sequence, `AVATAR.md` wins on the face.** `RULINGS.md` outranks all three
+("Governance: which document outranks which"); where this file disagrees with it, this file is
+wrong.
 
 The design system for the Shin app. This file is the source for colour, type, motion, component
 definition and the screen list. If a screen and this file disagree, this file wins and the screen
@@ -10,7 +14,8 @@ triggers, thresholds, lines, sizes and animations, `docs/design/AVATAR.md` wins 
 Written 2026-09-03, folded together with those two files 2026-09-04.
 
 Shin is a mascot-led price scanner. You point your phone at a thing and a face tells you whether
-the price is fair, or tells you honestly that it does not know.
+the price in front of you is great, good, reasonable or bad, drawn as a bell chart of what this item
+usually costs. It always answers; when it is less sure, the drawing says so.
 
 ---
 
@@ -27,14 +32,17 @@ price pad, the work, the verdict, and the correction. The pad and the correction
 `USAGE.md`, which wins on sequence; section 4 carries the detail.
 
 **Law 2. Hue is the verdict, saturation is the confidence.** The product's whole output is a
-three way judgment carrying an uncertainty. Colour has to carry both. A confident walk away is a
-solid saturated field. A thin one is the same hue, hollow, outlined. This makes calibration
+four word judgment (great, good, reasonable, bad), set against the shopper's own thresholds, and it
+carries an uncertainty. Colour has to carry both. A confident bad price is a solid saturated field.
+A low confidence one is the same hue, hollow, outlined, on a wider bell. This makes calibration
 something the user sees rather than something a footnote claims.
 
-**Law 3. A refusal is a screen, not an error.** Five of the seven things Shin knows about end in
-a refusal, so refusal is the most common outcome of the primary action, not an edge case. It is
-grey, never red, because red means the price is bad and must never be confused with "no data". It
-always hands back one thing the user can do.
+**Law 3. Every scan with a scan left ends in the answer.** Shin never refuses and never hands back
+a "don't know" screen (RULINGS.md "Always answer, never refuse for wasting time" and "V1 verdict
+screen mechanics"). Doubt is drawn, not announced instead of an answer: low confidence is a wider
+bell, a hollow hue, a plain face and one "not fully confident" line beside the answer. The only
+scan that does not end in the chart is the shopper's who has run out of scans, who gets the
+paywall. Red means the price is bad and never means doubt.
 
 ---
 
@@ -74,20 +82,27 @@ like this survives contact with a hurry. `DEFECTS.md` D-085 and build standard 4
 
 This is Shin's own colour. It is the wordmark and the shutter ring, and it is the colour a share
 card is recognised by in someone else's screenshot. **It is never a verdict.** It does not appear
-on the verdict surface at all, which is what keeps it from being mistaken for walk away in a
+on the verdict surface at all, which is what keeps it from being mistaken for a bad price in a
 screenshot. That collision is real in the current app and this rule is the fix.
 
 ### Verdict
 
-Four states, not three, because the refusal is one of them. Each has a base for chrome and a
-bright for use over a live camera feed in a well lit store.
+Four words, in the shopper's own terms: great, good, reasonable, bad. The zone is where the
+shopper's price falls against Shin's estimated typical price for this item, using the shopper's
+own thresholds. Defaults, from the 2026-09-17 setup screens: great 30% or more under, good 20% or
+more under, bad 20% or more over, reasonable in between ("The verdict speaks his words against the
+shopper's own thresholds"). The typical price is always labelled as Shin's estimate. There is no
+"saved" wording and no savings tally.
+
+The colour tokens in `tokens.css` predate the four words and keep their names for now. Each has a
+base for chrome and a bright for use over a live camera feed in a well lit store.
 
 | State | Means |
 | --- | --- |
-| `good` | Cheaper than it usually goes for |
-| `fair` | About the going rate |
-| `walk` | Above what it goes for |
-| `unknown` | Shin will not call it |
+| `good` | Great and good: under the typical price by the shopper's good threshold or more. Great is the same hue with the `delighted` face; it has no token of its own yet, which is an open design call |
+| `fair` | Reasonable: between the good and bad thresholds, about the going rate |
+| `walk` | Bad: over the typical price by the shopper's bad threshold or more |
+| `unknown` | Not an outcome. Retired as a verdict state 2026-09-30; no answer is drawn in it |
 
 Each state has three tokens in `tokens.css`: `--<state>` is the FILL of a field, `--<state>-on` is
 the text drawn ON that field, and `--<state>-bright` is the same hue lifted for use as text or as a
@@ -102,17 +117,20 @@ and `fair` at 3.39 that fail instead, so testing one theme proves nothing. Tier-
 `--<state>-bright`, which clears everywhere. Earned by D-086 on the share card and by the same
 shape already fixed on the verdict sheet.
 
-### Confidence, expressed in fill
+### Confidence, expressed in fill and in the width of the bell
 
-The same hue, four treatments. This is Law 2 made concrete and it is the most important visual
-rule in the product.
+The same hue, three treatments. This is Law 2 made concrete and it is the most important visual
+rule in the product. Confidence is high, medium or low (`docs/verdict-distribution-design-2026-09-30.md`),
+and less sure always means a wider bell, never a missing answer.
 
 | Confidence | Treatment | Earned by |
 | --- | --- | --- |
-| Certain | 100% solid field, no border, dot meter 4/4 | Four or more sellers, all seen inside the category's freshness window |
-| Fairly sure | 100% solid field, 1px inner hairline at 20% white, dot meter 3/4 | Two or three sellers |
-| Thin | 12% tint of the hue, 2px solid border in the hue, dot meter 2/4 | One seller, or points ageing out |
-| Refuses | `unknown` at 12%, 2px dashed border, no dots | Below the minimum, wrong category, or identity too weak |
+| Certain (high) | 100% solid field, no border, narrow bell, dot meter 3/3 | This item's own prices from three or more shops, fresh |
+| Fairly sure (medium) | 100% solid field, 1px inner hairline at 20% white, dot meter 2/3 | Own prices from one or two shops, or the same product in another size, or a leaf category with 20 or more priced products |
+| Not fully confident (low) | 12% tint of the hue, 2px solid border in the hue, widest bell, plain face, dot meter 1/3, and the line "we are not fully confident in this answer" beside the answer | Everything else, down to a category prior or Claude's typical-price estimate |
+
+There is no fourth, grey treatment: the old dashed refusal fill is retired. The three levels above
+are confidence guesses until the price bench can score each source (the distribution design says so).
 
 A hollow verdict and a solid verdict must never be mistaken for one another at arm's length. If a
 mockup makes them look alike, the mockup is wrong.
@@ -159,7 +177,7 @@ today at 90px with dot eyes.
 Drawn as SVG, on a circle, and it must carry an `xmlns` so it survives being rasterised to a
 share card. Stroke weight scales with the circle, it is not fixed.
 
-**96px is the floor for a face that carries a verdict or a refusal**, not for every face on the
+**96px is the floor for a face that carries a verdict**, not for every face on the
 verdict surface. The earlier wording said "minimum on-screen diameter on the verdict surface is
 96px", and that is wrong for the faces that carry no verdict: `thinking` and `asking` sit at 76px
 on that same surface and an acknowledgement replacing a verdict in place sits at 62px. The six
@@ -175,19 +193,22 @@ source for all three.
 `idle` · `thinking` · `asking` · `good` · `delighted` · `fair` · `walk` · `angry` · `unknown` ·
 `pleased` · `nudging` · `asleep` · `proud`
 
-What stays in this file is the mapping from the four verdict tiers to their faces, because that is
-a colour-system fact: `good` `fair` `walk` `unknown` are the four tier faces, and `unknown` is the
-refusal face, which is a face and not a shrug icon. `delighted` and `angry` are the intense forms
-of `good` and `walk`, not extra tiers; the field colour under them is the tier's own.
+What stays in this file is the mapping from the verdict words to their faces, because that is a
+colour-system fact: the verdict is one face per tier, not a number. `good`, `fair` and `walk` are
+the tier faces for good, reasonable and bad, and `delighted` is the face great gets. `unknown` is
+no longer a tier face or an outcome: nothing is refused, so no answer is drawn with it (the face
+file stays in the set until `AVATAR.md` rules on it). `delighted` and `angry` are the intense forms,
+not extra tiers; the field colour under them is the tier's own.
 
 `greeting` was considered and struck, with the reason in `AVATAR.md` section 2.
 
 ### The confidence gate on the intense forms
 
 `delighted` and `angry` require the **Certain** or **Fairly sure** treatment from section 1 and
-degrade to the plain `good` or `walk` face otherwise. A thin verdict never gets an intense face
-and never gets a loud line. An intense face on a hollow field is a wrong verdict delivered
-loudly, which is the outcome the priority order exists to prevent. The numeric thresholds that
+degrade to the plain `good` or `walk` face otherwise, so a low confidence great price gets the
+plain `good` face. A low confidence verdict never gets an intense face and never gets a loud line.
+An intense face on a hollow field is a wrong verdict delivered loudly, which is the outcome the
+priority order exists to prevent. The numeric thresholds that
 earn each intense form are `AVATAR.md` section 2.
 
 ### The target rule
@@ -242,10 +263,10 @@ centred, 14px above the bar) and the bottom bar. Nothing else sits on the pictur
 centres in the free space between the two bands, and at idle the feed outside the frame is a
 quarter darker so the eye goes to the brackets. Changed 2026-09-10 from a top-left dock under the
 wordmark, which competed with it. The help affordance
-that used to sit top right is gone: the tips appear inside the refusal panel, at the only moment
-they mean anything (OLMA audit rows 19, 31 and 87, and rows 35 and 90 for the torch, which is a
-take because grocery aisles have bottom shelves and glass doors and a dark photo is one of the
-fixable causes of a refusal).
+that used to sit top right is gone: the tips appear in the low confidence line under the answer,
+at the only moment they mean anything (OLMA audit rows 19, 31 and 87, and rows 35 and 90 for the
+torch, which is a take because grocery aisles have bottom shelves and glass doors and a dark photo
+is one of the fixable causes of a weak read).
 
 **The hint pill is conditional, not permanent.** It carries the `idle` face and the aiming line
 while nothing is detected, and it vanishes the instant the reticle catches (OLMA audit row 34,
@@ -295,12 +316,14 @@ the verdict, and the correction.
 - **The work is a screen, not a spinner.** While Shin runs, the `thinking` face carries the named
   step. The item the user picked is echoed beside it. A downward drag aborts the run, and the repair action is
   live during the wait rather than only after the failure (OLMA audit rows 47, 48, 49, 50, all
-  take). When the run ends in a refusal, **the step that came up empty is named in the refusal
-  panel**, in provenance mono. This file had motion for the verdict arriving and nothing at all for
-  the ten seconds before it; this is the fix. The engine budget is 0.8s at p50 with a hard cap of
-  2.5s, and **past six seconds the sheet converts to a refusal rather than continuing to spin**,
-  because a product about instant checking that spins is lying about its own promise
-  (`USAGE.md` drop-off 8).
+  take). When a step comes up empty and the answer falls to a lower rung (a category, then
+  Claude's typical price), **the step that came up empty is named under the answer**, in provenance
+  mono, beside the low confidence line. This file had motion for the verdict arriving and nothing
+  at all for the ten seconds before it; this is the fix. The engine budget is 0.8s at p50 with a
+  hard cap of 2.5s. **A slow answer is never converted to a refusal:** the first answer is drawn at
+  once, a better one animates the bell into place, and every rung down to the global prior exists
+  so the bell can always be drawn (`docs/verdict-distribution-design-2026-09-30.md`, case 28;
+  `USAGE.md` drop-off 8).
 - **The correction is a detent of the same sheet, never a separate route.** Saving a correction
   must not repaint the screen or lose the frozen frame. Losing the picture at the moment of
   disappointment is what ends the session (`USAGE.md` C3 item 3, which wins on sequence).
@@ -310,27 +333,33 @@ sequence and supersedes the earlier version of it that put every action in the f
 
 | Detent | Shows | Actions | v1 |
 | --- | --- | --- | --- |
-| Peek (46% height) | Face at 96px, verdict word, price hero, the asking seller, "usually", confidence dots and label, the item name, and the stand-in note when the asking price is one. Readable at arm's length. | **Watch it**, one wide primary. Labelled **Save it** on `good` and **Watch it** on `fair` and `walk` | Yes |
-| Half (72%) | Adds the spread rail, the confidence sentence, and the provenance list in mono | **Correct it**, then **Share** | Yes |
+| Peek (46% height) | Face at 96px, verdict word, the animated bell with the shopper's price marked on it, price hero, the asking seller, Shin's estimate of the typical price, confidence dots and label (and the "not fully confident" line when low), the item name, and the stand-in note when the asking price is one. Readable at arm's length. | **Watch it**, one wide primary. Labelled **Save it** on great and good and **Watch it** on reasonable and bad | Yes |
+| Half (72%) | Adds the bell's labelled dots, the confidence sentence, and the provenance list in mono | **Correct it**, then **Share** | Yes |
 | Full | Adds what Shin used in full, dates, promo limits, and the one tap correctness signal | **Find it cheaper nearby**, **Show me a dupe** | No, both out of v1 |
 
 **The primary action is at peek.** Save is the decided primary act and the only entry to the
 return loop, so putting a gesture between the user and it costs saves for nothing, and the peek is
-where their eyes already are. Correct it ranks above Share because a wrong verdict is worse than
-no verdict, it is the only action that exists on every outcome including a refusal, and it is the
-crowd price layer's only intake.
+where their eyes already are. Correct it ranks above Share because a wrong answer is the product's
+own error channel, it is the only action that exists on every outcome, and it is the crowd price
+layer's only intake.
 
 **There is no refusal.** Retired 2026-09-30 (RULINGS.md "V1 verdict screen mechanics"): every scan
-with a scan left ends in the price distribution chart; only running out of scans stops it.
+with a scan left ends in the animated log-price bell chart, with four words (great, good,
+reasonable, bad) set against the shopper's own thresholds; only running out of scans stops it, and
+that shopper meets the paywall. Low confidence is drawn (a wider bell, a hollow hue, a plain face
+and a "not fully confident" line), never refused. The earlier "a refusal hands back exactly one
+action" rule is retired with it.
 
 **A session ends on the viewfinder, never on a confirmation screen**, because the last thing on
-screen should be the thing that starts the next scan. After a refusal the viewfinder hint names
-the category the engine currently answers best, read from the same measured catalogue the You
-screen uses, so the second scan is likelier to work than the first (`USAGE.md` A3, C1 and C3).
+screen should be the thing that starts the next scan. After a low confidence answer the viewfinder
+hint may name the category Shin answers best, read from the same measured catalogue the You screen
+uses, so the next scan is likelier to be a confident one (`USAGE.md` A3, C1 and C3).
 
-**With no asking price there is no refusal and no verdict: there is the going rate.** A neutral
-card, the range as the hero, the seller count in mono, one action. The couch is the majority
-install case and Shin is not short of data there, it is short of one number (`USAGE.md` section 2).
+**With no asking price there is no verdict word yet: there is the going rate.** The same bell
+drawn with no shopper dot, the range as the hero, the seller count in mono, one action; the dot
+appears when the price is typed. The couch is the majority install case and Shin is not short of
+data there, it is short of one number (`USAGE.md` section 2; RULINGS.md "What the price line
+covers": a neutral going-rate card instead of refusing).
 
 **The market is named on the verdict.** The comparison label carries the market it was measured
 against, and the market is a row in You, pre-filled, one tap to change. "Above what it goes for"
@@ -356,13 +385,19 @@ reused; none is styled inside a screen.
 1. **Viewfinder** with corner-bracket reticle. Reticle contracts on detection.
 2. **Shutter** 76px, ring in `shin`, presses to 0.92 in 90ms with one outward ring pulse.
 3. **Face** per section 3.
-4. **Verdict field** which is the coloured surface, in the four confidence treatments.
+4. **Verdict field** which is the coloured surface, in the three confidence treatments.
 5. **Price hero** with tabular figures and the asking price under it.
-6. **Confidence dots**, four, filling left to right.
-7. **Spread rail**, the lowest to highest prices found, with the asking price marked. Never an
-   average, because an average of prices nobody paid is a fabricated number.
+6. **Confidence dots**, three, filling left to right.
+7. **Price bell**, replacing the old spread rail: the animated normal curve of this item's
+   estimated prices, fitted on log price and drawn on a log price axis, with the shopper's price
+   marked where it falls, each recorded price a dot labelled with its store and quantity, and sales
+   drawn as separate dots. A less sure answer is a wider bell. Reduced motion draws it still. Its
+   centre is labelled as Shin's estimate of the typical price, never as a fact
+   (`docs/verdict-distribution-design-2026-09-30.md`).
 8. **Provenance list**, mono, one row per source with seller and date.
-9. **Refusal panel**, grey and dashed, carrying exactly one action.
+9. **Out-of-scans panel**, the only answer that is not the bell: the shopper has no scan left, so
+   Shin's own face, the count in mono, and the subscription (`USAGE.md` section 6). Typed searches
+   stay free and never reach it.
 10. **Correction detent**, how the user tells Shin the real price. A detent of the verdict sheet,
     not a sheet of its own and not a route, so the frozen frame is never lost (`USAGE.md` C3
     item 3, which supersedes the earlier "correction sheet" here).
@@ -386,7 +421,8 @@ Added by the forty-screen list:
 20. **Identity chip**, under the reticle, carrying the resolved name and tappable as the
     wrong-item repair. `USAGE.md` A1 0:12.9, OLMA row 48.
 21. **Going-rate card**, neutral, the range as the hero, the seller count in mono, one action. Not
-    a verdict field and not the refusal panel. `USAGE.md` section 2, OLMA row 44, take.
+    a verdict field: it is the bell with no shopper dot yet. `USAGE.md` section 2, OLMA row 44,
+    take.
 22. **Feedback row**, one thumb up, one thumb down, with an acknowledgement carrying Undo for four
     seconds. OLMA rows 64 and 65, take. It is rewarded with nothing, deliberately
     (`docs/design/GAMIFICATION.md` M12).
@@ -416,7 +452,8 @@ Motion exists to make the judgment feel like it landed. It never decorates.
 | Price numeral | Enters at 0.94 scale and 0 opacity, 180ms, starting 60ms after the field |
 | Face | Expression morphs over 220ms, eyes first, mouth 40ms behind. The full set is `AVATAR.md` section 5 |
 | Confidence dots | Fill left to right, 80ms each, after the numeral |
-| Refusal | Same rise but 340ms and grey, and the face gives one slow blink. No shake, no buzz, no red. |
+| Bell draws | The curve draws in with the verdict field, and a better answer arriving later animates the bell into its new place rather than replacing it. Reduced motion draws it still |
+| Low confidence | Same rise as any verdict, a plain face, no intense hold. No shake, no buzz |
 | Sheet detents | Spring, 320ms, drag-tracking with rubber-banding at the ends |
 
 **Never animate a price counting up.** A number moving through values it never had is a
@@ -444,7 +481,8 @@ names, so a screen can reference one without opening that file:
 `proud-hold`
 
 `intense-hold` is the only motion the intense forms get, and it is a hold and a settle, never a
-shake. The refusal's entire motion vocabulary is `slow-blink`.
+shake. `slow-blink` was the refusal's motion and has no outcome left to belong to; `AVATAR.md`
+decides whether it is kept for another use.
 
 ---
 
@@ -483,11 +521,11 @@ traced, one line each, to the OLMA audit row or the `USAGE.md` script that produ
 | # | Screen or state | Traced to |
 |---|---|---|
 | 13 | Verdict, good, certain or fairly sure | Was §7.3 |
-| 14 | Verdict, good, at the steal threshold | Added. Brief §0.5, OLMA audit row 52 |
-| 15 | Verdict, fair | Was half of §7.5, split from the thin state |
-| 16 | Verdict, walk away, certain or fairly sure | Was §7.4, on the real Kraft Dinner data |
-| 17 | Verdict, walk away, at the rip-off threshold | Added. Brief §0.5, OLMA audit row 52 |
-| 18 | Verdict, thin evidence, hollow treatment, any tier | Was the other half of §7.5. Also `USAGE.md` drop-off 7 |
+| 14 | Verdict, great (30% or more under by default), the `delighted` face | Added. Brief §0.5, OLMA audit row 52 |
+| 15 | Verdict, reasonable | Was half of §7.5, split from the low confidence state |
+| 16 | Verdict, bad, certain or fairly sure | Was §7.4, on the real Kraft Dinner data |
+| 17 | Verdict, bad, far over, the `angry` face | Added. Brief §0.5, OLMA audit row 52 |
+| 18 | Verdict, low confidence: wider bell, hollow treatment, plain face, "not fully confident" line, any tier | Was the other half of §7.5. Also `USAGE.md` drop-off 7 |
 | 19 | Going-rate card, no asking price | Added. `USAGE.md` section 2, OLMA audit row 44 |
 | 20 | Verdict sheet, half detent | Added. `USAGE.md` section 7, which puts Correct it and Share here |
 | 21 | Verdict sheet, full detent | Was §7.8, spread rail and provenance |
@@ -495,16 +533,19 @@ traced, one line each, to the OLMA audit row or the `USAGE.md` script that produ
 | 23 | Watch or save acknowledged | Added. `USAGE.md` A3 0:12.5 |
 | 24 | Thumbs feedback row and its acknowledgement | Added. OLMA audit rows 64 and 65, take |
 
-**Group D. Refusals**
+**Group D. Doubt and recovery, never a refusal**
+
+These slots were the refusal screens until 2026-09-30. Each now ends in the bell. `AVATAR.md`
+section 1 and `docs/design/mockups.html` still carry the old Group D and are to be redrawn.
 
 | # | Screen or state | Traced to |
 |---|---|---|
-| 25 | Refusal, no identity | Was §7.6. Also `USAGE.md` C2 |
-| 26 | Refusal, unsure which one | Added. `USAGE.md` drop-off 3 and C2 |
-| 27 | Refusal, category declined | Was §7.7, produce |
-| 28 | Refusal, too little evidence | Added. `USAGE.md` C1 and C2, the five-of-seven case |
-| 29 | Refusal acknowledged, Keep it landed | Added. `USAGE.md` C1 0:12.9 |
-| 30 | Type it instead, the text route out of a refusal | Added. OLMA audit rows 17, 88, 89, take |
+| 25 | Barcode nothing knows: ask the name, then the typed path | Was §7.6. Distribution design case 6 |
+| 26 | Unsure which one: pick one of three, then the bell | Added. Distribution design case 7 |
+| 27 | Category outside the catalogue: Claude's typical price, wider bell, saved as data | Was §7.7, produce. Distribution design cases 5 and 8 |
+| 28 | Low confidence answer, the hollow wide bell with the "not fully confident" line | Added. `USAGE.md` C1 and C2 |
+| 29 | Suspect price: "Did you mean $4.99?" in one tap, the chart still showing | Added. Distribution design case 24 |
+| 30 | Type it instead, the text route when a barcode is unknown | Added. OLMA audit rows 17, 88, 89, take |
 
 **Group E. Pages**
 
@@ -517,7 +558,7 @@ traced, one line each, to the OLMA audit row or the `USAGE.md` script that produ
 | 35 | Past scans | Added. OLMA audit rows 69 and 70, adapt |
 | 36 | Share card | Was §7.12 |
 | 37 | Paywall | Was §7.14. Also OLMA audit rows 20, 21, 76, which move it off auto-presentation |
-| 38 | Meter zero state, dark switch, off in v1 | Added. `USAGE.md` section 6 |
+| 38 | Out of scans, the one answer that is not the bell | Added. `USAGE.md` section 6; RULINGS.md "Shin Plus pricing and free scans" |
 | 39 | You | Added. OLMA audit rows 78 to 86 |
 | 40 | Market picker | Added. OLMA audit rows 9, 11, 78, 80, take |
 
@@ -525,7 +566,7 @@ traced, one line each, to the OLMA audit row or the `USAGE.md` script that produ
 has never queried; a campaign app icon, which is a marketing artefact rather than a screen; and a
 greeting screen, because `greeting` was struck as a state. Reasons in `AVATAR.md` section 1.
 
-Screens 18, 25, 26, 27 and 28 are the ones that prove Law 2 and Law 3. A mockup set without them
+Screens 18, 25, 26, 27, 28 and 38 are the ones that prove Law 2 and Law 3. A mockup set without them
 is advertising, not design. Thirteen of the forty are drawn in `docs/design/mockups.html`, across
 twelve mockups, because one of them draws the watchlist and the price drop together. The other
 twenty seven are listed there as to-draw, and four of the drawn thirteen are redraws because the

@@ -1,5 +1,7 @@
 # Shin USAGE.md
 
+Brought in line with RULINGS.md 2026-10-06, which outranks this file.
+
 The usage process. Written 2026-09-03 as Phase 3 of `docs/design/brief-usage-and-avatar.md`.
 
 This file is a sibling of `DESIGN.md` and **wins over it on any question of sequence**: what comes
@@ -13,15 +15,23 @@ Three things to read before the scripts:
 with a person. A budget is a number the build is held to and fails against, and it is written so a
 build can fail. No timing here is evidence about users.
 
-**The scripts are written to the v1 floor, not to the running app.** The floor is barcode and
-screenshot input, live photo recognition cut (`docs/decisions.md`, "The v1 floor is six systems").
-Each script carries a line saying what the running app in `app/` does differently today, because
-today it does something materially different and pretending otherwise would make this file
-decoration.
+**The scripts are written to the v1 floor, not to the running app.** The floor is RULINGS.md "v1
+floor": the MVP keeps what is built and still needs the subscription screen; the welcome screen,
+photo identification and languages stay off for now, and photo identification returns later as the
+catalogue-first plan. The scripts below use the barcode and the typed name, which are the inputs
+that exist. Each script carries a line saying what the running app in `app/` did differently when
+it was written (2026-09-03); those lines have not been re-checked since and the app has moved, so
+read them as history.
 
-**The engine answers 2 of 7.** `spine/README.md` records exactly two verdicts out of the seven
-hand-priced items, Kraft Dinner and the used POÄNG, with the other five refusing. Refusal is not
-the error path. It is the outcome the product mostly produces, so it gets the longest script here.
+**Every scan with a scan left ends in an answer.** The animated log-price bell chart, with one of
+four words (great, good, reasonable, bad) set against the shopper's own thresholds (defaults great
+30% under, good 20% under, bad 20% over). Shin does not refuse, and a shopper who is less than
+sure gets the same screen with doubt drawn into it: a wider bell, a hollow hue, a plain face and a
+"not fully confident" line. The one exception is a shopper who has run out of scans, who meets the
+paywall (RULINGS.md "V1 verdict screen mechanics" and "Always answer, never refuse for wasting
+time"). The pilot's earlier finding that the engine answered 2 of 7 hand-priced items
+(`spine/README.md`) described the old engine, which refused the other five; that is retired as a
+design input, and the low confidence script (section 4) now carries the hardest case.
 
 ---
 
@@ -31,9 +41,9 @@ the error path. It is the outcome the product mostly produces, so it gets the lo
 | --- | --- |
 | **Identity** | What the thing is. From a barcode in v1. Never from a photo, per the floor. |
 | **Asking price** | What this seller wants. In v1 this is **typed by the user**, because there is no OCR. |
-| **Comparison set** | What other sellers want. From the spine. |
-| **Verdict** | Hue for the judgment, fill for the confidence. `DESIGN.md` Law 2. |
-| **One action** | Every outcome, including a refusal, hands back exactly one thing to do. |
+| **Comparison set** | What other sellers want. From the catalogue first, then a price model for this item (`docs/verdict-distribution-design-2026-09-30.md`). |
+| **Verdict** | A bell chart of this item's estimated prices, the shopper's price marked on it, one of four words, hue for the judgment, fill and bell width for the confidence. `DESIGN.md` Law 2. |
+| **Primary action** | Save or Watch, at peek. Not every outcome hands back "exactly one" thing: the earlier one-action rule belonged to the refusal and is retired with it. |
 
 The asking price being typed is the hole in the v1 floor and this file is where it gets named. A
 barcode gives an identity, not a price, and the price is on the shelf tag. So the aisle script has
@@ -64,7 +74,7 @@ of them. This is the case the product's promise is written for.
 | 0:12.9 | 0.5s | Item name resolves into a chip under the reticle: "Kraft Dinner Original, 225 g". The chip is tappable and that is the wrong-item repair. | Reads the name |
 | 0:13.4 | 4.0s | A numeric pad rises to half height over the frozen frame. One line above it: **"What does the tag say?"** The confirm is the pad's own key, not a separate button. | Types 2.00 |
 | 0:17.4 | 0.8s | Pad drops, `thinking` face at 76px, one line in their Shin's voice. p50 budget 0.8s, hard cap 2.5s. | Waits |
-| 0:18.2 | 0.26s | **The verdict field rises to peek.** Solid `walk` field, "Walk away" at 34px, $2.00 at 72px, "usually $1.47" under it, three of four confidence dots, "Fairly sure, 3 sellers", the item name, and one wide primary: **Watch it**. | Reads it at arm's length |
+| 0:18.2 | 0.26s | **The verdict field rises to peek.** Solid `walk` field and the bell drawing in with $2.00 marked well to the right of centre, "Bad" at 34px, $2.00 at 72px, "Shin's estimate: $1.47" under it, three of three confidence dots, "Certain, 3 sellers", the item name, and one wide primary: **Watch it**. $2.00 is 36% over $1.47, past the default 20% over. | Reads it at arm's length |
 
 **Moment of value: 0:18.2 on the first run.** The verdict field at peek, read without a drag,
 without a scroll, and without leaving the picture they took.
@@ -98,7 +108,7 @@ the next build and why nothing else on the after-verdict list is.
 The session ends on the viewfinder. It never ends on a confirmation screen, because the last thing
 on screen should be the thing that starts the next scan.
 
-### A4. What the running app does differently today
+### A4. What the running app did differently on 2026-09-03 (not re-checked since)
 
 - No barcode reader. The shutter is pressed manually, then a 420ms pause, then a list of the seven
   corpus items appears: "Is it one of these?" The user picks. There is no way to scan a real shelf.
@@ -118,12 +128,13 @@ brief records this as OLMA's own recorded case: welcome, camera permission, iden
 section 1). It is also the majority install case, because the video is watched on a couch.
 
 **The structural difference, and it is the whole script: there is no asking price.** The thing on
-the desk has no tag. The engine's `no_asking_price` refusal reason exists for exactly this. Treating
-it as a refusal would make the most common install case end in the product's grey state, which is
-wrong, because Shin is not short of data here. It has the comparison set. It is short of one number,
+the desk has no tag. The old engine returned a `no_asking_price` refusal for exactly this, and that
+refusal is retired (RULINGS.md "What the price line covers": a neutral going-rate card instead of
+refusing). Shin is not short of data here. It has the comparison set. It is short of one number,
 and that number is the user's to supply or to skip.
 
-**So the couch outcome is not a verdict and not a refusal. It is the going rate.**
+**So the couch outcome is not a verdict word yet. It is the going rate:** the same bell, drawn
+with no shopper dot, and the dot appears when the price is typed.
 
 ### B1. First run, cold
 
@@ -137,7 +148,7 @@ and that number is the user's to supply or to skip.
 | 0:14.2 | 0.4s | Barcode caught, frame freezes | Nothing |
 | 0:14.6 | 0.5s | Identity chip: "Tide Simply, 2.72 L" | Reads it |
 | 0:15.1 | 0.8s | `thinking` face, engine call | Waits |
-| 0:15.9 | 0.26s | **The going-rate card rises to peek.** Not a verdict field and not the refusal grey: neutral surface, the range as the hero in tabular figures, the seller count in mono, and one line: "I know what this goes for. I do not know what they are asking." One primary: **Tell me the price.** | Reads the range |
+| 0:15.9 | 0.26s | **The going-rate card rises to peek.** Not a verdict field: neutral surface, the range as the hero in tabular figures, the seller count in mono, and one line: "I know what this goes for. I do not know what they are asking." One primary: **Tell me the price.** | Reads the range |
 
 **Moment of value: 0:15.9 first run, 7.2 seconds warm.** The couch reaches value *faster* than the
 aisle, because nobody types a price. The range is the payoff and it is complete on its own.
@@ -152,11 +163,12 @@ aisle, because nobody types a price. The range is the payoff and it is complete 
 ### B3. The face state this needs
 
 There is no expression in `DESIGN.md` section 3 for "I know the range and I want the price". Using
-`unknown` would read as a refusal and using `thinking` would read as unfinished. **Phase 4 must add
+`unknown` would read as a refusal Shin no longer gives, and using `thinking` would read as
+unfinished. **Phase 4 must add
 one state, working name `asking`, and until it exists the card uses `thinking` at 76px.** Flagged
 rather than invented, per the brief's rule for this pass.
 
-### B4. What the running app does differently today
+### B4. What the running app did differently on 2026-09-03 (not re-checked since)
 
 Everything above the identity chip. There is no barcode reader, no hint escalation, no last
 screenshot control, and no going-rate card. Pointing the app at a desk object today produces the
@@ -171,24 +183,28 @@ Named per the brief. Every row applies to both scripts unless the row says other
 | # | Drop-off | What the user experiences | What the app does |
 | --- | --- | --- | --- |
 | 1 | **The permission prompt** | The system sheet lands before they have seen anything work | A one line primer 1.2s before the system prompt, on the surface the camera will fill, with the shutter relabelled `Allow camera` so the prompt is something they asked for. **If they deny**, the app does not nag and does not block: the drawn shelf fallback already in `camera.js` keeps every control in the same place, and the `Last screenshot` control is promoted to the shutter's position, because a denied camera makes the screenshot path the only path. One line: "No camera then. Screenshots work too." Never a wall, never a second ask in the same session. |
-| 4 | **The item is not in the corpus** (`no_source_response`, `too_few_points`, `points_too_stale`) | Identity resolved, prices did not | The refusal script, section 4. The evidence Shin did find is shown under the sheet, and the line that must never change is the one already in `camera.js`: "That is a gap in what I have been taught, not a fact about the market." |
+| 4 | **The item has no prices of its own** (the old engine's `no_source_response`, `too_few_points`, `points_too_stale`, all retired as refusals) | Identity resolved, prices did not | The bell is drawn from the next rung of the ladder (the same product in another size, its category, the brand's markup, then Claude's typical price with no web search), with the low confidence treatment, script C in section 4. The evidence Shin did find is shown as labelled dots, and the estimate is named as an estimate. |
 | 5 | **The price tag is unreadable** | Glare, a tag for a different size, a multi-buy price like 4 for $5.00 | v1 never reads a tag, so this cannot fail silently: the user types the number. The pad carries one affordance for the multi-buy case, a `4 for` toggle that divides, shows its own arithmetic on screen, and labels the result as a unit price. **The verdict is computed against the number displayed, never against an unshown intermediate.** |
 | 6 | **The meter is at zero** | Cannot happen in v1 | There is no meter in v1, section 6. If the switch is ever flipped, the zero state is specified there. |
-| 7 | **The verdict is thin** | One seller, or points ageing out | The hollow treatment from `DESIGN.md` Law 2: 12% tint, 2px solid border, two dots of four, the label "Thin, 1 seller". **A thin verdict never gets an intense face and never gets a loud line.** A hollow field with a shouting face is a wrong verdict delivered confidently, which is the exact failure the priority order is written against. |
-| 8 | **The engine is slow** | Over the 2.5s cap | The `thinking` face stays and one line names what is happening in provenance mono, not a spinner. Above 6s the sheet converts to a refusal with reason `no_source_response`, because a product about instant checking that spins is lying about its own promise. |
+| 7 | **Shin is not fully confident** | One seller, a category stand-in, or points ageing out | The hollow treatment from `DESIGN.md` Law 2: 12% tint, 2px solid border, a wider bell, a plain face, one dot of three, the label "Not fully confident" and the line "we are not fully confident in this answer" beside the answer (his 2026-09-17 words). **A low confidence verdict never gets an intense face and never gets a loud line.** A hollow field with a shouting face is a wrong verdict delivered confidently, which is the exact failure the priority order is written against. |
+| 8 | **The engine is slow** | Over the 2.5s cap | The `thinking` face stays and one line names what is happening in provenance mono, not a spinner. Nothing converts to a refusal: the first answer is drawn at once from the nearest rung and a better one animates the bell into place. A product about instant checking that spins is lying about its own promise, and one that makes the shopper wait and then says it does not know is what RULINGS.md "Always answer, never refuse for wasting time" retires. |
 
 ---
 
-## 4. Script C. The refusal
+## 4. Script C. Low confidence
 
-Five of the seven hand-priced items refuse. This is the most common outcome of the primary action
-and it gets the same care as the answer. The test the brief sets: **if this script ends with the
-user closing the app, redesign until it does not.**
+There is no refusal script any more. The old Script C was a grey refusal screen for the five of
+seven pilot items the old engine would not price, and it is retired (RULINGS.md "V1 verdict screen
+mechanics": there is no refusal screen, every scan that has a scan left ends in the chart). What
+replaces it is the hardest case the bell has to carry: an item Shin holds almost nothing on. It
+gets the same care as the confident answer. The test the brief sets still stands: **if this script
+ends with the user closing the app, redesign until it does not.**
 
 ### C1. The script
 
-Aisle, warm start, the item is Tide Simply 2.72 L, which the pilot found at exactly one seller and
-which the engine therefore refuses on `too_few_points`.
+Aisle, warm start, the item is Tide Simply 2.72 L, which the pilot found at exactly one seller. The
+price model blends that one price with its category (one own price is evidence, never the answer on
+its own), so the bell is drawn, wider, with the low confidence treatment.
 
 | Clock | Budget | What they see | What they do |
 | --- | --- | --- | --- |
@@ -197,50 +213,50 @@ which the engine therefore refuses on `too_few_points`.
 | 0:03.5 | 0.9s | Frozen, identity chip: "Tide Simply, 2.72 L" | Reads it |
 | 0:04.4 | 4.0s | The pad, "What does the tag say?" | Types 13.49 |
 | 0:08.4 | 0.8s | `thinking` | Waits |
-| 0:09.2 | 0.34s | **The refusal rises.** Grey at 12%, 2px dashed border, the dashed-circle `unknown` face at 96px, one slow blink, no shake and no red. Headline in their Shin's voice: "Not enough to call it." Under it, the engine's own sentence naming what happened. Under that, in mono: "1 price found. I need 2." One primary: **Keep it.** One text link, small: "What I can price." | Reads it |
+| 0:09.2 | 0.34s | **The answer rises, with doubt in it.** The bell draws wide, $13.49 marked on it, the hue hollow (12% tint, 2px solid border), a plain face at 96px with no intense hold, no shake and no red. The verdict word in their Shin's voice (the word comes from the thresholds, not from the doubt). Beside the answer, the line: "we are not fully confident in this answer". Under it, in mono: "1 price found. Estimate blended with its category." The typical price is labelled as Shin's estimate. Primary: **Watch it** at peek. | Reads it |
 | 0:09.5 | 3.0s | They read | |
-| 0:12.5 | 0.4s | Tap **Keep it** | |
-| 0:12.9 | 0.3s | The sheet swaps, in place, to a `pleased` face at 62px and one line: "Written down. $13.49 at Metro, today. I still cannot call it." | Reads it |
+| 0:12.5 | 0.4s | Tap **Watch it** | |
+| 0:12.9 | 0.3s | The sheet swaps, in place, to a `pleased` face at 62px and one line: "Watching. $13.49 at Metro, today." | Reads it |
 | 0:13.2 | 2.0s | The line holds | |
 | 0:15.2 | 0.3s | Sheet drops, frame unfreezes, **viewfinder live with the shutter under the thumb**. The hint has changed: "Packaged groceries are the ones I know best." | Frames the next thing |
 
-**The script ends at 15.5 seconds on a live viewfinder, not on a close.** No scan was spent, because
-there is no meter, and if there ever is one, section 6 says a refusal does not spend one.
+**The script ends at 15.5 seconds on a live viewfinder, not on a close.** The scan was answered, so
+it counts like any other when metering is on (section 6).
 
-### C2. The single action, by reason
+### C2. Where the answer comes from when the item is thin
 
-Every refusal reason gets exactly one action, because a fork at the moment of disappointment is a
-choice about how to feel and the user will pick the exit.
+There is no per-reason refusal table any more, because no reason ends in a refusal. Each old
+reason now falls to the next rung of the ladder in `docs/verdict-distribution-design-2026-09-30.md`,
+and the rung names the width of the bell:
 
-| Reason | The one action | Why it is that one |
-| --- | --- | --- |
-| `category_unsupported` | What I can price | The honest answer to "why did this fail", measured by asking the engine to price everything it knows rather than counting rows, which `you.js` already does |
-| `no_source_response`, `too_few_points`, `points_too_stale`, `comparison_incoherent` | **Keep it** | Shin cannot price it and cannot promise it ever will. It can record what the user read, dated and attributed to a named seller. That is a thing it verifiably did, not a favour it asked for. |
-| `no_asking_price` | Tell me the price | This is the couch card, section 2, and it is not drawn as a refusal at all |
+| What is missing | What the shopper gets |
+| --- | --- |
+| This item's own prices are thin (one or two shops) | The centre is blended with the category, the bell is wider, confidence is medium or low |
+| The item has no prices | The same product in another size, scaled; else the leaf category, the parent category, the brand's markup; else Claude's typical price (no web search, capped monthly, saved as data); else the category or global prior. Low confidence, widest bell |
+| Barcode nothing knows | Ask the name, then the typed path; a typed name that matches nothing still gets Claude's typical price |
+| No asking price | The going-rate card, section 2 |
+| The shopper is out of scans | The paywall, the only case with no bell (section 6) |
 
-### C3. What changed to stop this ending in a close
+### C3. What keeps this from ending in a close
 
-Six changes, recorded as the brief requires.
+Recorded as the brief requires.
 
-1. **Two pills became one pill and one text link.** The running app hands back `Tell me the price`
-   solid and `Try again` ghost, equally weighted. `Try again` is now a downward drag, which is
-   already the dismiss gesture, so it costs no pixels and reads as leaving rather than as an option.
-2. **The action gives before it asks.** `Keep it` is Shin recording something. The old primary asked
-   the user for a favour immediately after failing them.
+1. **No disappointment screen exists to leave from.** The old script needed two pills made into one
+   to stop a close; the fix is that the answer is always there.
+2. **The action gives before it asks.** `Watch it` is Shin recording something the shopper chose.
 3. **The correction never leaves the frozen frame.** Today `correct` is a separate route and saving
    calls `ctx.go('camera')`, which repaints the whole screen and loses the picture they took. It
    becomes a detent of the same sheet. Losing the frame at the moment of disappointment is the
    close. This is a sequence rule, so this file wins and `DESIGN.md` section 4 gets the edit.
 4. **The session ends on the viewfinder**, never on a confirmation screen.
-5. **The refusal costs nothing.** No meter tick, no counter, no "1 of 3 scans used". Charging for
-   the product's own gap, five times out of seven, is the fastest way to teach someone to stop
-   scanning.
-6. **The next hint is chosen to succeed.** After any refusal the viewfinder hint names the category
-   the engine currently answers best, read from the same measured catalogue the You screen uses. The
-   second scan is therefore more likely to work than the first, which is the opposite of what
-   happens today.
+5. **Typed searches are free.** The shopper who is unsure what an item is can type it at no cost
+   and uncounted (RULINGS.md "Shin Plus pricing and free scans"), so the way out of a weak read is
+   never a charge.
+6. **The next hint is chosen to succeed.** After a low confidence answer the viewfinder hint names
+   the category Shin currently answers best, read from the same measured catalogue the You screen
+   uses. The next scan is therefore likelier to be a confident one.
 
-### C4. The one thing the refusal must never say
+### C4. The one thing a low confidence answer must never say
 
 It must never promise to look again. There is no re-queryable feed: the pilot's four direct
 retailer fetches returned zero prices, three of them 403 (`notes/session-2026-09-03.md`). "I will
@@ -299,7 +315,11 @@ because it is a sequence decision before it is a gamification one.
 ### The decision
 
 **Shin does not meter scans in v1. Scans are unlimited and free. The switch is built and defaults
-to off.**
+to off.** Since 2026-09-23 RULINGS.md "Shin Plus pricing and free scans" sets the numbers the
+switch carries when it is turned on: 5 free scans a week for the beta and 3 a week at public
+launch, switched on only once a test purchase works end to end. The per-day design of ten in the
+specification below is superseded on the count. The only scan that does not end in the bell chart
+is the one a shopper makes with none left.
 
 ### The reasoning
 
@@ -319,19 +339,18 @@ The brief's own rule says a mechanic is taken only with the reason it applies to
    someone scanning four to ten things a week that they will never buy. A meter is a tax on that.
 3. **It contradicts the hook at the moment of maximum intent.** The channel is short-form video and
    the hook is "Scan anything." A meter is the first thing the app says back.
-4. **Five of seven scans refuse.** Either refusals spend a scan, which charges the user for the
-   product's own gap, or they do not, in which case the meter mostly does not tick and is theatre.
-
+4. **Every scan now answers.** Shin no longer refuses, so there is no free gap to separate from a
+   paid answer: a meter would tick on every scan, including a low confidence one.
 ### The dark specification, so flipping the switch is a release and not a rewrite
 
 | Question | Answer |
 | --- | --- |
-| **How many** | Per day, never per month. A monthly allowance is spent in one shopping trip and then the app is dead for three weeks. The floor is **at least ten a day**, which is the top of the week-two weekly range compressed into a single day, so it does not bind on a normal trip. That is a design floor derived from a target in `pages/shin-walkthrough.html` stage 12, not a measurement, and the real number comes from the first thousand scans. |
-| **What refills it** | The clock, at local midnight, and nothing else in v1. |
+| **How many** | Per week: 5 for the beta, 3 at public launch, set by RULINGS.md "Shin Plus pricing and free scans" (2026-09-23), which replaces this file's earlier floor of ten a day. A monthly allowance would be spent in one trip. Typed searches are free and uncounted. The real number comes from the first thousand scans. |
+| **What refills it** | The clock, weekly, and nothing else in v1. |
 | **What earns one back** | **Nothing, until a contributed price can be confirmed.** Hard rule 3 forbids fabricated price data, and paying for reported prices without a confirmation step pays for inventing them. The condition that unlocks earning: a contributed price is confirmed by a second independent observation, meaning another user or a source agreeing on that price at that seller inside the category's freshness window. A price a user asserts and nobody corroborates earns nothing, ever. |
-| **What it never blocks** | The watchlist, a correction, a share, and the going-rate card. It blocks new verdicts and only new verdicts. |
-| **Refusals** | **Never spend a scan.** Non-negotiable, for the reason in section 4. |
-| **The zero state** | Not a wall and not a red screen. Shin's own face, the count in mono, and one line that points the disappointment at Shin rather than at the user, per hard rule 4. Deadpan: "That is ten for today. The camera still works. I just will not have an opinion until midnight." The other two personalities are Phase 4's. Primary action: the subscription, because a meter with no ask is pointless and ten verdicts is after value, which is where `pages/shin-walkthrough.html` stage 09 puts the paywall. Secondary, as plain text: "Everything you saved is still here." |
+| **What it never blocks** | The watchlist, a correction, a share, and the going-rate card. It blocks new scans and only new scans. |
+| **Refusals** | None exist. A scan Shin answers with low confidence is still an answer and counts like any other; the only scan with no bell is the one made with none left. |
+| **The zero state** | The one exception to "every scan ends in the chart". Not a wall and not a red screen. Shin's own face, the count in mono, and one line that points the disappointment at Shin rather than at the user, per hard rule 4. Deadpan: "That is all of this week's. The camera still works. I just will not have an opinion until it resets." The other two personalities are Phase 4's. Primary action: the subscription, because a meter with no ask is pointless and the free scans are after value, which is where `pages/shin-walkthrough.html` stage 09 puts the paywall. Secondary, as plain text: "Everything you saved is still here." |
 
 ### Reverses if
 
@@ -351,8 +370,8 @@ decides the rest and places all of them in the three detents from `DESIGN.md` se
 
 | Detent | Contents | Actions | v1 |
 | --- | --- | --- | --- |
-| **Peek, 46%** | Face 96px, verdict word 34px, price hero 72px, asking seller, "usually", confidence dots and label, item name, stand-in note when the asking price is one | **1. Watch it** (one wide primary) | Yes |
-| **Half, 72%** | Adds the spread rail, the confidence sentence, the provenance list in mono | **2. Correct it** · **3. Share** | Yes |
+| **Peek, 46%** | Face 96px, verdict word 34px, the animated bell with the shopper's price marked, price hero 72px, asking seller, Shin's estimate of the typical price, confidence dots and label (plus the "not fully confident" line when low), item name, stand-in note when the asking price is one | **1. Watch it** (one wide primary) | Yes |
+| **Half, 72%** | Adds the bell's labelled dots, the confidence sentence, the provenance list in mono | **2. Correct it** · **3. Share** | Yes |
 | **Full** | Adds what Shin used in full, dates, promo limits | **4. Find it cheaper nearby** · **5. Show me a dupe** | No |
 
 ### The order, and the reason for each position
@@ -361,18 +380,17 @@ decides the rest and places all of them in the three detents from `DESIGN.md` se
    full detent, and this file wins on sequence. The reason: save is the decided primary act and the
    only entry to the return loop, and putting a gesture between the user and the one act the design
    says matters costs saves for nothing. The peek is where their eyes already are. Its label is
-   keyed by tier, not by personality: **Save it** on `good`, **Watch it** on `fair` and
-   `walk_away`, because telling someone to watch a price that is already good is telling them to
-   wait for no reason. That is nine new strings in `voice.js`, three tiers times three
-   personalities, and the cost is real and worth it.
-2. **Correct it** at half. It ranks above share because a wrong verdict is worse than no verdict,
-   and this is the product's own error channel. It is also the only action that exists on **every**
-   outcome, verdict and refusal alike, which makes it the one control the user learns first. It is
-   the crowd price layer's only intake, and the notes call that layer the one asset a competitor
-   cannot buy.
+   keyed by tier, not by personality: **Save it** on great and good, **Watch it** on reasonable and
+   bad, because telling someone to watch a price that is already good is telling them to wait for
+   no reason. That is twelve strings in `voice.js`, four tiers times three personalities, and the
+   cost is real and worth it.
+2. **Correct it** at half. It ranks above share because a wrong answer is the product's own error
+   channel. It is also the only action that exists on **every** outcome, which makes it the one
+   control the user learns first. It is the crowd price layer's only intake, and the notes call
+   that layer the one asset a competitor cannot buy.
 3. **Share** at half. The growth engine, and the still card is already built and already correctly
-   carries no download link. It sits below correct because it only exists on a verdict, and today
-   only two of seven scans produce one.
+   carries no download link. Every answered scan can produce one, since every scan with a scan
+   left ends in a verdict.
 4. **Find it cheaper nearby: not v1.** It needs store-level price and stock plus a location, and the
    pilot's direct retailer fetches returned zero prices. A wrong "cheaper at the store 1.6 km away"
    sends a person on a trip on a fabricated claim, which is the worst thing this product can do.
@@ -380,15 +398,16 @@ decides the rest and places all of them in the three detents from `DESIGN.md` se
    against a shelf by hand.
 5. **Show me a dupe: not v1.** Not on difficulty. The notes establish that Yuka's alternatives is
    not a similarity model, it is same category with a better score, so a dupe here is same category
-   with a lower unit price and it is easy. It waits on **volume**: the corpus is seven items, and
+   with a lower unit price and it is easy. It waits on **volume**: the pilot corpus was seven items, and
    "same category, cheaper" across seven items returns nothing a person would recognise. **Reverses
    if** the lead category holds enough items that the query returns a recognisable alternative.
 
-### On a refusal
+### On a low confidence answer
 
-One action only, per section 4. `Correct it` in its `Keep it` form is that action for the thin
-family. There is no share and no watch on a refusal, because there is nothing to share and nothing
-to watch.
+The same sheet and the same three actions as any other verdict: Watch it at peek, Correct it and
+Share at half. The earlier "one action only, Keep it" rule belonged to the refusal and is retired
+with it. The one screen with no actions of this kind is the out of scans
+paywall (section 6).
 
 ---
 
@@ -416,20 +435,23 @@ itself borrows.
 
 ## 9. The priority order, applied to this file
 
-**A wrong verdict is worse than no verdict.** Three places this file pays for that and each one
-costs time or taps: identity refuses rather than guessing the top match, even though the model
-holds the right answer in its top five far more often than in its top one; a thin verdict gets a
-hollow field and a flat line rather than an intense face; and the aisle user types the asking price
-rather than the app inferring it.
+**Doubt is shown, never turned into silence.** The earlier line here, "a wrong verdict is worse
+than no verdict", was Claude's and not his, and it is retired (RULINGS.md "Always answer, never
+refuse for wasting time"). What replaces it: confidence carries the doubt. Three places this file
+pays for calibration, each costing time or taps: a low confidence verdict gets a hollow field, a
+wider bell, a plain face and a "not fully confident" line rather than an intense face; an unclear
+identity asks the shopper to pick one of three rather than guessing the top match; and the aisle
+user types the asking price rather than the app inferring it.
 
-**Ship or kill.** Five things are killed here with a reversal condition: the scan meter, the
-price-drop notification, notification permission itself, nearby-cheaper, and dupes. Five things
-ship: the barcode aisle flow, the typed asking price, the going-rate card, the refusal's `Keep it`,
-and Watch at peek. Nothing in this file is parked without one or the other.
+**Ship or kill.** Five things are killed here with a reversal condition: the scan meter (now
+carrying 5 free scans a week for the beta once purchases work, section 6), the price-drop
+notification, notification permission itself, nearby-cheaper, and dupes. Five things ship: the
+barcode aisle flow, the typed asking price, the going-rate card, the bell with its four words, and
+Watch at peek. Nothing in this file is parked without one or the other.
 
 **Speed last.** The permission primer costs 1.2 seconds and is kept. The typed price costs four
-seconds of a nine second script and is kept. The 2.5 second engine cap converts to a refusal at six
-seconds rather than spinning, which trades speed for honesty in the one direction that is allowed.
+seconds of a nine second script and is kept. A slow engine never converts to a refusal: the first
+answer is drawn at once and a better one animates the bell into place.
 
 ---
 
@@ -447,9 +469,9 @@ One line each, with my default. These are not blockers: each has a default that 
    permission, which is a second ask. Default: offer it, request the permission only when tapped.
 5. **Does a price the user typed get shown back to them at that seller later?** Default: yes,
    labelled as theirs, dated, and never mixed into a comparison set.
-6. **Does the couch case get the going-rate card, or a plain refusal?** Default: the card, and
-   Phase 4 adds the one face state it needs.
-7. **Does `Save it` versus `Watch it` by tier justify nine more strings?** Default: yes.
+6. **Does the couch case get the going-rate card?** Settled by RULINGS.md "What the price line
+   covers": yes, never a refusal. Phase 4 adds the one face state it needs.
+7. **Does `Save it` versus `Watch it` by tier justify twelve more strings?** Default: yes.
 
 ---
 
