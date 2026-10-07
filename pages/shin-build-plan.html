@@ -134,7 +134,8 @@
   }
   .ph-sub { font-size: 15px; color: var(--ink-muted); margin: 0 0 14px; }
   @media (max-width: 640px) {
-    .phase { grid-template-columns: 1fr; gap: 8px; }
+    .phase { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+    .phase > * { min-width: 0; }
     .ph-num small { display: inline; margin-left: 8px; }
   }
 
