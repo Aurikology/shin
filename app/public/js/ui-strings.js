@@ -576,6 +576,10 @@ const EN = {
   kind_asking: 'asking',
   kind_sold: 'sold',
   share_range: (f) => `${f.low} to ${f.high}`,
+  share_no_price_caps: 'No price',
+  share_conf_high: 'Confident',
+  share_conf_medium: 'Fairly confident',
+  share_conf_low: 'Not fully confident',
   share_card_alt: (f) => `Shin card. ${f.word}. ${f.label}. On the tag ${f.asking}. Elsewhere ${f.elsewhere}.`,
 
   /* ----------------------------------------------------------- the watchlist */
@@ -1122,6 +1126,10 @@ const FR = {
   kind_asking: 'demandé',
   kind_sold: 'vendu',
   share_range: (f) => `${f.low} à ${f.high}`,
+  share_no_price_caps: 'Aucun prix',
+  share_conf_high: 'Confiant',
+  share_conf_medium: 'Assez confiant',
+  share_conf_low: 'Pas tout à fait sûr',
   share_card_alt: (f) => `Carte Shin. ${f.word}. ${f.label}. Sur l’étiquette ${f.asking}. Ailleurs ${f.elsewhere}.`,
 
   /* ----------------------------------------------------------- les gardés */

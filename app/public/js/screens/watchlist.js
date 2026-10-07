@@ -32,10 +32,24 @@ import { escapeHtml, html, raw, ago, on } from '../lib/dom.js';
 import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.js';
 import { pageBar, rowChevron, removeGlyph } from '../lib/pagebar.js';
 import { t } from '../ui-strings.js';
+import { answerOf, isAnswer, answerLook, answerWord, answerLine } from '../lib/history-answer.js';
 
-/** The most recent history entry whose verdict identity matches a saved row's id. */
+/**
+ * The most recent history entry whose answer matches a saved row's id: a
+ * verdict row by its identity, or a verdict-bell row by the key it was saved
+ * under (D07).
+ */
 function matchFor(history, id) {
-  return history.find((h) => h.result?.kind === 'verdict' && h.result.identity?.id === id) ?? null;
+  return history.find((h) => (h.result?.kind === 'verdict' && h.result.identity?.id === id) || answerOf(h)?.id === id) ?? null;
+}
+
+/**
+ * The bell snapshot a saved row opens with: the one the row carries (written
+ * at the moment of Save, so it survives the hundred-scan history cap), else the
+ * one its scan left in history.
+ */
+function answerFor(w, match) {
+  return (w.answer && isAnswer(w.answer) ? w.answer : null) ?? answerOf(match);
 }
 
 /**
@@ -50,15 +64,23 @@ export function row(w, history) {
     ? w.lastCents - w.usualCents
     : null;
   const cheaper = moved !== null && moved < 0;
-  // Row faces never animate (AVATAR.md section 5), and the tier they wear is
-  // the same delta already printed beside the price, not a second judgment.
-  const face = moved === null || moved === 0 ? 'fair' : cheaper ? 'good' : 'walk';
-
   // OLMA row 70: when the saved row still has its original scan in history,
   // the row's face carries the same solid-vs-hollow confidence treatment the
   // verdict sheet gave it, not a second opinion recomputed from nothing.
   const match = matchFor(history, w.id);
-  const conf = match ? confidenceOf(match.result) : null;
+  const answer = answerFor(w, match);
+  const look = answer ? answerLook(answer) : null;
+  const conf = look ? { level: look.level } : match ? confidenceOf(match.result) : null;
+  const tierId = look ? look.tier : match?.result?.kind === 'verdict' ? match.result.tier : null;
+
+  // Row faces never animate (AVATAR.md section 5). D20: the face is the ZONE
+  // WORD the sheet gave (Great, Good, Reasonable, Bad), through the one mapping
+  // the sheet itself uses, never the sign of the price delta printed beside
+  // the price: a Reasonable answer is the fair face even when the shelf price
+  // sits a few cents under the typical one. A row with no answer on file (saved
+  // by an older build) has no zone word to wear, so it wears the neutral face
+  // rather than a verdict nobody gave.
+  const face = look ? look.face : match?.result?.kind === 'verdict' ? tierOf(match.result.tier).face : 'idle';
 
   const delta = moved === null ? t('saved_no_usual')
     : moved === 0 ? t('saved_at_the_usual')
@@ -71,7 +93,7 @@ export function row(w, history) {
   return html`
     <div class="wrow-wrap">
       <button type="button" class="row wrow" data-open="${w.id}" data-fk="open:${w.id}"
-              ${raw(match ? `data-tier="${escapeHtml(match.result.tier)}"` : '')}
+              ${raw(tierId ? `data-tier="${escapeHtml(tierId)}"` : '')}
               ${raw(conf ? `data-conf="${escapeHtml(conf.level)}"` : '')}>
         ${raw(faceSvg(face, { size: 'face-row' }))}
         <span class="row-n">
@@ -102,20 +124,43 @@ export function row(w, history) {
  * both of this app's two modals and one implementation is enough.
  */
 export function detailModal(w, match) {
-  if (match) {
-    const v = match.result;
-    const conf = confidenceOf(v);
-    const source = sellerOf(v);
-    const facts = { asking: money(v.askingCents), usual: money(v.spread.medianCents) };
-
+  /* D07: a bell answer is on file with the row, so Saved opens with the verdict
+     it was saved under, in the words and face the sheet used. One template with
+     the older verdict result below. */
+  const answer = answerFor(w, match);
+  if (answer || (match && match.result?.kind === 'verdict')) {
+    let view;
+    if (answer) {
+      const look = answerLook(answer);
+      view = {
+        tier: look.tier,
+        face: look.face,
+        word: answerWord(answer),
+        said: answerLine(answer),
+        meta: `${w.label || answer.label}${w.askingSeller ? ` · ${w.askingSeller}` : ''} · ${ago(match?.at ?? w.savedAt)}`,
+        conf: html`<p class="pmodal-conf">${t(`share_conf_${answer.confidence}`)}</p>`,
+      };
+    } else {
+      const v = match.result;
+      const conf = confidenceOf(v);
+      const source = sellerOf(v);
+      view = {
+        tier: v.tier,
+        face: tierOf(v.tier).face,
+        word: wordFor(v.tier),
+        said: say(v.tier, { asking: money(v.askingCents), usual: money(v.spread.medianCents) }),
+        meta: `${v.identity.label}${source ? ` · ${source}` : ''} · ${ago(match.at)}`,
+        conf: html`<p class="pmodal-conf">${conf.label}${raw(dotsHtml(conf.dots))}</p>`,
+      };
+    }
     return html`
       <div class="pmodal" data-act="modal" data-pmodal="scan">
-        <div class="pmodal-card" data-tier="${v.tier}" tabindex="-1">
-          ${raw(faceBlock(tierOf(v.tier).face, { size: 'face-verdict' }))}
-          <h2>${wordFor(v.tier)}</h2>
-          <p class="said">${say(v.tier, facts)}</p>
-          <p class="pmodal-meta">${v.identity.label}${source ? ` · ${source}` : ''} · ${ago(match.at)}</p>
-          <p class="pmodal-conf">${conf.label}${raw(dotsHtml(conf.dots))}</p>
+        <div class="pmodal-card" data-tier="${view.tier}" tabindex="-1">
+          ${raw(faceBlock(view.face, { size: 'face-verdict' }))}
+          <h2>${view.word}</h2>
+          <p class="said">${view.said}</p>
+          <p class="pmodal-meta">${view.meta}</p>
+          ${raw(view.conf)}
           <p class="pmodal-note">${say('read_only_note')}</p>
           <button type="button" class="linky" data-act="close-detail">${t('close')}</button>
         </div>
@@ -208,7 +253,8 @@ export default {
         const moved = first && typeof first.lastCents === 'number' && typeof first.usualCents === 'number'
           ? first.lastCents - first.usualCents
           : null;
-        const face = moved === null || moved === 0 ? 'fair' : moved < 0 ? 'good' : 'walk';
+        const firstAnswer = first ? answerFor(first, matchFor(s.history, first.id)) : null;
+        const face = firstAnswer ? answerLook(firstAnswer).face : moved === null || moved === 0 ? 'fair' : moved < 0 ? 'good' : 'walk';
         // Not pre-escaped any more: `shinSay` escapes the line it builds, as
         // of 2026-09-06. Escaping here as well would double-escape, because
         // escapeHtml is not idempotent -- a shop called "Tom & Jerry" would
@@ -287,12 +333,12 @@ export default {
           <div class="wmore ilist">
             <button type="button" class="ilist-row" data-act="pastscans" data-fk="nav:pastscans">
               <span class="ilist-l">${t('past_scans')}</span>
-              <span class="ilist-v">${s.history.length}</span>
+              <span class="ilist-v">${phase === 'ready' ? s.history.length : '?'}</span>
               ${raw(rowChevron())}
             </button>
             <button type="button" class="ilist-row" data-act="removed" data-fk="nav:removed">
               <span class="ilist-l">${t('removed_title')}</span>
-              <span class="ilist-v">${s.removed.length}</span>
+              <span class="ilist-v">${phase === 'ready' ? s.removed.length : '?'}</span>
               ${raw(rowChevron())}
             </button>
           </div>

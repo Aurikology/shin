@@ -30,6 +30,7 @@ import { escapeHtml, html, raw, ago, on } from '../lib/dom.js';
 import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.js';
 import { pageBar, backButton, goBack, removeGlyph } from '../lib/pagebar.js';
 import { t } from '../ui-strings.js';
+import { answerOf, answerLook, answerWord, answerLine } from '../lib/history-answer.js';
 
 /*
  * The eight refusal reasons used to be a map here, described in this comment
@@ -46,7 +47,7 @@ import { t } from '../ui-strings.js';
 /** The name to show for a history entry, verdict or refusal. */
 function labelOf(h) {
   const isVerdict = h.result?.kind === 'verdict';
-  return isVerdict ? h.result.identity.label : (h.result?.identity?.label ?? h.query?.text ?? t('past_scans_unknown_item'));
+  return isVerdict ? h.result.identity.label : (h.result?.identity?.label || h.query?.text || t('past_scans_unknown_item'));
 }
 
 /**
@@ -56,17 +57,21 @@ function labelOf(h) {
  */
 export function row(h) {
   const isVerdict = h.result?.kind === 'verdict';
-  const face = isVerdict ? tierOf(h.result.tier).face : 'unknown';
+  /* D07: a verdict-bell answer (catalogue-first, or a Gemini route that ended
+     in the bell) wears the face and word the sheet gave it. */
+  const answer = answerOf(h);
+  const look = answer ? answerLook(answer) : null;
+  const face = look ? look.face : isVerdict ? tierOf(h.result.tier).face : 'unknown';
   const label = labelOf(h);
-  const askingCents = isVerdict ? h.result.askingCents : h.query?.askingCents;
+  const askingCents = answer ? (answer.askingCents ?? h.query?.askingCents) : isVerdict ? h.result.askingCents : h.query?.askingCents;
   const seller = isVerdict ? sellerOf(h.result) : null;
   const sub = [seller, ago(h.at)].filter(Boolean).join(' · ');
   // OLMA row 70: the row's face carries the same solid-vs-hollow confidence
   // treatment the verdict sheet gave it. confidenceOf already returns the
   // "refuses" band for a non-verdict result, so this is one call for both
   // shapes of row, never a second opinion recomputed from nothing.
-  const conf = confidenceOf(h.result);
-  const tierId = isVerdict ? h.result.tier : 'unknown';
+  const conf = look ? { level: look.level } : confidenceOf(h.result);
+  const tierId = look ? look.tier : isVerdict ? h.result.tier : 'unknown';
 
   // `data-fk` is the focus key listscreen.js's repainter restores by, built
   // from the entry's own id so it survives another row being deleted above it.
@@ -100,20 +105,44 @@ export function row(h) {
 export function detail(h) {
   const isVerdict = h.result?.kind === 'verdict';
 
-  if (isVerdict) {
-    const v = h.result;
-    const conf = confidenceOf(v);
-    const source = sellerOf(v);
-    const facts = { asking: money(v.askingCents), usual: money(v.spread.medianCents) };
+  /* One template for the two shapes that carry a verdict: the older `verdict`
+     result, and a verdict-bell answer (D07), which wears the face and word the
+     sheet gave it. */
+  const answer = answerOf(h);
+  if (isVerdict || answer) {
+    let view;
+    if (answer) {
+      const look = answerLook(answer);
+      view = {
+        tier: look.tier,
+        face: look.face,
+        word: answerWord(answer),
+        said: answerLine(answer),
+        meta: `${labelOf(h)} · ${ago(h.at)}`,
+        conf: html`<p class="pmodal-conf">${t(`share_conf_${answer.confidence}`)}</p>`,
+      };
+    } else {
+      const v = h.result;
+      const conf = confidenceOf(v);
+      const source = sellerOf(v);
+      view = {
+        tier: v.tier,
+        face: tierOf(v.tier).face,
+        word: wordFor(v.tier),
+        said: say(v.tier, { asking: money(v.askingCents), usual: money(v.spread.medianCents) }),
+        meta: `${v.identity.label}${source ? ` · ${source}` : ''} · ${ago(h.at)}`,
+        conf: html`<p class="pmodal-conf">${conf.label}${raw(dotsHtml(conf.dots))}</p>`,
+      };
+    }
 
     return html`
       <div class="pmodal" data-act="modal" data-pmodal="verdict">
-        <div class="pmodal-card" data-tier="${v.tier}" tabindex="-1">
-          ${raw(faceBlock(tierOf(v.tier).face, { size: 'face-verdict' }))}
-          <h2>${wordFor(v.tier)}</h2>
-          <p class="said">${say(v.tier, facts)}</p>
-          <p class="pmodal-meta">${v.identity.label}${source ? ` · ${source}` : ''} · ${ago(h.at)}</p>
-          <p class="pmodal-conf">${conf.label}${raw(dotsHtml(conf.dots))}</p>
+        <div class="pmodal-card" data-tier="${view.tier}" tabindex="-1">
+          ${raw(faceBlock(view.face, { size: 'face-verdict' }))}
+          <h2>${view.word}</h2>
+          <p class="said">${view.said}</p>
+          <p class="pmodal-meta">${view.meta}</p>
+          ${raw(view.conf)}
           <p class="pmodal-note">${say('read_only_note')}</p>
           <button type="button" class="linky" data-act="close-detail">${t('close')}</button>
         </div>
@@ -198,15 +227,20 @@ export default {
       function header() {
         const last = list[0];
         const isVerdict = last?.result?.kind === 'verdict';
-        const face = last ? (isVerdict ? tierOf(last.result.tier).face : 'unknown') : 'idle';
+        const lastAnswer = answerOf(last);
+        const face = last
+          ? (lastAnswer ? answerLook(lastAnswer).face : isVerdict ? tierOf(last.result.tier).face : 'unknown')
+          : 'idle';
         // Not pre-escaped any more: `shinSay` escapes its own line as of
         // 2026-09-06, and escaping twice is a visible bug rather than a safe
         // default -- escapeHtml is not idempotent.
         const facts = last ? {
-          item: last.result?.identity?.label ?? last.query?.text ?? t('past_scans_that_one'),
-          verdict: isVerdict
-            ? wordFor(last.result.tier)
-            : last.result?.kind === 'gemini' ? geminiWordFor(last) : 'refused',
+          item: last.result?.identity?.label || last.query?.text || t('past_scans_that_one'),
+          verdict: lastAnswer
+            ? answerWord(lastAnswer)
+            : isVerdict
+              ? wordFor(last.result.tier)
+              : last.result?.kind === 'gemini' ? geminiWordFor(last) : 'refused',
         } : {};
         return shinSay(face, 'pastscans_callback', facts, { size: 64, anim: 'idle-breath' });
       }

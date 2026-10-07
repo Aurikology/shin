@@ -34,6 +34,7 @@ import { money } from '../lib/money.js';
 import { wordFor, say } from '../voice.js';
 import { on } from '../lib/dom.js';
 import { t } from '../ui-strings.js';
+import { answerOf, answerLook, answerWord, answerLine } from '../lib/history-answer.js';
 
 const W = 1080;
 const H = 1350;
@@ -315,7 +316,7 @@ function wrap(g, text, maxWidth, maxLines) {
 
 async function drawCard(canvas, card) {
   const read = reader();
-  const t = palette(read, card.tierId);
+  const pal = palette(read, card.tierId);
   const f = typeset(read);
   const g = canvas.getContext('2d');
   canvas.width = W;
@@ -324,23 +325,23 @@ async function drawCard(canvas, card) {
   const pad = 88;
   const mid = W / 2;
 
-  g.fillStyle = t.ground;
+  g.fillStyle = pal.ground;
   g.fillRect(0, 0, W, H);
 
   // The tier band. Solid when Shin is sure, hollow when the evidence is thin:
   // the same rule the sheet follows, so a screenshot and the app agree.
   const solid = card.level === 'certain' || card.level === 'sure';
   if (solid) {
-    g.fillStyle = t.tier;
+    g.fillStyle = pal.tier;
     g.fillRect(0, 0, W, 760);
   } else {
-    g.strokeStyle = t.tier;
+    g.strokeStyle = pal.tier;
     g.lineWidth = 6;
     g.setLineDash(card.level === 'refuses' ? [22, 16] : []);
     g.strokeRect(3, 3, W - 6, 757);
     g.setLineDash([]);
   }
-  const onBand = solid ? t.tierOn : t.tier;
+  const onBand = solid ? pal.tierOn : pal.tier;
 
   g.textAlign = 'center';
 
@@ -367,15 +368,15 @@ async function drawCard(canvas, card) {
 
   // The item. Row-title role -- UI face, 600. It was Bricolage 700, and section
   // 2 reserves Bricolage for the price numeral and the verdict word.
-  g.fillStyle = t.ink;
+  g.fillStyle = pal.ink;
   g.font = `${f.rowWeight} ${SIZE.item}px ${f.ui}`;
   wrap(g, card.label, W - pad * 2, 2).forEach((l, i) => g.fillText(l, mid, 872 + i * 56));
 
   // The two prices, both of them, never the difference between them.
   const boxTop = 960;
   const boxH = 230;
-  g.fillStyle = t.surface;
-  g.strokeStyle = t.hairline;
+  g.fillStyle = pal.surface;
+  g.strokeStyle = pal.hairline;
   g.lineWidth = 2;
   g.beginPath();
   if (typeof g.roundRect === 'function') g.roundRect(pad, boxTop, W - pad * 2, boxH, 26);
@@ -401,7 +402,7 @@ async function drawCard(canvas, card) {
    * exception is written down rather than left to be discovered.
    */
   const col = (x, kicker, value, sub, valueColor) => {
-    g.fillStyle = t.faint;
+    g.fillStyle = pal.faint;
     g.font = `${f.labelWeight} ${f.labelSize}px ${f.mono}`;
     track(g, f.labelTrack(f.labelSize));
     g.fillText(kicker, x, boxTop + 66);
@@ -414,15 +415,15 @@ async function drawCard(canvas, card) {
     g.fillText(value, x, boxTop + 148);
     track(g, '0px');
 
-    g.fillStyle = t.muted;
+    g.fillStyle = pal.muted;
     g.font = `${f.bodyWeight} ${subSize(f)}px ${f.ui}`;
     wrap(g, sub, mid - pad - 30, 1).forEach((l) => g.fillText(l, x, boxTop + 194));
   };
-  col(W * 0.27, t('share_on_the_tag_caps'), card.askingText, card.askingSub, t.ink);
-  // t.tierBright, not t.tier: this text sits on --surface, not on the tier
+  col(W * 0.27, t('share_on_the_tag_caps'), card.askingText, card.askingSub, pal.ink);
+  // pal.tierBright, not pal.tier: this text sits on --surface, not on the tier
   // field, and the field colour under-contrasts there. See the TOKENS
   // comment above.
-  col(W * 0.73, t('share_elsewhere_caps'), card.elsewhereText, card.elsewhereSub, t.tierBright);
+  col(W * 0.73, t('share_elsewhere_caps'), card.elsewhereText, card.elsewhereSub, pal.tierBright);
 
   /*
    * How sure Shin was, on the card, because a screenshot outlives the screen.
@@ -436,7 +437,7 @@ async function drawCard(canvas, card) {
    * wordmark's cap top at 1256; +44 puts the line's 21px ascent centred in that
    * 66px gap, 23 above and 22 below.
    */
-  g.fillStyle = t.faint;
+  g.fillStyle = pal.faint;
   g.font = `${f.labelWeight} ${f.labelSize}px ${f.mono}`;
   track(g, f.labelTrack(f.labelSize));
   g.fillText(card.confidence, mid, boxTop + boxH + 44);
@@ -445,15 +446,15 @@ async function drawCard(canvas, card) {
   // The wordmark, small, in the corner. No link, on purpose.
   g.textAlign = 'left';
   g.font = `${f.priceWeight} ${SIZE.wordmark}px ${f.display}`;
-  g.fillStyle = t.ink;
+  g.fillStyle = pal.ink;
   g.fillText('shin', pad, H - 62);
-  g.fillStyle = t.brand;
+  g.fillStyle = pal.brand;
   g.fillText('.', pad + g.measureText('shin').width, H - 62);
 
   // The date: the third of the card's three label-role strings. Provenance is
   // what section 2 reserves the mono face for, and a date is provenance.
   g.textAlign = 'right';
-  g.fillStyle = t.faint;
+  g.fillStyle = pal.faint;
   g.font = `${f.labelWeight} ${f.labelSize}px ${f.mono}`;
   track(g, f.labelTrack(f.labelSize));
   g.fillText(card.stamp, W - pad, H - 66);
@@ -472,6 +473,33 @@ function cardText(card) {
   ].join('\n');
 }
 
+/** The card for a verdict-bell answer (D08): the zone word and the two prices the sheet showed. */
+function answerCard(entry) {
+  const a = answerOf(entry);
+  const look = answerLook(a);
+  const label = a.label || entry.query?.text || t('past_scans_unknown_item');
+  const hasAsk = typeof a.askingCents === 'number';
+  return {
+    tierId: look.tier,
+    expression: look.face,
+    who: undefined,
+    level: look.level,
+    word: answerWord(a),
+    line: answerLine(a),
+    label,
+    askingText: hasAsk ? money(a.askingCents, a.currency) : t('share_no_price_caps'),
+    askingSub: '',
+    elsewhereText: money(a.centreCents, a.currency),
+    elsewhereSub: a.p10Cents === a.p90Cents
+      ? t('share_one_price_one_seller')
+      : t('share_range', { low: money(a.p10Cents, a.currency), high: money(a.p90Cents, a.currency) }),
+    confidence: t(`share_conf_${a.confidence}`).toUpperCase(),
+    stamp: new Date(entry.at ?? Date.now())
+      .toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+      .toUpperCase(),
+  };
+}
+
 export default {
   id: 'share',
   title: 'Share',
@@ -479,7 +507,8 @@ export default {
 
   render(root, ctx) {
     const entry = ctx.store.get().history.find(
-      (h) => h.result?.kind === 'verdict' && (!ctx.params.id || h.result.identity?.id === ctx.params.id),
+      (h) => (h.result?.kind === 'verdict' && (!ctx.params.id || h.result.identity?.id === ctx.params.id))
+        || (answerOf(h) && (!ctx.params.id || answerOf(h).id === ctx.params.id)),
     );
     if (!entry) {
       ctx.replace('camera');
@@ -487,10 +516,10 @@ export default {
     }
 
     const v = entry.result;
-    const conf = confidenceOf(v);
-    const tier = tierOf(v.tier);
+    const conf = answerOf(entry) ? null : confidenceOf(v);
+    const tier = answerOf(entry) ? null : tierOf(v.tier);
 
-    const card = {
+    const card = answerOf(entry) ? answerCard(entry) : {
       tierId: v.tier,
       expression: tier.face,
       who: undefined,

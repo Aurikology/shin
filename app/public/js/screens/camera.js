@@ -46,6 +46,7 @@ import { fileReport, retryReport, abandonReport, rememberScan } from '../price-r
 import { pt } from '../price-strings.js';
 import { identifyOffline } from '../offline-aisle.js';
 import { track } from '../track.js';
+import { distFace, distWhere, DIST_CONF, answerSnapshot } from '../lib/history-answer.js';
 import { refreshCell } from '../geocell.js';
 import { mountGrounded } from '../grounded.js';
 // The Gemini answer's headline values, lifted out of the wire in grounded.js,
@@ -1534,6 +1535,17 @@ function geminiFailureSheet(result, item) {
     </section>`;
 }
 
+/**
+ * Whether a failed call was the server answering badly (a 5xx) rather than the
+ * request never arriving. api.js throws `/api/... returned 503` for a bad
+ * status and lets fetch's own TypeError through for a dead network.
+ */
+export function isServerFault(err) {
+  const m = /returned (\d{3})\b/.exec(String(err?.message ?? ''));
+  return !!m && Number(m[1]) >= 500;
+}
+
+/** D37: the offline sheet carries Retry, the same barcode sent again. */
 export function needsConnectionSheet() {
   return `
     <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite" tabindex="-1" data-needs-connection>
@@ -1544,6 +1556,27 @@ export function needsConnectionSheet() {
           ${shinSay('unknown', 'cam_needs_connection', {}, { size: 'face-verdict' })}
         </div>
         <p class="detail">${escapeHtml(say('cam_offline_no_price'))}</p>
+        <div class="actions actions-primary">
+          <button type="button" class="pill solid wide" data-act="lookup-retry">${escapeHtml(t('try_again'))}</button>
+        </div>
+      </div>
+    </section>`;
+}
+
+/** D17: a fault on Shin's side says so, and offers Retry. Never "I need a connection". */
+export function serverFaultSheet() {
+  return `
+    <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite" tabindex="-1" data-server-fault>
+      ${grabber()}
+      ${backButton()}
+      <div class="sheet-peek">
+        <div class="sheet-head">
+          ${shinSay('unknown', 'cam_server_fault', {}, { size: 'face-verdict' })}
+        </div>
+        <p class="detail">${escapeHtml(say('cam_server_fault_detail'))}</p>
+        <div class="actions actions-primary">
+          <button type="button" class="pill solid wide" data-act="lookup-retry">${escapeHtml(t('try_again'))}</button>
+        </div>
       </div>
     </section>`;
 }
@@ -1591,14 +1624,7 @@ export function needsConnectionSheet() {
  * thumbs and Done.
  */
 
-/** His zone, in the face the tier wears. Great is the intense face only when Shin is not unsure (AVATAR.md's gate). */
-function distFace(zone, confidence) {
-  if (zone === 'great') return confidence === 'low' ? 'good' : 'delighted';
-  if (zone === 'good') return 'good';
-  if (zone === 'reasonable') return 'fair';
-  if (zone === 'bad') return 'walk';
-  return 'idle';
-}
+/* `distFace` (the zone word's face) lives in lib/history-answer.js: the Saved list wears the same face (D20). */
 
 /**
  * The short line beside the word for an answer that is not fully confident
@@ -1614,9 +1640,6 @@ function confidenceLine(v) {
   const why = said === key ? t('vd_why_default') : said;
   return t('vd_not_confident_why', { why });
 }
-
-/** The contract's confidence, in the fill treatment DESIGN.md section 1 already has. */
-const DIST_CONF = { high: 'certain', medium: 'sure', low: 'thin' };
 
 /** A per-unit label off the wire, in the reader's language when this build knows it. */
 function unitWords(label) {
@@ -1634,14 +1657,6 @@ function localNumber(s) {
   } catch {
     return s;
   }
-}
-
-/** "25% under the typical price", from the shopper block. The sign comes from the prices, the size from `offByPct` when sent. */
-function distWhere(shopper, verdict) {
-  const signed = (shopper.cents - verdict.centreCents) / verdict.centreCents * 100;
-  const size = Math.round(Math.abs(isFinite(shopper.offByPct) && shopper.offByPct !== null ? shopper.offByPct : signed));
-  if (size < 1) return t('vd_where_about');
-  return t(signed < 0 ? 'vd_where_under' : 'vd_where_over', { pct: String(size) });
 }
 
 /** The bell's markup for one verdict, every word localised. `labels` pins the axis words to a real answer during a tween. */
@@ -1741,6 +1756,7 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
         ${basis ? `<p class="conf-label vd-basis" data-vd-basis>${escapeHtml(basis)}</p>` : ''}
         <div class="actions">
           <button type="button" class="pill ghost" data-act="correct">${escapeHtml(t('cam_correct_it'))}</button>
+          <button type="button" class="pill ghost" data-act="share">${escapeHtml(t('cam_share'))}</button>
         </div>
       </div>
       <div class="sheet-full">
@@ -3753,7 +3769,16 @@ export default {
        * offline"): say so, in one plain sentence, and stop. Nothing is named
        * and nothing is sent on to be priced. `offline-aisle.js` says why.
        */
+      if (found?.serverFault) {
+        lastLookup = { code, cents };
+        slot.innerHTML = serverFaultSheet();
+        playRefusalLanding(slot);
+        setState('result');
+        mounted('[data-act="lookup-retry"]');
+        return;
+      }
       if (found?.needsConnection) {
+        lastLookup = { code, cents };
         slot.innerHTML = needsConnectionSheet();
         playRefusalLanding(slot);
         setState('result');
@@ -3837,6 +3862,7 @@ export default {
        * verdict. The pack is the floor under it, not a faster path around it.
        */
       let id = null;
+      let serverFault = false;
       try {
         id = await ctx.api.identify({ gtin: code, shelfPriceCents });
         // The row the server just wrote for this scan. Kept whatever the
@@ -3846,8 +3872,12 @@ export default {
         // The query the server already started a price search under. Held
         // exactly as it arrived; see `lastPriceQuery`.
         lastPriceQuery = id?.priceQuery ?? null; lastPriceMatch = id?.priceMatch ?? null;
-      } catch {
-        id = null; // No signal. The aisle this app was built for.
+      } catch (err) {
+        id = null;
+        /* D17: a response that arrived with a 5xx status is the server's fault,
+           and the shopper's network is fine. Only a request that never got a
+           response (a TypeError from fetch) is "no signal". */
+        serverFault = isServerFault(err);
       }
 
       /*
@@ -3935,6 +3965,7 @@ export default {
        * failed. A server that DID answer without a product is not a missing
        * connection and falls through to the candidate sheet as before.
        */
+      if (id === null && serverFault) return { serverFault: true };
       return id === null ? identifyOffline(code) : null;
     }
 
@@ -4601,7 +4632,7 @@ export default {
         /* A Gemini answer is stored with two plain facts on its row, so past
            scans, the weekly line and the good-find state never open the answer
            to learn them: whether it answered, and Gemini's own zone code. */
-        store.recordVerdict(result, {
+        const geminiRowId = store.recordVerdict(result, {
           text: item.text,
           askingCents,
           thumb: scanThumb,
@@ -4620,6 +4651,7 @@ export default {
             cents: askingCents ?? null,
             scenario: item,
             shopperReport: result.shopperReport ?? null,
+            historyId: geminiRowId,
           });
           return;
         } else if (result.ownData && !result.found) {
@@ -5345,6 +5377,9 @@ export default {
           askingSeller: null,
           usualCents: v ? Math.round(v.centreCents) : null,
           thumb: last?.thumb ?? null,
+          /* D07, D20: the verdict on file travels with the saved row, so Saved
+             opens with it and wears the zone word's face. */
+          answer: answerSnapshot(dist.raw, { key: dist.key, name: dist.name, typedCents: dist.typedCents }),
         });
         paintDistribution(true);
         mounted('[data-act="dist-save"]');
@@ -5429,6 +5464,14 @@ export default {
         }, 2000);
         return;
       }
+      /* D08: the bell sheet's Share opens the card for this answer. The answer
+         is already in history (showDistribution wrote it), keyed by the same
+         id the card looks it up by. */
+      if (act === 'share' && dist?.key && last?.result?.kind === 'distribution') {
+        syncAnswer();
+        ctx.go('share', { id: dist.key });
+        return;
+      }
       if (act === 'share' && last?.result?.kind === 'verdict') {
         ctx.go('share', { id: last.result.identity.id });
         return;
@@ -5476,6 +5519,12 @@ export default {
       const ratedScan = Number.isInteger(last?.result?.scanId)
         ? last.result.scanId
         : (Number.isInteger(lastScanId) ? lastScanId : null);
+      /* D17, D37: Retry on the offline and server-fault sheets sends the same barcode again. */
+      if (act === 'lookup-retry' && lastLookup) {
+        const again = lastLookup;
+        void resolveBarcode(again.code, again.cents);
+        return;
+      }
       if (act === 'gem-retry' && last?.scenario) {
         // The same scan again: `proceed` sends the same scan id, so the server
         // recalls or re-asks under the row that already exists.
@@ -5872,9 +5921,31 @@ export default {
      * the bell does not redraw; only the shopper's new dot drops in.
      */
     let dist = null;
-    function showDistribution(raw, { name = '', key = null, cents = null, scenario = null, shopperReport = null } = {}) {
+    /* The barcode and shelf price of the last lookup that got no answer, for Retry. */
+    let lastLookup = null;
+    function showDistribution(raw, { name = '', key = null, cents = null, scenario = null, shopperReport = null, historyId = null } = {}) {
       const v = usableVerdict(raw);
-      dist = { raw, name, key: key ?? (name ? `name:${name}` : null), typedCents: !v?.shopper && cents ? cents : null, shopperReport };
+      dist = { raw, name, key: key ?? (name ? `name:${name}` : null), typedCents: !v?.shopper && cents ? cents : null, shopperReport, historyId, ownRow: false };
+      /* D07: every answer is written to Past scans, the catalogue-first and
+         typed-name ones as much as a Gemini one. A Gemini scan already wrote
+         its own row (`historyId`), which gets the answer attached instead of
+         a second row, so one scan is one entry. */
+      const snap = answerSnapshot(raw, { key: dist.key, name, typedCents: dist.typedCents });
+      if (snap) {
+        if (historyId) {
+          store.patchHistory(historyId, { answer: snap });
+        } else {
+          dist.ownRow = true;
+          const code = typeof dist.key === 'string' && !dist.key.startsWith('name:') ? dist.key : '';
+          dist.historyId = store.recordVerdict(snap, {
+            text: name,
+            askingCents: snap.askingCents ?? cents ?? undefined,
+            thumb: scanThumb,
+            ...(code ? { gtin: code } : {}),
+            answered: true,
+          });
+        }
+      }
       noteAnswer({ code: scenario?.scannedGtin ?? scenario?.gtin ?? (typeof key === 'string' && !key.startsWith('name:') ? key : null), label: name, category: scenario?.category ?? null });
       last = { result: { kind: 'distribution', verdict: raw }, scenario: scenario ?? { text: name, category: null }, thumb: scanThumb, askingCents: cents ?? undefined };
       lastKeepable = null;
@@ -5883,8 +5954,18 @@ export default {
       setState('result');
       mounted();
     }
+    /** The stored answer says what the sheet says now: a price typed on it, or the suggested one, changes the zone word. */
+    function syncAnswer() {
+      if (!dist?.historyId) return;
+      const snap = answerSnapshot(dist.raw, { key: dist.key, name: dist.name, typedCents: dist.typedCents });
+      if (!snap) return;
+      store.patchHistory(dist.historyId, dist.ownRow
+        ? { result: snap, query: { askingCents: snap.askingCents ?? undefined } }
+        : { answer: snap });
+    }
     function paintDistribution(inPlace) {
       if (!dist) return;
+      if (inPlace) syncAnswer();
       const html = distributionSheet(dist.raw, {
         name: dist.name,
         thumb: scanThumb,

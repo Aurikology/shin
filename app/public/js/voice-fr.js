@@ -572,6 +572,16 @@ export const LINES_FR = {
     warm: () => "Shin a besoin d'une connexion internet pour chercher ça, alors je n'ai rien à te dire pour l'instant. Scanne-le de nouveau une fois connecté.",
     blunt: () => "Shin a besoin d'une connexion pour répondre. Connecte-toi, puis rescanne.",
   },
+  cam_server_fault: {
+    deadpan: () => "Shin a un problème de son côté",
+    warm: () => "Quelque chose a mal tourné de mon côté",
+    blunt: () => "Shin a un problème",
+  },
+  cam_server_fault_detail: {
+    deadpan: () => "Ta connexion est bonne. La panne est du côté de Shin et je n'ai pas pu répondre à ce scan. Réessaie dans un instant.",
+    warm: () => "Ta connexion est bonne, c'est de mon côté. Je n'ai pas pu répondre à ce scan, alors réessaie dans un instant.",
+    blunt: () => "Pas ta connexion. La panne est du côté de Shin. Réessaie.",
+  },
   cam_photo_offline: {
     deadpan: () => "Tu es hors ligne, alors j'ai gardé la photo. Je finirai ça dès que tu seras de retour.",
     warm: () => "Pas de signal, alors j'ai gardé ta photo en sûreté. Je reprends ça dès que tu es de retour en ligne.",

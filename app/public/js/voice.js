@@ -997,6 +997,22 @@ const LINES_EN = {
     blunt: () => 'Shin needs a connection to answer. Connect, then scan again.',
   },
   /*
+   * D17 (2026-10-06 walkthrough): a server fault (a 5xx) used to paint the two
+   * lines above, telling the shopper to fix a network that was fine. The fault
+   * is Shin's, so the line says so and offers Retry; only a request that never
+   * reached the server says "connection".
+   */
+  cam_server_fault: {
+    deadpan: () => 'Shin hit a problem on its side',
+    warm: () => 'Something went wrong on my side',
+    blunt: () => 'Shin is having a problem',
+  },
+  cam_server_fault_detail: {
+    deadpan: () => 'Your connection is fine. The fault is on Shin\'s side and I could not answer this scan. Try again in a moment.',
+    warm: () => 'Your connection is fine, this one is on me. I could not answer this scan, so try again in a moment.',
+    blunt: () => 'Not your connection. The fault is on Shin\'s side. Try again.',
+  },
+  /*
    * --- the photo route's own six, added with the photo path
    * (docs/the-photo-path.md section 3) ---
    *

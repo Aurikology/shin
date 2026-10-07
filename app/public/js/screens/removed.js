@@ -27,9 +27,11 @@ function itemOf(r) {
     return { label: r.label, cents: typeof r.lastCents === 'number' ? r.lastCents : null };
   }
   const isVerdict = r.result?.kind === 'verdict';
+  /* D07: a verdict-bell row keeps the shopper's price on the snapshot. */
+  const bellCents = r.result?.kind === 'distribution' && typeof r.result.askingCents === 'number' ? r.result.askingCents : null;
   return {
-    label: isVerdict ? r.result.identity.label : (r.result?.identity?.label ?? r.query?.text ?? t('removed_unknown_item')),
-    cents: isVerdict ? r.result.askingCents : (r.query?.askingCents ?? null),
+    label: isVerdict ? r.result.identity.label : (r.result?.identity?.label || r.query?.text || t('removed_unknown_item')),
+    cents: isVerdict ? r.result.askingCents : (bellCents ?? r.query?.askingCents ?? null),
   };
 }
 

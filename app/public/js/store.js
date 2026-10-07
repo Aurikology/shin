@@ -437,11 +437,28 @@ export function reset() {
  * row 70). The tier lives inside `result` and travels with it; nothing here
  * re-derives it.
  */
-export function recordVerdict(result, query) {
+export function recordVerdict(result, query, extra = null) {
+  const id = newId();
   update((s) => ({
     ...s,
     scanCount: s.scanCount + 1,
-    history: [{ id: newId(), at: new Date().toISOString(), result, query }, ...s.history].slice(0, 100),
+    history: [{ id, at: new Date().toISOString(), result, query, ...(extra ?? {}) }, ...s.history].slice(0, 100),
+  }));
+  return id;
+}
+
+/**
+ * Corrects fields on a row already in history, by its id: the shopper typed a
+ * price on the sheet after the answer landed, so the row must say what the
+ * sheet says now (D07). Shallow-merges `patch` into the row; `result` and
+ * `answer` are replaced whole. A row that has gone (removed, or past the
+ * hundred cap) is left alone and nothing is written.
+ */
+export function patchHistory(id, patch) {
+  if (!id || !state.history.some((h) => h.id === id)) return;
+  update((s) => ({
+    ...s,
+    history: s.history.map((h) => (h.id === id ? { ...h, ...patch, query: patch.query ? { ...h.query, ...patch.query } : h.query } : h)),
   }));
 }
 
