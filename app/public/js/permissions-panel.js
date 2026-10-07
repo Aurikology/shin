@@ -61,7 +61,7 @@ export async function askCamera() {
  */
 export function panelHtml({ heading = true } = {}) {
   const row = (k) => `
-    <div class="onb-perm">
+    <div class="onb-perm" data-perm-row="${k}">
       <span class="onb-opt-text"><b>${escapeHtml(t(`onb_perm_${k}`))}</b><small>${escapeHtml(t(`onb_perm_${k}_sub`))}</small></span>
       <button type="button" class="onb-switch" role="switch" aria-checked="false" data-perm="${k}"
               aria-label="${escapeHtml(t(`onb_perm_${k}`))}"></button>
@@ -149,7 +149,13 @@ export function demoResultHtml(demo) {
   const label = escapeHtml(rawLabel || joined);
   const priceCents = typeof demo?.askingCents === 'number' ? demo.askingCents : null;
   const price = priceCents !== null ? `$${(priceCents / 100).toFixed(2)}` : null;
-  const verdict = demo?.verdictWord ? escapeHtml(String(demo.verdictWord)) : '';
+  /* D22: the demo route sends a `band` (one of the price line's three zones) and
+     no verdict word, so the card showed only a product name. The band reads as
+     the price line's own zone words, still under the DEMO badge. */
+  const ZONE_KEY = { under_your_line: 'priceline_zone_under', middle: 'priceline_zone_middle', over_your_line: 'priceline_zone_over' };
+  const verdict = demo?.verdictWord
+    ? escapeHtml(String(demo.verdictWord))
+    : ZONE_KEY[demo?.band] ? escapeHtml(t(ZONE_KEY[demo.band])) : '';
   return `<div class="onb-demo-card" data-demo-result>
     ${badge}
     ${label ? `<p class="onb-demo-item">${label}</p>` : ''}
@@ -170,8 +176,13 @@ export function demoResultHtml(demo) {
 export async function fillDemoSlot(root, ctx, { signal, track } = {}) {
   const demoSlot = root.querySelector('[data-demo-slot]');
   if (!demoSlot) return;
+  /* D22: something shows the instant the link is tapped, and the slot is brought
+     into view, so a slow answer or one below the fold never looks like nothing. */
+  demoSlot.innerHTML = `<p class="fineprint">${escapeHtml(t('onb_demo_loading'))}</p>`;
+  demoSlot.scrollIntoView?.({ block: 'nearest' });
   const demo = await ctx.api.identifyDemo?.();
   if (signal?.aborted) return;
   track?.('demo_scan_shown', { shown: Boolean(demo) });
   demoSlot.innerHTML = demo ? demoResultHtml(demo) : `<p class="fineprint">${escapeHtml(t('onb_demo_unavailable'))}</p>`;
+  demoSlot.scrollIntoView?.({ block: 'nearest' });
 }

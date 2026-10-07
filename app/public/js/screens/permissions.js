@@ -61,14 +61,15 @@ export default {
     paintPanel(root);
 
     on(root, 'click', async (e) => {
-      const perm = e.target.closest('[data-perm]');
+      /* D23: the whole row is the target, not only the small switch inside it. */
+      const perm = e.target.closest('[data-perm-row]');
       if (perm) {
         /* Recorded under this screen's own name, into the same
            `onboarding.answers` the welcome flow writes, which is what the
            panel reads back: whichever screen asked, the switch shows the
            same answer. A screen that was left while the phone was still
            deciding records nothing, as step 24 has always behaved. */
-        await tapPermission(root, ctx, perm.dataset.perm, (key, value) => {
+        await tapPermission(root, ctx, perm.dataset.permRow, (key, value) => {
           if (!ac.signal.aborted) recordAnswer(DEPS, 'permissions', key, value);
         });
         if (ac.signal.aborted) return;

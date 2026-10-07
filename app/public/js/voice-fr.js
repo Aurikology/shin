@@ -883,6 +883,23 @@ export const LINES_FR = {
     warm: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Shin, et la personne qui la fait tourner peut le voir aussi. Tu peux changer l'un ou l'autre des choix n'importe quand depuis la page Toi.",
     blunt: () => "Cette application garde ça, l'utilise pour répondre à d'autres personnes et entraîner Shin. Change-le n'importe quand sur la page Toi.",
   },
+  /* D24: une seule décision quand l'identification par photo est fermée. */
+  consent_footer_one: {
+    deadpan: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Shin, et la personne qui la fait tourner peut le voir aussi. Change ce choix n'importe quand sur la page Toi.",
+    warm: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Shin, et la personne qui la fait tourner peut le voir aussi. Tu peux changer ce choix n'importe quand depuis la page Toi.",
+    blunt: () => "Cette application garde ça, l'utilise pour répondre à d'autres personnes et entraîner Shin. Change-le n'importe quand sur la page Toi.",
+  },
+  consent_intro_lean: {
+    deadpan: (f) => `Chaque scan est écrit: le produit et le prix que tu as vu, toujours, pour que la prochaine personne qui le scanne obtienne une réponse.${f.photos ? ' Les photos sont gardées seulement si tu ouvres ça ci-dessous.' : ''}${f.locationSwitch ? " La position n'est gardée que si tu l'ouvres ci-dessous." : " La position n'est gardée que si tu l'as permise à l'écran précédent."}`,
+    warm: (f) => `Chaque scan est écrit: ce que tu as scanné et le prix que tu as vu, toujours, pour que la prochaine personne qui scanne la même chose obtienne une réponse elle aussi.${f.photos ? ' Les photos sont gardées seulement si tu ouvres ça ci-dessous.' : ''}${f.locationSwitch ? " La position n'est gardée que si tu l'ouvres ci-dessous." : " La position n'est gardée que si tu l'as permise à l'écran précédent."}`,
+    blunt: (f) => `Chaque scan est consigné: produit et prix, toujours.${f.photos ? ' Les photos sont gardées seulement si tu ouvres ça.' : ''}${f.locationSwitch ? " La position n'est gardée que si tu l'ouvres." : " La position n'est gardée que si tu l'as permise à l'écran précédent."}`,
+  },
+  /* D24: identification par photo fermée, aucune image de caméra ne part avec un code-barres. */
+  you_data_intro_nophoto: {
+    deadpan: () => "Chaque scan est écrit: le produit et le prix que tu as vu, toujours, utilisé pour entraîner Shin et répondre à d'autres personnes.",
+    warm: () => "Chaque scan est écrit, le produit et le prix que tu as vu, toujours, et ça aide à entraîner Shin et à répondre à d'autres personnes.",
+    blunt: () => "Chaque scan est consigné: produit et prix, toujours. Utilisé pour entraîner Shin et répondre à d'autres personnes.",
+  },
   cam_point_barcode: {
     deadpan: () => "Pointe-moi vers le code-barres.",
     warm: () => "Pointe-moi vers le code-barres et tiens-le là.",

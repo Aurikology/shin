@@ -247,6 +247,7 @@ export default {
           <div class="empty" data-act="wake-empty">
             ${raw(faceBlock('asleep', { size: 'face-verdict' }))}
             <p>${say('watchlist_empty')}</p>
+            <button type="button" class="btn btn--primary" data-act="camera">${t('nav_scan')}</button>
           </div>`;
       }
 

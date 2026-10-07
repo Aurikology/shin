@@ -551,7 +551,6 @@ const NOT_SHOWN = [
   { file: 'pastscans.js', text: 'Past scans failed to render', why: 'console.error message in the screen\'s own render guard. The person holding the phone sees the error state, not this string.' },
   { file: 'removed.js', text: 'Recently removed failed to render', why: 'console.error message in the render guard on this screen. The shopper sees the error state; this names the screen for whoever reads the log.' },
   { file: 'watchlist.js', text: 'Saved failed to render', why: 'console.error message in the render guard on this screen, same reasoning as the two above it.' },
-  { file: 'you.js', text: 'scan log could not be written:', why: 'console.error prefix. The sentence the screen shows for this is a voice.js key; the cause goes where somebody can read it.' },
   { file: 'share.js', text: 'share card:', why: 'console group label for the card draw, developer-facing only.' },
   { file: 'share.js', text: 'card draw failed', why: 'console.error message for a canvas that would not draw. What the reader gets is share_card_failed.' },
   { file: 'share.js', text: 'did not resolve from the live stylesheet', why: 'The message of a thrown MissingTokenError, caught and logged. A token that is missing is a build problem, not something a shopper is told about.' },

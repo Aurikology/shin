@@ -236,6 +236,9 @@
 
 /* --------------------------------------------------------- permissions -- */
 .onb-perm {
+  /* D23: the whole row toggles its switch, so the whole row is the 44px target. */
+  min-height: 44px;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;

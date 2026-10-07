@@ -46,20 +46,37 @@ import { LOCALES, locale, setLocale, localePinned } from '../lib/locale.js';
 import { countryLabel, regionText } from './market.js';
 import { rangePickerHtml, handleRangeClick } from '../lib/range-picker.js';
 import { tagsOn, setTagsOn } from '../screen-tag-badge.js';
+import { devOn } from '../dev-mode.js';
 import { FLAGS } from '../flags.js';
-import { MANAGE_URLS } from '../plus-config.js';
+import { MANAGE_URLS, LEGAL_URLS, LEGAL_URLS_FR } from '../plus-config.js';
 import { platformOf } from '../purchases.js';
 
 /**
- * "Manage subscription": the store's own subscriptions page for this phone.
- * Inside the wrapper Capacitor says which store; in a browser the user agent
- * is the only hint, and anything that is not an Apple device gets Google's.
+ * "Manage subscription": the store's own subscriptions page, or '' for no row.
+ * D29 (2026-10-06): the page only means something inside the Android store
+ * build, where the subscription was bought. In a browser tab it opened a
+ * Google page that knows nothing about the person, and on iOS the build does
+ * not ship yet, so everywhere else the row is simply not drawn.
  */
 export function manageSubscriptionUrl(win = globalThis.window) {
-  const p = platformOf(win);
-  if (p === 'ios' || p === 'android') return MANAGE_URLS[p];
-  const ua = String(win?.navigator?.userAgent ?? '');
-  return /iPhone|iPad|iPod|Macintosh/.test(ua) ? MANAGE_URLS.ios : MANAGE_URLS.android;
+  return platformOf(win) === 'android' ? MANAGE_URLS.android : '';
+}
+
+/**
+ * When the server this app talks to last started, as `YYYY-MM-DD HH:MM`, or
+ * null when it cannot be read. The server reports `startedAt` on /api/health;
+ * that moment is the running build, derived at start rather than hand-set
+ * (D28). `fetchFn` and `win` are injectable so a test needs no network.
+ */
+export async function buildStamp(fetchFn = globalThis.fetch, win = globalThis.window) {
+  if (typeof fetchFn !== 'function') return null;
+  const headers = win?.SHIN_INVITE_CODE ? { 'x-shin-invite': win.SHIN_INVITE_CODE } : {};
+  const res = await fetchFn(`${win?.SHIN_API_BASE ?? ''}/api/health`, { headers });
+  if (!res?.ok) return null;
+  const at = new Date((await res.json())?.startedAt);
+  if (Number.isNaN(at.getTime())) return null;
+  const p = (n) => String(n).padStart(2, '0');
+  return `${at.getFullYear()}-${p(at.getMonth() + 1)}-${p(at.getDate())} ${p(at.getHours())}:${p(at.getMinutes())}`;
 }
 
 /**
@@ -79,14 +96,12 @@ export function quotaText(q) {
  * whoever reads the mailbox can find the right rows without asking the
  * person to go find an id themselves.
  *
- * PLACEHOLDER ADDRESS. This repo has no delete-request mailbox on file
- * anywhere (checked: no email address appears in docs/, notes/, or NOW.md),
- * and putting a real inbox into a screen every beta tester sees is a real
- * consequence, not a copy detail -- so this is a named placeholder rather
- * than a guess dressed up as an answer. Replace with the address that
- * actually reads it before this ships past the six testers.
+ * THE ADDRESS IS THE PRIVACY POLICY'S OWN (D15, 2026-10-06). It used to be a
+ * named placeholder at a made-up domain, while public/legal/privacy.html told
+ * people to write to useshinapp@gmail.com for the same request. One address,
+ * everywhere: this one, and a test reads the policy to keep it so.
  */
-const DELETE_MY_DATA_EMAIL = 'privacy@shin.app';
+export const DELETE_MY_DATA_EMAIL = 'useshinapp@gmail.com';
 
 function deleteMyDataHref() {
   const device = getDeviceId();
@@ -134,6 +149,7 @@ export default {
     // with a cell that was never written for it (DESIGN.md section 3). The key
     // takes the same two facts; only the sentence differs.
     const weekKey = weekProud ? 'you_weekly_proud' : 'you_weekly';
+    const manageUrl = manageSubscriptionUrl();
     const ratedCounts = store.ratedCounts();
     const consent = store.consent();
     const ac = new AbortController();
@@ -203,8 +219,15 @@ export default {
 
         <section class="block">
           <h2 class="sect-h">${escapeHtml(t('you_has_answered_h'))}</h2>
-          <div class="coverage" data-scanlog aria-live="polite">
-            <p class="fineprint">${escapeHtml(t('you_reading_scan_log'))}</p>
+          ${/* D14: only this phone's own numbers, from the same `weekly` object the
+               header line above reads, so the two can never disagree. The server's
+               fleet-wide scan log (every device's scans, hit rates, returns) is not
+               a shopper's business and is no longer fetched here. */ ''}
+          <div class="ilist" data-scanlog>
+            <div class="ilist-row">
+              <span class="ilist-l">${escapeHtml(t('you_yours_this_week'))}</span>
+              <span class="ilist-v">${escapeHtml(`${t('you_scan_count', { n: String(weekly.scanned) })}, ${t('you_named_suffix', { n: String(weekly.callable) })}`)}</span>
+            </div>
           </div>
         </section>
 
@@ -304,11 +327,18 @@ export default {
             <button type="button" class="ilist-row" data-act="buzz" aria-pressed="${store.buzzOn()}">
               <span class="ilist-l">${escapeHtml(t('you_buzz'))}</span><span class="ilist-v" data-buzz-v></span>
             </button>
-            ${/* FLAGS.market off pins Canada at boot, so no picker row. */ !store.marketPinned() ? `<button type="button" class="ilist-row" data-act="market">
+          </div>
+          ${/* D27: each caption sits directly under the row it explains. */ ''}
+          <p class="fineprint">${escapeHtml(t('you_buzz_caption'))}</p>
+          ${/* FLAGS.market off pins Canada at boot, so no picker row and no caption. */ !store.marketPinned() ? `<div class="ilist">
+            <button type="button" class="ilist-row" data-act="market">
               <span class="ilist-l">${escapeHtml(t('you_market'))}</span>
               <span class="ilist-v">${escapeHtml((market.country ? countryLabel(market.country) : t('you_market_unset')) + (regionText(market) ? `, ${regionText(market)}` : ''))}</span>
               ${rowChevron()}
-            </button>` : ''}
+            </button>
+          </div>
+          <p class="fineprint">${escapeHtml(t('you_market_caption'))}</p>` : ''}
+          <div class="ilist">
             ${/* FLAGS.onboarding off: no welcome to watch again. */ FLAGS.onboarding ? `<button type="button" class="ilist-row" data-act="welcome">
               <span class="ilist-l">${escapeHtml(t('onb_replay_row'))}</span>
               ${rowChevron()}
@@ -318,22 +348,20 @@ export default {
               ${rowChevron()}
             </button>
           </div>
-          <p class="fineprint">${escapeHtml(t('you_buzz_caption'))}</p>
-          ${!store.marketPinned() ? `<p class="fineprint">${escapeHtml(t('you_market_caption'))}</p>` : ''}
         </section>
 
         ${/* Shin Plus (2026-09-21): this week's free scans from /api/quota, filled
              after the paint and shown only when the server sets a limit, and the
              store's own subscription page, which is the only place a
              subscription is changed or cancelled. */ ''}
-        <section class="block" data-plus-block>
+        <section class="block" data-plus-block${manageUrl ? '' : ' hidden style="display:none"'}>
           <h2 class="sect-h">${escapeHtml(t('paywall_title'))}</h2>
           <div class="ilist">
             <div class="ilist-row" data-quota-row hidden><span class="ilist-l" data-quota-text></span></div>
-            <a class="ilist-row" href="${escapeHtml(manageSubscriptionUrl())}" target="_blank" rel="noopener noreferrer" data-manage-sub>
+            ${/* D29: the store page is a dead end anywhere but the Android store build, so no row. */ manageUrl ? `<a class="ilist-row" href="${escapeHtml(manageUrl)}" target="_blank" rel="noopener noreferrer" data-manage-sub>
               <span class="ilist-l">${escapeHtml(t('you_manage_sub'))}</span>
               ${rowChevron()}
-            </a>
+            </a>` : ''}
           </div>
         </section>
 
@@ -354,17 +382,17 @@ export default {
 
         <section class="block">
           <h2 class="sect-h">${escapeHtml(t('you_data_h'))}</h2>
-          <p class="fineprint">${escapeHtml(say('you_data_intro'))}</p>
+          <p class="fineprint">${escapeHtml(say(FLAGS.photoId ? 'you_data_intro' : 'you_data_intro_nophoto'))}</p>
 
           <div class="ilist consent-list">
-            <div class="ilist-row consent-row">
+            ${/* D24: no Photos switch while photo identification is off; nothing is kept to switch. */ !FLAGS.photoId ? '' : `<div class="ilist-row consent-row">
               <div class="consent-text">
                 <span class="ilist-l">${escapeHtml(t('you_photos'))}</span>
                 <p class="fineprint">${escapeHtml(say('consent_photos_desc'))}</p>
               </div>
               <button type="button" class="switch" data-consent="photos" role="switch"
                       aria-checked="${consent.photos}" aria-label="${escapeHtml(t('you_photos'))}"></button>
-            </div>
+            </div>`}
             <div class="ilist-row consent-row">
               <div class="consent-text">
                 <span class="ilist-l">${escapeHtml(t('you_location'))}</span>
@@ -388,7 +416,18 @@ export default {
             deliberately nothing to write. That decision is not an embarrassment to
             hide behind a placeholder; said plainly, it is the paragraph above.
           -->
-          <p class="fineprint">${escapeHtml(t('you_no_legal'))}</p>
+          ${/* D15: the privacy policy and the terms exist (app/public/legal), so this links
+               them instead of saying there are none. */ ''}
+          <div class="ilist">
+            <a class="ilist-row" href="${escapeHtml(chosenLocale === 'fr' ? LEGAL_URLS_FR.privacy : LEGAL_URLS.privacy)}" target="_blank" rel="noopener noreferrer" data-legal-privacy>
+              <span class="ilist-l">${escapeHtml(t('paywall_privacy'))}</span>
+              ${rowChevron()}
+            </a>
+            <a class="ilist-row" href="${escapeHtml(chosenLocale === 'fr' ? LEGAL_URLS_FR.terms : LEGAL_URLS.terms)}" target="_blank" rel="noopener noreferrer" data-legal-terms>
+              <span class="ilist-l">${escapeHtml(t('paywall_terms'))}</span>
+              ${rowChevron()}
+            </a>
+          </div>
           ${
             /*
              * The one error state this screen can honestly report about itself.
@@ -428,7 +467,7 @@ export default {
         ${/* Developer row: a tool for the owner. The switch shows an On/Off word because
              a bare switch has no styling in this stylesheet (see the buzz row above,
              which does the same). Off means no badge element exists at all. */ ''}
-        <section class="block">
+        ${/* D28: only when the developer switch is already on or ?dev=1 was used. */ devOn({ tagsOn: tagsOn() }) ? `<section class="block">
           <h2 class="sect-h">${escapeHtml(t('dev_heading'))}</h2>
           <div class="ilist">
             <button type="button" class="ilist-row" data-tags-switch role="switch" aria-checked="false">
@@ -436,11 +475,9 @@ export default {
             </button>
           </div>
           <p class="fineprint">${escapeHtml(t('dev_tags_caption'))}</p>
-        </section>
+        </section>` : ''}
 
-        <p class="fineprint buildline">${escapeHtml(t('you_build'))} ${escapeHtml(
-          ctx.build ?? t('unknown'),
-        )} ${escapeHtml(t('you_build_note'))}</p>
+        <p class="fineprint buildline" data-build>${escapeHtml(t('you_build'))} ${escapeHtml(t('unknown'))}</p>
 
         ${pageBar('you')}
       </div>`;
@@ -456,6 +493,14 @@ export default {
     }
     paintBuzz();
 
+    /* D28: the build line is read from the running server, never from a number
+       somebody set by hand. A failed fetch leaves "unknown" in place. */
+    void buildStamp().then((stamp) => {
+      if (ac.signal.aborted || !stamp) return;
+      const line = root.querySelector('[data-build]');
+      if (line) line.textContent = `${t('you_build')} ${stamp} ${t('you_build_note')}`;
+    }).catch(() => {});
+
     /* This week's scans, from the server's own count. Never awaited: the page
        is whole without it, and a failed fetch leaves the row out. */
     void Promise.resolve(ctx.api?.quota?.()).then((q) => {
@@ -465,6 +510,8 @@ export default {
       if (!row || !text) return;
       row.querySelector('[data-quota-text]').textContent = text;
       row.hidden = false;
+      const block = root.querySelector('[data-plus-block]');
+      if (block) { block.hidden = false; block.style.display = ''; }
     }).catch(() => {});
 
     /**
@@ -504,98 +551,6 @@ export default {
     for (const g of root.querySelectorAll('[role="radiogroup"]')) {
       wireRadioGroup(g, { signal: ac.signal });
     }
-
-    /*
-     * The scan log, read back.
-     *
-     * WHY THIS IS A DIFFERENT NUMBER FROM THE WEEKLY LINE AT THE TOP. That one
-     * is this phone's own history out of localStorage: what you saw. This is
-     * the server's record of what was asked of the catalogue, across every
-     * device that has ever asked. They will not agree and are not meant to, so
-     * this block says whose scans it is counting rather than leaving two
-     * numbers on one screen to quietly contradict each other.
-     *
-     * AND WHY EVERY RATE HERE CAN SAY "not yet". A share over no scans is
-     * unknown, not zero, and printing 0% for it would be this app claiming a
-     * measured failure it has not measured. `null` comes back from the server
-     * for exactly that case and `pct` turns it into words, never a number.
-     */
-    const pct = (r) => (r === null || r === undefined ? null : `${Math.round(r * 100)}%`);
-    ctx.api.scans().then((s) => {
-      const box = root.querySelector('[data-scanlog]');
-      if (!box) return;
-      if (s.scans === 0) {
-        /*
-         * `droppedWhy` is the store's own error message -- SQLITE_CANTOPEN and
-         * the like. It used to be interpolated into this sentence verbatim,
-         * which is an internal identifier on the screen of the one person who
-         * cannot act on it (D-011). The screen says that scans were not
-         * written; the reason goes where somebody can read it.
-         */
-        if (s.dropped) console.error('scan log could not be written:', s.droppedWhy);
-        const problem = s.dropped ? t('you_some_not_written') : '';
-        box.innerHTML = `<p class="fineprint">${escapeHtml(say('you_scans_none', { problem }))}</p>`;
-        return;
-      }
-      const named = pct(s.namedRate);
-      const mine = s.thisDevice;
-      box.innerHTML = `
-        <div class="ilist">
-          <div class="ilist-row">
-            <span class="ilist-l">${escapeHtml(t('you_scans_named_row'))}</span>
-            <span class="ilist-v">${escapeHtml(named ?? t('not_yet'))}</span>
-          </div>
-        </div>
-        <p class="fineprint">${escapeHtml(
-          say('you_scans_named', { scans: t('you_scan_count', { n: String(s.scans) }) }),
-        )}</p>
-        <div class="covlist">
-          ${s.perKind
-            .map(
-              // No yes/no class on these. Those two mean "can answer" and
-              // "refuses" on the coverage list above, and borrowing them here
-              // set a percentage in a different size and colour from the
-              // percentage on the row under it, which reads as two different
-              // kinds of number when it is one kind.
-              (k) => `<div class="covrow">
-                <span>${escapeHtml(k.kind === 'barcode' ? t('you_kind_barcode') : k.kind === 'text' ? t('you_kind_typed') : t('you_kind_photo'))}
-                  · ${k.scans}</span>
-                <span>${escapeHtml(pct(k.rate) ?? t('not_yet'))}</span>
-              </div>`,
-            )
-            .join('')}
-          <div class="covrow">
-            <span>${escapeHtml(t('you_corrections_row'))}</span>
-            <span>${s.correctionsPerHundred === null ? escapeHtml(t('not_yet')) : Math.round(s.correctionsPerHundred)}</span>
-          </div>
-          <div class="covrow">
-            <span>${escapeHtml(t('you_week_two_row'))}</span>
-            <span>${
-              s.secondWeekReturn.rate === null
-                ? escapeHtml(t('you_week_two_none'))
-                : `${pct(s.secondWeekReturn.rate)} ${escapeHtml(t('of'))} ${s.secondWeekReturn.eligible}`
-            }</span>
-          </div>
-          <div class="covrow">
-            <span>${escapeHtml(t('you_yours_this_week'))}</span>
-            <span>${mine ? escapeHtml(`${t('you_scan_count', { n: String(mine.scansThisWeek) })}, ${t('you_named_suffix', { n: String(mine.named) })}`) : escapeHtml(t('unknown'))}</span>
-          </div>
-        </div>
-        ${
-          s.dropped
-            ? `<p class="fineprint">${escapeHtml(
-                say('you_scans_dropped', {
-                  scans: t('you_scan_count', { n: String(s.dropped) }),
-                  // Same rule as above: the cause is logged, not printed.
-                  why: (console.error('scan log could not be written:', s.droppedWhy), t('you_log_not_written')),
-                }),
-              )}</p>`
-            : ''
-        }`;
-    }).catch(() => {
-      const box = root.querySelector('[data-scanlog]');
-      if (box) box.innerHTML = `<p class="fineprint">${escapeHtml(say('you_scanlog_failed'))}</p>`;
-    });
 
     // The torch slider: stored as it moves. The camera reads it on mount.
     on(root, 'input', (e) => {

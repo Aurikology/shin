@@ -112,9 +112,12 @@ test('You: no language row, no market row and no welcome replay while those are 
   assert.ok(!html.includes('data-locale='), 'the language row is still drawn');
   assert.ok(!html.includes('data-act="market"'), 'the market picker row is still drawn');
   assert.ok(!html.includes('data-act="welcome"'), 'the welcome replay row is still drawn');
-  assert.match(html, /data-manage-sub/);
-  assert.match(html, /Manage subscription/);
+  /* D29: in a plain browser the store page is a dead end, so no Manage row. */
+  assert.ok(!html.includes('data-manage-sub'), 'Manage subscription is drawn outside the Android store build');
   assert.match(html, /data-quota-row hidden/, 'the quota row must wait for the server');
+  const android = youMarkup({ Capacitor: { getPlatform: () => 'android' } });
+  assert.match(android, /data-manage-sub/);
+  assert.match(android, /Manage subscription/);
 
   applyFlags({ ...FLAGS, languages: true, market: true });
   const on = youMarkup();
@@ -124,9 +127,10 @@ test('You: no language row, no market row and no welcome replay while those are 
 
 test('Manage subscription opens the store the phone uses, and the quota line shows only a real limit', () => {
   const { manageSubscriptionUrl, quotaText } = youModule;
-  assert.equal(manageSubscriptionUrl({ Capacitor: { getPlatform: () => 'ios' } }), 'https://apps.apple.com/account/subscriptions');
+  assert.equal(manageSubscriptionUrl({ Capacitor: { getPlatform: () => 'ios' } }), '', 'D29: no iOS build ships, so no row');
   assert.equal(manageSubscriptionUrl({ Capacitor: { getPlatform: () => 'android' } }), 'https://play.google.com/store/account/subscriptions');
-  assert.equal(manageSubscriptionUrl({ navigator: { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0)' } }), 'https://apps.apple.com/account/subscriptions');
+  assert.equal(manageSubscriptionUrl({ navigator: { userAgent: 'Mozilla/5.0 (Linux; Android 14)' } }), '', 'a browser tab on an Android phone is still not the store build');
+  assert.equal(manageSubscriptionUrl({ navigator: { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0)' } }), '');
   assert.equal(quotaText({ limit: 10, used: 3, remaining: 7, resetsAt: 'x', plus: false }), '7 of 10 free scans left this week');
   assert.equal(quotaText({ limit: null, used: 3, remaining: null, plus: false }), '', 'no limit set must show nothing');
   assert.equal(quotaText({ limit: 10, remaining: 0, plus: true }), 'Shin Plus: unlimited scans');

@@ -35,6 +35,8 @@ import { escapeHtml } from './lib/dom.js';
 import { t } from './ui-strings.js';
 import { applyLang } from './lib/locale.js';
 import { mountTags, refreshTag } from './screen-tag-badge.js';
+import { FLAGS } from './flags.js';
+import { captureDevParam } from './dev-mode.js';
 
 const routes = new Map();
 let current = null;
@@ -117,6 +119,21 @@ export function register(screen) {
   routes.set(screen.id, screen);
 }
 
+/**
+ * Screens that exist only while a flag is on. D36 (2026-10-06): the market
+ * picker is switched off (flags.js `market`, the market is pinned to Canada),
+ * yet `?s=market` still opened it and its choices changed nothing. A screen
+ * named here is not routable, by URL, back button or `go`, until its flag is
+ * true; the router sends it to the fallback screen like any unknown id.
+ */
+const FLAG_GATED = Object.freeze({ market: 'market' });
+
+/** Whether `id` may be shown with these flags. Pure, so a test needs no DOM. */
+export function screenAllowed(id, flags = FLAGS) {
+  const flag = FLAG_GATED[id];
+  return !flag || flags[flag] === true;
+}
+
 export function screens() {
   return [...routes.values()];
 }
@@ -126,7 +143,7 @@ export function currentId() {
 }
 
 export function go(id, params = {}) {
-  if (!routes.has(id)) {
+  if (!routes.has(id) || !screenAllowed(id)) {
     console.warn(`no screen "${id}"`);
     return;
   }
@@ -204,6 +221,7 @@ function titleOf(screen) {
 
 /** Replace without adding a history entry. Used when a screen redirects itself. */
 export function replace(id, params = {}) {
+  if (!screenAllowed(id)) return;
   const next = new URLSearchParams();
   next.set('s', id);
   for (const [k, v] of Object.entries(params)) {
@@ -304,16 +322,18 @@ export function start(root, base, fallbackId) {
   rootEl = root;
   mountTags(root);
   ctxBase = base;
+  /* D28: `?dev=1` is remembered here, before the first navigation rewrites the query. */
+  captureDevParam(location.search);
   window.addEventListener('popstate', () => {
     const q = new URLSearchParams(location.search);
     const id = q.get('s');
     const params = Object.fromEntries([...q.entries()].filter(([k]) => k !== 's'));
     // Back and forward restore the scroll position; every other arrival is a
     // fresh one and starts at the top.
-    paint(routes.has(id) ? id : fallbackId, params, true);
+    paint(routes.has(id) && screenAllowed(id) ? id : fallbackId, params, true);
   });
   const q = new URLSearchParams(location.search);
   const id = q.get('s');
   const params = Object.fromEntries([...q.entries()].filter(([k]) => k !== 's'));
-  paint(routes.has(id) ? id : fallbackId, params);
+  paint(routes.has(id) && screenAllowed(id) ? id : fallbackId, params);
 }

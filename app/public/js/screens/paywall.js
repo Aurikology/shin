@@ -50,8 +50,29 @@ export function resetDay(iso, tag = localeTag()) {
 
 /** The line under the mascot: how many free scans the week had, and when they come back. */
 export function limitLine(params = {}) {
-  const limit = Number(params.limit);
-  const head = Number.isInteger(limit) && limit > 0 ? t('paywall_limit', { limit: String(limit) }) : t('paywall_limit_bare');
+  const num = (v) => (v === undefined || v === null || v === '' ? null : Number(v));
+  const limit = num(params.limit);
+  const used = num(params.used);
+  const hasLimit = Number.isInteger(limit) && limit > 0;
+  /*
+   * D30 (2026-10-06): the line said "the free scans for this week are used" on
+   * every arrival, including `?s=paywall` opened by hand and a visit where none
+   * had been used. It now says so only when the server's own numbers say the
+   * allowance is gone (used has reached the limit), or when the camera sent the
+   * limit and reset without a count, which only a refused scan does. With the
+   * count showing scans left it says how many are left; with nothing at all
+   * (no limit, no reset time) it says nothing.
+   */
+  const spent = Number.isInteger(used) && hasLimit
+    ? used >= limit
+    : used === null && (hasLimit || typeof params.resetsAt === 'string');
+  if (!spent) {
+    if (hasLimit && Number.isInteger(used) && used >= 0) {
+      return t('you_scans_left', { remaining: String(limit - used), limit: String(limit) });
+    }
+    return '';
+  }
+  const head = hasLimit ? t('paywall_limit', { limit: String(limit) }) : t('paywall_limit_bare');
   const when = resetDay(params.resetsAt);
   return when ? `${head} ${t('paywall_resets', { when })}` : head;
 }
@@ -138,7 +159,7 @@ export default {
           <h1>${escapeHtml(t('paywall_heading'))}</h1>
         </header>
         ${shinSay('idle', 'paywall_say', {}, { size: 'face-page' })}
-        <p class="fineprint pw-limit" data-pw-limit>${escapeHtml(limitLine(ctx.params ?? {}))}</p>
+        ${(() => { const line = limitLine(ctx.params ?? {}); return line ? `<p class="fineprint pw-limit" data-pw-limit>${escapeHtml(line)}</p>` : ''; })()}
         <div class="pw-body" data-pw-body aria-live="polite"></div>
         <p class="pw-legal">
           <a href="${escapeHtml(LEGAL_URLS.terms)}" target="_blank" rel="noopener noreferrer" data-pw-terms>${escapeHtml(t('paywall_terms'))}</a>

@@ -234,6 +234,11 @@ test('no price and no savings claim is written into the client', () => {
       assert.ok(!words.test(text), `${lang}.${k} makes a savings claim: ${text}`);
     }
   }
-  assert.equal(limitLine({}), 'The free scans for this week are used.');
+  /* D30: it only says the scans are used when they were. */
+  assert.equal(limitLine({}), '', 'opened by hand, nothing was used and nothing is said');
+  assert.equal(limitLine({ limit: '5', used: '0' }), '5 of 5 free scans left this week');
+  assert.equal(limitLine({ limit: '5', used: '2' }), '3 of 5 free scans left this week');
+  assert.match(limitLine({ limit: '5', used: '5' }), /^The 5 free scans for this week are used\./);
+  assert.match(limitLine({ limit: '5' }), /are used\./, 'a refused scan sends the limit without a count');
   assert.ok(!/data-act="subscribe"/.test(paywallBody('web')));
 });

@@ -80,7 +80,7 @@ function render({ identifyDemo } = {}) {
 }
 
 const CONTINUE = { '[data-act]': { dataset: { act: 'go' } } };
-const CAMERA_SWITCH = { '[data-perm]': { dataset: { perm: 'camera' } } };
+const CAMERA_SWITCH = { '[data-perm-row]': { dataset: { permRow: 'camera' } } };
 
 /* ------------------------------------------------- 1. one panel, not two */
 

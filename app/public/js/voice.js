@@ -1481,6 +1481,19 @@ const LINES_EN = {
     blunt: () => 'Every scan is logged: product and price, always. Photos are kept only if you switch that on. Location is kept only if you switch it on.',
   },
   /*
+   * The same intro for a build where a switch is not on this screen. D24,
+   * 2026-10-06: with photo identification off there is no photo to keep, and
+   * with the welcome flow off location is asked once, on the permission screen
+   * (RULINGS.md "Location is asked once"), so the old line pointed at two
+   * switches that do not exist. `f.photos` and `f.locationSwitch` say which
+   * switches this build really draws here.
+   */
+  consent_intro_lean: {
+    deadpan: (f) => `Every scan is written down: the product and the price you saw, always, so the next person who scans it gets an answer.${f.photos ? ' Photos are kept only if you switch that on below.' : ''}${f.locationSwitch ? ' Location is kept only if you switch it on below.' : ' Location is kept only if you allowed it on the last screen.'}`,
+    warm: (f) => `Every scan gets written down: what you scanned and the price you saw, always, so the next person who scans the same thing gets an answer too.${f.photos ? ' Photos are kept only if you switch that on below.' : ''}${f.locationSwitch ? ' Location is kept only if you switch it on below.' : ' Location is kept only if you allowed it on the last screen.'}`,
+    blunt: (f) => `Every scan is logged: product and price, always.${f.photos ? ' Photos are kept only if you switch that on.' : ''}${f.locationSwitch ? ' Location is kept only if you switch it on.' : ' Location is kept only if you allowed it on the last screen.'}`,
+  },
+  /*
    * REWRITTEN 2026-09-28, twice the same day. First for D-148's own complaint:
    * this line named only "the picture from a photo scan", the one path
    * FLAGS.photoId keeps off in this build, and said nothing about the shelf
@@ -1528,6 +1541,12 @@ const LINES_EN = {
     warm: () => 'Every scan gets written down, the product and the price you saw, always, along with the camera frame from that moment, and it helps train Shin and answer other shoppers.',
     blunt: () => 'Every scan is logged: product, price, and the camera frame, always. Used to train Shin and answer other shoppers.',
   },
+  /* Photo identification off (D24): no camera frame leaves the phone on a barcode scan (RULINGS.md "A barcode scan sends no photo"), so the line must not say one does. */
+  you_data_intro_nophoto: {
+    deadpan: () => 'Every scan is written down: the product and the price you saw, always, used to train Shin and answer other shoppers.',
+    warm: () => 'Every scan gets written down, the product and the price you saw, always, and it helps train Shin and answer other shoppers.',
+    blunt: () => 'Every scan is logged: product and price, always. Used to train Shin and answer other shoppers.',
+  },
   /*
    * REWRITTEN 2026-09-14. "Only this app and the person running it can see
    * any of this" stopped being the whole truth the day collecting everything
@@ -1539,6 +1558,12 @@ const LINES_EN = {
   consent_footer: {
     deadpan: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Shin, and the person running it can see it too. Change either choice any time on the You page.',
     warm: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Shin, and the person running it can see it as well. You can change either choice any time from the You page.',
+    blunt: () => 'This app keeps it, uses it to answer other shoppers and train Shin. Change it any time on the You page.',
+  },
+  /* One choice left when photo identification is off (D24): "either choice" had nothing to be either of. */
+  consent_footer_one: {
+    deadpan: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Shin, and the person running it can see it too. Change this choice any time on the You page.',
+    warm: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Shin, and the person running it can see it as well. You can change this choice any time from the You page.',
     blunt: () => 'This app keeps it, uses it to answer other shoppers and train Shin. Change it any time on the You page.',
   },
   /*

@@ -35,7 +35,9 @@ test('the scan store error message never reaches the profile screen', () => {
   // droppedWhy is SQLITE_CANTOPEN and its cousins. It is logged, not printed.
   assert.doesNotMatch(you, /\$\{s\.droppedWhy\}/);
   assert.doesNotMatch(you, /why: s\.droppedWhy/);
-  assert.match(you, /console\.error\('scan log could not be written:', s\.droppedWhy\)/);
+  // D14: the screen no longer reads the fleet-wide scan log at all, so the reason cannot reach it.
+  assert.doesNotMatch(you, /droppedWhy/);
+  assert.doesNotMatch(you, /api\.scans\(/);
 });
 
 test('the alt-object buttons are inert whenever a sheet is up, not just faded', () => {

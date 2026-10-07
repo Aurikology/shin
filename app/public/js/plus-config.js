@@ -47,6 +47,40 @@ export const LEGAL_URLS = Object.freeze({
   privacy: `${API_BASE}/legal/privacy.html`,
 });
 
+/** The same two pages in French. Each page also links to its other-language twin. */
+export const LEGAL_URLS_FR = Object.freeze({
+  terms: `${API_BASE}/legal/terms-fr.html`,
+  privacy: `${API_BASE}/legal/privacy-fr.html`,
+});
+
+/**
+ * The two plans as RULINGS.md "Shin Plus pricing and free scans" sets them,
+ * in cents of Canadian dollars (the monthly plan and the yearly plan). D32
+ * (2026-10-06): the welcome flow's plans step printed placeholder prices.
+ *
+ * THIS IS ONLY A FALLBACK FOR THE WELCOME FLOW, which is off in the shipped
+ * app. The subscription screen never reads it: its price is the store's own
+ * `priceString` (purchases.js `loadPlans`), and the store product config stays
+ * the source of truth. Cents, not a formatted string, so no price is written
+ * as text anywhere in the client (test/client-paywall.test.mjs).
+ */
+export const PLAN_CENTS = Object.freeze({ monthly: 399, yearly: 2999 });
+
+/** Cents as a Canadian-dollar price, with the CA mark in English and a trailing mark in French. */
+export function formatPlanPrice(cents, lang = 'en') {
+  const n = (Math.round(cents) / 100).toFixed(2);
+  return lang === 'fr' ? `${n.replace('.', ',')} $ CA` : `CA$${n}`;
+}
+
+/** The facts the welcome flow's plan strings take: monthly, yearly, and the yearly plan per month. */
+export function planFacts(lang = 'en') {
+  return {
+    monthly: formatPlanPrice(PLAN_CENTS.monthly, lang),
+    yearly: formatPlanPrice(PLAN_CENTS.yearly, lang),
+    perMonth: formatPlanPrice(PLAN_CENTS.yearly / 12, lang),
+  };
+}
+
 /**
  * "Manage subscription": each store's own page, which is the only place a
  * subscription is changed or cancelled. Apple's opens the Subscriptions list

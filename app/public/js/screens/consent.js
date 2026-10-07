@@ -63,17 +63,17 @@ export default {
           <h1>${escapeHtml(t('consent_heading'))}</h1>
         </header>
 
-        <p class="fineprint consent-enter">${escapeHtml(say('consent_intro'))}</p>
+        <p class="fineprint consent-enter">${escapeHtml(say('consent_intro_lean', { photos: FLAGS.photoId, locationSwitch: FLAGS.onboarding }))}</p>
 
-        <div class="ilist consent-list consent-enter">
-          <div class="ilist-row consent-row">
+        ${!FLAGS.photoId && !FLAGS.onboarding ? '' : `<div class="ilist consent-list consent-enter">
+          ${/* FLAGS.photoId off: no photo is ever kept, so there is no photo switch (D24). */ !FLAGS.photoId ? '' : `<div class="ilist-row consent-row">
             <div class="consent-text">
               <span class="ilist-l">${escapeHtml(t('consent_photos'))}</span>
               <p class="fineprint">${escapeHtml(say('consent_photos_desc'))}</p>
             </div>
             <button type="button" class="switch" data-consent="photos" role="switch"
                     aria-checked="${store.consent().photos}" aria-label="${escapeHtml(t('consent_photos'))}"></button>
-          </div>
+          </div>`}
           ${/* FLAGS.onboarding off: the permission screen right before this
                one already asked for location, through the same switch
                (D-139; ruled 2026-09-28, asked once, on the permission screen). */
@@ -86,9 +86,9 @@ export default {
             <button type="button" class="switch" data-consent="location" role="switch"
                     aria-checked="false" aria-label="${escapeHtml(t('consent_location'))}"></button>
           </div>` : ''}
-        </div>
+        </div>`}
 
-        <p class="fineprint consent-enter">${escapeHtml(say('consent_footer'))}</p>
+        <p class="fineprint consent-enter">${escapeHtml(say(FLAGS.photoId ? 'consent_footer' : 'consent_footer_one'))}</p>
 
         ${
           storagePersists()
