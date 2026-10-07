@@ -295,6 +295,8 @@ export function overpassQuery(cell: CoarseCell): string {
  */
 export type StoreFetcher = (query: string) => Promise<string>;
 
+import { existsSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import * as settings from '../../settings/src/index.ts';
 
 const OVERPASS_URL = settings.SHIN_OVERPASS() ?? 'https://overpass-api.de/api/interpreter';
@@ -385,4 +387,103 @@ export async function storesNear(cell: CoarseCell, options: StoresOptions = {}):
   }
   cache.set(cell.text, { at: now, stores });
   return stores;
+}
+
+/* ------------------------------------------------------------ chain names -- */
+
+export interface ChainName {
+  /** The name as the data spells it most often. This is what a price is filed under. */
+  readonly name: string;
+  /** How many price rows name it. Order only; never shown. */
+  readonly count: number;
+}
+
+/** The longest list the picker is sent. A search box covers the rest. */
+export const CHAINS_OFFERED = 80;
+
+/** Ordering weight for a chain another part of the data names but the price file has few rows for. */
+const NAMED_FLOOR = 10;
+
+/**
+ * The shops Shin's own price data already names, most-priced first.
+ *
+ * WHY THIS EXISTS (walkthrough D03). The shop picker was OpenStreetMap's three
+ * nearest places, which on a slow Overpass day is nothing, and with no shop a
+ * shopper's price cannot be filed at all (RULINGS "Attribution, provenance and
+ * correction data": a shop name is required). A shopper standing in a Save-On
+ * knows the chain's name; they should not have to wait on a third party to
+ * say it back to them.
+ *
+ * DERIVED, NEVER INVENTED. The names come from `observation.store_name` in the
+ * price database, the column Open Prices rows carry. Two spellings that differ
+ * only in case, accents or punctuation are one chain and the most common
+ * spelling wins. A chain the data has never seen is not on this list: it is
+ * what the free-text box is for.
+ *
+ * READ-ONLY AND NEVER THROWS. A missing file or a database without the column
+ * is an empty list, and the client carries its own bundled copy for exactly
+ * that case.
+ */
+export function chainsFromData(
+  pricesPath: string,
+  options: { limit?: number; named?: readonly string[] } = {},
+): ChainName[] {
+  const limit = options.limit ?? CHAINS_OFFERED;
+  const groups = new Map<string, { best: string; bestN: number; total: number; named: boolean }>();
+  const add = (name: string, n: number, named: boolean) => {
+    const key = chainKey(name);
+    if (key === '') return;
+    const g = groups.get(key);
+    if (!g) groups.set(key, { best: name.trim(), bestN: n, total: n, named });
+    else {
+      g.total += n;
+      g.named = g.named || named;
+      if (n > g.bestN) {
+        g.best = name.trim();
+        g.bestN = n;
+      }
+    }
+  };
+  // Banners another part of Shin's data already names (the price-match
+  // policies: Sobeys, Maxi, Giant Tiger...). They cover a chain the price file
+  // has not yet crawled a row for, and they rank as if they had a handful of
+  // rows so they sit ahead of the one-off shops Open Prices has seen once.
+  const rank = (g: { total: number; named: boolean }) => (g.named ? Math.max(g.total, NAMED_FLOOR) : g.total);
+  for (const n of options.named ?? []) add(n, 0, true);
+
+  if (existsSync(pricesPath)) {
+    let db: DatabaseSync | null = null;
+    try {
+      db = new DatabaseSync(pricesPath, { readOnly: true });
+      const rows = db
+        .prepare(
+          `SELECT store_name AS name, COUNT(*) AS n FROM observation
+            WHERE store_name IS NOT NULL AND TRIM(store_name) <> ''
+            GROUP BY store_name`,
+        )
+        .all() as unknown as { name: string; n: number }[];
+      for (const r of rows) add(r.name, r.n, false);
+    } catch {
+      /* a file that will not open leaves the named banners, which is the floor */
+    } finally {
+      try {
+        db?.close();
+      } catch {
+        /* nothing to close */
+      }
+    }
+  }
+  return [...groups.values()]
+    .sort((a, b) => rank(b) - rank(a) || a.best.localeCompare(b.best))
+    .slice(0, limit)
+    .map((g) => ({ name: g.best, count: g.total }));
+}
+
+/** Case, accents and punctuation folded away: "Marché Adonis" and "marche adonis" are one shop. */
+export function chainKey(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9一-鿿]+/g, '');
 }

@@ -85,7 +85,9 @@ import { deleteRating, isRating, isRatingReason, rateScan, ratingFor, scanExists
 import { deviceFromHeaders, entitlementStartupWarning, isScanOutcome, quotaFor, recordScanOutcome, scanLimitRefusal } from './src/scan-quota.ts';
 import { priceMatchLine } from './src/price-match-line.ts';
 import { recordEvent, serialisePayload } from './src/events.ts';
-import { parseCell, storesNear, type StoreFetcher } from './src/stores.ts';
+import { chainsFromData, parseCell, storesNear, type StoreFetcher } from './src/stores.ts';
+import { recordShelfPrice, shopperReportField } from './src/shopper-report.ts';
+import { PRICE_MATCH_POLICIES } from './src/price-match.ts';
 import { INVITE_EXEMPT, INVITE_HEADER, INVITE_REFUSAL, inviteAllows, inviteRequired, inviteWho } from './src/invite.ts';
 import { KeyedLimiter, addressWindows, clientAddress, codeWindows } from './src/rate-limit.ts';
 import { logError } from './src/errlog.ts';
@@ -1996,6 +1998,7 @@ async function typedFromOwnData(
     model: null,
     failure: null,
     verdict,
+    ...shopperReportField(device, match?.code ?? null),
     ...(scanId === null ? {} : { scanId }),
   };
   if (!match) {
@@ -3262,7 +3265,7 @@ export const server = createServer(async (req, res) => {
           scanForLog = firstScanId;
           // Design case 9: the catalogue and the store row disagree on size. Logged, never shown.
           if (record.conflict) recordEvent({ deviceId: device, type: 'identity_conflict', payload: { ...record.conflict, scanId: firstScanId } });
-          return json(200, { ...answer, ms, ...(firstScanId === null ? {} : { scanId: firstScanId }) });
+          return json(200, { ...answer, ms, ...shopperReportField(device, record.resolvedCode), ...(firstScanId === null ? {} : { scanId: firstScanId }) });
         }
       }
 
@@ -4435,6 +4438,61 @@ export const server = createServer(async (req, res) => {
       }
       const stores = await storesNear(cell, storeFetcherDouble ? { fetch: storeFetcherDouble } : {});
       return json(200, { stores });
+    }
+
+    /*
+     * THE SHOPS SHIN'S OWN PRICE DATA ALREADY NAMES (walkthrough D03).
+     *
+     * GET, no location, nothing about anybody: it is a list of chain names read
+     * from the price file, so the shop picker has something to show the instant
+     * it opens and never waits on OpenStreetMap. The client bundles the same
+     * list as a floor; this is the fresher copy it swaps in when it arrives.
+     */
+    if (url.pathname === '/api/store-chains') {
+      return json(200, { chains: chainsFromData(defaultPricesPath(), { named: PRICE_MATCH_POLICIES.map((p) => p.displayName) }) });
+    }
+
+    /*
+     * THE SHELF PRICE THE SHOPPER TYPED ON THE PAD (walkthrough D05).
+     *
+     * Requirement 5.1 puts the typed shelf price on every scan's record and 5.2
+     * turns it into an observed price marked as a shopper report. The pad's
+     * number used to stay on the phone, so `typed_price_cents` was NULL for
+     * every scan until somebody posted a correction by hand.
+     *
+     * Two things are written and the answer says which: the number on the scan
+     * row (always, when the scan is this device's own), and an observed price
+     * in the corrections store (only when a shop is named and the scan resolved
+     * a product, because a price with no shop or no product can never be read
+     * back). `stored: true` means the scan row has it; `report.stored` says
+     * whether the observed price exists, with the reason when it does not.
+     * Nothing here judges the number, and the range does not move for it:
+     * requirement 5.3 keeps a lone shopper report out of a range.
+     */
+    if (url.pathname === '/api/scan-price') {
+      if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      const body = await readBody(req);
+      if (body === TOO_LARGE) return refuseTooLarge();
+      if (body === null || typeof body !== 'object') {
+        return json(400, { error: 'body did not parse as JSON' });
+      }
+      const p = body as Record<string, unknown>;
+      const deviceId = typeof p.deviceId === 'string' ? p.deviceId.trim() : '';
+      if (deviceId === '') return json(400, { error: 'deviceId is required' });
+      if (!owns(deviceId)) return notYours();
+      deviceForLog = deviceId;
+      const priceScan = Number(p.scanId);
+      if (Number.isInteger(priceScan) && priceScan > 0) scanForLog = priceScan;
+      const seenOn = typeof p.seenOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.seenOn) ? p.seenOn : new Date().toISOString().slice(0, 10);
+      const res = recordShelfPrice({
+        deviceId,
+        scanId: priceScan,
+        priceCents: typeof p.priceCents === 'number' ? p.priceCents : Number.NaN,
+        storeName: typeof p.storeName === 'string' ? p.storeName : null,
+        code: typeof p.code === 'string' ? p.code : null,
+        today: seenOn,
+      });
+      return json(200, res);
     }
 
     /*

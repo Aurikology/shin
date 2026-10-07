@@ -42,6 +42,8 @@ import { priorPrices, historyChartHtml } from '../lib/price-history.js';
 import { money, currencyMark } from '../lib/money.js';
 import { render as renderProse, renderLines } from '../prose.js';
 import { submitCorrection } from '../corrections.js';
+import { fileReport, retryReport, abandonReport, rememberScan } from '../price-report.js';
+import { pt } from '../price-strings.js';
 import { identifyOffline } from '../offline-aisle.js';
 import { track } from '../track.js';
 import { refreshCell } from '../geocell.js';
@@ -399,13 +401,35 @@ function intenseFaceFor(v, plainFace, conf, source) {
  * this toast has a bubble line, so it is the shared shinSay component at
  * face-page (48) with pleased-nod, not the bare 28px row face it used to be.
  */
-function feedbackToast() {
+/*
+ * D09 (2026-10-06): this toast is painted only AFTER the server answered
+ * `stored:true` for the rating, so "Noted" is never said for a thumb nothing
+ * kept. After a thumbs-down it carries the optional one-tap reason (RULINGS
+ * "Scan-time asks and feedback"); the four-second undo is unchanged.
+ */
+const RATING_REASON_KEYS = ['wrong_product', 'wrong_price', 'no_price', 'too_slow'];
+
+function feedbackToast({ askReason = false, failed = false } = {}) {
+  /* One template for both outcomes: screen-tags.js gives the thumbs toast one
+     tag (a41), and a second toast template would be a second surface with no tag. */
+  const chips = askReason && !failed
+    ? `<div class="thumb-reasons" role="group" aria-label="${escapeHtml(pt('rating_reason_q'))}"
+            style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+        ${RATING_REASON_KEYS.map((r) => `<button type="button" class="pill ghost" data-act="thumbs-reason" data-reason="${r}">${escapeHtml(pt(`rating_reason_${r}`))}</button>`).join('')}
+      </div>`
+    : '';
   return `
-    <div class="toast" data-toast>
-      ${shinSay('pleased', 'feedback_ack', {}, { size: 'face-page', anim: 'pleased-nod' })}
-      <button type="button" class="toast-undo" data-act="thumbs-undo">${escapeHtml(t('cam_undo'))}</button>
+    <div class="toast" data-toast${failed ? ' role="status" data-failed="true"' : ''}>
+      ${failed
+        ? `<span>${escapeHtml(pt('rating_failed'))}</span>`
+        : shinSay('pleased', 'feedback_ack', {}, { size: 'face-page', anim: 'pleased-nod' })}
+      <button type="button" class="toast-undo" data-act="${failed ? 'thumbs-retry' : 'thumbs-undo'}">${escapeHtml(failed ? pt('report_retry') : t('cam_undo'))}</button>
+      ${chips}
     </div>`;
 }
+
+/** The thumb the server did not keep: said plainly, with Retry, never "Noted". */
+const feedbackFailedToast = () => feedbackToast({ failed: true });
 
 /**
  * Row 62: sorted by price, with the cheapest marked and its delta from the
@@ -1636,7 +1660,7 @@ function distBell(v, { labels = null } = {}) {
  *                         without its entry motion (a repaint of a sheet
  *                         already on screen: only the new dot moves)
  */
-function distributionSheet(raw, { name = '', thumb = null, saved = false, typedCents = null, still = false } = {}) {
+function distributionSheet(raw, { name = '', thumb = null, saved = false, typedCents = null, still = false, shopperReport = null } = {}) {
   const base = usableVerdict(raw);
   if (!base) return '';
   // A price typed on this sheet (or a "Did you mean" tap) is newer than the server's reading of the tag.
@@ -1676,6 +1700,7 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
         ${notSure ? `<p class="conf-label vd-conf" data-dist-conf>${escapeHtml(t('vd_not_confident'))}</p>` : ''}
         ${s?.suspect ? `<button type="button" class="pill ghost vd-suspect" data-act="dist-suspect" data-cents="${s.suspect.suggestCents}">${escapeHtml(t('vd_suspect', { price: fmt(s.suspect.suggestCents) }))}</button>` : ''}
         <div class="vd-chart${still ? ' vd-still' : ''}" data-dist-chart>${distBell(v)}</div>
+        ${shopperReportLine(shopperReport, v.currency)}
         ${s ? '' : `<form class="vd-price" data-dist-price novalidate>
           <label class="vd-price-l"><span>${escapeHtml(t('vd_price_label'))}</span><input type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" name="price" data-dist-input></label>
           <button type="submit" class="pill ghost">${escapeHtml(t('vd_place'))}</button>
@@ -2081,7 +2106,12 @@ function parsePadPrice(buf) {
  * @param {boolean} allowed  whether location consent is on.
  */
 function padShopRow(shop, allowed) {
-  if (!allowed) return '';
+  // D02/D03 (2026-10-06): the row is always there. A price needs a shop, and
+  // hiding the only way to name one whenever location was off meant a shopper
+  // with location off could never file a price at all. Location only decides
+  // whether NEARBY places join the list; it no longer decides whether a list
+  // exists. `allowed` is kept in the signature for the callers that pass it.
+  void allowed;
   const value = shop?.name ? escapeHtml(shop.name) : escapeHtml(t('cam_shop_choose'));
   return `
         <button type="button" class="ilist-row pad-shop" data-act="pad-shop"
@@ -2104,16 +2134,16 @@ function padShopRow(shop, allowed) {
  * in the order it goes on screen (the shop last confirmed in this cell, then
  * the ones this device confirms most, then by distance). This renders it.
  *
- * THE "NO SHOP" ROW IS NOT A CANCEL. It is a real answer -- a market stall, a
- * shop nobody has mapped, a tap on the wrong row a minute ago -- and it files
- * the price with no shop, which is what the app did before any of this and is
- * still a price worth having.
+ * THERE IS NO "NO SHOP" ROW (D02, 2026-10-06). It used to file the price with
+ * no shop, and the server refuses such a price, so the card said "Written down"
+ * over a refusal. A market stall or an unmapped shop is what the typed name in
+ * the search box is for.
  *
  * @param {{id:string,name:string,hint?:string,count?:number}[]} shops
  * @param {string|null} chosenId  which row is checked.
  */
-function storePickerSheet(shops, chosenId = null) {
-  const rows = shops.map((s) => {
+function shopRowsHtml(list, chosenId = null) {
+  return list.map((s) => {
     const on = s.id === chosenId;
     return `
           <button type="button" class="ilist-row shop-row${on ? ' on' : ''}"
@@ -2125,27 +2155,42 @@ function storePickerSheet(shops, chosenId = null) {
             ${rowCheck()}
           </button>`;
   }).join('');
+}
 
+/**
+ * The picker, rebuilt for D03 (2026-10-06). The list is handed in already
+ * built (`shops.pickerShops`: last-used first, then nearby, then the chains
+ * Shin's own data names), so this sheet never waits on anything. It carries a
+ * search box, and there is NO "No shop" row any more: RULINGS "Attribution,
+ * provenance and correction data" says a shop name is required, and the
+ * server refuses a price without one (D02).
+ *
+ * @param {object[]} shopList
+ * @param {string|null} chosenId
+ * @param {{needed?: boolean, query?: string}} [opts]  `needed` says why the
+ *   sheet opened: the shopper tried to file a price with no shop chosen.
+ */
+function storePickerSheet(shopList, chosenId = null, { needed = false, query = '' } = {}) {
   return `
     <section class="sheet shopsheet" data-tier="unknown" data-conf="reading" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
       ${/* D-152: back to the pad, not out of the scan. This sheet is the only
             one opened from another sheet, and it is the only one whose X must
-            not discard what the shopper already typed. "No shop" below is the
-            way to answer the question without choosing one; this is the way to
-            leave it unanswered. */ backButton(t('nav_back'), 'shop-back')}
+            not discard what the shopper already typed. */ backButton(t('nav_back'), 'shop-back')}
       <div class="sheet-peek">
         <div class="sheet-head">
-          ${shinSay('asking', shops.length ? 'shop_pick_prompt' : 'shop_none_nearby', {}, { size: 64 })}
+          ${shinSay('asking', 'shop_pick_prompt', {}, { size: 64 })}
         </div>
         <h2 class="vword" style="font-size:20px">${escapeHtml(t('correct_which_shop'))}</h2>
-        <div class="ilist shop-list" role="radiogroup" aria-label="${escapeHtml(t('correct_which_shop'))}">
-          ${rows}
-          <button type="button" class="ilist-row shop-row${chosenId ? '' : ' on'}"
-                  role="radio" aria-checked="${!chosenId}" data-shop="__none">
-            <span class="ilist-l">${escapeHtml(t('cam_shop_none'))}</span>
-            ${rowCheck()}
-          </button>
+        ${needed ? `<p class="fineprint" role="status" data-shop-needed>${escapeHtml(pt('shop_needed'))}</p>` : ''}
+        <label class="seller">
+          <span>${escapeHtml(pt('shop_search_label'))}</span>
+          <input type="text" inputmode="text" autocomplete="off" enterkeyhint="done" class="field"
+                 data-shop-search placeholder="${escapeHtml(pt('shop_search_placeholder'))}" value="${escapeHtml(query)}">
+        </label>
+        <div class="ilist shop-list" role="radiogroup" aria-label="${escapeHtml(t('correct_which_shop'))}"
+             style="max-height:42vh;overflow-y:auto" data-shop-list>
+          ${shopRowsHtml(shopList, chosenId)}
         </div>
       </div>
     </section>`;
@@ -2342,27 +2387,68 @@ function goingRateCard(refusal, item) {
  * person typed, which is the class of input that got a `<img src=x onerror>`
  * onto a refusal sheet on 2026-09-08.
  */
-function observationCard(cents, seller, thumb = null, name = null) {
+function observationCard(cents, seller, thumb = null, name = null, { state = 'done', why = null, network = false } = {}) {
+  const done = state === 'done';
+  const failed = state === 'failed';
+  const line = done
+    ? t('cam_price_written_down')
+    : failed
+      ? network
+        ? pt('report_failed_offline')
+        : why
+          ? pt('report_refused', { why })
+          : pt('report_failed')
+      : pt('report_sending');
   return `
-    <section class="sheet observed" data-tier="unknown" data-conf="reading" tabindex="-1">
+    <section class="sheet observed" data-tier="unknown" data-conf="reading" data-state="${state}" aria-live="polite" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
       <div class="sheet-peek">
         <div class="sheet-head">
-          ${shinSay('pleased', 'price_only_recorded', { price: money(cents), seller: seller || '' }, {
+          ${done ? shinSay('pleased', 'price_only_recorded', { price: money(cents), seller: seller || '' }, {
             size: 'face-ack',
             anim: 'pleased-nod',
-          })}
+          }) : ''}
           ${thumbImg(thumb)}
         </div>
-        <h2 class="vword" style="font-size:20px">${escapeHtml(t('cam_price_written_down'))}</h2>
+        <h2 class="vword" style="font-size:20px">${escapeHtml(line)}</h2>
         <div class="priceline">
           <span class="price sm">${money(cents)}</span>
         </div>
         <p class="itemname">${escapeHtml(
           typeof name === 'string' && name.trim() ? name.trim() : t('cam_no_name_for_it'),
         )}${seller ? ` &middot; ${escapeHtml(seller)}` : ''}</p>
+        ${failed ? `<div class="actions actions-primary">
+          <button type="button" class="pill solid wide" data-act="obs-retry">${escapeHtml(pt('report_retry'))}</button>
+          <button type="button" class="pill ghost wide" data-act="cancel-scan">${escapeHtml(t('done'))}</button>
+        </div>` : ''}
       </div>
     </section>`;
+}
+
+/**
+ * The price-only card BEFORE the server has answered, and when it refused or
+ * could not be reached (D02). `observationCard` above says "Written down" and
+ * is only ever painted for `stored: true`; this is every other state, and it
+ * never says the price was kept unless the line under it says why that is true.
+ *
+ * @param {'sending'|'failed'} state
+ * @param {{why?: string|null, network?: boolean}} [outcome]  what `sendReport` returned.
+ */
+const observationNotice = (state, cents, seller, thumb = null, name = null, outcome = {}) =>
+  observationCard(cents, seller, thumb, name, { ...outcome, state });
+
+/**
+ * "Your report: $5.49 at Save-On-Foods, counts once a second source agrees."
+ * The one line under the chart that tells a shopper their own price exists
+ * (D06: the range correctly does not move for a lone report, so the answer says
+ * so instead of staying silent). Empty when the answer carries no report.
+ *
+ * @param {{cents:number, store:string, status?:string}|null|undefined} report  the answer's `shopperReport`.
+ */
+function shopperReportLine(report, currency) {
+  if (!report || !Number.isFinite(report.cents) || typeof report.store !== 'string' || report.store === '') return '';
+  const key = report.status === 'second_source_agrees' ? 'your_report_agreed' : 'your_report_waiting';
+  return `<p class="detail vd-yourreport" data-your-report>${escapeHtml(pt(key, { price: money(report.cents, currency), store: report.store }))}</p>`;
 }
 
 const WORKING_STEPS = ['working_step1', 'working_step2', 'working_step3'];
@@ -2581,7 +2667,7 @@ export { padShopRow, storePickerSheet };
    one more that is specific to it: the whole claim of that card is that it
    never renders a verdict, and the only way to hold a never is to render it
    and look. See `app/test/price-only.test.mjs`. */
-export { observationCard };
+export { observationCard, observationNotice, shopperReportLine, feedbackToast, feedbackFailedToast };
 
 /* Exported with them 2026-09-08, when "not this?" gave the ranked search its
    first caller. It is in the same check for the same reason: it is a sheet, and
@@ -2782,6 +2868,16 @@ export default {
      * price against the last aisle's photo.
      */
     let lastScanId = null;
+    /* The shelf price already filed against `lastScanId` (D05), so a scan that
+       reaches two of the places that learn its id files its price once. */
+    let shelfFiledFor = null;
+    /* What the picker is showing: the search text, why it opened, and the
+       nearby places that arrived inside the deadline. */
+    let shopQuery = '';
+    let shopNeeded = false;
+    let shopNearby = [];
+    /* The price-only entry in flight or failed, so Retry re-sends the same one. */
+    let obsPending = null;
     /*
      * THE PRICE QUERY THE SERVER ALREADY STARTED A SEARCH UNDER. 2026-09-15.
      *
@@ -3655,7 +3751,7 @@ export default {
         // The row the server just wrote for this scan. Kept whatever the
         // answer was: a refused identification is exactly the case the
         // price route below exists for.
-        if (Number.isInteger(id?.scanId)) lastScanId = id.scanId;
+        if (Number.isInteger(id?.scanId)) { lastScanId = id.scanId; fileShelfPrice(id); }
         // The query the server already started a price search under. Held
         // exactly as it arrived; see `lastPriceQuery`.
         lastPriceQuery = id?.priceQuery ?? null; lastPriceMatch = id?.priceMatch ?? null;
@@ -3963,29 +4059,50 @@ export default {
      * honest answer ("nobody has mapped the shops here") is one the shopper
      * can act on by typing the price anyway.
      */
-    async function openShopPicker() {
+    /*
+     * D03, 2026-10-06: THE LIST IS ON SCREEN BEFORE ANYTHING IS ASKED OF THE
+     * NETWORK. It used to be awaited here, and the first lookup took ten
+     * seconds and then showed nothing. Now the rows come from the phone (the
+     * shop used last, then the chains Shin's own data names), the sheet paints
+     * in the same tick as the tap, and the nearby places join only if they
+     * arrive inside 1.5 s. A lookup slower than that keeps running to fill the
+     * cache for next time and the shopper never waited on it.
+     */
+    function pickerRows() {
+      return shops.pickerShops({ query: shopQuery, known: store.knownShops(), nearby: shopNearby });
+    }
+
+    /** Only the rows are repainted, never the search box: a repaint there would take the caret. */
+    function paintShopRows() {
+      const host = slot.querySelector('[data-shop-list]');
+      if (!host) return;
+      shopList = pickerRows();
+      host.innerHTML = shopRowsHtml(shopList, shops.chosenId());
+    }
+
+    function openShopPicker({ needed = false } = {}) {
       const myGen = gen;
       setState('asking');
-      const { shops: list } = await shops.openShortlist();
-      // The scan moved on while a third-party server was thinking. Painting a
-      // shop list over whatever is there now would be the same class of bug
-      // as a late identify response painting over a live refusal (D-083).
-      if (dead || myGen !== gen || cam.dataset.state !== 'asking') return;
-      // "Usual" marks a shop this device has confirmed before, which is the
-      // pattern half of the ask made visible: the shopper can see that Shin
-      // knows where they go, rather than only feeling it in the ordering.
-      shopList = list;
-      slot.innerHTML = storePickerSheet(list, shops.chosenId());
+      shopQuery = '';
+      shopNeeded = needed;
+      shopNearby = shops.nearbyCached();
+      shopList = pickerRows();
+      slot.innerHTML = storePickerSheet(shopList, shops.chosenId(), { needed });
+      // Not focused on the search box: on a phone that raises the keyboard over the list the shopper opened to read.
       mounted();
-      /*
-       * The keyboard the markup promises. `lib/radiogroup.js` exists because
-       * `role="radiogroup"` over `role="radio"` children with nothing handling
-       * arrow keys is worse than plain buttons: it tells a screen reader to
-       * arrow between the options and then nothing moves. Re-wired on every
-       * open because the sheet is rebuilt from a string each time, and bound
-       * to this screen's own signal so it comes off with the screen.
-       */
+      // The radio group keyboard `lib/radiogroup.js` exists for, wired on every open.
       wireRadioGroup(slot.querySelector('.shop-list'), { signal: listeners.signal });
+      // The server's copy of the chain list and the nearby places, both extras.
+      void shops.refreshChains().then(() => {
+        if (dead || myGen !== gen || !slot.querySelector('[data-shop-list]')) return;
+        paintShopRows();
+      });
+      void shops.nearbyWithin(1500).then((nearby) => {
+        if (dead || myGen !== gen || !slot.querySelector('[data-shop-list]')) return;
+        if (!Array.isArray(nearby) || nearby.length === 0) return;
+        shopNearby = nearby;
+        paintShopRows();
+      });
     }
 
     /**
@@ -4038,11 +4155,29 @@ export default {
      * `str(c.label) ?? scanRow?.resolved_label` and an empty string is a
      * value: it would shadow a label a later pass managed to resolve.
      */
-    function recordObservation(cents) {
+    /*
+     * D02 (2026-10-06): "WRITTEN DOWN" IS SAID ONLY AFTER THE SERVER SAYS SO.
+     * This used to paint the card the moment the price was queued locally while
+     * the server answered `stored:false` (a shop is required), so the shopper
+     * was told a price was kept that nothing had kept. Now the sheet reads
+     * "Sending", waits for `stored:true`, and only then paints the card. A
+     * refusal or a dead connection paints the failure card with Retry, which
+     * re-sends the SAME entry (the server is idempotent on its client id).
+     *
+     * A price needs a shop (RULINGS "Attribution, provenance and correction
+     * data"), so with none chosen the confirm key opens the picker instead.
+     */
+    async function recordObservation(cents) {
       const seller = sellerNow();
+      if (!seller) { openShopPicker({ needed: true }); return; }
       const typedName = padLabel.trim();
+      const myGen = ++gen;
       track('correction', { code: null, amountCents: cents, seller, scanId: lastScanId, kind: 'observation' });
-      submitCorrection({
+      slot.innerHTML = observationNotice('sending', cents, seller, scanThumb, typedName || null);
+      setState('result');
+      mounted();
+      if (obsPending) abandonReport(obsPending.entry);
+      const res = await fileReport({
         // No code and no product id, said explicitly rather than by omission.
         // This is the whole shape of the thing: a price about a scan, not
         // about a product, because nobody could say what the product was.
@@ -4056,10 +4191,34 @@ export default {
         kind: 'regular',
         scanId: lastScanId,
       });
-      slot.innerHTML = observationCard(cents, seller, scanThumb, typedName || null);
-      buzz(14);
+      obsPending = { entry: res.entry, cents, seller, typedName };
+      showObservationResult(res, myGen);
+    }
+
+    function showObservationResult(res, myGen) {
+      if (dead || myGen !== gen || !obsPending) return;
+      const { cents, seller, typedName } = obsPending;
+      if (res.stored) {
+        obsPending = null;
+        slot.innerHTML = observationCard(cents, seller, scanThumb, typedName || null);
+        buzz(14);
+      } else {
+        slot.innerHTML = observationNotice('failed', cents, seller, scanThumb, typedName || null, {
+          why: res.why,
+          network: res.network,
+        });
+      }
       setState('result');
       mounted();
+    }
+
+    async function retryObservation() {
+      if (!obsPending) return;
+      const myGen = ++gen;
+      const { cents, seller, typedName, entry } = obsPending;
+      slot.innerHTML = observationNotice('sending', cents, seller, scanThumb, typedName || null);
+      mounted();
+      showObservationResult(await retryReport(entry), myGen);
     }
 
     /**
@@ -4093,10 +4252,94 @@ export default {
      */
     function sellerIdNow() {
       try {
-        return shops.chosenId();
+        return shops.chosenOsmId();
       } catch {
         return null;
       }
+    }
+
+    /* The last thumb sent, so a reason chip or Retry knows what it is about,
+       and a token so an answer that arrives after an undo is ignored. */
+    let lastThumb = null;
+    let thumbToken = 0;
+
+    /**
+     * Sends one rating and paints the toast only for what the server said.
+     * `reason` rides on a thumbs-down chip tap (the same rating, upserted).
+     */
+    async function sendThumb(toastSlot, scanId, rating, reason) {
+      const token = ++thumbToken;
+      lastThumb = { scanId, rating, reason };
+      let res = null;
+      if (Number.isInteger(scanId)) {
+        try {
+          res = await ctx.api.postScanRating?.({ deviceId: getDeviceId()?.id, scanId, rating, reason });
+        } catch {
+          res = null;
+        }
+      }
+      if (dead || token !== thumbToken || !toastSlot?.isConnected) return;
+      clearTimeout(toastSlot._timer);
+      if (res?.stored === true) {
+        store.recordRating({ scanId, rating });
+        toastSlot.innerHTML = feedbackToast({ askReason: rating === 'down' && !reason });
+        // Four seconds of undo; a reason prompt gets the same four seconds.
+        toastSlot._timer = setTimeout(() => { toastSlot.innerHTML = ''; }, 4000);
+      } else {
+        toastSlot.innerHTML = feedbackFailedToast();
+      }
+    }
+
+    /*
+     * D05 (2026-10-06): THE SHELF PRICE TYPED ON THE PAD GOES TO THE SERVER.
+     *
+     * It used to ride on the identify request as a number for the verdict and
+     * stop there, so `scan.typed_price_cents` stayed NULL and no shopper report
+     * was ever made (requirements 5.1 and 5.2). Called from the three places
+     * that learn the scan's id, which is after the server has already answered
+     * this scan, so the report can never be in its own comparison set. The
+     * server writes the number onto the scan row and, with a shop named and a
+     * product resolved, an observed price marked as a shopper report.
+     *
+     * Nothing here is shown as done: the shopper was never told the price was
+     * filed by this call, so a failure needs no apology, only one retry. The
+     * shop is whatever the pad's shop row holds; with none, the price stays on
+     * the scan alone and the server says why in its answer.
+     */
+    function fileShelfPrice(id) {
+      const cents = scanShelfCents;
+      const scanId = lastScanId;
+      if (!Number.isInteger(scanId) || !(typeof cents === 'number' && cents > 0) || shelfFiledFor === scanId) return;
+      shelfFiledFor = scanId;
+      const body = {
+        deviceId: getDeviceId()?.id,
+        scanId,
+        priceCents: cents,
+        storeName: sellerNow() || undefined,
+        code: id?.product?.code ?? id?.barcode ?? scanBarcode ?? undefined,
+        seenOn: new Date().toISOString().slice(0, 10),
+      };
+      const send = () => Promise.resolve(ctx.api.postScanPrice?.(body)).catch(() => null);
+      void send().then((res) => {
+        if (res?.stored) return;
+        window.setTimeout(() => {
+          if (dead) return;
+          void send().then((again) => {
+            if (!again?.stored && shelfFiledFor === scanId) shelfFiledFor = null;
+          });
+        }, 3000);
+      });
+    }
+
+    /* What the shopper last saw an answer for, so a screen reached from
+       somewhere else ("Report a wrong price" on You) can file against it. */
+    function noteAnswer({ code = null, label = null, category = null } = {}) {
+      rememberScan({
+        scanId: Number.isInteger(lastScanId) ? lastScanId : null,
+        ...(code ? { code } : {}),
+        ...(label ? { label } : {}),
+        ...(category ? { category } : {}),
+      });
     }
 
     function shoot() {
@@ -4275,6 +4518,7 @@ export default {
             key: item.scannedGtin ?? item.gtin ?? (item.text ? `name:${item.text}` : null),
             cents: askingCents ?? null,
             scenario: item,
+            shopperReport: result.shopperReport ?? null,
           });
           return;
         } else if (result.ownData && !result.found) {
@@ -4409,7 +4653,7 @@ export default {
         // The row the server just wrote for this scan. Kept whatever the
         // answer was: a refused identification is exactly the case the
         // price route below exists for.
-        if (Number.isInteger(id?.scanId)) lastScanId = id.scanId;
+        if (Number.isInteger(id?.scanId)) { lastScanId = id.scanId; fileShelfPrice(id); }
         // The query the server already started a price search under. Held
         // exactly as it arrived; see `lastPriceQuery`.
         lastPriceQuery = id?.priceQuery ?? null; lastPriceMatch = id?.priceMatch ?? null;
@@ -4628,6 +4872,8 @@ export default {
       last = null;
       lastKeepable = null;
       lastScanId = null;
+      shelfFiledFor = null;
+      obsPending = null;
       lastPriceQuery = null;
       lastPriceMatch = null;
       scanShelfCents = null;
@@ -4697,8 +4943,11 @@ export default {
            reading the row's own text back out of the DOM: the row carries a
            "Usual" badge and an escaped hint beside the name, so scraping it
            would file the price under a name with a badge word glued to it. */
-        const picked = id === '__none' ? null : shopList.find((s) => s.id === id);
-        shops.chooseShop(picked ?? null);
+        const picked = shopList.find((s) => s.id === id);
+        // No "no shop" answer exists any more (D02). A stale row that matches
+        // nothing leaves the picker as it was rather than clearing the shop.
+        if (!picked) return;
+        shops.chooseShop(picked);
         buzz(8);
         setState('asking');
         slot.innerHTML = padHtml();
@@ -4862,7 +5111,9 @@ export default {
       // The shop row on the pad. The only thing in this screen that can cause
       // a location read, and it does so because the shopper asked which shop
       // they are in.
-      if (act === 'pad-shop') { void openShopPicker(); return; }
+      if (act === 'pad-shop') { openShopPicker(); return; }
+      // The price-only card's Retry (D02): the same queued entry, sent again.
+      if (act === 'obs-retry') { void retryObservation(); return; }
       /* D-152. `padHtml()` rebuilds from the live pad state, which this sheet
          never touched, so the typed price, the modifier and the label all come
          back as they were. Already in `asking`, so no state change. */
@@ -4891,7 +5142,7 @@ export default {
          * So this path never calls it. It writes the observation down and says
          * so, which is the honest whole of what happened.
          */
-        if (padItem?.observationOnly) { recordObservation(cents); return; }
+        if (padItem?.observationOnly) { void recordObservation(cents); return; }
         // The scan-time ask (item 10): the request goes out now, carrying it.
         if (padItem?.pendingScan) { submitScanPrice(cents); return; }
         proceed(padItem, cents);
@@ -4979,7 +5230,23 @@ export default {
       }
 
       if (act === 'correct') {
-        ctx.go('correct', last?.scenario ? { text: last.scenario.text, category: last.scenario.category } : {});
+        /*
+         * D01 (2026-10-06): the screen used to be handed the item's words and
+         * nothing else, so the price it sent carried no barcode and no scan id
+         * and the server answered `stored:false` while the screen said
+         * "Recorded". Everything the camera knows about what is on screen goes
+         * with it now: the barcode, the scan row, and the product's own id.
+         */
+        const sc = last?.scenario ?? null;
+        const distKey = last?.result?.kind === 'distribution' && typeof dist?.key === 'string' && !dist.key.startsWith('name:') ? dist.key : null;
+        const code = sc?.scannedGtin ?? sc?.gtin ?? distKey ?? scanBarcode ?? null;
+        const productId = last?.result?.kind === 'verdict' ? (last.result.identity?.id ?? null) : null;
+        ctx.go('correct', {
+          ...(sc ? { text: sc.text || dist?.name || undefined, category: sc.category } : {}),
+          ...(code ? { code } : {}),
+          ...(productId ? { productId } : {}),
+          ...(Number.isInteger(lastScanId) ? { scanId: lastScanId } : {}),
+        });
         return;
       }
       /*
@@ -5080,12 +5347,13 @@ export default {
         mounted('[data-act="watch"]');
         return;
       }
-      /* The scan a thumb is about, for a Gemini answer: the id the answer
-         carries, else the one the scan was opened under. A verdict has none
-         and its thumbs stay the local signal they were. */
-      const ratedScan = last?.result?.kind === 'gemini'
-        ? (Number.isInteger(last.result.scanId) ? last.result.scanId : lastScanId)
-        : null;
+      /* D09 (2026-10-06): EVERY answer kind has a scan to rate, not only Gemini's.
+         The old gate left a thumb on a catalogue answer sending nothing while
+         the toast said "Noted". The id the answer carries, else the one the
+         scan was opened under. */
+      const ratedScan = Number.isInteger(last?.result?.scanId)
+        ? last.result.scanId
+        : (Number.isInteger(lastScanId) ? lastScanId : null);
       if (act === 'gem-retry' && last?.scenario) {
         // The same scan again: `proceed` sends the same scan id, so the server
         // recalls or re-asks under the row that already exists.
@@ -5108,30 +5376,29 @@ export default {
       }
       if (act === 'thumbs-up' || act === 'thumbs-down') {
         // The one-tap correctness signal (DESIGN.md section 4, full detent).
-        // GAMIFICATION.md M12 / OLMA audit rows 64, 65, take: it earns
-        // nothing and writes nothing but this local signal. Row 35's toast
-        // acknowledges the tap, Undo live for four seconds.
-        //
-        // On a Gemini answer the thumb is also kept against its scan id, on
-        // the phone and on the server (item 13: every rating is kept). Not
-        // awaited and never thrown: a rating is feedback about an answer that
-        // is already on screen.
-        if (Number.isInteger(ratedScan)) {
-          const rating = act === 'thumbs-up' ? 'up' : 'down';
-          store.recordRating({ scanId: ratedScan, rating });
-          void ctx.api.postScanRating?.({ deviceId: getDeviceId()?.id, scanId: ratedScan, rating });
-        }
+        // The thumb is kept against its scan id on the server for EVERY answer
+        // kind (D09), and "Noted" is painted only once the server says
+        // `stored:true`; until then the toast slot stays empty, and a refusal
+        // or a dead connection paints the failure toast with Retry. A
+        // thumbs-down then offers the optional one-tap reason, and the
+        // four-second undo is kept.
         btn.parentElement.querySelectorAll('.thumb').forEach((t) => t.classList.remove('picked'));
         btn.classList.add('picked');
         const toastSlot = btn.closest('.sheet-full')?.querySelector('[data-toast-slot]');
-        if (toastSlot) {
-          toastSlot.innerHTML = feedbackToast();
-          clearTimeout(toastSlot._timer);
-          toastSlot._timer = setTimeout(() => { toastSlot.innerHTML = ''; }, 4000);
-        }
+        void sendThumb(toastSlot, ratedScan, act === 'thumbs-up' ? 'up' : 'down', null);
+        return;
+      }
+      if (act === 'thumbs-reason' && lastThumb) {
+        void sendThumb(btn.closest('[data-toast-slot]'), lastThumb.scanId, 'down', btn.dataset.reason ?? null);
+        return;
+      }
+      if (act === 'thumbs-retry' && lastThumb) {
+        void sendThumb(btn.closest('[data-toast-slot]'), lastThumb.scanId, lastThumb.rating, lastThumb.reason);
         return;
       }
       if (act === 'thumbs-undo') {
+        thumbToken += 1; // a answer still in flight must not paint "Noted" over an undo
+        lastThumb = null;
         if (Number.isInteger(ratedScan)) {
           store.deleteRating(ratedScan);
           void ctx.api.deleteScanRating?.({ deviceId: getDeviceId()?.id, scanId: ratedScan });
@@ -5149,6 +5416,9 @@ export default {
          repaint here would take the caret with it. */
       const nameInput = e.target.closest('[data-obs-label]');
       if (nameInput) { padLabel = nameInput.value; return; }
+      /* The shop search: only the rows repaint, so the caret stays put. */
+      const shopSearch = e.target.closest('[data-shop-search]');
+      if (shopSearch) { shopQuery = shopSearch.value; paintShopRows(); return; }
       const modInput = e.target.closest('[data-mod-value]');
       if (!modInput || !padModifier) return;
       const n = Number.parseFloat(modInput.value);
@@ -5222,7 +5492,7 @@ export default {
           // The row the server just wrote for this scan. Kept whatever the
           // answer was: a refused identification is exactly the case the
           // price route below exists for.
-          if (Number.isInteger(id?.scanId)) lastScanId = id.scanId;
+          if (Number.isInteger(id?.scanId)) { lastScanId = id.scanId; fileShelfPrice(id); }
           // The query the server already started a price search under. Held
           // exactly as it arrived; see `lastPriceQuery`.
           lastPriceQuery = id?.priceQuery ?? null; lastPriceMatch = id?.priceMatch ?? null;
@@ -5353,6 +5623,7 @@ export default {
           name: m ? candidateRow({ brand: m.brand, name: m.name, size: m.size }).label : text,
           key: m?.code ?? (text ? `name:${text}` : null),
           cents,
+          shopperReport: id.shopperReport ?? null,
         });
         return;
       }
@@ -5414,6 +5685,7 @@ export default {
           name: id ? candidateRow({ brand: id.brand, name: id.name, size: id.size }).label : '',
           key: id?.barcode ?? answer.barcode ?? null,
           cents,
+          shopperReport: answer.shopperReport ?? null,
         });
         return;
       }
@@ -5434,9 +5706,10 @@ export default {
      * the bell does not redraw; only the shopper's new dot drops in.
      */
     let dist = null;
-    function showDistribution(raw, { name = '', key = null, cents = null, scenario = null } = {}) {
+    function showDistribution(raw, { name = '', key = null, cents = null, scenario = null, shopperReport = null } = {}) {
       const v = usableVerdict(raw);
-      dist = { raw, name, key: key ?? (name ? `name:${name}` : null), typedCents: !v?.shopper && cents ? cents : null };
+      dist = { raw, name, key: key ?? (name ? `name:${name}` : null), typedCents: !v?.shopper && cents ? cents : null, shopperReport };
+      noteAnswer({ code: scenario?.scannedGtin ?? scenario?.gtin ?? (typeof key === 'string' && !key.startsWith('name:') ? key : null), label: name, category: scenario?.category ?? null });
       last = { result: { kind: 'distribution', verdict: raw }, scenario: scenario ?? { text: name, category: null }, thumb: scanThumb, askingCents: cents ?? undefined };
       lastKeepable = null;
       paintDistribution(false);
@@ -5452,6 +5725,7 @@ export default {
         saved: dist.key ? store.isWatched(dist.key) : false,
         typedCents: dist.typedCents,
         still: inPlace,
+        shopperReport: dist.shopperReport ?? null,
       });
       const sheet = slot.querySelector('.sheet.dist');
       if (inPlace && sheet) {

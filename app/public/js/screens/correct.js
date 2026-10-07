@@ -29,7 +29,8 @@
 import { faceBlock } from '../shin.js';
 import { say } from '../voice.js';
 import * as store from '../store.js';
-import { submitCorrection } from '../corrections.js';
+import { fileReport, retryReport, abandonReport, recalledScan } from '../price-report.js';
+import { pt } from '../price-strings.js';
 import * as shops from '../shops.js';
 import { escapeHtml, on } from '../lib/dom.js';
 import { goBack } from '../lib/pagebar.js';
@@ -52,14 +53,35 @@ import { t } from '../ui-strings.js';
  * entry is the thing the person is looking at. A saved verdict is preferred over
  * a saved refusal because only the first carries an identity worth filing under.
  */
+/** How long the camera's last answer stays the thing "Report a wrong price" is about. */
+const RECALL_MS = 30 * 60 * 1000;
+
 function subjectOf(params) {
+  const scanId = Number.isInteger(params.scanId) && params.scanId > 0 ? params.scanId : null;
   const explicit = {
     code: params.gtin ?? params.code ?? null,
     productId: params.productId ?? null,
     label: params.text ?? null,
     category: params.category ?? null,
+    scanId,
   };
-  if (explicit.code || explicit.productId) return explicit;
+  if (explicit.code || explicit.productId || explicit.scanId) return explicit;
+
+  /* D01: reached from somewhere that is not the verdict ("Report a wrong
+     price" on the You screen), so nothing was handed in. The camera remembers
+     the last answer it showed; inside half an hour that is the item this
+     person means, and its barcode and scan id are what make the price
+     readable by anything afterwards. */
+  const seen = recalledScan();
+  if (seen && Date.now() - seen.at < RECALL_MS && (seen.code || seen.scanId)) {
+    return {
+      code: seen.code ?? null,
+      productId: null,
+      label: params.text ?? seen.label ?? null,
+      category: params.category ?? seen.category ?? null,
+      scanId: seen.scanId ?? null,
+    };
+  }
 
   const recent = store.get().history[0];
   const identity = recent?.result?.identity ?? null;
@@ -68,6 +90,7 @@ function subjectOf(params) {
     productId: identity?.id ?? null,
     label: params.text ?? identity?.label ?? null,
     category: params.category ?? identity?.category ?? null,
+    scanId: null,
   };
 }
 
@@ -121,13 +144,34 @@ export default {
      * tapped one, which is the collapse D-081 exists to prevent.
      */
     let seller = shops.chosenName();
-    const shopId = shops.chosenId();
+    const shopId = shops.chosenOsmId();
     let saved = false;
     let onSale = false;
+    /*
+     * D01 (2026-10-06): WHAT THE SERVER SAID. `saved` is set only when it
+     * answered `stored:true`. `status` is 'sending' while the request is out
+     * and 'failed' after a refusal or a dead connection, with `failure`
+     * holding which, and `pending` the queued entry a network failure leaves
+     * behind so Retry re-sends the same one.
+     */
+    let status = 'idle';
+    let failure = null;
+    let pending = null;
+    let pendingKey = '';
     const ac = new AbortController();
 
     const subject = subjectOf(ctx.params);
     const label = subject.label ?? t('cam_this');
+
+    /** The line under the form for the two states that are not "type a price", or null. */
+    function statusLine() {
+      if (status === 'sending') return pt('report_sending');
+      if (status === 'failed') {
+        if (failure?.network) return pt('report_failed_offline');
+        return failure?.why ? pt('report_refused', { why: failure.why }) : pt('report_failed');
+      }
+      return null;
+    }
 
     function paint() {
       root.innerHTML = `
@@ -155,7 +199,14 @@ export default {
           <label class="seller">
             <span>${escapeHtml(t('correct_which_shop'))}</span>
             <input type="text" inputmode="text" autocomplete="off" placeholder="${escapeHtml(t('correct_shop_placeholder'))}"
-                   class="field" value="${escapeHtml(seller)}" data-seller>
+                   class="field" value="${escapeHtml(seller)}" data-seller list="shop-suggest">
+            <datalist id="shop-suggest">${
+              /* D03: the same list the camera's picker opens with, at once, no network. */
+              shops
+                .pickerShops({ known: store.knownShops(), nearby: shops.nearbyCached() })
+                .map((s) => `<option value="${escapeHtml(s.name)}"></option>`)
+                .join('')
+            }</datalist>
           </label>
 
           <button type="button" class="chip${onSale ? ' chip-on' : ''}" data-act="sale"
@@ -191,10 +242,10 @@ export default {
           }
 
           <div class="page-foot">
-            <p class="fineprint gate" data-gate role="status">${escapeHtml(gateReason(typed, seller) ?? '')}</p>
+            <p class="fineprint gate" data-gate role="status">${escapeHtml(statusLine() ?? gateReason(typed, seller) ?? '')}</p>
             <button type="button" class="cta" data-act="save" ${
-              gateReason(typed, seller) ? 'disabled' : ''
-            }>${escapeHtml(t('correct_save_it'))}</button>
+              gateReason(typed, seller) || status === 'sending' ? 'disabled' : ''
+            }>${escapeHtml(status === 'failed' ? pt('report_retry') : t('correct_save_it'))}</button>
             <button type="button" class="linky" data-act="back">${escapeHtml(t('correct_not_now'))}</button>
           </div>`
           }
@@ -205,11 +256,16 @@ export default {
 
     /** The save gate and the sentence explaining it are one thing, so they move together. */
     function paintGate() {
+      // Editing the form after a failure is a new attempt, not the failed one.
+      if (status === 'failed') { status = 'idle'; failure = null; }
       const why = gateReason(typed, seller);
       const cta = root.querySelector('[data-act="save"]');
-      if (cta) cta.disabled = Boolean(why);
+      if (cta) {
+        cta.disabled = Boolean(why) || status === 'sending';
+        cta.textContent = t('correct_save_it');
+      }
       const gate = root.querySelector('[data-gate]');
-      if (gate) gate.textContent = why ?? '';
+      if (gate) gate.textContent = statusLine() ?? why ?? '';
     }
 
     on(root, 'input', (e) => {
@@ -246,11 +302,16 @@ export default {
       if (e.target.closest('[data-act="save"]')) {
         const cents = Math.round(Number.parseFloat(typed) * 100);
         if (!Number.isFinite(cents)) return;
-        // Saved on this device first, then sent. The thank-you below is about
-        // the local write, which cannot fail on a network, so an aisle with no
-        // signal produces the same screen as a good connection and the queue
-        // sends it later.
-        submitCorrection({
+        if (status === 'sending' || gateReason(typed, seller)) return;
+        /*
+         * D01 (2026-10-06): THE THANK-YOU IS ABOUT THE SERVER'S ANSWER. The
+         * price is still written to the device first (a refused or unreachable
+         * send leaves a local row), but "Recorded" appears only on
+         * `stored:true`. A refusal or a dead connection says the price did not
+         * go through and offers Retry. The barcode and the scan id go with the
+         * price, which is what the server needs to file it at all.
+         */
+        const fields = {
           code: subject.code,
           productId: subject.productId,
           label: subject.label,
@@ -259,9 +320,38 @@ export default {
           seller: seller.trim(),
           storeId: seller.trim() === shops.chosenName() ? shopId : null,
           kind: onSale ? 'promotional' : 'regular',
-        });
-        saved = true;
-        paint();
+          scanId: subject.scanId,
+        };
+        const key = JSON.stringify(fields);
+        status = 'sending';
+        failure = null;
+        paintGate();
+        void (async () => {
+          let res;
+          if (pending && key === pendingKey) {
+            res = await retryReport(pending);
+          } else {
+            if (pending) abandonReport(pending);
+            res = await fileReport(fields);
+          }
+          if (ac.signal.aborted) return;
+          if (res.stored) {
+            // The shop just filed under is the shop used last, for the picker.
+            const match = shops
+              .pickerShops({ query: fields.seller, known: store.knownShops(), nearby: shops.nearbyCached() })
+              .find((s) => shops.fold(s.name) === shops.fold(fields.seller));
+            shops.chooseShop(match ? { id: match.id, name: match.name, hint: match.hint } : { id: shops.textId(fields.seller), name: fields.seller });
+            pending = null;
+            status = 'idle';
+            saved = true;
+          } else {
+            pending = res.entry;
+            pendingKey = key;
+            status = 'failed';
+            failure = { network: res.network, why: res.why };
+          }
+          paint();
+        })();
         return;
       }
 

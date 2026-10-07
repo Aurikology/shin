@@ -856,6 +856,31 @@ export function stores(cell) {
   return getSoft(`/api/stores?${params.toString()}`, { stores: [] });
 }
 
+/**
+ * The chains Shin's own price data names, fresher than the list bundled in
+ * `chains.js`. Soft: the picker already has the bundled list on screen, so a
+ * failure here changes nothing the shopper sees.
+ */
+export function storeChains() {
+  return getSoft('/api/store-chains', { chains: [] });
+}
+
+/**
+ * The shelf price typed on the pad, filed against its scan (D05, requirements
+ * 5.1 and 5.2). `stored` true means the scan row has the number; `report` says
+ * whether it also became an observed shopper report, and why not when it did
+ * not (no shop named, or the scan resolved no product). Soft: the answer is
+ * already on screen, so a failure is returned as `stored: false` for the caller
+ * to retry once and never thrown at a screen.
+ */
+export function postScanPrice({ deviceId, scanId, priceCents, storeName, code, seenOn }) {
+  const body = { deviceId, scanId, priceCents };
+  if (storeName) body.storeName = storeName;
+  if (code) body.code = code;
+  if (seenOn) body.seenOn = seenOn;
+  return postSoft('/api/scan-price', body, { stored: false });
+}
+
 /* --------------------------------------------------- item 16: shelf capture */
 
 /**

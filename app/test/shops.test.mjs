@@ -32,7 +32,7 @@ import { fileURLToPath } from 'node:url';
 
 import { cellFor } from '../public/js/geocell.js';
 import { parseCell } from '../src/stores.ts';
-import { orderShops, preselectId } from '../public/js/shops.js';
+import { orderShops, preselectId, pickerShops } from '../public/js/shops.js';
 import { padShopRow, storePickerSheet } from '../public/js/screens/camera.js';
 import * as store from '../public/js/store.js';
 
@@ -237,10 +237,10 @@ test('switching location off forgets the shops as well as stopping the collectin
 
 /* ------------------------------------------------------------ the screens */
 
-test('consent off means no shop row at all, and the pad is the pad that shipped', () => {
+test('consent off still shows the shop row: a price needs a shop whatever location says (D02, D03)', () => {
   inLocale('en', () => {
-    assert.equal(padShopRow(null, false), '', 'a row appeared with location consent off');
-    assert.equal(padShopRow({ id: 'node/1', name: 'FreshMart' }, false), '');
+    assert.match(padShopRow(null, false), /data-act="pad-shop"/, 'no way to name a shop with location off');
+    assert.match(padShopRow({ id: 'chain:walmart', name: 'Walmart' }, false), /Walmart/);
   });
 });
 
@@ -267,8 +267,10 @@ test('the shortlist renders from a fixture, as the inset grouped list', () => {
     }
     // The same control the market picker uses, not a new one.
     assert.match(html, /class="ilist shop-list" role="radiogroup"/);
-    // The way out that is a real answer rather than a cancel.
-    assert.match(html, /data-shop="__none"/);
+    // There is no "No shop" answer: the server refuses a price with no shop (D02).
+    assert.doesNotMatch(html, /data-shop="__none"/);
+    // And there is a search box (D03).
+    assert.match(html, /data-shop-search/);
   });
 });
 
@@ -283,17 +285,17 @@ test('the preselected shop is the checked one, and the usual ones are marked', (
     assert.equal(html.split('aria-checked="true"').length - 1, 1, 'more than one row is checked');
     // Exactly one shop has been confirmed before, so exactly one is "Usual".
     assert.equal(html.split('shop-usual').length - 1, 1);
-    // With a shop chosen, "No shop" is not the checked row.
-    assert.ok(!/data-shop="__none"[^>]*aria-checked="true"/.test(html));
   });
 });
 
-test('an empty shortlist says why instead of showing an empty sheet', () => {
+test('an empty nearby list still leaves a picker: the chains and the search box (D03)', () => {
   inLocale('en', () => {
-    const html = storePickerSheet([], null);
-    // Still offers the answer that is not a shop, and the checked row is it.
-    assert.match(html, /data-shop="__none"/);
-    assert.match(html, /aria-checked="true"/);
+    const rows = pickerShops({});
+    assert.ok(rows.length > 10, 'the picker has no chains to show without the network');
+    const html = storePickerSheet(rows, null);
+    assert.match(html, /data-shop-search/);
+    assert.match(html, /Save-On-Foods/);
+    assert.doesNotMatch(html, /data-shop="__none"/);
   });
 });
 
@@ -303,7 +305,8 @@ test('both languages, both sheets, and no English left on a French screen', () =
   assert.notEqual(en, fr, 'the shortlist rendered identically in both languages');
   assert.match(en, /Which shop\?/);
   assert.match(fr, /Quel magasin/);
-  assert.match(fr, /Aucun magasin/);
+  assert.match(fr, /Chercher/);
+  assert.ok(!fr.includes('Search or type'), 'the English search label is on the French screen');
   assert.ok(!fr.includes('No shop'), 'the English "No shop" row is on the French screen');
 
   const rowEn = inLocale('en', () => padShopRow(null, true));

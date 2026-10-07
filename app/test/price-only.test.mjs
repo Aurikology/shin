@@ -181,8 +181,8 @@ test('skipping an observation does not ask for a going rate either', () => {
 test('the observation is posted with the scan id and no invented product', () => {
   const at = CAMERA.indexOf('function recordObservation');
   assert.notEqual(at, -1, 'camera.js does not record observations');
-  const block = CAMERA.slice(at, at + 1600);
-  assert.match(block, /submitCorrection\(/, 'the observation does not go through the existing queue');
+  const block = CAMERA.slice(at, at + 3200);
+  assert.match(block, /fileReport\(/, 'the observation does not go through the confirmed queue (D02)');
   assert.match(block, /scanId:\s*lastScanId/, 'the observation is not tied to the scan it is about');
   assert.match(block, /code:\s*null/, 'the observation claims a product code');
   assert.match(block, /productId:\s*null/, 'the observation claims a product id');

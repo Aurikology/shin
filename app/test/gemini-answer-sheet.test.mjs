@@ -395,11 +395,12 @@ test('the answer is stored with the two plain facts the history screens read', (
   assert.match(camera, /last = \{ result, scenario: item, thumb: scanThumb, askingCents \};/, 'retry has no price to send again');
 });
 
-test('a thumb on a Gemini answer is kept against that answer\'s scan id, and undo removes it', () => {
-  assert.match(camera, /const ratedScan = last\?\.result\?\.kind === 'gemini'/);
-  assert.match(camera, /Number\.isInteger\(last\.result\.scanId\) \? last\.result\.scanId : lastScanId/);
-  assert.match(camera, /store\.recordRating\(\{ scanId: ratedScan, rating \}\)/);
-  assert.match(camera, /postScanRating\?\.\(\{ deviceId: getDeviceId\(\)\?\.id, scanId: ratedScan, rating \}\)/);
+test('a thumb on any answer is kept against that answer\'s scan id, and undo removes it (D09)', () => {
+  // Not only Gemini: the gate on `kind === 'gemini'` is gone.
+  assert.doesNotMatch(camera, /const ratedScan = last\?\.result\?\.kind === 'gemini'/);
+  assert.match(camera, /const ratedScan = Number\.isInteger\(last\?\.result\?\.scanId\)/);
+  assert.match(camera, /store\.recordRating\(\{ scanId, rating \}\)/);
+  assert.match(camera, /postScanRating\?\.\(\{ deviceId: getDeviceId\(\)\?\.id, scanId, rating, reason \}\)/);
   assert.match(camera, /store\.deleteRating\(ratedScan\)/);
   assert.match(camera, /deleteScanRating\?\.\(\{ deviceId: getDeviceId\(\)\?\.id, scanId: ratedScan \}\)/);
 });

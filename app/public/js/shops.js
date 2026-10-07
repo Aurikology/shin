@@ -44,6 +44,8 @@
 import * as store from './store.js';
 import * as api from './api.js';
 import { currentCell, refreshCell } from './geocell.js';
+import { BUNDLED_CHAINS } from './chains.js';
+import { pt } from './price-strings.js';
 
 /* ------------------------------------------------------------------- pure -- */
 
@@ -158,6 +160,20 @@ export function chosenId() {
   return chosen?.id ?? null;
 }
 
+/**
+ * The OpenStreetMap identity of the chosen shop, or null.
+ *
+ * `chosenId` can now be a chain (`chain:...`) or a typed name (`text:...`),
+ * neither of which is OpenStreetMap's. D-081's distinct-seller counting keys on
+ * an OSM id, and sending a made-up one would be exactly the collapse that
+ * ruling was opened about, so only a real `node/`, `way/` or `relation/` id
+ * ever travels as a `storeId`.
+ */
+export function chosenOsmId() {
+  const id = chosen?.id ?? null;
+  return typeof id === 'string' && /^(node|way|relation)\//.test(id) ? id : null;
+}
+
 /** Test-only, and the "no shop" row: forgets what this session had selected. */
 export function clearChosen() {
   chosen = null;
@@ -257,4 +273,162 @@ export async function openShortlist() {
     cell,
     shops: orderShops(nearby, { known: store.knownShops(), lastId: store.lastShopIn(cell) }),
   };
+}
+
+/* ------------------------------------------- the list a shopper picks from -- */
+
+/**
+ * WHAT THE PICKER SHOWS, and why it no longer waits for anything (D03).
+ *
+ * The old picker was OpenStreetMap's three nearest places behind a network
+ * call that took ten seconds and then timed out, with no search and no Save-On
+ * or No Frills in it. And since a price needs a shop (RULINGS "Attribution,
+ * provenance and correction data"), an empty picker blocked the whole price
+ * path.
+ *
+ * Now the list is built on the phone, at once, from three sources in this
+ * order, and the network is only ever an extra:
+ *
+ *   1. shops this shopper has used, the LAST-USED one first (then by how often);
+ *   2. places nearby, when location is on and the lookup answered in time;
+ *   3. the chains Shin's own price data names (`chains.js`, refreshed from
+ *      `/api/store-chains` in the background).
+ *
+ * A name appears once, whichever source named it first. A search box narrows
+ * the list, and a name that matches nothing is offered back as a typed shop, so
+ * nobody is ever stopped by the list not knowing their corner store.
+ */
+
+/** Case, accents and punctuation folded away, so "Marché Adonis" finds "marche adonis". */
+export function fold(text) {
+  return String(text ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9一-鿿]+/g, '');
+}
+
+/** The picker id of a chain: a chain is not a branch and has no OpenStreetMap node. */
+export function chainId(name) {
+  return `chain:${fold(name)}`;
+}
+
+/** The picker id of a name the shopper typed. */
+export function textId(name) {
+  return `text:${fold(name)}`;
+}
+
+let chains = BUNDLED_CHAINS.slice();
+
+/** The chain names in force: the bundled floor until the server's copy arrives. */
+export function chainNames() {
+  return chains.slice();
+}
+
+/** Swaps in a fresher list. Ignores anything that is not a non-empty list of names. */
+export function setChains(names) {
+  const clean = (Array.isArray(names) ? names : [])
+    .map((n) => (typeof n === 'string' ? n : n?.name))
+    .filter((n) => typeof n === 'string' && n.trim() !== '')
+    .map((n) => n.trim());
+  if (clean.length > 0) chains = clean;
+}
+
+/**
+ * Fetches the server's copy of the chain list in the background. Fire and
+ * forget: the picker is already showing the bundled list, and a failure leaves
+ * it exactly as it was.
+ */
+export function refreshChains() {
+  try {
+    return Promise.resolve(api.storeChains?.())
+      .then((res) => setChains(res?.chains))
+      .catch(() => {});
+  } catch {
+    return Promise.resolve();
+  }
+}
+
+/**
+ * The picker's rows. Pure: every input is an argument, so a test drives it with
+ * no phone, no network and no storage.
+ *
+ * @param {object} [opts]
+ * @param {string} [opts.query]  what the search box holds.
+ * @param {{id:string,name:string,hint?:string,count?:number,at?:string}[]} [opts.known]
+ * @param {{id:string,name:string,hint?:string}[]} [opts.nearby]
+ * @param {string[]} [opts.names]  chain names.
+ * @returns {{id:string,name:string,hint:string,count:number,custom?:boolean}[]}
+ */
+export function pickerShops({ query = '', known = [], nearby = [], names = chains } = {}) {
+  const used = (Array.isArray(known) ? known : []).slice();
+  // Last used first, by the time it was last confirmed; the rest by how often.
+  const newest = used.slice().sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')))[0] ?? null;
+  const rest = used
+    .filter((k) => k !== newest)
+    .sort((a, b) => (b.count ?? 0) - (a.count ?? 0) || String(b.at ?? '').localeCompare(String(a.at ?? '')));
+
+  const seenId = new Set();
+  const seenName = new Set();
+  const out = [];
+  const push = (s, count) => {
+    if (!s || typeof s.id !== 'string' || typeof s.name !== 'string') return;
+    const name = s.name.trim();
+    const key = fold(name);
+    if (name === '' || key === '' || seenId.has(s.id) || seenName.has(key)) return;
+    seenId.add(s.id);
+    seenName.add(key);
+    out.push({ id: s.id, name, hint: String(s.hint ?? ''), count });
+  };
+
+  if (newest) push(newest, newest.count ?? 1);
+  for (const k of rest) push(k, k.count ?? 1);
+  for (const n of Array.isArray(nearby) ? nearby : []) push(n, 0);
+  for (const name of Array.isArray(names) ? names : []) push({ id: chainId(name), name }, 0);
+
+  const q = fold(query);
+  if (q === '') return out;
+  const hits = out.filter((s) => fold(s.name).includes(q) || fold(s.hint).includes(q));
+  const typed = String(query).trim();
+  if (!out.some((s) => fold(s.name) === q)) {
+    hits.push({ id: textId(typed), name: typed, hint: pt('shop_not_listed'), count: 0, custom: true });
+  }
+  return hits;
+}
+
+/* The places nearby, remembered for the cell they were fetched in. */
+let nearbyMemo = { cell: null, shops: [] };
+
+/** Whatever nearby places the last lookup for this cell found, with no network call. */
+export function nearbyCached() {
+  const cell = cellNow();
+  return cell && nearbyMemo.cell === cell ? nearbyMemo.shops : [];
+}
+
+/**
+ * The nearby places, but never for longer than `ms`. The lookup keeps running
+ * after the deadline and fills the cache for next time; the caller just stops
+ * waiting. Consent off, no cell, an Overpass outage and a slow answer all come
+ * back as an empty list.
+ */
+export function nearbyWithin(ms = 1500) {
+  if (!locationAllowed()) return Promise.resolve([]);
+  let timer;
+  const deadline = new Promise((resolve) => {
+    timer = setTimeout(() => resolve([]), ms);
+  });
+  const lookup = openShortlist()
+    .then(({ cell, shops }) => {
+      if (cell) nearbyMemo = { cell, shops };
+      return shops;
+    })
+    .catch(() => []);
+  return Promise.race([lookup, deadline]).finally(() => clearTimeout(timer));
+}
+
+/** The shop this shopper confirmed most recently, or null. The row the pad can offer. */
+export function lastUsedShop() {
+  const used = store.knownShops().slice();
+  used.sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')));
+  return used[0] ?? null;
 }
