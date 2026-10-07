@@ -353,9 +353,9 @@ const LINES_EN = {
    * three things `watching` above already commits to being able to say.
    */
   watchlist_callback: {
-    deadpan: (f) => `${f.item}. ${f.price}${f.seller ? `, ${f.seller}` : ''}, saved ${f.day}.`,
-    warm: (f) => `Still have ${f.item} saved, ${f.price}${f.seller ? ` at ${f.seller}` : ''}, ${f.day}.`,
-    blunt: (f) => `${f.item}. ${f.price}${f.seller ? `, ${f.seller}` : ''}. ${f.day}.`,
+    deadpan: (f) => `${f.item}.${f.price ? ` ${f.price}${f.seller ? `, ${f.seller}` : ''},` : f.seller ? ` ${f.seller},` : ''} saved ${f.day}.`,
+    warm: (f) => `Still have ${f.item} saved${f.price ? `, ${f.price}${f.seller ? ` at ${f.seller}` : ''}` : f.seller ? `, at ${f.seller}` : ''}, ${f.day}.`,
+    blunt: (f) => `${f.item}.${f.price ? ` ${f.price}${f.seller ? `, ${f.seller}` : ''}.` : f.seller ? ` ${f.seller}.` : ''} ${f.day}.`,
   },
   /**
    * A saved row opened with no matching scan left in history (the watch
@@ -443,9 +443,9 @@ const LINES_EN = {
    * agrees. See `correct_thanks` above for why the wording stays as it is.
    */
   correct_fineprint: {
-    deadpan: (f) => `Recorded against ${f.label}${f.seller ? `, at ${f.seller}` : ''}. It counts from now, firmer when a second tag agrees.`,
-    warm: (f) => `That is recorded against ${f.label}${f.seller ? `, at ${f.seller}` : ''}. It counts from your next scan, and firms up when someone else sees the same price.`,
-    blunt: (f) => `Recorded, ${f.label}${f.seller ? `, at ${f.seller}` : ''}. Counts now, firmer when a second one agrees.`,
+    deadpan: (f) => `Once you send it, it is recorded against ${f.label}${f.seller ? `, at ${f.seller}` : ''}. It counts from then, firmer when a second tag agrees.`,
+    warm: (f) => `When you send it, it is recorded against ${f.label}${f.seller ? `, at ${f.seller}` : ''}. It counts from your next scan, and firms up when someone else sees the same price.`,
+    blunt: (f) => `Sent, it goes against ${f.label}${f.seller ? `, at ${f.seller}` : ''}. Counts then, firmer when a second one agrees.`,
   },
 
   /**
@@ -685,13 +685,13 @@ const LINES_EN = {
   you_weekly: {
     deadpan: (f) => (f.scanned === 0
       ? 'Nothing scanned this week.'
-      : `${f.scanned} scanned this week. ${f.callable} I could call.`),
+      : `${f.scanned} scanned this week.`),
     warm: (f) => (f.scanned === 0
       ? 'Nothing scanned yet this week.'
-      : `${f.scanned} scanned this week. I could call ${f.callable} of them.`),
+      : `${f.scanned} scanned this week.`),
     blunt: (f) => (f.scanned === 0
       ? 'Nothing this week.'
-      : `${f.scanned} this week. ${f.callable} I could call.`),
+      : `${f.scanned} this week.`),
   },
   /**
    * The same header when `store.goodFindThisWeek()` is true, which is the
@@ -705,9 +705,9 @@ const LINES_EN = {
    * that there was one is carried by the branch that chose this key.
    */
   you_weekly_proud: {
-    deadpan: (f) => `${f.scanned} scanned this week. ${f.callable} I could call, and one of them was a good price.`,
-    warm: (f) => `${f.scanned} scanned this week, and I could call ${f.callable} of them. One was a properly good price.`,
-    blunt: (f) => `${f.scanned} this week. ${f.callable} callable, and one was a good price.`,
+    deadpan: (f) => `${f.scanned} scanned this week, and one of them was a good price.`,
+    warm: (f) => `${f.scanned} scanned this week. One was a properly good price.`,
+    blunt: (f) => `${f.scanned} this week, and one was a good price.`,
   },
   /**
    * --- the You page's coverage block, three states ---
@@ -967,6 +967,60 @@ const LINES_EN = {
     deadpan: () => 'I had nothing to look up. Try the scan again.',
     warm: () => 'I did not have enough to look up. Give the scan another go.',
     blunt: () => 'Nothing to look up. Scan again.',
+  },
+  /**
+   * The answer sheet's bubble, one line per zone and per confidence (N12,
+   * 2026-10-07; RULINGS.md "Sharing, notifications and attitude", AVATAR.md).
+   * The confident lines may be loud; the `_unsure` ones never are, because a
+   * loud line on thin evidence is the worst thing this product can do. The
+   * edge of every sharp line lands on the price or the store, never on the
+   * shopper, and none of them says "saved". They carry no figure, so no fact
+   * can go missing: the numbers are on the sheet beside the bubble.
+   */
+  dist_great: {
+    deadpan: () => 'Well under the usual. Somebody in that store priced this wrong, in your favour.',
+    warm: () => 'Oh, that is a proper find. The store is practically giving it away.',
+    blunt: () => 'Somebody in that store made a mistake. Enjoy it.',
+  },
+  dist_great_unsure: {
+    deadpan: () => 'It looks cheap, but I am working from a thin estimate. Treat it as a maybe.',
+    warm: () => 'This looks like a good one, but I do not have much to go on, so hold it loosely.',
+    blunt: () => 'Looks cheap. Not sure. Check it.',
+  },
+  dist_good: {
+    deadpan: () => 'Under the usual price. The store is being fair.',
+    warm: () => 'Good spot. That is under what it usually goes for.',
+    blunt: () => 'Cheaper than usual. Buy it.',
+  },
+  dist_good_unsure: {
+    deadpan: () => 'Probably under the usual, but the evidence is thin.',
+    warm: () => 'It looks a little under the usual, but I am not very sure, so go gently.',
+    blunt: () => 'Maybe cheap. Not sure.',
+  },
+  dist_reasonable: {
+    deadpan: () => 'That is the going rate. Nothing to see.',
+    warm: () => 'That is about what it goes for. You are fine.',
+    blunt: () => 'Normal price. Nothing special.',
+  },
+  dist_reasonable_unsure: {
+    deadpan: () => 'It looks about normal, but my estimate is rough.',
+    warm: () => 'It looks about right, though I am working from a rough estimate.',
+    blunt: () => 'Seems normal. Rough guess.',
+  },
+  dist_bad: {
+    deadpan: () => 'Over the usual. The store is charging extra for this.',
+    warm: () => 'Ooh, that is steep. The price is the problem, not you.',
+    blunt: () => 'That price is a robbery with a barcode on it.',
+  },
+  dist_bad_unsure: {
+    deadpan: () => 'It looks high, but I am not sure enough to be loud about it.',
+    warm: () => 'That looks pricey to me, though my estimate is thin, so check before you walk away.',
+    blunt: () => 'Looks steep. Not sure. Check it.',
+  },
+  dist_noprice: {
+    deadpan: () => 'That is what it usually goes for. What does the tag say?',
+    warm: () => 'That is the usual price. Tell me what the tag says and I will place it.',
+    blunt: () => 'Usual price is there. What is the tag?',
   },
   /**
    * The offline aisle's own ending, added 2026-09-07 when the pack landed.
@@ -1665,6 +1719,12 @@ const LINES_EN = {
     warm: () => 'That is all the free scans for this week. With Plus there is no limit.',
     blunt: () => 'Free scans done for the week. Plus: no limit.',
   },
+  /** The same screen opened with nothing used (D30): it must not say the free scans are gone. */
+  paywall_say_open: {
+    deadpan: () => 'Plus takes the weekly limit off.',
+    warm: () => 'With Plus there is no weekly limit on scans.',
+    blunt: () => 'Plus: no weekly limit.',
+  },
 };
 
 /**
@@ -1746,9 +1806,9 @@ const BARE_EN = {
     blunt: () => 'Not this. No.',
   },
   correct_fineprint: {
-    deadpan: () => 'Recorded. It counts from now, firmer when a second tag agrees.',
-    warm: () => 'That is recorded. It counts from your next scan, and firms up when someone else sees the same price.',
-    blunt: () => 'Recorded. Counts now, firmer when a second one agrees.',
+    deadpan: () => 'Once you send it, it is recorded. It counts from then, firmer when a second tag agrees.',
+    warm: () => 'When you send it, it is recorded. It counts from your next scan, and firms up when someone else sees the same price.',
+    blunt: () => 'Sent, it is recorded. Counts then, firmer when a second one agrees.',
   },
   you_weekly: {
     deadpan: () => 'Your week is on file.',

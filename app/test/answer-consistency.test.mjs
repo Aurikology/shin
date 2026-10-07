@@ -30,6 +30,8 @@ const { thresholdsFrom } = await import('../public/js/lib/scan-body.js');
 const { DEFAULT_THRESHOLDS: SERVER_DEFAULTS } = await import('../../price/src/estimate.ts');
 const F = await import('./verdict-fixtures.mjs');
 const { distributionSheet, distFace } = await import('../public/js/screens/camera.js');
+const { say } = await import('../public/js/voice.js');
+const { confidenceWords } = await import('../public/js/lib/history-answer.js');
 
 const { usableVerdict, zoneFor, zoneCuts, zoneAtX, shopperOf, bellGeometry, bellSvg, placeLabels, labelWidth } = VC;
 
@@ -151,11 +153,16 @@ test('D13: a low-confidence answer still answers, drawn hollow, with the plain f
     assert.match(html, /data-conf="thin"/, `${zone}: hollow`);
     assert.match(html, /data-confidence="low"/);
     assert.doesNotMatch(html, /data-state="(delighted|angry)"/, `${zone}: no intense face on a hollow field`);
-    assert.match(html, /data-dist-conf>Not fully confident: a rough estimate for its category</, zone);
+    assert.match(html, /class="vd-doubt" data-dist-conf>Not fully confident: a rough estimate for its category</, zone);
     // The line is beside the word: directly after the headline, before the "how far off" line.
     assert.ok(html.indexOf('data-dist-headline') < html.indexOf('data-dist-conf') && html.indexOf('data-dist-conf') < html.indexOf('data-dist-line'));
-    // Never a loud bubble line: the neutral one, whatever the zone.
-    assert.match(html, /<p class="bubble-text">(Here is what I found\.|Found this\.|Here is what I found for you\.)<\/p>/, zone);
+    // N12: the bubble speaks the zone's hedged line (never the confident one), whatever the attitude.
+    const bubble = html.match(/<p class="bubble-text">([^<]*)<\/p>/)?.[1].replace(/&#39;/g, "'");
+    const shown = html.match(/data-zone="(\w+)"/)[1];
+    const unsure = ["deadpan", "warm", "blunt"].map((who) => say(`dist_${shown}_unsure`, {}, who));
+    const sure = ["deadpan", "warm", "blunt"].map((who) => say(`dist_${shown}`, {}, who));
+    assert.ok(unsure.includes(bubble), `${zone}: bubble "${bubble}" is not one of the hedged lines`);
+    assert.ok(!sure.includes(bubble), `${zone}: a not-confident answer spoke the confident line`);
   }
   assert.equal(distFace('great', 'low'), 'good');
   assert.equal(distFace('great', 'medium'), 'delighted');
@@ -167,6 +174,41 @@ test('D13: the reason names where the centre came from, in both languages', () =
   assert.match(html('claude_typical'), /Not fully confident: an AI estimate, no prices for this item/);
   assert.match(html('own_prices'), /Not fully confident: few prices for this item/);
   assert.match(html('other_size'), /Not fully confident: worked out from another size of this item/);
+});
+
+test('N12: a medium-confidence answer also speaks the hedged line, because its sheet says it is not fully confident', () => {
+  const html = distributionSheet({ ...F.GREAT, confidence: 'medium' });
+  const bubble = html.match(/<p class="bubble-text">([^<]*)<\/p>/)?.[1].replace(/&#39;/g, "'");
+  const unsure = ['deadpan', 'warm', 'blunt'].map((who) => say('dist_great_unsure', {}, who));
+  assert.ok(unsure.includes(bubble), `medium spoke "${bubble}"`);
+  const sure = distributionSheet({ ...F.GREAT, confidence: 'high' });
+  assert.ok(['deadpan', 'warm', 'blunt'].map((who) => say('dist_great', {}, who)).includes(sure.match(/<p class="bubble-text">([^<]*)<\/p>/)?.[1].replace(/&#39;/g, "'")));
+});
+
+test('D13: a spread wider than five times says the range in plain words, and a narrow one says nothing', () => {
+  const wide = { ...F.LOW_CONFIDENCE, p10Cents: 300, p90Cents: 3000 };
+  const html = distributionSheet(wide);
+  assert.match(html, /class="vd-doubt vd-spread" data-dist-spread>Prices for this kind of item vary a lot: \$3\.00 to \$30\.00\./);
+  const narrow = { ...F.LOW_CONFIDENCE, p10Cents: 900, p90Cents: 1800 };
+  assert.doesNotMatch(distributionSheet(narrow), /data-dist-spread/);
+  assert.equal(confidenceWords(narrow).spread, '');
+  assert.match(confidenceWords(wide).spread, /vary a lot/);
+});
+
+test('D08: Correct and Share sit at the top of the half detent, before the basis line; Save stays in the peek', () => {
+  const html = distributionSheet(F.GOOD, { name: 'Peanut Butter' });
+  const half = html.slice(html.indexOf('sheet-half'));
+  const actions = half.indexOf('vd-half-actions');
+  assert.ok(actions >= 0, 'no action row in the half detent');
+  assert.ok(actions < half.indexOf('data-vd-basis'), 'actions must come before the basis line');
+  assert.match(half.slice(actions, half.indexOf('data-vd-basis')), /data-act="correct"[\s\S]*data-act="share"/);
+  const peek = html.slice(0, html.indexOf('sheet-half'));
+  assert.match(peek, /data-act="dist-save"/);
+});
+
+test('D12: the basis line says the centre blends this item\'s prices with its category', () => {
+  const html = distributionSheet({ ...F.MEDIUM_SALE_BULK, basis: 'own_prices', n: 2 });
+  assert.match(html, /blends this item(?:'|&#39;)s prices at 2 shops with its category\./);
 });
 
 /* ------------------------------------------------- the shopper's own report */

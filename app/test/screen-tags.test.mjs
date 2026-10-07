@@ -354,7 +354,7 @@ test('a sheet class the registry cannot name is caught, and so is a tag two surf
 });
 
 test('no template draws an overlay-shaped class the guard does not know', () => {
-  const PARTS = new Set(['sheet', 'sheet-peek', 'sheet-half', 'sheet-full', 'sheet-head', 'sheet-close', 'sheet-slot', 'toast', 'toast-slot', 'toast-undo', 'pmodal', 'pmodal-card', 'pmodal-meta', 'pmodal-conf', 'pmodal-note']);
+  const PARTS = new Set(['sheet', 'sheet-peek', 'sheet-half', 'sheet-full', 'sheet-head', 'sheet-close', 'sheet-slot', 'toast', 'toast-slot', 'toast-undo', 'pmodal', 'pmodal-card', 'pmodal-meta', 'pmodal-conf', 'pmodal-doubt', 'pmodal-note']);
   const SHAPE = /(^|-)(sheet|modal|pmodal|dialog|overlay|banner|popover|toast|scrim|drawer|snackbar|lightbox|backdrop|tooltip|coachmark)(-|$)/;
   const dir = fileURLToPath(JS);
   const hits = [];

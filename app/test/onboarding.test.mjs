@@ -312,7 +312,9 @@ test('the comparison step claims no price history the app does not show (D34)', 
 test('with photo identification off the accuracy tip names typing, not a photo (D33)', () => {
   const tips = render('tip_accuracy');
   assert.doesNotMatch(tips.html, /photo/i);
-  assert.match(tips.html, /type the price you see on the tag/i);
+  assert.match(tips.html, /type the shelf price you see/i);
+  // N13: a barcode-only app does not talk about a price tag or a tag read.
+  assert.doesNotMatch(tips.html, /barcode or price tag|Barcode\/Tag|on the tag/i);
   tips.cleanup();
 });
 

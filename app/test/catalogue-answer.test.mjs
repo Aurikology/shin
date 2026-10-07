@@ -216,7 +216,7 @@ test('the camera hands "typeit" to the one typed-search flow it already has, and
   const typeit = src.slice(src.indexOf("if (act === 'typeit') {"), src.indexOf("if (act === 'typeit') {") + 700);
   assert.match(typeit, /typedAfterPad = btn\.hasAttribute\('data-carry-price'\) \? \{ cents: scanShelfCents \} : null;/);
   assert.match(typeit, /slot\.innerHTML = textRouteSheet\(\);/);
-  assert.match(src, /if \(typedAfterPad\) \{\s*const \{ cents \} = typedAfterPad;\s*typedAfterPad = null;\s*await runTypedSearch\(text, cents, true\);/);
+  assert.match(src, /if \(typedAfterPad\) \{\s*const \{ cents \} = typedAfterPad;\s*typedAfterPad = null;[\s\S]{0,200}await runTypedSearch\(text, cents, true\);/);
 });
 
 /* ============================================================ shelf price == */

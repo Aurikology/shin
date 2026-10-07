@@ -46,8 +46,9 @@ import { fileReport, retryReport, abandonReport, rememberScan } from '../price-r
 import { pt } from '../price-strings.js';
 import { identifyOffline } from '../offline-aisle.js';
 import { track } from '../track.js';
-import { distFace, distWhere, DIST_CONF, answerSnapshot } from '../lib/history-answer.js';
+import { distFace, distWhere, DIST_CONF, answerSnapshot, answerOf, answerWord, confidenceWords } from '../lib/history-answer.js';
 import { refreshCell } from '../geocell.js';
+import { cleanName, nameCarriesSize } from '../lib/product-name.js';
 import { mountGrounded } from '../grounded.js';
 // The Gemini answer's headline values, lifted out of the wire in grounded.js,
 // the only file that reads inside it.
@@ -1633,12 +1634,7 @@ export function serverFaultSheet() {
  * item"); medium keeps the plain sentence; high has none. Empty string for none.
  */
 function confidenceLine(v) {
-  if (v.confidence === 'high') return '';
-  if (v.confidence === 'medium') return t('vd_not_confident');
-  const key = `vd_why_${v.basis ?? 'default'}`;
-  const said = t(key);
-  const why = said === key ? t('vd_why_default') : said;
-  return t('vd_not_confident_why', { why });
+  return confidenceWords(v).doubt;
 }
 
 /** A per-unit label off the wire, in the reader's language when this build knows it. */
@@ -1708,17 +1704,22 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
   const fmt = (c) => money(c, v.currency);
   const centre = fmt(Math.round(v.centreCents));
   const face = distFace(zone, v.confidence);
-  // A low-confidence answer never gets a loud line (DESIGN.md, the confidence gate):
-  // the bubble stays the neutral "here is what I found", whatever the zone.
-  const spoken = zone && v.confidence !== 'low' ? tier : 'gem_answer';
+  // The bubble reacts to the zone and to how sure Pexi is, in the shopper's own
+  // attitude (N12). A low-confidence answer gets the `_unsure` line, never a loud
+  // one (DESIGN.md, the confidence gate); with no shopper price yet it asks for it.
+  const spoken = zone ? `dist_${zone}${v.confidence === 'high' ? '' : '_unsure'}` : 'dist_noprice';
   const headline = zone ? t(`vd_zone_${zone}`) : name;
   const line = s ? t('vd_off', { where: distWhere(s, v), centre }) : t('vd_typical', { centre });
-  const confLine = confidenceLine(v);
+  const { doubt: confLine, spread: spreadLine } = confidenceWords(v);
   const notes = v.notes.map((n) => `<li class="vd-note" data-vd-note="${n}">${escapeHtml(t(`vd_note_${n}`))}</li>`).join('');
   const bigger = v.biggerPack
     ? `<p class="detail vd-bigger" data-vd-bigger>${escapeHtml(t('vd_bigger_pack', { quantity: v.biggerPack.quantity ?? '', store: v.biggerPack.store ?? '', price: fmt(v.biggerPack.perUnitCents), unit: unitWords(v.perUnit?.label ?? '') }))}</p>`
     : '';
-  const basis = v.basis ? t('vd_basis', { from: t(`vd_basis_${v.basis}`), n: v.n ? String(v.n) : '' }) : '';
+  const basis = !v.basis
+    ? ''
+    : v.basis === 'own_prices'
+      ? t('vd_basis_blend', { n: v.n ? String(v.n) : '' })
+      : t('vd_basis', { from: t(`vd_basis_${v.basis}`), n: v.n ? String(v.n) : '' });
   const dots = v.dots.length
     ? `<h3 class="vd-dots-h">${escapeHtml(t('vd_dots_heading'))}</h3><ul class="vd-dots" data-vd-dots>${v.dots
         .map((d) => `<li class="vd-dotrow${d.kind === 'sale' ? ' sale' : ''}"><b>${escapeHtml([d.store, d.city].filter(Boolean).join(', ') || '')}</b><span>${escapeHtml([d.quantity, fmt(d.cents), d.seenOn, d.kind === 'sale' ? t('vd_sale') : null].filter(Boolean).join(' · '))}</span></li>`)
@@ -1735,7 +1736,8 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
           ${thumbImg(thumb)}
         </div>
         <h2 class="vword${zone ? '' : ' small'}" data-dist-headline>${escapeHtml(headline)}</h2>
-        ${confLine ? `<p class="conf-label vd-conf" data-dist-conf>${escapeHtml(confLine)}</p>` : ''}
+        ${confLine ? `<p class="vd-doubt" data-dist-conf>${escapeHtml(confLine)}</p>` : ''}
+        ${spreadLine ? `<p class="vd-doubt vd-spread" data-dist-spread>${escapeHtml(spreadLine)}</p>` : ''}
         <p class="sub vd-line" data-dist-line>${escapeHtml(line)}</p>
         ${s?.suspect ? `<button type="button" class="pill ghost vd-suspect" data-act="dist-suspect" data-cents="${s.suspect.suggestCents}">${escapeHtml(t('vd_suspect', { price: fmt(s.suspect.suggestCents) }))}</button>` : ''}
         <div class="vd-chart${still ? ' vd-still' : ''}" data-dist-chart>${distBell(v, { report: shopperReport })}</div>
@@ -1750,14 +1752,14 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
         </div>
       </div>
       <div class="sheet-half">
-        ${notes ? `<ul class="vd-notes" data-vd-notes>${notes}</ul>` : ''}
-        ${bigger}
-        ${dots}
-        ${basis ? `<p class="conf-label vd-basis" data-vd-basis>${escapeHtml(basis)}</p>` : ''}
-        <div class="actions">
+        <div class="actions vd-half-actions">
           <button type="button" class="pill ghost" data-act="correct">${escapeHtml(t('cam_correct_it'))}</button>
           <button type="button" class="pill ghost" data-act="share">${escapeHtml(t('cam_share'))}</button>
         </div>
+        ${basis ? `<p class="vd-basis" data-vd-basis>${escapeHtml(basis)}</p>` : ''}
+        ${notes ? `<ul class="vd-notes" data-vd-notes>${notes}</ul>` : ''}
+        ${bigger}
+        ${dots}
       </div>
       <div class="sheet-full">
         ${thumbsBlock()}
@@ -2717,9 +2719,10 @@ function categoryLineOf(c) {
 }
 
 function candidateRow({ brand, name, size, category } = {}) {
-  const b = (brand ?? '').trim();
-  const n = (name ?? '').trim();
-  const s = size ? String(size).trim() : '';
+  const b = cleanName(brand);
+  const n = cleanName(name);
+  // N09: a size the name already carries is not written a second time.
+  const s = size && !nameCarriesSize(n, size) ? cleanName(size) : '';
   const brandLeadsName = b !== '' && normalizeForCompare(n).startsWith(normalizeForCompare(b));
   const title = brandLeadsName ? [n, s] : [b, n, s];
   return {
@@ -3095,6 +3098,8 @@ export default {
        for the barcode, so the typed name goes out carrying it, `{ cents }`, and
        the pad is never opened a second time. Null on every other route. */
     let typedAfterPad = null;
+    /* The barcode the shopper is being asked to name (N08), or null. */
+    let unknownCode = null;
     /** The line that answers a barcode press with nothing read, put back to the aim hint when it runs out; the scan clears it. */
     let scanPressTimer = null;
     /** D-026's caller, started once below. The teardown `startCaptureQueue`
@@ -3478,11 +3483,17 @@ export default {
       const label = h.result?.identity?.label ?? h.query?.text ?? t('cam_that_item');
       const sellerName = h.result ? sellerOf(h.result) : null;
       const centsRaw = h.query?.askingCents ?? (h.result?.kind === 'verdict' ? h.result.askingCents : undefined);
-      const word = h.result?.kind === 'verdict'
-        ? wordFor(h.result.tier)
-        : h.result?.kind === 'gemini' ? geminiWordFor(h) : t('cam_refused_word');
+      /* N01: a bell answer is read through the one snapshot reader, so the line
+         says the word the sheet said. "Refused" is only for a row that holds
+         no answer at all, never for an answered scan. */
+      const snap = answerOf(h);
+      const word = snap
+        ? answerWord(snap)
+        : h.result?.kind === 'verdict'
+          ? wordFor(h.result.tier)
+          : h.result?.kind === 'gemini' ? geminiWordFor(h) : t('cam_refused_word');
       return {
-        item: label,
+        item: cleanName(snap?.label || label),
         seller: sellerName || '',
         asking: typeof centsRaw === 'number' ? money(centsRaw) : '',
         word,
@@ -3816,7 +3827,7 @@ export default {
       // Read fine, and we do not have it (D11): ask what it is called, then
       // the typed route answers. Never a screen with nowhere to go.
       track('candidates_shown', { source: 'barcode_miss', count: 0 });
-      askNameForUnknownBarcode(cents);
+      askNameForUnknownBarcode(cents, code);
     }
 
     /**
@@ -3825,10 +3836,21 @@ export default {
      * on (null when skipped), the name goes through the typed route, and that
      * route ends in the bell. No "not found" screen is drawn.
      */
-    function askNameForUnknownBarcode(cents) {
+    function askNameForUnknownBarcode(cents, code = null) {
       last = null;
       lastKeepable = null;
       scanShelfCents = typeof cents === 'number' && cents > 0 ? cents : null;
+      /* N08: a barcode this shopper has already named answers by that name,
+         never asked a second time. */
+      const named = code ? store.nameOfCode(code) : null;
+      if (named) {
+        unknownCode = code;
+        typedAfterPad = null;
+        manualSearch = false;
+        void runTypedSearch(named, scanShelfCents, true, { skipPicks: true });
+        return;
+      }
+      unknownCode = code;
       typedAfterPad = { cents: scanShelfCents };
       manualSearch = false;
       typedSearchPending = true;
@@ -4415,6 +4437,8 @@ export default {
       if (res?.stored === true) {
         store.recordRating({ scanId, rating });
         toastSlot.innerHTML = feedbackToast({ askReason: rating === 'down' && !reason });
+        /* N04: the toast and its reason chips open under the thumbs, which sit at the foot of a scrolling sheet; bring them into view. */
+        toastSlot.scrollIntoView?.({ block: 'nearest' });
         // Four seconds of undo; a reason prompt gets the same four seconds.
         toastSlot._timer = setTimeout(() => { toastSlot.innerHTML = ''; }, 4000);
       } else {
@@ -5617,6 +5641,8 @@ export default {
       if (typedAfterPad) {
         const { cents } = typedAfterPad;
         typedAfterPad = null;
+        /* N08: the name given to the unknown barcode is kept on this device. */
+        if (unknownCode) { store.rememberName(unknownCode, text); unknownCode = null; }
         await runTypedSearch(text, cents, true);
         return;
       }
@@ -5901,7 +5927,7 @@ export default {
       }
       // D11: a barcode the catalogue does not hold asks the name at once.
       if (answer?.outcome === 'not_in_catalogue' && answer.offerManualEntry) {
-        askNameForUnknownBarcode(cents);
+        askNameForUnknownBarcode(cents, answer.barcode ?? null);
         return;
       }
       last = null;

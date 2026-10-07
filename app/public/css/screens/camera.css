@@ -846,6 +846,11 @@
  */
 .sheet[data-detent="half"] { min-height: 0; max-height: 72%; }
 .sheet[data-detent="full"] { min-height: 0; max-height: 92%; }
+/* D08 (2026-10-07): the answer sheet's peek alone fills 72% of a 844 px phone, so
+   its half detent opened onto the Correct and Share row sitting just below the
+   fold. The half detent here is tall enough that both are on screen unscrolled,
+   with room for the two-line doubt and the plain-words spread sentence. */
+.sheet.dist[data-detent="half"] { max-height: 90%; }
 
 @keyframes rise { from { transform: translateY(100%); } to { transform: none; } }
 
@@ -2173,14 +2178,19 @@
    border, shadow) here, so the toast itself is only the row that holds it
    plus Undo, not a second pill drawn on top of it. */
 .toast-slot:empty { display: none; }
+/* N04: the reason chips are a second row under the bubble and Undo, never a third column squeezing "Noted." into one letter per line. */
 .toast {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
-.toast .shin-say { flex: 1 1 auto; min-width: 0; }
+.toast .shin-say { flex: 1 1 12ch; min-width: 12ch; }
+.toast .thumb-reasons { flex: 1 1 100%; }
 .toast-undo {
   flex: none;
+  min-height: 44px;
+  min-width: 44px;
   background: none;
   border: 0;
   color: inherit;
@@ -2393,7 +2403,30 @@
  * screen: only the shopper's dot moves.
  */
 .sheet.dist .vd-line { margin: 2px 0 0; padding: 0; }
-.sheet.dist .vd-conf { margin: 4px 0 0; }
+/*
+ * Doubt is read at a glance, not squinted at (D13, N11). The confidence line is
+ * a plain sentence at body size straight under the word, in the sheet's own
+ * hollow tier colour (DESIGN.md Law 2), never the 10px tracked caps of a
+ * footnote. Same face and size for the range sentence and the basis line.
+ * Opacity stays at the measured .88 floor of test/tokens.test.mjs.
+ */
+.sheet.dist .vd-doubt {
+  margin: 6px 0 0;
+  font: 600 15px/1.35 var(--f-ui);
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: .96;
+  text-wrap: pretty;
+}
+.sheet.dist .vd-doubt.vd-spread { margin-top: 2px; font-weight: 500; }
+.sheet.dist .vd-basis {
+  margin: 0;
+  font: 500 14px/1.4 var(--f-ui);
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: .88;
+}
+.sheet.dist .vd-half-actions { margin-bottom: 2px; }
 .vd-suspect { margin-top: 8px; min-height: 44px; }
 .vd-chart { margin: 8px 0 2px; }
 .vbell { margin: 0; --vb-halo: var(--tier); color: inherit; }

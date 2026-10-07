@@ -89,7 +89,7 @@ test('D11: a barcode the catalogue does not hold asks the name, with no not-foun
   const ask = fn.indexOf("answer?.outcome === 'not_in_catalogue' && answer.offerManualEntry");
   const sheet = fn.indexOf('catalogueSheet(answer');
   assert.ok(ask > 0 && sheet > ask, 'the name prompt must be chosen before the not-found sheet is built');
-  assert.match(fn.slice(ask, ask + 200), /askNameForUnknownBarcode\(cents\)/);
+  assert.match(fn.slice(ask, ask + 200), /askNameForUnknownBarcode\(cents, answer\.barcode \?\? null\)/);
 });
 
 test('D11: an unreadable (invalid) barcode takes the same road', () => {
@@ -100,7 +100,7 @@ test('D11: an unreadable (invalid) barcode takes the same road', () => {
 test('D11: a code nothing knows no longer ends on the stand-in candidate list', () => {
   const fn = bodyOf(CAMERA, 'async function resolveBarcode(');
   const tail = fn.slice(fn.indexOf('Read fine, and we do not have it'));
-  assert.match(tail.slice(0, 400), /askNameForUnknownBarcode\(cents\)/);
+  assert.match(tail.slice(0, 400), /askNameForUnknownBarcode\(cents, code\)/);
   assert.doesNotMatch(tail.slice(0, 400), /candidateSheet\(/);
 });
 

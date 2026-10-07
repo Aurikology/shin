@@ -207,7 +207,17 @@ const EMPTY = {
    * anybody has ever stood in is a leak with a nice name.
    */
   shops: { known: [], lastByCell: {} },
+  /**
+   * The names this shopper gave to barcodes the catalogue does not hold (N08),
+   * `{ [barcode]: { name, at } }`, so scanning the same code again answers by
+   * that name instead of asking for it a second time. Local to the device and
+   * bounded (NAMED_KEPT).
+   */
+  named: {},
 };
+
+/** How many named barcodes the device remembers. */
+const NAMED_KEPT = 100;
 
 /** How many confirmed shops and how many cells the device remembers. */
 const SHOPS_KEPT = 60;
@@ -647,6 +657,27 @@ export function goodFindThisWeek() {
  */
 export function knownShops() {
   return (state.shops?.known ?? []).slice().sort((a, b) => b.count - a.count);
+}
+
+/** A barcode in the one shape names are keyed by: digits only, leading zeros dropped. */
+const codeKey = (code) => String(code ?? '').replace(/\D/g, '').replace(/^0+/, '');
+
+/** The shopper named an unknown barcode; remember it (N08). */
+export function rememberName(code, name) {
+  const key = codeKey(code);
+  const text = typeof name === 'string' ? name.trim().slice(0, 120) : '';
+  if (key === '' || text === '') return;
+  update((s) => {
+    const pairs = Object.entries(s.named ?? {}).filter(([k]) => k !== key);
+    pairs.push([key, { name: text, at: new Date().toISOString() }]);
+    return { ...s, named: Object.fromEntries(pairs.slice(-NAMED_KEPT)) };
+  });
+}
+
+/** The name this shopper gave a barcode, or null. */
+export function nameOfCode(code) {
+  const key = codeKey(code);
+  return key === '' ? null : (state.named?.[key]?.name ?? null);
 }
 
 /** The id of the shop last confirmed in this cell, or null. */

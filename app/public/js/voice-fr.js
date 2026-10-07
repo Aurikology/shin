@@ -228,9 +228,9 @@ export const LINES_FR = {
     blunt: () => "Vide. Rien de gardé encore.",
   },
   watchlist_callback: {
-    deadpan: (f) => `${f.item}. ${f.price}${f.seller ? `, ${f.seller}` : ''}, gardé ${f.day}.`,
-    warm: (f) => `J'ai encore ${f.item} de gardé, ${f.price}${f.seller ? ` chez ${f.seller}` : ''}, ${f.day}.`,
-    blunt: (f) => `${f.item}. ${f.price}${f.seller ? `, ${f.seller}` : ''}. ${f.day}.`,
+    deadpan: (f) => `${f.item}.${f.price ? ` ${f.price}${f.seller ? `, ${f.seller}` : ''},` : f.seller ? ` ${f.seller},` : ''} gardé ${f.day}.`,
+    warm: (f) => `J'ai encore ${f.item} de gardé${f.price ? `, ${f.price}${f.seller ? ` chez ${f.seller}` : ''}` : f.seller ? `, chez ${f.seller}` : ''}, ${f.day}.`,
+    blunt: (f) => `${f.item}.${f.price ? ` ${f.price}${f.seller ? `, ${f.seller}` : ''}.` : f.seller ? ` ${f.seller}.` : ''} ${f.day}.`,
   },
   watchlist_saved_only: {
     deadpan: (f) => `${f.price}${f.seller ? `, ${f.seller}` : ''}, gardé ${f.day}.`,
@@ -275,9 +275,9 @@ export const LINES_FR = {
     blunt: () => "Reçu. Ça compte là. Plus solide quand un deuxième confirme.",
   },
   correct_fineprint: {
-    deadpan: (f) => `Noté pour ${f.label}${f.seller ? `, chez ${f.seller}` : ''}. Ça compte à partir de maintenant, plus solide quand une deuxième étiquette confirme.`,
-    warm: (f) => `C'est noté pour ${f.label}${f.seller ? `, chez ${f.seller}` : ''}. Ça compte dès ton prochain scan, et ça se solidifie quand quelqu'un d'autre voit le même prix.`,
-    blunt: (f) => `Noté, ${f.label}${f.seller ? `, chez ${f.seller}` : ''}. Ça compte là, plus solide quand un deuxième confirme.`,
+    deadpan: (f) => `Une fois envoyé, c'est noté pour ${f.label}${f.seller ? `, chez ${f.seller}` : ''}. Ça compte à partir de là, plus solide quand une deuxième étiquette confirme.`,
+    warm: (f) => `Quand tu l'envoies, c'est noté pour ${f.label}${f.seller ? `, chez ${f.seller}` : ''}. Ça compte dès ton prochain scan, et ça se solidifie quand quelqu'un d'autre voit le même prix.`,
+    blunt: (f) => `Envoyé, ça va pour ${f.label}${f.seller ? `, chez ${f.seller}` : ''}. Ça compte alors, plus solide quand un deuxième confirme.`,
   },
 
   price_pad_prompt: {
@@ -401,18 +401,18 @@ export const LINES_FR = {
   you_weekly: {
     deadpan: (f) => (f.scanned === 0
       ? "Rien de scanné cette semaine."
-      : `${f.scanned} scannés cette semaine. ${f.callable} que je pouvais trancher.`),
+      : `${f.scanned} scannés cette semaine.`),
     warm: (f) => (f.scanned === 0
       ? "Rien de scanné encore cette semaine."
-      : `${f.scanned} scannés cette semaine. J'ai pu en trancher ${f.callable}.`),
+      : `${f.scanned} scannés cette semaine.`),
     blunt: (f) => (f.scanned === 0
       ? "Rien cette semaine."
-      : `${f.scanned} cette semaine. ${f.callable} que je pouvais trancher.`),
+      : `${f.scanned} cette semaine.`),
   },
   you_weekly_proud: {
-    deadpan: (f) => `${f.scanned} scannés cette semaine. ${f.callable} que je pouvais trancher, et l'un d'eux était un bon prix.`,
-    warm: (f) => `${f.scanned} scannés cette semaine, et j'ai pu en trancher ${f.callable}. Un vrai bon prix là-dedans.`,
-    blunt: (f) => `${f.scanned} cette semaine. ${f.callable} tranchés, et un était un bon prix.`,
+    deadpan: (f) => `${f.scanned} scannés cette semaine, et l'un d'eux était un bon prix.`,
+    warm: (f) => `${f.scanned} scannés cette semaine. Un vrai bon prix là-dedans.`,
+    blunt: (f) => `${f.scanned} cette semaine, et un était un bon prix.`,
   },
   you_coverage_loading: {
     deadpan: () => 'Je demande au moteur…',
@@ -550,6 +550,55 @@ export const LINES_FR = {
     deadpan: () => "Je n'avais rien à chercher. Refais le scan.",
     warm: () => "Je n'avais pas assez pour chercher. Refais un essai du scan.",
     blunt: () => "Rien à chercher. Scanne encore.",
+  },
+  /* La bulle de la feuille de réponse, une ligne par zone et par confiance
+   * (N12, 2026-10-07). Les lignes sûres peuvent être vives; celles « _unsure »
+   * ne le sont jamais. La pique vise le prix ou le magasin, jamais la personne,
+   * et aucune ne dit « gardé ». */
+  dist_great: {
+    deadpan: () => "Bien en dessous du prix habituel. Quelqu'un dans ce magasin s'est trompé, en ta faveur.",
+    warm: () => "Oh, la belle trouvaille. Le magasin le donne presque.",
+    blunt: () => "Quelqu'un dans ce magasin a fait une erreur. Profites-en.",
+  },
+  dist_great_unsure: {
+    deadpan: () => "Ça a l'air bon marché, mais mon estimation est mince. Prends-le comme un peut-être.",
+    warm: () => "Ça a l'air d'une belle affaire, mais je n'ai pas grand-chose pour m'appuyer. Reste prudent.",
+    blunt: () => "Ça a l'air bon marché. Pas sûr. Vérifie.",
+  },
+  dist_good: {
+    deadpan: () => "Sous le prix habituel. Le magasin est correct.",
+    warm: () => "Belle occasion. C'est moins que d'habitude.",
+    blunt: () => "Moins cher que d'habitude. Prends-le.",
+  },
+  dist_good_unsure: {
+    deadpan: () => "Probablement sous le prix habituel, mais les preuves sont minces.",
+    warm: () => "Ça semble un peu sous le prix habituel, mais je ne suis pas très sûr. Vas-y doucement.",
+    blunt: () => "Peut-être bon marché. Pas sûr.",
+  },
+  dist_reasonable: {
+    deadpan: () => "C'est le prix courant. Rien à signaler.",
+    warm: () => "C'est à peu près ce que ça coûte. Tu es bien.",
+    blunt: () => "Prix normal. Rien de spécial.",
+  },
+  dist_reasonable_unsure: {
+    deadpan: () => "Ça semble normal, mais mon estimation est approximative.",
+    warm: () => "Ça semble correct, même si je pars d'une estimation approximative.",
+    blunt: () => "Semble normal. Estimation grossière.",
+  },
+  dist_bad: {
+    deadpan: () => "Au-dessus du prix habituel. Le magasin demande un supplément.",
+    warm: () => "Ouf, c'est salé. Le problème, c'est le prix, pas toi.",
+    blunt: () => "Ce prix, c'est du vol avec un code-barres.",
+  },
+  dist_bad_unsure: {
+    deadpan: () => "Ça semble cher, mais je ne suis pas assez sûr pour hausser le ton.",
+    warm: () => "Ça me semble cher, mais mon estimation est mince. Vérifie avant de partir.",
+    blunt: () => "Semble salé. Pas sûr. Vérifie.",
+  },
+  dist_noprice: {
+    deadpan: () => "C'est le prix habituel. Que dit l'étiquette?",
+    warm: () => "C'est le prix habituel. Dis-moi ce que dit l'étiquette et je le placerai.",
+    blunt: () => "Le prix habituel est là. Et l'étiquette?",
   },
   /* RÉÉCRIT 2026-09-19 (écart bêta 21): l'appli ne s'utilise pas hors ligne. */
   cam_needs_connection: {
@@ -935,6 +984,12 @@ export const LINES_FR = {
     warm: () => "Ce sont tous les scans gratuits de cette semaine. Avec Plus, il n'y a pas de limite.",
     blunt: () => "Scans gratuits finis pour la semaine. Plus: pas de limite.",
   },
+  /* Le même écran ouvert sans qu'aucun scan soit utilisé (D30). */
+  paywall_say_open: {
+    deadpan: () => "Plus enlève la limite hebdomadaire.",
+    warm: () => "Avec Plus, il n'y a pas de limite hebdomadaire de scans.",
+    blunt: () => "Plus: pas de limite hebdomadaire.",
+  },
 };
 
 /**
@@ -996,9 +1051,9 @@ export const BARE_FR = {
     blunt: () => "Pas ça. Non.",
   },
   correct_fineprint: {
-    deadpan: () => "Noté. Ça compte à partir de maintenant, plus solide quand une deuxième étiquette confirme.",
-    warm: () => "C'est noté. Ça compte dès ton prochain scan, et ça se solidifie quand quelqu'un d'autre voit le même prix.",
-    blunt: () => "Noté. Ça compte là, plus solide quand un deuxième confirme.",
+    deadpan: () => "Une fois envoyé, c'est noté. Ça compte à partir de là, plus solide quand une deuxième étiquette confirme.",
+    warm: () => "Quand tu l'envoies, c'est noté. Ça compte dès ton prochain scan, et ça se solidifie quand quelqu'un d'autre voit le même prix.",
+    blunt: () => "Envoyé, c'est noté. Ça compte alors, plus solide quand un deuxième confirme.",
   },
   you_weekly: {
     deadpan: () => "Ta semaine est au dossier.",
