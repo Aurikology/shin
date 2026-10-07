@@ -2586,3 +2586,15 @@ wording: "The name being registered is Pexi; he files the Canadian trademark app
 himself."
 
 **Reverses if:** someone else files PEXI, a store challenges the name, or he asks for the filing.
+
+## A plan covers every case and every requirement
+**Date:** 2026-10-02 · **Status:** active
+
+His words: *"consider all the requirenments. Now build a plan to achieve these requiremtns. Don't
+assume your plan will work. It will 100 percent to reach the requirements. THe plan should
+determine what to do when it doesn't reach requiremnts. It should knwo how to improve and analyse
+its own errors."* Merged into the 2026-09-27 ruling that a plan names every case. Retired RULINGS.md
+wording: "A plan covers every case involved, not the path where everything works" (title only; the
+body text is kept inside the merged entry).
+
+**Reverses if:** he says a plan may assume success or skip its own error analysis.

@@ -632,13 +632,29 @@ can legitimately send none); a present-and-mismatched Origin is refused outright
 Retired wording: none
 Governs: SHIN_RATE_CODE_PER_10MIN, SHIN_RATE_CODE_PER_DAY, SHIN_RATE_IP_PER_10MIN, SHIN_RATE_IP_PER_DAY, app/src/rate-limit.ts (the 2,000-calls-per-process cap this paragraph also describes is not read from any environment variable in the code today)
 ## Anything else
-### A plan covers every case involved, not the path where everything works
+### A plan covers every case and every requirement, never assumes it will work, and carries its own recovery and error analysis
 A plan is not acceptable until it names every case the feature meets: each input the user can
-give, each way a step can fail or return nothing, and what happens then. · 2026-09-27 · Jamin ·
-*"this plan is so flawed, it doesn't consider all cases invovled"*, said of a photo-to-catalogue
-matching plan that covered only the case where the photo holds readable text that matches.
+give, each way a step can fail or return nothing, and what happens then. A plan to achieve Shin's
+requirements considers all of them and is not written on the assumption that it will work or will
+reach them: it states what to do when a requirement is not reached, and has a built-in way to
+analyse its own errors and improve itself. · 2026-09-27 · Jamin · *"this plan is so flawed, it
+doesn't consider all cases invovled"*, said of a photo-to-catalogue matching plan that covered only
+the case where the photo holds readable text that matches · 2026-10-02 · Jamin: *"consider all the
+requirenments. Now build a plan to achieve these requiremtns. Don't assume your plan will work. It
+will 100 percent to reach the requirements. THe plan should determine what to do when it doesn't
+reach requiremnts. It should knwo how to improve and analyse its own errors."* · log:
+docs/decisions.md#A plan covers every case and every requirement
 Retired wording: none
 Governs: every plan written for Shin
+
+### A review of the app is judged against its documents, and proposes a change for every finding
+Before reviewing, testing or proposing changes for the app, read the documents that say what the
+app is supposed to be (this file first, then the design and requirement documents it names) and
+judge every finding against them, never against what the code happens to do. A proposal covers
+every finding, not a chosen subset. · 2026-10-06 · Jamin · *"what are your proposed changes for
+everything. Also, read the documentation for what this app is supposed to be like"*
+Retired wording: none
+Governs: every walkthrough, audit and defect review of the app
 
 ### Mission and principles
 Fixed problem statement: sellers know what things are worth and buyers are guessing, so Shin makes
