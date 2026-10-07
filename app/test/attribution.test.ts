@@ -135,9 +135,11 @@ test('each licence is stated as that source actually carries it', () => {
   assert.match(by('usda').licence, /CC0/);
   // BC's licence prescribes this statement when the provider names none.
   assert.match(by('bcldb').what, /Contains information licensed under the Open Government Licence - British Columbia\./);
-  // Sources whose terms were never read must say so, not name a licence.
+  // Sources with no published reuse licence must say so and record the date their terms were read.
   for (const k of ['anbl', 'walmart.ca', 'returnit', 'consignaction']) {
-    assert.match(by(k).licence, /terms not yet checked/, `${k} has no checked licence`);
+    assert.match(by(k).licence, /^No reuse licence/, `${k} names a licence it does not carry`);
+    assert.match(by(k).licence, /2026-10-06|permission/, `${k} does not record what the terms said`);
+    assert.match(by(k).what, /(read|checked|search extract on) 2026-10-06/, `${k} has no dated terms reading`);
   }
 });
 

@@ -38,12 +38,14 @@
  * of them can emit a key that no entry here claims, so a new source cannot
  * ship uncredited.
  *
- * Three sources, Return-It, Consignaction and ANBL, and the Walmart Canada
- * crawl publish no reuse licence that anybody here has found, and their terms
- * of use have not been read (docs/catalogue-build-plan-2026-09-26.md, risk 8:
- * "what they permit is unmeasured"). Their entries say exactly that rather
- * than naming a licence they do not carry. An unchecked licence is shown as
- * unchecked, never as a guess.
+ * Return-It, Consignaction, ANBL and Walmart Canada publish no reuse licence.
+ * Their terms were read on 2026-10-06 (requirement 4.8 of
+ * docs/price-category-requirements-2026-10-01.md) and each entry records the
+ * clause found, the date read and the verdict, rather than naming a licence
+ * they do not carry. None of the four grants reuse. ANBL's robots.txt,
+ * Walmart's terms and Return-It's robots.txt forbid the automated reading that
+ * collected the data; Consignaction's terms allow personal non-commercial
+ * copying only.
  *
  * Open Icecat and USDA FoodData Central each get their own entry: their terms
  * are their own, not ODbL, and an entry that implied otherwise would misstate
@@ -114,30 +116,30 @@ export const ATTRIBUTION: readonly AttributionEntry[] = [
   },
   {
     name: 'Alcool NB Liquor (ANBL)',
-    what: "Barcodes, product names and shelf prices from ANBL's public price list PDF: 6,741 price observations (counted 2026-10-06). ANBL states no reuse licence that we have found and its terms of use have not been checked.",
-    licence: 'No reuse licence found; terms not yet checked',
-    url: 'https://www.anbl.com/medias/PriceList-Public.pdf',
+    what: "Barcodes, product names and shelf prices from ANBL's public price list PDF: 6,741 price observations (counted 2026-10-06). Fetched by an automated script, not by hand. ANBL states no reuse licence. Its Terms and Conditions (anbl.com/terms, read 2026-10-06) say 'Material from this Site may not be copied, reproduced, republished, uploaded, posted, transmitted or distributed in any way' and that viewing or downloading is 'solely for your own personal use for non-commercial purposes'. Its robots.txt (read 2026-10-06) says 'User-agent: * Disallow: /' and allows only Googlebot, Bingbot, Applebot and DuckDuckBot. Verdict: automated reading and reuse are both unlicensed; written permission from ANBL is needed.",
+    licence: 'No reuse licence; terms read 2026-10-06 forbid copying and redistribution (personal non-commercial use only) and robots.txt disallows automated readers; permission needed',
+    url: 'https://www.anbl.com/terms',
     keys: ['anbl'],
   },
   {
     name: 'Walmart Canada',
-    what: 'Shelf prices read from public walmart.ca product pages: 22 price observations (counted 2026-10-06). Walmart states no reuse licence that we have found and its terms of use have not been checked.',
-    licence: 'No reuse licence found; terms not yet checked',
-    url: 'https://www.walmart.ca',
+    what: "Shelf prices read from public walmart.ca product pages by an automated reader: 22 price observations (counted 2026-10-06). Walmart states no reuse licence. Its Walmart Canada Terms of Use (walmart.ca/en/help/legal/TermsOfUse, clause text as returned by a search extract on 2026-10-06, because the page itself served a bot challenge to this reader) bar using 'any engine, software, tool, agent or other device or mechanism (including browsers, spiders, robots, avatars or intelligent agents) to scrape, navigate or search the Site', except Walmart's own search and generally available web browsers. Verdict: automated reading is forbidden; only prices a person reads and saves by hand are inside the terms, and reuse still needs Walmart's permission.",
+    licence: 'No reuse licence; terms read 2026-10-06 forbid scrapers and robots, so only pages saved by hand are allowed and the 22 automated rows are outside the terms',
+    url: 'https://www.walmart.ca/en/help/legal/TermsOfUse',
     keys: ['walmart.ca'],
   },
   {
     name: 'Return-It (British Columbia)',
-    what: "Non-alcohol drink containers from BC's beverage container deposit registry: 8,940 products, all listed as sold in Canada (counted 2026-10-06). Return-It states no reuse licence that we have found and its terms of use have not been checked.",
-    licence: 'No reuse licence found; terms not yet checked',
-    url: 'https://www.return-it.ca',
+    what: "Non-alcohol drink containers from BC's beverage container deposit registry: 8,940 products, all listed as sold in Canada (counted 2026-10-06). Collected by an automated crawler of the paged registry search, using a browser user agent. Return-It (Encorp Pacific (Canada)) states no reuse licence, and no website terms of use were found on return-it.ca (only a privacy policy and a copyright line, checked 2026-10-06). Its robots.txt (read 2026-10-06) says 'User-agent: * Disallow: /registeredbrands/', which is the path crawled. Verdict: automated reading of that registry is disallowed by the site; reuse terms are unclear and need Encorp's written answer.",
+    licence: 'No reuse licence and no website terms found 2026-10-06; robots.txt disallows the registry path to automated readers; reuse unclear, ask Encorp Pacific',
+    url: 'https://www.return-it.ca/registeredbrands/',
     keys: ['returnit'],
   },
   {
     name: 'Consignaction (Quebec)',
-    what: "Drink containers from Quebec's beverage container deposit registry spreadsheet: 44,862 products, all listed as sold in Canada (counted 2026-10-06). Consignaction states no reuse licence that we have found and its terms of use have not been checked.",
-    licence: 'No reuse licence found; terms not yet checked',
-    url: 'https://www.consignaction.ca',
+    what: "Drink containers from Quebec's beverage container deposit registry spreadsheet: 44,862 products, all listed as sold in Canada (counted 2026-10-06). One spreadsheet downloaded by a script from the site's public file link. Consignaction states no reuse licence. Its Termes et conditions (consignaction.ca/termes-et-conditions, read 2026-10-06) say copying or storing any element for purposes other than personal use is 'absolument defendue' without prior written permission, and allow download or copying 'pour utilisation personnelle a des fins non commerciales seulement'. They have no clause on robots or automated access, and robots.txt (read 2026-10-06) disallows only /wp/wp-admin/. Verdict: automated download of the one file is not barred, but reuse in a product is not licensed; written permission is needed.",
+    licence: 'No reuse licence; terms read 2026-10-06 allow personal non-commercial copying only, no automation clause; reuse unclear, permission needed',
+    url: 'https://consignaction.ca/termes-et-conditions/',
     keys: ['consignaction'],
   },
 ];
