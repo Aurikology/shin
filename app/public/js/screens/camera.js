@@ -1600,6 +1600,21 @@ function distFace(zone, confidence) {
   return 'idle';
 }
 
+/**
+ * The short line beside the word for an answer that is not fully confident
+ * (D13; DESIGN.md Law 3, his 2026-09-17 words). Low says why in a few words,
+ * keyed on where the centre came from ("Not fully confident: few prices for this
+ * item"); medium keeps the plain sentence; high has none. Empty string for none.
+ */
+function confidenceLine(v) {
+  if (v.confidence === 'high') return '';
+  if (v.confidence === 'medium') return t('vd_not_confident');
+  const key = `vd_why_${v.basis ?? 'default'}`;
+  const said = t(key);
+  const why = said === key ? t('vd_why_default') : said;
+  return t('vd_not_confident_why', { why });
+}
+
 /** The contract's confidence, in the fill treatment DESIGN.md section 1 already has. */
 const DIST_CONF = { high: 'certain', medium: 'sure', low: 'thin' };
 
@@ -1630,8 +1645,12 @@ function distWhere(shopper, verdict) {
 }
 
 /** The bell's markup for one verdict, every word localised. `labels` pins the axis words to a real answer during a tween. */
-function distBell(v, { labels = null } = {}) {
+function distBell(v, { labels = null, report = null } = {}) {
   const fmt = (c) => money(c, v.currency);
+  // The shopper's own pending report, as its own dot (not in the bell).
+  const rep = report && Number.isFinite(report.cents) && report.cents > 0 && typeof report.store === 'string' && report.store !== ''
+    ? { cents: report.cents }
+    : null;
   const shopper = v.shopper;
   const facts = { centre: fmt(Math.round(v.centreCents)), low: fmt(Math.round(v.p10Cents)), high: fmt(Math.round(v.p90Cents)) };
   const alt = shopper
@@ -1645,6 +1664,9 @@ function distBell(v, { labels = null } = {}) {
     multiple: shopper?.beyond ? t('vd_multiple', { m: localNumber(multipleOf(shopper.cents, v.centreCents)) }) : '',
     dotLabel: (d) => [d.store, d.quantity].filter(Boolean).join(' ').slice(0, 20),
     labels,
+    report: rep,
+    reportWord: t('vd_report_word'),
+    reportTitle: rep ? pt(report.status === 'second_source_agrees' ? 'your_report_agreed' : 'your_report_waiting', { price: fmt(report.cents), store: report.store }) : '',
   });
 }
 
@@ -1671,10 +1693,12 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
   const fmt = (c) => money(c, v.currency);
   const centre = fmt(Math.round(v.centreCents));
   const face = distFace(zone, v.confidence);
-  const spoken = zone ? tier : 'gem_answer';
+  // A low-confidence answer never gets a loud line (DESIGN.md, the confidence gate):
+  // the bubble stays the neutral "here is what I found", whatever the zone.
+  const spoken = zone && v.confidence !== 'low' ? tier : 'gem_answer';
   const headline = zone ? t(`vd_zone_${zone}`) : name;
   const line = s ? t('vd_off', { where: distWhere(s, v), centre }) : t('vd_typical', { centre });
-  const notSure = v.confidence !== 'high';
+  const confLine = confidenceLine(v);
   const notes = v.notes.map((n) => `<li class="vd-note" data-vd-note="${n}">${escapeHtml(t(`vd_note_${n}`))}</li>`).join('');
   const bigger = v.biggerPack
     ? `<p class="detail vd-bigger" data-vd-bigger>${escapeHtml(t('vd_bigger_pack', { quantity: v.biggerPack.quantity ?? '', store: v.biggerPack.store ?? '', price: fmt(v.biggerPack.perUnitCents), unit: unitWords(v.perUnit?.label ?? '') }))}</p>`
@@ -1696,10 +1720,10 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
           ${thumbImg(thumb)}
         </div>
         <h2 class="vword${zone ? '' : ' small'}" data-dist-headline>${escapeHtml(headline)}</h2>
+        ${confLine ? `<p class="conf-label vd-conf" data-dist-conf>${escapeHtml(confLine)}</p>` : ''}
         <p class="sub vd-line" data-dist-line>${escapeHtml(line)}</p>
-        ${notSure ? `<p class="conf-label vd-conf" data-dist-conf>${escapeHtml(t('vd_not_confident'))}</p>` : ''}
         ${s?.suspect ? `<button type="button" class="pill ghost vd-suspect" data-act="dist-suspect" data-cents="${s.suspect.suggestCents}">${escapeHtml(t('vd_suspect', { price: fmt(s.suspect.suggestCents) }))}</button>` : ''}
-        <div class="vd-chart${still ? ' vd-still' : ''}" data-dist-chart>${distBell(v)}</div>
+        <div class="vd-chart${still ? ' vd-still' : ''}" data-dist-chart>${distBell(v, { report: shopperReport })}</div>
         ${shopperReportLine(shopperReport, v.currency)}
         ${s ? '' : `<form class="vd-price" data-dist-price novalidate>
           <label class="vd-price-l"><span>${escapeHtml(t('vd_price_label'))}</span><input type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" name="price" data-dist-input></label>
@@ -1733,13 +1757,13 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
  * already the new answer's. Under prefers-reduced-motion it is simply redrawn.
  * Returns a cancel function.
  */
-function morphBell(host, fromRaw, toRaw, { ms = 620, reduced = prefersReducedMotion() } = {}) {
+function morphBell(host, fromRaw, toRaw, { ms = 620, reduced = prefersReducedMotion(), report = null } = {}) {
   const from = usableVerdict(fromRaw);
   const to = usableVerdict(toRaw);
   if (!host || !to) return () => {};
   const toV = { ...to, shopper: to.shopper ? shopperOf(to) : null };
   if (!from || reduced || typeof requestAnimationFrame !== 'function') {
-    host.innerHTML = distBell(toV);
+    host.innerHTML = distBell(toV, { report });
     return () => {};
   }
   host.classList.add('vd-morphing');
@@ -1747,7 +1771,7 @@ function morphBell(host, fromRaw, toRaw, { ms = 620, reduced = prefersReducedMot
   const start = performance.now();
   const frame = (now) => {
     const k = Math.min(1, (now - start) / ms);
-    host.innerHTML = distBell(tweenVerdict(from, toV, k), { labels: toV });
+    host.innerHTML = distBell(tweenVerdict(from, toV, k), { labels: toV, report });
     if (k < 1) raf = requestAnimationFrame(frame);
     else host.classList.remove('vd-morphing');
   };
@@ -1935,6 +1959,41 @@ function searchCandidateSheet(items, query) {
           <button type="button" class="cand cand-none" data-act="notthis-back">
             <span class="cand-name">${escapeHtml(t('cam_keep_the_first_one'))}</span>
             <span class="cand-meta">${escapeHtml(say('cam_notthis_keep'))}</span>
+          </button>
+        </div>
+      </div>
+    </section>`;
+}
+
+/**
+ * The typed name's top catalogue matches (D04), shown before anything is
+ * priced. A pick goes through the barcode route with that product's own code, so
+ * the typed path and the scanned path give one answer for one product. The last
+ * row keeps the old behaviour for a shopper whose product is not in the three:
+ * search anyway with the words as typed.
+ */
+function typedPickSheet(items, query) {
+  return `
+    <section class="sheet candidates typedpick" data-kind="typed-pick" data-tier="unknown" data-conf="reading" tabindex="-1">
+      <span class="grabber" aria-hidden="true"></span>
+      ${backButton()}
+      <div class="sheet-peek">
+        <div class="sheet-head compact">
+          ${shinSay('asking', 'text_route_prompt', {}, { size: 64 })}
+        </div>
+        <h2 class="vword" style="font-size:20px">${escapeHtml(t('cam_typed_pick_which', { query }))}</h2>
+        <div class="cands">
+          ${items
+            .map(
+              (i) => `<button type="button" class="cand" data-typed-pick="${escapeHtml(i.code)}">
+                <span class="cand-name">${escapeHtml(i.label)}</span>
+                ${i.meta ? `<span class="cand-meta">${escapeHtml(i.meta)}</span>` : ''}
+              </button>`,
+            )
+            .join('')}
+          <button type="button" class="cand cand-none" data-act="typed-pick-none">
+            <span class="cand-name">${escapeHtml(t('cam_typed_pick_none'))}</span>
+            <span class="cand-meta">${escapeHtml(t('cam_typed_pick_none_meta'))}</span>
           </button>
         </div>
       </div>
@@ -2499,7 +2558,7 @@ function workingSheet(itemLabel, step = 0, opts = {}) {
  * typed name has to hit the fixed corpus, which is what it is matched
  * against.
  */
-function textRouteSheet(value = '') {
+function textRouteSheet(value = '', { unknownBarcode = false } = {}) {
   return `
     <section class="sheet textroute" data-tier="unknown" data-conf="reading" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
@@ -2508,7 +2567,7 @@ function textRouteSheet(value = '') {
         <div class="sheet-head">
           ${shinSay('asking', 'text_route_prompt', {}, { size: 64 })}
         </div>
-        <h2 class="vword" style="font-size:20px">${escapeHtml(t('cam_name_it'))}</h2>
+        <h2 class="vword" style="font-size:20px">${escapeHtml(t(unknownBarcode ? 'cat_unknown_ask_name' : 'cam_name_it'))}</h2>
         <form class="textroute-form" data-form="textroute">
           <input type="text" inputmode="text" autocomplete="off" placeholder="${escapeHtml(t('cam_brand_model_placeholder'))}"
                  value="${value.replace(/"/g, '&quot;')}" data-textroute-input>
@@ -2625,6 +2684,22 @@ function productLabel(p) {
  * category (or nothing) rather than repeating the brand that is now in the
  * title already.
  */
+/**
+ * The product-type line for a catalogue candidate, in the reader's language
+ * (D38). The leaf is often a French Open Food Facts tag; an English reader gets
+ * the nearest English ancestor on the row's own path, or no line at all, never
+ * French words (and never the raw "en:..." tag). A French reader keeps the leaf.
+ */
+function categoryLineOf(c) {
+  const leaf = c?.leafCategory ?? null;
+  const path = Array.isArray(c?.categoryPath) ? c.categoryPath : [];
+  const english = (tag) => typeof tag === 'string' && /^en:/i.test(tag);
+  if (locale() === 'fr') return humaniseTag(leaf ?? path[path.length - 1]);
+  if (english(leaf)) return humaniseTag(leaf);
+  const up = [...path].reverse().find(english);
+  return up ? humaniseTag(up) : '';
+}
+
 function candidateRow({ brand, name, size, category } = {}) {
   const b = (brand ?? '').trim();
   const n = (name ?? '').trim();
@@ -2673,7 +2748,7 @@ export { observationCard, observationNotice, shopperReportLine, feedbackToast, f
    first caller. It is in the same check for the same reason: it is a sheet, and
    the one rule it has of its own -- an empty list says so in a sentence rather
    than drawing an empty box -- is only true if something asserts it. */
-export { searchCandidateSheet };
+export { searchCandidateSheet, typedPickSheet, categoryLineOf };
 
 /* Exported 2026-09-10 for the D-014 label test: `productLabel` decides what a
    catalogue row is called on the verdict and the pad, and `candidateRow`
@@ -3422,8 +3497,8 @@ export default {
       // A measured line is on screen. It is about this frame, it names a thing
       // to do, and the generic hint would be talking over it.
       if (coachKey) return;
-      if (hintEscalated) dockSay('asking', 'hint_escalated', {}, anim ?? 'nudge-arrive');
-      else dockSay('idle', 'cam_aim_hint', {}, anim);
+      if (hintEscalated) dockSay('asking', FLAGS.photoId ? 'hint_escalated' : 'hint_escalated_barcode', {}, anim ?? 'nudge-arrive');
+      else dockSay('idle', FLAGS.photoId ? 'cam_aim_hint' : 'cam_aim_barcode', {}, anim);
     }
 
     /*
@@ -3612,7 +3687,7 @@ export default {
     async function resolveBarcode(code, cents) {
       const myGen = ++gen;
       slot.innerHTML = '';
-      dockSay('thinking', 'reading', {}, 'think-dots');
+      dockSay('thinking', FLAGS.photoId ? 'reading' : 'reading_barcode', {}, 'think-dots');
       setState('framing');
 
       /*
@@ -3713,12 +3788,28 @@ export default {
         return;
       }
 
-      // Read fine, and we do not have it. Decision 22's sentence, not a failure
-      // of the camera and not shown as one.
-      setState('choosing');
-      track('candidates_shown', { source: 'barcode_miss', count: scenarios.length });
-      slot.innerHTML = candidateSheet(scenarios);
-      mounted();
+      // Read fine, and we do not have it (D11): ask what it is called, then
+      // the typed route answers. Never a screen with nowhere to go.
+      track('candidates_shown', { source: 'barcode_miss', count: 0 });
+      askNameForUnknownBarcode(cents);
+    }
+
+    /**
+     * An unknown or unreadable barcode (D11, RULINGS "Always answer"): the one
+     * thing Shin needs is the product's name. The shelf price already typed rides
+     * on (null when skipped), the name goes through the typed route, and that
+     * route ends in the bell. No "not found" screen is drawn.
+     */
+    function askNameForUnknownBarcode(cents) {
+      last = null;
+      lastKeepable = null;
+      scanShelfCents = typeof cents === 'number' && cents > 0 ? cents : null;
+      typedAfterPad = { cents: scanShelfCents };
+      manualSearch = false;
+      typedSearchPending = true;
+      setState('texting');
+      slot.innerHTML = textRouteSheet('', { unknownBarcode: true });
+      mounted('[data-textroute-input]');
     }
 
     /**
@@ -3784,6 +3875,14 @@ export default {
        */
       if (id?.failure && MODEL_DOWN_REASONS.has(id.failure)) {
         return { modelDown: id.failure };
+      }
+
+      /* D11: a reading that fails its check digit is the same case as a code the
+         catalogue has never seen: the shopper is asked for the name. */
+      if (id?.failure === 'invalid_barcode') {
+        return {
+          catalogue: { kind: 'catalogue', outcome: 'not_in_catalogue', offerManualEntry: true, barcode: code, identity: null, verdict: null },
+        };
       }
 
       /* CATALOGUE FIRST (server setting SHIN_CATALOGUE_FIRST on): the server
@@ -3939,6 +4038,8 @@ export default {
      * back to a product without the button carrying one in an attribute.
      */
     let notThisResults = [];
+    /** What the typed-name picker (D04) was shown for, so a pick or "none of these" can go on. */
+    let typedPick = { text: '', cents: null, asked: false };
 
     /**
      * Ask the same query again and show everything it found.
@@ -3984,7 +4085,7 @@ export default {
                column is already on the wire; displayName has the rule. */
             name: displayName(c),
             size: c.quantity,
-            category,
+            category: categoryLineOf(c),
           });
           return { code: c.code, label: row.label, category, meta: row.meta };
         });
@@ -4367,7 +4468,7 @@ export default {
       lastCrop = null;
       // The same docked face morphs to thinking, in place, rather than a
       // separate sheet popping up over it for 420ms.
-      dockSay('thinking', 'reading', {}, 'think-dots');
+      dockSay('thinking', FLAGS.photoId ? 'reading' : 'reading_barcode', {}, 'think-dots');
       if (eye?.live) {
         // With the eye running, the shutter takes the real capture and the
         // answer paints from handlePhotoCapture, never from a timer. The eye
@@ -4974,6 +5075,21 @@ export default {
         return;
       }
 
+      /* D04: a product picked from the typed name's three matches is answered by
+         the barcode route, exactly as if its code had been scanned. */
+      const typedPicked = e.target.closest('[data-typed-pick]');
+      if (typedPicked) {
+        const code = typedPicked.dataset.typedPick;
+        track('candidate_pick', { code, found: true, source: 'typed_pick' });
+        if (typedPick.asked) {
+          scanShelfCents = typeof typedPick.cents === 'number' && typedPick.cents > 0 ? typedPick.cents : null;
+          void resolveBarcode(code, scanShelfCents);
+        } else {
+          askPriceFirst({ kind: 'barcode', code });
+        }
+        return;
+      }
+
       const pickCode = e.target.closest('[data-pick-code]');
       if (pickCode) {
         const chosen = notThisResults.find((c) => c.code === pickCode.dataset.pickCode);
@@ -5180,6 +5296,12 @@ export default {
         return;
       }
       if (act === 'pad-reopen' && last?.scenario) { openPad(last.scenario, { force: true }); return; }
+
+      // D04: none of the three matches is the product; search with the words as typed.
+      if (act === 'typed-pick-none') {
+        void runTypedSearch(typedPick.text, typedPick.cents, typedPick.asked, { skipPicks: true });
+        return;
+      }
 
       // Row 17, 88, 89, take: the second route out of a no-identity refusal.
       if (act === 'typeit') {
@@ -5458,12 +5580,46 @@ export default {
      * the pad is not opened a second time). Not asked: the type-it route out of a
      * refusal, which identifies first and opens the pad after, as before.
      */
-    async function runTypedSearch(text, cents, asked) {
+    async function runTypedSearch(text, cents, asked, { skipPicks = false } = {}) {
       const myGen = asked ? ++gen : gen;
       if (asked) {
         setState('reading');
         slot.innerHTML = workingSheet(text, 0);
         mounted();
+      }
+
+      /*
+       * D04: the catalogue's top three matches for the typed words, offered to
+       * pick from. A pick is resolved by its barcode (`resolveBarcode`), so the
+       * typed name and the scanned code of one product give one answer. No
+       * match, or a search that fails, goes on to the identify call below as it
+       * always did.
+       */
+      if (!skipPicks) {
+        let found = null;
+        try {
+          found = await ctx.api.search({ text, limit: 3 });
+        } catch {
+          found = null;
+        }
+        if (dead || (asked && myGen !== gen)) return;
+        const rows = (found?.candidates ?? []).slice(0, 3).map((c) => {
+          const row = candidateRow({
+            brand: c.brands ? String(c.brands).split(',')[0].trim() : '',
+            name: displayName(c),
+            size: c.quantity,
+            category: categoryLineOf(c),
+          });
+          return { code: c.code, label: row.label, meta: row.meta };
+        });
+        if (rows.length > 0) {
+          typedPick = { text, cents, asked };
+          setState('choosing');
+          track('candidates_shown', { source: 'typed_pick', count: rows.length, query: text });
+          slot.innerHTML = typedPickSheet(rows, text);
+          mounted();
+          return;
+        }
       }
 
       /*
@@ -5682,11 +5838,21 @@ export default {
       if (usableVerdict(answer?.verdict)) {
         const id = answer.identity;
         showDistribution(answer.verdict, {
-          name: id ? candidateRow({ brand: id.brand, name: id.name, size: id.size }).label : '',
+          // A barcode the catalogue lacks but a store prices (BC liquor) names the item by the store's own name.
+          name: id
+            ? candidateRow({ brand: id.brand, name: id.name, size: id.size }).label
+            : answer.storeIdentity
+              ? candidateRow({ brand: answer.storeIdentity.brand, name: answer.storeIdentity.name, size: answer.storeIdentity.size }).label
+              : '',
           key: id?.barcode ?? answer.barcode ?? null,
           cents,
           shopperReport: answer.shopperReport ?? null,
         });
+        return;
+      }
+      // D11: a barcode the catalogue does not hold asks the name at once.
+      if (answer?.outcome === 'not_in_catalogue' && answer.offerManualEntry) {
+        askNameForUnknownBarcode(cents);
         return;
       }
       last = null;

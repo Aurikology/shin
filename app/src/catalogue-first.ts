@@ -276,8 +276,25 @@ export function categoryName(tag: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-function ref(tag: string | null | undefined): CategoryRef | null {
-  return tag ? { tag, name: categoryName(tag) } : null;
+/**
+ * A category as the English-UI shopper reads it (D38). The catalogue's leaf is
+ * often a French Open Food Facts tag ("fr:boisson-alcoolisee", 503 thousand
+ * products), and stripping the prefix showed French words to an English reader.
+ * A non-English tag is replaced by the nearest English ancestor on the row's own
+ * path ("en:alcoholic-beverages"); with no English ancestor the name is empty, and
+ * the sheet then says the shorter line with no category in it rather than a
+ * French one.
+ */
+export function categoryRef(tag: string | null | undefined, path: readonly string[] = []): CategoryRef | null {
+  if (!tag) return null;
+  if (!/^[a-z]{2}:/i.test(tag) || /^en:/i.test(tag)) return { tag, name: categoryName(tag) };
+  // Start at the tag's own place on the path (its nearest ancestor), else at the leaf end.
+  const at = path.lastIndexOf(tag);
+  for (let i = at >= 0 ? at - 1 : path.length - 1; i >= 0; i--) {
+    const up = path[i];
+    if (typeof up === 'string' && /^en:/i.test(up)) return { tag: up, name: categoryName(up) };
+  }
+  return { tag, name: '' };
 }
 
 function isRow(v: unknown): v is CatalogueRow {
@@ -290,7 +307,7 @@ function identityOf(row: CatalogueRow): CatalogueIdentity {
     row.quantity?.trim() ||
     (typeof row.sizeValue === 'number' && row.sizeUnit ? `${row.sizeValue} ${row.sizeUnit}` : null);
   const leaf = row.leafCategory ?? row.categoryPath[row.categoryPath.length - 1] ?? null;
-  return { name: (row.nameEn ?? row.name).trim(), brand, size, barcode: row.code, category: ref(leaf) };
+  return { name: (row.nameEn ?? row.name).trim(), brand, size, barcode: row.code, category: categoryRef(leaf, row.categoryPath) };
 }
 
 function labelOf(id: CatalogueIdentity): string {
@@ -298,14 +315,14 @@ function labelOf(id: CatalogueIdentity): string {
   return [withBrand, id.size].filter(Boolean).join(' ');
 }
 
-function fromShinPrices(r: Exclude<RangeResult, { basis: 'none' }>): CatalogueRange {
+function fromShinPrices(r: Exclude<RangeResult, { basis: 'none' }>, path: readonly string[] = []): CatalogueRange {
   return {
     lowCents: r.lowCents,
     highCents: r.highCents,
     medianCents: r.medianCents,
     n: r.n,
     basis: r.basis,
-    category: r.basis === 'this_product' ? null : ref(r.category),
+    category: r.basis === 'this_product' ? null : categoryRef(r.category, path),
     currency: r.currency,
     unit: null,
   };
@@ -455,7 +472,7 @@ export async function answerBarcodeFromCatalogue(
   conflict = est?.trace.conflict ?? null;
 
   if (ladder && ladder.basis !== 'none') {
-    range = fromShinPrices(ladder);
+    range = fromShinPrices(ladder, row.categoryPath);
     rangeSource = 'shin_prices';
   } else if (!once || !once.started()) {
     // No ask was passed, or the verdict answered from Shin's own data and never needed one.

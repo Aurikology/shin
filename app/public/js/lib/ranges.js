@@ -28,7 +28,16 @@ export const RANGE_KINDS = Object.freeze(['great', 'good', 'bad']);
 export const PERCENT_CHOICES = Object.freeze([5, 10, 15, 20, 25, 30]);
 export const AMOUNT_CHOICES = Object.freeze([1, 2, 3, 5, 10, 20]);
 
-export const DEFAULT_PERCENTS = Object.freeze({ great: 20, good: 10, bad: 10 });
+/**
+ * THE ONE DEFAULT SET (D10, 2026-10-06). His 2026-09-17 setup numbers, RULINGS.md
+ * "The verdict speaks his words against the shopper's own thresholds": great 30%
+ * or more under the typical price, good 20% or more under, bad 20% or more over.
+ * lib/verdict-chart.js imports this, store.js holds NO copy of it (an unset range
+ * is null there and reads as this), and price/src/estimate.ts carries the server's
+ * twin, which test/default-thresholds.test.mjs pins equal. Until that fix the
+ * client read 20/10/10 here and in the store while the bell drew 30/20/20.
+ */
+export const DEFAULT_PERCENTS = Object.freeze({ great: 30, good: 20, bad: 20 });
 export const DEFAULT_AMOUNTS = Object.freeze({ great: 2, good: 1, bad: 1 });
 
 const PERCENT_KEY = { great: 'lineGreatPct', good: 'lineUnderPct', bad: 'lineOverPct' };
@@ -68,7 +77,28 @@ export function rangePatch(state, kind, value) {
   if (r.unit === 'amount') {
     return { lineAmounts: { ...(state?.lineAmounts ?? {}), great: next.great, good: next.good, bad: next.bad } };
   }
-  return { lineGreatPct: next.great, lineUnderPct: next.good, lineOverPct: next.bad };
+  // `linesSet` records that these numbers are the shopper's own, so a later
+  // default change (store.js `migrate`) never overwrites a choice.
+  return { lineGreatPct: next.great, lineUnderPct: next.good, lineOverPct: next.bad, linesSet: true };
+}
+
+/**
+ * A state saved before the 30/20/20 defaults still holds the old stored defaults,
+ * 20/10/10, in the three percent keys. When the shopper never set them (no
+ * `linesSet` marker, and the three are exactly the old defaults) they were never
+ * a choice: they become unset (null), which reads as the current defaults and
+ * sends nothing to the server. Any other triple was the shopper's, and is kept
+ * and marked. Pure, so it runs under node.
+ */
+export function migrateLines(s) {
+  if (s?.linesSet === true) return s;
+  const g = s?.lineGreatPct;
+  const u = s?.lineUnderPct;
+  const o = s?.lineOverPct;
+  if (g === undefined && u === undefined && o === undefined) return { ...s, lineGreatPct: null, lineUnderPct: null, lineOverPct: null, linesSet: false };
+  if (g === 20 && u === 10 && o === 10) return { ...s, lineGreatPct: null, lineUnderPct: null, lineOverPct: null, linesSet: false };
+  const held = [g, u, o].some((v) => isNum(v));
+  return { ...s, linesSet: held };
 }
 
 /** The store patch for the Percentage or Dollar Amount toggle. */

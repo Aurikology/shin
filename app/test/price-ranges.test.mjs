@@ -99,7 +99,8 @@ test('the picker click stores the range, and the unit toggle changes what is off
 
 test('with nothing set the default range is still a full range', () => {
   const r = ranges.rangesOf({});
-  assert.deepEqual(r, { unit: 'percent', great: 20, good: 10, bad: 10 });
+  // His 2026-09-17 numbers, the one default set (D10).
+  assert.deepEqual(r, { unit: 'percent', great: 30, good: 20, bad: 20 });
 });
 
 test('the You screen and the setup screen both draw the same picker', () => {

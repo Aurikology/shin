@@ -40,6 +40,7 @@
 
 import { postEvent } from './api.js';
 import { getDeviceId } from './device.js';
+import { FLAGS } from './flags.js';
 
 /** How far the box must move before the reticle bothers, as a fraction of the frame. */
 const SNAP = 0.045;
@@ -303,10 +304,15 @@ export async function attachEye(video, surfaces, handlers = {}) {
    */
   const modelUrl = '/js/vendor/efficientdet_lite0.tflite';
   let hasModel = false;
-  try {
-    hasModel = (await fetch(modelUrl, { method: 'HEAD' })).ok;
-  } catch {
-    hasModel = false;
+  // D19 (2026-10-06): with photo ID off (flags.js) nothing may ask for a photo-ID
+  // model, and the file is not shipped, so this HEAD request was a 404 on every
+  // camera open. It is made only when photo ID is on.
+  if (FLAGS.photoId) {
+    try {
+      hasModel = (await fetch(modelUrl, { method: 'HEAD' })).ok;
+    } catch {
+      hasModel = false;
+    }
   }
 
   try {

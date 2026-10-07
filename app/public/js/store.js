@@ -6,7 +6,7 @@
  * anything is asked of anyone.
  */
 
-import { PERCENT_CHOICES, rangePatch, unitPatch } from './lib/ranges.js';
+import { PERCENT_CHOICES, rangePatch, unitPatch, migrateLines } from './lib/ranges.js';
 import { findCountry, findRegion } from './lib/countries.js';
 
 const KEY = 'shin.v1';
@@ -42,12 +42,16 @@ const EMPTY = {
    * rule 2 problem (Competition Act s.74.01(1)(b)) is solved here, in the data
    * model, rather than in a renderer that has to remember to be careful.
    *
-   * Ten and ten because the founder named those two numbers as the defaults,
-   * not because anything has been measured about them. When something has,
-   * that is a reason to change the default and a reason to say so.
+   * UNSET (null) UNTIL THE SHOPPER CHOOSES (D10, 2026-10-06). The defaults are
+   * his 2026-09-17 setup numbers, great 30% under, good 20% under, bad 20% over,
+   * and they live in ONE place, lib/ranges.js `DEFAULT_PERCENTS`; `rangesOf`
+   * reads them when a key here is null, and a request sends nothing for an
+   * unset key, so the server applies its own twin of the same three numbers.
+   * Storing a copy here is what once made the client read 20/10/10 while the
+   * bell drew 30/20/20.
    */
-  lineUnderPct: 10,
-  lineOverPct: 10,
+  lineUnderPct: null,
+  lineOverPct: null,
   /**
    * The rest of the user's price ranges (2026-09-19, his good, bad and GREAT
    * ranges, "crucial and non negotiable"). `lineUnderPct` above is the GOOD
@@ -57,9 +61,11 @@ const EMPTY = {
    * flipping the unit never overwrites the other set. What each means, the
    * choices and the defaults are in lib/ranges.js. Unmeasured starting points.
    */
-  lineGreatPct: 20,
+  lineGreatPct: null,
+  /** True once the shopper has set any percent range themselves (`rangePatch`). The migration reads it. */
+  linesSet: false,
   lineUnit: 'percent',
-  lineAmounts: { great: 2, good: 1, bad: 1 },
+  lineAmounts: {},
   /**
    * How aggressive the user wants deal alerts (his W14: Conservative 30%+,
    * Recommended 20%+, Aggressive 10%+). A stored setting only. There is no alert
@@ -278,7 +284,7 @@ function migrate(s) {
       ? s.shops.lastByCell
       : {},
   };
-  return { ...s, history, watchlist, removed, market, buzz, consent, consentSeen, permissionsSeen, ratings, shops };
+  return { ...migrateLines(s), history, watchlist, removed, market, buzz, consent, consentSeen, permissionsSeen, ratings, shops };
 }
 
 /** Drops anything removed more than thirty days ago. Never throws, never loses anything early. */

@@ -170,6 +170,7 @@ export const SCREEN_TAGS = {
   a104: { id: 'page.legal-privacy', title: 'Page: Privacy Policy', kind: 'static', file: 'app/public/legal/privacy.html', route: null, how: 'You, Privacy policy. Or open /legal/privacy.html. The tag is in the page source as a meta tag; no badge is drawn.' },
   a105: { id: 'page.legal-terms-fr', title: 'Page: Terms of Use, French', kind: 'static', file: 'app/public/legal/terms-fr.html', route: null, how: 'Terms of Use, tap the French link at the top. Or open /legal/terms-fr.html. No badge is drawn.' },
   a106: { id: 'page.legal-privacy-fr', title: 'Page: Privacy Policy, French', kind: 'static', file: 'app/public/legal/privacy-fr.html', route: null, how: 'Privacy Policy, tap the French link at the top. Or open /legal/privacy-fr.html. No badge is drawn.' },
+  a107: { id: 'camera.typedpick', title: 'Which one is it? (the typed name\'s top three catalogue matches)', kind: 'sheet', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.sheet.typedpick', rank: 40, how: 'Camera, Type the product name, enter a name the catalogue knows, such as McCain Tasti Taters, and submit.' },
 };
 
 /**

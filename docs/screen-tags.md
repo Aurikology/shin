@@ -165,6 +165,7 @@ The answer sheet used to show the verdict tags a38 to a40 and its could-not-answ
 | a104 | Page: Privacy Policy | You, Privacy policy. Or open /legal/privacy.html. The tag is in the page source as a meta tag; no badge is drawn. | `app/public/legal/privacy.html` |
 | a105 | Page: Terms of Use, French | Terms of Use, tap the French link at the top. Or open /legal/terms-fr.html. No badge is drawn. | `app/public/legal/terms-fr.html` |
 | a106 | Page: Privacy Policy, French | Privacy Policy, tap the French link at the top. Or open /legal/privacy-fr.html. No badge is drawn. | `app/public/legal/privacy-fr.html` |
+| a107 | Which one is it? (the typed name's top three catalogue matches) | Camera, Type the product name, enter a name the catalogue knows, such as McCain Tasti Taters, and submit. | `app/public/js/screens/camera.js` |
 
 ## Not tagged, with reason
 

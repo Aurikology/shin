@@ -255,8 +255,12 @@ test('the same price moves zone when the SHOPPER\'s lines move, which is the who
   const mid = { ...range, medianCents: 1000 };
   assert.equal(placeShelf(900, mid, TEN_TEN).zone, 'under_your_line');
   assert.equal(placeShelf(1100, mid, TEN_TEN).zone, 'middle');
-  // No lines set at all: the same defaults the server applies (10 and 10).
-  assert.equal(placeShelf(900, mid, {}).zone, 'under_your_line');
+  // No lines set at all: the same defaults the server applies, his 2026-09-17
+  // numbers (D10): good 20% under, bad 20% over. 10% under is no longer under.
+  assert.equal(placeShelf(900, mid, {}).zone, 'middle');
+  assert.equal(placeShelf(800, mid, {}).zone, 'under_your_line');
+  assert.equal(placeShelf(1200, mid, {}).zone, 'middle'); // exactly at the over line is not over
+  assert.equal(placeShelf(1201, mid, {}).zone, 'over_your_line');
   // gemini_typical has no median: the midpoint of low and high is the middle.
   assert.equal(middleCents(RANGE({ medianCents: null, lowCents: 400, highCents: 800 })), 600);
   // Through the sheet, with lines passed in.

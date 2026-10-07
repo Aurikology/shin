@@ -626,9 +626,16 @@ test('the setup screen asks for both lines and stores them where the price line 
   assert.match(ranges, /lineOverPct/);
 
   const store = await import('../public/js/store.js');
-  assert.equal(store.get().lineUnderPct, 10, 'the default stopped being ten, which is the number the founder named.');
-  assert.equal(store.get().lineOverPct, 10);
-  assert.ok(store.LINE_CHOICES.includes(10), 'ten is not among the values on offer, so the default cannot be chosen back.');
+  /* D10 (2026-10-06): the store holds nothing until the shopper chooses; the one
+     default set (good 20, bad 20, great 30) is lib/ranges.js's DEFAULT_PERCENTS. */
+  assert.equal(store.get().lineUnderPct, null, 'an unset line is stored as the shopper\'s own number, never a default.');
+  assert.equal(store.get().lineOverPct, null);
+  const { rangesOf, DEFAULT_PERCENTS } = await import('../public/js/lib/ranges.js');
+  assert.equal(DEFAULT_PERCENTS.good, 20);
+  assert.equal(DEFAULT_PERCENTS.bad, 20);
+  assert.equal(rangesOf(store.get()).good, 20, 'an unset store reads the one default set.');
+  assert.equal(rangesOf(store.get()).great, 30);
+  assert.ok(store.LINE_CHOICES.includes(20), 'twenty is not among the values on offer, so the default cannot be chosen back.');
 
   // And the You page can change them, which is what setup's own fineprint
   // promises. A promise with no control behind it is a defect.

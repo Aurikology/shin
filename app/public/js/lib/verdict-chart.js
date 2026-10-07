@@ -1,6 +1,7 @@
 /**
  * THE VERDICT BELL: pure math and markup for the price verdict's distribution
- * chart. No DOM, no clock, no import, so it runs the same in the phone and
+ * chart. No DOM, no clock, and one import (the shared default thresholds in
+ * ranges.js, which is itself pure), so it runs the same in the phone and
  * under `node --test`.
  *
  * RULINGS.md "V1 verdict screen mechanics" (Jamin, 2026-09-30): "for the price
@@ -30,6 +31,8 @@
  * /100 reading lands inside p10 to p90.
  */
 
+import { DEFAULT_PERCENTS } from './ranges.js';
+
 /** The standard normal's 90th percentile: p10/p90 sit this many sigmas from the centre. */
 export const Z90 = 1.2815515655446004;
 /** The 99th: past it, a shopper's price is `beyond` and pinned at the edge. */
@@ -37,7 +40,7 @@ export const Z99 = 2.3263478740408408;
 /** Past this many sigmas a price is far enough out to ask whether it was misread. */
 export const SUSPECT_SIGMAS = 4;
 /** His 2026-09-17 setup numbers, the defaults until a shopper sets their own. */
-export const DEFAULT_THRESHOLDS = Object.freeze({ greatPct: 30, goodPct: 20, badPct: 20, fromShopper: false });
+export const DEFAULT_THRESHOLDS = Object.freeze({ greatPct: DEFAULT_PERCENTS.great, goodPct: DEFAULT_PERCENTS.good, badPct: DEFAULT_PERCENTS.bad, fromShopper: false });
 export const ZONES = Object.freeze(['great', 'good', 'reasonable', 'bad']);
 export const BASES = Object.freeze(['own_prices', 'other_size', 'leaf_category', 'parent_category', 'brand_markup', 'claude_typical', 'category_prior', 'global_prior']);
 export const NOTES = Object.freeze(['size_assumed', 'other_region', 'old_prices', 'identity_conflict', 'claude_estimate', 'few_prices']);
@@ -138,12 +141,45 @@ export function pctFromCentre(cents, centreCents) {
  * between" (design, call 4), so every boundary is inclusive on the named side.
  */
 export function zoneFor(cents, centreCents, thresholds = DEFAULT_THRESHOLDS) {
-  const t = cleanThresholds(thresholds);
-  const pct = pctFromCentre(cents, centreCents);
-  if (pct <= -t.greatPct) return 'great';
-  if (pct <= -t.goodPct) return 'good';
-  if (pct >= t.badPct) return 'bad';
+  const cuts = zoneCuts(centreCents, thresholds);
+  if (cents <= cuts.great) return 'great';
+  if (cents <= cuts.good) return 'good';
+  if (cents >= cuts.bad) return 'bad';
   return 'reasonable';
+}
+
+/**
+ * THE THREE PRICES WHERE THE WORD CHANGES, in cents, for this bell: at or under
+ * `great`, at or under `good`, at or over `bad`. The one place they are worked
+ * out (D12): the word (`zoneFor`), the zone strip under the axis and the cut
+ * ticks on the curve (`bellGeometry`) all read these three numbers from the
+ * bell's own centre and the bell's own thresholds, so the picture cannot say one
+ * thing while the word says another. Same arithmetic as the server's `zoneOf`
+ * (price/src/estimate.ts).
+ */
+export function zoneCuts(centreCents, thresholds = DEFAULT_THRESHOLDS) {
+  const t = cleanThresholds(thresholds);
+  return {
+    great: centreCents * (1 - t.greatPct / 100),
+    good: centreCents * (1 - t.goodPct / 100),
+    bad: centreCents * (1 + t.badPct / 100),
+  };
+}
+
+/**
+ * The word for a marker, read off the bell as DRAWN: the zone strip of
+ * `bellGeometry` that holds the marker's x. Equal to `zoneFor` for every price
+ * (test/verdict-agreement.test.mjs walks the whole axis), and it is what the
+ * test uses to prove the word and the picture are one thing.
+ */
+export function zoneAtX(x, geometry) {
+  const zs = geometry.zones;
+  if (!zs.length) return null;
+  // A marker past the end of the strip is pinned to that end (the bell draws it there).
+  if (x <= zs[0].x1) return zs[0].zone;
+  if (x >= zs[zs.length - 1].x2) return zs[zs.length - 1].zone;
+  const hit = zs.find((z) => x >= z.x1 && x <= z.x2);
+  return hit ? hit.zone : null;
 }
 
 /** Standard scores on log price. */
@@ -183,7 +219,11 @@ export function shopperFor(cents, verdict) {
 export function shopperOf(verdict) {
   const s = verdict.shopper;
   if (!s) return null;
-  return s.zone ? s : { ...s, zone: zoneFor(s.cents, verdict.centreCents, verdict.thresholds) };
+  // The word is ALWAYS worked out from the bell that is drawn (D12): a zone the
+  // server sent is kept only when it agrees, and is replaced when it does not,
+  // so a stale or differently-centred server zone can never contradict the
+  // marker's place on the picture.
+  return { ...s, zone: zoneFor(s.cents, verdict.centreCents, verdict.thresholds) };
 }
 
 /**
@@ -213,7 +253,7 @@ export function bellHeight(cents, mu, sigma) {
  * widened to take p10/p90, every dot and a shopper price that is not `beyond`,
  * but never past AXIS_MAX_SIGMAS. A point outside that is pinned at the edge.
  */
-export function logDomain(verdict) {
+export function logDomain(verdict, extra = []) {
   const mu = Math.log(verdict.centreCents);
   const s = Math.max(verdict.sigmaLog, MIN_DRAW_SIGMA);
   const minL = mu - AXIS_MAX_SIGMAS * s;
@@ -227,6 +267,7 @@ export function logDomain(verdict) {
     hi = Math.max(hi, l);
   };
   for (const d of verdict.dots) take(d.cents);
+  for (const c of extra) if (pos(c)) take(c);
   const sh = verdict.shopper;
   if (sh && !sh.beyond) take(sh.cents);
   const air = (hi - lo) * 0.04;
@@ -234,15 +275,31 @@ export function logDomain(verdict) {
 }
 
 /**
+ * A deliberately generous width for a dot label, in viewBox units at the
+ * label's 9.5px size (D39): capitals and wide letters are counted wider than the
+ * lower-case average, so a row never packs two labels that would touch once the
+ * browser sets them. Over-estimating only costs a label moving down a row.
+ */
+export function labelWidth(text) {
+  let w = 0;
+  for (const ch of String(text)) {
+    if (/[A-Z0-9MW@%&]/.test(ch)) w += 7;
+    else if (/[ iltfjrI.,'-]/.test(ch)) w += 3.4;
+    else w += 5.6;
+  }
+  return w;
+}
+
+/**
  * Greedy label rows: each label goes in the first row where it does not
  * touch the one before it; one that fits in no row is left off the graph (it
  * is still in the list under the chart, and in its dot's <title>).
  */
-export function placeLabels(items, { rows = 2, charW = 5.3, gap = 6, width = 340, edge = 4 } = {}) {
+export function placeLabels(items, { rows = 3, charW = null, gap = 8, width = 340, edge = 4 } = {}) {
   const ends = Array.from({ length: rows }, () => -Infinity);
   const out = [];
   for (const it of [...items].sort((a, b) => a.x - b.x)) {
-    const w = it.text.length * charW;
+    const w = charW ? it.text.length * charW : labelWidth(it.text);
     const x = Math.min(width - edge - w / 2, Math.max(edge + w / 2, it.x));
     const row = ends.findIndex((end) => x - w / 2 >= end + gap);
     if (row === -1) continue;
@@ -255,8 +312,8 @@ export function placeLabels(items, { rows = 2, charW = 5.3, gap = 6, width = 340
 /**
  * Everything the SVG needs, in viewBox units.
  */
-export function bellGeometry(verdict, { width = 340, height = 196, top = 34, baseY = 124, side = 10, samples = 72 } = {}) {
-  const d = logDomain(verdict);
+export function bellGeometry(verdict, { width = 340, height = 196, top = 34, baseY = 124, side = 10, samples = 72, report = null } = {}) {
+  const d = logDomain(verdict, report && pos(report.cents) ? [report.cents] : []);
   const span = d.hi - d.lo;
   const plotW = width - 2 * side;
   const xl = (l) => r1(side + ((l - d.lo) / span) * plotW);
@@ -290,18 +347,24 @@ export function bellGeometry(verdict, { width = 340, height = 196, top = 34, bas
   const band = `M${xl(bl)} ${baseY}L${bandPts.join('L')}L${xl(bh)} ${baseY}Z`;
 
   // The zone strip under the axis: great | good | reasonable | bad, at the shopper's thresholds.
-  const t = verdict.thresholds;
   const c = verdict.centreCents;
+  const zc = zoneCuts(c, verdict.thresholds);
   const cuts = [
-    ['great', 0, c * (1 - t.greatPct / 100)],
-    ['good', c * (1 - t.greatPct / 100), c * (1 - t.goodPct / 100)],
-    ['reasonable', c * (1 - t.goodPct / 100), c * (1 + t.badPct / 100)],
-    ['bad', c * (1 + t.badPct / 100), Infinity],
+    ['great', 0, zc.great],
+    ['good', zc.great, zc.good],
+    ['reasonable', zc.good, zc.bad],
+    ['bad', zc.bad, Infinity],
   ];
   const clampX = (cents) => (cents <= 0 ? side : cents === Infinity ? width - side : Math.min(width - side, Math.max(side, x(cents))));
   const zones = cuts
     .map(([zone, a, b]) => ({ zone, x1: clampX(a), x2: clampX(b) }))
     .filter((z) => z.x2 - z.x1 > 0.05);
+  // Where the word changes, ticked on the curve itself, so a marker just past a
+  // cut is seen to be past it even when the bell is so wide the cut sits a few
+  // pixels from the centre line.
+  const cutTicks = [zc.great, zc.good, zc.bad]
+    .filter((cents) => cents > 0 && pinned(cents) === null)
+    .map((cents) => ({ cents, x: x(cents), y: y(cents) }));
 
   const saleY = baseY + 19;
   const dots = verdict.dots.map((dot) => ({
@@ -310,6 +373,15 @@ export function bellGeometry(verdict, { width = 340, height = 196, top = 34, bas
     y: dot.kind === 'sale' ? saleY : baseY,
     pinned: pinned(dot.cents),
   }));
+
+  // The shopper's own pending report (it is not in the bell and does not move
+  // it): a diamond on its own lane under the axis, below the sale lane when
+  // there is one.
+  const hasSale = dots.some((dt) => dt.kind === 'sale');
+  const reportY = baseY + 19 + (hasSale ? 12 : 0);
+  const reportDot = report && pos(report.cents)
+    ? { cents: Math.round(report.cents), x: xPin(report.cents), y: reportY, pinned: pinned(report.cents) }
+    : null;
 
   const sh = verdict.shopper;
   const shopper = sh
@@ -334,12 +406,14 @@ export function bellGeometry(verdict, { width = 340, height = 196, top = 34, bas
     area,
     band,
     zones,
+    cutTicks,
     dots,
     shopper,
+    report: reportDot,
     centreX: x(c),
     p10X: x(verdict.p10Cents),
     p90X: x(verdict.p90Cents),
-    hasSale: dots.some((dt) => dt.kind === 'sale'),
+    hasSale,
   };
 }
 
@@ -379,8 +453,8 @@ export function spreadLabels(xs, { minGap = 54, width = 340, edge = 24 } = {}) {
  * drops onto its own place; it never slides along the axis through prices it
  * never had (DESIGN.md section 6).
  */
-export function bellSvg(verdict, { format = (c) => String(c), alt = '', band = '', saleWord = 'Sale', multiple = '', dotLabel = (d) => d.quantity ?? d.store ?? '', geometry = {}, labels: labelsFrom = null } = {}) {
-  const g = bellGeometry(verdict, geometry);
+export function bellSvg(verdict, { format = (c) => String(c), alt = '', band = '', saleWord = 'Sale', multiple = '', dotLabel = (d) => d.quantity ?? d.store ?? '', geometry = {}, labels: labelsFrom = null, report = null, reportWord = 'Your report', reportTitle = '' } = {}) {
+  const g = bellGeometry(verdict, { ...geometry, report });
   // The words under the axis are always a real answer's numbers, never an in-between frame's.
   const L = labelsFrom ?? verdict;
   const W = g.width;
@@ -391,9 +465,23 @@ export function bellSvg(verdict, { format = (c) => String(c), alt = '', band = '
   p.push(`<path class="vb-band" d="${g.band}"/>`);
   p.push(`<path class="vb-curve" d="${g.curve}" pathLength="1"/>`);
   p.push(`<line class="vb-axis" x1="${g.side}" y1="${g.baseY}" x2="${W - g.side}" y2="${g.baseY}"/>`);
+  for (const k of g.cutTicks) p.push(`<line class="vb-cut" x1="${k.x}" y1="${k.y}" x2="${k.x}" y2="${g.baseY}"/>`);
   p.push(`<line class="vb-centre" x1="${g.centreX}" y1="${g.top - 4}" x2="${g.centreX}" y2="${g.baseY}"/>`);
   if (g.hasSale) p.push(`<text class="vb-lane" x="${g.side}" y="${g.saleY + 3.5}" text-anchor="start">${esc(saleWord)}</text>`);
-  const lblY = g.baseY + (g.hasSale ? 40 : 28);
+  const lblY = g.baseY + 28 + (g.hasSale ? 12 : 0) + (g.report ? 12 : 0);
+  // The shopper's own pending report: a diamond on its own lane, outlined and
+  // labelled in words, unlike a store's small solid circle, and drawn outside
+  // the bell (it does not move the bell until a second source agrees).
+  if (g.report) {
+    const r = g.report;
+    const left = r.x > W - 100;
+    p.push(
+      `<g class="vb-report${r.pinned ? ' vb-pinned' : ''}" data-vb-report="${r.cents}">` +
+        `<path class="vb-reportdot" d="M${r.x} ${r.y - 5.5}L${r1(r.x + 5.5)} ${r.y}L${r.x} ${r.y + 5.5}L${r1(r.x - 5.5)} ${r.y}Z"><title>${esc(reportTitle || `${reportWord}: ${format(r.cents)}`)}</title></path>` +
+        `<text class="vb-reportlbl" x="${r1(left ? r.x - 9 : r.x + 9)}" y="${r.y + 3.4}" text-anchor="${left ? 'end' : 'start'}">${esc(reportWord)}</text>` +
+        `</g>`,
+    );
+  }
   const [lx, cx, hx] = spreadLabels([g.p10X, g.centreX, g.p90X], { width: W });
   p.push(`<text class="vb-lbl" x="${lx}" y="${lblY}" text-anchor="middle" data-vb-p10>${esc(format(Math.round(L.p10Cents)))}</text>`);
   p.push(`<text class="vb-lbl vb-lbl-centre" x="${cx}" y="${lblY}" text-anchor="middle" data-vb-centre>${esc(format(Math.round(L.centreCents)))}</text>`);
@@ -406,7 +494,7 @@ export function bellSvg(verdict, { format = (c) => String(c), alt = '', band = '
   });
   const labels = placeLabels(
     g.dots.map((d, i) => ({ i, x: d.x, text: dotLabel(d) })).filter((l) => l.text),
-    { rows: 2, width: W },
+    { rows: 3, width: W },
   );
   for (const l of labels) {
     p.push(`<text class="vb-dotlbl" x="${l.x}" y="${lblY + 15 + l.row * 12}" text-anchor="middle" data-vb-dotlbl="${l.i}">${esc(l.text)}</text>`);
@@ -428,7 +516,8 @@ export function bellSvg(verdict, { format = (c) => String(c), alt = '', band = '
         `</g>`,
     );
   }
-  const h = lblY + (labels.some((l) => l.row === 1) ? 30 : labels.length ? 18 : 6);
+  const lastRow = labels.reduce((m, l) => Math.max(m, l.row), 0);
+  const h = lblY + (labels.length ? 18 + lastRow * 12 : 6);
   return `<figure class="vbell" data-verdict-bell data-mu="${r1(g.domain.mu * 1000) / 1000}" data-sigma="${verdict.sigmaLog}">
     <svg viewBox="0 0 ${W} ${Math.round(h)}" width="100%" role="img" aria-label="${esc(alt)}" focusable="false">${p.join('')}</svg>
     ${band ? `<figcaption class="vb-cap">${esc(band)}</figcaption>` : ''}

@@ -301,6 +301,12 @@ const LINES_EN = {
     warm: () => 'Let me have a look',
     blunt: () => 'Hang on',
   },
+  /* D18: with photo ID off the camera reads barcodes, never tags (flags.js). */
+  reading_barcode: {
+    deadpan: () => 'Looking it up',
+    warm: () => 'Let me have a look',
+    blunt: () => 'Hang on',
+  },
 
   /*
    * --- what a save is worth ---
@@ -448,9 +454,11 @@ const LINES_EN = {
    * is the continue, so this is the only string on that screen.
    */
   price_pad_prompt: {
-    deadpan: () => 'What does the tag say?',
-    warm: () => 'What is on the tag?',
-    blunt: () => 'Tag price. Type it.',
+    // D26: the pad is asked for a barcode or a typed name, where there is no tag
+    // to read; it asks for the shelf price, which is what is typed.
+    deadpan: () => "What's the shelf price?",
+    warm: () => 'What is the shelf price?',
+    blunt: () => 'Shelf price. Type it.',
   },
 
   /**
@@ -553,6 +561,12 @@ const LINES_EN = {
    * the second is the no-identity refusal's own repair, camera.js's
    * `data-act="typeit"`.
    */
+  /* D18: the escalation while photo ID is off: there is no "point at the thing itself". */
+  hint_escalated_barcode: {
+    deadpan: () => 'No barcode to scan? Type the product name.',
+    warm: () => 'No barcode to scan? Tell me what it is instead.',
+    blunt: () => 'No barcode. Type the name.',
+  },
   hint_escalated: {
     deadpan: () => 'No tag on it? Point at the thing itself, or type what it is.',
     warm: () => 'No tag on it? Point at the thing itself, or tell me what it is instead.',
@@ -1299,6 +1313,12 @@ const LINES_EN = {
     deadpan: () => 'Point at a price tag.',
     warm: () => 'Point me at a price tag.',
     blunt: () => 'Tag. Point at it.',
+  },
+  /* D18: the hint while photo ID is off (flags.js `photoId:false`): the camera reads barcodes only. */
+  cam_aim_barcode: {
+    deadpan: () => 'Point at a barcode.',
+    warm: () => 'Point me at a barcode.',
+    blunt: () => 'Barcode. Point at it.',
   },
   /*
    * --- the four measured lines. Every one of them is produced by a number

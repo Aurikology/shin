@@ -106,7 +106,7 @@ test('the keyboard button opens the name field', () => {
 test('manual search asks the price first, then sends the typed name as one text scan with it', () => {
   assert.ok(CAMERA.includes("if (manualSearch) { manualSearch = false; askPriceFirst({ kind: 'text', text }); return; }"), 'a manual submit skips the price pad');
   assert.ok(CAMERA.includes("else if (pending.kind === 'text') void runTypedSearch(pending.text, scanShelfCents, true);"), 'the pad does not send a text scan');
-  const run = between(CAMERA, '    async function runTypedSearch(text, cents, asked) {', '    /* The sheet moves between three detents', 'runTypedSearch');
+  const run = between(CAMERA, '    async function runTypedSearch(text, cents, asked, { skipPicks = false } = {}) {', '    /* The sheet moves between three detents', 'runTypedSearch');
   assert.ok(run.includes('ctx.api.identify({ text, shelfPriceCents: cents ?? undefined })'), 'the typed name is not sent as a text identify carrying the price');
   // 2026-09-23: no typed name is matched against the demo shelf any more; a hit there went to /api/price and a paid call.
   assert.ok(!run.includes('matchCatalogue('), 'a typed name is matched against the demo shelf, whose hit is priced by a paid call');

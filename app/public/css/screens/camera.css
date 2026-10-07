@@ -1458,6 +1458,14 @@
 @media (hover: hover) and (pointer: fine) {
   .pill.solid:hover { filter: brightness(.96); }
 }
+/* D42: on a sheet with no verdict hue (asking, naming, reading) the tier pair is
+   two greys, which drew the one action as a pale pill with grey text, the look
+   of a disabled button. With nothing to invert out of, it takes the page ink on
+   the page ground: the highest-contrast object on the sheet, plainly pressable. */
+.sheet[data-tier="unknown"] .pill.solid {
+  background: var(--ink);
+  color: var(--ground);
+}
 .pill.solid:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
 @media (prefers-reduced-motion: reduce) { .pill.solid:active { transform: none; } }
 .pill.ghost { background: transparent; color: inherit; border-color: currentColor; opacity: .88; }
@@ -2037,10 +2045,13 @@
    thing. */
 .sheet-close {
   position: absolute;
-  top: 12px; right: 14px;
-  width: 30px; height: 30px;
+  /* D25 (2026-10-06): the button IS 44x44, measured, not a 30px circle with an
+     invisible reach around it (a measurement reads the box, and it read 30). The
+     same centre as before: 27px from the top, 29px from the right. */
+  top: 5px; right: 7px;
+  width: 44px; height: 44px;
   border-radius: 50%;
-  border: 1px solid currentColor;
+  border: 0;
   opacity: .55;
   background: transparent;
   color: inherit;
@@ -2048,21 +2059,24 @@
   place-items: center;
   cursor: pointer;
 }
-/* The other half of D-050, whose keypad half was fixed and whose close was
-   not: it draws 30x30 and was 30x30 to the thumb. Same invisible reach as
-   `.iconbtn-inline` above. It is already absolutely positioned, so the 7px
-   costs no layout, and the verdict and refusal heads already hold 40px clear
-   of it. */
+/* The visible ring, 30px, drawn inside the 44px target. The verdict and refusal
+   heads already hold 40px clear of the control. */
 .sheet-close::before {
   content: '';
   position: absolute;
-  inset: -7px;
+  top: 50%;
+  left: 50%;
+  width: 30px;
+  height: 30px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid currentColor;
 }
 .sheet-close:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 /* The verdict and every refusal carry the close since 2026-09-14; keep the
    head's thumbnail and bubble clear of it. */
 .sheet.verdict .sheet-head,
-.sheet.refusal .sheet-head { padding-right: 40px; }
+.sheet.refusal .sheet-head { padding-right: 52px; }
 
 /* -------------------------------------------------------------- text route */
 
@@ -2414,6 +2428,14 @@
 .vb-dot-regular { fill: currentColor; }
 .vb-dot-sale { fill: var(--vb-halo); stroke: currentColor; stroke-width: 1.5; stroke-dasharray: 2 1.5; }
 .vb-lane { font: 600 9px var(--f-ui); fill: currentColor; opacity: .8; letter-spacing: .02em; }
+/* Where the word changes (D12): a hairline from each cut up to the curve, so a
+   marker just past a cut is seen to be past it even on a very wide bell. */
+.vb-cut { stroke: currentColor; stroke-width: 1; opacity: .4; stroke-linecap: round; }
+/* The shopper's own pending report (not in the bell): an outlined diamond with
+   its own word, a different shape from the stores' small solid circles. */
+.vb-report { animation: vb-fade 320ms ease-out 900ms backwards; }
+.vb-reportdot { fill: var(--vb-halo); stroke: currentColor; stroke-width: 1.75; stroke-linejoin: round; }
+.vb-reportlbl { font: 600 9.5px var(--f-ui); fill: currentColor; opacity: .95; }
 .vb-lbl { font: 500 11px var(--f-mono); fill: currentColor; opacity: .85; font-variant-numeric: tabular-nums; }
 .vb-lbl-centre { opacity: 1; font-weight: 700; }
 .vb-dotlbl { font: 500 9.5px var(--f-ui); fill: currentColor; opacity: .8; }
@@ -2424,15 +2446,15 @@
 .vb-youlbl { font: 700 13px var(--f-ui); fill: currentColor; font-variant-numeric: tabular-nums; paint-order: stroke; stroke: var(--vb-halo); stroke-width: 4px; stroke-linejoin: round; }
 .vb-mult { font-weight: 600; font-size: 11px; }
 .vb-cap { margin: 2px 0 0; font: 500 11px var(--f-ui); color: inherit; opacity: .8; }
-.vd-still .vb-curve, .vd-still .vb-area, .vd-still .vb-band, .vd-still .vb-track, .vd-still .vb-zone, .vd-still .vb-dot { animation: none; }
+.vd-still .vb-curve, .vd-still .vb-area, .vd-still .vb-band, .vd-still .vb-track, .vd-still .vb-zone, .vd-still .vb-dot, .vd-still .vb-report { animation: none; }
 .vd-still .vb-you { animation-delay: 0ms; }
-.vd-morphing .vb-curve, .vd-morphing .vb-area, .vd-morphing .vb-band, .vd-morphing .vb-track, .vd-morphing .vb-zone, .vd-morphing .vb-dot, .vd-morphing .vb-you { animation: none; }
+.vd-morphing .vb-curve, .vd-morphing .vb-area, .vd-morphing .vb-band, .vd-morphing .vb-track, .vd-morphing .vb-zone, .vd-morphing .vb-dot, .vd-morphing .vb-you, .vd-morphing .vb-report { animation: none; }
 @keyframes vb-draw { from { stroke-dashoffset: 1; } }
 @keyframes vb-fade { from { opacity: 0; } }
 @keyframes vb-pop { from { opacity: 0; transform: scale(.2); } }
 @keyframes vb-settle { from { opacity: 0; transform: translateY(-22px); } }
 @media (prefers-reduced-motion: reduce) {
-  .vb-curve, .vb-area, .vb-band, .vb-track, .vb-zone, .vb-dot, .vb-you { animation: none; }
+  .vb-curve, .vb-area, .vb-band, .vb-track, .vb-zone, .vb-dot, .vb-you, .vb-report { animation: none; }
 }
 /* The price field, when the answer came without a shelf price (design case 23). */
 .vd-price { display: flex; gap: 8px; align-items: flex-end; margin: 8px 0 0; }

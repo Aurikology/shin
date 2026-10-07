@@ -273,14 +273,14 @@ test('case 25, beyond: pinned at the edge with the multiple', () => {
   assert.match(low, />0,2 fois le prix habituel</);
 });
 
-test('low and medium confidence carry his line beside the answer; high does not', () => {
-  const line = 'We are not fully confident in this answer.';
-  assert.equal(between(inLocale('en', () => distributionSheet(F.LOW_CONFIDENCE)), 'data-dist-conf'), line);
-  assert.equal(between(inLocale('en', () => distributionSheet(F.MEDIUM_SALE_BULK)), 'data-dist-conf'), line);
+test('low and medium confidence carry his line beside the answer; high does not (D13)', () => {
+  // Medium keeps the plain sentence; low says in a few words why it is thin.
+  assert.equal(between(inLocale('en', () => distributionSheet(F.MEDIUM_SALE_BULK)), 'data-dist-conf'), 'We are not fully confident in this answer.');
+  assert.match(between(inLocale('en', () => distributionSheet(F.LOW_CONFIDENCE)), 'data-dist-conf'), /^Not fully confident: .+/);
   assert.doesNotMatch(inLocale('en', () => distributionSheet(F.GOOD)), /data-dist-conf/);
   assert.equal(attr(inLocale('en', () => distributionSheet(F.LOW_CONFIDENCE)), 'data-conf'), 'thin');
   assert.equal(attr(inLocale('en', () => distributionSheet(F.GOOD)), 'data-conf'), 'certain');
-  assert.equal(between(inLocale('fr', () => distributionSheet(F.LOW_CONFIDENCE)), 'data-dist-conf'), 'Nous ne sommes pas entièrement sûrs de cette réponse.');
+  assert.match(between(inLocale('fr', () => distributionSheet(F.LOW_CONFIDENCE)), 'data-dist-conf'), /^Pas entièrement sûrs : .+/);
 });
 
 test('sale dots, the bigger pack, notes and where the estimate came from, in the half detent', () => {
@@ -393,5 +393,5 @@ test('motion: CSS resting on the final state, all of it off under prefers-reduce
   assert.match(bellSvg(usableVerdict(F.GOOD), {}), /class="vb-curve"[^>]*pathLength="1"/);
   // A later answer under reduced motion is redrawn, not tweened.
   const src = read('../public/js/screens/camera.js');
-  assert.match(src, /if \(!from \|\| reduced \|\| typeof requestAnimationFrame !== 'function'\) \{\s*host\.innerHTML = distBell\(toV\);/);
+  assert.match(src, /if \(!from \|\| reduced \|\| typeof requestAnimationFrame !== 'function'\) \{\s*host\.innerHTML = distBell\(toV, \{ report \}\);/);
 });

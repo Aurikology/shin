@@ -199,6 +199,11 @@ export const LINES_FR = {
     warm: () => "Laisse-moi regarder ça",
     blunt: () => "Attends",
   },
+  reading_barcode: {
+    deadpan: () => "Je cherche le produit",
+    warm: () => "Laisse-moi regarder ça",
+    blunt: () => "Attends",
+  },
 
   watching: {
     deadpan: (f) => `Gardé à ${f.asking}${f.seller ? `, ${f.seller}` : ''}, ${f.day}.`,
@@ -276,9 +281,9 @@ export const LINES_FR = {
   },
 
   price_pad_prompt: {
-    deadpan: () => "Qu'est-ce que dit l'étiquette?",
-    warm: () => "Qu'est-ce qui est sur l'étiquette?",
-    blunt: () => "Le prix de l'étiquette. Écris-le.",
+    deadpan: () => "Quel est le prix sur la tablette?",
+    warm: () => "Quel est le prix sur la tablette?",
+    blunt: () => "Le prix sur la tablette. Écris-le.",
   },
 
   going_rate: {
@@ -325,6 +330,11 @@ export const LINES_FR = {
     blunt: () => "Longue, celle-là.",
   },
 
+  hint_escalated_barcode: {
+    deadpan: () => "Pas de code-barres à lire? Écris le nom du produit.",
+    warm: () => "Pas de code-barres à lire? Dis-moi plutôt ce que c'est.",
+    blunt: () => "Pas de code-barres. Écris le nom.",
+  },
   hint_escalated: {
     deadpan: () => "Pas d'étiquette dessus? Pointe l'objet lui-même, ou écris ce que c'est.",
     warm: () => "Pas d'étiquette dessus? Pointe l'objet lui-même, ou dis-moi plutôt ce que c'est.",
@@ -763,6 +773,11 @@ export const LINES_FR = {
     deadpan: () => "Pointe une étiquette de prix.",
     warm: () => "Pointe-moi vers une étiquette de prix.",
     blunt: () => "L'étiquette. Pointe-la.",
+  },
+  cam_aim_barcode: {
+    deadpan: () => "Pointe un code-barres.",
+    warm: () => "Pointe-moi vers un code-barres.",
+    blunt: () => "Code-barres. Pointe-le.",
   },
   cam_hold_still: {
     deadpan: () => "Code-barres. Tiens-le là.",
