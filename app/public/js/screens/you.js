@@ -148,7 +148,9 @@ export default {
     // its own animation and then borrowed `fair`'s line, so the state shipped
     // with a cell that was never written for it (DESIGN.md section 3). The key
     // takes the same two facts; only the sentence differs.
-    const weekKey = weekProud ? 'you_weekly_proud' : 'you_weekly';
+    /* N06: stored data that could not be read is a fault, never "Nothing scanned this week" (the D41 shape). */
+    const unreadable = Boolean(store.loadFault());
+    const weekKey = unreadable ? 'pastscans_failed' : weekProud ? 'you_weekly_proud' : 'you_weekly';
     const manageUrl = manageSubscriptionUrl();
     const ratedCounts = store.ratedCounts();
     const consent = store.consent();
@@ -200,7 +202,7 @@ export default {
         </header>
 
         <section class="block block-week">
-          ${shinSay(weekState, weekKey, { scanned: weekly.scanned, callable: weekly.callable }, { size: 64, anim: weekAnim })}
+          ${shinSay(weekState, weekKey, { scanned: weekly.scanned }, { size: 64, anim: weekAnim })}
         </section>
 
         <section class="block">
@@ -226,7 +228,7 @@ export default {
           <div class="ilist" data-scanlog>
             <div class="ilist-row">
               <span class="ilist-l">${escapeHtml(t('you_yours_this_week'))}</span>
-              <span class="ilist-v">${escapeHtml(`${t('you_scan_count', { n: String(weekly.scanned) })}, ${t('you_named_suffix', { n: String(weekly.callable) })}`)}</span>
+              <span class="ilist-v">${escapeHtml(unreadable ? '?' : t('you_scan_count', { n: String(weekly.scanned) }))}</span>
             </div>
           </div>
         </section>

@@ -32,7 +32,8 @@ import { escapeHtml, html, raw, ago, on } from '../lib/dom.js';
 import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.js';
 import { pageBar, rowChevron, removeGlyph } from '../lib/pagebar.js';
 import { t } from '../ui-strings.js';
-import { answerOf, isAnswer, answerLook, answerWord, answerLine } from '../lib/history-answer.js';
+import { cleanName } from '../lib/product-name.js';
+import { answerOf, isAnswer, answerLook, answerWord, answerLine, answerConfidenceHtml } from '../lib/history-answer.js';
 
 /**
  * The most recent history entry whose answer matches a saved row's id: a
@@ -60,15 +61,17 @@ function answerFor(w, match) {
  * on, and asserting on them needs no DOM.
  */
 export function row(w, history) {
-  const moved = typeof w.lastCents === 'number' && typeof w.usualCents === 'number'
-    ? w.lastCents - w.usualCents
-    : null;
-  const cheaper = moved !== null && moved < 0;
   // OLMA row 70: when the saved row still has its original scan in history,
   // the row's face carries the same solid-vs-hollow confidence treatment the
   // verdict sheet gave it, not a second opinion recomputed from nothing.
   const match = matchFor(history, w.id);
   const answer = answerFor(w, match);
+  // D20: a row saved with no price of its own falls back on the answer it was
+  // saved under, so it never reads "--" and "no usual price" beside a verdict.
+  const lastCents = typeof w.lastCents === 'number' ? w.lastCents : typeof answer?.askingCents === 'number' ? answer.askingCents : null;
+  const usualCents = typeof w.usualCents === 'number' ? w.usualCents : typeof answer?.centreCents === 'number' ? answer.centreCents : null;
+  const moved = lastCents !== null && usualCents !== null ? lastCents - usualCents : null;
+  const cheaper = moved !== null && moved < 0;
   const look = answer ? answerLook(answer) : null;
   const conf = look ? { level: look.level } : match ? confidenceOf(match.result) : null;
   const tierId = look ? look.tier : match?.result?.kind === 'verdict' ? match.result.tier : null;
@@ -97,17 +100,17 @@ export function row(w, history) {
               ${raw(conf ? `data-conf="${escapeHtml(conf.level)}"` : '')}>
         ${raw(faceSvg(face, { size: 'face-row' }))}
         <span class="row-n">
-          <b class="row-title">${w.label}</b>
+          <b class="row-title">${cleanName(w.label)}</b>
           <span class="row-sub">${w.askingSeller ? `${w.askingSeller} · ` : ''}saved ${ago(w.savedAt)}</span>
         </span>
         <span class="wrow-p${cheaper ? ' good' : ''}">
-          ${money(w.lastCents)}
+          ${lastCents !== null ? money(lastCents, answer?.currency) : ''}
           <em>${delta}</em>
         </span>
       </button>
       <button type="button" class="rowdel wrow-del" data-unwatch="${w.id}" data-fk="del:${w.id}">
         ${raw(removeGlyph())}
-        <span class="sr-only">${t('remove')} ${w.label} ${t('saved_remove_from')}</span>
+        <span class="sr-only">${t('remove')} ${cleanName(w.label)} ${t('saved_remove_from')}</span>
       </button>
     </div>`;
 }
@@ -137,8 +140,8 @@ export function detailModal(w, match) {
         face: look.face,
         word: answerWord(answer),
         said: answerLine(answer),
-        meta: `${w.label || answer.label}${w.askingSeller ? ` · ${w.askingSeller}` : ''} · ${ago(match?.at ?? w.savedAt)}`,
-        conf: html`<p class="pmodal-conf">${t(`share_conf_${answer.confidence}`)}</p>`,
+        meta: `${cleanName(w.label || answer.label)}${w.askingSeller ? ` · ${w.askingSeller}` : ''} · ${ago(match?.at ?? w.savedAt)}`,
+        conf: answerConfidenceHtml(answer),
       };
     } else {
       const v = match.result;
@@ -171,7 +174,7 @@ export function detailModal(w, match) {
   // escapes every interpolation exactly once. The header bubble in `paint`
   // does the opposite and for the opposite reason -- see the comment there.
   const facts = {
-    item: w.label,
+    item: cleanName(w.label),
     seller: w.askingSeller ?? '',
     price: typeof w.lastCents === 'number' ? money(w.lastCents) : '--',
     day: ago(w.savedAt),
@@ -180,7 +183,7 @@ export function detailModal(w, match) {
     <div class="pmodal" data-act="modal" data-pmodal="record">
       <div class="pmodal-card" data-tier="fair" tabindex="-1">
         ${raw(faceBlock('idle', { size: 'face-verdict' }))}
-        <h2>${w.label}</h2>
+        <h2>${cleanName(w.label)}</h2>
         <p class="said">${say('watchlist_saved_only', facts)}</p>
         <p class="pmodal-meta">${facts.seller ? `${facts.seller} · ` : ''}${facts.day}</p>
         <p class="pmodal-note">${say('watchlist_no_history_note')}</p>
@@ -260,9 +263,10 @@ export default {
         // escapeHtml is not idempotent -- a shop called "Tom & Jerry" would
         // read as "Tom &amp;amp; Jerry" on the screen.
         const facts = first ? {
-          item: first.label,
+          item: cleanName(first.label),
           seller: first.askingSeller ?? '',
-          price: money(first.lastCents),
+          // N09: a saved row with no price of its own (the shopper never typed one) says nothing about price rather than "--".
+          price: typeof first.lastCents === 'number' ? money(first.lastCents) : typeof firstAnswer?.askingCents === 'number' ? money(firstAnswer.askingCents, firstAnswer.currency) : '',
           day: ago(first.savedAt),
         } : {};
         return shinSay(face, 'watchlist_callback', facts, { size: 64, anim: 'idle-breath' });

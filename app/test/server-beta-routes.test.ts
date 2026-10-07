@@ -366,6 +366,16 @@ test('the profile screen can see the rated counts', async () => {
   assert.equal(seen.rated.reasons.no_price, 1);
 });
 
+test('D14: an invented device id gets an empty result for itself and no fleet figure', async () => {
+  const res = await get('/api/scans?deviceId=d-never-existed-anywhere');
+  assert.equal(res.status, 200);
+  const seen = (await res.json()) as Record<string, any>;
+  assert.deepEqual(Object.keys(seen).sort(), ['rated', 'thisDevice']);
+  assert.equal(seen.thisDevice.scansThisWeek, 0);
+  assert.equal(seen.thisDevice.named, 0);
+  assert.equal(seen.rated.up + seen.rated.down, 0);
+});
+
 /* ------------------------------- 10, events ------------------------------ */
 
 test('a client event is stored and comes back in the export reader', async () => {

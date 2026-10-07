@@ -43,6 +43,8 @@ import { goBack } from '../lib/pagebar.js';
 import { keypadHtml, padAmountHtml } from './camera.js';
 import { storagePersists } from '../lib/persistence.js';
 import { t } from '../ui-strings.js';
+import { answerOf } from '../lib/history-answer.js';
+import { cleanName } from '../lib/product-name.js';
 
 /**
  * The product this correction is about, best available.
@@ -83,15 +85,35 @@ function subjectOf(params) {
     };
   }
 
-  const recent = store.get().history[0];
-  const identity = recent?.result?.identity ?? null;
-  return {
-    code: identity?.gtin ?? null,
-    productId: identity?.id ?? null,
-    label: params.text ?? identity?.label ?? null,
-    category: params.category ?? identity?.category ?? null,
-    scanId: null,
-  };
+  /* N05 (2026-10-07): nothing says which item this price is for, and guessing
+     the newest scan would file it against something the shopper may not mean.
+     The screen asks, from the items they have actually scanned. */
+  return null;
+}
+
+/**
+ * The items this shopper has scanned that a price can be filed against: each
+ * one has a barcode, newest first, one entry per barcode, at most five.
+ */
+function recentItems() {
+  const seen = new Set();
+  const out = [];
+  for (const h of store.get().history) {
+    const a = answerOf(h);
+    const code = h.query?.gtin ?? h.result?.identity?.gtin
+      ?? (typeof a?.id === 'string' && !a.id.startsWith('name:') ? a.id : null);
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    out.push({
+      code,
+      productId: h.result?.identity?.id ?? null,
+      label: cleanName(a?.label || h.result?.identity?.label || h.query?.text || '') || null,
+      category: h.result?.identity?.category ?? null,
+      scanId: Number.isInteger(h.result?.scanId) && h.result.scanId > 0 ? h.result.scanId : null,
+    });
+    if (out.length >= 5) break;
+  }
+  return out;
 }
 
 /**
@@ -160,8 +182,31 @@ export default {
     let pendingKey = '';
     const ac = new AbortController();
 
-    const subject = subjectOf(ctx.params);
-    const label = subject.label ?? t('cam_this');
+    /* N05: null until the shopper says which item, when the screen was opened with none. */
+    let subject = subjectOf(ctx.params);
+    const items = subject ? [] : recentItems();
+    /* N07: the shop the shopper tapped from the list, so its id travels with the name. */
+    let pickedShop = null;
+    let suggestOpen = false;
+    const labelNow = () => subject?.label ?? t('cam_this');
+
+    /** The shops that fit what is typed, the same list the camera's picker opens with, or '' when the field is settled. */
+    function suggestHtml() {
+      const q = seller.trim();
+      const all = shops.pickerShops({ known: store.knownShops(), nearby: shops.nearbyCached() });
+      const settled = q !== '' && all.some((s) => shops.fold(s.name) === shops.fold(q));
+      if (!suggestOpen && (q === '' || settled)) return '';
+      const list = shops.pickerShops({ query: q, known: store.knownShops(), nearby: shops.nearbyCached() }).slice(0, 5);
+      return list
+        .map((s, i) => `<button type="button" class="shop-suggest-row" data-pick-shop="${i}" data-shop-name="${escapeHtml(s.name)}" data-shop-id="${escapeHtml(s.id)}">
+            <span>${escapeHtml(s.name)}</span>${s.hint ? `<em>${escapeHtml(s.hint)}</em>` : ''}
+          </button>`)
+        .join('');
+    }
+    const paintSuggest = () => {
+      const box = root.querySelector('[data-suggest]');
+      if (box) box.innerHTML = suggestHtml();
+    };
 
     /** The line under the form for the two states that are not "type a price", or null. */
     function statusLine() {
@@ -173,7 +218,30 @@ export default {
       return null;
     }
 
+    function paintPick() {
+      root.innerHTML = `
+        <div class="page page-correct page-correct-pick">
+          <header class="page-head">
+            <p class="kicker">${escapeHtml(t('correct_kicker'))}</p>
+            <h1>${escapeHtml(t('correct_pick_h'))}</h1>
+          </header>
+          ${items.length
+            ? `<div class="ilist correct-items" role="list">${items
+                .map((it, i) => `<button type="button" class="ilist-row correct-item" role="listitem" data-pick-item="${i}">
+                    <span class="ilist-l">${escapeHtml(it.label ?? it.code)}</span>
+                  </button>`)
+                .join('')}</div>
+               <p class="fineprint">${escapeHtml(t('correct_pick_or_scan'))}</p>`
+            : `<p class="fineprint" role="status" data-pick-none>${escapeHtml(t('correct_pick_none'))}</p>`}
+          <div class="page-foot">
+            <button type="button" class="cta" data-act="open-camera">${escapeHtml(t('correct_pick_camera'))}</button>
+            <button type="button" class="linky" data-act="back">${escapeHtml(t('correct_not_now'))}</button>
+          </div>
+        </div>`;
+    }
+
     function paint() {
+      if (!subject) { paintPick(); return; }
       root.innerHTML = `
         <div class="page page-correct">
           <header class="page-head${saved ? '' : ' ph-with-face'}">
@@ -199,15 +267,10 @@ export default {
           <label class="seller">
             <span>${escapeHtml(t('correct_which_shop'))}</span>
             <input type="text" inputmode="text" autocomplete="off" placeholder="${escapeHtml(t('correct_shop_placeholder'))}"
-                   class="field" value="${escapeHtml(seller)}" data-seller list="shop-suggest">
-            <datalist id="shop-suggest">${
-              /* D03: the same list the camera's picker opens with, at once, no network. */
-              shops
-                .pickerShops({ known: store.knownShops(), nearby: shops.nearbyCached() })
-                .map((s) => `<option value="${escapeHtml(s.name)}"></option>`)
-                .join('')
-            }</datalist>
+                   class="field" value="${escapeHtml(seller)}" data-seller>
           </label>
+          ${/* N07: a visible list of the shops Pexi knows (the same list the camera's picker opens with, at once, no network), so a shop is picked and a misspelt one is not silently invented. */ ''}
+          <div class="shop-suggest" data-suggest role="listbox" aria-label="${escapeHtml(t('correct_which_shop'))}">${suggestHtml()}</div>
 
           <button type="button" class="chip${onSale ? ' chip-on' : ''}" data-act="sale"
                   aria-pressed="${onSale ? 'true' : 'false'}">${escapeHtml(t('correct_on_sale'))}</button>
@@ -219,7 +282,7 @@ export default {
                innerHTML, so this is a live injection path, not a theoretical
                one: correcting an item to an img tag with an onerror attribute
                and opening this screen ran it. Escaped at the boundary. -->
-          <p class="fineprint">${escapeHtml(say('correct_fineprint', { label, seller }))}</p>
+          ${status === 'failed' ? '' : `<p class="fineprint">${escapeHtml(say('correct_fineprint', { label: labelNow(), seller }))}</p>`}
           ${
             /*
              * The error state, and the only one this screen can honestly have.
@@ -271,11 +334,38 @@ export default {
     on(root, 'input', (e) => {
       if (e.target.matches('[data-seller]')) {
         seller = e.target.value;
+        suggestOpen = true;
+        if (pickedShop && pickedShop.name !== seller.trim()) pickedShop = null;
         paintGate();
+        paintSuggest();
       }
     }, ac.signal);
 
+    on(root, 'focusin', (e) => {
+      if (e.target.matches('[data-seller]')) { suggestOpen = true; paintSuggest(); }
+    }, ac.signal);
+
     on(root, 'click', (e) => {
+      const item = e.target.closest('[data-pick-item]');
+      if (item) {
+        subject = items[Number(item.dataset.pickItem)] ?? null;
+        if (subject) paint();
+        return;
+      }
+      if (e.target.closest('[data-act="open-camera"]')) { ctx.go('camera'); return; }
+
+      const shopBtn = e.target.closest('[data-pick-shop]');
+      if (shopBtn) {
+        seller = shopBtn.dataset.shopName;
+        pickedShop = { id: shopBtn.dataset.shopId, name: seller };
+        suggestOpen = false;
+        const input = root.querySelector('[data-seller]');
+        if (input) input.value = seller;
+        paintGate();
+        paintSuggest();
+        return;
+      }
+
       const key = e.target.closest('[data-pad]');
       if (key) {
         const k = key.dataset.pad;
@@ -318,7 +408,7 @@ export default {
           category: subject.category,
           amountCents: cents,
           seller: seller.trim(),
-          storeId: seller.trim() === shops.chosenName() ? shopId : null,
+          storeId: seller.trim() === shops.chosenName() ? shopId : (pickedShop && pickedShop.name === seller.trim() && !String(pickedShop.id).startsWith('text:') ? pickedShop.id : null),
           kind: onSale ? 'promotional' : 'regular',
           scanId: subject.scanId,
         };

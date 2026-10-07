@@ -94,6 +94,15 @@
  * built by string interpolation, because that attribute was being written from
  * a user-typed item name with no escaping.
  */
+/* D20: a long product name wraps to two lines on Saved instead of being trimmed to "McCain Tasti Tat...". Three lines would push the price; two is the cap. */
+.wrow .row-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
 .rowdel {
   flex: 0 0 auto;
   width: 44px;
@@ -365,6 +374,13 @@
   letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--ink-muted);
+}
+/* Doubt reads as a sentence, not a caps footnote (N02, N11). */
+.pmodal-conf.pmodal-doubt {
+  font: 600 14px/1.35 var(--f-ui);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
 }
 .pmodal-note {
   margin: 4px 0 0;

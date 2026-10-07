@@ -68,7 +68,9 @@ test('D14: You shows only this phone\'s numbers, from one source, and never asks
   const html = youMarkup();
   // The header line and the "Yours this week" row both read the one weekly object.
   assert.match(html, /1 scanned this week/);
-  assert.match(html, /1 scan, 1 named/);
+  assert.match(html, /<span class="ilist-v">1 scan<\/span>/);
+  // N: "named" and "I could call" are an instrument, not something a shopper reads.
+  assert.doesNotMatch(html, /named|I could call/);
   assert.doesNotMatch(html, /Nothing scanned this week/);
   for (const fleet of [t('you_scans_named_row'), t('you_week_two_row'), t('you_corrections_row'), t('you_reading_scan_log')]) {
     assert.ok(!html.includes(fleet), `a fleet-wide row is back: ${fleet}`);
@@ -81,7 +83,8 @@ test('D14: an empty week says nothing scanned and counts zero from the same obje
   store.reset();
   const html = youMarkup();
   assert.match(html, /Nothing scanned this week/);
-  assert.match(html, /0 scans, 0 named/);
+  assert.match(html, /<span class="ilist-v">0 scans<\/span>/);
+  assert.doesNotMatch(html, /named|I could call/);
 });
 
 /* ------------------------------------------------------------------ D15 */

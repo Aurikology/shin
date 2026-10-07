@@ -30,7 +30,8 @@ import { escapeHtml, html, raw, ago, on } from '../lib/dom.js';
 import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.js';
 import { pageBar, backButton, goBack, removeGlyph } from '../lib/pagebar.js';
 import { t } from '../ui-strings.js';
-import { answerOf, answerLook, answerWord, answerLine } from '../lib/history-answer.js';
+import { cleanName } from '../lib/product-name.js';
+import { answerOf, answerLook, answerWord, answerLine, answerConfidenceHtml } from '../lib/history-answer.js';
 
 /*
  * The eight refusal reasons used to be a map here, described in this comment
@@ -46,6 +47,9 @@ import { answerOf, answerLook, answerWord, answerLine } from '../lib/history-ans
 
 /** The name to show for a history entry, verdict or refusal. */
 function labelOf(h) {
+  return cleanName(rawLabelOf(h));
+}
+function rawLabelOf(h) {
   const isVerdict = h.result?.kind === 'verdict';
   return isVerdict ? h.result.identity.label : (h.result?.identity?.label || h.query?.text || t('past_scans_unknown_item'));
 }
@@ -119,7 +123,7 @@ export function detail(h) {
         word: answerWord(answer),
         said: answerLine(answer),
         meta: `${labelOf(h)} · ${ago(h.at)}`,
-        conf: html`<p class="pmodal-conf">${t(`share_conf_${answer.confidence}`)}</p>`,
+        conf: answerConfidenceHtml(answer),
       };
     } else {
       const v = h.result;
@@ -235,7 +239,7 @@ export default {
         // 2026-09-06, and escaping twice is a visible bug rather than a safe
         // default -- escapeHtml is not idempotent.
         const facts = last ? {
-          item: last.result?.identity?.label || last.query?.text || t('past_scans_that_one'),
+          item: cleanName(last.result?.identity?.label || last.query?.text || t('past_scans_that_one')),
           verdict: lastAnswer
             ? answerWord(lastAnswer)
             : isVerdict

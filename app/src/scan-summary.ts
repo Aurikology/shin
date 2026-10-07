@@ -216,6 +216,42 @@ export function summariseScans(deviceId?: string, now: Date = new Date(), store?
   };
 }
 
+/** What a phone is told about itself, and nothing about anybody else (D14). */
+export interface DeviceScanSummary {
+  readonly thisDevice: { deviceId: string; scansThisWeek: number; named: number };
+  readonly rated: RatingCounts;
+}
+
+/**
+ * One device's own week and its own thumbs, read with a query that names the
+ * device. The fleet figures (`summariseScans`) never ride in this reply, so an
+ * unknown or invented device id gets an empty result for itself and no
+ * counts of anyone else's scans.
+ */
+export function summariseDeviceScans(deviceId: string, now: Date = new Date(), store?: ScanStore): DeviceScanSummary {
+  const s = store ?? activeScanStore() ?? openScanStore();
+  const empty: DeviceScanSummary = {
+    thisDevice: { deviceId, scansThisWeek: 0, named: 0 },
+    rated: ratingCounts(deviceId),
+  };
+  try {
+    if (!s.db) return empty;
+    const rows = s.db
+      .prepare('SELECT outcome FROM scan WHERE is_demo = 0 AND device_id = ? AND scanned_at >= ?')
+      .all(deviceId, weekStartUtc(now)) as unknown as { outcome: string }[];
+    return {
+      thisDevice: {
+        deviceId,
+        scansThisWeek: rows.length,
+        named: rows.filter((r) => r.outcome === 'answered').length,
+      },
+      rated: empty.rated,
+    };
+  } catch {
+    return empty;
+  }
+}
+
 /** UTC Monday 00:00 on or before `now`, ISO, to compare against `scanned_at`. */
 function weekStartUtc(now: Date): string {
   const day = now.getUTCDay();

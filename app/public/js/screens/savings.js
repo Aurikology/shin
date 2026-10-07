@@ -56,7 +56,8 @@ export function savingsView(state, figures) {
   const goal = prog
     ? { saved: prog.saved, target, pct: Math.max(0, Math.min(100, Math.round((prog.saved / target) * 100))) }
     : null;
-  return { recent, totalSaved: total ? total.saved : null, goal };
+  /* N06: stored data that could not be read is a fault, never "Nothing scanned yet". */
+  return { recent, totalSaved: total ? total.saved : null, goal, fault: Boolean(state?.__fault) };
 }
 
 /** The screen's body as HTML, for a test and for `render`. */
@@ -75,13 +76,18 @@ export function savingsHtml(view) {
   const top = totals.length
     ? `<section class="block"><div class="ilist">${totals.join('')}</div></section>`
     : `<p class="fineprint" data-savings="pending">${escapeHtml(t('savings_pending'))}</p>`;
-  const recent = view.recent.length
-    ? `<div class="ilist">${view.recent.map((r) => `
+  const recent = view.fault
+    ? `<div class="list-state" data-savings="fault">
+        <p class="fineprint">${escapeHtml(t('savings_unreadable'))}</p>
+        <button type="button" class="linky" data-act="retry">${escapeHtml(t('try_again'))}</button>
+      </div>`
+    : view.recent.length
+      ? `<div class="ilist">${view.recent.map((r) => `
         <div class="ilist-row" data-savings-row>
           <span class="ilist-l">${escapeHtml(r.label)}<br><small>${escapeHtml(ago(r.at) ?? '')}</small></span>
           <span class="ilist-v">${escapeHtml(r.cents === null ? t('past_scans_no_price') : money(r.cents))}</span>
         </div>`).join('')}</div>`
-    : `<p class="fineprint" data-savings="empty">${escapeHtml(t('savings_recent_empty'))}</p>`;
+      : `<p class="fineprint" data-savings="empty">${escapeHtml(t('savings_recent_empty'))}</p>`;
   return `${top}
     <section class="block">
       <h2 class="sect-h">${escapeHtml(t('savings_recent'))}</h2>
@@ -103,12 +109,13 @@ export default {
             ${backButton()}
             <h1>${escapeHtml(t('savings_title'))}</h1>
           </header>
-          ${savingsHtml(savingsView(store.get(), undefined))}
+          ${savingsHtml(savingsView({ ...store.get(), __fault: Boolean(store.loadFault()) }, undefined))}
           ${pageBar('you')}
         </div>`;
     };
     paint();
     on(root, 'click', (e) => {
+      if (e.target.closest('[data-act="retry"]')) { store.reload(); paint(); return; }
       if (e.target.closest('[data-act="back"]')) { goBack(ctx, 'you'); return; }
       if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }
       if (e.target.closest('[data-act="watchlist"]')) { ctx.go('watchlist'); return; }

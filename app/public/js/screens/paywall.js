@@ -48,9 +48,25 @@ export function resetDay(iso, tag = localeTag()) {
   }
 }
 
+const numOf = (v) => (v === undefined || v === null || v === '' ? null : Number(v));
+
+/**
+ * True only when the numbers the screen was handed say the free allowance is
+ * gone (D30). The mascot's bubble and the line under it both read this, so
+ * neither can say "used" for a visit where nothing was used.
+ */
+export function limitSpent(params = {}) {
+  const limit = numOf(params.limit);
+  const used = numOf(params.used);
+  const hasLimit = Number.isInteger(limit) && limit > 0;
+  return Number.isInteger(used) && hasLimit
+    ? used >= limit
+    : used === null && (hasLimit || typeof params.resetsAt === 'string');
+}
+
 /** The line under the mascot: how many free scans the week had, and when they come back. */
 export function limitLine(params = {}) {
-  const num = (v) => (v === undefined || v === null || v === '' ? null : Number(v));
+  const num = numOf;
   const limit = num(params.limit);
   const used = num(params.used);
   const hasLimit = Number.isInteger(limit) && limit > 0;
@@ -158,7 +174,7 @@ export default {
           <p class="kicker">${escapeHtml(t('paywall_title'))}</p>
           <h1>${escapeHtml(t('paywall_heading'))}</h1>
         </header>
-        ${shinSay('idle', 'paywall_say', {}, { size: 'face-page' })}
+        ${shinSay('idle', limitSpent(ctx.params ?? {}) ? 'paywall_say' : 'paywall_say_open', {}, { size: 'face-page' })}
         ${(() => { const line = limitLine(ctx.params ?? {}); return line ? `<p class="fineprint pw-limit" data-pw-limit>${escapeHtml(line)}</p>` : ''; })()}
         <div class="pw-body" data-pw-body aria-live="polite"></div>
         <p class="pw-legal">

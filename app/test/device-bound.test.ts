@@ -144,6 +144,18 @@ test('D-157: the scan log with no device gives no fleet figures, except to the a
   assert.equal((await get('/api/scans', { 'x-shin-admin': 'wrong' })).status, 400);
 });
 
+test('D14: a device asking for its own scans gets only its own figures, never the fleet\'s', async () => {
+  await post('/api/consent', { deviceId: A_ID, photos: false, location: false }, A);
+  const own = (await (await get(`/api/scans?deviceId=${A_ID}`, A)).json()) as Record<string, unknown>;
+  assert.deepEqual(Object.keys(own).sort(), ['rated', 'thisDevice']);
+  const mine = own.thisDevice as { deviceId: string; scansThisWeek: number; named: number };
+  assert.equal(mine.deviceId, A_ID);
+  assert.equal(typeof mine.scansThisWeek, 'number');
+  for (const fleet of ['namedRate', 'total', 'byKind', 'thisWeek', 'scans', 'weekly']) {
+    assert.ok(!(fleet in own), `${fleet} (a fleet figure) rode in a device's reply`);
+  }
+});
+
 test('D-158: events are stored only for the device that sent them', async () => {
   await post('/api/consent', { deviceId: A_ID, photos: false, location: false }, A);
   assert.equal((await post('/api/event', { deviceId: A_ID, type: 'forged' }, B)).status, 403);

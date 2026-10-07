@@ -82,7 +82,7 @@ import {
   rememberCachedScan,
 } from './src/repeat-cache.ts';
 import { recordGap } from '../catalogue/src/gaps.ts';
-import { summariseScans, UNATTRIBUTED } from './src/scan-summary.ts';
+import { summariseScans, summariseDeviceScans, UNATTRIBUTED } from './src/scan-summary.ts';
 import { keepLocation, keepPhoto, readConsent, writeConsent } from './src/consent.ts';
 import { deleteRating, isRating, isRatingReason, rateScan, ratingFor, scanExists } from './src/ratings.ts';
 import { deviceFromHeaders, entitlementStartupWarning, isScanOutcome, quotaFor, recordScanOutcome, scanLimitRefusal } from './src/scan-quota.ts';
@@ -4278,7 +4278,10 @@ export const server = createServer(async (req, res) => {
         return json(200, summariseScans(undefined));
       }
       if (!owns(scansDevice)) return notYours();
-      return json(200, summariseScans(scansDevice));
+      /* D14 (2026-10-07): a device is told about itself only. `summariseScans`
+         carries every device's counts, so it never answers a request that
+         merely names a device, bound or not. */
+      return json(200, summariseDeviceScans(scansDevice));
     }
 
     /*
