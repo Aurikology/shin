@@ -611,3 +611,104 @@ export async function matchText(lines: readonly string[], deps: MatchTextDeps): 
       : null,
   };
 }
+
+/* ---------------------------------------------------------- typed name, D04 */
+
+/**
+ * A catalogue row as the typed-name search returns it: the fields the resolver
+ * reads, and the ones the client's pick list shows. `Catalogue.search`'s
+ * `Candidate` has all of them.
+ */
+export interface TypedRow {
+  readonly code: string;
+  readonly name: string;
+  readonly nameEn?: string | null;
+  readonly brands: string | null;
+  readonly quantity: string | null;
+  readonly leafCategory?: string | null;
+  readonly categoryPath?: readonly string[];
+}
+
+/** Lower case, accents off, apostrophes dropped ("Tater's" is "taters"), split on anything else. */
+function wordsOf(s: string | null | undefined): string[] {
+  return (s ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/['’`]/g, '')
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+function brandWordsOf(row: TypedRow): string {
+  return wordsOf((row.brands ?? '').split(',')[0]).join(' ');
+}
+
+function nameWordsOf(row: TypedRow): string[] {
+  return wordsOf(row.nameEn ?? row.name);
+}
+
+/** Whether every word the shopper typed is a word of this row's brand, name or size. */
+function coversTyped(typed: readonly string[], row: TypedRow): boolean {
+  const have = new Set([...brandWordsOf(row).split(' '), ...nameWordsOf(row), ...wordsOf(row.quantity)]);
+  return typed.length > 0 && typed.every((w) => have.has(w));
+}
+
+/** The same product spelled twice: one brand, one name once punctuation is gone. */
+function sameIdentity(a: TypedRow, b: TypedRow): boolean {
+  return brandWordsOf(a) === brandWordsOf(b) && nameWordsOf(a).join(' ') === nameWordsOf(b).join(' ');
+}
+
+export interface TypedResolution {
+  /** The row the typed words name, or null: the shopper is to pick, or nothing matched. */
+  readonly row: TypedRow | null;
+  /** Which rule decided, for the log and the tests. */
+  readonly rule: 'search_confident' | 'covers_all_words_no_rival' | 'ambiguous' | 'no_match';
+}
+
+/**
+ * Whether a typed name resolves to ONE catalogue product (design case 7 says
+ * the shopper picks one of three; this decides when the server may take the
+ * pick on the shopper's behalf, for the call that arrives without one).
+ *
+ * Resolved when, in the order the search returned them:
+ *   1. the search itself banded the result `confident`; or
+ *   2. the top row carries every typed word (brand, name or size) AND no other
+ *      row in the list carries them all unless it is the same product spelled
+ *      differently (same brand, same name once apostrophes and accents are
+ *      gone: Open Food Facts holds "Tasti Taters" and "Tasti Tater's 800g" as
+ *      two rows of one product).
+ * Anything else with candidates is `ambiguous`: two different products carry
+ * the typed words, so naming one would be a guess the shopper never made, and
+ * the caller answers from the typed words alone (case 8) while offering the
+ * candidates. No candidates is `no_match`.
+ */
+export function resolveTypedName(text: string, rows: readonly TypedRow[], band: string = 'ambiguous'): TypedResolution {
+  const top = rows[0];
+  if (!top) return { row: null, rule: 'no_match' };
+  if (band === 'confident') return { row: top, rule: 'search_confident' };
+  const typed = wordsOf(text);
+  if (!coversTyped(typed, top)) return { row: null, rule: 'ambiguous' };
+  const rival = rows.slice(1).some((r) => coversTyped(typed, r) && !sameIdentity(top, r));
+  return rival ? { row: null, rule: 'ambiguous' } : { row: top, rule: 'covers_all_words_no_rival' };
+}
+
+/** What the client's pick list needs of one row. */
+export function pickCandidate(row: TypedRow): {
+  barcode: string;
+  name: string;
+  brand: string | null;
+  size: string | null;
+  category: CategoryRef | null;
+} {
+  const id = identityOf({
+    code: row.code,
+    name: row.name,
+    nameEn: row.nameEn ?? null,
+    brands: row.brands,
+    quantity: row.quantity,
+    leafCategory: row.leafCategory ?? null,
+    categoryPath: row.categoryPath ?? [],
+  });
+  return { barcode: id.barcode, name: id.name, brand: id.brand, size: id.size, category: id.category };
+}

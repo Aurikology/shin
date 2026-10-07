@@ -62,10 +62,13 @@ import {
   answerBarcodeFromCatalogue,
   catalogueFirstOn,
   matchText,
+  pickCandidate,
   rangeAskSettings,
   readMatchTextBody,
+  resolveTypedName,
   safeEstimate,
   type MatchTextAnswer,
+  type TypedRow,
 } from './src/catalogue-first.ts';
 import { onceAsk, readShelfCents, readThresholdsRaw, sortByName, verdictRecord, type RangeAsk } from './src/distribution.ts';
 import type { Verdict } from '../price/src/estimate.ts';
@@ -1937,6 +1940,37 @@ async function typedVerdict(text: string, match: OwnMatch | null, ctx: TypedVerd
   }
 }
 
+/**
+ * The catalogue search a typed name goes through: the very search `/api/search`
+ * runs for the client's pick list (same routing by this device's history, same
+ * band downgrade), asked for five rows so a rival behind the top three is seen.
+ * A search that fails is an empty list, never a thrown request.
+ */
+async function typedCatalogueSearch(text: string, device: string): Promise<{ rows: TypedRow[]; band: string }> {
+  const seam = catalogueFirstTest?.searcher;
+  const q = { text, limit: 5, vectors: vectorsOn };
+  try {
+    let raw: { band?: string; candidates?: unknown[] };
+    let downgrade = false;
+    if (seam !== undefined) {
+      if (seam === null) return { rows: [], band: 'miss' };
+      raw = (await seam.search(q)) as typeof raw;
+    } else {
+      if (!searchService) return { rows: [], band: 'miss' };
+      const out = await searchRouted(q, device === UNATTRIBUTED ? null : device);
+      raw = out.result as typeof raw;
+      downgrade = out.restricted && !out.fellBack;
+    }
+    const rows = (raw.candidates ?? []).filter(
+      (c): c is TypedRow => !!c && typeof c === 'object' && typeof (c as TypedRow).code === 'string' && typeof (c as TypedRow).name === 'string',
+    );
+    return { rows, band: downgrade && raw.band === 'confident' ? 'ambiguous' : (raw.band ?? 'ambiguous') };
+  } catch (err) {
+    logError({ where: 'identify.typed_search', deviceId: device, scanId: null, err });
+    return { rows: [], band: 'miss' };
+  }
+}
+
 async function typedFromOwnData(
   text: string,
   device: string,
@@ -1947,30 +1981,78 @@ async function typedFromOwnData(
   existingScanId: number | null = null,
   verdictCtx: TypedVerdictContext | null = null,
 ): Promise<Record<string, unknown> & { scanId?: number }> {
+  const first = verdictCtx !== null && catalogueFirstOn();
+  /*
+   * D04: one answer for one product however it is reached. The typed words go
+   * to the catalogue search the client's pick list uses; when they resolve to one
+   * product (`resolveTypedName`), that product is answered by the barcode's own
+   * function, `catalogueFirstBarcode`, so the two cannot diverge. The top three
+   * ride along so the shopper can change the pick.
+   */
+  const searched = first ? await typedCatalogueSearch(text, device) : null;
+  const resolution = searched ? resolveTypedName(text, searched.rows, searched.band) : null;
+  const pickCandidates = searched ? searched.rows.slice(0, 3).map(pickCandidate) : [];
+
   let match: OwnMatch | null = null;
+  /** The catalogue product the typed words named, even when no store prices it. */
+  let named: { name: string; brand: string | null; size: string | null; code: string } | null = null;
   try {
-    match = lookupOwnPrices(text, {
-      pricesDbPath: defaultPricesPath(),
-      userCatalogueDb: userCatalogue?.db ?? null,
-      userCataloguePath: USER_CATALOGUE_PATH,
-      catalogueProbe: catalogueDb ? probeCatalogue(catalogueDb) : null,
-    }).match;
+    if (resolution?.row) {
+      const id = pickCandidate(resolution.row);
+      named = { name: id.name, brand: id.brand, size: id.size, code: id.barcode };
+      const own = lookupOwnPricesByBarcode(id.barcode, {
+        pricesDbPath: defaultPricesPath(),
+        userCatalogueDb: userCatalogue?.db ?? null,
+        userCataloguePath: USER_CATALOGUE_PATH,
+        catalogueProbe: catalogueDb ? probeCatalogue(catalogueDb) : null,
+      }).match;
+      if (own) match = { name: id.name, brand: id.brand, size: id.size, code: id.barcode, score: 1, prices: own.prices };
+    } else {
+      match = lookupOwnPrices(text, {
+        pricesDbPath: defaultPricesPath(),
+        userCatalogueDb: userCatalogue?.db ?? null,
+        userCataloguePath: USER_CATALOGUE_PATH,
+        catalogueProbe: catalogueDb ? probeCatalogue(catalogueDb) : null,
+      }).match;
+      if (match) named = { name: match.name, brand: match.brand, size: match.size, code: match.code ?? '' };
+    }
   } catch (err) {
     logError({ where: 'identify.own_data', deviceId: device, scanId: null, err });
   }
   // Every typed answer carries the verdict when the caller passed its context (catalogue first on).
-  const verdict = verdictCtx && catalogueFirstOn() ? await typedVerdict(text, match, verdictCtx, device) : null;
+  let verdict: Verdict | null = null;
+  let barcodeAnswer: Awaited<ReturnType<typeof catalogueFirstBarcode>> | null = null;
+  if (first && verdictCtx) {
+    const code = resolution?.row?.code ?? match?.code ?? null;
+    const canonical = code ? canonicalBarcode(code) : null;
+    if (canonical) {
+      try {
+        barcodeAnswer = await catalogueFirstBarcode(verdictCtx.askRange, canonical, verdictCtx.market, device, verdictCtx.shopper);
+      } catch (err) {
+        logError({ where: 'identify.typed_barcode_answer', deviceId: device, scanId: null, err });
+      }
+    }
+    verdict = barcodeAnswer?.answer.verdict ?? (await typedVerdict(text, match, verdictCtx, device));
+  }
   const ms = Date.now() - startedAt;
-  const label = match ? [match.brand && !match.name.toLowerCase().includes(match.brand.toLowerCase()) ? match.brand : null, match.name, match.size].filter(Boolean).join(' ') : null;
+  const label = named ? [named.brand && !named.name.toLowerCase().includes(named.brand.toLowerCase()) ? named.brand : null, named.name, named.size].filter(Boolean).join(' ') : null;
   const scanId = existingScanId ?? recordScan({
     deviceId: device,
     kind: 'text',
     query: text,
-    resolvedCode: match?.code ?? null,
+    resolvedCode: named?.code || null,
     resolvedLabel: label,
     source: OWN_DATA_SOURCE,
-    outcome: match ? 'answered' : 'refused',
-    failureClass: match ? null : 'not_in_catalogue',
+    outcome: named ? 'answered' : 'refused',
+    failureClass: named ? null : 'not_in_catalogue',
+    ...(barcodeAnswer && barcodeAnswer.answer.outcome === 'catalogue_hit'
+      ? {
+          answerPath: barcodeAnswer.record.answerPath,
+          rangeSource: barcodeAnswer.record.rangeSource,
+          rangeBasis: barcodeAnswer.record.rangeBasis,
+          rangeMissReason: barcodeAnswer.record.rangeMissReason,
+        }
+      : {}),
     ...verdictRecord(verdict),
     appVersion: telemetry.appVersion,
     platform: telemetry.platform,
@@ -2001,12 +2083,24 @@ async function typedFromOwnData(
     model: null,
     failure: null,
     verdict,
-    ...shopperReportField(device, match?.code ?? null),
+    // D04: the catalogue's top three for the typed words (the pick list), and how the answer's product was chosen.
+    pickCandidates,
+    resolvedBy: resolution?.row ? resolution.rule : null,
+    ...(barcodeAnswer && barcodeAnswer.answer.outcome === 'catalogue_hit'
+      ? {
+          identity: barcodeAnswer.answer.identity,
+          range: barcodeAnswer.answer.range,
+          rangeSource: barcodeAnswer.answer.rangeSource,
+          noRangeReason: barcodeAnswer.answer.noRangeReason,
+        }
+      : {}),
+    ...shopperReportField(device, named?.code || match?.code || null),
     ...(scanId === null ? {} : { scanId }),
   };
   if (!match) {
     return {
       ...common,
+      ...(resolution?.row && named ? { ownMatch: { name: named.name, brand: named.brand, size: named.size, code: named.code, score: 1 } } : {}),
       found: false,
       reason: 'no_own_price',
       lowConfidence: true,
@@ -2172,7 +2266,7 @@ function ownOffersForBarcode(gtin: string, device: string): Record<string, unkno
  * range ask, made only when Shin's own prices give no range.
  */
 async function catalogueFirstBarcode(
-  req: IncomingMessage,
+  askRange: RangeAsk | undefined,
   canonical: NonNullable<ReturnType<typeof canonicalBarcode>>,
   market: { country: string | null; currency: string | null; region?: string | null },
   device: string,
@@ -2196,7 +2290,7 @@ async function catalogueFirstBarcode(
       // Only when Shin has no price: one Claude ask, no web search, capped per
       // month (identify/src/range-ask.ts). No shopper answer comes from Gemini
       // (Jamin, 2026-09-28, "We are not using gemini at all for the client side answers").
-      askRange: claudeRangeAsk(req),
+      askRange,
       region: market.region ?? null,
       shopper,
       sortName: sortByName(catalogueFirstTest?.searcher !== undefined ? catalogueFirstTest.searcher : searchService),
@@ -3230,7 +3324,7 @@ export const server = createServer(async (req, res) => {
         const canonical = canonicalBarcode(rawGtin);
         if (canonical) {
           const { answer, record } = await catalogueFirstBarcode(
-            req,
+            claudeRangeAsk(req),
             canonical,
             marketOfContext(contextFrom(pick)),
             device,
