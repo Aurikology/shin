@@ -531,7 +531,8 @@ the number. · 2026-09-03 · log: docs/decisions.md#Shin's attitude is the user'
 Retired wording: none
 Governs: to fill
 ### Camera UX: guidance, target size, torch, continuous scan
-Camera-first app; refusal is a designed state. Guidance acts first, speaks last: silently fixes
+Camera-first app; every scan with a scan left ends in the answer chart, never a refusal (see "V1
+verdict screen mechanics", 2026-09-30). Guidance acts first, speaks last: silently fixes
 what it can, speaks only on four measured conditions. Barcode reading is continuous, highlighted
 every frame like a shift register; Scan sends only digits. Price-pad keys are at least 44×44 CSS
 px, 48-52px on the primary target. Torch is a user setting: auto-on at a slider brightness, or off

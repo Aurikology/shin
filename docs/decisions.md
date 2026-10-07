@@ -2598,3 +2598,14 @@ wording: "A plan covers every case involved, not the path where everything works
 body text is kept inside the merged entry).
 
 **Reverses if:** he says a plan may assume success or skip its own error analysis.
+
+## Camera UX no longer calls refusal a designed state
+**Date:** 2026-10-06 · **Status:** active
+
+The 2026-09-17 Camera UX entry opened "Camera-first app; refusal is a designed state." His
+2026-09-30 words (*"It will ALWAYS provide the answer(unless the user runs out of scans)"*) made the
+verdict screen ruling say there is no refusal screen, so the Camera UX entry now points there.
+Retired RULINGS.md wording: "refusal is a designed state" (not yet listed as retired wording until
+docs/design/AVATAR.md, which still repeats it, is brought in line).
+
+**Reverses if:** he brings back a refusal outcome for a scan that has a scan left.
