@@ -270,9 +270,6 @@ async function attachCatalogue(): Promise<void> {
     // The embedder handed to this one is never used: byGtin does no embedding,
     // and it loads its model lazily, so constructing it costs nothing here.
     fastLookup = new Catalogue(db, defaultEmbedder()) as unknown as { byGtin(code: string): unknown };
-    searchService = startCatalogueService(CATALOGUE_DB) as unknown as {
-      search(q: unknown): Promise<unknown>;
-    };
     const n = db.prepare('SELECT count(*) AS n FROM product').get() as { n: number };
     const ca = db
       .prepare('SELECT count(*) AS n FROM product WHERE sold_in_canada = 1')
@@ -287,6 +284,12 @@ async function attachCatalogue(): Promise<void> {
     vectorsOn =
       settings.SHIN_VECTORS() === 'on' ||
       (settings.SHIN_VECTORS() !== 'off' && embeddedRows > 0 && embeddedRows <= VECTOR_ROW_CEILING);
+    // D40: the embedding model is pre-loaded only when meaning search is on. With
+    // it off nothing embeds a query, and the load used to log a Protobuf failure
+    // for a model that is not on the answer path.
+    searchService = startCatalogueService(CATALOGUE_DB, { warm: vectorsOn }) as unknown as {
+      search(q: unknown): Promise<unknown>;
+    };
 
     catalogueWhyNot = '';
     console.log(

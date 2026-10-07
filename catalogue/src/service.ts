@@ -49,7 +49,13 @@ export interface CatalogueService {
 /** See the note inside `send`. The number the comments that promised it chose. */
 export const SEARCH_TIMEOUT_MS = 5_000;
 
-export function startCatalogueService(dbPath: string): CatalogueService {
+/**
+ * `warm` false skips the boot pre-load of the embedding model (D40). The caller
+ * says false when meaning search is off: nothing will embed a query, so loading
+ * the model only costs memory and, on a machine whose model file is damaged,
+ * logs a load failure about a feature that is not running.
+ */
+export function startCatalogueService(dbPath: string, opts: { warm?: boolean } = {}): CatalogueService {
   const worker = new Worker(fileURLToPath(new URL('./worker.ts', import.meta.url)), {
     workerData: { dbPath },
   });
@@ -135,7 +141,7 @@ export function startCatalogueService(dbPath: string): CatalogueService {
    * malformed Host header threw outside a try, here a pre-load misses a
    * deadline. Both end with the process gone for everybody.
    */
-  const ready = send<{ warm: boolean; embedder: string }>({ kind: 'warm' })
+  const ready = (opts.warm === false ? Promise.resolve(undefined) : send<{ warm: boolean; embedder: string }>({ kind: 'warm' }))
     .then(() => undefined)
     .catch((err: unknown) => {
       // Named on stderr rather than swallowed: a warm that never lands means
