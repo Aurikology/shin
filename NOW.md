@@ -28,6 +28,9 @@ five corrected readings) are in the archive under "CATALOGUE WORK, 2026-09-26":
   an hour ahead of the British Columbia load and the load recreated the class behind it.
 - After any category fill, restart the search workers: `rebuildCategories` invalidates their
   memoised tag sizes.
+- Categories (2026-10-08): every load ends with the canonicalize pass (real Open Food Facts chain,
+  raw tags kept); `npm run check:categories` must exit 0 after it. Backup before the first pass:
+  `catalogue/data/catalogue.db.before-category-canon`. The phone pack needs a re-export to carry it.
 
 **Pricing without data, 2026-09-28:** Jamin's nested-category design, the flawed first plan and
 why, and the Gemini liquor test (typical within 20% for 61%, its own ranges catch only 53%, 0.7x
