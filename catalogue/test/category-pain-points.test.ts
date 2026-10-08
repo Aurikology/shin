@@ -333,7 +333,7 @@ test('B7 control: the broken stub, substitutes read from the price groups, fails
   assert.equal(splitTree.groupOf('NAME') === splitTree.groupOf('STORE'), false, 'the tree splits them');
   assert.equal(await b7Holds(priceGroupSubstitutes), false);
 });
-test('B7: with a price tree that splits store brand from name brand, substitutes for the name brand still offer the store brand', { todo: open('B7 cannot go red on substitutes until the price tree exists (price/src/price-tree.ts is not built)') }, async () => {
+test('B7: with a price tree that splits store brand from name brand, substitutes for the name brand still offer the store brand', async () => {
   const priceTree = (await later('../../price/src/price-tree.ts')) as { buildPriceTree: (items: unknown[], prices: unknown[]) => { groupOf(code: string): string } };
   const tree = priceTree.buildPriceTree(
     [

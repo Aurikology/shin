@@ -13,8 +13,13 @@
  *                    leaf category, scaled back to this product's size.
  *   parent_category  the same, one step up the category path. Never the
  *                    grandparent (RULINGS, "Product identity and catalogue
- *                    matching": leaf, then parent, never grandparent).
- *   none             with a reason, so the caller can go to the capped model.
+ *                    matching": leaf, then parent, never grandparent). The
+ *                    parent is the nearest tag in the path that is an ANCESTOR
+ *                    of the leaf in the taxonomy (B2, docs/category-safeguards-
+ *                    2026-10-08.md), not whichever tag sits before it. With no
+ *                    taxonomy the old position rule runs and the step says so:
+ *                    `flag: 'parent_unchecked'`. Never silent.
+ *   none            with a reason, so the caller can go to the capped model.
  *
  * WHAT THIS READS, AND WHAT IT DOES NOT. Only `observation` in the price
  * database and `product` in the catalogue, both through handles the caller
@@ -37,6 +42,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { ageDays, isFutureDated, ratio } from '../../spine/src/money.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity, type ComparisonLabel } from '../../catalogue/src/units.ts';
+import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
 
 /* ------------------------------------------------------------ thresholds */
 
@@ -87,6 +93,11 @@ export interface RangeSources {
   readonly prices: DatabaseSync;
   /** The catalogue (`product` table). Optional: without it only the own-product step can run. */
   readonly catalogue?: DatabaseSync | null;
+  /**
+   * The category taxonomy the parent rung is read from. Absent or null: the tag
+   * before the leaf is used as before, and the step records `parent_unchecked`.
+   */
+  readonly taxonomy?: Taxonomy | null;
 }
 
 export type RangeBasis = 'this_product' | 'leaf_category' | 'parent_category' | 'none';
@@ -98,6 +109,8 @@ export interface RangeStep {
   readonly category: string | null;
   readonly n: number;
   readonly outcome: 'used' | 'too_few' | 'no_barcode' | 'no_category' | 'no_size';
+  /** `parent_unchecked`: this parent was taken by position and never checked against a taxonomy. */
+  readonly flag?: 'parent_unchecked';
 }
 
 interface RangeCommon {
@@ -335,7 +348,9 @@ function categoryRange(
   currency: string,
   windowDays: number,
   tried: RangeStep[],
+  unchecked = false,
 ): RangeCategory | null {
+  const flag = unchecked ? { flag: 'parent_unchecked' as const } : {};
   const points: ProductPoint[] = [];
   for (const [key, obs] of priced) {
     // The product itself is left out: this step runs because its own evidence was too thin.
@@ -350,10 +365,10 @@ function categoryRange(
     points.push({ key, cents, base: row.size.baseValue, sellers: shops.map((s) => s.seller), ...d });
   }
   if (points.length < MIN_CATEGORY_PRODUCTS) {
-    tried.push({ basis, category: tag, n: points.length, outcome: 'too_few' });
+    tried.push({ basis, category: tag, n: points.length, outcome: 'too_few', ...flag });
     return null;
   }
-  tried.push({ basis, category: tag, n: points.length, outcome: 'used' });
+  tried.push({ basis, category: tag, n: points.length, outcome: 'used', ...flag });
   points.sort(byUnitPrice);
   const at = (p: number) => points[nearestRankIndex(points.length, p)]!;
   // The one rounding: stored cents times a size ratio, to whole cents.
@@ -381,6 +396,25 @@ function categoryRange(
     scaledTo: target.original,
     tried,
   };
+}
+
+/**
+ * The parent rung of a leaf. With a taxonomy: the nearest tag before the leaf in
+ * the path (or the nearest of all, when the leaf is not in the path) that is a
+ * strict ancestor of the leaf. Without one: the tag before the leaf, flagged
+ * `unchecked` so the step records it.
+ */
+export function parentOf(leaf: string | null, path: readonly string[], taxonomy: Taxonomy | null): { parent: string | null; unchecked: boolean } {
+  if (!leaf) return { parent: null, unchecked: false };
+  const idx = path.lastIndexOf(leaf);
+  if (!taxonomy) {
+    const parent = idx > 0 ? path[idx - 1]! : null;
+    return { parent, unchecked: parent !== null };
+  }
+  for (let i = (idx >= 0 ? idx : path.length) - 1; i >= 0; i--) {
+    if (taxonomy.isAncestor(path[i]!, leaf)) return { parent: path[i]!, unchecked: false };
+  }
+  return { parent: null, unchecked: false };
 }
 
 /* ------------------------------------------------------------------ main */
@@ -431,8 +465,8 @@ export function priceRangeFor(input: RangeInput, sources: RangeSources): RangeRe
   }
 
   // Steps 2 and 3: the category, leaf then parent, never further.
-  const idx = leaf ? path.lastIndexOf(leaf) : -1;
-  const parent = idx > 0 ? path[idx - 1]! : null;
+  const { parent, unchecked } = parentOf(leaf, path, sources.taxonomy ?? null);
+  const parentStep = (outcome: RangeStep['outcome']): RangeStep => ({ basis: 'parent_category', category: parent, n: 0, outcome, ...(unchecked ? { flag: 'parent_unchecked' as const } : {}) });
   const none = (reason: NoneReason): RangeNone => ({ basis: 'none', reason, n: best, spread: null, tried });
 
   if (!leaf || !sources.catalogue) {
@@ -441,7 +475,7 @@ export function priceRangeFor(input: RangeInput, sources: RangeSources): RangeRe
   }
   if (!target) {
     tried.push({ basis: 'leaf_category', category: leaf, n: 0, outcome: 'no_size' });
-    if (parent) tried.push({ basis: 'parent_category', category: parent, n: 0, outcome: 'no_size' });
+    if (parent) tried.push(parentStep('no_size'));
     return none('size_unknown');
   }
 
@@ -462,7 +496,7 @@ export function priceRangeFor(input: RangeInput, sources: RangeSources): RangeRe
     tried.push({ basis: 'parent_category', category: null, n: 0, outcome: 'no_category' });
     return none('too_few_prices');
   }
-  const parentRange = categoryRange('parent_category', parent, target, selfKey, priced, catalogue, currency, windowDays, tried);
+  const parentRange = categoryRange('parent_category', parent, target, selfKey, priced, catalogue, currency, windowDays, tried, unchecked);
   if (parentRange) return parentRange;
   best = Math.max(best, tried[tried.length - 1]!.n);
   return none('too_few_prices');

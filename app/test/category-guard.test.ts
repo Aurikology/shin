@@ -185,8 +185,38 @@ const BAD_OTHERS = ['en:snacks', 'en:chips'];
 const GOOD_SELF = ['en:dairies', 'en:cheeses', 'en:cheddar'];
 const GOOD_OTHERS = ['en:dairies', 'en:cheeses'];
 
-test('range and verdict: a parent rung on a non-ancestor is caught, put on the record, logged and counted', async () => {
+/** The same guard, but the ladder is not handed its taxonomy: the old position rule runs and the guard is the net under it. */
+function netOnly(g: ReturnType<typeof guard>['g']): ReturnType<typeof guard>['g'] {
+  return { check: (use) => g.check(use), health: () => g.health(), taxonomy: () => null };
+}
+
+test('B2 wiring: the range ladder gets the guard\'s taxonomy, so the parent rung is the taxonomy parent and not the tag before the leaf', async () => {
   const { g, lines } = guard();
+  // Products under en:snacks (before the leaf) AND under en:cheeses (the taxonomy parent), five of each.
+  const both = (selfPath: string[]) => {
+    const w = world(selfPath, BAD_OTHERS);
+    const ins = w.catalogue.prepare('INSERT INTO product (code, name, quantity, size_value, size_unit, category_path, leaf_category) VALUES (?,?,?,?,?,?,?)');
+    for (let i = 0; i < 5; i++) {
+      const code = String(2000 + i).padStart(13, '0');
+      ins.run(code, 'cheese', '500 g', 500, 'g', JSON.stringify(GOOD_OTHERS), 'en:cheeses');
+      recordObservation(w.prices, obs(code, 900 + i * 100, `c${i}`));
+    }
+    return w;
+  };
+  const canonical = canonicalBarcode(SELF)!;
+  const on = await answerBarcodeFromCatalogue(canonical, deps(both(BAD_SELF), BAD_SELF, { categoryGuard: g }));
+  const off = await answerBarcodeFromCatalogue(canonical, deps(both(BAD_SELF), BAD_SELF, { categoryGuard: netOnly(g) }));
+  assert.ok(on.answer.kind === 'catalogue' && on.answer.range?.category?.tag === 'en:cheeses', 'taxonomy passed: the taxonomy parent');
+  assert.ok(off.answer.kind === 'catalogue' && off.answer.range?.category?.tag === 'en:snacks', 'control: no taxonomy, the position rule reads the non-ancestor');
+  // The verdict ladder takes the same taxonomy parent, so the guard reports neither rung when the taxonomy is handed over.
+  assert.equal(on.record.categoryFaults, undefined, 'range and verdict both on the taxonomy parent: nothing to report');
+  assert.deepEqual(off.record.categoryFaults, ['parent_not_ancestor'], 'where the ladders were not given the taxonomy the guard catches the non-ancestor');
+  assert.ok(lines.includes(`[category-fault] parent_not_ancestor ${SELF}`), lines.join('|'));
+});
+
+test('range and verdict: a parent rung on a non-ancestor is caught, put on the record, logged and counted', async () => {
+  const { g: full, lines } = guard();
+  const g = netOnly(full);
   const r = await answer(BAD_SELF, BAD_OTHERS, { categoryGuard: g });
   assert.equal(r.record.rangeBasis, 'parent_category', 'the fixture really does reach the parent rung');
   assert.equal(r.answer.kind, 'catalogue');
@@ -209,13 +239,18 @@ test('range and verdict: a parent rung on the taxonomy parent passes clean', asy
 test('the answer is identical with the guard on, off, or with no taxonomy: a fault is recorded, never acted on', async () => {
   const strip = (r: Awaited<ReturnType<typeof answer>>) => ({ answer: r.answer, record: { ...r.record, categoryFaults: undefined } });
   const without = await answer(BAD_SELF, BAD_OTHERS);
-  const on = await answer(BAD_SELF, BAD_OTHERS, { categoryGuard: guard().g });
+  // Recording the fault changes nothing (the guard as a net under the old position rule).
+  const on = await answer(BAD_SELF, BAD_OTHERS, { categoryGuard: netOnly(guard().g) });
   const off = await answer(BAD_SELF, BAD_OTHERS, { categoryGuard: guard({ taxonomyPath: join(dir, 'missing.json') }).g });
   assert.deepEqual(strip(on), strip(without));
   assert.deepEqual(strip(off), strip(without));
   assert.equal(without.record.categoryFaults, undefined);
   assert.equal(off.record.categoryFaults, undefined);
   assert.equal(on.record.rangeBasis, 'parent_category');
+  // And the guard that DOES hand the ladder its taxonomy changes the range on purpose (B2): the non-ancestor is not read.
+  const handed = await answer(BAD_SELF, BAD_OTHERS, { categoryGuard: guard().g });
+  assert.notEqual(handed.record.rangeBasis, 'parent_category');
+  assert.equal(handed.record.categoryFaults, undefined);
 });
 
 /* ------------------------------------------------- the ring and /api/health */

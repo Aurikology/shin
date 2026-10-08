@@ -150,7 +150,7 @@ test('B2 ladder control: the position rule fails where the tag before the leaf i
   assert.equal(b2LadderHolds(positionLadder, BAD_SELF), false);
   assert.equal(b2LadderHolds(positionLadder, GOOD_SELF), true, 'the good path is why nobody noticed');
 });
-test('B2: the parent rung of the range ladder is the taxonomy parent of the leaf', { todo: open('B2 the range ladder reads the tag before the leaf, not the taxonomy parent (range.ts:434-435)') }, () => {
+test('B2: the parent rung of the range ladder is the taxonomy parent of the leaf', () => {
   assert.equal(b2LadderHolds(realLadder, GOOD_SELF), true, 'control inside the test: the real ladder passes the good path');
   assert.equal(b2LadderHolds(realLadder, BAD_SELF), true);
 });
@@ -254,7 +254,7 @@ test('B4 control: a tree split by chain (two paths for an item priced at two cha
   assert.equal(splitByChainTree(B4_ITEMS, B4_PRICES).pathsOf('item0').length, 2);
   assert.equal(b4Holds(splitByChainTree), false);
 });
-test('B4: an item priced at two chains has exactly one path, and a store adjustment exists for the chain gap', { todo: open('B4 buildPriceTree is not built (price/src/price-tree.ts)') }, async () => {
+test('B4: an item priced at two chains has exactly one path, and a store adjustment exists for the chain gap', async () => {
   const mod = (await later('../src/price-tree.ts')) as { buildPriceTree: BuildTree };
   assert.equal(b4Holds(mod.buildPriceTree), true);
 });
@@ -329,7 +329,7 @@ test('B5 control: a tree whose verdict reads only the item\'s own prices agrees 
 test('B5 control: a tree whose lines drift with every price change agrees under 95%, so the predicate can fail', () => {
   assert.ok(b5Agreement(globalDriftTree) < 0.95);
 });
-test('B5: two rebuilds on data differing by a random 5% of prices give the same shelf price the same verdict, for items with no new own prices, in 95%+ of cases', { todo: open('B5 buildPriceTree is not built (price/src/price-tree.ts)') }, async () => {
+test('B5: two rebuilds on data differing by a random 5% of prices give the same shelf price the same verdict, for items with no new own prices, in 95%+ of cases', async () => {
   const mod = (await later('../src/price-tree.ts')) as { buildPriceTree: BuildTree };
   assert.ok(b5Agreement(mod.buildPriceTree) >= 0.95);
 });
@@ -412,7 +412,7 @@ test('B6 control: lines of 10% fail it, so the predicate can go red', async () =
   const s = await b6Shares({ greatPct: 20, goodPct: 10, badPct: 10 });
   assert.equal(b6Passes(s), false, JSON.stringify(s));
 });
-test('B6: on ordinary prices with a category-only basis at 1.5x width, 10% or fewer are called good or great and 10% or fewer bad', { todo: open('B6 today\'s 20% lines call about 8% good and 12.5% bad on a 1.5x category') }, async () => {
+test('B6: on ordinary prices with a category-only basis at 1.5x width, 10% or fewer are called good or great and 10% or fewer bad', async () => {
   const s = await b6Shares(undefined);
   assert.equal(b6Passes(s), true, `good-or-great ${(s.goodOrGreat * 100).toFixed(1)}%, bad ${(s.bad * 100).toFixed(1)}% (each must be 10% or fewer)`);
 });
@@ -471,7 +471,7 @@ test('B9 control: a flagger that always says wide fails the added specificity ha
   assert.equal(flagRate(() => true, 1.5), 1);
   assert.equal(b9Holds(() => true), false);
 });
-test('B9: a category truly at 1.5x is flagged at least half the time with 20 items (seeded)', { todo: open('B9 flagWide is not built (price/src/width-flag.ts); the point measurement flags a true 1.5x category under half the time') }, async () => {
+test('B9: a category truly at 1.5x is flagged at least half the time with 20 items (seeded)', async () => {
   const mod = (await later('../src/width-flag.ts')) as { flagWide: Flagger };
   assert.equal(b9Holds(mod.flagWide), true);
 });

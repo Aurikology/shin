@@ -49,6 +49,8 @@ export interface RungUse {
 export interface CategoryGuard {
   /** The fault kind, or null when the rung is sound or the check is off. Never throws. */
   check(use: RungUse): CategoryFaultKind | null;
+  /** The taxonomy the guard loaded at start, for the range ladder's parent rung; null when it did not load (the check is then off). */
+  taxonomy(): Taxonomy | null;
   /** The fields `/api/health` adds. */
   health(): CategoryHealth;
 }
@@ -159,6 +161,7 @@ export function createCategoryGuard(opts: GuardOptions): CategoryGuard {
   }
 
   return {
+    taxonomy: () => tax,
     check(use) {
       if (!tax) return null;
       checked += 1;

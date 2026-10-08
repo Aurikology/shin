@@ -93,7 +93,7 @@
 
 import type { DatabaseSync } from 'node:sqlite';
 import * as settings from '../../settings/src/index.ts';
-import { priceRangeFor, type RangeResult } from '../../price/src/range.ts';
+import { parentOf, priceRangeFor, type RangeResult } from '../../price/src/range.ts';
 import type { RangeAskFailure, RangeAskResult, RangeIdentity } from '../../identify/src/range-ask.ts';
 import type { CanonicalBarcode } from './barcode.ts';
 import { estimate, type EstimateDeps, type EstimateTrace, type Verdict } from '../../price/src/estimate.ts';
@@ -276,7 +276,9 @@ export interface BarcodeDeps {
 export async function safeEstimate(...args: Parameters<typeof estimate>): Promise<Awaited<ReturnType<typeof estimate>> | null> {
   try {
     return await estimate(...args);
-  } catch {
+  } catch (err) {
+    // Never blocks the shopper, never silent: the fault is logged with the fixed tag.
+    console.error(`[category-fault] estimate_failed - ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }
@@ -384,7 +386,7 @@ export async function answerBarcodeFromCatalogue(
           asOf: deps.asOf,
         },
         deps.shopper ?? null,
-        { prices: deps.prices, catalogue: deps.catalogue, sortName: deps.sortName },
+        { prices: deps.prices, catalogue: deps.catalogue, sortName: deps.sortName, taxonomy: deps.categoryGuard?.taxonomy() ?? null },
       );
       if (est && est.verdict.dots.length > 0 && est.trace.name) {
         verdict = est.verdict;
@@ -437,9 +439,13 @@ export async function answerBarcodeFromCatalogue(
           asOf: deps.asOf,
           currency: deps.currency,
         },
-        { prices: deps.prices, catalogue: deps.catalogue },
+        // The taxonomy the category guard loaded: the parent rung is the taxonomy parent. Without one the ladder
+        // falls back to the position rule and records `parent_unchecked` on the step (never silent).
+        { prices: deps.prices, catalogue: deps.catalogue, taxonomy: deps.categoryGuard?.taxonomy() ?? null },
       );
-    } catch {
+    } catch (err) {
+      // The answer goes on without a range, but the fault is logged with the fixed tag, never swallowed.
+      console.error(`[category-fault] range_failed ${row.code} - ${err instanceof Error ? err.message : String(err)}`);
       ladder = null;
     }
   }
@@ -476,6 +482,7 @@ export async function answerBarcodeFromCatalogue(
     {
       prices: deps.prices,
       catalogue: deps.catalogue,
+      taxonomy: deps.categoryGuard?.taxonomy() ?? null,
       ...(once ? { askClaude: once.askClaude } : {}),
       sortName: deps.sortName,
       ...(deps.claudeWaitMs !== undefined ? { claudeWaitMs: deps.claudeWaitMs } : {}),
@@ -517,15 +524,17 @@ export async function answerBarcodeFromCatalogue(
    * The category safeguard. When the range or the verdict stood on a PARENT
    * rung, the parent must be an ancestor of the leaf in the taxonomy. A fault is
    * logged, counted and put on the record; the answer above is not touched.
-   * The range's parent is the one the ladder reports; the verdict's is the tag
-   * before the leaf, which is how the ladder picks it.
+   * The range's parent is the one the ladder reports; the verdict's is picked by
+   * the same rule the verdict ladder uses (`parentOf`: the taxonomy parent, or
+   * the tag before the leaf when no taxonomy was given).
    */
   const categoryFaults: CategoryFaultKind[] = [];
   if (deps.categoryGuard) {
     const at = positionalParent(row.leafCategory, row.categoryPath);
+    const verdictParent = parentOf(at.leaf, row.categoryPath, deps.categoryGuard.taxonomy()).parent;
     const checks: [('range' | 'verdict'), string | null][] = [];
     if (ladder && ladder.basis === 'parent_category') checks.push(['range', ladder.category]);
-    if (verdict && verdict.basis === 'parent_category') checks.push(['verdict', at.parent]);
+    if (verdict && verdict.basis === 'parent_category') checks.push(['verdict', verdictParent]);
     for (const [via, parent] of checks) {
       const f = deps.categoryGuard.check({ via, barcode: row.code, leaf: at.leaf, parent });
       if (f && !categoryFaults.includes(f)) categoryFaults.push(f);

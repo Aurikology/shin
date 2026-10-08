@@ -1948,6 +1948,7 @@ async function typedVerdict(text: string, match: OwnMatch | null, ctx: TypedVerd
       {
         prices,
         catalogue: catalogueFirstTest?.db !== undefined ? catalogueFirstTest.db : catalogueDb,
+        taxonomy: categoryGuard.taxonomy(),
         ...(once ? { askClaude: once.askClaude } : {}),
         sortName: sortByName(catalogueFirstTest?.searcher !== undefined ? catalogueFirstTest.searcher : searchService),
         ...(catalogueFirstTest?.claudeWaitMs !== undefined ? { claudeWaitMs: catalogueFirstTest.claudeWaitMs } : {}),
@@ -2419,7 +2420,7 @@ async function matchTextVerdict(matched: MatchTextAnswer, posted: Record<string,
         asOf: new Date().toISOString().slice(0, 10),
       },
       shopperFrom(shopperCents, posted.thresholds),
-      { prices, catalogue: catalogueFirstTest?.db !== undefined ? catalogueFirstTest.db : catalogueDb },
+      { prices, catalogue: catalogueFirstTest?.db !== undefined ? catalogueFirstTest.db : catalogueDb, taxonomy: categoryGuard.taxonomy() },
     );
     return est?.verdict ?? null;
   } finally {

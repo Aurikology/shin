@@ -45,7 +45,8 @@
 
 import type { DatabaseSync } from 'node:sqlite';
 import { ageDays, isFutureDated } from '../../spine/src/money.ts';
-import { nearestRankIndex, MIN_CATEGORY_PRODUCTS, WINDOW_DAYS } from './range.ts';
+import { nearestRankIndex, parentOf, MIN_CATEGORY_PRODUCTS, WINDOW_DAYS } from './range.ts';
+import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity } from '../../catalogue/src/units.ts';
 // Loaded on first use, not at import: size-fill.ts pulls in the catalogue schema and its vector
 // extension, and every server path that imports this file would pay for that at startup.
@@ -219,6 +220,8 @@ export interface EstimateDeps {
   readonly prices: DatabaseSync | null;
   /** The catalogue (`product` table), read-only. Optional. */
   readonly catalogue?: DatabaseSync | null;
+  /** The category taxonomy the parent rung is read from (B2). Absent or null: the tag before the leaf, flagged `parent_unchecked` on the rung. */
+  readonly taxonomy?: Taxonomy | null;
   /** The capped, no-web-search Claude range ask. Absent: the rung is skipped. */
   readonly askClaude?: (identity: ClaudeIdentity) => Promise<ClaudeAnswer>;
   /** How long the Claude rung is waited for. Default CLAUDE_WAIT_MS. */
@@ -234,6 +237,8 @@ export interface EstimateDeps {
 export interface RungTried {
   readonly rung: Basis;
   readonly outcome: 'used' | 'too_few' | 'not_applicable' | 'failed';
+  /** `parent_unchecked`: the parent rung was taken by position, never checked against a taxonomy. */
+  readonly flag?: 'parent_unchecked';
   readonly n: number;
   readonly detail?: string;
 }
@@ -544,6 +549,9 @@ interface Stats {
   readonly mu: number;
   /** IQR / 1.349 on the log values. */
   readonly sigma: number;
+  /** Nearest-rank 10th and 90th percentile of the same kept log values: prices the group really holds. */
+  readonly p10: number;
+  readonly p90: number;
   readonly newestAge: number;
 }
 
@@ -559,6 +567,8 @@ function statsOf(points: readonly { log: number; age: number }[]): Stats | null 
     n,
     mu: s[nearestRankIndex(n, 50)]!,
     sigma: (s[nearestRankIndex(n, 75)]! - s[nearestRankIndex(n, 25)]!) / 1.349,
+    p10: s[nearestRankIndex(n, 10)]!,
+    p90: s[nearestRankIndex(n, 90)]!,
     newestAge: Math.min(...kept.map((p) => p.age)),
   };
 }
@@ -669,7 +679,19 @@ function pctOk(v: unknown, max: number): number | null {
  * turned into a percent of this item's centre). A line not given keeps its default.
  */
 export function readThresholds(raw: unknown, centreCents: number): Thresholds {
+  return readThresholdsGiven(raw, centreCents).thresholds;
+}
+
+/** Which of the three lines the shopper actually set (the rest are defaults). */
+export interface LinesGiven {
+  readonly greatPct: boolean;
+  readonly goodPct: boolean;
+  readonly badPct: boolean;
+}
+
+function readThresholdsGiven(raw: unknown, centreCents: number): { thresholds: Thresholds; given: LinesGiven } {
   const out = { greatPct: DEFAULT_THRESHOLDS.greatPct as number, goodPct: DEFAULT_THRESHOLDS.goodPct as number, badPct: DEFAULT_THRESHOLDS.badPct as number };
+  const given = { greatPct: false, goodPct: false, badPct: false };
   let fromShopper = false;
   let obj: unknown = raw;
   if (typeof obj === 'string') {
@@ -694,11 +716,36 @@ export function readThresholds(raw: unknown, centreCents: number): Thresholds {
       const v = direct[k] ?? client[k];
       if (v !== null) {
         out[k] = v;
+        given[k] = true;
         fromShopper = true;
       }
     }
   }
-  return { ...out, fromShopper };
+  return { thresholds: { ...out, fromShopper }, given };
+}
+
+/**
+ * B6 (docs/category-safeguards-2026-10-08.md). An answer that stands on the
+ * category alone has no price of its own, so a normal price is not "good" just
+ * for being a cheap item of its group, nor "bad" for being a dear one. For such
+ * an answer the good cut-off is the STRICTER (lower) of the line and the group's
+ * 10th percentile of comparable unit prices, and the bad cut-off the stricter
+ * (higher) of the line and its 90th percentile. Great keeps its gap past good.
+ * The percentiles are nearest-rank on the same kept rows the centre comes from.
+ *
+ * A line the shopper set himself is his and is kept as typed; the group's
+ * percentile replaces only a default line. (The B6 control with the shopper's own
+ * 10% lines must still call ordinary prices good and bad.)
+ */
+export function categoryOnlyLines(base: Thresholds, given: LinesGiven, mu: number, p10Log: number, p90Log: number): Thresholds {
+  const up1 = (x: number) => Math.ceil(x * 10 - 1e-9) / 10;
+  const underPct = up1(Math.min(99, Math.max(0, (1 - Math.exp(p10Log - mu)) * 100)));
+  const overPct = up1(Math.min(1000, Math.max(0, (Math.exp(p90Log - mu) - 1) * 100)));
+  const goodPct = given.goodPct ? base.goodPct : Math.max(base.goodPct, underPct);
+  const badPct = given.badPct ? base.badPct : Math.max(base.badPct, overPct);
+  // Great stays as far past good as the base lines put it, so the good band does not vanish.
+  const greatPct = given.greatPct ? base.greatPct : Math.min(99, Math.max(base.greatPct, goodPct + Math.max(0, base.greatPct - base.goodPct)));
+  return { greatPct, goodPct, badPct, fromShopper: base.fromShopper };
 }
 
 /* ------------------------------------------------------------- shopper */
@@ -860,8 +907,9 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
 
   /* ---- products and category pools */
   const products = buildProducts(rows, cat, deps.categoryOfUnbarcoded).filter((p) => p.key !== selfKey);
-  const idx = leaf ? path.lastIndexOf(leaf) : -1;
-  const parent = idx > 0 ? path[idx - 1]! : null;
+  // The parent rung is the taxonomy parent of the leaf (B2); with no taxonomy, the tag before the leaf and the rung says parent_unchecked.
+  const { parent, unchecked: parentUnchecked } = parentOf(leaf, path, deps.taxonomy ?? null);
+  const parentFlag = parentUnchecked ? { flag: 'parent_unchecked' as const } : {};
   const inLeaf = (tag: string) => products.filter((p) => p.leaf === tag);
   const inTree = (tag: string) => products.filter((p) => p.path.includes(tag));
   const categoryStats = (members: readonly Product[]): Stats | null => {
@@ -959,9 +1007,9 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
       evidenceAge = stats.newestAge;
       scaled = target !== null;
       if (!target) notes.add('size_assumed');
-      tried.push({ rung, outcome: 'used', n, detail: tag });
+      tried.push({ rung, outcome: 'used', n, detail: tag, ...(rung === 'parent_category' ? parentFlag : {}) });
     } else {
-      tried.push({ rung, outcome: 'too_few', n: 0, detail: tag });
+      tried.push({ rung, outcome: 'too_few', n: 0, detail: tag, ...(rung === 'parent_category' ? parentFlag : {}) });
     }
   }
 
@@ -1129,7 +1177,9 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
 
   /* ---- the numbers */
   const centreCents = Math.max(1, Math.round(Math.exp(mu)));
-  const thresholds = readThresholds(shopper?.thresholds, centreCents);
+  const read = readThresholdsGiven(shopper?.thresholds, centreCents);
+  const categoryOnly = (basis === 'leaf_category' || basis === 'parent_category') && catStats !== null;
+  const thresholds = categoryOnly ? categoryOnlyLines(read.thresholds, read.given, mu, catStats!.p10, catStats!.p90) : read.thresholds;
   let perUnit: Verdict['perUnit'] = null;
   if (item.weighed) perUnit = { label: 'per kg', centreCents };
   else if (target) perUnit = { label: perUnitLabel(target), centreCents: Math.round((centreCents * target.perQuantity) / target.baseValue) };
