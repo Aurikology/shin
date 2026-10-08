@@ -58,6 +58,7 @@ import {
   type ScanKind,
 } from './src/scans.ts';
 import { canonicalBarcode, canonicalGtin } from './src/barcode.ts';
+import { createCategoryGuard, defaultFaultsFile, ringLeaf, type CategoryGuard } from './src/category-guard.ts';
 import {
   answerBarcodeFromCatalogue,
   catalogueFirstOn,
@@ -171,6 +172,28 @@ let catalogueWhyNot = 'not attempted yet';
  * The routing, the category verdict, the scan write, the telemetry columns and
  * the response shape are all the shipped code in the tests that use it.
  */
+
+/*
+ * The serve-time category safeguard (src/category-guard.ts; docs/category-
+ * safeguards-2026-10-08.md, A2 and A5). Built once at start. If the taxonomy
+ * file is missing the guard is OFF, logs `[category-fault] taxonomy_unavailable`,
+ * and `/api/health` says "category check off". It never blocks or changes an answer.
+ */
+let categoryGuard: CategoryGuard = createCategoryGuard({
+  taxonomyPath: fileURLToPath(new URL('../catalogue/data/off-categories.json', import.meta.url)),
+  baselinePath: fileURLToPath(new URL('../catalogue/category-baseline.json', import.meta.url)),
+  faultsFile: defaultFaultsFile(),
+});
+
+/** TEST ONLY: replace the category guard (a guard built on a fixture taxonomy, or on a missing one). */
+export function setCategoryGuardForTests(guard: CategoryGuard): void {
+  categoryGuard = guard;
+}
+
+/** TEST ONLY: replace the catalogue search worker `/api/search` calls, to drive a ring through the route. */
+export function setSearchServiceForTests(fake: { search(q: unknown): Promise<unknown> } | null): void {
+  searchService = fake;
+}
 
 export function setCatalogueForTests(fake: { byGtin(code: string): unknown } | null): void {
   fastLookup = fake;
@@ -2284,6 +2307,7 @@ async function catalogueFirstBarcode(
       lookup: fastLookup,
       prices,
       catalogue: catalogueFirstTest?.db !== undefined ? catalogueFirstTest.db : catalogueDb,
+      categoryGuard,
       country: market.country,
       currency: market.currency ?? 'CAD',
       asOf: new Date().toISOString().slice(0, 10),
@@ -3647,6 +3671,23 @@ export const server = createServer(async (req, res) => {
           routed.restricted && !routed.fellBack && raw.band === 'confident'
             ? { ...raw, band: 'ambiguous' as const }
             : raw;
+        /*
+         * The category safeguard for the ring (category-guard.ts, A2). A parent
+         * ring is one step wider than the leaf, and the tag it was drawn at must
+         * be an ancestor of the leaf in the taxonomy. A fault is logged and
+         * counted; the ring is returned exactly as it was.
+         */
+        const ringSeen = result.ring as { tag?: unknown; ring?: unknown } | null;
+        const ringPick = result.candidates[0] as { code?: unknown; leafCategory?: unknown; categoryPath?: unknown } | undefined;
+        if (ringSeen && ringSeen.ring === 'parent' && typeof ringSeen.tag === 'string' && ringPick && typeof ringPick.code === 'string' && Array.isArray(ringPick.categoryPath)) {
+          const path = ringPick.categoryPath.filter((t): t is string => typeof t === 'string');
+          categoryGuard.check({
+            via: 'ring',
+            barcode: ringPick.code,
+            leaf: ringLeaf(path, ringSeen.tag) ?? (typeof ringPick.leafCategory === 'string' ? ringPick.leafCategory : null),
+            parent: ringSeen.tag,
+          });
+        }
         return json(200, {
           catalogueUp: true,
           vectorsOn,
@@ -4617,6 +4658,8 @@ export const server = createServer(async (req, res) => {
         startedAt: new Date(STARTED_AT).toISOString(),
         scanLog: scans.db !== null,
         catalogueUp: fastLookup !== null,
+        // A2 and A5: "on", or exactly "category check off"; faults counted by kind.
+        ...categoryGuard.health(),
       });
     }
 

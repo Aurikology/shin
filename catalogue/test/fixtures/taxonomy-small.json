@@ -1,0 +1,23 @@
+{
+  "en:beverages": { "parents": [], "children": ["en:juices"], "name": { "en": "Beverages", "fr": "Boissons" } },
+  "en:juices": {
+    "parents": ["en:beverages"],
+    "children": ["en:orange-juices"],
+    "name": { "en": "Juices", "fr": "Jus" },
+    "synonyms": { "en": ["Juice", "Juices"], "fr": ["Jus"] }
+  },
+  "en:orange-juices": {
+    "parents": ["en:juices"],
+    "children": [],
+    "name": { "en": "Orange juices", "fr": "Jus d'orange" },
+    "synonyms": { "en": ["Orange juice"], "fr": ["Jus d'orange"] }
+  },
+  "fr:jus-d-orange": { "parents": [], "children": [], "name": { "fr": "Jus d'orange" } },
+  "en:dairies": { "parents": [], "children": ["en:cheeses"], "name": { "en": "Dairies", "fr": "Produits laitiers" } },
+  "en:cheeses": { "parents": ["en:dairies"], "children": ["en:cheddar", "en:cheese-snacks"], "name": { "en": "Cheeses", "fr": "Fromages" } },
+  "en:cheddar": { "parents": ["en:cheeses"], "children": [], "name": { "en": "Cheddar", "fr": "Cheddar" } },
+  "en:snacks": { "parents": [], "children": ["en:salty-snacks", "en:cheese-snacks"], "name": { "en": "Snacks", "fr": "Snacks" } },
+  "en:salty-snacks": { "parents": ["en:snacks"], "children": ["en:chips"], "name": { "en": "Salty snacks", "fr": "Snacks salés" } },
+  "en:chips": { "parents": ["en:salty-snacks"], "children": [], "name": { "en": "Chips", "fr": "Chips" } },
+  "en:cheese-snacks": { "parents": ["en:cheeses", "en:snacks"], "children": [], "name": { "en": "Cheese snacks", "fr": "Collations au fromage" } }
+}

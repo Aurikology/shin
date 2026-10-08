@@ -98,6 +98,7 @@ import type { RangeAskFailure, RangeAskResult, RangeIdentity } from '../../ident
 import type { CanonicalBarcode } from './barcode.ts';
 import { estimate, type EstimateDeps, type EstimateTrace, type Verdict } from '../../price/src/estimate.ts';
 import { onceAsk, type RangeAskOutcome } from './distribution.ts';
+import { positionalParent, type CategoryFaultKind, type CategoryGuard } from './category-guard.ts';
 
 /* ---------------------------------------------------------------- settings */
 
@@ -215,6 +216,12 @@ export interface CatalogueRecord {
   readonly verdict: Verdict | null;
   /** Design case 9: the catalogue and the store row disagree on size; the caller logs it. */
   readonly conflict: EstimateTrace['conflict'];
+  /**
+   * Category faults the serve-time check found on this answer (category-guard.ts).
+   * Present only when there are some; absent means none were found OR the check
+   * was off, which `/api/health` says separately.
+   */
+  readonly categoryFaults?: readonly CategoryFaultKind[];
 }
 
 /** The fields of a catalogue row this path reads. `Catalogue.byGtin`'s `Candidate` has all of them. */
@@ -257,6 +264,12 @@ export interface BarcodeDeps {
   readonly sortName?: EstimateDeps['sortName'];
   /** How long the verdict waits for Claude before moving down the ladder. */
   readonly claudeWaitMs?: number;
+  /**
+   * The serve-time category safeguard (category-guard.ts). When an answer used a
+   * parent rung it checks the parent against the taxonomy, logs and counts any
+   * fault, and never changes the answer. Absent: no check, and no claim of one.
+   */
+  readonly categoryGuard?: CategoryGuard;
 }
 
 /** The verdict, never a throw: an estimate that fails for any reason is null and the answer still goes out. */
@@ -500,6 +513,25 @@ export async function answerBarcodeFromCatalogue(
     }
   }
 
+  /*
+   * The category safeguard. When the range or the verdict stood on a PARENT
+   * rung, the parent must be an ancestor of the leaf in the taxonomy. A fault is
+   * logged, counted and put on the record; the answer above is not touched.
+   * The range's parent is the one the ladder reports; the verdict's is the tag
+   * before the leaf, which is how the ladder picks it.
+   */
+  const categoryFaults: CategoryFaultKind[] = [];
+  if (deps.categoryGuard) {
+    const at = positionalParent(row.leafCategory, row.categoryPath);
+    const checks: [('range' | 'verdict'), string | null][] = [];
+    if (ladder && ladder.basis === 'parent_category') checks.push(['range', ladder.category]);
+    if (verdict && verdict.basis === 'parent_category') checks.push(['verdict', at.parent]);
+    for (const [via, parent] of checks) {
+      const f = deps.categoryGuard.check({ via, barcode: row.code, leaf: at.leaf, parent });
+      if (f && !categoryFaults.includes(f)) categoryFaults.push(f);
+    }
+  }
+
   return {
     answer: {
       kind: 'catalogue',
@@ -527,6 +559,7 @@ export async function answerBarcodeFromCatalogue(
       rangeMissReason: noRangeReason,
       verdict,
       conflict,
+      ...(categoryFaults.length > 0 ? { categoryFaults } : {}),
     },
   };
 }

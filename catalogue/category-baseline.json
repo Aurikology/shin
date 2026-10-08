@@ -1,0 +1,17 @@
+{
+  "recorded": "2026-10-08",
+  "note": "A ratchet: a count may not rise above its number here. A fix lowers it by hand in the same commit. A1 to A4 are Canadian openfoodfacts rows that carry tags (43,087); A6 is Canadian rows of any source that carry tags and have a NULL category_source; A7 is the swallowing catch/except blocks found in category-check.ts A7_FILES. A5 (taxonomy missing or changed) is a status and has no number: any fault fails. A1, A3 and A4 are the spec's (docs/category-safeguards-2026-10-08.md, 2026-10-07 PC catalogue). A2 and A6 were MEASURED on the real catalogue 2026-10-08 by the coordinator: A2 is 8273 (3242 proven not the parent, because the last tag is in the taxonomy, plus about 5031 that cannot be checked because the last tag is not in it); A6 is 387904 of 394118 tagged rows.",
+  "taxonomy": {
+    "sha256": "a6bf3af2ae371b62d0a93d29d6b9eb83d8374e5218c7914c9d603c436681d37b",
+    "fetchedAt": "2026-10-07",
+    "source": "https://static.openfoodfacts.org/data/taxonomies/categories.json"
+  },
+  "counts": {
+    "A1": 6003,
+    "A2": 8273,
+    "A3": 12469,
+    "A4": 74,
+    "A6": 387904,
+    "A7": 14
+  }
+}

@@ -16,6 +16,8 @@
     "prepare:products": "python src/prepare_rows_jsonl.py data/openproductsfacts.jsonl.gz data/rows-openproductsfacts.jsonl openproductsfacts",
     "prepare:petfood": "python src/prepare_rows_jsonl.py data/openpetfoodfacts.jsonl.gz data/rows-openpetfoodfacts.jsonl openpetfoodfacts",
     "load": "node src/load.ts",
+    "fetch:categories": "node src/fetch-categories.ts",
+    "check:categories": "node src/category-check.ts",
     "embed": "node src/embed-all.ts",
     "search": "node src/cli.ts",
     "lexicon": "node src/build-lexicon.ts src/lexicon-fr-en.json",

@@ -14,6 +14,7 @@
 import { classify } from "./no-blind-git-add.mjs";
 import { looksLikeRuling } from "./ruling-capture.mjs";
 import { classify as classifyDestructive } from "./destructive-guard.mjs";
+import { categoryLine } from "./category-line.mjs";
 
 const CASES = [
   // [tool, command, expected verdict, note]
@@ -229,7 +230,79 @@ if (destructiveFailures.length) {
   console.log(destructiveFailures.join("\n"));
 }
 
-if (failures.length || rulingFailures.length || destructiveFailures.length) {
+/*
+ * category-line cases (the session-start line for category faults). Built in the OS temp dir.
+ * Each case names the file state and what the line must say; a missing file must say nothing,
+ * an unreadable one must say so, and a batch of serve-time faults is told once.
+ */
+const categoryFailures = [];
+let categoryTotal = 0;
+{
+  const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const root = mkdtempSync(join(tmpdir(), "category-line-selftest-"));
+  const dbDir = join(root, "catalogue", "data");
+  const dataDir = join(root, "app", "data");
+  mkdirSync(dbDir, { recursive: true });
+  mkdirSync(dataDir, { recursive: true });
+  const last = join(dbDir, "category-check-last.json");
+  const faults = join(dataDir, "category-faults.json");
+  const counts = { A1: 1, A2: 2, A3: 3, A4: 4, A6: 5, A7: 6 };
+  const put = (f, v) => writeFileSync(f, typeof v === "string" ? v : JSON.stringify(v));
+  const line = () => categoryLine({ root, env: {} });
+  const check = (name, ok) => {
+    categoryTotal += 1;
+    if (!ok) categoryFailures.push("  category-line: " + name);
+  };
+
+  check("no files at all says nothing", line() === null);
+  put(last, { at: "2026-10-08T10:00:00Z", exit: 0, counts, baseline: counts, failures: [] });
+  check("a passing check at baseline says nothing", line() === null);
+  put(last, { at: "2026-10-08T10:00:00Z", exit: 1, counts, baseline: counts, failures: ["A5 taxonomy changed"] });
+  check("a failed check is said, with its first failure", /FAILED [(]exit 1.*A5 taxonomy changed/.test(line() ?? ""));
+  check("a failed check is said again next session", line() !== null);
+  put(last, { at: "2026-10-08T10:00:00Z", exit: 0, counts: { ...counts, A2: 9 }, baseline: counts, failures: [] });
+  check("a count above baseline is said with the count", /A2 9 over 2/.test(line() ?? ""));
+  put(last, "{ not json");
+  check("an unreadable check file says it is unreadable", /category-check-last[.]json is unreadable/.test(line() ?? ""));
+  put(last, { exit: 0 });
+  check("a check file with no counts says it is unreadable, not fine", /unreadable/.test(line() ?? ""));
+  put(last, { at: "2026-10-08T10:00:00Z", exit: 0, counts, baseline: counts, failures: [] });
+  check("back to a clean check says nothing", line() === null);
+
+  put(faults, { total: 2, faults: [{ kind: "parent_not_ancestor", barcode: "111", at: "2026-10-08T11:00:00Z" }, { kind: "parent_not_ancestor", barcode: "222", at: "2026-10-08T11:05:00Z" }] });
+  const first = line() ?? "";
+  check("new serve-time faults are said with a count and the latest", /2 new serve-time category faults/.test(first) && /222/.test(first));
+  check("the same faults are not said twice", line() === null);
+  put(faults, { total: 3, faults: [{ kind: "parent_not_ancestor", barcode: "333", at: "2026-10-08T12:00:00Z" }] });
+  check("one more fault is said as one", /1 new serve-time category fault /.test(line() ?? ""));
+  put(faults, { total: 1, faults: [{ kind: "taxonomy_unavailable", barcode: "-", at: "2026-10-09T09:00:00Z" }] });
+  check("a faults file that was started again is told in full", /1 new serve-time category fault /.test(line() ?? ""));
+  put(faults, "{ nope");
+  check("an unreadable faults file says it is unreadable", /category-faults[.]json is unreadable/.test(line() ?? ""));
+  check("a read-only look (writeState false) does not mark faults as told", (() => {
+    put(faults, { total: 5, faults: [{ kind: "k", barcode: "9", at: "2026-10-09T10:00:00Z" }] });
+    const a = categoryLine({ root, env: {}, writeState: false });
+    const b = categoryLine({ root, env: {}, writeState: false });
+    return a !== null && b !== null;
+  })());
+  check("both files at once make ONE line", (() => {
+    put(last, { at: "2026-10-08T10:00:00Z", exit: 1, counts, baseline: counts, failures: ["x"] });
+    const l = line() ?? "";
+    return !l.includes(String.fromCharCode(10)) && /FAILED/.test(l) && /new serve-time/.test(l);
+  })());
+  try {
+    rmSync(root, { recursive: true, force: true });
+  } catch {}
+}
+console.log(`category-line: ${categoryTotal - categoryFailures.length}/${categoryTotal}`);
+if (categoryFailures.length) {
+  console.log("FAILURES:");
+  console.log(categoryFailures.join(String.fromCharCode(10)));
+}
+
+if (failures.length || rulingFailures.length || destructiveFailures.length || categoryFailures.length) {
   process.exit(1);
 }
 

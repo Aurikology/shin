@@ -33,6 +33,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { categoryLine } from './category-line.mjs';
 
 /** Catch-up days to look back through. Older than this is history, not a handover. */
 const RECENT_DAYS = 6;
@@ -160,6 +161,13 @@ function main() {
   const hooksMsg = ensurePrePushHooksInstalled();
   if (hooksMsg) {
     parts.push(hooksMsg);
+    parts.push('');
+  }
+
+  // A category fault (the load check failed or is over baseline, or the server logged new ones) must reach him.
+  const categoryMsg = categoryLine({ root, env: process.env });
+  if (categoryMsg) {
+    parts.push(categoryMsg);
     parts.push('');
   }
 
