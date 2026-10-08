@@ -1,0 +1,1 @@
+jamin · Jamin's PC · category fixes, price half: real parent in the range ladder, category-only verdict cut-offs, price tree, width flag (B2 B4 B5 B6 B7 B9) · price/src/range.ts, price/src/estimate.ts, price/src/price-tree.ts, price/src/width-flag.ts, price/test, app/src wiring · started 2026-10-08 23:00 UTC · updated 2026-10-08 23:00 UTC
