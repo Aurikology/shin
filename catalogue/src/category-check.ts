@@ -24,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { faultsOfPath, loadTaxonomy, TaxonomyError } from './category-taxonomy.ts';
 import type { Taxonomy } from './category-taxonomy.ts';
+import * as settings from '../../settings/src/index.ts';
 
 export const COUNT_KEYS = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7'] as const;
 export type CountKey = (typeof COUNT_KEYS)[number];
@@ -313,7 +314,7 @@ export function writeLastResult(dbPath: string, result: LastResult): string | nu
 export function main(argv: readonly string[]): number {
   const here = dirname(fileURLToPath(import.meta.url));
   const catalogueDir = resolve(here, '..');
-  const db = arg('--db', argv) ?? process.env.SHIN_CATALOGUE ?? join(catalogueDir, 'data', 'catalogue.db');
+  const db = arg('--db', argv) ?? settings.SHIN_CATALOGUE() ?? join(catalogueDir, 'data', 'catalogue.db');
   const taxonomy = arg('--taxonomy', argv) ?? join(catalogueDir, 'data', 'off-categories.json');
   const baseline = arg('--baseline', argv) ?? join(catalogueDir, 'category-baseline.json');
   let status: number;
