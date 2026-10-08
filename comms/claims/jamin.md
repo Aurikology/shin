@@ -1,1 +1,1 @@
-jamin · Jamin's PC · decision sync: RULINGS.md, then stale copies of rulings fixed across docs; later one settings module · CLAUDE.md, RULINGS.md, comms/, .claude/hooks, docs/, notes/, NOW.md · started 2026-09-27 03:06 UTC · updated 2026-09-27 03:35 UTC
+jamin · Jamin's PC · category safeguards and pain-point tests (docs/category-safeguards-2026-10-08.md) · catalogue/src, catalogue/test, app/src, app/server.ts health counter, price/test (read only on price/src) · started 2026-10-08 16:10 UTC · updated 2026-10-08 16:10 UTC

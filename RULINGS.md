@@ -72,9 +72,9 @@ data (catalogue-first ruling above). A hidden background check may recompute Gem
 marks that scan (image/digits plus the exact prompt) for later review, never shown to the user; a
 page-fetch verifier extends the same idea: it fetches only an allowlisted host, only a URL the
 grounded search itself returned, and records agreement or mismatch without changing what the user
-sees. No new mechanism is built whose purpose is to find out whether an answer is wrong; effort
-goes to getting answers right (Jamin 2026-09-20). The hidden checks above stay as built and are not
-extended. · 2026-09-19, 2026-09-20 · *"there can be measures in place but definitely not calling the ai a second time"*; *"You keep trying to put things in place that find out if the answer is wrong. To me, thats not important at all and to the user, that provides them no value. We need to figure out how to GET more accurate answers"* · log: docs/decisions.md#Nine rulings so the competitor-survey build could start (item 3)
+sees. No new mechanism second-guesses a model's answer for the shopper; effort goes to getting
+answers right (Jamin 2026-09-20). Faults in Shin's own code and data are a different thing and
+fail loudly ("Errors never go unnoticed", 2026-10-08). · 2026-09-19, 2026-09-20 · *"there can be measures in place but definitely not calling the ai a second time"*; *"You keep trying to put things in place that find out if the answer is wrong. To me, thats not important at all and to the user, that provides them no value. We need to figure out how to GET more accurate answers"* · log: docs/decisions.md#Nine rulings so the competitor-survey build could start (item 3)
 Retired wording: none
 Governs: app/server.ts (checkMath), allowlist config, to fill
 ### Caching and cancellation
@@ -222,6 +222,18 @@ hand, with a control it must reject, and a pass mark set before it runs. A test 
 red on a broken version is not yet a test. · 2026-09-28 · *"Especially when building something like a catalog, Everything is an assumption until it is properly tested. Write this down. Just because something is tested doesn't mean it's correct. Because the test itself can be inherently wrong."*
 Retired wording: none
 Governs: to fill (first use: docs/price-data-design-2026-09-28.md, "How it is tested")
+
+### Errors never go unnoticed: safeguards fail loudly, and the test comes before the fix
+Every Shin system carries safeguards that fail loudly, so a fault in its code or data is seen, never
+absorbed. An offline job (load, fill, rebuild) stops or reports the fault with counts and examples;
+a shopper's answer is still given ("Always answer"), and the fault is recorded and reported, never
+swallowed. Before a fix is built, a test is written first that targets every pain point the fix
+addresses, and it fails on the code as it stands. · 2026-10-08 · *"one critical mistake in these
+systems is that errors go unoticed. I need you to prepare two things. First, make sure every system
+has safeguards in place that fail loudly which is a common engineering practice. Furthermore,
+before building, write a test that targets all the pain points we are addressing"*
+Retired wording: none
+Governs: to fill (first use: the category system, docs/category-safeguards-2026-10-08.md)
 
 ### The verdict speaks his words against the shopper's own thresholds
 The zone is named in his words, great, good, reasonable or bad, by where the shopper's price falls

@@ -2609,3 +2609,19 @@ Retired RULINGS.md wording: "refusal is a designed state" (not yet listed as ret
 docs/design/AVATAR.md, which still repeats it, is brought in line).
 
 **Reverses if:** he brings back a refusal outcome for a scan that has a scan left.
+
+## Errors never go unnoticed: safeguards fail loudly, test before fix
+**Date:** 2026-10-08 · **Status:** active
+
+His words: *"one critical mistake in these systems is that errors go unoticed. I need you to
+prepare two things. First, make sure every system has safeguards in place that fail loudly which is
+a common engineering practice. Furthermore, before building, write a test that targets all the pain
+points we are addressing"*. New RULINGS.md entry under Prices and verdicts. One entry rewritten to
+fit it: "Verifying Gemini never means calling it twice". Old text: "No new mechanism is built whose
+purpose is to find out whether an answer is wrong; effort goes to getting answers right (Jamin
+2026-09-20). The hidden checks above stay as built and are not extended." It now keeps the
+2026-09-20 rule for second-guessing a model's answer for the shopper, and says faults in Shin's own
+code and data fail loudly. That split is Claude's reading of the two rulings, told to him the same
+turn.
+
+**Reverses if:** he says the 2026-09-20 rule covered code and data faults too.
