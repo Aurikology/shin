@@ -373,7 +373,9 @@ test('read text: the top candidate carries a verdict, and match-text never asks 
   const body = (await r.json()) as Record<string, any>;
   assert.ok(body.candidates.length > 0);
   assert.deepEqual(Object.keys(body.verdict), [...VERDICT_FIELDS]);
-  assert.equal(askCalls.length, asks);
+  // Count only asks about THIS product: an earlier test's Claude ask can land late and
+  // made a bare length check fail about 1 run in several (2026-10-08, 4 !== 3).
+  assert.deepEqual(askCalls.slice(asks).filter((u) => /own vodka/i.test(u)), []);
   assert.equal(scanRow(body.scanId).estimate_basis, body.verdict.basis);
 });
 
