@@ -55,7 +55,8 @@ const MISSING = withCheck('062699000099'); // nothing knows it (case 6)
 const VODKA_PATH = '["en:beverages","en:spirits","en:vodkas"]';
 const COLA_PATH = '["en:beverages","en:sodas","en:colas"]';
 
-const { openCatalogue, rebuildFts, rebuildCategories } = await import('../../catalogue/src/schema.ts');
+const { openCatalogue, rebuildFts } = await import('../../catalogue/src/schema.ts');
+const { rebuildCategoriesFromPaths: rebuildCategories } = await import('../../catalogue/test/helpers/path-taxonomy.ts');
 const { Catalogue } = await import('../../catalogue/src/search.ts');
 
 const catDb = openCatalogue(':memory:');

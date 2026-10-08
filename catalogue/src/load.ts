@@ -14,11 +14,16 @@
 
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
-import { openCatalogue, rebuildFts, rebuildCategories } from './schema.ts';
+import { openCatalogue, rebuildFts } from './schema.ts';
+import { DEFAULT_ALIASES_PATH, DEFAULT_TAXONOMY_PATH, loadTaxonomy } from './category-taxonomy.ts';
+import type { Taxonomy } from './category-taxonomy.ts';
+import { canonicalizeCatalogue } from './category-canonicalize.ts';
 import { canonicalCode } from './barcode.ts';
 
 const DB_PATH = process.env.SHIN_CATALOGUE ?? 'data/catalogue.db';
 const ROWS_PATH = process.argv[2] ?? 'data/rows.jsonl';
+const TAXONOMY_PATH = process.env.SHIN_CATEGORY_TAXONOMY ?? DEFAULT_TAXONOMY_PATH;
+const ALIASES_PATH = process.env.SHIN_CATEGORY_ALIASES ?? DEFAULT_ALIASES_PATH;
 
 /*
  * ONE BARCODE, ONE SPELLING. The upsert below keys on `code` exactly as the
@@ -117,6 +122,11 @@ async function main(): Promise<number> {
                            ELSE COALESCE(NULLIF(NULLIF(product.category_path, ''), '[]'), excluded.category_path) END,
       leaf_category = CASE WHEN product.source = excluded.source THEN excluded.leaf_category
                            ELSE COALESCE(NULLIF(TRIM(product.leaf_category), ''), excluded.leaf_category) END,
+      -- A fresh load of the same source brings fresh raw tags: the canonical pass (category-canonicalize.ts,
+      -- run at the end of this file) must copy THEM into category_tags_raw, not read the stale copy.
+      category_tags_raw = CASE WHEN product.source = excluded.source THEN NULL ELSE product.category_tags_raw END,
+      leaf_category_raw = CASE WHEN product.source = excluded.source THEN NULL ELSE product.leaf_category_raw END,
+      category_rejected = CASE WHEN product.source = excluded.source THEN NULL ELSE product.category_rejected END,
       allergens = CASE WHEN product.source = excluded.source THEN excluded.allergens
                        ELSE COALESCE(NULLIF(NULLIF(product.allergens, ''), '[]'), excluded.allergens) END,
       image_url = CASE WHEN product.source = excluded.source THEN excluded.image_url
@@ -190,8 +200,25 @@ async function main(): Promise<number> {
 
   process.stdout.write('rebuilding text index...\r');
   rebuildFts(db);
-  process.stdout.write('rebuilding category index...\r');
-  rebuildCategories(db);
+  /*
+   * The canonical category pass (category-canonicalize.ts): resolve every label against the taxonomy,
+   * pick one leaf and one chain per Open Food Facts product, and rebuild product_category from the
+   * result. A missing taxonomy STOPS the load here, after the rows are in but before the index is
+   * rebuilt, and says so; it never falls back to the old lower-casing rebuild.
+   */
+  process.stdout.write('canonicalizing categories...\r');
+  let tax: Taxonomy;
+  try {
+    tax = loadTaxonomy(TAXONOMY_PATH, { aliasesPath: ALIASES_PATH });
+  } catch (err) {
+    console.error(`load STOPPED: the category taxonomy is unavailable (${err instanceof Error ? err.message : String(err)}). Run "npm run fetch:categories", then "node src/category-canonicalize.ts --db ${DB_PATH}".`);
+    return 1;
+  }
+  const canon = canonicalizeCatalogue(db, { taxonomy: tax });
+  if (!canon.ok) {
+    console.error('load STOPPED: the category pass failed (see the counts above).');
+    return 1;
+  }
 
   // Counted from the table, never from the loop above.
   const total = db.prepare('SELECT count(*) AS n FROM product').get() as { n: number };

@@ -52,7 +52,8 @@ const CODE = withCheck('006810009001'); // Kraft Smooth PB 1 kg, three shops of 
 const PB_PATH = '["en:spreads","en:peanut-butters"]';
 const today = new Date().toISOString().slice(0, 10);
 
-const { openCatalogue, rebuildFts, rebuildCategories } = await import('../../catalogue/src/schema.ts');
+const { openCatalogue, rebuildFts } = await import('../../catalogue/src/schema.ts');
+const { rebuildCategoriesFromPaths: rebuildCategories } = await import('../../catalogue/test/helpers/path-taxonomy.ts');
 const { Catalogue } = await import('../../catalogue/src/search.ts');
 const catDb = openCatalogue(':memory:');
 {

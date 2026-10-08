@@ -26,6 +26,7 @@ import { openCatalogueReadOnly } from './schema.ts';
 import { Catalogue } from './search.ts';
 import type { SearchQuery } from './search.ts';
 import { defaultEmbedder } from './embed.ts';
+import { loadRingTaxonomy } from './category-taxonomy.ts';
 
 if (!parentPort) throw new Error('worker.ts is not a program; the pool starts it');
 
@@ -39,7 +40,7 @@ const db = openCatalogueReadOnly(dbPath);
  * be first unless something warms it, so the pool sends a `warm` job at boot.
  */
 const embedder = defaultEmbedder();
-const catalogue = new Catalogue(db, embedder);
+const catalogue = new Catalogue(db, embedder, loadRingTaxonomy());
 
 export type Job =
   | { readonly kind: 'warm' }

@@ -29,6 +29,8 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { MAX_RING_TAG, chooseRingTag, labelForTag } from './search.ts';
 import type { Candidate, RingLevel } from './search.ts';
+import { logTaxonomyUnavailableOnce } from './category-taxonomy.ts';
+import type { Taxonomy } from './category-taxonomy.ts';
 import { comparesOnUnitPrice, kindOfSource } from './product-kind.ts';
 import {
   evaluateConstraints,
@@ -328,6 +330,12 @@ export interface AlternativesOptions {
   readonly mode?: AlternativeMode;
   readonly market?: Market;
   readonly user?: UserConstraintPrefs;
+  /**
+   * The category taxonomy the ring steps up through (`loadRingTaxonomy()`). `null` means the load
+   * failed and was already logged. Left out, alternativesFor logs
+   * [category-fault] taxonomy_unavailable once and runs the old position rule.
+   */
+  readonly taxonomy?: Taxonomy | null;
 }
 
 /**
@@ -620,6 +628,7 @@ export async function alternativesFor(
   const userPrefs: UserConstraintPrefs = options.user ?? {};
   const marketSql = (alias: string) => marketFilterSql(market, alias);
   const path = original.categoryPath;
+  if (options.taxonomy === undefined) logTaxonomyUnavailableOnce('no taxonomy was passed to alternativesFor');
   /*
    * THE SAME WALK THE NEIGHBOUR RING USES, WHICH CLOSES THE OTHER HALF OF D-036.
    *
@@ -667,7 +676,7 @@ export async function alternativesFor(
             LIMIT 1`,
         )
         .get(t, original.code, original.source) !== undefined,
-  });
+  }, options.taxonomy ?? null);
   if (!chosen) return [];
   const tag = chosen.tag;
 

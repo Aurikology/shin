@@ -13,6 +13,7 @@
 
 import { openCatalogue } from './schema.ts';
 import { defaultEmbedder } from './embed.ts';
+import { loadRingTaxonomy } from './category-taxonomy.ts';
 import { Catalogue, labelForTag, type Candidate } from './search.ts';
 
 const DB_PATH = process.env.SHIN_CATALOGUE ?? 'data/catalogue.db';
@@ -37,7 +38,7 @@ async function main(): Promise<number> {
   const gtinFlag = args.indexOf('--gtin');
   const db = openCatalogue(DB_PATH);
   const embedder = defaultEmbedder();
-  const cat = new Catalogue(db, embedder);
+  const cat = new Catalogue(db, embedder, loadRingTaxonomy());
 
   const started = Date.now();
   const result =

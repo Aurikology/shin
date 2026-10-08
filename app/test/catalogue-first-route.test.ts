@@ -73,7 +73,8 @@ const COLA_PATH = '["en:beverages","en:colas"]';
 
 /* ------------------------------------------------------------ fixtures */
 
-const { openCatalogue, rebuildFts, rebuildCategories } = await import('../../catalogue/src/schema.ts');
+const { openCatalogue, rebuildFts } = await import('../../catalogue/src/schema.ts');
+const { rebuildCategoriesFromPaths: rebuildCategories } = await import('../../catalogue/test/helpers/path-taxonomy.ts');
 const { Catalogue } = await import('../../catalogue/src/search.ts');
 const { openGapLog } = await import('../../catalogue/src/gaps.ts');
 const gapLog = openGapLog(gapsPath);

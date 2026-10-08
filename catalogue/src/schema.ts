@@ -17,6 +17,7 @@
 
 import { DatabaseSync } from 'node:sqlite';
 import * as sqliteVec from 'sqlite-vec';
+import type { Taxonomy } from './category-taxonomy.ts';
 
 /**
  * Dimensions of the stored embedding.
@@ -276,6 +277,12 @@ function addMissingColumns(db: DatabaseSync): void {
     // which mechanism produced it so no claim in this database is unattributed.
     ['name_derived', 'TEXT'],
     ['derived_source', 'TEXT'],
+    // The canonical-category migration (category-canonicalize.ts). category_tags_raw keeps the
+    // tags exactly as the source gave them (JSON array, never overwritten); category_rejected
+    // lists the other deepest tags a two-branch product did not take (JSON array).
+    ['category_tags_raw', 'TEXT'],
+    ['category_rejected', 'TEXT'],
+    ['leaf_category_raw', 'TEXT'], // the leaf_category before the migration, so --undo restores it exactly
   ];
   for (const [name, type] of wanted) {
     if (!have.has(name)) db.exec(`ALTER TABLE product ADD COLUMN ${name} ${type}`);
@@ -357,32 +364,158 @@ export function rebuildFts(db: DatabaseSync): void {
  *   observe the difference. If `depth` is ever read, that stops being true and
  *   this comment stops being sufficient.
  */
-export function rebuildCategories(db: DatabaseSync): void {
+export interface RebuildSourceCounts {
+  /** Products of this source read. */
+  readonly products: number;
+  /** product_category rows written for this source. */
+  readonly groupsWritten: number;
+  /** Distinct labels of this source that resolve to no taxonomy entry: written nowhere. Always 0 for a source that is not openfoodfacts. */
+  readonly unresolvedLabels: number;
+  /** Products of this source in no group. */
+  readonly productsWithNoGroup: number;
+}
+
+export interface RebuildCategoriesResult {
+  /** Products read. */
+  readonly products: number;
+  /** Rows now in product_category, counted from the table. */
+  readonly groupsWritten: number;
+  /** Distinct stored labels (openfoodfacts rows) that resolve to no taxonomy entry: written nowhere. */
+  readonly unresolvedLabels: number;
+  /** Products none of whose labels were written (or that have none): in no group. */
+  readonly productsWithNoGroup: number;
+  /** The same counts per source. */
+  readonly bySource: Readonly<Record<string, RebuildSourceCounts>>;
+}
+
+export interface RebuildCategoriesOptions {
+  /** Required. Labels are resolved to its entries; without it the job cannot say what a label means. */
+  readonly taxonomy: Taxonomy;
+  /** Where the counts are printed. Defaults to console.log. */
+  readonly log?: (line: string) => void;
+  /** Rows read per page; the default suits the real table. Tests shrink it to cross pages. */
+  readonly pageSize?: number;
+}
+
+/** The only source whose category labels are Open Food Facts taxonomy labels. */
+const TAXONOMY_SOURCE = 'openfoodfacts';
+const REBUILD_PAGE = 50000;
+
+/*
+ * WHAT CHANGED 2026-10-08 (docs/category-safeguards-2026-10-08.md, B3): for an OPEN FOOD FACTS row
+ * the stored label is resolved to its taxonomy entry (exact key, name or synonym, then the alias
+ * file) and ONLY the resolved canonical tag is written. "Juice", "Jus" and "en:juices" are one
+ * group; a label that resolves to nothing is not written as a group, it is counted and printed.
+ *
+ * EVERY OTHER SOURCE (icecat, returnit, consignaction, usda, metro, openbeautyfacts,
+ * openproductsfacts ...) keeps the old behaviour exactly: its label is lower-cased and written as
+ * its own group. Their labels are not food-taxonomy labels, and resolving them would delete their
+ * groups and break their substitutes.
+ *
+ * The job takes the taxonomy as a required argument and THROWS without one, and a stored path that
+ * is not valid JSON throws too: neither is skipped quietly. Rows are read a page at a time by
+ * rowid (the real table is about 4.3 million rows), never all at once.
+ */
+export function rebuildCategories(db: DatabaseSync, options: RebuildCategoriesOptions): RebuildCategoriesResult {
+  const tax = options?.taxonomy;
+  if (!tax || typeof tax.resolveLabel !== 'function') {
+    throw new Error('rebuildCategories needs a taxonomy ({ taxonomy }); without one it cannot say what a label means, and it will not guess');
+  }
+  const log = options.log ?? ((l: string) => console.log(l));
   db.exec('DELETE FROM product_category');
-  const rows = db
-    .prepare('SELECT rowid, category_path FROM product').all() as unknown as { rowid: number; category_path: string }[];
+  const page = db.prepare('SELECT rowid, code, source, category_path FROM product WHERE rowid > ? ORDER BY rowid LIMIT ?');
   const insert = db.prepare(
     'INSERT OR IGNORE INTO product_category (rowid_ref, tag, depth) VALUES (?,?,?)',
   );
-  db.exec('BEGIN');
-  let n = 0;
-  for (const r of rows) {
-    let path: string[];
-    try {
-      path = JSON.parse(r.category_path) as string[];
-    } catch {
-      continue;
-    }
-    path.forEach((tag, depth) => {
-      insert.run(BigInt(r.rowid), tag.toLowerCase(), depth);
-      n += 1;
-      if (n % 50000 === 0) {
+  const resolved = new Map<string, string | null>();
+  const unresolved = new Map<string, number>(); // OFF labels only
+  const stats = new Map<string, { products: number; groups: number; noGroup: number; unresolved: Set<string> }>();
+  const statsFor = (source: string) => {
+    let s = stats.get(source);
+    if (!s) stats.set(source, (s = { products: 0, groups: 0, noGroup: 0, unresolved: new Set() }));
+    return s;
+  };
+  let products = 0;
+  let noGroup = 0;
+  try {
+    let last = 0;
+    for (;;) {
+      const rows = page.all(last, options.pageSize ?? REBUILD_PAGE) as unknown as { rowid: number; code: string; source: string; category_path: string }[];
+      if (rows.length === 0) break;
+      db.exec('BEGIN');
+      try {
+        for (const r of rows) {
+          const s = statsFor(r.source);
+          const viaTaxonomy = r.source === TAXONOMY_SOURCE;
+          let path: unknown;
+          try {
+            path = JSON.parse(r.category_path);
+          } catch (err) {
+            throw new Error(`rebuildCategories: category_path of ${r.code} is not valid JSON (${err instanceof Error ? err.message : String(err)})`);
+          }
+          if (!Array.isArray(path)) throw new Error(`rebuildCategories: category_path of ${r.code} is not a JSON array`);
+          let any = false;
+          (path as unknown[]).forEach((label, depth) => {
+            if (typeof label !== 'string') throw new Error(`rebuildCategories: category_path of ${r.code} holds a non-string label`);
+            let key: string | null;
+            if (viaTaxonomy) {
+              key = resolved.get(label) ?? null;
+              if (!resolved.has(label)) {
+                key = tax.resolveLabel(label);
+                resolved.set(label, key);
+              }
+              if (key === null) {
+                unresolved.set(label, (unresolved.get(label) ?? 0) + 1);
+                s.unresolved.add(label);
+                return;
+              }
+            } else {
+              key = label.toLowerCase();
+            }
+            const changed = Number(insert.run(BigInt(r.rowid), key, depth).changes);
+            s.groups += changed;
+            any = true;
+          });
+          s.products += 1;
+          products += 1;
+          if (!any) {
+            s.noGroup += 1;
+            noGroup += 1;
+          }
+        }
         db.exec('COMMIT');
-        db.exec('BEGIN');
+      } catch (err) {
+        db.exec('ROLLBACK');
+        throw err;
       }
-    });
+      last = rows[rows.length - 1]!.rowid;
+    }
+  } catch (err) {
+    // A page's own failure was rolled back above; reaching here means the job stops. Nothing is swallowed.
+    console.error(`rebuildCategories: STOPPED: ${err instanceof Error ? err.message : String(err)}`);
+    throw err;
   }
-  db.exec('COMMIT');
+  const groupsWritten = (db.prepare('SELECT count(*) AS n FROM product_category').get() as { n: number }).n;
+  const bySource: Record<string, RebuildSourceCounts> = {};
+  for (const [source, s] of [...stats.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+    bySource[source] = { products: s.products, groupsWritten: s.groups, unresolvedLabels: s.unresolved.size, productsWithNoGroup: s.noGroup };
+  }
+  const result: RebuildCategoriesResult = {
+    products,
+    groupsWritten,
+    unresolvedLabels: unresolved.size,
+    productsWithNoGroup: noGroup,
+    bySource,
+  };
+  log(`rebuildCategories: ${JSON.stringify({ products, groupsWritten, unresolvedLabels: unresolved.size, productsWithNoGroup: noGroup })}`);
+  for (const [source, c] of Object.entries(bySource)) {
+    log(`rebuildCategories:   ${source}: ${c.products} products, ${c.groupsWritten} groups written, ${c.unresolvedLabels} unresolved labels, ${c.productsWithNoGroup} with no group`);
+  }
+  if (unresolved.size > 0) {
+    const top = [...unresolved.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([l, c]) => `${JSON.stringify(l)} x${c}`);
+    log(`rebuildCategories: top unresolved labels: ${top.join(', ')}`);
+  }
+  return result;
 }
 
 /** Float32 vector to the byte layout sqlite-vec expects. */

@@ -11,7 +11,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { openCatalogue, rebuildFts, rebuildCategories, toVecBlob, EMBED_DIM } from '../src/schema.ts';
+import { openCatalogue, rebuildFts, toVecBlob, EMBED_DIM } from '../src/schema.ts';
+import { rebuildCategoriesFromPaths as rebuildCategories } from './helpers/path-taxonomy.ts';
 import { Catalogue } from '../src/search.ts';
 import type { Embedder } from '../src/embed.ts';
 import { decideRoute, restrictedSearch, type Route, type ScanEvent } from '../src/routing.ts';

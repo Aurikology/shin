@@ -388,13 +388,14 @@ test('the shipped baseline holds the spec counts and the fetched taxonomy hash',
 test('the fetch script takes a local path, validates it before installing, and refuses a bad file', () => {
   const out = join(dir, 'fetched', 'off-categories.json');
   const script = fileURLToPath(new URL('../src/fetch-categories.ts', import.meta.url));
-  const good = execFileSync(process.execPath, [script, FIXTURE_TAXONOMY, out], { encoding: 'utf8' });
+  // --no-synonyms: this test is about the JSON half; the txt merge is tested in category-canonicalize.test.ts.
+  const good = execFileSync(process.execPath, [script, FIXTURE_TAXONOMY, out, '--no-synonyms'], { encoding: 'utf8' });
   assert.match(good, new RegExp(tax.sha256));
   assert.equal(createHash('sha256').update(readFileSync(out)).digest('hex'), tax.sha256);
   const badSrc = join(dir, 'not-taxonomy.json');
   writeFileSync(badSrc, '[]');
   const out2 = join(dir, 'fetched2', 'x.json');
-  const r = spawnSync(process.execPath, [script, badSrc, out2], { encoding: 'utf8' });
+  const r = spawnSync(process.execPath, [script, badSrc, out2, '--no-synonyms'], { encoding: 'utf8' });
   assert.notEqual(r.status, 0);
   assert.throws(() => readFileSync(out2), 'nothing was installed from the bad file');
 });

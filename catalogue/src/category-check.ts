@@ -166,6 +166,13 @@ function readBaseline(path: string): Baseline {
   return b;
 }
 
+/** True when a category_rejected value names at least one tag (not NULL, not an empty list). No parsing, so nothing to swallow. */
+function hasRejectedRecord(value: string | null): boolean {
+  if (value === null) return false;
+  const t = value.trim();
+  return t !== '' && t !== '[]';
+}
+
 export function runCategoryCheck(opts: CheckOptions): CheckResult {
   const failures: string[] = [];
   const lines: string[] = [];
@@ -210,11 +217,14 @@ export function runCategoryCheck(opts: CheckOptions): CheckResult {
     const cols = (db.prepare('PRAGMA table_info(product)').all() as unknown as { name: string }[]).map((c) => c.name);
     if (cols.length === 0) throw new Error('no product table');
     const hasSource = cols.includes('category_source');
+    // A migrated catalogue records the deepest tags a two-branch product did not take; an older one has no such column.
+    const hasRejected = cols.includes('category_rejected');
     const sel = db.prepare(
-      `SELECT category_path, source, ${hasSource ? 'category_source' : 'NULL'} AS category_source
+      `SELECT category_path, source, ${hasSource ? 'category_source' : 'NULL'} AS category_source,
+              ${hasRejected ? 'category_rejected' : 'NULL'} AS category_rejected
          FROM product WHERE sold_in_canada = 1 AND category_path IS NOT NULL AND category_path NOT IN ('', '[]')`,
     );
-    for (const r of sel.iterate() as Iterable<{ category_path: string; source: string; category_source: string | null }>) {
+    for (const r of sel.iterate() as Iterable<{ category_path: string; source: string; category_source: string | null; category_rejected: string | null }>) {
       canadianTagged += 1;
       if (r.category_source === null) counts.A6 += 1;
       if (r.source !== 'openfoodfacts') continue;
@@ -232,7 +242,8 @@ export function runCategoryCheck(opts: CheckOptions): CheckResult {
       if (tags.length >= 2) twoPlus += 1;
       if (!tax) continue;
       const f = faultsOfPath(tags, tax);
-      if (f.includes('two_branches')) counts.A1 += 1;
+      // A1 is a pick made with NO record: a two-branch product whose category_rejected names the tags it left is recorded.
+      if (f.includes('two_branches') && !hasRejectedRecord(r.category_rejected)) counts.A1 += 1;
       if (f.includes('parent_not_ancestor')) {
         counts.A2 += 1;
         if (tax.has(tags[tags.length - 1]!)) a2Proven += 1;

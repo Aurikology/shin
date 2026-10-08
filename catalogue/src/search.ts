@@ -19,6 +19,8 @@
 
 import type { DatabaseSync } from 'node:sqlite';
 import { toVecBlob } from './schema.ts';
+import { logTaxonomyUnavailableOnce } from './category-taxonomy.ts';
+import type { Taxonomy } from './category-taxonomy.ts';
 import { recordGap, activeGapLog } from './gaps.ts';
 import type { Embedder } from './embed.ts';
 // Unit 8, docs/catalogue-build-plan-2026-09-26.md: bare-part-number electronics
@@ -274,6 +276,7 @@ export interface RingProbes {
 export function chooseRingTag(
   categoryPath: readonly string[],
   probes: RingProbes,
+  taxonomy?: Taxonomy | null,
 ): RingChoice | null {
   /*
    * Strip the trailing markers BEFORE anything reads a leaf. Only from the end:
@@ -297,10 +300,28 @@ export function chooseRingTag(
   // probes and the caller's later SELECT all read the identical string: a
   // size check on one casing and a membership check on another is exactly how
   // a 1,600-member tag passes itself off as an 800-member ring.
-  const levels: readonly { tag: string; level: RingLevel; distanceOut: number }[] = [
-    { tag: categoryPath[end - 1].toLowerCase(), level: 'leaf', distanceOut: 0 },
-    { tag: categoryPath[end - 2].toLowerCase(), level: 'parent', distanceOut: 1 },
+  const leafTag = categoryPath[end - 1].toLowerCase();
+  const levels: { tag: string; level: RingLevel; distanceOut: number }[] = [
+    { tag: leafTag, level: 'leaf', distanceOut: 0 },
   ];
+  if (taxonomy) {
+    /*
+     * B2 (docs/category-safeguards-2026-10-08.md): the parent is the taxonomy's parent
+     * of the leaf, never the tag that happens to sit second-last. Where a leaf has
+     * several parents, those in the product's own path come first (nearest the leaf
+     * first), then the rest alphabetically. A leaf the taxonomy does not know has no
+     * proven parent, so there is no parent step.
+     */
+    const inPath = categoryPath.slice(0, end - 1).map((t) => t.toLowerCase());
+    const rank = (p: string): number => {
+      const i = inPath.lastIndexOf(p);
+      return i < 0 ? Number.POSITIVE_INFINITY : inPath.length - i;
+    };
+    const parents = [...taxonomy.parentsOf(leafTag)].sort((a, b) => rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0));
+    for (const p of parents) levels.push({ tag: p, level: 'parent', distanceOut: 1 });
+  } else {
+    levels.push({ tag: categoryPath[end - 2].toLowerCase(), level: 'parent', distanceOut: 1 });
+  }
 
   for (const level of levels) {
     if (probes.size(level.tag) > MAX_RING_TAG) continue;
@@ -978,9 +999,19 @@ export class Catalogue {
   /** Read once at construction: the index's column list cannot change under a live connection. */
   readonly #ftsWeights: number[];
 
-  constructor(db: DatabaseSync, embedder: Embedder) {
+  /**
+   * The category taxonomy the ring steps up through. Pass `loadRingTaxonomy()`; a load that
+   * failed is already logged, so `null` means the position rule on purpose. Left out
+   * (undefined), the constructor logs [category-fault] taxonomy_unavailable once and the
+   * position rule runs.
+   */
+  readonly #taxonomy: Taxonomy | null;
+
+  constructor(db: DatabaseSync, embedder: Embedder, taxonomy?: Taxonomy | null) {
     this.#db = db;
     this.#embedder = embedder;
+    if (taxonomy === undefined) logTaxonomyUnavailableOnce('no taxonomy was passed to the Catalogue');
+    this.#taxonomy = taxonomy ?? null;
     this.#ftsWeights = ftsWeights(db);
   }
 
@@ -1258,7 +1289,7 @@ export class Catalogue {
              WHERE pc.tag = ? AND p.code != ?
              LIMIT 1`,
           ).get(tag, exclude ?? '') !== undefined,
-    });
+    }, this.#taxonomy);
   }
 
   /**

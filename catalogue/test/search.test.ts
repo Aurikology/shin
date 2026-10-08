@@ -14,7 +14,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { openCatalogue, rebuildFts, rebuildCategories, toVecBlob, EMBED_DIM } from '../src/schema.ts';
+import { openCatalogue, rebuildFts, toVecBlob, EMBED_DIM } from '../src/schema.ts';
+import { rebuildCategoriesFromPaths as rebuildCategories } from './helpers/path-taxonomy.ts';
 import { openGapLog } from '../src/gaps.ts';
 import { mkdtempSync } from 'node:fs';
 import { join } from 'node:path';

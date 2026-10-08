@@ -36,6 +36,13 @@ const dir = mkdtempSync(join(tmpdir(), 'shin-load-second-'));
 const dbPath = join(dir, 'catalogue.db');
 const loader = fileURLToPath(new URL('../src/load.ts', import.meta.url));
 const catalogueDir = fileURLToPath(new URL('..', import.meta.url));
+// The load ends with the canonical category pass, which needs a taxonomy. These tests are about
+// the upsert, so they use a one-entry taxonomy that resolves none of their labels (rows stay as
+// loaded); the pass itself is tested in category-canonicalize.test.ts and at the end of this file.
+const noopTaxonomy = join(dir, 'noop-taxonomy.json');
+const noopAliases = join(dir, 'noop-aliases.json');
+writeFileSync(noopTaxonomy, JSON.stringify({ 'en:placeholder': { parents: [] } }));
+writeFileSync(noopAliases, JSON.stringify({ aliases: {} }));
 
 after(() => {
   try {
@@ -67,12 +74,12 @@ function row(over: Record<string, unknown>): Record<string, unknown> {
   };
 }
 
-function load(rows: Record<string, unknown>[], tag: string): void {
+function load(rows: Record<string, unknown>[], tag: string, env: Record<string, string> = {}): void {
   const path = join(dir, `rows-${tag}.jsonl`);
   writeFileSync(path, rows.map((r) => JSON.stringify(r)).join('\n') + '\n', 'utf8');
   execFileSync(process.execPath, ['--experimental-strip-types', loader, path], {
     cwd: catalogueDir,
-    env: { ...process.env, SHIN_CATALOGUE: dbPath },
+    env: { ...process.env, SHIN_CATALOGUE: dbPath, SHIN_CATEGORY_TAXONOMY: noopTaxonomy, SHIN_CATEGORY_ALIASES: noopAliases, ...env },
     stdio: 'pipe',
   });
 }

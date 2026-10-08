@@ -10,7 +10,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { openCatalogue, rebuildFts, rebuildCategories } from '../src/schema.ts';
+import { openCatalogue, rebuildFts } from '../src/schema.ts';
+import { rebuildCategoriesFromPaths as rebuildCategories } from './helpers/path-taxonomy.ts';
 import { MAX_RING_TAG } from '../src/search.ts';
 import {
   alternativesFor,

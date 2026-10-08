@@ -1,0 +1,30 @@
+{
+  "note": "DRAFT for review. Raw category labels that match no taxonomy key, name or synonym, each mapped to ONE existing taxonomy key where the meaning is clear. A label is looked up by its normalised form (lower case, accents stripped, non-alphanumerics to '-'), so 'Juice' and 'juice' are one entry. Product counts are Canadian catalogue rows from the 2026-10-08 sample of the 30 commonest unresolved labels (15,211 products carry an unresolved label, 3,672 distinct labels; this file covers the top 30 by count, 8,847 products). Labels left out of 'aliases' are listed in 'unmapped' with the reason; they stay unresolved and are counted by every rebuild. Every target was checked to be a key of the 2026-10-08 taxonomy; a target missing from the taxonomy stops the load.",
+  "aliases": {
+    "Autre boisson non-alcoolisée": { "to": "en:non-alcoholic-beverages", "products": 1016, "reason": "French for 'other non-alcoholic beverage'; the taxonomy entry is exactly non-alcoholic beverages." },
+    "en:ground-beef": { "to": "en:ground-beef-meats", "products": 934, "reason": "Ground beef; the taxonomy's entry for it is 'ground beef meats' (parents beef and ground meats)." },
+    "en:lean-ground-beef": { "to": "en:ground-beef-meats", "products": 933, "reason": "Lean ground beef is ground beef; the taxonomy has no lean-specific entry, so it maps to the entry that contains it." },
+    "Bière, boisson à base de malt": { "to": "en:beers", "products": 479, "reason": "French for 'beer, malt-based beverage'; beer is the malt-based alcoholic beverage." },
+    "Juice": { "to": "en:juices-and-nectars", "products": 452, "reason": "The taxonomy's entry for juice in general is 'juices and nectars'." },
+    "Jus": { "to": "en:juices-and-nectars", "products": 446, "reason": "French for juice; same entry as 'Juice'." },
+    "Eau, eau gazéifiée": { "to": "en:waters", "products": 185, "reason": "French for 'water, carbonated water'; both are waters." },
+    "Milk": { "to": "en:milks", "products": 104, "reason": "Milk; the taxonomy entry is 'milks'." },
+    "en:whole-wheat-bread": { "to": "en:wholemeal-breads", "products": 80, "reason": "Whole wheat bread is wholemeal bread." },
+    "en:large-eggs": { "to": "en:eggs", "products": 71, "reason": "Large eggs are eggs; the taxonomy has no size-specific entry, so it maps to the entry that contains them." },
+    "en:chocolate-chips": { "to": "en:chocolate-drops", "products": 69, "reason": "Chocolate chips are chocolate drops (baking pieces); the taxonomy's entry is 'chocolate drops'." },
+    "Soft Drink": { "to": "en:soft-drinks", "products": 64, "reason": "Singular of the taxonomy entry 'soft drinks'." },
+    "Tea": { "to": "en:teas", "products": 52, "reason": "Singular of the taxonomy entry 'teas'." },
+    "en:coffee": { "to": "en:coffees", "products": 50, "reason": "Singular of the taxonomy entry 'coffees'." }
+  },
+  "unmapped": [
+    { "label": "en:groceries", "products": 882, "reason": "Vague: a whole shop, not a kind of product." },
+    { "label": "Other", "products": 151, "reason": "Says nothing about the product." },
+    { "label": "Lait, substitut du lait", "products": 131, "reason": "French for 'milk, milk substitute': two kinds in one label, and no single entry holds both." },
+    { "label": "en:trail-mix", "products": 118, "reason": "No trail mix entry in the taxonomy; 'mixed nuts and dried fruits' is close but a different claim." },
+    { "label": "en:food-beverages-tobacco", "products": 52, "reason": "Vague: a whole department." },
+    { "label": "Plant-Based Alternatives", "products": 51, "reason": "Vague: alternatives to what is not said (meat, milk, cheese)." },
+    { "label": "en:coffee-tea", "products": 50, "reason": "Two kinds in one label; 'hot beverages' also holds cocoa and is a wider claim." },
+    { "label": "en:fruit-spread", "products": 44, "reason": "No fruit spread entry; jams and fruit spreads are not the same thing in the taxonomy." },
+    { "label": "en:Chicken strips", "products": 44, "reason": "No chicken strips entry; chicken nuggets are a different product." }
+  ]
+}

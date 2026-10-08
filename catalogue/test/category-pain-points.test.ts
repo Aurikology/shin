@@ -26,6 +26,7 @@ import { loadTaxonomy, deepestTags } from '../src/category-taxonomy.ts';
 import type { Taxonomy } from '../src/category-taxonomy.ts';
 import { chooseRingTag, type RingProbes } from '../src/search.ts';
 import { rebuildCategories, openCatalogue } from '../src/schema.ts';
+import { rebuildCategoriesFromPaths } from './helpers/path-taxonomy.ts';
 import { alternativesFor } from '../src/alternatives.ts';
 import type { Candidate } from '../src/search.ts';
 
@@ -91,7 +92,7 @@ test('B1 control: taking the last tag and recording nothing fails the predicate'
   // And the fixture is a real two-branch case: the lighter branch is last on the first product.
   assert.equal(deepestTags(B1_PRODUCTS[0]!, tax).length, 2);
 });
-test('B1: every two-branch product has a leaf chosen by the written rule and the other recorded', { todo: open('B1 two-branch products are picked silently: the last tag is taken, nothing is recorded') }, async () => {
+test('B1: every two-branch product has a leaf chosen by the written rule and the other recorded', async () => {
   const mod = (await later('../src/category-pick.ts')) as { pickLeaf: Pick };
   assert.equal(b1Holds(mod.pickLeaf), true);
 });
@@ -142,7 +143,7 @@ test('B2 ring control: the position rule fails the predicate where the second-la
   assert.equal(b2RingHolds(positionRing, BAD_PATH), false);
   assert.equal(b2RingHolds(positionRing, GOOD_PATH), true, 'the good path is why nobody noticed');
 });
-test('B2: the parent ring is the taxonomy parent of the leaf, on a path whose second-last tag is not', { todo: open('B2 the ring steps to the second-last tag, not the taxonomy parent') }, () => {
+test('B2: the parent ring is the taxonomy parent of the leaf, on a path whose second-last tag is not', () => {
   assert.equal(b2RingHolds(realRing, GOOD_PATH), true, 'control inside the test: the real function passes the good path');
   assert.equal(b2RingHolds(realRing, BAD_PATH), true);
 });
@@ -160,16 +161,24 @@ test('B2: the parent ring is the taxonomy parent of the leaf, on a path whose se
  */
 type Rebuild = (db: DatabaseSync, t: Taxonomy) => void;
 
+/*
+ * Only Open Food Facts rows carry food-taxonomy labels. Every other source (icecat, returnit,
+ * consignaction, usda, metro ...) has its own labels, and its rows must keep the group their own
+ * lower-cased label gives them, or their substitutes break. The fixture therefore has an icecat
+ * row and a returnit row whose labels are in no food taxonomy and must still be written.
+ */
 function b3Db(): DatabaseSync {
   const db = new DatabaseSync(':memory:');
-  db.exec(`CREATE TABLE product (code TEXT PRIMARY KEY, category_path TEXT NOT NULL DEFAULT '[]')`);
+  db.exec(`CREATE TABLE product (code TEXT PRIMARY KEY, source TEXT NOT NULL, category_path TEXT NOT NULL DEFAULT '[]')`);
   db.exec(`CREATE TABLE product_category (rowid_ref INTEGER NOT NULL, tag TEXT NOT NULL, depth INTEGER NOT NULL, PRIMARY KEY (rowid_ref, tag)) STRICT, WITHOUT ROWID`);
-  const ins = db.prepare('INSERT INTO product (code, category_path) VALUES (?, ?)');
-  ins.run('juice', JSON.stringify(['Juice']));
-  ins.run('jus', JSON.stringify(['Jus']));
-  ins.run('canon', JSON.stringify(['en:beverages', 'en:juices']));
-  ins.run('oj-en', JSON.stringify(['en:orange-juices']));
-  ins.run('oj-fr', JSON.stringify(['fr:jus-d-orange']));
+  const ins = db.prepare('INSERT INTO product (code, source, category_path) VALUES (?, ?, ?)');
+  ins.run('juice', 'openfoodfacts', JSON.stringify(['Juice']));
+  ins.run('jus', 'openfoodfacts', JSON.stringify(['Jus']));
+  ins.run('canon', 'openfoodfacts', JSON.stringify(['en:beverages', 'en:juices']));
+  ins.run('oj-en', 'openfoodfacts', JSON.stringify(['en:orange-juices']));
+  ins.run('oj-fr', 'openfoodfacts', JSON.stringify(['fr:jus-d-orange']));
+  ins.run('ice', 'icecat', JSON.stringify(['Computers', 'Laptops & Notebooks']));
+  ins.run('ret', 'returnit', JSON.stringify(['Bottle Deposit 10c']));
   return db;
 }
 
@@ -187,42 +196,52 @@ function b3Holds(rebuild: Rebuild): boolean {
   const ojFr = tagsOf(db, 'oj-fr');
   const sameGroup = juice.length > 0 && juice.join() === jus.join() && juice.includes('en:juices') && canon.includes('en:juices');
   const pairGroup = ojEn.length > 0 && ojEn.join() === ojFr.join();
-  const allKnown = (db.prepare('SELECT DISTINCT tag FROM product_category').all() as { tag: string }[]).every((r) => tax.has(r.tag));
-  return sameGroup && pairGroup && allKnown;
+  const offTags = db.prepare(`SELECT DISTINCT pc.tag FROM product_category pc JOIN product p ON p.rowid = pc.rowid_ref WHERE p.source = 'openfoodfacts'`).all() as { tag: string }[];
+  const allKnown = offTags.every((r) => tax.has(r.tag));
+  // Other sources keep their own labels as groups.
+  const otherSources = tagsOf(db, 'ice').join() === ['computers', 'laptops & notebooks'].join() && tagsOf(db, 'ret').join() === 'bottle deposit 10c';
+  return sameGroup && pairGroup && allKnown && otherSources;
 }
 
-/** The reference: resolve a label to its entry by key, name or synonym, in any language. */
-const resolvingRebuild: Rebuild = (db, t) => {
-  // Names and synonyms come from the fixture file itself.
+/** Resolve a label to its entry by key, name or synonym, in any language (the reference, from the fixture file itself). */
+function referenceResolver(): (label: string) => string | null {
   const byName = new Map<string, string>();
   for (const [key, e] of Object.entries(FIXTURE_ENTRIES)) {
     byName.set(key.toLowerCase(), key);
     for (const n of Object.values(e.name ?? {})) byName.set(n.toLowerCase(), key);
     for (const list of Object.values(e.synonyms ?? {})) for (const s of list) byName.set(s.toLowerCase(), key);
   }
-  db.exec('DELETE FROM product_category');
-  const ins = db.prepare('INSERT OR IGNORE INTO product_category (rowid_ref, tag, depth) VALUES (?,?,?)');
-  for (const r of db.prepare('SELECT rowid, category_path FROM product').all() as { rowid: number; category_path: string }[]) {
-    (JSON.parse(r.category_path) as string[]).forEach((label, depth) => {
-      const entry = byName.get(label.toLowerCase());
-      if (!entry) return;
-      // fr:jus-d-orange is a duplicate of the en entry that carries the same French name.
-      const canonical = entry === 'fr:jus-d-orange' ? 'en:orange-juices' : entry;
-      ins.run(BigInt(r.rowid), canonical, depth);
-    });
-  }
-};
-/** Today's behaviour: lower-case the label and nothing else. */
-const lowercaseRebuild: Rebuild = (db) => {
-  db.exec('DELETE FROM product_category');
-  const ins = db.prepare('INSERT OR IGNORE INTO product_category (rowid_ref, tag, depth) VALUES (?,?,?)');
-  for (const r of db.prepare('SELECT rowid, category_path FROM product').all() as { rowid: number; category_path: string }[]) {
-    (JSON.parse(r.category_path) as string[]).forEach((label, depth) => ins.run(BigInt(r.rowid), label.toLowerCase(), depth));
-  }
-};
-const realRebuild: Rebuild = (db, t) => (rebuildCategories as unknown as (d: DatabaseSync, o: { taxonomy: Taxonomy }) => void)(db, { taxonomy: t });
+  return (label) => {
+    const entry = byName.get(label.toLowerCase());
+    if (!entry) return null;
+    // fr:jus-d-orange is a duplicate of the en entry that carries the same French name.
+    return entry === 'fr:jus-d-orange' ? 'en:orange-juices' : entry;
+  };
+}
 
-test('B3 control: a rebuild that resolves labels to taxonomy entries passes the predicate', () => {
+/** A rebuild with a rule per source: `resolveSources` decides which sources go through the resolver. */
+function ruleRebuild(resolveSource: (source: string) => boolean): Rebuild {
+  return (db) => {
+    const resolve = referenceResolver();
+    db.exec('DELETE FROM product_category');
+    const ins = db.prepare('INSERT OR IGNORE INTO product_category (rowid_ref, tag, depth) VALUES (?,?,?)');
+    for (const r of db.prepare('SELECT rowid, source, category_path FROM product').all() as { rowid: number; source: string; category_path: string }[]) {
+      (JSON.parse(r.category_path) as string[]).forEach((label, depth) => {
+        const tag = resolveSource(r.source) ? resolve(label) : label.toLowerCase();
+        if (tag !== null) ins.run(BigInt(r.rowid), tag, depth);
+      });
+    }
+  };
+}
+/** The right rule: Open Food Facts labels are resolved, every other source keeps its own lower-cased label. */
+const resolvingRebuild: Rebuild = ruleRebuild((s) => s === 'openfoodfacts');
+/** The first draft's bug: resolve EVERY row against the food taxonomy, which deletes the other sources' groups. */
+const resolveEverythingRebuild: Rebuild = ruleRebuild(() => true);
+/** Before the fix: lower-case the label and nothing else. */
+const lowercaseRebuild: Rebuild = ruleRebuild(() => false);
+const realRebuild: Rebuild = (db, t) => (rebuildCategories as unknown as (d: DatabaseSync, o: { taxonomy: Taxonomy; log: () => void }) => void)(db, { taxonomy: t, log: () => {} });
+
+test('B3 control: a rebuild that resolves Open Food Facts labels and keeps other sources\' own labels passes the predicate', () => {
   assert.equal(b3Holds(resolvingRebuild), true);
 });
 test('B3 control: a rebuild that only lower-cases fails it (Juice and Jus stay two groups, raw labels stay)', () => {
@@ -232,7 +251,16 @@ test('B3 control: a rebuild that only lower-cases fails it (Juice and Jus stay t
   assert.deepEqual(tagsOf(db, 'juice'), ['juice']);
   assert.deepEqual(tagsOf(db, 'jus'), ['jus']);
 });
-test('B3: "Juice" and "Jus" and an en:/fr: pair land in one group each, and no product sits on a label outside the taxonomy', { todo: open('B3 each label is its own group; raw and other-language labels are written as groups') }, () => {
+test('B3 control: a rebuild that resolves EVERY row fails it, because the icecat and returnit rows lose their groups', () => {
+  assert.equal(b3Holds(resolveEverythingRebuild), false);
+  const db = b3Db();
+  resolveEverythingRebuild(db, tax);
+  assert.deepEqual(tagsOf(db, 'ice'), [], 'the icecat row was left in no group');
+  assert.deepEqual(tagsOf(db, 'ret'), [], 'the returnit row was left in no group');
+  // And the OFF half alone is fine, so the new assertion is the only thing that catches it.
+  assert.deepEqual(tagsOf(db, 'juice'), tagsOf(db, 'jus'));
+});
+test('B3: "Juice" and "Jus" and an en:/fr: pair land in one group each, no OFF product sits on a label outside the taxonomy, and other sources keep their own labels', () => {
   assert.equal(b3Holds(realRebuild), true);
 });
 
@@ -268,7 +296,7 @@ function b7Db(): DatabaseSync {
   for (const [code, name] of [['NAME', 'Kraft Smooth 500 g'], ['STORE', 'Store Brand Smooth 500 g']] as const) {
     insert.run(code, name, name, 500, 'g', JSON.stringify(PB), 'en:peanut-butters', '[]', 1, 'openfoodfacts');
   }
-  rebuildCategories(db);
+  rebuildCategoriesFromPaths(db);
   return db;
 }
 
@@ -361,7 +389,7 @@ test('B8 control: a correctness-only scorer fails it (no depth to gate on)', () 
   // It scores the short placer as plain wrong, which is all it can say.
   assert.equal(correctnessOnlyScorer(oneShortPlacer, tax).exact, 0);
 });
-test('B8: the scorer reports depth, and a placer that always stops one level short fails the gate', { todo: open('B8 no depth score exists: placement is scored only for correctness') }, async () => {
+test('B8: the scorer reports depth, and a placer that always stops one level short fails the gate', async () => {
   const mod = (await later('../src/placement-score.ts')) as { scorePlacement: Scorer };
   assert.equal(b8Holds(mod.scorePlacement), true);
 });
