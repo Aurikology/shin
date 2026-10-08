@@ -224,14 +224,19 @@ Retired wording: none
 Governs: to fill (first use: docs/price-data-design-2026-09-28.md, "How it is tested")
 
 ### Errors never go unnoticed: safeguards fail loudly, and the test comes before the fix
-Every Shin system carries safeguards that fail loudly, so a fault in its code or data is seen, never
-absorbed. An offline job (load, fill, rebuild) stops or reports the fault with counts and examples;
-a shopper's answer is still given ("Always answer"), and the fault is recorded and reported, never
-swallowed. Before a fix is built, a test is written first that targets every pain point the fix
-addresses, and it fails on the code as it stands. · 2026-10-08 · *"one critical mistake in these
-systems is that errors go unoticed. I need you to prepare two things. First, make sure every system
-has safeguards in place that fail loudly which is a common engineering practice. Furthermore,
-before building, write a test that targets all the pain points we are addressing"*
+From 2026-10-08 on, every error in every Shin system fails loudly, so a fault in its code, data,
+scripts, scheduled jobs or checks is seen, never absorbed. An offline job (load, fill, rebuild)
+stops or reports the fault with what failed, counts and examples, in a place he actually sees (the
+chat reply, the next session's start message), never only in a log file; nothing swallows an error,
+retries it quietly, or reports success or a zero count after a step failed. A shopper's answer is
+still given ("Always answer"), and the fault is recorded and reported, never swallowed. Code touched
+for any reason is brought under this rule then. Before a fix is built, a test is written first that
+targets every pain point the fix addresses, and it fails on the code as it stands. · 2026-10-08 ·
+*"one critical mistake in these systems is that errors go unoticed. I need you to prepare two
+things. First, make sure every system has safeguards in place that fail loudly which is a common
+engineering practice. Furthermore, before building, write a test that targets all the pain points
+we are addressing"* · 2026-10-08 · *"All errors from now on will have to fail loudly. Its been a
+constant problem throughout the projects i've worked on. Things fail and i have no idea"*
 Retired wording: none
 Governs: to fill (first use: the category system, docs/category-safeguards-2026-10-08.md)
 

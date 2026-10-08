@@ -2625,3 +2625,18 @@ code and data fail loudly. That split is Claude's reading of the two rulings, to
 turn.
 
 **Reverses if:** he says the 2026-09-20 rule covered code and data faults too.
+
+## Errors fail loudly: widened to every error, from now on
+**Date:** 2026-10-08 · **Status:** active
+
+His words, the same day: *"All errors from now on will have to fail loudly. Its been a constant
+problem throughout the projects i've worked on. Things fail and i have no idea"*. The RULINGS.md
+entry "Errors never go unnoticed" was widened. Old text: "Every Shin system carries safeguards that
+fail loudly, so a fault in its code or data is seen, never absorbed. An offline job (load, fill,
+rebuild) stops or reports the fault with counts and examples;". It now covers every error in code,
+data, scripts, scheduled jobs and checks, requires the report to reach a place he sees (never only
+a log file), forbids quiet retries and success or zero counts after a failed step, and brings any
+touched code under the rule. The shopper split ("Always answer") and the test-before-fix clause are
+unchanged. The agent repo got the same ruling as "Every error fails loudly, and it reaches him".
+
+**Reverses if:** he names a class of failure he wants handled silently.
