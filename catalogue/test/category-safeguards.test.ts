@@ -374,12 +374,18 @@ test('CLI: every run leaves category-check-last.json beside the db with exit sta
 
 /* ------------------------------------------------- the shipped baseline */
 
-test('the shipped baseline holds the spec counts and the fetched taxonomy hash', () => {
+test('the shipped baseline never rises above the counts first recorded, and holds the fetched taxonomy hash', () => {
   const b = JSON.parse(readFileSync(SHIPPED_BASELINE, 'utf8')) as {
     taxonomy: { sha256: string; fetchedAt: string };
     counts: Record<string, number>;
   };
-  assert.deepEqual({ A1: b.counts.A1, A2: b.counts.A2, A3: b.counts.A3, A4: b.counts.A4, A6: b.counts.A6 }, { A1: 6003, A2: 8273, A3: 12469, A4: 74, A6: 387904 });
+  // A ratchet: a fix lowers a count by hand, nothing may raise one past where it started
+  // (2026-10-08, PC catalogue, before any fix).
+  const FIRST = { A1: 6003, A2: 8273, A3: 12469, A4: 74, A6: 387904 } as const;
+  for (const [k, first] of Object.entries(FIRST)) {
+    assert.equal(typeof b.counts[k], 'number', `${k} missing from the baseline`);
+    assert.ok(b.counts[k]! <= first, `${k} baseline ${b.counts[k]} is above its first recorded count ${first}`);
+  }
   assert.match(b.taxonomy.sha256, /^[0-9a-f]{64}$/);
   assert.match(b.taxonomy.fetchedAt, /^\d{4}-\d{2}-\d{2}$/);
   assert.equal(typeof b.counts.A7, 'number');
