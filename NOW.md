@@ -9,9 +9,12 @@ History moved out of NOW.md on 2026-09-27: `docs/archive/now-history-2026-09-27.
 ## Price-category plan, 2026-10-09 (docs/price-category-plan-2026-10-02.md)
 
 - **Stage 1 (keep everything): built, all 11 items pushed** (c0f3f1d, ff3ff00, cec3e63, f7dc01a,
-  35e50a4, 55a3b52, eb6d06d, e7aa8df). 4.8's registry audit still FAILS on two unknown bases,
-  Save-On-Foods and Canadian Tire: their terms were not readable by fetch (Save-On 403). The
-  automated Walmart crawl and ANBL loader are now refused (their terms, read 2026-10-06, forbid one).
+  35e50a4, 55a3b52, eb6d06d, e7aa8df, bed4384). 4.8's registry audit still FAILS on one unknown
+  basis, Canadian Tire: its site hangs Chrome on every page (robots.txt reads: Allow, Crawl-delay
+  10). Save-On-Foods terms read 2026-10-09 forbid automated reading, so saveonfoods-run is refused,
+  like the Walmart crawl and ANBL loader (read 2026-10-06). The audit names 187 Save-On and 10
+  Walmart rows with no gated reader run; the registry in price/data/prices.db exists now, enforced
+  is still false.
 - **Stage 0 (trustworthy tests): tooling built** (442bc30). Every bench rebuild now stops with exit 3
   on real data: each of the 17 priced products is alone in its category, so the whole-category
   control cannot fail on width. 4.9 (Ontario prices on 2+ dates: 0 rows), 7.7 (a person marks the
@@ -21,8 +24,10 @@ History moved out of NOW.md on 2026-09-27: `docs/archive/now-history-2026-09-27.
   90,487 Canadian items sit in "unplaced" (decision 2026-10-09). 1.2 to 1.5 need prices: 15 priced
   items join the catalogue. load.ts does not run the placement build yet.
 - **Stage 3 (placing items): in progress**, catalogue lane, 2.1 to 2.4 without the Claude step.
-- Open for a person: Save-On and Canadian Tire terms; an Ontario source; the 7.7 sheet; the outlier
-  numbers (19%, 4 prices); D-222 (595 test rows in the PC's live user catalogue, delete needs a yes).
+- Open for a person: Canadian Tire terms (read by hand); an Ontario source; the 7.7 sheet; the
+  outlier numbers (19%, 4 prices); D-222's leftovers (the 595 rows are gone, e3f020e; 6 fixture
+  products, 4,729 unpriced observations, 15,558 offers, 7 branch rows still need Aurik's yes; the
+  Mac copy is still open).
 
 ## Current state of the beta: the catalogue
 
