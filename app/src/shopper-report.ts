@@ -16,10 +16,24 @@
  * does NOT move (D06 is correct behaviour). What was missing was telling the
  * shopper their report exists, so the answer is not silent about it.
  *
+ * `fileTypedReport` is the ONE writer of a shopper report in the app (5.2, "the
+ * server alone marks a typed price as a shopper report"). Both routes a typed
+ * price enters by, `/api/scan-price` and `/api/correction`, go through it, and
+ * it sets the mark itself; a test fails if any other app file calls
+ * `recordCorrection`.
+ *
  * PRIVACY (5.9). `shopperReportFor` only ever reads rows from the asking
  * device. Another shopper's store-and-time trail never rides on this answer.
  */
-import { correctionsFor, recordCorrection, witnessesFor } from '../../price/src/corrections.ts';
+import {
+  correctionsFor,
+  recordCorrection,
+  witnessesFor,
+  type CaptureMethod,
+  type CorrectionInput,
+  type RecordResult,
+} from '../../price/src/corrections.ts';
+import { customerDataFault } from './customer-data-faults.ts';
 import { getScan, updateScan } from './scans.ts';
 
 export type ShopperReportStatus = 'waiting_for_second_source' | 'second_source_agrees';
@@ -64,6 +78,76 @@ export function shopperReportFor(deviceId: string | null | undefined, code: stri
 export function shopperReportField(deviceId: string | null | undefined, code: string | null | undefined): { shopperReport?: ShopperReport } {
   const report = shopperReportFor(deviceId, code);
   return report ? { shopperReport: report } : {};
+}
+
+/**
+ * REQUIREMENT 5.2: "Turn a typed shelf price into an observed price, marked as
+ * a shopper report." Plan 5.2: the server alone sets that mark.
+ *
+ * The corrections store is the shopper-report store: every row in it is one
+ * shopper's reading, keyed by device, and `capture` says how the number was
+ * read. A number a person typed is `typed`. Until 2026-10-09 the correction
+ * screen's route sent no `capture` at all, so every price typed there was
+ * stored with the mark NULL: an observed price nobody could tell was a typed
+ * shopper report.
+ *
+ * WHAT THE CLIENT CANNOT DO. A body claiming `capture: 'photo'`, denying the
+ * report (`shopperReport: false`), or naming some other source is never read:
+ * the input type has no `capture`, the write below is built field by field
+ * (an extra key on the caller's object does not ride along), and the mark is
+ * this constant, set last. No route in the app takes a photographed tag today,
+ * so `typed` is the only mark the server ever sets.
+ */
+export const SHOPPER_REPORT_CAPTURE: CaptureMethod = 'typed';
+
+export type TypedReportInput = Omit<CorrectionInput, 'capture'>;
+
+export interface TypedReportDeps {
+  readonly write: (input: CorrectionInput) => RecordResult;
+  /** The stored row's mark, read back by id. Null when the row has none or is not found. */
+  readonly readBack: (id: number, input: TypedReportInput) => CaptureMethod | null;
+}
+
+function storedCapture(id: number, input: TypedReportInput): CaptureMethod | null {
+  const row = correctionsFor({ code: input.code, productId: input.productId }).find((r) => r.id === id);
+  return row?.capture ?? null;
+}
+
+const LIVE: TypedReportDeps = { write: recordCorrection, readBack: storedCapture };
+
+/**
+ * Files one typed price as a shopper report, marked by the server. After a
+ * fresh store the row is read back and a missing mark is counted as a
+ * customer-data fault (`typed_price_unmarked`), loudly, without failing the
+ * shopper: the price is kept either way and the audit finds the row.
+ */
+export function fileTypedReport(input: TypedReportInput, deps: TypedReportDeps = LIVE): RecordResult {
+  const result = deps.write({
+    clientId: input.clientId,
+    deviceId: input.deviceId,
+    code: input.code,
+    productId: input.productId,
+    label: input.label,
+    category: input.category,
+    seller: input.seller,
+    priceCents: input.priceCents,
+    kind: input.kind,
+    seenOn: input.seenOn,
+    ...(input.seenAt !== undefined ? { seenAt: input.seenAt } : {}),
+    capture: SHOPPER_REPORT_CAPTURE,
+  });
+  if (result.ok && !result.alreadyStored) {
+    let mark: CaptureMethod | null = null;
+    let why = '';
+    try {
+      mark = deps.readBack(result.id, input);
+    } catch (e) {
+      // Counted and tagged below with its reason, never absorbed (RULINGS.md, "Errors never go unnoticed").
+      why = `: read-back failed: ${e instanceof Error ? e.message : String(e)}`;
+    }
+    if (mark !== SHOPPER_REPORT_CAPTURE) customerDataFault('typed_price_unmarked', `correction ${result.id}${why}`);
+  }
+  return result;
 }
 
 export interface ShelfPriceInput {
@@ -112,7 +196,7 @@ export function recordShelfPrice(input: ShelfPriceInput): ShelfPriceResult {
   }
 
   // One id per scan: a retry of this same call is the same reading, not a second witness.
-  const result = recordCorrection({
+  const result = fileTypedReport({
     clientId: `scan-price:${scan.id}`,
     deviceId: input.deviceId,
     code,
@@ -123,7 +207,6 @@ export function recordShelfPrice(input: ShelfPriceInput): ShelfPriceResult {
     priceCents: cents,
     kind: 'regular',
     seenOn: input.today,
-    capture: 'typed',
   });
   return {
     stored: true,

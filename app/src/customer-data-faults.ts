@@ -1,5 +1,5 @@
 /**
- * Faults on the customer-data path (requirements 3.9, 5.1, 5.6, 5.9 in
+ * Faults on the customer-data path (requirements 3.9, 5.1, 5.2, 5.6, 5.9 in
  * docs/price-category-requirements-2026-10-01.md), counted and logged loudly.
  *
  * RULINGS.md "Errors never go unnoticed": every fault is seen, never absorbed,
@@ -18,6 +18,10 @@
  *   later_answer_not_stored    a later answer could not be stored beside the
  *                              shown one (3.9).
  *   scan_write_failed          a scan-log write on a customer-data path failed.
+ *   typed_price_unmarked       a typed price was stored as an observed price
+ *                              and read back without the shopper-report mark
+ *                              (5.2). The server sets the mark on every write,
+ *                              so this firing means the store dropped it.
  *
  * The detail never carries coordinates, a photo or a request body (errlog.ts's
  * rule): kinds, ids and column names only.
@@ -29,7 +33,8 @@ export type CustomerDataFaultKind =
   | 'exact_position_dropped'
   | 'shown_answer_edit_refused'
   | 'later_answer_not_stored'
-  | 'scan_write_failed';
+  | 'scan_write_failed'
+  | 'typed_price_unmarked';
 
 export function customerDataFault(kind: CustomerDataFaultKind, detail: string): void {
   counts[kind] = (counts[kind] ?? 0) + 1;

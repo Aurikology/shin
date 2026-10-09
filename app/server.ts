@@ -38,7 +38,6 @@ import type { AnswerBlock, GeminiRun, ScanType } from '../identify/src/providers
 import type { VerifierTransport } from '../identify/src/providers/price-verifier.ts';
 import { sealScanAnswer, cleanUrl } from '../identify/src/providers/gemini-grounded.ts';
 import { chargeSpend, usdCentsToCad, type SpendDecision } from '../identify/src/cap.ts';
-import { recordCorrection } from '../price/src/corrections.ts';
 import { ATTRIBUTION } from './src/attribution.ts';
 import { packScope, packVersion, servePack } from './src/pack-route.ts';
 import {
@@ -95,7 +94,7 @@ import { deviceFromHeaders, entitlementStartupWarning, isScanOutcome, quotaFor, 
 import { priceMatchLine } from './src/price-match-line.ts';
 import { recordEvent, serialisePayload } from './src/events.ts';
 import { chainsFromData, parseCell, storesNear, type StoreFetcher } from './src/stores.ts';
-import { recordShelfPrice, shopperReportField } from './src/shopper-report.ts';
+import { fileTypedReport, recordShelfPrice, shopperReportField } from './src/shopper-report.ts';
 import { PRICE_MATCH_POLICIES } from './src/price-match.ts';
 import { INVITE_EXEMPT, INVITE_HEADER, INVITE_REFUSAL, inviteAllows, inviteRequired, inviteWho } from './src/invite.ts';
 import { KeyedLimiter, addressWindows, clientAddress, codeWindows } from './src/rate-limit.ts';
@@ -4231,7 +4230,7 @@ export const server = createServer(async (req, res) => {
          * row, beside the photo and the store, and the route says so.
          *
          * IT IS NOT A CORRECTION AND IT DOES NOT PRETEND TO BE ONE. Nothing
-         * here calls `recordCorrection`, so this number never becomes evidence
+         * here files a shopper report (`fileTypedReport`), so this number never becomes evidence
          * in anybody's verdict; it is an observation, readable by the scan log
          * and by the person who took it, and that is the whole claim. The card
          * the shopper sees says the same thing.
@@ -4258,7 +4257,11 @@ export const server = createServer(async (req, res) => {
       }
 
       const kind = c.kind === 'promotional' ? 'promotional' : 'regular';
-      const result = recordCorrection({
+      // Requirement 5.2: every price on this route is typed by hand (the
+      // correction screen, "Report a wrong price", the price-only card), and the
+      // server marks it a typed shopper report in `fileTypedReport`. Nothing the
+      // body says about its own source (`capture`, `shopperReport`) is read.
+      const result = fileTypedReport({
         clientId,
         deviceId,
         code,
