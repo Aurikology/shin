@@ -104,6 +104,21 @@ test('a typed price kept as a priced row in the user catalogue is outside the sh
   assert.equal(audit.failing, 2);
 });
 
+test('a priced user-catalogue row carrying the typed mark (catalogue user_observation.capture) passes; an unmarked one still fails', () => {
+  const path = join(dir, 'uc-marked.db');
+  const db = new DatabaseSync(path);
+  db.exec('CREATE TABLE user_observation (id INTEGER PRIMARY KEY, store_type TEXT NOT NULL, price_cents INTEGER, observed_at TEXT NOT NULL, device_key TEXT, capture TEXT)');
+  const ins = db.prepare("INSERT INTO user_observation (store_type, price_cents, observed_at, device_key, capture) VALUES ('grocery', ?, '2026-10-01', 'k', ?)");
+  ins.run(399, 'typed');
+  ins.run(499, 'typed');
+  ins.run(599, null);
+  ins.run(null, null);
+  db.close();
+  const audit = auditTypedPrices({ corrections: null, scans: null, userCatalogue: path });
+  assert.equal(audit.checked.userCataloguePrices, 3);
+  assert.equal(audit.outsideReportStore, 1);
+});
+
 test('a missing or unreadable file is named, never a silent pass', () => {
   const audit = auditTypedPrices({ corrections: join(dir, 'nope.db'), scans: join(dir, 'nope2.db'), userCatalogue: join(dir, 'nope3.db') });
   assert.deepEqual([...audit.unavailable].sort(), ['corrections', 'scans', 'user_catalogue']);

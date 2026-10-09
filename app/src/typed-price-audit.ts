@@ -89,6 +89,7 @@ export function auditTypedPrices(paths: TypedPriceAuditPaths): TypedPriceAudit {
   let typedNotReported = 0;
   let keptOnScanOnly = 0;
   let userCataloguePrices = 0;
+  let unmarkedUserPrices = 0;
   const filed = new Set<string>(); // `${device}|${bare code}` for every shopper report
 
   const read = (name: string, path: string | null | undefined, fn: (db: DatabaseSync) => void): void => {
@@ -139,9 +140,17 @@ export function auditTypedPrices(paths: TypedPriceAuditPaths): TypedPriceAudit {
     if (!hasTable(db, 'user_observation')) throw new Error('no user_observation table');
     const row = db.prepare('SELECT COUNT(*) AS n FROM user_observation WHERE price_cents IS NOT NULL').get() as { n: number };
     userCataloguePrices = Number(row.n);
+    // catalogue/src/user-catalogue.ts sets `capture` = 'typed' on every priced row it writes (5.2).
+    // A file from before that column existed has no mark at all, so every priced row in it fails.
+    const marked = (db.prepare('PRAGMA table_info(user_observation)').all() as { name: string }[]).some((c) => c.name === 'capture');
+    unmarkedUserPrices = marked
+      ? Number(
+          (db.prepare("SELECT COUNT(*) AS n FROM user_observation WHERE price_cents IS NOT NULL AND capture IS NOT 'typed'").get() as { n: number }).n,
+        )
+      : userCataloguePrices;
   });
 
-  const outsideReportStore = userCataloguePrices;
+  const outsideReportStore = unmarkedUserPrices;
   return {
     checked: { reports, scanPrices, userCataloguePrices },
     unmarkedReports,
