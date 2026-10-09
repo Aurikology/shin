@@ -91,7 +91,7 @@ test('4.8 a fresh database carries the registry, seeded for every seller that wr
   for (const e of reg) assert.ok(e.cite.trim().length > 0 && e.evidence.trim().length > 0, `${e.seller}/${e.access} cites where it came from`);
 });
 
-test('4.8 each seed is what the repo records: two licences, two terms readings that forbid automation, two unknown', () => {
+test('4.8 each seed is what the repo records: two licences, three terms readings that forbid automation, one unknown', () => {
   const byKey = new Map(SOURCE_SEEDS.map((s) => [`${s.seller}/${s.access}`, s]));
   assert.equal(byKey.get('bcldb/automated')?.basis, 'licence');
   assert.match(byKey.get('bcldb/automated')!.evidence, /BC Open Government Licence/);
@@ -104,9 +104,13 @@ test('4.8 each seed is what the repo records: two licences, two terms readings t
     assert.equal(e.automated, 'forbidden');
     assert.match(e.cite, /app\/src\/attribution\.ts/);
   }
-  for (const k of ['Canadian Tire/automated', 'Save-On-Foods/automated']) {
-    assert.equal(byKey.get(k)?.basis, 'unknown', `${k}: the repo records no licence and no terms reading`);
-  }
+  const saveOn = byKey.get('Save-On-Foods/automated')!;
+  assert.equal(saveOn.basis, 'terms', 'Save-On-Foods: terms read 2026-10-09 in a browser');
+  assert.equal(saveOn.readOn, '2026-10-09');
+  assert.equal(saveOn.automated, 'forbidden');
+  assert.equal(saveOn.evidenceUrl, 'https://www.saveonfoods.com/sm/pickup/rsid/1982/terms-conditions');
+  assert.match(saveOn.evidence, /any means not intentionally made available/);
+  assert.equal(byKey.get('Canadian Tire/automated')?.basis, 'unknown', 'Canadian Tire: the repo records no licence and no terms reading');
   assert.equal(SOURCE_SEEDS.filter((s) => s.automated === 'permitted').length, 0, 'no recorded basis says an automated reader is permitted');
 });
 
@@ -114,6 +118,7 @@ test('4.8 the Walmart crawl and the ANBL loader are refused as automated readers
   const db = openPrices(':memory:');
   assert.throws(() => requireSourceUse(db, 'Walmart', 'automated'), /forbids an automated reader/);
   assert.throws(() => requireSourceUse(db, 'anbl', 'automated'), /forbids an automated reader/);
+  assert.throws(() => requireSourceUse(db, 'Save-On-Foods', 'automated'), /forbids an automated reader/);
   assert.equal(requireSourceUse(db, 'Walmart', 'by_hand').basis, 'hand_saved');
 });
 
@@ -266,9 +271,9 @@ test('4.8 the registry audit fails today and names every source whose basis is u
   assert.equal(a.pass, false);
   assert.deepEqual(
     a.unknownBasis.map((e) => `${e.seller}/${e.access}`).sort(),
-    ['Canadian Tire/automated', 'Save-On-Foods/automated'],
+    ['Canadian Tire/automated'],
   );
-  assert.throws(() => assertSourceRegistry(db), (e: Error) => e instanceof SourceRegistryError && /Save-On-Foods/.test(e.message) && /basis unknown/.test(e.message));
+  assert.throws(() => assertSourceRegistry(db), (e: Error) => e instanceof SourceRegistryError && /Canadian Tire/.test(e.message) && /basis unknown/.test(e.message));
 });
 
 test('4.8 the audit counts an automated reader that ran on a source while it was marked forbidding', () => {

@@ -1253,14 +1253,19 @@ export const SOURCE_SEEDS: readonly SourceEntry[] = [
   {
     seller: 'Save-On-Foods',
     access: 'automated',
-    basis: 'unknown',
+    basis: 'terms',
     evidence:
-      'Terms recorded as not read: "Save-On\'s terms were not read, and Century 21 v Rogers (2011 BCSC 1196) enforced browse-wrap terms against a bot." ' +
-      'robots.txt sits behind a Cloudflare challenge and was not read either.',
-    evidenceUrl: null,
-    readOn: null,
-    automated: 'not_recorded',
-    cite: 'docs/price-access-sweep-2026-09-27.md (Save-On-Foods, legal note); price/src/saveonfoods.ts header; app/test/attribution.test.ts (NOT_CREDITED)',
+      'Save-On-Foods Terms of Use and Sale (Pattison Food Group, Rev. Jan 2023), read 2026-10-09 in a browser (an earlier fetch was refused): ' +
+      '1.1 "You may not modify, copy, distribute, transmit, display, perform, produce, reproduce, publish, license, create derivative works from, ' +
+      'transfer or sell any text, graphics, images, media, information, software, products or services obtained from this Website", copying ' +
+      'allowed only "for the sole purpose of personal and non-commercial future reference"; 1.2 "You may not obtain or attempt to obtain any ' +
+      'materials or information through any means not intentionally made available or provided for through this Website". robots.txt, read ' +
+      '2026-10-09, says "User-agent: * Allow: /", but robots.txt is not the terms. Recorded verdict: automated reading of its storefront API and ' +
+      'reuse of the prices are both outside the terms; written permission from Pattison Food Group is needed.',
+    evidenceUrl: 'https://www.saveonfoods.com/sm/pickup/rsid/1982/terms-conditions',
+    readOn: '2026-10-09',
+    automated: 'forbidden',
+    cite: 'docs/price-access-sweep-2026-09-27.md (Save-On-Foods, legal note: terms then unread); price/src/saveonfoods.ts header; this entry is the reading',
   },
   {
     seller: 'anbl',
