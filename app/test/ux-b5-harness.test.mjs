@@ -393,6 +393,8 @@ class FElement extends FNode {
   get name() { return this.getAttribute('name') ?? ''; }
   get href() { return this.getAttribute('href') ?? ''; }
   set href(v) { this.setAttribute('href', v); }
+  get download() { return this.getAttribute('download') ?? ''; }
+  set download(v) { this.setAttribute('download', v); }
   get src() { return this.getAttribute('src') ?? ''; }
   set src(v) { this.setAttribute('src', v); }
   get title() { return this.getAttribute('title') ?? ''; }
