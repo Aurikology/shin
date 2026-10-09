@@ -94,38 +94,6 @@ async function chooseKnownShop(app) {
   assert.equal(shops.chosenName(), 'Loblaws', 'setup: the shop was not remembered');
 }
 
-test('J6 TODAY (replace when build 5 lands): verdict to a correction submitted is 8 taps with the shop prefilled (pass: 8; target 3)', async () => {
-  const app = await launchReturning();
-  await chooseKnownShop(app);
-  await reachVerdict(app);
-  const base = app.taps;
-  await app.tap('[data-act="detent-step"]', 'grabber');
-  await app.tap('[data-act="correct"]', 'Correct it');
-  assert.equal(app.screen, 'correct');
-  for (const k of ['4', '.', '9', '9']) await app.key(k);
-  await app.tap(findSave(app), 'Save it');
-  await app.tap('[data-act="back"]', 'Done');
-  assert.equal(app.screen, 'camera', `Done did not return to the camera (screen=${app.screen}). Server calls: ${app.server.calls.map((c) => c.path).join(' ')}`);
-  assert.equal(app.taps - base, 8, `J6 (shop known) today counted ${app.taps - base}, the inventory says 8. Log: ${app.log.slice(base).join(' | ')}`);
-  app.stop();
-});
-
-test('J6 TODAY (replace when build 5 lands): verdict to a correction submitted is 10 taps with the shop not known (pass: 10; target 4)', async () => {
-  const app = await launchReturning();
-  await reachVerdict(app);
-  const base = app.taps;
-  await app.tap('[data-act="detent-step"]', 'grabber');
-  await app.tap('[data-act="correct"]', 'Correct it');
-  for (const k of ['4', '.', '9', '9']) await app.key(k);
-  await app.tap('[data-seller]', 'shop field');
-  await app.tap('[data-pick-shop]', 'a shop suggestion');
-  await app.tap(findSave(app), 'Save it');
-  await app.tap('[data-act="back"]', 'Done');
-  assert.equal(app.screen, 'camera');
-  assert.equal(app.taps - base, 10, `J6 (shop unknown) today counted ${app.taps - base}, the inventory says 10. Log: ${app.log.slice(base).join(' | ')}`);
-  app.stop();
-});
-
 test('J6 target: verdict to a correction submitted is 3 taps with the shop known: grabber, Correct it, Save (pass: 3; today 8)', async () => {
   const app = await launchReturning();
   await chooseKnownShop(app);
@@ -141,8 +109,8 @@ test('J6 target: verdict to a correction submitted is 3 taps with the shop known
   assert.equal(app.screen, 'camera', 'Save did not return to the camera');
   assert.equal(app.state, 'idle', 'Save did not land on the live viewfinder');
   assert.equal(app.has('.saved-note'), false, 'a thank-you screen is still shown; the session must end on the viewfinder');
-  const filed = app.server.calls.find((c) => /correction|report|price/.test(c.path) && c.method === 'POST' && c.body && c.body.amountCents !== undefined);
-  assert.equal(filed?.body.amountCents, 499, `the correction filed was not the $4.99 the shopper typed. POSTs: ${app.server.calls.filter((c) => c.method === 'POST').map((c) => c.path).join(' ')}`);
+  const filed = app.server.calls.find((c) => /correction|report|price/.test(c.path) && c.method === 'POST' && c.body && c.body.priceCents !== undefined);
+  assert.equal(filed?.body.priceCents, 499, `the correction filed was not the $4.99 the shopper typed. POSTs: ${app.server.calls.filter((c) => c.method === 'POST').map((c) => c.path).join(' ')}`);
   app.stop();
 });
 

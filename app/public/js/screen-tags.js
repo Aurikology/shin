@@ -172,6 +172,7 @@ export const SCREEN_TAGS = {
   a106: { id: 'page.legal-privacy-fr', title: 'Page: Privacy Policy, French', kind: 'static', file: 'app/public/legal/privacy-fr.html', route: null, how: 'Privacy Policy, tap the French link at the top. Or open /legal/privacy-fr.html. No badge is drawn.' },
   a107: { id: 'camera.typedpick', title: 'Which one is it? (the typed name\'s top three catalogue matches)', kind: 'sheet', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.sheet.typedpick', rank: 40, how: 'Camera, Type the product name, enter a name the catalogue knows, such as McCain Tasti Taters, and submit.' },
   a108: { id: 'camera.servererror', title: 'Pexi hit a problem sheet (server fault on a scan)', kind: 'sheet', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.sheet.refusal[data-server-fault]', rank: 45, how: 'Scan a barcode while the server answers with an error (a 500). The sheet says the fault is on Pexi\'s side, not the phone\'s connection, and offers Try again.' },
+  a109: { id: 'camera.correction.toast', title: 'Price saved toast after a correction, back on the viewfinder', kind: 'overlay', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.toast[data-corr-toast]', rank: 50, how: 'Verdict sheet half open, tap Correct it, tap Save with a price and a shop filled in.' },
 };
 
 /**

@@ -1781,6 +1781,47 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
 }
 
 /**
+ * The correction, as the inside of the verdict sheet's half detent (UX build 5,
+ * R-30). It is not a screen: the camera, the frozen frame and the sheet stay where
+ * they are, and "Correct it" swaps what the half detent holds.
+ *
+ * The price is already in `corr.buffer` (what the shopper typed on the pad). The
+ * shop is `corr.seller`, prefilled when one is known; when none is, `corr.nearby`
+ * holds up to three of the nearest shops as buttons, so a shop is one tap and
+ * never a field. The field stays for a shop the buttons do not name. Save is
+ * `data-act="correct-save"` and is off, with the reason said, until there is both
+ * a price and a shop. Pure: every input is an argument.
+ *
+ * @param {{buffer:string, seller:string, nearby:object[], onSale:boolean, status:string, failure:object|null}} corr
+ * @param {{centsFirst:boolean, gate:string|null}} opts
+ */
+function correctionHtml(corr, { centsFirst, gate }) {
+  const failedLine = corr.status === 'failed'
+    ? (corr.failure?.network ? pt('report_failed_offline') : corr.failure?.why ? pt('report_refused', { why: corr.failure.why }) : pt('report_failed'))
+    : corr.status === 'sending' ? pt('report_sending') : null;
+  const buttons = corr.nearby
+    .map((s, i) => `<button type="button" class="pill ghost corr-shop-btn" data-pick-shop="${i}" data-shop-name="${escapeHtml(s.name)}" data-shop-id="${escapeHtml(s.id)}" aria-pressed="${s.name === corr.seller}">${escapeHtml(s.name)}</button>`)
+    .join('');
+  return `
+        <div class="corr" data-corr>
+          <p class="corr-ask">${escapeHtml(say('correct_ask'))}</p>
+          <div class="amount corr-amount" role="status" aria-label="${escapeHtml(t('correct_price_typed'))}" data-corr-amount>${padAmountHtml(corr.buffer, centsFirst)}</div>
+          <label class="seller corr-seller">
+            <span>${escapeHtml(t('correct_which_shop'))}</span>
+            <input type="text" inputmode="text" autocomplete="off" class="field" placeholder="${escapeHtml(t('correct_shop_placeholder'))}" value="${escapeHtml(corr.seller)}" data-corr-seller>
+          </label>
+          ${buttons ? `<div class="corr-shops" role="group" aria-label="${escapeHtml(t('correct_which_shop'))}">${buttons}</div>` : ''}
+          <button type="button" class="chip${corr.onSale ? ' chip-on' : ''}" data-act="correct-sale" aria-pressed="${corr.onSale ? 'true' : 'false'}">${escapeHtml(t('correct_on_sale'))}</button>
+          <div class="pad corr-pad">${keypadHtml({ centsFirst })}</div>
+          <p class="fineprint gate" data-corr-gate role="status">${escapeHtml(failedLine ?? gate ?? '')}</p>
+          <div class="actions">
+            <button type="button" class="pill solid wide" data-act="correct-save"${gate || corr.status === 'sending' ? ' disabled' : ''}>${escapeHtml(corr.status === 'failed' ? pt('report_retry') : t('correct_save_it'))}</button>
+            <button type="button" class="pill ghost" data-act="correct-cancel">${escapeHtml(t('correct_not_now'))}</button>
+          </div>
+        </div>`;
+}
+
+/**
  * A better answer arriving while the bell is on screen (design case 28): the
  * bell eases from the old centre and spread to the new ones, the axis words
  * already the new answer's. Under prefers-reduced-motion it is simply redrawn.
@@ -3107,6 +3148,9 @@ export default {
        off the DOM because the price and the shop are facts about the scan, not
        about the markup, and a button cannot be trusted to carry money. */
     let lastKeepable = null;
+    /* The open correction (R-30), or null; see openCorrection. Declared here because reset() clears it. */
+    let corr = null;
+    let corrToastTimer = null;
     let scanThumb = null;
     let coachKey = null;
     let camShinEl = camShin ? camShin.querySelector('.shin-say') : null;
@@ -5185,6 +5229,8 @@ export default {
       clearInterval(retryCountdownTimer);
       retryCountdownTimer = null;
       gen++; // Voids any in-flight proceed() continuation, including a photo capture's.
+      corr = null;
+      clearTimeout(corrToastTimer);
       slot.innerHTML = '';
       last = null;
       lastKeepable = null;
@@ -5341,12 +5387,25 @@ export default {
       if (padKey) {
         const k = padKey.dataset.pad;
         // R-26: cents first. One digit or backspace, or the key throws and the price stays as it was.
-        if (FLAGS.centsFirstPad) padBuffer = applyCentsKey(padBuffer, k);
-        else if (k === '⌫') padBuffer = padBuffer.slice(0, -1);
-        else if (k === '.') { if (!padBuffer.includes('.')) padBuffer += padBuffer ? '.' : '0.'; }
-        else if (padBuffer.includes('.') && padBuffer.split('.')[1].length >= 2) { /* two decimals is a price */ }
-        else padBuffer += k;
+        // R-30: with a correction open the keys belong to it, not to the pad that priced the scan.
+        if (corr && padKey.closest('[data-corr]')) {
+          corr.buffer = nextPadBuffer(corr.buffer, k);
+          if (corr.status === 'failed') { corr.status = 'idle'; corr.failure = null; }
+          paintCorrectionLive();
+          return;
+        }
+        padBuffer = nextPadBuffer(padBuffer, k);
         paintPad();
+        return;
+      }
+
+      // R-30: a nearest-shop button in the correction. One tap names the shop.
+      const corrShop = e.target.closest('[data-pick-shop]');
+      if (corrShop && corr) {
+        corr.seller = corrShop.dataset.shopName;
+        corr.shopId = corrShop.dataset.shopId;
+        if (corr.status === 'failed') { corr.status = 'idle'; corr.failure = null; }
+        paintCorrection();
         return;
       }
 
@@ -5583,6 +5642,21 @@ export default {
         return;
       }
 
+      if (act === 'correct-save') { saveCorrection(); return; }
+      if (act === 'correct-sale' && corr) {
+        corr.onSale = !corr.onSale;
+        btn.classList.toggle('chip-on', corr.onSale);
+        btn.setAttribute('aria-pressed', corr.onSale ? 'true' : 'false');
+        return;
+      }
+      if (act === 'correct-cancel' && corr) {
+        corr = null;
+        paintDistribution(true);
+        return;
+      }
+      /* R-30: on a verdict sheet the correction is a detent of that sheet. The
+         route below is for the surfaces that have no verdict sheet to detent. */
+      if (act === 'correct' && dist && slot.querySelector('.sheet.dist')) { openCorrection(); return; }
       if (act === 'correct') {
         /*
          * D01 (2026-10-06): the screen used to be handed the item's words and
@@ -5784,6 +5858,15 @@ export default {
          repaint here would take the caret with it. */
       const nameInput = e.target.closest('[data-obs-label]');
       if (nameInput) { padLabel = nameInput.value; return; }
+      /* R-30: the shop typed into the correction. Only the gate and Save move. */
+      const corrSeller = e.target.closest('[data-corr-seller]');
+      if (corrSeller && corr) {
+        corr.seller = corrSeller.value;
+        corr.shopId = null;
+        if (corr.status === 'failed') { corr.status = 'idle'; corr.failure = null; }
+        paintCorrectionLive();
+        return;
+      }
       /* The shop search: only the rows repaint, so the caret stays put. */
       const shopSearch = e.target.closest('[data-shop-search]');
       if (shopSearch) { shopQuery = shopSearch.value; paintShopRows(); return; }
@@ -6121,6 +6204,139 @@ export default {
      * the bell does not redraw; only the shopper's new dot drops in.
      */
     let dist = null;
+
+    /*
+     * THE CORRECTION, a detent of the verdict sheet (UX build 5, R-30). `corr` is
+     * null until "Correct it" is tapped on a verdict, then holds the price buffer
+     * (prefilled from what the shopper typed on the pad), the shop and the state of
+     * the send. Save files it and returns to the live viewfinder with a short toast;
+     * there is no Done screen. The old correction route is still reached from
+     * places that have no verdict sheet (the You screen's "Report a wrong price",
+     * a refusal), and nowhere that has one.
+     */
+    const CORR_TOAST_MS = 2600;
+
+    /** The next pad buffer after one key, in whichever mode the pad is in. */
+    function nextPadBuffer(buf, k) {
+      if (FLAGS.centsFirstPad) return applyCentsKey(buf, k);
+      if (k === '⌫') return buf.slice(0, -1);
+      if (k === '.') return buf.includes('.') ? buf : buf + (buf ? '.' : '0.');
+      if (buf.includes('.') && buf.split('.')[1].length >= 2) return buf; // two decimals is a price
+      return buf + k;
+    }
+    const bufferOfCents = (cents) => (Number.isInteger(cents) && cents > 0
+      ? (FLAGS.centsFirstPad ? String(cents) : (cents / 100).toFixed(2))
+      : '');
+    const corrCents = () => (FLAGS.centsFirstPad ? centsOfDigits(corr.buffer) : parsePadPrice(corr.buffer));
+    function corrGate() {
+      const c = corrCents();
+      const hasPrice = c !== null && c > 0;
+      const hasShop = corr.seller.trim() !== '';
+      if (!hasPrice && !hasShop) return say('correct_gate_both');
+      if (!hasPrice) return say('correct_gate_price');
+      if (!hasShop) return say('correct_gate_seller');
+      return null;
+    }
+    function paintCorrection() {
+      const half = slot.querySelector('.sheet.dist .sheet-half');
+      if (!corr || !half) return;
+      half.innerHTML = correctionHtml(corr, { centsFirst: FLAGS.centsFirstPad, gate: corrGate() });
+    }
+    /** Only the amount, the gate line and the Save state, so a key press never moves the shop field's caret. */
+    function paintCorrectionLive() {
+      if (!corr) return;
+      const amt = slot.querySelector('[data-corr-amount]');
+      if (amt) amt.innerHTML = padAmountHtml(corr.buffer, FLAGS.centsFirstPad);
+      const gate = corrGate();
+      const save = slot.querySelector('[data-act="correct-save"]');
+      if (save) {
+        if (gate || corr.status === 'sending') save.setAttribute('disabled', ''); else save.removeAttribute('disabled');
+        save.textContent = t('correct_save_it');
+      }
+      const line = slot.querySelector('[data-corr-gate]');
+      if (line) line.textContent = gate ?? '';
+    }
+    function openCorrection() {
+      const v = usableVerdict(dist.raw);
+      const cents = dist.typedCents ?? v?.shopper?.cents ?? last?.askingCents ?? scanShelfCents ?? null;
+      const shop = shops.chosenFor();
+      const mine = { buffer: bufferOfCents(cents), seller: shop?.name ?? '', shopId: shop?.id ?? null, nearby: [], onSale: false, status: 'idle', failure: null, pending: null, pendingKey: '' };
+      corr = mine;
+      paintCorrection();
+      // No shop known: the nearest three, as buttons. Location off asks nothing.
+      if (!shop && shops.locationAllowed()) {
+        void shops.nearbyWithin(1500).then((list) => {
+          if (dead || corr !== mine || mine.seller.trim() !== '') return;
+          mine.nearby = list.slice(0, 3);
+          paintCorrection();
+        });
+      }
+    }
+    function saveCorrection() {
+      if (!corr) throw new Error('correction: Save was pressed with no correction open');
+      const cents = corrCents();
+      if (cents === null || !(cents > 0)) {
+        throw new Error('correction: there is no price to save, so nothing was filed. Type the price on the tag first.');
+      }
+      const seller = corr.seller.trim();
+      if (seller === '') throw new Error('correction: there is no shop to file the price under, so nothing was filed.');
+      if (corr.status === 'sending') return;
+      const mine = corr;
+      const sc = last?.scenario ?? null;
+      const distKey = last?.result?.kind === 'distribution' && typeof dist?.key === 'string' && !dist.key.startsWith('name:') ? dist.key : null;
+      const code = sc?.scannedGtin ?? sc?.gtin ?? distKey ?? scanBarcode ?? null;
+      const productId = last?.result?.kind === 'verdict' ? (last.result.identity?.id ?? null) : null;
+      const osm = (id) => (typeof id === 'string' && /^(node|way|relation)\//.test(id) ? id : null);
+      const fields = {
+        code,
+        productId,
+        label: sc?.text || dist?.name || null,
+        category: sc?.category ?? null,
+        amountCents: cents,
+        seller,
+        storeId: osm(mine.shopId),
+        kind: mine.onSale ? 'promotional' : 'regular',
+        scanId: Number.isInteger(lastScanId) ? lastScanId : null,
+      };
+      const key = JSON.stringify(fields);
+      mine.status = 'sending';
+      mine.failure = null;
+      paintCorrectionLive();
+      void (async () => {
+        let res;
+        if (mine.pending && key === mine.pendingKey) {
+          res = await retryReport(mine.pending);
+        } else {
+          if (mine.pending) abandonReport(mine.pending);
+          res = await fileReport(fields);
+        }
+        if (dead || corr !== mine) return;
+        if (res.stored) {
+          // The shop just filed under is the shop used next time.
+          const match = shops
+            .pickerShops({ query: seller, known: store.knownShops(), nearby: mine.nearby })
+            .find((s) => shops.fold(s.name) === shops.fold(seller));
+          shops.chooseShop(match ? { id: match.id, name: match.name, hint: match.hint } : { id: shops.textId(seller), name: seller });
+          reset();
+          showCorrectionToast();
+          return;
+        }
+        mine.pending = res.entry;
+        mine.pendingKey = key;
+        mine.status = 'failed';
+        mine.failure = { network: res.network, why: res.why };
+        paintCorrection();
+      })();
+    }
+    /** Back on the live viewfinder: one short toast, then gone. Never a screen. */
+    function showCorrectionToast() {
+      slot.innerHTML = `<div class="toast" data-corr-toast role="status">${escapeHtml(say('correct_thanks'))}</div>`;
+      clearTimeout(corrToastTimer);
+      corrToastTimer = setTimeout(() => {
+        if (!dead && slot.querySelector('[data-corr-toast]')) slot.innerHTML = '';
+      }, CORR_TOAST_MS);
+    }
+
     /* The barcode and shelf price of the last lookup that got no answer, for Retry. */
     let lastLookup = null;
     function showDistribution(raw, { name = '', key = null, cents = null, scenario = null, shopperReport = null, historyId = null } = {}) {
@@ -6199,6 +6415,8 @@ export default {
         if (last) last.askingCents = cents;
         paintDistribution(true);
       });
+      // A repaint of the sheet must not wipe a correction that is open in its half detent.
+      if (corr) paintCorrection();
     }
 
     /* The sheet moves between three detents: peek, half, full. A drag of more
@@ -6407,6 +6625,7 @@ export default {
       clearTimeout(hintTimer);
       clearTimeout(scanPressTimer);
       clearTimeout(torchAckTimer);
+      clearTimeout(corrToastTimer);
       clearInterval(retryCountdownTimer);
     };
   },

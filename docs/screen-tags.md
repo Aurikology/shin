@@ -167,6 +167,7 @@ The answer sheet used to show the verdict tags a38 to a40 and its could-not-answ
 | a106 | Page: Privacy Policy, French | Privacy Policy, tap the French link at the top. Or open /legal/privacy-fr.html. No badge is drawn. | `app/public/legal/privacy-fr.html` |
 | a107 | Which one is it? (the typed name's top three catalogue matches) | Camera, Type the product name, enter a name the catalogue knows, such as McCain Tasti Taters, and submit. | `app/public/js/screens/camera.js` |
 | a108 | Pexi hit a problem sheet (server fault on a scan) | Scan a barcode while the server answers with an error (a 500). The sheet says the fault is on Pexi's side, not the phone's connection, and offers Try again. | `app/public/js/screens/camera.js` |
+| a109 | Price saved toast after a correction, back on the viewfinder | Verdict sheet half open, tap Correct it, tap Save with a price and a shop filled in. | `app/public/js/screens/camera.js` |
 
 ## Not tagged, with reason
 

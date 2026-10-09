@@ -37,3 +37,33 @@
   outline: var(--ring-width, 2px) solid currentColor;
   outline-offset: var(--ring-offset, 3px);
 }
+
+/*
+ * R-30: the correction in the verdict sheet's half detent. Same keypad and amount
+ * line as the pad (components.css, camera.css); only the layout around them is
+ * here. No animation on the keys. The saved toast enters ease-out under 300 ms and
+ * leaves by being removed (the viewfinder is the surface, nothing is left behind).
+ */
+.corr { display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-2) 0; }
+.corr-ask { margin: 0; color: var(--ink-muted); }
+.corr-amount { font-variant-numeric: tabular-nums; }
+.corr-shops { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.corr-shop-btn { min-height: 44px; }
+.corr-shop-btn[aria-pressed="true"] { background: var(--raised); color: var(--ink); }
+.corr .actions { display: flex; gap: var(--s-2); }
+.toast[data-corr-toast] {
+  position: absolute;
+  left: var(--s-4);
+  right: var(--s-4);
+  bottom: var(--s-6);
+  justify-content: center;
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+  pointer-events: none;
+  animation: corr-toast-in 200ms var(--ease-land) both;
+}
+@keyframes corr-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .toast[data-corr-toast] { animation: none; } }

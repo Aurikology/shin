@@ -54,7 +54,7 @@ function save(app) {
   assert.ok(el, `no Save control on screen (screen=${app.screen}, state=${app.state})`);
   return el;
 }
-const filed = (app) => app.server.calls.filter((c) => c.method === 'POST' && /correction|report/.test(c.path) && c.body && c.body.amountCents !== undefined);
+const filed = (app) => app.server.calls.filter((c) => c.method === 'POST' && /correction|report/.test(c.path) && c.body && c.body.priceCents !== undefined);
 
 async function chooseShop(app, name = 'Loblaws') {
   const shops = await app.mod('shops.js');
@@ -88,7 +88,7 @@ test('R-30: the price the shopper typed is already in the correction and Save is
   await app.wait(60);
   const sent = filed(app);
   assert.equal(sent.length, 1, `expected exactly one correction filed, found ${sent.length}. POSTs: ${app.server.calls.filter((c) => c.method === 'POST').map((c) => c.path).join(' ')}`);
-  assert.equal(sent[0].body.amountCents, 499, `the correction filed ${sent[0].body.amountCents} cents, not the $4.99 on the tag`);
+  assert.equal(sent[0].body.priceCents, 499, `the correction filed ${sent[0].body.priceCents} cents, not the $4.99 on the tag`);
   assert.equal(sent[0].body.code, CODE, 'the correction was filed against another barcode');
   assert.equal(sent[0].body.seller, 'Loblaws', 'the remembered shop was not carried into the correction');
   app.stop();
@@ -103,7 +103,7 @@ test('R-30: the carried-over price can be changed in the sheet: backspace then 5
   await app.key('5');
   await app.tap(save(app), 'Save');
   await app.wait(60);
-  assert.equal(filed(app)[0]?.body.amountCents, 495, `editing the carried-over price filed ${filed(app)[0]?.body.amountCents}`);
+  assert.equal(filed(app)[0]?.body.priceCents, 495, `editing the carried-over price filed ${filed(app)[0]?.body.priceCents}`);
   app.stop();
 });
 

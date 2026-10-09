@@ -327,6 +327,8 @@ test('the quarantine is still describing something real, and is empty', () => {
  * happens to reach them. Nothing asserts an entry is used, for that reason.
  */
 const ALLOWED = [
+  { file: 'camera.js', text: 'correction: there is no price to save, so nothing was filed. Type the price on the tag first.', why: 'The message of an Error thrown when Save is pressed on a correction with no price (UX build 5, R-30). Not Pexi talking: the shopper meets correct_gate_price on the disabled Save, and this is read in the log.' },
+  { file: 'camera.js', text: 'correction: there is no shop to file the price under, so nothing was filed.', why: 'The message of an Error thrown when Save is pressed on a correction with no shop (UX build 5, R-30). Not Pexi talking: the shopper meets correct_gate_seller, and this is read in the log.' },
   { file: 'watchlist.js', text: '{value} , under the usual {value} .', why: 'Two prices and a relation word: a factual caption on a saved row, not Pexi speaking. Surfaced by the whole-literal pass; the values are the sentence.' },
   { file: 'you.js', text: 'Build {value} · hand-set in main.js, not read from a running server.', why: 'A build stamp on the profile screen. Chrome, addressed to whoever is debugging, and it says where the number comes from.' },
   /* --- setup.js --- */
@@ -571,6 +573,9 @@ const NOT_SHOWN = [
   { file: 'camera.js', text: 'the server answered barcode', why: 'First half of the message of an Error thrown when a capture lookup returns a product with no name (UX build 5, R-36); reported through the error handler, never shown.' },
   { file: 'camera.js', text: 'with a product that has no name', why: 'Second half of the Error message above.' },
   { file: 'camera.js', text: 'capture lookup failed:', why: 'console.error prefix for the item-name lookup at capture; the pad keeps the digits and the fault is also tracked (R-36).' },
+  { file: 'camera.js', text: 'correction: there is no price to save, so nothing was filed. Type the price on the tag first.', why: 'The message of an Error thrown when Save is pressed on a correction with no price (UX build 5, R-30, RULINGS.md "Errors never go unnoticed"). Save is disabled with the reason said in correct_gate_price, so this is the second line of defence and is read by whoever reads the log.' },
+  { file: 'camera.js', text: 'correction: there is no shop to file the price under, so nothing was filed.', why: 'The message of an Error thrown when Save is pressed on a correction with no shop (R-30); the disabled Save says correct_gate_seller to the shopper, never this.' },
+  { file: 'camera.js', text: 'correction: Save was pressed with no correction open', why: 'The message of an Error thrown when a Save arrives and no correction is open (UX build 5, R-30); it reaches the error handler and the log, never the shopper.' },
   { file: 'share.js', text: 'toBlob gave nothing', why: 'The message of an Error thrown and caught inside the save path, so the console gets it. What the reader gets is share_export_failed.' },
   /* Paywall fault messages (UX build 2, RULINGS.md "Errors never go unnoticed"): Errors thrown or reported through track.js and the console for whoever reads the log. The shopper sees paywall_failed or paywall_restore_failed, never these. */
   { file: 'paywall.js', text: 'paywall: the fault could not be queued', why: 'console.error prefix when the fault report itself could not be queued; developer-facing only.' },
