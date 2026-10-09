@@ -762,7 +762,7 @@
      the literal never would have been. */
   border: 2px solid var(--ground);
   font-family: var(--f-mono);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   display: grid;
   place-items: center;
@@ -1155,7 +1155,7 @@
  */
 .conf-label, .gem-checked {
   font-family: var(--f-mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: .11em;
   text-transform: uppercase;
   opacity: .88;
@@ -1298,7 +1298,7 @@
 .rail-you.out { height: 33px; top: 10px; }
 .rail-lo, .rail-hi, .rail-me {
   position: absolute;
-  font-family: var(--f-mono); font-size: 9.5px;
+  font-family: var(--f-mono); font-size: 11px;
   letter-spacing: .05em;
   font-variant-numeric: tabular-nums;
   transform: translateX(-50%);
@@ -1336,7 +1336,7 @@
      sources. A divider is meant to separate, not to be seen. */
   border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
   font-family: var(--f-mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: .03em;
   font-variant-numeric: tabular-nums;
 }
@@ -1486,7 +1486,7 @@
 }
 .cat-chips li {
   font-family: var(--f-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: .04em;
   padding: 6px 11px;
   border-radius: 99px;
@@ -1502,7 +1502,7 @@
 .why { margin: 0; }
 .why summary {
   font-family: var(--f-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: .06em;
   text-transform: uppercase;
   opacity: .6;
@@ -1598,7 +1598,7 @@
  */
 .cand-meta {
   font-family: var(--f-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--ink-faint);

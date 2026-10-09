@@ -109,7 +109,7 @@
   color: var(--ink-muted);
 }
 .atts:not(.atts-row) .att-t span {
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.25;
 }
 

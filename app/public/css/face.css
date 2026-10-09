@@ -452,7 +452,7 @@
 .shin-say .bubble-text {
   margin: 0;
   font-family: var(--f-ui);
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.4;
   color: var(--ink);
   /* never truncated: no nowrap, no ellipsis, no line clamp */

@@ -311,7 +311,7 @@
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
-  font-size: 10px;
+  font-size: 11px;
   font-variant-numeric: var(--figures);
   color: var(--ink-faint);
 }

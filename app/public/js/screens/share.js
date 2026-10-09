@@ -109,7 +109,7 @@ const TYPE = {
   '--t-body-weight': '400',
   '--t-body-leading': '1.45',
   '--t-row-weight': '600',
-  '--t-label-size': '11px',
+  '--t-label-size': '12px',
   '--t-label-weight': '600',
   '--t-label-track': '.12em',
 };
@@ -233,7 +233,7 @@ function typeset(read) {
     bodyWeight: read('--t-body-weight'),
     bodyLeading: parseFloat(read('--t-body-leading')) || 1.45,
     rowWeight: read('--t-row-weight'),
-    labelSize: Math.round((parseFloat(read('--t-label-size')) || 11) * CARD_SCALE), // 11 -> 30
+    labelSize: Math.round((parseFloat(read('--t-label-size')) || 12) * CARD_SCALE), // 12 -> 33 (build 7 R-59: nothing on the card under 32 px)
     labelWeight: read('--t-label-weight'),
     labelTrack: (size) => em('--t-label-track', size),
   };

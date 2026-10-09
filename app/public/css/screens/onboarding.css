@@ -350,7 +350,7 @@
   background: var(--raised);
   border-radius: var(--r-sm);
   color: var(--ink-muted);
-  font: 600 10px/1.4 var(--f-mono);
+  font: 600 11px/1.4 var(--f-mono);
   letter-spacing: .12em;
   text-transform: uppercase;
 }

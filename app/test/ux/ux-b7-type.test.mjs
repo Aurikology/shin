@@ -132,7 +132,9 @@ const lastDecl = (selector, prop) => {
 test('R-18 (build 7): the CSS reader sees the type scale it must audit (negative control)', () => {
   assert.ok(declarationsOf('font-size').length > 150, 'fewer than 150 font-size declarations found: the reader is broken');
   assert.equal(fontPx(lastDecl('.modbtn', 'font-size')), 12, 'known value: .modbtn is 12 px');
-  assert.equal(fontPx('var(--t-label-size)'), 11, 'known value: the label token is 11 px');
+  // Build 7 changed this control with the build, as the file header allows: R-18 moves the provenance token
+  // from 11 to 12 px, so the known value the reader must reproduce is the new one.
+  assert.equal(fontPx('var(--t-label-size)'), 12, 'known value: the label token is 12 px (11 before build 7)');
 });
 
 test('R-18 (build 7): nothing is set below 11 px', () => {
@@ -148,7 +150,10 @@ test('R-18 (build 7): the provenance line is 12 px (the label token and the conf
   const bad = [];
   const label = fontPx('var(--t-label-size)');
   if (!(label >= 12)) bad.push(`--t-label-size is ${label}px (it sizes .label, the provenance token)`);
-  for (const sel of ['.conf-label, .gem-checked', '.prov div']) {
+  // `.conf-label, .gem-checked` is one rule with a selector list, and ruleFor matches one selector at a time, so the
+  // list is asked for as its two members. As first written it asked for the list as a single selector, which can
+  // never match (every rule's selector list is split on the comma first), so the test failed whatever the CSS said.
+  for (const sel of ['.conf-label', '.gem-checked', '.prov div']) {
     const px = fontPx(lastDecl(sel, 'font-size'));
     if (!(px >= 12)) bad.push(`${sel} is ${px}px`);
   }
@@ -157,7 +162,7 @@ test('R-18 (build 7): the provenance line is 12 px (the label token and the conf
 
 test('R-18 (build 7): the provenance line uses the muted ink, not the faint ink', () => {
   const bad = [];
-  for (const sel of ['.label', '.conf-label, .gem-checked', '.prov div']) {
+  for (const sel of ['.label', '.conf-label', '.gem-checked', '.prov div']) { // members of the list, see the note in the 12 px test
     const color = lastDecl(sel, 'color') ?? 'inherit';
     if (/ink-faint/.test(color)) bad.push(`${sel} { color: ${color} }`);
   }

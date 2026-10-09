@@ -299,7 +299,7 @@
   font-weight: var(--t-label-weight);
   letter-spacing: var(--t-label-track);
   text-transform: uppercase;
-  color: var(--ink-faint);
+  color: var(--ink-muted);
 }
 
 /*

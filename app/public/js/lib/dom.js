@@ -79,7 +79,34 @@ export function ago(iso) {
   const fr = locale() === 'fr';
   const at = Date.parse(iso);
   if (!Number.isFinite(at)) return fr ? 'a l’instant' : 'just now';
-  const mins = Math.max(0, Math.round((Date.now() - at) / 60000));
+  return relativeOrAbsolute(at, Date.now(), fr);
+}
+
+/** A week is the longest a date stays relative (R-55); after that it is a calendar date. */
+const RELATIVE_DAYS = 7;
+
+/**
+ * The date on a list row, and it throws when there is none.
+ *
+ * `ago` answers "just now" for a date it cannot read, which on a Saved row is a
+ * lie about when something was saved. Every row carries a date (R-96), so a row
+ * without a readable one is a bug in what was stored, and it must be found, not
+ * painted over. The row builders call this; the screen's guarded paint turns the
+ * throw into the screen's own error state.
+ */
+export function dateLabel(iso, now = Date.now()) {
+  const at = typeof iso === 'string' && iso.trim() !== '' ? Date.parse(iso) : Number.NaN;
+  if (!Number.isFinite(at)) throw new Error(`dateLabel: ${JSON.stringify(iso)} is not a date, and a row without a date is not drawn`);
+  return relativeOrAbsolute(at, now, locale() === 'fr');
+}
+
+/**
+ * Relative inside a week, then absolute with a short month and the FULL year
+ * ("Oct 3, 2026"): R-55, "don't abbreviate the year". A screenshot of "10 d ago"
+ * is wrong a day later; a date is not.
+ */
+function relativeOrAbsolute(at, now, fr) {
+  const mins = Math.max(0, Math.round((now - at) / 60000));
   /* The number is never touched by either branch, only the unit beside it and
      the order the two go in. French puts the preposition in front ("il y a 12
      min") where English puts it behind ("12 min ago"), which is exactly the
@@ -89,7 +116,8 @@ export function ago(iso) {
   const h = Math.round(mins / 60);
   if (h < 24) return fr ? `il y a ${h} h` : `${h} h ago`;
   const d = Math.round(h / 24);
-  return fr ? `il y a ${d} j` : `${d} d ago`;
+  if (d <= RELATIVE_DAYS) return fr ? `il y a ${d} j` : `${d} d ago`;
+  return new Date(at).toLocaleDateString(fr ? 'fr-CA' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 /**
