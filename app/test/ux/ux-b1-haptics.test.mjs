@@ -23,8 +23,9 @@
  *                           null; anything else THROWS.
  *     CAPTURE_HOLD_MS       150 or more (R-4).
  *   The native plugin is reached the way purchases.js reaches Purchases:
- *     win.Capacitor.getPlatform() / isPluginAvailable('Haptics') /
- *     Plugins.Haptics, with methods impact({style}), notification({type}) on
+ *     win.Capacitor.getPlatform() / isPluginAvailable(name) / Plugins[name],
+ *     name 'Haptics' on iOS (@capacitor/haptics) and 'ShinHaptics' on Android
+ *     (the wrapper's own plugin; @capacitor/haptics has no `perform`), with methods impact({style}), notification({type}) on
  *     iOS and perform({effect}) on Android 11+ (an older Android has no
  *     `perform`, and keeps navigator.vibrate).
  *   screens/camera.js: no buzz(), no navigator.vibrate; exactly one
@@ -97,11 +98,13 @@ function fakeWin({ platform = 'web', plugin = null, vibrate = null } = {}) {
       ? { perform: rec('perform') }
       : { impact: rec('impact'), notification: rec('notification') })
     : plugin;
+  // @capacitor/haptics has no `perform` on Android and one plugin name cannot be registered twice, so Android's is ShinHaptics.
+  const pluginName = platform === 'android' ? 'ShinHaptics' : 'Haptics';
   const win = {
     Capacitor: platform === 'web' ? undefined : {
       getPlatform: () => platform,
-      isPluginAvailable: (n) => n === 'Haptics' && !!Haptics,
-      Plugins: Haptics ? { Haptics } : {},
+      isPluginAvailable: (n) => n === pluginName && !!Haptics,
+      Plugins: Haptics ? { [pluginName]: Haptics } : {},
     },
     navigator: vibrate === 'yes' ? { vibrate: (p) => { log.push(['vibrate', p]); return true; } } : {},
   };
