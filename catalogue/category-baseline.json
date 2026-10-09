@@ -1,6 +1,6 @@
 {
   "recorded": "2026-10-08",
-  "note": "A ratchet: a count may not rise above its number here. A fix lowers it by hand in the same commit. A1 to A4 are Canadian openfoodfacts rows that carry tags (43,087); A6 is Canadian rows of any source that carry tags and have a NULL category_source; A7 is the swallowing catch/except blocks found in category-check.ts A7_FILES. A5 (taxonomy missing or changed) is a status and has no number: any fault fails. A1, A3 and A4 are the spec's (docs/category-safeguards-2026-10-08.md, 2026-10-07 PC catalogue). A2 and A6 were MEASURED on the real catalogue 2026-10-08 by the coordinator: A2 is 8273 (3242 proven not the parent, because the last tag is in the taxonomy, plus about 5031 that cannot be checked because the last tag is not in it); A6 is 387904 of 394118 tagged rows. LOWERED 2026-10-08 after the canonicalize pass on the PC catalogue (rows 4289929 before and after): A1 6003 to 0, A2 8273 to 170 (0 proven wrong; 170 cannot be checked, all on rows whose labels resolve to nothing), A3 12469 to 2384, A4 74 to 0, A7 14 to 13.",
+  "note": "A ratchet: a count may not rise above its number here. A fix lowers it by hand in the same commit. A1 to A4 are Canadian openfoodfacts rows that carry tags (43,087); A6 is Canadian rows of any source that carry tags and have a NULL category_source; A7 is the swallowing catch/except blocks found in category-check.ts A7_FILES. A5 (taxonomy missing or changed) is a status and has no number: any fault fails. A1, A3 and A4 are the spec's (docs/category-safeguards-2026-10-08.md, 2026-10-07 PC catalogue). A2 and A6 were MEASURED on the real catalogue 2026-10-08 by the coordinator: A2 is 8273 (3242 proven not the parent, because the last tag is in the taxonomy, plus about 5031 that cannot be checked because the last tag is not in it); A6 is 387904 of 394118 tagged rows. LOWERED 2026-10-08 after the canonicalize pass on the PC catalogue (rows 4289929 before and after): A1 6003 to 0, A2 8273 to 170 (0 proven wrong; 170 cannot be checked, all on rows whose labels resolve to nothing), A3 12469 to 2384, A4 74 to 0, A7 14 to 13, then to 0: the 11 handlers the scan still found now count and report their error.",
   "taxonomy": {
     "sha256": "99f43500fd16206204c4c473547d725e818885d03a42c4d1025d8b55d29ba749",
     "fetchedAt": "2026-10-08",
@@ -13,6 +13,6 @@
     "A3": 2384,
     "A4": 0,
     "A6": 387904,
-    "A7": 13
+    "A7": 0
   }
 }

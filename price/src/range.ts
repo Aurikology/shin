@@ -196,6 +196,41 @@ function spellings(code: string): string[] {
   return [...new Set(out)];
 }
 
+/* ---------------------------------------------------------------- faults */
+
+/*
+ * A BAD ROW NEVER REACHES THE SHOPPER, BUT IT IS NEVER SILENT EITHER.
+ *
+ * range.ts runs in front of a shopper, so a value it cannot read (a link that is not a URL, a
+ * date that is not a date, a category path that is not JSON) must not throw or change the
+ * answer. Each such value is counted by kind and logged once as `[range-fault] <kind> <detail>`;
+ * `rangeFaults()` is what `/api/health` shows. A repeat of the same value counts every time but
+ * logs once, because one bad row in a big category is read on every request. Same shape as the
+ * `[category-fault]` lines of app/src/category-guard.ts.
+ */
+const faultCounts: Record<string, number> = {};
+const faultLogged = new Set<string>();
+
+function warnRangeFault(kind: string, detail: string): void {
+  faultCounts[kind] = (faultCounts[kind] ?? 0) + 1;
+  const line = `[range-fault] ${kind} ${detail.slice(0, 200)}`;
+  if (faultLogged.has(line)) return;
+  if (faultLogged.size >= 1000) faultLogged.clear();
+  faultLogged.add(line);
+  console.warn(line);
+}
+
+/** Unreadable values met since start, by kind. Empty means none, not "not checked". */
+export function rangeFaults(): Record<string, number> {
+  return { ...faultCounts };
+}
+
+/** TEST ONLY: forget the counts and the lines already logged. */
+export function resetRangeFaultsForTests(): void {
+  for (const k of Object.keys(faultCounts)) delete faultCounts[k];
+  faultLogged.clear();
+}
+
 /* --------------------------------------------------------------- prices */
 
 interface Obs {
@@ -212,7 +247,9 @@ function reservedHost(url: string | null): boolean {
   let host: string;
   try {
     host = new URL(url).hostname.toLowerCase();
-  } catch {
+  } catch (err) {
+    // Kept, as before: a link we cannot read cannot be shown to come from a test double.
+    warnRangeFault('unparseable_url', `${url} (${err instanceof Error ? err.message : String(err)})`);
     return false;
   }
   return /(^|\.)example\.(com|net|org)$/.test(host) || /\.(example|test|invalid|localhost)$/.test(host) || host === 'localhost';
@@ -239,11 +276,18 @@ function readObservations(db: DatabaseSync, codes: readonly string[] | null, cur
     if (typeof cents !== 'number' || !Number.isInteger(cents) || cents <= 0) continue;
     if (typeof seen !== 'string' || typeof r.code !== 'string' || typeof r.seller !== 'string') continue;
     if (reservedHost(typeof r.url === 'string' ? r.url : null)) continue;
+    // isFutureDated reads a date it cannot parse as future-dated, so this row would be dropped
+    // without a word; say so first. The price is still not used.
+    if (Number.isNaN(Date.parse(seen))) {
+      warnRangeFault('unparseable_seen_on', `${r.code} ${seen}`);
+      continue;
+    }
     let age: number;
     try {
       if (isFutureDated(seen, asOf)) continue;
       age = ageDays(seen, asOf);
-    } catch {
+    } catch (err) {
+      warnRangeFault('unparseable_as_of', `${asOf} (${err instanceof Error ? err.message : String(err)})`);
       continue;
     }
     if (age > windowDays) continue;
@@ -285,12 +329,14 @@ function sizeOf(value: unknown, unit: unknown, quantity: unknown): ComparisonQua
   return p ? toComparison(p.value, p.unit) : null;
 }
 
-function parsePath(v: unknown): string[] {
+function parsePath(v: unknown, code: string): string[] {
   if (typeof v !== 'string') return [];
   try {
     const p = JSON.parse(v) as unknown;
     return Array.isArray(p) ? p.filter((t): t is string => typeof t === 'string') : [];
-  } catch {
+  } catch (err) {
+    // The product is treated as having no path, as before.
+    warnRangeFault('unparseable_category_path', `${code} ${v.slice(0, 60)} (${err instanceof Error ? err.message : String(err)})`);
     return [];
   }
 }
@@ -313,7 +359,7 @@ function readCatalogue(db: DatabaseSync, codes: readonly string[]): Map<string, 
         key,
         size: sizeOf(r.size_value, r.size_unit, r.quantity),
         leaf: typeof r.leaf_category === 'string' ? r.leaf_category : null,
-        path: parsePath(r.category_path),
+        path: parsePath(r.category_path, String(r.code)),
       });
     }
   }

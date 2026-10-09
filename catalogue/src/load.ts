@@ -154,16 +154,25 @@ async function main(): Promise<number> {
 
   let read = 0;
   let malformed = 0;
+  // The prepared file is our own output, so a line that will not parse is our bug: the first few
+  // line numbers are kept and named when the run fails at the end.
+  const malformedLines: number[] = [];
+  let lineNo = 0;
   let inBatch = 0;
   db.exec('BEGIN');
 
   for await (const line of rl) {
+    lineNo += 1;
     if (line.length === 0) continue;
     let r: PreparedRow;
     try {
       r = JSON.parse(line) as PreparedRow;
-    } catch {
+    } catch (err) {
       malformed += 1;
+      if (malformedLines.length < 3) {
+        malformedLines.push(lineNo);
+        console.error(`load: malformed prepared line ${lineNo}: ${err instanceof Error ? err.message : String(err)}`);
+      }
       continue;
     }
     insert.run(
@@ -267,6 +276,16 @@ async function main(): Promise<number> {
 
   if (fts.n !== total.n) {
     console.error(`text index out of step with the table: ${fts.n} vs ${total.n}`);
+    return 1;
+  }
+  /*
+   * The run finished (every good row is in and indexed), but it does not get to call itself a
+   * success: a prepared line that will not parse is our own bug in the prepare step. The load
+   * writes into the database in place rather than swapping a new file in, so there is no swap to
+   * stop before; the exit code is what stops whatever runs next.
+   */
+  if (malformed > 0) {
+    console.error(`load FAILED: ${malformed} malformed lines in ${ROWS_PATH}, first line numbers ${malformedLines.join(', ')}. The prepare step wrote a line that is not JSON; fix it and load again.`);
     return 1;
   }
   return total.n > 0 ? 0 : 1;

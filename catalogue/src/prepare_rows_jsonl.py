@@ -30,7 +30,7 @@ import json
 import sys
 
 # Every judgement that is not about the file format lives in one place.
-from prepare_rows import parse_size, size_from_name
+from prepare_rows import FAULT_KINDS, fault_lines, parse_size, size_from_name, warn_fault
 
 IN = sys.argv[1] if len(sys.argv) > 1 else "data/openbeautyfacts.jsonl.gz"
 OUT = sys.argv[2] if len(sys.argv) > 2 else "data/rows-obf.jsonl"
@@ -85,9 +85,10 @@ def main() -> int:
             try:
                 r = json.loads(line)
             except json.JSONDecodeError:
-                # Counted as a missing code rather than dropped in silence: a
-                # rising number here means the export changed shape.
-                skipped_no_code += 1
+                # Its own counter, with the first few bad lines shown: a line that
+                # will not parse used to hide inside "skipped, no code", and a rising
+                # number here means the export changed shape.
+                warn_fault("malformed_json", line)
                 continue
 
             code = clean(r.get("code"))
@@ -145,6 +146,8 @@ def main() -> int:
     print(f"skipped, no name     {skipped_no_name}")
     print(f"with a parsed size   {with_size}  ({100 * with_size / max(written, 1):.1f}%)")
     print(f"sold in Canada       {canada}  ({100 * canada / max(written, 1):.1f}%)")
+    for line in fault_lines(FAULT_KINDS + ["malformed_json"]):
+        print(line)
     return 0 if written > 0 else 1
 
 

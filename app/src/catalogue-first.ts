@@ -45,7 +45,8 @@
  *     kind: 'catalogue',
  *     outcome: 'catalogue_hit' | 'not_in_catalogue',
  *     offerManualEntry: boolean,      // true exactly when outcome is not_in_catalogue
- *     catalogueUp: boolean,           // false: the catalogue is not attached at all
+ *     catalogueUp: boolean,           // false: the catalogue is not attached at all, or its lookup threw
+ *                                     // ([catalogue-fault] lookup_failed): "we did not look", never "never seen"
  *     barcode: string,                // the canonical digits that were looked up
  *     identity: null | {
  *       name: string, brand: string | null, size: string | null,
@@ -145,6 +146,32 @@ export function rangeAskSettings(env: NodeJS.ProcessEnv = process.env): {
     ceilingCents: wholeOr(settings.SHIN_RANGE_ASK_CEILING_CENTS(env), RANGE_ASK_DEFAULT_CEILING_CENTS),
     storePath: settings.SHIN_RANGE_ASK_STORE_PATH(env)?.trim() || undefined,
   };
+}
+
+/* ------------------------------------------------------------------ faults */
+
+/*
+ * A CATALOGUE THAT FAILED MUST NEVER READ AS A CATALOGUE THAT HAS NOTHING.
+ *
+ * Both faults below sit in front of a shopper, so neither throws and neither blocks the answer.
+ * Each is logged once as `[catalogue-fault] <kind> <reason>` and counted; `catalogueFaults()` is
+ * what `/api/health` shows, beside the `[category-fault]` counts of category-guard.ts.
+ */
+const faultCounts: Record<string, number> = {};
+
+function warnCatalogueFault(kind: string, detail: string): void {
+  faultCounts[kind] = (faultCounts[kind] ?? 0) + 1;
+  console.warn(`[catalogue-fault] ${kind} ${detail}`);
+}
+
+/** Lookups and brand reads that failed since start, by kind. Empty means none. */
+export function catalogueFaults(): Record<string, number> {
+  return { ...faultCounts };
+}
+
+/** TEST ONLY: forget the counts. */
+export function resetCatalogueFaultsForTests(): void {
+  for (const k of Object.keys(faultCounts)) delete faultCounts[k];
 }
 
 /* ------------------------------------------------------------------- types */
@@ -357,12 +384,17 @@ export async function answerBarcodeFromCatalogue(
   const shelfPrice = embedded !== null ? { cents: embedded, from: 'weighed_label' as const } : null;
 
   let row: CatalogueRow | null = null;
+  // True when the lookup itself threw: the catalogue was asked and could not answer, which is
+  // not the same as answering "never seen". It reads as `catalogueUp: false` ("we did not look").
+  let lookupFailed = false;
   if (deps.lookup) {
     try {
       const hit = deps.lookup.byGtin(barcode.gtin);
       row = isRow(hit) ? hit : null;
-    } catch {
+    } catch (err) {
       row = null;
+      lookupFailed = true;
+      warnCatalogueFault('lookup_failed', `${barcode.gtin} ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -398,7 +430,7 @@ export async function answerBarcodeFromCatalogue(
         kind: 'catalogue',
         outcome: 'not_in_catalogue',
         offerManualEntry: true,
-        catalogueUp: deps.lookup !== null,
+        catalogueUp: deps.lookup !== null && !lookupFailed,
         barcode: barcode.gtin,
         identity: null,
         range: null,
@@ -629,8 +661,11 @@ export async function matchText(lines: readonly string[], deps: MatchTextDeps): 
   let brands;
   try {
     brands = deps.catalogue ? brandLookupFromDb(deps.catalogue) : undefined;
-  } catch {
+  } catch (err) {
+    // The match still runs, without brands; the fault is said out loud so a catalogue that
+    // lost its text index does not just look like a catalogue with no brand in the text.
     brands = undefined;
+    warnCatalogueFault('brand_lookup_failed', err instanceof Error ? err.message : String(err));
   }
   const result = await topMatchesFromText(lines, {
     catalogue: deps.searcher as Parameters<typeof topMatchesFromText>[1]['catalogue'],

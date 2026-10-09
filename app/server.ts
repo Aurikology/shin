@@ -61,6 +61,7 @@ import { canonicalBarcode, canonicalGtin } from './src/barcode.ts';
 import { createCategoryGuard, defaultFaultsFile, ringLeaf, type CategoryGuard } from './src/category-guard.ts';
 import {
   answerBarcodeFromCatalogue,
+  catalogueFaults,
   catalogueFirstOn,
   matchText,
   pickCandidate,
@@ -82,7 +83,8 @@ import {
   releaseRefresh,
   rememberCachedScan,
 } from './src/repeat-cache.ts';
-import { recordGap } from '../catalogue/src/gaps.ts';
+import { activeGapLog, recordGap } from '../catalogue/src/gaps.ts';
+import { rangeFaults } from '../price/src/range.ts';
 import { summariseScans, summariseDeviceScans, UNATTRIBUTED } from './src/scan-summary.ts';
 import { keepLocation, keepPhoto, readConsent, writeConsent } from './src/consent.ts';
 import { deleteRating, isRating, isRatingReason, rateScan, ratingFor, scanExists } from './src/ratings.ts';
@@ -140,7 +142,12 @@ const CATALOGUE_DB =
   settings.SHIN_CATALOGUE() ?? fileURLToPath(new URL('../catalogue/data/catalogue.db', import.meta.url));
 
 let fastLookup: { byGtin(code: string): unknown } | null = null;
-let searchService: { search(q: unknown): Promise<unknown> } | null = null;
+/** What the server needs of the search worker; `gaps` is the worker's count of misses it could not write down. */
+interface SearchService {
+  search(q: unknown): Promise<unknown>;
+  gaps?(): { readonly dropped: number; readonly why: string };
+}
+let searchService: SearchService | null = null;
 /*
  * The routing priors, loaded beside the catalogue because they are useless
  * without one: a route narrows a search, and there is nothing to narrow when
@@ -185,13 +192,30 @@ let categoryGuard: CategoryGuard = createCategoryGuard({
   faultsFile: defaultFaultsFile(),
 });
 
+/**
+ * The swallowed-error counters `/api/health` adds (category-check.ts, A7). `gapsDropped` is the misses
+ * the gap log could not take, summed over this thread's log and the search worker's (which has its own
+ * memory, so the service carries its count back with each reply), with the latest reason. The two
+ * fault maps count what range.ts and catalogue-first.ts could not read; each is `{}` when none.
+ */
+function faultHealth(): { gapsDropped: number; gapsDroppedWhy: string; rangeFaults: Record<string, number>; catalogueFaults: Record<string, number> } {
+  const worker = searchService?.gaps?.() ?? { dropped: 0, why: '' };
+  const here = activeGapLog();
+  return {
+    gapsDropped: worker.dropped + (here?.dropped ?? 0),
+    gapsDroppedWhy: worker.why || here?.droppedWhy || '',
+    rangeFaults: rangeFaults(),
+    catalogueFaults: catalogueFaults(),
+  };
+}
+
 /** TEST ONLY: replace the category guard (a guard built on a fixture taxonomy, or on a missing one). */
 export function setCategoryGuardForTests(guard: CategoryGuard): void {
   categoryGuard = guard;
 }
 
 /** TEST ONLY: replace the catalogue search worker `/api/search` calls, to drive a ring through the route. */
-export function setSearchServiceForTests(fake: { search(q: unknown): Promise<unknown> } | null): void {
+export function setSearchServiceForTests(fake: SearchService | null): void {
   searchService = fake;
 }
 
@@ -313,9 +337,7 @@ async function attachCatalogue(): Promise<void> {
     // D40: the embedding model is pre-loaded only when meaning search is on. With
     // it off nothing embeds a query, and the load used to log a Protobuf failure
     // for a model that is not on the answer path.
-    searchService = startCatalogueService(CATALOGUE_DB, { warm: vectorsOn }) as unknown as {
-      search(q: unknown): Promise<unknown>;
-    };
+    searchService = startCatalogueService(CATALOGUE_DB, { warm: vectorsOn }) as unknown as SearchService;
 
     catalogueWhyNot = '';
     console.log(
@@ -4661,6 +4683,8 @@ export const server = createServer(async (req, res) => {
         catalogueUp: fastLookup !== null,
         // A2 and A5: "on", or exactly "category check off"; faults counted by kind.
         ...categoryGuard.health(),
+        // A7: every fault that used to be swallowed. Health stays ok: the shopper is served.
+        ...faultHealth(),
       });
     }
 

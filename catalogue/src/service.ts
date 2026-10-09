@@ -27,6 +27,8 @@ interface WorkerReply {
   readonly value?: unknown;
   readonly error?: string;
   readonly ms: number;
+  /** The worker's count of misses it could not write down, and why (search.ts gapsDropped). */
+  readonly gaps?: { readonly dropped: number; readonly why: string };
 }
 
 export interface CatalogueService {
@@ -36,6 +38,8 @@ export interface CatalogueService {
   ring(categoryPath: readonly string[], want: number, exclude?: string): Promise<NeighbourRing | null>;
   /** Terminates the worker. Used by tests; the app process never calls this. */
   close(): Promise<number>;
+  /** The latest count of misses the worker could not write to the gap log, and why; zero and empty until a reply says otherwise. */
+  gaps(): { readonly dropped: number; readonly why: string };
 }
 
 /**
@@ -63,7 +67,10 @@ export function startCatalogueService(dbPath: string, opts: { warm?: boolean } =
   let nextId = 1;
   const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
 
+  let gaps = { dropped: 0, why: '' };
+
   worker.on('message', (msg: WorkerReply) => {
+    if (msg.gaps) gaps = { dropped: msg.gaps.dropped, why: msg.gaps.why };
     const p = pending.get(msg.id);
     if (!p) return; // A reply to a request nobody is waiting on any more; drop it.
     pending.delete(msg.id);
@@ -157,5 +164,6 @@ export function startCatalogueService(dbPath: string, opts: { warm?: boolean } =
     ring: (categoryPath, want, exclude) =>
       send<NeighbourRing | null>({ kind: 'ring', categoryPath, want, exclude }),
     close: () => worker.terminate(),
+    gaps: () => gaps,
   };
 }

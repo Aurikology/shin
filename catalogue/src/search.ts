@@ -1635,6 +1635,8 @@ export class Catalogue {
        */
       this.#localGapsDropped += 1;
       this.#localGapsDroppedWhy = err instanceof Error ? err.message : String(err);
+      // Also said out loud, not only counted: the count sat in a field nothing read. /api/health now shows it.
+      console.warn(`[catalogue-fault] gap_not_recorded ${this.#localGapsDroppedWhy}`);
     }
   }
 

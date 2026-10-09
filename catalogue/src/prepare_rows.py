@@ -53,6 +53,52 @@ UNIT_TO_BASE = {
     "floz": ("ml", 29.5735295625),
 }
 
+# Upstream Open Food Facts fields are untrusted, so a value that will not parse is
+# never fatal and never silent: it is counted by kind, and the end summary prints
+# each count with up to three of the bad values. A row with a bad field is still
+# written (the field is absent, as it always was); only the count is new.
+FAULT_LABELS = {
+    "name_size": "size in name unparseable",
+    "product_quantity": "product_quantity unparseable",
+    "additives_n": "additives_n not an integer",
+    "nova_group": "nova_group not an integer",
+    # Counted by prepare_rows_jsonl.py only; a Parquet file has no lines to be malformed.
+    "malformed_json": "malformed json",
+}
+FAULT_KINDS = [k for k in FAULT_LABELS if k != "malformed_json"]
+FAULT_EXAMPLES = 3
+_faults = {}
+
+
+def warn_fault(kind, value):
+    """Count one untrusted value that would not parse; keep the first few as examples."""
+    count, examples = _faults.get(kind, (0, []))
+    if len(examples) < FAULT_EXAMPLES:
+        examples = examples + [repr(value)[:80]]
+    _faults[kind] = (count + 1, examples)
+
+
+def reset_faults():
+    _faults.clear()
+
+
+def fault_count(kind):
+    return _faults.get(kind, (0, []))[0]
+
+
+def fault_lines(kinds=None):
+    """The end-summary lines: every kind with its count, and examples when there are any."""
+    out = []
+    for kind in kinds or list(FAULT_KINDS):
+        label = FAULT_LABELS[kind]
+        count, examples = _faults.get(kind, (0, []))
+        line = f"{label:<28} {count}"
+        if examples:
+            line += "  e.g. " + ", ".join(examples)
+        out.append(line)
+    return out
+
+
 # A size read out of a product name, e.g. "Cheerios Original 340 g".
 #
 # Worth the risk it carries because the alternative is worse: only 19% of the
@@ -81,6 +127,7 @@ def size_from_name(name):
     try:
         v = float(m.group(1).replace(",", "."))
     except ValueError:
+        warn_fault("name_size", m.group(1))
         return None, None
     base_unit = UNIT_TO_BASE.get(m.group(2).lower())
     if not base_unit or v <= 0:
@@ -108,7 +155,9 @@ def parse_size(quantity, product_quantity, product_quantity_unit):
                 base, mult = UNIT_TO_BASE.get(unit, ("g", 1.0))
                 return round(v * mult, 4), base
         except (TypeError, ValueError):
-            pass
+            # Falls through to the free-text quantity below, as it always did; the
+            # bad value is counted so a rising number shows the export changed shape.
+            warn_fault("product_quantity", product_quantity)
 
     if not quantity:
         return None, None
@@ -193,6 +242,8 @@ def main() -> int:
     print(f"written              {written}")
     print(f"skipped, no name     {skipped_no_name}")
     print(f"with a parsed size   {with_size}  ({100 * with_size / max(written, 1):.1f}%)")
+    for line in fault_lines():
+        print(line)
     return 0 if written > 0 else 1
 
 
@@ -210,13 +261,15 @@ def clean_grade(v):
     return s if s in VALID_NUTRISCORE else None
 
 
-def clean_int(v):
+def clean_int(v, field="additives_n"):
     """additives_n and nova_group arrive as floats from Parquet; 0 is real, keep it."""
     if v is None:
         return None
     try:
         return int(v)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
+        # NaN and inf land here too: not an integer, not a crash, and counted.
+        warn_fault(field, v)
         return None
 
 
@@ -281,7 +334,7 @@ def write_batch(fh, rows, written, skipped_no_name, with_size):
                 # Item 25's five quality fields.
                 "generic_name": generic_name,
                 "nutriscore_grade": clean_grade(r.get("nutriscore_grade")),
-                "nova_group": clean_int(r.get("nova_group")),
+                "nova_group": clean_int(r.get("nova_group"), "nova_group"),
                 "additives_n": clean_int(r.get("additives_n")),
                 "ingredients_text": ingredients_text,
             }, ensure_ascii=False) + "\n")

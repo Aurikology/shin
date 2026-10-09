@@ -300,7 +300,12 @@ export function recordGap(input: {
         input.catalogueMissing ? 1 : 0,
       );
   } catch (err) {
+    const why = err instanceof Error ? err.message : String(err);
+    // Said out loud, once per distinct reason: a broken log would otherwise print a line for
+    // every miss. The count keeps rising, and /api/health shows it with the reason.
+    const fresh = log.dropped === 0 || why !== log.droppedWhy;
     log.dropped += 1;
-    log.droppedWhy = err instanceof Error ? err.message : String(err);
+    log.droppedWhy = why;
+    if (fresh) console.warn(`[catalogue-fault] gap_dropped a miss could not be written to ${log.path}: ${why}`);
   }
 }

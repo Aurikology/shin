@@ -58,6 +58,11 @@ interface Envelope {
   readonly job: Job;
 }
 
+/** Misses this thread could not write down. The request thread cannot read this memory, so every reply carries it. */
+function gapsNow(): { dropped: number; why: string } {
+  return { dropped: catalogue.gapsDropped, why: catalogue.gapsDroppedWhy };
+}
+
 parentPort.on('message', async (msg: Envelope) => {
   const started = Date.now();
   try {
@@ -79,7 +84,7 @@ parentPort.on('message', async (msg: Envelope) => {
         value = catalogue.ring(msg.job.categoryPath, msg.job.want, msg.job.exclude);
         break;
     }
-    parentPort!.postMessage({ id: msg.id, ok: true, value, ms: Date.now() - started });
+    parentPort!.postMessage({ id: msg.id, ok: true, value, ms: Date.now() - started, gaps: gapsNow() });
   } catch (err) {
     // A failed search is reported, never swallowed into an empty result. An
     // empty result and a broken index look identical to the screen otherwise,
@@ -89,6 +94,7 @@ parentPort.on('message', async (msg: Envelope) => {
       ok: false,
       error: err instanceof Error ? err.message : String(err),
       ms: Date.now() - started,
+      gaps: gapsNow(),
     });
   }
 });
