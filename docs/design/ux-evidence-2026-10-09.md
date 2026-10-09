@@ -997,3 +997,23 @@ Numbers 1 to 6 are Pexi's own documents. Numbers 7 onward are outside sources; F
 129. Batch, push opt-in benchmarks. https://batch.com/blog/case-studies/benchmark-notifications-push-crm-mobile [SNIPPET]
 130. Phones used for price comparison in store. https://www.marketingcharts.com/industries/retail-and-e-commerce-29463 ; https://agency.googleblog.com/2013/05/understanding-smartphone-use-in-stores.html [SNIPPET]
 
+
+---
+
+## 13. Build order (added 2026-10-09, answering "what should be built")
+
+Of the 98 blocks, 20 are "keep" (the app already does it, or a ruling fixes it) and 7 are not for version 1 (photo path, market picker, dot strip, trial, sound, welcome flow, the per-unit note). The 71 that change something are grouped below into seven builds, ordered by what a tester meets first and by what cannot be taken back (a store rejection, a tester who feels nothing on iPhone).
+
+| Build | Blocks | Why this position | Taps or numbers it changes |
+|---|---|---|---|
+| 1. Native haptics bridge | R-1 to R-5 | iPhone users feel nothing today; this is the first thing a tester notices and the only one no web change can fix | 3 buzzes per scan to 2, plus 1 on save; none on pad keys |
+| 2. Paywall compliance and entry | R-80, R-81, R-83, R-35, R-84, R-85 | Store review: billed price must be the largest text (Apple, Google), Restore purchases must be reachable (Apple); today it is reachable only at the scan limit | Paywall from You: no path to 2 taps |
+| 3. Camera permission persistence | R-11 | Test first (10 relaunches and page trips); build the fix only if a prompt repeats | 0 repeat prompts |
+| 4. Old refusal wording out | R-23, R-22, R-60 | Contradicts the ruling that every scan answers | none |
+| 5. The scan loop | R-25, R-36, R-26, R-30, R-31, R-28 | Every scan pays these taps; the cents-first pad ships behind a switch so the 20-tester test (T on R-26) can turn it off | Barcode to verdict 6 to 4; correction 8 or 10 to 3 or 4; share to a chat 6+ actions to 4 |
+| 6. The verdict screen, one pass | R-40, R-67, R-45, R-69, R-70, R-46, R-47, R-42, R-56, R-52, R-64, R-65, R-68 | One screen, one pass, because every block changes the same surface and half-changing it leaves two designs on one sheet | marked price, rounded estimate, confidence reason, low-confidence and no-price states |
+| 7. Touch, type, lists, motion, mascot copy | R-12, R-13, R-14, R-18, R-48, R-49, R-50, R-54, R-55, R-57, R-58, R-59, R-61, R-71 to R-76, R-86 to R-98 | Sweeps across every page; cheap each, many of them; last because none blocks a tester from finishing a scan | 40 px buttons to 44/48 px; sheet 260/200 ms; 900 ms sweep cut |
+
+Not built now: R-6 (sound), R-27 (photo path), R-33 (market picker), R-63 (dot strip, a later test), R-77 (welcome flow stays off), R-82 (trial, the founder's call). The 69 tests in section 10 run on the first testers, not before build 5.
+
+Figure status: the 20, 7 and 71 are counts of the blocks above by their Should lines. The order is derived by logic (irreversibility first, then per-scan cost), untested.
