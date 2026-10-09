@@ -70,7 +70,7 @@ Could not open: Reddit (WebFetch blocked for reddit.com, so zero Reddit evidence
 - Facial geometry affects trust in humanised characters: narrower-faced mascots trusted more · Marketing ZFP 2019 (found via search, title page not opened) [SNIPPET] · applies to the cartoon face design choice; effect absent for feminised entities
 - Duolingo's fake-death stunt: some users said it broke trust, no measured harm found · https://www.sportskeeda.com/pop-culture/news-how-this-netizens-react-duolingo-s-mascot-owl-duo-comes-back-faking-death [SNIPPET] · "post gained over 550,000 likes on X"
 - When a mascot hurts trust (inference from above, not directly sourced): a cheerful face on a wrong or low-confidence verdict, and any reminder-style pushiness. Evidence that a face reduces trust in a price verdict specifically: UNSOURCED
-- Yuka has no mascot and still leads the category (80M users) · https://www.scandit.com/resources/case-studies/yuka [FETCHED]; Honey-style trust problems stem from incentives, not characters
+- CORRECTED 2026-10-09: Yuka DOES have a mascot (it animates on the subscription contribution slider, screensdesign showcase, FETCHED; see docs/design/ux-evidence-2026-10-09.md sources). The line below was an inference from a case study that never mentioned mascots, which is sample emptiness, not absence. ORIGINAL: Yuka has no mascot and still leads the category (80M users) · https://www.scandit.com/resources/case-studies/yuka [FETCHED]; Honey-style trust problems stem from incentives, not characters
 
 ## 5. Freemium scan-limit paywalls and conversion
 
@@ -115,7 +115,7 @@ Could not open: Reddit (WebFetch blocked for reddit.com, so zero Reddit evidence
 - Not found at all: any Canadian price-app review data, any "5 scans a week" comparable, any in-aisle glare/one-hand study, any mascot-on-price-verdict study
 
 ## Strongest implications (inference, for the decision, not sources)
-1. Yuka has no scan cap and no mascot; both of Pexi's distinctive choices lack a closest-analogue precedent.
+1. Yuka has no scan cap (its mascot claim above is corrected: it has one); Pexi's distinctive choices lack a closest-analogue precedent.
 2. Vivino's 2025 reviews show gating the verdict (rather than the scan) angers users.
 3. Numeric range on an estimate costs little trust; vague hedging costs more; dotplots beat density curves on phones.
 4. Shelf and app price mismatch is the top Flipp complaint; Pexi's typed shelf price sidesteps it.
