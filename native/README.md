@@ -313,6 +313,27 @@ Code: `app/public/js/purchases.js`; names and URLs: `app/public/js/plus-config.j
 - Terms and Privacy URLs on the subscription screen are placeholders in `plus-config.js` until
   both are hosted.
 
+## Haptics (UX build 1, 2026-10-09)
+
+The web app's `app/public/js/lib/haptics.js` reaches two native plugins through
+`window.Capacitor`, the same way `purchases.js` reaches RevenueCat:
+
+- iOS: `@capacitor/haptics` 8.0.2 (plugin name `Haptics`): a SUCCESS notification for the verdict,
+  a LIGHT impact for barcode capture and Save. Registered by `npx cap sync ios` (it appears in
+  `ios/App/CapApp-SPM/Package.swift`).
+- Android: the wrapper's own `ShinHaptics` plugin
+  (`android/app/src/main/java/com/useshinapp/shin/ShinHapticsPlugin.java`, registered in
+  `MainActivity.java`): `perform({effect})` with `TICK` (API 29+) and `CONFIRM` (API 30+). It has its
+  own name because `@capacitor/haptics` on Android has only raw millisecond waveforms and no preset,
+  and a plugin name cannot be registered twice. A phone older than the preset resolves
+  `{performed:false}` and the page keeps `navigator.vibrate`. `@capacitor/haptics` is still linked on
+  Android by `cap sync` and is simply unused there.
+- A wrapper built without these throws on the first haptic and the fault reaches the event queue
+  (`haptic_fault`); it never falls back silently.
+- Checked here: `./gradlew :app:compileDebugJavaWithJavac` builds on the Windows laptop. Not checked:
+  a real vibration on any phone, and anything iOS (needs the Mac: `cd native && npm install &&
+  npm run cap:sync`, then build in Xcode).
+
 ## Test matrix (plan items 3a/2g), blank until run on a real phone
 
 Cannot be filled in from this session: no phone, no store account, no signed build exists yet.

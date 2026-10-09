@@ -43,6 +43,10 @@
          access at runtime only when this permission is declared here; without
          it, the in-page camera prompt silently fails. -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Haptics: the TICK preset (ShinHapticsPlugin) and @capacitor/haptics both
+         drive the Vibrator, which needs this. CONFIRM goes through the web view
+         and needs nothing. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-feature android:name="android.hardware.camera" android:required="true" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 </manifest>
