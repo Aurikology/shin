@@ -706,7 +706,11 @@ export class Camera {
 
     const won = tracks.find((t) => t.confirmed) ?? null;
     const readyKey = won ? won.value : '';
-    if (readyKey !== this.#lastReady) {
+    // A winner is reported on EVERY tick it holds, not only when it changes
+    // (UX build 5, R-25): the screen fires a code that has been reported twice,
+    // 150 ms apart, and cannot tell a steady code from a stale vote if it hears
+    // about it once. A loss is still reported once, when it happens.
+    if (readyKey !== this.#lastReady || won) {
       this.#lastReady = readyKey;
       this.#events.onBarcodeReady?.(
         won

@@ -57,6 +57,8 @@ import { geminiWordFor } from '../shin.js';
 import { getDeviceId } from '../device.js';
 import { FLAGS } from '../flags.js';
 import { haptic, verdictHaptic, reportHapticFault, CAPTURE_HOLD_MS } from '../lib/haptics.js';
+import { createAutoFire } from '../lib/auto-fire.js';
+import { assertCheckDigit } from '../lib/gtin.js';
 
 /**
  * The camera states in which the docked face is faded out by `camera.css`.
@@ -3098,6 +3100,26 @@ export default {
      * where the type-it route out of a refusal identifies first.
      */
     let manualSearch = false;
+    /**
+     * R-25: the scan fires itself. The press (`scan-barcode`) stays for what
+     * detection does not cover. The check digit is verified HERE and throws:
+     * with no press, nobody has confirmed this read, so a read that fails its
+     * check digit must be loud and must not be looked up (lib/gtin.js).
+     */
+    const autoFire = createAutoFire({
+      canFire: () => !dead && cam.dataset.state === 'idle' && !barcodeInFlight && captureAllowed(Date.now(), lastCaptureAt),
+      fire: (read) => {
+        try {
+          assertCheckDigit(read.value);
+        } catch (err) {
+          track('barcode_bad_check_digit', { value: read.value, format: read.format, frames: read.frames });
+          throw err;
+        }
+        lastCaptureAt = Date.now();
+        track('barcode_auto_fired', { format: read.format, frames: read.frames });
+        onBarcode(read);
+      },
+    });
     /* The type-it field opened from the catalogue-first "not in the catalogue"
        sheet (`data-carry-price`): the shelf price was already asked on the pad
        for the barcode, so the typed name goes out carrying it, `{ cents }`, and
@@ -3349,6 +3371,14 @@ export default {
       barcodeReady = ready;
       paintBarcodeButton();
       if (ready && !was) track('barcode_button_shown', { format: ready.format, frames: ready.frames });
+      // R-25: a code settled for AUTO_FIRE_STEADY_MS fires on its own. A throw
+      // (the check digit failed) is raised from a timer of its own: this call
+      // arrives inside the eye's frame loop, which a thrown error must not stop.
+      try {
+        autoFire.ready(ready);
+      } catch (err) {
+        setTimeout(() => { throw err; }, 0);
+      }
     }
 
     /**
@@ -6239,6 +6269,7 @@ export default {
       // teardown so `cam.dataset.state` is still whatever it was left in.
       trackScanAbandonedIfMidScan('left_screen');
       dead = true;
+      autoFire.cancel();
       listeners.abort();
       textMatch?.stop();
       unsub();
