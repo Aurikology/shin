@@ -459,6 +459,37 @@ export interface RecordUserScanOptions {
 }
 
 const NAME_MATCH = 0.75;
+
+/**
+ * Two names are the same product's name when their words overlap enough. A name with NO words
+ * (a stop word like "the", or only symbols) has nothing to overlap, and two empty word lists
+ * score 1, which used to merge every such name into one entry and lose the raw text of all but
+ * the first. Those compare by their folded letters instead.
+ */
+function nameMatches(a: readonly string[], b: readonly string[], rawA: string | null, rawB: string | null): boolean {
+  if (a.length === 0 || b.length === 0) {
+    return a.length === 0 && b.length === 0 && compact(rawA ?? '') === compact(rawB ?? '');
+  }
+  return jaccard(a, b) >= NAME_MATCH;
+}
+
+/**
+ * Is there a pending entry for this barcode or this name? The consumer-side half of the 5.7
+ * count: reads the table back, rather than trusting what the writer said it did. A barcode is
+ * found by its digits; a name by the same rule a scan uses to merge into an entry.
+ */
+export function hasUserEntry(log: UserCatalogue, q: { gtin?: string | null; name?: string | null }): boolean {
+  if (!log.db) return false;
+  const gtin = normalizeGtin(q.gtin);
+  if (gtin !== null) {
+    return log.db.prepare('SELECT 1 FROM user_product WHERE gtin = ? LIMIT 1').get(gtin) !== undefined;
+  }
+  const name = q.name?.trim() ?? '';
+  if (name === '') return false;
+  const tokens = nameTokens(name);
+  const rows = log.db.prepare('SELECT name, name_key FROM user_product').all() as unknown as { name: string; name_key: string }[];
+  return rows.some((r) => nameMatches(tokens, r.name_key === '' ? [] : r.name_key.split(' '), name, r.name));
+}
 /** Two sizes within this ratio are the same size (a printed 500 g against a measured 497 g). */
 const SAME_SIZE_RATIO = 1.05;
 
@@ -488,6 +519,7 @@ interface ProductRow {
   brand_key: string;
   kind: string;
   gtin: string | null;
+  name: string;
   name_key: string;
   model_key: string | null;
   spec_json: string | null;
@@ -562,10 +594,10 @@ export function recordUserScan(scan: UserScanInput, opts: RecordUserScanOptions 
       } else {
         if (gtin !== null && c.gtin !== null && c.gtin !== gtin) {
           // Two different barcodes are two products, however alike the names read.
-          if (jaccard(tokens, cTokens) >= NAME_MATCH) groupOf ??= c;
+          if (nameMatches(tokens, cTokens, name, c.name)) groupOf ??= c;
           continue;
         }
-        if (jaccard(tokens, cTokens) < NAME_MATCH) continue;
+        if (!nameMatches(tokens, cTokens, name, c.name)) continue;
         if (sameSize(qty, existingQuantity(c))) { same = c; break; }
         groupOf ??= c;
       }
