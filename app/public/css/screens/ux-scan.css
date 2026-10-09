@@ -44,6 +44,10 @@
  * here. No animation on the keys. The saved toast enters ease-out under 300 ms and
  * leaves by being removed (the viewfinder is the surface, nothing is left behind).
  */
+/* R-28: suggestions under the typed name. Rows are the existing .cand rows; nothing to show means no space taken. */
+.textroute-suggestions:empty { display: none; }
+.textroute-suggestions { margin-top: var(--s-2); }
+
 .corr { display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-2) 0; }
 .corr-ask { margin: 0; color: var(--ink-muted); }
 .corr-amount { font-variant-numeric: tabular-nums; }

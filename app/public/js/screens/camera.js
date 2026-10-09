@@ -2700,8 +2700,23 @@ function textRouteSheet(value = '', { unknownBarcode = false } = {}) {
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
           </button>
         </form>
+        <div class="cands textroute-suggestions" data-suggestions aria-live="polite"></div>
       </div>
     </section>`;
+}
+
+/**
+ * R-28: the rows under the typed name, one tap each. A row is the product's name
+ * and size, and carries the barcode that prices it, so a tap submits and picks at
+ * once. Pure.
+ */
+function suggestionRowsHtml(rows) {
+  return rows
+    .map((i) => `<button type="button" class="cand" data-suggestion="${escapeHtml(i.code)}">
+                <span class="cand-name">${escapeHtml(i.label)}</span>
+                ${i.meta ? `<span class="cand-meta">${escapeHtml(i.meta)}</span>` : ''}
+              </button>`)
+    .join('');
 }
 
 /**
@@ -3434,6 +3449,67 @@ export default {
      * validation or switching choice on the pad) and then sends the typed name
      * as ONE Gemini text call, through `runTypedSearch`. Idle only.
      */
+    /*
+     * R-28: suggestions while the name is typed. After the third letter the same
+     * name search the pick sheet uses (`/api/search`) is asked for the top three,
+     * 120 ms after the last keystroke; fewer than three letters show and ask
+     * nothing. A tap on a row submits and picks in one tap (the `[data-suggestion]`
+     * handler below), so the Search tap and the "which one" sheet are not needed.
+     * A row with no barcode cannot be priced: it is not offered, and the fault
+     * throws where it will be seen. A failed search shows nothing and Search still
+     * works, as it always did.
+     */
+    const SUGGEST_MIN_LETTERS = 3;
+    const SUGGEST_DEBOUNCE_MS = 120;
+    let suggestTimer = null;
+    let suggestToken = 0;
+    let suggested = [];
+    function cancelSuggest() {
+      clearTimeout(suggestTimer);
+      suggestToken += 1;
+      suggested = [];
+    }
+    function scheduleSuggest(value) {
+      cancelSuggest();
+      const text = String(value ?? '').trim();
+      const host = slot.querySelector('[data-suggestions]');
+      if (host) host.innerHTML = '';
+      if ([...text].length < SUGGEST_MIN_LETTERS) return;
+      const mine = suggestToken;
+      suggestTimer = setTimeout(async () => {
+        let found;
+        try {
+          found = await ctx.api.search({ text, limit: 3 });
+        } catch (err) {
+          console.error('suggestion search failed:', err);
+          return;
+        }
+        if (dead || mine !== suggestToken) return;
+        const rows = [];
+        let fault = null;
+        for (const c of (found?.candidates ?? []).slice(0, 3)) {
+          if (typeof c?.code !== 'string' || c.code.trim() === '') {
+            fault = new Error('the search answered a row with no barcode, so it was not offered as a suggestion');
+            continue;
+          }
+          const row = candidateRow({
+            brand: c.brands ? String(c.brands).split(',')[0].trim() : '',
+            name: displayName(c),
+            size: c.quantity,
+            category: categoryLineOf(c),
+          });
+          rows.push({ code: c.code, label: row.label, meta: row.meta });
+        }
+        suggested = rows;
+        const into = slot.querySelector('[data-suggestions]');
+        if (into) into.innerHTML = suggestionRowsHtml(rows);
+        if (fault) {
+          track('suggestion_row_without_code', { text });
+          setTimeout(() => { throw fault; }, 0);
+        }
+      }, SUGGEST_DEBOUNCE_MS);
+    }
+
     function openManualSearch() {
       if (cam.dataset.state !== 'idle') return;
       setState('texting');
@@ -5231,6 +5307,7 @@ export default {
       gen++; // Voids any in-flight proceed() continuation, including a photo capture's.
       corr = null;
       clearTimeout(corrToastTimer);
+      cancelSuggest();
       slot.innerHTML = '';
       last = null;
       lastKeepable = null;
@@ -5338,6 +5415,30 @@ export default {
 
       /* D04: a product picked from the typed name's three matches is answered by
          the barcode route, exactly as if its code had been scanned. */
+      /* R-28: a suggestion under the typed name submits the name and picks the
+         product in one tap, then goes where a Search tap plus a pick would have. */
+      const suggestion = e.target.closest('[data-suggestion]');
+      if (suggestion) {
+        const row = suggested.find((r) => r.code === suggestion.dataset.suggestion);
+        const text = (slot.querySelector('[data-textroute-input]')?.value ?? '').trim();
+        if (!row) throw new Error(`suggestion: no row for the barcode ${suggestion.dataset.suggestion} was offered`);
+        cancelSuggest();
+        typedSearchPending = false;
+        track('typed_search', { text, abandoned: false });
+        track('candidate_pick', { code: row.code, found: true, source: 'suggestion' });
+        if (typedAfterPad) {
+          const { cents } = typedAfterPad;
+          typedAfterPad = null;
+          if (unknownCode) { store.rememberName(unknownCode, text); unknownCode = null; }
+          scanShelfCents = typeof cents === 'number' && cents > 0 ? cents : null;
+          void resolveBarcode(row.code, scanShelfCents);
+          return;
+        }
+        manualSearch = false;
+        askPriceFirst({ kind: 'barcode', code: row.code, label: row.label, query: text });
+        return;
+      }
+
       const typedPicked = e.target.closest('[data-typed-pick]');
       if (typedPicked) {
         const code = typedPicked.dataset.typedPick;
@@ -5858,6 +5959,9 @@ export default {
          repaint here would take the caret with it. */
       const nameInput = e.target.closest('[data-obs-label]');
       if (nameInput) { padLabel = nameInput.value; return; }
+      /* R-28: the typed name, searched after the third letter. */
+      const typedName = e.target.closest('[data-textroute-input]');
+      if (typedName) { scheduleSuggest(typedName.value); return; }
       /* R-30: the shop typed into the correction. Only the gate and Save move. */
       const corrSeller = e.target.closest('[data-corr-seller]');
       if (corrSeller && corr) {
@@ -6626,6 +6730,7 @@ export default {
       clearTimeout(scanPressTimer);
       clearTimeout(torchAckTimer);
       clearTimeout(corrToastTimer);
+      clearTimeout(suggestTimer);
       clearInterval(retryCountdownTimer);
     };
   },

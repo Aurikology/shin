@@ -119,22 +119,6 @@ test('R-28: the picked suggestion is the item priced: 4 9 9 asks the server for 
 
 /* --------------------------------------------------------------- J4 counts */
 
-test('J4 TODAY (replace when build 5 lands): keyboard, 3 letters, Search, the pad with the point key, then a pick is 11 taps (pass: 11 = N + 8 for N = 3; target 9)', async () => {
-  const app = await openTyped();
-  await app.type(FIELD, 'kra');
-  await app.wait(60);
-  await app.tap(app.find('[data-form="textroute"]').querySelector('button[type="submit"], button'), 'Search');
-  assert.equal(app.state, 'asking', `setup: the pad did not follow the name (state=${app.state})`);
-  await typePrice(app, ['4', '.', '9', '9']);
-  assert.equal(app.state, 'choosing', `setup: the pick sheet did not follow the price (state=${app.state})`);
-  await app.tap(app.find('[data-typed-pick]'), 'the pick');
-  await app.wait(60);
-  assert.equal(app.atVerdict(), true, `no verdict (state=${app.state}); log: ${app.log.join(' | ')}`);
-  assert.equal(app.count, 11, `J4 today counted ${app.count} (taps ${app.taps} + letters ${app.keystrokes}), the inventory says N + 8 = 11. Log: ${app.log.join(' | ')}`);
-  app.takeErrors();
-  app.stop();
-});
-
 test('J4 target: keyboard, 3 letters, one suggestion, the cents-first pad is 9 taps (pass: 9 = N\' + 6 for N\' = 3; today 11)', async () => {
   const app = await openTyped();
   await app.type(FIELD, 'kra');
