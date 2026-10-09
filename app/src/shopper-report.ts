@@ -93,12 +93,16 @@ export function recordShelfPrice(input: ShelfPriceInput): ShelfPriceResult {
   if (!Number.isFinite(cents) || cents <= 0) return { stored: false, why: 'the price was not a positive number' };
 
   // Requirement 5.1: the typed shelf price is part of the scan's own record,
-  // whether or not there is a shop to make an observed price of it.
-  if (!updateScan(scan.id, { typedPriceCents: cents })) {
+  // whether or not there is a shop to make an observed price of it. So is the
+  // shop the shopper typed with it: until 2026-10-09 it went to the corrections
+  // store only and the scan row never had it. It is a name the shopper typed,
+  // not a position, so location consent does not gate it (5.6 governs the
+  // area); the corrections store below already kept it without that consent.
+  const shop = input.storeName?.trim().slice(0, 120) ?? '';
+  if (!updateScan(scan.id, { typedPriceCents: cents, ...(shop !== '' ? { storeName: shop } : {}) })) {
     return { stored: false, why: 'the price could not be written onto the scan' };
   }
 
-  const shop = input.storeName?.trim() ?? '';
   if (shop === '') {
     return { stored: true, onScan: true, report: { stored: false, why: 'no shop was named, so it stays on the scan only' } };
   }

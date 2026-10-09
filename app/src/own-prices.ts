@@ -14,7 +14,9 @@
  *     prices in `user_offer` (the offers a scan's answer carried, currency and
  *     link inside `raw_json`) and `user_observation` (a shelf price a shopper
  *     typed, with the store when they gave one). USED. Every row is untrusted
- *     user data (`trusted = 0`) and is marked so on the way out.
+ *     user data (`trusted = 0`) and is marked so on the way out. Shelf prices
+ *     go out only pooled across 5+ shoppers, with no shop or moment
+ *     (requirement 5.9, `poolShopperPrices` below).
  *   - catalogue/data/catalogue.db: 5 million products and no price column.
  *     Used only to NAME a product by its code when the caller hands in a probe;
  *     a catalogue product counts only when one of the two stores above has a
@@ -71,6 +73,81 @@ export interface OwnPrice {
    * never averaged into `amount`.
    */
   readonly basePriceCents?: number | null;
+  /**
+   * Requirement 5.9: on a `user_shelf_price` row, how many distinct shoppers
+   * the pooled price is the median of (always 5 or more). Absent on every
+   * other row.
+   */
+  readonly pooledShoppers?: number;
+}
+
+/* ------------------------------------------------- shoppers' prices, pooled */
+
+/**
+ * REQUIREMENT 5.9 (docs/price-category-requirements-2026-10-01.md): "Never let
+ * one shopper's store-and-time trail reach anyone else: what is used to answer
+ * others is pooled across 5+ shoppers or carries no store-and-time detail."
+ *
+ * Until 2026-10-09 every row a shopper typed (`user_observation`) went out to
+ * whoever asked next as its own offer: the shop they typed and the moment they
+ * typed it, one row per shop, with no count of shoppers at all. Now shoppers'
+ * prices reach an answer only as ONE pooled row per currency, and only when 5+
+ * DISTINCT shoppers (by `device_key`, catalogue/src/user-catalogue.ts) have a
+ * price for the product. The pooled row carries neither a shop nor a moment:
+ * its store is `POOLED_STORE`, its price the median of each shopper's latest
+ * price, and its date only the month of the newest. One phone typing six
+ * prices is one shopper; a row with no device key cannot be counted as anybody
+ * and is never pooled.
+ *
+ * The shopper's own report still comes back to that shopper, through
+ * `shopperReportFor` (shopper-report.ts), which reads only the asking device's
+ * rows. Crawled store prices (`prices`, `user_offer`) are no shopper's trail
+ * and are unchanged.
+ */
+export const MIN_POOLED_SHOPPERS = 5;
+export const POOLED_STORE = 'Pexi shoppers';
+
+interface ShopperPriceRow {
+  readonly price_cents: unknown;
+  readonly currency: unknown;
+  readonly observed_at: unknown;
+  readonly device_key: unknown;
+}
+
+function poolShopperPrices(rows: readonly ShopperPriceRow[]): OwnPrice[] {
+  // Each shopper's latest price, per currency (two currencies are never one median).
+  const byCurrency = new Map<string, Map<string, { cents: number; at: string }>>();
+  for (const r of rows) {
+    const cents = money(r.price_cents);
+    const currency = text(r.currency);
+    const at = text(r.observed_at);
+    const shopper = text(r.device_key);
+    if (cents === null || currency === null || at === null || shopper === null) continue;
+    let shoppers = byCurrency.get(currency);
+    if (!shoppers) byCurrency.set(currency, (shoppers = new Map()));
+    const have = shoppers.get(shopper);
+    if (!have || at > have.at) shoppers.set(shopper, { cents, at });
+  }
+  const out: OwnPrice[] = [];
+  for (const [currency, shoppers] of byCurrency) {
+    if (shoppers.size < MIN_POOLED_SHOPPERS) continue;
+    const sorted = [...shoppers.values()].map((s) => s.cents).sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 === 1 ? sorted[mid]! : Math.round((sorted[mid - 1]! + sorted[mid]!) / 2);
+    const newest = [...shoppers.values()].reduce((a, s) => (s.at > a ? s.at : a), '');
+    out.push({
+      store: POOLED_STORE,
+      amount: median / 100,
+      currency,
+      observedAt: newest.slice(0, 7),
+      url: null,
+      kind: null,
+      from: 'user_shelf_price',
+      trusted: false,
+      pooledShoppers: shoppers.size,
+    });
+  }
+  return out;
 }
 
 export interface OwnMatch {
@@ -267,23 +344,16 @@ function userRows(db: DatabaseSync, ref: string, productId: number | null, code:
     if (amount === null || currency === null || seen === null || store === null || reservedHost(url)) continue;
     out.push({ store, amount, currency, observedAt: seen, url, kind: null, from: 'user_offer', trusted: false });
   }
+  // Requirement 5.9: shoppers' typed prices only as a pool of 5+ shoppers (`poolShopperPrices`).
   const shelf = db
     .prepare(
-      `SELECT store_name, currency, price_cents, MAX(observed_at) AS observed_at
+      `SELECT currency, price_cents, observed_at, device_key
          FROM user_observation
         WHERE ${productId !== null ? 'product_id = ?' : 'catalogue_code = ?'}
-          AND price_cents IS NOT NULL AND store_name IS NOT NULL AND currency IS NOT NULL
-        GROUP BY lower(trim(store_name))`,
+          AND price_cents IS NOT NULL AND currency IS NOT NULL`,
     )
-    .all(productId !== null ? productId : (code ?? '')) as Record<string, unknown>[];
-  for (const r of shelf) {
-    const cents = money(r.price_cents);
-    const currency = text(r.currency);
-    const seen = text(r.observed_at);
-    const store = text(r.store_name);
-    if (cents === null || currency === null || seen === null || store === null) continue;
-    out.push({ store, amount: cents / 100, currency, observedAt: seen, url: null, kind: null, from: 'user_shelf_price', trusted: false });
-  }
+    .all(productId !== null ? productId : (code ?? '')) as unknown as ShopperPriceRow[];
+  out.push(...poolShopperPrices(shelf));
   return out;
 }
 
@@ -634,29 +704,29 @@ export function lookupOwnPricesByBarcode(code: string, sources: OwnLookupSources
       // 2a. The scan that typed this shelf price joined to the big catalogue.
       const byCode = user
         .prepare(
-          `SELECT store_name, currency, price_cents, region, country, observed_at
+          `SELECT currency, price_cents, observed_at, device_key
              FROM user_observation
             WHERE catalogue_code IN (${placeholders})
-              AND price_cents IS NOT NULL AND store_name IS NOT NULL AND currency IS NOT NULL`,
+              AND price_cents IS NOT NULL AND currency IS NOT NULL`,
         )
-        .all(...forms) as Record<string, unknown>[];
+        .all(...forms) as unknown as ShopperPriceRow[];
 
       // 2b. It did not: the barcode lives on `user_product.gtin` (stored bare,
       // leading zeros stripped by recordUserScan's own normalizeGtin).
       const products = user
         .prepare(`SELECT id, name, brand, orig_value, orig_unit FROM user_product WHERE gtin IN (${placeholders})`)
         .all(...forms) as Record<string, unknown>[];
-      let byProduct: Record<string, unknown>[] = [];
+      let byProduct: ShopperPriceRow[] = [];
       if (products.length > 0) {
         const idPlaceholders = products.map(() => '?').join(',');
         byProduct = user
           .prepare(
-            `SELECT store_name, currency, price_cents, region, country, observed_at
+            `SELECT currency, price_cents, observed_at, device_key
                FROM user_observation
               WHERE product_id IN (${idPlaceholders})
-                AND price_cents IS NOT NULL AND store_name IS NOT NULL AND currency IS NOT NULL`,
+                AND price_cents IS NOT NULL AND currency IS NOT NULL`,
           )
-          .all(...products.map((p) => Number(p.id))) as Record<string, unknown>[];
+          .all(...products.map((p) => Number(p.id))) as unknown as ShopperPriceRow[];
         if (name === null) {
           const p = products[0];
           name = text(p.name);
@@ -667,25 +737,8 @@ export function lookupOwnPricesByBarcode(code: string, sources: OwnLookupSources
         }
       }
 
-      for (const r of [...byCode, ...byProduct]) {
-        const cents = money(r.price_cents);
-        const currency = text(r.currency);
-        const seen = text(r.observed_at);
-        const store = text(r.store_name);
-        if (cents === null || currency === null || seen === null || store === null) continue;
-        all.push({
-          store,
-          amount: cents / 100,
-          currency,
-          observedAt: seen,
-          url: null,
-          kind: null,
-          from: 'user_shelf_price',
-          trusted: false,
-          region: text(r.region),
-          country: text(r.country),
-        });
-      }
+      // Requirement 5.9: never one shopper's shop and moment; only a pool of 5+ shoppers, with neither.
+      all.push(...poolShopperPrices([...byCode, ...byProduct]));
       searched.push('user_catalogue');
     } catch {
       unavailable.push('user_catalogue');

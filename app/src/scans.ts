@@ -66,6 +66,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { runMigrations } from './migrations.ts';
+import { customerDataFault } from './customer-data-faults.ts';
 import type { VerifyResult } from '../../identify/src/providers/price-verifier.ts';
 
 const DDL = `
@@ -488,6 +489,175 @@ export interface ScanRow {
   estimate_zone?: string | null;
   estimate_centre_cents?: number | null;
   estimate_sigma_log?: number | null;
+  // Migration 20 (requirement 5.1): the shopper's own call, written once, and consent at insert.
+  shopper_call?: string | null;
+  shopper_call_at?: string | null;
+  shopper_call_before_verdict?: number | null;
+  consent_photos?: number | null;
+  consent_location?: number | null;
+}
+
+/**
+ * The four words of the shopper's own call (requirement 5.1), the same four the
+ * verdict speaks (RULINGS.md "The verdict speaks his words").
+ */
+export const SHOPPER_CALLS = ['great', 'good', 'reasonable', 'bad'] as const;
+export type ShopperCall = (typeof SHOPPER_CALLS)[number];
+
+/**
+ * REQUIREMENT 3.9: the patch keys that are part of the answer a shopper was
+ * shown. `updateScan` fills one only while it is still NULL; a different value
+ * for one that already holds a value goes to `scan_later_answer`, beside the
+ * row, never over it. Migration 20's trigger refuses the edit in the database
+ * as well, so a writer that goes around this function is stopped too.
+ */
+const SHOWN_PATCH_KEYS: ReadonlySet<keyof ScanPatch> = new Set<keyof ScanPatch>([
+  'verdictTier',
+  'verdictConfidence',
+  'verdictSellers',
+  'modelJson',
+  'estimateBasis',
+  'estimateConfidence',
+  'estimateZone',
+  'estimateCentreCents',
+  'estimateSigmaLog',
+]);
+
+/** Reports a failed scan-log write by what it was: a 3.9 or 5.6 refusal, or a plain failure. Never throws. */
+export function reportScanFault(where: string, scanId: number | null, err: unknown): void {
+  const message = err instanceof Error ? err.message : String(err);
+  if (/requirement 3\.9/.test(message)) customerDataFault('shown_answer_edit_refused', `${where} scan ${scanId ?? 'none'}`);
+  else if (/requirement 5\.6/.test(message)) customerDataFault('exact_position_dropped', `${where} scan ${scanId ?? 'none'} refused by the database`);
+  else customerDataFault('scan_write_failed', `${where} scan ${scanId ?? 'none'}: ${message}`);
+}
+
+/**
+ * Splits shown-answer columns into the ones that may be filled on the row (still
+ * NULL there) and whether any would CHANGE a value already shown. Atomic on
+ * purpose: when any shown field differs, the whole answer goes beside and none
+ * of it is mixed into the row, so the row is always one answer. The same value
+ * again is not a change.
+ */
+export function planShownWrite(
+  db: DatabaseSync,
+  scanId: number,
+  shown: Readonly<Record<string, string | number | null>>,
+): { exists: boolean; deviceId: string | null; differs: boolean; fill: Record<string, string | number | null> } {
+  const cols = Object.keys(shown);
+  const fill: Record<string, string | number | null> = {};
+  const current = db.prepare(`SELECT ${['device_id', ...cols].join(', ')} FROM scan WHERE id = ?`).get(scanId) as
+    | Record<string, string | number | null>
+    | undefined;
+  if (!current) return { exists: false, deviceId: null, differs: false, fill };
+  let differs = false;
+  for (const col of cols) {
+    const have = current[col] ?? null;
+    const want = shown[col] ?? null;
+    if (have === null) {
+      if (want !== null) fill[col] = want;
+    } else if (have !== want) {
+      differs = true;
+    }
+  }
+  return { exists: true, deviceId: (current.device_id as string | null) ?? null, differs, fill: differs ? {} : fill };
+}
+
+/**
+ * Stores a later answer for a scan BESIDE the one it showed (requirement 3.9),
+ * keyed by column name. Never throws: a failure is counted and logged as
+ * `later_answer_not_stored`, and the shown answer stays as it was.
+ */
+export function recordLaterAnswer(
+  scanId: number,
+  deviceId: string | null,
+  via: string,
+  answer: Readonly<Record<string, unknown>>,
+  now: Date = new Date(),
+): boolean {
+  const store = active ?? openScanStore();
+  try {
+    if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
+    store.db
+      .prepare('INSERT INTO scan_later_answer (scan_id, device_id, via, answer_json, recorded_at) VALUES (?, ?, ?, ?, ?)')
+      .run(scanId, deviceId, via, JSON.stringify(answer), now.toISOString());
+    return true;
+  } catch (err) {
+    store.dropped += 1;
+    store.droppedWhy = err instanceof Error ? err.message : String(err);
+    customerDataFault('later_answer_not_stored', `scan ${scanId} via ${via}: ${store.droppedWhy}`);
+    return false;
+  }
+}
+
+export type ScanInputResult = { readonly stored: true } | { readonly stored: false; readonly why: string };
+
+/**
+ * The shopper's own call on a scan (requirement 5.1): one of the four words,
+ * when, and whether it was given before the verdict was shown (5.8 counts only
+ * those). Only the scan's own device may give it, and only once: a second call
+ * is refused, never written over the first.
+ */
+export function recordShopperCall(
+  deviceId: string,
+  scanId: number,
+  call: unknown,
+  beforeVerdict: boolean,
+  now: Date = new Date(),
+): ScanInputResult {
+  if (typeof call !== 'string' || !(SHOPPER_CALLS as readonly string[]).includes(call)) {
+    return { stored: false, why: 'the call must be one of great, good, reasonable or bad' };
+  }
+  const store = active ?? openScanStore();
+  try {
+    if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
+    const row = store.db.prepare('SELECT device_id, shopper_call FROM scan WHERE id = ?').get(scanId) as
+      | { device_id: string; shopper_call: string | null }
+      | undefined;
+    if (!row) return { stored: false, why: 'that scan is not one this server recorded' };
+    if (row.device_id !== deviceId) return { stored: false, why: 'that scan belongs to another device' };
+    if (row.shopper_call !== null) return { stored: false, why: 'this scan already has your call, kept as you first gave it' };
+    store.db
+      .prepare('UPDATE scan SET shopper_call = ?, shopper_call_at = ?, shopper_call_before_verdict = ? WHERE id = ?')
+      .run(call, now.toISOString(), beforeVerdict ? 1 : 0, scanId);
+    return { stored: true };
+  } catch (err) {
+    store.dropped += 1;
+    store.droppedWhy = err instanceof Error ? err.message : String(err);
+    reportScanFault('recordShopperCall', scanId, err);
+    return { stored: false, why: 'the call could not be written down' };
+  }
+}
+
+/**
+ * A pick from a list a scan offered (requirement 5.1, "picks"). Append-only:
+ * every pick is a row, and only the scan's own device may add one.
+ */
+export function recordPick(
+  deviceId: string,
+  scanId: number,
+  code: unknown,
+  source: unknown,
+  now: Date = new Date(),
+): ScanInputResult {
+  const picked = typeof code === 'string' ? code.trim().slice(0, 64) : '';
+  if (picked === '') return { stored: false, why: 'a pick needs the code that was picked' };
+  const store = active ?? openScanStore();
+  try {
+    if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
+    const row = store.db.prepare('SELECT device_id FROM scan WHERE id = ?').get(scanId) as { device_id: string } | undefined;
+    if (!row) return { stored: false, why: 'that scan is not one this server recorded' };
+    if (row.device_id !== deviceId) return { stored: false, why: 'that scan belongs to another device' };
+    const from = typeof source === 'string' ? source.trim().slice(0, 32) || null : null;
+    store.db
+      .prepare('INSERT INTO scan_pick (scan_id, device_id, picked_code, source, picked_at) VALUES (?, ?, ?, ?, ?)')
+      .run(scanId, deviceId, picked, from, now.toISOString());
+    return { stored: true };
+  } catch (err) {
+    store.dropped += 1;
+    store.droppedWhy = err instanceof Error ? err.message : String(err);
+    reportScanFault('recordPick', scanId, err);
+    return { stored: false, why: 'the pick could not be written down' };
+  }
 }
 
 /**
@@ -540,6 +710,15 @@ export function readPreferences(deviceId: string): Preferences {
  */
 export function recordScan(input: ScanInput): number | null {
   const store = active ?? openScanStore();
+  /*
+   * REQUIREMENT 5.6: the four exact columns are written NULL whatever the
+   * caller handed in. `locationFor` already nulls them; a caller that passes a
+   * value anyway is a fault, logged and counted, and the scan is still written
+   * (always answer). Migration 20's trigger refuses a value in the database too.
+   */
+  if (input.exactLat != null || input.exactLon != null || input.exactAccuracy != null || input.exactAt != null) {
+    customerDataFault('exact_position_dropped', `recordScan kind ${input.kind}: exact fields handed in and not written`);
+  }
   try {
     if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
     const scannedAt = input.scannedAt ?? new Date().toISOString();
@@ -548,8 +727,11 @@ export function recordScan(input: ScanInput): number | null {
         `INSERT INTO scan (device_id, kind, query_text, resolved_code, resolved_label, confidence, source, outcome, failure_class, corrected_code, scanned_at, category,
                            model_json, model_cost_cents, app_version, platform, latency_ms, cell, store_id, store_name, exact_lat, exact_lon, exact_accuracy, exact_at, user_id, is_demo, scan_category,
                            answer_path, range_source, range_basis, range_miss_reason, match_lines, match_candidates, match_price_read,
-                           estimate_basis, estimate_confidence, estimate_zone, estimate_centre_cents, estimate_sigma_log)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                           estimate_basis, estimate_confidence, estimate_zone, estimate_centre_cents, estimate_sigma_log,
+                           consent_photos, consent_location)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                 COALESCE((SELECT photos FROM consent WHERE device_id = ?), 0),
+                 COALESCE((SELECT location FROM consent WHERE device_id = ?), 0))`,
       )
       .run(
         input.deviceId,
@@ -571,10 +753,6 @@ export function recordScan(input: ScanInput): number | null {
         input.cell ?? null,
         input.storeId ?? null,
         input.storeName ?? null,
-        input.exactLat ?? null,
-        input.exactLon ?? null,
-        input.exactAccuracy ?? null,
-        input.exactAt ?? null,
         input.userId ?? null,
         input.isDemo ? 1 : 0,
         input.scanCategory ?? null,
@@ -590,11 +768,15 @@ export function recordScan(input: ScanInput): number | null {
         input.estimateZone ?? null,
         input.estimateCentreCents ?? null,
         input.estimateSigmaLog ?? null,
+        // Consent as it stands at insert (5.1, "consent on each row"); no row means never answered, which is off.
+        input.deviceId,
+        input.deviceId,
       );
     return Number(result.lastInsertRowid);
   } catch (err) {
     store.dropped += 1;
     store.droppedWhy = err instanceof Error ? err.message : String(err);
+    reportScanFault('recordScan', null, err);
     return null;
   }
 }
@@ -636,25 +818,37 @@ export function correctScan(scanId: number, correctedCode: string): void {
  * running `UPDATE scan SET WHERE id = ?`, which is a syntax error, not an
  * empty update.
  */
-export function updateScan(scanId: number, patch: ScanPatch): boolean {
+export function updateScan(scanId: number, patch: ScanPatch, via = 'update_scan'): boolean {
   const store = active ?? openScanStore();
   try {
     if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
-    const sets: string[] = [];
-    const values: (string | number | null)[] = [];
+    const free: Record<string, string | number | null> = {};
+    const shown: Record<string, string | number | null> = {};
     for (const key of Object.keys(PATCH_COLUMNS) as (keyof ScanPatch)[]) {
       const value = patch[key];
       if (value === undefined) continue;
-      sets.push(`${PATCH_COLUMNS[key]} = ?`);
-      values.push(value === null ? null : value);
+      (SHOWN_PATCH_KEYS.has(key) ? shown : free)[PATCH_COLUMNS[key]] = value === null ? null : value;
     }
-    if (sets.length === 0) return false;
-    values.push(scanId);
-    const result = store.db.prepare(`UPDATE scan SET ${sets.join(', ')} WHERE id = ?`).run(...values);
-    return Number(result.changes) > 0;
+    if (Object.keys(free).length === 0 && Object.keys(shown).length === 0) return false;
+    /*
+     * REQUIREMENT 3.9. A shown field is filled only while it is NULL; a value
+     * that would change one already shown goes beside the row, whole, in
+     * `scan_later_answer`, and the row keeps what the shopper saw.
+     */
+    const plan = planShownWrite(store.db, scanId, shown);
+    if (!plan.exists) return false;
+    const beside = plan.differs ? recordLaterAnswer(scanId, plan.deviceId, via, shown) : false;
+    const sets: Record<string, string | number | null> = { ...free, ...plan.fill };
+    const cols = Object.keys(sets);
+    if (cols.length === 0) return beside;
+    const result = store.db
+      .prepare(`UPDATE scan SET ${cols.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`)
+      .run(...cols.map((c) => sets[c] ?? null), scanId);
+    return Number(result.changes) > 0 || beside;
   } catch (err) {
     store.dropped += 1;
     store.droppedWhy = err instanceof Error ? err.message : String(err);
+    reportScanFault('updateScan', scanId, err);
     return false;
   }
 }

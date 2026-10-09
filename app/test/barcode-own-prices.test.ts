@@ -31,7 +31,7 @@ const userPath = join(dir, 'user-catalogue.db');
 
 const { openPrices, recordObservation } = await import('../../price/src/store.ts');
 const { createUserCatalogue, recordUserScan } = await import('../../catalogue/src/user-catalogue.ts');
-const { lookupOwnPricesByBarcode } = await import('../src/own-prices.ts');
+const { lookupOwnPricesByBarcode, POOLED_STORE } = await import('../src/own-prices.ts');
 
 const prices = openPrices(pricesPath);
 
@@ -196,6 +196,66 @@ recordUserScan(
   { log: uc },
 );
 
+/*
+ * REQUIREMENT 5.9 (2026-10-09). Until today the two user-catalogue tests below
+ * pinned that ONE shopper's typed price came back to whoever scanned next, with
+ * the shop and the moment they typed it ("Circle K", "No Frills"). That is the
+ * store-and-time trail 5.9 forbids: "what is used to answer others is pooled
+ * across 5+ shoppers or carries no store-and-time detail". The rows above have
+ * no device key at all, so they can be no part of a pool. The two read paths
+ * these tests exist for (user_product.gtin, user_observation.catalogue_code)
+ * are now proved with five distinct shoppers each, answered as one pooled row.
+ * The no-currency product gets five shoppers too, so its test still fails for
+ * the currency and not merely for being alone.
+ */
+const FIVE = ['shopper-1', 'shopper-2', 'shopper-3', 'shopper-4', 'shopper-5'];
+FIVE.forEach((deviceId, i) => {
+  recordUserScan(
+    {
+      gtin: BARCODE_USER_ONLY,
+      name: 'Corner Store Energy Drink',
+      quantity: '473 ml',
+      priceCents: [289, 299, 309, 319, 329][i]!,
+      storeType: 'convenience',
+      storeName: `Corner ${i}`,
+      market: { country: 'CA', region: 'ON', currency: 'CAD', derivedFrom: 'user_location' },
+      observedAt: `2026-09-2${i}T10:00:00.000Z`,
+      deviceId,
+    },
+    { log: uc },
+  );
+  recordUserScan(
+    {
+      gtin: BARCODE_CATALOGUE_JOINED,
+      name: 'Golden Corn Niblets',
+      quantity: '341 ml',
+      priceCents: [239, 249, 259, 269, 279][i]!,
+      storeType: 'supermarket',
+      storeName: `Grocer ${i}`,
+      market: { country: 'CA', region: 'ON', currency: 'CAD', derivedFrom: 'user_location' },
+      observedAt: `2026-09-2${i}T10:00:00.000Z`,
+      deviceId,
+    },
+    {
+      log: uc,
+      probe: () => [{ code: BARCODE_CATALOGUE_JOINED, name: 'Golden Corn Niblets', brands: null, sizeValue: null, sizeUnit: null, source: 'off' }],
+    },
+  );
+  recordUserScan(
+    {
+      gtin: BARCODE_NO_CURRENCY,
+      name: 'Mystery Snack',
+      priceCents: 199,
+      storeType: 'other',
+      storeName: 'Unknown Shop',
+      market: { country: null, region: null, currency: null, derivedFrom: 'unknown' },
+      observedAt: '2026-09-19T10:00:00.000Z',
+      deviceId,
+    },
+    { log: uc },
+  );
+});
+
 uc.db?.close();
 
 after(() => {
@@ -279,19 +339,24 @@ test('a UPC-A with no short form finds nothing through a twin', () => {
   assert.equal(out.match, null);
 });
 
-test('a barcode the big catalogue never held: the shelf price is found via user_product.gtin, no catalogue row needed', () => {
+test('a barcode the big catalogue never held: five shoppers\' prices are found via user_product.gtin, pooled, no catalogue row needed', () => {
   const out = lookupOwnPricesByBarcode(BARCODE_USER_ONLY, { pricesDbPath: join(dir, 'absent-prices.db'), userCataloguePath: userPath });
   assert.ok(out.match, 'expected a match from the user catalogue alone');
-  assert.equal(out.match!.prices[0].store, 'Circle K');
-  assert.equal(out.match!.prices[0].amount, 2.99);
+  assert.equal(out.match!.prices.length, 1, 'shoppers\' prices go out as one pooled row (5.9)');
+  assert.equal(out.match!.prices[0].store, POOLED_STORE);
+  assert.equal(out.match!.prices[0].amount, 3.09, 'the median of the five shoppers');
+  assert.equal(out.match!.prices[0].pooledShoppers, 5);
   assert.equal(out.match!.prices[0].from, 'user_shelf_price');
+  assert.ok(!out.match!.prices.some((p) => p.store === 'Circle K'), "the lone shopper's shop went out (5.9)");
 });
 
-test('a barcode whose scan joined to the catalogue is found via user_observation.catalogue_code', () => {
+test('a barcode whose scan joined to the catalogue is found via user_observation.catalogue_code, pooled', () => {
   const out = lookupOwnPricesByBarcode(BARCODE_CATALOGUE_JOINED, { pricesDbPath: join(dir, 'absent-prices.db'), userCataloguePath: userPath });
   assert.ok(out.match);
-  assert.equal(out.match!.prices[0].store, 'No Frills');
+  assert.equal(out.match!.prices.length, 1);
+  assert.equal(out.match!.prices[0].store, POOLED_STORE);
   assert.equal(out.match!.prices[0].amount, 2.59);
+  assert.ok(!out.match!.prices.some((p) => p.store === 'No Frills'), "the lone shopper's shop went out (5.9)");
 });
 
 test('a missing prices file and user catalogue degrade to no match, each named in unavailable', () => {

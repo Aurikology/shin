@@ -54,9 +54,12 @@ import {
   recentCategories,
   recordGeminiCall,
   recordScan,
+  recordPick,
+  recordShopperCall,
   updateScan,
   type ScanKind,
 } from './src/scans.ts';
+import { customerDataFaults } from './src/customer-data-faults.ts';
 import { canonicalBarcode, canonicalGtin } from './src/barcode.ts';
 import { createCategoryGuard, defaultFaultsFile, ringLeaf, type CategoryGuard } from './src/category-guard.ts';
 import {
@@ -198,7 +201,13 @@ let categoryGuard: CategoryGuard = createCategoryGuard({
  * memory, so the service carries its count back with each reply), with the latest reason. The two
  * fault maps count what range.ts and catalogue-first.ts could not read; each is `{}` when none.
  */
-function faultHealth(): { gapsDropped: number; gapsDroppedWhy: string; rangeFaults: Record<string, number>; catalogueFaults: Record<string, number> } {
+function faultHealth(): {
+  gapsDropped: number;
+  gapsDroppedWhy: string;
+  rangeFaults: Record<string, number>;
+  catalogueFaults: Record<string, number>;
+  customerDataFaults: Record<string, number>;
+} {
   const worker = searchService?.gaps?.() ?? { dropped: 0, why: '' };
   const here = activeGapLog();
   return {
@@ -206,6 +215,8 @@ function faultHealth(): { gapsDropped: number; gapsDroppedWhy: string; rangeFaul
     gapsDroppedWhy: worker.why || here?.droppedWhy || '',
     rangeFaults: rangeFaults(),
     catalogueFaults: catalogueFaults(),
+    // Requirements 3.9, 5.1, 5.6 (customer-data-faults.ts): `{}` when none.
+    customerDataFaults: customerDataFaults(),
   };
 }
 
@@ -1720,11 +1731,16 @@ async function completeGeminiScan(a: CompleteArgs): Promise<Completed> {
   // Gemini returned against the user's lines, and the lines used), not only
   // derivable from the stored answer. Rows 16 and 32: `over_cap` marks a scan made
   // past the daily soft cap, and a loud line says so. Neither can refuse anything.
-  markScan(scanId, {
-    verdictZone: run.answer?.verdict?.shelf?.zone ?? null,
-    verdictThresholdsJson: JSON.stringify(run.thresholds),
-    overCap: run.overCap,
-  });
+  markScan(
+    scanId,
+    {
+      verdictZone: run.answer?.verdict?.shelf?.zone ?? null,
+      verdictThresholdsJson: JSON.stringify(run.thresholds),
+      overCap: run.overCap,
+    },
+    // Requirement 3.9: on a scan that already showed a zone, a different one goes beside it.
+    a.existingScanId != null ? 'api_price_gemini' : 'mark_scan',
+  );
   flagOverCap(run, a.device, scanId);
 
   const callId = recordGeminiCall({
@@ -2111,7 +2127,8 @@ async function typedFromOwnData(
     exactAccuracy: where.exactAccuracy,
     exactAt: where.exactAt,
   });
-  if (existingScanId !== null && verdict) updateScan(existingScanId, verdictRecord(verdict));
+  // Requirement 3.9: a verdict this scan already showed is kept; a different one goes beside it.
+  if (existingScanId !== null && verdict) updateScan(existingScanId, verdictRecord(verdict), 'api_price_typed');
   const common = {
     ownData: true,
     source: OWN_DATA_SOURCE,
@@ -4657,6 +4674,54 @@ export const server = createServer(async (req, res) => {
         today: seenOn,
       });
       return json(200, res);
+    }
+
+    /*
+     * THE SHOPPER'S OWN CALL, requirement 5.1 ("the shopper's own good/bad/great
+     * call") and 5.8 (only calls given before the verdict was shown count).
+     * One of great, good, reasonable or bad, on one of this device's own scans,
+     * once: a second call is refused and the first is kept (3.9). A refusal is a
+     * 200 with `stored: false` and why, the shape `/api/scan-price` answers with.
+     */
+    if (url.pathname === '/api/scan-call') {
+      if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      const body = await readBody(req);
+      if (body === TOO_LARGE) return refuseTooLarge();
+      if (body === null || typeof body !== 'object') {
+        return json(400, { error: 'body did not parse as JSON' });
+      }
+      const p = body as Record<string, unknown>;
+      const deviceId = typeof p.deviceId === 'string' ? p.deviceId.trim() : '';
+      if (deviceId === '') return json(400, { error: 'deviceId is required' });
+      if (!owns(deviceId)) return notYours();
+      deviceForLog = deviceId;
+      const callScan = Number(p.scanId);
+      if (!Number.isInteger(callScan) || callScan <= 0) return json(200, { stored: false, why: 'that scan is not one this server recorded' });
+      scanForLog = callScan;
+      return json(200, recordShopperCall(deviceId, callScan, p.call, p.beforeVerdict === true));
+    }
+
+    /*
+     * A PICK, requirement 5.1 ("picks"): which product the shopper chose from a
+     * list one of their scans offered (the typed name's three matches, "not
+     * this?"). Append-only; this device's own scans only.
+     */
+    if (url.pathname === '/api/scan-pick') {
+      if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      const body = await readBody(req);
+      if (body === TOO_LARGE) return refuseTooLarge();
+      if (body === null || typeof body !== 'object') {
+        return json(400, { error: 'body did not parse as JSON' });
+      }
+      const p = body as Record<string, unknown>;
+      const deviceId = typeof p.deviceId === 'string' ? p.deviceId.trim() : '';
+      if (deviceId === '') return json(400, { error: 'deviceId is required' });
+      if (!owns(deviceId)) return notYours();
+      deviceForLog = deviceId;
+      const pickScan = Number(p.scanId);
+      if (!Number.isInteger(pickScan) || pickScan <= 0) return json(200, { stored: false, why: 'that scan is not one this server recorded' });
+      scanForLog = pickScan;
+      return json(200, recordPick(deviceId, pickScan, p.code, p.source));
     }
 
     /*

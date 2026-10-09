@@ -881,6 +881,26 @@ export function postScanPrice({ deviceId, scanId, priceCents, storeName, code, s
   return postSoft('/api/scan-price', body, { stored: false });
 }
 
+/**
+ * The shopper's own call on a scan (requirement 5.1): 'great', 'good',
+ * 'reasonable' or 'bad', and whether it was given before the verdict was shown
+ * (requirement 5.8 counts only those). Kept once; a second call is refused.
+ * Soft, like `postScanPrice`. No screen asks for it yet (5.8's one-in-twenty
+ * prompt is not built); this is the door it will use.
+ */
+export function postScanCall({ deviceId, scanId, call, beforeVerdict }) {
+  return postSoft('/api/scan-call', { deviceId, scanId, call, beforeVerdict: beforeVerdict === true }, { stored: false });
+}
+
+/**
+ * A pick from a list a scan offered (requirement 5.1, "picks"): which code the
+ * shopper chose and from which list. Soft and fire-and-forget: the pick has
+ * already moved the screen on, and a lost pick never blocks an answer.
+ */
+export function postScanPick({ deviceId, scanId, code, source }) {
+  return postSoft('/api/scan-pick', { deviceId, scanId, code, source }, { stored: false });
+}
+
 /* --------------------------------------------------- item 16: shelf capture */
 
 /**

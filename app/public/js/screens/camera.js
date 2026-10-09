@@ -2965,6 +2965,20 @@ export default {
     /* The shelf price already filed against `lastScanId` (D05), so a scan that
        reaches two of the places that learn its id files its price once. */
     let shelfFiledFor = null;
+    /* Requirement 5.1, "picks": a pick from a list this scan offered is filed
+       against `lastScanId`, the scan that offered it, before the picked code
+       starts its own scan. Fire-and-forget; a pick that did not land is
+       tracked by name, never thrown at the screen. */
+    function filePick(code, source) {
+      const scanId = lastScanId;
+      const deviceId = getDeviceId()?.id;
+      if (!Number.isInteger(scanId) || !deviceId || !code) return;
+      Promise.resolve(ctx.api.postScanPick?.({ deviceId, scanId, code, source }))
+        .then((res) => {
+          if (res && res.stored === false) track('scan_pick_not_stored', { source, why: res.why ?? null });
+        })
+        .catch((err) => track('scan_pick_not_stored', { source, why: String(err?.message ?? err) }));
+    }
     /* What the picker is showing: the search text, why it opened, and the
        nearby places that arrived inside the deadline. */
     let shopQuery = '';
@@ -5137,6 +5151,7 @@ export default {
       if (typedPicked) {
         const code = typedPicked.dataset.typedPick;
         track('candidate_pick', { code, found: true, source: 'typed_pick' });
+        filePick(code, 'typed_pick');
         if (typedPick.asked) {
           scanShelfCents = typeof typedPick.cents === 'number' && typedPick.cents > 0 ? typedPick.cents : null;
           void resolveBarcode(code, scanShelfCents);
@@ -5150,6 +5165,7 @@ export default {
       if (pickCode) {
         const chosen = notThisResults.find((c) => c.code === pickCode.dataset.pickCode);
         track('candidate_pick', { code: pickCode.dataset.pickCode, found: !!chosen });
+        if (chosen) filePick(chosen.code, 'not_this');
         if (chosen) {
           /*
            * A pick from this list is a different product, so it starts a fresh
