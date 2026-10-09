@@ -49,27 +49,6 @@ function findSave(app) {
 
 /* ----------------------------------------------------------------- J1 */
 
-test('J1 TODAY (replace when build 5 lands): first launch to the first verdict is 8 app taps (pass: 8; target 6)', async () => {
-  const app = await FIRST_RUN();
-  await onboard(app);
-  await pressScan(app);
-  await typePrice(app, ['4', '.', '9', '9']);
-  assert.equal(app.atVerdict(), true, `no verdict after the journey (screen=${app.screen}, state=${app.state}); log: ${app.log.join(' | ')}`);
-  assert.equal(app.taps, 8, `J1 today counted ${app.taps}, the inventory says 8. Log: ${app.log.join(' | ')}`);
-  app.assertNoErrors();
-  app.stop();
-});
-
-test('J1 TODAY (replace when build 5 lands): first launch with the price skipped is 4 app taps (pass: 4; target 3)', async () => {
-  const app = await FIRST_RUN();
-  await onboard(app);
-  await pressScan(app);
-  await app.tap('[data-act="pad-skip"]', 'Skip the price');
-  assert.equal(app.atVerdict(), true, `no answer after Skip (screen=${app.screen}, state=${app.state})`);
-  assert.equal(app.taps, 4, `J1-skipped today counted ${app.taps}, the inventory says 4. Log: ${app.log.join(' | ')}`);
-  app.stop();
-});
-
 test('J1 target: first launch to the first verdict is 6 app taps, the barcode firing itself (pass: 6; today 8)', async () => {
   const app = await FIRST_RUN();
   await onboard(app);
@@ -94,16 +73,6 @@ test('J1 target: first launch with the price skipped is 3 app taps (pass: 3; tod
 });
 
 /* ----------------------------------------------------------------- J2 */
-
-test('J2 TODAY (replace when build 5 lands): returning, scan a barcode, type $4.99 is 6 taps (pass: 6; target 4)', async () => {
-  const app = await launchReturning();
-  assert.equal(app.screen, 'camera');
-  await pressScan(app);
-  await typePrice(app, ['4', '.', '9', '9']);
-  assert.equal(app.atVerdict(), true, `no verdict (state=${app.state}); log: ${app.log.join(' | ')}`);
-  assert.equal(app.taps, 6, `J2 today counted ${app.taps}, the inventory says 6. Log: ${app.log.join(' | ')}`);
-  app.stop();
-});
 
 test('J2 target: returning, scan a barcode, type $4.99 is 4 taps (pass: 4; today 6)', async () => {
   const app = await launchReturning();
@@ -275,10 +244,12 @@ test('J11 keep: at the free-scan limit the paywall opens with 0 taps beyond the 
   const app = await launchReturning({
     server: { '/api/identify': () => status(402, { failure: 'scan_limit', used: 5, limit: 5, resetsAt: '2026-10-12T00:00:00Z' }) },
   });
-  await pressScan(app);
-  await typePrice(app, ['4', '.', '9', '9']);
+  // Build 5: the barcode fires itself, so the scan is 0 taps; the price is 3 digits and a confirm.
+  await holdSteady(app, CODE, 600);
+  assert.equal(app.state, 'asking', `the steady barcode did not open the pad (state=${app.state}); a limit answered at capture must not stop the pad`);
+  await typePrice(app, ['4', '9', '9']);
   assert.equal(app.screen, 'paywall', `the limit did not open the paywall (screen=${app.screen})`);
-  assert.equal(app.taps, 6, 'the paywall at the limit must cost exactly the scan taps and none more');
+  assert.equal(app.taps, 4, 'the paywall at the limit must cost exactly the scan taps and none more');
   app.stop();
 });
 

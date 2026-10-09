@@ -59,6 +59,7 @@ import { FLAGS } from '../flags.js';
 import { haptic, verdictHaptic, reportHapticFault, CAPTURE_HOLD_MS } from '../lib/haptics.js';
 import { createAutoFire } from '../lib/auto-fire.js';
 import { assertCheckDigit } from '../lib/gtin.js';
+import { applyCentsKey, centsOfDigits, centsParts } from '../lib/pad-cents.js';
 
 /**
  * The camera states in which the docked face is faded out by `camera.css`.
@@ -2040,6 +2041,18 @@ function pricePadDisplay(typed) {
 }
 
 /**
+ * The amount line of the cents-first pad (R-26): the buffer is cents, so what is
+ * typed is always a whole price ("$0.04", "$4.99"). Ghosted only while nothing has
+ * been typed. See lib/pad-cents.js.
+ */
+function centsPadDisplay(typed) {
+  const sep = padSeparator();
+  const parts = centsParts(typed ?? '');
+  if (!parts) return `<span class="ghosted">0${sep}00</span>`;
+  return `${parts.whole}${sep}${parts.frac}`;
+}
+
+/**
  * The decimal separator the reader sees. The pad buffer itself always holds
  * "." (parsePadPrice and the key handler never change), because the buffer is
  * a number and the separator is a way of writing one; a French reader typing
@@ -2057,8 +2070,8 @@ function padSeparator() {
  * with no market chosen there is no mark and the pad shows the digits alone.
  * Both pad hosts paint it from here so they cannot disagree.
  */
-function padAmountHtml(typed) {
-  const digits = pricePadDisplay(typed);
+function padAmountHtml(typed, centsFirst = false) {
+  const digits = centsFirst ? centsPadDisplay(typed) : pricePadDisplay(typed);
   const mark = escapeHtml(currencyMark());
   if (mark === '') return digits;
   return locale() === 'fr'
@@ -2103,17 +2116,20 @@ function padAmountHtml(typed) {
  *   `data-pad="<char>"`, the char being one of `1`-`9`, `.`, `0`, `⌫`; the
  *   confirm key carries `data-act="pad-confirm"` and `.key-confirm`.
  */
-function keypadHtml({ confirm = false, canConfirm = false, confirmLabel = t('cam_price_it') } = {}) {
+function keypadHtml({ confirm = false, canConfirm = false, confirmLabel = t('cam_price_it'), centsFirst = false } = {}) {
   // `label` is what the key shows; `data-pad` is what the handler reads. They
   // differ for one key only: the decimal, which reads "," in French.
   const key = (char, extra = '', label = char) =>
     `<button type="button" class="btn btn--key" data-pad="${char}"${extra}>${label}</button>`;
+  /* R-26: with cents first there is no point key, so the bottom row is 0, delete
+     and confirm: three cells, the same width class the confirm-less pad uses. */
+  const threeCells = centsFirst || !confirm;
   return `
         <div class="keypad">
           ${['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((k) => key(k)).join('')}
         </div>
-        <div class="keypad keypad-bottom${confirm ? '' : ' keypad-bottom-3'}">
-          ${key('.', '', padSeparator())}
+        <div class="keypad keypad-bottom${threeCells ? ' keypad-bottom-3' : ''}">
+          ${centsFirst ? '' : key('.', '', padSeparator())}
           ${key('0')}
           ${key('⌫', ` aria-label="${escapeHtml(t('cam_delete_last_digit'))}"`)}
           ${confirm
@@ -2127,6 +2143,10 @@ function keypadHtml({ confirm = false, canConfirm = false, confirmLabel = t('cam
 /** The pad buffer, read as cents, or null if it does not parse as a usable
     amount. Shared by the render function (the confirm key's disabled state)
     and the screen (what actually gets priced). */
+function padCents(buf) {
+  return FLAGS.centsFirstPad ? centsOfDigits(buf) : parsePadPrice(buf);
+}
+
 function parsePadPrice(buf) {
   if (!buf) return null;
   const n = Number.parseFloat(buf);
@@ -2372,8 +2392,8 @@ function captureNameFrom(id, code) {
   return null;
 }
 
-function pricePadSheet(item, typed = '', modifier = null, thumb = null, shop = null, shopAllowed = false, typedLabel = '', altMode = null) {
-  const typedCents = parsePadPrice(typed);
+function pricePadSheet(item, typed = '', modifier = null, thumb = null, shop = null, shopAllowed = false, typedLabel = '', altMode = null, centsFirst = false) {
+  const typedCents = centsFirst ? centsOfDigits(typed) : parsePadPrice(typed);
   const effCents = effectivePriceCents(typedCents, modifier);
   const canConfirm = (effCents ?? 0) > 0;
   const effLabel = modifierLabel(typedCents, modifier);
@@ -2401,7 +2421,7 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null, shop = n
         }
         ${padShopRow(shop, shopAllowed)}
         ${padAltChoice(altMode)}
-        <div class="amount pad-amount">${padAmountHtml(typed)}</div>
+        <div class="amount pad-amount">${padAmountHtml(typed, centsFirst)}</div>
         <p class="pad-effective" data-pad-effective${effLabel ? '' : ' hidden'}>${effLabel}</p>
         <div class="pad-mods" role="group" aria-label="${escapeHtml(t('cam_price_modifiers'))}">
           <button type="button" class="modbtn${modifier?.kind === 'percent' ? ' on' : ''}" data-modtoggle="percent">${escapeHtml(t('cam_percent_off_suffix'))}</button>
@@ -2415,7 +2435,7 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null, shop = n
         <div class="pad-mod-input">
           <label>${escapeHtml(t('cam_items_in_the_deal'))} <input type="number" inputmode="numeric" min="2" max="20" data-mod-value value="${modifier.n ?? ''}" placeholder="3"></label>
         </div>` : ''}
-        ${keypadHtml({ confirm: true, canConfirm })}
+        ${keypadHtml({ confirm: true, canConfirm, centsFirst })}
       </div>
     </section>`;
 }
@@ -4188,7 +4208,7 @@ export default {
 
     function paintPad() {
       const amountEl = slot.querySelector('.pad-amount');
-      if (amountEl) amountEl.innerHTML = padAmountHtml(padBuffer);
+      if (amountEl) amountEl.innerHTML = padAmountHtml(padBuffer, FLAGS.centsFirstPad);
       paintPadEffective();
     }
 
@@ -4196,7 +4216,7 @@ export default {
         typing into the modifier's own number input never loses focus the way a
         full re-render would. */
     function paintPadEffective() {
-      const typedCents = parsePadPrice(padBuffer);
+      const typedCents = padCents(padBuffer);
       const effCents = effectivePriceCents(typedCents, padModifier);
       const confirmBtn = slot.querySelector('.key-confirm');
       if (confirmBtn) confirmBtn.disabled = !((effCents ?? 0) > 0);
@@ -4312,7 +4332,8 @@ export default {
         shops.chosenFor(),
         shops.locationAllowed(),
         padLabel,
-        padItem?.pendingScan ? effectiveAlt(effectivePriceCents(parsePadPrice(padBuffer), padModifier)) : null,
+        padItem?.pendingScan ? effectiveAlt(effectivePriceCents(padCents(padBuffer), padModifier)) : null,
+        FLAGS.centsFirstPad,
       );
     }
 
@@ -5319,7 +5340,9 @@ export default {
       const padKey = e.target.closest('[data-pad]');
       if (padKey) {
         const k = padKey.dataset.pad;
-        if (k === '⌫') padBuffer = padBuffer.slice(0, -1);
+        // R-26: cents first. One digit or backspace, or the key throws and the price stays as it was.
+        if (FLAGS.centsFirstPad) padBuffer = applyCentsKey(padBuffer, k);
+        else if (k === '⌫') padBuffer = padBuffer.slice(0, -1);
         else if (k === '.') { if (!padBuffer.includes('.')) padBuffer += padBuffer ? '.' : '0.'; }
         else if (padBuffer.includes('.') && padBuffer.split('.')[1].length >= 2) { /* two decimals is a price */ }
         else padBuffer += k;
@@ -5443,7 +5466,7 @@ export default {
       // sends the effective price under any active modifier, not the typed
       // sticker number.
       if (act === 'pad-confirm') {
-        const typedCents = parsePadPrice(padBuffer);
+        const typedCents = padCents(padBuffer);
         const cents = effectivePriceCents(typedCents, padModifier);
         if (cents === null || cents <= 0) return;
         /*

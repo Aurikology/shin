@@ -60,7 +60,22 @@
  * on returns the ask to its place inside the flow and the standalone screen is
  * simply not routed to.
  */
+/*
+ * `centsFirstPad` (UX build 5, R-26, docs/design/ux-evidence-2026-10-09.md): the
+ * price pad fills from the right like a card machine. 4 shows $0.04, 49 shows
+ * $0.49, 499 shows $4.99; backspace takes the last digit off; there is no point
+ * key. A $4.99 tag is 3 digits and a confirm. The cost is that a round-dollar tag
+ * takes 4 taps ($5.00 is 5 0 0 and a confirm) where the point pad took 2.
+ *
+ * ON by default for the beta. The founder has not ruled; the evidence (section 11
+ * of that document) says the share of round-dollar tags is not known and the
+ * choice itself is untested, so this switch is the reversal: write `false` here
+ * and the point pad of before build 5 comes back, key for key. The test the
+ * evidence asks for is 20 testers keying 10 real tags each against the old pad;
+ * pass is a wrong-price rate no higher and a median of 4 taps or fewer.
+ */
 export const FLAGS = {
+  centsFirstPad: true,
   feed: false,
   placeholderLabels: false,
   onboarding: false,
