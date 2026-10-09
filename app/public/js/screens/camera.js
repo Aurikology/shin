@@ -1123,7 +1123,15 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
           ? 'refuse_declined'
           : isThin
             ? 'refuse_thin'
-            : 'refuse_unknown';
+            : isNoIdentity
+              ? 'refuse_unknown'
+              : null;
+  /* RULINGS.md "Errors never go unnoticed": a reason this sheet has no wording
+     for throws. It used to fall through to the generic title, which said the
+     wrong thing under a stored or newly added reason and hid that it had. The
+     throw reaches the scan loop's catch (the retryable failure sheet) or the
+     page's error handler, which track.js reports. */
+  if (titleKey === null) throw new Error(`refusalSheet: no wording for the refusal reason "${r.reason}"`);
   const titleFacts = isCategory ? { category } : {};
 
   // Row 8: a category refusal's detail is the engine's own paragraph, true

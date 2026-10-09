@@ -57,7 +57,7 @@ export const PERSONALITIES_FR = {
   blunt: {
     name: 'Cassant',
     blurb: 'Court, et un peu bête.',
-    sample: '« Ils te volent. »',
+    sample: '« Très au-dessus de l’habituel. »',
   },
 };
 
@@ -76,7 +76,7 @@ export const LINES_FR = {
   walk_away: {
     deadpan: (f) => `${f.asking}. Ça vaut ${f.usual}.`,
     warm: (f) => `Ouf, c'est salé. Ça se vend d'habitude ${f.usual}.`,
-    blunt: () => "Ils te volent.",
+    blunt: () => "Très au-dessus de l'habituel.",
   },
 
   /* --- les formes intenses. Même porte qu'en anglais, et la même règle
@@ -85,12 +85,12 @@ export const LINES_FR = {
   verdict_steal: {
     deadpan: () => "Personne d'autre n'approche ce prix-là.",
     warm: () => "Oh, ça c'est une vraie aubaine. Personne d'autre n'est proche.",
-    blunt: () => "Quelqu'un dans ce magasin s'est trompé. Profites-en.",
+    blunt: () => "Personne d'autre n'approche ça. Profites-en.",
   },
   verdict_ripoff: {
     deadpan: () => "Personne d'autre ne charge ça.",
     warm: () => "Non. Ça, ce n'est pas un prix, c'est un souhait.",
-    blunt: () => "C'est un vol avec un code-barres dessus.",
+    blunt: () => "C'est bien au-dessus de ce que les autres chargent.",
   },
 
   /* --- le mot du verdict, le plus gros texte de l'écran --- */
@@ -125,23 +125,23 @@ export const LINES_FR = {
 
   /* --- les refus, le résultat le plus fréquent, traités avec le même soin --- */
   refuse_unknown: {
-    deadpan: () => "Je ne connais pas celui-là",
-    warm: () => "Je n'ai pas encore appris celui-là",
-    blunt: () => "Aucune idée",
+    deadpan: () => "Je n'ai pas pu savoir ce que c'est",
+    warm: () => "Je n'ai pas encore trouvé ce que c'est",
+    blunt: () => "Aucune correspondance",
   },
   refuse_unknown_why: {
-    deadpan: () => "Je n'ai aucun prix pour ça, alors je ne vais pas deviner.",
-    warm: () => "Je n'ai rien à quoi le comparer, et deviner ne t'aiderait pas.",
-    blunt: () => "Rien à comparer. Montre-moi.",
+    deadpan: () => "Écris ce que c'est et je le cherche.",
+    warm: () => "Dis-moi ce que c'est en l'écrivant, et je le cherche.",
+    blunt: () => "Écris ce que c'est. Je le cherche.",
   },
   refuse_unsure: {
-    deadpan: () => "Je ne suis pas certain duquel il s'agit",
-    warm: () => "Je pense le connaître, mais pas d'assez proche",
+    deadpan: () => "C'est lequel?",
+    warm: () => "C'est lequel? Choisis-le et je donne son prix.",
     blunt: () => "C'est lequel?",
   },
   refuse_unsure_why: {
     deadpan: () => "Le mauvais appariement donnerait le prix d'un autre produit, alors choisis et je le ferai.",
-    warm: () => "Donner le prix de la mauvaise version serait pire que de ne pas répondre. Pointe-moi le bon.",
+    warm: () => "Donner le prix de la mauvaise version ne t'aiderait pas. Pointe-moi le bon.",
     blunt: () => "Mauvais produit, mauvais prix. Choisis.",
   },
   refuse_category: {
@@ -150,8 +150,8 @@ export const LINES_FR = {
     blunt: (f) => `${f.category}? Non.`,
   },
   refuse_unavailable: {
-    deadpan: () => "Le lecteur ne répond pas",
-    warm: () => "Le lecteur ne répond pas en ce moment",
+    deadpan: () => "Je n'ai pas pu joindre le lecteur",
+    warm: () => "Je n'ai pas pu joindre le lecteur à l'instant",
     blunt: () => "Le lecteur est à terre",
   },
   refuse_unavailable_why: {
@@ -165,23 +165,23 @@ export const LINES_FR = {
     blunt: () => "Pas passé",
   },
   refuse_thin: {
-    deadpan: () => "Pas assez pour trancher",
-    warm: () => "Je préfère ne pas me prononcer encore",
-    blunt: () => "Pas assez. Redemande plus tard.",
+    deadpan: () => "Trop peu de prix pour comparer",
+    warm: () => "J'ai trouvé trop peu de prix pour me prononcer",
+    blunt: () => "Trop peu de prix.",
   },
   /* Le refus mince quand il y a un substitut avec un prix à mettre dessous.
      Même règle qu'en anglais, et c'est la règle dure 2: sans comparaison,
      aucun mot de palier. Pas de prix jugé, pas d'adjectif. Le substitut porte
      la valeur, pas la phrase. */
   refuse_thin_swaps: {
-    deadpan: () => "Aucune comparaison pour celui-là, donc je ne peux pas me prononcer. Voici quelque chose de semblable qui a un prix.",
-    warm: () => "Il n'y a pas encore de comparaison pour celui-là, donc je ne me prononcerai pas. Voici quelque chose de semblable qui a un prix, au cas où ça aiderait.",
-    blunt: () => "Pas de comparaison. Je ne me prononce pas. Voici quelque chose de semblable qui a un prix.",
+    deadpan: () => "Je n'ai aucune comparaison pour celui-là. Voici quelque chose de semblable qui a un prix.",
+    warm: () => "Je n'ai pas encore de comparaison pour celui-là. Voici quelque chose de semblable qui a un prix, au cas où ça aiderait.",
+    blunt: () => "Aucune comparaison pour celui-là. Voici quelque chose de semblable qui a un prix.",
   },
   refuse_evidence_some: {
-    deadpan: () => "Ce que j'ai trouvé, et ce n'était pas assez pour trancher.",
-    warm: () => "Voici ce que j'ai trouvé. C'était juste pas assez pour trancher.",
-    blunt: () => "Ce que j'ai trouvé. Pas assez.",
+    deadpan: () => "Ce que j'ai trouvé, et c'était trop peu pour comparer.",
+    warm: () => "Voici ce que j'ai trouvé. C'était juste trop peu pour comparer.",
+    blunt: () => "Ce que j'ai trouvé. Trop peu.",
   },
   /**
    * Comme en anglais, les trois voix disent exactement la même chose ici:
@@ -223,9 +223,9 @@ export const LINES_FR = {
   },
 
   watchlist_empty: {
-    deadpan: () => "Rien ici pour l'instant.",
-    warm: () => "Rien ici pour l'instant. Garde quelque chose et je retiens le prix, le marchand et la date.",
-    blunt: () => "Vide. Rien de gardé encore.",
+    deadpan: () => "Rien de gardé pour l'instant. Scanne quelque chose et touche Garde-le.",
+    warm: () => "Rien de gardé pour l'instant. Scanne quelque chose et touche Garde-le, et je retiens le prix, le marchand et la date.",
+    blunt: () => "Rien de gardé. Scanne quelque chose et touche Garde-le.",
   },
   watchlist_callback: {
     deadpan: (f) => `${f.item}.${f.price ? ` ${f.price}${f.seller ? `, ${f.seller}` : ''},` : f.seller ? ` ${f.seller},` : ''} gardé ${f.day}.`,
@@ -366,8 +366,8 @@ export const LINES_FR = {
 
   pastscans_empty: {
     deadpan: () => "Rien de scanné pour l'instant.",
-    warm: () => "Rien encore. Ça se remplit tout seul.",
-    blunt: () => "Rien encore.",
+    warm: () => "Rien de scanné pour l'instant. Ça se remplit au fil de tes scans.",
+    blunt: () => "Rien de scanné.",
   },
   pastscans_callback: {
     deadpan: (f) => `Le dernier: ${f.item}, ${f.verdict}.`,
@@ -389,7 +389,7 @@ export const LINES_FR = {
   attitude_sample: {
     deadpan: () => 'Deux dollars. C’est 1,47 $.',
     warm: () => 'Ouf, c’est salé. J’attendrais.',
-    blunt: () => 'Ils te volent.',
+    blunt: () => 'Très au-dessus de l’habituel.',
   },
   attitude_pick: {
     deadpan: () => "Noté. C'est comme ça que je sonne maintenant.",
@@ -522,9 +522,9 @@ export const LINES_FR = {
   },
 
   keep_it_ack: {
-    deadpan: (f) => `Écrit. ${f.asking} chez ${f.seller}, ${f.day}. Je ne peux toujours pas trancher.`,
-    warm: (f) => `Écrit, ${f.asking} chez ${f.seller}, ${f.day}. Je ne peux toujours pas trancher, mais ce n'est pas perdu.`,
-    blunt: () => "Écrit. Toujours pas capable de trancher.",
+    deadpan: (f) => `Écrit. ${f.asking} chez ${f.seller}, ${f.day}. Je n'ai pas encore de comparaison pour ça.`,
+    warm: (f) => `Écrit, ${f.asking} chez ${f.seller}, ${f.day}. Je n'ai pas encore de comparaison pour ça, mais ce n'est pas perdu.`,
+    blunt: () => "Écrit. Pas encore de comparaison.",
   },
   cam_sources_failed: {
     deadpan: () => "Je n'ai pas pu joindre mes propres sources là.",
@@ -556,9 +556,9 @@ export const LINES_FR = {
    * ne le sont jamais. La pique vise le prix ou le magasin, jamais la personne,
    * et aucune ne dit « gardé ». */
   dist_great: {
-    deadpan: () => "Bien en dessous du prix habituel. Quelqu'un dans ce magasin s'est trompé, en ta faveur.",
-    warm: () => "Oh, la belle trouvaille. Le magasin le donne presque.",
-    blunt: () => "Quelqu'un dans ce magasin a fait une erreur. Profites-en.",
+    deadpan: () => "Bien en dessous du prix habituel.",
+    warm: () => "Oh, c'est bien en dessous du prix habituel.",
+    blunt: () => "Très en dessous de l'habituel.",
   },
   dist_great_unsure: {
     deadpan: () => "Ça a l'air bon marché, mais mon estimation est mince. Prends-le comme un peut-être.",
@@ -566,7 +566,7 @@ export const LINES_FR = {
     blunt: () => "Ça a l'air bon marché. Pas sûr. Vérifie.",
   },
   dist_good: {
-    deadpan: () => "Sous le prix habituel. Le magasin est correct.",
+    deadpan: () => "Sous le prix habituel.",
     warm: () => "Belle occasion. C'est moins que d'habitude.",
     blunt: () => "Moins cher que d'habitude. Prends-le.",
   },
@@ -576,7 +576,7 @@ export const LINES_FR = {
     blunt: () => "Peut-être bon marché. Pas sûr.",
   },
   dist_reasonable: {
-    deadpan: () => "C'est le prix courant. Rien à signaler.",
+    deadpan: () => "C'est le prix courant.",
     warm: () => "C'est à peu près ce que ça coûte. Tu es bien.",
     blunt: () => "Prix normal. Rien de spécial.",
   },
@@ -586,9 +586,9 @@ export const LINES_FR = {
     blunt: () => "Semble normal. Estimation grossière.",
   },
   dist_bad: {
-    deadpan: () => "Au-dessus du prix habituel. Le magasin demande un supplément.",
-    warm: () => "Ouf, c'est salé. Le problème, c'est le prix, pas toi.",
-    blunt: () => "Ce prix, c'est du vol avec un code-barres.",
+    deadpan: () => "Au-dessus du prix habituel.",
+    warm: () => "Ouf, c'est salé. C'est au-dessus du prix habituel.",
+    blunt: () => "Très au-dessus de l'habituel.",
   },
   dist_bad_unsure: {
     deadpan: () => "Ça semble cher, mais je ne suis pas assez sûr pour hausser le ton.",
@@ -1049,7 +1049,7 @@ export const BARE_FR = {
   walk_away: {
     deadpan: () => "C'est au-dessus du prix habituel.",
     warm: () => "Ouf, c'est salé pour celui-là.",
-    blunt: () => "Ils te volent.",
+    blunt: () => "Très au-dessus de l'habituel.",
   },
   refuse_category: {
     deadpan: () => "Pas quelque chose que je chiffre",
@@ -1077,9 +1077,9 @@ export const BARE_FR = {
     blunt: () => "Sur certaines, je refuse. Pas assez derrière.",
   },
   keep_it_ack: {
-    deadpan: () => "Écrit. Je ne peux toujours pas trancher.",
-    warm: () => "Écrit. Je ne peux toujours pas trancher, mais ce n'est pas perdu.",
-    blunt: () => "Écrit. Toujours pas capable de trancher.",
+    deadpan: () => "Écrit. Je n'ai pas encore de comparaison pour ça.",
+    warm: () => "Écrit. Je n'ai pas encore de comparaison pour ça, mais ce n'est pas perdu.",
+    blunt: () => "Écrit. Pas encore de comparaison.",
   },
   watching: {
     deadpan: () => "Gardé.",

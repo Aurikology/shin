@@ -44,7 +44,7 @@ const REASONS = [
   'no_source_response',
   'model_timeout',
   'model_outage',
-  'thin_evidence',
+  'too_few_points',
   'category_unsupported',
 ];
 

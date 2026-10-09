@@ -68,9 +68,9 @@ const verdict = (label) => ({
   spread: { lowCents: 299, highCents: 429, medianCents: 349 },
   pointCount: 3,
   comparisonSet: [
-    { seller: label, amountCents: 299, observedAt: '2026-08-01', kind: 'shelf' },
-    { seller: 'Loblaws', amountCents: 389, observedAt: '2026-08-02', kind: 'shelf' },
-    { seller: 'Metro', amountCents: 429, observedAt: '2026-08-03', kind: 'shelf' },
+    { seller: label, amountCents: 299, observedAt: '2026-08-01', kind: 'regular' },
+    { seller: 'Loblaws', amountCents: 389, observedAt: '2026-08-02', kind: 'regular' },
+    { seller: 'Metro', amountCents: 429, observedAt: '2026-08-03', kind: 'regular' },
   ],
   confidence: { band: 'high', distinctSellers: 3, because: label },
   disagreement: { detail: label },

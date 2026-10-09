@@ -564,8 +564,8 @@ const NOT_SHOWN = [
   { file: 'camera.js', text: 'a thing pexi has never seen', why: 'A query string sent to the engine on purpose, to make it produce its own honest refusal rather than the app faking one. It is a search term, not a label; translating it would change what is asked.' },
 
   { file: 'camera.js', text: 'Escape', why: 'A KeyboardEvent.key value compared against in the sheet key handler. A platform constant, the same string on a French keyboard.' },
+  { file: 'camera.js', text: 'refusalSheet: no wording for the refusal reason "', why: 'The message of an Error thrown when the refusal sheet is handed a reason it has no wording for (UX build 4, RULINGS.md "Errors never go unnoticed"); it reaches the console and the page error handler, never the shopper.' },
   { file: 'share.js', text: 'toBlob gave nothing', why: 'The message of an Error thrown and caught inside the save path, so the console gets it. What the reader gets is share_export_failed.' },
-
   /* Paywall fault messages (UX build 2, RULINGS.md "Errors never go unnoticed"): Errors thrown or reported through track.js and the console for whoever reads the log. The shopper sees paywall_failed or paywall_restore_failed, never these. */
   { file: 'paywall.js', text: 'paywall: the fault could not be queued', why: 'console.error prefix when the fault report itself could not be queued; developer-facing only.' },
   { file: 'paywall.js', text: 'paywall: plan id "', why: 'The message of an Error thrown for a plan id outside monthly and yearly and reported as a fault; the shopper sees the failed state.' },
@@ -579,6 +579,7 @@ const NOT_SHOWN = [
   { file: 'paywall.js', text: 'plan was left off the screen:', why: 'The message of a fault reported when the store gave a plan no usable price; developer-facing only, the plan simply is not listed.' },
   { file: 'paywall.js', text: 'a tap named plan', why: 'The message of a fault reported for a tap on a plan row that is not in the list; developer-facing only.' },
   { file: 'paywall.js', text: ', which is not on the screen', why: 'Second half of the select-plan fault message above.' },
+
   /* --- the registered screen titles ---
    *
    * A screen registers `title` in English and `titleKey` beside it. The

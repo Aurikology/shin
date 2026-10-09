@@ -368,10 +368,13 @@ test('a queued offline photo renders under no_source_response with the app-voice
 // no second restated line, and the same "type what it is" repair the other
 // dead-ends already offer, per failure.md D9.5/D9.6.
 const THROTTLE_REASONS_TESTED = ['too_large', 'rate_limited'];
+// The rate-limit sentence is cam_scan_rate_limited; there is no cam_photo_rate_limited. The tests
+// used to ask for that key, got '' back, and passed on an empty detail.
+const throttleLine = (reason) => say(reason === 'rate_limited' ? 'cam_scan_rate_limited' : `cam_photo_${reason}`, {});
 
 test('too_large and rate_limited title the sheet "declined", never the generic unknown refusal', () => {
   for (const reason of THROTTLE_REASONS_TESTED) {
-    const html = refusalSheet(refusal(reason, say(`cam_photo_${reason}`, {})), null, []);
+    const html = refusalSheet(refusal(reason, throttleLine(reason)), null, []);
     assert.ok(html.includes(say('refuse_declined')), `${reason}: the sheet does not use the refuse_declined title`);
     assert.ok(!html.includes(say('refuse_unknown')), `${reason}: fell back to the generic unknown-refusal title`);
   }
@@ -379,7 +382,7 @@ test('too_large and rate_limited title the sheet "declined", never the generic u
 
 test('too_large and rate_limited do not repeat the detail in a second said line', () => {
   for (const reason of THROTTLE_REASONS_TESTED) {
-    const detail = say(`cam_photo_${reason}`, {});
+    const detail = throttleLine(reason);
     const html = refusalSheet(refusal(reason, detail), null, []);
     assert.ok(html.includes(detail), `${reason}: the detail sentence did not render at all`);
     for (const who of ['deadpan', 'warm', 'blunt']) {
@@ -391,7 +394,7 @@ test('too_large and rate_limited do not repeat the detail in a second said line'
 
 test('too_large and rate_limited offer "type what it is", the same repair as no_identity and model-down', () => {
   for (const reason of THROTTLE_REASONS_TESTED) {
-    const html = refusalSheet(refusal(reason, say(`cam_photo_${reason}`, {})), null, []);
+    const html = refusalSheet(refusal(reason, throttleLine(reason)), null, []);
     const pills = html.split('class="pill').length - 1;
     assert.equal(pills, 1, `${reason}: expected exactly one action`);
     assert.match(html, /data-act="typeit"/, `${reason}: the repair is not the type-it route`);
@@ -399,7 +402,7 @@ test('too_large and rate_limited offer "type what it is", the same repair as no_
 });
 
 test('a rate-limited refusal that carries a keepable price still offers Keep it, not type-it', () => {
-  const html = refusalSheet(refusal('rate_limited', say('cam_photo_rate_limited', {})), null, [], { cents: 199, shopId: 's1' });
+  const html = refusalSheet(refusal('rate_limited', throttleLine('rate_limited')), null, [], { cents: 199, shopId: 's1' });
   assert.match(html, /data-act="keepit"/);
 });
 

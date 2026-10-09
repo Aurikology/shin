@@ -59,7 +59,7 @@ export const PERSONALITIES = [
     id: 'blunt',
     name: 'Blunt',
     blurb: 'Short, and a bit rude.',
-    sample: '“They’re robbing you.”',
+    sample: '“Way over the usual.”',
   },
 ];
 
@@ -122,7 +122,7 @@ const LINES_EN = {
   walk_away: {
     deadpan: (f) => `${f.asking}. It is ${f.usual}.`,
     warm: (f) => `Ooh, that is steep. It usually goes for ${f.usual}.`,
-    blunt: () => 'They are robbing you.',
+    blunt: () => 'Way over the usual.',
   },
 
   /* --- the intense forms, AVATAR.md section 3 rows 21 and 24. Gated in
@@ -133,12 +133,12 @@ const LINES_EN = {
   verdict_steal: {
     deadpan: () => 'Nobody else is near that.',
     warm: () => 'Oh, that is a proper find. Nobody else is close.',
-    blunt: () => 'Somebody in that store made a mistake. Enjoy it.',
+    blunt: () => 'Nobody else is near that. Enjoy it.',
   },
   verdict_ripoff: {
     deadpan: () => 'Nobody else charges that.',
     warm: () => 'No. That is not a price, that is a hope.',
-    blunt: () => 'That is a robbery with a barcode on it.',
+    blunt: () => 'That is far over what anyone else charges.',
   },
 
   /* --- the verdict word, which is the largest text on the screen --- */
@@ -189,14 +189,14 @@ const LINES_EN = {
 
   /* --- refusals, which are the most common outcome and get the same care --- */
   refuse_unknown: {
-    deadpan: () => 'I do not know this one',
-    warm: () => 'I have not learned this one yet',
-    blunt: () => 'No clue',
+    deadpan: () => 'I could not tell what this is',
+    warm: () => 'I could not work out what this is yet',
+    blunt: () => 'No match for this one',
   },
   refuse_unknown_why: {
-    deadpan: () => 'I have no prices for it, so I am not going to guess.',
-    warm: () => 'I have nothing to compare it against, and guessing would not help you.',
-    blunt: () => 'Nothing to compare it to. Teach me.',
+    deadpan: () => 'Type what it is and I will look it up.',
+    warm: () => 'Tell me what it is by typing it, and I will look it up.',
+    blunt: () => 'Type what it is. I will look it up.',
   },
   /*
    * Not knowing the thing and not being sure which thing it is are different
@@ -204,13 +204,13 @@ const LINES_EN = {
    * but could not pin the identity is the app misreporting its own reason.
    */
   refuse_unsure: {
-    deadpan: () => 'I am not sure which one this is',
-    warm: () => 'I think I know this, but not closely enough',
+    deadpan: () => 'Which one is it?',
+    warm: () => 'Which one is it? Pick it and I will price it.',
     blunt: () => 'Which one is it?',
   },
   refuse_unsure_why: {
     deadpan: () => 'The wrong match would price a different product, so pick it and I will.',
-    warm: () => 'Pricing the wrong version would be worse than not answering. Point me at the right one.',
+    warm: () => 'Pricing the wrong version would not help you. Point me at the right one.',
     blunt: () => 'Wrong match, wrong price. Pick it.',
   },
   refuse_category: {
@@ -232,8 +232,8 @@ const LINES_EN = {
    * nobody took a photo. "The reader" alone is true on all three.
    */
   refuse_unavailable: {
-    deadpan: () => 'The reader is not answering',
-    warm: () => 'The reader is not answering right now',
+    deadpan: () => 'I could not reach the reader',
+    warm: () => 'I could not reach the reader just now',
     blunt: () => 'Reader is down',
   },
   refuse_unavailable_why: {
@@ -242,9 +242,9 @@ const LINES_EN = {
     blunt: () => 'My fault, not your shot. Try the barcode or type it.',
   },
   refuse_thin: {
-    deadpan: () => 'Not enough to call it',
-    warm: () => 'I would rather not say yet',
-    blunt: () => 'Not enough. Ask me later.',
+    deadpan: () => 'Too few prices to compare',
+    warm: () => 'I found too few prices to say yet',
+    blunt: () => 'Too few prices.',
   },
   /**
    * The thin refusal, when there is a priced substitute to put under it.
@@ -274,15 +274,15 @@ const LINES_EN = {
    * in the same breath.
    */
   refuse_thin_swaps: {
-    deadpan: () => 'No comparison for this one, so I cannot call it. Here is something similar that has a price on it.',
-    warm: () => 'There is no comparison for this one yet, so I am not going to call it. Here is something similar that does have a price on it, in case it helps.',
-    blunt: () => 'No comparison. No call. Here is something similar that has a price.',
+    deadpan: () => 'I have no comparison for this one. Here is something similar that has a price on it.',
+    warm: () => 'I have no comparison for this one yet. Here is something similar that does have a price on it, in case it helps.',
+    blunt: () => 'No comparison for this one. Here is something similar that has a price.',
   },
   /** The evidence line under a refusal, when something was found but not enough. */
   refuse_evidence_some: {
-    deadpan: () => 'What I did find, which was not enough to call it.',
-    warm: () => 'Here is what I did find. It was just not enough to call it.',
-    blunt: () => 'What I found. Not enough.',
+    deadpan: () => 'What I did find, which was too little to compare.',
+    warm: () => 'Here is what I did find. It was just too little to compare.',
+    blunt: () => 'What I found. Too little.',
   },
   /**
    * The evidence line under a refusal, when nothing was found at all.
@@ -342,9 +342,9 @@ const LINES_EN = {
 
   /** Row 42: the watchlist, empty. Not dark, ships in v1 as written in AVATAR.md. */
   watchlist_empty: {
-    deadpan: () => 'Nothing here yet.',
-    warm: () => 'Nothing here yet. Save something and I keep the price, the seller and the day.',
-    blunt: () => 'Empty. Nothing to watch yet.',
+    deadpan: () => 'Nothing saved yet. Scan something and tap Save it.',
+    warm: () => 'Nothing saved yet. Scan something and tap Save it, and I keep the price, the seller and the day.',
+    blunt: () => 'Nothing saved. Scan something and tap Save it.',
   },
   /**
    * The watchlist header's own callback, a 64px face-and-bubble above the
@@ -620,8 +620,8 @@ const LINES_EN = {
    */
   pastscans_empty: {
     deadpan: () => 'Nothing scanned yet.',
-    warm: () => 'Nothing yet. It fills up on its own.',
-    blunt: () => 'Nothing yet.',
+    warm: () => 'Nothing scanned yet. It fills up as you scan.',
+    blunt: () => 'Nothing scanned yet.',
   },
   /**
    * Past scans header, a 64px callback to the most recent row: item and the
@@ -660,7 +660,7 @@ const LINES_EN = {
   attitude_sample: {
     deadpan: () => 'Two dollars. It’s $1.47.',
     warm: () => 'Ooh, that’s steep. I’d wait.',
-    blunt: () => 'They’re robbing you.',
+    blunt: () => 'Way over the usual.',
   },
   /**
    * The setup picker's own acknowledgement: spoken by whichever personality
@@ -922,9 +922,9 @@ const LINES_EN = {
    * the price is no longer only in the shopper's head.
    */
   keep_it_ack: {
-    deadpan: (f) => `Written down. ${f.asking} at ${f.seller}, ${f.day}. I still cannot call it.`,
-    warm: (f) => `Written down, ${f.asking} at ${f.seller}, ${f.day}. I still cannot call it, but it is not lost.`,
-    blunt: () => 'Written down. Still cannot call it.',
+    deadpan: (f) => `Written down. ${f.asking} at ${f.seller}, ${f.day}. I have no comparison for it yet.`,
+    warm: (f) => `Written down, ${f.asking} at ${f.seller}, ${f.day}. I have no comparison for it yet, but it is not lost.`,
+    blunt: () => 'Written down. No comparison yet.',
   },
   /**
    * The camera's own two, migrated 2026-09-07 with the five above.
@@ -978,9 +978,9 @@ const LINES_EN = {
    * can go missing: the numbers are on the sheet beside the bubble.
    */
   dist_great: {
-    deadpan: () => 'Well under the usual. Somebody in that store priced this wrong, in your favour.',
-    warm: () => 'Oh, that is a proper find. The store is practically giving it away.',
-    blunt: () => 'Somebody in that store made a mistake. Enjoy it.',
+    deadpan: () => 'Well under the usual price.',
+    warm: () => 'Oh, that is well under the usual price.',
+    blunt: () => 'Way under the usual.',
   },
   dist_great_unsure: {
     deadpan: () => 'It looks cheap, but I am working from a thin estimate. Treat it as a maybe.',
@@ -988,7 +988,7 @@ const LINES_EN = {
     blunt: () => 'Looks cheap. Not sure. Check it.',
   },
   dist_good: {
-    deadpan: () => 'Under the usual price. The store is being fair.',
+    deadpan: () => 'Under the usual price.',
     warm: () => 'Good spot. That is under what it usually goes for.',
     blunt: () => 'Cheaper than usual. Buy it.',
   },
@@ -998,7 +998,7 @@ const LINES_EN = {
     blunt: () => 'Maybe cheap. Not sure.',
   },
   dist_reasonable: {
-    deadpan: () => 'That is the going rate. Nothing to see.',
+    deadpan: () => 'That is the going rate.',
     warm: () => 'That is about what it goes for. You are fine.',
     blunt: () => 'Normal price. Nothing special.',
   },
@@ -1008,9 +1008,9 @@ const LINES_EN = {
     blunt: () => 'Seems normal. Rough guess.',
   },
   dist_bad: {
-    deadpan: () => 'Over the usual. The store is charging extra for this.',
-    warm: () => 'Ooh, that is steep. The price is the problem, not you.',
-    blunt: () => 'That price is a robbery with a barcode on it.',
+    deadpan: () => 'Over the usual price.',
+    warm: () => 'Ooh, that is steep. It is over the usual price.',
+    blunt: () => 'Way over the usual.',
   },
   dist_bad_unsure: {
     deadpan: () => 'It looks high, but I am not sure enough to be loud about it.',
@@ -1330,9 +1330,9 @@ const LINES_EN = {
    * three), so this label never says "photo" the way its siblings do.
    */
   refusal_label_model_client_error: {
-    deadpan: () => 'Refused. The reader is not answering.',
-    warm: () => 'Refused, because the reader is not answering right now.',
-    blunt: () => 'Refused. Reader is not answering.',
+    deadpan: () => 'Refused. I could not reach the reader.',
+    warm: () => 'Refused, because I could not reach the reader just now.',
+    blunt: () => 'Refused. Reader is down.',
   },
   /* Item 9's two route-declined codes (`THROTTLE_REASONS` in camera.js),
      added the same way the four above were: the raw code reaching this
@@ -1807,7 +1807,7 @@ const BARE_EN = {
   walk_away: {
     deadpan: () => 'That is over the usual.',
     warm: () => 'Ooh, that is steep for this one.',
-    blunt: () => 'They are robbing you.',
+    blunt: () => 'Way over the usual.',
   },
   refuse_category: {
     deadpan: () => 'Not something I price',
@@ -1839,9 +1839,9 @@ const BARE_EN = {
     blunt: () => 'Some of them I refuse on. Not enough behind them.',
   },
   keep_it_ack: {
-    deadpan: () => 'Written down. I still cannot call it.',
-    warm: () => 'Written down. I still cannot call it, but it is not lost.',
-    blunt: () => 'Written down. Still cannot call it.',
+    deadpan: () => 'Written down. I have no comparison for it yet.',
+    warm: () => 'Written down. I have no comparison for it yet, but it is not lost.',
+    blunt: () => 'Written down. No comparison yet.',
   },
   watching: {
     deadpan: () => 'Saved.',
@@ -1939,10 +1939,16 @@ export function say(key, facts = {}, who) {
   // this one switch, never a second call site.
   const resolvedKey = key === 'watching' && FLAGS.feed ? 'watching_feed' : key;
   const row = rowFor(LINES, resolvedKey);
-  if (!row) return '';
+  /* RULINGS.md "Errors never go unnoticed" (2026-10-08): a key with no line,
+     or a row with no function for the speaker or the default, throws. It used
+     to return '' and draw an empty bubble. The throw reaches the page's error
+     handler, which track.js reports as window_error. `wordFor` and
+     `refusalLabel` below look a key up with `sayOrNull` because for them an
+     absent row is a documented case with its own plain fallback. */
+  if (!row) throw new Error(`voice: no line for the key "${resolvedKey}"`);
   const speaker = who && PERSONALITIES.some((p) => p.id === who) ? who : personality();
   const fn = row[speaker] ?? row[DEFAULT_PERSONALITY];
-  if (typeof fn !== 'function') return '';
+  if (typeof fn !== 'function') throw new Error(`voice: the key "${resolvedKey}" has no line for "${speaker}" or the default`);
   /* A caller may hand null rather than omitting the argument, and a default
      parameter only fires on undefined. watchlist.js did exactly that and threw
      a TypeError reading a field off null, which is D-021's missing guard
@@ -1956,12 +1962,35 @@ export function say(key, facts = {}, who) {
   const bare = rowFor(BARE, resolvedKey);
   const spare = bare ? (bare[speaker] ?? bare[DEFAULT_PERSONALITY]) : null;
   console.error(`voice: "${resolvedKey}" spoke without its facts and produced: ${out}`);
-  return typeof spare === 'function' ? spare() : '';
+  if (typeof spare !== 'function') throw new Error(`voice: "${resolvedKey}" spoke without its facts and has no fallback line: ${out}`);
+  return spare();
+}
+
+/**
+ * Like `say`, but an absent key is a documented case and gives null. Only for
+ * the two lookups whose key is built from data (a tier id, a refusal reason)
+ * and which own a plain fallback; a missing key there is reported, not drawn.
+ */
+function sayOrNull(key) {
+  if (!rowFor(LINES, key)) return null;
+  return say(key);
+}
+
+/** A copy fault that is not a throw: the console, and the page's own error event so track.js queues it. */
+function reportCopyFault(message) {
+  const err = new Error(message);
+  console.error(err);
+  if (typeof globalThis.ErrorEvent === 'function' && typeof globalThis.dispatchEvent === 'function') {
+    globalThis.dispatchEvent(new globalThis.ErrorEvent('error', { message, error: err }));
+  }
 }
 
 /** The verdict word for a tier, which is the biggest text on the surface. */
 export function wordFor(tierId) {
-  return say(`word_${tierId}`) || FALLBACKS[locale()]?.word || FALLBACKS[DEFAULT_LOCALE].word;
+  const word = sayOrNull(`word_${tierId}`);
+  if (word) return word;
+  reportCopyFault(`voice: no verdict word for the tier "${tierId}"`);
+  return FALLBACKS[locale()]?.word || FALLBACKS[DEFAULT_LOCALE].word;
 }
 
 /**
@@ -1991,7 +2020,8 @@ const FALLBACKS = {
  * file wants: quiet on the screen, obvious in the table.
  */
 export function refusalLabel(reason) {
-  return say(`refusal_label_${reason}`)
-    || FALLBACKS[locale()]?.refused
-    || FALLBACKS[DEFAULT_LOCALE].refused;
+  const label = sayOrNull(`refusal_label_${reason}`);
+  if (label) return label;
+  reportCopyFault(`voice: no refusal label for the reason "${reason}"`);
+  return FALLBACKS[locale()]?.refused || FALLBACKS[DEFAULT_LOCALE].refused;
 }

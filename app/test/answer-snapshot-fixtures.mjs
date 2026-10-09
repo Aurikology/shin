@@ -19,9 +19,9 @@ const verdict = (band = 'high', tier = 'walk_away') => ({
   spread: { lowCents: 299, highCents: 429, medianCents: 349 },
   pointCount: 3,
   comparisonSet: [
-    { seller: 'Walmart', amountCents: 299, observedAt: '2026-08-01', kind: 'shelf' },
-    { seller: 'Loblaws', amountCents: 389, observedAt: '2026-08-02', kind: 'shelf' },
-    { seller: 'Metro', amountCents: 429, observedAt: '2026-08-03', kind: 'shelf' },
+    { seller: 'Walmart', amountCents: 299, observedAt: '2026-08-01', kind: 'regular' },
+    { seller: 'Loblaws', amountCents: 389, observedAt: '2026-08-02', kind: 'regular' },
+    { seller: 'Metro', amountCents: 429, observedAt: '2026-08-03', kind: 'regular' },
   ],
   confidence: { band, distinctSellers: 3, because: 'Three sellers agreed within a dollar.' },
   disagreement: { detail: 'One seller sits well above the rest. The other two agree closely.' },
