@@ -12,6 +12,11 @@
  * by a serving reader that was written before either existed (`lookup.ts`).
  * If adding a source needed an edit anywhere else - a seller list, a switch, a
  * new column - one of these would fail to run or fail to be read.
+ *
+ * What a new source does need since requirement 4.8 (registry.ts) is data, not
+ * code: an entry in the database's source registry recording its basis for
+ * use. `registerToy` below writes that entry for each toy; no file in
+ * price/src changes for it.
  */
 
 import { test } from 'node:test';
@@ -28,6 +33,23 @@ process.env.SHIN_PRICES = PATH;
 const { openPrices } = await import('../src/store.ts');
 const intake = await import('../src/intake.ts');
 const { lookupPrices } = await import('../src/lookup.ts');
+const { registerSource } = await import('../src/registry.ts');
+type Db = ReturnType<typeof openPrices>;
+
+/** The registry entry a new source needs (requirement 4.8): data in the database, not a code change. */
+function registerToy(db: Db, seller: string): Db {
+  registerSource(db, {
+    seller,
+    access: 'automated',
+    basis: 'licence',
+    evidence: 'toy source that exists only in this test',
+    evidenceUrl: null,
+    readOn: null,
+    automated: 'not_recorded',
+    cite: 'price/test/intake-one-format.test.ts',
+  });
+  return db;
+}
 
 const DAY = '2026-10-09';
 
@@ -78,7 +100,7 @@ const toyOnline = {
 } as const;
 
 test('4.1 a new toy source runs end to end through the one intake path and a serving reader reads it back', async () => {
-  const db = openPrices(PATH);
+  const db = registerToy(openPrices(PATH), 'toy-shelf');
   const r = await intake.runIntake(db, toyShelf, { on: DAY });
   assert.deepEqual([r.offered, r.stored], [3, 3]);
   db.close();
@@ -90,7 +112,7 @@ test('4.1 a new toy source runs end to end through the one intake path and a ser
 });
 
 test('4.1 a second, differently shaped toy source runs through the same unmodified path', async () => {
-  const db = openPrices(PATH);
+  const db = registerToy(openPrices(PATH), 'toy-online');
   const r = await intake.runIntake(db, toyOnline, { on: DAY });
   assert.deepEqual([r.offered, r.stored], [1, 1]);
   const sellers = (db.prepare('SELECT DISTINCT seller FROM intake_batch ORDER BY seller').all() as { seller: string }[]).map((s) => s.seller);
@@ -100,7 +122,7 @@ test('4.1 a second, differently shaped toy source runs through the same unmodifi
 });
 
 test('4.1 known-bad: a reader emitting another seller\'s rows is refused loudly, and the batch is on the ledger as failed', async () => {
-  const db = openPrices(':memory:');
+  const db = registerToy(openPrices(':memory:'), 'toy-online');
   const liar = { ...toyOnline, read: () => [toyRow('Walmart', 'w-1', '0000000000048', 100, { region: null, storeName: null, storeCity: null })] };
   await assert.rejects(intake.runIntake(db, liar, { on: DAY }), /toy-online.*Walmart|Walmart.*toy-online/);
   const st = db.prepare('SELECT status FROM intake_batch_close').get() as { status: string };
@@ -109,7 +131,7 @@ test('4.1 known-bad: a reader emitting another seller\'s rows is refused loudly,
 });
 
 test('4.1 known-bad: a reader that throws mid-stream fails loudly; what it stored before is kept and counted', async () => {
-  const db = openPrices(':memory:');
+  const db = registerToy(openPrices(':memory:'), 'toy-online');
   const broken = {
     ...toyOnline,
     async *read() {

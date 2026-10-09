@@ -82,6 +82,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import * as settings from '../../settings/src/index.ts';
 import { openPrices, PRICES_DB_PATH, recordObservation, type ObservationRow } from './store.ts';
 import { WALMART_SELLER } from './walmart.ts';
+import { requireSourceUse } from './registry.ts';
 
 // ---------------------------------------------------------------------------
 // Step 1: read
@@ -1404,7 +1405,10 @@ function main(argv: string[]): void {
     process.exitCode = 2;
     return;
   }
-  const db = openPrices(dbPath);
+  const db = openPrices(dbPath, { enforceSources: true });
+  // Requirement 4.8: a printout is a page he browsed and saved by hand, read
+  // under the seller's hand_saved entry, never its automated one.
+  requireSourceUse(db, WALMART_SELLER, 'by_hand');
   try {
     for (const pdf of argv) {
       const r = intakePrintout(db, pdf, { store, storeCategory, capturedAt, imagesDir, intakeRun });

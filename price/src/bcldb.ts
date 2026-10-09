@@ -42,6 +42,7 @@
 
 import { readFileSync } from 'node:fs';
 import { openPrices, recordObservation, type ObservationRow } from './store.ts';
+import { requireSourceUse } from './registry.ts';
 
 export const SELLER = 'bcldb';
 
@@ -184,7 +185,10 @@ async function loadBcldb(csvPath: string = DEFAULT_CSV): Promise<LoadResult> {
   const NAME = columnIndex(header, 'PRODUCT_LONG_NAME');
   const PRICE = columnIndex(header, 'PRODUCT_PRICE');
 
-  const db = openPrices();
+  const db = openPrices(undefined, { enforceSources: true });
+  // Requirement 4.8: the database refuses unregistered sellers, and no automated
+  // reader runs without a recorded basis or on a source whose basis forbids one.
+  requireSourceUse(db, SELLER, 'automated');
   const today = new Date().toISOString().slice(0, 10);
 
   let written = 0;

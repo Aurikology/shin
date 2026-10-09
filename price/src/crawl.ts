@@ -77,6 +77,7 @@
 
 import { DatabaseSync } from 'node:sqlite';
 import { openPrices, recordObservation, recordAttempt, alreadyAttempted, coverage } from './store.ts';
+import { requireSourceUse } from './registry.ts';
 import type { AttemptOutcome, ObservationRow } from './store.ts';
 import * as walmart from './walmart.ts';
 import { discoverSkus, PRODUCT_SITEMAP_INDEXES, type SitemapEntry } from './walmart-sitemap.ts';
@@ -759,13 +760,16 @@ async function main(): Promise<void> {
     return i >= 0 && argv[i + 1] ? Number(argv[i + 1]) : dflt;
   };
 
-  const db = openPrices(PRICES);
+  const db = openPrices(PRICES, { enforceSources: true });
 
   if (flag('--report')) {
     report(db);
     db.close();
     return;
   }
+  // Requirement 4.8: the database refuses unregistered sellers, and no automated
+  // reader runs without a recorded basis or on a source whose basis forbids one.
+  requireSourceUse(db, walmart.WALMART_SELLER, 'automated');
 
   /*
    * No `--source` any more: that flag picked a catalogue source (grocery vs

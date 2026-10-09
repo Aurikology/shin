@@ -33,6 +33,7 @@
 
 import type { DatabaseSync } from 'node:sqlite';
 import { KEEP_TRIGGERS, recordObservation, type ObservationRow } from './store.ts';
+import { requireSourceUse, type SourceAccess } from './registry.ts';
 
 /* ------------------------------------------------------------ declarations */
 
@@ -397,6 +398,12 @@ export function closeBatch(db: DatabaseSync, b: Batch, failure?: unknown): Batch
 export interface SourceReader {
   readonly seller: string;
   readonly supplies: Supplies;
+  /**
+   * How the source is read (requirement 4.8, registry.ts): 'automated' (a
+   * program reads the site) or 'by_hand' (pages a person browsed and saved).
+   * Undeclared means automated, the stricter of the two.
+   */
+  readonly access?: SourceAccess;
   read(): Iterable<ObservationRow> | AsyncIterable<ObservationRow>;
 }
 
@@ -415,6 +422,10 @@ export async function runIntake(db: DatabaseSync, reader: SourceReader, opts: { 
   validateSupplies(reader.seller, reader.supplies);
   if (typeof reader.read !== 'function') throw new Error(`${reader.seller}: a reader needs a read() function`);
   const on = opts.on ?? new Date().toISOString().slice(0, 10);
+  // Requirement 4.8: no reader runs without a recorded basis, and no automated
+  // reader runs on a source whose basis forbids one. Before the batch opens and
+  // before read() is called, so a refused source never touches the site.
+  requireSourceUse(db, reader.seller, reader.access ?? 'automated');
 
   const b = openBatch(db, reader.seller, reader.supplies);
   const items = new Set<string>();

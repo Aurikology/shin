@@ -18,6 +18,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openPrices, recordObservation, type ObservationRow } from '../src/store.ts';
 import * as intake from '../src/intake.ts';
+import { registerSource } from '../src/registry.ts';
+
+/** Requirement 4.8: a reader runs only for a source with a registry entry. */
+function withToyShelf(db: ReturnType<typeof openPrices>): ReturnType<typeof openPrices> {
+  registerSource(db, {
+    seller: 'toy-shelf', access: 'automated', basis: 'licence', evidence: 'toy source that exists only in this test',
+    evidenceUrl: null, readOn: null, automated: 'not_recorded', cite: 'price/test/source-fields.test.ts',
+  });
+  return db;
+}
 
 const DAY = '2026-10-09';
 
@@ -89,14 +99,14 @@ test('4.4 every seller the existing readers write has a declaration, and it matc
 });
 
 test('4.4 batches declare what they supply, and the database-wide check reads a new source\'s declaration from the ledger', async () => {
-  const db = openPrices(':memory:');
+  const db = withToyShelf(openPrices(':memory:'));
   await intake.runIntake(db, { seller: 'toy-shelf', supplies: SHELF, read: () => [row()] }, { on: DAY });
   // No entry for toy-shelf anywhere in price/src: the ledger carries it.
   assert.doesNotThrow(() => intake.assertSourceFields(db));
 });
 
 test('4.4 known-bad: a batch whose rows break their declaration is stored whole, put on the ledger as failed, and thrown', async () => {
-  const db = openPrices(':memory:');
+  const db = withToyShelf(openPrices(':memory:'));
   await assert.rejects(
     intake.runIntake(db, { seller: 'toy-shelf', supplies: SHELF, read: () => [row(), row({ sellerSku: 's-2', region: null })] }, { on: DAY }),
     /region.*1 of 2/,

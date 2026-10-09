@@ -52,6 +52,7 @@
 
 import { DatabaseSync } from 'node:sqlite';
 import { openPrices, recordObservation, recordAttempt, PRICES_DB_PATH } from './store.ts';
+import { requireSourceUse } from './registry.ts';
 import type { JoinMethod } from './store.ts';
 
 const CATALOGUE = new URL('../../catalogue/data/catalogue.db', import.meta.url).pathname.replace(
@@ -255,7 +256,10 @@ function storeNameAndCity(item: ApiItem): { storeName: string | null; storeCity:
 
 async function main(): Promise<void> {
   const cat = new DatabaseSync(CATALOGUE, { readOnly: true });
-  const db = openPrices(PRICES);
+  const db = openPrices(PRICES, { enforceSources: true });
+  // Requirement 4.8: the database refuses unregistered sellers, and no automated
+  // reader runs without a recorded basis or on a source whose basis forbids one.
+  requireSourceUse(db, SELLER, 'automated');
   const today = new Date().toISOString().slice(0, 10);
 
   let pulled = 0;

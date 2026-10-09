@@ -508,7 +508,14 @@ CREATE INDEX IF NOT EXISTS observation_by_capture_tile
   ON observation(capture_tile_id) WHERE capture_tile_id IS NOT NULL;
 `;
 
-export function openPrices(path: string = PRICES_DB_PATH): DatabaseSync {
+/**
+ * `enforceSources` puts the file under the source registry (registry.ts,
+ * requirement 4.8): from then on, on every open, the database refuses an
+ * observation whose seller has no registry entry. Every CLI in this package
+ * that writes observations passes it; a test fixture or the bench's in-memory
+ * copy does not need to.
+ */
+export function openPrices(path: string = PRICES_DB_PATH, opts: { enforceSources?: boolean } = {}): DatabaseSync {
   const db = new DatabaseSync(path);
   // Before anything writes (the migration below included): a second process
   // holding the file waits up to 5 s instead of failing the open with SQLITE_BUSY.
@@ -518,6 +525,7 @@ export function openPrices(path: string = PRICES_DB_PATH): DatabaseSync {
   addMissingColumns(db);
   db.exec(REJOIN_INDEX);
   installKeepEverything(db);
+  installSourceRegistry(db, { enforce: opts.enforceSources === true });
   return db;
 }
 
@@ -1131,3 +1139,303 @@ export function identityHistory(db: DatabaseSync, seller: string, sellerSku: str
       .all(seller, sellerSku) as Record<string, unknown>[]
   ).map(toLink);
 }
+
+/*
+ * ---------------------------------------------------------------------------
+ * THE SOURCE REGISTRY'S TABLES, SEEDS AND TRIGGERS, 2026-10-09. Requirement
+ * 4.8. What they mean, the audit and the reader gate are in registry.ts; this
+ * half lives here, not there, because openPrices installs it and an import
+ * from this file to another module changes the load order of everything that
+ * imports this file: measured 2026-10-09, one extra import edge here (even to
+ * an empty module) made app/test/repeat-cache.test.ts's server never accept a
+ * connection, a race between its top-level await and node:test.
+ * ---------------------------------------------------------------------------
+ */
+
+export type SourceAccess = 'automated' | 'by_hand';
+export type SourceBasis = 'licence' | 'terms' | 'hand_saved' | 'unknown';
+export type AutomatedUse = 'permitted' | 'forbidden' | 'not_recorded';
+
+/** One registry entry. See registry.ts. */
+export interface SourceEntry {
+  readonly seller: string;
+  readonly access: SourceAccess;
+  readonly basis: SourceBasis;
+  /** What the basis is: the licence's name, what the terms say, or what is (not) recorded. */
+  readonly evidence: string;
+  /** The licence or terms page. Required for 'terms'. */
+  readonly evidenceUrl: string | null;
+  /** ISO day the terms (or the page the evidence comes from) were read. Required for 'terms'. */
+  readonly readOn: string | null;
+  readonly automated: AutomatedUse;
+  /** Where in the repo this is recorded, so it can be argued with. */
+  readonly cite: string;
+}
+
+
+/* ------------------------------------------------------------ seeds */
+
+/**
+ * Each seller's basis as the repo records it on 2026-10-09. Searched: every
+ * price/src header, app/src/attribution.ts (the Licences screen, where the
+ * 2026-10-06 terms readings live), RULINGS.md, docs/decisions.md, docs/,
+ * research/ and notes/. Walmart's and ANBL's terms were read 2026-10-06 and
+ * forbid automated readers, so their automated entries are 'forbidden': the
+ * Walmart crawl and the ANBL loader are refused by `requireSourceUse` until a
+ * newer entry (written permission, say) is appended. Canadian Tire and
+ * Save-On-Foods have no recorded basis at all.
+ */
+export const SOURCE_SEEDS: readonly SourceEntry[] = [
+  {
+    seller: 'bcldb',
+    access: 'automated',
+    basis: 'licence',
+    evidence:
+      'BC Open Government Licence: "SOURCE: the BC Open Government Licence CSV, no login, republished monthly"; ' +
+      'the download was verified 2026-09-26 (HTTP 200, 8,211 data rows). The licence text itself is not quoted in the repo, ' +
+      'and nothing recorded says whether the catalogue site permits or forbids an automated download.',
+    evidenceUrl: 'https://catalogue.data.gov.bc.ca/dataset/bc-liquor-store-product-price-list-historical-prices',
+    readOn: '2026-09-26',
+    automated: 'not_recorded',
+    cite: 'app/src/attribution.ts (BC Liquor Distribution Branch entry, "Open Government Licence - British Columbia"); price/src/bcldb.ts header (SOURCE); docs/catalogue-build-plan-2026-09-26.md ("Government open data under the BC open licence")',
+  },
+  {
+    seller: 'openprices',
+    access: 'automated',
+    basis: 'licence',
+    evidence:
+      'ODbL: "ODbL, commercial use allowed with attribution, dataset changes shared back" (Open Prices row of the 2026-09-23 lookup comparison). ' +
+      'Open Prices\' own terms are recorded as not yet found, quoted or dated, so nothing recorded says whether an automated reader is permitted.',
+    evidenceUrl: 'https://prices.openfoodfacts.org',
+    readOn: null,
+    automated: 'not_recorded',
+    cite: 'app/src/attribution.ts (Open Prices entry, "Open Database License (ODbL)"); docs/lookup-alternatives-2026-09-23.md (Open Prices row); docs/the-tree.md ("Open Prices\' terms: found, quoted and dated", still to do)',
+  },
+  {
+    seller: 'Walmart',
+    access: 'automated',
+    basis: 'terms',
+    evidence:
+      'Walmart Canada Terms of Use, read 2026-10-06 from a search extract of the clause (the page itself served a bot challenge): they bar ' +
+      '"any engine, software, tool, agent or other device or mechanism (including browsers, spiders, robots, avatars or intelligent agents) to ' +
+      'scrape, navigate or search the Site". Recorded verdict: automated reading is forbidden; only prices a person reads and saves by hand are ' +
+      'inside the terms. (robots.txt, read 2026-09-08, allows /en/ip/<slug>/<sku>, but robots.txt is not the terms.)',
+    evidenceUrl: 'https://www.walmart.ca/en/help/legal/TermsOfUse',
+    readOn: '2026-10-06',
+    automated: 'forbidden',
+    cite: 'app/src/attribution.ts (Walmart Canada entry; commit e755119 "[legal] terms read for ANBL, Walmart Canada, ..."); price/src/walmart-sitemap.ts header',
+  },
+  {
+    seller: 'Walmart',
+    access: 'by_hand',
+    basis: 'hand_saved',
+    evidence:
+      'Pages he browses and saves by hand: his ruling 2026-10-02, "its not automated copying, i\'m manually browsing the web pages", recorded as ' +
+      '"Pages he browses and saves by hand are not automated copying and are a valid source." The printout path reads a saved-as-PDF category page ' +
+      'and writes it under seller Walmart by default; no document names Walmart as the site of the saved pages beyond that code default.',
+    evidenceUrl: null,
+    readOn: null,
+    automated: 'not_recorded',
+    cite: 'RULINGS.md ("The price category requirements are the reference"); docs/decisions.md (2026-10-02); price/src/capture-printout.ts header',
+  },
+  {
+    seller: 'Canadian Tire',
+    access: 'automated',
+    basis: 'unknown',
+    evidence:
+      'No licence, terms or robots.txt reading is recorded. The adapter header records only measurements of the page\'s own public API; ' +
+      'docs/the-tree.md lists "Canadian Tire\'s terms: found, quoted and dated" as still to do.',
+    evidenceUrl: null,
+    readOn: null,
+    automated: 'not_recorded',
+    cite: 'price/src/canadiantire.ts header; docs/the-tree.md; app/test/attribution.test.ts (NOT_CREDITED: "add an entry before loading")',
+  },
+  {
+    seller: 'Save-On-Foods',
+    access: 'automated',
+    basis: 'unknown',
+    evidence:
+      'Terms recorded as not read: "Save-On\'s terms were not read, and Century 21 v Rogers (2011 BCSC 1196) enforced browse-wrap terms against a bot." ' +
+      'robots.txt sits behind a Cloudflare challenge and was not read either.',
+    evidenceUrl: null,
+    readOn: null,
+    automated: 'not_recorded',
+    cite: 'docs/price-access-sweep-2026-09-27.md (Save-On-Foods, legal note); price/src/saveonfoods.ts header; app/test/attribution.test.ts (NOT_CREDITED)',
+  },
+  {
+    seller: 'anbl',
+    access: 'automated',
+    basis: 'terms',
+    evidence:
+      'ANBL Terms and Conditions, read 2026-10-06: "Material from this Site may not be copied, reproduced, republished, uploaded, posted, ' +
+      'transmitted or distributed in any way", viewing or downloading "solely for your own personal use for non-commercial purposes"; robots.txt, ' +
+      'read 2026-10-06, "User-agent: * Disallow: /". Recorded verdict: automated reading and reuse are both unlicensed; written permission needed.',
+    evidenceUrl: 'https://www.anbl.com/terms',
+    readOn: '2026-10-06',
+    automated: 'forbidden',
+    cite: 'app/src/attribution.ts (Alcool NB Liquor (ANBL) entry; commit e755119); price/src/nb.ts header',
+  },
+];
+
+/* ------------------------------------------------------------ schema */
+
+const REGISTRY_DDL = `
+CREATE TABLE IF NOT EXISTS source_registry (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  seller       TEXT NOT NULL CHECK (length(trim(seller)) > 0),
+  access       TEXT NOT NULL CHECK (access IN ('automated', 'by_hand')),
+  basis        TEXT NOT NULL CHECK (basis IN ('licence', 'terms', 'hand_saved', 'unknown')),
+  evidence     TEXT NOT NULL CHECK (length(trim(evidence)) > 0),
+  evidence_url TEXT,
+  read_on      TEXT CHECK (read_on IS NULL OR read_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  automated    TEXT NOT NULL CHECK (automated IN ('permitted', 'forbidden', 'not_recorded')),
+  cite         TEXT NOT NULL CHECK (length(trim(cite)) > 0),
+  recorded_at  TEXT NOT NULL,
+  CHECK (basis <> 'terms' OR (evidence_url IS NOT NULL AND length(trim(evidence_url)) > 0 AND read_on IS NOT NULL)),
+  CHECK ((basis = 'hand_saved') = (access = 'by_hand')),
+  CHECK (automated <> 'permitted' OR basis IN ('licence', 'terms'))
+);
+CREATE INDEX IF NOT EXISTS source_registry_by_seller ON source_registry(seller, access, id);
+
+CREATE TABLE IF NOT EXISTS source_use (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  seller      TEXT NOT NULL,
+  access      TEXT NOT NULL,
+  registry_id INTEGER REFERENCES source_registry(id),
+  allowed     INTEGER NOT NULL,
+  reason      TEXT,
+  used_at     TEXT NOT NULL
+);
+`;
+
+const REGISTRY_APPEND_ONLY = ['source_registry', 'source_use'] as const;
+
+/** The triggers on `observation` that make an enforced database refuse an unregistered seller. */
+export const REGISTRY_TRIGGERS = ['observation_source_registered_insert', 'observation_source_registered_update'] as const;
+
+const REFUSE = "SELECT RAISE(ABORT, 'observation refused: its seller has no entry in the source registry (requirement 4.8; price/src/registry.ts)')";
+const TRIGGER_SQL: Record<(typeof REGISTRY_TRIGGERS)[number], string> = {
+  observation_source_registered_insert:
+    `CREATE TRIGGER observation_source_registered_insert BEFORE INSERT ON observation ` +
+    `WHEN NOT EXISTS (SELECT 1 FROM source_registry WHERE seller = NEW.seller) BEGIN ${REFUSE}; END`,
+  observation_source_registered_update:
+    `CREATE TRIGGER observation_source_registered_update BEFORE UPDATE OF seller ON observation ` +
+    `WHEN NEW.seller IS NOT OLD.seller AND NOT EXISTS (SELECT 1 FROM source_registry WHERE seller = NEW.seller) BEGIN ${REFUSE}; END`,
+};
+
+const ENFORCED_KEY = 'source_registry_enforced';
+
+/**
+ * Called by openPrices after the keep-everything tables exist (store_meta is
+ * theirs). Creates the tables, seeds what is missing, and keeps an enforced
+ * file enforced.
+ */
+export function installSourceRegistry(db: DatabaseSync, opts: { enforce?: boolean } = {}): void {
+  db.exec(REGISTRY_DDL);
+  for (const t of REGISTRY_APPEND_ONLY) {
+    db.exec(`CREATE TRIGGER IF NOT EXISTS ${t}_no_update BEFORE UPDATE ON ${t}
+             BEGIN SELECT RAISE(ABORT, '${t} is append-only and is never edited'); END;
+             CREATE TRIGGER IF NOT EXISTS ${t}_no_delete BEFORE DELETE ON ${t}
+             BEGIN SELECT RAISE(ABORT, '${t} is append-only and is never edited'); END;`);
+  }
+  seedMissing(db);
+  if (opts.enforce) enforceSourceRegistry(db);
+  else if (isEnforced(db)) installTriggers(db);
+}
+
+function missingSeeds(db: DatabaseSync): SourceEntry[] {
+  const have = new Set(
+    (db.prepare('SELECT DISTINCT seller, access FROM source_registry').all() as unknown as { seller: string; access: string }[]).map(
+      (r) => `${r.seller}\u0000${r.access}`,
+    ),
+  );
+  return SOURCE_SEEDS.filter((s) => !have.has(`${s.seller}\u0000${s.access}`));
+}
+
+function seedMissing(db: DatabaseSync): void {
+  if (missingSeeds(db).length === 0) return;
+  // Re-read under the write lock, so two processes opening a new file cannot both seed.
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    for (const s of missingSeeds(db)) insertSourceEntry(db, s);
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+function installTriggers(db: DatabaseSync): void {
+  const have = new Map(
+    (db.prepare("SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'observation'").all() as unknown as {
+      name: string;
+      sql: string;
+    }[]).map((t) => [t.name, t.sql]),
+  );
+  for (const name of REGISTRY_TRIGGERS) {
+    if (have.get(name) === TRIGGER_SQL[name]) continue;
+    db.exec(`DROP TRIGGER IF EXISTS ${name}`);
+    db.exec(TRIGGER_SQL[name]);
+  }
+}
+
+export function isEnforced(db: DatabaseSync): boolean {
+  return db.prepare('SELECT 1 FROM store_meta WHERE key = ?').get(ENFORCED_KEY) !== undefined;
+}
+
+/**
+ * Put this database under the registry. Every seller already holding rows with
+ * no entry is entered as basis 'unknown' first, so nothing held stops loading.
+ * Returns the sellers so entered. Idempotent.
+ */
+export function enforceSourceRegistry(db: DatabaseSync): string[] {
+  const added: string[] = [];
+  db.exec('SAVEPOINT enforce_sources');
+  try {
+    const orphans = db
+      .prepare(
+        `SELECT seller, COUNT(*) AS n FROM observation o
+          WHERE NOT EXISTS (SELECT 1 FROM source_registry r WHERE r.seller = o.seller)
+          GROUP BY seller ORDER BY seller`,
+      )
+      .all() as unknown as { seller: string; n: number }[];
+    const day = new Date().toISOString().slice(0, 10);
+    for (const o of orphans) {
+      insertSourceEntry(db, {
+        seller: o.seller,
+        access: 'automated',
+        basis: 'unknown',
+        evidence: `${Number(o.n)} rows held before the source registry was enforced on this database (${day}); no basis for this seller is recorded in the repo.`,
+        evidenceUrl: null,
+        readOn: null,
+        automated: 'not_recorded',
+        cite: 'none: entered by enforceSourceRegistry (price/src/registry.ts) so held rows keep loading',
+      });
+      added.push(o.seller);
+    }
+    db.prepare('INSERT OR IGNORE INTO store_meta (key, value) VALUES (?, ?)').run(
+      ENFORCED_KEY,
+      JSON.stringify({ at: new Date().toISOString(), enteredAsUnknown: added }),
+    );
+    installTriggers(db);
+    db.exec('RELEASE enforce_sources');
+  } catch (e) {
+    db.exec('ROLLBACK TO enforce_sources');
+    db.exec('RELEASE enforce_sources');
+    throw e;
+  }
+  return added;
+}
+
+
+export function insertSourceEntry(db: DatabaseSync, e: SourceEntry): number {
+  const r = db
+    .prepare(
+      `INSERT INTO source_registry (seller, access, basis, evidence, evidence_url, read_on, automated, cite, recorded_at)
+       VALUES (?,?,?,?,?,?,?,?,?)`,
+    )
+    .run(e.seller, e.access, e.basis, e.evidence, e.evidenceUrl, e.readOn, e.automated, e.cite, new Date().toISOString());
+  return Number(r.lastInsertRowid);
+}
+
+/** Append an entry. It becomes the one in force for its (seller, access). Returns its id. */
