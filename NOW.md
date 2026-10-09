@@ -6,6 +6,24 @@ History moved out of NOW.md on 2026-09-27: `docs/archive/now-history-2026-09-27.
 
 ---
 
+## Price-category plan, 2026-10-09 (docs/price-category-plan-2026-10-02.md)
+
+- **Stage 1 (keep everything): built, all 11 items pushed** (c0f3f1d, ff3ff00, cec3e63, f7dc01a,
+  35e50a4, 55a3b52, eb6d06d, e7aa8df). 4.8's registry audit still FAILS on two unknown bases,
+  Save-On-Foods and Canadian Tire: their terms were not readable by fetch (Save-On 403). The
+  automated Walmart crawl and ANBL loader are now refused (their terms, read 2026-10-06, forbid one).
+- **Stage 0 (trustworthy tests): tooling built** (442bc30). Every bench rebuild now stops with exit 3
+  on real data: each of the 17 priced products is alone in its category, so the whole-category
+  control cannot fail on width. 4.9 (Ontario prices on 2+ dates: 0 rows), 7.7 (a person marks the
+  hand-audit sheet; the 45 marks in reread-sheet.csv are Claude's and do not count) and 7.4's
+  Claude arm (no key) wait on people.
+- **Stage 2 (hierarchy): 1.1, 1.6, 1.7 built** (eb6d06d). All 212,340 items have exactly one path;
+  90,487 Canadian items sit in "unplaced" (decision 2026-10-09). 1.2 to 1.5 need prices: 15 priced
+  items join the catalogue. load.ts does not run the placement build yet.
+- **Stage 3 (placing items): in progress**, catalogue lane, 2.1 to 2.4 without the Claude step.
+- Open for a person: Save-On and Canadian Tire terms; an Ontario source; the 7.7 sheet; the outlier
+  numbers (19%, 4 prices); D-222 (595 test rows in the PC's live user catalogue, delete needs a yes).
+
 ## Current state of the beta: the catalogue
 
 The catalogue build plan has run (`docs/catalogue-build-plan-2026-09-26.md`). Every unit is built,
