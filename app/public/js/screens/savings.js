@@ -79,7 +79,7 @@ export function savingsHtml(view) {
   const recent = view.fault
     ? `<div class="list-state" data-savings="fault">
         <p class="fineprint">${escapeHtml(t('savings_unreadable'))}</p>
-        <button type="button" class="linky" data-act="retry">${escapeHtml(t('try_again'))}</button>
+        <button type="button" class="linky linky-retry" data-act="retry">${escapeHtml(t('try_again'))}</button>
       </div>`
     : view.recent.length
       ? `<div class="ilist">${view.recent.map((r) => `

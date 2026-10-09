@@ -229,6 +229,13 @@ body {
    Ungated, it sticks to the last thing tapped on a touch screen and reads as a
    selection the user did not make. */
 
+/* The list screens' "Try again" (UX R-13, R-60): 48px, the size of a control
+   used on the way to an answer. A separate class so the other .linky buttons
+   (close, back-style links) keep their 44px. */
+.linky-retry {
+  min-height: 48px;
+}
+
 /* A settings row: a label on the left, its current value on the right. */
 .rowbtn {
   display: flex;

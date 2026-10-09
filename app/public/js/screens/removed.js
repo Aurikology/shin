@@ -135,7 +135,7 @@ export default {
         body = html`
           <div class="list-state">
             <p class="fineprint">${say('removed_failed')}</p>
-            <button type="button" class="linky" data-act="retry" data-fk="retry:removed">${t('try_again')}</button>
+            <button type="button" class="linky linky-retry" data-act="retry" data-fk="retry:removed">${t('try_again')}</button>
           </div>`;
       } else if (list.length) {
         body = html`<div class="rlist">${raw(list.map((r) => row(r, confirmKey)).join(''))}</div>`;

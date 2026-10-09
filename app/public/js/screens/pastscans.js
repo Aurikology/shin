@@ -258,7 +258,7 @@ export default {
         body = html`
           <div class="list-state">
             <p class="fineprint">${say('pastscans_failed')}</p>
-            <button type="button" class="linky" data-act="retry" data-fk="retry:pastscans">${t('try_again')}</button>
+            <button type="button" class="linky linky-retry" data-act="retry" data-fk="retry:pastscans">${t('try_again')}</button>
           </div>`;
       } else if (list.length) {
         body = html`
@@ -269,6 +269,7 @@ export default {
           <div class="empty">
             ${raw(faceBlock('asleep', { size: 'face-verdict' }))}
             <p>${say('pastscans_empty')}</p>
+            <button type="button" class="btn btn--primary" data-act="camera">${t('nav_scan')}</button>
           </div>`;
       }
 

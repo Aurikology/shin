@@ -281,7 +281,7 @@ export default {
         body = html`
           <div class="list-state">
             <p class="fineprint">${say('watchlist_failed')}</p>
-            <button type="button" class="linky" data-act="retry" data-fk="retry:watchlist">${t('try_again')}</button>
+            <button type="button" class="linky linky-retry" data-act="retry" data-fk="retry:watchlist">${t('try_again')}</button>
           </div>`;
       } else if (list.length) {
         body = html`
