@@ -2333,6 +2333,45 @@ function padAltChoice(mode) {
         </div>`;
 }
 
+/**
+ * What the pad calls the item (R-36). A scan whose name is known shows the name
+ * as a button: tapping it is the one-tap wrong-item repair, before any price is
+ * typed. A scan that could not be named shows its caption as plain text (the
+ * barcode digits, or the typed words), because there is nothing to search with.
+ * Never prints a missing name: an item with no text throws.
+ */
+function padCaptionHtml(item) {
+  if (typeof item?.text !== 'string' || item.text.trim() === '') {
+    throw new Error('the price pad was opened for an item with no name or code to show');
+  }
+  const text = escapeHtml(item.text);
+  if (item.pendingScan && item.notThisQuery) {
+    return `<button type="button" class="itemname-tap" data-act="notthis" aria-label="${text}. ${escapeHtml(say('cam_notthis_offer'))}">${text}</button>`;
+  }
+  return text;
+}
+
+/**
+ * What a catalogue answer at capture says the barcode is (R-36): `{ label, query }`,
+ * or null when it cannot say (not in the catalogue, a refusal, a limit). An
+ * identity that arrives with no name THROWS: the alternative is a caption of
+ * digits or "undefined" passed off as the item.
+ */
+function captureNameFrom(id, code) {
+  if (!id || typeof id !== 'object' || id.failure || id.scanLimit) return null;
+  if (id.kind === 'catalogue') {
+    if (!id.identity) return null;
+    const { brand, name, size } = id.identity;
+    if (cleanName(name) === '') throw new Error(`the catalogue answered barcode ${code} with an item that has no name`);
+    return { label: candidateRow({ brand, name, size }).label, query: cleanName(name) };
+  }
+  if (id.product) {
+    if (displayName(id.product) === '') throw new Error(`the server answered barcode ${code} with a product that has no name`);
+    return { label: productLabel(id.product), query: cleanName(displayName(id.product)) };
+  }
+  return null;
+}
+
 function pricePadSheet(item, typed = '', modifier = null, thumb = null, shop = null, shopAllowed = false, typedLabel = '', altMode = null) {
   const typedCents = parsePadPrice(typed);
   const effCents = effectivePriceCents(typedCents, modifier);
@@ -2351,10 +2390,10 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null, shop = n
           ${shinSay('asking', 'price_pad_prompt', {}, { size: 64 })}
           ${thumbImg(thumb)}
         </div>
-        <p class="itemname">${escapeHtml(item.text)}</p>
+        <p class="itemname">${padCaptionHtml(item)}</p>
         ${padNameField(!!item.observationOnly, typedLabel)}
         ${
-          item.notThisQuery
+          item.notThisQuery && !item.pendingScan
             ? `<button type="button" class="pad-textbtn notthis" data-act="notthis">${escapeHtml(
                 say('cam_notthis_offer'),
               )}</button>`
@@ -3680,6 +3719,8 @@ export default {
       // haptic may fire (never while the viewfinder is still searching).
       try { haptic('barcode-captured'); } catch (err) { reportHapticFault(err, 'barcode-captured'); }
       const holdGen = gen;
+      // R-36: ask what this barcode is while the capture hold runs.
+      nameCapturedCode(read.value);
       // D-147, Jamin's ruling 2026-09-23: "Fix the barcode full photo." This
       // used to call beginShutter unconditionally, the one call on this
       // screen with no FLAGS.photoId guard and no consent read, so a barcode
@@ -3717,14 +3758,69 @@ export default {
      */
     function askPriceFirst(pending) {
       scanShelfCents = null;
+      /* R-36: a barcode pad names the item when it can. `pending.label` is a name
+         already in hand (a suggestion or a pick); otherwise the lookup started at
+         capture (`nameCapturedCode`) may have answered by now. Neither: the digits,
+         and the lookup repaints the caption if it answers while the pad is up. */
+      const known = pending.kind === 'barcode' && !pending.label && captureName?.code === pending.code && captureName.label ? captureName : null;
+      const label = pending.kind === 'barcode' ? (pending.label ?? known?.label ?? null) : null;
       openPad({
         id: null,
-        text: pending.kind === 'barcode' ? pending.code : pending.kind === 'text' ? pending.text : t('cam_what_you_photographed'),
+        text: pending.kind === 'barcode' ? (label ?? pending.code) : pending.kind === 'text' ? pending.text : t('cam_what_you_photographed'),
         category: null,
         gtin: pending.kind === 'barcode' ? pending.code : null,
-        notThisQuery: null,
+        notThisQuery: label ? (pending.query ?? known?.query ?? null) : null,
         pendingScan: pending,
       });
+    }
+
+    /**
+     * R-36: what the barcode being read is called, asked the moment it is read,
+     * in step with the capture hold, so the pad rises already saying "Kraft Dinner
+     * Original 225 g" instead of 13 digits and a wrong item costs one tap, not a
+     * typed price. `preview` asks the server for the name only: no scan row, no
+     * free-scan counted, no price range asked of the model (the priced request
+     * after the pad is the scan).
+     *
+     * FAILURE IS LOUD AND NEVER BLOCKS. A lookup that cannot be had (offline, 5xx,
+     * the weekly limit) leaves the digits on the pad, records `capture_lookup_failed`
+     * and logs it; the pad works as it always did and the real scan after it still
+     * answers. An identity that arrives WITHOUT a name is a server fault that would
+     * otherwise print digits or "undefined" as the item, so it throws.
+     */
+    let captureName = null;
+    function nameCapturedCode(code) {
+      const mine = { code, label: null, query: null };
+      captureName = mine;
+      void (async () => {
+        let id;
+        try {
+          id = await ctx.api.identify({ gtin: code, preview: true });
+        } catch (err) {
+          track('capture_lookup_failed', { code, message: String(err?.message ?? err) });
+          console.error('capture lookup failed:', err);
+          return;
+        }
+        if (dead || captureName !== mine) return;
+        let named;
+        try {
+          named = captureNameFrom(id, code);
+        } catch (err) {
+          track('capture_lookup_failed', { code, message: String(err?.message ?? err) });
+          setTimeout(() => { throw err; }, 0);
+          return;
+        }
+        if (!named) return;
+        mine.label = named.label;
+        mine.query = named.query;
+        // The pad may already be up with the digits: name it in place, and leave the buffer, the focus and the sheet alone.
+        if (cam.dataset.state === 'asking' && padItem?.pendingScan?.kind === 'barcode' && padItem.pendingScan.code === code && !padItem.pendingScan.label && padItem.notThisQuery === null) {
+          padItem.text = named.label;
+          padItem.notThisQuery = named.query;
+          const cap = slot.querySelector('.padsheet .itemname');
+          if (cap) cap.innerHTML = padCaptionHtml(padItem);
+        }
+      })();
     }
 
     /**
@@ -5201,7 +5297,15 @@ export default {
            *
            * `notThisQuery` is not carried either. The shopper has now seen the
            * whole list and chosen from it, so there is nothing left to reopen.
+           *
+           * R-36: a pick made over a scanned barcode stays a scan. It is priced
+           * by ITS barcode through the same path a scan takes, not by the text
+           * route a name-only pick would fall into.
            */
+          if (padItem?.pendingScan?.kind === 'barcode') {
+            askPriceFirst({ kind: 'barcode', code: chosen.code, label: chosen.label });
+            return;
+          }
           openPad({
             id: chosen.code,
             text: chosen.label,

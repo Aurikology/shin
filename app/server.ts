@@ -3306,6 +3306,29 @@ export const server = createServer(async (req, res) => {
        * route ever sees the raw, unvalidated reading again.
        */
       const gtin = rawGtin ? canonicalGtin(rawGtin) ?? undefined : undefined;
+
+      /*
+       * `preview=1` (UX build 5, R-36): the app asks what a barcode IS the moment it
+       * is read, so the price pad can name the item before a price is typed. It is
+       * a name and nothing else: no scan row, no free-scan counted (usageFor counts
+       * scan rows), no gap logged, no Claude range asked, no answer to act on. The
+       * priced request that follows the pad is the scan. A preview that cannot be
+       * answered (a malformed code, catalogue first off) says so with a null
+       * identity and the app keeps the digits on the pad.
+       */
+      if (rawGtin && pickText('preview') === '1') {
+        const canonical = gtin && catalogueFirstOn() ? canonicalBarcode(rawGtin) : null;
+        if (!canonical) return json(200, { kind: 'catalogue', outcome: 'preview_unavailable', barcode: rawGtin, identity: null, preview: true });
+        const { answer } = await catalogueFirstBarcode(undefined, canonical, marketOfContext(contextFrom(pick)), device, null);
+        return json(200, {
+          kind: 'catalogue',
+          outcome: answer.outcome,
+          barcode: answer.barcode,
+          identity: answer.identity ?? answer.storeIdentity ?? null,
+          preview: true,
+        });
+      }
+
       if (rawGtin && !gtin) {
         const invalidScanId = recordScan({
           deviceId: device,

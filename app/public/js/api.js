@@ -339,9 +339,13 @@ export function price(query) {
  * "no connection" (failure.md D9.1/D9.5). No 413 branch: this is a GET with no
  * body, so the server has nothing to reject as too large.
  */
-export async function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPriceCents } = {}) {
+export async function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPriceCents, preview } = {}) {
   const params = new URLSearchParams();
   if (gtin) params.set('gtin', gtin);
+  /* UX build 5, R-36: `preview` asks for the item's NAME alone, at capture, before
+     any price is typed. The server writes no scan row for it, counts no free scan
+     and asks the model for no range; the priced request that follows is the scan. */
+  if (preview) params.set('preview', '1');
   /* The shelf price, asked at scan time so it rides in the one call
      (2026-09-17). Absent when the shopper skipped it: skipping still gets an
      answer. `thresholds` is the user's own lines, exactly as the store holds

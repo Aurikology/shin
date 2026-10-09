@@ -198,10 +198,12 @@ function runOnBarcode(flags, consentPhotos) {
     haptic: (name) => calls.haptic.push(name),
     reportHapticFault: (err) => { throw err; },
     CAPTURE_HOLD_MS: 0,
+    // UX build 5 (R-36): the name lookup at capture is its own function and its own tests.
+    nameCapturedCode: () => {},
   };
   calls.haptic = [];
   const build = new Function('deps', `
-    const { cam, video, FLAGS, store, ctx, track, captureThumb, askPriceFirst, cameraStartedAt, haptic, reportHapticFault, CAPTURE_HOLD_MS } = deps;
+    const { cam, video, FLAGS, store, ctx, track, captureThumb, askPriceFirst, cameraStartedAt, haptic, reportHapticFault, CAPTURE_HOLD_MS, nameCapturedCode } = deps;
     let dead = false, gen = 0;
     let barcodeInFlight = false, scanBarcode = null, hintTimer = null, scanPressTimer = null, torchAckTimer = null, coachKey = null, scanThumb = null;
     ${src}

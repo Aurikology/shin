@@ -1,0 +1,39 @@
+/*
+ * UX build 5, the scan loop. One file for what build 5 adds to the camera surface,
+ * so it never shares a rule with the sizes, lists and motion pass (camera.css).
+ * Colours and spacing come from tokens.css; nothing here animates a pad key.
+ *
+ * R-36: the item name on the price pad is a button. Tapping it opens the wrong-item
+ * list with no price typed. It reads as the caption it replaces (same face, same
+ * size) and is marked as tappable by a dotted underline, not a box, so it never
+ * competes with the keypad. 44 px high for a thumb; the type stays 13.5 px.
+ */
+.itemname-tap {
+  display: inline;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  /* The hit box grows around the text without moving it: a block-level pseudo-box
+     44 px high, centred on the line. */
+  position: relative;
+}
+.itemname-tap::after {
+  content: '';
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  top: 50%;
+  height: 44px;
+  transform: translateY(-50%);
+}
+.itemname-tap:active { opacity: .6; }
+.itemname-tap:focus-visible {
+  outline: var(--ring-width, 2px) solid currentColor;
+  outline-offset: var(--ring-offset, 3px);
+}

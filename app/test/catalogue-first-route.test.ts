@@ -529,3 +529,57 @@ test('ON, match-text refuses what is not { lines: string[] } within the caps', a
   const atCaps = await matchText({ lines: Array.from({ length: 60 }, () => 'y'.repeat(100)) });
   assert.equal(atCaps.status, 200, 'the caps themselves were refused');
 });
+
+/* ------------------------------------------------------ preview (UX build 5, R-36) */
+
+function scanCount(): number {
+  const db = new DatabaseSync(scansPath, { readOnly: true });
+  try {
+    return (db.prepare('SELECT count(*) AS n FROM scan').get() as { n: number }).n;
+  } finally {
+    db.close();
+  }
+}
+
+async function preview(gtin: string): Promise<Record<string, unknown>> {
+  const r = await fetch(`${base}/api/identify?gtin=${gtin}&deviceId=preview-test&countryCode=CA&preview=1`);
+  assert.equal(r.status, 200);
+  return (await r.json()) as Record<string, unknown>;
+}
+
+test('ON, preview=1 names the item and nothing else: no scan row, no Claude ask, no Gemini call, no gap', async () => {
+  on();
+  const rows = scanCount();
+  const asks = askCalls.length;
+  const scans = scanDouble.calls.length;
+  const gaps = gapCount();
+  const named = await preview(NONE_HIT);
+  assert.equal(named.preview, true);
+  assert.equal(named.outcome, 'catalogue_hit');
+  assert.equal((named.identity as { name: string }).name, 'Cola Classic');
+  const missing = await preview(MISSING);
+  assert.equal(missing.outcome, 'not_in_catalogue');
+  assert.equal(missing.identity, null);
+  assert.equal(scanCount(), rows, 'a preview wrote a scan row, which would count against the weekly free scans');
+  assert.equal(askCalls.length, asks, 'a preview made the paid range ask');
+  assert.equal(scanDouble.calls.length, scans, 'a preview called Gemini');
+  assert.equal(gapCount(), gaps, 'a preview logged a catalogue gap');
+  // The control: the same code without preview DOES write a row, so the count above could have moved.
+  const real = await identify(CAP_HIT);
+  assert.equal(scanCount(), rows + 1, 'control failed: the real scan of a code wrote no row, so the check above proves nothing');
+  assert.equal(typeof real.scanId, 'number');
+});
+
+test('preview=1 on a malformed code, or with catalogue first off, answers with no identity and writes nothing', async () => {
+  on();
+  const rows = scanCount();
+  const bad = await preview('0068100084240');
+  assert.equal(bad.identity, null);
+  assert.equal(bad.outcome, 'preview_unavailable');
+  off();
+  const offAnswer = await preview(OWN_HIT);
+  assert.equal(offAnswer.identity, null);
+  assert.equal(offAnswer.outcome, 'preview_unavailable');
+  assert.equal(scanCount(), rows);
+  on();
+});

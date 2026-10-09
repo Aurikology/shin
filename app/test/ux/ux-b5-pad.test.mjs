@@ -114,7 +114,8 @@ test('R-26 keeps: confirm is off at $0.00 and stays off after typing zeros (pass
   await app.key('0');
   assert.match(amount(app), /^\$0+\.00$/, `zeros read ${amount(app)}`);
   assert.ok(app.find('[data-act="pad-confirm"]').hasAttribute('disabled'), 'confirm is on at $0.00');
-  assert.equal(app.server.callsTo('/api/identify').length, 0, 'a price request went out with no price');
+  // R-36 (build 5): the item is looked up at capture, with no price (query.preview). A PRICE request is one that carries a price.
+  assert.equal(app.server.callsTo('/api/identify').filter((c) => c.query.preview === undefined).length, 0, 'a price request went out with no price');
   app.stop();
 });
 
