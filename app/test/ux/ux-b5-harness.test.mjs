@@ -1405,7 +1405,9 @@ if (isMain) {
     await app.tap('[data-act="detent-step"]', 'grabber');
     assert.equal(app.find('.sheet').dataset.detent, 'half', 'a pointer tap on the grabber must open the half detent');
     await app.tap('[data-act="correct"]');
-    assert.equal(app.screen, 'correct');
+    // Since build 5 (R-30) Correct it opens a detent of the verdict sheet, not the correct screen.
+    assert.equal(app.screen, 'camera');
+    assert.equal(app.has('[data-corr]'), true, 'Correct it did not open the correction in the sheet');
     assert.equal(app.taps, before + 2, 'a refused tap must not be counted');
     app.stop();
   });
