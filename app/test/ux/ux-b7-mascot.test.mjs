@@ -36,41 +36,41 @@
  * recording stub, so font sizes and texts drawn are exact but the picture is not), colour-blind simulation
  * (T-9), and the phone's own permission prompt (R-71 "never over it": the OS draws that, no test can see it).
  *
- * Run: node --test --test-global-setup=test/setup/global.mjs test/ux-b7-mascot.test.mjs
+ * Run: node --test --test-global-setup=test/setup/global.mjs test/ux/ux-b7-mascot.test.mjs
  */
 import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { makeDocument, makeStorage, installBrowser, MiniElement } from './mini-dom.mjs';
+import { makeDocument, makeStorage, installBrowser, MiniElement } from '../mini-dom.mjs';
 
 const storage = makeStorage();
 const doc = makeDocument();
 installBrowser({ doc, storage });
 
-const store = await import('../public/js/store.js');
-const voice = await import('../public/js/voice.js');
+const store = await import('../../public/js/store.js');
+const voice = await import('../../public/js/voice.js');
 const { say, personality, setPersonality, personalityCopy, PERSONALITIES, DEFAULT_PERSONALITY } = voice;
-const F = await import('./verdict-fixtures.mjs');
-const camera = await import('../public/js/screens/camera.js');
-const watchlist = await import('../public/js/screens/watchlist.js');
-const pastscans = await import('../public/js/screens/pastscans.js');
-const removedScreen = await import('../public/js/screens/removed.js');
-const paywallMod = await import('../public/js/screens/paywall.js');
-const youScreen = (await import('../public/js/screens/you.js')).default;
-const shareScreen = (await import('../public/js/screens/share.js')).default;
-const setupScreen = (await import('../public/js/screens/setup.js')).default;
-const shin = await import('../public/js/shin.js');
-const H = await import('../public/js/lib/history-answer.js');
-const ranges = await import('../public/js/lib/ranges.js');
-const rangePicker = await import('../public/js/lib/range-picker.js');
-const listscreen = await import('../public/js/lib/listscreen.js');
-const flow = await import('../public/js/onboarding-flow.js');
-const { FLAGS } = await import('../public/js/flags.js');
-const { bellSvg } = await import('../public/js/lib/verdict-chart.js');
+const F = await import('../verdict-fixtures.mjs');
+const camera = await import('../../public/js/screens/camera.js');
+const watchlist = await import('../../public/js/screens/watchlist.js');
+const pastscans = await import('../../public/js/screens/pastscans.js');
+const removedScreen = await import('../../public/js/screens/removed.js');
+const paywallMod = await import('../../public/js/screens/paywall.js');
+const youScreen = (await import('../../public/js/screens/you.js')).default;
+const shareScreen = (await import('../../public/js/screens/share.js')).default;
+const setupScreen = (await import('../../public/js/screens/setup.js')).default;
+const shin = await import('../../public/js/shin.js');
+const H = await import('../../public/js/lib/history-answer.js');
+const ranges = await import('../../public/js/lib/ranges.js');
+const rangePicker = await import('../../public/js/lib/range-picker.js');
+const listscreen = await import('../../public/js/lib/listscreen.js');
+const flow = await import('../../public/js/onboarding-flow.js');
+const { FLAGS } = await import('../../public/js/flags.js');
+const { bellSvg } = await import('../../public/js/lib/verdict-chart.js');
 
-const ROOT_URL = new URL('../public/', import.meta.url);
+const ROOT_URL = new URL('../../public/', import.meta.url);
 const read = (rel) => readFileSync(new URL(rel, ROOT_URL), 'utf8').replace(/\r\n/g, '\n');
 const VOICE_SRC = read('js/voice.js');
 const CAMERA_SRC = read('js/screens/camera.js');
@@ -257,7 +257,7 @@ test('R-58 (keep): the Setup picker already shows a sample line, in the voice, u
   assert.equal(new Set(IDS.map((id) => say('attitude_sample', {}, id))).size, 3, 'the three samples are not three different lines');
 });
 
-/** A You root that survives the paint, copied from the pattern test/ux-b2-paywall.test.mjs uses. */
+/** A You root that survives the paint, copied from the pattern test/ux/ux-b2-paywall.test.mjs uses. */
 function youRoot() {
   const noop = () => {};
   const el = () => new Proxy({}, {
@@ -476,7 +476,7 @@ test('R-21 (keep): no notification code in the web app, the service worker, or t
   const hits = [];
   for (const p of jsFiles()) if (NOTIFICATION_CODE.test(readFileSync(p, 'utf8'))) hits.push(p.pathname);
   if (NOTIFICATION_CODE.test(read('sw.js'))) hits.push('sw.js');
-  const native = new URL('../../native/', import.meta.url);
+  const native = new URL('../../../native/', import.meta.url);
   const scan = (dir, depth = 0) => {
     if (depth > 6) return;
     for (const name of readdirSync(dir)) {

@@ -953,7 +953,7 @@ function respond(code, body) {
 /* Module hooks: fresh launch per instance, and the camera reader stub     */
 /* ======================================================================= */
 
-const APP_ROOT = pathToFileURL(fileURLToPath(new URL('../public/js/', import.meta.url))).href;
+const APP_ROOT = pathToFileURL(fileURLToPath(new URL('../../public/js/', import.meta.url))).href;
 
 const EYE_STUB = `
 export async function attachEye(video, surfaces, handlers = {}) {
@@ -1230,7 +1230,7 @@ export const RETURNING = { 'shin.v1': { seenIntro: true, consentSeen: true, perm
  * price the shopper typed; `suspect` marks a likely x100 slip with a suggestion.
  */
 export async function verdictAt(cents, { suspectSuggest = null } = {}) {
-  const F = await import('./verdict-fixtures.mjs');
+  const F = await import('../verdict-fixtures.mjs');
   const v = JSON.parse(JSON.stringify(F.GOOD));
   if (cents === null || cents === undefined) { v.shopper = null; return v; }
   const pct = ((cents - v.centreCents) / v.centreCents) * 100;

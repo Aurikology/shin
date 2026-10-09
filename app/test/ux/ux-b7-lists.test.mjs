@@ -25,33 +25,33 @@
  * 4 s timer running against a real finger. The undo timing is tested with node:test mocked timers, which
  * is exact for setTimeout but says nothing about the toast's visual state.
  *
- * Run: node --test --test-global-setup=test/setup/global.mjs test/ux-b7-lists.test.mjs
+ * Run: node --test --test-global-setup=test/setup/global.mjs test/ux/ux-b7-lists.test.mjs
  */
 import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 
-import { makeDocument, makeStorage, installBrowser, MiniElement } from './mini-dom.mjs';
+import { makeDocument, makeStorage, installBrowser, MiniElement } from '../mini-dom.mjs';
 
 const storage = makeStorage();
 const doc = makeDocument();
 installBrowser({ doc, storage });
 
-const store = await import('../public/js/store.js');
-const watchlist = await import('../public/js/screens/watchlist.js');
-const pastscans = await import('../public/js/screens/pastscans.js');
-const removed = await import('../public/js/screens/removed.js');
-const pagebar = await import('../public/js/lib/pagebar.js');
-const { say } = await import('../public/js/voice.js');
+const store = await import('../../public/js/store.js');
+const watchlist = await import('../../public/js/screens/watchlist.js');
+const pastscans = await import('../../public/js/screens/pastscans.js');
+const removed = await import('../../public/js/screens/removed.js');
+const pagebar = await import('../../public/js/lib/pagebar.js');
+const { say } = await import('../../public/js/voice.js');
 
 const DAY = 86400000;
 const iso = (daysAgo) => new Date(Date.now() - daysAgo * DAY).toISOString();
-const JS = new URL('../public/js/', import.meta.url);
+const JS = new URL('../../public/js/', import.meta.url);
 const read = (rel) => readFileSync(new URL(rel, JS), 'utf8');
 
 /* ============================================================== CSS reader */
 
-const CSS_DIR = new URL('../public/css/', import.meta.url);
+const CSS_DIR = new URL('../../public/css/', import.meta.url);
 
 function parseCss(text, file) {
   const src = text.replace(/\r\n/g, '\n').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -223,7 +223,7 @@ test('R-94 (keep): removal stays recoverable for 30 days', async () => {
 
 async function loadUndo() {
   try {
-    return await import('../public/js/lib/undo-toast.js');
+    return await import('../../public/js/lib/undo-toast.js');
   } catch (err) {
     return assert.fail(`build 7 must add public/js/lib/undo-toast.js exporting createUndoToast({ label, restore, durationMs = 4000 }) -> { isOpen, press(), release(), undo(), durationMs }; import failed: ${err.code ?? err.message}`);
   }

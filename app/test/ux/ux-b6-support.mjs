@@ -22,16 +22,16 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { makeDocument, makeStorage, installBrowser } from './mini-dom.mjs';
+import { makeDocument, makeStorage, installBrowser } from '../mini-dom.mjs';
 
 export const storage = makeStorage();
 installBrowser({ doc: makeDocument(), storage });
 
-export const cam = await import('../public/js/screens/camera.js');
-export const VC = await import('../public/js/lib/verdict-chart.js');
-export const store = await import('../public/js/store.js');
-export const { money } = await import('../public/js/lib/money.js');
-export const F = await import('./verdict-fixtures.mjs');
+export const cam = await import('../../public/js/screens/camera.js');
+export const VC = await import('../../public/js/lib/verdict-chart.js');
+export const store = await import('../../public/js/store.js');
+export const { money } = await import('../../public/js/lib/money.js');
+export const F = await import('../verdict-fixtures.mjs');
 
 export const { distributionSheet } = cam;
 export const Z90 = VC.Z90;
@@ -225,11 +225,11 @@ export function svgTexts(html) {
 
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
 export const CSS_FILES = {
-  tokens: read('../public/css/tokens.css'),
-  camera: read('../public/css/screens/camera.css'),
-  components: read('../public/css/components.css'),
-  shell: read('../public/css/shell.css'),
-  share: read('../public/css/screens/share.css'),
+  tokens: read('../../public/css/tokens.css'),
+  camera: read('../../public/css/screens/camera.css'),
+  components: read('../../public/css/components.css'),
+  shell: read('../../public/css/shell.css'),
+  share: read('../../public/css/screens/share.css'),
 };
 
 /** Flat list of { sel, body, media } for every style rule outside @keyframes. Not a CSS parser: it reads these files. */

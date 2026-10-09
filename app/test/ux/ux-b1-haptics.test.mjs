@@ -57,14 +57,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { makeDocument, makeStorage, installBrowser } from './mini-dom.mjs';
+import { makeDocument, makeStorage, installBrowser } from '../mini-dom.mjs';
 
 const storage = makeStorage();
 installBrowser({ doc: makeDocument(), storage });
 
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
 const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-const CAMERA = stripComments(read('../public/js/screens/camera.js'));
+const CAMERA = stripComments(read('../../public/js/screens/camera.js'));
 
 function between(text, from, to, what) {
   const a = text.indexOf(from);
@@ -74,12 +74,12 @@ function between(text, from, to, what) {
   return text.slice(a, b);
 }
 
-const store = await import('../public/js/store.js');
+const store = await import('../../public/js/store.js');
 
 let H = null;
 let loadError = null;
 try {
-  H = await import('../public/js/lib/haptics.js');
+  H = await import('../../public/js/lib/haptics.js');
 } catch (err) {
   loadError = err;
 }
@@ -158,7 +158,7 @@ test('R-1 (KEEP): the off switch is in You and haptics default to on', () => {
   store.reset();
   assert.equal(store.buzzOn(), true, 'haptics are not on by default');
   const root = { innerHTML: '', dataset: {}, querySelector: () => null, querySelectorAll: () => [], addEventListener() {}, removeEventListener() {}, setAttribute() {}, closest: () => null, contains: () => false };
-  return import('../public/js/screens/you.js').then((m) => {
+  return import('../../public/js/screens/you.js').then((m) => {
     try {
       m.default.render(root, { api: { quota: () => new Promise(() => {}), scans: () => new Promise(() => {}) }, go() {}, replace() {}, params: {}, build: 't' });
     } catch { /* wiring after the paint needs a DOM this stub lacks */ }
@@ -222,7 +222,7 @@ test('R-2: an Android without the confirm effect keeps the vibration call', () =
 
 test('R-2: the iOS 18 hidden switch-control trick is not built on', () => {
   mod();
-  const src = read('../public/js/lib/haptics.js');
+  const src = read('../../public/js/lib/haptics.js');
   assert.ok(!/createElement\(\s*['"]input['"]|type=["']?checkbox|\bswitch\b\s*=|setAttribute\(\s*['"]switch['"]/.test(stripComments(src)), 'haptics.js builds on the undocumented checkbox switch');
 });
 

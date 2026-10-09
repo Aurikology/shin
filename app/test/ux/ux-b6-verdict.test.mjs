@@ -259,7 +259,7 @@ test('R-44 (keep) pass 34 px: four words, sentence case, bold, never an icon', (
 
 test('R-44 (keep) pass 108 px: the share card sets the word at 108', async () => {
   const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../public/js/screens/share.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../../public/js/screens/share.js', import.meta.url), 'utf8');
   assert.match(src, /verdict:\s*108,/);
 });
 
@@ -351,7 +351,7 @@ test('R-52 (keep) pass: the face never sits beside the estimate line', () => {
 });
 
 test('R-52 (keep) pass: the market picker stays hidden', async () => {
-  const { FLAGS } = await import('../public/js/flags.js');
+  const { FLAGS } = await import('../../public/js/flags.js');
   assert.equal(FLAGS.market, false, 'the market flag is on; the You row and the picker would show');
 });
 

@@ -26,24 +26,24 @@
  * "feels" like a snap (R-86 says to change the curve then, not the duration), the reduced-motion media
  * query as a browser evaluates it.
  *
- * Run: node --test --test-global-setup=test/setup/global.mjs test/ux-b7-motion.test.mjs
+ * Run: node --test --test-global-setup=test/setup/global.mjs test/ux/ux-b7-motion.test.mjs
  */
 import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 
-import { makeDocument, makeStorage, installBrowser, MiniElement } from './mini-dom.mjs';
+import { makeDocument, makeStorage, installBrowser, MiniElement } from '../mini-dom.mjs';
 
 const doc = makeDocument();
 installBrowser({ doc, storage: makeStorage() });
 
-const F = await import('./verdict-fixtures.mjs');
-const camera = await import('../public/js/screens/camera.js');
-const shin = await import('../public/js/shin.js');
+const F = await import('../verdict-fixtures.mjs');
+const camera = await import('../../public/js/screens/camera.js');
+const shin = await import('../../public/js/shin.js');
 
 /* ============================================================== CSS reading */
 
-const CSS_DIR = new URL('../public/css/', import.meta.url);
+const CSS_DIR = new URL('../../public/css/', import.meta.url);
 
 function parseCss(text, file) {
   const src = text.replace(/\r\n/g, '\n').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -494,7 +494,7 @@ test('R-17 (keep): no loop has a period near 5 s', () => {
 
 async function loadMotion() {
   try {
-    return await import('../public/js/lib/motion.js');
+    return await import('../../public/js/lib/motion.js');
   } catch (err) {
     return assert.fail(`build 7 must add public/js/lib/motion.js exporting registerAnimation({ name, kind, durationMs, curve, property }) -> the registered spec; import failed: ${err.code ?? err.message}`);
   }

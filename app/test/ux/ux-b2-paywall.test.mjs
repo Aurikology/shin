@@ -52,7 +52,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
-import { makeDocument, makeStorage, installBrowser } from './mini-dom.mjs';
+import { makeDocument, makeStorage, installBrowser } from '../mini-dom.mjs';
 
 const storage = makeStorage();
 installBrowser({ doc: makeDocument(), storage });
@@ -63,13 +63,13 @@ const here = (rel) => fileURLToPath(new URL(rel, import.meta.url));
 const read = (rel) => readFileSync(here(rel), 'utf8').replace(/\r\n/g, '\n');
 const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-const purchases = await import('../public/js/purchases.js');
-const paywallMod = await import('../public/js/screens/paywall.js');
+const purchases = await import('../../public/js/purchases.js');
+const paywallMod = await import('../../public/js/screens/paywall.js');
 const paywall = paywallMod.default;
 const { paywallBody } = paywallMod;
-const youScreen = (await import('../public/js/screens/you.js')).default;
-const router = await import('../public/js/router.js');
-const store = await import('../public/js/store.js');
+const youScreen = (await import('../../public/js/screens/you.js')).default;
+const router = await import('../../public/js/router.js');
+const store = await import('../../public/js/store.js');
 
 /* ------------------------------------------------------------ css helpers */
 
@@ -82,7 +82,7 @@ function cssFiles(dir) {
   }
   return out;
 }
-const CSS_TEXT = cssFiles(here('../public/css')).map((p) => readFileSync(p, 'utf8')).join('\n').replace(/\/\*[\s\S]*?\*\//g, '');
+const CSS_TEXT = cssFiles(here('../../public/css')).map((p) => readFileSync(p, 'utf8')).join('\n').replace(/\/\*[\s\S]*?\*\//g, '');
 const RULES = [];
 for (const m of CSS_TEXT.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
   RULES.push({ selectors: m[1].split(',').map((s) => s.trim().replace(/\s+/g, ' ')), body: m[2] });
@@ -352,11 +352,11 @@ test('R-35: You has a visible "Pexi Plus" row, and tapping it opens the paywall'
 });
 
 test('R-35: the camera reaches You in 1 tap and You reaches the paywall in 1 more, a registered screen', () => {
-  const camera = stripComments(read('../public/js/screens/camera.js'));
+  const camera = stripComments(read('../../public/js/screens/camera.js'));
   assert.match(camera, /act === 'you'\) \{ ctx\.go\('you'\)/, 'the camera no longer has a one-tap route to You');
-  const main = read('../public/js/main.js');
+  const main = read('../../public/js/main.js');
   assert.match(main, /for \(const s of \[[^\]]*\bpaywall\b[^\]]*\]\)/, 'the paywall is not registered');
-  assert.match(stripComments(read('../public/js/screens/you.js')), /data-act="plus"[\s\S]*?ctx\.go\('paywall'/, 'You has no route to the paywall');
+  assert.match(stripComments(read('../../public/js/screens/you.js')), /data-act="plus"[\s\S]*?ctx\.go\('paywall'/, 'You has no route to the paywall');
 });
 
 test('R-35 (KEEP): opened from You with no counts, the paywall has Restore purchases and does not claim the scans are used', async () => {
@@ -402,15 +402,15 @@ test('R-84: one price action (Subscribe), a plain "Type a name instead" link, no
   assert.equal(gos.length, 1);
   assert.equal(gos[0][0], 'camera', 'the link does not go to the camera');
   assert.ok(gos[0][1] && Object.keys(gos[0][1]).length > 0, 'the camera is told nothing, so the name field cannot open');
-  const src = stripComments(read('../public/js/screens/paywall.js'));
+  const src = stripComments(read('../../public/js/screens/paywall.js'));
   assert.ok(!/setInterval|countdown|shake|data-tier="walk"/i.test(src), 'a timer, shake or red tier is on the paywall');
-  const pwCss = readFileSync(here('../public/css/screens/paywall.css'), 'utf8');
+  const pwCss = readFileSync(here('../../public/css/screens/paywall.css'), 'utf8');
   assert.ok(!/--walk|--danger|red|shake|@keyframes|animation/i.test(pwCss.replace(/\/\*[\s\S]*?\*\//g, '')), 'paywall CSS is red or animated');
   stop();
 });
 
 test('R-84 (KEEP): the draft line "The camera still works" is not shipped; it is untrue for scans', () => {
-  const src = read('../public/js/ui-strings.js') + read('../public/js/voice.js') + read('../public/js/screens/paywall.js');
+  const src = read('../../public/js/ui-strings.js') + read('../../public/js/voice.js') + read('../../public/js/screens/paywall.js');
   assert.ok(!/camera still works/i.test(stripComments(src)));
 });
 

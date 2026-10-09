@@ -27,20 +27,20 @@
  * content; for that it checks the sheet is anchored to the bottom and the stack of pad rows fits in
  * the lower 60%.
  *
- * Run: node --test --test-global-setup=test/setup/global.mjs test/ux-b7-touch.test.mjs
+ * Run: node --test --test-global-setup=test/setup/global.mjs test/ux/ux-b7-touch.test.mjs
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 
-import { makeDocument, makeStorage, installBrowser } from './mini-dom.mjs';
+import { makeDocument, makeStorage, installBrowser } from '../mini-dom.mjs';
 
 installBrowser({ doc: makeDocument(), storage: makeStorage() });
 
 /* ================================================================== CSS reading */
 
-const CSS_DIR = new URL('../public/css/', import.meta.url);
-const JS_DIR = new URL('../public/js/', import.meta.url);
+const CSS_DIR = new URL('../../public/css/', import.meta.url);
+const JS_DIR = new URL('../../public/js/', import.meta.url);
 const CSS_ORDER = ['tokens.css', 'components.css', 'face.css', 'shell.css'];
 
 function stripComments(s) {
@@ -616,7 +616,7 @@ test('R-12 (keep): the torch, the one rare camera control, sits at the top left'
 test('R-13 (build 7): a control declared under 44 px throws, and a per-scan control under 48 throws (never a silent clamp)', async () => {
   let mod;
   try {
-    mod = await import('../public/js/lib/tap-target.js');
+    mod = await import('../../public/js/lib/tap-target.js');
   } catch (err) {
     assert.fail(`build 7 must add public/js/lib/tap-target.js exporting assertTapTarget({ name, width, height, perScan }); import failed: ${err.code ?? err.message}`);
   }
@@ -638,7 +638,7 @@ test('R-13 (build 7): a control declared under 44 px throws, and a per-scan cont
 test('R-12 (build 7): a per-scan control placed in the top 40% of the screen throws', async () => {
   let mod;
   try {
-    mod = await import('../public/js/lib/tap-target.js');
+    mod = await import('../../public/js/lib/tap-target.js');
   } catch (err) {
     assert.fail(`build 7 must add public/js/lib/tap-target.js exporting assertReach({ name, top, height, viewportHeight }); import failed: ${err.code ?? err.message}`);
   }

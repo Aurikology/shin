@@ -43,7 +43,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, relative } from 'node:path';
 
-import { makeDocument, makeStorage, installBrowser } from './mini-dom.mjs';
+import { makeDocument, makeStorage, installBrowser } from '../mini-dom.mjs';
 
 const storage = makeStorage();
 installBrowser({ doc: makeDocument(), storage });
@@ -52,10 +52,10 @@ const here = (rel) => fileURLToPath(new URL(rel, import.meta.url));
 const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 const text = (html) => html.replace(/<svg[\s\S]*?<\/svg>/g, ' ').replace(/<[^>]*>/g, ' ').replace(/&#39;|&apos;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 
-const store = await import('../public/js/store.js');
-const { say } = await import('../public/js/voice.js');
-const { t } = await import('../public/js/ui-strings.js');
-const camera = await import('../public/js/screens/camera.js');
+const store = await import('../../public/js/store.js');
+const { say } = await import('../../public/js/voice.js');
+const { t } = await import('../../public/js/ui-strings.js');
+const camera = await import('../../public/js/screens/camera.js');
 
 /** Every shipped hand-written script, comments removed. */
 const SHIPPED = [];
@@ -67,7 +67,7 @@ const SHIPPED = [];
       if (name.endsWith('.js') && name !== 'eye.js') SHIPPED.push({ file: relative(here('..'), p), src: stripComments(readFileSync(p, 'utf8')) });
     }
   };
-  walk(here('../public/js'));
+  walk(here('../../public/js'));
 }
 const PERSONALITIES = ['deadpan', 'warm', 'blunt'];
 
@@ -171,7 +171,7 @@ function stubRoot() {
 async function emptyBlock(screen) {
   storage.clear();
   store.reset();
-  const m = (await import(`../public/js/screens/${screen}.js`)).default;
+  const m = (await import(`../../public/js/screens/${screen}.js`)).default;
   const root = stubRoot();
   try {
     m.render(root, { api: { quota: () => new Promise(() => {}), scans: () => new Promise(() => {}) }, go() {}, replace() {}, params: {}, build: 't' });
@@ -214,7 +214,7 @@ test('R-60: every "Try again" button is at least 48 px high', () => {
       }
     }
   };
-  css(here('../public/css'));
+  css(here('../../public/css'));
   const tokens = Object.fromEntries(rules.flatMap((r) => [...r.decl.matchAll(/(--[\w-]+)\s*:\s*([\d.]+px)/g)].map((m) => [m[1], Number(m[2].replace('px', ''))])));
   const heightOf = (cls) => {
     let best = 0;

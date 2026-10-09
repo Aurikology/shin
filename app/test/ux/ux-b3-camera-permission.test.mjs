@@ -54,7 +54,7 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, relative } from 'node:path';
 
-import { makeDocument, makeStorage, installBrowser } from './mini-dom.mjs';
+import { makeDocument, makeStorage, installBrowser } from '../mini-dom.mjs';
 
 const storage = makeStorage();
 installBrowser({ doc: makeDocument(), storage });
@@ -63,10 +63,10 @@ const here = (rel) => fileURLToPath(new URL(rel, import.meta.url));
 const read = (rel) => readFileSync(here(rel), 'utf8').replace(/\r\n/g, '\n');
 const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-const panel = await import('../public/js/permissions-panel.js');
-await import('../public/js/track.js');
+const panel = await import('../../public/js/permissions-panel.js');
+await import('../../public/js/track.js');
 
-const SESSION_URL = '../public/js/camera-session.js';
+const SESSION_URL = '../../public/js/camera-session.js';
 const sessionExists = existsSync(here(SESSION_URL));
 let launches = 0;
 /** A fresh module instance is a fresh launch: module state is gone, localStorage is not. */
@@ -195,8 +195,8 @@ test('R-11: only camera-session.js and the one-time priming ask call getUserMedi
       if (statSync(p).isDirectory()) { if (!['vendor', 'chunks'].includes(name)) walk(p); } else if (name.endsWith('.js')) files.push(p);
     }
   };
-  walk(here('../public/js'));
-  files.push(here('../src/eye/camera.ts'));
+  walk(here('../../public/js'));
+  files.push(here('../../src/eye/camera.ts'));
   const allowed = new Set(['camera-session.js', 'permissions-panel.js']);
   const offenders = files
     .filter((p) => !allowed.has(p.split(/[\\/]/).pop()))
@@ -225,7 +225,7 @@ test('R-11 (KEEP): the priming ask names granted, denied or unavailable and stop
 });
 
 test('R-11 (KEEP): the camera screen still tells a denied permission from a missing camera', () => {
-  const camera = read('../public/js/screens/camera.js');
+  const camera = read('../../public/js/screens/camera.js');
   assert.match(camera, /err\.name === 'NotAllowedError' \? 'denied' : 'unavailable'|reason === 'denied'/, 'the denied / unavailable split is gone from the camera screen');
   assert.match(camera, /camera_denied/);
 });

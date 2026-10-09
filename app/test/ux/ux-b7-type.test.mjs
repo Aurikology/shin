@@ -21,22 +21,22 @@
  * fits at the largest system text setting (a manual test on a device: R-18 asks for it), real
  * contrast of the muted ink on each sheet colour (checked only as "the token is the muted one").
  *
- * Run: node --test --test-global-setup=test/setup/global.mjs test/ux-b7-type.test.mjs
+ * Run: node --test --test-global-setup=test/setup/global.mjs test/ux/ux-b7-type.test.mjs
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 
-import { makeDocument, makeStorage, installBrowser } from './mini-dom.mjs';
+import { makeDocument, makeStorage, installBrowser } from '../mini-dom.mjs';
 
 const storage = makeStorage();
 installBrowser({ doc: makeDocument(), storage });
 
-const F = await import('./verdict-fixtures.mjs');
-const { distributionSheet } = await import('../public/js/screens/camera.js');
-const watchlist = await import('../public/js/screens/watchlist.js');
-const dom = await import('../public/js/lib/dom.js');
-const productName = await import('../public/js/lib/product-name.js');
+const F = await import('../verdict-fixtures.mjs');
+const { distributionSheet } = await import('../../public/js/screens/camera.js');
+const watchlist = await import('../../public/js/screens/watchlist.js');
+const dom = await import('../../public/js/lib/dom.js');
+const productName = await import('../../public/js/lib/product-name.js');
 const { ago } = dom;
 
 const DAY = 86400000;
@@ -44,7 +44,7 @@ const iso = (daysAgo) => new Date(Date.now() - daysAgo * DAY).toISOString();
 
 /* ================================================================== CSS reading */
 
-const CSS_DIR = new URL('../public/css/', import.meta.url);
+const CSS_DIR = new URL('../../public/css/', import.meta.url);
 
 function parseCss(text, file) {
   const src = text.replace(/\r\n/g, '\n').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -167,13 +167,13 @@ test('R-18 (build 7): the provenance line uses the muted ink, not the faint ink'
 test('R-18 (keep): nothing locks the text size, so a larger system text setting can reach the page', () => {
   const locks = RULES.filter((r) => /^none$/i.test(r.decls.get('-webkit-text-size-adjust') ?? '') || /^none$/i.test(r.decls.get('text-size-adjust') ?? ''));
   assert.deepEqual(locks.map((r) => `${r.file}: ${r.sel}`), []);
-  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../../public/index.html', import.meta.url), 'utf8');
   assert.ok(!/user-scalable\s*=\s*no|maximum-scale\s*=\s*1(\.0)?\b/.test(html), 'the viewport meta forbids zoom');
 });
 
 test('R-18 (build 7): a text size under 11 px throws (never a silent clamp)', async () => {
   let mod;
-  try { mod = await import('../public/js/lib/type-floor.js'); } catch (err) {
+  try { mod = await import('../../public/js/lib/type-floor.js'); } catch (err) {
     assert.fail(`build 7 must add public/js/lib/type-floor.js exporting assertTextSize(name, px); import failed: ${err.code ?? err.message}`);
   }
   assert.equal(typeof mod.assertTextSize, 'function');
@@ -318,9 +318,9 @@ test('R-55 (build 7): a price seen more than 90 days ago is marked old in its ro
 });
 
 test('R-55 (keep): the share card keeps its absolute date and the paywall keeps weekday and date', () => {
-  const share = readFileSync(new URL('../public/js/screens/share.js', import.meta.url), 'utf8');
+  const share = readFileSync(new URL('../../public/js/screens/share.js', import.meta.url), 'utf8');
   assert.match(share, /toLocaleDateString\(undefined, \{ year: 'numeric', month: 'short', day: 'numeric' \}\)/);
-  const paywall = readFileSync(new URL('../public/js/screens/paywall.js', import.meta.url), 'utf8');
+  const paywall = readFileSync(new URL('../../public/js/screens/paywall.js', import.meta.url), 'utf8');
   assert.match(paywall, /weekday: 'long', month: 'long', day: 'numeric'/);
 });
 
