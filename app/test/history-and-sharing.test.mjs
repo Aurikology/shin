@@ -188,7 +188,7 @@ test('D20: the Saved face is the zone word\'s face, not the sign of the price de
     assert.match(r, new RegExp(face), `${zone} should wear ${face}`);
   }
   assert.equal(H.distFace('reasonable', 'high'), 'fair');
-  assert.equal(H.distFace('great', 'low'), 'good', 'the confidence gate on the loud face is kept');
+  assert.equal(H.distFace('great', 'low'), 'fair', 'the confidence gate on the smiling face (build 7 R-72, was good)');
 });
 
 test('D20: the Saved list and the camera use one zone-to-face mapping', () => {

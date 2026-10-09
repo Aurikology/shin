@@ -212,7 +212,7 @@ export default {
               (p) => `<button type="button" class="att${p.id === personality() ? ' on' : ''}"
                         role="radio" aria-checked="${p.id === personality()}" data-who="${escapeHtml(p.id)}">
                 <span class="att-face">${faceSvg('fair', { size: 'face-row', who: p.id })}</span>
-                <span class="att-t"><b>${escapeHtml(p.name)}</b><span>${escapeHtml(p.blurb)}</span></span>
+                <span class="att-t"><b>${escapeHtml(p.name)}</b><span>${escapeHtml(p.blurb)}</span><span class="att-sample">${escapeHtml(p.sample)}</span></span>
                 ${rowCheck()}
               </button>`,
             ).join('')}

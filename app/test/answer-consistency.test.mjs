@@ -164,7 +164,7 @@ test('D13: a low-confidence answer still answers, drawn hollow, with the plain f
     assert.ok(unsure.includes(bubble), `${zone}: bubble "${bubble}" is not one of the hedged lines`);
     assert.ok(!sure.includes(bubble), `${zone}: a not-confident answer spoke the confident line`);
   }
-  assert.equal(distFace('great', 'low'), 'good');
+  assert.equal(distFace('great', 'low'), 'fair'); // build 7 R-72: a not-confident price is never a smiling face
   assert.equal(distFace('great', 'medium'), 'delighted');
   assert.equal(distFace('bad', 'low'), 'walk');
 });

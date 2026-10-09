@@ -225,7 +225,7 @@ test('good, reasonable, bad, great: his word, the tier, one face per tier, the r
     assert.match(html, /data-vb-you=/);
   }
   // Great with low confidence is not the intense face (AVATAR.md's gate).
-  assert.equal(distFace('great', 'low'), 'good');
+  assert.equal(distFace('great', 'low'), 'fair'); // build 7 R-72: a not-confident price is never a smiling face
 });
 
 test('the line beside the answer: how far off, against Pexi\'s estimate of the typical price', () => {

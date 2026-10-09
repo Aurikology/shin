@@ -130,7 +130,7 @@ test('D11: the prompt says the barcode is unknown and asks for the name, in both
 test('D20: every face tracks the zone word; Reasonable is never the green good face', async () => {
   const { distFace } = await import('../public/js/screens/camera.js');
   assert.equal(distFace('great', 'high'), 'delighted');
-  assert.equal(distFace('great', 'low'), 'good', 'a not-confident Great is never the intense face');
+  assert.equal(distFace('great', 'low'), 'fair', 'a not-confident Great is never a smiling face (build 7 R-72, was good)');
   assert.equal(distFace('good', 'high'), 'good');
   assert.equal(distFace('reasonable', 'high'), 'fair');
   assert.equal(distFace('reasonable', 'medium'), 'fair');

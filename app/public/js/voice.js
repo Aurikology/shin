@@ -75,8 +75,32 @@ export function personality() {
 }
 
 export function setPersonality(id) {
-  if (!PERSONALITIES.some((p) => p.id === id)) return;
+  /* R-75, loud: a mistyped voice id used to return here and the tap did nothing, with no trace. */
+  if (!PERSONALITIES.some((p) => p.id === id)) {
+    throw new Error(`voice: setPersonality("${id}") is not a voice; the voices are ${PERSONALITIES.map((p) => p.id).join(', ')}`);
+  }
   store.update({ personality: id });
+}
+
+/** What the bubble holds: about twelve words in at most two sentences, two lines at 14 px (R-61). */
+export const MASCOT_MAX_WORDS = 12;
+export const MASCOT_MAX_SENTENCES = 2;
+
+/**
+ * The mascot's line limit as a function that throws and names the key.
+ * Returns the line unchanged when it is within the limit. test/ux/ux-b7-mascot.test.mjs sweeps every
+ * line of every voice through the same counts, so a line over the limit fails the build, not a phone.
+ */
+export function assertMascotLine(line, key) {
+  const name = String(key ?? '(no key)');
+  if (typeof line !== 'string' || line.trim() === '') throw new Error(`voice: the mascot line "${name}" is empty; a blank bubble is not drawn`);
+  /* The dashes are built from their code points: the file itself carries no em dash (screens-voice.test.mjs). */
+  if (line.includes(String.fromCharCode(0x2013)) || line.includes(String.fromCharCode(0x2014))) throw new Error(`voice: the mascot line "${name}" contains a dash: ${line}`);
+  const words = line.trim().split(/\s+/).length;
+  if (words > MASCOT_MAX_WORDS) throw new Error(`voice: the mascot line "${name}" is ${words} words, the limit is ${MASCOT_MAX_WORDS}: ${line}`);
+  const sentences = line.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean).length;
+  if (sentences > MASCOT_MAX_SENTENCES) throw new Error(`voice: the mascot line "${name}" is ${sentences} sentences, the limit is ${MASCOT_MAX_SENTENCES}: ${line}`);
+  return line;
 }
 
 /**
@@ -195,7 +219,7 @@ const LINES_EN = {
   },
   refuse_unknown_why: {
     deadpan: () => 'Type what it is and I will look it up.',
-    warm: () => 'Tell me what it is by typing it, and I will look it up.',
+    warm: () => 'Type what it is and I will look it up.',
     blunt: () => 'Type what it is. I will look it up.',
   },
   /*
@@ -209,8 +233,8 @@ const LINES_EN = {
     blunt: () => 'Which one is it?',
   },
   refuse_unsure_why: {
-    deadpan: () => 'The wrong match would price a different product, so pick it and I will.',
-    warm: () => 'Pricing the wrong version would not help you. Point me at the right one.',
+    deadpan: () => 'A wrong match prices a different product. Pick it.',
+    warm: () => 'Wrong version, wrong price. Point me at the right one.',
     blunt: () => 'Wrong match, wrong price. Pick it.',
   },
   refuse_category: {
@@ -237,8 +261,8 @@ const LINES_EN = {
     blunt: () => 'Reader is down',
   },
   refuse_unavailable_why: {
-    deadpan: () => 'This is the reader, not your photo. The barcode and typing it still work.',
-    warm: () => 'This is on my end, not your photo. The barcode or typing it will still get you an answer.',
+    deadpan: () => 'It is the reader, not your photo. Barcode and typing still work.',
+    warm: () => 'On my end, not your photo. Barcode or typing still works.',
     blunt: () => 'My fault, not your shot. Try the barcode or type it.',
   },
   refuse_thin: {
@@ -274,14 +298,14 @@ const LINES_EN = {
    * in the same breath.
    */
   refuse_thin_swaps: {
-    deadpan: () => 'I have no comparison for this one. Here is something similar that has a price on it.',
-    warm: () => 'I have no comparison for this one yet. Here is something similar that does have a price on it, in case it helps.',
-    blunt: () => 'No comparison for this one. Here is something similar that has a price.',
+    deadpan: () => 'Nothing to compare this to. This similar one has a price.',
+    warm: () => 'Nothing to compare this to yet. This similar one has a price.',
+    blunt: () => 'No comparison. This similar one has a price.',
   },
   /** The evidence line under a refusal, when something was found but not enough. */
   refuse_evidence_some: {
     deadpan: () => 'What I did find, which was too little to compare.',
-    warm: () => 'Here is what I did find. It was just too little to compare.',
+    warm: () => 'Here is what I found. Too little to compare.',
     blunt: () => 'What I found. Too little.',
   },
   /**
@@ -290,9 +314,9 @@ const LINES_EN = {
    * already in camera.js", so all three personalities read the same.
    */
   refuse_evidence_none: {
-    deadpan: () => 'I found nothing at all for this. That is a gap in what I have been taught, not a fact about the market.',
-    warm: () => 'I found nothing at all for this. That is a gap in what I have been taught, not a fact about the market.',
-    blunt: () => 'I found nothing at all for this. That is a gap in what I have been taught, not a fact about the market.',
+    deadpan: () => 'Nothing found. That gap is mine, not a fact about the market.',
+    warm: () => 'Nothing found. That gap is mine, not a fact about the market.',
+    blunt: () => 'Nothing found. That gap is mine, not a fact about the market.',
   },
 
   /* --- the states between shutter and answer --- */
@@ -337,13 +361,13 @@ const LINES_EN = {
   dropped: {
     deadpan: (f) => `${f.asking} at ${f.seller}. You watched it at ${f.usual}.`,
     warm: (f) => `It dropped. ${f.asking} at ${f.seller}, down from what you saw.`,
-    blunt: (f) => `It dropped. ${f.asking}. They were pushing it before.`,
+    blunt: (f) => `It dropped to ${f.asking}. They pushed it before.`,
   },
 
   /** Row 42: the watchlist, empty. Not dark, ships in v1 as written in AVATAR.md. */
   watchlist_empty: {
     deadpan: () => 'Nothing saved yet. Scan something and tap Save it.',
-    warm: () => 'Nothing saved yet. Scan something and tap Save it, and I keep the price, the seller and the day.',
+    warm: () => 'Nothing saved yet. Scan something and Save it, I will keep it.',
     blunt: () => 'Nothing saved. Scan something and tap Save it.',
   },
   /**
@@ -355,7 +379,7 @@ const LINES_EN = {
   watchlist_callback: {
     deadpan: (f) => `${f.item}.${f.price ? ` ${f.price}${f.seller ? `, ${f.seller}` : ''},` : f.seller ? ` ${f.seller},` : ''} saved ${f.day}.`,
     warm: (f) => `Still have ${f.item} saved${f.price ? `, ${f.price}${f.seller ? ` at ${f.seller}` : ''}` : f.seller ? `, at ${f.seller}` : ''}, ${f.day}.`,
-    blunt: (f) => `${f.item}.${f.price ? ` ${f.price}${f.seller ? `, ${f.seller}` : ''}.` : f.seller ? ` ${f.seller}.` : ''} ${f.day}.`,
+    blunt: (f) => `${f.item}${f.price ? `, ${f.price}` : ''}${f.seller ? ` at ${f.seller}` : ''}, ${f.day}.`,
   },
   /**
    * A saved row opened with no matching scan left in history (the watch
@@ -369,7 +393,7 @@ const LINES_EN = {
   },
   /** The plain admission that goes with `watchlist_saved_only`: no verdict on file. */
   watchlist_no_history_note: {
-    deadpan: () => 'No verdict on file for this one anymore. This is only what you saved.',
+    deadpan: () => 'No verdict on file anymore. This is only what you saved.',
     warm: () => 'I do not have the original verdict anymore, only what you saved.',
     blunt: () => 'No verdict saved. Just the price.',
   },
@@ -389,8 +413,8 @@ const LINES_EN = {
    * consequence. Only the words move.
    */
   storage_not_kept: {
-    deadpan: () => 'This browser is not letting me keep anything. It works until you close the tab, then it is gone.',
-    warm: () => 'Heads up, this browser will not let me save anything. It all still works, it just will not be here next time.',
+    deadpan: () => 'This browser will not keep anything. It goes when the tab closes.',
+    warm: () => 'This browser will not save anything. It will be gone next time.',
     blunt: () => 'This browser blocks saving. Nothing here survives the tab closing.',
   },
   correct_gate_both: {
@@ -404,8 +428,8 @@ const LINES_EN = {
     blunt: () => 'The price. Off the tag.',
   },
   correct_gate_seller: {
-    deadpan: () => 'Name the shop. A price with no shop cannot be compared to anything later.',
-    warm: () => 'Which shop was it? A price on its own cannot be compared to anything later.',
+    deadpan: () => 'Name the shop. A price with no shop cannot be compared.',
+    warm: () => 'Which shop was it? A price on its own cannot be compared.',
     blunt: () => 'Which shop. A price with no shop is useless later.',
   },
   correct_ask: {
@@ -431,9 +455,9 @@ const LINES_EN = {
    * what the second half of the line now says.
    */
   correct_thanks: {
-    deadpan: () => 'Recorded. It counts from now. A second tag makes it firm.',
-    warm: () => 'Thank you, that is recorded. It counts from your next scan, and it gets firmer when someone else sees the same price.',
-    blunt: () => 'Got it. Counts now. Firmer when a second one agrees.',
+    deadpan: () => 'Sent. Your price is written down as a report.',
+    warm: () => 'Thank you, your price is written down as a report.',
+    blunt: () => 'Got it. Filed as a report.',
   },
   /**
    * The correction screen's own fineprint, moved out of correct.js: no line
@@ -443,9 +467,9 @@ const LINES_EN = {
    * agrees. See `correct_thanks` above for why the wording stays as it is.
    */
   correct_fineprint: {
-    deadpan: (f) => `Once you send it, it is recorded against ${f.label}${f.seller ? `, at ${f.seller}` : ''}. It counts from then, firmer when a second tag agrees.`,
-    warm: (f) => `When you send it, it is recorded against ${f.label}${f.seller ? `, at ${f.seller}` : ''}. It counts from your next scan, and firms up when someone else sees the same price.`,
-    blunt: (f) => `Sent, it goes against ${f.label}${f.seller ? `, at ${f.seller}` : ''}. Counts then, firmer when a second one agrees.`,
+    deadpan: (f) => `Once you send it: a report against ${f.label}${f.seller ? `, at ${f.seller}` : ''}.`,
+    warm: (f) => `When you send it: your report against ${f.label}${f.seller ? `, at ${f.seller}` : ''}.`,
+    blunt: (f) => `Sent, it goes against ${f.label}${f.seller ? `, at ${f.seller}` : ''} as a report.`,
   },
 
   /**
@@ -467,8 +491,8 @@ const LINES_EN = {
    * verdict. Never promises to look again.
    */
   going_rate: {
-    deadpan: () => 'I know what this goes for. I do not know what they are asking.',
-    warm: () => 'I know what this goes for. Tell me the tag and I will judge it.',
+    deadpan: () => 'I know the going rate. I do not know their price.',
+    warm: () => 'I know the going rate. Tell me the tag.',
     blunt: () => 'I know the going rate. I do not know their number.',
   },
 
@@ -493,9 +517,9 @@ const LINES_EN = {
    * a malfunction, and this is not one.
    */
   price_only_recorded: {
-    deadpan: (f) => `Written down. ${f.price}${f.seller ? ` at ${f.seller}` : ''}. I do not know what this is, so I have nothing to compare it to.`,
-    warm: (f) => `I have written that down. ${f.price}${f.seller ? ` at ${f.seller}` : ''}. I still do not know what this is, so there is nothing to compare it against yet, but the price is not lost.`,
-    blunt: (f) => `Written down. ${f.price}${f.seller ? ` at ${f.seller}` : ''}. No idea what it is, so no call from me.`,
+    deadpan: (f) => `Written down, ${f.price}${f.seller ? ` at ${f.seller}` : ''}. I do not know what this is.`,
+    warm: (f) => `Noted, ${f.price}${f.seller ? ` at ${f.seller}` : ''}. I do not know what this is yet.`,
+    blunt: (f) => `Written down, ${f.price}${f.seller ? ` at ${f.seller}` : ''}. No idea what it is.`,
   },
 
   /**
@@ -512,13 +536,13 @@ const LINES_EN = {
    * that is not on the list, and the price is still worth writing down.
    */
   shop_pick_prompt: {
-    deadpan: () => 'The shops around here. Tap the one you are in and I will remember it.',
-    warm: () => 'Here are the shops around you. Tap the one you are standing in and I will remember it, so I will not ask again next time you come here.',
-    blunt: () => 'Shops near you. Tap yours. I will remember.',
+    deadpan: () => 'Tap the shop you are in. I will remember it.',
+    warm: () => 'Shops near you. Tap yours and I will remember it.',
+    blunt: () => 'Shops near you. Tap yours, I will remember.',
   },
   shop_none_nearby: {
-    deadpan: () => 'No shops mapped around here. The price is still worth writing down without one.',
-    warm: () => 'I cannot find any shops mapped around here, which usually means nobody has added them to the map yet. The price is still worth writing down without one.',
+    deadpan: () => 'No shops mapped here. Write the price down anyway.',
+    warm: () => 'No shops mapped here yet. Write the price down anyway.',
     blunt: () => 'Nothing mapped here. Write the price down anyway.',
   },
 
@@ -568,8 +592,8 @@ const LINES_EN = {
     blunt: () => 'No barcode. Type the name.',
   },
   hint_escalated: {
-    deadpan: () => 'No tag on it? Point at the thing itself, or type what it is.',
-    warm: () => 'No tag on it? Point at the thing itself, or tell me what it is instead.',
+    deadpan: () => 'No tag? Point at the thing, or type what it is.',
+    warm: () => 'No tag? Point at the thing, or tell me what it is.',
     blunt: () => 'No barcode there. Try the thing itself, or type it.',
   },
 
@@ -644,9 +668,9 @@ const LINES_EN = {
    * recorded and shown, not yet part of the comparison itself.
    */
   market_ask: {
-    deadpan: () => 'Where do you shop? I record it. It does not change what I compare yet.',
-    warm: () => 'Where do you shop? I will keep it on file, even though it does not change what I compare yet.',
-    blunt: () => 'Where do you shop? Recorded. Does nothing yet.',
+    deadpan: () => 'Where do you shop? I record it, it changes nothing yet.',
+    warm: () => 'Where do you shop? I will note it, nothing changes yet.',
+    blunt: () => 'Where do you shop? Recorded, does nothing yet.',
   },
 
   /**
@@ -784,7 +808,7 @@ const LINES_EN = {
    */
   cam_cheaper_failed: {
     deadpan: () => 'I could not check for a cheaper one.',
-    warm: () => 'I could not check for a cheaper one just now. Worth another try.',
+    warm: () => 'I could not check for a cheaper one. Worth another try.',
     blunt: () => 'Could not check for a cheaper one.',
   },
   /**
@@ -809,17 +833,17 @@ const LINES_EN = {
    */
   cam_cheaper_none: {
     deadpan: () => 'Nothing cheaper that I can put a price on.',
-    warm: () => 'I looked for something cheaper with a price on it and there is nothing yet.',
+    warm: () => 'Nothing cheaper has a price on it yet.',
     blunt: () => 'Nothing cheaper with a price.',
   },
   cam_similar_none: {
     deadpan: () => 'Nothing similar has a price on it yet.',
-    warm: () => 'I looked for something similar with a price on it and there is nothing yet.',
+    warm: () => 'Nothing similar has a price on it yet.',
     blunt: () => 'Nothing similar with a price.',
   },
   cam_similar_failed: {
     deadpan: () => 'I could not check for something similar with a price on it.',
-    warm: () => 'I could not check for something similar with a price on it just now. Worth another try.',
+    warm: () => 'I could not check for something similar. Worth another try.',
     blunt: () => 'Could not check for something similar with a price.',
   },
 
@@ -844,12 +868,12 @@ const LINES_EN = {
   },
   cam_notthis_prompt: {
     deadpan: (f) => `Everything I found for "${f.query}".`,
-    warm: (f) => `Here is everything I found for "${f.query}". Pick the right one and I will price that instead.`,
+    warm: (f) => `Everything I found for "${f.query}". Pick the right one.`,
     blunt: (f) => `All of it, for "${f.query}". Pick one.`,
   },
   cam_notthis_empty: {
     deadpan: (f) => `That is the only thing I have for "${f.query}".`,
-    warm: (f) => `That really is the only thing I have for "${f.query}", so the first answer was not a guess between several.`,
+    warm: (f) => `That is the only match for "${f.query}".`,
     blunt: (f) => `Only one. "${f.query}" gets you that and nothing else.`,
   },
   cam_notthis_keep: {
@@ -866,7 +890,7 @@ const LINES_EN = {
    */
   cam_text_no_match: {
     deadpan: (f) => `Nothing in what Pexi has been taught matches "${f.query}".`,
-    warm: (f) => `I could not find anything I know that matches "${f.query}". Try the barcode, or a different word or two.`,
+    warm: (f) => `Nothing I know matches "${f.query}". Try the barcode.`,
     blunt: (f) => `"${f.query}" matches nothing I know.`,
   },
   /**
@@ -882,19 +906,19 @@ const LINES_EN = {
    */
   cam_reader_model_down: {
     deadpan: () => 'Pexi’s reader is not answering right now. Try again in a moment.',
-    warm: () => 'Pexi’s reader is not answering right now, nothing to do with your scan. Try again in a moment.',
+    warm: () => 'The reader is not answering, not your scan. Try again.',
     blunt: () => 'Reader is down. Try again.',
   },
   /* A typed search with no item and price in Pexi's own data (Jamin,
      2026-09-23). No facts, so there is nothing to go missing. */
   cam_text_no_own_price: {
-    deadpan: () => 'Pexi does not have a price for that yet. Scan the barcode instead.',
-    warm: () => 'I do not have a price for that one yet. Scan its barcode and I will look it up.',
+    deadpan: () => 'Pexi has no price for that yet. Scan the barcode.',
+    warm: () => 'I have no price for that yet. Scan its barcode.',
     blunt: () => 'No price for that yet. Scan the barcode.',
   },
   cam_notthis_failed: {
     deadpan: () => 'I could not go back and look again.',
-    warm: () => 'I could not go back and look again just now. The first answer still stands.',
+    warm: () => 'I could not look again. The first answer stands.',
     blunt: () => 'Could not look again.',
   },
 
@@ -922,8 +946,8 @@ const LINES_EN = {
    * the price is no longer only in the shopper's head.
    */
   keep_it_ack: {
-    deadpan: (f) => `Written down. ${f.asking} at ${f.seller}, ${f.day}. I have no comparison for it yet.`,
-    warm: (f) => `Written down, ${f.asking} at ${f.seller}, ${f.day}. I have no comparison for it yet, but it is not lost.`,
+    deadpan: (f) => `Written down, ${f.asking} at ${f.seller}, ${f.day}. No comparison yet.`,
+    warm: (f) => `Written down, ${f.asking} at ${f.seller}, ${f.day}. Nothing to compare it to yet.`,
     blunt: () => 'Written down. No comparison yet.',
   },
   /**
@@ -938,7 +962,7 @@ const LINES_EN = {
    */
   cam_sources_failed: {
     deadpan: () => 'I could not reach my own sources just now.',
-    warm: () => 'I could not reach my own sources just now. Not your doing, and worth another try.',
+    warm: () => 'I could not reach my sources. Not your doing, try again.',
     blunt: () => 'My own sources did not answer. Try me again.',
   },
   /**
@@ -955,17 +979,17 @@ const LINES_EN = {
   },
   gem_unsure: {
     deadpan: () => 'My best read, and I am not fully confident in it.',
-    warm: () => 'This is my best read, though I am not fully confident in it.',
+    warm: () => 'My best read, though I am not fully confident.',
     blunt: () => 'Best read. Not fully sure.',
   },
   gem_failed: {
     deadpan: () => 'I could not get an answer just now. Try me again.',
-    warm: () => 'I could not get an answer just now. That is on my side, and another try often works.',
+    warm: () => 'No answer this time, that is on my side. Try again.',
     blunt: () => 'No answer this time. Try me again.',
   },
   gem_nothing: {
     deadpan: () => 'I had nothing to look up. Try the scan again.',
-    warm: () => 'I did not have enough to look up. Give the scan another go.',
+    warm: () => 'I had too little to look up. Scan again.',
     blunt: () => 'Nothing to look up. Scan again.',
   },
   /**
@@ -983,9 +1007,9 @@ const LINES_EN = {
     blunt: () => 'Way under the usual.',
   },
   dist_great_unsure: {
-    deadpan: () => 'It looks cheap, but I am working from a thin estimate. Treat it as a maybe.',
-    warm: () => 'This looks like a good one, but I do not have much to go on, so hold it loosely.',
-    blunt: () => 'Looks cheap. Not sure. Check it.',
+    deadpan: () => 'Looks cheap, but my estimate is thin. Treat it as a maybe.',
+    warm: () => 'Looks good, but I have little to go on. Hold it loosely.',
+    blunt: () => 'Looks cheap. Not sure, check it.',
   },
   dist_good: {
     deadpan: () => 'Under the usual price.',
@@ -994,7 +1018,7 @@ const LINES_EN = {
   },
   dist_good_unsure: {
     deadpan: () => 'Probably under the usual, but the evidence is thin.',
-    warm: () => 'It looks a little under the usual, but I am not very sure, so go gently.',
+    warm: () => 'A little under the usual, but I am not very sure.',
     blunt: () => 'Maybe cheap. Not sure.',
   },
   dist_reasonable: {
@@ -1013,13 +1037,13 @@ const LINES_EN = {
     blunt: () => 'Way over the usual.',
   },
   dist_bad_unsure: {
-    deadpan: () => 'It looks high, but I am not sure enough to be loud about it.',
-    warm: () => 'That looks pricey to me, though my estimate is thin, so check before you walk away.',
-    blunt: () => 'Looks steep. Not sure. Check it.',
+    deadpan: () => 'Looks high, but I am not sure enough to say.',
+    warm: () => 'Looks pricey, but my estimate is thin. Check first.',
+    blunt: () => 'Looks steep. Not sure, check it.',
   },
   dist_noprice: {
     deadpan: () => 'That is what it usually goes for. What does the tag say?',
-    warm: () => 'That is the usual price. Tell me what the tag says and I will place it.',
+    warm: () => 'That is the usual price. Tell me what the tag says.',
     blunt: () => 'Usual price is there. What is the tag?',
   },
   /**
@@ -1046,8 +1070,8 @@ const LINES_EN = {
     blunt: () => 'No connection',
   },
   cam_offline_no_price: {
-    deadpan: () => 'Pexi needs an internet connection to look anything up, so I cannot answer this scan. Scan it again once you are connected.',
-    warm: () => 'Pexi needs an internet connection to look this up, so I have nothing to tell you yet. Scan it again once you are connected.',
+    deadpan: () => 'Pexi needs a connection to look anything up. Scan again once connected.',
+    warm: () => 'Pexi needs a connection to look this up. Scan again once connected.',
     blunt: () => 'Pexi needs a connection to answer. Connect, then scan again.',
   },
   /*
@@ -1062,9 +1086,9 @@ const LINES_EN = {
     blunt: () => 'Pexi is having a problem',
   },
   cam_server_fault_detail: {
-    deadpan: () => 'Your connection is fine. The fault is on Pexi\'s side and I could not answer this scan. Try again in a moment.',
-    warm: () => 'Your connection is fine, this one is on me. I could not answer this scan, so try again in a moment.',
-    blunt: () => 'Not your connection. The fault is on Pexi\'s side. Try again.',
+    deadpan: () => 'Your connection is fine, the fault is on Pexi\'s side. Try again.',
+    warm: () => 'Your connection is fine, this one is on me. Try again.',
+    blunt: () => 'Not your connection, the fault is Pexi\'s. Try again.',
   },
   /*
    * --- the photo route's own six, added with the photo path
@@ -1087,13 +1111,13 @@ const LINES_EN = {
    * the barcode or typing it, so a refusal is never a dead end.
    */
   cam_photo_offline: {
-    deadpan: () => 'You are offline, so I kept the photo. I will finish this once you are back on.',
-    warm: () => 'No signal, so I kept your photo safe. I will pick this back up the moment you are online again.',
-    blunt: () => 'Offline. Photo kept. I will finish this once you are back.',
+    deadpan: () => 'You are offline, so I kept the photo. I will finish later.',
+    warm: () => 'No signal, so I kept your photo safe. I will finish later.',
+    blunt: () => 'Offline, photo kept. I will finish when you are back.',
   },
   cam_photo_unreadable: {
-    deadpan: () => 'That photo did not read clearly enough to say what it is. Try again, or type what it is.',
-    warm: () => 'I could not read that photo clearly enough to say what it is. Try again, or tell me what it is.',
+    deadpan: () => 'That photo did not read clearly. Try again, or type it.',
+    warm: () => 'I could not read that photo clearly. Try again, or tell me.',
     blunt: () => 'Could not read that photo. Try again, or type it.',
   },
   /*
@@ -1104,28 +1128,28 @@ const LINES_EN = {
    * rather than a barcode or a typed name.
    */
   cam_photo_produce: {
-    deadpan: () => 'That looks like fresh produce. I do not price that from a photo; type the price off the sign instead.',
-    warm: () => 'That looks like fresh produce, so a photo will not get you a verdict there. Type the price off the sign and I will note it.',
-    blunt: () => 'Produce. No photo verdict for that. Type the price.',
+    deadpan: () => 'That looks like fresh produce. Type the price off the sign.',
+    warm: () => 'Fresh produce, so no photo verdict. Type the price off the sign.',
+    blunt: () => 'Produce, no photo verdict. Type the price.',
   },
   cam_photo_model_timeout: {
-    deadpan: () => 'The photo reader took too long to answer this one. The barcode and typing it still work.',
-    warm: () => 'The photo reader took too long on this one, not your shot. The barcode or typing it will still get you an answer.',
+    deadpan: () => 'The photo reader took too long. Barcode and typing still work.',
+    warm: () => 'Reader was too slow, not your shot. Barcode or typing works.',
     blunt: () => 'Reader timed out. Try the barcode or type it.',
   },
   cam_photo_model_outage: {
-    deadpan: () => 'The photo reader is down right now. The barcode and typing it still work.',
-    warm: () => 'The photo reader is down right now, not your shot. The barcode or typing it will still get you an answer.',
+    deadpan: () => 'The photo reader is down. Barcode and typing still work.',
+    warm: () => 'The reader is down, not your shot. Barcode or typing works.',
     blunt: () => 'Reader is down. Try the barcode or type it.',
   },
   cam_photo_model_rate_limited: {
-    deadpan: () => 'Too many photos are going through right now. The barcode and typing it still work.',
-    warm: () => 'Photos are backed up right now, not your shot. The barcode or typing it will still get you an answer.',
+    deadpan: () => 'Photos are backed up. Barcode and typing still work.',
+    warm: () => 'Photos are backed up, not your shot. Barcode or typing works.',
     blunt: () => 'Too busy right now. Try the barcode or type it.',
   },
   cam_photo_spend_cap_reached: {
-    deadpan: () => 'Today’s photo reads are used up. The barcode and typing it still work.',
-    warm: () => 'Today’s photo reads are already used up, not your shot. The barcode or typing it will still get you an answer.',
+    deadpan: () => 'Today’s photo reads are used up. Barcode and typing work.',
+    warm: () => 'Today’s photo reads are used up. Barcode or typing works.',
     blunt: () => 'Out of photo reads today. Try the barcode or type it.',
   },
   /**
@@ -1135,8 +1159,8 @@ const LINES_EN = {
    * the four lines above it state.
    */
   cam_photo_model_client_error: {
-    deadpan: () => 'The photo reader is not answering right now. The barcode and typing it still work.',
-    warm: () => 'The photo reader is not answering right now, not your shot. The barcode or typing it will still get you an answer.',
+    deadpan: () => 'The photo reader is not answering. Barcode and typing work.',
+    warm: () => 'The reader is not answering, not your shot. Barcode or typing works.',
     blunt: () => 'Reader is not answering. Try the barcode or type it.',
   },
   /**
@@ -1147,9 +1171,9 @@ const LINES_EN = {
    * reason the route refused.
    */
   cam_photo_tier_unsafe: {
-    deadpan: () => 'Photos are off on this server, so yours was not sent anywhere. The barcode and typing it still work.',
-    warm: () => 'Photos are switched off on this server, so yours never left your phone. The barcode or typing it will still get you an answer.',
-    blunt: () => 'Photos are off here. Yours was not sent. Use the barcode or type it.',
+    deadpan: () => 'Photos are off here, yours was not sent. Barcode or typing works.',
+    warm: () => 'Photos are off on this server, so yours never left your phone.',
+    blunt: () => 'Photos are off here, yours was not sent. Use the barcode.',
   },
   /**
    * The last row of the stand-in candidate list, under "Something else". It
@@ -1168,7 +1192,7 @@ const LINES_EN = {
   },
   watchlist_failed: {
     deadpan: () => 'I could not read what you saved.',
-    warm: () => 'I could not read what you saved back. Give me another go at it.',
+    warm: () => 'I could not read what you saved. Try me again.',
     blunt: () => 'Cannot read what you saved. Try me again.',
   },
   pastscans_loading: {
@@ -1178,7 +1202,7 @@ const LINES_EN = {
   },
   pastscans_failed: {
     deadpan: () => 'I could not read your past scans.',
-    warm: () => 'I could not read your past scans back. Give me another go at it.',
+    warm: () => 'I could not read your past scans. Try me again.',
     blunt: () => 'Cannot read your past scans. Try me again.',
   },
   removed_loading: {
@@ -1188,7 +1212,7 @@ const LINES_EN = {
   },
   removed_failed: {
     deadpan: () => 'I could not read what was removed.',
-    warm: () => 'I could not read what was removed back. Give me another go at it.',
+    warm: () => 'I could not read what was removed. Try me again.',
     blunt: () => 'Cannot read the removed list. Try me again.',
   },
 
@@ -1204,8 +1228,8 @@ const LINES_EN = {
    * and nothing on this card can be acted on now.
    */
   read_only_note: {
-    deadpan: () => 'This is what I said at the time. Nothing here can be changed.',
-    warm: () => 'This is what I said at the time, kept as it was. Nothing on this card changes.',
+    deadpan: () => 'This is what I said at the time. Nothing here changes.',
+    warm: () => 'This is what I said at the time. Nothing on it changes.',
     blunt: () => 'What I said then. Nothing to change here.',
   },
 
@@ -1368,9 +1392,9 @@ const LINES_EN = {
     blunt: () => 'Getting the source list…',
   },
   licences_failed: {
-    deadpan: () => 'I could not reach the list of sources to credit them. It is not being shown at all rather than shown short.',
-    warm: () => 'I could not reach the list of sources to credit them. I would rather show you none of it than a short version that credits the wrong people.',
-    blunt: () => 'Could not reach the source list. None of it goes up rather than half of it.',
+    deadpan: () => 'I could not reach the source list. None of it is shown.',
+    warm: () => 'Source list unreachable, so I show none, not a short one.',
+    blunt: () => 'Could not reach the source list. Showing none, not half.',
   },
 
   /* camera, lane B */
@@ -1437,22 +1461,22 @@ const LINES_EN = {
    */
   cam_centre_left: {
     deadpan: () => 'Barcode is left of centre. Aim a little left.',
-    warm: () => 'I can see the barcode, it is left of centre. Aim a little left.',
+    warm: () => 'I see the barcode, left of centre. Aim a little left.',
     blunt: () => 'Barcode is left. Aim left.',
   },
   cam_centre_right: {
     deadpan: () => 'Barcode is right of centre. Aim a little right.',
-    warm: () => 'I can see the barcode, it is right of centre. Aim a little right.',
+    warm: () => 'I see the barcode, right of centre. Aim a little right.',
     blunt: () => 'Barcode is right. Aim right.',
   },
   cam_centre_up: {
     deadpan: () => 'Barcode is above centre. Aim a little higher.',
-    warm: () => 'I can see the barcode, it is above centre. Aim a little higher.',
+    warm: () => 'I see the barcode, above centre. Aim a little higher.',
     blunt: () => 'Barcode is high. Aim up.',
   },
   cam_centre_down: {
     deadpan: () => 'Barcode is below centre. Aim a little lower.',
-    warm: () => 'I can see the barcode, it is below centre. Aim a little lower.',
+    warm: () => 'I see the barcode, below centre. Aim a little lower.',
     blunt: () => 'Barcode is low. Aim down.',
   },
   /**
@@ -1472,8 +1496,8 @@ const LINES_EN = {
    */
   cam_no_barcode: {
     deadpan: () => 'No barcode read yet. Point at one and hold it there.',
-    warm: () => 'I have not read a barcode yet. Point me at one and hold it there.',
-    blunt: () => 'No barcode yet. Point at one. Hold.',
+    warm: () => 'No barcode yet. Point me at one and hold it there.',
+    blunt: () => 'No barcode yet. Point at one, hold.',
   },
   /**
    * --- torch acknowledged, one short line, then back to whichever hint was
@@ -1668,8 +1692,8 @@ const LINES_EN = {
     blunt: () => 'Did not go through',
   },
   cam_photo_too_large: {
-    deadpan: () => 'That photo was still too large to send, even after shrinking it. The barcode and typing it still work.',
-    warm: () => 'That photo was too large to send, even after shrinking it, not your shot. The barcode or typing it will still get you an answer.',
+    deadpan: () => 'That photo was too large to send. Barcode and typing work.',
+    warm: () => 'That photo was too large to send. Barcode or typing works.',
     blunt: () => 'Too large, even shrunk. Try the barcode or type it.',
   },
   /*
@@ -1682,7 +1706,7 @@ const LINES_EN = {
    */
   cam_scan_rate_limited: {
     deadpan: (f) => `Scanning is busy right now. Try again in ${f.seconds}.`,
-    warm: (f) => `Scanning is a little backed up right now, not your shot. Try again in ${f.seconds}.`,
+    warm: (f) => `Scanning is backed up, not your shot. Try again in ${f.seconds}.`,
     blunt: (f) => `Busy. Try again in ${f.seconds}.`,
   },
   /*
@@ -1695,7 +1719,7 @@ const LINES_EN = {
    */
   cam_camera_denied: {
     deadpan: () => 'Camera access was not allowed, so this is the drawn shelf instead.',
-    warm: () => 'I do not have camera access, so I am showing the drawn shelf instead. You can turn it back on in your phone settings.',
+    warm: () => 'No camera access, so this shelf is drawn. See phone settings.',
     blunt: () => 'No camera access. Using the drawn shelf.',
   },
   /**
@@ -1715,8 +1739,8 @@ const LINES_EN = {
    * at the person; the limit is a fact about the week, not about them.
    */
   paywall_say: {
-    deadpan: () => 'That is the free scans for this week. Plus takes the limit off.',
-    warm: () => 'That is all the free scans for this week. With Plus there is no limit.',
+    deadpan: () => 'Free scans are done for this week. Plus takes the limit off.',
+    warm: () => 'That is all the free scans this week. Plus has no limit.',
     blunt: () => 'Free scans done for the week. Plus: no limit.',
   },
   /**
@@ -1724,9 +1748,11 @@ const LINES_EN = {
    * not at the person. A fact about the week, no savings claim, nothing about them.
    */
   paywall_say_spent: {
-    deadpan: () => 'I am out of free scans for this week. That is my limit, not yours.',
-    warm: () => 'Sorry, I am out of free scans for this week. That is on me.',
-    blunt: () => 'Out of free scans this week. My limit, not yours.',
+    /* R-76: the line owns the limit and names the day the scans return (`when`, the reset day,
+       "Monday, October 12"). With no reset time the sentence still reads whole. */
+    deadpan: (f) => `I am out of free scans${f.when ? ` until ${f.when}` : ' for this week'}.`,
+    warm: (f) => `Sorry, I am out of free scans${f.when ? ` until ${f.when}` : ' for this week'}.`,
+    blunt: (f) => `Out of free scans${f.when ? ` until ${f.when}` : ' this week'}. My limit, not yours.`,
   },
   /** The same screen opened with nothing used (D30): it must not say the free scans are gone. */
   paywall_say_open: {
@@ -1752,7 +1778,7 @@ const LINES_EN = {
 const BARE_EN = {
   cam_text_no_match: {
     deadpan: () => 'Nothing in what Pexi has been taught matches that.',
-    warm: () => 'I could not find anything I know that matches that. Try the barcode, or a different word or two.',
+    warm: () => 'Nothing I know matches that. Try the barcode.',
     blunt: () => 'That matches nothing I know.',
   },
   /* "Not this?" asks its own question back at the shopper, so the fallback has
@@ -1760,12 +1786,12 @@ const BARE_EN = {
      a list of products with nothing saying what to do with them. */
   cam_notthis_prompt: {
     deadpan: () => 'Everything I found.',
-    warm: () => 'Here is everything I found. Pick the right one and I will price that instead.',
+    warm: () => 'Everything I found. Pick the right one.',
     blunt: () => 'All of it. Pick one.',
   },
   cam_notthis_empty: {
     deadpan: () => 'That is the only thing I have.',
-    warm: () => 'That really is the only thing I have, so the first answer was not a guess between several.',
+    warm: () => 'That is the only match I have.',
     blunt: () => 'Only one. That is it.',
   },
   /* The price is the fact this line exists to report, so losing it is the one

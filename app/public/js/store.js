@@ -6,7 +6,7 @@
  * anything is asked of anyone.
  */
 
-import { PERCENT_CHOICES, rangePatch, unitPatch, migrateLines } from './lib/ranges.js';
+import { STANDARD_PERCENT_CHOICES, rangePatch, unitPatch, migrateLines } from './lib/ranges.js';
 import { findCountry, findRegion } from './lib/countries.js';
 
 const KEY = 'shin.v1';
@@ -394,7 +394,7 @@ function persist() {
  * and a pad asks a person in an aisle to invent a figure. 10 sits second so
  * the default is not at the end of the row, where it would read as a floor.
  */
-export const LINE_CHOICES = [...PERCENT_CHOICES];
+export const LINE_CHOICES = [...STANDARD_PERCENT_CHOICES];
 
 /**
  * The torch slider's range and its starting point (item 11). These three are
@@ -797,6 +797,11 @@ export function recordInterruption() {
  */
 export function resetSessionInterruptions() {
   interruptionsThisSession = 0;
+  /* R-74, loud: past the cap a caller skipped canInterrupt(), and counting on would let the budget
+     go negative while the line it paid for had already spoken. */
+  if (!canInterrupt()) {
+    throw new Error('recordInterruption: the unprompted-line budget is already spent; ask canInterrupt() before Pexi speaks');
+  }
 }
 
 /** For the record and for tests: what is left of each cap. */

@@ -33,7 +33,7 @@ function optButton(cls, attrs, chosen, label) {
 function rowOptions(cls, unit, kind, current) {
   /* A value the welcome slider set (a dollar amount such as 4) may not be one of
      the offered buttons; show it as its own option rather than leave nothing chosen. */
-  const offered = choicesFor(unit);
+  const offered = choicesFor(unit, kind);
   const list = offered.includes(current) ? offered : [...offered, current].sort((a, b) => a - b);
   return list.map((n) => optButton(cls, `data-range-kind="${kind}" data-range-val="${n}"`, n === current, valueLabel(unit, n))).join('');
 }

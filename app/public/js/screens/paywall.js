@@ -241,7 +241,7 @@ export default {
           <p class="kicker">${escapeHtml(t('paywall_title'))}</p>
           <h1>${escapeHtml(t(spent ? 'paywall_spent_heading' : 'paywall_heading'))}</h1>
         </header>
-        ${shinSay('idle', spent ? 'paywall_say_spent' : 'paywall_say_open', {}, { size: 'face-page' })}
+        ${shinSay('idle', spent ? 'paywall_say_spent' : 'paywall_say_open', { when: params.resetsAt ? resetDay(params.resetsAt) : '' }, { size: 'face-page' })}
         ${middle}
         <div class="pw-body" data-pw-body aria-live="polite"></div>
         ${spent ? `<p class="pw-out"><button type="button" class="pw-link" data-act="type-name">${escapeHtml(t('paywall_type_name'))}</button></p>` : ''}

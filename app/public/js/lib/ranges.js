@@ -24,9 +24,17 @@
 
 export const RANGE_KINDS = Object.freeze(['great', 'good', 'bad']);
 
-/** Up to 30, so his "Conservative 30%+" can be expressed. */
-export const PERCENT_CHOICES = Object.freeze([5, 10, 15, 20, 25, 30]);
+/** Up to 30, so his "Conservative 30%+" can be expressed. Good and bad stop here. */
+export const STANDARD_PERCENT_CHOICES = Object.freeze([5, 10, 15, 20, 25, 30]);
+/**
+ * Every percent the picker offers anywhere. Great alone goes past 30 (R-57): the default is 30 and a
+ * shopper who wants "great" to mean something stricter than the default could not say so, because
+ * the top of the row was the default itself.
+ */
+export const PERCENT_CHOICES = Object.freeze([...STANDARD_PERCENT_CHOICES, 35, 40, 50]);
 export const AMOUNT_CHOICES = Object.freeze([1, 2, 3, 5, 10, 20]);
+/** The welcome slider offers every whole dollar from 1 to 20, so rangePatch accepts those too, and nothing else. */
+const isWelcomeAmount = (v) => Number.isInteger(v) && v >= 1 && v <= 20;
 
 /**
  * THE ONE DEFAULT SET (D10, 2026-10-06). His 2026-09-17 setup numbers, RULINGS.md
@@ -48,8 +56,10 @@ export function unitOf(state) {
   return state?.lineUnit === 'amount' ? 'amount' : 'percent';
 }
 
-export function choicesFor(unit) {
-  return unit === 'amount' ? AMOUNT_CHOICES : PERCENT_CHOICES;
+/** What the picker offers for one row: `kind` is optional so older callers still get the standard row. */
+export function choicesFor(unit, kind) {
+  if (unit === 'amount') return AMOUNT_CHOICES;
+  return kind === 'great' ? PERCENT_CHOICES : STANDARD_PERCENT_CHOICES;
 }
 
 /** The three values in the state's own unit, defaults filled in. */
@@ -69,7 +79,13 @@ export function rangesOf(state) {
  * lowering great under good lowers good with it.
  */
 export function rangePatch(state, kind, value) {
-  if (!RANGE_KINDS.includes(kind) || !isNum(value) || value < 0) return {};
+  /* Loud, not an empty patch (R-57): a tap the picker could never have made is a bug in the caller,
+     and `{}` made it look like a tap that worked. */
+  if (!RANGE_KINDS.includes(kind)) throw new RangeError(`rangePatch: "${kind}" is not a range kind (${RANGE_KINDS.join(', ')})`);
+  const offered = choicesFor(unitOf(state), kind);
+  if (!isNum(value) || !(offered.includes(value) || (unitOf(state) === 'amount' && isWelcomeAmount(value)))) {
+    throw new RangeError(`rangePatch: ${value} is not a choice offered for ${kind} (${offered.join(', ')})`);
+  }
   const r = rangesOf(state);
   const next = { great: r.great, good: r.good, bad: r.bad, [kind]: value };
   if (kind === 'good' && next.great < next.good) next.great = next.good;

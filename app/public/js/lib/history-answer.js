@@ -25,8 +25,14 @@ import { escapeHtml } from './dom.js';
 
 /** His zone, in the face the tier wears. Great is the intense face only when Pexi is not unsure (AVATAR.md's gate). */
 export function distFace(zone, confidence) {
-  if (zone === 'great') return confidence === 'low' ? 'good' : 'delighted';
-  if (zone === 'good') return 'good';
+  /* R-72: a confidence this does not know must never fall through to the delighted face, so it
+     throws. At low confidence the face is plain for every zone that would smile (the words carry
+     the doubt, AVATAR.md section 5); a bad price keeps its walk-away face at any confidence. */
+  if (confidence !== 'high' && confidence !== 'medium' && confidence !== 'low') {
+    throw new Error(`distFace: unknown confidence ${JSON.stringify(confidence)}; expected high, medium or low`);
+  }
+  if (zone === 'great') return confidence === 'low' ? 'fair' : 'delighted';
+  if (zone === 'good') return confidence === 'low' ? 'fair' : 'good';
   if (zone === 'reasonable') return 'fair';
   if (zone === 'bad') return 'walk';
   return 'idle';
