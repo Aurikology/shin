@@ -143,8 +143,16 @@ export function currentId() {
 }
 
 export function go(id, params = {}) {
-  if (!routes.has(id) || !screenAllowed(id)) {
-    console.warn(`no screen "${id}"`);
+  /*
+   * R-35 (2026-10-09, RULINGS.md "Errors never go unnoticed"): an id nobody
+   * registered is a mistyped entry, and it used to be a console.warn and a dead
+   * tap. It throws now; the throw reaches track.js's window_error listener, so
+   * it is recorded. A registered screen that is switched off by a flag is a
+   * decision, not a typo, and stays a quiet no-op.
+   */
+  if (!routes.has(id)) throw new Error(`router.go: no screen is registered as "${id}"`);
+  if (!screenAllowed(id)) {
+    console.warn(`screen "${id}" is switched off`);
     return;
   }
   const next = new URLSearchParams();

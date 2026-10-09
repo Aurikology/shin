@@ -282,12 +282,12 @@ test('J11 keep: at the free-scan limit the paywall opens with 0 taps beyond the 
   app.stop();
 });
 
-test('J11 TODAY (replace when build 2 lands): there is no tap path to the paywall from You (pass: none)', async () => {
+test('J11 after build 2 (replaces J11 TODAY, as it asked): the You screen has exactly one entry to the paywall, the Pexi Plus row', async () => {
   const app = await launchReturning();
   await app.tap('[data-act="you"]', 'You');
   const words = /pexi plus|restore purchases|subscribe|subscription|upgrade/i;
   const hits = app.all('button, a, [data-act]').filter((e) => words.test(e.textContent) || words.test(e.getAttribute('aria-label') ?? ''));
-  assert.equal(hits.length, 0, `the You screen already has an entry to the paywall (${hits.map((h) => h.textContent.trim()).join('; ')}); J11 TODAY is out of date, replace it`);
+  assert.deepEqual(hits.map((h) => h.dataset.act), ['plus'], `the You screen's paywall entries are not exactly the one Pexi Plus row (${hits.map((h) => h.textContent.trim()).join('; ')})`);
   app.stop();
 });
 

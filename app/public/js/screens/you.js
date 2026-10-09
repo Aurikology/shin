@@ -345,6 +345,11 @@ export default {
               <span class="ilist-l">${escapeHtml(t('onb_replay_row'))}</span>
               ${rowChevron()}
             </button>` : ''}
+            ${/* R-35: the paywall is one tap from here and two from the camera, with Restore purchases on it. */ ''}
+            <button type="button" class="ilist-row" data-act="plus">
+              <span class="ilist-l">${escapeHtml(t('paywall_title'))}</span>
+              ${rowChevron()}
+            </button>
             <button type="button" class="ilist-row" data-act="savings">
               <span class="ilist-l">${escapeHtml(t('you_savings'))}</span>
               ${rowChevron()}
@@ -647,6 +652,7 @@ export default {
       // Watch the welcome again: opt-in, unlimited. `replay` is what tells the
       // onboarding screen to change nothing it does not have to (onboarding-flow.js).
       if (e.target.closest('[data-act="welcome"]')) { ctx.go('onboarding', { replay: 1 }); return; }
+      if (e.target.closest('[data-act="plus"]')) { ctx.go('paywall'); return; }
       if (e.target.closest('[data-act="savings"]')) { ctx.go('savings'); return; }
       if (e.target.closest('[data-act="licences"]')) { ctx.go('licences'); return; }
       if (e.target.closest('[data-act="report"]')) ctx.go('correct', {});
