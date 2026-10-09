@@ -253,7 +253,7 @@ export default {
           ${
             saved
               ? `<div class="saved-note">
-                   ${faceBlock('pleased', { size: 64 })}
+                   ${faceBlock('fair', { size: 64 })}
                    <p>${say('correct_thanks')}</p>
                    <div class="page-foot">
                      <button type="button" class="cta" data-act="back">${escapeHtml(t('done'))}</button>

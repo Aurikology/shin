@@ -162,3 +162,29 @@
   /* R-91: the swipe slides nothing, the row is simply shown aside. */
   .wrow-wrap .wrow { transition: none; }
 }
+
+/* ======================================================================= R-48 the name opens by tap */
+
+/* The verdict sheet's name is a button now: the same two-line clamp, and a tap opens the whole name. */
+button.itemname {
+  display: -webkit-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.itemname.is-open {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+/* R-55: a price seen more than 90 days ago says "Old" in its row and reads fainter. */
+.vd-dotrow.old span { color: var(--ink-faint); }
+button.itemname:focus-visible {
+  outline: var(--ring-width, 2px) solid currentColor;
+  outline-offset: var(--ring-offset, 3px);
+}

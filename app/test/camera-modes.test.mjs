@@ -95,7 +95,8 @@ test('the server reads the hint and turns it into a sentence for the prompt, and
 // paths under them are unchanged. Icon wiring is in camera-icons.test.mjs.
 
 test('the keyboard button opens the name field', () => {
-  const bar = between(CAMERA, '<div class="cam-bar">', '</div>\n      </div>', 'the bar').replace(/\s+/g, ' ');
+  /* Build 7 R-98: the keyboard button moved from the bottom bar to the top band so the bar keeps three items. */
+  const bar = between(CAMERA, '<div class="cam-top">', '<div class="reticle"', 'the top band').replace(/\s+/g, ' ');
   assert.ok(bar.includes('data-act="manual-search"') && bar.includes("t('cam_mode_manual')"), 'the keyboard button is gone or has lost its label');
   const fn = between(CAMERA, '    function openManualSearch() {', '    /**\n     * Whether the eye is decoding', 'openManualSearch');
   assert.ok(fn.includes('textRouteSheet()') && fn.includes("setState('texting')"), 'manual search no longer opens the name field');

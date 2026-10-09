@@ -100,6 +100,22 @@ export function dateLabel(iso, now = Date.now()) {
   return relativeOrAbsolute(at, now, locale() === 'fr');
 }
 
+/** A price seen longer ago than this is marked old in its row (R-55). */
+export const OLD_PRICE_DAYS = 90;
+
+/**
+ * A price row's date: the label by the same rule as every dated row, and whether the price is old.
+ * A day with no time ("2026-10-07", what the price list carries) counts as noon UTC of that day, so
+ * "2 d ago" is 2 whatever the hour it is read. Absent is absent (no label, not old); present and
+ * unreadable throws through dateLabel, because a printed date that is wrong is worse than none.
+ */
+export function priceAge(seenOn, now = Date.now()) {
+  if (seenOn === undefined || seenOn === null || seenOn === '') return { label: '', old: false };
+  const iso = typeof seenOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(seenOn) ? `${seenOn}T12:00:00Z` : seenOn;
+  const label = dateLabel(iso, now);
+  return { label, old: now - Date.parse(iso) > OLD_PRICE_DAYS * 86400000 };
+}
+
 /**
  * Relative inside a week, then absolute with a short month and the FULL year
  * ("Oct 3, 2026"): R-55, "don't abbreviate the year". A screenshot of "10 d ago"

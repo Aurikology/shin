@@ -28,7 +28,7 @@ import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { attachEye, startCaptureQueue } from '../eye-attach.js';
 import { startShelfCapture } from '../eye-shelf.js';
-import { escapeHtml, ago } from '../lib/dom.js';
+import { escapeHtml, ago, priceAge } from '../lib/dom.js';
 import { rowCheck } from '../lib/pagebar.js';
 import { wireRadioGroup } from '../lib/radiogroup.js';
 import { t } from '../ui-strings.js';
@@ -1733,7 +1733,10 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
       : t('vd_basis', { from: t(`vd_basis_${v.basis}`), n: v.n ? String(v.n) : '' });
   const dots = v.dots.length
     ? `<h3 class="vd-dots-h">${escapeHtml(t('vd_dots_heading'))}</h3><ul class="vd-dots" data-vd-dots>${v.dots
-        .map((d) => `<li class="vd-dotrow${d.kind === 'sale' ? ' sale' : ''}"><b>${escapeHtml([d.store, d.city].filter(Boolean).join(', ') || '')}</b><span>${escapeHtml([d.quantity, fmt(d.cents), d.seenOn, d.kind === 'sale' ? t('vd_sale') : null].filter(Boolean).join(' · '))}</span></li>`)
+        .map((d) => {
+          const seen = priceAge(d.seenOn);
+          return `<li class="vd-dotrow${d.kind === 'sale' ? ' sale' : ''}${seen.old ? ' old' : ''}"><b>${escapeHtml([d.store, d.city].filter(Boolean).join(', ') || '')}</b><span>${escapeHtml([d.quantity, fmt(d.cents), seen.label, seen.old ? t('vd_old') : null, d.kind === 'sale' ? t('vd_sale') : null].filter(Boolean).join(' · '))}</span></li>`;
+        })
         .join('')}</ul>`
     : '';
 
@@ -1757,7 +1760,7 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
           <label class="vd-price-l"><span>${escapeHtml(t('vd_price_label'))}</span><input type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" name="price" data-dist-input></label>
           <button type="submit" class="pill ghost">${escapeHtml(t('vd_place'))}</button>
         </form>`}
-        ${zone && name ? `<p class="itemname" data-dist-name>${escapeHtml(name)}</p>` : ''}
+        ${zone && name ? `<button type="button" class="itemname" data-act="name-open" aria-expanded="false" data-dist-name>${escapeHtml(name)}</button>` : ''}
         <div class="actions actions-primary">
           <button type="button" class="pill solid wide" data-act="dist-save">${saved ? say('peek_watching') : say(`peek_${zone ? tier : 'fair'}`)}</button>
         </div>
@@ -2983,7 +2986,13 @@ export default {
                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg>
           </button>
           <span class="wordmark">pexi<i>.</i></span>
-          <span class="cam-top-spacer" aria-hidden="true"></span>
+          <!-- W30's Manual Search, a small keyboard button: it opens the same typed-name
+               field the type-it route uses. Build 7 R-98: it lives in the top band, where the
+               balancing spacer was, so the bottom bar keeps three items. -->
+          <button type="button" class="type-btn" data-act="manual-search" aria-label="${escapeHtml(t('cam_mode_manual'))}">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>
+          </button>
         </div>
 
         <div class="reticle" aria-hidden="true"><b></b><b></b><b></b><b></b></div>
@@ -3032,12 +3041,6 @@ export default {
           <button type="button" class="shutter" data-act="shoot" aria-label="${escapeHtml(t('cam_shutter'))}">
             <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          </button>
-          <!-- W30's Manual Search, now a small keyboard button: it opens the
-               same typed-name field the type-it route uses. -->
-          <button type="button" class="type-btn" data-act="manual-search" aria-label="${escapeHtml(t('cam_mode_manual'))}">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>
           </button>
           <button type="button" class="nav-btn" data-act="you" aria-label="${escapeHtml(t('nav_you'))}">
             <span class="nav-icon" aria-hidden="true">
@@ -3580,6 +3583,7 @@ export default {
       // With the photo route off there is no other way in, so the line names
       // the one there is (docs/mvp-plan.md: "Point me at the barcode").
       dockSay('asking', FLAGS.photoId ? 'cam_no_barcode' : 'cam_point_barcode', {}, 'nudge-arrive');
+      // @budget reactive: it answers the shopper's own press of the scan control, so it is not an interruption.
       scanPressTimer = setTimeout(() => {
         if (dead || cam.dataset.state !== 'idle' || coachKey) return;
         showAimHint();
@@ -3753,6 +3757,7 @@ export default {
     function armHintEscalation() {
       clearTimeout(hintTimer);
       if (hintEscalated) return;
+      // @budget counted: unprompted, so the budget is asked first and spent after the line is shown.
       hintTimer = setTimeout(() => {
         if (dead || hintEscalated || coachKey || cam.dataset.state !== 'idle') return;
         /* One of the two unprompted sources AVATAR.md section 3 allows, and
@@ -3784,6 +3789,7 @@ export default {
         cameraDenied = false;
         dockSay('idle', 'cam_camera_denied', {}, 'idle-breath');
         clearTimeout(hintTimer);
+        // @budget resting: it falls back to the aim hint, the resting line of a screen the shopper opened.
         hintTimer = setTimeout(() => {
           if (dead || cam.dataset.state !== 'idle') return;
           showAimHint();
@@ -3800,6 +3806,7 @@ export default {
         dockSay('idle', 'cam_second_visit', facts, 'idle-breath');
         store.recordInterruption();
         clearTimeout(hintTimer);
+        // @budget resting: it falls back to the aim hint, the resting line of a screen the shopper opened.
         hintTimer = setTimeout(() => {
           if (dead || cam.dataset.state !== 'idle') return;
           showAimHint();
@@ -4296,6 +4303,7 @@ export default {
         // effect 'none' has everywhere else it is honoured.
         const torchFace = camShinEl.querySelector('.face');
         if (torchFace) torchFace.dataset.anim = 'none';
+        // @budget reactive: it follows the shopper's own tap on the torch, so it is not an interruption.
         torchAckTimer = setTimeout(() => {
           if (dead || cam.dataset.state !== 'idle') return;
           showAimHint();
@@ -4701,6 +4709,28 @@ export default {
      * Sends one rating and paints the toast only for what the server said.
      * `reason` rides on a thumbs-down chip tap (the same rating, upserted).
      */
+    /* R-94: the four seconds stop while a finger is on the toast and carry on with what was left.
+       The first arming is in sendThumb; this holds the clock on pointerdown and re-arms on release. */
+    function holdToastOnPress(toastSlot) {
+      if (toastSlot._holds) return;
+      toastSlot._holds = true;
+      toastSlot.addEventListener('pointerdown', () => {
+        if (!toastSlot.innerHTML) return;
+        clearTimeout(toastSlot._timer);
+        toastSlot._left = Math.max(1, toastSlot._until - Date.now());
+        toastSlot._held = true;
+      });
+      const letGo = () => {
+        if (!toastSlot._held) return;
+        toastSlot._held = false;
+        if (!toastSlot.innerHTML) return;
+        toastSlot._until = Date.now() + toastSlot._left;
+        toastSlot._timer = window.setTimeout(() => { toastSlot.innerHTML = ''; }, toastSlot._left);
+      };
+      toastSlot.addEventListener('pointerup', letGo);
+      toastSlot.addEventListener('pointercancel', letGo);
+    }
+
     async function sendThumb(toastSlot, scanId, rating, reason) {
       const token = ++thumbToken;
       lastThumb = { scanId, rating, reason };
@@ -4719,8 +4749,11 @@ export default {
         toastSlot.innerHTML = feedbackToast({ askReason: rating === 'down' && !reason });
         /* N04: the toast and its reason chips open under the thumbs, which sit at the foot of a scrolling sheet; bring them into view. */
         toastSlot.scrollIntoView?.({ block: 'nearest' });
-        // Four seconds of undo; a reason prompt gets the same four seconds.
+        // Four seconds of undo; a reason prompt gets the same four seconds. R-94: the clock stops
+        // while a finger is on the toast (pointerdown) and carries on with what was left (pointerup).
+        toastSlot._until = Date.now() + 4000;
         toastSlot._timer = setTimeout(() => { toastSlot.innerHTML = ''; }, 4000);
+        holdToastOnPress(toastSlot);
       } else {
         toastSlot.innerHTML = feedbackFailedToast();
       }
@@ -5711,6 +5744,12 @@ export default {
       /* The verdict bell's own two actions. "Did you mean": the suggested price
          replaces the one read, and the chart stays. Save: the watchlist, keyed
          on the barcode, with Pexi's estimate as the usual price. */
+      /* R-48: the name is clamped to two lines; a tap opens the whole of it, and a second tap folds it again. */
+      if (act === 'name-open') {
+        const open = btn.classList.toggle('is-open');
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        return;
+      }
       if (act === 'dist-suspect' && dist) {
         const cents = Number(btn.dataset.cents);
         if (Number.isInteger(cents) && cents > 0) {

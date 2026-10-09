@@ -133,7 +133,9 @@ test('the screen renders a scan-barcode control and no mode toggle', () => {
   assert.match(SCREEN, /class="scan-code-btn"/, 'the barcode control is not its own distinct button');
   assert.ok(!/data-act="scan-mode"|data-mode=/.test(SCREEN), 'a scan-mode toggle is back');
   const bar = between(SCREEN, '<div class="cam-bar">', '</div>\n      </div>', '.cam-bar');
-  assert.equal((bar.match(/data-act="/g) ?? []).length, 5, 'the bottom bar no longer holds exactly watchlist, scan-barcode, shoot, manual-search, you');
+  /* Build 7 R-98: the bar keeps three items (the shutter is the fourth only while the photo flag is on), so
+     the keyboard button (manual-search) moved to the top band; four here counts the shutter's markup. */
+  assert.equal((bar.match(/data-act="/g) ?? []).length, 4, 'the bottom bar no longer holds exactly watchlist, scan-barcode, shoot, you');
 });
 
 test('the barcode button is never hidden, and only the vote lights it', () => {

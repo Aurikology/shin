@@ -49,6 +49,9 @@ function between(text, from, to, what) {
 }
 
 const BAR = between(CAMERA, '<div class="cam-bar">', '</div>\n      </div>', 'the bottom bar');
+// Build 7 R-98: the keyboard button moved from the bar to the top band, so the bar keeps three items.
+const TOP = between(CAMERA, '<div class="cam-top">', '<div class="reticle"', 'the top band');
+const CONTROLS = TOP + BAR;
 
 // The three, in bar order: [class, data-act, the ui-strings key of the aria-label].
 const ICONS = [
@@ -59,17 +62,20 @@ const ICONS = [
 
 /** The markup of one button, from its opening tag to its closing one. */
 function button(cls) {
-  const at = BAR.indexOf(`class="${cls}"`);
+  const at = CONTROLS.indexOf(`class="${cls}"`);
   assert.notEqual(at, -1, `the .${cls} button is not on the camera`);
-  const open = BAR.lastIndexOf('<button', at);
-  return BAR.slice(open, BAR.indexOf('</button>', at) + '</button>'.length);
+  const open = CONTROLS.lastIndexOf('<button', at);
+  return CONTROLS.slice(open, CONTROLS.indexOf('</button>', at) + '</button>'.length);
 }
 
 /* ---------------------------------------------- 1. present, labelled, icons */
 
 test('the barcode, camera and keyboard icon buttons are all on the camera, in that order', () => {
   const order = [...BAR.matchAll(/data-act="([\w-]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(order, ['watchlist', 'scan-barcode', 'shoot', 'manual-search', 'you']);
+  /* Build 7 R-98 (the bar keeps three items, as the pages do): the keyboard button moved to the top band,
+     beside the torch, so the bar is Saved, the scan control, the shutter (only while the photo flag is on), You. */
+  assert.deepEqual(order, ['watchlist', 'scan-barcode', 'shoot', 'you']);
+  assert.deepEqual([...TOP.matchAll(/data-act="([\w-]+)"/g)].map((m) => m[1]), ['torch', 'manual-search']);
 });
 
 test('each is an inline SVG with an aria-label, no text, no image and none hidden', () => {

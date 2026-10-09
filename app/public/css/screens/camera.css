@@ -227,6 +227,8 @@
 .cam[data-torch="on"] .torch-btn svg { fill: currentColor; }
 .torch-btn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 .cam-top-spacer { width: var(--tap); flex: none; }
+/* Build 7 R-98: the keyboard button sits in the top band now, opposite the torch, so it is 44 + 4 = the torch band's 48. */
+.cam-top .type-btn { margin: 0 2px; }
 
 /* A visibly lit scene, the torch's only feedback. Applies to the live feed
    and the drawn shelf alike, in any camera state. */
@@ -515,7 +517,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Five controls now (Saved, barcode, shutter, keyboard, You), 300px of them
+  /* Three controls on the bar (Saved, the scan control, You; the shutter is a fourth when the photo flag is on), up to 300px of them
      at the widths below, so the gap gives way to the phone rather than the
      controls to the gap. The 44px it was with three did not fit a 360px phone
      with five; unverified without a browser. */
