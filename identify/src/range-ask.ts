@@ -52,7 +52,7 @@ import { loadDotEnv } from './env.ts';
 import { classifyProviderError, type Provider } from './provider.ts';
 import { AnthropicProvider } from './providers/anthropic.ts';
 import {
-  appendRangeAnswer,
+  recordRangeAnswer,
   DEFAULT_RANGE_STORE_PATH,
   readCachedRange,
   reserveMonthlyRangeCall,
@@ -107,8 +107,8 @@ export type RangeAskFailure =
   | 'bad_confidence';
 
 export type RangeAskResult =
-  | { readonly ok: true; readonly range: TypicalRange; readonly cached: boolean }
-  | { readonly ok: false; readonly reason: RangeAskFailure; readonly detail?: string; readonly cached?: true };
+  | { readonly ok: true; readonly range: TypicalRange; readonly cached: boolean; readonly logFault?: true }
+  | { readonly ok: false; readonly reason: RangeAskFailure; readonly detail?: string; readonly cached?: true; readonly logFault?: true };
 
 export interface RangeAskDeps {
   /** The Claude provider. Default: an `AnthropicProvider` over the SDK client (reads ANTHROPIC_API_KEY). Tests always pass one. */
@@ -335,6 +335,13 @@ export async function askTypicalRange(identity: RangeIdentity, deps: RangeAskDep
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const askedAtMs = clock();
+  const base = {
+    key,
+    item: identity.name.trim(),
+    brand: identity.brand ?? null,
+    size: identity.size ?? null,
+    category: identity.category ?? null,
+  };
 
   let value: unknown;
   let answeredBy: string;
@@ -355,26 +362,28 @@ export async function askTypicalRange(identity: RangeIdentity, deps: RangeAskDep
     const failure = classifyProviderError(err);
     const message = String((err as Error)?.message ?? err);
     const askedAt = new Date(askedAtMs).toISOString();
+    const logged = (outcome: string, raw: null = null) =>
+      saveAnswer(storePath, { ...base, askedAt, model, outcome, detail: message, raw });
     if (failure === 'model_malformed') {
       // The model answered with something that is not JSON: an answer, so it is logged. Not cached.
-      saveAnswer(storePath, { key, askedAt, model, outcome: 'invalid_json', detail: message, raw: null });
-      return { ok: false, reason: 'invalid_json', detail: message };
+      return withFault({ ok: false, reason: 'invalid_json', detail: message }, logged('invalid_json'));
     }
     if (failure === 'unreadable_photo') {
       // The provider's refusal class. There is no photo here: the model declined to answer.
-      saveAnswer(storePath, { key, askedAt, model, outcome: 'refused', detail: message, raw: null });
-      return { ok: false, reason: 'model_error', detail: 'refused' };
+      return withFault({ ok: false, reason: 'model_error', detail: 'refused' }, logged('refused'));
     }
-    // A transport failure: no answer came back, so nothing is logged or cached.
-    return { ok: false, reason: 'model_error', detail: failure };
+    // A transport failure: no answer came back, but the call was sent and counted, so it gets its row.
+    // Not cached.
+    const savedTransport = saveAnswer(storePath, { ...base, askedAt, model, outcome: 'transport_error', detail: `${failure}: ${message}`, raw: null });
+    return withFault({ ok: false, reason: 'model_error', detail: failure }, savedTransport);
   } finally {
     clearTimeout(timer);
   }
 
   const askedAt = new Date(askedAtMs).toISOString();
   const checked = validateRange(value, market.currency, ceiling);
-  saveAnswer(storePath, {
-    key,
+  const saved = saveAnswer(storePath, {
+    ...base,
     askedAt,
     model: answeredBy,
     outcome: checked.ok ? 'ok' : checked.reason,
@@ -390,7 +399,7 @@ export async function askTypicalRange(identity: RangeIdentity, deps: RangeAskDep
         // Not cached; the next ask will call again.
       }
     }
-    return checked;
+    return withFault(checked, saved);
   }
 
   const range: TypicalRange = { ...checked.value, askedAt, model: answeredBy };
@@ -399,14 +408,20 @@ export async function askTypicalRange(identity: RangeIdentity, deps: RangeAskDep
   } catch {
     // The answer stands even if it could not be cached; the next ask will simply call again.
   }
-  return { ok: true, range, cached: false };
+  return withFault({ ok: true, range, cached: false }, saved);
 }
 
-/** Logs one answer. A log that cannot be written does not change the answer the shopper gets. */
-function saveAnswer(storePath: string, record: Parameters<typeof appendRangeAnswer>[1]): void {
-  try {
-    appendRangeAnswer(storePath, record);
-  } catch {
-    // The answer stands; only its record is lost.
-  }
+/**
+ * Logs one row BEFORE the answer is returned. A log that cannot be written does
+ * not change the answer the shopper gets ("Always answer"), but the fault is
+ * counted and logged under a fixed tag by the store, and this returns false so
+ * the result can carry `logFault`.
+ */
+function saveAnswer(storePath: string, record: Parameters<typeof recordRangeAnswer>[1]): boolean {
+  return recordRangeAnswer(storePath, record);
+}
+
+/** Flags a result whose estimate row failed to store. */
+function withFault<T extends RangeAskResult>(result: T, saved: boolean): T {
+  return saved ? result : ({ ...result, logFault: true } as T);
 }
