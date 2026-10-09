@@ -1,0 +1,164 @@
+/*
+ * UX build 7, the sweep: touch size, type, lists and motion across every page
+ * (docs/design/ux-evidence-2026-10-09.md section 13, build 7).
+ *
+ * WHY A FILE OF ITS OWN. These are overrides of rules that live in nine other stylesheets, and the
+ * build that wrote them ran beside another that owns camera.css's scan loop. Keeping the sweep here,
+ * imported LAST (screens.css), means a reviewer reads "what build 7 changed" in one place, and
+ * nothing here can be undone by a later rule of equal weight. Where a value could simply be edited at
+ * its source (font floors, the sheet's 260 ms, the 900 ms sweep) it was, in place; what is here is
+ * what had to be added or beaten.
+ *
+ * Every rule names the block it answers. The tests that read these numbers are
+ * test/ux/ux-b7-touch.test.mjs, -lists.test.mjs and -motion.test.mjs.
+ */
+
+/* ======================================================================= R-13 touch */
+
+/* Every tappable is 44 px or more; the controls used on every scan are 48. Where the drawing must
+   stay small (the switch, the grabber), the hit area is a pseudo-element that reaches past it. */
+.pbar-i { min-height: 44px; }
+.chip { min-height: 44px; }
+/* The sheet-name button the scan loop (build 5) added has no height of its own. */
+.itemname-tap { min-height: 44px; }
+.lic-link { display: inline-flex; align-items: center; min-height: 44px; }
+.atts:not(.atts-row) .att { min-height: 44px; }
+.pm-seller { display: inline-flex; align-items: center; min-height: 44px; }
+
+/* Per scan: 48. */
+.vd-price .pill { min-height: 48px; }
+.pad-textbtn { min-height: 48px; }
+
+/* The switch is drawn 52 x 32 and answers a thumb 52 x 44. */
+.switch::before {
+  content: "";
+  position: absolute;
+  inset: -6px 0;
+}
+
+/* R-14: the grabber is drawn 36 x 5 and its hit area is 48 tall (5 + 2 x 21.5). It reaches 2.5 px into
+   the sheet head below it, which is still the same gesture (the drag is bound to both). */
+.grabber::after { inset: -21.5px -25px; }
+
+/* R-14: the close X at full opacity. At 55% it fell below 3:1 against both sheet grounds. */
+.sheet-close { opacity: 1; }
+
+/* R-13 / R-98: the camera bar's items are as wide as the page bar's, at every width. */
+.cam-bar .nav-btn,
+.cam-bar .nav-icon { width: 56px; }
+@media (max-width: 349px) {
+  .cam-bar { gap: 8px; }
+}
+
+/* R-13: 52 px pad keys on a screen 640 px or taller, 48 on a shorter one; 8 px between neighbours. */
+.padsheet .keypad {
+  grid-template-rows: repeat(3, 52px);
+  gap: 8px;
+}
+.padsheet .keypad-bottom {
+  grid-template-rows: 52px;
+  gap: 8px;
+  margin-top: 8px;
+}
+@media (max-height: 640px) {
+  .padsheet .keypad { grid-template-rows: repeat(3, 48px); }
+  .padsheet .keypad-bottom { grid-template-rows: 48px; }
+}
+
+/* R-58: the voice picker in You prints one sample line under each voice, so the choice is heard, not read about. */
+.att-sample {
+  font-style: italic;
+  color: var(--ink);
+}
+
+/* ======================================================================== R-48 type */
+
+/* The item name is body copy on the answer sheet: 16 px, two lines, then it is cut. */
+.itemname { font-size: 16px; }
+
+/* ============================================================================ lists */
+
+/* R-92: two-line rows are 72 px (the Saved, Past scans and Removed rows are set in watchlist.css, which the
+   tests read after this file; the hairline between them keeps its 16 px inset). The price list rows too. */
+.vd-dotrow { min-height: 72px; align-items: center; }
+
+/* The chevron on a row that goes somewhere (Saved, Past scans). */
+.wrow .ilist-c,
+.prow .ilist-c { margin-left: 4px; }
+
+/*
+ * R-93: swipe left on a Saved row. The row's Remove button sits behind the row, labelled with text and
+ * an icon (never colour alone); a swipe, or keyboard focus on the button, slides the row aside. The
+ * same Remove is in the item's detail view, so the gesture is a shortcut and never the only way.
+ */
+.wrow-wrap { overflow: hidden; }
+.wrow-wrap .wrow {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  transition: transform 200ms var(--ease-land);
+}
+.wrow-wrap.swiped .wrow,
+.wrow-wrap:has(.wrow-del:focus-visible) .wrow { transform: translateX(-96px); }
+/* The hairline is drawn over the row (the row's background would hide it). */
+.wrow-wrap + .wrow-wrap::before { z-index: 2; pointer-events: none; }
+.wrow-wrap .wrow-del {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 96px;
+  min-width: 96px;
+  min-height: 72px;
+  height: auto;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: 0;
+  background: var(--raised);
+  color: var(--walk-bright);
+  font-size: 13px;
+  font-weight: 600;
+}
+.wrow-del-t { font-size: 13px; }
+
+/* R-94: the undo toast sits above the page bar and stays in view while the list scrolls. */
+.undo-bar {
+  position: sticky;
+  bottom: calc(92px + env(safe-area-inset-bottom));
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 8px 4px 16px;
+  background: var(--raised);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-size: 14px;
+}
+.undo-bar-btn {
+  flex: none;
+  min-height: 48px;
+  min-width: 48px;
+  padding: 4px 12px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font-family: var(--f-ui);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.undo-bar-btn:focus-visible {
+  outline: var(--ring-width, 2px) solid currentColor;
+  outline-offset: var(--ring-offset, 3px);
+}
+
+/* ======================================================================= R-86 to R-91 motion */
+
+@media (prefers-reduced-motion: reduce) {
+  /* R-91: the swipe slides nothing, the row is simply shown aside. */
+  .wrow-wrap .wrow { transition: none; }
+}

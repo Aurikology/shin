@@ -26,3 +26,6 @@
    camera's verdict sheet. Their own file anyway, because the display rules
    they answer are a contract and a reviewer needs one place to read them. */
 @import url('/css/screens/grounded.css');
+
+/* Build 7: the sweep (touch, type, lists, motion), last so nothing before it can undo it. */
+@import url('/css/screens/ux-sweep.css');

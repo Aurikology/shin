@@ -48,7 +48,7 @@
 .seg-o {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 40px;
+  min-height: 44px; /* build 7 R-13 (was 40) */
   padding: 8px 4px;
   background: var(--surface);
   border: 1px solid var(--hairline);
