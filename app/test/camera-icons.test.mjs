@@ -187,7 +187,8 @@ test('pressing the keyboard icon opens the typed-name search, and nothing else',
 
 test('pressing the barcode icon takes the code the eye has read', () => {
   const { log, ready } = press('scan-barcode', { sent: true });
-  assert.deepEqual(log, ['track:barcode_scan_pressed', 'eye.scanBarcode', 'buzz'], 'the press did not go to the eye, or answered as if nothing was read');
+  // UX build 1 (R-4): no buzz on the press; the capture haptic fires in onBarcode after the frame freezes.
+  assert.deepEqual(log, ['track:barcode_scan_pressed', 'eye.scanBarcode'], 'the press did not go to the eye, or answered as if nothing was read');
   assert.notEqual(ready, null, 'a successful read dropped the ready code before the read landed');
 });
 
@@ -222,7 +223,7 @@ test('the barcode button is throttled by the same minimum interval as the shutte
   assert.deepEqual(press('scan-barcode', { lastCaptureAt: now }).log, [],
     'a barcode press right after the last capture was not throttled');
   assert.deepEqual(press('scan-barcode', { lastCaptureAt: 0 }).log,
-    ['track:barcode_scan_pressed', 'eye.scanBarcode', 'buzz'],
+    ['track:barcode_scan_pressed', 'eye.scanBarcode'],
     'lastCaptureAt of 0 (nothing captured yet) must still be allowed');
 });
 

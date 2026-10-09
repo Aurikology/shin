@@ -1279,6 +1279,9 @@ export async function onboard(app) {
 export async function pressScan(app, code = CODE) {
   app.hub.ready(code);
   await app.tap('[data-act="scan-barcode"]', 'scan press');
+  // UX build 1 (R-4): the frame holds CAPTURE_HOLD_MS on the code before the pad rises. Time, not a tap.
+  const { CAPTURE_HOLD_MS } = await app.mod('lib/haptics.js');
+  await app.wait(CAPTURE_HOLD_MS + 40);
 }
 
 /**

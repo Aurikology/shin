@@ -56,6 +56,7 @@ import { geminiReading } from '../grounded.js';
 import { geminiWordFor } from '../shin.js';
 import { getDeviceId } from '../device.js';
 import { FLAGS } from '../flags.js';
+import { haptic, verdictHaptic, reportHapticFault, CAPTURE_HOLD_MS } from '../lib/haptics.js';
 
 /**
  * The camera states in which the docked face is faded out by `camera.css`.
@@ -280,19 +281,18 @@ function modifierLabel(typedCents, modifier) {
 }
 
 /**
- * Row 83: a short buzz on a verdict landing and on a refusal landing, never
- * anywhere else. Off whenever the browser has no vibrate, and off whenever
- * You's "Buzz on verdicts" toggle (Lane C, a `buzz` field on `store`) says so.
- * Read defensively, so this works whether or not that field has landed yet:
- * `undefined` and `true` both mean on, only `false` turns it off.
+ * UX build 1 (R-1 to R-4): haptics live in lib/haptics.js, three events only
+ * (barcode captured, verdict landed, saved). The old `buzz(ms)` pulses on the
+ * pad, the shop pick, the price confirm, refusals and stored observations are
+ * gone. A haptic that throws (unknown event, a wrapper with no plugin, a
+ * bridge fault) is reported through `reportHapticFault`, never swallowed, and
+ * never stops the shopper's answer from landing.
+ *
+ * `landHaptic` is the verdict landing: `conf` is certain, sure or thin; thin
+ * buzzes nothing (R-3).
  */
-function hapticsOn() {
-  return typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function'
-    && store.get().buzz !== false;
-}
-function buzz(pattern) {
-  if (!hapticsOn()) return;
-  try { navigator.vibrate(pattern); } catch { /* best effort only, never blocks anything */ }
+function landHaptic(conf) {
+  try { verdictHaptic(conf); } catch (err) { reportHapticFault(err, 'verdict-landed'); }
 }
 
 /* ------------------------------------------------------------- sheet parts */
@@ -1879,13 +1879,10 @@ function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store
  * AVATAR.md row 36: the refusal's landing is `verdict-land` at 340ms, then
  * `slow-blink`, never the shake/buzz/red a normal miss might otherwise get.
  * Called right after a refusal sheet's markup is mounted, on its own face.
- * Row 83: the same landing is where the refusal's short haptic buzz lives,
- * once, here, so every refusal (category, unsure, unknown, thin, and the
- * network-error and no-match refusals built inline below) gets it the same
- * way instead of four separate call sites remembering to add it.
+ * No haptic here (R-1, R-3): a refusal is the app's fault or a gap, not a
+ * verdict, and the spec buzzes on neither.
  */
 function playRefusalLanding(slot) {
-  buzz(14);
   const el = slot.querySelector('.face');
   if (!el) return;
   animateFace(el, 'verdict-land');
@@ -3649,6 +3646,10 @@ export default {
       // photoId off. Gated the same two ways shoot() and the shelf stream
       // already are: the flag and the shopper's own photo consent both have
       // to be on, not just one of them, so with the MVP flags (photoId off)
+      // R-4: the frame is frozen now, so this is the one moment the capture
+      // haptic may fire (never while the viewfinder is still searching).
+      try { haptic('barcode-captured'); } catch (err) { reportHapticFault(err, 'barcode-captured'); }
+      const holdGen = gen;
       // a barcode read never sends a photo.
       if (FLAGS.photoId && store.consent().photos === true) ctx.api.beginShutter?.(video);
       track('barcode_read', {
@@ -3671,6 +3672,11 @@ export default {
      * is only a caption (the digits, or "what you photographed"); the scan
      * request itself waits on the pad so the price can ride in it.
      */
+      // R-4: the highlight stays on the code for CAPTURE_HOLD_MS before the pad
+      // rises, so the shopper sees what was read. A reset or a leave during the
+      // hold ends this scan; the pad must not open on a screen that moved on.
+      await new Promise((resolve) => { setTimeout(resolve, CAPTURE_HOLD_MS); });
+      if (dead || holdGen !== gen) return;
     function askPriceFirst(pending) {
       scanShelfCents = null;
       openPad({
@@ -4355,7 +4361,6 @@ export default {
       if (res.stored) {
         obsPending = null;
         slot.innerHTML = observationCard(cents, seller, scanThumb, typedName || null);
-        buzz(14);
       } else {
         slot.innerHTML = observationNotice('failed', cents, seller, scanThumb, typedName || null, {
           why: res.why,
@@ -4706,15 +4711,15 @@ export default {
             if (lastPriceMatch && !result.priceMatch) result.priceMatch = lastPriceMatch;
             slot.innerHTML = geminiSheet(result, item, scanThumb, earlier);
             fillGrounded(slot, result);
-            buzz(16);
+            landHaptic(confidenceOf(result).level);
           }
         } else if (result.kind === 'verdict') {
           slot.innerHTML = verdictSheet(result, item, scanThumb);
           // The Gemini block, if the payload carried one. Synchronous: it
           // arrived with the verdict, so there is nothing to wait for.
           fillGrounded(slot, result);
-          // Row 83: the verdict landing, once, right here.
-          buzz(16);
+          // R-1: the verdict landing, once, right here.
+          landHaptic(confidenceOf(result).level);
         } else if (result.reason === 'no_asking_price') {
           // Section 2's couch card, not a refusal: Pexi has the comparison
           // set, only the one number was never supplied.
@@ -5105,7 +5110,6 @@ export default {
         // nothing leaves the picker as it was rather than clearing the shop.
         if (!picked) return;
         shops.chooseShop(picked);
-        buzz(8);
         setState('asking');
         slot.innerHTML = padHtml();
         mounted('[data-act="pad-shop"]');
@@ -5218,7 +5222,6 @@ export default {
       if (altPick) {
         if (cam.dataset.state !== 'idle') return;
         eye?.select?.(Number(altPick.dataset.alt) || 0);
-        buzz(8);
         return;
       }
 
@@ -5273,13 +5276,15 @@ export default {
           return;
         }
         lastCaptureAt = Date.now();
-        buzz(8);
         return;
       }
       if (act === 'watchlist') { ctx.go('watchlist'); return; }
       if (act === 'you') { ctx.go('you'); return; }
       if (act === 'torch') { requestTorch(!torchOn); return; }
 
+        // R-4: no haptic on the press. The viewfinder is still live and
+        // searching here; the capture haptic fires in onBarcode, after the
+        // frame has frozen.
       // The shop row on the pad. The only thing in this screen that can cause
       // a location read, and it does so because the shopper asked which shop
       // they are in.
@@ -5401,6 +5406,7 @@ export default {
           askingSeller: null,
           usualCents: v ? Math.round(v.centreCents) : null,
           thumb: last?.thumb ?? null,
+        const wasSaved = store.isWatched(dist.key);
           /* D07, D20: the verdict on file travels with the saved row, so Saved
              opens with it and wears the zone word's face. */
           answer: answerSnapshot(dist.raw, { key: dist.key, name: dist.name, typedCents: dist.typedCents }),
@@ -5414,6 +5420,8 @@ export default {
         /*
          * D01 (2026-10-06): the screen used to be handed the item's words and
          * nothing else, so the price it sent carried no barcode and no scan id
+        // R-1: one haptic when the answer becomes saved, none when it is un-saved.
+        if (!wasSaved) { try { haptic('saved'); } catch (err) { reportHapticFault(err, 'saved'); } }
          * and the server answered `stored:false` while the screen said
          * "Recorded". Everything the camera knows about what is on screen goes
          * with it now: the barcode, the scan row, and the product's own id.
@@ -5876,7 +5884,7 @@ export default {
         lastKeepable = null;
         slot.innerHTML = geminiSheet(result, item, scanThumb, earlier);
         fillGrounded(slot, result);
-        buzz(16);
+        landHaptic(confidenceOf(result).level);
         setState('result');
         mounted();
         return;
@@ -5933,7 +5941,8 @@ export default {
       last = null;
       lastKeepable = null;
       slot.innerHTML = catalogueSheet(answer, { shelfCents: cents ?? null, thumb: scanThumb });
-      if (answer.outcome === 'catalogue_hit' && answer.range) buzz(16);
+      // The catalogue sheet with a range is drawn at data-conf "sure"; without one it is a refusal band, no haptic.
+      if (answer.outcome === 'catalogue_hit' && answer.range) landHaptic('sure');
       else playRefusalLanding(slot);
       setState('result');
       mounted(answer.offerManualEntry ? '[data-act="typeit"]' : undefined);
@@ -5976,7 +5985,8 @@ export default {
       last = { result: { kind: 'distribution', verdict: raw }, scenario: scenario ?? { text: name, category: null }, thumb: scanThumb, askingCents: cents ?? undefined };
       lastKeepable = null;
       paintDistribution(false);
-      buzz(16);
+      // An unusable bell draws no verdict, so nothing landed to buzz for.
+      if (v) landHaptic(DIST_CONF[v.confidence]);
       setState('result');
       mounted();
     }
@@ -6023,7 +6033,6 @@ export default {
         dist.typedCents = cents;
         if (last) last.askingCents = cents;
         paintDistribution(true);
-        buzz(10);
       });
     }
 

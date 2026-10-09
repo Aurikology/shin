@@ -194,9 +194,15 @@ function runOnBarcode(flags, consentPhotos) {
     captureThumb: () => 'thumb',
     askPriceFirst: (p) => calls.askPriceFirst.push(p),
     cameraStartedAt: null,
+    // UX build 1: the capture haptic and the 150 ms hold (the hold is 0 here so the test does not wait).
+    haptic: (name) => calls.haptic.push(name),
+    reportHapticFault: (err) => { throw err; },
+    CAPTURE_HOLD_MS: 0,
   };
+  calls.haptic = [];
   const build = new Function('deps', `
-    const { cam, video, FLAGS, store, ctx, track, captureThumb, askPriceFirst, cameraStartedAt } = deps;
+    const { cam, video, FLAGS, store, ctx, track, captureThumb, askPriceFirst, cameraStartedAt, haptic, reportHapticFault, CAPTURE_HOLD_MS } = deps;
+    let dead = false, gen = 0;
     let barcodeInFlight = false, scanBarcode = null, hintTimer = null, scanPressTimer = null, torchAckTimer = null, coachKey = null, scanThumb = null;
     ${src}
     return onBarcode;
@@ -210,6 +216,7 @@ test('photoId off: a barcode read never calls beginShutter, whatever photo conse
     await fn({ value: '012345678905', format: 'ean13', frames: 3 });
     assert.deepEqual(calls.beginShutter, [], `photoId off, consent photos=${consentPhotos}: a barcode read sent a frame (D-147)`);
     assert.deepEqual(calls.askPriceFirst, [{ kind: 'barcode', code: '012345678905' }], 'the barcode digits still reach the price pad');
+    assert.deepEqual(calls.haptic, ['barcode-captured'], 'a barcode read fires exactly the capture haptic');
   }
 });
 
