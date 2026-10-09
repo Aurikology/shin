@@ -3646,6 +3646,10 @@ export default {
       clearTimeout(torchAckTimer);
       coachKey = null;
       scanThumb = captureThumb(video, cam.dataset.camera === 'live');
+      // R-4: the frame is frozen now, so this is the one moment the capture
+      // haptic may fire (never while the viewfinder is still searching).
+      try { haptic('barcode-captured'); } catch (err) { reportHapticFault(err, 'barcode-captured'); }
+      const holdGen = gen;
       // D-147, Jamin's ruling 2026-09-23: "Fix the barcode full photo." This
       // used to call beginShutter unconditionally, the one call on this
       // screen with no FLAGS.photoId guard and no consent read, so a barcode
@@ -3654,10 +3658,6 @@ export default {
       // photoId off. Gated the same two ways shoot() and the shelf stream
       // already are: the flag and the shopper's own photo consent both have
       // to be on, not just one of them, so with the MVP flags (photoId off)
-      // R-4: the frame is frozen now, so this is the one moment the capture
-      // haptic may fire (never while the viewfinder is still searching).
-      try { haptic('barcode-captured'); } catch (err) { reportHapticFault(err, 'barcode-captured'); }
-      const holdGen = gen;
       // a barcode read never sends a photo.
       if (FLAGS.photoId && store.consent().photos === true) ctx.api.beginShutter?.(video);
       track('barcode_read', {
@@ -3672,6 +3672,11 @@ export default {
       // get sent to gemini along with the rest of the prompt." The scan request
       // is sent when the pad is confirmed or skipped (`submitScanPrice`), and it
       // carries the price. Skipping still gets an answer.
+      // R-4: the highlight stays on the code for CAPTURE_HOLD_MS before the pad
+      // rises, so the shopper sees what was read. A reset or a leave during the
+      // hold ends this scan; the pad must not open on a screen that moved on.
+      await new Promise((resolve) => { setTimeout(resolve, CAPTURE_HOLD_MS); });
+      if (dead || holdGen !== gen) return;
       askPriceFirst({ kind: 'barcode', code: read.value });
     }
 
@@ -3680,11 +3685,6 @@ export default {
      * is only a caption (the digits, or "what you photographed"); the scan
      * request itself waits on the pad so the price can ride in it.
      */
-      // R-4: the highlight stays on the code for CAPTURE_HOLD_MS before the pad
-      // rises, so the shopper sees what was read. A reset or a leave during the
-      // hold ends this scan; the pad must not open on a screen that moved on.
-      await new Promise((resolve) => { setTimeout(resolve, CAPTURE_HOLD_MS); });
-      if (dead || holdGen !== gen) return;
     function askPriceFirst(pending) {
       scanShelfCents = null;
       openPad({
@@ -5283,6 +5283,9 @@ export default {
           sayNoBarcode();
           return;
         }
+        // R-4: no haptic on the press. The viewfinder is still live and
+        // searching here; the capture haptic fires in onBarcode, after the
+        // frame has frozen.
         lastCaptureAt = Date.now();
         return;
       }
@@ -5290,9 +5293,6 @@ export default {
       if (act === 'you') { ctx.go('you'); return; }
       if (act === 'torch') { requestTorch(!torchOn); return; }
 
-        // R-4: no haptic on the press. The viewfinder is still live and
-        // searching here; the capture haptic fires in onBarcode, after the
-        // frame has frozen.
       // The shop row on the pad. The only thing in this screen that can cause
       // a location read, and it does so because the shopper asked which shop
       // they are in.
@@ -5406,6 +5406,7 @@ export default {
       if (act === 'dist-save' && dist?.key) {
         const v = usableVerdict(dist.raw);
         const shopper = dist.typedCents ?? v?.shopper?.cents ?? null;
+        const wasSaved = store.isWatched(dist.key);
         store.toggleWatch({
           id: dist.key,
           label: dist.name,
@@ -5414,12 +5415,13 @@ export default {
           askingSeller: null,
           usualCents: v ? Math.round(v.centreCents) : null,
           thumb: last?.thumb ?? null,
-        const wasSaved = store.isWatched(dist.key);
           /* D07, D20: the verdict on file travels with the saved row, so Saved
              opens with it and wears the zone word's face. */
           answer: answerSnapshot(dist.raw, { key: dist.key, name: dist.name, typedCents: dist.typedCents }),
         });
         paintDistribution(true);
+        // R-1: one haptic when the answer becomes saved, none when it is un-saved.
+        if (!wasSaved) { try { haptic('saved'); } catch (err) { reportHapticFault(err, 'saved'); } }
         mounted('[data-act="dist-save"]');
         return;
       }
@@ -5428,8 +5430,6 @@ export default {
         /*
          * D01 (2026-10-06): the screen used to be handed the item's words and
          * nothing else, so the price it sent carried no barcode and no scan id
-        // R-1: one haptic when the answer becomes saved, none when it is un-saved.
-        if (!wasSaved) { try { haptic('saved'); } catch (err) { reportHapticFault(err, 'saved'); } }
          * and the server answered `stored:false` while the screen said
          * "Recorded". Everything the camera knows about what is on screen goes
          * with it now: the barcode, the scan row, and the product's own id.
