@@ -566,6 +566,19 @@ const NOT_SHOWN = [
   { file: 'camera.js', text: 'Escape', why: 'A KeyboardEvent.key value compared against in the sheet key handler. A platform constant, the same string on a French keyboard.' },
   { file: 'share.js', text: 'toBlob gave nothing', why: 'The message of an Error thrown and caught inside the save path, so the console gets it. What the reader gets is share_export_failed.' },
 
+  /* Paywall fault messages (UX build 2, RULINGS.md "Errors never go unnoticed"): Errors thrown or reported through track.js and the console for whoever reads the log. The shopper sees paywall_failed or paywall_restore_failed, never these. */
+  { file: 'paywall.js', text: 'paywall: the fault could not be queued', why: 'console.error prefix when the fault report itself could not be queued; developer-facing only.' },
+  { file: 'paywall.js', text: 'paywall: plan id "', why: 'The message of an Error thrown for a plan id outside monthly and yearly and reported as a fault; the shopper sees the failed state.' },
+  { file: 'paywall.js', text: '" is not one of', why: 'Second half of the plan-id Error message above.' },
+  { file: 'paywall.js', text: 'paywall: the', why: 'The message of an Error thrown for a plan with no usable store price string, reported as a fault; the shopper sees the failed state.' },
+  { file: 'paywall.js', text: 'paywall: the chosen plan', why: 'The message of an Error thrown when the chosen plan is not on the screen; reported, and the shopper sees the failed state.' },
+  { file: 'paywall.js', text: 'is not on the screen', why: 'Second half of the chosen-plan Error message above.' },
+  { file: 'paywall.js', text: 'paywall: the same plan is listed twice', why: 'The message of an Error thrown for a duplicated plan; reported, the shopper sees the failed state.' },
+  { file: 'paywall.js', text: 'paywall: resetsAt', why: 'The message of an Error thrown for an unreadable reset time; goes to the log through the window error listener.' },
+  { file: 'paywall.js', text: 'is not a readable time', why: 'Second half of the resetsAt Error message above.' },
+  { file: 'paywall.js', text: 'plan was left off the screen:', why: 'The message of a fault reported when the store gave a plan no usable price; developer-facing only, the plan simply is not listed.' },
+  { file: 'paywall.js', text: 'a tap named plan', why: 'The message of a fault reported for a tap on a plan row that is not in the list; developer-facing only.' },
+  { file: 'paywall.js', text: ', which is not on the screen', why: 'Second half of the select-plan fault message above.' },
   /* --- the registered screen titles ---
    *
    * A screen registers `title` in English and `titleKey` beside it. The

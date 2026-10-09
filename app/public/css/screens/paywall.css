@@ -27,6 +27,60 @@
 /* The tick keeps its space on both rows so choosing one does not shift the
    prices sideways; only the chosen plan shows it. */
 .pw-plan .ilist-v { margin-left: auto; }
+
+/* R-80: the billed price is the largest text in its row (Apple and Google both
+   want the billed amount most prominent), the row label sits under it at its
+   own 15px, and the per-month line under the yearly price is 13px, 65% of the
+   price. The equivalent sits on its own line below the label and the price. */
+.pw-plan { flex-wrap: wrap; }
+.pw-plan .ilist-l { font-size: 15px; }
+.pw-plan [data-pw-price] {
+  font-family: var(--f-mono);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.pw-plan [data-pw-equiv] {
+  order: 3;
+  flex: 0 0 100%;
+  margin-top: calc(var(--s-1) * -1);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
+/* R-84: the spent screen. Calm and plain: the count in the mono face, what
+   still works, one way out that is a link and not a button. */
+.pw-count {
+  margin: var(--s-3) 0 0;
+  font-family: var(--f-mono);
+  font-size: 15px;
+  color: var(--ink);
+}
+.pw-way,
+.pw-buys {
+  margin: var(--s-2) 0 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+.pw-buys {
+  margin-bottom: var(--s-4);
+  color: var(--ink-muted);
+}
+.pw-out { margin: var(--s-3) 0 0; }
+.pw-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
 .pw-plan .ilist-k { visibility: hidden; }
 .pw-plan.on .ilist-k { visibility: visible; }
 

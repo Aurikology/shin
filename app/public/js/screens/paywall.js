@@ -93,15 +93,51 @@ export function limitLine(params = {}) {
   return when ? `${head} ${t('paywall_resets', { when })}` : head;
 }
 
+const PLAN_IDS = Object.freeze(['monthly', 'yearly']);
+const usable = (s) => typeof s === 'string' && s.trim() !== '';
+
+/**
+ * Reports a fault the way the rest of the client does (track.js: the event
+ * queue the server reads, which `window_error` and `unhandled_rejection`
+ * already ride), plus the console. RULINGS.md "Errors never go unnoticed": a
+ * paywall that cannot draw a price or restore a purchase says so; it never
+ * paints a blank or a quiet fallback.
+ */
+function reportFault(where, err, detail = {}) {
+  console.error(`paywall: ${where}`, err, detail);
+  try {
+    track('paywall_fault', { where, message: err instanceof Error ? err.message : String(err), ...detail });
+  } catch (trackErr) {
+    console.error('paywall: the fault could not be queued', trackErr);
+  }
+}
+
+/**
+ * One plan row. The billed price is the largest text in it (R-80); the
+ * per-month figure sits under the yearly one only, smaller, taken from the
+ * store (`perMonthString`), and is left out when the store sent none rather
+ * than worked out here.
+ */
 function planRow(plan, chosen) {
+  if (!PLAN_IDS.includes(plan?.id)) throw new Error(`paywall: plan id "${plan?.id}" is not one of ${PLAN_IDS.join(', ')}`);
+  if (!usable(plan.priceString)) throw new Error(`paywall: the ${plan.id} plan has no usable store price string (${JSON.stringify(plan.priceString)})`);
   const label = plan.id === 'yearly' ? t('paywall_yearly') : t('paywall_monthly');
   const price = plan.id === 'yearly' ? t('paywall_per_year', { price: plan.priceString }) : t('paywall_per_month', { price: plan.priceString });
+  const equiv = plan.id === 'yearly' && usable(plan.perMonthString)
+    ? `<span class="pw-equiv" data-pw-equiv>${escapeHtml(t('paywall_equiv', { price: plan.perMonthString }))}</span>`
+    : '';
   const on = plan.id === chosen;
   return `<button type="button" class="ilist-row pw-plan${on ? ' on' : ''}" role="radio" aria-checked="${on}" data-plan="${escapeHtml(plan.id)}">
             <span class="ilist-l">${escapeHtml(label)}</span>
-            <span class="ilist-v" data-pw-price>${escapeHtml(price)}</span>
+            <span class="ilist-v pw-price" data-pw-price>${escapeHtml(price)}</span>
             ${rowCheck()}
+            ${equiv}
           </button>`;
+}
+
+/** The plan that starts selected: yearly when it is on sale (R-81), else the first. */
+export function defaultPlan(plans) {
+  return (plans.find((p) => p?.id === 'yearly') ?? plans[0])?.id ?? null;
 }
 
 /**
@@ -140,11 +176,15 @@ export function paywallBody(state, { plans = [], chosen = null, message = '' } =
           <button type="button" class="cta" data-act="close">${escapeHtml(t('paywall_close'))}</button>
         </div>`;
     default: {
-      const pick = chosen ?? plans[0]?.id ?? null;
+      const pick = chosen ?? defaultPlan(plans);
+      if (!plans.some((p) => p?.id === pick)) throw new Error(`paywall: the chosen plan ${JSON.stringify(pick)} is not on the screen`);
+      if (new Set(plans.map((p) => p.id)).size !== plans.length) throw new Error('paywall: the same plan is listed twice');
+      // Yearly first: the preselected plan, with monthly right under it on the same screen.
+      const shown = [...plans].sort((a, b) => (b?.id === 'yearly') - (a?.id === 'yearly'));
       return `<div data-pw-state="plans">
           <h2 class="sect-h" id="pw-plans-l">${escapeHtml(t('paywall_plans'))}</h2>
           <div class="ilist" role="radiogroup" aria-labelledby="pw-plans-l">
-            ${plans.map((p) => planRow(p, pick)).join('')}
+            ${shown.map((p) => planRow(p, pick)).join('')}
           </div>
           <p class="fineprint pw-renews">${escapeHtml(t('paywall_renews'))}</p>
           <button type="button" class="cta" data-act="subscribe">${escapeHtml(t('paywall_subscribe'))}</button>
@@ -153,6 +193,26 @@ export function paywallBody(state, { plans = [], chosen = null, message = '' } =
         </div>`;
     }
   }
+}
+
+/**
+ * What the screen says when the week's free scans are spent (R-84): the count
+ * in the mono face, what still works, when scans come back. A reset time that
+ * is present but unreadable THROWS, because the sentence would otherwise be
+ * missing with nobody told; an absent one simply leaves that sentence out.
+ */
+export function spentLines(params = {}) {
+  const limit = numOf(params.limit);
+  const used = numOf(params.used);
+  const present = params.resetsAt !== undefined && params.resetsAt !== null && params.resetsAt !== '';
+  const when = present ? resetDay(params.resetsAt) : null;
+  if (present && when === null) throw new Error(`paywall: resetsAt ${JSON.stringify(params.resetsAt)} is not a readable time`);
+  const counted = Number.isInteger(limit) && limit > 0 && Number.isInteger(used) && used >= 0;
+  const count = counted ? `<p class="pw-count" data-pw-count>${escapeHtml(t('paywall_count', { used: String(Math.min(used, limit)), limit: String(limit) }))}</p>` : '';
+  const way = [t('paywall_still_works'), when ? t('paywall_more_scans', { when }) : ''].filter(Boolean).join(' ');
+  return `${count}
+        <p class="pw-way" data-pw-way>${escapeHtml(way)}</p>
+        <p class="pw-buys" data-pw-buys>${escapeHtml(t('paywall_heading'))}</p>`;
 }
 
 export default {
@@ -164,19 +224,27 @@ export default {
     const ac = new AbortController();
     const gone = () => ac.signal.aborted;
     const win = ctx.win ?? globalThis.window;
+    const params = ctx.params ?? {};
     let plans = [];
     let chosen = null;
+
+    // Built before anything is painted, so an unreadable reset time throws out of render().
+    const spent = limitSpent(params);
+    const middle = spent
+      ? spentLines(params)
+      : (() => { const line = limitLine(params); return line ? `<p class="fineprint pw-limit" data-pw-limit>${escapeHtml(line)}</p>` : ''; })();
 
     root.innerHTML = `
       <div class="page paywall-page" data-paywall>
         <header class="page-head">
           <button type="button" class="pbk pw-close" data-act="close" aria-label="${escapeHtml(t('paywall_close'))}">${CLOSE_ICON}</button>
           <p class="kicker">${escapeHtml(t('paywall_title'))}</p>
-          <h1>${escapeHtml(t('paywall_heading'))}</h1>
+          <h1>${escapeHtml(t(spent ? 'paywall_spent_heading' : 'paywall_heading'))}</h1>
         </header>
-        ${shinSay('idle', limitSpent(ctx.params ?? {}) ? 'paywall_say' : 'paywall_say_open', {}, { size: 'face-page' })}
-        ${(() => { const line = limitLine(ctx.params ?? {}); return line ? `<p class="fineprint pw-limit" data-pw-limit>${escapeHtml(line)}</p>` : ''; })()}
+        ${shinSay('idle', spent ? 'paywall_say_spent' : 'paywall_say_open', {}, { size: 'face-page' })}
+        ${middle}
         <div class="pw-body" data-pw-body aria-live="polite"></div>
+        ${spent ? `<p class="pw-out"><button type="button" class="pw-link" data-act="type-name">${escapeHtml(t('paywall_type_name'))}</button></p>` : ''}
         <p class="pw-legal">
           <a href="${escapeHtml(LEGAL_URLS.terms)}" target="_blank" rel="noopener noreferrer" data-pw-terms>${escapeHtml(t('paywall_terms'))}</a>
           <a href="${escapeHtml(LEGAL_URLS.privacy)}" target="_blank" rel="noopener noreferrer" data-pw-privacy>${escapeHtml(t('paywall_privacy'))}</a>
@@ -186,7 +254,14 @@ export default {
     const body = root.querySelector('[data-pw-body]');
     const paint = (state, extra = {}) => {
       if (gone()) return;
-      body.innerHTML = paywallBody(state, { plans, chosen, ...extra });
+      try {
+        body.innerHTML = paywallBody(state, { plans, chosen, ...extra });
+      } catch (err) {
+        // A state that cannot be drawn truthfully (bad price, bad plan id) is
+        // reported and replaced by the failed state, never left blank.
+        reportFault('paint', err, { state });
+        body.innerHTML = paywallBody('failed', { message: t('paywall_failed') });
+      }
     };
 
     async function load() {
@@ -197,9 +272,11 @@ export default {
         if (gone()) return;
         if (!out.store) { paint('web'); return; }
         plans = out.plans;
-        chosen = plans[0]?.id ?? null;
+        chosen = defaultPlan(plans);
+        for (const s of out.skipped ?? []) reportFault('plan_skipped', new Error(`the ${s.id} plan was left off the screen: ${s.reason}`), { plan: s.id });
         paint(plans.length ? 'plans' : 'none');
-      } catch {
+      } catch (err) {
+        reportFault('load_plans', err);
         paint('failed');
       }
     }
@@ -213,7 +290,11 @@ export default {
      */
     async function buy() {
       const plan = plans.find((p) => p.id === chosen);
-      if (!plan) return;
+      if (!plan) {
+        reportFault('subscribe', new Error(`Subscribe was tapped with no plan selected (chosen ${JSON.stringify(chosen)})`));
+        paint('plans', { message: t('paywall_buy_failed') });
+        return;
+      }
       track('paywall_buy', { plan: plan.id, outcome: 'tapped' });
       paint('working');
       try {
@@ -222,7 +303,8 @@ export default {
         if (out.plus) { track('paywall_buy', { plan: plan.id, outcome: 'done' }); paint('done'); return; }
         track('paywall_buy', { plan: plan.id, outcome: out.cancelled ? 'cancelled' : 'failed' });
         paint('plans', { message: out.cancelled ? '' : t('paywall_buy_failed') });
-      } catch {
+      } catch (err) {
+        reportFault('subscribe', err, { plan: plan.id });
         track('paywall_buy', { plan: plan.id, outcome: 'failed' });
         paint('plans', { message: t('paywall_buy_failed') });
       }
@@ -238,9 +320,10 @@ export default {
         if (out.plus) { track('paywall_restore', { outcome: 'done' }); paint('done'); return; }
         track('paywall_restore', { outcome: 'failed' });
         paint(back, { message: t('paywall_restore_none') });
-      } catch {
+      } catch (err) {
+        reportFault('restore', err);
         track('paywall_restore', { outcome: 'failed' });
-        paint(back, { message: t('paywall_failed') });
+        paint(back, { message: t('paywall_restore_failed') });
       }
     }
 
@@ -248,10 +331,16 @@ export default {
       if (e.target.closest('[data-act="close"]')) { goBack(ctx, 'camera'); return; }
       const plan = e.target.closest('[data-plan]');
       if (plan) {
-        chosen = plan.dataset.plan;
+        const id = plan.dataset.plan;
+        if (!plans.some((p) => p.id === id)) {
+          reportFault('select_plan', new Error(`a tap named plan ${JSON.stringify(id)}, which is not on the screen`));
+          return;
+        }
+        chosen = id;
         paint('plans');
         return;
       }
+      if (e.target.closest('[data-act="type-name"]')) { ctx.go('camera', { open: 'type-name' }); return; }
       if (e.target.closest('[data-act="subscribe"]')) { void buy(); return; }
       if (e.target.closest('[data-act="restore"]')) { void restore(); return; }
       if (e.target.closest('[data-act="retry"]')) void load();

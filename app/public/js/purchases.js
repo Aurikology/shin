@@ -119,12 +119,28 @@ export async function loadPlans(win = globalThis.window) {
     return typeof pid === 'string' && (pid === id || pid.startsWith(`${id}:`));
   });
   const plans = [];
+  /*
+   * `skipped` names every plan the store could not give a usable price string
+   * for (RULINGS.md "Errors never go unnoticed"): the screen still shows what
+   * did load, and reports each one, so a plan that vanished is never silent.
+   * `perMonthString` is the store's own per-month figure for the yearly plan
+   * (RevenueCat `product.pricePerMonthString`), never computed here; a store
+   * that sends none gets no equivalent line.
+   */
+  const skipped = [];
   for (const [id, productId, slot] of [['monthly', PLUS.products.monthly, 'monthly'], ['yearly', PLUS.products.yearly, 'annual']]) {
     const pkg = byProduct(productId) ?? offering?.[slot] ?? null;
     const priceString = pkg?.product?.priceString;
-    if (typeof priceString === 'string' && priceString.trim() !== '') plans.push({ id, priceString: priceString.trim(), pkg });
+    if (typeof priceString === 'string' && priceString.trim() !== '') {
+      const per = pkg.product.pricePerMonthString;
+      const plan = { id, priceString: priceString.trim(), pkg };
+      if (id === 'yearly' && typeof per === 'string' && per.trim() !== '') plan.perMonthString = per.trim();
+      plans.push(plan);
+    } else {
+      skipped.push({ id, reason: pkg ? 'package has no usable priceString' : 'no package for this plan in the offering' });
+    }
   }
-  return { store: true, plans };
+  return { store: true, plans, skipped };
 }
 
 function cancelled(err) {

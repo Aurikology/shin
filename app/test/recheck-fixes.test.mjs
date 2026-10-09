@@ -75,7 +75,9 @@ test('D30: the paywall bubble is the "used" line only when the allowance is spen
     assert.doesNotMatch(open, /used|spent|ran out|gone/i, `the open line (${who}) claims the allowance is spent`);
   }
   const src = read('js/screens/paywall.js');
-  assert.match(src, /limitSpent\(ctx\.params \?\? \{\}\) \? 'paywall_say' : 'paywall_say_open'/);
+  // UX build 2 (R-84): the spent bubble is now paywall_say_spent (points the disappointment at Pexi), still gated on limitSpent.
+  assert.match(src, /const spent = limitSpent\(params\);/);
+  assert.match(src, /spent \? 'paywall_say_spent' : 'paywall_say_open'/);
 });
 
 /* ------------------------------------------------------------------- N12 */

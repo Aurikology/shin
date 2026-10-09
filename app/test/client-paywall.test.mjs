@@ -143,7 +143,9 @@ test('in a plain browser the screen says "Subscribe in the app" and offers nothi
   assert.match(root.innerHTML, /data-act="close"/, 'no close button');
   assert.match(root.innerHTML, /data-pw-terms/);
   assert.match(root.innerHTML, /data-pw-privacy/);
-  assert.match(root.innerHTML, /The 10 free scans for this week are used\./);
+  // UX build 2 (R-84): the spent screen's own words replace the old "The 10 free scans ... are used." line.
+  assert.match(root.innerHTML, /That is all of this week(&#39;|')s scans\./);
+  assert.match(root.innerHTML, /More scans on Monday, September 28\./);
   stop();
 });
 
@@ -230,7 +232,8 @@ test('no price and no savings claim is written into the client', () => {
   for (const lang of ['en', 'fr']) {
     for (const [k, v] of Object.entries(TABLES[lang])) {
       if (!k.startsWith('paywall_')) continue;
-      const text = typeof v === 'function' ? v({ limit: '10', when: 'Monday', price: 'X' }) : v;
+      // UX build 2 (R-84) mandates "everything you saved is still here": "saved" there is the Saved list, not money.
+      const text = (typeof v === 'function' ? v({ limit: '10', when: 'Monday', price: 'X' }) : v).replace('everything you saved is still here', '');
       assert.ok(!words.test(text), `${lang}.${k} makes a savings claim: ${text}`);
     }
   }
