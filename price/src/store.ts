@@ -517,10 +517,183 @@ export function openPrices(path: string = PRICES_DB_PATH): DatabaseSync {
   db.exec(DDL);
   addMissingColumns(db);
   db.exec(REJOIN_INDEX);
+  installKeepEverything(db);
   return db;
 }
 
 /*
+ * ---------------------------------------------------------------------------
+ * KEEP EVERYTHING, 2026-10-09. Requirement 4.2 of
+ * docs/price-category-requirements-2026-10-01.md: keep every captured price
+ * whole, delete nothing, and prove count in equals count stored.
+ *
+ * WHY IT IS ADDITIVE. `observation` is read by five readers outside the writer
+ * (app/src/own-prices.ts, bench/src/harness.ts, range.ts, estimate.ts,
+ * lookup.ts). Its columns, its key and what a reader gets from it stay exactly
+ * as they were: one current row per (seller, seller_sku, seen_on). What changes
+ * is that no version of a row can now vanish without a trace:
+ *
+ *   observation_log     every version any writer ever puts in `observation`,
+ *                       copied by triggers (insert, update, and the old row on
+ *                       a delete). Append-only: its own triggers refuse UPDATE
+ *                       and DELETE. Triggers, not a line in recordObservation,
+ *                       so a writer that goes around this file (a raw UPDATE, a
+ *                       test fixture, a future script) is logged too.
+ *   intake_batch,       the per-batch reconciliation ledger (intake.ts). One
+ *   intake_batch_row,   row per batch opened, one per stored row linked to the
+ *   intake_batch_close  log row it produced, one per batch closed with offered,
+ *                       stored and status. All append-only.
+ *   observation_outlier outliers held flagged, never dropped (intake.ts).
+ *
+ * The log's columns are not hand-listed: they are read from `observation` on
+ * every open, missing ones are added, and the triggers are rebuilt whenever
+ * their column list would differ. A column added to `observation` later can
+ * therefore never be silently left out of the log, which is the same trap the
+ * comment on recordObservation below describes for its own column list.
+ *
+ * Deletes on `observation` are LOGGED, not refused. A test fixture outside this
+ * package (app/test/own-prices-printout.test.ts) deletes rows from a temp copy
+ * on purpose, and refusing it would break a reader's test for no gain: the
+ * deleted row is whole in the log either way. A delete on real data is caught
+ * by intake.ts's assertNothingLost and by every batch close, loudly.
+ * ---------------------------------------------------------------------------
+ */
+
+const KEEP_DDL = `
+CREATE TABLE IF NOT EXISTS store_meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS observation_log (
+  log_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+  /* 'baseline' (held before the log existed), 'insert', 'update', 'delete' (the row as it was). */
+  event     TEXT NOT NULL,
+  logged_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE TRIGGER IF NOT EXISTS observation_log_no_update BEFORE UPDATE ON observation_log
+BEGIN SELECT RAISE(ABORT, 'observation_log is append-only and is never edited'); END;
+CREATE TRIGGER IF NOT EXISTS observation_log_no_delete BEFORE DELETE ON observation_log
+BEGIN SELECT RAISE(ABORT, 'observation_log is append-only and is never edited'); END;
+
+CREATE TABLE IF NOT EXISTS intake_batch (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  seller        TEXT NOT NULL,
+  /* What the reader declared it supplies (requirement 4.4), as JSON. */
+  supplies_json TEXT NOT NULL,
+  /* The highest observation_log id when the batch opened: a delete above it happened during the batch. */
+  log_floor     INTEGER NOT NULL,
+  opened_at     TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS intake_batch_row (
+  batch_id INTEGER NOT NULL REFERENCES intake_batch(id),
+  log_id   INTEGER NOT NULL REFERENCES observation_log(log_id),
+  PRIMARY KEY (batch_id, log_id)
+);
+CREATE TABLE IF NOT EXISTS intake_batch_close (
+  batch_id  INTEGER PRIMARY KEY REFERENCES intake_batch(id),
+  offered   INTEGER NOT NULL,
+  stored    INTEGER NOT NULL,
+  deletions INTEGER NOT NULL,
+  /* 'ok', 'mismatch' (counts or deletes), 'field_mismatch' (requirement 4.4), 'failed' (the reader threw). */
+  status    TEXT NOT NULL,
+  detail    TEXT,
+  closed_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS outlier_run (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  run_on      TEXT NOT NULL,
+  rows_scored INTEGER NOT NULL,
+  flagged     INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS observation_outlier (
+  run_id       INTEGER NOT NULL REFERENCES outlier_run(id),
+  seller       TEXT NOT NULL,
+  seller_sku   TEXT NOT NULL,
+  seen_on      TEXT NOT NULL,
+  item_key     TEXT NOT NULL,
+  price_cents  INTEGER NOT NULL,
+  median_cents REAL,
+  score        REAL,
+  reason       TEXT NOT NULL,
+  PRIMARY KEY (run_id, seller, seller_sku, seen_on)
+);
+`;
+
+const APPEND_ONLY = ['intake_batch', 'intake_batch_row', 'intake_batch_close', 'outlier_run', 'observation_outlier'] as const;
+
+/** Exported for the tests and for intake.ts's audit: the triggers that make keeping everything true. */
+export const KEEP_TRIGGERS = ['observation_logs_insert', 'observation_logs_update', 'observation_logs_delete'] as const;
+
+function installKeepEverything(db: DatabaseSync): void {
+  db.exec(KEEP_DDL);
+  for (const t of APPEND_ONLY) {
+    db.exec(`CREATE TRIGGER IF NOT EXISTS ${t}_no_update BEFORE UPDATE ON ${t}
+             BEGIN SELECT RAISE(ABORT, '${t} is append-only and is never edited'); END;
+             CREATE TRIGGER IF NOT EXISTS ${t}_no_delete BEFORE DELETE ON ${t}
+             BEGIN SELECT RAISE(ABORT, '${t} is append-only and is never edited'); END;`);
+  }
+
+  const obsCols = (db.prepare('PRAGMA table_info(observation)').all() as unknown as { name: string; type: string }[]);
+  const logCols = new Set(
+    (db.prepare('PRAGMA table_info(observation_log)').all() as unknown as { name: string }[]).map((c) => c.name),
+  );
+  for (const c of obsCols) {
+    if (!logCols.has(c.name)) db.exec(`ALTER TABLE observation_log ADD COLUMN "${c.name}" ${c.type}`);
+  }
+  // After the column sync: on a fresh log the key columns exist only from here on.
+  db.exec('CREATE INDEX IF NOT EXISTS observation_log_by_key ON observation_log(seller, seller_sku, seen_on)');
+  db.exec('CREATE INDEX IF NOT EXISTS observation_log_by_event ON observation_log(event)');
+  const names = obsCols.map((c) => `"${c.name}"`);
+  const list = names.join(', ');
+  const want: Record<(typeof KEEP_TRIGGERS)[number], string> = {
+    observation_logs_insert: `CREATE TRIGGER observation_logs_insert AFTER INSERT ON observation BEGIN INSERT INTO observation_log (event, ${list}) VALUES ('insert', ${names.map((n) => `NEW.${n}`).join(', ')}); END`,
+    observation_logs_update: `CREATE TRIGGER observation_logs_update AFTER UPDATE ON observation BEGIN INSERT INTO observation_log (event, ${list}) VALUES ('update', ${names.map((n) => `NEW.${n}`).join(', ')}); END`,
+    observation_logs_delete: `CREATE TRIGGER observation_logs_delete AFTER DELETE ON observation BEGIN INSERT INTO observation_log (event, ${list}) VALUES ('delete', ${names.map((n) => `OLD.${n}`).join(', ')}); END`,
+  };
+  const have = new Map(
+    (db.prepare("SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'observation'").all() as unknown as {
+      name: string;
+      sql: string;
+    }[]).map((t) => [t.name, t.sql]),
+  );
+  for (const name of KEEP_TRIGGERS) {
+    if (have.get(name) === want[name]) continue;
+    db.exec(`DROP TRIGGER IF EXISTS ${name}`);
+    db.exec(want[name]);
+  }
+
+  // Rows held before the log existed are copied in once, as 'baseline'. Under
+  // an immediate transaction with the flag re-read inside it, so two processes
+  // opening the same file for the first time cannot both copy.
+  const done = () => db.prepare("SELECT 1 FROM store_meta WHERE key = 'observation_log_baseline'").get() !== undefined;
+  if (done()) return;
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    if (!done()) {
+      const r = db.prepare(`INSERT INTO observation_log (event, ${list}) SELECT 'baseline', ${list} FROM observation`).run();
+      db.prepare("INSERT INTO store_meta (key, value) VALUES ('observation_log_baseline', ?)").run(
+        JSON.stringify({ rows: Number(r.changes), at: new Date().toISOString() }),
+      );
+    }
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+/*
+ * CHANGED 2026-10-09 (requirement 4.2): this was INSERT OR REPLACE, which
+ * DELETES the existing row and inserts a fresh one. It is now an upsert that
+ * overwrites every column of the existing row in place: what a reader gets is
+ * identical (every one of the 33 columns is set from this call, exactly as
+ * before), but no row is ever deleted to make room, and the version it replaces
+ * is already whole in observation_log (logged when it was written). The note
+ * below about the column list still holds, with one difference: a column left
+ * out of the list now keeps its old value instead of reverting to NULL.
+ *
  * INSERT OR REPLACE deletes the existing row and inserts a fresh one; it does
  * not merge. Any column that exists in the table but is missing from this
  * statement's column list silently reverts to its default (or NULL, now that
@@ -536,14 +709,45 @@ export function openPrices(path: string = PRICES_DB_PATH): DatabaseSync {
  */
 export function recordObservation(db: DatabaseSync, o: ObservationRow): void {
   db.prepare(
-    `INSERT OR REPLACE INTO observation
+    `INSERT INTO observation
        (code, seller, seller_sku, seller_name, seller_brand, price_cents, kind,
         unit_price_cents, unit_label, currency, country, region, join_method,
         seen_on, url, image_url, in_stock, store_name, store_city, store_osm,
         page_gtin, base_price_cents,
         store_category, was_cents, is_sale, unit_price_per, parsed_brand,
         parsed_size, parsed_variant, capture_tile_id, tile_image, flags, price_verified)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+     ON CONFLICT (seller, seller_sku, seen_on) DO UPDATE SET
+         code = excluded.code,
+         seller_name = excluded.seller_name,
+         seller_brand = excluded.seller_brand,
+         price_cents = excluded.price_cents,
+         kind = excluded.kind,
+         unit_price_cents = excluded.unit_price_cents,
+         unit_label = excluded.unit_label,
+         currency = excluded.currency,
+         country = excluded.country,
+         region = excluded.region,
+         join_method = excluded.join_method,
+         url = excluded.url,
+         image_url = excluded.image_url,
+         in_stock = excluded.in_stock,
+         store_name = excluded.store_name,
+         store_city = excluded.store_city,
+         store_osm = excluded.store_osm,
+         page_gtin = excluded.page_gtin,
+         base_price_cents = excluded.base_price_cents,
+         store_category = excluded.store_category,
+         was_cents = excluded.was_cents,
+         is_sale = excluded.is_sale,
+         unit_price_per = excluded.unit_price_per,
+         parsed_brand = excluded.parsed_brand,
+         parsed_size = excluded.parsed_size,
+         parsed_variant = excluded.parsed_variant,
+         capture_tile_id = excluded.capture_tile_id,
+         tile_image = excluded.tile_image,
+         flags = excluded.flags,
+         price_verified = excluded.price_verified`,
   ).run(
     o.code,
     o.seller,
