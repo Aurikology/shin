@@ -36,12 +36,14 @@
 
 import { locale, DEFAULT_LOCALE } from './lib/locale.js';
 import { ONB_EN, ONB_FR } from './onboarding-strings.js';
+import { PW_EN, PW_FR } from './paywall-strings.js';
 
 export { locale, setLocale, LOCALES, localeTag, applyLang } from './lib/locale.js';
 
 const EN = {
   /* The onboarding flow's text, in its own file (onboarding-strings.js). */
   ...ONB_EN,
+  ...PW_EN,
   /* ---------------------------------------------------------- shell and nav */
   app_name: 'Pexi',
   nav_saved: 'Saved',
@@ -705,6 +707,7 @@ const FR = {
   /* Le texte de l'accueil, dans son propre fichier (onboarding-strings.js). */
   ...ONB_FR,
   /* ------------------------------------------------------- coquille et menu */
+  ...PW_FR,
   app_name: 'Pexi',
   nav_saved: 'Gardés',
   nav_you: 'Toi',

@@ -984,6 +984,12 @@ export const LINES_FR = {
     warm: () => "Ce sont tous les scans gratuits de cette semaine. Avec Plus, il n'y a pas de limite.",
     blunt: () => "Scans gratuits finis pour la semaine. Plus: pas de limite.",
   },
+  /* L'écran épuisé (R-84): la déception vise Pexi, pas la personne. */
+  paywall_say_spent: {
+    deadpan: () => "Je n'ai plus de scans gratuits cette semaine. C'est ma limite, pas la tienne.",
+    warm: () => "Désolé, je n'ai plus de scans gratuits cette semaine. C'est de mon côté.",
+    blunt: () => "Plus de scans gratuits cette semaine. Ma limite, pas la tienne.",
+  },
   /* Le même écran ouvert sans qu'aucun scan soit utilisé (D30). */
   paywall_say_open: {
     deadpan: () => "Plus enlève la limite hebdomadaire.",

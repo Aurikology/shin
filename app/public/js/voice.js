@@ -1719,6 +1719,15 @@ const LINES_EN = {
     warm: () => 'That is all the free scans for this week. With Plus there is no limit.',
     blunt: () => 'Free scans done for the week. Plus: no limit.',
   },
+  /**
+   * The spent screen (UX build 2, R-84): the disappointment is pointed at Pexi,
+   * not at the person. A fact about the week, no savings claim, nothing about them.
+   */
+  paywall_say_spent: {
+    deadpan: () => 'I am out of free scans for this week. That is my limit, not yours.',
+    warm: () => 'Sorry, I am out of free scans for this week. That is on me.',
+    blunt: () => 'Out of free scans this week. My limit, not yours.',
+  },
   /** The same screen opened with nothing used (D30): it must not say the free scans are gone. */
   paywall_say_open: {
     deadpan: () => 'Plus takes the weekly limit off.',
