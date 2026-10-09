@@ -586,6 +586,7 @@ const EN = {
   kind_promotional: 'promotional',
   kind_asking: 'asking',
   kind_sold: 'sold',
+  kind_list: 'list price',
   share_range: (f) => `${f.low} to ${f.high}`,
   share_no_price_caps: 'No price',
   share_conf_high: 'Confident',
@@ -706,8 +707,8 @@ const EN = {
 const FR = {
   /* Le texte de l'accueil, dans son propre fichier (onboarding-strings.js). */
   ...ONB_FR,
-  /* ------------------------------------------------------- coquille et menu */
   ...PW_FR,
+  /* ------------------------------------------------------- coquille et menu */
   app_name: 'Pexi',
   nav_saved: 'Gardés',
   nav_you: 'Toi',
@@ -1144,6 +1145,7 @@ const FR = {
   kind_promotional: 'en promotion',
   kind_asking: 'demandé',
   kind_sold: 'vendu',
+  kind_list: 'prix catalogue',
   share_range: (f) => `${f.low} à ${f.high}`,
   share_no_price_caps: 'Aucun prix',
   share_conf_high: 'Confiant',
@@ -1258,6 +1260,16 @@ const FR = {
 const UI = { en: EN, fr: FR };
 
 /**
+ * Whether a key has a string, for the one caller whose subline is optional
+ * (the onboarding option's small line). Everything else calls `t`, which
+ * throws on a missing key.
+ */
+export function hasString(key) {
+  const table = UI[locale()] ?? UI[DEFAULT_LOCALE];
+  return (table[key] ?? UI[DEFAULT_LOCALE][key]) !== undefined;
+}
+
+/**
  * One chrome string, in the language in force.
  *
  * @param {string} key  a key in the tables above
@@ -1265,16 +1277,16 @@ const UI = { en: EN, fr: FR };
  *   that take one. Same rule as voice.js: a fact arrives formatted and is only
  *   interpolated, never built here.
  *
- * An unknown key returns the key itself rather than an empty string. That is
- * the opposite of `say()`'s choice and it is deliberate: Pexi going quiet is a
- * bubble that does not appear, which is survivable, while a button with no
- * label is a control nobody can use. The key on screen is ugly and reports
- * itself, which is what a missing label should do.
+ * An unknown key throws. It used to return the key itself, so a missing label
+ * drew its own identifier on a button. RULINGS.md "Errors never go
+ * unnoticed" (2026-10-08): a missing string never renders as the key name or
+ * as nothing; the throw reaches the page's error handler, which track.js
+ * queues as window_error, and the missing key is in the message.
  */
 export function t(key, facts = {}) {
   const table = UI[locale()] ?? UI[DEFAULT_LOCALE];
   const value = table[key] ?? UI[DEFAULT_LOCALE][key];
-  if (value === undefined) return key;
+  if (value === undefined) throw new Error(`ui-strings: no string for the key "${key}"`);
   return typeof value === 'function' ? value(facts ?? {}) : value;
 }
 

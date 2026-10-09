@@ -65,7 +65,8 @@ const TABLES = { en: EN, fr: FR };
 export function pt(key, facts = {}) {
   const table = TABLES[locale()] ?? EN;
   const value = table[key] ?? EN[key];
-  if (value === undefined) return key;
+  /* RULINGS.md "Errors never go unnoticed": a missing string throws, never draws its key. */
+  if (value === undefined) throw new Error(`price-strings: no string for the key "${key}"`);
   return typeof value === 'function' ? value(facts ?? {}) : value;
 }
 

@@ -117,9 +117,9 @@ test('the French chrome is actually French, not a copy of the English', () => {
 test('t() reads the locale in force, and an unknown key reports itself', () => {
   assert.equal(inLocale('en', () => t('nav_saved')), 'Saved');
   assert.equal(inLocale('fr', () => t('nav_saved')), 'Gardés');
-  // Deliberately the key and not '': an empty button is a control nobody can
-  // use, where the key on screen is ugly and says what is wrong.
-  assert.equal(inLocale('fr', () => t('a_key_that_does_not_exist')), 'a_key_that_does_not_exist');
+  // Deliberately a throw (RULINGS.md "Errors never go unnoticed", 2026-10-08): the key never
+  // draws as a label and a label is never empty; the message names the key.
+  assert.throws(() => inLocale('fr', () => t('a_key_that_does_not_exist')), /no string for the key "a_key_that_does_not_exist"/);
 });
 
 test('a fact handed to a chrome string survives both languages', () => {

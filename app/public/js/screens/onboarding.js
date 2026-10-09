@@ -26,7 +26,7 @@ import * as store from '../store.js';
 import { track } from '../track.js';
 import { escapeHtml, on } from '../lib/dom.js';
 import { wireRadioGroup } from '../lib/radiogroup.js';
-import { t, localeTag } from '../ui-strings.js';
+import { t, hasString, localeTag } from '../ui-strings.js';
 import {
   THRESHOLD, MONTHLY, realFigure, stepById, visibleSteps, nextStepId, prevStepId,
   positionOf, recordAnswer, applyThreshold, applyMode, applyAlertStyle, finish, firstScreen, isReplay, endReplay,
@@ -51,8 +51,11 @@ function answersNow() {
 /** One option button. `sub` is the small line under the label, when it has one. */
 function optionHtml(step, opt, chosen, facts = {}) {
   const role = step.multi ? 'checkbox' : 'radio';
-  const sub = t(`onb_${step.id}_${opt}_sub`, facts);
-  const hasSub = !sub.startsWith('onb_');
+  /* The small line is optional. `t` throws on a missing key (RULINGS.md
+     "Errors never go unnoticed"), so ask first rather than test the result. */
+  const subKey = `onb_${step.id}_${opt}_sub`;
+  const sub = hasString(subKey) ? t(subKey, facts) : '';
+  const hasSub = sub !== '';
   return `
     <button type="button" class="onb-opt${chosen ? ' on' : ''}" role="${role}"
             aria-checked="${chosen}" data-opt="${escapeHtml(opt)}">

@@ -312,5 +312,5 @@ test('both languages carry the same keys, and French has no English left in it',
     if (typeof value !== 'string') continue;
     assert.notEqual(value, PRICE_TABLES.en[key], `${key} is untranslated`);
   }
-  assert.equal(pt('nonexistent_key'), 'nonexistent_key', 'a missing key must report itself');
+  assert.throws(() => pt('nonexistent_key'), /no string for the key "nonexistent_key"/, 'a missing key must throw, naming the key');
 });
