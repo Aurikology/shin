@@ -683,6 +683,19 @@ everything. Also, read the documentation for what this app is supposed to be lik
 Retired wording: none
 Governs: every walkthrough, audit and defect review of the app
 
+### Design analysis covers every level, each point backed by evidence or a stated valid assumption
+An analysis of Shin's design, and any design recommendation, is written down (never left in chat)
+and covers every level at once: app-wide choices (for example, the app should include haptics)
+down to screen-level specifics (this screen takes N taps to reach, this data type is displayed
+this way). Nothing stays at the surface. Every point carries either evidence (a source) or an
+assumption that is stated and valid; a point with neither is not written. · 2026-10-09 · Jamin ·
+*"write down your points. Also, your analysis is very surface level. I expect everything from
+highlevel like: app should include haptics, to low level like: this specific screen should
+require x amount of clicks to get to. Or this specifci data type should be display in this way
+etc. And everything should be back by evidence or backed by an assumption thats valid"*
+Retired wording: none
+Governs: every design analysis, design review and UX recommendation for the app
+
 ### Mission and principles
 Fixed problem statement: sellers know what things are worth and buyers are guessing, so Shin makes
 the check instant enough that guessing stops being the default. Every change must be useful, easy,
