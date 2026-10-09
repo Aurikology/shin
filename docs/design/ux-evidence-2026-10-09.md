@@ -1017,3 +1017,54 @@ Of the 98 blocks, 20 are "keep" (the app already does it, or a ruling fixes it) 
 Not built now: R-6 (sound), R-27 (photo path), R-33 (market picker), R-63 (dot strip, a later test), R-77 (welcome flow stays off), R-82 (trial, the founder's call). The 69 tests in section 10 run on the first testers, not before build 5.
 
 Figure status: the 20, 7 and 71 are counts of the blocks above by their Should lines. The order is derived by logic (irreversibility first, then per-scan cost), untested.
+
+## 14. The tests (added 2026-10-09)
+
+**How to run.** From `app/`: `npm run test:ux`. It runs every file in `app/test/ux/` and is red by design until the builds in section 13 land. The main suite, `npm test`, does not pick these files up (its glob is not recursive) and stays green. A single file: `node --test --test-global-setup=test/setup/global.mjs test/ux/<file>`.
+
+**Rule.** A build is done when its file reports 0 red. A test that is red for a defect in code that exists today (RED-defect below) is not part of a build's "unbuilt" list: it goes green only when that defect is fixed, and each is logged in DEFECTS.md as D-222 to D-228.
+
+**Counts from the run of 2026-10-09** (523 tests, 279 pass, 241 fail, 3 skipped; RED-expected is red because the build has not landed, RED-defect is red for a fault in shipped code):
+
+| File | Build | Tests | GREEN | RED-expected | RED-defect |
+| --- | --- | --- | --- | --- | --- |
+| ux-b1-haptics | 1 | 23 | 1 | 22 | 0 |
+| ux-b2-paywall | 2 | 24 | 11 | 12 | 1 |
+| ux-b3-camera-permission | 3 | 10 | 2 | 8 | 0 |
+| ux-b4-refusal-copy | 4 | 14 | 6 | 7 | 1 |
+| ux-b5-correct | 5 | 10 | 2 | 8 | 0 |
+| ux-b5-harness | 5 | 8 | 8 | 0 | 0 |
+| ux-b5-journeys | 5 | 17 | 10 | 7 | 0 |
+| ux-b5-pad | 5 | 11 | 2 | 9 | 0 |
+| ux-b5-scan | 5 | 8 | 1 | 7 | 0 |
+| ux-b5-share | 5 | 6 | 2 | 4 | 0 |
+| ux-b5-suggest | 5 | 7 | 2 | 5 | 0 |
+| ux-b6-chart | 6 | 30 | 13 | 14 | 3 |
+| ux-b6-failloud | 6 | 17 | 4 | 13 | 0 |
+| ux-b6-verdict | 6 | 40 | 16 | 23 | 1 |
+| ux-b7-lists | 7 | 36 | 16 | 20 | 0 |
+| ux-b7-mascot | 7 | 64 | 41 | 23 | 0 |
+| ux-b7-motion | 7 | 26 | 12 | 13 | 1 |
+| ux-b7-touch | 7 | 145 | 120 | 22 | 0 |
+| ux-b7-type | 7 | 27 | 10 | 17 | 0 |
+| Total | | 523 | 279 | 234 | 7 |
+
+The three skipped tests are in ux-b7-touch. Two helper files sit beside the tests and are not tests: ux-b6-support.mjs, and the fake browser in ux-b5-harness, which carries its own negative controls (8 green tests that show it can go red). The five other build 5 files import that harness.
+
+**Contracts the tests pin** (copied from each file's header; the build meets them or edits the test in the same commit and says why):
+
+- Build 1, `public/js/lib/haptics.js` exports `HAPTIC_EVENTS` (frozen table: `barcode-captured`, `verdict-landed`, `saved`; each row has ios, android, fallbackMs), `haptic(name, win?)` (returns native, vibrate or off; throws on an unknown name or a native wrapper without the Haptics plugin), `verdictHaptic(conf, win?)` (certain and sure fire; thin fires nothing; anything else throws), `CAPTURE_HOLD_MS` (150 or more). Reached through `win.Capacitor.getPlatform()`, `isPluginAvailable('Haptics')`, `Plugins.Haptics`. `screens/camera.js` has no `buzz()` and no `navigator.vibrate`, exactly one `haptic('barcode-captured')`, exactly one `haptic('saved')`.
+- Build 2, `screens/paywall.js`: billed price in the element with `data-pw-price`; monthly equivalent in `data-pw-equiv` (or class `pw-equiv`), taken from `pricePerMonthString`; `paywallBody` throws on a plan with no `priceString` and on a `chosen` plan not in `plans`; the spent-scans state has `data-pw-count` and a plain link `data-act="type-name"`. You has a row `data-act="plus"` that calls `ctx.go('paywall')`; `router.go()` throws on a screen id nobody registered.
+- Build 3, `public/js/camera-session.js` exports `cameraPermission(nav?)` (granted, denied, prompt, unsupported; any other state rejects), `acquire({nav?})` (resolves stream and reused; a refusal rejects with the browser's own error), `suspend()` (disables tracks, keeps the stream), `release()`. A remembered grant is kept in localStorage under the key named in the file header, and a repeat prompt is reported with `track('camera_prompt_repeat', ...)`. Only `camera-session.js` and `permissions-panel.js` call `getUserMedia`.
+- Build 4, `refusalSheet` throws on a refusal reason it has no wording for; the five retired refusal strings are gone from `public/js`; every "Try again" button is 48 px high.
+- Build 5: the correction detent is opened by `[data-act="detent-step"]` and `[data-act="correct"]`; Save is `[data-act="save"]` or `[data-act="correct-save"]`; shop buttons are `[data-pick-shop]` or `[data-shop]`; the confirmation is `.toast`. The keypad throws on any key that is not one digit or backspace. The barcode auto-fire opens the pad with no tap; the caption throws on an identity with no name. The share control is found through the `SHARE_SHEET` list in the share test, and sharing throws if the card image failed to render. Suggestions are `[data-suggestion]` or `[data-typed-pick]`, the typed field is `[data-textroute-input]`, the keyboard button is `[data-act="manual-search"]`; a search row with no barcode throws. The cents-first pad is assumed on by default.
+- Build 6: `distributionSheet` throws an error naming the field at fault (never returns an empty string, never fills a default); the confidence meter is three elements whose class or data attribute contains "conf" and "dot", a lit one marked "filled", "on" or `data-filled="true"`; sizes are read from `tokens.css` and `camera.css`, never from a copy of the number; the test-side `roundEstimateCents` is the oracle for the estimate rounding rule.
+- Build 7: `lib/undo-toast.js` (undo, 4 s); `lib/motion.js` (a registry that throws on an ease-in curve or a 5 s entrance, via `registerAnimation`); `lib/tap-target.js`; `lib/product-name.js` (middle ellipsis, brand, size) and `lib/type-floor.js`; `assertMascotLine`, `setPersonality` (throws on an unknown voice), `distFace` (throws on an unknown confidence), `recordInterruption` (throws past the cap), `rangePatch` (throws on a value not offered). The mascot file states its library names are proposals and the build may rename them in the same commit as it edits the test.
+
+**What the tests cannot measure.**
+
+- No layout engine: sizes are read from the stylesheets that ship (declared height, min-height, a negative inset), cascaded by specificity and source order. A size that comes from content, a flex or grid stretch, or a font that has not loaded is reported as unmeasured, never passed. How many lines a name or bubble takes on a real phone is not measured.
+- No gestures: a swipe, a drag, a press and a finger on a laid-out row cannot be driven. Timers are tested with mocked clocks, which is exact for the timeout and says nothing about how the toast looks.
+- No device haptics: a phone motor, and whether a tick is felt in a loud store, cannot be asserted from node.
+- No system permission prompt: the operating system draws it, so no test sees whether it repeats, or whether a bubble sits over it. Whether an installed web app on iPhone re-prompts is a device trial.
+- No people: every pass number that needs testers (reading the price at 60 cm, picking the hollow verdict as less sure, finding the way out of the paywall in under 2 seconds) is in section 10, not here. Contrast is computed from the colour tokens, not from a live screen; colour-blind simulation is a manual test.

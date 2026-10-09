@@ -38,6 +38,9 @@ to 1.4x of its typical catches 80%; skips 23% of lines): `research/gemini-price-
 
 ## What is being worked on: the tester launch
 
+- The design-evidence document (`docs/design/ux-evidence-2026-10-09.md`) exists with 98 blocks and a build order (its section 13).
+- The ux test suite is red by design (241 tests) until the builds land; run it with `npm run test:ux` in `app/`. The main `npm test` stays green.
+
 What stands between the MVP and 10-20 testers is one list: `QUEUE.md` bands 7 (launch) and 7B (the
 cheaper lookup, `docs/cheap-lookup-logistics-2026-09-23.md`). Settled in code: a typed name
 answers only from Shin's own data (no Gemini call), and the barcode button sends no photo. Settled
