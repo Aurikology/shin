@@ -34,6 +34,7 @@ import { money } from '../lib/money.js';
 import { wordFor, say } from '../voice.js';
 import { on } from '../lib/dom.js';
 import { t } from '../ui-strings.js';
+import { canShareCard, shareCard } from '../lib/native-share.js';
 import { answerOf, answerLook, answerWord, answerLine } from '../lib/history-answer.js';
 
 const W = 1080;
@@ -542,6 +543,9 @@ export default {
         .toUpperCase(),
     };
 
+    const sheetOk = canShareCard();
+    const fileName = `pexi-${card.label.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}.png`;
+
     root.innerHTML = `
       <div class="page page-share">
         <header class="page-head">
@@ -567,8 +571,14 @@ export default {
              sat under it, the same shape as the You screen's build-line bug
              shell.css's page-bar comment records. -->
         <div class="page-foot">
-          <button type="button" class="cta" data-act="save">${t('share_save_image')}</button>
+          ${
+            /* R-31: the phone's own share sheet is the one big control; Save image and Copy text stay beside it. With no share sheet on this phone Save image is the big control, as it was. */
+            sheetOk
+              ? `<button type="button" class="cta" data-act="share-sheet">${t('cam_share')}</button>`
+              : `<button type="button" class="cta" data-act="save">${t('share_save_image')}</button>`
+          }
           <div class="shr-secondary">
+            ${sheetOk ? `<button type="button" class="linky" data-act="save">${t('share_save_image')}</button>` : ''}
             <button type="button" class="linky" data-act="copy">${t('share_copy_text')}</button>
             <button type="button" class="linky" data-act="back">${t('back_to_camera')}</button>
           </div>
@@ -638,6 +648,37 @@ export default {
         return;
       }
 
+      /*
+       * R-31: the phone's share sheet, with the card image attached. A card that
+       * failed to render THROWS: it is never replaced by sharing its text, which
+       * is a different thing from the card the shopper saw. Closing the sheet is
+       * the shopper changing their mind, not an error.
+       */
+      if (act === 'share-sheet') {
+        status.textContent = t('share_rendering');
+        let blob;
+        try {
+          await drawCard(canvas, card);
+          blob = await new Promise((res, rej) => {
+            canvas.toBlob((b) => (b ? res(b) : rej(new Error('toBlob gave nothing'))), 'image/png');
+          });
+        } catch (err) {
+          if (!gone()) status.textContent = t('share_export_failed');
+          throw new Error('card image failed to render, so nothing was shared', { cause: err });
+        }
+        if (gone()) return;
+        try {
+          const how = await shareCard({ blob, name: fileName, title: card.label, text: cardText(card) });
+          if (gone()) return;
+          status.textContent = '';
+          if (how !== 'dismissed') ctx.store.update((s) => ({ ...s, shareCount: (s.shareCount ?? 0) + 1 }));
+        } catch (err) {
+          if (!gone()) status.textContent = t('share_export_failed');
+          throw err;
+        }
+        return;
+      }
+
       if (act === 'save') {
         status.textContent = t('share_rendering');
         try {
@@ -649,7 +690,7 @@ export default {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `pexi-${card.label.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}.png`;
+          a.download = fileName;
           document.body.appendChild(a);
           a.click();
           a.remove();

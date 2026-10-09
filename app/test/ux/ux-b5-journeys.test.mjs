@@ -135,20 +135,6 @@ test('J6 target: verdict to a correction submitted is 4 taps when a shop button 
 
 /* ----------------------------------------------------------------- J7 */
 
-test('J7 TODAY (replace when build 5 lands): verdict to share is 3 taps and the third saves an image or copies text (pass: 3; target 3 with the phone share sheet)', async () => {
-  const app = await launchReturning();
-  await reachVerdict(app);
-  const base = app.taps;
-  await app.tap('[data-act="detent-step"]', 'grabber');
-  await app.tap('[data-act="share"]', 'Share');
-  assert.equal(app.screen, 'share');
-  await app.wait(50);
-  await app.tap('[data-act="save"]', 'Save the image');
-  assert.equal(app.taps - base, 3, `J7 today counted ${app.taps - base}, the inventory says 3. Log: ${app.log.slice(base).join(' | ')}`);
-  assert.equal(app.phone.shares.length, 0, 'today nothing calls the phone share sheet; if this fails the build has started and this test should be replaced');
-  app.stop();
-});
-
 test('J7 target: verdict to share is 3 taps and the third opens the phone share sheet with the card image attached (pass: 3)', async () => {
   const app = await launchReturning();
   await reachVerdict(app);
