@@ -509,6 +509,15 @@ and Roto (live ROTO software marks, an App Store "Roto", Roto-Rooter) are not th
 (handle, posted video) under a name that has not passed this kind of search. · 2026-10-02 · *"we are registering pexi"* · log: docs/decisions.md#The name is Pexi, not Shin
 Retired wording (every live mention already says it is dead, so not searched): Shin Ramen
 Governs: to fill
+### App id com.getpexi.app on both stores; Play account personal; Apple account individual
+The permanent bundle id and Android application id is com.getpexi.app, replacing com.useshinapp.shin,
+which carried the dropped name. Store display name Pexi (editable). The Google Play developer account
+is personal (12 testers for 14 days before public launch). The Apple Developer Program membership is
+individual (order W1979673460, placed 2026-10-03, "Enrolment Complete" 2026-10-08), so the App Store
+seller shows his legal name until the account is migrated to a Pexi organization. · 2026-10-08 ·
+*"com.getpexi.app (Recommended)"*, *"Personal (Recommended)"* · log: none
+Retired wording: none
+Governs: native/capacitor.config.json appId, Xcode PRODUCT_BUNDLE_IDENTIFIER, Android applicationId
 ### Product identification takes a string or GTIN, never an image
 Based on Trader Corporation v CarGurus (2017 ONSC 1841, $305,064 in statutory damages for scraping
 152,532 photos), infringement there applied exclusively to photographs, not factual listing data
