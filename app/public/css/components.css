@@ -32,7 +32,7 @@
   /* The two speeds the camera already uses for a pressable. Nothing here
      invents a duration; both are lifted from camera.css. */
   --t-press: 120ms;
-  --t-tint: 140ms;
+  --t-tint: 120ms; /* build 7 R-87: a press tint is 120 ms or less (was 140) */
 }
 
 /* ------------------------------------------------------------------- the base */
@@ -57,7 +57,7 @@
               border-color var(--t-tint) linear,
               color var(--t-tint) linear,
               opacity var(--t-press) linear,
-              transform var(--t-press) linear;
+              filter var(--t-press) linear;
 }
 
 /*
@@ -126,13 +126,13 @@
 
 .btn:not(:disabled):active,
 .cta:not(:disabled):active {
-  transform: translateY(1px);
+  /* Build 7 R-87: a press tints (120 ms or less) and never moves. It used to sink 1px,
+     and every pad key is a .btn, so the keys moved under the thumb. */
+  filter: brightness(.88);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .btn { transition: none; }
-  .btn:not(:disabled):active,
-  .cta:not(:disabled):active { transform: none; }
 }
 
 /* -------------------------------------------------------------- the shapes */

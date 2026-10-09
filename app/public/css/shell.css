@@ -372,9 +372,9 @@ button.ilist-row { cursor: pointer; }
   border-radius: 50%;
   color: var(--ink-muted);
   cursor: pointer;
-  transition: color var(--t-tint) linear, transform var(--t-press) linear;
+  transition: color var(--t-tint) linear;
 }
-.pbk:active { transform: scale(.96); }
+.pbk:active { color: var(--ink); }
 .pbk:focus-visible {
   outline: var(--ring-width) solid currentColor;
   outline-offset: var(--ring-offset);
@@ -384,7 +384,6 @@ button.ilist-row { cursor: pointer; }
 }
 @media (prefers-reduced-motion: reduce) {
   .pbk { transition: none; }
-  .pbk:active { transform: none; }
 }
 
 /*
@@ -473,9 +472,9 @@ button.ilist-row { cursor: pointer; }
   font-weight: 600;
   letter-spacing: .02em;
   cursor: pointer;
-  transition: color var(--t-tint) linear, transform var(--t-press) linear;
+  transition: color var(--t-tint) linear;
 }
-.pbar-i:active { transform: scale(.96); }
+.pbar-i:active { color: var(--ink); } /* build 7 R-87: a tint, no movement */
 .pbar-i:focus-visible {
   outline: var(--ring-width) solid currentColor;
   outline-offset: var(--ring-offset);
@@ -522,15 +521,13 @@ button.ilist-row { cursor: pointer; }
   border: 0;
   box-shadow: 0 0 0 3px var(--brand);
   cursor: pointer;
-  transition: transform var(--t-press) linear;
+  transition: box-shadow var(--t-press) linear;
 }
-.mini-shutter:active { transform: scale(.96); }
+.mini-shutter:active { box-shadow: 0 0 0 3px var(--brand), 0 0 0 7px rgba(229, 22, 94, .22); }
 
 @media (prefers-reduced-motion: reduce) {
   .pbar-i,
   .mini-shutter { transition: none; }
-  .pbar-i:active,
-  .mini-shutter:active { transform: none; }
 }
 
 /*

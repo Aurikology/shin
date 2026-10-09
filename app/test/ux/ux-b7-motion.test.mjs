@@ -204,7 +204,12 @@ test('R-86 (build 7): the motion reader and the ease-out rule are right before a
   assert.equal(a.name, 'rise');
   assert.ok(Number.isFinite(a.durationMs), 'cannot read the sheet duration');
   assert.ok(KEYFRAMES.has('rise') && KEYFRAMES.size > 15, `read ${KEYFRAMES.size} keyframes`);
-  assert.equal(animationsOf(RULES.find((r) => r.decls.get('animation')?.includes('shutterSweep')))[0].durationMs, 900, 'known value: shutterSweep is 900 ms');
+  // The control used to be "shutterSweep is 900 ms". Build 7 (R-90) deletes that animation, which is what the file asks
+  // for, so the known value moves to the other animation this build touched: the eye glance, 6400 ms after D-228 moved it
+  // off the 5 s band (it was 5200). Same job: a number the reader must reproduce from a shorthand before it is trusted.
+  const glance = RULES.find((r) => r.decls.get('animation')?.includes('camEyeGlance'));
+  assert.ok(glance, 'cannot find the camEyeGlance rule: the reader is broken');
+  assert.equal(animationsOf(glance)[0].durationMs, 6400, 'known value: camEyeGlance is 6400 ms');
 });
 
 /* ===================================================================== R-86 */
