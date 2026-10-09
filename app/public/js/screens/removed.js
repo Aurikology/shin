@@ -17,7 +17,7 @@ import { faceBlock, shinSay } from '../shin.js';
 import { money } from '../lib/money.js';
 import { say } from '../voice.js';
 import * as store from '../store.js';
-import { html, raw, agoDays, on } from '../lib/dom.js';
+import { html, raw, agoDays, dateLabel, on } from '../lib/dom.js';
 import { repainter } from '../lib/listscreen.js';
 import { pageBar, backButton, goBack, removeGlyph, restoreGlyph } from '../lib/pagebar.js';
 import { t } from '../ui-strings.js';
@@ -44,6 +44,9 @@ function itemOf(r) {
  */
 export function row(r, confirmKey) {
   const key = `${r.kind}:${r.id}`;
+  /* Build 7 R-96: a row without a removal date is a bug in what was stored. `agoDays` would print
+     "today" and `daysLeft` 0, which reads as an item about to vanish; throw and name it instead. */
+  dateLabel(r.removedAt);
   const { label, cents } = itemOf(r);
   const left = store.daysLeft(r.removedAt);
   const confirming = confirmKey === key;
@@ -171,7 +174,7 @@ export default {
         <div class="page page-list">
           <header class="page-head">
             ${raw(backButton())}
-            ${raw(phase === 'ready' ? html`<p class="kicker">${t('removed_title')} · ${list.length}</p>` : '')}
+            ${raw(phase === 'ready' && list.length ? html`<p class="kicker">${t('removed_title')} · ${list.length}</p>` : '')}
             <h1>${t('removed_title')}</h1>
           </header>
 

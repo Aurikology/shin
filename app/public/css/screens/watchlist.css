@@ -169,7 +169,7 @@
 /*
  * One row of a list: the opening button, then the control at its right edge.
  *
- * 64px, where the shared `.row` floor is 48. These rows carry a face, two lines
+ * 72px (build 7 R-92, was 64), where the shared `.row` floor is 48. These rows carry a face, two lines
  * of text and a price, and 48 was never what they measured -- the content was
  * already pushing them past 60 and the floor simply was not describing them.
  * Stated, so the three lists are one height rather than three accidents of
@@ -182,7 +182,7 @@
   display: flex;
   align-items: center;
   min-width: 0;
-  min-height: 64px;
+  min-height: 72px;
   padding-right: 6px;
 }
 
@@ -211,7 +211,7 @@
 .prow {
   flex: 1 1 auto;
   min-width: 0;
-  min-height: 64px;
+  min-height: 72px;
   padding: 12px 6px 12px 16px;
   background: none;
   border: 0;

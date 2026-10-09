@@ -26,9 +26,9 @@ import { faceSvg, faceBlock, shinSay, sellerOf, confidenceOf, dotsHtml, tierOf, 
 import { money } from '../lib/money.js';
 import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
-import { escapeHtml, html, raw, ago, on } from '../lib/dom.js';
+import { escapeHtml, html, raw, ago, dateLabel, on } from '../lib/dom.js';
 import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.js';
-import { pageBar, backButton, goBack, removeGlyph } from '../lib/pagebar.js';
+import { pageBar, backButton, goBack, removeGlyph, rowChevron } from '../lib/pagebar.js';
 import { t } from '../ui-strings.js';
 import { cleanName } from '../lib/product-name.js';
 import { answerOf, answerLook, answerWord, answerLine, answerConfidenceHtml } from '../lib/history-answer.js';
@@ -69,7 +69,7 @@ export function row(h) {
   const label = labelOf(h);
   const askingCents = answer ? (answer.askingCents ?? h.query?.askingCents) : isVerdict ? h.result.askingCents : h.query?.askingCents;
   const seller = isVerdict ? sellerOf(h.result) : null;
-  const sub = [seller, ago(h.at)].filter(Boolean).join(' · ');
+  const sub = [seller, dateLabel(h.at)].filter(Boolean).join(' · '); // R-96: throws on a missing date
   // OLMA row 70: the row's face carries the same solid-vs-hollow confidence
   // treatment the verdict sheet gave it. confidenceOf already returns the
   // "refuses" band for a non-verdict result, so this is one call for both
@@ -89,6 +89,7 @@ export function row(h) {
           <span class="row-sub">${sub}</span>
         </span>
         <span class="prow-p">${typeof askingCents === 'number' ? money(askingCents) : t('past_scans_no_price')}</span>
+        ${raw(rowChevron())}
       </button>
       <button type="button" class="rowdel prow-del" data-remove="${h.id}" data-fk="del:${h.id}">
         ${raw(removeGlyph())}

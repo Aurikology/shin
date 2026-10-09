@@ -49,6 +49,7 @@ const EN = {
   nav_saved: 'Saved',
   nav_you: 'You',
   nav_scan: 'Scan something',
+  nav_scan_word: 'Scan',
   nav_back: 'Back',
   nav_more: 'More',
   back_to_camera: 'Back to camera',
@@ -429,6 +430,7 @@ const EN = {
 
   /* ------------------------------------------------------------- the removed */
   removed_title: 'Recently removed',
+  removed_toast: 'Removed',
   removed_unknown_item: 'Unknown item',
   removed_label: 'Removed',
   removed_from_list: 'from recently removed',
@@ -598,8 +600,8 @@ const EN = {
   saved_title: 'Saved',
   saved_no_usual: 'no usual price',
   saved_at_the_usual: 'at the usual',
-  saved_under_usual: 'under usual',
-  saved_over_usual: 'over usual',
+  saved_under_usual: 'under the usual',
+  saved_over_usual: 'over the usual',
   saved_under_the_usual: 'under the usual',
   saved_comma_under_the_usual: ', under the usual',
   saved_remove_from: 'from saved',
@@ -713,6 +715,7 @@ const FR = {
   nav_saved: 'Gardés',
   nav_you: 'Toi',
   nav_scan: 'Scanner quelque chose',
+  nav_scan_word: 'Scanner',
   nav_back: 'Retour',
   nav_more: 'Plus',
   back_to_camera: 'Retour à la caméra',
@@ -1024,6 +1027,7 @@ const FR = {
 
   /* ----------------------------------------------------------- les retirés */
   removed_title: 'Retirés récemment',
+  removed_toast: 'Retiré',
   removed_unknown_item: 'Article inconnu',
   removed_label: 'Retiré',
   removed_from_list: 'des retirés récemment',

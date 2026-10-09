@@ -522,9 +522,19 @@ export function restoreRemoved(kind, id) {
     if (!entry) return s;
     const { kind: _kind, removedAt: _removedAt, ...clean } = entry;
     const removed = s.removed.filter((r) => !(r.kind === kind && r.id === id));
-    if (kind === 'watch') return { ...s, removed, watchlist: [clean, ...s.watchlist] };
-    return { ...s, removed, history: [clean, ...s.history] };
+    /* Build 7 R-96: the list is newest-SAVED first, so an old item that comes back goes where its own
+       date puts it, not on top. A stored item with no readable date throws and names itself: placing it
+       by guess would be the silent failure. */
+    if (kind === 'watch') return { ...s, removed, watchlist: insertNewestFirst(s.watchlist, clean, 'savedAt', id) };
+    return { ...s, removed, history: insertNewestFirst(s.history, clean, 'at', id) };
   });
+}
+
+function insertNewestFirst(list, item, field, id) {
+  const when = Date.parse(item[field]);
+  if (!Number.isFinite(when)) throw new Error(`store.restoreRemoved: item "${id}" has no readable ${field}, so its place in the list cannot be known`);
+  const at = list.findIndex((x) => !(Date.parse(x[field]) > when));
+  return at === -1 ? [...list, item] : [...list.slice(0, at), item, ...list.slice(at)];
 }
 
 /** The second tap: gone for good. No dialog, this function is the confirmation. */
@@ -787,6 +797,11 @@ export function canInterrupt() {
  * against would still spend the budget.
  */
 export function recordInterruption() {
+  /* R-74, loud: past the cap a caller skipped canInterrupt(), and counting on would let the budget
+     go negative while the line it paid for had already spoken. */
+  if (!canInterrupt()) {
+    throw new Error('recordInterruption: the unprompted-line budget is already spent; ask canInterrupt() before Pexi speaks');
+  }
   interruptionsThisSession += 1;
   update((s) => ({ ...s, interruptions: [...interruptionsToday(), new Date().toISOString()] }));
 }
@@ -797,11 +812,6 @@ export function recordInterruption() {
  */
 export function resetSessionInterruptions() {
   interruptionsThisSession = 0;
-  /* R-74, loud: past the cap a caller skipped canInterrupt(), and counting on would let the budget
-     go negative while the line it paid for had already spoken. */
-  if (!canInterrupt()) {
-    throw new Error('recordInterruption: the unprompted-line budget is already spent; ask canInterrupt() before Pexi speaks');
-  }
 }
 
 /** For the record and for tests: what is left of each cap. */

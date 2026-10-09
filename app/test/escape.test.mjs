@@ -53,15 +53,16 @@ test('a saved row renders a hostile item name as text', () => {
   assertNoLiveMarkup(markup, 'watchlist row');
 });
 
+// Build 7 R-96: a saved row without a date now throws, so these fixtures carry the date a real saved row always has.
 test('the saved row\'s delete control names the item without an unescaped attribute', () => {
-  const markup = watchRow({ id: 'w1', label: ATTR_BREAK, lastCents: 100, savedAt: null }, []);
+  const markup = watchRow({ id: 'w1', label: ATTR_BREAK, lastCents: 100, savedAt: new Date().toISOString() }, []);
   // The accessible name is a .sr-only span now, not aria-label="${label}".
   assert.ok(markup.includes('class="sr-only"'), 'the delete control lost its accessible name');
   assert.ok(!markup.includes('onfocus="'), 'the item name broke out of an attribute');
 });
 
 test('a saved row id cannot break out of its own attributes', () => {
-  const markup = watchRow({ id: ATTR_BREAK, label: 'Milk', lastCents: 100, savedAt: null }, []);
+  const markup = watchRow({ id: ATTR_BREAK, label: 'Milk', lastCents: 100, savedAt: new Date().toISOString() }, []);
   assert.ok(!markup.includes('onfocus="'), 'the id broke out of data-open or data-fk');
 });
 
@@ -111,7 +112,7 @@ test('every row carries a focus key, which is what survives a full repaint', () 
   // The repaint in lib/listscreen.js finds the control the user was on by
   // [data-fk]. A row without one is a row that drops focus to the body when
   // anything else on the screen changes.
-  const markup = watchRow({ id: 'w1', label: 'Milk', lastCents: 100, savedAt: null }, []);
+  const markup = watchRow({ id: 'w1', label: 'Milk', lastCents: 100, savedAt: new Date().toISOString() }, []);
   assert.ok(markup.includes('data-fk="open:w1"'));
   assert.ok(markup.includes('data-fk="del:w1"'));
 });

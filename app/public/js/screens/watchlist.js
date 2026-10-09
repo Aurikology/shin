@@ -28,7 +28,9 @@ import { money } from '../lib/money.js';
 import { say, wordFor } from '../voice.js';
 import * as store from '../store.js';
 import { FLAGS } from '../flags.js';
-import { escapeHtml, html, raw, ago, on } from '../lib/dom.js';
+import { escapeHtml, html, raw, ago, dateLabel, on } from '../lib/dom.js';
+import { attachSwipe } from '../lib/swipe.js';
+import { createUndoToast, undoNow } from '../lib/undo-toast.js';
 import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.js';
 import { pageBar, rowChevron, removeGlyph } from '../lib/pagebar.js';
 import { t } from '../ui-strings.js';
@@ -85,32 +87,40 @@ export function row(w, history) {
   // rather than a verdict nobody gave.
   const face = look ? look.face : match?.result?.kind === 'verdict' ? tierOf(match.result.tier).face : 'idle';
 
+  /* R-54: the difference is FROZEN. It is worked out from the price and the usual the row was saved
+     with, never from a live estimate, and it is printed with the same currency as the price beside it
+     and the date it was saved on (the sub line below), so it reads "$0.80 under the usual, saved Sep 9". */
   const delta = moved === null ? t('saved_no_usual')
     : moved === 0 ? t('saved_at_the_usual')
-    : cheaper ? `▼ ${money(Math.abs(moved))} ${t('saved_under_usual')}`
-    : `▲ ${money(moved)} ${t('saved_over_usual')}`;
+    : cheaper ? `▼ ${money(Math.abs(moved), answer?.currency)} ${t('saved_under_usual')}`
+    : `▲ ${money(moved, answer?.currency)} ${t('saved_over_usual')}`;
+  /* R-96: every row carries its date; one without a readable date throws (dateLabel) and the screen's
+     guarded paint turns that into its own error state rather than printing "just now". */
+  const savedOn = dateLabel(w.savedAt);
 
   // `data-fk` is the focus key the repainter finds this control by after a
   // full teardown. Built from the row's id, never its index, so it survives
   // another row being deleted above it.
   return html`
-    <div class="wrow-wrap">
+    <div class="wrow-wrap" data-swipe-row>
       <button type="button" class="row wrow" data-open="${w.id}" data-fk="open:${w.id}"
               ${raw(tierId ? `data-tier="${escapeHtml(tierId)}"` : '')}
               ${raw(conf ? `data-conf="${escapeHtml(conf.level)}"` : '')}>
         ${raw(faceSvg(face, { size: 'face-row' }))}
         <span class="row-n">
           <b class="row-title">${cleanName(w.label)}</b>
-          <span class="row-sub">${w.askingSeller ? `${w.askingSeller} · ` : ''}saved ${ago(w.savedAt)}</span>
+          <span class="row-sub">${w.askingSeller ? `${w.askingSeller} · ` : ''}saved ${savedOn}</span>
         </span>
         <span class="wrow-p${cheaper ? ' good' : ''}">
           ${lastCents !== null ? money(lastCents, answer?.currency) : ''}
           <em>${delta}</em>
         </span>
+        ${raw(rowChevron())}
       </button>
       <button type="button" class="rowdel wrow-del" data-unwatch="${w.id}" data-fk="del:${w.id}">
         ${raw(removeGlyph())}
-        <span class="sr-only">${t('remove')} ${cleanName(w.label)} ${t('saved_remove_from')}</span>
+        <span class="wrow-del-t">${t('remove')}</span>
+        <span class="sr-only">${cleanName(w.label)} ${t('saved_remove_from')}</span>
       </button>
     </div>`;
 }
@@ -165,6 +175,7 @@ export function detailModal(w, match) {
           <p class="pmodal-meta">${view.meta}</p>
           ${raw(view.conf)}
           <p class="pmodal-note">${say('read_only_note')}</p>
+          <button type="button" class="btn btn--ghost" data-unwatch="${w.id}" data-fk="del-detail:${w.id}">${t('remove')}</button>
           <button type="button" class="linky" data-act="close-detail">${t('close')}</button>
         </div>
       </div>`;
@@ -187,8 +198,18 @@ export function detailModal(w, match) {
         <p class="said">${say('watchlist_saved_only', facts)}</p>
         <p class="pmodal-meta">${facts.seller ? `${facts.seller} · ` : ''}${facts.day}</p>
         <p class="pmodal-note">${say('watchlist_no_history_note')}</p>
+        <button type="button" class="btn btn--ghost" data-unwatch="${w.id}" data-fk="del-detail:${w.id}">${t('remove')}</button>
         <button type="button" class="linky" data-act="close-detail">${t('close')}</button>
       </div>
+    </div>`;
+}
+
+/** The undo toast drawn above the page bar after a removal. Sticky, so it stays in view above the bar. */
+function undoToastHtml(label) {
+  return html`
+    <div class="undo-bar" data-list-toast role="status">
+      <span class="undo-bar-t">${label}</span>
+      <button type="button" class="undo-bar-btn" data-act="undo-remove" data-fk="undo-remove">${t('cam_undo')}</button>
     </div>`;
 }
 
@@ -209,6 +230,9 @@ export default {
     /** The focus key of the row that opened the dialog, so closing it puts the
      *  user back on that row rather than at the top of the document. */
     let returnKey = null;
+    /** The open undo toast after a removal (R-94), or null. Four seconds, paused while a finger is on it. */
+    let undo = null;
+    let mounted = true;
     /*
      * The three states this screen can be in.
      *
@@ -347,6 +371,8 @@ export default {
             </button>
           </div>
 
+          ${raw(undo?.isOpen ? undoToastHtml(undo.label) : '')}
+
           ${raw(pageBar('watchlist'))}
         </div>
         ${raw(phase === 'ready' && openEntry ? detailModal(openEntry, openMatch) : '')}`;
@@ -419,8 +445,31 @@ export default {
         return;
       }
 
+      if (e.target.closest('[data-act="undo-remove"]')) {
+        // The toast closes first and then restores; a toast that has already run out throws, loudly,
+        // rather than quietly doing nothing under a finger that thought it was undoing.
+        undoNow(undo, 'saved');
+        undo = null;
+        repaint();
+        return;
+      }
+
+      /* Remove, from the swiped row or from the detail view: no confirmation, because it can be undone
+         (R-93, R-94). The item goes to Removed (kept 30 days) and the toast offers the way back. */
       const unwatch = e.target.closest('[data-unwatch]');
-      if (unwatch) { store.toggleWatch({ id: unwatch.dataset.unwatch }); return; }
+      if (unwatch) {
+        const id = unwatch.dataset.unwatch;
+        store.toggleWatch({ id });
+        openId = null;
+        undo?.close();
+        undo = createUndoToast({
+          label: t('removed_toast'),
+          restore: () => store.restoreRemoved('watch', id),
+          onClose: () => { if (mounted) repaint(); },
+        });
+        repaint();
+        return;
+      }
 
       const open = e.target.closest('[data-open]');
       if (open) { openId = open.dataset.open; returnKey = open.dataset.fk ?? null; repaint(); }
@@ -428,10 +477,22 @@ export default {
 
     on(document, 'keydown', modalKeys(root, () => openId !== null, closeModal), listeners.signal);
 
+    // R-93: swipe left on a row reveals its Remove (the labelled button already drawn behind it).
+    attachSwipe(root, { rowSelector: '.wrow-wrap', signal: listeners.signal });
+
+    // R-94: the four seconds stop while a finger is on the toast and carry on with what was left.
+    const overToast = (e) => e.target?.closest?.('[data-list-toast]');
+    root.addEventListener('pointerdown', (e) => { if (overToast(e)) undo?.press(); }, { signal: listeners.signal });
+    for (const type of ['pointerup', 'pointercancel']) {
+      root.addEventListener(type, () => undo?.release(), { signal: listeners.signal });
+    }
+
     // Wrapped, not passed: subscribers are called with the new state, and
     // `repaint`'s first argument is a focus key to prefer.
     const unsub = store.subscribe(() => repaint());
     return () => {
+      mounted = false;
+      undo?.close();
       unsub();
       listeners.abort();
     };
