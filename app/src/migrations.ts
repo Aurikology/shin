@@ -715,6 +715,177 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
       addColumnIfMissing(db, 'scan', 'estimate_sigma_log', 'REAL');
     },
   },
+  {
+    version: 20,
+    name: 'shown answers never edited, the shopper\'s own call, picks and consent on each scan, no exact position',
+    apply(db) {
+      /*
+       * docs/price-category-requirements-2026-10-01.md 3.9, 5.1, 5.6; plan
+       * docs/price-category-plan-2026-10-02.md Part 6. Additive: new nullable
+       * columns, two new tables, and triggers. Nothing existing is dropped,
+       * retyped or rewritten; no old row is touched.
+       *
+       * 5.1, THE SHOPPER'S OWN CALL. great, good, reasonable or bad (the
+       * verdict's four words), when it was given, and whether it was given
+       * before the verdict was shown (5.8 counts only those). Written once.
+       *
+       * 5.1, CONSENT ON EACH ROW. The device's photo and location answers at
+       * the moment the scan was written, 0 when it had never answered
+       * (consent is off by default, migration 5). Written at insert by
+       * `recordScan`, never after.
+       *
+       * 5.1, PICKS. Which product the shopper picked from a list a scan
+       * offered. Its own append-only table because one scan can offer a list
+       * twice ("not this?" after a pick).
+       */
+      addColumnIfMissing(db, 'scan', 'shopper_call', "TEXT CHECK (shopper_call IN ('great', 'good', 'reasonable', 'bad'))");
+      addColumnIfMissing(db, 'scan', 'shopper_call_at', 'TEXT');
+      addColumnIfMissing(db, 'scan', 'shopper_call_before_verdict', 'INTEGER');
+      addColumnIfMissing(db, 'scan', 'consent_photos', 'INTEGER');
+      addColumnIfMissing(db, 'scan', 'consent_location', 'INTEGER');
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS scan_pick (
+          id          INTEGER PRIMARY KEY,
+          scan_id     INTEGER NOT NULL,
+          device_id   TEXT NOT NULL,
+          picked_code TEXT NOT NULL,
+          source      TEXT,
+          picked_at   TEXT NOT NULL
+        ) STRICT;
+      `);
+      db.exec('CREATE INDEX IF NOT EXISTS scan_pick_scan ON scan_pick(scan_id);');
+
+      /*
+       * 3.9, A BETTER ANSWER GOES BESIDE. When a later request produces a
+       * different answer for a scan that already showed one (a second
+       * `/api/price` with another shelf price, a Gemini re-run on an attached
+       * scan), the new answer is a row here, with what produced it, and the
+       * scan row keeps exactly what was shown.
+       */
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS scan_later_answer (
+          id          INTEGER PRIMARY KEY,
+          scan_id     INTEGER NOT NULL,
+          device_id   TEXT,
+          via         TEXT NOT NULL,
+          answer_json TEXT NOT NULL,
+          recorded_at TEXT NOT NULL
+        ) STRICT;
+      `);
+      db.exec('CREATE INDEX IF NOT EXISTS scan_later_answer_scan ON scan_later_answer(scan_id);');
+
+      /*
+       * 3.9, THE DATABASE REFUSES THE EDIT. Plan: "Database triggers forbid
+       * editing a shown answer." A shown field that holds a value may never
+       * take another; a field still NULL may be filled once (a typed row
+       * written before its verdict was known, which `/api/price` names later).
+       * Writing the same value again is not an edit.
+       *
+       * NOT in the list, each on purpose: typed_price_cents (the shopper's own
+       * input, re-typed on a correction), photo_path and grounded_* (cleared
+       * on consent withdrawal and by the retention sweep, which the law and
+       * Google's terms require), store and cell (a fact about the visit, filled
+       * after the scan), latency and cost, over_cap, corrected_code, user_id,
+       * and the enriched_* columns (the beside-columns of migration 15).
+       * `outcome` may only move to 'corrected' (a correction marks the scan; it
+       * does not rewrite the answer).
+       */
+      const shown = [
+        'query_text', 'resolved_code', 'resolved_label', 'confidence', 'source', 'category', 'scan_category',
+        // Not failure_class: our side's classification of a refusal, read only by the defect log, never shown.
+        'model_json',
+        'verdict_tier', 'verdict_confidence', 'verdict_sellers', 'verdict_zone', 'verdict_thresholds_json',
+        'estimate_basis', 'estimate_confidence', 'estimate_zone', 'estimate_centre_cents', 'estimate_sigma_log',
+        'answer_path', 'range_source', 'range_basis', 'range_miss_reason', 'match_lines', 'match_candidates', 'match_price_read',
+        // Written once by the shopper or at insert, never rewritten.
+        'shopper_call', 'shopper_call_at', 'shopper_call_before_verdict', 'consent_photos', 'consent_location',
+      ];
+      const fixed = ['device_id', 'kind', 'scanned_at', 'is_demo'];
+      const when = [
+        ...fixed.map((c) => `NEW.${c} IS NOT OLD.${c}`),
+        ...shown.map((c) => `(OLD.${c} IS NOT NULL AND NEW.${c} IS NOT OLD.${c})`),
+        "(NEW.outcome IS NOT OLD.outcome AND NEW.outcome IS NOT 'corrected')",
+      ].join('\n             OR ');
+      db.exec(`
+        CREATE TRIGGER IF NOT EXISTS scan_shown_answer_immutable
+        BEFORE UPDATE ON scan FOR EACH ROW
+        WHEN ${when}
+        BEGIN
+          SELECT RAISE(ABORT, 'shown answer is never edited (requirement 3.9)');
+        END;
+      `);
+      for (const table of ['scan_later_answer', 'scan_pick']) {
+        db.exec(`
+          CREATE TRIGGER IF NOT EXISTS ${table}_append_only
+          BEFORE UPDATE ON ${table} FOR EACH ROW
+          BEGIN
+            SELECT RAISE(ABORT, 'a stored shown answer, later answer or pick is never edited (requirement 3.9)');
+          END;
+        `);
+      }
+
+      /*
+       * 5.6, NO EXACT POSITION, BY CONSTRUCTION. Migration 8's four columns stay
+       * (additive only) and the database now refuses any value in them, on
+       * insert and on any update that would write a new one. An old row that
+       * already holds a value is not rewritten here and does not block other
+       * updates to that row. The event log refuses a payload carrying a key
+       * that names a position; `recordEvent` scrubs before it gets here, so
+       * this firing means a writer went around it.
+       */
+      const exact = ['exact_lat', 'exact_lon', 'exact_accuracy', 'exact_at'];
+      db.exec(`
+        CREATE TRIGGER IF NOT EXISTS scan_no_exact_position_insert
+        BEFORE INSERT ON scan FOR EACH ROW
+        WHEN ${exact.map((c) => `NEW.${c} IS NOT NULL`).join(' OR ')}
+        BEGIN
+          SELECT RAISE(ABORT, 'an exact position is never stored (requirement 5.6)');
+        END;
+      `);
+      db.exec(`
+        CREATE TRIGGER IF NOT EXISTS scan_no_exact_position_update
+        BEFORE UPDATE ON scan FOR EACH ROW
+        WHEN ${exact.map((c) => `(NEW.${c} IS NOT NULL AND NEW.${c} IS NOT OLD.${c})`).join(' OR ')}
+        BEGIN
+          SELECT RAISE(ABORT, 'an exact position is never stored (requirement 5.6)');
+        END;
+      `);
+      const keyList = POSITION_KEYS.map((k) => `'${k}'`).join(', ');
+      const hasPositionKey = `NEW.payload IS NOT NULL AND json_valid(NEW.payload) AND EXISTS (
+            SELECT 1 FROM json_tree(NEW.payload)
+             WHERE typeof(key) = 'text'
+               AND replace(replace(replace(lower(key), '_', ''), '-', ''), ' ', '') IN (${keyList}))`;
+      db.exec(`
+        CREATE TRIGGER IF NOT EXISTS event_no_exact_position_insert
+        BEFORE INSERT ON event FOR EACH ROW
+        WHEN ${hasPositionKey}
+        BEGIN
+          SELECT RAISE(ABORT, 'an exact position is never stored (requirement 5.6)');
+        END;
+      `);
+      db.exec(`
+        CREATE TRIGGER IF NOT EXISTS event_no_exact_position_update
+        BEFORE UPDATE OF payload ON event FOR EACH ROW
+        WHEN NEW.payload IS NOT OLD.payload AND ${hasPositionKey}
+        BEGIN
+          SELECT RAISE(ABORT, 'an exact position is never stored (requirement 5.6)');
+        END;
+      `);
+    },
+  },
+];
+
+/**
+ * JSON keys that name an exact position, lowercased with `_`, `-` and spaces
+ * removed (so `exact_lat`, `Lat` and `located-at` all match). Shared by the
+ * event trigger above and `scrubPosition` in events.ts, so the database and
+ * the code refuse the same list. `location` is NOT here: the consent event's
+ * own `location: true` is the shopper's answer, not a place.
+ */
+export const POSITION_KEYS: readonly string[] = [
+  'lat', 'lng', 'lon', 'long', 'latitude', 'longitude', 'accuracy', 'altitude', 'altitudeaccuracy', 'heading',
+  'coords', 'coordinates', 'gps', 'geo', 'geolocation', 'position',
+  'exactlat', 'exactlon', 'exactlng', 'exactaccuracy', 'exactat', 'locatedat',
 ];
 
 /** What `schema_version` says this database is at. 0 means nothing has run. */

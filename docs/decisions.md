@@ -2640,3 +2640,37 @@ touched code under the rule. The shopper split ("Always answer") and the test-be
 unchanged. The agent repo got the same ruling as "Every error fails loudly, and it reaches him".
 
 **Reverses if:** he names a class of failure he wants handled silently.
+
+## One path per item: unplaced items sit in an explicit "unplaced" node
+**Date:** 2026-10-09 · **Status:** active
+
+Price-category requirement 1.1 asks that 100% of catalogue items have exactly one path. On the PC
+catalogue (2026-10-09, read-only count), 90,487 of 124,120 Canadian items (73%) carry no category
+path at all; A1 (two paths, none recorded) is 0 since the 2026-10-08 canonicalize pass. A database
+rule alone cannot reach 100%: placing those items is Stage 3 (2.1 to 2.4). Two options were put to
+Aurik: (A) an explicit "unplaced" node under each department, so every item has exactly one path
+from now on and Stage 3 moves items out of it, with the database rule enforced now; (B) enforce the
+rule only on placed items and carry the unplaced ones as an open gap. His words: *"go with A"*.
+The count of items in "unplaced" is the number Stage 3 must drive down; it is a fault count, never
+read as placed. This changes the shape of Jamin's nested-category design (2026-09-28), so it is
+told to him in comms the same day.
+
+**Reverses if:** Jamin rules that an item without a placement has no path, or Stage 3 shows the
+unplaced node distorts any range (an unplaced item must never feed a price range).
+
+## The bench's verdict counts the product-and-date holdout
+**Date:** 2026-10-09 · **Status:** active
+
+The 2026-09-28 boss decision (bench/src/split.ts) counted only the by-time split and the sealed
+batch toward the bench's pass. Price-category requirement 7.5 (Aurik, 2026-10-01/02) asks for a test
+"held out by product and date". That requirement postdates the decision and is new evidence, so the
+Stage 0 build adds a by-product-and-date fold that counts toward the pass, with a leak audit that
+fails on any product or date on both sides. The by-product fold stays reported only. Old text: "the
+gate verdict that counts is the by-time split, plus the sealed batch when it is opened."
+
+On the PC's prices.db (2026-10-09) the fold is possible but tiny: 2 test products, 12 test prices.
+The whole-category control cannot fail on width there because each of the 17 products is alone in
+its catalogue category, so every bench rebuild now stops with exit 3 and scores nothing until
+categories hold several priced products (the 7.6 rule: a control that misbehaves stops the run).
+
+**Reverses if:** Aurik or Jamin rule that 7.5 is met by reporting the fold rather than counting it.

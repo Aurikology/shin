@@ -18,9 +18,12 @@ import type { DatabaseSync } from 'node:sqlite';
 import { fingerprint, loadObservations, openReadOnly } from './data.ts';
 import { buildPredictionKey, buildSaleKey, keyExclusions, loadMatchingKey, summarizeKeys } from './keys.ts';
 import { auditPredictionKey, auditSaleKey, auditSummary, keyErrorRate, mergeSheet } from './audit.ts';
-import { isFold, splitByProduct, splitByTime, splitSealedOpen, TEST_FRACTION, type Fold, type Unsplittable } from './split.ts';
+import { isFold, splitByProduct, splitByProductAndDate, splitByTime, splitSealedOpen, TEST_FRACTION, type Fold, type Unsplittable } from './split.ts';
+import { controlledRuns } from './controls.ts';
+import { dataSupport, leakAudit, ontarioMix, type LeakCheck } from './holdout.ts';
+import { requiredSampleSize } from './handaudit.ts';
 import { applyGuard, guardSealed } from './sealed.ts';
-import { assertSameItems, evaluate, overallVerdict, trainingDatabase, type ModelRun } from './harness.ts';
+import { assertSameItems, overallVerdict, type ModelRun } from './harness.ts';
 import { writeResult } from './results.ts';
 import { baselines } from './baselines.ts';
 import { DEFAULT_BAR } from './score.ts';
@@ -110,17 +113,24 @@ export function main(): void {
       : [
           splitByProduct(obs, predAll, saleAll, guard, testFraction, seed),
           splitByTime(obs, saleAll, guard, { testFraction, ...(cutoffArg ? { cutoff: cutoffArg } : {}) }),
+          splitByProductAndDate(obs, saleAll, guard, { testFraction, seed, ...(cutoffArg ? { cutoff: cutoffArg } : {}) }),
         ];
 
-  const runs: ModelRun[] = [];
-  for (const f of folds) {
-    if (!isFold(f)) continue;
-    const trainDb = trainingDatabase(f.train);
-    const foldRuns = baselines().map((m) => evaluate(m, f, { catalogue, trainDb, seed: seed + 1 }));
-    assertSameItems(foldRuns);
-    runs.push(...foldRuns);
-    trainDb.close();
-  }
+  // 7.5: each fold audited for what it promises to hold out; the product-and-date fold for both.
+  const promises: Record<Fold['name'], LeakCheck[]> = { by_product: ['product'], by_time: ['date'], by_product_and_date: ['product', 'date'], sealed: ['product'] };
+  const leaks = folds.filter(isFold).map((f) => ({ fold: f.name, promised: leakAudit(f, promises[f.name]), both: leakAudit(f) }));
+  const support = dataSupport(obs, guard, saleAll, { testFraction, seed });
+  const bothFold = folds.find((f): f is Fold => isFold(f) && f.name === 'by_product_and_date');
+  const ontario = bothFold ? ontarioMix(bothFold, obs) : null;
+  const auditSize = auditRows.length ? requiredSampleSize({ population: new Set(auditRows.map((r) => `${r.source}|${r.seller}|${r.sellerSku}|${r.seenOn}|${r.cents}`)).size }) : null;
+
+  // 7.6: controls on every fold before anything is scored. A misbehaving control stops all scoring.
+  const leaked = leaks.filter((l) => !l.promised.ok);
+  const controlled = leaked.length
+    ? { aborted: true, reason: `LEAK: ${leaked.map((l) => l.promised.note).join('; ')}`, controls: [], runs: [], skipped: [] }
+    : controlledRuns(folds.filter(isFold), baselines, { catalogue, seed: seed + 1 });
+  const runs: ModelRun[] = [...controlled.runs];
+  for (const name of new Set(runs.map((r) => r.fold))) assertSameItems(runs.filter((r) => r.fold === name));
 
   prices.close();
   catalogue?.close();
@@ -144,6 +154,18 @@ export function main(): void {
   out.push(`  key error rate: ${errorRate.status === 'measured' ? `${pct(errorRate.errorRate)} (95% ${pct(errorRate.errorRate95.low)} to ${pct(errorRate.errorRate95.high)}, ${errorRate.randomReread} random rows re-read)` : `NOT MEASURED (${errorRate.reason})`}`);
   out.push('');
   for (const f of folds) if (!isFold(f)) out.push(`split ${f.name}: not possible: ${f.impossible}`);
+  out.push(`data (7.5): ${support.rows} usable rows, ${support.products} products, dates ${support.dates.join(', ')}; products by number of dates ${JSON.stringify(support.productsPerDateCount)}; regions ${JSON.stringify(support.regions)}; Ontario rows ${support.ontarioRows}`);
+  out.push(`  product-and-date holdout: ${support.productAndDate.possible ? `possible: ${support.productAndDate.testProducts} test products, ${support.productAndDate.testPoints} test prices, ${support.productAndDate.testSales} sales; ${support.productAndDate.trainRows} training rows from ${support.productAndDate.trainProducts} products` : `NOT possible: ${support.productAndDate.reason}`}`);
+  if (ontario) out.push(`  Ontario: ${ontario.note}`);
+  for (const l of leaks) out.push(`  leak audit ${l.fold}: promised (${l.promised.checked.join('+')}) ${l.promised.ok ? 'clean' : 'LEAK'}; product and date: ${l.both.note}`);
+  out.push(`hand audit (7.7): ${auditSize ? auditSize.statement : 'no key rows'}; draw with node src/handaudit.ts sample (the reread sheet's marks were Claude's, not a person's, and do not count)`);
+  out.push('');
+  out.push(`controls (7.6): ${controlled.aborted ? 'FAILED, NOTHING SCORED' : 'ran'}: ${controlled.reason}`);
+  for (const c of controlled.controls) {
+    out.push(`  ${c.summary}`);
+    for (const r of c.results) out.push(`    ${r.name.padEnd(15)} ${r.status.padEnd(10)} ${r.reason}`);
+  }
+  out.push('paired comparison (7.4): not run: no candidate estimator is registered and no Claude arm file is given (see src/paired.ts)');
   out.push(`bar (defaults, changeable by Jamin): ${JSON.stringify(DEFAULT_BAR)}`);
   out.push('');
   out.push('The verdict that counts is by_time (and the sealed batch when opened). by_product measures cold start on unseen');
@@ -203,7 +225,11 @@ export function main(): void {
                 ? { path: sealedPath, mode: guard.mode, count: guard.count, sha256: guard.sha256, keysSha256: guard.keysSha256 }
                 : { path: sealedPath, mode: 'none', sha256: null },
           keys,
-          audit: { ...audit, rereadSheet: csvNote, keyErrorRate: errorRate },
+          audit: { ...audit, rereadSheet: csvNote, keyErrorRate: errorRate, handAuditSize: auditSize },
+          dataSupport: support,
+          ontario,
+          leaks,
+          controls: controlled,
           bar: DEFAULT_BAR,
           splits: folds.map((f) => (isFold(f) ? { name: f.name, description: f.description, cutoff: f.cutoff, trainRows: f.train.length, testPoints: f.testPoints.length, testSales: f.testSales.length, testProducts: f.testKeys.size } : f)),
           runs,
@@ -211,6 +237,11 @@ export function main(): void {
         },
     );
     console.log(`\nwrote ${jsonPath}`);
+  }
+  if (controlled.aborted) {
+    console.error(`
+${controlled.reason}`);
+    process.exitCode = 3;
   }
   if (!untouched) {
     console.error('prices.db size or mtime changed during the run; investigate before trusting anything');

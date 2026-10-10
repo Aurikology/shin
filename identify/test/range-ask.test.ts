@@ -394,7 +394,7 @@ test('known:false is cached for 30 days: a rescan sends nothing and costs no cap
   assert.equal(t2.sent.length, 1);
 });
 
-test('an invalid answer or a transport failure is not cached; a transport failure is not logged', async () => {
+test('an invalid answer or a transport failure is not cached; it is logged as transport_error (6.2: one row per call)', async () => {
   const store = tempStore();
   const failing: MessagesClient & { sent: Body[] } = {
     sent: [],
@@ -406,7 +406,7 @@ test('an invalid answer or a transport failure is not cached; a transport failur
   };
   const r = await askTypicalRange(IDENTITY, deps(failing, store));
   assert.equal(r.ok ? null : r.reason, 'model_error');
-  assert.equal(answersOf(store).length, 0);
+  assert.deepEqual(answersOf(store).map((a) => a.outcome), ['transport_error']);
   await askTypicalRange(IDENTITY, deps(fake(goodAnswer({ currency: 'cad' })), store));
   const t = fake(goodAnswer());
   const ok = await askTypicalRange(IDENTITY, deps(t, store));

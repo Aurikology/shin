@@ -19,15 +19,19 @@
  * Every prediction is made "as of" the day the true price was seen, which is
  * Zillow's lesson: score the answer as it would have been shown then.
  *
- * WHICH SPLIT COUNTS (boss decision, 2026-09-28): the gate verdict that counts
- * is the by-time split, plus the sealed batch when it is opened. The
- * by-product split is reported and is not a pass requirement: it measures cold
- * start on products never seen, where only category-level models can answer.
+ * WHICH SPLIT COUNTS (boss decision 2026-09-28, widened 2026-10-09): the gate
+ * verdict that counts is the by-time split, the by-product-and-date split
+ * (price-category requirement 7.5, which postdates the 09-28 decision), and the
+ * sealed batch when it is opened. The by-product split is reported and is not a
+ * pass requirement: it measures cold start on products never seen, where only
+ * category-level models can answer. docs/decisions.md, "The bench's verdict
+ * counts the product-and-date holdout".
  */
 
 import { keyExclusion, latestPerShop, type Observation } from './data.ts';
 import { buildPredictionKey, MIN_KEY_SHOPS, type PredictionItem, type SaleItem, type TruthPoint } from './keys.ts';
 import { applyGuard, assertIssued, type SealGuard } from './sealed.ts';
+import { assertNoLeak } from './holdout.ts';
 
 /**
  * Share of products (by product) or of dated rows (by time) held out.
@@ -52,13 +56,17 @@ export function groupHash(key: string, seed = 0): number {
   return (h >>> 0) / 4294967296;
 }
 
-/** Whether a fold's gate verdict is a pass requirement (by time and sealed) or reported only (by product). */
+/**
+ * Whether a fold's gate verdict is a pass requirement (by time, by product and
+ * date, sealed) or reported only (by product). The product-and-date fold is
+ * the holdout requirement 7.5 names, so it counts.
+ */
 export function foldCounts(name: Fold['name']): boolean {
   return name !== 'by_product';
 }
 
 export interface Fold {
-  readonly name: 'by_product' | 'by_time' | 'sealed';
+  readonly name: 'by_product' | 'by_time' | 'by_product_and_date' | 'sealed';
   readonly description: string;
   /** Observations the model may learn from. */
   readonly train: readonly Observation[];
@@ -182,6 +190,73 @@ export function splitByTime(
     cutoff,
     sealed: { mode: guard.mode, sha256: guard.sha256 },
   });
+}
+
+export interface ProductAndDateOptions {
+  /** Share of products held out, and the date quantile; TEST_FRACTION when absent. */
+  readonly testFraction?: number;
+  /** Seed for which products are held out. Repeated splits vary this. */
+  readonly seed?: number;
+  /** A fixed cutoff (ISO date) instead of the quantile. */
+  readonly cutoff?: string;
+}
+
+/**
+ * 7.5: held out by product AND date. A product is on the test side when its
+ * hash is under testFraction; a date is on the test side when it is on or
+ * after the cutoff (the date quantile, as in `splitByTime`). The model learns
+ * only from rows of NON-test products seen BEFORE the cutoff; it is scored only
+ * on test products' prices seen on or after it. Rows of a test product before
+ * the cutoff, and rows of a training product on or after it, are on neither
+ * side. So no product and no date appear on both sides, and nothing is learned
+ * from a day after a scored day. The leak audit (holdout.ts) runs on the fold
+ * before it is issued and refuses it on any overlap.
+ *
+ * Truth points are each shop's latest price on the test dates, for test
+ * products with their own prices at MIN_KEY_SHOPS+ shops there (the same
+ * eligibility as the prediction key).
+ */
+export function splitByProductAndDate(
+  allObs: readonly Observation[],
+  allSales: readonly SaleItem[],
+  guard: SealGuard,
+  opts: ProductAndDateOptions = {},
+): Fold | Unsplittable {
+  const { obs, sales } = guarded(allObs, [], allSales, guard);
+  const testFraction = opts.testFraction ?? TEST_FRACTION;
+  const seed = opts.seed ?? 0;
+  const keyed = obs.filter((o) => o.key !== null);
+  const cutoff = opts.cutoff ?? timeCutoff(keyed, testFraction);
+  if (cutoff === null) {
+    const n = new Set(keyed.map((o) => o.seenOn)).size;
+    return { name: 'by_product_and_date', impossible: `the priced products span ${n <= 1 ? 'one date' : 'too few dates'}; holding out dates needs at least two` };
+  }
+  const isTestProduct = (k: string) => groupHash(k, seed) < testFraction;
+  const later = obs.filter((o) => o.seenOn >= cutoff && o.key !== null && isTestProduct(o.key));
+  const testPred = buildPredictionKey(later, MIN_KEY_SHOPS);
+  const testPoints: TruthPoint[] = testPred.flatMap((p) => p.points);
+  const testSales = sales.filter((s) => s.key !== null && s.seenOn >= cutoff && isTestProduct(s.key));
+  const testKeys = new Set([...testPoints.map((p) => p.key), ...testSales.map((s) => s.key!)]);
+  if (testKeys.size === 0) {
+    return { name: 'by_product_and_date', impossible: `no held-out product has its own prices at ${MIN_KEY_SHOPS}+ shops (or a sale) on or after ${cutoff}` };
+  }
+  // Every product that hashes to the test side is kept out of training, scored or not.
+  const train = obs.filter((o) => o.seenOn < cutoff && (o.key === null || !isTestProduct(o.key)));
+  if (train.length === 0) {
+    return { name: 'by_product_and_date', impossible: `nothing left to learn from: no other product was priced before ${cutoff}` };
+  }
+  const fold: Fold = {
+    name: 'by_product_and_date',
+    description: `held out by product and date: ${Math.round(testFraction * 100)}% of products (seed ${seed}) scored on prices seen on or after ${cutoff}; the model learns only other products' prices seen before it`,
+    train,
+    testPoints,
+    testSales,
+    testKeys,
+    cutoff,
+    sealed: { mode: guard.mode, sha256: guard.sha256 },
+  };
+  assertNoLeak(fold);
+  return register(fold);
 }
 
 export function isFold(f: Fold | Unsplittable): f is Fold {

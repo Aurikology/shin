@@ -123,7 +123,11 @@ CREATE TABLE IF NOT EXISTS user_observation (
   trusted          INTEGER NOT NULL DEFAULT 0,
   device_key       TEXT,
   verdict          TEXT,
-  verdict_source   TEXT
+  verdict_source   TEXT,
+  -- The shopper-report mark (price-category plan 5.2): 'typed' on every row that carries a price,
+  -- NULL on a row with none. Set by recordObservation alone, never by a caller; the same column
+  -- name and value as the corrections store (price/src/corrections.ts). See migrateCaptureMark.
+  capture          TEXT
 ) STRICT;
 CREATE INDEX IF NOT EXISTS user_observation_product ON user_observation(product_id);
 CREATE INDEX IF NOT EXISTS user_observation_code    ON user_observation(catalogue_code);
@@ -208,6 +212,31 @@ function migrateImpliedReference(db: DatabaseSync): void {
   }
 }
 
+/** The one mark a price in user_observation carries: it was typed on the price pad by a shopper. */
+export const USER_PRICE_CAPTURE = 'typed';
+
+/**
+ * The shopper-report mark on user_observation (5.2). A file made before the mark gets the
+ * column, and every price it already holds is marked 'typed': recordObservation is the only
+ * writer of the table and every price it ever wrote came from the price pad. The count marked
+ * is printed. Then the database itself refuses a price without the mark, the mark without a
+ * price, and any other mark, on insert and on update.
+ */
+function migrateCaptureMark(db: DatabaseSync): void {
+  const have = db.prepare('PRAGMA table_info(user_observation)').all() as unknown as { name: string }[];
+  if (!have.some((c) => c.name === 'capture')) {
+    db.exec('ALTER TABLE user_observation ADD COLUMN capture TEXT');
+    const r = db.prepare(`UPDATE user_observation SET capture = ? WHERE price_cents IS NOT NULL`).run(USER_PRICE_CAPTURE);
+    console.log(`user-catalogue: added user_observation.capture; marked ${Number(r.changes)} stored prices as shopper reports (typed)`);
+  }
+  const rule = `NOT ((NEW.price_cents IS NULL AND NEW.capture IS NULL) OR (NEW.price_cents IS NOT NULL AND NEW.capture IS '${USER_PRICE_CAPTURE}'))`;
+  const why = `user_observation: a price is stored only as a shopper report (capture = ${USER_PRICE_CAPTURE}), and only a price carries that mark`;
+  db.exec(`CREATE TRIGGER IF NOT EXISTS user_observation_capture_insert BEFORE INSERT ON user_observation WHEN ${rule}
+           BEGIN SELECT RAISE(ABORT, '${why}'); END`);
+  db.exec(`CREATE TRIGGER IF NOT EXISTS user_observation_capture_update BEFORE UPDATE OF price_cents, capture ON user_observation WHEN ${rule}
+           BEGIN SELECT RAISE(ABORT, '${why}'); END`);
+}
+
 function addLateColumns(db: DatabaseSync): void {
   for (const { table, column, decl } of LATE_COLUMNS) {
     const have = db.prepare(`PRAGMA table_info(${table})`).all() as unknown as { name: string }[];
@@ -244,6 +273,7 @@ export function createUserCatalogue(path: string): UserCatalogue {
     db.exec('PRAGMA journal_mode = WAL');
     db.exec(DDL);
     addLateColumns(db);
+    migrateCaptureMark(db);
     migrateImpliedReference(db);
   } catch (err) {
     db = null;
@@ -459,6 +489,37 @@ export interface RecordUserScanOptions {
 }
 
 const NAME_MATCH = 0.75;
+
+/**
+ * Two names are the same product's name when their words overlap enough. A name with NO words
+ * (a stop word like "the", or only symbols) has nothing to overlap, and two empty word lists
+ * score 1, which used to merge every such name into one entry and lose the raw text of all but
+ * the first. Those compare by their folded letters instead.
+ */
+function nameMatches(a: readonly string[], b: readonly string[], rawA: string | null, rawB: string | null): boolean {
+  if (a.length === 0 || b.length === 0) {
+    return a.length === 0 && b.length === 0 && compact(rawA ?? '') === compact(rawB ?? '');
+  }
+  return jaccard(a, b) >= NAME_MATCH;
+}
+
+/**
+ * Is there a pending entry for this barcode or this name? The consumer-side half of the 5.7
+ * count: reads the table back, rather than trusting what the writer said it did. A barcode is
+ * found by its digits; a name by the same rule a scan uses to merge into an entry.
+ */
+export function hasUserEntry(log: UserCatalogue, q: { gtin?: string | null; name?: string | null }): boolean {
+  if (!log.db) return false;
+  const gtin = normalizeGtin(q.gtin);
+  if (gtin !== null) {
+    return log.db.prepare('SELECT 1 FROM user_product WHERE gtin = ? LIMIT 1').get(gtin) !== undefined;
+  }
+  const name = q.name?.trim() ?? '';
+  if (name === '') return false;
+  const tokens = nameTokens(name);
+  const rows = log.db.prepare('SELECT name, name_key FROM user_product').all() as unknown as { name: string; name_key: string }[];
+  return rows.some((r) => nameMatches(tokens, r.name_key === '' ? [] : r.name_key.split(' '), name, r.name));
+}
 /** Two sizes within this ratio are the same size (a printed 500 g against a measured 497 g). */
 const SAME_SIZE_RATIO = 1.05;
 
@@ -488,6 +549,7 @@ interface ProductRow {
   brand_key: string;
   kind: string;
   gtin: string | null;
+  name: string;
   name_key: string;
   model_key: string | null;
   spec_json: string | null;
@@ -562,10 +624,10 @@ export function recordUserScan(scan: UserScanInput, opts: RecordUserScanOptions 
       } else {
         if (gtin !== null && c.gtin !== null && c.gtin !== gtin) {
           // Two different barcodes are two products, however alike the names read.
-          if (jaccard(tokens, cTokens) >= NAME_MATCH) groupOf ??= c;
+          if (nameMatches(tokens, cTokens, name, c.name)) groupOf ??= c;
           continue;
         }
-        if (jaccard(tokens, cTokens) < NAME_MATCH) continue;
+        if (!nameMatches(tokens, cTokens, name, c.name)) continue;
         if (sameSize(qty, existingQuantity(c))) { same = c; break; }
         groupOf ??= c;
       }
@@ -655,14 +717,16 @@ function recordObservation(
   db.prepare(
     `INSERT INTO user_observation (product_id, catalogue_code, store_type, store_name, country, region, currency,
        price_cents, orig_value, orig_unit, base_value, base_unit, unit_price_cents, unit_label, observed_at, scan_id, trusted,
-       device_key)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)`,
+       device_key, capture)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?)`,
   ).run(
     target.productId, target.code, o.storeType, o.scan.storeName ?? null, o.market.country, o.market.region,
     o.market.currency, price, o.qty?.original.value ?? null, o.qty?.original.unit ?? null,
     o.qty?.baseValue ?? null, o.qty?.baseUnit ?? null, per?.unitCents ?? null, per?.label ?? null,
     o.now, o.scan.scanId ?? null,
     deviceKeyOf(o.scan.deviceId),
+    // 5.2: the writer marks the price; nothing on the scan input can set or change this.
+    price !== null ? USER_PRICE_CAPTURE : null,
   );
   // Audit row 39: the offers and reviews Gemini returned ride along, untrusted, with the scan id.
   for (const offer of (o.scan.offers ?? []).slice(0, MAX_OFFERS_PER_SCAN)) {

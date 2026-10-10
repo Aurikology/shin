@@ -22,19 +22,25 @@
  * wants to GROUP BY a field in there, that field becomes a column and this
  * comment is wrong.
  *
- * WHAT MAY GO IN A PAYLOAD, changed 2026-09-14 on the founder's word ("build
- * everything for collecting EVERYTHING"): coordinates and free text a person
- * typed are no longer refused here. Until today this list forbade both,
- * because the client had no legitimate way to send either one; that is no
- * longer true. `track.js` records the exact position alongside typed search
- * text, including text typed and then abandoned, because both are input this
- * product now trains its models and answers other shoppers from, the same
- * reason `consent.ts` defaults both toggles on. The one thing still refused is
- * a photo's own bytes: those belong in the photos folder behind the photo
- * consent flag (`photos.ts`) or nowhere, never as base64 in this table, so
- * that deleting a photo on the retention sweep (when one is configured) or on
- * request actually removes it rather than leaving a copy sitting in an event
- * payload nothing sweeps.
+ * WHAT MAY GO IN A PAYLOAD. Free text a person typed may (2026-09-14, "build
+ * everything for collecting EVERYTHING"). AN EXACT POSITION MAY NOT, and this
+ * reverses what this comment said from 2026-09-14 to 2026-10-09 ("coordinates
+ * ... are no longer refused here"): Aurik's ruling the same day (RULINGS.md
+ * "Location and photo consent default off until answered": "only a coarse
+ * kilometre-wide cell is stored, never exact GPS") and requirement 5.6 ("0
+ * exact positions stored") govern every table, this one included. So
+ * `recordEvent` runs `scrubPosition` first: a key that names a position
+ * (`POSITION_KEYS` in migrations.ts: lat, lon, accuracy, coords, gps ...) is
+ * dropped with its value, and a precise "lat,lon" pair inside any string is
+ * snapped to the kilometre cell. The rest of the event is kept, and each
+ * scrub is logged and counted as `[customer-data-fault]
+ * exact_position_dropped`, because a client sending one is a bug to find.
+ * Migration 20's trigger refuses such a payload in the database as well.
+ * A photo's own bytes are refused too: those belong in the photos folder
+ * behind the photo consent flag (`photos.ts`) or nowhere, never as base64 in
+ * this table, so that deleting a photo on the retention sweep (when one is
+ * configured) or on request actually removes it rather than leaving a copy
+ * sitting in an event payload nothing sweeps.
  *
  * NEVER THROWS, the same contract `scans.ts` keeps and for the same reason: a
  * camera loop that cannot write down what it just did must still answer the
@@ -42,7 +48,52 @@
  * on the shared store handle.
  */
 
-import { activeScanStore, openScanStore } from './scans.ts';
+import { activeScanStore, openScanStore, reportScanFault } from './scans.ts';
+import { POSITION_KEYS } from './migrations.ts';
+import { parseCell } from './stores.ts';
+import { customerDataFault } from './customer-data-faults.ts';
+
+/** Three or more decimals on both halves of a "lat,lon" pair: finer than the kilometre cell. */
+const PRECISE_PAIR = /-?\d{1,3}\.\d{3,}\s*,\s*-?\d{1,3}\.\d{3,}/g;
+const POSITION_KEY_SET: ReadonlySet<string> = new Set(POSITION_KEYS);
+
+function positionKey(key: string): boolean {
+  return POSITION_KEY_SET.has(key.toLowerCase().replace(/[_\-\s]/g, ''));
+}
+
+/**
+ * Requirement 5.6, applied to an event payload before it is serialised. Keys
+ * that name a position are dropped with their values, at any depth; a precise
+ * "lat,lon" pair inside a string is snapped to the kilometre cell (or removed
+ * when it is not a real coordinate). Returns the scrubbed copy and how many
+ * things were dropped or snapped. The input is never mutated.
+ */
+export function scrubPosition(value: unknown): { value: unknown; scrubbed: number } {
+  let scrubbed = 0;
+  const walk = (v: unknown, depth: number): unknown => {
+    if (depth > 32) return v;
+    if (typeof v === 'string') {
+      return v.replace(PRECISE_PAIR, (pair) => {
+        scrubbed += 1;
+        return parseCell(pair.replace(/\s+/g, ''))?.text ?? '';
+      });
+    }
+    if (Array.isArray(v)) return v.map((item) => walk(item, depth + 1));
+    if (v && typeof v === 'object') {
+      const out: Record<string, unknown> = {};
+      for (const [k, item] of Object.entries(v)) {
+        if (positionKey(k)) {
+          scrubbed += 1;
+          continue;
+        }
+        out[k] = walk(item, depth + 1);
+      }
+      return out;
+    }
+    return v;
+  };
+  return { value: walk(value, 0), scrubbed };
+}
 
 export interface EventInput {
   readonly deviceId: string;
@@ -116,7 +167,12 @@ export function recordEvent(input: EventInput): number | null {
   const store = activeScanStore() ?? openScanStore();
   try {
     if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
-    const payload = serialisePayload(input.payload);
+    // Requirement 5.6: no exact position reaches this table. The event is kept; the position is not.
+    const scrub = scrubPosition(input.payload);
+    if (scrub.scrubbed > 0) {
+      customerDataFault('exact_position_dropped', `event type ${type.slice(0, MAX_EVENT_TYPE_CHARS)}: ${scrub.scrubbed} position field(s) dropped or snapped`);
+    }
+    const payload = serialisePayload(scrub.value);
     if ('why' in payload) throw new Error(payload.why);
     const result = store.db
       .prepare('INSERT INTO event (device_id, type, payload, created_at, user_id) VALUES (?, ?, ?, ?, ?)')
@@ -131,6 +187,7 @@ export function recordEvent(input: EventInput): number | null {
   } catch (err) {
     store.dropped += 1;
     store.droppedWhy = err instanceof Error ? err.message : String(err);
+    reportScanFault('recordEvent', null, err);
     return null;
   }
 }

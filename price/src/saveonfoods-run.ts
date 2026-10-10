@@ -37,6 +37,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import * as sof from './saveonfoods.ts';
 import { normaliseGtin } from './sources.ts';
 import { openPrices, recordObservation, type ObservationRow } from './store.ts';
+import { requireSourceUse } from './registry.ts';
 
 export const SELLER = sof.SAVE_ON_FOODS_SELLER;
 export const MIN_DELAY_MS = 1200;
@@ -467,7 +468,10 @@ async function main(): Promise<void> {
   );
   console.log(`  ${stores.length * targets.length} requests planned, ${o.delayMs} ms apart${o.dryRun ? ', DRY RUN (nothing is opened)' : ''}`);
 
-  const db = o.dryRun ? null : openPrices(o.db!);
+  const db = o.dryRun ? null : openPrices(o.db!, { enforceSources: true });
+  // Requirement 4.8: the database refuses unregistered sellers, and no automated
+  // reader runs without a recorded basis or on a source whose basis forbids one.
+  if (db !== null) requireSourceUse(db, SELLER, 'automated');
   const res = await run(db, stores, targets, (s, b) => sof.lookup(s, b), o, undefined, (l) => console.log(l));
   db?.close();
 

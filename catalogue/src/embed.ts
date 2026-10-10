@@ -30,6 +30,8 @@ export interface Embedder {
   embedPassages(texts: string[]): Promise<Float32Array[]>;
   /** A user's query. Asymmetric models need to know which side they are on. */
   embedQuery(text: string): Promise<Float32Array>;
+  /** Many texts on the query side at once (optional; `embedSymmetric` falls back to one at a time). */
+  embedQueries?(texts: string[]): Promise<Float32Array[]>;
 }
 
 function l2normalize(v: Float32Array): Float32Array {
@@ -48,14 +50,36 @@ function l2normalize(v: Float32Array): Float32Array {
  * still returns results, they are just measurably worse, and nothing errors to
  * tell you. They are applied here so no caller can forget.
  */
+/**
+ * Where the local model is read from, and whether it may be fetched.
+ *
+ * `offlineFrom` names a folder that already holds `Xenova/multilingual-e5-small`
+ * (config, tokenizer, onnx/model.onnx). With it set, remote fetching is switched
+ * OFF, so a missing file is an error at load, never a silent download (the
+ * placement lane runs with no network; price-category Stage 3, 2.2).
+ */
+export interface LocalEmbedderOptions {
+  readonly offlineFrom?: string;
+}
+
 class LocalEmbedder implements Embedder {
   readonly id = 'local:multilingual-e5-small';
   readonly dim = EMBED_DIM;
   #pipe: unknown = null;
+  readonly #opts: LocalEmbedderOptions;
+
+  constructor(opts: LocalEmbedderOptions = {}) {
+    this.#opts = opts;
+  }
 
   async #pipeline() {
     if (this.#pipe) return this.#pipe;
-    const { pipeline } = await import('@huggingface/transformers');
+    const { pipeline, env } = await import('@huggingface/transformers');
+    if (this.#opts.offlineFrom) {
+      env.allowRemoteModels = false;
+      env.allowLocalModels = true;
+      env.localModelPath = this.#opts.offlineFrom;
+    }
     this.#pipe = await pipeline('feature-extraction', 'Xenova/multilingual-e5-small', {
       dtype: 'fp32',
     });
@@ -86,6 +110,10 @@ class LocalEmbedder implements Embedder {
   async embedQuery(text: string): Promise<Float32Array> {
     const [v] = await this.#run([`query: ${text}`]);
     return v;
+  }
+
+  embedQueries(texts: string[]): Promise<Float32Array[]> {
+    return this.#run(texts.map((t) => `query: ${t}`));
   }
 }
 
@@ -141,6 +169,27 @@ class VoyageEmbedder implements Embedder {
  * Reported out loud by every caller, because a catalogue embedded with one model
  * and queried with another returns plausible nonsense and nothing errors.
  */
+/**
+ * The local multilingual-e5-small model read from a folder on disk, never fetched.
+ * Throws at the first embed when the files are not there.
+ */
+export function offlineLocalEmbedder(modelRoot: string): Embedder {
+  return new LocalEmbedder({ offlineFrom: modelRoot });
+}
+
+/**
+ * e5 for a SYMMETRIC task (an item's name against other items' names, as in
+ * classification by neighbours): both sides take the "query: " prefix, as the
+ * model card says for symmetric tasks. `embedQuery` already does that, one text
+ * at a time; this does a batch.
+ */
+export async function embedSymmetric(embedder: Embedder, texts: string[]): Promise<Float32Array[]> {
+  if (embedder.embedQueries) return embedder.embedQueries(texts);
+  const out: Float32Array[] = [];
+  for (const t of texts) out.push(await embedder.embedQuery(t));
+  return out;
+}
+
 export function defaultEmbedder(): Embedder {
   const key = settings.VOYAGE_API_KEY();
   return key ? new VoyageEmbedder(key) : new LocalEmbedder();

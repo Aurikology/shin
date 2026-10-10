@@ -93,6 +93,7 @@ import {
   type AttemptOutcome,
   type ObservationRow,
 } from './store.ts';
+import { requireSourceUse } from './registry.ts';
 import { CATALOGUE_PATH } from './crawl.ts';
 import { joinToProduct, type Listing, type PriceSource } from './sources.ts';
 import { NAME_FLOOR, scoreCandidate, verdictOn, type NamedProduct } from './name-match.ts';
@@ -552,7 +553,10 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const db = openPrices(PRICES_DB_PATH);
+  const db = openPrices(PRICES_DB_PATH, { enforceSources: true });
+  // Requirement 4.8: the database refuses unregistered sellers, and no automated
+  // reader runs without a recorded basis or on a source whose basis forbids one.
+  requireSourceUse(db, CANADIAN_TIRE, 'automated');
   const today = new Date().toISOString().slice(0, 10);
   const total = cat.count({ limit: null, offset: 0, leafLike: o.leafLike, sources: o.sources });
 

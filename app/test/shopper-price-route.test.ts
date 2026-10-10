@@ -312,6 +312,81 @@ test('D01/D02: with no barcode, no scan and no shop the server says stored:false
   assert.match(noShop.body.why, /shop/i);
 });
 
+/* ---------------------------------------------------------------- 5.2 -- */
+
+/*
+ * Requirement 5.2: "Turn a typed shelf price into an observed price, marked as
+ * a shopper report. Pass: 100% of typed prices stored that way." Plan 5.2: the
+ * server alone marks it. Both routes a typed price enters by are hit here, and
+ * a client claiming or denying the marking is ignored on both.
+ */
+
+test('5.2: a price typed on the correction screen is stored marked as a typed shopper report', async () => {
+  const scanId = (await identify('sp-mark-a')).scanId as number;
+  const res = await post('/api/correction', {
+    clientId: 'sp-mark-a-1',
+    deviceId: 'sp-mark-a',
+    scanId,
+    code: CODE,
+    seller: 'Metro',
+    priceCents: 588,
+    kind: 'regular',
+    seenOn: today,
+  });
+  assert.equal(res.body.stored, true, JSON.stringify(res.body));
+  const rows = correctionsFor({ code: CODE }).filter((r) => r.device_id === 'sp-mark-a');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.capture, 'typed', 'a typed correction was stored without the shopper-report mark');
+});
+
+test('5.2: a client claiming or denying the marking is ignored on /api/correction', async () => {
+  const claims: Record<string, unknown>[] = [
+    { capture: 'photo' },
+    { capture: null },
+    { capture: 'scraped' },
+    { shopperReport: false },
+    { source: 'store_page', capture: 'photo', shopperReport: false },
+  ];
+  for (const [i, claim] of claims.entries()) {
+    const device = `sp-mark-c${i}`;
+    const res = await post('/api/correction', {
+      clientId: `${device}-1`,
+      deviceId: device,
+      code: CODE,
+      seller: 'Sobeys',
+      priceCents: 601 + i,
+      kind: 'regular',
+      seenOn: today,
+      ...claim,
+    });
+    assert.equal(res.body.stored, true, `${JSON.stringify(claim)} was refused: ${JSON.stringify(res.body)}`);
+    const rows = correctionsFor({ code: CODE }).filter((r) => r.device_id === device);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]!.capture, 'typed', `the client's ${JSON.stringify(claim)} changed the marking`);
+  }
+});
+
+test('5.2: a client claiming or denying the marking is ignored on /api/scan-price', async () => {
+  const claims: Record<string, unknown>[] = [{ capture: 'photo' }, { capture: null }, { shopperReport: false }];
+  for (const [i, claim] of claims.entries()) {
+    const device = `sp-mark-p${i}`;
+    const scanId = (await identify(device)).scanId as number;
+    const res = await post('/api/scan-price', { deviceId: device, scanId, priceCents: 455 + i, storeName: 'FreshCo', ...claim });
+    assert.equal(res.body.report.stored, true, JSON.stringify(res.body));
+    const rows = correctionsFor({ code: CODE }).filter((r) => r.device_id === device);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]!.capture, 'typed', `the client's ${JSON.stringify(claim)} changed the marking`);
+  }
+});
+
+test('5.2: the audit finds no typed price stored any other way after both routes ran', async () => {
+  const { auditTypedPrices } = await import('../src/typed-price-audit.ts');
+  const audit = auditTypedPrices({ corrections: correctionsPath, scans: scansPath, userCatalogue: null });
+  assert.ok(audit.checked.reports > 0, 'the audit read no reports, so it proved nothing');
+  assert.equal(audit.unmarkedReports, 0, JSON.stringify(audit));
+  assert.equal(audit.typedNotReported, 0, JSON.stringify(audit));
+});
+
 /* ---------------------------------------------------------------- D03 -- */
 
 test('D03: the chain list comes from the data: the price file\'s own store names and the banners Pexi names', async () => {

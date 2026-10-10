@@ -6,6 +6,34 @@ History moved out of NOW.md on 2026-09-27: `docs/archive/now-history-2026-09-27.
 
 ---
 
+## Price-category plan, 2026-10-09 (docs/price-category-plan-2026-10-02.md)
+
+- **Stage 1 (keep everything): built, all 11 items pushed** (c0f3f1d, ff3ff00, cec3e63, f7dc01a,
+  35e50a4, 55a3b52, eb6d06d, e7aa8df, bed4384). 4.8's registry audit still FAILS on one unknown
+  basis, Canadian Tire: its site hangs Chrome on every page (robots.txt reads: Allow, Crawl-delay
+  10). Save-On-Foods terms read 2026-10-09 forbid automated reading, so saveonfoods-run is refused,
+  like the Walmart crawl and ANBL loader (read 2026-10-06). The audit names 187 Save-On and 10
+  Walmart rows with no gated reader run; the registry in price/data/prices.db exists now, enforced
+  is still false.
+- **Stage 0 (trustworthy tests): tooling built** (442bc30). Every bench rebuild now stops with exit 3
+  on real data: each of the 17 priced products is alone in its category, so the whole-category
+  control cannot fail on width. 4.9 (Ontario prices on 2+ dates: 0 rows), 7.7 (a person marks the
+  hand-audit sheet; the 45 marks in reread-sheet.csv are Claude's and do not count) and 7.4's
+  Claude arm (no key) wait on people.
+- **Stage 2 (hierarchy): 1.1, 1.6, 1.7 built** (eb6d06d). All 212,340 items have exactly one path;
+  90,487 Canadian items sit in "unplaced" (decision 2026-10-09). 1.2 to 1.5 need prices: 15 priced
+  items join the catalogue. load.ts does not run the placement build yet.
+- **Stage 3 (placing items): 2.1 to 2.4 built** (270c053), Claude slot an interface with no
+  chooser. Run on a copy: 0 unplaced (was 135,496), but 25.9% of Canadian items end at the top
+  level only, against 2.1's 5% bar (food 26.0%, general 23.9% fail; pet, beauty pass). The 2.2
+  sheet (819 rows, bench/results/placement-audit-sheet-2026-10-09.csv) is unmarked, so accuracy is unmeasured and the 0.6 confidence
+  bar uncalibrated. Stage 2's parent chains are wrong in places (D-223). Live catalogue.db not
+  placed yet (`npm run place -- --live`). onnxruntime-node is imported but not declared.
+- Open for a person: Canadian Tire terms (read by hand); an Ontario source; the 7.7 sheet; the
+  outlier numbers (19%, 4 prices); D-222's leftovers (the 595 rows are gone, e3f020e; 6 fixture
+  products, 4,729 unpriced observations, 15,558 offers, 7 branch rows still need Aurik's yes; the
+  Mac copy is still open).
+
 ## Current state of the beta: the catalogue
 
 The catalogue build plan has run (`docs/catalogue-build-plan-2026-09-26.md`). Every unit is built,

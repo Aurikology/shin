@@ -61,6 +61,7 @@ import { writeFileSync, unlinkSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { openPrices, recordObservation, PRICES_DB_PATH, type JoinMethod } from './store.ts';
+import { requireSourceUse } from './registry.ts';
 import { CATALOGUE_PATH } from './crawl.ts';
 
 const SELLER = 'anbl';
@@ -168,7 +169,10 @@ async function main(): Promise<void> {
   const catStmt = cat.prepare('SELECT 1 FROM product WHERE code = ?');
   const isCatalogued = (code: string): boolean => catStmt.get(code) !== undefined;
 
-  const db = openPrices(PRICES_DB_PATH);
+  const db = openPrices(PRICES_DB_PATH, { enforceSources: true });
+  // Requirement 4.8: the database refuses unregistered sellers, and no automated
+  // reader runs without a recorded basis or on a source whose basis forbids one.
+  requireSourceUse(db, SELLER, 'automated');
   const today = new Date().toISOString().slice(0, 10);
 
   let candidateLines = 0;

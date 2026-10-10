@@ -495,7 +495,7 @@
    and not a `data-anim` value the parking can reach. */
 .cam[data-state="idle"] .cam-shin .face-eyes,
 .cam[data-state="framing"] .cam-shin .face-eyes {
-  animation: camEyeGlance 6400ms ease-in-out infinite; /* D-228: was 5200, a period near 5 s */
+  animation: camEyeGlance 6400ms ease-in-out infinite; /* D-230: was 5200, a period near 5 s */
   animation-delay: 1400ms;
 }
 
@@ -1119,7 +1119,7 @@
 .price {
   font-family: var(--f-display);
   font-weight: 800;
-  font-size: var(--t-price-size); /* D-222: the 72 px token (64 under 380 px wide), was hard-coded 64px */
+  font-size: var(--t-price-size); /* D-224: the 72 px token (64 under 380 px wide), was hard-coded 64px */
   line-height: .86;
   letter-spacing: -.04em;
   font-variant-numeric: tabular-nums;

@@ -188,15 +188,16 @@ test('a catalogue miss recorded through the gap log ALSO creates a user-sourced 
   assert.equal(all<{ store_type: string }>(uc, 'SELECT store_type FROM user_observation')[0].store_type, 'supermarket');
 });
 
-test('a bare barcode miss still makes an entry, marked bare; a two-letter query does not', () => {
+test('a bare barcode miss still makes an entry, marked bare; a two-letter query does too (5.7, 2026-10-09)', () => {
   const path = tempGaps();
   openGapLog(path);
   recordGap({ gtin: '5449000000996' });
   recordGap({ queryText: 'ab' });
   const uc = createUserCatalogue(join(path, '..', 'user-catalogue.db'));
   const rows = all<{ gtin: string; bare: number }>(uc, 'SELECT gtin, bare FROM user_product');
-  assert.equal(rows.length, 1);
-  assert.equal(rows[0].bare, 1);
+  assert.equal(rows.length, 2);
+  assert.ok(rows.every((r) => r.bare === 1));
+  assert.ok(rows.some((r) => r.gtin === '5449000000996'));
 });
 
 test('recordUserScan never throws, on a closed log or a scan with nothing in it', () => {

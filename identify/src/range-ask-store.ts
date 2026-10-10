@@ -31,8 +31,9 @@
  * append-only JSON-lines file (`<store>.answers.jsonl`, see
  * `rangeAnswersPath`) gets one line per answer the model gave: valid ranges,
  * `known: false`, and answers refused by the validator, each with its reason
- * and the raw object. A transport failure (no answer came back) is not an
- * answer and is not written. This log is never pruned and never read back by
+ * and the raw object. A transport failure (no answer came back) is written
+ * too, as outcome `transport_error`: requirement 6.2 is one row per call, and
+ * a call with no row is the defect. This log is append-only, never pruned and never read back by
  * the ask; the cache above is what saves a rescan its cap slot.
  *
  * Single process, single event loop: the read-modify-write below is not
@@ -153,16 +154,27 @@ export function writeCachedRange(storePath: string, key: string, entry: CachedRa
   writeRangeStore(storePath, { ...s, cache: { ...s.cache, [key]: entry } }, nowMs, ttlMs);
 }
 
-/** One answer the model gave, as it is logged. */
+/**
+ * One row of the estimates log (requirement 6.2): ONE per Claude call that was
+ * sent, including calls that got no answer. Item, model, date and category are
+ * the four fields the requirement names; `key` is the cache key.
+ */
 export interface RangeAnswerRecord {
   readonly key: string;
+  /** The item asked about, as named in the ask. */
+  readonly item: string;
+  readonly brand?: string | null;
+  readonly size?: string | null;
+  /** The category the ask carried, or null when the caller passed none. Always present. */
+  readonly category: string | null;
   /** ISO time of the call. */
   readonly askedAt: string;
+  /** The model that answered; for a call that got no answer, the model that was asked. */
   readonly model: string;
-  /** 'ok', 'model_does_not_know', or the validator's refusal reason. */
+  /** 'ok', 'model_does_not_know', the validator's refusal reason, or 'transport_error' (no answer came back). */
   readonly outcome: string;
   readonly detail?: string;
-  /** The model's parsed object, or null when it did not parse. */
+  /** The model's parsed object, or null when it did not parse or never answered. */
   readonly raw: unknown;
 }
 
@@ -171,9 +183,41 @@ export function rangeAnswersPath(storePath: string): string {
   return storePath.replace(/\.json$/i, '') + '.answers.jsonl';
 }
 
-/** Appends one answer to the log. Throws on a write failure; the caller decides what that means. */
+/**
+ * Appends one row to the log. Throws on a write failure. APPEND-ONLY: this file
+ * is only ever opened with appendFileSync; nothing here rewrites, truncates or
+ * deletes a row (test/range-estimates.test.ts proves it).
+ */
 export function appendRangeAnswer(storePath: string, record: RangeAnswerRecord): void {
   const path = rangeAnswersPath(storePath);
   mkdirSync(dirname(path), { recursive: true });
   appendFileSync(path, JSON.stringify(record) + '\n', 'utf8');
+}
+
+let logFaults = 0;
+
+/** How many estimates-log writes have failed in this process. Surfaced for health checks. */
+export function rangeLogFaults(): number {
+  return logFaults;
+}
+
+/** The fixed tag every log-write fault carries on stderr (RULINGS "Errors never go unnoticed"). */
+export const RANGE_LOG_FAULT_TAG = '[range-log-fault]';
+
+/**
+ * Appends a row; on failure the fault is counted and logged under
+ * `RANGE_LOG_FAULT_TAG`, never swallowed, and false is returned so the caller
+ * can flag its result. The shopper's answer is not withheld ("Always answer").
+ */
+export function recordRangeAnswer(storePath: string, record: RangeAnswerRecord): boolean {
+  try {
+    appendRangeAnswer(storePath, record);
+    return true;
+  } catch (err) {
+    logFaults += 1;
+    console.error(
+      `${RANGE_LOG_FAULT_TAG} the estimate row was not stored (fault ${logFaults}): item=${JSON.stringify(record.item)} outcome=${record.outcome} - ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return false;
+  }
 }

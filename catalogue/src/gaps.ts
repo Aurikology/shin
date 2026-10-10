@@ -35,7 +35,7 @@ import * as settings from '../../settings/src/index.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { createUserCatalogue, recordUserScan, type UserCatalogue, type UserScanInput } from './user-catalogue.ts';
+import { createUserCatalogue, hasUserEntry, recordUserScan, type UserCatalogue, type UserScanInput } from './user-catalogue.ts';
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS gap (
@@ -111,6 +111,32 @@ export interface GapLog {
   dropped: number;
   /** Why the last drop happened. Empty string when nothing has dropped. */
   droppedWhy: string;
+  /**
+   * Requirement 5.7's "count in": every miss offered to `recordGap` on this handle, per finding,
+   * with the stored count read BEFORE the first write so history from earlier runs is not blamed.
+   * Bounded by MAX_LEDGER findings; past it `ledgerOverflow` counts what was not tracked, and
+   * `reconcileGaps` says so rather than pretending it checked.
+   */
+  readonly ledger: Map<string, LedgerEntry>;
+  ledgerOverflow: number;
+}
+
+/** The most distinct findings one handle tracks for reconciliation. A bound, not a judgement. */
+const MAX_LEDGER = 20000;
+
+interface LedgerEntry {
+  readonly kind: 'gtin' | 'text';
+  readonly key: string;
+  readonly gtin: string | null;
+  readonly text: string | null;
+  /** Misses offered for this finding on this handle. */
+  offered: number;
+  /** Stored count before this handle's first write; null until read. */
+  baseline: number | null;
+  /** Pending-item attempts, and what they were looking for when read back. */
+  pendingOffered: number;
+  pendingGtin: string | null;
+  pendingName: string | null;
 }
 
 /**
@@ -162,7 +188,7 @@ export function openGapLog(path: string = settings.SHIN_GAPS() ?? 'data/gaps.db'
     db = null;
     droppedWhy = err instanceof Error ? err.message : String(err);
   }
-  const log: GapLog = { path, db, dropped: 0, droppedWhy };
+  const log: GapLog = { path, db, dropped: 0, droppedWhy, ledger: new Map(), ledgerOverflow: 0 };
   active = log;
   return log;
 }
@@ -212,8 +238,8 @@ function classify(input: { gtin?: string; queryText?: string }): GapKey {
  * the entries there too and never writes into the default location by accident.
  * `SHIN_USER_CATALOGUE` overrides it.
  *
- * A typed query too short to be a product name (under three characters) and no
- * barcode is not an entry: it is a keystroke, and stays in the review log only.
+ * No minimum length (changed 2026-10-09, requirement 5.7): a two-letter typed name that
+ * missed is a pending item with its raw text, like any other.
  */
 const userCatalogues = new WeakMap<GapLog, UserCatalogue>();
 
@@ -228,15 +254,25 @@ function userCatalogueFor(log: GapLog): UserCatalogue {
   return uc;
 }
 
-function autoCreateFromMiss(log: GapLog, input: { gtin?: string; queryText?: string; scan?: UserScanInput }): void {
+function autoCreateFromMiss(
+  log: GapLog,
+  input: { gtin?: string; queryText?: string; scan?: UserScanInput },
+): { gtin: string | null; name: string | null } {
   const gtin = input.scan?.gtin ?? input.gtin;
   const name = input.scan?.name ?? input.queryText;
-  const hasName = (name?.trim().length ?? 0) >= 3;
-  if (!gtin?.trim() && !hasName) return;
-  recordUserScan(
+  // Requirement 5.7, 2026-10-09: no minimum length. The old "under three characters is a keystroke"
+  // rule was a code comment (item 15), not a ruling, and it dropped real two-letter names. Typeahead
+  // noise is stopped where it starts, by the caller passing `recordMiss: false`, not by losing the text.
+  const hasName = (name?.trim().length ?? 0) >= 1;
+  if (!gtin?.trim() && !hasName) return { gtin: null, name: null };
+  const result = recordUserScan(
     { ...input.scan, gtin, name: hasName ? name : null, bare: input.scan?.name ? false : true },
     { log: userCatalogueFor(log), probe: null },
   );
+  if (result.outcome === 'dropped') {
+    console.warn(`[catalogue-fault] pending_item_dropped a miss could not become a pending item: ${result.reason ?? 'unknown'}`);
+  }
+  return { gtin: gtin?.trim() || null, name: hasName ? name!.trim() : null };
 }
 
 /**
@@ -270,14 +306,43 @@ export function recordGap(input: {
   scan?: UserScanInput;
 }): void {
   const log = active ?? openGapLog();
+  // Counted in before anything can fail, so a miss that is lost is lost against a count.
+  const { kind, key, gtin, queryText } = classify(input);
+  const ledgerKey = `${kind}\u0000${key}`;
+  let entry = log.ledger.get(ledgerKey);
+  if (!entry && log.ledger.size < MAX_LEDGER) {
+    entry = { kind, key, gtin, text: queryText, offered: 0, baseline: null, pendingOffered: 0, pendingGtin: null, pendingName: null };
+    log.ledger.set(ledgerKey, entry);
+  } else if (!entry) {
+    log.ledgerOverflow += 1;
+  }
+  if (entry) {
+    entry.offered += 1;
+    if (entry.baseline === null) {
+      try {
+        const r = log.db?.prepare('SELECT count FROM gap WHERE kind = ? AND key = ?').get(kind, key) as { count: number } | undefined;
+        entry.baseline = r?.count ?? 0;
+      } catch (err) {
+        console.warn(`[catalogue-fault] gap_baseline_unreadable ${err instanceof Error ? err.message : String(err)}`);
+        entry.baseline = 0;
+      }
+    }
+  }
   try {
-    autoCreateFromMiss(log, input);
-  } catch {
-    // Item 15's entry is on top of the log and never instead of it or a reason it fails.
+    const wanted = autoCreateFromMiss(log, input);
+    if (entry && (wanted.gtin !== null || wanted.name !== null)) {
+      entry.pendingOffered += 1;
+      // Written once: what to look for when the pending table is read back.
+      entry.pendingGtin ??= wanted.gtin;
+      entry.pendingName ??= wanted.name;
+    }
+  } catch (err) {
+    // Item 15's entry is on top of the log and never instead of it or a reason it fails, and it is
+    // never silent either (2026-10-08, "Errors never go unnoticed").
+    console.warn(`[catalogue-fault] pending_item_dropped ${err instanceof Error ? err.message : String(err)}`);
   }
   try {
     if (!log.db) throw new Error(log.droppedWhy || 'gap log is not open');
-    const { kind, key, gtin, queryText } = classify(input);
     const now = new Date().toISOString();
     log.db
       .prepare(
@@ -286,6 +351,7 @@ export function recordGap(input: {
          ON CONFLICT(kind, key) DO UPDATE SET
            count = count + 1,
            last_seen = excluded.last_seen,
+           query_text = COALESCE(gap.query_text, excluded.query_text),
            note = COALESCE(excluded.note, note),
            catalogue_missing = max(gap.catalogue_missing, excluded.catalogue_missing)`,
       )
@@ -308,4 +374,100 @@ export function recordGap(input: {
     log.droppedWhy = why;
     if (fresh) console.warn(`[catalogue-fault] gap_dropped a miss could not be written to ${log.path}: ${why}`);
   }
+}
+
+/* ------------------------------------------------- 5.7: count in against stored */
+
+export interface GapReconciliation {
+  readonly ok: boolean;
+  /** Misses offered to `recordGap` on this handle. */
+  readonly offered: number;
+  /** Of those, how many the gap table holds when read back (growth past its pre-handle count, never more than offered). */
+  readonly stored: number;
+  readonly pendingOffered: number;
+  readonly pendingStored: number;
+  /** Findings whose stored count fell short, up to MAX_EXAMPLES. */
+  readonly lost: ReadonlyArray<{ kind: string; text: string | null; gtin: string | null; offered: number; stored: number }>;
+  /** Text findings stored without their raw text, or barcode findings without the barcode. */
+  readonly rawTextMissing: ReadonlyArray<{ kind: string; key: string; offeredText: string | null }>;
+  /** Findings with no pending item when the user catalogue was read back. */
+  readonly pendingLost: ReadonlyArray<{ gtin: string | null; name: string | null }>;
+  /** Findings past the ledger bound that could not be checked. A non-zero value fails the check. */
+  readonly untracked: number;
+  /** `recordGap` writes that threw on this handle. */
+  readonly dropped: number;
+}
+
+const MAX_EXAMPLES = 5;
+
+/**
+ * Requirement 5.7's check, "count in against stored": the misses offered to `recordGap` on this
+ * handle against what the gap table and the pending-item table hold when READ BACK. Never
+ * throws; returns the counts and examples, and `ok` is false on any shortfall, any missing raw
+ * text, any missing pending item, any miss past the ledger bound, or any write that threw.
+ * Rows beyond the offered count (another process writing the same file) are not a failure.
+ */
+export function reconcileGaps(log: GapLog | null = active): GapReconciliation {
+  if (!log) {
+    return { ok: true, offered: 0, stored: 0, pendingOffered: 0, pendingStored: 0, lost: [], rawTextMissing: [], pendingLost: [], untracked: 0, dropped: 0 };
+  }
+  let offered = 0;
+  let stored = 0;
+  let pendingOffered = 0;
+  let pendingStored = 0;
+  const lost: Array<GapReconciliation['lost'][number]> = [];
+  const rawTextMissing: Array<GapReconciliation['rawTextMissing'][number]> = [];
+  const pendingLost: Array<GapReconciliation['pendingLost'][number]> = [];
+  let lostTotal = 0;
+  let rawTotal = 0;
+  let pendingLostTotal = 0;
+  const uc = log.ledger.size > 0 ? userCatalogueFor(log) : null;
+  for (const e of log.ledger.values()) {
+    offered += e.offered;
+    let row: { count: number; query_text: string | null; gtin: string | null } | undefined;
+    if (log.db) {
+      row = log.db.prepare('SELECT count, query_text, gtin FROM gap WHERE kind = ? AND key = ?').get(e.kind, e.key) as typeof row;
+    }
+    const grew = Math.max(0, (row?.count ?? 0) - (e.baseline ?? 0));
+    const kept = Math.min(e.offered, grew);
+    stored += kept;
+    if (kept < e.offered) {
+      lostTotal += 1;
+      if (lost.length < MAX_EXAMPLES) lost.push({ kind: e.kind, text: e.text, gtin: e.gtin, offered: e.offered, stored: kept });
+    }
+    if (row) {
+      const missing = e.kind === 'gtin' ? !row.gtin : e.text !== null && !row.query_text;
+      if (missing) {
+        rawTotal += 1;
+        if (rawTextMissing.length < MAX_EXAMPLES) rawTextMissing.push({ kind: e.kind, key: e.key, offeredText: e.text });
+      }
+    }
+    if (e.pendingOffered > 0) {
+      pendingOffered += e.pendingOffered;
+      if (uc && hasUserEntry(uc, { gtin: e.pendingGtin, name: e.pendingName })) {
+        pendingStored += e.pendingOffered;
+      } else {
+        pendingLostTotal += 1;
+        if (pendingLost.length < MAX_EXAMPLES) pendingLost.push({ gtin: e.pendingGtin, name: e.pendingName });
+      }
+    }
+  }
+  const ok = lostTotal === 0 && rawTotal === 0 && pendingLostTotal === 0 && log.ledgerOverflow === 0 && log.dropped === 0;
+  return { ok, offered, stored, pendingOffered, pendingStored, lost, rawTextMissing, pendingLost, untracked: log.ledgerOverflow, dropped: log.dropped };
+}
+
+/**
+ * Throws, with counts and examples, when `reconcileGaps` is not ok. For a test, a health check,
+ * or a job end: "Errors never go unnoticed" means a lost miss is a failure someone sees, not a
+ * number in a field nothing reads.
+ */
+export function assertGapsReconciled(log: GapLog | null = active): GapReconciliation {
+  const r = reconcileGaps(log);
+  if (r.ok) return r;
+  const eg = (xs: ReadonlyArray<unknown>) => JSON.stringify(xs);
+  throw new Error(
+    `[catalogue-fault] gap_reconcile_failed misses offered ${r.offered}, stored ${r.stored}; ` +
+      `pending items offered ${r.pendingOffered}, stored ${r.pendingStored}; write errors ${r.dropped}; untracked ${r.untracked}. ` +
+      `lost: ${eg(r.lost)} raw text missing: ${eg(r.rawTextMissing)} pending missing: ${eg(r.pendingLost)}`,
+  );
 }

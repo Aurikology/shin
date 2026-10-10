@@ -1022,7 +1022,7 @@ Figure status: the 20, 7 and 71 are counts of the blocks above by their Should l
 
 **How to run.** From `app/`: `npm run test:ux`. It runs every file in `app/test/ux/` and is red by design until the builds in section 13 land. The main suite, `npm test`, does not pick these files up (its glob is not recursive) and stays green. A single file: `node --test --test-global-setup=test/setup/global.mjs test/ux/<file>`.
 
-**Rule.** A build is done when its file reports 0 red. A test that is red for a defect in code that exists today (RED-defect below) is not part of a build's "unbuilt" list: it goes green only when that defect is fixed, and each is logged in DEFECTS.md as D-222 to D-228.
+**Rule.** A build is done when its file reports 0 red. A test that is red for a defect in code that exists today (RED-defect below) is not part of a build's "unbuilt" list: it goes green only when that defect is fixed, and each is logged in DEFECTS.md as D-224 to D-230 (renumbered from D-222 to D-228 when the 2026-10-10 merge met two other D-222 and D-223 rows).
 
 **Counts from the run of 2026-10-09** (523 tests, 279 pass, 241 fail, 3 skipped; RED-expected is red because the build has not landed, RED-defect is red for a fault in shipped code):
 
