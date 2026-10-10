@@ -46,7 +46,7 @@ import { LOCALES, locale, setLocale, localePinned } from '../lib/locale.js';
 import { countryLabel, regionText } from './market.js';
 import { rangePickerHtml, handleRangeClick } from '../lib/range-picker.js';
 import { tagsOn, setTagsOn } from '../screen-tag-badge.js';
-import { devOn } from '../dev-mode.js';
+import { devOn, packReadOn, setPackReadOn } from '../dev-mode.js';
 import { FLAGS } from '../flags.js';
 import { MANAGE_URLS, LEGAL_URLS, LEGAL_URLS_FR } from '../plus-config.js';
 import { platformOf } from '../purchases.js';
@@ -480,8 +480,14 @@ export default {
             <button type="button" class="ilist-row" data-tags-switch role="switch" aria-checked="false">
               <span class="ilist-l">${escapeHtml(t('dev_tags'))}</span><span class="ilist-v" data-tags-v></span>
             </button>
+            ${/* The pack read (2026-10-10, developer-only): off by default. The device id is
+                 shown because the server must list it too (SHIN_DEVELOPER_DEVICES). */ ''}
+            <button type="button" class="ilist-row" data-pack-read-switch role="switch" aria-checked="false">
+              <span class="ilist-l">${escapeHtml(t('dev_pack_read'))}</span><span class="ilist-v" data-pack-read-v></span>
+            </button>
           </div>
           <p class="fineprint">${escapeHtml(t('dev_tags_caption'))}</p>
+          <p class="fineprint">${escapeHtml(t('dev_pack_read_caption'))} ${escapeHtml(t('you_delete_body_device'))}: ${escapeHtml(getDeviceId()?.id ?? t('unknown'))}</p>
         </section>` : ''}
 
         <p class="fineprint buildline" data-build>${escapeHtml(t('you_build'))} ${escapeHtml(t('unknown'))}</p>
@@ -553,6 +559,16 @@ export default {
       row.querySelector('[data-tags-v]').textContent = isOn ? t('on') : t('off');
     }
     paintTags();
+
+    /** The pack-read switch, painted from the stored setting the camera reads, never from the last tap. */
+    function paintPackRead() {
+      const row = root.querySelector('[data-pack-read-switch]');
+      if (!row) return;
+      const isOn = packReadOn();
+      row.setAttribute('aria-checked', String(isOn));
+      row.querySelector('[data-pack-read-v]').textContent = isOn ? t('on') : t('off');
+    }
+    paintPackRead();
 
     // Both attitude and theme are radio groups whose ARIA promised arrow keys.
     for (const g of root.querySelectorAll('[role="radiogroup"]')) {
@@ -636,6 +652,11 @@ export default {
       if (e.target.closest('[data-tags-switch]')) {
         setTagsOn(!tagsOn());
         paintTags();
+        return;
+      }
+      if (e.target.closest('[data-pack-read-switch]')) {
+        setPackReadOn(!packReadOn());
+        paintPackRead();
         return;
       }
       const consentBtn = e.target.closest('[data-consent]');

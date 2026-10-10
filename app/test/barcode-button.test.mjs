@@ -68,7 +68,8 @@ test('every frame is decoded and voted, with no press needed', () => {
 test('a frame that found nothing still counts as a frame', () => {
   const tick = between(EYE, 'async #tick()', '/** The pick, if the detectors', '#tick()');
   // read() returns [] for a decoded frame with no code and null for no decode at all.
-  assert.ok(tick.includes('if (seen) this.#vote.push(Date.now(), seen);'),
+  // D-232 put the unreadable watch beside the push, inside the same guard.
+  assert.ok(/if \(seen\) \{?\s*this\.#vote\.push\(Date\.now\(\), seen\);/.test(tick),
     'an empty frame no longer votes, so a flaky code would look unanimous');
 });
 

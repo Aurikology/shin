@@ -328,7 +328,7 @@ export interface ScanInput {
    * leaves these out and writes nulls, exactly as before.
    */
   readonly answerPath?: 'catalogue_hit' | 'not_in_catalogue' | 'text_match' | 'open_food_facts' | 'claude_reading' | 'frame_wanted' | null;
-  readonly rangeSource?: 'shin_prices' | 'gemini_typical' | 'none' | null;
+  readonly rangeSource?: 'shin_prices' | 'claude_typical' | 'none' | null;
   readonly rangeBasis?: string | null;
   readonly rangeMissReason?: string | null;
   readonly matchLines?: number | null;

@@ -48,6 +48,7 @@ export {
   type BarcodeMark,
 } from './camera.ts';
 export { BarcodeVote, VOTE_DEFAULTS, type Sighting, type VoteTrack, type VoteOptions } from './votes.ts';
+export { UnreadableWatch, UNREADABLE_DEFAULTS, type UnreadableRead, type UnreadableOptions } from './unreadable.ts';
 export {
   decideTorch,
   normaliseTorchSetting,

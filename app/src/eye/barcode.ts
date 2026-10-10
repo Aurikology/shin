@@ -188,6 +188,13 @@ export class BarcodeScanner {
   #loaded = false;
   /** Consecutive decoded (not skipped) frames that found nothing. Item 12. */
   #misses = 0;
+  /**
+   * D-232: what the last `read` saw and could not read (zxing's `isValid:
+   * false` results, a failed check digit above all). Empty when the frame
+   * gave a good reading, held nothing, or was never decoded. Never a reading:
+   * nothing here reaches the vote or the button.
+   */
+  lastUnreadable: Sighting[] = [];
 
   constructor(options: ScannerOptions = {}) {
     if (options.wasmUrl) {
@@ -224,6 +231,7 @@ export class BarcodeScanner {
    * here: `BarcodeVote` (votes.ts) decides that, and a press acts on it.
    */
   async read(frame: ImageData): Promise<Sighting[] | null> {
+    this.lastUnreadable = [];
     // Once the module is wedged it never recovers, and every further call adds
     // another promise that will not settle. Answering null immediately keeps
     // the frame loop alive and costs nothing.
@@ -252,6 +260,7 @@ export class BarcodeScanner {
       this.#misses = 0;
       return out;
     }
+    this.lastUnreadable = toUnreadable(first);
 
     /*
      * ITEM 12. A code that is really there but the first pass missed (poor
@@ -273,7 +282,12 @@ export class BarcodeScanner {
     const second = await this.#raceDecode(pre as unknown as ImageData, SECOND_PASS_OPTIONS);
     if (second === null) return out;
     const retried = toSightings(second);
-    return retried.length > 0 ? retried : out;
+    if (retried.length > 0) {
+      this.lastUnreadable = [];
+      return retried;
+    }
+    if (this.lastUnreadable.length === 0) this.lastUnreadable = toUnreadable(second);
+    return out;
   }
 
   /**
@@ -362,6 +376,14 @@ const FIRST_PASS_OPTIONS = {
   tryInvert: true,
   tryDownscale: true,
   maxNumberOfSymbols: 4,
+  /*
+   * D-232: also hand back the barcodes zxing found and could not read (an
+   * EAN-13 whose check digit fails comes back `isValid: false` with a
+   * ChecksumError; without this zxing drops it and the eye never knows a
+   * barcode was there). They never become a reading (`toSightings` skips
+   * them); they feed `lastUnreadable` and the eye's UnreadableWatch.
+   */
+  returnErrors: true,
 };
 
 /** Item 12's second attempt: the same robustness options, plus denoise, on a preprocessed frame. */
@@ -377,6 +399,16 @@ function toSightings(results: ReadResult[]): Sighting[] {
     const value = extractGtin(r.text, String(r.format));
     if (!value) continue;
     out.push({ value, format: String(r.format), box: boxOf(r) });
+  }
+  return out;
+}
+
+/** D-232: the barcodes on the frame zxing located and could not read, digits as it read them (possibly empty). */
+function toUnreadable(results: ReadResult[]): Sighting[] {
+  const out: Sighting[] = [];
+  for (const r of results) {
+    if (r.isValid !== false) continue;
+    out.push({ value: extractGtin(r.text ?? '', String(r.format)), format: String(r.format), box: boxOf(r) });
   }
   return out;
 }

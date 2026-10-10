@@ -311,7 +311,7 @@ test('case 3 and 5: a known product with no Pexi price asks Claude once, shared 
   assert.equal(askCalls.length, asks + 1, 'one scan, one ask');
   assert.equal(body.verdict.basis, 'claude_typical');
   assert.ok(Math.abs(body.verdict.p10Cents - 199) <= 1 && Math.abs(body.verdict.p90Cents - 349) <= 1);
-  assert.equal(body.rangeSource, 'gemini_typical');
+  assert.equal(body.rangeSource, 'claude_typical');
   assert.equal(body.range.lowCents, 199);
 });
 

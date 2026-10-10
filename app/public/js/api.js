@@ -427,6 +427,12 @@ export async function identifyPack({ gtin, frame, shelfPriceCents } = {}) {
     return { product: null, failure: 'rate_limited', ...(typeof respBody?.retryAfterSeconds === 'number' ? { retryAfterSeconds: respBody.retryAfterSeconds } : {}) };
   }
   if (res.status === 402) return scanLimitFrom(await res.json().catch(() => null));
+  /* The pack read is developer-only (2026-10-10) and the server decides who a developer is: a refusal
+     is a shape the camera turns into typing the name, never a thrown "no connection". */
+  if (res.status === 403) {
+    const respBody = await res.json().catch(() => null);
+    return { product: null, failure: respBody?.failure ?? 'pack_read_developer_only' };
+  }
   if (!res.ok) throw new Error(`/api/identify/pack returned ${res.status}`);
   return res.json();
 }

@@ -32,3 +32,28 @@ export function captureDevParam(search = globalThis.location?.search ?? '') {
 export function devOn({ tagsOn = false, search = globalThis.location?.search ?? '' } = {}) {
   return Boolean(tagsOn) || readFlag() || new URLSearchParams(search).get('dev') === '1';
 }
+
+/*
+ * The pack read (RULINGS.md "A scan never ends with no result", amended
+ * 2026-10-10; Jamin: "sending picture to claude is a developer only setting").
+ * When neither the catalogue nor Open Food Facts names a barcode, a developer
+ * may have the camera frame sent to Claude to read the pack. Off by default and
+ * for every shopper: with it off the camera keeps its frames on the phone and a
+ * double miss goes to typing the name. The server checks too (a listed device
+ * or the admin token), so this switch only decides what the phone offers.
+ */
+const PACK_READ_KEY = 'shin.dev.packRead';
+
+/** Whether this phone sends a scan's camera frame to be read by Claude. False unless switched on in the Developer row. */
+export function packReadOn() {
+  try { return globalThis.localStorage?.getItem(PACK_READ_KEY) === '1'; } catch { return false; }
+}
+
+/** The Developer row's switch. Storage blocked means it stays off, which is the safe side. */
+export function setPackReadOn(value) {
+  try {
+    if (value) globalThis.localStorage?.setItem(PACK_READ_KEY, '1');
+    else globalThis.localStorage?.removeItem(PACK_READ_KEY);
+  } catch { /* private window: the switch cannot be remembered, so it stays off */ }
+  return packReadOn();
+}

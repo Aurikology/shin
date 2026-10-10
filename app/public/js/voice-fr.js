@@ -980,6 +980,12 @@ export const LINES_FR = {
     warm: () => "Presque. Tiens-le immobile pendant que je relis le code-barres.",
     blunt: () => "Mauvaise lecture. Ne bouge pas.",
   },
+  /* D-232: un code-barres que je vois sans pouvoir le lire; taper le nom est proposé juste dessous. */
+  cam_unreadable: {
+    deadpan: () => "Je vois un code-barres illisible. Tape le nom.",
+    warm: () => "Je vois le code-barres sans pouvoir le lire. Tape son nom ?",
+    blunt: () => "Code-barres illisible. Tape le nom.",
+  },
   cam_point_barcode: {
     deadpan: () => "Pointe-moi vers le code-barres.",
     warm: () => "Pointe-moi vers le code-barres et tiens-le là.",

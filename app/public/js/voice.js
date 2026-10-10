@@ -1737,6 +1737,15 @@ const LINES_EN = {
     warm: () => 'Almost. Hold it still while I read the barcode again.',
     blunt: () => 'Bad read. Hold still.',
   },
+  /**
+   * D-232: a barcode Pexi keeps seeing and cannot read, on a phone that does not
+   * send frames. Typing the name is offered right under this line.
+   */
+  cam_unreadable: {
+    deadpan: () => "I see a barcode I can't read. Type the name.",
+    warm: () => "I can see the barcode, but can't read it. Type its name?",
+    blunt: () => "Can't read that barcode. Type the name.",
+  },
   cam_point_barcode: {
     deadpan: () => 'Point me at the barcode.',
     warm: () => 'Point me at the barcode and hold it there.',

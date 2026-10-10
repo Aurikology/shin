@@ -665,8 +665,13 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
        *
        *   answer_path       'catalogue_hit', 'not_in_catalogue' or 'text_match'.
        *                     Null on every row from the older paths.
-       *   range_source      'shin_prices', 'gemini_typical' or 'none'. Null on
-       *                     the older paths and on a text_match row.
+       *   range_source      'shin_prices', 'claude_typical' or 'none'. Null on
+       *                     the older paths and on a text_match row. Reading old
+       *                     rows (D-231, 2026-10-10): 'gemini_typical' was the
+       *                     label for the model's range until that fix, and the
+       *                     model has been Claude since 2026-09-28, so a
+       *                     'gemini_typical' row scanned on or after that day is
+       *                     a Claude answer. Old rows are not rewritten.
        *   range_basis       priceRangeFor's basis: this_product, leaf_category,
        *                     parent_category or none.
        *   range_miss_reason Why no range was given (the ask's reason code, for

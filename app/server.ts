@@ -124,6 +124,7 @@ import {
 } from './src/grounded-record.ts';
 import { dailyLatency } from './src/latency.ts';
 import { defaultPricesPath, lookupOwnPrices, lookupOwnPricesByBarcode, OWN_DATA_SOURCE, type OwnMatch } from './src/own-prices.ts';
+import { checkPricesAtStart, notePricesOpened, pricesHealth } from './src/prices-health.ts';
 
 const PUBLIC_DIR = fileURLToPath(new URL('./public/', import.meta.url));
 const PORT = Number(settings.PORT() ?? 4173);
@@ -2361,6 +2362,8 @@ async function withCatalogueFirstDeps<T>(
     logError({ where: 'identify.catalogue_first.prices', deviceId: device, scanId: null, err });
     prices = null;
   }
+  // D-231: a prices file that cannot answer (no observation table, say) is counted for /api/health, never only per scan.
+  notePricesOpened(prices, PRICES_DB_PATH);
   try {
     return await fn({
       lookup: fastLookup,
@@ -2431,6 +2434,24 @@ function claudePackRead(req: IncomingMessage): (frame: Buffer, gtin: string | nu
   };
 }
 
+/** The reason a refused pack read carries, in the answer, the loud log and the scan row. */
+const PACK_READ_DEVELOPER_ONLY = 'pack_read_developer_only';
+
+/**
+ * Whether this request may have its frame read by Claude. RULINGS.md "A scan
+ * never ends with no result", amended 2026-10-10 (Jamin: "sending picture to
+ * claude is a developer only setting"): off for every shopper. The client's
+ * own switch is not proof (a flag is one query parameter, and the call costs
+ * money), so the server decides: a developer is a device id listed in
+ * SHIN_DEVELOPER_DEVICES (comma-separated), or a request carrying the admin
+ * token. Null when allowed, otherwise the reason.
+ */
+function packReadRefusal(req: IncomingMessage, device: string): string | null {
+  if (adminAllows(req.headers[ADMIN_HEADER])) return null;
+  const listed = (settings.SHIN_DEVELOPER_DEVICES() ?? '').split(',').map((d) => d.trim()).filter((d) => d !== '');
+  return device !== UNATTRIBUTED && listed.includes(device) ? null : PACK_READ_DEVELOPER_ONLY;
+}
+
 /**
  * The steps after a catalogue miss, in the ruling's order (RULINGS.md "A scan
  * never ends with no result"): a live Open Food Facts lookup by barcode,
@@ -2444,6 +2465,8 @@ function nameElsewhereFor(opts: {
   frame: Buffer | null;
   canSendFrame: boolean;
   readFrame: ReturnType<typeof claudePackRead> | null;
+  /** Set when the pack read is refused for this request (`packReadRefusal`): the reason step (2) did not run. */
+  refusedWhy?: string | null;
 }): NonNullable<BarcodeDeps['nameElsewhere']> {
   return async (gtin) => {
     const reasons: string[] = [];
@@ -2456,6 +2479,7 @@ function nameElsewhereFor(opts: {
     const saved = savedPackReading(packReadSettings().storePath ?? DEFAULT_PACK_STORE_PATH, gtin);
     if (saved) return { ok: true, named: { name: saved.name, brand: saved.brand, size: saved.size, source: 'claude_reading' } };
     if (!opts.frame || !opts.readFrame) {
+      if (opts.refusedWhy) return { ok: false, reasons: [...reasons, opts.refusedWhy], frameWanted: false };
       if (opts.canSendFrame && opts.readFrame) return { ok: false, reasons: [...reasons, 'frame_wanted'], frameWanted: true };
       return { ok: false, reasons: [...reasons, 'no_frame'], frameWanted: false };
     }
@@ -3570,6 +3594,8 @@ export const server = createServer(async (req, res) => {
         if (overLimitFirst) return json(402, overLimitFirst);
         const canonical = canonicalBarcode(rawGtin);
         if (canonical) {
+          // The pack read is developer-only: a shopper's `canSendFrame` is ignored and the miss goes to typing, with the reason.
+          const packRefused = packReadRefusal(req, device);
           const { answer, record } = await catalogueFirstBarcode(
             claudeRangeAsk(req),
             canonical,
@@ -3577,7 +3603,12 @@ export const server = createServer(async (req, res) => {
             device,
             shopperFrom(pick('shelfPriceCents'), pick('thresholds')),
             // RULINGS.md "A scan never ends with no result": a catalogue miss is named elsewhere before "not found".
-            nameElsewhereFor({ frame: null, canSendFrame: pickText('canSendFrame') === '1', readFrame: claudePackRead(req) }),
+            nameElsewhereFor({
+              frame: null,
+              canSendFrame: !packRefused && pickText('canSendFrame') === '1',
+              readFrame: packRefused ? null : claudePackRead(req),
+              refusedWhy: packRefused,
+            }),
           );
           // The client holds a frame and Pexi needs it: asked for, with no scan row yet. The frame's own request is the scan.
           if (answer.outcome === 'frame_wanted') return json(200, { ...answer, ms: Date.now() - identifyStarted });
@@ -3960,6 +3991,19 @@ export const server = createServer(async (req, res) => {
       if (imageKind(frame) === null) return json(400, { error: 'frame must be a PNG or a JPEG' });
       const device = typeof p.deviceId === 'string' && p.deviceId.trim() !== '' ? p.deviceId.trim() : deviceFromHeaders(req.headers) || UNATTRIBUTED;
       deviceForLog = device;
+      /* Developer-only (2026-10-10). The phone sends a frame only with its Developer switch on, but that switch
+         is the client's word; this is the check that holds. Refused before anything is spent, and said out loud. */
+      const packRefused = packReadRefusal(req, device);
+      if (packRefused) {
+        logError({
+          where: 'identify.pack_refused',
+          deviceId: device,
+          scanId: null,
+          err: new Error(`PACK READ REFUSED: device ${device} is not a developer (SHIN_DEVELOPER_DEVICES or the admin token); the frame was not read`),
+          detail: { gtin: typeof p.gtin === 'string' ? p.gtin.trim() : '', reason: packRefused },
+        });
+        return json(403, { error: 'the Claude read of the pack is a developer-only setting', failure: packRefused });
+      }
       const overLimitPack = await scanLimitRefusal(device, req.headers);
       if (overLimitPack) return json(402, overLimitPack);
       const packStarted = Date.now();
@@ -5021,6 +5065,8 @@ export const server = createServer(async (req, res) => {
         ...categoryGuard.health(),
         // A7: every fault that used to be swallowed. Health stays ok: the shopper is served.
         ...faultHealth(),
+        // D-231: whether Pexi's own prices can answer at all, and how many scans a broken prices file touched.
+        ...pricesHealth(),
       });
     }
 
@@ -5234,6 +5280,8 @@ server.listen(PORT, () => {
       : `Scans are NOT being written down (${scans.droppedWhy}). Everything else still works.`,
   );
   if (inviteRequired()) console.log('An invite code is required on every API call.');
+  // D-231: a prices file with no observation table is said here once, not only as one failure per scan.
+  checkPricesAtStart(PRICES_DB_PATH);
   const plusWarning = entitlementStartupWarning();
   if (plusWarning) console.warn(plusWarning);
 

@@ -39,6 +39,8 @@ process.env.SHIN_RANGE_ASK_STORE_PATH = join(dir, 'range-ask.json');
 process.env.SHIN_PACK_READ_STORE_PATH = join(dir, 'pack-read.json');
 process.env.PORT = '0';
 process.env.SHIN_CATALOGUE_FIRST = '1';
+// Step (2) is developer-only (2026-10-10); every device here is a developer's. The shopper side is pack-read-developer-only-route.test.ts.
+process.env.SHIN_DEVELOPER_DEVICES = 'sne-test,sne-misread,sne-fail,sne-no-consent,sne-consent';
 delete process.env.SHIN_INVITE_CODE;
 delete process.env.SHIN_RANGE_ASK_MONTHLY_CAP;
 delete process.env.SHIN_PACK_READ_MONTHLY_CAP;

@@ -23,6 +23,9 @@ import { launchReturning, pressScan, holdSteady, typePrice, verdictAt, CODE, KD 
 
 const BAD_CHECKSUM = '0068100084240'; // CODE with its last digit changed: the check digit fails
 const READ = { name: 'Sea Salt Coconut Sandwich Cookies', brand: 'Oreo', size: '97 g' };
+/* The frame is a developer-only setting (2026-10-10): the frame tests run on a developer's phone with the
+   switch on. A shopper's side is test/pack-read-developer-only-client.test.mjs. */
+const DEVELOPER = { 'shin.dev': '1', 'shin.dev.packRead': '1' };
 
 /** The server's answer for an item named by Claude's reading of the frame. */
 function packRoute() {
@@ -83,7 +86,7 @@ test('an auto-fired misread is loud but never "not found"', async () => {
 });
 
 test('misreads with no good read for the wait: the frame is read off the pack, and that name is the answer', async () => {
-  const app = await launchReturning({ server: { '/api/identify/pack': packRoute() } });
+  const app = await launchReturning({ seed: DEVELOPER, server: { '/api/identify/pack': packRoute() } });
   await pressScan(app, BAD_CHECKSUM);
   app.hub.lost();
   await app.wait((await fallbackMs(app)) + 150);
@@ -108,7 +111,7 @@ test('a barcode nothing names: the server asks for the frame, the frame is sent,
     assert.equal(call.query.canSendFrame, '1', 'the scan did not tell the server it holds a frame');
     return { kind: 'catalogue', outcome: 'frame_wanted', offerManualEntry: false, catalogueUp: true, barcode: call.query.gtin, identity: null, range: null, verdict: null, noNameReasons: ['off_not_found', 'frame_wanted'] };
   };
-  const app = await launchReturning({ server: { '/api/identify': identify, '/api/identify/pack': packRoute() } });
+  const app = await launchReturning({ seed: DEVELOPER, server: { '/api/identify': identify, '/api/identify/pack': packRoute() } });
   await pressScan(app, CODE);
   await typePrice(app, app.has('[data-pad="."]') ? ['4', '.', '9', '9'] : ['4', '9', '9']);
   const sent = app.server.callsTo('/api/identify/pack');

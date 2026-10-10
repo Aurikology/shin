@@ -40,6 +40,7 @@
 
 import { BarcodeScanner, type StableRead } from './barcode.ts';
 import { BarcodeVote, type VoteBox } from './votes.ts';
+import { UnreadableWatch } from './unreadable.ts';
 import { decideTorch, normaliseTorchSetting, type TorchSetting } from './torch.ts';
 import {
   ObjectDetector,
@@ -97,6 +98,13 @@ export interface CameraEvents {
    * non-null value and hides it for null; nothing is sent until it is pressed.
    */
   onBarcodeReady?(ready: StableRead | null): void;
+  /**
+   * D-232: a barcode has stayed in view for a few seconds and zxing can locate
+   * it but not read it (a failed check digit, a scuffed bar). Once per run.
+   * `value` is the digits zxing made of it, possibly empty. Never a reading:
+   * nothing is looked up; the screen decides what to say and offer.
+   */
+  onUnreadable?(read: StableRead): void;
   /**
    * The one coaching line the frame has earned, or null for silence. Fires only
    * on a change. See `framing.ts` for why these four and not the obvious ones.
@@ -268,6 +276,8 @@ export class Camera {
    * decode pass while `#decoding`, read by `#emitBarcodes` and by the press.
    */
   readonly #vote = new BarcodeVote();
+  /** D-232: a barcode in view that zxing keeps locating and cannot read (unreadable.ts). Fed beside the vote. */
+  readonly #unreadable = new UnreadableWatch();
   /**
    * Whether frames are handed to zxing at all: true in barcode mode, false in
    * photo mode, where the decoder is never run. Not a gate on RESULTS: a code
@@ -347,6 +357,7 @@ export class Camera {
     this.#ready = false;
     // Frames from this visit must not vote in the next one.
     this.#vote.reset();
+    this.#unreadable.reset();
     this.#gate.reset();
     this.#gateOpenedAt = null;
     this.#coach.reset();
@@ -417,6 +428,7 @@ export class Camera {
     if (on === this.#decoding) return;
     this.#decoding = on;
     this.#vote.reset();
+    this.#unreadable.reset();
     this.#emitBarcodes();
   }
 
@@ -434,6 +446,7 @@ export class Camera {
     // Coming back to idle starts the vote over, so the button that was showing
     // for the code just answered is not sitting there for the next visit.
     this.#vote.reset();
+    this.#unreadable.reset();
     this.#emitBarcodes();
   }
 
@@ -567,7 +580,12 @@ export class Camera {
       const seen = await this.#scanner.read(frame);
       // Null is a frame that was never decoded (module loading or wedged), which
       // says nothing about what is in view, so it does not vote.
-      if (seen) this.#vote.push(Date.now(), seen);
+      if (seen) {
+        this.#vote.push(Date.now(), seen);
+        // D-232: a barcode located but never read. Said once per run, after a few seconds of it; never a reading.
+        const stuck = this.#unreadable.push(Date.now(), seen.length, this.#scanner.lastUnreadable);
+        if (stuck) this.#events.onUnreadable?.({ ...stuck, box: stuck.box ? this.#toSource(stuck.box) : null });
+      }
     }
     this.#emitBarcodes();
 

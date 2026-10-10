@@ -342,6 +342,8 @@ export async function attachEye(video, surfaces, handlers = {}) {
         // The vote has a winner, or has lost it. The screen shows or hides its
         // "Scan barcode" button on this; nothing is sent until it is pressed.
         onBarcodeReady: (ready) => { if (!dead.value) handlers.onBarcodeReady?.(ready); },
+        // D-232: a barcode the eye keeps seeing and cannot read. The screen says so and offers typing.
+        onUnreadable: (read) => { if (!dead.value) handlers.onUnreadable?.(read); },
         onCoach: (key) => { if (!dead.value) handlers.onCoach?.(key); },
         onCapture: (crop, detection) => { if (!dead.value) handlers.onCapture?.(crop, detection); },
         onTorch: (on) => { if (!dead.value) handlers.onTorch?.(on); },

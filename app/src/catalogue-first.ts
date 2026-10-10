@@ -72,8 +72,8 @@
  *       currency: string,
  *       unit: string | null,          // gemini_typical only: what one price buys, as the model said
  *     },
- *     rangeSource: 'shin_prices' | 'gemini_typical' | null,
- *     rangeAskedAt: string | null,    // ISO time of the Claude ask, gemini_typical only
+ *     rangeSource: 'shin_prices' | 'claude_typical' | null,
+ *     rangeAskedAt: string | null,    // ISO time of the Claude ask, claude_typical only
  *     noRangeReason: string | null,   // why range is null, e.g. 'monthly_cap_reached'
  *     shelfPrice: null | { cents: number, from: 'weighed_label' },
  *     verdict: null | Verdict,        // price/src/estimate.ts, the design's response contract
@@ -82,12 +82,15 @@
  *     scanId?: number,
  *   }
  *
- * `gemini_typical` is a historical wire value, not a statement of which model
- * answered: it is what the client (app/public/js/lib/catalogue-range.js), the
- * scans table (`range_source`, app/src/migrations.ts) and the native copies
- * already read. Since 2026-09-28 the answer behind it comes from Claude (the
- * model id is kept with the saved answer in identify/data/range-ask.json).
- * Renaming it is a client + migration change, not made here.
+ * `rangeSource` (and the scan row's `range_source`) says which model answered:
+ * `claude_typical` since D-231 (2026-10-10), because the range ask has been
+ * Claude since 2026-09-28. Old rows are left as written: `gemini_typical` on a
+ * row scanned from 2026-09-28 until this fix is the same Claude ask under its
+ * old label (app/src/migrations.ts, version 18, says how to read it).
+ * The range's `basis` keeps `gemini_typical` as a historical wire value, not a
+ * statement of which model answered: it is what the client
+ * (app/public/js/lib/catalogue-range.js) and the native copies built from it
+ * already read, so renaming it waits for a client release that reads both.
  *
  * `POST /api/match-text` answers:
  *
@@ -240,7 +243,7 @@ export interface CatalogueAnswer {
   readonly barcode: string;
   readonly identity: CatalogueIdentity | null;
   readonly range: CatalogueRange | null;
-  readonly rangeSource: 'shin_prices' | 'gemini_typical' | null;
+  readonly rangeSource: 'shin_prices' | 'claude_typical' | null;
   readonly rangeAskedAt: string | null;
   readonly noRangeReason: NoRangeReason | null;
   readonly shelfPrice: { readonly cents: number; readonly from: 'weighed_label' } | null;
@@ -269,7 +272,7 @@ export interface CatalogueRecord {
   readonly outcome: 'answered' | 'refused';
   readonly failureClass: 'not_in_catalogue' | null;
   readonly answerPath: 'catalogue_hit' | 'not_in_catalogue' | 'open_food_facts' | 'claude_reading' | 'frame_wanted';
-  readonly rangeSource: 'shin_prices' | 'gemini_typical' | 'none' | null;
+  readonly rangeSource: 'shin_prices' | 'claude_typical' | 'none' | null;
   readonly rangeBasis: string | null;
   readonly rangeMissReason: string | null;
   /** The verdict shown, or null (migration 19 records its basis, confidence and zone). */
@@ -711,7 +714,8 @@ async function priceIdentity(
         currency: asked.range.currency,
         unit: asked.range.unit,
       };
-      rangeSource = 'gemini_typical';
+      // D-231: the ask is Claude's, and the row says so (the range's `basis` above stays the historical wire value).
+      rangeSource = 'claude_typical';
       rangeAskedAt = asked.range.askedAt;
     } else {
       noRangeReason = asked.reason;

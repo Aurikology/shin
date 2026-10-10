@@ -665,6 +665,10 @@ const EN = {
   dev_heading: 'Developer',
   dev_tags: 'Show screen tags',
   dev_tags_caption: 'A small tag such as a12 in the top corner of every screen, so a screen can be named in a message. Off for everyone else.',
+  /* The pack read (2026-10-10, developer-only): the camera picture sent to Claude
+     when no lookup knows a barcode. Costs money per picture, so off by default. */
+  dev_pack_read: 'Send picture to Claude',
+  dev_pack_read_caption: 'When no lookup knows a barcode, the camera picture goes to Claude to read the pack. Each picture costs money, so it is off for everyone else, and the server must also list this phone.',
   you_build: 'Build',
   you_build_note: '(when this server last started)',
   you_can_price: 'Products Pexi can price',
@@ -1224,6 +1228,8 @@ const FR = {
   dev_heading: 'Développeur',
   dev_tags: 'Afficher les étiquettes d’écran',
   dev_tags_caption: 'Une petite étiquette comme a12 dans le coin de chaque écran, pour pouvoir nommer un écran dans un message. Désactivé pour tout le monde.',
+  dev_pack_read: 'Envoyer la photo à Claude',
+  dev_pack_read_caption: 'Quand aucune recherche ne connaît un code-barres, la photo de la caméra part chez Claude pour lire l’emballage. Chaque photo coûte de l’argent : désactivé pour tout le monde, et le serveur doit aussi connaître ce téléphone.',
   you_build: 'Version',
   you_build_note: '(dernier démarrage de ce serveur)',
   you_can_price: 'Produits auxquels Pexi peut donner un prix',

@@ -461,6 +461,8 @@
 .cam-shin .face { width: 36px; height: 36px; }
 .cam-shin .bubble { padding: 8px 15px; border-radius: 18px; }
 .cam-shin .bubble-text { font-size: 13px; }
+/* D-232: "Type the product name" under the line saying a barcode cannot be read. The one action, centred under the bubble. */
+.cam-shin .cam-shin-act { display: block; margin: 8px auto 0; min-height: 44px; }
 
 /* The placeholder state label, same reasoning as the forced white above and
    for the same reason it was missed: it is the one piece of text in this unit

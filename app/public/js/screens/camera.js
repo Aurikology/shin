@@ -59,6 +59,7 @@ import { FLAGS } from '../flags.js';
 import { haptic, verdictHaptic, reportHapticFault, CAPTURE_HOLD_MS } from '../lib/haptics.js';
 import { createAutoFire } from '../lib/auto-fire.js';
 import { assertCheckDigit, hasValidCheckDigit } from '../lib/gtin.js';
+import { packReadOn } from '../dev-mode.js';
 import { applyCentsKey, centsOfDigits, centsParts } from '../lib/pad-cents.js';
 
 /**
@@ -3362,6 +3363,23 @@ export default {
         endMisreadWait();
         onBarcode(read);
       },
+      /*
+       * D-232: the eye keeps seeing a barcode it cannot decode (zxing reads it
+       * but its check digit fails, so no reading ever reaches `onBarcode`). It
+       * says so once per run, after a few seconds of it (src/eye/unreadable.ts).
+       * On a developer's phone with the switch on that is a misread like any
+       * other and the frame goes to Claude after the wait; for everyone else it
+       * is said plainly, with typing the name offered.
+       */
+      onUnreadable: (read) => {
+        if (dead || !read || cam.dataset.state !== 'idle' || barcodeInFlight) return;
+        track('barcode_unreadable', { value: read.value, format: read.format, frames: read.frames ?? 0 });
+        if (packReadOn() && read.value) {
+          onMisread(read);
+          return;
+        }
+        offerTypingUnreadable(read.value || null, ['unreadable', 'pack_read_developer_only']);
+      },
       onTorch: (on) => { if (!dead) setTorch(on); },
       /*
        * The measured coaching line, which is the only kind that gets said.
@@ -3923,6 +3941,29 @@ export default {
     function endMisreadWait() {
       clearTimeout(misreadTimer);
       misreadTimer = null;
+      hideUnreadableOffer();
+    }
+
+    /**
+     * D-232: a barcode Pexi keeps seeing and cannot read (a misread that never
+     * came good, or the eye's `onUnreadable`), on a phone that does not send
+     * frames. Said plainly, with typing the name offered right under it; the
+     * camera stays live, so a good reading still goes the ordinary way. Never
+     * quiet: the reasons are logged loudly, as every scan that ends on typing is.
+     */
+    function offerTypingUnreadable(code, reasons) {
+      track('scan_no_name', { code, reasons });
+      console.error('scan ended with no name:', { code, reasons });
+      clearTimeout(hintTimer);
+      dockSay('asking', 'cam_unreadable', {}, 'nudge-arrive');
+      if (!camShin || camShin.querySelector('[data-act="unreadable-typeit"]')) return;
+      camShin.insertAdjacentHTML('beforeend',
+        `<button type="button" class="pill solid cam-shin-act" data-act="unreadable-typeit">${escapeHtml(t('cat_type_name'))}</button>`);
+    }
+
+    /** The typing offer goes when a reading arrives or the screen moves on. */
+    function hideUnreadableOffer() {
+      camShin?.querySelector('[data-act="unreadable-typeit"]')?.remove();
     }
 
     /**
@@ -3933,8 +3974,9 @@ export default {
      * screen stays on the live camera and says it is reading again, and a good
      * reading inside MISREAD_FALLBACK_MS goes the ordinary way (the read handlers
      * end the wait). When none comes, the frame is read off the pack by
-     * Claude (`identifyPack` with the misread digits). With no frame to send,
-     * typing the name is the one step left, and that is said loudly.
+     * Claude (`identifyPack` with the misread digits), on a developer's phone
+     * only (the Developer switch, 2026-10-10). A shopper, or a developer with no
+     * frame to send, is offered typing the name, and that is said loudly.
      */
     function onMisread(read) {
       if (dead || cam.dataset.state !== 'idle' || barcodeInFlight) return;
@@ -3945,6 +3987,10 @@ export default {
       misreadTimer = setTimeout(() => {
         misreadTimer = null;
         if (dead || cam.dataset.state !== 'idle' || barcodeInFlight) return;
+        if (!packReadOn()) {
+          offerTypingUnreadable(misread, ['misread', 'pack_read_developer_only']);
+          return;
+        }
         const frame = captureFrame(video, cam.dataset.camera === 'live');
         if (!frame) {
           track('scan_no_name', { code: misread, reasons: ['misread', 'no_frame'] });
@@ -3979,7 +4025,8 @@ export default {
       clearTimeout(torchAckTimer);
       coachKey = null;
       scanThumb = captureThumb(video, cam.dataset.camera === 'live');
-      scanFrame = captureFrame(video, cam.dataset.camera === 'live');
+      // The pack read is developer-only (2026-10-10): with the Developer switch off no frame is even taken.
+      scanFrame = packReadOn() ? captureFrame(video, cam.dataset.camera === 'live') : null;
       // R-4: the frame is frozen now, so this is the one moment the capture
       // haptic may fire (never while the viewfinder is still searching).
       try { haptic('barcode-captured'); } catch (err) { reportHapticFault(err, 'barcode-captured'); }
@@ -4308,7 +4355,12 @@ export default {
         id = misread
           ? await sendFrame(code, misread, shelfPriceCents)
           : await ctx.api.identify({ gtin: code, shelfPriceCents, canSendFrame: scanFrame !== null });
-        if (id?.kind === 'catalogue' && id.outcome === 'frame_wanted') id = await sendFrame(code, scanFrame, shelfPriceCents);
+        if (id?.kind === 'catalogue' && id.outcome === 'frame_wanted') {
+          // Asked only when the scan said it holds a frame; never sent without one (developer-only, 2026-10-10).
+          id = scanFrame
+            ? await sendFrame(code, scanFrame, shelfPriceCents)
+            : { ...id, outcome: 'not_in_catalogue', offerManualEntry: true, noNameReasons: [...(id.noNameReasons ?? []), 'no_frame'] };
+        }
         // The row the server just wrote for this scan. Kept whatever the
         // answer was: a refused identification is exactly the case the
         // price route below exists for.
@@ -4339,6 +4391,16 @@ export default {
          pack below must not answer instead. */
       if (id?.failure === 'scan_limit') return { scanLimit: id };
 
+      /* The server refused the pack read: this phone's switch is on but the server does not list it as a
+         developer's (SHIN_DEVELOPER_DEVICES). Typing the name, and said loudly so the developer sees why. */
+      if (id?.failure === 'pack_read_developer_only') {
+        track('scan_no_name', { code, reasons: ['pack_read_developer_only', 'server_refused'] });
+        console.error('scan ended with no name:', { code, reasons: ['pack_read_developer_only', 'server_refused'] });
+        return {
+          catalogue: { kind: 'catalogue', outcome: 'not_in_catalogue', offerManualEntry: true, barcode: code, identity: null, verdict: null },
+        };
+      }
+
       /*
        * D-150: the same model-down reasons the photo route already names
        * (`MODEL_DOWN_REASONS`), checked here for the same reason rate_limited
@@ -4365,8 +4427,9 @@ export default {
             console.error('frame send failed:', err);
           }
         }
-        track('scan_no_name', { code, reasons: ['misread', scanFrame ? 'frame_failed' : 'no_frame'] });
-        console.error('scan ended with no name:', { code, reasons: ['misread', scanFrame ? 'frame_failed' : 'no_frame'] });
+        const why = scanFrame ? 'frame_failed' : packReadOn() ? 'no_frame' : 'pack_read_developer_only';
+        track('scan_no_name', { code, reasons: ['misread', why] });
+        console.error('scan ended with no name:', { code, reasons: ['misread', why] });
         return {
           catalogue: { kind: 'catalogue', outcome: 'not_in_catalogue', offerManualEntry: true, barcode: code, identity: null, verdict: null },
         };
@@ -5487,6 +5550,7 @@ export default {
       misreadTimer = null;
       scanFrame = null;
       misreadFrame = null;
+      hideUnreadableOffer();
       clearInterval(retryCountdownTimer);
       retryCountdownTimer = null;
       gen++; // Voids any in-flight proceed() continuation, including a photo capture's.
@@ -5873,6 +5937,14 @@ export default {
       // D04: none of the three matches is the product; search with the words as typed.
       if (act === 'typed-pick-none') {
         void runTypedSearch(typedPick.text, typedPick.cents, typedPick.asked, { skipPicks: true });
+        return;
+      }
+
+      // D-232: a barcode Pexi cannot read; the name is the one thing it needs.
+      if (act === 'unreadable-typeit') {
+        track('unreadable_type_name', {});
+        endMisreadWait();
+        askNameForUnknownBarcode(null, null);
         return;
       }
 

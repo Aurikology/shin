@@ -91,6 +91,7 @@ export const SETTINGS: readonly SettingKey[] = [
   // -- A scan never ends with no result ------------------------------------
   { env: 'SHIN_PACK_READ_MONTHLY_CAP', default: '300 (frames Claude reads per UTC month; 0 turns the read off)', ruling: 'A scan never ends with no result' },
   { env: 'SHIN_PACK_READ_STORE_PATH', default: 'identify/data/pack-read.json', ruling: 'A scan never ends with no result' },
+  { env: 'SHIN_DEVELOPER_DEVICES', default: 'unset -> no device is a developer; only the admin token may ask for the pack read', ruling: 'A scan never ends with no result' },
 
   // -- Operational: plumbing with no product ruling ------------------------
   { env: 'PORT', default: '4173', ruling: 'operational' },
@@ -218,6 +219,10 @@ export function SHIN_PACK_READ_MONTHLY_CAP(env: NodeJS.ProcessEnv = process.env)
 }
 export function SHIN_PACK_READ_STORE_PATH(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_PACK_READ_STORE_PATH');
+}
+/** Comma-separated device ids the server treats as developers: the Claude read of the pack is developer-only. */
+export function SHIN_DEVELOPER_DEVICES(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_DEVELOPER_DEVICES');
 }
 export function PORT(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'PORT');

@@ -67,7 +67,7 @@ function hit(range, top = {}) {
     barcode: '0068100084245',
     identity: IDENTITY,
     range,
-    rangeSource: range ? (range.basis === 'gemini_typical' ? 'gemini_typical' : 'shin_prices') : null,
+    rangeSource: range ? (range.basis === 'gemini_typical' ? 'claude_typical' : 'shin_prices') : null,
     rangeAskedAt: null,
     noRangeReason: null,
     shelfPrice: null,

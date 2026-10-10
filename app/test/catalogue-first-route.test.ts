@@ -345,10 +345,11 @@ test('ON, catalogue hit with only its category priced: a leaf_category range, sc
   assert.equal(row.range_basis, 'leaf_category');
 });
 
-test('ON, catalogue hit Pexi cannot price: exactly one Claude range ask, zero Gemini calls, gemini_typical with its time', async () => {
+test('ON, catalogue hit Pexi cannot price: exactly one Claude range ask, zero Gemini calls, claude_typical with its time', async () => {
   // RULINGS.md "Catalogue first; Claude, with no web search, is the capped
   // price-range fallback". Jamin, 2026-09-28: "We are not using gemini at all
-  // for the client side answers"; `gemini_typical` is the historical wire value.
+  // for the client side answers". The range's basis `gemini_typical` is the
+  // historical wire value; the source says Claude (D-231).
   on();
   const scansBefore = scanDouble.calls.length;
   const asksBefore = askCalls.length;
@@ -368,13 +369,13 @@ test('ON, catalogue hit Pexi cannot price: exactly one Claude range ask, zero Ge
     currency: 'CAD',
     unit: 'one 2 L bottle',
   });
-  assert.equal(body.rangeSource, 'gemini_typical');
+  assert.equal(body.rangeSource, 'claude_typical');
   assert.equal(typeof body.rangeAskedAt, 'string');
   assert.ok(!Number.isNaN(Date.parse(body.rangeAskedAt as string)));
   assert.equal(body.noRangeReason, null);
   const row = scanRow(body.scanId);
   assert.equal(row.answer_path, 'catalogue_hit');
-  assert.equal(row.range_source, 'gemini_typical');
+  assert.equal(row.range_source, 'claude_typical');
   assert.equal(row.range_basis, 'none');
 });
 
