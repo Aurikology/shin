@@ -1471,6 +1471,16 @@
 @media (hover: hover) and (pointer: fine) {
   .pill.solid:hover { filter: brightness(.96); }
 }
+/* D-234: the inversion above assumes the panel IS the tier colour. On the thin
+   panel it is a 12% tint of the tier over the ground and the sheet's own ink is
+   --tier-bright, so --tier-on as a fill drew near-black on a near-black green or
+   amber in dark theme (1.12:1) and white on a pale red in light theme (1.34:1).
+   The pill takes the sheet's own ink as its fill and the ground as its label, the
+   same inversion one step over: 5.7:1 or better against the panel, both themes. */
+.sheet[data-conf="thin"] .pill.solid {
+  background: var(--tier-bright);
+  color: var(--ground);
+}
 /* D42: on a sheet with no verdict hue (asking, naming, reading) the tier pair is
    two greys, which drew the one action as a pale pill with grey text, the look
    of a disabled button. With nothing to invert out of, it takes the page ink on
