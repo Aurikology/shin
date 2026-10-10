@@ -23,7 +23,12 @@ History moved out of NOW.md on 2026-09-27: `docs/archive/now-history-2026-09-27.
 - **Stage 2 (hierarchy): 1.1, 1.6, 1.7 built** (eb6d06d). All 212,340 items have exactly one path;
   90,487 Canadian items sit in "unplaced" (decision 2026-10-09). 1.2 to 1.5 need prices: 15 priced
   items join the catalogue. load.ts does not run the placement build yet.
-- **Stage 3 (placing items): in progress**, catalogue lane, 2.1 to 2.4 without the Claude step.
+- **Stage 3 (placing items): 2.1 to 2.4 built** (270c053), Claude slot an interface with no
+  chooser. Run on a copy: 0 unplaced (was 135,496), but 25.9% of Canadian items end at the top
+  level only, against 2.1's 5% bar (food 26.0%, general 23.9% fail; pet, beauty pass). The 2.2
+  sheet (819 rows, bench/results/placement-audit-sheet-2026-10-09.csv) is unmarked, so accuracy is unmeasured and the 0.6 confidence
+  bar uncalibrated. Stage 2's parent chains are wrong in places (D-223). Live catalogue.db not
+  placed yet (`npm run place -- --live`). onnxruntime-node is imported but not declared.
 - Open for a person: Canadian Tire terms (read by hand); an Ontario source; the 7.7 sheet; the
   outlier numbers (19%, 4 prices); D-222's leftovers (the 595 rows are gone, e3f020e; 6 fixture
   products, 4,729 unpriced observations, 15,558 offers, 7 branch rows still need Aurik's yes; the
