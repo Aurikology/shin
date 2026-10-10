@@ -7,11 +7,12 @@ Process rows (git, commits, claiming, lanes, hooks, comms channel) live in CLAUD
 Shin names a product from its own catalogue: a barcode by lookup; anything else by reading every
 piece of text on the object (price tag, cereal box, container) and searching the catalogue with it,
 returning the top 3 for the shopper to pick, never one row forced out of millions; manual entry
-when nothing matches. The price range comes from Shin's own data by math: the product's own
+only after every fallback in "A scan never ends with no result" has failed. The price range comes from Shin's own data by math: the product's own
 prices, else a prediction from every data point Shin holds (see "How Shin predicts a price it has
 not seen" and "The price answer must tell the shopper whether the price is good"). Whenever the
 catalogue cannot answer (a known product with no Shin price, a typed name that matches nothing, a
-barcode nothing knows once the shopper has named it), the cheapest Claude model is asked for a
+barcode nothing knows once it has been named by the live Open Food Facts lookup, Claude's reading of
+the pack, or the shopper), the cheapest Claude model is asked for a
 typical price range from its own knowledge, with no web search, capped per month, to save credits,
 and every answer is saved as data, as an estimate kept apart from observed prices (the reference
 requirements, 2026-10-01) (2026-09-30: *"Claude(the cheapest possible) is called if our
@@ -30,6 +31,23 @@ explicit 0/off/false returns the old Gemini path). Until the Claude range ask is
 with no Shin price shows its name and no range. · 2026-09-28 · Jamin: *"We are not using gemini at all for the client side answers"*, *"switch on the setting to allow testers to see it"* · 2026-09-28 · Jamin: *"this is probably the 10th time saying this, we are not using gemini, we are using claude for a typical range without having it search the web, this way we save a lot of credits"* · 2026-09-27 · Jamin: *"why do you still think we use gemini, even after all the work done yesturday"* (09-26: *"there seems to be a communication problem, why are you still thinking about gemini"*); Aurik: *"THAT IS THE PLAN WE WILL FOLLOW, WE ARE SHIFTING SHIN AND THAT IS THE MOST RECENT PLAN"* · log: docs/decisions.md#Catalogue first, Gemini a capped fallback
 Retired wording: `no catalogue-first free path`, `The server calls Gemini for identity`, `Gemini is still called on every scan`, `catalogue-pick identify pipeline is retired`, `Gemini is only a monthly-capped`, `Gemini range ask capped to 0`, `Gemini is asked only for a typical range`
 Governs: SHIN_CATALOGUE_FIRST, app/src/catalogue-first.ts, app/server.ts (/api/identify, /api/identify/photo, /api/price), app/test/catalogue-first-route.test.ts
+### A scan never ends with no result
+No scan ends with nothing: when Pexi cannot name a scanned item itself, it asks Claude before it
+ever shows "not found". A barcode the catalogue does not hold goes, in order, to (1) a live Open
+Food Facts lookup by barcode, identity only, free; (2) when that finds nothing, the camera frame
+of the item, sent to the cheapest Claude model to read the name, brand and size off the pack
+(Claude never searches the web, and its name is labelled as Claude's reading); then the named
+item takes the ordinary price ladder. A barcode reading that fails its check digit is a misread,
+not a missing product: the camera keeps scanning for a good reading instead of saying "not
+found". Typing the name stays as the last step only after every one of these has been tried and
+failed, and that failure is logged loudly with its reason. This narrows "Barcode plumbing: digits
+only" for this one case: the frame goes to Claude, never to Gemini, and only after the catalogue
+and the live lookup both miss. · 2026-10-10 · Jamin: *"i scanned a pack of oreos and i didn't get
+any result. This is a huge problem. There should never be somethig with no result. Not only did
+it not identify it didn't ask claude either."*, then *"build all three, write tests that fail
+loudly"* · log: docs/decisions.md#A scan never ends with no result
+Retired wording: `a barcode nothing knows asks the shopper for the name first`
+Governs: app/server.ts (/api/identify), app/src/catalogue-first.ts, app/src/open-food-facts.ts, identify/src/, app/public/js/screens/camera.js
 ### Gemini switch and call architecture
 Gemini replaced Claude (measured: 7/7 price requests refused, 9/30 barcodes absent, Claude
 refusing 4/15 photos on Jamin's phone). That swap covered the beta only until the catalogue-first
@@ -62,7 +80,11 @@ only when photo identification and photo consent are both on, which is never und
 settings). The digits do go through Shin's server after all, since a phone cannot hold the Gemini
 key safely: this reverses the 2026-09-16/17 line that the barcode would bypass the server; the
 server also runs a zero-padded retry against cache and Open Food Facts before ever calling Gemini,
-so exactly one canonical digit string reaches the model. · 2026-09-23 · *"Fix the barcode full photo"* · log: docs/decisions.md#A barcode scan sends no photo
+so exactly one canonical digit string reaches the model. One exception, 2026-10-10: when the
+catalogue and the live Open Food Facts lookup both miss, the camera frame goes to the cheapest
+Claude model (never Gemini) to read the name off the pack, whatever the photo-identification
+switch says; photo consent still decides only whether that frame is kept on disk ("A scan never
+ends with no result"). · 2026-09-23 · *"Fix the barcode full photo"* · 2026-10-10 · *"build all three"* · log: docs/decisions.md#A barcode scan sends no photo
 Retired wording: `barcode will not be sent to shins servers as of now`
 Governs: app/server.ts, identify/src/providers/gemini-scan.ts
 ### Verifying Gemini never means calling it twice
@@ -563,7 +585,7 @@ Governs: to fill
 Camera-first app; every scan with a scan left ends in the answer chart, never a refusal (see "V1
 verdict screen mechanics", 2026-09-30). Guidance acts first, speaks last: silently fixes
 what it can, speaks only on four measured conditions. Barcode reading is continuous, highlighted
-every frame like a shift register; Scan sends only digits. Price-pad keys are at least 44×44 CSS
+every frame like a shift register; Scan sends only digits, except the one frame a catalogue and Open Food Facts miss sends to Claude ("A scan never ends with no result"). Price-pad keys are at least 44×44 CSS
 px, 48-52px on the primary target. Torch is a user setting: auto-on at a slider brightness, or off
 with an on-screen too-dark prompt. · 2026-09-17 · log: docs/walkthrough/jamin-notes-2026-09-17.md#notes-typed-into-the-tabs
 Retired wording: `Move back instruction`, `The lighting is bad instruction`, `no automatic barcode detection`, `refusal is a designed state`

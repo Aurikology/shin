@@ -2674,3 +2674,28 @@ its catalogue category, so every bench rebuild now stops with exit 3 and scores 
 categories hold several priced products (the 7.6 rule: a control that misbehaves stops the run).
 
 **Reverses if:** Aurik or Jamin rule that 7.5 is met by reporting the fold rather than counting it.
+
+## A scan never ends with no result
+**Date:** 2026-10-10 · **Status:** active
+
+Jamin scanned a pack of Oreos and got "not found, type the name", with no Claude call. The
+catalogue-first barcode path asked Claude only for a price, and only once a product was named; a
+barcode the catalogue lacked went straight to manual entry, and a check-digit misread showed the
+same screen. The live Open Food Facts lookup existed but was wired only into the retired Gemini
+route. His words: *"There should never be somethig with no result. Not only did it not identify it
+didn't ask claude either."*, then *"build all three, write tests that fail loudly"*. New order on a
+catalogue miss: live Open Food Facts by barcode, then the camera frame to the cheapest Claude model
+to read the pack, then the price ladder; a misread keeps scanning; typing is the last step.
+
+Old texts, rewritten in RULINGS.md the same day:
+- "Catalogue first": "manual entry when nothing matches" and "a barcode nothing knows once the
+  shopper has named it".
+- "Barcode plumbing": "A barcode scan sends Gemini only the digits, never the image or a full photo
+  (the frame is taken only when photo identification and photo consent are both on, which is never
+  under tester-launch settings)." It now carries the Claude-frame exception.
+- "Camera UX": "Scan sends only digits."
+- catalogue-first.ts comment: "No Claude ask here: a barcode nothing knows asks the shopper for the
+  name first (case 6)".
+
+**Reverses if:** Jamin rules that a frame may not leave the phone without photo consent, or the
+Claude read is measured as wrong often enough that typing beats it.
