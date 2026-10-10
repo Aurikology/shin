@@ -516,8 +516,11 @@ is personal (12 testers for 14 days before public launch). The Apple Developer P
 individual (order W1979673460, placed 2026-10-03, "Enrolment Complete" 2026-10-08), so the App Store
 seller shows his legal name until the account is migrated to a Pexi organization. · 2026-10-08 ·
 *"com.getpexi.app (Recommended)"*, *"Personal (Recommended)"* · log: none
-Retired wording: none
-Governs: native/capacitor.config.json appId, Xcode PRODUCT_BUNDLE_IDENTIFIER, Android applicationId
+Every other permanent identifier is named for Pexi too: the subscription product ids are
+pexi_plus_monthly and pexi_plus_yearly in App Store Connect, Google Play, RevenueCat and the code.
+· 2026-10-09 · *"why is the product id shin"*
+Retired wording: `com.useshinapp.shin`, `shin_plus_monthly`, `shin_plus_yearly`
+Governs: native/capacitor.config.json appId, Xcode PRODUCT_BUNDLE_IDENTIFIER, Android applicationId, subscription product ids
 ### Product identification takes a string or GTIN, never an image
 Based on Trader Corporation v CarGurus (2017 ONSC 1841, $305,064 in statutory damages for scraping
 152,532 photos), infringement there applied exclusively to photographs, not factual listing data
