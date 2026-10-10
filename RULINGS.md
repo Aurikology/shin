@@ -576,7 +576,7 @@ animated normal distribution chart and where their product price falls on it. It
 the answer(unless the user runs out of scans)"*). The verdict is one Shin face per tier, not a number. The primary action (Save/Watch, tier-keyed)
 sits in the peek detent, needing no drag; Correct and Share sit at half detent. There is no refusal
 screen: every scan that has a scan left ends in the chart. The primary CTA after a verdict is Save,
-not Buy: the primary user is a window shopper, not a buyer. · 2026-09-03 · log: docs/decisions.md#The primary action sits in the verdict's peek detent
+not Buy: the primary user is a window shopper, not a buyer. **The top of the verdict is for useful information only** (2026-10-10: *"The second line on that is a line that says pexi is not sure about this price range. This is the most useless info put at the top of the page"*, then *"go ahead"*): no "not fully confident" line under the verdict word. Doubt is drawn (a wider bell, the hollow fill) and spoken once, by the mascot's bubble; the reason in a few words ("few prices for this item") sits in the half detent beside where the estimate came from. This narrows his 2026-09-17 *"put a we are not fully confident in this answer beside its answer"* to that one place. · 2026-09-03 · 2026-10-10 · log: docs/decisions.md#The primary action sits in the verdict's peek detent; docs/decisions.md#The top of the verdict is for useful information only
 Retired wording: `every action in the full detent`, `Move back instruction`, `A refusal hands back exactly one action`
 Governs: to fill
 ### Sharing, notifications and attitude

@@ -2675,6 +2675,24 @@ categories hold several priced products (the 7.6 rule: a control that misbehaves
 
 **Reverses if:** Aurik or Jamin rule that 7.5 is met by reporting the fold rather than counting it.
 
+## The top of the verdict is for useful information only
+**Date:** 2026-10-10 · **Status:** active
+
+Jamin: *"look at the price verdict page. The second line on that is a line that says pexi is not
+sure about this price range. This is the most useless info put at the top of the page"*, then *"go
+ahead, also analyse the app for similar cases"*. The line came from his 2026-09-17 walkthrough words
+*"display an answer where it can simply put a we are not fully confident in this answer beside its
+answer"*, built as a line under the verdict word (camera.js confidenceLine). On a low-confidence
+answer the screen already said it three ways first: the mascot bubble ("my estimate is thin"), the
+wider hollow bell, and the range itself. Now: no confidence line under the verdict word; the reason
+in a few words moves to the half detent beside where the estimate came from; the bubble is the one
+spoken warning. Old text, DESIGN.md Law 3: "low confidence is a wider bell, a hollow hue, a plain
+face and one "not fully confident" line beside the answer". Similar cases across the app are being
+analysed, not yet changed.
+
+**Reverses if:** testers misread a thin estimate as a sure one once the line is gone (measure: a
+thin-answer save or share rate no different from a confident one).
+
 ## A scan never ends with no result
 **Date:** 2026-10-10 · **Status:** active
 
