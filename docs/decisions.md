@@ -2699,3 +2699,12 @@ Old texts, rewritten in RULINGS.md the same day:
 
 **Reverses if:** Jamin rules that a frame may not leave the phone without photo consent, or the
 Claude read is measured as wrong often enough that typing beats it.
+
+**Amended the same day: the Claude read of the pack is developer-only.** Jamin, 2026-10-10:
+*"sending picture to claude is a developer only setting"*. Off for every shopper, on only for a
+developer who switches it on; the server refuses it for anyone else, so a shopper's barcode that
+neither the catalogue nor Open Food Facts knows goes to typing the name. Old texts: "Barcode
+plumbing" exception "the camera frame goes to the cheapest Claude model (never Gemini)" with no
+gate; "Camera UX" "except the one frame a catalogue and Open Food Facts miss sends to Claude" with
+no gate. Also recorded: changes to this system are done only with loud-failing tests and an
+end-to-end run through the app (his words the same day).

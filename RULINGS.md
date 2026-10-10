@@ -37,7 +37,13 @@ ever shows "not found". A barcode the catalogue does not hold goes, in order, to
 Food Facts lookup by barcode, identity only, free; (2) when that finds nothing, the camera frame
 of the item, sent to the cheapest Claude model to read the name, brand and size off the pack
 (Claude never searches the web, and its name is labelled as Claude's reading); then the named
-item takes the ordinary price ladder. A barcode reading that fails its check digit is a misread,
+item takes the ordinary price ladder. **Step (2) is a developer-only setting** (2026-10-10:
+*"sending picture to claude is a developer only setting"*): off for every shopper, on only for a
+developer who switches it on in the Developer row, and the server refuses the pack read for anyone
+else, so a shopper's scan of a barcode that neither the catalogue nor Open Food Facts knows goes
+to typing the name. Every change to this system counts as done only with tests that fail loudly
+and an end-to-end run through the Pexi app (2026-10-10: *"write tests that fail loudly, adn test
+this system end to end with the pexi app after you are done to confirm it works"*). A barcode reading that fails its check digit is a misread,
 not a missing product: the camera keeps scanning for a good reading instead of saying "not
 found". Typing the name stays as the last step only after every one of these has been tried and
 failed, and that failure is logged loudly with its reason. This narrows "Barcode plumbing: digits
@@ -81,7 +87,7 @@ settings). The digits do go through Shin's server after all, since a phone canno
 key safely: this reverses the 2026-09-16/17 line that the barcode would bypass the server; the
 server also runs a zero-padded retry against cache and Open Food Facts before ever calling Gemini,
 so exactly one canonical digit string reaches the model. One exception, 2026-10-10: when the
-catalogue and the live Open Food Facts lookup both miss, the camera frame goes to the cheapest
+catalogue and the live Open Food Facts lookup both miss, for a developer who switched it on (developer-only, 2026-10-10), the camera frame goes to the cheapest
 Claude model (never Gemini) to read the name off the pack, whatever the photo-identification
 switch says; photo consent still decides only whether that frame is kept on disk ("A scan never
 ends with no result"). · 2026-09-23 · *"Fix the barcode full photo"* · 2026-10-10 · *"build all three"* · log: docs/decisions.md#A barcode scan sends no photo
@@ -585,7 +591,7 @@ Governs: to fill
 Camera-first app; every scan with a scan left ends in the answer chart, never a refusal (see "V1
 verdict screen mechanics", 2026-09-30). Guidance acts first, speaks last: silently fixes
 what it can, speaks only on four measured conditions. Barcode reading is continuous, highlighted
-every frame like a shift register; Scan sends only digits, except the one frame a catalogue and Open Food Facts miss sends to Claude ("A scan never ends with no result"). Price-pad keys are at least 44×44 CSS
+every frame like a shift register; Scan sends only digits, except the one frame a catalogue and Open Food Facts miss sends to Claude on a developer's device only ("A scan never ends with no result"). Price-pad keys are at least 44×44 CSS
 px, 48-52px on the primary target. Torch is a user setting: auto-on at a slider brightness, or off
 with an on-screen too-dark prompt. · 2026-09-17 · log: docs/walkthrough/jamin-notes-2026-09-17.md#notes-typed-into-the-tabs
 Retired wording: `Move back instruction`, `The lighting is bad instruction`, `no automatic barcode detection`, `refusal is a designed state`
