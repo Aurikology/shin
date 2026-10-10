@@ -12,6 +12,13 @@
  * its own temp path keeps it. What is replaced: an unset value, the run-level
  * placeholder global.mjs sets (so parallel test processes never share a file),
  * and any value that points inside a real data folder.
+ *
+ * NO LIVE OPEN FOOD FACTS. Since 2026-10-10 every catalogue miss on the scan
+ * path asks Open Food Facts first (RULINGS.md "A scan never ends with no
+ * result"), so without this a test that scans an unknown barcode would make a
+ * real network call. A fetch to openfoodfacts.org is refused here, in every
+ * test process; src/open-food-facts.ts reads the refusal as `off_failed`, never
+ * as a hit. A test that wants Open Food Facts uses `setOffFetchForTests`.
  */
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -41,4 +48,15 @@ if (dir) {
       /* Windows keeps an open sqlite file locked; the temp folder is left */
     }
   });
+}
+
+const realFetch = globalThis.fetch;
+if (typeof realFetch === 'function') {
+  globalThis.fetch = (input, init) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : String(input?.url ?? input);
+    if (/^https?:\/\/([^/]*\.)?openfoodfacts\.org(\/|$)/i.test(url)) {
+      return Promise.reject(new Error(`no live Open Food Facts call in a test run (${url}); use setOffFetchForTests`));
+    }
+    return realFetch(input, init);
+  };
 }

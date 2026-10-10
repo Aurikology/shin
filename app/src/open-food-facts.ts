@@ -1,31 +1,32 @@
 /**
- * A LIVE Open Food Facts lookup by barcode, for identity only, run before the
- * paid Gemini call.
+ * A LIVE Open Food Facts lookup by barcode, for identity only, never price.
  *
- * ITEM 6 (docs/scanner-build-order-2026-09-19.md, section 6). Ruling 5
- * (docs/decisions.md, "Nine rulings so the competitor-survey build could
- * start", 2026-09-19): "Open Food Facts live is a third party; our imported
- * copy of it is us. ... A live call to Open Food Facts is not our list, so
- * it is allowed, and only for identity, never for price. The imported Open
- * Food Facts table in catalogue/ stays unconsulted on the scan path, because
- * that one is ours."
+ * TWO CALLERS. On the catalogue-first scan path (on by default) it is the
+ * first step after a catalogue miss: RULINGS.md "A scan never ends with no
+ * result" (2026-10-10), "A barcode the catalogue does not hold goes, in
+ * order, to (1) a live Open Food Facts lookup by barcode, identity only,
+ * free". A hit names the item, labelled as Open Food Facts, and the named item
+ * takes the ordinary price ladder (`answerBarcodeFromCatalogue`). On the
+ * retired Gemini path (SHIN_CATALOGUE_FIRST=0) its answer only gives Gemini a
+ * head start on identity (see `server.ts`'s use of `offHint`).
  *
- * So this file deliberately does NOT open `catalogue/data/catalogue.db` or
- * import anything from `catalogue/src/schema.ts`; it makes a real HTTP call
- * to OFF's own product API and nothing else. Its answer is used only to give
- * Gemini a head start on identity (see `server.ts`'s use of `offHint`); it is
- * never read for a price, and it never substitutes for the one Gemini call.
+ * Ruling 5 (docs/decisions.md, "Nine rulings so the competitor-survey build
+ * could start", 2026-09-19): "Open Food Facts live is a third party; our
+ * imported copy of it is us. ... A live call to Open Food Facts is not our
+ * list, so it is allowed, and only for identity, never for price." So this
+ * file deliberately does NOT open `catalogue/data/catalogue.db` or import
+ * anything from `catalogue/src/schema.ts`; it makes a real HTTP call to OFF's
+ * own product API and nothing else, and it is never read for a price.
  *
  * OWN TIMEOUT: `OFF_TIMEOUT_MS`, an `AbortController` per request, so a slow
  * or hanging OFF endpoint cannot slow down a scan by more than that.
  *
- * OWN CACHE: identity does not change, so a hit is kept until the process
- * restarts (or is evicted for space), the same "no expiry" shape ruling 1
- * gives the repeat-scan cache and the same size-bounded FIFO eviction
- * ha-wine-cellar uses for its own barcode cache (docs/scanner-build-order-
- * 2026-09-19.md section 1, "Copy from"). Never persisted: unlike the
- * repeat-scan cache (item 1), an OFF miss or hit costs nothing to redo after
- * a restart, so there is no reason to pay for a table.
+ * OWN CACHE: identity does not change, so a hit, and a definite "OFF has no
+ * such product", is kept until the process restarts (or is evicted for
+ * space), the same size-bounded FIFO eviction ha-wine-cellar uses for its own
+ * barcode cache (docs/scanner-build-order-2026-09-19.md section 1, "Copy
+ * from"). A failure (timeout, network, a 5xx) is NOT cached, so the next scan
+ * tries again. Never persisted: a lookup costs nothing to redo.
  */
 
 export interface OffProduct {
@@ -92,14 +93,21 @@ export function setOffFetchForTests(fn: OffFetch | null): void {
 }
 
 /**
- * The live lookup. Never throws: a timeout, a network failure, a non-2xx
- * status, or a body that will not parse as OFF's shape all come back as
- * null, which a caller already has to treat the same as "OFF has never heard
- * of this barcode" -- always an answer (rule 6) never depends on this file
- * succeeding.
+ * Why a lookup named nothing, for the scan path's loud log: `off_not_found`
+ * is OFF saying it has no such product (or none with a name), `off_failed` is
+ * OFF not answering at all (a timeout, the network, a 5xx). The two are never
+ * merged: "we asked and it has nothing" is not "we could not ask".
  */
-export async function lookupOpenFoodFacts(gtin: string): Promise<OffProduct | null> {
-  if (cache.has(gtin)) return cache.get(gtin) ?? null;
+export type OffMissReason = 'off_not_found' | 'off_failed';
+
+export type OffLookup = { readonly product: OffProduct; readonly miss: null } | { readonly product: null; readonly miss: OffMissReason; readonly detail?: string };
+
+/** The live lookup, with the reason a miss happened. Never throws. */
+export async function lookupOpenFoodFactsWithReason(gtin: string): Promise<OffLookup> {
+  if (cache.has(gtin)) {
+    const hit = cache.get(gtin) ?? null;
+    return hit ? { product: hit, miss: null } : { product: null, miss: 'off_not_found' };
+  }
 
   const doFetch: OffFetch = fetchDouble ?? ((url, init) => fetch(url, init) as unknown as ReturnType<OffFetch>);
   const controller = new AbortController();
@@ -109,19 +117,33 @@ export async function lookupOpenFoodFacts(gtin: string): Promise<OffProduct | nu
       signal: controller.signal,
     });
     if (!res.ok) {
-      cacheSet(gtin, null);
-      return null;
+      // OFF answers an unknown barcode with a 404; that is a real "no such product". Anything else is OFF failing.
+      if (res.status === 404) {
+        cacheSet(gtin, null);
+        return { product: null, miss: 'off_not_found' };
+      }
+      return { product: null, miss: 'off_failed', detail: `status ${res.status}` };
     }
     const body = await res.json();
     const product = normalizeOffResponse(body);
     cacheSet(gtin, product);
-    return product;
-  } catch {
+    return product ? { product, miss: null } : { product: null, miss: 'off_not_found' };
+  } catch (err) {
     // Timeout, abort, or a network/parse failure. Not cached: a transient
     // failure should be tried again on the next scan of the same barcode
     // rather than remembered as a permanent miss.
-    return null;
+    return { product: null, miss: 'off_failed', detail: err instanceof Error ? err.message : String(err) };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * The live lookup, as the retired Gemini path reads it: a product or null.
+ * Never throws: a timeout, a network failure, a non-2xx status, or a body that
+ * will not parse as OFF's shape all come back as null -- always an answer
+ * (rule 6) never depends on this file succeeding.
+ */
+export async function lookupOpenFoodFacts(gtin: string): Promise<OffProduct | null> {
+  return (await lookupOpenFoodFactsWithReason(gtin)).product;
 }

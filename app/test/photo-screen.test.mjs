@@ -501,7 +501,8 @@ test('the barcode path is untouched: a stable barcode still resolves through ctx
   assert.match(onBarcodeFn, /catalogueLookup\(code, cents\)/);
   assert.doesNotMatch(onBarcodeFn, /identifyPhoto/, 'the barcode path was wired to the photo route');
   const catalogueLookupFn = CAMERA.slice(CAMERA.indexOf('async function catalogueLookup'), CAMERA.indexOf('/** Brand, name and size, without'));
-  assert.match(catalogueLookupFn, /ctx\.api\.identify\(\{ gtin: code, shelfPriceCents \}\)/);
+  // `canSendFrame` rides beside the price since 2026-10-10 (RULINGS.md "A scan never ends with no result").
+  assert.match(catalogueLookupFn, /ctx\.api\.identify\(\{ gtin: code, shelfPriceCents[,}]/);
 });
 
 test('startCaptureQueue is imported and started once, with a send that answers through identifyPhoto', () => {

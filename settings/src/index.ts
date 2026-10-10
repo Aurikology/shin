@@ -88,6 +88,9 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_RANGE_ASK_MONTHLY_CAP', default: '1000 (asks per UTC month; 0 turns the ask off; the server makes no range ask since 2026-09-28)', ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
   { env: 'SHIN_RANGE_ASK_CEILING_CENTS', default: '2000000 (highest high_cents accepted)', ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
   { env: 'SHIN_RANGE_ASK_STORE_PATH', default: 'identify/data/range-ask.json', ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
+  // -- A scan never ends with no result ------------------------------------
+  { env: 'SHIN_PACK_READ_MONTHLY_CAP', default: '300 (frames Claude reads per UTC month; 0 turns the read off)', ruling: 'A scan never ends with no result' },
+  { env: 'SHIN_PACK_READ_STORE_PATH', default: 'identify/data/pack-read.json', ruling: 'A scan never ends with no result' },
 
   // -- Operational: plumbing with no product ruling ------------------------
   { env: 'PORT', default: '4173', ruling: 'operational' },
@@ -209,6 +212,12 @@ export function SHIN_RANGE_ASK_CEILING_CENTS(env: NodeJS.ProcessEnv = process.en
 }
 export function SHIN_RANGE_ASK_STORE_PATH(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_RANGE_ASK_STORE_PATH');
+}
+export function SHIN_PACK_READ_MONTHLY_CAP(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_PACK_READ_MONTHLY_CAP');
+}
+export function SHIN_PACK_READ_STORE_PATH(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_PACK_READ_STORE_PATH');
 }
 export function PORT(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'PORT');

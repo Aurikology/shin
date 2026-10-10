@@ -139,7 +139,8 @@ test('a photo capture opens the pad BEFORE the crop is sent', () => {
 
 test('the price rides in the scan request on both routes', () => {
   assert.ok(SCREEN.includes('async function catalogueLookup(code, shelfPriceCents)'), 'the barcode lookup takes no price');
-  assert.ok(SCREEN.includes('ctx.api.identify({ gtin: code, shelfPriceCents })'), 'the price is not passed to identify');
+  // `canSendFrame` rides beside it since 2026-10-10 (RULINGS.md "A scan never ends with no result").
+  assert.match(SCREEN, /ctx\.api\.identify\(\{ gtin: code, shelfPriceCents[,}]/, 'the price is not passed to identify');
   assert.ok(
     SCREEN.includes('ctx.api.identifyPhoto(crop.blob, { sharpness: crop.sharpness, shelfPriceCents: cents ?? undefined })'),
     'the price is not passed to the photo route',

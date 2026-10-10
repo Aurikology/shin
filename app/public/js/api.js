@@ -339,9 +339,14 @@ export function price(query) {
  * "no connection" (failure.md D9.1/D9.5). No 413 branch: this is a GET with no
  * body, so the server has nothing to reject as too large.
  */
-export async function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPriceCents, preview } = {}) {
+export async function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPriceCents, preview, canSendFrame } = {}) {
   const params = new URLSearchParams();
   if (gtin) params.set('gtin', gtin);
+  /* RULINGS.md "A scan never ends with no result": the camera holds the frame of
+     this scan, so when nothing names the barcode the server answers
+     `frame_wanted` and the frame goes to `identifyPack`. The frame itself never
+     rides here: digits only, unless the catalogue and Open Food Facts both miss. */
+  if (canSendFrame) params.set('canSendFrame', '1');
   /* UX build 5, R-36: `preview` asks for the item's NAME alone, at capture, before
      any price is typed. The server writes no scan row for it, counts no free scan
      and asks the model for no range; the priced request that follows is the scan. */
@@ -386,6 +391,43 @@ export async function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPr
   }
   if (res.status === 402) return scanLimitFrom(await res.json().catch(() => null));
   if (!res.ok) throw new Error(`/api/identify returned ${res.status}`);
+  return res.json();
+}
+
+/**
+ * The camera frame of a barcode nothing named (RULINGS.md "A scan never ends
+ * with no result"): `POST /api/identify/pack`, where Claude reads the name,
+ * brand and size off the pack and the server prices that name. Sent only after
+ * `identify` answered `frame_wanted`, or for a reading whose check digit kept
+ * failing (`gtin` is then the misread digits). `frame` is bare base64 JPEG.
+ * Answers the same `kind: 'catalogue'` shape `identify` does; a throttle and
+ * the weekly limit are shapes, as there; anything else non-2xx throws.
+ */
+export async function identifyPack({ gtin, frame, shelfPriceCents } = {}) {
+  if (typeof frame !== 'string' || frame === '') throw new Error('identifyPack needs a frame (bare base64); none was given');
+  const shelf = shelfPriceOf(shelfPriceCents);
+  const thresholds = thresholdsFrom(storeState());
+  const device = getDeviceId();
+  const body = {
+    ...scanContext(),
+    ...identifyExtras(),
+    ...(gtin ? { gtin } : {}),
+    frame,
+    ...(shelf !== undefined ? { shelfPriceCents: shelf } : {}),
+    ...(thresholds ? { thresholds } : {}),
+    ...(device?.id ? { deviceId: device.id } : {}),
+  };
+  const res = await fetch(`${BASE}/api/identify/pack`, {
+    method: 'POST',
+    headers: headers({ 'content-type': 'application/json' }),
+    body: JSON.stringify(body),
+  });
+  if (res.status === 429) {
+    const respBody = await res.json().catch(() => null);
+    return { product: null, failure: 'rate_limited', ...(typeof respBody?.retryAfterSeconds === 'number' ? { retryAfterSeconds: respBody.retryAfterSeconds } : {}) };
+  }
+  if (res.status === 402) return scanLimitFrom(await res.json().catch(() => null));
+  if (!res.ok) throw new Error(`/api/identify/pack returned ${res.status}`);
   return res.json();
 }
 

@@ -63,22 +63,26 @@ import { canonicalBarcode, canonicalGtin } from './src/barcode.ts';
 import { createCategoryGuard, defaultFaultsFile, ringLeaf, type CategoryGuard } from './src/category-guard.ts';
 import {
   answerBarcodeFromCatalogue,
+  answerNamedItem,
   catalogueFaults,
   catalogueFirstOn,
   matchText,
+  packReadSettings,
   pickCandidate,
   rangeAskSettings,
   readMatchTextBody,
   resolveTypedName,
   safeEstimate,
+  type BarcodeDeps,
   type MatchTextAnswer,
+  type NamedElsewhere,
   type TypedRow,
 } from './src/catalogue-first.ts';
 import { onceAsk, readShelfCents, readThresholdsRaw, sortByName, verdictRecord, type RangeAsk } from './src/distribution.ts';
 import type { Verdict } from '../price/src/estimate.ts';
 import { PRICES_DB_PATH } from '../price/src/store.ts';
 import type { Provider } from '../identify/src/provider.ts';
-import { lookupOpenFoodFacts } from './src/open-food-facts.ts';
+import { lookupOpenFoodFacts, lookupOpenFoodFactsWithReason } from './src/open-food-facts.ts';
 import {
   claimRefresh,
   recallCachedScan,
@@ -246,6 +250,8 @@ let catalogueFirstTest: {
   searcher?: { search(q: unknown): Promise<unknown> } | null;
   db?: DatabaseSync | null;
   rangeAskProvider?: Provider;
+  /** The Claude provider the frame read (identify/src/pack-read.ts) would build from ANTHROPIC_API_KEY. */
+  packReadProvider?: Provider;
   /** How long a verdict waits for the Claude ask (design case 27), shortened under test. */
   claudeWaitMs?: number;
 } | null = null;
@@ -2324,8 +2330,9 @@ function ownOffersForBarcode(gtin: string, device: string): Record<string, unkno
  * src/catalogue-first.ts; this is the wiring: the catalogue lookup is
  * `fastLookup.byGtin` (catalogue/src/search.ts `Catalogue.byGtin`, the same
  * lookup attached for barcodes) and the prices are `PRICES_DB_PATH` opened
- * read-only for this one answer. The only model call is the capped Claude
- * range ask, made only when Shin's own prices give no range.
+ * read-only for this one answer. The model calls are the capped Claude range
+ * ask, made only when Shin's own prices give no range, and, for a barcode
+ * nothing names, the capped Claude read of the frame (`nameElsewhere`).
  */
 async function catalogueFirstBarcode(
   askRange: RangeAsk | undefined,
@@ -2333,7 +2340,20 @@ async function catalogueFirstBarcode(
   market: { country: string | null; currency: string | null; region?: string | null },
   device: string,
   shopper: { cents: number; thresholds?: unknown } | null = null,
+  nameElsewhere?: BarcodeDeps['nameElsewhere'],
 ): Promise<Awaited<ReturnType<typeof answerBarcodeFromCatalogue>>> {
+  return withCatalogueFirstDeps(askRange, market, device, shopper, nameElsewhere, (deps) => answerBarcodeFromCatalogue(canonical, deps));
+}
+
+/** The deps every catalogue-first answer is priced with, the price file open for exactly the length of `fn`. */
+async function withCatalogueFirstDeps<T>(
+  askRange: RangeAsk | undefined,
+  market: { country: string | null; currency: string | null; region?: string | null },
+  device: string,
+  shopper: { cents: number; thresholds?: unknown } | null,
+  nameElsewhere: BarcodeDeps['nameElsewhere'] | undefined,
+  fn: (deps: BarcodeDeps) => Promise<T>,
+): Promise<T> {
   let prices: DatabaseSync | null = null;
   try {
     if (existsSync(PRICES_DB_PATH)) prices = new DatabaseSync(PRICES_DB_PATH, { readOnly: true });
@@ -2342,7 +2362,7 @@ async function catalogueFirstBarcode(
     prices = null;
   }
   try {
-    return await answerBarcodeFromCatalogue(canonical, {
+    return await fn({
       lookup: fastLookup,
       prices,
       catalogue: catalogueFirstTest?.db !== undefined ? catalogueFirstTest.db : catalogueDb,
@@ -2358,6 +2378,7 @@ async function catalogueFirstBarcode(
       shopper,
       sortName: sortByName(catalogueFirstTest?.searcher !== undefined ? catalogueFirstTest.searcher : searchService),
       ...(catalogueFirstTest?.claudeWaitMs !== undefined ? { claudeWaitMs: catalogueFirstTest.claudeWaitMs } : {}),
+      ...(nameElsewhere ? { nameElsewhere } : {}),
     });
   } finally {
     try {
@@ -2386,6 +2407,136 @@ function claudeRangeAsk(req: IncomingMessage): RangeAsk {
       ...(s.storePath ? { storePath: s.storePath } : {}),
       ...(catalogueFirstTest?.rangeAskProvider ? { provider: catalogueFirstTest.rangeAskProvider } : {}),
     });
+  };
+}
+
+/**
+ * The capped Claude read of one camera frame, no tools and no web search
+ * (identify/src/pack-read.ts), behind the same paid-call limiter as the range
+ * ask. RULINGS.md "A scan never ends with no result": only after the catalogue
+ * and Open Food Facts both missed, and the frame goes to Claude, never Gemini.
+ */
+function claudePackRead(req: IncomingMessage): (frame: Buffer, gtin: string | null) => Promise<{ ok: true; named: NamedElsewhere } | { ok: false; reason: string }> {
+  return async (frame, gtin) => {
+    if (paidCallRefusal(req)) return { ok: false, reason: 'rate_limited' };
+    const { readPack } = await import('../identify/src/pack-read.ts');
+    const s = packReadSettings();
+    const r = await readPack({ bytes: new Uint8Array(frame), mediaType: imageKind(frame) === 'png' ? 'image/png' : 'image/jpeg' }, gtin, {
+      monthlyCap: s.monthlyCap,
+      ...(s.storePath ? { storePath: s.storePath } : {}),
+      ...(catalogueFirstTest?.packReadProvider ? { provider: catalogueFirstTest.packReadProvider } : {}),
+    });
+    if (!r.ok) return { ok: false, reason: r.reason };
+    return { ok: true, named: { name: r.reading.name, brand: r.reading.brand, size: r.reading.size, source: 'claude_reading' } };
+  };
+}
+
+/**
+ * The steps after a catalogue miss, in the ruling's order (RULINGS.md "A scan
+ * never ends with no result"): a live Open Food Facts lookup by barcode,
+ * identity only; a reading Claude already made of this pack (saved by
+ * barcode, so the next scan costs no call); then the frame read by Claude.
+ * With no frame in hand: `canSendFrame` (the client says it holds one) asks for
+ * it; otherwise the reason is `no_frame`. `readFrame` absent (the preview) never
+ * calls Claude. Every miss carries its reason, one per step, for the loud log.
+ */
+function nameElsewhereFor(opts: {
+  frame: Buffer | null;
+  canSendFrame: boolean;
+  readFrame: ReturnType<typeof claudePackRead> | null;
+}): NonNullable<BarcodeDeps['nameElsewhere']> {
+  return async (gtin) => {
+    const reasons: string[] = [];
+    const off = await lookupOpenFoodFactsWithReason(gtin);
+    if (off.product) {
+      return { ok: true, named: { name: off.product.name, brand: off.product.brand, size: off.product.size, source: 'open_food_facts' } };
+    }
+    reasons.push(off.miss);
+    const { savedPackReading, DEFAULT_PACK_STORE_PATH } = await import('../identify/src/pack-read.ts');
+    const saved = savedPackReading(packReadSettings().storePath ?? DEFAULT_PACK_STORE_PATH, gtin);
+    if (saved) return { ok: true, named: { name: saved.name, brand: saved.brand, size: saved.size, source: 'claude_reading' } };
+    if (!opts.frame || !opts.readFrame) {
+      if (opts.canSendFrame && opts.readFrame) return { ok: false, reasons: [...reasons, 'frame_wanted'], frameWanted: true };
+      return { ok: false, reasons: [...reasons, 'no_frame'], frameWanted: false };
+    }
+    const read = await opts.readFrame(opts.frame, gtin);
+    if (read.ok) return { ok: true, named: read.named };
+    return { ok: false, reasons: [...reasons, `claude_${read.reason}`], frameWanted: false };
+  };
+}
+
+/**
+ * A scan that ended with typing the name is the one result the ruling allows
+ * only after every step failed, so it is never quiet (RULINGS.md "Errors fail
+ * loudly"): one error line naming the barcode and every step's reason, joined
+ * to the scan row by its id.
+ */
+function logNoName(answer: { outcome: string; noNameReasons?: readonly string[]; barcode: string }, device: string, scanId: number | null): void {
+  if (answer.outcome !== 'not_in_catalogue' || !answer.noNameReasons) return;
+  logError({
+    where: 'identify.no_name',
+    deviceId: device,
+    scanId,
+    err: new Error(`SCAN ENDED WITH NO NAME: nothing named barcode ${answer.barcode || '(none)'}; the shopper was asked to type it (${answer.noNameReasons.join(', ')})`),
+    detail: { gtin: answer.barcode, reasons: answer.noNameReasons.join(',') },
+  });
+}
+
+/**
+ * The scan row, the gap, the conflict event and the loud no-name line for one
+ * catalogue-first barcode answer, and the body sent back. Shared by
+ * `/api/identify` and `/api/identify/pack`, so the two routes cannot drift on
+ * what a scan writes.
+ */
+function finishCatalogueScan(s: {
+  device: string;
+  query: string;
+  /** The canonical code a catalogue miss is logged under, or null for a misread (no code to log). */
+  gapGtin: string | null;
+  answer: Awaited<ReturnType<typeof answerBarcodeFromCatalogue>>['answer'];
+  record: Awaited<ReturnType<typeof answerBarcodeFromCatalogue>>['record'];
+  telemetry: ReturnType<typeof telemetryFrom>;
+  where: ReturnType<typeof locationFor>;
+  startedAt: number;
+}): { scanId: number | null; body: Record<string, unknown> } {
+  const { answer, record, where } = s;
+  // A barcode the catalogue was asked about and does not hold is the most
+  // actionable miss the gap log can hold (`what-to-price` reads it), named elsewhere or not.
+  if (s.gapGtin && answer.catalogueUp && (answer.outcome === 'not_in_catalogue' || answer.outcome === 'named_outside_catalogue')) {
+    recordGap({ gtin: s.gapGtin, catalogueMissing: true });
+  }
+  const ms = Date.now() - s.startedAt;
+  const scanId = recordScan({
+    deviceId: s.device,
+    kind: 'barcode',
+    query: s.query,
+    resolvedCode: record.resolvedCode,
+    resolvedLabel: record.resolvedLabel,
+    source: 'catalogue',
+    outcome: record.outcome,
+    failureClass: record.failureClass,
+    answerPath: record.answerPath,
+    rangeSource: record.rangeSource,
+    rangeBasis: record.rangeBasis,
+    rangeMissReason: record.rangeMissReason,
+    ...verdictRecord(record.verdict),
+    appVersion: s.telemetry.appVersion,
+    platform: s.telemetry.platform,
+    latencyMs: ms,
+    cell: where.cell,
+    storeId: where.storeId,
+    storeName: where.storeName,
+    exactLat: where.exactLat,
+    exactLon: where.exactLon,
+    exactAccuracy: where.exactAccuracy,
+    exactAt: where.exactAt,
+  });
+  // Design case 9: the catalogue and the store row disagree on size. Logged, never shown.
+  if (record.conflict) recordEvent({ deviceId: s.device, type: 'identity_conflict', payload: { ...record.conflict, scanId } });
+  logNoName(answer, s.device, scanId);
+  return {
+    scanId,
+    body: { ...answer, ms, ...shopperReportField(s.device, record.resolvedCode), ...(scanId === null ? {} : { scanId }) },
   };
 }
 
@@ -2794,6 +2945,7 @@ process.on('unhandledRejection', (reason) => {
  */
 const SCAN_ROUTES: ReadonlySet<string> = new Set([
   '/api/identify',
+  '/api/identify/pack',
   '/api/identify/photo',
   '/api/identify/demo',
   '/api/price',
@@ -3335,12 +3487,21 @@ export const server = createServer(async (req, res) => {
       if (rawGtin && pickText('preview') === '1') {
         const canonical = gtin && catalogueFirstOn() ? canonicalBarcode(rawGtin) : null;
         if (!canonical) return json(200, { kind: 'catalogue', outcome: 'preview_unavailable', barcode: rawGtin, identity: null, preview: true });
-        const { answer } = await catalogueFirstBarcode(undefined, canonical, marketOfContext(contextFrom(pick)), device, null);
+        // Open Food Facts and a saved Claude reading name it here too, both free; no frame, so no Claude call.
+        const { answer } = await catalogueFirstBarcode(
+          undefined,
+          canonical,
+          marketOfContext(contextFrom(pick)),
+          device,
+          null,
+          nameElsewhereFor({ frame: null, canSendFrame: false, readFrame: null }),
+        );
         return json(200, {
           kind: 'catalogue',
           outcome: answer.outcome,
           barcode: answer.barcode,
           identity: answer.identity ?? answer.storeIdentity ?? null,
+          ...(answer.identitySource ? { identitySource: answer.identitySource } : {}),
           preview: true,
         });
       }
@@ -3415,40 +3576,14 @@ export const server = createServer(async (req, res) => {
             marketOfContext(contextFrom(pick)),
             device,
             shopperFrom(pick('shelfPriceCents'), pick('thresholds')),
+            // RULINGS.md "A scan never ends with no result": a catalogue miss is named elsewhere before "not found".
+            nameElsewhereFor({ frame: null, canSendFrame: pickText('canSendFrame') === '1', readFrame: claudePackRead(req) }),
           );
-          // A barcode the catalogue was asked about and does not hold is the most
-          // actionable miss the gap log can hold (`what-to-price` reads it).
-          if (answer.outcome === 'not_in_catalogue' && answer.catalogueUp) recordGap({ gtin, catalogueMissing: true });
-          const ms = Date.now() - identifyStarted;
-          const firstScanId = recordScan({
-            deviceId: device,
-            kind: 'barcode',
-            query: gtin,
-            resolvedCode: record.resolvedCode,
-            resolvedLabel: record.resolvedLabel,
-            source: 'catalogue',
-            outcome: record.outcome,
-            failureClass: record.failureClass,
-            answerPath: record.answerPath,
-            rangeSource: record.rangeSource,
-            rangeBasis: record.rangeBasis,
-            rangeMissReason: record.rangeMissReason,
-            ...verdictRecord(record.verdict),
-            appVersion: telemetry.appVersion,
-            platform: telemetry.platform,
-            latencyMs: ms,
-            cell: where.cell,
-            storeId: where.storeId,
-            storeName: where.storeName,
-            exactLat: where.exactLat,
-            exactLon: where.exactLon,
-            exactAccuracy: where.exactAccuracy,
-            exactAt: where.exactAt,
-          });
-          scanForLog = firstScanId;
-          // Design case 9: the catalogue and the store row disagree on size. Logged, never shown.
-          if (record.conflict) recordEvent({ deviceId: device, type: 'identity_conflict', payload: { ...record.conflict, scanId: firstScanId } });
-          return json(200, { ...answer, ms, ...shopperReportField(device, record.resolvedCode), ...(firstScanId === null ? {} : { scanId: firstScanId }) });
+          // The client holds a frame and Pexi needs it: asked for, with no scan row yet. The frame's own request is the scan.
+          if (answer.outcome === 'frame_wanted') return json(200, { ...answer, ms: Date.now() - identifyStarted });
+          const finished = finishCatalogueScan({ device, query: gtin, gapGtin: gtin, answer, record, telemetry, where, startedAt: identifyStarted });
+          scanForLog = finished.scanId;
+          return json(200, finished.body);
         }
       }
 
@@ -3796,6 +3931,116 @@ export const server = createServer(async (req, res) => {
      * about the REQUEST: a body over the cap, a body that is not JSON, a
      * payload that is not an image, and a device asking too often.
      */
+    /*
+     * THE FRAME OF A BARCODE NOTHING NAMES. RULINGS.md "A scan never ends with
+     * no result" (2026-10-10): "when Pexi cannot name a scanned item itself, it
+     * asks Claude before it ever shows 'not found'". Two ways in, both from the
+     * camera: `/api/identify` answered `frame_wanted` (the catalogue, Open Food
+     * Facts and any saved reading all missed), or the camera saw only misreads
+     * (a check digit that fails) for a few seconds. The body is
+     * `{ gtin?, frame, shelfPriceCents?, thresholds?, deviceId, ...context }`,
+     * `frame` one JPEG or PNG as bare base64.
+     *
+     * A valid `gtin` takes the whole catalogue-first path again (a catalogue hit
+     * still wins), with the frame as its last step; a misread has no code, so
+     * the frame is read straight away and the name is priced with no barcode.
+     * The frame goes to Claude (identify/src/pack-read.ts: no tools, no web
+     * search, capped per month, behind the paid-call limiter), never to Gemini,
+     * and it is kept on disk only when the device said yes to photos.
+     */
+    if (url.pathname === '/api/identify/pack') {
+      if (!catalogueFirstOn()) return json(404, { error: 'no such endpoint' });
+      if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      const body = await readBody(req, MAX_PHOTO_BODY_BYTES);
+      if (body === TOO_LARGE) return refuseTooLarge(MAX_PHOTO_BODY_BYTES);
+      if (body === null || typeof body !== 'object') return json(400, { error: 'body did not parse as JSON' });
+      const p = body as Record<string, unknown>;
+      const frame = typeof p.frame === 'string' && p.frame.trim() !== '' ? Buffer.from(p.frame, 'base64') : null;
+      if (!frame || frame.length === 0) return json(400, { error: 'frame is required and must be a base64 JPEG or PNG' });
+      if (imageKind(frame) === null) return json(400, { error: 'frame must be a PNG or a JPEG' });
+      const device = typeof p.deviceId === 'string' && p.deviceId.trim() !== '' ? p.deviceId.trim() : deviceFromHeaders(req.headers) || UNATTRIBUTED;
+      deviceForLog = device;
+      const overLimitPack = await scanLimitRefusal(device, req.headers);
+      if (overLimitPack) return json(402, overLimitPack);
+      const packStarted = Date.now();
+      const telemetry = telemetryFrom(p);
+      const where = locationFor(device, p.cell, p.storeId, p.storeName, { lat: p.lat, lon: p.lon, accuracy: p.accuracy, at: p.locatedAt });
+      const rawGtin = typeof p.gtin === 'string' ? p.gtin.trim() : '';
+      const canonical = rawGtin ? canonicalBarcode(rawGtin) : null;
+      const market = marketOfContext(contextFrom((key) => p[key]));
+      const shopper = shopperFrom(p.shelfPriceCents, p.thresholds);
+      const readFrame = claudePackRead(req);
+
+      let result: Awaited<ReturnType<typeof answerBarcodeFromCatalogue>>;
+      if (canonical) {
+        result = await catalogueFirstBarcode(
+          claudeRangeAsk(req),
+          canonical,
+          market,
+          device,
+          shopper,
+          nameElsewhereFor({ frame, canSendFrame: false, readFrame }),
+        );
+      } else {
+        // A misread: no code to look up or save under. The frame is the only thing that can name it.
+        const read = await readFrame(frame, null);
+        result = await withCatalogueFirstDeps(claudeRangeAsk(req), market, device, shopper, undefined, async (deps) => {
+          if (read.ok) return answerNamedItem(read.named, rawGtin, null, deps);
+          const reasons = ['misread', `claude_${read.reason}`];
+          return {
+            answer: {
+              kind: 'catalogue',
+              outcome: 'not_in_catalogue',
+              offerManualEntry: true,
+              catalogueUp: deps.lookup !== null,
+              barcode: rawGtin,
+              identity: null,
+              range: null,
+              rangeSource: null,
+              rangeAskedAt: null,
+              noRangeReason: null,
+              shelfPrice: null,
+              verdict: null,
+              storeIdentity: null,
+              noNameReasons: reasons,
+            },
+            record: {
+              resolvedCode: null,
+              resolvedLabel: null,
+              outcome: 'refused',
+              failureClass: 'not_in_catalogue',
+              answerPath: 'not_in_catalogue',
+              rangeSource: null,
+              rangeBasis: null,
+              rangeMissReason: `no_name:${reasons.join(',')}`,
+              verdict: null,
+              conflict: null,
+            },
+          };
+        });
+      }
+      const finished = finishCatalogueScan({
+        device,
+        query: canonical?.gtin ?? rawGtin,
+        gapGtin: canonical?.gtin ?? null,
+        answer: result.answer,
+        record: result.record,
+        telemetry,
+        where,
+        startedAt: packStarted,
+      });
+      scanForLog = finished.scanId;
+      // The frame, only if they said so: the same three conditions as the photo route's photograph.
+      if (finished.scanId !== null && device !== UNATTRIBUTED && keepPhoto(device)) {
+        const kind = imageKind(frame);
+        if (kind) {
+          const stored = await savePhoto(finished.scanId, frame, kind);
+          if (stored) updateScan(finished.scanId, { photoPath: stored });
+        }
+      }
+      return json(200, finished.body);
+    }
+
     if (url.pathname === '/api/identify/photo') {
       if (req.method !== 'POST') return json(405, { error: 'POST only' });
       /*

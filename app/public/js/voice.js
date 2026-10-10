@@ -1727,6 +1727,16 @@ const LINES_EN = {
    * (docs/mvp-plan.md: "the mascot says Point me at the barcode"). With no
    * photo route there is no other way in, so this names the one there is.
    */
+  /**
+   * A barcode reading that failed its check digit (RULINGS.md "A scan never ends
+   * with no result"): a misread, not a missing product, so the camera keeps
+   * reading and says so. Never "not found".
+   */
+  cam_misread_hold: {
+    deadpan: () => 'Hold still. Reading the barcode again.',
+    warm: () => 'Almost. Hold it still while I read the barcode again.',
+    blunt: () => 'Bad read. Hold still.',
+  },
   cam_point_barcode: {
     deadpan: () => 'Point me at the barcode.',
     warm: () => 'Point me at the barcode and hold it there.',

@@ -92,9 +92,18 @@ test('D11: a barcode the catalogue does not hold asks the name, with no not-foun
   assert.match(fn.slice(ask, ask + 200), /askNameForUnknownBarcode\(cents, answer\.barcode \?\? null\)/);
 });
 
-test('D11: an unreadable (invalid) barcode takes the same road', () => {
+test('D11: an unreadable (invalid) barcode reads the frame first, and asks the name only after, loudly', () => {
+  // RULINGS.md "A scan never ends with no result" (2026-10-10) retired "the same road as a code nobody knows":
+  // a misread is not a missing product. The frame is read off the pack; typing is the last step and is logged.
   const fn = bodyOf(CAMERA, 'async function catalogueLookup(');
-  assert.match(fn, /id\?\.failure === 'invalid_barcode'[\s\S]{0,300}offerManualEntry: true/);
+  const at = fn.indexOf("id?.failure === 'invalid_barcode'");
+  assert.ok(at > 0, 'the invalid-barcode answer is not handled in the lookup at all');
+  const branch = fn.slice(at, at + 1400);
+  const frame = branch.indexOf('sendFrame(code, scanFrame');
+  const typing = branch.indexOf('offerManualEntry: true');
+  assert.ok(frame > 0, 'an invalid barcode no longer tries the camera frame before asking for the name');
+  assert.ok(typing > frame, 'typing the name is offered before the frame was tried');
+  assert.match(branch.slice(0, typing), /console\.error\('scan ended with no name:'/, 'typing the name after a misread is not logged loudly');
 });
 
 test('D11: a code nothing knows no longer ends on the stand-in candidate list', () => {

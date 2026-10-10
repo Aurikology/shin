@@ -192,6 +192,8 @@ function runOnBarcode(flags, consentPhotos) {
     ctx: { api: { beginShutter: (v) => calls.beginShutter.push(v) } },
     track: (...a) => calls.track.push(a),
     captureThumb: () => 'thumb',
+    // RULINGS.md "A scan never ends with no result": the frame is taken at the read and kept on the phone.
+    captureFrame: () => 'frame',
     askPriceFirst: (p) => calls.askPriceFirst.push(p),
     cameraStartedAt: null,
     // UX build 1: the capture haptic and the 150 ms hold (the hold is 0 here so the test does not wait).
@@ -203,9 +205,9 @@ function runOnBarcode(flags, consentPhotos) {
   };
   calls.haptic = [];
   const build = new Function('deps', `
-    const { cam, video, FLAGS, store, ctx, track, captureThumb, askPriceFirst, cameraStartedAt, haptic, reportHapticFault, CAPTURE_HOLD_MS, nameCapturedCode } = deps;
+    const { cam, video, FLAGS, store, ctx, track, captureThumb, captureFrame, askPriceFirst, cameraStartedAt, haptic, reportHapticFault, CAPTURE_HOLD_MS, nameCapturedCode } = deps;
     let dead = false, gen = 0;
-    let barcodeInFlight = false, scanBarcode = null, hintTimer = null, scanPressTimer = null, torchAckTimer = null, coachKey = null, scanThumb = null;
+    let barcodeInFlight = false, scanBarcode = null, hintTimer = null, scanPressTimer = null, torchAckTimer = null, coachKey = null, scanThumb = null, scanFrame = null;
     ${src}
     return onBarcode;
   `);

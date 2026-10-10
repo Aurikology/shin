@@ -974,6 +974,12 @@ export const LINES_FR = {
     warm: () => "Chaque scan est écrit, le produit et le prix que tu as vu, toujours, et ça aide à entraîner Pexi et à répondre à d'autres personnes.",
     blunt: () => "Chaque scan est consigné: produit et prix, toujours. Utilisé pour entraîner Pexi et répondre à d'autres personnes.",
   },
+  /* Un code-barres mal lu (chiffre de contrôle faux): je relis, jamais « introuvable ». */
+  cam_misread_hold: {
+    deadpan: () => "Ne bouge pas. Je relis le code-barres.",
+    warm: () => "Presque. Tiens-le immobile pendant que je relis le code-barres.",
+    blunt: () => "Mauvaise lecture. Ne bouge pas.",
+  },
   cam_point_barcode: {
     deadpan: () => "Pointe-moi vers le code-barres.",
     warm: () => "Pointe-moi vers le code-barres et tiens-le là.",

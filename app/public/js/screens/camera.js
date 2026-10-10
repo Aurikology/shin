@@ -58,7 +58,7 @@ import { getDeviceId } from '../device.js';
 import { FLAGS } from '../flags.js';
 import { haptic, verdictHaptic, reportHapticFault, CAPTURE_HOLD_MS } from '../lib/haptics.js';
 import { createAutoFire } from '../lib/auto-fire.js';
-import { assertCheckDigit } from '../lib/gtin.js';
+import { assertCheckDigit, hasValidCheckDigit } from '../lib/gtin.js';
 import { applyCentsKey, centsOfDigits, centsParts } from '../lib/pad-cents.js';
 
 /**
@@ -173,6 +173,45 @@ function captureThumb(video, isLive) {
     g.drawImage(video, sx, sy, side, side, 0, 0, size, size);
     return canvas.toDataURL('image/jpeg', 0.7);
   } catch {
+    return null;
+  }
+}
+
+/**
+ * How long a reading whose check digit fails keeps the camera reading before the
+ * frame is sent to be read off the pack instead (RULINGS.md "A scan never ends
+ * with no result": "the camera keeps scanning for a good reading instead of
+ * saying 'not found'"). A good reading inside the window wins. A guess, untested
+ * in an aisle: long enough for the eye to settle on the printed digits, short
+ * enough that a pack with a damaged code is named before the shopper gives up.
+ */
+export const MISREAD_FALLBACK_MS = 3000;
+
+/** The longest side of a frame sent to be read off the pack: legible print, a small upload. */
+const FRAME_MAX_SIDE = 1024;
+
+/**
+ * The live camera frame as bare base64 JPEG, downscaled so its longest side is
+ * at most FRAME_MAX_SIDE, or null when there is no live frame. Taken at every
+ * barcode read and kept on the phone: it leaves only when nothing named the
+ * barcode (`identifyPack`), never with the digits.
+ */
+function captureFrame(video, isLive) {
+  if (!isLive || !video || !video.videoWidth || !video.videoHeight) return null;
+  try {
+    const scale = Math.min(1, FRAME_MAX_SIDE / Math.max(video.videoWidth, video.videoHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    const g = canvas.getContext('2d');
+    if (!g) return null;
+    g.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const url = canvas.toDataURL('image/jpeg', 0.8);
+    const comma = typeof url === 'string' ? url.indexOf(',') : -1;
+    return comma > 0 && url.length > comma + 1 ? url.slice(comma + 1) : null;
+  } catch (err) {
+    // Never blocks the scan; said out loud, because a missing frame is the one thing step 2 needs.
+    console.error('frame capture failed:', err);
     return null;
   }
 }
@@ -1861,7 +1900,7 @@ function prefersReducedMotion() {
 }
 
 function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store.get() } = {}) {
-  const identity = answer?.outcome === 'catalogue_hit' ? answer.identity : null;
+  const identity = answer?.outcome === 'catalogue_hit' || answer?.outcome === 'named_outside_catalogue' ? answer.identity : null;
   if (!identity) {
     return `
     <section class="sheet catalogue" data-kind="catalogue" data-outcome="not_in_catalogue" data-tier="unknown" data-conf="reading" data-detent="peek" aria-live="polite" tabindex="-1">
@@ -1905,6 +1944,8 @@ function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store
     }
   }
   const shelfLine = shelf !== null ? t('cam_gem_shelf', { label: money(shelf, currency) }) : '';
+  // Who named an item the catalogue lacks (RULINGS.md "A scan never ends with no result"): never shown as Pexi's own.
+  const nameSource = answer.identitySource === 'open_food_facts' ? t('cat_named_by_off') : answer.identitySource === 'claude_reading' ? t('cat_named_by_ai') : '';
 
   return `
     <section class="sheet catalogue" data-kind="catalogue" data-outcome="catalogue_hit" data-basis="${escapeHtml(range?.basis ?? '')}" data-tier="${GEMINI_ZONE_TIER[zone] ?? 'unknown'}" data-zone="${escapeHtml(zone ?? '')}" data-conf="${range ? 'sure' : 'refuses'}" data-detent="peek" aria-live="polite" tabindex="-1">
@@ -1922,6 +1963,7 @@ function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store
           : `<p class="detail" data-cat-no-range>${escapeHtml(t(noRangeKey(answer.noRangeReason)))}</p>`}
         ${shelfLine ? `<p class="sub cat-shelf" data-cat-shelf>${escapeHtml(shelfLine)}</p>` : ''}
         ${basis ? `<p class="conf-label cat-basis" data-cat-basis>${escapeHtml(basis)}</p>` : ''}
+        ${nameSource ? `<p class="conf-label cat-source" data-cat-source>${escapeHtml(nameSource)}</p>` : ''}
         <div class="actions actions-primary">
           <button type="button" class="pill solid wide" data-act="cancel-scan">${escapeHtml(t('done'))}</button>
         </div>
@@ -3184,6 +3226,12 @@ export default {
     let corr = null;
     let corrToastTimer = null;
     let scanThumb = null;
+    /* The frame of the current barcode scan, bare base64 JPEG, or null (`captureFrame`). Sent only if nothing named the code. */
+    let scanFrame = null;
+    /* A misread is waiting for a good reading (`onMisread`); when it runs out, the frame is read off the pack. */
+    let misreadTimer = null;
+    /* The frame a misread falls back to, held from `onMisread` until `catalogueLookup` sends it. */
+    let misreadFrame = null;
     let coachKey = null;
     let camShinEl = camShin ? camShin.querySelector('.shin-say') : null;
     /* Decision 15: a stable barcode is truth and never competes with a photo
@@ -3248,10 +3296,13 @@ export default {
           assertCheckDigit(read.value);
         } catch (err) {
           track('barcode_bad_check_digit', { value: read.value, format: read.format, frames: read.frames });
+          // A misread, not a missing product: the camera keeps reading (and reads the pack if no good read comes).
+          onMisread(read);
           throw err;
         }
         lastCaptureAt = Date.now();
         track('barcode_auto_fired', { format: read.format, frames: read.frames });
+        endMisreadWait();
         onBarcode(read);
       },
     });
@@ -3300,6 +3351,15 @@ export default {
        */
       onBarcode: (read) => {
         if (dead || cam.dataset.state !== 'idle') return;
+        /* RULINGS.md "A scan never ends with no result": a pressed reading whose
+           check digit fails is a misread, never looked up and never "not found".
+           The camera keeps reading for a good one (`onMisread`). */
+        if (!hasValidCheckDigit(read.value)) {
+          track('barcode_bad_check_digit', { value: read.value, format: read.format, frames: read.frames ?? 0 });
+          onMisread(read);
+          return;
+        }
+        endMisreadWait();
         onBarcode(read);
       },
       onTorch: (on) => { if (!dead) setTorch(on); },
@@ -3859,6 +3919,49 @@ export default {
       setTorch(on);
     }
 
+    /** A good reading arrived: the misread wait is over and the frame fallback will not fire. */
+    function endMisreadWait() {
+      clearTimeout(misreadTimer);
+      misreadTimer = null;
+    }
+
+    /**
+     * A reading whose check digit failed (RULINGS.md "A scan never ends with no
+     * result": "A barcode reading that fails its check digit is a misread, not a
+     * missing product: the camera keeps scanning for a good reading instead of
+     * saying 'not found'"). Nothing is looked up and no sheet is drawn: the
+     * screen stays on the live camera and says it is reading again, and a good
+     * reading inside MISREAD_FALLBACK_MS goes the ordinary way (the read handlers
+     * end the wait). When none comes, the frame is read off the pack by
+     * Claude (`identifyPack` with the misread digits). With no frame to send,
+     * typing the name is the one step left, and that is said loudly.
+     */
+    function onMisread(read) {
+      if (dead || cam.dataset.state !== 'idle' || barcodeInFlight) return;
+      dockSay('asking', 'cam_misread_hold', {}, 'nudge-arrive');
+      if (misreadTimer) return; // already waiting on this run of misreads
+      const misread = read.value;
+      // @budget reactive: it answers a reading the shopper pointed the camera at.
+      misreadTimer = setTimeout(() => {
+        misreadTimer = null;
+        if (dead || cam.dataset.state !== 'idle' || barcodeInFlight) return;
+        const frame = captureFrame(video, cam.dataset.camera === 'live');
+        if (!frame) {
+          track('scan_no_name', { code: misread, reasons: ['misread', 'no_frame'] });
+          console.error('scan ended with no name:', { code: misread, reasons: ['misread', 'no_frame'] });
+          askNameForUnknownBarcode(null, null);
+          return;
+        }
+        track('misread_frame_sent', { code: misread });
+        barcodeInFlight = true;
+        scanBarcode = misread;
+        scanThumb = captureThumb(video, cam.dataset.camera === 'live');
+        scanFrame = frame;
+        misreadFrame = frame;
+        askPriceFirst({ kind: 'pack', code: misread, frame });
+      }, MISREAD_FALLBACK_MS);
+    }
+
     /*
      * A barcode ends the guessing. It arrives without a shutter press, so the
      * screen jumps straight from idle to the working state with an identity
@@ -3876,6 +3979,7 @@ export default {
       clearTimeout(torchAckTimer);
       coachKey = null;
       scanThumb = captureThumb(video, cam.dataset.camera === 'live');
+      scanFrame = captureFrame(video, cam.dataset.camera === 'live');
       // R-4: the frame is frozen now, so this is the one moment the capture
       // haptic may fire (never while the viewfinder is still searching).
       try { haptic('barcode-captured'); } catch (err) { reportHapticFault(err, 'barcode-captured'); }
@@ -4007,6 +4111,7 @@ export default {
       });
       track('scan_price_at_scan', { typed: scanShelfCents !== null, kind: pending.kind, mode: altMode });
       if (pending.kind === 'barcode') void resolveBarcode(pending.code, scanShelfCents);
+      else if (pending.kind === 'pack') void resolveBarcode(pending.code, scanShelfCents);
       else if (pending.kind === 'text') void runTypedSearch(pending.text, scanShelfCents, true);
       else void resolvePhoto(pending.crop, scanShelfCents);
     }
@@ -4167,7 +4272,16 @@ export default {
      * attached, so the app still demonstrates itself on a machine that does not
      * have the 3.47 GB file sitting next to it.
      */
+    /** The frame of a barcode nothing named, to be read off the pack (`identifyPack`). Same answer shape as identify. */
+    async function sendFrame(code, frame, shelfPriceCents) {
+      track('frame_sent', { code });
+      return ctx.api.identifyPack({ gtin: code, frame, shelfPriceCents });
+    }
+
     async function catalogueLookup(code, shelfPriceCents) {
+      // A misread's frame is used once, by this lookup (`onMisread` set it).
+      const misread = misreadFrame;
+      misreadFrame = null;
       /*
        * The priced shelf first, for the same reason the typed route asks it
        * first: a product somebody has actually recorded a price for produces a
@@ -4176,7 +4290,7 @@ export default {
        * it is here so that the day one does, the barcode reaches the price
        * rather than walking past it.
        */
-      const priced = catalogueItems.find((i) => i.gtin && sameCode(i.gtin, code));
+      const priced = misread ? null : catalogueItems.find((i) => i.gtin && sameCode(i.gtin, code));
       if (priced) return priced;
 
       /*
@@ -4187,7 +4301,14 @@ export default {
       let id = null;
       let serverFault = false;
       try {
-        id = await ctx.api.identify({ gtin: code, shelfPriceCents });
+        /* RULINGS.md "A scan never ends with no result": a misread goes straight to
+           the frame; a good code says the frame is in hand, and when the catalogue
+           and Open Food Facts both miss the server answers `frame_wanted` and the
+           frame goes to be read off the pack (`sendFrame`). */
+        id = misread
+          ? await sendFrame(code, misread, shelfPriceCents)
+          : await ctx.api.identify({ gtin: code, shelfPriceCents, canSendFrame: scanFrame !== null });
+        if (id?.kind === 'catalogue' && id.outcome === 'frame_wanted') id = await sendFrame(code, scanFrame, shelfPriceCents);
         // The row the server just wrote for this scan. Kept whatever the
         // answer was: a refused identification is exactly the case the
         // price route below exists for.
@@ -4230,9 +4351,22 @@ export default {
         return { modelDown: id.failure };
       }
 
-      /* D11: a reading that fails its check digit is the same case as a code the
-         catalogue has never seen: the shopper is asked for the name. */
+      /* A reading the server found fails its check digit (an older path into here:
+         `onBarcode` now keeps those on the camera). Never "not found": the frame is
+         read off the pack when there is one. Typing the name only when there is
+         not, and said loudly (RULINGS.md "A scan never ends with no result"). */
       if (id?.failure === 'invalid_barcode') {
+        if (scanFrame) {
+          try {
+            const read = await sendFrame(code, scanFrame, shelfPriceCents);
+            if (read?.kind === 'catalogue') return { catalogue: read };
+          } catch (err) {
+            track('frame_send_failed', { code, message: String(err?.message ?? err) });
+            console.error('frame send failed:', err);
+          }
+        }
+        track('scan_no_name', { code, reasons: ['misread', scanFrame ? 'frame_failed' : 'no_frame'] });
+        console.error('scan ended with no name:', { code, reasons: ['misread', scanFrame ? 'frame_failed' : 'no_frame'] });
         return {
           catalogue: { kind: 'catalogue', outcome: 'not_in_catalogue', offerManualEntry: true, barcode: code, identity: null, verdict: null },
         };
@@ -5349,6 +5483,10 @@ export default {
       }
       trackScanAbandonedIfMidScan('reset');
       clearTimeout(scanPressTimer);
+      clearTimeout(misreadTimer);
+      misreadTimer = null;
+      scanFrame = null;
+      misreadFrame = null;
       clearInterval(retryCountdownTimer);
       retryCountdownTimer = null;
       gen++; // Voids any in-flight proceed() continuation, including a photo capture's.
@@ -6340,9 +6478,13 @@ export default {
         });
         return;
       }
-      // D11: a barcode the catalogue does not hold asks the name at once.
+      // D11: a barcode nothing named, after every step was tried, asks the name at once. Never quietly.
       if (answer?.outcome === 'not_in_catalogue' && answer.offerManualEntry) {
         askNameForUnknownBarcode(cents, answer.barcode ?? null);
+        if (Array.isArray(answer.noNameReasons)) {
+          track('scan_no_name', { code: answer.barcode ?? null, reasons: answer.noNameReasons });
+          console.error('scan ended with no name:', { code: answer.barcode ?? null, reasons: answer.noNameReasons });
+        }
         return;
       }
       last = null;

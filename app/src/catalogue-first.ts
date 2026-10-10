@@ -29,8 +29,16 @@
  *        any reason, or no ask is passed, the answer still comes back with the
  *        identity, no range and the reason code (`no_shin_prices` when no ask
  *        was passed; RULINGS "Always answer");
- *     3. not found: `not_in_catalogue`, and the client offers manual entry.
- *        No model is asked who the product is. The Gemini scan call
+ *     3. not found: before anything says so, the item is named elsewhere
+ *        (RULINGS.md "A scan never ends with no result", 2026-10-10), in
+ *        order: a live Open Food Facts lookup (identity only), a reading
+ *        Claude already made of this pack, then the camera frame sent to the
+ *        cheapest Claude, no web search, to read the name, brand and size
+ *        (`deps.nameElsewhere`, wired in server.ts; the frame comes by
+ *        `POST /api/identify/pack`). A name found takes step 2's price ladder
+ *        as `named_outside_catalogue`, with `identitySource` saying who named
+ *        it. Only when every step failed is it `not_in_catalogue` with manual
+ *        entry offered, and `noNameReasons` says why. The Gemini scan call
  *        (`runGeminiScan`) is never made anywhere on this path.
  *
  *   TEXT (`POST /api/match-text`), `matchText`: the lines read off a pack or a
@@ -43,8 +51,10 @@
  *
  *   {
  *     kind: 'catalogue',
- *     outcome: 'catalogue_hit' | 'not_in_catalogue',
+ *     outcome: 'catalogue_hit' | 'not_in_catalogue' | 'named_outside_catalogue' | 'frame_wanted',
  *     offerManualEntry: boolean,      // true exactly when outcome is not_in_catalogue
+ *     identitySource?: 'open_food_facts' | 'claude_reading',   // named_outside_catalogue only
+ *     noNameReasons?: string[],       // a miss after the naming steps ran: why each failed
  *     catalogueUp: boolean,           // false: the catalogue is not attached at all, or its lookup threw
  *                                     // ([catalogue-fault] lookup_failed): "we did not look", never "never seen"
  *     barcode: string,                // the canonical digits that were looked up
@@ -148,6 +158,20 @@ export function rangeAskSettings(env: NodeJS.ProcessEnv = process.env): {
   };
 }
 
+export const PACK_READ_DEFAULT_MONTHLY_CAP = 300;
+
+/**
+ * The frame-read settings (RULINGS.md "A scan never ends with no result"), as
+ * `readPack`'s deps. The cap fails closed exactly as the range ask's does; the
+ * store path is left undefined when unset so pack-read.ts keeps its default.
+ */
+export function packReadSettings(env: NodeJS.ProcessEnv = process.env): { monthlyCap: number; storePath: string | undefined } {
+  return {
+    monthlyCap: capOr(settings.SHIN_PACK_READ_MONTHLY_CAP(env), PACK_READ_DEFAULT_MONTHLY_CAP),
+    storePath: settings.SHIN_PACK_READ_STORE_PATH(env)?.trim() || undefined,
+  };
+}
+
 /* ------------------------------------------------------------------ faults */
 
 /*
@@ -205,7 +229,12 @@ export type NoRangeReason = RangeAskFailure | 'rate_limited' | 'no_shin_prices' 
 
 export interface CatalogueAnswer {
   readonly kind: 'catalogue';
-  readonly outcome: 'catalogue_hit' | 'not_in_catalogue';
+  /**
+   * `named_outside_catalogue`: the catalogue lacks it and Open Food Facts or Claude's reading of the pack
+   * named it (`identitySource` says which). `frame_wanted`: nothing named it yet and the client said it holds
+   * a frame, so it is asked to send it to `POST /api/identify/pack` before anything says "not found".
+   */
+  readonly outcome: 'catalogue_hit' | 'not_in_catalogue' | 'named_outside_catalogue' | 'frame_wanted';
   readonly offerManualEntry: boolean;
   readonly catalogueUp: boolean;
   readonly barcode: string;
@@ -227,6 +256,10 @@ export interface CatalogueAnswer {
    * the store's own product name. Null on every other answer.
    */
   readonly storeIdentity: { readonly name: string; readonly brand: string | null; readonly size: string | null; readonly barcode: string } | null;
+  /** Who named an item the catalogue lacks. Absent on a catalogue hit and on a miss. */
+  readonly identitySource?: NamedElsewhere['source'];
+  /** Why nothing named the item, one code per step tried (`off_not_found`, `no_frame`, `claude_monthly_cap_reached`). Present only after those steps ran. */
+  readonly noNameReasons?: readonly string[];
 }
 
 /** What the scan row gets beside the answer (migration 18). */
@@ -235,7 +268,7 @@ export interface CatalogueRecord {
   readonly resolvedLabel: string | null;
   readonly outcome: 'answered' | 'refused';
   readonly failureClass: 'not_in_catalogue' | null;
-  readonly answerPath: 'catalogue_hit' | 'not_in_catalogue';
+  readonly answerPath: 'catalogue_hit' | 'not_in_catalogue' | 'open_food_facts' | 'claude_reading' | 'frame_wanted';
   readonly rangeSource: 'shin_prices' | 'gemini_typical' | 'none' | null;
   readonly rangeBasis: string | null;
   readonly rangeMissReason: string | null;
@@ -250,6 +283,22 @@ export interface CatalogueRecord {
    */
   readonly categoryFaults?: readonly CategoryFaultKind[];
 }
+
+/** A name for a barcode the catalogue lacks, found by Open Food Facts or read off the pack by Claude. */
+export interface NamedElsewhere {
+  readonly name: string;
+  readonly brand: string | null;
+  readonly size: string | null;
+  readonly source: 'open_food_facts' | 'claude_reading';
+}
+
+/**
+ * What the steps after a catalogue miss found: a name, or every reason they did not, in the order tried.
+ * `frameWanted`: the next step needs the camera frame, and the client said it holds one.
+ */
+export type NameElsewhereResult =
+  | { readonly ok: true; readonly named: NamedElsewhere }
+  | { readonly ok: false; readonly reasons: readonly string[]; readonly frameWanted: boolean };
 
 /** The fields of a catalogue row this path reads. `Catalogue.byGtin`'s `Candidate` has all of them. */
 export interface CatalogueRow {
@@ -297,6 +346,11 @@ export interface BarcodeDeps {
    * fault, and never changes the answer. Absent: no check, and no claim of one.
    */
   readonly categoryGuard?: CategoryGuard;
+  /**
+   * The steps after a catalogue miss (RULINGS.md "A scan never ends with no result"): a live Open Food Facts
+   * lookup, a saved Claude reading, the frame read by Claude. The server wires them; absent, a miss is a miss.
+   */
+  readonly nameElsewhere?: (gtin: string) => Promise<NameElsewhereResult>;
 }
 
 /** The verdict, never a throw: an estimate that fails for any reason is null and the answer still goes out. */
@@ -402,9 +456,7 @@ export async function answerBarcodeFromCatalogue(
     /*
      * Design case 2: a barcode the catalogue lacks can still be one a store
      * prices (7,211 BC liquor rows). Its verdict is built from that price under
-     * the store's own product name, sorted into a category by name. No Claude
-     * ask here: a barcode nothing knows asks the shopper for the name first
-     * (case 6), and the typed path takes it from there.
+     * the store's own product name, sorted into a category by name.
      */
     let verdict: Verdict | null = null;
     let storeIdentity: CatalogueAnswer['storeIdentity'] = null;
@@ -425,62 +477,145 @@ export async function answerBarcodeFromCatalogue(
         storeIdentity = { name: est.trace.name, brand: est.trace.brand, size: est.trace.size, barcode: barcode.gtin };
       }
     }
+
+    /*
+     * RULINGS.md "A scan never ends with no result" (2026-10-10): when nothing
+     * of Pexi's names the barcode, it is named elsewhere before "not found" is
+     * ever said, in order: a live Open Food Facts lookup, a reading Claude
+     * already made of this pack, then the frame sent to Claude to read now
+     * (`deps.nameElsewhere`, wired in server.ts). A name found there takes the
+     * ordinary price ladder below (`answerNamedItem`). Typing the name is the
+     * last step, and the reasons every step failed travel on the answer.
+     */
+    let noName: Extract<NameElsewhereResult, { ok: false }> | null = null;
+    if (!verdict && deps.nameElsewhere) {
+      let named: NameElsewhereResult;
+      try {
+        named = await deps.nameElsewhere(barcode.gtin);
+      } catch (err) {
+        warnCatalogueFault('name_elsewhere_failed', `${barcode.gtin} ${err instanceof Error ? err.message : String(err)}`);
+        named = { ok: false, reasons: ['name_elsewhere_threw'], frameWanted: false };
+      }
+      if (named.ok) return answerNamedItem(named.named, barcode.gtin, barcode.gtin, deps, shelfPrice, barcode.how === 'variable_measure');
+      noName = named;
+    }
+
+    if (noName?.frameWanted) {
+      // The client holds a frame and has not sent it: it is asked for it, and nothing here says "not found" yet.
+      return {
+        answer: {
+          ...emptyAnswer(barcode.gtin, deps.lookup !== null && !lookupFailed, shelfPrice),
+          outcome: 'frame_wanted',
+          offerManualEntry: false,
+          noNameReasons: noName.reasons,
+        },
+        record: { ...missRecord(null, null), answerPath: 'frame_wanted', rangeMissReason: `no_name:${noName.reasons.join(',')}` },
+      };
+    }
     return {
       answer: {
-        kind: 'catalogue',
-        outcome: 'not_in_catalogue',
-        offerManualEntry: true,
-        catalogueUp: deps.lookup !== null && !lookupFailed,
-        barcode: barcode.gtin,
-        identity: null,
-        range: null,
-        rangeSource: null,
-        rangeAskedAt: null,
-        noRangeReason: null,
-        shelfPrice,
+        ...emptyAnswer(barcode.gtin, deps.lookup !== null && !lookupFailed, shelfPrice),
         verdict,
         storeIdentity,
+        ...(noName ? { noNameReasons: noName.reasons } : {}),
       },
       record: {
+        ...missRecord(verdict, storeIdentity ? [storeIdentity.name, storeIdentity.size].filter(Boolean).join(' ') : null),
         resolvedCode: storeIdentity ? barcode.gtin : null,
-        resolvedLabel: storeIdentity ? [storeIdentity.name, storeIdentity.size].filter(Boolean).join(' ') : null,
-        outcome: verdict ? 'answered' : 'refused',
-        failureClass: verdict ? null : 'not_in_catalogue',
-        answerPath: 'not_in_catalogue',
-        rangeSource: null,
-        rangeBasis: null,
-        rangeMissReason: null,
-        verdict,
-        conflict: null,
+        rangeMissReason: noName ? `no_name:${noName.reasons.join(',')}` : null,
       },
     };
   }
 
-  const identity = identityOf(row);
-  let ladder: RangeResult | null = null;
-  if (deps.prices) {
-    try {
-      ladder = priceRangeFor(
-        {
-          barcode: row.code,
-          name: identity.name,
-          brand: identity.brand,
-          size: identity.size,
-          leafCategory: row.leafCategory,
-          categoryPath: row.categoryPath,
-          asOf: deps.asOf,
-          currency: deps.currency,
-        },
-        // The taxonomy the category guard loaded: the parent rung is the taxonomy parent. Without one the ladder
-        // falls back to the position rule and records `parent_unchecked` on the step (never silent).
-        { prices: deps.prices, catalogue: deps.catalogue, taxonomy: deps.categoryGuard?.taxonomy() ?? null },
-      );
-    } catch (err) {
-      // The answer goes on without a range, but the fault is logged with the fixed tag, never swallowed.
-      console.error(`[category-fault] range_failed ${row.code} - ${err instanceof Error ? err.message : String(err)}`);
-      ladder = null;
-    }
-  }
+  return priceIdentity(row, row.code, barcode.gtin, deps, shelfPrice, barcode.how === 'variable_measure', {
+    outcome: 'catalogue_hit',
+    answerPath: 'catalogue_hit',
+    identitySource: null,
+  });
+}
+
+/** A miss answer with nothing in it yet: the shape every not-found answer starts from. */
+function emptyAnswer(barcode: string, catalogueUp: boolean, shelfPrice: CatalogueAnswer['shelfPrice']): CatalogueAnswer {
+  return {
+    kind: 'catalogue',
+    outcome: 'not_in_catalogue',
+    offerManualEntry: true,
+    catalogueUp,
+    barcode,
+    identity: null,
+    range: null,
+    rangeSource: null,
+    rangeAskedAt: null,
+    noRangeReason: null,
+    shelfPrice,
+    verdict: null,
+    storeIdentity: null,
+  };
+}
+
+function missRecord(verdict: Verdict | null, label: string | null): CatalogueRecord {
+  return {
+    resolvedCode: null,
+    resolvedLabel: label,
+    outcome: verdict ? 'answered' : 'refused',
+    failureClass: verdict ? null : 'not_in_catalogue',
+    answerPath: 'not_in_catalogue',
+    rangeSource: null,
+    rangeBasis: null,
+    rangeMissReason: null,
+    verdict,
+    conflict: null,
+  };
+}
+
+/**
+ * A name found outside the catalogue (Open Food Facts, or Claude's reading of
+ * the pack), priced by the same ladder a catalogue hit takes: Pexi's own
+ * prices, the category the name sorts into, the brand, then the one capped
+ * Claude range ask. `answerBarcode` is what the answer shows as the barcode;
+ * `priceBarcode` is the code prices are looked up by, null for a misread (a
+ * reading whose check digit failed is no product's code, and its prices would
+ * be some other product's). Never throws.
+ */
+export async function answerNamedItem(
+  named: NamedElsewhere,
+  answerBarcode: string,
+  priceBarcode: string | null,
+  deps: BarcodeDeps,
+  shelfPrice: CatalogueAnswer['shelfPrice'] = null,
+  weighed = false,
+): Promise<{ answer: CatalogueAnswer; record: CatalogueRecord }> {
+  const row: CatalogueRow = {
+    code: answerBarcode,
+    name: named.name,
+    nameEn: null,
+    brands: named.brand,
+    quantity: named.size,
+    leafCategory: null,
+    categoryPath: [],
+  };
+  return priceIdentity(row, priceBarcode, answerBarcode, deps, shelfPrice, weighed, {
+    outcome: 'named_outside_catalogue',
+    answerPath: named.source,
+    identitySource: named.source,
+  });
+}
+
+/** One identity through the price ladder: the catalogue hit's path, and the named item's. */
+async function priceIdentity(
+  row: CatalogueRow,
+  priceBarcode: string | null,
+  answerBarcode: string,
+  deps: BarcodeDeps,
+  shelfPrice: CatalogueAnswer['shelfPrice'],
+  weighed: boolean,
+  how: {
+    outcome: 'catalogue_hit' | 'named_outside_catalogue';
+    answerPath: CatalogueRecord['answerPath'];
+    identitySource: NamedElsewhere['source'] | null;
+  },
+): Promise<{ answer: CatalogueAnswer; record: CatalogueRecord }> {
+  let identity = identityOf(row);
 
   let range: CatalogueRange | null = null;
   let rangeSource: CatalogueAnswer['rangeSource'] = null;
@@ -498,7 +633,7 @@ export async function answerBarcodeFromCatalogue(
   let conflict: EstimateTrace['conflict'] = null;
   const est = await safeEstimate(
     {
-      barcode: row.code,
+      barcode: priceBarcode,
       name: identity.name,
       brand: identity.brand,
       size: identity.size,
@@ -508,7 +643,7 @@ export async function answerBarcodeFromCatalogue(
       country: deps.country,
       currency: deps.currency,
       asOf: deps.asOf,
-      weighed: barcode.how === 'variable_measure',
+      weighed,
     },
     deps.shopper ?? null,
     {
@@ -523,8 +658,39 @@ export async function answerBarcodeFromCatalogue(
   verdict = est?.verdict ?? null;
   conflict = est?.trace.conflict ?? null;
 
+  // A name from outside the catalogue has no category of its own; the one the verdict sorted it into is the range's too.
+  const sorted = !row.leafCategory && row.categoryPath.length === 0 ? (est?.trace.sorted ?? null) : null;
+  const leafCategory = sorted ? (sorted.leafCategory ?? sorted.categoryPath[sorted.categoryPath.length - 1] ?? null) : row.leafCategory;
+  const categoryPath = sorted ? sorted.categoryPath : row.categoryPath;
+  if (sorted) identity = { ...identity, category: categoryRef(leafCategory, categoryPath) };
+
+  let ladder: RangeResult | null = null;
+  if (deps.prices) {
+    try {
+      ladder = priceRangeFor(
+        {
+          barcode: priceBarcode,
+          name: identity.name,
+          brand: identity.brand,
+          size: identity.size,
+          leafCategory,
+          categoryPath,
+          asOf: deps.asOf,
+          currency: deps.currency,
+        },
+        // The taxonomy the category guard loaded: the parent rung is the taxonomy parent. Without one the ladder
+        // falls back to the position rule and records `parent_unchecked` on the step (never silent).
+        { prices: deps.prices, catalogue: deps.catalogue, taxonomy: deps.categoryGuard?.taxonomy() ?? null },
+      );
+    } catch (err) {
+      // The answer goes on without a range, but the fault is logged with the fixed tag, never swallowed.
+      console.error(`[category-fault] range_failed ${row.code} - ${err instanceof Error ? err.message : String(err)}`);
+      ladder = null;
+    }
+  }
+
   if (ladder && ladder.basis !== 'none') {
-    range = fromShinPrices(ladder, row.categoryPath);
+    range = fromShinPrices(ladder, categoryPath);
     rangeSource = 'shin_prices';
   } else if (!once || !once.started()) {
     // No ask was passed, or the verdict answered from Shin's own data and never needed one.
@@ -562,8 +728,8 @@ export async function answerBarcodeFromCatalogue(
    */
   const categoryFaults: CategoryFaultKind[] = [];
   if (deps.categoryGuard) {
-    const at = positionalParent(row.leafCategory, row.categoryPath);
-    const verdictParent = parentOf(at.leaf, row.categoryPath, deps.categoryGuard.taxonomy()).parent;
+    const at = positionalParent(leafCategory, categoryPath);
+    const verdictParent = parentOf(at.leaf, categoryPath, deps.categoryGuard.taxonomy()).parent;
     const checks: [('range' | 'verdict'), string | null][] = [];
     if (ladder && ladder.basis === 'parent_category') checks.push(['range', ladder.category]);
     if (verdict && verdict.basis === 'parent_category') checks.push(['verdict', verdictParent]);
@@ -576,10 +742,10 @@ export async function answerBarcodeFromCatalogue(
   return {
     answer: {
       kind: 'catalogue',
-      outcome: 'catalogue_hit',
+      outcome: how.outcome,
       offerManualEntry: false,
       catalogueUp: true,
-      barcode: barcode.gtin,
+      barcode: answerBarcode,
       identity,
       range,
       rangeSource,
@@ -588,13 +754,14 @@ export async function answerBarcodeFromCatalogue(
       shelfPrice,
       verdict,
       storeIdentity: null,
+      ...(how.identitySource ? { identitySource: how.identitySource } : {}),
     },
     record: {
       resolvedCode: row.code,
       resolvedLabel: labelOf(identity),
       outcome: 'answered',
       failureClass: null,
-      answerPath: 'catalogue_hit',
+      answerPath: how.answerPath,
       rangeSource: rangeSource ?? 'none',
       rangeBasis: ladder ? ladder.basis : null,
       rangeMissReason: noRangeReason,
