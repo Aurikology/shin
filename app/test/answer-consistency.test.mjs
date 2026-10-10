@@ -153,9 +153,11 @@ test('D13: a low-confidence answer still answers, drawn hollow, with the plain f
     assert.match(html, /data-conf="thin"/, `${zone}: hollow`);
     assert.match(html, /data-confidence="low"/);
     assert.doesNotMatch(html, /data-state="(delighted|angry)"/, `${zone}: no intense face on a hollow field`);
-    assert.match(html, /class="vd-doubt" data-dist-conf>Not fully confident: a rough estimate for its category</, zone);
-    // The line is beside the word: directly after the headline, before the "how far off" line.
-    assert.ok(html.indexOf('data-dist-headline') < html.indexOf('data-dist-conf') && html.indexOf('data-dist-conf') < html.indexOf('data-dist-line'));
+    // 2026-10-10: the top of the verdict is for useful information only. No doubt line under the word;
+    // the reason sits in the half detent, and the "how far off" line is the one right under the word.
+    assert.doesNotMatch(html, /data-dist-conf/, zone);
+    assert.match(html, /class="vd-basis vd-reason" data-vd-reason>A rough estimate for its category</, zone);
+    assert.ok(html.indexOf('data-dist-headline') < html.indexOf('data-dist-line') && html.indexOf('data-dist-line') < html.indexOf('data-vd-reason'));
     // N12: the bubble speaks the zone's hedged line (never the confident one), whatever the attitude.
     const bubble = html.match(/<p class="bubble-text">([^<]*)<\/p>/)?.[1].replace(/&#39;/g, "'");
     const shown = html.match(/data-zone="(\w+)"/)[1];
@@ -171,9 +173,9 @@ test('D13: a low-confidence answer still answers, drawn hollow, with the plain f
 
 test('D13: the reason names where the centre came from, in both languages', () => {
   const html = (basis) => distributionSheet({ ...F.LOW_CONFIDENCE, basis });
-  assert.match(html('claude_typical'), /Not fully confident: an AI estimate, no prices for this item/);
-  assert.match(html('own_prices'), /Not fully confident: few prices for this item/);
-  assert.match(html('other_size'), /Not fully confident: worked out from another size of this item/);
+  assert.match(html('claude_typical'), /data-vd-reason>An AI estimate, no prices for this item</);
+  assert.match(html('own_prices'), /data-vd-reason>Few prices for this item</);
+  assert.match(html('other_size'), /data-vd-reason>Worked out from another size of this item</);
 });
 
 test('N12: a medium-confidence answer also speaks the hedged line, because its sheet says it is not fully confident', () => {

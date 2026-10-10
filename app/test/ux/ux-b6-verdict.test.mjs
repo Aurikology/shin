@@ -386,11 +386,15 @@ test('R-56 pass: each source says where the estimate came from in plain words, w
   });
 });
 
-test('R-56 (keep) pass: the last two sources always carry the not-fully-confident line on the first position', () => {
+// Moved 2026-10-10 (RULINGS.md "V1 verdict screen mechanics": the top of the verdict is for useful
+// information only). The two thin sources still always say why they are thin, but in the half
+// detent beside the provenance row, not on the first position.
+test('R-56 (keep) pass: the last two sources always carry their reason in the half position, none on the first', () => {
   for (const basis of ['brand_markup', 'claude_typical']) {
     const over = PROV.find((p) => p[0] === basis)[1];
-    const flow = peekFlow(render(verdictWith({ ...over, shopperCents: 469 })));
-    assert.match(flow, /Not fully confident/, `${basis}: ${flow}`);
+    const html = render(verdictWith({ ...over, shopperCents: 469 }));
+    assert.doesNotMatch(peekFlow(html), /Not fully confident/, `${basis}: the first position carries no doubt line`);
+    assert.match(parts(html).half, /data-vd-reason/, `${basis}: the half position carries the reason`);
   }
 });
 
@@ -420,10 +424,14 @@ test('R-69 (keep): low confidence is hollow, keeps the verdict hue, wears a plai
   for (const r of thinRules) assert.doesNotMatch(r.body, /animation[^;]*shake/i, `${r.sel} shakes`);
 });
 
-test('R-69 (keep): the reason line is on the first position, not the half', () => {
+// Reversed 2026-10-10 (Jamin: "the most useless info put at the top of the page"): the reason line
+// is in the half position, in plain words with no "Not fully confident:" prefix; the first position
+// carries no doubt line. The mascot's bubble stays the one spoken doubt.
+test('R-69 (keep): the reason line is in the half position, not on the first', () => {
   const { peek, half } = parts(render(FX.LOW));
-  assert.match(plain(peek), /Not fully confident/);
-  assert.doesNotMatch(plain(half), /Not fully confident:/, 'the reason is repeated only in the half');
+  assert.doesNotMatch(plain(peek), /Not fully confident/);
+  assert.match(half, /data-vd-reason/);
+  assert.doesNotMatch(plain(half), /Not fully confident:/, 'plain words, no prefix');
 });
 
 test('R-69 (keep): the band covers what the engine says and is not clamped to the screen', () => {

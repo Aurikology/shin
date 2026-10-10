@@ -1601,13 +1601,20 @@ export function serverFaultSheet() {
 /* `distFace` (the zone word's face) lives in lib/history-answer.js: the Saved list wears the same face (D20). */
 
 /**
- * The short line beside the word for an answer that is not fully confident
- * (D13; DESIGN.md Law 3, his 2026-09-17 words). Low says why in a few words,
- * keyed on where the centre came from ("Not fully confident: few prices for this
- * item"); medium keeps the plain sentence; high has none. Empty string for none.
+ * Why an answer is not fully confident, in a few plain words, for the half
+ * detent beside where the estimate came from (D13; RULINGS.md "V1 verdict screen
+ * mechanics", 2026-10-10: the top of the verdict is for useful information only,
+ * so this never sits under the verdict word). Low says why, keyed on where the
+ * centre came from ("Few prices for this item"); medium says it is a fair guess,
+ * not a firm one; high has none. Empty string for none.
  */
-function confidenceLine(v) {
-  return confidenceWords(v).doubt;
+function confidenceReason(v) {
+  if (v.confidence === 'high') return '';
+  if (v.confidence === 'medium') return t('vd_reason_medium');
+  const key = `vd_why_${v.basis ?? 'default'}`;
+  const said = t(key);
+  const why = said === key ? t('vd_why_default') : said;
+  return why.charAt(0).toLocaleUpperCase(localeTag()) + why.slice(1);
 }
 
 /** A per-unit label off the wire, in the reader's language when this build knows it. */
@@ -1683,7 +1690,8 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
   const spoken = zone ? `dist_${zone}${v.confidence === 'high' ? '' : '_unsure'}` : 'dist_noprice';
   const headline = zone ? t(`vd_zone_${zone}`) : name;
   const line = s ? t('vd_off', { where: distWhere(s, v), centre }) : t('vd_typical', { centre });
-  const { doubt: confLine, spread: spreadLine } = confidenceWords(v);
+  const { spread: spreadLine } = confidenceWords(v);
+  const reason = confidenceReason(v);
   const notes = v.notes.map((n) => `<li class="vd-note" data-vd-note="${n}">${escapeHtml(t(`vd_note_${n}`))}</li>`).join('');
   const bigger = v.biggerPack
     ? `<p class="detail vd-bigger" data-vd-bigger>${escapeHtml(t('vd_bigger_pack', { quantity: v.biggerPack.quantity ?? '', store: v.biggerPack.store ?? '', price: fmt(v.biggerPack.perUnitCents), unit: unitWords(v.perUnit?.label ?? '') }))}</p>`
@@ -1712,9 +1720,8 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
           ${thumbImg(thumb)}
         </div>
         <h2 class="vword${zone ? '' : ' small'}" data-dist-headline>${escapeHtml(headline)}</h2>
-        ${confLine ? `<p class="vd-doubt" data-dist-conf>${escapeHtml(confLine)}</p>` : ''}
-        ${spreadLine ? `<p class="vd-doubt vd-spread" data-dist-spread>${escapeHtml(spreadLine)}</p>` : ''}
         <p class="sub vd-line" data-dist-line>${escapeHtml(line)}</p>
+        ${spreadLine ? `<p class="vd-doubt vd-spread" data-dist-spread>${escapeHtml(spreadLine)}</p>` : ''}
         ${s?.suspect ? `<button type="button" class="pill ghost vd-suspect" data-act="dist-suspect" data-cents="${s.suspect.suggestCents}">${escapeHtml(t('vd_suspect', { price: fmt(s.suspect.suggestCents) }))}</button>` : ''}
         <div class="vd-chart${still ? ' vd-still' : ''}" data-dist-chart>${distBell(v, { report: shopperReport })}</div>
         ${shopperReportLine(shopperReport, v.currency)}
@@ -1733,6 +1740,7 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
           <button type="button" class="pill ghost" data-act="share">${escapeHtml(t('cam_share'))}</button>
         </div>
         ${basis ? `<p class="vd-basis" data-vd-basis>${escapeHtml(basis)}</p>` : ''}
+        ${reason ? `<p class="vd-basis vd-reason" data-vd-reason>${escapeHtml(reason)}</p>` : ''}
         ${notes ? `<ul class="vd-notes" data-vd-notes>${notes}</ul>` : ''}
         ${bigger}
         ${dots}

@@ -247,6 +247,8 @@ const EN = {
   vd_why_category_prior: 'a rough estimate for its category',
   vd_why_global_prior: 'a rough estimate with little to go on',
   vd_why_default: 'few prices for this item',
+  // The half detent's evidence line for a medium answer (the top of the verdict carries no doubt line, 2026-10-10).
+  vd_reason_medium: 'Fairly sure, not certain',
   /* The shopper's own report, drawn on the chart as its own dot (not part of the bell). */
   vd_report_word: 'Your report',
   vd_suspect: (f) => `Did you mean ${f.price}?`,
@@ -893,6 +895,7 @@ const FR = {
   vd_why_category_prior: 'une estimation approximative pour sa catégorie',
   vd_why_global_prior: 'une estimation approximative, peu de données',
   vd_why_default: 'peu de prix pour ce produit',
+  vd_reason_medium: 'Assez sûr, sans certitude',
   vd_report_word: 'Votre signalement',
   vd_suspect: (f) => `Voulais-tu dire ${f.price}?`,
   vd_multiple: (f) => `${f.m} fois le prix habituel`,

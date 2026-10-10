@@ -2434,10 +2434,11 @@
  */
 .sheet.dist .vd-line { margin: 2px 0 0; padding: 0; }
 /*
- * Doubt is read at a glance, not squinted at (D13, N11). The confidence line is
- * a plain sentence at body size straight under the word, in the sheet's own
- * hollow tier colour (DESIGN.md Law 2), never the 10px tracked caps of a
- * footnote. Same face and size for the range sentence and the basis line.
+ * Doubt is read at a glance, not squinted at (D13, N11). The top of the verdict
+ * is for useful information only (RULINGS.md, 2026-10-10): there is no
+ * confidence line under the word. The range sentence (under the "how far off"
+ * line) and the half detent's reason line (.vd-reason, beside the basis line)
+ * are plain sentences at body size, never the 10px tracked caps of a footnote.
  * Opacity stays at the measured .88 floor of test/tokens.test.mjs.
  */
 .sheet.dist .vd-doubt {

@@ -40,7 +40,10 @@ something the user sees rather than something a footnote claims.
 **Law 3. Every scan with a scan left ends in the answer.** Shin never refuses and never hands back
 a "don't know" screen (RULINGS.md "Always answer, never refuse for wasting time" and "V1 verdict
 screen mechanics"). Doubt is drawn, not announced instead of an answer: low confidence is a wider
-bell, a hollow hue, a plain face and one "not fully confident" line beside the answer. The only
+bell, a hollow hue and a plain face, with the mascot's bubble as the one spoken doubt. There is no
+"not fully confident" line at the top: the top of the verdict is for useful information only
+(RULINGS.md "V1 verdict screen mechanics", 2026-10-10), and the reason in a few words ("few prices
+for this item") sits in the half detent beside where the estimate came from. The only
 scan that does not end in the chart is the shopper's who has run out of scans, who gets the
 paywall. Red means the price is bad and never means doubt.
 
@@ -127,7 +130,7 @@ and less sure always means a wider bell, never a missing answer.
 | --- | --- | --- |
 | Certain (high) | 100% solid field, no border, narrow bell, dot meter 3/3 | This item's own prices from three or more shops, fresh |
 | Fairly sure (medium) | 100% solid field, 1px inner hairline at 20% white, dot meter 2/3 | Own prices from one or two shops, or the same product in another size, or a leaf category with 20 or more priced products |
-| Not fully confident (low) | 12% tint of the hue, 2px solid border in the hue, widest bell, plain face, dot meter 1/3, and the line "we are not fully confident in this answer" beside the answer | Everything else, down to a category prior or Claude's typical-price estimate |
+| Not fully confident (low) | 12% tint of the hue, 2px solid border in the hue, widest bell, plain face, dot meter 1/3; no doubt line under the answer, the mascot's bubble speaks the doubt once and the reason in plain words sits in the half detent beside the estimate's source (2026-10-10) | Everything else, down to a category prior or Claude's typical-price estimate |
 
 There is no fourth, grey treatment: the old dashed refusal fill is retired. The three levels above
 are confidence guesses until the price bench can score each source (the distribution design says so).
@@ -263,7 +266,7 @@ centred, 14px above the bar) and the bottom bar. Nothing else sits on the pictur
 centres in the free space between the two bands, and at idle the feed outside the frame is a
 quarter darker so the eye goes to the brackets. Changed 2026-09-10 from a top-left dock under the
 wordmark, which competed with it. The help affordance
-that used to sit top right is gone: the tips appear in the low confidence line under the answer,
+that used to sit top right is gone: the tips appear beside the reason in the half detent (no doubt line sits under the answer, 2026-10-10),
 at the only moment they mean anything (OLMA audit rows 19, 31 and 87, and rows 35 and 90 for the
 torch, which is a take because grocery aisles have bottom shelves and glass doors and a dark photo
 is one of the fixable causes of a weak read).
@@ -318,7 +321,7 @@ the verdict, and the correction.
   live during the wait rather than only after the failure (OLMA audit rows 47, 48, 49, 50, all
   take). When a step comes up empty and the answer falls to a lower rung (a category, then
   Claude's typical price), **the step that came up empty is named under the answer**, in provenance
-  mono, beside the low confidence line. This file had motion for the verdict arriving and nothing
+  mono, beside the reason line in the half detent. This file had motion for the verdict arriving and nothing
   at all for the ten seconds before it; this is the fix. The engine budget is 0.8s at p50 with a
   hard cap of 2.5s. **A slow answer is never converted to a refusal:** the first answer is drawn at
   once, a better one animates the bell into place, and every rung down to the global prior exists
@@ -333,7 +336,7 @@ sequence and supersedes the earlier version of it that put every action in the f
 
 | Detent | Shows | Actions | v1 |
 | --- | --- | --- | --- |
-| Peek (46% height) | Face at 96px, verdict word, the animated bell with the shopper's price marked on it, price hero, the asking seller, Shin's estimate of the typical price, confidence dots and label (and the "not fully confident" line when low), the item name, and the stand-in note when the asking price is one. Readable at arm's length. | **Watch it**, one wide primary. Labelled **Save it** on great and good and **Watch it** on reasonable and bad | Yes |
+| Peek (46% height) | Face at 96px, verdict word, the animated bell with the shopper's price marked on it, price hero, the asking seller, Shin's estimate of the typical price, confidence dots and label (no "not fully confident" line at the top: the reason is in the half detent, 2026-10-10), the item name, and the stand-in note when the asking price is one. Readable at arm's length. | **Watch it**, one wide primary. Labelled **Save it** on great and good and **Watch it** on reasonable and bad | Yes |
 | Half (72%) | Adds the bell's labelled dots, the confidence sentence, and the provenance list in mono | **Correct it**, then **Share** | Yes |
 | Full | Adds what Shin used in full, dates, promo limits, and the one tap correctness signal | **Find it cheaper nearby**, **Show me a dupe** | No, both out of v1 |
 
@@ -346,8 +349,7 @@ layer's only intake.
 **There is no refusal.** Retired 2026-09-30 (RULINGS.md "V1 verdict screen mechanics"): every scan
 with a scan left ends in the animated log-price bell chart, with four words (great, good,
 reasonable, bad) set against the shopper's own thresholds; only running out of scans stops it, and
-that shopper meets the paywall. Low confidence is drawn (a wider bell, a hollow hue, a plain face
-and a "not fully confident" line), never refused. The earlier "a refusal hands back exactly one
+that shopper meets the paywall. Low confidence is drawn (a wider bell, a hollow hue and a plain face, the doubt spoken once by the mascot and the reason in the half detent, never a line at the top), never refused. The earlier "a refusal hands back exactly one
 action" rule is retired with it.
 
 **A session ends on the viewfinder, never on a confirmation screen**, because the last thing on
@@ -525,7 +527,7 @@ traced, one line each, to the OLMA audit row or the `USAGE.md` script that produ
 | 15 | Verdict, reasonable | Was half of §7.5, split from the low confidence state |
 | 16 | Verdict, bad, certain or fairly sure | Was §7.4, on the real Kraft Dinner data |
 | 17 | Verdict, bad, far over, the `angry` face | Added. Brief §0.5, OLMA audit row 52 |
-| 18 | Verdict, low confidence: wider bell, hollow treatment, plain face, "not fully confident" line, any tier | Was the other half of §7.5. Also `USAGE.md` drop-off 7 |
+| 18 | Verdict, low confidence: wider bell, hollow treatment, plain face, the reason in the half detent (no doubt line at the top, 2026-10-10), any tier | Was the other half of §7.5. Also `USAGE.md` drop-off 7 |
 | 19 | Going-rate card, no asking price | Added. `USAGE.md` section 2, OLMA audit row 44 |
 | 20 | Verdict sheet, half detent | Added. `USAGE.md` section 7, which puts Correct it and Share here |
 | 21 | Verdict sheet, full detent | Was §7.8, spread rail and provenance |
@@ -543,7 +545,7 @@ section 1 and `docs/design/mockups.html` still carry the old Group D and are to 
 | 25 | Barcode nothing knows: ask the name, then the typed path | Was §7.6. Distribution design case 6 |
 | 26 | Unsure which one: pick one of three, then the bell | Added. Distribution design case 7 |
 | 27 | Category outside the catalogue: Claude's typical price, wider bell, saved as data | Was §7.7, produce. Distribution design cases 5 and 8 |
-| 28 | Low confidence answer, the hollow wide bell with the "not fully confident" line | Added. `USAGE.md` C1 and C2 |
+| 28 | Low confidence answer, the hollow wide bell, the reason in the half detent and no doubt line at the top | Added. `USAGE.md` C1 and C2 |
 | 29 | Suspect price: "Did you mean $4.99?" in one tap, the chart still showing | Added. Distribution design case 24 |
 | 30 | Type it instead, the text route when a barcode is unknown | Added. OLMA audit rows 17, 88, 89, take |
 
