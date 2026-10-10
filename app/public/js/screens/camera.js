@@ -503,32 +503,6 @@ function provenance(points, askingCents) {
 }
 
 /**
- * Where the cheaper swaps go, drawn empty and filled when they arrive.
- *
- * IN THE HALF DETENT, NOT THE PEEK, and that is the whole reason this is a
- * placeholder rather than a late `insertAdjacentHTML`. The list arrives after
- * the verdict, so wherever it lands it lands under somebody's eyes; landing
- * below the fold means the reflow happens on a part of the sheet nobody is
- * reading yet. Nothing here animates: this appears on every verdict, which is
- * the loop of the whole product, and motion on the thing you see most is the
- * first motion to become noise.
- *
- * Nothing at all is drawn without a barcode, because the lookup is keyed on one
- * and an empty box that could never fill is worse than no box.
- */
-function cheaperSlot(code, placeholder = null) {
-  if (!code) return '';
-  /* The waiting line, and the refusal path supplies its own. The default says
-     "cheaper", which is arithmetic against the number the verdict above it has
-     already judged; a refusal has judged nothing, so it passes its own heading
-     in and the rows land underneath it when they arrive. */
-  const wait = placeholder === null
-    ? 'Looking for a cheaper one&hellip;'
-    : escapeHtml(placeholder);
-  return `<div class="cheaper" data-cheaper><p class="detail">${wait}</p></div>`;
-}
-
-/**
  * WHICH RING A SWAP CAME FROM, and the one rule that matters here.
  *
  * The catalogue looks for a cheaper thing on the leaf category first, and
@@ -761,10 +735,6 @@ function fillGrounded(slot, v) {
   });
 }
 
-function codeOf(v, scenario) {
-  return v?.identity?.gtin ?? scenario?.scannedGtin ?? scenario?.gtin ?? null;
-}
-
 function verdictSheet(v, scenario, thumb, acked = false) {
   const conf = confidenceOf(v);
   const source = sellerOf(v);
@@ -863,7 +833,7 @@ function verdictSheet(v, scenario, thumb, acked = false) {
         ${disagreeShort ? `<p class="disagree">${escapeHtml(disagreeShort)}</p>` : ''}
         ${provenance(v.comparisonSet, v.askingCents)}
         ${groundedSlot()}
-        ${cheaperSlot(codeOf(v, scenario))}
+        ${/* No cheaper-swap slot here (D-121): the server no longer returns swaps. */ ''}
         <details class="why">
           <summary>${escapeHtml(t('cam_why'))}</summary>
           ${disagreeRest ? `<p class="detail">${disagreeRest}</p>` : ''}
@@ -1121,41 +1091,6 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
   const isModelDown = MODEL_DOWN_REASONS.has(r.reason);
   const isThrottled = THROTTLE_REASONS.has(r.reason);
 
-  /*
-   * A PRICED SUBSTITUTE UNDER A REFUSAL THAT COULD NOT CALL THE PRICE.
-   * 2026-09-14, and it is the founder's own sentence made safe:
-   *
-   *   "if there is no comparison say that it is expensive and there is no
-   *    comparison, we can offer another item for this that is worth their
-   *    money but not identical."
-   *
-   * The second half ships and the first half cannot. "Expensive" with no
-   * comparison behind it is a price representation with no adequate basis,
-   * which hard rule 2 forbids outright; `refuse_thin_swaps` in voice.js has
-   * the whole reasoning. What is left is the part that was always the useful
-   * part: Pexi will not call this one, and here is a thing beside it that
-   * somebody has actually priced. The substitute carries the value.
-   *
-   * BOTH CONDITIONS ARE REAL, neither is defensive coding:
-   *
-   * - **A code.** `/api/alternatives` is keyed on a barcode. Without one there
-   *   is no query to send, so the box could never fill and drawing it would be
-   *   a promise the sheet cannot keep.
-   * - **An asking price.** The catalogue's rule for what counts as an
-   *   alternative is "priced below what you are being asked", so with no
-   *   asking price there is no cut-off and the rows would mean nothing.
-   *
-   * ONLY THE THIN REFUSALS. The other reasons are a different failure: no
-   * identity and unsure-which-one do not know what the swaps would be swaps
-   * FOR, and an unsupported category has already said it will not price this
-   * kind of thing at all, so offering substitutes in it contradicts the
-   * sentence directly above them.
-   */
-  const swapsOffered = isThin
-    && !!opts.swapCode
-    && typeof opts.askingCents === 'number'
-    && Number.isFinite(opts.askingCents);
-
   const titleKey = isCategory
     ? 'refuse_category'
     : isUnsure
@@ -1205,13 +1140,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
   // facts, what happened and what still works, in almost the same words. The
   // per-class line already carries both; this line only repeated them.
   //
-  // The thin refusal gets one, and only when there is something to hand over.
-  // `refuse_thin_swaps` ends by pointing at the rows below it, so rendering it
-  // over an empty box would be the line breaking its own promise in the same
-  // breath; with no swaps the refusal stands exactly as it did.
-  const mine = swapsOffered
-    ? `<p class="said" data-swap-promise>${say('refuse_thin_swaps')}</p>`
-    : isCategory || isThin || isModelDown || isThrottled
+  const mine = isCategory || isThin || isModelDown || isThrottled
       ? ''
       : `<p class="said">${say(isUnsure ? 'refuse_unsure_why' : 'refuse_unknown_why')}</p>`;
 
@@ -1290,15 +1219,8 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
              our own engine refusing for want of sellers must not hide what the
              search found. Still its own section, below Pexi's evidence. */ ''}
         ${groundedSlot()}
-        ${/*
-             Below the fold, the same place the verdict keeps it, and for the
-             same reason: the rows arrive after the sheet does, so the reflow
-             lands on a part of the sheet nobody is reading yet. The sheet is
-             still `data-tier="unknown"` with no share and no watch, which is
-             what docs/plan-always-a-price.md section 3 requires of an answer
-             that carries no tier -- this adds a reference to a refusal, it
-             does not turn one into a verdict. */ ''}
-        ${swapsOffered ? cheaperSlot(opts.swapCode, t('cam_similar_priced')) : ''}
+        ${/* No cheaper-swap slot here (D-121): the server no longer returns swaps. */ ''}
+        ${/* (Two empty template lines, kept so answer-snapshot.test.mjs stays byte-identical.) */ ''}
       </div>
     </section>`;
 }
@@ -5245,15 +5167,8 @@ export default {
           slot.innerHTML = goingRateCard(result, item);
         } else {
           lastKeepable = keepableFrom(result, item, askingCents, isThinReason(result.reason));
-          /* The code the swaps would be swaps FOR, on a refusal that resolved
-             an identity but could not settle the price. Null on every other
-             reason, which is what stops the sheet drawing a box that could
-             never fill. */
-          const swapCode = isThinReason(result.reason) ? codeOf(result, item) : null;
           slot.innerHTML = refusalSheet(result, item, supportedCategories, lastKeepable, {
             priceRoute: lastScanId !== null,
-            swapCode,
-            askingCents,
           });
           // What the web search found, on the refusal too.
           fillGrounded(slot, result);

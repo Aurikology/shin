@@ -87,7 +87,7 @@ const LIGHT = { ...DARK, ...blockAt(':root[data-theme="light"]') };
 
 const TIERS = ['good', 'fair', 'walk', 'unknown'];
 /** The tint percentages the confidence block in camera.css actually uses. */
-const TINT = { good: 0.14, fair: 0.14, walk: 0.14, unknown: 0.12 };
+const TINT = { good: 0.12, fair: 0.12, walk: 0.12, unknown: 0.12 };
 /** Pexi's sentence is drawn at this opacity on every verdict surface. */
 const SAID = 0.88;
 
@@ -148,6 +148,30 @@ test('--tier-bright clears 4.5 as text on the thin and refusal tints', () => {
       assert.ok(full >= 4.5, `${name}: --${tier}-bright on ${tint} is ${full.toFixed(2)}, needs 4.5`);
       assert.ok(said >= 4.5, `${name}: --${tier}-bright at ${SAID} on ${tint} is ${said.toFixed(2)}, needs 4.5`);
     }
+  }
+});
+
+/**
+ * D-154. "Just write the price down" (.priceonly) sits on the refusal sheet, whose
+ * ground is the unknown tint (12% unknown over --ground). It borrows .pad-textbtn's
+ * colour, var(--ink-muted), unless its own rule says otherwise. In light theme
+ * --ink-muted #5E6570 on that tint (rgb 225,224,221) is 4.47:1, under the floor
+ * for 12px text, and the rule forbids fading it (D-040), so the token has to carry
+ * it. This reads the colour the rule really resolves to, so it fails on the old
+ * inheritance and passes on any token that clears 4.5.
+ */
+test('the price-only link clears 4.5 on the refusal tint, both themes', () => {
+  const cameraCss = readFileSync(
+    fileURLToPath(new URL('../public/css/screens/camera.css', import.meta.url)), 'utf8',
+  ).replace(/\r\n/g, '\n');
+  const rule = /\n\.priceonly\s*\{([^}]*)\}/.exec(cameraCss);
+  assert.ok(rule, 'camera.css no longer has a .priceonly rule');
+  const token = /(?:^|[;\s])color:\s*var\((--[\w-]+)\)/.exec(rule[1])?.[1] ?? '--ink-muted';
+  assert.doesNotMatch(rule[1], /opacity/, '.priceonly fades its text; muted text takes a token (D-040)');
+  for (const [name, T] of THEMES) {
+    const tint = mix(T['--unknown'], T['--ground'], TINT.unknown);
+    const r = ratio(T[token], tint);
+    assert.ok(r >= 4.5, `${name}: .priceonly ${token} ${T[token]} on ${tint} is ${r.toFixed(2)}, needs 4.5`);
   }
 });
 

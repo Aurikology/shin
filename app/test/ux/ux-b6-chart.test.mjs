@@ -126,33 +126,43 @@ test('R-67 pass 16 px: the price is bold, 16 px, and above the dot', () => {
   assert.ok(num(label, 'y') < num(circle, 'cy') - Number(paint(circle, 'r')), 'the price is not above the dot');
 });
 
-test('R-67 pass: the mark is in the main ink colour, not the verdict hue', () => {
+test("R-67 (D-227) pass: the mark takes the field's own ink, --tier-on on a solid field and --ink on the hollow one", () => {
   const html = render(FX.HIGH);
   const { g } = youGroup(html);
   const line = tags(g, 'line')[0];
   const circle = tags(g, 'circle')[0];
   const label = [...g.matchAll(/<text\b[^>]*>/g)].map((m) => m[0])[0];
-  const lineC = paint(line, 'stroke');
-  const dotC = paint(circle, 'fill');
-  const lblC = paint(label, 'fill');
-  for (const [part, c] of [['line stroke', lineC], ['dot fill', dotC], ['label fill', lblC]]) {
-    assert.ok(/--ink\b|^#|^rgb/.test(c ?? '') && !/currentColor|--tier|--vb-halo/.test(c ?? ''), `${part} is "${c}", want the ink colour (var(--ink)), which does not change with the verdict`);
+  // The three parts draw in currentColor, so one colour on the group moves all of them together.
+  for (const [part, c] of [['line stroke', paint(line, 'stroke')], ['dot fill', paint(circle, 'fill')], ['label fill', paint(label, 'fill')]]) {
+    assert.equal(c, 'currentColor', `${part} is "${c}", want currentColor so it follows the group's colour`);
   }
+  const rules = parseRules(CSS_FILES.camera).filter((r) => !r.media);
+  const colourOf = (sel) => rules.map((r) => (r.sel === sel ? decls(r.body).color : undefined)).find((c) => c !== undefined);
+  assert.equal(colourOf('.vb-you'), 'var(--tier-on)', 'on a solid field the mark is in that field\'s own --tier-on');
+  assert.equal(colourOf('.sheet[data-conf="thin"] .vb-you'), 'var(--ink)', 'on the hollow field the mark is in --ink');
 });
 
-test('R-67 [A] pass 3:1 / 4.5: ink clears 3:1 as a mark and 4.5 as 16 px bold text on every verdict field, both themes', () => {
+/*
+ * D-227. The spec asked for ONE ink on every verdict field. The arithmetic says no ink can do
+ * that: 4.5:1 on green #12B76A needs a text luminance of at most 0.043, and 4.5:1 on red #C23619
+ * needs at least 0.715; no colour is both. So the mark is drawn in the colour already tuned to
+ * its own field (--tier-on, held at 4.5 on the solid fields by tokens.test.mjs) and, on the
+ * hollow field, which is a 12% tint of the ground, in --ink. Label 4.5 (16 px bold), line and
+ * dot 3.0 (a graphic), in both themes, on all three verdict hues.
+ */
+test('R-67 [A] pass 3:1 / 4.5: the mark clears 3:1 as a graphic and 4.5 as 16 px bold text on every verdict field, both themes', () => {
   const bad = [];
   for (const [theme, T] of THEMES) {
     for (const tier of TIER_IDS) {
       const solid = T[`--${tier}`];
-      const hollow = mix(solid, T['--ground'], 0.14);
-      for (const [fill, field] of [['solid', solid], ['hollow', hollow]]) {
-        const r = ratio(T['--ink'], field);
-        if (r < 4.5) bad.push(`${theme}/${tier}/${fill}: ink ${T['--ink']} on ${field} = ${r.toFixed(2)}`);
+      const hollow = mix(solid, T['--ground'], 0.12);
+      for (const [fill, field, ink] of [['solid', solid, T[`--${tier}-on`]], ['hollow', hollow, T['--ink']]]) {
+        const r = ratio(ink, field);
+        if (r < 4.5) bad.push(`${theme}/${tier}/${fill}: ${ink} on ${field} = ${r.toFixed(2)}`);
       }
     }
   }
-  assert.deepEqual(bad, [], 'the spec assumes ink clears the floor on every verdict hue; it does not on these (the label needs 4.5, the line and dot 3.0)');
+  assert.deepEqual(bad, [], 'the mark misses the floor on these (the label needs 4.5, the line and dot 3.0, and 4.5 clears both)');
 });
 
 test('R-67 pass: at the edge the line becomes an arrow and the label reads "$17.99, 3x the typical price"', () => {

@@ -1212,7 +1212,7 @@
    D-010, third measurement, closed 2026-09-09. This rule used to name
    --tier-on, which is only the sheet's ink on the two SOLID confidence states.
    The load-bearing block at the bottom of this file repaints the sheet on the
-   other two: a thin verdict is --tier-bright on a 14% tint, a refusal is
+   other two: a thin verdict is --tier-bright on a 12% tint, a refusal is
    --unknown-bright on a 12% tint, and both tints are pale in light theme. So a
    rule naming --tier-on painted #FFFFFF on #ecd7ce for a thin walk away and
    #F7F5F2 on #e1e0dd for a refusal: 1.33 and 1.18, the state word effectively
@@ -2225,11 +2225,12 @@
   color: var(--tier-on);
 }
 
-/* Fairly sure. Solid, with an inner hairline that says "not quite everything". */
+/* Fairly sure. The same solid look as certain (spec R-66, D-225: "do not add a
+   fourth look"). It differs from certain by the dots and the word, nothing else;
+   an inner hairline used to sit here and was the fourth look. */
 .sheet[data-conf="sure"] {
   background: var(--tier);
   color: var(--tier-on);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.28), var(--sheet-lift);
 }
 
 /*
@@ -2241,7 +2242,7 @@
  * dark card in light theme. It is the token now.
  *
  * This one is load-bearing beyond the look. app/test/tokens.test.mjs computes
- * the thin and refusal tints as `mix(--tier, --ground, 14%)` and
+ * the thin and refusal tints as `mix(--tier, --ground, 12%)` and
  * `mix(--unknown, --ground, 12%)` and asserts --tier-bright clears 4.5 on them,
  * in BOTH themes, including at the .88 Pexi's sentence is drawn at. Until this
  * change that test described a surface the light theme never painted. It
@@ -2249,7 +2250,7 @@
  * mean anything.
  */
 .sheet[data-conf="thin"] {
-  background: color-mix(in srgb, var(--tier) 14%, var(--ground));
+  background: color-mix(in srgb, var(--tier) 12%, var(--ground));
   color: var(--tier-bright);
   border: 2px solid var(--tier);
   border-bottom: 0;
@@ -2307,6 +2308,10 @@
    bought with padding so the sheet's own spacing does not move. No opacity,
    per D-040 -- muted text takes a token and never a fade. */
 .priceonly {
+  /* D-154: the inherited --ink-muted is 4.47:1 on the refusal's 12% unknown tint
+     in light theme. --unknown-bright is the sheet's own text colour, above 4.5
+     on that tint in both themes, and still reads as grey beside the pill. */
+  color: var(--unknown-bright);
   display: block;
   margin: 4px auto 0;
   min-height: 44px;
@@ -2445,7 +2450,7 @@
 .vd-suspect { margin-top: 8px; min-height: 44px; }
 .vd-chart { margin: 8px 0 2px; }
 .vbell { margin: 0; --vb-halo: var(--tier); color: inherit; }
-.sheet[data-conf="thin"] .vbell { --vb-halo: color-mix(in srgb, var(--tier) 14%, var(--ground)); }
+.sheet[data-conf="thin"] .vbell { --vb-halo: color-mix(in srgb, var(--tier) 12%, var(--ground)); }
 .vbell svg { display: block; width: 100%; height: auto; overflow: visible; }
 /* Everything but the zone strip is drawn in the sheet's own text colour
    (`--tier-on` on a solid field, `--tier-bright` on a thin one), so it reads on
@@ -2487,6 +2492,14 @@
 .vb-lbl { font: 500 11px var(--f-mono); fill: currentColor; opacity: .85; font-variant-numeric: tabular-nums; }
 .vb-lbl-centre { opacity: 1; font-weight: 700; }
 .vb-dotlbl { font: 500 9.5px var(--f-ui); fill: currentColor; opacity: .8; }
+/* D-227 / R-67: no single ink clears 4.5 on both green #12B76A (needs luminance
+   <= 0.043) and red #C23619 (needs >= 0.715), so the spec's one ink cannot be
+   met. The shopper's mark takes the field's own tuned --tier-on on a solid field
+   (tokens.test.mjs holds each at 4.5) and --ink on the hollow thin field, a 12%
+   tint of the ground where --ink clears 4.5 in both themes. The line, the dot
+   and the price all inherit it through currentColor. */
+.vb-you { color: var(--tier-on); }
+.sheet[data-conf="thin"] .vb-you { color: var(--ink); }
 .vb-you { animation: vb-settle 480ms cubic-bezier(.34,1.56,.64,1) 1000ms backwards; }
 .vb-guide { stroke: currentColor; stroke-width: 1.5; stroke-dasharray: 3 3; }
 /* The shopper's dot: the largest mark, in the text colour with a ring of the field, so it is the one thing on the line the eye lands on. */
