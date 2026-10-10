@@ -50,6 +50,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import {
   allCorrections,
   sellerKey,
+  witnessOf,
   CORROBORATION_FLOOR_CENTS,
   CORROBORATION_TOLERANCE,
   type CaptureMethod,
@@ -311,7 +312,8 @@ export function accountWeights(rows: readonly CorrectionRow[], anchors: readonly
     let agreeW = 0;
     let disagreeW = 0;
     for (const o of byItem.get(`${productKeyOf(r)}|${sellerKey(r.seller)}|${isoWeek(r.seen_on)}`) ?? []) {
-      if (o.device_id === r.device_id) continue;
+      // D-059: a second device under the same invite is the same witness, and earns nothing for it.
+      if (witnessOf(o) === witnessOf(r)) continue;
       const w = earned.get(o.device_id) ?? 0;
       if (w <= 0) continue;
       if (agrees(r.price_cents, o.price_cents)) agreeW += w;
@@ -391,7 +393,7 @@ export function weighReports(
     };
     for (const a of myAnchors) offer(a.storeKey, a.seenOn, a.cents);
     for (const o of mine) {
-      if (o.kind !== 'regular' || !counted.has(o.id) || o.device_id === r.device_id) continue;
+      if (o.kind !== 'regular' || !counted.has(o.id) || witnessOf(o) === witnessOf(r)) continue;
       if ((weights.get(o.device_id)?.weight ?? 0) <= 0) continue;
       offer(sellerKey(o.seller), o.seen_on, o.price_cents);
     }

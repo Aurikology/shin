@@ -43,6 +43,8 @@ import type { DatabaseSync } from 'node:sqlite';
 import { ageDays, isFutureDated, ratio } from '../../spine/src/money.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity, type ComparisonLabel } from '../../catalogue/src/units.ts';
 import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
+// width-flag.ts imports nearestRankIndex from this file; both are function declarations, so the cycle is safe.
+import { flagWide } from './width-flag.ts';
 
 /* ------------------------------------------------------------ thresholds */
 
@@ -141,6 +143,13 @@ export interface RangeCategory extends RangeCommon {
   readonly unit: { readonly label: ComparisonLabel; readonly lowCents: number; readonly highCents: number };
   /** The size the range was scaled to, as given. */
   readonly scaledTo: { readonly value: number; readonly unit: string };
+  /**
+   * D-233: the width flag (width-flag.ts) calls this pool too wide to mean
+   * anything. The range is still computed, so the math stays testable, but a
+   * caller pricing an item with no price of its own must not show it, centre,
+   * range or zone (app/src/catalogue-first.ts sets it aside and goes to Claude).
+   */
+  readonly wide: boolean;
 }
 
 export type NoneReason = 'no_barcode_and_no_category' | 'size_unknown' | 'too_few_prices';
@@ -415,6 +424,8 @@ function categoryRange(
     return null;
   }
   tried.push({ basis, category: tag, n: points.length, outcome: 'used', ...flag });
+  // D-233: the width flag on the pool's own prices at this size (p90/p10 above 1.5x by bootstrap, width-flag.ts).
+  const wide = flagWide(points.map((pt) => (pt.cents * target.baseValue) / pt.base));
   points.sort(byUnitPrice);
   const at = (p: number) => points[nearestRankIndex(points.length, p)]!;
   // The one rounding: stored cents times a size ratio, to whole cents.
@@ -440,6 +451,7 @@ function categoryRange(
     windowDays,
     unit: { label: target.label, lowCents: perUnit(lo), highCents: perUnit(hi) },
     scaledTo: target.original,
+    wide,
     tried,
   };
 }

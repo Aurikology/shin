@@ -186,6 +186,43 @@ test('no range: the product still shows, with a sentence keyed on the reason and
   }
 });
 
+/*
+ * D-233 (2026-10-10): the only Pexi basis was a category pool too wide to mean
+ * anything and Claude did not answer, so the server sends no verdict and no
+ * range, `noRangeReason: 'pool_too_wide'`, and the set-aside prices as
+ * `widePool.cents`. The sheet says the estimate is too thin, never a zone, and
+ * lists those prices under "Prices Pexi has seen", labelled as similar items.
+ */
+const POOL_109 = [718, 1299, 2450, 3199, 4999, 8999, 14249];
+const tooThin = (over = {}) =>
+  hit(null, { noRangeReason: 'pool_too_wide', verdict: null, widePool: { category: { tag: 'en:biscuits', name: 'Biscuits' }, n: 7, cents: POOL_109 }, ...over });
+
+test('D-233: a pool too wide to price the item says the estimate is too thin, gives no zone, and lists the prices it set aside', () => {
+  assert.equal(noRangeKey('pool_too_wide'), 'cat_too_thin');
+  for (const id of ['en', 'fr']) {
+    const html = inLocale(id, () => catalogueSheet(tooThin(), { shelfCents: 499, state: TEN_TEN }));
+    assert.equal(between(html, 'data-cat-no-range'), inLocale(id, () => t('cat_too_thin')), id);
+    assert.equal(attr(html, 'data-zone'), '', `${id}: a zone was shown`);
+    assert.equal(attr(html, 'data-conf'), 'refuses');
+    assert.equal(between(html, 'data-cat-headline'), 'Kraft Crunchy Peanut Butter 1 kg', `${id}: the headline is the product, never a zone word`);
+    for (const z of ['great', 'good', 'reasonable', 'bad']) assert.ok(!html.includes(inLocale(id, () => t(`vd_zone_${z}`))), `${id}: ${z} zone word`);
+    assert.equal(between(html, 'data-cat-pool-h'), inLocale(id, () => t('vd_dots_heading')));
+    assert.equal(between(html, 'data-cat-pool-note'), inLocale(id, () => t('cat_pool_note')));
+    const listed = [...html.matchAll(/data-cat-pool-price>([^<]*)</g)].map((m) => unescape(m[1]));
+    assert.deepEqual(listed, POOL_109.map((c) => inLocale(id, () => money(c, null))), id);
+  }
+});
+
+test('D-233: no set-aside pool, or one with nothing usable in it, lists nothing; junk prices are dropped', () => {
+  const plain = inLocale('en', () => catalogueSheet(hit(null, { noRangeReason: 'no_api_key' }), { state: TEN_TEN }));
+  assert.doesNotMatch(plain, /data-cat-pool/);
+  const empty = inLocale('en', () => catalogueSheet(tooThin({ widePool: { category: null, n: 0, cents: [] } }), { state: TEN_TEN }));
+  assert.doesNotMatch(empty, /data-cat-pool/);
+  assert.equal(between(empty, 'data-cat-no-range'), t('cat_too_thin'));
+  const junk = inLocale('en', () => catalogueSheet(tooThin({ widePool: { category: null, n: 3, cents: [718, 'x', -5, 0, 1.5, 1299] } }), { state: TEN_TEN }));
+  assert.deepEqual([...junk.matchAll(/data-cat-pool-price>([^<]*)</g)].map((m) => m[1]), [718, 1299].map((c) => inLocale('en', () => money(c, null))));
+});
+
 test('a malformed range is treated as no range, never half drawn', () => {
   for (const bad of [RANGE({ lowCents: null }), RANGE({ lowCents: 900, highCents: 500 }), RANGE({ basis: 'vibes' }), RANGE({ lowCents: 0 })]) {
     assert.equal(usableRange(bad), null);
@@ -295,7 +332,7 @@ test('French money is 4,99 $, the range reads "à", and the zone word is the Fre
 /** Every key this lane added. */
 const KEYS = ['cat_range', 'cat_range_unit', 'cat_range_label', 'cat_basis_shin', 'cat_basis_shin_one', 'cat_basis_shin_bare',
   'cat_basis_category', 'cat_basis_category_bare', 'cat_basis_ai', 'cat_basis_ai_asked', 'cat_no_range', 'cat_no_range_later',
-  'cat_not_found', 'cat_type_name', 'tm_heading', 'tm_label', 'tm_none', 'tm_dev_label'];
+  'cat_not_found', 'cat_type_name', 'tm_heading', 'tm_label', 'tm_none', 'tm_dev_label', 'cat_too_thin', 'cat_pool_note'];
 const FACTS = { low: '$4.99', high: '$6.99', unit: '1 kg', n: '4', category: 'Spreads', date: 'September 27, 2026' };
 
 test('every new string exists in both languages, and the French is not the English', () => {
@@ -337,6 +374,7 @@ test('no new string, and no rendered catalogue sheet, grades the price (the pric
       catalogueSheet(hit(RANGE({ basis: 'gemini_typical', medianCents: null }), { rangeAskedAt: '2026-09-27T16:00:00Z' }), { state: TEN_TEN }),
       catalogueSheet(hit(null, { noRangeReason: 'monthly_cap_reached' }), { state: TEN_TEN }),
       catalogueSheet(hit(null, { noRangeReason: 'no_api_key' }), { state: TEN_TEN }),
+      catalogueSheet(tooThin(), { shelfCents: 499, state: TEN_TEN }),
       catalogueSheet(MISS, { state: TEN_TEN }),
     ]);
     for (const h of sheets) {

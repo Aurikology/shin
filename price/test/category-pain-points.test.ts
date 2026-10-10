@@ -366,6 +366,8 @@ function b6Deps(spread: number): EstimateDeps {
   return { prices, catalogue };
 }
 const b6Item = () => ({ barcode: B6_ITEM, asOf: '2026-09-30', currency: 'CAD', country: 'CA' });
+/** The bell width B6 is measured at (see `b6Shares`). */
+const B6_WIDTH = 1.45;
 
 /** Widen the fixture until the verdict's p90/p10 is the target. Returns deps and the verdict's own centre and sigma. */
 async function categoryAt(target: number): Promise<{ deps: EstimateDeps; centre: number; sigma: number }> {
@@ -388,7 +390,14 @@ type Lines = { greatPct: number; goodPct: number; badPct: number } | undefined;
 
 /** The share of ordinary shelf prices called good-or-great, and the share called bad, by the real verdict function. */
 async function b6Shares(lines: Lines): Promise<{ goodOrGreat: number; bad: number }> {
-  const { deps, centre, sigma } = await categoryAt(1.5);
+  /*
+   * D-233 (2026-10-10): a category pool the width flag calls too wide no longer
+   * answers at all (it goes to Claude), and this fixture's five prices at a 1.5x
+   * bell are a 1.53x sample, which the flag sets aside. So B6 is measured at the
+   * widest bell a category-only answer can still have, 1.45x (a 1.48x sample):
+   * the worst case that still reaches a shopper.
+   */
+  const { deps, centre, sigma } = await categoryAt(B6_WIDTH);
   const rnd = mulberry32(20261008);
   const N = 1500;
   let nice = 0;
@@ -412,7 +421,7 @@ test('B6 control: lines of 10% fail it, so the predicate can go red', async () =
   const s = await b6Shares({ greatPct: 20, goodPct: 10, badPct: 10 });
   assert.equal(b6Passes(s), false, JSON.stringify(s));
 });
-test('B6: on ordinary prices with a category-only basis at 1.5x width, 10% or fewer are called good or great and 10% or fewer bad', async () => {
+test('B6: on ordinary prices with a category-only basis at the widest width the D-233 width flag lets answer (1.45x), 10% or fewer are called good or great and 10% or fewer bad', async () => {
   const s = await b6Shares(undefined);
   assert.equal(b6Passes(s), true, `good-or-great ${(s.goodOrGreat * 100).toFixed(1)}%, bad ${(s.bad * 100).toFixed(1)}% (each must be 10% or fewer)`);
 });

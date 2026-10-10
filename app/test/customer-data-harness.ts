@@ -93,7 +93,8 @@ export async function startHarness(prefix: string): Promise<Harness> {
   const today = new Date().toISOString().slice(0, 10);
   const { openPrices, recordObservation } = await import('../../price/src/store.ts');
   const prices = openPrices(process.env.SHIN_PRICES!);
-  [350, 420, 480, 550, 690].forEach((cents, i) =>
+  // A narrow pool (1.29x): a wider one is set aside by the D-233 width flag and the typed answer would carry no verdict.
+  [420, 450, 480, 510, 540].forEach((cents, i) =>
     recordObservation(prices, {
       code: FRIES[i]!,
       seller: `shop${i}`,

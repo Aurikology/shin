@@ -89,6 +89,13 @@ export interface CorrectionInput {
   readonly capture?: CaptureMethod | null;
   /** When the tag was seen, ISO timestamp, if the phone knows. `seenOn` stays the day. */
   readonly seenAt?: string | null;
+  /**
+   * D-059: who vouches for this reading, set by the server and never by the
+   * phone: the name of the invite code the request carried when the server
+   * requires one (app/src/invite.ts `reportWitness`). Absent or null: no invite
+   * is required, and the device id is the witness, as before.
+   */
+  readonly witness?: string | null;
 }
 
 /** Unit F, 2026-09-30. A photo of a tag and a typed number are different evidence. */
@@ -111,6 +118,8 @@ export interface CorrectionRow {
   /** NULL on every row written before unit F, and whenever the phone did not say. */
   readonly capture?: CaptureMethod | null;
   readonly seen_at?: string | null;
+  /** D-059: the invite behind the reading, or NULL when none was required (every row written before 2026-10-10). */
+  readonly witness?: string | null;
 }
 
 const DDL = `
@@ -130,7 +139,8 @@ CREATE TABLE IF NOT EXISTS correction (
   seen_on     TEXT NOT NULL,
   recorded_at TEXT NOT NULL,
   capture     TEXT CHECK (capture IS NULL OR capture IN ('photo', 'typed')),
-  seen_at     TEXT
+  seen_at     TEXT,
+  witness     TEXT
 ) STRICT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS correction_one_per_shop_per_day
@@ -171,6 +181,8 @@ export interface CorrectionStore {
 export const REPORT_COLUMNS: readonly (readonly [string, string])[] = [
   ['capture', "TEXT CHECK (capture IS NULL OR capture IN ('photo', 'typed'))"],
   ['seen_at', 'TEXT'],
+  // D-059: the invite a reading came through. NULL on every older row: its device id stays its witness.
+  ['witness', 'TEXT'],
 ];
 
 function addReportColumns(db: DatabaseSync): void {
@@ -373,6 +385,7 @@ export function recordCorrection(input: CorrectionInput): RecordResult {
     return { ok: false, why: 'the date a tag was seen is an ISO date, no time' };
   }
   const capture = input.capture ?? null;
+  const witness = typeof input.witness === 'string' && input.witness.trim() !== '' ? input.witness.trim() : null;
   if (capture !== null && capture !== 'photo' && capture !== 'typed') {
     return { ok: false, why: 'a price is captured from a photo or typed, nothing else' };
   }
@@ -460,7 +473,8 @@ export function recordCorrection(input: CorrectionInput): RecordResult {
              seller      = ?,
              recorded_at = ?,
              capture     = ?,
-             seen_at     = ?
+             seen_at     = ?,
+             witness     = ?
            WHERE id = ?`,
         )
         .run(
@@ -475,6 +489,7 @@ export function recordCorrection(input: CorrectionInput): RecordResult {
           now,
           capture,
           seenAt,
+          witness,
           existing.id,
         );
       return { ok: true, id: existing.id, replaced: true, alreadyStored: false };
@@ -503,8 +518,8 @@ export function recordCorrection(input: CorrectionInput): RecordResult {
       .prepare(
         `INSERT INTO correction
            (client_id, device_id, subject, code, product_id, label, category,
-            seller, seller_key, price_cents, kind, seen_on, recorded_at, capture, seen_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            seller, seller_key, price_cents, kind, seen_on, recorded_at, capture, seen_at, witness)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          RETURNING id`,
       )
       .get(
@@ -523,6 +538,7 @@ export function recordCorrection(input: CorrectionInput): RecordResult {
         now,
         capture,
         seenAt,
+        witness,
       ) as { id: number } | undefined;
 
     if (row === undefined) {
@@ -617,21 +633,36 @@ export function correctionsFor(input: {
 export const CORROBORATION_TOLERANCE = 0.12;
 export const CORROBORATION_FLOOR_CENTS = 25;
 
+/**
+ * D-059: who a reading's witness is. The invite the server checked when it
+ * requires one, else the device id. Prefixed so an invite name and a device id
+ * that happen to share text are never the same witness. Two device ids under
+ * one invite are one witness: a device id is a random id the phone made, and
+ * anyone holding an invite can make as many as they like.
+ */
+export function witnessOf(row: Pick<CorrectionRow, 'device_id' | 'witness'>): string {
+  return row.witness ? `invite:${row.witness}` : `device:${row.device_id}`;
+}
+
+/** The same rule as `witnessOf`, in SQL, for a correction row aliased `t`. */
+const WITNESS_SQL = (t: string) => `coalesce('invite:' || ${t}.witness, 'device:' || ${t}.device_id)`;
+
 export function witnessesFor(rows: readonly CorrectionRow[]): Map<number, number> {
   const out = new Map<number, number>();
   for (const row of rows) {
     const near = rows.filter((other) => {
       if (other.id === row.id) return false;
-      // A second reading from the same phone is the same witness, not a second
+      // A second reading from the same witness is the same witness, not a second
       // one. This is the whole point: it is what the unique index cannot say,
-      // because that index is per day and a person can come back tomorrow.
-      if (other.device_id === row.device_id) return false;
+      // because that index is per day and a person can come back tomorrow. The
+      // witness is the invite, not the phone (D-059, `witnessOf`).
+      if (witnessOf(other) === witnessOf(row)) return false;
       if (sellerKey(other.seller) !== sellerKey(row.seller)) return false;
       const gap = Math.abs(other.price_cents - row.price_cents);
       const allowed = Math.max(CORROBORATION_FLOOR_CENTS, row.price_cents * CORROBORATION_TOLERANCE);
       return gap <= allowed;
     });
-    out.set(row.id, 1 + new Set(near.map((n) => n.device_id)).size);
+    out.set(row.id, 1 + new Set(near.map((n) => witnessOf(n))).size);
   }
   return out;
 }
@@ -668,7 +699,7 @@ const CORROBORATED_BY_OTHERS = `
              SELECT 1 FROM correction o
               WHERE o.subject = c.subject
                 AND o.seller_key = c.seller_key
-                AND o.device_id <> c.device_id
+                AND ${WITNESS_SQL('o')} <> ${WITNESS_SQL('c')}
                 AND abs(o.price_cents - c.price_cents) <= max(?, c.price_cents * ?)
            ) THEN 1 ELSE 0 END
          ) AS corroborated

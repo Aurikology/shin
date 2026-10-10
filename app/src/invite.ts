@@ -86,6 +86,19 @@ export function inviteWho(sent: unknown, env: NodeJS.ProcessEnv = process.env): 
   return null;
 }
 
+/**
+ * D-059, decided 2026-10-10 (stated to Jamin): the witness a shopper report is
+ * filed under. When this server requires an invite, it is the name of the code
+ * the request carried, the one thing about the request the server checks; a
+ * device id is a random id the phone made, so two of them under one invite are
+ * one witness. When no invite is required this is null, and the device id
+ * stands in, as before. Never read from the body.
+ */
+export function reportWitness(sent: unknown, env: NodeJS.ProcessEnv = process.env): string | null {
+  if (inviteRequired(env) === null) return null;
+  return inviteWho(sent, env);
+}
+
 export function inviteAllows(sent: unknown, env: NodeJS.ProcessEnv = process.env): boolean {
   if (inviteRequired(env) === null) return true;
   return inviteWho(sent, env) !== null;

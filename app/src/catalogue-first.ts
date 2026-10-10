@@ -227,8 +227,12 @@ export interface CatalogueRange {
   readonly unit: string | null;
 }
 
-/** `claude_slow`: the ask outlived the verdict's wait; the answer went out without it. */
-export type NoRangeReason = RangeAskFailure | 'rate_limited' | 'no_shin_prices' | 'claude_slow';
+/**
+ * `claude_slow`: the ask outlived the verdict's wait; the answer went out without it.
+ * `pool_too_wide` (D-233): the only Pexi basis was a category pool too wide to mean anything, and
+ * Claude did not answer, so there is no range and no verdict: the estimate is too thin to judge a price.
+ */
+export type NoRangeReason = RangeAskFailure | 'rate_limited' | 'no_shin_prices' | 'claude_slow' | 'pool_too_wide';
 
 export interface CatalogueAnswer {
   readonly kind: 'catalogue';
@@ -263,6 +267,12 @@ export interface CatalogueAnswer {
   readonly identitySource?: NamedElsewhere['source'];
   /** Why nothing named the item, one code per step tried (`off_not_found`, `no_frame`, `claude_monthly_cap_reached`). Present only after those steps ran. */
   readonly noNameReasons?: readonly string[];
+  /**
+   * D-233: the category pool set aside as too wide to price this item (width-flag.ts), with the
+   * prices it holds, ascending, scaled to this item's size: context for "Prices Pexi has seen",
+   * never a centre, a range or a zone. Present only when a pool was set aside.
+   */
+  readonly widePool?: { readonly category: CategoryRef | null; readonly n: number; readonly cents: readonly number[] };
 }
 
 /** What the scan row gets beside the answer (migration 18). */
@@ -354,6 +364,23 @@ export interface BarcodeDeps {
    * lookup, a saved Claude reading, the frame read by Claude. The server wires them; absent, a miss is a miss.
    */
   readonly nameElsewhere?: (gtin: string) => Promise<NameElsewhereResult>;
+}
+
+/**
+ * The verdict a shopper may be shown from an estimate (D-233). A too-thin one
+ * (the only pool was too wide and Claude did not answer) is null: its bell is a
+ * prior, and a client places a typed price on any bell it is handed, so the
+ * only way to show no zone is to send no verdict. Logged loudly and counted
+ * with the reason. Every route that answers from `estimate` goes through here.
+ */
+export function shownVerdict(est: Awaited<ReturnType<typeof estimate>> | null, where: string): Verdict | null {
+  if (!est) return null;
+  const thin = est.trace.tooThin;
+  if (!thin) return est.verdict;
+  const w = est.trace.widePool;
+  const pool = w ? `${w.rung} ${w.tag} n=${w.n} ${w.cents[0]}..${w.cents[w.cents.length - 1]} cents` : 'a pool';
+  warnCatalogueFault('pool_too_wide', `${where} estimate too thin: ${pool} set aside as too wide, Claude ${thin.why}; no verdict shown`);
+  return null;
 }
 
 /** The verdict, never a throw: an estimate that fails for any reason is null and the answer still goes out. */
@@ -658,8 +685,11 @@ async function priceIdentity(
       ...(deps.claudeWaitMs !== undefined ? { claudeWaitMs: deps.claudeWaitMs } : {}),
     },
   );
-  verdict = est?.verdict ?? null;
+  verdict = shownVerdict(est, row.code);
   conflict = est?.trace.conflict ?? null;
+  // D-233: the pool the verdict ladder set aside as too wide, and whether that left it too thin to judge.
+  const wide = est?.trace.widePool ?? null;
+  const thin = est?.trace.tooThin ?? null;
 
   // A name from outside the catalogue has no category of its own; the one the verdict sorted it into is the range's too.
   const sorted = !row.leafCategory && row.categoryPath.length === 0 ? (est?.trace.sorted ?? null) : null;
@@ -692,15 +722,28 @@ async function priceIdentity(
     }
   }
 
-  if (ladder && ladder.basis !== 'none') {
-    range = fromShinPrices(ladder, categoryPath);
+  /*
+   * D-233: a category pool too wide to mean anything sets no range. The range
+   * ladder flags its own pools (`wide`, width-flag.ts), and when the verdict
+   * ladder set one aside, a category range is set aside with it, so the range
+   * and the verdict never disagree about whether the pool is usable. The
+   * item's own prices (`this_product`) are never set aside.
+   */
+  const categoryLadder = ladder !== null && (ladder.basis === 'leaf_category' || ladder.basis === 'parent_category') ? ladder : null;
+  const poolTooWide = wide !== null || (categoryLadder?.wide ?? false);
+  const ladderUsable = ladder !== null && ladder.basis !== 'none' && (ladder.basis === 'this_product' || !poolTooWide);
+  let claudeWhy: string | null = null;
+  if (ladderUsable) {
+    range = fromShinPrices(ladder as Exclude<RangeResult, { basis: 'none' }>, categoryPath);
     rangeSource = 'shin_prices';
   } else if (!once || !once.started()) {
     // No ask was passed, or the verdict answered from Shin's own data and never needed one.
-    noRangeReason = 'no_shin_prices';
+    noRangeReason = poolTooWide ? 'pool_too_wide' : 'no_shin_prices';
+    claudeWhy = once ? 'not_asked' : 'no_ask';
   } else if (once.settled() === undefined) {
     // The verdict stopped waiting (design case 27, "slow"); the ask carries on and saves its answer as data.
-    noRangeReason = 'claude_slow';
+    noRangeReason = poolTooWide ? 'pool_too_wide' : 'claude_slow';
+    claudeWhy = 'timeout';
   } else {
     const asked: RangeAskOutcome = once.settled()!;
     if (asked.ok) {
@@ -718,8 +761,23 @@ async function priceIdentity(
       rangeSource = 'claude_typical';
       rangeAskedAt = asked.range.askedAt;
     } else {
-      noRangeReason = asked.reason;
+      noRangeReason = poolTooWide ? 'pool_too_wide' : asked.reason;
+      claudeWhy = asked.reason;
     }
+  }
+  /*
+   * The scan row says which way it went: `pool_too_wide` when the pool was set
+   * aside and Claude answered, `pool_too_wide:<why>` when nothing did (the
+   * verdict ladder's own reason first, it is the one that decided the verdict).
+   */
+  const rangeMissReason: string | null = poolTooWide
+    ? range
+      ? 'pool_too_wide'
+      : `pool_too_wide:${thin?.why ?? claudeWhy ?? 'unknown'}`
+    : noRangeReason;
+  if (poolTooWide && !range && !thin) {
+    // The range ladder alone set a pool aside and no range came back: said once, loudly, like the verdict's.
+    warnCatalogueFault('pool_too_wide', `${row.code} range set aside as too wide, Claude ${claudeWhy ?? 'unknown'}; no range shown`);
   }
 
   /*
@@ -735,7 +793,7 @@ async function priceIdentity(
     const at = positionalParent(leafCategory, categoryPath);
     const verdictParent = parentOf(at.leaf, categoryPath, deps.categoryGuard.taxonomy()).parent;
     const checks: [('range' | 'verdict'), string | null][] = [];
-    if (ladder && ladder.basis === 'parent_category') checks.push(['range', ladder.category]);
+    if (ladderUsable && ladder!.basis === 'parent_category') checks.push(['range', ladder!.category]);
     if (verdict && verdict.basis === 'parent_category') checks.push(['verdict', verdictParent]);
     for (const [via, parent] of checks) {
       const f = deps.categoryGuard.check({ via, barcode: row.code, leaf: at.leaf, parent });
@@ -759,6 +817,7 @@ async function priceIdentity(
       verdict,
       storeIdentity: null,
       ...(how.identitySource ? { identitySource: how.identitySource } : {}),
+      ...(wide ? { widePool: { category: categoryRef(wide.tag, categoryPath), n: wide.n, cents: wide.cents } } : {}),
     },
     record: {
       resolvedCode: row.code,
@@ -767,8 +826,8 @@ async function priceIdentity(
       failureClass: null,
       answerPath: how.answerPath,
       rangeSource: rangeSource ?? 'none',
-      rangeBasis: ladder ? ladder.basis : null,
-      rangeMissReason: noRangeReason,
+      rangeBasis: ladder ? (ladderUsable ? ladder.basis : 'none') : null,
+      rangeMissReason,
       verdict,
       conflict,
       ...(categoryFaults.length > 0 ? { categoryFaults } : {}),

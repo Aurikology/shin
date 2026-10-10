@@ -73,6 +73,7 @@ import {
   readMatchTextBody,
   resolveTypedName,
   safeEstimate,
+  shownVerdict,
   type BarcodeDeps,
   type MatchTextAnswer,
   type NamedElsewhere,
@@ -100,7 +101,7 @@ import { recordEvent, serialisePayload } from './src/events.ts';
 import { chainsFromData, parseCell, storesNear, type StoreFetcher } from './src/stores.ts';
 import { fileTypedReport, recordShelfPrice, shopperReportField } from './src/shopper-report.ts';
 import { PRICE_MATCH_POLICIES } from './src/price-match.ts';
-import { INVITE_EXEMPT, INVITE_HEADER, INVITE_REFUSAL, inviteAllows, inviteRequired, inviteWho } from './src/invite.ts';
+import { INVITE_EXEMPT, INVITE_HEADER, INVITE_REFUSAL, inviteAllows, inviteRequired, inviteWho, reportWitness } from './src/invite.ts';
 import { KeyedLimiter, addressWindows, clientAddress, codeWindows } from './src/rate-limit.ts';
 import { logError } from './src/errlog.ts';
 import { markScan } from './src/scan-marks.ts';
@@ -1998,7 +1999,8 @@ async function typedVerdict(text: string, match: OwnMatch | null, ctx: TypedVerd
         ...(catalogueFirstTest?.claudeWaitMs !== undefined ? { claudeWaitMs: catalogueFirstTest.claudeWaitMs } : {}),
       },
     );
-    return est?.verdict ?? null;
+    // D-233: a too-thin estimate is no verdict, logged loudly (catalogue-first.ts shownVerdict).
+    return shownVerdict(est, `typed:${match?.code ?? text.slice(0, 40)}`);
   } finally {
     try {
       prices?.close();
@@ -2635,7 +2637,8 @@ async function matchTextVerdict(matched: MatchTextAnswer, posted: Record<string,
       shopperFrom(shopperCents, posted.thresholds),
       { prices, catalogue: catalogueFirstTest?.db !== undefined ? catalogueFirstTest.db : catalogueDb, taxonomy: categoryGuard.taxonomy() },
     );
-    return est?.verdict ?? null;
+    // D-233: a too-thin estimate is no verdict, logged loudly (catalogue-first.ts shownVerdict).
+    return shownVerdict(est, `match_text:${top.barcode ?? top.productId}`);
   } finally {
     try {
       prices?.close();
@@ -4588,6 +4591,8 @@ export const server = createServer(async (req, res) => {
         // the day the tag was read, and dating it on arrival would quietly
         // refresh stale prices every time a phone came back online.
         seenOn: str(c.seenOn) ?? new Date().toISOString().slice(0, 10),
+        // D-059: the witness is the invite this request carried, not the device id the body names.
+        witness: reportWitness(req.headers[INVITE_HEADER]),
       });
 
       /*
@@ -4987,6 +4992,8 @@ export const server = createServer(async (req, res) => {
         storeName: typeof p.storeName === 'string' ? p.storeName : null,
         code: typeof p.code === 'string' ? p.code : null,
         today: seenOn,
+        // D-059: the witness is the invite this request carried, not the device id the body names.
+        witness: reportWitness(req.headers[INVITE_HEADER]),
       });
       return json(200, res);
     }

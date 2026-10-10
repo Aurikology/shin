@@ -35,7 +35,7 @@ import { t } from '../ui-strings.js';
 import * as shops from '../shops.js';
 import { countryLabel, countryIn } from './market.js';
 import { locale, localeTag } from '../lib/locale.js';
-import { usableRange, placeShelf, shelfCentsOf, provenanceOf, noRangeKey, askedDate } from '../lib/catalogue-range.js';
+import { usableRange, placeShelf, shelfCentsOf, provenanceOf, noRangeKey, askedDate, poolCents } from '../lib/catalogue-range.js';
 import { usableVerdict, shopperOf, shopperFor, multipleOf, bellSvg, tweenVerdict, ZONE_TIER } from '../lib/verdict-chart.js';
 import { mountTextMatch } from '../text-match.js';
 import { priorPrices, historyChartHtml } from '../lib/price-history.js';
@@ -1869,6 +1869,13 @@ function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store
   const shelfLine = shelf !== null ? t('cam_gem_shelf', { label: money(shelf, currency) }) : '';
   // Who named an item the catalogue lacks (RULINGS.md "A scan never ends with no result"): never shown as Pexi's own.
   const nameSource = answer.identitySource === 'open_food_facts' ? t('cat_named_by_off') : answer.identitySource === 'claude_reading' ? t('cat_named_by_ai') : '';
+  // D-233: prices of similar items the server set aside as too wide to price this one. Context only, labelled so.
+  const pool = poolCents(answer);
+  const poolList = pool.length
+    ? `<h3 class="vd-dots-h" data-cat-pool-h>${escapeHtml(t('vd_dots_heading'))}</h3><p class="detail" data-cat-pool-note>${escapeHtml(t('cat_pool_note'))}</p><ul class="vd-dots" data-cat-pool>${pool
+        .map((c) => `<li class="vd-dotrow"><span data-cat-pool-price>${escapeHtml(money(c, currency))}</span></li>`)
+        .join('')}</ul>`
+    : '';
 
   return `
     <section class="sheet catalogue" data-kind="catalogue" data-outcome="catalogue_hit" data-basis="${escapeHtml(range?.basis ?? '')}" data-tier="${GEMINI_ZONE_TIER[zone] ?? 'unknown'}" data-zone="${escapeHtml(zone ?? '')}" data-conf="${range ? 'sure' : 'refuses'}" data-detent="peek" aria-live="polite" tabindex="-1">
@@ -1887,6 +1894,7 @@ function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store
         ${shelfLine ? `<p class="sub cat-shelf" data-cat-shelf>${escapeHtml(shelfLine)}</p>` : ''}
         ${basis ? `<p class="conf-label cat-basis" data-cat-basis>${escapeHtml(basis)}</p>` : ''}
         ${nameSource ? `<p class="conf-label cat-source" data-cat-source>${escapeHtml(nameSource)}</p>` : ''}
+        ${poolList}
         <div class="actions actions-primary">
           <button type="button" class="pill solid wide" data-act="cancel-scan">${escapeHtml(t('done'))}</button>
         </div>

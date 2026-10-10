@@ -46,6 +46,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { ageDays, isFutureDated } from '../../spine/src/money.ts';
 import { nearestRankIndex, parentOf, MIN_CATEGORY_PRODUCTS, WINDOW_DAYS } from './range.ts';
+import { flagWide } from './width-flag.ts';
 import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity } from '../../catalogue/src/units.ts';
 // Loaded on first use, not at import: size-fill.ts pulls in the catalogue schema and its vector
@@ -122,7 +123,11 @@ export type Basis =
 export type SpreadFrom = 'own_prices' | 'leaf_category' | 'parent_category' | 'claude' | 'prior';
 export type Confidence = 'high' | 'medium' | 'low';
 export type Zone = 'great' | 'good' | 'reasonable' | 'bad';
-export type Note = 'size_assumed' | 'other_region' | 'old_prices' | 'identity_conflict' | 'claude_estimate' | 'few_prices';
+/**
+ * `too_thin` (D-233): the only pool was too wide and Claude did not answer, so
+ * the bell is drawn from a prior and no zone is given (`shopper` is null).
+ */
+export type Note = 'size_assumed' | 'other_region' | 'old_prices' | 'identity_conflict' | 'claude_estimate' | 'few_prices' | 'too_thin';
 export type PerUnitLabel = 'per 100 g' | 'per 100 ml' | 'each' | 'per kg';
 
 export interface Dot {
@@ -236,7 +241,8 @@ export interface EstimateDeps {
 
 export interface RungTried {
   readonly rung: Basis;
-  readonly outcome: 'used' | 'too_few' | 'not_applicable' | 'failed';
+  /** `too_wide` (D-233): enough products, but the width flag says the pool is too wide to price this item. */
+  readonly outcome: 'used' | 'too_few' | 'not_applicable' | 'failed' | 'too_wide';
   /** `parent_unchecked`: the parent rung was taken by position, never checked against a taxonomy. */
   readonly flag?: 'parent_unchecked';
   readonly n: number;
@@ -257,6 +263,23 @@ export interface EstimateTrace {
   readonly size: string | null;
   /** Own regular prices behind the centre (shops). */
   readonly ownShops: number;
+  /**
+   * D-233: the first category pool the ladder set aside as too wide, with the
+   * prices it holds (scaled to this item's size where there is one, ascending),
+   * so they can still be shown as context. Null when none was set aside.
+   */
+  readonly widePool: {
+    readonly rung: 'leaf_category' | 'parent_category' | 'brand_markup';
+    readonly tag: string;
+    readonly n: number;
+    readonly cents: readonly number[];
+  } | null;
+  /**
+   * D-233: a pool was set aside and Claude did not answer (`why` is its reason:
+   * `no_ask`, `timeout`, `threw`, a cap or key code). The verdict is drawn from a
+   * prior, carries `too_thin` and no zone. Null otherwise.
+   */
+  readonly tooThin: { readonly why: string } | null;
 }
 
 export interface EstimateResult {
@@ -553,6 +576,17 @@ interface Stats {
   readonly p10: number;
   readonly p90: number;
   readonly newestAge: number;
+  /** The kept log values, ascending, for the width flag. */
+  readonly logs: readonly number[];
+}
+
+/**
+ * D-233: a category pool too wide to mean anything (width-flag.ts, p90/p10
+ * above 1.5x by bootstrap) never prices an item that has no price of its own.
+ */
+function tooWide(s: Stats): boolean {
+  // Back from log price; 12 significant digits drops the round-trip noise, so a pool exactly at 1.5x is not read as 1.5000000000000002x.
+  return flagWide(s.logs.map((l) => Number(Math.exp(l).toPrecision(12))));
 }
 
 function statsOf(points: readonly { log: number; age: number }[]): Stats | null {
@@ -570,6 +604,7 @@ function statsOf(points: readonly { log: number; age: number }[]): Stats | null 
     p10: s[nearestRankIndex(n, 10)]!,
     p90: s[nearestRankIndex(n, 90)]!,
     newestAge: Math.min(...kept.map((p) => p.age)),
+    logs: s,
   };
 }
 
@@ -990,7 +1025,18 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     }
   }
 
-  /* ---- leaf, then parent (a missing size: per item, any size, noted and wider; design case 4) */
+  /*
+   * ---- leaf, then parent (a missing size: per item, any size, noted and wider; design case 4)
+   *
+   * D-233: a pool the width flag calls too wide is set aside: it sets neither
+   * the centre, the spread nor the zone, and the ladder moves on (to Claude, as
+   * for "no Pexi price"). Its prices travel in the trace as context.
+   */
+  const aside: { pool: EstimateTrace['widePool']; stats: Set<Stats> } = { pool: null, stats: new Set() };
+  const asideFor = (rung: NonNullable<EstimateTrace['widePool']>['rung'], tag: string, s: Stats): void => {
+    aside.stats.add(s);
+    aside.pool ??= { rung, tag, n: s.n, cents: s.logs.map((l) => Math.max(1, Math.round(Math.exp(l)))) };
+  };
   for (const [rung, tag, stats] of [
     ['leaf_category', leaf, leafStats],
     ['parent_category', parent, parentStats],
@@ -1000,7 +1046,10 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
       tried.push({ rung, outcome: 'not_applicable', n: 0 });
       continue;
     }
-    if (stats) {
+    if (stats && tooWide(stats)) {
+      asideFor(rung, tag, stats);
+      tried.push({ rung, outcome: 'too_wide', n: stats.n, detail: tag, ...(rung === 'parent_category' ? parentFlag : {}) });
+    } else if (stats) {
       basis = rung;
       mu = stats.mu;
       n = stats.n;
@@ -1036,10 +1085,17 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
         const m = unitMedian(p.leaf, p.size.family);
         if (m !== null) ratios.push(Math.log(p.cents / p.size.baseValue) - m);
       }
+      let wide = false;
       if (ratios.length >= 3) {
         const ratio = medianOf(ratios);
         for (let i = path.length - 1; i >= 0; i -= 1) {
           const s = statsOf(poolPoints(inTree(path[i]!), target, false));
+          // D-233: a category centre from a pool too wide to mean anything is set aside here as well.
+          if (s && s.n >= MIN_CATEGORY_PRODUCTS && tooWide(s)) {
+            wide = true;
+            asideFor('brand_markup', path[i]!, s);
+            continue;
+          }
           if (s && s.n >= MIN_CATEGORY_PRODUCTS) {
             basis = 'brand_markup';
             mu = s.mu + ratio;
@@ -1053,7 +1109,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
           }
         }
       }
-      if (!used) tried.push({ rung: 'brand_markup', outcome: 'too_few', n: ratios.length });
+      if (!used) tried.push({ rung: 'brand_markup', outcome: wide ? 'too_wide' : 'too_few', n: ratios.length });
     } else {
       tried.push({ rung: 'brand_markup', outcome: 'not_applicable', n: 0 });
     }
@@ -1135,18 +1191,33 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     }
   }
 
-  /* ---- spread: first that applies, then the floors and the widenings */
+  /*
+   * ---- D-233: too thin. A pool was set aside as too wide and Claude did not
+   * answer, so what is left is a prior: the bell stays drawable, but it carries
+   * no zone and says so. The reason is the Claude rung's own.
+   */
+  let tooThin: EstimateTrace['tooThin'] = null;
+  if (aside.pool && (basis === 'category_prior' || basis === 'global_prior')) {
+    const claudeStep = tried.find((t) => t.rung === 'claude_typical');
+    tooThin = { why: claudeStep?.detail ?? 'no_ask' };
+    notes.add('too_thin');
+  }
+
+  /* ---- spread: first that applies, then the floors and the widenings. A pool set aside as too wide gives none. */
+  const leafSpread = leafStats && !aside.stats.has(leafStats) ? leafStats : null;
+  const parentSpread = parentStats && !aside.stats.has(parentStats) ? parentStats : null;
+  const catSpread = aside.stats.size > 0 ? leafSpread ?? parentSpread : catStats;
   let sigma: number;
   let spreadFrom: SpreadFrom;
   const ownSpread = basis === 'own_prices' && ownShops.length >= OWN_SPREAD_SHOPS ? statsOf(ownShops.map((s) => ({ log: Math.log(s.cents), age: s.age }))) : null;
   if (ownSpread) {
     sigma = ownSpread.sigma;
     spreadFrom = 'own_prices';
-  } else if (leafStats) {
-    sigma = leafStats.sigma;
+  } else if (leafSpread) {
+    sigma = leafSpread.sigma;
     spreadFrom = 'leaf_category';
-  } else if (parentStats) {
-    sigma = parentStats.sigma;
+  } else if (parentSpread) {
+    sigma = parentSpread.sigma;
     spreadFrom = 'parent_category';
   } else if (claudeSigma !== null) {
     sigma = claudeSigma;
@@ -1157,7 +1228,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     spreadFrom = 'prior';
   }
   // Never below the category's spread (equal provincial prices cannot collapse the bell), never below 0.05.
-  sigma = Math.max(sigma, catStats?.sigma ?? 0, MIN_SIGMA);
+  sigma = Math.max(sigma, catSpread?.sigma ?? 0, MIN_SIGMA);
   if (evidenceAge !== null && evidenceAge > OLD_DAYS) notes.add('old_prices');
   if (notes.has('old_prices')) sigma *= WIDEN;
   if (notes.has('other_region')) sigma *= WIDEN;
@@ -1178,8 +1249,8 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   /* ---- the numbers */
   const centreCents = Math.max(1, Math.round(Math.exp(mu)));
   const read = readThresholdsGiven(shopper?.thresholds, centreCents);
-  const categoryOnly = (basis === 'leaf_category' || basis === 'parent_category') && catStats !== null;
-  const thresholds = categoryOnly ? categoryOnlyLines(read.thresholds, read.given, mu, catStats!.p10, catStats!.p90) : read.thresholds;
+  const categoryOnly = (basis === 'leaf_category' || basis === 'parent_category') && catSpread !== null;
+  const thresholds = categoryOnly ? categoryOnlyLines(read.thresholds, read.given, mu, catSpread!.p10, catSpread!.p90) : read.thresholds;
   let perUnit: Verdict['perUnit'] = null;
   if (item.weighed) perUnit = { label: 'per kg', centreCents };
   else if (target) perUnit = { label: perUnitLabel(target), centreCents: Math.round((centreCents * target.perQuantity) / target.baseValue) };
@@ -1197,7 +1268,8 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     }));
 
   let placed: ShopperPlacement | null = null;
-  if (shopper && Number.isInteger(shopper.cents) && shopper.cents > 0 && !item.weighed) {
+  // D-233: a too-thin estimate places no shopper, so no zone is ever read off it.
+  if (shopper && Number.isInteger(shopper.cents) && shopper.cents > 0 && !item.weighed && !tooThin) {
     const from = (shopper.currency ?? currency).trim().toUpperCase() || currency;
     const rate = from === currency ? 1 : deps.fxRates?.[from];
     if (typeof rate === 'number' && Number.isFinite(rate) && rate > 0) {
@@ -1226,7 +1298,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   };
   return {
     verdict,
-    trace: { tried, claude: claudeTrace, conflict, sorted, name, brand, size: sizeText, ownShops: basis === 'own_prices' ? ownShops.length : 0 },
+    trace: { tried, claude: claudeTrace, conflict, sorted, name, brand, size: sizeText, ownShops: basis === 'own_prices' ? ownShops.length : 0, widePool: aside.pool, tooThin },
   };
 }
 

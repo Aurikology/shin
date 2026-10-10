@@ -20,6 +20,7 @@ import {
   correctionsFor,
   openCorrectionStore,
   recordCorrection,
+  reliabilityOf,
   witnessesFor,
   CORROBORATION_TOLERANCE,
   type CorrectionInput,
@@ -113,4 +114,45 @@ test('the same phone twice plus one other is two witnesses, not three', () => {
   recordCorrection(input({ deviceId: 'device-b', seenOn: '2026-09-06' }));
   // Distinct devices, counted as a set. Two people saw this shelf.
   assert.deepEqual(new Set(counts().map((c) => c.witnesses)), new Set([2]));
+});
+
+/*
+ * D-059, the half the founder had to decide (decided 2026-10-10, stated to
+ * Jamin): a witness is the invite code the server already checks, and the
+ * device id only when the server requires no invite. A device id is
+ * `crypto.randomUUID()` from the phone's own storage, so two made-up ids under
+ * one invite are one person and must not corroborate each other.
+ */
+test('D-059: two device ids under one invite are one witness, not two', () => {
+  fresh();
+  recordCorrection(input({ deviceId: 'device-a', witness: 'aurik' }));
+  recordCorrection(input({ deviceId: 'device-b', witness: 'aurik' }));
+  assert.deepEqual(counts().map((c) => c.witnesses), [1, 1]);
+});
+
+test('D-059: two invites are two witnesses; an invite never equals a device id of the same text', () => {
+  fresh();
+  recordCorrection(input({ deviceId: 'device-a', witness: 'aurik' }));
+  recordCorrection(input({ deviceId: 'device-b', witness: 'family' }));
+  assert.deepEqual(counts().map((c) => c.witnesses), [2, 2]);
+  fresh();
+  recordCorrection(input({ deviceId: 'aurik', witness: null }));
+  recordCorrection(input({ deviceId: 'device-b', witness: 'aurik' }));
+  assert.deepEqual(counts().map((c) => c.witnesses), [2, 2]);
+});
+
+test('D-059: with no invite required the device id is still the witness, as before', () => {
+  fresh();
+  recordCorrection(input({ deviceId: 'device-a', witness: null }));
+  recordCorrection(input({ deviceId: 'device-b' }));
+  assert.deepEqual(counts().map((c) => c.witnesses), [2, 2]);
+});
+
+test('D-059: a reporter\'s reliability is not earned from a second device under its own invite', () => {
+  const s = fresh();
+  recordCorrection(input({ deviceId: 'device-a', witness: 'aurik' }));
+  recordCorrection(input({ deviceId: 'device-b', witness: 'aurik' }));
+  assert.equal(reliabilityOf('device-a', s).corroborated, 0);
+  recordCorrection(input({ deviceId: 'device-c', witness: 'family' }));
+  assert.equal(reliabilityOf('device-a', s).corroborated, 1);
 });

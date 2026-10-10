@@ -139,7 +139,24 @@ const LATER = new Set(['monthly_cap_reached', 'rate_limited', 'cap_store_error',
 
 /** The ui-strings.js key for a null range. Never the code itself. */
 export function noRangeKey(reason) {
+  // D-233: the only Pexi basis was a pool too wide to mean anything, and nothing else answered.
+  if (reason === 'pool_too_wide') return 'cat_too_thin';
   return LATER.has(reason) ? 'cat_no_range_later' : 'cat_no_range';
+}
+
+/** Most set-aside prices listed, the same cap as the verdict's own dots. */
+export const MAX_POOL_PRICES = 12;
+
+/**
+ * D-233: the prices of similar items the server set aside as too wide to price
+ * this one (`answer.widePool.cents`), as whole positive cents, in the order sent,
+ * at most MAX_POOL_PRICES. Context only: never a centre, a range or a zone.
+ * Anything else in the list is dropped; no pool is an empty list.
+ */
+export function poolCents(answer) {
+  const cents = answer?.widePool?.cents;
+  if (!Array.isArray(cents)) return [];
+  return cents.filter((c) => Number.isInteger(c) && c > 0).slice(0, MAX_POOL_PRICES);
 }
 
 /**

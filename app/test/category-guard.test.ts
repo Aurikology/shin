@@ -150,7 +150,7 @@ function obs(code: string, cents: number, sku: string): ObservationRow {
   };
 }
 
-/** Five 500 g products on `othersPath`, one price each; the scanned product is in the catalogue on `selfPath`. */
+/** Five 500 g products on `othersPath`, one price each (a narrow pool, D-233); the scanned product is in the catalogue on `selfPath`. */
 function world(selfPath: string[], othersPath: string[]): { prices: DatabaseSync; catalogue: DatabaseSync } {
   const prices = openPrices(':memory:');
   const catalogue = new DatabaseSync(':memory:');
@@ -161,7 +161,8 @@ function world(selfPath: string[], othersPath: string[]): { prices: DatabaseSync
   for (let i = 0; i < 5; i++) {
     const code = String(1000 + i).padStart(13, '0');
     ins.run(code, 'other', '500 g', 500, 'g', JSON.stringify(othersPath), othersPath[othersPath.length - 1]!);
-    recordObservation(prices, obs(code, 400 + i * 100, `s${i}`));
+    // 400..480: narrow enough for the D-233 width flag, so the rung really answers.
+    recordObservation(prices, obs(code, 400 + i * 20, `s${i}`));
   }
   return { prices, catalogue };
 }
@@ -199,7 +200,7 @@ test('B2 wiring: the range ladder gets the guard\'s taxonomy, so the parent rung
     for (let i = 0; i < 5; i++) {
       const code = String(2000 + i).padStart(13, '0');
       ins.run(code, 'cheese', '500 g', 500, 'g', JSON.stringify(GOOD_OTHERS), 'en:cheeses');
-      recordObservation(w.prices, obs(code, 900 + i * 100, `c${i}`));
+      recordObservation(w.prices, obs(code, 900 + i * 50, `c${i}`));
     }
     return w;
   };

@@ -134,6 +134,8 @@ export function fileTypedReport(input: TypedReportInput, deps: TypedReportDeps =
     kind: input.kind,
     seenOn: input.seenOn,
     ...(input.seenAt !== undefined ? { seenAt: input.seenAt } : {}),
+    // D-059: the invite the server checked, never anything the body says (invite.ts `reportWitness`).
+    witness: input.witness ?? null,
     capture: SHOPPER_REPORT_CAPTURE,
   });
   if (result.ok && !result.alreadyStored) {
@@ -157,6 +159,8 @@ export interface ShelfPriceInput {
   readonly storeName: string | null;
   readonly code: string | null;
   readonly today: string;
+  /** D-059: the invite the request came through (invite.ts `reportWitness`), or null when none is required. */
+  readonly witness?: string | null;
 }
 
 export type ShelfPriceResult =
@@ -207,6 +211,7 @@ export function recordShelfPrice(input: ShelfPriceInput): ShelfPriceResult {
     priceCents: cents,
     kind: 'regular',
     seenOn: input.today,
+    witness: input.witness ?? null,
   });
   return {
     stored: true,

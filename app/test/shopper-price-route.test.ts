@@ -420,3 +420,41 @@ test('D09: a thumb on a catalogue answer is stored against its scan, with an opt
   assert.equal(row.reason, 'wrong_price');
   assert.equal(getScan(scanId)!.device_id, 'sp-f');
 });
+
+/* ---------------------------------------------------------------- D-059 -- */
+
+/*
+ * D-059, decided 2026-10-10 (stated to Jamin): a report's witness is the invite
+ * code the server already checks (`inviteWho`), and the device id only when no
+ * invite is required. Two made-up device ids under one invite are one witness,
+ * on both routes a typed price enters by.
+ */
+test('D-059: two device ids under one invite code count as one witness, on /api/correction and /api/scan-price', async () => {
+  const { witnessesFor } = await import('../../price/src/corrections.ts');
+  const invite = { 'x-shin-invite': 'wit-code-1' };
+  const send = async (path: string, body: unknown) => {
+    const r = await fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...invite }, body: JSON.stringify(body) });
+    return (await r.json()) as Record<string, any>;
+  };
+  process.env.SHIN_INVITES = 'aurik:wit-code-1';
+  try {
+    for (const d of ['wit-a', 'wit-b']) {
+      const res = await send('/api/correction', { clientId: `${d}-1`, deviceId: d, code: CODE, productId: null, seller: 'Witness Mart', priceCents: 455, kind: 'regular', seenOn: today });
+      assert.equal(res.stored, true, JSON.stringify(res));
+    }
+    for (const d of ['wit-c', 'wit-d']) {
+      const r = await fetch(`${base}/api/identify?gtin=${CODE}&deviceId=${d}&countryCode=CA`, { headers: invite });
+      assert.equal(r.status, 200);
+      const scanId = ((await r.json()) as Record<string, unknown>).scanId as number;
+      const res = await send('/api/scan-price', { deviceId: d, scanId, priceCents: 777, storeName: 'Witness Two' });
+      assert.equal(res.report?.stored, true, JSON.stringify(res));
+    }
+  } finally {
+    delete process.env.SHIN_INVITES;
+  }
+  for (const shop of ['Witness Mart', 'Witness Two']) {
+    const rows = correctionsFor({ code: CODE }).filter((r) => r.seller === shop);
+    assert.equal(rows.length, 2, shop);
+    assert.deepEqual([...witnessesFor(rows).values()], [1, 1], `${shop}: one invite is one witness`);
+  }
+});
