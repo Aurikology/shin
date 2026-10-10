@@ -19,8 +19,22 @@ import net from 'node:net';
 import { fileURLToPath } from 'node:url';
 process.env.SHIN_CATALOGUE_FIRST = '0'; // the Gemini path these tests pin; catalogue first is on by default since 2026-09-28
 
-const PORT = 4179; // Not 4173: a dev server may be running while tests do.
+// A port nobody is on, asked of the OS rather than guessed (D-106): a fixed
+// number collides with whatever else is listening, a dev server on 4173 or a
+// second run of this file. Same probe body-cap.test.mjs uses.
+let PORT;
 let server;
+
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const probe = net.createServer();
+    probe.on('error', reject);
+    probe.listen(0, '127.0.0.1', () => {
+      const { port } = probe.address();
+      probe.close(() => resolve(port));
+    });
+  });
+}
 
 const raw = (lines) =>
   new Promise((resolve) => {
@@ -82,6 +96,7 @@ const alive = async () => {
 };
 
 before(async () => {
+  PORT = await freePort();
   server = spawn(process.execPath, [fileURLToPath(new URL('../server.ts', import.meta.url))], {
     env: { ...process.env, PORT: String(PORT) },
     stdio: 'ignore',

@@ -196,9 +196,11 @@ export interface BarcodeFacts {
  * listing itself states, not a judgment of the price.
  *
  * ASKED FOR RATHER THAN INFERRED. This app cannot look at a retailer name and
- * decide "that one is a marketplace" afterwards, because deciding anything
- * about a Grounded Result on our side is the analysis the terms forbid. The
- * question goes in the request or it does not get answered.
+ * decide "that one is a marketplace" afterwards. Since the 2026-09-15 overrule
+ * (file header) analysing a Grounded Result here is a terms crossing left
+ * working on purpose, but a guess from a retailer's name is still worse than
+ * the listing stating the fact. The question goes in the request or it does
+ * not get answered.
  */
 export interface PriceOffer {
   readonly retailer: string;

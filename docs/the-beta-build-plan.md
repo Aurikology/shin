@@ -116,7 +116,7 @@ a. Vendor the EfficientNet-Lite0 model file; the classifier code already ships i
 b. Map the 1,000 labels to fruit, packaged, tech, other.
 d. Measure on the extended eval set: routing accuracy and credits saved.
 
-**24. Photo verification against the catalogue's image.** paused with the image catalogue
+**24. Photo verification against the catalogue's image.** paused: there is no image catalogue (image_url empty, 0 of 212,340 rows when measured 2026-09-13)
 a. No steps. Reopens on a measured top-1 below the floor after the pick pass.
 
 **25. Open Food Facts quality fields.** repo

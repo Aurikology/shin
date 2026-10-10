@@ -19,7 +19,7 @@
  * `byGtin`, on the strength of it costing 0.2 ms against 5,182,591 rows; a search
  * that can fall through to a full scan was moved to a worker for the same reason
  * in reverse. This query is fine to sit next to `byGtin` on that same thread only
- * because the table it reads is 896 rows today: a single indexed IN-clause read
+ * because the table it reads is small: a single indexed IN-clause read
  * over that is not in the same class as a linear scan of the catalogue. It does
  * NOT stay fine by construction -- the price table grows with every crawl and
  * nothing here will announce the day its scan time stops being negligible. If

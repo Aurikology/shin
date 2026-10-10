@@ -549,6 +549,43 @@ test('every dot carries its quantity, the large one included, and the zones carr
   assert.ok(!/factually/i.test(caption), 'the word "factually" is a claim about correctness that nothing here has measured.');
 });
 
+/**
+ * Every piece of Pexi's own text in a rendered section (D-116): the
+ * textContent of every element outside the Google root ([data-no-track], the
+ * block Google owns and Pexi may not grade), found by walking the section and
+ * not by a list of class names. A hand-listed set of selectors passes any
+ * sentence added under a class nobody listed.
+ */
+const pexiTexts = (section) => {
+  // An ancestor's textContent includes the Google block nested in it, so the
+  // text is rebuilt here with that subtree left out.
+  const ours = (node) => (node.hasAttribute?.('data-no-track')
+    ? ''
+    : node.childNodes.length === 0 ? node.textContent : node.childNodes.map(ours).join(''));
+  const out = new Set();
+  for (const node of section.all()) {
+    if (node.closest('[data-no-track]')) continue;
+    const text = ours(node).trim();
+    if (text !== '') out.add(text);
+  }
+  return [...out];
+};
+
+test('the ban sweep reads a sentence under a class nobody listed (D-116)', async () => {
+  const { section } = await renderSection(WIRE(), { shelfLabel: '6 x 355 mL, $6.19' });
+  const planted = section.ownerDocument?.createElement
+    ? section.ownerDocument.createElement('p')
+    : null;
+  assert.ok(planted, 'the fixture could not make an element, so the canary proves nothing.');
+  planted.setAttribute('class', 'invented-class-nobody-listed');
+  planted.textContent = 'What a bargain.';
+  section.appendChild(planted);
+  assert.ok(
+    pexiTexts(section).some((t) => /bargain/.test(t)),
+    'a sentence under a class the sweep does not name was not swept. Pexi text must be read by walking the section, not by a list of selectors.',
+  );
+});
+
 test('the zone words and the large dot reading name the user\'s line, never a grading of the price', async () => {
   const { setLocale } = await import('../public/js/ui-strings.js');
   /*
@@ -559,7 +596,11 @@ test('the zone words and the large dot reading name the user\'s line, never a gr
    * docs/plan-always-a-price.md section 3 plus hard rule 2.
    */
   const BANNED = {
-    en: ['good', 'fair', 'high', 'higher', 'walk away', 'deal', 'cheap', 'cheaper', 'expensive',
+    // "good" is not here (D-116): RULINGS.md, "The verdict speaks his words
+    // against the shopper's own thresholds" (2026-09-30), makes great, good,
+    // reasonable and bad the verdict's zone words. This section still names
+    // only the shopper's own line, so nothing here uses them today.
+    en: ['fair', 'high', 'higher', 'walk away', 'deal', 'cheap', 'cheaper', 'expensive',
       'overpriced', 'steal', 'steep', 'bargain', 'rip-off', 'ripoff', 'robbery',
       'over the usual', 'under the usual'],
     fr: ['cher', 'chère', 'chers', 'chères', 'bon prix', 'aubaine', 'salé', 'salée', 'élevé',
@@ -575,30 +616,17 @@ test('the zone words and the large dot reading name the user\'s line, never a gr
   for (const id of ['en', 'fr']) {
     setLocale(id);
     const { section } = await renderSection(WIRE(), { locale: id, shelfLabel: '6 x 355 mL, $6.19' });
-    const words = [
-      ...section.querySelectorAll('.pl-zone-word').map((n) => n.textContent),
-      ...section.querySelectorAll('.pl-label').map((n) => n.textContent),
-      section.querySelector('.pl-caption').textContent,
-      section.querySelector('.grounded-heading').textContent,
-      section.querySelector('.grounded-nolink').textContent,
-      /*
-       * D-113's two new sentences. They are absent from THIS fixture, which
-       * draws a full line, so they are collected from a second render below
-       * as well -- but they are named here so that the next person adding a
-       * selector to this list finds them already in it.
-       */
-      ...[...section.querySelectorAll('.grounded-no-line')].map((n) => n.textContent),
-      ...[...section.querySelectorAll('.grounded-line-thin')].map((n) => n.textContent),
-    ];
+    const words = [...pexiTexts(section)];
     // The no-line sentences, rendered for real, in the same locale.
     const noLine = NO_LINE_WIRE('no_offers_on_line');
     const { section: bare } = await renderSection(noLine, { locale: id });
-    for (const n of [...bare.querySelectorAll('.grounded-no-line')]) words.push(n.textContent);
+    assert.ok(bare.querySelectorAll('.grounded-no-line').length > 0, `${id}: the no-line sentence did not render, so the ban check saw nothing`);
+    words.push(...pexiTexts(bare));
     // The same-store line, with and without a date, rendered for real.
     const { section: twice } = await renderSection(SAME_STORE_WIRE(), { locale: id });
     const twiceLines = [...(twice.querySelector('.grounded-same-store')?.querySelectorAll('li') ?? [])];
     assert.equal(twiceLines.length, 2, `${id}: the same-store lines did not render, so the ban check saw nothing`);
-    for (const n of twiceLines) words.push(n.textContent);
+    words.push(...pexiTexts(twice));
     for (const line of words) {
       for (const word of BANNED[id]) {
         if (boundaried(word).test(line)) bad.push(`${id}: "${word}" in ${JSON.stringify(line)}`);

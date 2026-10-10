@@ -7,6 +7,19 @@ consumes; `SCOREBOARD.md` and `DEFECTS.md` are what it reads and writes.
 This is the loop from `pages/shin-terminating-loop.html`, written as something a person
 actually runs. If the two disagree, the plan wins and this file gets fixed.
 
+This file is the one procedure for a pass. `.claude/skills/weekly-pass/SKILL.md` is a pointer
+here (D-054) so the pass still triggers by name; it defines nothing of its own.
+
+**The point of the loop is that it ends.** A pass that neither ships nor kills anything is a
+failure of the pass, not a slow week. Use it whenever he asks what to work on next, at the start
+of a working session on Shin, or when the plan feels stuck.
+
+**`NOW.md` wins on the current state.** If it disagrees with any other document about where
+things stand, it wins; if it is stale, fixing it is the first thing the pass does. The band
+ordering in the master plan was superseded 2026-09-04 by him (`QUEUE.md`'s own header): iterating
+is cheaper than the gate assumed, so later bands (7, 7B, the catalogue work) run while earlier
+ones are still open. Read `NOW.md` for what is actually current before picking an item.
+
 ---
 
 ## Gate: what must be true before the pass starts
@@ -63,6 +76,10 @@ than reworded.
 
 If the falsifier cannot be written, stop. The item is not understood well enough to build and
 understanding it is now the item.
+
+For most items the one question that can kill them is "can this be priced at all". Answer it
+with the `price-by-hand` skill, not by reasoning, before building anything. Ship the smallest
+thing that survives the question, or kill the item and write the condition that reverses it.
 
 ## Step 3. Build it
 
@@ -144,6 +161,12 @@ it out.
    `cd spine && npm run corpus -- --write`. It writes
    `scoreboard\<date>-corpus.json` and appends a row to `SCOREBOARD.md`.
 5. Update the stall counter below.
+6. Record shipped, killed and parked items in `docs/decisions.md`, a parked one with its
+   promoting condition and a killed one with the condition that reverses it. A kill with no
+   reversing condition is a wall, and this project has none except legal ones. Re-entry costs
+   new evidence from outside this repo, never a new opinion.
+7. Update `NOW.md` so it describes the state after this pass, then say in one line what shipped
+   and what died.
 
 ---
 
@@ -175,6 +198,18 @@ thousand downloads, 0.57% of non-gaming apps ever earn a hundred thousand dollar
 that improves while you build.
 
 Count band 3 passes from the first pass that takes a band 3 lane, not from the first pass overall.
+Eight passes without the floor shipping means it was mis-specified, and that is a judgment call
+to bring to him, not a rule to follow silently.
+
+---
+
+## What a pass is not
+
+- Not a status update. If nothing changed state, there is nothing to report and no pass happened.
+- Not a replan. Capturing something new does not re-fit the work; that happens only when he asks
+  or when `NOW.md` changes.
+- Not a place to add features. An item not already in `QUEUE.md` enters through a decision
+  record, with the evidence that put it there.
 
 ---
 
