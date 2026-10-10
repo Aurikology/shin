@@ -259,9 +259,11 @@ humans, the loop is decoration and every mechanism failed at once. Two columns, 
 | D-231 | 2026-10-10 | **Critical.** On the live Mac server every scan's range fails with "no such table: observation", so Pexi's own prices never reach a shopper and every range shown is the model estimate. Also on every row: `range_source` logs `gemini_typical` for what is a Claude call, and `verdict_zone` is null on all five test rows. Not cleared by 4625ef5. Design or ruling: RULINGS.md "Catalogue first" (the range comes from Pexi's own data by math first). | **Agent**, Mac live end-to-end run 2026-10-10 17:13-17:17 UTC, scans 88 to 92 (mail 20261010171944-mac-7f4d6b). | open |
 | D-232 | 2026-10-10 | **Minor.** The camera's barcode reader (zxing) never emits an EAN-13 whose check digit fails, so the new misread wait ("A scan never ends with no result") cannot start from a damaged EAN-13: the camera keeps aiming with nothing on screen. Reached only through ITF or Code 128 in both test runs. Design or ruling: RULINGS.md "A scan never ends with no result". | **Agent**, PC and Mac end-to-end runs 2026-10-10. | open |
 
-Counts so far: **232 rows.** The total is counted from the rows themselves
-(`grep -cE "^\| D-[0-9]{3} \|"`) and the highest id is D-232, so it is checkable in one command.
-One of the 232, D-170, is recorded as not a defect. D-165 to D-207 came from the 2026-10-06
+| D-233 | 2026-10-10 | **Critical (calibration).** With Pexi's own prices installed on the live Mac (D-231), an item with no price of its own is priced from a parent-category pool too wide to mean anything, and the headline still says "Great price": live scan 109, 7 prices from $7.18 to $142.49 gave "84% under, Pexi's estimate $31.99" for a $4.99 item; PC end-to-end, Oreo Sea Salt Coconut got $8.78 to $73.90, typical $25.47, "Great price" at $3.99. The width flag (price/src/width-flag.ts, p90/p10 above 1.5x) exists and nothing in the answer path calls it. Design or ruling: RULINGS.md "How Shin predicts a price it has not seen" (a wide group is split further) and "Catalogue first" (when Pexi has no price, Claude gives the typical range). | **Agent**, Mac live run scan 109 and the PC end-to-end run, 2026-10-10. | open |
+
+Counts so far: **233 rows.** The total is counted from the rows themselves
+(`grep -cE "^\| D-[0-9]{3} \|"`) and the highest id is D-233, so it is checkable in one command.
+One of the 233, D-170, is recorded as not a defect. D-165 to D-207 came from the 2026-10-06
 end-to-end walkthrough (`docs/walkthrough-e2e-2026-10-06.md`, 43 defects D01 to D43) plus D-207, the
 name. Its D14 was already listed, so D-157 was updated instead of getting a new row; D15 and D25
 extend D-031 and D-050 and carry cross-references both ways. Walkthrough D01 to D13 are D-165 to
