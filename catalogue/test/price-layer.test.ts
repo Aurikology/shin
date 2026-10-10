@@ -96,7 +96,7 @@ test('1.6 control: the counter and the hook are live, so a placement call would 
     calls += 1;
   });
   try {
-    placeItem(db, 'UN0', 'en:yogurts', 'test');
+    placeItem(db, 'UN0', 'en:yogurts', 'test', 1);
   } finally {
     setPlacementCallHook(null);
   }
@@ -208,7 +208,7 @@ test('1.7 50 random past lookups replay exactly against their versions after a l
   const v1 = rebuildPriceLayer(db, { prices: pricesFor(codes, 8), builtAt: '2026-10-09T00:00:00Z', ...quiet });
   for (let i = 0; i < 40; i++) answerIds.push(recordLookup(db, lookupGroup(db, codes[Math.floor(r() * codes.length)]!), `2026-10-09T01:${String(i).padStart(2, '0')}:00Z`));
   // Between versions, Stage 3 moves items out of "unplaced", and prices change.
-  for (let i = 0; i < 10; i++) placeItem(db, `UN${i}`, 'en:yogurts', 'test');
+  for (let i = 0; i < 10; i++) placeItem(db, `UN${i}`, 'en:yogurts', 'test', 1);
   const v2 = rebuildPriceLayer(db, { prices: pricesFor(codes, 9), builtAt: '2026-10-10T00:00:00Z', ...quiet });
   for (let i = 0; i < 40; i++) answerIds.push(recordLookup(db, lookupGroup(db, codes[Math.floor(r() * codes.length)]!), `2026-10-10T01:${String(i).padStart(2, '0')}:00Z`));
   rebuildPriceLayer(db, { prices: pricesFor(codes, 10), builtAt: '2026-10-11T00:00:00Z', ...quiet });
@@ -233,7 +233,7 @@ test('1.7 an unplaced item\'s past answer replays as unplaced even after it is p
   const { db, codes } = fixture();
   rebuildPriceLayer(db, { prices: pricesFor(codes, 11), builtAt: '2026-10-09T00:00:00Z', ...quiet });
   const id = recordLookup(db, lookupGroup(db, 'UN3'), '2026-10-09T01:00:00Z');
-  placeItem(db, 'UN3', 'en:cheddar', 'test');
+  placeItem(db, 'UN3', 'en:cheddar', 'test', 1);
   rebuildPriceLayer(db, { prices: pricesFor(codes, 12), builtAt: '2026-10-10T00:00:00Z', ...quiet });
   const rep = replayLookup(db, id);
   assert.equal(rep.same, true);

@@ -62,6 +62,15 @@
  * a build the paths are counted and any item with 0 or 2+ paths, or a chain that
  * does not reach the top, stops it. Every count is printed every run.
  *
+ * LEVEL AND CONFIDENCE (Stage 3, requirement 2.3). Every placement row carries the
+ * level of its node (its depth: 0 for the department itself) and a confidence
+ * between 0 and 1; an unplaced row carries neither. The triggers refuse anything
+ * else, and placement_log records both. A 'path' placement records
+ * SOURCE_LABEL_CONFIDENCE: the source's label taken as given, not a measured rate.
+ * Stage 3 placers write through `placeOnNode` (a category node or the department's
+ * own node, the top level); a layer built before these columns is upgraded by
+ * `ensurePlacementSchema`.
+ *
  * PLACEMENT CALLS ARE COUNTED. Every item placed by code goes through
  * `recordPlacementCall` (a process counter and an optional hook), so the price
  * layer's rebuild can prove it placed nothing (1.6).
@@ -78,6 +87,17 @@ export const UNPLACED_TAG = '@unplaced';
 export const DEPARTMENT_TAG = '@department';
 /** The department of a row whose source names none. */
 export const NO_DEPARTMENT = '@none';
+
+/**
+ * The confidence recorded on a placement read from the item's own stored path
+ * (placed_by 'path'). It is the SOURCE's label taken as given, not a measured
+ * confidence: how often those labels are wrong is the answer key audit's question
+ * (requirement 7.7), and until it is measured this says only "the source said so".
+ */
+export const SOURCE_LABEL_CONFIDENCE = 1;
+
+/** Placers only the Stage 2 build may name. */
+const BUILD_PLACERS = new Set(['unplaced', 'path']);
 
 /** What each source's rows are. The department is read from the row's own `source`. */
 export const DEPARTMENT_OF_SOURCE: Readonly<Record<string, string>> = {
@@ -165,17 +185,21 @@ CREATE TABLE IF NOT EXISTS placement_node (
 ) STRICT;
 
 CREATE TABLE IF NOT EXISTS item_placement (
-  code      TEXT PRIMARY KEY,
-  leaf_id   INTEGER NOT NULL REFERENCES placement_node(node_id),
-  placed_by TEXT NOT NULL
+  code       TEXT PRIMARY KEY,
+  leaf_id    INTEGER NOT NULL REFERENCES placement_node(node_id),
+  placed_by  TEXT NOT NULL,
+  level      INTEGER,
+  confidence REAL
 ) STRICT, WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS item_placement_leaf ON item_placement(leaf_id);
 
 CREATE TABLE IF NOT EXISTS placement_log (
-  seq       INTEGER PRIMARY KEY AUTOINCREMENT,
-  code      TEXT NOT NULL,
-  leaf_id   INTEGER NOT NULL,
-  placed_by TEXT NOT NULL
+  seq        INTEGER PRIMARY KEY AUTOINCREMENT,
+  code       TEXT NOT NULL,
+  leaf_id    INTEGER NOT NULL,
+  placed_by  TEXT NOT NULL,
+  level      INTEGER,
+  confidence REAL
 );
 CREATE INDEX IF NOT EXISTS placement_log_code ON placement_log(code, seq);
 
@@ -216,6 +240,15 @@ BEGIN
    WHERE NEW.leaf_id IS NOT NULL
      AND (SELECT department FROM placement_node WHERE node_id = NEW.leaf_id) IS NOT
          COALESCE((SELECT d.department FROM product p JOIN placement_department_source d ON d.source = p.source WHERE p.code = NEW.code), '@none');
+  SELECT RAISE(ABORT, 'item_placement: placed_by unplaced belongs on an unplaced node, and only there')
+   WHERE NEW.leaf_id IS NOT NULL AND (NEW.placed_by = 'unplaced') IS NOT ((SELECT kind FROM placement_node WHERE node_id = NEW.leaf_id) = 'unplaced');
+  SELECT RAISE(ABORT, 'item_placement: an unplaced item carries no level and no confidence')
+   WHERE NEW.placed_by = 'unplaced' AND (NEW.level IS NOT NULL OR NEW.confidence IS NOT NULL);
+  SELECT RAISE(ABORT, 'item_placement: every placement carries its level (the depth of its node) and a confidence between 0 and 1')
+   WHERE NEW.placed_by <> 'unplaced' AND NEW.leaf_id IS NOT NULL
+     AND (NEW.level IS NOT (SELECT depth FROM placement_node WHERE node_id = NEW.leaf_id)
+          OR NEW.confidence IS NULL OR typeof(NEW.confidence) NOT IN ('real', 'integer')
+          OR NEW.confidence < 0 OR NEW.confidence > 1);
 END;
 
 CREATE TRIGGER IF NOT EXISTS item_placement_update BEFORE UPDATE ON item_placement
@@ -229,6 +262,15 @@ BEGIN
    WHERE NEW.leaf_id IS NOT NULL
      AND (SELECT department FROM placement_node WHERE node_id = NEW.leaf_id) IS NOT
          COALESCE((SELECT d.department FROM product p JOIN placement_department_source d ON d.source = p.source WHERE p.code = NEW.code), '@none');
+  SELECT RAISE(ABORT, 'item_placement: placed_by unplaced belongs on an unplaced node, and only there')
+   WHERE NEW.leaf_id IS NOT NULL AND (NEW.placed_by = 'unplaced') IS NOT ((SELECT kind FROM placement_node WHERE node_id = NEW.leaf_id) = 'unplaced');
+  SELECT RAISE(ABORT, 'item_placement: an unplaced item carries no level and no confidence')
+   WHERE NEW.placed_by = 'unplaced' AND (NEW.level IS NOT NULL OR NEW.confidence IS NOT NULL);
+  SELECT RAISE(ABORT, 'item_placement: every placement carries its level (the depth of its node) and a confidence between 0 and 1')
+   WHERE NEW.placed_by <> 'unplaced' AND NEW.leaf_id IS NOT NULL
+     AND (NEW.level IS NOT (SELECT depth FROM placement_node WHERE node_id = NEW.leaf_id)
+          OR NEW.confidence IS NULL OR typeof(NEW.confidence) NOT IN ('real', 'integer')
+          OR NEW.confidence < 0 OR NEW.confidence > 1);
 END;
 
 CREATE TRIGGER IF NOT EXISTS item_placement_no_delete BEFORE DELETE ON item_placement
@@ -239,12 +281,13 @@ END;
 
 CREATE TRIGGER IF NOT EXISTS item_placement_log_insert AFTER INSERT ON item_placement
 BEGIN
-  INSERT INTO placement_log (code, leaf_id, placed_by) VALUES (NEW.code, NEW.leaf_id, NEW.placed_by);
+  INSERT INTO placement_log (code, leaf_id, placed_by, level, confidence) VALUES (NEW.code, NEW.leaf_id, NEW.placed_by, NEW.level, NEW.confidence);
 END;
 CREATE TRIGGER IF NOT EXISTS item_placement_log_update AFTER UPDATE ON item_placement
 WHEN OLD.leaf_id IS NOT NEW.leaf_id OR OLD.placed_by IS NOT NEW.placed_by OR OLD.code IS NOT NEW.code
+  OR OLD.level IS NOT NEW.level OR OLD.confidence IS NOT NEW.confidence
 BEGIN
-  INSERT INTO placement_log (code, leaf_id, placed_by) VALUES (NEW.code, NEW.leaf_id, NEW.placed_by);
+  INSERT INTO placement_log (code, leaf_id, placed_by, level, confidence) VALUES (NEW.code, NEW.leaf_id, NEW.placed_by, NEW.level, NEW.confidence);
 END;
 
 CREATE TRIGGER IF NOT EXISTS placement_log_no_update BEFORE UPDATE ON placement_log
@@ -313,6 +356,38 @@ function tx<T>(db: DatabaseSync, work: () => T): T {
   }
 }
 
+/**
+ * Brings a placement layer written before level and confidence existed (Stage 2,
+ * 2026-10-09) up to this shape: adds the two columns to item_placement and
+ * placement_log, recreates the four triggers that read them, and fills level and
+ * confidence on every 'path' placement. A placement by any other placer has no
+ * confidence anyone recorded, and this STOPS rather than invent one.
+ */
+function migrateLevelConfidence(db: DatabaseSync): void {
+  const cols = (t: string) => (db.prepare(`PRAGMA table_info(${t})`).all() as unknown as { name: string }[]).map((c) => c.name);
+  const ip = cols('item_placement');
+  if (ip.length === 0 || ip.includes('level')) return;
+  const other = db
+    .prepare(`SELECT placed_by, count(*) AS n FROM item_placement WHERE placed_by NOT IN ('unplaced', 'path') GROUP BY placed_by`)
+    .all() as unknown as { placed_by: string; n: number }[];
+  if (other.length > 0) {
+    throw new Error(
+      `placement: cannot add level and confidence: ${other.map((o) => `${o.n} placed by "${o.placed_by}"`).join(', ')} carry no recorded confidence; re-place them explicitly`,
+    );
+  }
+  for (const t of ['item_placement_insert', 'item_placement_update', 'item_placement_log_insert', 'item_placement_log_update']) db.exec(`DROP TRIGGER IF EXISTS ${t}`);
+  db.exec('ALTER TABLE item_placement ADD COLUMN level INTEGER');
+  db.exec('ALTER TABLE item_placement ADD COLUMN confidence REAL');
+  if (!cols('placement_log').includes('level')) {
+    db.exec('ALTER TABLE placement_log ADD COLUMN level INTEGER');
+    db.exec('ALTER TABLE placement_log ADD COLUMN confidence REAL');
+  }
+  db.prepare(
+    `UPDATE item_placement SET level = (SELECT depth FROM placement_node WHERE node_id = item_placement.leaf_id), confidence = ?
+      WHERE placed_by = 'path'`,
+  ).run(SOURCE_LABEL_CONFIDENCE);
+}
+
 function nodeId(db: DatabaseSync, department: string, tag: string): number | null {
   const r = db.prepare('SELECT node_id FROM placement_node WHERE department = ? AND tag = ?').get(department, tag) as { node_id: number } | undefined;
   return r ? r.node_id : null;
@@ -331,6 +406,7 @@ export interface EnsureResult {
  */
 export function ensurePlacementSchema(db: DatabaseSync): EnsureResult {
   return tx(db, () => {
+    migrateLevelConfidence(db);
     db.exec(DDL);
     const getSrc = db.prepare('SELECT department FROM placement_department_source WHERE source = ?');
     const putSrc = db.prepare('INSERT INTO placement_department_source (source, department) VALUES (?, ?)');
@@ -379,6 +455,10 @@ export interface PathCounts {
   readonly topLevelUnplaced: number;
   /** Items placed on a department node itself (top level only). */
   readonly placedAtTopOnly: number;
+  /** Placed items (not unplaced) missing a level or a confidence (requirement 2.3: must be 0). */
+  readonly placedWithoutLevelOrConfidence: number;
+  /** Items by the placer that placed them ('path', 'barcode', 'text', 'meaning', 'claude', 'top-level', 'unplaced', ...). */
+  readonly byPlacer: Readonly<Record<string, number>>;
 }
 
 /** Counts the paths per item from the database itself. Read only. */
@@ -415,7 +495,19 @@ export function countPaths(db: DatabaseSync): PathCounts {
       if (r.kind === 'department') placedAtTopOnly += r.n;
     }
   }
+  const placedWithoutLevelOrConfidence = one<{ n: number }>(
+    `SELECT count(*) AS n FROM item_placement WHERE placed_by <> 'unplaced' AND (level IS NULL OR confidence IS NULL)`,
+  ).n;
+  const byPlacer: Record<string, number> = {};
+  for (const r of db.prepare('SELECT placed_by, count(*) AS n FROM item_placement GROUP BY placed_by ORDER BY placed_by').all() as unknown as {
+    placed_by: string;
+    n: number;
+  }[]) {
+    byPlacer[r.placed_by] = r.n;
+  }
   return {
+    placedWithoutLevelOrConfidence,
+    byPlacer,
     products,
     withExactlyOnePath: products - withNoPath - withTwoOrMorePaths,
     withNoPath,
@@ -590,9 +682,9 @@ export function buildPlacement(db: DatabaseSync, options: BuildPlacementOptions 
   });
 
   // Pass 2: place every item on its leaf.
-  const leafOf = db.prepare('SELECT node_id FROM placement_node WHERE department = ? AND tag = ?');
-  const current = db.prepare('SELECT leaf_id, placed_by FROM item_placement WHERE code = ?');
-  const move = db.prepare('UPDATE item_placement SET leaf_id = ?, placed_by = ? WHERE code = ?');
+  const leafOf = db.prepare('SELECT node_id, depth FROM placement_node WHERE department = ? AND tag = ?');
+  const current = db.prepare('SELECT leaf_id, placed_by, level, confidence FROM item_placement WHERE code = ?');
+  const move = db.prepare('UPDATE item_placement SET leaf_id = ?, placed_by = ?, level = ?, confidence = ? WHERE code = ?');
   const unplacedId = new Map<string, number>();
   for (const r of db.prepare(`SELECT department, node_id FROM placement_node WHERE kind = 'unplaced'`).all() as unknown as { department: string; node_id: number }[]) {
     unplacedId.set(r.department, r.node_id);
@@ -621,30 +713,34 @@ export function buildPlacement(db: DatabaseSync, options: BuildPlacementOptions 
       for (const r of rows) {
         const dept = departmentOfSource(r.source);
         const tags = parseStoredPath(r.code, r.category_path);
-        const cur = current.get(r.code) as { leaf_id: number; placed_by: string } | undefined;
+        const cur = current.get(r.code) as { leaf_id: number; placed_by: string; level: number | null; confidence: number | null } | undefined;
         if (!cur) throw new Error(`placement: ${r.code} has no path after the schema was installed`);
         let target: number;
         let by: string;
+        let level: number | null = null;
+        let confidence: number | null = null;
         if (tags.length === 0 || dept === NO_DEPARTMENT) {
           target = unplacedId.get(dept)!;
           by = 'unplaced';
         } else {
-          const leaf = leafOf.get(dept, tags[tags.length - 1]!) as { node_id: number } | undefined;
+          const leaf = leafOf.get(dept, tags[tags.length - 1]!) as { node_id: number; depth: number } | undefined;
           if (!leaf) throw new Error(`placement: no node for ${dept} ${tags[tags.length - 1]} (${r.code})`);
           target = leaf.node_id;
           by = 'path';
+          level = leaf.depth;
+          confidence = SOURCE_LABEL_CONFIDENCE;
           if (chainOf(target).join('\u0000') !== tags.join('\u0000')) storedRouteDiffers += 1;
         }
         if (cur.placed_by !== 'unplaced' && cur.placed_by !== 'path') {
           keptOtherPlacer += 1;
           continue;
         }
-        if (cur.leaf_id === target && cur.placed_by === by) {
+        if (cur.leaf_id === target && cur.placed_by === by && cur.level === level && cur.confidence === confidence) {
           unchanged += 1;
           continue;
         }
         if (by === 'path') recordPlacementCall(r.code);
-        move.run(target, by, r.code);
+        move.run(target, by, level, confidence, r.code);
         placed += 1;
       }
     });
@@ -676,25 +772,48 @@ export function buildPlacement(db: DatabaseSync, options: BuildPlacementOptions 
   if (counts.withTwoOrMorePaths > 0) faults.push(`${counts.withTwoOrMorePaths} items with two or more paths`);
   if (counts.brokenChains > 0) faults.push(`${counts.brokenChains} items whose chain does not reach the top`);
   if (counts.orphanPlacements > 0) faults.push(`${counts.orphanPlacements} placements with no product`);
+  if (counts.placedWithoutLevelOrConfidence > 0) faults.push(`${counts.placedWithoutLevelOrConfidence} placements with no level or no confidence`);
   if (faults.length > 0) throw new Error(`placement FAILED: ${faults.join('; ')}`);
   return { ...summary, counts };
 }
 
 /**
  * Places one item on an existing category node of its own department (Stage 3's
- * door out of "unplaced"). Counted as a placement call. Throws for a reserved tag,
- * an unknown item, or a node that does not exist.
+ * door out of "unplaced"), with the confidence the placer has in it. Counted as a
+ * placement call. Throws for a reserved tag, an unknown item, or a node that does
+ * not exist.
  */
-export function placeItem(db: DatabaseSync, code: string, tag: string, placedBy: string): void {
+export function placeItem(db: DatabaseSync, code: string, tag: string, placedBy: string, confidence: number): void {
   assertPlacedCategory(tag);
-  if (placedBy === 'unplaced' || placedBy === 'path') throw new Error(`placeItem: "${placedBy}" is reserved for the build`);
   const p = db.prepare('SELECT source FROM product WHERE code = ?').get(code) as { source: string } | undefined;
   if (!p) throw new Error(`placeItem: no product ${code}`);
   const dept = departmentOfSource(p.source);
   const id = nodeId(db, dept, foldTag(tag));
   if (id === null) throw new Error(`placeItem: no node ${dept} ${tag}`);
+  placeOnNode(db, code, id, placedBy, confidence);
+}
+
+/**
+ * Places one item on a node by id: a category node, or its department's own node
+ * (the top level, level 0). The ONE write path Stage 3 placers use: the level is
+ * read from the node, the confidence is checked, the database's triggers check
+ * both again, and the move is appended to placement_log. "unplaced" and "path"
+ * are the build's own placer names and are refused here; so is an unplaced node.
+ */
+export function placeOnNode(db: DatabaseSync, code: string, id: number, placedBy: string, confidence: number): void {
+  if (typeof placedBy !== 'string' || placedBy.trim() === '' || BUILD_PLACERS.has(placedBy)) {
+    throw new Error(`placeOnNode: placer "${placedBy}" is reserved for the build (or empty)`);
+  }
+  if (typeof confidence !== 'number' || !Number.isFinite(confidence) || confidence < 0 || confidence > 1) {
+    throw new Error(`placeOnNode: confidence ${confidence} for ${code} is not a number between 0 and 1`);
+  }
+  const n = db.prepare('SELECT depth, kind FROM placement_node WHERE node_id = ?').get(id) as { depth: number; kind: string } | undefined;
+  if (!n) throw new Error(`placeOnNode: no node ${id}`);
+  if (n.kind === 'unplaced') throw new UnplacedCategoryError(`placeOnNode: node ${id} is an unplaced node; unplaced is never a place a placer puts an item`);
+  if (!db.prepare('SELECT 1 FROM item_placement WHERE code = ?').get(code)) throw new Error(`placeOnNode: ${code} has no placement row (no such product?)`);
   recordPlacementCall(code);
-  db.prepare('UPDATE item_placement SET leaf_id = ?, placed_by = ? WHERE code = ?').run(id, placedBy, code);
+  const r = db.prepare('UPDATE item_placement SET leaf_id = ?, placed_by = ?, level = ?, confidence = ? WHERE code = ?').run(id, placedBy, n.depth, confidence, code);
+  if (Number(r.changes) !== 1) throw new Error(`placeOnNode: ${code} was not updated (${r.changes} rows)`);
 }
 
 /* --------------------------------------------------------------- reading */

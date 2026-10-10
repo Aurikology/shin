@@ -185,7 +185,7 @@ test('1.1 installing the layer on a catalogue that already holds products gives 
 test('1.1 the database refuses a second path for an item', () => {
   const db = built();
   const node = (db.prepare(`SELECT node_id FROM placement_node WHERE department = 'food' AND tag = 'en:b'`).get() as { node_id: number }).node_id;
-  assert.throws(() => db.prepare(`INSERT INTO item_placement (code, leaf_id, placed_by) VALUES ('F1', ?, 'test')`).run(node), /UNIQUE|constraint/i);
+  assert.throws(() => db.prepare(`INSERT INTO item_placement (code, leaf_id, placed_by, level, confidence) VALUES ('F1', ?, 'test', 1, 1)`).run(node), /UNIQUE|constraint/i);
   assert.equal(countPaths(db).withExactlyOnePath, ROWS.length);
 });
 
@@ -310,9 +310,51 @@ test('1.1 every placement is counted (the 1.6 rebuild check reads this counter)'
   const before = placementCallCount();
   const node = (db.prepare(`SELECT node_id FROM placement_node WHERE department = 'food' AND tag = 'en:b'`).get() as { node_id: number }).node_id;
   assert.ok(node > 0);
-  placeItem(db, 'F7', 'en:b', 'test');
+  placeItem(db, 'F7', 'en:b', 'test', 1);
   assert.equal(placementCallCount(), before + 1);
   assert.deepEqual(pathOf(db, 'F7'), ['en:b']);
   assert.equal(countPaths(db).unplacedByDepartment.food, 1);
-  assert.throws(() => placeItem(db, 'F8', UNPLACED_TAG, 'test'), UnplacedCategoryError, 'placing INTO unplaced by name is refused; unplaced is where the database puts an item, not a category');
+  assert.throws(() => placeItem(db, 'F8', UNPLACED_TAG, 'test', 1), UnplacedCategoryError, 'placing INTO unplaced by name is refused; unplaced is where the database puts an item, not a category');
+});
+
+/* ------------------------ Stage 3: level and confidence on an older layer */
+
+test('2.3 a placement layer written before level and confidence existed is brought up to them; path placements get their depth and the source-label confidence', () => {
+  const db = catalogue([
+    { code: 'A', source: 'openfoodfacts', path: ['en:a', 'en:x'] },
+    { code: 'B', source: 'openfoodfacts', path: [] },
+  ]);
+  // The Stage 2 shape of 2026-10-09: no level, no confidence, and triggers that do not know them.
+  db.exec(`
+    CREATE TABLE placement_department_source (source TEXT PRIMARY KEY, department TEXT NOT NULL) STRICT;
+    CREATE TABLE placement_node (node_id INTEGER PRIMARY KEY, department TEXT NOT NULL, tag TEXT NOT NULL, parent_id INTEGER, depth INTEGER NOT NULL, kind TEXT NOT NULL, UNIQUE (department, tag)) STRICT;
+    CREATE TABLE item_placement (code TEXT PRIMARY KEY, leaf_id INTEGER NOT NULL, placed_by TEXT NOT NULL) STRICT, WITHOUT ROWID;
+    CREATE TABLE placement_log (seq INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL, leaf_id INTEGER NOT NULL, placed_by TEXT NOT NULL);
+    CREATE TRIGGER item_placement_log_insert AFTER INSERT ON item_placement BEGIN INSERT INTO placement_log (code, leaf_id, placed_by) VALUES (NEW.code, NEW.leaf_id, NEW.placed_by); END;
+    INSERT INTO placement_department_source VALUES ('openfoodfacts', 'food');
+    INSERT INTO placement_node VALUES (1, 'food', '@department', NULL, 0, 'department');
+    INSERT INTO placement_node VALUES (2, 'food', '@unplaced', 1, 1, 'unplaced');
+    INSERT INTO placement_node VALUES (3, 'food', 'en:a', 1, 1, 'category');
+    INSERT INTO placement_node VALUES (4, 'food', 'en:x', 3, 2, 'category');
+    INSERT INTO item_placement VALUES ('A', 4, 'path');
+    INSERT INTO item_placement VALUES ('B', 2, 'unplaced');
+  `);
+  ensurePlacementSchema(db);
+  const a = db.prepare(`SELECT level, confidence FROM item_placement WHERE code = 'A'`).get() as { level: number; confidence: number };
+  assert.deepEqual({ ...a }, { level: 2, confidence: 1 });
+  assert.equal(countPaths(db).placedWithoutLevelOrConfidence, 0);
+  assert.throws(() => db.exec(`UPDATE item_placement SET placed_by = 'test', level = 2, confidence = NULL WHERE code = 'A'`), /confidence/, 'the new triggers are in place');
+  const logCols = (db.prepare('PRAGMA table_info(placement_log)').all() as unknown as { name: string }[]).map((c) => c.name);
+  assert.ok(logCols.includes('level') && logCols.includes('confidence'));
+});
+
+test('2.3 the upgrade refuses to invent a confidence for an older placement by any other placer', () => {
+  const db = catalogue([{ code: 'A', source: 'openfoodfacts', path: [] }]);
+  db.exec(`
+    CREATE TABLE placement_node (node_id INTEGER PRIMARY KEY, department TEXT NOT NULL, tag TEXT NOT NULL, parent_id INTEGER, depth INTEGER NOT NULL, kind TEXT NOT NULL, UNIQUE (department, tag)) STRICT;
+    CREATE TABLE item_placement (code TEXT PRIMARY KEY, leaf_id INTEGER NOT NULL, placed_by TEXT NOT NULL) STRICT, WITHOUT ROWID;
+    INSERT INTO placement_node VALUES (1, 'food', '@department', NULL, 0, 'department');
+    INSERT INTO item_placement VALUES ('A', 1, 'hand');
+  `);
+  assert.throws(() => ensurePlacementSchema(db), /no recorded confidence/);
 });
