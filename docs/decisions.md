@@ -2675,6 +2675,24 @@ categories hold several priced products (the 7.6 rule: a control that misbehaves
 
 **Reverses if:** Aurik or Jamin rule that 7.5 is met by reporting the fold rather than counting it.
 
+## Four calls made on his delegation: bubble words, the screen audit, the torch fallback, ANBL and Walmart
+**Date:** 2026-10-10 · **Status:** active
+
+Jamin: *"you can make these decisiosn"*. (1) The 15 high-value cases of the 90-screen audit are
+applied; the rule becomes app-wide: a screen's first lines carry no repeat, hedge, internal wording
+or unbuilt promise. (2) On the verdict the mascot shows its face only, no bubble words: the words
+repeated the verdict word ("Under the usual price.") or hedged it ("Looks high, but I am not sure
+enough to say."), the hedge being the same message he had just called useless at the top. Old text
+in "V1 verdict screen mechanics": "Doubt is drawn (a wider bell, the hollow fill) and spoken once,
+by the mascot's bubble". (3) The torch gets a native fallback through the installed ML Kit barcode
+plugin (enableTorch) when the web track has no reachable torch; unproven on a phone until a device
+build exists. (4) ANBL and Walmart rows already collected stay out of the live price database:
+their terms bar copying or reuse, the same basis that refused Save-On-Foods.
+
+**Reverses if:** (2) testers read a thin estimate as sure (the thin-answer save rate matches the
+confident one); (3) the plugin's torch cannot run beside the web camera on a device; (4) either
+seller grants a licence, or a lawyer reads their terms as allowing display.
+
 ## The top of the verdict is for useful information only
 **Date:** 2026-10-10 · **Status:** active
 
