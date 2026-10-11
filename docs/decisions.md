@@ -2684,9 +2684,10 @@ or unbuilt promise. (2) On the verdict the mascot shows its face only, no bubble
 repeated the verdict word ("Under the usual price.") or hedged it ("Looks high, but I am not sure
 enough to say."), the hedge being the same message he had just called useless at the top. Old text
 in "V1 verdict screen mechanics": "Doubt is drawn (a wider bell, the hollow fill) and spoken once,
-by the mascot's bubble". (3) The torch gets a native fallback through the installed ML Kit barcode
-plugin (enableTorch) when the web track has no reachable torch; unproven on a phone until a device
-build exists. (4) ANBL and Walmart rows already collected stay out of the live price database:
+by the mascot's bubble". (3) A torch fallback through the installed ML Kit barcode plugin (enableTorch) was built and
+tested the same night and NOT merged: the plugin drives only its own scan session's device and does
+nothing without one (D-237). The real fix is ML Kit's own scan session on the phone builds, which
+needs a device build to prove. (4) ANBL and Walmart rows already collected stay out of the live price database:
 their terms bar copying or reuse, the same basis that refused Save-On-Foods.
 
 **Reverses if:** (2) testers read a thin estimate as sure (the thin-answer save rate matches the
