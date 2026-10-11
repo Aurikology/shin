@@ -41,7 +41,7 @@
 import { BarcodeScanner, type StableRead } from './barcode.ts';
 import { BarcodeVote, type VoteBox } from './votes.ts';
 import { UnreadableWatch } from './unreadable.ts';
-import { decideTorch, normaliseTorchSetting, type TorchSetting } from './torch.ts';
+import { TorchDriver } from './torch-driver.ts';
 import {
   ObjectDetector,
   salientBox,
@@ -235,8 +235,6 @@ export class Camera {
   #ready = false;
   #lastDetect = 0;
   #boxes: Detection[] = [];
-  #darkSince: number | null = null;
-  #torchOn = false;
   /**
    * Item 16. True while a capture (manual or auto) is assembling the burst
    * and the crop. `#loop()`/`#tick()` already cannot run two ticks at once
@@ -266,11 +264,10 @@ export class Camera {
   #lastCoach: CoachKey | null = null;
   #lastCodeKey = '';
   #lastReady = '';
-  /** Set when the torch itself is what is blowing the label out, so it is not re-lit into the same glare. */
-  #torchBlocked = false;
-  #torchSetting: TorchSetting;
-  /** The frame has stayed darker than the threshold and the app is not the one lighting it. */
-  #tooDark = false;
+  /** The torch hardware and every rule about it (torch-driver.ts). */
+  readonly #torch: TorchDriver;
+  /** Listeners that keep the torch honest when the OS takes the camera away; removed in `stop()`. */
+  #torchWatch: { track: MediaStreamTrack; unmute: () => void; ended: () => void; visible: () => void } | null = null;
   /**
    * The vote over the last second or two of frames (votes.ts). Fed by every
    * decode pass while `#decoding`, read by `#emitBarcodes` and by the press.
@@ -292,7 +289,11 @@ export class Camera {
     this.#autoCapture = options.autoCapture ?? true;
     this.#autoZoom = options.autoZoom ?? true;
     this.#decoding = options.barcodeMode ?? true;
-    this.#torchSetting = normaliseTorchSetting(options.torch);
+    this.#torch = new TorchDriver({
+      track: () => this.#stream?.getVideoTracks()[0],
+      onChange: (on) => this.#events.onTorch?.(on),
+      setting: options.torch,
+    });
     this.#scanner = new BarcodeScanner({ wasmUrl: options.wasmUrl });
     this.#detector =
       options.mediapipeWasmBase && options.detectorModelUrl
@@ -314,6 +315,7 @@ export class Camera {
     this.#video.srcObject = this.#stream;
     await this.#video.play();
     this.#readZoomCapability();
+    this.#watchTorch();
     void this.#requestContinuousFocus();
 
     // Warmed before the first frame rather than on it: a module load during the
@@ -365,8 +367,10 @@ export class Camera {
     // this is belt and braces rather than necessary. It matters on the browsers
     // that hand the same track back on a fast re-entry to the screen.
     void this.#applyZoom(this.#zoomCaps?.min ?? 1);
+    this.#unwatchTorch();
     for (const track of this.#stream?.getTracks() ?? []) track.stop();
     this.#stream = null;
+    this.#torch.reset();
   }
 
   /** The manual shutter. Always available; decision 6 keeps it as the override. */
@@ -434,9 +438,7 @@ export class Camera {
 
   /** A new torch setting, live. The screen normally passes it at construction. */
   setTorchSetting(setting: { mode?: unknown; threshold?: unknown }): void {
-    this.#torchSetting = normaliseTorchSetting(setting);
-    this.#darkSince = null;
-    this.#tooDark = false;
+    this.#torch.setSetting(setting);
   }
 
   /** Drops a pick. For leaving the screen or coming back to idle, not for frames. */
@@ -450,19 +452,51 @@ export class Camera {
     this.#emitBarcodes();
   }
 
-  async setTorch(on: boolean): Promise<boolean> {
+  /**
+   * The shopper's torch button. Resolves true only when the hardware is now in
+   * the state asked for: a phone with no torch says false (it is read from the
+   * track's capabilities, because `applyConstraints` resolves even there), and
+   * the tap then stands against the app's own auto and glare rules.
+   */
+  setTorch(on: boolean): Promise<boolean> {
+    return this.#torch.set(on);
+  }
+
+  /** Whether this phone has a torch the page can reach: true, false, or null when it cannot be told. */
+  get torchSupported(): boolean | null {
+    return this.#torch.supported;
+  }
+
+  /**
+   * The OS takes the camera when the app goes to the background or a call comes
+   * in, and a torch does not survive that. Put it back when the camera does, or
+   * tell the screen it is off, so the icon never sits lit over a dark LED.
+   */
+  #watchTorch(): void {
     const track = this.#stream?.getVideoTracks()[0];
-    if (!track) return false;
-    try {
-      await track.applyConstraints({ advanced: [{ torch: on } as MediaTrackConstraintSet] });
-      this.#torchOn = on;
-      this.#events.onTorch?.(on);
-      return true;
-    } catch {
-      // Not every device exposes the torch. Not an error, and never surfaced as
-      // one: the user did not ask for a torch, the app decided it wanted one.
-      return false;
-    }
+    if (!track) return;
+    const resync = () => void this.#torch.resync();
+    const watch = {
+      track,
+      unmute: resync,
+      ended: () => this.#torch.trackEnded(),
+      visible: () => {
+        if (typeof document !== 'undefined' && !document.hidden) resync();
+      },
+    };
+    track.addEventListener?.('unmute', watch.unmute);
+    track.addEventListener?.('ended', watch.ended);
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', watch.visible);
+    this.#torchWatch = watch;
+  }
+
+  #unwatchTorch(): void {
+    const watch = this.#torchWatch;
+    if (!watch) return;
+    watch.track.removeEventListener?.('unmute', watch.unmute);
+    watch.track.removeEventListener?.('ended', watch.ended);
+    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', watch.visible);
+    this.#torchWatch = null;
   }
 
   #readZoomCapability(): void {
@@ -625,7 +659,7 @@ export class Camera {
                   dy: (focusBox.y + focusBox.height / 2) / Math.max(sh, 1) - 0.5,
                 }
               : undefined,
-            tooDark: this.#tooDark,
+            tooDark: this.#torch.tooDark,
             canZoom: this.#zoomLeft(),
           },
           Date.now(),
@@ -749,9 +783,7 @@ export class Camera {
    * the case the user can actually fix by moving.
    */
   #considerTorchGlare(glare: number): void {
-    if (!this.#torchOn || glare < 0.2) return;
-    this.#torchBlocked = true;
-    void this.setTorch(false);
+    this.#torch.glare(glare);
   }
 
   #considerZoom(box: Box, sw: number, sh: number): void {
@@ -785,19 +817,8 @@ export class Camera {
 
     // The decision is torch.ts's, and it is the user's setting (2026-09-17):
     // auto lights the shelf below their threshold, off never touches the
-    // hardware and instead sets `#tooDark`, which the coach turns into a line.
-    const decision = decideTorch({
-      setting: this.#torchSetting,
-      mean,
-      now: Date.now(),
-      darkSince: this.#darkSince,
-      torchOn: this.#torchOn,
-      blocked: this.#torchBlocked,
-    });
-    this.#darkSince = decision.darkSince;
-    this.#tooDark = decision.tooDark;
-    if (decision.action === 'on') void this.setTorch(true);
-    else if (decision.action === 'off') void this.setTorch(false);
+    // hardware and instead sets the driver's `tooDark`, which the coach turns into a line.
+    this.#torch.light(mean, Date.now());
   }
 
   async #doCapture(): Promise<void> {

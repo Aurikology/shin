@@ -105,7 +105,7 @@ test('the ready signal only reports; it never sends anything', () => {
 test('leaving the screen or coming back to idle forgets the vote', () => {
   const stop = between(EYE, '  stop(): void {', '  /** The manual shutter', 'stop()');
   assert.ok(stop.includes('this.#vote.reset()'), 'a winner survives stop() and is offered on the next visit');
-  const clear = between(EYE, '  clearSelection(): void {', '  async setTorch(', 'clearSelection()');
+  const clear = between(EYE, '  clearSelection(): void {', "  /**\n   * The shopper's torch button.", 'clearSelection()');
   assert.ok(clear.includes('this.#vote.reset()'), 'the button for the code just answered is still up when the shopper comes back');
 });
 

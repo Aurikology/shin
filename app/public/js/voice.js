@@ -1508,6 +1508,12 @@ const LINES_EN = {
     warm: () => 'Torch on, that should help.',
     blunt: () => 'Light on.',
   },
+  /** The torch button was tapped on a phone with no torch the page can reach. Said once, then the aim hint returns. */
+  cam_torch_none: {
+    deadpan: () => 'This phone has no torch I can reach.',
+    warm: () => 'I cannot reach a torch on this phone. Find some light.',
+    blunt: () => 'No torch here.',
+  },
   /**
    * --- second visit, the docked camera's first bubble instead of the aim
    * hint, for one appearance. Facts arrive already formatted: item, seller

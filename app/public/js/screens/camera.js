@@ -3386,11 +3386,13 @@ export default {
         track('camera_live', { drawn: false });
         showInitialIdleContent();
         startShelf();
+        wantTorchOnStart(() => e.setTorch(true));
         return;
       }
       startCamera(video).then(({ stream: s, reason }) => {
         if (dead) { stopCamera(s); return; }
         stream = s;
+        if (s) wantTorchOnStart(() => applyPlainTorch(s.getVideoTracks()[0], true));
         // No camera is not a broken app. The drawn shelf carries the same layout
         // so every control stays exactly where it is.
         cam.dataset.camera = s ? 'live' : 'drawn';
@@ -3869,10 +3871,72 @@ export default {
      */
     function requestTorch(on) {
       if (eye?.live) {
-        eye.setTorch(on).then((worked) => { if (!dead && !worked) setTorch(false); });
+        eye.setTorch(on).then((worked) => {
+          if (dead || worked) return;
+          setTorch(false);
+          // Said once, plainly: a button that does nothing and says nothing
+          // reads as a broken app (Jamin, 2026-10-10, "the flash system is
+          // broken"). Only for a tap that turns it ON; a phone that cannot
+          // light a torch cannot be asked to put one out either.
+          if (on) noTorchLine();
+        });
         return;
       }
+      // The eye did not start but the plain camera did: its own track carries
+      // the torch, so the button reaches the hardware here too.
+      const plain = stream?.getVideoTracks?.()[0];
+      if (plain) {
+        applyPlainTorch(plain, on).then((worked) => {
+          if (dead) return;
+          setTorch(worked ? on : false);
+          if (on && !worked) noTorchLine();
+        });
+        return;
+      }
+      // Still starting (no eye and no stream yet) or the drawn shelf. The icon
+      // states the wish; `wantTorchOnStart` below carries it to the hardware
+      // the moment a real camera exists, so the icon never sits lit over a
+      // dark LED.
       setTorch(on);
+    }
+
+    /**
+     * The plain (no eye) camera's torch. Same rule as the eye's: the track's
+     * capabilities say whether there is a torch, because `applyConstraints`
+     * resolves on a phone without one and would answer "worked".
+     */
+    async function applyPlainTorch(track, on) {
+      const caps = typeof track.getCapabilities === 'function' ? track.getCapabilities() : null;
+      if (on && caps && caps.torch !== true) return false;
+      try {
+        await track.applyConstraints({ advanced: [{ torch: on }] });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    /** The shopper tapped the torch and this phone has none the page can reach. */
+    function noTorchLine() {
+      track('torch_unavailable', {});
+      clearTimeout(torchAckTimer);
+      if (!camShinEl || cam.dataset.state !== 'idle') return;
+      dockSay('idle', 'cam_torch_none');
+      // @budget reactive: it answers the shopper's own tap on the torch.
+      torchAckTimer = setTimeout(() => {
+        if (dead || cam.dataset.state !== 'idle') return;
+        showAimHint();
+      }, 2600);
+    }
+
+    /** A tap that landed before the camera existed is applied now that it does. */
+    function wantTorchOnStart(applyFn) {
+      if (!torchOn) return;
+      applyFn().then((worked) => {
+        if (dead || worked) return;
+        setTorch(false);
+        noTorchLine();
+      });
     }
 
     /** A good reading arrived: the misread wait is over and the frame fallback will not fire. */

@@ -893,6 +893,11 @@ export const LINES_FR = {
     warm: () => "Lampe allumée, ça devrait aider.",
     blunt: () => "Lumière allumée.",
   },
+  cam_torch_none: {
+    deadpan: () => "Ce téléphone n'a pas de lampe que je peux atteindre.",
+    warm: () => "Je n'atteins pas de lampe sur ce téléphone. Cherche de la lumière.",
+    blunt: () => "Pas de lampe ici.",
+  },
   cam_second_visit: {
     deadpan: (f) => `La dernière fois: ${f.item}${f.seller ? ` chez ${f.seller}` : ''}${f.asking ? `, ${f.asking}` : ''}. ${f.word}.`,
     warm: (f) => `La dernière fois tu as scanné ${f.item}${f.seller ? ` chez ${f.seller}` : ''}${f.asking ? `, ${f.asking}` : ''}. ${f.word}.`,

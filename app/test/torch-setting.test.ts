@@ -144,7 +144,11 @@ test('the camera passes the stored setting to the eye, which decides through tor
     'the camera screen does not hand the stored torch setting to the eye',
   );
   const eye = src('../src/eye/camera.ts');
-  assert.ok(eye.includes('decideTorch({'), 'the eye no longer decides the torch through torch.ts');
+  // 2026-10-10: the decision is still torch.ts's, now applied through the one
+  // hardware driver (torch-driver.ts), which the eye hands every frame to.
+  const driver = src('../src/eye/torch-driver.ts');
+  assert.ok(driver.includes('decideTorch({'), 'the torch driver no longer decides the torch through torch.ts');
+  assert.ok(eye.includes('this.#torch.light('), 'the eye no longer feeds the frame brightness to the torch driver');
   assert.ok(!eye.includes('DARK_THRESHOLD'), 'the old hard-coded threshold is back in the eye');
-  assert.ok(eye.includes('tooDark: this.#tooDark'), 'the too-dark state never reaches the coach');
+  assert.ok(eye.includes('tooDark: this.#torch.tooDark'), 'the too-dark state never reaches the coach');
 });
