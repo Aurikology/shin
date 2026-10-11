@@ -3151,6 +3151,11 @@ export default {
     let hintEscalated = false;
     let hintTimer = null;
     let torchAckTimer = null;
+    /* D-236: true while a torch acknowledgement owns the dock line. The four-second hint
+       escalation that falls due inside it parks itself in pendingEscalation and speaks when the
+       acknowledgement ends, so the line the shopper's tap earned holds its full time. */
+    let torchAckActive = false;
+    let pendingEscalation = null;
     let secondVisitShown = false;
     /** Item 9: set once `startCamera` resolves to a denied permission, read
         and cleared by `showInitialIdleContent`'s first paint so the docked
@@ -3788,10 +3793,17 @@ export default {
      */
     function armHintEscalation() {
       clearTimeout(hintTimer);
+      pendingEscalation = null;
       if (hintEscalated) return;
       // @budget counted: unprompted, so the budget is asked first and spent after the line is shown.
-      hintTimer = setTimeout(() => {
+      hintTimer = setTimeout(function escalate() {
         if (dead || hintEscalated || coachKey || cam.dataset.state !== 'idle') return;
+        // D-236: a torch acknowledgement is on screen. It is the answer to the shopper own tap and holds its
+        // full time, so this waits behind it and runs again the moment it ends, or is skipped if the camera has moved on.
+        if (torchAckActive) {
+          pendingEscalation = escalate;
+          return;
+        }
         /* One of the two unprompted sources AVATAR.md section 3 allows, and
            the budget is asked before it speaks rather than after. If the
            answer is no it is dropped, never queued: the moment an unprompted
@@ -3802,6 +3814,17 @@ export default {
         showAimHint('nudge-arrive');
         store.recordInterruption();
       }, 4000);
+    }
+
+    /** D-236: the torch acknowledgement ran its time. A waiting escalation speaks now; if it declines, the aim hint returns. */
+    function endTorchAck() {
+      torchAckActive = false;
+      const waiting = pendingEscalation;
+      pendingEscalation = null;
+      if (dead || cam.dataset.state !== 'idle') return;
+      if (waiting) waiting();
+      if (waiting && hintEscalated) return;
+      showAimHint();
     }
 
     /**
@@ -3920,13 +3943,12 @@ export default {
     function noTorchLine() {
       track('torch_unavailable', {});
       clearTimeout(torchAckTimer);
+      torchAckActive = false;
       if (!camShinEl || cam.dataset.state !== 'idle') return;
       dockSay('idle', 'cam_torch_none');
+      torchAckActive = true;
       // @budget reactive: it answers the shopper's own tap on the torch.
-      torchAckTimer = setTimeout(() => {
-        if (dead || cam.dataset.state !== 'idle') return;
-        showAimHint();
-      }, 2600);
+      torchAckTimer = setTimeout(endTorchAck, 2600);
     }
 
     /** A tap that landed before the camera existed is applied now that it does. */
@@ -4025,6 +4047,8 @@ export default {
       clearTimeout(hintTimer);
       clearTimeout(scanPressTimer);
       clearTimeout(torchAckTimer);
+      torchAckActive = false;
+      pendingEscalation = null;
       coachKey = null;
       scanThumb = captureThumb(video, cam.dataset.camera === 'live');
       // The pack read is developer-only (2026-10-10): with the Developer switch off no frame is even taken.
@@ -4502,8 +4526,15 @@ export default {
       track('torch', { on });
       root.querySelector('.torch-btn')?.setAttribute('aria-pressed', String(on));
       clearTimeout(torchAckTimer);
+      // D-236: the acknowledgement being replaced or cancelled hands its waiting escalation on.
+      const waiting = pendingEscalation;
+      torchAckActive = false;
+      pendingEscalation = null;
+      if (!on && waiting) waiting();
       if (on && camShinEl && cam.dataset.state === 'idle') {
         dockSay('idle', 'cam_torch_on');
+        torchAckActive = true;
+        pendingEscalation = waiting;
         // avatar-presence.md gives "none" for camera, torch on. Passing
         // 'none' as updateShinSay's own opts.anim does not reach this: that
         // sentinel is only honoured by shinSay's initial-mount string (a
@@ -4517,10 +4548,7 @@ export default {
         const torchFace = camShinEl.querySelector('.face');
         if (torchFace) torchFace.dataset.anim = 'none';
         // @budget reactive: it follows the shopper's own tap on the torch, so it is not an interruption.
-        torchAckTimer = setTimeout(() => {
-          if (dead || cam.dataset.state !== 'idle') return;
-          showAimHint();
-        }, 2600);
+        torchAckTimer = setTimeout(endTorchAck, 2600);
       }
     }
 
@@ -5033,6 +5061,8 @@ export default {
       clearTimeout(hintTimer);
       clearTimeout(scanPressTimer);
       clearTimeout(torchAckTimer);
+      torchAckActive = false;
+      pendingEscalation = null;
       coachKey = null;
       setState('framing');
       // Row 40: the frozen frame, captured now, at the moment of the shutter
@@ -6993,6 +7023,8 @@ export default {
       clearTimeout(hintTimer);
       clearTimeout(scanPressTimer);
       clearTimeout(torchAckTimer);
+      torchAckActive = false;
+      pendingEscalation = null;
       clearTimeout(corrToastTimer);
       clearTimeout(suggestTimer);
       clearInterval(retryCountdownTimer);

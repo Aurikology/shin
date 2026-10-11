@@ -346,6 +346,9 @@ export interface ScanInput {
   readonly estimateZone?: string | null;
   readonly estimateCentreCents?: number | null;
   readonly estimateSigmaLog?: number | null;
+  /** D-235: the rung and the zone of the verdict the sheet showed, written at insert (null when none was shown). */
+  readonly verdictTier?: string | null;
+  readonly verdictZone?: string | null;
 }
 
 /**
@@ -384,6 +387,8 @@ export interface ScanPatch {
   readonly estimateZone?: string | null;
   readonly estimateCentreCents?: number | null;
   readonly estimateSigmaLog?: number | null;
+  /** D-235: the zone the shown verdict gave, for a row written before its verdict was known. */
+  readonly verdictZone?: string | null;
 }
 
 /**
@@ -398,6 +403,7 @@ const PATCH_COLUMNS: Readonly<Record<keyof ScanPatch, string>> = {
   photoPath: 'photo_path',
   typedPriceCents: 'typed_price_cents',
   verdictTier: 'verdict_tier',
+  verdictZone: 'verdict_zone',
   verdictConfidence: 'verdict_confidence',
   verdictSellers: 'verdict_sellers',
   cell: 'cell',
@@ -513,6 +519,7 @@ export type ShopperCall = (typeof SHOPPER_CALLS)[number];
  */
 const SHOWN_PATCH_KEYS: ReadonlySet<keyof ScanPatch> = new Set<keyof ScanPatch>([
   'verdictTier',
+  'verdictZone',
   'verdictConfidence',
   'verdictSellers',
   'modelJson',
@@ -728,8 +735,9 @@ export function recordScan(input: ScanInput): number | null {
                            model_json, model_cost_cents, app_version, platform, latency_ms, cell, store_id, store_name, exact_lat, exact_lon, exact_accuracy, exact_at, user_id, is_demo, scan_category,
                            answer_path, range_source, range_basis, range_miss_reason, match_lines, match_candidates, match_price_read,
                            estimate_basis, estimate_confidence, estimate_zone, estimate_centre_cents, estimate_sigma_log,
+                           verdict_tier, verdict_zone,
                            consent_photos, consent_location)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                  COALESCE((SELECT photos FROM consent WHERE device_id = ?), 0),
                  COALESCE((SELECT location FROM consent WHERE device_id = ?), 0))`,
       )
@@ -768,6 +776,8 @@ export function recordScan(input: ScanInput): number | null {
         input.estimateZone ?? null,
         input.estimateCentreCents ?? null,
         input.estimateSigmaLog ?? null,
+        input.verdictTier ?? null,
+        input.verdictZone ?? null,
         // Consent as it stands at insert (5.1, "consent on each row"); no row means never answered, which is off.
         input.deviceId,
         input.deviceId,

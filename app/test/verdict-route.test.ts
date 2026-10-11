@@ -52,6 +52,10 @@ const SLOW_COLA = withCheck('062699000021');
 const WIRE_COLA = withCheck('062699000022');
 const STORE_ONLY = withCheck('062699000030'); // a store prices it, the catalogue lacks it (case 2)
 const MISSING = withCheck('062699000099'); // nothing knows it (case 6)
+const ROW_COLA = withCheck('062699000023'); // D-235: the Claude range answer, row checked against the wire
+const POOL_SELF = withCheck('062699000040'); // D-235: no price of its own, answered from its leaf's pool
+const POOL_OTHERS = ['062699000041', '062699000042', '062699000043', '062699000044', '062699000045', '062699000046'].map(withCheck);
+const POOL_PATH = '["en:snacks","en:crackers","en:water-crackers"]';
 const VODKA_PATH = '["en:beverages","en:spirits","en:vodkas"]';
 const COLA_PATH = '["en:beverages","en:sodas","en:colas"]';
 
@@ -70,6 +74,9 @@ const catDb = openCatalogue(':memory:');
   insert.run(COLA, 'Cola Classic', 'Cola Classic', 'Fizzco', '2 L', 2000, 'ml', COLA_PATH, 'en:colas');
   insert.run(SLOW_COLA, 'Cola Slow', 'Cola Slow', 'Fizzco', '2 L', 2000, 'ml', COLA_PATH, 'en:colas');
   insert.run(WIRE_COLA, 'Cola Wire', 'Cola Wire', 'Fizzco', '2 L', 2000, 'ml', COLA_PATH, 'en:colas');
+  insert.run(ROW_COLA, 'Cola Row', 'Cola Row', 'Fizzco', '2 L', 2000, 'ml', COLA_PATH, 'en:colas');
+  insert.run(POOL_SELF, 'Water Crackers', 'Water Crackers', 'Crunchy', '200 g', 200, 'g', POOL_PATH, 'en:water-crackers');
+  POOL_OTHERS.forEach((code, i) => insert.run(code, `Cracker Number ${i}`, `Cracker Number ${i}`, `Snap${i}`, '200 g', 200, 'g', POOL_PATH, 'en:water-crackers'));
   rebuildFts(catDb);
   rebuildCategories(catDb);
 }
@@ -116,6 +123,7 @@ const { openPrices, recordObservation } = await import('../../price/src/store.ts
   price(OWN, 'bcldb', 2400, 'OWN VODKA 750 ML');
   [2000, 2200, 2500, 2800, 3000].forEach((c, i) => price(VODKAS[i]!, `shop${i}`, c));
   price(STORE_ONLY, 'bcldb', 2600, 'Vodka Number 750 ml');
+  [300, 320, 340, 360, 380, 400].forEach((c, i) => price(POOL_OTHERS[i]!, `snack${i}`, c));
   prices.close();
 }
 
@@ -190,6 +198,9 @@ async function get(path: string): Promise<{ status: number; body: Record<string,
 
 const identify = (gtin: string, extra = '', device = 'verdict-test') =>
   get(`/api/identify?gtin=${gtin}&deviceId=${device}&countryCode=CA&region=British%20Columbia${extra}`);
+
+/** The client's zone-to-tier mapping (public/js/lib/verdict-chart.js ZONE_TIER), written out so the test reads without it. */
+const CLIENT_TIER: Record<string, string> = { great: 'good', good: 'good', reasonable: 'fair', bad: 'walk_away' };
 
 function scanRow(id: unknown): Record<string, unknown> {
   assert.equal(typeof id, 'number', 'the answer carried no scanId');
@@ -294,6 +305,62 @@ test('case 2: a barcode missing from the catalogue that a store prices answers u
   const row = scanRow(body.scanId);
   assert.equal(row.outcome, 'answered');
   assert.equal(row.estimate_basis, 'own_prices');
+});
+
+/**
+ * D-235: the scan row records what the sheet showed. The verdict's rung is the tier, the shopper's
+ * zone is the zone, and range_source and range_basis say where the shown range came from.
+ */
+test('D-235: a barcode answered from its category pool records tier, zone, range source and basis as sent', async () => {
+  const { body } = await identify(POOL_SELF, '&shelfPriceCents=250');
+  assert.equal(body.verdict.basis, 'leaf_category');
+  assert.equal(body.rangeSource, 'shin_prices');
+  const row = scanRow(body.scanId);
+  assert.equal(row.verdict_tier, CLIENT_TIER[body.verdict.shopper.zone]);
+  assert.equal(row.verdict_zone, body.verdict.shopper.zone);
+  assert.equal(row.range_source, body.rangeSource);
+  assert.equal(row.range_basis, body.range.basis);
+});
+
+test('D-235: verdict_tier is the tier the sheet showed (good, fair, walk_away), for a good, a reasonable and a bad answer', async () => {
+  const seen = new Map<string, string>();
+  for (const cents of [1500, 2450, 4500]) {
+    const { body } = await identify(OWN, `&shelfPriceCents=${cents}`);
+    const zone = body.verdict.shopper.zone as string;
+    const row = scanRow(body.scanId);
+    assert.equal(row.verdict_tier, CLIENT_TIER[zone], `${cents} cents, zone ${zone}`);
+    assert.notEqual(row.verdict_tier, body.verdict.basis, 'verdict_tier must not carry the basis');
+    seen.set(zone, String(row.verdict_tier));
+  }
+  assert.deepEqual([...new Set(seen.values())].sort(), ['fair', 'good', 'walk_away']);
+});
+
+test('D-235: the server tier mapping agrees with the one the client draws its sheet with', async () => {
+  const chartModule = '../public/js/lib/verdict-chart.js'; // plain JS, no declaration file
+  const { ZONE_TIER } = (await import(chartModule)) as { ZONE_TIER: Record<string, string> };
+  const { tierOfZone } = await import('../src/distribution.ts');
+  for (const zone of ['great', 'good', 'reasonable', 'bad']) assert.equal(tierOfZone(zone), ZONE_TIER[zone], zone);
+  assert.equal(tierOfZone(null), 'unknown');
+});
+
+test('D-235: a Claude-range answer records tier, zone, range source and basis as sent', async () => {
+  const { body } = await identify(ROW_COLA, '&shelfPriceCents=150');
+  assert.equal(body.verdict.basis, 'claude_typical');
+  assert.equal(body.rangeSource, 'claude_typical');
+  const row = scanRow(body.scanId);
+  assert.equal(row.verdict_tier, CLIENT_TIER[body.verdict.shopper.zone]);
+  assert.equal(row.verdict_zone, body.verdict.shopper.zone);
+  assert.equal(row.range_source, 'claude_typical');
+  assert.equal(row.range_basis, 'claude_typical');
+});
+
+test('D-235: a store-only barcode (named outside the catalogue) records the rung its verdict stood on', async () => {
+  const { body } = await identify(STORE_ONLY, '&shelfPriceCents=2000');
+  const row = scanRow(body.scanId);
+  assert.equal(row.verdict_tier, CLIENT_TIER[body.verdict.shopper.zone]);
+  assert.equal(row.verdict_zone, body.verdict.shopper.zone);
+  assert.equal(row.range_source, 'shin_prices');
+  assert.equal(row.range_basis, body.verdict.basis);
 });
 
 test('case 6: a barcode nothing knows asks for the name, with no verdict and no Claude ask', async () => {

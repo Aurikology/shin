@@ -242,5 +242,6 @@ test('D-231: the Claude range ask is logged as claude_typical on the scan row, n
   assert.equal(row.range_source, 'claude_typical');
   // D-231 (b): the zone shown goes to estimate_zone; verdict_zone is the Gemini path's column and stays null here.
   assert.equal(typeof row.estimate_zone, 'string', 'a catalogue-first scan with a shelf price wrote no zone at all');
-  assert.equal(row.verdict_zone, null, 'verdict_zone is the Gemini path column; a catalogue-first scan should leave it null');
+  // D-235: the zone the sheet showed is on the row in both columns, so a reader of either finds it.
+  assert.equal(row.verdict_zone, row.estimate_zone, 'verdict_zone must carry the zone the catalogue-first sheet showed');
 });

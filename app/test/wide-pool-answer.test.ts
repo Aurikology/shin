@@ -176,3 +176,21 @@ test('D-233: the item\'s own prices are untouched by a wide pool beside them', a
   assert.ok(answer.verdict?.shopper);
   assert.equal(answer.widePool, undefined);
 });
+
+test('D-235: a wide leaf set aside while the verdict stands on the narrow parent: the row says shin_prices, parent_category', async () => {
+  // Live scans 122 to 125: the sheet said "Great price" on a parent_category verdict and the row said none / none.
+  const w = world(SCAN_109, LEAF_OTHERS);
+  const ins = w.catalogue.prepare('INSERT INTO product (code, name, quantity, size_value, size_unit, category_path, leaf_category) VALUES (?,?,?,?,?,?,?)');
+  for (let r = 0; r < 15; r += 1) {
+    NARROW.forEach((c, i) => {
+      const code = String(5000 + r * 10 + i).padStart(13, '0');
+      ins.run(code, `sibling ${r}-${i}`, '300 g', 300, 'g', JSON.stringify(PARENT_OTHERS), PARENT_OTHERS[PARENT_OTHERS.length - 1]!);
+      recordObservation(w.prices, obs(code, c, `sib${r}-${i}`));
+    });
+  }
+  const { answer, record } = await logged(() => scan(w, {}, 499)).then((l) => l.out);
+  assert.equal(answer.verdict?.basis, 'parent_category');
+  assert.equal(answer.verdict?.shopper?.zone, 'great');
+  assert.equal(record.rangeSource, 'shin_prices');
+  assert.equal(record.rangeBasis, 'parent_category');
+});

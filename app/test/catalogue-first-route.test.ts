@@ -376,7 +376,7 @@ test('ON, catalogue hit Pexi cannot price: exactly one Claude range ask, zero Ge
   const row = scanRow(body.scanId);
   assert.equal(row.answer_path, 'catalogue_hit');
   assert.equal(row.range_source, 'claude_typical');
-  assert.equal(row.range_basis, 'none');
+  assert.equal(row.range_basis, 'claude_typical');
 });
 
 test('ON, the monthly ask cap reached: the identity still comes back, no range, the reason, no model call', async () => {

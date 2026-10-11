@@ -107,8 +107,22 @@ export function sortByName(searcher: { search(q: unknown): Promise<unknown> } | 
   };
 }
 
+/**
+ * D-235: the zone-to-tier mapping the client draws its sheet with (public/js/lib/verdict-chart.js
+ * ZONE_TIER, the `data-tier` and `peek_${tier}` of camera.js); a verdict with no zone is `unknown`.
+ * A test pins the two copies to each other.
+ */
+const ZONE_TIERS: Readonly<Record<string, string>> = { great: 'good', good: 'good', reasonable: 'fair', bad: 'walk_away' };
+export function tierOfZone(zone: string | null): string {
+  return (zone !== null && ZONE_TIERS[zone]) || 'unknown';
+}
+
 /** What the scan row keeps of a verdict (migration 19). */
 export interface VerdictRecord {
+  /** D-235: the tier the sheet showed (good, fair, walk_away, or unknown with no zone), as the client draws it. */
+  readonly verdictTier: string | null;
+  /** D-235: the zone the shown verdict placed the shopper's price in ("Great price"), or null with no price. */
+  readonly verdictZone: string | null;
   readonly estimateBasis: string | null;
   readonly estimateConfidence: string | null;
   readonly estimateZone: string | null;
@@ -118,10 +132,26 @@ export interface VerdictRecord {
 
 export function verdictRecord(v: Verdict | null): VerdictRecord {
   return {
+    verdictTier: v ? tierOfZone(v.shopper?.zone ?? null) : null,
+    verdictZone: v?.shopper?.zone ?? null,
     estimateBasis: v?.basis ?? null,
     estimateConfidence: v?.confidence ?? null,
     estimateZone: v?.shopper?.zone ?? null,
     estimateCentreCents: v?.centreCents ?? null,
     estimateSigmaLog: v?.sigmaLog ?? null,
   };
+}
+
+/**
+ * D-235: where the range a verdict shows came from, in the words the scan row's
+ * `range_source` and `range_basis` use. Pexi's own prices and its category pools
+ * are `shin_prices` (the basis is the rung); Claude's typical range is
+ * `claude_typical`; a prior is neither, so its source is `none` and the basis
+ * still names the prior. Null with no verdict.
+ */
+export function shownRange(v: Verdict | null): { rangeSource: 'shin_prices' | 'claude_typical' | 'none'; rangeBasis: string } | null {
+  if (!v) return null;
+  if (v.basis === 'claude_typical') return { rangeSource: 'claude_typical', rangeBasis: v.basis };
+  if (v.basis === 'category_prior' || v.basis === 'global_prior') return { rangeSource: 'none', rangeBasis: v.basis };
+  return { rangeSource: 'shin_prices', rangeBasis: v.basis };
 }

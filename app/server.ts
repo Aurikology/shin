@@ -79,7 +79,7 @@ import {
   type NamedElsewhere,
   type TypedRow,
 } from './src/catalogue-first.ts';
-import { onceAsk, readShelfCents, readThresholdsRaw, sortByName, verdictRecord, type RangeAsk } from './src/distribution.ts';
+import { onceAsk, readShelfCents, readThresholdsRaw, shownRange, sortByName, verdictRecord, type RangeAsk } from './src/distribution.ts';
 import type { Verdict } from '../price/src/estimate.ts';
 import { PRICES_DB_PATH } from '../price/src/store.ts';
 import type { Provider } from '../identify/src/provider.ts';
@@ -2122,7 +2122,8 @@ async function typedFromOwnData(
           rangeBasis: barcodeAnswer.record.rangeBasis,
           rangeMissReason: barcodeAnswer.record.rangeMissReason,
         }
-      : {}),
+      : // D-235: a typed answer with no barcode ladder behind it still says what its shown verdict stood on.
+        { ...shownRange(verdict) }),
     ...verdictRecord(verdict),
     appVersion: telemetry.appVersion,
     platform: telemetry.platform,

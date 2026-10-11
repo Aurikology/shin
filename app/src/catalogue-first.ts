@@ -111,7 +111,7 @@ import { parentOf, priceRangeFor, type RangeResult } from '../../price/src/range
 import type { RangeAskFailure, RangeAskResult, RangeIdentity } from '../../identify/src/range-ask.ts';
 import type { CanonicalBarcode } from './barcode.ts';
 import { estimate, type EstimateDeps, type EstimateTrace, type Verdict } from '../../price/src/estimate.ts';
-import { onceAsk, type RangeAskOutcome } from './distribution.ts';
+import { onceAsk, shownRange, type RangeAskOutcome } from './distribution.ts';
 import { positionalParent, type CategoryFaultKind, type CategoryGuard } from './category-guard.ts';
 
 /* ---------------------------------------------------------------- settings */
@@ -590,12 +590,32 @@ function missRecord(verdict: Verdict | null, label: string | null): CatalogueRec
     outcome: verdict ? 'answered' : 'refused',
     failureClass: verdict ? null : 'not_in_catalogue',
     answerPath: 'not_in_catalogue',
-    rangeSource: null,
-    rangeBasis: null,
+    // D-235: a store-only answer has no range field, but its verdict is shown, and the row says what it stood on.
+    rangeSource: shownRange(verdict)?.rangeSource ?? null,
+    rangeBasis: shownRange(verdict)?.rangeBasis ?? null,
     rangeMissReason: null,
     verdict,
     conflict: null,
   };
+}
+
+/**
+ * D-235: what the scan row says the shown range came from. The range ladder's own rung when it set the range
+ * (`shin_prices`), `claude_typical` for Claude's answer, and otherwise the rung the shown verdict stood on: the
+ * verdict ladder and the range ladder can disagree (a wide leaf pool set aside while the verdict stands on its
+ * parent), and the row records what the sheet showed, never `none` beside a verdict.
+ */
+function recordedRange(
+  rangeSource: CatalogueAnswer['rangeSource'],
+  usable: RangeResult | null,
+  laddered: boolean,
+  verdict: Verdict | null,
+): { rangeSource: NonNullable<CatalogueRecord['rangeSource']>; rangeBasis: string | null } {
+  if (rangeSource === 'shin_prices' && usable) return { rangeSource, rangeBasis: usable.basis };
+  if (rangeSource === 'claude_typical') return { rangeSource, rangeBasis: 'claude_typical' };
+  const shown = shownRange(verdict);
+  if (shown) return shown;
+  return { rangeSource: 'none', rangeBasis: laddered ? 'none' : null };
 }
 
 /**
@@ -825,8 +845,7 @@ async function priceIdentity(
       outcome: 'answered',
       failureClass: null,
       answerPath: how.answerPath,
-      rangeSource: rangeSource ?? 'none',
-      rangeBasis: ladder ? (ladderUsable ? ladder.basis : 'none') : null,
+      ...recordedRange(rangeSource, ladderUsable ? ladder : null, ladder !== null, verdict),
       rangeMissReason,
       verdict,
       conflict,
