@@ -562,7 +562,6 @@ const NOT_SHOWN = [
   /* --- selectors, key names and stored values. Not language at all. --- */
   { file: 'camera.js', text: '.grabber, .sheet-head', why: 'A CSS selector passed to querySelector. It has a space in it because the selector list does, not because it is a sentence.' },
   { file: 'camera.js', text: 'input, textarea, select', why: 'A CSS selector list used to decide whether a key press belongs to a field.' },
-  { file: 'watchlist.js', text: '.wlist-head .face', why: 'A CSS descendant selector passed to querySelector; the space is the combinator.' },
   { file: 'watchlist.js', text: '.empty .face', why: 'A CSS descendant selector passed to querySelector, not a phrase anybody reads.' },
   { file: 'camera.js', text: 'NFKD', why: 'The Unicode normalisation form passed to String.normalize, a constant of the platform rather than a word.' },
   { file: 'camera.js', text: 'a thing pexi has never seen', why: 'A query string sent to the engine on purpose, to make it produce its own honest refusal rather than the app faking one. It is a search term, not a label; translating it would change what is asked.' },
@@ -729,7 +728,7 @@ test('the lines this pass migrated are keys in voice.js', async () => {
     'pastscans_loading', 'pastscans_failed',
     'removed_loading', 'removed_failed',
     'licences_loading', 'licences_failed',
-    'read_only_note',
+    // 'read_only_note' left this list 2026-10-10: the reopened-answer note was removed from every modal (top-of-screen audit row 29).
   ];
   for (const key of keys) {
     for (const who of ['deadpan', 'warm', 'blunt']) {

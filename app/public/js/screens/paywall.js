@@ -26,7 +26,7 @@
  */
 
 import { escapeHtml, on } from '../lib/dom.js';
-import { shinSay } from '../shin.js';
+import { shinSay, headingWithFace } from '../shin.js';
 import { t } from '../ui-strings.js';
 import { localeTag } from '../lib/locale.js';
 import { goBack, rowCheck } from '../lib/pagebar.js';
@@ -156,9 +156,9 @@ export function paywallBody(state, { plans = [], chosen = null, message = '' } =
     case 'loading':
       return `<p class="fineprint" role="status" aria-busy="true" data-pw-state="loading">${escapeHtml(t('paywall_loading'))}</p>`;
     case 'web':
+      // The one instruction, once (audit row 38).
       return `<div data-pw-state="web">
           <p class="pw-inapp">${escapeHtml(t('paywall_in_app'))}</p>
-          <p class="fineprint">${escapeHtml(t('paywall_in_app_detail'))}</p>
         </div>`;
     case 'failed':
     case 'none':
@@ -238,10 +238,18 @@ export default {
       <div class="page paywall-page" data-paywall>
         <header class="page-head">
           <button type="button" class="pbk pw-close" data-act="close" aria-label="${escapeHtml(t('paywall_close'))}">${CLOSE_ICON}</button>
-          <p class="kicker">${escapeHtml(t('paywall_title'))}</p>
-          <h1>${escapeHtml(t(spent ? 'paywall_spent_heading' : 'paywall_heading'))}</h1>
+          ${/* Opened with scans left the mascot sits small beside the heading, saying nothing (audit row 38); spent, it speaks below. */
+            spent
+              ? `<h1>${escapeHtml(t('paywall_spent_heading'))}</h1>`
+              : headingWithFace('idle', `<h1>${escapeHtml(t('paywall_heading'))}</h1>`)}
         </header>
-        ${shinSay('idle', spent ? 'paywall_say_spent' : 'paywall_say_open', { when: params.resetsAt ? resetDay(params.resetsAt) : '' }, { size: 'face-page' })}
+        ${/* Opened with scans left, the heading is the whole offer: the kicker and the
+             bubble both said it again (2026-10-10 audit row 38), so neither is drawn;
+             the face sits beside the heading instead. Spent, the bubble says when
+             the scans come back, which nothing else on the screen says. */
+          spent
+            ? shinSay('idle', 'paywall_say_spent', { when: params.resetsAt ? resetDay(params.resetsAt) : '' }, { size: 'face-page' })
+            : ''}
         ${middle}
         <div class="pw-body" data-pw-body aria-live="polite"></div>
         ${spent ? `<p class="pw-out"><button type="button" class="pw-link" data-act="type-name">${escapeHtml(t('paywall_type_name'))}</button></p>` : ''}

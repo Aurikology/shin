@@ -370,17 +370,10 @@ const LINES_EN = {
     warm: () => 'Nothing saved yet. Scan something and Save it, I will keep it.',
     blunt: () => 'Nothing saved. Scan something and tap Save it.',
   },
-  /**
-   * The watchlist header's own callback, a 64px face-and-bubble above the
-   * rows: the most recently saved item, read back from facts already on
-   * screen. Not a live promise -- item, price, seller and day, the same
-   * three things `watching` above already commits to being able to say.
+  /*
+   * No watchlist header callback: the header is the face only (2026-10-10
+   * audit row 25), because its line read the top row back word for word.
    */
-  watchlist_callback: {
-    deadpan: (f) => `${f.item}.${f.price ? ` ${f.price}${f.seller ? `, ${f.seller}` : ''},` : f.seller ? ` ${f.seller},` : ''} saved ${f.day}.`,
-    warm: (f) => `Still have ${f.item} saved${f.price ? `, ${f.price}${f.seller ? ` at ${f.seller}` : ''}` : f.seller ? `, at ${f.seller}` : ''}, ${f.day}.`,
-    blunt: (f) => `${f.item}${f.price ? `, ${f.price}` : ''}${f.seller ? ` at ${f.seller}` : ''}, ${f.day}.`,
-  },
   /**
    * A saved row opened with no matching scan left in history (the watch
    * entry itself carries no verdict, only what was saved at the time). Says
@@ -647,15 +640,7 @@ const LINES_EN = {
     warm: () => 'Nothing scanned yet. It fills up as you scan.',
     blunt: () => 'Nothing scanned yet.',
   },
-  /**
-   * Past scans header, a 64px callback to the most recent row: item and the
-   * word already resolved by the screen (a verdict's word, or "refused").
-   */
-  pastscans_callback: {
-    deadpan: (f) => `Last one: ${f.item}, ${f.verdict}.`,
-    warm: (f) => `Last time, ${f.item}: ${f.verdict}.`,
-    blunt: (f) => `${f.item}. ${f.verdict}.`,
-  },
+  /* No Past scans header callback either (audit row 27): the face only. */
 
   /**
    * --- market picker, opened, AVATAR.md section 3 row 54 ---
@@ -992,60 +977,11 @@ const LINES_EN = {
     warm: () => 'I had too little to look up. Scan again.',
     blunt: () => 'Nothing to look up. Scan again.',
   },
-  /**
-   * The answer sheet's bubble, one line per zone and per confidence (N12,
-   * 2026-10-07; RULINGS.md "Sharing, notifications and attitude", AVATAR.md).
-   * The confident lines may be loud; the `_unsure` ones never are, because a
-   * loud line on thin evidence is the worst thing this product can do. The
-   * edge of every sharp line lands on the price or the store, never on the
-   * shopper, and none of them says "saved". They carry no figure, so no fact
-   * can go missing: the numbers are on the sheet beside the bubble.
+  /*
+   * The verdict bell has no bubble lines (RULINGS.md "V1 verdict screen
+   * mechanics", 2026-10-10): the mascot shows its face only there, its mood
+   * carrying the tier, because every line repeated the verdict word or hedged it.
    */
-  dist_great: {
-    deadpan: () => 'Well under the usual price.',
-    warm: () => 'Oh, that is well under the usual price.',
-    blunt: () => 'Way under the usual.',
-  },
-  dist_great_unsure: {
-    deadpan: () => 'Looks cheap, but my estimate is thin. Treat it as a maybe.',
-    warm: () => 'Looks good, but I have little to go on. Hold it loosely.',
-    blunt: () => 'Looks cheap. Not sure, check it.',
-  },
-  dist_good: {
-    deadpan: () => 'Under the usual price.',
-    warm: () => 'Good spot. That is under what it usually goes for.',
-    blunt: () => 'Cheaper than usual. Buy it.',
-  },
-  dist_good_unsure: {
-    deadpan: () => 'Probably under the usual, but the evidence is thin.',
-    warm: () => 'A little under the usual, but I am not very sure.',
-    blunt: () => 'Maybe cheap. Not sure.',
-  },
-  dist_reasonable: {
-    deadpan: () => 'That is the going rate.',
-    warm: () => 'That is about what it goes for. You are fine.',
-    blunt: () => 'Normal price. Nothing special.',
-  },
-  dist_reasonable_unsure: {
-    deadpan: () => 'It looks about normal, but my estimate is rough.',
-    warm: () => 'It looks about right, though I am working from a rough estimate.',
-    blunt: () => 'Seems normal. Rough guess.',
-  },
-  dist_bad: {
-    deadpan: () => 'Over the usual price.',
-    warm: () => 'Ooh, that is steep. It is over the usual price.',
-    blunt: () => 'Way over the usual.',
-  },
-  dist_bad_unsure: {
-    deadpan: () => 'Looks high, but I am not sure enough to say.',
-    warm: () => 'Looks pricey, but my estimate is thin. Check first.',
-    blunt: () => 'Looks steep. Not sure, check it.',
-  },
-  dist_noprice: {
-    deadpan: () => 'That is what it usually goes for. What does the tag say?',
-    warm: () => 'That is the usual price. Tell me what the tag says.',
-    blunt: () => 'Usual price is there. What is the tag?',
-  },
   /**
    * The offline aisle's own ending, added 2026-09-07 when the pack landed.
    *
@@ -1061,34 +997,24 @@ const LINES_EN = {
    * REWRITTEN 2026-09-19 (beta gap item 21). Jamin: "For now, the app will not
    * be usable offline." The pack that named the product with no signal is no
    * longer consulted, so this line no longer says the phone knows what the
-   * thing is. It says one thing: Pexi needs a connection. `cam_needs_connection`
-   * is its title.
+   * thing is. It says one thing: Pexi needs a connection, in the bubble, with
+   * Try again under it and no second sentence (2026-10-10 audit row 18).
    */
   cam_needs_connection: {
     deadpan: () => 'I need a connection for this',
     warm: () => 'I need a connection to look this up',
     blunt: () => 'No connection',
   },
-  cam_offline_no_price: {
-    deadpan: () => 'Pexi needs a connection to look anything up. Scan again once connected.',
-    warm: () => 'Pexi needs a connection to look this up. Scan again once connected.',
-    blunt: () => 'Pexi needs a connection to answer. Connect, then scan again.',
-  },
   /*
-   * D17 (2026-10-06 walkthrough): a server fault (a 5xx) used to paint the two
-   * lines above, telling the shopper to fix a network that was fine. The fault
-   * is Pexi's, so the line says so and offers Retry; only a request that never
-   * reached the server says "connection".
+   * D17 (2026-10-06 walkthrough): a server fault (a 5xx) used to paint the
+   * connection line above, telling the shopper to fix a network that was fine.
+   * The fault is Pexi's, so the line says so and Try again sits under it; only a
+   * request that never reached the server says "connection".
    */
   cam_server_fault: {
     deadpan: () => 'Pexi hit a problem on its side',
     warm: () => 'Something went wrong on my side',
     blunt: () => 'Pexi is having a problem',
-  },
-  cam_server_fault_detail: {
-    deadpan: () => 'Your connection is fine, the fault is on Pexi\'s side. Try again.',
-    warm: () => 'Your connection is fine, this one is on me. Try again.',
-    blunt: () => 'Not your connection, the fault is Pexi\'s. Try again.',
   },
   /*
    * --- the photo route's own six, added with the photo path
@@ -1097,8 +1023,7 @@ const LINES_EN = {
    * `cam_photo_offline` is this app's own words for spine's own fixed line,
    * "You are offline, so we kept the photo." (spine/src/run.ts REFUSALS.offline):
    * the request never reached the server, the crop is queued rather than lost,
-   * and the sentence has to say both halves the same way `cam_offline_no_price`
-   * does above it.
+   * and the sentence has to say both halves.
    *
    * `cam_photo_unreadable` is the honest miss: the photo made it to the model
    * and the model could not read it. Reason stays `no_identity` on the sheet,
@@ -1214,23 +1139,6 @@ const LINES_EN = {
     deadpan: () => 'I could not read what was removed.',
     warm: () => 'I could not read what was removed. Try me again.',
     blunt: () => 'Cannot read the removed list. Try me again.',
-  },
-
-  /**
-   * --- the reopened verdict's own footer, three call sites, one key ---
-   *
-   * "This is what Pexi said at the time. Read-only." was written three times,
-   * twice in pastscans.js and once in watchlist.js, and it is Pexi narrating
-   * the state of its own record. One key is a real deduplication rather than a
-   * bookkeeping one: the three copies were already free to drift.
-   *
-   * All three variants keep the two things the note does: it was said then,
-   * and nothing on this card can be acted on now.
-   */
-  read_only_note: {
-    deadpan: () => 'This is what I said at the time. Nothing here changes.',
-    warm: () => 'This is what I said at the time. Nothing on it changes.',
-    blunt: () => 'What I said then. Nothing to change here.',
   },
 
   /**
@@ -1721,12 +1629,16 @@ const LINES_EN = {
    * `onboarding.js`'s `askCamera` already makes (its own copy is
    * `onb_perm_camera_denied`, chrome rather than Pexi's voice, since
    * onboarding text carries none). This is the docked-face line for the
-   * screen itself, shown once, the same shape `cam_second_visit` uses.
+   * screen itself, shown once, the same shape `cam_second_visit` uses. It says
+   * what to do, never what the app drew in place of the feed (2026-10-10 audit
+   * row 22: "drawn shelf" described Pexi's stand-in picture to the shopper).
+   * The audit's wording was "or type the product name"; "product" is dropped
+   * to keep the line inside the twelve-word mascot limit.
    */
   cam_camera_denied: {
-    deadpan: () => 'Camera access was not allowed, so this is the drawn shelf instead.',
-    warm: () => 'No camera access, so this shelf is drawn. See phone settings.',
-    blunt: () => 'No camera access. Using the drawn shelf.',
+    deadpan: () => 'Camera is off. Turn it on in Settings, or type the name.',
+    warm: () => 'Camera is off. Switch it on in Settings, or type the name.',
+    blunt: () => 'Camera off. Turn it on in Settings, or type the name.',
   },
   /**
    * The barcode button pressed with no code read, while FLAGS.photoId is off
@@ -1779,12 +1691,7 @@ const LINES_EN = {
     warm: (f) => `Sorry, I am out of free scans${f.when ? ` until ${f.when}` : ' for this week'}.`,
     blunt: (f) => `Out of free scans${f.when ? ` until ${f.when}` : ' this week'}. My limit, not yours.`,
   },
-  /** The same screen opened with nothing used (D30): it must not say the free scans are gone. */
-  paywall_say_open: {
-    deadpan: () => 'Plus takes the weekly limit off.',
-    warm: () => 'With Plus there is no weekly limit on scans.',
-    blunt: () => 'Plus: no weekly limit.',
-  },
+  /* Opened with nothing used (D30) the paywall shows the face only (2026-10-10 audit row 38): its line repeated the heading. */
 };
 
 /**
@@ -1909,20 +1816,10 @@ const BARE_EN = {
     warm: () => 'This one moved since you saved it.',
     blunt: () => 'It moved.',
   },
-  watchlist_callback: {
-    deadpan: () => 'Something is saved here.',
-    warm: () => 'You have something saved here.',
-    blunt: () => 'Saved. Details are gone.',
-  },
   watchlist_saved_only: {
     deadpan: () => 'Saved, and the details did not survive.',
     warm: () => 'This one is saved, but I have lost what came with it.',
     blunt: () => 'Saved. Nothing else left.',
-  },
-  pastscans_callback: {
-    deadpan: () => 'There is a scan behind this.',
-    warm: () => 'You have scanned before. I cannot read the last one back.',
-    blunt: () => 'Scanned before. Cannot read it back.',
   },
   cam_second_visit: {
     deadpan: () => 'You have been here before.',

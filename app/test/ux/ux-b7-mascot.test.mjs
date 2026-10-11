@@ -679,7 +679,8 @@ test('R-72 (keep): at high confidence a great price still earns the delighted fa
 
 test('R-72 (keep): no voice aims an angry or negative verdict line at the shopper', () => {
   const BLAME = /\byou('re| are) (stupid|dumb|foolish|careless)|your fault|you should have|\bidiot|\bfool\b|\bstupid\b|\bdumb\b/i;
-  const keys = ['verdict_ripoff', 'verdict_steal', 'walk_away', 'dist_bad', 'dist_bad_unsure', 'dist_great_unsure', 'dist_good_unsure'];
+  // The dist_* verdict lines left 2026-10-10 (RULINGS.md "V1 verdict screen mechanics": face only on the verdict).
+  const keys = ['verdict_ripoff', 'verdict_steal', 'walk_away'];
   for (const key of keys) for (const id of IDS) assert.ok(!BLAME.test(say(key, REAL_FACTS, id)), `${key}/${id} blames the shopper: ${say(key, REAL_FACTS, id)}`);
   assert.ok(BLAME.test('that is your fault'), 'control: the blame matcher must see blame');
 });
@@ -801,13 +802,20 @@ const SPENT = { limit: '3', used: '3', resetsAt: '2026-10-12T12:00:00.000Z' };
 
 test('R-76 (keep): the paywall line never blames or shames the shopper, in any voice', () => {
   const SHAME = /\byou (should|have to|need to|ran out|used (it )?all|wasted|burned|forgot)\b|your fault|too many|not subscrib|miss out|\bdon't be\b|\bcheap\b/i;
-  for (const key of ['paywall_say', 'paywall_say_open']) for (const id of IDS) assert.ok(!SHAME.test(say(key, {}, id)), `${key}/${id} blames: ${say(key, {}, id)}`);
+  // paywall_say_open left 2026-10-10 (audit row 38: opened with scans left the face stands alone); the spent line takes its place here.
+  for (const key of ['paywall_say', 'paywall_say_spent']) for (const id of IDS) assert.ok(!SHAME.test(say(key, { when: 'Monday' }, id)), `${key}/${id} blames: ${say(key, { when: 'Monday' }, id)}`);
   assert.ok(SHAME.test('you ran out'), 'control: the shame matcher must see shame');
 });
 
 test('R-76 (keep): opened with nothing used, the paywall line does not say the scans are gone', () => {
+  // Since 2026-10-10 (audit row 38) the open paywall speaks no line at all, so it cannot say the scans are gone.
   const GONE = /free scans for this week|all (of )?the free|used|gone|done for the week/i;
-  for (const id of IDS) assert.ok(!GONE.test(say('paywall_say_open', {}, id)), `${id}: ${say('paywall_say_open', {}, id)}`);
+  for (const params of [{}, { limit: '3', used: '1' }]) {
+    const bubble = paywallBubble(params);
+    assert.ok(bubble === null || !GONE.test(bubble), `opened with scans left the mascot says: ${bubble}`);
+  }
+  assert.ok(GONE.test('the free scans are gone'), 'control: the matcher must see the scans gone');
+  assert.ok(paywallBubble(SPENT), 'control: the spent screen still speaks');
 });
 
 test('R-76 (build 7): when the scans are spent, the mascot line owns the limit and names the day it ends', () => {

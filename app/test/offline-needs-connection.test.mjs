@@ -75,21 +75,26 @@ test('the offline aisle no longer reads the pack or downloads it', async () => {
 test('the sheet says plainly that a connection is needed, in every tone and both languages', () => {
   const html = needsConnectionSheet();
   assert.match(html, /data-needs-connection/);
+  /* Changed 2026-10-10 (top-of-screen audit row 18): the second sentence under the
+     bubble ("Pexi needs a connection to look anything up...") said the bubble's fact
+     again and was dropped. The bubble is now the one line, so it is the one that must
+     say a connection is needed, in every tone and both languages. */
   for (const tone of TONES) {
-    const en = say('cam_offline_no_price', {}, tone);
-    const fr = LINES_FR.cam_offline_no_price[tone]();
+    const en = say('cam_needs_connection', {}, tone);
+    const fr = LINES_FR.cam_needs_connection[tone]();
     assert.match(en, /connection/i, `${tone} English line does not say it needs a connection`);
     assert.match(fr, /connexion/i, `${tone} French line does not say it needs a connection`);
-    for (const text of [en, fr, say('cam_needs_connection', {}, tone), LINES_FR.cam_needs_connection[tone]()]) {
+    for (const text of [en, fr]) {
       assert.ok(text.length > 0);
       assert.ok(!text.includes('—'), 'an em dash is in the offline copy');
       // The old copy said the phone knew what the thing was. Never again.
       assert.doesNotMatch(text, /what it is|what this is|already had|ce que c'est|déjà/i);
     }
   }
-  // The default tone's sentence is what is actually on the sheet.
-  const shown = say('cam_offline_no_price');
+  // The default tone's sentence is what is actually on the sheet, and nothing repeats it.
+  const shown = say('cam_needs_connection');
   assert.ok(html.includes(shown.replace(/&/g, '&amp;')), 'the sheet does not carry the offline sentence');
+  assert.doesNotMatch(html, /<p class="detail"/, 'a second sentence repeats the bubble');
 });
 
 test('the sheet offers no price, no product name and no way to answer from the phone', () => {

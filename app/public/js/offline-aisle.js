@@ -7,8 +7,8 @@
  * Beef"). Jamin's word, 2026-09-17: "For now, the app will not be usable
  * offline." So the pack is no longer consulted and no longer downloaded, and a
  * barcode scan that cannot reach the server answers with one plain sentence
- * (`cam_offline_no_price` in voice.js and voice-fr.js) and nothing else: no
- * name, no guess, no price.
+ * (`cam_needs_connection` in voice.js and voice-fr.js, the sheet's bubble) and
+ * Try again, nothing else: no name, no guess, no price.
  *
  * WHY THE SCREEN STILL CALLS `identifyOffline`. `screens/camera.js` imports
  * this name and treats whatever it returns as "the lookup ended here". It now

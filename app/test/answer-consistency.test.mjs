@@ -31,7 +31,6 @@ const { DEFAULT_THRESHOLDS: SERVER_DEFAULTS } = await import('../../price/src/es
 const F = await import('./verdict-fixtures.mjs');
 const { distributionSheet, distFace } = await import('../public/js/screens/camera.js');
 const { say } = await import('../public/js/voice.js');
-const { confidenceWords } = await import('../public/js/lib/history-answer.js');
 
 const { usableVerdict, zoneFor, zoneCuts, zoneAtX, shopperOf, bellGeometry, bellSvg, placeLabels, labelWidth } = VC;
 
@@ -156,15 +155,12 @@ test('D13: a low-confidence answer still answers, drawn hollow, with the plain f
     // 2026-10-10: the top of the verdict is for useful information only. No doubt line under the word;
     // the reason sits in the half detent, and the "how far off" line is the one right under the word.
     assert.doesNotMatch(html, /data-dist-conf/, zone);
-    assert.match(html, /class="vd-basis vd-reason" data-vd-reason>A rough estimate for its category</, zone);
+    // 2026-10-10 audit row 8: the reason IS the half detent's one basis line (it names its source), never a second line.
+    assert.match(html, /class="vd-basis" data-vd-basis data-vd-reason>A rough estimate for its category</, zone);
     assert.ok(html.indexOf('data-dist-headline') < html.indexOf('data-dist-line') && html.indexOf('data-dist-line') < html.indexOf('data-vd-reason'));
-    // N12: the bubble speaks the zone's hedged line (never the confident one), whatever the attitude.
-    const bubble = html.match(/<p class="bubble-text">([^<]*)<\/p>/)?.[1].replace(/&#39;/g, "'");
-    const shown = html.match(/data-zone="(\w+)"/)[1];
-    const unsure = ["deadpan", "warm", "blunt"].map((who) => say(`dist_${shown}_unsure`, {}, who));
-    const sure = ["deadpan", "warm", "blunt"].map((who) => say(`dist_${shown}`, {}, who));
-    assert.ok(unsure.includes(bubble), `${zone}: bubble "${bubble}" is not one of the hedged lines`);
-    assert.ok(!sure.includes(bubble), `${zone}: a not-confident answer spoke the confident line`);
+    // N12 superseded 2026-10-10 (RULINGS.md "V1 verdict screen mechanics"): the mascot shows its face
+    // only on the verdict, so a low answer can never speak a loud line; the face gate above still holds.
+    assert.doesNotMatch(html, /class="bubble-text"/, `${zone}: the verdict speaks`);
   }
   assert.equal(distFace('great', 'low'), 'fair'); // build 7 R-72: a not-confident price is never a smiling face
   assert.equal(distFace('great', 'medium'), 'delighted');
@@ -178,23 +174,25 @@ test('D13: the reason names where the centre came from, in both languages', () =
   assert.match(html('other_size'), /data-vd-reason>Worked out from another size of this item</);
 });
 
-test('N12: a medium-confidence answer also speaks the hedged line, because its sheet says it is not fully confident', () => {
-  const html = distributionSheet({ ...F.GREAT, confidence: 'medium' });
-  const bubble = html.match(/<p class="bubble-text">([^<]*)<\/p>/)?.[1].replace(/&#39;/g, "'");
-  const unsure = ['deadpan', 'warm', 'blunt'].map((who) => say('dist_great_unsure', {}, who));
-  assert.ok(unsure.includes(bubble), `medium spoke "${bubble}"`);
-  const sure = distributionSheet({ ...F.GREAT, confidence: 'high' });
-  assert.ok(['deadpan', 'warm', 'blunt'].map((who) => say('dist_great', {}, who)).includes(sure.match(/<p class="bubble-text">([^<]*)<\/p>/)?.[1].replace(/&#39;/g, "'")));
+/* N12 (a medium answer speaks the hedged line) was retired with the verdict's bubble
+   (RULINGS.md "V1 verdict screen mechanics", 2026-10-10): the mood is the face's,
+   per tier and confidence, and test/screen-trim.test.mjs pins it per tier. */
+test('N12, as it stands now: medium and high speak no line on the verdict; the face carries the mood', () => {
+  for (const confidence of ['medium', 'high']) {
+    const html = distributionSheet({ ...F.GREAT, confidence });
+    assert.doesNotMatch(html, /class="bubble-text"/, confidence);
+    assert.match(html, new RegExp(`<div class="shin-say" data-state="${distFace('great', confidence)}"`), confidence);
+  }
 });
 
-test('D13: a spread wider than five times says the range in plain words, and a narrow one says nothing', () => {
+/* D13's spread sentence was retired 2026-10-10 (audit row 3): the bell draws the
+   spread and prints both ends on its axis and in its caption, so the sentence was a
+   fourth statement of two numbers. A wide range is still drawn wide. */
+test('D13, as it stands now: a wide spread is drawn and its ends are on the chart, with no "vary a lot" sentence', () => {
   const wide = { ...F.LOW_CONFIDENCE, p10Cents: 300, p90Cents: 3000 };
   const html = distributionSheet(wide);
-  assert.match(html, /class="vd-doubt vd-spread" data-dist-spread>Prices for this kind of item vary a lot: \$3\.00 to \$30\.00\./);
-  const narrow = { ...F.LOW_CONFIDENCE, p10Cents: 900, p90Cents: 1800 };
-  assert.doesNotMatch(distributionSheet(narrow), /data-dist-spread/);
-  assert.equal(confidenceWords(narrow).spread, '');
-  assert.match(confidenceWords(wide).spread, /vary a lot/);
+  assert.doesNotMatch(html, /data-dist-spread|vary a lot/);
+  assert.match(html.slice(html.indexOf('data-dist-chart')), /\$3\.00[\s\S]*\$30\.00/, 'the chart no longer names the ends of the range');
 });
 
 test('D08: Correct and Share sit at the top of the half detent, before the basis line; Save stays in the peek', () => {

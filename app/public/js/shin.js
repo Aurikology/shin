@@ -542,14 +542,7 @@ export function faceBlock(expression, opts = {}) {
  */
 export function shinSay(state, key, facts, opts = {}) {
   const who = opts.who ?? personality();
-  const px = Math.max(SIZE_TOKENS['face-page'], resolveSize(opts.size ?? 'face-page'));
-  let faceHtml = faceSvg(state, { size: px, who });
-  if (opts.anim && (opts.anim === 'none' || ANIMATION_SET.has(opts.anim))) {
-    // faceSvg already wrote the state's default data-anim; a caller-chosen
-    // opts.anim overrides it in the same string, so the face never has to
-    // be re-rendered just to change which animation it opens with.
-    faceHtml = faceHtml.replace(/data-anim="[^"]*"/, `data-anim="${opts.anim}"`);
-  }
+  const faceHtml = sayFaceHtml(state, who, opts);
   const side = opts.side === 'right' ? 'right' : 'left';
   const tierAttr = opts.tier ? ` data-tier="${opts.tier}"` : '';
   // opts.who governs both the face drawn and the personality that speaks:
@@ -569,6 +562,58 @@ export function shinSay(state, key, facts, opts = {}) {
            "Tom &amp;amp; Jerry". voice.js holds no markup, so nothing is lost. -->
       <p class="bubble-text">${escapeHtml(line)}</p>
     </div>
+  </div>`;
+}
+
+/** The face `shinSay` and `shinFace` draw: the size floored at 48, and a caller's `opts.anim` written over the state's default. */
+function sayFaceHtml(state, who, opts) {
+  const px = Math.max(SIZE_TOKENS['face-page'], resolveSize(opts.size ?? 'face-page'));
+  const faceHtml = faceSvg(state, { size: px, who });
+  if (opts.anim && (opts.anim === 'none' || ANIMATION_SET.has(opts.anim))) {
+    // faceSvg already wrote the state's default data-anim; a caller-chosen
+    // opts.anim overrides it in the same string, so the face never has to
+    // be re-rendered just to change which animation it opens with.
+    return faceHtml.replace(/data-anim="[^"]*"/, `data-anim="${opts.anim}"`);
+  }
+  return faceHtml;
+}
+
+/**
+ * The same unit with the face and no words: where every bubble line would only
+ * repeat what the screen already shows or hedge it (RULINGS.md "V1 verdict
+ * screen mechanics", 2026-10-10: on the verdict the mascot shows its face only,
+ * its mood carrying the tier; app-wide, a screen's first lines carry no repeat).
+ * Same root, same face, same sizes and animations as `shinSay`, marked
+ * `data-face-only`, so nothing that reads the face's state has to know which
+ * of the two drew it.
+ *
+ * @param {string} state  one of STATES, the face's expression
+ * @param {object} [opts] `size`, `who`, `anim`, `tier`, as `shinSay`
+ * @returns {string} an HTML string: `.shin-say[data-face-only]` > `.face-block` > `.face`
+ */
+/**
+ * The mascot beside a screen's heading, at about the heading's height, with no
+ * words: one row, `.head-row`, holding this face and the heading itself. For a
+ * screen whose bubble line only repeated what the screen shows (the 2026-10-10
+ * top-of-screen audit) but where the mascot still belongs (RULINGS.md "Avatar /
+ * mascot and competitor-inspired design": present throughout, reacting to the
+ * price). Never on a row of its own and never with an empty bubble.
+ *
+ * @param {string} state    the face's expression (its mood)
+ * @param {string} heading  the heading's own markup, `<h1>` or `<h2>`, already escaped
+ * @param {object} [opts]   `size` (px or token, default the 28px row face), `who`
+ * @returns {string} `.head-row` > `.head-face` > `.face`, then the heading
+ */
+export function headingWithFace(state, heading, opts = {}) {
+  const who = opts.who ?? personality();
+  return `<div class="head-row"><span class="head-face" data-state="${state}">${faceSvg(state, { size: opts.size ?? 'face-row', who })}</span>${heading}</div>`;
+}
+
+export function shinFace(state, opts = {}) {
+  const who = opts.who ?? personality();
+  const tierAttr = opts.tier ? ` data-tier="${opts.tier}"` : '';
+  return `<div class="shin-say" data-state="${state}" data-side="left" data-face-only${tierAttr}>
+    <span class="face-block">${sayFaceHtml(state, who, opts)}${faceLabel(state)}</span>
   </div>`;
 }
 

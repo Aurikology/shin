@@ -283,7 +283,9 @@ test('R-83 (KEEP): the close X is the first control in the header, in the top co
   const { first, stop } = await open();
   const head = first.slice(first.indexOf('<header'), first.indexOf('</header>'));
   assert.ok(head.indexOf('pw-close') > -1 && head.indexOf('pw-close') < head.indexOf('<h1'), 'the close is not above the heading');
-  assert.ok(head.indexOf('pw-close') < head.indexOf('class="kicker"'), 'the close is not above the kicker');
+  // The kicker left the header 2026-10-10 (audit row 38); if one comes back, the close still sits above it.
+  const kicker = head.indexOf('class="kicker"');
+  assert.ok(kicker === -1 || head.indexOf('pw-close') < kicker, 'the close is not above the kicker');
   stop();
 });
 

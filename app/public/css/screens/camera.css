@@ -1067,6 +1067,10 @@
    .shin-say's own internal layout is unaffected, only how much width the
    whole component gets here. */
 .sheet-head .shin-say { flex: 1 1 auto; min-width: 0; }
+/* The verdict's face with no bubble (RULINGS.md "V1 verdict screen mechanics",
+   2026-10-10) takes only the face's own width: no row is held open for words
+   that are not there, and a thumbnail sits right beside it. */
+.sheet-head .shin-say[data-face-only] { flex: 0 0 auto; }
 
 /* Row 40: the frozen-frame thumbnail, in the identity chip (the price pad's
    own head) and the verdict header. Pushed to the row's far end. */
@@ -2100,6 +2104,9 @@
    head's thumbnail and bubble clear of it. */
 .sheet.verdict .sheet-head,
 .sheet.refusal .sheet-head { padding-right: 52px; }
+/* A heading that carries the mascot beside it (shin.js `headingWithFace`) can be
+   the sheet's first line, level with the close: the same clearance. */
+.sheet .head-row { padding-right: 52px; }
 
 /* -------------------------------------------------------------- text route */
 
@@ -2434,22 +2441,12 @@
  */
 .sheet.dist .vd-line { margin: 2px 0 0; padding: 0; }
 /*
- * Doubt is read at a glance, not squinted at (D13, N11). The top of the verdict
- * is for useful information only (RULINGS.md, 2026-10-10): there is no
- * confidence line under the word. The range sentence (under the "how far off"
- * line) and the half detent's reason line (.vd-reason, beside the basis line)
- * are plain sentences at body size, never the 10px tracked caps of a footnote.
- * Opacity stays at the measured .88 floor of test/tokens.test.mjs.
+ * The top of the verdict is for useful information only (RULINGS.md, 2026-10-10):
+ * no confidence line and no range sentence under the word. The half detent's one
+ * basis line (for a low answer, the reason in a few words) is a plain sentence at
+ * body size, never the 10px tracked caps of a footnote. Opacity stays at the
+ * measured .88 floor of test/tokens.test.mjs.
  */
-.sheet.dist .vd-doubt {
-  margin: 6px 0 0;
-  font: 600 15px/1.35 var(--f-ui);
-  letter-spacing: 0;
-  text-transform: none;
-  opacity: .96;
-  text-wrap: pretty;
-}
-.sheet.dist .vd-doubt.vd-spread { margin-top: 2px; font-weight: 500; }
 .sheet.dist .vd-basis {
   margin: 0;
   font: 500 14px/1.4 var(--f-ui);

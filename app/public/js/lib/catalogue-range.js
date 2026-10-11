@@ -9,16 +9,17 @@
  * (app/src/catalogue-first.ts, header). This file decides three things about it
  * on the client, and nothing else:
  *
- *   1. WHERE A SHELF PRICE FALLS against the shopper's OWN lines.
- *      (Superseded 2026-09-30 by RULINGS.md "The verdict speaks his words against
- *      the shopper's own thresholds".) The answer is one of the three codes the price line
- *      already uses (under_your_line, middle, over_your_line), never a grading
- *      word. The rule is identify/src/gauge.ts's own, so the two cannot disagree
- *      on where a line sits: percent from the middle, `<= -good` is under, `> bad`
- *      is over, everything else is the middle. The lines are lib/ranges.js
- *      `rangesOf`, which fills the same defaults the server applies when the
- *      shopper set none (10 and 10), so an unset shopper is placed exactly where
- *      the server would place them. This is allowed on the client where the
+ *   1. WHERE A SHELF PRICE FALLS against the shopper's OWN thresholds, in the
+ *      bell's four zones, great, good, reasonable or bad (RULINGS.md "The verdict
+ *      speaks his words against the shopper's own thresholds"; the 2026-10-10
+ *      audit, row 11: the range answer said "under your line", wording nothing on
+ *      the sheet explained). Percent mode is lib/verdict-chart.js `zoneFor` itself,
+ *      measured from the range's middle, so the range answer and the bell cannot
+ *      disagree on a boundary: at or past great is great, at or past good is good,
+ *      at or over bad is bad, the rest reasonable. Dollar mode is the same rule in
+ *      money per item. The thresholds are lib/ranges.js `rangesOf`, which fills
+ *      his 2026-09-17 defaults (great 30, good 20, bad 20) when the shopper set
+ *      none. This is allowed on the client where the
  *      Gemini sheet's zone is not: a catalogue range is Pexi's own data, not a
  *      Grounded Result, so there is no term against doing the math here.
  *
@@ -32,6 +33,7 @@
  */
 
 import { rangesOf } from './ranges.js';
+import { zoneFor } from './verdict-chart.js';
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 
@@ -63,8 +65,9 @@ export function middleCents(range) {
 }
 
 /**
- * Where `shelfCents` falls against the shopper's own lines, measured from the
- * range's middle. Returns `{ zone, pct }` or null when either number is
+ * Where `shelfCents` falls against the shopper's own thresholds, measured from
+ * the range's middle: `zone` is great, good, reasonable or bad, the bell's own
+ * four. Returns `{ zone, pct }` or null when either number is
  * missing. `pct` is the signed percent from the middle, for a caller that wants
  * it; the zone is the only thing the sheet speaks.
  *
@@ -90,9 +93,9 @@ export function placeShelf(shelfCents, range, state) {
   if (lines.unit === 'amount') {
     // Dollar mode: money per item, the shelf price against the middle price.
     const diff = (shelfCents - mid) / 100;
-    zone = diff <= -lines.good ? 'under_your_line' : diff > lines.bad ? 'over_your_line' : 'middle';
+    zone = diff <= -lines.great ? 'great' : diff <= -lines.good ? 'good' : diff >= lines.bad ? 'bad' : 'reasonable';
   } else {
-    zone = pct <= -lines.good ? 'under_your_line' : pct > lines.bad ? 'over_your_line' : 'middle';
+    zone = zoneFor(shelfCents, mid, { greatPct: lines.great, goodPct: lines.good, badPct: lines.bad });
   }
   return { zone, pct };
 }
@@ -114,7 +117,7 @@ export function shelfCentsOf(typedCents, wireShelf) {
  *   this_product      "From Pexi's own prices at N stores" (n is shops)
  *   leaf_category,    "From similar products in <category>" (the range's own
  *   parent_category    category, else the product's)
- *   gemini_typical    "A typical range estimated by AI, asked <date>"
+ *   gemini_typical    "Estimated by AI" (never the date it was asked)
  */
 export function provenanceOf(range, identity = null) {
   const r = usableRange(range);

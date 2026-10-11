@@ -273,11 +273,12 @@ test('case 25, beyond: pinned at the edge with the multiple', () => {
   assert.match(low, />0,2 fois le prix habituel</);
 });
 
-test('low and medium confidence carry the reason in the half detent, none under the word; high carries none (D13, 2026-10-10)', () => {
+test('low confidence carries the reason in the half detent, none under the word; medium and high carry none (D13, 2026-10-10)', () => {
   // The top of the verdict is for useful information only: no doubt line in the peek at any level.
-  // Medium says it is a fair guess; low says in a few words why it is thin; both beside the basis line.
+  // Low says in a few words why it is thin, as the one basis line. Medium's "Fairly sure, not
+  // certain" named no reason and went with the 2026-10-10 audit (row 8).
   const half = (html) => html.slice(html.indexOf('<div class="sheet-half">'), html.indexOf('<div class="sheet-full">'));
-  assert.equal(between(half(inLocale('en', () => distributionSheet(F.MEDIUM_SALE_BULK))), 'data-vd-reason'), 'Fairly sure, not certain');
+  assert.doesNotMatch(half(inLocale('en', () => distributionSheet(F.MEDIUM_SALE_BULK))), /data-vd-reason|Fairly sure/);
   assert.match(between(half(inLocale('en', () => distributionSheet(F.LOW_CONFIDENCE))), 'data-vd-reason'), /^.{8,}/);
   assert.doesNotMatch(inLocale('en', () => distributionSheet(F.GOOD)), /data-dist-conf|data-vd-reason/);
   for (const v of [F.MEDIUM_SALE_BULK, F.LOW_CONFIDENCE]) assert.doesNotMatch(inLocale('en', () => distributionSheet(v)), /data-dist-conf/);
@@ -349,7 +350,7 @@ test('every route that receives a verdict draws the bell before any refusal or f
 /* ===================================================== words and motion == */
 
 const KEYS = ['vd_zone_great', 'vd_zone_good', 'vd_zone_reasonable', 'vd_zone_bad', 'vd_where_under', 'vd_where_over', 'vd_where_about', 'vd_off', 'vd_typical',
-    'vd_not_confident', 'vd_reason_medium', 'vd_suspect', 'vd_multiple', 'vd_band', 'vd_alt_marked', 'vd_alt_bare', 'vd_sale', 'vd_price_label', 'vd_place', 'vd_dots_heading',
+    'vd_basis_ai_line', 'vd_suspect', 'vd_multiple', 'vd_band', 'vd_alt_marked', 'vd_alt_bare', 'vd_sale', 'vd_price_label', 'vd_place', 'vd_dots_heading',
     'vd_basis', 'vd_basis_own_prices', 'vd_basis_other_size', 'vd_basis_leaf_category', 'vd_basis_parent_category', 'vd_basis_brand_markup',
     'vd_basis_claude_typical', 'vd_basis_category_prior', 'vd_basis_global_prior', 'vd_bigger_pack', 'vd_unit_per_100_g', 'vd_unit_per_100_ml',
     'vd_unit_each', 'vd_unit_per_kg', 'vd_note_size_assumed', 'vd_note_other_region', 'vd_note_old_prices', 'vd_note_identity_conflict',

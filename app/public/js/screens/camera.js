@@ -23,7 +23,7 @@
  *   comparison set. That is a build standard earned by the same bug twice.
  */
 
-import { faceBlock, confidenceOf, dotsHtml, tierOf, sellerOf, animateFace, shinSay, updateShinSay } from '../shin.js';
+import { faceBlock, confidenceOf, dotsHtml, tierOf, sellerOf, animateFace, shinSay, shinFace, headingWithFace, updateShinSay } from '../shin.js';
 import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { attachEye, startCaptureQueue } from '../eye-attach.js';
@@ -35,7 +35,7 @@ import { t } from '../ui-strings.js';
 import * as shops from '../shops.js';
 import { countryLabel, countryIn } from './market.js';
 import { locale, localeTag } from '../lib/locale.js';
-import { usableRange, placeShelf, shelfCentsOf, provenanceOf, noRangeKey, askedDate, poolCents } from '../lib/catalogue-range.js';
+import { usableRange, placeShelf, shelfCentsOf, provenanceOf, noRangeKey, poolCents } from '../lib/catalogue-range.js';
 import { usableVerdict, shopperOf, shopperFor, multipleOf, bellSvg, tweenVerdict, ZONE_TIER } from '../lib/verdict-chart.js';
 import { mountTextMatch } from '../text-match.js';
 import { priorPrices, historyChartHtml } from '../lib/price-history.js';
@@ -46,7 +46,7 @@ import { fileReport, retryReport, abandonReport, rememberScan } from '../price-r
 import { pt } from '../price-strings.js';
 import { identifyOffline } from '../offline-aisle.js';
 import { track } from '../track.js';
-import { distFace, distWhere, DIST_CONF, answerSnapshot, answerOf, answerWord, confidenceWords } from '../lib/history-answer.js';
+import { distFace, distWhere, DIST_CONF, answerSnapshot, answerOf, answerWord } from '../lib/history-answer.js';
 import { refreshCell } from '../geocell.js';
 import { cleanName, nameCarriesSize } from '../lib/product-name.js';
 import { mountGrounded } from '../grounded.js';
@@ -1519,7 +1519,11 @@ export function isServerFault(err) {
   return !!m && Number(m[1]) >= 500;
 }
 
-/** D37: the offline sheet carries Retry, the same barcode sent again. */
+/**
+ * D37: the offline sheet carries Retry, the same barcode sent again. The bubble
+ * and Try again are the whole sheet (2026-10-10 audit row 18): a second sentence
+ * under the bubble only said the same fact again.
+ */
 export function needsConnectionSheet() {
   return `
     <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite" tabindex="-1" data-needs-connection>
@@ -1529,7 +1533,6 @@ export function needsConnectionSheet() {
         <div class="sheet-head">
           ${shinSay('unknown', 'cam_needs_connection', {}, { size: 'face-verdict' })}
         </div>
-        <p class="detail">${escapeHtml(say('cam_offline_no_price'))}</p>
         <div class="actions actions-primary">
           <button type="button" class="pill solid wide" data-act="lookup-retry">${escapeHtml(t('try_again'))}</button>
         </div>
@@ -1537,7 +1540,12 @@ export function needsConnectionSheet() {
     </section>`;
 }
 
-/** D17: a fault on Pexi's side says so, and offers Retry. Never "I need a connection". */
+/**
+ * D17: a fault on Pexi's side says so, and offers Retry. Never "I need a
+ * connection". The bubble and Try again only (2026-10-10 audit row 17): the
+ * sentence that followed repeated the bubble and claimed the connection was fine,
+ * which nothing here checks.
+ */
 export function serverFaultSheet() {
   return `
     <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite" tabindex="-1" data-server-fault>
@@ -1547,7 +1555,6 @@ export function serverFaultSheet() {
         <div class="sheet-head">
           ${shinSay('unknown', 'cam_server_fault', {}, { size: 'face-verdict' })}
         </div>
-        <p class="detail">${escapeHtml(say('cam_server_fault_detail'))}</p>
         <div class="actions actions-primary">
           <button type="button" class="pill solid wide" data-act="lookup-retry">${escapeHtml(t('try_again'))}</button>
         </div>
@@ -1602,15 +1609,15 @@ export function serverFaultSheet() {
 
 /**
  * Why an answer is not fully confident, in a few plain words, for the half
- * detent beside where the estimate came from (D13; RULINGS.md "V1 verdict screen
+ * detent where the estimate came from is said (D13; RULINGS.md "V1 verdict screen
  * mechanics", 2026-10-10: the top of the verdict is for useful information only,
- * so this never sits under the verdict word). Low says why, keyed on where the
- * centre came from ("Few prices for this item"); medium says it is a fair guess,
- * not a firm one; high has none. Empty string for none.
+ * so this never sits under the verdict word). Low only, keyed on where the centre
+ * came from ("Few prices for this item"). Medium and high have none: "Fairly
+ * sure, not certain" said nothing a shopper could act on (audit row 8). Empty
+ * string for none.
  */
 function confidenceReason(v) {
-  if (v.confidence === 'high') return '';
-  if (v.confidence === 'medium') return t('vd_reason_medium');
+  if (v.confidence !== 'low') return '';
   const key = `vd_why_${v.basis ?? 'default'}`;
   const said = t(key);
   const why = said === key ? t('vd_why_default') : said;
@@ -1683,24 +1690,33 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
   const tier = zone ? ZONE_TIER[zone] : 'unknown';
   const fmt = (c) => money(c, v.currency);
   const centre = fmt(Math.round(v.centreCents));
+  // The face only, its mood following the zone and the confidence gate (distFace).
+  // No bubble words on the verdict (RULINGS.md "V1 verdict screen mechanics",
+  // 2026-10-10): every line there repeated the verdict word or hedged it.
   const face = distFace(zone, v.confidence);
-  // The bubble reacts to the zone and to how sure Pexi is, in the shopper's own
-  // attitude (N12). A low-confidence answer gets the `_unsure` line, never a loud
-  // one (DESIGN.md, the confidence gate); with no shopper price yet it asks for it.
-  const spoken = zone ? `dist_${zone}${v.confidence === 'high' ? '' : '_unsure'}` : 'dist_noprice';
   const headline = zone ? t(`vd_zone_${zone}`) : name;
   const line = s ? t('vd_off', { where: distWhere(s, v), centre }) : t('vd_typical', { centre });
-  const { spread: spreadLine } = confidenceWords(v);
+  // ONE line in the half detent (audit row 8): where the estimate came from. A
+  // low answer's reason already names its source in a few words ("few prices for
+  // this item", "an AI estimate, no prices for this item"), so for a low answer
+  // the reason IS that line, never a second sentence restating the first.
   const reason = confidenceReason(v);
-  const notes = v.notes.map((n) => `<li class="vd-note" data-vd-note="${n}">${escapeHtml(t(`vd_note_${n}`))}</li>`).join('');
-  const bigger = v.biggerPack
-    ? `<p class="detail vd-bigger" data-vd-bigger>${escapeHtml(t('vd_bigger_pack', { quantity: v.biggerPack.quantity ?? '', store: v.biggerPack.store ?? '', price: fmt(v.biggerPack.perUnitCents), unit: unitWords(v.perUnit?.label ?? '') }))}</p>`
-    : '';
-  const basis = !v.basis
+  const basis = reason || (!v.basis
     ? ''
     : v.basis === 'own_prices'
       ? t('vd_basis_blend', { n: v.n ? String(v.n) : '' })
-      : t('vd_basis', { from: t(`vd_basis_${v.basis}`), n: v.n ? String(v.n) : '' });
+      : v.basis === 'claude_typical'
+        ? t('vd_basis_ai_line')
+        : t('vd_basis', { from: t(`vd_basis_${v.basis}`), n: v.n ? String(v.n) : '' }));
+  // A note that only repeats the line above it is dropped; a note that changes the answer stays (audit row 9's rule).
+  const repeats = new Set([...(v.basis === 'claude_typical' ? ['claude_estimate'] : []), ...(reason ? ['few_prices'] : [])]);
+  const notes = v.notes
+    .filter((n) => !repeats.has(n))
+    .map((n) => `<li class="vd-note" data-vd-note="${n}">${escapeHtml(t(`vd_note_${n}`))}</li>`)
+    .join('');
+  const bigger = v.biggerPack
+    ? `<p class="detail vd-bigger" data-vd-bigger>${escapeHtml(t('vd_bigger_pack', { quantity: v.biggerPack.quantity ?? '', store: v.biggerPack.store ?? '', price: fmt(v.biggerPack.perUnitCents), unit: unitWords(v.perUnit?.label ?? '') }))}</p>`
+    : '';
   const dots = v.dots.length
     ? `<h3 class="vd-dots-h">${escapeHtml(t('vd_dots_heading'))}</h3><ul class="vd-dots" data-vd-dots>${v.dots
         .map((d) => {
@@ -1716,12 +1732,11 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
       ${backButton()}
       <div class="sheet-peek">
         <div class="sheet-head">
-          ${shinSay(face, spoken, zone ? { asking: fmt(s.cents), usual: centre } : {}, { size: 'face-verdict', tier })}
+          ${shinFace(face, { size: 'face-verdict', tier })}
           ${thumbImg(thumb)}
         </div>
         <h2 class="vword${zone ? '' : ' small'}" data-dist-headline>${escapeHtml(headline)}</h2>
         <p class="sub vd-line" data-dist-line>${escapeHtml(line)}</p>
-        ${spreadLine ? `<p class="vd-doubt vd-spread" data-dist-spread>${escapeHtml(spreadLine)}</p>` : ''}
         ${s?.suspect ? `<button type="button" class="pill ghost vd-suspect" data-act="dist-suspect" data-cents="${s.suspect.suggestCents}">${escapeHtml(t('vd_suspect', { price: fmt(s.suspect.suggestCents) }))}</button>` : ''}
         <div class="vd-chart${still ? ' vd-still' : ''}" data-dist-chart>${distBell(v, { report: shopperReport })}</div>
         ${shopperReportLine(shopperReport, v.currency)}
@@ -1739,8 +1754,7 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
           <button type="button" class="pill ghost" data-act="correct">${escapeHtml(t('cam_correct_it'))}</button>
           <button type="button" class="pill ghost" data-act="share">${escapeHtml(t('cam_share'))}</button>
         </div>
-        ${basis ? `<p class="vd-basis" data-vd-basis>${escapeHtml(basis)}</p>` : ''}
-        ${reason ? `<p class="vd-basis vd-reason" data-vd-reason>${escapeHtml(reason)}</p>` : ''}
+        ${basis ? `<p class="vd-basis" data-vd-basis${reason ? ' data-vd-reason' : ''}>${escapeHtml(basis)}</p>` : ''}
         ${notes ? `<ul class="vd-notes" data-vd-notes>${notes}</ul>` : ''}
         ${bigger}
         ${dots}
@@ -1856,7 +1870,8 @@ function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store
   const placed = range && shelf !== null ? placeShelf(shelf, range, state) : null;
   const zone = placed?.zone ?? null;
   const name = candidateRow({ brand: identity.brand, name: identity.name, size: identity.size }).label;
-  const headline = zone ? t(GEMINI_ZONE_KEY[zone]) : name;
+  // The bell's own four words (RULINGS.md "The verdict speaks his words against the shopper's own thresholds").
+  const headline = zone ? t(`vd_zone_${zone}`) : name;
   const figure = range
     ? t(range.unit ? 'cat_range_unit' : 'cat_range', {
         low: money(range.lowCents, currency),
@@ -1867,12 +1882,8 @@ function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store
   let basis = '';
   if (range) {
     const p = provenanceOf(range, identity);
-    if (p && range.basis === 'gemini_typical') {
-      const date = askedDate(answer.rangeAskedAt, localeTag());
-      basis = date ? t('cat_basis_ai_asked', { date }) : t('cat_basis_ai');
-    } else if (p) {
-      basis = t(p.key, p.facts);
-    }
+    // An AI range says so and nothing more: the day it was asked helps no shopper (audit row 12).
+    if (p) basis = t(p.key, p.facts);
   }
   const shelfLine = shelf !== null ? t('cam_gem_shelf', { label: money(shelf, currency) }) : '';
   // Who named an item the catalogue lacks (RULINGS.md "A scan never ends with no result"): never shown as Pexi's own.
@@ -1886,15 +1897,17 @@ function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store
     : '';
 
   return `
-    <section class="sheet catalogue" data-kind="catalogue" data-outcome="catalogue_hit" data-basis="${escapeHtml(range?.basis ?? '')}" data-tier="${GEMINI_ZONE_TIER[zone] ?? 'unknown'}" data-zone="${escapeHtml(zone ?? '')}" data-conf="${range ? 'sure' : 'refuses'}" data-detent="peek" aria-live="polite" tabindex="-1">
+    <section class="sheet catalogue" data-kind="catalogue" data-outcome="catalogue_hit" data-basis="${escapeHtml(range?.basis ?? '')}" data-tier="${ZONE_TIER[zone] ?? 'unknown'}" data-zone="${escapeHtml(zone ?? '')}" data-conf="${range ? 'sure' : 'refuses'}" data-detent="peek" aria-live="polite" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
       ${backButton()}
       <div class="sheet-peek">
-        <div class="sheet-head">
-          ${shinSay(range ? 'idle' : 'unknown', 'gem_answer', {}, { size: 'face-verdict', tier: 'unknown' })}
-          ${thumbImg(thumb)}
-        </div>
-        <h2 class="vword${zone ? '' : ' small'}" data-cat-headline>${escapeHtml(headline)}</h2>
+        ${/* The mascot sits beside the headline with no words (2026-10-10 audit row 10:
+             its line was "Here is what I found."), and its mood follows the zone the
+             way the bell's does (RULINGS.md "Avatar / mascot and competitor-inspired
+             design"). A range carries no confidence, so it takes the bell's medium
+             gate: the happy face for great, never the intense one past it. */
+          thumb ? `<div class="sheet-head">${thumbImg(thumb)}</div>` : ''}
+        ${headingWithFace(zone ? distFace(zone, 'medium') : range ? 'idle' : 'unknown', `<h2 class="vword${zone ? '' : ' small'}" data-cat-headline>${escapeHtml(headline)}</h2>`, { size: zone ? 36 : 'face-row' })}
         ${zone ? `<p class="itemname" data-cat-name>${escapeHtml(name)}</p>` : ''}
         ${range
           ? `<div class="priceline cat-range" role="group" aria-label="${escapeHtml(t('cat_range_label'))}"><span class="cat-range-figure" data-cat-range>${escapeHtml(figure)}</span></div>`
@@ -2024,15 +2037,13 @@ function searchCandidateSheet(items, query) {
  * search anyway with the words as typed.
  */
 function typedPickSheet(items, query) {
+  // The heading asks, with the mascot small beside it and no words (2026-10-10 audit row 14: its line was a stale "Name it").
   return `
     <section class="sheet candidates typedpick" data-kind="typed-pick" data-tier="unknown" data-conf="reading" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
       ${backButton()}
       <div class="sheet-peek">
-        <div class="sheet-head compact">
-          ${shinSay('asking', 'text_route_prompt', {}, { size: 64 })}
-        </div>
-        <h2 class="vword" style="font-size:20px">${escapeHtml(t('cam_typed_pick_which', { query }))}</h2>
+        ${headingWithFace('asking', `<h2 class="vword" style="font-size:20px">${escapeHtml(t('cam_typed_pick_which', { query }))}</h2>`)}
         <div class="cands">
           ${items
             .map(
@@ -2668,15 +2679,13 @@ function workingSheet(itemLabel, step = 0, opts = {}) {
  * against.
  */
 function textRouteSheet(value = '', { unknownBarcode = false } = {}) {
+  // The heading asks, with the mascot small beside it and no words (2026-10-10 audit row 13: its line asked the same thing).
   return `
     <section class="sheet textroute" data-tier="unknown" data-conf="reading" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
       ${backButton()}
       <div class="sheet-peek">
-        <div class="sheet-head">
-          ${shinSay('asking', 'text_route_prompt', {}, { size: 64 })}
-        </div>
-        <h2 class="vword" style="font-size:20px">${escapeHtml(t(unknownBarcode ? 'cat_unknown_ask_name' : 'cam_name_it'))}</h2>
+        ${headingWithFace('asking', `<h2 class="vword" style="font-size:20px">${escapeHtml(t(unknownBarcode ? 'cat_unknown_ask_name' : 'cam_name_it'))}</h2>`)}
         <form class="textroute-form" data-form="textroute">
           <input type="text" inputmode="text" autocomplete="off" placeholder="${escapeHtml(t('cam_brand_model_placeholder'))}"
                  value="${value.replace(/"/g, '&quot;')}" data-textroute-input>

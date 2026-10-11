@@ -239,7 +239,8 @@ test('D08: the card for a bell answer says the zone word and both prices, never 
   assert.match(card, /askingText/);
   assert.match(card, /elsewhereText/);
   assert.ok(!/saved|savings/i.test(card), 'the card claims a saving');
-  assert.equal(t('share_conf_low'), 'Not fully confident');
+  // 2026-10-10 audit row 41: the posted card prints no hedge; only a sure answer prints its confidence word.
+  assert.match(card, /a\.confidence === 'high' \? t\('share_conf_high'\)/);
 });
 
 /* ------------------------------------------------------------------ D17, D37 */
@@ -256,8 +257,8 @@ test('D17: the server-fault sheet blames Pexi, offers Retry and never says "I ne
   const html = camera.serverFaultSheet();
   assert.match(html, /data-server-fault/);
   assert.match(html, /data-act="lookup-retry"/);
+  // The bubble alone blames Pexi (2026-10-10 audit row 17 dropped the second sentence, "the fault is on Pexi's side").
   assert.match(html, /Pexi hit a problem on its side/);
-  assert.match(html, /fault is on Pexi/);
   assert.ok(!/I need a connection|needs an internet connection/.test(html), 'a server fault tells the shopper to fix their network');
   const lookup = CAMERA.slice(CAMERA.indexOf('async function catalogueLookup'), CAMERA.indexOf('function sameCode'));
   assert.match(lookup, /serverFault = isServerFault\(err\)/);

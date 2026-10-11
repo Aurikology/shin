@@ -495,3 +495,15 @@
   border-right-color: var(--tier, var(--hairline));
   border-top-color: var(--tier, var(--hairline));
 }
+
+/* head-row: the mascot beside a heading, about the heading's height, on the
+   heading's own line (shin.js `headingWithFace`). No bubble, no row of its own. */
+.head-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.head-row > .head-face { flex: 0 0 auto; display: inline-flex; line-height: 0; }
+.head-row > h1,
+.head-row > h2 { flex: 1 1 auto; min-width: 0; margin: 0; }

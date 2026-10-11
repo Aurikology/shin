@@ -65,12 +65,14 @@ test('the second line of the peek is the percent-and-estimate line, at every con
   }
 });
 
-test('a wide-spread range sentence comes after the useful line, never before it', () => {
+/* Changed 2026-10-10 (audit row 3): the wide-spread sentence left the sheet; the bell
+   draws the spread. The useful line is still the first under the word, and now no
+   hedge line follows it. */
+test('a wide spread adds no sentence after the useful line', () => {
   const html = sheet({ ...F.LOW_CONFIDENCE, p10Cents: 300, p90Cents: 3000 });
   const lines = peekLines(html);
   assert.equal(lines[0].cls, 'sub vd-line');
-  assert.match(lines[1].cls, /vd-spread/);
-  assert.match(lines[1].text, /vary a lot/);
+  assert.ok(!lines.some((l) => /vd-spread|vd-doubt/.test(l.cls) || /vary a lot/.test(l.text)), JSON.stringify(lines));
 });
 
 test('the half detent carries the reason in plain words, right after where the estimate came from', () => {
@@ -93,10 +95,13 @@ test('every keyed reason reaches the half detent, in both languages', () => {
   assert.equal(fr, 'Peu de prix pour ce produit');
 });
 
-test('a medium-confidence verdict says so once, in the half detent', () => {
+/* Changed 2026-10-10 (audit row 8): "Fairly sure, not certain" named no reason, so it
+   went; the ruling's "reason in a few words" is a low answer's, and a medium answer
+   has none to give. Its half detent keeps the one line saying where the estimate came from. */
+test('a medium-confidence verdict carries one basis line in the half detent and no hedge sentence', () => {
   const half = halfOf(sheet(F.MEDIUM_SALE_BULK));
-  const reason = unesc(half.match(/data-vd-reason>([^<]*)</)?.[1]);
-  assert.equal(reason, 'Fairly sure, not certain');
+  assert.doesNotMatch(half, /data-vd-reason|Fairly sure/);
+  assert.equal((half.match(/<p class="vd-basis/g) ?? []).length, 1);
 });
 
 test('a confident verdict is unchanged: no reason line anywhere, the same two peek lines', () => {
@@ -107,9 +112,14 @@ test('a confident verdict is unchanged: no reason line anywhere, the same two pe
   assert.match(lines[0].text, /^\d+% (under|over) the typical price, Pexi's estimate \$[\d.]+$/);
 });
 
-test('the doubt that stays on the sheet: the mascot bubble speaks the hedged line, and the data attributes still say thin', () => {
+/* Changed 2026-10-10 (RULINGS.md "V1 verdict screen mechanics", the later call that day):
+   the mascot shows its face only on the verdict, so the doubt that stays is drawn (the
+   hollow fill, the plain face) and its reason is in the half detent. */
+test('the doubt that stays on the sheet: drawn thin, the plain face, the reason in the half detent, and no bubble', () => {
   const html = sheet(F.LOW_CONFIDENCE);
   assert.match(html, /data-conf="thin"/);
   assert.match(html, /data-confidence="low"/);
-  assert.match(html, /<p class="bubble-text">/);
+  assert.doesNotMatch(html, /<p class="bubble-text">/);
+  assert.match(peekOf(html), /<div class="shin-say" data-state="\w+"[^>]*data-face-only/);
+  assert.match(halfOf(html), /data-vd-reason>/);
 });

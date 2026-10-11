@@ -125,28 +125,57 @@ test('R-23 (fails loudly): a refusal reason the app has no wording for throws in
 
 /* ------------------------------------------------------------------ R-22 */
 
-const PRICE_KEYS = ['dist_great', 'dist_great_unsure', 'dist_good', 'dist_good_unsure', 'dist_reasonable', 'dist_reasonable_unsure', 'dist_bad', 'dist_bad_unsure', 'dist_noprice'];
-const lines = (keys) => keys.flatMap((k) => PERSONALITIES.map((who) => ({ k, who, s: say(k, {}, who) })));
+/*
+ * The price lines, as the verdict prints them now. Until 2026-10-10 these were the
+ * mascot's per-zone bubble lines (dist_*); RULINGS.md "V1 verdict screen mechanics"
+ * then made the verdict face-only, so what states the price is the verdict word and
+ * the line under it. The same four R-22 rules are held against that text, in every
+ * personality, for every zone and confidence.
+ */
+const F = await import('../verdict-fixtures.mjs');
+const ZONE_FIXTURES = { great: F.GREAT, good: F.GOOD, reasonable: F.REASONABLE, bad: F.BAD };
+const unesc = (s) => s.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+function priceLines() {
+  const out = [];
+  for (const who of PERSONALITIES) {
+    store.update({ personality: who });
+    for (const [zone, raw] of Object.entries(ZONE_FIXTURES)) {
+      for (const confidence of ['high', 'medium', 'low']) {
+        const html = camera.distributionSheet({ ...raw, confidence }, { name: 'Item' });
+        for (const marker of ['data-dist-headline', 'data-dist-line']) {
+          const s = unesc(new RegExp(`${marker}>([^<]*)<`).exec(html)?.[1] ?? '');
+          out.push({ k: `${zone}/${confidence}/${marker}`, who, zone, marker, s });
+        }
+      }
+    }
+  }
+  store.update({ personality: null });
+  return out;
+}
 
 test('R-22: no price line says why the store priced it that way, in any personality', () => {
   const motive = /priced this wrong|mistake|in your favou?r|is being fair|charging extra|giving it away|robbery|somebody in that store|the store (is|has|was)|they (are|were) (pushing|charging)/i;
-  for (const { k, who, s } of lines(PRICE_KEYS)) {
+  const all = priceLines();
+  assert.ok(all.length >= 72, `only ${all.length} price lines found`);
+  for (const { k, who, s } of all) {
     assert.ok(s.length > 0, `${k}/${who} has no line`);
     assert.ok(!motive.test(s), `${k}/${who} claims a motive: "${s}"`);
   }
 });
 
-test('R-22 (KEEP): the default great, good, reasonable and bad lines state the comparison with the usual price', () => {
-  assert.match(say('dist_great', {}, 'deadpan'), /under the usual/i);
-  assert.match(say('dist_good', {}, 'deadpan'), /under the usual/i);
-  assert.match(say('dist_reasonable', {}, 'deadpan'), /going rate/i);
-  assert.match(say('dist_bad', {}, 'deadpan'), /over the usual/i);
+test('R-22 (KEEP): the great, good, reasonable and bad answers state the comparison with the usual price', () => {
+  const said = (zone) => priceLines().find((l) => l.zone === zone && l.marker === 'data-dist-line' && l.who === 'deadpan').s;
+  assert.match(said('great'), /under the typical price/i);
+  assert.match(said('good'), /under the typical price/i);
+  assert.match(said('reasonable'), /typical price/i);
+  assert.match(said('bad'), /over the typical price/i);
 });
 
 test('R-22 (KEEP): no price line, save line or acknowledgement promises an alert or a re-check', () => {
   const promise = /I will (say|tell|shout|let|notify|alert|check|look|message|ping|watch)|tell you if|let you know|keep an eye|check again|look again|re-?check|notify|alert you/i;
+  for (const { k, who, s } of priceLines()) assert.ok(!promise.test(s), `${k}/${who} promises something the app cannot do: "${s}"`);
   const facts = { asking: '$4.99', seller: 'Store', day: 'today', usual: '$5.50', item: 'item', price: '$4.99' };
-  for (const key of [...PRICE_KEYS, 'watching', 'peek_good', 'peek_fair', 'peek_walk_away', 'peek_watching', 'keep_it_ack']) {
+  for (const key of ['watching', 'peek_good', 'peek_fair', 'peek_walk_away', 'peek_watching', 'keep_it_ack']) {
     for (const who of PERSONALITIES) {
       const s = say(key, facts, who);
       assert.ok(!promise.test(s), `${key}/${who} promises something the app cannot do: "${s}"`);
@@ -156,7 +185,8 @@ test('R-22 (KEEP): no price line, save line or acknowledgement promises an alert
 
 test('R-22 (KEEP): no price line uses a savings word', () => {
   const savings = /\bsav(e|es|ed|ing|ings)\b|\bbargain\b|\bdeal\b|\bsteal\b/i;
-  for (const { k, who, s } of lines(PRICE_KEYS)) assert.ok(!savings.test(s), `${k}/${who} makes a savings claim: "${s}"`);
+  for (const { k, who, s } of priceLines()) assert.ok(!savings.test(s), `${k}/${who} makes a savings claim: "${s}"`);
+  assert.ok(savings.test('a real bargain'), 'control: the savings matcher must see a savings word');
 });
 
 test('R-22 (KEEP): the typical price is called Pexi\'s estimate wherever it is printed', () => {

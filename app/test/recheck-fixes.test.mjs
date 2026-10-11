@@ -19,7 +19,8 @@ const { t, setLocale } = await import('../public/js/ui-strings.js');
 const { say, PERSONALITIES } = await import('../public/js/voice.js');
 const { savingsView, savingsHtml } = await import('../public/js/screens/savings.js');
 const { limitSpent } = await import('../public/js/screens/paywall.js');
-const { answerConfidenceHtml } = await import('../public/js/lib/history-answer.js');
+const { answerCard } = await import('../public/js/screens/share.js');
+const { detailModal } = await import('../public/js/screens/watchlist.js');
 
 /* ------------------------------------------------------------------- N09 */
 
@@ -69,47 +70,55 @@ test('D30: the paywall bubble is the "used" line only when the allowance is spen
   assert.equal(limitSpent({ limit: 5, used: 5 }), true);
   assert.equal(limitSpent({ limit: 5, used: 2 }), false, 'opened from a button with scans left');
   assert.equal(limitSpent({}), false);
-  for (const who of PERSONALITIES.map((p) => p.id ?? p)) {
-    const open = say('paywall_say_open', {}, who);
-    assert.ok(open && open !== 'paywall_say_open', `no open line (${who})`);
-    assert.doesNotMatch(open, /used|spent|ran out|gone/i, `the open line (${who}) claims the allowance is spent`);
-  }
   const src = read('js/screens/paywall.js');
   // UX build 2 (R-84): the spent bubble is now paywall_say_spent (points the disappointment at Pexi), still gated on limitSpent.
+  // Changed 2026-10-10 (audit row 38): opened with scans left the face stands alone, so the open
+  // screen cannot claim the allowance is spent at all; the spent line still only speaks when spent.
   assert.match(src, /const spent = limitSpent\(params\);/);
-  assert.match(src, /spent \? 'paywall_say_spent' : 'paywall_say_open'/);
+  assert.match(src, /spent\s*\? shinSay\('idle', 'paywall_say_spent'[^\n]*\n\s*: ''\}/);
+  assert.doesNotMatch(src, /paywall_say_open/, 'the open screen speaks a line again');
 });
 
 /* ------------------------------------------------------------------- N12 */
 
-test('N12: every zone has a confident and a hedged line, in three attitudes, in both languages', () => {
+/* N12's per-zone bubble lines were retired 2026-10-10 (RULINGS.md "V1 verdict screen
+   mechanics": on the verdict the mascot shows its face only). What N12 guarded, a loud
+   line on thin evidence, can no longer happen because no line is spoken there. */
+test('N12, as it stands now: the verdict has no zone lines left to speak, in any attitude', () => {
   for (const key of ['dist_great', 'dist_good', 'dist_reasonable', 'dist_bad', 'dist_great_unsure', 'dist_good_unsure', 'dist_reasonable_unsure', 'dist_bad_unsure', 'dist_noprice']) {
-    for (const who of ['deadpan', 'warm', 'blunt']) {
-      const en = say(key, {}, who);
-      assert.ok(en && en !== key, `${key} (${who}) has no English line`);
-      assert.doesNotMatch(en, /undefined|null|NaN|saved/i);
-    }
+    for (const who of ['deadpan', 'warm', 'blunt']) assert.throws(() => say(key, {}, who), /no line for the key/, `${key} (${who}) is back`);
   }
-  assert.notEqual(say('dist_great', {}, 'warm'), say('dist_great_unsure', {}, 'warm'));
 });
 
 /* ------------------------------------------------------------------- N02 */
 
-test('N02: a medium-confidence share says "not fully confident", not a bare "Sure"', () => {
-  assert.equal(t('share_conf_medium'), 'Not fully confident');
+/* N02 said a medium share must never read as a bare "Sure". Changed 2026-10-10 (audit
+   row 41): a card meant to be posted prints no hedge, so a medium or low card prints no
+   confidence word at all, and still never claims to be sure. */
+test('N02: a medium or low share card never claims to be sure, and prints no hedge', () => {
+  const at = new Date().toISOString();
+  const answer = (confidence) => ({ kind: 'distribution', id: 'k', label: 'Milk', zone: 'good', confidence, centreCents: 400, p10Cents: 300, p90Cents: 500, currency: 'CAD', askingCents: 300, offByPct: -25, basis: 'own_prices' });
+  for (const confidence of ['medium', 'low']) {
+    const card = answerCard({ id: 'h', at, result: answer(confidence), query: {} });
+    assert.equal(card.confidence, '', confidence);
+  }
+  assert.equal(answerCard({ id: 'h', at, result: answer('high'), query: {} }).confidence, t('share_conf_high').toUpperCase());
   setLocale('fr');
   try {
-    assert.match(t('share_conf_medium'), /Pas tout à fait sûr/);
+    assert.equal(answerCard({ id: 'h', at, result: answer('medium'), query: {} }).confidence, '');
   } finally {
     setLocale('en');
   }
 });
 
-test('N02: a saved answer with doubt shows the doubt as readable text', () => {
-  const a = { kind: 'distribution', verdict: { confidence: 'low', basis: 'claude_typical', p10Cents: 100, p90Cents: 900, centreCents: 400 } };
-  const html = answerConfidenceHtml(a);
-  assert.match(html, /pmodal-doubt/);
-  assert.match(html, /Not fully confident/);
+/* N02's second half, "a saved answer with doubt shows the doubt", changed 2026-10-10
+   (audit row 29): a reopened answer is its word, percentage, item and date. It still
+   never shows more confidence than the sheet did: no "Confident" on a low answer. */
+test('N02: a saved low answer reopens with no confidence claim', () => {
+  const a = { kind: 'distribution', id: 'k', label: 'Milk', zone: 'reasonable', confidence: 'low', basis: 'claude_typical', p10Cents: 100, p90Cents: 900, centreCents: 400, currency: 'CAD', askingCents: 400, offByPct: 0 };
+  const html = detailModal({ id: 'k', label: 'Milk', lastCents: 400, usualCents: 400, savedAt: new Date().toISOString(), answer: a }, null);
+  assert.match(html, /Reasonable price/);
+  assert.doesNotMatch(html, /Confident|Not fully confident|pmodal-conf/);
 });
 
 /* ------------------------------------------------------------------- N03 */

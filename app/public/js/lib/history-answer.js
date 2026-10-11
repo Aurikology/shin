@@ -21,7 +21,6 @@
 import { t } from '../ui-strings.js';
 import { usableVerdict, shopperFor, shopperOf, ZONE_TIER } from './verdict-chart.js';
 import { money } from './money.js';
-import { escapeHtml } from './dom.js';
 
 /** His zone, in the face the tier wears. Great is the intense face only when Pexi is not unsure (AVATAR.md's gate). */
 export function distFace(zone, confidence) {
@@ -105,44 +104,12 @@ export function answerWord(a) {
   return a.zone ? t(`vd_zone_${a.zone}`) : t('cam_gem_answered_word');
 }
 
-/** The 10-to-90 range counts as "varies a lot" when the top is more than this many times the bottom. */
-export const WIDE_SPREAD = 5;
-
-/**
- * What the sheet says about doubt, in sentence case, for a verdict or a stored
- * answer alike (N02, N11, D13): `doubt` is "Not fully confident: why" for a
- * low answer and the plain sentence for a medium one, empty for a high one;
- * `spread` says in plain words when the 10-to-90 range is wider than about
- * five times. One reader for the live sheet and the Saved and Past scans
- * copies, so a saved answer can never claim more than the sheet did.
+/*
+ * No doubt sentence and no "prices vary a lot" sentence is kept for the Saved
+ * and Past scans copies (2026-10-10 audit rows 3 and 29): the sheet no longer
+ * says either, so a reopened answer is its word, its percentage line, the item
+ * and the date, never more doubt than the sheet showed and never less.
  */
-export function confidenceWords(v) {
-  let doubt = '';
-  if (v.confidence === 'medium') {
-    doubt = t('vd_not_confident');
-  } else if (v.confidence !== 'high') {
-    const key = `vd_why_${v.basis ?? 'default'}`;
-    const said = t(key);
-    doubt = t('vd_not_confident_why', { why: said === key ? t('vd_why_default') : said });
-  }
-  const low = Number(v.p10Cents);
-  const high = Number(v.p90Cents);
-  const spread = low > 0 && high / low > WIDE_SPREAD
-    ? t('vd_spread', { low: money(Math.round(low), v.currency), high: money(Math.round(high), v.currency) })
-    : '';
-  return { doubt, spread };
-}
-
-/**
- * The confidence block a Saved or Past scans copy shows, as markup: the sheet's
- * own doubt sentence (never a softer word than the sheet used, N02), and the
- * range sentence when it said one. A confident answer says "Confident".
- */
-export function answerConfidenceHtml(a) {
-  const { doubt, spread } = confidenceWords(a);
-  const main = doubt || t(`share_conf_${a.confidence}`);
-  return `<p class="pmodal-conf${doubt ? ' pmodal-doubt' : ''}">${escapeHtml(main)}</p>${spread ? `<p class="pmodal-conf pmodal-doubt">${escapeHtml(spread)}</p>` : ''}`;
-}
 
 /** The one sentence under the word, as the sheet said it. */
 export function answerLine(a) {

@@ -475,7 +475,7 @@ function cardText(card) {
 }
 
 /** The card for a verdict-bell answer (D08): the zone word and the two prices the sheet showed. */
-function answerCard(entry) {
+export function answerCard(entry) {
   const a = answerOf(entry);
   const look = answerLook(a);
   const label = a.label || entry.query?.text || t('past_scans_unknown_item');
@@ -494,7 +494,8 @@ function answerCard(entry) {
     elsewhereSub: a.p10Cents === a.p90Cents
       ? t('share_one_price_one_seller')
       : t('share_range', { low: money(a.p10Cents, a.currency), high: money(a.p90Cents, a.currency) }),
-    confidence: t(`share_conf_${a.confidence}`).toUpperCase(),
+    // A card meant to be posted carries no hedge (2026-10-10 audit row 41): a sure answer says so, any other says nothing.
+    confidence: a.confidence === 'high' ? t('share_conf_high').toUpperCase() : '',
     stamp: new Date(entry.at ?? Date.now())
       .toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
       .toUpperCase(),
@@ -549,11 +550,8 @@ export default {
     root.innerHTML = `
       <div class="page page-share">
         <header class="page-head">
-          <p class="kicker">${t('share_kicker')}</p>
           <h1>${t('share_post_it')}</h1>
         </header>
-
-        <p class="fineprint">${t('share_no_link_why')}</p>
 
         <div class="shr-frame">
           <canvas class="shr-canvas"

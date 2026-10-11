@@ -227,11 +227,6 @@ export const LINES_FR = {
     warm: () => "Rien de gardé pour l'instant. Scanne quelque chose et touche Garde-le, et je retiens le prix, le marchand et la date.",
     blunt: () => "Rien de gardé. Scanne quelque chose et touche Garde-le.",
   },
-  watchlist_callback: {
-    deadpan: (f) => `${f.item}.${f.price ? ` ${f.price}${f.seller ? `, ${f.seller}` : ''},` : f.seller ? ` ${f.seller},` : ''} gardé ${f.day}.`,
-    warm: (f) => `J'ai encore ${f.item} de gardé${f.price ? `, ${f.price}${f.seller ? ` chez ${f.seller}` : ''}` : f.seller ? `, chez ${f.seller}` : ''}, ${f.day}.`,
-    blunt: (f) => `${f.item}.${f.price ? ` ${f.price}${f.seller ? `, ${f.seller}` : ''}.` : f.seller ? ` ${f.seller}.` : ''} ${f.day}.`,
-  },
   watchlist_saved_only: {
     deadpan: (f) => `${f.price}${f.seller ? `, ${f.seller}` : ''}, gardé ${f.day}.`,
     warm: (f) => `Tu as gardé ça à ${f.price}${f.seller ? ` chez ${f.seller}` : ''}, ${f.day}.`,
@@ -368,11 +363,6 @@ export const LINES_FR = {
     deadpan: () => "Rien de scanné pour l'instant.",
     warm: () => "Rien de scanné pour l'instant. Ça se remplit au fil de tes scans.",
     blunt: () => "Rien de scanné.",
-  },
-  pastscans_callback: {
-    deadpan: (f) => `Le dernier: ${f.item}, ${f.verdict}.`,
-    warm: (f) => `La dernière fois, ${f.item}: ${f.verdict}.`,
-    blunt: (f) => `${f.item}. ${f.verdict}.`,
   },
 
   market_ask: {
@@ -551,55 +541,7 @@ export const LINES_FR = {
     warm: () => "Je n'avais pas assez pour chercher. Refais un essai du scan.",
     blunt: () => "Rien à chercher. Scanne encore.",
   },
-  /* La bulle de la feuille de réponse, une ligne par zone et par confiance
-   * (N12, 2026-10-07). Les lignes sûres peuvent être vives; celles « _unsure »
-   * ne le sont jamais. La pique vise le prix ou le magasin, jamais la personne,
-   * et aucune ne dit « gardé ». */
-  dist_great: {
-    deadpan: () => "Bien en dessous du prix habituel.",
-    warm: () => "Oh, c'est bien en dessous du prix habituel.",
-    blunt: () => "Très en dessous de l'habituel.",
-  },
-  dist_great_unsure: {
-    deadpan: () => "Ça a l'air bon marché, mais mon estimation est mince. Prends-le comme un peut-être.",
-    warm: () => "Ça a l'air d'une belle affaire, mais je n'ai pas grand-chose pour m'appuyer. Reste prudent.",
-    blunt: () => "Ça a l'air bon marché. Pas sûr. Vérifie.",
-  },
-  dist_good: {
-    deadpan: () => "Sous le prix habituel.",
-    warm: () => "Belle occasion. C'est moins que d'habitude.",
-    blunt: () => "Moins cher que d'habitude. Prends-le.",
-  },
-  dist_good_unsure: {
-    deadpan: () => "Probablement sous le prix habituel, mais les preuves sont minces.",
-    warm: () => "Ça semble un peu sous le prix habituel, mais je ne suis pas très sûr. Vas-y doucement.",
-    blunt: () => "Peut-être bon marché. Pas sûr.",
-  },
-  dist_reasonable: {
-    deadpan: () => "C'est le prix courant.",
-    warm: () => "C'est à peu près ce que ça coûte. Tu es bien.",
-    blunt: () => "Prix normal. Rien de spécial.",
-  },
-  dist_reasonable_unsure: {
-    deadpan: () => "Ça semble normal, mais mon estimation est approximative.",
-    warm: () => "Ça semble correct, même si je pars d'une estimation approximative.",
-    blunt: () => "Semble normal. Estimation grossière.",
-  },
-  dist_bad: {
-    deadpan: () => "Au-dessus du prix habituel.",
-    warm: () => "Ouf, c'est salé. C'est au-dessus du prix habituel.",
-    blunt: () => "Très au-dessus de l'habituel.",
-  },
-  dist_bad_unsure: {
-    deadpan: () => "Ça semble cher, mais je ne suis pas assez sûr pour hausser le ton.",
-    warm: () => "Ça me semble cher, mais mon estimation est mince. Vérifie avant de partir.",
-    blunt: () => "Semble salé. Pas sûr. Vérifie.",
-  },
-  dist_noprice: {
-    deadpan: () => "C'est le prix habituel. Que dit l'étiquette?",
-    warm: () => "C'est le prix habituel. Dis-moi ce que dit l'étiquette et je le placerai.",
-    blunt: () => "Le prix habituel est là. Et l'étiquette?",
-  },
+  /* Le verdict n'a pas de bulle (2026-10-10) : la mascotte n'y montre que son visage. */
   /* RÉÉCRIT 2026-09-19 (écart bêta 21): l'appli ne s'utilise pas hors ligne. */
   cam_needs_connection: {
     deadpan: () => "Il me faut une connexion pour ça",
@@ -612,24 +554,14 @@ export const LINES_FR = {
     blunt: (f) => `Occupé. Réessaie dans ${f.seconds}.`,
   },
   cam_camera_denied: {
-    deadpan: () => "L'accès à la caméra n'a pas été autorisé, alors voici l'étalage dessiné à la place.",
-    warm: () => "Je n'ai pas accès à la caméra, alors je montre l'étalage dessiné à la place. Tu peux le réactiver dans les réglages de ton téléphone.",
-    blunt: () => "Pas d'accès à la caméra. J'utilise l'étalage dessiné.",
-  },
-  cam_offline_no_price: {
-    deadpan: () => "Pexi a besoin d'une connexion internet pour chercher quoi que ce soit, alors je ne peux pas répondre à ce scan. Scanne-le de nouveau une fois connecté.",
-    warm: () => "Pexi a besoin d'une connexion internet pour chercher ça, alors je n'ai rien à te dire pour l'instant. Scanne-le de nouveau une fois connecté.",
-    blunt: () => "Pexi a besoin d'une connexion pour répondre. Connecte-toi, puis rescanne.",
+    deadpan: () => 'La caméra est coupée. Active-la dans les Réglages, ou tape le nom.',
+    warm: () => 'La caméra est coupée. Rallume-la dans les Réglages, ou tape le nom.',
+    blunt: () => 'Caméra coupée. Active-la dans les Réglages, ou tape le nom.',
   },
   cam_server_fault: {
     deadpan: () => "Pexi a un problème de son côté",
     warm: () => "Quelque chose a mal tourné de mon côté",
     blunt: () => "Pexi a un problème",
-  },
-  cam_server_fault_detail: {
-    deadpan: () => "Ta connexion est bonne. La panne est du côté de Pexi et je n'ai pas pu répondre à ce scan. Réessaie dans un instant.",
-    warm: () => "Ta connexion est bonne, c'est de mon côté. Je n'ai pas pu répondre à ce scan, alors réessaie dans un instant.",
-    blunt: () => "Pas ta connexion. La panne est du côté de Pexi. Réessaie.",
   },
   cam_photo_offline: {
     deadpan: () => "Tu es hors ligne, alors j'ai gardé la photo. Je finirai ça dès que tu seras de retour.",
@@ -718,11 +650,6 @@ export const LINES_FR = {
     blunt: () => "Pas capable de lire la liste des retirés. Réessaie.",
   },
 
-  read_only_note: {
-    deadpan: () => "C'est ce que j'ai dit sur le coup. Rien ici ne peut être changé.",
-    warm: () => "C'est ce que j'ai dit sur le coup, gardé tel quel. Rien sur cette carte ne change.",
-    blunt: () => "Ce que j'ai dit alors. Rien à changer ici.",
-  },
 
   /* --- les raisons de refus, en titre sur un refus rouvert --- */
   refusal_label_no_identity: {
@@ -1007,12 +934,7 @@ export const LINES_FR = {
     warm: () => "Désolé, je n'ai plus de scans gratuits cette semaine. C'est de mon côté.",
     blunt: () => "Plus de scans gratuits cette semaine. Ma limite, pas la tienne.",
   },
-  /* Le même écran ouvert sans qu'aucun scan soit utilisé (D30). */
-  paywall_say_open: {
-    deadpan: () => "Plus enlève la limite hebdomadaire.",
-    warm: () => "Avec Plus, il n'y a pas de limite hebdomadaire de scans.",
-    blunt: () => "Plus: pas de limite hebdomadaire.",
-  },
+  /* Ouvert sans qu'aucun scan soit utilisé (D30), l'écran montre le visage seul (2026-10-10). */
 };
 
 /**
@@ -1113,20 +1035,10 @@ export const BARE_FR = {
     warm: () => "Celui-là a bougé depuis que tu l'as gardé.",
     blunt: () => "Ça a bougé.",
   },
-  watchlist_callback: {
-    deadpan: () => "Quelque chose est gardé ici.",
-    warm: () => "Tu as quelque chose de gardé ici.",
-    blunt: () => "Gardé. Les détails sont partis.",
-  },
   watchlist_saved_only: {
     deadpan: () => "Gardé, et les détails n'ont pas survécu.",
     warm: () => "Celui-là est gardé, mais j'ai perdu ce qui venait avec.",
     blunt: () => "Gardé. Rien d'autre ne reste.",
-  },
-  pastscans_callback: {
-    deadpan: () => "Il y a un scan derrière ça.",
-    warm: () => "Tu as déjà scanné. Je n'arrive pas à relire le dernier.",
-    blunt: () => "Déjà scanné. Pas capable de le relire.",
   },
   cam_second_visit: {
     deadpan: () => "Tu es déjà venu ici.",

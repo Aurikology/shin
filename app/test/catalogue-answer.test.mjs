@@ -140,17 +140,22 @@ test('leaf_category and parent_category: from similar products in the category t
   assert.equal(between(bare, 'data-cat-basis'), 'From similar products in Peanut butters');
 });
 
-test('gemini_typical: a typical range estimated by AI, with the date it was asked, in both languages', () => {
+/* Changed 2026-10-10 (top-of-screen audit row 12): the line said "asked <date>", an
+   internal fact no shopper acts on. It now says it was estimated by AI and never
+   the date; the date it was asked is still on the wire, just not on the sheet. */
+test('gemini_typical: estimated by AI, never the date it was asked, in both languages', () => {
   const range = RANGE({ basis: 'gemini_typical', medianCents: null, n: null });
   const answer = hit(range, { rangeAskedAt: '2026-09-27T16:00:00.000Z' });
   const en = inLocale('en', () => catalogueSheet(answer, { state: TEN_TEN }));
-  assert.equal(between(en, 'data-cat-basis'), 'A typical range estimated by AI, asked September 27, 2026');
+  assert.equal(between(en, 'data-cat-basis'), 'Estimated by AI');
   assert.equal(between(en, 'data-cat-range'), '$4.99 to $6.99');
+  assert.doesNotMatch(en, /September|asked/);
   const fr = inLocale('fr', () => catalogueSheet(answer, { state: TEN_TEN }));
-  assert.equal(between(fr, 'data-cat-basis'), 'Une fourchette habituelle estimée par l’IA, demandée le 27 septembre 2026');
-  // A time no clock can read: the sentence without a date, never "asked Invalid Date".
+  assert.equal(between(fr, 'data-cat-basis'), 'Estimé par l’IA');
+  assert.doesNotMatch(fr, /septembre|demandée/);
+  // With no time at all the line is the same.
   const noDate = inLocale('en', () => catalogueSheet(hit(range, { rangeAskedAt: 'yesterday' }), { state: TEN_TEN }));
-  assert.equal(between(noDate, 'data-cat-basis'), 'A typical range estimated by AI');
+  assert.equal(between(noDate, 'data-cat-basis'), 'Estimated by AI');
   // The four bases say four different things.
   const lines = new Set(['this_product', 'leaf_category', 'gemini_typical'].map((b) =>
     between(inLocale('en', () => catalogueSheet(hit(RANGE({ basis: b, category: { tag: 'x', name: 'Spreads' } }), { rangeAskedAt: '2026-09-27T16:00:00Z' }), { state: TEN_TEN })), 'data-cat-basis')));
@@ -258,12 +263,18 @@ test('the camera hands "typeit" to the one typed-search flow it already has, and
 
 /* ============================================================ shelf price == */
 
-test('a shelf price is placed with the shopper\'s own lines, in the price line\'s three zone words', () => {
-  const range = RANGE(); // middle 5.99
+/* Changed 2026-10-10 (top-of-screen audit row 11; RULINGS.md "The verdict speaks his
+   words against the shopper's own thresholds"): the three price-line codes ("under
+   your line", "in the middle", "over your line") gave way to the bell's four words,
+   placed by the same shopper thresholds. The shopper's own thresholds still decide
+   the zone; only the words and the fourth zone are new. */
+test('a shelf price is placed with the shopper\'s own thresholds, in the bell\'s four zone words', () => {
+  const range = RANGE(); // middle 5.99; TEN_TEN: great 20%, good 10%, bad 10%
   const cases = [
-    [520, 'under_your_line', 'priceline_zone_under', 'good'],
-    [599, 'middle', 'priceline_zone_middle', 'fair'],
-    [680, 'over_your_line', 'priceline_zone_over', 'walk_away'],
+    [470, 'great', 'vd_zone_great', 'good'],
+    [520, 'good', 'vd_zone_good', 'good'],
+    [599, 'reasonable', 'vd_zone_reasonable', 'fair'],
+    [680, 'bad', 'vd_zone_bad', 'walk_away'],
   ];
   for (const [cents, zone, key, tier] of cases) {
     const html = inLocale('en', () => catalogueSheet(hit(range), { shelfCents: cents, state: TEN_TEN }));
@@ -277,32 +288,39 @@ test('a shelf price is placed with the shopper\'s own lines, in the price line\'
 
 test('the same price moves zone when the SHOPPER\'s lines move, which is the whole point', () => {
   const range = RANGE(); // middle 599
-  // 540 is 9.8% under the middle: middle at 10%, under at 5%.
-  assert.equal(placeShelf(540, range, TEN_TEN).zone, 'middle');
-  assert.equal(placeShelf(540, range, { lineUnit: 'percent', lineUnderPct: 5, lineOverPct: 10 }).zone, 'under_your_line');
-  // 650 is 8.5% over: middle at 10%, over at 5%.
-  assert.equal(placeShelf(650, range, TEN_TEN).zone, 'middle');
-  assert.equal(placeShelf(650, range, { lineUnit: 'percent', lineUnderPct: 10, lineOverPct: 5 }).zone, 'over_your_line');
+  // 540 is 9.8% under the middle: reasonable at good 10%, good at good 5%.
+  assert.equal(placeShelf(540, range, TEN_TEN).zone, 'reasonable');
+  assert.equal(placeShelf(540, range, { lineUnit: 'percent', lineUnderPct: 5, lineOverPct: 10 }).zone, 'good');
+  // And great once the shopper's great line is that close.
+  assert.equal(placeShelf(540, range, { lineUnit: 'percent', lineGreatPct: 5, lineUnderPct: 5, lineOverPct: 10 }).zone, 'great');
+  // 650 is 8.5% over: reasonable at bad 10%, bad at bad 5%.
+  assert.equal(placeShelf(650, range, TEN_TEN).zone, 'reasonable');
+  assert.equal(placeShelf(650, range, { lineUnit: 'percent', lineUnderPct: 10, lineOverPct: 5 }).zone, 'bad');
   // Dollar mode: money per item from the middle.
   const dollars = { lineUnit: 'amount', lineAmounts: { great: 2, good: 1, bad: 1 } };
-  assert.equal(placeShelf(499, range, dollars).zone, 'under_your_line'); // $1.00 under
-  assert.equal(placeShelf(500, range, dollars).zone, 'middle'); // $0.99 under
-  assert.equal(placeShelf(700, range, dollars).zone, 'over_your_line'); // $1.01 over
-  // The boundaries are gauge.ts's: exactly at the under line is under, exactly at the over line is not over.
+  assert.equal(placeShelf(399, range, dollars).zone, 'great'); // $2.00 under
+  assert.equal(placeShelf(499, range, dollars).zone, 'good'); // $1.00 under
+  assert.equal(placeShelf(500, range, dollars).zone, 'reasonable'); // $0.99 under
+  assert.equal(placeShelf(698, range, dollars).zone, 'reasonable'); // $0.99 over
+  assert.equal(placeShelf(700, range, dollars).zone, 'bad'); // $1.01 over
+  // The boundaries are the bell's (lib/verdict-chart.js zoneFor, his "20% or more
+  // over"): each line is inclusive on the side it names.
   const mid = { ...range, medianCents: 1000 };
-  assert.equal(placeShelf(900, mid, TEN_TEN).zone, 'under_your_line');
-  assert.equal(placeShelf(1100, mid, TEN_TEN).zone, 'middle');
+  assert.equal(placeShelf(900, mid, TEN_TEN).zone, 'good');
+  assert.equal(placeShelf(1100, mid, TEN_TEN).zone, 'bad');
+  assert.equal(placeShelf(1099, mid, TEN_TEN).zone, 'reasonable');
   // No lines set at all: the same defaults the server applies, his 2026-09-17
-  // numbers (D10): good 20% under, bad 20% over. 10% under is no longer under.
-  assert.equal(placeShelf(900, mid, {}).zone, 'middle');
-  assert.equal(placeShelf(800, mid, {}).zone, 'under_your_line');
-  assert.equal(placeShelf(1200, mid, {}).zone, 'middle'); // exactly at the over line is not over
-  assert.equal(placeShelf(1201, mid, {}).zone, 'over_your_line');
+  // numbers (D10): great 30% under, good 20% under, bad 20% over.
+  assert.equal(placeShelf(900, mid, {}).zone, 'reasonable');
+  assert.equal(placeShelf(800, mid, {}).zone, 'good');
+  assert.equal(placeShelf(700, mid, {}).zone, 'great');
+  assert.equal(placeShelf(1199, mid, {}).zone, 'reasonable');
+  assert.equal(placeShelf(1200, mid, {}).zone, 'bad'); // exactly at the bad line is bad
   // gemini_typical has no median: the midpoint of low and high is the middle.
   assert.equal(middleCents(RANGE({ medianCents: null, lowCents: 400, highCents: 800 })), 600);
   // Through the sheet, with lines passed in.
   const html = catalogueSheet(hit(range), { shelfCents: 540, state: { lineUnit: 'percent', lineUnderPct: 5, lineOverPct: 10 } });
-  assert.equal(attr(html, 'data-zone'), 'under_your_line');
+  assert.equal(attr(html, 'data-zone'), 'good');
 });
 
 test('the shopper\'s typed price wins, else the weighed label the server read', () => {
@@ -310,7 +328,7 @@ test('the shopper\'s typed price wins, else the weighed label the server read', 
   assert.equal(shelfCentsOf(null, { cents: 450, from: 'weighed_label' }), 450);
   assert.equal(shelfCentsOf(null, null), null);
   const html = inLocale('en', () => catalogueSheet(hit(RANGE(), { shelfPrice: { cents: 520, from: 'weighed_label' } }), { state: TEN_TEN }));
-  assert.equal(attr(html, 'data-zone'), 'under_your_line');
+  assert.equal(attr(html, 'data-zone'), 'good');
   assert.equal(between(html, 'data-cat-shelf'), 'Shelf price: $5.20');
 });
 
@@ -322,7 +340,7 @@ test('French money is 4,99 $, the range reads "à", and the zone word is the Fre
   assert.equal(between(html, 'data-cat-range'), `4,99${NBSP}$ à 6,99${NBSP}$`);
   assert.equal(between(html, 'data-cat-shelf'), inLocale('fr', () => t('cam_gem_shelf', { label: `5,20${NBSP}$` })));
   assert.ok(between(html, 'data-cat-shelf').endsWith(`5,20${NBSP}$`), 'the shelf price is not French money');
-  assert.equal(between(html, 'data-cat-headline'), inLocale('fr', () => t('priceline_zone_under')));
+  assert.equal(between(html, 'data-cat-headline'), inLocale('fr', () => t('vd_zone_good')));
   assert.equal(between(html, 'data-cat-basis'), 'D’après les prix de Pexi dans 4 magasins');
   assert.doesNotMatch(html, /\$\d/, 'a dollar sign in front of a number in French');
 });
@@ -331,7 +349,7 @@ test('French money is 4,99 $, the range reads "à", and the zone word is the Fre
 
 /** Every key this lane added. */
 const KEYS = ['cat_range', 'cat_range_unit', 'cat_range_label', 'cat_basis_shin', 'cat_basis_shin_one', 'cat_basis_shin_bare',
-  'cat_basis_category', 'cat_basis_category_bare', 'cat_basis_ai', 'cat_basis_ai_asked', 'cat_no_range', 'cat_no_range_later',
+  'cat_basis_category', 'cat_basis_category_bare', 'cat_basis_ai', 'cat_no_range', 'cat_no_range_later',
   'cat_not_found', 'cat_type_name', 'tm_heading', 'tm_label', 'tm_none', 'tm_dev_label', 'cat_too_thin', 'cat_pool_note'];
 const FACTS = { low: '$4.99', high: '$6.99', unit: '1 kg', n: '4', category: 'Spreads', date: 'September 27, 2026' };
 
@@ -378,7 +396,22 @@ test('no new string, and no rendered catalogue sheet, grades the price (the pric
       catalogueSheet(MISS, { state: TEN_TEN }),
     ]);
     for (const h of sheets) {
-      const visible = h.replace(/<svg[\s\S]*?<\/svg>/g, ' ').replace(/<[^>]*>/g, ' ');
+      /* The ONE place a grading word may stand (changed 2026-10-10, audit row 11;
+         RULINGS.md "The verdict speaks his words against the shopper's own
+         thresholds", which retired the neutral-code wording): the headline, and
+         only as exactly one of the bell's four zone words. That headline is
+         checked for being one of them, then left out; every other word on the
+         sheet is still checked against the full list, so the chrome still never
+         grades the price. */
+      const headline = /data-cat-headline>([^<]*)</.exec(h)?.[1];
+      const zone = /data-zone="([^"]*)"/.exec(h)?.[1];
+      const ZONE_WORDS = inLocale(id, () => ['great', 'good', 'reasonable', 'bad'].map((z) => t(`vd_zone_${z}`)));
+      let rest = h;
+      if (zone) {
+        assert.ok(ZONE_WORDS.includes(headline.replace(/&#39;/g, "'")), `${id}: the zone headline "${headline}" is not one of the bell's words`);
+        rest = h.replace(/data-cat-headline>[^<]*</, 'data-cat-headline><');
+      }
+      const visible = rest.replace(/<svg[\s\S]*?<\/svg>/g, ' ').replace(/<[^>]*>/g, ' ');
       // Pexi's own bubble lines (voice.js) are checked by their own tests; the
       // product name is catalogue data. What is left is this lane's chrome.
       texts.push(visible);

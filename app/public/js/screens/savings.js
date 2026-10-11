@@ -73,9 +73,10 @@ export function savingsHtml(view) {
       <div class="onb-bar onb-bar-wide" role="progressbar" aria-valuemin="0" aria-valuemax="100"
            aria-valuenow="${view.goal.pct}" aria-label="${escapeHtml(t('savings_goal'))}"><i style="transform:scaleX(${view.goal.pct / 100})"></i></div>`);
   }
+  // No measured figure yet: nothing in their place, not a line explaining their absence (2026-10-10 audit row 32).
   const top = totals.length
     ? `<section class="block"><div class="ilist">${totals.join('')}</div></section>`
-    : `<p class="fineprint" data-savings="pending">${escapeHtml(t('savings_pending'))}</p>`;
+    : '';
   const recent = view.fault
     ? `<div class="list-state" data-savings="fault">
         <p class="fineprint">${escapeHtml(t('savings_unreadable'))}</p>

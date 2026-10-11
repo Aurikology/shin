@@ -18,12 +18,12 @@
  * template rather than a bare template literal, so `w.label` (which the user
  * types on the correction screen) and `w.askingSeller` (which comes off the
  * engine) cannot become markup. `raw()` is the only way past it and is used
- * only for HTML this file did not get from the store: `faceSvg`, `dotsHtml`,
- * `shinSay`. The bug this closes was live in `pastscans.js`; the same
+ * only for HTML this file did not get from the store: `faceSvg`, `faceBlock`.
+ * The bug this closes was live in `pastscans.js`; the same
  * interpolations were here.
  */
 
-import { faceSvg, faceBlock, shinSay, animateFace, confidenceOf, dotsHtml, sellerOf, tierOf } from '../shin.js';
+import { faceSvg, faceBlock, headingWithFace, animateFace, confidenceOf, sellerOf, tierOf } from '../shin.js';
 import { money } from '../lib/money.js';
 import { say, wordFor } from '../voice.js';
 import * as store from '../store.js';
@@ -35,7 +35,7 @@ import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.j
 import { pageBar, rowChevron, removeGlyph } from '../lib/pagebar.js';
 import { t } from '../ui-strings.js';
 import { cleanName } from '../lib/product-name.js';
-import { answerOf, isAnswer, answerLook, answerWord, answerLine, answerConfidenceHtml } from '../lib/history-answer.js';
+import { answerOf, isAnswer, answerLook, answerWord, answerLine } from '../lib/history-answer.js';
 
 /**
  * The most recent history entry whose answer matches a saved row's id: a
@@ -151,11 +151,9 @@ export function detailModal(w, match) {
         word: answerWord(answer),
         said: answerLine(answer),
         meta: `${cleanName(w.label || answer.label)}${w.askingSeller ? ` · ${w.askingSeller}` : ''} · ${ago(match?.at ?? w.savedAt)}`,
-        conf: answerConfidenceHtml(answer),
       };
     } else {
       const v = match.result;
-      const conf = confidenceOf(v);
       const source = sellerOf(v);
       view = {
         tier: v.tier,
@@ -163,9 +161,10 @@ export function detailModal(w, match) {
         word: wordFor(v.tier),
         said: say(v.tier, { asking: money(v.askingCents), usual: money(v.spread.medianCents) }),
         meta: `${v.identity.label}${source ? ` · ${source}` : ''} · ${ago(match.at)}`,
-        conf: html`<p class="pmodal-conf">${conf.label}${raw(dotsHtml(conf.dots))}</p>`,
       };
     }
+    // The verdict, its percentage line, the item and the date (2026-10-10 audit
+    // row 29): no doubt sentence, no repeated range line, no "nothing here changes" note.
     return html`
       <div class="pmodal" data-act="modal" data-pmodal="scan">
         <div class="pmodal-card" data-tier="${view.tier}" tabindex="-1">
@@ -173,8 +172,6 @@ export function detailModal(w, match) {
           <h2>${view.word}</h2>
           <p class="said">${view.said}</p>
           <p class="pmodal-meta">${view.meta}</p>
-          ${raw(view.conf)}
-          <p class="pmodal-note">${say('read_only_note')}</p>
           <button type="button" class="btn btn--ghost" data-unwatch="${w.id}" data-fk="del-detail:${w.id}">${t('remove')}</button>
           <button type="button" class="linky" data-act="close-detail">${t('close')}</button>
         </div>
@@ -219,13 +216,11 @@ export default {
   titleKey: 'saved_title',
 
   render(root, ctx) {
-    // AVATAR.md section 5 row 11: `wake`, once, the first time this session
-    // the list goes from empty to one row. `null` on the very first paint so
-    // opening the screen already populated never counts as the transition.
-    // The call lands on the header face (below), not a row face: every row
-    // face is `face-row` (28px) and `data-anim="none"` there is unconditional
-    // (shin.js), so a wake aimed at a row could structurally never play.
-    let prevLen = null;
+    // AVATAR.md section 5 row 11's `wake` (list going from empty to one row)
+    // played on the header face. That face left with its line (2026-10-10 audit
+    // row 25): a face saying nothing between the heading and the rows read as
+    // broken, and the rows wear their own faces. The empty state keeps its
+    // asleep face and its own wake.
     let openId = null;
     /** The focus key of the row that opened the dialog, so closing it puts the
      *  user back on that row rather than at the top of the document. */
@@ -267,35 +262,24 @@ export default {
       const openEntry = openId ? list.find((w) => w.id === openId) : null;
       const openMatch = openEntry ? matchFor(s.history, openEntry.id) : null;
 
-      /**
-       * The header callback: the most recently saved row, read back.
+      /*
+       * The heading's face (2026-10-10 audit row 25, then RULINGS.md "Avatar /
+       * mascot and competitor-inspired design"): the bubble above the rows read
+       * the newest row back word for word, so its words went; the mascot stays,
+       * small and inline beside "Saved", wearing the newest row's face. Only with
+       * rows: the empty state has its own asleep face, and two would be one too many.
        *
-       * Built inside the branch that uses it rather than above the branch, so
-       * that a stored entry which makes it throw cannot throw a second time on
-       * the error paint -- which would put the screen in router.js's exception
-       * page, the exact outcome the error state exists to replace.
+       * Worked out inside the ready branch, so a stored entry that throws here
+       * lands in the error state rather than router.js's exception page.
        */
-      function header() {
+      function headFace() {
         const first = list[0];
-        const moved = first && typeof first.lastCents === 'number' && typeof first.usualCents === 'number'
-          ? first.lastCents - first.usualCents
-          : null;
-        const firstAnswer = first ? answerFor(first, matchFor(s.history, first.id)) : null;
-        const face = firstAnswer ? answerLook(firstAnswer).face : moved === null || moved === 0 ? 'fair' : moved < 0 ? 'good' : 'walk';
-        // Not pre-escaped any more: `shinSay` escapes the line it builds, as
-        // of 2026-09-06. Escaping here as well would double-escape, because
-        // escapeHtml is not idempotent -- a shop called "Tom & Jerry" would
-        // read as "Tom &amp;amp; Jerry" on the screen.
-        const facts = first ? {
-          item: cleanName(first.label),
-          seller: first.askingSeller ?? '',
-          // N09: a saved row with no price of its own (the shopper never typed one) says nothing about price rather than "--".
-          price: typeof first.lastCents === 'number' ? money(first.lastCents) : typeof firstAnswer?.askingCents === 'number' ? money(firstAnswer.askingCents, firstAnswer.currency) : '',
-          day: ago(first.savedAt),
-        } : {};
-        return shinSay(face, 'watchlist_callback', facts, { size: 64, anim: 'idle-breath' });
+        const moved = typeof first.lastCents === 'number' && typeof first.usualCents === 'number' ? first.lastCents - first.usualCents : null;
+        const firstAnswer = answerFor(first, matchFor(s.history, first.id));
+        return firstAnswer ? answerLook(firstAnswer).face : moved === null || moved === 0 ? 'fair' : moved < 0 ? 'good' : 'walk';
       }
-
+      const heading = `<h1>${escapeHtml(t('saved_title'))}</h1>`;
+      const title = phase === 'ready' && list.length ? headingWithFace(headFace(), heading) : heading;
       let body;
       if (phase === 'loading') {
         body = html`<div class="list-state"><p class="fineprint">${say('watchlist_loading')}</p></div>`;
@@ -309,7 +293,6 @@ export default {
           </div>`;
       } else if (list.length) {
         body = html`
-          <div class="wlist-head">${raw(header())}</div>
           <div class="wlist">${raw(list.map((w) => row(w, s.history)).join(''))}</div>`;
       } else {
         // FLAWS item 13: this screen used to state the same fact three times --
@@ -331,7 +314,7 @@ export default {
             ${raw(list.length && phase === 'ready'
               ? html`<p class="kicker">${t('saved_kicker_things', { n: String(list.length) })} · ${dropped.length} ${t('saved_under_the_usual')}</p>`
               : '')}
-            <h1>${t('saved_title')}</h1>
+            ${raw(title)}
           </header>
 
           ${raw(
@@ -376,11 +359,6 @@ export default {
           ${raw(pageBar('watchlist'))}
         </div>
         ${raw(phase === 'ready' && openEntry ? detailModal(openEntry, openMatch) : '')}`;
-
-      if (prevLen === 0 && list.length > 0) {
-        animateFace(root.querySelector('.wlist-head .face'), 'wake');
-      }
-      prevLen = list.length;
     }
 
     /**

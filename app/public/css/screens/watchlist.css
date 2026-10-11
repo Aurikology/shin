@@ -14,12 +14,6 @@
  * single price, Recently removed's two-line card and its confirm affordance.
  */
 
-/* The header callback, above the rows: same 64px face-and-bubble unit the
-   past-scans header uses below. */
-.wlist-head,
-.plist-head {
-  margin: -2px 0 2px;
-}
 
 /*
  * One card per list, not one card per row.
@@ -374,19 +368,6 @@
   letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--ink-muted);
-}
-/* Doubt reads as a sentence, not a caps footnote (N02, N11). */
-.pmodal-conf.pmodal-doubt {
-  font: 600 14px/1.35 var(--f-ui);
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--ink);
-}
-.pmodal-note {
-  margin: 4px 0 0;
-  font-size: 11.5px;
-  color: var(--ink-faint);
-  font-style: italic;
 }
 
 /* ------------------------------------------------------ Recently removed */

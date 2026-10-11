@@ -19,10 +19,10 @@
  * to `<img src=x onerror=alert(1)>` and opening this screen ran it. Every
  * interpolation of stored text now goes through `dom.js`'s `html` tag, and
  * `raw()` is used only for markup this file built itself (`faceSvg`,
- * `faceBlock`, `dotsHtml`, `shinSay`).
+ * `faceBlock`).
  */
 
-import { faceSvg, faceBlock, shinSay, sellerOf, confidenceOf, dotsHtml, tierOf, geminiWordFor } from '../shin.js';
+import { faceSvg, faceBlock, headingWithFace, sellerOf, confidenceOf, tierOf, geminiWordFor } from '../shin.js';
 import { money } from '../lib/money.js';
 import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
@@ -31,7 +31,7 @@ import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.j
 import { pageBar, backButton, goBack, removeGlyph, rowChevron } from '../lib/pagebar.js';
 import { t } from '../ui-strings.js';
 import { cleanName } from '../lib/product-name.js';
-import { answerOf, answerLook, answerWord, answerLine, answerConfidenceHtml } from '../lib/history-answer.js';
+import { answerOf, answerLook, answerWord, answerLine } from '../lib/history-answer.js';
 
 /*
  * The eight refusal reasons used to be a map here, described in this comment
@@ -124,11 +124,9 @@ export function detail(h) {
         word: answerWord(answer),
         said: answerLine(answer),
         meta: `${labelOf(h)} · ${ago(h.at)}`,
-        conf: answerConfidenceHtml(answer),
       };
     } else {
       const v = h.result;
-      const conf = confidenceOf(v);
       const source = sellerOf(v);
       view = {
         tier: v.tier,
@@ -136,10 +134,12 @@ export function detail(h) {
         word: wordFor(v.tier),
         said: say(v.tier, { asking: money(v.askingCents), usual: money(v.spread.medianCents) }),
         meta: `${v.identity.label}${source ? ` · ${source}` : ''} · ${ago(h.at)}`,
-        conf: html`<p class="pmodal-conf">${conf.label}${raw(dotsHtml(conf.dots))}</p>`,
       };
     }
 
+    // The verdict, its percentage line, the item and the date (2026-10-10 audit
+    // row 29): no doubt sentence, no repeated range line and no "nothing here
+    // changes" note, which only repeated the hedges the sheet no longer says.
     return html`
       <div class="pmodal" data-act="modal" data-pmodal="verdict">
         <div class="pmodal-card" data-tier="${view.tier}" tabindex="-1">
@@ -147,8 +147,6 @@ export function detail(h) {
           <h2>${view.word}</h2>
           <p class="said">${view.said}</p>
           <p class="pmodal-meta">${view.meta}</p>
-          ${raw(view.conf)}
-          <p class="pmodal-note">${say('read_only_note')}</p>
           <button type="button" class="linky" data-act="close-detail">${t('close')}</button>
         </div>
       </div>`;
@@ -169,7 +167,6 @@ export function detail(h) {
           <h2>${geminiWordFor(h)}</h2>
           <p class="pmodal-meta">${h.query?.text ?? t('past_scans_unknown_item')} · ${ago(h.at)}</p>
           ${raw(conf.label ? html`<p class="pmodal-conf">${conf.label}</p>` : '')}
-          <p class="pmodal-note">${say('read_only_note')}</p>
           <button type="button" class="linky" data-act="close-detail">${t('close')}</button>
         </div>
       </div>`;
@@ -183,7 +180,6 @@ export function detail(h) {
         <h2>${refusalLabel(r?.reason)}</h2>
         <p class="pmodal-meta">${h.query?.text ?? t('past_scans_unknown_item')} · ${ago(h.at)}</p>
         <p class="said">${r?.detail ?? ''}</p>
-        <p class="pmodal-note">${say('read_only_note')}</p>
         <button type="button" class="linky" data-act="close-detail">${t('close')}</button>
       </div>
     </div>`;
@@ -219,37 +215,21 @@ export default {
       const list = store.get().history;
       const open = openId ? list.find((h) => h.id === openId) : null;
 
-      /**
-       * A 64px header, callback to the last scan: this row's own tier face
-       * and word if it was a verdict, "refused" if it was not, from facts
-       * already resolved here (voice.js only ever interpolates them).
-       *
-       * Computed inside the branch that uses it, not above the branch. It used
-       * to be hoisted, and a stored entry that made it throw threw again on the
-       * error paint -- which put the screen in router.js's exception page,
-       * exactly the outcome the error state exists to replace.
+      /*
+       * The heading's face (2026-10-10 audit row 27, then RULINGS.md "Avatar /
+       * mascot and competitor-inspired design"): the bubble above the rows read
+       * the newest row back, so its words went; the mascot stays, small and inline
+       * beside the heading, wearing the newest scan's own face. Only with rows: the
+       * empty state has its own asleep face. Worked out inside the ready branch, so
+       * a stored entry that throws lands in the error state.
        */
-      function header() {
+      function headFace() {
         const last = list[0];
-        const isVerdict = last?.result?.kind === 'verdict';
         const lastAnswer = answerOf(last);
-        const face = last
-          ? (lastAnswer ? answerLook(lastAnswer).face : isVerdict ? tierOf(last.result.tier).face : 'unknown')
-          : 'idle';
-        // Not pre-escaped any more: `shinSay` escapes its own line as of
-        // 2026-09-06, and escaping twice is a visible bug rather than a safe
-        // default -- escapeHtml is not idempotent.
-        const facts = last ? {
-          item: cleanName(last.result?.identity?.label || last.query?.text || t('past_scans_that_one')),
-          verdict: lastAnswer
-            ? answerWord(lastAnswer)
-            : isVerdict
-              ? wordFor(last.result.tier)
-              : last.result?.kind === 'gemini' ? geminiWordFor(last) : 'refused',
-        } : {};
-        return shinSay(face, 'pastscans_callback', facts, { size: 64, anim: 'idle-breath' });
+        return lastAnswer ? answerLook(lastAnswer).face : last?.result?.kind === 'verdict' ? tierOf(last.result.tier).face : 'unknown';
       }
-
+      const heading = `<h1>${escapeHtml(t('past_scans'))}</h1>`;
+      const title = phase === 'ready' && list.length ? headingWithFace(headFace(), heading) : heading;
       let body;
       if (phase === 'loading') {
         body = html`<div class="list-state"><p class="fineprint">${say('pastscans_loading')}</p></div>`;
@@ -263,7 +243,6 @@ export default {
           </div>`;
       } else if (list.length) {
         body = html`
-          <div class="plist-head">${raw(header())}</div>
           <div class="plist">${raw(list.map(row).join(''))}</div>`;
       } else {
         body = html`
@@ -279,7 +258,7 @@ export default {
           <header class="page-head">
             ${raw(backButton())}
             ${raw(phase === 'ready' ? html`<p class="kicker">${t('past_scans')} · ${list.length}</p>` : '')}
-            <h1>${t('past_scans')}</h1>
+            ${raw(title)}
           </header>
 
           ${raw(body)}
