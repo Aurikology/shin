@@ -127,12 +127,47 @@ test('1.1 unplaced items are counted per department, and a row with no known dep
   assert.equal(parentTagOf(db, 'food', UNPLACED_TAG), '@department', 'a department\'s unplaced node hangs off the department');
 });
 
-test('1.1 a node\'s parent is the tag seen before it in the most items (en:x after en:a three times, after en:b once)', () => {
-  const db = built();
+test('1.1 a node\'s parent is the containing tag seen before it in the most items (en:x after en:a four times, after en:b once)', () => {
+  const rows: Row[] = [
+    ...['F1', 'F2', 'F3'].map((code) => ({ code, source: 'openfoodfacts', path: ['en:a', 'en:x'] })),
+    { code: 'F4', source: 'openfoodfacts', path: ['en:a', 'en:x', 'en:y'] },
+    { code: 'F5', source: 'openfoodfacts', path: ['en:b', 'en:x'] },
+    { code: 'F6', source: 'openfoodfacts', path: ['en:a'] },
+    { code: 'F7', source: 'openfoodfacts', path: ['en:a'] },
+  ];
+  const db = built(rows);
   assert.equal(parentTagOf(db, 'food', 'en:x'), 'en:a');
-  assert.deepEqual(pathOf(db, 'F4'), ['en:a', 'en:x'], 'F4 recorded en:b before en:x, but en:x has one parent and so F4 has one path');
-  assert.deepEqual(pathOf(db, 'F3'), ['en:a', 'en:x', 'en:y']);
+  assert.deepEqual(pathOf(db, 'F5'), ['en:a', 'en:x'], 'F5 recorded en:b before en:x, but en:x has one parent and so F5 has one path');
+  assert.deepEqual(pathOf(db, 'F4'), ['en:a', 'en:x', 'en:y']);
   assert.equal(parentTagOf(db, 'food', 'en:a'), '@department', 'a tag never seen after another hangs off the department');
+});
+
+test('D-223 a parent must contain its child: a narrower tag typed first never becomes the parent', () => {
+  const rows: Row[] = [
+    ...['B1', 'B2', 'B3'].map((code) => ({ code, source: 'openbeautyfacts', path: ['en:health-beauty', 'en:serums'] })),
+    { code: 'B4', source: 'openbeautyfacts', path: ['en:male-condoms', 'en:health-beauty'] },
+  ];
+  const db = built(rows);
+  assert.equal(parentTagOf(db, 'beauty', 'en:health-beauty'), '@department', 'one item typed condoms first; condoms (1 item) cannot contain health-beauty (4)');
+  assert.equal(parentTagOf(db, 'beauty', 'en:serums'), 'en:health-beauty', 'control: health-beauty is broader and comes first in every serum item');
+});
+
+test('D-223 a taxonomy pair that is not an ancestor never becomes a parent, in every department', () => {
+  const tax = taxonomyFromObject({ 'en:p': { parents: [] }, 'en:q': { parents: [] }, 'en:r': { parents: ['en:p'] } }, 't');
+  const rows: Row[] = [
+    ...['B1', 'B2', 'B3', 'B4', 'B5'].map((code) => ({ code, source: 'openbeautyfacts', path: ['en:p', 'en:q'] })),
+    ...['B6', 'B7'].map((code) => ({ code, source: 'openbeautyfacts', path: ['en:p', 'en:r'] })),
+  ];
+  const db = catalogue(rows);
+  ensurePlacementSchema(db);
+  buildPlacement(db, { taxonomy: tax, log: () => {} });
+  assert.equal(parentTagOf(db, 'beauty', 'en:q'), '@department', 'p contains q in the data, but the taxonomy says p is not an ancestor of q');
+  assert.equal(parentTagOf(db, 'beauty', 'en:r'), 'en:p', 'control: a taxonomy ancestor outside food is still taken');
+});
+
+test('D-223 the tags of one item tie, so a single junk path builds no chain', () => {
+  const db = built([{ code: 'B1', source: 'openbeautyfacts', path: ['en:beverages', 'en:citric-acid', 'fr:glycerin', 'fr:water-aqua'] }]);
+  for (const t of ['en:citric-acid', 'fr:glycerin', 'fr:water-aqua']) assert.equal(parentTagOf(db, 'beauty', t), '@department', t);
 });
 
 test('1.1 with a taxonomy, a parent that is a taxonomy ancestor beats a more frequent one that is not', () => {

@@ -23,10 +23,17 @@
  * decided ONCE, when the node is first created, and never changes afterwards
  * (the database refuses an update). Among the tags seen immediately before the
  * node's tag in the department's stored paths (its candidates):
- *   1. in the food department, when a taxonomy is loaded, a candidate that is a
- *      taxonomy ancestor of the tag ranks above one that is not;
+ *   1. when a taxonomy is loaded, a candidate that is a taxonomy ancestor of the
+ *      tag ranks above one that is not (every department);
  *   2. then the candidate seen immediately before it in more items;
  *   3. then the alphabetically first.
+ * A PARENT MUST CONTAIN ITS CHILD (D-223, 2026-10-12). Open Beauty and Open
+ * Products Facts store tags in the order a contributor typed them, so "seen
+ * before" alone hung serums under condoms. A candidate that is not a taxonomy
+ * ancestor qualifies only when (a) the taxonomy does not know both tags (a known
+ * pair that is not an ancestor never qualifies), (b) it is carried by MORE items
+ * than the tag (a tie, such as every tag of one item, proves nothing), and (c) it comes earlier in at least CONTAINMENT of the
+ * tag's items.
  * A candidate whose own chain already reaches the tag (choosing it would make a
  * cycle) is skipped. A tag with no usable candidate (it is first in every path it
  * appears in, or every candidate was skipped) hangs off the department node.
@@ -95,6 +102,13 @@ export const NO_DEPARTMENT = '@none';
  * (requirement 7.7), and until it is measured this says only "the source said so".
  */
 export const SOURCE_LABEL_CONFIDENCE = 1;
+
+/**
+ * The share of a tag's items that must carry a non-ancestor candidate earlier for
+ * it to qualify as the parent (the parent rule's containment test, D-223). 0.8 is
+ * the subsumption threshold of Sanderson and Croft (1999), not tuned here.
+ */
+export const CONTAINMENT = 0.8;
 
 /** Placers only the Stage 2 build may name. */
 const BUILD_PLACERS = new Set(['unplaced', 'path']);
@@ -592,8 +606,9 @@ export function buildPlacement(db: DatabaseSync, options: BuildPlacementOptions 
   const page = options.pageSize ?? 50000;
   ensurePlacementSchema(db);
 
-  // Pass 1: for each department, each tag's earliest position and its predecessor counts.
-  interface TagInfo { minPos: number; before: Map<string, number> }
+  // Pass 1: for each department, each tag's earliest position, its predecessor counts,
+  // how many items carry it, and how many of those carry each other tag earlier (containment).
+  interface TagInfo { minPos: number; before: Map<string, number>; items: number; earlier: Map<string, number> }
   const byDept = new Map<string, Map<string, TagInfo>>();
   let taggedWithNoDepartment = 0;
   for (const r of items(db, page)) {
@@ -606,11 +621,16 @@ export function buildPlacement(db: DatabaseSync, options: BuildPlacementOptions 
     }
     let m = byDept.get(dept);
     if (!m) byDept.set(dept, (m = new Map()));
+    const counted = new Set<string>();
     tags.forEach((t, i) => {
       let info = m!.get(t);
-      if (!info) m!.set(t, (info = { minPos: i, before: new Map() }));
+      if (!info) m!.set(t, (info = { minPos: i, before: new Map(), items: 0, earlier: new Map() }));
       info.minPos = Math.min(info.minPos, i);
       if (i > 0) info.before.set(tags[i - 1]!, (info.before.get(tags[i - 1]!) ?? 0) + 1);
+      if (counted.has(t)) return;
+      counted.add(t);
+      info.items += 1;
+      for (const c of new Set(tags.slice(0, i))) if (c !== t) info.earlier.set(c, (info.earlier.get(c) ?? 0) + 1);
     });
   }
 
@@ -641,16 +661,24 @@ export function buildPlacement(db: DatabaseSync, options: BuildPlacementOptions 
       };
       const order = [...tags.entries()].filter(([t]) => !parent.has(t)).sort((a, b) => a[1].minPos - b[1].minPos || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
       for (const [tag, info] of order) {
+        const isAnc = (c: string): boolean => tax !== null && tax.isAncestor(c, tag);
         const cands = [...info.before.entries()].sort((a, b) => {
-          if (tax && dept === 'food') {
-            const d = Number(tax.isAncestor(b[0], tag)) - Number(tax.isAncestor(a[0], tag));
-            if (d !== 0) return d;
-          }
+          const d = Number(isAnc(b[0])) - Number(isAnc(a[0]));
+          if (d !== 0) return d;
           return b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
         });
         let chosen: string | null = null;
         for (const [c] of cands) {
           if (c === tag || reaches(c, tag)) continue;
+          if (!isAnc(c)) {
+            // D-223: a parent must contain its child. A taxonomy pair that is not an
+            // ancestor never qualifies; otherwise the candidate must be carried by more
+            // items (a tie proves nothing) and come earlier in CONTAINMENT of the child's items.
+            if (tax && tax.has(c) && tax.has(tag)) continue;
+            const cInfo = tags.get(c);
+            if (!cInfo || cInfo.items <= info.items) continue;
+            if ((info.earlier.get(c) ?? 0) < CONTAINMENT * info.items) continue;
+          }
           chosen = c;
           break;
         }
