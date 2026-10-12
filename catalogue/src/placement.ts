@@ -4,7 +4,7 @@
  * docs/decisions.md, "One path per item: unplaced items sit in an explicit
  * "unplaced" node", 2026-10-09).
  *
- *   node src/placement.ts --db <catalogue.db> [--taxonomy <path>] [--no-taxonomy]
+ *   node src/placement.ts --db <catalogue.db> [--taxonomy <path>] [--no-taxonomy] [--no-department-taxonomies]
  *
  * THE SHAPE. A node is one (department, tag). Three kinds:
  *   department  the top of a department, tag '@department', no parent, depth 0
@@ -24,9 +24,13 @@
  * (the database refuses an update). Among the tags seen immediately before the
  * node's tag in the department's stored paths (its candidates):
  *   1. when a taxonomy is loaded, a candidate that is a taxonomy ancestor of the
- *      tag ranks above one that is not (every department);
- *   2. then the candidate seen immediately before it in more items;
- *   3. then the alphabetically first.
+ *      tag ranks above one that is not (every department; each non-food department
+ *      also reads its own sibling taxonomy, DEPARTMENT_TAXONOMIES, 2026-10-12);
+ *   2. then, when no ancestor was seen immediately before it, its NEAREST taxonomy
+ *      ancestor that is a tag anywhere in the department (2026-10-12: a contributor
+ *      who typed only "shampoos" still puts it under "hair care");
+ *   3. then the candidate seen immediately before it in more items;
+ *   4. then the alphabetically first.
  * A PARENT MUST CONTAIN ITS CHILD (D-223, 2026-10-12). Open Beauty and Open
  * Products Facts store tags in the order a contributor typed them, so "seen
  * before" alone hung serums under condoms. A candidate that is not a taxonomy
@@ -87,7 +91,7 @@ import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
-import { DEFAULT_ALIASES_PATH, DEFAULT_TAXONOMY_PATH, foldTag, loadTaxonomy } from './category-taxonomy.ts';
+import { DEFAULT_ALIASES_PATH, DEFAULT_TAXONOMY_PATH, foldTag, loadDepartmentTaxonomies, loadTaxonomy } from './category-taxonomy.ts';
 import type { Taxonomy } from './category-taxonomy.ts';
 
 export const UNPLACED_TAG = '@unplaced';
@@ -538,8 +542,14 @@ export function countPaths(db: DatabaseSync): PathCounts {
 /* ----------------------------------------------------------------- build */
 
 export interface BuildPlacementOptions {
-  /** Ranks a taxonomy ancestor first among a food tag's candidate parents (rule step 1). */
+  /** Ranks a taxonomy ancestor first among a tag's candidate parents (rule step 1), in every department. */
   readonly taxonomy?: Taxonomy | null;
+  /**
+   * A department's own taxonomy (category-taxonomy.ts DEPARTMENT_TAXONOMIES), read
+   * beside `taxonomy` for that department: an ancestor in either ranks first, and a
+   * pair either knows that neither calls an ancestor never qualifies.
+   */
+  readonly departmentTaxonomies?: Readonly<Record<string, Taxonomy>> | null;
   readonly log?: (line: string) => void;
   readonly pageSize?: number;
 }
@@ -556,6 +566,8 @@ export interface BuildPlacementResult {
   /** Items with tags whose source names no department: in the top-level unplaced node. */
   readonly taggedWithNoDepartment: number;
   readonly taxonomyUsed: boolean;
+  /** Departments whose own taxonomy the parent rule read. */
+  readonly departmentTaxonomiesUsed: readonly string[];
   readonly counts: PathCounts;
 }
 
@@ -660,13 +672,20 @@ export function buildPlacement(db: DatabaseSync, options: BuildPlacementOptions 
         return false;
       };
       const order = [...tags.entries()].filter(([t]) => !parent.has(t)).sort((a, b) => a[1].minPos - b[1].minPos || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+      const taxes = [options.departmentTaxonomies?.[dept], tax].filter((t): t is Taxonomy => t != null);
       for (const [tag, info] of order) {
-        const isAnc = (c: string): boolean => tax !== null && tax.isAncestor(c, tag);
-        const cands = [...info.before.entries()].sort((a, b) => {
-          const d = Number(isAnc(b[0])) - Number(isAnc(a[0]));
-          if (d !== 0) return d;
-          return b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
-        });
+        const isAnc = (c: string): boolean => taxes.some((t) => t.isAncestor(c, tag));
+        // Tier 0: an ancestor seen immediately before; 1: the nearest ancestor anywhere in
+        // the department (never typed right before it); 2: any other immediate predecessor.
+        const depthOf = (c: string): number => Math.max(...taxes.map((t) => t.depthOf(c)));
+        const pool = new Map<string, { n: number; tier: number; depth: number }>();
+        for (const [c, n] of info.before) pool.set(c, { n, tier: isAnc(c) ? 0 : 2, depth: 0 });
+        for (const t of taxes) {
+          for (const a of t.ancestorsOf(tag)) if (!pool.has(a) && (tags.has(a) || parent.has(a))) pool.set(a, { n: 0, tier: 1, depth: depthOf(a) });
+        }
+        const cands = [...pool.entries()].sort(
+          ([ca, a], [cb, b]) => a.tier - b.tier || b.n - a.n || b.depth - a.depth || (ca < cb ? -1 : ca > cb ? 1 : 0),
+        );
         let chosen: string | null = null;
         for (const [c] of cands) {
           if (c === tag || reaches(c, tag)) continue;
@@ -674,7 +693,7 @@ export function buildPlacement(db: DatabaseSync, options: BuildPlacementOptions 
             // D-223: a parent must contain its child. A taxonomy pair that is not an
             // ancestor never qualifies; otherwise the candidate must be carried by more
             // items (a tie proves nothing) and come earlier in CONTAINMENT of the child's items.
-            if (tax && tax.has(c) && tax.has(tag)) continue;
+            if (taxes.some((t) => t.has(c) && t.has(tag))) continue;
             const cInfo = tags.get(c);
             if (!cInfo || cInfo.items <= info.items) continue;
             if ((info.earlier.get(c) ?? 0) < CONTAINMENT * info.items) continue;
@@ -788,6 +807,7 @@ export function buildPlacement(db: DatabaseSync, options: BuildPlacementOptions 
     storedRouteDiffers,
     taggedWithNoDepartment,
     taxonomyUsed: tax !== null,
+    departmentTaxonomiesUsed: Object.keys(options.departmentTaxonomies ?? {}).filter((d) => byDept.has(d)).sort(),
   };
   log(`placement: ${JSON.stringify(summary)}`);
   log(
@@ -918,17 +938,17 @@ function main(argv: readonly string[]): number {
     return 2;
   }
   let tax: Taxonomy | null = null;
-  if (!argv.includes('--no-taxonomy')) {
-    try {
-      tax = loadTaxonomy(arg('--taxonomy', argv) ?? DEFAULT_TAXONOMY_PATH, { aliasesPath: DEFAULT_ALIASES_PATH });
-    } catch (err) {
-      console.error(`placement FAILED before touching anything: ${err instanceof Error ? err.message : String(err)} (pass --no-taxonomy to build without rule step 1)`);
-      return 1;
-    }
+  let departmentTaxonomies: Record<string, Taxonomy> | null = null;
+  try {
+    if (!argv.includes('--no-taxonomy')) tax = loadTaxonomy(arg('--taxonomy', argv) ?? DEFAULT_TAXONOMY_PATH, { aliasesPath: DEFAULT_ALIASES_PATH });
+    if (!argv.includes('--no-department-taxonomies')) departmentTaxonomies = loadDepartmentTaxonomies();
+  } catch (err) {
+    console.error(`placement FAILED before touching anything: ${err instanceof Error ? err.message : String(err)} (pass --no-taxonomy or --no-department-taxonomies to build without them)`);
+    return 1;
   }
   const db = new DatabaseSync(dbPath);
   try {
-    buildPlacement(db, { taxonomy: tax });
+    buildPlacement(db, { taxonomy: tax, departmentTaxonomies });
     return 0;
   } catch (err) {
     console.error(`placement FAILED: ${err instanceof Error ? err.message : String(err)}`);

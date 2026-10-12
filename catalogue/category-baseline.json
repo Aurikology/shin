@@ -14,5 +14,25 @@
     "A4": 0,
     "A6": 387904,
     "A7": 0
+  },
+  "departmentTaxonomies": {
+    "beauty": {
+      "sha256": "a37eb468427e7098935f70e9f98e4ecfb046c1c489e5db23fca81c15f64c8085",
+      "fetchedAt": "2026-10-12",
+      "source": "https://static.openbeautyfacts.org/data/taxonomies/categories.json",
+      "synonyms": "https://raw.githubusercontent.com/openfoodfacts/openfoodfacts-server/main/taxonomies/beauty/categories.txt"
+    },
+    "general": {
+      "sha256": "4497208e81eee4585d55178b9c76cd20821ba3e5216eb05f0eb856116b5ce14e",
+      "fetchedAt": "2026-10-12",
+      "source": "https://static.openproductsfacts.org/data/taxonomies/categories.json",
+      "synonyms": "https://raw.githubusercontent.com/openfoodfacts/openfoodfacts-server/main/taxonomies/product/categories.txt"
+    },
+    "pet": {
+      "sha256": "388621aa00b7aa8863063f43c28d19a400e26b6d2b8a10291993af2a74e20197",
+      "fetchedAt": "2026-10-12",
+      "source": "https://static.openpetfoodfacts.org/data/taxonomies/categories.json",
+      "synonyms": "https://raw.githubusercontent.com/openfoodfacts/openfoodfacts-server/main/taxonomies/petfood/categories.txt"
+    }
   }
 }

@@ -5,7 +5,7 @@
  *
  *   node src/placement-run.ts --db <COPY of catalogue.db> --vectors <name-index.db>
  *        [--scans <scans.db>] [--workers 8] [--bar 0.6] [--no-meaning] [--no-text]
- *        [--taxonomy <path> | --no-taxonomy] [--live]
+ *        [--taxonomy <path> | --no-taxonomy] [--no-department-taxonomies] [--live]
  *
  * The meaning route needs every named item embedded first (name-meaning.ts embed);
  * a missing vector stops the run. --no-meaning runs without that route and SAYS so
@@ -19,7 +19,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cpus } from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
-import { DEFAULT_ALIASES_PATH, DEFAULT_TAXONOMY_PATH, loadTaxonomy, type Taxonomy } from './category-taxonomy.ts';
+import { DEFAULT_ALIASES_PATH, DEFAULT_TAXONOMY_PATH, loadDepartmentTaxonomies, loadTaxonomy, type Taxonomy } from './category-taxonomy.ts';
 import { buildPlacement, departmentOfSource, NO_DEPARTMENT } from './placement.ts';
 import {
   assertNotLiveCatalogue,
@@ -54,9 +54,11 @@ export async function main(argv: readonly string[]): Promise<number> {
     const bar = Number(arg('--bar', argv) ?? PLACEMENT_CONFIDENCE_BAR);
     let tax: Taxonomy | null = null;
     if (!argv.includes('--no-taxonomy')) tax = loadTaxonomy(arg('--taxonomy', argv) ?? DEFAULT_TAXONOMY_PATH, { aliasesPath: DEFAULT_ALIASES_PATH });
+    const departmentTaxonomies = argv.includes('--no-department-taxonomies') ? null : loadDepartmentTaxonomies();
+    if (!departmentTaxonomies) log('placement-run: --no-department-taxonomies: beauty, general and pet parents read the food taxonomy only');
     const db = new DatabaseSync(dbPath);
     try {
-      buildPlacement(db, { taxonomy: tax, log });
+      buildPlacement(db, { taxonomy: tax, departmentTaxonomies, log });
       ensureFeedbackSchema(db);
       const scans = arg('--scans', argv);
       if (scans) log(`placement-run: picks ${JSON.stringify(ingestPicks(db, scans, { origin: 'scans' }))}`);

@@ -2,6 +2,7 @@
  * Fetch the Open Food Facts category taxonomy for the category safeguards.
  *
  *   node src/fetch-categories.ts [source] [out] [--txt <url-or-path>] [--no-synonyms]
+ *   node src/fetch-categories.ts --department beauty|general|pet   (a sibling Open Facts taxonomy, DEPARTMENT_TAXONOMIES)
  *
  * `source` is categories.json (a URL or a local path); it defaults to
  * https://static.openfoodfacts.org/data/taxonomies/categories.json. `out` defaults to
@@ -22,7 +23,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { normalizeName, taxonomyFromObject } from './category-taxonomy.ts';
+import { DEPARTMENT_TAXONOMIES, normalizeName, taxonomyFromObject } from './category-taxonomy.ts';
 
 /** Lower case, non-letters to '-', accents KEPT: how OFF keys protected names in other languages ("de:münchener-biere"). */
 function normalizeKeepingAccents(name: string): string {
@@ -213,11 +214,14 @@ async function main(args: readonly string[]): Promise<number> {
   const here = dirname(fileURLToPath(import.meta.url));
   const argv = [...args];
   try {
-    const txtArg = takeFlag(argv, '--txt');
+    const department = takeFlag(argv, '--department');
+    const preset = department === undefined ? undefined : DEPARTMENT_TAXONOMIES[department];
+    if (department !== undefined && !preset) throw new Error(`--department ${department}: known departments are ${Object.keys(DEPARTMENT_TAXONOMIES).join(', ')}`);
+    const txtArg = takeFlag(argv, '--txt') ?? preset?.txt;
     const noSynonyms = argv.includes('--no-synonyms');
     const rest = argv.filter((a) => a !== '--no-synonyms');
-    const source = rest[0] ?? DEFAULT_SOURCE;
-    const out = rest[1] ?? join(here, '..', 'data', 'off-categories.json');
+    const source = rest[0] ?? preset?.source ?? DEFAULT_SOURCE;
+    const out = rest[1] ?? join(here, '..', 'data', preset?.file ?? 'off-categories.json');
     let txtSource = txtArg;
     // The static host serves the JSON only; categories.txt lives in the Open Food Facts server repo.
     if (txtSource === undefined && !noSynonyms && source === DEFAULT_SOURCE) txtSource = DEFAULT_TXT_SOURCE;

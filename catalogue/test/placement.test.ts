@@ -13,7 +13,11 @@ import assert from 'node:assert/strict';
 import type { DatabaseSync } from 'node:sqlite';
 import { DatabaseSync as Db } from 'node:sqlite';
 import { openCatalogue } from '../src/schema.ts';
-import { taxonomyFromObject } from '../src/category-taxonomy.ts';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { DEPARTMENT_TAXONOMIES, loadDepartmentTaxonomies, taxonomyFromObject } from '../src/category-taxonomy.ts';
 import {
   assertPlacedCategory,
   buildPlacement,
@@ -163,6 +167,54 @@ test('D-223 a taxonomy pair that is not an ancestor never becomes a parent, in e
   buildPlacement(db, { taxonomy: tax, log: () => {} });
   assert.equal(parentTagOf(db, 'beauty', 'en:q'), '@department', 'p contains q in the data, but the taxonomy says p is not an ancestor of q');
   assert.equal(parentTagOf(db, 'beauty', 'en:r'), 'en:p', 'control: a taxonomy ancestor outside food is still taken');
+});
+
+test('D-223 a department reads its own taxonomy: a pair only the beauty taxonomy knows is refused, an ancestor only it knows is taken', () => {
+  const beauty = taxonomyFromObject({ 'en:hair-care': { parents: [] }, 'en:shampoos': { parents: ['en:hair-care'] }, 'en:soaps': { parents: [] } }, 'b');
+  const food = taxonomyFromObject({ 'en:snacks': { parents: [] } }, 'f');
+  const rows: Row[] = [
+    ...['B1', 'B2', 'B3', 'B4'].map((code) => ({ code, source: 'openbeautyfacts', path: ['en:soaps', 'en:shampoos'] })),
+    ...['B5', 'B6', 'B7', 'B8', 'B9'].map((code) => ({ code, source: 'openbeautyfacts', path: ['en:soaps'] })),
+    { code: 'B10', source: 'openbeautyfacts', path: ['en:hair-care', 'en:shampoos'] },
+  ];
+  const db = catalogue(rows);
+  ensurePlacementSchema(db);
+  const r = buildPlacement(db, { taxonomy: food, departmentTaxonomies: { beauty }, log: () => {} });
+  assert.equal(parentTagOf(db, 'beauty', 'en:shampoos'), 'en:hair-care', 'soaps contains shampoos in the data, but the beauty taxonomy says hair-care is the ancestor');
+  assert.deepEqual(r.departmentTaxonomiesUsed, ['beauty']);
+});
+
+test('D-223 a tag never typed right after an ancestor still hangs under its nearest ancestor in the department', () => {
+  const beauty = taxonomyFromObject({ 'en:care': { parents: [] }, 'en:hair-care': { parents: ['en:care'] }, 'en:shampoos': { parents: ['en:hair-care'] } }, 'b');
+  const rows: Row[] = [
+    { code: 'B1', source: 'openbeautyfacts', path: ['en:care', 'en:hair-care'] },
+    { code: 'B2', source: 'openbeautyfacts', path: ['en:shampoos'] },
+  ];
+  const db = catalogue(rows);
+  ensurePlacementSchema(db);
+  buildPlacement(db, { departmentTaxonomies: { beauty }, log: () => {} });
+  assert.equal(parentTagOf(db, 'beauty', 'en:shampoos'), 'en:hair-care', 'the nearest of its two ancestors, though no item typed either before it');
+  assert.deepEqual(pathOf(db, 'B2'), ['en:care', 'en:hair-care', 'en:shampoos']);
+});
+
+test('D-223 the department taxonomies fail loudly: a missing file names the fetch command, a changed file names both hashes', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'dept-tax-'));
+  const baseline = join(dir, 'baseline.json');
+  const body = JSON.stringify({ 'en:x': { parents: [] } });
+  const sha = createHash('sha256').update(body).digest('hex');
+  const pins: Record<string, { sha256: string }> = {};
+  for (const [d, t] of Object.entries(DEPARTMENT_TAXONOMIES)) {
+    writeFileSync(join(dir, t.file), body);
+    pins[d] = { sha256: sha };
+  }
+  writeFileSync(baseline, JSON.stringify({ departmentTaxonomies: pins }));
+  assert.deepEqual(Object.keys(loadDepartmentTaxonomies(dir, baseline)).sort(), ['beauty', 'general', 'pet'], 'control: pinned files load');
+  writeFileSync(join(dir, DEPARTMENT_TAXONOMIES.beauty!.file), JSON.stringify({ 'en:y': { parents: [] } }));
+  assert.throws(() => loadDepartmentTaxonomies(dir, baseline), /beauty taxonomy: .*sha256 .* pins /);
+  writeFileSync(baseline, JSON.stringify({ departmentTaxonomies: { ...pins, beauty: undefined } }));
+  assert.throws(() => loadDepartmentTaxonomies(dir, baseline), /pins no sha256/);
+  const empty = mkdtempSync(join(tmpdir(), 'dept-tax-none-'));
+  assert.throws(() => loadDepartmentTaxonomies(empty, baseline), /fetch-categories\.ts --department beauty/);
 });
 
 test('D-223 the tags of one item tie, so a single junk path builds no chain', () => {

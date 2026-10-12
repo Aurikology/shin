@@ -273,6 +273,62 @@ export function loadTaxonomy(path: string, opts: { aliasesPath?: string } = {}):
   return taxonomyFromObject(parsed, createHash('sha256').update(bytes).digest('hex'), aliases);
 }
 
+/**
+ * Each non-food department's own category taxonomy, from its sibling Open Facts site
+ * (D-223 follow-up, 2026-10-12). Open Beauty, Products and Pet Food Facts tag items
+ * against their own taxonomies, which the food one barely knows: on the PC catalogue
+ * 42% of tagged beauty items carry a tag the beauty taxonomy knows (17% the food one),
+ * products 59% (16%), pet food 62% (30%). Installed by
+ * `node src/fetch-categories.ts --department <name>`; each file's sha256 is pinned in
+ * category-baseline.json under departmentTaxonomies.
+ */
+export const DEPARTMENT_TAXONOMIES: Readonly<Record<string, { readonly file: string; readonly source: string; readonly txt: string }>> = {
+  beauty: {
+    file: 'obf-categories.json',
+    source: 'https://static.openbeautyfacts.org/data/taxonomies/categories.json',
+    txt: 'https://raw.githubusercontent.com/openfoodfacts/openfoodfacts-server/main/taxonomies/beauty/categories.txt',
+  },
+  general: {
+    file: 'opf-categories.json',
+    source: 'https://static.openproductsfacts.org/data/taxonomies/categories.json',
+    txt: 'https://raw.githubusercontent.com/openfoodfacts/openfoodfacts-server/main/taxonomies/product/categories.txt',
+  },
+  pet: {
+    file: 'opff-categories.json',
+    source: 'https://static.openpetfoodfacts.org/data/taxonomies/categories.json',
+    txt: 'https://raw.githubusercontent.com/openfoodfacts/openfoodfacts-server/main/taxonomies/petfood/categories.txt',
+  },
+};
+
+const BASELINE_PATH = fileURLToPath(new URL('../category-baseline.json', import.meta.url));
+
+/**
+ * Loads every department taxonomy from `dataDir` (default catalogue/data). THROWS
+ * naming the fetch command when a file is missing, and when a file's sha256 is not
+ * the one category-baseline.json pins: a parent rule that cannot read its taxonomy
+ * must say so, never build a different tree quietly.
+ */
+export function loadDepartmentTaxonomies(dataDir: string = fileURLToPath(new URL('../data/', import.meta.url)), baselinePath: string = BASELINE_PATH): Record<string, Taxonomy> {
+  const pinned = (JSON.parse(readFileSync(baselinePath, 'utf8')) as { departmentTaxonomies?: Record<string, { sha256?: string }> }).departmentTaxonomies ?? {};
+  const out: Record<string, Taxonomy> = {};
+  for (const [department, d] of Object.entries(DEPARTMENT_TAXONOMIES)) {
+    let tax: Taxonomy;
+    try {
+      tax = loadTaxonomy(`${dataDir.replace(/[\\/]+$/, '')}/${d.file}`);
+    } catch (err) {
+      throw new TaxonomyError(
+        err instanceof TaxonomyError ? err.reason : 'unreadable',
+        `${department} taxonomy: ${err instanceof Error ? err.message : String(err)}; install it with: node src/fetch-categories.ts --department ${department}`,
+      );
+    }
+    const want = pinned[department]?.sha256;
+    if (want === undefined) throw new Error(`${department} taxonomy: category-baseline.json pins no sha256 under departmentTaxonomies.${department}`);
+    if (tax.sha256 !== want) throw new Error(`${department} taxonomy: ${d.file} has sha256 ${tax.sha256}, category-baseline.json pins ${want}; re-fetch it or record the new file`);
+    out[department] = tax;
+  }
+  return out;
+}
+
 let unavailableLogged = false;
 
 /** Log `[category-fault] taxonomy_unavailable` once per process. */
