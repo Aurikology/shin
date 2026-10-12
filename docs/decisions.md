@@ -2745,3 +2745,33 @@ plumbing" exception "the camera frame goes to the cheapest Claude model (never G
 gate; "Camera UX" "except the one frame a catalogue and Open Food Facts miss sends to Claude" with
 no gate. Also recorded: changes to this system are done only with loud-failing tests and an
 end-to-end run through the app (his words the same day).
+
+## The Stage 2 parent rule: a parent must contain its child
+**Date:** 2026-10-12 · **Status:** active
+
+D-223 (Jamin, comms 2026-10-10: "needs your review of the parent rule") was Aurik's to review; his
+session decided it on his "complete what needs to be done" (2026-10-12). The old rule gave a tag
+the parent seen immediately before it in the most items, with a taxonomy-ancestor preference in
+food only. Open Beauty and Open Products Facts store tags in the order a contributor typed them,
+so serums ended up under condoms and one deodorant's ingredient list built a 23-level chain. The
+rule now: a taxonomy ancestor is preferred in every department; a known taxonomy pair that is not
+an ancestor never qualifies; any other candidate qualifies only when it is carried by MORE items
+than the tag and comes earlier in at least 80% of the tag's items (Sanderson and Croft's
+subsumption threshold, not tuned). A tag with no qualifying candidate hangs off the department.
+Each non-food department also reads its own sibling taxonomy (Open Beauty, Products and Pet Food
+Facts, hashes pinned in catalogue/category-baseline.json), and a tag with no ancestor typed right
+before it hangs under its nearest ancestor anywhere in the department. Measured against each
+department's own taxonomy on the PC catalogue copy: the old tree had 329 wrong parents over 25,369
+items; now 0. Deepest chain beauty 23 to 7, general 16 to 8; food unchanged. Code cd7823a and
+c98a0e2. Nodes never change once created, so a catalogue already built under the old rule keeps
+its old parents until its placement layer is rebuilt from empty.
+
+The cost, measured: Stage 3's top-level-only share (2.1, bar 5%) rose from 18.9% to 31.5% on the
+same copy with the containment rule alone (beauty 2.0% to 36.1%, pet 3.8% to 54.0%, general 23.9%
+to 36.9%, food 26.0% unchanged). The old beauty and pet numbers passed only because the wrong
+chains were long: a 23-level chain gives every subtree a large vote share. A placement that
+clears the bar under a wrong parent is a wrong placement with a confidence on it.
+
+**Reverses if:** the 2.2 hand-marked sheet shows the containment rule loses more right placements
+at category-or-parent than it removes wrong ones, or a single-parent standard tree (GS1 GPC, plan
+1.1 "Next") is adopted as the fixed top.
