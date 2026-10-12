@@ -1182,8 +1182,9 @@ export interface SourceEntry {
  * research/ and notes/. Walmart's and ANBL's terms were read 2026-10-06 and
  * forbid automated readers, so their automated entries are 'forbidden': the
  * Walmart crawl and the ANBL loader are refused by `requireSourceUse` until a
- * newer entry (written permission, say) is appended. Canadian Tire and
- * Save-On-Foods have no recorded basis at all.
+ * newer entry (written permission, say) is appended. Save-On-Foods' terms were
+ * read 2026-10-09 and Canadian Tire's 2026-10-12; both bar reuse, so both are
+ * 'forbidden' too, and no seller is left with an unknown basis.
  */
 export const SOURCE_SEEDS: readonly SourceEntry[] = [
   {
@@ -1241,14 +1242,20 @@ export const SOURCE_SEEDS: readonly SourceEntry[] = [
   {
     seller: 'Canadian Tire',
     access: 'automated',
-    basis: 'unknown',
+    basis: 'terms',
     evidence:
-      'No licence, terms or robots.txt reading is recorded. The adapter header records only measurements of the page\'s own public API; ' +
-      'docs/the-tree.md lists "Canadian Tire\'s terms: found, quoted and dated" as still to do.',
-    evidenceUrl: null,
-    readOn: null,
-    automated: 'not_recorded',
-    cite: 'price/src/canadiantire.ts header; docs/the-tree.md; app/test/attribution.test.ts (NOT_CREDITED: "add an entry before loading")',
+      'Canadian Tire Policies page, TERMS & CONDITIONS (Ownership, Use of Site; no revision date shown), read 2026-10-12 through a text fetch ' +
+      '(Chrome hangs on the site; the fetch quoted fragments, not whole clauses): Ownership, "None of the content found on the Site may be ' +
+      'reproduced, republished, distributed, displayed, sold" without written permission; Use of Site, "Neither the Site nor its content may be, ' +
+      'in whole or in part, copied, reproduced, republished" without written permission, except "you may download, display and print the content ' +
+      'presented on the Site for your personal, non-commercial use only", and "The use of such content on any other web site or in any environment ' +
+      'of networked computers is prohibited." No clause on robots or scraping was found. robots.txt (recorded in canadiantire.ts) allows with ' +
+      'Crawl-delay 10, but robots.txt is not the terms. Recorded verdict: reusing its prices is outside the terms, the same basis that refused ' +
+      'Save-On-Foods, Walmart and ANBL; written permission from Canadian Tire Corporation is needed.',
+    evidenceUrl: 'https://www.canadiantire.ca/en/customer-service/policies.html',
+    readOn: '2026-10-12',
+    automated: 'forbidden',
+    cite: 'price/src/canadiantire.ts header; docs/the-tree.md ("Canadian Tire\'s terms: found, quoted and dated"); this entry is the reading',
   },
   {
     seller: 'Save-On-Foods',
