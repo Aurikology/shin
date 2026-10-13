@@ -24,6 +24,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { priceAge } from '../../public/js/lib/dom.js';
 import {
   FX, F, NAME, render, verdictWith, dot, parts, plain, svgOf, svgTexts, viewBox, attr, elementAt, elementsMatching, chartScale,
   declared, fontOf, px, decls, parseRules, CSS_FILES, THEMES, TIER_IDS, ratio, mix, usd, roundEstimateCents, VC, ALL, peekFlow,
@@ -186,13 +187,16 @@ test('R-46 (keep) every store dot carries store, quantity, price and date, on th
   for (const [name, v] of Object.entries({ HIGH: FX.HIGH, SALE: FX.SALE })) {
     const html = render(v);
     const svg = svgOf(html);
-    const titles = [...svg.matchAll(/<circle class="vb-dot[^"]*"[^>]*><title>([^<]*)<\/title>/g)].map((m) => plain(m[1]));
+    // Amended 2026-10-13: a sale dot is a diamond now (R-47), so a dot is any shape carrying data-vb-dot.
+    const titles = [...svg.matchAll(/<(?:circle|path) class="vb-dot[^"]*"[^>]*data-vb-dot="\d+"[^>]*><title>([^<]*)<\/title>/g)].map((m) => plain(m[1]));
     assert.equal(titles.length, v.dots.length, `${name}: a dot per price`);
     const half = parts(html).half;
     v.dots.forEach((d, i) => {
       for (const [what, text] of [['store', d.store], ['quantity', d.quantity], ['price', usd(d.cents)], ['date', d.seenOn]]) {
         assert.ok(titles[i].includes(text), `${name} dot ${i}: the dot's title lacks the ${what} (${text}): ${titles[i]}`);
-        assert.ok(plain(half).includes(text), `${name} dot ${i}: the list lacks the ${what} (${text})`);
+        // Amended 2026-10-13: the list prints the date by the one rule every list uses (R-55, build 7), never the raw ISO day.
+        const shown = what === 'date' ? priceAge(text).label : text;
+        assert.ok(plain(half).includes(shown), `${name} dot ${i}: the list lacks the ${what} (${shown})`);
       }
     });
   }
@@ -230,7 +234,7 @@ test('R-46 pass 72 px: a list row is 72 px tall with the price right-aligned in 
   const row = rows[0].html;
   const els = elementsMatching(row, /<(?:span|div|p|b|small)\b[^>]*>/).map((e) => plain(e.html));
   assert.ok(els.includes(usd(d.cents)), `the price ${usd(d.cents)} is not an element of its own (elements: ${JSON.stringify(els)})`);
-  const lineTwo = els.find((t) => t.includes(d.quantity) && t.includes(d.seenOn));
+  const lineTwo = els.find((t) => t.includes(d.quantity) && t.includes(priceAge(d.seenOn).label));
   assert.ok(lineTwo && !lineTwo.includes(usd(d.cents)), 'quantity and date are not a line of their own');
   const saleRow = rows.find((r) => /sale/i.test(attr(r.open, 'class')));
   assert.ok(elementsMatching(saleRow.html, /<(?:span|b|small)\b[^>]*>/).some((e) => plain(e.html) === 'Sale'), '"Sale" is not a tag of its own on the sale row');
@@ -267,8 +271,8 @@ test('R-47 pass: the sale dot is labelled with the word "Sale"', () => {
 
 test('R-47 pass: the caption under the list says "Sale prices are not in the estimate."', () => {
   const { half } = parts(render(FX.SALE));
-  const text = plain(half);
-  const after = text.slice(text.lastIndexOf(FX.SALE.dots[2].seenOn));
+  // Amended 2026-10-13: the list no longer prints the raw ISO day (R-55), so "after the list" is after its </ul>.
+  const after = plain(half.slice(half.indexOf('</ul>', half.indexOf('data-vd-dots'))));
   assert.match(after, /Sale prices are not in the estimate\./, `after the list the sheet says: ${after}`);
 });
 
@@ -431,7 +435,8 @@ test('R-62 (keep): the bell stays: a curve, the shaded 8-in-10 band, the shopper
 
 test('R-66 (keep) pass: only three fills ever reach a verdict sheet: certain, sure, thin, for high, medium, low', () => {
   const seen = new Map();
-  for (const [name, v] of ALL) seen.set(v.confidence, new Set([...(seen.get(v.confidence) ?? []), /data-conf="(\w+)"/.exec(render(v))[1]]));
+  // Amended 2026-10-13: the going-rate card (no shelf price) is not a verdict and has no colour field (R-70).
+  for (const [name, v] of ALL.filter(([, x]) => x.shopper)) seen.set(v.confidence, new Set([...(seen.get(v.confidence) ?? []), /data-conf="(\w+)"/.exec(render(v))[1]]));
   assert.deepEqual([...seen.get('high')], ['certain']);
   assert.deepEqual([...seen.get('medium')], ['sure']);
   assert.deepEqual([...seen.get('low')], ['thin']);

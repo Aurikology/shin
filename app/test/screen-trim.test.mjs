@@ -146,7 +146,8 @@ test('row 8: the half detent has one basis line, no separate confidence sentence
   assert.doesNotMatch(ai, /from an AI estimate/);
   assert.match(ai, /data-vd-note="size_assumed"/, 'a chip that changes the answer must stay');
   const aiSure = halfOf(camera.distributionSheet({ ...F.LOW_CONFIDENCE, confidence: 'high' }, {}));
-  assert.equal(between(aiSure, 'data-vd-basis'), 'Estimated by AI');
+  // Build 6 (2026-10-13, docs/design/ux-evidence-2026-10-09.md section 13): R-56 plain words for the AI source.
+  assert.equal(between(aiSure, 'data-vd-basis'), 'An AI estimate; no shop prices found');
   // A low answer's reason is the line itself, so "Few prices behind this" would say it twice.
   const few = halfOf(camera.distributionSheet({ ...F.LOW_CONFIDENCE, basis: 'own_prices', n: 2, notes: ['few_prices', 'old_prices'] }, {}));
   assert.doesNotMatch(few, /data-vd-note="few_prices"/);

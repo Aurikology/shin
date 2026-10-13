@@ -38,7 +38,12 @@ const unesc = (s) => s?.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/
 const peekOf = (html) => html.slice(html.indexOf('<div class="sheet-peek">'), html.indexOf('<div class="sheet-half">'));
 const halfOf = (html) => html.slice(html.indexOf('<div class="sheet-half">'), html.indexOf('<div class="sheet-full">'));
 /** The text of every <p> under the verdict word in the peek, in order (the mascot's bubble sits above the word). */
-const peekLines = (html) => [...peekOf(html).slice(peekOf(html).indexOf('data-dist-headline')).matchAll(/<p class="([^"]*)"[^>]*>([^<]*)<\/p>/g)].map((m) => ({ cls: m[1], text: unesc(m[2]) }));
+const peekLines = (html) => [...peekOf(html).slice(peekOf(html).indexOf('data-dist-headline')).matchAll(/<p class="([^"]*)"[^>]*>([\s\S]*?)<\/p>/g)].map((m) => ({ cls: m[1], text: unesc(m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()) }));
+// Build 6 (2026-10-13, docs/design/ux-evidence-2026-10-09.md section 13): under the word come the price on the tag (R-41), then how far off and
+// the typical price, rounded, the market named (R-42, R-52): "22% under Typical price in Canada, Pexi's estimate: $6.00".
+const USEFUL = /^\d+% (under|over) the typical price$/;
+// The market is named once the boot pins it (flags-boot.js); this file never pins one, so the line has none.
+const TYPICAL = /^Typical price(?: in Canada)?, Pexi's estimate: \$[\d.]+$/;
 const sheet = (v, opts, locale = 'en') => inLocale(locale, () => distributionSheet(v, opts));
 
 test('the peek of a low-confidence verdict carries no confidence line, in either language', () => {
@@ -58,9 +63,11 @@ test('the peek of a medium-confidence verdict carries no confidence line either'
 test('the second line of the peek is the percent-and-estimate line, at every confidence level', () => {
   for (const [name, v] of [['low', F.LOW_CONFIDENCE], ['medium', F.MEDIUM_SALE_BULK], ['high', F.BAD]]) {
     const html = sheet(v);
-    const [first] = peekLines(html);
-    assert.equal(first.cls, 'sub vd-line', `${name}: the first line under the word is the useful one`);
-    assert.match(first.text, /^\d+% (under|over) the typical price, Pexi's estimate \$[\d.]+$/, name);
+    const [ask, first, typical] = peekLines(html);
+    assert.equal(ask.cls, 'vd-ask', `${name}: the first line under the word is the price on the tag`);
+    assert.equal(first.cls, 'sub vd-line', `${name}: the second line under the word is the useful one`);
+    assert.match(first.text, USEFUL, name);
+    assert.match(typical.text, TYPICAL, name);
     assert.ok(html.indexOf('data-dist-headline') < html.indexOf('data-dist-line'), name);
   }
 });
@@ -71,28 +78,33 @@ test('the second line of the peek is the percent-and-estimate line, at every con
 test('a wide spread adds no sentence after the useful line', () => {
   const html = sheet({ ...F.LOW_CONFIDENCE, p10Cents: 300, p90Cents: 3000 });
   const lines = peekLines(html);
-  assert.equal(lines[0].cls, 'sub vd-line');
+  assert.equal(lines[1].cls, 'sub vd-line');
   assert.ok(!lines.some((l) => /vd-spread|vd-doubt/.test(l.cls) || /vary a lot/.test(l.text)), JSON.stringify(lines));
 });
 
-test('the half detent carries the reason in plain words, right after where the estimate came from', () => {
-  const half = halfOf(sheet({ ...F.LOW_CONFIDENCE, basis: 'own_prices' }));
+// Build 6 (2026-10-13, docs/design/ux-evidence-2026-10-09.md section 13): the reason sits with the confidence word and its dots (R-45), just
+// above where the estimate came from, specific with its count (R-69), and never with a "Not fully confident:" prefix.
+test('the half detent carries the reason in plain words, right beside where the estimate came from', () => {
+  const half = halfOf(sheet({ ...F.LOW_CONFIDENCE, basis: 'own_prices', n: 1 }));
   assert.match(half, /data-vd-basis/);
   const reason = unesc(half.match(/data-vd-reason>([^<]*)</)?.[1]);
-  assert.equal(reason, 'Few prices for this item');
-  assert.ok(half.indexOf('data-vd-basis') < half.indexOf('data-vd-reason'), 'the reason follows the basis line');
-  assert.ok(half.indexOf('data-vd-reason') < half.indexOf('data-vd-notes') || !half.includes('data-vd-notes'), 'and comes before the notes');
-  assert.doesNotMatch(half, /not fully confident/i, 'no prefix: plain words');
+  assert.equal(reason, '1 price found, blended with its category');
+  assert.ok(half.indexOf('data-vd-reason') < half.indexOf('data-vd-basis'), 'the reason sits with the confidence word, above the basis line');
+  assert.ok(half.indexOf('data-vd-basis') < half.indexOf('data-vd-notes') || !half.includes('data-vd-notes'), 'and both come before the notes');
+  assert.doesNotMatch(half, /not fully confident:/i, 'no prefix: plain words');
 });
 
+// Build 6 (2026-10-13, docs/design/ux-evidence-2026-10-09.md section 13): for every source but its own prices, a low answer's reason IS the
+// provenance line (R-56), said once; a source with no words throws instead of falling back (build 6, fail loudly).
 test('every keyed reason reaches the half detent, in both languages', () => {
   const en = (basis) => unesc(halfOf(sheet({ ...F.LOW_CONFIDENCE, basis })).match(/data-vd-reason>([^<]*)</)?.[1]);
-  assert.equal(en('claude_typical'), 'An AI estimate, no prices for this item');
-  assert.equal(en('other_size'), 'Worked out from another size of this item');
+  assert.equal(en('claude_typical'), 'An AI estimate; no shop prices found');
+  assert.equal(en('other_size'), 'Same product, other size, scaled');
   assert.equal(en('category_prior'), 'A rough estimate for its category');
-  assert.equal(en('something_unkeyed'), 'Few prices for this item');
-  const fr = unesc(halfOf(sheet({ ...F.LOW_CONFIDENCE, basis: 'own_prices' }, {}, 'fr')).match(/data-vd-reason>([^<]*)</)?.[1]);
-  assert.equal(fr, 'Peu de prix pour ce produit');
+  assert.equal(en('department_prior'), 'A rough estimate from its department');
+  assert.throws(() => sheet({ ...F.LOW_CONFIDENCE, basis: 'something_unkeyed' }), /basis/);
+  const fr = unesc(halfOf(sheet({ ...F.LOW_CONFIDENCE, basis: 'own_prices', n: 2 }, {}, 'fr')).match(/data-vd-reason>([^<]*)</)?.[1]);
+  assert.equal(fr, '2 prix trouvés, combinés avec sa catégorie');
 });
 
 /* Changed 2026-10-10 (audit row 8): "Fairly sure, not certain" named no reason, so it
@@ -100,7 +112,8 @@ test('every keyed reason reaches the half detent, in both languages', () => {
    has none to give. Its half detent keeps the one line saying where the estimate came from. */
 test('a medium-confidence verdict carries one basis line in the half detent and no hedge sentence', () => {
   const half = halfOf(sheet(F.MEDIUM_SALE_BULK));
-  assert.doesNotMatch(half, /data-vd-reason|Fairly sure/);
+  // Build 6 (2026-10-13, docs/design/ux-evidence-2026-10-09.md section 13): the meter's word ("Fairly sure") is the R-45 level; the sentence stays gone.
+  assert.doesNotMatch(half, /data-vd-reason|Fairly sure, not certain/);
   assert.equal((half.match(/<p class="vd-basis/g) ?? []).length, 1);
 });
 
@@ -108,8 +121,8 @@ test('a confident verdict is unchanged: no reason line anywhere, the same two pe
   const html = sheet(F.GOOD);
   assert.doesNotMatch(html, /data-vd-reason|data-dist-conf/);
   const lines = peekLines(html);
-  assert.equal(lines[0].cls, 'sub vd-line');
-  assert.match(lines[0].text, /^\d+% (under|over) the typical price, Pexi's estimate \$[\d.]+$/);
+  assert.equal(lines[1].cls, 'sub vd-line');
+  assert.match(lines[1].text, USEFUL);
 });
 
 /* Changed 2026-10-10 (RULINGS.md "V1 verdict screen mechanics", the later call that day):

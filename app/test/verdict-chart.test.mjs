@@ -197,7 +197,8 @@ test('dot labels: store and quantity, never overlapping, the rest left to the li
   assert.equal(placed.length, 2, 'a third label on two rows at the same spot overlapped');
   assert.notEqual(placed[0].row, placed[1].row);
   const svg = inLocale('en', () => distributionSheet(F.CROWDED, { name: 'X' }));
-  const titles = [...svg.matchAll(/<circle class="vb-dot[^>]*><title>([^<]*)<\/title>/g)].map((m) => m[1]);
+// Build 6 (2026-10-13, docs/design/ux-evidence-2026-10-09.md section 13): a sale dot is a diamond path (R-47), so a dot is any shape with data-vb-dot.
+  const titles = [...svg.matchAll(/<(?:circle|path) class="vb-dot[^>]*data-vb-dot="\d+"[^>]*><title>([^<]*)<\/title>/g)].map((m) => m[1]);
   assert.equal(titles.length, 12, 'every dot carries its store, quantity and price in its title');
   assert.ok(titles.every((x) => /Store \d+, 1 kg, \$\d+\.\d\d/.test(x)));
   const rows = svg.match(/class="vd-dotrow/g) ?? [];
@@ -228,26 +229,38 @@ test('good, reasonable, bad, great: his word, the tier, one face per tier, the r
   assert.equal(distFace('great', 'low'), 'fair'); // build 7 R-72: a not-confident price is never a smiling face
 });
 
-test('the line beside the answer: how far off, against Pexi\'s estimate of the typical price', () => {
-  assert.equal(between(inLocale('en', () => distributionSheet(F.GOOD)), 'data-dist-line'), "22% under the typical price, Pexi's estimate $5.99");
-  assert.equal(between(inLocale('en', () => distributionSheet(F.BAD)), 'data-dist-line'), "25% over the typical price, Pexi's estimate $5.99");
-  assert.equal(between(inLocale('en', () => distributionSheet(F.FLOOR)), 'data-dist-line'), "about the typical price, Pexi's estimate $5.99");
-  assert.equal(between(inLocale('fr', () => distributionSheet(F.GOOD)), 'data-dist-line'), `22${NB}% sous le prix habituel, estimation de Pexi 5,99${NB}$`);
+// Build 6 (2026-10-13, docs/design/ux-evidence-2026-10-09.md section 13): the line is how far off, then the typical price
+// rounded (R-42, 599 shows $6.00 and the percent is from it) with the market named (R-52).
+test('the line beside the answer: how far off, against Pexi\'s estimate of the typical price', async (t_) => {
+  const line = (html) => html.match(/data-dist-line>([\s\S]*?)<\/p>/)[1].replace(/<[^>]+>/g, '').replace(/[ \t\r\n]+/g, ' ').trim().replace(/&#39;/g, "'");
+  const typ = (html) => html.match(/data-dist-typical>([\s\S]*?)<\/p>/)[1].replace(/&#39;/g, "'");
+  assert.equal(typ(inLocale('en', () => distributionSheet(F.GOOD))), "Typical price, Pexi's estimate: $6.00", 'no market known: the line names none');
+  // The boot pins the market to Canada (flags-boot.js); pinned here the same way, and unpinned after.
+  const store = await import('../public/js/store.js');
+  store.pinMarket('CA');
+  t_.after(() => store.pinMarket(null));
+  assert.equal(line(inLocale('en', () => distributionSheet(F.GOOD))), '22% under the typical price');
+  assert.equal(line(inLocale('en', () => distributionSheet(F.BAD))), '25% over the typical price');
+  assert.equal(line(inLocale('en', () => distributionSheet(F.FLOOR))), 'about the typical price');
+  assert.equal(typ(inLocale('en', () => distributionSheet(F.GOOD))), "Typical price in Canada, Pexi's estimate: $6.00");
+  assert.equal(line(inLocale('fr', () => distributionSheet(F.GOOD))), `22${NB}% sous le prix habituel`);
+  assert.equal(typ(inLocale('fr', () => distributionSheet(F.GOOD))), `Prix habituel au Canada, estimation de Pexi${NB}: 6,00${NB}$`);
 });
 
 test('case 23, no price yet: the bell, no dot, a price field; a typed price drops the dot in and places it', () => {
   const html = inLocale('en', () => distributionSheet(F.NO_PRICE, { name: 'Kraft Peanut Butter 1 kg' }));
   assert.match(html, /data-verdict-bell/);
   assert.doesNotMatch(html, /data-vb-you=/);
-  assert.match(html, /<form class="vd-price" data-dist-price/);
-  assert.match(html, /inputmode="decimal"/);
+  // Build 6 (2026-10-13, docs/design/ux-evidence-2026-10-09.md section 13): R-70: the going-rate card has one button, "Tell me the price", which opens the pad; no form on the card.
+  assert.doesNotMatch(html, /<form|<input/);
+  assert.match(html, /data-act="dist-price"[^>]*>Tell me the price</);
   assert.equal(between(html, 'data-dist-headline'), 'Kraft Peanut Butter 1 kg');
-  assert.equal(between(html, 'data-dist-line'), "Typical price, Pexi's estimate: $5.99");
+  assert.match(html, /data-dist-range>\$4\.75 to \$7\.55</, 'the range, rounded, is on the card');
   assert.equal(attr(html, 'data-tier'), 'unknown');
   const typed = inLocale('en', () => distributionSheet(F.NO_PRICE, { name: 'Kraft Peanut Butter 1 kg', typedCents: 469, still: true }));
   assert.match(typed, /data-vb-you="469"/);
   assert.equal(attr(typed, 'data-zone'), 'good');
-  assert.doesNotMatch(typed, /data-dist-price/, 'the field stays after the price is placed');
+  assert.doesNotMatch(typed, /data-act="dist-price"/, 'the price button stays after the price is placed');
   assert.match(typed, /class="vd-chart vd-still"/, 'the repaint redrew the whole bell instead of dropping only the dot');
 });
 
@@ -267,10 +280,11 @@ test('case 24, suspect: one tap "Did you mean", and the chart still shows', () =
 test('case 25, beyond: pinned at the edge with the multiple', () => {
   const html = inLocale('en', () => distributionSheet(F.BEYOND_HIGH));
   assert.match(html, /data-vb-pin="high"/);
-  assert.match(html, />3x the typical price</);
+  // Build 6 (2026-10-13, docs/design/ux-evidence-2026-10-09.md section 13): R-67, the pinned price and its multiple are one label: "$17.99, 3x the typical price".
+  assert.match(html, />\$[\d.]+, 3x the typical price</);
   const low = inLocale('fr', () => distributionSheet(F.BEYOND_LOW));
   assert.match(low, /data-vb-pin="low"/);
-  assert.match(low, />0,2 fois le prix habituel</);
+  assert.match(low, /, 0,2 fois le prix habituel</);
 });
 
 test('low confidence carries the reason in the half detent, none under the word; medium and high carry none (D13, 2026-10-10)', () => {
@@ -278,7 +292,9 @@ test('low confidence carries the reason in the half detent, none under the word;
   // Low says in a few words why it is thin, as the one basis line. Medium's "Fairly sure, not
   // certain" named no reason and went with the 2026-10-10 audit (row 8).
   const half = (html) => html.slice(html.indexOf('<div class="sheet-half">'), html.indexOf('<div class="sheet-full">'));
-  assert.doesNotMatch(half(inLocale('en', () => distributionSheet(F.MEDIUM_SALE_BULK))), /data-vd-reason|Fairly sure/);
+  // Build 6 (2026-10-13, docs/design/ux-evidence-2026-10-09.md section 13): R-45 puts a three-dot meter and its word ("Fairly sure") beside the
+  // provenance row at every level; the hedge sentence the audit removed stays gone.
+  assert.doesNotMatch(half(inLocale('en', () => distributionSheet(F.MEDIUM_SALE_BULK))), /data-vd-reason|Fairly sure, not certain/);
   assert.match(between(half(inLocale('en', () => distributionSheet(F.LOW_CONFIDENCE))), 'data-vd-reason'), /^.{8,}/);
   assert.doesNotMatch(inLocale('en', () => distributionSheet(F.GOOD)), /data-dist-conf|data-vd-reason/);
   for (const v of [F.MEDIUM_SALE_BULK, F.LOW_CONFIDENCE]) assert.doesNotMatch(inLocale('en', () => distributionSheet(v)), /data-dist-conf/);
@@ -294,7 +310,8 @@ test('sale dots, the bigger pack, notes and where the estimate came from, in the
   assert.match(html, /class="vb-lane"[^>]*>Sale</);
   assert.equal(between(half, 'data-vd-bigger'), 'A bigger pack, 1.75 L at BC Liquor, works out to $1.31 per 100 ml.');
   assert.deepEqual([...half.matchAll(/data-vd-note="([^"]+)"/g)].map((m) => m[1]), ['old_prices', 'other_region', 'few_prices']);
-  assert.equal(between(half, 'data-vd-basis'), "Pexi's estimate, from similar products (1 price)");
+  // Build 6 (2026-10-13, docs/design/ux-evidence-2026-10-09.md section 13): R-56, the provenance row in plain words.
+  assert.equal(between(half, 'data-vd-basis'), 'Typical for its category');
   assert.match(half, /data-act="correct"/, 'Correct is not at half');
   const peek = html.slice(html.indexOf('<div class="sheet-peek">'), html.indexOf('<div class="sheet-half">'));
   assert.match(peek, /data-act="dist-save"/, 'the primary action is not in the peek');
@@ -305,15 +322,17 @@ test('sale dots, the bigger pack, notes and where the estimate came from, in the
 });
 
 test('the accessible name says in words where the price falls, English and French', () => {
+  // Build 6 (2026-10-13, docs/design/ux-evidence-2026-10-09.md section 13): the estimate and the band ends are rounded (R-42, R-43), and the
+  // description ends with the band's own sentence (R-43).
   assert.equal(
     ariaOf(inLocale('en', () => distributionSheet(F.GOOD))),
-    'Good price. Your price, $4.69, is 22% under the typical price. Pexi estimates the typical price at $5.99, with 8 in 10 prices between $4.76 and $7.54.',
+    "Good price. Your price, $4.69, is 22% under the typical price. Pexi estimates the typical price at $6.00, with 8 in 10 prices between $4.75 and $7.55. Pexi's estimate of 8 in 10 prices, $4.75 to $7.55.",
   );
   assert.equal(
     ariaOf(inLocale('fr', () => distributionSheet(F.BAD))),
-    `Mauvais prix. Ton prix, 7,49${NB}$, est 25${NB}% au-dessus du prix habituel. Pexi estime le prix habituel à 5,99${NB}$, avec 8 prix sur 10 entre 4,76${NB}$ et 7,54${NB}$.`,
+    `Mauvais prix. Ton prix, 7,49${NB}$, est 25${NB}% au-dessus du prix habituel. Pexi estime le prix habituel à 6,00${NB}$, avec 8 prix sur 10 entre 4,75${NB}$ et 7,55${NB}$. L’estimation de Pexi pour 8 prix sur 10, de 4,75${NB}$ à 7,55${NB}$.`,
   );
-  assert.equal(ariaOf(inLocale('en', () => distributionSheet(F.NO_PRICE))), 'Pexi estimates the typical price at $5.99, with 8 in 10 prices between $4.76 and $7.54.');
+  assert.equal(ariaOf(inLocale('en', () => distributionSheet(F.NO_PRICE))), "Pexi estimates the typical price at $6.00, with 8 in 10 prices between $4.75 and $7.55. Pexi's estimate of 8 in 10 prices, $4.75 to $7.55.");
 });
 
 test('case 28, a better answer later: the bell eases on log price; the axis words are only ever a real answer\'s', () => {

@@ -133,13 +133,25 @@ const DOT_FIELDS = [
   ['date', /date|seenOn/i, (d) => ({ ...d, seenOn: undefined }), (d) => ({ ...d, seenOn: null }), (d) => ({ ...d, seenOn: '' })],
 ];
 
-test('R-46 throws on a store dot missing its quantity, never drops it', () => {
-  const [, want, ...breakers] = DOT_FIELDS[0];
-  const rows = [];
+/*
+ * Amended 2026-10-13. A missing size is data, not a fault: 6 of the 17 priced items on Aurik's PC have
+ * store prices with no size anywhere (67 of 187 dots), so throwing would replace a third of real verdicts
+ * with the fault sheet (RULINGS.md "Always answer"). It is never dropped: it is said, "Size not listed".
+ * A quantity that is not text at all is still a fault and still throws.
+ */
+test('R-46 a store dot missing its quantity says "Size not listed", never drops it; a quantity that is not text throws', () => {
+  const [, , ...breakers] = DOT_FIELDS[0];
   for (const i of [0, 2]) {
-    for (const [k, brk] of breakers.entries()) rows.push([`dot ${i}, quantity variant ${k}`, () => ({ ...FX.HIGH, dots: FX.HIGH.dots.map((d, j) => (j === i ? brk(d) : d)) })]);
+    for (const [k, brk] of breakers.entries()) {
+      const html = render({ ...FX.HIGH, dots: FX.HIGH.dots.map((d, j) => (j === i ? brk(d) : d)) });
+      const rows = [...html.matchAll(/<li class="vd-dotrow[^"]*"[\s\S]*?<\/li>/g)].map((m) => m[0]);
+      assert.match(rows[i], /Size not listed/, `dot ${i}, quantity variant ${k}: the row does not say the size is not listed`);
+    }
   }
-  assertLoud(rows, want);
+  assertLoud([
+    ['quantity a number', () => ({ ...FX.HIGH, dots: FX.HIGH.dots.map((d, j) => (j === 0 ? { ...d, quantity: 1000 } : d)) })],
+    ['quantity an object', () => ({ ...FX.HIGH, dots: FX.HIGH.dots.map((d, j) => (j === 0 ? { ...d, quantity: { g: 1000 } } : d)) })],
+  ], /quantity/i);
 });
 
 test('R-46 throws on a store dot missing its store, price or date', () => {
@@ -158,8 +170,10 @@ test('R-46 throws on a store dot missing its store, price or date', () => {
   }
 });
 
-test('R-46 a sale dot with no quantity is as loud as a regular one', () => {
-  assertLoud([['sale dot, no quantity', () => ({ ...FX.SALE, dots: FX.SALE.dots.map((d) => (d.kind === 'sale' ? { ...d, quantity: null } : d)) })]], /quantity/i);
+test('R-46 a sale dot with no quantity is treated as a regular one: said, never dropped', () => {
+  const html = render({ ...FX.SALE, dots: FX.SALE.dots.map((d) => (d.kind === 'sale' ? { ...d, quantity: null } : d)) });
+  const sale = [...html.matchAll(/<li class="vd-dotrow sale[^"]*"[\s\S]*?<\/li>/g)].map((m) => m[0])[0];
+  assert.match(sale, /Size not listed/);
 });
 
 /* ------------------------------------------------------------------- R-47 */

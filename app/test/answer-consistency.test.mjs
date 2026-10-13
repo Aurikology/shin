@@ -169,9 +169,10 @@ test('D13: a low-confidence answer still answers, drawn hollow, with the plain f
 
 test('D13: the reason names where the centre came from, in both languages', () => {
   const html = (basis) => distributionSheet({ ...F.LOW_CONFIDENCE, basis });
-  assert.match(html('claude_typical'), /data-vd-reason>An AI estimate, no prices for this item</);
-  assert.match(html('own_prices'), /data-vd-reason>Few prices for this item</);
-  assert.match(html('other_size'), /data-vd-reason>Worked out from another size of this item</);
+  // Build 6 (2026-10-13, docs/design/ux-evidence-2026-10-09.md section 13): R-56 and R-69, plain words, specific, with the count.
+  assert.match(html('claude_typical'), /data-vd-reason>An AI estimate; no shop prices found</);
+  assert.match(html('own_prices'), /data-vd-reason>\d+ prices? found, blended with its category</);
+  assert.match(html('other_size'), /data-vd-reason>Same product, other size, scaled</);
 });
 
 /* N12 (a medium answer speaks the hedged line) was retired with the verdict's bubble
@@ -208,7 +209,8 @@ test('D08: Correct and Share sit at the top of the half detent, before the basis
 
 test('D12: the basis line says the centre blends this item\'s prices with its category', () => {
   const html = distributionSheet({ ...F.MEDIUM_SALE_BULK, basis: 'own_prices', n: 2 });
-  assert.match(html, /blends this item(?:'|&#39;)s prices at 2 shops with its category\./);
+  // Build 6 (2026-10-13, docs/design/ux-evidence-2026-10-09.md section 13): R-56 says it as prices, shops and the newest date.
+  assert.match(html, /data-vd-basis>\d+ prices? from 2 shops(?:, newest [^<]+)?</);
 });
 
 /* ------------------------------------------------- the shopper's own report */

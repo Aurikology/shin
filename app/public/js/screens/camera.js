@@ -36,7 +36,7 @@ import * as shops from '../shops.js';
 import { countryLabel, countryIn } from './market.js';
 import { locale, localeTag } from '../lib/locale.js';
 import { usableRange, placeShelf, shelfCentsOf, provenanceOf, noRangeKey, poolCents } from '../lib/catalogue-range.js';
-import { usableVerdict, shopperOf, shopperFor, multipleOf, bellSvg, tweenVerdict, ZONE_TIER } from '../lib/verdict-chart.js';
+import { usableVerdict, shopperOf, shopperFor, multipleOf, bellSvg, tweenVerdict, ZONE_TIER, checkVerdict, asShown, roundEstimateCents } from '../lib/verdict-chart.js';
 import { mountTextMatch } from '../text-match.js';
 import { priorPrices, historyChartHtml } from '../lib/price-history.js';
 import { money, currencyMark } from '../lib/money.js';
@@ -1611,25 +1611,77 @@ export function serverFaultSheet() {
  * Why an answer is not fully confident, in a few plain words, for the half
  * detent where the estimate came from is said (D13; RULINGS.md "V1 verdict screen
  * mechanics", 2026-10-10: the top of the verdict is for useful information only,
- * so this never sits under the verdict word). Low only, keyed on where the centre
- * came from ("Few prices for this item"). Medium and high have none: "Fairly
- * sure, not certain" said nothing a shopper could act on (audit row 8). Empty
- * string for none.
+ * so this never sits under the verdict word). Low only. Specific, with the count
+ * where there is one (R-45, R-69): "1 price found, blended with its category",
+ * never the generic "few prices". Empty string for medium and high.
  */
 function confidenceReason(v) {
-  if (v.confidence !== 'low') return '';
-  const key = `vd_why_${v.basis ?? 'default'}`;
-  const said = t(key);
-  const why = said === key ? t('vd_why_default') : said;
-  return why.charAt(0).toLocaleUpperCase(localeTag()) + why.slice(1);
+  // Only an answer from its own prices needs a reason of its own; for every other source the
+  // provenance line already says why it is thin, and saying it twice is the repeat audit row 8 removed.
+  if (v.confidence !== 'low' || v.basis !== 'own_prices') return '';
+  return t('vd_why_own_count', { n: v.n || v.dots.length || 1 });
+}
+
+/** R-45: the confidence in a word and three dots, lit 3 / 2 / 1. Never a percentage, never colour alone. */
+function confidenceRow(v) {
+  const lit = { high: 3, medium: 2, low: 1 }[v.confidence];
+  // Drawn marks, not text: the word beside them says the same thing to a screen reader.
+  const dots = [0, 1, 2].map((i) => `<i class="conf-dot${i < lit ? ' filled' : ''}" aria-hidden="true"></i>`).join('');
+  const reason = confidenceReason(v);
+  return `<div class="vd-conf" data-vd-conf="${v.confidence}">
+          <span class="conf-meter">${dots}</span>
+          <span class="vd-conf-word">${escapeHtml(t(`vd_conf_${v.confidence}`))}</span>
+          ${reason ? `<span class="vd-reason" data-vd-reason>${escapeHtml(reason)}</span>` : ''}
+        </div>`;
+}
+
+/** Whole days from an ISO date to today, never below 0. */
+function daysSince(iso) {
+  const then = Date.parse(iso);
+  if (!Number.isFinite(then)) return null;
+  return Math.max(0, Math.floor((Date.now() - then) / 86_400_000));
+}
+
+/**
+ * R-56: where the estimate came from, in plain words, with the count and the
+ * newest date where it has them ("3 prices from 3 shops, newest 3 days ago").
+ * Every source the contract names has words; an unknown one never reaches here
+ * (checkVerdict throws first).
+ */
+function provenanceLine(v) {
+  if (v.basis !== 'own_prices') return t(`vd_prov_${v.basis}`);
+  const regular = v.dots.filter((d) => d.kind === 'regular');
+  const prices = regular.length || v.n || 0;
+  const shops = v.n || new Set(regular.map((d) => d.store)).size || prices;
+  const newest = regular.map((d) => d.seenOn).sort().pop();
+  const days = newest ? daysSince(newest) : null;
+  return t('vd_prov_own_prices', { prices, shops, ago: days === null ? '' : days === 0 ? t('vd_today') : t('vd_days_ago', { n: days }) });
+}
+
+/** R-46: a long store name loses its middle, never its ends; the quantity is never cut. */
+function middleEllipsis(text, max) {
+  if (text.length <= max) return text;
+  const keep = max - 1;
+  const head = Math.ceil(keep / 2);
+  return `${text.slice(0, head).trimEnd()}…${text.slice(text.length - (keep - head)).trimStart()}`;
+}
+
+/** The label a dot wears on the bell: "Sale" first on a sale dot, the store shortened, the quantity whole. */
+function dotLabelText(d) {
+  const qty = d.quantity ?? '';
+  const room = Math.max(6, 22 - qty.length);
+  return [d.kind === 'sale' ? t('vd_sale') : null, middleEllipsis(d.store ?? '', room), qty || null].filter(Boolean).join(' ');
 }
 
 /** A per-unit label off the wire, in the reader's language when this build knows it. */
 function unitWords(label) {
   // The wire's own label, as a key: a label this build has no words for is shown as it came.
   const key = `vd_unit_${String(label).toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
-  const said = t(key);
-  return said === key ? label : said;
+  try {
+    return t(key);
+  } catch {
+    return label;
+  }
 }
 
 /** A short number in the reader's language ("0.3" / "0,3"). */
@@ -1642,25 +1694,33 @@ function localNumber(s) {
   }
 }
 
+/** The rounded estimate as money (R-42, R-43): the typical price and both band ends. */
+function estimateMoney(cents, currency) {
+  return money(roundEstimateCents(cents), currency);
+}
+
 /** The bell's markup for one verdict, every word localised. `labels` pins the axis words to a real answer during a tween. */
 function distBell(v, { labels = null, report = null } = {}) {
   const fmt = (c) => money(c, v.currency);
+  const est = (c) => estimateMoney(c, v.currency);
   // The shopper's own pending report, as its own dot (not in the bell).
   const rep = report && Number.isFinite(report.cents) && report.cents > 0 && typeof report.store === 'string' && report.store !== ''
     ? { cents: report.cents }
     : null;
   const shopper = v.shopper;
-  const facts = { centre: fmt(Math.round(v.centreCents)), low: fmt(Math.round(v.p10Cents)), high: fmt(Math.round(v.p90Cents)) };
+  const facts = { centre: est(v.centreCents), low: est(v.p10Cents), high: est(v.p90Cents) };
   const alt = shopper
     ? t('vd_alt_marked', { ...facts, verdict: t(`vd_zone_${shopper.zone}`), asking: fmt(shopper.cents), where: distWhere(shopper, v) })
     : t('vd_alt_bare', facts);
   return bellSvg(v, {
     format: fmt,
-    alt,
+    formatEstimate: est,
+    // R-43: the description says the band's own sentence too.
+    alt: `${alt} ${t('vd_band_alt', facts)}`,
     band: t('vd_band', facts),
     saleWord: t('vd_sale'),
     multiple: shopper?.beyond ? t('vd_multiple', { m: localNumber(multipleOf(shopper.cents, v.centreCents)) }) : '',
-    dotLabel: (d) => [d.store, d.quantity].filter(Boolean).join(' ').slice(0, 20),
+    dotLabel: dotLabelText,
     labels,
     report: rep,
     reportWord: t('vd_report_word'),
@@ -1668,8 +1728,31 @@ function distBell(v, { labels = null, report = null } = {}) {
   });
 }
 
+/** "Typical price in Canada, Pexi's estimate: $6.00" (R-52), or without the market when none is known. */
+function typicalLine(centre) {
+  const country = store.market()?.country;
+  return country ? t('vd_typical_in', { where: countryIn(country), centre }) : t('vd_typical', { centre });
+}
+
 /**
  * The whole verdict sheet for a drawable `verdict`.
+ *
+ * THE FIRST POSITION (R-40, under RULINGS.md "V1 verdict screen mechanics",
+ * 2026-10-10): the verdict word, the price on the tag, how far it is from the
+ * typical price and the typical price itself (rounded, R-42; the market named,
+ * R-52), the bell, the item's name, one wide button. Capped at 60% of the
+ * screen so the frozen picture stays visible. No confidence line here: the top
+ * is for useful information, and doubt is drawn (the hollow fill, the wide
+ * bell, the plain face). The confidence word, its three dots and the reason sit
+ * in the half position beside where the estimate came from (R-45, R-56, R-69).
+ *
+ * With no price on the tag it is the going-rate card (R-70): the item's name,
+ * the range as the largest thing on it, how many sellers, the bell with no
+ * mark, and one button, "Tell me the price".
+ *
+ * FAILS LOUDLY: a verdict the sheet would have to guess about throws, naming
+ * the field (`checkVerdict`); so does a typed price that is not a price. The
+ * caller reports it and shows the fault sheet.
  *
  * @param {object} raw     the wire's `verdict`
  * @param {object} opts    `name` the product's label, `thumb`, `saved` whether
@@ -1681,35 +1764,27 @@ function distBell(v, { labels = null, report = null } = {}) {
  *                         already on screen: only the new dot moves)
  */
 function distributionSheet(raw, { name = '', thumb = null, saved = false, typedCents = null, still = false, shopperReport = null } = {}) {
-  const base = usableVerdict(raw);
-  if (!base) return '';
+  checkVerdict(raw);
+  if (typedCents !== null && typedCents !== undefined && !(typeof typedCents === 'number' && Number.isFinite(typedCents) && typedCents > 0)) {
+    throw new Error(`distributionSheet: the typed price (typedCents ${JSON.stringify(typedCents) ?? String(typedCents)}) is not a price`);
+  }
+  // R-42: everything on the sheet is worked out from the rounded estimate the shopper sees.
+  const base = asShown(usableVerdict(raw));
   // A price typed on this sheet (or a "Did you mean" tap) is newer than the server's reading of the tag.
   const v = { ...base, shopper: typedCents ? shopperFor(typedCents, base) : base.shopper ? shopperOf(base) : null };
   const s = v.shopper;
   const zone = s?.zone ?? null;
   const tier = zone ? ZONE_TIER[zone] : 'unknown';
   const fmt = (c) => money(c, v.currency);
-  const centre = fmt(Math.round(v.centreCents));
+  const centre = estimateMoney(v.centreCents, v.currency);
   // The face only, its mood following the zone and the confidence gate (distFace).
   // No bubble words on the verdict (RULINGS.md "V1 verdict screen mechanics",
   // 2026-10-10): every line there repeated the verdict word or hedged it.
   const face = distFace(zone, v.confidence);
   const headline = zone ? t(`vd_zone_${zone}`) : name;
-  const line = s ? t('vd_off', { where: distWhere(s, v), centre }) : t('vd_typical', { centre });
-  // ONE line in the half detent (audit row 8): where the estimate came from. A
-  // low answer's reason already names its source in a few words ("few prices for
-  // this item", "an AI estimate, no prices for this item"), so for a low answer
-  // the reason IS that line, never a second sentence restating the first.
-  const reason = confidenceReason(v);
-  const basis = reason || (!v.basis
-    ? ''
-    : v.basis === 'own_prices'
-      ? t('vd_basis_blend', { n: v.n ? String(v.n) : '' })
-      : v.basis === 'claude_typical'
-        ? t('vd_basis_ai_line')
-        : t('vd_basis', { from: t(`vd_basis_${v.basis}`), n: v.n ? String(v.n) : '' }));
-  // A note that only repeats the line above it is dropped; a note that changes the answer stays (audit row 9's rule).
-  const repeats = new Set([...(v.basis === 'claude_typical' ? ['claude_estimate'] : []), ...(reason ? ['few_prices'] : [])]);
+  const sizeWord = t('vd_size_unknown');
+  // A note that only repeats a line already on the sheet is dropped; a note that changes the answer stays (audit row 9's rule).
+  const repeats = new Set([...(v.basis === 'claude_typical' ? ['claude_estimate'] : []), ...(v.confidence === 'low' ? ['few_prices'] : [])]);
   const notes = v.notes
     .filter((n) => !repeats.has(n))
     .map((n) => `<li class="vd-note" data-vd-note="${n}">${escapeHtml(t(`vd_note_${n}`))}</li>`)
@@ -1717,17 +1792,47 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
   const bigger = v.biggerPack
     ? `<p class="detail vd-bigger" data-vd-bigger>${escapeHtml(t('vd_bigger_pack', { quantity: v.biggerPack.quantity ?? '', store: v.biggerPack.store ?? '', price: fmt(v.biggerPack.perUnitCents), unit: unitWords(v.perUnit?.label ?? '') }))}</p>`
     : '';
+  // R-46: a row per price, 72 px: store and city, then quantity and date, the price on the right, "Sale" as a tag.
+  const anySale = v.dots.some((d) => d.kind === 'sale');
   const dots = v.dots.length
     ? `<h3 class="vd-dots-h">${escapeHtml(t('vd_dots_heading'))}</h3><ul class="vd-dots" data-vd-dots>${v.dots
         .map((d) => {
           const seen = priceAge(d.seenOn);
-          return `<li class="vd-dotrow${d.kind === 'sale' ? ' sale' : ''}${seen.old ? ' old' : ''}"><b>${escapeHtml([d.store, d.city].filter(Boolean).join(', ') || '')}</b><span>${escapeHtml([d.quantity, fmt(d.cents), seen.label, seen.old ? t('vd_old') : null, d.kind === 'sale' ? t('vd_sale') : null].filter(Boolean).join(' · '))}</span></li>`;
+          const old = seen.old;
+          const where = [d.store, d.city].filter(Boolean).join(', ');
+          // R-55: the date by the one rule every list uses, never a raw ISO day.
+          const second = [d.quantity ?? sizeWord, seen.label].join(' · ');
+          return `<li class="vd-dotrow${d.kind === 'sale' ? ' sale' : ''}${old ? ' old' : ''}"><div class="vd-dr-l"><b class="vd-dr-store">${escapeHtml(where)}</b><span class="vd-dr-sub">${escapeHtml(second)}</span></div><div class="vd-dr-r"><span class="vd-dr-price">${escapeHtml(fmt(d.cents))}</span>${d.kind === 'sale' ? `<span class="vd-tag">${escapeHtml(t('vd_sale'))}</span>` : ''}${old ? `<span class="vd-tag vd-tag-old">${escapeHtml(t('vd_old'))}</span>` : ''}</div></li>`;
         })
-        .join('')}</ul>`
+        .join('')}</ul>${anySale ? `<p class="vd-sale-note">${escapeHtml(t('vd_sale_note'))}</p>` : ''}`
     : '';
+  const saveLabel = saved ? say('peek_watching') : say(`peek_${zone ? tier : 'fair'}`);
+  const sellers = v.n ? `<small class="vd-sellers">${escapeHtml(t(v.basis === 'own_prices' ? 'vd_based_on_sellers' : 'vd_based_on_items', { n: v.n }))}</small>` : '';
+
+  const peek = s
+    ? `<h2 class="vword" data-dist-headline>${escapeHtml(headline)}</h2>
+        <p class="vd-ask"><span class="price">${escapeHtml(fmt(s.cents))}</span><span class="vd-ask-cap">${escapeHtml(t('vd_on_tag'))}</span></p>
+        <p class="sub vd-line" data-dist-line>${escapeHtml(distWhere(s, v))}</p>
+        <p class="sub vd-typ" data-dist-typical>${escapeHtml(typicalLine(centre))}</p>
+        ${s.suspect ? `<button type="button" class="pill ghost vd-suspect" data-act="dist-suspect" data-cents="${s.suspect.suggestCents}">${escapeHtml(t('vd_suspect', { price: fmt(s.suspect.suggestCents) }))}</button>` : ''}
+        <div class="vd-chart${still ? ' vd-still' : ''}" data-dist-chart>${distBell(v, { report: shopperReport })}</div>
+        ${shopperReportLine(shopperReport, v.currency)}
+        ${name ? `<p class="itemname" role="button" tabindex="0" data-act="name-open" aria-expanded="false" data-dist-name>${escapeHtml(name)}</p>` : ''}
+        <div class="actions actions-primary">
+          <button type="button" class="pill solid wide" data-act="dist-save">${saveLabel}</button>
+        </div>`
+    : `<h2 class="vword small" data-dist-headline>${escapeHtml(headline)}</h2>
+        <p class="vd-range" data-dist-range>${escapeHtml(t('vd_range', { low: estimateMoney(v.p10Cents, v.currency), high: estimateMoney(v.p90Cents, v.currency) }))}</p>
+        ${sellers}
+        <p class="sub vd-line vd-typ" data-dist-line>${escapeHtml(typicalLine(centre))}</p>
+        <div class="vd-chart${still ? ' vd-still' : ''}" data-dist-chart>${distBell(v, { report: shopperReport })}</div>
+        ${shopperReportLine(shopperReport, v.currency)}
+        <div class="actions actions-primary">
+          <button type="button" class="pill solid wide" data-act="dist-price">${escapeHtml(t('vd_tell_price'))}</button>
+        </div>`;
 
   return `
-    <section class="sheet verdict dist" data-kind="distribution" data-tier="${tier}" data-zone="${escapeHtml(zone ?? '')}" data-conf="${DIST_CONF[v.confidence]}" data-confidence="${v.confidence}" data-basis="${escapeHtml(v.basis ?? '')}" data-detent="peek" aria-live="polite" tabindex="-1">
+    <section class="sheet verdict dist" data-kind="distribution" data-tier="${tier}" data-zone="${escapeHtml(zone ?? '')}" data-conf="${s ? DIST_CONF[v.confidence] : 'reading'}" data-confidence="${v.confidence}" data-basis="${escapeHtml(v.basis)}" data-detent="peek" aria-live="polite" tabindex="-1">
       ${grabber()}
       ${backButton()}
       <div class="sheet-peek">
@@ -1735,26 +1840,16 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
           ${shinFace(face, { size: 'face-verdict', tier })}
           ${thumbImg(thumb)}
         </div>
-        <h2 class="vword${zone ? '' : ' small'}" data-dist-headline>${escapeHtml(headline)}</h2>
-        <p class="sub vd-line" data-dist-line>${escapeHtml(line)}</p>
-        ${s?.suspect ? `<button type="button" class="pill ghost vd-suspect" data-act="dist-suspect" data-cents="${s.suspect.suggestCents}">${escapeHtml(t('vd_suspect', { price: fmt(s.suspect.suggestCents) }))}</button>` : ''}
-        <div class="vd-chart${still ? ' vd-still' : ''}" data-dist-chart>${distBell(v, { report: shopperReport })}</div>
-        ${shopperReportLine(shopperReport, v.currency)}
-        ${s ? '' : `<form class="vd-price" data-dist-price novalidate>
-          <label class="vd-price-l"><span>${escapeHtml(t('vd_price_label'))}</span><input type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" name="price" data-dist-input></label>
-          <button type="submit" class="pill ghost">${escapeHtml(t('vd_place'))}</button>
-        </form>`}
-        ${zone && name ? `<button type="button" class="itemname" data-act="name-open" aria-expanded="false" data-dist-name>${escapeHtml(name)}</button>` : ''}
-        <div class="actions actions-primary">
-          <button type="button" class="pill solid wide" data-act="dist-save">${saved ? say('peek_watching') : say(`peek_${zone ? tier : 'fair'}`)}</button>
-        </div>
+        ${peek}
       </div>
       <div class="sheet-half">
         <div class="actions vd-half-actions">
+          ${s ? '' : `<button type="button" class="pill ghost" data-act="dist-save">${saveLabel}</button>`}
           <button type="button" class="pill ghost" data-act="correct">${escapeHtml(t('cam_correct_it'))}</button>
           <button type="button" class="pill ghost" data-act="share">${escapeHtml(t('cam_share'))}</button>
         </div>
-        ${basis ? `<p class="vd-basis" data-vd-basis${reason ? ' data-vd-reason' : ''}>${escapeHtml(basis)}</p>` : ''}
+        ${confidenceRow(v)}
+        <p class="vd-basis" data-vd-basis${v.confidence === 'low' && v.basis !== 'own_prices' ? ' data-vd-reason' : ''}>${escapeHtml(provenanceLine(v))}</p>
         ${notes ? `<ul class="vd-notes" data-vd-notes>${notes}</ul>` : ''}
         ${bigger}
         ${dots}
@@ -5930,6 +6025,16 @@ export default {
          * so, which is the honest whole of what happened.
          */
         if (padItem?.observationOnly) { void recordObservation(cents); return; }
+        // A price for the verdict already on screen (R-70): no second lookup, the bell takes the mark.
+        if (padItem?.distPrice && dist) {
+          dist.typedCents = cents;
+          if (last) last.askingCents = cents;
+          setState('result');
+          paintDistribution(false);
+          syncAnswer();
+          mounted();
+          return;
+        }
         // The scan-time ask (item 10): the request goes out now, carrying it.
         if (padItem?.pendingScan) { submitScanPrice(cents); return; }
         proceed(padItem, cents);
@@ -5943,6 +6048,8 @@ export default {
            comparison set here, so skipping the price leaves literally nothing
            to show -- which is the viewfinder. */
         if (padItem?.observationOnly) { reset(); return; }
+        // Back to the going-rate card it came from, unchanged.
+        if (padItem?.distPrice && dist) { setState('result'); paintDistribution(false); mounted(); return; }
         // Skipped at scan time: the request still goes out, with no price, and
         // still gets an answer (the going-rate card at worst).
         if (padItem?.pendingScan) { submitScanPrice(null); return; }
@@ -6008,6 +6115,11 @@ export default {
       if (act === 'name-open') {
         const open = btn.classList.toggle('is-open');
         btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        return;
+      }
+      // R-70: the going-rate card's one button opens the price pad; its confirm comes back to this sheet.
+      if (act === 'dist-price' && dist) {
+        openPad({ text: dist.name, category: null, distPrice: true }, { force: true });
         return;
       }
       if (act === 'dist-suspect' && dist) {
@@ -6790,14 +6902,26 @@ export default {
     function paintDistribution(inPlace) {
       if (!dist) return;
       if (inPlace) syncAnswer();
-      const html = distributionSheet(dist.raw, {
-        name: dist.name,
-        thumb: scanThumb,
-        saved: dist.key ? store.isWatched(dist.key) : false,
-        typedCents: dist.typedCents,
-        still: inPlace,
-        shopperReport: dist.shopperReport ?? null,
-      });
+      let html;
+      try {
+        html = distributionSheet(dist.raw, {
+          name: dist.name,
+          thumb: scanThumb,
+          saved: dist.key ? store.isWatched(dist.key) : false,
+          typedCents: dist.typedCents,
+          still: inPlace,
+          shopperReport: dist.shopperReport ?? null,
+        });
+      } catch (err) {
+        // Fails loudly (RULINGS.md "Errors never go unnoticed"): said on the console, sent with the scan's
+        // events where the founders read them, and the shopper sees Pexi's own fault sheet with Try again.
+        const why = err instanceof Error ? err.message : String(err);
+        console.error(`[verdict-fault] ${why}`);
+        track('verdict_fault', { why: why.slice(0, 200) });
+        slot.innerHTML = serverFaultSheet();
+        mounted();
+        return;
+      }
       const sheet = slot.querySelector('.sheet.dist');
       if (inPlace && sheet) {
         const tpl = document.createElement('template');
@@ -6812,16 +6936,6 @@ export default {
       } else {
         slot.innerHTML = html;
       }
-      const form = slot.querySelector('form[data-dist-price]');
-      form?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const input = form.querySelector('[data-dist-input]');
-        const cents = parsePadPrice(String(input?.value ?? '').replace(',', '.').replace(/[^0-9.]/g, ''));
-        if (!cents || cents <= 0) { input?.focus(); return; }
-        dist.typedCents = cents;
-        if (last) last.askingCents = cents;
-        paintDistribution(true);
-      });
       // A repaint of the sheet must not wipe a correction that is open in its half detent.
       if (corr) paintCorrection();
     }
@@ -6957,6 +7071,15 @@ export default {
      * makes, and camera.css's own reduced-motion block already drops the
      * transition on `.sheet-half` and `.sheet-full`.
      */
+    // R-40/R-48: the item name opens by tap but is not a second button on the verdict's first position;
+    // as a role="button" it answers Enter and Space the way a button would.
+    root.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const el = e.target instanceof HTMLElement ? e.target.closest('[role="button"][data-act]') : null;
+      if (!el || el.tagName === 'BUTTON') return;
+      e.preventDefault();
+      el.click();
+    });
     root.addEventListener('keydown', (e) => {
       if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Escape') return;
       if (e.altKey || e.ctrlKey || e.metaKey) return;

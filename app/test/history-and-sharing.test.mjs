@@ -97,7 +97,7 @@ test('D07: a bell becomes a self-contained snapshot holding the word, the prices
   assert.equal(snap.id, '0055773000795');
   assert.equal(snap.zone, 'reasonable');
   assert.equal(snap.askingCents, 549);
-  assert.equal(snap.centreCents, 554);
+  assert.equal(snap.centreCents, 555, 'R-42: the copy keeps the rounded estimate the sheet showed (554 shows as $5.55)');
   assert.equal(snap.confidence, 'low');
   assert.equal(H.answerSnapshot({ kind: 'range' }, { key: 'x' }), null, 'an undrawable bell must not be stored as an answer');
   // A price typed on the sheet is newer than the server's reading of the tag.
@@ -136,7 +136,7 @@ test('D07: Past scans draws a bell row and reopens it with its zone word', () =>
   assert.match(row, /5\.49/);
   const detail = pastscans.detail(entry);
   assert.match(detail, /Reasonable price/);
-  assert.match(detail, /Pexi&#39;s estimate \$5\.54|Pexi's estimate \$5\.54/);
+  assert.match(detail, /Pexi&#39;s estimate \$5\.55|Pexi's estimate \$5\.55/);
   assert.ok(!/refus|No verdict on file/i.test(detail), 'a bell answer reopened as a refusal');
 });
 

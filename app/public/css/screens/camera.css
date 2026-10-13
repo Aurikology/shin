@@ -847,6 +847,9 @@
    fold. The half detent here is tall enough that both are on screen unscrolled,
    with room for the two-line doubt and the plain-words spread sentence. */
 .sheet.dist[data-detent="half"] { max-height: 90%; }
+/* R-40: the verdict's first position is sized by its content and capped at 60%, so the frozen
+   picture of the product stays visible above it; the rest waits for a drag or the grabber. */
+.sheet.dist[data-detent="peek"] { max-height: 60%; }
 
 @keyframes rise { from { transform: translateY(100%); } to { transform: none; } }
 
@@ -2447,14 +2450,44 @@
  * body size, never the 10px tracked caps of a footnote. Opacity stays at the
  * measured .88 floor of test/tokens.test.mjs.
  */
+/* R-56: where the estimate came from, 12 px in the muted ink, plain case, the UI face. */
 .sheet.dist .vd-basis {
   margin: 0;
-  font: 500 14px/1.4 var(--f-ui);
+  font: 500 12px/1.4 var(--f-ui);
+  color: var(--ink-muted);
   letter-spacing: 0;
   text-transform: none;
-  opacity: .88;
 }
+/* R-45: the confidence word with its three dots, and on low confidence the reason, together. */
+.vd-conf { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 2px 0 0; font: 600 14px/1.3 var(--f-ui); }
+.conf-meter { display: inline-flex; gap: 6px; align-items: center; }
+.conf-dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid currentColor; box-sizing: border-box; }
+.conf-dot.filled { background: currentColor; }
+.vd-reason { flex-basis: 100%; font-weight: 500; }
+/* R-41: the price on the tag, the hero number, with its caption under it. */
+.vd-ask { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+.vd-ask-cap { font: 500 13px var(--f-ui); opacity: .88; }
+/* R-42, R-52: how far the price sits from the typical price, then the typical price, each its own line. */
+.sheet.dist .vd-line { font-weight: 700; }
+.sheet.dist .vd-typ { margin: 0; }
+.sheet.dist .vd-line.vd-typ { font-weight: inherit; }
+/* R-70: with no price on the tag, the range is the largest thing on the card. */
+.vd-range { margin: 0; font: 800 34px/1.05 var(--f-display); font-size: 34px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.vd-sellers { font: 500 13px var(--f-ui); font-size: 13px; opacity: .88; }
+/* R-46: a row per price, 72 px tall: store, then quantity and date; the price on the right; Sale a tag. */
+.vd-dotrow { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.vd-dr-l { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.vd-dr-store { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vd-dr-sub { font: 500 13px var(--f-ui); opacity: .88; }
+.vd-dr-r { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.vd-dr-price { font: 700 16px var(--f-ui); font-variant-numeric: tabular-nums; text-align: right; }
+.vd-tag { font: 700 11px/1 var(--f-ui); padding: 3px 6px; border-radius: 6px; border: 1px solid currentColor; }
+.vd-sale-note { margin: 4px 0 0; font: 500 12px/1.4 var(--f-ui); color: var(--ink-muted); }
+/* R-48: the name is two lines; a tap opens the whole of it. */
+.sheet.dist .itemname { cursor: pointer; }
 .sheet.dist .vd-half-actions { margin-bottom: 2px; }
+/* R-13: the half position's actions share its width, so none is sized by its words alone. */
+.sheet.dist .vd-half-actions .pill { flex: 1 1 0; min-width: 0; }
 .vd-suspect { margin-top: 8px; min-height: 44px; }
 .vd-chart { margin: 8px 0 2px; }
 .vbell { margin: 0; --vb-halo: var(--tier); color: inherit; }
@@ -2487,8 +2520,9 @@
 .vb-zone-bad { fill: var(--walk); }
 .vb-dot { stroke: var(--vb-halo); stroke-width: 1.5; animation: vb-pop 220ms ease-out backwards; animation-delay: calc(760ms + var(--i, 0) * 40ms); transform-box: fill-box; transform-origin: center; }
 .vb-dot-regular { fill: currentColor; }
-.vb-dot-sale { fill: var(--vb-halo); stroke: currentColor; stroke-width: 1.5; stroke-dasharray: 2 1.5; }
-.vb-lane { font: 600 9px var(--f-ui); fill: currentColor; opacity: .8; letter-spacing: .02em; }
+/* R-47: a sale price is a diamond, outlined, on its own lane: a different shape, not only a dashed line. */
+.vb-dot-sale { fill: var(--vb-halo); stroke: currentColor; stroke-width: 1.75; stroke-linejoin: round; }
+.vb-lane { font: 600 13px var(--f-ui); fill: currentColor; opacity: .88; letter-spacing: .02em; }
 /* Where the word changes (D12): a hairline from each cut up to the curve, so a
    marker just past a cut is seen to be past it even on a very wide bell. */
 .vb-cut { stroke: currentColor; stroke-width: 1; opacity: .4; stroke-linecap: round; }
@@ -2496,10 +2530,11 @@
    its own word, a different shape from the stores' small solid circles. */
 .vb-report { animation: vb-fade 320ms ease-out 900ms backwards; }
 .vb-reportdot { fill: var(--vb-halo); stroke: currentColor; stroke-width: 1.75; stroke-linejoin: round; }
-.vb-reportlbl { font: 600 9.5px var(--f-ui); fill: currentColor; opacity: .95; }
-.vb-lbl { font: 500 11px var(--f-mono); fill: currentColor; opacity: .85; font-variant-numeric: tabular-nums; }
+.vb-reportlbl { font: 600 13px var(--f-ui); fill: currentColor; opacity: .95; }
+/* R-68: no label on the chart under 12 px on the glass: 13 units is 12.2 px on a 360 px phone. */
+.vb-lbl { font: 500 13px var(--f-ui); fill: currentColor; opacity: .88; font-variant-numeric: tabular-nums; }
 .vb-lbl-centre { opacity: 1; font-weight: 700; }
-.vb-dotlbl { font: 500 9.5px var(--f-ui); fill: currentColor; opacity: .8; }
+.vb-dotlbl { font: 500 13px var(--f-ui); fill: currentColor; opacity: .88; }
 /* D-227 / R-67: no single ink clears 4.5 on both green #12B76A (needs luminance
    <= 0.043) and red #C23619 (needs >= 0.715), so the spec's one ink cannot be
    met. The shopper's mark takes the field's own tuned --tier-on on a solid field
@@ -2509,12 +2544,13 @@
 .vb-you { color: var(--tier-on); }
 .sheet[data-conf="thin"] .vb-you { color: var(--ink); }
 .vb-you { animation: vb-settle 480ms cubic-bezier(.34,1.56,.64,1) 1000ms backwards; }
-.vb-guide { stroke: currentColor; stroke-width: 1.5; stroke-dasharray: 3 3; }
+/* R-67: the shopper's mark. A solid 2 px line (2.125 units), a 12 px dot on the curve, the price bold 16 px (17 units). */
+.vb-guide { stroke: currentColor; stroke-width: 2.125; stroke-linecap: round; }
+.vb-arrow { fill: none; stroke: currentColor; stroke-width: 2.125; stroke-linecap: round; stroke-linejoin: round; }
 /* The shopper's dot: the largest mark, in the text colour with a ring of the field, so it is the one thing on the line the eye lands on. */
 .vb-youdot { fill: currentColor; stroke: var(--vb-halo); stroke-width: 3; }
-.vb-youlbl { font: 700 13px var(--f-ui); fill: currentColor; font-variant-numeric: tabular-nums; paint-order: stroke; stroke: var(--vb-halo); stroke-width: 4px; stroke-linejoin: round; }
-.vb-mult { font-weight: 600; font-size: 11px; }
-.vb-cap { margin: 2px 0 0; font: 500 11px var(--f-ui); color: inherit; opacity: .8; }
+.vb-youlbl { font: 800 17px var(--f-ui); fill: currentColor; font-variant-numeric: tabular-nums; paint-order: stroke; stroke: var(--vb-halo); stroke-width: 4px; stroke-linejoin: round; }
+.vb-cap { margin: 2px 0 0; font: 500 12px var(--f-ui); color: inherit; opacity: .88; }
 .vd-still .vb-curve, .vd-still .vb-area, .vd-still .vb-band, .vd-still .vb-track, .vd-still .vb-zone, .vd-still .vb-dot, .vd-still .vb-report { animation: none; }
 .vd-still .vb-you { animation-delay: 0ms; }
 .vd-morphing .vb-curve, .vd-morphing .vb-area, .vd-morphing .vb-band, .vd-morphing .vb-track, .vd-morphing .vb-zone, .vd-morphing .vb-dot, .vd-morphing .vb-you, .vd-morphing .vb-report { animation: none; }

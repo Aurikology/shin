@@ -86,31 +86,36 @@ test('R-40 (keep) pass 72% / 90% / 92%: the middle position is 72% (90% for the 
   assert.equal(at('.sheet[data-detent="full"]'), '92%');
 });
 
-test('R-40 order: verdict word, asking price, typical-price line, bell, confidence label, item name, one button', () => {
+// Amended 2026-10-13 to RULINGS.md "V1 verdict screen mechanics" (2026-10-10, "the top of the verdict is
+// for useful information only"), which is newer than this spec: the confidence label sits in the half
+// position beside the provenance row (R-45 below), not on the first.
+test('R-40 order: verdict word, asking price, typical-price line, bell, item name, one button; no confidence label', () => {
   const flow = peekFlow(render(FX.HIGH));
   assertOrder(flow, [
     ['verdict word', ZONE_WORD],
     ['asking price $4.69', priceRe(469)],
     ["Pexi's estimate line", /Pexi's estimate/],
     ['the bell', /BELL/],
-    ['confidence label', /Certain|Fairly sure|Not fully confident/],
     ['item name', new RegExp(NAME)],
     ['the one button', /Save it/],
   ], 'R-40 high confidence');
+  assert.doesNotMatch(flow, /Certain|Fairly sure|Not fully confident/, 'a confidence label is on the first position');
   assert.match(flow, /\d+% (?:under|over)/, "the typical-price line carries the shopper's percent difference");
 });
 
-test('R-40 order, low confidence: the not-fully-confident line and its reason come after the bell and before the item name', () => {
+// Amended 2026-10-13 (RULINGS.md, 2026-10-10): low confidence has the same first position as any verdict;
+// the doubt is drawn (hollow fill, wide bell, plain face) and its words are in the half position.
+test('R-40 order, low confidence: the same first position, and no not-fully-confident line on it', () => {
   const flow = peekFlow(render(FX.LOW));
   assertOrder(flow, [
     ['verdict word', ZONE_WORD],
     ['asking price $15.99', priceRe(1599)],
     ["Pexi's estimate line", /Pexi's estimate/],
     ['the bell', /BELL/],
-    ['not fully confident line', /Not fully confident/],
     ['item name', new RegExp(NAME)],
     ['the one button', /Save it/],
   ], 'R-40 low confidence');
+  assert.doesNotMatch(flow, /Not fully confident/);
 });
 
 test('R-40 must not show: the brand pink, a savings word, the barcode digits, the thumbs, a second button', () => {
@@ -134,8 +139,10 @@ test('R-41 (keep) pass: the asking price is exactly what was typed, to two decim
   for (const cents of [469, 500, 1999, 5, 12345]) {
     const html = render(FX.HIGH, { typedCents: cents });
     const label = svgTexts(html).find((t) => t.cls.includes('vb-youlbl'))?.text;
-    assert.equal(label, money(cents, 'CAD'), `typed ${cents}: the mark says ${label}`);
-    assert.match(label, /\.\d\d$/, `${label} is not to two decimals`);
+    // A price pinned past an end carries its multiple after a comma (R-67, "$17.99, 3x the typical price").
+    const price = label?.split(', ')[0];
+    assert.equal(price, money(cents, 'CAD'), `typed ${cents}: the mark says ${label}`);
+    assert.match(price, /\.\d\d$/, `${price} is not to two decimals`);
   }
   assert.equal(money(500, 'CAD'), '$5.00');
   assert.equal(money(1999, 'CAD'), '$19.99', 'a price near $20 stays $19.99');
@@ -270,11 +277,16 @@ test('R-44 (keep): with no shopper price the headline is the item name, not a ve
 
 /* =============================================================== R-45 */
 
-/** The raw first position around the confidence word, minus the face and the bell. */
+/*
+ * R-45 amended 2026-10-13 to RULINGS.md "V1 verdict screen mechanics" (2026-10-10): the word, its three
+ * dots and the low-confidence reason are together, as the spec says, but in the half position beside the
+ * provenance row, where the ruling puts the reason; the first position carries no doubt line.
+ */
+/** The raw half position around the confidence word. */
 function confRegion(html, wordRe) {
-  const raw = peekRaw(html).replace(/<figure class="vbell"[\s\S]*?<\/figure>/, ' ');
+  const raw = parts(html).half;
   const i = raw.search(wordRe);
-  assert.ok(i >= 0, `the confidence word ${wordRe} is not on the first position. It reads: ${peekFlow(html)}`);
+  assert.ok(i >= 0, `the confidence word ${wordRe} is not in the half position. It reads: ${plain(raw)}`);
   return raw.slice(Math.max(0, i - 700), i + 700);
 }
 const DOT_TAG = /<[a-z]+\b[^>]*(?:conf[\w-]*dot|dot[\w-]*conf)[^>]*>/gi;
@@ -286,9 +298,10 @@ const LEVELS = [
   ['low', FX.LOW, /Not fully confident/, 1],
 ];
 
-test('R-45 pass: the first position says the confidence in a word: Certain, Fairly sure, Not fully confident', () => {
+test('R-45 pass: the half position says the confidence in a word: Certain, Fairly sure, Not fully confident', () => {
   for (const [level, v, re] of LEVELS) {
-    assert.match(peekFlow(render(v)), re, `${level}: the confidence word is missing`);
+    assert.match(plain(parts(render(v)).half), re, `${level}: the confidence word is missing`);
+    assert.doesNotMatch(peekFlow(render(v)), re, `${level}: the confidence word is on the first position`);
   }
 });
 
@@ -323,8 +336,8 @@ test('R-45 pass: never a number like "62%" for confidence', () => {
 });
 
 test('R-45 pass: on low confidence the reason is in plain words with the count ("1 price found, blended with its category")', () => {
-  const flow = peekFlow(render(FX.LOW));
-  assert.match(flow, /1 price found, blended with its category/, `the reason line reads: ${flow}`);
+  const half = plain(parts(render(FX.LOW)).half);
+  assert.match(half, /Not fully confident 1 price found, blended with its category/, `the half position reads: ${half}`);
 });
 
 /* =============================================================== R-52 */
@@ -374,7 +387,8 @@ const PROV = [
   ['other_size', { n: 1, basis: 'other_size', confidence: 'medium', dots: [] }, /Same product, other size, scaled/],
   ['leaf_category', { n: 0, basis: 'leaf_category', confidence: 'medium', dots: [] }, /Typical for its category/],
   ['brand_markup', { n: 0, basis: 'brand_markup', confidence: 'low', dots: [] }, /The brand's usual markup on its category/],
-  ['claude_typical', { n: 0, basis: 'claude_typical', confidence: 'low', dots: [] }, /Pexi's own estimate; no shop prices found/],
+  // The spec's "Pexi's own estimate" is said as AI's (RULINGS.md "Reviews": the shopper can tell where the info comes from).
+  ['claude_typical', { n: 0, basis: 'claude_typical', confidence: 'low', dots: [] }, /An AI estimate; no shop prices found/],
 ];
 
 test('R-56 pass: each source says where the estimate came from in plain words, with count and newest date', () => {
@@ -444,9 +458,12 @@ test('R-69 (keep): the band covers what the engine says and is not clamped to th
   assert.ok(band);
 });
 
+// Amended 2026-10-13: the spec put this line on the first position; RULINGS.md (2026-10-10) moved it to the half.
 test('R-69 pass: the reason is specific ("1 price found, blended with its category"), not the generic "few prices"', () => {
-  const flow = peekFlow(render(FX.LOW));
-  assert.match(flow, /Not fully confident: 1 price found, blended with its category/);
+  const { peek, half } = parts(render(FX.LOW));
+  assert.match(plain(half), /1 price found, blended with its category/);
+  assert.doesNotMatch(plain(half), /few prices/i);
+  assert.doesNotMatch(plain(peek), /Not fully confident/);
 });
 
 /* =============================================================== R-70 */

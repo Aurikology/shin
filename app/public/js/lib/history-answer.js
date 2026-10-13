@@ -19,7 +19,7 @@
  */
 
 import { t } from '../ui-strings.js';
-import { usableVerdict, shopperFor, shopperOf, ZONE_TIER } from './verdict-chart.js';
+import { usableVerdict, shopperFor, shopperOf, ZONE_TIER, asShown } from './verdict-chart.js';
 import { money } from './money.js';
 
 /** His zone, in the face the tier wears. Great is the intense face only when Pexi is not unsure (AVATAR.md's gate). */
@@ -54,8 +54,10 @@ export function distWhere(shopper, verdict) {
  * sheet, newer than the server's reading of the tag.
  */
 export function answerSnapshot(raw, { key = null, name = '', typedCents = null } = {}) {
-  const base = usableVerdict(raw);
-  if (!base) return null;
+  const drawn = usableVerdict(raw);
+  if (!drawn) return null;
+  // R-42: the copy keeps the rounded estimate the sheet showed, so the word and percent on a saved row match it.
+  const base = asShown(drawn);
   const shopper = typedCents ? shopperFor(typedCents, base) : base.shopper ? shopperOf(base) : null;
   const id = key ?? (name ? `name:${name}` : null);
   return {

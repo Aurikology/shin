@@ -128,6 +128,85 @@ export function usableVerdict(v) {
   };
 }
 
+/* ---------------------------------------------------------- what is shown */
+
+/**
+ * R-42: the typical price as the shopper sees it. Nearest 5 cents under $10,
+ * nearest 10 cents from $10 to $100, nearest dollar above. An estimate printed
+ * to the cent reads as measured; this one is a guess and is shown as one.
+ */
+export function roundEstimateCents(cents) {
+  if (!pos(cents)) throw new Error(`roundEstimateCents: the estimate ${JSON.stringify(cents)} is not a positive amount`);
+  if (cents < 1000) return Math.round(cents / 5) * 5;
+  if (cents < 10000) return Math.round(cents / 10) * 10;
+  return Math.round(cents / 100) * 100;
+}
+
+/**
+ * R-42: the verdict as drawn: its centre is the rounded typical price, so the
+ * word, the percent, the zone strip and every saved copy are worked out from
+ * the number on the screen (D12), never from a cent the shopper cannot see.
+ */
+export function asShown(verdict) {
+  return { ...verdict, centreCents: roundEstimateCents(verdict.centreCents) };
+}
+
+const CONFIDENCES = ['high', 'medium', 'low'];
+const KINDS = ['regular', 'sale'];
+const say = (v) => (typeof v === 'string' ? JSON.stringify(v) : typeof v === 'number' ? String(v) : v === undefined ? 'undefined' : JSON.stringify(v) ?? typeof v);
+
+/**
+ * THE VERDICT SHEET FAILS LOUDLY (build 6; RULINGS.md "Errors never go
+ * unnoticed", 2026-10-08). A verdict the sheet would have to guess about is
+ * refused with an Error naming the field, never drawn half right: no unknown
+ * confidence read as low, no unknown dot kind read as regular, no source with
+ * no words, no band that runs backwards. `usableVerdict` stays the lenient
+ * gate that decides whether an answer is a bell at all; this is what the
+ * sheet checks before it draws one. The camera catches the throw, reports it
+ * and shows the fault sheet (camera.js `paintDistribution`).
+ *
+ * One field is allowed to be missing on purpose: a dot's `quantity`. Many
+ * products carry no size anywhere (6 of the 17 priced items on Aurik's PC,
+ * 2026-10-13), so a missing size is data, not a fault; the sheet says "Size
+ * not listed" instead of a blank. A quantity of the wrong type still throws.
+ */
+export function checkVerdict(raw) {
+  if (!raw || typeof raw !== 'object') throw new Error(`verdict: ${say(raw)} is not a verdict object`);
+  if (raw.kind !== 'distribution') throw new Error(`verdict: kind ${say(raw.kind)} is not 'distribution'`);
+  if (!pos(raw.centreCents)) throw new Error(`verdict: the typical price (centreCents) ${say(raw.centreCents)} is not a positive number of cents`);
+  if (roundEstimateCents(raw.centreCents) <= 0) throw new Error(`verdict: the typical price (centreCents) ${raw.centreCents} rounds to 0`);
+  if (!isNum(raw.sigmaLog) || raw.sigmaLog < 0) throw new Error(`verdict: the spread (sigmaLog) ${say(raw.sigmaLog)} cannot be drawn`);
+  for (const k of ['p10Cents', 'p90Cents']) {
+    if (raw[k] === undefined || raw[k] === null) continue;
+    if (!pos(raw[k])) throw new Error(`verdict: the band end ${k} ${say(raw[k])} is not a positive number of cents`);
+  }
+  const mu = Math.log(raw.centreCents);
+  const p10 = raw.p10Cents ?? Math.exp(mu - Z90 * raw.sigmaLog);
+  const p90 = raw.p90Cents ?? Math.exp(mu + Z90 * raw.sigmaLog);
+  if (p10 > p90) throw new Error(`verdict: the band runs backwards, p10 ${p10} is above p90 ${p90}`);
+  // A cent of rounding either side is the server's own rounding of p10/p90, not a broken band.
+  if (p10 > raw.centreCents + 1 || raw.centreCents > p90 + 1) throw new Error(`verdict: the typical price ${raw.centreCents} is outside its band, p10 ${p10} to p90 ${p90}`);
+  if (!CONFIDENCES.includes(raw.confidence)) throw new Error(`verdict: confidence ${say(raw.confidence)} is not high, medium or low`);
+  if (!BASES.includes(raw.basis)) throw new Error(`verdict: the source (basis) ${say(raw.basis)} has no plain words on the provenance row`);
+  if (raw.dots !== undefined && !Array.isArray(raw.dots)) throw new Error(`verdict: dots ${say(raw.dots)} is not a list`);
+  (raw.dots ?? []).forEach((d, i) => {
+    if (!d || typeof d !== 'object') throw new Error(`verdict: store dot ${i} ${say(d)} is not an object`);
+    if (!pos(d.cents)) throw new Error(`verdict: store dot ${i} has no price (cents ${say(d.cents)})`);
+    if (typeof d.store !== 'string' || !d.store.trim()) throw new Error(`verdict: store dot ${i} has no store (${say(d.store)})`);
+    if (typeof d.seenOn !== 'string' || !d.seenOn.trim()) throw new Error(`verdict: store dot ${i} has no date (seenOn ${say(d.seenOn)})`);
+    if (!KINDS.includes(d.kind)) throw new Error(`verdict: store dot ${i} kind ${say(d.kind)} is neither regular nor sale`);
+    if (d.quantity !== undefined && d.quantity !== null && typeof d.quantity !== 'string') throw new Error(`verdict: store dot ${i} quantity ${say(d.quantity)} is not text`);
+  });
+  const sh = raw.shopper;
+  if (sh !== undefined && sh !== null) {
+    if (typeof sh !== 'object') throw new Error(`verdict: the shopper's price block ${say(sh)} is not an object`);
+    if (!pos(sh.cents)) throw new Error(`verdict: the shopper's price (cents ${say(sh.cents)}) cannot be marked`);
+    if (sh.zone !== undefined && sh.zone !== null && !ZONES.includes(sh.zone)) throw new Error(`verdict: the verdict word (zone) ${say(sh.zone)} is not great, good, reasonable or bad`);
+    if (sh.beyond !== undefined && sh.beyond !== null && sh.beyond !== 'low' && sh.beyond !== 'high') throw new Error(`verdict: the shopper's price beyond ${say(sh.beyond)} is neither low, high nor null`);
+  }
+  return raw;
+}
+
 /* ---------------------------------------------------------- the shopper dot */
 
 /** Signed percent from the centre: negative is under. */
@@ -223,7 +302,12 @@ export function shopperOf(verdict) {
   // server sent is kept only when it agrees, and is replaced when it does not,
   // so a stale or differently-centred server zone can never contradict the
   // marker's place on the picture.
-  return { ...s, zone: zoneFor(s.cents, verdict.centreCents, verdict.thresholds) };
+  // The percent likewise (R-42): from the centre drawn, so "20% under" never sits beside a word the exact centre gave.
+  return {
+    ...s,
+    zone: zoneFor(s.cents, verdict.centreCents, verdict.thresholds),
+    offByPct: Math.round(pctFromCentre(s.cents, verdict.centreCents) * 10) / 10,
+  };
 }
 
 /**
@@ -280,14 +364,14 @@ export function logDomain(verdict, extra = []) {
  * lower-case average, so a row never packs two labels that would touch once the
  * browser sets them. Over-estimating only costs a label moving down a row.
  */
-export function labelWidth(text) {
+export function labelWidth(text, size = 9.5) {
   let w = 0;
   for (const ch of String(text)) {
     if (/[A-Z0-9MW@%&]/.test(ch)) w += 7;
     else if (/[ iltfjrI.,'-]/.test(ch)) w += 3.4;
     else w += 5.6;
   }
-  return w;
+  return (w * size) / 9.5;
 }
 
 /**
@@ -295,11 +379,11 @@ export function labelWidth(text) {
  * touch the one before it; one that fits in no row is left off the graph (it
  * is still in the list under the chart, and in its dot's <title>).
  */
-export function placeLabels(items, { rows = 3, charW = null, gap = 8, width = 340, edge = 4 } = {}) {
+export function placeLabels(items, { rows = 3, charW = null, gap = 8, width = 340, edge = 4, size = 9.5 } = {}) {
   const ends = Array.from({ length: rows }, () => -Infinity);
   const out = [];
   for (const it of [...items].sort((a, b) => a.x - b.x)) {
-    const w = charW ? it.text.length * charW : labelWidth(it.text);
+    const w = charW ? it.text.length * charW : labelWidth(it.text, size);
     const x = Math.min(width - edge - w / 2, Math.max(edge + w / 2, it.x));
     const row = ends.findIndex((end) => x - w / 2 >= end + gap);
     if (row === -1) continue;
@@ -389,7 +473,8 @@ export function bellGeometry(verdict, { width = 340, height = 196, top = 34, bas
         ...sh,
         x: sh.beyond === 'low' ? side : sh.beyond === 'high' ? width - side : xPin(sh.cents),
         pinned: sh.beyond ?? pinned(sh.cents),
-        curveY: sh.beyond || pinned(sh.cents) ? baseY : y(sh.cents),
+        // R-67: the mark meets the curve; a pinned one meets it at the edge of the axis.
+        curveY: sh.beyond === 'low' || pinned(sh.cents) === 'low' ? y(Math.exp(d.lo)) : sh.beyond === 'high' || pinned(sh.cents) === 'high' ? y(Math.exp(d.hi)) : y(sh.cents),
       }
     : null;
 
@@ -422,8 +507,43 @@ export function bellGeometry(verdict, { width = 340, height = 196, top = 34, bas
 const esc = (s) =>
   String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
+/**
+ * THE SIZES ON THE GLASS (R-67, R-68). The bell is a 340-unit viewBox drawn at
+ * the sheet's content width, 320 px on a 360 px phone, so one unit is 0.94 px.
+ * camera.css sets the type in units sized for that: 13 units is 12.2 px, the
+ * smallest any chart label may be; the shopper's price is 17 units, 16 px. The
+ * radii below are in the same units.
+ */
+export const DOT_R = 5.4; //       a store dot, 10.2 px across
+export const SALE_R = 6.2; //      a sale diamond, centre to corner, 11.7 px corner to corner
+export const YOU_R = 6.4; //       the shopper's dot on the curve, 12 px across
+export const LABEL_SIZE = 13; //   every chart label but the shopper's price
+export const YOU_SIZE = 17; //     the shopper's price
+/** R-46: at most this many dots carry a label on the bell; the list under it names every one. */
+export const MAX_DOT_LABELS = 4;
+
+/**
+ * R-46: which dots carry a label on the bell: the one nearest the shopper's
+ * price, the lowest, the highest, and one more (the next nearest the typical
+ * price), never more than four.
+ */
+export function labelledDots(dots, { shopperCents = null, centreCents } = {}) {
+  if (dots.length <= MAX_DOT_LABELS) return dots.map((_, i) => i);
+  const by = (f) => [...dots.keys()].sort((a, b) => f(a) - f(b) || a - b);
+  const dist = (target) => (i) => Math.abs(Math.log(dots[i].cents) - Math.log(target));
+  const pick = new Set();
+  if (pos(shopperCents)) pick.add(by(dist(shopperCents))[0]);
+  pick.add(by((i) => dots[i].cents)[0]);
+  pick.add(by((i) => -dots[i].cents)[0]);
+  for (const i of by(dist(centreCents))) {
+    if (pick.size >= MAX_DOT_LABELS) break;
+    pick.add(i);
+  }
+  return [...pick].sort((a, b) => a - b);
+}
+
 /** Three axis labels, pushed apart just enough not to overlap and kept inside. */
-export function spreadLabels(xs, { minGap = 54, width = 340, edge = 24 } = {}) {
+export function spreadLabels(xs, { minGap = 66, width = 340, edge = 30 } = {}) {
   const out = [...xs];
   for (let pass = 0; pass < 4; pass += 1) {
     for (let i = 1; i < out.length; i += 1) {
@@ -453,7 +573,9 @@ export function spreadLabels(xs, { minGap = 54, width = 340, edge = 24 } = {}) {
  * drops onto its own place; it never slides along the axis through prices it
  * never had (DESIGN.md section 6).
  */
-export function bellSvg(verdict, { format = (c) => String(c), alt = '', band = '', saleWord = 'Sale', multiple = '', dotLabel = (d) => d.quantity ?? d.store ?? '', geometry = {}, labels: labelsFrom = null, report = null, reportWord = 'Your report', reportTitle = '' } = {}) {
+export function bellSvg(verdict, { format = (c) => String(c), formatEstimate = null, alt = '', band = '', saleWord = 'Sale', multiple = '', dotLabel = (d) => d.quantity ?? d.store ?? '', geometry = {}, labels: labelsFrom = null, report = null, reportWord = 'Your report', reportTitle = '' } = {}) {
+  // R-42/R-43: the typical price and the band ends are the rounded estimate; the shopper's own price is never rounded (R-41).
+  const est = formatEstimate ?? format;
   const g = bellGeometry(verdict, { ...geometry, report });
   // The words under the axis are always a real answer's numbers, never an in-between frame's.
   const L = labelsFrom ?? verdict;
@@ -468,7 +590,7 @@ export function bellSvg(verdict, { format = (c) => String(c), alt = '', band = '
   for (const k of g.cutTicks) p.push(`<line class="vb-cut" x1="${k.x}" y1="${k.y}" x2="${k.x}" y2="${g.baseY}"/>`);
   p.push(`<line class="vb-centre" x1="${g.centreX}" y1="${g.top - 4}" x2="${g.centreX}" y2="${g.baseY}"/>`);
   if (g.hasSale) p.push(`<text class="vb-lane" x="${g.side}" y="${g.saleY + 3.5}" text-anchor="start">${esc(saleWord)}</text>`);
-  const lblY = g.baseY + 28 + (g.hasSale ? 12 : 0) + (g.report ? 12 : 0);
+  const lblY = g.baseY + 32 + (g.hasSale ? 14 : 0) + (g.report ? 14 : 0);
   // The shopper's own pending report: a diamond on its own lane, outlined and
   // labelled in words, unlike a store's small solid circle, and drawn outside
   // the bell (it does not move the bell until a second source agrees).
@@ -483,41 +605,58 @@ export function bellSvg(verdict, { format = (c) => String(c), alt = '', band = '
     );
   }
   const [lx, cx, hx] = spreadLabels([g.p10X, g.centreX, g.p90X], { width: W });
-  p.push(`<text class="vb-lbl" x="${lx}" y="${lblY}" text-anchor="middle" data-vb-p10>${esc(format(Math.round(L.p10Cents)))}</text>`);
-  p.push(`<text class="vb-lbl vb-lbl-centre" x="${cx}" y="${lblY}" text-anchor="middle" data-vb-centre>${esc(format(Math.round(L.centreCents)))}</text>`);
-  p.push(`<text class="vb-lbl" x="${hx}" y="${lblY}" text-anchor="middle" data-vb-p90>${esc(format(Math.round(L.p90Cents)))}</text>`);
+  p.push(`<text class="vb-lbl" x="${lx}" y="${lblY}" text-anchor="middle" data-vb-p10>${esc(est(L.p10Cents))}</text>`);
+  p.push(`<text class="vb-lbl vb-lbl-centre" x="${cx}" y="${lblY}" text-anchor="middle" data-vb-centre>${esc(est(L.centreCents))}</text>`);
+  p.push(`<text class="vb-lbl" x="${hx}" y="${lblY}" text-anchor="middle" data-vb-p90>${esc(est(L.p90Cents))}</text>`);
 
-  // Store dots, small; sale dots on their own lane under the axis, hollow.
+  // Store dots: a regular price is a circle; a sale price is a diamond on its own lane (R-47), never the same shape.
   g.dots.forEach((d, i) => {
     const title = [d.store, d.city, d.quantity, format(d.cents), d.seenOn, d.kind === 'sale' ? saleWord : null].filter(Boolean).join(', ');
-    p.push(`<circle class="vb-dot vb-dot-${d.kind}${d.pinned ? ' vb-pinned' : ''}" cx="${d.x}" cy="${d.y}" r="3.6" data-vb-dot="${i}" style="--i:${i}"><title>${esc(title)}</title></circle>`);
+    const cls = `vb-dot vb-dot-${d.kind}${d.pinned ? ' vb-pinned' : ''}`;
+    if (d.kind === 'sale') {
+      const h = SALE_R;
+      p.push(`<path class="${cls}" d="M${d.x} ${r1(d.y - h)}L${r1(d.x + h)} ${d.y}L${d.x} ${r1(d.y + h)}L${r1(d.x - h)} ${d.y}Z" data-vb-dot="${i}" style="--i:${i}"><title>${esc(title)}</title></path>`);
+    } else {
+      p.push(`<circle class="${cls}" cx="${d.x}" cy="${d.y}" r="${DOT_R}" data-vb-dot="${i}" style="--i:${i}"><title>${esc(title)}</title></circle>`);
+    }
   });
+  const chosen = new Set(labelledDots(g.dots, { shopperCents: g.shopper?.cents ?? null, centreCents: verdict.centreCents }));
   const labels = placeLabels(
-    g.dots.map((d, i) => ({ i, x: d.x, text: dotLabel(d) })).filter((l) => l.text),
-    { rows: 3, width: W },
+    g.dots.map((d, i) => ({ i, x: d.x, text: chosen.has(i) ? dotLabel(d) : '' })).filter((l) => l.text),
+    { rows: 2, width: W, size: LABEL_SIZE },
   );
   for (const l of labels) {
-    p.push(`<text class="vb-dotlbl" x="${l.x}" y="${lblY + 15 + l.row * 12}" text-anchor="middle" data-vb-dotlbl="${l.i}">${esc(l.text)}</text>`);
+    p.push(`<text class="vb-dotlbl" x="${l.x}" y="${lblY + 18 + l.row * 16}" text-anchor="middle" data-vb-dotlbl="${l.i}">${esc(l.text)}</text>`);
   }
 
-  // The shopper's price: the large dot, on the axis, with a guide up to the bell.
+  // R-67: the shopper's price, a solid line from the base up to the curve, a dot where it meets the curve,
+  // and the price in bold above it. Pinned past an end, the line ends in an arrow pointing off the chart
+  // and the price says how far: "$17.99, 3x the typical price".
   if (g.shopper) {
     const s = g.shopper;
-    // A pinned price's words run inward from its edge so the multiple is never cut off.
     const anchor = s.pinned === 'high' ? 'end' : s.pinned === 'low' ? 'start' : 'middle';
-    const labelX = s.pinned === 'high' ? W - 2 : s.pinned === 'low' ? 2 : Math.min(W - 30, Math.max(30, s.x));
-    const lines = [format(s.cents), multiple].filter(Boolean);
-    const labelTop = Math.max(12, Math.min(s.curveY, g.baseY) - 12 - (lines.length - 1) * 13);
+    const text = [format(s.cents), s.pinned ? multiple : ''].filter(Boolean).join(', ');
+    const half = labelWidth(text, YOU_SIZE) / 2;
+    const labelX = s.pinned === 'high' ? W - 2 : s.pinned === 'low' ? 2 : r1(Math.min(W - 2 - half, Math.max(2 + half, s.x)));
+    const labelY = r1(Math.max(YOU_SIZE, s.curveY - YOU_R - 6));
+    const arrow = s.pinned
+      ? (() => {
+          const dir = s.pinned === 'high' ? 1 : -1;
+          const ay = r1((s.curveY + g.baseY) / 2);
+          return `<path class="vb-arrow" d="M${r1(s.x - dir * 7)} ${r1(ay - 6)}L${s.x} ${ay}L${r1(s.x - dir * 7)} ${r1(ay + 6)}"/>`;
+        })()
+      : '';
     p.push(
       `<g class="vb-you${s.pinned ? ' vb-pinned' : ''}" data-vb-you="${s.cents}"${s.pinned ? ` data-vb-pin="${s.pinned}"` : ''}>` +
         `<line class="vb-guide" x1="${s.x}" y1="${s.curveY}" x2="${s.x}" y2="${g.baseY}"/>` +
-        `<circle class="vb-youdot" cx="${s.x}" cy="${g.baseY}" r="8"/>` +
-        lines.map((txt, k) => `<text class="vb-youlbl${k ? ' vb-mult' : ''}" x="${labelX}" y="${labelTop + k * 13}" text-anchor="${anchor}">${esc(txt)}</text>`).join('') +
+        arrow +
+        `<circle class="vb-youdot" cx="${s.x}" cy="${s.curveY}" r="${YOU_R}"/>` +
+        `<text class="vb-youlbl" x="${labelX}" y="${labelY}" text-anchor="${anchor}">${esc(text)}</text>` +
         `</g>`,
     );
   }
   const lastRow = labels.reduce((m, l) => Math.max(m, l.row), 0);
-  const h = lblY + (labels.length ? 18 + lastRow * 12 : 6);
+  const h = lblY + (labels.length ? 22 + lastRow * 16 : 8);
   return `<figure class="vbell" data-verdict-bell data-mu="${r1(g.domain.mu * 1000) / 1000}" data-sigma="${verdict.sigmaLog}">
     <svg viewBox="0 0 ${W} ${Math.round(h)}" width="100%" role="img" aria-label="${esc(alt)}" focusable="false">${p.join('')}</svg>
     ${band ? `<figcaption class="vb-cap">${esc(band)}</figcaption>` : ''}
