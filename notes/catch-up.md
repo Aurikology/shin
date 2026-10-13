@@ -14,6 +14,33 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ---
 
+## 2026-10-13 (Aurik's PC): no price pool crosses a department, and no range is one price
+
+### To do
+
+- **Jamin, or the Mac session: pull main and restart the beta server.** The three changes below
+  change what testers see. Then check one beauty or pet item with no price of its own: it should
+  show the product and no verdict, where it used to show a bell around a grocery price.
+
+### What changed
+
+- **An unpriced shampoo is no longer judged against grocery prices.** When nothing closer had a
+  price, the verdict used to fall back to the middle of every price Pexi holds, mostly groceries.
+  Now it falls back to the item's own department only. If that department has no prices, no
+  verdict is shown, the same as when a category is too mixed to judge. On Aurik's PC, 63 of 88
+  sampled unpriced items changed this way; food items did not.
+- **A price range is never one number now.** When every store charged the same, the range read
+  "$4.99 to $4.99". It now widens a little around that price, at least as wide as its category.
+  8 of the 17 priced items on Aurik's PC were single numbers; none are now.
+- **Sale prices cannot reach a price range by the sale flag either.** The range only checked one
+  of the two sale marks; it now checks both, like the verdict already did.
+
+### Read by
+
+- Aurik (Windows PC), 2026-10-13
+
+---
+
 ## 2026-10-05 evening (Aurik's PC): a second Save-On day, and the by-time test can run but proves nothing yet
 
 ### To do

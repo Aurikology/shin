@@ -36,6 +36,12 @@ History moved out of NOW.md on 2026-09-27: `docs/archive/now-history-2026-09-27.
   The 2.2 sheet (819 rows, bench/results/placement-audit-sheet-2026-10-09.csv) is unmarked, so
   accuracy is unmeasured and the 0.6 bar uncalibrated. Live catalogue.db not placed yet.
   onnxruntime-node declared (cd7823a).
+- **Stage 4 (the range), out of order 2026-10-13 (Aurik: "continue working not in order"): 3.3,
+  3.4, 3.6 built and pushed** (efc2c60, 53aacf7, e53cc53). No pool crosses a department
+  (`global_prior` gone; an item with no price in its department shows no verdict, 63 of 88 unpriced
+  sampled items on the PC), no range is one price (8 of 17 PC barcodes were, now 0), sale-flagged
+  and unverified printout rows are out of the range ladder. Still open in Stage 4: 3.1, 3.2, 3.5,
+  3.8, 6.1, 6.3, 6.4, 6.6, 6.7. Logged: docs/decisions.md "No price pool crosses a department".
 - Open for a person: an Ontario source; the 7.7 sheet; the 2.2 sheet; the outlier numbers (19%, 4
   prices); deletes waiting on Aurik's yes: the PC user catalogue's test rows (D-222: 21 products,
   5,132 observations, 16,593 offers, 27 branch rows, 0 pass the real-scan test) and the 197

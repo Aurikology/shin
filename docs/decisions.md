@@ -2793,3 +2793,36 @@ behind it, never asserted bare." It now covers specs only.
 
 **Reverses if:** an ad's reach is measured to come with installs that churn on the first real scan
 because the ad showed something the app does not do.
+
+## No price pool crosses a department; a range is never one price
+**Date:** 2026-10-13 · **Status:** active
+
+Built from the price-category plan's Stage 4, out of the plan's order on Aurik's word
+(2026-10-13, *"continue working not in order"*): 3.3, 3.4 and 3.6 need no new data and no person.
+
+**3.3 (efc2c60, 53aacf7).** The verdict ladder's last rung, `global_prior`, was the median of every
+regular price Shin holds: the all-of-Shin median the requirement names. It is gone. The last rung is
+`department_prior`, every priced product in the item's own department (catalogue row's `source`,
+catalogue/src/placement.ts). Every leaf, parent, brand and category pool, in both the verdict and
+the range ladder, is cut to that department; with the department unknown, a pool spanning two is
+refused (`mixed_departments`). With no price in the department, or the department unknown, the
+bell is the fixed empty prior, and **no verdict is shown**: a zone read off a number nobody priced
+is the same lie D-233 removed for a too-wide pool. It is missing data, not a fault, so it is not
+logged. Measured on the PC databases: of 88 unpriced catalogue items, 63 beauty, general and pet
+items had been judged against the grocery median (599 cents) with a zone; they now show none. 20
+food items keep 599 cents, now from food alone. The 17 priced items are unchanged.
+
+**3.4 (53aacf7).** The range ladder answered one price whenever its shops agreed (499..499). A range
+narrower than its category's spread, or than the verdict's own floor read at the quartiles (0.05 on
+log price, 1.07x), now widens around its median, the shops' own ends kept inside, and says so in
+`widened`. On the PC: 8 of 17 priced barcodes had answered a single price, now 0.
+
+**3.6 (e53cc53).** The range ladder read only `kind = 'regular'`, so a row a source marked
+`is_sale = 1` entered its centres, and an unverified printout row counted. It now reads
+estimate.ts's rules. On the PC nothing moved (no such rows here); the Mac's data may differ.
+
+**Reverses if:** shoppers shown no verdict for an unpriced beauty, general or pet item are measured
+to leave more often than those shown a grocery-median bell (then a labelled department estimate
+from Claude, plan 6.6, comes before the empty prior); or the 7.1 calibration shows the 1.07x floor
+is too narrow for agreeing shops (then the floor comes from measured coverage, not the design's
+0.05).
