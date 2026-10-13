@@ -2775,3 +2775,21 @@ clears the bar under a wrong parent is a wrong placement with a confidence on it
 **Reverses if:** the 2.2 hand-marked sheet shows the containment rule loses more right placements
 at category-or-parent than it removes wrong ones, or a single-parent standard tree (GS1 GPC, plan
 1.1 "Next") is adopted as the fixed top.
+
+## An ad has one objective: viewership
+**Date:** 2026-10-12 · **Status:** active
+
+Writing the code-animation prompt for an Instagram Reels ad, the draft was critiqued against the
+app's own rules (real prices only, the angry face only when Pexi is confident, no promise of the
+unbuilt). The price data checked that night has no item at three or more shops, so no real scan
+can show the angry or delighted face today. Jamin's words: *"rememebr, you are creating an
+instagram ad for one main purpose: engagenemtn, not truth, not value, not accuracy and none of the
+other fluff, literally just viewership"*. Ad creative is now judged on watch time, rewatches,
+shares and comments only. The law is the one line left: no materially false factual claim.
+
+Old text, rewritten in RULINGS.md the same day ("Marketing and positioning"): "Any claimed
+capability in marketing or specs cites the concrete backend mechanism and a real, measured metric
+behind it, never asserted bare." It now covers specs only.
+
+**Reverses if:** an ad's reach is measured to come with installs that churn on the first real scan
+because the ad showed something the app does not do.
