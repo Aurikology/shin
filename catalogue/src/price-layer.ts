@@ -22,8 +22,18 @@
  * under `minItems` and 'no_prices' at 0. Every node maps to its nearest
  * ancestor-or-self group. Items in an "unplaced" node feed NO group: their prices
  * are counted as ignored (the 2026-10-09 ruling, "an unplaced item must never feed
- * a price range"). Splits by attribute and the width test (1.2 to 1.5) come later;
- * this only groups by the placement tree.
+ * a price range").
+ *
+ * THE SPLITS (1.2 to 1.5; the rules and their thresholds are in price-split.ts). A
+ * group with 20+ priced items whose middle 80% is over 1.5x is split by the attribute
+ * that narrows held-out ranges (size unit, pack size, brand, Nutri-Score, NOVA group:
+ * whatever the catalogue row carries), recursively toward 1.5x, each subgroup holding
+ * 20+ distinct items; undersized siblings stay with the parent. Every group, base or
+ * subgroup, carries a bootstrap interval for its width, and any group of 20+ items
+ * still over 1.5x is flagged 'wide'. Every attribute tried is recorded with its
+ * held-out narrowing, 'none_helped' included. Prices are compared as given (the
+ * split criterion is log price); the split is on attributes, so a pack-size or
+ * unit effect is found by the screen, not assumed.
  *
  * VERSIONS (1.7). Every rebuild appends one hierarchy_version with its numbers:
  * the group statistics (count, 10th/50th/90th percentile by nearest rank, width
@@ -47,10 +57,26 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { ensurePlacementSchema, pathOfNode, placementCallCount, placementHash, DEPARTMENT_TAG } from './placement.ts';
+import {
+  attributesOf,
+  BOOTSTRAP_RESAMPLES,
+  FOLD_SALTS,
+  groupStat,
+  growSplits,
+  MAX_SPLIT_DEPTH,
+  MIN_NARROWING,
+  SPLIT_ATTRIBUTES,
+  TARGET_WIDTH,
+  type Attrs,
+  type ProductAttrRow,
+  type ScreenRecord,
+  type SplitItem,
+  type TreeNode,
+} from './price-split.ts';
 
 export const MIN_GROUP_ITEMS = 20;
-export const WIDE_RATIO = 1.5;
-export const GROUPING_RULE = 'bottom-up over the placement tree, min distinct priced items per group; unplaced feeds none; v1';
+export const WIDE_RATIO = TARGET_WIDTH;
+export const GROUPING_RULE = `bottom-up over the placement tree, min distinct priced items per group; unplaced feeds none; wide groups split by attribute toward ${TARGET_WIDTH}x on held-out narrowing (${FOLD_SALTS * 2} folds, min ${MIN_NARROWING}, depth ${MAX_SPLIT_DEPTH}); bootstrap ${BOOTSTRAP_RESAMPLES}; v2`;
 
 export class PlacementDuringRebuildError extends Error {
   constructor(message: string) {
@@ -89,7 +115,49 @@ CREATE TABLE IF NOT EXISTS hierarchy_version_group (
   p90           REAL,
   width         REAL,
   flag          TEXT NOT NULL,
+  width_lo      REAL,
+  width_hi      REAL,
   PRIMARY KEY (version_id, group_node_id)
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS hierarchy_version_subgroup (
+  version_id    INTEGER NOT NULL REFERENCES hierarchy_version(version_id),
+  subgroup_key  TEXT NOT NULL,
+  group_node_id INTEGER NOT NULL,
+  parent_key    TEXT NOT NULL,
+  depth         INTEGER NOT NULL,
+  attribute     TEXT NOT NULL,
+  level_json    TEXT NOT NULL,
+  n_items       INTEGER NOT NULL,
+  p10           REAL,
+  p50           REAL,
+  p90           REAL,
+  width         REAL,
+  width_lo      REAL,
+  width_hi      REAL,
+  flag          TEXT NOT NULL,
+  PRIMARY KEY (version_id, subgroup_key)
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS hierarchy_version_split (
+  version_id  INTEGER NOT NULL REFERENCES hierarchy_version(version_id),
+  parent_key  TEXT NOT NULL,
+  level_json  TEXT NOT NULL,
+  attribute   TEXT NOT NULL,
+  child_key   TEXT NOT NULL,
+  PRIMARY KEY (version_id, parent_key, level_json)
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS hierarchy_version_screen (
+  version_id         INTEGER NOT NULL REFERENCES hierarchy_version(version_id),
+  subgroup_key       TEXT NOT NULL,
+  attribute          TEXT NOT NULL,
+  levels             INTEGER NOT NULL,
+  items              INTEGER NOT NULL,
+  folds              INTEGER NOT NULL,
+  insample_narrowing REAL,
+  heldout_narrowing  REAL,
+  min_fold_narrowing REAL,
+  verdict            TEXT NOT NULL,
+  reason             TEXT NOT NULL,
+  PRIMARY KEY (version_id, subgroup_key, attribute)
 ) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS hierarchy_version_map (
   version_id    INTEGER NOT NULL REFERENCES hierarchy_version(version_id),
@@ -106,12 +174,23 @@ CREATE TABLE IF NOT EXISTS lookup_answer (
 );
 `;
 
-const APPEND_ONLY = ['hierarchy_version', 'hierarchy_version_group', 'hierarchy_version_map', 'lookup_answer'];
+const APPEND_ONLY = [
+  'hierarchy_version',
+  'hierarchy_version_group',
+  'hierarchy_version_map',
+  'hierarchy_version_subgroup',
+  'hierarchy_version_split',
+  'hierarchy_version_screen',
+  'lookup_answer',
+];
 
 /** Installs the placement layer (if missing) and the version tables with their append-only triggers. Idempotent. */
 export function ensurePriceLayerSchema(db: DatabaseSync): void {
   ensurePlacementSchema(db);
   db.exec(DDL);
+  // A group table built before the bootstrap interval existed gets the two columns (old rows hold NULL).
+  const have = new Set((db.prepare('PRAGMA table_info(hierarchy_version_group)').all() as unknown as { name: string }[]).map((r) => r.name));
+  for (const c of ['width_lo', 'width_hi']) if (!have.has(c)) db.exec(`ALTER TABLE hierarchy_version_group ADD COLUMN ${c} REAL`);
   for (const t of APPEND_ONLY) {
     db.exec(`CREATE TRIGGER IF NOT EXISTS ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, '${t}: append-only, a row is never changed'); END;`);
     db.exec(`CREATE TRIGGER IF NOT EXISTS ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, '${t}: append-only, a row is never deleted'); END;`);
@@ -129,6 +208,8 @@ export interface RebuildOptions {
   readonly log?: (line: string) => void;
   /** Test seam: work run inside the rebuild's guarded window. */
   readonly duringRebuildForTests?: () => void;
+  /** Test control only: skip the held-out check of 1.3. The version records it in its rule. */
+  readonly unsafeNoHeldOut?: boolean;
 }
 
 export interface RebuildResult {
@@ -142,6 +223,15 @@ export interface RebuildResult {
   readonly pricesForUnknownItems: number;
   readonly groups: number;
   readonly groupsByFlag: Readonly<Record<string, number>>;
+  /** Subgroups from attribute splits (every level of every split tree), and their flags. */
+  readonly subgroups: number;
+  readonly subgroupsByFlag: Readonly<Record<string, number>>;
+  /** Base groups that were split. */
+  readonly splitGroups: number;
+  /** Rows of the attribute screen (what was tried, including 'none_helped'). */
+  readonly screenRows: number;
+  /** Groups of 20+ items still over the target after every split, base or subgroup. */
+  readonly wideGroups: number;
   readonly nodes: number;
   readonly contentHash: string;
 }
@@ -163,6 +253,52 @@ interface GroupStat {
   p90: number | null;
   width: number | null;
   flag: string;
+  width_lo?: number | null;
+  width_hi?: number | null;
+}
+
+interface SubgroupRow {
+  subgroup_key: string;
+  group_node_id: number;
+  parent_key: string;
+  depth: number;
+  attribute: string;
+  level_json: string;
+  n_items: number;
+  p10: number | null;
+  p50: number | null;
+  p90: number | null;
+  width: number | null;
+  width_lo: number | null;
+  width_hi: number | null;
+  flag: string;
+}
+
+interface SplitRow {
+  parent_key: string;
+  level_json: string;
+  attribute: string;
+  child_key: string;
+}
+
+interface ScreenRow {
+  subgroup_key: string;
+  attribute: string;
+  levels: number;
+  items: number;
+  folds: number;
+  insample_narrowing: number | null;
+  heldout_narrowing: number | null;
+  min_fold_narrowing: number | null;
+  verdict: string;
+  reason: string;
+}
+
+/** What a v2 version holds beyond v1: the subgroups, the routing rules and the screen. */
+interface V2Rows {
+  subgroups: readonly SubgroupRow[];
+  splits: readonly SplitRow[];
+  screen: readonly ScreenRow[];
 }
 
 interface Header {
@@ -172,15 +308,63 @@ interface Header {
   rule: string;
 }
 
-function nearestRank(sorted: readonly number[], p: number): number {
-  const i = Math.min(sorted.length - 1, Math.max(0, Math.ceil((p / 100) * sorted.length) - 1));
-  return sorted[i]!;
+interface PricedItem {
+  code: string;
+  v: number;
 }
 
-function canonicalHash(h: Header, groups: readonly GroupStat[], map: readonly (readonly [number, number])[]): string {
-  const g = [...groups].sort((a, b) => a.group_node_id - b.group_node_id).map((x) => [x.group_node_id, x.n_items, x.p10, x.p50, x.p90, x.width, x.flag]);
+function screenRow(s: ScreenRecord): ScreenRow {
+  return {
+    subgroup_key: s.key,
+    attribute: s.attribute,
+    levels: s.levels,
+    items: s.items,
+    folds: s.folds,
+    insample_narrowing: s.insample,
+    heldout_narrowing: s.heldout,
+    min_fold_narrowing: s.minFold,
+    verdict: s.verdict,
+    reason: s.reason,
+  };
+}
+
+function subgroupRow(n: TreeNode, groupNodeId: number): SubgroupRow {
+  return {
+    subgroup_key: n.key,
+    group_node_id: groupNodeId,
+    parent_key: n.parentKey,
+    depth: n.depth,
+    attribute: n.attribute,
+    level_json: n.levelJson,
+    n_items: n.stat.n,
+    p10: n.stat.p10,
+    p50: n.stat.p50,
+    p90: n.stat.p90,
+    width: n.stat.width,
+    width_lo: n.stat.widthLo,
+    width_hi: n.stat.widthHi,
+    flag: n.stat.flag,
+  };
+}
+
+const byText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
+/** A version built under the v1 rule (no splits) hashes as it always did; a v2 version also hashes its interval, subgroups, rules and screen. */
+function canonicalHash(h: Header, groups: readonly GroupStat[], map: readonly (readonly [number, number])[], v2?: V2Rows): string {
   const m = [...map].sort((a, b) => a[0] - b[0]);
-  return createHash('sha256').update(JSON.stringify([h.built_at, h.placement_seq, h.min_items, h.rule, g, m])).digest('hex');
+  if (!v2) {
+    const g1 = [...groups].sort((a, b) => a.group_node_id - b.group_node_id).map((x) => [x.group_node_id, x.n_items, x.p10, x.p50, x.p90, x.width, x.flag]);
+    return createHash('sha256').update(JSON.stringify([h.built_at, h.placement_seq, h.min_items, h.rule, g1, m])).digest('hex');
+  }
+  const g = [...groups].sort((a, b) => a.group_node_id - b.group_node_id).map((x) => [x.group_node_id, x.n_items, x.p10, x.p50, x.p90, x.width, x.flag, x.width_lo ?? null, x.width_hi ?? null]);
+  const sg = [...v2.subgroups]
+    .sort((a, b) => byText(a.subgroup_key, b.subgroup_key))
+    .map((x) => [x.subgroup_key, x.group_node_id, x.parent_key, x.depth, x.attribute, x.level_json, x.n_items, x.p10, x.p50, x.p90, x.width, x.width_lo, x.width_hi, x.flag]);
+  const sp = [...v2.splits].sort((a, b) => byText(a.parent_key, b.parent_key) || byText(a.level_json, b.level_json)).map((x) => [x.parent_key, x.level_json, x.attribute, x.child_key]);
+  const sc = [...v2.screen]
+    .sort((a, b) => byText(a.subgroup_key, b.subgroup_key) || byText(a.attribute, b.attribute))
+    .map((x) => [x.subgroup_key, x.attribute, x.levels, x.items, x.folds, x.insample_narrowing, x.heldout_narrowing, x.min_fold_narrowing, x.verdict, x.reason]);
+  return createHash('sha256').update(JSON.stringify([h.built_at, h.placement_seq, h.min_items, h.rule, g, m, sg, sp, sc])).digest('hex');
 }
 
 function lastPlacementSeq(db: DatabaseSync): number {
@@ -210,7 +394,7 @@ export function rebuildPriceLayer(db: DatabaseSync, options: RebuildOptions): Re
     const nodes = db.prepare('SELECT node_id, parent_id, depth, kind, department, tag FROM placement_node').all() as unknown as NodeRow[];
     const byId = new Map(nodes.map((n) => [n.node_id, n]));
     const leafOf = db.prepare('SELECT ip.leaf_id FROM item_placement ip WHERE ip.code = ?');
-    const values = new Map<number, number[]>();
+    const values = new Map<number, PricedItem[]>();
     let priced = 0;
     let unplacedIgnored = 0;
     const unknown: string[] = [];
@@ -227,16 +411,16 @@ export function rebuildPriceLayer(db: DatabaseSync, options: RebuildOptions): Re
       }
       priced += 1;
       const list = values.get(node.node_id);
-      if (list) list.push(v);
-      else values.set(node.node_id, [v]);
+      if (list) list.push({ code, v });
+      else values.set(node.node_id, [{ code, v }]);
     }
     options.duringRebuildForTests?.();
 
     // Bottom-up: deepest first.
     const tree = nodes.filter((n) => n.kind !== 'unplaced').sort((a, b) => b.depth - a.depth || a.node_id - b.node_id);
-    const carried = new Map<number, number[]>();
+    const carried = new Map<number, PricedItem[]>();
     const isGroup = new Set<number>();
-    const groupValues = new Map<number, number[]>();
+    const groupValues = new Map<number, PricedItem[]>();
     for (const n of tree) {
       const mine = [...(values.get(n.node_id) ?? []), ...(carried.get(n.node_id) ?? [])];
       if (n.kind === 'department' || mine.length >= minItems) {
@@ -261,30 +445,60 @@ export function rebuildPriceLayer(db: DatabaseSync, options: RebuildOptions): Re
     }
     const groups: GroupStat[] = [];
     const byFlag: Record<string, number> = {};
+    const subgroups: SubgroupRow[] = [];
+    const splits: SplitRow[] = [];
+    const screen: ScreenRow[] = [];
+    const productAttrs = db.prepare('SELECT brands, size_value, size_unit, nutriscore_grade, nova_group FROM product WHERE code = ?');
+    const rule = options.unsafeNoHeldOut ? `${GROUPING_RULE} [UNSAFE CONTROL: no held-out check]` : GROUPING_RULE;
+    let wideGroups = 0;
     for (const id of [...isGroup].sort((a, b) => a - b)) {
-      const vs = [...groupValues.get(id)!].sort((a, b) => a - b);
-      const n = vs.length;
-      const p10 = n ? nearestRank(vs, 10) : null;
-      const p50 = n ? nearestRank(vs, 50) : null;
-      const p90 = n ? nearestRank(vs, 90) : null;
-      const width = p10 !== null && p90 !== null ? Math.round((p90 / p10) * 10000) / 10000 : null;
-      const flag = n === 0 ? 'no_prices' : n < minItems ? 'thin' : width !== null && width > WIDE_RATIO ? 'wide' : 'ok';
+      const its = groupValues.get(id)!;
+      const key = String(id);
+      const st = groupStat(its.map((x) => x.v), key, { minItems });
+      let flag = st.flag;
+      if (st.flag === 'wide') {
+        const items: SplitItem[] = its.map((x) => ({ code: x.code, v: x.v, attrs: attributesOf(productAttrs.get(x.code) as ProductAttrRow | undefined) }));
+        const grown = growSplits(key, items, st, { minItems, ...(options.unsafeNoHeldOut ? { unsafeNoHeldOut: true } : {}) });
+        for (const s of grown.screen) screen.push(screenRow(s));
+        for (const sp of grown.rules) splits.push({ parent_key: sp.parentKey, level_json: sp.levelJson, attribute: sp.attribute, child_key: sp.childKey });
+        for (const nd of grown.nodes) subgroups.push(subgroupRow(nd, id));
+        if (grown.rules.some((r) => r.parentKey === key)) flag = 'split';
+      }
       byFlag[flag] = (byFlag[flag] ?? 0) + 1;
-      groups.push({ group_node_id: id, n_items: n, p10, p50, p90, width, flag });
+      if (flag === 'wide') wideGroups += 1;
+      groups.push({ group_node_id: id, n_items: st.n, p10: st.p10, p50: st.p50, p90: st.p90, width: st.width, flag, width_lo: st.widthLo, width_hi: st.widthHi });
+    }
+    const subgroupsByFlag: Record<string, number> = {};
+    for (const s of subgroups) {
+      subgroupsByFlag[s.flag] = (subgroupsByFlag[s.flag] ?? 0) + 1;
+      if (s.flag === 'wide') wideGroups += 1;
     }
     const map = [...groupOf.entries()].map(([a, b]) => [a, b] as const);
-    const header: Header = { built_at: options.builtAt, placement_seq: lastPlacementSeq(db), min_items: minItems, rule: GROUPING_RULE };
-    const contentHash = canonicalHash(header, groups, map);
+    const header: Header = { built_at: options.builtAt, placement_seq: lastPlacementSeq(db), min_items: minItems, rule };
+    const v2: V2Rows = { subgroups, splits, screen };
+    const contentHash = canonicalHash(header, groups, map, v2);
 
     const v = db
       .prepare(
         `INSERT INTO hierarchy_version (built_at, placement_seq, min_items, rule, priced_items, unplaced_prices_ignored, unknown_prices, group_count, node_count, content_hash)
          VALUES (?,?,?,?,?,?,?,?,?,?)`,
       )
-      .run(header.built_at, header.placement_seq, minItems, GROUPING_RULE, priced, unplacedIgnored, unknown.length, groups.length, map.length, contentHash);
+      .run(header.built_at, header.placement_seq, minItems, rule, priced, unplacedIgnored, unknown.length, groups.length, map.length, contentHash);
     const versionId = Number(v.lastInsertRowid);
-    const insG = db.prepare('INSERT INTO hierarchy_version_group (version_id, group_node_id, n_items, p10, p50, p90, width, flag) VALUES (?,?,?,?,?,?,?,?)');
-    for (const g of groups) insG.run(versionId, g.group_node_id, g.n_items, g.p10, g.p50, g.p90, g.width, g.flag);
+    const insG = db.prepare('INSERT INTO hierarchy_version_group (version_id, group_node_id, n_items, p10, p50, p90, width, flag, width_lo, width_hi) VALUES (?,?,?,?,?,?,?,?,?,?)');
+    for (const g of groups) insG.run(versionId, g.group_node_id, g.n_items, g.p10, g.p50, g.p90, g.width, g.flag, g.width_lo ?? null, g.width_hi ?? null);
+    const insS = db.prepare(
+      `INSERT INTO hierarchy_version_subgroup (version_id, subgroup_key, group_node_id, parent_key, depth, attribute, level_json, n_items, p10, p50, p90, width, width_lo, width_hi, flag)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    );
+    for (const s of subgroups) insS.run(versionId, s.subgroup_key, s.group_node_id, s.parent_key, s.depth, s.attribute, s.level_json, s.n_items, s.p10, s.p50, s.p90, s.width, s.width_lo, s.width_hi, s.flag);
+    const insR = db.prepare('INSERT INTO hierarchy_version_split (version_id, parent_key, level_json, attribute, child_key) VALUES (?,?,?,?,?)');
+    for (const s of splits) insR.run(versionId, s.parent_key, s.level_json, s.attribute, s.child_key);
+    const insC = db.prepare(
+      `INSERT INTO hierarchy_version_screen (version_id, subgroup_key, attribute, levels, items, folds, insample_narrowing, heldout_narrowing, min_fold_narrowing, verdict, reason)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+    );
+    for (const s of screen) insC.run(versionId, s.subgroup_key, s.attribute, s.levels, s.items, s.folds, s.insample_narrowing, s.heldout_narrowing, s.min_fold_narrowing, s.verdict, s.reason);
     const insM = db.prepare('INSERT INTO hierarchy_version_map (version_id, node_id, group_node_id) VALUES (?,?,?)');
     for (const [a, b] of map) insM.run(versionId, a, b);
 
@@ -308,6 +522,11 @@ export function rebuildPriceLayer(db: DatabaseSync, options: RebuildOptions): Re
       pricesForUnknownItems: unknown.length,
       groups: groups.length,
       groupsByFlag: byFlag,
+      subgroups: subgroups.length,
+      subgroupsByFlag,
+      splitGroups: byFlag['split'] ?? 0,
+      screenRows: screen.length,
+      wideGroups,
       nodes: map.length,
       contentHash,
     };
@@ -349,8 +568,22 @@ export interface GroupAnswer {
     readonly p50: number | null;
     readonly p90: number | null;
     readonly width: number | null;
+    /** The 95% bootstrap interval of `width` (null for a version built before intervals, or under 2 items). */
+    readonly widthLo: number | null;
+    readonly widthHi: number | null;
+    /**
+     * 'ok', 'wide', 'thin', 'no_prices'; or 'unmatched_level' when the item sits in a
+     * split group but in no subgroup (its attribute value is one with under 20 items, or
+     * missing): the numbers are then the whole parent's, not a subgroup's.
+     */
     readonly flag: string;
+    /** The subgroup (or base group) the numbers belong to: the group node id, then one `/attribute=level` per split. */
+    readonly subgroupKey: string;
+    /** The splits walked from the base group to the numbers, in order. */
+    readonly splitPath: readonly { readonly attribute: string; readonly level: string | null }[];
   };
+  /** The attribute values the lookup used; a replay re-derives from these, not from today's product row. */
+  readonly attrs: Attrs;
 }
 
 export interface UnplacedAnswer {
@@ -382,7 +615,7 @@ function versionRow(db: DatabaseSync, versionId?: number): VersionRow {
  * The price group of an item at a version (the latest when none is named). The
  * answer names the version it used. An unplaced item gets no group.
  */
-export function lookupGroup(db: DatabaseSync, code: string, versionId?: number): LookupAnswer {
+export function lookupGroup(db: DatabaseSync, code: string, versionId?: number, attrsUsed?: Attrs): LookupAnswer {
   const v = versionRow(db, versionId);
   const p = db.prepare('SELECT leaf_id FROM placement_log WHERE code = ? AND seq <= ? ORDER BY seq DESC LIMIT 1').get(code, v.placement_seq) as { leaf_id: number } | undefined;
   if (!p) throw new Error(`lookupGroup: ${code} had no placement at version ${v.version_id}`);
@@ -394,23 +627,70 @@ export function lookupGroup(db: DatabaseSync, code: string, versionId?: number):
   const g = db.prepare('SELECT * FROM hierarchy_version_group WHERE version_id = ? AND group_node_id = ?').get(v.version_id, m.group_node_id) as unknown as GroupStat | undefined;
   if (!g) throw new Error(`lookupGroup: group ${m.group_node_id} is missing from version ${v.version_id}`);
   const gNode = db.prepare('SELECT tag FROM placement_node WHERE node_id = ?').get(m.group_node_id) as { tag: string };
+  const tag = gNode.tag === DEPARTMENT_TAG ? DEPARTMENT_TAG : gNode.tag;
+  const path = pathOfNode(db, node.node_id);
+  if (isV1(v)) {
+    // A version built before splits: the answer keeps the shape it always had, so its recorded answers still replay byte for byte.
+    return { versionId: v.version_id, code, department: node.department, placed: true, path, group: { nodeId: m.group_node_id, tag, nItems: g.n_items, p10: g.p10, p50: g.p50, p90: g.p90, width: g.width, flag: g.flag } } as unknown as GroupAnswer;
+  }
+
+  // Walk the split rules from the base group down to the subgroup this item belongs to.
+  const attrs = canonicalAttrs(attrsUsed ?? attributesOf(db.prepare('SELECT brands, size_value, size_unit, nutriscore_grade, nova_group FROM product WHERE code = ?').get(code) as ProductAttrRow | undefined));
+  const rules = db.prepare('SELECT level_json, attribute, child_key FROM hierarchy_version_split WHERE version_id = ? AND parent_key = ?');
+  const subgroup = db.prepare('SELECT * FROM hierarchy_version_subgroup WHERE version_id = ? AND subgroup_key = ?');
+  let stat = { n_items: g.n_items, p10: g.p10, p50: g.p50, p90: g.p90, width: g.width, width_lo: g.width_lo ?? null, width_hi: g.width_hi ?? null, flag: g.flag };
+  let key = String(m.group_node_id);
+  const splitPath: { attribute: string; level: string | null }[] = [];
+  let unmatched = false;
+  for (;;) {
+    const rs = rules.all(v.version_id, key) as unknown as { level_json: string; attribute: string; child_key: string }[];
+    if (rs.length === 0) break;
+    const attribute = rs[0]!.attribute;
+    const value = attrs[attribute as keyof Attrs] ?? null;
+    const hit = rs.find((r) => r.level_json === (value === null ? 'null' : JSON.stringify(value))) ?? rs.find((r) => r.level_json === 'null');
+    if (!hit) {
+      unmatched = true;
+      break;
+    }
+    const child = subgroup.get(v.version_id, hit.child_key) as unknown as SubgroupRow | undefined;
+    if (!child) throw new Error(`lookupGroup: subgroup ${hit.child_key} is missing from version ${v.version_id}`);
+    splitPath.push({ attribute, level: hit.level_json === 'null' ? null : (JSON.parse(hit.level_json) as string) });
+    key = hit.child_key;
+    stat = { n_items: child.n_items, p10: child.p10, p50: child.p50, p90: child.p90, width: child.width, width_lo: child.width_lo, width_hi: child.width_hi, flag: child.flag };
+  }
   return {
     versionId: v.version_id,
     code,
     department: node.department,
     placed: true,
-    path: pathOfNode(db, node.node_id),
+    path,
     group: {
       nodeId: m.group_node_id,
-      tag: gNode.tag === DEPARTMENT_TAG ? DEPARTMENT_TAG : gNode.tag,
-      nItems: g.n_items,
-      p10: g.p10,
-      p50: g.p50,
-      p90: g.p90,
-      width: g.width,
-      flag: g.flag,
+      tag,
+      nItems: stat.n_items,
+      p10: stat.p10,
+      p50: stat.p50,
+      p90: stat.p90,
+      width: stat.width,
+      widthLo: stat.width_lo,
+      widthHi: stat.width_hi,
+      flag: unmatched ? 'unmatched_level' : stat.flag,
+      subgroupKey: key,
+      splitPath,
     },
+    attrs,
   };
+}
+
+function isV1(v: Header): boolean {
+  return v.rule.endsWith('; v1');
+}
+
+/** Attribute values in the fixed order, so an answer's JSON is the same whoever built the object. */
+function canonicalAttrs(a: Attrs): Attrs {
+  const out = {} as Record<string, string | null>;
+  for (const k of SPLIT_ATTRIBUTES) out[k] = a[k] ?? null;
+  return out as Attrs;
 }
 
 /** Stores an answer with the version it used. Returns its id. */
@@ -426,12 +706,25 @@ export function recordLookup(db: DatabaseSync, answer: LookupAnswer, recordedAt:
 export function verifyVersion(db: DatabaseSync, versionId: number): void {
   const v = versionRow(db, versionId);
   const groups = db
-    .prepare('SELECT group_node_id, n_items, p10, p50, p90, width, flag FROM hierarchy_version_group WHERE version_id = ?')
+    .prepare('SELECT group_node_id, n_items, p10, p50, p90, width, flag, width_lo, width_hi FROM hierarchy_version_group WHERE version_id = ?')
     .all(versionId) as unknown as GroupStat[];
   const map = (db.prepare('SELECT node_id, group_node_id FROM hierarchy_version_map WHERE version_id = ?').all(versionId) as unknown as { node_id: number; group_node_id: number }[]).map(
     (r) => [r.node_id, r.group_node_id] as const,
   );
-  const h = canonicalHash(v, groups.map((g) => ({ ...g })), map);
+  const v2: V2Rows | undefined = isV1(v)
+    ? undefined
+    : {
+        subgroups: db
+          .prepare('SELECT subgroup_key, group_node_id, parent_key, depth, attribute, level_json, n_items, p10, p50, p90, width, width_lo, width_hi, flag FROM hierarchy_version_subgroup WHERE version_id = ?')
+          .all(versionId) as unknown as SubgroupRow[],
+        splits: db.prepare('SELECT parent_key, level_json, attribute, child_key FROM hierarchy_version_split WHERE version_id = ?').all(versionId) as unknown as SplitRow[],
+        screen: db
+          .prepare(
+            'SELECT subgroup_key, attribute, levels, items, folds, insample_narrowing, heldout_narrowing, min_fold_narrowing, verdict, reason FROM hierarchy_version_screen WHERE version_id = ?',
+          )
+          .all(versionId) as unknown as ScreenRow[],
+      };
+  const h = canonicalHash(v, groups.map((g) => ({ ...g })), map, v2);
   if (h !== v.content_hash) throw new VersionTamperedError(`hierarchy version ${versionId} does not match its recorded hash: a stored row was changed`);
 }
 
@@ -452,7 +745,9 @@ export function replayLookup(db: DatabaseSync, answerId: number): Replay {
     | undefined;
   if (!a) throw new Error(`replayLookup: there is no recorded answer ${answerId}`);
   verifyVersion(db, a.version_id);
-  const replayed = JSON.stringify(lookupGroup(db, a.code, a.version_id));
+  // The attribute values the recorded answer used are replayed with it: a product row edited since must not change a past answer.
+  const used = (JSON.parse(a.answer_json) as { attrs?: Attrs }).attrs;
+  const replayed = JSON.stringify(lookupGroup(db, a.code, a.version_id, used));
   return { answerId, code: a.code, versionId: a.version_id, recorded: a.answer_json, replayed, same: replayed === a.answer_json };
 }
 
