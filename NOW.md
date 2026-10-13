@@ -71,8 +71,9 @@ five corrected readings) are in the archive under "CATALOGUE WORK, 2026-09-26":
 - After any category fill, restart the search workers: `rebuildCategories` invalidates their
   memoised tag sizes.
 - Categories (2026-10-08): every load ends with the canonicalize pass (real Open Food Facts chain,
-  raw tags kept); `npm run check:categories` must exit 0 after it. Backup before the first pass:
-  `catalogue/data/catalogue.db.before-category-canon`. The phone pack needs a re-export to carry it.
+  raw tags kept); `npm run check:categories` must exit 0 after it. The PC's four pre-change
+  backups (before-8digit-canon, before-category-canon, both before-dedupe) were deleted 2026-10-13
+  on Jamin's word to free disk; the raw tags in catalogue.db are the undo. The phone pack needs a re-export to carry it.
 
 **Pricing without data, 2026-09-28:** Jamin's nested-category design, the flawed first plan and
 why, and the Gemini liquor test (typical within 20% for 61%, its own ranges catch only 53%, 0.7x
