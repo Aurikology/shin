@@ -140,6 +140,19 @@ test('leaf_category and parent_category: from similar products in the category t
   assert.equal(between(bare, 'data-cat-basis'), 'From similar products in Peanut butters');
 });
 
+/* 3.1 (2026-10-13): the server's last rungs answer every request, so the sheet must draw them.
+   A range this build does not know is not drawn at all, which would hide the answer 3.1 added. */
+test('3.1 last rungs are drawn: an estimate from the department says similar products, the fixed bell says it is a broad guess', () => {
+  for (const basis of ['category_prior', 'department_prior']) {
+    const html = inLocale('en', () => catalogueSheet(hit(RANGE({ basis, n: 0, confidence: 'low' }), { rangeSource: 'shin_estimate' }), { state: TEN_TEN }));
+    assert.equal(between(html, 'data-cat-basis'), 'From similar products in Peanut butters', basis);
+  }
+  const broad = inLocale('en', () => catalogueSheet(hit(RANGE({ basis: 'fixed_prior', lowCents: 278, highCents: 3602, medianCents: null, n: 0, confidence: 'low' }), { rangeSource: 'fixed_prior' }), { state: TEN_TEN }));
+  assert.equal(between(broad, 'data-cat-basis'), 'A broad guess: Pexi has no prices for items like this yet');
+  const fr = inLocale('fr', () => catalogueSheet(hit(RANGE({ basis: 'fixed_prior', lowCents: 278, highCents: 3602, medianCents: null, n: 0 }), { rangeSource: 'fixed_prior' }), { state: TEN_TEN }));
+  assert.equal(between(fr, 'data-cat-basis'), 'Une estimation large : Pexi n’a pas encore de prix pour ce genre d’article');
+});
+
 /* Changed 2026-10-10 (top-of-screen audit row 12): the line said "asked <date>", an
    internal fact no shopper acts on. It now says it was estimated by AI and never
    the date; the date it was asked is still on the wire, just not on the sheet. */

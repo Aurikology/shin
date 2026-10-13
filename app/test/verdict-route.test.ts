@@ -424,8 +424,10 @@ test('case 8: a typed name that matches nothing is asked of Claude from the type
   const asks = askCalls.length;
   const { body } = await get('/api/identify?text=zorbo%20fizz%20drink&deviceId=typed-test&countryCode=CA');
   assert.equal(body.found, false);
-  assert.equal(askCalls.length, asks + 1);
-  assert.match(askCalls[askCalls.length - 1]!, /Product: zorbo fizz drink/);
+  // Count only asks about THIS product, as the read-text test below does: the slow-Claude test before
+  // this one leaves an ask that can land late under a loaded full run (2026-10-13, 5 !== 4).
+  const mine = askCalls.slice(asks).filter((u) => /Product: zorbo fizz drink/.test(u));
+  assert.equal(mine.length, 1);
   assert.equal(body.verdict.basis, 'claude_typical');
 });
 

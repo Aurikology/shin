@@ -37,7 +37,10 @@ import { zoneFor } from './verdict-chart.js';
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 
-export const BASES = Object.freeze(['this_product', 'leaf_category', 'parent_category', 'gemini_typical']);
+// The last four are the server's last rungs (requirement 3.1): an estimate from the item's
+// category or department, and the fixed wide bell when Pexi holds nothing at all.
+const ESTIMATE_BASES = ['category_prior', 'department_prior'];
+export const BASES = Object.freeze(['this_product', 'leaf_category', 'parent_category', 'gemini_typical', ...ESTIMATE_BASES, 'fixed_prior']);
 
 /**
  * A usable range off the wire, or null. A range with a missing bound, a low
@@ -126,7 +129,8 @@ export function provenanceOf(range, identity = null) {
     if (!isNum(r.n) || r.n < 1) return { key: 'cat_basis_shin_bare', facts: {} };
     return { key: r.n === 1 ? 'cat_basis_shin_one' : 'cat_basis_shin', facts: { n: String(r.n) } };
   }
-  if (r.basis === 'leaf_category' || r.basis === 'parent_category') {
+  if (r.basis === 'fixed_prior') return { key: 'cat_basis_broad', facts: {} };
+  if (r.basis === 'leaf_category' || r.basis === 'parent_category' || ESTIMATE_BASES.includes(r.basis)) {
     const name = (r.category?.name ?? identity?.category?.name ?? '').trim();
     return name ? { key: 'cat_basis_category', facts: { category: name } } : { key: 'cat_basis_category_bare', facts: {} };
   }

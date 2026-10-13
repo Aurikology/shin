@@ -25,10 +25,13 @@
  *        (price/src/range.ts) computes the range from Shin's own prices. When
  *        its basis is `none`, `askRange` is called once if the caller passed
  *        one; the server passes the capped Claude ask, no web search
- *        (identify/src/range-ask.ts `askTypicalRange`). If that ask fails for
- *        any reason, or no ask is passed, the answer still comes back with the
- *        identity, no range and the reason code (`no_shin_prices` when no ask
- *        was passed; RULINGS "Always answer");
+ *        (identify/src/range-ask.ts `askTypicalRange`), and only when the range
+ *        ladder has no range of its own (requirement 6.1). If that ask fails for
+ *        any reason, or no ask is passed, the range comes from the last rungs
+ *        (`lastRungRange`: the verdict ladder's own bell, else the fixed wide
+ *        bell, both low confidence; requirement 3.1, "0 requests end without a
+ *        range") and `noRangeReason` keeps the reason code (`no_shin_prices`
+ *        when no ask was passed; RULINGS "Always answer");
  *     3. not found: before anything says so, the item is named elsewhere
  *        (RULINGS.md "A scan never ends with no result", 2026-10-10), in
  *        order: a live Open Food Facts lookup (identity only), a reading
@@ -67,12 +70,14 @@
  *       lowCents: number, highCents: number,
  *       medianCents: number | null,   // null for gemini_typical
  *       n: number | null,             // shops (this_product) or products (category); null for gemini_typical
- *       basis: 'this_product' | 'leaf_category' | 'parent_category' | 'gemini_typical',
+ *       basis: 'this_product' | 'leaf_category' | 'parent_category' | 'gemini_typical'
+ *              | a verdict basis ('category_prior', 'department_prior', ...) | 'fixed_prior',   // last rungs, 3.1
+ *       confidence?: 'low',           // last-rung ranges only
  *       category: null | { tag: string, name: string },   // set for the two category bases
  *       currency: string,
  *       unit: string | null,          // gemini_typical only: what one price buys, as the model said
  *     },
- *     rangeSource: 'shin_prices' | 'claude_typical' | null,
+ *     rangeSource: 'shin_prices' | 'claude_typical' | 'shin_estimate' | 'fixed_prior' | null,
  *     rangeAskedAt: string | null,    // ISO time of the Claude ask, claude_typical only
  *     noRangeReason: string | null,   // why range is null, e.g. 'monthly_cap_reached'
  *     shelfPrice: null | { cents: number, from: 'weighed_label' },
@@ -110,7 +115,16 @@ import * as settings from '../../settings/src/index.ts';
 import { parentOf, priceRangeFor, type RangeResult } from '../../price/src/range.ts';
 import type { RangeAskFailure, RangeAskResult, RangeIdentity } from '../../identify/src/range-ask.ts';
 import type { CanonicalBarcode } from './barcode.ts';
-import { estimate, type EstimateDeps, type EstimateTrace, type Verdict } from '../../price/src/estimate.ts';
+import {
+  estimate,
+  EMPTY_PRIOR,
+  Z10,
+  type Basis,
+  type ClaudeAskContext,
+  type EstimateDeps,
+  type EstimateTrace,
+  type Verdict,
+} from '../../price/src/estimate.ts';
 import { onceAsk, shownRange, type RangeAskOutcome } from './distribution.ts';
 import { positionalParent, type CategoryFaultKind, type CategoryGuard } from './category-guard.ts';
 
@@ -221,10 +235,20 @@ export interface CatalogueRange {
   readonly highCents: number;
   readonly medianCents: number | null;
   readonly n: number | null;
-  readonly basis: 'this_product' | 'leaf_category' | 'parent_category' | 'gemini_typical';
+  /**
+   * The first four are the range ladder's and Claude's. The rest are the LAST RUNGS (requirement
+   * 3.1, "0 requests end without a range"): when neither Pexi's prices nor Claude gave a range, the
+   * range is the verdict ladder's own bell, p10 to p90, under that ladder's basis (`category_prior`,
+   * `department_prior`, ...), and with no price in the item's department at all, `fixed_prior`, the
+   * fixed wide bell (EMPTY_PRIOR). Those always carry `confidence: 'low'`. A client that does not
+   * know a basis does not draw it (catalogue-range.js `usableRange`) and says `noRangeReason` instead.
+   */
+  readonly basis: 'this_product' | 'leaf_category' | 'parent_category' | 'gemini_typical' | Basis | 'fixed_prior';
   readonly category: CategoryRef | null;
   readonly currency: string;
   readonly unit: string | null;
+  /** Present on a last-rung range only, always 'low' (requirement 1.8). */
+  readonly confidence?: 'low';
 }
 
 /**
@@ -232,7 +256,7 @@ export interface CatalogueRange {
  * `pool_too_wide` (D-233): the only Pexi basis was a category pool too wide to mean anything, and
  * Claude did not answer, so there is no range and no verdict: the estimate is too thin to judge a price.
  */
-export type NoRangeReason = RangeAskFailure | 'rate_limited' | 'no_shin_prices' | 'claude_slow' | 'pool_too_wide';
+export type NoRangeReason = RangeAskFailure | 'rate_limited' | 'no_shin_prices' | 'claude_slow' | 'pool_too_wide' | 'unusable_claude_range';
 
 export interface CatalogueAnswer {
   readonly kind: 'catalogue';
@@ -247,8 +271,16 @@ export interface CatalogueAnswer {
   readonly barcode: string;
   readonly identity: CatalogueIdentity | null;
   readonly range: CatalogueRange | null;
-  readonly rangeSource: 'shin_prices' | 'claude_typical' | null;
+  /**
+   * `shin_estimate`: a last-rung range from the verdict ladder's bell over Pexi's data;
+   * `fixed_prior`: the fixed wide bell, no data at all (requirement 3.1).
+   */
+  readonly rangeSource: 'shin_prices' | 'claude_typical' | 'shin_estimate' | 'fixed_prior' | null;
   readonly rangeAskedAt: string | null;
+  /**
+   * Why neither Pexi's own prices nor Claude gave a range. Kept when a last-rung range stands in,
+   * so the reason is never lost and a client that cannot draw that range still says it.
+   */
   readonly noRangeReason: NoRangeReason | null;
   readonly shelfPrice: { readonly cents: number; readonly from: 'weighed_label' } | null;
   /**
@@ -397,6 +429,71 @@ export async function safeEstimate(...args: Parameters<typeof estimate>): Promis
   }
 }
 
+/**
+ * The category guard's taxonomy, never a throw. A guard that throws is logged and counted
+ * (`taxonomy_failed`) and the ladders run without a taxonomy, which they already handle by flagging
+ * `parent_unchecked`. Found by the 3.1 random-input test: a throwing guard took the whole answer down.
+ */
+function safeTaxonomy(guard: CategoryGuard | undefined): ReturnType<CategoryGuard['taxonomy']> {
+  if (!guard) return null;
+  try {
+    return guard.taxonomy() ?? null;
+  } catch (err) {
+    warnCatalogueFault('taxonomy_failed', err instanceof Error ? err.message : String(err));
+    return null;
+  }
+}
+
+/**
+ * THE LAST RUNGS (requirement 3.1, "0 requests end without a range"). Called only when neither
+ * Pexi's own prices (the range ladder) nor Claude gave a range. In order:
+ *   1. the verdict ladder's own bell, p10 to p90, under its basis: the item's own prices, another
+ *      size, its category, its brand, the widest category it sits in, or every priced product in its
+ *      department. This is still Pexi's data (`shin_estimate`);
+ *   2. no price in the item's department, a too-thin estimate (D-233: its only pool was set aside as
+ *      too wide, and a pool set aside never sets a range), or no estimate at all (it failed): the
+ *      fixed wide bell, EMPTY_PRIOR p10 to p90 (`fixed_prior`), which says "we hold nothing" by its
+ *      width.
+ * Every last-rung range is `confidence: 'low'` (1.8). Never throws.
+ */
+export function lastRungRange(
+  est: Awaited<ReturnType<typeof estimate>> | null,
+  currency: string,
+): { range: CatalogueRange; source: 'shin_estimate' | 'fixed_prior' } {
+  const v = est?.verdict ?? null;
+  const cur = v?.currency || (currency ?? '').trim().toUpperCase() || 'CAD';
+  // D-233: a pool set aside as too wide never sets a range, so a too-thin bell (drawn from that pool's
+  // prior) does not stand in either; the fixed wide bell does.
+  if (v && !est!.trace.noPrices && !est!.trace.tooThin && Number.isFinite(v.p10Cents) && Number.isFinite(v.p90Cents)) {
+    const low = Math.max(1, Math.round(v.p10Cents));
+    const high = Math.max(low, Math.round(v.p90Cents));
+    return {
+      range: { lowCents: low, highCents: high, medianCents: Math.round(v.centreCents) || null, n: v.n, basis: v.basis, category: null, currency: cur, unit: null, confidence: 'low' },
+      source: 'shin_estimate',
+    };
+  }
+  const low = Math.max(1, Math.round(EMPTY_PRIOR.centreCents * Math.exp(-Z10 * EMPTY_PRIOR.sigmaLog)));
+  const high = Math.max(low, Math.round(EMPTY_PRIOR.centreCents * Math.exp(Z10 * EMPTY_PRIOR.sigmaLog)));
+  return {
+    range: { lowCents: low, highCents: high, medianCents: null, n: 0, basis: 'fixed_prior', category: null, currency: cur, unit: null, confidence: 'low' },
+    source: 'fixed_prior',
+  };
+}
+
+/** A Claude range a shopper may be shown: whole positive cents, low <= high, in the answer's currency. */
+function usableClaudeRange(r: unknown, currency: string): r is { lowCents: number; highCents: number; currency: string; unit: string; askedAt: string } {
+  if (!r || typeof r !== 'object') return false;
+  const x = r as { lowCents?: unknown; highCents?: unknown; currency?: unknown };
+  const want = (currency ?? '').trim().toUpperCase() || 'CAD';
+  return (
+    Number.isInteger(x.lowCents) &&
+    Number.isInteger(x.highCents) &&
+    (x.lowCents as number) > 0 &&
+    (x.lowCents as number) <= (x.highCents as number) &&
+    x.currency === want
+  );
+}
+
 /* ----------------------------------------------------------------- helpers */
 
 /** "en:peanut-butters" -> "Peanut butters". Same rule as search.ts's labelForTag, which this avoids importing (it loads the vector extension). */
@@ -428,6 +525,27 @@ export function categoryRef(tag: string | null | undefined, path: readonly strin
 
 function isRow(v: unknown): v is CatalogueRow {
   return !!v && typeof v === 'object' && typeof (v as CatalogueRow).code === 'string' && typeof (v as CatalogueRow).name === 'string';
+}
+
+/**
+ * A row as the price ladder reads it: a field of the wrong type is read as absent, never trusted
+ * into a `.length` or a `.split`. Found by the 3.1 random-input test (a row with no category path
+ * threw before any rung ran).
+ */
+function normaliseRow(row: CatalogueRow): CatalogueRow {
+  const s = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+  const path = Array.isArray(row.categoryPath) ? row.categoryPath.filter((t): t is string => typeof t === 'string') : [];
+  return {
+    code: row.code,
+    name: row.name,
+    nameEn: s(row.nameEn),
+    brands: s(row.brands),
+    quantity: s(row.quantity),
+    sizeValue: typeof row.sizeValue === 'number' ? row.sizeValue : null,
+    sizeUnit: s(row.sizeUnit),
+    leafCategory: s(row.leafCategory),
+    categoryPath: path,
+  };
 }
 
 function identityOf(row: CatalogueRow): CatalogueIdentity {
@@ -477,7 +595,7 @@ export async function answerBarcodeFromCatalogue(
   if (deps.lookup) {
     try {
       const hit = deps.lookup.byGtin(barcode.gtin);
-      row = isRow(hit) ? hit : null;
+      row = isRow(hit) ? normaliseRow(hit) : null;
     } catch (err) {
       row = null;
       lookupFailed = true;
@@ -493,6 +611,7 @@ export async function answerBarcodeFromCatalogue(
      */
     let verdict: Verdict | null = null;
     let storeIdentity: CatalogueAnswer['storeIdentity'] = null;
+    let storeEstimate: Awaited<ReturnType<typeof estimate>> | null = null;
     if (deps.prices) {
       const est = await safeEstimate(
         {
@@ -503,11 +622,12 @@ export async function answerBarcodeFromCatalogue(
           asOf: deps.asOf,
         },
         deps.shopper ?? null,
-        { prices: deps.prices, catalogue: deps.catalogue, sortName: deps.sortName, taxonomy: deps.categoryGuard?.taxonomy() ?? null },
+        { prices: deps.prices, catalogue: deps.catalogue, sortName: deps.sortName, taxonomy: safeTaxonomy(deps.categoryGuard) },
       );
       if (est && est.verdict.dots.length > 0 && est.trace.name) {
         verdict = est.verdict;
         storeIdentity = { name: est.trace.name, brand: est.trace.brand, size: est.trace.size, barcode: barcode.gtin };
+        storeEstimate = est;
       }
     }
 
@@ -545,11 +665,14 @@ export async function answerBarcodeFromCatalogue(
         record: { ...missRecord(null, null), answerPath: 'frame_wanted', rangeMissReason: `no_name:${noName.reasons.join(',')}` },
       };
     }
+    // 3.1: a store-named item (design case 2) is named, so it carries a range: its verdict's own bell.
+    const storeRange = storeEstimate ? lastRungRange(storeEstimate, deps.currency) : null;
     return {
       answer: {
         ...emptyAnswer(barcode.gtin, deps.lookup !== null && !lookupFailed, shelfPrice),
         verdict,
         storeIdentity,
+        ...(storeRange ? { range: storeRange.range, rangeSource: storeRange.source } : {}),
         ...(noName ? { noNameReasons: noName.reasons } : {}),
       },
       record: {
@@ -613,11 +736,14 @@ function recordedRange(
   usable: RangeResult | null,
   laddered: boolean,
   verdict: Verdict | null,
+  lastRung: CatalogueRange | null = null,
 ): { rangeSource: NonNullable<CatalogueRecord['rangeSource']>; rangeBasis: string | null } {
   if (rangeSource === 'shin_prices' && usable) return { rangeSource, rangeBasis: usable.basis };
   if (rangeSource === 'claude_typical') return { rangeSource, rangeBasis: 'claude_typical' };
   const shown = shownRange(verdict);
   if (shown) return shown;
+  // 3.1: a last-rung range, recorded the way a prior verdict is (source 'none', its basis named).
+  if (lastRung) return { rangeSource: 'none', rangeBasis: lastRung.basis };
   return { rangeSource: 'none', rangeBasis: laddered ? 'none' : null };
 }
 
@@ -682,8 +808,76 @@ async function priceIdentity(
    * spends two cap slots.
    */
   const once = onceAsk(deps.askRange, identity.category?.name ?? null);
+  const taxonomy = safeTaxonomy(deps.categoryGuard);
   let verdict: Verdict | null = null;
   let conflict: EstimateTrace['conflict'] = null;
+
+  /*
+   * The range ladder over Pexi's own prices, for the category the item stands in: its own, or, for a
+   * name from outside the catalogue, the one the verdict ladder sorted it into. Memoised on that
+   * category, so the 6.1 gate below and the answer read the very same result.
+   */
+  const ladderMemo = new Map<string, RangeResult | null>();
+  const categoryOf = (sortedBy: ClaudeAskContext['sorted']): { leafCategory: string | null; categoryPath: readonly string[] } => {
+    const s = !row.leafCategory && row.categoryPath.length === 0 ? sortedBy : null;
+    return s
+      ? { leafCategory: s.leafCategory ?? s.categoryPath[s.categoryPath.length - 1] ?? null, categoryPath: s.categoryPath }
+      : { leafCategory: row.leafCategory, categoryPath: row.categoryPath };
+  };
+  const rangeLadder = (sortedBy: ClaudeAskContext['sorted']): RangeResult | null => {
+    if (!deps.prices) return null;
+    const c = categoryOf(sortedBy);
+    const key = JSON.stringify([c.leafCategory, c.categoryPath]);
+    if (ladderMemo.has(key)) return ladderMemo.get(key)!;
+    let result: RangeResult | null;
+    try {
+      result = priceRangeFor(
+        {
+          barcode: priceBarcode,
+          name: identity.name,
+          brand: identity.brand,
+          size: identity.size,
+          leafCategory: c.leafCategory,
+          categoryPath: c.categoryPath,
+          asOf: deps.asOf,
+          currency: deps.currency,
+        },
+        // The taxonomy the category guard loaded: the parent rung is the taxonomy parent. Without one the ladder
+        // falls back to the position rule and records `parent_unchecked` on the step (never silent).
+        { prices: deps.prices, catalogue: deps.catalogue, taxonomy },
+      );
+    } catch (err) {
+      // The answer goes on without a range, but the fault is logged with the fixed tag, never swallowed.
+      console.error(`[category-fault] range_failed ${row.code} - ${err instanceof Error ? err.message : String(err)}`);
+      result = null;
+    }
+    ladderMemo.set(key, result);
+    return result;
+  };
+  /** D-233's rule, in one place: the item's own prices always stand; a category pool only when neither ladder set one aside. */
+  const shinRangeStands = (ladder: RangeResult | null, poolSetAside: boolean): boolean => {
+    if (ladder === null || ladder.basis === 'none') return false;
+    if (ladder.basis === 'this_product') return true;
+    return !(poolSetAside || ladder.wide);
+  };
+
+  /*
+   * REQUIREMENT 6.1, "Call Claude only when the catalogue cannot produce a range ... 0 calls where a
+   * range existed". The verdict ladder reaches its Claude rung by its own tests (size band, unit
+   * family), which are stricter than the range ladder's; before this gate it could spend a paid call
+   * on an item the range ladder then priced from Pexi's own data, and the answer threw Claude's away.
+   * Now the rung is refused (`range_existed`, no call, no cap slot) whenever the range ladder, for the
+   * same category, already stands by the same rule the answer uses below.
+   */
+  const askClaude: EstimateDeps['askClaude'] | undefined = once
+    ? async (id, ctx) => {
+        if (shinRangeStands(rangeLadder(ctx?.sorted ?? null), ctx?.poolSetAside ?? false)) {
+          return { ok: false, reason: 'range_existed' };
+        }
+        return once.askClaude(id);
+      }
+    : undefined;
+
   const est = await safeEstimate(
     {
       barcode: priceBarcode,
@@ -702,8 +896,8 @@ async function priceIdentity(
     {
       prices: deps.prices,
       catalogue: deps.catalogue,
-      taxonomy: deps.categoryGuard?.taxonomy() ?? null,
-      ...(once ? { askClaude: once.askClaude } : {}),
+      taxonomy,
+      ...(askClaude ? { askClaude } : {}),
       sortName: deps.sortName,
       ...(deps.claudeWaitMs !== undefined ? { claudeWaitMs: deps.claudeWaitMs } : {}),
     },
@@ -716,34 +910,10 @@ async function priceIdentity(
 
   // A name from outside the catalogue has no category of its own; the one the verdict sorted it into is the range's too.
   const sorted = !row.leafCategory && row.categoryPath.length === 0 ? (est?.trace.sorted ?? null) : null;
-  const leafCategory = sorted ? (sorted.leafCategory ?? sorted.categoryPath[sorted.categoryPath.length - 1] ?? null) : row.leafCategory;
-  const categoryPath = sorted ? sorted.categoryPath : row.categoryPath;
+  const { leafCategory, categoryPath } = categoryOf(sorted);
   if (sorted) identity = { ...identity, category: categoryRef(leafCategory, categoryPath) };
 
-  let ladder: RangeResult | null = null;
-  if (deps.prices) {
-    try {
-      ladder = priceRangeFor(
-        {
-          barcode: priceBarcode,
-          name: identity.name,
-          brand: identity.brand,
-          size: identity.size,
-          leafCategory,
-          categoryPath,
-          asOf: deps.asOf,
-          currency: deps.currency,
-        },
-        // The taxonomy the category guard loaded: the parent rung is the taxonomy parent. Without one the ladder
-        // falls back to the position rule and records `parent_unchecked` on the step (never silent).
-        { prices: deps.prices, catalogue: deps.catalogue, taxonomy: deps.categoryGuard?.taxonomy() ?? null },
-      );
-    } catch (err) {
-      // The answer goes on without a range, but the fault is logged with the fixed tag, never swallowed.
-      console.error(`[category-fault] range_failed ${row.code} - ${err instanceof Error ? err.message : String(err)}`);
-      ladder = null;
-    }
-  }
+  const ladder: RangeResult | null = rangeLadder(sorted);
 
   /*
    * D-233: a category pool too wide to mean anything sets no range. The range
@@ -754,7 +924,7 @@ async function priceIdentity(
    */
   const categoryLadder = ladder !== null && (ladder.basis === 'leaf_category' || ladder.basis === 'parent_category') ? ladder : null;
   const poolTooWide = wide !== null || (categoryLadder?.wide ?? false);
-  const ladderUsable = ladder !== null && ladder.basis !== 'none' && (ladder.basis === 'this_product' || !poolTooWide);
+  const ladderUsable = shinRangeStands(ladder, wide !== null);
   let claudeWhy: string | null = null;
   if (ladderUsable) {
     range = fromShinPrices(ladder as Exclude<RangeResult, { basis: 'none' }>, categoryPath);
@@ -769,7 +939,12 @@ async function priceIdentity(
     claudeWhy = 'timeout';
   } else {
     const asked: RangeAskOutcome = once.settled()!;
-    if (asked.ok) {
+    if (asked.ok && !usableClaudeRange(asked.range, deps.currency)) {
+      // The ask validates its own answer; this is the second lock at the door the shopper sees, for any ask
+      // wired in later. A range with no bounds, low above high, or another currency is never shown.
+      noRangeReason = poolTooWide ? 'pool_too_wide' : 'unusable_claude_range';
+      claudeWhy = 'unusable_range';
+    } else if (asked.ok) {
       range = {
         lowCents: asked.range.lowCents,
         highCents: asked.range.highCents,
@@ -803,6 +978,13 @@ async function priceIdentity(
     warnCatalogueFault('pool_too_wide', `${row.code} range set aside as too wide, Claude ${claudeWhy ?? 'unknown'}; no range shown`);
   }
 
+  // 3.1: neither Pexi's prices nor Claude gave a range, so the last rungs do; `noRangeReason` keeps why.
+  if (!range) {
+    const last = lastRungRange(est, deps.currency);
+    range = last.range;
+    rangeSource = last.source;
+  }
+
   /*
    * The category safeguard. When the range or the verdict stood on a PARENT
    * rung, the parent must be an ancestor of the leaf in the taxonomy. A fault is
@@ -813,14 +995,19 @@ async function priceIdentity(
    */
   const categoryFaults: CategoryFaultKind[] = [];
   if (deps.categoryGuard) {
-    const at = positionalParent(leafCategory, categoryPath);
-    const verdictParent = parentOf(at.leaf, categoryPath, deps.categoryGuard.taxonomy()).parent;
-    const checks: [('range' | 'verdict'), string | null][] = [];
-    if (ladderUsable && ladder!.basis === 'parent_category') checks.push(['range', ladder!.category]);
-    if (verdict && verdict.basis === 'parent_category') checks.push(['verdict', verdictParent]);
-    for (const [via, parent] of checks) {
-      const f = deps.categoryGuard.check({ via, barcode: row.code, leaf: at.leaf, parent });
-      if (f && !categoryFaults.includes(f)) categoryFaults.push(f);
+    // The guard watches the answer and never changes it, so a guard that throws is logged and the answer goes out.
+    try {
+      const at = positionalParent(leafCategory, categoryPath);
+      const verdictParent = parentOf(at.leaf, categoryPath, taxonomy).parent;
+      const checks: [('range' | 'verdict'), string | null][] = [];
+      if (ladderUsable && ladder!.basis === 'parent_category') checks.push(['range', ladder!.category]);
+      if (verdict && verdict.basis === 'parent_category') checks.push(['verdict', verdictParent]);
+      for (const [via, parent] of checks) {
+        const f = deps.categoryGuard.check({ via, barcode: row.code, leaf: at.leaf, parent });
+        if (f && !categoryFaults.includes(f)) categoryFaults.push(f);
+      }
+    } catch (err) {
+      warnCatalogueFault('guard_failed', `${row.code} ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -848,7 +1035,13 @@ async function priceIdentity(
       outcome: 'answered',
       failureClass: null,
       answerPath: how.answerPath,
-      ...recordedRange(rangeSource, ladderUsable ? ladder : null, ladder !== null, verdict),
+      ...recordedRange(
+        rangeSource,
+        ladderUsable ? ladder : null,
+        ladder !== null,
+        verdict,
+        rangeSource === 'shin_estimate' || rangeSource === 'fixed_prior' ? range : null,
+      ),
       rangeMissReason,
       verdict,
       conflict,

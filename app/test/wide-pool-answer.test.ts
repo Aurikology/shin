@@ -130,14 +130,18 @@ for (const [label, pool, othersPath] of [
     assert.equal(record.rangeMissReason, 'pool_too_wide', 'the scan row says which way it went');
   });
 
-  test(`D-233 ${label}: Claude unavailable means no verdict, no range, too thin, logged loudly and on the row`, async () => {
+  test(`D-233 ${label}: Claude unavailable means no verdict, no range from the pool, too thin, logged loudly and on the row`, async () => {
     resetCatalogueFaultsForTests();
     const a = asker({ ok: false, reason: 'monthly_cap_reached' });
     const { out, lines } = await logged(() => scan(world(pool, othersPath), { askRange: a.askRange as BarcodeDeps['askRange'] }));
     const { answer, record } = out;
     assert.equal(a.calls.length, 1, 'Claude was asked');
     assert.equal(answer.verdict, null, 'no verdict, so no zone headline and nothing for a typed price to be placed on');
-    assert.equal(answer.range, null);
+    // 3.1 (2026-10-13): every named request ends in a range, so the fixed wide bell stands in at low
+    // confidence. The set-aside pool still sets nothing: not the range, its centre or its width.
+    assert.equal(answer.range?.basis, 'fixed_prior');
+    assert.equal(answer.range?.confidence, 'low');
+    assert.equal(answer.rangeSource, 'fixed_prior');
     assert.equal(answer.noRangeReason, 'pool_too_wide');
     assert.deepEqual(answer.widePool?.cents, [...pool].sort((x, y) => x - y));
     assert.equal(record.verdict, null);
@@ -149,7 +153,7 @@ for (const [label, pool, othersPath] of [
   test(`D-233 ${label}: no ask wired at all is too thin as well`, async () => {
     const { out } = await logged(() => scan(world(pool, othersPath)));
     assert.equal(out.answer.verdict, null);
-    assert.equal(out.answer.range, null);
+    assert.equal(out.answer.range?.basis, 'fixed_prior', '3.1: the fixed wide bell, never the set-aside pool');
     assert.equal(out.answer.noRangeReason, 'pool_too_wide');
     assert.equal(out.record.rangeMissReason, 'pool_too_wide:no_ask');
   });

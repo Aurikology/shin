@@ -379,7 +379,7 @@ test('ON, catalogue hit Pexi cannot price: exactly one Claude range ask, zero Ge
   assert.equal(row.range_basis, 'claude_typical');
 });
 
-test('ON, the monthly ask cap reached: the identity still comes back, no range, the reason, no model call', async () => {
+test('ON, the monthly ask cap reached: the identity still comes back, a low-confidence last-rung range, the reason, no model call', async () => {
   on();
   process.env.SHIN_RANGE_ASK_MONTHLY_CAP = '0';
   try {
@@ -388,8 +388,11 @@ test('ON, the monthly ask cap reached: the identity still comes back, no range, 
     const body = await identify(CAP_HIT);
     assert.equal(body.outcome, 'catalogue_hit');
     assert.equal((body.identity as Record<string, unknown>).name, 'Cola Zero');
-    assert.equal(body.range, null);
-    assert.equal(body.rangeSource, null);
+    // 3.1 (2026-10-13): no request that names an item ends without a range; the last rung stands in,
+    // low confidence, and the reason Claude was not asked is kept.
+    const range = body.range as Record<string, unknown>;
+    assert.equal(range.confidence, 'low');
+    assert.ok(body.rangeSource === 'shin_estimate' || body.rangeSource === 'fixed_prior', String(body.rangeSource));
     assert.equal(body.noRangeReason, 'monthly_cap_reached');
     assert.equal(askCalls.length, asksBefore, 'the ask went out past the cap');
     assert.equal(scanDouble.calls.length, scansBefore);

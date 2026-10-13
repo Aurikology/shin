@@ -226,6 +226,14 @@ export interface ClaudeIdentity {
   readonly market: string;
 }
 
+/** What the ladder knew when it reached the Claude rung (requirement 6.1). */
+export interface ClaudeAskContext {
+  /** The category the item's name was sorted into, when it came with none (as `trace.sorted`). */
+  readonly sorted: { readonly leafCategory: string | null; readonly categoryPath: readonly string[] } | null;
+  /** A category pool was set aside as too wide on the way down (as `trace.widePool !== null`). */
+  readonly poolSetAside: boolean;
+}
+
 export type ClaudeAnswer =
   | { readonly ok: true; readonly lowCents: number; readonly highCents: number; readonly currency: string }
   | { readonly ok: false; readonly reason: string };
@@ -237,8 +245,12 @@ export interface EstimateDeps {
   readonly catalogue?: DatabaseSync | null;
   /** The category taxonomy the parent rung is read from (B2). Absent or null: the tag before the leaf, flagged `parent_unchecked` on the rung. */
   readonly taxonomy?: Taxonomy | null;
-  /** The capped, no-web-search Claude range ask. Absent: the rung is skipped. */
-  readonly askClaude?: (identity: ClaudeIdentity) => Promise<ClaudeAnswer>;
+  /**
+   * The capped, no-web-search Claude range ask. Absent: the rung is skipped. The second argument is
+   * what the ladder knew when it reached this rung, so a caller can refuse the call when its own
+   * range ladder already has a range (requirement 6.1, "0 calls where a range existed").
+   */
+  readonly askClaude?: (identity: ClaudeIdentity, context?: ClaudeAskContext) => Promise<ClaudeAnswer>;
   /** How long the Claude rung is waited for. Default CLAUDE_WAIT_MS. */
   readonly claudeWaitMs?: number;
   /** Places a name in a category (the existing catalogue search), for an item with none (design cases 2 and 5). */
@@ -1164,7 +1176,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
             size: sizeText,
             category: leaf ? leaf.replace(/^[a-z]{2}:/, '').replace(/-/g, ' ') : null,
             market: (item.country ?? '').trim().toUpperCase(),
-          }),
+          }, { sorted, poolSetAside: aside.pool !== null }),
           deps.claudeWaitMs ?? CLAUDE_WAIT_MS,
         );
       } catch {

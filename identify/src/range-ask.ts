@@ -13,6 +13,8 @@
  *   2. looks up a 90-day cache keyed on normalised name + brand + size +
  *      market. A hit returns the stored answer, with the time of the call that
  *      produced it, and neither calls the model nor counts against the cap;
+ *   2b. asks the circuit breaker (requirement 6.7, below): while Claude is
+ *      down the ask returns `circuit_open` at once, sends nothing, counts nothing;
  *   3. counts the ask against this UTC month BEFORE sending it (an attempt
  *      counts whether or not it succeeds). At or over the monthly limit it
  *      returns `monthly_cap_reached` and sends nothing. The limit is
@@ -91,6 +93,7 @@ export type RangeAskFailure =
   | 'unsupported_market'
   | 'no_api_key'
   | 'monthly_cap_reached'
+  | 'circuit_open'
   | 'cap_store_error'
   | 'model_error'
   | 'invalid_json'
@@ -126,7 +129,79 @@ export interface RangeAskDeps {
   /** Per-call clock in ms. Default 30000. */
   readonly timeoutMs?: number;
   readonly now?: () => number;
+  /**
+   * The circuit breaker (requirement 6.7). Absent: the process-wide `RANGE_ASK_BREAKER` when no
+   * provider was injected (the shipped path), none when a test injects a provider and no breaker,
+   * so one test's forced outages never open the circuit for the next. `null`: no breaker.
+   */
+  readonly breaker?: RangeBreaker | null;
 }
+
+/* --------------------------------------------------------- circuit breaker */
+
+/*
+ * REQUIREMENT 6.7, "Fall to the next basis when Claude is down, capped or slow, and still answer".
+ * The timeout bounds one slow call; the breaker stops a down Claude from costing every scan that
+ * timeout. After `threshold` transport failures in a row (outage, timeout, rate limit, client error:
+ * no answer came back) the circuit OPENS: every ask returns `circuit_open` at once, sends nothing and
+ * takes no cap slot, and the caller falls to its next basis. After `cooldownMs` one trial ask goes
+ * through (HALF OPEN); an answer of any kind closes the circuit, another failure opens it again.
+ * An answer the validator refuses is still an answer: Claude is up, so it closes the circuit.
+ */
+export const BREAKER_THRESHOLD = 5;
+export const BREAKER_COOLDOWN_MS = 60_000;
+
+export type BreakerState = 'closed' | 'open' | 'half_open';
+
+export interface RangeBreaker {
+  /** May an ask go out now? In half-open, true exactly once until that trial settles. */
+  allow(nowMs: number): boolean;
+  /** An answer came back. */
+  succeeded(): void;
+  /** No answer came back (a transport failure, a timeout). */
+  failed(nowMs: number): void;
+  /** An allowed ask that was never sent (the cap refused it): a half-open trial is handed back. */
+  abandon(): void;
+  state(nowMs: number): BreakerState;
+}
+
+export function rangeBreaker(opts: { threshold?: number; cooldownMs?: number } = {}): RangeBreaker {
+  const threshold = Math.max(1, Math.floor(opts.threshold ?? BREAKER_THRESHOLD));
+  const cooldownMs = Math.max(0, opts.cooldownMs ?? BREAKER_COOLDOWN_MS);
+  let failures = 0;
+  let openedAt: number | null = null;
+  let trialOut = false;
+  const state = (nowMs: number): BreakerState =>
+    openedAt === null ? 'closed' : nowMs - openedAt >= cooldownMs ? 'half_open' : 'open';
+  return {
+    state,
+    allow(nowMs) {
+      const s = state(nowMs);
+      if (s === 'closed') return true;
+      if (s === 'open' || trialOut) return false;
+      trialOut = true;
+      return true;
+    },
+    succeeded() {
+      failures = 0;
+      openedAt = null;
+      trialOut = false;
+    },
+    failed(nowMs) {
+      failures += 1;
+      if (trialOut || failures >= threshold) {
+        openedAt = nowMs;
+        trialOut = false;
+      }
+    },
+    abandon() {
+      trialOut = false;
+    },
+  };
+}
+
+/** The one breaker every shipped range ask shares, process-wide. */
+export const RANGE_ASK_BREAKER: RangeBreaker = rangeBreaker();
 
 /* --------------------------------------------------------------- defaults */
 
@@ -321,14 +396,22 @@ export async function askTypicalRange(identity: RangeIdentity, deps: RangeAskDep
     provider = new AnthropicProvider(client);
   }
 
+  // 6.7: a down Claude is not asked again until the cooldown; nothing is sent and no cap slot is taken.
+  const breaker = deps.breaker !== undefined ? deps.breaker : deps.provider ? null : RANGE_ASK_BREAKER;
+  if (breaker && !breaker.allow(clock())) return { ok: false, reason: 'circuit_open' };
+
   let reserved: { allowed: boolean };
   try {
     reserved = reserveMonthlyRangeCall(storePath, cap, clock(), ttl);
   } catch (err) {
     // A store that cannot be written cannot count, so the ask does not go out.
+    breaker?.abandon();
     return { ok: false, reason: 'cap_store_error', detail: `the count could not be saved: ${String(err)}` };
   }
-  if (!reserved.allowed) return { ok: false, reason: 'monthly_cap_reached' };
+  if (!reserved.allowed) {
+    breaker?.abandon();
+    return { ok: false, reason: 'monthly_cap_reached' };
+  }
 
   const model = deps.model ?? RANGE_ASK_MODEL;
   const timeoutMs = deps.timeoutMs !== undefined && deps.timeoutMs > 0 ? deps.timeoutMs : DEFAULT_TIMEOUT_MS;
@@ -358,8 +441,12 @@ export async function askTypicalRange(identity: RangeIdentity, deps: RangeAskDep
     });
     value = res.value;
     answeredBy = res.model;
+    breaker?.succeeded();
   } catch (err) {
     const failure = classifyProviderError(err);
+    // Malformed output and a refusal are answers (Claude is up); everything else is no answer at all.
+    if (failure === 'model_malformed' || failure === 'unreadable_photo') breaker?.succeeded();
+    else breaker?.failed(clock());
     const message = String((err as Error)?.message ?? err);
     const askedAt = new Date(askedAtMs).toISOString();
     const logged = (outcome: string, raw: null = null) =>
