@@ -35,7 +35,7 @@ function row(code: string, path: string[], source = 'openfoodfacts'): Record<str
 function load(db: string, tag: string, rows: Record<string, unknown>[], taxonomy: string) {
   const file = join(dir, `rows-${tag}.jsonl`);
   writeFileSync(file, rows.map((r) => JSON.stringify(r)).join('\n') + '\n', 'utf8');
-  return spawnSync(process.execPath, ['--experimental-strip-types', loader, file], {
+  return spawnSync(process.execPath, ['--experimental-strip-types', loader, '--no-placement', file], {
     cwd: catalogueDir,
     env: { ...process.env, SHIN_CATALOGUE: db, SHIN_CATEGORY_TAXONOMY: taxonomy, SHIN_CATEGORY_ALIASES: aliases },
     encoding: 'utf8',

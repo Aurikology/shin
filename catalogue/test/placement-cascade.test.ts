@@ -186,8 +186,8 @@ test('2.3 climb fails loudly on votes it cannot read: none, a non-positive weigh
 
 /* ----------------------------------------------------------- 2.1 routes */
 
-test('2.1 the route order is barcode, text, meaning, Claude, top level', () => {
-  assert.deepEqual([...CASCADE_ROUTES], ['barcode', 'text', 'meaning', 'claude', 'top-level']);
+test('2.1 the route order is barcode, text, meaning, label, Claude, top level', () => {
+  assert.deepEqual([...CASCADE_ROUTES], ['barcode', 'text', 'meaning', 'label', 'claude', 'top-level']);
 });
 
 test('2.1 barcode: an unplaced item whose code is another spelling of a placed item\'s code takes that item\'s category', () => {
@@ -269,7 +269,7 @@ test('2.1 the top-level-only share is reported against the 5% bar', async () => 
   assert.equal(summary.topLevelOnly.perDepartment.food!.items, 3);
 });
 
-test('2.1 the Claude slot is an interface: with no chooser it is never called; a chooser is offered a fixed list and a pick outside it is refused', async () => {
+test('2.1 the Claude slot is an interface: with no chooser it is never called; a chooser is offered the routes\' top candidates (a fixed short list) and a pick outside it is refused', async () => {
   const db = placedFixture(ROWS);
   const offered: number[][] = [];
   const chooser: ClaudeListChooser = {
@@ -279,16 +279,25 @@ test('2.1 the Claude slot is an interface: with no chooser it is never called; a
       return null;
     },
   };
-  await runCascade(db, { routes: [], claude: chooser, log: quiet });
+  const suggesting = (d: typeof db): PlacementRoute => ({
+    name: 'label',
+    propose: () => null,
+    suggest: (item) => (item.department === 'food' ? [nodeIdOf(d, 'food', 'en:chips'), nodeIdOf(d, 'food', 'en:yogurts')] : []),
+  });
+  const summary = await runCascade(db, { routes: [suggesting(db)], claude: chooser, log: quiet });
   assert.equal(placementOf(db, 'U-none').placedBy, 'claude');
   assert.equal(placementOf(db, 'U-none').tag, 'en:chips');
   assert.ok(offered.length >= 1);
-  assert.ok(offered[0]!.includes(nodeIdOf(db, 'food', 'en:chips')), 'the list is the department\'s own categories');
-  assert.ok(!offered[0]!.includes(nodeIdOf(db, 'beauty', 'en:shampoos')), 'and only those');
+  assert.deepEqual(offered[0], [nodeIdOf(db, 'food', 'en:chips'), nodeIdOf(db, 'food', 'en:yogurts')], 'the list is what the routes suggested, not the whole department');
+  assert.equal(summary.claudeSlotNoCandidates.beauty, 1, 'UB had no candidate from any route, so it was not sent');
 
   const db2 = placedFixture(ROWS);
-  const rogue: ClaudeListChooser = { async choose() { return { nodeId: nodeIdOf(db2, 'beauty', 'en:shampoos'), confidence: 0.9 }; } };
-  await assert.rejects(runCascade(db2, { routes: [], claude: rogue, log: quiet }), /not on the list/);
+  const rogue: ClaudeListChooser = { async choose() { return { nodeId: nodeIdOf(db2, 'food', 'en:cheddars'), confidence: 0.9 }; } };
+  await assert.rejects(runCascade(db2, { routes: [suggesting(db2)], claude: rogue, log: quiet }), /not on the list/);
+
+  const db3 = placedFixture(ROWS);
+  const foreign: PlacementRoute = { name: 'label', propose: () => null, suggest: () => [nodeIdOf(db3, 'beauty', 'en:shampoos')] };
+  await assert.rejects(runCascade(db3, { routes: [foreign], claude: chooser, log: quiet }), /not a food category/);
 });
 
 /* ---------------------------------------------------- 2.1 fails loudly */

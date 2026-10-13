@@ -77,7 +77,7 @@ function row(over: Record<string, unknown>): Record<string, unknown> {
 function load(rows: Record<string, unknown>[], tag: string, env: Record<string, string> = {}): void {
   const path = join(dir, `rows-${tag}.jsonl`);
   writeFileSync(path, rows.map((r) => JSON.stringify(r)).join('\n') + '\n', 'utf8');
-  execFileSync(process.execPath, ['--experimental-strip-types', loader, path], {
+  execFileSync(process.execPath, ['--experimental-strip-types', loader, '--no-placement', path], {
     cwd: catalogueDir,
     env: { ...process.env, SHIN_CATALOGUE: dbPath, SHIN_CATEGORY_TAXONOMY: noopTaxonomy, SHIN_CATEGORY_ALIASES: noopAliases, ...env },
     stdio: 'pipe',

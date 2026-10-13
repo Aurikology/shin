@@ -17,9 +17,15 @@
  *              same words, same department; they vote;
  *   meaning    name-meaning neighbours (name-meaning.ts, 2.2): labelled items and
  *              shopper confirmations whose names MEAN the same thing vote;
- *   claude     Claude choosing from the department's fixed list of categories. An
- *              interface only (`ClaudeListChooser`): nothing here calls Claude. With
- *              no chooser the items that reach this slot are counted and fall through;
+ *   label      the nearest category LABEL to the item's name (label-classifier.ts,
+ *              2.1 "Next"): needs no labelled neighbours, only the tree; abstains below
+ *              a measured similarity threshold;
+ *   claude     Claude choosing from a FIXED short list: the routes' own top candidates
+ *              (`suggest`, at most CLAUDE_CANDIDATES), never the whole department. An
+ *              interface only (`ClaudeListChooser`; claude-chooser.ts is the chooser, its
+ *              client injected): nothing here calls Claude. With no chooser the items that
+ *              reach this slot are counted and fall through; an item no route can suggest
+ *              anything for is counted and not sent;
  *   top-level  the department's own node (level 0). Every item with a department
  *              ends here at worst, so none stays unplaced.
  * The route that placed an item is its `placed_by`. Every move goes through
@@ -67,7 +73,9 @@ export const MIN_NEIGHBOUR_VOTES = 3;
 /** The department's own node needs no evidence beyond the item's source: its confidence. */
 export const TOP_LEVEL_CONFIDENCE = 1;
 
-export const CASCADE_ROUTES = ['barcode', 'text', 'meaning', 'claude', 'top-level'] as const;
+export const CASCADE_ROUTES = ['barcode', 'text', 'meaning', 'label', 'claude', 'top-level'] as const;
+/** The most candidates the Claude slot is offered for one item. */
+export const CLAUDE_CANDIDATES = 8;
 export type CascadeRouteName = (typeof CASCADE_ROUTES)[number];
 const CASCADE_PLACERS = new Set<string>(CASCADE_ROUTES);
 
@@ -196,7 +204,7 @@ export interface CascadeItem {
 }
 
 export interface PlacementRoute {
-  readonly name: 'barcode' | 'text' | 'meaning';
+  readonly name: 'barcode' | 'text' | 'meaning' | 'label';
   /**
    * The doubt added to this route's vote total (default CONFIDENCE_PRIOR_WEIGHT).
    * The barcode route sets 0: a twin code is the same trade item, not a neighbour.
@@ -204,6 +212,11 @@ export interface PlacementRoute {
   readonly prior?: number;
   /** Leaf votes for the item, or null to abstain. Throwing stops the run. */
   propose(item: CascadeItem): Votes | null;
+  /**
+   * Category nodes this route would put forward for an item it did not place, best
+   * first. The Claude slot's candidate list is built from these (CLAUDE_CANDIDATES).
+   */
+  suggest?(item: CascadeItem): readonly number[];
 }
 
 /** 2.1's Claude slot. Never called by this package: there is no key and no network. */
@@ -281,22 +294,29 @@ export function neighbourRoute(
 ): PlacementRoute {
   const k = opts.k ?? NEIGHBOUR_K;
   const minVotes = opts.minVotes ?? MIN_NEIGHBOUR_VOTES;
+  const tally = (item: CascadeItem): { votes: Map<number, number>; used: number } => {
+    const votes = new Map<number, number>();
+    let used = 0;
+    const list = table.get(item.code);
+    if (!list) return { votes, used };
+    for (const key of list) {
+      if (used >= k) break;
+      if (key === item.code || key === `p:${item.code}`) continue;
+      const leaf = labelOf(key);
+      if (leaf === null) continue;
+      votes.set(leaf, (votes.get(leaf) ?? 0) + 1);
+      used += 1;
+    }
+    return { votes, used };
+  };
   return {
     name,
     propose(item) {
-      const list = table.get(item.code);
-      if (!list) return null;
-      const votes = new Map<number, number>();
-      let used = 0;
-      for (const key of list) {
-        if (used >= k) break;
-        if (key === item.code || key === `p:${item.code}`) continue;
-        const leaf = labelOf(key);
-        if (leaf === null) continue;
-        votes.set(leaf, (votes.get(leaf) ?? 0) + 1);
-        used += 1;
-      }
+      const { votes, used } = tally(item);
       return used >= minVotes ? votes : null;
+    },
+    suggest(item) {
+      return [...tally(item).votes.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([id]) => id);
     },
   };
 }
@@ -413,6 +433,8 @@ export interface CascadeSummary {
   readonly byRoute: Readonly<Record<string, Readonly<Record<string, number>>>>;
   /** department -> items that reached the Claude slot with no chooser wired. */
   readonly claudeSlotReached: Readonly<Record<string, number>>;
+  /** department -> items that reached a wired Claude slot with no candidate from any route (not sent). */
+  readonly claudeSlotNoCandidates: Readonly<Record<string, number>>;
   /** department -> items left unplaced (2.1 needs none). */
   readonly unplacedRemaining: Readonly<Record<string, number>>;
   readonly topLevelOnly: TopLevelShare & { readonly perDepartment: Readonly<Record<string, TopLevelShare>> };
@@ -451,7 +473,7 @@ export async function runCascade(db: DatabaseSync, opts: CascadeOptions): Promis
   const tree = PlacementTree.load(db);
   const seen = new Set<string>();
   for (const r of opts.routes) {
-    if (!['barcode', 'text', 'meaning'].includes(r.name)) throw new Error(`runCascade: unknown route ${r.name}`);
+    if (!['barcode', 'text', 'meaning', 'label'].includes(r.name)) throw new Error(`runCascade: unknown route ${r.name}`);
     if (seen.has(r.name)) throw new Error(`runCascade: route ${r.name} given twice`);
     seen.add(r.name);
   }
@@ -466,6 +488,7 @@ export async function runCascade(db: DatabaseSync, opts: CascadeOptions): Promis
   let moved = 0;
   let unchanged = 0;
   const claudeSlotReached: Record<string, number> = {};
+  const claudeSlotNoCandidates: Record<string, number> = {};
   let last = 0;
   for (;;) {
     const rows = select.all(last) as unknown as ItemRow[];
@@ -495,11 +518,28 @@ export async function runCascade(db: DatabaseSync, opts: CascadeOptions): Promis
       }
       if (!decided) {
         if (opts.claude) {
-          const list = tree.categoriesOf(department).map((n) => ({ nodeId: n.id, path: tree.pathOf(n.id) }));
-          const pick = await opts.claude.choose({ ...item, name: r.name }, list);
-          if (pick !== null) {
-            if (!list.some((c) => c.nodeId === pick.nodeId)) throw new Error(`placement cascade: the Claude chooser picked node ${pick.nodeId} for ${r.code}, which is not on the list it was given`);
-            if (pick.confidence >= bar) decided = { node: pick.nodeId, by: 'claude', confidence: pick.confidence };
+          // The fixed list is the routes' own top candidates (CLAUDE_CANDIDATES at most), never the whole department.
+          const ids: number[] = [];
+          for (const route of routes) {
+            for (const id of route.suggest?.(item) ?? []) {
+              if (ids.length >= CLAUDE_CANDIDATES) break;
+              if (ids.includes(id)) continue;
+              const n = tree.node(id);
+              if (n.kind !== 'category' || n.department !== department) {
+                throw new Error(`placement cascade: route ${route.name} suggested node ${id} for ${r.code}, which is not a ${department} category`);
+              }
+              ids.push(id);
+            }
+          }
+          if (ids.length === 0) {
+            claudeSlotNoCandidates[department] = (claudeSlotNoCandidates[department] ?? 0) + 1;
+          } else {
+            const list = ids.map((id) => ({ nodeId: id, path: tree.pathOf(id) }));
+            const pick = await opts.claude.choose({ ...item, name: r.name }, list);
+            if (pick !== null) {
+              if (!list.some((c) => c.nodeId === pick.nodeId)) throw new Error(`placement cascade: the Claude chooser picked node ${pick.nodeId} for ${r.code}, which is not on the list it was given`);
+              if (pick.confidence >= bar) decided = { node: pick.nodeId, by: 'claude', confidence: pick.confidence };
+            }
           }
         } else {
           claudeSlotReached[department] = (claudeSlotReached[department] ?? 0) + 1;
@@ -548,6 +588,7 @@ export async function runCascade(db: DatabaseSync, opts: CascadeOptions): Promis
     unchanged,
     byRoute,
     claudeSlotReached,
+    claudeSlotNoCandidates,
     unplacedRemaining: counts.unplacedByDepartment,
     topLevelOnly: { ...share(top, all), perDepartment },
     bar,
@@ -556,6 +597,7 @@ export async function runCascade(db: DatabaseSync, opts: CascadeOptions): Promis
   log(`placement-cascade: considered ${considered}, moved ${moved}, unchanged ${unchanged}; bar ${bar} (UNCALIBRATED: no hand labels yet)`);
   log(`placement-cascade: placed by route per department ${JSON.stringify(byRoute)}`);
   log(`placement-cascade: reached the Claude slot with no chooser wired ${JSON.stringify(claudeSlotReached)}`);
+  if (opts.claude) log(`placement-cascade: reached the Claude slot with no candidate to offer (not sent) ${JSON.stringify(claudeSlotNoCandidates)}`);
   log(
     `placement-cascade: top level only ${top} of ${all} (${(summary.topLevelOnly.share * 100).toFixed(2)}%), bar ${TOP_LEVEL_SHARE_BAR * 100}%: ${summary.topLevelOnly.meetsBar ? 'meets' : 'FAILS'}; per department ${JSON.stringify(
       Object.fromEntries(Object.entries(perDepartment).map(([d, s]) => [d, `${s.items}/${s.of}`])),

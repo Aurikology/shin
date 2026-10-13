@@ -15,13 +15,23 @@
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { openCatalogue, rebuildFts } from './schema.ts';
-import { DEFAULT_ALIASES_PATH, DEFAULT_TAXONOMY_PATH, loadTaxonomy } from './category-taxonomy.ts';
+import { DEFAULT_ALIASES_PATH, DEFAULT_TAXONOMY_PATH, loadDepartmentTaxonomies, loadTaxonomy } from './category-taxonomy.ts';
 import type { Taxonomy } from './category-taxonomy.ts';
 import { canonicalizeCatalogue } from './category-canonicalize.ts';
 import { canonicalCode } from './barcode.ts';
+import { buildPlacement } from './placement.ts';
 
 const DB_PATH = process.env.SHIN_CATALOGUE ?? 'data/catalogue.db';
-const ROWS_PATH = process.argv[2] ?? 'data/rows.jsonl';
+/*
+ * --no-placement: skip the placement build that ends a load (the explicit opt-out; the load says so out loud).
+ * Every other argument that is not a flag is the prepared rows file.
+ */
+const ARGS = process.argv.slice(2);
+const NO_PLACEMENT = ARGS.includes('--no-placement');
+const ROWS_PATH = ARGS.find((a) => !a.startsWith('--')) ?? 'data/rows.jsonl';
+// Where the department taxonomies and their pinned hashes are read from (tests point these at a temp folder).
+const DEPARTMENT_TAXONOMY_DIR = process.env.SHIN_DEPARTMENT_TAXONOMY_DIR;
+const CATEGORY_BASELINE = process.env.SHIN_CATEGORY_BASELINE;
 const TAXONOMY_PATH = process.env.SHIN_CATEGORY_TAXONOMY ?? DEFAULT_TAXONOMY_PATH;
 const ALIASES_PATH = process.env.SHIN_CATEGORY_ALIASES ?? DEFAULT_ALIASES_PATH;
 
@@ -227,6 +237,34 @@ async function main(): Promise<number> {
   if (!canon.ok) {
     console.error('load STOPPED: the category pass failed (see the counts above).');
     return 1;
+  }
+
+  /*
+   * THE PLACEMENT BUILD (price-category plan Stage 2). Every load ends with the placement layer rebuilt
+   * from the stored paths, so a newly loaded item is never missing from the tree (the cascade, the
+   * price layer and the gate all read it). It reads the food taxonomy loaded above AND each other
+   * department's own taxonomy, whose pinned hashes it checks: a missing or changed department file
+   * STOPS the load here, naming the fetch command, and never builds a different tree quietly.
+   * --no-placement is the explicit opt-out and says so; it is not a silent default.
+   */
+  if (NO_PLACEMENT) {
+    console.log('placement build SKIPPED (--no-placement): the placement layer was not updated by this load; run "npm run place" or load again without the flag.');
+  } else {
+    process.stdout.write('building the placement layer...\r');
+    let departmentTaxonomies: ReturnType<typeof loadDepartmentTaxonomies>;
+    try {
+      departmentTaxonomies = loadDepartmentTaxonomies(DEPARTMENT_TAXONOMY_DIR, CATEGORY_BASELINE);
+    } catch (err) {
+      console.error(`load STOPPED: the department taxonomies are unavailable, so the placement layer cannot be built (${err instanceof Error ? err.message : String(err)}). The rows are loaded; fix the taxonomy and run "npm run place", or load again with --no-placement to skip the build on purpose.`);
+      return 1;
+    }
+    try {
+      const built = buildPlacement(db, { taxonomy: tax, departmentTaxonomies, log: (l) => console.log(l) });
+      console.log(`placement build   ${built.nodesCreated} nodes created, ${built.placed} items placed, ${built.counts.placedAtTopOnly} at the top level only`);
+    } catch (err) {
+      console.error(`load FAILED: the placement build stopped: ${err instanceof Error ? err.message : String(err)}`);
+      return 1;
+    }
   }
 
   // Counted from the table, never from the loop above.

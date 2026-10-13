@@ -82,7 +82,7 @@ export function shardOf(key: string, count: number): number {
   return h % count;
 }
 
-function sha(text: string): string {
+export function sha(text: string): string {
   return createHash('sha256').update(text).digest('hex').slice(0, 32);
 }
 
@@ -101,13 +101,13 @@ export function openNameIndex(path: string): DatabaseSync {
   return db;
 }
 
-interface Wanted {
+export interface Wanted {
   key: string;
   text: string;
 }
 
 /** Everything in a department that should have a vector: its products with a name, and confirmations of its items. */
-function wanted(catalogue: DatabaseSync, department: string): { items: Wanted[]; noText: number; noTextExamples: string[] } {
+export function wanted(catalogue: DatabaseSync, department: string): { items: Wanted[]; noText: number; noTextExamples: string[] } {
   const sources = sourcesOf(department);
   if (sources.length === 0) throw new Error(`name-meaning: department ${department} has no sources`);
   const items: Wanted[] = [];

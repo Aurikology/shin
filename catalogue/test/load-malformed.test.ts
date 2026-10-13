@@ -50,7 +50,7 @@ function load(tag: string, lines: string[]) {
   const dbPath = join(dir, `${tag}.db`);
   const rowsPath = join(dir, `${tag}.jsonl`);
   writeFileSync(rowsPath, lines.join('\n') + '\n', 'utf8');
-  const r = spawnSync(process.execPath, ['--experimental-strip-types', loader, rowsPath], {
+  const r = spawnSync(process.execPath, ['--experimental-strip-types', loader, '--no-placement', rowsPath], {
     cwd: catalogueDir,
     env: { ...process.env, SHIN_CATALOGUE: dbPath, SHIN_CATEGORY_TAXONOMY: noopTaxonomy, SHIN_CATEGORY_ALIASES: noopAliases },
     encoding: 'utf8',
