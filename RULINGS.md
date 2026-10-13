@@ -757,8 +757,12 @@ one killer, easily viral feature or phrase (the working example: "scan anything 
 the price is right", or the mascot) beats trying to be better, since users rarely install two
 similar apps to compare them. Following Yuka's growth pattern is not the same as copying its
 purpose: Shin does something different, arguably more important for users. Any claimed capability
-in marketing or specs cites the concrete backend mechanism and a real, measured metric behind it,
-never asserted bare. · 2026-09-03 (hook, borrowed audiences) · 2026-09-14 (filming, *"we will show the real answers in the videos, we are not showing the answers to users, we are just showing what we see on an app"*) · 2026-09-03: *"popular apps will have on killer, viral feature, or selling point"* · 2026-09-06: *"our app does something different, arguably more important for users"*; *"For everything you say that the app does, the backend should be clearly listed... there should be metrics for everything"* · log: docs/decisions.md#The hook is a capability plus a villain; docs/decisions.md#The video test runs on borrowed audiences; docs/decisions.md#Twelve rulings on the Gemini branch, answered together (item 9)
+in specs cites the concrete backend mechanism and a real, measured metric behind it, never asserted
+bare. **An ad has one objective: viewership** (watch time, rewatches, shares, comments). Truth to
+the app's current data, value and the app's own screen rules (verdict confidence, no hedges, no
+promise of the unbuilt) do not constrain ad creative; a staged item, staged prices and a dramatised
+mascot are fine. The law still does, as everywhere: no materially false factual claim (a user count,
+a savings figure, a named real store overcharging). · 2026-10-12 · *"rememebr, you are creating an instagram ad for one main purpose: engagenemtn, not truth, not value, not accuracy and none of the other fluff, literally just viewership"* · 2026-09-03 (hook, borrowed audiences) · 2026-09-14 (filming, *"we will show the real answers in the videos, we are not showing the answers to users, we are just showing what we see on an app"*) · 2026-09-03: *"popular apps will have on killer, viral feature, or selling point"* · 2026-09-06: *"our app does something different, arguably more important for users"*; *"For everything you say that the app does, the backend should be clearly listed... there should be metrics for everything"* · log: docs/decisions.md#The hook is a capability plus a villain; docs/decisions.md#The video test runs on borrowed audiences; docs/decisions.md#Twelve rulings on the Gemini branch, answered together (item 9)
 Retired wording: none
 Governs: to fill
 ### v1 floor: what the MVP ships, and how photo identification returns
