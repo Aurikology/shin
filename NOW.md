@@ -24,16 +24,22 @@ History moved out of NOW.md on 2026-09-27: `docs/archive/now-history-2026-09-27.
   (cd7823a, c98a0e2): a parent must contain its child, and beauty, general and pet read their own
   Open Facts taxonomies (fetch once per machine: `node src/fetch-categories.ts --department
   beauty|general|pet`). Against each department's own taxonomy: wrong parents 329 to 0, items under
-  a wrong chain 25,369 to 0. 1.2 to 1.5 need prices: 15 priced items join the catalogue. load.ts
-  does not run the placement build yet.
+  a wrong chain 25,369 to 0. **1.2 to 1.5 built 2026-10-13** (9780d2f), proven on synthetic data
+  only (12 tests red first); unvalidated on real prices, thresholds chosen not tuned. Read-only run,
+  1,269 priced products placed in memory: 18 groups, 2 split by pack size, 16 wide, 4 thin. Every
+  load now ends with the placement build (`--no-placement` skips it, out loud).
 - **Stage 3 (placing items): 2.1 to 2.4 built** (270c053), Claude slot an interface with no
   chooser. Top-level-only share, all 212,340 items on a copy (bar 5%): 18.9% on the old tree, 31.5%
   with containment alone (beauty 2.0% to 36.1%, pet 3.8% to 54.0%, general 23.9% to 36.9%, food
   26.0% unchanged); with the department taxonomies, being measured. The old beauty and pet passes
   came from the wrong chains. Read of the food items left at the top level: ordinary named products
   ("Frozen Strawberry", "Bacon rounds"), so the routes abstain on split votes, not on missing names.
-  Next method by the plan (2.1 "Next"): a classifier that names categories from their labels alone.
-  The 2.2 sheet (819 rows, bench/results/placement-audit-sheet-2026-10-09.csv) is unmarked, so
+  **2.1 "Next" built and FAILED 2026-10-13** (label route, off by default; Claude chooser behind the
+  slot, top 8 route candidates, no live call). 55,000-item sample: top-level-only food 11.1 to 8.8%,
+  beauty 38.2 to 33.2, general 40.7 to 36.4, pet 48.6 to 43.7 at a diagnostic 0.90; no threshold
+  reaches 95% right (16 of 65 on the answer key), so coverage at the bar is zero. **The existing
+  text route scored 5 of 54 on food answer-key items: read the wrong ones before placing live.**
+  The PC's main node_modules transformers model.onnx (17.8 MB) fails to load. The 2.2 sheet (819 rows, bench/results/placement-audit-sheet-2026-10-09.csv) is unmarked, so
   accuracy is unmeasured and the 0.6 bar uncalibrated. Live catalogue.db not placed yet.
   onnxruntime-node declared (cd7823a).
 - **Stage 4 (the range), out of order 2026-10-13 (Aurik: "continue working not in order"): 3.3,
