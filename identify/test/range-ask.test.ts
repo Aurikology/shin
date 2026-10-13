@@ -273,11 +273,21 @@ test('cache hit: no call, no count, and the original call time comes back', asyn
   assert.equal(monthlyRangeCalls(store, later).calls, 1);
 });
 
-test('a cached answer older than 30 days is not used', async () => {
+test('6.4: a cached answer is reused for 90 days, at most one call per item in that time', async () => {
   const store = tempStore();
   await askTypicalRange(IDENTITY, deps(fake(goodAnswer()), store));
   const t = fake(goodAnswer());
-  const r = await askTypicalRange(IDENTITY, deps(t, store, { now: () => SEPT + 31 * 24 * 60 * 60 * 1000 }));
+  const day89 = SEPT + 89 * 24 * 60 * 60 * 1000;
+  const r = await askTypicalRange(IDENTITY, deps(t, store, { now: () => day89 }));
+  assert.equal(r.ok && r.cached, true);
+  assert.equal(t.sent.length, 0);
+});
+
+test('a cached answer older than 90 days is not used', async () => {
+  const store = tempStore();
+  await askTypicalRange(IDENTITY, deps(fake(goodAnswer()), store));
+  const t = fake(goodAnswer());
+  const r = await askTypicalRange(IDENTITY, deps(t, store, { now: () => SEPT + 91 * 24 * 60 * 60 * 1000 }));
   assert.equal(r.ok && r.cached, false);
   assert.equal(t.sent.length, 1);
 });
@@ -376,7 +386,7 @@ test('every answer is saved: valid, known:false, invalid (with its reason), and 
   assert.equal(log[0]!.askedAt, new Date(SEPT).toISOString());
 });
 
-test('known:false is cached for 30 days: a rescan sends nothing and costs no cap slot', async () => {
+test('known:false is cached for 90 days: a rescan sends nothing and costs no cap slot', async () => {
   const store = tempStore();
   const unknown = goodAnswer({ known: false, low_cents: null, high_cents: null });
   const first = await askTypicalRange(IDENTITY, deps(fake(unknown), store));
@@ -387,9 +397,9 @@ test('known:false is cached for 30 days: a rescan sends nothing and costs no cap
   assert.deepEqual(again, { ok: false, reason: 'model_does_not_know', cached: true });
   assert.equal(t.sent.length, 0);
   assert.equal(monthlyRangeCalls(store, later).calls, 1);
-  // Past 30 days it is asked again.
+  // Past 90 days it is asked again.
   const t2 = fake(goodAnswer());
-  const r = await askTypicalRange(IDENTITY, deps(t2, store, { now: () => SEPT + 31 * 24 * 60 * 60 * 1000 }));
+  const r = await askTypicalRange(IDENTITY, deps(t2, store, { now: () => SEPT + 91 * 24 * 60 * 60 * 1000 }));
   assert.equal(r.ok, true);
   assert.equal(t2.sent.length, 1);
 });

@@ -1,6 +1,6 @@
 /**
  * The persisted state behind `range-ask.ts`: a count of range asks per UTC
- * calendar month, and a 30-day cache of the answers those asks produced.
+ * calendar month, and a 90-day cache of the answers those asks produced.
  *
  * WHY NOT `cap.ts`. `cap.ts` counts CAD per UTC day in a `{ day, cad }` file;
  * it cannot count calls per month without editing it, and this lane may not.
@@ -24,7 +24,7 @@
  *     }
  *   }
  * The cache survives a month turning over; only `calls` resets. Entries past
- * their 30 days are pruned whenever the file is written.
+ * their 90 days (CACHE_TTL_MS) are pruned whenever the file is written.
  *
  * EVERY ANSWER IS SAVED AS DATA (RULINGS "Catalogue first; Claude, with no web
  * search, is the capped price-range fallback"). Beside the store, an

@@ -10,7 +10,7 @@
  * WHAT THIS FILE DOES, IN ORDER:
  *   1. takes the product identity Shin already has (name, brand, size,
  *      category, market). Never an image. No name means no ask;
- *   2. looks up a 30-day cache keyed on normalised name + brand + size +
+ *   2. looks up a 90-day cache keyed on normalised name + brand + size +
  *      market. A hit returns the stored answer, with the time of the call that
  *      produced it, and neither calls the model nor counts against the cap;
  *   3. counts the ask against this UTC month BEFORE sending it (an attempt
@@ -35,7 +35,7 @@
  *   6. saves EVERY answer the model gave as data (valid, `known: false`, or
  *      refused by the validator, with its reason and the raw object) to the
  *      answer log beside the store (`./range-ask-store.ts`). A valid range and
- *      a `known: false` are also cached for 30 days, so a rescan of a product
+ *      a `known: false` are also cached for 90 days, so a rescan of a product
  *      Claude does not know costs no second cap slot. An invalid answer or a
  *      transport failure is not cached: the next ask tries again.
  *
@@ -119,7 +119,7 @@ export interface RangeAskDeps {
   readonly storePath?: string;
   /** Highest acceptable `high_cents`. Default 2,000,000 (20,000.00 in the market's currency). */
   readonly ceilingCents?: number;
-  /** How long a cached answer stands. Default 30 days. */
+  /** How long a cached answer stands. Default 90 days (requirement 6.4: at most one call per item per 90 days). */
   readonly cacheTtlMs?: number;
   /** Model id. Default `RANGE_ASK_MODEL` (claude-haiku-4-5-20251001). */
   readonly model?: string;
@@ -132,7 +132,7 @@ export interface RangeAskDeps {
 
 export const DEFAULT_MONTHLY_CAP = 1000;
 export const DEFAULT_CEILING_CENTS = 2_000_000;
-export const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+export const CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const DEFAULT_TIMEOUT_MS = 30_000;
 /** The Claude model asked. No setting names one yet; a caller may pass `deps.model`. */
 export const RANGE_ASK_MODEL = 'claude-haiku-4-5-20251001';

@@ -201,7 +201,7 @@ test('6.2 append-only: earlier lines stay byte-identical as rows, cache expiry a
     ['one', client(GOOD), SEPT],
     ['two', throwing(() => new Error('down')), SEPT],
     ['three', client('junk'), SEPT + 40 * DAY],
-    ['one', client(GOOD), SEPT + 80 * DAY],
+    ['one', client(GOOD), SEPT + 100 * DAY],
   ];
   for (const [name, c, at] of steps) {
     await askTypicalRange({ ...IDENTITY, name }, deps(c, s, { now: () => at }));
