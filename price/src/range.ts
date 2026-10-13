@@ -344,21 +344,33 @@ function reservedHost(url: string | null): boolean {
 }
 
 /**
- * Joined, regular-price rows in the window and currency. Promotional prices are
- * left out: the question is what the thing normally costs, and a sale price
- * would drag the low end below any shelf's regular tag.
+ * Joined, regular-price rows in the window and currency. Sale prices are left
+ * out (requirement 3.6): the question is what the thing normally costs, and a
+ * sale price would drag the low end below any shelf's regular tag. A sale is
+ * the source's own mark, the rule estimate.ts reads: kind 'promotional', or
+ * is_sale = 1 (a sale tag or a printed "was" price). A printout row (one read
+ * off a store printout, `capture_tile_id` set) counts only when its price was
+ * verified, and never as the item's own price (`own`), as in estimate.ts.
  */
 function readObservations(db: DatabaseSync, codes: readonly string[] | null, currency: string, asOf: string, windowDays: number): Obs[] {
   const where = codes === null ? 'code IS NOT NULL' : `code IN (${codes.map(() => '?').join(',')})`;
+  // A price file older than the printout and sale columns reads them as absent.
+  const have = new Set((db.prepare('PRAGMA table_info(observation)').all() as { name: string }[]).map((c) => c.name));
+  const col = (name: string) => (have.has(name) ? name : `NULL AS ${name}`);
   const rows = db
     .prepare(
-      `SELECT code, seller, region, store_name, store_osm, price_cents, seen_on, url
+      `SELECT code, seller, region, store_name, store_osm, price_cents, seen_on, url,
+              ${col('is_sale')}, ${col('capture_tile_id')}, ${col('price_verified')}
          FROM observation
         WHERE ${where} AND kind = 'regular' AND currency = ?`,
     )
     .all(...(codes ?? []), currency) as Record<string, unknown>[];
+  const own = codes !== null;
   const out: Obs[] = [];
   for (const r of rows) {
+    if (r.is_sale === 1) continue;
+    const printout = r.capture_tile_id !== null && r.capture_tile_id !== undefined;
+    if (printout && (own || r.price_verified !== 1)) continue;
     const cents = r.price_cents;
     const seen = r.seen_on;
     if (typeof cents !== 'number' || !Number.isInteger(cents) || cents <= 0) continue;

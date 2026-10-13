@@ -408,3 +408,51 @@ test("3.3: a category tag two departments share pools only the item's own depart
   assert.equal(unknown.basis, 'none');
   assert.ok(unknown.tried.some((t) => t.basis === 'leaf_category' && t.outcome === 'mixed_departments'), JSON.stringify(unknown.tried));
 });
+
+/* ---------------------------------------------- 3.6 no sale in a centre */
+
+/*
+ * Requirement 3.6: keep sale prices out of the typical price (0 sale prices in any centre). The
+ * negative control from the plan: a sale row at half price is added, and the answer must not move.
+ * A sale is the source's own mark: kind 'promotional', or is_sale = 1 (a sale tag or a printed
+ * "was" price), the same rule estimate.ts reads.
+ */
+
+test('3.6: a half-price row the source marks as a sale moves no own range, by kind or by sale flag', () => {
+  const base = ownRows([500, 520, 540]);
+  const clean = priceRangeFor(input({ leafCategory: null, categoryPath: [] }), { prices: prices(base), catalogue: null });
+  const sales = [
+    obs({ sellerSku: 'p1', seller: 'Sobeys', priceCents: 250, kind: 'promotional' }),
+    obs({ sellerSku: 'p2', seller: 'Metro', priceCents: 260, isSale: 1 }),
+    obs({ sellerSku: 'p3', seller: 'Loblaws', priceCents: 270, isSale: 1, wasCents: 540 }),
+  ];
+  const withSales = priceRangeFor(input({ leafCategory: null, categoryPath: [] }), { prices: prices([...base, ...sales]), catalogue: null });
+  assert.equal(withSales.basis, 'this_product');
+  assert.deepEqual(withSales, clean);
+});
+
+test('3.6: a half-price sale row moves no category range', () => {
+  const { prods, rows } = categoryFixture(5, LEAF);
+  const cat = catalogue([...prods, { code: SELF, size_value: 1000, size_unit: 'g', path: LEAF }]);
+  const clean = priceRangeFor(input(), { prices: prices(rows), catalogue: cat });
+  const sales = prods.map((p, i) => obs({ code: p.code, sellerSku: `s${p.code}`, seller: 'Metro', priceCents: 150 + i, isSale: 1 }));
+  const withSales = priceRangeFor(input(), { prices: prices([...rows, ...sales]), catalogue: cat });
+  assert.equal(clean.basis, 'leaf_category');
+  assert.deepEqual(withSales, clean);
+});
+
+test("3.6 rows: a printout row is never the item's own price, and unverified it counts nowhere", () => {
+  // Three printout tiles for this product: not its own prices, so no own range.
+  const tiles = [500, 510, 520].map((c, i) => obs({ sellerSku: `t${i}`, seller: `Shop${i}`, priceCents: c, captureTileId: i + 1, priceVerified: 1 }));
+  const own = priceRangeFor(input({ leafCategory: null, categoryPath: [] }), { prices: prices(tiles), catalogue: null });
+  assert.equal(own.basis, 'none');
+  // An unverified tile in a category pool: left out, so four products are too few.
+  const { prods, rows } = categoryFixture(4, LEAF);
+  const extra = { code: String(2999).padStart(13, '0'), size_value: 500, size_unit: 'g', path: LEAF };
+  const unverified = obs({ code: extra.code, sellerSku: 'u', priceCents: 600, captureTileId: 9, priceVerified: 0 });
+  const cat = catalogue([...prods, extra, { code: SELF, size_value: 1000, size_unit: 'g', path: LEAF }]);
+  assert.equal(priceRangeFor(input(), { prices: prices([...rows, unverified]), catalogue: cat }).basis, 'none');
+  // Verified, it counts at category level.
+  const verified = { ...unverified, priceVerified: 1 };
+  assert.equal(priceRangeFor(input(), { prices: prices([...rows, verified]), catalogue: cat }).basis, 'leaf_category');
+});

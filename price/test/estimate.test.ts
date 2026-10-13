@@ -595,6 +595,25 @@ test("3.3: with the item's department unknown, a pool spanning two departments i
   assert.ok(trace.tried.some((t) => t.rung === 'leaf_category' && t.outcome === 'mixed_departments'), JSON.stringify(trace.tried));
 });
 
+test('3.6: half-price rows the source marks as sales move no centre, own or category', async () => {
+  const ownRegular = [obs({ code: SELF, priceCents: 2400, seller: 'a' }), obs({ code: SELF, priceCents: 2500, seller: 'b' }), obs({ code: SELF, priceCents: 2600, seller: 'c' })];
+  const own = [{ code: SELF, name: 'Own Vodka', quantity: '750 ml', path: LEAF }];
+  const clean = leafFixture(own, ownRegular);
+  const sales = [
+    obs({ code: SELF, priceCents: 1200, seller: 'd', kind: 'promotional' }),
+    obs({ code: SELF, priceCents: 1250, seller: 'e', isSale: 1 }),
+    ...LEAF_PRICES.map((c, i) => obs({ code: `10000000000${i}`, priceCents: Math.round(c / 2), seller: `sale${i}`, isSale: 1 })),
+  ];
+  const dirty = leafFixture(own, [...ownRegular, ...sales]);
+  const a = await estimate(item(), { cents: 2400 }, { prices: clean.prices, catalogue: clean.catalogue });
+  const b = await estimate(item(), { cents: 2400 }, { prices: dirty.prices, catalogue: dirty.catalogue });
+  assert.equal(b.verdict.centreCents, a.verdict.centreCents);
+  assert.equal(b.verdict.sigmaLog, a.verdict.sigmaLog);
+  assert.equal(b.verdict.basis, a.verdict.basis);
+  // The sale rows are still shown, as sale dots.
+  assert.ok(b.verdict.dots.some((d) => d.kind === 'sale'));
+});
+
 test('case 28: a slow Claude is not waited for; the next rung answers at once', async () => {
   const started = Date.now();
   const { verdict, trace } = await estimate(item({ barcode: null, name: 'Fizz Cola' }), null, {
