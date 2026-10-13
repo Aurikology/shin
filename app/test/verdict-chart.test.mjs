@@ -352,7 +352,7 @@ test('every route that receives a verdict draws the bell before any refusal or f
 const KEYS = ['vd_zone_great', 'vd_zone_good', 'vd_zone_reasonable', 'vd_zone_bad', 'vd_where_under', 'vd_where_over', 'vd_where_about', 'vd_off', 'vd_typical',
     'vd_basis_ai_line', 'vd_suspect', 'vd_multiple', 'vd_band', 'vd_alt_marked', 'vd_alt_bare', 'vd_sale', 'vd_price_label', 'vd_place', 'vd_dots_heading',
     'vd_basis', 'vd_basis_own_prices', 'vd_basis_other_size', 'vd_basis_leaf_category', 'vd_basis_parent_category', 'vd_basis_brand_markup',
-    'vd_basis_claude_typical', 'vd_basis_category_prior', 'vd_basis_global_prior', 'vd_bigger_pack', 'vd_unit_per_100_g', 'vd_unit_per_100_ml',
+    'vd_basis_claude_typical', 'vd_basis_category_prior', 'vd_basis_department_prior', 'vd_basis_global_prior', 'vd_bigger_pack', 'vd_unit_per_100_g', 'vd_unit_per_100_ml',
     'vd_unit_each', 'vd_unit_per_kg', 'vd_note_size_assumed', 'vd_note_other_region', 'vd_note_old_prices', 'vd_note_identity_conflict',
     'vd_note_claude_estimate', 'vd_note_few_prices'];
 const FACTS = { pct: '22', centre: '$5.99', where: 'x', price: '$5.99', m: '3', low: '$4.77', high: '$7.52', verdict: 'Good price', asking: '$4.69', from: 'x', n: '4', quantity: '1 kg', store: 'Metro', unit: 'per 100 g' };

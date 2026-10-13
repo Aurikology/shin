@@ -152,6 +152,6 @@ export function verdictRecord(v: Verdict | null): VerdictRecord {
 export function shownRange(v: Verdict | null): { rangeSource: 'shin_prices' | 'claude_typical' | 'none'; rangeBasis: string } | null {
   if (!v) return null;
   if (v.basis === 'claude_typical') return { rangeSource: 'claude_typical', rangeBasis: v.basis };
-  if (v.basis === 'category_prior' || v.basis === 'global_prior') return { rangeSource: 'none', rangeBasis: v.basis };
+  if (v.basis === 'category_prior' || v.basis === 'department_prior') return { rangeSource: 'none', rangeBasis: v.basis };
   return { rangeSource: 'shin_prices', rangeBasis: v.basis };
 }

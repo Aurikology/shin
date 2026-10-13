@@ -375,6 +375,9 @@ export interface BarcodeDeps {
  */
 export function shownVerdict(est: Awaited<ReturnType<typeof estimate>> | null, where: string): Verdict | null {
   if (!est) return null;
+  // 3.3: no price in the item's department and no Claude answer: the bell is the fixed empty prior, so no
+  // verdict either. Missing data, not a fault, so it is not logged; the scan row records the miss.
+  if (est.trace.noPrices) return null;
   const thin = est.trace.tooThin;
   if (!thin) return est.verdict;
   const w = est.trace.widePool;

@@ -266,7 +266,7 @@ test('wire: real server verdicts have the field names and value types of the scr
   }
   sameShape(claude, fixtures.LOW_CONFIDENCE, 'verdict(claude)');
   // The fixtures' enumerations: the server speaks only these words.
-  assert.ok(['own_prices', 'other_size', 'leaf_category', 'parent_category', 'brand_markup', 'claude_typical', 'category_prior', 'global_prior'].includes(priced.basis));
+  assert.ok(['own_prices', 'other_size', 'leaf_category', 'parent_category', 'brand_markup', 'claude_typical', 'category_prior', 'department_prior'].includes(priced.basis));
   assert.ok(['great', 'good', 'reasonable', 'bad'].includes(priced.shopper.zone));
 });
 
@@ -386,7 +386,7 @@ test('case 27: Claude down (a refused key) falls to the priors, and the answer s
   useClaude(downClaude);
   try {
     const { body } = await identify(SLOW_COLA);
-    assert.ok(['category_prior', 'global_prior'].includes(body.verdict.basis), body.verdict.basis);
+    assert.ok(['category_prior', 'department_prior'].includes(body.verdict.basis), body.verdict.basis);
     assert.equal(body.verdict.confidence, 'low');
     assert.equal(body.noRangeReason, 'model_error');
   } finally {
@@ -401,7 +401,7 @@ test('case 28: a slow Claude is not waited for; the prior answers and the range 
     const started = Date.now();
     const { body } = await identify(SLOW_COLA, '', 'slow-device');
     assert.ok(Date.now() - started < 5000);
-    assert.ok(['category_prior', 'global_prior'].includes(body.verdict.basis));
+    assert.ok(['category_prior', 'department_prior'].includes(body.verdict.basis));
     assert.equal(body.noRangeReason, 'claude_slow');
   } finally {
     process.env.SHIN_RANGE_ASK_STORE_PATH = join(dir, 'range-ask.json');

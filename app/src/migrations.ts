@@ -704,7 +704,8 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
        *
        *   estimate_basis        own_prices, other_size, leaf_category,
        *                         parent_category, brand_markup, claude_typical,
-       *                         category_prior or global_prior.
+       *                         category_prior or department_prior
+       *                         (global_prior on rows before 2026-10-13).
        *   estimate_confidence   high, medium or low.
        *   estimate_zone         great, good, reasonable or bad; null with no shelf price.
        *   estimate_centre_cents the centre shown, whole cents.

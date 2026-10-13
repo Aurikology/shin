@@ -66,19 +66,21 @@ interface Prod {
   size_value?: number | null;
   size_unit?: string | null;
   path?: string[];
+  /** The catalogue source, which names the department (catalogue/src/placement.ts DEPARTMENT_OF_SOURCE). */
+  source?: string | null;
 }
 
 function catalogueDb(products: readonly Prod[]): DatabaseSync {
   const db = new DatabaseSync(':memory:');
   db.exec(`CREATE TABLE product (
     code TEXT PRIMARY KEY, name TEXT NOT NULL, name_en TEXT, brands TEXT, quantity TEXT, size_value REAL, size_unit TEXT,
-    category_path TEXT NOT NULL DEFAULT '[]', leaf_category TEXT)`);
+    category_path TEXT NOT NULL DEFAULT '[]', leaf_category TEXT, source TEXT)`);
   const ins = db.prepare(
-    'INSERT INTO product (code, name, name_en, brands, quantity, size_value, size_unit, category_path, leaf_category) VALUES (?,?,?,?,?,?,?,?,?)',
+    'INSERT INTO product (code, name, name_en, brands, quantity, size_value, size_unit, category_path, leaf_category, source) VALUES (?,?,?,?,?,?,?,?,?,?)',
   );
   for (const p of products) {
     const path = p.path ?? [];
-    ins.run(p.code, p.name ?? 'x', p.name ?? null, p.brand ?? null, p.quantity ?? null, p.size_value ?? null, p.size_unit ?? null, JSON.stringify(path), path[path.length - 1] ?? null);
+    ins.run(p.code, p.name ?? 'x', p.name ?? null, p.brand ?? null, p.quantity ?? null, p.size_value ?? null, p.size_unit ?? null, JSON.stringify(path), path[path.length - 1] ?? null, p.source ?? null);
   }
   return db;
 }
@@ -483,7 +485,7 @@ test('zones: default thresholds, and the shopper own lines replace them (percent
 
 /* ------------------------------------------------------------ system */
 
-test('case 27: Claude down, capped, keyless or throwing falls to category_prior, then global_prior', async () => {
+test('case 27: Claude down, capped, keyless or throwing falls to category_prior, then department_prior', async () => {
   const path = ['en:beverages', 'en:sodas', 'en:colas'];
   const prods = [0, 1, 2].map((i) => ({ code: `60000000000${i}`, name: `Juice ${i}`, quantity: '1 l', path: ['en:beverages', 'en:juices'] }));
   const rows = [300, 400, 500].map((c, i) => obs({ code: `60000000000${i}`, priceCents: c, seller: `s${i}` }));
@@ -498,15 +500,99 @@ test('case 27: Claude down, capped, keyless or throwing falls to category_prior,
     throw new Error('socket hang up');
   }));
   assert.equal(threw.verdict.basis, 'category_prior');
-  // No category at all: the global prior, still drawable.
-  const global = await estimate(item({ barcode: null, name: 'Fizz Cola' }), null, deps(async () => ({ ok: false, reason: 'no_api_key' })));
-  assert.equal(global.verdict.basis, 'global_prior');
-  assert.equal(global.verdict.centreCents, 400);
+  // No category and no department: never every price Shin holds (3.3), the empty prior, still drawable.
+  const unknown = await estimate(item({ barcode: null, name: 'Fizz Cola' }), null, deps(async () => ({ ok: false, reason: 'no_api_key' })));
+  assert.equal(unknown.verdict.basis, 'department_prior');
+  assert.equal(unknown.verdict.n, 0);
+  assert.equal(unknown.verdict.centreCents, 1000);
+  assert.deepEqual(unknown.trace.noPrices, { why: 'no_api_key' });
+  assert.equal(unknown.trace.tooThin, null);
   // Nothing held at all: still a bell.
   const empty = await estimate(item({ barcode: null, name: 'Fizz Cola' }), null, { prices: null });
-  assert.equal(empty.verdict.basis, 'global_prior');
+  assert.equal(empty.verdict.basis, 'department_prior');
   assert.ok(empty.verdict.p90Cents > empty.verdict.p10Cents);
   assert.equal(empty.verdict.confidence, 'low');
+});
+
+/* ---------------------------------------------------- 3.3 departments */
+
+/*
+ * Requirement 3.3: never pool prices across unrelated categories, no all-of-Shin median. The ladder
+ * stops at the item's department (plan 3.3 Method A): no rung reads a price from another department.
+ */
+const FOOD = 'openfoodfacts';
+const PET = 'openpetfoodfacts';
+const BEAUTY = 'openbeautyfacts';
+function departments(groups: readonly { source: string; cents: readonly number[]; path?: string[] }[]) {
+  const prods: Prod[] = [];
+  const rows: ObservationRow[] = [];
+  let i = 0;
+  for (const g of groups) {
+    for (const c of g.cents) {
+      const code = `9${String(i).padStart(12, '0')}`;
+      i += 1;
+      prods.push({ code, name: `${g.source} ${i}`, quantity: '500 g', path: g.path ?? [], source: g.source });
+      rows.push(obs({ code, priceCents: c, seller: `shop${i}` }));
+    }
+  }
+  return { prods, rows };
+}
+
+test("3.3: with no category the prior is the item's own department, never every price Shin holds", async () => {
+  const { prods, rows } = departments([
+    { source: FOOD, cents: [300, 350, 400, 450, 500, 550, 600], path: ['en:snacks'] },
+    { source: BEAUTY, cents: [4000, 4200, 4400], path: ['en:creams'] },
+  ]);
+  const catalogue = catalogueDb([...prods, { code: SELF, name: 'Night Serum', quantity: '50 ml', source: BEAUTY }]);
+  const { verdict, trace } = await estimate(item(), { cents: 4300 }, { prices: pricesDb(rows), catalogue });
+  assert.equal(verdict.basis, 'department_prior');
+  assert.equal(verdict.n, 3);
+  assert.equal(verdict.centreCents, 4200);
+  assert.ok(trace.tried.some((t) => t.rung === 'department_prior' && t.detail === 'beauty'));
+});
+
+test("3.3: an item whose department holds no prices gets no pool from another department", async () => {
+  // Thousands of food prices would once have set this pet item's centre (the old global_prior).
+  const { prods, rows } = departments([{ source: FOOD, cents: Array.from({ length: 40 }, (_, k) => 200 + k * 10), path: ['en:snacks'] }]);
+  const catalogue = catalogueDb([...prods, { code: SELF, name: 'Dog Chews', quantity: '500 g', source: PET }]);
+  const { verdict, trace } = await estimate(item(), { cents: 900 }, { prices: pricesDb(rows), catalogue });
+  assert.equal(verdict.basis, 'department_prior');
+  assert.equal(verdict.n, 0);
+  // The empty prior's wide bell: still drawn, never placed, so no zone is read off a number nobody priced.
+  assert.equal(verdict.centreCents, 1000);
+  assert.equal(verdict.shopper, null);
+  assert.ok(verdict.notes.includes('too_thin'));
+  assert.deepEqual(trace.noPrices, { why: 'no_ask' });
+  assert.ok(!trace.tried.some((t) => t.rung === ('global_prior' as string)));
+});
+
+test("3.3: a category tag two departments share pools only the item's own department", async () => {
+  const shared = ['en:treats'];
+  const { prods, rows } = departments([
+    { source: FOOD, cents: [300, 320, 340, 360, 380], path: shared },
+    { source: PET, cents: [1500, 1600, 1700, 1800, 1900], path: shared },
+  ]);
+  const catalogue = catalogueDb([...prods, { code: SELF, name: 'Dog Treats', quantity: '500 g', path: shared, source: PET }]);
+  const { verdict } = await estimate(item(), null, { prices: pricesDb(rows), catalogue });
+  assert.equal(verdict.basis, 'leaf_category');
+  assert.equal(verdict.n, 5);
+  assert.equal(verdict.centreCents, 1700);
+});
+
+test("3.3: with the item's department unknown, a pool spanning two departments is refused", async () => {
+  const shared = ['en:treats'];
+  const { prods, rows } = departments([
+    { source: FOOD, cents: [300, 320, 340, 360, 380], path: shared },
+    { source: PET, cents: [1500, 1600, 1700, 1800, 1900], path: shared },
+  ]);
+  // No barcode and no catalogue row: only the typed category is known.
+  const { verdict, trace } = await estimate(item({ barcode: null, name: 'Treats', size: '500 g', categoryPath: shared }), null, {
+    prices: pricesDb(rows),
+    catalogue: catalogueDb(prods),
+  });
+  assert.notEqual(verdict.basis, 'leaf_category');
+  assert.notEqual(verdict.basis, 'category_prior');
+  assert.ok(trace.tried.some((t) => t.rung === 'leaf_category' && t.outcome === 'mixed_departments'), JSON.stringify(trace.tried));
 });
 
 test('case 28: a slow Claude is not waited for; the next rung answers at once', async () => {
@@ -517,7 +603,7 @@ test('case 28: a slow Claude is not waited for; the next rung answers at once', 
     claudeWaitMs: 30,
   });
   assert.ok(Date.now() - started < 2000);
-  assert.equal(verdict.basis, 'global_prior');
+  assert.equal(verdict.basis, 'department_prior');
   assert.deepEqual(trace.claude, { ok: false, reason: 'timeout' });
 });
 

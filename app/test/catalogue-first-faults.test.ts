@@ -70,6 +70,8 @@ test('control: a lookup that finds the product still answers it, uncounted', asy
   assert.equal(answer.outcome, 'catalogue_hit');
   assert.equal(answer.catalogueUp, true);
   assert.equal(answer.identity?.name, 'Cheddar');
+  // 3.3: no price in its department and no Claude: no verdict off the fixed empty prior, and missing data is not a fault.
+  assert.equal(answer.verdict ?? null, null);
   assert.deepEqual(faults(), {});
   assert.deepEqual(lines, []);
 });

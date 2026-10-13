@@ -241,6 +241,8 @@ const EN = {
   vd_why_brand_markup: "based on the brand's usual markup",
   vd_why_claude_typical: 'an AI estimate, no prices for this item',
   vd_why_category_prior: 'a rough estimate for its category',
+  vd_why_department_prior: 'a rough estimate from its department',
+  // Kept for scans saved before 2026-10-13, when the last rung still pooled every price (requirement 3.3 retired it).
   vd_why_global_prior: 'a rough estimate with little to go on',
   vd_why_default: 'few prices for this item',
   // The half detent's evidence line for a medium answer (the top of the verdict carries no doubt line, 2026-10-10).
@@ -268,6 +270,7 @@ const EN = {
   vd_basis_claude_typical: 'an AI estimate',
   vd_basis_ai_line: 'Estimated by AI',
   vd_basis_category_prior: 'its category',
+  vd_basis_department_prior: 'items in the same department',
   vd_basis_global_prior: 'every price Pexi holds',
   vd_bigger_pack: (f) => `A bigger pack${f.quantity ? `, ${f.quantity}` : ''}${f.store ? ` at ${f.store}` : ''}, works out to ${f.price} ${f.unit}.`,
   vd_unit_per_100_g: 'per 100 g',
@@ -879,6 +882,7 @@ const FR = {
   vd_why_brand_markup: 'd’après la marge habituelle de la marque',
   vd_why_claude_typical: 'une estimation par l’IA, aucun prix pour ce produit',
   vd_why_category_prior: 'une estimation approximative pour sa catégorie',
+  vd_why_department_prior: 'une estimation approximative selon son rayon',
   vd_why_global_prior: 'une estimation approximative, peu de données',
   vd_why_default: 'peu de prix pour ce produit',
   vd_report_word: 'Votre signalement',
@@ -902,6 +906,7 @@ const FR = {
   vd_basis_claude_typical: 'une estimation par l’IA',
   vd_basis_ai_line: 'Estimé par l’IA',
   vd_basis_category_prior: 'sa catégorie',
+  vd_basis_department_prior: 'les produits du même rayon',
   vd_basis_global_prior: 'tous les prix de Pexi',
   vd_bigger_pack: (f) => `Un plus grand format${f.quantity ? `, ${f.quantity}` : ''}${f.store ? ` chez ${f.store}` : ''}, revient à ${f.price} ${f.unit}.`,
   vd_unit_per_100_g: 'les 100 g',

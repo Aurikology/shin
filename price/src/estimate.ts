@@ -26,7 +26,18 @@
  *                    capped price-range fallback"); its low/high read as
  *                    p10/p90. Down, capped, slow, keyless: the next rung.
  *   category_prior   the widest category Shin can place it in, any size, per item.
- *   global_prior     every regular price Shin holds in the currency.
+ *   department_prior every priced product in the item's own department, any
+ *                    size, per item. With no department known, or none priced in
+ *                    it, the fixed empty prior: drawn, never placed (`too_thin`).
+ *
+ * DEPARTMENTS (requirement 3.3, "Never pool prices across unrelated categories
+ * (no all-of-Shin median)"): no rung reads a price from another department. A
+ * catalogue row's department comes from its `source` (catalogue/src/placement.ts
+ * DEPARTMENT_OF_SOURCE). An item's department is its own row's, else the one
+ * department of the products under its deepest priced tag. Known: every pool is
+ * cut to it (a product with no known department stays in a category pool, never
+ * in the department prior). Unknown: a pool whose products span two departments
+ * is refused, `mixed_departments`. There is no all-of-Shin rung any more.
  *
  * WHAT THIS READS. The `observation` table and the catalogue `product` table,
  * through handles the caller opens read-only, and nothing else. No network and
@@ -47,6 +58,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { ageDays, isFutureDated } from '../../spine/src/money.ts';
 import { nearestRankIndex, parentOf, MIN_CATEGORY_PRODUCTS, WINDOW_DAYS } from './range.ts';
 import { flagWide } from './width-flag.ts';
+import { departmentOfSource, NO_DEPARTMENT } from '../../catalogue/src/placement.ts';
 import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity } from '../../catalogue/src/units.ts';
 // Loaded on first use, not at import: size-fill.ts pulls in the catalogue schema and its vector
@@ -102,10 +114,9 @@ export const CLAUDE_WAIT_MS = 6000;
 /** Default thresholds, his 2026-09-17 setup numbers (design call 4). */
 export const DEFAULT_THRESHOLDS = { greatPct: 30, goodPct: 20, badPct: 20 } as const;
 /**
- * The last resort when Shin holds no price at all in the currency (no price
- * file, or an empty one): a wide bell so the answer is still drawable. The
- * design: "Never reached in practice; it exists so the answer is always
- * drawable."
+ * The last resort when Shin holds no price in the item's department (or cannot
+ * tell its department): a wide bell so the answer is still drawable. It is a
+ * fixed number, not a pool, so no shopper is placed on it (`too_thin`).
  */
 export const EMPTY_PRIOR = { centreCents: 1000, sigmaLog: 1 } as const;
 
@@ -119,7 +130,7 @@ export type Basis =
   | 'brand_markup'
   | 'claude_typical'
   | 'category_prior'
-  | 'global_prior';
+  | 'department_prior';
 export type SpreadFrom = 'own_prices' | 'leaf_category' | 'parent_category' | 'claude' | 'prior';
 export type Confidence = 'high' | 'medium' | 'low';
 export type Zone = 'great' | 'good' | 'reasonable' | 'bad';
@@ -242,7 +253,8 @@ export interface EstimateDeps {
 export interface RungTried {
   readonly rung: Basis;
   /** `too_wide` (D-233): enough products, but the width flag says the pool is too wide to price this item. */
-  readonly outcome: 'used' | 'too_few' | 'not_applicable' | 'failed' | 'too_wide';
+  /** `mixed_departments` (3.3): the item's department is unknown and the pool spans two, so it is refused. */
+  readonly outcome: 'used' | 'too_few' | 'not_applicable' | 'failed' | 'too_wide' | 'mixed_departments';
   /** `parent_unchecked`: the parent rung was taken by position, never checked against a taxonomy. */
   readonly flag?: 'parent_unchecked';
   readonly n: number;
@@ -280,6 +292,13 @@ export interface EstimateTrace {
    * prior, carries `too_thin` and no zone. Null otherwise.
    */
   readonly tooThin: { readonly why: string } | null;
+  /**
+   * 3.3: no rung had a price, the item's department holds none (or its
+   * department is unknown) and Claude did not answer (`why` as above). The bell
+   * is the fixed empty prior: drawn, never placed, `too_thin` in its notes. Not
+   * a fault: data is missing. Null otherwise.
+   */
+  readonly noPrices: { readonly why: string } | null;
 }
 
 export interface EstimateResult {
@@ -432,6 +451,8 @@ interface CatRow {
   readonly sizeText: string | null;
   readonly leaf: string | null;
   readonly path: readonly string[];
+  /** From the row's `source`; null when the source names none. */
+  readonly department: string | null;
 }
 
 function parsePath(v: unknown): string[] {
@@ -442,6 +463,12 @@ function parsePath(v: unknown): string[] {
   } catch {
     return [];
   }
+}
+
+function departmentOf(source: string | null): string | null {
+  if (!source) return null;
+  const d = departmentOfSource(source);
+  return d === NO_DEPARTMENT ? null : d;
 }
 
 function readCatalogue(db: DatabaseSync, codes: readonly string[]): Map<string, CatRow> {
@@ -455,7 +482,7 @@ function readCatalogue(db: DatabaseSync, codes: readonly string[]): Map<string, 
     const rows = db
       .prepare(
         `SELECT code, name, ${col('name_en')}, ${col('brands')}, ${col('quantity')}, ${col('size_value')}, ${col('size_unit')},
-                ${col('category_path')}, ${col('leaf_category')}
+                ${col('category_path')}, ${col('leaf_category')}, ${col('source')}
            FROM product WHERE code IN (${chunk.map(() => '?').join(',')})`,
       )
       .all(...chunk) as Record<string, unknown>[];
@@ -476,6 +503,7 @@ function readCatalogue(db: DatabaseSync, codes: readonly string[]): Map<string, 
         sizeText: quantity ?? (fromCols ? `${fromCols.original.value} ${fromCols.original.unit}` : null),
         leaf: str(r.leaf_category) ?? path[path.length - 1] ?? null,
         path,
+        department: departmentOf(str(r.source)),
       });
     }
   }
@@ -497,6 +525,8 @@ interface Product {
   readonly cents: number;
   readonly newestAge: number;
   readonly store: string;
+  /** Its catalogue row's department; null with no row or a source that names none. */
+  readonly department: string | null;
 }
 
 /** One price per shop: the latest; on the same day, the lower. */
@@ -560,9 +590,25 @@ function buildProducts(
       cents: medianOf(shops.map((s) => s.cents)),
       newestAge: Math.min(...shops.map((s) => s.age)),
       store: newest.store,
+      department: c?.department ?? null,
     });
   }
   return out;
+}
+
+/**
+ * 3.3: the department of an item with no catalogue row of its own, read off the
+ * products under its deepest tag that has any with a known department: exactly
+ * one department there names it, two or more leave it unknown.
+ */
+function departmentFromPath(products: readonly Product[], path: readonly string[]): string | null {
+  for (let i = path.length - 1; i >= 0; i -= 1) {
+    const found = new Set<string>();
+    for (const p of products) if (p.department !== null && p.path.includes(path[i]!)) found.add(p.department);
+    if (found.size === 1) return [...found][0]!;
+    if (found.size > 1) return null;
+  }
+  return null;
 }
 
 /* --------------------------------------------------------------- stats */
@@ -945,14 +991,25 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   // The parent rung is the taxonomy parent of the leaf (B2); with no taxonomy, the tag before the leaf and the rung says parent_unchecked.
   const { parent, unchecked: parentUnchecked } = parentOf(leaf, path, deps.taxonomy ?? null);
   const parentFlag = parentUnchecked ? { flag: 'parent_unchecked' as const } : {};
-  const inLeaf = (tag: string) => products.filter((p) => p.leaf === tag);
-  const inTree = (tag: string) => products.filter((p) => p.path.includes(tag));
-  const categoryStats = (members: readonly Product[]): Stats | null => {
+
+  /* ---- 3.3: the item's department bounds every pool */
+  const itemDept = selfCat?.department ?? departmentFromPath(products, path);
+  const scoped = itemDept ? products.filter((p) => p.department === null || p.department === itemDept) : products;
+  // Unknown department: a pool spanning two known departments is refused (null), never pooled.
+  const oneDepartment = (members: Product[]): Product[] | null =>
+    itemDept || new Set(members.map((p) => p.department).filter((d) => d !== null)).size <= 1 ? members : null;
+  const inLeaf = (tag: string) => oneDepartment(scoped.filter((p) => p.leaf === tag));
+  const inTree = (tag: string) => oneDepartment(scoped.filter((p) => p.path.includes(tag)));
+  const categoryStats = (members: readonly Product[] | null): Stats | null => {
+    if (!members) return null;
     const s = statsOf(poolPoints(members, target, target !== null));
     return s && s.n >= MIN_CATEGORY_PRODUCTS ? s : null;
   };
-  const leafStats = leaf ? categoryStats(inLeaf(leaf)) : null;
-  const parentStats = parent ? categoryStats(inTree(parent)) : null;
+  const leafMembers = leaf ? inLeaf(leaf) : null;
+  const parentMembers = parent ? inTree(parent) : null;
+  const mixed = { leaf_category: leaf !== null && leafMembers === null, parent_category: parent !== null && parentMembers === null };
+  const leafStats = categoryStats(leafMembers);
+  const parentStats = categoryStats(parentMembers);
   const catStats = leafStats ?? parentStats;
 
   /* ---- own prices */
@@ -999,7 +1056,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
 
   /* ---- same product, other sizes; the bigger pack is a side note only (design call 2) */
   const pKey = productKey(name, brand);
-  const sameProduct = pKey && target ? products.filter((p) => p.barcoded && p.size?.family === target!.family && productKey(p.name, p.brand) === pKey) : [];
+  const sameProduct = pKey && target ? scoped.filter((p) => p.barcoded && p.size?.family === target!.family && productKey(p.name, p.brand) === pKey) : [];
   let biggerPack: Verdict['biggerPack'] = null;
   if (target) {
     let best: { perUnit: number; p: Product } | null = null;
@@ -1058,7 +1115,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
       if (!target) notes.add('size_assumed');
       tried.push({ rung, outcome: 'used', n, detail: tag, ...(rung === 'parent_category' ? parentFlag : {}) });
     } else {
-      tried.push({ rung, outcome: 'too_few', n: 0, detail: tag, ...(rung === 'parent_category' ? parentFlag : {}) });
+      tried.push({ rung, outcome: mixed[rung] ? 'mixed_departments' : 'too_few', n: 0, detail: tag, ...(rung === 'parent_category' ? parentFlag : {}) });
     }
   }
 
@@ -1071,8 +1128,8 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
       const unitMedian = (tag: string, family: string): number | null => {
         const k = `${tag}|${family}`;
         if (!leafUnit.has(k)) {
-          const pts = products
-            .filter((p) => p.leaf === tag && p.size?.family === family)
+          const pts = (inLeaf(tag) ?? [])
+            .filter((p) => p.size?.family === family)
             .map((p) => ({ log: Math.log(p.cents / p.size!.baseValue), age: p.newestAge }));
           const s = statsOf(pts);
           leafUnit.set(k, s && s.n >= MIN_CATEGORY_PRODUCTS ? s.mu : null);
@@ -1080,7 +1137,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
         return leafUnit.get(k)!;
       };
       const ratios: number[] = [];
-      for (const p of products) {
+      for (const p of scoped) {
         if (!p.size || !p.leaf || brandKey(p.brand) !== bk) continue;
         const m = unitMedian(p.leaf, p.size.family);
         if (m !== null) ratios.push(Math.log(p.cents / p.size.baseValue) - m);
@@ -1089,7 +1146,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
       if (ratios.length >= 3) {
         const ratio = medianOf(ratios);
         for (let i = path.length - 1; i >= 0; i -= 1) {
-          const s = statsOf(poolPoints(inTree(path[i]!), target, false));
+          const s = statsOf(poolPoints(inTree(path[i]!) ?? [], target, false));
           // D-233: a category centre from a pool too wide to mean anything is set aside here as well.
           if (s && s.n >= MIN_CATEGORY_PRODUCTS && tooWide(s)) {
             wide = true;
@@ -1166,9 +1223,10 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
 
   /* ---- the priors: always drawable */
   const widest = path[0] ?? null;
-  const categoryPrior = widest ? statsOf(poolPoints(inTree(widest), null, false)) : null;
-  const allRegular = rows.filter((r) => !r.sale);
-  const globalPrior = statsOf(latestPerShop(allRegular.map((r) => ({ ...r, shop: `${r.key ?? r.seller + r.sku}|${r.shop}` }))).map((r) => ({ log: Math.log(r.cents), age: r.age })));
+  const widestMembers = widest ? inTree(widest) : null;
+  const categoryPrior = widestMembers ? statsOf(poolPoints(widestMembers, null, false)) : null;
+  // Only products the catalogue places in the department: one with no known department is never in it.
+  const departmentPrior = itemDept ? statsOf(poolPoints(scoped.filter((p) => p.department === itemDept), null, false)) : null;
   if (basis === null) {
     if (categoryPrior && categoryPrior.n >= MIN_PRIOR_PRODUCTS) {
       basis = 'category_prior';
@@ -1177,17 +1235,18 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
       priorStats = categoryPrior;
       tried.push({ rung: 'category_prior', outcome: 'used', n, detail: widest! });
     } else {
-      tried.push({ rung: 'category_prior', outcome: widest ? 'too_few' : 'not_applicable', n: categoryPrior?.n ?? 0 });
-      basis = 'global_prior';
-      if (globalPrior) {
-        mu = globalPrior.mu;
-        n = globalPrior.n;
-        priorStats = globalPrior;
+      const outcome = !widest ? 'not_applicable' : widestMembers === null ? 'mixed_departments' : 'too_few';
+      tried.push({ rung: 'category_prior', outcome, n: categoryPrior?.n ?? 0 });
+      basis = 'department_prior';
+      if (departmentPrior) {
+        mu = departmentPrior.mu;
+        n = departmentPrior.n;
+        priorStats = departmentPrior;
       } else {
         mu = Math.log(EMPTY_PRIOR.centreCents);
         n = 0;
       }
-      tried.push({ rung: 'global_prior', outcome: 'used', n });
+      tried.push({ rung: 'department_prior', outcome: departmentPrior ? 'used' : 'too_few', n, ...(itemDept ? { detail: itemDept } : {}) });
     }
   }
 
@@ -1197,9 +1256,14 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
    * no zone and says so. The reason is the Claude rung's own.
    */
   let tooThin: EstimateTrace['tooThin'] = null;
-  if (aside.pool && (basis === 'category_prior' || basis === 'global_prior')) {
-    const claudeStep = tried.find((t) => t.rung === 'claude_typical');
-    tooThin = { why: claudeStep?.detail ?? 'no_ask' };
+  let noPrices: EstimateTrace['noPrices'] = null;
+  const claudeWhy = tried.find((t) => t.rung === 'claude_typical')?.detail ?? 'no_ask';
+  if (aside.pool && (basis === 'category_prior' || basis === 'department_prior')) {
+    tooThin = { why: claudeWhy };
+    notes.add('too_thin');
+  } else if (basis === 'department_prior' && n === 0) {
+    // 3.3: the empty prior is a fixed number, not a pool; like a set-aside pool it is drawn and never placed.
+    noPrices = { why: claudeWhy };
     notes.add('too_thin');
   }
 
@@ -1223,7 +1287,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     sigma = claudeSigma;
     spreadFrom = 'claude';
   } else {
-    const prior = priorStats ?? categoryPrior ?? globalPrior;
+    const prior = priorStats ?? categoryPrior ?? departmentPrior;
     sigma = prior && prior.n >= 3 && prior.sigma > 0 ? prior.sigma : EMPTY_PRIOR.sigmaLog;
     spreadFrom = 'prior';
   }
@@ -1244,7 +1308,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     confidence = 'medium';
   }
   if ((basis === 'own_prices' || basis === 'other_size') && n < 3) notes.add('few_prices');
-  if ((basis === 'category_prior' || basis === 'global_prior') && n < MIN_CATEGORY_PRODUCTS) notes.add('few_prices');
+  if ((basis === 'category_prior' || basis === 'department_prior') && n < MIN_CATEGORY_PRODUCTS) notes.add('few_prices');
 
   /* ---- the numbers */
   const centreCents = Math.max(1, Math.round(Math.exp(mu)));
@@ -1269,7 +1333,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
 
   let placed: ShopperPlacement | null = null;
   // D-233: a too-thin estimate places no shopper, so no zone is ever read off it.
-  if (shopper && Number.isInteger(shopper.cents) && shopper.cents > 0 && !item.weighed && !tooThin) {
+  if (shopper && Number.isInteger(shopper.cents) && shopper.cents > 0 && !item.weighed && !tooThin && !noPrices) {
     const from = (shopper.currency ?? currency).trim().toUpperCase() || currency;
     const rate = from === currency ? 1 : deps.fxRates?.[from];
     if (typeof rate === 'number' && Number.isFinite(rate) && rate > 0) {
@@ -1298,7 +1362,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   };
   return {
     verdict,
-    trace: { tried, claude: claudeTrace, conflict, sorted, name, brand, size: sizeText, ownShops: basis === 'own_prices' ? ownShops.length : 0, widePool: aside.pool, tooThin },
+    trace: { tried, claude: claudeTrace, conflict, sorted, name, brand, size: sizeText, ownShops: basis === 'own_prices' ? ownShops.length : 0, widePool: aside.pool, tooThin, noPrices },
   };
 }
 

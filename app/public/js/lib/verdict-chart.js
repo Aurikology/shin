@@ -42,7 +42,7 @@ export const SUSPECT_SIGMAS = 4;
 /** His 2026-09-17 setup numbers, the defaults until a shopper sets their own. */
 export const DEFAULT_THRESHOLDS = Object.freeze({ greatPct: DEFAULT_PERCENTS.great, goodPct: DEFAULT_PERCENTS.good, badPct: DEFAULT_PERCENTS.bad, fromShopper: false });
 export const ZONES = Object.freeze(['great', 'good', 'reasonable', 'bad']);
-export const BASES = Object.freeze(['own_prices', 'other_size', 'leaf_category', 'parent_category', 'brand_markup', 'claude_typical', 'category_prior', 'global_prior']);
+export const BASES = Object.freeze(['own_prices', 'other_size', 'leaf_category', 'parent_category', 'brand_markup', 'claude_typical', 'category_prior', 'department_prior', 'global_prior']);
 export const NOTES = Object.freeze(['size_assumed', 'other_region', 'old_prices', 'identity_conflict', 'claude_estimate', 'few_prices']);
 /** The contract caps dots at 12. */
 export const MAX_DOTS = 12;
