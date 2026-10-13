@@ -17,8 +17,11 @@ import {
   MIN_OWN_SHOPS,
   MIN_CATEGORY_PRODUCTS,
   WINDOW_DAYS,
+  MIN_RANGE_RATIO,
+  MIN_RANGE_SIGMA,
   type RangeInput,
 } from '../src/range.ts';
+import { MIN_SIGMA } from '../src/estimate.ts';
 
 const AS_OF = '2026-09-27';
 
@@ -57,18 +60,19 @@ interface Prod {
   size_unit?: string | null;
   quantity?: string | null;
   path: string[];
+  source?: string | null;
 }
 
 function catalogue(products: readonly Prod[]): DatabaseSync {
   const db = new DatabaseSync(':memory:');
   db.exec(`CREATE TABLE product (
     code TEXT PRIMARY KEY, name TEXT NOT NULL, quantity TEXT, size_value REAL, size_unit TEXT,
-    category_path TEXT NOT NULL DEFAULT '[]', leaf_category TEXT)`);
+    category_path TEXT NOT NULL DEFAULT '[]', leaf_category TEXT, source TEXT)`);
   const ins = db.prepare(
-    'INSERT INTO product (code, name, quantity, size_value, size_unit, category_path, leaf_category) VALUES (?,?,?,?,?,?,?)',
+    'INSERT INTO product (code, name, quantity, size_value, size_unit, category_path, leaf_category, source) VALUES (?,?,?,?,?,?,?,?)',
   );
   for (const p of products) {
-    ins.run(p.code, 'x', p.quantity ?? null, p.size_value ?? null, p.size_unit ?? null, JSON.stringify(p.path), p.path[p.path.length - 1] ?? null);
+    ins.run(p.code, 'x', p.quantity ?? null, p.size_value ?? null, p.size_unit ?? null, JSON.stringify(p.path), p.path[p.path.length - 1] ?? null, p.source ?? null);
   }
   return db;
 }
@@ -165,8 +169,10 @@ test('stale, future-dated, promotional and other-currency prices are ignored', (
   const r2 = priceRangeFor(input(), { prices: prices(withThird), catalogue: null });
   assert.equal(r2.basis, 'this_product');
   if (r2.basis === 'this_product') {
-    assert.equal(r2.lowCents, 500);
-    assert.equal(r2.highCents, 520);
+    // 500 to 520 is narrower than the floor (3.4), so the ends widen around the middle; the observed ends stay inside.
+    assert.ok(r2.lowCents <= 500 && r2.highCents >= 520);
+    assert.ok(r2.highCents / r2.lowCents >= MIN_RANGE_RATIO);
+    assert.equal(r2.widened, 'minimum');
     assert.equal(r2.oldest, edge);
   }
 });
@@ -284,4 +290,121 @@ test('no barcode and no category is none, with that reason', () => {
     assert.equal(r.reason, 'no_barcode_and_no_category');
     assert.equal(r.n, 0);
   }
+});
+
+/* ------------------------------------------------- 3.4 never one price */
+
+/*
+ * Requirement 3.4: never answer with a single store's price; every answer is a range. Plan Method A:
+ * a minimum width, never below the category's spread (docs/verdict-distribution-design-2026-09-30.md,
+ * "Spread": all-same prices cannot collapse the bell), never below the verdict's own floor.
+ */
+
+test('3.4: the floor is the verdict floor read at the quartiles', () => {
+  assert.equal(MIN_RANGE_SIGMA, MIN_SIGMA, 'range.ts and estimate.ts share one floor');
+  assert.ok(Math.abs(MIN_RANGE_RATIO - Math.exp(2 * 0.6744897501960817 * MIN_SIGMA)) < 1e-12);
+  assert.ok(MIN_RANGE_RATIO > 1.06 && MIN_RANGE_RATIO < 1.08);
+});
+
+test('3.4: three shops at one price are still a range, never one price', () => {
+  const r = priceRangeFor(input({ leafCategory: null, categoryPath: [] }), { prices: prices(ownRows([499, 499, 499])), catalogue: null });
+  assert.equal(r.basis, 'this_product');
+  if (r.basis !== 'this_product') return;
+  assert.ok(r.highCents > r.lowCents, `${r.lowCents}..${r.highCents}`);
+  assert.ok(r.highCents / r.lowCents >= MIN_RANGE_RATIO);
+  assert.ok(r.lowCents < 499 && r.highCents > 499);
+  assert.equal(r.medianCents, 499);
+  assert.equal(r.widened, 'minimum');
+  assert.ok(r.spread > 1);
+});
+
+test('3.4: own prices narrower than their category widen to the category spread', () => {
+  // Five 500 g jars at 500..660 cents (under the width flag's 1.5x): the leaf's quartiles are 540 and 620, about 1.15x.
+  const prods: Prod[] = [];
+  const rows: ObservationRow[] = [];
+  [500, 540, 580, 620, 660].forEach((c, i) => {
+    const code = String(4000 + i).padStart(13, '0');
+    prods.push({ code, size_value: 500, size_unit: 'g', path: LEAF });
+    rows.push(obs({ code, sellerSku: `j${i}`, priceCents: c }));
+  });
+  const r = priceRangeFor(input({ size: '500 g' }), {
+    prices: prices([...rows, ...ownRows([600, 600, 610])]),
+    catalogue: catalogue([...prods, { code: SELF, size_value: 500, size_unit: 'g', path: LEAF }]),
+  });
+  assert.equal(r.basis, 'this_product');
+  if (r.basis !== 'this_product') return;
+  assert.equal(r.widened, 'category_spread');
+  assert.ok(r.highCents / r.lowCents >= 620 / 540, `${r.lowCents}..${r.highCents}`);
+  assert.equal(r.medianCents, 600);
+});
+
+test('3.4: own prices already wider than the floor are left exactly as the shops priced them', () => {
+  const r = priceRangeFor(input({ leafCategory: null, categoryPath: [] }), { prices: prices(ownRows([599, 499, 549])), catalogue: null });
+  assert.equal(r.basis, 'this_product');
+  if (r.basis !== 'this_product') return;
+  assert.equal(r.widened, null);
+  assert.deepEqual([r.lowCents, r.highCents], [499, 599]);
+});
+
+test('3.4: a category whose products all agree is still a range', () => {
+  const prods: Prod[] = [];
+  const rows: ObservationRow[] = [];
+  for (let i = 0; i < 5; i++) {
+    const code = String(3000 + i).padStart(13, '0');
+    prods.push({ code, size_value: 500, size_unit: 'g', path: LEAF });
+    rows.push(obs({ code, sellerSku: `z${i}`, priceCents: 450 }));
+  }
+  const r = priceRangeFor(input({ size: '500 g' }), { prices: prices(rows), catalogue: catalogue(prods) });
+  assert.equal(r.basis, 'leaf_category');
+  if (r.basis !== 'leaf_category') return;
+  assert.ok(r.highCents > r.lowCents);
+  assert.ok(r.highCents / r.lowCents >= MIN_RANGE_RATIO);
+  assert.equal(r.widened, 'minimum');
+});
+
+test('3.4: property, over 300 random one-price items no answer is a single price or under the floor', () => {
+  let seed = 7;
+  const rand = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+  for (let k = 0; k < 300; k++) {
+    const cents = 1 + Math.floor(rand() * 20000);
+    const shops = 3 + Math.floor(rand() * 6);
+    const r = priceRangeFor(input({ leafCategory: null, categoryPath: [] }), { prices: prices(ownRows(Array(shops).fill(cents))), catalogue: null });
+    assert.equal(r.basis, 'this_product');
+    if (r.basis !== 'this_product') continue;
+    assert.ok(Number.isInteger(r.lowCents) && Number.isInteger(r.highCents));
+    assert.ok(r.lowCents >= 1);
+    assert.ok(r.highCents > r.lowCents, `${cents}: ${r.lowCents}..${r.highCents}`);
+    assert.ok(r.highCents / r.lowCents >= MIN_RANGE_RATIO, `${cents}: ${r.lowCents}..${r.highCents}`);
+  }
+});
+
+/* ------------------------------------------------ 3.3 one department */
+
+test("3.3: a category tag two departments share pools only the item's own department", () => {
+  const shared = ['en:treats'];
+  const prods: Prod[] = [];
+  const rows: ObservationRow[] = [];
+  const add = (source: string, cents: number[], base: number) =>
+    cents.forEach((c, i) => {
+      const code = String(base + i).padStart(13, '0');
+      prods.push({ code, size_value: 500, size_unit: 'g', path: shared, source });
+      rows.push(obs({ code, sellerSku: `t${base + i}`, priceCents: c }));
+    });
+  add('openfoodfacts', [300, 320, 340, 360, 380], 5000);
+  add('openpetfoodfacts', [1500, 1600, 1700, 1800, 1900], 6000);
+  const pet = priceRangeFor(input({ size: '500 g', leafCategory: 'en:treats', categoryPath: shared }), {
+    prices: prices(rows),
+    catalogue: catalogue([...prods, { code: SELF, size_value: 500, size_unit: 'g', path: shared, source: 'openpetfoodfacts' }]),
+  });
+  assert.equal(pet.basis, 'leaf_category');
+  if (pet.basis !== 'leaf_category') return;
+  assert.deepEqual([pet.lowCents, pet.medianCents, pet.highCents], [1600, 1700, 1800]);
+
+  // No catalogue row: the department is unknown and the pool spans two, so it is refused.
+  const unknown = priceRangeFor(input({ barcode: null, size: '500 g', leafCategory: 'en:treats', categoryPath: shared }), {
+    prices: prices(rows),
+    catalogue: catalogue(prods),
+  });
+  assert.equal(unknown.basis, 'none');
+  assert.ok(unknown.tried.some((t) => t.basis === 'leaf_category' && t.outcome === 'mixed_departments'), JSON.stringify(unknown.tried));
 });

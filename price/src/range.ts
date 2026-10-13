@@ -36,13 +36,28 @@
  *
  * PERCENTILES are nearest-rank (the same rule as `spine/src/money.ts`), because
  * every low, median and high on the own-product step is then a price some shop
- * actually charged, never an interpolated one.
+ * actually charged, never an interpolated one. The one exception is the floor:
+ *
+ * NEVER ONE PRICE (requirement 3.4, "Every answer is a range"). Shops that agree
+ * on a price say what those shops charge, not what the next one will. A range
+ * narrower than the item's category spread (leaf, else parent; a pool the width
+ * flag calls too wide sets no floor) or than MIN_RANGE_RATIO is widened around
+ * its median to that width, the shops' own low and high kept inside, and says
+ * so in `widened`. Then its ends are no longer prices a shop charged.
+ *
+ * ONE DEPARTMENT (requirement 3.3, "Never pool prices across unrelated
+ * categories"). A category step reads only products in the item's department
+ * (the catalogue row's `source`, catalogue/src/placement.ts); a product with no
+ * known department stays in. The item's department is its own row's, else the
+ * one department under its deepest priced tag. Unknown, a pool spanning two
+ * departments is refused: `mixed_departments`.
  */
 
 import type { DatabaseSync } from 'node:sqlite';
 import { ageDays, isFutureDated, ratio } from '../../spine/src/money.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity, type ComparisonLabel } from '../../catalogue/src/units.ts';
 import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
+import { departmentOfSource, NO_DEPARTMENT } from '../../catalogue/src/placement.ts';
 // width-flag.ts imports nearestRankIndex from this file; both are function declarations, so the cycle is safe.
 import { flagWide } from './width-flag.ts';
 
@@ -68,6 +83,17 @@ export const MIN_OWN_SHOPS = 3;
  * either end can never set the low or the high. At 4 it would.
  */
 export const MIN_CATEGORY_PRODUCTS = 5;
+
+/**
+ * 3.4: the verdict's floor under every spread, 0.05 on log price (estimate.ts
+ * MIN_SIGMA, design "Spread"; not imported, because estimate.ts imports this
+ * file). A test holds the two equal.
+ */
+export const MIN_RANGE_SIGMA = 0.05;
+/** The standard normal's 75th percentile: the quartiles sit this many sigmas from the middle. */
+const Z75 = 0.6744897501960817;
+/** The narrowest range, high over low: the floor read at the quartiles this file reports, about 1.07x. */
+export const MIN_RANGE_RATIO = Math.exp(2 * Z75 * MIN_RANGE_SIGMA);
 
 /* ----------------------------------------------------------------- types */
 
@@ -110,7 +136,8 @@ export interface RangeStep {
   /** The category tag the step used; null on the own-product step. */
   readonly category: string | null;
   readonly n: number;
-  readonly outcome: 'used' | 'too_few' | 'no_barcode' | 'no_category' | 'no_size';
+  /** `mixed_departments` (3.3): the item's department is unknown and the pool spans two, so it is refused. */
+  readonly outcome: 'used' | 'too_few' | 'no_barcode' | 'no_category' | 'no_size' | 'mixed_departments';
   /** `parent_unchecked`: this parent was taken by position and never checked against a taxonomy. */
   readonly flag?: 'parent_unchecked';
 }
@@ -130,6 +157,12 @@ interface RangeCommon {
   readonly currency: string;
   readonly windowDays: number;
   readonly tried: readonly RangeStep[];
+  /**
+   * 3.4: null when the range is the prices as found; otherwise it was narrower
+   * than the floor and was widened around its median to `category_spread` (the
+   * item's category's own spread) or `minimum` (MIN_RANGE_RATIO).
+   */
+  readonly widened: 'category_spread' | 'minimum' | null;
 }
 
 export interface RangeThisProduct extends RangeCommon {
@@ -184,6 +217,52 @@ export function quartiles(values: readonly number[]): { low: number; median: num
     median: s[nearestRankIndex(s.length, 50)]!,
     high: s[nearestRankIndex(s.length, 75)]!,
   };
+}
+
+/**
+ * 3.4: low and high at least `ratio` apart, widened around `median` when they
+ * are not. The shops' own ends stay inside; the low rounds down and the high up,
+ * so rounding never takes the range back under the floor.
+ */
+export function atLeastWidth(
+  low: number,
+  median: number,
+  high: number,
+  floors: readonly { readonly ratio: number; readonly why: 'category_spread' | 'minimum' }[],
+): { lowCents: number; highCents: number; widened: 'category_spread' | 'minimum' | null } {
+  const floor = floors.reduce((a, b) => (b.ratio > a.ratio ? b : a));
+  if (high > low && high >= low * floor.ratio) return { lowCents: low, highCents: high, widened: null };
+  const half = Math.sqrt(floor.ratio);
+  const lowCents = Math.max(1, Math.min(low, Math.floor(median / half)));
+  let highCents = Math.max(high, Math.ceil(median * half));
+  if (highCents < lowCents * floor.ratio) highCents = Math.ceil(lowCents * floor.ratio);
+  if (highCents <= lowCents) highCents = lowCents + 1;
+  return { lowCents, highCents, widened: floor.why };
+}
+
+/* ---------------------------------------------------------- departments */
+
+/** A catalogue `source`'s department, null when it names none. */
+export function departmentOf(source: string | null | undefined): string | null {
+  if (!source) return null;
+  const d = departmentOfSource(source);
+  return d === NO_DEPARTMENT ? null : d;
+}
+
+/**
+ * The department of an item with no catalogue row of its own: walking its path
+ * from the deepest tag up, the first tag with any product of known department
+ * names it if they all agree, and leaves it unknown if they do not.
+ */
+export function departmentFromPath(products: Iterable<{ readonly department: string | null; readonly path: readonly string[] }>, path: readonly string[]): string | null {
+  const list = [...products];
+  for (let i = path.length - 1; i >= 0; i -= 1) {
+    const found = new Set<string>();
+    for (const p of list) if (p.department !== null && p.path.includes(path[i]!)) found.add(p.department);
+    if (found.size === 1) return [...found][0]!;
+    if (found.size > 1) return null;
+  }
+  return null;
 }
 
 /* ---------------------------------------------------------------- codes */
@@ -329,6 +408,7 @@ interface CatalogueRow {
   readonly size: ComparisonQuantity | null;
   readonly leaf: string | null;
   readonly path: readonly string[];
+  readonly department: string | null;
 }
 
 function sizeOf(value: unknown, unit: unknown, quantity: unknown): ComparisonQuantity | null {
@@ -352,12 +432,14 @@ function parsePath(v: unknown, code: string): string[] {
 
 function readCatalogue(db: DatabaseSync, codes: readonly string[]): Map<string, CatalogueRow> {
   const out = new Map<string, CatalogueRow>();
+  // An older catalogue may have no `source`: every row then has no known department.
+  const hasSource = (db.prepare('PRAGMA table_info(product)').all() as { name: string }[]).some((c) => c.name === 'source');
   const all = [...new Set(codes.flatMap(spellings))];
   for (let i = 0; i < all.length; i += 500) {
     const chunk = all.slice(i, i + 500);
     const rows = db
       .prepare(
-        `SELECT code, size_value, size_unit, quantity, category_path, leaf_category
+        `SELECT code, size_value, size_unit, quantity, category_path, leaf_category, ${hasSource ? 'source' : 'NULL AS source'}
            FROM product WHERE code IN (${chunk.map(() => '?').join(',')})`,
       )
       .all(...chunk) as Record<string, unknown>[];
@@ -369,6 +451,7 @@ function readCatalogue(db: DatabaseSync, codes: readonly string[]): Map<string, 
         size: sizeOf(r.size_value, r.size_unit, r.quantity),
         leaf: typeof r.leaf_category === 'string' ? r.leaf_category : null,
         path: parsePath(r.category_path, String(r.code)),
+        department: departmentOf(typeof r.source === 'string' ? r.source : null),
       });
     }
   }
@@ -404,9 +487,11 @@ function categoryRange(
   windowDays: number,
   tried: RangeStep[],
   unchecked = false,
+  department: string | null = null,
 ): RangeCategory | null {
   const flag = unchecked ? { flag: 'parent_unchecked' as const } : {};
   const points: ProductPoint[] = [];
+  const seen = new Set<string>();
   for (const [key, obs] of priced) {
     // The product itself is left out: this step runs because its own evidence was too thin.
     if (key === selfKey) continue;
@@ -414,10 +499,17 @@ function categoryRange(
     if (!row || !row.size || row.size.family !== target.family) continue;
     const inCategory = basis === 'leaf_category' ? row.leaf === tag : row.path.includes(tag);
     if (!inCategory) continue;
+    // 3.3: another department's product never joins this pool.
+    if (department !== null && row.department !== null && row.department !== department) continue;
+    if (row.department !== null) seen.add(row.department);
     const shops = latestPerShop(obs);
     const cents = [...shops.map((s) => s.cents)].sort((a, b) => a - b)[nearestRankIndex(shops.length, 50)]!;
     const d = dates(shops);
     points.push({ key, cents, base: row.size.baseValue, sellers: shops.map((s) => s.seller), ...d });
+  }
+  if (department === null && seen.size > 1) {
+    tried.push({ basis, category: tag, n: points.length, outcome: 'mixed_departments', ...flag });
+    return null;
   }
   if (points.length < MIN_CATEGORY_PRODUCTS) {
     tried.push({ basis, category: tag, n: points.length, outcome: 'too_few', ...flag });
@@ -433,15 +525,15 @@ function categoryRange(
   const perUnit = (pt: ProductPoint) => Math.round((pt.cents * target.perQuantity) / pt.base);
   const lo = at(25);
   const hi = at(75);
-  const lowCents = scale(lo);
-  const highCents = scale(hi);
+  const medianCents = scale(at(50));
+  const { lowCents, highCents, widened } = atLeastWidth(scale(lo), medianCents, scale(hi), [{ ratio: MIN_RANGE_RATIO, why: 'minimum' }]);
   const allDates = points.flatMap((p) => [p.oldest, p.newest]).sort();
   return {
     basis,
     category: tag,
     lowCents,
     highCents,
-    medianCents: scale(at(50)),
+    medianCents,
     n: points.length,
     sellers: new Set(points.flatMap((p) => p.sellers)).size,
     oldest: allDates[0]!,
@@ -453,6 +545,7 @@ function categoryRange(
     scaledTo: target.original,
     wide,
     tried,
+    widened,
   };
 }
 
@@ -495,6 +588,24 @@ export function priceRangeFor(input: RangeInput, sources: RangeSources): RangeRe
   const fromText = parseQuantity(input.size ?? null);
   const target = (fromText ? toComparison(fromText.value, fromText.unit) : null) ?? selfRow?.size ?? null;
 
+  // The category pools, read once, lazily: the own step needs them only for its floor.
+  const { parent, unchecked } = parentOf(leaf, path, sources.taxonomy ?? null);
+  let pools: { priced: Map<string, Obs[]>; catalogue: Map<string, CatalogueRow>; department: string | null } | null = null;
+  const readPools = () => {
+    if (pools) return pools;
+    const all = readObservations(sources.prices, null, currency, input.asOf, windowDays);
+    const priced = new Map<string, Obs[]>();
+    for (const o of all) {
+      const list = priced.get(o.key);
+      if (list) list.push(o);
+      else priced.set(o.key, [o]);
+    }
+    const catalogue = readCatalogue(sources.catalogue!, [...priced.keys()]);
+    const department = selfRow?.department ?? departmentFromPath(catalogue.values(), path);
+    pools = { priced, catalogue, department };
+    return pools;
+  };
+
   // Step 1: this product.
   let best = 0;
   if (barcode) {
@@ -503,18 +614,30 @@ export function priceRangeFor(input: RangeInput, sources: RangeSources): RangeRe
     if (shops.length >= MIN_OWN_SHOPS) {
       tried.push({ basis: 'this_product', category: null, n: shops.length, outcome: 'used' });
       const q = quartiles(shops.map((s) => s.cents));
+      // 3.4: never narrower than the item's category (leaf, else parent; a too-wide pool sets no floor), nor the minimum.
+      const floors: { ratio: number; why: 'category_spread' | 'minimum' }[] = [{ ratio: MIN_RANGE_RATIO, why: 'minimum' }];
+      if (leaf && target && sources.catalogue) {
+        const p = readPools();
+        const quiet: RangeStep[] = [];
+        const cat =
+          categoryRange('leaf_category', leaf, target, selfKey, p.priced, p.catalogue, currency, windowDays, quiet, false, p.department) ??
+          (parent ? categoryRange('parent_category', parent, target, selfKey, p.priced, p.catalogue, currency, windowDays, quiet, unchecked, p.department) : null);
+        if (cat && !cat.wide && cat.highCents > cat.lowCents) floors.push({ ratio: cat.highCents / cat.lowCents, why: 'category_spread' });
+      }
+      const w = atLeastWidth(q.low, q.median, q.high, floors);
       return {
         basis: 'this_product',
-        lowCents: q.low,
-        highCents: q.high,
+        lowCents: w.lowCents,
+        highCents: w.highCents,
         medianCents: q.median,
         n: shops.length,
         sellers: new Set(shops.map((s) => s.seller)).size,
         ...dates(shops),
-        spread: ratio(q.high, q.low),
+        spread: ratio(w.highCents, w.lowCents),
         currency,
         windowDays,
         tried,
+        widened: w.widened,
       };
     }
     tried.push({ basis: 'this_product', category: null, n: shops.length, outcome: 'too_few' });
@@ -523,7 +646,6 @@ export function priceRangeFor(input: RangeInput, sources: RangeSources): RangeRe
   }
 
   // Steps 2 and 3: the category, leaf then parent, never further.
-  const { parent, unchecked } = parentOf(leaf, path, sources.taxonomy ?? null);
   const parentStep = (outcome: RangeStep['outcome']): RangeStep => ({ basis: 'parent_category', category: parent, n: 0, outcome, ...(unchecked ? { flag: 'parent_unchecked' as const } : {}) });
   const none = (reason: NoneReason): RangeNone => ({ basis: 'none', reason, n: best, spread: null, tried });
 
@@ -537,16 +659,9 @@ export function priceRangeFor(input: RangeInput, sources: RangeSources): RangeRe
     return none('size_unknown');
   }
 
-  const all = readObservations(sources.prices, null, currency, input.asOf, windowDays);
-  const priced = new Map<string, Obs[]>();
-  for (const o of all) {
-    const list = priced.get(o.key);
-    if (list) list.push(o);
-    else priced.set(o.key, [o]);
-  }
-  const catalogue = readCatalogue(sources.catalogue, [...priced.keys()]);
+  const { priced, catalogue, department } = readPools();
 
-  const leafRange = categoryRange('leaf_category', leaf, target, selfKey, priced, catalogue, currency, windowDays, tried);
+  const leafRange = categoryRange('leaf_category', leaf, target, selfKey, priced, catalogue, currency, windowDays, tried, false, department);
   if (leafRange) return leafRange;
   best = Math.max(best, tried[tried.length - 1]!.n);
 
@@ -554,7 +669,7 @@ export function priceRangeFor(input: RangeInput, sources: RangeSources): RangeRe
     tried.push({ basis: 'parent_category', category: null, n: 0, outcome: 'no_category' });
     return none('too_few_prices');
   }
-  const parentRange = categoryRange('parent_category', parent, target, selfKey, priced, catalogue, currency, windowDays, tried, unchecked);
+  const parentRange = categoryRange('parent_category', parent, target, selfKey, priced, catalogue, currency, windowDays, tried, unchecked, department);
   if (parentRange) return parentRange;
   best = Math.max(best, tried[tried.length - 1]!.n);
   return none('too_few_prices');

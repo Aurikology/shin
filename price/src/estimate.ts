@@ -56,9 +56,8 @@
 
 import type { DatabaseSync } from 'node:sqlite';
 import { ageDays, isFutureDated } from '../../spine/src/money.ts';
-import { nearestRankIndex, parentOf, MIN_CATEGORY_PRODUCTS, WINDOW_DAYS } from './range.ts';
+import { departmentFromPath, departmentOf, nearestRankIndex, parentOf, MIN_CATEGORY_PRODUCTS, WINDOW_DAYS } from './range.ts';
 import { flagWide } from './width-flag.ts';
-import { departmentOfSource, NO_DEPARTMENT } from '../../catalogue/src/placement.ts';
 import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity } from '../../catalogue/src/units.ts';
 // Loaded on first use, not at import: size-fill.ts pulls in the catalogue schema and its vector
@@ -465,12 +464,6 @@ function parsePath(v: unknown): string[] {
   }
 }
 
-function departmentOf(source: string | null): string | null {
-  if (!source) return null;
-  const d = departmentOfSource(source);
-  return d === NO_DEPARTMENT ? null : d;
-}
-
 function readCatalogue(db: DatabaseSync, codes: readonly string[]): Map<string, CatRow> {
   const out = new Map<string, CatRow>();
   if (codes.length === 0) return out;
@@ -594,21 +587,6 @@ function buildProducts(
     });
   }
   return out;
-}
-
-/**
- * 3.3: the department of an item with no catalogue row of its own, read off the
- * products under its deepest tag that has any with a known department: exactly
- * one department there names it, two or more leave it unknown.
- */
-function departmentFromPath(products: readonly Product[], path: readonly string[]): string | null {
-  for (let i = path.length - 1; i >= 0; i -= 1) {
-    const found = new Set<string>();
-    for (const p of products) if (p.department !== null && p.path.includes(path[i]!)) found.add(p.department);
-    if (found.size === 1) return [...found][0]!;
-    if (found.size > 1) return null;
-  }
-  return null;
 }
 
 /* --------------------------------------------------------------- stats */
