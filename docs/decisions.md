@@ -2826,3 +2826,38 @@ to leave more often than those shown a grocery-median bell (then a labelled depa
 from Claude, plan 6.6, comes before the empty prior); or the 7.1 calibration shows the 1.07x floor
 is too narrow for agreeing shops (then the floor comes from measured coverage, not the design's
 0.05).
+
+## UI build 6, the verdict screen, and where its spec gave way
+**Date:** 2026-10-13 · **Status:** active
+
+Aurik, 2026-10-13: *"no designs yet but i want to enhance the ui of pexi"*. Built build 6 of
+docs/design/ux-evidence-2026-10-09.md section 13 (8489dca): 50 red tests to 0. Five calls made where
+the spec's tests could not all hold, each written into the test it changed:
+
+1. **Confidence lives in the half position.** R-40, R-45 and R-69 put "Certain / Fairly sure / Not
+   fully confident" and the low reason on the first position. RULINGS.md "V1 verdict screen
+   mechanics" (2026-10-10, newer than the spec) says the top carries no doubt line. The word, its
+   three dots and the specific reason ("1 price found, blended with its category") sit together in
+   the half position beside the source line. The 2026-10-10 audit removed the medium sentence
+   "Fairly sure, not certain"; the meter's word "Fairly sure" is a level, not that sentence, and
+   stays.
+2. **A dot with no size says "Size not listed"; it does not throw.** The fail-loud test wanted a
+   throw. On the PC data 6 of 17 priced items have store prices with no size anywhere (67 of 187
+   dots), so a throw would put the fault sheet on a third of real verdicts. A quantity that is not
+   text still throws.
+3. **A Claude range is labelled "An AI estimate; no shop prices found",** not the spec's "Pexi's own
+   estimate": the shopper can always tell where the info comes from (RULINGS "Reviews").
+4. **Dates in the store list follow the one list rule** ("7 d ago", "Oct 4, 2026"), as build 7's
+   R-55 requires, not the raw ISO day an older keep test read.
+5. **The going-rate card (no shelf price) has no verdict fill** (data-conf="reading", R-70); the
+   three-fill rule (R-66) now covers sheets with a price.
+
+Fails loudly: a verdict the sheet would have to guess about throws naming the field; the camera
+logs `[verdict-fault]`, sends a `verdict_fault` event and shows the fault sheet with Try again.
+
+Not verified: no phone-size render was looked at. The Playwright install in the scratchpad was
+stopped by low memory on Aurik's PC.
+
+**Reverses if:** testers read the half-position confidence as missing (then a drawn cue on the
+first position, never a sentence); or the share of dots with no size falls under 5% after the size
+fill (then a missing size can throw as the spec wanted).

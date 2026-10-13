@@ -14,6 +14,36 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ---
 
+## 2026-10-13 later (Aurik's PC): the verdict screen is rebuilt
+
+### To do
+
+- **Jamin, or the Mac session: pull and restart, then scan one item with a price and one without.**
+  Check the top of the sheet reads: the word, the price on the tag, how far off, the typical price
+  (now rounded, for example $6.00 not $5.99), the bell, the name, one button. Nobody has looked at
+  it on a phone yet.
+
+### What changed
+
+- **The typical price is rounded** (5 cents under $10, 10 cents to $100, a dollar above), and the
+  word and the percent are worked out from the rounded number, so the screen never says "20% under"
+  next to a word that disagrees.
+- **The price on the tag is the big number at the top**, with "On the tag" under it.
+- **How sure Pexi is moved down a step**: three dots and a word (Certain, Fairly sure, Not fully
+  confident) with the reason, beside where the estimate came from.
+- **The chart is easier to read**: the shopper's price is a solid line to the curve with a dot on it
+  and the price in bold above; sale prices are diamonds; at most four store names on the chart.
+- **With no price typed**, the card shows the range big, how many sellers, and one button "Tell me
+  the price".
+- **A broken verdict now shows Pexi's fault screen and reports itself** instead of drawing
+  something half right.
+
+### Read by
+
+- Aurik (Windows PC), 2026-10-13
+
+---
+
 ## 2026-10-13 (Aurik's PC): no price pool crosses a department, and no range is one price
 
 ### To do

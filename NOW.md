@@ -81,7 +81,11 @@ to 1.4x of its typical catches 80%; skips 23% of lines): `research/gemini-price-
 ## What is being worked on: the tester launch
 
 - The design-evidence document (`docs/design/ux-evidence-2026-10-09.md`) exists with 98 blocks and a build order (its section 13).
-- The ux test suite is red by design (241 tests) until the builds land; run it with `npm run test:ux` in `app/`. The main `npm test` stays green.
+- The ux test suite (`npm run test:ux` in `app/`) was 241 red on 2026-10-09; **12 red on 2026-10-13**
+  after build 6, the verdict screen (8489dca): builds 1, 2, 5, 6 at 0 red; left: build 3 camera
+  permission (8), build 4 refusal copy (2, both red-defect), build 7 motion (2). Build 6's five calls
+  against its own spec: docs/decisions.md "UI build 6, the verdict screen". Not yet seen at phone
+  size (Playwright install stopped by low memory). The main `npm test` stays green.
 
 What stands between the MVP and 10-20 testers is one list: `QUEUE.md` bands 7 (launch) and 7B (the
 cheaper lookup, `docs/cheap-lookup-logistics-2026-09-23.md`). Settled in code: a typed name
