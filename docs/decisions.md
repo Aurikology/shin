@@ -2861,3 +2861,30 @@ stopped by low memory on Aurik's PC.
 **Reverses if:** testers read the half-position confidence as missing (then a drawn cue on the
 first position, never a sentence); or the share of dots with no size falls under 5% after the size
 fill (then a missing size can throw as the spec wanted).
+
+## Every request ends in a range; a too-thin answer shows the broad bell, not nothing
+**Date:** 2026-10-13 · **Status:** active
+
+Requirement 3.1 (Jamin, 2026-09-30: 0 requests end without a range) and RULINGS.md "Always answer,
+never refuse for wasting time" outrank the D-233 fix's "no range" for a too-thin answer. Built from
+Stage 4 with 6.1, 6.3 and 6.7, which need no prices. A random-input test over the fallback ladder
+found 1,484 of 2,000 requests ending with no range or a throw; now 0. The last rungs are an estimate
+from the item's category or department, then the fixed wide bell ($2.78 to $36.02, basis
+`fixed_prior`), always low confidence. What D-233 removed stays removed: a pool the width flag calls
+too wide still sets no centre, range, width or zone, and no "Great price" is read off the bell.
+
+The phone sheet did not know these bases and would have drawn nothing (an unknown basis is not
+drawn). It now draws them: estimates say "From similar products in <category>", the bell says "A
+broad guess: Pexi has no prices for items like this yet" (French too). 1 test red first.
+
+6.1: Claude is asked only when no range exists (57 of 800 swept requests asked with a range; now
+0), no tools. 6.3: Claude answers are estimates, kept out of any category with 5+ observed prices by
+a read-time gate, at the category level only; gating each item's Claude answer would undo D-233, and
+no code reads estimates into a category pool yet. 6.7: Claude down, capped or slow falls to the next
+basis; switching the fallback off turns 11 tests red.
+
+Not verified: the production circuit-breaker path with a real key; a phone-size render.
+
+**Reverses if:** shoppers read the broad bell as a real price judgement (then show the guess line
+above the range, never only below), or a measured share of bell answers gets rated worse than no
+answer by testers.

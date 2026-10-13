@@ -53,7 +53,12 @@ History moved out of NOW.md on 2026-09-27: `docs/archive/now-history-2026-09-27.
   (`global_prior` gone; an item with no price in its department shows no verdict, 63 of 88 unpriced
   sampled items on the PC), no range is one price (8 of 17 PC barcodes were, now 0), sale-flagged
   and unverified printout rows are out of the range ladder, a Claude range is asked at most once per
-  item per 90 days (was 30). Still open in Stage 4: 3.1, 3.2, 3.5, 3.8, 6.1, 6.3, 6.6, 6.7. 3.8's
+  item per 90 days (was 30). **3.1, 6.1, 6.3, 6.7 built 2026-10-13** (1c32463): every request ends
+  in a range (random-input test: 1,484 of 2,000 had none, now 0; the too-thin answer shows the broad
+  bell, the phone draws it), Claude asked only with no range and no tools, estimates gated out of
+  5+-price categories, Claude down still answers. Unverified: real-key breaker, phone-size render;
+  when 6.1 refuses Claude the verdict can show no zone. Mac not restarted onto it. Still open in
+  Stage 4: 3.2, 3.5, 3.8, 6.6. 3.8's
   hierarchy version waits on the live catalogue being placed (Stage 2/3); 3.2, 3.5, 6.6 need prices. Logged: docs/decisions.md "No price pool crosses a department".
 - Open for a person: an Ontario source; the 7.7 sheet; the 2.2 sheet; the outlier numbers (19%, 4
   prices); deletes waiting on Aurik's yes: the PC user catalogue's test rows (D-222: 21 products,
