@@ -39,6 +39,12 @@ History moved out of NOW.md on 2026-09-27: `docs/archive/now-history-2026-09-27.
   beauty 38.2 to 33.2, general 40.7 to 36.4, pet 48.6 to 43.7 at a diagnostic 0.90; no threshold
   reaches 95% right (16 of 65 on the answer key), so coverage at the bar is zero. **The existing
   text route scored 5 of 54 on food answer-key items: read the wrong ones before placing live.**
+  Read 2026-10-13: the food tree holds two unlinked vocabularies, USDA flat labels ("chocolate",
+  19,471 sample rows) and Open Food Facts en: chains (1,042); the key is all en: chains, so 40 of
+  the 49 misses are USDA-label placements that cannot score (about 35 sensible by one reader).
+  Text route on Open Food Facts neighbours only: 119 of 236 right (50%) vs 25 of 223 (11%). The
+  vocabularies need linking into one tree (1.1) before placement can be measured or run live.
+  Miss list: %TEMP%\shin-textroute-misses.csv (PC).
   The PC's main node_modules transformers model.onnx (17.8 MB) fails to load. The 2.2 sheet (819 rows, bench/results/placement-audit-sheet-2026-10-09.csv) is unmarked, so
   accuracy is unmeasured and the 0.6 bar uncalibrated. Live catalogue.db not placed yet.
   onnxruntime-node declared (cd7823a).
