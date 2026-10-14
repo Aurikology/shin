@@ -41,7 +41,8 @@ History moved out of NOW.md on 2026-09-27: `docs/archive/now-history-2026-09-27.
   text route scored 5 of 54 on food answer-key items: read the wrong ones before placing live.**
   Why (read 10-13): food holds two unlinked vocabularies, USDA flat labels (19,471 sample rows) and
   Open Food Facts en: chains (1,042); 40 of 49 misses are USDA labels the en:-only key cannot score.
-  Open Food Facts neighbours only: 50% right vs 11%. Link the two into one tree (1.1) first.
+  **Linked 10-14** (barcode overlap, 144 of 348 labels, 89.8% of USDA items, held-out containment
+  93.5%; 186 labels at the food top): food key 15 of 200 (cascade, was 8), still far from 190.
   The PC's main node_modules transformers model.onnx (17.8 MB) fails to load. The 2.2 sheet (819 rows, bench/results/placement-audit-sheet-2026-10-09.csv) is unmarked, so
   accuracy is unmeasured and the 0.6 bar uncalibrated. Live catalogue.db not placed yet.
   onnxruntime-node declared (cd7823a).
