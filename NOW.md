@@ -37,11 +37,8 @@ History moved out of NOW.md on 2026-09-27: `docs/archive/now-history-2026-09-27.
   **2.1 "Next" built and FAILED 2026-10-13** (label route, off by default; Claude chooser behind the
   slot, top 8 route candidates, no live call). 55,000-item sample: top-level-only food 11.1 to 8.8%,
   beauty 38.2 to 33.2, general 40.7 to 36.4, pet 48.6 to 43.7 at a diagnostic 0.90; no threshold
-  reaches 95% right (16 of 65 on the answer key), so coverage at the bar is zero. **The existing
-  text route scored 5 of 54 on food answer-key items: read the wrong ones before placing live.**
-  Why (read 10-13): food holds two unlinked vocabularies, USDA flat labels (19,471 sample rows) and
-  Open Food Facts en: chains (1,042); 40 of 49 misses are USDA labels the en:-only key cannot score.
-  **Linked 10-14** (barcode overlap, 144 of 348 labels, 89.8% of USDA items, held-out containment
+  reaches 95% right (16 of 65 on the answer key), so coverage at the bar is zero. Text route 5 of
+  54 on food: USDA flat labels were unlinked to the en: tree (40 of 49 misses). **Linked 10-14** (barcode overlap, 144 of 348 labels, 89.8% of USDA items, held-out containment
   93.5%; 186 labels at the food top): food key 15 of 200 (cascade, was 8), still far from 190.
   The PC's main node_modules transformers model.onnx (17.8 MB) fails to load. The 2.2 sheet (819 rows, bench/results/placement-audit-sheet-2026-10-09.csv) is unmarked, so
   accuracy is unmeasured and the 0.6 bar uncalibrated. Live catalogue.db not placed yet.
