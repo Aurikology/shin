@@ -1,0 +1,2349 @@
+{
+ "version": 1,
+ "parameters": {
+  "built": "2026-10-14",
+  "minBarcodes": 5,
+  "minShare": 0.8,
+  "minAgreeBarcodes": 2,
+  "meaning": {
+   "model": "Xenova/multilingual-e5-small",
+   "threshold": null,
+   "climb": 0,
+   "chosenBy": "no setting reached the share on the training half"
+  },
+  "overlapBarcodes": 368309,
+  "overlapWithChain": 264824,
+  "excludedBarcodes": 0,
+  "heldOut": {
+   "barcode": {
+    "barcodes": 126219,
+    "labels": 138,
+    "contained": 117976,
+    "exact": 107393,
+    "meanDepth": 2.48,
+    "containedShare": 0.9347,
+    "exactShare": 0.8508
+   },
+   "meaning": {
+    "barcodes": 0,
+    "labels": 0,
+    "contained": 0,
+    "exact": 0,
+    "meanDepth": 0,
+    "containedShare": null,
+    "exactShare": null
+   },
+   "fallback": {
+    "barcodes": 6074,
+    "labels": 104,
+    "contained": 6065,
+    "exact": 14,
+    "meanDepth": 0.01,
+    "containedShare": 0.9985,
+    "exactShare": 0.0023
+   }
+  },
+  "labelsPerMethod": {
+   "barcode": 144,
+   "meaning": 0,
+   "fallback": 204,
+   "fallbackTop": 186
+  },
+  "taxonomySha256": "99f43500fd16206204c4c473547d725e818885d03a42c4d1025d8b55d29ba749",
+  "note": "Mapped node = the node the label hangs under in the placement tree. barcode: deepest en: node carried by >= minShare of the label's barcodes present in both USDA and Open Food Facts. meaning: nearest en: node by name meaning. fallback: deepest node every overlapping barcode carries, else the food top (null)."
+ },
+ "labels": {
+  "alcohol": {
+   "node": "en:alcoholic-beverages",
+   "method": "barcode",
+   "barcodes": 595,
+   "share": 0.918
+  },
+  "alcoholic beverages": {
+   "node": "en:alcoholic-beverages",
+   "method": "barcode",
+   "barcodes": 23,
+   "share": 1
+  },
+  "all noodles": {
+   "node": "en:cereals-and-their-products",
+   "method": "barcode",
+   "barcodes": 596,
+   "share": 0.898
+  },
+  "amino acid supplements": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "antioxidant supplements": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "antipasto": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "aquatic invertebrates/fish/shellfish/seafood combination": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "baby/infant  foods/beverages": {
+   "node": "en:baby-foods",
+   "method": "barcode",
+   "barcodes": 52,
+   "share": 0.923
+  },
+  "bacon": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "bacon, sausages & ribs": {
+   "node": "en:meats",
+   "method": "barcode",
+   "barcodes": 929,
+   "share": 0.892
+  },
+  "baking": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "baking accessories": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "baking additives & extracts": {
+   "node": "en:cooking-helpers",
+   "method": "barcode",
+   "barcodes": 557,
+   "share": 0.813
+  },
+  "baking decorations & dessert toppings": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 410,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "baking needs": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "baking/cooking mixes (perishable)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "baking/cooking mixes (shelf stable)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "baking/cooking mixes/supplies": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 441,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "baking/cooking mixes/supplies variety packs": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "baking/cooking supplies (shelf stable)": {
+   "node": "en:pie-dough",
+   "method": "barcode",
+   "barcodes": 6,
+   "share": 0.833
+  },
+  "beef - prepared/processed": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "beer": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "berries/small fruit": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "biscuits chocolate": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "biscuits cracker": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "biscuits kids": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "biscuits plain/sweet": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "biscuits/cookies": {
+   "node": "en:biscuits",
+   "method": "barcode",
+   "barcodes": 1153,
+   "share": 0.836
+  },
+  "biscuits/cookies (shelf stable)": {
+   "node": "en:biscuits",
+   "method": "barcode",
+   "barcodes": 300,
+   "share": 0.997
+  },
+  "bread": {
+   "node": "en:breads",
+   "method": "barcode",
+   "barcodes": 126,
+   "share": 0.944
+  },
+  "bread & muffin mixes": {
+   "node": "en:cooking-helpers",
+   "method": "barcode",
+   "barcodes": 666,
+   "share": 0.866
+  },
+  "bread - incl. buns and rolls": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "bread/bakery products variety packs": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "breads & buns": {
+   "node": "en:breads",
+   "method": "barcode",
+   "barcodes": 7086,
+   "share": 0.98
+  },
+  "breakfast cereals - hot and cold": {
+   "node": "en:breakfast-cereals",
+   "method": "barcode",
+   "barcodes": 17,
+   "share": 0.941
+  },
+  "breakfast drinks": {
+   "node": "en:beverages",
+   "method": "barcode",
+   "barcodes": 56,
+   "share": 0.875
+  },
+  "breakfast foods": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "breakfast sandwiches, biscuits & meals": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 53,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "butter & spread": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1081,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "butter/butter substitutes": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 21,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "cake, cookie & cupcake mixes": {
+   "node": "en:cakes",
+   "method": "barcode",
+   "barcodes": 2229,
+   "share": 0.891
+  },
+  "cakes - sweet (frozen)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 40,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "cakes - sweet (shelf stable)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "cakes and slices": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 2,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "cakes, cupcakes, snack cakes": {
+   "node": "en:cakes",
+   "method": "barcode",
+   "barcodes": 5744,
+   "share": 0.972
+  },
+  "cakes/slices/biscuits": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "candy": {
+   "node": "en:confectioneries",
+   "method": "barcode",
+   "barcodes": 13799,
+   "share": 0.983
+  },
+  "canned & bottled beans": {
+   "node": "en:canned-foods",
+   "method": "barcode",
+   "barcodes": 1852,
+   "share": 0.861
+  },
+  "canned condensed soup": {
+   "node": "en:canned-foods",
+   "method": "barcode",
+   "barcodes": 569,
+   "share": 0.981
+  },
+  "canned fish and meat": {
+   "node": "en:canned-fishes",
+   "method": "barcode",
+   "barcodes": 25,
+   "share": 0.8
+  },
+  "canned fruit": {
+   "node": "en:fruit-based-foods",
+   "method": "barcode",
+   "barcodes": 1882,
+   "share": 0.893
+  },
+  "canned meat": {
+   "node": "en:canned-foods",
+   "method": "barcode",
+   "barcodes": 443,
+   "share": 0.932
+  },
+  "canned seafood": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 885,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "canned soup": {
+   "node": "en:canned-foods",
+   "method": "barcode",
+   "barcodes": 1476,
+   "share": 0.91
+  },
+  "canned tuna": {
+   "node": "en:canned-tunas",
+   "method": "barcode",
+   "barcodes": 623,
+   "share": 0.881
+  },
+  "canned vegetables": {
+   "node": "en:canned-vegetables",
+   "method": "barcode",
+   "barcodes": 2522,
+   "share": 0.925
+  },
+  "canned/dried veges": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 4,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "cereal": {
+   "node": "en:cereals-and-their-products",
+   "method": "barcode",
+   "barcodes": 5639,
+   "share": 0.959
+  },
+  "cereal/muesli bars": {
+   "node": "en:cereal-bars",
+   "method": "barcode",
+   "barcodes": 107,
+   "share": 0.869
+  },
+  "cereals products - not ready to eat (shelf stable)": {
+   "node": "en:cereals-and-their-products",
+   "method": "barcode",
+   "barcodes": 8,
+   "share": 1
+  },
+  "cereals products - ready to eat (shelf stable)": {
+   "node": "en:cereals-and-their-products",
+   "method": "barcode",
+   "barcodes": 112,
+   "share": 0.991
+  },
+  "cheese": {
+   "node": "en:cheeses",
+   "method": "barcode",
+   "barcodes": 10783,
+   "share": 0.963
+  },
+  "cheese - block": {
+   "node": "en:dairy-substitutes",
+   "method": "fallback",
+   "barcodes": 2,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "cheese - speciality": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "cheese/cheese substitutes": {
+   "node": "en:cheeses",
+   "method": "barcode",
+   "barcodes": 101,
+   "share": 0.911
+  },
+  "chewing gum & mints": {
+   "node": "en:confectioneries",
+   "method": "barcode",
+   "barcodes": 1172,
+   "share": 0.989
+  },
+  "chickpeas": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "children's natural remedies": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "children's nutritional supplements": {
+   "node": "en:dietary-supplements",
+   "method": "fallback",
+   "barcodes": 2,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "chili & stew": {
+   "node": "en:stews",
+   "method": "barcode",
+   "barcodes": 739,
+   "share": 0.847
+  },
+  "chips, pretzels & snacks": {
+   "node": "en:snacks",
+   "method": "barcode",
+   "barcodes": 7756,
+   "share": 0.9
+  },
+  "chips/crisps/snack mixes - natural/extruded (shelf stable)": {
+   "node": "en:snacks",
+   "method": "barcode",
+   "barcodes": 103,
+   "share": 0.951
+  },
+  "chocolate": {
+   "node": "en:chocolate-candies",
+   "method": "barcode",
+   "barcodes": 6430,
+   "share": 0.876
+  },
+  "coffee": {
+   "node": "en:coffees",
+   "method": "barcode",
+   "barcodes": 226,
+   "share": 0.823
+  },
+  "coffee - instant, roast and ground": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "coffee/coffee substitutes": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 13,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "coffee/tea/substitutes": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 27,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "confectionery": {
+   "node": "en:sweet-snacks",
+   "method": "barcode",
+   "barcodes": 21,
+   "share": 0.952
+  },
+  "confectionery products": {
+   "node": "en:confectioneries",
+   "method": "barcode",
+   "barcodes": 718,
+   "share": 0.962
+  },
+  "cooked & prepared": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 775,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "cookies & biscuits": {
+   "node": "en:biscuits",
+   "method": "barcode",
+   "barcodes": 8623,
+   "share": 0.966
+  },
+  "cooking oils and fats": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "crackers & biscotti": {
+   "node": "en:biscuits-and-cakes",
+   "method": "barcode",
+   "barcodes": 2735,
+   "share": 0.86
+  },
+  "cream": {
+   "node": "en:dairies",
+   "method": "barcode",
+   "barcodes": 889,
+   "share": 0.96
+  },
+  "cream/cream substitutes": {
+   "node": "en:dairy-substitutes",
+   "method": "barcode",
+   "barcodes": 102,
+   "share": 0.824
+  },
+  "croissants, sweet rolls, muffins & other pastries": {
+   "node": "en:pastries",
+   "method": "barcode",
+   "barcodes": 1783,
+   "share": 0.916
+  },
+  "crusts & dough": {
+   "node": "en:pie-dough",
+   "method": "barcode",
+   "barcodes": 912,
+   "share": 0.911
+  },
+  "dairy foods/yoghurts": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 6,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "dairy/egg based products / meals": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "deli and chilled foods": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "deli salads": {
+   "node": "en:prepared-salads",
+   "method": "barcode",
+   "barcodes": 721,
+   "share": 0.96
+  },
+  "desserts & custard": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 3,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "desserts/dessert sauces/toppings": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 163,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "digestive & fiber supplements": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 4,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "dips & salsa": {
+   "node": "en:dips",
+   "method": "barcode",
+   "barcodes": 4558,
+   "share": 0.883
+  },
+  "dips - shelf stable": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "dips/hummus/pate": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "dough based products / meals": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 87,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "dough based products / meals - not ready to eat - savoury (shelf stable)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "dressings/dips (shelf stable)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "drinks - energy drinks": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "drinks - juices, drinks and cordials": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 2,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "drinks - powdered": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 2,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "drinks - soft drinks": {
+   "node": "en:beverages",
+   "method": "fallback",
+   "barcodes": 2,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "drinks flavoured - ready to drink": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 7,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "egg based products / meals - not ready to eat (frozen)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "eggs": {
+   "node": "en:eggs",
+   "method": "fallback",
+   "barcodes": 2,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "eggs & egg substitutes": {
+   "node": "en:eggs",
+   "method": "barcode",
+   "barcodes": 703,
+   "share": 0.989
+  },
+  "eggs/eggs substitutes": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "energy, protein & muscle recovery drinks": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1132,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "entrees, sides & small meals": {
+   "node": "en:meals",
+   "method": "barcode",
+   "barcodes": 800,
+   "share": 0.828
+  },
+  "fats edible": {
+   "node": "en:fats",
+   "method": "fallback",
+   "barcodes": 3,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "fatty acid supplements": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "fish  prepared/processed": {
+   "node": "en:fishes",
+   "method": "fallback",
+   "barcodes": 2,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "fish  unprepared/unprocessed": {
+   "node": "en:fishes",
+   "method": "barcode",
+   "barcodes": 526,
+   "share": 0.962
+  },
+  "fish & seafood": {
+   "node": "en:seafood",
+   "method": "barcode",
+   "barcodes": 727,
+   "share": 0.977
+  },
+  "fish - prepared/processed": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 3,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "fish substitutes": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "flavored rice dishes": {
+   "node": "en:rice-dishes",
+   "method": "barcode",
+   "barcodes": 531,
+   "share": 0.872
+  },
+  "flavored snack crackers": {
+   "node": "en:crackers-appetizers",
+   "method": "barcode",
+   "barcodes": 491,
+   "share": 0.849
+  },
+  "flour - cereal/pulse (shelf stable)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "flours & corn meal": {
+   "node": "en:cereals-and-their-products",
+   "method": "barcode",
+   "barcodes": 823,
+   "share": 0.853
+  },
+  "food/beverage/tobacco variety packs": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "french fries, potatoes & onion rings": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 66,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "fresh chicken - portions": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "fresh chicken - processed": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "fresh chicken - whole": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "fresh fruit and vegetables": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "fresh meat": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "fresh meat, poultry and seafood": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "fresh pasta": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "frozen appetizers & hors d'oeuvres": {
+   "node": "en:frozen-foods",
+   "method": "barcode",
+   "barcodes": 2931,
+   "share": 0.925
+  },
+  "frozen bacon, sausages & ribs": {
+   "node": "en:frozen-foods",
+   "method": "barcode",
+   "barcodes": 229,
+   "share": 0.939
+  },
+  "frozen bread & dough": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 122,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "frozen breakfast sandwiches, biscuits & meals": {
+   "node": "en:meals",
+   "method": "barcode",
+   "barcodes": 593,
+   "share": 0.919
+  },
+  "frozen chicken - portions": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "frozen chicken - processed": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 5,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "frozen desserts": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "frozen dinners & entrees": {
+   "node": "en:frozen-foods",
+   "method": "barcode",
+   "barcodes": 3200,
+   "share": 0.915
+  },
+  "frozen fish & seafood": {
+   "node": "en:seafood",
+   "method": "barcode",
+   "barcodes": 2177,
+   "share": 0.946
+  },
+  "frozen fish/seafood": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 4,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "frozen foods": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "frozen fruit": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "frozen fruit & fruit juice concentrates": {
+   "node": "en:fruit-based-foods",
+   "method": "barcode",
+   "barcodes": 1419,
+   "share": 0.91
+  },
+  "frozen meals": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "frozen meat": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "frozen pancakes, waffles, french toast & crepes": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 92,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "frozen patties and burgers": {
+   "node": "en:frozen-foods",
+   "method": "barcode",
+   "barcodes": 678,
+   "share": 0.857
+  },
+  "frozen pies/savouries": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "frozen potato": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "frozen poultry, chicken & turkey": {
+   "node": "en:frozen-foods",
+   "method": "barcode",
+   "barcodes": 254,
+   "share": 0.862
+  },
+  "frozen prepared sides": {
+   "node": "en:frozen-foods",
+   "method": "barcode",
+   "barcodes": 395,
+   "share": 0.916
+  },
+  "frozen sausages, hotdogs & brats": {
+   "node": "en:frozen-foods",
+   "method": "barcode",
+   "barcodes": 154,
+   "share": 0.961
+  },
+  "frozen snack": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "frozen vegetables": {
+   "node": "en:frozen-foods",
+   "method": "barcode",
+   "barcodes": 2165,
+   "share": 0.959
+  },
+  "fruit": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "fruit  prepared/processed": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 12,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "fruit & vegetable juice, nectars & fruit drinks": {
+   "node": "en:beverages",
+   "method": "barcode",
+   "barcodes": 6230,
+   "share": 0.964
+  },
+  "fruit - prepared/processed": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 80,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "fruit - prepared/processed (shelf stable)": {
+   "node": "en:snacks",
+   "method": "barcode",
+   "barcodes": 36,
+   "share": 0.972
+  },
+  "fruit/nuts/seeds combination": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "fruits - unprepared/unprocessed (frozen)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "fruits - unprepared/unprocessed (shelf stable)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "fruits/vegetables/nuts/seeds variety packs": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "gardening": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "gelatin, gels, pectins & desserts": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 59,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "grain based products / meals": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 55,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "grain based products / meals - not ready to eat - savoury (shelf stable)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "grains/flour": {
+   "node": "en:plant-based-foods",
+   "method": "barcode",
+   "barcodes": 45,
+   "share": 0.978
+  },
+  "granulated, brown & powdered sugar": {
+   "node": "en:sugars",
+   "method": "barcode",
+   "barcodes": 1116,
+   "share": 0.934
+  },
+  "gravy mix": {
+   "node": "en:dried-products-to-be-rehydrated",
+   "method": "barcode",
+   "barcodes": 482,
+   "share": 0.988
+  },
+  "green supplements": {
+   "node": "en:spirulina-supplements",
+   "method": "barcode",
+   "barcodes": 7,
+   "share": 1
+  },
+  "ham/cold meats": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "health care": {
+   "node": "en:open-products-facts",
+   "method": "barcode",
+   "barcodes": 22,
+   "share": 0.864
+  },
+  "health supplements and vitamins": {
+   "node": "en:bodybuilding-supplements",
+   "method": "fallback",
+   "barcodes": 4,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "herbal supplements": {
+   "node": "en:teas",
+   "method": "barcode",
+   "barcodes": 5,
+   "share": 0.8
+  },
+  "herbs & spices": {
+   "node": "en:plant-based-foods",
+   "method": "barcode",
+   "barcodes": 1347,
+   "share": 0.879
+  },
+  "herbs and spices": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "herbs/spices/extracts": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 54,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "honey": {
+   "node": "en:honeys",
+   "method": "barcode",
+   "barcodes": 1076,
+   "share": 0.955
+  },
+  "ice cream & frozen yogurt": {
+   "node": "en:frozen-desserts",
+   "method": "barcode",
+   "barcodes": 8606,
+   "share": 0.943
+  },
+  "ice cream/ice novelties (shelf stable)": {
+   "node": "en:biscuits-and-cakes",
+   "method": "fallback",
+   "barcodes": 4,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "ice-cream take home": {
+   "node": "en:frozen-desserts",
+   "method": "fallback",
+   "barcodes": 2,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "ice-cream/block single": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "ice-cream/ice-block multi pack": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "iced & bottle tea": {
+   "node": "en:iced-teas",
+   "method": "barcode",
+   "barcodes": 1524,
+   "share": 0.818
+  },
+  "infant formula": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "jam, jelly & fruit spreads": {
+   "node": "en:sweet-spreads",
+   "method": "barcode",
+   "barcodes": 2305,
+   "share": 0.953
+  },
+  "ketchup, mustard, bbq & cheese sauce": {
+   "node": "en:sauces",
+   "method": "barcode",
+   "barcodes": 4973,
+   "share": 0.992
+  },
+  "liquid water enhancer": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 98,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "lunch snacks & combinations": {
+   "node": "en:snacks",
+   "method": "barcode",
+   "barcodes": 529,
+   "share": 0.966
+  },
+  "margarine/butter": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "meal replacement supplements": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 39,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "meat/poultry/other animals  prepared/processed": {
+   "node": "en:meats",
+   "method": "barcode",
+   "barcodes": 137,
+   "share": 0.869
+  },
+  "meat/poultry/other animals  unprepared/unprocessed": {
+   "node": "en:meats",
+   "method": "barcode",
+   "barcodes": 295,
+   "share": 1
+  },
+  "meat/poultry/other animals - prepared/processed": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 116,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "meat/poultry/other animals - unprepared/unprocessed": {
+   "node": "en:poultries",
+   "method": "barcode",
+   "barcodes": 6,
+   "share": 1
+  },
+  "meat/poultry/other animals sausages  prepared/processed": {
+   "node": "en:sausages",
+   "method": "barcode",
+   "barcodes": 31,
+   "share": 0.806
+  },
+  "meat/poultry/other animals sausages - prepared/processed": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 27,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "media": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "mexican dinner mixes": {
+   "node": "en:plant-based-foods",
+   "method": "barcode",
+   "barcodes": 127,
+   "share": 0.858
+  },
+  "milk": {
+   "node": "en:milks",
+   "method": "barcode",
+   "barcodes": 2951,
+   "share": 0.902
+  },
+  "milk additives": {
+   "node": "en:milk-substitutes",
+   "method": "barcode",
+   "barcodes": 1064,
+   "share": 0.883
+  },
+  "milk/cream": {
+   "node": "en:dairies",
+   "method": "fallback",
+   "barcodes": 2,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "milk/cream - shelf stable": {
+   "node": "en:milks",
+   "method": "fallback",
+   "barcodes": 2,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "milk/milk substitutes": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 48,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "minerals": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "mussels": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "non alcoholic beverages  not ready to drink": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 57,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "non alcoholic beverages  ready to drink": {
+   "node": "en:beverages",
+   "method": "barcode",
+   "barcodes": 434,
+   "share": 0.986
+  },
+  "non alcoholic beverages - not ready to drink": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 30,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "non alcoholic beverages - ready to drink": {
+   "node": "en:beverages",
+   "method": "barcode",
+   "barcodes": 366,
+   "share": 0.872
+  },
+  "noodles": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "nut & seed butters": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1888,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "nuts/seeds  prepared/processed": {
+   "node": "en:plant-based-foods",
+   "method": "barcode",
+   "barcodes": 9,
+   "share": 0.889
+  },
+  "nuts/seeds - prepared/processed": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 19,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "nuts/seeds - prepared/processed (shelf stable)": {
+   "node": "en:plant-based-foods",
+   "method": "fallback",
+   "barcodes": 2,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "nuts/seeds - unprepared/unprocessed (in shell)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "oils edible": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 42,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "oral hygiene products": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "oriental, mexican & ethnic sauces": {
+   "node": "en:sauces",
+   "method": "barcode",
+   "barcodes": 2492,
+   "share": 0.981
+  },
+  "other condiments": {
+   "node": "en:condiments",
+   "method": "barcode",
+   "barcodes": 400,
+   "share": 0.985
+  },
+  "other cooking sauces": {
+   "node": "en:sauces",
+   "method": "barcode",
+   "barcodes": 1503,
+   "share": 0.95
+  },
+  "other deli": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 636,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "other drinks": {
+   "node": "en:beverages",
+   "method": "barcode",
+   "barcodes": 3013,
+   "share": 0.961
+  },
+  "other frozen desserts": {
+   "node": "en:frozen-desserts",
+   "method": "barcode",
+   "barcodes": 1079,
+   "share": 0.935
+  },
+  "other frozen meats": {
+   "node": "en:frozen-foods",
+   "method": "barcode",
+   "barcodes": 111,
+   "share": 0.901
+  },
+  "other grains & seeds": {
+   "node": "en:seeds",
+   "method": "barcode",
+   "barcodes": 777,
+   "share": 0.905
+  },
+  "other meats": {
+   "node": "en:meats",
+   "method": "barcode",
+   "barcodes": 1462,
+   "share": 0.883
+  },
+  "other snacks": {
+   "node": "en:snacks",
+   "method": "barcode",
+   "barcodes": 4431,
+   "share": 0.959
+  },
+  "other soups": {
+   "node": "en:soups",
+   "method": "barcode",
+   "barcodes": 2026,
+   "share": 0.858
+  },
+  "pancakes, waffles, french toast & crepes": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 35,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "pasta": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "pasta - instant meals": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "pasta by shape & type": {
+   "node": "en:cereals-and-their-products",
+   "method": "barcode",
+   "barcodes": 4354,
+   "share": 0.927
+  },
+  "pasta dinners": {
+   "node": "en:pasta-dishes",
+   "method": "barcode",
+   "barcodes": 998,
+   "share": 0.923
+  },
+  "pasta/noodles": {
+   "node": "en:cereals-and-their-products",
+   "method": "barcode",
+   "barcodes": 96,
+   "share": 0.813
+  },
+  "pastries/pies/pizzas": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "pastry": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "pastry shells & fillings": {
+   "node": "en:pastry-helpers",
+   "method": "barcode",
+   "barcodes": 302,
+   "share": 0.974
+  },
+  "pepperoni, salami & cold cuts": {
+   "node": "en:meats",
+   "method": "barcode",
+   "barcodes": 3051,
+   "share": 0.891
+  },
+  "peppers": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "pickles, olives, peppers & relishes": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1103,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "pickles, relishes and vinegar": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 4,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "pickles/relishes/chutneys/olives": {
+   "node": "en:vegetables-based-foods",
+   "method": "barcode",
+   "barcodes": 11,
+   "share": 0.818
+  },
+  "pies/pastries - sweet (shelf stable)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 38,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "pies/pastries/pizzas/quiches - savoury (frozen)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "pizza": {
+   "node": "en:pizzas",
+   "method": "barcode",
+   "barcodes": 2166,
+   "share": 0.978
+  },
+  "pizza mixes & other dry dinners": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 113,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "plant based milk": {
+   "node": "en:beverages",
+   "method": "barcode",
+   "barcodes": 926,
+   "share": 0.963
+  },
+  "plant based water": {
+   "node": "en:beverages",
+   "method": "barcode",
+   "barcodes": 515,
+   "share": 0.99
+  },
+  "popcorn (shelf stable)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "popcorn, peanuts, seeds & related snacks": {
+   "node": "en:snacks",
+   "method": "barcode",
+   "barcodes": 13157,
+   "share": 0.953
+  },
+  "pork - prepared/processed": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "pork - unprepared/unprocessed": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "pork sausages - prepared/processed": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "potato - instant meals": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "poultry, chicken & turkey": {
+   "node": "en:poultries",
+   "method": "barcode",
+   "barcodes": 507,
+   "share": 0.909
+  },
+  "powdered drinks": {
+   "node": "en:dried-products-to-be-rehydrated",
+   "method": "barcode",
+   "barcodes": 2546,
+   "share": 0.881
+  },
+  "pre-packaged fruit & vegetables": {
+   "node": "en:fruits-and-vegetables-based-foods",
+   "method": "barcode",
+   "barcodes": 3551,
+   "share": 0.942
+  },
+  "prepared meals": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 3,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "prepared pasta & pizza sauces": {
+   "node": "en:sauces",
+   "method": "barcode",
+   "barcodes": 2351,
+   "share": 0.985
+  },
+  "prepared soups": {
+   "node": "en:soups",
+   "method": "barcode",
+   "barcodes": 566,
+   "share": 0.807
+  },
+  "prepared subs & sandwiches": {
+   "node": "en:sandwiches",
+   "method": "barcode",
+   "barcodes": 607,
+   "share": 0.957
+  },
+  "prepared wraps and burittos": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 415,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "prepared/preserved foods variety packs": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 18,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "processed cereal products": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1321,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "processed cheese & cheese novelties": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "puddings & custards": {
+   "node": "en:desserts",
+   "method": "barcode",
+   "barcodes": 750,
+   "share": 0.973
+  },
+  "puddings and desserts": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "ready to drink": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "ready-made combination meals": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 159,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "rice": {
+   "node": "en:seeds",
+   "method": "barcode",
+   "barcodes": 1157,
+   "share": 0.967
+  },
+  "rice & grains": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "s/o fresh fish fillets/steaks": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "salad dressing & mayonnaise": {
+   "node": "en:sauces",
+   "method": "barcode",
+   "barcodes": 3979,
+   "share": 0.986
+  },
+  "salad dressings": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "salads": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "salami / cured meat": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "sandwiches/filled rolls/wraps": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 59,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "sauces": {
+   "node": "en:sauces",
+   "method": "barcode",
+   "barcodes": 5,
+   "share": 1
+  },
+  "sauces - cooking (shelf stable)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "sauces- cooking": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "sauces/spreads/dips/condiments": {
+   "node": "en:sauces",
+   "method": "barcode",
+   "barcodes": 514,
+   "share": 0.951
+  },
+  "sausages, hotdogs & brats": {
+   "node": "en:meats",
+   "method": "barcode",
+   "barcodes": 2825,
+   "share": 0.902
+  },
+  "sausages/smallgoods": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "savoury bakery products": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 292,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "seafood miscellaneous": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 2,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "seasoning mixes, salts, marinades & tenderizers": {
+   "node": "en:condiments",
+   "method": "barcode",
+   "barcodes": 4869,
+   "share": 0.951
+  },
+  "seasonings/preservatives/extracts variety packs": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 8,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "shellfish prepared/processed": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "shellfish unprepared/unprocessed": {
+   "node": "en:seafood",
+   "method": "barcode",
+   "barcodes": 487,
+   "share": 1
+  },
+  "smoked fish": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "snack foods - cereal snacks": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 2,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "snack foods - chips": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "snack foods - corn chips": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "snack foods - dried fruit": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "snack foods - multi packs": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "snack foods - nuts": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "snack foods - other": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 2,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "snack, energy & granola bars": {
+   "node": "en:snacks",
+   "method": "barcode",
+   "barcodes": 5708,
+   "share": 0.904
+  },
+  "snacks": {
+   "node": "en:snacks",
+   "method": "barcode",
+   "barcodes": 1187,
+   "share": 0.877
+  },
+  "soda": {
+   "node": "en:sodas",
+   "method": "barcode",
+   "barcodes": 5039,
+   "share": 0.928
+  },
+  "soups - prepared (shelf stable)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "specialty formula supplements": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 30,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "sport drinks": {
+   "node": "en:beverages",
+   "method": "barcode",
+   "barcodes": 411,
+   "share": 0.976
+  },
+  "sports and weight management": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "spreads": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 14,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "stuffing": {
+   "node": "en:stuffing",
+   "method": "barcode",
+   "barcodes": 217,
+   "share": 0.982
+  },
+  "sugar and flour": {
+   "node": "en:flours",
+   "method": "fallback",
+   "barcodes": 2,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "sugars/sugar substitute products": {
+   "node": "en:simple-syrups",
+   "method": "barcode",
+   "barcodes": 6,
+   "share": 1
+  },
+  "sushi": {
+   "node": "en:sushis",
+   "method": "barcode",
+   "barcodes": 276,
+   "share": 0.953
+  },
+  "sweet bakery products": {
+   "node": "en:biscuits-and-cakes",
+   "method": "barcode",
+   "barcodes": 358,
+   "share": 0.911
+  },
+  "sweet spreads": {
+   "node": "en:sweet-spreads",
+   "method": "barcode",
+   "barcodes": 41,
+   "share": 0.878
+  },
+  "syrups & molasses": {
+   "node": "en:simple-syrups",
+   "method": "barcode",
+   "barcodes": 1206,
+   "share": 0.874
+  },
+  "taco shells": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 2,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "tea - bags, loose leaf, speciality": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "tea and infusions/tisanes": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 22,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "tea bags": {
+   "node": "en:teas",
+   "method": "barcode",
+   "barcodes": 1026,
+   "share": 0.829
+  },
+  "tofu": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "tomatoes": {
+   "node": "en:tomatoes",
+   "method": "barcode",
+   "barcodes": 1725,
+   "share": 0.914
+  },
+  "turkey - unprepared/unprocessed": {
+   "node": "en:poultries",
+   "method": "fallback",
+   "barcodes": 2,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "vegetable & cooking oils": {
+   "node": "en:vegetable-oils",
+   "method": "barcode",
+   "barcodes": 3010,
+   "share": 0.882
+  },
+  "vegetable and lentil mixes": {
+   "node": "en:plant-based-foods",
+   "method": "barcode",
+   "barcodes": 1097,
+   "share": 0.937
+  },
+  "vegetable based products / meals": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 266,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "vegetable based products / meals - not ready to eat (frozen)": {
+   "node": "en:frozen-foods",
+   "method": "barcode",
+   "barcodes": 50,
+   "share": 0.96
+  },
+  "vegetables": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "vegetables  prepared/processed": {
+   "node": "en:plant-based-foods",
+   "method": "barcode",
+   "barcodes": 52,
+   "share": 0.827
+  },
+  "vegetables  unprepared/unprocessed (frozen)": {
+   "node": "en:frozen-foods",
+   "method": "fallback",
+   "barcodes": 2,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "vegetables - prepared/processed": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 202,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "vegetables - prepared/processed (shelf stable)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 2,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "vegetables - unprepared/unprocessed (frozen)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "vegetables - unprepared/unprocessed (shelf stable)": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "vegetarian": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "vegetarian frozen meats": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 145,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "vinegars/cooking wines": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "vitamins": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 3,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "vitamins/minerals/nutritional supplements": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 1,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "water": {
+   "node": "en:waters",
+   "method": "barcode",
+   "barcodes": 3644,
+   "share": 0.95
+  },
+  "weight control": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 11,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "wholesome snacks": {
+   "node": "en:snacks",
+   "method": "barcode",
+   "barcodes": 4031,
+   "share": 0.947
+  },
+  "wrapped snacks - cereal": {
+   "node": "en:bars",
+   "method": "fallback",
+   "barcodes": 2,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "wrapped snacks - fruit bars": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 0,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "wrapped snacks - muesli bars": {
+   "node": null,
+   "method": "fallback",
+   "barcodes": 3,
+   "share": null,
+   "basis": "no-evidence"
+  },
+  "wrapped snacks - nut bars": {
+   "node": "en:snacks",
+   "method": "fallback",
+   "barcodes": 3,
+   "share": 1,
+   "basis": "common-ancestor"
+  },
+  "yogurt": {
+   "node": "en:desserts",
+   "method": "barcode",
+   "barcodes": 4529,
+   "share": 0.974
+  },
+  "yogurt/yogurt substitutes": {
+   "node": "en:desserts",
+   "method": "barcode",
+   "barcodes": 478,
+   "share": 0.973
+  },
+  "yogurt/yogurt substitutes (perishable)": {
+   "node": "en:desserts",
+   "method": "fallback",
+   "barcodes": 3,
+   "share": 1,
+   "basis": "common-ancestor"
+  }
+ }
+}

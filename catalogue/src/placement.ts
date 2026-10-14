@@ -5,6 +5,7 @@
  * "unplaced" node", 2026-10-09).
  *
  *   node src/placement.ts --db <catalogue.db> [--taxonomy <path>] [--no-taxonomy] [--no-department-taxonomies]
+ *        [--food-label-map <path> | --no-food-label-map]
  *
  * THE SHAPE. A node is one (department, tag). Three kinds:
  *   department  the top of a department, tag '@department', no parent, depth 0
@@ -38,6 +39,17 @@
  * pair that is not an ancestor never qualifies), (b) it is carried by MORE items
  * than the tag (a tie, such as every tag of one item, proves nothing), and (c) it comes earlier in at least CONTAINMENT of the
  * tag's items.
+ * THE FOOD LABEL MAP (2026-10-14). The food department holds two vocabularies: Open
+ * Food Facts en: chains and the USDA flat labels ("sport drinks"), which no stored
+ * path ever connected. When `foodLabelMap` is given, a food tag the map names takes
+ * the map's en: node as its parent BEFORE the steps above (food-label-link.ts: the
+ * node most of the label's overlapping barcodes carry, so it contains the label;
+ * the file records which method set each label). A mapped node this catalogue lacks
+ * is never created: the nearest taxonomy ancestor it has, else the food top. A
+ * label the map does not name, and every other department, follows the steps above.
+ * Like every parent, it is decided once: a layer built before the map keeps the
+ * parents it has (rebuild from empty to link it), so 1.7's replay is untouched.
+ *
  * A candidate whose own chain already reaches the tag (choosing it would make a
  * cycle) is skipped. A tag with no usable candidate (it is first in every path it
  * appears in, or every candidate was skipped) hangs off the department node.
@@ -47,7 +59,9 @@
  * AN ITEM'S LEAF is the last tag of its stored path, in its own department. An
  * item with no tags stays in its department's "unplaced" node. Because a node has
  * one parent, an item whose stored path took a different route to the same tag
- * still has one path: the tree's. The count of such items is reported.
+ * still has one path: the tree's. The count of such items is reported (with the food
+ * label map it includes every USDA item whose label hangs under an en: node: its stored
+ * path is the flat label, its tree path runs through the en: nodes above it).
  *
  * WHAT THE DATABASE ENFORCES (ensurePlacementSchema installs the triggers):
  *   - one row per item (primary key): a second path is refused;
@@ -93,6 +107,7 @@ import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { DEFAULT_ALIASES_PATH, DEFAULT_TAXONOMY_PATH, foldTag, loadDepartmentTaxonomies, loadTaxonomy } from './category-taxonomy.ts';
 import type { Taxonomy } from './category-taxonomy.ts';
+import { FOOD_LABEL_MAP_PATH, loadFoodLabelMap, type FoodLabelMap, type LabelMethod } from './food-label-link.ts';
 
 export const UNPLACED_TAG = '@unplaced';
 export const DEPARTMENT_TAG = '@department';
@@ -550,8 +565,25 @@ export interface BuildPlacementOptions {
    * pair either knows that neither calls an ancestor never qualifies.
    */
   readonly departmentTaxonomies?: Readonly<Record<string, Taxonomy>> | null;
+  /** The USDA label -> en: node file (food-label-link.ts). Food tags it names hang under its node; null or absent: they hang off the food top. */
+  readonly foodLabelMap?: FoodLabelMap | null;
   readonly log?: (line: string) => void;
   readonly pageSize?: number;
+}
+
+/** What the build read from the food label map, counted over the labels this build decided. */
+export interface FoodLabelMapReport {
+  readonly version: number;
+  readonly sha256: string;
+  /** Labels hung under an en: node, and by which method the file says set them. */
+  readonly linked: number;
+  readonly byMethod: Partial<Record<LabelMethod, number>>;
+  /** Labels hung off the food top (the file says so, or their node was absent and no ancestor was). */
+  readonly toTop: number;
+  /** Labels whose mapped node this catalogue did not have. */
+  readonly absentNodes: number;
+  /** Flat labels (no language prefix) the file does not name: they hang off the food top. */
+  readonly labelsNotInFile: number;
 }
 
 export interface BuildPlacementResult {
@@ -568,6 +600,8 @@ export interface BuildPlacementResult {
   readonly taxonomyUsed: boolean;
   /** Departments whose own taxonomy the parent rule read. */
   readonly departmentTaxonomiesUsed: readonly string[];
+  /** The food label map's report; null when no map was given. */
+  readonly foodLabelMap: FoodLabelMapReport | null;
   readonly counts: PathCounts;
 }
 
@@ -655,6 +689,8 @@ export function buildPlacement(db: DatabaseSync, options: BuildPlacementOptions 
   }
   let nodesCreated = 0;
   const addNode = db.prepare('INSERT INTO placement_node (department, tag, parent_id, depth, kind) VALUES (?,?,?,?,?)');
+  const fmap = options.foodLabelMap ?? null;
+  const fmapStats = { linked: 0, byMethod: {} as Partial<Record<LabelMethod, number>>, toTop: 0, absentNodes: 0, labelsNotInFile: 0 };
 
   tx(db, () => {
     for (const [dept, tags] of [...byDept.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
@@ -674,6 +710,26 @@ export function buildPlacement(db: DatabaseSync, options: BuildPlacementOptions 
       const order = [...tags.entries()].filter(([t]) => !parent.has(t)).sort((a, b) => a[1].minPos - b[1].minPos || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
       const taxes = [options.departmentTaxonomies?.[dept], tax].filter((t): t is Taxonomy => t != null);
       for (const [tag, info] of order) {
+        if (fmap && dept === 'food') {
+          // The food label map: a USDA flat label hangs under the en: node the file names (never one that is not there).
+          const link = fmap.labels.get(tag);
+          if (link) {
+            const present = (t: string): boolean => t !== tag && (tags.has(t) || parent.has(t));
+            const mapped = fmap.parentFor(tag, present, tax);
+            if (mapped === null || (mapped !== undefined && !reaches(mapped, tag))) {
+              if (mapped === null) fmapStats.toTop += 1;
+              else {
+                fmapStats.linked += 1;
+                fmapStats.byMethod[link.method] = (fmapStats.byMethod[link.method] ?? 0) + 1;
+              }
+              if (link.node !== null && !present(link.node)) fmapStats.absentNodes += 1;
+              parent.set(tag, mapped);
+              continue;
+            }
+          } else if (!/^[a-z]{2,3}(?:[-_][a-z0-9]+)?:/.test(tag)) {
+            fmapStats.labelsNotInFile += 1;
+          }
+        }
         const isAnc = (c: string): boolean => taxes.some((t) => t.isAncestor(c, tag));
         // Tier 0: an ancestor seen immediately before; 1: the nearest ancestor anywhere in
         // the department (never typed right before it); 2: any other immediate predecessor.
@@ -808,6 +864,7 @@ export function buildPlacement(db: DatabaseSync, options: BuildPlacementOptions 
     taggedWithNoDepartment,
     taxonomyUsed: tax !== null,
     departmentTaxonomiesUsed: Object.keys(options.departmentTaxonomies ?? {}).filter((d) => byDept.has(d)).sort(),
+    foodLabelMap: fmap ? { version: fmap.version, sha256: fmap.sha256, ...fmapStats } : null,
   };
   log(`placement: ${JSON.stringify(summary)}`);
   log(
@@ -939,16 +996,19 @@ function main(argv: readonly string[]): number {
   }
   let tax: Taxonomy | null = null;
   let departmentTaxonomies: Record<string, Taxonomy> | null = null;
+  let foodLabelMap: FoodLabelMap | null = null;
   try {
     if (!argv.includes('--no-taxonomy')) tax = loadTaxonomy(arg('--taxonomy', argv) ?? DEFAULT_TAXONOMY_PATH, { aliasesPath: DEFAULT_ALIASES_PATH });
     if (!argv.includes('--no-department-taxonomies')) departmentTaxonomies = loadDepartmentTaxonomies();
+    if (!argv.includes('--no-food-label-map')) foodLabelMap = loadFoodLabelMap(arg('--food-label-map', argv) ?? FOOD_LABEL_MAP_PATH);
+    else console.log('placement: --no-food-label-map: USDA labels hang off the food top, unlinked to the Open Food Facts tree');
   } catch (err) {
-    console.error(`placement FAILED before touching anything: ${err instanceof Error ? err.message : String(err)} (pass --no-taxonomy or --no-department-taxonomies to build without them)`);
+    console.error(`placement FAILED before touching anything: ${err instanceof Error ? err.message : String(err)} (pass --no-taxonomy, --no-department-taxonomies or --no-food-label-map to build without them)`);
     return 1;
   }
   const db = new DatabaseSync(dbPath);
   try {
-    buildPlacement(db, { taxonomy: tax, departmentTaxonomies });
+    buildPlacement(db, { taxonomy: tax, departmentTaxonomies, foodLabelMap });
     return 0;
   } catch (err) {
     console.error(`placement FAILED: ${err instanceof Error ? err.message : String(err)}`);

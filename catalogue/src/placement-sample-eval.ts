@@ -5,6 +5,12 @@
  *   node src/placement-sample-eval.ts --stage scan|sample|embed|run|tune|report
  *        --work <temp folder> --model-dir <folder holding Xenova/multilingual-e5-small>
  *        [--real file:C:/shin/catalogue/data/catalogue.db?mode=ro&immutable=1] [--seed 20261013]
+ *        [--departments food,beauty] [--data-dir <folder holding the taxonomy files>]
+ *        [--food-label-map <file>] [--variants before,after | text,cascade]
+ *
+ * --food-label-map builds every tree with the USDA label map (food-label-link.ts); without it the
+ * food tree is the unlinked one. --variants text,cascade runs the text route alone and the
+ * barcode+text+meaning cascade (no label route) instead of before/after.
  *
  * READ-ONLY ON THE REAL DATABASE. It is opened by URI with mode=ro and immutable=1,
  * so no -shm or -wal file is created and nothing is written; everything this script
@@ -36,6 +42,7 @@ import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { openCatalogue, rebuildFts } from './schema.ts';
 import { DEFAULT_ALIASES_PATH, DEFAULT_TAXONOMY_PATH, loadDepartmentTaxonomies, loadTaxonomy } from './category-taxonomy.ts';
+import { loadFoodLabelMap, type FoodLabelMap } from './food-label-link.ts';
 import { buildPlacement, DEPARTMENT_OF_SOURCE, departmentOfSource, ensurePlacementSchema } from './placement.ts';
 import { climb, PlacementTree, PLACEMENT_CONFIDENCE_BAR } from './placement-cascade.ts';
 import { embedNames, onnxE5Embedder, openNameIndex } from './name-meaning.ts';
@@ -43,6 +50,22 @@ import { embedLabels, labelCandidates, labelRoute, loadLabelNames } from './labe
 import { main as placementRun } from './placement-run.ts';
 
 export const DEPARTMENTS = ['food', 'beauty', 'general', 'pet'] as const;
+/** The departments this run measures (--departments food,beauty; default all four). */
+let active: readonly string[] = DEPARTMENTS;
+/** The USDA label map the trees are built with (--food-label-map <file>; absent: none, the unlinked tree). */
+let foodLabelMap: FoodLabelMap | null = null;
+/** A folder holding the taxonomy files (--data-dir); default the repo's catalogue/data. */
+let taxonomyDir: string | undefined;
+
+/** The label names of a department, read from the --data-dir taxonomy when given. */
+function labelNames(department: string): ReturnType<typeof loadLabelNames> {
+  return loadLabelNames(department, taxonomyDir ? { foodPath: join(taxonomyDir, 'off-categories.json') } : {});
+}
+
+function taxonomies(): { food: ReturnType<typeof loadTaxonomy>; departments: ReturnType<typeof loadDepartmentTaxonomies> } {
+  const foodPath = taxonomyDir ? join(taxonomyDir, 'off-categories.json') : DEFAULT_TAXONOMY_PATH;
+  return { food: loadTaxonomy(foodPath, { aliasesPath: DEFAULT_ALIASES_PATH }), departments: loadDepartmentTaxonomies(taxonomyDir) };
+}
 /** Items per department in the sample (pet is smaller than this and is taken whole). */
 export const SAMPLE_SIZE: Readonly<Record<string, number>> = { food: 25000, beauty: 10000, general: 10000, pet: 10000 };
 export const TUNE_PER_DEPARTMENT = 600;
@@ -109,7 +132,7 @@ const REAL_DEFAULT = 'file:C:/shin/catalogue/data/catalogue.db?mode=ro&immutable
 
 function stageScan(work: string, real: string, log: (l: string) => void): void {
   assertReadOnlyUri(real);
-  const sources = Object.entries(DEPARTMENT_OF_SOURCE).filter(([, d]) => (DEPARTMENTS as readonly string[]).includes(d)).map(([s]) => s);
+  const sources = Object.entries(DEPARTMENT_OF_SOURCE).filter(([, d]) => active.includes(d)).map(([s]) => s);
   const src = new DatabaseSync(real, { readOnly: true });
   const rows: ScanRow[] = [];
   const t0 = Date.now();
@@ -132,8 +155,8 @@ function stageScan(work: string, real: string, log: (l: string) => void): void {
     n += 1;
   }
   treeDb.exec('COMMIT');
-  const food = loadTaxonomy(DEFAULT_TAXONOMY_PATH, { aliasesPath: DEFAULT_ALIASES_PATH });
-  const built = buildPlacement(treeDb, { taxonomy: food, departmentTaxonomies: loadDepartmentTaxonomies(), log });
+  const tx = taxonomies();
+  const built = buildPlacement(treeDb, { taxonomy: tx.food, departmentTaxonomies: tx.departments, foodLabelMap, log });
   const nodes = treeDb
     .prepare(
       `SELECT n.department, n.tag, p.tag AS parentTag, n.depth FROM placement_node n LEFT JOIN placement_node p ON p.node_id = n.parent_id WHERE n.kind = 'category' ORDER BY n.depth, n.node_id`,
@@ -164,7 +187,7 @@ function stageSample(work: string, real: string, seed: number, log: (l: string) 
   const chosen: ScanRow[] = [];
   const key: KeyEntry[] = [];
   const hidden = new Set<string>();
-  for (const department of DEPARTMENTS) {
+  for (const department of active) {
     const pool = rows.filter((r) => departmentOfSource(r.source) === department).sort((a, b) => a.rowid - b.rowid);
     const take = shuffled(pool, rand).slice(0, SAMPLE_SIZE[department]!);
     chosen.push(...take);
@@ -214,8 +237,8 @@ function stageSample(work: string, real: string, seed: number, log: (l: string) 
     idOf.set(`${n.department}\u0000${n.tag}`, { id, depth: parent.depth + 1 });
   }
   db.exec('COMMIT');
-  const food = loadTaxonomy(DEFAULT_TAXONOMY_PATH, { aliasesPath: DEFAULT_ALIASES_PATH });
-  const built = buildPlacement(db, { taxonomy: food, departmentTaxonomies: loadDepartmentTaxonomies(), log });
+  const tx = taxonomies();
+  const built = buildPlacement(db, { taxonomy: tx.food, departmentTaxonomies: tx.departments, foodLabelMap, log });
   log(`sample: ${chosen.length} items in sample.db; the build created ${built.nodesCreated} extra nodes (0 expected), placed ${built.placed}`);
   if (built.nodesCreated !== 0) throw new Error(`sample: the sample's own build created ${built.nodesCreated} nodes the full tree did not have`);
   db.close();
@@ -228,11 +251,11 @@ async function stageEmbed(work: string, modelDir: string, threads: number, log: 
   const index = openNameIndex(join(work, 'names.db'));
   const embedder = await onnxE5Embedder(modelDir, { threads });
   const tree = PlacementTree.load(db);
-  for (const department of DEPARTMENTS) {
+  for (const department of active) {
     const t0 = Date.now();
     const r = await embedNames(index, db, embedder, { department, batch: 64, log });
     log(`embed: ${department}: names ${JSON.stringify(r)} in ${((Date.now() - t0) / 1000).toFixed(0)}s`);
-    const l = await embedLabels(index, tree, embedder, { department, names: loadLabelNames(department), log });
+    const l = await embedLabels(index, tree, embedder, { department, names: labelNames(department), log });
     log(`embed: ${department}: labels ${JSON.stringify(l)}`);
   }
   db.close();
@@ -241,11 +264,24 @@ async function stageEmbed(work: string, modelDir: string, threads: number, log: 
 
 /* ------------------------------------------------------------------ run */
 
+/**
+ * The variants a run places: 'before' (no label route) and 'after' (the label route) are the
+ * label-route measurement; 'text' is the text route alone (no vectors read), 'cascade' is
+ * barcode, text and meaning without the label route (--variants text,cascade).
+ */
+type Variant = 'before' | 'after' | 'text' | 'cascade';
+let variants: readonly Variant[] = ['before', 'after'];
+let foodLabelMapPath: string | null = null;
+
 async function stageRun(work: string, modelDir: string, threshold: number, log: (l: string) => void): Promise<void> {
-  for (const variant of ['before', 'after'] as const) {
+  for (const variant of variants) {
     const copy = join(work, `placed-${variant}.db`);
     copyFileSync(join(work, 'sample.db'), copy);
     const args = ['--db', copy, '--vectors', join(work, 'names.db'), '--workers', '4'];
+    // The nodes already exist (the full tree was inserted first and a node never changes), so the build's taxonomies only matter for a node it would create: none.
+    if (taxonomyDir) args.push('--taxonomy', join(taxonomyDir, 'off-categories.json'), '--no-department-taxonomies');
+    args.push(...(foodLabelMapPath ? ['--food-label-map', foodLabelMapPath] : ['--no-food-label-map']));
+    if (variant === 'text') args.push('--no-meaning');
     if (variant === 'after') args.push('--label-threshold', String(threshold), '--model-dir', modelDir);
     log(`run: ${variant}: placement-run ${args.join(' ')}`);
     const code = await placementRun(args);
@@ -263,7 +299,7 @@ interface Truth {
 function loadTruth(db: DatabaseSync): Truth {
   const tree = PlacementTree.load(db);
   const nodeOf = new Map<string, number>();
-  for (const d of DEPARTMENTS) for (const n of tree.categoriesOf(d)) nodeOf.set(`${d}\u0000${n.tag}`, n.id);
+  for (const d of active) for (const n of tree.categoriesOf(d)) nodeOf.set(`${d}\u0000${n.tag}`, n.id);
   return { tree, nodeOf };
 }
 
@@ -293,8 +329,8 @@ async function stageTune(work: string, modelDir: string, log: (l: string) => voi
   const truth = loadTruth(db);
   const key = JSON.parse(readFileSync(join(work, 'answer-key.json'), 'utf8')) as KeyEntry[];
   const chosen: Record<string, number> = {};
-  for (const department of DEPARTMENTS) {
-    const cands = await labelCandidates(index, db, truth.tree, { department, names: loadLabelNames(department), k: 8, workers: 4, log });
+  for (const department of active) {
+    const cands = await labelCandidates(index, db, truth.tree, { department, names: labelNames(department), k: 8, workers: 4, log });
     const tune = key.filter((k) => k.department === department && k.split === 'tune');
     log(`tune: ${department}: ${tune.length} tuning items, ${cands.labels} labels`);
     let pick: number | null = null;
@@ -338,7 +374,7 @@ async function stageTune(work: string, modelDir: string, log: (l: string) => voi
 function stageReport(work: string, log: (l: string) => void): void {
   const key = JSON.parse(readFileSync(join(work, 'answer-key.json'), 'utf8')) as KeyEntry[];
   const hiddenCodes = new Set(key.map((k) => k.code));
-  for (const variant of ['before', 'after'] as const) {
+  for (const variant of variants) {
     const db = new DatabaseSync(join(work, `placed-${variant}.db`), { readOnly: true });
     const truth = loadTruth(db);
     log(`report: ${variant}`);
@@ -357,7 +393,7 @@ function stageReport(work: string, log: (l: string) => void): void {
         if (r.kind === 'department') a.topUnlabelled += 1;
       }
     }
-    for (const d of DEPARTMENTS) {
+    for (const d of active) {
       const a = agg[d]!;
       log(
         `report: ${variant} ${d}: items ${a.all}, genuinely unlabelled ${a.unlabelled}, top-level only ${a.topUnlabelled} = ${((a.topUnlabelled / a.all) * 100).toFixed(2)}% of all items, ${((a.topUnlabelled / a.unlabelled) * 100).toFixed(1)}% of the unlabelled; by route ${JSON.stringify(a.byRoute)}`,
@@ -366,21 +402,27 @@ function stageReport(work: string, log: (l: string) => void): void {
     // Answer key (the 200 per department), then the tuning split too.
     const place = db.prepare(`SELECT ip.leaf_id, ip.placed_by FROM item_placement ip WHERE ip.code = ?`);
     for (const split of ['key', 'tune'] as const) {
-      for (const d of DEPARTMENTS) {
+      for (const d of active) {
         const items = key.filter((k) => k.department === d && k.split === split);
         const tally: Record<string, number> = { exact: 0, parent: 0, above: 0, top: 0, wrong: 0 };
+        // A USDA-label placement is scored 'wrong' by an en:-only key. Counted apart: the label's own parent (its mapped en: node) holds the truth.
+        let labelInside = 0;
         const byRoute: Record<string, { n: number; right: number }> = {};
         for (const k of items) {
           const p = place.get(k.code) as { leaf_id: number; placed_by: string };
           const j = judge(truth, d, k.truth, p.leaf_id);
           tally[j] = (tally[j] ?? 0) + 1;
+          if (j === 'wrong') {
+            const placed = truth.tree.node(p.leaf_id);
+            if (!/^[a-z]{2,3}(?:[-_][a-z0-9]+)?:/.test(placed.tag) && placed.parent !== null && ['exact', 'parent', 'above'].includes(judge(truth, d, k.truth, placed.parent))) labelInside += 1;
+          }
           const br = (byRoute[p.placed_by] ??= { n: 0, right: 0 });
           br.n += 1;
           if (j === 'exact' || j === 'parent') br.right += 1;
         }
         const right = (tally.exact ?? 0) + (tally.parent ?? 0);
         log(
-          `report: ${variant} ${split} ${d}: ${items.length} items: right at category-or-parent ${right}/${items.length} (exact ${tally.exact}, parent ${tally.parent}); above-parent ${tally.above}, top-level ${tally.top}, wrong ${tally.wrong}; by route ${JSON.stringify(byRoute)}`,
+          `report: ${variant} ${split} ${d}: ${items.length} items: right at category-or-parent ${right}/${items.length} (exact ${tally.exact}, parent ${tally.parent}); above-parent ${tally.above}, top-level ${tally.top}, wrong ${tally.wrong} (of which on a USDA label whose parent en: node holds the true category: ${labelInside}); by route ${JSON.stringify(byRoute)}`,
         );
       }
     }
@@ -403,6 +445,22 @@ export async function main(argv: readonly string[]): Promise<number> {
   const real = arg('--real', argv) ?? REAL_DEFAULT;
   const modelDir = arg('--model-dir', argv) ?? '';
   try {
+    const deps = arg('--departments', argv);
+    if (deps) {
+      const want = deps.split(',').map((d) => d.trim());
+      const bad = want.filter((d) => !(DEPARTMENTS as readonly string[]).includes(d));
+      if (bad.length > 0) throw new Error(`--departments names ${bad.join(', ')}; the departments are ${DEPARTMENTS.join(', ')}`);
+      active = want;
+    }
+    taxonomyDir = arg('--data-dir', argv);
+    const mapArg = arg('--food-label-map', argv);
+    if (mapArg) {
+      foodLabelMapPath = mapArg;
+      foodLabelMap = loadFoodLabelMap(mapArg);
+      log(`food label map ${mapArg}: ${foodLabelMap.labels.size} labels, sha256 ${foodLabelMap.sha256.slice(0, 12)}`);
+    } else log('no --food-label-map: the food tree is built unlinked (USDA labels off the food top)');
+    const vs = arg('--variants', argv);
+    if (vs) variants = vs.split(',').map((v) => v.trim() as Variant);
     if (stage === 'scan') stageScan(work, real, log);
     else if (stage === 'sample') stageSample(work, real, Number(arg('--seed', argv) ?? 20261013), log);
     else if (stage === 'embed') await stageEmbed(work, modelDir, Number(arg('--threads', argv) ?? 8), log);

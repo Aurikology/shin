@@ -5,7 +5,8 @@
  *
  *   node src/placement-run.ts --db <COPY of catalogue.db> --vectors <name-index.db>
  *        [--scans <scans.db>] [--workers 8] [--bar 0.6] [--no-meaning] [--no-text]
- *        [--taxonomy <path> | --no-taxonomy] [--no-department-taxonomies] [--live]
+ *        [--taxonomy <path> | --no-taxonomy] [--no-department-taxonomies]
+ *        [--food-label-map <path> | --no-food-label-map] [--live]
  *        [--label-threshold <0..1>] [--model-dir <folder holding Xenova/multilingual-e5-small>]
  *
  * The meaning route needs every named item embedded first (name-meaning.ts embed);
@@ -29,6 +30,7 @@ import { cpus } from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
 import { DEFAULT_ALIASES_PATH, DEFAULT_TAXONOMY_PATH, loadDepartmentTaxonomies, loadTaxonomy, type Taxonomy } from './category-taxonomy.ts';
 import { buildPlacement, departmentOfSource, NO_DEPARTMENT } from './placement.ts';
+import { FOOD_LABEL_MAP_PATH, loadFoodLabelMap, type FoodLabelMap } from './food-label-link.ts';
 import {
   assertNotLiveCatalogue,
   barcodeRoute,
@@ -66,9 +68,12 @@ export async function main(argv: readonly string[]): Promise<number> {
     if (!argv.includes('--no-taxonomy')) tax = loadTaxonomy(arg('--taxonomy', argv) ?? DEFAULT_TAXONOMY_PATH, { aliasesPath: DEFAULT_ALIASES_PATH });
     const departmentTaxonomies = argv.includes('--no-department-taxonomies') ? null : loadDepartmentTaxonomies();
     if (!departmentTaxonomies) log('placement-run: --no-department-taxonomies: beauty, general and pet parents read the food taxonomy only');
+    let foodLabelMap: FoodLabelMap | null = null;
+    if (argv.includes('--no-food-label-map')) log('placement-run: --no-food-label-map: USDA labels hang off the food top, unlinked to the Open Food Facts tree');
+    else foodLabelMap = loadFoodLabelMap(arg('--food-label-map', argv) ?? FOOD_LABEL_MAP_PATH);
     const db = new DatabaseSync(dbPath);
     try {
-      buildPlacement(db, { taxonomy: tax, departmentTaxonomies, log });
+      buildPlacement(db, { taxonomy: tax, departmentTaxonomies, foodLabelMap, log });
       ensureFeedbackSchema(db);
       const scans = arg('--scans', argv);
       if (scans) log(`placement-run: picks ${JSON.stringify(ingestPicks(db, scans, { origin: 'scans' }))}`);

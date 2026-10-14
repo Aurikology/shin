@@ -20,6 +20,7 @@ import type { Taxonomy } from './category-taxonomy.ts';
 import { canonicalizeCatalogue } from './category-canonicalize.ts';
 import { canonicalCode } from './barcode.ts';
 import { buildPlacement } from './placement.ts';
+import { FOOD_LABEL_MAP_PATH, loadFoodLabelMap, type FoodLabelMap } from './food-label-link.ts';
 
 const DB_PATH = process.env.SHIN_CATALOGUE ?? 'data/catalogue.db';
 /*
@@ -258,8 +259,15 @@ async function main(): Promise<number> {
       console.error(`load STOPPED: the department taxonomies are unavailable, so the placement layer cannot be built (${err instanceof Error ? err.message : String(err)}). The rows are loaded; fix the taxonomy and run "npm run place", or load again with --no-placement to skip the build on purpose.`);
       return 1;
     }
+    let foodLabelMap: FoodLabelMap;
     try {
-      const built = buildPlacement(db, { taxonomy: tax, departmentTaxonomies, log: (l) => console.log(l) });
+      foodLabelMap = loadFoodLabelMap(FOOD_LABEL_MAP_PATH);
+    } catch (err) {
+      console.error(`load STOPPED: the food label map is unavailable, so the placement layer cannot link the USDA labels (${err instanceof Error ? err.message : String(err)}). The rows are loaded; fix the file and run "npm run place", or load again with --no-placement to skip the build on purpose.`);
+      return 1;
+    }
+    try {
+      const built = buildPlacement(db, { taxonomy: tax, departmentTaxonomies, foodLabelMap, log: (l) => console.log(l) });
       console.log(`placement build   ${built.nodesCreated} nodes created, ${built.placed} items placed, ${built.counts.placedAtTopOnly} at the top level only`);
     } catch (err) {
       console.error(`load FAILED: the placement build stopped: ${err instanceof Error ? err.message : String(err)}`);
