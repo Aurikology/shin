@@ -20,6 +20,7 @@ export const PATHS = {
   code: dirname(fileURLToPath(import.meta.url)),
 };
 PATHS.state = join(PATHS.home, 'state.json');
+PATHS.status = join(PATHS.home, 'status.md'); // the mailbox sink's local status file
 PATHS.logs = join(PATHS.home, 'logs');
 PATHS.runs = join(PATHS.home, 'runs');
 PATHS.neutral = join(PATHS.home, 'neutral');

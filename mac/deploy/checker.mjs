@@ -1,12 +1,16 @@
 // mac/deploy/checker.mjs
 //
 // Run by launchd every 30 s (com.shin.checker); a lock prevents overlapping
-// runs. Each run: if the checker was stopped (broken Notion key), exit with no
-// calls at all. Otherwise, when a check is due (every 30 s, backing off after
-// network/429/5xx failures): look at GitLab's main, one page sync over the
-// Notion API (read requests, queue, holds, status, log; nothing written when
-// nothing changed), then start the deployer if the queue has work and none
-// runs. Never waits on a deploy.
+// runs. When a check is due (every 30 s, backing off after network/mailbox/429/5xx
+// failures): look at GitLab's main, one report sync (read requests, queue, holds, status,
+// log), then start the deployer if the queue has work and none runs. Never waits on a deploy.
+//
+// The report sink is SHIN_DEPLOY_REPORT in mac/config.env (see sync.mjs):
+//   mailbox (default)  status in ~/.shin-deploy/status.md, progress/notices to the PC and
+//                      requests ("deploy: ..." mail) through the PC-Mac mailbox. An
+//                      unreachable mailbox backs off; it never stops the checker.
+//   notion             the optional page sink. If the checker was stopped (broken Notion
+//                      key, 3 refusals in a row), it exits with no calls at all.
 //
 //   node checker.mjs          scheduled run
 //   node checker.mjs --now    check even if not due
@@ -15,8 +19,8 @@ import { spawn } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { BROKEN_AFTER, checkDue, observeHealth, recordAccess } from './lib.mjs';
-import { reportBrokenKey, stoppedReason, syncPage } from './sync.mjs';
+import { checkDue, observeHealth } from './lib.mjs';
+import { handleOutcome, reportSink, stoppedReason, syncPage } from './sync.mjs';
 import { PATHS, childEnv, git, loadState, lockHolder, logTo, readConfig, run, tryLock, withState } from './util.mjs';
 
 const log = logTo('checker');
@@ -65,7 +69,7 @@ function startDeployerIfNeeded() {
 }
 
 async function main() {
-  if (stoppedReason()) return; // stopped: no Notion, no claude, no git
+  if (reportSink() === 'notion' && stoppedReason()) return; // stopped: no Notion, no claude, no git
   const lock = tryLock('checker', 'checker');
   if (!lock) return;
   try {
@@ -75,14 +79,7 @@ async function main() {
       const health = await publicHealth();
       if (health) await withState('checker', (st) => observeHealth(st, health, Date.now(), !!lockHolder('deployer')));
       const r = await syncPage({ ingest: true, git: gitInfo, owner: 'checker', log });
-      if (r.outcome !== 'skipped') {
-        const broken = await withState('checker', (st) => recordAccess(st, r.outcome === 'ok' ? 'ok' : r.outcome, Date.now()));
-        if (r.outcome === 'refused') log(`Notion refused the key (${r.error}); ${broken ? 'broken' : `strike ${loadState().keyFailures} of ${BROKEN_AFTER}`}`);
-        if (broken) {
-          await reportBrokenKey({ error: r.error, log });
-          return;
-        }
-      }
+      if (await handleOutcome({ r, log })) return; // notion sink only: the key broke, checker stopped
     }
     startDeployerIfNeeded();
   } finally {

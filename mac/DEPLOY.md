@@ -1,9 +1,45 @@
 # Mac deploys: how the beta server gets new code
 
-The Mac puts pushed code on the beta server by itself, and says what it is doing in the
-**Mac server** section at the bottom of the Notion page "Shin: who is working on what".
-Two lines at the top of that section answer the usual questions: the **Status** line (is the
-checker on, what is live, the queue, any hold) and the **App** line (can you test right now).
+The Mac puts pushed code on the beta server by itself, and reports through the PC-Mac mailbox
+(a private git repo both computers sync; `~/claude-mailbox` on the Mac). Two lines answer the
+usual questions: the **Status** line (is the checker on, what is live, the queue, any hold) and
+the **App** line (can you test right now).
+
+## Where it reports (`SHIN_DEPLOY_REPORT` in `mac/config.env`)
+
+`mailbox` is the default. `notion` is the optional old sink (sections below); it
+stays working, but Notion's free block limit refuses writes, so the mailbox is what runs.
+
+- **Read the status.** On the Mac: `~/.shin-deploy/status.md` (the same Status, App, Queue and
+  Mac log text the page used to get, plus a Needs attention list; rewritten on every check, a
+  local write that cannot fail a check). On the PC: `node C:\claude-mailbox\mail.mjs job shin-deploy`
+  shows every update; a line saying `GONE QUIET` means the checker sent nothing for 60 minutes.
+- **What the Mac sends.** `progress --job shin-deploy --to pc` carrying the Status line, only when
+  that line changed (its "last check" time alone is not a change), plus a heartbeat at most every
+  45 minutes when nothing changed. Each call is a git commit and push, so never more often. One
+  `send --to pc` per distinct needs-attention notice (a deploy failed, someone put a hold, the
+  app is down), remembered so it is not re-sent every check.
+- **Send a request.** Mail to `mac` whose subject starts with `deploy:` (body optional; sender
+  and time come from the mail):
+
+  ```
+  node ~/claude-mailbox/mail.mjs send --to mac --subject "deploy: pin <sha>" --body ""
+  ```
+
+  Subjects: `deploy: latest` · `deploy: pin <sha>` (a commit hash) · `deploy: hold <reason>` ·
+  `deploy: release` · `deploy: start checking` · `deploy: stop checking`. The body becomes
+  the "what changed" note of a deploy. A subject already in the page's own line format
+  (`deploy: deploy · from WHO · TIME · latest · note`) also works. Each check the Mac pulls the
+  mailbox, acts on unacknowledged `deploy:` mail through the same queue/hold/pin logic as before,
+  and writes a receipt whose note says what it did (`mail sent` shows it on the sender side).
+  Mail without the `deploy:` prefix is never touched or acknowledged; a Claude session on the Mac
+  reads that.
+- **If the mailbox cannot be reached** (spawn error, nonzero exit, 60 s timeout) the checker
+  backs off like for a network error (30 s doubling, at most 10 min) and tries again. It is never
+  counted as a broken key, never writes `~/.shin-deploy/stopped`, and never stops the checker.
+  Requests wait unacknowledged in the repo until the mailbox is reachable again.
+- A `~/.shin-deploy/stopped` file left by the Notion era is ignored under `mailbox`; delete it
+  (and `~/.worker-state/shin-checker-stopped`) so the Mac's health email stops reporting it.
 
 ## How it works
 
@@ -13,11 +49,12 @@ checker on, what is live, the queue, any hold) and the **App** line (can you tes
 - **`~/shin-stage`** is where a commit is installed, built and tested first.
 - **The checker** (`mac/deploy/checker.mjs`, LaunchAgent `com.shin.checker`) runs every 30 s,
   one at a time (a lock). A check: one `git ls-remote` (a fetch only if main moved), one GET of
-  the public `/api/health`, and one read of the page through the Notion API. It writes to the
-  page only when something changed; the "last check" time alone is refreshed every 5 minutes.
-  Notion's limit (about 3 requests/s) is respected: calls are spaced 350 ms apart, a 429 waits
-  for Retry-After, and network errors, 429 and 5xx back the checker off (30 s doubling, at most
-  10 min) without ever stopping it. It starts the deployer if the queue has work.
+  the public `/api/health`, and one report sync through the sink (default: pull the mailbox, read
+  `deploy:` requests, write `status.md`, send progress or notices only when something changed; the
+  "last check" time alone is refreshed every 5 minutes). Mailbox, network, 429 and 5xx failures
+  back the checker off (30 s doubling, at most 10 min) without ever stopping it. With the
+  optional Notion sink, calls are spaced 350 ms apart (Notion allows about 3 requests/s) and a
+  429 waits for Retry-After. It starts the deployer if the queue has work.
 - **The deployer** (`mac/deploy/deployer.mjs`) takes the queue in order. For each item:
   fetch, check out in stage, `npm ci` where a lockfile changed, build the camera bundle,
   run app tests + typecheck + spine/identify/catalogue tests (price's tests are not run).
@@ -53,7 +90,11 @@ checker on, what is live, the queue, any hold) and the **App** line (can you tes
 If the server process changes with no deploy running (someone restarted it by hand), the log
 says `server restarted outside a deploy at HH:MM`.
 
-## Writing to the Mac (any session, one line under "Requests to the Mac")
+## Notion sink (optional): writing to the Mac (any session, one line under "Requests to the Mac")
+
+Only with `SHIN_DEPLOY_REPORT=notion`. The Mac then reports in the **Mac server** section at the
+bottom of the Notion page "Shin: who is working on what" and reads these lines instead of the
+mailbox. The request words are the same ones the mailbox subjects use.
 
 ```
 deploy · from WHO · 2026-09-14 05:08 UTC · latest · what changed      (or a commit hash)
@@ -67,9 +108,9 @@ The Mac appends ` → seen HH:MM, queue position N`, then ` → done HH:MM, live
 ` → failed HH:MM: <reason>`. A hold not refreshed within an hour expires (refresh by
 writing a new hold line or changing the time on yours). Finished lines go after a day.
 
-## If the Notion key breaks
+## Notion sink (optional): if the Notion key breaks
 
-"Broken" means Notion refuses the key for this page (401 unauthorized, 403 restricted, or
+This applies only to `SHIN_DEPLOY_REPORT=notion`; the mailbox sink has no key and no stop. "Broken" means Notion refuses the key for this page (401 unauthorized, 403 restricted, or
 object_not_found) on 3 checks in a row. Then, once: a headless `claude -p` (haiku, only the
 Notion fetch and update tools, about $0.03) adds this at the top of "Needs attention":
 `to jamin · from the Mac · <time> · Notion key is broken (<error>); the Mac stopped checking
@@ -91,7 +132,7 @@ and delete the notice under "Needs attention". The checker repairs its own statu
 
 ## Where things are
 
-- State and logs: `~/.shin-deploy/` (`state.json`, `logs/checker.log`, `logs/deployer.log`,
+- State and logs: `~/.shin-deploy/` (`state.json`, `status.md`, `logs/checker.log`, `logs/deployer.log`,
   `logs/claude-cost.log`, `runs/<time>-<id>/` with every command's output).
 - Files a clean clone lacks and no build makes, copied into both clones after each build:
   `~/shin-data/deploy/repo-overlay/` (the detector model, the catalogue offline packs, and the
@@ -99,7 +140,8 @@ and delete the notice under "Needs attention". The checker repairs its own statu
   that last one the server crashes seconds after starting). If one of these is rebuilt,
   replace it there.
 - `~/shin-live/app/data/photos` is a link to `~/shin-data/photos`.
-- Tests for the page, queue, health and state logic: `node --test mac/deploy/test/lib.test.mjs mac/deploy/test/notion.test.mjs`.
+- Tests for the report sinks, page, queue, health and state logic: `node --test mac/deploy/test/*.test.mjs`
+  (`report.test.mjs` covers the mailbox sink with a fake mail runner; no real mailbox is touched).
 
 ## Stop it
 

@@ -304,12 +304,15 @@ export function recordAccess(state, outcome, now) {
   return state.keyFailures >= BROKEN_AFTER;
 }
 
+/** A status line without its "last check" time: two lines equal here say the same thing. */
+export const stripLastCheck = (t) => normText(t).replace(/ · last check [^·]*/, '');
+
 /**
  * Keeps the page's "last check" time unless something else on the status line
  * changed or it is STATUS_REFRESH old, so a 30 s check does not write the page.
  */
 export function settleShownCheck(state, currentStatusText) {
-  const strip = (t) => normText(t).replace(/ · last check [^·]*/, '');
+  const strip = stripLastCheck;
   const fresh = statusLine({ ...state, shownCheckAt: state.lastCheckAt });
   if (!currentStatusText || strip(currentStatusText) !== strip(fresh) || state.lastCheckAt - (state.shownCheckAt || 0) >= STATUS_REFRESH) {
     state.shownCheckAt = state.lastCheckAt;

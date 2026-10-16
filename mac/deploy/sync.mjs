@@ -1,22 +1,31 @@
 // mac/deploy/sync.mjs
 //
-// One page sync over the Notion API: fetch the page, (checker only) read
-// requests into state, render what the Mac server section should say, and
-// apply the difference as exact-text block edits. Idempotent: an edit that
-// fails is re-derived next time. A check with nothing new writes nothing.
+// Where the Mac reports and where it reads requests, chosen by SHIN_DEPLOY_REPORT in
+// mac/config.env:
 //
-// If the key is refused on BROKEN_AFTER checks in a row, reportBrokenKey()
-// makes the one claude -p call this pipeline ever makes (a notice on the
-// page), writes the stopped flags, and the checker makes no more calls.
+//   mailbox (the default)  mail-sink.mjs: a local ~/.shin-deploy/status.md plus the PC-Mac
+//                          mailbox (progress, notices, "deploy:" requests). No Notion.
+//   notion                 the optional sink below: one page sync over the Notion API.
+//
+// syncPage() is the one entry point the checker and deployer call; it dispatches.
+//
+// NOTION SINK. Fetch the page, (checker only) read requests into state, render what the
+// Mac server section should say, and apply the difference as exact-text block edits.
+// Idempotent: an edit that fails is re-derived next time. A check with nothing new writes
+// nothing. If the key is refused on BROKEN_AFTER checks in a row, reportBrokenKey() makes
+// the one claude -p call this pipeline ever makes (a notice on the page), writes the
+// stopped flags, and the checker makes no more calls. That stop belongs to this sink only:
+// a mailbox that cannot be reached backs off and never stops the checker.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
-  autoQueue, brokenKeyHunks, diffLines, expire, ingest, notionTestEdits, parseRequest, readSection, renderSection, replaceHunks, settleShownCheck, addLog,
+  BROKEN_AFTER, autoQueue, brokenKeyHunks, diffLines, expire, ingest, notionTestEdits, parseRequest, readSection, recordAccess, renderSection, replaceHunks, settleShownCheck, addLog,
 } from './lib.mjs';
+import { syncMailbox } from './mail-sink.mjs';
 import { ClaudeSession, NotionAccessError, RestSession, costLogPath } from './notion.mjs';
-import { PAGE_ID, PATHS, childEnv, readConfig, waitLock, withState } from './util.mjs';
+import { PAGE_ID, PATHS, childEnv, loadState, readConfig, waitLock, withState } from './util.mjs';
 
 export const STOPPED_FLAG = join(PATHS.home, 'stopped');
 export const WORKER_FLAG = join(process.env.WORKER_STATEDIR || join(homedir(), '.worker-state'), 'shin-checker-stopped');
@@ -27,10 +36,48 @@ function token() {
   return process.env.SHIN_NOTION_TOKEN_OVERRIDE || readConfig(['NOTION_TOKEN']).NOTION_TOKEN || null;
 }
 
+/** 'notion' only when asked for by name; anything else, or nothing, is the mailbox. */
+export function reportSink() {
+  const v = (process.env.SHIN_DEPLOY_REPORT || readConfig(['SHIN_DEPLOY_REPORT']).SHIN_DEPLOY_REPORT || '').trim().toLowerCase();
+  return v === 'notion' ? 'notion' : 'mailbox';
+}
+
 /**
- * @returns {{ outcome: 'ok'|'refused'|'transient'|'skipped', error?: string }}
+ * One report sync through the configured sink. `deps` (mailbox sink only) injects the mail
+ * runner, mailbox dir, status file path and clock for tests.
+ * @returns {Promise<{ outcome: 'ok'|'refused'|'transient'|'skipped', error?: string }>}
  */
-export async function syncPage({ ingest: doIngest = false, git = null, owner, log }) {
+export function syncPage(opts) {
+  return reportSink() === 'notion' ? syncNotion(opts) : syncMailbox(opts);
+}
+
+/**
+ * What the checker does with a sync's outcome: back-off and key-failure counting, and the
+ * one-time broken-key report. Only the notion sink can refuse a key or be stopped by it; for
+ * the mailbox every failure is transient (backoff), never a strike.
+ * @returns {Promise<boolean>} true when the checker has just been stopped
+ */
+export async function handleOutcome({ r, sink = reportSink(), log, report = reportBrokenKey }) {
+  if (r.outcome === 'skipped') return false;
+  const outcome = sink === 'notion' ? r.outcome : r.outcome === 'ok' ? 'ok' : 'transient';
+  const broken = await withState('checker', (st) => recordAccess(st, outcome, Date.now()));
+  if (sink !== 'notion') {
+    if (r.outcome !== 'ok') log(`mailbox not reachable (${r.error}); backing off`);
+    return false;
+  }
+  if (r.outcome === 'refused') log(`Notion refused the key (${r.error}); ${broken ? 'broken' : `strike ${loadState().keyFailures} of ${BROKEN_AFTER}`}`);
+  if (broken) {
+    await report({ error: r.error, log });
+    return true;
+  }
+  return false;
+}
+
+/**
+ * The Notion sink, unchanged.
+ * @returns {Promise<{ outcome: 'ok'|'refused'|'transient'|'skipped', error?: string }>}
+ */
+async function syncNotion({ ingest: doIngest = false, git = null, owner, log }) {
   if (stoppedReason()) return { outcome: 'skipped', error: 'checker stopped' };
   const tok = token();
   if (!tok) {

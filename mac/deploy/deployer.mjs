@@ -7,7 +7,8 @@
 //   green -> (wait out any hold) live: check out, install, build, restart,
 //            health locally + through the tunnel + running commit
 //   unhealthy -> live back to the previous commit, restart, post that
-// Every step is posted to the page as it happens.
+// Every step is posted through the report sink as it happens (sync.mjs: the local
+// status file and the PC-Mac mailbox by default, the Notion page when SHIN_DEPLOY_REPORT=notion).
 //
 //   node deployer.mjs              process the queue
 //   node deployer.mjs --prepare DIR   install + build a clone (used at setup)
