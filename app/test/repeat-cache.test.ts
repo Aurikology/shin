@@ -34,51 +34,6 @@ function tempPath() {
   return join(mkdtempSync(join(tmpdir(), 'shin-repeat-cache-')), 'repeat-cache.db');
 }
 
-test('repeatCacheKey includes the barcode, market and currency; a different market is a different key', () => {
-  const a = repeatCacheKey('0068100084245', 'CA', 'CAD');
-  const b = repeatCacheKey('0068100084245', 'US', 'USD');
-  assert.notEqual(a, b);
-  assert.equal(a, repeatCacheKey('0068100084245', 'CA', 'CAD'));
-});
-
-test('a fresh write is recalled whole, with no refresh due', () => {
-  const store = openRepeatCache(tempPath());
-  rememberCachedScan('0068100084245', 'CA', 'CAD', { run: 1 }, { block: 1 }, 42);
-  const hit = recallCachedScan('0068100084245', 'CA', 'CAD');
-  assert.ok(hit);
-  assert.deepEqual(hit!.run, { run: 1 });
-  assert.deepEqual(hit!.block, { block: 1 });
-  assert.equal(hit!.scanId, 42);
-  assert.equal(hit!.needsRefresh, false);
-  void store;
-});
-
-test('a hit past one hour is still served, but marked needing a refresh', () => {
-  openRepeatCache(tempPath());
-  const anHourAndAMinuteAgo = new Date(Date.now() - (REFRESH_AFTER_MS + 60_000));
-  rememberCachedScan('0068100084245', 'CA', 'CAD', { r: 1 }, { b: 1 }, 1, anHourAndAMinuteAgo);
-  const hit = recallCachedScan('0068100084245', 'CA', 'CAD');
-  assert.ok(hit, 'a hit under six hours old must still be served');
-  assert.equal(hit!.needsRefresh, true);
-});
-
-test('a hit past six hours is not served at all', () => {
-  openRepeatCache(tempPath());
-  const sixHoursAndAMinuteAgo = new Date(Date.now() - (PRICE_MAX_AGE_MS + 60_000));
-  rememberCachedScan('0068100084245', 'CA', 'CAD', { r: 1 }, { b: 1 }, 1, sixHoursAndAMinuteAgo);
-  const hit = recallCachedScan('0068100084245', 'CA', 'CAD');
-  assert.equal(hit, null, 'a hit past the six-hour ceiling was still served as fresh');
-});
-
-test('claimRefresh lets exactly one caller in; a second claim on the same key is refused until released', () => {
-  openRepeatCache(tempPath());
-  rememberCachedScan('0068100084245', 'CA', 'CAD', { r: 1 }, { b: 1 }, 1);
-  assert.equal(claimRefresh('0068100084245', 'CA', 'CAD'), true, 'the first claim was refused');
-  assert.equal(claimRefresh('0068100084245', 'CA', 'CAD'), false, 'a second concurrent claim on the same key was allowed');
-  releaseRefresh('0068100084245', 'CA', 'CAD');
-  assert.equal(claimRefresh('0068100084245', 'CA', 'CAD'), true, 'a claim stayed refused after being released');
-});
-
 /* ------------------------- the server-level proof ------------------------- */
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-repeat-cache-route-'));
@@ -210,4 +165,52 @@ test('a cache hit is served with the time it was really checked, not the time it
     Date.now() - servedMs > 60_000,
     'a replayed answer claimed it had just been checked, which is what ruling 1 forbids',
   );
+});
+
+/* ------------------------- the pure cache functions ------------------------- */
+// The plain function tests sit below the server block: with tests registered above the top-level await, the root after() hook closed the server before the server tests ran (ECONNREFUSED, 2026-10-15).
+
+test('repeatCacheKey includes the barcode, market and currency; a different market is a different key', () => {
+  const a = repeatCacheKey('0068100084245', 'CA', 'CAD');
+  const b = repeatCacheKey('0068100084245', 'US', 'USD');
+  assert.notEqual(a, b);
+  assert.equal(a, repeatCacheKey('0068100084245', 'CA', 'CAD'));
+});
+
+test('a fresh write is recalled whole, with no refresh due', () => {
+  const store = openRepeatCache(tempPath());
+  rememberCachedScan('0068100084245', 'CA', 'CAD', { run: 1 }, { block: 1 }, 42);
+  const hit = recallCachedScan('0068100084245', 'CA', 'CAD');
+  assert.ok(hit);
+  assert.deepEqual(hit!.run, { run: 1 });
+  assert.deepEqual(hit!.block, { block: 1 });
+  assert.equal(hit!.scanId, 42);
+  assert.equal(hit!.needsRefresh, false);
+  void store;
+});
+
+test('a hit past one hour is still served, but marked needing a refresh', () => {
+  openRepeatCache(tempPath());
+  const anHourAndAMinuteAgo = new Date(Date.now() - (REFRESH_AFTER_MS + 60_000));
+  rememberCachedScan('0068100084245', 'CA', 'CAD', { r: 1 }, { b: 1 }, 1, anHourAndAMinuteAgo);
+  const hit = recallCachedScan('0068100084245', 'CA', 'CAD');
+  assert.ok(hit, 'a hit under six hours old must still be served');
+  assert.equal(hit!.needsRefresh, true);
+});
+
+test('a hit past six hours is not served at all', () => {
+  openRepeatCache(tempPath());
+  const sixHoursAndAMinuteAgo = new Date(Date.now() - (PRICE_MAX_AGE_MS + 60_000));
+  rememberCachedScan('0068100084245', 'CA', 'CAD', { r: 1 }, { b: 1 }, 1, sixHoursAndAMinuteAgo);
+  const hit = recallCachedScan('0068100084245', 'CA', 'CAD');
+  assert.equal(hit, null, 'a hit past the six-hour ceiling was still served as fresh');
+});
+
+test('claimRefresh lets exactly one caller in; a second claim on the same key is refused until released', () => {
+  openRepeatCache(tempPath());
+  rememberCachedScan('0068100084245', 'CA', 'CAD', { r: 1 }, { b: 1 }, 1);
+  assert.equal(claimRefresh('0068100084245', 'CA', 'CAD'), true, 'the first claim was refused');
+  assert.equal(claimRefresh('0068100084245', 'CA', 'CAD'), false, 'a second concurrent claim on the same key was allowed');
+  releaseRefresh('0068100084245', 'CA', 'CAD');
+  assert.equal(claimRefresh('0068100084245', 'CA', 'CAD'), true, 'a claim stayed refused after being released');
 });
