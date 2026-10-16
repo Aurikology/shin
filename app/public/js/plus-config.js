@@ -16,8 +16,8 @@ export const PLUS = Object.freeze({
   entitlement: 'plus',
   offering: 'default',
   products: Object.freeze({
-    monthly: 'shin_plus_monthly',
-    yearly: 'shin_plus_yearly',
+    monthly: 'pexi_plus_monthly',
+    yearly: 'pexi_plus_yearly',
   }),
 });
 

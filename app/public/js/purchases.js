@@ -104,7 +104,7 @@ export function resetPurchasesForTests() {
  * Throws when the store could not be reached; the screen offers Try again.
  * The offering is `PLUS.offering` ("default"), falling back to the current
  * one. A package is matched by product id first (Android ids carry a base
- * plan after a colon, `shin_plus_monthly:monthly`), then by RevenueCat's own
+ * plan after a colon, `pexi_plus_monthly:monthly`), then by RevenueCat's own
  * monthly/annual slot. A package with no price string is left out rather than
  * drawn with a blank price.
  */

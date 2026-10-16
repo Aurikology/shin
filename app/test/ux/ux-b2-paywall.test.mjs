@@ -138,8 +138,8 @@ const settle = () => new Promise((r) => setTimeout(r, 0));
 function nativeWin({ equiv = 'CA$2.50', yearly = true, monthlyFirst = true } = {}) {
   const log = [];
   const pkg = (id, price, extra = {}) => ({ identifier: id, product: { identifier: id, priceString: price, ...extra } });
-  const monthly = pkg('shin_plus_monthly', 'CA$3.99');
-  const year = pkg('shin_plus_yearly:annual', 'CA$29.99', equiv ? { pricePerMonthString: equiv } : {});
+  const monthly = pkg('pexi_plus_monthly', 'CA$3.99');
+  const year = pkg('pexi_plus_yearly:annual', 'CA$29.99', equiv ? { pricePerMonthString: equiv } : {});
   const list = [monthly, ...(yearly ? [year] : [])];
   if (!monthlyFirst) list.reverse();
   const info = { entitlements: { active: { plus: { identifier: 'plus' } } } };
@@ -240,7 +240,7 @@ test('R-81: Subscribe with no other tap buys the yearly plan', async () => {
   const { root, log, stop } = await open();
   root.tap('[data-act="subscribe"]');
   await settle(); await settle();
-  assert.deepEqual(log, [['purchasePackage', 'shin_plus_yearly:annual']]);
+  assert.deepEqual(log, [['purchasePackage', 'pexi_plus_yearly:annual']]);
   stop();
 });
 
@@ -250,7 +250,7 @@ test('R-81 (KEEP): the shopper can still choose monthly, and Subscribe then buys
   assert.match(row(root.body.innerHTML, 'monthly'), /aria-checked="true"/);
   root.tap('[data-act="subscribe"]');
   await settle(); await settle();
-  assert.deepEqual(log, [['purchasePackage', 'shin_plus_monthly']]);
+  assert.deepEqual(log, [['purchasePackage', 'pexi_plus_monthly']]);
   stop();
 });
 

@@ -27,7 +27,22 @@ if (!existsSync(source)) {
   process.exit(1);
 }
 
+/*
+ * The real hostname and invite code, from a gitignored file beside
+ * revenuecat.config.json; the committed one is the .example (2026-10-16).
+ * Missing IS fatal: a wrapper built against the example's placeholder
+ * hostname installs on a phone and reaches nothing, which is worse than a
+ * build that stops here and says what to copy.
+ */
+if (!existsSync(configPath)) {
+  console.error(`[sync-web] no ${configPath}; copy config/shin-api.config.example.json to it and fill in apiBase and inviteCode.`);
+  process.exit(1);
+}
 const config = JSON.parse(readFileSync(configPath, 'utf8'));
+if (/REPLACE-WITH|example\.invalid/.test(`${config.apiBase} ${config.inviteCode}`)) {
+  console.error(`[sync-web] ${configPath} still holds the example placeholders. Fill in the real apiBase and inviteCode before building.`);
+  process.exit(1);
+}
 
 /*
  * RevenueCat's public SDK keys (Shin Plus, 2026-09-21). Read from a gitignored

@@ -153,8 +153,8 @@ test('in a plain browser the screen says "Subscribe in the app" and offers nothi
 function nativeWin({ entitled = true } = {}) {
   const log = [];
   const pkg = (id, price) => ({ identifier: id, product: { identifier: id, priceString: price } });
-  const monthly = pkg('shin_plus_monthly', 'CA$4.49');
-  const yearly = pkg('shin_plus_yearly:annual', 'CA$31.99');
+  const monthly = pkg('pexi_plus_monthly', 'CA$4.49');
+  const yearly = pkg('pexi_plus_yearly:annual', 'CA$31.99');
   const info = { entitlements: { active: entitled ? { plus: { identifier: 'plus' } } : {} } };
   const Purchases = {
     configure: async (o) => { log.push(['configure', o]); },
@@ -193,7 +193,7 @@ test('in the app the two plans show the store price strings exactly, and Subscri
   root.tap('[data-plan]', { plan: 'yearly' });
   root.tap('[data-act="subscribe"]');
   await settle(); await settle();
-  assert.ok(log.some((l) => l[0] === 'purchasePackage' && l[1] === 'shin_plus_yearly:annual'), 'Subscribe did not buy the chosen plan');
+  assert.ok(log.some((l) => l[0] === 'purchasePackage' && l[1] === 'pexi_plus_yearly:annual'), 'Subscribe did not buy the chosen plan');
   assert.match(root.body.innerHTML, /data-pw-state="done"/);
   assert.equal(purchases.plusActive(), true, 'an active entitlement was not remembered');
   // The Buy tap and its outcome, tracked so a two-week readout can count

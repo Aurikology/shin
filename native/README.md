@@ -303,7 +303,7 @@ Code: `app/public/js/purchases.js`; names and URLs: `app/public/js/plus-config.j
   (gitignored) and put the PUBLIC SDK keys in it (`appl_...`, `goog_...`). The sync refuses an
   `sk_` secret key. With no key a platform shows no plans.
 - RevenueCat dashboard: entitlement `plus`; offering `default` with a monthly and an annual
-  package; products `shin_plus_monthly` and `shin_plus_yearly` in both stores. The app user id is
+  package; products `pexi_plus_monthly` and `pexi_plus_yearly` in both stores. The app user id is
   the device id every API call already sends, so the server can check a device's subscription.
 - Android: `npx cap sync android` was run on the Windows laptop 2026-09-21 and found the plugin.
   Still to do: a Play build with Billing, the two subscriptions in Play Console.

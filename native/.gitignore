@@ -5,6 +5,13 @@ node_modules/
 # config/revenuecat.config.example.json; copy it and fill it in.
 config/revenuecat.config.json
 
+# The real server hostname and invite code for this machine's builds. The
+# committed file is config/shin-api.config.example.json; copy it and fill it
+# in. Untracked since 2026-10-16: the invite code is one of the three values
+# mac/config.env says must stay out of the repo, and the old tracked file had
+# an inviteCode field, so filling it in was a secret in a committed file.
+config/shin-api.config.json
+
 # Generated copy of app/public with the config script injected. Regenerated
 # by `npm run sync` (or `npm run cap:sync`). Never hand-edit this; edit
 # app/public (owned by the app lane) or scripts/sync-web.mjs instead.
