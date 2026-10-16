@@ -2888,3 +2888,25 @@ Not verified: the production circuit-breaker path with a real key; a phone-size 
 **Reverses if:** shoppers read the broad bell as a real price judgement (then show the guess line
 above the range, never only below), or a measured share of bell answers gets rated worse than no
 answer by testers.
+
+## The Mac deploy checker reports through the mailbox, not Notion
+**Date:** 2026-10-16 · **Status:** active
+
+Jamin, 2026-10-16: *"for the mac scheduled update checker, build the third option for the checker
+report to report to somewhere other than Notion."* The Notion workspace is at its free block limit,
+so every page write was refused and the checker stopped itself after three strikes; the Mac also
+found that launchd starts no scheduled job while its screen is locked, so live sat 35 commits
+behind from 2026-10-10. Moving the checker into the Mac's always-running loop fixes the lock only
+once it no longer needs Notion.
+
+Built (6477bef): `SHIN_DEPLOY_REPORT` picks the sink, `mailbox` by default. Status goes to
+`~/.shin-deploy/status.md` and to the PC-Mac mailbox as job `shin-deploy` (on change, heartbeat
+every 45 min, so the PC flags it gone quiet after 60). Needs-attention notices go to the PC once
+each. Requests arrive as mail to the Mac with subject `deploy: ...` and are acked with what was
+done. A mailbox failure backs off and never stops the checker. The Notion path is kept unchanged
+as `SHIN_DEPLOY_REPORT=notion`. Tested end to end on a scratch mailbox clone with the real mail
+program; not yet run on the Mac.
+
+Cost: Aurik's sessions read only GitLab and cannot see the mailbox, so the deploy status is no
+longer on a page he reads. **Reverses if:** Aurik needs the deploy status (then publish the status
+file somewhere he reads), or the Notion workspace gets room again and someone prefers the page.
