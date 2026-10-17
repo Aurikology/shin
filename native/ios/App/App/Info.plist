@@ -22,8 +22,12 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>This app uses the camera to scan barcodes and photograph items so it can look up the price.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Pexi uses your rough area, only if you turn it on, to tell you what an item usually costs near you.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
