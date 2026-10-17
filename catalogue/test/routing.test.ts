@@ -10,12 +10,19 @@
  */
 
 import { test } from 'node:test';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { openCatalogue, rebuildFts, toVecBlob, EMBED_DIM } from '../src/schema.ts';
 import { rebuildCategoriesFromPaths as rebuildCategories } from './helpers/path-taxonomy.ts';
 import { Catalogue } from '../src/search.ts';
 import type { Embedder } from '../src/embed.ts';
 import { decideRoute, restrictedSearch, type Route, type ScanEvent } from '../src/routing.ts';
+
+// A search miss writes the gap log, and the user catalogue beside it, at SHIN_GAPS or
+// else the cwd-relative data/gaps.db, which is real data. Point it at a temp folder.
+process.env.SHIN_GAPS = join(mkdtempSync(join(tmpdir(), 'shin-routing-')), 'gaps.db');
 
 class HashEmbedder implements Embedder {
   readonly id = 'test:hash';
