@@ -14,11 +14,16 @@ that shows a name to a person on iOS.
 - **Android is the critical path.** It builds from this Windows laptop with no Apple anything.
   The plan's own fallback is a sideloaded Android build for Android testers while iPhone
   testers use the hosted web app in Safari until TestFlight exists.
-- **iOS is blocked on things only the founder can do**, checked on the Mac itself:
-  - Xcode is NOT installed there. Only the Command Line Tools are (`xcode-select -p` returns
-    `/Library/Developer/CommandLineTools`; `xcodebuild -version` fails, asking for a full Xcode).
-  - There are ZERO code signing identities on that Mac (`security find-identity -v -p codesigning`
-    returns "0 valid identities found").
+- **iOS compiles on the Mac as of 2026-10-17, and only signing is left**, checked on the Mac
+  itself:
+  - Xcode 27.1 is installed, `xcode-select -p` is `/Applications/Xcode.app/Contents/Developer`,
+    the licence is accepted and the iPhoneOS 27.1 SDK is present.
+  - `xcodebuild -configuration Release -destination generic/platform=iOS` with
+    `CODE_SIGNING_ALLOWED=NO` says BUILD SUCCEEDED, and the device binary reads back
+    com.getpexi.app, display name Pexi, the camera usage string and MinimumOSVersion 16.0.
+  - Still blocked on him: no Apple ID is signed in to Xcode, so there is no signing identity
+    and nothing can be archived or uploaded. He signs in himself; this machine never holds
+    that credential.
   - node v26.7.0, npm 11.19.0, 180 GiB free disk are confirmed fine.
 - **Android also has an unmet prerequisite on THIS Windows laptop**, checked in this session:
   no `java` on PATH, no Android SDK found at the usual `%LOCALAPPDATA%\Android\Sdk`. Android
@@ -43,8 +48,8 @@ ones later is ONE edit per file listed here, no hunting:
 | Android package id | `native/android/app/src/main/res/values/strings.xml` | `package_name`, `custom_url_scheme` = `com.useshinapp.shin` (cleared) |
 | Android application id | `native/android/app/build.gradle` | `namespace` and `applicationId` = `com.useshinapp.shin` (cleared) |
 | Android Java package + folder | `native/android/app/src/main/java/com/useshinapp/shin/MainActivity.java` | package `com.useshinapp.shin` (cleared; the folder path has already moved) |
-| iOS display name | `native/ios/App/App/Info.plist` | `CFBundleDisplayName` = `Pexi` (renamed 2026-10-06; the bundle id below is still the placeholder) |
-| iOS bundle id | `native/ios/App/App.xcodeproj/project.pbxproj` | `PRODUCT_BUNDLE_IDENTIFIER = com.placeholder.pricecheck;` (appears twice, Debug and Release configs; still the placeholder) |
+| iOS display name | `native/ios/App/App/Info.plist` | `CFBundleDisplayName` = `Pexi` (renamed 2026-10-06) |
+| iOS bundle id | `native/ios/App/App.xcodeproj/project.pbxproj` | `PRODUCT_BUNDLE_IDENTIFIER = com.getpexi.app;` (both configs, 2026-10-16; permanent on Apple, never change it) |
 
 Easiest path once the name clears: edit `capacitor.config.json` to the real values, then run
 `npx cap sync` from `native/` -- Capacitor's own sync step rewrites every file above except the
@@ -109,24 +114,20 @@ not in `native/`. That edit is outside my file ownership for this task, so it is
 rather than made. Until it lands, `camera-bridge.js` is a tested-in-isolation module sitting
 next to the app, not yet in its call path.
 
-## iOS: prerequisites, in order, none of them done yet
+## iOS: prerequisites, in order; 1 and 2 are done, 3 is not
 
-Checked on the Mac itself this session -- state it plainly rather than skip to `xcodebuild`:
-
-1. **Install Xcode from the Mac App Store.** Needs an Apple ID signed into the Mac. It is a
-   multi-gigabyte download (recent Xcode releases run 10-16 GB); start it well before it is
-   needed, on real wifi, not a hotspot.
-2. **Accept the licence and switch the active developer directory**, after Xcode is installed:
-   ```
-   sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-   sudo xcodebuild -license accept
-   ```
-3. **Get a signing identity.** Right now there are zero (`security find-identity -v -p
-   codesigning` returns nothing). A free Apple ID gets a personal-team development certificate
-   good for on-device testing for 7 days at a time, no payment. TestFlight (item 4a/4b below)
-   needs the paid Apple Developer Program ($99 USD/year) regardless, so enroll in that before
-   the six-person beta needs it, not right before.
-4. **Only after 1-3**, from `native/`:
+1. ~~**Install Xcode from the Mac App Store.**~~ Done 2026-10-16: Xcode 27.1, with the
+   iPhoneOS 27.1 SDK.
+2. ~~**Accept the licence and switch the active developer directory.**~~ Done 2026-10-17
+   (`sudo xcodebuild -license accept`, which he ran himself; it needs a password). Until it was
+   accepted, every `xcodebuild` call AND Homebrew refused to run, which reads as several
+   separate faults and is one.
+3. **Get a signing identity. NOT DONE, and it is his to do.** `security find-identity -v -p
+   codesigning` returns zero, because no Apple ID is signed in to Xcode (Xcode > Settings >
+   Accounts). This machine never holds that credential, so it cannot sign in for him. The paid
+   Apple Developer Program is already active (individual, team 2Z2PZM5635), so this is a
+   sign-in, not an enrolment.
+4. **Only after 3**, from `native/`:
    ```
    npm run sync
    npx cap sync ios
@@ -137,8 +138,16 @@ Checked on the Mac itself this session -- state it plainly rather than skip to `
    Product > Archive, then Distribute App > TestFlight & App Store Connect, from inside the
    organizer.
 
-None of step 4 has been run: it cannot be, from this Windows session, and step 1-3 are not done
-on the Mac yet either.
+Step 4 has been run on the Mac as far as it goes without signing: `npm run sync`,
+`npx cap sync ios`, `pod install` and a Release device build all pass (2026-10-17). The archive
+and the TestFlight upload wait on step 3.
+
+**This project is on CocoaPods, not Swift Package Manager (2026-10-17).** It was regenerated
+with `npx cap add ios --packagemanager CocoaPods` because neither ML Kit plugin ships a
+`Package.swift`, so under SPM the barcode and text scanning the product is built on could not
+be in a build at all. `Podfile`, `Podfile.lock` and `App.xcworkspace` are the project now;
+always open the workspace, never the `.xcodeproj`. The deployment floor is iOS 16.0, forced by
+GoogleMLKit 8.0, which the installed plugins pin and which refuses to resolve on 15.0.
 
 ## Android: prerequisites, checked on THIS Windows laptop this session
 
@@ -320,7 +329,8 @@ The web app's `app/public/js/lib/haptics.js` reaches two native plugins through
 
 - iOS: `@capacitor/haptics` 8.0.2 (plugin name `Haptics`): a SUCCESS notification for the verdict,
   a LIGHT impact for barcode capture and Save. Registered by `npx cap sync ios` (it appears in
-  `ios/App/CapApp-SPM/Package.swift`).
+  `ios/App/Podfile` as `CapacitorHaptics`; it was in `CapApp-SPM/Package.swift` before the
+  2026-10-17 move to CocoaPods).
 - Android: the wrapper's own `ShinHaptics` plugin
   (`android/app/src/main/java/com/useshinapp/shin/ShinHapticsPlugin.java`, registered in
   `MainActivity.java`): `perform({effect})` with `TICK` (API 29+) and `CONFIRM` (API 30+). It has its
@@ -372,7 +382,7 @@ git check-ignore -v native/android/app/src/main/AndroidManifest.xml
   native/ios/App/App/Info.plist   # -> confirmed NOT ignored (hand-edited files stay tracked)
 ```
 
-Not run, and why: `gradlew.bat assembleDebug` (no JDK/Android SDK on this laptop yet),
-anything under Xcode (`xcodebuild`, `cap open ios`) (no Xcode on the Mac yet, and this session
-is on Windows regardless), any store console step (no accounts), the test matrix above
-(no phone in this session).
+Not run, and why: `gradlew.bat assembleDebug` (no JDK/Android SDK on the Windows laptop yet),
+any store console step, the test matrix above (no phone in that session). The Xcode half has
+since been run on the Mac: `pod install` and a Release device build both pass as of 2026-10-17
+(see the iOS section above); only signing, archiving and the upload are left.
