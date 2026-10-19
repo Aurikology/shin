@@ -1,7 +1,7 @@
 // Renders the frames with headless Chromium and checks every word, price and
 // face against the platforms' safe box (x 154..925, y 285..1635).
 //   node render.mjs <outDir> [frames=all|a,b,c]
-// Needs <outDir>/sheet-bad-water.png from sheet.mjs first. Writes
+// Needs <outDir>/sheet-bad-shoes.png from sheet.mjs first. Writes
 // <outDir>/frames/NNNN.png and <outDir>/safebox.json.
 // Playwright is resolved from $PLAYWRIGHT if set (it is not a repo dependency).
 import { createRequire } from 'node:module';
@@ -18,21 +18,23 @@ const out = path.resolve(process.argv[2] || 'out');
 const frameArg = process.argv[3] || 'all';
 const b64 = (p) => fs.readFileSync(p).toString('base64');
 const svg = (rel) => fs.readFileSync(path.join(app, rel), 'utf8');
+// The ad shows Pexi on its own: the pale disc and the outline ring the app draws round him are removed.
+const bare = (rel) => svg(rel).replace(/<circle class="face-disc"[^>]*\/>/, '').replace(/<circle class="face-ring"[^>]*\/>/, '');
 
-const sheetPng = path.join(out, 'sheet-bad-water.png');
+const sheetPng = path.join(out, 'sheet-bad-shoes.png');
 if (!fs.existsSync(sheetPng)) { console.error(`missing ${sheetPng}: run sheet.mjs first`); process.exit(1); }
 
 const SVGS = {
-  deadpanPleased: svg('faces/deadpan/pleased.svg'),
-  deadpanWalk: svg('faces/deadpan/walk.svg'),
-  warmWalk: svg('faces/warm/walk.svg'),
-  bluntWalk: svg('faces/blunt/walk.svg'),
-  bluntAngry: svg('faces/blunt/angry.svg'),
-  bluntFair: svg('faces/blunt/fair.svg'),
-  bluntDelighted: svg('faces/blunt/delighted.svg'),
-  bluntPleased: svg('faces/blunt/pleased.svg'),
-  bluntIdle: svg('faces/blunt/idle.svg'),
-  bluntThinking: svg('faces/blunt/thinking.svg'),
+  deadpanPleased: bare('faces/deadpan/pleased.svg'),
+  deadpanWalk: bare('faces/deadpan/walk.svg'),
+  warmWalk: bare('faces/warm/walk.svg'),
+  bluntWalk: bare('faces/blunt/walk.svg'),
+  bluntAngry: bare('faces/blunt/angry.svg'),
+  bluntFair: bare('faces/blunt/fair.svg'),
+  bluntDelighted: bare('faces/blunt/delighted.svg'),
+  bluntPleased: bare('faces/blunt/pleased.svg'),
+  bluntIdle: bare('faces/blunt/idle.svg'),
+  bluntThinking: bare('faces/blunt/thinking.svg'),
   icon: svg('icon.svg'),
 };
 
@@ -44,6 +46,7 @@ window.boot = (async () => {
   const fonts = [
     new FontFace('Bricolage Grotesque', 'url(data:font/woff2;base64,${b64(path.join(app, 'fonts/bricolage-grotesque-var-latin.woff2'))})', { weight: '200 800', stretch: '75% 100%' }),
     new FontFace('Instrument Sans', 'url(data:font/woff2;base64,${b64(path.join(app, 'fonts/instrument-sans-var-latin.woff2'))})', { weight: '400 700' }),
+    new FontFace('Inter Tight', 'url(data:font/woff2;base64,${b64(path.join(here, 'fonts/inter-tight-var-latin.woff2'))})', { weight: '400 900' }),
     new FontFace('IBM Plex Mono', 'url(data:font/woff2;base64,${b64(path.join(app, 'fonts/ibm-plex-mono-600-latin.woff2'))})', { weight: '600' }),
   ];
   for (const f of fonts) { await f.load(); document.fonts.add(f); }
@@ -54,7 +57,7 @@ window.boot = (async () => {
   imgs.sheet = await load('data:image/png;base64,${b64(sheetPng)}');
   LAUNCH.setImages(imgs);
   window.ctx = document.getElementById('c').getContext('2d');
-  return document.fonts.check("800 100px 'Bricolage Grotesque'") && document.fonts.check("600 40px 'Instrument Sans'") && document.fonts.check("600 30px 'IBM Plex Mono'");
+  return document.fonts.check("800 100px 'Bricolage Grotesque'") && document.fonts.check("600 40px 'Instrument Sans'") && document.fonts.check("600 30px 'IBM Plex Mono'") && document.fonts.check("800 30px 'Inter Tight'");
 })();
 </script></body></html>`;
 

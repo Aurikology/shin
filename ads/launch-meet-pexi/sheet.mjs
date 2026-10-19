@@ -3,7 +3,7 @@
 // shows the product rather than a drawing of it. The answer is staged: a staged
 // item, staged prices and made-up store names (RULINGS "Marketing and
 // positioning": never a real store as overcharging).
-//   node sheet.mjs <outDir>          writes <outDir>/sheet-bad-water.png (1170 x 2532)
+//   node sheet.mjs <outDir>          writes <outDir>/sheet-bad-shoes.png (1170 x 2532)
 import { createRequire } from 'node:module';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
@@ -38,9 +38,10 @@ function staged(centre, shelf, unit, dots) {
   };
 }
 const SHEETS = {
-  'bad-water': camera.distributionSheet(staged(199, 899, '500 mL',
-    [[179, 'Corner Market', 'Toronto'], [199, 'Northfield Grocers', 'Ottawa'], [219, 'Eastway Market', 'Montreal'], [189, 'Harbour Foods', 'Halifax']]),
-    { name: 'Spring Water 500 mL' }),
+  // a pair of running shoes at $180 that usually sells for about $120
+  'bad-shoes': camera.distributionSheet(staged(12000, 18000, '1 pair',
+    [[10999, 'Corner Sports', 'Toronto'], [11999, 'Northfield Outfitters', 'Ottawa'], [12999, 'Eastway Shoes', 'Montreal'], [11499, 'Harbour Athletic', 'Halifax']]),
+    { name: 'Running Shoes, Size 10' }),
 };
 restore();
 

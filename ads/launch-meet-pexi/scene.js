@@ -2,17 +2,17 @@
 // renderFrame(ctx, frame) is pure: the same frame number always draws the same picture.
 //
 // The look follows the reference he picked (a Klarna concept reel by @olafmotion):
-// soft pastel light fields and a deep dark with one glow, condensed type that glides
+// soft pastel light fields and a deep dark with one glow, tight grotesque type that glides
 // in with motion blur, the product floating with no hands, a cursor tapping real UI,
 // a glowing checklist, and an end card that is the logo and one line. Calm easing,
 // few words. The content is Pexi's own: the mascot faces as they ship, the app's REAL
 // verdict sheet (sheet.mjs), staged prices, made-up stores.
-//    0.0  hook      "Is $8.99 for water a rip-off?"  the verdict pill lands at 2.0
+//    0.0  hook      "$180 for these?"  the same shoes might be cheaper elsewhere; the verdict at 2.0
 //    2.6  meet      a neon ring draws round Pexi.  "Meet Pexi."
 //    4.6  scan      the phone floats in, the cursor taps the shutter
 //    5.9  check     reading the barcode / finding the typical price / comparing stores
 //    7.3  sheet     the real verdict sheet rises, the camera pushes in
-//    9.2  range     bad, reasonable, great
+//    9.2  range     headphones (bad), face serum (reasonable), the same shoes elsewhere (great)
 //   13.7  picker    "Pick your Pexi."  the cursor picks deadpan, warm, blunt
 //   16.7  end       the icon, the logo, one line
 (function () {
@@ -28,7 +28,8 @@ const C = {
   fair: '#E8A020', fairBright: '#FFC24D', fairOn: '#1F1400',
   cyan: '#2BB5F0',
 };
-const FD = "'Bricolage Grotesque'", FU = "'Instrument Sans'", FM = "'IBM Plex Mono'";
+// Inter Tight for everything set: a tight, clean grotesque (fonts/, OFL). Plex Mono for small labels.
+const FD = "'Inter Tight'", FU = "'Inter Tight'", FM = "'IBM Plex Mono'";
 const T = { meet: 2.6, scan: 4.6, check: 5.9, sheet: 7.3, range: 9.2, picker: 13.7, end: 16.7 };
 
 let IMG = {};
@@ -54,9 +55,9 @@ function reg(ctx, kind, label, x0, y0, x1, y1) {
 
 // ---------- type ----------
 const FONTS = {
-  head: (s) => `condensed 800 ${s}px ${FD}`,     // Bricolage at 75% width: the headline face
+  head: (s) => `800 ${s}px ${FD}`,
   display: (s) => `800 ${s}px ${FD}`,
-  ui: (s, w = 600) => `${w} ${s}px ${FU}`,
+  ui: (s, w = 500) => `${w} ${s}px ${FU}`,
   mono: (s) => `600 ${s}px ${FM}`,
 };
 // One word gliding in: rises 70 px, sharpens from a 16 px blur, fades up. Leaves the same way.
@@ -67,8 +68,7 @@ function glide(t, t0, t1 = Infinity, dur = 0.55) {
 // A headline: lines of words, each word staggered 70 ms. `color(word)` picks a word's colour.
 function headline(ctx, lines, cx, cy, size, t, t0, t1, color, font = FONTS.head, lh = 0.98) {
   ctx.save(); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
-  // canvas ignores the stretch inside the font shorthand; set it on its own
-  const setF = (s) => { ctx.font = font(s).replace('condensed ', ''); ctx.fontStretch = font === FONTS.head ? 'condensed' : 'normal'; };
+  const setF = (s) => { ctx.font = font(s); ctx.letterSpacing = `${-0.04 * s}px`; };
   // fit: the widest line never runs past a 740 px column
   setF(size);
   const widest = Math.max(...lines.map(l => ctx.measureText(l).width));
@@ -186,26 +186,124 @@ function neonRing(ctx, cx, cy, r, p, col = C.brand, wobble = 0, t = 0) {
   }
   ctx.restore();
 }
-// A clean water bottle: no outlines, soft light, a blank label.
-function bottle(ctx, cx, cy, s) {
+// Three things people actually scan, drawn to look like objects rather than icons:
+// soft gradients, a highlight, a contact shadow, no outlines, no brand anywhere.
+function contactShadow(ctx, y, w, a = 0.26) {
+  ctx.save(); ctx.translate(0, y); ctx.scale(1, 0.13);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, w);
+  g.addColorStop(0, `rgba(20,20,45,${a})`); g.addColorStop(1, 'rgba(20,20,45,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, w, 0, 7); ctx.fill(); ctx.restore();
+}
+// A running shoe, side on, toe to the right. About 610 x 290 at s = 1.
+function sneaker(ctx, cx, cy, s) {
   ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
-  const body = () => {
-    ctx.beginPath();
-    ctx.moveTo(-42, -300); ctx.lineTo(-42, -268); ctx.bezierCurveTo(-42, -228, -100, -214, -100, -160);
-    ctx.lineTo(-100, 270); ctx.quadraticCurveTo(-100, 312, -58, 312); ctx.lineTo(58, 312); ctx.quadraticCurveTo(100, 312, 100, 270);
-    ctx.lineTo(100, -160); ctx.bezierCurveTo(100, -214, 42, -228, 42, -268); ctx.lineTo(42, -300); ctx.closePath();
+  contactShadow(ctx, 122, 330);
+  const upper = () => {
+    ctx.beginPath(); ctx.moveTo(-270, 44);
+    ctx.bezierCurveTo(-294, -10, -284, -84, -250, -114);
+    ctx.bezierCurveTo(-224, -132, -188, -126, -168, -106);
+    ctx.bezierCurveTo(-138, -82, -98, -80, -70, -102);
+    ctx.lineTo(-52, -152); ctx.bezierCurveTo(-42, -172, -10, -174, 2, -152);
+    ctx.bezierCurveTo(44, -110, 124, -62, 204, -32);
+    ctx.bezierCurveTo(274, -8, 308, 20, 302, 50); ctx.lineTo(-270, 50); ctx.closePath();
   };
-  ctx.save(); ctx.shadowColor = 'rgba(30,40,80,.25)'; ctx.shadowBlur = 60; ctx.shadowOffsetY = 40;
-  body(); ctx.fillStyle = 'rgba(232,246,253,1)'; ctx.fill(); ctx.restore();
-  ctx.save(); body(); ctx.clip();
-  const water = ctx.createLinearGradient(-100, 0, 100, 0);
-  water.addColorStop(0, 'rgba(43,181,240,.55)'); water.addColorStop(0.5, 'rgba(120,212,250,.35)'); water.addColorStop(1, 'rgba(30,147,201,.6)');
-  ctx.fillStyle = water; ctx.fillRect(-120, -150, 240, 480);
-  ctx.fillStyle = 'rgba(255,255,255,.75)'; rr(ctx, -78, -170, 16, 440, 8); ctx.fill();
-  ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-120, -70, 240, 130);
-  ctx.fillStyle = C.cyan; ctx.fillRect(-120, -12, 240, 18);
+  const sole = () => {
+    ctx.beginPath(); ctx.moveTo(-292, 38);
+    ctx.bezierCurveTo(-302, 80, -296, 114, -262, 118); ctx.lineTo(232, 118);
+    ctx.bezierCurveTo(292, 118, 320, 92, 314, 52); ctx.bezierCurveTo(302, 38, 262, 36, 200, 42);
+    ctx.lineTo(-150, 44); ctx.bezierCurveTo(-232, 42, -282, 28, -292, 38); ctx.closePath();
+  };
+  // the opening, seen past the collar
+  ctx.beginPath(); ctx.moveTo(-170, -104); ctx.bezierCurveTo(-140, -122, -96, -124, -68, -104); ctx.bezierCurveTo(-98, -86, -140, -86, -170, -104); ctx.fillStyle = '#2C2B30'; ctx.fill();
+  // upper
+  let g = ctx.createLinearGradient(0, -170, 0, 50); g.addColorStop(0, '#FBFAF7'); g.addColorStop(1, '#D9D5CC');
+  upper(); ctx.fillStyle = g; ctx.fill();
+  ctx.save(); upper(); ctx.clip();
+  // overlays: heel counter, toe cap, eyestay, in a deep navy suede
+  const suede = ctx.createLinearGradient(0, -150, 0, 50); suede.addColorStop(0, '#2A3A5C'); suede.addColorStop(1, '#17223A');
+  ctx.fillStyle = suede;
+  ctx.beginPath(); ctx.moveTo(-300, 60); ctx.lineTo(-300, -140); ctx.bezierCurveTo(-230, -120, -190, -40, -200, 60); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(320, 60); ctx.lineTo(320, -40); ctx.bezierCurveTo(250, -40, 200, 0, 190, 60); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-60, -160); ctx.bezierCurveTo(10, -120, 110, -60, 210, -24); ctx.lineTo(196, 8); ctx.bezierCurveTo(100, -30, 10, -84, -70, -122); ctx.closePath(); ctx.fill();
+  // two side lines, stitched: generic, nobody's mark
+  ctx.setLineDash([9, 7]); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(30,40,70,.35)';
+  for (const d of [0, 18]) { ctx.beginPath(); ctx.moveTo(-190, 20 - d); ctx.bezierCurveTo(-80, -10 - d, 60, -20 - d, 180, 14 - d); ctx.stroke(); }
+  ctx.setLineDash([]);
+  // soft top light
+  const hl = ctx.createLinearGradient(0, -170, 0, -40); hl.addColorStop(0, 'rgba(255,255,255,.35)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = hl; ctx.fillRect(-300, -180, 620, 140);
   ctx.restore();
-  rr(ctx, -52, -366, 104, 70, 16); ctx.fillStyle = C.navy; ctx.fill();
+  // laces
+  for (let i = 0; i < 6; i++) {
+    const x = -28 + i * 38, y = -132 + i * 21;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(0.5);
+    rr(ctx, -22, -6, 44, 12, 6); ctx.fillStyle = '#FFFFFF'; ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 2; ctx.fill();
+    ctx.restore();
+  }
+  // pull tab
+  rr(ctx, -268, -138, 26, 52, 8); ctx.fillStyle = '#E5E1D8'; ctx.fill();
+  // midsole and outsole
+  g = ctx.createLinearGradient(0, 36, 0, 118); g.addColorStop(0, '#FFFFFF'); g.addColorStop(1, '#E3E0DA');
+  sole(); ctx.fillStyle = g; ctx.fill();
+  ctx.save(); sole(); ctx.clip();
+  ctx.fillStyle = '#B77D4A'; ctx.fillRect(-320, 100, 660, 30);
+  ctx.fillStyle = 'rgba(0,0,0,.06)'; ctx.fillRect(-320, 92, 660, 8);
+  ctx.restore();
+  ctx.restore();
+}
+// Over-ear headphones, front on. About 470 x 500 at s = 1.
+function headphones(ctx, cx, cy, s) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
+  contactShadow(ctx, 250, 260, 0.35);
+  // headband
+  ctx.lineCap = 'round';
+  let g = ctx.createLinearGradient(-220, -200, 220, 0); g.addColorStop(0, '#E9E3D9'); g.addColorStop(0.5, '#D4CBBD'); g.addColorStop(1, '#B9AE9E');
+  ctx.beginPath(); ctx.arc(0, 30, 205, Math.PI * 1.04, Math.PI * 1.96); ctx.lineWidth = 46; ctx.strokeStyle = g; ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 30, 205, Math.PI * 1.15, Math.PI * 1.85); ctx.lineWidth = 12; ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 30, 182, Math.PI * 1.12, Math.PI * 1.88); ctx.lineWidth = 16; ctx.strokeStyle = '#3A3733'; ctx.stroke();
+  for (const sx of [-1, 1]) {
+    // slider
+    const m = ctx.createLinearGradient(sx * 200 - 10, 0, sx * 200 + 10, 0); m.addColorStop(0, '#9DA3AA'); m.addColorStop(0.5, '#EEF0F2'); m.addColorStop(1, '#8A9097');
+    rr(ctx, sx * 205 - 9, 10, 18, 110, 9); ctx.fillStyle = m; ctx.fill();
+    // cup
+    ctx.save(); ctx.translate(sx * 200, 190);
+    g = ctx.createLinearGradient(-90, -130, 90, 130); g.addColorStop(0, '#EFE9E0'); g.addColorStop(0.55, '#CFC5B6'); g.addColorStop(1, '#A99D8B');
+    ctx.beginPath(); ctx.ellipse(0, 0, 84, 128, 0, 0, 7); ctx.fillStyle = g; ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 14; ctx.fill(); ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    // cushion on the inner side
+    ctx.beginPath(); ctx.ellipse(-sx * 46, 0, 40, 116, 0, 0, 7); ctx.fillStyle = '#2E2C29'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-sx * 40, -10, 18, 80, 0, 0, 7); ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fill();
+    // highlight
+    ctx.beginPath(); ctx.ellipse(sx * 28, -50, 22, 56, sx * 0.25, 0, 7); ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+// A face serum in an amber dropper bottle. About 200 x 470 at s = 1.
+function serum(ctx, cx, cy, s) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
+  contactShadow(ctx, 232, 150, 0.32);
+  // bulb
+  let g = ctx.createLinearGradient(-40, 0, 40, 0); g.addColorStop(0, '#26252A'); g.addColorStop(0.35, '#4A4950'); g.addColorStop(1, '#141417');
+  rr(ctx, -38, -250, 76, 120, 38); ctx.fillStyle = g; ctx.fill();
+  // collar, ribbed
+  g = ctx.createLinearGradient(-54, 0, 54, 0); g.addColorStop(0, '#DCDAD5'); g.addColorStop(0.4, '#FFFFFF'); g.addColorStop(1, '#BDB9B2');
+  rr(ctx, -54, -150, 108, 62, 10); ctx.fillStyle = g; ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,.07)'; for (let x = -46; x <= 46; x += 8) ctx.fillRect(x, -146, 3, 54);
+  // glass
+  const body = () => rr(ctx, -92, -92, 184, 320, 34);
+  g = ctx.createLinearGradient(-92, 0, 92, 0); g.addColorStop(0, '#8E4A16'); g.addColorStop(0.3, '#C97A30'); g.addColorStop(0.7, '#B5651E'); g.addColorStop(1, '#6E3410');
+  body(); ctx.fillStyle = g; ctx.shadowColor = 'rgba(80,40,10,.35)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 20; ctx.fill(); ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.save(); body(); ctx.clip();
+  ctx.fillStyle = 'rgba(255,190,110,.25)'; ctx.fillRect(-92, 10, 184, 220);
+  ctx.fillStyle = 'rgba(255,255,255,.42)'; rr(ctx, -70, -80, 14, 290, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.15)'; rr(ctx, 52, -60, 8, 240, 4); ctx.fill();
+  ctx.restore();
+  // label: plain, no brand
+  rr(ctx, -66, 30, 132, 150, 8); ctx.fillStyle = '#F5F0E7'; ctx.fill();
+  ctx.fillStyle = '#3A2A1C'; ctx.textAlign = 'center';
+  ctx.font = `700 24px 'Inter Tight'`; ctx.letterSpacing = '3px'; ctx.fillText('FACE', 0, 92); ctx.fillText('SERUM', 0, 122);
+  ctx.font = `500 18px 'Inter Tight'`; ctx.letterSpacing = '1px'; ctx.fillStyle = '#8A7B6A'; ctx.fillText('30 mL', 0, 158);
+  ctx.letterSpacing = '0px';
   ctx.restore();
 }
 // A price tag on a thread, swinging gently.
@@ -270,10 +368,14 @@ function cameraFeed(ctx, s, t, scanning) {
     const rg = ctx.createRadialGradient(s.w * x, s.h * y, 0, s.w * x, s.h * y, r); rg.addColorStop(0, c); rg.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = rg; ctx.fillRect(0, 0, s.w, s.h);
   });
   const k = s.w / 540;
-  bottle(ctx, s.w * 0.38, s.h * 0.46, 0.62 * k);
-  tag(ctx, s.w * 0.47, s.h * 0.40, 0.12 + 0.03 * Math.sin(t * 2), 270 * k, 150 * k, '$8.99');
+  // a plain shelf
+  const sy0 = s.h * 0.53;
+  const shelf = ctx.createLinearGradient(0, sy0, 0, sy0 + 60 * k); shelf.addColorStop(0, '#F3F1EC'); shelf.addColorStop(1, '#CFCAC0');
+  ctx.fillStyle = shelf; ctx.fillRect(0, sy0, s.w, 60 * k); ctx.fillStyle = 'rgba(0,0,0,.08)'; ctx.fillRect(0, sy0 + 60 * k, s.w, s.h);
+  sneaker(ctx, s.w * 0.5, sy0 - 64 * k, 0.72 * k);
+  tag(ctx, s.w * 0.56, s.h * 0.33, -0.1 + 0.03 * Math.sin(t * 2), 200 * k, 112 * k, '$180');
   if (scanning) {
-    const cx = s.w / 2, cy = s.h * 0.44, hw = 200 * k, hh = 240 * k, L = 50 * k;
+    const cx = s.w / 2, cy = s.h * 0.42, hw = 235 * k, hh = 170 * k, L = 50 * k;
     ctx.lineWidth = 7 * k; ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineCap = 'round';
     for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { ctx.beginPath(); ctx.moveTo(cx + sx * hw, cy + sy * (hh - L)); ctx.lineTo(cx + sx * hw, cy + sy * hh); ctx.lineTo(cx + sx * (hw - L), cy + sy * hh); ctx.stroke(); }
   }
@@ -288,19 +390,21 @@ const SHUTTER = () => [PH.cx, PH.cy + PH.h / 2 - 120];
 // ---------- scenes ----------
 function hook(ctx, t) {
   lightGround(ctx, t);
-  headline(ctx, ['Is $8.99', 'for water', 'a rip-off?'], 540, 560, 172, t, 0.05, null, w => w.includes('$') ? C.brand : C.inkDark);
-  // the bottle and its tag float up into place
-  const p = eExpo((t - 0.35) / 0.9), y = lerp(1500, 0, p);
+  headline(ctx, ['$180', 'for these?'], 540, 520, 220, t, 0.05, null, w => w.includes('$') ? C.brand : C.inkDark);
+  line1(ctx, 'The same pair might be cheaper', 540, 800, FONTS.ui(46), C.mutedDark, t, 0.5);
+  line1(ctx, 'somewhere else.', 540, 860, FONTS.ui(46), C.mutedDark, t, 0.58);
+  // the shoe floats up into place
+  const p = eExpo((t - 0.3) / 0.9), y = lerp(1300, 0, p);
   ctx.save(); ctx.globalAlpha = clamp(p * 1.4);
   if (p < 0.95) ctx.filter = `blur(${((1 - p) * 18).toFixed(1)}px)`;
-  const fy = 6 * Math.sin(t * 2);
-  bottle(ctx, 440, 1270 + y + fy, 0.78);
-  tag(ctx, 520, 1180 + y + fy, 0.14 + 0.05 * Math.sin(t * 2.6) * Math.exp(-t * 0.5), 360, 200, '$8.99');
+  const fy = 8 * Math.sin(t * 2);
+  sneaker(ctx, 530, 1180 + y + fy, 1.0);
+  tag(ctx, 600, 1010 + y + fy, -0.12 + 0.05 * Math.sin(t * 2.6) * Math.exp(-t * 0.5), 300, 170, '$180');
   ctx.restore();
   // the result, first
   if (t >= 2.0) {
     const s = lerp(0.6, 1, eBack((t - 2.0) / 0.35, 1.6));
-    pill(ctx, 'Bad price', 560, 1540, 64, C.walk, '#FFFFFF', s, 'rgba(194,54,25,.6)');
+    pill(ctx, 'Bad price', 540, 1480, 64, C.walk, '#FFFFFF', s, 'rgba(194,54,25,.6)');
   }
 }
 function meet(ctx, t) {
@@ -333,7 +437,7 @@ function check(ctx, t) {
   const tl = t - T.check;
   darkGround(ctx, t, 'rgba(229,22,94,', 540, 1000, 0.8, 820);
   // the item, small and soft, behind the list
-  ctx.save(); ctx.globalAlpha = 0.35; ctx.filter = 'blur(6px)'; bottle(ctx, 540, 1430, 0.5); ctx.restore();
+  ctx.save(); ctx.globalAlpha = 0.35; ctx.filter = 'blur(6px)'; sneaker(ctx, 540, 1430, 0.6); ctx.restore();
   faceSwap(ctx, IMG.bluntIdle, IMG.bluntThinking, 540, 640, 260, t, T.check + 0.2, { dark: true });
   const step = 0.38;
   CHECKS.forEach((txt, i) => {
@@ -376,9 +480,9 @@ function sheet(ctx, t) {
   ctx.restore();
 }
 const RANGE = [
-  { at: T.range, item: 'Wireless earbuds', here: '$89', normal: '$59', word: 'Bad price', fill: C.walk, on: '#FFFFFF', bright: C.walkBright, face: 'bluntAngry', line: '"They\'re robbing you."' },
-  { at: T.range + 1.5, item: 'Peanut butter, 1 kg', here: '$6.29', normal: '$5.99', word: 'Reasonable', fill: C.fair, on: C.fairOn, bright: C.fairBright, face: 'bluntFair', line: '"Fine. Buy it."' },
-  { at: T.range + 3.0, item: 'Honey oat cereal', here: '$3.49', normal: '$6.00', word: 'Great price', fill: C.good, on: C.goodOn, bright: C.goodBright, face: 'bluntDelighted', line: '"Somebody made a mistake."' },
+  { at: T.range, item: 'Wireless headphones', here: '$249', normal: '$179', word: 'Bad price', fill: C.walk, on: '#FFFFFF', bright: C.walkBright, face: 'bluntAngry', line: '"Hard pass."', draw: (c) => headphones(c, 540, 520, 0.78) },
+  { at: T.range + 1.5, item: 'Face serum, 30 mL', here: '$34', normal: '$32', word: 'Reasonable', fill: C.fair, on: C.fairOn, bright: C.fairBright, face: 'bluntFair', line: '"Fair enough."', draw: (c) => serum(c, 540, 540, 0.82) },
+  { at: T.range + 3.0, item: 'The same shoes, another store', here: '$79', normal: '$120', word: 'Great price', fill: C.good, on: C.goodOn, bright: C.goodBright, face: 'bluntDelighted', line: '"Somebody made a mistake."', draw: (c) => sneaker(c, 520, 600, 0.82) },
 ];
 function range(ctx, t) {
   const i = RANGE.findLastIndex(r => t >= r.at), S = RANGE[i], P = RANGE[i - 1];
@@ -386,9 +490,13 @@ function range(ctx, t) {
   // the glow eases from the last verdict's hue to this one's
   darkGround(ctx, t, hex2rgba(S.fill), 540, 700, P ? x : clamp(tl / 0.4), 900);
   if (P && x < 1) { ctx.save(); ctx.globalAlpha = 1 - x; darkGround(ctx, t, hex2rgba(P.fill), 540, 700, 1, 900); ctx.restore(); }
-  if (P) faceSwap(ctx, IMG[P.face], IMG[S.face], 540, 620, 400, t, S.at, { dark: true });
-  else { const fp = eExpo(tl / 0.5); face(ctx, IMG[S.face], 540, 620, 400, t, { dark: true, alpha: fp, blur: (1 - fp) * 12 }); }
   const t1 = i < RANGE.length - 1 ? RANGE[i + 1].at - 0.25 : null;
+  // the thing being priced, gliding in and out
+  const g = glide(t, S.at, t1 == null ? Infinity : t1, 0.5);
+  if (g.a > 0.01) { ctx.save(); ctx.globalAlpha = g.a; if (g.blur > 0.3) ctx.filter = `blur(${g.blur.toFixed(1)}px)`; ctx.translate(0, g.dy); S.draw(ctx); ctx.restore(); }
+  // Pexi beside it, reacting
+  if (P) faceSwap(ctx, IMG[P.face], IMG[S.face], 790, 720, 230, t, S.at, { dark: true });
+  else { const fp = eExpo(tl / 0.5); face(ctx, IMG[S.face], 790, 720, 230, t, { dark: true, alpha: fp, blur: (1 - fp) * 12 }); }
   line1(ctx, S.item, 540, 916, FONTS.ui(46), C.muted, t, S.at + 0.05, t1);
   line1(ctx, S.here, 540, 1100, FONTS.display(170), S.bright, t, S.at + 0.12, t1);
   line1(ctx, `normally ${S.normal}`, 540, 1180, FONTS.ui(46), C.ink, t, S.at + 0.2, t1);
@@ -409,7 +517,7 @@ function range(ctx, t) {
 const VOICES = [
   { who: 'Deadpan', face: 'deadpanWalk', line: '"Two dollars. It\'s $1.47."', x: 300 },
   { who: 'Warm', face: 'warmWalk', line: '"Ooh, that\'s steep. I\'d wait."', x: 540 },
-  { who: 'Blunt', face: 'bluntWalk', line: '"They\'re robbing you."', x: 780 },
+  { who: 'Blunt', face: 'bluntWalk', line: '"That price is a joke."', x: 780 },
 ];
 function picker(ctx, t) {
   const tl = t - T.picker;
