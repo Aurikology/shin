@@ -1,58 +1,49 @@
-// Every frame of "Meet Pexi", the 24 s launch video that says what the app is,
-// drawn with canvas 2D. renderFrame(ctx, frame) is pure: the same frame number
-// always draws the same picture.
+// Every frame of "Meet Pexi", the 20 s launch video, drawn with canvas 2D.
+// renderFrame(ctx, frame) is pure: the same frame number always draws the same picture.
 //
-// The arc, from the research behind it (result-first hook in the first 1.5 s,
-// brand by 3 s, the real product as proof, captions that work with the sound
-// off, one ask at the end):
-//    0.0  hook      airport water at $8.99, "Bad price" slams on at 1.5 s
-//    2.5  meet      "Meet Pexi." the mascot and the wordmark
-//    4.5  scan      the phone comes up and scans the bottle
-//    6.0  sheet     the app's REAL verdict sheet slides up (sheet.mjs captures it)
-//   11.0  range     three scans: bad, reasonable, great
-//   17.0  voices    the three personalities
-//   20.5  share     "Send this to the friend who always overpays."
-//   22.5  end       icon, wordmark, "Scan anything."
-//
-// Drawing helpers are copied from ads/reel-rip-off-hunt/scene.js, so the two ads
-// share one look. Colours are app/public/css/tokens.css plus the mascot colours
-// from js/face-art.js; the faces are app/public/faces/*; the fonts are the app's.
+// The look follows the reference he picked (a Klarna concept reel by @olafmotion):
+// soft pastel light fields and a deep dark with one glow, condensed type that glides
+// in with motion blur, the product floating with no hands, a cursor tapping real UI,
+// a glowing checklist, and an end card that is the logo and one line. Calm easing,
+// few words. The content is Pexi's own: the mascot faces as they ship, the app's REAL
+// verdict sheet (sheet.mjs), staged prices, made-up stores.
+//    0.0  hook      "Is $8.99 for water a rip-off?"  the verdict pill lands at 2.0
+//    2.6  meet      a neon ring draws round Pexi.  "Meet Pexi."
+//    4.6  scan      the phone floats in, the cursor taps the shutter
+//    5.9  check     reading the barcode / finding the typical price / comparing stores
+//    7.3  sheet     the real verdict sheet rises, the camera pushes in
+//    9.2  range     bad, reasonable, great
+//   13.7  picker    "Pick your Pexi."  the cursor picks deadpan, warm, blunt
+//   16.7  end       the icon, the logo, one line
 (function () {
-const W = 1080, H = 1920, FPS = 30, DUR = 24;
+const W = 1080, H = 1920, FPS = 30, DUR = 20;
 const SAFE = { x0: 154, y0: 285, x1: 925, y1: 1635 };
 
+// app/public/css/tokens.css, the mascot colours from js/face-art.js
 const C = {
-  ground: '#0B0C0E', surface: '#16181C', raised: '#22262C', hair: '#2E333A',
-  ink: '#F7F5F2', inkMuted: '#A5ADB8', brand: '#E5165E', faceInk: '#12233A',
+  ground: '#0B0C0E', night: '#0D0B13', paper: '#F7F6F9', ink: '#F7F5F2', inkDark: '#0B0C0E',
+  muted: '#A5ADB8', mutedDark: '#5B6470', brand: '#E5165E', navy: '#12233A',
   good: '#12B76A', goodBright: '#38E08B', goodOn: '#04140C',
-  walk: '#C23619', walkBright: '#FF6A45', fair: '#E8A020', fairBright: '#FFC24D', fairOn: '#1F1400',
-  cyan: '#2BB5F0', cyanDeep: '#1E93C9', orange: '#F26B1D',
+  walk: '#C23619', walkBright: '#FF6A45',
+  fair: '#E8A020', fairBright: '#FFC24D', fairOn: '#1F1400',
+  cyan: '#2BB5F0',
 };
-const SKIN = '#E9A97F', SKIN_SH = '#C98458', NAIL = '#F7D2B8';
 const FD = "'Bricolage Grotesque'", FU = "'Instrument Sans'", FM = "'IBM Plex Mono'";
-
-const T = { meet: 2.5, scan: 4.5, sheet: 6.0, zoom: 8.5, range: 11.0, voices: 17.0, share: 20.5, end: 22.5 };
+const T = { meet: 2.6, scan: 4.6, check: 5.9, sheet: 7.3, range: 9.2, picker: 13.7, end: 16.7 };
 
 let IMG = {};
 let LOG = null;
+let BUF = null;
 
-// ---------- small maths ----------
+// ---------- maths ----------
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const lerp = (a, b, t) => a + (b - a) * t;
 const eOut = x => 1 - Math.pow(1 - clamp(x), 3);
+const eExpo = x => { x = clamp(x); return x >= 1 ? 1 : 1 - Math.pow(2, -10 * x); };
 const eInOut = x => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
-const eBack = (x, s = 1.9) => { x = clamp(x); const c = s + 1; return 1 + c * Math.pow(x - 1, 3) + s * Math.pow(x - 1, 2); };
-const slam = (ts, from, dur = 0.17, s = 1.9) => ts < 0 ? null : lerp(from, 1, eBack(ts / dur, s));
-function jitter(t, amp, seed = 0) {
-  return [amp * (0.6 * Math.sin(t * 93 + seed) + 0.4 * Math.sin(t * 151 + seed * 2.1)),
-          amp * (0.6 * Math.sin(t * 107 + seed * 3.3) + 0.4 * Math.sin(t * 173 + seed))];
-}
-function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-
+const eBack = (x, s = 1.4) => { x = clamp(x); const c = s + 1; return 1 + c * Math.pow(x - 1, 3) + s * Math.pow(x - 1, 2); };
 function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
-function ink(ctx, w = 8) { ctx.lineWidth = w; ctx.strokeStyle = C.faceInk; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.stroke(); }
 
-// ---------- safe-box log ----------
 function reg(ctx, kind, label, x0, y0, x1, y1) {
   if (!LOG) return;
   const m = ctx.getTransform();
@@ -61,538 +52,461 @@ function reg(ctx, kind, label, x0, y0, x1, y1) {
   LOG.push({ kind, label, x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) });
 }
 
-// ---------- text ----------
-function setFont(ctx, size, weight = 800, fam = FD) { ctx.font = `${weight} ${size}px ${fam}`; }
-function lineWidth(ctx, s) { return ctx.measureText(s).width; }
-
-function partitions(words, maxLines) {
-  const out = [];
-  const n = words.length;
-  for (let mask = 0; mask < (1 << (n - 1)); mask++) {
-    const lines = []; let cur = [words[0]];
-    for (let i = 1; i < n; i++) { if (mask & (1 << (i - 1))) { lines.push(cur.join(' ')); cur = [words[i]]; } else cur.push(words[i]); }
-    lines.push(cur.join(' '));
-    if (lines.length <= maxLines) out.push(lines);
-  }
-  return out;
+// ---------- type ----------
+const FONTS = {
+  head: (s) => `condensed 800 ${s}px ${FD}`,     // Bricolage at 75% width: the headline face
+  display: (s) => `800 ${s}px ${FD}`,
+  ui: (s, w = 600) => `${w} ${s}px ${FU}`,
+  mono: (s) => `600 ${s}px ${FM}`,
+};
+// One word gliding in: rises 70 px, sharpens from a 16 px blur, fades up. Leaves the same way.
+function glide(t, t0, t1 = Infinity, dur = 0.55) {
+  const pin = eExpo((t - t0) / dur), pout = t1 === Infinity ? 0 : eInOut((t - t1) / 0.35);
+  return { a: clamp(pin) * (1 - pout), dy: (1 - pin) * 70 - pout * 50, blur: (1 - pin) * 16 + pout * 14 };
 }
-// Biggest single size at which every card fits maxW and all lines together fit maxH.
-function fitCards(ctx, cards, maxW, maxH, maxSize, lh = 1.0, maxLines = 4) {
-  const opts = cards.map(c => partitions(c.split(' '), 4));
-  let best = null;
-  const rec = (i, chosen) => {
-    if (i === cards.length) {
-      const lines = chosen.flat();
-      if (lines.length > maxLines) return;
-      setFont(ctx, 100);
-      const widest = Math.max(...lines.map(l => lineWidth(ctx, l)));
-      const s = Math.min(maxSize, Math.floor(100 * maxW / widest), Math.floor(maxH / (lines.length * lh)));
-      const balance = Math.min(...lines.map(l => lineWidth(ctx, l))) / widest;
-      const score = (s - 12 * lines.length) * 1000 + balance;
-      if (!best || score > best.score) best = { score, size: s, cards: chosen.map(x => x.slice()) };
-      return;
-    }
-    for (const o of opts[i]) rec(i + 1, [...chosen, o]);
-  };
-  rec(0, []);
-  return best;
+// A headline: lines of words, each word staggered 70 ms. `color(word)` picks a word's colour.
+function headline(ctx, lines, cx, cy, size, t, t0, t1, color, font = FONTS.head, lh = 0.98) {
+  ctx.save(); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+  // canvas ignores the stretch inside the font shorthand; set it on its own
+  const setF = (s) => { ctx.font = font(s).replace('condensed ', ''); ctx.fontStretch = font === FONTS.head ? 'condensed' : 'normal'; };
+  // fit: the widest line never runs past a 740 px column
+  setF(size);
+  const widest = Math.max(...lines.map(l => ctx.measureText(l).width));
+  if (widest > 740) size = Math.floor(size * 740 / widest);
+  setF(size);
+  const top = cy - (lines.length * size * lh) / 2;
+  let k = 0;
+  lines.forEach((line, li) => {
+    const words = line.split(' '), sp = ctx.measureText(' ').width;
+    const ws = words.map(w => ctx.measureText(w).width), total = ws.reduce((a, b) => a + b, 0) + sp * (words.length - 1);
+    let x = cx - total / 2; const y = top + (li + 0.8) * size * lh;
+    const m = ctx.measureText(line);
+    words.forEach((w, i) => {
+      const g = glide(t, t0 + k * 0.07, t1 == null ? Infinity : t1 + k * 0.03); k++;
+      if (g.a > 0.01) {
+        ctx.save(); ctx.globalAlpha = g.a; if (g.blur > 0.3) ctx.filter = `blur(${g.blur.toFixed(1)}px)`;
+        ctx.fillStyle = color(w); ctx.fillText(w, x, y + g.dy); ctx.restore();
+        if (g.a > 0.5) reg(ctx, 'text', w, x, y - m.actualBoundingBoxAscent, x + ws[i], y + m.actualBoundingBoxDescent);
+      }
+      x += ws[i] + sp;
+    });
+  });
+  ctx.restore();
 }
-const FIT_CACHE = new Map();
-function fitCached(ctx, texts, maxW, maxH, maxSize) {
-  const k = JSON.stringify([texts, maxW, maxH, maxSize]);
-  if (!FIT_CACHE.has(k)) FIT_CACHE.set(k, fitCards(ctx, texts, maxW, maxH, maxSize));
-  return FIT_CACHE.get(k);
-}
-
-// One line, centred on cx, baseline y. Words with a $ take the highlight colour.
-function textLine(ctx, line, cx, y, size, o = {}) {
-  setFont(ctx, size, o.weight || 800, o.family || FD);
-  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  if (o.tracking) ctx.letterSpacing = `${o.tracking * size}px`;
-  const words = line.split(' ');
-  const sp = lineWidth(ctx, ' ');
-  const ws = words.map(w => lineWidth(ctx, w));
-  const total = ws.reduce((a, b) => a + b, 0) + sp * (words.length - 1);
-  const m = ctx.measureText(line);
-  reg(ctx, 'text', line, cx - total / 2, y - m.actualBoundingBoxAscent, cx + total / 2, y + m.actualBoundingBoxDescent);
-  const xs = []; let x = cx - total / 2;
-  for (let i = 0; i < words.length; i++) { xs.push(x); x += ws[i] + sp; }
-  ctx.lineJoin = 'round'; ctx.miterLimit = 2;
-  if (o.stroke) {
-    ctx.lineWidth = o.strokeW || size * 0.17;
-    if (o.shadow) { ctx.strokeStyle = o.shadow; ctx.fillStyle = o.shadow; words.forEach((w, i) => { ctx.strokeText(w, xs[i], y + size * 0.075); ctx.fillText(w, xs[i], y + size * 0.075); }); }
-    ctx.strokeStyle = o.stroke; words.forEach((w, i) => ctx.strokeText(w, xs[i], y));
-  }
-  words.forEach((w, i) => { ctx.fillStyle = (o.hl && w.includes('$')) ? o.hl : (o.fill || C.ink); ctx.fillText(w, xs[i], y); });
-  ctx.letterSpacing = '0px';
+// A single centred line, faded and blurred in.
+function line1(ctx, text, cx, y, font, color, t, t0, t1) {
+  const g = glide(t, t0, t1 == null ? Infinity : t1);
+  if (g.a <= 0.01) return;
+  ctx.save(); ctx.font = font; ctx.textAlign = 'center'; ctx.globalAlpha = g.a;
+  if (g.blur > 0.3) ctx.filter = `blur(${g.blur.toFixed(1)}px)`;
+  ctx.fillStyle = color; ctx.fillText(text, cx, y + g.dy * 0.6);
+  const m = ctx.measureText(text);
+  ctx.restore();
+  if (g.a > 0.5) reg(ctx, 'text', text, cx - m.width / 2, y - m.actualBoundingBoxAscent, cx + m.width / 2, y + m.actualBoundingBoxDescent);
 }
 
-// Big caption cards. `cards` is a list of {text, scale}; scale null = not on screen yet.
-function captions(ctx, cards, cx, cy, maxW, maxH, maxSize) {
-  const fit = fitCached(ctx, cards.map(c => c.text), maxW, maxH, maxSize);
-  const lh = fit.size;
-  const lines = [];
-  fit.cards.forEach((ls, ci) => ls.forEach(l => lines.push({ l, ci })));
-  const top = cy - (lines.length * lh) / 2;
-  lines.forEach((ln, i) => {
-    const sc = cards[ln.ci].scale;
-    if (sc == null) return;
-    const ly = top + i * lh + lh * 0.5;
-    ctx.save(); ctx.translate(cx, ly); ctx.scale(sc, sc); ctx.translate(-cx, -ly);
-    textLine(ctx, ln.l, cx, ly + fit.size * 0.36, fit.size, { stroke: C.ground, shadow: C.ground, hl: C.fairBright });
-    ctx.restore();
+// The logo going forward: "pexi" in a bold grotesque, a round pink full stop.
+function logo(ctx, cx, cy, size, inkCol = C.ink) {
+  ctx.save(); ctx.font = FONTS.ui(size, 700); ctx.letterSpacing = `${-0.035 * size}px`; ctx.textBaseline = 'alphabetic';
+  const w = ctx.measureText('pexi').width, r = size * 0.085, gap = size * 0.05;
+  const total = w + gap + 2 * r, x0 = cx - total / 2, by = cy + size * 0.28;
+  ctx.fillStyle = inkCol; ctx.textAlign = 'left'; ctx.fillText('pexi', x0, by);
+  ctx.beginPath(); ctx.arc(x0 + w + gap + r, by - r, r, 0, 7); ctx.fillStyle = C.brand; ctx.fill();
+  const m = ctx.measureText('pexi');
+  reg(ctx, 'text', 'pexi.', x0, by - m.actualBoundingBoxAscent, x0 + total, by + m.actualBoundingBoxDescent);
+  ctx.restore();
+}
+
+// ---------- grounds ----------
+// Light: paper with three soft colour fields drifting (cyan, pink, lavender), never a verdict hue.
+function lightGround(ctx, t, seed = 0) {
+  ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H);
+  const blobs = [['rgba(43,181,240,', 180, 360, 760], ['rgba(229,22,94,', 930, 640, 700], ['rgba(150,140,240,', 300, 1640, 820], ['rgba(229,22,94,', 900, 1720, 520]];
+  blobs.forEach(([c, x, y, r], i) => {
+    const bx = x + 70 * Math.sin(t * 0.5 + i * 1.7 + seed), by = y + 60 * Math.cos(t * 0.4 + i * 2.3 + seed);
+    const g = ctx.createRadialGradient(bx, by, 0, bx, by, r);
+    g.addColorStop(0, c + (i === 3 ? '.16)' : '.30)')); g.addColorStop(1, c + '0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   });
 }
-// A caption card that slams in at `at`.
-const cap = (text, t, at) => ({ text, scale: t >= at ? slam(t - at, 0.55, 0.16, 1.2) : null });
-
-function wordmark(ctx, cx, cy, size, pill = true) {
-  // the app's wordmark (camera.css .wordmark): "pexi" in ink, the full stop in brand pink
-  setFont(ctx, size, 800, FD);
-  ctx.save(); ctx.letterSpacing = `${-0.03 * size}px`;
-  const w = lineWidth(ctx, 'pexi.'), wp = lineWidth(ctx, 'pexi');
-  if (pill) { ctx.fillStyle = 'rgba(11,12,14,.86)'; rr(ctx, cx - w / 2 - size * 0.55, cy - size * 0.72, w + size * 1.1, size * 1.3, size * 0.65); ctx.fill(); }
-  ctx.textAlign = 'left'; const by = cy + size * 0.3;
-  ctx.fillStyle = C.ink; ctx.fillText('pexi', cx - w / 2, by);
-  ctx.fillStyle = C.brand; ctx.fillText('.', cx - w / 2 + wp, by);
-  const m = ctx.measureText('pexi.');
-  reg(ctx, 'text', 'pexi.', cx - w / 2, by - m.actualBoundingBoxAscent, cx + w / 2, by + m.actualBoundingBoxDescent);
-  ctx.restore();
-}
-
-// ---------- backgrounds ----------
-function sunburst(ctx, cx, cy, a0, c1, c2, n = 18) {
-  ctx.fillStyle = c1; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = c2;
-  for (let i = 0; i < n; i++) {
-    const a = a0 + i * 2 * Math.PI / n;
-    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, 2600, a, a + Math.PI / n); ctx.closePath(); ctx.fill();
-  }
-  const g = ctx.createRadialGradient(cx, cy, 200, cx, cy, 1400);
-  g.addColorStop(0, 'rgba(11,12,14,0)'); g.addColorStop(1, 'rgba(11,12,14,.55)');
+// Dark: near-black with one soft glow. The glow takes the verdict hue only on a verdict.
+function darkGround(ctx, t, glow = 'rgba(229,22,94,', gx = 540, gy = 900, strength = 1, r = 900) {
+  ctx.fillStyle = C.night; ctx.fillRect(0, 0, W, H);
+  const pulse = 0.9 + 0.1 * Math.sin(t * Math.PI);
+  const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, r);
+  g.addColorStop(0, glow + (0.42 * strength * pulse).toFixed(3) + ')'); g.addColorStop(0.55, glow + (0.12 * strength).toFixed(3) + ')'); g.addColorStop(1, glow + '0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 }
-function topShade(ctx) {
-  const g = ctx.createLinearGradient(0, 0, 0, 900);
-  g.addColorStop(0, 'rgba(11,12,14,.6)'); g.addColorStop(1, 'rgba(11,12,14,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 900);
-}
-// The verdict atmosphere (brand book "Colour"): rays and a glow in the verdict hue, pulsing on the beat.
-function verdictGround(ctx, t, glow, cx, cy, spin = 0.4, strength = 1) {
-  ctx.fillStyle = C.ground; ctx.fillRect(0, 0, W, H);
-  const pulse = 0.75 + 0.25 * Math.sin(t * Math.PI * 4);
-  ctx.save(); ctx.globalAlpha = clamp(0.5 * pulse * strength); ctx.fillStyle = glow;
-  for (let i = 0; i < 14; i++) { const a = t * spin + i * Math.PI / 7; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, 2400, a, a + Math.PI / 14); ctx.closePath(); ctx.fill(); }
-  ctx.restore();
-  const g = ctx.createRadialGradient(cx, cy, 100, cx, cy, 1300);
-  g.addColorStop(0, glow); g.addColorStop(1, 'rgba(11,12,14,0)');
-  ctx.save(); ctx.globalAlpha = clamp(0.75 * pulse * strength); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
-}
-// Neutral rays for the scenes that are not a verdict: no hue may mean anything here.
-function neutralGround(ctx, t, cx, cy) {
-  ctx.fillStyle = C.ground; ctx.fillRect(0, 0, W, H);
-  ctx.save(); ctx.fillStyle = C.surface;
-  for (let i = 0; i < 16; i++) { const a = t * 0.25 + i * Math.PI / 8; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, 2400, a, a + Math.PI / 16); ctx.closePath(); ctx.fill(); }
-  ctx.restore();
-  const g = ctx.createRadialGradient(cx, cy, 80, cx, cy, 1100);
-  g.addColorStop(0, 'rgba(11,12,14,0)'); g.addColorStop(1, 'rgba(11,12,14,.9)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-}
-function flash(ctx, t, at, dur = 0.17, a = 0.85) {
-  if (t >= at && t < at + dur) { ctx.fillStyle = `rgba(255,255,255,${a * (1 - (t - at) / dur)})`; ctx.fillRect(0, 0, W, H); }
-}
+const hex2rgba = (h) => `rgba(${parseInt(h.slice(1, 3), 16)},${parseInt(h.slice(3, 5), 16)},${parseInt(h.slice(5, 7), 16)},`;
 
-// ---------- hands and the bottle (from the reel) ----------
-function sleeve(ctx, pts, cuffAt) {
-  ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
-  ctx.fillStyle = SKIN; ctx.fill(); ink(ctx);
-  if (cuffAt) {
-    ctx.save(); ctx.clip();
-    ctx.fillStyle = C.raised; ctx.fillRect(cuffAt[0], cuffAt[1], cuffAt[2], cuffAt[3]);
-    ctx.fillStyle = C.brand; ctx.fillRect(cuffAt[0], cuffAt[1], cuffAt[2], 22);
-    ctx.restore();
-    ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ink(ctx);
+// ---------- objects ----------
+// The mascot, as it ships, floating: a soft shadow below, a slow bob, an optional squash on a change.
+const FACE_FRAC = 81 / 88;
+function face(ctx, img, cx, cy, size, t, o = {}) {
+  const bob = o.still ? 0 : Math.sin(t * 2.2 + (o.phase || 0)) * size * 0.022;
+  const sq = o.squash || 0;
+  ctx.save();
+  ctx.globalAlpha = o.alpha ?? 1;
+  // contact shadow
+  const sh = ctx.createRadialGradient(cx, cy + size * 0.56, 0, cx, cy + size * 0.56, size * 0.42);
+  sh.addColorStop(0, `rgba(0,0,0,${o.dark ? 0.55 : 0.22})`); sh.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.save(); ctx.translate(cx, cy + size * 0.56); ctx.scale(1, 0.22); ctx.translate(-cx, -(cy + size * 0.56));
+  ctx.fillStyle = sh; ctx.fillRect(cx - size, cy, size * 2, size * 1.2); ctx.restore();
+  ctx.translate(cx, cy + bob); ctx.rotate(o.rot || 0); ctx.scale(1 + sq, 1 - sq);
+  if (o.blur) ctx.filter = `blur(${o.blur.toFixed(1)}px)`;
+  ctx.drawImage(img, -size / 2, -size / 2, size, size);
+  ctx.restore();
+  const r = size * FACE_FRAC / 2;
+  if ((o.alpha ?? 1) > 0.5) reg(ctx, 'face', 'mascot', cx - r, cy - r, cx + r, cy + r);
+}
+// Two faces crossfading, with a small squash on the swap: Pexi changes its mind, it does not cut.
+function faceSwap(ctx, a, b, cx, cy, size, t, t0, o = {}) {
+  const p = clamp((t - t0) / 0.18);
+  const sq = t >= t0 && t < t0 + 0.35 ? 0.06 * Math.sin((t - t0) / 0.35 * Math.PI) : 0;
+  if (p < 1) face(ctx, a, cx, cy, size, t, { ...o, alpha: 1 - p, squash: sq });
+  if (p > 0) face(ctx, b, cx, cy, size, t, { ...o, alpha: p, squash: sq });
+}
+// A neon ring drawing itself round (cx, cy).
+function neonRing(ctx, cx, cy, r, p, col = C.brand, wobble = 0, t = 0) {
+  if (p <= 0) return;
+  ctx.save(); ctx.lineCap = 'round';
+  const path = () => {
+    ctx.beginPath();
+    const n = 120, end = Math.floor(n * clamp(p));
+    for (let i = 0; i <= end; i++) {
+      const a = -Math.PI / 2 + i / n * Math.PI * 2;
+      const rr_ = r * (1 + wobble * Math.sin(a * 5 + t * 2) * 0.04);
+      const x = cx + Math.cos(a) * rr_, y = cy + Math.sin(a) * rr_;
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+  };
+  for (const [w, a, b] of [[34, 0.18, 40], [16, 0.5, 18], [6, 1, 0]]) {
+    path(); ctx.lineWidth = w; ctx.strokeStyle = w === 6 ? '#FFD1E1' : col; ctx.globalAlpha = a;
+    ctx.shadowColor = col; ctx.shadowBlur = b; ctx.stroke();
   }
-}
-function fingerH(ctx, x, y, w, h, tipLeft = true) {
-  rr(ctx, x, y, w, h, h / 2); ctx.fillStyle = SKIN; ctx.fill(); ink(ctx, 7);
-  ctx.fillStyle = SKIN_SH; rr(ctx, x + 10, y + h - 16, w - 20, 9, 4); ctx.fill();
-  const nx = tipLeft ? x + h * 0.16 : x + w - h * 0.16 - h * 0.55;
-  rr(ctx, nx, y + h * 0.2, h * 0.55, h * 0.6, h * 0.24); ctx.fillStyle = NAIL; ctx.fill();
-}
-function thumb(ctx, cx, cy, len, wid, ang) {
-  ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
-  rr(ctx, -wid / 2, -len / 2, wid, len, wid / 2); ctx.fillStyle = SKIN; ctx.fill(); ink(ctx, 7);
-  rr(ctx, -wid * 0.3, -len / 2 + wid * 0.15, wid * 0.6, wid * 0.62, wid * 0.25); ctx.fillStyle = NAIL; ctx.fill();
   ctx.restore();
 }
-function bottle(ctx) {
+// A clean water bottle: no outlines, soft light, a blank label.
+function bottle(ctx, cx, cy, s) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
   const body = () => {
     ctx.beginPath();
     ctx.moveTo(-42, -300); ctx.lineTo(-42, -268); ctx.bezierCurveTo(-42, -228, -100, -214, -100, -160);
     ctx.lineTo(-100, 270); ctx.quadraticCurveTo(-100, 312, -58, 312); ctx.lineTo(58, 312); ctx.quadraticCurveTo(100, 312, 100, 270);
     ctx.lineTo(100, -160); ctx.bezierCurveTo(100, -214, 42, -228, 42, -268); ctx.lineTo(42, -300); ctx.closePath();
   };
-  body(); ctx.fillStyle = 'rgba(236,248,255,.95)'; ctx.fill();
+  ctx.save(); ctx.shadowColor = 'rgba(30,40,80,.25)'; ctx.shadowBlur = 60; ctx.shadowOffsetY = 40;
+  body(); ctx.fillStyle = 'rgba(232,246,253,1)'; ctx.fill(); ctx.restore();
   ctx.save(); body(); ctx.clip();
-  ctx.fillStyle = 'rgba(43,181,240,.42)'; ctx.fillRect(-120, -150, 240, 480);
-  ctx.fillStyle = 'rgba(255,255,255,.9)'; rr(ctx, -80, -150, 18, 400, 9); ctx.fill();
-  ctx.fillStyle = C.ink; ctx.fillRect(-120, -80, 240, 150);   // blank label, no brand
-  ctx.fillStyle = C.cyan; ctx.fillRect(-120, -18, 240, 26);
+  const water = ctx.createLinearGradient(-100, 0, 100, 0);
+  water.addColorStop(0, 'rgba(43,181,240,.55)'); water.addColorStop(0.5, 'rgba(120,212,250,.35)'); water.addColorStop(1, 'rgba(30,147,201,.6)');
+  ctx.fillStyle = water; ctx.fillRect(-120, -150, 240, 480);
+  ctx.fillStyle = 'rgba(255,255,255,.75)'; rr(ctx, -78, -170, 16, 440, 8); ctx.fill();
+  ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-120, -70, 240, 130);
+  ctx.fillStyle = C.cyan; ctx.fillRect(-120, -12, 240, 18);
   ctx.restore();
-  ctx.beginPath(); ctx.moveTo(-100, -80); ctx.lineTo(100, -80); ctx.moveTo(-100, 70); ctx.lineTo(100, 70); ink(ctx, 6);
-  body(); ink(ctx);
-  rr(ctx, -54, -372, 108, 76, 14); ctx.fillStyle = C.faceInk; ctx.fill(); ink(ctx);
-  ctx.strokeStyle = '#2E4A6E'; ctx.lineWidth = 6;
-  for (let x = -36; x <= 36; x += 18) { ctx.beginPath(); ctx.moveTo(x, -360); ctx.lineTo(x, -308); ctx.stroke(); }
-}
-function bottleInHand(ctx, cx, cy) {
-  ctx.save(); ctx.translate(cx, cy);
-  sleeve(ctx, [[70, 20], [200, 10], [360, 700], [110, 720]], [0, 470, 500, 400]);
-  bottle(ctx);
-  for (let i = 0; i < 4; i++) fingerH(ctx, -128, 46 + i * 64, 250, 62);
-  thumb(ctx, 118, -2, 160, 60, -0.32);
+  rr(ctx, -52, -366, 104, 70, 16); ctx.fillStyle = C.navy; ctx.fill();
   ctx.restore();
 }
-// A price tag hanging from (hx, hy) by its hole, swinging by `ang`.
-function tag(ctx, hx, hy, ang, w, h, price, priceScale = 1, anchor) {
-  if (anchor) { ctx.beginPath(); ctx.moveTo(anchor[0], anchor[1]); ctx.quadraticCurveTo((anchor[0] + hx) / 2, Math.max(anchor[1], hy) + 30, hx, hy); ctx.lineWidth = 5; ctx.strokeStyle = C.ink; ctx.stroke(); }
+// A price tag on a thread, swinging gently.
+function tag(ctx, hx, hy, ang, w, h, price) {
   ctx.save(); ctx.translate(hx, hy); ctx.rotate(ang);
-  const shape = () => { ctx.beginPath(); ctx.moveTo(-40, 0); ctx.lineTo(20, -h / 2); ctx.lineTo(w - 70, -h / 2); ctx.quadraticCurveTo(w - 40, -h / 2, w - 40, -h / 2 + 30); ctx.lineTo(w - 40, h / 2 - 30); ctx.quadraticCurveTo(w - 40, h / 2, w - 70, h / 2); ctx.lineTo(20, h / 2); ctx.closePath(); };
-  ctx.fillStyle = 'rgba(11,12,14,.3)'; ctx.save(); ctx.translate(10, 16); shape(); ctx.fill(); ctx.restore();
-  shape(); ctx.fillStyle = '#FFFFFF'; ctx.fill(); ink(ctx, 8);
-  ctx.beginPath(); ctx.arc(0, 0, 13, 0, 7); ctx.fillStyle = C.faceInk; ctx.fill();
-  const pcx = (20 + w - 40) / 2 + 8;
-  setFont(ctx, 100); const pw = lineWidth(ctx, price);
-  const size = Math.min(h * 0.62, 100 * (w - 130) / pw);
-  ctx.translate(pcx, 0); ctx.scale(priceScale, priceScale);
-  textLine(ctx, price, 0, size * 0.36, size, { fill: C.faceInk });
+  const shape = () => { ctx.beginPath(); ctx.moveTo(-40, 0); ctx.lineTo(16, -h / 2); ctx.lineTo(w - 70, -h / 2); ctx.quadraticCurveTo(w - 40, -h / 2, w - 40, -h / 2 + 30); ctx.lineTo(w - 40, h / 2 - 30); ctx.quadraticCurveTo(w - 40, h / 2, w - 70, h / 2); ctx.lineTo(16, h / 2); ctx.closePath(); };
+  ctx.save(); ctx.shadowColor = 'rgba(30,40,80,.22)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 24; shape(); ctx.fillStyle = '#fff'; ctx.fill(); ctx.restore();
+  ctx.beginPath(); ctx.arc(0, 0, 11, 0, 7); ctx.fillStyle = C.paper; ctx.fill();
+  ctx.font = FONTS.display(Math.round(h * 0.56)); ctx.textAlign = 'center'; ctx.fillStyle = C.navy;
+  ctx.fillText(price, (16 + w - 40) / 2 + 6, h * 0.2);
   ctx.restore();
 }
-
-// The bottle shot: hook and the camera view behind the scan. `t` is video time.
-function bottleSwing(t) {
-  let a = 0;
-  for (const [k, A] of [[0.0, 0.2], [1.5, 0.14]]) if (t >= k) a += A * Math.exp(-5 * (t - k)) * Math.sin(2 * Math.PI * 2.2 * (t - k));
-  return a;
-}
-function bottleShot(ctx, t) {
-  const z = 1 + 0.03 * t;
-  const sx = 7 * Math.sin(2 * Math.PI * t / 1.5), sy = 5 * Math.sin(2 * Math.PI * t / 3 + 1);
-  sunburst(ctx, 540, 1150, t * 0.22, C.cyan, C.cyanDeep);
-  topShade(ctx);
-  ctx.save(); ctx.translate(540 + sx, 1150 + sy); ctx.scale(z, z); ctx.translate(-540, -1150);
-  bottleInHand(ctx, 360, 1290);
-  tag(ctx, 452, 1004, 0.14 + bottleSwing(t), 440, 250, '$8.99', 1, [395, 985]);
+function pill(ctx, text, cx, cy, size, fill, on, s = 1, glow) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
+  ctx.font = FONTS.display(size); const w = ctx.measureText(text).width + size * 1.1, h = size * 1.55;
+  if (glow) { ctx.shadowColor = glow; ctx.shadowBlur = 70; }
+  rr(ctx, -w / 2, -h / 2, w, h, h / 2); ctx.fillStyle = fill; ctx.fill();
+  ctx.shadowBlur = 0; ctx.fillStyle = on; ctx.textAlign = 'center'; ctx.fillText(text, 0, size * 0.36);
+  reg(ctx, 'text', text, -w / 2, -h / 2, w / 2, h / 2);
   ctx.restore();
 }
-
-// ---------- the mascot ----------
-const FACE_FRAC = 81 / 88; // the disc is r 40.5 + ring in an 88 box
-function face(ctx, img, cx, cy, size, rot = 0, alpha = 1) {
-  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.globalAlpha = alpha;
-  ctx.fillStyle = 'rgba(11,12,14,.4)'; ctx.beginPath(); ctx.arc(size * 0.02, size * 0.036, size * FACE_FRAC / 2, 0, 7); ctx.fill();
-  ctx.drawImage(img, -size / 2, -size / 2, size, size);
-  const r = size * FACE_FRAC / 2;
-  if (alpha > 0.5) reg(ctx, 'face', 'mascot', -r, -r, r, r);
-  ctx.restore();
-}
-function vein(ctx, x, y, v, rot) {
-  ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
-  for (let k = 0; k < 4; k++) {
-    ctx.save(); ctx.rotate(k * Math.PI / 2);
-    ctx.beginPath(); ctx.moveTo(v * 0.22, v * 0.95); ctx.quadraticCurveTo(v * 0.22, v * 0.22, v * 0.95, v * 0.22);
-    ctx.lineCap = 'round'; ctx.lineWidth = v * 0.42; ctx.strokeStyle = C.faceInk; ctx.stroke();
-    ctx.lineWidth = v * 0.26; ctx.strokeStyle = C.walkBright; ctx.stroke();
-    ctx.restore();
+// The pointer, and the ring a tap leaves.
+function cursor(ctx, x, y, t, tapAt = []) {
+  for (const ta of tapAt) {
+    const k = t - ta;
+    if (k >= 0 && k < 0.5) { ctx.save(); ctx.beginPath(); ctx.arc(x, y, 20 + k * 160, 0, 7); ctx.lineWidth = 6 * (1 - k / 0.5); ctx.strokeStyle = `rgba(255,255,255,${0.9 * (1 - k / 0.5)})`; ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 10; ctx.stroke(); ctx.restore(); }
   }
+  const pressed = tapAt.some(ta => t >= ta - 0.05 && t < ta + 0.1);
+  const s = pressed ? 0.86 : 1;
+  ctx.save(); ctx.translate(x, y); ctx.scale(s * 1.5, s * 1.5);
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 34); ctx.lineTo(8, 26); ctx.lineTo(14, 40); ctx.lineTo(20, 37); ctx.lineTo(14, 24); ctx.lineTo(25, 24); ctx.closePath();
+  ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4;
+  ctx.fillStyle = '#fff'; ctx.fill(); ctx.shadowBlur = 0; ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.strokeStyle = C.inkDark; ctx.stroke();
   ctx.restore();
 }
-function sparkle(ctx, x, y, r, rot, col) {
-  ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
-  ctx.beginPath();
-  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, rad = i % 2 ? r * 0.28 : r; ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad); }
-  ctx.closePath(); ctx.fillStyle = col; ctx.fill(); ink(ctx, 5);
+const path2 = (pts, t) => { // piecewise eased path [[t, x, y], ...]
+  if (t <= pts[0][0]) return [pts[0][1], pts[0][2]];
+  for (let i = 1; i < pts.length; i++) if (t < pts[i][0]) { const [t0, x0, y0] = pts[i - 1], [t1, x1, y1] = pts[i]; const p = eInOut((t - t0) / (t1 - t0)); return [lerp(x0, x1, p), lerp(y0, y1, p)]; }
+  const l = pts[pts.length - 1]; return [l[1], l[2]];
+};
+
+// ---------- the phone ----------
+const PH = { cx: 540, cy: 1150, w: 540 };
+PH.h = PH.w * 844 / 390;
+function phone(ctx, cx, cy, w, h, rot, content) {
+  const b = 16, r = w * 0.15;
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot);
+  ctx.save(); ctx.shadowColor = 'rgba(20,20,50,.35)'; ctx.shadowBlur = 90; ctx.shadowOffsetY = 50;
+  rr(ctx, -w / 2 - b, -h / 2 - b, w + 2 * b, h + 2 * b, r + b); ctx.fillStyle = '#121216'; ctx.fill(); ctx.restore();
+  rr(ctx, -w / 2 - b + 2, -h / 2 - b + 2, w + 2 * b - 4, h + 2 * b - 4, r + b - 2); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.stroke();
+  ctx.save(); rr(ctx, -w / 2, -h / 2, w, h, r); ctx.clip(); ctx.translate(-w / 2, -h / 2);
+  const log = LOG; LOG = null; content({ x: 0, y: 0, w, h }); LOG = log;
+  ctx.restore();
+  rr(ctx, -64, -h / 2 + 18, 128, 36, 18); ctx.fillStyle = '#000'; ctx.fill();
   ctx.restore();
 }
-function confetti(ctx, ts, seed, ox, oy, spread, up) {
-  if (ts < 0 || ts > 2.4) return;
-  const r = rng(seed);
-  const cols = [C.brand, C.fairBright, C.goodBright, C.cyan, C.ink, C.orange];
-  for (let i = 0; i < 90; i++) {
-    const vx = (r() * 2 - 1) * spread, vy = -(0.45 + r() * 1.1) * up;
-    const x = ox + vx * ts, y = oy + vy * ts + 1500 * ts * ts;
-    const w = 16 + r() * 18, h = 10 + r() * 10, rot = r() * 6 + ts * (r() * 14 - 7);
-    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.fillStyle = cols[i % cols.length]; ctx.fillRect(-w / 2, -h / 2, w, h); ctx.restore();
+// What the camera sees: a soft shelf, the bottle and its tag, the app's chrome over it.
+function cameraFeed(ctx, s, t, scanning) {
+  const g = ctx.createLinearGradient(0, 0, 0, s.h);
+  g.addColorStop(0, '#DCE9F2'); g.addColorStop(1, '#B9CBD8'); ctx.fillStyle = g; ctx.fillRect(0, 0, s.w, s.h);
+  [['rgba(255,255,255,.7)', 0.2, 0.25, 160], ['rgba(242,107,29,.25)', 0.85, 0.35, 140], ['rgba(43,181,240,.25)', 0.15, 0.75, 180]].forEach(([c, x, y, r]) => {
+    const rg = ctx.createRadialGradient(s.w * x, s.h * y, 0, s.w * x, s.h * y, r); rg.addColorStop(0, c); rg.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = rg; ctx.fillRect(0, 0, s.w, s.h);
+  });
+  const k = s.w / 540;
+  bottle(ctx, s.w * 0.38, s.h * 0.46, 0.62 * k);
+  tag(ctx, s.w * 0.47, s.h * 0.40, 0.12 + 0.03 * Math.sin(t * 2), 270 * k, 150 * k, '$8.99');
+  if (scanning) {
+    const cx = s.w / 2, cy = s.h * 0.44, hw = 200 * k, hh = 240 * k, L = 50 * k;
+    ctx.lineWidth = 7 * k; ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineCap = 'round';
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { ctx.beginPath(); ctx.moveTo(cx + sx * hw, cy + sy * (hh - L)); ctx.lineTo(cx + sx * hw, cy + sy * hh); ctx.lineTo(cx + sx * (hw - L), cy + sy * hh); ctx.stroke(); }
   }
+  logo(ctx, s.w / 2, 96 * k, 40 * k, C.inkDark);
+  // the shutter: the app's pink ring
+  const sy = s.h - 120 * k;
+  ctx.beginPath(); ctx.arc(s.w / 2, sy, 46 * k, 0, 7); ctx.lineWidth = 8 * k; ctx.strokeStyle = C.brand; ctx.stroke();
+  ctx.beginPath(); ctx.arc(s.w / 2, sy, 34 * k, 0, 7); ctx.fillStyle = '#fff'; ctx.fill();
 }
+const SHUTTER = () => [PH.cx, PH.cy + PH.h / 2 - 120];
 
-// ---------- verdict parts (from the reel) ----------
-function card(ctx, x, y, w, h, price, label, col, sc, border) {
-  if (sc == null) return;
-  ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.scale(sc, sc); ctx.translate(-(x + w / 2), -(y + h / 2));
-  rr(ctx, x, y, w, h, 30); ctx.fillStyle = C.surface; ctx.fill(); ctx.lineWidth = 7; ctx.strokeStyle = border; ctx.stroke();
-  setFont(ctx, 100); const pw = lineWidth(ctx, price);
-  const size = Math.min(132, 100 * (w - 96) / pw);
-  textLine(ctx, price, x + w / 2, y + 122, size, { fill: col });
-  textLine(ctx, label, x + w / 2, y + h - 38, 46, { fill: C.inkMuted, weight: 600, family: FU });
-  ctx.restore();
-}
-function stamp(ctx, text, cx, cy, ang, fill, txt, ts, size = 104) {
-  if (ts < 0) return;
-  const s = slam(ts, 1.1, 0.14, 2.2);
-  ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang); ctx.scale(s, s);
-  setFont(ctx, size); const w = lineWidth(ctx, text) + 80, h = size * 1.32;
-  ctx.fillStyle = C.ground; rr(ctx, -w / 2 + 10, -h / 2 + 14, w, h, 22); ctx.fill();
-  rr(ctx, -w / 2, -h / 2, w, h, 22); ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 10; ctx.strokeStyle = C.ink; ctx.stroke();
-  textLine(ctx, text, 0, size * 0.36, size, { fill: txt });
-  ctx.restore();
-}
-function bubble(ctx, lines, ts, top = 1292) {
-  if (ts < 0) return;
-  const s = slam(ts, 0.6, 0.16, 1.2);
-  const size = 66, lh = 76, h = lines.length * lh + 64;
-  ctx.save(); ctx.translate(540, top); ctx.scale(s, s); ctx.translate(-540, -top);
-  ctx.beginPath(); ctx.moveTo(470, top + 6); ctx.lineTo(430, top - 44); ctx.lineTo(540, top + 6); ctx.closePath(); ctx.fillStyle = '#fff'; ctx.fill(); ink(ctx, 8);
-  rr(ctx, 172, top, 736, h, 40); ctx.fillStyle = '#fff'; ctx.fill(); ink(ctx, 8);
-  ctx.fillStyle = '#fff'; ctx.fillRect(436, top - 4, 100, 14);
-  setFont(ctx, 66);
-  const fit = Math.min(size, size * 640 / Math.max(...lines.map(l => lineWidth(ctx, l))));
-  lines.forEach((l, i) => textLine(ctx, l, 540, top + 32 + i * lh + size * 0.8, fit, { fill: C.faceInk }));
-  ctx.restore();
-}
-
-// ---------- 0.0 the hook ----------
+// ---------- scenes ----------
 function hook(ctx, t) {
-  bottleShot(ctx, t);
-  if (t >= 1.5) { ctx.save(); ctx.globalAlpha = clamp((t - 1.5) / 0.1) * 0.35; ctx.fillStyle = C.walk; ctx.fillRect(0, 0, W, H); ctx.restore(); }
-  captions(ctx, [cap('Is $8.99 for water', t, 0), cap('a rip-off?', t, 0.5)], 540, 560, 740, 420, 150);
-  if (t >= 1.5) {
-    // the result first: the verdict lands on the tag before anything is explained
-    const [jx, jy] = t < 1.8 ? jitter(t, 10 * (1 - (t - 1.5) / 0.3), 4) : [0, 0];
-    ctx.save(); ctx.translate(jx, jy);
-    stamp(ctx, 'Bad price', 560, 1330, -0.08, C.walk, '#FFFFFF', t - 1.5, 112);
-    ctx.restore();
+  lightGround(ctx, t);
+  headline(ctx, ['Is $8.99', 'for water', 'a rip-off?'], 540, 560, 172, t, 0.05, null, w => w.includes('$') ? C.brand : C.inkDark);
+  // the bottle and its tag float up into place
+  const p = eExpo((t - 0.35) / 0.9), y = lerp(1500, 0, p);
+  ctx.save(); ctx.globalAlpha = clamp(p * 1.4);
+  if (p < 0.95) ctx.filter = `blur(${((1 - p) * 18).toFixed(1)}px)`;
+  const fy = 6 * Math.sin(t * 2);
+  bottle(ctx, 440, 1270 + y + fy, 0.78);
+  tag(ctx, 520, 1180 + y + fy, 0.14 + 0.05 * Math.sin(t * 2.6) * Math.exp(-t * 0.5), 360, 200, '$8.99');
+  ctx.restore();
+  // the result, first
+  if (t >= 2.0) {
+    const s = lerp(0.6, 1, eBack((t - 2.0) / 0.35, 1.6));
+    pill(ctx, 'Bad price', 560, 1540, 64, C.walk, '#FFFFFF', s, 'rgba(194,54,25,.6)');
   }
-  wordmark(ctx, 540, 1560, 62);
-  flash(ctx, t, 1.5, 0.12, 0.6);
 }
-
-// ---------- 2.5 meet Pexi ----------
 function meet(ctx, t) {
   const tl = t - T.meet;
-  neutralGround(ctx, t, 540, 960);
-  captions(ctx, [cap('Meet Pexi.', t, T.meet)], 540, 420, 740, 200, 170);
-  const s = slam(tl - 0.1, 0.3, 0.2, 2.2);
-  if (s != null) {
-    const hop = tl > 0.5 ? -Math.abs(Math.sin((tl - 0.5) * Math.PI * 2)) * 18 : 0;
-    face(ctx, IMG.deadpanPleased, 540, 930 + hop, 560 * s, 0.04 * Math.sin(tl * 6));
-  }
-  captions(ctx, [cap('It checks prices for you.', t, T.meet + 0.9)], 540, 1400, 760, 200, 96);
-  flash(ctx, t, T.meet, 0.15, 0.7);
+  darkGround(ctx, t, 'rgba(229,22,94,', 540, 860, clamp(tl / 0.6), 760);
+  const fp = eExpo((tl - 0.1) / 0.6);
+  face(ctx, IMG.deadpanPleased, 540, 860, lerp(380, 460, fp), t, { alpha: fp, dark: true, blur: (1 - fp) * 14 });
+  neonRing(ctx, 540, 860, 290, eInOut((tl - 0.2) / 0.8), C.brand, 1, t);
+  headline(ctx, ['Meet Pexi.'], 540, 1300, 160, t, T.meet + 0.55, null, w => C.ink);
 }
-
-// ---------- 4.5 the scan, 6.0 the real sheet ----------
-const PH = { x: 250, y: 600, w: 580, h: 580 * 844 / 390, bez: 20, r: 62 };
-function phoneFrame(ctx, sc, content) {
-  const b = sc.bez;
-  ctx.fillStyle = 'rgba(11,12,14,.5)'; rr(ctx, sc.x - b + 16, sc.y - b + 26, sc.w + 2 * b, sc.h + 2 * b, sc.r + b); ctx.fill();
-  rr(ctx, sc.x - b, sc.y - b, sc.w + 2 * b, sc.h + 2 * b, sc.r + b); ctx.fillStyle = C.raised; ctx.fill();
-  ctx.lineWidth = 5; ctx.strokeStyle = '#3A4048'; ctx.stroke();
-  ctx.save(); rr(ctx, sc.x, sc.y, sc.w, sc.h, sc.r); ctx.clip(); content(sc); ctx.restore();
-  // the notch pill
-  rr(ctx, sc.x + sc.w / 2 - 70, sc.y + 18, 140, 34, 17); ctx.fillStyle = '#000'; ctx.fill();
-}
-function cameraView(ctx, t, sc, scanning) {
-  const k = 0.66 * sc.w / 580;
-  ctx.save();
-  ctx.translate(sc.x + sc.w / 2, sc.y + sc.h * 0.42); ctx.scale(k, k); ctx.translate(-575, -1130);
-  bottleShot(ctx, t);
-  ctx.restore();
-  ctx.fillStyle = 'rgba(11,12,14,.18)'; ctx.fillRect(sc.x, sc.y, sc.w, sc.h);
-  const u = sc.w / 580;
-  const cx = sc.x + sc.w / 2, cy = sc.y + sc.h * 0.42, hw = 245 * u, hh = 175 * u, L = 60 * u;
-  if (scanning) {
-    ctx.lineWidth = 10 * u; ctx.strokeStyle = C.ink; ctx.lineCap = 'round';
-    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      ctx.beginPath(); ctx.moveTo(cx + sx * hw, cy + sy * (hh - L)); ctx.lineTo(cx + sx * hw, cy + sy * hh); ctx.lineTo(cx + sx * (hw - L), cy + sy * hh); ctx.stroke();
-    }
-    const ly = cy + hh * 0.9 * Math.sin((t - T.scan) * 5);
-    ctx.save(); ctx.shadowColor = C.brand; ctx.shadowBlur = 30; ctx.fillStyle = C.brand; ctx.fillRect(cx - hw + 10, ly - 4, 2 * hw - 20, 8); ctx.restore();
-  }
-  // the camera chrome: wordmark at the top, the pink shutter ring at the bottom
-  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 12;
-  wordmark(ctx, cx, sc.y + 100 * u, 40 * u, false);
-  ctx.restore();
-  ctx.beginPath(); ctx.arc(cx, sc.y + sc.h - 110 * u, 44 * u, 0, 7); ctx.lineWidth = 9 * u; ctx.strokeStyle = C.brand; ctx.stroke();
-  ctx.beginPath(); ctx.arc(cx, sc.y + sc.h - 110 * u, 32 * u, 0, 7); ctx.fillStyle = C.ink; ctx.fill();
-}
-function scanAndSheet(ctx, t) {
-  neutralGround(ctx, t, 540, 1100);
-  // phone rises, then (8.5) the camera pushes in on the verdict
-  const rise = eOut((t - T.scan) / 0.32);
-  // the push-in holds the phone's top edge still, so it never climbs into the caption
-  const zoom = lerp(1, 1.3, eInOut((t - T.zoom) / 0.6));
-  const zc = { x: 540, y: 640 };
-  ctx.save();
-  ctx.translate(zc.x, zc.y); ctx.scale(zoom, zoom); ctx.translate(-zc.x, -zc.y);
-  const sc = { ...PH, y: PH.y + (1 - rise) * 1400 };
-  const log = LOG; LOG = null;
-  phoneFrame(ctx, sc, (s) => {
-    const sheetUp = t >= T.sheet;
-    cameraView(ctx, t, s, !sheetUp);
-    if (sheetUp) {
-      const p = eOut((t - T.sheet) / 0.35);
-      ctx.fillStyle = `rgba(11,12,14,${0.35 * p})`; ctx.fillRect(s.x, s.y, s.w, s.h);
-      const img = IMG.sheet, k = s.w / img.width;
-      ctx.drawImage(img, s.x, s.y + (1 - p) * s.h * 0.75, s.w, img.height * k);
-    }
-    if (t >= T.sheet - 0.05 && t < T.sheet + 0.15) { ctx.fillStyle = `rgba(255,255,255,${0.8 * (1 - (t - T.sheet + 0.05) / 0.2)})`; ctx.fillRect(s.x, s.y, s.w, s.h); }
+function scan(ctx, t) {
+  const tl = t - T.scan;
+  lightGround(ctx, t, 2);
+  headline(ctx, ['Scan anything.'], 540, 400, 140, t, T.scan + 0.1, null, () => C.inkDark);
+  const p = eExpo(tl / 0.7);
+  const cy = lerp(PH.cy + 900, PH.cy, p), rot = lerp(-0.12, -0.02, p);
+  ctx.save(); if (p < 0.97) ctx.filter = `blur(${((1 - p) * 20).toFixed(1)}px)`;
+  phone(ctx, PH.cx, cy, PH.w, PH.h, rot, (s) => {
+    cameraFeed(ctx, s, t, true);
+    if (t >= T.check - 0.28) { ctx.fillStyle = `rgba(255,255,255,${0.9 * clamp(1 - (t - T.check + 0.28) / 0.25)})`; ctx.fillRect(0, 0, s.w, s.h); }
   });
-  // the hand holding it
-  if (zoom < 1.2) {
-    for (let i = 0; i < 3; i++) { rr(ctx, sc.x - sc.bez - 34, sc.y + sc.h * 0.55 + i * 92, 70, 78, 36); ctx.fillStyle = SKIN; ctx.fill(); ink(ctx, 7); }
-    thumb(ctx, sc.x + sc.w + sc.bez - 6, sc.y + sc.h * 0.68, 190, 70, 0.18);
-  }
   ctx.restore();
-  LOG = log;
-  // captions over the top of the phone
-  let cards;
-  if (t < T.sheet) cards = [cap('Scan anything.', t, T.scan + 0.15)];
-  else if (t < T.zoom) cards = [cap('Pexi checks what', t, T.sheet + 0.2), cap('it normally costs', t, T.sheet + 0.45)];
-  else cards = [cap("and if it's", t, T.zoom), cap('a rip-off.', t, T.zoom + 0.5)];
-  captions(ctx, cards, 540, 440, 760, 280, 112);
+  // the cursor comes in from the right and taps the shutter
+  const [sx, sy] = SHUTTER();
+  const [x, y] = path2([[T.scan + 0.5, 980, 1700], [T.scan + 1.0, sx + 6, sy - 4]], t);
+  if (t > T.scan + 0.45) cursor(ctx, x, y, t, [T.check - 0.3]);
 }
-
-// ---------- 11.0 the range: bad, reasonable, great ----------
+const CHECKS = ['Reading the barcode', 'Finding the typical price', 'Comparing stores'];
+function check(ctx, t) {
+  const tl = t - T.check;
+  darkGround(ctx, t, 'rgba(229,22,94,', 540, 1000, 0.8, 820);
+  // the item, small and soft, behind the list
+  ctx.save(); ctx.globalAlpha = 0.35; ctx.filter = 'blur(6px)'; bottle(ctx, 540, 1430, 0.5); ctx.restore();
+  faceSwap(ctx, IMG.bluntIdle, IMG.bluntThinking, 540, 640, 260, t, T.check + 0.2, { dark: true });
+  const step = 0.38;
+  CHECKS.forEach((txt, i) => {
+    const on = tl - 0.15 - i * step;
+    if (on < 0) return;
+    const shift = Math.min(i, Math.max(0, Math.floor((tl - 0.15) / step))) ;
+    const y = 960 + i * 92 - clamp((tl - 0.15 - (CHECKS.length - 1) * step) / 0.4) * 0;
+    const g = glide(t, T.check + 0.15 + i * step, Infinity, 0.4);
+    const done = tl > 0.15 + (i + 1) * step - 0.05;
+    ctx.save(); ctx.globalAlpha = g.a * (done || i === CHECKS.length - 1 ? 1 : 0.85);
+    if (g.blur > 0.3) ctx.filter = `blur(${g.blur.toFixed(1)}px)`;
+    // the tick
+    const ix = 250, iy = y - 18 + g.dy * 0.5;
+    ctx.beginPath(); ctx.arc(ix, iy, 22, 0, 7); ctx.fillStyle = done ? C.brand : 'rgba(255,255,255,.12)'; ctx.fill();
+    if (done) { ctx.beginPath(); ctx.moveTo(ix - 10, iy); ctx.lineTo(ix - 3, iy + 8); ctx.lineTo(ix + 11, iy - 8); ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#fff'; ctx.stroke(); }
+    else { ctx.beginPath(); ctx.arc(ix, iy, 13, -Math.PI / 2 + t * 9, t * 9 + 1.6); ctx.lineWidth = 4; ctx.strokeStyle = '#fff'; ctx.stroke(); }
+    ctx.font = FONTS.ui(52); ctx.textAlign = 'left'; ctx.fillStyle = done ? C.ink : C.muted;
+    if (done) { ctx.shadowColor = 'rgba(229,22,94,.55)'; ctx.shadowBlur = 24; }
+    ctx.fillText(txt, 296, y + g.dy * 0.5);
+    const w = ctx.measureText(txt).width;
+    ctx.restore();
+    if (g.a > 0.5) reg(ctx, 'text', txt, ix - 22, y - 50, 296 + w, y + 12);
+    void shift;
+  });
+}
+function sheet(ctx, t) {
+  const tl = t - T.sheet;
+  lightGround(ctx, t, 4);
+  headline(ctx, ['It knows what it', 'normally costs.'], 540, 420, 124, t, T.sheet + 0.15, null, () => C.inkDark);
+  const push = lerp(1, 1.22, eInOut((tl - 1.0) / 0.8));
+  const top = PH.cy - PH.h / 2;
+  ctx.save(); ctx.translate(540, top); ctx.scale(push, push); ctx.translate(-540, -top);
+  phone(ctx, PH.cx, PH.cy, PH.w, PH.h, -0.02 * (1 - eInOut(tl / 0.6)), (s) => {
+    cameraFeed(ctx, s, t, false);
+    const p = eExpo(tl / 0.6);
+    ctx.fillStyle = `rgba(11,12,14,${0.35 * p})`; ctx.fillRect(0, 0, s.w, s.h);
+    const img = IMG.sheet, k = s.w / img.width;
+    ctx.drawImage(img, 0, (1 - p) * s.h * 0.7, s.w, img.height * k);
+  });
+  ctx.restore();
+}
 const RANGE = [
-  { at: 11.0, item: 'Wireless earbuds', here: '$89', normal: '$59', stamp: 'Bad price', fill: C.walk, on: '#FFFFFF',
-    hereCol: C.walkBright, glow: C.walk, face: 'bluntAngry', line: ['"They\'re robbing you."'], shake: 7 },
-  { at: 13.0, item: 'Peanut butter, 1 kg', here: '$6.29', normal: '$5.99', stamp: 'Reasonable', fill: C.fair, on: C.fairOn,
-    hereCol: C.fairBright, glow: C.fair, face: 'bluntFair', line: ['"Fine. Buy it."'], shake: 0 },
-  { at: 15.0, item: 'Honey oat cereal', here: '$3.49', normal: '$6.00', stamp: 'Great price', fill: C.good, on: C.goodOn,
-    hereCol: C.goodBright, glow: C.good, face: 'bluntDelighted', line: ['"Somebody made a mistake.', 'Enjoy it."'], shake: 0, delight: true },
+  { at: T.range, item: 'Wireless earbuds', here: '$89', normal: '$59', word: 'Bad price', fill: C.walk, on: '#FFFFFF', bright: C.walkBright, face: 'bluntAngry', line: '"They\'re robbing you."' },
+  { at: T.range + 1.5, item: 'Peanut butter, 1 kg', here: '$6.29', normal: '$5.99', word: 'Reasonable', fill: C.fair, on: C.fairOn, bright: C.fairBright, face: 'bluntFair', line: '"Fine. Buy it."' },
+  { at: T.range + 3.0, item: 'Honey oat cereal', here: '$3.49', normal: '$6.00', word: 'Great price', fill: C.good, on: C.goodOn, bright: C.goodBright, face: 'bluntDelighted', line: '"Somebody made a mistake."' },
 ];
-const MASCOT = { x: 540, y: 590, size: 460 };
 function range(ctx, t) {
-  const S = [...RANGE].reverse().find(s => t >= s.at);
-  const tl = t - S.at;
-  verdictGround(ctx, t, S.glow, MASCOT.x, MASCOT.y, S.delight ? 0.9 : 0.4);
-  const [jx, jy] = S.shake ? jitter(t, tl < 0.3 ? S.shake * 2 : S.shake * 0.5, 2) : [0, 0];
-  ctx.save(); ctx.translate(jx, jy);
-  // mascot
-  let sc = slam(tl, 1.17, 0.16, 2.0) || 1, dy = 0;
-  if (S.delight) {
-    sc = lerp(0.35, 1, eBack(tl / 0.22, 2.0));
-    dy = -Math.abs(Math.sin(tl * Math.PI * 2)) * 22;
-    if (tl < 0.5) { ctx.beginPath(); ctx.arc(MASCOT.x, MASCOT.y, 120 + tl * 1600, 0, 7); ctx.lineWidth = 40 * (1 - tl / 0.5); ctx.strokeStyle = C.goodBright; ctx.stroke(); }
-    const r = rng(33);
-    for (let i = 0; i < 8; i++) {
-      const a = r() * 6.28, d = 250 + r() * 80, ph = (tl * 2 + r()) % 1;
-      sparkle(ctx, MASCOT.x + Math.cos(a) * d, MASCOT.y + Math.sin(a) * d * 0.8 + dy, 20 + 24 * Math.sin(ph * Math.PI), tl * 2 + i, i % 2 ? C.fairBright : C.ink);
+  const i = RANGE.findLastIndex(r => t >= r.at), S = RANGE[i], P = RANGE[i - 1];
+  const tl = t - S.at, x = eInOut(tl / 0.4);
+  // the glow eases from the last verdict's hue to this one's
+  darkGround(ctx, t, hex2rgba(S.fill), 540, 700, P ? x : clamp(tl / 0.4), 900);
+  if (P && x < 1) { ctx.save(); ctx.globalAlpha = 1 - x; darkGround(ctx, t, hex2rgba(P.fill), 540, 700, 1, 900); ctx.restore(); }
+  if (P) faceSwap(ctx, IMG[P.face], IMG[S.face], 540, 620, 400, t, S.at, { dark: true });
+  else { const fp = eExpo(tl / 0.5); face(ctx, IMG[S.face], 540, 620, 400, t, { dark: true, alpha: fp, blur: (1 - fp) * 12 }); }
+  const t1 = i < RANGE.length - 1 ? RANGE[i + 1].at - 0.25 : null;
+  line1(ctx, S.item, 540, 916, FONTS.ui(46), C.muted, t, S.at + 0.05, t1);
+  line1(ctx, S.here, 540, 1100, FONTS.display(170), S.bright, t, S.at + 0.12, t1);
+  line1(ctx, `normally ${S.normal}`, 540, 1180, FONTS.ui(46), C.ink, t, S.at + 0.2, t1);
+  if (tl >= 0.35) {
+    const out = t1 != null ? 1 - eInOut((t - t1) / 0.25) : 1;
+    pill(ctx, S.word, 540, 1320, 62, S.fill, S.on, lerp(0.7, 1, eBack((tl - 0.35) / 0.3, 1.8)) * out, hex2rgba(S.fill) + '.7)');
+  }
+  line1(ctx, S.line, 540, 1490, FONTS.ui(50), C.ink, t, S.at + 0.6, t1);
+  // a steal gets a little lift: soft sparks rising
+  if (S.word === 'Great price' && tl > 0.35) {
+    for (let k = 0; k < 14; k++) {
+      const ph = ((tl - 0.35) * 0.7 + k / 14) % 1, xx = 540 + Math.sin(k * 2.4) * 330, yy = 860 - ph * 520;
+      ctx.save(); ctx.globalAlpha = (1 - ph) * 0.8; ctx.fillStyle = k % 2 ? C.goodBright : '#fff'; ctx.shadowColor = C.goodBright; ctx.shadowBlur = 16;
+      ctx.beginPath(); ctx.arc(xx, yy, 5 + (k % 3) * 2, 0, 7); ctx.fill(); ctx.restore();
     }
   }
-  const rot = S.shake ? jitter(t + 3, 0.08, 9)[0] / 10 : 0.03 * Math.sin(tl * 5);
-  const size = MASCOT.size * sc;
-  face(ctx, IMG[S.face], MASCOT.x, MASCOT.y + dy, size, rot);
-  if (S.shake && tl > 0.05) {
-    const pop = 1 + 0.25 * Math.abs(Math.sin(t * Math.PI * 4));
-    vein(ctx, MASCOT.x + size * 0.36, MASCOT.y - size * 0.34, 42 * pop, 0.2);
-  }
-  // what is being priced, so the face has a target (brand book "The target rule")
-  textLine(ctx, S.item, 540, 876, 46, { fill: C.ink, weight: 600, family: FU });
-  // the two numbers
-  card(ctx, 175, 905, 350, 250, S.here, 'here', S.hereCol, slam(tl - 0.2, 1.22, 0.16), S.hereCol);
-  card(ctx, 555, 905, 350, 250, S.normal, 'normally', C.ink, slam(tl - 0.267, 1.22, 0.16), C.hair);
-  if (tl >= 0.267) {
-    ctx.save(); ctx.translate(540, 1030); const vs = slam(tl - 0.267, 0.3, 0.16, 2.5); ctx.scale(vs, vs);
-    ctx.beginPath(); ctx.arc(0, 0, 40, 0, 7); ctx.fillStyle = C.fairBright; ctx.fill(); ink(ctx, 7);
-    textLine(ctx, 'vs', 0, 13, 40, { fill: C.faceInk });
-    ctx.restore();
-  }
-  stamp(ctx, S.stamp, 540, 1255, -0.07, S.fill, S.on, tl - 0.5);
-  bubble(ctx, S.line, tl - 0.9, 1360);
-  if (S.delight) confetti(ctx, tl - 0.5, 55, MASCOT.x, MASCOT.y, 1000, 1500);
-  ctx.restore();
-  flash(ctx, t, S.at, 0.12, 0.7);
 }
-
-// ---------- 17.0 the three personalities ----------
 const VOICES = [
-  { who: 'Deadpan', face: 'deadpanWalk', lines: ['"Two dollars.', 'It\'s $1.47."'] },
-  { who: 'Warm', face: 'warmWalk', lines: ['"Ooh, that\'s steep.', 'I\'d wait."'] },
-  { who: 'Blunt', face: 'bluntWalk', lines: ['"They\'re robbing you."'] },
+  { who: 'Deadpan', face: 'deadpanWalk', line: '"Two dollars. It\'s $1.47."', x: 300 },
+  { who: 'Warm', face: 'warmWalk', line: '"Ooh, that\'s steep. I\'d wait."', x: 540 },
+  { who: 'Blunt', face: 'bluntWalk', line: '"They\'re robbing you."', x: 780 },
 ];
-function voices(ctx, t) {
-  const tl = t - T.voices;
-  neutralGround(ctx, t, 540, 960);
-  captions(ctx, [cap('Pick how blunt', t, T.voices), cap('Pexi is.', t, T.voices + 0.3)], 540, 450, 720, 300, 140);
+function picker(ctx, t) {
+  const tl = t - T.picker;
+  lightGround(ctx, t, 6);
+  headline(ctx, ['Pick your Pexi.'], 540, 400, 140, t, T.picker + 0.1, null, () => C.inkDark);
+  const taps = [T.picker + 0.7, T.picker + 1.5, T.picker + 2.3];
+  const sel = taps.filter(ta => t >= ta).length - 1;
+  // the big one shows the current pick
+  if (sel >= 0) {
+    const cur = VOICES[sel], prev = VOICES[Math.max(0, sel - 1)];
+    if (sel === 0) { const fp = eExpo((t - taps[0]) / 0.4); face(ctx, IMG[cur.face], 540, 800, 380, t, { alpha: fp, blur: (1 - fp) * 10 }); }
+    else faceSwap(ctx, IMG[prev.face], IMG[cur.face], 540, 800, 380, t, taps[sel]);
+    // the speech bubble
+    const g = glide(t, taps[sel] + 0.05, sel < 2 ? taps[sel + 1] - 0.15 : Infinity, 0.4);
+    if (g.a > 0.01) {
+      ctx.save(); ctx.globalAlpha = g.a; if (g.blur > 0.3) ctx.filter = `blur(${g.blur.toFixed(1)}px)`;
+      ctx.font = FONTS.ui(50); const w = ctx.measureText(cur.line).width + 80, by = 1080 + g.dy * 0.4;
+      ctx.shadowColor = 'rgba(30,30,70,.16)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 14;
+      rr(ctx, 540 - w / 2, by, w, 112, 56); ctx.fillStyle = '#fff'; ctx.fill(); ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      ctx.beginPath(); ctx.moveTo(520, by + 2); ctx.lineTo(540, by - 22); ctx.lineTo(560, by + 2); ctx.fill();
+      ctx.fillStyle = C.navy; ctx.textAlign = 'center'; ctx.fillText(cur.line, 540, by + 72);
+      ctx.restore();
+      if (g.a > 0.5) reg(ctx, 'text', cur.line, 540 - w / 2, 1080, 540 + w / 2, 1192);
+    }
+  }
+  // the three swatches
   VOICES.forEach((v, i) => {
-    const at = 0.5 + i * 0.5, s = slam(tl - at, 0.4, 0.18, 2.0);
-    if (s == null) return;
-    const y = 800 + i * 290;
-    ctx.save(); ctx.translate(540, y); ctx.scale(s, s); ctx.translate(-540, -y);
-    face(ctx, IMG[v.face], 290, y, 230, 0.03 * Math.sin(tl * 5 + i));
-    // the bubble, its tail pointing at the face
-    const bx = 418, bw = 507, bh = 92 + v.lines.length * 60, by = y - bh / 2;
-    ctx.beginPath(); ctx.moveTo(bx + 6, y - 22); ctx.lineTo(bx - 34, y + 6); ctx.lineTo(bx + 6, y + 26); ctx.closePath(); ctx.fillStyle = '#fff'; ctx.fill(); ink(ctx, 7);
-    rr(ctx, bx, by, bw, bh, 34); ctx.fillStyle = '#fff'; ctx.fill(); ink(ctx, 7);
-    ctx.fillStyle = '#fff'; ctx.fillRect(bx - 4, y - 18, 14, 40);
-    ctx.save(); ctx.textAlign = 'left';
-    setFont(ctx, 30, 600, FM); ctx.letterSpacing = '3px'; ctx.fillStyle = C.inkMuted;
-    const label = v.who.toUpperCase();
-    textLine(ctx, label, bx + 34 + lineWidth(ctx, label) / 2, by + 50, 30, { fill: '#5B6675', weight: 600, family: FM, tracking: 0.1 });
-    setFont(ctx, 54);
-    const size = Math.min(54, 54 * (bw - 68) / Math.max(...v.lines.map(l => lineWidth(ctx, l))));
-    v.lines.forEach((l, j) => { setFont(ctx, size); textLine(ctx, l, bx + 34 + lineWidth(ctx, l) / 2, by + 112 + j * 60, size, { fill: C.faceInk }); });
+    const g = glide(t, T.picker + 0.15 + i * 0.08, Infinity, 0.5);
+    const y = 1430 + g.dy;
+    ctx.save(); ctx.globalAlpha = g.a;
+    if (i === sel) { ctx.beginPath(); ctx.arc(v.x, y, 92, 0, 7); ctx.lineWidth = 7; ctx.strokeStyle = C.inkDark; ctx.stroke(); }
+    ctx.drawImage(IMG[v.face], v.x - 76, y - 76, 152, 152);
+    ctx.font = FONTS.mono(26); ctx.letterSpacing = '3px'; ctx.textAlign = 'center'; ctx.fillStyle = i === sel ? C.inkDark : C.mutedDark;
+    ctx.fillText(v.who.toUpperCase(), v.x, y + 140);
     ctx.restore();
-    ctx.restore();
+    if (g.a > 0.5) reg(ctx, 'face', v.who, v.x - 92, y - 92, v.x + 92, y + 150);
   });
-  flash(ctx, t, T.voices, 0.12, 0.6);
+  const [cx, cy] = path2([[T.picker + 0.2, 960, 1800], [T.picker + 0.6, VOICES[0].x + 20, 1450], [T.picker + 1.2, VOICES[0].x + 20, 1450], [T.picker + 1.45, VOICES[1].x + 20, 1450], [T.picker + 2.0, VOICES[1].x + 20, 1450], [T.picker + 2.25, VOICES[2].x + 20, 1450]], t);
+  if (tl > 0.2) cursor(ctx, cx, cy, t, taps);
 }
-
-// ---------- 20.5 the ask, 22.5 the end card ----------
-function share(ctx, t) {
-  const tl = t - T.share;
-  neutralGround(ctx, t, 540, 1250);
-  captions(ctx, [cap('Send this to the friend', t, T.share), cap('who always overpays.', t, T.share + 0.5)], 540, 640, 760, 560, 150);
-  const s = slam(tl - 1.0, 0.3, 0.2, 2.2);
-  if (s != null) face(ctx, IMG.bluntPleased, 540, 1260 - Math.abs(Math.sin((tl - 1) * Math.PI * 2)) * 16, 380 * s, 0.04 * Math.sin(tl * 6));
-  flash(ctx, t, T.share, 0.12, 0.6);
-}
-function endCard(ctx, t) {
+function end(ctx, t) {
   const tl = t - T.end;
-  ctx.fillStyle = C.ground; ctx.fillRect(0, 0, W, H);
-  const g = ctx.createRadialGradient(540, 820, 50, 540, 820, 900);
-  g.addColorStop(0, 'rgba(34,38,44,1)'); g.addColorStop(1, 'rgba(11,12,14,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const s = slam(tl, 0.3, 0.2, 2.2);
-  // the app icon, as a home-screen tile
-  ctx.save(); ctx.translate(540, 760); ctx.scale(s, s);
-  ctx.fillStyle = 'rgba(0,0,0,.5)'; rr(ctx, -150 + 10, -150 + 18, 300, 300, 68); ctx.fill();
-  ctx.save(); rr(ctx, -150, -150, 300, 300, 68); ctx.clip(); ctx.drawImage(IMG.icon, -150, -150, 300, 300); ctx.restore();
-  rr(ctx, -150, -150, 300, 300, 68); ctx.lineWidth = 3; ctx.strokeStyle = C.hair; ctx.stroke();
-  reg(ctx, 'face', 'icon', -150, -150, 150, 150);
+  darkGround(ctx, t, 'rgba(229,22,94,', 540, 820, clamp(tl / 0.8), 820);
+  // the app icon, as a home-screen tile, ringed in neon
+  const ip = eExpo((tl - 0.05) / 0.6);
+  ctx.save(); ctx.globalAlpha = ip; ctx.translate(540, 780); ctx.scale(lerp(0.85, 1, ip), lerp(0.85, 1, ip));
+  if (ip < 0.97) ctx.filter = `blur(${((1 - ip) * 14).toFixed(1)}px)`;
+  ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 50; ctx.shadowOffsetY = 20;
+  rr(ctx, -130, -130, 260, 260, 60); ctx.fillStyle = '#000'; ctx.fill(); ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.save(); rr(ctx, -130, -130, 260, 260, 60); ctx.clip(); ctx.drawImage(IMG.icon, -130, -130, 260, 260); ctx.restore();
   ctx.restore();
-  const ws = slam(tl - 0.25, 0.4, 0.18, 2.4);
-  if (ws != null) { ctx.save(); ctx.translate(540, 1080); ctx.scale(ws, ws); ctx.translate(-540, -1080); wordmark(ctx, 540, 1080, 170, false); ctx.restore(); }
-  const ts = slam(tl - 0.6, 0.55, 0.16, 1.2);
-  if (ts != null) { ctx.save(); ctx.translate(540, 1270); ctx.scale(ts, ts); ctx.translate(-540, -1270); textLine(ctx, 'Scan anything.', 540, 1295, 84, { fill: C.ink }); ctx.restore(); }
-  flash(ctx, t, T.end, 0.15, 0.7);
+  if (ip > 0.5) reg(ctx, 'face', 'icon', 410, 650, 670, 910);
+  neonRing(ctx, 540, 780, 215, eInOut((tl - 0.2) / 0.9), C.brand, 1, t);
+  const lp = glide(t, T.end + 0.6, Infinity, 0.6);
+  if (lp.a > 0.01) { ctx.save(); ctx.globalAlpha = lp.a; if (lp.blur > 0.3) ctx.filter = `blur(${lp.blur.toFixed(1)}px)`; ctx.translate(0, lp.dy * 0.6); logo(ctx, 540, 1150, 190); ctx.restore(); }
+  line1(ctx, "Know if it's a rip-off.", 540, 1330, FONTS.ui(56), C.muted, t, T.end + 1.0);
+  line1(ctx, '@pexi.app', 540, 1560, FONTS.mono(34), C.ink, t, T.end + 1.4);
 }
 
+// ---------- the timeline and its transitions ----------
+const SCENES = [
+  { start: 0, draw: hook }, { start: T.meet, draw: meet, enter: 'shrink' }, { start: T.scan, draw: scan, enter: 'zoom' },
+  { start: T.check, draw: check, enter: 'zoom' }, { start: T.sheet, draw: sheet, enter: 'zoom' }, { start: T.range, draw: range, enter: 'shrink' },
+  { start: T.picker, draw: picker, enter: 'zoom' }, { start: T.end, draw: end, enter: 'shrink' },
+];
+const TR = 0.45;
 function renderFrame(ctx, f, log) {
   LOG = log || null;
   const t = f / FPS;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.globalAlpha = 1;
-  if (t < T.meet) hook(ctx, t);
-  else if (t < T.scan) meet(ctx, t);
-  else if (t < T.range) scanAndSheet(ctx, t);
-  else if (t < T.voices) range(ctx, t);
-  else if (t < T.share) voices(ctx, t);
-  else if (t < T.end) share(ctx, t);
-  else endCard(ctx, t);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.filter = 'none';
+  const i = SCENES.findLastIndex(s => t >= s.start), S = SCENES[i];
+  S.draw(ctx, t);
+  const k = (t - S.start) / TR;
+  if (S.enter && k < 1) {
+    // the outgoing scene, drawn into a buffer and laid over the incoming one
+    if (!BUF) BUF = new OffscreenCanvas(W, H);
+    const b = BUF.getContext('2d'); b.setTransform(1, 0, 0, 1, 0, 0); b.globalAlpha = 1; b.filter = 'none';
+    const log2 = LOG; LOG = null; SCENES[i - 1].draw(b, t); LOG = log2;
+    const p = eInOut(k);
+    ctx.save();
+    if (S.enter === 'shrink') {
+      // the old scene shrinks into a rounded card and falls away, blurring
+      const s = lerp(1, 0.62, p), r = lerp(0, 90, clamp(p * 3));
+      ctx.globalAlpha = 1 - eOut(clamp((k - 0.35) / 0.65));
+      ctx.translate(540, 960 + p * 260); ctx.scale(s, s); ctx.translate(-540, -960);
+      if (p > 0.05) ctx.filter = `blur(${(p * 18).toFixed(1)}px)`;
+      rr(ctx, 0, 0, W, H, r / s); ctx.clip(); ctx.drawImage(BUF, 0, 0);
+    } else {
+      // the old scene rushes past the camera
+      const s = lerp(1, 1.35, p);
+      ctx.globalAlpha = 1 - p;
+      ctx.translate(540, 960); ctx.scale(s, s); ctx.translate(-540, -960);
+      ctx.filter = `blur(${(p * 26).toFixed(1)}px)`;
+      ctx.drawImage(BUF, 0, 0);
+    }
+    ctx.restore();
+  }
   LOG = null;
 }
 

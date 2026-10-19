@@ -31,6 +31,8 @@ const SVGS = {
   bluntFair: svg('faces/blunt/fair.svg'),
   bluntDelighted: svg('faces/blunt/delighted.svg'),
   bluntPleased: svg('faces/blunt/pleased.svg'),
+  bluntIdle: svg('faces/blunt/idle.svg'),
+  bluntThinking: svg('faces/blunt/thinking.svg'),
   icon: svg('icon.svg'),
 };
 

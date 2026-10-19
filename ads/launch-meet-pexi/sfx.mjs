@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const SR = 48000, DUR = 24, N = SR * DUR;
+const SR = 48000, DUR = 20, N = SR * DUR;
 const TAU = Math.PI * 2;
 let seed = 12345;
 const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296 * 2 - 1; };
@@ -116,45 +116,47 @@ function whoosh(dur = 0.4) {
 }
 
 // ---------- the score ----------
+// a soft UI click (the cursor) and a tick (a checklist line done)
+const click = () => buf(0.04, t => (rnd() * 0.5 + Math.sin(TAU * 3200 * t)) * Math.exp(-t * 160));
+const tick = () => buf(0.25, t => (Math.sin(TAU * 1760 * t) + 0.4 * Math.sin(TAU * 2640 * t)) * Math.exp(-t * 18) * 0.6);
+const boop = (f0, f1) => buf(0.45, t => Math.sin(TAU * (f0 * t + (f1 - f0) * t * t / 0.9)) * Math.exp(-t * 6) * Math.min(1, t / 0.01));
 const music = track(), hits = track();
-// beat: four bars of one chord each, Am F C G, at 120 BPM (a bar is 2 s)
+// a light groove, Am F C G, 120 BPM: soft kick on the beat, shaker on the off-beat, bass and a pad
 const ROOTS = [55, 43.65, 65.41, 49.0];
 const CHORDS = [[220, 261.6, 329.6], [174.6, 220, 261.6], [261.6, 329.6, 392], [196, 246.9, 293.7]];
-const BEAT_END = 22.5;
+const BEAT_END = 16.7;
 for (let b = 0; b * 0.5 < BEAT_END; b++) {
   const t = b * 0.5, bar = Math.floor(t / 2) % 4;
-  // the hook's first second is half-time so the stamp at 1.5 lands as the drop
-  const full = t >= 1.5;
-  if (full || b % 2 === 0) add(music, t, kick(), 0.9);
-  if (full && b % 2 === 1) add(music, t, clap(), 0.35, 0.1);
-  if (full) { add(music, t + 0.25, hat(b % 4 === 3), 0.12, -0.2); add(music, t, hat(), 0.07, 0.2); }
-  add(music, t, bass(ROOTS[bar] * (b % 4 === 2 ? 2 : 1), 0.42), 0.32);
-  if (t % 2 === 0) add(music, t, pad(CHORDS[bar], 2.0), full ? 0.1 : 0.06);
+  const full = t >= 2.5;
+  add(music, t, kick(), full ? 0.55 : 0.3);
+  if (full) { add(music, t + 0.25, hat(), 0.08, -0.25); add(music, t + 0.125, hat(), 0.035, 0.25); add(music, t + 0.375, hat(), 0.035, 0.25); }
+  add(music, t, bass(ROOTS[bar] * (b % 4 === 2 ? 2 : 1), 0.42), 0.22);
+  if (t % 2 === 0) add(music, t, pad(CHORDS[bar], 2.0), 0.13);
 }
-add(music, BEAT_END, kick(), 1.0);
-add(music, BEAT_END, pad([220, 261.6, 329.6, 440], 1.5), 0.16);
+add(music, BEAT_END, pad([220, 261.6, 329.6, 440], 3.2), 0.2);
+add(music, BEAT_END + 0.5, pad([329.6, 440, 523.3], 2.8), 0.12);
 
-// hook
-add(hits, 0.0, pop(700), 0.5); add(hits, 0.5, pop(900), 0.5);
-add(hits, 1.5, scratch(), 0.7, -0.1); add(hits, 1.5, thud(), 0.9); add(hits, 1.5, rumble(0.95), 0.4);
-// meet
-add(hits, 2.3, whoosh(0.2), 0.5); add(hits, 2.5, pop(1200), 0.55); add(hits, 2.6, ding(), 0.3); add(hits, 3.4, pop(900), 0.4);
-// scan and the sheet
-add(hits, 4.2, whoosh(0.3), 0.6); add(hits, 4.65, pop(800), 0.35);
-add(hits, 6.0, beep(), 0.55); add(hits, 6.0, whoosh(0.35), 0.4, 0.15);
-add(hits, 6.2, pop(800), 0.35); add(hits, 6.45, pop(1000), 0.35);
-add(hits, 8.1, whoosh(0.4), 0.45); add(hits, 8.5, pop(800), 0.35); add(hits, 9.0, pop(1000), 0.35);
-// the range: bad, reasonable, great
-add(hits, 10.7, whoosh(0.3), 0.5);
-add(hits, 11.0, thud(), 0.7); add(hits, 11.2, scratch(), 0.6, -0.15); add(hits, 11.0, rumble(1.9), 0.45); add(hits, 11.5, thud(), 0.8); add(hits, 11.9, pop(700), 0.4);
-add(hits, 13.0, thud(), 0.6); add(hits, 13.5, thud(), 0.6); add(hits, 13.9, pop(900), 0.4);
-add(hits, 15.0, thud(), 0.5); add(hits, 15.5, ding(), 0.7); add(hits, 15.9, pop(1100), 0.4);
-// voices
-add(hits, 16.8, whoosh(0.2), 0.45); add(hits, 17.0, pop(800), 0.4); add(hits, 17.3, pop(800), 0.4);
-add(hits, 17.5, pop(700), 0.45, -0.2); add(hits, 18.0, pop(900), 0.45, 0); add(hits, 18.5, pop(1100), 0.45, 0.2);
-// the ask and the end card
-add(hits, 20.3, whoosh(0.2), 0.45); add(hits, 20.5, pop(800), 0.45); add(hits, 21.0, pop(1000), 0.45); add(hits, 21.5, pop(1300), 0.4);
-add(hits, 22.3, whoosh(0.2), 0.5); add(hits, 22.5, ding(), 0.6); add(hits, 22.75, pop(1200), 0.35); add(hits, 23.1, pop(900), 0.35);
+// transitions
+for (const at of [2.6, 4.6, 5.9, 7.3, 9.2, 13.7, 16.7]) add(hits, at - 0.2, whoosh(0.4), 0.32);
+// hook: words land, the verdict lands
+add(hits, 0.05, pop(800), 0.22); add(hits, 0.25, pop(900), 0.22); add(hits, 0.45, pop(1000), 0.22);
+add(hits, 2.0, boop(320, 160), 0.5); add(hits, 2.0, pop(600), 0.3);
+// meet: the ring draws, a chime
+add(hits, 2.8, ding(), 0.28); add(hits, 3.15, pop(1200), 0.25);
+// scan: the tap, the beep
+add(hits, 5.6, click(), 0.6); add(hits, 5.62, beep(), 0.4);
+// checks
+add(hits, 6.43, tick(), 0.45); add(hits, 6.81, tick(), 0.45); add(hits, 7.19, tick(), 0.5);
+// the sheet rises
+add(hits, 7.35, pop(700), 0.25);
+// the range
+add(hits, 9.55, boop(300, 140), 0.55);
+add(hits, 11.05, boop(520, 520), 0.35);
+add(hits, 12.55, ding(), 0.55);
+// the picker
+for (const at of [14.4, 15.2, 16.0]) { add(hits, at, click(), 0.6); add(hits, at + 0.03, pop(1000), 0.2); }
+// the end
+add(hits, 16.9, ding(), 0.35); add(hits, 17.3, pop(1300), 0.25);
 
 function write(file, parts) {
   const L = new Float32Array(N), R = new Float32Array(N);

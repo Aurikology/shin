@@ -17,7 +17,7 @@ const enc = ['-c:v', 'libx264', '-preset', 'slow', '-crf', '16', '-profile:v', '
 const aac = ['-c:a', 'aac', '-b:a', '256k', '-ar', '48000', '-shortest'];
 ff([...vid, '-i', path.join(out, 'mix.wav'), ...enc, ...aac, path.join(out, 'meet-pexi.mp4')]);
 ff([...vid, '-i', path.join(out, 'hits.wav'), ...enc, ...aac, path.join(out, 'meet-pexi-hits.mp4')]);
-ff([...vid, '-f', 'lavfi', '-t', '24', '-i', 'anullsrc=r=48000:cl=stereo', ...enc, ...aac, path.join(out, 'meet-pexi-silent.mp4')]);
+ff([...vid, '-f', 'lavfi', '-t', '20', '-i', 'anullsrc=r=48000:cl=stereo', ...enc, ...aac, path.join(out, 'meet-pexi-silent.mp4')]);
 ff([...vid, '-vf', 'select=not(mod(n\\,15)),drawbox=x=154:y=285:w=771:h=1350:color=yellow@0.9:t=6,scale=216:384,tile=12x4:padding=4:color=white',
   '-frames:v', '1', '-update', '1', path.join(out, 'contact-sheet.png')]);
 console.log('done');
