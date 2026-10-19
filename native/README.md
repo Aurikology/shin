@@ -114,7 +114,7 @@ not in `native/`. That edit is outside my file ownership for this task, so it is
 rather than made. Until it lands, `camera-bridge.js` is a tested-in-isolation module sitting
 next to the app, not yet in its call path.
 
-## iOS: prerequisites, in order; 1 and 2 are done, 3 is not
+## iOS: prerequisites, in order; 1, 2 and 3 are done
 
 1. ~~**Install Xcode from the Mac App Store.**~~ Done 2026-10-16: Xcode 27.1, with the
    iPhoneOS 27.1 SDK.
@@ -122,25 +122,41 @@ next to the app, not yet in its call path.
    (`sudo xcodebuild -license accept`, which he ran himself; it needs a password). Until it was
    accepted, every `xcodebuild` call AND Homebrew refused to run, which reads as several
    separate faults and is one.
-3. **Get a signing identity. NOT DONE, and it is his to do.** `security find-identity -v -p
-   codesigning` returns zero, because no Apple ID is signed in to Xcode (Xcode > Settings >
-   Accounts). This machine never holds that credential, so it cannot sign in for him. The paid
-   Apple Developer Program is already active (individual, team 2Z2PZM5635), so this is a
-   sign-in, not an enrolment.
-4. **Only after 3**, from `native/`:
+3. ~~**Get a signing identity.**~~ Done 2026-10-18: he signed in to Xcode > Settings >
+   Apple Accounts himself (xujamin90@icloud.com, team 2Z2PZM5635, paid individual membership).
+   This machine never holds that credential and never typed it; everything below runs off the
+   session Xcode already has.
+4. **Build and upload, from `native/`, with no GUI and no password anywhere:**
    ```
-   npm run sync
-   npx cap sync ios
-   npx cap open ios
+   npm run sync && npx cap sync ios
+   cd ios/App
+   xcodebuild -workspace App.xcworkspace -scheme App -configuration Release \
+     -destination 'generic/platform=iOS' -archivePath <path>/Pexi.xcarchive \
+     CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" archive
+   xcodebuild -exportArchive -archivePath <path>/Pexi.xcarchive -exportPath <path>/upload \
+     -exportOptionsPlist <path>/exportOptionsUpload.plist -allowProvisioningUpdates
    ```
-   This opens Xcode. Pick a signing team under Signing & Capabilities, pick a connected iPhone
-   or a simulator as the run target, then Run. Building the `.ipa` for TestFlight is Xcode's
-   Product > Archive, then Distribute App > TestFlight & App Store Connect, from inside the
-   organizer.
+   The export options are `method: app-store-connect`, `teamID: 2Z2PZM5635`,
+   `signingStyle: automatic`, `destination: upload`, `manageAppVersionAndBuildNumber: false`.
 
-Step 4 has been run on the Mac as far as it goes without signing: `npm run sync`,
-`npx cap sync ios`, `pod install` and a Release device build all pass (2026-10-17). The archive
-and the TestFlight upload wait on step 3.
+**Why the archive is built unsigned and signed at export (2026-10-18, learned the hard way).**
+A straight `xcodebuild archive` with automatic signing asks Apple for a *development* profile,
+and Apple refuses: *"Your team has no devices from which to generate a provisioning profile."*
+No iPhone has ever been registered to this team. Forcing `CODE_SIGN_IDENTITY = "Apple
+Distribution"` instead fails differently: *"automatically signed for development, but a
+conflicting code signing identity Apple Distribution has been manually specified."* Archiving
+unsigned sidesteps both, and `-exportArchive -allowProvisioningUpdates` then creates the
+distribution certificate and the App Store profile on its own and signs the `.ipa` with them.
+No device is needed because a distribution profile has no device list.
+
+Verified from the exported `.ipa`, not from the project: `Authority=Apple Distribution: Jamin
+Xu (2Z2PZM5635)`, `Identifier=com.getpexi.app`, `get-task-allow` false, `beta-reports-active`
+true, `CFBundleShortVersionString` 1.0.0, `CFBundleVersion` 1.
+
+**Uploaded 2026-10-18 23:20, "Upload succeeded", and App Store Connect accepted it**, which
+also proves an app record for `com.getpexi.app` already exists in the account. One line in the
+project changed to get there: the Release `CODE_SIGN_IDENTITY`, `"iPhone Developer"` (the
+Capacitor template's, a name retired years ago) to `"Apple Development"`.
 
 **This project is on CocoaPods, not Swift Package Manager (2026-10-17).** It was regenerated
 with `npx cap add ios --packagemanager CocoaPods` because neither ML Kit plugin ships a
